@@ -16,6 +16,7 @@ interface PlayerDoc {
   seasons?: string[];
   active?: boolean;
   naturalPosition?: Zone;
+  injured?: boolean;
   seasonDetails?: Record<string, { shirtName: string; number: number }>;
 }
 
@@ -28,6 +29,10 @@ export interface PizarraPlayer {
   number: number;
   /** Squad-level natural position, set by an admin (Firestore). */
   naturalPosition?: Zone;
+  /** Number of seasons in the club (for the chemistry experience axis). */
+  seasonsCount: number;
+  /** Admin-set unavailability flag. */
+  injured: boolean;
 }
 
 /**
@@ -36,6 +41,14 @@ export interface PizarraPlayer {
  */
 export async function setNaturalPosition(playerId: string, pos: Zone | null): Promise<void> {
   await updateDoc(doc(db, "players", playerId), { naturalPosition: pos });
+}
+
+/**
+ * Persist a player's injury flag. Caller must gate this to admins (the
+ * Firestore `players` update rule enforces admin role server-side).
+ */
+export async function setInjured(playerId: string, injured: boolean): Promise<void> {
+  await updateDoc(doc(db, "players", playerId), { injured });
 }
 
 // Resolve the shirt name + dorsal for the active season, falling back to the
@@ -86,7 +99,16 @@ export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolea
     return inSeason
       .map((p) => {
         const { shirtName, number } = resolve(p, selectedSeasonId, seasons);
-        return { id: p.id, firstName: p.firstName || "", lastName: p.lastName || "", shirtName, number, naturalPosition: p.naturalPosition };
+        return {
+          id: p.id,
+          firstName: p.firstName || "",
+          lastName: p.lastName || "",
+          shirtName,
+          number,
+          naturalPosition: p.naturalPosition,
+          seasonsCount: p.seasons?.length ?? 0,
+          injured: p.injured === true,
+        };
       })
       .sort((a, b) => a.number - b.number);
   }, [docs, selectedSeasonId, seasons]);
