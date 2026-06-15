@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { DragDropProvider, useDroppable, type DragEndEvent } from "@dnd-kit/react";
-import { Users, Search, X } from "lucide-react";
+import { Users, Search, X, Copy } from "lucide-react";
 import { FloodlightCanvas } from "../../components/FloodlightCanvas";
 import { useSeason } from "../../context/SeasonContext";
 import { useAuth } from "../../context/AuthContext";
@@ -25,6 +25,10 @@ import {
   type Zone,
 } from "./formations";
 import { defaultTactics, type TacticKey } from "./tactics";
+import { useLineups, type OfficialScope } from "./useLineups";
+import { useSeasonMatches } from "./useSeasonMatches";
+import { LineupsPanel, type SaveState } from "./LineupsPanel";
+import { extractLineup } from "./lineupDoc";
 import "./Pizarra.css";
 
 const DEFAULT_FORMATION: FormationName = "2-3-1";
@@ -113,6 +117,8 @@ export const Pizarra: React.FC = () => {
   const isAdmin = profile?.role === "admin" || profile?.role === "superadmin";
   const { players, loading } = usePizarraPlayers();
   const { settings, set: setSetting } = usePizarraSettings();
+  const lineups = useLineups(selectedSeasonId);
+  const { matches } = useSeasonMatches(selectedSeasonId);
 
   const [lineup, setLineup] = useState<Lineup>(() => seedLineup(DEFAULT_FORMATION, []));
   const [picked, setPicked] = useState<string | null>(null);
@@ -122,6 +128,13 @@ export const Pizarra: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [benchQuery, setBenchQuery] = useState("");
   const [benchZone, setBenchZone] = useState<Zone | "all">("all");
+
+  // Board identity (persistence). A board can be unsaved (id null), owned
+  // (editable, autosaved) or loaded read-only (official / someone else's).
+  const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
+  const [readOnly, setReadOnly] = useState(false);
+  const [readOnlyInfo, setReadOnlyInfo] = useState<{ official: boolean; nickname: string; scope: string } | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>("none");
 
   const pitchElRef = useRef<HTMLDivElement | null>(null);
   const seededSig = useRef<string>("");
@@ -135,7 +148,9 @@ export const Pizarra: React.FC = () => {
     return m;
   }, [players]);
 
-  // Re-seed only when the roster composition changes (season switch / first load).
+  // Re-seed only when the roster composition changes (season switch / first
+  // load). A re-seed produces a fresh default board, so it also detaches any
+  // active saved board (prevents autosave from overwriting it with the seed).
   const rosterSig = useMemo(() => players.map((p) => p.id).join(","), [players]);
   useEffect(() => {
     if (rosterSig === seededSig.current) return;
@@ -144,13 +159,22 @@ export const Pizarra: React.FC = () => {
     setPicked(null);
     setPast([]);
     setFuture([]);
+    setActiveBoardId(null);
+    setReadOnly(false);
+    setReadOnlyInfo(null);
+    setSaveState("none");
   }, [rosterSig, players]);
 
   // ── History (undo/redo). Every board mutation goes through commit(). ──
+  // A persisted, editable board becomes "dirty" on any change (autosaved).
+  const markDirty = (): void => {
+    if (activeBoardId && !readOnly) setSaveState("dirty");
+  };
   const commit = (next: Lineup): void => {
     setPast((p) => [...p.slice(-29), lineup]);
     setFuture([]);
     setLineup(next);
+    markDirty();
   };
   const undo = (): void => {
     if (past.length === 0) return;
@@ -158,6 +182,7 @@ export const Pizarra: React.FC = () => {
     setLineup(past[past.length - 1]);
     setPast(past.slice(0, -1));
     setPicked(null);
+    markDirty();
   };
   const redo = (): void => {
     if (future.length === 0) return;
@@ -165,6 +190,7 @@ export const Pizarra: React.FC = () => {
     setLineup(future[0]);
     setFuture(future.slice(1));
     setPicked(null);
+    markDirty();
   };
 
   // Keyboard: Ctrl/Cmd+Z undo, +Shift or +Y redo, Esc exits presentation.
@@ -201,6 +227,25 @@ export const Pizarra: React.FC = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Autosave the active owned board ~1s after the last edit. The debounce timer
+  // resets on every lineup change, so rapid edits coalesce into one write. The
+  // functional "saving"→"saved" guard avoids clobbering a fresh edit that
+  // arrived while a write was in flight.
+  useEffect(() => {
+    if (saveState !== "dirty" || !activeBoardId || readOnly) return;
+    const t = window.setTimeout(async () => {
+      setSaveState("saving");
+      try {
+        await lineups.save(activeBoardId, lineup);
+        setSaveState((s) => (s === "saving" ? "saved" : s));
+      } catch (err) {
+        console.error("No se pudo guardar el tablero", err);
+        setSaveState((s) => (s === "saving" ? "dirty" : s));
+      }
+    }, 1000);
+    return () => window.clearTimeout(t);
+  }, [saveState, lineup, activeBoardId, readOnly, lineups]);
+
   const setPitchRef = (el: HTMLElement | null): void => {
     pitchElRef.current = el as HTMLDivElement | null;
     setPitchDropRef(el);
@@ -221,26 +266,107 @@ export const Pizarra: React.FC = () => {
     return !!z && z !== slot.zone;
   };
 
-  // ── Mutating handlers (all via commit) ──
+  // ── Mutating handlers (all via commit; no-op when read-only) ──
   const changeFormation = (name: FormationName): void => {
+    if (readOnly) return;
     withMorph(() => commit({ ...lineup, formation: name, freeMode: false, slots: applyFormation(lineup.slots, name) }));
   };
-  const toggleFreeMode = (): void => commit({ ...lineup, freeMode: !lineup.freeMode });
-  const setTactic = (key: TacticKey, value: string): void => commit({ ...lineup, tactics: { ...lineup.tactics, [key]: value } });
+  const toggleFreeMode = (): void => {
+    if (readOnly) return;
+    commit({ ...lineup, freeMode: !lineup.freeMode });
+  };
+  const setTactic = (key: TacticKey, value: string): void => {
+    if (readOnly) return;
+    commit({ ...lineup, tactics: { ...lineup.tactics, [key]: value } });
+  };
   const resetBoard = (): void => {
+    if (readOnly) return;
     withMorph(() => commit(seedLineup(lineup.formation, players)));
     setPicked(null);
   };
 
   const setOverride = (id: string, zone: Zone | null): void => {
+    if (readOnly) return;
     const pp = { ...lineup.playerPositions };
     if (zone) pp[id] = zone;
     else delete pp[id];
     commit({ ...lineup, playerPositions: pp });
   };
   const togglePin = (id: string): void => {
+    if (readOnly) return;
     const pinned = lineup.pinned.includes(id) ? lineup.pinned.filter((x) => x !== id) : [...lineup.pinned, id];
     commit({ ...lineup, pinned });
+  };
+
+  // ── Board persistence handlers ──
+  const loadDoc = (id: string, asReadOnly: boolean): void => {
+    const d =
+      (asReadOnly ? lineups.official.find((x) => x.id === id) : lineups.mine.find((x) => x.id === id)) ??
+      lineups.mine.find((x) => x.id === id) ??
+      lineups.official.find((x) => x.id === id);
+    if (!d) return;
+    setLineup(extractLineup(d));
+    setPast([]);
+    setFuture([]);
+    setPicked(null);
+    setActiveBoardId(id);
+    setReadOnly(asReadOnly);
+    setReadOnlyInfo(
+      asReadOnly ? { official: d.isOfficial, nickname: d.ownerNickname, scope: d.matchId ? "partido" : "temporada" } : null,
+    );
+    setSaveState(asReadOnly ? "none" : "saved");
+  };
+  const newBoard = (): void => {
+    withMorph(() => setLineup(seedLineup(lineup.formation, players)));
+    setPast([]);
+    setFuture([]);
+    setPicked(null);
+    setActiveBoardId(null);
+    setReadOnly(false);
+    setReadOnlyInfo(null);
+    setSaveState("none");
+  };
+  const saveAs = async (name: string): Promise<void> => {
+    try {
+      const id = await lineups.create(lineup, name);
+      setActiveBoardId(id);
+      setReadOnly(false);
+      setReadOnlyInfo(null);
+      setSaveState("saved");
+    } catch (err) {
+      console.error("No se pudo crear el tablero", err);
+    }
+  };
+  const renameBoard = async (id: string, name: string): Promise<void> => {
+    try {
+      await lineups.rename(id, name);
+    } catch (err) {
+      console.error("No se pudo renombrar el tablero", err);
+    }
+  };
+  const removeBoard = async (id: string): Promise<void> => {
+    try {
+      await lineups.remove(id);
+      if (id === activeBoardId) {
+        setActiveBoardId(null);
+        setReadOnly(false);
+        setReadOnlyInfo(null);
+        setSaveState("none");
+      }
+    } catch (err) {
+      console.error("No se pudo borrar el tablero", err);
+    }
+  };
+  const markOfficial = async (id: string, scope: OfficialScope | null): Promise<void> => {
+    if (!isAdmin) return;
+    try {
+      await lineups.markOfficial(id, scope);
+    } catch (err) {
+      console.error("No se pudo marcar como oficial", err);
+    }
+  };
+  const duplicateForEdit = (): void => {
+    void saveAs(`Copia de ${readOnlyInfo?.official ? "Oficial" : "Tablero"}`);
   };
   const saveNatural = async (id: string, zone: Zone | null): Promise<void> => {
     if (!isAdmin) return;
@@ -254,6 +380,7 @@ export const Pizarra: React.FC = () => {
   // Auto-XI: fill the current system by matching effective zone to slot zone,
   // keeping pinned players in place; the rest of the squad to the bench.
   const autoXI = (): void => {
+    if (readOnly) return;
     const pinnedInSlot = new Map<number, string>();
     lineup.slots.forEach((s, i) => {
       if (s.playerId && lineup.pinned.includes(s.playerId)) pinnedInSlot.set(i, s.playerId);
@@ -288,6 +415,7 @@ export const Pizarra: React.FC = () => {
   };
 
   const handleDragEnd = (event: DragEndEvent): void => {
+    if (readOnly) return;
     const { source, target, transform } = event.operation;
     if (event.canceled || !source) return;
     const id = String(source.id);
@@ -314,6 +442,7 @@ export const Pizarra: React.FC = () => {
 
   // Tap-to-place / keyboard.
   const activateToken = (id: string): void => {
+    if (readOnly) return;
     if (picked === null) {
       setPicked(id);
       return;
@@ -326,19 +455,21 @@ export const Pizarra: React.FC = () => {
     setPicked(null);
   };
   const activateSlot = (index: number): void => {
-    if (picked === null) return;
+    if (readOnly || picked === null) return;
     commit(placeIntoSlot(lineup, picked, index));
     setPicked(null);
   };
   const activateBench = (): void => {
-    if (picked === null) return;
+    if (readOnly || picked === null) return;
     commit(sendToBench(lineup, picked));
     setPicked(null);
   };
 
   const rolesForPlayer = (id: string): RoleMeta[] => ROLE_META.filter((r) => lineup.roles[r.key] === id);
-  const setRole = (key: RoleKey, id: string): void =>
+  const setRole = (key: RoleKey, id: string): void => {
+    if (readOnly) return;
     commit({ ...lineup, roles: { ...lineup.roles, [key]: id || undefined } });
+  };
 
   // ── Derived ──
   const onPitch = lineup.slots.filter((s) => s.playerId);
@@ -356,7 +487,7 @@ export const Pizarra: React.FC = () => {
 
   return (
     <DragDropProvider onDragEnd={handleDragEnd}>
-      <div className={`pz${lineup.freeMode ? " is-free-mode" : ""}${presentMode ? " pz--present" : ""}`}>
+      <div className={`pz${lineup.freeMode ? " is-free-mode" : ""}${presentMode ? " pz--present" : ""}${readOnly ? " pz--readonly" : ""}`}>
         <PizarraControls
           formation={lineup.formation}
           onFormation={changeFormation}
@@ -372,7 +503,41 @@ export const Pizarra: React.FC = () => {
           canRedo={future.length > 0}
           onOpenSettings={() => setSettingsOpen(true)}
           onPresent={() => setPresentMode(true)}
+          readOnly={readOnly}
         />
+
+        <LineupsPanel
+          official={lineups.official}
+          mine={lineups.mine}
+          loading={lineups.loading}
+          activeBoardId={activeBoardId}
+          saveState={saveState}
+          isAdmin={isAdmin}
+          seasonName={seasonName}
+          matches={matches}
+          onLoadMine={(id) => loadDoc(id, false)}
+          onLoadOfficial={(id) => loadDoc(id, true)}
+          onNew={newBoard}
+          onSaveAs={(name) => void saveAs(name)}
+          onRename={(id, name) => void renameBoard(id, name)}
+          onRemove={(id) => void removeBoard(id)}
+          onMarkOfficial={(id, scope) => void markOfficial(id, scope)}
+        />
+
+        {readOnly && readOnlyInfo && (
+          <div className="pz-readonly" role="status">
+            <span className="pz-readonly-seal" aria-hidden="true">
+              <Copy size={14} />
+            </span>
+            <span className="pz-readonly-text">
+              Solo lectura ·{" "}
+              {readOnlyInfo.official ? `Oficial (${readOnlyInfo.scope})` : `Tablero de @${readOnlyInfo.nickname}`}
+            </span>
+            <button type="button" className="pz-btn-solid" onClick={duplicateForEdit}>
+              <Copy size={14} aria-hidden="true" /> Duplicar para editar
+            </button>
+          </div>
+        )}
 
         <div className="pz-status" role="status">
           <span className="pz-status-count">{placedCount}/{XI}</span> en el campo
@@ -410,6 +575,7 @@ export const Pizarra: React.FC = () => {
                   index={index}
                   pendingPlace={picked !== null}
                   showLabel={settings.showEmptyLabels}
+                  disabled={readOnly}
                   onActivate={() => activateSlot(index)}
                 >
                   {player && (
@@ -424,6 +590,7 @@ export const Pizarra: React.FC = () => {
                       settings={settings}
                       positionLabel={ez ? ZONE_LABEL[ez] : undefined}
                       outOfPosition={isOutOfPosition(slot)}
+                      disabled={readOnly}
                       onActivate={() => activateToken(player.id)}
                     />
                   )}
@@ -503,6 +670,7 @@ export const Pizarra: React.FC = () => {
                       settings={settings}
                       positionLabel={ez ? ZONE_LABEL[ez] : undefined}
                       outOfPosition={false}
+                      disabled={readOnly}
                       onActivate={() => activateToken(p.id)}
                     />
                   );
@@ -530,6 +698,7 @@ export const Pizarra: React.FC = () => {
                       value={lineup.roles[r.key] ?? ""}
                       onChange={(e) => setRole(r.key, e.target.value)}
                       aria-label={r.aria}
+                      disabled={readOnly}
                     >
                       <option value="">Ninguno</option>
                       {onPitchIds.map((id) => {
@@ -574,6 +743,7 @@ export const Pizarra: React.FC = () => {
                           value={p.naturalPosition ?? ""}
                           onChange={(e) => saveNatural(p.id, (e.target.value || null) as Zone | null)}
                           aria-label={`Posición natural de ${p.shirtName || p.firstName}`}
+                          disabled={readOnly}
                         >
                           <option value="">—</option>
                           {ZONES.map((z) => (
@@ -589,6 +759,7 @@ export const Pizarra: React.FC = () => {
                         value={override ?? ""}
                         onChange={(e) => setOverride(p.id, (e.target.value || null) as Zone | null)}
                         aria-label={`Posición de ${p.shirtName || p.firstName} en este once`}
+                        disabled={readOnly}
                       >
                         <option value="">Según natural</option>
                         {ZONES.map((z) => (
@@ -602,6 +773,7 @@ export const Pizarra: React.FC = () => {
                       aria-pressed={isPinned}
                       onClick={() => togglePin(p.id)}
                       title={isPinned ? "Soltar" : "Fijar en su posición"}
+                      disabled={readOnly}
                     >
                       {isPinned ? "Fijado" : "Fijar"}
                     </button>
