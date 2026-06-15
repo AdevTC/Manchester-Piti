@@ -6,6 +6,7 @@ import { useReveal } from "../hooks/useReveal";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { X, FileText } from "lucide-react";
+import { computeStats, type PlayerStats, type MatchLike } from "../lib/playerStats";
 import "./Plantilla.css";
 
 interface Player {
@@ -22,13 +23,6 @@ interface Player {
   seasonDetails?: Record<string, { shirtName: string; number: number }>;
 }
 
-interface StatEvent { type: string; playerId?: string; assistPlayerId?: string; }
-interface MatchLike { events?: StatEvent[]; }
-interface PlayerStats {
-  goals: number; assists: number; yellowCards: number; redCards: number; doubleYellows: number;
-  woodwork: number; penaltySaved: number; goalPenalty: number; goalFreekick: number; penaltyMissed: number;
-  ownGoals: number; matchesPlayed: number;
-}
 type Mount = "pichichi" | "capitan" | null;
 interface Perfil { label: string; color: string; headlineMode: "guardian" | null; rationale: string; }
 
@@ -42,36 +36,6 @@ function calculateAge(birthDateStr: string): number {
   const m = today.getMonth() - birth.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
   return age;
-}
-
-function computeStats(playerId: string, matches: MatchLike[]): PlayerStats {
-  const s: PlayerStats = {
-    goals: 0, assists: 0, yellowCards: 0, redCards: 0, doubleYellows: 0, woodwork: 0,
-    penaltySaved: 0, goalPenalty: 0, goalFreekick: 0, penaltyMissed: 0, ownGoals: 0, matchesPlayed: 0,
-  };
-  matches.forEach((match) => {
-    let played = false;
-    (match.events || []).forEach((ev) => {
-      const { type, playerId: epId, assistPlayerId } = ev;
-      if (epId === playerId) {
-        played = true;
-        if (type === "goal") s.goals += 1;
-        else if (type === "goal_penalty") { s.goals += 1; s.goalPenalty += 1; }
-        else if (type === "goal_freekick") { s.goals += 1; s.goalFreekick += 1; }
-        else if (type === "own_goal") s.ownGoals += 1;
-        else if (type === "assist") s.assists += 1;
-        else if (type === "yellow_card") s.yellowCards += 1;
-        else if (type === "red_card") s.redCards += 1;
-        else if (type === "double_yellow") { s.doubleYellows += 1; s.yellowCards += 2; s.redCards += 1; }
-        else if (type === "penalty_saved") s.penaltySaved += 1;
-        else if (type === "penalty_missed") s.penaltyMissed += 1;
-        else if (type === "woodwork") s.woodwork += 1;
-      }
-      if (type === "goal" && assistPlayerId === playerId) { played = true; s.assists += 1; }
-    });
-    if (played) s.matchesPlayed += 1;
-  });
-  return s;
 }
 
 // The analyst's classification — deterministic, first-match-wins, never fabricated.
