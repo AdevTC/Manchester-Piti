@@ -15,6 +15,8 @@ interface PitchSlotProps {
   pendingPlace: boolean;
   /** Show the position label on the empty slot (display setting). */
   showLabel: boolean;
+  /** Read-only board: drop target + empty-slot tap are turned off. */
+  disabled?: boolean;
   /** Rendered token when the slot is occupied. */
   children?: React.ReactNode;
   /** Place the pending pickup into this slot (empty-slot tap / keyboard). */
@@ -25,9 +27,9 @@ interface PitchSlotProps {
 // When empty it is a focusable button labelled with its position (POR, MC…)
 // so a pending pickup can be placed by tap or keyboard. When occupied the
 // token itself owns activation, so the wrapper is a plain div.
-export const PitchSlot: React.FC<PitchSlotProps> = ({ slot, index, pendingPlace, showLabel, children, onActivate }) => {
+export const PitchSlot: React.FC<PitchSlotProps> = ({ slot, index, pendingPlace, showLabel, disabled = false, children, onActivate }) => {
   const data: SlotData = { kind: "slot", slotId: slot.slotId, index };
-  const { ref, isDropTarget } = useDroppable({ id: slot.slotId, data });
+  const { ref, isDropTarget } = useDroppable({ id: slot.slotId, data, disabled });
   const occupied = slot.playerId !== null;
 
   const className = [
@@ -54,7 +56,8 @@ export const PitchSlot: React.FC<PitchSlotProps> = ({ slot, index, pendingPlace,
       <button
         type="button"
         className={`pz-slot-empty${showLabel ? "" : " is-bare"}`}
-        onClick={onActivate}
+        onClick={disabled ? undefined : onActivate}
+        aria-disabled={disabled || undefined}
         aria-label={pendingPlace ? `Colocar en ${slot.position}` : `Posición ${slot.position}, vacía`}
       >
         {showLabel && <span className="pz-slot-pos">{slot.position}</span>}

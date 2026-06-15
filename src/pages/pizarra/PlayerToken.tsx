@@ -26,6 +26,8 @@ interface PlayerTokenProps {
   positionLabel?: string;
   /** True when the player's effective zone differs from the slot's zone. */
   outOfPosition: boolean;
+  /** Read-only board: drag + tap are turned off (token stays focusable). */
+  disabled?: boolean;
   onActivate: () => void;
 }
 
@@ -45,10 +47,11 @@ export const PlayerToken: React.FC<PlayerTokenProps> = ({
   settings,
   positionLabel,
   outOfPosition,
+  disabled = false,
   onActivate,
 }) => {
   const data: TokenData = { kind: "token", playerId: player.id, from };
-  const { ref, isDragging } = useDraggable({ id: player.id, data });
+  const { ref, isDragging } = useDraggable({ id: player.id, data, disabled });
 
   const name = player.shirtName || player.firstName || player.lastName || `Nº${player.number}`;
   const showOop = outOfPosition && settings.showOutOfPosition;
@@ -60,6 +63,7 @@ export const PlayerToken: React.FC<PlayerTokenProps> = ({
     isDragging ? "is-dragging" : "",
     picked ? "is-picked" : "",
     showOop ? "is-oop" : "",
+    disabled ? "is-readonly" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -70,7 +74,8 @@ export const PlayerToken: React.FC<PlayerTokenProps> = ({
       type="button"
       className={className}
       style={{ viewTransitionName: `pz-token-${player.id}` } as React.CSSProperties}
-      onClick={onActivate}
+      onClick={disabled ? undefined : onActivate}
+      aria-disabled={disabled || undefined}
       aria-pressed={picked}
       aria-label={`${name}, dorsal ${player.number}${positionLabel ? `, ${positionLabel}` : ""}${pinned ? ", fijado" : ""}${showOop ? ", fuera de posición" : ""}${picked ? ", seleccionado para mover" : ""}`}
     >

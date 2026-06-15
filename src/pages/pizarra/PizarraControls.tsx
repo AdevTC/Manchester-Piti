@@ -18,6 +18,9 @@ interface PizarraControlsProps {
   canRedo: boolean;
   onOpenSettings: () => void;
   onPresent: () => void;
+  /** When true, the board is being viewed (official / someone else's): the
+   * editing controls are disabled (settings + presentation stay available). */
+  readOnly?: boolean;
 }
 
 // The TV-graphic control bar: system dropdown + one dropdown per tactical
@@ -38,6 +41,7 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
   canRedo,
   onOpenSettings,
   onPresent,
+  readOnly = false,
 }) => {
   return (
     <div className="pz-controls" role="group" aria-label="Sistema y táctica">
@@ -48,6 +52,7 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
           className="pz-select pz-select--system"
           value={formation}
           onChange={(e) => onFormation(e.target.value as FormationName)}
+          disabled={readOnly}
         >
           {FORMATION_NAMES.map((name) => (
             <option key={name} value={name}>{name}</option>
@@ -63,6 +68,7 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
             className="pz-select"
             value={tactics[t.key]}
             onChange={(e) => onTactic(t.key, e.target.value)}
+            disabled={readOnly}
           >
             {t.options.map((o) => (
               <option key={o} value={o}>{o}</option>
@@ -72,19 +78,19 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
       ))}
 
       <div className="pz-actions">
-        <button type="button" className="pz-action" aria-pressed={freeMode} onClick={onToggleFree} title="Modo libre">
+        <button type="button" className="pz-action" aria-pressed={freeMode} onClick={onToggleFree} title="Modo libre" disabled={readOnly}>
           <Move size={14} aria-hidden="true" /> Libre
         </button>
-        <button type="button" className="pz-action" onClick={onAuto} title="Auto-colocar por posición">
+        <button type="button" className="pz-action" onClick={onAuto} title="Auto-colocar por posición" disabled={readOnly}>
           <Wand2 size={14} aria-hidden="true" /> Auto
         </button>
-        <button type="button" className="pz-action" onClick={onUndo} disabled={!canUndo} title="Deshacer" aria-label="Deshacer">
+        <button type="button" className="pz-action" onClick={onUndo} disabled={!canUndo || readOnly} title="Deshacer" aria-label="Deshacer">
           <Undo2 size={14} aria-hidden="true" />
         </button>
-        <button type="button" className="pz-action" onClick={onRedo} disabled={!canRedo} title="Rehacer" aria-label="Rehacer">
+        <button type="button" className="pz-action" onClick={onRedo} disabled={!canRedo || readOnly} title="Rehacer" aria-label="Rehacer">
           <Redo2 size={14} aria-hidden="true" />
         </button>
-        <button type="button" className="pz-action" onClick={onReset} title="Reiniciar">
+        <button type="button" className="pz-action" onClick={onReset} title="Reiniciar" disabled={readOnly}>
           <RotateCcw size={14} aria-hidden="true" /> Reiniciar
         </button>
         <button type="button" className="pz-action" onClick={onOpenSettings} title="Ajustes de la pizarra" aria-label="Ajustes de la pizarra">
