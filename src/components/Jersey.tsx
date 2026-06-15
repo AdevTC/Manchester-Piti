@@ -128,7 +128,7 @@ export const Jersey: React.FC<JerseyProps> = ({
         <path
           d="M 58,55 L 142,55 L 152,175 L 53,181 Z"
           fill="url(#shadeGrad)"
-          style={{ pointerEvents: "none", mixBlendMode: "multiply" as any }}
+          style={{ pointerEvents: "none", mixBlendMode: "multiply" } as React.CSSProperties}
         />
 
         {/* PLAYER NAME (Dark Navy/Dark Blue) */}

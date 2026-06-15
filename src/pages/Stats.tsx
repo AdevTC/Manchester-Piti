@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useSeason } from "../context/SeasonContext";
+import { useSeason, type Season } from "../context/SeasonContext";
 import { Leaderboard } from "../components/Leaderboard";
 import { Jersey } from "../components/Jersey";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
@@ -76,27 +76,107 @@ interface PlayerAccumulatedStats {
   matchesPlayed: number;
 }
 
+// A single timestamped event inside a match document.
+interface MatchEvent {
+  type: string;
+  playerId?: string;
+  assistPlayerId?: string;
+}
+
+// Firestore timestamp values may arrive as a Date, a string, or a serialized
+// `{ seconds }` object depending on the source — narrow before use.
+type DateLike = Date | string | number | { seconds: number } | null | undefined;
+
+// A match document as loaded from Firestore.
+interface MatchDoc {
+  id: string;
+  goalsFor?: number;
+  goalsAgainst?: number;
+  rival?: string;
+  competition?: string;
+  date?: DateLike;
+  events?: MatchEvent[];
+  seasonId?: string;
+}
+
+// A player document as loaded from Firestore.
+interface PlayerDoc {
+  id: string;
+  firstName: string;
+  lastName: string;
+  shirtName?: string;
+  number?: number;
+  seasons: string[];
+  seasonDetails?: Record<string, { shirtName: string; number: number }>;
+}
+
+// One days-as-leader streak, as rendered in the record details modal.
+interface DaysStreak {
+  startStr: string;
+  endStr: string;
+  days: number;
+  isActive: boolean;
+}
+
+// A match-record streak entry (consecutive team results).
+interface MatchStreak {
+  length: number;
+  start: string;
+  startRival: string;
+  end: string;
+  endRival: string;
+}
+
+// The subset of the computed `records` object that the details modal reads.
+interface RecordDetailsData {
+  scoringStreakRankings: { name: string; value: number; streaks: { rival: string; dateStr: string }[][] }[];
+  assistingStreakRankings: { name: string; value: number; streaks: { rival: string; dateStr: string }[][] }[];
+  gPlusAStreakRankings: { name: string; value: number; streaks: { rival: string; dateStr: string }[][] }[];
+  daysLeaderPichichi: { name: string; value: number; isActive: boolean; streaks: DaysStreak[] }[];
+  daysLeaderAssists: { name: string; value: number; isActive: boolean; streaks: DaysStreak[] }[];
+  daysLeaderGPlusA: { name: string; value: number; isActive: boolean; streaks: DaysStreak[] }[];
+}
+
+// Heterogeneous row rendered by the record details list; the active record kind
+// determines which optional fields are populated.
+interface RecordListItem {
+  name?: string;
+  value?: number;
+  rival?: string;
+  dateStr?: string;
+  score?: string;
+  length?: number;
+  start?: string;
+  startRival?: string;
+  end?: string;
+  endRival?: string;
+  goals?: number;
+  assists?: number;
+  isActive?: boolean;
+  streaks?: { rival: string; dateStr: string }[][] | DaysStreak[];
+}
+
 export const Stats: React.FC = () => {
   const { selectedSeasonId, seasons } = useSeason();
-  const [loading, setLoading] = useState(true);
   const [activeChartMetric, setActiveChartMetric] = useState<string | null>(null);
   const [activeChartTitle, setActiveChartTitle] = useState<string>("");
   const [activeRecordInfo, setActiveRecordInfo] = useState<string | null>(null);
-  
-  const [players, setPlayers] = useState<any[]>([]);
-  const [matches, setMatches] = useState<any[]>([]);
+
+  const [players, setPlayers] = useState<PlayerDoc[]>([]);
+  const [matches, setMatches] = useState<MatchDoc[]>([]);
+  // Loading is derived from whether matches for the active season have arrived,
+  // so we never call setState synchronously in the effect (set-state-in-effect).
+  const [loadedKey, setLoadedKey] = useState<string>("");
 
   // 1. Fetch Roster and Matches in parallel
   useEffect(() => {
-    setLoading(true);
-    
     // Fetch players
     const playersRef = collection(db, "players");
     const unsubscribePlayers = onSnapshot(playersRef, (playerSnapshot) => {
       const loadedPlayers = playerSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })) as PlayerDoc[];
       setPlayers(loadedPlayers);
     });
 
@@ -111,12 +191,12 @@ export const Stats: React.FC = () => {
       const loadedMatches = matchSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })) as MatchDoc[];
       setMatches(loadedMatches);
-      setLoading(false);
+      setLoadedKey(selectedSeasonId);
     }, (err) => {
       console.error(err);
-      setLoading(false);
+      setLoadedKey(selectedSeasonId);
     });
 
     return () => {
@@ -124,6 +204,9 @@ export const Stats: React.FC = () => {
       unsubscribeMatches();
     };
   }, [selectedSeasonId]);
+
+  // Matches for the active season have arrived once loadedKey matches it.
+  const loading = loadedKey !== selectedSeasonId;
 
   // 2. Perform Dynamic Calculations
   const teamStats: TeamStats = {
@@ -246,9 +329,9 @@ export const Stats: React.FC = () => {
     const events = match.events || [];
     const participantsInMatch = new Set<string>();
 
-    events.forEach((event: any) => {
+    events.forEach((event: MatchEvent) => {
       const { type, playerId, assistPlayerId } = event;
-      
+
       if (playerId) {
         participantsInMatch.add(playerId);
       }
@@ -257,7 +340,7 @@ export const Stats: React.FC = () => {
       }
 
       // Safety check: if player was deleted, stats can be skipped or shown as fallback
-      if (playerStatsMap[playerId]) {
+      if (playerId && playerStatsMap[playerId]) {
         if (type === "goal") {
           playerStatsMap[playerId].goals += 1;
         } else if (type === "goal_penalty") {
@@ -355,9 +438,9 @@ export const Stats: React.FC = () => {
         scoringStreakRankings: [] as { name: string; value: number; streaks: { rival: string; dateStr: string }[][] }[],
         assistingStreakRankings: [] as { name: string; value: number; streaks: { rival: string; dateStr: string }[][] }[],
         gPlusAStreakRankings: [] as { name: string; value: number; streaks: { rival: string; dateStr: string }[][] }[],
-        daysLeaderPichichi: [] as { name: string; value: number; isActive: boolean; streaks: any[] }[],
-        daysLeaderAssists: [] as { name: string; value: number; isActive: boolean; streaks: any[] }[],
-        daysLeaderGPlusA: [] as { name: string; value: number; isActive: boolean; streaks: any[] }[],
+        daysLeaderPichichi: [] as { name: string; value: number; isActive: boolean; streaks: DaysStreak[] }[],
+        daysLeaderAssists: [] as { name: string; value: number; isActive: boolean; streaks: DaysStreak[] }[],
+        daysLeaderGPlusA: [] as { name: string; value: number; isActive: boolean; streaks: DaysStreak[] }[],
         hatTricks: [] as { name: string; goals: number; rival: string; dateStr: string }[],
         minTwoGoalsPerformances: [] as { name: string; goals: number; rival: string; dateStr: string }[],
 
@@ -376,15 +459,15 @@ export const Stats: React.FC = () => {
       };
     }
 
-    const formatDate = (dateVal: any) => {
+    const formatDate = (dateVal: DateLike) => {
       if (!dateVal) return "";
-      const d = dateVal.seconds ? new Date(dateVal.seconds * 1000) : new Date(dateVal);
+      const d = typeof dateVal === "object" && "seconds" in dateVal ? new Date(dateVal.seconds * 1000) : new Date(dateVal);
       return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
     };
 
-    const getMatchDate = (m: any) => {
-      if (m.date?.seconds) return new Date(m.date.seconds * 1000);
-      return new Date(m.date);
+    const getMatchDate = (m: MatchDoc) => {
+      if (m.date && typeof m.date === "object" && "seconds" in m.date) return new Date(m.date.seconds * 1000);
+      return new Date(m.date as string | number | Date);
     };
     const chronoMatches = [...matches].sort((a, b) => getMatchDate(a).getTime() - getMatchDate(b).getTime());
 
@@ -660,10 +743,10 @@ export const Stats: React.FC = () => {
       const assistsInThisMatch: Record<string, number> = {};
       const woodworkInThisMatch: Record<string, number> = {};
 
-      events.forEach((ev: any) => {
+      events.forEach((ev: MatchEvent) => {
         const { type, playerId, assistPlayerId } = ev;
         const isGoal = type === "goal" || type === "goal_penalty" || type === "goal_freekick";
-        
+
         if (isGoal && playerId) {
           goalsInThisMatch[playerId] = (goalsInThisMatch[playerId] || 0) + 1;
           if (playerCumGoals[playerId] !== undefined) playerCumGoals[playerId] += 1;
@@ -715,7 +798,7 @@ export const Stats: React.FC = () => {
 
       // Increment appearances for all participants in this match inside records
       const participantsInMatch = new Set<string>();
-      events.forEach((ev: any) => {
+      events.forEach((ev: MatchEvent) => {
         const { playerId, assistPlayerId, type } = ev;
         if (playerId) {
           participantsInMatch.add(playerId);
@@ -1134,7 +1217,7 @@ export const Stats: React.FC = () => {
 
   const goalDiff = teamStats.goalsFor - teamStats.goalsAgainst;
 
-  const getLeaders = (rankings: any[]) => {
+  const getLeaders = <T extends { value: number; streaks: unknown[] }>(rankings: T[]): T[] => {
     if (rankings.length === 0) return [];
     const topVal = rankings[0].value;
     const topCount = rankings[0].streaks.length;
@@ -1835,7 +1918,7 @@ export const Stats: React.FC = () => {
                                     {holder.value} part. <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "var(--text-muted)" }}>({holder.streaks.length} {holder.streaks.length > 1 ? "veces" : "vez"})</span>
                                   </span>
                                 </div>
-                                {holder.streaks.map((streak: any, sIdx: number) => (
+                                {holder.streaks.map((streak: { rival: string; dateStr: string }[], sIdx: number) => (
                                   <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "1px solid var(--border-color)" }}>
                                     Racha {holder.streaks.length > 1 ? `#${sIdx + 1}` : ""}: del <strong>{streak[0].dateStr}</strong> (vs {streak[0].rival}) al <strong>{streak[streak.length - 1].dateStr}</strong> (vs {streak[streak.length - 1].rival})
                                   </div>
@@ -1894,7 +1977,7 @@ export const Stats: React.FC = () => {
                                     {holder.value} part. <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "var(--text-muted)" }}>({holder.streaks.length} {holder.streaks.length > 1 ? "veces" : "vez"})</span>
                                   </span>
                                 </div>
-                                {holder.streaks.map((streak: any, sIdx: number) => (
+                                {holder.streaks.map((streak: { rival: string; dateStr: string }[], sIdx: number) => (
                                   <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "1px solid var(--border-color)" }}>
                                     Racha {holder.streaks.length > 1 ? `#${sIdx + 1}` : ""}: del <strong>{streak[0].dateStr}</strong> (vs {streak[0].rival}) al <strong>{streak[streak.length - 1].dateStr}</strong> (vs {streak[streak.length - 1].rival})
                                   </div>
@@ -1953,7 +2036,7 @@ export const Stats: React.FC = () => {
                                     {holder.value} part. <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "var(--text-muted)" }}>({holder.streaks.length} {holder.streaks.length > 1 ? "veces" : "vez"})</span>
                                   </span>
                                 </div>
-                                {holder.streaks.map((streak: any, sIdx: number) => (
+                                {holder.streaks.map((streak: { rival: string; dateStr: string }[], sIdx: number) => (
                                   <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "2px solid rgba(28, 44, 91, 0.3)" }}>
                                     Racha {holder.streaks.length > 1 ? `#${sIdx + 1}` : ""}: del <strong>{streak[0].dateStr}</strong> (vs {streak[0].rival}) al <strong>{streak[streak.length - 1].dateStr}</strong> (vs {streak[streak.length - 1].rival})
                                   </div>
@@ -2237,7 +2320,7 @@ export const Stats: React.FC = () => {
               {/* Top Scorers */}
               <Leaderboard
                 title="Máximos Goleadores"
-                items={scorers}
+                items={scorers}
                 accentColor="var(--accent-cyan-light)"
                 onViewChart={() => {
                   setActiveChartMetric("goals");
@@ -2248,7 +2331,7 @@ export const Stats: React.FC = () => {
               {/* Top Assistants */}
               <Leaderboard
                 title="Máximos Asistentes"
-                items={assistants}
+                items={assistants}
                 accentColor="var(--accent-emerald)"
                 onViewChart={() => {
                   setActiveChartMetric("assists");
@@ -2259,7 +2342,7 @@ export const Stats: React.FC = () => {
               {/* G+A (Goals + Assists) */}
               <Leaderboard
                 title="Goles + Asistencias (G+A)"
-                items={gPlusA}
+                items={gPlusA}
                 accentColor="var(--accent-cyan)"
                 onViewChart={() => {
                   setActiveChartMetric("gPlusA");
@@ -2270,7 +2353,7 @@ export const Stats: React.FC = () => {
               {/* Top Woodwork Hits */}
               <Leaderboard
                 title="Tiros al Palo"
-                items={woodwork}
+                items={woodwork}
                 accentColor="var(--accent-gold)"
                 onViewChart={() => {
                   setActiveChartMetric("woodwork");
@@ -2281,7 +2364,7 @@ export const Stats: React.FC = () => {
               {/* Cards Board */}
               <Leaderboard
                 title="Tarjetas Amarillas"
-                items={yellowCards}
+                items={yellowCards}
                 accentColor="var(--accent-gold)"
                 onViewChart={() => {
                   setActiveChartMetric("yellowCards");
@@ -2307,7 +2390,7 @@ export const Stats: React.FC = () => {
                   let chemistryTier = "Conexión prometedora";
                   let tierColor = "var(--accent-ink)";
                   let borderStyle = "1px solid var(--border-color)";
-                  let bgStyle = "var(--bg-secondary)";
+                  const bgStyle = "var(--bg-secondary)";
                   const glowStyle = "none";
                   let glowClass = "";
 
@@ -2462,10 +2545,10 @@ export const Stats: React.FC = () => {
 interface ChartModalProps {
   metric: string;
   title: string;
-  matches: any[];
-  players: any[];
+  matches: MatchDoc[];
+  players: PlayerDoc[];
   selectedSeasonId: string;
-  seasons: any[];
+  seasons: Season[];
   onClose: () => void;
 }
 
@@ -2493,9 +2576,9 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
 
   // 1. Get matches sorted chronologically
   const sortedMatches = useMemo(() => {
-    const getMatchDate = (m: any) => {
-      if (m.date?.seconds) return new Date(m.date.seconds * 1000);
-      return new Date(m.date);
+    const getMatchDate = (m: MatchDoc) => {
+      if (m.date && typeof m.date === "object" && "seconds" in m.date) return new Date(m.date.seconds * 1000);
+      return new Date(m.date as string | number | Date);
     };
     return [...matches].sort((a, b) => getMatchDate(a).getTime() - getMatchDate(b).getTime());
   }, [matches]);
@@ -2522,7 +2605,7 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
       const scoreStr = `${match.goalsFor || 0} - ${match.goalsAgainst || 0}`;
 
       // Update values
-      events.forEach((event: any) => {
+      events.forEach((event: MatchEvent) => {
         const { type, playerId, assistPlayerId } = event;
 
         if (metric === "goals") {
@@ -2596,7 +2679,7 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
       "#f97316"  // Orange
     ];
 
-    const getResolvedPlayerDetails = (p: any) => {
+    const getResolvedPlayerDetails = (p: PlayerDoc) => {
       let resolvedShirtName = p.shirtName || "";
       let resolvedNumber = p.number || 0;
 
@@ -2629,7 +2712,7 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
         points: historyPointsMap[p.id] || []
       };
     });
-  }, [metric, matches, players, selectedSeasonId, seasons, sortedMatches]);
+  }, [metric, players, selectedSeasonId, seasons, sortedMatches]);
 
   // Initialize selectedPlayerIds to top 5 players by final value (who have value > 0)
   useEffect(() => {
@@ -2648,6 +2731,9 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
       });
 
     const topIds = sortedByFinal.slice(0, 5).map(h => h.player.id);
+    // Intentional: seed the default selection (top 5) once history data loads.
+    // selectedPlayerIds is also user-mutable via toggles, so this cannot be a pure derive.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedPlayerIds(topIds);
   }, [historyData]);
 
@@ -3246,10 +3332,10 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
 
 interface RecordDetailsModalProps {
   recordKey: string;
-  matches: any[];
-  players: any[];
+  matches: MatchDoc[];
+  players: PlayerDoc[];
   playerStatsMap: Record<string, PlayerAccumulatedStats>;
-  records: any;
+  records: RecordDetailsData;
   onClose: () => void;
 }
 
@@ -3268,15 +3354,15 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
     };
   }, []);
 
-  const formatDate = (dateVal: any) => {
+  const formatDate = (dateVal: DateLike) => {
     if (!dateVal) return "";
-    const d = dateVal.seconds ? new Date(dateVal.seconds * 1000) : new Date(dateVal);
+    const d = typeof dateVal === "object" && "seconds" in dateVal ? new Date(dateVal.seconds * 1000) : new Date(dateVal);
     return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
   };
 
-  const getMatchDate = (m: any) => {
-    if (m.date?.seconds) return new Date(m.date.seconds * 1000);
-    return new Date(m.date);
+  const getMatchDate = (m: MatchDoc) => {
+    if (m.date && typeof m.date === "object" && "seconds" in m.date) return new Date(m.date.seconds * 1000);
+    return new Date(m.date as string | number | Date);
   };
   const chronoMatches = useMemo(() => {
     return [...matches].sort((a, b) => getMatchDate(a).getTime() - getMatchDate(b).getTime());
@@ -3296,7 +3382,7 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
     let title = "";
     let description = "";
     let icon: React.ReactNode = null;
-    let list: any[] = [];
+    let list: RecordListItem[] = [];
     let isStreak = false;
     let isAccumulated = false;
     let isPlayerStreak = false;
@@ -3336,8 +3422,8 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
         icon = <Shield size={20} style={{ color: "var(--accent-cyan)" }} />;
         isStreak = true;
         {
-          const streaks: any[] = [];
-          let current: any[] = [];
+          const streaks: MatchStreak[] = [];
+          let current: MatchDoc[] = [];
           chronoMatches.forEach(m => {
             const gf = m.goalsFor || 0;
             const gc = m.goalsAgainst || 0;
@@ -3374,8 +3460,8 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
         icon = <Flame size={20} style={{ color: "var(--accent-gold)" }} />;
         isStreak = true;
         {
-          const streaks: any[] = [];
-          let current: any[] = [];
+          const streaks: MatchStreak[] = [];
+          let current: MatchDoc[] = [];
           chronoMatches.forEach(m => {
             const gf = m.goalsFor || 0;
             const gc = m.goalsAgainst || 0;
@@ -3412,8 +3498,8 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
         icon = <Zap size={20} style={{ color: "var(--accent-cyan-light)" }} />;
         isStreak = true;
         {
-          const streaks: any[] = [];
-          let current: any[] = [];
+          const streaks: MatchStreak[] = [];
+          let current: MatchDoc[] = [];
           chronoMatches.forEach(m => {
             const gc = m.goalsAgainst || 0;
             if (gc === 0) {
@@ -3448,11 +3534,11 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
         description = "Récord de goles individuales en un único encuentro.";
         icon = <Award size={20} style={{ color: "var(--accent-gold)" }} />;
         {
-          const playerGoalsPerMatch: any[] = [];
+          const playerGoalsPerMatch: { name: string; value: number; rival: string; dateStr: string }[] = [];
           matches.forEach(m => {
             const events = m.events || [];
             const goalsMap: Record<string, number> = {};
-            events.forEach((e: any) => {
+            events.forEach((e: MatchEvent) => {
               if ((e.type === "goal" || e.type === "goal_penalty" || e.type === "goal_freekick") && e.playerId) {
                 goalsMap[e.playerId] = (goalsMap[e.playerId] || 0) + 1;
               }
@@ -3477,11 +3563,11 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
         description = "Récord de asistencias individuales en un único encuentro.";
         icon = <Award size={20} style={{ color: "var(--accent-cyan)" }} />;
         {
-          const playerAssistsPerMatch: any[] = [];
+          const playerAssistsPerMatch: { name: string; value: number; rival: string; dateStr: string }[] = [];
           matches.forEach(m => {
             const events = m.events || [];
             const assistsMap: Record<string, number> = {};
-            events.forEach((e: any) => {
+            events.forEach((e: MatchEvent) => {
               if (e.type === "assist" && e.playerId) {
                 assistsMap[e.playerId] = (assistsMap[e.playerId] || 0) + 1;
               }
@@ -3509,12 +3595,12 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
         description = "Récord de participaciones directas de gol (Goles + Asistencias) en un partido.";
         icon = <Sparkles size={20} style={{ color: "rgb(168, 85, 247)" }} />;
         {
-          const playerGPlusAPerMatch: any[] = [];
+          const playerGPlusAPerMatch: { name: string; value: number; goals: number; assists: number; rival: string; dateStr: string }[] = [];
           matches.forEach(m => {
             const events = m.events || [];
             const goalsMap: Record<string, number> = {};
             const assistsMap: Record<string, number> = {};
-            events.forEach((e: any) => {
+            events.forEach((e: MatchEvent) => {
               const isGoal = e.type === "goal" || e.type === "goal_penalty" || e.type === "goal_freekick";
               if (isGoal && e.playerId) {
                 goalsMap[e.playerId] = (goalsMap[e.playerId] || 0) + 1;
@@ -3658,7 +3744,7 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
     }
 
     return { title, description, icon, list, isStreak, isAccumulated, isPlayerStreak, isDaysStreak };
-  }, [recordKey, matches, players, playerStatsMap, chronoMatches, playerLookup, records]);
+  }, [recordKey, matches, playerStatsMap, chronoMatches, playerLookup, records]);
 
   const { title, description, icon, list, isStreak, isAccumulated, isPlayerStreak, isDaysStreak } = recordData;
 
@@ -3742,7 +3828,7 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
               Sin registros en este periodo.
             </div>
           ) : (
-            list.map((item: any, index: number) => {
+            list.map((item: RecordListItem, index: number) => {
               const isTop = index === 0;
               let badgeColor = "rgba(255, 255, 255, 0.05)";
               let textColor = "var(--text-primary)";
@@ -3780,11 +3866,11 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
                     <div style={{ fontWeight: 800, fontSize: "1.05rem", color: textColor }}>
                       {isPlayerStreak ? (
                         <>
-                          {item.value} part. <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--text-secondary)" }}>({item.streaks.length} {item.streaks.length > 1 ? "veces" : "vez"})</span>
+                          {item.value} part. <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--text-secondary)" }}>({item.streaks?.length} {(item.streaks?.length ?? 0) > 1 ? "veces" : "vez"})</span>
                         </>
                       ) : isDaysStreak ? (
                         <>
-                          {item.value} {item.value === 1 ? "día" : "días"} <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--text-secondary)" }}>({item.streaks.length} {item.streaks.length > 1 ? "veces" : "vez"})</span>
+                          {item.value} {item.value === 1 ? "día" : "días"} <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--text-secondary)" }}>({item.streaks?.length} {(item.streaks?.length ?? 0) > 1 ? "veces" : "vez"})</span>
                         </>
                       ) : isStreak ? (
                         `${item.length} PJ`
@@ -3814,10 +3900,10 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
 
                   {isPlayerStreak && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", marginLeft: "2.25rem", borderLeft: "2px solid rgba(255,255,255,0.08)", paddingLeft: "0.75rem" }}>
-                      {item.streaks.map((streak: any, sIdx: number) => (
+                      {(item.streaks as { rival: string; dateStr: string }[][] | undefined)?.map((streak: { rival: string; dateStr: string }[], sIdx: number) => (
                         <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400 }}>
                           <span style={{ color: "var(--text-muted)", marginRight: "0.25rem" }}>•</span>
-                          Racha {item.streaks.length > 1 ? `#${sIdx + 1}` : ""}: del <strong>{streak[0].dateStr}</strong> (vs {streak[0].rival}) al <strong>{streak[streak.length - 1].dateStr}</strong> (vs {streak[streak.length - 1].rival})
+                          Racha {(item.streaks?.length ?? 0) > 1 ? `#${sIdx + 1}` : ""}: del <strong>{streak[0].dateStr}</strong> (vs {streak[0].rival}) al <strong>{streak[streak.length - 1].dateStr}</strong> (vs {streak[streak.length - 1].rival})
                         </div>
                       ))}
                     </div>
@@ -3825,10 +3911,10 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
 
                   {isDaysStreak && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", marginLeft: "2.25rem", borderLeft: "2px solid rgba(255,255,255,0.08)", paddingLeft: "0.75rem" }}>
-                      {item.streaks.map((streak: any, sIdx: number) => (
+                      {(item.streaks as DaysStreak[] | undefined)?.map((streak: DaysStreak, sIdx: number) => (
                         <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400 }}>
                           <span style={{ color: "var(--text-muted)", marginRight: "0.25rem" }}>•</span>
-                          Racha {item.streaks.length > 1 ? `#${sIdx + 1}` : ""}: del <strong>{streak.startStr}</strong> al <strong>{streak.endStr}</strong> ({streak.days} {streak.days === 1 ? "día" : "días"})
+                          Racha {(item.streaks?.length ?? 0) > 1 ? `#${sIdx + 1}` : ""}: del <strong>{streak.startStr}</strong> al <strong>{streak.endStr}</strong> ({streak.days} {streak.days === 1 ? "día" : "días"})
                           {streak.isActive && (
                             <span style={{ color: "var(--accent-emerald)", fontWeight: 700, marginLeft: "0.35rem" }}>
                               (Activa)

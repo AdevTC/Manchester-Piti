@@ -36,8 +36,9 @@ export const NicknameSetup: React.FC = () => {
         setLoading(false);
       }
       // If registered successfully, AuthContext state updates and redirects automatically
-    } catch (err: any) {
-      setError(err.message || "Error al registrar el nickname. Inténtalo de nuevo.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      setError(msg || "Error al registrar el nickname. Inténtalo de nuevo.");
       setLoading(false);
     }
   };

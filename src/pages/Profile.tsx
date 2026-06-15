@@ -19,8 +19,9 @@ export const Profile: React.FC = () => {
 
   if (!profile) return null;
 
-  const joinDate = profile.createdAt?.seconds
-    ? new Date(profile.createdAt.seconds * 1000)
+  const createdAt = profile.createdAt;
+  const joinDate = createdAt && "seconds" in createdAt
+    ? new Date(createdAt.seconds * 1000)
     : new Date();
 
   const isAdmin = profile.role === "superadmin" || profile.role === "admin";

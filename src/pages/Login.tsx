@@ -13,9 +13,10 @@ export const Login: React.FC = () => {
     setLoading(true);
     try {
       await loginWithGoogle();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
       setError(
-        err.message || "Error al iniciar sesión con Google. Inténtalo de nuevo."
+        msg || "Error al iniciar sesión con Google. Inténtalo de nuevo."
       );
       setLoading(false);
     }

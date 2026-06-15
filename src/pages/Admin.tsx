@@ -38,6 +38,24 @@ interface MatchEventForm {
   assistPlayerId?: string;
 }
 
+interface UserDoc {
+  uid: string;
+  nickname: string;
+  email: string;
+  role: string;
+}
+
+interface MatchDoc {
+  id: string;
+  seasonId?: string;
+  rival?: string;
+  competition?: string;
+  date: (string | number) & { seconds?: number };
+  goalsFor?: number;
+  goalsAgainst?: number;
+  events?: MatchEventForm[];
+}
+
 export const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"seasons" | "roster" | "matches" | "admins">("matches");
   const { updateUserRole } = useAuth();
@@ -45,7 +63,7 @@ export const Admin: React.FC = () => {
   // Real-time collections loaded for form dropdowns
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [usersList, setUsersList] = useState<any[]>([]);
+  const [usersList, setUsersList] = useState<UserDoc[]>([]);
   
   // Action notifications
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -70,7 +88,7 @@ export const Admin: React.FC = () => {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editingSeasonId, setEditingSeasonId] = useState<string | null>(null);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
-  const [matches, setMatches] = useState<any[]>([]);
+  const [matches, setMatches] = useState<MatchDoc[]>([]);
 
   // Match Form
   const [matchSeasonId, setMatchSeasonId] = useState("");
@@ -119,14 +137,14 @@ export const Admin: React.FC = () => {
     const unsubscribeUsers = onSnapshot(
       query(collection(db, "users"), orderBy("nickname", "asc")),
       (snapshot) => {
-        setUsersList(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })));
+        setUsersList(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }) as UserDoc));
       }
     );
 
     const unsubscribeMatches = onSnapshot(
       query(collection(db, "matches"), orderBy("date", "desc")),
       (snapshot) => {
-        setMatches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setMatches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as MatchDoc));
       }
     );
 
@@ -177,8 +195,8 @@ export const Admin: React.FC = () => {
       }
       setSeasonName("");
       setSeasonCaptainId("");
-    } catch (err: any) {
-      notifyError("Error al guardar temporada: " + err.message);
+    } catch (err: unknown) {
+      notifyError("Error al guardar temporada: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -269,8 +287,8 @@ export const Admin: React.FC = () => {
       setPlayerHeight("");
       setPlayerWeight("");
       setEditingPlayerId(null);
-    } catch (err: any) {
-      notifyError("Error al registrar jugador: " + err.message);
+    } catch (err: unknown) {
+      notifyError("Error al registrar jugador: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -375,8 +393,8 @@ export const Admin: React.FC = () => {
         setMatchSeasonId("");
         setMatchDate("");
       }
-    } catch (err: any) {
-      notifyError("Error al registrar el partido: " + err.message);
+    } catch (err: unknown) {
+      notifyError("Error al registrar el partido: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -611,7 +629,7 @@ export const Admin: React.FC = () => {
                     <select
                       className="form-input"
                       value={currentEventType}
-                      onChange={(e: any) => {
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                         const val = e.target.value as MatchEventForm["type"];
                         setCurrentEventType(val);
                         if (!["goal", "goal_penalty", "goal_freekick"].includes(val)) {
@@ -908,8 +926,8 @@ export const Admin: React.FC = () => {
                                     setMatchSeasonId("");
                                     setMatchDate("");
                                   }
-                                } catch (err: any) {
-                                  notifyError("Error al eliminar el partido: " + err.message);
+                                } catch (err: unknown) {
+                                  notifyError("Error al eliminar el partido: " + (err instanceof Error ? err.message : String(err)));
                                 } finally {
                                   setLoading(false);
                                 }
@@ -1201,7 +1219,7 @@ export const Admin: React.FC = () => {
                           
                           const details: Record<string, { shirtName: string; number: number | "" }> = {};
                           if (p.seasonDetails) {
-                            Object.entries(p.seasonDetails).forEach(([sId, data]: [string, any]) => {
+                            Object.entries(p.seasonDetails).forEach(([sId, data]: [string, { shirtName: string; number: number }]) => {
                               details[sId] = {
                                 shirtName: data.shirtName || "",
                                 number: data.number ?? ""
@@ -1237,8 +1255,8 @@ export const Admin: React.FC = () => {
                                 setPlayerHeight("");
                                 setPlayerWeight("");
                               }
-                            } catch (err: any) {
-                              notifyError("Error al eliminar jugador: " + err.message);
+                            } catch (err: unknown) {
+                              notifyError("Error al eliminar jugador: " + (err instanceof Error ? err.message : String(err)));
                             } finally {
                               setLoading(false);
                             }
@@ -1396,8 +1414,8 @@ export const Admin: React.FC = () => {
                                 setSeasonName("");
                                 setSeasonCaptainId("");
                               }
-                            } catch (err: any) {
-                              notifyError("Error al eliminar temporada: " + err.message);
+                            } catch (err: unknown) {
+                              notifyError("Error al eliminar temporada: " + (err instanceof Error ? err.message : String(err)));
                             } finally {
                               setLoading(false);
                             }
@@ -1468,8 +1486,8 @@ export const Admin: React.FC = () => {
                                 const newRole = e.target.value as "admin" | "user";
                                 await updateUserRole(usr.uid, usr.email, newRole);
                                 notifySuccess(`Rol de @${usr.nickname} actualizado a ${newRole === "admin" ? "Administrador" : "Usuario"}.`);
-                              } catch (err: any) {
-                                notifyError(err.message || "Error al actualizar rol.");
+                              } catch (err: unknown) {
+                                notifyError((err instanceof Error ? err.message : "") || "Error al actualizar rol.");
                               }
                             }}
                             style={{

@@ -7,7 +7,7 @@ export interface UserProfile {
   email: string;
   nickname: string;
   role: "superadmin" | "admin" | "user";
-  createdAt: any;
+  createdAt: Date | import("firebase/firestore").Timestamp;
 }
 
 interface AuthContextType {
@@ -200,6 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
