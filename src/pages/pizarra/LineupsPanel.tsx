@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { ChevronDown, ClipboardList, Copy, Crown, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import type { LineupDoc } from "./lineupDoc";
 import { matchLabel, type SeasonMatch } from "./useSeasonMatches";
+import { useFocusTrap } from "./useFocusTrap";
 
 export type SaveState = "none" | "dirty" | "saving" | "saved";
 
@@ -41,9 +42,11 @@ const NameDialog: React.FC<{
   onSubmit: (name: string) => void;
 }> = ({ title, initial = "", cta, onCancel, onSubmit }) => {
   const [value, setValue] = useState(initial);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef, onCancel);
   return (
     <div className="pz-dialog-backdrop" role="presentation" onClick={onCancel}>
-      <div className="pz-dialog" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className="pz-dialog" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <h3 className="pz-dialog-title">{title}</h3>
         <input
           className="pz-dialog-input"
@@ -78,9 +81,12 @@ const OfficialDialog: React.FC<{
   onConfirm: (scope: { matchId: string | null }) => void;
 }> = ({ seasonName, matches, onCancel, onConfirm }) => {
   const [matchId, setMatchId] = useState<string>(""); // "" = whole season
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef, onCancel);
   return (
     <div className="pz-dialog-backdrop" role="presentation" onClick={onCancel}>
       <div
+        ref={dialogRef}
         className="pz-dialog"
         role="dialog"
         aria-modal="true"

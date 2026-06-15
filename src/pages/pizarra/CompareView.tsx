@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { LineupDoc } from "./lineupDoc";
 import { ratingForLineupDoc, type PlayerMeta, type SquadNorms } from "./chemistry";
 import type { PlayerStats } from "../../lib/playerStats";
 import { ZONE_LABEL } from "./formations";
+import { useFocusTrap } from "./useFocusTrap";
 
 interface CompareViewProps {
   boards: LineupDoc[]; // mine + official, deduped
@@ -14,6 +15,8 @@ interface CompareViewProps {
 }
 
 export const CompareView: React.FC<CompareViewProps> = ({ boards, statsById, metaById, norms, onClose }) => {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef, onClose);
   const [aId, setAId] = useState(boards[0]?.id ?? "");
   const [bId, setBId] = useState(boards[1]?.id ?? boards[0]?.id ?? "");
   const A = boards.find((x) => x.id === aId);
@@ -59,7 +62,7 @@ export const CompareView: React.FC<CompareViewProps> = ({ boards, statsById, met
 
   return (
     <div className="pz-dialog-backdrop" role="presentation" onClick={onClose}>
-      <div className="pz-cmp" role="dialog" aria-modal="true" aria-label="Comparar alineaciones" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className="pz-cmp" role="dialog" aria-modal="true" aria-label="Comparar alineaciones" onClick={(e) => e.stopPropagation()}>
         <button type="button" className="pz-share-close" aria-label="Cerrar" onClick={onClose}>
           <X size={18} />
         </button>
