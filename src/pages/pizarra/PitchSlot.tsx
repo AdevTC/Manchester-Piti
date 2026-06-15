@@ -41,7 +41,7 @@ export const PitchSlot: React.FC<PitchSlotProps> = ({ slot, index, pendingPlace,
     .filter(Boolean)
     .join(" ");
 
-  const style = { left: `${slot.x}%`, top: `${slot.y}%` } as React.CSSProperties;
+  const style = { left: `${slot.x}%`, top: `${slot.y}%`, "--i": index } as React.CSSProperties;
 
   if (occupied) {
     return (

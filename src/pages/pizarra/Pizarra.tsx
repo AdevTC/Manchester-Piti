@@ -30,9 +30,16 @@ import { useSeasonMatches } from "./useSeasonMatches";
 import { LineupsPanel, type SaveState } from "./LineupsPanel";
 import { extractLineup } from "./lineupDoc";
 import { usePizarraStats } from "./usePizarraStats";
-import { teamRating, lineStats, type PlacedPlayer } from "./chemistry";
+import { teamRating, lineStats, type PlacedPlayer, type PlayerMeta } from "./chemistry";
 import { ChemistryPanel } from "./ChemistryPanel";
 import { EMPTY_STATS } from "../../lib/playerStats";
+import { FlapNumber } from "../../components/match/FlapNumber";
+import { outcomeOf, OUTCOME } from "../../components/match/matchData";
+import { matchLabel } from "./useSeasonMatches";
+import { SharePanel } from "./SharePanel";
+import { CompareView } from "./CompareView";
+import type { PosterData, PosterToken } from "./poster";
+import type { LineupDoc } from "./lineupDoc";
 import "./Pizarra.css";
 
 const DEFAULT_FORMATION: FormationName = "2-3-1";
@@ -142,6 +149,11 @@ export const Pizarra: React.FC = () => {
   const [readOnlyInfo, setReadOnlyInfo] = useState<{ official: boolean; nickname: string; scope: string } | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("none");
 
+  // Show & share: linked match + dialogs.
+  const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
+
   const pitchElRef = useRef<HTMLDivElement | null>(null);
   const seededSig = useRef<string>("");
 
@@ -153,6 +165,8 @@ export const Pizarra: React.FC = () => {
     players.forEach((p) => m.set(p.id, p));
     return m;
   }, [players]);
+  const seasonName =
+    selectedSeasonId === "all" ? "Histórico Total" : seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada";
 
   // Re-seed only when the roster composition changes (season switch / first
   // load). A re-seed produces a fresh default board, so it also detaches any
@@ -169,6 +183,7 @@ export const Pizarra: React.FC = () => {
     setReadOnly(false);
     setReadOnlyInfo(null);
     setSaveState("none");
+    setActiveMatchId(null);
   }, [rosterSig, players]);
 
   // ── History (undo/redo). Every board mutation goes through commit(). ──
@@ -295,6 +310,56 @@ export const Pizarra: React.FC = () => {
   const isUnavailable = (id: string): boolean => suspended.has(id) || (playersById.get(id)?.injured ?? false);
   const unavailableInXI = placed.filter((p) => isUnavailable(p.id)).length;
 
+  // ── Show & share: linked match, compare set, poster data ──
+  const linkedMatch = useMemo(() => matches.find((m) => m.id === activeMatchId) ?? null, [matches, activeMatchId]);
+  const matchOptions = useMemo(() => matches.map((m) => ({ id: m.id, label: matchLabel(m) })), [matches]);
+  const metaById = useMemo(() => {
+    const m = new Map<string, PlayerMeta>();
+    players.forEach((p) => m.set(p.id, { naturalPosition: p.naturalPosition, seasonsCount: p.seasonsCount }));
+    return m;
+  }, [players]);
+  const compareBoards = useMemo<LineupDoc[]>(() => {
+    const seen = new Set<string>();
+    return [...lineups.official, ...lineups.mine].filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)));
+  }, [lineups.official, lineups.mine]);
+  const posterData = useMemo<PosterData>(() => {
+    const tokens: PosterToken[] = lineup.slots
+      .filter((s) => s.playerId)
+      .map((s) => {
+        const p = playersById.get(s.playerId as string);
+        return { number: p?.number ?? 0, name: p?.shirtName || p?.firstName || "", x: s.x, y: s.y, zone: s.zone };
+      });
+    const match =
+      linkedMatch && linkedMatch.goalsFor != null && linkedMatch.goalsAgainst != null
+        ? (() => {
+            const oc = outcomeOf(linkedMatch.goalsFor as number, linkedMatch.goalsAgainst as number);
+            return {
+              rival: linkedMatch.rival,
+              gf: linkedMatch.goalsFor as number,
+              gc: linkedMatch.goalsAgainst as number,
+              outcomeWord: OUTCOME[oc].word,
+              outcomeLetter: OUTCOME[oc].letter,
+            };
+          })()
+        : null;
+    return { title: "Manchester Piti", seasonName, formation: lineup.formation, tokens, score: rating.score, tier: rating.tier, match };
+  }, [lineup, playersById, seasonName, rating, linkedMatch]);
+
+  const linkMatch = (matchId: string | null): void => {
+    if (readOnly) return;
+    setActiveMatchId(matchId);
+    if (activeBoardId) {
+      setSaveState("saving");
+      lineups
+        .save(activeBoardId, lineup, matchId)
+        .then(() => setSaveState((s) => (s === "saving" ? "saved" : s)))
+        .catch((err) => {
+          console.error("No se pudo vincular el partido", err);
+          setSaveState("dirty");
+        });
+    }
+  };
+
   // ── Mutating handlers (all via commit; no-op when read-only) ──
   const changeFormation = (name: FormationName): void => {
     if (readOnly) return;
@@ -344,6 +409,7 @@ export const Pizarra: React.FC = () => {
       asReadOnly ? { official: d.isOfficial, nickname: d.ownerNickname, scope: d.matchId ? "partido" : "temporada" } : null,
     );
     setSaveState(asReadOnly ? "none" : "saved");
+    setActiveMatchId(d.matchId);
   };
   const newBoard = (): void => {
     withMorph(() => setLineup(seedLineup(lineup.formation, players)));
@@ -354,6 +420,7 @@ export const Pizarra: React.FC = () => {
     setReadOnly(false);
     setReadOnlyInfo(null);
     setSaveState("none");
+    setActiveMatchId(null);
   };
   const saveAs = async (name: string): Promise<void> => {
     try {
@@ -540,7 +607,6 @@ export const Pizarra: React.FC = () => {
     const matchesZone = benchZone === "all" || effectiveZone(p.id) === benchZone;
     return matchesQuery && matchesZone;
   });
-  const seasonName = selectedSeasonId === "all" ? "Histórico Total" : seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada";
   const placedCount = onPitch.length;
 
   return (
@@ -562,6 +628,11 @@ export const Pizarra: React.FC = () => {
           canRedo={future.length > 0}
           onOpenSettings={() => setSettingsOpen(true)}
           onPresent={() => setPresentMode(true)}
+          onShare={() => setShareOpen(true)}
+          onCompare={() => setCompareOpen(true)}
+          matches={matchOptions}
+          matchId={activeMatchId}
+          onLinkMatch={linkMatch}
           readOnly={readOnly}
         />
 
@@ -598,6 +669,28 @@ export const Pizarra: React.FC = () => {
           </div>
         )}
 
+        {linkedMatch && linkedMatch.goalsFor != null && linkedMatch.goalsAgainst != null && (() => {
+          const oc = outcomeOf(linkedMatch.goalsFor, linkedMatch.goalsAgainst);
+          return (
+            <div className={`pz-scoreline pz-scoreline--${oc}`} role="status">
+              <span className="pz-scoreline-letter" aria-hidden="true">{OUTCOME[oc].letter}</span>
+              <span className="pz-scoreline-score">{linkedMatch.goalsFor}-{linkedMatch.goalsAgainst}</span>
+              <span className="pz-scoreline-text">{OUTCOME[oc].word} · {linkedMatch.rival}</span>
+            </div>
+          );
+        })()}
+
+        {presentMode && (
+          <div className="pz-broadcast">
+            <img src="/crest.png" alt="" className="pz-broadcast-crest" aria-hidden="true" />
+            <span className="pz-broadcast-name">MANCHESTER PITI</span>
+            <span className="pz-broadcast-formation">{lineup.formation}</span>
+            <span className="pz-broadcast-chem" aria-label={`Química ${rating.score} sobre 100`}>
+              <FlapNumber value={rating.score} />
+            </span>
+          </div>
+        )}
+
         <div className="pz-status" role="status">
           <span className="pz-status-count">{placedCount}/{XI}</span> en el campo
           {placedCount < XI && <span className="pz-status-warn"> · faltan {XI - placedCount}</span>}
@@ -613,6 +706,7 @@ export const Pizarra: React.FC = () => {
         <div className="pz-board">
           <div ref={setPitchRef} className={`pz-pitch${lineup.freeMode ? " is-free" : ""}${pitchOver ? " is-over" : ""}`}>
             <FloodlightCanvas className="pz-floodlight" />
+            <span className="pz-sweep" aria-hidden="true" key={`${lineup.formation}-${presentMode ? "p" : "e"}`} />
             <svg className="pz-lines" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true">
               <rect x="3" y="3" width="94" height="144" rx="1" />
               <line x1="3" y1="75" x2="97" y2="75" />
@@ -869,6 +963,10 @@ export const Pizarra: React.FC = () => {
 
       {settingsOpen && (
         <PizarraSettingsPanel settings={settings} onChange={setSetting} onClose={() => setSettingsOpen(false)} />
+      )}
+      {shareOpen && <SharePanel data={posterData} onClose={() => setShareOpen(false)} />}
+      {compareOpen && (
+        <CompareView boards={compareBoards} statsById={statsById} metaById={metaById} norms={norms} onClose={() => setCompareOpen(false)} />
       )}
     </DragDropProvider>
   );
