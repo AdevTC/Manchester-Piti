@@ -1,8 +1,8 @@
 // Deterministic team chemistry/rating from real player stats. Pure (no React).
 // Normalized against the season squad so the number is relative to the club's
 // own scale and nothing is fabricated; missing data counts as zero, never up.
-import type { MatchLike, PlayerStats, StatEvent } from "../../lib/playerStats";
-import type { Zone } from "./formations";
+import { EMPTY_STATS, type MatchLike, type PlayerStats, type StatEvent } from "../../lib/playerStats";
+import type { SlotState, Zone } from "./formations";
 
 export interface SquadNorms {
   maxGA: number;
@@ -114,6 +114,36 @@ export function recentForm(matchesByDateDesc: MatchLike[], n = 5): Map<string, n
     });
   });
   return form;
+}
+
+export interface PlayerMeta {
+  naturalPosition?: Zone;
+  seasonsCount: number;
+}
+
+/** Rate an arbitrary stored lineup (slots + per-lineup positions) against the
+ *  season's stats/norms. Used by the compare view. */
+export function ratingForLineupDoc(
+  slots: SlotState[],
+  playerPositions: Record<string, Zone>,
+  statsById: Map<string, PlayerStats>,
+  metaById: Map<string, PlayerMeta>,
+  norms: SquadNorms,
+): { rating: Rating; lines: LineStat[] } {
+  const placed: PlacedPlayer[] = slots
+    .filter((s) => s.playerId)
+    .map((s) => {
+      const id = s.playerId as string;
+      const z = playerPositions[id] ?? metaById.get(id)?.naturalPosition;
+      return {
+        id,
+        s: statsById.get(id) ?? EMPTY_STATS,
+        seasons: metaById.get(id)?.seasonsCount ?? 0,
+        zone: s.zone,
+        outOfPosition: !!z && z !== s.zone,
+      };
+    });
+  return { rating: teamRating(placed, slots.length - placed.length, norms), lines: lineStats(placed) };
 }
 
 // A player is suspended if, in the most recent match they appeared in, they got
