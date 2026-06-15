@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// Manchester Piti — Firestore security rules.
+//
+// IMPORTANT: This file was RECONSTRUCTED from the app's Firestore usage
+// (AuthContext, SeasonContext, Admin, Stats, MatchCenter, Expedientes,
+// Landing, pizarra/*). The live rules are managed in the Firebase console and
+// could NOT be read from here. Before `firebase deploy --only
+// firestore:rules`, reconcile this against the live console rules — a deploy
+// REPLACES the entire ruleset. The players/matches/seasons rules are verified
+// against code; the `users` rules encode a security model (see comments) you
+// should confirm matches your intent.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function roleOf(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+    }
+    function isAdmin() {
+      return isSignedIn()
+        && roleOf(request.auth.uid) in ['admin', 'superadmin'];
+    }
+
+    // Public read: the pre-login Landing reads players & matches (getDocs),
+    // and SeasonContext subscribes to seasons before auth. Do NOT gate these
+    // reads behind request.auth — it breaks the logged-out Landing page.
+
+    match /players/{playerId} {
+      allow read: if true;
+      // Admin create/edit/delete (Admin.tsx) + Pizarra naturalPosition update.
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /matches/{matchId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /seasons/{seasonId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      // Signed-in users read the collection: registration checks nickname
+      // uniqueness / first-user, and Admin lists users.
+      allow read: if isSignedIn();
+
+      // Self-create profile. Restricted to role 'user' so a user cannot
+      // self-assign elevated roles — EXCEPT the hardcoded superadmin email,
+      // which AuthContext self-heals to 'superadmin'.
+      // NOTE: the client also makes the *first ever* user an 'admin'. Rules
+      // cannot detect "first user", so that bootstrap must be done once in the
+      // console (set role: 'admin'/'superadmin' manually).
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && (request.resource.data.role == 'user'
+            || request.auth.token.email == 'adriantomascv@gmail.com');
+
+      // Admins update anyone (role management). A user may update their own
+      // doc only WITHOUT changing their role — except the superadmin email,
+      // which may self-heal to 'superadmin'.
+      allow update: if isAdmin()
+        || (request.auth.uid == userId
+            && request.resource.data.role == resource.data.role)
+        || (request.auth.uid == userId
+            && request.auth.token.email == 'adriantomascv@gmail.com');
+
+      // No client deletes of user docs.
+      allow delete: if false;
+    }
+
+    // Future: tactical lineups saved from La Pizarra (formations.ts comment).
+    match /lineups/{lineupId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}
