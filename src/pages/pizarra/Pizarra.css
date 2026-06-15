@@ -842,6 +842,130 @@
   50% { opacity: 0.55; }
 }
 
+/* ── Show & share ─────────────────────────────────────────────────────── */
+
+/* Scoreline band (linked match) — colour + V/E/D letter (non-chromatic cue) */
+.pz-scoreline {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 6px;
+  background: var(--mp-surface);
+  border: 1px solid var(--mp-line);
+}
+.pz-scoreline-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  font-family: var(--mp-font-display);
+  font-size: 0.95rem;
+  color: #fff;
+}
+.pz-scoreline--win .pz-scoreline-letter { background: var(--mp-sky); color: var(--mp-navy-deep); }
+.pz-scoreline--draw .pz-scoreline-letter { background: var(--mp-gold); color: var(--mp-navy-deep); }
+.pz-scoreline--loss .pz-scoreline-letter { background: var(--mp-red, #c42f23); }
+.pz-scoreline-score { font-family: var(--mp-font-display); font-size: 1.4rem; color: var(--mp-heading); }
+.pz-scoreline-text { font-family: var(--mp-font-ui); font-weight: 700; font-size: 0.82rem; color: var(--mp-muted); }
+
+.pz-select--match { max-width: 190px; }
+
+/* Share + compare dialogs */
+.pz-share,
+.pz-cmp {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  background: var(--mp-surface);
+  border: 1px solid var(--mp-line);
+  border-radius: 6px;
+  padding: 1.1rem 1.2rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.pz-cmp { width: min(680px, 100%); }
+.pz-share-close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  border: none;
+  background: none;
+  color: var(--mp-muted);
+  cursor: pointer;
+  display: inline-flex;
+}
+.pz-share-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  background: var(--mp-surface-2);
+  border-radius: 6px;
+  padding: 0.6rem;
+}
+.pz-share-preview img { max-width: 100%; max-height: 60vh; border-radius: 4px; }
+.pz-share-loading { font-family: var(--mp-font-ui); font-size: 0.85rem; color: var(--mp-muted); }
+.pz-share-note { font-family: var(--mp-font-ui); font-size: 0.78rem; color: var(--mp-accent); margin-right: auto; align-self: center; }
+
+.pz-cmp-grid { display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 0.8rem; }
+.pz-cmp-col { display: flex; flex-direction: column; gap: 0.45rem; text-align: center; min-width: 0; }
+.pz-cmp-score { font-family: var(--mp-font-display); font-size: 3rem; line-height: 0.9; color: var(--mp-accent); }
+.pz-cmp-tier { font-family: var(--mp-font-ui); font-weight: 800; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mp-gold-ink); }
+.pz-cmp-formation { font-family: var(--mp-font-display); font-size: 1.1rem; color: var(--mp-heading); }
+.pz-cmp-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.pz-cmp-lines li { display: flex; align-items: baseline; justify-content: center; gap: 0.3rem; font-family: var(--mp-font-ui); font-size: 0.78rem; color: var(--mp-muted); }
+.pz-cmp-lines b { font-family: var(--mp-font-display); color: var(--mp-sky-deep); }
+.pz-cmp-vs { align-self: center; font-family: var(--mp-font-display); font-size: 1.4rem; color: var(--mp-muted); }
+.pz-cmp-empty { font-family: var(--mp-font-ui); font-size: 0.85rem; color: var(--mp-muted); text-align: center; }
+
+/* Broadcast presentation header */
+.pz-broadcast {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.85rem;
+  background: var(--mp-navy-deep);
+  border: 1px solid var(--mp-line);
+  border-radius: 6px;
+  color: #fff;
+}
+.pz-broadcast-crest { width: 32px; height: 32px; object-fit: contain; }
+.pz-broadcast-name { font-family: var(--mp-font-display); font-size: 1.2rem; letter-spacing: 0.02em; }
+.pz-broadcast-formation { font-family: var(--mp-font-ui); font-weight: 800; font-size: 0.78rem; letter-spacing: 0.08em; color: var(--mp-sky); }
+.pz-broadcast-chem { margin-left: auto; font-family: var(--mp-font-display); font-size: 1.6rem; color: var(--mp-gold); }
+
+/* Floodlight entrance sweep (one-shot, replays on key change) */
+.pz-sweep {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 38%, rgba(196, 222, 247, 0.28) 50%, transparent 62%);
+  background-size: 250% 100%;
+  background-position: 130% 0;
+  animation: pzSweep 1.1s var(--mp-ease) 1 both;
+}
+@keyframes pzSweep {
+  from { background-position: 130% 0; }
+  to { background-position: -60% 0; }
+}
+
+/* Champions-style staggered XI reveal (present mode only) */
+.pz--present .pz-slot {
+  animation: pzReveal 0.5s var(--mp-ease) both;
+  animation-delay: calc(var(--i, 0) * 0.08s);
+}
+@keyframes pzReveal {
+  from { opacity: 0; transform: translate(-50%, -40%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
 /* ── Settings dialog ──────────────────────────────────────────────────── */
 .pz-settings-scrim {
   position: fixed;
@@ -877,6 +1001,7 @@
 .pz--present .pz-boards,
 .pz--present .pz-readonly,
 .pz--present .pz-chem,
+.pz--present .pz-scoreline,
 .pz--present .pz-panels { display: none; }
 .pz--present .pz-pitch { max-width: min(92vw, 560px); max-height: 86vh; }
 .pz-present-exit {
@@ -916,7 +1041,8 @@
 .pz-board-load:focus-visible,
 .pz-board-act:focus-visible,
 .pz-dialog-input:focus-visible,
-.pz-pos-injury:focus-visible {
+.pz-pos-injury:focus-visible,
+.pz-share-close:focus-visible {
   outline: 3px solid var(--mp-gold);
   outline-offset: 2px;
 }
@@ -945,6 +1071,8 @@
 @media (max-width: 560px) {
   .pz-chem-body { grid-template-columns: auto 84px; }
   .pz-chem-axes { grid-column: 1 / -1; }
+  .pz-cmp-grid { grid-template-columns: 1fr; }
+  .pz-cmp-vs { padding: 0.2rem 0; }
 }
 
 /* ── Reduced motion ───────────────────────────────────────────────────── */
@@ -965,4 +1093,6 @@
   .pz-board-act { transition: none; }
   .pz-save--saving { animation: none; }
   .pz-pos-injury { transition: none; }
+  .pz-sweep { animation: none; opacity: 0; }
+  .pz--present .pz-slot { animation: none; }
 }
