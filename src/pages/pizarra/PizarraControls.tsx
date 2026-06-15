@@ -1,5 +1,5 @@
 import React from "react";
-import { Move, RotateCcw, Wand2, TrendingUp, Undo2, Redo2, Settings2, Maximize2 } from "lucide-react";
+import { Move, RotateCcw, Wand2, TrendingUp, Share2, Columns2, Undo2, Redo2, Settings2, Maximize2 } from "lucide-react";
 import { FORMATION_NAMES, type FormationName } from "./formations";
 import { TACTICS, type TacticKey, type Tactics } from "./tactics";
 
@@ -19,6 +19,12 @@ interface PizarraControlsProps {
   canRedo: boolean;
   onOpenSettings: () => void;
   onPresent: () => void;
+  onShare: () => void;
+  onCompare: () => void;
+  /** Season matches for the link-to-match select (id + human label). */
+  matches: { id: string; label: string }[];
+  matchId: string | null;
+  onLinkMatch: (id: string | null) => void;
   /** When true, the board is being viewed (official / someone else's): the
    * editing controls are disabled (settings + presentation stay available). */
   readOnly?: boolean;
@@ -43,6 +49,11 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
   canRedo,
   onOpenSettings,
   onPresent,
+  onShare,
+  onCompare,
+  matches,
+  matchId,
+  onLinkMatch,
   readOnly = false,
 }) => {
   return (
@@ -104,6 +115,24 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
         <button type="button" className="pz-action" onClick={onPresent} title="Modo presentación" aria-label="Modo presentación">
           <Maximize2 size={14} aria-hidden="true" />
         </button>
+        <button type="button" className="pz-action" onClick={onShare} title="Compartir / descargar póster" aria-label="Compartir el once">
+          <Share2 size={14} aria-hidden="true" /> Compartir
+        </button>
+        <button type="button" className="pz-action" onClick={onCompare} title="Comparar dos alineaciones" aria-label="Comparar alineaciones">
+          <Columns2 size={14} aria-hidden="true" /> Comparar
+        </button>
+        <select
+          className="pz-select pz-select--match"
+          value={matchId ?? ""}
+          onChange={(e) => onLinkMatch(e.target.value || null)}
+          aria-label="Vincular a partido"
+          disabled={readOnly}
+        >
+          <option value="">Sin partido</option>
+          {matches.map((m) => (
+            <option key={m.id} value={m.id}>{m.label}</option>
+          ))}
+        </select>
       </div>
     </div>
   );
