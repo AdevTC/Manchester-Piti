@@ -38,8 +38,9 @@ export interface UseLineups {
   loading: boolean;
   /** Create a new owned board from the current lineup; returns the new id. */
   create: (lineup: Lineup, name: string) => Promise<string>;
-  /** Overwrite an existing owned board (autosave / explicit). */
-  save: (id: string, lineup: Lineup) => Promise<void>;
+  /** Overwrite an existing owned board (autosave / explicit). Pass `matchId` to
+   *  (re)link a match; omit it to keep the stored value. */
+  save: (id: string, lineup: Lineup, matchId?: string | null) => Promise<void>;
   rename: (id: string, name: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
   /** Admin: mark `id` official for `scope`, or pass null to unmark. */
@@ -100,7 +101,7 @@ export function useLineups(seasonId: string): UseLineups {
       setLocalRecords((prev) => persistLocal([...prev, rec]));
       return id;
     };
-    const save: UseLineups["save"] = async (id, lineup) => {
+    const save: UseLineups["save"] = async (id, lineup, matchId) => {
       setLocalRecords((prev) => {
         const i = prev.findIndex((r) => r.id === id);
         if (i < 0) return prev;
@@ -111,7 +112,7 @@ export function useLineups(seasonId: string): UseLineups {
           seasonId: cur.seasonId,
           name: cur.name,
           isOfficial: cur.isOfficial,
-          matchId: cur.matchId,
+          matchId: matchId !== undefined ? matchId : cur.matchId,
         };
         const next = [...prev];
         next[i] = { id, ...lineupToData(lineup, meta), createdAt: cur.createdAt ?? Date.now(), updatedAt: Date.now() };
@@ -173,7 +174,7 @@ export function useLineups(seasonId: string): UseLineups {
       });
       return ref.id;
     };
-    const save: UseLineups["save"] = async (id, lineup) => {
+    const save: UseLineups["save"] = async (id, lineup, matchId) => {
       const cur = items.find((d) => d.id === id);
       const meta: LineupMeta = {
         ownerUid: cur?.ownerUid ?? uid,
@@ -181,7 +182,7 @@ export function useLineups(seasonId: string): UseLineups {
         seasonId,
         name: cur?.name ?? "Sin nombre",
         isOfficial: cur?.isOfficial ?? false,
-        matchId: cur?.matchId ?? null,
+        matchId: matchId !== undefined ? matchId : (cur?.matchId ?? null),
       };
       await updateDoc(doc(db, "lineups", id), { ...lineupToData(lineup, meta), updatedAt: serverTimestamp() });
     };
