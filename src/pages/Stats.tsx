@@ -161,12 +161,39 @@ export const Stats: React.FC = () => {
   const [activeChartMetric, setActiveChartMetric] = useState<string | null>(null);
   const [activeChartTitle, setActiveChartTitle] = useState<string>("");
   const [activeRecordInfo, setActiveRecordInfo] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"general" | "compare">("general");
+  const [activeRivalInfo, setActiveRivalInfo] = useState<string | null>(null);
+  const [playerAId, setPlayerAId] = useState<string>("");
+  const [playerBId, setPlayerBId] = useState<string>("");
 
   const [players, setPlayers] = useState<PlayerDoc[]>([]);
   const [matches, setMatches] = useState<MatchDoc[]>([]);
   // Loading is derived from whether matches for the active season have arrived,
   // so we never call setState synchronously in the effect (set-state-in-effect).
   const [loadedKey, setLoadedKey] = useState<string>("");
+
+  // Initialize default players for comparison when players list is loaded.
+  // Intentional: seeds the default A/B selection once the roster loads.
+  // playerAId/playerBId are also user-mutable via the compare dropdowns, so this
+  // cannot be a pure derive.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (players.length > 0) {
+      if (!playerAId || !players.some(p => p.id === playerAId)) {
+        setPlayerAId(players[0].id);
+      }
+      if (players.length > 1) {
+        if (!playerBId || !players.some(p => p.id === playerBId) || playerBId === players[0].id) {
+          // Choose the second player, or the first one if we only have one
+          const secondPlayer = players.find(p => p.id !== (playerAId || players[0].id));
+          if (secondPlayer) setPlayerBId(secondPlayer.id);
+        }
+      } else {
+        setPlayerBId("");
+      }
+    }
+  }, [players, playerAId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // 1. Fetch Roster and Matches in parallel
   useEffect(() => {
@@ -1224,6 +1251,431 @@ export const Stats: React.FC = () => {
     return rankings.filter(r => r.value === topVal && r.streaks.length === topCount);
   };
 
+  const renderCompareView = () => {
+    if (players.length === 0) {
+      return (
+        <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: "3rem" }}>
+          No hay jugadores registrados en la temporada actual.
+        </div>
+      );
+    }
+
+    const playerA = playerStatsMap[playerAId];
+    const playerB = playerStatsMap[playerBId];
+
+    let maxGoals = 1;
+    let maxAssists = 1;
+    let maxGPlusA = 1;
+    Object.values(playerStatsMap).forEach(p => {
+      if (p.goals > maxGoals) maxGoals = p.goals;
+      if (p.assists > maxAssists) maxAssists = p.assists;
+      const ga = p.goals + p.assists;
+      if (ga > maxGPlusA) maxGPlusA = ga;
+    });
+
+    const totalMatches = teamStats.played || 1;
+
+    const getRadarScores = (p: PlayerAccumulatedStats | undefined) => {
+      if (!p) return [0, 0, 0, 0, 0, 0];
+      
+      const goalsScore = Math.min(100, (p.goals / maxGoals) * 100);
+      const assistsScore = Math.min(100, (p.assists / maxAssists) * 100);
+      const gaScore = Math.min(100, ((p.goals + p.assists) / maxGPlusA) * 100);
+      const presenceScore = Math.min(100, (p.matchesPlayed / totalMatches) * 100);
+      
+      const cardPenalty = p.yellowCards * 15 + p.doubleYellows * 35 + p.redCards * 55;
+      const disciplineScore = Math.max(10, 100 - cardPenalty);
+      
+      const specPoints = p.goalFreekick * 25 + p.goalPenalty * 15 + p.penaltySaved * 35 + p.woodwork * 15;
+      const specialistScore = Math.min(100, 15 + specPoints);
+
+      return [goalsScore, assistsScore, gaScore, presenceScore, disciplineScore, specialistScore];
+    };
+
+    const scoresA = getRadarScores(playerA);
+    const scoresB = getRadarScores(playerB);
+
+    const svgCenter = { x: 200, y: 180 };
+    const maxRadius = 110;
+    const vertexCount = 6;
+    const vertexLabels = [
+      "Goleador",
+      "Asistente",
+      "Participación (G+A)",
+      "Presencia (PJ)",
+      "Disciplina",
+      "Especialista"
+    ];
+
+    const getVertexCoords = (index: number, val: number) => {
+      const angle = (index * 2 * Math.PI) / vertexCount - Math.PI / 2;
+      const r = (val / 100) * maxRadius;
+      return {
+        x: svgCenter.x + r * Math.cos(angle),
+        y: svgCenter.y + r * Math.sin(angle)
+      };
+    };
+
+    const pointsA = scoresA.map((score, i) => {
+      const coords = getVertexCoords(i, score);
+      return `${coords.x},${coords.y}`;
+    }).join(" ");
+
+    const pointsB = scoresB.map((score, i) => {
+      const coords = getVertexCoords(i, score);
+      return `${coords.x},${coords.y}`;
+    }).join(" ");
+
+    const getLabelCoords = (index: number) => {
+      const angle = (index * 2 * Math.PI) / vertexCount - Math.PI / 2;
+      const r = maxRadius + 22;
+      return {
+        x: svgCenter.x + r * Math.cos(angle),
+        y: svgCenter.y + r * Math.sin(angle)
+      };
+    };
+
+    const renderCompareRow = (
+      label: string,
+      valA: number,
+      valB: number,
+      formatType?: "integer" | "decimal" | "percentage",
+      lowerIsBetter: boolean = false
+    ) => {
+      const isWinnerA = lowerIsBetter ? valA < valB : valA > valB;
+      const isWinnerB = lowerIsBetter ? valB < valA : valB > valA;
+      const isDraw = valA === valB;
+
+      const displayA = formatType === "percentage" ? `${valA.toFixed(0)}%` : formatType === "decimal" ? valA.toFixed(2) : valA;
+      const displayB = formatType === "percentage" ? `${valB.toFixed(0)}%` : formatType === "decimal" ? valB.toFixed(2) : valB;
+
+      const winnerStyle = {
+        fontWeight: 800,
+        color: "var(--accent-emerald)",
+        textShadow: "0 0 10px rgba(16, 185, 129, 0.3)"
+      };
+
+      const regularStyle = {
+        fontWeight: 500,
+        color: "var(--text-primary)"
+      };
+
+      const loserStyle = {
+        fontWeight: 400,
+        color: "var(--text-secondary)"
+      };
+
+      return (
+        <tr key={label} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
+          <td style={{
+            fontSize: "0.95rem",
+            padding: "0.75rem 0.5rem",
+            textAlign: "center",
+            width: "35%",
+            ...(isWinnerA ? winnerStyle : isDraw ? regularStyle : loserStyle)
+          }}>
+            {displayA}
+            {isWinnerA && <span style={{ marginLeft: "0.25rem", color: "var(--accent-gold)", fontSize: "0.8rem" }}>★</span>}
+          </td>
+          <td style={{
+            textAlign: "center",
+            fontSize: "0.85rem",
+            color: "var(--text-muted)",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            padding: "0.75rem 0.25rem",
+            width: "30%"
+          }}>
+            {label}
+          </td>
+          <td style={{
+            fontSize: "0.95rem",
+            padding: "0.75rem 0.5rem",
+            textAlign: "center",
+            width: "35%",
+            ...(isWinnerB ? winnerStyle : isDraw ? regularStyle : loserStyle)
+          }}>
+            {isWinnerB && <span style={{ marginRight: "0.25rem", color: "var(--accent-gold)", fontSize: "0.8rem" }}>★</span>}
+            {displayB}
+          </td>
+        </tr>
+      );
+    };
+
+    return (
+      <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+        <div className="card" style={{ padding: "1.5rem", background: "rgba(15, 23, 42, 0.45)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: "1.5rem", alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--accent-gold)", textTransform: "uppercase" }}>
+                Jugador A
+              </label>
+              <select
+                value={playerAId}
+                onChange={(e) => setPlayerAId(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem 1rem",
+                  background: "var(--bg-tertiary)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  borderRadius: "0.5rem",
+                  color: "var(--text-primary)",
+                  fontWeight: 700,
+                  outline: "none"
+                }}
+              >
+                {players.map(p => (
+                  <option key={p.id} value={p.id} disabled={p.id === playerBId}>
+                    {formatPlayerName(p.firstName, p.lastName)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ textAlign: "center", display: "flex", justifyContent: "center", alignSelf: "flex-end", marginBottom: "3px" }}>
+              <div style={{
+                width: "2.5rem",
+                height: "2.5rem",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, var(--accent-gold), var(--accent-cyan))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 900,
+                fontSize: "0.85rem",
+                color: "#0f172a",
+                boxShadow: "0 0 15px rgba(6, 182, 212, 0.4)"
+              }}>
+                VS
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--accent-cyan)", textTransform: "uppercase" }}>
+                Jugador B
+              </label>
+              <select
+                value={playerBId}
+                onChange={(e) => setPlayerBId(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem 1rem",
+                  background: "var(--bg-tertiary)",
+                  border: "1px solid rgba(6, 182, 212, 0.3)",
+                  borderRadius: "0.5rem",
+                  color: "var(--text-primary)",
+                  fontWeight: 700,
+                  outline: "none"
+                }}
+              >
+                {players.map(p => (
+                  <option key={p.id} value={p.id} disabled={p.id === playerAId}>
+                    {formatPlayerName(p.firstName, p.lastName)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "2rem" }}>
+          <div className="card" style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "2rem",
+            background: "rgba(15, 23, 42, 0.3)"
+          }}>
+            <div style={{ display: "flex", width: "100%", justifyContent: "space-around", alignItems: "center", gap: "1rem" }}>
+              {playerA && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", textAlign: "center" }}>
+                  <Jersey name={playerA.shirtName} number={playerA.number} size="lg" />
+                  <span style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--accent-gold)" }}>
+                    {playerA.name}
+                  </span>
+                </div>
+              )}
+
+              {playerB && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", textAlign: "center" }}>
+                  <Jersey name={playerB.shirtName} number={playerB.number} size="lg" />
+                  <span style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--accent-cyan)" }}>
+                    {playerB.name}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card" style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1.5rem",
+            background: "rgba(15, 23, 42, 0.35)",
+            borderColor: "rgba(255,255,255,0.06)"
+          }}>
+            <h4 style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "1rem", textTransform: "uppercase" }}>
+              Mapa de Habilidades
+            </h4>
+            
+            <div style={{ width: "100%", maxWidth: "360px", aspectRatio: "1" }}>
+              <svg viewBox="0 0 400 360" width="100%" height="100%">
+                <defs>
+                  <filter id="radarGlowA" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#f59e0b" floodOpacity="0.4" />
+                  </filter>
+                  <filter id="radarGlowB" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#06b6d4" floodOpacity="0.4" />
+                  </filter>
+                </defs>
+
+                {[25, 50, 75, 100].map((level, lIdx) => {
+                  const pointsStr = Array.from({ length: vertexCount }).map((_, i) => {
+                    const coords = getVertexCoords(i, level);
+                    return `${coords.x},${coords.y}`;
+                  }).join(" ");
+
+                  return (
+                    <polygon
+                      key={lIdx}
+                      points={pointsStr}
+                      fill="none"
+                      stroke="rgba(255, 255, 255, 0.07)"
+                      strokeWidth="1"
+                      strokeDasharray={level === 100 ? "0" : "3,3"}
+                    />
+                  );
+                })}
+
+                {Array.from({ length: vertexCount }).map((_, i) => {
+                  const outerCoords = getVertexCoords(i, 100);
+                  return (
+                    <line
+                      key={i}
+                      x1={svgCenter.x}
+                      y1={svgCenter.y}
+                      x2={outerCoords.x}
+                      y2={outerCoords.y}
+                      stroke="rgba(255, 255, 255, 0.08)"
+                      strokeWidth="1"
+                    />
+                  );
+                })}
+
+                {pointsA && (
+                  <polygon
+                    points={pointsA}
+                    fill="rgba(245, 158, 11, 0.18)"
+                    stroke="var(--accent-gold)"
+                    strokeWidth="2.5"
+                    filter="url(#radarGlowA)"
+                  />
+                )}
+
+                {pointsB && (
+                  <polygon
+                    points={pointsB}
+                    fill="rgba(6, 182, 212, 0.18)"
+                    stroke="var(--accent-cyan)"
+                    strokeWidth="2.5"
+                    filter="url(#radarGlowB)"
+                  />
+                )}
+
+                {vertexLabels.map((lbl, i) => {
+                  const coords = getVertexCoords(i, 100);
+                  const labelCoords = getLabelCoords(i);
+                  
+                  let textAnchor: "inherit" | "end" | "start" | "middle" | undefined = "middle";
+                  let dy = "0.35em";
+                  if (i === 0) { textAnchor = "middle"; dy = "-0.5em"; }
+                  else if (i === 3) { textAnchor = "middle"; dy = "1.2em"; }
+                  else if (i === 1 || i === 2) { textAnchor = "start"; }
+                  else if (i === 4 || i === 5) { textAnchor = "end"; }
+
+                  return (
+                    <g key={i}>
+                      <circle cx={coords.x} cy={coords.y} r="2.5" fill="rgba(255,255,255,0.2)" />
+                      <text
+                        x={labelCoords.x}
+                        y={labelCoords.y}
+                        fill="var(--text-secondary)"
+                        fontSize="10"
+                        fontWeight="700"
+                        textAnchor={textAnchor}
+                        dy={dy}
+                        style={{ fontFamily: "'Outfit', sans-serif" }}
+                      >
+                        {lbl}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+
+            <div style={{ display: "flex", gap: "1.5rem", marginTop: "0.5rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", fontWeight: 700, color: "var(--accent-gold)" }}>
+                <span style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "3px", background: "var(--accent-gold)" }}></span>
+                {playerA?.name}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", fontWeight: 700, color: "var(--accent-cyan)" }}>
+                <span style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "3px", background: "var(--accent-cyan)" }}></span>
+                {playerB?.name}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: "1.5rem", background: "rgba(15, 23, 42, 0.45)" }}>
+          <h4 style={{ fontSize: "1rem", fontWeight: 700, color: "#ffffff", marginBottom: "1rem", textAlign: "center" }}>
+            Estadísticas Comparativas ({currentSeasonName})
+          </h4>
+
+          {playerA && playerB ? (
+            <div className="table-container" style={{ overflowX: "visible" }}>
+              <table className="custom-table" style={{ width: "100%", tableLayout: "fixed" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.1)" }}>
+                    <th style={{ textAlign: "center", color: "var(--accent-gold)", width: "35%", fontSize: "0.95rem" }}>{playerA.name}</th>
+                    <th style={{ textAlign: "center", color: "var(--text-muted)", width: "30%", fontSize: "0.8rem" }}>Métrica</th>
+                    <th style={{ textAlign: "center", color: "var(--accent-cyan)", width: "35%", fontSize: "0.95rem" }}>{playerB.name}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {renderCompareRow("Partidos Jugados", playerA.matchesPlayed, playerB.matchesPlayed)}
+                  {renderCompareRow("Goles Totales", playerA.goals, playerB.goals)}
+                  {renderCompareRow("Asistencias", playerA.assists, playerB.assists)}
+                  {renderCompareRow("G+A Sumado", playerA.goals + playerA.assists, playerB.goals + playerB.assists)}
+                  {renderCompareRow("Goles/Partido", playerA.matchesPlayed > 0 ? playerA.goals / playerA.matchesPlayed : 0, playerB.matchesPlayed > 0 ? playerB.goals / playerB.matchesPlayed : 0, "decimal")}
+                  {renderCompareRow("Asistencias/Partido", playerA.matchesPlayed > 0 ? playerA.assists / playerA.matchesPlayed : 0, playerB.matchesPlayed > 0 ? playerB.assists / playerB.matchesPlayed : 0, "decimal")}
+                  {renderCompareRow("G+A/Partido", playerA.matchesPlayed > 0 ? (playerA.goals + playerA.assists) / playerA.matchesPlayed : 0, playerB.matchesPlayed > 0 ? (playerB.goals + playerB.assists) / playerB.matchesPlayed : 0, "decimal")}
+                  {renderCompareRow("Goles de Falta", playerA.goalFreekick, playerB.goalFreekick)}
+                  {renderCompareRow("Goles de Penalti", playerA.goalPenalty, playerB.goalPenalty)}
+                  {renderCompareRow("Penaltis Parados", playerA.penaltySaved, playerB.penaltySaved)}
+                  {renderCompareRow("Penaltis Fallados", playerA.penaltyMissed, playerB.penaltyMissed, "integer", true)}
+                  {renderCompareRow("Remates al Palo", playerA.woodwork, playerB.woodwork)}
+                  {renderCompareRow("Tarjetas Amarillas", playerA.yellowCards, playerB.yellowCards, "integer", true)}
+                  {renderCompareRow("Dobles Amarillas", playerA.doubleYellows, playerB.doubleYellows, "integer", true)}
+                  {renderCompareRow("Tarjetas Rojas", playerA.redCards, playerB.redCards, "integer", true)}
+                  {renderCompareRow("Autogoles", playerA.ownGoals, playerB.ownGoals, "integer", true)}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", color: "var(--text-muted)", fontStyle: "italic", padding: "1rem" }}>
+              Por favor, selecciona dos jugadores válidos.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
       {/* Title block */}
@@ -1235,6 +1687,42 @@ export const Stats: React.FC = () => {
         <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>
           Histórico y récords de <strong>{currentSeasonName}</strong>
         </p>
+      </div>
+
+      {/* Tabs Selector */}
+      <div style={{ display: "flex", gap: "1rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "0.5rem", marginTop: "-1rem" }}>
+        <button
+          onClick={() => setActiveTab("general")}
+          style={{
+            background: "transparent",
+            border: "none",
+            borderBottom: activeTab === "general" ? "2px solid var(--accent-cyan)" : "2px solid transparent",
+            color: activeTab === "general" ? "var(--text-primary)" : "var(--text-secondary)",
+            padding: "0.5rem 1.25rem",
+            fontWeight: 700,
+            fontSize: "0.95rem",
+            cursor: "pointer",
+            transition: "var(--transition-smooth)"
+          }}
+        >
+          Resumen y Récords
+        </button>
+        <button
+          onClick={() => setActiveTab("compare")}
+          style={{
+            background: "transparent",
+            border: "none",
+            borderBottom: activeTab === "compare" ? "2px solid var(--accent-cyan)" : "2px solid transparent",
+            color: activeTab === "compare" ? "var(--text-primary)" : "var(--text-secondary)",
+            padding: "0.5rem 1.25rem",
+            fontWeight: 700,
+            fontSize: "0.95rem",
+            cursor: "pointer",
+            transition: "var(--transition-smooth)"
+          }}
+        >
+          Comparador Cara a Cara
+        </button>
       </div>
 
       {loading ? (
@@ -1250,7 +1738,7 @@ export const Stats: React.FC = () => {
           }}></div>
           <p style={{ color: "var(--text-secondary)" }}>Calculando estadísticas...</p>
         </div>
-      ) : (
+      ) : activeTab === "general" ? (
         <>
           {/* TEAM STATS WIDGETS */}
           <div>
@@ -1319,7 +1807,13 @@ export const Stats: React.FC = () => {
                     }).map((record) => {
                       const diff = record.goalsFor - record.goalsAgainst;
                       return (
-                        <tr key={record.rival}>
+                        <tr
+                          key={record.rival}
+                          onClick={() => setActiveRivalInfo(record.rival)}
+                          style={{ cursor: "pointer", transition: "var(--transition-smooth)" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                        >
                           <td style={{ fontWeight: 700 }}>{record.rival}</td>
                           <td style={{ textAlign: "center" }}>{record.played}</td>
                           <td style={{ textAlign: "center", color: "var(--accent-emerald)" }}>{record.wins}</td>
@@ -2512,6 +3006,8 @@ export const Stats: React.FC = () => {
             )}
           </div>
         </>
+      ) : (
+        renderCompareView()
       )}
 
       {/* CHART MODAL */}
@@ -2536,6 +3032,16 @@ export const Stats: React.FC = () => {
           playerStatsMap={playerStatsMap}
           records={records}
           onClose={() => setActiveRecordInfo(null)}
+        />
+      )}
+
+      {/* RIVAL DETAILS MODAL */}
+      {activeRivalInfo && (
+        <RivalDetailsModal
+          rivalName={activeRivalInfo}
+          matches={matches}
+          players={players}
+          onClose={() => setActiveRivalInfo(null)}
         />
       )}
     </div>
@@ -3936,6 +4442,399 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
           style={{ width: "100%", marginTop: "1.5rem" }}
         >
           Cerrar Clasificación
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+interface RivalDetailsModalProps {
+  rivalName: string;
+  matches: MatchDoc[];
+  players: PlayerDoc[];
+  onClose: () => void;
+}
+
+const RivalDetailsModal: React.FC<RivalDetailsModalProps> = ({
+  rivalName,
+  matches,
+  players,
+  onClose
+}) => {
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  const formatDate = (dateVal: DateLike) => {
+    if (!dateVal) return "";
+    const d = typeof dateVal === "object" && "seconds" in dateVal ? new Date(dateVal.seconds * 1000) : new Date(dateVal);
+    return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
+  };
+
+  const getMatchDate = (m: MatchDoc) => {
+    if (m.date && typeof m.date === "object" && "seconds" in m.date) return new Date(m.date.seconds * 1000);
+    return new Date(m.date as string | number | Date);
+  };
+
+  const playerLookup = useMemo(() => {
+    const lookup: Record<string, { name: string; shirtName: string; number: number; seasonDetails?: Record<string, { shirtName: string; number: number }>; seasons?: string[] }> = {};
+    players.forEach(p => {
+      lookup[p.id] = {
+        name: formatPlayerName(p.firstName, p.lastName),
+        shirtName: p.shirtName || "",
+        number: p.number || 0,
+        seasonDetails: p.seasonDetails,
+        seasons: p.seasons
+      };
+    });
+    return lookup;
+  }, [players]);
+
+  const matchesAgainstRival = useMemo(() => {
+    return matches
+      .filter(m => m.rival?.trim().toUpperCase() === rivalName.trim().toUpperCase())
+      .sort((a, b) => getMatchDate(a).getTime() - getMatchDate(b).getTime());
+  }, [matches, rivalName]);
+
+  const stats = useMemo(() => {
+    let played = 0;
+    let wins = 0;
+    let draws = 0;
+    let losses = 0;
+    let goalsFor = 0;
+    let goalsAgainst = 0;
+
+    matchesAgainstRival.forEach(m => {
+      played += 1;
+      const gf = m.goalsFor || 0;
+      const gc = m.goalsAgainst || 0;
+      goalsFor += gf;
+      goalsAgainst += gc;
+
+      if (gf > gc) wins += 1;
+      else if (gf === gc) draws += 1;
+      else losses += 1;
+    });
+
+    const points = wins * 3 + draws * 1;
+    const diff = goalsFor - goalsAgainst;
+
+    return { played, wins, draws, losses, goalsFor, goalsAgainst, points, diff };
+  }, [matchesAgainstRival]);
+
+  const leaders = useMemo(() => {
+    const goalCounts: Record<string, number> = {};
+    const assistCounts: Record<string, number> = {};
+
+    matchesAgainstRival.forEach(m => {
+      const events = m.events || [];
+      events.forEach((ev: MatchEvent) => {
+        const { type, playerId, assistPlayerId } = ev;
+        const isGoal = type === "goal" || type === "goal_penalty" || type === "goal_freekick";
+        if (isGoal && playerId) {
+          goalCounts[playerId] = (goalCounts[playerId] || 0) + 1;
+        }
+        if (type === "assist" && playerId) {
+          assistCounts[playerId] = (assistCounts[playerId] || 0) + 1;
+        }
+        if (isGoal && assistPlayerId) {
+          assistCounts[assistPlayerId] = (assistCounts[assistPlayerId] || 0) + 1;
+        }
+      });
+    });
+
+    let topScorerId = "";
+    let topScorerGoals = 0;
+    Object.entries(goalCounts).forEach(([pId, goals]) => {
+      if (goals > topScorerGoals) {
+        topScorerGoals = goals;
+        topScorerId = pId;
+      }
+    });
+
+    let topAssistantId = "";
+    let topAssistantAssists = 0;
+    Object.entries(assistCounts).forEach(([pId, assists]) => {
+      if (assists > topAssistantAssists) {
+        topAssistantAssists = assists;
+        topAssistantId = pId;
+      }
+    });
+
+    const getPlayerJerseyInfo = (playerId: string) => {
+      const p = playerLookup[playerId];
+      if (!p) return { name: "Desconocido", shirtName: "", number: 0 };
+      
+      let resolvedShirtName = p.shirtName;
+      let resolvedNumber = p.number;
+      
+      if (p.seasons && p.seasons.length > 0 && p.seasonDetails) {
+        const lastSeasonId = p.seasons[p.seasons.length - 1];
+        if (p.seasonDetails[lastSeasonId]) {
+          resolvedShirtName = p.seasonDetails[lastSeasonId].shirtName || resolvedShirtName;
+          resolvedNumber = p.seasonDetails[lastSeasonId].number || resolvedNumber;
+        }
+      }
+
+      return {
+        name: p.name,
+        shirtName: resolvedShirtName,
+        number: resolvedNumber
+      };
+    };
+
+    return {
+      topScorer: topScorerId ? { ...getPlayerJerseyInfo(topScorerId), value: topScorerGoals } : null,
+      topAssistant: topAssistantId ? { ...getPlayerJerseyInfo(topAssistantId), value: topAssistantAssists } : null
+    };
+  }, [matchesAgainstRival, playerLookup]);
+
+  return createPortal(
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: "100vw",
+        height: "100vh",
+        background: "rgba(7, 11, 19, 0.85)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 99999,
+        padding: "2rem 1rem"
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="card fade-in"
+        style={{
+          maxWidth: "580px",
+          width: "100%",
+          padding: "2rem",
+          background: "var(--bg-secondary)",
+          boxShadow: "0 25px 50px rgba(0,0,0,0.5), var(--shadow-glow)",
+          position: "relative",
+          border: "1px solid rgba(6, 182, 212, 0.2)",
+          borderRadius: "1rem",
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "90vh"
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: "1.25rem",
+            right: "1.25rem",
+            background: "var(--bg-tertiary)",
+            border: "none",
+            borderRadius: "50%",
+            width: "2.25rem",
+            height: "2.25rem",
+            color: "var(--text-secondary)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            transition: "var(--transition-smooth)"
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "#ffffff"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; }}
+        >
+          <X size={20} />
+        </button>
+
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginBottom: "0.25rem", paddingRight: "2.5rem" }}>
+          <Shield size={22} style={{ color: "var(--accent-cyan)" }} />
+          <h3 style={{ fontSize: "1.35rem", fontWeight: 800 }}>Historial contra {rivalName}</h3>
+        </div>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", marginBottom: "1.5rem" }}>
+          Desglose completo de todos los enfrentamientos y estadísticas contra este oponente.
+        </p>
+
+        <div style={{ flex: 1, overflowY: "auto", paddingRight: "0.5rem", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <div>
+            <h4 style={{ fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "0.5rem" }}>
+              Balance Global
+            </h4>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.5rem", textAlign: "center" }}>
+              <div style={{ padding: "0.75rem", background: "rgba(255,255,255,0.02)", borderRadius: "0.5rem", border: "1px solid var(--border-color)" }}>
+                <div style={{ fontSize: "1.25rem", fontWeight: 900, color: "#ffffff" }}>{stats.played}</div>
+                <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginTop: "0.1rem" }}>PJ</div>
+              </div>
+              <div style={{ padding: "0.75rem", background: "rgba(16, 185, 129, 0.05)", borderRadius: "0.5rem", border: "1px solid rgba(16, 185, 129, 0.15)" }}>
+                <div style={{ fontSize: "1.25rem", fontWeight: 900, color: "var(--accent-emerald)" }}>{stats.wins}</div>
+                <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginTop: "0.1rem" }}>Victorias</div>
+              </div>
+              <div style={{ padding: "0.75rem", background: "rgba(245, 158, 11, 0.05)", borderRadius: "0.5rem", border: "1px solid rgba(245, 158, 11, 0.15)" }}>
+                <div style={{ fontSize: "1.25rem", fontWeight: 900, color: "var(--accent-gold)" }}>{stats.draws}</div>
+                <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginTop: "0.1rem" }}>Empates</div>
+              </div>
+              <div style={{ padding: "0.75rem", background: "rgba(239, 68, 68, 0.05)", borderRadius: "0.5rem", border: "1px solid rgba(239, 68, 68, 0.15)" }}>
+                <div style={{ fontSize: "1.25rem", fontWeight: 900, color: "var(--accent-red)" }}>{stats.losses}</div>
+                <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginTop: "0.1rem" }}>Derrotas</div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem", textAlign: "center", marginTop: "0.5rem" }}>
+              <div style={{ padding: "0.5rem", background: "rgba(255,255,255,0.02)", borderRadius: "0.5rem" }}>
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Goles a Favor: </span>
+                <strong style={{ fontSize: "0.85rem", color: "#ffffff" }}>{stats.goalsFor}</strong>
+              </div>
+              <div style={{ padding: "0.5rem", background: "rgba(255,255,255,0.02)", borderRadius: "0.5rem" }}>
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Goles en Contra: </span>
+                <strong style={{ fontSize: "0.85rem", color: "#ffffff" }}>{stats.goalsAgainst}</strong>
+              </div>
+              <div style={{ padding: "0.5rem", background: "rgba(255,255,255,0.02)", borderRadius: "0.5rem" }}>
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Diferencia: </span>
+                <strong style={{ fontSize: "0.85rem", color: stats.diff > 0 ? "var(--accent-emerald)" : stats.diff < 0 ? "var(--accent-red)" : "#ffffff" }}>
+                  {stats.diff > 0 ? `+${stats.diff}` : stats.diff}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          {(leaders.topScorer || leaders.topAssistant) && (
+            <div>
+              <h4 style={{ fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
+                Jugadores Destacados contra {rivalName}
+              </h4>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                {leaders.topScorer ? (
+                  <div className="card" style={{
+                    padding: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                    background: "linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(15, 23, 42, 0.4))",
+                    borderColor: "rgba(245, 158, 11, 0.15)"
+                  }}>
+                    <Jersey name={leaders.topScorer.shirtName} number={leaders.topScorer.number} size="sm" />
+                    <div>
+                      <span style={{ fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "var(--accent-gold)", display: "block" }}>
+                        El Azote 🎯
+                      </span>
+                      <strong style={{ fontSize: "0.85rem", color: "#ffffff", display: "block" }}>
+                        {leaders.topScorer.name}
+                      </strong>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                        {leaders.topScorer.value} {leaders.topScorer.value === 1 ? "gol" : "goles"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card" style={{ padding: "1rem", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.1)", borderStyle: "dashed" }}>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>Sin goleadores</span>
+                  </div>
+                )}
+
+                {leaders.topAssistant ? (
+                  <div className="card" style={{
+                    padding: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                    background: "linear-gradient(135deg, rgba(6, 182, 212, 0.05), rgba(15, 23, 42, 0.4))",
+                    borderColor: "rgba(6, 182, 212, 0.15)"
+                  }}>
+                    <Jersey name={leaders.topAssistant.shirtName} number={leaders.topAssistant.number} size="sm" />
+                    <div>
+                      <span style={{ fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "var(--accent-cyan)", display: "block" }}>
+                        Socio de Asistencias 🤝
+                      </span>
+                      <strong style={{ fontSize: "0.85rem", color: "#ffffff", display: "block" }}>
+                        {leaders.topAssistant.name}
+                      </strong>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                        {leaders.topAssistant.value} {leaders.topAssistant.value === 1 ? "asistencia" : "asistencias"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card" style={{ padding: "1rem", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.1)", borderStyle: "dashed" }}>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>Sin asistentes</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h4 style={{ fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
+              Historial de Partidos ({matchesAgainstRival.length})
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              {matchesAgainstRival.map((m) => {
+                const isWin = (m.goalsFor || 0) > (m.goalsAgainst || 0);
+                const isLoss = (m.goalsFor || 0) < (m.goalsAgainst || 0);
+                const borderLeftColor = isWin ? "var(--accent-emerald)" : isLoss ? "var(--accent-red)" : "var(--accent-gold)";
+
+                return (
+                  <div
+                    key={m.id}
+                    className="card"
+                    style={{
+                      padding: "0.85rem 1rem",
+                      background: "rgba(15, 23, 42, 0.4)",
+                      borderLeft: `4px solid ${borderLeftColor}`,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center"
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#ffffff" }}>
+                        Manchester Piti vs {m.rival}
+                      </div>
+                      <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+                        {formatDate(m.date)} • {m.competition || "Partido Oficial"}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{
+                        fontSize: "1.1rem",
+                        fontWeight: 900,
+                        color: isWin ? "var(--accent-emerald)" : isLoss ? "var(--accent-red)" : "var(--accent-gold)",
+                        letterSpacing: "0.05em"
+                      }}>
+                        {m.goalsFor || 0} - {m.goalsAgainst || 0}
+                      </span>
+                      <span style={{
+                        fontSize: "0.6rem",
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        display: "block",
+                        color: "var(--text-muted)",
+                        marginTop: "0.1rem"
+                      }}>
+                        {isWin ? "Victoria" : isLoss ? "Derrota" : "Empate"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="btn btn-secondary"
+          style={{ width: "100%", marginTop: "1.5rem" }}
+        >
+          Cerrar Historial
         </button>
       </div>
     </div>,
