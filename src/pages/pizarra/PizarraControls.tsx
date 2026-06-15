@@ -1,5 +1,5 @@
 import React from "react";
-import { Move, RotateCcw, Wand2, Undo2, Redo2, Settings2, Maximize2 } from "lucide-react";
+import { Move, RotateCcw, Wand2, TrendingUp, Undo2, Redo2, Settings2, Maximize2 } from "lucide-react";
 import { FORMATION_NAMES, type FormationName } from "./formations";
 import { TACTICS, type TacticKey, type Tactics } from "./tactics";
 
@@ -12,6 +12,7 @@ interface PizarraControlsProps {
   onToggleFree: () => void;
   onReset: () => void;
   onAuto: () => void;
+  onSuggestForm: () => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -35,6 +36,7 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
   onToggleFree,
   onReset,
   onAuto,
+  onSuggestForm,
   onUndo,
   onRedo,
   canUndo,
@@ -83,6 +85,9 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
         </button>
         <button type="button" className="pz-action" onClick={onAuto} title="Auto-colocar por posición" disabled={readOnly}>
           <Wand2 size={14} aria-hidden="true" /> Auto
+        </button>
+        <button type="button" className="pz-action" onClick={onSuggestForm} title="Sugerir once por forma reciente" disabled={readOnly}>
+          <TrendingUp size={14} aria-hidden="true" /> Forma
         </button>
         <button type="button" className="pz-action" onClick={onUndo} disabled={!canUndo || readOnly} title="Deshacer" aria-label="Deshacer">
           <Undo2 size={14} aria-hidden="true" />

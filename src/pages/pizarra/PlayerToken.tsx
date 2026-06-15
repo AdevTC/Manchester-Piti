@@ -26,6 +26,8 @@ interface PlayerTokenProps {
   positionLabel?: string;
   /** True when the player's effective zone differs from the slot's zone. */
   outOfPosition: boolean;
+  /** Suspended (derived from cards) or injured (admin flag). */
+  unavailable?: boolean;
   /** Read-only board: drag + tap are turned off (token stays focusable). */
   disabled?: boolean;
   onActivate: () => void;
@@ -47,6 +49,7 @@ export const PlayerToken: React.FC<PlayerTokenProps> = ({
   settings,
   positionLabel,
   outOfPosition,
+  unavailable = false,
   disabled = false,
   onActivate,
 }) => {
@@ -63,6 +66,7 @@ export const PlayerToken: React.FC<PlayerTokenProps> = ({
     isDragging ? "is-dragging" : "",
     picked ? "is-picked" : "",
     showOop ? "is-oop" : "",
+    unavailable ? "is-unavailable" : "",
     disabled ? "is-readonly" : "",
   ]
     .filter(Boolean)
@@ -77,7 +81,7 @@ export const PlayerToken: React.FC<PlayerTokenProps> = ({
       onClick={disabled ? undefined : onActivate}
       aria-disabled={disabled || undefined}
       aria-pressed={picked}
-      aria-label={`${name}, dorsal ${player.number}${positionLabel ? `, ${positionLabel}` : ""}${pinned ? ", fijado" : ""}${showOop ? ", fuera de posición" : ""}${picked ? ", seleccionado para mover" : ""}`}
+      aria-label={`${name}, dorsal ${player.number}${positionLabel ? `, ${positionLabel}` : ""}${pinned ? ", fijado" : ""}${showOop ? ", fuera de posición" : ""}${unavailable ? ", no disponible" : ""}${picked ? ", seleccionado para mover" : ""}`}
     >
       <span className="pz-token-jersey" aria-hidden="true">
         <Jersey name={player.shirtName} number={player.number} size="sm" style={{ filter: "none", width: jerseySize, height: jerseySize }} />
@@ -112,6 +116,10 @@ export const PlayerToken: React.FC<PlayerTokenProps> = ({
 
       {showOop && (
         <span className="pz-token-oop" aria-hidden="true" title="Fuera de posición">≠</span>
+      )}
+
+      {unavailable && (
+        <span className="pz-token-unavail" aria-hidden="true" title="No disponible">✚</span>
       )}
     </button>
   );
