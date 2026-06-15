@@ -73,10 +73,21 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Future: tactical lineups saved from La Pizarra (formations.ts comment).
+    // Tactical lineups saved from La Pizarra (persistence sub-project).
+    // Any signed-in user owns their own boards (create/edit/delete); only an
+    // admin may publish a board as official (set/keep isOfficial true) or
+    // touch someone else's board. ownerUid is the writer's uid.
     match /lineups/{lineupId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && (request.resource.data.isOfficial == false || isAdmin());
+      allow update: if isSignedIn() && (
+           (resource.data.ownerUid == request.auth.uid
+             && (request.resource.data.isOfficial == resource.data.isOfficial || isAdmin()))
+           || isAdmin());
+      allow delete: if isSignedIn()
+        && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
   }
 }
