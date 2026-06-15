@@ -408,9 +408,10 @@ const ExpedienteModal: React.FC<{
 export const Expedientes: React.FC = () => {
   const { selectedSeasonId, seasons } = useSeason();
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
-  const [displayedPlayers, setDisplayedPlayers] = useState<Player[]>([]);
   const [matches, setMatches] = useState<MatchLike[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Loading is derived from whether matches for the active season have arrived,
+  // so we never call setState synchronously in an effect (set-state-in-effect).
+  const [loadedKey, setLoadedKey] = useState<string>("");
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [morphingId, setMorphingId] = useState<string | null>(null);
 
@@ -445,7 +446,6 @@ export const Expedientes: React.FC = () => {
   }, [selectedPlayer]);
 
   useEffect(() => {
-    setLoading(true);
     const playersRef = collection(db, "players");
     const unsubPlayers = onSnapshot(playersRef, (snap) => {
       const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Player[];
@@ -457,12 +457,14 @@ export const Expedientes: React.FC = () => {
       : query(matchesRef);
     const unsubMatches = onSnapshot(matchesQuery, (snap) => {
       setMatches(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as MatchLike[]);
-      setLoading(false);
+      setLoadedKey(selectedSeasonId);
     });
     return () => { unsubPlayers(); unsubMatches(); };
   }, [selectedSeasonId]);
 
-  useEffect(() => {
+  const loading = loadedKey !== selectedSeasonId;
+
+  const displayedPlayers = useMemo(() => {
     let filtered = [...allPlayers];
     if (selectedSeasonId !== "all") filtered = filtered.filter((p) => p.seasons && p.seasons.includes(selectedSeasonId));
     const numFor = (player: Player) => {
@@ -477,7 +479,7 @@ export const Expedientes: React.FC = () => {
       return player.number || 0;
     };
     filtered.sort((a, b) => numFor(a) - numFor(b));
-    setDisplayedPlayers(filtered);
+    return filtered;
   }, [allPlayers, selectedSeasonId, seasons]);
 
   const statsByPlayer = useMemo(() => {
