@@ -28,6 +28,8 @@ interface PlayerTokenProps {
   outOfPosition: boolean;
   /** Suspended (derived from cards) or injured (admin flag). */
   unavailable?: boolean;
+  /** Captain: draws an armband over the jersey. */
+  captain?: boolean;
   /** Read-only board: drag + tap are turned off (token stays focusable). */
   disabled?: boolean;
   onActivate: () => void;
@@ -50,6 +52,7 @@ export const PlayerToken: React.FC<PlayerTokenProps> = ({
   positionLabel,
   outOfPosition,
   unavailable = false,
+  captain = false,
   disabled = false,
   onActivate,
 }) => {
@@ -85,6 +88,7 @@ export const PlayerToken: React.FC<PlayerTokenProps> = ({
     >
       <span className="pz-token-jersey" aria-hidden="true">
         <Jersey name={player.shirtName} number={player.number} size="sm" style={{ filter: "none", width: jerseySize, height: jerseySize }} />
+        {captain && <span className="pz-token-armband" title="Capitán" />}
       </span>
 
       {showNameRow && (

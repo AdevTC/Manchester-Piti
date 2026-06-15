@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { DragDropProvider, useDroppable, type DragEndEvent } from "@dnd-kit/react";
+import { DragDropProvider, DragOverlay, useDroppable, type DragEndEvent } from "@dnd-kit/react";
 import { Users, Search, X, Copy } from "lucide-react";
 import { FloodlightCanvas } from "../../components/FloodlightCanvas";
+import { Jersey } from "../../components/Jersey";
 import { useSeason } from "../../context/SeasonContext";
 import { useAuth } from "../../context/AuthContext";
 import { usePizarraPlayers, setNaturalPosition, setInjured, type PizarraPlayer } from "./usePizarraPlayers";
@@ -24,7 +25,7 @@ import {
   type Zone,
 } from "./formations";
 import { type TacticKey } from "./tactics";
-import { XI, locationOf, seedLineup, placeIntoSlot, sendToBench, swapPlayers, fillLineup } from "./lineupOps";
+import { XI, locationOf, seedLineup, placeIntoSlot, sendToBench, swapPlayers, fillLineup, resetPositions, snapToGrid } from "./lineupOps";
 import { useLineups, type OfficialScope } from "./useLineups";
 import { useSeasonMatches } from "./useSeasonMatches";
 import { LineupsPanel, type SaveState } from "./LineupsPanel";
@@ -80,6 +81,12 @@ export const Pizarra: React.FC = () => {
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+
+  // Pulido: free-mode snap, drawers, a11y live region.
+  const [snap, setSnap] = useState(false);
+  const [bajasOpen, setBajasOpen] = useState(false);
+  const [squadOpen, setSquadOpen] = useState(false);
+  const [liveMsg, setLiveMsg] = useState("");
 
   const pitchElRef = useRef<HTMLDivElement | null>(null);
   const seededSig = useRef<string>("");
@@ -292,6 +299,17 @@ export const Pizarra: React.FC = () => {
     }
   };
 
+  // ── a11y live announcements + free-mode reset ──
+  const nameOf = (id: string): string => {
+    const p = playersById.get(id);
+    return p ? `${p.number} ${p.shirtName || p.firstName || ""}`.trim() : "Jugador";
+  };
+  const announce = (msg: string): void => setLiveMsg(msg);
+  const doResetPositions = (): void => {
+    if (readOnly) return;
+    withMorph(() => commit(resetPositions(lineup)));
+  };
+
   // ── Mutating handlers (all via commit; no-op when read-only) ──
   const changeFormation = (name: FormationName): void => {
     if (readOnly) return;
@@ -445,8 +463,10 @@ export const Pizarra: React.FC = () => {
     if (!rect) return l;
     const slots = l.slots.map((s) => ({ ...s }));
     const s = slots[slotIndex];
-    s.x = clamp(s.x + (transform.x / rect.width) * 100, 6, 94);
-    s.y = clamp(s.y + (transform.y / rect.height) * 100, 6, 94);
+    const nx = s.x + (transform.x / rect.width) * 100;
+    const ny = s.y + (transform.y / rect.height) * 100;
+    s.x = clamp(snap ? snapToGrid(nx) : nx, 6, 94);
+    s.y = clamp(snap ? snapToGrid(ny) : ny, 6, 94);
     return { ...l, slots };
   };
 
@@ -459,6 +479,7 @@ export const Pizarra: React.FC = () => {
 
     if (target && String(target.id) === "pz-bench") {
       commit(sendToBench(lineup, id));
+      announce(`${nameOf(id)} al banquillo`);
       return;
     }
     if (lineup.freeMode && from?.type === "slot") {
@@ -468,11 +489,15 @@ export const Pizarra: React.FC = () => {
     const targetData = target?.data as Partial<SlotData> | undefined;
     if (target && targetData?.kind === "slot" && typeof targetData.index === "number") {
       commit(placeIntoSlot(lineup, id, targetData.index));
+      announce(`${nameOf(id)} a ${ZONE_LABEL[lineup.slots[targetData.index].zone]}`);
       return;
     }
     if (from?.type === "bench") {
       const firstEmpty = lineup.slots.findIndex((s) => s.playerId === null);
-      if (firstEmpty >= 0) commit(placeIntoSlot(lineup, id, firstEmpty));
+      if (firstEmpty >= 0) {
+        commit(placeIntoSlot(lineup, id, firstEmpty));
+        announce(`${nameOf(id)} a ${ZONE_LABEL[lineup.slots[firstEmpty].zone]}`);
+      }
     }
   };
 
@@ -488,16 +513,19 @@ export const Pizarra: React.FC = () => {
       return;
     }
     commit(swapPlayers(lineup, picked, id));
+    announce(`Cambio: ${nameOf(picked)} por ${nameOf(id)}`);
     setPicked(null);
   };
   const activateSlot = (index: number): void => {
     if (readOnly || picked === null) return;
     commit(placeIntoSlot(lineup, picked, index));
+    announce(`${nameOf(picked)} a ${ZONE_LABEL[lineup.slots[index].zone]}`);
     setPicked(null);
   };
   const activateBench = (): void => {
     if (readOnly || picked === null) return;
     commit(sendToBench(lineup, picked));
+    announce(`${nameOf(picked)} al banquillo`);
     setPicked(null);
   };
 
@@ -518,11 +546,14 @@ export const Pizarra: React.FC = () => {
     const matchesZone = benchZone === "all" || effectiveZone(p.id) === benchZone;
     return matchesQuery && matchesZone;
   });
+  const benchActive = filteredBench.filter((p) => p.active);
+  const benchBajas = benchPlayers.filter((p) => !p.active);
   const placedCount = onPitch.length;
 
   return (
     <DragDropProvider onDragEnd={handleDragEnd}>
       <div className={`pz${lineup.freeMode ? " is-free-mode" : ""}${presentMode ? " pz--present" : ""}${readOnly ? " pz--readonly" : ""}`}>
+        <p className="pz-sr-only" aria-live="polite" role="status">{liveMsg}</p>
         <PizarraControls
           formation={lineup.formation}
           onFormation={changeFormation}
@@ -544,6 +575,9 @@ export const Pizarra: React.FC = () => {
           matches={matchOptions}
           matchId={activeMatchId}
           onLinkMatch={linkMatch}
+          snap={snap}
+          onToggleSnap={() => setSnap((s) => !s)}
+          onResetPositions={doResetPositions}
           readOnly={readOnly}
         />
 
@@ -618,6 +652,7 @@ export const Pizarra: React.FC = () => {
           <div ref={setPitchRef} className={`pz-pitch${lineup.freeMode ? " is-free" : ""}${pitchOver ? " is-over" : ""}`}>
             <FloodlightCanvas className="pz-floodlight" />
             <span className="pz-sweep" aria-hidden="true" key={`${lineup.formation}-${presentMode ? "p" : "e"}`} />
+            {lineup.freeMode && snap && <span className="pz-grid" aria-hidden="true" />}
             <svg className="pz-lines" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true">
               <rect x="3" y="3" width="94" height="144" rx="1" />
               <line x1="3" y1="75" x2="97" y2="75" />
@@ -655,6 +690,7 @@ export const Pizarra: React.FC = () => {
                       positionLabel={ez ? ZONE_LABEL[ez] : undefined}
                       outOfPosition={isOutOfPosition(slot)}
                       unavailable={isUnavailable(player.id)}
+                      captain={lineup.roles.captainId === player.id}
                       disabled={readOnly}
                       onActivate={() => activateToken(player.id)}
                     />
@@ -714,13 +750,13 @@ export const Pizarra: React.FC = () => {
 
             {loading ? (
               <p className="pz-bench-empty">Cargando plantilla…</p>
-            ) : filteredBench.length === 0 ? (
+            ) : benchActive.length === 0 ? (
               <p className="pz-bench-empty">
                 {benchPlayers.length === 0 ? "Todos los jugadores están en el campo." : "Sin coincidencias en el banquillo."}
               </p>
             ) : (
               <div className="pz-bench-rail">
-                {filteredBench.map((p) => {
+                {benchActive.map((p) => {
                   const ez = effectiveZone(p.id);
                   return (
                     <PlayerToken
@@ -741,6 +777,44 @@ export const Pizarra: React.FC = () => {
                     />
                   );
                 })}
+              </div>
+            )}
+
+            {benchBajas.length > 0 && (
+              <div className="pz-bajas">
+                <button
+                  type="button"
+                  className="pz-bajas-head"
+                  aria-expanded={bajasOpen}
+                  onClick={() => setBajasOpen((o) => !o)}
+                >
+                  Bajas <span className="pz-bench-count">{benchBajas.length}</span>
+                </button>
+                {bajasOpen && (
+                  <div className="pz-bench-rail">
+                    {benchBajas.map((p) => {
+                      const ez = effectiveZone(p.id);
+                      return (
+                        <PlayerToken
+                          key={p.id}
+                          player={p}
+                          galones={rolesForPlayer(p.id)}
+                          from="bench"
+                          picked={picked === p.id}
+                          pinned={lineup.pinned.includes(p.id)}
+                          variant="bench"
+                          jerseySize={44}
+                          settings={settings}
+                          positionLabel={ez ? ZONE_LABEL[ez] : undefined}
+                          outOfPosition={false}
+                          unavailable={isUnavailable(p.id)}
+                          disabled={readOnly}
+                          onActivate={() => activateToken(p.id)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -783,6 +857,14 @@ export const Pizarra: React.FC = () => {
                 </label>
               ))}
             </div>
+            <ul className="pz-roles-legend" aria-hidden="true">
+              {ROLE_META.map((r) => (
+                <li key={r.key}>
+                  <span className="pz-role-seal">{r.glyph}</span>
+                  {r.label}
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div className="pz-panel" role="group" aria-label="Posiciones del once">
@@ -865,6 +947,45 @@ export const Pizarra: React.FC = () => {
           </div>
         </div>
 
+        <section className="pz-squad" aria-label="Posiciones naturales de la plantilla">
+          <button
+            type="button"
+            className="pz-squad-toggle"
+            aria-expanded={squadOpen}
+            onClick={() => setSquadOpen((o) => !o)}
+          >
+            <Users size={14} aria-hidden="true" />
+            <span className="pz-squad-title">Plantilla</span>
+            <span className="pz-squad-count">{players.length}</span>
+          </button>
+          {squadOpen && (
+            <ul className="pz-squad-list">
+              {players.map((p) => (
+                <li key={p.id} className={`pz-squad-row${p.active ? "" : " is-baja"}`}>
+                  <span className="pz-squad-player">
+                    <b>{p.number}</b> {p.shirtName || p.firstName || `Nº${p.number}`}
+                    {!p.active && <span className="pz-squad-baja">baja</span>}
+                  </span>
+                  <span className="pz-squad-chip">{p.naturalPosition ? ZONE_LABEL[p.naturalPosition] : "—"}</span>
+                  {isAdmin && (
+                    <select
+                      className="pz-pos-select"
+                      value={p.naturalPosition ?? ""}
+                      onChange={(e) => saveNatural(p.id, (e.target.value || null) as Zone | null)}
+                      aria-label={`Posición natural de ${p.shirtName || p.firstName}`}
+                    >
+                      <option value="">—</option>
+                      {ZONES.map((z) => (
+                        <option key={z} value={z}>{ZONE_LABEL[z]}</option>
+                      ))}
+                    </select>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         {presentMode && (
           <button type="button" className="pz-present-exit" onClick={() => setPresentMode(false)}>
             Salir de presentación
@@ -879,6 +1000,17 @@ export const Pizarra: React.FC = () => {
       {compareOpen && (
         <CompareView boards={compareBoards} statsById={statsById} metaById={metaById} norms={norms} onClose={() => setCompareOpen(false)} />
       )}
+
+      <DragOverlay>
+        {(source) => {
+          const p = source ? playersById.get(String(source.id)) : null;
+          return p ? (
+            <span className="pz-drag-overlay" aria-hidden="true">
+              <Jersey name={p.shirtName} number={p.number} size="sm" style={{ filter: "none", width: 56, height: 56 }} />
+            </span>
+          ) : null;
+        }}
+      </DragOverlay>
     </DragDropProvider>
   );
 };

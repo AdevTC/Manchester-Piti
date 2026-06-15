@@ -1,5 +1,5 @@
-import React from "react";
-import { Move, RotateCcw, Wand2, TrendingUp, Share2, Columns2, Undo2, Redo2, Settings2, Maximize2 } from "lucide-react";
+import React, { useState } from "react";
+import { Move, RotateCcw, Wand2, TrendingUp, LayoutGrid, Share2, Columns2, Undo2, Redo2, Settings2, Maximize2 } from "lucide-react";
 import { FORMATION_NAMES, type FormationName } from "./formations";
 import { TACTICS, type TacticKey, type Tactics } from "./tactics";
 
@@ -25,14 +25,18 @@ interface PizarraControlsProps {
   matches: { id: string; label: string }[];
   matchId: string | null;
   onLinkMatch: (id: string | null) => void;
+  /** Free-mode snap-to-grid + reset to formation. */
+  snap: boolean;
+  onToggleSnap: () => void;
+  onResetPositions: () => void;
   /** When true, the board is being viewed (official / someone else's): the
-   * editing controls are disabled (settings + presentation stay available). */
+   * editing controls are disabled (settings + presentation + share stay available). */
   readOnly?: boolean;
 }
 
-// The TV-graphic control bar: system dropdown + one dropdown per tactical
-// instruction, plus board actions. All native <select>/<button> (keyboard
-// operable, gold focus); styled flat with gap-gridlines.
+// The TV-graphic control bar: system dropdown + tactical instructions
+// (collapsible behind "Táctica" on mobile) + board actions. All native
+// <select>/<button> (keyboard operable, gold focus); styled flat.
 export const PizarraControls: React.FC<PizarraControlsProps> = ({
   formation,
   onFormation,
@@ -54,8 +58,12 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
   matches,
   matchId,
   onLinkMatch,
+  snap,
+  onToggleSnap,
+  onResetPositions,
   readOnly = false,
 }) => {
+  const [tacticsOpen, setTacticsOpen] = useState(false);
   return (
     <div className="pz-controls" role="group" aria-label="Sistema y táctica">
       <div className="pz-ctrl">
@@ -73,27 +81,48 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
         </select>
       </div>
 
-      {TACTICS.map((t) => (
-        <div className="pz-ctrl" key={t.key}>
-          <label className="pz-ctrl-label" htmlFor={`pz-t-${t.key}`}>{t.label}</label>
-          <select
-            id={`pz-t-${t.key}`}
-            className="pz-select"
-            value={tactics[t.key]}
-            onChange={(e) => onTactic(t.key, e.target.value)}
-            disabled={readOnly}
-          >
-            {t.options.map((o) => (
-              <option key={o} value={o}>{o}</option>
-            ))}
-          </select>
-        </div>
-      ))}
+      <button
+        type="button"
+        className="pz-tactics-toggle"
+        aria-expanded={tacticsOpen}
+        onClick={() => setTacticsOpen((o) => !o)}
+      >
+        Táctica
+      </button>
+
+      <div className={`pz-tactics${tacticsOpen ? " is-open" : ""}`}>
+        {TACTICS.map((t) => (
+          <div className="pz-ctrl" key={t.key}>
+            <label className="pz-ctrl-label" htmlFor={`pz-t-${t.key}`}>{t.label}</label>
+            <select
+              id={`pz-t-${t.key}`}
+              className="pz-select"
+              value={tactics[t.key]}
+              onChange={(e) => onTactic(t.key, e.target.value)}
+              disabled={readOnly}
+            >
+              {t.options.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
 
       <div className="pz-actions">
         <button type="button" className="pz-action" aria-pressed={freeMode} onClick={onToggleFree} title="Modo libre" disabled={readOnly}>
           <Move size={14} aria-hidden="true" /> Libre
         </button>
+        {freeMode && (
+          <>
+            <button type="button" className="pz-action" aria-pressed={snap} onClick={onToggleSnap} title="Ajustar a la rejilla" disabled={readOnly}>
+              <LayoutGrid size={14} aria-hidden="true" /> Rejilla
+            </button>
+            <button type="button" className="pz-action" onClick={onResetPositions} title="Reset de posiciones" disabled={readOnly}>
+              <RotateCcw size={14} aria-hidden="true" /> Reset
+            </button>
+          </>
+        )}
         <button type="button" className="pz-action" onClick={onAuto} title="Auto-colocar por posición" disabled={readOnly}>
           <Wand2 size={14} aria-hidden="true" /> Auto
         </button>
