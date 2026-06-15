@@ -33,6 +33,8 @@ export interface PizarraPlayer {
   seasonsCount: number;
   /** Admin-set unavailability flag. */
   injured: boolean;
+  /** Active in the squad (false = baja/archived). */
+  active: boolean;
 }
 
 /**
@@ -108,6 +110,7 @@ export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolea
           naturalPosition: p.naturalPosition,
           seasonsCount: p.seasons?.length ?? 0,
           injured: p.injured === true,
+          active: p.active !== false,
         };
       })
       .sort((a, b) => a.number - b.number);

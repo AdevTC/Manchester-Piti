@@ -13,7 +13,6 @@ import { PizarraControls } from "./PizarraControls";
 import { PizarraSettingsPanel } from "./PizarraSettings";
 import {
   applyFormation,
-  emptySlots,
   ROLE_META,
   ZONE_LABEL,
   ZONES,
@@ -24,7 +23,8 @@ import {
   type SlotState,
   type Zone,
 } from "./formations";
-import { defaultTactics, type TacticKey } from "./tactics";
+import { type TacticKey } from "./tactics";
+import { XI, locationOf, seedLineup, placeIntoSlot, sendToBench, swapPlayers, fillLineup } from "./lineupOps";
 import { useLineups, type OfficialScope } from "./useLineups";
 import { useSeasonMatches } from "./useSeasonMatches";
 import { LineupsPanel, type SaveState } from "./LineupsPanel";
@@ -43,84 +43,11 @@ import type { LineupDoc } from "./lineupDoc";
 import "./Pizarra.css";
 
 const DEFAULT_FORMATION: FormationName = "2-3-1";
-const XI = 7;
 
 const prefersReduced = (): boolean =>
   typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
-
-type Location = { type: "slot"; index: number } | { type: "bench" } | null;
-
-function locationOf(lineup: Lineup, id: string): Location {
-  const slotIndex = lineup.slots.findIndex((s) => s.playerId === id);
-  if (slotIndex >= 0) return { type: "slot", index: slotIndex };
-  if (lineup.bench.includes(id)) return { type: "bench" };
-  return null;
-}
-
-// Seed a fresh lineup from the squad: first XI by dorsal go to the slots in
-// order, the rest to the bench. Tactics/positions/pins reset.
-function seedLineup(formation: FormationName, players: PizarraPlayer[]): Lineup {
-  const slots = emptySlots(formation);
-  players.slice(0, XI).forEach((p, i) => {
-    slots[i].playerId = p.id;
-  });
-  return {
-    formation,
-    freeMode: false,
-    slots,
-    bench: players.slice(XI).map((p) => p.id),
-    roles: {},
-    tactics: defaultTactics(),
-    playerPositions: {},
-    pinned: [],
-  };
-}
-
-// Move `id` into slot `index`. If the slot is taken, the displaced player goes
-// to `id`'s previous location (a clean swap); a bench arrival just frees a seat.
-function placeIntoSlot(lineup: Lineup, id: string, index: number): Lineup {
-  const from = locationOf(lineup, id);
-  const slots = lineup.slots.map((s) => ({ ...s }));
-  let bench = [...lineup.bench];
-  const displaced = slots[index].playerId;
-
-  if (from?.type === "slot") {
-    slots[from.index].playerId = displaced;
-  } else {
-    bench = bench.filter((b) => b !== id);
-    if (displaced) bench.push(displaced);
-  }
-  slots[index].playerId = id;
-  return { ...lineup, slots, bench };
-}
-
-function sendToBench(lineup: Lineup, id: string): Lineup {
-  const from = locationOf(lineup, id);
-  if (from?.type !== "slot") return lineup;
-  const slots = lineup.slots.map((s) => ({ ...s }));
-  slots[from.index].playerId = null;
-  const bench = lineup.bench.includes(id) ? lineup.bench : [...lineup.bench, id];
-  return { ...lineup, slots, bench };
-}
-
-function swapPlayers(lineup: Lineup, a: string, b: string): Lineup {
-  const la = locationOf(lineup, a);
-  const lb = locationOf(lineup, b);
-  if (!la || !lb) return lineup;
-  const slots = lineup.slots.map((s) => ({ ...s }));
-  let bench = [...lineup.bench];
-  const setAt = (loc: Location, id: string) => {
-    if (loc?.type === "slot") slots[loc.index].playerId = id;
-  };
-  setAt(la, b);
-  setAt(lb, a);
-  if (la?.type === "bench" || lb?.type === "bench") {
-    bench = bench.map((x) => (x === a ? b : x === b ? a : x));
-  }
-  return { ...lineup, slots, bench };
-}
 
 export const Pizarra: React.FC = () => {
   const { selectedSeasonId, seasons } = useSeason();
@@ -167,6 +94,11 @@ export const Pizarra: React.FC = () => {
   }, [players]);
   const seasonName =
     selectedSeasonId === "all" ? "Histórico Total" : seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada";
+  // Active squad vs bajas (active === false). Auto-XI/seed prefer active; the
+  // ordered id list (active first) is what seedLineup consumes.
+  const activePlayers = useMemo(() => players.filter((p) => p.active), [players]);
+  const bajas = useMemo(() => players.filter((p) => !p.active), [players]);
+  const orderedIds = useMemo(() => [...activePlayers, ...bajas].map((p) => p.id), [activePlayers, bajas]);
 
   // Re-seed only when the roster composition changes (season switch / first
   // load). A re-seed produces a fresh default board, so it also detaches any
@@ -175,7 +107,7 @@ export const Pizarra: React.FC = () => {
   useEffect(() => {
     if (rosterSig === seededSig.current) return;
     seededSig.current = rosterSig;
-    setLineup((prev) => seedLineup(prev.formation, players));
+    setLineup((prev) => seedLineup(prev.formation, orderedIds));
     setPicked(null);
     setPast([]);
     setFuture([]);
@@ -184,7 +116,7 @@ export const Pizarra: React.FC = () => {
     setReadOnlyInfo(null);
     setSaveState("none");
     setActiveMatchId(null);
-  }, [rosterSig, players]);
+  }, [rosterSig, orderedIds]);
 
   // ── History (undo/redo). Every board mutation goes through commit(). ──
   // A persisted, editable board becomes "dirty" on any change (autosaved).
@@ -375,7 +307,7 @@ export const Pizarra: React.FC = () => {
   };
   const resetBoard = (): void => {
     if (readOnly) return;
-    withMorph(() => commit(seedLineup(lineup.formation, players)));
+    withMorph(() => commit(seedLineup(lineup.formation, orderedIds)));
     setPicked(null);
   };
 
@@ -412,7 +344,7 @@ export const Pizarra: React.FC = () => {
     setActiveMatchId(d.matchId);
   };
   const newBoard = (): void => {
-    withMorph(() => setLineup(seedLineup(lineup.formation, players)));
+    withMorph(() => setLineup(seedLineup(lineup.formation, orderedIds)));
     setPast([]);
     setFuture([]);
     setPicked(null);
@@ -473,59 +405,38 @@ export const Pizarra: React.FC = () => {
     }
   };
 
-  // Auto-XI: fill the current system by matching effective zone to slot zone,
-  // keeping pinned players in place; the rest of the squad to the bench.
-  const autoXI = (): void => {
-    if (readOnly) return;
-    const pinnedInSlot = new Map<number, string>();
+  const pinnedSlotMap = (): Map<number, string> => {
+    const m = new Map<number, string>();
     lineup.slots.forEach((s, i) => {
-      if (s.playerId && lineup.pinned.includes(s.playerId)) pinnedInSlot.set(i, s.playerId);
+      if (s.playerId && lineup.pinned.includes(s.playerId)) m.set(i, s.playerId);
     });
-    const taken = new Set(pinnedInSlot.values());
-    const pool = players.map((p) => p.id).filter((id) => !taken.has(id));
-    const slots = emptySlots(lineup.formation);
-    pinnedInSlot.forEach((id, i) => {
-      slots[i].playerId = id;
-    });
-    const zoneOf = (id: string): Zone | undefined => lineup.playerPositions[id] ?? playersById.get(id)?.naturalPosition;
-    slots.forEach((s) => {
-      if (s.playerId) return;
-      const idx = pool.findIndex((id) => zoneOf(id) === s.zone);
-      if (idx >= 0) s.playerId = pool.splice(idx, 1)[0];
-    });
-    slots.forEach((s) => {
-      if (!s.playerId && pool.length) s.playerId = pool.shift() as string;
-    });
-    withMorph(() => commit({ ...lineup, slots, bench: pool }));
+    return m;
   };
 
-  // Like Auto-XI but ranked by recent form (performance, not just position),
-  // keeping pinned players in place.
+  // Auto-XI: fill the current system by matching effective zone to slot zone,
+  // keeping pinned players in place. Active squad fills; bajas stay benched.
+  const autoXI = (): void => {
+    if (readOnly) return;
+    const pinnedInSlot = pinnedSlotMap();
+    const taken = new Set(pinnedInSlot.values());
+    const pool = activePlayers.map((p) => p.id).filter((id) => !taken.has(id));
+    const { slots, bench } = fillLineup(lineup.formation, pinnedInSlot, pool, effectiveZone);
+    const benchedBajas = bajas.map((b) => b.id).filter((id) => !taken.has(id));
+    withMorph(() => commit({ ...lineup, slots, bench: [...bench, ...benchedBajas] }));
+  };
+
+  // Like Auto-XI but ranked by recent form (performance, not just position).
   const suggestByForm = (): void => {
     if (readOnly) return;
-    const pinnedInSlot = new Map<number, string>();
-    lineup.slots.forEach((s, i) => {
-      if (s.playerId && lineup.pinned.includes(s.playerId)) pinnedInSlot.set(i, s.playerId);
-    });
+    const pinnedInSlot = pinnedSlotMap();
     const taken = new Set(pinnedInSlot.values());
-    const pool = [...players]
+    const pool = activePlayers
       .filter((p) => !taken.has(p.id))
       .sort((a, b) => (form.get(b.id) ?? 0) - (form.get(a.id) ?? 0))
       .map((p) => p.id);
-    const slots = emptySlots(lineup.formation);
-    pinnedInSlot.forEach((id, i) => {
-      slots[i].playerId = id;
-    });
-    const zoneOf = (id: string): Zone | undefined => lineup.playerPositions[id] ?? playersById.get(id)?.naturalPosition;
-    slots.forEach((s) => {
-      if (s.playerId) return;
-      const idx = pool.findIndex((id) => zoneOf(id) === s.zone);
-      if (idx >= 0) s.playerId = pool.splice(idx, 1)[0];
-    });
-    slots.forEach((s) => {
-      if (!s.playerId && pool.length) s.playerId = pool.shift() as string;
-    });
-    withMorph(() => commit({ ...lineup, slots, bench: pool }));
+    const { slots, bench } = fillLineup(lineup.formation, pinnedInSlot, pool, effectiveZone);
+    const benchedBajas = bajas.map((b) => b.id).filter((id) => !taken.has(id));
+    withMorph(() => commit({ ...lineup, slots, bench: [...bench, ...benchedBajas] }));
   };
 
   // Free mode: nudge the player's slot to the drop point via the pixel delta.
