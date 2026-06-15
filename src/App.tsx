@@ -9,6 +9,8 @@ import { Stats } from "./pages/Stats";
 import { Plantilla } from "./pages/Plantilla";
 import { Profile } from "./pages/Profile";
 import { Admin } from "./pages/Admin";
+import { Landing } from "./pages/Landing";
+import { Crest } from "./components/Crest";
 
 const MainAppContent: React.FC = () => {
   const { user, profile, loading } = useAuth();
@@ -19,6 +21,8 @@ const MainAppContent: React.FC = () => {
     const validPages = ["matches", "stats", "plantilla", "profile", "admin"];
     return validPages.includes(hash) ? hash : "matches";
   });
+
+  const [showLogin, setShowLogin] = useState(false);
 
   // Keep hash and current page in sync
   useEffect(() => {
@@ -48,23 +52,12 @@ const MainAppContent: React.FC = () => {
           gap: "1.5rem"
         }}
       >
-        <div
-          style={{
-            width: "4.5rem",
-            height: "4.5rem",
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, var(--accent-cyan), #ffffff)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "var(--shadow-glow)",
-            fontSize: "2rem",
-            fontWeight: 900,
-            color: "#0f172a"
-          }}
-        >
-          M
-        </div>
+        <Crest
+          size={104}
+          alt="Manchester Piti"
+          className="mp-boot-crest"
+          style={{ filter: "drop-shadow(0 10px 28px rgba(0,0,0,0.45))" }}
+        />
         <div style={{ textAlign: "center" }}>
           <div style={{
             width: "1.5rem",
@@ -83,9 +76,9 @@ const MainAppContent: React.FC = () => {
     );
   }
 
-  // 2. Auth Gate (Not Logged In)
+  // 2. Auth Gate (Not Logged In): public landing first, then login
   if (!user) {
-    return <Login />;
+    return showLogin ? <Login /> : <Landing onEnter={() => setShowLogin(true)} />;
   }
 
   // 3. Profile Gate (Logged In, but no Nickname set)

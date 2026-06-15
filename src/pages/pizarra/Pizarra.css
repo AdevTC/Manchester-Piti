@@ -1,0 +1,578 @@
+/* La Pizarra — tactical board (fútbol 7). Flat, printed, floodlit. Two themes
+   via --mp-* tokens; the pitch is drenched navy in both (a feature band). */
+
+.pz {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ── Control bar: system + tactics dropdowns + actions ────────────────── */
+.pz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.7rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--mp-surface);
+  border: 1px solid var(--mp-line);
+  border-radius: 6px;
+}
+.pz-ctrl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.pz-ctrl-label {
+  font-family: var(--mp-font-ui);
+  font-weight: 800;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mp-muted);
+}
+.pz-select {
+  font-family: var(--mp-font-ui);
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--mp-ink);
+  background: var(--mp-surface-2);
+  border: 1px solid var(--mp-line);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+}
+.pz-select--system {
+  font-family: var(--mp-font-display);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  color: var(--mp-heading);
+  min-width: 88px;
+}
+.pz-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-left: auto;
+  align-self: flex-end;
+}
+.pz-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--mp-font-ui);
+  font-weight: 800;
+  font-size: 0.78rem;
+  color: var(--mp-ink);
+  background: var(--mp-surface-2);
+  border: 1px solid var(--mp-line);
+  border-radius: 4px;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  transition: background 0.18s var(--mp-ease), color 0.18s var(--mp-ease), border-color 0.18s var(--mp-ease);
+}
+.pz-action:hover:not(:disabled) {
+  background: var(--mp-surface);
+  border-color: var(--mp-line-strong);
+}
+.pz-action[aria-pressed="true"] {
+  background: var(--mp-gold);
+  color: var(--mp-navy-deep);
+  border-color: var(--mp-gold);
+}
+.pz-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Status line ──────────────────────────────────────────────────────── */
+.pz-status {
+  font-family: var(--mp-font-ui);
+  font-size: 0.85rem;
+  color: var(--mp-muted);
+}
+.pz-status-count {
+  font-family: var(--mp-font-display);
+  font-size: 1.05rem;
+  color: var(--mp-accent);
+}
+.pz-status-warn { color: var(--mp-gold-ink); font-weight: 700; }
+.pz-status-ok { color: var(--mp-accent); font-weight: 700; }
+
+.pz-hint {
+  margin: 0;
+  font-family: var(--mp-font-ui);
+  font-size: 0.85rem;
+  color: var(--mp-ink);
+  background: color-mix(in srgb, var(--mp-sky) 16%, var(--mp-surface));
+  border: 1px solid color-mix(in srgb, var(--mp-sky) 45%, var(--mp-line));
+  border-radius: 4px;
+  padding: 0.55rem 0.8rem;
+}
+
+/* ── Board layout ─────────────────────────────────────────────────────── */
+.pz-board {
+  display: grid;
+  gap: 1rem;
+  /* minmax(0,1fr) so the track shrinks below the bench rail's min-content. */
+  grid-template-columns: minmax(0, 1fr);
+}
+.pz-board > * {
+  min-width: 0;
+}
+
+/* ── Pitch ────────────────────────────────────────────────────────────── */
+.pz-pitch {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+  max-height: 78vh;
+  margin: 0 auto;
+  aspect-ratio: 100 / 150;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--mp-navy-deep);
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.022) 0,
+    rgba(255, 255, 255, 0.022) 10%,
+    rgba(0, 0, 0, 0.05) 10%,
+    rgba(0, 0, 0, 0.05) 20%
+  );
+  border: 1px solid var(--mp-line);
+  touch-action: none;
+}
+.pz-pitch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.10) 1px, transparent 1.4px);
+  background-size: 18px 18px;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 1;
+}
+.pz-pitch.is-free {
+  outline: 2px dashed color-mix(in srgb, var(--mp-gold) 70%, transparent);
+  outline-offset: -4px;
+}
+.pz-floodlight { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+.pz-lines { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; }
+.pz-lines rect,
+.pz-lines line,
+.pz-lines circle {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.26);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.pz-lines .pz-spot { fill: rgba(255, 255, 255, 0.5); stroke: none; }
+
+/* ── Slots ────────────────────────────────────────────────────────────── */
+.pz-slot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pz-slot.is-occupied { z-index: 6; }
+.pz-slot-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.78);
+  font-family: var(--mp-font-ui);
+  font-weight: 800;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 0.18s var(--mp-ease), background 0.18s var(--mp-ease), transform 0.18s var(--mp-ease);
+}
+.pz-slot-empty.is-bare { width: 34px; height: 34px; }
+.pz-slot-empty:hover { border-color: var(--mp-sky); background: rgba(108, 171, 221, 0.16); }
+.pz-slot.is-over .pz-slot-empty,
+.pz-slot.is-target .pz-slot-empty {
+  border-color: var(--mp-sky);
+  border-style: solid;
+  background: rgba(108, 171, 221, 0.22);
+  transform: scale(1.08);
+}
+.pz-slot.is-occupied.is-over::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 2px solid var(--mp-sky);
+  border-radius: 50%;
+}
+
+/* ── Player token ─────────────────────────────────────────────────────── */
+.pz-token {
+  appearance: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: grab;
+  touch-action: none;
+  animation: pzTokenIn 0.4s var(--mp-ease) both;
+}
+.pz-token:active { cursor: grabbing; }
+.pz-token-jersey {
+  position: relative;
+  display: block;
+  line-height: 0;
+  border-radius: 6px;
+  transition: transform 0.2s var(--mp-ease);
+}
+.pz-token-jersey .jersey-wrapper { filter: none !important; }
+.pz-token-jersey svg { display: block; width: 100%; height: 100%; }
+.pz-token-jersey::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.45) 50%, transparent 62%);
+  background-size: 250% 100%;
+  background-position: 130% 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s var(--mp-ease);
+}
+.pz-token-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  max-width: 92px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--mp-navy-deep);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.pz-token-num { font-family: var(--mp-font-display); font-size: 0.78rem; line-height: 1; color: var(--mp-sky); }
+.pz-token-label {
+  font-family: var(--mp-font-ui);
+  font-weight: 700;
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pz-token-pos {
+  font-family: var(--mp-font-ui);
+  font-weight: 800;
+  font-size: 0.54rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mp-navy-deep);
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 2px;
+  padding: 0 4px;
+}
+.pz-token--bench { flex-direction: row; gap: 0.4rem; padding: 4px 6px; border-radius: 5px; }
+.pz-token--bench .pz-token-name { background: transparent; border: none; padding: 0; }
+.pz-token--bench .pz-token-label { color: var(--mp-ink); }
+.pz-token--bench .pz-token-num { color: var(--mp-sky-deep); }
+.pz-token--bench .pz-token-pos { color: var(--mp-ink); background: var(--mp-surface-2); }
+
+.pz-token:hover .pz-token-jersey,
+.pz-token:focus-visible .pz-token-jersey { transform: translateY(-2px) scale(1.04); }
+.pz-token:hover .pz-token-jersey::after {
+  opacity: 0.85;
+  background-position: -30% 0;
+  transition: opacity 0.2s var(--mp-ease), background-position 0.6s var(--mp-ease);
+}
+.pz-token.is-dragging { z-index: 40; }
+.pz-token.is-dragging .pz-token-jersey { transform: scale(1.12) rotate(2.5deg); }
+.pz-token.is-picked .pz-token-jersey {
+  outline: 2.5px solid var(--mp-gold);
+  outline-offset: 1px;
+}
+.pz-token.is-oop .pz-token-jersey {
+  outline: 2px dashed var(--mp-gold);
+  outline-offset: 2px;
+}
+
+/* Badges */
+.pz-token-roles { position: absolute; top: -4px; right: -2px; display: flex; gap: 2px; z-index: 8; }
+.pz-role-seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--mp-gold);
+  color: var(--mp-navy-deep);
+  border: 1.5px solid var(--mp-navy-deep);
+  font-family: var(--mp-font-ui);
+  font-weight: 900;
+  font-size: 0.62rem;
+  line-height: 1;
+}
+.pz-role-seal--lg { width: 26px; height: 26px; font-size: 0.85rem; flex: none; }
+.pz-token-pin {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--mp-ink);
+  color: var(--mp-surface);
+  z-index: 8;
+}
+.pz-token-oop {
+  position: absolute;
+  bottom: 16px;
+  left: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--mp-gold);
+  color: var(--mp-navy-deep);
+  border: 1px solid var(--mp-navy-deep);
+  font-weight: 900;
+  font-size: 0.72rem;
+  z-index: 8;
+}
+
+/* ── Bench ────────────────────────────────────────────────────────────── */
+.pz-bench {
+  background: var(--mp-surface);
+  border: 1px solid var(--mp-line);
+  border-radius: 6px;
+  padding: 0.7rem 0.85rem;
+  transition: border-color 0.18s var(--mp-ease), background 0.18s var(--mp-ease);
+}
+.pz-bench.is-over, .pz-bench.is-target { border-color: var(--mp-sky); }
+.pz-bench.is-over { background: color-mix(in srgb, var(--mp-sky) 12%, var(--mp-surface)); }
+.pz-bench-head { display: flex; align-items: center; gap: 0.5rem; color: var(--mp-muted); margin-bottom: 0.6rem; }
+.pz-bench-title {
+  font-family: var(--mp-font-ui);
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mp-ink);
+}
+.pz-bench-count { font-family: var(--mp-font-display); font-size: 1rem; color: var(--mp-sky-deep); }
+.pz-bench-drop {
+  margin-left: auto;
+  font-family: var(--mp-font-ui);
+  font-weight: 800;
+  font-size: 0.72rem;
+  color: var(--mp-navy-deep);
+  background: var(--mp-sky);
+  border: none;
+  border-radius: 4px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+.pz-bench-filter { display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; align-items: center; margin-bottom: 0.6rem; }
+.pz-bench-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 1;
+  min-width: 120px;
+  background: var(--mp-surface-2);
+  border: 1px solid var(--mp-line);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  color: var(--mp-muted);
+}
+.pz-bench-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--mp-font-ui);
+  font-size: 0.85rem;
+  color: var(--mp-ink);
+  outline: none;
+}
+.pz-bench-clear { border: none; background: none; color: var(--mp-muted); cursor: pointer; display: inline-flex; padding: 0; }
+.pz-bench-zones { display: inline-flex; gap: 1px; background: var(--mp-line); border: 1px solid var(--mp-line); border-radius: 4px; overflow: hidden; }
+.pz-zone-chip {
+  font-family: var(--mp-font-ui);
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: var(--mp-ink);
+  background: var(--mp-surface);
+  border: none;
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+}
+.pz-zone-chip[aria-pressed="true"] { background: var(--mp-sky); color: var(--mp-navy-deep); }
+.pz-bench-empty { margin: 0; font-family: var(--mp-font-ui); font-size: 0.85rem; color: var(--mp-muted); }
+.pz-bench-rail { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem; }
+
+/* ── Panels (galones + posiciones) ────────────────────────────────────── */
+.pz-panels { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+.pz-panel { background: var(--mp-surface); border: 1px solid var(--mp-line); border-radius: 6px; padding: 0.9rem 1rem 1rem; }
+.pz-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.8rem; }
+.pz-panel-title { font-family: var(--mp-font-display); text-transform: uppercase; font-size: 1.3rem; letter-spacing: 0.01em; color: var(--mp-heading); }
+.pz-panel-sub { font-family: var(--mp-font-ui); font-size: 0.74rem; color: var(--mp-muted); text-align: right; }
+
+.pz-roles-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; }
+.pz-role { display: flex; align-items: center; gap: 0.55rem; padding: 0.5rem 0.6rem; border: 1px solid var(--mp-line); border-radius: 5px; background: var(--mp-surface-2); }
+.pz-role-text { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; flex: 1; }
+.pz-role-label { font-family: var(--mp-font-ui); font-weight: 800; font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mp-muted); }
+.pz-role-select,
+.pz-pos-select {
+  font-family: var(--mp-font-ui);
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--mp-ink);
+  background: var(--mp-surface);
+  border: 1px solid var(--mp-line);
+  border-radius: 4px;
+  padding: 0.3rem 0.4rem;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.pz-pos-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; background: var(--mp-line); border: 1px solid var(--mp-line); border-radius: 5px; overflow: hidden; }
+.pz-pos-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.7rem; padding: 0.5rem 0.7rem; background: var(--mp-surface); }
+.pz-pos-row.is-oop { background: color-mix(in srgb, var(--mp-gold) 12%, var(--mp-surface)); }
+.pz-pos-player { font-family: var(--mp-font-ui); font-size: 0.85rem; color: var(--mp-ink); flex: 1; min-width: 130px; display: inline-flex; align-items: center; gap: 0.4rem; }
+.pz-pos-player b { font-family: var(--mp-font-display); color: var(--mp-sky-deep); }
+.pz-pos-slot { font-family: var(--mp-font-ui); font-weight: 800; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mp-muted); border: 1px solid var(--mp-line); border-radius: 2px; padding: 0 4px; }
+.pz-pos-field { display: inline-flex; flex-direction: column; gap: 0.15rem; }
+.pz-pos-flabel { font-family: var(--mp-font-ui); font-weight: 800; font-size: 0.56rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mp-muted); }
+.pz-pin-btn {
+  font-family: var(--mp-font-ui);
+  font-weight: 800;
+  font-size: 0.7rem;
+  color: var(--mp-ink);
+  background: var(--mp-surface-2);
+  border: 1px solid var(--mp-line);
+  border-radius: 4px;
+  padding: 0.35rem 0.55rem;
+  cursor: pointer;
+}
+.pz-pin-btn[aria-pressed="true"] { background: var(--mp-ink); color: var(--mp-surface); border-color: var(--mp-ink); }
+.pz-pos-oop { font-family: var(--mp-font-ui); font-weight: 900; color: var(--mp-gold-ink); font-size: 0.95rem; }
+
+/* ── Settings dialog ──────────────────────────────────────────────────── */
+.pz-settings-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 13, 32, 0.55);
+  padding: 1rem;
+}
+.pz-settings {
+  width: min(360px, 100%);
+  background: var(--mp-surface);
+  border: 1px solid var(--mp-line);
+  border-radius: 6px;
+  padding: 1rem 1.1rem 1.2rem;
+}
+.pz-settings-head { display: flex; align-items: center; justify-content: space-between; }
+.pz-settings-title { font-family: var(--mp-font-display); text-transform: uppercase; font-size: 1.25rem; color: var(--mp-heading); }
+.pz-settings-close { border: none; background: none; color: var(--mp-muted); cursor: pointer; display: inline-flex; }
+.pz-settings-sub { margin: 0.2rem 0 0.8rem; font-family: var(--mp-font-ui); font-size: 0.82rem; color: var(--mp-muted); }
+.pz-settings-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.pz-settings-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.4rem; font-family: var(--mp-font-ui); font-size: 0.9rem; color: var(--mp-ink); cursor: pointer; border-radius: 4px; }
+.pz-settings-row:hover { background: var(--mp-surface-2); }
+.pz-settings-row input { width: 16px; height: 16px; accent-color: var(--mp-sky); }
+
+/* ── Presentation mode ────────────────────────────────────────────────── */
+.pz--present .pz-controls,
+.pz--present .pz-status,
+.pz--present .pz-hint,
+.pz--present .pz-bench,
+.pz--present .pz-panels { display: none; }
+.pz--present .pz-pitch { max-width: min(92vw, 560px); max-height: 86vh; }
+.pz-present-exit {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 60;
+  font-family: var(--mp-font-ui);
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--mp-navy-deep);
+  background: var(--mp-sky);
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 0.8rem;
+  cursor: pointer;
+}
+
+/* ── Focus (gold ring, brand) ─────────────────────────────────────────── */
+.pz-select:focus-visible,
+.pz-action:focus-visible,
+.pz-slot-empty:focus-visible,
+.pz-token:focus-visible,
+.pz-bench-drop:focus-visible,
+.pz-bench-search input:focus-visible,
+.pz-zone-chip:focus-visible,
+.pz-role-select:focus-visible,
+.pz-pos-select:focus-visible,
+.pz-pin-btn:focus-visible,
+.pz-settings-row input:focus-visible,
+.pz-settings-close:focus-visible,
+.pz-present-exit:focus-visible {
+  outline: 3px solid var(--mp-gold);
+  outline-offset: 2px;
+}
+
+@keyframes pzTokenIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Desktop: bench + panels beside the pitch ─────────────────────────── */
+@media (min-width: 900px) {
+  .pz-board { grid-template-columns: minmax(0, 1fr) 250px; align-items: start; }
+  .pz-bench { position: sticky; top: 1rem; }
+  .pz-bench-rail { flex-direction: column; overflow-x: visible; max-height: 60vh; overflow-y: auto; }
+  .pz-token--bench { width: 100%; }
+  .pz-panels { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Mobile: bench rail below the pitch (clear of the fixed tab bar) ───── */
+@media (max-width: 899px) {
+  .pz-bench-rail { scroll-snap-type: x proximity; }
+  .pz-token--bench { scroll-snap-align: start; }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pz-token { animation: none; }
+  .pz-token-jersey,
+  .pz-token-jersey::after,
+  .pz-action,
+  .pz-slot-empty,
+  .pz-bench { transition: none; }
+  .pz-token:hover .pz-token-jersey,
+  .pz-token.is-dragging .pz-token-jersey { transform: none; }
+  .pz-token:hover .pz-token-jersey::after { opacity: 0; }
+}

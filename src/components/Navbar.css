@@ -1,0 +1,379 @@
+/* Manchester Piti — broadcast gantry navbar.
+   A permanent navy band (the club's drenched color) in BOTH themes: a fixed
+   brand frame, the way a stadium scoreboard rail is always navy regardless of
+   daylight. Type-forward tab rail with a sliding sky indicator; on-brand
+   season selector; reskinned mobile bottom rail. White/sky on navy keeps
+   contrast well above AA and sidesteps the light-theme accent traps. */
+
+/* z-index scale (navbar scope): header 50 < dropdown 60 < mobile bar 100 */
+
+.mp-gantry {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  color: #fff;
+  font-family: var(--mp-font-ui);
+  background:
+    radial-gradient(130% 200% at 90% -60%, rgba(108, 171, 221, 0.18), transparent 58%),
+    var(--mp-navy-deep);
+  border-bottom: 3px solid var(--mp-sky);
+  animation: mpGantryIn 0.55s var(--mp-ease) both;
+}
+
+/* halftone print dots, faded across the band — echoes the hero texture */
+.mp-gantry::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(108, 171, 221, 0.2) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(100deg, #000 0%, transparent 52%);
+  mask-image: linear-gradient(100deg, #000 0%, transparent 52%);
+  opacity: 0.5;
+}
+
+@keyframes mpGantryIn {
+  from { transform: translateY(-100%); }
+  to { transform: none; }
+}
+
+.mp-gantry-inner {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 2.2vw, 2rem);
+  padding: 0 clamp(1rem, 3vw, 1.5rem);
+}
+
+/* ---------- Brand ---------- */
+.mp-gantry-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+}
+.mp-gantry-brand .mp-crest { width: 40px; height: 40px; flex-shrink: 0; }
+.mp-gantry-word {
+  font-family: var(--mp-font-display);
+  font-size: 1.28rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+.mp-gantry-word i { font-style: normal; color: var(--mp-sky); }
+.mp-gantry-brand:focus-visible {
+  outline: 3px solid var(--mp-gold);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ---------- Desktop tab rail ---------- */
+.mp-rail {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  gap: 0.1rem;
+}
+.mp-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 clamp(0.6rem, 1.3vw, 1rem);
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--mp-font-display);
+  font-size: 1.04rem;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  transition: color 0.22s var(--mp-ease);
+}
+.mp-tab:hover { color: #fff; }
+.mp-tab.is-active { color: #fff; }
+.mp-tab.is-admin { color: rgba(255, 198, 89, 0.72); }
+.mp-tab.is-admin:hover,
+.mp-tab.is-admin.is-active { color: var(--mp-gold); }
+.mp-tab:focus-visible {
+  outline: 2px solid var(--mp-gold);
+  outline-offset: -5px;
+  border-radius: 3px;
+}
+
+/* the sliding indicator */
+.mp-rail-ink {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 3px;
+  background: var(--mp-sky);
+  border-radius: 3px 3px 0 0;
+  pointer-events: none;
+  transition: transform 0.42s var(--mp-ease), width 0.42s var(--mp-ease), background-color 0.25s var(--mp-ease);
+}
+.mp-rail-ink.is-admin { background: var(--mp-gold); }
+
+/* ---------- Right cluster ---------- */
+.mp-gantry-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+/* Season selector */
+.mp-season { position: relative; }
+.mp-season-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  height: 38px;
+  padding: 0 0.7rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  color: #fff;
+  font-family: var(--mp-font-ui);
+  transition: background 0.2s var(--mp-ease), border-color 0.2s var(--mp-ease);
+}
+.mp-season-btn:hover { background: rgba(255, 255, 255, 0.12); border-color: var(--mp-sky); }
+.mp-season-btn:focus-visible { outline: 3px solid var(--mp-gold); outline-offset: 2px; }
+.mp-season-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+.mp-season-cap {
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.66);
+}
+.mp-season-val {
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.mp-season-chev {
+  flex-shrink: 0;
+  color: var(--mp-sky);
+  transition: transform 0.26s var(--mp-ease);
+}
+.mp-season-btn[aria-expanded="true"] .mp-season-chev { transform: rotate(180deg); }
+.mp-season-loading {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0 0.5rem;
+}
+
+.mp-season-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  min-width: 232px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  background: #16224a;
+  border: 1px solid rgba(108, 171, 221, 0.32);
+  border-radius: 6px;
+  box-shadow: 0 20px 44px rgba(3, 8, 20, 0.55);
+  animation: mpMenuIn 0.18s var(--mp-ease) both;
+}
+@keyframes mpMenuIn {
+  from { opacity: 0; transform: translateY(-7px); }
+  to { opacity: 1; transform: none; }
+}
+.mp-season-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--mp-font-ui);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.82);
+  transition: background 0.15s var(--mp-ease), color 0.15s var(--mp-ease);
+}
+.mp-season-opt:hover { background: rgba(108, 171, 221, 0.16); color: #fff; }
+.mp-season-opt:focus-visible { outline: 2px solid var(--mp-gold); outline-offset: -2px; }
+.mp-season-opt.is-active { color: #fff; font-weight: 700; }
+.mp-season-opt-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mp-sky);
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.15s var(--mp-ease), transform 0.15s var(--mp-ease);
+}
+.mp-season-opt.is-active .mp-season-opt-dot { opacity: 1; transform: scale(1); }
+
+/* Theme toggle (navy-band variant; full styling so it works without Landing.css) */
+.mp-gantry-toggle {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: background 0.2s var(--mp-ease), border-color 0.2s var(--mp-ease);
+}
+.mp-gantry-toggle:hover { background: rgba(255, 255, 255, 0.12); border-color: var(--mp-sky); }
+.mp-gantry-toggle svg { width: 18px; height: 18px; }
+.mp-gantry-toggle:focus-visible { outline: 3px solid var(--mp-gold); outline-offset: 2px; }
+
+/* User chip */
+.mp-user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+}
+.mp-user-meta { text-align: right; line-height: 1.18; }
+.mp-user-nick { font-size: 0.82rem; font-weight: 700; color: #fff; }
+.mp-user-role {
+  font-size: 0.58rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.56);
+}
+.mp-user-out {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #ff8077;
+  background: rgba(196, 47, 35, 0.16);
+  border: 1px solid rgba(196, 47, 35, 0.34);
+  transition: background 0.2s var(--mp-ease), color 0.2s var(--mp-ease), border-color 0.2s var(--mp-ease);
+}
+.mp-user-out:hover { background: var(--mp-red); color: #fff; border-color: var(--mp-red); }
+.mp-user-out:focus-visible { outline: 3px solid var(--mp-gold); outline-offset: 2px; }
+
+/* ---------- Mobile bottom rail ---------- */
+.mp-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  background: var(--mp-navy-deep);
+  border-top: 3px solid var(--mp-sky);
+  padding: 0.4rem 0 calc(0.4rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -10px 30px rgba(3, 8, 20, 0.5);
+}
+.mp-tabb {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.22rem;
+  padding: 0.4rem 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--mp-font-ui);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.2s var(--mp-ease);
+}
+.mp-tabb svg { transition: transform 0.25s var(--mp-ease); }
+.mp-tabb:hover { color: rgba(255, 255, 255, 0.85); }
+.mp-tabb.is-active { color: #fff; }
+.mp-tabb.is-active svg { transform: translateY(-1px); }
+.mp-tabb.is-admin { color: rgba(255, 198, 89, 0.7); }
+.mp-tabb.is-admin.is-active { color: var(--mp-gold); }
+.mp-tabb:focus-visible { outline: 2px solid var(--mp-gold); outline-offset: -4px; border-radius: 4px; }
+.mp-tabb::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 40px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--mp-sky);
+  transform: translateX(-50%) scaleX(0);
+  transition: transform 0.3s var(--mp-ease);
+}
+.mp-tabb.is-active::after { transform: translateX(-50%) scaleX(1); }
+.mp-tabb.is-admin.is-active::after { background: var(--mp-gold); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 899px) {
+  .mp-gantry-desktop { display: none !important; }
+}
+@media (min-width: 900px) {
+  .mp-gantry-mobile { display: none !important; }
+}
+@media (max-width: 560px) {
+  .mp-gantry-inner { gap: 0.6rem; }
+  .mp-gantry-word { font-size: 1.08rem; }
+  .mp-season-cap { display: none; }
+  .mp-season-val { max-width: 7.5rem; font-size: 0.8rem; }
+  .mp-season-btn { gap: 0.4rem; padding: 0 0.55rem; }
+}
+/* Phones: crest-only brand so the season selector, toggle and logout all fit.
+   The page heading already names the section, so the wordmark is redundant here. */
+@media (max-width: 480px) {
+  .mp-gantry-word { display: none; }
+  .mp-season-val { max-width: 6rem; }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .mp-gantry { animation: none; }
+  .mp-rail-ink { transition: background-color 0.25s ease; }
+  .mp-season-menu { animation: none; }
+  .mp-season-chev,
+  .mp-tabb::after,
+  .mp-tabb svg { transition: none; }
+}

@@ -12,7 +12,7 @@ interface LeaderboardItem {
 interface LeaderboardProps {
   title: string;
   items: LeaderboardItem[];
-  icon: string;
+  icon?: string;
   accentColor?: string;
   onViewChart?: () => void;
 }
@@ -20,7 +20,6 @@ interface LeaderboardProps {
 export const Leaderboard: React.FC<LeaderboardProps> = ({
   title,
   items,
-  icon,
   accentColor = "var(--accent-cyan)",
   onViewChart
 }) => {
@@ -48,9 +47,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
           paddingBottom: "0.75rem"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <span style={{ fontSize: "1.25rem" }}>{icon}</span>
-          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, letterSpacing: "-0.01em" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: accentColor, flexShrink: 0 }} />
+          <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 400, textTransform: "uppercase", fontSize: "1.1rem", letterSpacing: "0.02em", color: "var(--text-primary)" }}>
             {title}
           </h3>
         </div>
@@ -63,8 +62,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
             }}
             title="Ver Gráfica de Evolución"
             style={{
-              background: "rgba(6, 182, 212, 0.1)",
-              border: "1px solid rgba(6, 182, 212, 0.25)",
+              background: "rgba(108, 171, 221, 0.1)",
+              border: "1px solid rgba(108, 171, 221, 0.25)",
               color: "var(--accent-cyan)",
               fontSize: "0.75rem",
               fontWeight: 700,
@@ -81,7 +80,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
               e.currentTarget.style.color = "#070b13";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(6, 182, 212, 0.1)";
+              e.currentTarget.style.background = "rgba(108, 171, 221, 0.1)";
               e.currentTarget.style.color = "var(--accent-cyan)";
             }}
           >
@@ -110,7 +109,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
         <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           {sortedItems.map((item, index) => {
             const isPodium = index < 3;
-            const rankEmoji = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : null;
 
             return (
               <div
@@ -121,8 +119,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                   justifyContent: "space-between",
                   padding: "0.6rem 0.8rem",
                   borderRadius: "0.5rem",
-                  background: isPodium ? "rgba(255, 255, 255, 0.02)" : "transparent",
-                  border: isPodium ? "1px solid rgba(255, 255, 255, 0.04)" : "1px solid transparent",
+                  background: isPodium ? "rgba(108, 171, 221, 0.08)" : "transparent",
+                  border: isPodium ? "1px solid var(--border-color)" : "1px solid transparent",
                   transition: "var(--transition-smooth)"
                 }}
               >
@@ -132,32 +130,31 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                   <div
                     style={{
                       width: "1.75rem",
-                      height: "1.75rem",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: rankEmoji ? "1.1rem" : "0.85rem",
-                      fontWeight: 700,
-                      color: rankEmoji ? "inherit" : "var(--text-muted)"
+                      textAlign: "center",
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 400,
+                      fontSize: index === 0 ? "1.5rem" : "1.1rem",
+                      lineHeight: 1,
+                      color: index === 0 ? "var(--accent-gold)" : "var(--text-muted)"
                     }}
                   >
-                    {rankEmoji || index + 1}
+                    {index + 1}
                   </div>
 
-                  {/* Jersey Icon Mini circle */}
+                  {/* Jersey number disc */}
                   <div
                     style={{
                       width: "1.75rem",
                       height: "1.75rem",
-                      borderRadius: "50%",
-                      background: "linear-gradient(135deg, var(--accent-cyan), #ffffff)",
-                      color: "#0f172a",
-                      fontSize: "0.75rem",
+                      borderRadius: "4px",
+                      background: "var(--accent-cyan)",
+                      color: "#0c1733",
+                      fontSize: "0.78rem",
                       fontWeight: 800,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)"
+                      flexShrink: 0
                     }}
                   >
                     {item.number}
@@ -177,12 +174,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                 {/* Score Value */}
                 <div
                   style={{
-                    fontSize: "1.1rem",
-                    fontWeight: 800,
-                    color: isPodium ? accentColor : "var(--text-primary)",
-                    padding: "0.25rem 0.6rem",
-                    borderRadius: "0.375rem",
-                    background: isPodium ? "rgba(6, 182, 212, 0.05)" : "rgba(255, 255, 255, 0.01)"
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 400,
+                    fontSize: "1.6rem",
+                    lineHeight: 1,
+                    color: isPodium ? "var(--accent-ink)" : "var(--text-secondary)",
+                    padding: "0 0.4rem"
                   }}
                 >
                   {item.value}

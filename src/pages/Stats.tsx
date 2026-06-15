@@ -5,7 +5,28 @@ import { Leaderboard } from "../components/Leaderboard";
 import { Jersey } from "../components/Jersey";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "../firebase";
-import { Shield, Sparkles, TrendingUp, X, Award, Trophy, Zap, Flame, Users, Target, Crown, History, Info } from "lucide-react";
+import { Shield, Sparkles, TrendingUp, X, Award, Trophy, Zap, Flame, Users, Target, Crown, Info } from "lucide-react";
+
+// Editorial section heading: Anton title + short sky rule bar (project cadence).
+const SectionHead: React.FC<{ title: string; sub?: string; rule?: string }> = ({ title, sub, rule = "var(--accent-cyan)" }) => (
+  <div style={{ marginBottom: "1.25rem" }}>
+    <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 400, textTransform: "uppercase", fontSize: "clamp(1.5rem, 4vw, 2.1rem)", lineHeight: 0.95, letterSpacing: "0.01em", color: "var(--text-primary)" }}>
+      {title}
+    </h3>
+    <span style={{ display: "block", width: "60px", height: "5px", background: rule, margin: "0.6rem 0 0" }} />
+    {sub && <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", marginTop: "0.65rem", maxWidth: "65ch" }}>{sub}</p>}
+  </div>
+);
+
+// Smaller sub-section label inside a section (uppercase grotesque, not a display face).
+const SubHead: React.FC<{ title: string; rule?: string }> = ({ title, rule = "var(--accent-cyan)" }) => (
+  <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.6rem" }}>
+    <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: rule, flexShrink: 0 }} />
+    <h4 style={{ fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: "0.82rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-primary)", margin: 0 }}>
+      {title}
+    </h4>
+  </div>
+);
 
 const formatPlayerName = (firstName: string, lastName: string) => {
   if (!lastName || !lastName.trim()) return firstName;
@@ -1123,12 +1144,13 @@ export const Stats: React.FC = () => {
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
       {/* Title block */}
-      <div style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "1rem" }}>
-        <h2 style={{ fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
-          Panel de <span className="text-gradient">Estadísticas</span>
+      <div style={{ paddingBottom: "0.5rem" }}>
+        <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400, textTransform: "uppercase", fontSize: "clamp(2.2rem, 6vw, 3.4rem)", lineHeight: 0.9, letterSpacing: "0.01em", color: "var(--text-primary)" }}>
+          Estadísticas
         </h2>
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-          Datos e historiales de: <strong>{currentSeasonName}</strong>
+        <span style={{ display: "block", width: "84px", height: "6px", background: "var(--accent-cyan)", margin: "0.9rem 0 0.75rem" }} />
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>
+          Histórico y récords de <strong>{currentSeasonName}</strong>
         </p>
       </div>
 
@@ -1137,7 +1159,7 @@ export const Stats: React.FC = () => {
           <div style={{
             width: "2.5rem",
             height: "2.5rem",
-            border: "4px solid rgba(6, 182, 212, 0.1)",
+            border: "4px solid rgba(108, 171, 221, 0.1)",
             borderTopColor: "var(--accent-cyan)",
             borderRadius: "50%",
             animation: "pulseGlow 1.5s infinite linear",
@@ -1149,80 +1171,44 @@ export const Stats: React.FC = () => {
         <>
           {/* TEAM STATS WIDGETS */}
           <div>
-            <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Shield size={20} style={{ color: "var(--accent-cyan)" }} />
-              Rendimiento del Equipo
-            </h3>
-
-            <div className="grid-3" style={{ gap: "1rem", marginBottom: "1.5rem" }}>
-              {/* Points Widget */}
-              <div 
-                className="card" 
-                style={{ 
-                  textAlign: "center", 
-                  background: "linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(15, 23, 42, 0.6))",
-                  borderColor: "rgba(6, 182, 212, 0.2)"
-                }}
-              >
-                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-                  Puntos Totales
-                </span>
-                <h4 style={{ fontSize: "2.5rem", fontWeight: 900, color: "var(--accent-cyan)", marginTop: "0.25rem", lineHeight: 1 }}>
-                  {teamStats.points}
-                </h4>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  {teamStats.played} partidos jugados
-                </span>
-              </div>
-
-              {/* Record Widget */}
-              <div className="card" style={{ textAlign: "center" }}>
-                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-                  Balance (V - E - D)
-                </span>
-                <h4 style={{ fontSize: "2rem", fontWeight: 800, marginTop: "0.5rem", marginBottom: "0.25rem", lineHeight: 1 }}>
-                  <span style={{ color: "var(--accent-emerald)" }}>{teamStats.wins}</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "1.5rem" }}> - </span>
-                  <span style={{ color: "var(--accent-gold)" }}>{teamStats.draws}</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "1.5rem" }}> - </span>
-                  <span style={{ color: "var(--accent-red)" }}>{teamStats.losses}</span>
-                </h4>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  Efectividad: {teamStats.played > 0 ? Math.round(((teamStats.wins * 3 + teamStats.draws) / (teamStats.played * 3)) * 100) : 0}%
-                </span>
-              </div>
-
-              {/* Goals Widget */}
-              <div className="card" style={{ textAlign: "center" }}>
-                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-                  Goles (GF / GC / DIF)
-                </span>
-                <h4 style={{ fontSize: "2rem", fontWeight: 800, marginTop: "0.5rem", marginBottom: "0.25rem", lineHeight: 1 }}>
-                  <span>{teamStats.goalsFor}</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "1.5rem" }}> : </span>
-                  <span>{teamStats.goalsAgainst}</span>
-                  <span style={{ 
-                    fontSize: "1.1rem", 
-                    marginLeft: "0.5rem", 
-                    color: goalDiff > 0 ? "var(--accent-emerald)" : goalDiff < 0 ? "var(--accent-red)" : "white" 
-                  }}>
-                    ({goalDiff > 0 ? `+${goalDiff}` : goalDiff})
+            <section style={{ position: "relative", overflow: "hidden", background: "#0c1733", border: "1px solid rgba(108,171,221,0.18)", borderRadius: "8px", padding: "clamp(1.75rem, 5vw, 3rem)", marginBottom: "1.5rem" }}>
+              <div aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "radial-gradient(rgba(108,171,221,0.16) 1px, transparent 1.5px)", backgroundSize: "22px 22px", opacity: 0.5, WebkitMaskImage: "linear-gradient(120deg, #000, transparent 60%)", maskImage: "linear-gradient(120deg, #000, transparent 60%)" }} />
+              <div style={{ position: "relative", zIndex: 1, display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: "2rem" }}>
+                <div>
+                  <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent-cyan)" }}>
+                    <Shield size={16} /> Rendimiento &middot; {currentSeasonName}
                   </span>
-                </h4>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  Promedio: {teamStats.played > 0 ? (teamStats.goalsFor / teamStats.played).toFixed(1) : 0} goles por partido
-                </span>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginTop: "0.85rem" }}>
+                    <span style={{ fontFamily: "var(--font-display)", fontSize: "clamp(4rem, 13vw, 7rem)", lineHeight: 0.76, color: "var(--accent-cyan)" }}>{teamStats.points}</span>
+                    <span style={{ fontFamily: "var(--font-display)", fontSize: "1.3rem", color: "#9fb6d6" }}>PTS</span>
+                  </div>
+                  <span style={{ display: "block", marginTop: "0.5rem", fontSize: "0.85rem", color: "#9fb6d6" }}>
+                    {teamStats.played} partidos &middot; {teamStats.played > 0 ? Math.round(((teamStats.wins * 3 + teamStats.draws) / (teamStats.played * 3)) * 100) : 0}% efectividad
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: "clamp(1rem, 3vw, 2.25rem)", flexWrap: "wrap" }}>
+                  {[
+                    { k: "Ganados", v: `${teamStats.wins}`, c: "var(--accent-cyan)" },
+                    { k: "Empat.", v: `${teamStats.draws}`, c: "var(--accent-gold)" },
+                    { k: "Perd.", v: `${teamStats.losses}`, c: "var(--accent-red)" },
+                    { k: "GF", v: `${teamStats.goalsFor}`, c: "#ffffff" },
+                    { k: "GC", v: `${teamStats.goalsAgainst}`, c: "#ffffff" },
+                    { k: "Dif.", v: goalDiff > 0 ? `+${goalDiff}` : `${goalDiff}`, c: goalDiff > 0 ? "var(--accent-cyan)" : goalDiff < 0 ? "var(--accent-red)" : "#9fb6d6" },
+                  ].map((s) => (
+                    <div key={s.k} style={{ minWidth: "3rem" }}>
+                      <div style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.8rem, 4vw, 2.6rem)", lineHeight: 0.9, color: s.c }}>{s.v}</div>
+                      <div style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#9fb6d6", marginTop: "0.35rem" }}>{s.k}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </section>
           </div>
 
           {/* HEAD-TO-HEAD BALANCES */}
           {Object.keys(rivalRecords).length > 0 && (
-            <div className="card" style={{ background: "rgba(15, 23, 42, 0.4)" }}>
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <TrendingUp size={18} style={{ color: "var(--accent-cyan)" }} />
-                Balance contra Rivales (Head-to-Head)
-              </h3>
+            <div className="card">
+              <SectionHead title="Balance vs Rivales" sub="El cara a cara contra cada equipo al que nos hemos enfrentado." />
               <div className="table-container">
                 <table className="custom-table">
                   <thead>
@@ -1276,26 +1262,15 @@ export const Stats: React.FC = () => {
 
           {/* HITOS Y RÉCORDS DE LA TEMPORADA */}
           <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
-            <div style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "1rem" }}>
-              <h3 style={{ fontSize: "1.35rem", fontWeight: 800, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Trophy size={22} style={{ color: "var(--accent-gold)" }} />
-                Hitos y Récords de la Temporada
-              </h3>
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-                Logros colectivos e individuales históricos y rachas destacadas de la plantilla.
-              </p>
-            </div>
+            <SectionHead title="Hitos y Récords" sub="Logros colectivos e individuales y las rachas que han marcado la historia del club." rule="var(--accent-gold)" />
 
             {/* SECCIÓN COLECTIVA (RÉCORDS DEL EQUIPO) */}
             <div>
-              <h4 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--text-primary)" }}>
-                <Users size={18} style={{ color: "var(--accent-cyan)" }} />
-                Récords del Equipo (Colectivos)
-              </h4>
+              <SubHead title="Récords del equipo" />
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.25rem" }}>
                 
                 {/* Mayor Goleada */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(16, 185, 129, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(16, 185, 129, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(108, 171, 221, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Trophy size={16} style={{ color: "var(--accent-emerald)" }} />
@@ -1315,11 +1290,11 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxMargin.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-emerald)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-emerald)", margin: "0.2rem 0" }}>
                         +{records.maxMargin.value} gol{records.maxMargin.value > 1 ? "es" : ""} de dif.
                       </h5>
                       {records.maxMargin.matches.length > 0 && (
-                        <div style={{ fontSize: "0.8rem", color: "#ffffff", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.8rem", color: "var(--text-primary)", fontWeight: 600 }}>
                           {records.maxMargin.matches[0].score} vs {records.maxMargin.matches[0].rival}
                           {records.maxMargin.matches.length > 1 && (
                             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.25rem" }}>
@@ -1338,10 +1313,10 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Festival del Gol */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(168, 85, 247, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(168, 85, 247, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(28, 44, 91, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <Sparkles size={16} style={{ color: "rgb(168, 85, 247)" }} />
+                      <Sparkles size={16} style={{ color: "var(--accent-gold)" }} />
                       <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
                         Festival del Gol (Más Goles)
                       </span>
@@ -1358,11 +1333,11 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxTotalGoals.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "rgb(168, 85, 247)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-gold)", margin: "0.2rem 0" }}>
                         {records.maxTotalGoals.value} goles en total
                       </h5>
                       {records.maxTotalGoals.matches.length > 0 && (
-                        <div style={{ fontSize: "0.8rem", color: "#ffffff", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.8rem", color: "var(--text-primary)", fontWeight: 600 }}>
                           {records.maxTotalGoals.matches[0].score} vs {records.maxTotalGoals.matches[0].rival}
                           {records.maxTotalGoals.matches.length > 1 && (
                             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.25rem" }}>
@@ -1381,7 +1356,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Racha Invicta */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(6, 182, 212, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(6, 182, 212, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(108, 171, 221, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Shield size={16} style={{ color: "var(--accent-cyan)" }} />
@@ -1401,7 +1376,7 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxUnbeaten.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-cyan)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-cyan)", margin: "0.2rem 0" }}>
                         {records.maxUnbeaten.value} partido{records.maxUnbeaten.value > 1 ? "s" : ""}
                       </h5>
                       <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
@@ -1414,7 +1389,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Racha de Victorias */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(245, 158, 11, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(245, 158, 11, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(255, 198, 89, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Flame size={16} style={{ color: "var(--accent-gold)" }} />
@@ -1434,7 +1409,7 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxWinning.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-gold)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-gold)", margin: "0.2rem 0" }}>
                         {records.maxWinning.value} victoria{records.maxWinning.value > 1 ? "s" : ""}
                       </h5>
                       <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
@@ -1447,7 +1422,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Porterías a Cero Consecutivas */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(34, 211, 238, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(34, 211, 238, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(108, 171, 221, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Zap size={16} style={{ color: "var(--accent-cyan-light)" }} />
@@ -1467,7 +1442,7 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxCleanSheets.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-cyan-light)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-cyan-light)", margin: "0.2rem 0" }}>
                         {records.maxCleanSheets.value} partido{records.maxCleanSheets.value > 1 ? "s" : ""}
                       </h5>
                       <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
@@ -1484,14 +1459,11 @@ export const Stats: React.FC = () => {
 
             {/* SECCIÓN INDIVIDUAL (RÉCORDS INDIVIDUALES) */}
             <div>
-              <h4 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--text-primary)" }}>
-                <Crown size={18} style={{ color: "var(--accent-gold)" }} />
-                Récords Individuales (Jugadores)
-              </h4>
+              <SubHead title="Récords individuales" rule="var(--accent-gold)" />
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1.25rem" }}>
 
                 {/* Más Goles en un Partido */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(245, 158, 11, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(245, 158, 11, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(255, 198, 89, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Award size={16} style={{ color: "var(--accent-gold)" }} />
@@ -1511,11 +1483,11 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxGoalsInMatch.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-gold)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-gold)", margin: "0.2rem 0" }}>
                         {records.maxGoalsInMatch.value} gol{records.maxGoalsInMatch.value > 1 ? "es" : ""}
                       </h5>
                       {records.maxGoalsInMatch.holders.length > 0 && (
-                        <div style={{ fontSize: "0.8rem", color: "#ffffff", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.8rem", color: "var(--text-primary)", fontWeight: 600 }}>
                           {records.maxGoalsInMatch.holders[0].name}
                           {records.maxGoalsInMatch.holders.length > 1 && (
                             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.25rem" }}>
@@ -1534,7 +1506,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Más Asistencias en un Partido */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(6, 182, 212, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(6, 182, 212, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(108, 171, 221, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Award size={16} style={{ color: "var(--accent-cyan)" }} />
@@ -1554,11 +1526,11 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxAssistsInMatch.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-cyan)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-cyan)", margin: "0.2rem 0" }}>
                         {records.maxAssistsInMatch.value} asistencia{records.maxAssistsInMatch.value > 1 ? "s" : ""}
                       </h5>
                       {records.maxAssistsInMatch.holders.length > 0 && (
-                        <div style={{ fontSize: "0.8rem", color: "#ffffff", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.8rem", color: "var(--text-primary)", fontWeight: 600 }}>
                           {records.maxAssistsInMatch.holders[0].name}
                           {records.maxAssistsInMatch.holders.length > 1 && (
                             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.25rem" }}>
@@ -1577,10 +1549,10 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Máxima Participación en un Partido (G+A) */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(168, 85, 247, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(168, 85, 247, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(28, 44, 91, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <Sparkles size={16} style={{ color: "rgb(168, 85, 247)" }} />
+                      <Sparkles size={16} style={{ color: "var(--accent-gold)" }} />
                       <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
                         Máxima Participación de Gol (G+A) EN UN PARTIDO
                       </span>
@@ -1597,11 +1569,11 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxGPlusAInMatch.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "rgb(168, 85, 247)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-gold)", margin: "0.2rem 0" }}>
                         {records.maxGPlusAInMatch.value} G+A
                       </h5>
                       {records.maxGPlusAInMatch.holders.length > 0 && (
-                        <div style={{ fontSize: "0.8rem", color: "#ffffff", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.8rem", color: "var(--text-primary)", fontWeight: 600 }}>
                           {records.maxGPlusAInMatch.holders[0].name}
                           <span style={{ fontSize: "0.75rem", color: "var(--accent-gold)", fontWeight: 700, marginLeft: "0.25rem" }}>
                             ({records.maxGPlusAInMatch.holders[0].goals} G + {records.maxGPlusAInMatch.holders[0].assists} A)
@@ -1623,7 +1595,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Especialista desde los 11 Metros */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(239, 68, 68, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(239, 68, 68, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(196, 47, 35, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Target size={16} style={{ color: "var(--accent-red)" }} />
@@ -1643,11 +1615,11 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxPenaltyGoals.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-red)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-red)", margin: "0.2rem 0" }}>
                         {records.maxPenaltyGoals.value} gol{records.maxPenaltyGoals.value > 1 ? "es" : ""}
                       </h5>
                       {records.maxPenaltyGoals.holders.length > 0 && (
-                        <div style={{ fontSize: "0.85rem", color: "#ffffff", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 600 }}>
                           {records.maxPenaltyGoals.holders[0].name}
                           {records.maxPenaltyGoals.holders.length > 1 && (
                             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.25rem" }}>
@@ -1663,7 +1635,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Especialista de Falta Directa */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(16, 185, 129, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(16, 185, 129, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(108, 171, 221, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Target size={16} style={{ color: "var(--accent-emerald)" }} />
@@ -1683,11 +1655,11 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxFreekickGoals.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-emerald)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-emerald)", margin: "0.2rem 0" }}>
                         {records.maxFreekickGoals.value} gol{records.maxFreekickGoals.value > 1 ? "es" : ""}
                       </h5>
                       {records.maxFreekickGoals.holders.length > 0 && (
-                        <div style={{ fontSize: "0.85rem", color: "#ffffff", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 600 }}>
                           {records.maxFreekickGoals.holders[0].name}
                           {records.maxFreekickGoals.holders.length > 1 && (
                             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.25rem" }}>
@@ -1703,7 +1675,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* El Parapenaltis */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(6, 182, 212, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(6, 182, 212, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(108, 171, 221, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Shield size={16} style={{ color: "var(--accent-cyan)" }} />
@@ -1723,11 +1695,11 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxPenaltySaves.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-cyan)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-cyan)", margin: "0.2rem 0" }}>
                         {records.maxPenaltySaves.value} penalti{records.maxPenaltySaves.value > 1 ? "s" : ""} parado{records.maxPenaltySaves.value > 1 ? "s" : ""}
                       </h5>
                       {records.maxPenaltySaves.holders.length > 0 && (
-                        <div style={{ fontSize: "0.85rem", color: "#ffffff", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 600 }}>
                           {records.maxPenaltySaves.holders[0].name}
                           {records.maxPenaltySaves.holders.length > 1 && (
                             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.25rem" }}>
@@ -1743,7 +1715,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* El Imán de los Postes (Temporada) */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(245, 158, 11, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(245, 158, 11, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(255, 198, 89, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Target size={16} style={{ color: "var(--accent-gold)" }} />
@@ -1763,11 +1735,11 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxWoodworkHits.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-gold)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-gold)", margin: "0.2rem 0" }}>
                         {records.maxWoodworkHits.value} tiro{records.maxWoodworkHits.value > 1 ? "s" : ""} al palo
                       </h5>
                       {records.maxWoodworkHits.holders.length > 0 && (
-                        <div style={{ fontSize: "0.85rem", color: "#ffffff", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 600 }}>
                           {records.maxWoodworkHits.holders[0].name}
                           {records.maxWoodworkHits.holders.length > 1 && (
                             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.25rem" }}>
@@ -1783,7 +1755,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Más Presencias */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(16, 185, 129, 0.04), rgba(15, 23, 42, 0.6))", borderColor: "rgba(16, 185, 129, 0.12)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(108, 171, 221, 0.12)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Users size={16} style={{ color: "var(--accent-emerald)" }} />
@@ -1803,11 +1775,11 @@ export const Stats: React.FC = () => {
                   </div>
                   {records.maxAppearances.value > 0 ? (
                     <div>
-                      <h5 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--accent-emerald)", margin: "0.2rem 0" }}>
+                      <h5 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "2rem", letterSpacing: "0.01em", color: "var(--accent-emerald)", margin: "0.2rem 0" }}>
                         {records.maxAppearances.value} partido{records.maxAppearances.value > 1 ? "s" : ""}
                       </h5>
                       {records.maxAppearances.holders.length > 0 && (
-                        <div style={{ fontSize: "0.85rem", color: "#ffffff", fontWeight: 600 }}>
+                        <div style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 600 }}>
                           {records.maxAppearances.holders[0].name}
                           {records.maxAppearances.holders.length > 1 && (
                             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.25rem" }}>
@@ -1827,14 +1799,11 @@ export const Stats: React.FC = () => {
 
             {/* SECCIÓN RACHAS Y HITOS (RANKINGS Y LISTAS) */}
             <div>
-              <h4 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--text-primary)" }}>
-                <History size={18} style={{ color: "var(--accent-cyan)" }} />
-                Rankings de Rachas e Hitos
-              </h4>
+              <SubHead title="Rankings de rachas e hitos" />
               
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
                 {/* Scoring Streak */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(239, 68, 68, 0.05), rgba(15, 23, 42, 0.6))", borderColor: "rgba(239, 68, 68, 0.15)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(196, 47, 35, 0.15)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.25rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Flame size={18} style={{ color: "var(--accent-red)" }} />
@@ -1859,7 +1828,7 @@ export const Stats: React.FC = () => {
                         return (
                           <>
                             {leaders.map((holder, idx) => (
-                              <div key={idx} style={{ fontSize: "0.85rem", color: "#ffffff", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
+                              <div key={idx} style={{ fontSize: "0.85rem", color: "var(--text-primary)", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700 }}>
                                   <span>{holder.name}</span>
                                   <span style={{ color: "var(--accent-red)", fontSize: "0.9rem" }}>
@@ -1867,7 +1836,7 @@ export const Stats: React.FC = () => {
                                   </span>
                                 </div>
                                 {holder.streaks.map((streak: any, sIdx: number) => (
-                                  <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "2px solid rgba(239, 68, 68, 0.3)" }}>
+                                  <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "1px solid var(--border-color)" }}>
                                     Racha {holder.streaks.length > 1 ? `#${sIdx + 1}` : ""}: del <strong>{streak[0].dateStr}</strong> (vs {streak[0].rival}) al <strong>{streak[streak.length - 1].dateStr}</strong> (vs {streak[streak.length - 1].rival})
                                   </div>
                                 ))}
@@ -1893,7 +1862,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Assisting Streak */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(15, 23, 42, 0.6))", borderColor: "rgba(16, 185, 129, 0.15)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(108, 171, 221, 0.15)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.25rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Zap size={18} style={{ color: "var(--accent-emerald)" }} />
@@ -1918,7 +1887,7 @@ export const Stats: React.FC = () => {
                         return (
                           <>
                             {leaders.map((holder, idx) => (
-                              <div key={idx} style={{ fontSize: "0.85rem", color: "#ffffff", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
+                              <div key={idx} style={{ fontSize: "0.85rem", color: "var(--text-primary)", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700 }}>
                                   <span>{holder.name}</span>
                                   <span style={{ color: "var(--accent-emerald)", fontSize: "0.9rem" }}>
@@ -1926,7 +1895,7 @@ export const Stats: React.FC = () => {
                                   </span>
                                 </div>
                                 {holder.streaks.map((streak: any, sIdx: number) => (
-                                  <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "2px solid rgba(16, 185, 129, 0.3)" }}>
+                                  <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "1px solid var(--border-color)" }}>
                                     Racha {holder.streaks.length > 1 ? `#${sIdx + 1}` : ""}: del <strong>{streak[0].dateStr}</strong> (vs {streak[0].rival}) al <strong>{streak[streak.length - 1].dateStr}</strong> (vs {streak[streak.length - 1].rival})
                                   </div>
                                 ))}
@@ -1952,10 +1921,10 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* G+A Streak */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(168, 85, 247, 0.05), rgba(15, 23, 42, 0.6))", borderColor: "rgba(168, 85, 247, 0.15)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(28, 44, 91, 0.15)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.25rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <Sparkles size={18} style={{ color: "rgb(168, 85, 247)" }} />
+                      <Sparkles size={18} style={{ color: "var(--accent-gold)" }} />
                       <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
                         Partidos Consecutivos G+A (Gol o Asistencia)
                       </span>
@@ -1977,15 +1946,15 @@ export const Stats: React.FC = () => {
                         return (
                           <>
                             {leaders.map((holder, idx) => (
-                              <div key={idx} style={{ fontSize: "0.85rem", color: "#ffffff", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
+                              <div key={idx} style={{ fontSize: "0.85rem", color: "var(--text-primary)", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700 }}>
                                   <span>{holder.name}</span>
-                                  <span style={{ color: "rgb(168, 85, 247)", fontSize: "0.9rem" }}>
+                                  <span style={{ color: "var(--accent-gold)", fontSize: "0.9rem" }}>
                                     {holder.value} part. <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "var(--text-muted)" }}>({holder.streaks.length} {holder.streaks.length > 1 ? "veces" : "vez"})</span>
                                   </span>
                                 </div>
                                 {holder.streaks.map((streak: any, sIdx: number) => (
-                                  <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "2px solid rgba(168, 85, 247, 0.3)" }}>
+                                  <div key={sIdx} style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "2px solid rgba(28, 44, 91, 0.3)" }}>
                                     Racha {holder.streaks.length > 1 ? `#${sIdx + 1}` : ""}: del <strong>{streak[0].dateStr}</strong> (vs {streak[0].rival}) al <strong>{streak[streak.length - 1].dateStr}</strong> (vs {streak[streak.length - 1].rival})
                                   </div>
                                 ))}
@@ -2011,7 +1980,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Days Leader Pichichi */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(15, 23, 42, 0.6))", borderColor: "rgba(245, 158, 11, 0.15)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(255, 198, 89, 0.15)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.25rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Crown size={18} style={{ color: "var(--accent-gold)" }} />
@@ -2036,7 +2005,7 @@ export const Stats: React.FC = () => {
                         return (
                           <>
                             {leaders.map((holder, idx) => (
-                              <div key={idx} style={{ fontSize: "0.85rem", color: "#ffffff", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
+                              <div key={idx} style={{ fontSize: "0.85rem", color: "var(--text-primary)", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700 }}>
                                   <span>{holder.name}</span>
                                   <span style={{ color: "var(--accent-gold)", fontSize: "0.9rem" }}>
@@ -2047,7 +2016,7 @@ export const Stats: React.FC = () => {
                                   const mainStreak = holder.streaks[0];
                                   if (!mainStreak) return null;
                                   return (
-                                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "2px solid rgba(245, 158, 11, 0.3)" }}>
+                                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "1px solid var(--border-color)" }}>
                                       del <strong>{mainStreak.startStr}</strong> al <strong>{mainStreak.endStr}</strong>
                                       {mainStreak.isActive && (
                                         <span style={{ color: "var(--accent-emerald)", fontWeight: 700, marginLeft: "0.35rem" }}>
@@ -2079,7 +2048,7 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Days Leader Assists */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(6, 182, 212, 0.05), rgba(15, 23, 42, 0.6))", borderColor: "rgba(6, 182, 212, 0.15)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(108, 171, 221, 0.15)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.25rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Award size={18} style={{ color: "var(--accent-cyan)" }} />
@@ -2104,7 +2073,7 @@ export const Stats: React.FC = () => {
                         return (
                           <>
                             {leaders.map((holder, idx) => (
-                              <div key={idx} style={{ fontSize: "0.85rem", color: "#ffffff", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
+                              <div key={idx} style={{ fontSize: "0.85rem", color: "var(--text-primary)", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700 }}>
                                   <span>{holder.name}</span>
                                   <span style={{ color: "var(--accent-cyan)", fontSize: "0.9rem" }}>
@@ -2115,7 +2084,7 @@ export const Stats: React.FC = () => {
                                   const mainStreak = holder.streaks[0];
                                   if (!mainStreak) return null;
                                   return (
-                                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "2px solid rgba(6, 182, 212, 0.3)" }}>
+                                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "1px solid var(--border-color)" }}>
                                       del <strong>{mainStreak.startStr}</strong> al <strong>{mainStreak.endStr}</strong>
                                       {mainStreak.isActive && (
                                         <span style={{ color: "var(--accent-emerald)", fontWeight: 700, marginLeft: "0.35rem" }}>
@@ -2147,10 +2116,10 @@ export const Stats: React.FC = () => {
                 </div>
 
                 {/* Days Leader G+A */}
-                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "linear-gradient(135deg, rgba(168, 85, 247, 0.05), rgba(15, 23, 42, 0.6))", borderColor: "rgba(168, 85, 247, 0.15)" }}>
+                <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1.25rem", background: "var(--bg-secondary)", borderColor: "rgba(28, 44, 91, 0.15)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.25rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <Trophy size={18} style={{ color: "rgb(168, 85, 247)" }} />
+                      <Trophy size={18} style={{ color: "var(--accent-gold)" }} />
                       <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
                         Días Consecutivos como Líder de G+A
                       </span>
@@ -2172,10 +2141,10 @@ export const Stats: React.FC = () => {
                         return (
                           <>
                             {leaders.map((holder, idx) => (
-                              <div key={idx} style={{ fontSize: "0.85rem", color: "#ffffff", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
+                              <div key={idx} style={{ fontSize: "0.85rem", color: "var(--text-primary)", borderBottom: idx < leaders.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", paddingBottom: idx < leaders.length - 1 ? "0.5rem" : "0" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700 }}>
                                   <span>{holder.name}</span>
-                                  <span style={{ color: "rgb(168, 85, 247)", fontSize: "0.9rem" }}>
+                                  <span style={{ color: "var(--accent-gold)", fontSize: "0.9rem" }}>
                                     {holder.value} {holder.value === 1 ? "día" : "días"} <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "var(--text-muted)" }}>({holder.streaks.length} {holder.streaks.length > 1 ? "veces" : "vez"})</span>
                                   </span>
                                 </div>
@@ -2183,7 +2152,7 @@ export const Stats: React.FC = () => {
                                   const mainStreak = holder.streaks[0];
                                   if (!mainStreak) return null;
                                   return (
-                                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "2px solid rgba(168, 85, 247, 0.3)" }}>
+                                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: "0.25rem", paddingLeft: "0.5rem", borderLeft: "2px solid rgba(28, 44, 91, 0.3)" }}>
                                       del <strong>{mainStreak.startStr}</strong> al <strong>{mainStreak.endStr}</strong>
                                       {mainStreak.isActive && (
                                         <span style={{ color: "var(--accent-emerald)", fontWeight: 700, marginLeft: "0.35rem" }}>
@@ -2221,10 +2190,10 @@ export const Stats: React.FC = () => {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "1.5rem", marginTop: "1rem", marginBottom: "2rem" }}>
                   {/* Unique 2+ goals in a match achievements */}
                   {records.minTwoGoalsPerformances.length > 0 && (
-                    <div className="card" style={{ padding: "1.25rem", background: "rgba(15, 23, 42, 0.45)" }}>
-                      <h4 style={{ fontSize: "0.9rem", fontWeight: 700, color: "#ffffff", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <div className="card" style={{ padding: "1.25rem", background: "var(--bg-secondary)" }}>
+                      <h4 style={{ fontSize: "0.92rem", fontWeight: 800, color: "var(--text-primary)", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <Sparkles size={16} style={{ color: "var(--accent-gold)" }} />
-                        Únicos en Marcar Mínimo 2 Goles en un mismo partido
+                        Únicos en marcar 2+ goles en un partido
                       </h4>
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "250px", overflowY: "auto", paddingRight: "0.25rem" }}>
                         {records.minTwoGoalsPerformances.map((m, idx) => (
@@ -2241,14 +2210,14 @@ export const Stats: React.FC = () => {
 
                   {/* Hat-tricks register */}
                   {records.hatTricks.length > 0 && (
-                    <div className="card" style={{ padding: "1.25rem", background: "rgba(15, 23, 42, 0.45)" }}>
-                      <h4 style={{ fontSize: "0.9rem", fontWeight: 700, color: "#ffffff", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <div className="card" style={{ padding: "1.25rem", background: "var(--bg-secondary)" }}>
+                      <h4 style={{ fontSize: "0.92rem", fontWeight: 800, color: "var(--text-primary)", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <Trophy size={16} style={{ color: "var(--accent-gold)" }} />
-                        Registro de Hat-Tricks (3+ Goles)
+                        Registro de hat-tricks (3+ goles)
                       </h4>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignContent: "flex-start" }}>
                         {records.hatTricks.map((ht, idx) => (
-                          <div key={idx} style={{ fontSize: "0.8rem", padding: "0.4rem 0.75rem", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "9999px", color: "var(--accent-gold)", fontWeight: 600 }}>
+                          <div key={idx} style={{ fontSize: "0.8rem", padding: "0.4rem 0.75rem", background: "rgba(255,198,89,0.12)", border: "1px solid rgba(255,198,89,0.35)", borderRadius: "9999px", color: "var(--accent-gold)", fontWeight: 600 }}>
                             {ht.name} ({ht.goals} G) <span style={{ fontWeight: 400, color: "var(--text-secondary)", fontSize: "0.75rem" }}>vs {ht.rival}</span>
                           </div>
                         ))}
@@ -2262,17 +2231,13 @@ export const Stats: React.FC = () => {
 
           {/* INDIVIDUAL LEADERBOARDS */}
           <div>
-            <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Sparkles size={20} style={{ color: "var(--accent-cyan)" }} />
-              Leaderboards (Rankings Individuales)
-            </h3>
+            <SectionHead title="Leaderboards" sub="Los rankings individuales de la temporada. Toca un ranking para ver su evolución." />
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "2rem" }}>
               {/* Top Scorers */}
               <Leaderboard
                 title="Máximos Goleadores"
-                items={scorers}
-                icon="⚽"
+                items={scorers}
                 accentColor="var(--accent-cyan-light)"
                 onViewChart={() => {
                   setActiveChartMetric("goals");
@@ -2283,8 +2248,7 @@ export const Stats: React.FC = () => {
               {/* Top Assistants */}
               <Leaderboard
                 title="Máximos Asistentes"
-                items={assistants}
-                icon="👟"
+                items={assistants}
                 accentColor="var(--accent-emerald)"
                 onViewChart={() => {
                   setActiveChartMetric("assists");
@@ -2295,8 +2259,7 @@ export const Stats: React.FC = () => {
               {/* G+A (Goals + Assists) */}
               <Leaderboard
                 title="Goles + Asistencias (G+A)"
-                items={gPlusA}
-                icon="🔥"
+                items={gPlusA}
                 accentColor="var(--accent-cyan)"
                 onViewChart={() => {
                   setActiveChartMetric("gPlusA");
@@ -2307,8 +2270,7 @@ export const Stats: React.FC = () => {
               {/* Top Woodwork Hits */}
               <Leaderboard
                 title="Tiros al Palo"
-                items={woodwork}
-                icon="🥅"
+                items={woodwork}
                 accentColor="var(--accent-gold)"
                 onViewChart={() => {
                   setActiveChartMetric("woodwork");
@@ -2319,8 +2281,7 @@ export const Stats: React.FC = () => {
               {/* Cards Board */}
               <Leaderboard
                 title="Tarjetas Amarillas"
-                items={yellowCards}
-                icon="🎴"
+                items={yellowCards}
                 accentColor="var(--accent-gold)"
                 onViewChart={() => {
                   setActiveChartMetric("yellowCards");
@@ -2332,13 +2293,7 @@ export const Stats: React.FC = () => {
 
           {/* TEAM CHEMISTRY / PARTNERSHIPS */}
           <div style={{ marginTop: "2.5rem" }}>
-            <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Sparkles size={20} style={{ color: "var(--accent-gold)" }} />
-              Química del Equipo (Sociedades Clave)
-            </h3>
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>
-              Las conexiones goleadoras más letales de la temporada. Se analiza quién asiste a quién y el impacto conjunto en el marcador.
-            </p>
+            <SectionHead title="Química del equipo" sub="Las sociedades más letales de la temporada: quién asiste a quién y su impacto conjunto en el marcador." rule="var(--accent-gold)" />
 
             {partnershipsList.length === 0 ? (
               <div className="card" style={{ textAlign: "center", padding: "3rem", color: "var(--text-secondary)" }}>
@@ -2349,27 +2304,22 @@ export const Stats: React.FC = () => {
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem" }}>
                 {partnershipsList.map((p) => {
-                  let chemistryTier = "Conexión Prometedora 🌱";
-                  let tierColor = "var(--accent-cyan)";
+                  let chemistryTier = "Conexión prometedora";
+                  let tierColor = "var(--accent-ink)";
                   let borderStyle = "1px solid var(--border-color)";
-                  let bgStyle = "rgba(15, 23, 42, 0.65)";
-                  let glowStyle = "none";
+                  let bgStyle = "var(--bg-secondary)";
+                  const glowStyle = "none";
                   let glowClass = "";
 
                   if (p.totalConnections >= 5) {
-                    chemistryTier = "Dúo Galáctico 🌌";
+                    chemistryTier = "Dúo galáctico";
                     tierColor = "var(--accent-gold)";
-                    borderStyle = "1px solid rgba(245, 158, 11, 0.35)";
-                    bgStyle = "linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(15, 23, 42, 0.85))";
-                    glowStyle = "0 10px 30px rgba(0, 0, 0, 0.4), 0 0 15px rgba(245, 158, 11, 0.15)";
+                    borderStyle = "1px solid rgba(255, 198, 89, 0.5)";
                     glowClass = "gold-glow";
                   } else if (p.totalConnections >= 3) {
-                    chemistryTier = "Sociedad Letal ⚡";
-                    tierColor = "var(--text-primary)";
-                    borderStyle = "1px solid rgba(148, 163, 184, 0.35)";
-                    bgStyle = "linear-gradient(135deg, rgba(148, 163, 184, 0.05), rgba(15, 23, 42, 0.85))";
-                    glowStyle = "0 10px 30px rgba(0, 0, 0, 0.4), 0 0 15px rgba(148, 163, 184, 0.08)";
-                    glowClass = "silver-glow";
+                    chemistryTier = "Sociedad letal";
+                    tierColor = "var(--accent-ink)";
+                    borderStyle = "1px solid var(--border-color-hover)";
                   }
 
                   return (
@@ -2380,7 +2330,7 @@ export const Stats: React.FC = () => {
                         background: bgStyle,
                         border: borderStyle,
                         boxShadow: glowStyle,
-                        borderRadius: "1rem",
+                        borderRadius: "8px",
                         padding: "1.5rem",
                         display: "flex",
                         flexDirection: "column",
@@ -2412,7 +2362,7 @@ export const Stats: React.FC = () => {
                         {/* Player A */}
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, textAlign: "center" }}>
                           <Jersey name={p.playerAShirtName} number={p.playerANumber} size="sm" />
-                          <h4 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#ffffff", marginTop: "0.5rem" }}>
+                          <h4 style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--text-primary)", marginTop: "0.5rem" }}>
                             {p.playerAName}
                           </h4>
                           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem", display: "block" }}>
@@ -2433,9 +2383,8 @@ export const Stats: React.FC = () => {
                               width: "2.25rem",
                               height: "2.25rem",
                               borderRadius: "50%",
-                              background: "linear-gradient(135deg, var(--accent-gold), #ffffff)",
-                              boxShadow: "0 0 10px rgba(245, 158, 11, 0.4)",
-                              color: "#0f172a",
+                              background: "var(--accent-gold)",
+                              color: "#0c1733",
                               fontWeight: 900,
                               fontSize: "1.05rem",
                               display: "flex",
@@ -2462,7 +2411,7 @@ export const Stats: React.FC = () => {
                         {/* Player B */}
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, textAlign: "center" }}>
                           <Jersey name={p.playerBShirtName} number={p.playerBNumber} size="sm" />
-                          <h4 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#ffffff", marginTop: "0.5rem" }}>
+                          <h4 style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--text-primary)", marginTop: "0.5rem" }}>
                             {p.playerBName}
                           </h4>
                           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem", display: "block" }}>
@@ -2635,10 +2584,10 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
     });
 
     const colors = [
-      "#06b6d4", // Cyan
-      "#10b981", // Emerald
-      "#f59e0b", // Gold
-      "#ef4444", // Red
+      "#6CABDD", // Sky
+      "#1C2C5B", // Navy
+      "#FFC659", // Gold
+      "#C42F23", // Red
       "#a855f7", // Purple
       "#ec4899", // Pink
       "#3b82f6", // Blue
@@ -2734,7 +2683,7 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
             boxShadow: "0 25px 50px rgba(0,0,0,0.5), var(--shadow-glow)",
             position: "relative",
             margin: "auto",
-            border: "1px solid rgba(6, 182, 212, 0.2)",
+            border: "1px solid rgba(108, 171, 221, 0.2)",
             textAlign: "center"
           }}
           onClick={(e) => e.stopPropagation()}
@@ -2899,7 +2848,7 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
           boxShadow: "0 25px 50px rgba(0,0,0,0.5), var(--shadow-glow)",
           position: "relative",
           margin: "auto",
-          border: "1px solid rgba(6, 182, 212, 0.2)",
+          border: "1px solid rgba(108, 171, 221, 0.2)",
           borderRadius: "1rem"
         }}
         onClick={(e) => e.stopPropagation()}
@@ -3209,12 +3158,12 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
                 left: tooltipPos.x > 450 ? tooltipPos.x - 225 : tooltipPos.x, // Prevent overflow right
                 top: Math.max(10, Math.min(180, tooltipPos.y)), // Contain vertically
                 background: "rgba(15, 23, 42, 0.95)",
-                border: "1px solid rgba(6, 182, 212, 0.3)",
+                border: "1px solid rgba(108, 171, 221, 0.3)",
                 borderRadius: "0.5rem",
                 padding: "0.75rem",
                 pointerEvents: "none",
                 zIndex: 1000,
-                boxShadow: "0 10px 25px rgba(0,0,0,0.6), 0 0 10px rgba(6, 182, 212, 0.15)",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
                 fontSize: "0.75rem",
                 minWidth: "200px",
                 backdropFilter: "blur(8px)"
@@ -3264,7 +3213,7 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
                     gap: "0.4rem",
                     padding: "0.3rem 0.6rem",
                     borderRadius: "0.375rem",
-                    background: isChecked ? "rgba(6, 182, 212, 0.08)" : "var(--bg-tertiary)",
+                    background: isChecked ? "rgba(108, 171, 221, 0.08)" : "var(--bg-tertiary)",
                     border: isChecked ? "1px solid var(--accent-cyan)" : "1px solid var(--border-color)",
                     color: isChecked ? "#ffffff" : "var(--text-secondary)",
                     fontSize: "0.75rem",
@@ -3744,7 +3693,7 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
           background: "var(--bg-secondary)",
           boxShadow: "0 25px 50px rgba(0,0,0,0.5), var(--shadow-glow)",
           position: "relative",
-          border: "1px solid rgba(6, 182, 212, 0.2)",
+          border: "1px solid rgba(108, 171, 221, 0.2)",
           borderRadius: "1rem",
           display: "flex",
           flexDirection: "column",
@@ -3800,7 +3749,7 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
               let rankColor = "var(--text-muted)";
               
               if (isTop) {
-                badgeColor = "rgba(245, 158, 11, 0.15)";
+                badgeColor = "rgba(255, 198, 89, 0.15)";
                 textColor = "var(--accent-gold)";
                 rankColor = "var(--accent-gold)";
               }
@@ -3815,7 +3764,7 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
                     padding: "0.85rem 1rem",
                     background: badgeColor,
                     borderRadius: "0.75rem",
-                    border: isTop ? "1px solid rgba(245, 158, 11, 0.3)" : "1px solid var(--border-color)"
+                    border: isTop ? "1px solid rgba(255, 198, 89, 0.3)" : "1px solid var(--border-color)"
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>

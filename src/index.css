@@ -1,23 +1,45 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+/* Editorial sports-press tokens. Legacy names are kept (the inner pages
+   reference them in inline styles) but remapped to the verified Manchester
+   City palette and made theme-aware. Display = Anton, body = Archivo
+   (both loaded via index.html). The new --mp-* layer lives in styles/theme.css. */
+:root,
+[data-theme="dark"] {
+  --bg-primary: #060d20;
+  --bg-secondary: #101c3c;
+  --bg-tertiary: #16224a;
+  --accent-cyan: #6CABDD;          /* Manchester City sky blue */
+  --accent-cyan-light: #82bce6;
+  --accent-ink: #6CABDD;           /* legible accent-as-text on this theme */
+  --accent-emerald: #6CABDD;       /* positive/win = sky in the new system */
+  --accent-gold: #FFC659;
+  --accent-red: #ef5446;
+  --text-primary: #e9eefa;
+  --text-secondary: #93a4c6;
+  --text-muted: #6b7da3;
+  --border-color: rgba(130, 160, 210, 0.18);
+  --border-color-hover: rgba(108, 171, 221, 0.45);
+  --shadow-glow: none;
+  --shadow-glow-emerald: none;
+  --transition-smooth: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Anton', 'Archivo', sans-serif;
+}
 
-:root {
-  --bg-primary: #070b13;
-  --bg-secondary: #0f172a;
-  --bg-tertiary: #1e293b;
-  --accent-cyan: #06b6d4;      /* Sky blue/cyan color */
-  --accent-cyan-light: #22d3ee;
-  --accent-emerald: #10b981;   /* Success status, positive balance */
-  --accent-gold: #f59e0b;      /* Cards or visual highlight */
-  --accent-red: #ef4444;       /* Loss or red card */
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --border-color: rgba(255, 255, 255, 0.06);
-  --border-color-hover: rgba(6, 182, 212, 0.3);
-  --shadow-glow: 0 0 20px rgba(6, 182, 212, 0.15);
-  --shadow-glow-emerald: 0 0 20px rgba(16, 185, 129, 0.15);
-  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+[data-theme="light"] {
+  --bg-primary: #e9ebf0;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f0f2f6;
+  --accent-cyan: #6CABDD;
+  --accent-cyan-light: #82bce6;
+  --accent-ink: #1C2C5B;           /* navy reads on light */
+  --accent-emerald: #2f6f9c;       /* deeper sky for legibility on light */
+  --accent-gold: #8a6200;          /* legible gold text; gold fills use #FFC659 literally */
+  --accent-red: #C42F23;
+  --text-primary: #0f1830;
+  --text-secondary: #56607a;
+  --text-muted: #61697e;
+  --border-color: rgba(28, 44, 91, 0.14);
+  --border-color-hover: rgba(28, 44, 91, 0.35);
 }
 
 * {
@@ -74,30 +96,89 @@ body {
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 15px rgba(6, 182, 212, 0.1); }
-  50% { box-shadow: 0 0 25px rgba(6, 182, 212, 0.25); }
+  0%, 100% { box-shadow: 0 0 15px rgba(108, 171, 221, 0.1); }
+  50% { box-shadow: 0 0 25px rgba(108, 171, 221, 0.25); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .fade-in {
   animation: fadeIn 0.4s ease forwards;
 }
 
+/* Loading-splash crest: gentle float */
+@keyframes mpBootFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+.mp-boot-crest { animation: mpBootFloat 2.6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in { animation: none; }
+  .mp-boot-crest { animation: none; }
+}
+
+/* Squad player card — flat, printed, scoreboard dorsal */
+.mp-player-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 1.5rem 1rem 1.25rem;
+  text-align: center;
+  font: inherit;
+  color: inherit;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.25s var(--mp-ease), border-color 0.25s var(--mp-ease);
+}
+
+.mp-player-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent-cyan);
+}
+
+.mp-player-card:focus-visible {
+  outline: none;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px rgba(108, 171, 221, 0.45);
+}
+
+.mp-player-card__dorsal {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.7rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--accent-cyan);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-player-card { transition: border-color 0.25s ease; }
+  .mp-player-card:hover { transform: none; }
+}
+
 /* Glassmorphism Cards */
 .card {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 1rem;
+  border-radius: 6px;
   padding: 1.5rem;
   transition: var(--transition-smooth);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .card:hover {
-  transform: translateY(-4px);
   border-color: var(--border-color-hover);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), var(--shadow-glow);
 }
 
 .chemistry-card {
@@ -106,17 +187,15 @@ body {
 }
 
 .chemistry-card:hover {
-  transform: translateY(-6px) scale(1.02) !important;
+  transform: translateY(-3px) !important;
 }
 
 .chemistry-card:hover.gold-glow {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(245, 158, 11, 0.3) !important;
-  border-color: rgba(245, 158, 11, 0.6) !important;
+  border-color: rgba(255, 198, 89, 0.7) !important;
 }
 
 .chemistry-card:hover.silver-glow {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(148, 163, 184, 0.2) !important;
-  border-color: rgba(148, 163, 184, 0.6) !important;
+  border-color: rgba(148, 163, 184, 0.7) !important;
 }
 
 .jersey-wrapper {
@@ -144,9 +223,9 @@ body {
 
 .form-input {
   width: 100%;
-  background: rgba(30, 41, 59, 0.5);
+  background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  border-radius: 0.5rem;
+  border-radius: 4px;
   padding: 0.75rem 1rem;
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -157,8 +236,8 @@ body {
 .form-input:focus {
   outline: none;
   border-color: var(--accent-cyan);
-  background: rgba(30, 41, 59, 0.8);
-  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.15);
+  background: var(--bg-tertiary);
+  box-shadow: 0 0 0 2px rgba(108, 171, 221, 0.3);
 }
 
 .form-input::placeholder {
@@ -183,14 +262,13 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-cyan-light));
-  color: #070b13;
-  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.3);
+  background: var(--accent-cyan);
+  color: #0c1733;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+  background: var(--accent-cyan-light);
 }
 
 .btn-primary:active {
@@ -236,28 +314,23 @@ body {
   text-transform: uppercase;
 }
 
-.badge-info { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid rgba(6, 182, 212, 0.3); }
-.badge-success { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
-.badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--accent-gold); border: 1px solid rgba(245, 158, 11, 0.3); }
+.badge-info { background: rgba(108, 171, 221, 0.15); color: var(--accent-cyan); border: 1px solid rgba(108, 171, 221, 0.3); }
+.badge-success { background: rgba(108, 171, 221, 0.15); color: var(--accent-ink); border: 1px solid rgba(108, 171, 221, 0.35); }
+.badge-warning { background: rgba(255, 198, 89, 0.15); color: var(--accent-gold); border: 1px solid rgba(255, 198, 89, 0.4); }
 .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.3); }
 
 /* Typography helper classes */
+/* Gradient-text killed (AI-slop tell). Solid, legible accent colours instead. */
 .text-gradient {
-  background: linear-gradient(135deg, var(--accent-cyan-light), #3b82f6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent-ink);
 }
 
 .text-gradient-emerald {
-  background: linear-gradient(135deg, #34d399, var(--accent-emerald));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent-ink);
 }
 
 .text-gradient-gold {
-  background: linear-gradient(135deg, #fcd34d, #f59e0b);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent-gold);
 }
 
 /* Grid layout */
@@ -294,7 +367,7 @@ body {
 }
 
 .custom-table th {
-  background: rgba(30, 41, 59, 0.8);
+  background: var(--bg-tertiary);
   padding: 1rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -347,3 +420,7 @@ body {
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
   }
 }
+
+/* Theme toggle in the app shell (themed for light + dark) */
+.mp-nav-toggle { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--border-color); }
+.mp-nav-toggle:hover { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--accent-cyan); }

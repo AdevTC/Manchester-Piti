@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-08T17:45:53.396Z",
+  "title": "Design System: Manchester Piti",
+  "extensions": {
+    "colorMeta": {
+      "sky": { "role": "primary", "displayName": "Sky Blue", "canonical": "#6CABDD" },
+      "sky-deep": { "role": "primary", "displayName": "Sky Blue (deep)", "canonical": "#3f86bd" },
+      "navy": { "role": "primary", "displayName": "Navy", "canonical": "#1C2C5B", "tonalRamp": ["#060d20", "#0c1733", "#152347", "#1C2C5B", "#2d4174", "#4a5f93", "#8497c0", "#c9d4ea"] },
+      "navy-deep": { "role": "primary", "displayName": "Navy Deep", "canonical": "#0c1733" },
+      "gold": { "role": "secondary", "displayName": "Gold", "canonical": "#FFC659" },
+      "gold-deep": { "role": "secondary", "displayName": "Gold (deep, legible on light)", "canonical": "#D4A12A" },
+      "red": { "role": "tertiary", "displayName": "Defeat Red", "canonical": "#C42F23" },
+      "page-light": { "role": "neutral", "displayName": "Page (light, cool off-white)", "canonical": "#e9ebf0" },
+      "surface-light": { "role": "neutral", "displayName": "Surface (light)", "canonical": "#ffffff" },
+      "ink-light": { "role": "neutral", "displayName": "Ink (light)", "canonical": "#0f1830" },
+      "ink-light-muted": { "role": "neutral", "displayName": "Ink Muted (light)", "canonical": "#56607a" },
+      "page-night": { "role": "neutral", "displayName": "Page (night)", "canonical": "#060d20" },
+      "surface-night": { "role": "neutral", "displayName": "Surface (night)", "canonical": "#101c3c" },
+      "ink-night": { "role": "neutral", "displayName": "Ink (night)", "canonical": "#e9eefa" },
+      "ink-night-muted": { "role": "neutral", "displayName": "Ink Muted (night)", "canonical": "#93a4c6" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Anton)", "purpose": "Wordmark and hero; stacked, accent word in sky." },
+      "heading": { "displayName": "Heading (Anton)", "purpose": "Section titles, underlined by a short sky rule bar." },
+      "body": { "displayName": "Body (Archivo)", "purpose": "Copy and UI; measure 46-75ch." },
+      "label": { "displayName": "Label (Archivo)", "purpose": "Uppercase metadata, table headers, small markers." },
+      "score": { "displayName": "Score (Anton)", "purpose": "Scorelines and big stat figures; count up on reveal." }
+    },
+    "shadows": [
+      { "name": "none", "value": "none", "purpose": "Flat, printed system. Depth from navy bands, hairlines, halftone, and the single hero floodlight, never drop shadow or glass." }
+    ],
+    "motion": [
+      { "name": "ease", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Default ease-out for transitions and the hero reveal." },
+      { "name": "hero-reveal", "value": "mpRise 0.7s ease both, staggered via --i * 90ms", "purpose": "One orchestrated hero entrance." },
+      { "name": "count-up", "value": "ease-out-cubic over ~1.1s on IntersectionObserver", "purpose": "Big stat numbers count from 0 when scrolled into view." },
+      { "name": "marquee", "value": "translateX(-50%) over 34s linear infinite", "purpose": "Broadcast stats ticker; static under reduced-motion." },
+      { "name": "floodlight", "value": "Canvas 2D light cones + drifting motes via requestAnimationFrame", "purpose": "Hero stadium-light moment; paused off-screen; static CSS glow fallback." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "460px" },
+      { "name": "md", "value": "640px" },
+      { "name": "lg", "value": "900px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid sky-blue CTA with navy-deep text; lifts on hover, gold focus ring.",
+      "html": "<button class=\"ds-btn-primary\">Entrar al vestuario</button>",
+      "css": ".ds-btn-primary { font-family: 'Archivo', system-ui, sans-serif; font-weight: 700; font-size: 0.95rem; letter-spacing: 0.01em; color: #0c1733; background: #6CABDD; border: 2px solid transparent; border-radius: 4px; padding: 11px 21px; cursor: pointer; transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), background 0.25s cubic-bezier(0.16,1,0.3,1); } .ds-btn-primary:hover { transform: translateY(-2px); background: #82bce6; } .ds-btn-primary:active { transform: translateY(0); } .ds-btn-primary:focus-visible { outline: 3px solid #FFC659; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button (on navy)",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Outline button for secondary actions over a navy band.",
+      "html": "<div style=\"background:#0c1733;padding:20px;border-radius:6px\"><button class=\"ds-btn-ghost\">Ver la temporada</button></div>",
+      "css": ".ds-btn-ghost { font-family: 'Archivo', system-ui, sans-serif; font-weight: 700; font-size: 0.95rem; color: #fff; background: transparent; border: 2px solid rgba(255,255,255,0.4); border-radius: 4px; padding: 11px 21px; cursor: pointer; transition: border-color 0.25s, color 0.25s, transform 0.25s; } .ds-btn-ghost:hover { border-color: #6CABDD; color: #6CABDD; transform: translateY(-2px); } .ds-btn-ghost:focus-visible { outline: 3px solid #FFC659; outline-offset: 2px; }"
+    },
+    {
+      "name": "Flat Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat surface defined by fill + hairline; no shadow, no glass.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Rendimiento</h3><p class=\"ds-card-body\">Superficie plana, sin cristal ni sombra.</p></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid rgba(28,44,91,0.14); border-radius: 6px; padding: 24px; } .ds-card-title { font-family: 'Anton', sans-serif; text-transform: uppercase; font-size: 1.4rem; letter-spacing: 0.01em; color: #1C2C5B; margin: 0 0 8px; } .ds-card-body { font-family: 'Archivo', sans-serif; font-size: 0.95rem; line-height: 1.6; color: #56607a; margin: 0; }"
+    },
+    {
+      "name": "Feature Scoreline",
+      "kind": "custom",
+      "refersTo": "feature-band",
+      "description": "Signature: drenched-navy result block with an Anton scoreline and a coloured outcome marker.",
+      "html": "<article class=\"ds-feat\"><span class=\"ds-feat-comp\">Liga Local</span><div class=\"ds-feat-line\"><span class=\"ds-feat-team\">Manchester Piti</span><span class=\"ds-feat-score\">3<i>–</i>1</span><span class=\"ds-feat-team away\">Real Cervecería</span></div><span class=\"ds-feat-out\"><i></i>Victoria</span></article>",
+      "css": ".ds-feat { background: #1C2C5B; color: #fff; border-radius: 6px; padding: 26px; } .ds-feat-comp { font-family: 'Archivo'; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #6CABDD; } .ds-feat-line { display: flex; align-items: center; gap: 2rem; margin: 1rem 0 0.6rem; flex-wrap: wrap; } .ds-feat-team { font-family: 'Archivo'; font-weight: 800; font-size: 1.5rem; flex: 1; min-width: 120px; } .ds-feat-team.away { text-align: right; color: #9fb6d6; } .ds-feat-score { font-family: 'Anton', sans-serif; font-size: 4rem; line-height: 0.8; } .ds-feat-score i { color: #54608a; font-style: normal; padding: 0 0.15em; } .ds-feat-out { display: inline-flex; align-items: center; gap: 0.5rem; font-family: 'Archivo'; font-weight: 800; } .ds-feat-out i { width: 10px; height: 10px; border-radius: 2px; background: #6CABDD; display: inline-block; }"
+    },
+    {
+      "name": "Stat Band",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Season figures as a grid with 1px gap-gridlines over a hairline background; clean at any column count.",
+      "html": "<div class=\"ds-band\"><div class=\"c\"><b>22</b><span>PJ</span></div><div class=\"c hl\"><b>12</b><span>Ganados</span></div><div class=\"c\"><b>3</b><span>Empat.</span></div><div class=\"c\"><b>7</b><span>Perd.</span></div></div>",
+      "css": ".ds-band { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: rgba(28,44,91,0.14); border: 1px solid rgba(28,44,91,0.14); border-radius: 6px; overflow: hidden; } .ds-band .c { background: #e9ebf0; padding: 18px 12px; text-align: left; } .ds-band .c b { font-family: 'Anton', sans-serif; font-size: 2.4rem; line-height: 0.9; color: #1C2C5B; display: block; } .ds-band .c.hl b { color: #1C2C5B; } .ds-band .c span { font-family: 'Archivo'; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #56607a; margin-top: 6px; display: block; }"
+    },
+    {
+      "name": "Section Heading + Rule",
+      "kind": "custom",
+      "refersTo": "heading",
+      "description": "Anton heading underlined by a short sky rule bar (the cadence that replaces eyebrow kickers).",
+      "html": "<div class=\"ds-head\"><h2>El Pichichi</h2><span class=\"ds-rule\"></span></div>",
+      "css": ".ds-head h2 { font-family: 'Anton', sans-serif; text-transform: uppercase; font-size: 3rem; line-height: 0.92; letter-spacing: 0.01em; color: #1C2C5B; margin: 0; } .ds-rule { display: block; width: 96px; height: 6px; background: #6CABDD; margin-top: 1rem; }"
+    },
+    {
+      "name": "Result Markers",
+      "kind": "chip",
+      "refersTo": "button-primary",
+      "description": "Fixed results language: sky win, gold draw, red loss; colour always paired with a letter.",
+      "html": "<span class=\"ds-res v\">V</span> <span class=\"ds-res e\">E</span> <span class=\"ds-res d\">D</span>",
+      "css": ".ds-res { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 3px; font-family: 'Archivo'; font-weight: 800; font-size: 12px; } .ds-res.v { background: #6CABDD; color: #0c1733; } .ds-res.e { background: #FFC659; color: #3a2c00; } .ds-res.d { background: #C42F23; color: #fff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Floodlit Clubhouse",
+    "overview": "Manchester Piti takes amateur Sunday-league football and gives it the full elite-broadcast treatment: a floodlit-dark stadium, sky-blue stat overlays, scorelines set like a printed matchday programme. It is an affectionate parody of Manchester City (same sky-blue, borrowed 'Manchester', undercut by 'Piti', Spanish for a cigarette), played completely straight. The system is editorial sports-press, not dark-mode SaaS: a heavy condensed display (Anton) plus a clean grotesque (Archivo), flat printed surfaces, drenched navy bands, hairline rules, and one cinematic floodlight in the hero. It ships in a cool-paper light theme and a floodlit-night dark theme.",
+    "keyCharacteristics": [
+      "Real Manchester City palette: sky #6CABDD, navy #1C2C5B, gold #FFC659.",
+      "Heavy condensed display (Anton) + grotesque body (Archivo); scoreboard numerals.",
+      "Flat, printed surfaces with hairline rules and halftone texture; no glass, no glow.",
+      "Light (cool paper) and dark (floodlit night) themes, toggle-switched.",
+      "Stats staged as silverware; numbers count up; one floodlight moment in the hero."
+    ],
+    "rules": [
+      { "name": "The Results-Language Rule", "body": "Sky = win/positive, gold = draw/record/caution, red = loss/danger. Fixed everywhere, always paired with a non-colour cue. Never recolour a result for decoration.", "section": "colors" },
+      { "name": "The Earn-the-Light Rule", "body": "Sky-blue is an accent and the hero's one floodlight, not ambient glow. No element glows at rest.", "section": "colors" },
+      { "name": "The Cool-Paper Rule", "body": "The light theme background is a true cool off-white (#e9ebf0), never warm cream/sand/paper.", "section": "colors" },
+      { "name": "The Two-Family Rule", "body": "Anton for display, Archivo for everything else. Never a third family or a serif.", "section": "typography" },
+      { "name": "The Rule-Bar Cadence", "body": "Section headings get a short sky rule bar beneath, never a tiny uppercase tracked eyebrow above.", "section": "typography" },
+      { "name": "The Flat-Print Rule", "body": "Surfaces are flat. No glassmorphism, no decorative drop shadow, no ghost-card, no ambient glow. Depth is navy, rules, texture, and the one floodlight.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do anchor on the real Man City palette: sky #6CABDD, navy #1C2C5B, gold #FFC659.",
+      "Do use Anton for display/numbers and Archivo for everything else; nothing else.",
+      "Do keep surfaces flat and printed: hairlines, gap-gridlines, halftone, drenched navy bands.",
+      "Do support both themes via the --mp-* tokens and [data-theme]; ship the persistent toggle.",
+      "Do hold the results language fixed (sky win / gold draw / red loss) with a non-colour cue.",
+      "Do stage stats as silverware: Anton numerals, count-up, a podium, a scoreline.",
+      "Do mark section headings with a short sky rule bar."
+    ],
+    "donts": [
+      "Don't reuse the superseded identity: cyan #06b6d4 glow, glassmorphism blur cards, gradient text, or the Outfit font.",
+      "Don't drift toward a generic SaaS dashboard or anything corporate / sterile.",
+      "Don't put a tiny uppercase tracked eyebrow above every section; use the rule-bar cadence.",
+      "Don't round cards past 6px, add decorative drop shadows, or pair a 1px border with a soft wide shadow.",
+      "Don't let the light theme become warm cream/sand; keep it a true cool off-white.",
+      "Don't add ambient glow; the only luminous moment is the hero floodlight.",
+      "Don't explain the parody. Play the spectacle straight; let the 'Piti' naming carry the wink."
+    ]
+  }
+}

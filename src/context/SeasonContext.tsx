@@ -5,6 +5,8 @@ import { db } from "../firebase";
 export interface Season {
   id: string;
   name: string;
+  /** Player id designated as captain for this season (set in Admin). */
+  captainPlayerId?: string;
 }
 
 interface SeasonContextType {
@@ -36,7 +38,8 @@ export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const loadedSeasons: Season[] = snapshot.docs.map(doc => ({
         id: doc.id,
-        name: doc.data().name
+        name: doc.data().name,
+        captainPlayerId: doc.data().captainPlayerId || undefined
       }));
       setSeasons(loadedSeasons);
       

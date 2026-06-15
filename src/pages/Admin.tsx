@@ -16,6 +16,7 @@ import { useAuth } from "../context/AuthContext";
 interface Season {
   id: string;
   name: string;
+  captainPlayerId?: string;
 }
 
 interface Player {
@@ -54,6 +55,7 @@ export const Admin: React.FC = () => {
   // --- Form States ---
   // Season Form
   const [seasonName, setSeasonName] = useState("");
+  const [seasonCaptainId, setSeasonCaptainId] = useState("");
 
   // Player Form
   const [playerFirstName, setPlayerFirstName] = useState("");
@@ -89,7 +91,7 @@ export const Admin: React.FC = () => {
     const unsubscribeSeasons = onSnapshot(
       query(collection(db, "seasons"), orderBy("name", "asc")), 
       (snapshot) => {
-        setSeasons(snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name })));
+        setSeasons(snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, captainPlayerId: doc.data().captainPlayerId || "" })));
       }
     );
 
@@ -160,18 +162,21 @@ export const Admin: React.FC = () => {
     try {
       if (editingSeasonId) {
         await setDoc(doc(db, "seasons", editingSeasonId), {
-          name: seasonName.trim()
+          name: seasonName.trim(),
+          captainPlayerId: seasonCaptainId || ""
         }, { merge: true });
         setEditingSeasonId(null);
         notifySuccess("¡Temporada actualizada correctamente!");
       } else {
         await addDoc(collection(db, "seasons"), {
           name: seasonName.trim(),
+          captainPlayerId: "",
           createdAt: new Date()
         });
         notifySuccess("¡Temporada creada correctamente!");
       }
       setSeasonName("");
+      setSeasonCaptainId("");
     } catch (err: any) {
       notifyError("Error al guardar temporada: " + err.message);
     } finally {
@@ -379,118 +384,100 @@ export const Admin: React.FC = () => {
 
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-      {/* Header */}
-      <div style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "1rem" }}>
-        <h2 style={{ fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
-          Panel de <span className="text-gradient-gold">Administración</span>
-        </h2>
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-          Herramientas exclusivas para gestionar temporadas, plantilla y partidos.
-        </p>
+      {/* Editorial header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400, textTransform: "uppercase", fontSize: "clamp(2.2rem, 6vw, 3.4rem)", lineHeight: 0.9, letterSpacing: "0.01em", color: "var(--text-primary)" }}>
+            Administración
+          </h2>
+          <span style={{ display: "block", width: "84px", height: "6px", background: "var(--accent-cyan)", margin: "0.9rem 0 0.75rem" }} />
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>
+            Gestiona temporadas, plantilla y partidos del club.
+          </p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "rgba(255,198,89,0.12)", border: "1px solid rgba(255,198,89,0.4)", padding: "0.5rem 0.9rem", borderRadius: "4px", fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent-gold)" }}>
+          <Shield size={15} />
+          Modo administrador
+        </div>
       </div>
 
       {/* Action alerts */}
       {successMsg && (
         <div style={{
-          background: "rgba(16, 185, 129, 0.1)",
-          border: "1px solid rgba(16, 185, 129, 0.3)",
-          color: "var(--accent-emerald)",
-          padding: "1rem",
-          borderRadius: "0.75rem",
+          background: "rgba(108, 171, 221, 0.12)",
+          border: "1px solid rgba(108, 171, 221, 0.4)",
+          color: "var(--accent-ink)",
+          padding: "0.9rem 1rem",
+          borderRadius: "6px",
           display: "flex",
           alignItems: "center",
-          gap: "0.5rem",
-          fontSize: "0.95rem"
+          gap: "0.6rem",
+          fontSize: "0.92rem",
+          fontWeight: 600
         }}>
-          <CheckCircle size={18} />
+          <CheckCircle size={18} style={{ flexShrink: 0 }} />
           <span>{successMsg}</span>
         </div>
       )}
       {errorMsg && (
         <div style={{
-          background: "rgba(239, 68, 68, 0.1)",
-          border: "1px solid rgba(239, 68, 68, 0.3)",
+          background: "rgba(196, 47, 35, 0.1)",
+          border: "1px solid rgba(196, 47, 35, 0.4)",
           color: "var(--accent-red)",
-          padding: "1rem",
-          borderRadius: "0.75rem",
+          padding: "0.9rem 1rem",
+          borderRadius: "6px",
           display: "flex",
           alignItems: "center",
-          gap: "0.5rem",
-          fontSize: "0.95rem"
+          gap: "0.6rem",
+          fontSize: "0.92rem",
+          fontWeight: 600
         }}>
-          <AlertTriangle size={18} />
+          <AlertTriangle size={18} style={{ flexShrink: 0 }} />
           <span>{errorMsg}</span>
         </div>
       )}
 
-      {/* Tabs */}
-      <div 
-        style={{ 
-          display: "flex", 
-          borderBottom: "1px solid var(--border-color)", 
-          gap: "0.5rem",
-          overflowX: "auto"
-        }}
-      >
-        <button
-          onClick={() => setActiveTab("matches")}
-          className={`btn ${activeTab === "matches" ? "btn-primary" : "btn-secondary"}`}
-          style={{ 
-            borderBottomLeftRadius: 0, 
-            borderBottomRightRadius: 0,
-            border: "none",
-            background: activeTab === "matches" ? "var(--bg-tertiary)" : "transparent",
-            color: activeTab === "matches" ? "var(--accent-cyan)" : "var(--text-secondary)"
-          }}
-        >
-          <Trophy size={16} />
-          Registrar Partido
-        </button>
-
-        <button
-          onClick={() => setActiveTab("roster")}
-          className={`btn ${activeTab === "roster" ? "btn-primary" : "btn-secondary"}`}
-          style={{ 
-            borderBottomLeftRadius: 0, 
-            borderBottomRightRadius: 0,
-            border: "none",
-            background: activeTab === "roster" ? "var(--bg-tertiary)" : "transparent",
-            color: activeTab === "roster" ? "var(--accent-cyan)" : "var(--text-secondary)"
-          }}
-        >
-          <Users size={16} />
-          Inscribir Jugador
-        </button>
-
-        <button
-          onClick={() => setActiveTab("seasons")}
-          className={`btn ${activeTab === "seasons" ? "btn-primary" : "btn-secondary"}`}
-          style={{ 
-            borderBottomLeftRadius: 0, 
-            borderBottomRightRadius: 0,
-            border: "none",
-            background: activeTab === "seasons" ? "var(--bg-tertiary)" : "transparent",
-            color: activeTab === "seasons" ? "var(--accent-cyan)" : "var(--text-secondary)"
-          }}
-        >
-          <Calendar size={16} />
-          Gestionar Temporadas
-        </button>
-
-        <button
-          onClick={() => setActiveTab("admins")}
-          className={`btn ${activeTab === "admins" ? "btn-primary" : "btn-secondary"}`}
-          style={{ 
-            borderBottomLeftRadius: 0, 
-            borderBottomRightRadius: 0,
-            border: "none",
-            background: activeTab === "admins" ? "var(--bg-tertiary)" : "transparent",
-            color: activeTab === "admins" ? "var(--accent-cyan)" : "var(--text-secondary)"
-          }}
-        >
-          <Shield size={16} />
-          Gestionar Admins
-        </button>
+      {/* Tabs — segmented control */}
+      <div role="tablist" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", gap: "0.25rem", overflowX: "auto" }}>
+        {([
+          { id: "matches", icon: Trophy, label: "Registrar partido" },
+          { id: "roster", icon: Users, label: "Inscribir jugador" },
+          { id: "seasons", icon: Calendar, label: "Temporadas" },
+          { id: "admins", icon: Shield, label: "Admins" },
+        ] as const).map((t) => {
+          const Icon = t.icon;
+          const active = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setActiveTab(t.id)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                whiteSpace: "nowrap",
+                background: "transparent",
+                border: "none",
+                borderBottom: active ? "2px solid var(--accent-cyan)" : "2px solid transparent",
+                marginBottom: "-1px",
+                padding: "0.7rem 0.9rem",
+                cursor: "pointer",
+                fontFamily: "var(--font-sans)",
+                fontSize: "0.85rem",
+                fontWeight: 700,
+                letterSpacing: "0.02em",
+                color: active ? "var(--accent-ink)" : "var(--text-secondary)",
+                transition: "color 0.2s var(--mp-ease)",
+              }}
+            >
+              <Icon size={15} />
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* TAB CONTENT: 1. REGISTRAR PARTIDO */}
@@ -506,12 +493,12 @@ export const Admin: React.FC = () => {
           </div>
 
           {seasons.length === 0 ? (
-            <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "0.75rem", padding: "1.25rem", color: "var(--accent-gold)", fontSize: "0.9rem" }}>
-              ⚠️ Para registrar un partido, primero debes crear al menos una temporada en la pestaña <strong>"Gestionar Temporadas"</strong>.
+            <div style={{ background: "rgba(255,198,89,0.05)", border: "1px solid rgba(255,198,89,0.2)", borderRadius: "0.75rem", padding: "1.25rem", color: "var(--accent-gold)", fontSize: "0.9rem" }}>
+              Para registrar un partido, primero debes crear al menos una temporada en la pestaña <strong>"Gestionar Temporadas"</strong>.
             </div>
           ) : players.length === 0 ? (
-            <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "0.75rem", padding: "1.25rem", color: "var(--accent-gold)", fontSize: "0.9rem" }}>
-              ⚠️ Para asociar goleadores o asistentes, registra jugadores en la plantilla en la pestaña <strong>"Inscribir Jugador"</strong>.
+            <div style={{ background: "rgba(255,198,89,0.05)", border: "1px solid rgba(255,198,89,0.2)", borderRadius: "0.75rem", padding: "1.25rem", color: "var(--accent-gold)", fontSize: "0.9rem" }}>
+              Para asociar goleadores o asistentes, registra jugadores en la plantilla en la pestaña <strong>"Inscribir Jugador"</strong>.
             </div>
           ) : (
             <>
@@ -632,18 +619,18 @@ export const Admin: React.FC = () => {
                         }
                       }}
                     >
-                      <option value="goal">⚽ Gol de Jugada</option>
-                      <option value="assist">👟 Asistencia (Individual)</option>
-                      <option value="goal_penalty">⚽ Gol de Penalti</option>
-                      <option value="goal_freekick">⚽ Gol de Falta</option>
-                      <option value="own_goal">🔴 Autogol</option>
-                      <option value="penalty_saved">🧤 Penalti Parado</option>
-                      <option value="penalty_missed">❌ Penalti Fallado</option>
-                      <option value="woodwork">🥅 Tiro al Palo</option>
-                      <option value="yellow_card">🎴 Tarjeta Amarilla</option>
-                      <option value="red_card">🎴 Tarjeta Roja</option>
-                      <option value="double_yellow">🎴 Doble Amarilla</option>
-                      <option value="match_played">👤 Partido Jugado (Participación)</option>
+                      <option value="goal">Gol de Jugada</option>
+                      <option value="assist">Asistencia (Individual)</option>
+                      <option value="goal_penalty">Gol de Penalti</option>
+                      <option value="goal_freekick">Gol de Falta</option>
+                      <option value="own_goal">Autogol</option>
+                      <option value="penalty_saved">Penalti Parado</option>
+                      <option value="penalty_missed">Penalti Fallado</option>
+                      <option value="woodwork">Tiro al Palo</option>
+                      <option value="yellow_card">Tarjeta Amarilla</option>
+                      <option value="red_card">Tarjeta Roja</option>
+                      <option value="double_yellow">Doble Amarilla</option>
+                      <option value="match_played">Partido Jugado (Participación)</option>
                     </select>
                   </div>
 
@@ -749,36 +736,38 @@ export const Admin: React.FC = () => {
                         const assistant = ev.assistPlayerId ? players.find(p => p.id === ev.assistPlayerId) : null;
                         
                         let eventTag = "Gol de Jugada";
-                        let emoji = "⚽";
-                        if (ev.type === "goal_penalty") { eventTag = "Gol de Penalti"; emoji = "⚽"; }
-                        else if (ev.type === "goal_freekick") { eventTag = "Gol de Falta"; emoji = "⚽"; }
-                        else if (ev.type === "own_goal") { eventTag = "Autogol"; emoji = "🔴"; }
-                        else if (ev.type === "assist") { eventTag = "Asistencia"; emoji = "👟"; }
-                        else if (ev.type === "yellow_card") { eventTag = "Amarilla"; emoji = "🎴"; }
-                        else if (ev.type === "red_card") { eventTag = "Roja"; emoji = "🎴"; }
-                        else if (ev.type === "double_yellow") { eventTag = "Doble Amarilla"; emoji = "🎴"; }
-                        else if (ev.type === "penalty_saved") { eventTag = "Penalti Parado"; emoji = "🧤"; }
-                        else if (ev.type === "penalty_missed") { eventTag = "Penalti Fallado"; emoji = "❌"; }
-                        else if (ev.type === "woodwork") { eventTag = "Tiro al Palo"; emoji = "🥅"; }
-                        else if (ev.type === "match_played") { eventTag = "Partido Jugado"; emoji = "👤"; }
+                        let dotColor = "var(--accent-cyan)";
+                        if (ev.type === "goal_penalty") { eventTag = "Gol de Penalti"; dotColor = "var(--accent-cyan)"; }
+                        else if (ev.type === "goal_freekick") { eventTag = "Gol de Falta"; dotColor = "var(--accent-cyan)"; }
+                        else if (ev.type === "own_goal") { eventTag = "Autogol"; dotColor = "var(--accent-red)"; }
+                        else if (ev.type === "assist") { eventTag = "Asistencia"; dotColor = "var(--accent-cyan)"; }
+                        else if (ev.type === "yellow_card") { eventTag = "Amarilla"; dotColor = "#FFC659"; }
+                        else if (ev.type === "red_card") { eventTag = "Roja"; dotColor = "var(--accent-red)"; }
+                        else if (ev.type === "double_yellow") { eventTag = "Doble Amarilla"; dotColor = "#FFC659"; }
+                        else if (ev.type === "penalty_saved") { eventTag = "Penalti Parado"; dotColor = "var(--accent-cyan)"; }
+                        else if (ev.type === "penalty_missed") { eventTag = "Penalti Fallado"; dotColor = "var(--accent-red)"; }
+                        else if (ev.type === "woodwork") { eventTag = "Tiro al Palo"; dotColor = "#FFC659"; }
+                        else if (ev.type === "match_played") { eventTag = "Partido Jugado"; dotColor = "var(--text-muted)"; }
 
                         return (
-                          <div 
-                            key={index} 
-                            style={{ 
-                              background: "rgba(255,255,255,0.02)", 
-                              border: "1px solid var(--border-color)", 
-                              borderRadius: "0.375rem", 
-                              padding: "0.4rem 0.75rem",
+                          <div
+                            key={index}
+                            style={{
+                              background: "var(--bg-tertiary)",
+                              border: "1px solid var(--border-color)",
+                              borderRadius: "4px",
+                              padding: "0.5rem 0.85rem",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
+                              gap: "0.75rem",
                               fontSize: "0.85rem"
                             }}
                           >
-                            <span>
-                              {emoji} <strong>{eventTag}</strong>: #{player?.number} - {player?.shirtName}
-                              {assistant && ` (Asistencia de: #${assistant.number} - ${assistant.shirtName})`}
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.6rem" }}>
+                              <span aria-hidden="true" style={{ flexShrink: 0, width: "9px", height: "9px", borderRadius: "2px", background: dotColor }} />
+                              <span><strong>{eventTag}</strong>: #{player?.number} - {player?.shirtName}
+                              {assistant && ` (Asistencia de: #${assistant.number} - ${assistant.shirtName})`}</span>
                             </span>
                             <button
                               type="button"
@@ -867,7 +856,7 @@ export const Admin: React.FC = () => {
                       >
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem" }}>
                           <div>
-                            <strong style={{ color: "white" }}>vs {m.rival}</strong>
+                            <strong style={{ color: "var(--text-primary)" }}>vs {m.rival}</strong>
                             <span className="badge badge-info" style={{ marginLeft: "0.5rem", fontSize: "0.7rem", padding: "0.1rem 0.4rem" }}>
                               {seasonName}
                             </span>
@@ -898,7 +887,7 @@ export const Admin: React.FC = () => {
                               window.scrollTo({ top: 0, behavior: "smooth" });
                             }}
                             className="btn btn-secondary"
-                            style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(6, 182, 212, 0.1)", border: "1px solid rgba(6, 182, 212, 0.3)", color: "var(--accent-cyan)" }}
+                            style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(108, 171, 221, 0.1)", border: "1px solid rgba(108, 171, 221, 0.3)", color: "var(--accent-cyan)" }}
                           >
                             Editar
                           </button>
@@ -927,7 +916,7 @@ export const Admin: React.FC = () => {
                               }
                             }}
                             className="btn btn-secondary"
-                            style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "var(--accent-red)" }}
+                            style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(196, 47, 35, 0.1)", border: "1px solid rgba(196, 47, 35, 0.3)", color: "var(--accent-red)" }}
                           >
                             Eliminar
                           </button>
@@ -1224,7 +1213,7 @@ export const Admin: React.FC = () => {
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }}
                         className="btn btn-secondary"
-                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(6, 182, 212, 0.1)", border: "1px solid rgba(6, 182, 212, 0.3)", color: "var(--accent-cyan)" }}
+                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(108, 171, 221, 0.1)", border: "1px solid rgba(108, 171, 221, 0.3)", color: "var(--accent-cyan)" }}
                       >
                         Editar
                       </button>
@@ -1256,7 +1245,7 @@ export const Admin: React.FC = () => {
                           }
                         }}
                         className="btn btn-secondary"
-                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "var(--accent-red)" }}
+                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(196, 47, 35, 0.1)", border: "1px solid rgba(196, 47, 35, 0.3)", color: "var(--accent-red)" }}
                       >
                         Eliminar
                       </button>
@@ -1311,6 +1300,7 @@ export const Admin: React.FC = () => {
                   onClick={() => {
                     setEditingSeasonId(null);
                     setSeasonName("");
+                    setSeasonCaptainId("");
                   }}
                 >
                   Cancelar
@@ -1318,6 +1308,30 @@ export const Admin: React.FC = () => {
               )}
             </div>
           </form>
+
+          {editingSeasonId && (
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="season-captain">Capitán de la temporada</label>
+              <select
+                id="season-captain"
+                className="form-input"
+                value={seasonCaptainId}
+                onChange={(e) => setSeasonCaptainId(e.target.value)}
+              >
+                <option value="">— Sin capitán —</option>
+                {players
+                  .filter((p) => (p.seasons || []).includes(editingSeasonId!))
+                  .map((p) => ({ p, num: p.seasonDetails?.[editingSeasonId!]?.number ?? p.number }))
+                  .sort((a, b) => a.num - b.num)
+                  .map(({ p, num }) => (
+                    <option key={p.id} value={p.id}>#{num} · {p.firstName} {p.lastName}</option>
+                  ))}
+              </select>
+              <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
+                Recibe la mención dorada en la Plantilla cuando la temporada aún no tiene goleador. Recuerda pulsar "Guardar Cambios".
+              </span>
+            </div>
+          )}
 
           {/* List of existing seasons */}
           <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "1.5rem" }}>
@@ -1347,6 +1361,14 @@ export const Admin: React.FC = () => {
                     <div>
                       <strong>{s.name}</strong>
                       <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "0.75rem" }}>ID: {s.id}</span>
+                      {(() => {
+                        const cap = s.captainPlayerId ? players.find((p) => p.id === s.captainPlayerId) : null;
+                        return cap ? (
+                          <span style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-gold)", marginTop: "0.2rem", fontWeight: 600 }}>
+                            Capitán: {cap.firstName} {cap.lastName}
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
                       <button
@@ -1354,9 +1376,10 @@ export const Admin: React.FC = () => {
                         onClick={() => {
                           setEditingSeasonId(s.id);
                           setSeasonName(s.name);
+                          setSeasonCaptainId(s.captainPlayerId || "");
                         }}
                         className="btn btn-secondary"
-                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(6, 182, 212, 0.1)", border: "1px solid rgba(6, 182, 212, 0.3)", color: "var(--accent-cyan)" }}
+                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(108, 171, 221, 0.1)", border: "1px solid rgba(108, 171, 221, 0.3)", color: "var(--accent-cyan)" }}
                       >
                         Editar
                       </button>
@@ -1371,6 +1394,7 @@ export const Admin: React.FC = () => {
                               if (editingSeasonId === s.id) {
                                 setEditingSeasonId(null);
                                 setSeasonName("");
+                                setSeasonCaptainId("");
                               }
                             } catch (err: any) {
                               notifyError("Error al eliminar temporada: " + err.message);
@@ -1380,7 +1404,7 @@ export const Admin: React.FC = () => {
                           }
                         }}
                         className="btn btn-secondary"
-                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "var(--accent-red)" }}
+                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(196, 47, 35, 0.1)", border: "1px solid rgba(196, 47, 35, 0.3)", color: "var(--accent-red)" }}
                       >
                         Eliminar
                       </button>

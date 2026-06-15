@@ -24,9 +24,23 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Dev-only no-auth preview: `?preview` renders the app shell with a mock
+  // session so inner pages can be designed/inspected without logging in.
+  // Gated by import.meta.env.DEV, so it is stripped from production builds.
+  const PREVIEW =
+    import.meta.env.DEV &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("preview");
+
+  const [user, setUser] = useState<User | null>(
+    PREVIEW ? ({ uid: "preview", email: "preview@local" } as unknown as User) : null,
+  );
+  const [profile, setProfile] = useState<UserProfile | null>(
+    PREVIEW
+      ? { email: "preview@local", nickname: "preview", role: "admin", createdAt: new Date() }
+      : null,
+  );
+  const [loading, setLoading] = useState(!PREVIEW);
 
   // Helper to toggle admin role in local storage for development/testing
   const [localAdminOverride, setLocalAdminOverride] = useState<boolean>(() => {
@@ -45,6 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    if (PREVIEW) return;
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       
@@ -83,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => unsubscribe();
-  }, [localAdminOverride]);
+  }, [localAdminOverride, PREVIEW]);
 
   const loginWithGoogle = async () => {
     setLoading(true);

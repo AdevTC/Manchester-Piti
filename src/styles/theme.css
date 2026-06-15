@@ -1,0 +1,62 @@
+/* Manchester Piti — editorial sports-press theme tokens (light + dark).
+   New "--mp-*" layer for the revamp. Scoped via [data-theme] so the
+   not-yet-revamped inner pages (which still use the legacy --bg-* tokens)
+   keep working until each is migrated. */
+
+:root {
+  /* Brand constants (Manchester City, Pantone-accurate) */
+  --mp-sky: #6CABDD;
+  --mp-sky-deep: #3f86bd;
+  --mp-navy: #1C2C5B;
+  --mp-navy-deep: #0c1733;
+  --mp-gold: #FFC659;
+  --mp-gold-deep: #D4A12A;
+  --mp-red: #C42F23;
+  --mp-white: #ffffff;
+
+  /* Type families */
+  --mp-font-display: 'Anton', 'Archivo', system-ui, sans-serif;
+  --mp-font-ui: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Motion */
+  --mp-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --mp-bg: #e9ebf0;
+  --mp-surface: #ffffff;
+  --mp-surface-2: #f3f5f8;
+  --mp-ink: #0f1830;
+  --mp-muted: #56607a;
+  --mp-heading: #1C2C5B;
+  --mp-accent: #1C2C5B;        /* legible accent-as-text on light */
+  --mp-gold-ink: #8a6200;      /* legible gold text on light */
+  --mp-line: rgba(28, 44, 91, 0.14);
+  --mp-line-strong: #1C2C5B;
+  --mp-on-band: #ffffff;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --mp-bg: #060d20;
+  --mp-surface: #101c3c;
+  --mp-surface-2: #0b1430;
+  --mp-ink: #e9eefa;
+  --mp-muted: #93a4c6;
+  --mp-heading: #eef3ff;
+  --mp-accent: #6CABDD;
+  --mp-gold-ink: #FFC659;
+  --mp-line: rgba(130, 160, 210, 0.18);
+  --mp-line-strong: #6CABDD;
+  --mp-on-band: #ffffff;
+}
+
+/* Fallback before the inline init script runs */
+:root:not([data-theme]) {
+  color-scheme: light;
+  --mp-bg: #e9ebf0; --mp-surface: #ffffff; --mp-surface-2: #f3f5f8;
+  --mp-ink: #0f1830; --mp-muted: #56607a; --mp-heading: #1C2C5B;
+  --mp-accent: #1C2C5B; --mp-gold-ink: #8a6200;
+  --mp-line: rgba(28,44,91,0.14); --mp-line-strong: #1C2C5B; --mp-on-band:#fff;
+}

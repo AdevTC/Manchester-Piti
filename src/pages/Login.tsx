@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { LogIn, ShieldCheck } from "lucide-react";
+import { Crest } from "../components/Crest";
 
 export const Login: React.FC = () => {
   const { loginWithGoogle } = useAuth();
@@ -71,24 +72,7 @@ export const Login: React.FC = () => {
         }}
       >
         {/* Emblem */}
-        <div
-          style={{
-            width: "5.5rem",
-            height: "5.5rem",
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, var(--accent-cyan), #ffffff)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto 1.5rem",
-            boxShadow: "0 8px 24px rgba(6, 182, 212, 0.3)",
-            fontSize: "2.5rem",
-            fontWeight: 900,
-            color: "#0f172a"
-          }}
-        >
-          M
-        </div>
+        <Crest size={112} alt="Manchester Piti" style={{ margin: "0 auto 1.5rem" }} />
 
         <h1
           style={{

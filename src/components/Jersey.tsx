@@ -32,8 +32,8 @@ export const Jersey: React.FC<JerseyProps> = ({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        filter: "drop-shadow(0 10px 15px rgba(0, 0, 0, 0.4))",
-        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        filter: "drop-shadow(0 8px 16px rgba(12, 23, 51, 0.28))",
+        transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         cursor: "pointer",
         ...style
       }}
@@ -45,10 +45,10 @@ export const Jersey: React.FC<JerseyProps> = ({
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
-          {/* Sky Blue / Cyan Gradient for premium athletic look */}
+          {/* Verified Manchester City sky-blue body gradient */}
           <linearGradient id="jerseyBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#7dd3fc" /> {/* Sky Blue Light */}
-            <stop offset="100%" stopColor="#0284c7" /> {/* Sky Blue Dark */}
+            <stop offset="0%" stopColor="#8fc3e8" /> {/* Sky light */}
+            <stop offset="100%" stopColor="#5295c4" /> {/* Sky deep */}
           </linearGradient>
 
           {/* Slight 3D shading overlay */}
@@ -68,35 +68,35 @@ export const Jersey: React.FC<JerseyProps> = ({
         <path
           d="M 50,55 L 12,88 C 9,91 10,96 14,99 L 34,115 C 38,118 43,117 46,112 L 66,90 Z"
           fill="#ffffff"
-          stroke="#0f172a"
+          stroke="#0c1733"
           strokeWidth="2.5"
           strokeLinejoin="round"
         />
         {/* Left Sleeve Cyan Accent Cuff */}
         <path
           d="M 12,88 L 19,83 L 39,100 L 34,115 Z"
-          fill="#0284c7"
+          fill="#1C2C5B"
         />
 
         {/* RIGHT SLEEVE (White) */}
         <path
           d="M 150,55 L 188,88 C 191,91 190,96 186,99 L 166,115 C 162,118 157,117 154,112 L 134,90 Z"
           fill="#ffffff"
-          stroke="#0f172a"
+          stroke="#0c1733"
           strokeWidth="2.5"
           strokeLinejoin="round"
         />
         {/* Right Sleeve Cyan Accent Cuff */}
         <path
           d="M 188,88 L 181,83 L 161,100 L 166,115 Z"
-          fill="#0284c7"
+          fill="#1C2C5B"
         />
 
         {/* JERSEY BODY (Cyan Gradient) */}
         <path
           d="M 58,55 L 142,55 C 145,55 147,57 146,60 L 152,175 C 153,178 150,181 147,181 L 53,181 C 50,181 47,178 48,175 L 54,60 C 53,57 55,55 58,55 Z"
           fill="url(#jerseyBodyGrad)"
-          stroke="#0f172a"
+          stroke="#0c1733"
           strokeWidth="3"
           strokeLinejoin="round"
         />
@@ -114,13 +114,13 @@ export const Jersey: React.FC<JerseyProps> = ({
         <path
           d="M 82,55 C 82,69 118,69 118,55 Z"
           fill="#ffffff"
-          stroke="#0f172a"
+          stroke="#0c1733"
           strokeWidth="2.5"
         />
         {/* Inner Collar Shading */}
         <path
           d="M 84,55 C 84,65 116,65 116,55 Z"
-          fill="#0f172a"
+          fill="#0c1733"
           fillOpacity="0.2"
         />
 
@@ -135,13 +135,13 @@ export const Jersey: React.FC<JerseyProps> = ({
         <text
           x="100"
           y="92"
-          fill="#090d16"
+          fill="#0c1733"
           fontSize="11.5"
           fontWeight="800"
           textAnchor="middle"
           letterSpacing="1.2"
           filter="url(#textShadow)"
-          style={{ fontFamily: "'Outfit', sans-serif" }}
+          style={{ fontFamily: "'Archivo', system-ui, sans-serif" }}
         >
           {formattedName}
         </text>
@@ -149,13 +149,13 @@ export const Jersey: React.FC<JerseyProps> = ({
         {/* PLAYER DORSAL NUMBER (Dark Navy/Dark Blue) */}
         <text
           x="100"
-          y="146"
-          fill="#090d16"
-          fontSize="48"
-          fontWeight="900"
+          y="148"
+          fill="#0c1733"
+          fontSize="52"
+          fontWeight="400"
           textAnchor="middle"
           filter="url(#textShadow)"
-          style={{ fontFamily: "'Outfit', sans-serif" }}
+          style={{ fontFamily: "'Anton', 'Archivo', sans-serif" }}
         >
           {number}
         </text>

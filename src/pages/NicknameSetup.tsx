@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { UserCheck, LogOut, AtSign } from "lucide-react";
+import { Crest } from "../components/Crest";
 
 export const NicknameSetup: React.FC = () => {
   const { registerNickname, logout, user } = useAuth();
@@ -62,6 +63,7 @@ export const NicknameSetup: React.FC = () => {
           animation: "fadeIn 0.5s ease"
         }}
       >
+        <Crest size={72} alt="Manchester Piti" style={{ margin: "0 0 1.25rem" }} />
         <h2 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: "0.5rem" }}>
           ¡Casi listo! 👋
         </h2>
