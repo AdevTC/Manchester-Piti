@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "../../firebase";
-import { computeStats, type MatchLike, type PlayerStats, type StatEvent } from "../../lib/playerStats";
+import { computeStats, EMPTY_STATS, type MatchLike, type PlayerStats, type StatEvent } from "../../lib/playerStats";
 import { recentForm, squadNorms, suspendedSet, type SquadNorms } from "./chemistry";
 
 interface RawMatch extends MatchLike {
@@ -15,11 +15,6 @@ export interface PizarraStats {
   suspended: Set<string>;
   loading: boolean;
 }
-
-const EMPTY_STATS: PlayerStats = {
-  goals: 0, assists: 0, yellowCards: 0, redCards: 0, doubleYellows: 0, woodwork: 0,
-  penaltySaved: 0, goalPenalty: 0, goalFreekick: 0, penaltyMissed: 0, ownGoals: 0, matchesPlayed: 0,
-};
 
 /** Realtime per-season match stats for the board's chemistry layer. Subscribes
  *  to the season's matches (with events, date-desc) and derives the maps the

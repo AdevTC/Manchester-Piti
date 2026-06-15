@@ -25,6 +25,12 @@ export interface PlayerStats {
   matchesPlayed: number;
 }
 
+/** A zeroed stat line — the honest fallback for a player with no record. */
+export const EMPTY_STATS: PlayerStats = {
+  goals: 0, assists: 0, yellowCards: 0, redCards: 0, doubleYellows: 0, woodwork: 0,
+  penaltySaved: 0, goalPenalty: 0, goalFreekick: 0, penaltyMissed: 0, ownGoals: 0, matchesPlayed: 0,
+};
+
 export function computeStats(playerId: string, matches: MatchLike[]): PlayerStats {
   const s: PlayerStats = {
     goals: 0, assists: 0, yellowCards: 0, redCards: 0, doubleYellows: 0, woodwork: 0,

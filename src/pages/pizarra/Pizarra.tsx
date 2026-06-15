@@ -5,7 +5,7 @@ import { Users, Search, X, Copy } from "lucide-react";
 import { FloodlightCanvas } from "../../components/FloodlightCanvas";
 import { useSeason } from "../../context/SeasonContext";
 import { useAuth } from "../../context/AuthContext";
-import { usePizarraPlayers, setNaturalPosition, type PizarraPlayer } from "./usePizarraPlayers";
+import { usePizarraPlayers, setNaturalPosition, setInjured, type PizarraPlayer } from "./usePizarraPlayers";
 import { usePizarraSettings } from "./usePizarraSettings";
 import { PlayerToken } from "./PlayerToken";
 import { PitchSlot, type SlotData } from "./PitchSlot";
@@ -29,6 +29,10 @@ import { useLineups, type OfficialScope } from "./useLineups";
 import { useSeasonMatches } from "./useSeasonMatches";
 import { LineupsPanel, type SaveState } from "./LineupsPanel";
 import { extractLineup } from "./lineupDoc";
+import { usePizarraStats } from "./usePizarraStats";
+import { teamRating, lineStats, type PlacedPlayer } from "./chemistry";
+import { ChemistryPanel } from "./ChemistryPanel";
+import { EMPTY_STATS } from "../../lib/playerStats";
 import "./Pizarra.css";
 
 const DEFAULT_FORMATION: FormationName = "2-3-1";
@@ -119,6 +123,8 @@ export const Pizarra: React.FC = () => {
   const { settings, set: setSetting } = usePizarraSettings();
   const lineups = useLineups(selectedSeasonId);
   const { matches } = useSeasonMatches(selectedSeasonId);
+  const statsArg = useMemo(() => players.map((p) => ({ id: p.id, seasonsCount: p.seasonsCount })), [players]);
+  const { statsById, norms, form, suspended } = usePizarraStats(selectedSeasonId, statsArg);
 
   const [lineup, setLineup] = useState<Lineup>(() => seedLineup(DEFAULT_FORMATION, []));
   const [picked, setPicked] = useState<string | null>(null);
@@ -266,6 +272,29 @@ export const Pizarra: React.FC = () => {
     return !!z && z !== slot.zone;
   };
 
+  // ── Chemistry / rating (deterministic, from real stats) ──
+  const placed = useMemo<PlacedPlayer[]>(
+    () =>
+      lineup.slots
+        .filter((s) => s.playerId)
+        .map((s) => {
+          const id = s.playerId as string;
+          const z = lineup.playerPositions[id] ?? playersById.get(id)?.naturalPosition;
+          return {
+            id,
+            s: statsById.get(id) ?? EMPTY_STATS,
+            seasons: playersById.get(id)?.seasonsCount ?? 0,
+            zone: s.zone,
+            outOfPosition: !!z && z !== s.zone,
+          };
+        }),
+    [lineup, statsById, playersById],
+  );
+  const rating = useMemo(() => teamRating(placed, XI - placed.length, norms), [placed, norms]);
+  const lines = useMemo(() => lineStats(placed), [placed]);
+  const isUnavailable = (id: string): boolean => suspended.has(id) || (playersById.get(id)?.injured ?? false);
+  const unavailableInXI = placed.filter((p) => isUnavailable(p.id)).length;
+
   // ── Mutating handlers (all via commit; no-op when read-only) ──
   const changeFormation = (name: FormationName): void => {
     if (readOnly) return;
@@ -403,6 +432,35 @@ export const Pizarra: React.FC = () => {
     withMorph(() => commit({ ...lineup, slots, bench: pool }));
   };
 
+  // Like Auto-XI but ranked by recent form (performance, not just position),
+  // keeping pinned players in place.
+  const suggestByForm = (): void => {
+    if (readOnly) return;
+    const pinnedInSlot = new Map<number, string>();
+    lineup.slots.forEach((s, i) => {
+      if (s.playerId && lineup.pinned.includes(s.playerId)) pinnedInSlot.set(i, s.playerId);
+    });
+    const taken = new Set(pinnedInSlot.values());
+    const pool = [...players]
+      .filter((p) => !taken.has(p.id))
+      .sort((a, b) => (form.get(b.id) ?? 0) - (form.get(a.id) ?? 0))
+      .map((p) => p.id);
+    const slots = emptySlots(lineup.formation);
+    pinnedInSlot.forEach((id, i) => {
+      slots[i].playerId = id;
+    });
+    const zoneOf = (id: string): Zone | undefined => lineup.playerPositions[id] ?? playersById.get(id)?.naturalPosition;
+    slots.forEach((s) => {
+      if (s.playerId) return;
+      const idx = pool.findIndex((id) => zoneOf(id) === s.zone);
+      if (idx >= 0) s.playerId = pool.splice(idx, 1)[0];
+    });
+    slots.forEach((s) => {
+      if (!s.playerId && pool.length) s.playerId = pool.shift() as string;
+    });
+    withMorph(() => commit({ ...lineup, slots, bench: pool }));
+  };
+
   // Free mode: nudge the player's slot to the drop point via the pixel delta.
   const repositioned = (l: Lineup, slotIndex: number, transform: { x: number; y: number }): Lineup => {
     const rect = pitchElRef.current?.getBoundingClientRect();
@@ -497,6 +555,7 @@ export const Pizarra: React.FC = () => {
           onToggleFree={toggleFreeMode}
           onReset={resetBoard}
           onAuto={autoXI}
+          onSuggestForm={suggestByForm}
           onUndo={undo}
           onRedo={redo}
           canUndo={past.length > 0}
@@ -590,6 +649,7 @@ export const Pizarra: React.FC = () => {
                       settings={settings}
                       positionLabel={ez ? ZONE_LABEL[ez] : undefined}
                       outOfPosition={isOutOfPosition(slot)}
+                      unavailable={isUnavailable(player.id)}
                       disabled={readOnly}
                       onActivate={() => activateToken(player.id)}
                     />
@@ -670,6 +730,7 @@ export const Pizarra: React.FC = () => {
                       settings={settings}
                       positionLabel={ez ? ZONE_LABEL[ez] : undefined}
                       outOfPosition={false}
+                      unavailable={isUnavailable(p.id)}
                       disabled={readOnly}
                       onActivate={() => activateToken(p.id)}
                     />
@@ -679,6 +740,8 @@ export const Pizarra: React.FC = () => {
             )}
           </div>
         </div>
+
+        <ChemistryPanel rating={rating} lines={lines} unavailableInXI={unavailableInXI} />
 
         {/* Panels: galones + posiciones */}
         <div className="pz-panels">
@@ -751,6 +814,18 @@ export const Pizarra: React.FC = () => {
                           ))}
                         </select>
                       </label>
+                    )}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        className="pz-pos-injury"
+                        aria-pressed={p.injured}
+                        disabled={readOnly}
+                        onClick={() => void setInjured(p.id, !p.injured)}
+                        title={p.injured ? "Marcar apto" : "Marcar lesionado"}
+                      >
+                        {p.injured ? "Lesionado" : "Apto"}
+                      </button>
                     )}
                     <label className="pz-pos-field">
                       <span className="pz-pos-flabel">En este 11</span>
