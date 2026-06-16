@@ -2,14 +2,15 @@ rules_version = '2';
 
 // Manchester Piti — Firestore security rules.
 //
-// IMPORTANT: This file was RECONSTRUCTED from the app's Firestore usage
-// (AuthContext, SeasonContext, Admin, Stats, MatchCenter, Expedientes,
-// Landing, pizarra/*). The live rules are managed in the Firebase console and
-// could NOT be read from here. Before `firebase deploy --only
-// firestore:rules`, reconcile this against the live console rules — a deploy
-// REPLACES the entire ruleset. The players/matches/seasons rules are verified
-// against code; the `users` rules encode a security model (see comments) you
-// should confirm matches your intent.
+// Reconstructed from the app's Firestore usage (AuthContext, SeasonContext,
+// Admin, Stats, MatchCenter, Expedientes, Landing, pizarra/*) and covering all
+// five collections the app touches: players, matches, seasons, users, lineups.
+//
+// DEPLOYED 2026-06-16 (firebase deploy --only firestore) to futbolmanagement-dc6cb.
+// The previous live ruleset was the default test-mode allow-all (expiring
+// 2026-07-03), so nothing custom was lost. A deploy REPLACES the entire
+// ruleset, so keep this file in sync and re-verify against the app's queries
+// before any future deploy.
 
 service cloud.firestore {
   match /databases/{database}/documents {
