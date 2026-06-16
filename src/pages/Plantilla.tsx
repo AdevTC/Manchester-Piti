@@ -15,7 +15,7 @@ function initialMode(): Mode {
     return "expedientes";
   }
 }
-
+//
 // The Plantilla page is a shell over two switchable modes: the existing
 // dossier viewer (Expedientes, intact) and the tactical board (Pizarra). The
 // last mode is remembered in localStorage, mirroring SeasonContext.
