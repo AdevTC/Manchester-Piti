@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { type User, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, googleProvider, db } from "../firebase";
+import { userProfileSchema } from "../lib/schemas";
 
 export interface UserProfile {
   email: string;
@@ -71,7 +72,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isSuperAdminEmail = currentUser.email === "adriantomascv@gmail.com";
 
           if (userDoc.exists()) {
-            const data = userDoc.data() as UserProfile;
+            const parsed = userProfileSchema.safeParse(userDoc.data());
+            if (!parsed.success) {
+              console.error("Perfil de usuario inválido:", parsed.error.issues);
+              setProfile(null);
+              setLoading(false);
+              return;
+            }
+            const data = { ...parsed.data } as UserProfile;
             
             // Force superadmin role in DB if logged in with superadmin email
             if (isSuperAdminEmail && data.role !== "superadmin") {
