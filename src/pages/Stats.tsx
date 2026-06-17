@@ -1733,7 +1733,7 @@ export const Stats: React.FC = () => {
             border: "4px solid rgba(108, 171, 221, 0.1)",
             borderTopColor: "var(--accent-cyan)",
             borderRadius: "50%",
-            animation: "pulseGlow 1.5s infinite linear",
+            animation: "spin 1.5s infinite linear",
             margin: "0 auto 1rem"
           }}></div>
           <p style={{ color: "var(--text-secondary)" }}>Calculando estadísticas...</p>

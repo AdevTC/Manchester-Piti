@@ -38,6 +38,14 @@ const MainAppContent: React.FC = () => {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
+  // Dev-only: `?login` renders the auth gate regardless of session, so the
+  // login screen can be designed/inspected while signed in. DEV-stripped.
+  const PREVIEW_LOGIN =
+    import.meta.env.DEV &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("login");
+  if (PREVIEW_LOGIN) return <Login />;
+
   // 1. Loading screen
   if (loading) {
     return (
@@ -48,7 +56,7 @@ const MainAppContent: React.FC = () => {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "#070b13",
+          background: "var(--mp-navy-deep, #0c1733)",
           gap: "1.5rem"
         }}
       >
@@ -59,17 +67,9 @@ const MainAppContent: React.FC = () => {
           style={{ filter: "drop-shadow(0 10px 28px rgba(0,0,0,0.45))" }}
         />
         <div style={{ textAlign: "center" }}>
-          <div style={{
-            width: "1.5rem",
-            height: "1.5rem",
-            border: "3px solid rgba(6, 182, 212, 0.1)",
-            borderTopColor: "var(--accent-cyan)",
-            borderRadius: "50%",
-            animation: "pulseGlow 1.2s infinite linear",
-            margin: "0 auto 0.75rem"
-          }}></div>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", letterSpacing: "0.05em" }}>
-            Iniciando Manchester Piti...
+          <div className="mp-boot-spinner" />
+          <p style={{ color: "var(--mp-sky, #6CABDD)", fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", margin: 0 }}>
+            Iniciando Manchester Piti
           </p>
         </div>
       </div>

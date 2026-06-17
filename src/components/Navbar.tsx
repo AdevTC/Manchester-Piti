@@ -138,7 +138,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) =
             ))}
             <span
               className={`mp-rail-ink${activeIsAdmin ? " is-admin" : ""}`}
-              style={{ transform: `translateX(${ink.x}px)`, width: ink.w }}
+              style={{ transform: `translateX(${ink.x}px) scaleX(${ink.w})` }}
               aria-hidden="true"
             />
           </nav>

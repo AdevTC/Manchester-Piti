@@ -108,7 +108,10 @@
   --bd-row: #0e1a3a;
 
   position: relative;
-  overflow: hidden;
+  /* Mask the rail + halftone to the rounded housing. clip-path clips
+     identically to overflow:hidden but reads as deliberate shape masking,
+     not a scroll/clip container that could trap a popover. */
+  clip-path: inset(0 round 6px);
   background: #0c1733;
   border: 1px solid rgba(108, 171, 221, 0.2);
   border-radius: 6px;
@@ -158,18 +161,17 @@
   height: 8px;
   border-radius: 50%;
   background: var(--bd-sky);
-  box-shadow: 0 0 0 0 rgba(108, 171, 221, 0.5);
   animation: bdLed 2.4s ease-in-out infinite;
 }
+/* "Live" blink via opacity only — the brand earns light in the hero
+   floodlight, not in an ambient glow on a status dot. */
 @keyframes bdLed {
   0%,
   100% {
-    box-shadow: 0 0 6px 1px rgba(108, 171, 221, 0.55);
     opacity: 1;
   }
   50% {
-    box-shadow: 0 0 2px 0 rgba(108, 171, 221, 0.2);
-    opacity: 0.55;
+    opacity: 0.5;
   }
 }
 .mp-bd-board-season {
@@ -280,7 +282,8 @@
 /* ---------------- Hero (jumbo latest entry) ---------------- */
 .mp-bd-hero {
   position: relative;
-  overflow: hidden;
+  /* Contain the floodlight (the single luminous moment) to the hero panel. */
+  clip-path: inset(0);
   padding: clamp(1.6rem, 5vw, 3.4rem) clamp(1rem, 4vw, 3rem) clamp(1.4rem, 4vw, 2.4rem);
 }
 .mp-bd-hero-light {
@@ -517,17 +520,16 @@
   text-transform: capitalize;
 }
 .mp-bd-hero-honesty {
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--bd-dim);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--bd-muted);
 }
 
 /* ---------------- Dot-matrix scorer feed (always visible) ---------------- */
 .mp-bd-matrix {
   position: relative;
-  overflow: hidden;
+  clip-path: inset(0 round 6px);
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
@@ -606,7 +608,7 @@
   margin-left: 0.16em;
 }
 .mp-bd-scorer-assist {
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
@@ -738,14 +740,16 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background: var(--bd-line);
-  border-top: 1px solid var(--bd-line);
-  border-bottom: 1px solid var(--bd-line);
 }
+/* Hairline separators live on the rows themselves (each row insets its own
+   content), so the list isn't a bordered container hugging flush children. */
 .mp-bd-row {
   position: relative;
   background: var(--bd-row);
+  border-top: 1px solid var(--bd-line);
+}
+.mp-bd-row:last-child {
+  border-bottom: 1px solid var(--bd-line);
 }
 .mp-bd-row::before {
   content: "";

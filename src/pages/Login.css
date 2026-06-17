@@ -1,0 +1,445 @@
+/* Manchester Piti — auth gate. "ENCENDIDO": a floodlit matchday entrance.
+   The stadium lights strike on load, a follow-spot tracks the cursor, the
+   wordmark is caught by the light and the kit hangs in the beam. Flat + printed,
+   drenched navy, ONE luminous moment (the floodlight). Self-contained lg-* ns.
+   Everything degrades to a lit, static scene under prefers-reduced-motion. */
+
+.lg {
+  --mx: 50%;
+  --my: 38%;
+  --px: 0.5;
+  --py: 0.4;
+
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--mp-navy-deep, #0c1733);
+  color: #fff;
+  font-family: var(--mp-font-ui, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+.lg *,
+.lg *::before,
+.lg *::after { box-sizing: border-box; }
+
+/* ---- Light layers (z0) ---- */
+/* Beams sit ABOVE the vignette so they read at full strength everywhere, and
+   below the content (the .lg-col scrim keeps the wordmark legible over them). */
+.lg-lights { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+/* Follow-spot: a sky pool of light that the cursor drags around the stage. */
+.lg-spot {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    46vmax 46vmax at var(--mx) var(--my),
+    rgba(108, 171, 221, 0.22),
+    rgba(108, 171, 221, 0.06) 34%,
+    transparent 60%
+  );
+  mix-blend-mode: screen;
+  animation: lgIgnite 1s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+/* Printed halftone on the navy (programme texture) */
+.lg-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(108, 171, 221, 0.14) 1px, transparent 1.5px);
+  background-size: 24px 24px;
+  opacity: 0.35;
+}
+/* Faint lit pitch underfoot (depth, not literal) */
+.lg-ground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(80% 120% at 50% 130%, rgba(108, 171, 221, 0.12), transparent 70%);
+}
+
+/* ---- Floodlight rigs (the focos themselves) ---- */
+.lg-pylon {
+  position: absolute;
+  top: 2.4rem;
+  z-index: 3;
+  width: clamp(116px, 15vw, 196px);
+  height: auto;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 14px rgba(2, 6, 16, 0.6));
+}
+/* On wide screens the rigs pull in to frame the central content band
+   (instead of drifting to the far edges), so beams + content stay related. */
+.lg-pylon-l { left: max(1.5%, calc(50% - 620px)); transform: rotate(9deg); transform-origin: top left; }
+.lg-pylon-r { right: max(1.5%, calc(50% - 620px)); transform: rotate(-9deg); transform-origin: top right; }
+.lg-pylon-panel { fill: #0a1330; stroke: rgba(140, 170, 210, 0.28); stroke-width: 1.5; }
+.lg-pylon-arm { fill: #0a1330; }
+.lg-lamp {
+  fill: #18233f;
+  animation: lgLamp 0.55s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) calc(0.2s + var(--i, 0) * 28ms) both;
+}
+.lg-pylon-r .lg-lamp { animation-delay: calc(0.45s + var(--i, 0) * 28ms); }
+@keyframes lgLamp {
+  0% { fill: #18233f; }
+  22% { fill: #9fc4ea; }          /* strike */
+  40% { fill: #2b3a5c; }          /* buzz dip */
+  72% { fill: #eaf4ff; filter: drop-shadow(0 0 5px rgba(150, 200, 245, 0.95)); }
+  100% { fill: #eaf4ff; filter: drop-shadow(0 0 5px rgba(150, 200, 245, 0.95)); }
+}
+/* Spotlight vignette: darkens away from where you point, so the beam reads. */
+.lg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(130% 110% at var(--mx) var(--my), transparent 20%, rgba(2, 5, 12, 0.76) 100%);
+}
+/* Ignition veil: the scene comes up from black as the floodlights strike. */
+.lg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: #04070f;
+  animation: lgVeil 0.7s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+@keyframes lgVeil { from { opacity: 1; } to { opacity: 0; } }
+@keyframes lgIgnite {
+  0% { opacity: 0; }
+  20% { opacity: 0.55; }   /* the strike */
+  34% { opacity: 0.22; }   /* the dip */
+  100% { opacity: 1; }     /* full burn */
+}
+
+/* ---- Broadcast ticker (top) ---- */
+.lg-ticker {
+  position: relative;
+  z-index: 5;
+  overflow: hidden;
+  /* Soft broadcast fade so phrases ease in/out at the edges. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+/* Hairline divider as a pseudo (keeps the strip edge-to-edge for the marquee). */
+.lg-ticker::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+.lg-ticker-track {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  white-space: nowrap;
+  will-change: transform;
+  animation: lgMarquee 120s linear infinite;
+}
+/* Two identical halves; each is wider than the viewport, so -50% loops seamlessly. */
+.lg-ticker-half { display: flex; align-items: center; flex: 0 0 auto; }
+.lg-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mp-font-display, "Anton", system-ui, sans-serif);
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  color: #9fb6d6;
+  padding: 0.6rem 0;
+}
+.lg-ticker-sep { color: var(--mp-sky, #6CABDD); padding: 0 1.1rem; }
+.lg-ticker:hover .lg-ticker-track { animation-play-state: paused; }
+@keyframes lgMarquee { to { transform: translateX(-50%); } }
+
+/* ---- Stage ---- */
+.lg-stage {
+  position: relative;
+  z-index: 3;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: clamp(2rem, 5vw, 4.5rem);
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: clamp(1.75rem, 4vw, 3.25rem) clamp(1.5rem, 5vw, 4rem);
+}
+.lg-col { position: relative; isolation: isolate; }
+.lg-col-brand { max-width: 31rem; }
+.lg-col-preview { max-width: 30rem; justify-self: center; }
+/* Readability scrims: keep content legible when a beam crosses behind it.
+   They sit above the beams, behind the column's content. */
+.lg-col-brand::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -14% -16% -14% -20%;
+  background: radial-gradient(80% 84% at 26% 50%, rgba(5, 10, 24, 0.72), transparent 76%);
+  pointer-events: none;
+}
+.lg-col-preview::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -10% -14%;
+  background: radial-gradient(82% 86% at 58% 46%, rgba(5, 10, 24, 0.64), transparent 78%);
+  pointer-events: none;
+}
+
+/* Feature index — editorial rows (icon + label + line), not a card grid */
+.lg-feats { animation: lgRise 0.6s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) 0.75s both; }
+.lg-feats-h {
+  font-family: var(--mp-font-ui, system-ui, sans-serif);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--mp-sky, #6CABDD);
+  margin: 0 0 0.7rem;
+}
+.lg-feat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.lg-feat {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid rgba(140, 170, 215, 0.16);
+}
+.lg-feat:last-child { border-bottom: 1px solid rgba(140, 170, 215, 0.16); }
+.lg-feat-ico { color: var(--mp-sky, #6CABDD); flex: 0 0 auto; margin-top: 0.15rem; }
+.lg-feat-txt { display: flex; flex-direction: column; gap: 0.18rem; }
+.lg-feat-t {
+  font-family: var(--mp-font-display, "Anton", system-ui, sans-serif);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  font-size: 1.18rem;
+  line-height: 1;
+  color: #fff;
+}
+.lg-feat-d { font-size: 0.86rem; line-height: 1.45; color: #b9c8e4; }
+
+/* Brand */
+.lg-brand { display: inline-flex; align-items: center; gap: 0.9rem; }
+.lg-crest { width: 56px; height: 56px; flex-shrink: 0; animation: lgPop 0.6s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) 0.15s both; }
+.lg-wordmark {
+  font-family: var(--mp-font-display, "Anton", system-ui, sans-serif);
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 0.82;
+  letter-spacing: -0.01em;
+  font-size: clamp(2.7rem, 6vw, 5rem);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+.lg-w1, .lg-w2 { display: block; }
+.lg-w1 { animation: lgWipe 0.65s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) 0.28s both; }
+.lg-w2 {
+  color: var(--mp-sky, #6CABDD);
+  animation: lgWipe 0.65s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) 0.42s both,
+             lgLight 0.45s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) 0.9s both;
+}
+@keyframes lgWipe {
+  from { clip-path: inset(0 100% 0 0); opacity: 0; }
+  to   { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+@keyframes lgLight { from { color: #2a3a63; } }  /* the beam catches PITI, lighting it sky */
+
+.lg-rule {
+  display: block;
+  width: 96px;
+  height: 6px;
+  background: var(--mp-sky, #6CABDD);
+  margin: 1.4rem 0 0;
+  transform-origin: left;
+  animation: lgRule 0.55s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) 0.72s both;
+}
+@keyframes lgRule { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.lg-tagline {
+  font-family: var(--mp-font-display, "Anton", system-ui, sans-serif);
+  text-transform: uppercase;
+  font-size: clamp(1.25rem, 2.4vw, 1.8rem);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  margin: 1.3rem 0 0;
+  color: #fff;
+  animation: lgRise 0.6s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) 0.7s both;
+}
+.lg-sub {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #c7d4ea;
+  margin: 1rem 0 0;
+  max-width: 42ch;
+  animation: lgRise 0.6s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) 0.84s both;
+}
+@keyframes lgRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes lgPop { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
+
+/* Access */
+.lg-access { margin-top: clamp(1.75rem, 4vw, 2.5rem); max-width: 23rem; animation: lgRise 0.6s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) 0.55s both; }
+.lg-google {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font-family: var(--mp-font-ui, system-ui, sans-serif);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  color: var(--mp-navy-deep, #0c1733);
+  background: var(--mp-sky, #6CABDD);
+  border: 2px solid var(--mp-sky, #6CABDD);
+  border-radius: 4px;
+  padding: 0.9rem 1.4rem;
+  cursor: pointer;
+  transition: transform 0.25s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)),
+              background 0.25s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.lg-google-in { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 0.7rem; }
+.lg-google-in svg { flex: 0 0 auto; }
+/* Broadcast light-sweep on hover (the studio sheen across the graphic) */
+.lg-google::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-18deg);
+  opacity: 0;
+  pointer-events: none;
+}
+.lg-google:hover:not(:disabled) { transform: translateY(-2px); background: #82bce6; border-color: #82bce6; }
+.lg-google:hover:not(:disabled)::after { animation: lgSweep 0.7s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
+.lg-google:focus-visible { outline: 3px solid var(--mp-gold, #FFC659); outline-offset: 2px; }
+.lg-google:disabled { opacity: 0.65; cursor: progress; }
+@keyframes lgSweep {
+  0% { left: -60%; opacity: 0; }
+  22% { opacity: 1; }
+  100% { left: 120%; opacity: 0; }
+}
+
+.lg-error {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: rgba(196, 47, 35, 0.14);
+  border: 1px solid rgba(196, 47, 35, 0.5);
+  border-radius: 4px;
+  padding: 0.7rem 0.85rem;
+  margin: 0 0 1.1rem;
+  color: #f3b0a9;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.lg-error svg { flex: 0 0 auto; color: #ef5446; }
+
+.lg-secure {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 1.3rem 0 0;
+  font-size: 0.8rem;
+  color: #9fb6d6;
+  letter-spacing: 0.01em;
+}
+.lg-secure svg { color: var(--mp-sky, #6CABDD); flex: 0 0 auto; }
+
+/* ---- Jersey showpiece (right) ---- */
+.lg-show {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: clamp(1.25rem, 3vw, 2rem);
+  animation: lgShowIn 0.85s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1)) 0.5s both;
+}
+@keyframes lgShowIn { from { opacity: 0; transform: translateY(22px) scale(0.94); } to { opacity: 1; transform: none; } }
+/* Tilt parallax driven by the pointer (set via --px/--py on .lg). */
+.lg-jersey {
+  pointer-events: none;
+  transform: perspective(950px)
+             rotateY(calc((var(--px) - 0.5) * 18deg))
+             rotateX(calc((0.5 - var(--py)) * 13deg));
+  transition: transform 0.2s var(--mp-ease, cubic-bezier(0.16, 1, 0.3, 1));
+  will-change: transform;
+}
+
+/* ---- Footer ---- */
+.lg-foot {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 clamp(1.5rem, 5vw, 4rem) 1.4rem;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #93a8cf;
+}
+.lg-foot .lg-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--mp-sky, #6CABDD); flex: 0 0 auto; }
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .lg-stage { grid-template-columns: 1fr; gap: clamp(1.75rem, 5vw, 2.75rem); }
+  .lg-show { display: none; }
+  .lg-col-brand,
+  .lg-col-preview { max-width: 36rem; justify-self: stretch; }
+}
+@media (max-width: 560px) {
+  .lg-stage { padding: 2.25rem 1.4rem; }
+  .lg-foot { padding: 0 1.4rem 1.4rem; gap: 0.45rem; }
+  .lg-pylon { width: 92px; top: 1.6rem; }
+  .lg-wordmark { font-size: clamp(2.1rem, 12vw, 3rem); }
+}
+
+/* ---- Reduced motion: lit, static, no ignition / follow / sweep ---- */
+@media (prefers-reduced-motion: reduce) {
+  .lg::after { display: none; }
+  .lg-spot { animation: none; opacity: 1; }
+  .lg-lamp { animation: none; fill: #eaf4ff; filter: drop-shadow(0 0 5px rgba(150, 200, 245, 0.95)); }
+  .lg-crest,
+  .lg-w1,
+  .lg-w2,
+  .lg-rule,
+  .lg-tagline,
+  .lg-sub,
+  .lg-access,
+  .lg-show {
+    animation: none !important;
+    opacity: 1 !important;
+    clip-path: none !important;
+    transform: none !important;
+  }
+  .lg-jersey { transition: none; }
+  .lg-ticker-track { animation: none; }
+  .lg-google { transition: background 0.25s ease; }
+  .lg-google:hover:not(:disabled) { transform: none; }
+  .lg-google:hover:not(:disabled)::after { animation: none; }
+}
