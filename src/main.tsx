@@ -13,8 +13,8 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <MotionConfig reducedMotion="user">
         <App />
+        {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
       </MotionConfig>
-      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   </StrictMode>,
 )

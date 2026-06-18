@@ -40,17 +40,19 @@ export const RootLayout: React.FC = () => {
     <div className="app-container">
       <Navbar />
       <main className="main-content">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        <React.Suspense fallback={null}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+        </React.Suspense>
       </main>
       {import.meta.env.DEV && (
         <React.Suspense fallback={null}>
