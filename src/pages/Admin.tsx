@@ -14,7 +14,15 @@ import {
   Shield
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { seasonFormSchema, type SeasonFormValues } from "../lib/schemas";
+import {
+  seasonFormSchema,
+  type SeasonFormValues,
+  parseDocs,
+  seasonSchema,
+  playerSchema,
+  userDocSchema,
+  seasonMatchSchema,
+} from "../lib/schemas";
 
 interface Season {
   id: string;
@@ -118,28 +126,31 @@ export const Admin: React.FC = () => {
   // Load Seasons, Players and Users
   useEffect(() => {
     const unsubscribeSeasons = onSnapshot(
-      query(collection(db, "seasons"), orderBy("name", "asc")), 
+      query(collection(db, "seasons"), orderBy("name", "asc")),
       (snapshot) => {
-        setSeasons(snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, captainPlayerId: doc.data().captainPlayerId || "" })));
+        // Validate at the edge; Admin maps captainPlayerId || "" (not undefined)
+        const validated = parseDocs(seasonSchema, snapshot.docs, "seasons");
+        setSeasons(validated.map((s) => ({ id: s.id, name: s.name, captainPlayerId: s.captainPlayerId || "" })));
       }
     );
 
     const unsubscribePlayers = onSnapshot(
-      query(collection(db, "players")), 
+      query(collection(db, "players")),
       (snapshot) => {
-        const loadedPlayers = snapshot.docs.map(doc => ({ 
-          id: doc.id, 
-          firstName: doc.data().firstName || "",
-          lastName: doc.data().lastName || "",
-          shirtName: doc.data().shirtName || "",
-          number: doc.data().number || 0,
-          birthDate: doc.data().birthDate || "",
-          seasons: doc.data().seasons || [],
-          height: doc.data().height,
-          weight: doc.data().weight,
-          seasonDetails: doc.data().seasonDetails
-        })) as Player[];
-        // Sort by number
+        // Validate at the edge; keep existing field-by-field mapping + defaults
+        const validated = parseDocs(playerSchema, snapshot.docs, "players");
+        const loadedPlayers: Player[] = validated.map((p) => ({
+          id: p.id,
+          firstName: p.firstName || "",
+          lastName: p.lastName || "",
+          shirtName: p.shirtName || "",
+          number: p.number || 0,
+          birthDate: p.birthDate || "",
+          seasons: p.seasons || [],
+          height: p.height,
+          weight: p.weight,
+          seasonDetails: p.seasonDetails as Player["seasonDetails"],
+        }));
         loadedPlayers.sort((a, b) => a.number - b.number);
         setPlayers(loadedPlayers);
       }
@@ -148,14 +159,30 @@ export const Admin: React.FC = () => {
     const unsubscribeUsers = onSnapshot(
       query(collection(db, "users"), orderBy("nickname", "asc")),
       (snapshot) => {
-        setUsersList(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }) as UserDoc));
+        // UserDoc uses `uid` (not `id`); build the object manually so the
+        // schema's `uid` key matches instead of using the generic parseDocs.
+        const items: UserDoc[] = [];
+        for (const d of snapshot.docs) {
+          const r = userDocSchema.safeParse({ uid: d.id, ...d.data() });
+          if (r.success) items.push(r.data);
+          else console.error(`[schema] doc inválido en users/${d.id}:`, r.error.issues);
+        }
+        setUsersList(items);
       }
     );
 
     const unsubscribeMatches = onSnapshot(
       query(collection(db, "matches"), orderBy("date", "desc")),
       (snapshot) => {
-        setMatches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as MatchDoc));
+        // Validate at the edge: discard+log corrupt docs, keep raw data for all
+        // MatchDoc fields (competition, events, etc.) that go beyond the schema.
+        const items: MatchDoc[] = [];
+        for (const d of snapshot.docs) {
+          const r = seasonMatchSchema.safeParse({ id: d.id, ...d.data() });
+          if (r.success) items.push({ id: d.id, ...d.data() } as MatchDoc);
+          else console.error(`[schema] doc inválido en matches/${d.id}:`, r.error.issues);
+        }
+        setMatches(items);
       }
     );
 

@@ -19,6 +19,123 @@ const firestoreDate = z.union([
   ),
 ]);
 
+// ── Colección: seasons ───────────────────────────────────────────────────────
+
+/**
+ * Doc de la colección `seasons`. Solo `name` es obligatorio; `captainPlayerId`
+ * es opcional (ausente en docs creados antes de la feature de capitán).
+ */
+export const seasonSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  captainPlayerId: z.string().optional(),
+});
+export type SeasonDoc = z.infer<typeof seasonSchema>;
+
+// ── Colección: matches ───────────────────────────────────────────────────────
+
+/**
+ * Doc crudo de la colección `matches` (los campos que lleguen de Firestore).
+ * - `seasonId` se requiere porque la query filtra por él; un doc sin seasonId
+ *   es inutilizable en contexto.
+ * - `goalsFor`/`goalsAgainst` son opcionales (partido en curso) pero, si están
+ *   presentes, deben ser enteros no negativos. Un valor negativo indica
+ *   corrupción y el doc se descarta+loguea.
+ * - `date` acepta las tres formas que emite Firestore (Timestamp, string, ms).
+ */
+export const seasonMatchSchema = z.object({
+  id: z.string(),
+  seasonId: z.string(),
+  rival: z.string().optional(),
+  goalsFor: z.number().int().min(0).optional(),
+  goalsAgainst: z.number().int().min(0).optional(),
+  date: z
+    .union([
+      firestoreDate,
+      z.null(),
+    ])
+    .optional(),
+});
+export type SeasonMatchDoc = z.infer<typeof seasonMatchSchema>;
+
+// ── Colección: players ───────────────────────────────────────────────────────
+
+/**
+ * Doc crudo de la colección `players`. Un único schema permisivo sirve a DOS
+ * consumidores (usePizarraPlayers y Admin) que leen la misma colección.
+ *
+ * Decisión sobre dualidad playerSchema/pizarraPlayerSchema:
+ * Ambos leen la misma colección → se usa un único `playerSchema` que refleja la
+ * unión de campos necesarios. Exportar `pizarraPlayerSchema` como alias del
+ * mismo schema evita divergencia y hace el commit body más claro.
+ *
+ * `naturalPosition` es de tipo Zone (string literal union en runtime); se acepta
+ * como `z.string()` para no acoplar el schema a la lista de zonas ni rechazar
+ * valores futuros. El código downstream ya los trata como Zone via cast.
+ *
+ * `seasonDetails` se acepta como record<string, unknown> permisivo para no
+ * rechazar docs cuyas sub-keys no nos importan validar aquí.
+ */
+export const playerSchema = z.object({
+  id: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
+  shirtName: z.string(),
+  number: z.number(),
+  birthDate: z.string().optional(),
+  seasons: z.array(z.string()).optional(),
+  height: z.number().optional(),
+  weight: z.number().optional(),
+  active: z.boolean().optional(),
+  naturalPosition: z.string().optional(),
+  injured: z.boolean().optional(),
+  seasonDetails: z.record(z.string(), z.unknown()).optional(),
+});
+export type PlayerDoc = z.infer<typeof playerSchema>;
+
+/** Alias explícito para el consumidor de la pizarra (mismo schema). */
+export const pizarraPlayerSchema = playerSchema;
+
+// ── Colección: users ─────────────────────────────────────────────────────────
+
+/**
+ * Doc de la colección `users`. Nota: Firestore usa el uid del usuario como
+ * document ID; `parseDocs` inyecta `{ id: d.id, ...data }` pero UserDoc usa
+ * `uid` como campo. Por ello los call sites de Admin pasan `{ uid: d.id, ...data }`
+ * manualmente (ver Admin.tsx) para que el campo quede como `uid`.
+ *
+ * `role` es `z.string()` permisivo (no el `roleSchema` enum) para no descartar
+ * ninguna fila aunque el role tenga un valor inesperado.
+ */
+export const userDocSchema = z.object({
+  uid: z.string(),
+  nickname: z.string(),
+  email: z.string(),
+  role: z.string(),
+});
+export type UserDocParsed = z.infer<typeof userDocSchema>;
+
+// ── Colección: lineups ───────────────────────────────────────────────────────
+
+/**
+ * Doc crudo de la colección `lineups` — schema permisivo.
+ *
+ * `seasonId` es el único campo requerido además de `id`; la query ya filtra por
+ * él (where("seasonId","==",seasonId)), por lo que un doc sin seasonId es
+ * inconsistente y se descarta. Todos los demás campos del tablero (formation,
+ * slots, bench, roles…) son opcionales: `dataToLineupDoc` los tolera con
+ * fallbacks y es la fuente de verdad para los defaults. Solo se descarta un doc
+ * que no es un objeto utilizable (seasonId ausente o tipo incorrecto).
+ *
+ * z.looseObject() permite que el resto de campos del tablero pasen sin
+ * enumerarlos todos (Zod v4: passthrough → looseObject).
+ */
+export const lineupSchema = z.looseObject({
+  id: z.string(),
+  seasonId: z.string(),
+});
+export type LineupRawDoc = z.infer<typeof lineupSchema>;
+
 export const roleSchema = z.enum(["superadmin", "admin", "user"]);
 
 /** Reutilizable en NicknameSetup (RHF). Normaliza igual que registerNickname. */
@@ -62,4 +179,23 @@ export function safeParseDoc<T>(schema: z.ZodType<T>, data: unknown, fallback: T
   if (r.success) return r.data;
   console.error(`[schema] documento inválido en ${ctx}:`, r.error.issues);
   return fallback;
+}
+
+/**
+ * Valida una colección Firestore: descarta (y loguea) los docs inválidos en
+ * vez de romper. Úsalo en el borde de cada onSnapshot para sustituir los
+ * casts `as X[]`.
+ */
+export function parseDocs<T>(
+  schema: z.ZodType<T>,
+  docs: { id: string; data: () => unknown }[],
+  ctx: string,
+): T[] {
+  const out: T[] = [];
+  for (const d of docs) {
+    const r = schema.safeParse({ id: d.id, ...(d.data() as object) });
+    if (r.success) out.push(r.data);
+    else console.error(`[schema] doc inválido en ${ctx}/${d.id}:`, r.error.issues);
+  }
+  return out;
 }

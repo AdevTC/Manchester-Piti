@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
+import { parseDocs, seasonSchema } from "../lib/schemas";
 
 export interface Season {
   id: string;
@@ -36,10 +37,11 @@ export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Realtime sync for seasons list
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loadedSeasons: Season[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name,
-        captainPlayerId: doc.data().captainPlayerId || undefined
+      const validated = parseDocs(seasonSchema, snapshot.docs, "seasons");
+      const loadedSeasons: Season[] = validated.map((s) => ({
+        id: s.id,
+        name: s.name,
+        captainPlayerId: s.captainPlayerId || undefined,
       }));
       setSeasons(loadedSeasons);
       
