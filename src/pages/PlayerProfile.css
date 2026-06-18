@@ -1,0 +1,161 @@
+/* PlayerProfile — sober one-shot player card. Uses the global tokens. */
+
+.pp-page {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.pp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 0.35rem 0;
+  transition: color 0.18s ease;
+}
+.pp-back:hover {
+  color: var(--accent-ink);
+}
+
+.pp-card {
+  margin-top: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.pp-card-top {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1.5rem 1.4rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pp-well {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0.4rem;
+  border-radius: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+}
+
+.pp-id {
+  min-width: 0;
+}
+.pp-name {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+.pp-alias {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+.pp-alias b {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.74rem;
+}
+
+.pp-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+.pp-flag {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+.pp-flag--active {
+  color: var(--accent-ink);
+  border-color: currentColor;
+}
+.pp-flag--baja {
+  color: var(--text-muted);
+}
+.pp-flag--injured {
+  color: var(--accent-red);
+  border-color: currentColor;
+}
+.pp-flag--num {
+  color: var(--accent-gold);
+  border-color: currentColor;
+}
+
+.pp-bio {
+  margin: 0;
+  padding: 0.4rem 1.4rem 1rem;
+}
+.pp-bio-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.pp-bio-row:last-child {
+  border-bottom: none;
+}
+.pp-bio-k {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.pp-bio-v {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pp-empty {
+  margin-top: 2.5rem;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 14px;
+}
+.pp-empty-mark {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+.pp-empty-text {
+  margin: 0.6rem auto 0;
+  max-width: 360px;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}

@@ -882,6 +882,23 @@
   font-weight: 800;
   color: var(--bd-ink);
 }
+.mp-bd-row-ficha {
+  display: inline-block;
+  margin-top: 0.18rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bd-sky);
+  text-decoration: none;
+  opacity: 0.85;
+  transition: opacity 0.16s ease;
+}
+.mp-bd-row-ficha:hover,
+.mp-bd-row-ficha:focus-visible {
+  opacity: 1;
+  text-decoration: underline;
+}
 
 .mp-bd-row-score {
   grid-area: score;

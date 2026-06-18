@@ -1,5 +1,6 @@
 import React, { useId, useMemo, useState } from "react";
 import { motion } from "motion/react";
+import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { groupEvents, outcomeOf, OUTCOME, compactDate, formatLongDate, type MatchDoc } from "./matchData";
 import { DotMatrixScorers, BoardSheet, FlapTile } from "./BoardBits";
@@ -49,6 +50,14 @@ export const BoardRow: React.FC<{ match: MatchDoc; playersMap: Record<string, st
           <span className="mp-bd-row-vs">
             <span className="mp-bd-row-vs-pre">vs</span> <strong>{match.rival || "Rival"}</strong>
           </span>
+          <Link
+            to="/matches/$matchId"
+            params={{ matchId: match.id }}
+            className="mp-bd-row-ficha"
+            aria-label={`Ver ficha del partido contra ${match.rival || "Rival"}`}
+          >
+            Ver ficha
+          </Link>
         </div>
 
         <div className="mp-bd-row-score" aria-label={accName}>
