@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "../context/AuthContext";
 import { useSeason } from "../context/SeasonContext";
 import {
@@ -14,11 +15,6 @@ import {
 import { ThemeToggle } from "./ThemeToggle";
 import { Crest } from "./Crest";
 import "./Navbar.css";
-
-interface NavbarProps {
-  currentPage: string;
-  setCurrentPage: (page: string) => void;
-}
 
 interface NavItem {
   id: string;
@@ -37,16 +33,33 @@ const BASE_NAV: NavItem[] = [
 
 const ADMIN_ITEM: NavItem = { id: "admin", label: "Admin", short: "Admin", Icon: ShieldAlert, admin: true };
 
-export const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage }) => {
+// Nav id <-> router path. The brand button and rails address nav ids; the
+// router owns the URL, so derive the active id from the current pathname.
+const PATHS: Record<string, string> = {
+  matches: "/",
+  stats: "/stats",
+  plantilla: "/plantilla",
+  profile: "/profile",
+  admin: "/admin",
+};
+
+export const Navbar: React.FC = () => {
   const { profile, logout } = useAuth();
   const { seasons, selectedSeasonId, setSelectedSeasonId, loadingSeasons } = useSeason();
+
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const currentPage =
+    pathname === "/"
+      ? "matches"
+      : Object.keys(PATHS).find((k) => PATHS[k] === pathname) ?? "matches";
 
   const isAdmin = profile?.role === "admin" || profile?.role === "superadmin";
   const navItems = isAdmin ? [...BASE_NAV, ADMIN_ITEM] : BASE_NAV;
 
   const handleNavClick = (page: string) => {
-    setCurrentPage(page);
-    window.location.hash = page;
+    const path = PATHS[page];
+    if (path) void navigate({ to: path });
   };
 
   // ---- Sliding indicator on the desktop rail ----
