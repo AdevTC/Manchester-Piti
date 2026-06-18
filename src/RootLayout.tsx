@@ -1,5 +1,6 @@
 import React from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { AnimatePresence, motion } from "motion/react";
 import { Navbar } from "./components/Navbar";
 import { useAuth } from "./context/AuthContext";
 
@@ -39,7 +40,17 @@ export const RootLayout: React.FC = () => {
     <div className="app-container">
       <Navbar />
       <main className="main-content">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
       {import.meta.env.DEV && (
         <React.Suspense fallback={null}>
