@@ -1,13 +1,24 @@
 import React from "react";
+import { motion } from "motion/react";
 import { EventGlyph, type GlyphKind } from "./MatchBits";
 import { OUTCOME, type EventGroups, type Outcome } from "./matchData";
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
-/* ---------------- Result flap tile (V / E / D) ---------------- */
+/* ---------------- Result flap tile (V / E / D) ----------------
+ * Mount flip via Motion. The 3D read comes from the CSS already on the tile:
+ * `.mp-bd-tile { perspective }` + `.mp-bd-tile-card { transform-origin: 50% 0 }`.
+ * Reduced motion neutralizes the rotateX via the global <MotionConfig>. */
 export const FlapTile: React.FC<{ outcome: Outcome; size?: "lg" | "sm" }> = ({ outcome, size = "sm" }) => (
   <span className={`mp-bd-tile mp-bd-tile--${outcome} mp-bd-tile--${size}`} aria-hidden="true">
-    <span className="mp-bd-tile-card">{OUTCOME[outcome].letter}</span>
+    <motion.span
+      className="mp-bd-tile-card"
+      initial={{ rotateX: -90 }}
+      animate={{ rotateX: 0 }}
+      transition={{ duration: 0.42, ease: "easeOut" }}
+    >
+      {OUTCOME[outcome].letter}
+    </motion.span>
   </span>
 );
 

@@ -825,17 +825,6 @@
   background: #ef5446;
   color: #0c1733;
 }
-.mp-bd-row.mp-rv-in .mp-bd-tile-card {
-  animation: bdTileIn 0.42s var(--mp-ease);
-}
-@keyframes bdTileIn {
-  from {
-    transform: rotateX(-90deg);
-  }
-  to {
-    transform: rotateX(0);
-  }
-}
 .mp-bd-row-date {
   display: flex;
   flex-direction: column;
@@ -1251,18 +1240,6 @@
   }
 }
 
-/* ---------------- Reveal (rows) ---------------- */
-.mp-bd-row.mp-rv {
-  opacity: 0;
-  transform: translateY(10px);
-}
-.mp-bd-row.mp-rv-in {
-  opacity: 1;
-  transform: none;
-  transition: opacity 0.5s var(--mp-ease), transform 0.5s var(--mp-ease);
-  transition-delay: calc(var(--i, 0) * 30ms);
-}
-
 /* ---------------- Scroll-driven floodlight ----------------
    Rows brighten as they cross the beam (viewport centre) and dim toward the
    edges, so the board feels lit as you move through the season. Filter only,
@@ -1394,15 +1371,6 @@
   .mp-bd-row {
     animation: none !important;
     filter: none !important;
-  }
-  .mp-bd-row.mp-rv,
-  .mp-bd-row.mp-rv-in {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-  .mp-bd-row.mp-rv-in .mp-bd-tile-card {
-    animation: none;
   }
   .mp-bd-row::before,
   .mp-bd-row-chev {

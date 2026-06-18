@@ -29,8 +29,13 @@ export const BoardRow: React.FC<{ match: MatchDoc; playersMap: Record<string, st
       className="mp-bd-row"
       style={{ ["--i" as string]: Math.min(index, 16) } as React.CSSProperties}
       data-outcome={outcome}
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      layout
+      // Reveal is opacity-only on purpose: `layout` owns all transforms, so an
+      // additional `y` here would fight the layout animation's own transform
+      // (enter/exit/reorder on season change). Opacity-only keeps it a clean reveal.
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.5, delay: Math.min(index, 16) * 0.05, ease: "easeOut" }}
     >

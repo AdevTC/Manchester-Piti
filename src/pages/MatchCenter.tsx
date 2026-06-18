@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import { useSeason } from "../context/SeasonContext";
 import { collection, onSnapshot, query, where, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
@@ -235,9 +236,11 @@ export const MatchCenter: React.FC = () => {
               </div>
 
               <ol className="mp-bd-rows">
-                {rest.map((m, i) => (
-                  <BoardRow key={m.id} match={m} playersMap={playersMapFor(m.seasonId)} index={i} />
-                ))}
+                <AnimatePresence>
+                  {rest.map((m, i) => (
+                    <BoardRow key={m.id} match={m} playersMap={playersMapFor(m.seasonId)} index={i} />
+                  ))}
+                </AnimatePresence>
               </ol>
             </>
           )}
