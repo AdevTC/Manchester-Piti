@@ -47,6 +47,12 @@ export const matchResultSchema = z.object({
 });
 export type MatchResult = z.infer<typeof matchResultSchema>;
 
+/** Season create/edit form (Admin). */
+export const seasonFormSchema = z.object({
+  name: z.string().trim().min(1, "El nombre de la temporada es obligatorio."),
+});
+export type SeasonFormValues = z.infer<typeof seasonFormSchema>;
+
 /**
  * Valida `data` y, si falla, loguea y devuelve `fallback` (no rompe la UI).
  * Úsalo en el borde de lecturas Firestore en vez de `as`.
