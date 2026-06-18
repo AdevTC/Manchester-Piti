@@ -105,6 +105,26 @@ describe("seasonMatchSchema", () => {
     expect(r.success).toBe(true);
   });
 
+  it("acepta un partido legacy sin seasonId (query 'all'/Admin no filtra)", () => {
+    const r = seasonMatchSchema.safeParse({ id: "m1", rival: "X", goalsFor: 1, goalsAgainst: 0 });
+    expect(r.success).toBe(true);
+  });
+
+  it("conserva campos extra (looseObject passthrough: competition, events)", () => {
+    const r = seasonMatchSchema.safeParse({
+      id: "m1",
+      seasonId: "s1",
+      competition: "Liga",
+      events: [{ type: "goal", playerId: "p1" }],
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const data = r.data as Record<string, unknown>;
+      expect(data.competition).toBe("Liga");
+      expect(data.events).toEqual([{ type: "goal", playerId: "p1" }]);
+    }
+  });
+
   it("rechaza goalsFor negativo (campo presente pero corrupto)", () => {
     const r = seasonMatchSchema.safeParse({ id: "m1", seasonId: "s1", rival: "X", goalsFor: -3 });
     expect(r.success).toBe(false);
@@ -128,6 +148,11 @@ describe("playerSchema", () => {
 
   it("acepta un jugador sin campos opcionales", () => {
     const r = playerSchema.safeParse({ id: "p1", firstName: "A", lastName: "B", shirtName: "AB", number: 7 });
+    expect(r.success).toBe(true);
+  });
+
+  it("acepta un jugador sin firstName/lastName/shirtName/number (defaults downstream)", () => {
+    const r = playerSchema.safeParse({ id: "p1" });
     expect(r.success).toBe(true);
   });
 

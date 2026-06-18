@@ -36,16 +36,21 @@ export type SeasonDoc = z.infer<typeof seasonSchema>;
 
 /**
  * Doc crudo de la colección `matches` (los campos que lleguen de Firestore).
- * - `seasonId` se requiere porque la query filtra por él; un doc sin seasonId
- *   es inutilizable en contexto.
+ * - `seasonId` es OPCIONAL: las queries "all" (useSeasonMatches) y la lista de
+ *   Admin leen todos los partidos sin filtrar por temporada, y partidos legacy
+ *   sin `seasonId` renderizaban antes — requerirlo los descartaría (regresión).
  * - `goalsFor`/`goalsAgainst` son opcionales (partido en curso) pero, si están
  *   presentes, deben ser enteros no negativos. Un valor negativo indica
  *   corrupción y el doc se descarta+loguea.
  * - `date` acepta las tres formas que emite Firestore (Timestamp, string, ms).
+ *
+ * Es un `z.looseObject`: deja pasar campos extra (competition, events, date en
+ * forma de Timestamp) que el MatchDoc de Admin necesita. useSeasonMatches solo
+ * lee los campos conocidos, así que el passthrough no le afecta.
  */
-export const seasonMatchSchema = z.object({
+export const seasonMatchSchema = z.looseObject({
   id: z.string(),
-  seasonId: z.string(),
+  seasonId: z.string().optional(),
   rival: z.string().optional(),
   goalsFor: z.number().int().min(0).optional(),
   goalsAgainst: z.number().int().min(0).optional(),
@@ -75,13 +80,19 @@ export type SeasonMatchDoc = z.infer<typeof seasonMatchSchema>;
  *
  * `seasonDetails` se acepta como record<string, unknown> permisivo para no
  * rechazar docs cuyas sub-keys no nos importan validar aquí.
+ *
+ * `firstName`/`lastName`/`shirtName`/`number` son OPCIONALES: ambos consumidores
+ * los leen defensivamente (`doc.data().firstName || ""`, `number || 0`,
+ * `resolve()` con `|| 0`), el formulario de Admin no los marca todos como
+ * obligatorios y hay docs sin alguno que renderizaban antes. Requerirlos sería
+ * una regresión; los defaults `|| ""` / `|| 0` downstream siguen aplicando.
  */
 export const playerSchema = z.object({
   id: z.string(),
-  firstName: z.string(),
-  lastName: z.string(),
-  shirtName: z.string(),
-  number: z.number(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  shirtName: z.string().optional(),
+  number: z.number().optional(),
   birthDate: z.string().optional(),
   seasons: z.array(z.string()).optional(),
   height: z.number().optional(),

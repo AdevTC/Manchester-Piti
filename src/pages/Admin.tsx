@@ -174,15 +174,10 @@ export const Admin: React.FC = () => {
     const unsubscribeMatches = onSnapshot(
       query(collection(db, "matches"), orderBy("date", "desc")),
       (snapshot) => {
-        // Validate at the edge: discard+log corrupt docs, keep raw data for all
-        // MatchDoc fields (competition, events, etc.) that go beyond the schema.
-        const items: MatchDoc[] = [];
-        for (const d of snapshot.docs) {
-          const r = seasonMatchSchema.safeParse({ id: d.id, ...d.data() });
-          if (r.success) items.push({ id: d.id, ...d.data() } as MatchDoc);
-          else console.error(`[schema] doc inválido en matches/${d.id}:`, r.error.issues);
-        }
-        setMatches(items);
+        // looseObject preserves passthrough fields (competition, events, date); the
+        // single cast bridges the schema's loose extras to MatchDoc's precise typing
+        // (date/events are modeled precisely in the Phase 6 match-form work, not here).
+        setMatches(parseDocs(seasonMatchSchema, snapshot.docs, "matches") as MatchDoc[]);
       }
     );
 
