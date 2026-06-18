@@ -18,6 +18,7 @@ import {
   seasonFormSchema,
   type SeasonFormValues,
   parseDocs,
+  dropNullFields,
   seasonSchema,
   playerSchema,
   userDocSchema,
@@ -161,9 +162,10 @@ export const Admin: React.FC = () => {
       (snapshot) => {
         // UserDoc uses `uid` (not `id`); build the object manually so the
         // schema's `uid` key matches instead of using the generic parseDocs.
+        // dropNullFields: same null→absent normalization parseDocs applies.
         const items: UserDoc[] = [];
         for (const d of snapshot.docs) {
-          const r = userDocSchema.safeParse({ uid: d.id, ...d.data() });
+          const r = userDocSchema.safeParse({ uid: d.id, ...dropNullFields(d.data() as object) });
           if (r.success) items.push(r.data);
           else console.error(`[schema] doc inválido en users/${d.id}:`, r.error.issues);
         }

@@ -54,12 +54,8 @@ export const seasonMatchSchema = z.looseObject({
   rival: z.string().optional(),
   goalsFor: z.number().int().min(0).optional(),
   goalsAgainst: z.number().int().min(0).optional(),
-  date: z
-    .union([
-      firestoreDate,
-      z.null(),
-    ])
-    .optional(),
+  // null se normaliza a ausente en parseDocs, así que basta con .optional().
+  date: firestoreDate.optional(),
 });
 export type SeasonMatchDoc = z.infer<typeof seasonMatchSchema>;
 
@@ -192,6 +188,16 @@ export function safeParseDoc<T>(schema: z.ZodType<T>, data: unknown, fallback: T
   return fallback;
 }
 
+/** Firestore guarda `null` para campos borrados; nuestros consumidores los
+ *  tratan como ausentes (`|| ""`, `|| 0`, `?? undefined`). z.optional() acepta
+ *  `undefined` pero NO `null`, así que un campo a null descartaría el doc entero.
+ *  Normalizamos null → ausente antes de validar. */
+export function dropNullFields(data: object): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data)) if (v !== null) out[k] = v;
+  return out;
+}
+
 /**
  * Valida una colección Firestore: descarta (y loguea) los docs inválidos en
  * vez de romper. Úsalo en el borde de cada onSnapshot para sustituir los
@@ -204,7 +210,7 @@ export function parseDocs<T>(
 ): T[] {
   const out: T[] = [];
   for (const d of docs) {
-    const r = schema.safeParse({ id: d.id, ...(d.data() as object) });
+    const r = schema.safeParse({ id: d.id, ...dropNullFields(d.data() as object) });
     if (r.success) out.push(r.data);
     else console.error(`[schema] doc inválido en ${ctx}/${d.id}:`, r.error.issues);
   }

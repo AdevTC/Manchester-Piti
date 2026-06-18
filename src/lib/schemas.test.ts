@@ -67,6 +67,15 @@ describe("parseDocs", () => {
     const out = parseDocs(seasonMatchSchema, docs, "matches");
     expect(out.map((m) => m.id)).toEqual(["minimal"]);
   });
+
+  it("trata null como ausente (no descarta el doc)", () => {
+    const docs = [
+      { id: "p1", data: () => ({ firstName: "A", number: 7, height: null, weight: null, naturalPosition: null }) },
+      { id: "p2", data: () => ({ firstName: "B", lastName: "C", shirtName: "BC", number: 9 }) },
+    ];
+    const out = parseDocs(playerSchema, docs, "players");
+    expect(out.map((p) => p.id)).toEqual(["p1", "p2"]);
+  });
 });
 
 describe("seasonSchema", () => {
