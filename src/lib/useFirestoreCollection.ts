@@ -11,6 +11,10 @@ export function mapSnapshotDocs<T>(snap: QuerySnapshot, map: (id: string, data: 
  * under `key`. Components read via useQuery → dedupe across mounts, uniform
  * load/error states, realtime data preserved. Reusable primitive for incremental
  * adoption; not yet wired to a specific collection in this phase.
+ *
+ * Snapshot errors are logged only; callers wiring this to UI should add their
+ * own error state. `staleTime: Infinity` because Firestore keeps the data fresh
+ * via the subscription (the global gcTime still applies on unmount).
  */
 export function useFirestoreCollection<T>(
   key: readonly unknown[],
@@ -25,7 +29,9 @@ export function useFirestoreCollection<T>(
       (err) => console.error("Firestore subscription error:", err),
     );
     return unsub;
-    // key is serialized stably by the caller (array of primitives).
+    // Deps deliberately narrowed: `key` is serialized for stable comparison and
+    // `map` must be a stable reference (module-level fn or useCallback). Including
+    // either raw would re-subscribe to Firestore on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(key)]);
 
