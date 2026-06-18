@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, addDoc, onSnapshot, query, orderBy, Timestamp, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import { 
-  PlusCircle, 
-  Trash2, 
-  Calendar, 
-  Users, 
-  Trophy, 
-  AlertTriangle, 
+import {
+  PlusCircle,
+  Trash2,
+  Calendar,
+  Users,
+  Trophy,
+  AlertTriangle,
   CheckCircle,
   Shield
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { seasonFormSchema, type SeasonFormValues } from "../lib/schemas";
 
 interface Season {
   id: string;
@@ -71,8 +74,16 @@ export const Admin: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   // --- Form States ---
-  // Season Form
-  const [seasonName, setSeasonName] = useState("");
+  // Season Form (name field via RHF; captain select stays as plain state)
+  const {
+    register: registerSeason,
+    handleSubmit: handleSeasonSubmit,
+    reset: resetSeason,
+    formState: { errors: seasonErrors, isSubmitting: seasonSubmitting },
+  } = useForm<SeasonFormValues>({
+    resolver: zodResolver(seasonFormSchema),
+    defaultValues: { name: "" },
+  });
   const [seasonCaptainId, setSeasonCaptainId] = useState("");
 
   // Player Form
@@ -171,34 +182,28 @@ export const Admin: React.FC = () => {
 
   // --- ACTIONS ---
   
-  // Add/Edit Season
-  const handleAddSeason = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!seasonName.trim()) return;
-    
-    setLoading(true);
+  // Add/Edit Season (RHF-driven; data.name already trimmed by schema)
+  const onSeasonSubmit = async (data: SeasonFormValues) => {
     try {
       if (editingSeasonId) {
         await setDoc(doc(db, "seasons", editingSeasonId), {
-          name: seasonName.trim(),
+          name: data.name,
           captainPlayerId: seasonCaptainId || ""
         }, { merge: true });
         setEditingSeasonId(null);
         notifySuccess("¡Temporada actualizada correctamente!");
       } else {
         await addDoc(collection(db, "seasons"), {
-          name: seasonName.trim(),
+          name: data.name,
           captainPlayerId: "",
           createdAt: new Date()
         });
         notifySuccess("¡Temporada creada correctamente!");
       }
-      setSeasonName("");
+      resetSeason({ name: "" });
       setSeasonCaptainId("");
     } catch (err: unknown) {
       notifyError("Error al guardar temporada: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1289,23 +1294,28 @@ export const Admin: React.FC = () => {
             </p>
           </div>
 
-          <form onSubmit={handleAddSeason} style={{ display: "flex", gap: "1rem", alignItems: "flex-end" }}>
-            <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+          <form onSubmit={handleSeasonSubmit(onSeasonSubmit)} style={{ display: "flex", gap: "1rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: "200px" }}>
               <label className="form-label">Nombre de la Temporada</label>
               <input
                 type="text"
                 className="form-input"
                 placeholder="ej: Temporada 1, Temporada 2026..."
-                value={seasonName}
-                onChange={(e) => setSeasonName(e.target.value)}
-                required
+                {...registerSeason("name")}
+                aria-invalid={!!seasonErrors.name}
+                aria-describedby={seasonErrors.name ? "season-name-error" : undefined}
               />
+              {seasonErrors.name && (
+                <span id="season-name-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                  {seasonErrors.name.message}
+                </span>
+              )}
             </div>
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={loading}
+                disabled={seasonSubmitting}
                 style={{ gap: "0.35rem" }}
               >
                 {editingSeasonId ? "Guardar Cambios" : <><PlusCircle size={16} />Crear Temporada</>}
@@ -1317,7 +1327,7 @@ export const Admin: React.FC = () => {
                   style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
                   onClick={() => {
                     setEditingSeasonId(null);
-                    setSeasonName("");
+                    resetSeason({ name: "" });
                     setSeasonCaptainId("");
                   }}
                 >
@@ -1393,7 +1403,7 @@ export const Admin: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setEditingSeasonId(s.id);
-                          setSeasonName(s.name);
+                          resetSeason({ name: s.name });
                           setSeasonCaptainId(s.captainPlayerId || "");
                         }}
                         className="btn btn-secondary"
@@ -1411,7 +1421,7 @@ export const Admin: React.FC = () => {
                               notifySuccess("¡Temporada eliminada correctamente!");
                               if (editingSeasonId === s.id) {
                                 setEditingSeasonId(null);
-                                setSeasonName("");
+                                resetSeason({ name: "" });
                                 setSeasonCaptainId("");
                               }
                             } catch (err: unknown) {

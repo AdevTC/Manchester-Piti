@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { userProfileSchema, nicknameSchema, matchResultSchema } from "./schemas";
+import { userProfileSchema, nicknameSchema, matchResultSchema, seasonFormSchema } from "./schemas";
 
 describe("nicknameSchema", () => {
   it("normaliza a minúsculas y recorta", () => {
@@ -27,5 +27,12 @@ describe("userProfileSchema", () => {
 describe("matchResultSchema", () => {
   it("rechaza goles negativos", () => {
     expect(matchResultSchema.safeParse({ rival: "X", goalsFor: -1, goalsAgainst: 0, seasonId: "s1" }).success).toBe(false);
+  });
+});
+
+describe("seasonFormSchema", () => {
+  it("rechaza nombre vacío y recorta", () => {
+    expect(seasonFormSchema.safeParse({ name: "   " }).success).toBe(false);
+    expect(seasonFormSchema.parse({ name: "  Temporada 1 " }).name).toBe("Temporada 1");
   });
 });

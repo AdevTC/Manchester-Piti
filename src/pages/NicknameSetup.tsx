@@ -1,47 +1,41 @@
-import React, { useState } from "react";
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useAuth } from "../context/AuthContext";
 import { UserCheck, LogOut, AtSign } from "lucide-react";
 import { Crest } from "../components/Crest";
+import { nicknameSchema } from "../lib/schemas";
+
+const formSchema = z.object({ nickname: nicknameSchema });
+type FormValues = z.infer<typeof formSchema>;
 
 export const NicknameSetup: React.FC = () => {
   const { registerNickname, logout, user } = useAuth();
-  const [nickname, setNickname] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { nickname: "" },
+  });
 
-    const trimmed = nickname.trim().toLowerCase();
-    
-    // Regex to allow letters, numbers and underscores only
-    const regex = /^[a-zA-Z0-9_]+$/;
-
-    if (trimmed.length < 3 || trimmed.length > 15) {
-      setError("El nickname debe tener entre 3 y 15 caracteres.");
-      return;
-    }
-
-    if (!regex.test(trimmed)) {
-      setError("El nickname solo puede contener letras, números y guiones bajos (_).");
-      return;
-    }
-
-    setLoading(true);
+  const onSubmit = handleSubmit(async ({ nickname }) => {
     try {
-      const isRegistered = await registerNickname(trimmed);
-      if (!isRegistered) {
-        setError("Este nickname ya está en uso. Elige otro diferente.");
-        setLoading(false);
+      const ok = await registerNickname(nickname);
+      if (!ok) {
+        setError("nickname", { message: "Este nickname ya está en uso. Elige otro diferente." });
       }
       // If registered successfully, AuthContext state updates and redirects automatically
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "";
-      setError(msg || "Error al registrar el nickname. Inténtalo de nuevo.");
-      setLoading(false);
+    } catch (err) {
+      setError("nickname", {
+        message: err instanceof Error ? err.message : "Error al registrar el nickname. Inténtalo de nuevo.",
+      });
     }
-  };
+  });
 
   return (
     <div
@@ -93,7 +87,7 @@ export const NicknameSetup: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={onSubmit}>
           <div className="form-group" style={{ position: "relative" }}>
             <label className="form-label" htmlFor="nickname">
               Elige tu Nickname
@@ -110,15 +104,16 @@ export const NicknameSetup: React.FC = () => {
                 }}
               />
               <input
+                {...register("nickname")}
                 id="nickname"
                 type="text"
                 className="form-input"
                 placeholder="ej: piti_goleador"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
                 style={{ paddingLeft: "2.5rem" }}
-                disabled={loading}
+                disabled={isSubmitting}
                 autoFocus
+                aria-invalid={!!errors.nickname}
+                aria-describedby={errors.nickname ? "nickname-error" : undefined}
               />
             </div>
             <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
@@ -126,8 +121,10 @@ export const NicknameSetup: React.FC = () => {
             </span>
           </div>
 
-          {error && (
+          {errors.nickname && (
             <div
+              id="nickname-error"
+              role="alert"
               style={{
                 background: "rgba(239, 68, 68, 0.1)",
                 border: "1px solid rgba(239, 68, 68, 0.3)",
@@ -138,7 +135,7 @@ export const NicknameSetup: React.FC = () => {
                 marginBottom: "1.5rem"
               }}
             >
-              {error}
+              {errors.nickname.message}
             </div>
           )}
 
@@ -148,20 +145,20 @@ export const NicknameSetup: React.FC = () => {
               onClick={logout}
               className="btn btn-secondary"
               style={{ flex: 1, gap: "0.35rem" }}
-              disabled={loading}
+              disabled={isSubmitting}
             >
               <LogOut size={16} />
               Cancelar
             </button>
-            
+
             <button
               type="submit"
               className="btn btn-primary"
               style={{ flex: 2, gap: "0.35rem" }}
-              disabled={loading}
+              disabled={isSubmitting}
             >
               <UserCheck size={16} />
-              {loading ? "Registrando..." : "Guardar Nickname"}
+              {isSubmitting ? "Registrando..." : "Guardar Nickname"}
             </button>
           </div>
         </form>
