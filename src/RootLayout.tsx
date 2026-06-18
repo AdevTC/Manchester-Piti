@@ -2,6 +2,7 @@ import React from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { Navbar } from "./components/Navbar";
+import { SeasonUrlSync } from "./components/SeasonUrlSync";
 import { useAuth } from "./context/AuthContext";
 
 // Devtools are dev-only and lazily imported so they are stripped from the
@@ -39,6 +40,7 @@ export const RootLayout: React.FC = () => {
   return (
     <div className="app-container">
       <Navbar />
+      <SeasonUrlSync />
       <main className="main-content">
         <React.Suspense fallback={null}>
           <AnimatePresence mode="wait">

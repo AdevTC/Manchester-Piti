@@ -59,7 +59,7 @@ export const Navbar: React.FC = () => {
 
   const handleNavClick = (page: string) => {
     const path = PATHS[page];
-    if (path) void navigate({ to: path });
+    if (path) void navigate({ to: path, search: (prev) => prev });
   };
 
   // ---- Sliding indicator on the desktop rail ----
