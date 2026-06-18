@@ -1173,7 +1173,14 @@ export const Admin: React.FC = () => {
                   className="form-input"
                   placeholder="178"
                   {...registerPlayer("height", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
+                  aria-invalid={!!playerErrors.height}
+                  aria-describedby={playerErrors.height ? "player-height-error" : undefined}
                 />
+                {playerErrors.height && (
+                  <span id="player-height-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                    {playerErrors.height.message}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Peso (kg)</label>
@@ -1182,7 +1189,14 @@ export const Admin: React.FC = () => {
                   className="form-input"
                   placeholder="72"
                   {...registerPlayer("weight", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
+                  aria-invalid={!!playerErrors.weight}
+                  aria-describedby={playerErrors.weight ? "player-weight-error" : undefined}
                 />
+                {playerErrors.weight && (
+                  <span id="player-weight-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                    {playerErrors.weight.message}
+                  </span>
+                )}
               </div>
             </div>
 

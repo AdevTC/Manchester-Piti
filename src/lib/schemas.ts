@@ -187,8 +187,10 @@ export const playerFormSchema = z.object({
   shirtName: z.string().trim().min(1, "El nombre en camiseta es obligatorio."),
   number: z.number({ message: "El dorsal es obligatorio." }).int("Dorsal inválido.").min(0, "No puede ser negativo."),
   birthDate: z.string().optional(),
-  height: z.number().int().positive().optional(),
-  weight: z.number().int().positive().optional(),
+  // Allow 0 (the old handler stored any parsed integer; only NaN→null). `.positive()`
+  // would silently reject a 0 — e.g. when editing a doc that holds height/weight 0.
+  height: z.number().int("Altura inválida.").min(0, "No puede ser negativa.").optional(),
+  weight: z.number().int("Peso inválido.").min(0, "No puede ser negativo.").optional(),
 });
 export type PlayerFormValues = z.infer<typeof playerFormSchema>;
 

@@ -119,6 +119,14 @@ describe("playerFormSchema", () => {
   it("rechaza number negativo", () => {
     expect(playerFormSchema.safeParse({ ...valid, number: -1 }).success).toBe(false);
   });
+
+  it("acepta height/weight = 0 (paridad con el handler antiguo)", () => {
+    expect(playerFormSchema.safeParse({ ...valid, height: 0, weight: 0 }).success).toBe(true);
+  });
+
+  it("rechaza height negativa", () => {
+    expect(playerFormSchema.safeParse({ ...valid, height: -5 }).success).toBe(false);
+  });
 });
 
 // ── New schemas ──────────────────────────────────────────────────────────────
