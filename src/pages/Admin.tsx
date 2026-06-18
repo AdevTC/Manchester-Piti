@@ -290,6 +290,7 @@ export const Admin: React.FC = () => {
       }
     }
 
+    const wasEditingPlayer = !!editingPlayerId;
     const playerData: Record<string, unknown> = {
       firstName: playerFirstName.trim(),
       lastName: playerLastName.trim() || "",
@@ -306,7 +307,7 @@ export const Admin: React.FC = () => {
 
     upsertPlayer.mutate({ id: editingPlayerId, data: playerData }, {
       onSuccess: () => {
-        notifySuccess(editingPlayerId ? "¡Jugador actualizado correctamente!" : "¡Jugador registrado en la plantilla!");
+        notifySuccess(wasEditingPlayer ? "¡Jugador actualizado correctamente!" : "¡Jugador registrado en la plantilla!");
         // Clear fields
         setPlayerFirstName("");
         setPlayerLastName("");
