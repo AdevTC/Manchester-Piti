@@ -171,6 +171,27 @@ export const matchResultSchema = z.object({
 });
 export type MatchResult = z.infer<typeof matchResultSchema>;
 
+/** Match create/edit form (Admin). Reuses matchResultSchema's shape. */
+export const matchFormSchema = matchResultSchema.extend({
+  seasonId: z.string().min(1, "Debes seleccionar una Temporada."),
+  competition: z.string().min(1),
+  date: z.string().min(1, "Escribe la fecha y hora del partido."),
+});
+export type MatchFormValues = z.infer<typeof matchFormSchema>;
+
+/** Player create/edit form (Admin) — scalar fields only. Per-season details and
+ *  the dorsal-duplicate check stay imperative in onSubmit (data-dependent). */
+export const playerFormSchema = z.object({
+  firstName: z.string().trim().min(1, "El nombre es obligatorio."),
+  lastName: z.string().trim().optional(),
+  shirtName: z.string().trim().min(1, "El nombre en camiseta es obligatorio."),
+  number: z.number({ message: "El dorsal es obligatorio." }).int("Dorsal inválido.").min(0, "No puede ser negativo."),
+  birthDate: z.string().optional(),
+  height: z.number().int().positive().optional(),
+  weight: z.number().int().positive().optional(),
+});
+export type PlayerFormValues = z.infer<typeof playerFormSchema>;
+
 /** Season create/edit form (Admin). */
 export const seasonFormSchema = z.object({
   name: z.string().trim().min(1, "El nombre de la temporada es obligatorio."),

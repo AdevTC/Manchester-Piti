@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "../firebase";
@@ -25,6 +25,8 @@ import { useAuth } from "../context/AuthContext";
 import {
   seasonFormSchema,
   type SeasonFormValues,
+  matchFormSchema,
+  type MatchFormValues,
   parseDocs,
   dropNullFields,
   seasonSchema,
@@ -108,6 +110,23 @@ export const Admin: React.FC = () => {
   });
   const [seasonCaptainId, setSeasonCaptainId] = useState("");
 
+  // Match Form (RHF + Zod). Goals use setValueAs to map empty→undefined so an
+  // empty number input shows a required error and a filled one validates as int≥0.
+  const {
+    register: registerMatch,
+    handleSubmit: handleMatchSubmit,
+    reset: resetMatch,
+    setError: setMatchError,
+    control: matchControl,
+    formState: { errors: matchErrors, isSubmitting: matchSubmitting },
+  } = useForm<MatchFormValues>({
+    resolver: zodResolver(matchFormSchema),
+    defaultValues: { seasonId: "", rival: "", competition: "Liga", date: "", goalsFor: undefined, goalsAgainst: undefined },
+  });
+  // The events workspace resolves per-season shirt names/numbers from the
+  // currently selected season; track it reactively from the match form.
+  const matchSeasonId = useWatch({ control: matchControl, name: "seasonId" });
+
   // Player Form
   const [playerFirstName, setPlayerFirstName] = useState("");
   const [playerLastName, setPlayerLastName] = useState("");
@@ -123,14 +142,6 @@ export const Admin: React.FC = () => {
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchDoc[]>([]);
 
-  // Match Form
-  const [matchSeasonId, setMatchSeasonId] = useState("");
-  const [matchRival, setMatchRival] = useState("");
-  const [matchCompetition, setMatchCompetition] = useState("Liga");
-  const [matchDate, setMatchDate] = useState("");
-  const [matchGoalsFor, setMatchGoalsFor] = useState("");
-  const [matchGoalsAgainst, setMatchGoalsAgainst] = useState("");
-  
   // Match Events state
   const [matchEvents, setMatchEvents] = useState<MatchEventForm[]>([]);
   const [currentEventType, setCurrentEventType] = useState<MatchEventForm["type"]>("goal");
@@ -359,46 +370,27 @@ export const Admin: React.FC = () => {
     setMatchEvents(updated);
   };
 
-  // Save Match
-  const handleAddMatch = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const goalsFor = parseInt(matchGoalsFor);
-    const goalsAgainst = parseInt(matchGoalsAgainst);
-
-    if (!matchSeasonId) {
-      notifyError("Debes seleccionar una Temporada.");
-      return;
-    }
-    if (!matchRival.trim()) {
-      notifyError("Escribe el nombre del Rival.");
-      return;
-    }
-    if (!matchDate) {
-      notifyError("Escribe la fecha y hora del partido.");
-      return;
-    }
-    if (isNaN(goalsFor) || isNaN(goalsAgainst)) {
-      notifyError("Introduce los goles a favor y en contra.");
-      return;
-    }
-
+  // Save Match (RHF-driven; data already validated by matchFormSchema, rival trimmed)
+  const onMatchSubmit = async (data: MatchFormValues) => {
     // Verify event counts vs score:
     // Registered goals in Piti events shouldn't exceed goalsFor!
     const pitiGoalsEventCount = matchEvents.filter(e => ["goal", "goal_penalty", "goal_freekick"].includes(e.type)).length;
-    if (pitiGoalsEventCount > goalsFor) {
-      notifyError(`Conflicto de Goles: Has registrado ${pitiGoalsEventCount} goles de jugadores del Piti en la lista de eventos, pero el marcador indica que el equipo marcó ${goalsFor} goles.`);
+    if (pitiGoalsEventCount > data.goalsFor) {
+      setMatchError("goalsFor", {
+        type: "manual",
+        message: `Conflicto de Goles: Has registrado ${pitiGoalsEventCount} goles de jugadores del Piti en la lista de eventos, pero el marcador indica que el equipo marcó ${data.goalsFor} goles.`,
+      });
       return;
     }
 
     const wasEditing = !!editingMatchId;
     const matchDoc: Record<string, unknown> = {
-      seasonId: matchSeasonId,
-      rival: matchRival.trim(),
-      competition: matchCompetition,
-      date: Timestamp.fromDate(new Date(matchDate)),
-      goalsFor,
-      goalsAgainst,
+      seasonId: data.seasonId,
+      rival: data.rival,
+      competition: data.competition,
+      date: Timestamp.fromDate(new Date(data.date)),
+      goalsFor: data.goalsFor,
+      goalsAgainst: data.goalsAgainst,
       events: matchEvents.map(ev => ({
         type: ev.type,
         playerId: ev.playerId,
@@ -414,16 +406,19 @@ export const Admin: React.FC = () => {
         } else {
           notifySuccess("¡Partido registrado con éxito!");
         }
-        // Clear fields always
-        setMatchRival("");
-        setMatchGoalsFor("");
-        setMatchGoalsAgainst("");
         setMatchEvents([]);
-        // Clear season/date only when editing (matches original behavior)
-        if (wasEditing) {
-          setMatchSeasonId("");
-          setMatchDate("");
-        }
+        // Preserve original reset semantics: it ALWAYS cleared rival+goals+events
+        // and left competition as chosen; it cleared seasonId+date ONLY when
+        // editing (on create they stay so the admin can log another match in the
+        // same session/date).
+        resetMatch({
+          seasonId: wasEditing ? "" : data.seasonId,
+          rival: "",
+          competition: data.competition,
+          date: wasEditing ? "" : data.date,
+          goalsFor: undefined,
+          goalsAgainst: undefined,
+        });
       },
       onError: (err: unknown) => {
         notifyError("Error al registrar el partido: " + (err instanceof Error ? err.message : String(err)));
@@ -551,23 +546,28 @@ export const Admin: React.FC = () => {
             </div>
           ) : (
             <>
-              <form onSubmit={handleAddMatch} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-              
+              <form onSubmit={handleMatchSubmit(onMatchSubmit)} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
               {/* Match Header fields */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
-                
+
                 {/* Season selection */}
                 <div className="form-group">
                   <label className="form-label">Temporada</label>
                   <select
                     className="form-input"
-                    value={matchSeasonId}
-                    onChange={(e) => setMatchSeasonId(e.target.value)}
-                    required
+                    {...registerMatch("seasonId")}
+                    aria-invalid={!!matchErrors.seasonId}
+                    aria-describedby={matchErrors.seasonId ? "match-season-error" : undefined}
                   >
                     <option value="">Selecciona la Temporada</option>
                     {seasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
+                  {matchErrors.seasonId && (
+                    <span id="match-season-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                      {matchErrors.seasonId.message}
+                    </span>
+                  )}
                 </div>
 
                 {/* Rival Name */}
@@ -577,10 +577,15 @@ export const Admin: React.FC = () => {
                     type="text"
                     className="form-input"
                     placeholder="ej: Barrio F.C."
-                    value={matchRival}
-                    onChange={(e) => setMatchRival(e.target.value)}
-                    required
+                    {...registerMatch("rival")}
+                    aria-invalid={!!matchErrors.rival}
+                    aria-describedby={matchErrors.rival ? "match-rival-error" : undefined}
                   />
+                  {matchErrors.rival && (
+                    <span id="match-rival-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                      {matchErrors.rival.message}
+                    </span>
+                  )}
                 </div>
 
                 {/* Competition */}
@@ -588,8 +593,7 @@ export const Admin: React.FC = () => {
                   <label className="form-label">Competición</label>
                   <select
                     className="form-input"
-                    value={matchCompetition}
-                    onChange={(e) => setMatchCompetition(e.target.value)}
+                    {...registerMatch("competition")}
                   >
                     <option value="Liga">Liga</option>
                     <option value="Copa">Copa</option>
@@ -604,10 +608,15 @@ export const Admin: React.FC = () => {
                   <input
                     type="datetime-local"
                     className="form-input"
-                    value={matchDate}
-                    onChange={(e) => setMatchDate(e.target.value)}
-                    required
+                    {...registerMatch("date")}
+                    aria-invalid={!!matchErrors.date}
+                    aria-describedby={matchErrors.date ? "match-date-error" : undefined}
                   />
+                  {matchErrors.date && (
+                    <span id="match-date-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                      {matchErrors.date.message}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -620,10 +629,15 @@ export const Admin: React.FC = () => {
                     min="0"
                     className="form-input"
                     placeholder="0"
-                    value={matchGoalsFor}
-                    onChange={(e) => setMatchGoalsFor(e.target.value)}
-                    required
+                    {...registerMatch("goalsFor", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
+                    aria-invalid={!!matchErrors.goalsFor}
+                    aria-describedby={matchErrors.goalsFor ? "match-goalsfor-error" : undefined}
                   />
+                  {matchErrors.goalsFor && (
+                    <span id="match-goalsfor-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                      {matchErrors.goalsFor.message}
+                    </span>
+                  )}
                 </div>
                 <div className="form-group">
                   <label className="form-label" style={{ color: "var(--accent-red)" }}>Goles Rival</label>
@@ -632,10 +646,15 @@ export const Admin: React.FC = () => {
                     min="0"
                     className="form-input"
                     placeholder="0"
-                    value={matchGoalsAgainst}
-                    onChange={(e) => setMatchGoalsAgainst(e.target.value)}
-                    required
+                    {...registerMatch("goalsAgainst", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
+                    aria-invalid={!!matchErrors.goalsAgainst}
+                    aria-describedby={matchErrors.goalsAgainst ? "match-goalsagainst-error" : undefined}
                   />
+                  {matchErrors.goalsAgainst && (
+                    <span id="match-goalsagainst-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                      {matchErrors.goalsAgainst.message}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -843,7 +862,7 @@ export const Admin: React.FC = () => {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={upsertMatch.isPending}
+                  disabled={upsertMatch.isPending || matchSubmitting}
                   style={{ flex: 1 }}
                 >
                   {editingMatchId ? "Guardar Cambios" : "Guardar Partido Registrado"}
@@ -855,12 +874,8 @@ export const Admin: React.FC = () => {
                     style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
                     onClick={() => {
                       setEditingMatchId(null);
-                      setMatchRival("");
-                      setMatchGoalsFor("");
-                      setMatchGoalsAgainst("");
                       setMatchEvents([]);
-                      setMatchSeasonId("");
-                      setMatchDate("");
+                      resetMatch({ seasonId: "", rival: "", competition: "Liga", date: "", goalsFor: undefined, goalsAgainst: undefined });
                     }}
                   >
                     Cancelar Edición
@@ -919,20 +934,22 @@ export const Admin: React.FC = () => {
                             type="button"
                             onClick={() => {
                               setEditingMatchId(m.id);
-                              setMatchSeasonId(m.seasonId || "");
-                              setMatchRival(m.rival || "");
-                              setMatchCompetition(m.competition || "Liga");
-                              
+
                               // Format date for datetime-local
                               const dateObj = m.date?.seconds ? new Date(m.date.seconds * 1000) : new Date(m.date);
                               const pad = (num: number) => String(num).padStart(2, "0");
                               const formatted = `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}T${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
-                              setMatchDate(formatted);
-                              
-                              setMatchGoalsFor(m.goalsFor !== undefined ? String(m.goalsFor) : "");
-                              setMatchGoalsAgainst(m.goalsAgainst !== undefined ? String(m.goalsAgainst) : "");
+
+                              resetMatch({
+                                seasonId: m.seasonId || "",
+                                rival: m.rival || "",
+                                competition: m.competition || "Liga",
+                                date: formatted,
+                                goalsFor: m.goalsFor ?? undefined,
+                                goalsAgainst: m.goalsAgainst ?? undefined,
+                              });
                               setMatchEvents(m.events || []);
-                              
+
                               window.scrollTo({ top: 0, behavior: "smooth" });
                             }}
                             className="btn btn-secondary"
@@ -950,12 +967,8 @@ export const Admin: React.FC = () => {
                                     notifySuccess("¡Partido eliminado correctamente!");
                                     if (editingMatchId === m.id) {
                                       setEditingMatchId(null);
-                                      setMatchRival("");
-                                      setMatchGoalsFor("");
-                                      setMatchGoalsAgainst("");
                                       setMatchEvents([]);
-                                      setMatchSeasonId("");
-                                      setMatchDate("");
+                                      resetMatch({ seasonId: "", rival: "", competition: "Liga", date: "", goalsFor: undefined, goalsAgainst: undefined });
                                     }
                                   },
                                   onError: (err: unknown) => {
