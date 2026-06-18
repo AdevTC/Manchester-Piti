@@ -1,41 +1,41 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useSeason } from "../context/SeasonContext";
 
 /**
- * Bridges the `season` URL search param <-> SeasonContext. Lives inside the
- * router (SeasonProvider is above the router and can't use router hooks).
- * Two single-source effects avoid echo loops:
- *  - URL -> context: adopt deep-links and browser back/forward (ignores an
- *    absent param so a clean URL doesn't clobber the localStorage selection).
- *  - context -> URL: mirror selector clicks AND SeasonContext's reset-to-"all".
- *    On first mount it defers to an explicit URL season (deep-link beats
- *    localStorage); otherwise it seeds the URL from the stored selection.
+ * Bridges the `season` URL param -> SeasonContext. The URL is the source of
+ * truth (both selectors navigate to set it); this component adopts the URL's
+ * season into context and normalizes an unknown season to "all". One idempotent
+ * effect with full deps — safe under React StrictMode's double-invoked effects
+ * (no mount-count/which-changed ref, which a deep-link race would defeat).
+ * SeasonProvider is above the router, so this lives inside the router instead.
  */
-export const SeasonUrlSync: React.FC = () => {
+export const SeasonUrlSync = (): null => {
   const navigate = useNavigate();
   const urlSeason = useSearch({ strict: false, select: (s) => (s as { season?: string }).season });
-  const { selectedSeasonId, setSelectedSeasonId } = useSeason();
-  const mountedRef = useRef(false);
+  const { selectedSeasonId, seasons, loadingSeasons, setSelectedSeasonId } = useSeason();
 
   useEffect(() => {
-    if (urlSeason !== undefined && urlSeason !== selectedSeasonId) {
-      setSelectedSeasonId(urlSeason);
+    // No season in the URL: seed it from the current selection so the page is
+    // shareable (keep the URL clean for the "all" default).
+    if (urlSeason === undefined) {
+      if (selectedSeasonId !== "all") {
+        navigate({ to: ".", search: (prev) => ({ ...prev, season: selectedSeasonId }), replace: true });
+      }
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run only when the URL's season changes (single-source sync)
-  }, [urlSeason]);
-
-  useEffect(() => {
-    if (!mountedRef.current) {
-      mountedRef.current = true;
-      if (urlSeason !== undefined) return; // deep-link present: let the URL->context effect adopt it
-      if (selectedSeasonId === "all") return; // keep a clean URL for the default
+    // Wait until seasons are loaded before validating an explicit URL season.
+    if (loadingSeasons) return;
+    const known = urlSeason === "all" || seasons.some((s) => s.id === urlSeason);
+    if (!known) {
+      // Unknown season in the URL -> fall back to "all".
+      if (selectedSeasonId !== "all") setSelectedSeasonId("all");
+      navigate({ to: ".", search: (prev) => ({ ...prev, season: "all" }), replace: true });
+      return;
     }
-    if (selectedSeasonId !== urlSeason) {
-      navigate({ to: ".", search: (prev) => ({ ...prev, season: selectedSeasonId }), replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run only when the context selection changes (single-source sync)
-  }, [selectedSeasonId]);
+    // Adopt the URL's season (deep-link, back/forward, selector navigation).
+    if (urlSeason !== selectedSeasonId) setSelectedSeasonId(urlSeason);
+  }, [urlSeason, selectedSeasonId, seasons, loadingSeasons, navigate, setSelectedSeasonId]);
 
   return null;
 };

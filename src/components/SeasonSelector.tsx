@@ -1,11 +1,14 @@
 import React from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useSeason } from "../context/SeasonContext";
 
 // Shared season switcher for the Plantilla page (both Expedientes and Pizarra
-// modes). Single source of truth via SeasonContext; persistence is handled
-// there. Brand segmented control: active = solid sky.
+// modes). The URL `season` param is the source of truth (SeasonUrlSync bridges
+// it into SeasonContext); selecting navigates to set it. Brand segmented
+// control: active = solid sky.
 export const SeasonSelector: React.FC = () => {
-  const { seasons, selectedSeasonId, setSelectedSeasonId } = useSeason();
+  const navigate = useNavigate();
+  const { seasons, selectedSeasonId } = useSeason();
   if (seasons.length === 0) return null;
 
   return (
@@ -16,7 +19,7 @@ export const SeasonSelector: React.FC = () => {
           type="button"
           className="mp-season-btn"
           aria-pressed={selectedSeasonId === "all"}
-          onClick={() => setSelectedSeasonId("all")}
+          onClick={() => navigate({ to: ".", search: (prev) => ({ ...prev, season: "all" }) })}
         >
           Histórico Total
         </button>
@@ -26,7 +29,7 @@ export const SeasonSelector: React.FC = () => {
             type="button"
             className="mp-season-btn"
             aria-pressed={selectedSeasonId === s.id}
-            onClick={() => setSelectedSeasonId(s.id)}
+            onClick={() => navigate({ to: ".", search: (prev) => ({ ...prev, season: s.id }) })}
           >
             {s.name}
           </button>
