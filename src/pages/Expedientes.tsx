@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useSeason } from "../context/SeasonContext";
 import { Jersey } from "../components/Jersey";
-import { useReveal } from "../hooks/useReveal";
+import { motion } from "motion/react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { X, FileText } from "lucide-react";
@@ -185,11 +185,14 @@ const ExpedienteCard: React.FC<{
   };
 
   return (
-    <button
+    <motion.button
       type="button"
       className={`exp-card${isInactive ? " bench" : ""}${mount ? " gold" : ""}`}
       style={{ ...rv(index), viewTransitionName: morph ? "dossier-morph" : undefined } as React.CSSProperties}
-      data-reveal
+      initial={{ opacity: 0, y: 14 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.45, delay: Math.min(index, 16) * 0.034, ease: "easeOut" }}
       onClick={onOpen}
       onMouseMove={handleMove}
       onMouseLeave={handleLeave}
@@ -276,7 +279,7 @@ const ExpedienteCard: React.FC<{
         </div>
         <div className="exp-conf">MP · Confidencial</div>
       </div>
-    </button>
+    </motion.button>
   );
 };
 
@@ -511,8 +514,6 @@ export const Expedientes: React.FC = () => {
       mountId = captainId;
     }
   }
-
-  useReveal(`${selectedSeasonId}|${loading}|${displayedPlayers.length}`);
 
   const playerLastSeasonName = (player: Player) => {
     const inList = seasons.filter((s) => player.seasons?.includes(s.id));

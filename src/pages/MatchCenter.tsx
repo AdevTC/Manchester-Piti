@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSeason } from "../context/SeasonContext";
-import { useReveal } from "../hooks/useReveal";
 import { collection, onSnapshot, query, where, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
 import { outcomeOf, OUTCOME, type MatchDoc } from "../components/match/matchData";
@@ -110,8 +109,6 @@ export const MatchCenter: React.FC = () => {
     [matches],
   );
   const formAria = form.map((o) => OUTCOME[o].word).join(", ");
-
-  useReveal(`${selectedSeasonId}|${loading}|${matches.length}`);
 
   const latest = matches[0];
   const rest = matches.slice(1);
