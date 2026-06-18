@@ -15,8 +15,18 @@ export const plantillaSearchSchema = z.object({
   mode: z.enum(["expedientes", "pizarra"]).default("expedientes").catch("expedientes"),
 });
 
+// Root-level search schema: `season` is inherited by all child routes so any
+// page can be deep-linked with ?season=<id>. Uses .optional() (not .default)
+// so an absent param reads as `undefined`, letting SeasonUrlSync distinguish
+// "no season in URL" (seed from context/localStorage) from an explicit value.
+// .catch("all") guards a malformed value.
+export const rootSearchSchema = z.object({
+  season: z.string().optional().catch("all"),
+});
+
 const rootRoute = createRootRoute({
   component: RootLayout,
+  validateSearch: rootSearchSchema,
   // Parity with the old hash router, which fell back to "matches" for any
   // invalid hash. Unknown clean URLs now redirect to "/" instead of blanking.
   notFoundComponent: () => <Navigate to="/" replace />,

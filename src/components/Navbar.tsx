@@ -45,7 +45,7 @@ const PATHS: Record<string, string> = {
 
 export const Navbar: React.FC = () => {
   const { profile, logout } = useAuth();
-  const { seasons, selectedSeasonId, setSelectedSeasonId, loadingSeasons } = useSeason();
+  const { seasons, selectedSeasonId, loadingSeasons } = useSeason();
 
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -59,7 +59,7 @@ export const Navbar: React.FC = () => {
 
   const handleNavClick = (page: string) => {
     const path = PATHS[page];
-    if (path) void navigate({ to: path });
+    if (path) void navigate({ to: path, search: (prev) => prev });
   };
 
   // ---- Sliding indicator on the desktop rail ----
@@ -114,7 +114,7 @@ export const Navbar: React.FC = () => {
       : seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Histórico Total";
 
   const pickSeason = (id: string) => {
-    setSelectedSeasonId(id);
+    void navigate({ to: ".", search: (prev) => ({ ...prev, season: id }) });
     setSeasonOpen(false);
   };
 
