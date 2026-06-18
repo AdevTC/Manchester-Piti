@@ -27,6 +27,8 @@ import {
   type SeasonFormValues,
   matchFormSchema,
   type MatchFormValues,
+  playerFormSchema,
+  type PlayerFormValues,
   parseDocs,
   dropNullFields,
   seasonSchema,
@@ -127,15 +129,23 @@ export const Admin: React.FC = () => {
   // currently selected season; track it reactively from the match form.
   const matchSeasonId = useWatch({ control: matchControl, name: "seasonId" });
 
-  // Player Form
-  const [playerFirstName, setPlayerFirstName] = useState("");
-  const [playerLastName, setPlayerLastName] = useState("");
-  const [playerShirtName, setPlayerShirtName] = useState("");
-  const [playerNumber, setPlayerNumber] = useState("");
-  const [playerBirthDate, setPlayerBirthDate] = useState("");
+  // Player Form (RHF + Zod). Scalar fields via RHF; number/height/weight use
+  // setValueAs to map empty→undefined (mirrors the match form's goals handling).
+  const {
+    register: registerPlayer,
+    handleSubmit: handlePlayerSubmit,
+    reset: resetPlayer,
+    setError: setPlayerError,
+    getValues: getPlayerValues,
+    formState: { errors: playerErrors, isSubmitting: playerSubmitting },
+  } = useForm<PlayerFormValues>({
+    resolver: zodResolver(playerFormSchema),
+    defaultValues: { firstName: "", lastName: "", shirtName: "", number: undefined, birthDate: "", height: undefined, weight: undefined },
+  });
+  // Per-season checkboxes + per-season shirt/number details stay as useState:
+  // they are dynamic/data-dependent (depend on the seasons list and pre-fill
+  // from the scalar shirt/number RHF fields).
   const [playerSeasons, setPlayerSeasons] = useState<string[]>([]);
-  const [playerHeight, setPlayerHeight] = useState("");
-  const [playerWeight, setPlayerWeight] = useState("");
   const [seasonDetailsState, setSeasonDetailsState] = useState<Record<string, { shirtName: string; number: number | "" }>>({});
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editingSeasonId, setEditingSeasonId] = useState<string | null>(null);
@@ -251,25 +261,16 @@ export const Admin: React.FC = () => {
     }
   };
 
-  // Add/Edit Player
-  const handleAddPlayer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const number = parseInt(playerNumber);
-    const height = parseInt(playerHeight);
-    const weight = parseInt(playerWeight);
-
-    if (!playerFirstName.trim() || !playerShirtName.trim() || isNaN(number)) {
-      notifyError("Por favor completa los campos obligatorios: Nombre, Nombre en Camiseta y Dorsal.");
-      return;
-    }
-
-    // Parse and validate season details
+  // Add/Edit Player (RHF-driven; data already validated by playerFormSchema —
+  // firstName/lastName/shirtName trimmed, number int≥0). The per-season details
+  // and dorsal-duplicate checks stay imperative (data-dependent).
+  const onPlayerSubmit = async (data: PlayerFormValues) => {
+    // Parse and validate season details (fallback to the scalar shirt/number)
     const parsedSeasonDetails: Record<string, { shirtName: string; number: number }> = {};
     for (const seasonId of playerSeasons) {
       const details = seasonDetailsState[seasonId];
-      const sName = details?.shirtName?.trim().toUpperCase() || playerShirtName.trim().toUpperCase();
-      const sNum = (details?.number !== undefined && details.number !== "") ? Number(details.number) : number;
+      const sName = details?.shirtName?.trim().toUpperCase() || data.shirtName.trim().toUpperCase();
+      const sNum = (details?.number !== undefined && details.number !== "") ? Number(details.number) : data.number;
 
       if (!sName || isNaN(sNum)) {
         const seasonName = seasons.find(s => s.id === seasonId)?.name || "la temporada";
@@ -296,22 +297,25 @@ export const Admin: React.FC = () => {
 
       if (duplicate) {
         const seasonName = seasons.find(s => s.id === seasonId)?.name || "la temporada";
-        notifyError(`El dorsal #${currentNumber} ya está registrado en ${seasonName} por otro jugador.`);
+        setPlayerError("number", {
+          type: "manual",
+          message: `El dorsal #${currentNumber} ya está registrado en ${seasonName} por otro jugador.`,
+        });
         return;
       }
     }
 
     const wasEditingPlayer = !!editingPlayerId;
     const playerData: Record<string, unknown> = {
-      firstName: playerFirstName.trim(),
-      lastName: playerLastName.trim() || "",
-      shirtName: playerShirtName.trim().toUpperCase(),
-      number,
-      birthDate: playerBirthDate || "",
+      firstName: data.firstName,
+      lastName: data.lastName || "",
+      shirtName: data.shirtName.toUpperCase(),
+      number: data.number,
+      birthDate: data.birthDate || "",
       seasons: playerSeasons || [],
       seasonDetails: parsedSeasonDetails || {},
-      height: isNaN(height) ? null : height,
-      weight: isNaN(weight) ? null : weight,
+      height: data.height ?? null,
+      weight: data.weight ?? null,
       active: true,
       createdAt: new Date()
     };
@@ -320,15 +324,9 @@ export const Admin: React.FC = () => {
       onSuccess: () => {
         notifySuccess(wasEditingPlayer ? "¡Jugador actualizado correctamente!" : "¡Jugador registrado en la plantilla!");
         // Clear fields
-        setPlayerFirstName("");
-        setPlayerLastName("");
-        setPlayerShirtName("");
-        setPlayerNumber("");
-        setPlayerBirthDate("");
+        resetPlayer({ firstName: "", lastName: "", shirtName: "", number: undefined, birthDate: "", height: undefined, weight: undefined });
         setPlayerSeasons([]);
         setSeasonDetailsState({});
-        setPlayerHeight("");
-        setPlayerWeight("");
         setEditingPlayerId(null);
       },
       onError: (err: unknown) => {
@@ -1006,8 +1004,8 @@ export const Admin: React.FC = () => {
             </p>
           </div>
 
-          <form onSubmit={handleAddPlayer} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-            
+          <form onSubmit={handlePlayerSubmit(onPlayerSubmit)} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
             {/* Name fields */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
               <div className="form-group">
@@ -1016,10 +1014,15 @@ export const Admin: React.FC = () => {
                   type="text"
                   className="form-input"
                   placeholder="ej: Adrián"
-                  value={playerFirstName}
-                  onChange={(e) => setPlayerFirstName(e.target.value)}
-                  required
+                  {...registerPlayer("firstName")}
+                  aria-invalid={!!playerErrors.firstName}
+                  aria-describedby={playerErrors.firstName ? "player-firstname-error" : undefined}
                 />
+                {playerErrors.firstName && (
+                  <span id="player-firstname-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                    {playerErrors.firstName.message}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Apellidos</label>
@@ -1027,8 +1030,7 @@ export const Admin: React.FC = () => {
                   type="text"
                   className="form-input"
                   placeholder="ej: Gómez"
-                  value={playerLastName}
-                  onChange={(e) => setPlayerLastName(e.target.value)}
+                  {...registerPlayer("lastName")}
                 />
               </div>
             </div>
@@ -1041,11 +1043,16 @@ export const Admin: React.FC = () => {
                   type="text"
                   className="form-input"
                   placeholder="ej: ADRI"
-                  value={playerShirtName}
-                  onChange={(e) => setPlayerShirtName(e.target.value)}
                   maxLength={12}
-                  required
+                  {...registerPlayer("shirtName")}
+                  aria-invalid={!!playerErrors.shirtName}
+                  aria-describedby={playerErrors.shirtName ? "player-shirtname-error" : undefined}
                 />
+                {playerErrors.shirtName && (
+                  <span id="player-shirtname-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                    {playerErrors.shirtName.message}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Dorsal (Por Defecto)</label>
@@ -1053,10 +1060,15 @@ export const Admin: React.FC = () => {
                   type="number"
                   className="form-input"
                   placeholder="ej: 10"
-                  value={playerNumber}
-                  onChange={(e) => setPlayerNumber(e.target.value)}
-                  required
+                  {...registerPlayer("number", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
+                  aria-invalid={!!playerErrors.number}
+                  aria-describedby={playerErrors.number ? "player-number-error" : undefined}
                 />
+                {playerErrors.number && (
+                  <span id="player-number-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                    {playerErrors.number.message}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1067,8 +1079,7 @@ export const Admin: React.FC = () => {
                 <input
                   type="date"
                   className="form-input"
-                  value={playerBirthDate}
-                  onChange={(e) => setPlayerBirthDate(e.target.value)}
+                  {...registerPlayer("birthDate")}
                 />
               </div>
               <div className="form-group">
@@ -1088,7 +1099,7 @@ export const Admin: React.FC = () => {
                                 // Pre-fill with global defaults if available
                                 setSeasonDetailsState(prev => ({
                                   ...prev,
-                                  [s.id]: prev[s.id] || { shirtName: playerShirtName || "", number: playerNumber ? parseInt(playerNumber) : "" }
+                                  [s.id]: prev[s.id] || { shirtName: getPlayerValues("shirtName") || "", number: getPlayerValues("number") ?? "" }
                                 }));
                               } else {
                                 setPlayerSeasons(playerSeasons.filter(id => id !== s.id));
@@ -1161,8 +1172,7 @@ export const Admin: React.FC = () => {
                   type="number"
                   className="form-input"
                   placeholder="178"
-                  value={playerHeight}
-                  onChange={(e) => setPlayerHeight(e.target.value)}
+                  {...registerPlayer("height", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
                 />
               </div>
               <div className="form-group">
@@ -1171,8 +1181,7 @@ export const Admin: React.FC = () => {
                   type="number"
                   className="form-input"
                   placeholder="72"
-                  value={playerWeight}
-                  onChange={(e) => setPlayerWeight(e.target.value)}
+                  {...registerPlayer("weight", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
                 />
               </div>
             </div>
@@ -1181,7 +1190,7 @@ export const Admin: React.FC = () => {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={upsertPlayer.isPending}
+                disabled={upsertPlayer.isPending || playerSubmitting}
                 style={{ flex: 1 }}
               >
                 {editingPlayerId ? "Guardar Cambios" : "Registrar Jugador"}
@@ -1193,15 +1202,9 @@ export const Admin: React.FC = () => {
                   style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
                   onClick={() => {
                     setEditingPlayerId(null);
-                    setPlayerFirstName("");
-                    setPlayerLastName("");
-                    setPlayerShirtName("");
-                    setPlayerNumber("");
-                    setPlayerBirthDate("");
+                    resetPlayer({ firstName: "", lastName: "", shirtName: "", number: undefined, birthDate: "", height: undefined, weight: undefined });
                     setPlayerSeasons([]);
                     setSeasonDetailsState({});
-                    setPlayerHeight("");
-                    setPlayerWeight("");
                   }}
                 >
                   Cancelar Edición
@@ -1252,15 +1255,17 @@ export const Admin: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setEditingPlayerId(p.id);
-                          setPlayerFirstName(p.firstName || "");
-                          setPlayerLastName(p.lastName || "");
-                          setPlayerShirtName(p.shirtName || "");
-                          setPlayerNumber(p.number ? String(p.number) : "");
-                          setPlayerBirthDate(p.birthDate || "");
+                          resetPlayer({
+                            firstName: p.firstName || "",
+                            lastName: p.lastName || "",
+                            shirtName: p.shirtName || "",
+                            number: p.number ?? undefined,
+                            birthDate: p.birthDate || "",
+                            height: p.height ?? undefined,
+                            weight: p.weight ?? undefined,
+                          });
                           setPlayerSeasons(p.seasons || []);
-                          setPlayerHeight(p.height ? String(p.height) : "");
-                          setPlayerWeight(p.weight ? String(p.weight) : "");
-                          
+
                           const details: Record<string, { shirtName: string; number: number | "" }> = {};
                           if (p.seasonDetails) {
                             Object.entries(p.seasonDetails).forEach(([sId, data]: [string, { shirtName: string; number: number }]) => {
@@ -1289,15 +1294,9 @@ export const Admin: React.FC = () => {
                                 notifySuccess("¡Jugador eliminado correctamente!");
                                 if (editingPlayerId === p.id) {
                                   setEditingPlayerId(null);
-                                  setPlayerFirstName("");
-                                  setPlayerLastName("");
-                                  setPlayerShirtName("");
-                                  setPlayerNumber("");
-                                  setPlayerBirthDate("");
+                                  resetPlayer({ firstName: "", lastName: "", shirtName: "", number: undefined, birthDate: "", height: undefined, weight: undefined });
                                   setPlayerSeasons([]);
                                   setSeasonDetailsState({});
-                                  setPlayerHeight("");
-                                  setPlayerWeight("");
                                 }
                               },
                               onError: (err: unknown) => {
