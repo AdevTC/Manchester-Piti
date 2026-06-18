@@ -1,8 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { collection, addDoc, onSnapshot, query, orderBy, Timestamp, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "../firebase";
+import {
+  useUpsertSeason,
+  useDeleteSeason,
+  useUpsertPlayer,
+  useDeletePlayer,
+  useUpsertMatch,
+  useDeleteMatch,
+} from "./admin/useAdminMutations";
 import {
   PlusCircle,
   Trash2,
@@ -80,7 +88,12 @@ export const Admin: React.FC = () => {
   // Action notifications
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const upsertSeason = useUpsertSeason();
+  const deleteSeason = useDeleteSeason();
+  const upsertPlayer = useUpsertPlayer();
+  const deletePlayer = useDeletePlayer();
+  const upsertMatch  = useUpsertMatch();
+  const deleteMatch  = useDeleteMatch();
 
   // --- Form States ---
   // Season Form (name field via RHF; captain select stays as plain state)
@@ -208,20 +221,16 @@ export const Admin: React.FC = () => {
   
   // Add/Edit Season (RHF-driven; data.name already trimmed by schema)
   const onSeasonSubmit = async (data: SeasonFormValues) => {
+    const isEditing = !!editingSeasonId;
+    const docData: Record<string, unknown> = isEditing
+      ? { name: data.name, captainPlayerId: seasonCaptainId || "" }
+      : { name: data.name, captainPlayerId: "", createdAt: new Date() };
     try {
-      if (editingSeasonId) {
-        await setDoc(doc(db, "seasons", editingSeasonId), {
-          name: data.name,
-          captainPlayerId: seasonCaptainId || ""
-        }, { merge: true });
+      await upsertSeason.mutateAsync({ id: editingSeasonId, data: docData });
+      if (isEditing) {
         setEditingSeasonId(null);
         notifySuccess("¡Temporada actualizada correctamente!");
       } else {
-        await addDoc(collection(db, "seasons"), {
-          name: data.name,
-          captainPlayerId: "",
-          createdAt: new Date()
-        });
         notifySuccess("¡Temporada creada correctamente!");
       }
       resetSeason({ name: "" });
@@ -281,46 +290,40 @@ export const Admin: React.FC = () => {
       }
     }
 
-    setLoading(true);
-    try {
-      const playerData = {
-        firstName: playerFirstName.trim(),
-        lastName: playerLastName.trim() || "",
-        shirtName: playerShirtName.trim().toUpperCase(),
-        number,
-        birthDate: playerBirthDate || "",
-        seasons: playerSeasons || [],
-        seasonDetails: parsedSeasonDetails || {},
-        height: isNaN(height) ? null : height,
-        weight: isNaN(weight) ? null : weight,
-        active: true,
-        createdAt: new Date()
-      };
+    const wasEditingPlayer = !!editingPlayerId;
+    const playerData: Record<string, unknown> = {
+      firstName: playerFirstName.trim(),
+      lastName: playerLastName.trim() || "",
+      shirtName: playerShirtName.trim().toUpperCase(),
+      number,
+      birthDate: playerBirthDate || "",
+      seasons: playerSeasons || [],
+      seasonDetails: parsedSeasonDetails || {},
+      height: isNaN(height) ? null : height,
+      weight: isNaN(weight) ? null : weight,
+      active: true,
+      createdAt: new Date()
+    };
 
-      if (editingPlayerId) {
-        await setDoc(doc(db, "players", editingPlayerId), playerData, { merge: true });
-        notifySuccess("¡Jugador actualizado correctamente!");
-      } else {
-        await addDoc(collection(db, "players"), playerData);
-        notifySuccess("¡Jugador registrado en la plantilla!");
-      }
-
-      // Clear fields
-      setPlayerFirstName("");
-      setPlayerLastName("");
-      setPlayerShirtName("");
-      setPlayerNumber("");
-      setPlayerBirthDate("");
-      setPlayerSeasons([]);
-      setSeasonDetailsState({});
-      setPlayerHeight("");
-      setPlayerWeight("");
-      setEditingPlayerId(null);
-    } catch (err: unknown) {
-      notifyError("Error al registrar jugador: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setLoading(false);
-    }
+    upsertPlayer.mutate({ id: editingPlayerId, data: playerData }, {
+      onSuccess: () => {
+        notifySuccess(wasEditingPlayer ? "¡Jugador actualizado correctamente!" : "¡Jugador registrado en la plantilla!");
+        // Clear fields
+        setPlayerFirstName("");
+        setPlayerLastName("");
+        setPlayerShirtName("");
+        setPlayerNumber("");
+        setPlayerBirthDate("");
+        setPlayerSeasons([]);
+        setSeasonDetailsState({});
+        setPlayerHeight("");
+        setPlayerWeight("");
+        setEditingPlayerId(null);
+      },
+      onError: (err: unknown) => {
+        notifyError("Error al registrar jugador: " + (err instanceof Error ? err.message : String(err)));
+      },
+    });
   };
 
   // Add event to temporary match events array
@@ -388,45 +391,44 @@ export const Admin: React.FC = () => {
       return;
     }
 
-    setLoading(true);
-    try {
-      const matchDoc = {
-        seasonId: matchSeasonId,
-        rival: matchRival.trim(),
-        competition: matchCompetition,
-        date: Timestamp.fromDate(new Date(matchDate)),
-        goalsFor,
-        goalsAgainst,
-        events: matchEvents.map(ev => ({
-          type: ev.type,
-          playerId: ev.playerId,
-          assistPlayerId: ev.assistPlayerId || null
-        }))
-      };
+    const wasEditing = !!editingMatchId;
+    const matchDoc: Record<string, unknown> = {
+      seasonId: matchSeasonId,
+      rival: matchRival.trim(),
+      competition: matchCompetition,
+      date: Timestamp.fromDate(new Date(matchDate)),
+      goalsFor,
+      goalsAgainst,
+      events: matchEvents.map(ev => ({
+        type: ev.type,
+        playerId: ev.playerId,
+        assistPlayerId: ev.assistPlayerId || null
+      }))
+    };
 
-      if (editingMatchId) {
-        await setDoc(doc(db, "matches", editingMatchId), matchDoc, { merge: true });
-        setEditingMatchId(null);
-        notifySuccess("¡Partido actualizado con éxito!");
-      } else {
-        await addDoc(collection(db, "matches"), matchDoc);
-        notifySuccess("¡Partido registrado con éxito!");
-      }
-
-      // Clear fields
-      setMatchRival("");
-      setMatchGoalsFor("");
-      setMatchGoalsAgainst("");
-      setMatchEvents([]);
-      if (editingMatchId) {
-        setMatchSeasonId("");
-        setMatchDate("");
-      }
-    } catch (err: unknown) {
-      notifyError("Error al registrar el partido: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setLoading(false);
-    }
+    upsertMatch.mutate({ id: editingMatchId, data: matchDoc }, {
+      onSuccess: () => {
+        if (wasEditing) {
+          setEditingMatchId(null);
+          notifySuccess("¡Partido actualizado con éxito!");
+        } else {
+          notifySuccess("¡Partido registrado con éxito!");
+        }
+        // Clear fields always
+        setMatchRival("");
+        setMatchGoalsFor("");
+        setMatchGoalsAgainst("");
+        setMatchEvents([]);
+        // Clear season/date only when editing (matches original behavior)
+        if (wasEditing) {
+          setMatchSeasonId("");
+          setMatchDate("");
+        }
+      },
+      onError: (err: unknown) => {
+        notifyError("Error al registrar el partido: " + (err instanceof Error ? err.message : String(err)));
+      },
+    });
   };
 
   return (
@@ -841,7 +843,7 @@ export const Admin: React.FC = () => {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={loading}
+                  disabled={upsertMatch.isPending}
                   style={{ flex: 1 }}
                 >
                   {editingMatchId ? "Guardar Cambios" : "Guardar Partido Registrado"}
@@ -940,26 +942,26 @@ export const Admin: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={async () => {
+                            disabled={deleteMatch.isPending}
+                            onClick={() => {
                               if (window.confirm(`¿Estás seguro de que quieres eliminar el partido contra "${m.rival}"?`)) {
-                                try {
-                                  setLoading(true);
-                                  await deleteDoc(doc(db, "matches", m.id));
-                                  notifySuccess("¡Partido eliminado correctamente!");
-                                  if (editingMatchId === m.id) {
-                                    setEditingMatchId(null);
-                                    setMatchRival("");
-                                    setMatchGoalsFor("");
-                                    setMatchGoalsAgainst("");
-                                    setMatchEvents([]);
-                                    setMatchSeasonId("");
-                                    setMatchDate("");
-                                  }
-                                } catch (err: unknown) {
-                                  notifyError("Error al eliminar el partido: " + (err instanceof Error ? err.message : String(err)));
-                                } finally {
-                                  setLoading(false);
-                                }
+                                deleteMatch.mutate(m.id, {
+                                  onSuccess: () => {
+                                    notifySuccess("¡Partido eliminado correctamente!");
+                                    if (editingMatchId === m.id) {
+                                      setEditingMatchId(null);
+                                      setMatchRival("");
+                                      setMatchGoalsFor("");
+                                      setMatchGoalsAgainst("");
+                                      setMatchEvents([]);
+                                      setMatchSeasonId("");
+                                      setMatchDate("");
+                                    }
+                                  },
+                                  onError: (err: unknown) => {
+                                    notifyError("Error al eliminar el partido: " + (err instanceof Error ? err.message : String(err)));
+                                  },
+                                });
                               }
                             }}
                             className="btn btn-secondary"
@@ -1166,7 +1168,7 @@ export const Admin: React.FC = () => {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={loading}
+                disabled={upsertPlayer.isPending}
                 style={{ flex: 1 }}
               >
                 {editingPlayerId ? "Guardar Cambios" : "Registrar Jugador"}
@@ -1266,29 +1268,29 @@ export const Admin: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={async () => {
+                        disabled={deletePlayer.isPending}
+                        onClick={() => {
                           if (window.confirm(`¿Estás seguro de que quieres eliminar a ${p.firstName} ${p.lastName} de la plantilla?`)) {
-                            try {
-                              setLoading(true);
-                              await deleteDoc(doc(db, "players", p.id));
-                              notifySuccess("¡Jugador eliminado correctamente!");
-                              if (editingPlayerId === p.id) {
-                                setEditingPlayerId(null);
-                                setPlayerFirstName("");
-                                setPlayerLastName("");
-                                setPlayerShirtName("");
-                                setPlayerNumber("");
-                                setPlayerBirthDate("");
-                                setPlayerSeasons([]);
-                                setSeasonDetailsState({});
-                                setPlayerHeight("");
-                                setPlayerWeight("");
-                              }
-                            } catch (err: unknown) {
-                              notifyError("Error al eliminar jugador: " + (err instanceof Error ? err.message : String(err)));
-                            } finally {
-                              setLoading(false);
-                            }
+                            deletePlayer.mutate(p.id, {
+                              onSuccess: () => {
+                                notifySuccess("¡Jugador eliminado correctamente!");
+                                if (editingPlayerId === p.id) {
+                                  setEditingPlayerId(null);
+                                  setPlayerFirstName("");
+                                  setPlayerLastName("");
+                                  setPlayerShirtName("");
+                                  setPlayerNumber("");
+                                  setPlayerBirthDate("");
+                                  setPlayerSeasons([]);
+                                  setSeasonDetailsState({});
+                                  setPlayerHeight("");
+                                  setPlayerWeight("");
+                                }
+                              },
+                              onError: (err: unknown) => {
+                                notifyError("Error al eliminar jugador: " + (err instanceof Error ? err.message : String(err)));
+                              },
+                            });
                           }
                         }}
                         className="btn btn-secondary"
@@ -1437,22 +1439,22 @@ export const Admin: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={async () => {
+                        disabled={deleteSeason.isPending}
+                        onClick={() => {
                           if (window.confirm(`¿Estás seguro de que quieres eliminar la temporada "${s.name}"? Los partidos e inscripciones asociados a ella quedarán huérfanos.`)) {
-                            try {
-                              setLoading(true);
-                              await deleteDoc(doc(db, "seasons", s.id));
-                              notifySuccess("¡Temporada eliminada correctamente!");
-                              if (editingSeasonId === s.id) {
-                                setEditingSeasonId(null);
-                                resetSeason({ name: "" });
-                                setSeasonCaptainId("");
-                              }
-                            } catch (err: unknown) {
-                              notifyError("Error al eliminar temporada: " + (err instanceof Error ? err.message : String(err)));
-                            } finally {
-                              setLoading(false);
-                            }
+                            deleteSeason.mutate(s.id, {
+                              onSuccess: () => {
+                                notifySuccess("¡Temporada eliminada correctamente!");
+                                if (editingSeasonId === s.id) {
+                                  setEditingSeasonId(null);
+                                  resetSeason({ name: "" });
+                                  setSeasonCaptainId("");
+                                }
+                              },
+                              onError: (err: unknown) => {
+                                notifyError("Error al eliminar temporada: " + (err instanceof Error ? err.message : String(err)));
+                              },
+                            });
                           }
                         }}
                         className="btn btn-secondary"
