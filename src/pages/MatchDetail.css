@@ -1,0 +1,180 @@
+/* MatchDetail — sober one-shot detail view. Reuses the global tokens and the
+   shared BoardSheet for the events; only the header/score chrome is local. */
+
+.md-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.md-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 0.35rem 0;
+  transition: color 0.18s ease;
+}
+.md-back:hover {
+  color: var(--accent-ink);
+}
+
+.md-head {
+  margin-top: 1rem;
+  padding: 1.6rem 1.4rem 1.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.md-head::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--accent-ink);
+}
+.md-head[data-outcome="win"]::before {
+  background: var(--accent-ink);
+}
+.md-head[data-outcome="draw"]::before {
+  background: var(--accent-gold);
+}
+.md-head[data-outcome="loss"]::before {
+  background: var(--accent-red);
+}
+
+.md-comp {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.md-fixture {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.6rem 0 0;
+  font-family: var(--font-sans);
+}
+.md-club {
+  font-weight: 800;
+  color: var(--accent-ink);
+  font-size: 1.35rem;
+}
+.md-vs {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.md-rival {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 1.35rem;
+}
+
+.md-date {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.md-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin: 1.1rem 0 0.4rem;
+}
+.md-score-n {
+  font-family: var(--mp-font-display, var(--font-sans));
+  font-size: 3.4rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.md-score-n--win {
+  color: var(--accent-ink);
+}
+.md-score-n--loss {
+  color: var(--accent-red);
+}
+.md-score-n--muted {
+  color: var(--text-muted);
+}
+.md-score-colon {
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.md-outcome {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.md-outcome--win {
+  color: var(--accent-ink);
+}
+.md-outcome--draw {
+  color: var(--accent-gold);
+}
+.md-outcome--loss {
+  color: var(--accent-red);
+}
+
+.md-detail {
+  margin-top: 1.6rem;
+}
+.md-detail-empty {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.md-empty {
+  margin-top: 2.5rem;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 14px;
+}
+.md-empty-mark {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+.md-empty-text {
+  margin: 0.6rem auto 0;
+  max-width: 360px;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}

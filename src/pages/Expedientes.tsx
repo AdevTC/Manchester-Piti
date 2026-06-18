@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
+import { Link } from "@tanstack/react-router";
 import { useSeason } from "../context/SeasonContext";
 import { Jersey } from "../components/Jersey";
 import { motion } from "motion/react";
@@ -365,7 +366,15 @@ const ExpedienteModal: React.FC<{
             </>
           )}
 
-          <button type="button" className="btn btn-primary" style={{ width: "100%", marginTop: "1.5rem" }} onClick={onClose}>Cerrar expediente</button>
+          <Link
+            to="/jugadores/$playerId"
+            params={{ playerId: player.id }}
+            className="btn btn-primary"
+            style={{ display: "block", width: "100%", marginTop: "1.5rem", textAlign: "center", textDecoration: "none" }}
+          >
+            Ver ficha completa
+          </Link>
+          <button type="button" className="btn" style={{ width: "100%", marginTop: "0.6rem" }} onClick={onClose}>Cerrar expediente</button>
         </div>
       </div>
     </div>
