@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import React, { createContext, useContext, useMemo, useState } from "react";
+import { collection, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
-import { parseDocs, seasonSchema } from "../lib/schemas";
+import { seasonSchema, dropNullFields } from "../lib/schemas";
+import { useFirestoreCollection } from "../lib/useFirestoreCollection";
 
 export interface Season {
   id: string;
@@ -19,46 +20,41 @@ interface SeasonContextType {
 
 const SeasonContext = createContext<SeasonContextType | undefined>(undefined);
 
+const SEASONS_KEY = ["seasons"] as const;
+
+/** Module-level stable mapper: validates with Zod (Phase 1) and discards invalid docs. */
+function mapSeason(id: string, data: unknown): Season | null {
+  const r = seasonSchema.safeParse({ id, ...dropNullFields(data as Record<string, unknown>) });
+  if (!r.success) {
+    console.error(`[schema] doc inválido en seasons/${id}:`, r.error.issues);
+    return null;
+  }
+  return { id: r.data.id, name: r.data.name, captainPlayerId: r.data.captainPlayerId || undefined };
+}
+
 export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [seasons, setSeasons] = useState<Season[]>([]);
-  const [selectedSeasonId, setSelectedSeasonIdState] = useState<string>(() => {
+  const seasonsQuery = useMemo(() => query(collection(db, "seasons"), orderBy("name", "asc")), []);
+
+  const { data, isPending } = useFirestoreCollection(SEASONS_KEY, seasonsQuery, mapSeason);
+  const seasons = useMemo(() => data ?? [], [data]);
+  const loadingSeasons = isPending;
+
+  const [selectedSeasonIdRaw, setSelectedSeasonIdRaw] = useState<string>(() => {
     return localStorage.getItem("selected_season_id") || "all";
   });
-  const [loadingSeasons, setLoadingSeasons] = useState(true);
 
   const setSelectedSeasonId = (id: string) => {
-    setSelectedSeasonIdState(id);
+    setSelectedSeasonIdRaw(id);
     localStorage.setItem("selected_season_id", id);
   };
 
-  useEffect(() => {
-    const seasonsRef = collection(db, "seasons");
-    const q = query(seasonsRef, orderBy("name", "asc"));
-
-    // Realtime sync for seasons list
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const validated = parseDocs(seasonSchema, snapshot.docs, "seasons");
-      const loadedSeasons: Season[] = validated.map((s) => ({
-        id: s.id,
-        name: s.name,
-        captainPlayerId: s.captainPlayerId || undefined,
-      }));
-      setSeasons(loadedSeasons);
-      
-      // If there are seasons and we don't have "all" or a valid season, default to "all"
-      // or if we have a saved season that no longer exists, default to "all"
-      if (selectedSeasonId !== "all" && !loadedSeasons.some(s => s.id === selectedSeasonId)) {
-        setSelectedSeasonIdState("all");
-      }
-      
-      setLoadingSeasons(false);
-    }, (error) => {
-      console.error("Error fetching seasons:", error);
-      setLoadingSeasons(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  // Reset-to-"all": if seasons are loaded and the saved season no longer exists,
+  // derive "all" in render. This is a pure computation — no effect, no setState.
+  // In-memory only (no localStorage write), matching the original callback behavior.
+  const selectedSeasonId =
+    !isPending && selectedSeasonIdRaw !== "all" && !seasons.some((s) => s.id === selectedSeasonIdRaw)
+      ? "all"
+      : selectedSeasonIdRaw;
 
   return (
     <SeasonContext.Provider value={{ seasons, selectedSeasonId, setSelectedSeasonId, loadingSeasons }}>
