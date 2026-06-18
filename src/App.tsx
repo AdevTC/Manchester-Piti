@@ -1,42 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { RouterProvider } from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SeasonProvider } from "./context/SeasonContext";
-import { Navbar } from "./components/Navbar";
 import { Login } from "./pages/Login";
 import { NicknameSetup } from "./pages/NicknameSetup";
-import { MatchCenter } from "./pages/MatchCenter";
-import { Stats } from "./pages/Stats";
-import { Plantilla } from "./pages/Plantilla";
-import { Profile } from "./pages/Profile";
-import { Admin } from "./pages/Admin";
 import { Landing } from "./pages/Landing";
 import { Crest } from "./components/Crest";
+import { router } from "./router";
 
 const MainAppContent: React.FC = () => {
   const { user, profile, loading } = useAuth();
-  
-  // Custom hash router state
-  const [currentPage, setCurrentPage] = useState(() => {
-    const hash = window.location.hash.replace("#", "");
-    const validPages = ["matches", "stats", "plantilla", "profile", "admin"];
-    return validPages.includes(hash) ? hash : "matches";
-  });
 
   const [showLogin, setShowLogin] = useState(false);
-
-  // Keep hash and current page in sync
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace("#", "");
-      const validPages = ["matches", "stats", "plantilla", "profile", "admin"];
-      if (validPages.includes(hash)) {
-        setCurrentPage(hash);
-      }
-    };
-
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
 
   // Dev-only: `?login` renders the auth gate regardless of session, so the
   // login screen can be designed/inspected while signed in. DEV-stripped.
@@ -86,25 +61,8 @@ const MainAppContent: React.FC = () => {
     return <NicknameSetup />;
   }
 
-  // Double check security for admin routes
-  const activePage = (currentPage === "admin" && profile?.role !== "admin" && profile?.role !== "superadmin") 
-    ? "profile" 
-    : currentPage;
-
-  // 4. Main Application Frame
-  return (
-    <div className="app-container">
-      <Navbar currentPage={activePage} setCurrentPage={setCurrentPage} />
-      
-      <main className="main-content">
-        {activePage === "matches" && <MatchCenter />}
-        {activePage === "stats" && <Stats />}
-        {activePage === "plantilla" && <Plantilla />}
-        {activePage === "profile" && <Profile />}
-        {activePage === "admin" && <Admin />}
-      </main>
-    </div>
-  );
+  // 4. Main Application Frame — the authenticated routes live in the router.
+  return <RouterProvider router={router} />;
 };
 
 function App() {

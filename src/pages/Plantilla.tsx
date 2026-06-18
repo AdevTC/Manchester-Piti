@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React from "react";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { FileText, ClipboardList } from "lucide-react";
 import { Expedientes } from "./Expedientes";
 import { Pizarra } from "./pizarra/Pizarra";
@@ -6,30 +7,18 @@ import { SeasonSelector } from "../components/SeasonSelector";
 import "./Plantilla.css";
 
 type Mode = "expedientes" | "pizarra";
-const MODE_KEY = "mp_plantilla_mode";
 
-function initialMode(): Mode {
-  try {
-    return localStorage.getItem(MODE_KEY) === "pizarra" ? "pizarra" : "expedientes";
-  } catch {
-    return "expedientes";
-  }
-}
+const route = getRouteApi("/plantilla");
+
 //
 // The Plantilla page is a shell over two switchable modes: the existing
 // dossier viewer (Expedientes, intact) and the tactical board (Pizarra). The
-// last mode is remembered in localStorage, mirroring SeasonContext.
+// active mode lives in the `?mode` search param, so it is deep-linkable.
 export const Plantilla: React.FC = () => {
-  const [mode, setMode] = useState<Mode>(initialMode);
+  const { mode } = route.useSearch();
+  const navigate = useNavigate();
 
-  const choose = (next: Mode) => {
-    setMode(next);
-    try {
-      localStorage.setItem(MODE_KEY, next);
-    } catch {
-      /* storage unavailable — keep the in-memory choice */
-    }
-  };
+  const choose = (next: Mode) => void navigate({ to: "/plantilla", search: { mode: next } });
 
   return (
     <div className="pl-shell fade-in">
