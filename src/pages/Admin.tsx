@@ -1302,9 +1302,11 @@ export const Admin: React.FC = () => {
                 className="form-input"
                 placeholder="ej: Temporada 1, Temporada 2026..."
                 {...registerSeason("name")}
+                aria-invalid={!!seasonErrors.name}
+                aria-describedby={seasonErrors.name ? "season-name-error" : undefined}
               />
               {seasonErrors.name && (
-                <span style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                <span id="season-name-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
                   {seasonErrors.name.message}
                 </span>
               )}

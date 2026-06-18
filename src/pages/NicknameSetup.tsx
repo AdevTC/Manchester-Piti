@@ -104,6 +104,7 @@ export const NicknameSetup: React.FC = () => {
                 }}
               />
               <input
+                {...register("nickname")}
                 id="nickname"
                 type="text"
                 className="form-input"
@@ -111,7 +112,8 @@ export const NicknameSetup: React.FC = () => {
                 style={{ paddingLeft: "2.5rem" }}
                 disabled={isSubmitting}
                 autoFocus
-                {...register("nickname")}
+                aria-invalid={!!errors.nickname}
+                aria-describedby={errors.nickname ? "nickname-error" : undefined}
               />
             </div>
             <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
@@ -121,6 +123,8 @@ export const NicknameSetup: React.FC = () => {
 
           {errors.nickname && (
             <div
+              id="nickname-error"
+              role="alert"
               style={{
                 background: "rgba(239, 68, 68, 0.1)",
                 border: "1px solid rgba(239, 68, 68, 0.3)",
