@@ -29,9 +29,15 @@ export const BoardRow: React.FC<{ match: MatchDoc; playersMap: Record<string, st
       className="mp-bd-row"
       style={{ ["--i" as string]: Math.min(index, 16) } as React.CSSProperties}
       data-outcome={outcome}
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.3 }}
+      layout
+      // Mount-driven enter (not whileInView): inside AnimatePresence the enter must
+      // fire on the same mount axis as exit/layout, so a season-filter swap reveals
+      // every new row immediately (in-view or not) — no IntersectionObserver gate and
+      // no risk of below-fold primary content staying invisible. Opacity-only: `layout`
+      // owns all transforms, so a `y` here would fight the layout animation.
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 0.5, delay: Math.min(index, 16) * 0.05, ease: "easeOut" }}
     >
       <div className="mp-bd-row-main">

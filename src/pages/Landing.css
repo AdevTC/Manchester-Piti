@@ -268,34 +268,16 @@
   .mp-hero { min-height: 90vh; }
 }
 
-/* ---------- Delight: scroll reveal (progressive enhancement) ---------- */
-.mp-rv { transition: opacity 0.6s var(--mp-ease), transform 0.6s var(--mp-ease), clip-path 0.7s var(--mp-ease); }
-.mp-section-head.mp-rv { opacity: 0; transform: translateY(18px); }
-.mp-section-head.mp-rv-in { opacity: 1; transform: none; }
-.mp-cta-band.mp-rv { opacity: 0; clip-path: inset(0 0 100% 0); }
-.mp-cta-band.mp-rv-in { opacity: 1; clip-path: inset(0 0 0 0); }
-/* Feature bands: broadcast wipe in, panel-lights-up on hover */
+/* ---------- Delight: feature bands light up on hover ---------- */
 .mp-feat, .mp-pichichi {
   transition: opacity 0.6s var(--mp-ease), clip-path 0.7s var(--mp-ease),
               border-color 0.25s var(--mp-ease), transform 0.25s var(--mp-ease);
 }
-.mp-feat.mp-rv, .mp-pichichi.mp-rv { opacity: 0; clip-path: inset(0 0 100% 0); }
-.mp-feat.mp-rv-in, .mp-pichichi.mp-rv-in { opacity: 1; clip-path: inset(0 0 0 0); }
 .mp-feat:hover, .mp-pichichi:hover { border-color: rgba(108, 171, 221, 0.55); transform: translateY(-3px); }
-/* Season band: cells stagger in */
-.mp-band.mp-rv .cell { opacity: 0; transform: translateY(14px); transition: opacity 0.5s var(--mp-ease), transform 0.5s var(--mp-ease); }
-.mp-band.mp-rv-in .cell { opacity: 1; transform: none; }
-.mp-band.mp-rv-in .cell:nth-child(2) { transition-delay: 0.05s; }
-.mp-band.mp-rv-in .cell:nth-child(3) { transition-delay: 0.1s; }
-.mp-band.mp-rv-in .cell:nth-child(4) { transition-delay: 0.15s; }
-.mp-band.mp-rv-in .cell:nth-child(5) { transition-delay: 0.2s; }
-.mp-band.mp-rv-in .cell:nth-child(6) { transition-delay: 0.25s; }
-.mp-band.mp-rv-in .cell:nth-child(7) { transition-delay: 0.3s; }
 
 /* Pause the ticker so it can be read */
 .mp-marquee:hover .mp-marquee-track { animation-play-state: paused; }
 
 @media (prefers-reduced-motion: reduce) {
-  .mp-rv, .mp-band.mp-rv .cell { opacity: 1 !important; transform: none !important; clip-path: none !important; }
   .mp-feat:hover, .mp-pichichi:hover { transform: none; }
 }

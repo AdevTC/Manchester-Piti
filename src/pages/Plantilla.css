@@ -382,10 +382,6 @@
 .exp-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
 .exp-chip { font-family: var(--font-sans); font-size: 0.7rem; font-weight: 700; color: var(--accent-ink); background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 9999px; padding: 0.2rem 0.7rem; }
 
-/* ---------------- Deal-in (visible by default; transform only) ---------------- */
-.exp-card.mp-rv { opacity: 0; transform: translateY(14px); }
-.exp-card.mp-rv-in { opacity: 1; transform: none; transition: opacity 0.45s var(--mp-ease), transform 0.45s var(--mp-ease); transition-delay: calc(var(--i, 0) * 34ms); }
-
 /* ---------------- Overdrive: classified masthead ---------------- */
 .exp-head-left { position: relative; }
 .exp-head-kicker { display: block; font-family: var(--font-sans); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.45rem; }
@@ -431,7 +427,6 @@
 @media (prefers-reduced-motion: reduce) {
   .exp-card-inner, .exp-card-inner::after, .exp-tab { transition: none; }
   .exp-card-inner { transform: none !important; }
-  .exp-card.mp-rv, .exp-card.mp-rv-in { opacity: 1 !important; transform: none !important; transition: none; }
   .exp-sheen { display: none; }
   .exp-ghost { transform: none !important; }
   .exp-registro { transition: none; }
