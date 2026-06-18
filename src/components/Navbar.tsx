@@ -57,7 +57,10 @@ export const Navbar: React.FC = () => {
   const isAdmin = profile?.role === "admin" || profile?.role === "superadmin";
   const navItems = isAdmin ? [...BASE_NAV, ADMIN_ITEM] : BASE_NAV;
 
-  const handleNavClick = (page: string) => void navigate({ to: PATHS[page] });
+  const handleNavClick = (page: string) => {
+    const path = PATHS[page];
+    if (path) void navigate({ to: path });
+  };
 
   // ---- Sliding indicator on the desktop rail ----
   const railRef = useRef<HTMLElement | null>(null);

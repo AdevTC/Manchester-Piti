@@ -20,11 +20,20 @@ export const RootLayout: React.FC = () => {
   const isAdmin = profile?.role === "admin" || profile?.role === "superadmin";
 
   // Admin route guard. Role logic lives in React/Context, not the router.
+  const blockedFromAdmin = pathname.startsWith("/admin") && !isAdmin;
+
+  // Belt-and-suspenders redirect for non-admins who deep-link /admin.
   React.useEffect(() => {
-    if (pathname.startsWith("/admin") && !isAdmin) {
+    if (blockedFromAdmin) {
       void navigate({ to: "/profile", replace: true });
     }
-  }, [pathname, isAdmin, navigate]);
+  }, [blockedFromAdmin, navigate]);
+
+  // Synchronous gate: don't render <Admin/> (and start its Firestore reads)
+  // for a non-admin even for a single frame; the effect above redirects.
+  if (blockedFromAdmin) {
+    return null;
+  }
 
   return (
     <div className="app-container">

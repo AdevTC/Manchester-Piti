@@ -3,18 +3,24 @@ import {
   createRoute,
   createRouter,
   lazyRouteComponent,
+  Navigate,
 } from "@tanstack/react-router";
 import { z } from "zod";
 import { RootLayout } from "./RootLayout";
 
-// Shared so the Plantilla page can reuse it for typed `getRouteApi` search.
-// Invalid `mode` falls back to "expedientes" (via .catch), preserving the
-// old localStorage-default behavior.
+// Source of truth for the Plantilla route's `validateSearch` (below); exported
+// so it can be reused elsewhere (e.g. Phase 4). Invalid `mode` falls back to
+// "expedientes" (via .catch), preserving the old localStorage-default behavior.
 export const plantillaSearchSchema = z.object({
   mode: z.enum(["expedientes", "pizarra"]).default("expedientes").catch("expedientes"),
 });
 
-const rootRoute = createRootRoute({ component: RootLayout });
+const rootRoute = createRootRoute({
+  component: RootLayout,
+  // Parity with the old hash router, which fell back to "matches" for any
+  // invalid hash. Unknown clean URLs now redirect to "/" instead of blanking.
+  notFoundComponent: () => <Navigate to="/" replace />,
+});
 
 const matchesRoute = createRoute({
   getParentRoute: () => rootRoute,

@@ -18,7 +18,8 @@ export const Plantilla: React.FC = () => {
   const { mode } = route.useSearch();
   const navigate = useNavigate();
 
-  const choose = (next: Mode) => void navigate({ to: "/plantilla", search: { mode: next } });
+  const choose = (next: Mode) =>
+    void navigate({ to: "/plantilla", search: (prev) => ({ ...prev, mode: next }) });
 
   return (
     <div className="pl-shell fade-in">
