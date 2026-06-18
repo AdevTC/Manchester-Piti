@@ -3,6 +3,8 @@ import {
   userProfileSchema,
   nicknameSchema,
   matchResultSchema,
+  matchFormSchema,
+  playerFormSchema,
   seasonFormSchema,
   parseDocs,
   seasonSchema,
@@ -45,6 +47,85 @@ describe("seasonFormSchema", () => {
   it("rechaza nombre vacío y recorta", () => {
     expect(seasonFormSchema.safeParse({ name: "   " }).success).toBe(false);
     expect(seasonFormSchema.parse({ name: "  Temporada 1 " }).name).toBe("Temporada 1");
+  });
+});
+
+describe("matchFormSchema", () => {
+  const valid = {
+    seasonId: "s1",
+    rival: "Barrio F.C.",
+    competition: "Liga",
+    date: "2026-06-18T20:00",
+    goalsFor: 3,
+    goalsAgainst: 1,
+  };
+
+  it("acepta un partido válido", () => {
+    const r = matchFormSchema.safeParse(valid);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      // matchResultSchema.rival aplica .trim()
+      expect(r.data.rival).toBe("Barrio F.C.");
+      expect(r.data.goalsFor).toBe(3);
+    }
+  });
+
+  it("rechaza seasonId vacío", () => {
+    expect(matchFormSchema.safeParse({ ...valid, seasonId: "" }).success).toBe(false);
+  });
+
+  it("rechaza rival vacío", () => {
+    expect(matchFormSchema.safeParse({ ...valid, rival: "   " }).success).toBe(false);
+  });
+
+  it("rechaza date vacío", () => {
+    expect(matchFormSchema.safeParse({ ...valid, date: "" }).success).toBe(false);
+  });
+
+  it("rechaza goles negativos", () => {
+    expect(matchFormSchema.safeParse({ ...valid, goalsFor: -1 }).success).toBe(false);
+    expect(matchFormSchema.safeParse({ ...valid, goalsAgainst: -2 }).success).toBe(false);
+  });
+});
+
+describe("playerFormSchema", () => {
+  const valid = {
+    firstName: "Adrián",
+    lastName: "Gómez",
+    shirtName: "ADRI",
+    number: 10,
+    birthDate: "1998-04-12",
+    height: 180,
+    weight: 75,
+  };
+
+  it("acepta un jugador válido", () => {
+    expect(playerFormSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("acepta sin lastName/birthDate/height/weight", () => {
+    const r = playerFormSchema.safeParse({ firstName: "A", shirtName: "AB", number: 7 });
+    expect(r.success).toBe(true);
+  });
+
+  it("rechaza firstName vacío", () => {
+    expect(playerFormSchema.safeParse({ ...valid, firstName: "   " }).success).toBe(false);
+  });
+
+  it("rechaza shirtName vacío", () => {
+    expect(playerFormSchema.safeParse({ ...valid, shirtName: "  " }).success).toBe(false);
+  });
+
+  it("rechaza number negativo", () => {
+    expect(playerFormSchema.safeParse({ ...valid, number: -1 }).success).toBe(false);
+  });
+
+  it("acepta height/weight = 0 (paridad con el handler antiguo)", () => {
+    expect(playerFormSchema.safeParse({ ...valid, height: 0, weight: 0 }).success).toBe(true);
+  });
+
+  it("rechaza height negativa", () => {
+    expect(playerFormSchema.safeParse({ ...valid, height: -5 }).success).toBe(false);
   });
 });
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "../firebase";
@@ -25,6 +25,10 @@ import { useAuth } from "../context/AuthContext";
 import {
   seasonFormSchema,
   type SeasonFormValues,
+  matchFormSchema,
+  type MatchFormValues,
+  playerFormSchema,
+  type PlayerFormValues,
   parseDocs,
   dropNullFields,
   seasonSchema,
@@ -108,29 +112,46 @@ export const Admin: React.FC = () => {
   });
   const [seasonCaptainId, setSeasonCaptainId] = useState("");
 
-  // Player Form
-  const [playerFirstName, setPlayerFirstName] = useState("");
-  const [playerLastName, setPlayerLastName] = useState("");
-  const [playerShirtName, setPlayerShirtName] = useState("");
-  const [playerNumber, setPlayerNumber] = useState("");
-  const [playerBirthDate, setPlayerBirthDate] = useState("");
+  // Match Form (RHF + Zod). Goals use setValueAs to map empty→undefined so an
+  // empty number input shows a required error and a filled one validates as int≥0.
+  const {
+    register: registerMatch,
+    handleSubmit: handleMatchSubmit,
+    reset: resetMatch,
+    setError: setMatchError,
+    control: matchControl,
+    formState: { errors: matchErrors, isSubmitting: matchSubmitting },
+  } = useForm<MatchFormValues>({
+    resolver: zodResolver(matchFormSchema),
+    defaultValues: { seasonId: "", rival: "", competition: "Liga", date: "", goalsFor: undefined, goalsAgainst: undefined },
+  });
+  // The events workspace resolves per-season shirt names/numbers from the
+  // currently selected season; track it reactively from the match form.
+  const matchSeasonId = useWatch({ control: matchControl, name: "seasonId" });
+
+  // Player Form (RHF + Zod). Scalar fields via RHF; number/height/weight use
+  // setValueAs to map empty→undefined (mirrors the match form's goals handling).
+  const {
+    register: registerPlayer,
+    handleSubmit: handlePlayerSubmit,
+    reset: resetPlayer,
+    setError: setPlayerError,
+    getValues: getPlayerValues,
+    formState: { errors: playerErrors, isSubmitting: playerSubmitting },
+  } = useForm<PlayerFormValues>({
+    resolver: zodResolver(playerFormSchema),
+    defaultValues: { firstName: "", lastName: "", shirtName: "", number: undefined, birthDate: "", height: undefined, weight: undefined },
+  });
+  // Per-season checkboxes + per-season shirt/number details stay as useState:
+  // they are dynamic/data-dependent (depend on the seasons list and pre-fill
+  // from the scalar shirt/number RHF fields).
   const [playerSeasons, setPlayerSeasons] = useState<string[]>([]);
-  const [playerHeight, setPlayerHeight] = useState("");
-  const [playerWeight, setPlayerWeight] = useState("");
   const [seasonDetailsState, setSeasonDetailsState] = useState<Record<string, { shirtName: string; number: number | "" }>>({});
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editingSeasonId, setEditingSeasonId] = useState<string | null>(null);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchDoc[]>([]);
 
-  // Match Form
-  const [matchSeasonId, setMatchSeasonId] = useState("");
-  const [matchRival, setMatchRival] = useState("");
-  const [matchCompetition, setMatchCompetition] = useState("Liga");
-  const [matchDate, setMatchDate] = useState("");
-  const [matchGoalsFor, setMatchGoalsFor] = useState("");
-  const [matchGoalsAgainst, setMatchGoalsAgainst] = useState("");
-  
   // Match Events state
   const [matchEvents, setMatchEvents] = useState<MatchEventForm[]>([]);
   const [currentEventType, setCurrentEventType] = useState<MatchEventForm["type"]>("goal");
@@ -240,25 +261,16 @@ export const Admin: React.FC = () => {
     }
   };
 
-  // Add/Edit Player
-  const handleAddPlayer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const number = parseInt(playerNumber);
-    const height = parseInt(playerHeight);
-    const weight = parseInt(playerWeight);
-
-    if (!playerFirstName.trim() || !playerShirtName.trim() || isNaN(number)) {
-      notifyError("Por favor completa los campos obligatorios: Nombre, Nombre en Camiseta y Dorsal.");
-      return;
-    }
-
-    // Parse and validate season details
+  // Add/Edit Player (RHF-driven; data already validated by playerFormSchema —
+  // firstName/lastName/shirtName trimmed, number int≥0). The per-season details
+  // and dorsal-duplicate checks stay imperative (data-dependent).
+  const onPlayerSubmit = async (data: PlayerFormValues) => {
+    // Parse and validate season details (fallback to the scalar shirt/number)
     const parsedSeasonDetails: Record<string, { shirtName: string; number: number }> = {};
     for (const seasonId of playerSeasons) {
       const details = seasonDetailsState[seasonId];
-      const sName = details?.shirtName?.trim().toUpperCase() || playerShirtName.trim().toUpperCase();
-      const sNum = (details?.number !== undefined && details.number !== "") ? Number(details.number) : number;
+      const sName = details?.shirtName?.trim().toUpperCase() || data.shirtName.trim().toUpperCase();
+      const sNum = (details?.number !== undefined && details.number !== "") ? Number(details.number) : data.number;
 
       if (!sName || isNaN(sNum)) {
         const seasonName = seasons.find(s => s.id === seasonId)?.name || "la temporada";
@@ -285,22 +297,25 @@ export const Admin: React.FC = () => {
 
       if (duplicate) {
         const seasonName = seasons.find(s => s.id === seasonId)?.name || "la temporada";
-        notifyError(`El dorsal #${currentNumber} ya está registrado en ${seasonName} por otro jugador.`);
+        setPlayerError("number", {
+          type: "manual",
+          message: `El dorsal #${currentNumber} ya está registrado en ${seasonName} por otro jugador.`,
+        });
         return;
       }
     }
 
     const wasEditingPlayer = !!editingPlayerId;
     const playerData: Record<string, unknown> = {
-      firstName: playerFirstName.trim(),
-      lastName: playerLastName.trim() || "",
-      shirtName: playerShirtName.trim().toUpperCase(),
-      number,
-      birthDate: playerBirthDate || "",
+      firstName: data.firstName,
+      lastName: data.lastName || "",
+      shirtName: data.shirtName.toUpperCase(),
+      number: data.number,
+      birthDate: data.birthDate || "",
       seasons: playerSeasons || [],
       seasonDetails: parsedSeasonDetails || {},
-      height: isNaN(height) ? null : height,
-      weight: isNaN(weight) ? null : weight,
+      height: data.height ?? null,
+      weight: data.weight ?? null,
       active: true,
       createdAt: new Date()
     };
@@ -309,15 +324,9 @@ export const Admin: React.FC = () => {
       onSuccess: () => {
         notifySuccess(wasEditingPlayer ? "¡Jugador actualizado correctamente!" : "¡Jugador registrado en la plantilla!");
         // Clear fields
-        setPlayerFirstName("");
-        setPlayerLastName("");
-        setPlayerShirtName("");
-        setPlayerNumber("");
-        setPlayerBirthDate("");
+        resetPlayer({ firstName: "", lastName: "", shirtName: "", number: undefined, birthDate: "", height: undefined, weight: undefined });
         setPlayerSeasons([]);
         setSeasonDetailsState({});
-        setPlayerHeight("");
-        setPlayerWeight("");
         setEditingPlayerId(null);
       },
       onError: (err: unknown) => {
@@ -359,46 +368,27 @@ export const Admin: React.FC = () => {
     setMatchEvents(updated);
   };
 
-  // Save Match
-  const handleAddMatch = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const goalsFor = parseInt(matchGoalsFor);
-    const goalsAgainst = parseInt(matchGoalsAgainst);
-
-    if (!matchSeasonId) {
-      notifyError("Debes seleccionar una Temporada.");
-      return;
-    }
-    if (!matchRival.trim()) {
-      notifyError("Escribe el nombre del Rival.");
-      return;
-    }
-    if (!matchDate) {
-      notifyError("Escribe la fecha y hora del partido.");
-      return;
-    }
-    if (isNaN(goalsFor) || isNaN(goalsAgainst)) {
-      notifyError("Introduce los goles a favor y en contra.");
-      return;
-    }
-
+  // Save Match (RHF-driven; data already validated by matchFormSchema, rival trimmed)
+  const onMatchSubmit = async (data: MatchFormValues) => {
     // Verify event counts vs score:
     // Registered goals in Piti events shouldn't exceed goalsFor!
     const pitiGoalsEventCount = matchEvents.filter(e => ["goal", "goal_penalty", "goal_freekick"].includes(e.type)).length;
-    if (pitiGoalsEventCount > goalsFor) {
-      notifyError(`Conflicto de Goles: Has registrado ${pitiGoalsEventCount} goles de jugadores del Piti en la lista de eventos, pero el marcador indica que el equipo marcó ${goalsFor} goles.`);
+    if (pitiGoalsEventCount > data.goalsFor) {
+      setMatchError("goalsFor", {
+        type: "manual",
+        message: `Conflicto de Goles: Has registrado ${pitiGoalsEventCount} goles de jugadores del Piti en la lista de eventos, pero el marcador indica que el equipo marcó ${data.goalsFor} goles.`,
+      });
       return;
     }
 
     const wasEditing = !!editingMatchId;
     const matchDoc: Record<string, unknown> = {
-      seasonId: matchSeasonId,
-      rival: matchRival.trim(),
-      competition: matchCompetition,
-      date: Timestamp.fromDate(new Date(matchDate)),
-      goalsFor,
-      goalsAgainst,
+      seasonId: data.seasonId,
+      rival: data.rival,
+      competition: data.competition,
+      date: Timestamp.fromDate(new Date(data.date)),
+      goalsFor: data.goalsFor,
+      goalsAgainst: data.goalsAgainst,
       events: matchEvents.map(ev => ({
         type: ev.type,
         playerId: ev.playerId,
@@ -414,16 +404,19 @@ export const Admin: React.FC = () => {
         } else {
           notifySuccess("¡Partido registrado con éxito!");
         }
-        // Clear fields always
-        setMatchRival("");
-        setMatchGoalsFor("");
-        setMatchGoalsAgainst("");
         setMatchEvents([]);
-        // Clear season/date only when editing (matches original behavior)
-        if (wasEditing) {
-          setMatchSeasonId("");
-          setMatchDate("");
-        }
+        // Preserve original reset semantics: it ALWAYS cleared rival+goals+events
+        // and left competition as chosen; it cleared seasonId+date ONLY when
+        // editing (on create they stay so the admin can log another match in the
+        // same session/date).
+        resetMatch({
+          seasonId: wasEditing ? "" : data.seasonId,
+          rival: "",
+          competition: data.competition,
+          date: wasEditing ? "" : data.date,
+          goalsFor: undefined,
+          goalsAgainst: undefined,
+        });
       },
       onError: (err: unknown) => {
         notifyError("Error al registrar el partido: " + (err instanceof Error ? err.message : String(err)));
@@ -551,23 +544,28 @@ export const Admin: React.FC = () => {
             </div>
           ) : (
             <>
-              <form onSubmit={handleAddMatch} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-              
+              <form onSubmit={handleMatchSubmit(onMatchSubmit)} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
               {/* Match Header fields */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
-                
+
                 {/* Season selection */}
                 <div className="form-group">
                   <label className="form-label">Temporada</label>
                   <select
                     className="form-input"
-                    value={matchSeasonId}
-                    onChange={(e) => setMatchSeasonId(e.target.value)}
-                    required
+                    {...registerMatch("seasonId")}
+                    aria-invalid={!!matchErrors.seasonId}
+                    aria-describedby={matchErrors.seasonId ? "match-season-error" : undefined}
                   >
                     <option value="">Selecciona la Temporada</option>
                     {seasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
+                  {matchErrors.seasonId && (
+                    <span id="match-season-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                      {matchErrors.seasonId.message}
+                    </span>
+                  )}
                 </div>
 
                 {/* Rival Name */}
@@ -577,10 +575,15 @@ export const Admin: React.FC = () => {
                     type="text"
                     className="form-input"
                     placeholder="ej: Barrio F.C."
-                    value={matchRival}
-                    onChange={(e) => setMatchRival(e.target.value)}
-                    required
+                    {...registerMatch("rival")}
+                    aria-invalid={!!matchErrors.rival}
+                    aria-describedby={matchErrors.rival ? "match-rival-error" : undefined}
                   />
+                  {matchErrors.rival && (
+                    <span id="match-rival-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                      {matchErrors.rival.message}
+                    </span>
+                  )}
                 </div>
 
                 {/* Competition */}
@@ -588,8 +591,7 @@ export const Admin: React.FC = () => {
                   <label className="form-label">Competición</label>
                   <select
                     className="form-input"
-                    value={matchCompetition}
-                    onChange={(e) => setMatchCompetition(e.target.value)}
+                    {...registerMatch("competition")}
                   >
                     <option value="Liga">Liga</option>
                     <option value="Copa">Copa</option>
@@ -604,10 +606,15 @@ export const Admin: React.FC = () => {
                   <input
                     type="datetime-local"
                     className="form-input"
-                    value={matchDate}
-                    onChange={(e) => setMatchDate(e.target.value)}
-                    required
+                    {...registerMatch("date")}
+                    aria-invalid={!!matchErrors.date}
+                    aria-describedby={matchErrors.date ? "match-date-error" : undefined}
                   />
+                  {matchErrors.date && (
+                    <span id="match-date-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                      {matchErrors.date.message}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -620,10 +627,15 @@ export const Admin: React.FC = () => {
                     min="0"
                     className="form-input"
                     placeholder="0"
-                    value={matchGoalsFor}
-                    onChange={(e) => setMatchGoalsFor(e.target.value)}
-                    required
+                    {...registerMatch("goalsFor", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
+                    aria-invalid={!!matchErrors.goalsFor}
+                    aria-describedby={matchErrors.goalsFor ? "match-goalsfor-error" : undefined}
                   />
+                  {matchErrors.goalsFor && (
+                    <span id="match-goalsfor-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                      {matchErrors.goalsFor.message}
+                    </span>
+                  )}
                 </div>
                 <div className="form-group">
                   <label className="form-label" style={{ color: "var(--accent-red)" }}>Goles Rival</label>
@@ -632,10 +644,15 @@ export const Admin: React.FC = () => {
                     min="0"
                     className="form-input"
                     placeholder="0"
-                    value={matchGoalsAgainst}
-                    onChange={(e) => setMatchGoalsAgainst(e.target.value)}
-                    required
+                    {...registerMatch("goalsAgainst", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
+                    aria-invalid={!!matchErrors.goalsAgainst}
+                    aria-describedby={matchErrors.goalsAgainst ? "match-goalsagainst-error" : undefined}
                   />
+                  {matchErrors.goalsAgainst && (
+                    <span id="match-goalsagainst-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                      {matchErrors.goalsAgainst.message}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -843,7 +860,7 @@ export const Admin: React.FC = () => {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={upsertMatch.isPending}
+                  disabled={upsertMatch.isPending || matchSubmitting}
                   style={{ flex: 1 }}
                 >
                   {editingMatchId ? "Guardar Cambios" : "Guardar Partido Registrado"}
@@ -855,12 +872,8 @@ export const Admin: React.FC = () => {
                     style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
                     onClick={() => {
                       setEditingMatchId(null);
-                      setMatchRival("");
-                      setMatchGoalsFor("");
-                      setMatchGoalsAgainst("");
                       setMatchEvents([]);
-                      setMatchSeasonId("");
-                      setMatchDate("");
+                      resetMatch({ seasonId: "", rival: "", competition: "Liga", date: "", goalsFor: undefined, goalsAgainst: undefined });
                     }}
                   >
                     Cancelar Edición
@@ -919,20 +932,22 @@ export const Admin: React.FC = () => {
                             type="button"
                             onClick={() => {
                               setEditingMatchId(m.id);
-                              setMatchSeasonId(m.seasonId || "");
-                              setMatchRival(m.rival || "");
-                              setMatchCompetition(m.competition || "Liga");
-                              
+
                               // Format date for datetime-local
                               const dateObj = m.date?.seconds ? new Date(m.date.seconds * 1000) : new Date(m.date);
                               const pad = (num: number) => String(num).padStart(2, "0");
                               const formatted = `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}T${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
-                              setMatchDate(formatted);
-                              
-                              setMatchGoalsFor(m.goalsFor !== undefined ? String(m.goalsFor) : "");
-                              setMatchGoalsAgainst(m.goalsAgainst !== undefined ? String(m.goalsAgainst) : "");
+
+                              resetMatch({
+                                seasonId: m.seasonId || "",
+                                rival: m.rival || "",
+                                competition: m.competition || "Liga",
+                                date: formatted,
+                                goalsFor: m.goalsFor ?? undefined,
+                                goalsAgainst: m.goalsAgainst ?? undefined,
+                              });
                               setMatchEvents(m.events || []);
-                              
+
                               window.scrollTo({ top: 0, behavior: "smooth" });
                             }}
                             className="btn btn-secondary"
@@ -950,12 +965,8 @@ export const Admin: React.FC = () => {
                                     notifySuccess("¡Partido eliminado correctamente!");
                                     if (editingMatchId === m.id) {
                                       setEditingMatchId(null);
-                                      setMatchRival("");
-                                      setMatchGoalsFor("");
-                                      setMatchGoalsAgainst("");
                                       setMatchEvents([]);
-                                      setMatchSeasonId("");
-                                      setMatchDate("");
+                                      resetMatch({ seasonId: "", rival: "", competition: "Liga", date: "", goalsFor: undefined, goalsAgainst: undefined });
                                     }
                                   },
                                   onError: (err: unknown) => {
@@ -993,8 +1004,8 @@ export const Admin: React.FC = () => {
             </p>
           </div>
 
-          <form onSubmit={handleAddPlayer} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-            
+          <form onSubmit={handlePlayerSubmit(onPlayerSubmit)} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
             {/* Name fields */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
               <div className="form-group">
@@ -1003,10 +1014,15 @@ export const Admin: React.FC = () => {
                   type="text"
                   className="form-input"
                   placeholder="ej: Adrián"
-                  value={playerFirstName}
-                  onChange={(e) => setPlayerFirstName(e.target.value)}
-                  required
+                  {...registerPlayer("firstName")}
+                  aria-invalid={!!playerErrors.firstName}
+                  aria-describedby={playerErrors.firstName ? "player-firstname-error" : undefined}
                 />
+                {playerErrors.firstName && (
+                  <span id="player-firstname-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                    {playerErrors.firstName.message}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Apellidos</label>
@@ -1014,8 +1030,7 @@ export const Admin: React.FC = () => {
                   type="text"
                   className="form-input"
                   placeholder="ej: Gómez"
-                  value={playerLastName}
-                  onChange={(e) => setPlayerLastName(e.target.value)}
+                  {...registerPlayer("lastName")}
                 />
               </div>
             </div>
@@ -1028,11 +1043,16 @@ export const Admin: React.FC = () => {
                   type="text"
                   className="form-input"
                   placeholder="ej: ADRI"
-                  value={playerShirtName}
-                  onChange={(e) => setPlayerShirtName(e.target.value)}
                   maxLength={12}
-                  required
+                  {...registerPlayer("shirtName")}
+                  aria-invalid={!!playerErrors.shirtName}
+                  aria-describedby={playerErrors.shirtName ? "player-shirtname-error" : undefined}
                 />
+                {playerErrors.shirtName && (
+                  <span id="player-shirtname-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                    {playerErrors.shirtName.message}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Dorsal (Por Defecto)</label>
@@ -1040,10 +1060,15 @@ export const Admin: React.FC = () => {
                   type="number"
                   className="form-input"
                   placeholder="ej: 10"
-                  value={playerNumber}
-                  onChange={(e) => setPlayerNumber(e.target.value)}
-                  required
+                  {...registerPlayer("number", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
+                  aria-invalid={!!playerErrors.number}
+                  aria-describedby={playerErrors.number ? "player-number-error" : undefined}
                 />
+                {playerErrors.number && (
+                  <span id="player-number-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                    {playerErrors.number.message}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1054,8 +1079,7 @@ export const Admin: React.FC = () => {
                 <input
                   type="date"
                   className="form-input"
-                  value={playerBirthDate}
-                  onChange={(e) => setPlayerBirthDate(e.target.value)}
+                  {...registerPlayer("birthDate")}
                 />
               </div>
               <div className="form-group">
@@ -1075,7 +1099,7 @@ export const Admin: React.FC = () => {
                                 // Pre-fill with global defaults if available
                                 setSeasonDetailsState(prev => ({
                                   ...prev,
-                                  [s.id]: prev[s.id] || { shirtName: playerShirtName || "", number: playerNumber ? parseInt(playerNumber) : "" }
+                                  [s.id]: prev[s.id] || { shirtName: getPlayerValues("shirtName") || "", number: getPlayerValues("number") ?? "" }
                                 }));
                               } else {
                                 setPlayerSeasons(playerSeasons.filter(id => id !== s.id));
@@ -1148,9 +1172,15 @@ export const Admin: React.FC = () => {
                   type="number"
                   className="form-input"
                   placeholder="178"
-                  value={playerHeight}
-                  onChange={(e) => setPlayerHeight(e.target.value)}
+                  {...registerPlayer("height", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
+                  aria-invalid={!!playerErrors.height}
+                  aria-describedby={playerErrors.height ? "player-height-error" : undefined}
                 />
+                {playerErrors.height && (
+                  <span id="player-height-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                    {playerErrors.height.message}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Peso (kg)</label>
@@ -1158,9 +1188,15 @@ export const Admin: React.FC = () => {
                   type="number"
                   className="form-input"
                   placeholder="72"
-                  value={playerWeight}
-                  onChange={(e) => setPlayerWeight(e.target.value)}
+                  {...registerPlayer("weight", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
+                  aria-invalid={!!playerErrors.weight}
+                  aria-describedby={playerErrors.weight ? "player-weight-error" : undefined}
                 />
+                {playerErrors.weight && (
+                  <span id="player-weight-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
+                    {playerErrors.weight.message}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1168,7 +1204,7 @@ export const Admin: React.FC = () => {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={upsertPlayer.isPending}
+                disabled={upsertPlayer.isPending || playerSubmitting}
                 style={{ flex: 1 }}
               >
                 {editingPlayerId ? "Guardar Cambios" : "Registrar Jugador"}
@@ -1180,15 +1216,9 @@ export const Admin: React.FC = () => {
                   style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
                   onClick={() => {
                     setEditingPlayerId(null);
-                    setPlayerFirstName("");
-                    setPlayerLastName("");
-                    setPlayerShirtName("");
-                    setPlayerNumber("");
-                    setPlayerBirthDate("");
+                    resetPlayer({ firstName: "", lastName: "", shirtName: "", number: undefined, birthDate: "", height: undefined, weight: undefined });
                     setPlayerSeasons([]);
                     setSeasonDetailsState({});
-                    setPlayerHeight("");
-                    setPlayerWeight("");
                   }}
                 >
                   Cancelar Edición
@@ -1239,15 +1269,17 @@ export const Admin: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setEditingPlayerId(p.id);
-                          setPlayerFirstName(p.firstName || "");
-                          setPlayerLastName(p.lastName || "");
-                          setPlayerShirtName(p.shirtName || "");
-                          setPlayerNumber(p.number ? String(p.number) : "");
-                          setPlayerBirthDate(p.birthDate || "");
+                          resetPlayer({
+                            firstName: p.firstName || "",
+                            lastName: p.lastName || "",
+                            shirtName: p.shirtName || "",
+                            number: p.number ?? undefined,
+                            birthDate: p.birthDate || "",
+                            height: p.height ?? undefined,
+                            weight: p.weight ?? undefined,
+                          });
                           setPlayerSeasons(p.seasons || []);
-                          setPlayerHeight(p.height ? String(p.height) : "");
-                          setPlayerWeight(p.weight ? String(p.weight) : "");
-                          
+
                           const details: Record<string, { shirtName: string; number: number | "" }> = {};
                           if (p.seasonDetails) {
                             Object.entries(p.seasonDetails).forEach(([sId, data]: [string, { shirtName: string; number: number }]) => {
@@ -1276,15 +1308,9 @@ export const Admin: React.FC = () => {
                                 notifySuccess("¡Jugador eliminado correctamente!");
                                 if (editingPlayerId === p.id) {
                                   setEditingPlayerId(null);
-                                  setPlayerFirstName("");
-                                  setPlayerLastName("");
-                                  setPlayerShirtName("");
-                                  setPlayerNumber("");
-                                  setPlayerBirthDate("");
+                                  resetPlayer({ firstName: "", lastName: "", shirtName: "", number: undefined, birthDate: "", height: undefined, weight: undefined });
                                   setPlayerSeasons([]);
                                   setSeasonDetailsState({});
-                                  setPlayerHeight("");
-                                  setPlayerWeight("");
                                 }
                               },
                               onError: (err: unknown) => {
