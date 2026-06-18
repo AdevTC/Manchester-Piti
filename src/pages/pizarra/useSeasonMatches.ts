@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "../../firebase";
+import { parseDocs, seasonMatchSchema, type SeasonMatchDoc } from "../../lib/schemas";
 
 /** A match, reduced to what the official-scope picker needs to label it. */
 export interface SeasonMatch {
@@ -11,20 +12,15 @@ export interface SeasonMatch {
   dateMs: number | null;
 }
 
-interface RawMatch {
-  rival?: string;
-  goalsFor?: number;
-  goalsAgainst?: number;
-  date?: { seconds: number } | string | number | null;
-}
-
-function dateToMs(v: RawMatch["date"]): number | null {
+function dateToMs(v: SeasonMatchDoc["date"]): number | null {
   if (v == null) return null;
   if (typeof v === "number") return v;
   if (typeof v === "string") {
     const t = Date.parse(v);
     return Number.isNaN(t) ? null : t;
   }
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === "object" && "toMillis" in v) return v.toMillis();
   if (typeof v === "object" && "seconds" in v) return v.seconds * 1000;
   return null;
 }
@@ -43,16 +39,14 @@ export function useSeasonMatches(seasonId: string): { matches: SeasonMatch[]; lo
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const matches: SeasonMatch[] = snap.docs.map((dd) => {
-          const m = dd.data() as RawMatch;
-          return {
-            id: dd.id,
-            rival: m.rival || "Rival",
-            goalsFor: typeof m.goalsFor === "number" ? m.goalsFor : null,
-            goalsAgainst: typeof m.goalsAgainst === "number" ? m.goalsAgainst : null,
-            dateMs: dateToMs(m.date),
-          };
-        });
+        const validated = parseDocs(seasonMatchSchema, snap.docs, "matches");
+        const matches: SeasonMatch[] = validated.map((m) => ({
+          id: m.id,
+          rival: m.rival || "Rival",
+          goalsFor: typeof m.goalsFor === "number" ? m.goalsFor : null,
+          goalsAgainst: typeof m.goalsAgainst === "number" ? m.goalsAgainst : null,
+          dateMs: dateToMs(m.date),
+        }));
         setFeed({ seasonId, matches });
       },
       (err) => {

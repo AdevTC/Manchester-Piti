@@ -16,6 +16,7 @@ import { db } from "../../firebase";
 import { useAuth } from "../../context/AuthContext";
 import type { Lineup } from "./formations";
 import { dataToLineupDoc, lineupToData, type LineupDoc, type LineupMeta } from "./lineupDoc";
+import { lineupSchema } from "../../lib/schemas";
 
 // `?preview` injects a mock session but no real Firebase auth token, so the
 // `lineups` rules (request.auth != null) would reject reads/writes. In preview
@@ -80,7 +81,22 @@ export function useLineups(seasonId: string): UseLineups {
     const q = query(collection(db, "lineups"), where("seasonId", "==", seasonId));
     const unsub = onSnapshot(
       q,
-      (snap) => setDocs({ seasonId, items: snap.docs.map((d) => dataToLineupDoc(d.id, d.data())) }),
+      (snap) => {
+        // Validate at the edge: discard+log docs that aren't usable objects
+        // (e.g. missing seasonId). dataToLineupDoc handles all other missing
+        // fields with its own fallbacks — do NOT modify it.
+        const items: LineupDoc[] = [];
+        for (const d of snap.docs) {
+          const raw = d.data();
+          const r = lineupSchema.safeParse({ id: d.id, ...raw });
+          if (r.success) {
+            items.push(dataToLineupDoc(d.id, raw as Record<string, unknown>));
+          } else {
+            console.error(`[schema] doc inválido en lineups/${d.id}:`, r.error.issues);
+          }
+        }
+        setDocs({ seasonId, items });
+      },
       (err) => {
         console.error("Error cargando tableros:", err);
         setDocs({ seasonId, items: [] });

@@ -3,6 +3,7 @@ import { collection, doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useSeason, type Season } from "../../context/SeasonContext";
 import type { Zone } from "./formations";
+import { parseDocs, playerSchema } from "../../lib/schemas";
 
 // Local mirror of the Firestore `players` doc. Kept independent of the
 // Expedientes view so that view stays untouched; only the fields the board
@@ -87,7 +88,10 @@ export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolea
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "players"), (snap) => {
-      setDocs(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as PlayerDoc[]);
+      // Validate at the Firestore edge; naturalPosition is string in the schema
+      // but Zone in the local interface — the cast is safe because the board
+      // code only uses values written by the admin (always a valid Zone).
+      setDocs(parseDocs(playerSchema, snap.docs, "players") as PlayerDoc[]);
       setLoading(false);
     });
     return () => unsub();
