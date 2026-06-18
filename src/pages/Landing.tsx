@@ -3,7 +3,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { useCountUp } from "../hooks/useCountUp";
-import { useReveal } from "../hooks/useReveal";
+import { motion } from "motion/react";
 import { FloodlightCanvas } from "../components/FloodlightCanvas";
 import { Crest as CrestImg } from "../components/Crest";
 import "./Landing.css";
@@ -67,6 +67,13 @@ function toDate(value: MatchDoc["date"]): Date | null {
 function rv(i: number): React.CSSProperties {
   return { "--i": i } as React.CSSProperties;
 }
+
+const REVEAL = {
+  initial: { opacity: 0, y: 16 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, amount: 0.3 },
+  transition: { duration: 0.5, ease: "easeOut" },
+} as const;
 
 const Teaser: React.FC<{ onEnter: () => void }> = ({ onEnter }) => (
   <div className="mp-teaser">
@@ -173,8 +180,6 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
     };
   }, []);
 
-  useReveal(status);
-
   useEffect(() => {
     console.info(
       "%cManchester Piti",
@@ -257,14 +262,14 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
       <main className="mp-sections mp-wrap">
         {/* Último partido */}
         <section className="mp-section">
-          <div className="mp-section-head" data-reveal>
+          <motion.div className="mp-section-head" {...REVEAL}>
             <h2 className="mp-h2">El último partido</h2>
             <span className="mp-h2-rule" aria-hidden="true" />
-          </div>
+          </motion.div>
           {status === "loading" && <div className="mp-skel mp-skel-feat" />}
           {status === "empty" && <Teaser onEnter={onEnter} />}
           {status === "ready" && summary?.latest && (
-            <article data-reveal className={`mp-feat mp-feat-${summary.latest.outcome}`}>
+            <motion.article {...REVEAL} className={`mp-feat mp-feat-${summary.latest.outcome}`}>
               <span className="mp-feat-comp">{summary.latest.competition}</span>
               <div className="mp-feat-line">
                 <span className="mp-feat-team">Manchester Piti</span>
@@ -287,20 +292,20 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
                   </div>
                 )}
               </div>
-            </article>
+            </motion.article>
           )}
         </section>
 
         {/* Pichichi */}
         <section className="mp-section">
-          <div className="mp-section-head" data-reveal>
+          <motion.div className="mp-section-head" {...REVEAL}>
             <h2 className="mp-h2">El Pichichi</h2>
             <span className="mp-h2-rule" aria-hidden="true" />
-          </div>
+          </motion.div>
           {status === "loading" && <div className="mp-skel mp-skel-pichichi" />}
           {status === "empty" && <Teaser onEnter={onEnter} />}
           {status === "ready" && summary?.topScorer && (
-            <div className="mp-pichichi" data-reveal>
+            <motion.div className="mp-pichichi" {...REVEAL}>
               <div className="mp-pichichi-fig">
                 <CountUp className="n" value={summary.topScorer.goals} />
                 <span className="u">goles</span>
@@ -312,7 +317,7 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
                 </div>
                 <div className="role">Pichichi del club</div>
               </div>
-            </div>
+            </motion.div>
           )}
           {status === "ready" && !summary?.topScorer && (
             <div className="mp-teaser"><p>Todavía no hay goles registrados esta temporada.</p></div>
@@ -321,14 +326,14 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
 
         {/* Temporada */}
         <section className="mp-section" id="temporada">
-          <div className="mp-section-head" data-reveal>
+          <motion.div className="mp-section-head" {...REVEAL}>
             <h2 className="mp-h2">La temporada</h2>
             <span className="mp-h2-rule" aria-hidden="true" />
-          </div>
+          </motion.div>
           {status === "loading" && <div className="mp-skel mp-skel-band" />}
           {status === "empty" && <Teaser onEnter={onEnter} />}
           {status === "ready" && summary && (
-            <div className="mp-band" data-reveal>
+            <motion.div className="mp-band" {...REVEAL}>
               <div className="cell"><div className="v"><CountUp value={summary.played} /></div><div className="k">PJ</div></div>
               <div className="cell hl"><div className="v"><CountUp value={summary.wins} /></div><div className="k">Ganados</div></div>
               <div className="cell"><div className="v"><CountUp value={summary.draws} /></div><div className="k">Empat.</div></div>
@@ -336,18 +341,18 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
               <div className="cell"><div className="v"><CountUp value={summary.gf} /></div><div className="k">GF</div></div>
               <div className="cell"><div className="v"><CountUp value={summary.ga} /></div><div className="k">GC</div></div>
               <div className="cell hl"><div className="v"><CountUp value={summary.points} /></div><div className="k">Puntos</div></div>
-            </div>
+            </motion.div>
           )}
         </section>
 
         {/* CTA */}
-        <section className="mp-cta-band" data-reveal>
+        <motion.section className="mp-cta-band" {...REVEAL}>
           <h2>Entra al vestuario</h2>
           <p>Estadísticas completas, plantilla, historial de cada temporada y los récords del club.</p>
           <button type="button" className="mp-btn mp-btn-primary mp-btn-lg" onClick={onEnter}>
             Entrar
           </button>
-        </section>
+        </motion.section>
       </main>
 
       <footer className="mp-footer">

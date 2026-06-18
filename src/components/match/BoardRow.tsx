@@ -1,4 +1,5 @@
 import React, { useId, useMemo, useState } from "react";
+import { motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import { groupEvents, outcomeOf, OUTCOME, compactDate, formatLongDate, type MatchDoc } from "./matchData";
 import { DotMatrixScorers, BoardSheet, FlapTile } from "./BoardBits";
@@ -23,7 +24,15 @@ export const BoardRow: React.FC<{ match: MatchDoc; playersMap: Record<string, st
   const accName = `${OUTCOME[outcome].word}, Manchester Piti ${gf}, ${match.rival ?? "Rival"} ${gc}. ${match.competition || "Liga"}. ${formatLongDate(match.date)}`;
 
   return (
-    <li className="mp-bd-row" style={{ ["--i" as string]: Math.min(index, 16) } as React.CSSProperties} data-reveal data-outcome={outcome}>
+    <motion.li
+      className="mp-bd-row"
+      style={{ ["--i" as string]: Math.min(index, 16) } as React.CSSProperties}
+      data-outcome={outcome}
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.5, delay: Math.min(index, 16) * 0.05, ease: "easeOut" }}
+    >
       <div className="mp-bd-row-main">
         <div className="mp-bd-row-result">
           <FlapTile outcome={outcome} />
@@ -75,6 +84,6 @@ export const BoardRow: React.FC<{ match: MatchDoc; playersMap: Record<string, st
           <BoardSheet groups={groups} goalsFor={gf} />
         </div>
       )}
-    </li>
+    </motion.li>
   );
 };
