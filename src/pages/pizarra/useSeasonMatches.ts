@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { useMemo } from "react";
+import { collection, orderBy, query } from "firebase/firestore";
 import { db } from "../../firebase";
-import { parseDocs, seasonMatchSchema, type SeasonMatchDoc } from "../../lib/schemas";
+import { type SeasonMatchDoc } from "../../lib/schemas";
+import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
+import { mapMatch } from "../../lib/firestoreMappers";
 
 /** A match, reduced to what the official-scope picker needs to label it. */
 export interface SeasonMatch {
@@ -11,6 +13,12 @@ export interface SeasonMatch {
   goalsAgainst: number | null;
   dateMs: number | null;
 }
+
+// Canonical key + mapper: ONE subscription to all matches (date desc), shared
+// with MatchCenter/Stats/Expedientes/pizarra. Per-season filtering happens in
+// memory below, so every page that reads `matches` costs a single listener.
+const MATCHES_KEY = ["matches"] as const;
+const matchesQuery = query(collection(db, "matches"), orderBy("date", "desc"));
 
 function dateToMs(v: SeasonMatchDoc["date"]): number | null {
   if (v == null) return null;
@@ -27,38 +35,21 @@ function dateToMs(v: SeasonMatchDoc["date"]): number | null {
 
 /** Realtime matches for the active season (admins only consume this). */
 export function useSeasonMatches(seasonId: string): { matches: SeasonMatch[]; loading: boolean } {
-  const [feed, setFeed] = useState<{ seasonId: string; matches: SeasonMatch[] }>({ seasonId: "", matches: [] });
-  const loaded = feed.seasonId === seasonId;
+  const { data, isPending } = useFirestoreCollection(MATCHES_KEY, matchesQuery, mapMatch);
 
-  useEffect(() => {
-    const ref = collection(db, "matches");
-    const q =
-      seasonId === "all"
-        ? query(ref, orderBy("date", "desc"))
-        : query(ref, where("seasonId", "==", seasonId), orderBy("date", "desc"));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const validated = parseDocs(seasonMatchSchema, snap.docs, "matches");
-        const matches: SeasonMatch[] = validated.map((m) => ({
-          id: m.id,
-          rival: m.rival || "Rival",
-          goalsFor: typeof m.goalsFor === "number" ? m.goalsFor : null,
-          goalsAgainst: typeof m.goalsAgainst === "number" ? m.goalsAgainst : null,
-          dateMs: dateToMs(m.date),
-        }));
-        setFeed({ seasonId, matches });
-      },
-      (err) => {
-        console.error("Error cargando partidos:", err);
-        setFeed({ seasonId, matches: [] });
-      },
-    );
-    return () => unsub();
-  }, [seasonId]);
+  const matches = useMemo<SeasonMatch[]>(() => {
+    const all = data ?? [];
+    const inSeason = seasonId === "all" ? all : all.filter((m) => m.seasonId === seasonId);
+    return inSeason.map((m) => ({
+      id: m.id,
+      rival: m.rival || "Rival",
+      goalsFor: typeof m.goalsFor === "number" ? m.goalsFor : null,
+      goalsAgainst: typeof m.goalsAgainst === "number" ? m.goalsAgainst : null,
+      dateMs: dateToMs(m.date),
+    }));
+  }, [data, seasonId]);
 
-  const matches = useMemo(() => (loaded ? feed.matches : []), [loaded, feed.matches]);
-  return { matches, loading: !loaded };
+  return { matches, loading: isPending };
 }
 
 /** A human label for a match, e.g. "vs Rival · 12 may · 3-1". */

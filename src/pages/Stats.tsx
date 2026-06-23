@@ -3,8 +3,10 @@ import { createPortal } from "react-dom";
 import { useSeason, type Season } from "../context/SeasonContext";
 import { Leaderboard } from "../components/Leaderboard";
 import { Jersey } from "../components/Jersey";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
+import { useFirestoreCollection } from "../lib/useFirestoreCollection";
+import { mapPlayer, mapMatch } from "../lib/firestoreMappers";
 import { Shield, Sparkles, TrendingUp, X, Award, Trophy, Zap, Flame, Users, Target, Crown, Info } from "lucide-react";
 import {
   Select,
@@ -126,6 +128,15 @@ interface PlayerDoc {
   seasonDetails?: Record<string, { shirtName: string; number: number }>;
 }
 
+// Shared realtime subscriptions via the cache bridge using the CANONICAL
+// mappers (full validated docs): one onSnapshot for `players` and one for all
+// `matches` (date desc), deduped across pages. The per-season filtering + stat
+// derivation stays in the component.
+const PLAYERS_KEY = ["players"] as const;
+const MATCHES_KEY = ["matches"] as const;
+const playersQuery = collection(db, "players");
+const matchesQuery = query(collection(db, "matches"), orderBy("date", "desc"));
+
 // One days-as-leader streak, as rendered in the record details modal.
 interface DaysStreak {
   startStr: string;
@@ -182,11 +193,17 @@ export const Stats: React.FC = () => {
   const [playerAId, setPlayerAId] = useState<string>("");
   const [playerBId, setPlayerBId] = useState<string>("");
 
-  const [players, setPlayers] = useState<PlayerDoc[]>([]);
-  const [matches, setMatches] = useState<MatchDoc[]>([]);
-  // Loading is derived from whether matches for the active season have arrived,
-  // so we never call setState synchronously in the effect (set-state-in-effect).
-  const [loadedKey, setLoadedKey] = useState<string>("");
+  // Shared realtime subscriptions via the cache bridge (one onSnapshot per
+  // collection across pages); per-season match filtering stays here in useMemo.
+  // The canonical mappers return the full validated docs; this view reads them
+  // defensively (|| "" / || 0), so the casts to the local shapes are safe.
+  const { data: playersData } = useFirestoreCollection(PLAYERS_KEY, playersQuery, mapPlayer);
+  const { data: matchesData, isPending } = useFirestoreCollection(MATCHES_KEY, matchesQuery, mapMatch);
+  const players = useMemo<PlayerDoc[]>(() => (playersData ?? []) as unknown as PlayerDoc[], [playersData]);
+  const matches = useMemo<MatchDoc[]>(() => {
+    const all = (matchesData ?? []) as MatchDoc[];
+    return selectedSeasonId === "all" ? all : all.filter((m) => m.seasonId === selectedSeasonId);
+  }, [matchesData, selectedSeasonId]);
 
   // Initialize default players for comparison when players list is loaded.
   // Intentional: seeds the default A/B selection once the roster loads.
@@ -211,45 +228,8 @@ export const Stats: React.FC = () => {
   }, [players, playerAId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // 1. Fetch Roster and Matches in parallel
-  useEffect(() => {
-    // Fetch players
-    const playersRef = collection(db, "players");
-    const unsubscribePlayers = onSnapshot(playersRef, (playerSnapshot) => {
-      const loadedPlayers = playerSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as PlayerDoc[];
-      setPlayers(loadedPlayers);
-    });
-
-    // Fetch matches based on filter
-    const matchesRef = collection(db, "matches");
-    let matchesQuery = query(matchesRef);
-    if (selectedSeasonId !== "all") {
-      matchesQuery = query(matchesRef, where("seasonId", "==", selectedSeasonId));
-    }
-
-    const unsubscribeMatches = onSnapshot(matchesQuery, (matchSnapshot) => {
-      const loadedMatches = matchSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as MatchDoc[];
-      setMatches(loadedMatches);
-      setLoadedKey(selectedSeasonId);
-    }, (err) => {
-      console.error(err);
-      setLoadedKey(selectedSeasonId);
-    });
-
-    return () => {
-      unsubscribePlayers();
-      unsubscribeMatches();
-    };
-  }, [selectedSeasonId]);
-
-  // Matches for the active season have arrived once loadedKey matches it.
-  const loading = loadedKey !== selectedSeasonId;
+  // Matches arrive via the shared subscription; loading tracks their first load.
+  const loading = isPending;
 
   // 2. Perform Dynamic Calculations
   const teamStats: TeamStats = {

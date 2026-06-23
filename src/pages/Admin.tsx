@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "../firebase";
+import { useFirestoreCollection } from "../lib/useFirestoreCollection";
+import { mapSeason, mapPlayer, mapMatch } from "../lib/firestoreMappers";
 import {
   useUpsertSeason,
   useDeleteSeason,
@@ -29,12 +31,8 @@ import {
   type MatchFormValues,
   playerFormSchema,
   type PlayerFormValues,
-  parseDocs,
   dropNullFields,
-  seasonSchema,
-  playerSchema,
   userDocSchema,
-  seasonMatchSchema,
 } from "../lib/schemas";
 import {
   Select,
@@ -100,13 +98,48 @@ interface MatchDoc {
   events?: MatchEventForm[];
 }
 
+// Shared realtime subscriptions via the cache bridge using the CANONICAL
+// per-collection mappers (full validated docs): seasons (shared with
+// SeasonContext), players + all matches (shared with MatchCenter/Stats/
+// Expedientes/pizarra). Admin's own field defaulting/sorting stays in useMemo
+// below. `users` is Admin-only with a `uid`-keyed mapper → manual onSnapshot.
+const SEASONS_KEY = ["seasons"] as const;
+const PLAYERS_KEY = ["players"] as const;
+const MATCHES_KEY = ["matches"] as const;
+const seasonsQuery = query(collection(db, "seasons"), orderBy("name", "asc"));
+const playersQuery = collection(db, "players");
+const matchesQuery = query(collection(db, "matches"), orderBy("date", "desc"));
+
 export const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"seasons" | "roster" | "matches" | "admins">("matches");
   const { updateUserRole } = useAuth();
-  
-  // Real-time collections loaded for form dropdowns
-  const [seasons, setSeasons] = useState<Season[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
+
+  // Real-time collections loaded for form dropdowns (deduped via the bridge).
+  const { data: seasonsData } = useFirestoreCollection(SEASONS_KEY, seasonsQuery, mapSeason);
+  const { data: playersData } = useFirestoreCollection(PLAYERS_KEY, playersQuery, mapPlayer);
+  const { data: matchesData } = useFirestoreCollection(MATCHES_KEY, matchesQuery, mapMatch);
+  const seasons = useMemo<Season[]>(
+    () => (seasonsData ?? []).map((s) => ({ id: s.id, name: s.name, captainPlayerId: s.captainPlayerId || "" })),
+    [seasonsData],
+  );
+  const players = useMemo<Player[]>(() => {
+    const loaded: Player[] = (playersData ?? []).map((p) => ({
+      id: p.id,
+      firstName: p.firstName || "",
+      lastName: p.lastName || "",
+      shirtName: p.shirtName || "",
+      number: p.number || 0,
+      birthDate: p.birthDate || "",
+      seasons: p.seasons || [],
+      height: p.height,
+      weight: p.weight,
+      seasonDetails: p.seasonDetails as Player["seasonDetails"],
+    }));
+    return loaded.sort((a, b) => a.number - b.number);
+  }, [playersData]);
+  // looseObject preserves passthrough fields (competition, events, date); the
+  // single cast bridges the schema's loose extras to MatchDoc's precise typing.
+  const matches = useMemo<MatchDoc[]>(() => (matchesData ?? []) as MatchDoc[], [matchesData]);
   const [usersList, setUsersList] = useState<UserDoc[]>([]);
   
   // Action notifications
@@ -170,7 +203,6 @@ export const Admin: React.FC = () => {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editingSeasonId, setEditingSeasonId] = useState<string | null>(null);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
-  const [matches, setMatches] = useState<MatchDoc[]>([]);
 
   // Match Events state
   const [matchEvents, setMatchEvents] = useState<MatchEventForm[]>([]);
@@ -178,39 +210,10 @@ export const Admin: React.FC = () => {
   const [currentEventPlayer, setCurrentEventPlayer] = useState("");
   const [currentEventAssistant, setCurrentEventAssistant] = useState("");
 
-  // Load Seasons, Players and Users
+  // Users: Admin-only, keyed by `uid` (not `id`), so it stays a manual
+  // subscription with its bespoke mapper (no shared-cache benefit). seasons/
+  // players/matches come from the deduped bridge above.
   useEffect(() => {
-    const unsubscribeSeasons = onSnapshot(
-      query(collection(db, "seasons"), orderBy("name", "asc")),
-      (snapshot) => {
-        // Validate at the edge; Admin maps captainPlayerId || "" (not undefined)
-        const validated = parseDocs(seasonSchema, snapshot.docs, "seasons");
-        setSeasons(validated.map((s) => ({ id: s.id, name: s.name, captainPlayerId: s.captainPlayerId || "" })));
-      }
-    );
-
-    const unsubscribePlayers = onSnapshot(
-      query(collection(db, "players")),
-      (snapshot) => {
-        // Validate at the edge; keep existing field-by-field mapping + defaults
-        const validated = parseDocs(playerSchema, snapshot.docs, "players");
-        const loadedPlayers: Player[] = validated.map((p) => ({
-          id: p.id,
-          firstName: p.firstName || "",
-          lastName: p.lastName || "",
-          shirtName: p.shirtName || "",
-          number: p.number || 0,
-          birthDate: p.birthDate || "",
-          seasons: p.seasons || [],
-          height: p.height,
-          weight: p.weight,
-          seasonDetails: p.seasonDetails as Player["seasonDetails"],
-        }));
-        loadedPlayers.sort((a, b) => a.number - b.number);
-        setPlayers(loadedPlayers);
-      }
-    );
-
     const unsubscribeUsers = onSnapshot(
       query(collection(db, "users"), orderBy("nickname", "asc")),
       (snapshot) => {
@@ -226,23 +229,7 @@ export const Admin: React.FC = () => {
         setUsersList(items);
       }
     );
-
-    const unsubscribeMatches = onSnapshot(
-      query(collection(db, "matches"), orderBy("date", "desc")),
-      (snapshot) => {
-        // looseObject preserves passthrough fields (competition, events, date); the
-        // single cast bridges the schema's loose extras to MatchDoc's precise typing
-        // (date/events are modeled precisely in the Phase 6 match-form work, not here).
-        setMatches(parseDocs(seasonMatchSchema, snapshot.docs, "matches") as MatchDoc[]);
-      }
-    );
-
-    return () => {
-      unsubscribeSeasons();
-      unsubscribePlayers();
-      unsubscribeUsers();
-      unsubscribeMatches();
-    };
+    return () => unsubscribeUsers();
   }, []);
 
   // Utility to clear notification messages after timeout
