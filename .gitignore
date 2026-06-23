@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Local env files (Firebase web config, etc.) — keep out of git.
+# Copy .env.example → .env and fill in your values.
+.env
+.env.*
+!.env.example
+
 # Impeccable / brainstorm scratch + local session state
 .superpowers/
 .impeccable/live/sessions/
