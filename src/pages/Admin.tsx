@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
@@ -110,8 +111,18 @@ const seasonsQuery = query(collection(db, "seasons"), orderBy("name", "asc"));
 const playersQuery = collection(db, "players");
 const matchesQuery = query(collection(db, "matches"), orderBy("date", "desc"));
 
+// Active tab lives in the `?tab` search param (validated by adminSearchSchema,
+// merged with the inherited `season`) so it is deep-linkable and persists on
+// reload. The role guard is unchanged — it gates this page in RootLayout.
+const route = getRouteApi("/admin");
+
 export const Admin: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"seasons" | "roster" | "matches" | "admins">("matches");
+  // Read the tab from the URL (source of truth); write via navigate with a
+  // functional updater so `season`/other params are preserved.
+  const { tab: activeTab } = route.useSearch();
+  const navigate = useNavigate({ from: "/admin" });
+  const setActiveTab = (tab: "seasons" | "roster" | "matches" | "admins") =>
+    void navigate({ search: (prev) => ({ ...prev, tab }) });
   const { updateUserRole } = useAuth();
 
   // Real-time collections loaded for form dropdowns (deduped via the bridge).
