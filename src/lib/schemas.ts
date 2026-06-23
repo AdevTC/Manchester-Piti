@@ -176,6 +176,10 @@ export const matchFormSchema = matchResultSchema.extend({
   seasonId: z.string().min(1, "Debes seleccionar una Temporada."),
   competition: z.string().min(1),
   date: z.string().min(1, "Escribe la fecha y hora del partido."),
+  // Friendly required-message for the empty number inputs (RHF maps empty→undefined);
+  // without this they'd surface Zod's raw "expected number, received undefined".
+  goalsFor: z.number({ message: "Introduce los goles a favor." }).int().min(0, "No puede ser negativo."),
+  goalsAgainst: z.number({ message: "Introduce los goles en contra." }).int().min(0, "No puede ser negativo."),
 });
 export type MatchFormValues = z.infer<typeof matchFormSchema>;
 
