@@ -8,7 +8,13 @@ import {
 import { z } from "zod";
 import { RootLayout } from "./RootLayout";
 import { queryClient } from "./lib/queryClient";
-import { matchDetailQuery, playerDetailQuery } from "./lib/detailQueries";
+import { matchDetailQuery, playerDetailQuery, playersNameMapQuery } from "./lib/detailQueries";
+import {
+  RoutePending,
+  RouteError,
+  MatchDetailPending,
+  PlayerProfilePending,
+} from "./components/route-states";
 
 // Source of truth for the Plantilla route's `validateSearch` (below); exported
 // so it can be reused elsewhere (e.g. Phase 4). Invalid `mode` falls back to
@@ -89,7 +95,15 @@ const adminRoute = createRoute({
 const matchDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/matches/$matchId",
-  loader: ({ params }) => queryClient.ensureQueryData(matchDetailQuery(params.matchId)),
+  // Warm BOTH the match doc and the players name map so a deep-link arrives with
+  // the event labels already hot (the page reads the same queryKeys via useQuery
+  // → no second fetch on mount). Promise.all keeps the two reads concurrent.
+  loader: ({ params }) =>
+    Promise.all([
+      queryClient.ensureQueryData(matchDetailQuery(params.matchId)),
+      queryClient.ensureQueryData(playersNameMapQuery),
+    ]),
+  pendingComponent: MatchDetailPending,
   component: lazyRouteComponent(() => import("./pages/MatchDetail"), "MatchDetail"),
 });
 
@@ -97,6 +111,7 @@ const playerProfileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/jugadores/$playerId",
   loader: ({ params }) => queryClient.ensureQueryData(playerDetailQuery(params.playerId)),
+  pendingComponent: PlayerProfilePending,
   component: lazyRouteComponent(() => import("./pages/PlayerProfile"), "PlayerProfile"),
 });
 
@@ -114,6 +129,13 @@ export const router = createRouter({
   routeTree,
   defaultPreload: "intent",
   scrollRestoration: true,
+  // Per-route boundaries (Phase 4). defaultPendingComponent only fires for routes
+  // WITH a loader (the detail routes; list routes are realtime, so they handle
+  // their own component-level loading) and only after defaultPendingMs (1000ms)
+  // for at least defaultPendingMinMs (500ms). defaultErrorComponent gives every
+  // route an error boundary so a loader/render failure never blanks the screen.
+  defaultPendingComponent: RoutePending,
+  defaultErrorComponent: RouteError,
 });
 
 declare module "@tanstack/react-router" {
