@@ -20,6 +20,7 @@ import {
   type PlayerDoc,
   type SeasonMatchDoc,
 } from "./schemas";
+import { reportDroppedDoc } from "./docTelemetry";
 
 /** Raw validated lineup doc. lineupSchema is a looseObject, so all board fields
  *  (formation/slots/bench/roles/…) pass through; dataToLineupDoc derives the
@@ -30,7 +31,7 @@ export type RawLineupDoc = Record<string, unknown> & { id: string };
 export function mapSeason(id: string, data: unknown): SeasonDoc | null {
   const r = seasonSchema.safeParse({ id, ...dropNullFields(data as Record<string, unknown>) });
   if (!r.success) {
-    console.error(`[schema] doc inválido en seasons/${id}:`, r.error.issues);
+    reportDroppedDoc("seasons", id, r.error.issues);
     return null;
   }
   return r.data;
@@ -40,7 +41,7 @@ export function mapSeason(id: string, data: unknown): SeasonDoc | null {
 export function mapPlayer(id: string, data: unknown): PlayerDoc | null {
   const r = playerSchema.safeParse({ id, ...dropNullFields(data as Record<string, unknown>) });
   if (!r.success) {
-    console.error(`[schema] doc inválido en players/${id}:`, r.error.issues);
+    reportDroppedDoc("players", id, r.error.issues);
     return null;
   }
   return r.data;
@@ -51,7 +52,7 @@ export function mapPlayer(id: string, data: unknown): PlayerDoc | null {
 export function mapMatch(id: string, data: unknown): SeasonMatchDoc | null {
   const r = seasonMatchSchema.safeParse({ id, ...dropNullFields(data as Record<string, unknown>) });
   if (!r.success) {
-    console.error(`[schema] doc inválido en matches/${id}:`, r.error.issues);
+    reportDroppedDoc("matches", id, r.error.issues);
     return null;
   }
   return r.data;
@@ -64,7 +65,7 @@ export function mapLineup(id: string, data: unknown): RawLineupDoc | null {
   const raw = dropNullFields(data as Record<string, unknown>);
   const r = lineupSchema.safeParse({ id, ...raw });
   if (!r.success) {
-    console.error(`[schema] doc inválido en lineups/${id}:`, r.error.issues);
+    reportDroppedDoc("lineups", id, r.error.issues);
     return null;
   }
   return { id, ...raw };

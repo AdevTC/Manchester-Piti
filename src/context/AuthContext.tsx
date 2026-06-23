@@ -3,6 +3,7 @@ import { type User, signInWithPopup, signOut, onAuthStateChanged } from "firebas
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, googleProvider, db } from "../firebase";
 import { userProfileSchema, normalizeNickname } from "../lib/schemas";
+import { reportDroppedDoc } from "../lib/docTelemetry";
 
 export interface UserProfile {
   email: string;
@@ -74,7 +75,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (userDoc.exists()) {
             const parsed = userProfileSchema.safeParse(userDoc.data());
             if (!parsed.success) {
-              console.error("Perfil de usuario inválido:", parsed.error.issues);
+              // Descarte de lectura MÁS consecuente (bloquea la sesión): que sea
+              // detectable en prod vía la telemetría central, no solo console.
+              reportDroppedDoc("users", currentUser.uid, parsed.error.issues);
               setProfile(null);
               setLoading(false);
               return;

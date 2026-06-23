@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { reportDroppedDoc } from "./docTelemetry";
 
 /**
  * Firestore Timestamp-ish (tiene toMillis) o Date o número epoch.
@@ -43,10 +44,18 @@ export type SeasonDoc = z.infer<typeof seasonSchema>;
  *   presentes, deben ser enteros no negativos. Un valor negativo indica
  *   corrupción y el doc se descarta+loguea.
  * - `date` acepta las tres formas que emite Firestore (Timestamp, string, ms).
+ * - `events` se modela como array OPCIONAL y NO-rechazante: el contenido pasa
+ *   como `z.unknown()` (cada consumidor re-tipa sus eventos con su propia
+ *   interfaz), pero `.catch(undefined)` garantiza que si `events` está presente
+ *   sea un array; un valor corrupto no-array se normaliza a ausente en vez de
+ *   pasar tal cual (lo que rompería los `events.forEach` downstream) y SIN
+ *   descartar el doc. Todos los consumidores leen `match.events || []` /
+ *   `?? []`, así que tolerar `undefined` es seguro. Endurecer aquí es seguro:
+ *   ningún doc renderizable se descarta y se evita un crash por dato corrupto.
  *
- * Es un `z.looseObject`: deja pasar campos extra (competition, events, date en
- * forma de Timestamp) que el MatchDoc de Admin necesita. useSeasonMatches solo
- * lee los campos conocidos, así que el passthrough no le afecta.
+ * Es un `z.looseObject`: deja pasar campos extra (competition, date en forma de
+ * Timestamp) que el MatchDoc de Admin necesita. useSeasonMatches solo lee los
+ * campos conocidos, así que el passthrough no le afecta.
  */
 export const seasonMatchSchema = z.looseObject({
   id: z.string(),
@@ -56,6 +65,8 @@ export const seasonMatchSchema = z.looseObject({
   goalsAgainst: z.number().int().min(0).optional(),
   // null se normaliza a ausente en parseDocs, así que basta con .optional().
   date: firestoreDate.optional(),
+  // Ver nota arriba: array-o-ausente, nunca descarta el doc (.catch).
+  events: z.array(z.unknown()).optional().catch(undefined),
 });
 export type SeasonMatchDoc = z.infer<typeof seasonMatchSchema>;
 
@@ -219,7 +230,8 @@ export type SeasonFormValues = z.infer<typeof seasonFormSchema>;
 export function safeParseDoc<T>(schema: z.ZodType<T>, data: unknown, fallback: T, ctx: string): T {
   const r = schema.safeParse(data);
   if (r.success) return r.data;
-  console.error(`[schema] documento inválido en ${ctx}:`, r.error.issues);
+  // Single doc: no id in the signature, so report with "-" as the placeholder id.
+  reportDroppedDoc(ctx, "-", r.error.issues);
   return fallback;
 }
 
@@ -247,7 +259,7 @@ export function parseDocs<T>(
   for (const d of docs) {
     const r = schema.safeParse({ id: d.id, ...dropNullFields(d.data() as object) });
     if (r.success) out.push(r.data);
-    else console.error(`[schema] doc inválido en ${ctx}/${d.id}:`, r.error.issues);
+    else reportDroppedDoc(ctx, d.id, r.error.issues);
   }
   return out;
 }

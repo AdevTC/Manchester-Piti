@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   userProfileSchema,
   nicknameSchema,
@@ -7,12 +7,14 @@ import {
   playerFormSchema,
   seasonFormSchema,
   parseDocs,
+  safeParseDoc,
   seasonSchema,
   seasonMatchSchema,
   playerSchema,
   userDocSchema,
   lineupSchema,
 } from "./schemas";
+import { getDroppedDocStats, resetDroppedDocStats } from "./docTelemetry";
 
 describe("nicknameSchema", () => {
   it("normaliza a minúsculas y recorta", () => {
@@ -132,6 +134,15 @@ describe("playerFormSchema", () => {
 // ── New schemas ──────────────────────────────────────────────────────────────
 
 describe("parseDocs", () => {
+  beforeEach(() => {
+    resetDroppedDocStats();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetDroppedDocStats();
+  });
+
   it("descarta docs inválidos y conserva los válidos", () => {
     const docs = [
       { id: "ok", data: () => ({ rival: "X", goalsFor: 1, goalsAgainst: 0, seasonId: "s1" }) },
@@ -139,6 +150,23 @@ describe("parseDocs", () => {
     ];
     const out = parseDocs(seasonMatchSchema, docs, "matches");
     expect(out.map((m) => m.id)).toEqual(["ok"]);
+  });
+
+  it("alimenta la telemetría de descartes (contador por colección)", () => {
+    const docs = [
+      { id: "ok", data: () => ({ seasonId: "s1" }) },
+      { id: "bad1", data: () => ({ seasonId: "s1", goalsFor: -3 }) },
+      { id: "bad2", data: () => ({ seasonId: "s1", goalsAgainst: -1 }) },
+    ];
+    parseDocs(seasonMatchSchema, docs, "matches");
+    expect(getDroppedDocStats().matches).toBe(2);
+  });
+
+  it("safeParseDoc devuelve el fallback y cuenta el descarte (resiliencia)", () => {
+    const fallback = { id: "fb", name: "fallback" };
+    const out = safeParseDoc(seasonSchema, { id: "x" }, fallback, "seasons");
+    expect(out).toBe(fallback);
+    expect(getDroppedDocStats().seasons).toBe(1);
   });
 
   it("acepta docs con campos opcionales ausentes", () => {
@@ -200,7 +228,7 @@ describe("seasonMatchSchema", () => {
     expect(r.success).toBe(true);
   });
 
-  it("conserva campos extra (looseObject passthrough: competition, events)", () => {
+  it("conserva campos extra (looseObject passthrough: competition) y los events array", () => {
     const r = seasonMatchSchema.safeParse({
       id: "m1",
       seasonId: "s1",
@@ -211,8 +239,23 @@ describe("seasonMatchSchema", () => {
     if (r.success) {
       const data = r.data as Record<string, unknown>;
       expect(data.competition).toBe("Liga");
+      // events es array opcional: el contenido (z.unknown()) pasa intacto.
       expect(data.events).toEqual([{ type: "goal", playerId: "p1" }]);
     }
+  });
+
+  it("acepta events ausente (partido sin eventos registrados)", () => {
+    const r = seasonMatchSchema.safeParse({ id: "m1", seasonId: "s1" });
+    expect(r.success).toBe(true);
+    if (r.success) expect((r.data as Record<string, unknown>).events).toBeUndefined();
+  });
+
+  it("events corrupto NO descarta el doc: .catch normaliza un no-array a ausente", () => {
+    // Regresión inversa: antes un events no-array pasaba tal cual y rompía
+    // los .forEach downstream. Ahora .catch(undefined) lo normaliza sin descartar.
+    const r = seasonMatchSchema.safeParse({ id: "m1", seasonId: "s1", events: "corrupto" });
+    expect(r.success).toBe(true);
+    if (r.success) expect((r.data as Record<string, unknown>).events).toBeUndefined();
   });
 
   it("rechaza goalsFor negativo (campo presente pero corrupto)", () => {
