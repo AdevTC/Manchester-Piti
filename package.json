@@ -8,7 +8,11 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:ci": "firebase emulators:exec --only auth,firestore --project futbolmanagement-dc6cb \"playwright test\"",
+    "emulators": "firebase emulators:start --only auth,firestore --project futbolmanagement-dc6cb"
   },
   "dependencies": {
     "@dnd-kit/helpers": "^0.5.0",
@@ -34,6 +38,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.0",
     "@tanstack/react-query-devtools": "^5.101.0",
     "@tanstack/router-devtools": "^1.167.0",
     "@testing-library/dom": "^10.4.1",

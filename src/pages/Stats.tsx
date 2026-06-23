@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
@@ -227,6 +227,16 @@ export const Stats: React.FC = () => {
   const [activeRivalInfo, setActiveRivalInfo] = useState<string | null>(null);
   const [playerAId, setPlayerAId] = useState<string>("");
   const [playerBId, setPlayerBId] = useState<string>("");
+  // Mirror the latest playerBId into a ref so the seeding effect below can READ
+  // it without DEPENDING on it. The seeding effect must re-seed when the roster
+  // or playerA changes, but must NOT re-run (and clobber the user's pick) every
+  // time the user edits playerB — so playerBId is deliberately out of its deps.
+  // The ref is written in its own effect (never during render) so the
+  // react-hooks/refs rule is satisfied honestly instead of suppressed.
+  const playerBIdRef = useRef(playerBId);
+  useEffect(() => {
+    playerBIdRef.current = playerBId;
+  }, [playerBId]);
 
   // Shared realtime subscriptions via the cache bridge (one onSnapshot per
   // collection across pages); per-season match filtering stays here in useMemo.
@@ -243,7 +253,8 @@ export const Stats: React.FC = () => {
   // Initialize default players for comparison when players list is loaded.
   // Intentional: seeds the default A/B selection once the roster loads.
   // playerAId/playerBId are also user-mutable via the compare dropdowns, so this
-  // cannot be a pure derive.
+  // cannot be a pure derive. playerBId is read via playerBIdRef (above) so the
+  // effect does not depend on it — see that ref's comment for why.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (players.length > 0) {
@@ -251,7 +262,8 @@ export const Stats: React.FC = () => {
         setPlayerAId(players[0].id);
       }
       if (players.length > 1) {
-        if (!playerBId || !players.some(p => p.id === playerBId) || playerBId === players[0].id) {
+        const currentBId = playerBIdRef.current;
+        if (!currentBId || !players.some(p => p.id === currentBId) || currentBId === players[0].id) {
           // Choose the second player, or the first one if we only have one
           const secondPlayer = players.find(p => p.id !== (playerAId || players[0].id));
           if (secondPlayer) setPlayerBId(secondPlayer.id);
