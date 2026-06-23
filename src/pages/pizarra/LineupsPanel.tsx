@@ -3,6 +3,7 @@ import { ChevronDown, ClipboardList, Copy, Crown, Pencil, Plus, Save, Trash2 } f
 import type { LineupDoc } from "./lineupDoc";
 import { matchLabel, type SeasonMatch } from "./useSeasonMatches";
 import { Button } from "../../components/ui/button";
+import { Hint } from "../../components/ui/hint";
 import {
   Dialog,
   DialogContent,
@@ -239,30 +240,36 @@ export const LineupsPanel: React.FC<LineupsPanelProps> = (props) => {
                       <span className="pz-board-date">{dateOf(d.updatedAt)}</span>
                     </button>
                     <span className="pz-board-rowacts">
-                      <button
-                        type="button"
-                        className="pz-board-act"
-                        aria-label={`Renombrar ${d.name}`}
-                        onClick={() => setDialog({ kind: "rename", id: d.id, name: d.name })}
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        className="pz-board-act"
-                        aria-label={`Duplicar ${d.name}`}
-                        onClick={() => props.onSaveAs(`Copia de ${d.name}`)}
-                      >
-                        <Copy size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        className="pz-board-act pz-board-act--danger"
-                        aria-label={`Borrar ${d.name}`}
-                        onClick={() => props.onRemove(d.id)}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      <Hint label="Renombrar">
+                        <button
+                          type="button"
+                          className="pz-board-act"
+                          aria-label={`Renombrar ${d.name}`}
+                          onClick={() => setDialog({ kind: "rename", id: d.id, name: d.name })}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      </Hint>
+                      <Hint label="Duplicar">
+                        <button
+                          type="button"
+                          className="pz-board-act"
+                          aria-label={`Duplicar ${d.name}`}
+                          onClick={() => props.onSaveAs(`Copia de ${d.name}`)}
+                        >
+                          <Copy size={13} />
+                        </button>
+                      </Hint>
+                      <Hint label="Borrar">
+                        <button
+                          type="button"
+                          className="pz-board-act pz-board-act--danger"
+                          aria-label={`Borrar ${d.name}`}
+                          onClick={() => props.onRemove(d.id)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </Hint>
                     </span>
                   </li>
                 ))}

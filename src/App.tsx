@@ -7,6 +7,7 @@ import { NicknameSetup } from "./pages/NicknameSetup";
 import { Landing } from "./pages/Landing";
 import { Crest } from "./components/Crest";
 import { Toaster } from "./components/ui/sonner";
+import { TooltipProvider } from "./components/ui/tooltip";
 import { router } from "./router";
 
 const MainAppContent: React.FC = () => {
@@ -70,8 +71,10 @@ function App() {
   return (
     <AuthProvider>
       <SeasonProvider>
-        <MainAppContent />
-        <Toaster />
+        <TooltipProvider delayDuration={300}>
+          <MainAppContent />
+          <Toaster />
+        </TooltipProvider>
       </SeasonProvider>
     </AuthProvider>
   );

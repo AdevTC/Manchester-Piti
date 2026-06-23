@@ -19,6 +19,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "./ui/select";
+import { Hint } from "./ui/hint";
 import "./Navbar.css";
 
 interface NavItem {
@@ -180,9 +181,11 @@ export const Navbar: React.FC = () => {
                   <div className="mp-user-nick">@{profile.nickname}</div>
                   <div className="mp-user-role">{roleLabel}</div>
                 </div>
-                <button type="button" className="mp-user-out" onClick={logout} title="Cerrar sesión" aria-label="Cerrar sesión">
-                  <LogOut size={16} />
-                </button>
+                <Hint label="Cerrar sesión">
+                  <button type="button" className="mp-user-out" onClick={logout} aria-label="Cerrar sesión">
+                    <LogOut size={16} />
+                  </button>
+                </Hint>
               </div>
             )}
           </div>

@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import { Hint } from "../../components/ui/hint";
 
 // Radix Select items need non-empty values; "" (no linked match) maps to this.
 const MATCH_NONE = "__none__";
@@ -137,21 +138,29 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
         <button type="button" className="pz-action" onClick={onSuggestForm} title="Sugerir once por forma reciente" disabled={readOnly}>
           <TrendingUp size={14} aria-hidden="true" /> Forma
         </button>
-        <button type="button" className="pz-action" onClick={onUndo} disabled={!canUndo || readOnly} title="Deshacer" aria-label="Deshacer">
-          <Undo2 size={14} aria-hidden="true" />
-        </button>
-        <button type="button" className="pz-action" onClick={onRedo} disabled={!canRedo || readOnly} title="Rehacer" aria-label="Rehacer">
-          <Redo2 size={14} aria-hidden="true" />
-        </button>
+        <Hint label="Deshacer">
+          <button type="button" className="pz-action" onClick={onUndo} disabled={!canUndo || readOnly} aria-label="Deshacer">
+            <Undo2 size={14} aria-hidden="true" />
+          </button>
+        </Hint>
+        <Hint label="Rehacer">
+          <button type="button" className="pz-action" onClick={onRedo} disabled={!canRedo || readOnly} aria-label="Rehacer">
+            <Redo2 size={14} aria-hidden="true" />
+          </button>
+        </Hint>
         <button type="button" className="pz-action" onClick={onReset} title="Reiniciar" disabled={readOnly}>
           <RotateCcw size={14} aria-hidden="true" /> Reiniciar
         </button>
-        <button type="button" className="pz-action" onClick={onOpenSettings} title="Ajustes de la pizarra" aria-label="Ajustes de la pizarra">
-          <Settings2 size={14} aria-hidden="true" />
-        </button>
-        <button type="button" className="pz-action" onClick={onPresent} title="Modo presentación" aria-label="Modo presentación">
-          <Maximize2 size={14} aria-hidden="true" />
-        </button>
+        <Hint label="Ajustes de la pizarra">
+          <button type="button" className="pz-action" onClick={onOpenSettings} aria-label="Ajustes de la pizarra">
+            <Settings2 size={14} aria-hidden="true" />
+          </button>
+        </Hint>
+        <Hint label="Modo presentación">
+          <button type="button" className="pz-action" onClick={onPresent} aria-label="Modo presentación">
+            <Maximize2 size={14} aria-hidden="true" />
+          </button>
+        </Hint>
         <button type="button" className="pz-action" onClick={onShare} title="Compartir / descargar póster" aria-label="Compartir el once">
           <Share2 size={14} aria-hidden="true" /> Compartir
         </button>
