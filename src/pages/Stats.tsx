@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import { Button } from "../components/ui/button";
 
 // Editorial section heading: Anton title + short sky rule bar (project cadence).
 const SectionHead: React.FC<{ title: string; sub?: string; rule?: string }> = ({ title, sub, rule = "var(--accent-cyan)" }) => (
@@ -3819,13 +3820,13 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
           </div>
         </div>
 
-        <button
+        <Button
+          variant="secondary"
           onClick={onClose}
-          className="btn btn-secondary"
-          style={{ width: "100%", marginTop: "1.5rem" }}
+          className="mt-6 w-full"
         >
           Cerrar Gráfica
-        </button>
+        </Button>
       </div>
     </div>,
     document.body
@@ -4432,13 +4433,13 @@ const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
           )}
         </div>
 
-        <button
+        <Button
+          variant="secondary"
           onClick={onClose}
-          className="btn btn-secondary"
-          style={{ width: "100%", marginTop: "1.5rem" }}
+          className="mt-6 w-full"
         >
           Cerrar Clasificación
-        </button>
+        </Button>
       </div>
     </div>,
     document.body
@@ -4825,13 +4826,13 @@ const RivalDetailsModal: React.FC<RivalDetailsModalProps> = ({
           </div>
         </div>
 
-        <button
+        <Button
+          variant="secondary"
           onClick={onClose}
-          className="btn btn-secondary"
-          style={{ width: "100%", marginTop: "1.5rem" }}
+          className="mt-6 w-full"
         >
           Cerrar Historial
-        </button>
+        </Button>
       </div>
     </div>,
     document.body

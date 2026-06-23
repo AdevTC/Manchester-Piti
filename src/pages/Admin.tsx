@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import {
   Table,
   TableBody,
@@ -818,15 +819,14 @@ export const Admin: React.FC = () => {
                   )}
 
                   {/* Add Event Button */}
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
                     onClick={handleAddEventToMatch}
-                    className="btn btn-secondary"
-                    style={{ gap: "0.35rem", padding: "0.75rem" }}
                   >
                     <PlusCircle size={16} />
                     Agregar
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Event Temporary list */}
@@ -901,19 +901,18 @@ export const Admin: React.FC = () => {
 
               {/* Submit Form */}
               <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
-                <button
+                <Button
                   type="submit"
-                  className="btn btn-primary"
                   disabled={upsertMatch.isPending || matchSubmitting}
-                  style={{ flex: 1 }}
+                  className="flex-1"
                 >
                   {editingMatchId ? "Guardar Cambios" : "Guardar Partido Registrado"}
-                </button>
+                </Button>
                 {editingMatchId && (
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn-secondary"
-                    style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
+                    variant="outline"
+                    className="border-destructive text-destructive"
                     onClick={() => {
                       setEditingMatchId(null);
                       setMatchEvents([]);
@@ -921,7 +920,7 @@ export const Admin: React.FC = () => {
                     }}
                   >
                     Cancelar Edición
-                  </button>
+                  </Button>
                 )}
               </div>
             </form>
@@ -1245,19 +1244,18 @@ export const Admin: React.FC = () => {
             </div>
 
             <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
-              <button
+              <Button
                 type="submit"
-                className="btn btn-primary"
                 disabled={upsertPlayer.isPending || playerSubmitting}
-                style={{ flex: 1 }}
+                className="flex-1"
               >
                 {editingPlayerId ? "Guardar Cambios" : "Registrar Jugador"}
-              </button>
+              </Button>
               {editingPlayerId && (
-                <button
+                <Button
                   type="button"
-                  className="btn btn-secondary"
-                  style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
+                  variant="outline"
+                  className="border-destructive text-destructive"
                   onClick={() => {
                     setEditingPlayerId(null);
                     resetPlayer({ firstName: "", lastName: "", shirtName: "", number: undefined, birthDate: "", height: undefined, weight: undefined });
@@ -1266,7 +1264,7 @@ export const Admin: React.FC = () => {
                   }}
                 >
                   Cancelar Edición
-                </button>
+                </Button>
               )}
             </div>
           </form>
@@ -1408,19 +1406,17 @@ export const Admin: React.FC = () => {
               )}
             </div>
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button
+              <Button
                 type="submit"
-                className="btn btn-primary"
                 disabled={seasonSubmitting}
-                style={{ gap: "0.35rem" }}
               >
                 {editingSeasonId ? "Guardar Cambios" : <><PlusCircle size={16} />Crear Temporada</>}
-              </button>
+              </Button>
               {editingSeasonId && (
-                <button
+                <Button
                   type="button"
-                  className="btn btn-secondary"
-                  style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
+                  variant="outline"
+                  className="border-destructive text-destructive"
                   onClick={() => {
                     setEditingSeasonId(null);
                     resetSeason({ name: "" });
@@ -1428,7 +1424,7 @@ export const Admin: React.FC = () => {
                   }}
                 >
                   Cancelar
-                </button>
+                </Button>
               )}
             </div>
           </form>

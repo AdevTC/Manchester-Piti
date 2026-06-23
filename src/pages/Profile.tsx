@@ -1,6 +1,7 @@
 import React from "react";
 import { useAuth } from "../context/AuthContext";
 import { User, Mail, Calendar, LogOut, ShieldCheck } from "lucide-react";
+import { Button } from "../components/ui/button";
 
 const BAND_BG = "#0c1733";
 const HALFTONE: React.CSSProperties = {
@@ -139,15 +140,15 @@ export const Profile: React.FC = () => {
         })}
       </div>
 
-      <button
+      <Button
         type="button"
+        variant="destructive"
         onClick={logout}
-        className="btn btn-danger"
-        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
+        className="w-full"
       >
         <LogOut size={16} />
         Cerrar sesión
-      </button>
+      </Button>
     </div>
   );
 };

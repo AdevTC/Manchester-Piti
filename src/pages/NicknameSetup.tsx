@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useAuth } from "../context/AuthContext";
 import { UserCheck, LogOut, AtSign } from "lucide-react";
 import { Crest } from "../components/Crest";
+import { Button } from "../components/ui/button";
 import { nicknameSchema } from "../lib/schemas";
 
 const formSchema = z.object({ nickname: nicknameSchema });
@@ -140,26 +141,25 @@ export const NicknameSetup: React.FC = () => {
           )}
 
           <div style={{ display: "flex", gap: "1rem", marginTop: "1.5rem" }}>
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={logout}
-              className="btn btn-secondary"
-              style={{ flex: 1, gap: "0.35rem" }}
+              className="flex-1"
               disabled={isSubmitting}
             >
               <LogOut size={16} />
               Cancelar
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary"
-              style={{ flex: 2, gap: "0.35rem" }}
+              className="flex-[2]"
               disabled={isSubmitting}
             >
               <UserCheck size={16} />
               {isSubmitting ? "Registrando..." : "Guardar Nickname"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
