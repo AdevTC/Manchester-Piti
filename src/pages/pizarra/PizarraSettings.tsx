@@ -1,5 +1,6 @@
 import React from "react";
 import { SETTINGS_FIELDS, type PizarraSettings } from "./usePizarraSettings";
+import { Checkbox } from "../../components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -28,10 +29,9 @@ export const PizarraSettingsPanel: React.FC<PizarraSettingsProps> = ({ settings,
           {SETTINGS_FIELDS.map((f) => (
             <li key={f.key}>
               <label className="pz-settings-row">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings[f.key]}
-                  onChange={(e) => onChange(f.key, e.target.checked)}
+                  onCheckedChange={(c) => onChange(f.key, c === true)}
                 />
                 <span>{f.label}</span>
               </label>

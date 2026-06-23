@@ -3,6 +3,7 @@ import { ChevronDown, ClipboardList, Copy, Crown, Pencil, Plus, Save, Trash2 } f
 import type { LineupDoc } from "./lineupDoc";
 import { matchLabel, type SeasonMatch } from "./useSeasonMatches";
 import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import { Hint } from "../../components/ui/hint";
 import {
   Dialog,
@@ -67,8 +68,7 @@ const NameDialog: React.FC<{
         <DialogHeader>
           <DialogTitle className="font-display text-xl uppercase tracking-wide">{title}</DialogTitle>
         </DialogHeader>
-        <input
-          className="pz-dialog-input"
+        <Input
           autoFocus
           value={value}
           maxLength={40}

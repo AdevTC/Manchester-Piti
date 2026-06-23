@@ -4,6 +4,7 @@ import { FileText, ClipboardList } from "lucide-react";
 import { Expedientes } from "./Expedientes";
 import { Pizarra } from "./pizarra/Pizarra";
 import { SeasonSelector } from "../components/SeasonSelector";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import "./Plantilla.css";
 
 type Mode = "expedientes" | "pizarra";
@@ -24,30 +25,24 @@ export const Plantilla: React.FC = () => {
   return (
     <div className="pl-shell fade-in">
       <SeasonSelector />
-      <div className="pl-modes" role="tablist" aria-label="Modo de plantilla">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "expedientes"}
-          className="pl-mode-btn"
-          onClick={() => choose("expedientes")}
-        >
-          <FileText size={15} aria-hidden="true" />
-          Expedientes
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "pizarra"}
-          className="pl-mode-btn"
-          onClick={() => choose("pizarra")}
-        >
-          <ClipboardList size={15} aria-hidden="true" />
-          Pizarra
-        </button>
-      </div>
-
-      {mode === "expedientes" ? <Expedientes /> : <Pizarra />}
+      <Tabs value={mode} onValueChange={(v) => choose(v as Mode)}>
+        <TabsList variant="line" aria-label="Modo de plantilla">
+          <TabsTrigger value="expedientes">
+            <FileText size={15} aria-hidden="true" />
+            Expedientes
+          </TabsTrigger>
+          <TabsTrigger value="pizarra">
+            <ClipboardList size={15} aria-hidden="true" />
+            Pizarra
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="expedientes">
+          <Expedientes />
+        </TabsContent>
+        <TabsContent value="pizarra">
+          <Pizarra />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

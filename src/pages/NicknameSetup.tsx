@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { UserCheck, LogOut, AtSign, Loader2, CheckCircle2 } from "lucide-react";
 import { Crest } from "../components/Crest";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import { nicknameSchema } from "../lib/schemas";
 import { nicknameAvailableQuery } from "../lib/detailQueries";
 import { decideNicknameError } from "../lib/nicknameAvailability";
@@ -175,11 +176,10 @@ export const NicknameSetup: React.FC = () => {
                   color: "var(--text-muted)"
                 }}
               />
-              <input
+              <Input
                 {...register("nickname")}
                 id="nickname"
                 type="text"
-                className="form-input"
                 placeholder="ej: piti_goleador"
                 style={{ paddingLeft: "2.5rem", paddingRight: "2.5rem" }}
                 disabled={isSubmitting}

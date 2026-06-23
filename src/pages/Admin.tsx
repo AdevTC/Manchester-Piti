@@ -46,6 +46,8 @@ import {
 } from "../components/ui/select";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Checkbox } from "../components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -54,6 +56,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 // Radix Select items need non-empty values; "" (no selection) maps to this.
 const SELECT_NONE = "__none__";
@@ -545,48 +548,25 @@ export const Admin: React.FC = () => {
         </div>
       )}
 
-      {/* Tabs — segmented control */}
-      <div role="tablist" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", gap: "0.25rem", overflowX: "auto" }}>
-        {([
-          { id: "matches", icon: Trophy, label: "Registrar partido" },
-          { id: "roster", icon: Users, label: "Inscribir jugador" },
-          { id: "seasons", icon: Calendar, label: "Temporadas" },
-          { id: "admins", icon: Shield, label: "Admins" },
-        ] as const).map((t) => {
-          const Icon = t.icon;
-          const active = activeTab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setActiveTab(t.id)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                whiteSpace: "nowrap",
-                background: "transparent",
-                border: "none",
-                borderBottom: active ? "2px solid var(--accent-cyan)" : "2px solid transparent",
-                marginBottom: "-1px",
-                padding: "0.7rem 0.9rem",
-                cursor: "pointer",
-                fontFamily: "var(--font-sans)",
-                fontSize: "0.85rem",
-                fontWeight: 700,
-                letterSpacing: "0.02em",
-                color: active ? "var(--accent-ink)" : "var(--text-secondary)",
-                transition: "color 0.2s var(--mp-ease)",
-              }}
-            >
-              <Icon size={15} />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* Tabs — content below is driven by the ?tab search param */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "seasons" | "roster" | "matches" | "admins")}>
+        <TabsList variant="line" aria-label="Secciones de administración" className="w-full justify-start overflow-x-auto border-b border-border">
+          {([
+            { id: "matches", icon: Trophy, label: "Registrar partido" },
+            { id: "roster", icon: Users, label: "Inscribir jugador" },
+            { id: "seasons", icon: Calendar, label: "Temporadas" },
+            { id: "admins", icon: Shield, label: "Admins" },
+          ] as const).map((t) => {
+            const Icon = t.icon;
+            return (
+              <TabsTrigger key={t.id} value={t.id} className="flex-none">
+                <Icon size={15} />
+                {t.label}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
 
       {/* TAB CONTENT: 1. REGISTRAR PARTIDO */}
       {activeTab === "matches" && (
@@ -646,9 +626,8 @@ export const Admin: React.FC = () => {
                 {/* Rival Name */}
                 <div className="form-group">
                   <label className="form-label">Equipo Rival</label>
-                  <input
+                  <Input
                     type="text"
-                    className="form-input"
                     placeholder="ej: Barrio F.C."
                     {...registerMatch("rival")}
                     aria-invalid={!!matchErrors.rival}
@@ -686,9 +665,8 @@ export const Admin: React.FC = () => {
                 {/* Date */}
                 <div className="form-group">
                   <label className="form-label">Fecha y Hora</label>
-                  <input
+                  <Input
                     type="datetime-local"
-                    className="form-input"
                     {...registerMatch("date")}
                     aria-invalid={!!matchErrors.date}
                     aria-describedby={matchErrors.date ? "match-date-error" : undefined}
@@ -705,10 +683,9 @@ export const Admin: React.FC = () => {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div className="form-group">
                   <label className="form-label" style={{ color: "var(--accent-cyan)" }}>Goles Favor (Piti)</label>
-                  <input
+                  <Input
                     type="number"
                     min="0"
-                    className="form-input"
                     placeholder="0"
                     {...registerMatch("goalsFor", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
                     aria-invalid={!!matchErrors.goalsFor}
@@ -722,10 +699,9 @@ export const Admin: React.FC = () => {
                 </div>
                 <div className="form-group">
                   <label className="form-label" style={{ color: "var(--accent-red)" }}>Goles Rival</label>
-                  <input
+                  <Input
                     type="number"
                     min="0"
-                    className="form-input"
                     placeholder="0"
                     {...registerMatch("goalsAgainst", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
                     aria-invalid={!!matchErrors.goalsAgainst}
@@ -1100,9 +1076,8 @@ export const Admin: React.FC = () => {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
               <div className="form-group">
                 <label className="form-label">Nombre</label>
-                <input
+                <Input
                   type="text"
-                  className="form-input"
                   placeholder="ej: Adrián"
                   {...registerPlayer("firstName")}
                   aria-invalid={!!playerErrors.firstName}
@@ -1116,9 +1091,8 @@ export const Admin: React.FC = () => {
               </div>
               <div className="form-group">
                 <label className="form-label">Apellidos</label>
-                <input
+                <Input
                   type="text"
-                  className="form-input"
                   placeholder="ej: Gómez"
                   {...registerPlayer("lastName")}
                 />
@@ -1129,9 +1103,8 @@ export const Admin: React.FC = () => {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               <div className="form-group">
                 <label className="form-label">Nombre en Camiseta (Por Defecto)</label>
-                <input
+                <Input
                   type="text"
-                  className="form-input"
                   placeholder="ej: ADRI"
                   maxLength={12}
                   {...registerPlayer("shirtName")}
@@ -1146,9 +1119,8 @@ export const Admin: React.FC = () => {
               </div>
               <div className="form-group">
                 <label className="form-label">Dorsal (Por Defecto)</label>
-                <input
+                <Input
                   type="number"
-                  className="form-input"
                   placeholder="ej: 10"
                   {...registerPlayer("number", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
                   aria-invalid={!!playerErrors.number}
@@ -1166,9 +1138,8 @@ export const Admin: React.FC = () => {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               <div className="form-group">
                 <label className="form-label">Fecha de Nacimiento</label>
-                <input
+                <Input
                   type="date"
-                  className="form-input"
                   {...registerPlayer("birthDate")}
                 />
               </div>
@@ -1180,11 +1151,10 @@ export const Admin: React.FC = () => {
                     return (
                       <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "0.75rem", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "0.5rem" }}>
                         <label style={{ display: "flex", alignItems: "center", gap: "0.25rem", cursor: "pointer", fontWeight: 700, fontSize: "0.85rem" }}>
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={isSelected}
-                            onChange={(e) => {
-                              if (e.target.checked) {
+                            onCheckedChange={(checked) => {
+                              if (checked === true) {
                                 setPlayerSeasons([...playerSeasons, s.id]);
                                 // Pre-fill with global defaults if available
                                 setSeasonDetailsState(prev => ({
@@ -1202,9 +1172,8 @@ export const Admin: React.FC = () => {
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.25rem", paddingLeft: "1.25rem" }}>
                             <div className="form-group" style={{ marginBottom: 0 }}>
                               <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Nombre en Camiseta</label>
-                              <input
+                              <Input
                                 type="text"
-                                className="form-input"
                                 style={{ padding: "0.4rem 0.6rem", fontSize: "0.85rem" }}
                                 placeholder="ej: ADRI"
                                 value={seasonDetailsState[s.id]?.shirtName || ""}
@@ -1222,9 +1191,8 @@ export const Admin: React.FC = () => {
                             </div>
                             <div className="form-group" style={{ marginBottom: 0 }}>
                               <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Dorsal</label>
-                              <input
+                              <Input
                                 type="number"
-                                className="form-input"
                                 style={{ padding: "0.4rem 0.6rem", fontSize: "0.85rem" }}
                                 placeholder="ej: 10"
                                 value={seasonDetailsState[s.id]?.number ?? ""}
@@ -1258,9 +1226,8 @@ export const Admin: React.FC = () => {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               <div className="form-group">
                 <label className="form-label">Altura (cm)</label>
-                <input
+                <Input
                   type="number"
-                  className="form-input"
                   placeholder="178"
                   {...registerPlayer("height", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
                   aria-invalid={!!playerErrors.height}
@@ -1274,9 +1241,8 @@ export const Admin: React.FC = () => {
               </div>
               <div className="form-group">
                 <label className="form-label">Peso (kg)</label>
-                <input
+                <Input
                   type="number"
-                  className="form-input"
                   placeholder="72"
                   {...registerPlayer("weight", { setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)) })}
                   aria-invalid={!!playerErrors.weight}
@@ -1439,9 +1405,8 @@ export const Admin: React.FC = () => {
           <form onSubmit={handleSeasonSubmit(onSeasonSubmit)} style={{ display: "flex", gap: "1rem", alignItems: "flex-end", flexWrap: "wrap" }}>
             <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: "200px" }}>
               <label className="form-label">Nombre de la Temporada</label>
-              <input
+              <Input
                 type="text"
-                className="form-input"
                 placeholder="ej: Temporada 1, Temporada 2026..."
                 {...registerSeason("name")}
                 aria-invalid={!!seasonErrors.name}
