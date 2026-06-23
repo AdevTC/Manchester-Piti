@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "../context/AuthContext";
 import { useSeason } from "../context/SeasonContext";
@@ -9,11 +9,16 @@ import {
   User as UserIcon,
   ShieldAlert,
   LogOut,
-  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Crest } from "./Crest";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "./ui/select";
 import "./Navbar.css";
 
 interface NavItem {
@@ -87,26 +92,7 @@ export const Navbar: React.FC = () => {
     };
   }, [currentPage, isAdmin]);
 
-  // ---- Custom season selector ----
-  const [seasonOpen, setSeasonOpen] = useState(false);
-  const seasonRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!seasonOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      if (seasonRef.current && !seasonRef.current.contains(e.target as Node)) setSeasonOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSeasonOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [seasonOpen]);
-
+  // ---- Season selector (Radix Select: accessible, portal-based, keyboard nav) ----
   const seasonOptions = [{ id: "all", name: "Histórico Total" }, ...seasons];
   const currentSeasonName =
     selectedSeasonId === "all"
@@ -115,7 +101,6 @@ export const Navbar: React.FC = () => {
 
   const pickSeason = (id: string) => {
     void navigate({ to: ".", search: (prev) => ({ ...prev, season: id }) });
-    setSeasonOpen(false);
   };
 
   const roleLabel =
@@ -158,44 +143,32 @@ export const Navbar: React.FC = () => {
 
           {/* Right cluster */}
           <div className="mp-gantry-actions">
-            <div className="mp-season" ref={seasonRef}>
+            <div className="mp-season">
               {loadingSeasons ? (
                 <span className="mp-season-loading">Cargando...</span>
               ) : (
-                <>
-                  <button
-                    type="button"
-                    className="mp-season-btn"
-                    onClick={() => setSeasonOpen((o) => !o)}
-                    aria-haspopup="listbox"
-                    aria-expanded={seasonOpen}
+                <Select value={selectedSeasonId} onValueChange={pickSeason}>
+                  <SelectTrigger
+                    className="mp-season-trigger h-auto min-w-[9.5rem] gap-2 rounded-md border-border bg-transparent px-3 py-1.5 text-left hover:border-primary focus-visible:ring-primary/50"
                     aria-label={`Temporada: ${currentSeasonName}. Cambiar.`}
                   >
-                    <span className="mp-season-text">
-                      <span className="mp-season-cap">Temporada</span>
-                      <span className="mp-season-val">{currentSeasonName}</span>
+                    <span className="flex flex-col leading-tight">
+                      <span className="text-[0.62rem] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                        Temporada
+                      </span>
+                      <span className="text-sm font-semibold leading-none text-foreground">
+                        {currentSeasonName}
+                      </span>
                     </span>
-                    <ChevronDown className="mp-season-chev" size={16} aria-hidden="true" />
-                  </button>
-                  {seasonOpen && (
-                    <ul className="mp-season-menu" role="listbox" aria-label="Seleccionar temporada">
-                      {seasonOptions.map((opt) => (
-                        <li key={opt.id} role="presentation">
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={selectedSeasonId === opt.id}
-                            className={`mp-season-opt${selectedSeasonId === opt.id ? " is-active" : ""}`}
-                            onClick={() => pickSeason(opt.id)}
-                          >
-                            <span>{opt.name}</span>
-                            <span className="mp-season-opt-dot" aria-hidden="true" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </>
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {seasonOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             </div>
 

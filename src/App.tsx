@@ -6,6 +6,7 @@ import { Login } from "./pages/Login";
 import { NicknameSetup } from "./pages/NicknameSetup";
 import { Landing } from "./pages/Landing";
 import { Crest } from "./components/Crest";
+import { Toaster } from "./components/ui/sonner";
 import { router } from "./router";
 
 const MainAppContent: React.FC = () => {
@@ -70,6 +71,7 @@ function App() {
     <AuthProvider>
       <SeasonProvider>
         <MainAppContent />
+        <Toaster />
       </SeasonProvider>
     </AuthProvider>
   );
