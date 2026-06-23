@@ -19,4 +19,17 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Test files + helpers: not part of the Vite fast-refresh graph, so the
+    // react-refresh rule (which forbids mixing component + non-component
+    // exports) does not apply — the render helper deliberately exports both a
+    // wrapper component and plain utilities. Vitest globals are enabled here.
+    files: ['src/**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
 ])
