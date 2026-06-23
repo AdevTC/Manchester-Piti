@@ -1,10 +1,14 @@
-import React, { useRef, useState } from "react";
-import { X } from "lucide-react";
+import React, { useState } from "react";
 import type { LineupDoc } from "./lineupDoc";
 import { ratingForLineupDoc, type PlayerMeta, type SquadNorms } from "./chemistry";
 import type { PlayerStats } from "../../lib/playerStats";
 import { ZONE_LABEL } from "./formations";
-import { useFocusTrap } from "./useFocusTrap";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -22,8 +26,6 @@ interface CompareViewProps {
 }
 
 export const CompareView: React.FC<CompareViewProps> = ({ boards, statsById, metaById, norms, onClose }) => {
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef, onClose);
   const [aId, setAId] = useState(boards[0]?.id ?? "");
   const [bId, setBId] = useState(boards[1]?.id ?? boards[0]?.id ?? "");
   const A = boards.find((x) => x.id === aId);
@@ -68,12 +70,11 @@ export const CompareView: React.FC<CompareViewProps> = ({ boards, statsById, met
   );
 
   return (
-    <div className="pz-dialog-backdrop" role="presentation" onClick={onClose}>
-      <div ref={dialogRef} className="pz-cmp" role="dialog" aria-modal="true" aria-label="Comparar alineaciones" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="pz-share-close" aria-label="Cerrar" onClick={onClose}>
-          <X size={18} />
-        </button>
-        <h3 className="pz-dialog-title">Comparar alineaciones</h3>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-[680px]">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl uppercase tracking-wide">Comparar alineaciones</DialogTitle>
+        </DialogHeader>
         {boards.length < 1 ? (
           <p className="pz-cmp-empty">Guarda al menos un tablero para comparar.</p>
         ) : (
@@ -83,7 +84,7 @@ export const CompareView: React.FC<CompareViewProps> = ({ boards, statsById, met
             {col(B, evalBoard(B), "b")}
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

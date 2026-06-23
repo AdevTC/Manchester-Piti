@@ -1,8 +1,16 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { ChevronDown, ClipboardList, Copy, Crown, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import type { LineupDoc } from "./lineupDoc";
 import { matchLabel, type SeasonMatch } from "./useSeasonMatches";
-import { useFocusTrap } from "./useFocusTrap";
+import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -52,12 +60,12 @@ const NameDialog: React.FC<{
   onSubmit: (name: string) => void;
 }> = ({ title, initial = "", cta, onCancel, onSubmit }) => {
   const [value, setValue] = useState(initial);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef, onCancel);
   return (
-    <div className="pz-dialog-backdrop" role="presentation" onClick={onCancel}>
-      <div ref={dialogRef} className="pz-dialog" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
-        <h3 className="pz-dialog-title">{title}</h3>
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl uppercase tracking-wide">{title}</DialogTitle>
+        </DialogHeader>
         <input
           className="pz-dialog-input"
           autoFocus
@@ -66,21 +74,20 @@ const NameDialog: React.FC<{
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && value.trim()) onSubmit(value.trim());
-            if (e.key === "Escape") onCancel();
           }}
           placeholder="Nombre del tablero"
           aria-label="Nombre del tablero"
         />
-        <div className="pz-dialog-actions">
-          <button type="button" className="pz-btn-ghost" onClick={onCancel}>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onCancel}>
             Cancelar
-          </button>
-          <button type="button" className="pz-btn-solid" disabled={!value.trim()} onClick={() => onSubmit(value.trim())}>
+          </Button>
+          <Button disabled={!value.trim()} onClick={() => onSubmit(value.trim())}>
             {cta}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -91,20 +98,13 @@ const OfficialDialog: React.FC<{
   onConfirm: (scope: { matchId: string | null }) => void;
 }> = ({ seasonName, matches, onCancel, onConfirm }) => {
   const [matchId, setMatchId] = useState<string>(""); // "" = whole season
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef, onCancel);
   return (
-    <div className="pz-dialog-backdrop" role="presentation" onClick={onCancel}>
-      <div
-        ref={dialogRef}
-        className="pz-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Marcar como oficial"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="pz-dialog-title">Marcar como oficial</h3>
-        <p className="pz-dialog-sub">Elige el alcance de esta alineación oficial.</p>
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl uppercase tracking-wide">Marcar como oficial</DialogTitle>
+          <DialogDescription>Elige el alcance de esta alineación oficial.</DialogDescription>
+        </DialogHeader>
         <div className="pz-dialog-field">
           <span>Alcance</span>
           <Select
@@ -124,16 +124,16 @@ const OfficialDialog: React.FC<{
             </SelectContent>
           </Select>
         </div>
-        <div className="pz-dialog-actions">
-          <button type="button" className="pz-btn-ghost" onClick={onCancel}>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onCancel}>
             Cancelar
-          </button>
-          <button type="button" className="pz-btn-solid" onClick={() => onConfirm({ matchId: matchId || null })}>
+          </Button>
+          <Button onClick={() => onConfirm({ matchId: matchId || null })}>
             Marcar oficial
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

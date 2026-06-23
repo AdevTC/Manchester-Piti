@@ -1,7 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Download, Share2, X } from "lucide-react";
+import { Download, Share2 } from "lucide-react";
 import { canvasToBlob, drawPoster, loadImage, sharePoster, type PosterData } from "./poster";
-import { useFocusTrap } from "./useFocusTrap";
+import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 
 interface SharePanelProps {
   data: PosterData;
@@ -10,11 +16,9 @@ interface SharePanelProps {
 
 export const SharePanel: React.FC<SharePanelProps> = ({ data, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [note, setNote] = useState<string | null>(null);
-  useFocusTrap(dialogRef, onClose);
 
   useEffect(() => {
     let url: string | null = null;
@@ -46,12 +50,11 @@ export const SharePanel: React.FC<SharePanelProps> = ({ data, onClose }) => {
   };
 
   return (
-    <div className="pz-dialog-backdrop" role="presentation" onClick={onClose}>
-      <div ref={dialogRef} className="pz-share" role="dialog" aria-modal="true" aria-label="Compartir el once" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="pz-share-close" aria-label="Cerrar" onClick={onClose}>
-          <X size={18} />
-        </button>
-        <h3 className="pz-dialog-title">Compartir el once</h3>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl uppercase tracking-wide">Compartir el once</DialogTitle>
+        </DialogHeader>
         <div className="pz-share-preview">
           {preview ? (
             <img src={preview} alt="Vista previa del póster del once" />
@@ -62,14 +65,14 @@ export const SharePanel: React.FC<SharePanelProps> = ({ data, onClose }) => {
         <canvas ref={canvasRef} style={{ display: "none" }} aria-hidden="true" />
         <div className="pz-dialog-actions">
           {note && <span className="pz-share-note" role="status">{note}</span>}
-          <button type="button" className="pz-btn-ghost" disabled={busy} onClick={() => void onShare()}>
+          <Button variant="ghost" disabled={busy} onClick={() => void onShare()}>
             <Share2 size={15} aria-hidden="true" /> Compartir
-          </button>
-          <button type="button" className="pz-btn-solid" disabled={busy} onClick={() => void onShare()}>
+          </Button>
+          <Button disabled={busy} onClick={() => void onShare()}>
             <Download size={15} aria-hidden="true" /> Descargar
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

@@ -1,7 +1,12 @@
-import React, { useRef } from "react";
-import { X } from "lucide-react";
+import React from "react";
 import { SETTINGS_FIELDS, type PizarraSettings } from "./usePizarraSettings";
-import { useFocusTrap } from "./useFocusTrap";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 
 interface PizarraSettingsProps {
   settings: PizarraSettings;
@@ -9,23 +14,16 @@ interface PizarraSettingsProps {
   onClose: () => void;
 }
 
-// Display settings: what to show on the board. Rendered as a centered dialog
-// (escapes any overflow/stacking context); closes on Esc, backdrop, or X, with
-// focus trapped and restored.
+// Display settings: what to show on the board. Radix Dialog handles the portal,
+// focus trap/restore, scroll lock and Esc/backdrop dismissal.
 export const PizarraSettingsPanel: React.FC<PizarraSettingsProps> = ({ settings, onChange, onClose }) => {
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef, onClose);
-
   return (
-    <div className="pz-settings-scrim" role="dialog" aria-modal="true" aria-label="Ajustes de la pizarra" onClick={onClose}>
-      <div ref={dialogRef} className="pz-settings" onClick={(e) => e.stopPropagation()}>
-        <div className="pz-settings-head">
-          <span className="pz-settings-title">Ajustes de la pizarra</span>
-          <button type="button" className="pz-settings-close" aria-label="Cerrar ajustes" onClick={onClose}>
-            <X size={16} />
-          </button>
-        </div>
-        <p className="pz-settings-sub">Elige qué se muestra en el campo.</p>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl uppercase tracking-wide">Ajustes de la pizarra</DialogTitle>
+          <DialogDescription>Elige qué se muestra en el campo.</DialogDescription>
+        </DialogHeader>
         <ul className="pz-settings-list">
           {SETTINGS_FIELDS.map((f) => (
             <li key={f.key}>
@@ -40,7 +38,7 @@ export const PizarraSettingsPanel: React.FC<PizarraSettingsProps> = ({ settings,
             </li>
           ))}
         </ul>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
