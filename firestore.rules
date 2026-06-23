@@ -11,6 +11,22 @@ rules_version = '2';
 // 2026-07-03), so nothing custom was lost. A deploy REPLACES the entire
 // ruleset, so keep this file in sync and re-verify against the app's queries
 // before any future deploy.
+//
+// AUDITED 2026-06-23 (Phase 11). Every write path was re-checked against the
+// live code (Admin CRUD via useAdminMutations, AuthContext register/role,
+// pizarra naturalPosition update on players, lineups CRUD + markOfficial). All
+// role-based writes are correctly gated; no gap found, no rule change needed.
+// The behaviour is locked in by emulator rules tests (see firestore-rules.test.ts
+// + the `test:rules` script). Deploy target: Firebase Hosting (SPA rewrite in
+// firebase.json) + Firestore rules/indexes — `firebase deploy --only firestore`
+// for this file, `--only hosting` for the SPA. See firebase.json.
+//
+// INDEX NOTE (firestore.indexes.json): after Phase 1's de-dup, every `matches`
+// query is `orderBy("date","desc")` ONLY (single-field → auto-indexed), so the
+// old composite `matches(seasonId, date)` became dead config and was REMOVED in
+// Phase 11. The `lineups(seasonId, isOfficial)` composite STAYS — markOfficial
+// queries `where(seasonId==) && where(isOfficial==true)` (two equality filters
+// → needs a composite). No other multi-filter/orderBy query exists.
 
 service cloud.firestore {
   match /databases/{database}/documents {

@@ -12,6 +12,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:ci": "firebase emulators:exec --only auth,firestore --project futbolmanagement-dc6cb \"playwright test\"",
+    "test:rules": "firebase emulators:exec --only firestore --project futbolmanagement-dc6cb \"pnpm exec vitest run --config vitest.rules.config.ts\"",
     "emulators": "firebase emulators:start --only auth,firestore --project futbolmanagement-dc6cb"
   },
   "dependencies": {
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@playwright/test": "^1.61.0",
     "@tanstack/react-query-devtools": "^5.101.0",
     "@tanstack/router-devtools": "^1.167.0",

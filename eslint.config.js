@@ -44,4 +44,14 @@ export default defineConfig([
       globals: { ...globals.browser, ...globals.node },
     },
   },
+  {
+    // Firestore security-rules tests (Phase 11): run against the emulator under
+    // the dedicated vitest.rules.config.ts (node env), outside the app graph.
+    // Vitest globals (`globals: true`) + Node globals; no React rules apply.
+    files: ['test/rules/**/*.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 ])
