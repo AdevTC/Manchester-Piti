@@ -26,6 +26,20 @@ export const rootSearchSchema = z.object({
   season: z.string().optional().catch("all"),
 });
 
+// Stats route's `validateSearch`: the active tab is deep-linkable/persistent.
+// Merges with the inherited root `season`, so reading/writing via the route api
+// preserves `season`. Invalid `tab` falls back to "general" (via .catch),
+// matching the old useState default.
+export const statsSearchSchema = z.object({
+  tab: z.enum(["general", "compare"]).default("general").catch("general"),
+});
+
+// Admin route's `validateSearch`: same pattern for the admin tab. (The role
+// guard is unchanged — it lives in RootLayout.) Invalid `tab` → "matches".
+export const adminSearchSchema = z.object({
+  tab: z.enum(["matches", "roster", "seasons", "admins"]).default("matches").catch("matches"),
+});
+
 const rootRoute = createRootRoute({
   component: RootLayout,
   validateSearch: rootSearchSchema,
@@ -43,6 +57,7 @@ const matchesRoute = createRoute({
 const statsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/stats",
+  validateSearch: statsSearchSchema,
   component: lazyRouteComponent(() => import("./pages/Stats"), "Stats"),
 });
 
@@ -62,6 +77,7 @@ const profileRoute = createRoute({
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
+  validateSearch: adminSearchSchema,
   component: lazyRouteComponent(() => import("./pages/Admin"), "Admin"),
 });
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useSeason, type Season } from "../context/SeasonContext";
 import { Leaderboard } from "../components/Leaderboard";
 import { Jersey } from "../components/Jersey";
@@ -137,6 +138,12 @@ const MATCHES_KEY = ["matches"] as const;
 const playersQuery = collection(db, "players");
 const matchesQuery = query(collection(db, "matches"), orderBy("date", "desc"));
 
+// The active tab lives in the `?tab` search param so it is deep-linkable and
+// survives reloads (validated by statsSearchSchema, merged with the inherited
+// `season`). The comparator's A/B player ids stay in local state: they are
+// async-seeded from the loaded roster and opaque, so the URL adds no value.
+const route = getRouteApi("/stats");
+
 // One days-as-leader streak, as rendered in the record details modal.
 interface DaysStreak {
   startStr: string;
@@ -188,7 +195,12 @@ export const Stats: React.FC = () => {
   const [activeChartMetric, setActiveChartMetric] = useState<string | null>(null);
   const [activeChartTitle, setActiveChartTitle] = useState<string>("");
   const [activeRecordInfo, setActiveRecordInfo] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"general" | "compare">("general");
+  // Active tab is read from the URL (source of truth) and written via navigate
+  // with a functional updater so `season` (and any other param) is preserved.
+  const { tab: activeTab } = route.useSearch();
+  const navigate = useNavigate({ from: "/stats" });
+  const setActiveTab = (tab: "general" | "compare") =>
+    void navigate({ search: (prev) => ({ ...prev, tab }) });
   const [activeRivalInfo, setActiveRivalInfo] = useState<string | null>(null);
   const [playerAId, setPlayerAId] = useState<string>("");
   const [playerBId, setPlayerBId] = useState<string>("");
