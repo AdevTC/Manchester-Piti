@@ -43,6 +43,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { Badge } from "../components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
 
 // Radix Select items need non-empty values; "" (no selection) maps to this.
 const SELECT_NONE = "__none__";
@@ -954,9 +963,9 @@ export const Admin: React.FC = () => {
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem" }}>
                           <div>
                             <strong style={{ color: "var(--text-primary)" }}>vs {m.rival}</strong>
-                            <span className="badge badge-info" style={{ marginLeft: "0.5rem", fontSize: "0.7rem", padding: "0.1rem 0.4rem" }}>
+                            <Badge variant="secondary" className="ml-2">
                               {seasonName}
-                            </span>
+                            </Badge>
                           </div>
                           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                             {formattedDate} • Marcador: {m.goalsFor} - {m.goalsAgainst} ({m.competition})
@@ -1548,34 +1557,34 @@ export const Admin: React.FC = () => {
             </p>
           </div>
 
-          <div className="table-container">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>Nickname</th>
-                  <th>Correo Electrónico</th>
-                  <th>Rol Actual</th>
-                  <th style={{ textAlign: "center" }}>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="overflow-hidden rounded-lg border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nickname</TableHead>
+                  <TableHead>Correo Electrónico</TableHead>
+                  <TableHead>Rol Actual</TableHead>
+                  <TableHead className="text-center">Acción</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {usersList.map((usr) => {
                   const isSuperAdmin = usr.email === "adriantomascv@gmail.com";
-                  
+
                   return (
-                    <tr key={usr.uid}>
-                      <td style={{ fontWeight: 700 }}>@{usr.nickname}</td>
-                      <td>{usr.email}</td>
-                      <td>
+                    <TableRow key={usr.uid}>
+                      <TableCell className="font-bold">@{usr.nickname}</TableCell>
+                      <TableCell>{usr.email}</TableCell>
+                      <TableCell>
                         {isSuperAdmin ? (
-                          <span className="badge badge-warning" style={{ border: "1px solid var(--accent-gold)" }}>Super Admin</span>
+                          <Badge variant="outline" style={{ borderColor: "var(--mp-gold)", color: "var(--mp-gold-ink)" }}>Super Admin</Badge>
                         ) : usr.role === "admin" ? (
-                          <span className="badge badge-info">Admin</span>
+                          <Badge>Admin</Badge>
                         ) : (
-                          <span className="badge badge-secondary" style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-muted)" }}>Usuario</span>
+                          <Badge variant="secondary">Usuario</Badge>
                         )}
-                      </td>
-                      <td style={{ textAlign: "center" }}>
+                      </TableCell>
+                      <TableCell className="text-center">
                         {isSuperAdmin ? (
                           <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontStyle: "italic" }}>Protegido</span>
                         ) : (
@@ -1599,19 +1608,19 @@ export const Admin: React.FC = () => {
                             </SelectContent>
                           </Select>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
                 {usersList.length === 0 && (
-                  <tr>
-                    <td colSpan={4} style={{ textAlign: "center", color: "var(--text-muted)", fontStyle: "italic" }}>
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center italic text-muted-foreground">
                       No hay usuarios registrados.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}

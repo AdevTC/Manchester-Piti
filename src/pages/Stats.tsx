@@ -13,6 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
 
 // Editorial section heading: Anton title + short sky rule bar (project cadence).
 const SectionHead: React.FC<{ title: string; sub?: string; rule?: string }> = ({ title, sub, rule = "var(--accent-cyan)" }) => (
@@ -1771,21 +1779,21 @@ export const Stats: React.FC = () => {
           {Object.keys(rivalRecords).length > 0 && (
             <div className="card">
               <SectionHead title="Balance vs Rivales" sub="El cara a cara contra cada equipo al que nos hemos enfrentado." />
-              <div className="table-container">
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>Rival</th>
-                      <th style={{ textAlign: "center" }}>PJ</th>
-                      <th style={{ textAlign: "center" }}>V</th>
-                      <th style={{ textAlign: "center" }}>E</th>
-                      <th style={{ textAlign: "center" }}>D</th>
-                      <th style={{ textAlign: "center" }}>GF</th>
-                      <th style={{ textAlign: "center" }}>GC</th>
-                      <th style={{ textAlign: "center" }}>DIF</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="overflow-hidden rounded-lg border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Rival</TableHead>
+                      <TableHead className="text-center">PJ</TableHead>
+                      <TableHead className="text-center">V</TableHead>
+                      <TableHead className="text-center">E</TableHead>
+                      <TableHead className="text-center">D</TableHead>
+                      <TableHead className="text-center">GF</TableHead>
+                      <TableHead className="text-center">GC</TableHead>
+                      <TableHead className="text-center">DIF</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {Object.values(rivalRecords).sort((a, b) => {
                       if (b.wins !== a.wins) return b.wins - a.wins;
                       if (b.draws !== a.draws) return b.draws - a.draws;
@@ -1798,32 +1806,29 @@ export const Stats: React.FC = () => {
                     }).map((record) => {
                       const diff = record.goalsFor - record.goalsAgainst;
                       return (
-                        <tr
+                        <TableRow
                           key={record.rival}
                           onClick={() => setActiveRivalInfo(record.rival)}
-                          style={{ cursor: "pointer", transition: "var(--transition-smooth)" }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                          className="cursor-pointer"
                         >
-                          <td style={{ fontWeight: 700 }}>{record.rival}</td>
-                          <td style={{ textAlign: "center" }}>{record.played}</td>
-                          <td style={{ textAlign: "center", color: "var(--accent-emerald)" }}>{record.wins}</td>
-                          <td style={{ textAlign: "center", color: "var(--accent-gold)" }}>{record.draws}</td>
-                          <td style={{ textAlign: "center", color: "var(--accent-red)" }}>{record.losses}</td>
-                          <td style={{ textAlign: "center" }}>{record.goalsFor}</td>
-                          <td style={{ textAlign: "center" }}>{record.goalsAgainst}</td>
-                          <td style={{ 
-                            textAlign: "center", 
-                            fontWeight: 700, 
-                            color: diff > 0 ? "var(--accent-emerald)" : diff < 0 ? "var(--accent-red)" : "white" 
-                          }}>
+                          <TableCell className="font-bold">{record.rival}</TableCell>
+                          <TableCell className="text-center">{record.played}</TableCell>
+                          <TableCell className="text-center" style={{ color: "var(--accent-emerald)" }}>{record.wins}</TableCell>
+                          <TableCell className="text-center" style={{ color: "var(--accent-gold)" }}>{record.draws}</TableCell>
+                          <TableCell className="text-center" style={{ color: "var(--accent-red)" }}>{record.losses}</TableCell>
+                          <TableCell className="text-center">{record.goalsFor}</TableCell>
+                          <TableCell className="text-center">{record.goalsAgainst}</TableCell>
+                          <TableCell
+                            className="text-center font-bold"
+                            style={{ color: diff > 0 ? "var(--accent-emerald)" : diff < 0 ? "var(--accent-red)" : "var(--text-primary)" }}
+                          >
                             {diff > 0 ? `+${diff}` : diff}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </div>
           )}
