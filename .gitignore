@@ -16,6 +16,18 @@ dist-ssr
 .superpowers/
 .impeccable/live/sessions/
 
+# Playwright E2E artifacts + transient emulator state
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/blob-report/
+e2e/.emulator-state.json
+# Firebase emulator runtime artifacts
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

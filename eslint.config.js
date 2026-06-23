@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'playwright-report', 'test-results']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -17,6 +17,18 @@ export default defineConfig([
     ],
     languageOptions: {
       globals: globals.browser,
+    },
+  },
+  {
+    // Playwright E2E specs + helpers (Node side): they use Node + browser
+    // globals (fs/path/process AND fetch/URLSearchParams) and are not React
+    // components, so the react-refresh rule does not apply. They live outside
+    // the Vite/tsc app graph (the app tsconfig only includes `src`); Playwright
+    // compiles them itself.
+    files: ['e2e/**/*.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
     },
   },
   {
