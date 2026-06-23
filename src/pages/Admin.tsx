@@ -35,6 +35,7 @@ import {
   dropNullFields,
   userDocSchema,
 } from "../lib/schemas";
+import { findDorsalConflict, resolveDorsalForSeason } from "../lib/dorsalValidation";
 import {
   Select,
   SelectContent,
@@ -200,12 +201,18 @@ export const Admin: React.FC = () => {
     handleSubmit: handlePlayerSubmit,
     reset: resetPlayer,
     setError: setPlayerError,
+    clearErrors: clearPlayerErrors,
     getValues: getPlayerValues,
+    control: playerControl,
     formState: { errors: playerErrors, isSubmitting: playerSubmitting },
   } = useForm<PlayerFormValues>({
     resolver: zodResolver(playerFormSchema),
     defaultValues: { firstName: "", lastName: "", shirtName: "", number: undefined, birthDate: "", height: undefined, weight: undefined },
   });
+  // Watch the scalar dorsal reactively so the inline duplicate check re-runs as
+  // the admin types (the seasonDetails overrides + selected seasons are tracked
+  // via their own useState below).
+  const watchedNumber = useWatch({ control: playerControl, name: "number" });
   // Per-season checkboxes + per-season shirt/number details stay as useState:
   // they are dynamic/data-dependent (depend on the seasons list and pre-fill
   // from the scalar shirt/number RHF fields).
@@ -214,6 +221,48 @@ export const Admin: React.FC = () => {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editingSeasonId, setEditingSeasonId] = useState<string | null>(null);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+
+  // Tracks whether WE currently own the manual `number` error, so we can clear
+  // only our own duplicate message without reading `playerErrors` inside the
+  // effect (which would re-trigger it) or ever stomping a Zod field error.
+  const dorsalErrorSetRef = React.useRef(false);
+
+  // Inline (pre-submit) dorsal-uniqueness feedback. The duplicate depends on
+  // NON-RHF state (playerSeasons, seasonDetailsState) which the zodResolver
+  // can't see, so we drive the `number` field error imperatively here and
+  // re-run whenever any input changes. NOTE: this is UX only — on submit the
+  // zodResolver re-validates `number` and CLEARS this manual error (RHF docs:
+  // a manual setError on a registered field that passes its rules does not
+  // persist), so onPlayerSubmit keeps the authoritative guard below.
+  useEffect(() => {
+    const conflict = findDorsalConflict(
+      players,
+      playerSeasons,
+      (seasonId) => resolveDorsalForSeason(seasonId, watchedNumber, seasonDetailsState),
+      editingPlayerId,
+    );
+    if (conflict) {
+      const seasonName = seasons.find((s) => s.id === conflict.seasonId)?.name || "la temporada";
+      setPlayerError("number", {
+        type: "manual",
+        message: `El dorsal #${conflict.number} ya está registrado en ${seasonName} por otro jugador.`,
+      });
+      dorsalErrorSetRef.current = true;
+    } else if (dorsalErrorSetRef.current) {
+      // Clear only OUR manual duplicate error — never a Zod field error.
+      clearPlayerErrors("number");
+      dorsalErrorSetRef.current = false;
+    }
+  }, [
+    watchedNumber,
+    playerSeasons,
+    seasonDetailsState,
+    players,
+    editingPlayerId,
+    seasons,
+    setPlayerError,
+    clearPlayerErrors,
+  ]);
 
   // Match Events state
   const [matchEvents, setMatchEvents] = useState<MatchEventForm[]>([]);
@@ -301,26 +350,24 @@ export const Admin: React.FC = () => {
       };
     }
 
-    // Check if dorsal is already in use in any of the selected seasons
-    for (const seasonId of playerSeasons) {
-      const currentNumber = parsedSeasonDetails[seasonId].number;
-      const duplicate = players.some(p => {
-        if (editingPlayerId && p.id === editingPlayerId) return false;
-        if (p.seasons?.includes(seasonId)) {
-          const otherNumber = p.seasonDetails?.[seasonId]?.number ?? p.number;
-          return otherNumber === currentNumber;
-        }
-        return false;
+    // Authoritative dorsal-duplicate guard. The inline effect above gives early
+    // feedback, but the zodResolver clears our manual `number` error on submit
+    // (RHF only persists manual errors on fields that fail their own rules), so
+    // this final check is what actually blocks a duplicate save. Same pure
+    // predicate + per-season resolution as the inline check (parity guaranteed).
+    const conflict = findDorsalConflict(
+      players,
+      playerSeasons,
+      (seasonId) => parsedSeasonDetails[seasonId].number,
+      editingPlayerId,
+    );
+    if (conflict) {
+      const seasonName = seasons.find(s => s.id === conflict.seasonId)?.name || "la temporada";
+      setPlayerError("number", {
+        type: "manual",
+        message: `El dorsal #${conflict.number} ya está registrado en ${seasonName} por otro jugador.`,
       });
-
-      if (duplicate) {
-        const seasonName = seasons.find(s => s.id === seasonId)?.name || "la temporada";
-        setPlayerError("number", {
-          type: "manual",
-          message: `El dorsal #${currentNumber} ya está registrado en ${seasonName} por otro jugador.`,
-        });
-        return;
-      }
+      return;
     }
 
     const wasEditingPlayer = !!editingPlayerId;

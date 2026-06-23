@@ -154,6 +154,14 @@ export const nicknameSchema = z
   .max(15, "El nickname debe tener entre 3 y 15 caracteres.")
   .regex(/^[a-z0-9_]+$/, "Solo letras, números y guiones bajos (_).");
 
+/**
+ * Normalización canónica del nickname (trim + lowercase), EXACTAMENTE igual que
+ * `nicknameSchema` y `AuthContext.registerNickname`. Centralizarla evita que la
+ * comprobación de disponibilidad inline y la consulta server-side diverjan en
+ * la key/valor que comparan.
+ */
+export const normalizeNickname = (raw: string): string => raw.trim().toLowerCase();
+
 export const userProfileSchema = z.object({
   email: z.string(),
   nickname: z.string(),
