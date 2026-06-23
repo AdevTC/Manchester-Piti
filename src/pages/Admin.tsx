@@ -36,6 +36,7 @@ import {
   userDocSchema,
 } from "../lib/schemas";
 import { findDorsalConflict, resolveDorsalForSeason } from "../lib/dorsalValidation";
+import { reportDroppedDoc } from "../lib/docTelemetry";
 import {
   Select,
   SelectContent,
@@ -284,7 +285,7 @@ export const Admin: React.FC = () => {
         for (const d of snapshot.docs) {
           const r = userDocSchema.safeParse({ uid: d.id, ...dropNullFields(d.data() as object) });
           if (r.success) items.push(r.data);
-          else console.error(`[schema] doc inválido en users/${d.id}:`, r.error.issues);
+          else reportDroppedDoc("users", d.id, r.error.issues);
         }
         setUsersList(items);
       }
