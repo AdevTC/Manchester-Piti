@@ -971,7 +971,7 @@ export const Admin: React.FC = () => {
                           </span>
                         </div>
                         <div style={{ display: "flex", gap: "0.5rem" }}>
-                          <button
+                          <Button
                             type="button"
                             onClick={() => {
                               setEditingMatchId(m.id);
@@ -993,12 +993,12 @@ export const Admin: React.FC = () => {
 
                               window.scrollTo({ top: 0, behavior: "smooth" });
                             }}
-                            className="btn btn-secondary"
-                            style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(108, 171, 221, 0.1)", border: "1px solid rgba(108, 171, 221, 0.3)", color: "var(--accent-cyan)" }}
+                            variant="outline"
+                            size="xs"
                           >
                             Editar
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
                             disabled={deleteMatch.isPending}
                             onClick={() => {
@@ -1018,11 +1018,12 @@ export const Admin: React.FC = () => {
                                 });
                               }
                             }}
-                            className="btn btn-secondary"
-                            style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(196, 47, 35, 0.1)", border: "1px solid rgba(196, 47, 35, 0.3)", color: "var(--accent-red)" }}
+                            variant="outline"
+                            size="xs"
+                            className="border-destructive text-destructive"
                           >
                             Eliminar
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     );
@@ -1307,7 +1308,7 @@ export const Admin: React.FC = () => {
                       <span style={{ color: "var(--text-secondary)", fontSize: "0.8rem" }}>("{p.shirtName}")</span>
                     </span>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button
+                      <Button
                         type="button"
                         onClick={() => {
                           setEditingPlayerId(p.id);
@@ -1335,12 +1336,12 @@ export const Admin: React.FC = () => {
                           
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }}
-                        className="btn btn-secondary"
-                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(108, 171, 221, 0.1)", border: "1px solid rgba(108, 171, 221, 0.3)", color: "var(--accent-cyan)" }}
+                        variant="outline"
+                        size="xs"
                       >
                         Editar
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
                         disabled={deletePlayer.isPending}
                         onClick={() => {
@@ -1361,11 +1362,12 @@ export const Admin: React.FC = () => {
                             });
                           }
                         }}
-                        className="btn btn-secondary"
-                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(196, 47, 35, 0.1)", border: "1px solid rgba(196, 47, 35, 0.3)", color: "var(--accent-red)" }}
+                        variant="outline"
+                        size="xs"
+                        className="border-destructive text-destructive"
                       >
                         Eliminar
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -1494,19 +1496,19 @@ export const Admin: React.FC = () => {
                       })()}
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button
+                      <Button
                         type="button"
                         onClick={() => {
                           setEditingSeasonId(s.id);
                           resetSeason({ name: s.name });
                           setSeasonCaptainId(s.captainPlayerId || "");
                         }}
-                        className="btn btn-secondary"
-                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(108, 171, 221, 0.1)", border: "1px solid rgba(108, 171, 221, 0.3)", color: "var(--accent-cyan)" }}
+                        variant="outline"
+                        size="xs"
                       >
                         Editar
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
                         disabled={deleteSeason.isPending}
                         onClick={() => {
@@ -1526,11 +1528,12 @@ export const Admin: React.FC = () => {
                             });
                           }
                         }}
-                        className="btn btn-secondary"
-                        style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "rgba(196, 47, 35, 0.1)", border: "1px solid rgba(196, 47, 35, 0.3)", color: "var(--accent-red)" }}
+                        variant="outline"
+                        size="xs"
+                        className="border-destructive text-destructive"
                       >
                         Eliminar
-                      </button>
+                      </Button>
                     </div>
                   </li>
                 ))}
