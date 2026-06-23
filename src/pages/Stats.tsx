@@ -6,6 +6,13 @@ import { Jersey } from "../components/Jersey";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { Shield, Sparkles, TrendingUp, X, Award, Trophy, Zap, Flame, Users, Target, Crown, Info } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 // Editorial section heading: Anton title + short sky rule bar (project cadence).
 const SectionHead: React.FC<{ title: string; sub?: string; rule?: string }> = ({ title, sub, rule = "var(--accent-cyan)" }) => (
@@ -1411,26 +1418,18 @@ export const Stats: React.FC = () => {
               <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--accent-gold)", textTransform: "uppercase" }}>
                 Jugador A
               </label>
-              <select
-                value={playerAId}
-                onChange={(e) => setPlayerAId(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "0.75rem 1rem",
-                  background: "var(--bg-tertiary)",
-                  border: "1px solid rgba(245, 158, 11, 0.3)",
-                  borderRadius: "0.5rem",
-                  color: "var(--text-primary)",
-                  fontWeight: 700,
-                  outline: "none"
-                }}
-              >
-                {players.map(p => (
-                  <option key={p.id} value={p.id} disabled={p.id === playerBId}>
-                    {formatPlayerName(p.firstName, p.lastName)}
-                  </option>
-                ))}
-              </select>
+              <Select value={playerAId} onValueChange={setPlayerAId}>
+                <SelectTrigger className="w-full font-bold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {players.map(p => (
+                    <SelectItem key={p.id} value={p.id} disabled={p.id === playerBId}>
+                      {formatPlayerName(p.firstName, p.lastName)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div style={{ textAlign: "center", display: "flex", justifyContent: "center", alignSelf: "flex-end", marginBottom: "3px" }}>
@@ -1455,26 +1454,18 @@ export const Stats: React.FC = () => {
               <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--accent-cyan)", textTransform: "uppercase" }}>
                 Jugador B
               </label>
-              <select
-                value={playerBId}
-                onChange={(e) => setPlayerBId(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "0.75rem 1rem",
-                  background: "var(--bg-tertiary)",
-                  border: "1px solid rgba(6, 182, 212, 0.3)",
-                  borderRadius: "0.5rem",
-                  color: "var(--text-primary)",
-                  fontWeight: 700,
-                  outline: "none"
-                }}
-              >
-                {players.map(p => (
-                  <option key={p.id} value={p.id} disabled={p.id === playerAId}>
-                    {formatPlayerName(p.firstName, p.lastName)}
-                  </option>
-                ))}
-              </select>
+              <Select value={playerBId} onValueChange={setPlayerBId}>
+                <SelectTrigger className="w-full font-bold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {players.map(p => (
+                    <SelectItem key={p.id} value={p.id} disabled={p.id === playerAId}>
+                      {formatPlayerName(p.firstName, p.lastName)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

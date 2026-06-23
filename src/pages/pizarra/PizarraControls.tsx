@@ -2,6 +2,16 @@ import React, { useState } from "react";
 import { Move, RotateCcw, Wand2, TrendingUp, LayoutGrid, Share2, Columns2, Undo2, Redo2, Settings2, Maximize2 } from "lucide-react";
 import { FORMATION_NAMES, type FormationName } from "./formations";
 import { TACTICS, type TacticKey, type Tactics } from "./tactics";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+
+// Radix Select items need non-empty values; "" (no linked match) maps to this.
+const MATCH_NONE = "__none__";
 
 interface PizarraControlsProps {
   formation: FormationName;
@@ -35,8 +45,8 @@ interface PizarraControlsProps {
 }
 
 // The TV-graphic control bar: system dropdown + tactical instructions
-// (collapsible behind "Táctica" on mobile) + board actions. All native
-// <select>/<button> (keyboard operable, gold focus); styled flat.
+// (collapsible behind "Táctica" on mobile) + board actions. Dropdowns are
+// shadcn/Radix Select (keyboard operable, themed); actions are flat buttons.
 export const PizarraControls: React.FC<PizarraControlsProps> = ({
   formation,
   onFormation,
@@ -68,17 +78,16 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
     <div className="pz-controls" role="group" aria-label="Sistema y táctica">
       <div className="pz-ctrl">
         <label className="pz-ctrl-label" htmlFor="pz-system">Sistema</label>
-        <select
-          id="pz-system"
-          className="pz-select pz-select--system"
-          value={formation}
-          onChange={(e) => onFormation(e.target.value as FormationName)}
-          disabled={readOnly}
-        >
-          {FORMATION_NAMES.map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
+        <Select value={formation} onValueChange={(v) => onFormation(v as FormationName)} disabled={readOnly}>
+          <SelectTrigger size="sm" id="pz-system" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="z-[1100]">
+            {FORMATION_NAMES.map((name) => (
+              <SelectItem key={name} value={name}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <button
@@ -94,17 +103,16 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
         {TACTICS.map((t) => (
           <div className="pz-ctrl" key={t.key}>
             <label className="pz-ctrl-label" htmlFor={`pz-t-${t.key}`}>{t.label}</label>
-            <select
-              id={`pz-t-${t.key}`}
-              className="pz-select"
-              value={tactics[t.key]}
-              onChange={(e) => onTactic(t.key, e.target.value)}
-              disabled={readOnly}
-            >
-              {t.options.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
+            <Select value={tactics[t.key]} onValueChange={(v) => onTactic(t.key, v)} disabled={readOnly}>
+              <SelectTrigger size="sm" id={`pz-t-${t.key}`} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="z-[1100]">
+                {t.options.map((o) => (
+                  <SelectItem key={o} value={o}>{o}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         ))}
       </div>
@@ -150,18 +158,21 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
         <button type="button" className="pz-action" onClick={onCompare} title="Comparar dos alineaciones" aria-label="Comparar alineaciones">
           <Columns2 size={14} aria-hidden="true" /> Comparar
         </button>
-        <select
-          className="pz-select pz-select--match"
-          value={matchId ?? ""}
-          onChange={(e) => onLinkMatch(e.target.value || null)}
-          aria-label="Vincular a partido"
+        <Select
+          value={matchId ?? MATCH_NONE}
+          onValueChange={(v) => onLinkMatch(v === MATCH_NONE ? null : v)}
           disabled={readOnly}
         >
-          <option value="">Sin partido</option>
-          {matches.map((m) => (
-            <option key={m.id} value={m.id}>{m.label}</option>
-          ))}
-        </select>
+          <SelectTrigger size="sm" className="w-full pz-select--match" aria-label="Vincular a partido">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="z-[1100]">
+            <SelectItem value={MATCH_NONE}>Sin partido</SelectItem>
+            {matches.map((m) => (
+              <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

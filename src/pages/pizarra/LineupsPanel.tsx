@@ -3,6 +3,16 @@ import { ChevronDown, ClipboardList, Copy, Crown, Pencil, Plus, Save, Trash2 } f
 import type { LineupDoc } from "./lineupDoc";
 import { matchLabel, type SeasonMatch } from "./useSeasonMatches";
 import { useFocusTrap } from "./useFocusTrap";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+
+// Radix Select items need non-empty values; "" (whole-season scope) maps to this.
+const SEASON_SCOPE = "__season__";
 
 export type SaveState = "none" | "dirty" | "saving" | "saved";
 
@@ -95,22 +105,25 @@ const OfficialDialog: React.FC<{
       >
         <h3 className="pz-dialog-title">Marcar como oficial</h3>
         <p className="pz-dialog-sub">Elige el alcance de esta alineación oficial.</p>
-        <label className="pz-dialog-field">
+        <div className="pz-dialog-field">
           <span>Alcance</span>
-          <select
-            className="pz-dialog-input"
-            value={matchId}
-            onChange={(e) => setMatchId(e.target.value)}
-            aria-label="Alcance de la alineación oficial"
+          <Select
+            value={matchId === "" ? SEASON_SCOPE : matchId}
+            onValueChange={(v) => setMatchId(v === SEASON_SCOPE ? "" : v)}
           >
-            <option value="">Toda la temporada · {seasonName}</option>
-            {matches.map((m) => (
-              <option key={m.id} value={m.id}>
-                {matchLabel(m)}
-              </option>
-            ))}
-          </select>
-        </label>
+            <SelectTrigger className="w-full" aria-label="Alcance de la alineación oficial">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="z-[1100]">
+              <SelectItem value={SEASON_SCOPE}>Toda la temporada · {seasonName}</SelectItem>
+              {matches.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {matchLabel(m)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="pz-dialog-actions">
           <button type="button" className="pz-btn-ghost" onClick={onCancel}>
             Cancelar

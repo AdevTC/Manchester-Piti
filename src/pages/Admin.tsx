@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "../firebase";
@@ -36,6 +36,16 @@ import {
   userDocSchema,
   seasonMatchSchema,
 } from "../lib/schemas";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+
+// Radix Select items need non-empty values; "" (no selection) maps to this.
+const SELECT_NONE = "__none__";
 
 interface Season {
   id: string;
@@ -552,15 +562,24 @@ export const Admin: React.FC = () => {
                 {/* Season selection */}
                 <div className="form-group">
                   <label className="form-label">Temporada</label>
-                  <select
-                    className="form-input"
-                    {...registerMatch("seasonId")}
-                    aria-invalid={!!matchErrors.seasonId}
-                    aria-describedby={matchErrors.seasonId ? "match-season-error" : undefined}
-                  >
-                    <option value="">Selecciona la Temporada</option>
-                    {seasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
+                  <Controller
+                    control={matchControl}
+                    name="seasonId"
+                    render={({ field }) => (
+                      <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                        <SelectTrigger
+                          className="w-full"
+                          aria-invalid={!!matchErrors.seasonId}
+                          aria-describedby={matchErrors.seasonId ? "match-season-error" : undefined}
+                        >
+                          <SelectValue placeholder="Selecciona la Temporada" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {seasons.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                   {matchErrors.seasonId && (
                     <span id="match-season-error" role="alert" style={{ display: "block", fontSize: "0.75rem", color: "var(--accent-red)", marginTop: "0.25rem" }}>
                       {matchErrors.seasonId.message}
@@ -589,15 +608,23 @@ export const Admin: React.FC = () => {
                 {/* Competition */}
                 <div className="form-group">
                   <label className="form-label">Competición</label>
-                  <select
-                    className="form-input"
-                    {...registerMatch("competition")}
-                  >
-                    <option value="Liga">Liga</option>
-                    <option value="Copa">Copa</option>
-                    <option value="Torneo">Torneo</option>
-                    <option value="Amistoso">Amistoso</option>
-                  </select>
+                  <Controller
+                    control={matchControl}
+                    name="competition"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Liga">Liga</SelectItem>
+                          <SelectItem value="Copa">Copa</SelectItem>
+                          <SelectItem value="Torneo">Torneo</SelectItem>
+                          <SelectItem value="Amistoso">Amistoso</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
 
                 {/* Date */}
@@ -674,102 +701,110 @@ export const Admin: React.FC = () => {
                   {/* Event Type */}
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" style={{ fontSize: "0.75rem" }}>Tipo de Acción</label>
-                    <select
-                      className="form-input"
+                    <Select
                       value={currentEventType}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const val = e.target.value as MatchEventForm["type"];
-                        setCurrentEventType(val);
-                        if (!["goal", "goal_penalty", "goal_freekick"].includes(val)) {
+                      onValueChange={(val) => {
+                        const v = val as MatchEventForm["type"];
+                        setCurrentEventType(v);
+                        if (!["goal", "goal_penalty", "goal_freekick"].includes(v)) {
                           setCurrentEventAssistant("");
                         }
                       }}
                     >
-                      <option value="goal">Gol de Jugada</option>
-                      <option value="assist">Asistencia (Individual)</option>
-                      <option value="goal_penalty">Gol de Penalti</option>
-                      <option value="goal_freekick">Gol de Falta</option>
-                      <option value="own_goal">Autogol</option>
-                      <option value="penalty_saved">Penalti Parado</option>
-                      <option value="penalty_missed">Penalti Fallado</option>
-                      <option value="woodwork">Tiro al Palo</option>
-                      <option value="yellow_card">Tarjeta Amarilla</option>
-                      <option value="red_card">Tarjeta Roja</option>
-                      <option value="double_yellow">Doble Amarilla</option>
-                      <option value="match_played">Partido Jugado (Participación)</option>
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="goal">Gol de Jugada</SelectItem>
+                        <SelectItem value="assist">Asistencia (Individual)</SelectItem>
+                        <SelectItem value="goal_penalty">Gol de Penalti</SelectItem>
+                        <SelectItem value="goal_freekick">Gol de Falta</SelectItem>
+                        <SelectItem value="own_goal">Autogol</SelectItem>
+                        <SelectItem value="penalty_saved">Penalti Parado</SelectItem>
+                        <SelectItem value="penalty_missed">Penalti Fallado</SelectItem>
+                        <SelectItem value="woodwork">Tiro al Palo</SelectItem>
+                        <SelectItem value="yellow_card">Tarjeta Amarilla</SelectItem>
+                        <SelectItem value="red_card">Tarjeta Roja</SelectItem>
+                        <SelectItem value="double_yellow">Doble Amarilla</SelectItem>
+                        <SelectItem value="match_played">Partido Jugado (Participación)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Player */}
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" style={{ fontSize: "0.75rem" }}>Jugador Implicado</label>
-                    <select
-                      className="form-input"
-                      value={currentEventPlayer}
-                      onChange={(e) => setCurrentEventPlayer(e.target.value)}
-                    >
-                      <option value="">Selecciona Jugador</option>
-                      {players.map(p => {
-                        let resolvedShirtName = p.shirtName;
-                        let resolvedNumber = p.number;
-                        if (matchSeasonId && p.seasonDetails?.[matchSeasonId]) {
-                          resolvedShirtName = p.seasonDetails[matchSeasonId].shirtName;
-                          resolvedNumber = p.seasonDetails[matchSeasonId].number;
-                        } else if (p.seasons && p.seasons.length > 0 && p.seasonDetails) {
-                          const activeSeasonsInList = seasons.filter(s => p.seasons?.includes(s.id));
-                          if (activeSeasonsInList.length > 0) {
-                            const latestPlayerSeason = activeSeasonsInList[activeSeasonsInList.length - 1];
-                            if (p.seasonDetails[latestPlayerSeason.id]) {
-                              resolvedShirtName = p.seasonDetails[latestPlayerSeason.id].shirtName;
-                              resolvedNumber = p.seasonDetails[latestPlayerSeason.id].number;
+                    <Select value={currentEventPlayer} onValueChange={setCurrentEventPlayer}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecciona Jugador" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {players.map(p => {
+                          let resolvedShirtName = p.shirtName;
+                          let resolvedNumber = p.number;
+                          if (matchSeasonId && p.seasonDetails?.[matchSeasonId]) {
+                            resolvedShirtName = p.seasonDetails[matchSeasonId].shirtName;
+                            resolvedNumber = p.seasonDetails[matchSeasonId].number;
+                          } else if (p.seasons && p.seasons.length > 0 && p.seasonDetails) {
+                            const activeSeasonsInList = seasons.filter(s => p.seasons?.includes(s.id));
+                            if (activeSeasonsInList.length > 0) {
+                              const latestPlayerSeason = activeSeasonsInList[activeSeasonsInList.length - 1];
+                              if (p.seasonDetails[latestPlayerSeason.id]) {
+                                resolvedShirtName = p.seasonDetails[latestPlayerSeason.id].shirtName;
+                                resolvedNumber = p.seasonDetails[latestPlayerSeason.id].number;
+                              }
                             }
                           }
-                        }
-                        return (
-                          <option key={p.id} value={p.id}>
-                            #{resolvedNumber} - {resolvedShirtName} ({p.firstName})
-                          </option>
-                        );
-                      })}
-                    </select>
+                          return (
+                            <SelectItem key={p.id} value={p.id}>
+                              #{resolvedNumber} - {resolvedShirtName} ({p.firstName})
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Assistant (Goals only) */}
                   {currentEventType === "goal" && (
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="form-label" style={{ fontSize: "0.75rem" }}>Asistente (Opcional)</label>
-                      <select
-                        className="form-input"
-                        value={currentEventAssistant}
-                        onChange={(e) => setCurrentEventAssistant(e.target.value)}
+                      <Select
+                        value={currentEventAssistant || SELECT_NONE}
+                        onValueChange={(v) => setCurrentEventAssistant(v === SELECT_NONE ? "" : v)}
                       >
-                        <option value="">Sin Asistente</option>
-                        {players
-                          .filter(p => p.id !== currentEventPlayer) // Can't assist yourself
-                          .map(p => {
-                            let resolvedShirtName = p.shirtName;
-                            let resolvedNumber = p.number;
-                            if (matchSeasonId && p.seasonDetails?.[matchSeasonId]) {
-                              resolvedShirtName = p.seasonDetails[matchSeasonId].shirtName;
-                              resolvedNumber = p.seasonDetails[matchSeasonId].number;
-                            } else if (p.seasons && p.seasons.length > 0 && p.seasonDetails) {
-                              const activeSeasonsInList = seasons.filter(s => p.seasons?.includes(s.id));
-                              if (activeSeasonsInList.length > 0) {
-                                const latestPlayerSeason = activeSeasonsInList[activeSeasonsInList.length - 1];
-                                if (p.seasonDetails[latestPlayerSeason.id]) {
-                                  resolvedShirtName = p.seasonDetails[latestPlayerSeason.id].shirtName;
-                                  resolvedNumber = p.seasonDetails[latestPlayerSeason.id].number;
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SELECT_NONE}>Sin Asistente</SelectItem>
+                          {players
+                            .filter(p => p.id !== currentEventPlayer) // Can't assist yourself
+                            .map(p => {
+                              let resolvedShirtName = p.shirtName;
+                              let resolvedNumber = p.number;
+                              if (matchSeasonId && p.seasonDetails?.[matchSeasonId]) {
+                                resolvedShirtName = p.seasonDetails[matchSeasonId].shirtName;
+                                resolvedNumber = p.seasonDetails[matchSeasonId].number;
+                              } else if (p.seasons && p.seasons.length > 0 && p.seasonDetails) {
+                                const activeSeasonsInList = seasons.filter(s => p.seasons?.includes(s.id));
+                                if (activeSeasonsInList.length > 0) {
+                                  const latestPlayerSeason = activeSeasonsInList[activeSeasonsInList.length - 1];
+                                  if (p.seasonDetails[latestPlayerSeason.id]) {
+                                    resolvedShirtName = p.seasonDetails[latestPlayerSeason.id].shirtName;
+                                    resolvedNumber = p.seasonDetails[latestPlayerSeason.id].number;
+                                  }
                                 }
                               }
-                            }
-                            return (
-                              <option key={p.id} value={p.id}>
-                                #{resolvedNumber} - {resolvedShirtName} ({p.firstName})
-                              </option>
-                            );
-                          })
-                        }
-                      </select>
+                              return (
+                                <SelectItem key={p.id} value={p.id}>
+                                  #{resolvedNumber} - {resolvedShirtName} ({p.firstName})
+                                </SelectItem>
+                              );
+                            })
+                          }
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
 
@@ -1392,21 +1427,24 @@ export const Admin: React.FC = () => {
           {editingSeasonId && (
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label" htmlFor="season-captain">Capitán de la temporada</label>
-              <select
-                id="season-captain"
-                className="form-input"
-                value={seasonCaptainId}
-                onChange={(e) => setSeasonCaptainId(e.target.value)}
+              <Select
+                value={seasonCaptainId || SELECT_NONE}
+                onValueChange={(v) => setSeasonCaptainId(v === SELECT_NONE ? "" : v)}
               >
-                <option value="">— Sin capitán —</option>
-                {players
-                  .filter((p) => (p.seasons || []).includes(editingSeasonId!))
-                  .map((p) => ({ p, num: p.seasonDetails?.[editingSeasonId!]?.number ?? p.number }))
-                  .sort((a, b) => a.num - b.num)
-                  .map(({ p, num }) => (
-                    <option key={p.id} value={p.id}>#{num} · {p.firstName} {p.lastName}</option>
-                  ))}
-              </select>
+                <SelectTrigger id="season-captain" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELECT_NONE}>— Sin capitán —</SelectItem>
+                  {players
+                    .filter((p) => (p.seasons || []).includes(editingSeasonId!))
+                    .map((p) => ({ p, num: p.seasonDetails?.[editingSeasonId!]?.number ?? p.number }))
+                    .sort((a, b) => a.num - b.num)
+                    .map(({ p, num }) => (
+                      <SelectItem key={p.id} value={p.id}>#{num} · {p.firstName} {p.lastName}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
                 Recibe la mención dorada en la Plantilla cuando la temporada aún no tiene goleador. Recuerda pulsar "Guardar Cambios".
               </span>
@@ -1541,31 +1579,25 @@ export const Admin: React.FC = () => {
                         {isSuperAdmin ? (
                           <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontStyle: "italic" }}>Protegido</span>
                         ) : (
-                          <select
+                          <Select
                             value={usr.role === "admin" ? "admin" : "user"}
-                            onChange={async (e) => {
+                            onValueChange={async (newRole) => {
                               try {
-                                const newRole = e.target.value as "admin" | "user";
-                                await updateUserRole(usr.uid, usr.email, newRole);
+                                await updateUserRole(usr.uid, usr.email, newRole as "admin" | "user");
                                 notifySuccess(`Rol de @${usr.nickname} actualizado a ${newRole === "admin" ? "Administrador" : "Usuario"}.`);
                               } catch (err: unknown) {
                                 notifyError((err instanceof Error ? err.message : "") || "Error al actualizar rol.");
                               }
                             }}
-                            style={{
-                              background: "var(--bg-tertiary)",
-                              border: "1px solid var(--border-color)",
-                              borderRadius: "0.375rem",
-                              padding: "0.25rem 0.5rem",
-                              color: "var(--text-primary)",
-                              fontFamily: "var(--font-sans)",
-                              fontSize: "0.85rem",
-                              cursor: "pointer"
-                            }}
                           >
-                            <option value="user">Usuario</option>
-                            <option value="admin">Administrador</option>
-                          </select>
+                            <SelectTrigger size="sm" className="w-[170px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="user">Usuario</SelectItem>
+                              <SelectItem value="admin">Administrador</SelectItem>
+                            </SelectContent>
+                          </Select>
                         )}
                       </td>
                     </tr>

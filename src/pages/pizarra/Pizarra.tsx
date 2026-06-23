@@ -41,9 +41,20 @@ import { SharePanel } from "./SharePanel";
 import { CompareView } from "./CompareView";
 import type { PosterData, PosterToken } from "./poster";
 import type { LineupDoc } from "./lineupDoc";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import "./Pizarra.css";
 
 const DEFAULT_FORMATION: FormationName = "2-3-1";
+
+// Radix Select items need non-empty values; "" (no selection) maps to these.
+const ROLE_NONE = "__none__";
+const POS_NONE = "__none__";
 
 const prefersReduced = (): boolean =>
   typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -835,24 +846,27 @@ export const Pizarra: React.FC = () => {
                   <span className="pz-role-seal pz-role-seal--lg" aria-hidden="true">{r.glyph}</span>
                   <span className="pz-role-text">
                     <span className="pz-role-label">{r.label}</span>
-                    <select
-                      className="pz-role-select"
-                      value={lineup.roles[r.key] ?? ""}
-                      onChange={(e) => setRole(r.key, e.target.value)}
-                      aria-label={r.aria}
+                    <Select
+                      value={lineup.roles[r.key] || ROLE_NONE}
+                      onValueChange={(v) => setRole(r.key, v === ROLE_NONE ? "" : v)}
                       disabled={readOnly}
                     >
-                      <option value="">Ninguno</option>
-                      {onPitchIds.map((id) => {
-                        const p = playersById.get(id);
-                        if (!p) return null;
-                        return (
-                          <option key={id} value={id}>
-                            {p.number} · {p.shirtName || p.firstName || `Nº${p.number}`}
-                          </option>
-                        );
-                      })}
-                    </select>
+                      <SelectTrigger size="sm" className="w-full" aria-label={r.aria}>
+                        <SelectValue placeholder="Ninguno" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[1100]">
+                        <SelectItem value={ROLE_NONE}>Ninguno</SelectItem>
+                        {onPitchIds.map((id) => {
+                          const p = playersById.get(id);
+                          if (!p) return null;
+                          return (
+                            <SelectItem key={id} value={id}>
+                              {p.number} · {p.shirtName || p.firstName || `Nº${p.number}`}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
                   </span>
                 </label>
               ))}
@@ -888,18 +902,21 @@ export const Pizarra: React.FC = () => {
                     {isAdmin && (
                       <label className="pz-pos-field">
                         <span className="pz-pos-flabel">Natural</span>
-                        <select
-                          className="pz-pos-select"
-                          value={p.naturalPosition ?? ""}
-                          onChange={(e) => saveNatural(p.id, (e.target.value || null) as Zone | null)}
-                          aria-label={`Posición natural de ${p.shirtName || p.firstName}`}
+                        <Select
+                          value={p.naturalPosition ?? POS_NONE}
+                          onValueChange={(v) => saveNatural(p.id, v === POS_NONE ? null : (v as Zone))}
                           disabled={readOnly}
                         >
-                          <option value="">—</option>
-                          {ZONES.map((z) => (
-                            <option key={z} value={z}>{ZONE_LABEL[z]}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger size="sm" className="w-full" aria-label={`Posición natural de ${p.shirtName || p.firstName}`}>
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[1100]">
+                            <SelectItem value={POS_NONE}>—</SelectItem>
+                            {ZONES.map((z) => (
+                              <SelectItem key={z} value={z}>{ZONE_LABEL[z]}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </label>
                     )}
                     {isAdmin && (
@@ -916,18 +933,21 @@ export const Pizarra: React.FC = () => {
                     )}
                     <label className="pz-pos-field">
                       <span className="pz-pos-flabel">En este 11</span>
-                      <select
-                        className="pz-pos-select"
-                        value={override ?? ""}
-                        onChange={(e) => setOverride(p.id, (e.target.value || null) as Zone | null)}
-                        aria-label={`Posición de ${p.shirtName || p.firstName} en este once`}
+                      <Select
+                        value={override ?? POS_NONE}
+                        onValueChange={(v) => setOverride(p.id, v === POS_NONE ? null : (v as Zone))}
                         disabled={readOnly}
                       >
-                        <option value="">Según natural</option>
-                        {ZONES.map((z) => (
-                          <option key={z} value={z}>{ZONE_LABEL[z]}</option>
-                        ))}
-                      </select>
+                        <SelectTrigger size="sm" className="w-full" aria-label={`Posición de ${p.shirtName || p.firstName} en este once`}>
+                          <SelectValue placeholder="Según natural" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[1100]">
+                          <SelectItem value={POS_NONE}>Según natural</SelectItem>
+                          {ZONES.map((z) => (
+                            <SelectItem key={z} value={z}>{ZONE_LABEL[z]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </label>
                     <button
                       type="button"
@@ -968,17 +988,20 @@ export const Pizarra: React.FC = () => {
                   </span>
                   <span className="pz-squad-chip">{p.naturalPosition ? ZONE_LABEL[p.naturalPosition] : "—"}</span>
                   {isAdmin && (
-                    <select
-                      className="pz-pos-select"
-                      value={p.naturalPosition ?? ""}
-                      onChange={(e) => saveNatural(p.id, (e.target.value || null) as Zone | null)}
-                      aria-label={`Posición natural de ${p.shirtName || p.firstName}`}
+                    <Select
+                      value={p.naturalPosition ?? POS_NONE}
+                      onValueChange={(v) => saveNatural(p.id, v === POS_NONE ? null : (v as Zone))}
                     >
-                      <option value="">—</option>
-                      {ZONES.map((z) => (
-                        <option key={z} value={z}>{ZONE_LABEL[z]}</option>
-                      ))}
-                    </select>
+                      <SelectTrigger size="sm" className="w-full" aria-label={`Posición natural de ${p.shirtName || p.firstName}`}>
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[1100]">
+                        <SelectItem value={POS_NONE}>—</SelectItem>
+                        {ZONES.map((z) => (
+                          <SelectItem key={z} value={z}>{ZONE_LABEL[z]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 </li>
               ))}

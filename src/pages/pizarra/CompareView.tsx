@@ -5,6 +5,13 @@ import { ratingForLineupDoc, type PlayerMeta, type SquadNorms } from "./chemistr
 import type { PlayerStats } from "../../lib/playerStats";
 import { ZONE_LABEL } from "./formations";
 import { useFocusTrap } from "./useFocusTrap";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 
 interface CompareViewProps {
   boards: LineupDoc[]; // mine + official, deduped
@@ -27,19 +34,19 @@ export const CompareView: React.FC<CompareViewProps> = ({ boards, statsById, met
 
   const col = (d: LineupDoc | undefined, r: ReturnType<typeof evalBoard>, side: "a" | "b") => (
     <div className={`pz-cmp-col pz-cmp-col--${side}`}>
-      <select
-        className="pz-select"
-        value={side === "a" ? aId : bId}
-        onChange={(e) => (side === "a" ? setAId : setBId)(e.target.value)}
-        aria-label={`Tablero ${side === "a" ? "A" : "B"}`}
-      >
-        {boards.map((x) => (
-          <option key={x.id} value={x.id}>
-            {x.name}
-            {x.isOfficial ? " ·oficial" : ""}
-          </option>
-        ))}
-      </select>
+      <Select value={side === "a" ? aId : bId} onValueChange={side === "a" ? setAId : setBId}>
+        <SelectTrigger size="sm" className="w-full" aria-label={`Tablero ${side === "a" ? "A" : "B"}`}>
+          <SelectValue placeholder="Tablero" />
+        </SelectTrigger>
+        <SelectContent className="z-[1100]">
+          {boards.map((x) => (
+            <SelectItem key={x.id} value={x.id}>
+              {x.name}
+              {x.isOfficial ? " ·oficial" : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {r && d ? (
         <>
           <div className="pz-cmp-score">{r.rating.score}</div>
