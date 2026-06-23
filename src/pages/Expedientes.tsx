@@ -4,8 +4,10 @@ import { Link } from "@tanstack/react-router";
 import { useSeason } from "../context/SeasonContext";
 import { Jersey } from "../components/Jersey";
 import { motion } from "motion/react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
+import { useFirestoreCollection } from "../lib/useFirestoreCollection";
+import { mapPlayer, mapMatch } from "../lib/firestoreMappers";
 import { X, FileText } from "lucide-react";
 import { computeStats, type PlayerStats, type MatchLike } from "../lib/playerStats";
 import "./Plantilla.css";
@@ -23,6 +25,15 @@ interface Player {
   active: boolean;
   seasonDetails?: Record<string, { shirtName: string; number: number }>;
 }
+
+// Shared realtime subscriptions via the cache bridge using the CANONICAL
+// mappers (full validated docs): one onSnapshot for `players` and one for all
+// `matches` (date desc), deduped across pages. The per-season filtering + stat
+// derivation stays in the component.
+const PLAYERS_KEY = ["players"] as const;
+const MATCHES_KEY = ["matches"] as const;
+const playersQuery = collection(db, "players");
+const matchesQuery = query(collection(db, "matches"), orderBy("date", "desc"));
 
 type Mount = "pichichi" | "capitan" | null;
 interface Perfil { label: string; color: string; headlineMode: "guardian" | null; rationale: string; }
@@ -381,13 +392,23 @@ const ExpedienteModal: React.FC<{
   );
 };
 
+type SeasonedMatch = MatchLike & { id: string; seasonId?: string };
+
 export const Expedientes: React.FC = () => {
   const { selectedSeasonId, seasons } = useSeason();
-  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
-  const [matches, setMatches] = useState<MatchLike[]>([]);
-  // Loading is derived from whether matches for the active season have arrived,
-  // so we never call setState synchronously in an effect (set-state-in-effect).
-  const [loadedKey, setLoadedKey] = useState<string>("");
+  // Shared realtime subscriptions via the cache bridge using the CANONICAL
+  // mappers (full validated docs); per-season match filtering + sorting stays
+  // here in useMemo. This view reads fields defensively, so the casts are safe.
+  const { data: playersData } = useFirestoreCollection(PLAYERS_KEY, playersQuery, mapPlayer);
+  const { data: matchesData, isPending } = useFirestoreCollection(MATCHES_KEY, matchesQuery, mapMatch);
+  const allPlayers = useMemo<Player[]>(
+    () => ((playersData ?? []) as unknown as Player[]).slice().sort((a, b) => a.number - b.number),
+    [playersData],
+  );
+  const matches = useMemo<SeasonedMatch[]>(() => {
+    const all = (matchesData ?? []) as unknown as SeasonedMatch[];
+    return selectedSeasonId === "all" ? all : all.filter((m) => m.seasonId === selectedSeasonId);
+  }, [matchesData, selectedSeasonId]);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [morphingId, setMorphingId] = useState<string | null>(null);
 
@@ -421,24 +442,7 @@ export const Expedientes: React.FC = () => {
     return () => { document.body.style.overflow = ""; window.removeEventListener("keydown", onKey); };
   }, [selectedPlayer]);
 
-  useEffect(() => {
-    const playersRef = collection(db, "players");
-    const unsubPlayers = onSnapshot(playersRef, (snap) => {
-      const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Player[];
-      setAllPlayers(loaded.sort((a, b) => a.number - b.number));
-    });
-    const matchesRef = collection(db, "matches");
-    const matchesQuery = selectedSeasonId !== "all"
-      ? query(matchesRef, where("seasonId", "==", selectedSeasonId))
-      : query(matchesRef);
-    const unsubMatches = onSnapshot(matchesQuery, (snap) => {
-      setMatches(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as MatchLike[]);
-      setLoadedKey(selectedSeasonId);
-    });
-    return () => { unsubPlayers(); unsubMatches(); };
-  }, [selectedSeasonId]);
-
-  const loading = loadedKey !== selectedSeasonId;
+  const loading = isPending;
 
   const displayedPlayers = useMemo(() => {
     let filtered = [...allPlayers];

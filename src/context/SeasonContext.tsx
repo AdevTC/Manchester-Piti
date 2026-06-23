@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
 import { collection, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
-import { seasonSchema, dropNullFields } from "../lib/schemas";
 import { useFirestoreCollection } from "../lib/useFirestoreCollection";
+import { mapSeason } from "../lib/firestoreMappers";
 
 export interface Season {
   id: string;
@@ -22,21 +22,16 @@ const SeasonContext = createContext<SeasonContextType | undefined>(undefined);
 
 const SEASONS_KEY = ["seasons"] as const;
 
-/** Module-level stable mapper: validates with Zod (Phase 1) and discards invalid docs. */
-function mapSeason(id: string, data: unknown): Season | null {
-  const r = seasonSchema.safeParse({ id, ...dropNullFields(data as Record<string, unknown>) });
-  if (!r.success) {
-    console.error(`[schema] doc inválido en seasons/${id}:`, r.error.issues);
-    return null;
-  }
-  return { id: r.data.id, name: r.data.name, captainPlayerId: r.data.captainPlayerId || undefined };
-}
-
 export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const seasonsQuery = useMemo(() => query(collection(db, "seasons"), orderBy("name", "asc")), []);
 
+  // Shared canonical mapper (full validated doc); derive the Season view here so
+  // every ["seasons"] consumer reads the identical cached shape.
   const { data, isPending } = useFirestoreCollection(SEASONS_KEY, seasonsQuery, mapSeason);
-  const seasons = useMemo(() => data ?? [], [data]);
+  const seasons = useMemo<Season[]>(
+    () => (data ?? []).map((s) => ({ id: s.id, name: s.name, captainPlayerId: s.captainPlayerId || undefined })),
+    [data],
+  );
   const loadingSeasons = isPending;
 
   const [selectedSeasonIdRaw, setSelectedSeasonIdRaw] = useState<string>(() => {

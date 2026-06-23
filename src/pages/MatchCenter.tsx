@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { AnimatePresence } from "motion/react";
 import { useSeason } from "../context/SeasonContext";
-import { collection, onSnapshot, query, where, orderBy } from "firebase/firestore";
+import { collection, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
+import { useFirestoreCollection } from "../lib/useFirestoreCollection";
+import { mapPlayer, mapMatch } from "../lib/firestoreMappers";
 import { outcomeOf, OUTCOME, type MatchDoc } from "../components/match/matchData";
 import { CountUp } from "../components/match/MatchBits";
 import { ScoreboardHero } from "../components/match/ScoreboardHero";
@@ -18,46 +20,33 @@ interface PlayerDoc {
   seasonDetails?: Record<string, { shirtName?: string; number?: number }>;
 }
 
+// Shared realtime subscriptions via the cache bridge using the CANONICAL
+// mappers (full validated docs): one onSnapshot for `players` and one for all
+// `matches` (date desc), deduped across pages. The per-season filtering +
+// playersMaps derivation stays here in useMemo.
+const PLAYERS_KEY = ["players"] as const;
+const MATCHES_KEY = ["matches"] as const;
+const playersQuery = collection(db, "players");
+const matchesQuery = query(collection(db, "matches"), orderBy("date", "desc"));
+
 export const MatchCenter: React.FC = () => {
   const { selectedSeasonId, setSelectedSeasonId, seasons } = useSeason();
-  // Stored with the season it belongs to, so `loading` is derived (no setState in the effect body).
-  const [feed, setFeed] = useState<{ seasonId: string; matches: MatchDoc[] }>({ seasonId: "", matches: [] });
-  const [players, setPlayers] = useState<PlayerDoc[]>([]);
+  const { data: playersData } = useFirestoreCollection(PLAYERS_KEY, playersQuery, mapPlayer);
+  const { data: matchesData, isPending } = useFirestoreCollection(MATCHES_KEY, matchesQuery, mapMatch);
+  // seasonDetails is record<string, unknown> in the canonical doc; the board
+  // reads it defensively, so the cast to the local PlayerDoc shape is safe.
+  const players = useMemo<PlayerDoc[]>(() => (playersData ?? []) as unknown as PlayerDoc[], [playersData]);
 
-  const loaded = feed.seasonId === selectedSeasonId;
-  const loading = !loaded;
-  const matches = useMemo(() => (loaded ? feed.matches : []), [loaded, feed.matches]);
+  const loading = isPending;
+  // All matches arrive once (date desc); filter to the active season in memory.
+  // looseObject passthrough carries events/competition/date → cast to MatchDoc.
+  const matches = useMemo<MatchDoc[]>(() => {
+    const all = (matchesData ?? []) as MatchDoc[];
+    return selectedSeasonId === "all" ? all : all.filter((m) => m.seasonId === selectedSeasonId);
+  }, [matchesData, selectedSeasonId]);
 
   const currentSeasonName =
     selectedSeasonId === "all" ? "Histórico Total" : seasons.find((s) => s.id === selectedSeasonId)?.name || "Temporada";
-
-  // Players (realtime)
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "players"), (snap) => {
-      setPlayers(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PlayerDoc));
-    });
-    return () => unsub();
-  }, []);
-
-  // Matches filtered by season (realtime), date desc
-  useEffect(() => {
-    const ref = collection(db, "matches");
-    const q =
-      selectedSeasonId === "all"
-        ? query(ref, orderBy("date", "desc"))
-        : query(ref, where("seasonId", "==", selectedSeasonId), orderBy("date", "desc"));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setFeed({ seasonId: selectedSeasonId, matches: snap.docs.map((d) => ({ id: d.id, ...d.data() }) as MatchDoc) });
-      },
-      (err) => {
-        console.error("Error loading matches:", err);
-        setFeed({ seasonId: selectedSeasonId, matches: [] });
-      },
-    );
-    return () => unsub();
-  }, [selectedSeasonId]);
 
   // Resolve shirt names, eagerly per season present in the feed (no post-render mutation).
   const playersMaps = useMemo(() => {

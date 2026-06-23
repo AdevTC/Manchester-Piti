@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { collection, doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { useMemo } from "react";
+import { collection, doc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useSeason, type Season } from "../../context/SeasonContext";
 import type { Zone } from "./formations";
-import { parseDocs, playerSchema } from "../../lib/schemas";
+import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
+import { mapPlayer } from "../../lib/firestoreMappers";
+
+const PLAYERS_KEY = ["players"] as const;
+const playersQuery = collection(db, "players");
 
 // Local mirror of the Firestore `players` doc. Kept independent of the
 // Expedientes view so that view stays untouched; only the fields the board
@@ -83,19 +87,13 @@ function resolve(player: PlayerDoc, selectedSeasonId: string, seasons: Season[])
  */
 export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolean } {
   const { selectedSeasonId, seasons } = useSeason();
-  const [docs, setDocs] = useState<PlayerDoc[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "players"), (snap) => {
-      // Validate at the Firestore edge; naturalPosition is string in the schema
-      // but Zone in the local interface — the cast is safe because the board
-      // code only uses values written by the admin (always a valid Zone).
-      setDocs(parseDocs(playerSchema, snap.docs, "players") as PlayerDoc[]);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
+  // Shared canonical subscription via the cache bridge (one onSnapshot for
+  // `players` across all pages); per-season derivation stays here in useMemo.
+  // naturalPosition is string in the schema but Zone in the board interface —
+  // the cast is safe because the board only reads admin-written (valid) values.
+  const { data, isPending } = useFirestoreCollection(PLAYERS_KEY, playersQuery, mapPlayer);
+  const docs = useMemo(() => (data ?? []) as unknown as PlayerDoc[], [data]);
+  const loading = isPending;
 
   const players = useMemo<PizarraPlayer[]>(() => {
     const inSeason =

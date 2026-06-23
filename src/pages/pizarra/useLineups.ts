@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   addDoc,
   collection,
   deleteDoc,
   doc,
   getDocs,
-  onSnapshot,
   query,
   serverTimestamp,
   updateDoc,
@@ -16,7 +15,8 @@ import { db } from "../../firebase";
 import { useAuth } from "../../context/AuthContext";
 import type { Lineup } from "./formations";
 import { dataToLineupDoc, lineupToData, type LineupDoc, type LineupMeta } from "./lineupDoc";
-import { lineupSchema } from "../../lib/schemas";
+import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
+import { mapLineup } from "../../lib/firestoreMappers";
 
 // `?preview` injects a mock session but no real Firebase auth token, so the
 // `lineups` rules (request.auth != null) would reject reads/writes. In preview
@@ -74,36 +74,24 @@ export function useLineups(seasonId: string): UseLineups {
   // ── Preview backend: React-state-backed localStorage. ──
   const [localRecords, setLocalRecords] = useState<LocalRecord[]>(() => (PREVIEW ? localRead() : []));
 
-  // ── Firestore backend: one realtime subscription per season. ──
-  const [docs, setDocs] = useState<{ seasonId: string; items: LineupDoc[] }>({ seasonId: "", items: [] });
-  useEffect(() => {
-    if (PREVIEW) return;
-    const q = query(collection(db, "lineups"), where("seasonId", "==", seasonId));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        // Validate at the edge: discard+log docs that aren't usable objects
-        // (e.g. missing seasonId). dataToLineupDoc handles all other missing
-        // fields with its own fallbacks — do NOT modify it.
-        const items: LineupDoc[] = [];
-        for (const d of snap.docs) {
-          const raw = d.data();
-          const r = lineupSchema.safeParse({ id: d.id, ...raw });
-          if (r.success) {
-            items.push(dataToLineupDoc(d.id, raw as Record<string, unknown>));
-          } else {
-            console.error(`[schema] doc inválido en lineups/${d.id}:`, r.error.issues);
-          }
-        }
-        setDocs({ seasonId, items });
-      },
-      (err) => {
-        console.error("Error cargando tableros:", err);
-        setDocs({ seasonId, items: [] });
-      },
-    );
-    return () => unsub();
-  }, [seasonId]);
+  // ── Firestore backend: one realtime subscription per season, deduped and
+  //    cache-shared via the bridge (key `["lineups", seasonId]`). The raw
+  //    validated docs live in the cache; dataToLineupDoc derivation stays here.
+  //    `useFirestoreCollection` must run unconditionally (rules of hooks); in
+  //    PREVIEW its data is ignored and `localApi` drives the UI. ──
+  const lineupsQuery = useMemo(
+    () => query(collection(db, "lineups"), where("seasonId", "==", seasonId)),
+    [seasonId],
+  );
+  const lineupsKey = useMemo(() => ["lineups", seasonId], [seasonId]);
+  // Skip the Firestore subscription entirely in preview (no auth token → the
+  // rules would reject the read); the localStorage-backed localApi drives it.
+  // Canonical mapLineup stores the raw validated doc; dataToLineupDoc derives.
+  const { data: rawLineups, isPending } = useFirestoreCollection(lineupsKey, lineupsQuery, mapLineup, !PREVIEW);
+  const items = useMemo<LineupDoc[]>(
+    () => (rawLineups ?? []).map((r) => dataToLineupDoc(r.id, r)),
+    [rawLineups],
+  );
 
   const localApi = useMemo<UseLineups | null>(() => {
     if (!PREVIEW) return null;
@@ -178,9 +166,6 @@ export function useLineups(seasonId: string): UseLineups {
   }, [localRecords, uid, nickname, seasonId]);
 
   const firestoreApi = useMemo<UseLineups>(() => {
-    const loaded = docs.seasonId === seasonId;
-    const items = loaded ? docs.items : [];
-
     const create: UseLineups["create"] = async (lineup, name) => {
       const meta: LineupMeta = { ownerUid: uid, ownerNickname: nickname, seasonId, name, isOfficial: false, matchId: null };
       const ref = await addDoc(collection(db, "lineups"), {
@@ -229,14 +214,14 @@ export function useLineups(seasonId: string): UseLineups {
     return {
       official: items.filter((d) => d.isOfficial),
       mine: items.filter((d) => d.ownerUid === uid),
-      loading: !loaded,
+      loading: isPending,
       create,
       save,
       rename,
       remove,
       markOfficial,
     };
-  }, [docs, seasonId, uid, nickname]);
+  }, [items, isPending, seasonId, uid, nickname]);
 
   return localApi ?? firestoreApi;
 }
