@@ -101,21 +101,33 @@ export const FloodlightCanvas: React.FC<{ className?: string }> = ({ className }
       return;
     }
 
+    // Run the loop only when the canvas is on-screen AND the tab is visible.
+    // A backgrounded tab keeps "intersecting" but is hidden, so without the
+    // visibility gate the rAF loop would keep burning CPU/battery (browsers only
+    // throttle, not stop, background rAF). Both gates funnel through this helper.
+    let onScreen = false;
+    const sync = () => {
+      const shouldRun = onScreen && document.visibilityState === "visible";
+      if (shouldRun && !running) {
+        running = true;
+        raf = requestAnimationFrame(frame);
+      } else if (!shouldRun && running) {
+        running = false;
+        cancelAnimationFrame(raf);
+      }
+    };
+
     const io = new IntersectionObserver(
       (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting && !running) {
-            running = true;
-            raf = requestAnimationFrame(frame);
-          } else if (!entry.isIntersecting && running) {
-            running = false;
-            cancelAnimationFrame(raf);
-          }
-        }
+        for (const entry of entries) onScreen = entry.isIntersecting;
+        sync();
       },
       { threshold: 0 },
     );
     io.observe(canvas);
+
+    const onVisibility = () => sync();
+    document.addEventListener("visibilitychange", onVisibility);
 
     const onResize = () => resize();
     window.addEventListener("resize", onResize);
@@ -123,6 +135,7 @@ export const FloodlightCanvas: React.FC<{ className?: string }> = ({ className }
     return () => {
       io.disconnect();
       cancelAnimationFrame(raf);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", onResize);
     };
   }, []);

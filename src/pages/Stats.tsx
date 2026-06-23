@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { motion } from "motion/react";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useSeason, type Season } from "../context/SeasonContext";
+import { useCountUp } from "../hooks/useCountUp";
 import { Leaderboard } from "../components/Leaderboard";
 import { Jersey } from "../components/Jersey";
 import { collection, query, orderBy } from "firebase/firestore";
@@ -46,6 +48,27 @@ const SubHead: React.FC<{ title: string; rule?: string }> = ({ title, rule = "va
     </h4>
   </div>
 );
+
+// Featured headline number (the team's points): counts up from 0 when it scrolls
+// into view (useCountUp) and floats in on a scale/opacity entrance (motion.span).
+// The count and the entrance are independent — useCountUp owns the value, Motion
+// only does the reveal — so they never double-animate. Both honor reduced-motion:
+// useCountUp shows the final value immediately, and the global <MotionConfig
+// reducedMotion="user"> neutralizes the scale transform.
+const FeaturedNumber: React.FC<{ value: number; style?: React.CSSProperties }> = ({ value, style }) => {
+  const { value: shown, ref } = useCountUp(value);
+  return (
+    <motion.span
+      ref={ref}
+      style={style}
+      initial={{ opacity: 0, scale: 0.82 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
+      {shown}
+    </motion.span>
+  );
+};
 
 const formatPlayerName = (firstName: string, lastName: string) => {
   if (!lastName || !lastName.trim()) return firstName;
@@ -1742,7 +1765,7 @@ export const Stats: React.FC = () => {
                     <Shield size={16} /> Rendimiento &middot; {currentSeasonName}
                   </span>
                   <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginTop: "0.85rem" }}>
-                    <span style={{ fontFamily: "var(--font-display)", fontSize: "clamp(4rem, 13vw, 7rem)", lineHeight: 0.76, color: "var(--accent-cyan)" }}>{teamStats.points}</span>
+                    <FeaturedNumber value={teamStats.points} style={{ display: "inline-block", fontFamily: "var(--font-display)", fontSize: "clamp(4rem, 13vw, 7rem)", lineHeight: 0.76, color: "var(--accent-cyan)" }} />
                     <span style={{ fontFamily: "var(--font-display)", fontSize: "1.3rem", color: "#9fb6d6" }}>PTS</span>
                   </div>
                   <span style={{ display: "block", marginTop: "0.5rem", fontSize: "0.85rem", color: "#9fb6d6" }}>

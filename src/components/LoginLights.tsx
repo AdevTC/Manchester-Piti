@@ -235,13 +235,24 @@ export const LoginLights: React.FC<{ className?: string }> = ({ className }) => 
       raf = requestAnimationFrame(frame);
     };
 
+    // Run only when on-screen AND the tab is visible: a backgrounded tab stays
+    // "intersecting" but hidden, so without the visibility gate this (heavy,
+    // multi-cone + dust) loop would keep burning CPU/battery behind the scenes.
+    let onScreen = false;
+    const sync = () => {
+      const shouldRun = onScreen && document.visibilityState === "visible";
+      if (shouldRun && !running) { running = true; raf = requestAnimationFrame(frame); }
+      else if (!shouldRun && running) { running = false; cancelAnimationFrame(raf); }
+    };
+
     const io = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (e.isIntersecting && !running) { running = true; raf = requestAnimationFrame(frame); }
-        else if (!e.isIntersecting && running) { running = false; cancelAnimationFrame(raf); }
-      }
+      for (const e of entries) onScreen = e.isIntersecting;
+      sync();
     }, { threshold: 0 });
     io.observe(canvas);
+
+    const onVisibility = () => sync();
+    document.addEventListener("visibilitychange", onVisibility);
 
     const onResize = () => resize();
     window.addEventListener("resize", onResize);
@@ -249,6 +260,7 @@ export const LoginLights: React.FC<{ className?: string }> = ({ className }) => 
     return () => {
       io.disconnect();
       cancelAnimationFrame(raf);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", onResize);
     };
   }, []);
