@@ -25,7 +25,7 @@ export const Plantilla: React.FC = () => {
   return (
     <div className="pl-shell fade-in">
       <SeasonSelector />
-      <Tabs value={mode} onValueChange={(v) => choose(v as Mode)}>
+      <Tabs value={mode} onValueChange={(v) => choose(v as Mode)} activationMode="manual">
         <TabsList variant="line" aria-label="Modo de plantilla">
           <TabsTrigger value="expedientes">
             <FileText size={15} aria-hidden="true" />

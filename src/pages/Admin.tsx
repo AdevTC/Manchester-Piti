@@ -549,7 +549,7 @@ export const Admin: React.FC = () => {
       )}
 
       {/* Tabs — content below is driven by the ?tab search param */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "seasons" | "roster" | "matches" | "admins")}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "seasons" | "roster" | "matches" | "admins")} activationMode="manual">
         <TabsList variant="line" aria-label="Secciones de administración" className="w-full justify-start overflow-x-auto border-b border-border">
           {([
             { id: "matches", icon: Trophy, label: "Registrar partido" },

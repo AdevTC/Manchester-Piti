@@ -80,7 +80,7 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
       <div className="pz-ctrl">
         <label className="pz-ctrl-label" htmlFor="pz-system">Sistema</label>
         <Select value={formation} onValueChange={(v) => onFormation(v as FormationName)} disabled={readOnly}>
-          <SelectTrigger size="sm" id="pz-system" className="w-full">
+          <SelectTrigger size="sm" id="pz-system" className="min-w-[5rem]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="z-[1100]">
@@ -105,7 +105,7 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
           <div className="pz-ctrl" key={t.key}>
             <label className="pz-ctrl-label" htmlFor={`pz-t-${t.key}`}>{t.label}</label>
             <Select value={tactics[t.key]} onValueChange={(v) => onTactic(t.key, v)} disabled={readOnly}>
-              <SelectTrigger size="sm" id={`pz-t-${t.key}`} className="w-full">
+              <SelectTrigger size="sm" id={`pz-t-${t.key}`} className="min-w-[6rem]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="z-[1100]">
@@ -172,7 +172,7 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
           onValueChange={(v) => onLinkMatch(v === MATCH_NONE ? null : v)}
           disabled={readOnly}
         >
-          <SelectTrigger size="sm" className="w-full pz-select--match" aria-label="Vincular a partido">
+          <SelectTrigger size="sm" className="min-w-[8rem] pz-select--match" aria-label="Vincular a partido">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="z-[1100]">
