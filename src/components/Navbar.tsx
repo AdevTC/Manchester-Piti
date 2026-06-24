@@ -162,7 +162,7 @@ export const Navbar: React.FC = () => {
                       </span>
                     </span>
                   </SelectTrigger>
-                  <SelectContent align="end">
+                  <SelectContent position="popper" align="end" className="z-[60]">
                     {seasonOptions.map((opt) => (
                       <SelectItem key={opt.id} value={opt.id}>
                         {opt.name}

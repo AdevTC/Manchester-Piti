@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { AnimatePresence } from "motion/react";
 import { useSeason } from "../context/SeasonContext";
 import { collection, query, orderBy } from "firebase/firestore";
@@ -30,7 +31,13 @@ const playersQuery = collection(db, "players");
 const matchesQuery = query(collection(db, "matches"), orderBy("date", "desc"));
 
 export const MatchCenter: React.FC = () => {
-  const { selectedSeasonId, setSelectedSeasonId, seasons } = useSeason();
+  const { selectedSeasonId, seasons } = useSeason();
+  const navigate = useNavigate();
+  // The season is URL-authoritative (SeasonUrlSync adopts ?season into context),
+  // so this filter must navigate the URL — calling setSelectedSeasonId directly
+  // would be reverted by SeasonUrlSync on the next render.
+  const pickSeason = (id: string) =>
+    void navigate({ to: ".", search: (prev) => ({ ...prev, season: id }) });
   const { data: playersData } = useFirestoreCollection(PLAYERS_KEY, playersQuery, mapPlayer);
   const { data: matchesData, isPending } = useFirestoreCollection(MATCHES_KEY, matchesQuery, mapMatch);
   // seasonDetails is record<string, unknown> in the canonical doc; the board
@@ -131,7 +138,7 @@ export const MatchCenter: React.FC = () => {
             type="button"
             className="mp-bd-periodo-btn"
             aria-pressed={selectedSeasonId === "all"}
-            onClick={() => setSelectedSeasonId("all")}
+            onClick={() => pickSeason("all")}
           >
             Histórico Total
           </button>
@@ -141,7 +148,7 @@ export const MatchCenter: React.FC = () => {
               type="button"
               className="mp-bd-periodo-btn"
               aria-pressed={selectedSeasonId === s.id}
-              onClick={() => setSelectedSeasonId(s.id)}
+              onClick={() => pickSeason(s.id)}
             >
               {s.name}
             </button>
