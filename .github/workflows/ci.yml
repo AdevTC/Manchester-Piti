@@ -17,6 +17,18 @@ jobs:
   verify:
     name: Lint · Test · Build
     runs-on: ubuntu-latest
+    # firebase.ts calls initializeApp()/getAuth() at import time, so the unit
+    # tests and the production build need these defined. `.env` is intentionally
+    # untracked (see .env.example — these are public client keys), so CI supplies
+    # placeholder config: tests mock Firestore and the build never connects, so
+    # dummy values suffice. projectId matches the emulator project in the e2e job.
+    env:
+      VITE_FIREBASE_API_KEY: ci-demo-api-key
+      VITE_FIREBASE_AUTH_DOMAIN: futbolmanagement-dc6cb.firebaseapp.com
+      VITE_FIREBASE_PROJECT_ID: futbolmanagement-dc6cb
+      VITE_FIREBASE_STORAGE_BUCKET: futbolmanagement-dc6cb.appspot.com
+      VITE_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+      VITE_FIREBASE_APP_ID: "1:000000000000:web:cidemo000000000000"
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +64,16 @@ jobs:
   e2e:
     name: E2E (Playwright + Firebase emulator)
     runs-on: ubuntu-latest
+    # Placeholder client config so firebase.ts can initialize; under the emulator
+    # the apiKey isn't validated, but projectId MUST match the emulator's
+    # --project so writes hit the right namespace and firestore.rules apply.
+    env:
+      VITE_FIREBASE_API_KEY: ci-demo-api-key
+      VITE_FIREBASE_AUTH_DOMAIN: futbolmanagement-dc6cb.firebaseapp.com
+      VITE_FIREBASE_PROJECT_ID: futbolmanagement-dc6cb
+      VITE_FIREBASE_STORAGE_BUCKET: futbolmanagement-dc6cb.appspot.com
+      VITE_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+      VITE_FIREBASE_APP_ID: "1:000000000000:web:cidemo000000000000"
     steps:
       - uses: actions/checkout@v4
 
