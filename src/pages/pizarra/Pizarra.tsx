@@ -717,6 +717,7 @@ export const Pizarra: React.FC = () => {
                 >
                   {player && (
                     <PlayerToken
+                      key={player.id}
                       player={player}
                       galones={rolesForPlayer(player.id)}
                       from="slot"
