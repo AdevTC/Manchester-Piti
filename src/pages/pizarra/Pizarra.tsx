@@ -494,23 +494,34 @@ export const Pizarra: React.FC = () => {
       return;
     }
     if (lineup.freeMode && from?.type === "slot") {
-      // Dropped onto ANOTHER occupied slot → swap them, same as normal mode.
-      // This keeps the two modes consistent AND avoids stacking two tokens at
-      // the exact same spot in free mode, which otherwise leaves the lower one
-      // impossible to grab. Dropping on empty space free-repositions as before.
-      const overData = target?.data as Partial<SlotData> | undefined;
-      if (
-        overData?.kind === "slot" &&
-        typeof overData.index === "number" &&
-        overData.index !== from.index &&
-        lineup.slots[overData.index].playerId
-      ) {
-        const other = lineup.slots[overData.index].playerId as string;
+      // Compute the free-drop position, then check if it lands ON TOP of another
+      // player. Relying on the drop *target* misses partial overlaps (dnd-kit
+      // reports the dragged token's own slot or empty space), which is exactly
+      // how two tokens end up stacked at the same spot — the lower one then can't
+      // be grabbed again. So detect the collision by POSITION and swap instead of
+      // stacking. Dropping on clear empty space free-repositions as before.
+      const next = repositioned(lineup, from.index, transform);
+      const moved = next.slots[from.index];
+      const rect = pitchElRef.current?.getBoundingClientRect();
+      // Collision in PIXELS (a token is ~62px wide): swap when the drop lands on
+      // top of another player. Pixel-space is accurate regardless of the pitch's
+      // aspect ratio (x is % of width, y is % of height — mixing them as raw %
+      // misjudged the distance).
+      const onto = rect
+        ? lineup.slots.findIndex(
+            (s, i) =>
+              i !== from.index &&
+              s.playerId &&
+              Math.hypot(((s.x - moved.x) / 100) * rect.width, ((s.y - moved.y) / 100) * rect.height) < 56,
+          )
+        : -1;
+      if (onto >= 0) {
+        const other = lineup.slots[onto].playerId as string;
         commit(swapPlayers(lineup, id, other));
         announce(`Cambio: ${nameOf(id)} por ${nameOf(other)}`);
         return;
       }
-      commit(repositioned(lineup, from.index, transform));
+      commit(next);
       return;
     }
     const targetData = target?.data as Partial<SlotData> | undefined;
