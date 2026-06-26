@@ -494,6 +494,22 @@ export const Pizarra: React.FC = () => {
       return;
     }
     if (lineup.freeMode && from?.type === "slot") {
+      // Dropped onto ANOTHER occupied slot → swap them, same as normal mode.
+      // This keeps the two modes consistent AND avoids stacking two tokens at
+      // the exact same spot in free mode, which otherwise leaves the lower one
+      // impossible to grab. Dropping on empty space free-repositions as before.
+      const overData = target?.data as Partial<SlotData> | undefined;
+      if (
+        overData?.kind === "slot" &&
+        typeof overData.index === "number" &&
+        overData.index !== from.index &&
+        lineup.slots[overData.index].playerId
+      ) {
+        const other = lineup.slots[overData.index].playerId as string;
+        commit(swapPlayers(lineup, id, other));
+        announce(`Cambio: ${nameOf(id)} por ${nameOf(other)}`);
+        return;
+      }
       commit(repositioned(lineup, from.index, transform));
       return;
     }
