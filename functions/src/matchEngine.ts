@@ -54,6 +54,8 @@ export interface MatchSheet {
   voteClosesAt?: number;
   gallery?: string[];
   meetingNote?: string;
+  /** Kit the squad wears: 1ª (home) or 2ª (away) equipación. */
+  kit?: "home" | "away";
 }
 export interface Participation {
   minutes: number;

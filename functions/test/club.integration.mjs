@@ -319,6 +319,85 @@ await denied(
   { matchId: id, playerId: ids[0] },
   "FAILED_PRECONDITION",
 );
+// ---------- vestuario: identity in responses, ficha claims, trainings, porra, board
+const fan = newcomer;
+await denied("requestPlayerClaim", member, { playerId: ids[2] }, "PERMISSION_DENIED");
+await denied("requestPlayerClaim", fan, { playerId: "missing-" + suffix }, "NOT_FOUND");
+await ok("requestPlayerClaim", fan, { playerId: ids[2] });
+assert.equal((await db.doc("playerClaims/" + fan.uid).get()).get("status"), "pending");
+checked++;
+await denied("resolvePlayerClaim", fan, { uid: fan.uid, approve: true }, "PERMISSION_DENIED");
+await ok("resolvePlayerClaim", admin, { uid: fan.uid, approve: true });
+assert.equal((await db.doc("users/" + fan.uid).get()).get("playerId"), ids[2]);
+assert.equal((await db.doc("playerLinks/" + ids[2]).get()).get("uid"), fan.uid);
+checked += 2;
+await ok("requestPlayerClaim", admin, { playerId: ids[3] });
+// An admin's own claim links at once, no second admin needed.
+assert.equal((await db.doc("users/" + admin.uid).get()).get("playerId"), ids[3]);
+assert.equal((await db.doc("playerClaims/" + admin.uid).get()).get("status"), "approved");
+assert.equal((await db.doc("playerLinks/" + ids[3]).get()).get("uid"), admin.uid);
+checked += 3;
+await denied("requestPlayerClaim", admin, { playerId: ids[2] }, "ALREADY_EXISTS");
+await ok("resolvePlayerClaim", admin, { uid: admin.uid, approve: false });
+assert.equal((await db.doc("users/" + admin.uid).get()).get("playerId"), undefined);
+checked++;
+
+const nextId = "next-" + suffix;
+const upcoming = { ...sheet, revision: 0, date: Date.now() + 3 * 86400000, kit: "away" };
+await ok("saveMatchSheet", admin, { id: nextId, sheet: upcoming, draft: false });
+assert.equal((await db.doc("matches/" + nextId).get()).get("kit"), "away");
+checked++;
+await ok("setAvailability", fan, { matchId: nextId, response: "yes" });
+const answer = await db.doc("matchPrivate/" + nextId + "/availability/" + fan.uid).get();
+assert.equal(answer.get("playerId"), ids[2]);
+assert.equal(answer.get("name"), "x" + suffix);
+checked += 2;
+await ok("predictScore", admin, { matchId: nextId, goalsFor: 1, goalsAgainst: 0 });
+await ok("predictScore", fan, { matchId: nextId, goalsFor: 2, goalsAgainst: 0 });
+await denied("predictScore", fan, { matchId: nextId, goalsFor: -1, goalsAgainst: 0 }, "INVALID_ARGUMENT");
+await denied("predictScore", fan, { matchId: id, goalsFor: 1, goalsAgainst: 0 }, "FAILED_PRECONDITION");
+await ok("saveMatchSheet", admin, {
+  id: nextId,
+  sheet: { ...finished, revision: 1, kit: "away", events: finished.events, date: Date.now() - 3600000 },
+  draft: false,
+});
+const porra = (await db.doc("porraStandings/" + season).get()).get("rows");
+assert.equal(porra[0].uid, admin.uid);
+assert.equal(porra[0].points, 3);
+assert.equal(porra[1].points, 1);
+checked += 3;
+await denied("predictScore", admin, { matchId: nextId, goalsFor: 3, goalsAgainst: 0 }, "FAILED_PRECONDITION");
+
+await denied("proposeTraining", fan, { slots: [{ at: Date.now() - 1000 }] }, "INVALID_ARGUMENT");
+const training = await ok("proposeTraining", fan, {
+  slots: [{ at: Date.now() + 2 * 86400000, place: "Campo" }, { at: Date.now() + 86400000 }],
+});
+const tdoc = await db.doc("trainings/" + training.id).get();
+assert.equal(tdoc.get("slots")[0].id, "s1");
+assert.ok(tdoc.get("slots")[0].at.toMillis() < tdoc.get("slots")[1].at.toMillis());
+checked += 2;
+await ok("voteTraining", admin, { trainingId: training.id, slotIds: ["s1", "s2"] });
+await denied("voteTraining", admin, { trainingId: training.id, slotIds: ["s9"] }, "INVALID_ARGUMENT");
+await ok("voteTraining", admin, { trainingId: training.id, slotIds: [] });
+assert.equal((await db.doc("trainings/" + training.id + "/votes/" + admin.uid).get()).exists, false);
+checked++;
+await ok("voteTraining", fan, { trainingId: training.id, slotIds: ["s2"] });
+await ok("deleteTraining", admin, { trainingId: training.id });
+assert.equal((await db.doc("trainings/" + training.id + "/votes/" + fan.uid).get()).exists, false);
+checked++;
+
+const post = await ok("postBoardMessage", fan, { text: "  Yo llevo balones  " });
+assert.equal((await db.doc("board/" + post.id).get()).get("text"), "Yo llevo balones");
+checked++;
+await denied("postBoardMessage", fan, { text: "Otra vez" }, "RESOURCE_EXHAUSTED");
+await denied("postBoardMessage", admin, { text: "   " }, "INVALID_ARGUMENT");
+const theirs = await ok("postBoardMessage", admin, { text: "Tercer tiempo" });
+await denied("deleteBoardMessage", fan, { id: theirs.id }, "PERMISSION_DENIED");
+await ok("deleteBoardMessage", fan, { id: post.id });
+await ok("deleteBoardMessage", admin, { id: theirs.id });
+assert.equal((await db.collection("board").where("uid", "==", fan.uid).get()).size, 0);
+checked++;
+
 const shareBase =
   "http://127.0.0.1:5001/demo-manchester-piti/europe-west1/clubShare";
 const html = await fetch(shareBase + "/compartir/partido/" + id).then((r) =>
