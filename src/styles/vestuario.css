@@ -412,5 +412,5 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx-foot nav a{color:var(--soft);text-decoration:none;font-weight:600}
 .vx-foot small{font-family:'Geist Mono';font-size:10px;line-height:1.6}
 .vx-foot small a{color:inherit}
-@container (min-width:700px){.vx-foot{margin:90px 40px 0;grid-template-columns:auto 1fr auto;align-items:center;padding-bottom:130px}}
-@container (min-width:1100px){.vx-foot{margin:100px 64px 0;padding-bottom:40px}}
+@container (min-width:700px){.vx-foot{margin:90px 40px 0;grid-template-columns:auto 1fr;align-items:center;padding-bottom:130px}.vx-foot nav{justify-content:flex-end}.vx-foot small{grid-column:1/-1}}
+@container (min-width:1100px){.vx-foot{margin:100px 64px 0;padding-bottom:40px;grid-template-columns:auto 1fr auto}.vx-foot nav{justify-content:flex-start}.vx-foot small{grid-column:auto;text-align:right}}
