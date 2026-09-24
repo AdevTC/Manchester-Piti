@@ -3,7 +3,7 @@ import { defineString } from "firebase-functions/params";
 import { getFirestore } from "firebase-admin/firestore";
 import { readFileSync } from "node:fs";
 import sharp from "sharp";
-const siteUrl = defineString("PUBLIC_SITE_URL", {
+export const siteUrl = defineString("PUBLIC_SITE_URL", {
   default: "https://futbolmanagement-dc6cb.web.app",
 });
 const escape = (s: string) =>
@@ -28,7 +28,8 @@ export const clubShare = onRequest(
     const snap = await getFirestore()
       .doc(`${type === "partido" ? "matches" : "players"}/${id}`)
       .get();
-    if (!snap.exists) {
+    // Archived seasons never resurface through old share links.
+    if (!snap.exists || snap.get("archived") === true) {
       res.status(404).send("No encontrado");
       return;
     }

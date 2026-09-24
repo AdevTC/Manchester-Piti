@@ -23,6 +23,10 @@
         "source": "/social/**",
         "function": { "functionId": "clubShare", "region": "europe-west1" }
       },
+      {
+        "source": "/calendario.ics",
+        "function": { "functionId": "clubCalendar", "region": "europe-west1" }
+      },
       { "source": "**", "destination": "/index.html" }
     ]
   },
