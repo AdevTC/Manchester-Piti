@@ -23,7 +23,7 @@ import {
   type Training,
 } from "./live";
 import { Icon } from "../../components/celeste/icons";
-import { downloadIcs, eventIcs } from "../../lib/ics";
+import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 
 function useAction() {
   const [busy, setBusy] = useState(false);
@@ -195,11 +195,6 @@ function ConfirmedTraining({
   error: string;
 }) {
   const c = training.confirmed!;
-  const addToCalendar = () =>
-    downloadIcs(
-      `entreno-manchester-piti-${training.id}.ics`,
-      eventIcs({ uid: `training-${training.id}`, start: c.at, end: c.end ?? c.at + 90 * 60_000, summary: "Entreno Manchester Piti", location: c.place || undefined }),
-    );
   return (
     <div className="vx-confirmed">
       <span className="k">{c.byName ? `Lo fijó ${c.byName}` : "Confirmado"} · votación cerrada</span>
@@ -235,9 +230,11 @@ function ConfirmedTraining({
       </div>
       <Err text={error} />
       <div className="vx-train-foot">
-        <button type="button" className="vx-link-btn" onClick={addToCalendar}>
-          Añadir al calendario
-        </button>
+        <AddToCalendar
+          className="vx-link-btn"
+          label="Añadir al calendario"
+          event={{ uid: `training-${training.id}`, title: "Entreno Manchester Piti", start: c.at, end: c.end ?? c.at + 90 * 60_000, location: c.place || undefined, url: `${location.origin}/vestuario` }}
+        />
         {canManage && (
           <>
             <button type="button" className="vx-link-btn" disabled={busy} onClick={onReopen}>

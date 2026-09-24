@@ -6,6 +6,8 @@ import { shareClubPage } from "../../lib/share";
 import { calledUp, countdown, greeting, initials, kickoffLabel, MIN_PLAYERS, slotParts, slotTime } from "../../lib/vestuario";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Jersey } from "../../components/Jersey";
+import { AddToCalendar } from "../../components/celeste/AddToCalendar";
+import { matchEvent } from "../../lib/home";
 import type { Availability, Claim } from "./live";
 import { Icon } from "../../components/celeste/icons";
 
@@ -190,6 +192,7 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
                     <Icon name="share" size={17} />
                     Compartir mi cartel
                   </button>
+                  <AddToCalendar className="vx-ghost" label="Al calendario" event={matchEvent(next, location.origin)} />
                 </div>
                 <div className="vx-attend">
                   {going.length > 0 && (

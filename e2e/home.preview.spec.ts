@@ -15,6 +15,10 @@ test("la portada cuenta la temporada y viste la camiseta de cada jugador", async
   await expect(page.getByRole("heading", { level: 2, name: "Lucas" })).toBeVisible();
 
   await expect(page.getByRole("heading", { name: /partido/ }).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: /Suscribirme al calendario/ })).toHaveAttribute("href", /calendario\.ics$/);
+  await page.getByRole("button", { name: /Suscribirme al calendario/ }).click();
+  await expect(page.getByRole("link", { name: /iPhone o Mac/ })).toHaveAttribute("href", /^webcal:.*calendario\.ics$/);
+  await expect(page.getByRole("link", { name: /Google Calendar/ })).toHaveAttribute("href", /calendar\.google\.com\/calendar\/r\?cid=webcal/);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("link", { name: /iPhone o Mac/ })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

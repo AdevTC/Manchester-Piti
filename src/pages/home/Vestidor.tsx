@@ -3,7 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Icon } from "../../components/celeste/icons";
 import { dateMillis, type ClubMatch } from "../../lib/clubData";
-import { countdownParts, matchIcs, type Narrative, type PlayerLine } from "../../lib/home";
+import { countdownParts, matchEvent, type Narrative, type PlayerLine } from "../../lib/home";
+import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { kickoffLabel } from "../../lib/vestuario";
 import { shareClubPage } from "../../lib/share";
 
@@ -20,16 +21,6 @@ interface Props {
   next: ClubMatch | undefined;
   live: ClubMatch | undefined;
   now: number;
-}
-
-function downloadIcs(m: ClubMatch) {
-  const url = `${location.origin}/matches/${m.id}`;
-  const blob = new Blob([matchIcs({ ...m, rival: m.rival ?? undefined, venue: m.venue ?? undefined }, url)], { type: "text/calendar" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `manchester-piti-${m.id}.ics`;
-  a.click();
-  URL.revokeObjectURL(a.href);
 }
 
 export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onKit, theme, moment, next, live, now }: Props) {
@@ -53,7 +44,6 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
   };
   const kickoff = next ? dateMillis(next.date) : 0;
   const cd = next ? countdownParts(kickoff, now) : null;
-  const calendarFeed = `webcal://${location.host}/calendario.ics`;
   const stats = p?.stats;
   const blank = !stats || (!stats.goals && !stats.assists && !stats.matchesPlayed);
 
@@ -106,16 +96,8 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
               </span>
             </div>
             <div className="acts">
-              {next && (
-                <button type="button" className="hm-mini sky" onClick={() => downloadIcs(next)}>
-                  <Icon name="calPlus" size={15} stroke={2.2} />
-                  Añadir este partido
-                </button>
-              )}
-              <a className="hm-mini" href={calendarFeed}>
-                <Icon name="cal" size={15} stroke={2.2} />
-                Suscribirme al calendario
-              </a>
+              {next && <AddToCalendar className="hm-mini sky" label="Añadir este partido" event={matchEvent(next, location.origin)} />}
+              <AddToCalendar className="hm-mini" iconName="cal" label="Suscribirme al calendario" feed={`${location.origin}/calendario.ics`} />
             </div>
           </div>
         </div>
