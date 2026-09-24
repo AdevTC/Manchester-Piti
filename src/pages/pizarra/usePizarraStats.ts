@@ -34,7 +34,7 @@ export function usePizarraStats(seasonId: string, players: { id: string; seasons
   const matches = useMemo<MatchLike[]>(() => {
     const all = data ?? [];
     const inSeason = seasonId === "all" ? all : all.filter((m) => m.seasonId === seasonId);
-    return inSeason.map((m) => ({ events: ((m as { events?: StatEvent[] }).events ?? []) }));
+    return inSeason.map((m) => ({ ...m, events: ((m as { events?: StatEvent[] }).events ?? []) })) as MatchLike[];
   }, [data, seasonId]);
 
   return useMemo(() => {

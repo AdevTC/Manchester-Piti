@@ -184,7 +184,7 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
     console.info(
       "%cManchester Piti",
       "color:#6CABDD;font:700 14px Archivo,system-ui,sans-serif",
-      "— Fútbol de domingo, pompa de élite.",
+      "— Manchester Piti · Fútbol 7.",
     );
   }, []);
 
@@ -200,7 +200,7 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
           `${summary.gf} goles a favor`,
           `${summary.points} puntos`,
         ].filter(Boolean)
-      : ["Manchester Piti", "Club de Fútbol", "Temporada 23/24", "Fútbol de domingo, pompa de élite"];
+      : ["Manchester Piti", "Club de Fútbol", "Temporada 23/24", "Manchester Piti · Fútbol 7"];
 
   return (
     <div className="mp-landing">
@@ -227,7 +227,7 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
             <span className="reveal mp-sky-text" style={rv(2)}>Piti</span>
           </h1>
           <span className="mp-hero-rule reveal" style={rv(3)} aria-hidden="true" />
-          <p className="mp-hero-tagline reveal" style={rv(4)}>Fútbol de domingo. Pompa de élite.</p>
+          <p className="mp-hero-tagline reveal" style={rv(4)}>Manchester Piti · Fútbol 7</p>
           <p className="mp-hero-sub reveal" style={rv(5)}>
             Cada partido, cada gol y cada racha del equipo, contados como se merecen.
           </p>

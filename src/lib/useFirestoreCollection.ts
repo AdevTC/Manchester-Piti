@@ -70,8 +70,8 @@ export function subscribeShared<T>(
   } else {
     const unsub = onSnapshot(
       q,
-      (snap) => qc.setQueryData(key, mapSnapshotDocs(snap, map)),
-      (err) => handleSnapshotError(qc, key, err),
+      (snap) => { qc.setQueryData([...key, '__error'], null); qc.setQueryData(key, mapSnapshotDocs(snap, map)); },
+      (err) => { qc.setQueryData([...key, '__error'], err); handleSnapshotError(qc, key, err); },
     );
     sharedSubs.set(hash, { count: 1, unsub });
   }
@@ -119,10 +119,12 @@ export function useFirestoreCollection<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(key), enabled]);
 
-  return useQuery<T[]>({
+  const result = useQuery<T[]>({
     queryKey: key,
     queryFn: () => new Promise<T[]>(() => {}), // resolved by the snapshot's setQueryData
     staleTime: Infinity,
     enabled,
   });
+  const { data: subscriptionError } = useQuery<Error | null>({ queryKey: [...key, '__error'], queryFn: () => null, initialData: null, staleTime: Infinity });
+  return { ...result, error: subscriptionError ?? result.error };
 }

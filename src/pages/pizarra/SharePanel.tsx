@@ -45,7 +45,7 @@ export const SharePanel: React.FC<SharePanelProps> = ({ data, onClose }) => {
     if (!canvas) return;
     const blob = await canvasToBlob(canvas);
     if (!blob) return;
-    const result = await sharePoster(blob, "manchester-piti-once.png", "Mi once · Manchester Piti");
+    const result = await sharePoster(blob, "manchester-piti-siete.png", "Mi siete · Manchester Piti");
     setNote(result === "shared" ? "Compartido" : "Descargado");
   };
 
@@ -53,11 +53,11 @@ export const SharePanel: React.FC<SharePanelProps> = ({ data, onClose }) => {
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl uppercase tracking-wide">Compartir el once</DialogTitle>
+          <DialogTitle className="font-display text-xl uppercase tracking-wide">Compartir el siete</DialogTitle>
         </DialogHeader>
         <div className="pz-share-preview">
           {preview ? (
-            <img src={preview} alt="Vista previa del póster del once" />
+            <img src={preview} alt="Vista previa del póster del siete" />
           ) : (
             <span className="pz-share-loading">Generando póster…</span>
           )}

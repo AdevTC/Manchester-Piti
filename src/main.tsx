@@ -14,7 +14,7 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <MotionConfig reducedMotion="user">
         <App />
-        {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+        {import.meta.env.DEV && new URLSearchParams(location.search).has('debug') && <ReactQueryDevtools initialIsOpen={false} />}
       </MotionConfig>
     </QueryClientProvider>
   </StrictMode>,

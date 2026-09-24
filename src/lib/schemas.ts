@@ -107,6 +107,9 @@ export const playerSchema = z.object({
   active: z.boolean().optional(),
   naturalPosition: z.string().optional(),
   injured: z.boolean().optional(),
+  photoUrl: z.string().optional(),
+  bio: z.string().optional(),
+  quote: z.string().optional(),
   seasonDetails: z.record(z.string(), z.unknown()).optional(),
 });
 export type PlayerDoc = z.infer<typeof playerSchema>;

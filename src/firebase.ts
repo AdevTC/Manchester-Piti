@@ -1,9 +1,9 @@
 import { initializeApp } from "firebase/app";
+import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 import {
   connectAuthEmulator,
   getAuth,
   GoogleAuthProvider,
-  signInWithEmailAndPassword,
 } from "firebase/auth";
 import {
   connectFirestoreEmulator,
@@ -29,6 +29,8 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+export const functions = getFunctions(app, "europe-west1");
+if (USE_EMULATOR) connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
@@ -40,27 +42,15 @@ export const googleProvider = new GoogleAuthProvider();
 export const db = USE_EMULATOR
   ? initializeFirestore(app, {})
   : initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
     });
 
 if (USE_EMULATOR) {
   // Ports must match firebase.json `emulators`. Connect BEFORE any read/write.
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
-
-  // E2E-only programmatic sign-in. Google popup auth can't be driven from
-  // headless automation, and the `?preview` mock never establishes a real
-  // `request.auth`, so it gets `permission-denied` on writes. This helper signs
-  // in against the AUTH EMULATOR with email/password so onAuthStateChanged fires
-  // with a genuine emulator session — letting the CRUD spec write through the
-  // real production firestore.rules. DOUBLE-gated: only when the emulator flag
-  // is set AND import.meta.env.DEV, so it never exists in a production bundle.
-  if (import.meta.env.DEV && typeof window !== "undefined") {
-    (window as unknown as Record<string, unknown>).__mpEmulatorSignIn = (
-      email: string,
-      password: string,
-    ) => signInWithEmailAndPassword(auth, email, password);
-  }
 }
 
 googleProvider.setCustomParameters({ prompt: "select_account" });

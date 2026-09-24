@@ -37,7 +37,7 @@ const Pylon: React.FC<{ side: "l" | "r" }> = ({ side }) => {
 };
 
 const TICKER = [
-  "Manchester Piti", "Fútbol de domingo", "Pompa de élite",
+  "Manchester Piti", "Fútbol 7", "Equipo amateur",
   "Zona de socios", "Festival del gol", "Histórico total",
   "El Pichichi", "Récords del club", "La Pizarra", "Temporada 2025/26",
 ];
@@ -184,9 +184,9 @@ export const Login: React.FC = () => {
       <div className="lg-foot">
         <span>Manchester Piti</span>
         <span className="lg-dot" aria-hidden="true" />
-        <span>Fútbol de domingo</span>
+        <span>Fútbol 7</span>
         <span className="lg-dot" aria-hidden="true" />
-        <span>Pompa de élite</span>
+        <span>Equipo amateur</span>
       </div>
     </div>
   );

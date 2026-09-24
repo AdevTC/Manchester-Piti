@@ -2,6 +2,7 @@
 // Expedientes so La Pizarra's chemistry can reuse the exact same logic (one
 // source of truth). No React, no Firestore — unit-testable.
 
+import type { Participation } from '../../functions/src/matchEngine';
 export interface StatEvent {
   type: string;
   playerId?: string;
@@ -9,6 +10,8 @@ export interface StatEvent {
 }
 export interface MatchLike {
   events?: StatEvent[];
+  status?: string;
+  ledger?: Record<string, Participation>;
 }
 export interface PlayerStats {
   goals: number;
@@ -37,6 +40,13 @@ export function computeStats(playerId: string, matches: MatchLike[]): PlayerStat
     penaltySaved: 0, goalPenalty: 0, goalFreekick: 0, penaltyMissed: 0, ownGoals: 0, matchesPlayed: 0,
   };
   matches.forEach((match) => {
+    if (match.status && match.status !== 'finished') return;
+    if (match.ledger?.[playerId]) {
+      const row = match.ledger[playerId];
+      for (const key of ['goals', 'assists', 'yellowCards', 'redCards', 'doubleYellows', 'woodwork', 'penaltySaved', 'goalPenalty', 'goalFreekick', 'penaltyMissed', 'ownGoals'] as const) s[key] += row[key] ?? 0;
+      if (row.played) s.matchesPlayed++;
+      return;
+    }
     let played = false;
     (match.events || []).forEach((ev) => {
       const { type, playerId: epId, assistPlayerId } = ev;
@@ -54,7 +64,7 @@ export function computeStats(playerId: string, matches: MatchLike[]): PlayerStat
         else if (type === "penalty_missed") s.penaltyMissed += 1;
         else if (type === "woodwork") s.woodwork += 1;
       }
-      if (type === "goal" && assistPlayerId === playerId) { played = true; s.assists += 1; }
+      if (["goal", "goal_penalty", "goal_freekick"].includes(type) && assistPlayerId === playerId) { played = true; s.assists += 1; }
     });
     if (played) s.matchesPlayed += 1;
   });

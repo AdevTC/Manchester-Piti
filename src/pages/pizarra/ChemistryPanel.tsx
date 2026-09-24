@@ -29,10 +29,10 @@ export const ChemistryPanel: React.FC<ChemistryPanelProps> = ({ rating, lines, u
   const { value, ref } = useCountUp(rating.score);
   const vals = AXES.map((a) => rating[a.key]);
   return (
-    <section className="pz-chem" aria-label="Química del once">
+    <section className="pz-chem" aria-label="Química del siete">
       <div className="pz-chem-head">
         <span className="pz-chem-eyebrow">
-          <Activity size={13} aria-hidden="true" /> Valoración del once
+          <Activity size={13} aria-hidden="true" /> Valoración del siete
         </span>
         <span className="pz-chem-tier">{rating.tier}</span>
       </div>

@@ -1,66 +1,64 @@
-import React from "react";
-import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { AnimatePresence, motion } from "motion/react";
+import { Outlet, Link, useRouterState } from "@tanstack/react-router";
 import { Navbar } from "./components/Navbar";
 import { SeasonUrlSync } from "./components/SeasonUrlSync";
 import { useAuth } from "./context/AuthContext";
-
-// Devtools are dev-only and lazily imported so they are stripped from the
-// production bundle. The component renders null in prod (see App mount).
-const TanStackRouterDevtools = import.meta.env.DEV
-  ? React.lazy(() =>
-      import("@tanstack/router-devtools").then((m) => ({
-        default: m.TanStackRouterDevtools,
-      })),
-    )
-  : () => null;
-
-export const RootLayout: React.FC = () => {
+import { useTeam } from "./context/TeamContext";
+import { TeamGate } from "./pages/Vestuario";
+import { NicknameSetup } from "./pages/NicknameSetup";
+import { Crest } from "./components/Crest";
+import "./styles/club.css";
+import "./styles/analytics.css";
+export function RootLayout() {
   const { profile } = useAuth();
-  const navigate = useNavigate();
+  const { member } = useTeam();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isAdmin = profile?.role === "admin" || profile?.role === "superadmin";
-
-  // Admin route guard. Role logic lives in React/Context, not the router.
-  const blockedFromAdmin = pathname.startsWith("/admin") && !isAdmin;
-
-  // Belt-and-suspenders redirect for non-admins who deep-link /admin.
-  React.useEffect(() => {
-    if (blockedFromAdmin) {
-      void navigate({ to: "/profile", replace: true });
-    }
-  }, [blockedFromAdmin, navigate]);
-
-  // Synchronous gate: don't render <Admin/> (and start its Firestore reads)
-  // for a non-admin even for a single frame; the effect above redirects.
-  if (blockedFromAdmin) {
-    return null;
-  }
-
+  const privatePage = ["/admin", "/profile", "/pizarra", "/vestuario"].some(
+    (p) => pathname.startsWith(p),
+  );
+  const admin = profile?.role === "admin" || profile?.role === "superadmin";
   return (
-    <div className="app-container">
+    <div className="club-app">
+      {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
+        <div className="club-demo-banner">
+          ENTORNO LOCAL DE PRUEBAS · DATOS FICTICIOS
+        </div>
+      )}
+      <a className="club-skip" href="#contenido">
+        Saltar al contenido
+      </a>
       <Navbar />
       <SeasonUrlSync />
-      <main className="main-content">
-        <React.Suspense fallback={null}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={pathname}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
-        </React.Suspense>
+      <main id="contenido" className="club-main">
+        {privatePage && !member ? (
+          <TeamGate />
+        ) : privatePage && !profile ? (
+          <NicknameSetup />
+        ) : pathname.startsWith("/admin") && !admin ? (
+          <div className="club-empty">
+            <h1>Solo para administradores</h1>
+            <Link to="/vestuario">Volver al vestuario</Link>
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </main>
-      {import.meta.env.DEV && (
-        <React.Suspense fallback={null}>
-          <TanStackRouterDevtools />
-        </React.Suspense>
-      )}
+      <footer className="club-footer">
+        <div className="club-footer-brand">
+          <Crest size={44} />
+          <span>
+            MANCHESTER PITI<small>Equipo amateur de fútbol 7</small>
+          </span>
+        </div>
+        <div>
+          <Link to="/club">El club</Link>
+          <Link to="/partidos">Partidos</Link>
+          <Link to="/vestuario">Vestuario</Link>
+        </div>
+        <p>
+          Hecho por y para el equipo.
+          <br />© {new Date().getFullYear()} Manchester Piti
+        </p>
+      </footer>
     </div>
   );
-};
+}

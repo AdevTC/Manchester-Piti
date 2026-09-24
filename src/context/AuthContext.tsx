@@ -1,6 +1,7 @@
+import { registerTeamProfile } from '../lib/clubApi';
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { type User, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, googleProvider, db } from "../firebase";
 import { userProfileSchema, normalizeNickname } from "../lib/schemas";
 import { reportDroppedDoc } from "../lib/docTelemetry";
@@ -46,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Helper to toggle admin role in local storage for development/testing
   const [localAdminOverride, setLocalAdminOverride] = useState<boolean>(() => {
-    return localStorage.getItem("dev_admin_override") === "true";
+    return import.meta.env.DEV && localStorage.getItem("dev_admin_override") === "true";
   });
 
   const setLocalAdminRole = (isAdmin: boolean) => {
@@ -70,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userDocRef = doc(db, "users", currentUser.uid);
           const userDoc = await getDoc(userDocRef);
           
-          const isSuperAdminEmail = currentUser.email === "adriantomascv@gmail.com";
+          const isSuperAdminEmail = currentUser.emailVerified && currentUser.email === "adriantomascv@gmail.com";
 
           if (userDoc.exists()) {
             const parsed = userProfileSchema.safeParse(userDoc.data());
@@ -91,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             
             // Apply developer override if active and not the real superadmin
-            if (localAdminOverride && data.role !== "superadmin") {
+            if (import.meta.env.DEV && localAdminOverride && data.role !== "superadmin") {
               data.role = "admin";
             }
             setProfile(data);
@@ -142,34 +143,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // 1. Check if nickname already exists
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("nickname", "==", formattedNickname));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        return false;
-      }
-
-      // 2. Determine role: superadmin by email, otherwise first user is admin, otherwise user
-      const allUsersSnapshot = await getDocs(query(usersRef));
-      const isFirstUser = allUsersSnapshot.empty;
-      const isSuperAdminEmail = user.email === "adriantomascv@gmail.com";
-      
-      const newProfile: UserProfile = {
-        email: user.email || "",
-        nickname: formattedNickname,
-        role: isSuperAdminEmail ? "superadmin" : (isFirstUser ? "admin" : "user"),
-        createdAt: new Date()
-      };
-
-      // Apply local storage developer override on role if saved (and not superadmin)
-      if (localAdminOverride && newProfile.role !== "superadmin") {
-        newProfile.role = "admin";
-      }
-
-      await setDoc(doc(db, "users", user.uid), newProfile);
-      setProfile(newProfile);
+      const result = await registerTeamProfile({ nickname: formattedNickname });
+      setProfile({ email: user.email || '', nickname: result.data.nickname, role: result.data.role, createdAt: new Date() });
       return true;
     } catch (error) {
       console.error("Error registering nickname:", error);

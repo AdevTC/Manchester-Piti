@@ -10,6 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+functions/lib
+.secret.local
+.emulator-data
 *.local
 
 # Local env files (Firebase web config, etc.) — keep out of git.

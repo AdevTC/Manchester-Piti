@@ -135,7 +135,7 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
         <button type="button" className="pz-action" onClick={onAuto} title="Auto-colocar por posición" disabled={readOnly}>
           <Wand2 size={14} aria-hidden="true" /> Auto
         </button>
-        <button type="button" className="pz-action" onClick={onSuggestForm} title="Sugerir once por forma reciente" disabled={readOnly}>
+        <button type="button" className="pz-action" onClick={onSuggestForm} title="Sugerir siete por forma reciente" disabled={readOnly}>
           <TrendingUp size={14} aria-hidden="true" /> Forma
         </button>
         <Hint label="Deshacer">
@@ -161,7 +161,7 @@ export const PizarraControls: React.FC<PizarraControlsProps> = ({
             <Maximize2 size={14} aria-hidden="true" />
           </button>
         </Hint>
-        <button type="button" className="pz-action" onClick={onShare} title="Compartir / descargar póster" aria-label="Compartir el once">
+        <button type="button" className="pz-action" onClick={onShare} title="Compartir / descargar póster" aria-label="Compartir el siete">
           <Share2 size={14} aria-hidden="true" /> Compartir
         </button>
         <button type="button" className="pz-action" onClick={onCompare} title="Comparar dos alineaciones" aria-label="Comparar alineaciones">

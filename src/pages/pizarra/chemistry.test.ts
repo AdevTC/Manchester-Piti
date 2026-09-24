@@ -8,7 +8,7 @@ describe("teamRating", () => {
   it("is 0 for an empty XI", () => {
     const r = teamRating([], 7, { maxGA: 0, maxPJ: 0, maxSeasons: 0, maxCards: 0 });
     expect(r.score).toBe(0);
-    expect(r.tier).toBe("Sin once");
+    expect(r.tier).toBe("Sin siete");
   });
   it("flags out-of-position and missing history", () => {
     const norms = { maxGA: 10, maxPJ: 10, maxSeasons: 4, maxCards: 4 };

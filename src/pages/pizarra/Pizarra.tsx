@@ -677,7 +677,7 @@ export const Pizarra: React.FC = () => {
         <div className="pz-status" role="status">
           <span className="pz-status-count">{placedCount}/{XI}</span> en el campo
           {placedCount < XI && <span className="pz-status-warn"> · faltan {XI - placedCount}</span>}
-          {placedCount === XI && <span className="pz-status-ok"> · once completo</span>}
+          {placedCount === XI && <span className="pz-status-ok"> · siete completo</span>}
         </div>
 
         {picked && (
@@ -863,7 +863,7 @@ export const Pizarra: React.FC = () => {
 
         {/* Panels: galones + posiciones */}
         <div className="pz-panels">
-          <div className="pz-panel" role="group" aria-label="Galones del once">
+          <div className="pz-panel" role="group" aria-label="Galones del siete">
             <div className="pz-panel-head">
               <span className="pz-panel-title">Galones</span>
               <span className="pz-panel-sub">{seasonName}</span>
@@ -909,10 +909,10 @@ export const Pizarra: React.FC = () => {
             </ul>
           </div>
 
-          <div className="pz-panel" role="group" aria-label="Posiciones del once">
+          <div className="pz-panel" role="group" aria-label="Posiciones del siete">
             <div className="pz-panel-head">
               <span className="pz-panel-title">Posiciones</span>
-              <span className="pz-panel-sub">{isAdmin ? "Natural (guardada) · en este once" : "En este once"}</span>
+              <span className="pz-panel-sub">{isAdmin ? "Natural (guardada) · en este siete" : "En este siete"}</span>
             </div>
             <ul className="pz-pos-list">
               {onPitch.map((slot) => {
@@ -960,13 +960,13 @@ export const Pizarra: React.FC = () => {
                       </button>
                     )}
                     <label className="pz-pos-field">
-                      <span className="pz-pos-flabel">En este 11</span>
+                      <span className="pz-pos-flabel">En este siete</span>
                       <Select
                         value={override ?? POS_NONE}
                         onValueChange={(v) => setOverride(p.id, v === POS_NONE ? null : (v as Zone))}
                         disabled={readOnly}
                       >
-                        <SelectTrigger size="sm" className="w-full" aria-label={`Posición de ${p.shirtName || p.firstName} en este once`}>
+                        <SelectTrigger size="sm" className="w-full" aria-label={`Posición de ${p.shirtName || p.firstName} en este siete`}>
                           <SelectValue placeholder="Según natural" />
                         </SelectTrigger>
                         <SelectContent className="z-[1100]">

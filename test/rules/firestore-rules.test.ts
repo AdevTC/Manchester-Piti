@@ -1,26 +1,4 @@
-/**
- * Firestore security-rules tests (Phase 11) — run against the Firestore
- * EMULATOR via @firebase/rules-unit-testing, NOT the jsdom unit suite.
- *
- * These need the firestore emulator listening on 127.0.0.1:8080 (see the
- * `emulators` block in firebase.json). Run them with the dedicated script:
- *
- *   pnpm test:rules
- *
- * which wraps `firebase emulators:exec --only firestore "<vitest run>"` so the
- * emulator is booted, the tests run against it, and it is torn down. They are
- * intentionally excluded from `pnpm test` (the jsdom config only globs
- * `src/**`), so the existing component/unit suite is untouched.
- *
- * What is asserted mirrors firestore.rules one-to-one:
- *  - players/matches/seasons: public READ; only admin/superadmin WRITE.
- *  - users: signed-in read; self-create capped at role 'user' (no self-elevation);
- *    self-update may not change own role; admin may manage roles; no client delete.
- *  - lineups: signed-in read; owner CRUDs own board; non-owner cannot; only an
- *    admin may publish (isOfficial=true) or touch someone else's board.
- */
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import {
   assertFails,
   assertSucceeds,
@@ -28,282 +6,279 @@ import {
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
-  addDoc,
-  collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
-  query,
+  collection,
   setDoc,
   updateDoc,
-  where,
+  deleteDoc,
+  Timestamp,
 } from "firebase/firestore";
-import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
-
-const PROJECT_ID = "futbolmanagement-dc6cb";
-const SUPERADMIN_EMAIL = "adriantomascv@gmail.com";
-const RULES_PATH = fileURLToPath(new URL("../../firestore.rules", import.meta.url));
-
-let testEnv: RulesTestEnvironment;
-
-/** Seed a users/{uid} doc with `role` while rules are disabled (admin lookup). */
-async function seedUser(uid: string, role: "user" | "admin" | "superadmin") {
-  await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), "users", uid), {
-      email: `${uid}@test.dev`,
-      nickname: uid,
-      role,
-    });
+import { beforeAll, beforeEach, afterAll, describe, it } from "vitest";
+let env: RulesTestEnvironment;
+const db = (uid?: string) =>
+  uid
+    ? env
+        .authenticatedContext(uid, {
+          email: uid + "@test.dev",
+          email_verified: true,
+          firebase: { sign_in_provider: "google.com" },
+        })
+        .firestore()
+    : env.unauthenticatedContext().firestore();
+const seed = async (path: string, data: object) =>
+  env.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), path), data);
   });
-}
-
-/** Seed an arbitrary doc with rules disabled (e.g. an existing lineup/match). */
-async function seedDoc(path: string, data: Record<string, unknown>) {
-  await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), path), data);
-  });
-}
-
 beforeAll(async () => {
-  testEnv = await initializeTestEnvironment({
-    projectId: PROJECT_ID,
+  env = await initializeTestEnvironment({
+    projectId: "demo-manchester-piti-rules",
     firestore: {
-      rules: readFileSync(RULES_PATH, "utf8"),
       host: "127.0.0.1",
       port: 8080,
+      rules: readFileSync("firestore.rules", "utf8"),
     },
   });
 });
-
-afterAll(async () => {
-  await testEnv?.cleanup();
-});
-
 beforeEach(async () => {
-  await testEnv.clearFirestore();
-});
-
-describe("public content collections (players / matches / seasons)", () => {
-  for (const coll of ["players", "matches", "seasons"] as const) {
-    describe(coll, () => {
-      it("anyone (anonymous) can read", async () => {
-        await seedDoc(`${coll}/x`, { name: "x" });
-        const anon = testEnv.unauthenticatedContext();
-        await assertSucceeds(getDoc(doc(anon.firestore(), coll, "x")));
-      });
-
-      it("anonymous cannot write", async () => {
-        const anon = testEnv.unauthenticatedContext();
-        await assertFails(addDoc(collection(anon.firestore(), coll), { name: "n" }));
-      });
-
-      it("signed-in non-admin user cannot write", async () => {
-        await seedUser("u1", "user");
-        const u = testEnv.authenticatedContext("u1");
-        await assertFails(addDoc(collection(u.firestore(), coll), { name: "n" }));
-      });
-
-      it("admin can create, update and delete", async () => {
-        await seedUser("admin1", "admin");
-        const a = testEnv.authenticatedContext("admin1");
-        await assertSucceeds(setDoc(doc(a.firestore(), coll, "doc1"), { name: "n" }));
-        await assertSucceeds(updateDoc(doc(a.firestore(), coll, "doc1"), { name: "n2" }));
-        await assertSucceeds(deleteDoc(doc(a.firestore(), coll, "doc1")));
-      });
-
-      it("superadmin can write too", async () => {
-        await seedUser("super1", "superadmin");
-        const s = testEnv.authenticatedContext("super1");
-        await assertSucceeds(setDoc(doc(s.firestore(), coll, "doc2"), { name: "n" }));
-      });
+  await env.clearFirestore();
+  for (const [uid, role] of [
+    ["member", "user"],
+    ["other", "user"],
+    ["admin", "admin"],
+    ["super", "superadmin"],
+  ]) {
+    await seed("users/" + uid, {
+      email: uid + "@test.dev",
+      nickname: uid,
+      role,
+    });
+    await seed("teamMembers/" + uid, {
+      expiresAt: Timestamp.fromMillis(Date.now() + 3600000),
     });
   }
-});
-
-describe("players — Pizarra naturalPosition update path", () => {
-  it("admin can update a player's naturalPosition", async () => {
-    await seedDoc("players/p1", { name: "Piti", naturalPosition: "DC" });
-    await seedUser("admin1", "admin");
-    const a = testEnv.authenticatedContext("admin1");
-    await assertSucceeds(updateDoc(doc(a.firestore(), "players", "p1"), { naturalPosition: "MC" }));
-  });
-
-  it("non-admin cannot update a player's naturalPosition", async () => {
-    await seedDoc("players/p1", { name: "Piti", naturalPosition: "DC" });
-    await seedUser("u1", "user");
-    const u = testEnv.authenticatedContext("u1");
-    await assertFails(updateDoc(doc(u.firestore(), "players", "p1"), { naturalPosition: "MC" }));
+  await seed("users/outsider", {
+    email: "outsider@test.dev",
+    nickname: "outsider",
+    role: "user",
   });
 });
-
-describe("users", () => {
-  it("anonymous cannot read the users collection", async () => {
-    await seedUser("u1", "user");
-    const anon = testEnv.unauthenticatedContext();
-    await assertFails(getDoc(doc(anon.firestore(), "users", "u1")));
-  });
-
-  it("signed-in user can read users (nickname-uniqueness + admin list)", async () => {
-    await seedUser("u1", "user");
-    const u = testEnv.authenticatedContext("u1");
-    await assertSucceeds(getDocs(query(collection(u.firestore(), "users"), where("nickname", "==", "u1"))));
-  });
-
-  it("self-create with role 'user' succeeds", async () => {
-    const u = testEnv.authenticatedContext("u1");
-    await assertSucceeds(
-      setDoc(doc(u.firestore(), "users", "u1"), { email: "u1@test.dev", nickname: "u1", role: "user" }),
+afterAll(async () => {
+  await env?.cleanup();
+});
+describe("Publicación y cálculo del backend", () => {
+  for (const coll of [
+    "players",
+    "seasons",
+    "matches",
+    "clubContent",
+    "mvpResults",
+    "playerSeasonStats",
+  ]) {
+    it(coll + " se puede leer sin registro", async () => {
+      await seed(coll + "/item", { value: 1 });
+      await assertSucceeds(getDoc(doc(db(), coll, "item")));
+    });
+  }
+  for (const coll of [
+    "matches",
+    "mvpResults",
+    "playerSeasonStats",
+    "matchDrafts",
+    "matchAudit",
+    "accessAttempts",
+    "teamMembers",
+  ]) {
+    it(
+      "nadie puede escribir " +
+        coll +
+        " desde el navegador, ni un administrador",
+      async () => {
+        await assertFails(setDoc(doc(db("admin"), coll, "item"), { value: 1 }));
+        await assertFails(
+          setDoc(doc(db("member"), coll, "item"), { value: 1 }),
+        );
+      },
     );
-  });
-
-  it("self-create with role 'admin' is rejected (no self-elevation)", async () => {
-    const u = testEnv.authenticatedContext("u1");
+  }
+  for (const coll of ["players", "seasons"]) {
+    it("solo admin con acceso de equipo puede gestionar " + coll, async () => {
+      await assertSucceeds(
+        setDoc(doc(db("admin"), coll, "item"), { name: "Prueba" }),
+      );
+      await assertFails(
+        updateDoc(doc(db("member"), coll, "item"), { name: "Cambio" }),
+      );
+      await assertFails(deleteDoc(doc(db(), coll, "item")));
+      await assertSucceeds(deleteDoc(doc(db("admin"), coll, "item")));
+    });
+  }
+  it("una sesión Google sin la clave no puede administrar aunque tenga rol", async () => {
+    await seed("users/outsider", { role: "admin" });
     await assertFails(
-      setDoc(doc(u.firestore(), "users", "u1"), { email: "u1@test.dev", nickname: "u1", role: "admin" }),
+      setDoc(doc(db("outsider"), "seasons", "x"), { name: "No" }),
     );
   });
-
-  it("cannot create a profile for a different uid", async () => {
-    const u = testEnv.authenticatedContext("u1");
+  it("el acceso expirado no sirve", async () => {
+    await seed("teamMembers/admin", {
+      expiresAt: Timestamp.fromMillis(Date.now() - 1000),
+    });
+    await assertFails(setDoc(doc(db("admin"), "players", "x"), { name: "No" }));
+  });
+  it("los borradores no son públicos ni visibles para jugadores", async () => {
+    await seed("matchDrafts/x", { rival: "Prueba" });
+    await assertFails(getDoc(doc(db(), "matchDrafts", "x")));
+    await assertFails(getDoc(doc(db("member"), "matchDrafts", "x")));
+    await assertSucceeds(getDoc(doc(db("admin"), "matchDrafts", "x")));
+  });
+});
+describe("Vestuario e identidad", () => {
+  it("solo se puede consultar el propio acceso", async () => {
+    await assertSucceeds(getDoc(doc(db("member"), "teamMembers", "member")));
+    await assertFails(getDoc(doc(db("member"), "teamMembers", "other")));
+    await assertFails(getDocs(collection(db("admin"), "teamMembers")));
+  });
+  it("no se puede descubrir el contador de intentos", async () => {
+    await assertFails(getDoc(doc(db("member"), "accessAttempts", "member")));
+  });
+  it("exige reservar el perfil y nickname mediante el backend", async () => {
+    await seed("teamMembers/new", {
+      expiresAt: Timestamp.fromMillis(Date.now() + 3600000),
+    });
     await assertFails(
-      setDoc(doc(u.firestore(), "users", "someone-else"), { email: "x@test.dev", nickname: "x", role: "user" }),
-    );
-  });
-
-  it("superadmin email may self-create as 'superadmin'", async () => {
-    const s = testEnv.authenticatedContext("superuid", { email: SUPERADMIN_EMAIL });
-    await assertSucceeds(
-      setDoc(doc(s.firestore(), "users", "superuid"), {
-        email: SUPERADMIN_EMAIL,
-        nickname: "boss",
-        role: "superadmin",
+      setDoc(doc(db("new"), "users", "new"), {
+        nickname: "new",
+        email: "new@test.dev",
+        role: "user",
+        createdAt: Timestamp.now(),
       }),
     );
   });
-
-  it("user may self-update WITHOUT changing role", async () => {
-    await seedUser("u1", "user");
-    const u = testEnv.authenticatedContext("u1");
-    await assertSucceeds(setDoc(doc(u.firestore(), "users", "u1"), { role: "user", nickname: "u1-renamed" }, { merge: true }));
+  it("prohíbe perfiles con rol elevado o de otra persona", async () => {
+    await assertFails(
+      setDoc(doc(db("member"), "users", "new"), {
+        nickname: "new",
+        email: "member@test.dev",
+        role: "user",
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(db("member"), "users", "member"), { role: "admin" }),
+    );
   });
-
-  it("user CANNOT elevate own role on update", async () => {
-    await seedUser("u1", "user");
-    const u = testEnv.authenticatedContext("u1");
-    await assertFails(setDoc(doc(u.firestore(), "users", "u1"), { role: "admin" }, { merge: true }));
+  it("impide alterar campos reservados en el propio perfil", async () => {
+    await assertFails(
+      updateDoc(doc(db("member"), "users", "member"), { teamMember: true }),
+    );
+    await assertFails(
+      updateDoc(doc(db("member"), "users", "member"), { nickname: "nuevo" }),
+    );
   });
-
-  it("admin can change another user's role", async () => {
-    await seedUser("admin1", "admin");
-    await seedUser("u1", "user");
-    const a = testEnv.authenticatedContext("admin1");
-    await assertSucceeds(setDoc(doc(a.firestore(), "users", "u1"), { role: "admin" }, { merge: true }));
+  it("no expone el directorio del vestuario a Google sin clave", async () => {
+    await assertFails(getDocs(collection(db("outsider"), "users")));
+    await assertSucceeds(getDoc(doc(db("outsider"), "users", "outsider")));
   });
-
-  it("a plain user cannot change another user's doc", async () => {
-    await seedUser("u1", "user");
-    await seedUser("u2", "user");
-    const u = testEnv.authenticatedContext("u1");
-    await assertFails(setDoc(doc(u.firestore(), "users", "u2"), { role: "admin" }, { merge: true }));
+  it("admin puede cambiar roles de miembros pero no degradar superadmin", async () => {
+    await assertSucceeds(
+      updateDoc(doc(db("admin"), "users", "member"), { role: "admin" }),
+    );
+    await assertFails(
+      updateDoc(doc(db("admin"), "users", "super"), { role: "user" }),
+    );
   });
-
-  it("no client may delete a user doc (even admin)", async () => {
-    await seedUser("admin1", "admin");
-    await seedUser("u1", "user");
-    const a = testEnv.authenticatedContext("admin1");
-    await assertFails(deleteDoc(doc(a.firestore(), "users", "u1")));
+  it("nadie elimina perfiles desde cliente", async () => {
+    await assertFails(deleteDoc(doc(db("admin"), "users", "member")));
   });
 });
-
-describe("lineups", () => {
-  const board = (ownerUid: string, isOfficial: boolean) => ({
-    ownerUid,
-    ownerNickname: ownerUid,
-    seasonId: "all",
-    name: "board",
-    isOfficial,
-    matchId: null,
+describe("Votos y convocatorias", () => {
+  it("un miembro lee su voto y el admin ve quién votó", async () => {
+    await seed("matches/m/votes/member", { playerId: "p" });
+    await assertSucceeds(
+      getDoc(doc(db("member"), "matches", "m", "votes", "member")),
+    );
+    await assertSucceeds(
+      getDocs(collection(db("admin"), "matches", "m", "votes")),
+    );
+    await assertFails(
+      getDoc(doc(db("other"), "matches", "m", "votes", "member")),
+    );
+    await assertFails(getDocs(collection(db(), "matches", "m", "votes")));
   });
-
-  it("anonymous cannot read lineups", async () => {
-    await seedDoc("lineups/l1", board("u1", false));
-    const anon = testEnv.unauthenticatedContext();
-    await assertFails(getDoc(doc(anon.firestore(), "lineups", "l1")));
+  it("los votos solo los escribe el backend", async () => {
+    await assertFails(
+      setDoc(doc(db("member"), "matches", "m", "votes", "member"), {
+        playerId: "p",
+      }),
+    );
   });
-
-  it("any signed-in user can read lineups", async () => {
-    await seedDoc("lineups/l1", board("u1", false));
-    const u2 = testEnv.authenticatedContext("u2");
-    await assertSucceeds(getDoc(doc(u2.firestore(), "lineups", "l1")));
+  it("las notas y respuestas solo se ven dentro del equipo", async () => {
+    await seed("matchPrivate/m", { meetingNote: "Quedada" });
+    await assertSucceeds(getDoc(doc(db("member"), "matchPrivate", "m")));
+    await assertFails(getDoc(doc(db(), "matchPrivate", "m")));
+    await assertFails(getDoc(doc(db("outsider"), "matchPrivate", "m")));
   });
-
-  it("owner can create their own non-official board", async () => {
-    const u = testEnv.authenticatedContext("u1");
-    await assertSucceeds(addDoc(collection(u.firestore(), "lineups"), board("u1", false)));
+  it("las respuestas solo se escriben a través del backend", async () => {
+    await assertFails(
+      setDoc(doc(db("member"), "matchPrivate", "m", "availability", "member"), {
+        response: "yes",
+      }),
+    );
   });
-
-  it("cannot create a board owned by someone else", async () => {
-    const u = testEnv.authenticatedContext("u1");
-    await assertFails(addDoc(collection(u.firestore(), "lineups"), board("u2", false)));
+});
+describe("Pizarra", () => {
+  const board = {
+    ownerUid: "member",
+    seasonId: "season",
+    name: "Mi siete",
+    isOfficial: false,
+  };
+  it("solo miembros pueden leer y guardar su pizarra", async () => {
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), board));
+    await assertSucceeds(getDoc(doc(db("other"), "lineups", "x")));
+    await assertFails(getDoc(doc(db("outsider"), "lineups", "x")));
+    await assertFails(
+      setDoc(doc(db("member"), "lineups", "bad"), {
+        ...board,
+        ownerUid: "other",
+      }),
+    );
   });
-
-  it("non-admin cannot create a board already flagged official", async () => {
-    await seedUser("u1", "user");
-    const u = testEnv.authenticatedContext("u1");
-    await assertFails(addDoc(collection(u.firestore(), "lineups"), board("u1", true)));
+  it("solo el propietario o el admin puede editar", async () => {
+    await seed("lineups/x", board);
+    await assertSucceeds(
+      updateDoc(doc(db("member"), "lineups", "x"), { name: "Nueva" }),
+    );
+    await assertFails(
+      updateDoc(doc(db("other"), "lineups", "x"), { name: "Ajena" }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(db("admin"), "lineups", "x"), { name: "Corregida" }),
+    );
   });
-
-  it("admin can create an official board", async () => {
-    await seedUser("admin1", "admin");
-    const a = testEnv.authenticatedContext("admin1");
-    await assertSucceeds(addDoc(collection(a.firestore(), "lineups"), board("admin1", true)));
+  it("solo el admin puede publicar una alineación oficial", async () => {
+    await seed("lineups/x", board);
+    await assertFails(
+      updateDoc(doc(db("member"), "lineups", "x"), { isOfficial: true }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(db("admin"), "lineups", "x"), { isOfficial: true }),
+    );
+    await assertFails(
+      updateDoc(doc(db("member"), "lineups", "x"), { name: "Cambiar oficial" }),
+    );
   });
-
-  it("owner can update (rename/save) their own board", async () => {
-    await seedDoc("lineups/l1", board("u1", false));
-    const u = testEnv.authenticatedContext("u1");
-    await assertSucceeds(updateDoc(doc(u.firestore(), "lineups", "l1"), { name: "renamed" }));
+  it("la propiedad no puede transferirse mediante una edición", async () => {
+    await seed("lineups/x", board);
+    await assertFails(
+      updateDoc(doc(db("member"), "lineups", "x"), { ownerUid: "other" }),
+    );
   });
-
-  it("non-owner non-admin cannot update someone else's board", async () => {
-    await seedUser("u2", "user");
-    await seedDoc("lineups/l1", board("u1", false));
-    const u2 = testEnv.authenticatedContext("u2");
-    await assertFails(updateDoc(doc(u2.firestore(), "lineups", "l1"), { name: "hijack" }));
-  });
-
-  it("owner (non-admin) CANNOT flip isOfficial to true on their board", async () => {
-    await seedUser("u1", "user");
-    await seedDoc("lineups/l1", board("u1", false));
-    const u = testEnv.authenticatedContext("u1");
-    await assertFails(updateDoc(doc(u.firestore(), "lineups", "l1"), { isOfficial: true }));
-  });
-
-  it("admin CAN publish (set isOfficial=true) on any board", async () => {
-    await seedUser("admin1", "admin");
-    await seedDoc("lineups/l1", board("u1", false));
-    const a = testEnv.authenticatedContext("admin1");
-    await assertSucceeds(updateDoc(doc(a.firestore(), "lineups", "l1"), { isOfficial: true }));
-  });
-
-  it("owner can delete their own board", async () => {
-    await seedDoc("lineups/l1", board("u1", false));
-    const u = testEnv.authenticatedContext("u1");
-    await assertSucceeds(deleteDoc(doc(u.firestore(), "lineups", "l1")));
-  });
-
-  it("non-owner non-admin cannot delete someone else's board", async () => {
-    await seedUser("u2", "user");
-    await seedDoc("lineups/l1", board("u1", false));
-    const u2 = testEnv.authenticatedContext("u2");
-    await assertFails(deleteDoc(doc(u2.firestore(), "lineups", "l1")));
-  });
-
-  it("admin can delete any board", async () => {
-    await seedUser("admin1", "admin");
-    await seedDoc("lineups/l1", board("u1", false));
-    const a = testEnv.authenticatedContext("admin1");
-    await assertSucceeds(deleteDoc(doc(a.firestore(), "lineups", "l1")));
+  it("el dueño borra su borrador, pero no una alineación oficial", async () => {
+    await seed("lineups/x", board);
+    await assertSucceeds(deleteDoc(doc(db("member"), "lineups", "x")));
+    await seed("lineups/x", { ...board, isOfficial: true });
+    await assertFails(deleteDoc(doc(db("member"), "lineups", "x")));
+    await assertSucceeds(deleteDoc(doc(db("admin"), "lineups", "x")));
   });
 });

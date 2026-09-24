@@ -48,7 +48,7 @@ const ratio = (v: number, m: number): number => (m > 0 ? v / m : 0);
 export function teamRating(placed: PlacedPlayer[], emptySlots: number, norms: SquadNorms): Rating {
   const n = placed.length;
   if (n === 0) {
-    return { score: 0, tier: "Sin once", prod: 0, exp: 0, disc: 0, fit: 0, oop: 0, empty: emptySlots, missing: 0, rationale: "Coloca jugadores para valorar el once." };
+    return { score: 0, tier: "Sin siete", prod: 0, exp: 0, disc: 0, fit: 0, oop: 0, empty: emptySlots, missing: 0, rationale: "Coloca jugadores para valorar el siete." };
   }
   let P = 0, E = 0, D = 0, oop = 0, missing = 0;
   placed.forEach(({ s, seasons, outOfPosition }) => {

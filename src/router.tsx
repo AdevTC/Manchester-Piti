@@ -7,8 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { z } from "zod";
 import { RootLayout } from "./RootLayout";
-import { queryClient } from "./lib/queryClient";
-import { matchDetailQuery, playerDetailQuery, playersNameMapQuery } from "./lib/detailQueries";
+import { VestuarioPage } from "./pages/Vestuario";
 import {
   RoutePending,
   RouteError,
@@ -20,7 +19,10 @@ import {
 // so it can be reused elsewhere (e.g. Phase 4). Invalid `mode` falls back to
 // "expedientes" (via .catch), preserving the old localStorage-default behavior.
 export const plantillaSearchSchema = z.object({
-  mode: z.enum(["expedientes", "pizarra"]).default("expedientes").catch("expedientes"),
+  mode: z
+    .enum(["expedientes", "pizarra"])
+    .default("expedientes")
+    .catch("expedientes"),
 });
 
 // Root-level search schema: `season` is inherited by all child routes so any
@@ -38,12 +40,23 @@ export const rootSearchSchema = z.object({
 // matching the old useState default.
 export const statsSearchSchema = z.object({
   tab: z.enum(["general", "compare"]).default("general").catch("general"),
+  view: z
+    .enum(["summary", "players", "minutes", "rivals", "compare", "explore"])
+    .optional()
+    .catch(undefined),
+  section: z
+    .enum(["individual", "streaks", "team", "evolution"])
+    .optional()
+    .catch(undefined),
 });
 
 // Admin route's `validateSearch`: same pattern for the admin tab. (The role
 // guard is unchanged — it lives in RootLayout.) Invalid `tab` → "matches".
 export const adminSearchSchema = z.object({
-  tab: z.enum(["matches", "roster", "seasons", "admins"]).default("matches").catch("matches"),
+  tab: z
+    .enum(["matches", "roster", "seasons", "admins"])
+    .default("matches")
+    .catch("matches"),
 });
 
 const rootRoute = createRootRoute({
@@ -57,21 +70,21 @@ const rootRoute = createRootRoute({
 const matchesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: lazyRouteComponent(() => import("./pages/MatchCenter"), "MatchCenter"),
+  component: lazyRouteComponent(() => import("./pages/Home"), "HomePage"),
 });
 
 const statsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/stats",
   validateSearch: statsSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/Stats"), "Stats"),
+  component: lazyRouteComponent(() => import("./pages/ClubStats"), "ClubStats"),
 });
 
 const plantillaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/plantilla",
   validateSearch: plantillaSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/Plantilla"), "Plantilla"),
+  component: lazyRouteComponent(() => import("./pages/Squad"), "SquadPage"),
 });
 
 const profileRoute = createRoute({
@@ -84,38 +97,73 @@ const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
   validateSearch: adminSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/Admin"), "Admin"),
+  component: lazyRouteComponent(
+    () => import("./pages/admin/AdminHub"),
+    "AdminHub",
+  ),
 });
 
-// Deep, one-shot detail routes. The `loader` prefetches via
-// queryClient.ensureQueryData (warmed by hover-intent thanks to
-// defaultPreload:"intent"); the page reads the SAME queryKey with useQuery, so
-// it hits the hot cache with no second fetch. These by-id reads are genuinely
-// one-shot (getDoc), unlike the realtime onSnapshot pages — left untouched.
+// Detail pages share the realtime collection cache with the club pages.
 const matchDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/matches/$matchId",
-  // Warm BOTH the match doc and the players name map so a deep-link arrives with
-  // the event labels already hot (the page reads the same queryKeys via useQuery
-  // → no second fetch on mount). Promise.all keeps the two reads concurrent.
-  loader: ({ params }) =>
-    Promise.all([
-      queryClient.ensureQueryData(matchDetailQuery(params.matchId)),
-      queryClient.ensureQueryData(playersNameMapQuery),
-    ]),
   pendingComponent: MatchDetailPending,
-  component: lazyRouteComponent(() => import("./pages/MatchDetail"), "MatchDetail"),
+  component: lazyRouteComponent(
+    () => import("./pages/MatchDetail"),
+    "MatchDetail",
+  ),
 });
 
 const playerProfileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/jugadores/$playerId",
-  loader: ({ params }) => queryClient.ensureQueryData(playerDetailQuery(params.playerId)),
   pendingComponent: PlayerProfilePending,
-  component: lazyRouteComponent(() => import("./pages/PlayerProfile"), "PlayerProfile"),
+  component: lazyRouteComponent(
+    () => import("./pages/PlayerProfile"),
+    "PlayerProfile",
+  ),
 });
 
+const fixturesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/partidos",
+  component: lazyRouteComponent(
+    () => import("./pages/Fixtures"),
+    "FixturesPage",
+  ),
+});
+const clubRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/club",
+  component: lazyRouteComponent(() => import("./pages/Club"), "ClubPage"),
+});
+const vestuarioRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/vestuario",
+  component: VestuarioPage,
+});
+const pizarraRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/pizarra",
+  component: lazyRouteComponent(
+    () => import("./pages/pizarra/Pizarra"),
+    "Pizarra",
+  ),
+});
+const contentRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin/contenido",
+  component: lazyRouteComponent(
+    () => import("./pages/admin/ContentEditor"),
+    "ContentEditor",
+  ),
+});
 const routeTree = rootRoute.addChildren([
+  fixturesRoute,
+  clubRoute,
+  vestuarioRoute,
+  pizarraRoute,
+  contentRoute,
   matchesRoute,
   statsRoute,
   plantillaRoute,

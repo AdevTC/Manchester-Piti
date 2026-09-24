@@ -1,110 +1,83 @@
 rules_version = '2';
-
-// Manchester Piti — Firestore security rules.
-//
-// Reconstructed from the app's Firestore usage (AuthContext, SeasonContext,
-// Admin, Stats, MatchCenter, Expedientes, Landing, pizarra/*) and covering all
-// five collections the app touches: players, matches, seasons, users, lineups.
-//
-// DEPLOYED 2026-06-16 (firebase deploy --only firestore) to futbolmanagement-dc6cb.
-// The previous live ruleset was the default test-mode allow-all (expiring
-// 2026-07-03), so nothing custom was lost. A deploy REPLACES the entire
-// ruleset, so keep this file in sync and re-verify against the app's queries
-// before any future deploy.
-//
-// AUDITED 2026-06-23 (Phase 11). Every write path was re-checked against the
-// live code (Admin CRUD via useAdminMutations, AuthContext register/role,
-// pizarra naturalPosition update on players, lineups CRUD + markOfficial). All
-// role-based writes are correctly gated; no gap found, no rule change needed.
-// The behaviour is locked in by emulator rules tests (see firestore-rules.test.ts
-// + the `test:rules` script). Deploy target: Firebase Hosting (SPA rewrite in
-// firebase.json) + Firestore rules/indexes — `firebase deploy --only firestore`
-// for this file, `--only hosting` for the SPA. See firebase.json.
-//
-// INDEX NOTE (firestore.indexes.json): after Phase 1's de-dup, every `matches`
-// query is `orderBy("date","desc")` ONLY (single-field → auto-indexed), so the
-// old composite `matches(seasonId, date)` became dead config and was REMOVED in
-// Phase 11. The `lineups(seasonId, isOfficial)` composite STAYS — markOfficial
-// queries `where(seasonId==) && where(isOfficial==true)` (two equality filters
-// → needs a composite). No other multi-filter/orderBy query exists.
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSignedIn() {
-      return request.auth != null;
+    function signedIn() { return request.auth != null; }
+    function teamMember() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/teamMembers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/teamMembers/$(request.auth.uid)).data.expiresAt > request.time;
     }
-    function roleOf(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+    function admin() {
+      return teamMember()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','superadmin'];
     }
-    function isAdmin() {
-      return isSignedIn()
-        && roleOf(request.auth.uid) in ['admin', 'superadmin'];
+    function superadminEmail() {
+      return signedIn() && request.auth.token.email == 'adriantomascv@gmail.com' && request.auth.token.email_verified == true;
     }
-
-    // Public read: the pre-login Landing reads players & matches (getDocs),
-    // and SeasonContext subscribes to seasons before auth. Do NOT gate these
-    // reads behind request.auth — it breaks the logged-out Landing page.
-
-    match /players/{playerId} {
+    match /players/{id} {
       allow read: if true;
-      // Admin create/edit/delete (Admin.tsx) + Pizarra naturalPosition update.
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if admin();
     }
-
-    match /matches/{matchId} {
+    match /seasons/{id} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if admin();
     }
-
-    match /seasons/{seasonId} {
+    match /matches/{id} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      // Actas, result and computed minutes are written exclusively by the backend.
+      allow write: if false;
+      match /votes/{uid} {
+        allow read: if teamMember() && (request.auth.uid == uid || admin());
+        allow write: if false;
+      }
     }
-
-    match /users/{userId} {
-      // Signed-in users read the collection: registration checks nickname
-      // uniqueness / first-user, and Admin lists users.
-      allow read: if isSignedIn();
-
-      // Self-create profile. Restricted to role 'user' so a user cannot
-      // self-assign elevated roles — EXCEPT the hardcoded superadmin email,
-      // which AuthContext self-heals to 'superadmin'.
-      // NOTE: the client also makes the *first ever* user an 'admin'. Rules
-      // cannot detect "first user", so that bootstrap must be done once in the
-      // console (set role: 'admin'/'superadmin' manually).
-      allow create: if isSignedIn() && request.auth.uid == userId
-        && (request.resource.data.role == 'user'
-            || request.auth.token.email == 'adriantomascv@gmail.com');
-
-      // Admins update anyone (role management). A user may update their own
-      // doc only WITHOUT changing their role — except the superadmin email,
-      // which may self-heal to 'superadmin'.
-      allow update: if isAdmin()
-        || (request.auth.uid == userId
-            && request.resource.data.role == resource.data.role)
-        || (request.auth.uid == userId
-            && request.auth.token.email == 'adriantomascv@gmail.com');
-
-      // No client deletes of user docs.
+    match /teamMembers/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, write: if false;
+    }
+    match /accessAttempts/{uid} { allow read, write: if false; }
+    match /nicknames/{name} { allow read: if teamMember(); allow write: if false; }
+    match /matchDrafts/{id} { allow read: if admin(); allow write: if false; }
+    match /matchAudit/{id} { allow read: if admin(); allow write: if false; }
+    match /matchPrivate/{id} {
+      allow read: if teamMember(); allow write: if false;
+      match /availability/{uid} { allow read: if teamMember(); allow write: if false; }
+    }
+    match /mvpResults/{id} { allow read: if true; allow write: if false; }
+    match /playerSeasonStats/{id} { allow read: if true; allow write: if false; }
+    match /clubContent/{id} {
+      allow read: if true;
+      allow create, update: if admin() && id == 'main'
+        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','photoUrl','milestones','sponsors','gallery'])
+        && request.resource.data.intro is string && request.resource.data.intro.size() < 1000
+        && request.resource.data.story is string && request.resource.data.story.size() < 20000
+        && request.resource.data.gallery is list && request.resource.data.gallery.size() <= 100
+        && request.resource.data.sponsors is list && request.resource.data.sponsors.size() <= 50
+        && request.resource.data.milestones is list && request.resource.data.milestones.size() <= 100;
       allow delete: if false;
     }
-
-    // Tactical lineups saved from La Pizarra (persistence sub-project).
-    // Any signed-in user owns their own boards (create/edit/delete); only an
-    // admin may publish a board as official (set/keep isOfficial true) or
-    // touch someone else's board. ownerUid is the writer's uid.
-    match /lineups/{lineupId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn()
-        && request.resource.data.ownerUid == request.auth.uid
-        && (request.resource.data.isOfficial == false || isAdmin());
-      allow update: if isSignedIn() && (
-           (resource.data.ownerUid == request.auth.uid
-             && (request.resource.data.isOfficial == resource.data.isOfficial || isAdmin()))
-           || isAdmin());
-      allow delete: if isSignedIn()
-        && (resource.data.ownerUid == request.auth.uid || isAdmin());
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || teamMember());
+      allow list: if teamMember();
+      // Profiles and unique nicknames are reserved transactionally by the backend.
+      allow create: if false;
+      allow update: if (admin() && resource.data.role != 'superadmin'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+          && request.resource.data.role in ['admin','user'])
+        || (superadminEmail() && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+          && request.resource.data.role == 'superadmin');
+      allow delete: if false;
+    }
+    match /lineups/{id} {
+      allow read: if teamMember();
+      allow create: if teamMember() && request.resource.data.ownerUid == request.auth.uid
+        && (!request.resource.data.get('isOfficial',false) || admin());
+      allow update: if teamMember()
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && (admin() || (resource.data.ownerUid == request.auth.uid
+          && !resource.data.get('isOfficial',false) && !request.resource.data.get('isOfficial',false)));
+      allow delete: if teamMember() && (admin() || (resource.data.ownerUid == request.auth.uid && !resource.data.get('isOfficial',false)));
     }
   }
 }

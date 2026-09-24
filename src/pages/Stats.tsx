@@ -1,3 +1,4 @@
+import { isCompleted } from '../lib/clubData';
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
@@ -132,6 +133,7 @@ type DateLike = Date | string | number | { seconds: number } | null | undefined;
 // A match document as loaded from Firestore.
 interface MatchDoc {
   id: string;
+  ledger?: Record<string, { played: boolean }>;
   goalsFor?: number;
   goalsAgainst?: number;
   rival?: string;
@@ -246,7 +248,7 @@ export const Stats: React.FC = () => {
   const { data: matchesData, isPending } = useFirestoreCollection(MATCHES_KEY, matchesQuery, mapMatch);
   const players = useMemo<PlayerDoc[]>(() => (playersData ?? []) as unknown as PlayerDoc[], [playersData]);
   const matches = useMemo<MatchDoc[]>(() => {
-    const all = (matchesData ?? []) as MatchDoc[];
+    const all = (matchesData ?? []).filter(isCompleted).map(m => ({ ...m, events: [...(m.events ?? []), ...Object.entries((m.ledger ?? {}) as Record<string, { played: boolean }>).filter(([, p]) => p.played).map(([id]) => ({ type: "match_played", playerId: id }))] })) as MatchDoc[];
     return selectedSeasonId === "all" ? all : all.filter((m) => m.seasonId === selectedSeasonId);
   }, [matchesData, selectedSeasonId]);
 
@@ -402,10 +404,10 @@ export const Stats: React.FC = () => {
     events.forEach((event: MatchEvent) => {
       const { type, playerId, assistPlayerId } = event;
 
-      if (playerId) {
+      if (playerId && (!match.ledger || match.ledger[playerId]?.played)) {
         participantsInMatch.add(playerId);
       }
-      if (type === "goal" && assistPlayerId) {
+      if (["goal", "goal_penalty", "goal_freekick"].includes(type) && assistPlayerId) {
         participantsInMatch.add(assistPlayerId);
       }
 
@@ -429,7 +431,7 @@ export const Stats: React.FC = () => {
           playerStatsMap[playerId].redCards += 1;
         } else if (type === "double_yellow") {
           playerStatsMap[playerId].doubleYellows += 1;
-          playerStatsMap[playerId].yellowCards += 2;
+          playerStatsMap[playerId].yellowCards += match.ledger ? 1 : 2;
           playerStatsMap[playerId].redCards += 1;
         } else if (type === "penalty_saved") {
           playerStatsMap[playerId].penaltySaved += 1;
@@ -440,7 +442,7 @@ export const Stats: React.FC = () => {
         }
       }
 
-      if (type === "goal" && assistPlayerId && playerStatsMap[assistPlayerId]) {
+      if (["goal", "goal_penalty", "goal_freekick"].includes(type) && assistPlayerId && playerStatsMap[assistPlayerId]) {
         playerStatsMap[assistPlayerId].assists += 1;
       }
 
@@ -870,10 +872,10 @@ export const Stats: React.FC = () => {
       const participantsInMatch = new Set<string>();
       events.forEach((ev: MatchEvent) => {
         const { playerId, assistPlayerId, type } = ev;
-        if (playerId) {
+        if (playerId && (!match.ledger || match.ledger[playerId]?.played)) {
           participantsInMatch.add(playerId);
         }
-        if (type === "goal" && assistPlayerId) {
+        if (["goal", "goal_penalty", "goal_freekick"].includes(type) && assistPlayerId) {
           participantsInMatch.add(assistPlayerId);
         }
       });
@@ -3146,14 +3148,14 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
           if (playerId && type === "assist") {
             cumulativeMap[playerId] = (cumulativeMap[playerId] || 0) + 1;
           }
-          if (assistPlayerId && type === "goal") {
+          if (assistPlayerId && ["goal", "goal_penalty", "goal_freekick"].includes(type)) {
             cumulativeMap[assistPlayerId] = (cumulativeMap[assistPlayerId] || 0) + 1;
           }
         } else if (metric === "gPlusA") {
           if (playerId && (type === "goal" || type === "goal_penalty" || type === "goal_freekick" || type === "assist")) {
             cumulativeMap[playerId] = (cumulativeMap[playerId] || 0) + 1;
           }
-          if (assistPlayerId && type === "goal") {
+          if (assistPlayerId && ["goal", "goal_penalty", "goal_freekick"].includes(type)) {
             cumulativeMap[assistPlayerId] = (cumulativeMap[assistPlayerId] || 0) + 1;
           }
         } else if (metric === "woodwork") {
@@ -3164,7 +3166,7 @@ const LeaderboardChartModal: React.FC<ChartModalProps> = ({
           if (playerId && type === "yellow_card") {
             cumulativeMap[playerId] = (cumulativeMap[playerId] || 0) + 1;
           } else if (playerId && type === "double_yellow") {
-            cumulativeMap[playerId] = (cumulativeMap[playerId] || 0) + 2;
+            cumulativeMap[playerId] = (cumulativeMap[playerId] || 0) + (match.ledger ? 1 : 2);
           }
         }
       });
