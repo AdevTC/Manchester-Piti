@@ -1,7 +1,7 @@
 import { registerTeamProfile } from '../lib/clubApi';
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { type User, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, googleProvider, db } from "../firebase";
 import { userProfileSchema, normalizeNickname } from "../lib/schemas";
 import { reportDroppedDoc } from "../lib/docTelemetry";
@@ -11,6 +11,8 @@ export interface UserProfile {
   nickname: string;
   role: "superadmin" | "admin" | "user";
   createdAt: Date | import("firebase/firestore").Timestamp;
+  /** Linked player file (set by an admin approving the claim). */
+  playerId?: string;
 }
 
 interface AuthContextType {
@@ -63,53 +65,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (PREVIEW) return;
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    // The profile is live: an approved player claim or a role change shows up without reloading.
+    let stopProfile: (() => void) | null = null;
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      stopProfile?.();
+      stopProfile = null;
       setUser(currentUser);
-      
-      if (currentUser) {
-        try {
-          const userDocRef = doc(db, "users", currentUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          const isSuperAdminEmail = currentUser.emailVerified && currentUser.email === "adriantomascv@gmail.com";
-
-          if (userDoc.exists()) {
-            const parsed = userProfileSchema.safeParse(userDoc.data());
-            if (!parsed.success) {
-              // Descarte de lectura MÁS consecuente (bloquea la sesión): que sea
-              // detectable en prod vía la telemetría central, no solo console.
-              reportDroppedDoc("users", currentUser.uid, parsed.error.issues);
-              setProfile(null);
-              setLoading(false);
-              return;
-            }
-            const data = { ...parsed.data } as UserProfile;
-            
-            // Force superadmin role in DB if logged in with superadmin email
-            if (isSuperAdminEmail && data.role !== "superadmin") {
-              data.role = "superadmin";
-              await setDoc(userDocRef, { role: "superadmin" }, { merge: true });
-            }
-            
-            // Apply developer override if active and not the real superadmin
-            if (import.meta.env.DEV && localAdminOverride && data.role !== "superadmin") {
-              data.role = "admin";
-            }
-            setProfile(data);
-          } else {
+      if (!currentUser) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+      const userDocRef = doc(db, "users", currentUser.uid);
+      const isSuperAdminEmail = currentUser.emailVerified && currentUser.email === "adriantomascv@gmail.com";
+      stopProfile = onSnapshot(
+        userDocRef,
+        (userDoc) => {
+          if (!userDoc.exists()) {
             setProfile(null);
+            setLoading(false);
+            return;
           }
-        } catch (error) {
+          const parsed = userProfileSchema.safeParse(userDoc.data());
+          if (!parsed.success) {
+            // Descarte de lectura MÁS consecuente (bloquea la sesión): que sea
+            // detectable en prod vía la telemetría central, no solo console.
+            reportDroppedDoc("users", currentUser.uid, parsed.error.issues);
+            setProfile(null);
+            setLoading(false);
+            return;
+          }
+          const data = { ...parsed.data } as UserProfile;
+          // Force superadmin role in DB if logged in with superadmin email
+          if (isSuperAdminEmail && data.role !== "superadmin") {
+            data.role = "superadmin";
+            void setDoc(userDocRef, { role: "superadmin" }, { merge: true }).catch((error) =>
+              console.error("Error promoting superadmin:", error),
+            );
+          }
+          // Apply developer override if active and not the real superadmin
+          if (import.meta.env.DEV && localAdminOverride && data.role !== "superadmin") {
+            data.role = "admin";
+          }
+          setProfile(data);
+          setLoading(false);
+        },
+        (error) => {
           console.error("Error fetching user profile:", error);
           setProfile(null);
-        }
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
+          setLoading(false);
+        },
+      );
     });
 
-    return () => unsubscribe();
+    return () => {
+      stopProfile?.();
+      unsubscribe();
+    };
   }, [localAdminOverride, PREVIEW]);
 
   const loginWithGoogle = async () => {

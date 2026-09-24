@@ -181,6 +181,8 @@ export const userProfileSchema = z.object({
   nickname: z.string(),
   role: roleSchema,
   createdAt: firestoreDate.optional(),
+  /** Player file linked to this account once an admin approves the claim. */
+  playerId: z.string().optional(),
 });
 export type UserProfileParsed = z.infer<typeof userProfileSchema>;
 
