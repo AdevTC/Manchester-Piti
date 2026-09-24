@@ -69,7 +69,7 @@ export function CelesteDock({ active }: { active: CelestePage }) {
         d.key === active ? (
           <Link key={d.key} to={d.to} className="on" aria-current="page">
             <img src="/crest.png" alt="" />
-            {d.label}
+            <span className="lbl">{d.label}</span>
           </Link>
         ) : (
           <Link key={d.key} to={d.to} aria-label={d.label}>

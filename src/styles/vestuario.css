@@ -298,7 +298,7 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx-voters ul{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:4px}
 /* board */
 .vx-msg .bd{position:relative}
-.vx-msg-del{margin-left:8px;border:0;background:none;padding:0;color:inherit;opacity:.7;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer}
+.vx-msg-del{display:inline-flex;align-items:center;min-height:36px;margin-left:4px;border:0;background:none;padding:0 6px;color:inherit;opacity:.7;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;vertical-align:middle}
 .vx-compose{padding:0 6px 0 6px}
 .vx-compose input{flex:1;min-width:0;height:42px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:15px;padding:0 14px;outline:none}
 .vx-compose input::placeholder{color:var(--placeholder)}
@@ -408,9 +408,30 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx-foot{position:relative;z-index:2;margin:72px 20px 0;padding:26px 0 120px;border-top:1px solid var(--line);display:grid;gap:18px;font-size:13px;color:var(--muted)}
 .vx-foot .b{display:flex;align-items:center;gap:10px;color:var(--ink);font-family:'Anybody';font-weight:800;font-size:17px;font-variation-settings:'wdth' 118}
 .vx-foot .b img{width:34px;height:34px}
-.vx-foot nav{display:flex;flex-wrap:wrap;gap:16px}
-.vx-foot nav a{color:var(--soft);text-decoration:none;font-weight:600}
+.vx-foot nav{display:flex;flex-wrap:wrap;gap:0 18px}
+.vx-foot nav a{display:inline-flex;align-items:center;min-height:44px;color:var(--soft);text-decoration:none;font-weight:600}
 .vx-foot small{font-family:'Geist Mono';font-size:10px;line-height:1.6}
 .vx-foot small a{color:inherit}
 @container (min-width:700px){.vx-foot{margin:90px 40px 0;grid-template-columns:auto 1fr;align-items:center;padding-bottom:130px}.vx-foot nav{justify-content:flex-end}.vx-foot small{grid-column:1/-1}}
 @container (min-width:1100px){.vx-foot{margin:100px 64px 0;padding-bottom:40px;grid-template-columns:auto 1fr auto}.vx-foot nav{justify-content:flex-start}.vx-foot small{grid-column:auto;text-align:right}}
+
+/* ===== touch targets and small phones (≤380px) ===== */
+.vx .vx-cap-head a{display:inline-flex;align-items:center;min-height:44px;white-space:nowrap}
+.vx .vx-cap-head h2{white-space:nowrap}
+.vx-photo{height:38px}
+.vx-link-btn,.vx-stepl .go,.vx-logout{min-height:44px}
+.vx-hint{white-space:nowrap;max-width:calc(100% - 8px)}
+.vx-dock a{flex:0 0 44px}
+.vx .vx-dock a.on{flex:0 1 auto;min-width:0;white-space:nowrap}
+@container (max-width:380px){
+.vx-vert{display:none}
+.vx-hint{font-size:11px;height:30px;padding:0 10px;gap:6px}
+.vx-cap-head{flex-wrap:wrap;gap:0 10px}
+.vx .vx-cap-head h2{font-size:16px}
+.vx-cta{height:64px;padding:0 8px 0 22px}
+.vx-cta span:first-child{font-size:18px}
+.vx-cta .dot{width:48px;height:48px}
+.vx-slot .time,.vx-slot .day{font-size:12px}
+.vx .vx-dock a.on{padding:0 14px}
+.vx .vx-dock a.on .lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+}

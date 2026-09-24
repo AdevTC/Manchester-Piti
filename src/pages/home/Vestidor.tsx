@@ -198,9 +198,11 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
       <div className="hm-rail-wrap">
         <div className="hm-rail-head">
           <span>
-            La plantilla · {n} jugadores · usa ← →
+            La plantilla · {n} jugadores<span className="kbd"> · usa ← →</span>
           </span>
-          <span aria-hidden="true">Desliza →</span>
+          <span className="swipe" aria-hidden="true">
+            Desliza →
+          </span>
         </div>
         <div className="hm-rail" role="group" aria-label="Elige jugador" ref={rail} onKeyDown={onRailKey}>
           {squad.map((q, i) => (
