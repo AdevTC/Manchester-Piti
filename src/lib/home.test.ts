@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "./clubData";
-import { clubMedals, countdownParts, leaders, matchIcs, narrative, playerLines, playerMoment, seasonPulse, upcomingBirthdays } from "./home";
+import { clubMedals, countdownParts, leaders, matchEvent, narrative, playerLines, playerMoment, seasonPulse, upcomingBirthdays } from "./home";
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 10, 12);
@@ -74,10 +74,9 @@ describe("home season data", () => {
     const b = upcomingBirthdays(squad, NOW);
     expect(b.map((x) => [x.name, x.label, x.days])).toEqual([["ERIK", "12 oct", 2], ["ADRIÁN T.C.", "18 abr", 190]]);
   });
-  it("countdown parts and ics", () => {
+  it("countdown parts and the match as a calendar event", () => {
     expect(countdownParts(NOW + DAY + 3_600_000 * 2 + 60_000 * 5, NOW)).toEqual({ d: 1, h: 2, m: 5 });
-    const ics = matchIcs({ id: "m9", date: Date.UTC(2026, 9, 18, 9), rival: "Rival; X", venue: "Campo" }, "https://x.test/matches/m9");
-    expect(ics).toContain("DTSTART:20261018T090000Z");
-    expect(ics).toContain("SUMMARY:Manchester Piti vs Rival\\; X");
+    const ev = matchEvent({ id: "m9", date: Date.UTC(2026, 9, 18, 9), rival: "Rival X", venue: "Campo", duration: 50 }, "https://x.test");
+    expect(ev).toEqual({ uid: "m9", title: "Manchester Piti vs Rival X", start: Date.UTC(2026, 9, 18, 9), end: Date.UTC(2026, 9, 18, 10, 20), location: "Campo", url: "https://x.test/matches/m9" });
   });
 });

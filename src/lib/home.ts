@@ -4,7 +4,7 @@ import { dateMillis, isCompleted, matchPhase } from "../../functions/src/matchEn
 import type { ClubMatch } from "./clubData";
 import { computeStats, EMPTY_STATS, type PlayerStats } from "./playerStats";
 import { kickoffLabel, plural } from "./vestuario";
-import { eventIcs } from "./ics";
+import type { CalendarEvent } from "./calendarLinks";
 
 const DAY = 86_400_000;
 const GOAL = /^goal/;
@@ -171,7 +171,15 @@ export function countdownParts(target: number, now: number) {
 }
 
 /** A one-event iCalendar file for "Añadir a mi calendario". */
-export function matchIcs(m: { id: string; date?: unknown; rival?: string; venue?: string; duration?: number }, url: string) {
+/** A match as a calendar event (kick-off to final whistle plus 30 min). */
+export function matchEvent(m: { id: string; date?: unknown; rival?: string | null; venue?: string | null; duration?: number | null }, origin: string): CalendarEvent {
   const start = dateMillis(m.date);
-  return eventIcs({ uid: m.id, start, end: start + (m.duration ?? 60) * 60_000 + 30 * 60_000, summary: `Manchester Piti vs ${m.rival ?? "rival"}`, location: m.venue, url });
+  return {
+    uid: m.id,
+    title: `Manchester Piti vs ${m.rival ?? "rival"}`,
+    start,
+    end: start + (m.duration ?? 60) * 60_000 + 30 * 60_000,
+    location: m.venue ?? undefined,
+    url: `${origin}/matches/${m.id}`,
+  };
 }
