@@ -43,28 +43,57 @@ export function HomePage() {
   const [picked, setPicked] = useState<string | null>(null);
   const [kit, setKit] = useState<"home" | "away">("home");
   const defaultId = squad[Math.floor(seed * squad.length)]?.id;
-  // Every 8 s another random player, with the shirt's turn. Held for 20 s after the viewer
-  // picks someone, while the pointer is over the cartel, and while the tab is hidden.
-  const [auto, setAuto] = useState(true);
+  const selIndex = Math.max(0, lines.findIndex((l) => l.id === (picked ?? defaultId)));
+  const selected = lines[selIndex];
+
+  // Changing player: the outgoing one stays briefly for its exit animation (removed by a timer,
+  // so it never lingers, even without animations).
+  const [leaving, setLeaving] = useState<string | null>(null);
   const touched = useRef(0);
+  const leaveTimer = useRef(0);
+  const current = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    current.current = selected?.id;
+  });
+  const go = (nextId: string | undefined, manual = false) => {
+    if (manual) touched.current = Date.now();
+    const from = current.current;
+    if (!nextId || nextId === from) return;
+    window.clearTimeout(leaveTimer.current);
+    setLeaving(from ?? null);
+    setPicked(nextId);
+    current.current = nextId;
+    leaveTimer.current = window.setTimeout(() => setLeaving(null), 900);
+  };
+  const goRef = useRef(go);
+  useEffect(() => {
+    goRef.current = go;
+  });
+
+  // Every 8 s the next player of a shuffled pass through the squad: nobody repeats until all
+  // have been shown. Held 20 s after the viewer picks, while the pointer is over the cartel,
+  // and while the tab is hidden.
+  const [auto, setAuto] = useState(true);
   const holding = useRef(false);
+  const bag = useRef<string[]>([]);
   const ids = squad.map((p) => p.id).join(",");
   useEffect(() => {
     const list = ids ? ids.split(",") : [];
     if (!auto || list.length < 2) return;
     const timer = window.setInterval(() => {
       if (document.hidden || holding.current || Date.now() - touched.current < 20_000) return;
-      setPicked((cur) => {
-        const current = cur ?? defaultId;
-        let nextId = current;
-        while (nextId === current) nextId = list[Math.floor(Math.random() * list.length)];
-        return nextId ?? null;
-      });
+      bag.current = bag.current.filter((id) => list.includes(id) && id !== current.current);
+      if (!bag.current.length) {
+        bag.current = list.filter((id) => id !== current.current);
+        for (let i = bag.current.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [bag.current[i], bag.current[j]] = [bag.current[j], bag.current[i]];
+        }
+      }
+      goRef.current(bag.current.pop());
     }, 8_000);
     return () => window.clearInterval(timer);
-  }, [auto, ids, defaultId]);
-  const selIndex = Math.max(0, lines.findIndex((l) => l.id === (picked ?? defaultId)));
-  const selected = lines[selIndex];
+  }, [auto, ids]);
   const moment = selected ? playerMoment(selected, { pichichiId: scorers[0]?.id, lastMatch: pulse.last }) : "";
 
   return (
@@ -90,10 +119,8 @@ export function HomePage() {
           seasonName={seasonName}
           squad={lines}
           sel={selIndex}
-          onSelect={(i) => {
-            touched.current = Date.now();
-            setPicked(lines[i].id);
-          }}
+          onSelect={(i) => go(lines[i].id, true)}
+          leaving={lines.find((l) => l.id === leaving)}
           auto={auto}
           onToggleAuto={() => setAuto((a) => !a)}
           onHold={(h) => {

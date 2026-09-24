@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from "react";
+import { useRef, type CSSProperties, type KeyboardEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Icon } from "../../components/celeste/icons";
@@ -25,9 +25,11 @@ interface Props {
   auto: boolean;
   onToggleAuto: () => void;
   onHold: (hold: boolean) => void;
+  /** The player on their way out, kept a moment for the exit animation. */
+  leaving?: PlayerLine;
 }
 
-export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onKit, theme, moment, next, live, now, auto, onToggleAuto, onHold }: Props) {
+export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onKit, theme, moment, next, live, now, auto, onToggleAuto, onHold, leaving }: Props) {
   const shirt = useRef<Jersey3DRef>(null);
   const rail = useRef<HTMLDivElement>(null);
   const p = squad[sel];
@@ -107,7 +109,12 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
         </div>
 
         <div className="hm-poster" onPointerEnter={() => onHold(true)} onPointerLeave={() => onHold(false)}>
-          <div className="num" key={p?.num} data-digits={(p?.num || "").length} aria-hidden="true">
+          {leaving && leaving.id !== p?.id && (
+            <div className="num out" key={`num-out-${leaving.id}`} data-digits={leaving.num.length} aria-hidden="true">
+              {leaving.num}
+            </div>
+          )}
+          <div className="num" key={`num-${p?.id}`} data-digits={(p?.num || "").length} aria-hidden="true">
             {p?.num}
           </div>
           {p && (
@@ -149,8 +156,21 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
             <span className="pos">
               Dorsal {p.num} · {seasonName}
             </span>
-            <h2 key={p.id}>{p.name}</h2>
-            <div key={p.id} className={`hm-nums${blank ? " ph" : ""}`}>
+            <div className="hm-name">
+              {leaving && leaving.id !== p.id && (
+                <span className="hm-name-out" key={`name-out-${leaving.id}`} aria-hidden="true">
+                  {leaving.name}
+                </span>
+              )}
+              <h2 key={`name-${p.id}`} aria-label={p.name}>
+                {[...p.name].map((ch, i) => (
+                  <span key={i} className="ch" aria-hidden="true" style={{ "--i": i } as CSSProperties}>
+                    {ch === " " ? "\u00a0" : ch}
+                  </span>
+                ))}
+              </h2>
+            </div>
+            <div key={`nums-${p.id}`} className={`hm-nums${blank ? " ph" : ""}`}>
               <div>
                 <b>{stats.goals}</b>
                 <span>goles</span>
