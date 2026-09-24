@@ -16,6 +16,9 @@ test("el cartel responde a la convocatoria y guarda porra, entreno y tablón en 
   await page.getByRole("button", { name: /Guardar mi porra|Cambiar mi porra/ }).click();
   await expect(page.getByRole("button", { name: "Porra guardada" })).toBeVisible();
 
+  // A confirmed training left by an earlier run: reopen its vote first.
+  const reopen = page.getByRole("button", { name: "Reabrir votación" });
+  if (await reopen.isVisible()) await reopen.click();
   const slots = page.getByRole("group", { name: "Huecos propuestos" });
   if (!(await slots.isVisible())) {
     const when = new Date(Date.now() + 3 * 86_400_000);
@@ -28,6 +31,13 @@ test("el cartel responde a la convocatoria y guarda porra, entreno y tablón en 
   }
   await slots.getByRole("button").first().click();
   await expect(page.getByText(/tú ya votaste/)).toBeVisible();
+  // As admin, confirm the slot: the card closes the vote and announces it; then reopen it.
+  await page.getByRole("group", { name: "Confirmar el entreno" }).getByRole("button").first().click();
+  await expect(page.getByRole("heading", { name: "Entreno confirmado" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Entreno confirmado ·/ })).toBeVisible();
+  await expect(page.getByText(/^Entreno confirmado: /).first()).toBeVisible();
+  await page.getByRole("button", { name: "Reabrir votación" }).click();
+  await expect(page.getByRole("heading", { name: "¿Cuándo entrenamos?" })).toBeVisible();
 
   const text = `Balones y petos ${Date.now()}`;
   await page.getByPlaceholder("Escribe al vestuario…").fill(text);

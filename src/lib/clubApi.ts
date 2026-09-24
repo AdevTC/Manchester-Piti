@@ -38,6 +38,7 @@ export const proposeTraining = httpsCallable<
   { slots: { at: number; end?: number; place: string }[]; note: string },
   { id: string }
 >(functions, "proposeTraining");
+export const confirmTraining = httpsCallable<{ trainingId: string; slotId: string | null }>(functions, "confirmTraining");
 export const voteTraining = httpsCallable<{
   trainingId: string;
   slotIds: string[];

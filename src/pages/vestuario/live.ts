@@ -124,6 +124,8 @@ export interface Training {
   proposedBy: string;
   proposedByName: string;
   lastSlotAt: number;
+  /** Set when the proposer or an admin fixes the winning slot. */
+  confirmed?: { slotId: string; at: number; end?: number; place: string; byName: string };
 }
 export function useOpenTrainings(now: number) {
   // Re-query at most every 10 minutes so trainings that finish drop out.
@@ -138,6 +140,9 @@ export function useOpenTrainings(now: number) {
       proposedBy: d.proposedBy,
       proposedByName: d.proposedByName ?? "Alguien",
       lastSlotAt: millis(d.lastSlotAt),
+      confirmed: d.confirmed?.slotId
+        ? { slotId: d.confirmed.slotId, at: millis(d.confirmed.at), end: d.confirmed.end ? millis(d.confirmed.end) : undefined, place: d.confirmed.place ?? "", byName: d.confirmed.byName ?? "" }
+        : undefined,
     }),
   );
 }

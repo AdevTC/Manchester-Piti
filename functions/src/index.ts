@@ -18,6 +18,7 @@ export {
   resolvePlayerClaim,
   proposeTraining,
   voteTraining,
+  confirmTraining,
   deleteTraining,
   predictScore,
   postBoardMessage,

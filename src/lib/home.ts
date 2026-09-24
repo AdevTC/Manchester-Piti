@@ -4,6 +4,7 @@ import { dateMillis, isCompleted, matchPhase } from "../../functions/src/matchEn
 import type { ClubMatch } from "./clubData";
 import { computeStats, EMPTY_STATS, type PlayerStats } from "./playerStats";
 import { kickoffLabel, plural } from "./vestuario";
+import { eventIcs } from "./ics";
 
 const DAY = 86_400_000;
 const GOAL = /^goal/;
@@ -172,24 +173,5 @@ export function countdownParts(target: number, now: number) {
 /** A one-event iCalendar file for "Añadir a mi calendario". */
 export function matchIcs(m: { id: string; date?: unknown; rival?: string; venue?: string; duration?: number }, url: string) {
   const start = dateMillis(m.date);
-  const end = start + (m.duration ?? 60) * 60_000 + 30 * 60_000;
-  const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const esc = (s: string) => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
-  return [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Manchester Piti//Calendario//ES",
-    "BEGIN:VEVENT",
-    `UID:${m.id}@manchester-piti`,
-    `DTSTAMP:${fmt(start)}`,
-    `DTSTART:${fmt(start)}`,
-    `DTEND:${fmt(end)}`,
-    `SUMMARY:${esc(`Manchester Piti vs ${m.rival ?? "rival"}`)}`,
-    m.venue ? `LOCATION:${esc(m.venue)}` : "",
-    `URL:${url}`,
-    "END:VEVENT",
-    "END:VCALENDAR",
-  ]
-    .filter(Boolean)
-    .join("\r\n");
+  return eventIcs({ uid: m.id, start, end: start + (m.duration ?? 60) * 60_000 + 30 * 60_000, summary: `Manchester Piti vs ${m.rival ?? "rival"}`, location: m.venue, url });
 }

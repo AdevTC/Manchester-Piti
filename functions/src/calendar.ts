@@ -11,7 +11,11 @@ const esc = (s: string) => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\r?\n/
 const fold = (line: string) => line.match(/.{1,73}/gu)?.join("\r\n ") ?? line;
 
 export const clubCalendar = onRequest(async (_req, res) => {
-  const [matches, seasons] = await Promise.all([db.collection("matches").get(), db.collection("seasons").get()]);
+  const [matches, seasons, trainings] = await Promise.all([
+    db.collection("matches").get(),
+    db.collection("seasons").get(),
+    db.collection("trainings").where("confirmed.slotId", "!=", null).get(),
+  ]);
   const archived = new Set(seasons.docs.filter((s) => s.get("archived") === true).map((s) => s.id));
   const site = siteUrl.value().replace(/\/$/, "");
   const events = matches.docs
@@ -37,6 +41,25 @@ export const clubCalendar = onRequest(async (_req, res) => {
         .filter(Boolean)
         .join("\r\n");
     });
+  // Confirmed trainings (team-only data: only when, where and that it is a training).
+  const practice = trainings.docs.map((t) => {
+    const c = t.get("confirmed") as { at: FirebaseFirestore.Timestamp; end?: FirebaseFirestore.Timestamp; place?: string };
+    const start = c.at.toMillis();
+    return [
+      "BEGIN:VEVENT",
+      `UID:training-${t.id}@manchester-piti`,
+      `DTSTAMP:${fmt(Date.now())}`,
+      `DTSTART:${fmt(start)}`,
+      `DTEND:${fmt(c.end ? c.end.toMillis() : start + 90 * 60_000)}`,
+      "SUMMARY:Entreno Manchester Piti",
+      c.place ? fold(`LOCATION:${esc(c.place)}`) : "",
+      "STATUS:CONFIRMED",
+      "END:VEVENT",
+    ]
+      .filter(Boolean)
+      .join("\r\n");
+  });
+  events.push(...practice);
   res.set("Content-Type", "text/calendar; charset=utf-8");
   res.set("Cache-Control", "public, max-age=900");
   res.send(

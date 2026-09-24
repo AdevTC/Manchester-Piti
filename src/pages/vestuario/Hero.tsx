@@ -3,7 +3,7 @@ import { dateMillis } from "../../lib/clubData";
 import type { ClubMatch } from "../../lib/clubData";
 import { apiError, requestPlayerClaim, setAvailability } from "../../lib/clubApi";
 import { shareClubPage } from "../../lib/share";
-import { calledUp, countdown, greeting, initials, kickoffLabel, MIN_PLAYERS } from "../../lib/vestuario";
+import { calledUp, countdown, greeting, initials, kickoffLabel, MIN_PLAYERS, slotParts, slotTime } from "../../lib/vestuario";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Jersey } from "../../components/Jersey";
 import type { Availability, Claim } from "./live";
@@ -31,6 +31,8 @@ interface Props {
   admin: boolean;
   /** Admin-only "Modo capitán" strip, shown above the poster. */
   captain?: ReactNode;
+  /** Next confirmed training, if any. */
+  training?: { at: number; end?: number; place: string };
 }
 export interface Ficha {
   id: string;
@@ -45,7 +47,7 @@ const RSVP = [
   { value: "no", label: "No puedo" },
 ] as const;
 
-export function Hero({ me, seasonName, next, meetingNote, availability, now, theme, faceName, claim, claimable, suggestion, admin, captain }: Props) {
+export function Hero({ me, seasonName, next, meetingNote, availability, now, theme, faceName, claim, claimable, suggestion, admin, captain, training }: Props) {
   const shirt = useRef<Jersey3DRef>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -229,6 +231,15 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
                   Sin partido a la vista · <b>{admin ? "publícalo desde el modo capitán" : "el capitán lo publicará aquí"}</b>
                 </p>
               </>
+            )}
+            {training && (
+              <a className="vx-train-chip" href="#vx-train">
+                <Icon name="cal" size={16} stroke={2.2} />
+                <span>
+                  Entreno confirmado · <b>{slotParts(training.at).day} {slotParts(training.at).date}, {slotTime(training)}</b>
+                  {training.place ? ` · ${training.place}` : ""}
+                </span>
+              </a>
             )}
             {!me.playerId && <FichaCard claim={claim} claimable={claimable} suggestion={suggestion} admin={admin} />}
           </div>

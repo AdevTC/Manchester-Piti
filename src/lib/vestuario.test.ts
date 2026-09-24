@@ -5,6 +5,8 @@ import {
   bestPartner,
   calledUp,
   countdown,
+  slotStanding,
+  trainingOver,
   slotTime,
   firstSteps,
   nextWeekday,
@@ -168,5 +170,21 @@ describe("training slot ranges", () => {
     const at = Date.UTC(2026, 9, 3, 19, 0); // 21:00 in Madrid (CEST)
     expect(slotTime({ at, end: at + 90 * 60_000 })).toBe("21:00–22:30");
     expect(slotTime({ at })).toBe("21:00");
+  });
+});
+
+describe("training standing and confirmation", () => {
+  const slots = [{ id: "s1", at: 1, place: "" }, { id: "s2", at: 2, place: "" }];
+  it("marks the most voted and the slots with enough players", () => {
+    const votes = [...Array(7)].map(() => ({ slotIds: ["s2"] })).concat([{ slotIds: ["s1", "s2"] }]);
+    const st = slotStanding(slots, votes);
+    expect([...st.top]).toEqual(["s2"]);
+    expect([...st.ready]).toEqual(["s2"]);
+    expect(slotStanding(slots, []).top.size).toBe(0);
+  });
+  it("a confirmed training stops showing once it ends", () => {
+    expect(trainingOver({ confirmed: { at: 0, end: 1000 } }, 2000)).toBe(true);
+    expect(trainingOver({ confirmed: { at: 0 } }, 60 * 60_000)).toBe(false);
+    expect(trainingOver({}, 9e12)).toBe(false);
   });
 });

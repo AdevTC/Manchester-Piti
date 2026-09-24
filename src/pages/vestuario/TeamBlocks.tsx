@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { dateMillis, type ClubMatch } from "../../lib/clubData";
 import {
   apiError,
+  confirmTraining,
   deleteBoardMessage,
   deleteTraining,
   postBoardMessage,
@@ -11,7 +12,7 @@ import {
   voteMvp,
   voteTraining,
 } from "../../lib/clubApi";
-import { countdown, initials, nextWeekday, slotTime, plural, podium, porraPosition, slotParts, slotVotes, type MvpResult } from "../../lib/vestuario";
+import { countdown, initials, MIN_PLAYERS, nextWeekday, slotStanding, slotTime, trainingOver, plural, podium, porraPosition, slotParts, type MvpResult } from "../../lib/vestuario";
 import {
   useMvpVoters,
   useMyMvpVote,
@@ -22,6 +23,7 @@ import {
   type Training,
 } from "./live";
 import { Icon } from "../../components/celeste/icons";
+import { downloadIcs, eventIcs } from "../../lib/ics";
 
 function useAction() {
   const [busy, setBusy] = useState(false);
@@ -49,23 +51,43 @@ const Err = ({ text }: { text: string }) =>
   ) : null;
 
 // ---------- trainings
+const dayLabel = (ms: number) => {
+  const p = slotParts(ms);
+  return `${p.day} ${p.date} ${p.month}`;
+};
 export function TrainingPoll({ trainings, uid, admin, now }: { trainings: Training[]; uid: string; admin: boolean; now: number }) {
-  const training = trainings[0];
+  const training = trainings.find((t) => !trainingOver(t, now));
   const votes = useTrainingVotes(training?.id);
   const [proposing, setProposing] = useState<{ first: number | null } | null>(null);
   const act = useAction();
   const mine = votes.data.find((v) => v.uid === uid)?.slotIds ?? [];
-  const counts = training ? slotVotes(training.slots, votes.data) : new Map<string, number>();
+  const standing = training ? slotStanding(training.slots, votes.data) : null;
+  const canManage = !!training && (training.proposedBy === uid || admin);
   const toggle = (slotId: string) => {
     if (!training) return;
     const next = mine.includes(slotId) ? mine.filter((s) => s !== slotId) : [...mine, slotId];
     void act.run(() => voteTraining({ trainingId: training.id, slotIds: next }));
   };
+  const confirm = (slotId: string | null) => training && void act.run(() => confirmTraining({ trainingId: training.id, slotId }));
+  const withdraw = () => training && void act.run(() => deleteTraining({ trainingId: training.id }));
+  const c = training?.confirmed;
   return (
-    <section className="vx-train">
+    <section className="vx-train" id="vx-train">
       <span className="vx-kick">El equipo · entrenos</span>
-      <h2 className="vx-h2">¿Cuándo entrenamos?</h2>
-      {training && !proposing ? (
+      <h2 className="vx-h2">{c ? "Entreno confirmado" : "¿Cuándo entrenamos?"}</h2>
+      {training && c && !proposing ? (
+        <ConfirmedTraining
+          training={training}
+          going={votes.data.filter((v) => v.slotIds.includes(c.slotId))}
+          mine={mine.includes(c.slotId)}
+          busy={act.busy}
+          onGo={(go) => void act.run(() => voteTraining({ trainingId: training.id, slotIds: go ? [c.slotId] : [] }))}
+          canManage={canManage}
+          onReopen={() => confirm(null)}
+          onWithdraw={withdraw}
+          error={act.error}
+        />
+      ) : training && !proposing ? (
         <>
           <p className="vx-sub">
             {training.proposedByName} propone {plural(training.slots.length, "hueco", "huecos")} ·{" "}
@@ -77,8 +99,10 @@ export function TrainingPoll({ trainings, uid, admin, now }: { trainings: Traini
               const p = slotParts(s.at);
               const on = mine.includes(s.id);
               const past = s.at <= now;
+              const ready = standing?.ready.has(s.id);
+              const top = standing?.top.has(s.id);
               return (
-                <button key={s.id} type="button" className="vx-slot" aria-pressed={on} disabled={act.busy || past} onClick={() => toggle(s.id)}>
+                <button key={s.id} type="button" className={`vx-slot${top ? " top" : ""}`} aria-pressed={on} disabled={act.busy || past} onClick={() => toggle(s.id)}>
                   {on && (
                     <span className="tick">
                       <Icon name="check" size={12} stroke={3.5} />
@@ -87,19 +111,36 @@ export function TrainingPoll({ trainings, uid, admin, now }: { trainings: Traini
                   <span className="day">{p.day}</span>
                   <span className="date">{p.date}</span>
                   <span className="time">{slotTime(s)}</span>
-                  <span className="votes">{plural(counts.get(s.id) ?? 0, "voto", "votos")}</span>
+                  <span className="votes">{plural(standing?.counts.get(s.id) ?? 0, "voto", "votos")}</span>
+                  {(ready || top) && <span className="flag">{ready ? "Ya hay equipo" : "Más votado"}</span>}
                   {s.place && <span className="vx-sr">en {s.place}</span>}
                 </button>
               );
             })}
           </div>
+          {canManage && (
+            <div className="vx-confirm" role="group" aria-label="Confirmar el entreno">
+              <span>Confirma el hueco definitivo:</span>
+              <div className="row">
+                {training.slots
+                  .filter((s) => s.at > now)
+                  .sort((x, y) => (standing?.counts.get(y.id) ?? 0) - (standing?.counts.get(x.id) ?? 0) || x.at - y.at)
+                  .map((s) => (
+                    <button key={s.id} type="button" className={`vx-mini-btn${standing?.top.has(s.id) ? "" : " sky"}`} disabled={act.busy} onClick={() => confirm(s.id)}>
+                      <Icon name="check" size={14} stroke={2.6} />
+                      {dayLabel(s.at)} · {slotTime(s)}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
           <Err text={act.error} />
           <div className="vx-train-foot">
             <button type="button" className="vx-link-btn" onClick={() => setProposing({ first: null })}>
               Proponer otros huecos
             </button>
-            {(training.proposedBy === uid || admin) && (
-              <button type="button" className="vx-link-btn" disabled={act.busy} onClick={() => void act.run(() => deleteTraining({ trainingId: training.id }))}>
+            {canManage && (
+              <button type="button" className="vx-link-btn" disabled={act.busy} onClick={withdraw}>
                 Retirar propuesta
               </button>
             )}
@@ -129,6 +170,86 @@ export function TrainingPoll({ trainings, uid, admin, now }: { trainings: Traini
         </>
       )}
     </section>
+  );
+}
+
+function ConfirmedTraining({
+  training,
+  going,
+  mine,
+  busy,
+  onGo,
+  canManage,
+  onReopen,
+  onWithdraw,
+  error,
+}: {
+  training: Training;
+  going: { uid: string; name: string }[];
+  mine: boolean;
+  busy: boolean;
+  onGo: (go: boolean) => void;
+  canManage: boolean;
+  onReopen: () => void;
+  onWithdraw: () => void;
+  error: string;
+}) {
+  const c = training.confirmed!;
+  const addToCalendar = () =>
+    downloadIcs(
+      `entreno-manchester-piti-${training.id}.ics`,
+      eventIcs({ uid: `training-${training.id}`, start: c.at, end: c.end ?? c.at + 90 * 60_000, summary: "Entreno Manchester Piti", location: c.place || undefined }),
+    );
+  return (
+    <div className="vx-confirmed">
+      <span className="k">{c.byName ? `Lo fijó ${c.byName}` : "Confirmado"} · votación cerrada</span>
+      <b className="when">{dayLabel(c.at)}</b>
+      <span className="range">
+        {slotTime(c)}
+        {c.place ? ` · ${c.place}` : ""}
+      </span>
+      <div className="vx-rsvp two" role="group" aria-label="¿Vas al entreno?">
+        <button type="button" aria-pressed={mine} disabled={busy} onClick={() => onGo(true)}>
+          {mine && <Icon name="check" size={15} stroke={3} />}
+          Voy
+        </button>
+        <button type="button" aria-pressed={false} disabled={busy || !mine} onClick={() => onGo(false)}>
+          No puedo
+        </button>
+      </div>
+      <div className="vx-attend">
+        {going.length > 0 && (
+          <div className="vx-faces" aria-hidden="true">
+            {going.slice(0, 5).map((v, i) => (
+              <span key={v.uid} className={`vx-face ${["g-sky", "g-gold", "g-grey"][i % 3]}`}>
+                {initials(v.name)}
+              </span>
+            ))}
+            {going.length > 5 && <span className="vx-face more">+{going.length - 5}</span>}
+          </div>
+        )}
+        <span>
+          <b>{going.length ? `${plural(going.length, "va", "van")}.` : "Todavía no se ha apuntado nadie."}</b>{" "}
+          {going.length >= MIN_PLAYERS ? "Hay equipo." : `Con ${MIN_PLAYERS} hay equipo.`}
+        </span>
+      </div>
+      <Err text={error} />
+      <div className="vx-train-foot">
+        <button type="button" className="vx-link-btn" onClick={addToCalendar}>
+          Añadir al calendario
+        </button>
+        {canManage && (
+          <>
+            <button type="button" className="vx-link-btn" disabled={busy} onClick={onReopen}>
+              Reabrir votación
+            </button>
+            <button type="button" className="vx-link-btn" disabled={busy} onClick={onWithdraw}>
+              Cancelar entreno
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 const pad = (n: number) => String(n).padStart(2, "0");
