@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
 import { formatDate, nextFixture, playerForSeason, playerName, useClubData } from "../../lib/clubData";
@@ -38,12 +38,62 @@ export function HomePage() {
   const nameOf = (id: string) => lines.find((l) => l.id === id)?.name ?? playerName(players.find((p) => p.id === id));
   const story = narrative(pulse, { seasonName, squadSize: squad.length, now, nameOf, scorer: scorers[0] });
 
-  // Opens on the pichichi, else the 10, else the first dorsal; then follows the viewer.
+  // A random player on every visit (fixed for the visit), then whoever the viewer picks.
+  const [seed] = useState(() => Math.random());
   const [picked, setPicked] = useState<string | null>(null);
   const [kit, setKit] = useState<"home" | "away">("home");
-  const defaultId = scorers[0]?.id ?? squad.find((p) => p.num === "10")?.id ?? squad[0]?.id;
+  const defaultId = squad[Math.floor(seed * squad.length)]?.id;
   const selIndex = Math.max(0, lines.findIndex((l) => l.id === (picked ?? defaultId)));
   const selected = lines[selIndex];
+
+  // Changing player: the outgoing one stays briefly for its exit animation (removed by a timer,
+  // so it never lingers, even without animations).
+  const [leaving, setLeaving] = useState<string | null>(null);
+  const touched = useRef(0);
+  const leaveTimer = useRef(0);
+  const current = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    current.current = selected?.id;
+  });
+  const go = (nextId: string | undefined, manual = false) => {
+    if (manual) touched.current = Date.now();
+    const from = current.current;
+    if (!nextId || nextId === from) return;
+    window.clearTimeout(leaveTimer.current);
+    setLeaving(from ?? null);
+    setPicked(nextId);
+    current.current = nextId;
+    leaveTimer.current = window.setTimeout(() => setLeaving(null), 900);
+  };
+  const goRef = useRef(go);
+  useEffect(() => {
+    goRef.current = go;
+  });
+
+  // Every 8 s the next player of a shuffled pass through the squad: nobody repeats until all
+  // have been shown. Held 20 s after the viewer picks, while the pointer is over the cartel,
+  // and while the tab is hidden.
+  const [auto, setAuto] = useState(true);
+  const holding = useRef(false);
+  const bag = useRef<string[]>([]);
+  const ids = squad.map((p) => p.id).join(",");
+  useEffect(() => {
+    const list = ids ? ids.split(",") : [];
+    if (!auto || list.length < 2) return;
+    const timer = window.setInterval(() => {
+      if (document.hidden || holding.current || Date.now() - touched.current < 20_000) return;
+      bag.current = bag.current.filter((id) => list.includes(id) && id !== current.current);
+      if (!bag.current.length) {
+        bag.current = list.filter((id) => id !== current.current);
+        for (let i = bag.current.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [bag.current[i], bag.current[j]] = [bag.current[j], bag.current[i]];
+        }
+      }
+      goRef.current(bag.current.pop());
+    }, 8_000);
+    return () => window.clearInterval(timer);
+  }, [auto, ids]);
   const moment = selected ? playerMoment(selected, { pichichiId: scorers[0]?.id, lastMatch: pulse.last }) : "";
 
   return (
@@ -69,7 +119,13 @@ export function HomePage() {
           seasonName={seasonName}
           squad={lines}
           sel={selIndex}
-          onSelect={(i) => setPicked(lines[i].id)}
+          onSelect={(i) => go(lines[i].id, true)}
+          leaving={lines.find((l) => l.id === leaving)}
+          auto={auto}
+          onToggleAuto={() => setAuto((a) => !a)}
+          onHold={(h) => {
+            holding.current = h;
+          }}
           kit={kit}
           onKit={setKit}
           theme={theme}

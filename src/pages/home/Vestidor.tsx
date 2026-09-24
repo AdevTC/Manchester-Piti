@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from "react";
+import { useRef, type CSSProperties, type KeyboardEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Icon } from "../../components/celeste/icons";
@@ -21,9 +21,15 @@ interface Props {
   next: ClubMatch | undefined;
   live: ClubMatch | undefined;
   now: number;
+  /** Automatic player rotation (paused by the viewer or while they interact). */
+  auto: boolean;
+  onToggleAuto: () => void;
+  onHold: (hold: boolean) => void;
+  /** The player on their way out, kept a moment for the exit animation. */
+  leaving?: PlayerLine;
 }
 
-export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onKit, theme, moment, next, live, now }: Props) {
+export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onKit, theme, moment, next, live, now, auto, onToggleAuto, onHold, leaving }: Props) {
   const shirt = useRef<Jersey3DRef>(null);
   const rail = useRef<HTMLDivElement>(null);
   const p = squad[sel];
@@ -102,8 +108,13 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
           </div>
         </div>
 
-        <div className="hm-poster">
-          <div className="num" aria-hidden="true">
+        <div className="hm-poster" onPointerEnter={() => onHold(true)} onPointerLeave={() => onHold(false)}>
+          {leaving && leaving.id !== p?.id && (
+            <div className="num out" key={`num-out-${leaving.id}`} data-digits={leaving.num.length} aria-hidden="true">
+              {leaving.num}
+            </div>
+          )}
+          <div className="num" key={`num-${p?.id}`} data-digits={(p?.num || "").length} aria-hidden="true">
             {p?.num}
           </div>
           {p && (
@@ -116,6 +127,7 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
               num={p.num}
               zoom={0.86}
               lift={0.28}
+              flip
               label={`Camiseta de ${p.name}, dorsal ${p.num}, ${kit === "home" ? "1ª" : "2ª"} equipación. Arrástrala o usa las flechas para girarla.`}
             />
           )}
@@ -140,12 +152,25 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
         </div>
 
         {p && (
-          <div className="hm-player" aria-live="polite">
+          <div className="hm-player" aria-live="polite" onPointerEnter={() => onHold(true)} onPointerLeave={() => onHold(false)}>
             <span className="pos">
               Dorsal {p.num} · {seasonName}
             </span>
-            <h2>{p.name}</h2>
-            <div className={`hm-nums${blank ? " ph" : ""}`}>
+            <div className="hm-name">
+              {leaving && leaving.id !== p.id && (
+                <span className="hm-name-out" key={`name-out-${leaving.id}`} aria-hidden="true">
+                  {leaving.name}
+                </span>
+              )}
+              <h2 key={`name-${p.id}`} aria-label={p.name}>
+                {[...p.name].map((ch, i) => (
+                  <span key={i} className="ch" aria-hidden="true" style={{ "--i": i } as CSSProperties}>
+                    {ch === " " ? "\u00a0" : ch}
+                  </span>
+                ))}
+              </h2>
+            </div>
+            <div key={`nums-${p.id}`} className={`hm-nums${blank ? " ph" : ""}`}>
               <div>
                 <b>{stats.goals}</b>
                 <span>goles</span>
@@ -164,6 +189,10 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
               <Link className="hm-link" to="/jugadores/$playerId" params={{ playerId: p.id }}>
                 Ver su ficha <Icon name="arrow" size={15} stroke={2.2} />
               </Link>
+              <button type="button" className="hm-mini" aria-pressed={!auto} aria-label={auto ? "Pausar el cambio automático de jugador" : "Reanudar el cambio automático de jugador"} onClick={onToggleAuto}>
+                <Icon name={auto ? "pause" : "play"} size={15} stroke={2.2} />
+                {auto ? "Pausar" : "Automático"}
+              </button>
               <button type="button" className="hm-mini" onClick={shuffle}>
                 <Icon name="shuffle" size={15} stroke={2.2} />
                 Sorpréndeme

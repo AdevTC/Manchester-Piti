@@ -66,7 +66,7 @@
 .hm-kit button[aria-pressed=true]{background:var(--thumb);color:var(--thumb-ink)}
 .hm-player{position:relative;z-index:4;margin-top:-4%;text-align:center}
 .hm-player .pos{font-family:'Geist Mono';font-size:12px;color:var(--muted)}
-.hm-player h2{margin:6px 0 0;font-family:'Anybody';font-weight:900;font-size:calc((100cqi - 40px) / 5.2);line-height:.85;letter-spacing:-.03em;font-variation-settings:'wdth' 108;text-shadow:var(--name-shadow);overflow-wrap:anywhere}
+.hm-player h2,.hm-player .hm-name-out{margin:6px 0 0;font-family:'Anybody';font-weight:900;font-size:calc((100cqi - 40px) / 5.2);line-height:.85;letter-spacing:-.03em;font-variation-settings:'wdth' 108;text-shadow:var(--name-shadow);overflow-wrap:anywhere}
 .hm-nums{margin:18px auto 0;max-width:420px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .hm-nums div{border-radius:24px;background:var(--chip);padding:12px 8px;text-align:center}
 .hm-nums b{display:block;font-family:'Anybody';font-weight:900;font-size:40px;line-height:.9;font-variation-settings:'wdth' 70}
@@ -113,7 +113,7 @@
 @container (min-width:700px){
 .hm-hero{padding:100px 40px 40px}
 .hm-intro h1{font-size:64px}
-.hm-player h2{font-size:calc((100cqi - 80px) / 6.4)}
+.hm-player h2,.hm-player .hm-name-out{font-size:calc((100cqi - 80px) / 6.4)}
 .hm-rail-wrap{margin:30px -40px 0}.hm-rail-head{padding:0 40px}.hm-rail{padding:4px 40px 10px;scroll-padding-inline:40px}
 .hm-medals{grid-template-columns:repeat(3,minmax(0,1fr))}
 .hm-fx{margin:22px -40px 0;padding:4px 40px 14px;scroll-padding-inline:40px}
@@ -125,7 +125,7 @@
 .hm-intro h1{font-size:min(calc((27cqi - 24px) / 5.4),70px);font-variation-settings:'wdth' 84}
 .hm-poster{max-width:none}
 .hm-player{margin:0;text-align:left}
-.hm-player h2{font-size:min(calc((27cqi - 30px) / 4.6),88px)}
+.hm-player h2,.hm-player .hm-name-out{font-size:min(calc((27cqi - 30px) / 4.6),88px)}
 .hm-nums{margin:18px 0 0}
 .hm-player .hm-row{justify-content:flex-start}
 .hm-rail-wrap{margin:34px -64px 0}.hm-rail-head{padding:0 64px}.hm-rail{padding:4px 64px 10px;scroll-padding-inline:64px;justify-content:space-between}
@@ -247,3 +247,23 @@ a.hm-game:hover{box-shadow:inset 0 0 0 1.5px var(--accent)}
 
 /* The intro column (next match + calendar menu) paints above the 3D poster. */
 .hm-intro{position:relative;z-index:6}
+
+/* Background number: sized to the poster (1 or 2 digits), a wider cut so 8 reads as 8, truly centred. */
+.hm-poster{container-type:inline-size}
+.vx .hm-poster .num{left:0;right:0;font-size:92cqi;letter-spacing:0;font-variation-settings:'wdth' 96;line-height:.82}
+.vx .hm-poster .num[data-digits="2"]{font-size:60cqi;top:6%}
+.hm-player .hm-nums{animation:hmSwap .7s cubic-bezier(.16,1,.3,1) .3s both}
+/* Player change: the old name lifts away blurred, the new one flips in letter by letter,
+   timed with the shirt's turn; the background number swells out as the new one settles in. */
+.hm-name{position:relative}
+.hm-player .hm-name-out{position:absolute;left:0;right:0;top:0;margin-top:6px;pointer-events:none;animation:hmNameOut .55s cubic-bezier(.7,0,.84,0) forwards}
+.hm-player h2{perspective:700px}
+.hm-player h2 .ch{display:inline-block;transform-origin:50% 100%;animation:hmCharIn .75s cubic-bezier(.16,1,.3,1) calc(.3s + var(--i) * .035s) both}
+.vx .hm-poster .num{animation:hmNumIn .9s cubic-bezier(.16,1,.3,1) .25s both}
+.vx .hm-poster .num.out{animation:hmNumOut .6s cubic-bezier(.7,0,.84,0) forwards}
+@keyframes hmNameOut{to{opacity:0;transform:translateY(-38%) scale(1.03);filter:blur(10px);letter-spacing:.06em}}
+@keyframes hmCharIn{from{opacity:0;transform:translateY(.5em) rotateX(-85deg);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+@keyframes hmNumIn{from{opacity:0;transform:scale(.86);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
+@keyframes hmNumOut{to{opacity:0;transform:scale(1.18);filter:blur(10px)}}
+@keyframes hmSwap{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+.hm-mini[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px var(--accent)}
