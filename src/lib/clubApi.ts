@@ -35,7 +35,7 @@ export const resolvePlayerClaim = httpsCallable<{
   approve: boolean;
 }>(functions, "resolvePlayerClaim");
 export const proposeTraining = httpsCallable<
-  { slots: { at: number; place: string }[]; note: string },
+  { slots: { at: number; end?: number; place: string }[]; note: string },
   { id: string }
 >(functions, "proposeTraining");
 export const voteTraining = httpsCallable<{

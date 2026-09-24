@@ -49,7 +49,9 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
   const shirt = useRef<Jersey3DRef>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const kit = next?.kit ?? "home";
+  // Opens on the next match's kit; the player can try the other one on.
+  const [kitPick, setKitPick] = useState<"home" | "away" | null>(null);
+  const kit = kitPick ?? next?.kit ?? "home";
   const mine = availability.find((a) => a.uid === me.uid)?.response;
   const answer = pending ?? mine;
   const going = availability.filter((a) => a.response === "yes");
@@ -113,6 +115,14 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
               </span>
             )
           )}
+          <div className="vx-kit" role="group" aria-label="Equipación">
+            <button type="button" aria-pressed={kit === "home"} onClick={() => setKitPick("home")}>
+              1ª
+            </button>
+            <button type="button" aria-pressed={kit === "away"} onClick={() => setKitPick("away")}>
+              2ª
+            </button>
+          </div>
           <button type="button" className="vx-photo" onClick={() => shirt.current?.turn()}>
             <Icon name="turn" size={14} />
             Gírala

@@ -5,6 +5,7 @@ import {
   bestPartner,
   calledUp,
   countdown,
+  slotTime,
   firstSteps,
   nextWeekday,
   suggestFicha,
@@ -159,5 +160,13 @@ describe("first visit", () => {
     expect(new Date(nextWeekday(fri, 6, 10)).getDate()).toBe(26);
     const sat = new Date(2026, 8, 26, 10, 30).getTime();
     expect(new Date(nextWeekday(sat, 6, 10)).getDate()).toBe(3);
+  });
+});
+
+describe("training slot ranges", () => {
+  it("shows the range in club time, or just the start for old slots", () => {
+    const at = Date.UTC(2026, 9, 3, 19, 0); // 21:00 in Madrid (CEST)
+    expect(slotTime({ at, end: at + 90 * 60_000 })).toBe("21:00–22:30");
+    expect(slotTime({ at })).toBe("21:00");
   });
 });

@@ -435,3 +435,17 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx .vx-dock a.on{padding:0 14px}
 .vx .vx-dock a.on .lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 }
+
+/* kit toggle on the poster (1ª / 2ª) */
+.vx-kit{position:absolute;z-index:5;left:0;bottom:30%;display:inline-grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:999px;background:var(--chip);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.vx-kit button{border:0;background:transparent;height:38px;min-width:44px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
+.vx-kit button[aria-pressed=true]{background:var(--thumb);color:var(--thumb-ink)}
+
+/* training proposal: day + from/to per slot */
+.vx-range{margin:0;padding:14px;border:0;border-radius:22px;background:var(--chip);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vx-range legend{float:left;width:100%;padding:0;margin-bottom:2px;font-size:13px;font-weight:700;color:var(--ink)}
+.vx-range .day{grid-column:1/-1}
+.vx-range input{width:100%;min-width:0}
+.vx-range-err{grid-column:1/-1;font-size:13px;color:#ff9a8a}
+[data-theme="light"] .vx .vx-range-err{color:#b3261e}
+@container (min-width:700px){.vx-range{grid-template-columns:1.4fr 1fr 1fr}.vx-range .day{grid-column:auto}}

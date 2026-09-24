@@ -19,10 +19,11 @@ test("el cartel responde a la convocatoria y guarda porra, entreno y tablón en 
   const slots = page.getByRole("group", { name: "Huecos propuestos" });
   if (!(await slots.isVisible())) {
     const when = new Date(Date.now() + 3 * 86_400_000);
-    when.setMinutes(0, 0, 0);
-    const local = new Date(when.getTime() - when.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+    const day = new Date(when.getTime() - when.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
     await page.getByRole("button", { name: /Otro día/ }).click();
-    await page.getByLabel("Hueco 1").fill(local);
+    await page.getByLabel("Hueco 1 · día").fill(day);
+    await page.getByLabel("Hueco 1 · desde").fill("20:00");
+    await page.getByLabel("Hueco 1 · hasta").fill("21:30");
     await page.getByRole("button", { name: "Proponer entreno" }).click();
   }
   await slots.getByRole("button").first().click();

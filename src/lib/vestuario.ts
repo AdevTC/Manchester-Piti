@@ -239,7 +239,14 @@ export const MIN_PLAYERS = 7;
 export interface TrainingSlot {
   id: string;
   at: number;
+  /** End of the proposed range; older proposals only have a start. */
+  end?: number;
   place: string;
+}
+/** "21:00–22:30" in club time (just "21:00" for single-time slots). */
+export function slotTime(slot: { at: number; end?: number }) {
+  const f = (ms: number) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(ms);
+  return slot.end ? `${f(slot.at)}–${f(slot.end)}` : f(slot.at);
 }
 export function slotVotes(slots: TrainingSlot[], votes: { slotIds: string[] }[]) {
   const counts = new Map(slots.map((s) => [s.id, 0]));

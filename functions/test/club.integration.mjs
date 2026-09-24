@@ -370,12 +370,16 @@ checked += 3;
 await denied("predictScore", admin, { matchId: nextId, goalsFor: 3, goalsAgainst: 0 }, "FAILED_PRECONDITION");
 
 await denied("proposeTraining", fan, { slots: [{ at: Date.now() - 1000 }] }, "INVALID_ARGUMENT");
+await denied("proposeTraining", fan, { slots: [{ at: Date.now() + 86400000, end: Date.now() + 86400000 - 60000 }] }, "INVALID_ARGUMENT");
+await denied("proposeTraining", fan, { slots: [{ at: Date.now() + 86400000, end: Date.now() + 86400000 + 7 * 3600000 }] }, "INVALID_ARGUMENT");
 const training = await ok("proposeTraining", fan, {
-  slots: [{ at: Date.now() + 2 * 86400000, place: "Campo" }, { at: Date.now() + 86400000 }],
+  slots: [{ at: Date.now() + 2 * 86400000, end: Date.now() + 2 * 86400000 + 90 * 60000, place: "Campo" }, { at: Date.now() + 86400000 }],
 });
 const tdoc = await db.doc("trainings/" + training.id).get();
 assert.equal(tdoc.get("slots")[0].id, "s1");
 assert.ok(tdoc.get("slots")[0].at.toMillis() < tdoc.get("slots")[1].at.toMillis());
+assert.equal(tdoc.get("slots")[1].end.toMillis() - tdoc.get("slots")[1].at.toMillis(), 90 * 60000);
+assert.equal(tdoc.get("slots")[0].end, undefined);
 checked += 2;
 await ok("voteTraining", admin, { trainingId: training.id, slotIds: ["s1", "s2"] });
 await denied("voteTraining", admin, { trainingId: training.id, slotIds: ["s9"] }, "INVALID_ARGUMENT");

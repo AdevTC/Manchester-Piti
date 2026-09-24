@@ -11,7 +11,7 @@ import {
   voteMvp,
   voteTraining,
 } from "../../lib/clubApi";
-import { countdown, initials, nextWeekday, plural, podium, porraPosition, slotParts, slotVotes, type MvpResult } from "../../lib/vestuario";
+import { countdown, initials, nextWeekday, slotTime, plural, podium, porraPosition, slotParts, slotVotes, type MvpResult } from "../../lib/vestuario";
 import {
   useMvpVoters,
   useMyMvpVote,
@@ -86,7 +86,7 @@ export function TrainingPoll({ trainings, uid, admin, now }: { trainings: Traini
                   )}
                   <span className="day">{p.day}</span>
                   <span className="date">{p.date}</span>
-                  <span className="time">{p.time}</span>
+                  <span className="time">{slotTime(s)}</span>
                   <span className="votes">{plural(counts.get(s.id) ?? 0, "voto", "votos")}</span>
                   {s.place && <span className="vx-sr">en {s.place}</span>}
                 </button>
@@ -131,34 +131,65 @@ export function TrainingPoll({ trainings, uid, admin, now }: { trainings: Traini
     </section>
   );
 }
-const toLocalInput = (ms: number) => {
-  const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60_000);
-  return d.toISOString().slice(0, 16);
+const pad = (n: number) => String(n).padStart(2, "0");
+const localDay = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const localTime = (ms: number) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+interface Range { day: string; from: string; to: string }
+const emptyRange: Range = { day: "", from: "", to: "" };
+/** A range the backend accepts: complete, ending after it starts. */
+const rangeMs = (r: Range) => {
+  if (!r.day || !r.from || !r.to) return null;
+  const at = new Date(`${r.day}T${r.from}`).getTime(), end = new Date(`${r.day}T${r.to}`).getTime();
+  return end > at ? { at, end } : null;
 };
 function ProposeTraining({ first, onDone, canCancel, now }: { first: number | null; onDone: () => void; canCancel: boolean; now: number }) {
-  const [slots, setSlots] = useState([first ? toLocalInput(first) : "", "", ""]);
+  // Ghost slots prefill their day with a 1 h 30 range from the suggested start.
+  const [slots, setSlots] = useState<Range[]>([first ? { day: localDay(first), from: localTime(first), to: localTime(first + 90 * 60_000) } : emptyRange, emptyRange, emptyRange]);
   const [place, setPlace] = useState("");
   const act = useAction();
-  const min = toLocalInput(Math.ceil((now + 60 * 60_000) / 600_000) * 600_000);
-  const chosen = slots.filter(Boolean);
+  const minDay = localDay(now);
+  const started = slots.filter((r) => r.day || r.from || r.to);
+  const ranges = started.map(rangeMs);
+  const valid = started.length > 0 && ranges.every(Boolean);
+  const setField = (i: number, key: keyof Range, value: string) => setSlots(slots.map((r, j) => (j === i ? { ...r, [key]: value } : r)));
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const ok = await act.run(() => proposeTraining({ slots: chosen.map((v) => ({ at: new Date(v).getTime(), place })), note: "" }));
+    if (!valid) return;
+    const ok = await act.run(() => proposeTraining({ slots: ranges.map((r) => ({ at: r!.at, end: r!.end, place })), note: "" }));
     if (ok) {
-      setSlots(["", "", ""]);
+      setSlots([emptyRange, emptyRange, emptyRange]);
       onDone();
     }
   };
   return (
     <form className="vx-propose" onSubmit={submit}>
-      <p className="vx-sub">Propón hasta tres huecos y el equipo vota el que mejor le venga.</p>
+      <p className="vx-sub">Propón hasta tres huecos, de qué hora a qué hora, y el equipo vota el que mejor le venga.</p>
       <div className="vx-propose-slots">
-        {slots.map((v, i) => (
-          <label key={i} className="vx-field">
-            Hueco {i + 1}
-            <input type="datetime-local" min={min} value={v} required={i === 0} onChange={(e) => setSlots(slots.map((s, j) => (j === i ? e.target.value : s)))} />
-          </label>
-        ))}
+        {slots.map((r, i) => {
+          const bad = (r.day || r.from || r.to) && !rangeMs(r);
+          return (
+            <fieldset key={i} className="vx-range">
+              <legend>Hueco {i + 1}{i > 0 ? " (opcional)" : ""}</legend>
+              <label className="vx-field day">
+                Día
+                <input type="date" min={minDay} value={r.day} aria-label={`Hueco ${i + 1} · día`} required={i === 0} onChange={(e) => setField(i, "day", e.target.value)} />
+              </label>
+              <label className="vx-field">
+                Desde
+                <input type="time" step={900} value={r.from} aria-label={`Hueco ${i + 1} · desde`} required={i === 0} onChange={(e) => setField(i, "from", e.target.value)} />
+              </label>
+              <label className="vx-field">
+                Hasta
+                <input type="time" step={900} value={r.to} aria-label={`Hueco ${i + 1} · hasta`} required={i === 0} onChange={(e) => setField(i, "to", e.target.value)} />
+              </label>
+              {bad && (
+                <p className="vx-range-err" role="alert">
+                  {r.day && r.from && r.to ? "La hora de fin debe ser posterior a la de inicio." : "Completa día, desde y hasta."}
+                </p>
+              )}
+            </fieldset>
+          );
+        })}
       </div>
       <label className="vx-field">
         Lugar (opcional)
@@ -166,7 +197,7 @@ function ProposeTraining({ first, onDone, canCancel, now }: { first: number | nu
       </label>
       <Err text={act.error} />
       <div className="vx-train-foot">
-        <button className="vx-btn" disabled={!chosen.length || act.busy}>
+        <button className="vx-btn" disabled={!valid || act.busy}>
           {act.busy ? "Proponiendo…" : "Proponer entreno"}
         </button>
         {canCancel && (

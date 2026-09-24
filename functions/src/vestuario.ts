@@ -88,6 +88,8 @@ async function settleClaim(uid: string, approve: boolean, by: string) {
 // ---------- training polls
 const slotInput = z.object({
   at: z.number().finite(),
+  /** End of the proposed range (optional for older clients). */
+  end: z.number().finite().optional(),
   place: z.string().trim().max(80).default(""),
 });
 export const proposeTraining = onCall(async (req) => {
@@ -100,12 +102,14 @@ export const proposeTraining = onCall(async (req) => {
     req.data,
   );
   const now = Date.now();
+  if (slots.some((s) => s.end !== undefined && (s.end <= s.at || s.end - s.at > 6 * 3_600_000)))
+    throw new HttpsError("invalid-argument", "Cada hueco debe acabar después de empezar y durar como mucho 6 horas.");
   if (slots.some((s) => s.at <= now || s.at > now + 60 * DAY))
     throw new HttpsError("invalid-argument", "Propón fechas de los próximos dos meses.");
   const who = await identity(req, uid);
   const sorted = [...slots].sort((a, b) => a.at - b.at);
   const ref = await db.collection("trainings").add({
-    slots: sorted.map((s, i) => ({ id: `s${i + 1}`, at: Timestamp.fromMillis(s.at), place: s.place })),
+    slots: sorted.map((s, i) => ({ id: `s${i + 1}`, at: Timestamp.fromMillis(s.at), ...(s.end ? { end: Timestamp.fromMillis(s.end) } : {}), place: s.place })),
     note,
     proposedBy: uid,
     proposedByName: who.name,
