@@ -5,7 +5,6 @@ import {
   ArrowUpRight,
   LockKeyhole,
   Check,
-  LogOut,
   ClipboardList,
   Trophy,
   CalendarDays,
@@ -16,18 +15,15 @@ import { useTeam } from "../context/TeamContext";
 import { db } from "../firebase";
 import { auth } from "../firebase";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-import { apiError, setAvailability, voteMvp } from "../lib/clubApi";
+import { apiError, voteMvp } from "../lib/clubApi";
 import {
   useClubData,
-  nextFixture,
   playerName,
   formatDate,
   type ClubMatch,
 } from "../lib/clubData";
 import { useClock } from "../hooks/useClock";
 import { Crest } from "../components/Crest";
-import { NicknameSetup } from "./NicknameSetup";
-import { FixtureCard, SectionTitle } from "../components/club/ClubUI";
 
 export function TeamGate() {
   const { user, loading, loginWithGoogle, logout } = useAuth();
@@ -330,183 +326,5 @@ export function MvpVote({ match }: { match: ClubMatch }) {
         </details>
       )}
     </section>
-  );
-}
-function Availability({ match }: { match: ClubMatch }) {
-  const { user } = useAuth();
-  const [responses, setResponses] = useState<
-    { id: string; name: string; response: string }[]
-  >([]);
-  const [note, setNote] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  useEffect(
-    () =>
-      onSnapshot(
-        collection(db, "matchPrivate", match.id, "availability"),
-        (snap) =>
-          setResponses(
-            snap.docs.map(
-              (d) =>
-                ({ id: d.id, ...d.data() }) as {
-                  id: string;
-                  name: string;
-                  response: string;
-                },
-            ),
-          ),
-        () => setError("No se han podido cargar las respuestas."),
-      ),
-    [match.id],
-  );
-  useEffect(
-    () =>
-      onSnapshot(
-        doc(db, "matchPrivate", match.id),
-        (snap) => setNote(snap.data()?.meetingNote ?? ""),
-        () => {},
-      ),
-    [match.id],
-  );
-  const answer = responses.find((r) => r.id === user?.uid)?.response;
-  const save = async (response: string) => {
-    setBusy(true);
-    setError("");
-    try {
-      await setAvailability({ matchId: match.id, response });
-    } catch (e) {
-      setError(apiError(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <section className="club-panel">
-      <span className="club-kicker">NOS VEMOS EN EL CAMPO</span>
-      <h2>¿Cuentan contigo?</h2>
-      <p>
-        Manchester Piti vs {match.rival} · {formatDate(match.date, true)}
-      </p>
-      {note && <blockquote>{note}</blockquote>}
-      <div className="club-segments">
-        {[
-          ["yes", "Voy"],
-          ["maybe", "Pendiente"],
-          ["no", "No puedo"],
-        ].map(([v, t]) => (
-          <button
-            disabled={busy}
-            aria-pressed={answer === v}
-            className={answer === v ? "active" : ""}
-            onClick={() => void save(v)}
-            key={v}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-      {error && (
-        <p role="alert" className="club-error">
-          {error}
-        </p>
-      )}
-      <div className="club-response-list">
-        {responses.map((r) => (
-          <span key={r.id}>
-            {r.name}
-            <b>
-              {r.response === "yes"
-                ? "Voy"
-                : r.response === "no"
-                  ? "No puedo"
-                  : "Pendiente"}
-            </b>
-          </span>
-        ))}
-      </div>
-    </section>
-  );
-}
-export function VestuarioPage() {
-  const { profile, logout } = useAuth();
-  const { lock } = useTeam();
-  const { matches } = useClubData();
-  const now = useClock();
-  const next = nextFixture(matches, now);
-  const last = matches.find((m) => m.status === "finished");
-  if (!profile) return <NicknameSetup />;
-  const admin = ["admin", "superadmin"].includes(profile.role);
-  return (
-    <div className="club-page">
-      <header className="club-page-head">
-        <span className="club-kicker">ÁREA DEL EQUIPO</span>
-        <h1>
-          Tu vestuario,
-          <br />
-          <em>{profile.nickname}.</em>
-        </h1>
-        <p>El siguiente partido empieza aquí.</p>
-      </header>
-      <div className="club-toolbar">
-        <div className="club-actions">
-          <Link className="club-button" to="/pizarra">
-            Abrir la pizarra <ClipboardList size={17} />
-          </Link>
-          {admin && (
-            <>
-              <Link className="club-button secondary" to="/admin">
-                Administrar el club
-              </Link>
-              <Link className="club-button secondary" to="/admin/contenido">
-                Contenido y fotos
-              </Link>
-            </>
-          )}
-        </div>
-        <button
-          className="club-text-link"
-          onClick={async () => {
-            try {
-              await lock();
-            } finally {
-              await logout();
-            }
-          }}
-        >
-          <LogOut size={16} />
-          Cerrar sesión
-        </button>
-      </div>
-      {next && (
-        <div className="club-grid-2">
-          <FixtureCard match={next} />
-          <Availability key={next.id} match={next} />
-        </div>
-      )}
-      {!next && (
-        <div className="club-empty">
-          La próxima convocatoria aparecerá cuando se publique el calendario.
-        </div>
-      )}
-      {last && <MvpVote match={last} />}
-      <SectionTitle title="Tu equipo, también entre semana" />
-      <div className="club-grid-3">
-        <Link className="club-panel" to="/pizarra">
-          <ClipboardList />
-          <h3>Tu siete ideal</h3>
-          <p>Prepara la alineación y compártela con el equipo.</p>
-        </Link>
-        <Link className="club-panel" to="/stats">
-          <Trophy />
-          <h3>La carrera del Piti</h3>
-          <p>Récords, sociedades y estadísticas de cada temporada.</p>
-        </Link>
-        <Link className="club-panel" to="/profile">
-          <ShieldCheck />
-          <h3>Mi perfil</h3>
-          <p>Tu identidad dentro del vestuario.</p>
-        </Link>
-      </div>
-    </div>
   );
 }

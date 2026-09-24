@@ -513,6 +513,16 @@ export function MatchEditor() {
               </select>
             </label>
             <label>
+              Equipación
+              <select
+                value={sheet.kit ?? "home"}
+                onChange={(e) => update("kit", e.target.value as "home" | "away")}
+              >
+                <option value="home">1ª equipación (celeste)</option>
+                <option value="away">2ª equipación (negra)</option>
+              </select>
+            </label>
+            <label>
               Duración deportiva (minutos)
               <input
                 type="number"

@@ -22,6 +22,39 @@ export const setAvailability = httpsCallable<{
   matchId: string;
   response: string;
 }>(functions, "setAvailability");
+export const requestPlayerClaim = httpsCallable<{ playerId: string }, { ok: boolean; linked: boolean }>(
+  functions,
+  "requestPlayerClaim",
+);
+export const resolvePlayerClaim = httpsCallable<{
+  uid: string;
+  approve: boolean;
+}>(functions, "resolvePlayerClaim");
+export const proposeTraining = httpsCallable<
+  { slots: { at: number; place: string }[]; note: string },
+  { id: string }
+>(functions, "proposeTraining");
+export const voteTraining = httpsCallable<{
+  trainingId: string;
+  slotIds: string[];
+}>(functions, "voteTraining");
+export const deleteTraining = httpsCallable<{ trainingId: string }>(
+  functions,
+  "deleteTraining",
+);
+export const predictScore = httpsCallable<{
+  matchId: string;
+  goalsFor: number;
+  goalsAgainst: number;
+}>(functions, "predictScore");
+export const postBoardMessage = httpsCallable<{ text: string }, { id: string }>(
+  functions,
+  "postBoardMessage",
+);
+export const deleteBoardMessage = httpsCallable<{ id: string }>(
+  functions,
+  "deleteBoardMessage",
+);
 export function apiError(error: unknown) {
   const e = error as { code?: string; message?: string };
   if (

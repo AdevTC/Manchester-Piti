@@ -226,6 +226,60 @@ describe("Votos y convocatorias", () => {
     );
   });
 });
+describe("Vestuario: porra, entrenos, tablón y fichas", () => {
+  for (const path of [
+    "trainings/t",
+    "trainings/t/votes/member",
+    "board/b",
+    "boardRate/member",
+    "porraStandings/s",
+    "playerClaims/member",
+    "playerLinks/p",
+    "matchPrivate/m/predictions/member",
+  ]) {
+    it("solo el backend escribe " + path, async () => {
+      await assertFails(setDoc(doc(db("member"), path), { value: 1 }));
+      await assertFails(setDoc(doc(db("admin"), path), { value: 1 }));
+    });
+  }
+  it("entrenos, votos, tablón, clasificación y vínculos solo dentro del equipo", async () => {
+    for (const path of ["trainings/t", "trainings/t/votes/other", "board/b", "porraStandings/s", "playerLinks/p"]) {
+      await seed(path, { value: 1 });
+      await assertSucceeds(getDoc(doc(db("member"), path)));
+      await assertFails(getDoc(doc(db(), path)));
+      await assertFails(getDoc(doc(db("outsider"), path)));
+    }
+    await assertSucceeds(getDocs(collection(db("member"), "board")));
+    await assertFails(getDocs(collection(db("outsider"), "board")));
+  });
+  it("nadie lee el control de ritmo del tablón", async () => {
+    await seed("boardRate/member", { at: 1 });
+    await assertFails(getDoc(doc(db("member"), "boardRate", "member")));
+  });
+  it("la porra ajena queda oculta hasta el inicio del partido", async () => {
+    await seed("matches/future", { date: Timestamp.fromMillis(Date.now() + 3600000) });
+    await seed("matches/past", { date: Timestamp.fromMillis(Date.now() - 3600000) });
+    for (const m of ["future", "past"]) {
+      await seed(`matchPrivate/${m}/predictions/member`, { goalsFor: 2, goalsAgainst: 1 });
+      await seed(`matchPrivate/${m}/predictions/other`, { goalsFor: 0, goalsAgainst: 0 });
+    }
+    await assertSucceeds(getDoc(doc(db("member"), "matchPrivate/future/predictions/member")));
+    await assertFails(getDoc(doc(db("member"), "matchPrivate/future/predictions/other")));
+    await assertFails(getDocs(collection(db("member"), "matchPrivate/future/predictions")));
+    await assertSucceeds(getDocs(collection(db("member"), "matchPrivate/past/predictions")));
+    await assertFails(getDocs(collection(db("outsider"), "matchPrivate/past/predictions")));
+  });
+  it("cada uno ve su solicitud de ficha y el admin las revisa todas", async () => {
+    await seed("playerClaims/member", { playerId: "p", status: "pending" });
+    await assertSucceeds(getDoc(doc(db("member"), "playerClaims", "member")));
+    await assertFails(getDoc(doc(db("other"), "playerClaims", "member")));
+    await assertFails(getDocs(collection(db("member"), "playerClaims")));
+    await assertSucceeds(getDocs(collection(db("admin"), "playerClaims")));
+  });
+  it("el vínculo con la ficha no se edita desde el perfil", async () => {
+    await assertFails(updateDoc(doc(db("member"), "users", "member"), { playerId: "p" }));
+  });
+});
 describe("Pizarra", () => {
   const board = {
     ownerUid: "member",

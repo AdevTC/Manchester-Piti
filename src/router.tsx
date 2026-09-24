@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { z } from "zod";
 import { RootLayout } from "./RootLayout";
-import { VestuarioPage } from "./pages/Vestuario";
+import { VestuarioPage } from "./pages/vestuario/VestuarioPage";
 import {
   RoutePending,
   RouteError,

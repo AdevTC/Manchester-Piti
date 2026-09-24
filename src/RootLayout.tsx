@@ -16,6 +16,8 @@ export function RootLayout() {
     (p) => pathname.startsWith(p),
   );
   const admin = profile?.role === "admin" || profile?.role === "superadmin";
+  // The vestuario brings its own header and dock (Tu cartel): hide the site chrome there.
+  const immersive = pathname === "/vestuario" && member && !!profile;
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
@@ -26,9 +28,9 @@ export function RootLayout() {
       <a className="club-skip" href="#contenido">
         Saltar al contenido
       </a>
-      <Navbar />
+      {!immersive && <Navbar />}
       <SeasonUrlSync />
-      <main id="contenido" className="club-main">
+      <main id="contenido" className={immersive ? "club-main vx-main-shell" : "club-main"}>
         {privatePage && !member ? (
           <TeamGate />
         ) : privatePage && !profile ? (
@@ -42,6 +44,7 @@ export function RootLayout() {
           <Outlet />
         )}
       </main>
+      {!immersive && (
       <footer className="club-footer">
         <div className="club-footer-brand">
           <Crest size={44} />
@@ -59,6 +62,7 @@ export function RootLayout() {
           <br />© {new Date().getFullYear()} Manchester Piti
         </p>
       </footer>
+      )}
     </div>
   );
 }

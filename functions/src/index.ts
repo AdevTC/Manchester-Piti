@@ -1,12 +1,6 @@
-import { initializeApp } from "firebase-admin/app";
-import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
-import {
-  onCall,
-  HttpsError,
-  type CallableRequest,
-} from "firebase-functions/v2/https";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
-import { setGlobalOptions } from "firebase-functions/v2";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import {
@@ -14,17 +8,21 @@ import {
   EVENT_LABELS,
   type MatchSheet,
 } from "./matchEngine.js";
+import { db, idSchema, parse, googleUser, member, admin, identity } from "./common.js";
+import { recomputePorra } from "./vestuario.js";
 export { clubShare } from "./social.js";
+export {
+  requestPlayerClaim,
+  resolvePlayerClaim,
+  proposeTraining,
+  voteTraining,
+  deleteTraining,
+  predictScore,
+  postBoardMessage,
+  deleteBoardMessage,
+} from "./vestuario.js";
 
-initializeApp();
-setGlobalOptions({ region: "europe-west1", maxInstances: 5 });
-const db = getFirestore();
 const teamPassword = defineSecret("TEAM_PASSWORD");
-const idSchema = z
-  .string()
-  .min(1)
-  .max(128)
-  .regex(/^[a-zA-Z0-9_-]+$/);
 const url = z.union([
   z.literal(""),
   z.url().refine((v) => v.startsWith("https://"), "Usa una URL HTTPS."),
@@ -71,47 +69,8 @@ export const sheetSchema = z.object({
   photoUrl: url.optional(),
   gallery: z.array(url).max(20).optional(),
   meetingNote: z.string().max(500).optional(),
+  kit: z.enum(["home", "away"]).optional(),
 });
-function parse<T>(schema: z.ZodType<T>, input: unknown): T {
-  const r = schema.safeParse(input);
-  if (!r.success)
-    throw new HttpsError(
-      "invalid-argument",
-      r.error.issues.map((i) => i.message).join(" "),
-    );
-  return r.data;
-}
-function googleUser(req: CallableRequest) {
-  if (!req.auth)
-    throw new HttpsError("unauthenticated", "Inicia sesión con Google.");
-  if (req.auth.token.firebase?.sign_in_provider !== "google.com")
-    throw new HttpsError("permission-denied", "Usa tu cuenta de Google.");
-  return req.auth.uid;
-}
-async function member(req: CallableRequest) {
-  const uid = googleUser(req);
-  const access = await db.doc(`teamMembers/${uid}`).get();
-  if (
-    !access.exists ||
-    !access.get("expiresAt") ||
-    access.get("expiresAt").toMillis() <= Date.now()
-  )
-    throw new HttpsError(
-      "permission-denied",
-      "Introduce la clave del vestuario.",
-    );
-  return uid;
-}
-async function admin(req: CallableRequest) {
-  const uid = await member(req);
-  const profile = await db.doc(`users/${uid}`).get();
-  if (!["admin", "superadmin"].includes(profile.get("role")))
-    throw new HttpsError(
-      "permission-denied",
-      "Solo los administradores pueden publicar.",
-    );
-  return uid;
-}
 export const enterTeam = onCall({ secrets: [teamPassword] }, async (req) => {
   const uid = googleUser(req);
   const { password } = parse(
@@ -377,6 +336,8 @@ export const saveMatchSheet = onCall(async (req) => {
       at: FieldValue.serverTimestamp(),
     });
   });
+  // The porra table follows the official result: recompute the season this edit touched.
+  if (!input.draft) await recomputePorra(sheet.seasonId);
   return { id: input.id, draft: input.draft, ledger };
 });
 export const voteMvp = onCall(async (req) => {
@@ -385,6 +346,7 @@ export const voteMvp = onCall(async (req) => {
     z.object({ matchId: idSchema, playerId: idSchema }),
     req.data,
   );
+  const voterName = (await identity(req, uid)).name;
   await db.runTransaction(async (tx) => {
     const match = await tx.get(db.doc(`matches/${matchId}`));
     const voteRef = db.doc(`matches/${matchId}/votes/${uid}`);
@@ -408,7 +370,7 @@ export const voteMvp = onCall(async (req) => {
     counts[playerId] = (counts[playerId] ?? 0) + 1;
     tx.set(voteRef, {
       playerId,
-      voterName: req.auth?.token.name ?? "Miembro",
+      voterName,
       at: FieldValue.serverTimestamp(),
     });
     tx.set(resultRef, {
@@ -434,9 +396,11 @@ export const setAvailability = onCall(async (req) => {
       "failed-precondition",
       "Solo puedes responder para próximos partidos.",
     );
+  const who = await identity(req, uid);
   await db.doc(`matchPrivate/${matchId}/availability/${uid}`).set({
     response,
-    name: req.auth?.token.name ?? "Miembro",
+    name: who.name,
+    playerId: who.playerId,
     at: FieldValue.serverTimestamp(),
   });
   return { ok: true };
