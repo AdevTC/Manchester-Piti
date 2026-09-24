@@ -133,7 +133,7 @@ export function useOpenTrainings(now: number) {
     () => query(collection(db, "trainings"), where("lastSlotAt", ">", Timestamp.fromMillis(bucket * 600_000)), orderBy("lastSlotAt", "asc"), limit(5)),
     (id, d) => ({
       id,
-      slots: ((d.slots ?? []) as { id: string; at: unknown; place?: string }[]).map((s) => ({ id: s.id, at: millis(s.at), place: s.place ?? "" })),
+      slots: ((d.slots ?? []) as { id: string; at: unknown; end?: unknown; place?: string }[]).map((s) => ({ id: s.id, at: millis(s.at), end: s.end ? millis(s.end) : undefined, place: s.place ?? "" })),
       note: d.note ?? "",
       proposedBy: d.proposedBy,
       proposedByName: d.proposedByName ?? "Alguien",
