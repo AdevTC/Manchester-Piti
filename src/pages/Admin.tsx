@@ -25,6 +25,7 @@ import {
   Shield
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { apiError, setSeasonArchived } from "../lib/clubApi";
 import {
   seasonFormSchema,
   type SeasonFormValues,
@@ -65,6 +66,7 @@ interface Season {
   id: string;
   name: string;
   captainPlayerId?: string;
+  archived?: boolean;
 }
 
 interface Player {
@@ -134,10 +136,26 @@ export const Admin: React.FC = () => {
   const { data: seasonsData } = useFirestoreCollection(SEASONS_KEY, seasonsQuery, mapSeason);
   const { data: playersData } = useFirestoreCollection(PLAYERS_KEY, playersQuery, mapPlayer);
   const { data: matchesData } = useFirestoreCollection(MATCHES_KEY, matchesQuery, mapMatch);
-  const seasons = useMemo<Season[]>(
-    () => (seasonsData ?? []).map((s) => ({ id: s.id, name: s.name, captainPlayerId: s.captainPlayerId || "" })),
+  // Every season, archived ones included, for the seasons tab; the rest of Admin only offers visible seasons.
+  const allSeasons = useMemo<Season[]>(
+    () => (seasonsData ?? []).map((s) => ({ id: s.id, name: s.name, captainPlayerId: s.captainPlayerId || "", archived: s.archived === true })),
     [seasonsData],
   );
+  const seasons = useMemo(() => allSeasons.filter((s) => !s.archived), [allSeasons]);
+  const [archiving, setArchiving] = useState("");
+  const toggleArchive = async (s: Season) => {
+    const archive = !s.archived;
+    if (archive && !window.confirm(`¿Archivar "${s.name}"? Sus partidos, estadísticas y los jugadores que solo jugaron esa temporada dejarán de verse en toda la web. No se borra nada y puedes restaurarla cuando quieras.`)) return;
+    setArchiving(s.id);
+    try {
+      const { data } = await setSeasonArchived({ seasonId: s.id, archived: archive });
+      notifySuccess(archive ? `Temporada archivada: ${data.matches} partidos y ${data.players} jugadores ocultos.` : "Temporada restaurada.");
+    } catch (e) {
+      notifyError("No se ha podido cambiar el archivo: " + apiError(e));
+    } finally {
+      setArchiving("");
+    }
+  };
   const players = useMemo<Player[]>(() => {
     const loaded: Player[] = (playersData ?? []).map((p) => ({
       id: p.id,
@@ -1472,15 +1490,15 @@ export const Admin: React.FC = () => {
           {/* List of existing seasons */}
           <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "1.5rem" }}>
             <h4 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: "0.75rem" }}>
-              Temporadas Registradas ({seasons.length})
+              Temporadas Registradas ({allSeasons.length})
             </h4>
-            {seasons.length === 0 ? (
+            {allSeasons.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", fontStyle: "italic" }}>
                 No hay temporadas configuradas aún.
               </p>
             ) : (
               <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {seasons.map(s => (
+                {allSeasons.map(s => (
                   <li 
                     key={s.id} 
                     style={{ 
@@ -1496,6 +1514,7 @@ export const Admin: React.FC = () => {
                   >
                     <div>
                       <strong>{s.name}</strong>
+                      {s.archived && <Badge variant="outline" style={{ marginLeft: "0.5rem" }}>Archivada · oculta en la web</Badge>}
                       <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "0.75rem" }}>ID: {s.id}</span>
                       {(() => {
                         const cap = s.captainPlayerId ? players.find((p) => p.id === s.captainPlayerId) : null;
@@ -1507,6 +1526,15 @@ export const Admin: React.FC = () => {
                       })()}
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        disabled={archiving === s.id}
+                        onClick={() => void toggleArchive(s)}
+                      >
+                        {archiving === s.id ? "Guardando…" : s.archived ? "Restaurar" : "Archivar"}
+                      </Button>
                       <Button
                         type="button"
                         onClick={() => {

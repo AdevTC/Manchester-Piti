@@ -421,6 +421,35 @@ assert.equal(
   404,
 );
 checked++;
+
+// ---------- season archive: data stays, every public reader drops it
+const other = "other-" + suffix;
+await db.doc("seasons/" + other).set({ name: "Otra temporada" });
+await db.doc("players/" + ids[9]).update({ seasons: [season, other] });
+await denied("setSeasonArchived", member, { seasonId: season, archived: true }, "PERMISSION_DENIED");
+await ok("setSeasonArchived", admin, { seasonId: season, archived: true });
+assert.equal((await db.doc("seasons/" + season).get()).get("archived"), true);
+assert.equal((await db.doc("matches/" + id).get()).get("archived"), true);
+assert.equal((await db.doc("players/" + ids[0]).get()).get("archived"), true);
+assert.equal((await db.doc("players/" + ids[9]).get()).get("archived"), undefined);
+assert.equal((await db.doc("matches/" + id).get()).get("rival"), "Rival de pruebas");
+checked += 5;
+assert.equal((await fetch(shareBase + "/compartir/partido/" + id)).status, 404);
+const calendarUrl = "http://127.0.0.1:5001/demo-manchester-piti/europe-west1/clubCalendar";
+const archivedFeed = await fetch(calendarUrl).then((r) => r.text());
+assert.ok(archivedFeed.startsWith("BEGIN:VCALENDAR"));
+assert.ok(!archivedFeed.includes(`UID:${id}@manchester-piti`));
+checked += 2;
+await denied("saveMatchSheet", admin, { id: "blocked-" + suffix, sheet: { ...sheet, revision: 0 }, draft: true }, "FAILED_PRECONDITION");
+checked += 2;
+await ok("setSeasonArchived", admin, { seasonId: season, archived: false });
+assert.equal((await db.doc("seasons/" + season).get()).get("archived"), undefined);
+assert.equal((await db.doc("matches/" + id).get()).get("archived"), undefined);
+assert.equal((await db.doc("players/" + ids[0]).get()).get("archived"), undefined);
+assert.equal((await fetch(shareBase + "/compartir/partido/" + id)).status, 200);
+checked += 4;
+assert.ok((await fetch(calendarUrl).then((r) => r.text())).includes(`UID:${id}@manchester-piti`));
+checked++;
 console.log(
   checked +
     " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos y disponibilidad.",

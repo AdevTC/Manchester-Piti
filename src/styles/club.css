@@ -31,16 +31,15 @@
   outline: 3px solid #dba237;
   outline-offset: 4px;
 }
-.club-app h1,
-.club-app h2,
-.club-app h3 {
+/* Zero specificity: component classes (e.g. the Celeste pages) always win. */
+:where(.club-app) :where(h1, h2, h3) {
   font-family: var(--mp-font-display);
   font-weight: 400;
 }
-.club-app p {
+:where(.club-app) :where(p) {
   line-height: 1.65;
 }
-.club-app em {
+:where(.club-app) :where(em) {
   font-style: normal;
   color: var(--mp-accent);
 }
@@ -784,6 +783,9 @@
   font-size: 10px;
   text-align: right;
   color: var(--mp-muted);
+}
+.club-footer > p a {
+  color: inherit;
 }
 .club-page {
   max-width: 1280px;

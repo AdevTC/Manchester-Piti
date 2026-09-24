@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useSeason } from "../../context/SeasonContext";
 import { dateMillis, useClubData, nextFixture, playerForSeason, playerName } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
+import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { bestPartner, currentSeasonId, firstSteps, initials, lastVotedMatch, seasonSummary, suggestFicha, vitrina } from "../../lib/vestuario";
 import {
@@ -24,23 +25,9 @@ import { Hero, type Ficha, type Me } from "./Hero";
 import { CaptainStrip } from "./Captain";
 import { BestPartner, FirstSteps, SeasonFeats, SeasonPlaceholder, Vitrina } from "./SeasonBlocks";
 import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
-import { Icon } from "./icons";
-import "../../styles/vestuario.css";
+import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 
-const FONTS =
-  "https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,300..900&family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@600;700&family=Geist:wght@300..800&family=Geist+Mono:wght@400..600&display=swap";
 
-/** Follows <html data-theme> (the global theme switch), so the 3D lighting flips with it. */
-function useDocumentTheme() {
-  const read = () => (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
-  const [theme, setTheme] = useState<"dark" | "light">(read);
-  useEffect(() => {
-    const mo = new MutationObserver(() => setTheme(read()));
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => mo.disconnect();
-  }, []);
-  return theme;
-}
 
 /** "Primeros pasos" can be hidden; remembered per account on this device. */
 function useStepsHidden(uid: string) {
@@ -142,39 +129,19 @@ export function VestuarioPage() {
   };
   return (
     <div className="vx">
-      <link rel="stylesheet" href={FONTS} precedence="default" />
-      <svg className="vx-grain" width="100%" height="100%" aria-hidden="true">
-        <filter id="vx-grain">
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves={2} stitchTiles="stitch" />
-        </filter>
-        <rect width="100%" height="100%" filter="url(#vx-grain)" />
-      </svg>
-
-      <header className="vx-top">
-        <Link className="vx-brand" to="/">
-          <img src="/crest.png" alt="Escudo del Manchester Piti" />
-          <span className="vx-brand-name">Manchester Piti</span>
-          <span className="vx-brand-sub">Vestuario</span>
-        </Link>
-        <nav className="vx-nav" aria-label="Principal">
-          <div className="vx-nav-in">
-            <Link to="/">Inicio</Link>
-            <Link to="/partidos">Partidos</Link>
-            <Link to="/plantilla">Plantilla</Link>
-            <Link to="/stats">Estadísticas</Link>
-            <Link to="/club">El club</Link>
-            <Link to="/vestuario" className="on" aria-current="page">
-              Vestuario
+      <CelesteBackdrop />
+      <CelesteHeader
+        active="vestuario"
+        sub="Vestuario"
+        actions={
+          <>
+            <ThemeToggle />
+            <Link className={`vx-avatar${admin ? " cap" : ""}`} to="/profile" aria-label={`Tu perfil: ${nick}`}>
+              {initials(me.displayName)}
             </Link>
-          </div>
-        </nav>
-        <div className="vx-actions">
-          <ThemeToggle />
-          <Link className={`vx-avatar${admin ? " cap" : ""}`} to="/profile" aria-label={`Tu perfil: ${nick}`}>
-            {initials(me.displayName)}
-          </Link>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <Hero
         me={me}
@@ -223,33 +190,10 @@ export function VestuarioPage() {
           <Board messages={board.data} uid={uid} admin={admin} loading={board.loading} now={now} />
           <Access admin={admin} playerId={playerId} onLogout={() => void signOut()} />
         </div>
-        <p className="vx-credit">
-          Camiseta 3D basada en{" "}
-          <a href="https://sketchfab.com/3d-models/football-jersey-style-design-d00dffa54c5b49b2941e0a34995f914e" target="_blank" rel="noopener noreferrer">
-            «Football Jersey Style Design»
-          </a>{" "}
-          de Wearable3D · CC BY 4.0
-        </p>
       </main>
 
-      <nav className="vx-dock" aria-label="Navegación móvil">
-        <Link to="/" aria-label="Inicio">
-          <Icon name="home" size={21} />
-        </Link>
-        <Link to="/partidos" aria-label="Partidos">
-          <Icon name="cal" size={21} />
-        </Link>
-        <Link to="/vestuario" className="on" aria-current="page">
-          <img src="/crest.png" alt="" />
-          Vestuario
-        </Link>
-        <Link to="/stats" aria-label="Estadísticas">
-          <Icon name="stats" size={21} />
-        </Link>
-        <Link to="/plantilla" aria-label="Plantilla">
-          <Icon name="team" size={21} />
-        </Link>
-      </nav>
+      <CelesteFooter />
+      <CelesteDock active="vestuario" />
     </div>
   );
 }

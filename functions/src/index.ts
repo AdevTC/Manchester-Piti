@@ -11,6 +11,8 @@ import {
 import { db, idSchema, parse, googleUser, member, admin, identity } from "./common.js";
 import { recomputePorra } from "./vestuario.js";
 export { clubShare } from "./social.js";
+export { setSeasonArchived } from "./seasons.js";
+export { clubCalendar } from "./calendar.js";
 export {
   requestPlayerClaim,
   resolvePlayerClaim,
@@ -190,6 +192,8 @@ export const saveMatchSheet = onCall(async (req) => {
   const season = await db.doc(`seasons/${sheet.seasonId}`).get();
   if (!season.exists)
     throw new HttpsError("invalid-argument", "La temporada no existe.");
+  if (season.get("archived") === true)
+    throw new HttpsError("failed-precondition", "Esa temporada está archivada. Restáurala para editar sus partidos.");
   if (participants.length) {
     const players = await db.getAll(
       ...participants.map((id) => db.doc(`players/${id}`)),

@@ -21,7 +21,7 @@ import {
   type PorraRow,
   type Training,
 } from "./live";
-import { Icon } from "./icons";
+import { Icon } from "../../components/celeste/icons";
 
 function useAction() {
   const [busy, setBusy] = useState(false);

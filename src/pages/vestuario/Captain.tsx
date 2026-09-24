@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { apiError, resolvePlayerClaim } from "../../lib/clubApi";
 import type { Claim } from "./live";
-import { Icon } from "./icons";
+import { Icon } from "../../components/celeste/icons";
 
 interface Props {
   hasNext: boolean;
