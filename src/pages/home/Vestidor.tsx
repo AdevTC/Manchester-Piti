@@ -21,9 +21,13 @@ interface Props {
   next: ClubMatch | undefined;
   live: ClubMatch | undefined;
   now: number;
+  /** Automatic player rotation (paused by the viewer or while they interact). */
+  auto: boolean;
+  onToggleAuto: () => void;
+  onHold: (hold: boolean) => void;
 }
 
-export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onKit, theme, moment, next, live, now }: Props) {
+export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onKit, theme, moment, next, live, now, auto, onToggleAuto, onHold }: Props) {
   const shirt = useRef<Jersey3DRef>(null);
   const rail = useRef<HTMLDivElement>(null);
   const p = squad[sel];
@@ -102,8 +106,8 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
           </div>
         </div>
 
-        <div className="hm-poster">
-          <div className="num" aria-hidden="true">
+        <div className="hm-poster" onPointerEnter={() => onHold(true)} onPointerLeave={() => onHold(false)}>
+          <div className="num" key={p?.num} data-digits={(p?.num || "").length} aria-hidden="true">
             {p?.num}
           </div>
           {p && (
@@ -116,6 +120,7 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
               num={p.num}
               zoom={0.86}
               lift={0.28}
+              flip
               label={`Camiseta de ${p.name}, dorsal ${p.num}, ${kit === "home" ? "1ª" : "2ª"} equipación. Arrástrala o usa las flechas para girarla.`}
             />
           )}
@@ -140,12 +145,12 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
         </div>
 
         {p && (
-          <div className="hm-player" aria-live="polite">
+          <div className="hm-player" aria-live="polite" onPointerEnter={() => onHold(true)} onPointerLeave={() => onHold(false)}>
             <span className="pos">
               Dorsal {p.num} · {seasonName}
             </span>
-            <h2>{p.name}</h2>
-            <div className={`hm-nums${blank ? " ph" : ""}`}>
+            <h2 key={p.id}>{p.name}</h2>
+            <div key={p.id} className={`hm-nums${blank ? " ph" : ""}`}>
               <div>
                 <b>{stats.goals}</b>
                 <span>goles</span>
@@ -164,6 +169,10 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
               <Link className="hm-link" to="/jugadores/$playerId" params={{ playerId: p.id }}>
                 Ver su ficha <Icon name="arrow" size={15} stroke={2.2} />
               </Link>
+              <button type="button" className="hm-mini" aria-pressed={!auto} aria-label={auto ? "Pausar el cambio automático de jugador" : "Reanudar el cambio automático de jugador"} onClick={onToggleAuto}>
+                <Icon name={auto ? "pause" : "play"} size={15} stroke={2.2} />
+                {auto ? "Pausar" : "Automático"}
+              </button>
               <button type="button" className="hm-mini" onClick={shuffle}>
                 <Icon name="shuffle" size={15} stroke={2.2} />
                 Sorpréndeme

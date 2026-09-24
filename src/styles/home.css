@@ -247,3 +247,12 @@ a.hm-game:hover{box-shadow:inset 0 0 0 1.5px var(--accent)}
 
 /* The intro column (next match + calendar menu) paints above the 3D poster. */
 .hm-intro{position:relative;z-index:6}
+
+/* Background number: sized to the poster (1 or 2 digits), a wider cut so 8 reads as 8, truly centred. */
+.hm-poster{container-type:inline-size}
+.vx .hm-poster .num{left:0;right:0;font-size:92cqi;letter-spacing:0;font-variation-settings:'wdth' 96;line-height:.82}
+.vx .hm-poster .num[data-digits="2"]{font-size:60cqi;top:6%}
+.hm-poster .num,.hm-player h2,.hm-player .hm-nums{animation:hmSwap .7s cubic-bezier(.16,1,.3,1) both}
+.hm-player h2{animation-duration:.8s}
+@keyframes hmSwap{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+.hm-mini[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px var(--accent)}

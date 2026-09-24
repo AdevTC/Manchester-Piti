@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
 import { formatDate, nextFixture, playerForSeason, playerName, useClubData } from "../../lib/clubData";
@@ -43,6 +43,26 @@ export function HomePage() {
   const [picked, setPicked] = useState<string | null>(null);
   const [kit, setKit] = useState<"home" | "away">("home");
   const defaultId = squad[Math.floor(seed * squad.length)]?.id;
+  // Every 8 s another random player, with the shirt's turn. Held for 20 s after the viewer
+  // picks someone, while the pointer is over the cartel, and while the tab is hidden.
+  const [auto, setAuto] = useState(true);
+  const touched = useRef(0);
+  const holding = useRef(false);
+  const ids = squad.map((p) => p.id).join(",");
+  useEffect(() => {
+    const list = ids ? ids.split(",") : [];
+    if (!auto || list.length < 2) return;
+    const timer = window.setInterval(() => {
+      if (document.hidden || holding.current || Date.now() - touched.current < 20_000) return;
+      setPicked((cur) => {
+        const current = cur ?? defaultId;
+        let nextId = current;
+        while (nextId === current) nextId = list[Math.floor(Math.random() * list.length)];
+        return nextId ?? null;
+      });
+    }, 8_000);
+    return () => window.clearInterval(timer);
+  }, [auto, ids, defaultId]);
   const selIndex = Math.max(0, lines.findIndex((l) => l.id === (picked ?? defaultId)));
   const selected = lines[selIndex];
   const moment = selected ? playerMoment(selected, { pichichiId: scorers[0]?.id, lastMatch: pulse.last }) : "";
@@ -70,7 +90,15 @@ export function HomePage() {
           seasonName={seasonName}
           squad={lines}
           sel={selIndex}
-          onSelect={(i) => setPicked(lines[i].id)}
+          onSelect={(i) => {
+            touched.current = Date.now();
+            setPicked(lines[i].id);
+          }}
+          auto={auto}
+          onToggleAuto={() => setAuto((a) => !a)}
+          onHold={(h) => {
+            holding.current = h;
+          }}
           kit={kit}
           onKit={setKit}
           theme={theme}

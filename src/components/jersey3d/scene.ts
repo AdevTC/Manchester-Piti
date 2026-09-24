@@ -39,6 +39,8 @@ export interface JerseyOptions {
 }
 export interface JerseyHandle {
   set(next: Partial<JerseyOptions>): void;
+  /** Full eased turn; the new name/number are printed while the shirt faces front. */
+  swap(next: Partial<JerseyOptions>): void;
   turn(): void;
   dispose(): void;
 }
@@ -231,6 +233,9 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
   const home = o.view === "front" ? 0 : Math.PI;
   let yaw = o.reveal && !reduceMotion ? home - Math.PI : home;
   let target = home, vel = 0, dragging = false, lastX = 0, t = 0, raf = 0, last = 0, visible = true, alive = true;
+  let tween: { from: number; to: number; start: number; dur: number } | null = null;
+  let pending: Partial<JerseyOptions> | null = null;
+  const ease = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
   const onDown = (e: PointerEvent) => {
     dragging = true;
     lastX = e.clientX;
@@ -289,12 +294,21 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
       target += vel;
       vel *= 0.92;
     }
-    yaw += (target - yaw) * Math.min(1, dt * (t < 2.2 ? 2.4 : 6));
+    if (tween) {
+      const p = Math.min(1, (now - tween.start) / tween.dur);
+      yaw = target = tween.from + (tween.to - tween.from) * ease(p);
+      if (pending && p >= 0.5) {
+        Object.assign(o, pending);
+        pending = null;
+        paint();
+      }
+      if (p >= 1) tween = null;
+    } else yaw += (target - yaw) * Math.min(1, dt * (t < 2.2 ? 2.4 : 6));
     pivot.rotation.y = yaw + (reduceMotion ? 0 : Math.sin(t * 0.7) * 0.1);
     pivot.rotation.z = reduceMotion ? 0 : Math.sin(t * 0.9) * 0.012;
     pivot.position.y = reduceMotion ? 0 : Math.sin(t * 1.1) * 0.03;
     renderer.render(scene, camera);
-    const settled = Math.abs(target - yaw) < 1e-3 && Math.abs(vel) < 1e-4;
+    const settled = !tween && Math.abs(target - yaw) < 1e-3 && Math.abs(vel) < 1e-4;
     if (visible && alive && !document.hidden && !(reduceMotion && settled)) raf = requestAnimationFrame(tick);
   }
   const onVisibility = () => {
@@ -310,6 +324,21 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
       if (repaint) paint();
       light();
       resize();
+    },
+    swap(next) {
+      const repaint = (["kit", "name", "num"] as const).some((k) => k in next && next[k] !== o[k]);
+      if (!repaint) return;
+      if (reduceMotion || !visible || document.hidden) {
+        Object.assign(o, next);
+        paint();
+        wake();
+        return;
+      }
+      pending = { ...(pending ?? {}), ...next };
+      const turns = Math.round((yaw - home) / (2 * Math.PI));
+      tween = { from: yaw, to: home + (turns + 1) * 2 * Math.PI, start: performance.now(), dur: 1100 };
+      vel = 0;
+      wake();
     },
     turn() {
       target = Math.round(target / Math.PI) * Math.PI + Math.PI;

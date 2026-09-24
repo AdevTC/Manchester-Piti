@@ -485,3 +485,8 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx .cal-menu span{display:block;font-family:'Geist',system-ui,sans-serif;font-size:12px;line-height:1.3;color:var(--muted)}
 .vx-hero-actions .cal-menu,.vx-confirmed .cal-menu{left:50%;transform:translateX(-50%)}
 @container (min-width:700px){.vx-hero-actions .cal-menu,.vx-confirmed .cal-menu{left:0;transform:none}}
+
+/* Background number: sized to the poster, wider cut, centred (no negative tracking). */
+.vx-poster{container-type:inline-size}
+.vx .vx-num{left:0;right:0;font-size:92cqi;letter-spacing:0;font-variation-settings:'wdth' 96;line-height:.82}
+.vx .vx-num[data-digits="2"]{font-size:60cqi;top:4%}

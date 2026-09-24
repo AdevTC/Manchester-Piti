@@ -9,9 +9,11 @@ interface Props extends JerseyOptions {
   ref?: Ref<Jersey3DRef>;
   label: string;
   className?: string;
+  /** Change name/number with a turn of the shirt instead of instantly. */
+  flip?: boolean;
 }
 /** Real 3D kit (three.js, lazy chunk). Falls back to the flat SVG shirt if WebGL is unavailable. */
-export function Jersey3D({ ref, label, className, ...options }: Props) {
+export function Jersey3D({ ref, label, className, flip = false, ...options }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const handle = useRef<JerseyHandle | null>(null);
   const latest = useRef(options);
@@ -43,9 +45,17 @@ export function Jersey3D({ ref, label, className, ...options }: Props) {
     };
   }, []);
   const { kit, theme, name, num, zoom, lift } = options;
+  const printed = useRef({ name, num });
   useEffect(() => {
-    handle.current?.set({ kit, theme, name, num, zoom, lift });
-  }, [kit, theme, name, num, zoom, lift]);
+    const h = handle.current;
+    if (!h) return;
+    const changed = printed.current.name !== name || printed.current.num !== num;
+    printed.current = { name, num };
+    if (flip && changed) {
+      h.set({ kit, theme, zoom, lift });
+      h.swap({ name, num });
+    } else h.set({ kit, theme, name, num, zoom, lift });
+  }, [kit, theme, name, num, zoom, lift, flip]);
   return (
     <div className={className} data-state={state}>
       {state === "failed" ? (

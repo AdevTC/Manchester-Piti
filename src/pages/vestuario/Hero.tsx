@@ -81,7 +81,7 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
       {captain}
       <div className="vx-hero-in">
         <div className="vx-poster">
-          <div className={`vx-num${me.number ? "" : " q"}`} aria-hidden="true">
+          <div className={`vx-num${me.number ? "" : " q"}`} data-digits={(me.number || "?").length} aria-hidden="true">
             {me.number || "?"}
           </div>
           <div className="vx-meta-l">

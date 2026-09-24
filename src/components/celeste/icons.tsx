@@ -21,6 +21,8 @@ const PATHS = {
   plus: <path d="M12 5v14M5 12h14" />,
   down: <path d="m6 9 6 6 6-6" />,
   left: <path d="m15 6-6 6 6 6" />,
+  pause: (<><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></>),
+  play: <path d="M7 5v14l12-7Z" />,
   right: <path d="m9 6 6 6-6 6" />,
   flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
   shuffle: <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />,
