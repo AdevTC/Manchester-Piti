@@ -26,6 +26,10 @@ export const requestPlayerClaim = httpsCallable<{ playerId: string }, { ok: bool
   functions,
   "requestPlayerClaim",
 );
+export const setSeasonArchived = httpsCallable<
+  { seasonId: string; archived: boolean },
+  { matches: number; players: number }
+>(functions, "setSeasonArchived");
 export const resolvePlayerClaim = httpsCallable<{
   uid: string;
   approve: boolean;

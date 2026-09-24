@@ -30,6 +30,8 @@ export const seasonSchema = z.object({
   id: z.string(),
   name: z.string(),
   captainPlayerId: z.string().optional(),
+  /** Archived: kept in Firestore, hidden everywhere except Admin. */
+  archived: z.boolean().optional(),
 });
 export type SeasonDoc = z.infer<typeof seasonSchema>;
 

@@ -41,6 +41,11 @@ vi.mock("firebase/firestore", () => ({
   Timestamp: { fromDate: (d: Date) => ({ seconds: Math.floor(d.getTime() / 1000) }) },
 }));
 
+vi.mock("../lib/clubApi", () => ({
+  apiError: (e: unknown) => String(e),
+  setSeasonArchived: vi.fn(() => Promise.resolve({ data: { matches: 0, players: 0 } })),
+}));
+
 vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({ updateUserRole: vi.fn(() => Promise.resolve(true)) }),
 }));

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/calendario.ics",
+      "destination": "https://europe-west1-futbolmanagement-dc6cb.cloudfunctions.net/clubCalendar"
+    },
+    {
+      "source": "/compartir/:path*",
+      "destination": "https://europe-west1-futbolmanagement-dc6cb.cloudfunctions.net/clubShare/compartir/:path*"
+    },
+    {
+      "source": "/social/:path*",
+      "destination": "https://europe-west1-futbolmanagement-dc6cb.cloudfunctions.net/clubShare/social/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

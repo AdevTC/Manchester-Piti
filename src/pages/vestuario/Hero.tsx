@@ -7,7 +7,7 @@ import { calledUp, countdown, greeting, initials, kickoffLabel, MIN_PLAYERS } fr
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Jersey } from "../../components/Jersey";
 import type { Availability, Claim } from "./live";
-import { Icon } from "./icons";
+import { Icon } from "../../components/celeste/icons";
 
 export interface Me {
   uid: string;

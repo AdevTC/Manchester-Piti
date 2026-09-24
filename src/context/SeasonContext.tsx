@@ -29,7 +29,8 @@ export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // every ["seasons"] consumer reads the identical cached shape.
   const { data, isPending } = useFirestoreCollection(SEASONS_KEY, seasonsQuery, mapSeason);
   const seasons = useMemo<Season[]>(
-    () => (data ?? []).map((s) => ({ id: s.id, name: s.name, captainPlayerId: s.captainPlayerId || undefined })),
+    // Archived seasons stay in Firestore but are hidden from the whole app (Admin reads them directly).
+    () => (data ?? []).filter((s) => !s.archived).map((s) => ({ id: s.id, name: s.name, captainPlayerId: s.captainPlayerId || undefined })),
     [data],
   );
   const loadingSeasons = isPending;

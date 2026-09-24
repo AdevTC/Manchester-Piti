@@ -307,8 +307,6 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 /* access */
 .vx-links a{text-decoration:none}
 .vx-logout{margin-top:16px;display:inline-flex;align-items:center;gap:8px;border:0;background:none;padding:6px 0;color:var(--muted);font:inherit;font-size:14px;cursor:pointer}
-.vx-credit{margin-top:56px;font-family:'Geist Mono';font-size:11px;color:var(--muted);text-align:center}
-.vx .vx-credit a{color:inherit}
 @media (prefers-reduced-motion:reduce){.vx-rsvp-thumb,.vx-shirt canvas,.vx-slot{transition:none}}
 
 /* ===== first visit: no ficha yet, no match yet (Design canvas "Primera vez · Celeste") ===== */
@@ -404,3 +402,15 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx-steps-card{margin-top:24px}
 }
 @media (prefers-reduced-motion:reduce){.vx-pbar i{transition:none}}
+
+/* ===== shared Celeste footer (home + vestuario) ===== */
+.vx .vx-main{padding-bottom:24px}
+.vx-foot{position:relative;z-index:2;margin:72px 20px 0;padding:26px 0 120px;border-top:1px solid var(--line);display:grid;gap:18px;font-size:13px;color:var(--muted)}
+.vx-foot .b{display:flex;align-items:center;gap:10px;color:var(--ink);font-family:'Anybody';font-weight:800;font-size:17px;font-variation-settings:'wdth' 118}
+.vx-foot .b img{width:34px;height:34px}
+.vx-foot nav{display:flex;flex-wrap:wrap;gap:16px}
+.vx-foot nav a{color:var(--soft);text-decoration:none;font-weight:600}
+.vx-foot small{font-family:'Geist Mono';font-size:10px;line-height:1.6}
+.vx-foot small a{color:inherit}
+@container (min-width:700px){.vx-foot{margin:90px 40px 0;grid-template-columns:auto 1fr auto;align-items:center;padding-bottom:130px}}
+@container (min-width:1100px){.vx-foot{margin:100px 64px 0;padding-bottom:40px}}

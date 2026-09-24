@@ -22,6 +22,10 @@ import {
 } from "./schemas";
 import { reportDroppedDoc } from "./docTelemetry";
 
+/** Docs of an archived season (flag set by the setSeasonArchived callable) stay
+ *  in Firestore but never reach the app: the shared mappers drop them. */
+const isArchived = (data: unknown) => (data as { archived?: unknown } | null)?.archived === true;
+
 /** Raw validated lineup doc. lineupSchema is a looseObject, so all board fields
  *  (formation/slots/bench/roles/…) pass through; dataToLineupDoc derives the
  *  in-memory LineupDoc from this in the consumer. */
@@ -39,6 +43,7 @@ export function mapSeason(id: string, data: unknown): SeasonDoc | null {
 
 /** Canonical `["players"]` mapper — full validated player doc. */
 export function mapPlayer(id: string, data: unknown): PlayerDoc | null {
+  if (isArchived(data)) return null;
   const r = playerSchema.safeParse({ id, ...dropNullFields(data as Record<string, unknown>) });
   if (!r.success) {
     reportDroppedDoc("players", id, r.error.issues);
@@ -50,6 +55,7 @@ export function mapPlayer(id: string, data: unknown): PlayerDoc | null {
 /** Canonical `["matches"]` mapper — full validated match doc. seasonMatchSchema
  *  is a looseObject, so events/competition/date pass through for every consumer. */
 export function mapMatch(id: string, data: unknown): SeasonMatchDoc | null {
+  if (isArchived(data)) return null;
   const r = seasonMatchSchema.safeParse({ id, ...dropNullFields(data as Record<string, unknown>) });
   if (!r.success) {
     reportDroppedDoc("matches", id, r.error.issues);

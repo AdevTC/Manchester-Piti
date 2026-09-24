@@ -1,6 +1,6 @@
 import type { MedalView, Partner, SeasonSummary, StepState } from "../../lib/vestuario";
 import { initials, plural, versusBest } from "../../lib/vestuario";
-import { Icon, type IconName } from "./icons";
+import { Icon, type IconName } from "../../components/celeste/icons";
 
 const pct = (n: number, of: number) => `${Math.round(Math.min(1, of > 0 ? n / of : 0) * 100)}%`;
 
