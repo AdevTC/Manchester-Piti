@@ -248,6 +248,17 @@ export function slotTime(slot: { at: number; end?: number }) {
   const f = (ms: number) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(ms);
   return slot.end ? `${f(slot.at)}–${f(slot.end)}` : f(slot.at);
 }
+/** Vote standing: the most voted slots and those with enough players to train. */
+export function slotStanding(slots: TrainingSlot[], votes: { slotIds: string[] }[]) {
+  const counts = slotVotes(slots, votes);
+  const max = Math.max(0, ...counts.values());
+  const ids = (keep: (n: number) => boolean) => new Set([...counts].filter(([, n]) => keep(n)).map(([id]) => id));
+  return { counts, top: max > 0 ? ids((n) => n === max) : new Set<string>(), ready: ids((n) => n >= MIN_PLAYERS) };
+}
+/** A confirmed training stops showing once it has finished (90 min when it has no end). */
+export function trainingOver(t: { confirmed?: { at: number; end?: number } }, now: number) {
+  return !!t.confirmed && (t.confirmed.end ?? t.confirmed.at + 90 * 60_000) < now;
+}
 export function slotVotes(slots: TrainingSlot[], votes: { slotIds: string[] }[]) {
   const counts = new Map(slots.map((s) => [s.id, 0]));
   for (const v of votes) for (const id of v.slotIds) if (counts.has(id)) counts.set(id, counts.get(id)! + 1);

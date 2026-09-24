@@ -7,7 +7,7 @@ import { dateMillis, useClubData, nextFixture, playerForSeason, playerName } fro
 import { useClock } from "../../hooks/useClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { bestPartner, currentSeasonId, firstSteps, initials, lastVotedMatch, seasonSummary, suggestFicha, vitrina } from "../../lib/vestuario";
+import { bestPartner, currentSeasonId, firstSteps, trainingOver, initials, lastVotedMatch, seasonSummary, suggestFicha, vitrina } from "../../lib/vestuario";
 import {
   useAvailability,
   useBoard,
@@ -72,6 +72,7 @@ export function VestuarioPage() {
   const mvpResults = useMvpResults();
   const porra = usePorraStandings(seasonId || undefined);
   const trainings = useOpenTrainings(now);
+  const confirmedTraining = trainings.data.find((t) => t.confirmed && !trainingOver(t, now))?.confirmed;
   const board = useBoard(8);
   const claim = useMyClaim(profile?.playerId ? undefined : uid || undefined);
   const links = usePlayerLinks(!profile?.playerId || admin);
@@ -156,6 +157,7 @@ export function VestuarioPage() {
         claimable={fichas.claimable}
         suggestion={fichas.suggestion}
         admin={admin}
+        training={confirmedTraining}
         captain={
           admin ? (
             <CaptainStrip hasNext={!!next} claims={pendingClaims.data} linked={fichas.linked} squad={fichas.squad} fichaName={fichaName} />

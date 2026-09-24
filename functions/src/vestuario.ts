@@ -134,12 +134,60 @@ export const voteTraining = onCall(async (req) => {
   const chosen = [...new Set(slotIds)];
   if (chosen.some((id) => !open.has(id)))
     throw new HttpsError("invalid-argument", "Elige huecos que todavía no hayan pasado.");
+  // Once confirmed, the vote is closed: only "voy / no puedo" for the confirmed slot.
+  const confirmed = training.get("confirmed.slotId") as string | undefined;
+  if (confirmed && chosen.some((id) => id !== confirmed))
+    throw new HttpsError("failed-precondition", "La votación está cerrada: el entreno ya está confirmado.");
   const ref = db.doc(`trainings/${trainingId}/votes/${uid}`);
   if (!chosen.length) await ref.delete();
   else {
     const who = await identity(req, uid);
     await ref.set({ slotIds: chosen, name: who.name, playerId: who.playerId, at: FieldValue.serverTimestamp() });
   }
+  return { ok: true };
+});
+
+const MADRID = "Europe/Madrid";
+const slotLabel = (at: number, end?: number) => {
+  const day = new Intl.DateTimeFormat("es-ES", { timeZone: MADRID, weekday: "long", day: "numeric", month: "short" }).format(at);
+  const t = (ms: number) => new Intl.DateTimeFormat("es-ES", { timeZone: MADRID, hour: "2-digit", minute: "2-digit" }).format(ms);
+  return `${day}, ${end ? `${t(at)}–${t(end)}` : t(at)}`;
+};
+
+/** Proposer or admin fixes the winning slot (or reopens the vote with slotId null). */
+export const confirmTraining = onCall(async (req) => {
+  const uid = await member(req);
+  const { trainingId, slotId } = parse(
+    z.object({ trainingId: idSchema, slotId: z.string().max(8).nullable() }),
+    req.data,
+  );
+  const ref = db.doc(`trainings/${trainingId}`);
+  const [training, profile] = await Promise.all([ref.get(), db.doc(`users/${uid}`).get()]);
+  if (!training.exists) throw new HttpsError("not-found", "Ese entreno ya no existe.");
+  const isAdmin = ["admin", "superadmin"].includes(profile.get("role"));
+  if (training.get("proposedBy") !== uid && !isAdmin)
+    throw new HttpsError("permission-denied", "Solo quien lo propuso o un administrador puede confirmarlo.");
+  if (slotId === null) {
+    await ref.update({ confirmed: FieldValue.delete() });
+    return { ok: true };
+  }
+  const slots = (training.get("slots") ?? []) as { id: string; at: Timestamp; end?: Timestamp; place?: string }[];
+  const slot = slots.find((s) => s.id === slotId);
+  if (!slot) throw new HttpsError("not-found", "Ese hueco no existe.");
+  if (slot.at.toMillis() <= Date.now()) throw new HttpsError("failed-precondition", "Ese hueco ya ha pasado.");
+  const who = await identity(req, uid);
+  const place = slot.place || "";
+  await ref.update({
+    confirmed: { slotId, at: slot.at, ...(slot.end ? { end: slot.end } : {}), place, by: uid, byName: who.name, confirmedAt: FieldValue.serverTimestamp() },
+  });
+  // The whole team finds out on the board (as the vestuario itself, outside the rate limit).
+  await db.collection("board").add({
+    text: `Entreno confirmado: ${slotLabel(slot.at.toMillis(), slot.end?.toMillis())}${place ? ` · ${place}` : ""}. Apúntate en el vestuario.`,
+    uid: "vestuario",
+    name: "Vestuario",
+    playerId: null,
+    at: FieldValue.serverTimestamp(),
+  });
   return { ok: true };
 });
 

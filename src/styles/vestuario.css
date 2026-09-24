@@ -449,3 +449,27 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx-range-err{grid-column:1/-1;font-size:13px;color:#ff9a8a}
 [data-theme="light"] .vx .vx-range-err{color:#b3261e}
 @container (min-width:700px){.vx-range{grid-template-columns:1.4fr 1fr 1fr}.vx-range .day{grid-column:auto}}
+
+/* ===== training: standing, confirm, confirmed ===== */
+.vx-slot{overflow:visible}
+.vx-slot .flag{position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);white-space:nowrap;height:24px;padding:0 10px;border-radius:999px;background:#FFC659;color:#0c1733;font-size:11px;font-weight:700;display:inline-flex;align-items:center}
+.vx-slot.top{box-shadow:inset 0 0 0 2px rgba(255,198,89,.7)}
+.vx-slot.top[aria-pressed=true]{box-shadow:var(--pill-on-shadow),inset 0 0 0 2px #FFC659}
+.vx-slots:has(.flag){padding-bottom:14px}
+.vx-confirm{margin-top:16px;padding:14px;border-radius:22px;background:var(--chip-gold);display:grid;gap:10px}
+.vx-confirm span{font-size:13px;font-weight:700;color:var(--gold-ink)}
+.vx-confirm .row{display:flex;flex-wrap:wrap;gap:8px}
+.vx-confirm .vx-mini-btn{height:40px}
+.vx-confirmed{margin-top:18px;padding:20px;border-radius:30px;background:linear-gradient(160deg,rgba(108,171,221,.22),rgba(108,171,221,.06));box-shadow:inset 0 0 0 1px rgba(159,208,242,.35);display:grid;gap:6px}
+.vx-confirmed .k{font-family:'Geist Mono';font-size:11px;color:var(--muted)}
+.vx-confirmed .when{font-family:'Anybody';font-weight:900;font-size:34px;line-height:1;font-variation-settings:'wdth' 96}
+.vx-confirmed .range{font-size:16px;font-weight:600;color:var(--accent)}
+.vx-confirmed .vx-rsvp{margin:12px 0 0;max-width:none}
+.vx-rsvp.two{grid-template-columns:repeat(2,minmax(0,1fr));height:54px}
+.vx-rsvp.two button[aria-pressed=true]{background:var(--thumb);color:var(--thumb-ink);box-shadow:var(--thumb-shadow)}
+.vx-rsvp.two button[disabled]{cursor:default}
+.vx-confirmed .vx-attend{justify-content:flex-start;margin-top:12px}
+.vx-train-chip{position:relative;z-index:4;margin:14px auto 0;max-width:460px;display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 16px;border-radius:999px;background:var(--chip-gold);text-decoration:none;font-size:13px;text-align:left}
+.vx .vx-train-chip{color:var(--gold-ink)}
+.vx-train-chip b{color:var(--ink)}
+@container (min-width:700px){.vx-train-chip{margin:14px 0 0;width:max-content;max-width:100%}}
