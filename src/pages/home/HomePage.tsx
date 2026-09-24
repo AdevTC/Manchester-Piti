@@ -38,10 +38,11 @@ export function HomePage() {
   const nameOf = (id: string) => lines.find((l) => l.id === id)?.name ?? playerName(players.find((p) => p.id === id));
   const story = narrative(pulse, { seasonName, squadSize: squad.length, now, nameOf, scorer: scorers[0] });
 
-  // Opens on the pichichi, else the 10, else the first dorsal; then follows the viewer.
+  // A random player on every visit (fixed for the visit), then whoever the viewer picks.
+  const [seed] = useState(() => Math.random());
   const [picked, setPicked] = useState<string | null>(null);
   const [kit, setKit] = useState<"home" | "away">("home");
-  const defaultId = scorers[0]?.id ?? squad.find((p) => p.num === "10")?.id ?? squad[0]?.id;
+  const defaultId = squad[Math.floor(seed * squad.length)]?.id;
   const selIndex = Math.max(0, lines.findIndex((l) => l.id === (picked ?? defaultId)));
   const selected = lines[selIndex];
   const moment = selected ? playerMoment(selected, { pichichiId: scorers[0]?.id, lastMatch: pulse.last }) : "";

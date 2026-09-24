@@ -60,9 +60,28 @@ interface Assets {
   gltf: GLTF;
   layout: Layouts;
 }
+// The prints need their own faces; the jersey loads them itself so it looks the same on every page.
+const PRINT_FONTS = "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@600;700&display=swap";
+function printFontsCss() {
+  return new Promise<void>((resolve) => {
+    let link = document.querySelector<HTMLLinkElement>("link[data-jersey-fonts]");
+    if (link?.sheet) return resolve();
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = PRINT_FONTS;
+      link.dataset.jerseyFonts = "";
+      document.head.appendChild(link);
+    }
+    link.addEventListener("load", () => resolve(), { once: true });
+    link.addEventListener("error", () => resolve(), { once: true });
+    setTimeout(resolve, 4000); // never block the shirt on a slow font host
+  });
+}
 let shared: Promise<Assets> | null = null;
 function assets() {
   shared ??= (async () => {
+    await printFontsCss();
     await Promise.all(
       [`600 100px ${FONT_NUM}`, `700 100px ${FONT_NUM}`, `600 100px ${FONT_TXT}`, `700 100px ${FONT_TXT}`].map((f) =>
         document.fonts.load(f).catch(() => null),
