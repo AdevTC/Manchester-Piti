@@ -358,7 +358,8 @@ await denied("predictScore", fan, { matchId: nextId, goalsFor: -1, goalsAgainst:
 await denied("predictScore", fan, { matchId: id, goalsFor: 1, goalsAgainst: 0 }, "FAILED_PRECONDITION");
 await ok("saveMatchSheet", admin, {
   id: nextId,
-  sheet: { ...finished, revision: 1, kit: "away", events: finished.events, date: Date.now() - 3600000 },
+  // Older than the e2e seed's finished match, which must stay the latest one with an MVP vote.
+  sheet: { ...finished, revision: 1, kit: "away", events: finished.events, date: Date.now() - 2 * 86400000 },
   draft: false,
 });
 const porra = (await db.doc("porraStandings/" + season).get()).get("rows");
