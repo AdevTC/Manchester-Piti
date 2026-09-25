@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "./clubData";
-import { clubMedals, countdownParts, leaders, matchEvent, narrative, playerLines, playerMoment, seasonPulse, upcomingBirthdays } from "./home";
+import { clubMedals, countdownParts, leaders, matchEvent, narrative, playerLines, playerMoment, playerOfTheMoment, seasonPulse, upcomingBirthdays } from "./home";
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 10, 12);
@@ -14,6 +14,22 @@ const goal = (playerId: string, assistPlayerId?: string) => ({ id: Math.random()
 const played = (id: string, daysAgo: number, gf: number, ga: number, events: ClubMatch["events"] = []): ClubMatch => ({ id, seasonId: "s1", rival: `Rival ${id}`, status: "finished", date: NOW - daysAgo * DAY, goalsFor: gf, goalsAgainst: ga, events });
 const upcoming = (id: string, inDays: number): ClubMatch => ({ id, seasonId: "s1", rival: `Rival ${id}`, status: "scheduled", date: NOW + inDays * DAY });
 const ctx = (p: ReturnType<typeof seasonPulse>, lines = playerLines(squad, p.played)) => ({ seasonName: "Temporada 1", squadSize: squad.length, now: NOW, nameOf, scorer: leaders(lines, "goals", 1)[0] });
+
+describe("player of the moment", () => {
+  it("last match's top scorer first, telling if they lead the Pichichi", () => {
+    const p = seasonPulse([played("m1", 2, 3, 1, [goal("a"), goal("a"), goal("e", "h")])], "s1", NOW);
+    expect(playerOfTheMoment(playerLines(squad, p.played), p, NOW)).toMatchObject({ line: { id: "a" }, kick: "Goleador del último partido", text: "Firmó un doblete ante Rival m1. Ya suma 2 goles y lidera el Pichichi." });
+  });
+  it("then the Pichichi once the last match is old", () => {
+    const p = seasonPulse([played("m1", 20, 1, 0, [goal("e")])], "s1", NOW);
+    expect(playerOfTheMoment(playerLines(squad, p.played), p, NOW)).toMatchObject({ line: { id: "e" }, kick: "Pichichi" });
+  });
+  it("in pre-season, the next birthday", () => {
+    const p = seasonPulse([], "s1", NOW);
+    expect(playerOfTheMoment(playerLines(squad, p.played), p, NOW)).toMatchObject({ line: { id: "e" }, kick: "Cumple en 2 días" });
+    expect(playerOfTheMoment([], p, NOW)).toBeNull();
+  });
+});
 
 describe("home narrative", () => {
   it("pre-season without a date", () => {

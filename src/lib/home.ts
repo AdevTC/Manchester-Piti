@@ -121,6 +121,36 @@ export function playerMoment(line: PlayerLine, ctx: { pichichiId?: string; lastM
   return `${plural(matchesPlayed, "partido jugado", "partidos jugados")} esta temporada.`;
 }
 
+export interface Moment {
+  line: PlayerLine;
+  kick: string;
+  text: string;
+}
+/** The one player the home puts forward: last match's scorer, then the Pichichi, then the next birthday. */
+export function playerOfTheMoment(lines: PlayerLine[], p: Pulse, now: number): Moment | null {
+  if (!lines.length) return null;
+  const byId = (id: string) => lines.find((l) => l.id === id);
+  const [pichichi] = leaders(lines, "goals", 1);
+  if (p.last && now - dateMillis(p.last.date) < 10 * DAY) {
+    const top = scorersOf(p.last, (id) => byId(id)?.name ?? "").find((s) => byId(s.id));
+    if (top) {
+      const lead = pichichi?.id === top.id ? ` Ya suma ${plural(pichichi.stats.goals, "gol", "goles")} y lidera el Pichichi.` : "";
+      return { line: byId(top.id)!, kick: "Goleador del último partido", text: `Firmó ${feat(top.n)} ante ${p.last.rival ?? "el rival"}.${lead}` };
+    }
+  }
+  if (pichichi) {
+    const { goals, matchesPlayed } = pichichi.stats;
+    const games = matchesPlayed ? ` en ${plural(matchesPlayed, "partido", "partidos")}` : "";
+    return { line: pichichi, kick: "Pichichi", text: `${plural(goals, "gol", "goles")}${games}: nadie en la plantilla ha marcado más.` };
+  }
+  const [bday] = upcomingBirthdays(lines, now, 1);
+  if (bday) {
+    const kick = bday.days === 0 ? "¡Cumple hoy!" : bday.days === 1 ? "Cumple mañana" : `Cumple en ${bday.days} días`;
+    return { line: byId(bday.id)!, kick, text: `Cumple el ${bday.label}. Cuando empiecen los partidos, aquí saldrá el goleador de cada jornada.` };
+  }
+  return { line: lines[0], kick: `Dorsal ${lines[0].num}`, text: "Aún sin estrenar: el primer gol de la temporada lo pondrá aquí." };
+}
+
 export interface ClubMedal {
   id: string;
   kicker: string;

@@ -384,7 +384,8 @@ export interface StillRequest {
 let stills: Promise<{ canvas: HTMLCanvasElement; o: Required<JerseyOptions>; s: ReturnType<typeof stage> }> | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 /** A photo of the real kit's back (transparent WebP), rendered off-screen with one shared renderer. */
-export function renderStill(r: StillRequest): Promise<Blob> {
+/** `scale` > 1 renders a sharper image (downloads); the rail uses the default. */
+export function renderStill(r: StillRequest, type: "image/webp" | "image/png" = "image/webp", scale = 1): Promise<Blob> {
   stills ??= assets().then((A) => {
     const canvas = document.createElement("canvas");
     const o: Required<JerseyOptions> = { view: "back", reveal: false, zoom: STILL.zoom, lift: STILL.lift, kit: r.kit, theme: r.theme, name: r.name, num: r.num };
@@ -407,8 +408,22 @@ export function renderStill(r: StillRequest): Promise<Blob> {
           s.paint();
           s.light();
           s.pivot.rotation.set(0, Math.PI + (r.yaw ?? 0), 0);
+          const base = Math.min(devicePixelRatio, 2);
+          s.renderer.setPixelRatio(base * scale);
+          s.renderer.setSize(STILL.w, STILL.h, false);
           s.renderer.render(s.scene, s.camera);
-          canvas.toBlob((b) => (b ? ok(b) : ko(new Error("still"))), "image/webp", 0.9);
+          if (scale !== 1) {
+            // read the big frame first, then return the shared canvas to its normal size
+            const done = (b: Blob | null) => {
+              s.renderer.setPixelRatio(base);
+              s.renderer.setSize(STILL.w, STILL.h, false);
+              if (b) ok(b);
+              else ko(new Error("still"));
+            };
+            canvas.toBlob(done, type, 0.92);
+            return;
+          }
+          canvas.toBlob((b) => (b ? ok(b) : ko(new Error("still"))), type, 0.9);
         }),
     ),
   );

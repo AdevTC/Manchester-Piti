@@ -1,3 +1,5 @@
+import "./shirt-back.css";
+
 // Flat back of the kit (name + number in the print faces), painted from the page's kit tokens
 // (--kit, --kit-ink, --kit-acc, --slash) so every shirt follows the 1ª/2ª toggle.
 export function ShirtBack({ name, num, hanger = false, className }: { name: string; num: string; hanger?: boolean; className?: string }) {

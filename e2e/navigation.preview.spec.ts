@@ -4,7 +4,7 @@ test("web pública, navegación y detalle sin iniciar sesión", async ({
 }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "MANCHESTER",
+    "Victoria",
   );
   const nav = page.getByRole("navigation", { name: "Navegación principal" });
   await nav.getByRole("link", { name: "Partidos", exact: true }).click();
