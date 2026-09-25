@@ -1,11 +1,7 @@
 import { onRequest } from "firebase-functions/v2/https";
-import { defineString } from "firebase-functions/params";
 import { getFirestore } from "firebase-admin/firestore";
 import { readFileSync } from "node:fs";
-import sharp from "sharp";
-export const siteUrl = defineString("PUBLIC_SITE_URL", {
-  default: "https://futbolmanagement-dc6cb.web.app",
-});
+import { siteUrl } from "./common.js";
 const escape = (s: string) =>
   s.replace(
     /[&<>"']/g,
@@ -56,6 +52,8 @@ export const clubShare = onRequest(
         new URL("../assets/crest.png", import.meta.url),
       ).toString("base64");
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#0c1733"/><rect width="18" height="630" fill="#6cabdd"/><image href="data:image/png;base64,${crest}" x="70" y="55" width="115" height="115"/><text x="220" y="120" fill="#aaceec" font-family="sans-serif" font-weight="bold" font-size="30">MANCHESTER PITI</text><text x="70" y="300" fill="white" font-family="sans-serif" font-weight="bold" font-size="${score.length > 12 ? 60 : 115}">${escape(score)}</text><text x="70" y="405" fill="white" font-family="sans-serif" font-weight="bold" font-size="${name.length > 35 ? 32 : 43}">${escape(String(name).slice(0, 60))}</text><text x="70" y="475" fill="#aaceec" font-family="sans-serif" font-size="28">${escape(String(subtitle).slice(0, 65))}</text><line x1="70" x2="1130" y1="535" y2="535" stroke="#334a75"/><text x="70" y="590" fill="#aaceec" font-family="sans-serif" font-size="20">MANCHESTER PITI · FÚTBOL 7</text></svg>`;
+      // sharp (libvips) loads here, not at cold start: every function shares this bundle.
+      const { default: sharp } = await import("sharp");
       const image = await sharp(Buffer.from(svg)).png().toBuffer();
       res.type("png").send(image);
       return;

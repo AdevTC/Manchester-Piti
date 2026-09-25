@@ -1,13 +1,15 @@
+import { lazy, Suspense } from "react";
 import { Outlet, Link, useRouterState } from "@tanstack/react-router";
 import { Navbar } from "./components/Navbar";
 import { SeasonUrlSync } from "./components/SeasonUrlSync";
 import { useAuth } from "./context/AuthContext";
 import { useTeam } from "./context/TeamContext";
-import { TeamGate } from "./pages/Vestuario";
-import { NicknameSetup } from "./pages/NicknameSetup";
 import { Crest } from "./components/Crest";
 import "./styles/club.css";
 import "./styles/analytics.css";
+// Only private pages show the gate and the nickname step: keep them out of the entry chunk.
+const TeamGate = lazy(() => import("./pages/Vestuario").then((m) => ({ default: m.TeamGate })));
+const NicknameSetup = lazy(() => import("./pages/NicknameSetup").then((m) => ({ default: m.NicknameSetup })));
 export function RootLayout() {
   const { profile } = useAuth();
   const { member } = useTeam();
@@ -32,9 +34,13 @@ export function RootLayout() {
       <SeasonUrlSync />
       <main id="contenido" className={immersive ? "club-main vx-main-shell" : "club-main"}>
         {privatePage && !member ? (
-          <TeamGate />
+          <Suspense fallback={null}>
+            <TeamGate />
+          </Suspense>
         ) : privatePage && !profile ? (
-          <NicknameSetup />
+          <Suspense fallback={null}>
+            <NicknameSetup />
+          </Suspense>
         ) : pathname.startsWith("/admin") && !admin ? (
           <div className="club-empty">
             <h1>Solo para administradores</h1>

@@ -1,5 +1,5 @@
-// three.js jersey scene (lazy-loaded chunk). Render-on-demand: it only animates while visible,
-// stops when the page is hidden and settles completely under prefers-reduced-motion.
+// three.js jersey scene (lazy-loaded chunk). Render-on-demand: frames are drawn only while something
+// moves (reveal, drag, turn, the idle sway fading out), while visible and while the page is shown.
 import {
   Box3,
   CanvasTexture,
@@ -48,6 +48,10 @@ export interface JerseyHandle {
 }
 
 const KIT = 2048;
+/** Live canvases are big: past 1.5× the extra pixels cost GPU time without a visible gain. */
+const LIVE_DPR = 1.5;
+/** The idle sway plays for a while after the last interaction, then fades out and the loop stops. */
+const SWAY_MS = 5000, SWAY_FADE = 1500;
 const BASE = "/models/";
 const image = (src: string) =>
   new Promise<HTMLImageElement>((ok, ko) => {
@@ -67,7 +71,8 @@ interface Assets {
 // The prints need their own faces; the jersey loads them itself so it looks the same on every page.
 function printFontsCss() {
   return new Promise<void>((resolve) => {
-    let link = document.querySelector<HTMLLinkElement>("link[data-jersey-fonts]");
+    // Pages that print shirts already add this stylesheet (React hoists it): reuse it, never load it twice.
+    let link = document.querySelector<HTMLLinkElement>(`link[data-jersey-fonts], link[rel="stylesheet"][href="${PRINT_FONTS}"]`);
     if (link?.sheet) return resolve();
     if (!link) {
       link = document.createElement("link");
@@ -117,14 +122,17 @@ vec2 mpKnit(vec2 uv){
 
 /** The lit scene with the kit on a pivot; shared by the live jersey and the still renderer. */
 function stage(canvas: HTMLCanvasElement, o: Required<JerseyOptions>, A: Assets, preserve = false) {
-  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: preserve });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  // "default" keeps laptops on the integrated GPU; a shirt does not need the discrete one.
+  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "default", preserveDrawingBuffer: preserve });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, LIVE_DPR));
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = NeutralToneMapping;
   renderer.toneMappingExposure = 1.05;
   const scene = new Scene();
   const pmrem = new PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const room = new RoomEnvironment();
+  const env = pmrem.fromScene(room, 0.04);
+  scene.environment = env.texture;
   scene.environmentIntensity = 0.55;
   const camera = new PerspectiveCamera(26, 1, 0.1, 50);
   const key = new SpotLight(0xffffff, 85, 20, Math.PI / 6.5, 0.6, 1.5);
@@ -231,8 +239,13 @@ function stage(canvas: HTMLCanvasElement, o: Required<JerseyOptions>, A: Assets,
   const dispose = () => {
     for (const m of [outer, inner, trim]) m.dispose();
     for (const tex of [kitTex, maskTex, normalTex, baseTex.home, baseTex.away]) tex.dispose();
+    env.dispose();
+    room.dispose();
     pmrem.dispose();
     renderer.dispose();
+    // Free the GPU memory now instead of waiting for garbage collection (browsers cap live contexts).
+    // Only once the canvas has left the page: a remount on the same canvas shares its context.
+    if (!canvas.isConnected) renderer.forceContextLoss();
   };
   return { renderer, scene, camera, pivot, paint, light, dispose };
 }
@@ -247,13 +260,14 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
   let yaw = o.reveal && !reduceMotion ? home - Math.PI : home;
   let target = home, vel = 0, dragging = false, lastX = 0, t = 0, raf = 0, last = 0, visible = true, alive = true;
   let tween: { from: number; to: number; start: number; dur: number } | null = null;
+  let active = performance.now();
   let pending: Partial<JerseyOptions> | null = null;
   const ease = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
   const onDown = (e: PointerEvent) => {
     dragging = true;
     lastX = e.clientX;
     canvas.setPointerCapture(e.pointerId);
-    wake();
+    poke();
   };
   const onMove = (e: PointerEvent) => {
     if (!dragging) return;
@@ -261,7 +275,7 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
     lastX = e.clientX;
     vel = dx * 0.012;
     target += vel;
-    wake();
+    poke();
   };
   const onUp = () => {
     dragging = false;
@@ -270,7 +284,7 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
     target += e.key === "ArrowLeft" ? -0.4 : 0.4;
-    wake();
+    poke();
   };
   canvas.addEventListener("pointerdown", onDown);
   canvas.addEventListener("pointermove", onMove);
@@ -287,11 +301,18 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
   }
   const ro = new ResizeObserver(resize);
   ro.observe(canvas);
-  const io = new IntersectionObserver(([e]) => {
-    visible = e.isIntersecting;
-    if (visible) wake();
-  });
+  const io = new IntersectionObserver(
+    ([e]) => {
+      visible = e.isIntersecting;
+      if (visible) wake();
+    },
+    { threshold: 0.15 },
+  );
   io.observe(canvas);
+  function poke() {
+    active = performance.now();
+    wake();
+  }
   function wake() {
     if (!raf && visible && alive && !document.hidden) {
       last = performance.now();
@@ -317,12 +338,13 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
       }
       if (p >= 1) tween = null;
     } else yaw += (target - yaw) * Math.min(1, dt * (t < 2.2 ? 2.4 : 6));
-    pivot.rotation.y = yaw + (reduceMotion ? 0 : Math.sin(t * 0.7) * 0.1);
-    pivot.rotation.z = reduceMotion ? 0 : Math.sin(t * 0.9) * 0.012;
-    pivot.position.y = reduceMotion ? 0 : Math.sin(t * 1.1) * 0.03;
+    const sway = reduceMotion ? 0 : Math.max(0, Math.min(1, 1 - (now - active - SWAY_MS) / SWAY_FADE));
+    pivot.rotation.y = yaw + Math.sin(t * 0.7) * 0.1 * sway;
+    pivot.rotation.z = Math.sin(t * 0.9) * 0.012 * sway;
+    pivot.position.y = Math.sin(t * 1.1) * 0.03 * sway;
     renderer.render(scene, camera);
-    const settled = !tween && Math.abs(target - yaw) < 1e-3 && Math.abs(vel) < 1e-4;
-    if (visible && alive && !document.hidden && !(reduceMotion && settled)) raf = requestAnimationFrame(tick);
+    const settled = !dragging && !tween && Math.abs(target - yaw) < 1e-3 && Math.abs(vel) < 1e-4;
+    if (visible && alive && !document.hidden && !(settled && sway === 0)) raf = requestAnimationFrame(tick);
   }
   const onVisibility = () => {
     if (!document.hidden) wake();
@@ -337,6 +359,7 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
       if (repaint) paint();
       light();
       resize();
+      if (repaint) poke();
     },
     swap(next) {
       const repaint = (["kit", "name", "num"] as const).some((k) => k in next && next[k] !== o[k]);
@@ -351,11 +374,11 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
       const turns = Math.round((yaw - home) / (2 * Math.PI));
       tween = { from: yaw, to: home + (turns + 1) * 2 * Math.PI, start: performance.now(), dur: 1100 };
       vel = 0;
-      wake();
+      poke();
     },
     turn() {
       target = Math.round(target / Math.PI) * Math.PI + Math.PI;
-      wake();
+      poke();
     },
     dispose() {
       alive = false;

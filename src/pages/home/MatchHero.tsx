@@ -37,7 +37,7 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
           <div className="vs">
             <div className="team">
               <span className="cr">
-                <img src="/crest.png" alt="" />
+                <img src="/crest-256.webp" alt="" width={108} height={108} />
               </span>
               <b>MANCHESTER PITI</b>
               <small>{m ? (m.home === false ? "Visitante" : "Local") : "Local"}</small>
