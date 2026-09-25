@@ -25,6 +25,7 @@ import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { PRINT_FONTS } from "./fonts";
+import { STILL } from "./scene-constants";
 import { drawPrints, FONT_NUM, FONT_TXT, KIT_INK, type KitName, type Layouts } from "./prints";
 
 export interface JerseyOptions {
@@ -114,11 +115,9 @@ vec2 mpKnit(vec2 uv){
   return -f * hole * 1.3 * fade;
 }`;
 
-export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOptions): Promise<JerseyHandle> {
-  const o: Required<JerseyOptions> = { view: "back", reveal: true, zoom: 1, lift: 0, ...initial };
-  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const A = await assets();
-  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+/** The lit scene with the kit on a pivot; shared by the live jersey and the still renderer. */
+function stage(canvas: HTMLCanvasElement, o: Required<JerseyOptions>, A: Assets, preserve = false) {
+  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: preserve });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = NeutralToneMapping;
@@ -229,6 +228,20 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
   }
   paint();
   light();
+  const dispose = () => {
+    for (const m of [outer, inner, trim]) m.dispose();
+    for (const tex of [kitTex, maskTex, normalTex, baseTex.home, baseTex.away]) tex.dispose();
+    pmrem.dispose();
+    renderer.dispose();
+  };
+  return { renderer, scene, camera, pivot, paint, light, dispose };
+}
+
+export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOptions): Promise<JerseyHandle> {
+  const o: Required<JerseyOptions> = { view: "back", reveal: true, zoom: 1, lift: 0, ...initial };
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const A = await assets();
+  const { renderer, scene, camera, pivot, paint, light, dispose: disposeStage } = stage(canvas, o, A);
 
   const home = o.view === "front" ? 0 : Math.PI;
   let yaw = o.reveal && !reduceMotion ? home - Math.PI : home;
@@ -355,10 +368,50 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("keydown", onKey);
-      for (const m of [outer, inner, trim]) m.dispose();
-      for (const tex of [kitTex, maskTex, normalTex, baseTex.home, baseTex.away]) tex.dispose();
-      pmrem.dispose();
-      renderer.dispose();
+      disposeStage();
     },
   };
+}
+
+export interface StillRequest {
+  kit: KitName;
+  theme: "dark" | "light";
+  name: string;
+  num: string;
+  /** Turn away from the straight back view, in radians (the duel angles the shirts towards each other). */
+  yaw?: number;
+}
+let stills: Promise<{ canvas: HTMLCanvasElement; o: Required<JerseyOptions>; s: ReturnType<typeof stage> }> | null = null;
+let queue: Promise<unknown> = Promise.resolve();
+/** A photo of the real kit's back (transparent WebP), rendered off-screen with one shared renderer. */
+export function renderStill(r: StillRequest): Promise<Blob> {
+  stills ??= assets().then((A) => {
+    const canvas = document.createElement("canvas");
+    const o: Required<JerseyOptions> = { view: "back", reveal: false, zoom: STILL.zoom, lift: STILL.lift, kit: r.kit, theme: r.theme, name: r.name, num: r.num };
+    const s = stage(canvas, o, A, true);
+    s.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    s.renderer.setSize(STILL.w, STILL.h, false);
+    s.camera.aspect = STILL.w / STILL.h;
+    s.camera.position.set(0, 0.05 + STILL.lift, 6.4 / STILL.zoom);
+    s.camera.updateProjectionMatrix();
+    return { canvas, o, s };
+  });
+  stills.catch(() => {
+    stills = null;
+  });
+  const job = queue.then(() =>
+    stills!.then(
+      ({ canvas, o, s }) =>
+        new Promise<Blob>((ok, ko) => {
+          Object.assign(o, { kit: r.kit, theme: r.theme, name: r.name, num: r.num });
+          s.paint();
+          s.light();
+          s.pivot.rotation.set(0, Math.PI + (r.yaw ?? 0), 0);
+          s.renderer.render(s.scene, s.camera);
+          canvas.toBlob((b) => (b ? ok(b) : ko(new Error("still"))), "image/webp", 0.9);
+        }),
+    ),
+  );
+  queue = job.catch(() => null);
+  return job;
 }
