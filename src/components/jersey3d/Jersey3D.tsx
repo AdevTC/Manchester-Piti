@@ -26,7 +26,22 @@ export function Jersey3D({ ref, label, className, flip = false, ...options }: Pr
     let cancelled = false;
     const el = canvas.current;
     if (!el) return;
-    import("./scene")
+    // Nothing (chunk, model, shaders) loads until the shirt is about to scroll into view.
+    let stopWatching = () => {};
+    const near = new Promise<void>((ok) => {
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((e) => e.isIntersecting)) return;
+          io.disconnect();
+          ok();
+        },
+        { rootMargin: "300px" },
+      );
+      io.observe(el);
+      stopWatching = () => io.disconnect();
+    });
+    near
+      .then(() => (cancelled ? Promise.reject(new DOMException("unmounted", "AbortError")) : import("./scene")))
       .then(({ mountJersey }) => mountJersey(el, latest.current))
       .then((h) => {
         if (cancelled) return h.dispose();
@@ -35,11 +50,13 @@ export function Jersey3D({ ref, label, className, flip = false, ...options }: Pr
         setState("ready");
       })
       .catch((error: unknown) => {
+        if (cancelled) return;
         console.error("No se ha podido cargar la camiseta 3D:", error);
-        if (!cancelled) setState("failed");
+        setState("failed");
       });
     return () => {
       cancelled = true;
+      stopWatching();
       handle.current?.dispose();
       handle.current = null;
     };
