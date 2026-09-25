@@ -1,4 +1,4 @@
-import { useRef, type CSSProperties, type KeyboardEvent } from "react";
+import { useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Icon } from "../../components/celeste/icons";
@@ -29,8 +29,41 @@ interface Props {
   leaving?: PlayerLine;
 }
 
+/** Words of a name as letters (with a running index for the staggered entrance). */
+function nameWords(name: string) {
+  let i = 0;
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => [...word].map((ch) => ({ ch, i: i++ })));
+}
+/** Long single words shrink the name so it always fits (6 letters fill the column). */
+function nameFit(name: string): CSSProperties {
+  const longest = Math.max(1, ...name.split(/\s+/).map((w) => [...w].length));
+  return { "--k": Math.min(1, 6 / longest) } as CSSProperties;
+}
+
 export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onKit, theme, moment, next, live, now, auto, onToggleAuto, onHold, leaving }: Props) {
   const shirt = useRef<Jersey3DRef>(null);
+  const nameEl = useRef<HTMLHeadingElement>(null);
+  // The estimate from letter count can miss wide glyphs (W, M): measure the real words
+  // before paint and shrink just enough so no word overflows the column.
+  const selectedId = squad[sel]?.id;
+  useLayoutEffect(() => {
+    const el = nameEl.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.removeProperty("--k");
+      const base = Number(getComputedStyle(el).getPropertyValue("--k")) || 1;
+      const width = el.clientWidth;
+      const widest = Math.max(...[...el.querySelectorAll<HTMLElement>(".w")].map((w) => w.scrollWidth));
+      if (width && widest > width) el.style.setProperty("--k", String((base * width * 0.97) / widest));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [selectedId]);
   const rail = useRef<HTMLDivElement>(null);
   const p = squad[sel];
   const n = squad.length;
@@ -158,14 +191,21 @@ export function Vestidor({ narrative, seasonName, squad, sel, onSelect, kit, onK
             </span>
             <div className="hm-name">
               {leaving && leaving.id !== p.id && (
-                <span className="hm-name-out" key={`name-out-${leaving.id}`} aria-hidden="true">
+                <span className="hm-name-out" key={`name-out-${leaving.id}`} aria-hidden="true" style={nameFit(leaving.name)}>
                   {leaving.name}
                 </span>
               )}
-              <h2 key={`name-${p.id}`} aria-label={p.name}>
-                {[...p.name].map((ch, i) => (
-                  <span key={i} className="ch" aria-hidden="true" style={{ "--i": i } as CSSProperties}>
-                    {ch === " " ? "\u00a0" : ch}
+              <h2 key={`name-${p.id}`} ref={nameEl} aria-label={p.name} style={nameFit(p.name)}>
+                {nameWords(p.name).map((word, w) => (
+                  <span key={w}>
+                    {w > 0 && " "}
+                    <span className="w" aria-hidden="true">
+                      {word.map(({ ch, i }) => (
+                        <span key={i} className="ch" style={{ "--i": i } as CSSProperties}>
+                          {ch}
+                        </span>
+                      ))}
+                    </span>
                   </span>
                 ))}
               </h2>
