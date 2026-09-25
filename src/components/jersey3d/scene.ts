@@ -53,13 +53,24 @@ const LIVE_DPR = 1.5;
 /** The idle sway plays for a while after the last interaction, then fades out and the loop stops. */
 const SWAY_MS = 5000, SWAY_FADE = 1500;
 const BASE = "/models/";
+// Decoded off the main thread before use, so drawing or uploading the 2048² kits never stalls a frame.
 const image = (src: string) =>
   new Promise<HTMLImageElement>((ok, ko) => {
     const i = new Image();
-    i.onload = () => ok(i);
+    i.decoding = "async";
+    i.onload = () => i.decode().then(() => ok(i), () => ok(i));
     i.onerror = ko;
     i.src = src;
   });
+/** The inside faces are barely seen: a 1024² copy of the kit is enough (a quarter of the GPU memory). */
+function half(img: HTMLImageElement) {
+  const c = document.createElement("canvas");
+  c.width = c.height = KIT / 2;
+  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+/** Typing a name repaints the 2048² print canvas: wait for a short pause instead of every key. */
+const REPAINT_MS = 90;
 interface Assets {
   home: HTMLImageElement;
   away: HTMLImageElement;
@@ -158,7 +169,7 @@ function stage(canvas: HTMLCanvasElement, o: Required<JerseyOptions>, A: Assets,
   normalTex.needsUpdate = true;
   const baseTex = {} as Record<KitName, Texture>;
   for (const k of ["home", "away"] as const) {
-    const t = new Texture(A[k]);
+    const t = new Texture(half(A[k]));
     t.flipY = false;
     t.colorSpace = SRGBColorSpace;
     t.needsUpdate = true;
@@ -261,6 +272,7 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
   let target = home, vel = 0, dragging = false, lastX = 0, t = 0, raf = 0, last = 0, visible = true, alive = true;
   let tween: { from: number; to: number; start: number; dur: number } | null = null;
   let active = performance.now();
+  let repaintTimer = 0;
   let pending: Partial<JerseyOptions> | null = null;
   const ease = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
   const onDown = (e: PointerEvent) => {
@@ -354,12 +366,19 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
 
   return {
     set(next) {
-      const repaint = (["kit", "name", "num"] as const).some((k) => k in next && next[k] !== o[k]);
+      const kitChange = "kit" in next && next.kit !== o.kit;
+      const printChange = (["name", "num"] as const).some((k) => k in next && next[k] !== o[k]);
       Object.assign(o, next);
-      if (repaint) paint();
+      clearTimeout(repaintTimer);
+      if (kitChange) paint();
+      else if (printChange)
+        repaintTimer = window.setTimeout(() => {
+          paint();
+          poke();
+        }, REPAINT_MS);
       light();
       resize();
-      if (repaint) poke();
+      if (kitChange) poke();
     },
     swap(next) {
       const repaint = (["kit", "name", "num"] as const).some((k) => k in next && next[k] !== o[k]);
@@ -382,6 +401,7 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
     },
     dispose() {
       alive = false;
+      clearTimeout(repaintTimer);
       cancelAnimationFrame(raf);
       ro.disconnect();
       io.disconnect();
@@ -412,7 +432,8 @@ export function renderStill(r: StillRequest, type: "image/webp" | "image/png" = 
   stills ??= assets().then((A) => {
     const canvas = document.createElement("canvas");
     const o: Required<JerseyOptions> = { view: "back", reveal: false, zoom: STILL.zoom, lift: STILL.lift, kit: r.kit, theme: r.theme, name: r.name, num: r.num };
-    const s = stage(canvas, o, A, true);
+    // toBlob runs right after render, in the same task: no need to preserve the drawing buffer.
+    const s = stage(canvas, o, A);
     s.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     s.renderer.setSize(STILL.w, STILL.h, false);
     s.camera.aspect = STILL.w / STILL.h;
