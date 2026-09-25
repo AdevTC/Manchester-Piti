@@ -84,7 +84,7 @@ const plantillaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/plantilla",
   validateSearch: plantillaSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/Squad"), "SquadPage"),
+  component: lazyRouteComponent(() => import("./pages/squad/SquadPage"), "SquadPage"),
 });
 
 const profileRoute = createRoute({

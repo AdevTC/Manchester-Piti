@@ -16,8 +16,8 @@ export function RootLayout() {
     (p) => pathname.startsWith(p),
   );
   const admin = profile?.role === "admin" || profile?.role === "superadmin";
-  // Celeste pages (home, vestuario) bring their own header, dock and footer: hide the site chrome there.
-  const immersive = pathname === "/" || (pathname === "/vestuario" && member && !!profile);
+  // Celeste pages (home, plantilla, vestuario) bring their own header, dock and footer: hide the site chrome there.
+  const immersive = pathname === "/" || pathname === "/plantilla" || (pathname === "/vestuario" && member && !!profile);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
