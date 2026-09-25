@@ -1,0 +1,144 @@
+/* Inicio "día de partido" (Celeste): the match hero, the season row and «Ponte la del Piti».
+   Ported from the Design canvas (Inicio vs Plantilla · Elegida); tokens come from .vx and home.css. */
+
+/* hero: the match on the left, the player of the moment on the right */
+.hm-match{position:relative;overflow:hidden;background:var(--hero-bg);padding:92px 20px 34px}
+.hm-match .in{position:relative;z-index:3;display:grid;gap:22px}
+.hm-match .match{display:grid;gap:18px;min-width:0}
+.hm-chip-live{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--chip);font-family:'Geist Mono';font-size:11px;color:var(--soft);width:max-content;max-width:100%}
+.hm-chip-live i{width:8px;height:8px;border-radius:50%;background:#FFC659;box-shadow:0 0 0 4px rgba(255,198,89,.2);flex-shrink:0}
+.hm-chip-live.on i{background:#ff8f7a;box-shadow:0 0 0 4px rgba(255,143,122,.25);animation:hmPulse 1.4s ease-in-out infinite}
+@keyframes hmPulse{50%{opacity:.35}}
+.hm-match h1{margin:0;font-family:'Anybody';font-weight:900;font-size:calc((100cqi - 40px) / 8.2);line-height:.9;letter-spacing:-.03em;font-variation-settings:'wdth' 100;text-wrap:balance}
+.vx .hm-match .em{margin:-6px 0 0;font-size:15px;line-height:1.5;color:var(--soft);max-width:52ch}
+.hm-match .vs{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;text-align:center}
+.hm-match .team{display:grid;justify-items:center;gap:10px;min-width:0}
+.hm-match .cr{width:92px;height:92px;border-radius:50%;background:radial-gradient(circle,rgba(159,208,242,.25),transparent 70%);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.hm-match .cr img{width:78px;height:78px;object-fit:contain}
+.hm-match .cr.q{background:var(--chip);font-family:'Anybody';font-weight:900;font-size:30px;color:var(--muted);font-variation-settings:'wdth' 80}
+.hm-match .team b{font-family:'Anybody';font-weight:900;font-size:17px;line-height:1.05;font-variation-settings:'wdth' 90;max-width:100%}
+.hm-match .team small{font-family:'Geist Mono';font-size:10px;color:var(--muted)}
+.hm-match .x{font-family:'Anybody';font-weight:900;font-size:26px;color:var(--muted)}
+.hm-match .score{font-family:'Anybody';font-weight:900;font-size:46px;line-height:1;font-variation-settings:'wdth' 72;color:var(--accent)}
+.hm-match .when{text-align:center;display:grid;gap:4px}
+.hm-match .when b{font-family:'Anybody';font-weight:800;font-size:20px;font-variation-settings:'wdth' 104}
+.hm-match .when span{font-size:13px;color:var(--soft)}
+.hm-match .cd{display:flex;justify-content:center;gap:8px}
+.hm-match .cd div{width:72px;height:80px;border-radius:16px;background:linear-gradient(180deg,var(--flap) 50%,var(--flap2) 50%);color:#f4f8ff;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 20px 40px -20px rgba(0,0,0,.6)}
+.hm-match .cd b{font-family:'Anybody';font-weight:900;font-size:36px;line-height:1;font-variation-settings:'wdth' 72;font-variant-numeric:tabular-nums}
+.hm-match .cd span{font-family:'Geist Mono';font-size:9px;color:#9fb3d3;text-transform:uppercase}
+.hm-match .cd.ph b{color:#6d80a3}
+.hm-match .acts{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.hm-match .moment{display:grid;grid-template-columns:112px minmax(0,1fr);gap:16px;align-items:center;padding:18px}
+.hm-match .moment .pic{aspect-ratio:360/400;filter:drop-shadow(0 18px 16px rgba(0,0,0,.4))}
+.hm-match .moment .pic img,.hm-match .moment .pic .sq-shirt{width:100%;height:100%;display:block;object-fit:contain}
+.hm-match .moment .k{font-family:'Geist Mono';font-size:11px;color:var(--gold)}
+.hm-match .moment h2{margin:4px 0 0;font-family:'Anybody';font-weight:900;font-size:30px;line-height:.95;font-variation-settings:'wdth' 104;overflow-wrap:anywhere}
+.vx .hm-match .moment p{margin:6px 0 0;font-size:14px;line-height:1.45;color:var(--soft)}
+
+/* the season row */
+.hm-season{display:grid;gap:40px}
+.hm-season .blk{display:grid;gap:14px;align-content:start;min-width:0}
+.hm-season .hm-kick{margin:0}
+.hm-season .hm-h2{font-size:32px}
+.hm-empty{padding:20px 22px;border-radius:26px;background:var(--chip);color:var(--soft);font-size:14px;line-height:1.5}
+.hm-empty b{display:block;font-family:'Anybody';font-weight:800;font-size:18px;color:var(--ink);margin-bottom:4px}
+.vx .hm-last{display:grid;gap:12px;padding:20px;text-decoration:none;color:var(--ink)}
+.hm-last .sc{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;text-align:center}
+.hm-last .sc b{font-family:'Anybody';font-weight:800;font-size:15px;font-variation-settings:'wdth' 96;overflow-wrap:anywhere}
+.hm-last .n{font-family:'Anybody';font-weight:900;font-size:60px;line-height:.85;font-variation-settings:'wdth' 70}
+.hm-last .n.G{color:var(--accent)}
+.hm-last .d{font-family:'Geist Mono';font-size:11px;color:var(--muted);text-align:center}
+.hm-last ul{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:13px;color:var(--soft)}
+.hm-last li{display:flex;gap:10px}
+.hm-last li b{font-family:'Geist Mono';font-weight:600;color:var(--accent);min-width:34px}
+.hm-stats{margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.hm-stats div{padding:14px 12px;border-radius:22px;background:var(--chip)}
+.hm-stats dt{font-size:12px;color:var(--muted)}
+.hm-stats dd{margin:0 0 6px;order:-1;font-family:'Anybody';font-weight:900;font-size:30px;line-height:.9;font-variation-settings:'wdth' 72}
+.hm-stats div{display:flex;flex-direction:column}
+.hm-stats dd.sky{color:var(--accent)}
+.hm-stats dd.ph{color:var(--muted);opacity:.6}
+.hm-season .hm-form{margin-top:0}
+.hm-season .hm-form i{width:40px;height:40px;border-radius:12px;font-size:16px}
+.hm-next{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.vx .hm-next a{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px 10px 10px;border-radius:22px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-line);text-decoration:none;color:var(--ink)}
+.hm-next .d{width:58px;height:58px;border-radius:16px;background:linear-gradient(180deg,var(--flap) 50%,var(--flap2) 50%);color:#f4f8ff;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.hm-next .d b{font-family:'Anybody';font-weight:900;font-size:22px}
+.hm-next .d small{font-family:'Geist Mono';font-size:9px;color:#9fd0f2;text-transform:uppercase}
+.hm-next .r{display:block;font-weight:700;font-size:15px}
+.hm-next .s{display:block;font-size:12px;color:var(--muted)}
+.hm-next .t{font-family:'Geist Mono';font-size:11px;color:var(--accent)}
+
+/* «Ponte la del Piti» */
+.hm-fan{position:relative;z-index:2;margin:72px 20px 0;border-radius:36px;overflow:hidden;padding:26px 20px 24px;display:grid;gap:18px;background:radial-gradient(70% 60% at 30% 30%,rgba(108,171,221,.28),transparent 70%),radial-gradient(60% 60% at 90% 90%,rgba(255,198,89,.12),transparent 70%),var(--card);box-shadow:inset 0 0 0 1px var(--card-line)}
+.hm-fan .stage{position:relative;aspect-ratio:1/1;margin:0 -8px}
+.hm-fan .glow{position:absolute;inset:10%;border-radius:50%;background:radial-gradient(circle,rgba(108,171,221,.45),transparent 70%)}
+.hm-fan3d{position:absolute;inset:0;z-index:1}
+.hm-fan3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none;transition:opacity .6s}
+.hm-fan3d[data-state=loading] canvas{opacity:0}
+.hm-fan3d .vx-shirt-flat{position:absolute;inset:14%;display:flex;align-items:center;justify-content:center}
+.hm-fan .turn{position:absolute;right:10px;bottom:10px;z-index:2;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:999px;border:0;background:var(--chip);color:var(--ink);font-size:13px;font-weight:700;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.hm-fan .copy{display:grid;gap:12px;align-content:center;min-width:0}
+.hm-fan .copy .hm-kick{margin:0}
+.hm-fan h2{margin:0;font-family:'Anybody';font-weight:900;font-size:calc((100cqi - 40px) / 6.6);line-height:.88;letter-spacing:-.03em;font-variation-settings:'wdth' 96}
+.hm-fan h2 em{font-style:normal;color:var(--accent)}
+.hm-fan .hm-lede{margin:0}
+.hm-fan .form{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:10px}
+.hm-fan label{display:grid;gap:6px;min-width:0}
+.hm-fan label span{font-family:'Geist Mono';font-size:11px;color:var(--muted)}
+.hm-fan input{height:52px;width:100%;border-radius:18px;border:0;padding:0 16px;background:var(--input);color:var(--ink);font-family:'Barlow Condensed','Anybody',sans-serif;font-weight:700;font-size:22px;letter-spacing:.04em;text-transform:uppercase;box-shadow:inset 0 0 0 1px var(--card-line)}
+.hm-fan input::placeholder{color:var(--placeholder)}
+.hm-fan input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.hm-fan .hm-btn[disabled],.hm-fan .hm-ghostbtn[disabled]{opacity:.6}
+.hm-kitseg{display:inline-grid;grid-auto-flow:column;padding:5px;border-radius:999px;background:var(--rsvp);height:52px}
+.hm-kitseg button{border:0;background:transparent;border-radius:999px;padding:0 16px;min-width:48px;font-weight:700;font-size:14px;color:var(--rsvp-ink);display:inline-flex;align-items:center;gap:8px}
+.hm-kitseg button[aria-pressed=true]{background:var(--thumb);color:var(--thumb-ink);box-shadow:var(--thumb-shadow)}
+.hm-kitseg .sw{width:14px;height:14px;border-radius:50%;background:#8ac8f5;box-shadow:inset 0 0 0 2px #CFA862}
+.hm-kitseg .sw.a{background:#1d1d22;box-shadow:inset 0 0 0 2px #D6161F}
+.hm-fan .note{font-size:12px;color:var(--muted)}
+
+/* bottom: squad link + vestuario */
+.hm-bottom{position:relative;z-index:2;display:grid;gap:18px;margin-top:64px;padding:0 20px}
+.hm-bottom .hm-vest{margin:0}
+.vx .hm-squad{display:flex;align-items:center;gap:14px;padding:18px;border-radius:28px;background:var(--chip);text-decoration:none;color:var(--ink)}
+.hm-squad .i{width:48px;height:48px;border-radius:16px;background:var(--thumb);color:var(--thumb-ink);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hm-squad b{display:block;font-family:'Anybody';font-weight:800;font-size:18px;font-variation-settings:'wdth' 104}
+.hm-squad span span{display:block;font-size:13px;color:var(--muted);line-height:1.4}
+.hm-squad .ar{margin-left:auto;color:var(--accent)}
+
+@container (min-width:700px){
+.hm-match{padding:112px 40px 44px}
+.hm-match h1{font-size:calc((100cqi - 80px) / 10)}
+.hm-season{grid-template-columns:repeat(2,minmax(0,1fr))}
+.hm-fan{margin:96px 40px 0;padding:34px}
+.hm-fan h2{font-size:56px}
+.hm-bottom{margin-top:80px;padding:0 40px}
+}
+@container (min-width:1100px){
+.hm-match{padding:124px 64px 64px}
+.hm-match .in{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:56px;align-items:stretch}
+.hm-match h1{font-size:74px}
+.hm-match .vs{max-width:620px}
+.hm-match .cr{width:128px;height:128px}
+.hm-match .cr img{width:108px;height:108px}
+.hm-match .team b{font-size:22px}
+.hm-match .x{font-size:34px}
+.hm-match .when{text-align:left;justify-items:start}
+.hm-match .cd,.hm-match .acts{justify-content:flex-start}
+.hm-match .cd div{width:104px;height:112px;border-radius:20px}
+.hm-match .cd b{font-size:52px}
+.hm-match .moment{grid-template-columns:1fr;justify-items:center;text-align:center;padding:30px 30px 34px;align-content:center}
+.hm-match .moment .pic{width:62%;max-width:340px}
+.hm-match .moment h2{font-size:52px}
+.vx .hm-match .moment p{max-width:36ch;margin-left:auto;margin-right:auto}
+.hm-season{grid-template-columns:minmax(0,1.25fr) minmax(0,.9fr) minmax(0,1fr);gap:40px}
+.hm-season .hm-h2{font-size:44px}
+.hm-fan{margin:120px 64px 0;padding:44px 56px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:center}
+.hm-fan .stage{margin:0;max-width:560px;width:100%;justify-self:center}
+.hm-fan h2{font-size:72px}
+.hm-bottom{margin-top:110px;padding:0 64px;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);align-items:stretch;gap:28px}
+.vx .hm-squad{flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:30px;border-radius:36px}
+.hm-squad b{font-size:30px}
+.hm-squad .ar{margin:0}
+}

@@ -6,6 +6,7 @@ import { nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
 import { analysePlayer, chronological } from "../../lib/clubAnalytics";
 import { currentSeasonId } from "../../lib/vestuario";
 import { matchesQuery, sortSquad, squadRow, squadSummary, type SquadRow } from "../../lib/squad";
+import { leaders, playerLines, seasonPulse, upcomingBirthdays, type SquadMember } from "../../lib/home";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
@@ -15,6 +16,7 @@ import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { Percha } from "./Percha";
 import { FichaModal } from "./FichaModal";
 import { CaraACara } from "./CaraACara";
+import { RaceAndBirthdays } from "../home/Sections";
 import "../../styles/home.css";
 import "../../styles/squad.css";
 
@@ -52,6 +54,13 @@ export function SquadPage() {
       });
     return { rows: sortSquad(list, "num"), withStats: games.length > 0 };
   }, [matches, players, seasonId, seasons, now]);
+
+  // Pichichi, assists and birthdays live here: the home is about the match, this page about the players.
+  const race = useMemo(() => {
+    const members: SquadMember[] = rows.map((r) => ({ id: r.id, name: r.name, num: r.num, birthDate: players.find((p) => p.id === r.id)?.birthDate }));
+    const lines = playerLines(members, seasonPulse(matches, seasonId, now).played);
+    return { scorers: leaders(lines, "goals"), assister: leaders(lines, "assists", 1)[0], birthdays: upcomingBirthdays(members, now) };
+  }, [rows, players, matches, seasonId, now]);
 
   const [query, setQuery] = useState("");
   const [kit, setKit] = useState<"home" | "away">("home");
@@ -175,6 +184,8 @@ export function SquadPage() {
           </>
         )}
       </section>
+
+      {rows.length > 0 && <RaceAndBirthdays scorers={race.scorers} assister={race.assister} birthdays={race.birthdays} />}
 
       {a && b && a.id !== b.id && (
         <section className="hm-sec" id="sq-cara" aria-labelledby="sq-cara-t">

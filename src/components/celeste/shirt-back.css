@@ -1,0 +1,7 @@
+/* Flat kit back (ShirtBack). Colours come from the page's kit tokens, with the 1ª equipación as fallback. */
+.sq-shirt{display:block;width:100%;height:auto;overflow:visible}
+.sq-shirt .body{fill:var(--kit,#8ac8f5);stroke:rgba(0,0,0,.18);stroke-width:1}
+.sq-shirt .slash{fill:var(--kit-acc,#CFA862);opacity:var(--slash,0)}
+.sq-shirt .trim{fill:none;stroke:var(--kit-acc,#CFA862);stroke-width:3;stroke-linecap:round}
+.sq-shirt .name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:25px;letter-spacing:1px;fill:var(--kit-ink,#051330)}
+.sq-shirt .num{font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:104px;fill:var(--kit-ink,#051330);stroke:var(--kit-acc,#CFA862);stroke-width:2.5;paint-order:stroke}

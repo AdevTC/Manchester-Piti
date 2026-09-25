@@ -1,50 +1,131 @@
 import { Link } from "@tanstack/react-router";
-import { Icon, type IconName } from "../../components/celeste/icons";
+import { Icon } from "../../components/celeste/icons";
 import { dateMillis, formatDate, isCompleted, type ClubMatch } from "../../lib/clubData";
-import { resultOf, type ClubMedal, type PlayerLine, type Pulse, type Result } from "../../lib/home";
+import { resultOf, type PlayerLine, type Pulse, type Result } from "../../lib/home";
 import { plural } from "../../lib/vestuario";
 
 const RESULT_LABEL: Record<Result, string> = { G: "Victoria", E: "Empate", P: "Derrota" };
+const MONTH = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", month: "short" });
+const DAYN = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric" });
+const HOUR = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
-// ---------- así va la temporada
-export function SeasonPulse({ pulse }: { pulse: Pulse }) {
+function goalsOf(m: ClubMatch, nameOf: (id: string) => string) {
+  return (m.events ?? [])
+    .filter((e) => /^goal/.test(e.type) && e.playerId)
+    .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
+    .map((e) => ({ minute: e.minute, who: nameOf(e.playerId!), assist: e.assistPlayerId ? nameOf(e.assistPlayerId) : null }));
+}
+
+// ---------- la temporada: último partido · así va · lo que viene
+export function SeasonRow({ pulse, now, nameOf }: { pulse: Pulse; now: number; nameOf: (id: string) => string }) {
+  const last = pulse.last;
   const played = pulse.played.length;
   const form: (Result | null)[] = [...pulse.form, ...Array(5 - pulse.form.length).fill(null)];
+  const upcoming = pulse.upcoming.filter((m) => !isCompleted(m) && m.id !== pulse.live?.id).slice(0, 3);
+  const r = last ? resultOf(last) : null;
   return (
-    <section className="hm-sec" aria-labelledby="hm-pulse">
-      <span className="hm-kick">Así va la temporada</span>
-      <h2 className="hm-h2" id="hm-pulse">
-        {played ? (
-          <>
-            {plural(played, "partido", "partidos")}. <em>{plural(pulse.gf, "gol", "goles")}.</em>
-          </>
-        ) : (
-          <>
-            Todo a cero. <em>La jornada 1 lo enciende.</em>
-          </>
-        )}
-      </h2>
-      <div className="hm-pulse">
-        <div className={`hm-cell${played ? "" : " ph"}`}>
-          <span className="k">Partidos</span>
-          <b>{played}</b>
-          <span className="s">{played ? `${plural(pulse.wins, "victoria", "victorias")} · ${plural(pulse.draws, "empate", "empates")} · ${plural(pulse.losses, "derrota", "derrotas")}` : "El marcador se enciende en la jornada 1."}</span>
+    <section className="hm-sec" aria-label="La temporada">
+      <div className="hm-season">
+        <div className="blk">
+          <span className="hm-kick">El último partido</span>
+          <h2 className="hm-h2">{last ? RESULT_LABEL[r!] + (r === "G" ? "" : " ante " + (last.rival ?? "el rival")) : "Todo por estrenar"}</h2>
+          {last ? (
+            <Link className="hm-last hm-card" to="/matches/$matchId" params={{ matchId: last.id }}>
+              <span className="sc">
+                <b>PITI</b>
+                <span className={`n ${r}`}>
+                  {last.goalsFor ?? 0}–{last.goalsAgainst ?? 0}
+                </span>
+                <b>{last.rival ?? "Rival"}</b>
+              </span>
+              <span className="d">{formatDate(last.date)}</span>
+              {goalsOf(last, nameOf).length > 0 && (
+                <ul>
+                  {goalsOf(last, nameOf).map((g, i) => (
+                    <li key={i}>
+                      <b>{g.minute != null ? `${g.minute}′` : "Gol"}</b>
+                      {g.who}
+                      {g.assist && ` · asistencia de ${g.assist}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <span className="hm-link">
+                Crónica y acta <Icon name="arrow" size={15} stroke={2.2} />
+              </span>
+            </Link>
+          ) : (
+            <div className="hm-empty">
+              <b>Aún no se ha jugado ninguno.</b>Aquí aparecerán el resultado y los goleadores en cuanto se cierre el acta.
+            </div>
+          )}
         </div>
-        <div className={`hm-cell${played ? "" : " ph"}`}>
-          <span className="k">Goles</span>
-          <b style={played ? { color: "var(--accent)" } : undefined}>{pulse.gf}</b>
-          <span className="s">{played ? `${(pulse.gf / played).toFixed(1).replace(".", ",")} por partido · ${pulse.ga} en contra` : "Cada gol del acta suma aquí al instante."}</span>
-        </div>
-        <div className="hm-cell wide">
-          <span className="k">Forma · últimos 5</span>
-          <div className="hm-form" aria-label={pulse.form.length ? `Últimos partidos: ${pulse.form.map((r) => RESULT_LABEL[r].toLowerCase()).join(", ")}` : "Sin partidos todavía"}>
-            {form.map((r, i) => (
-              <i key={i} className={r ?? "q"} aria-hidden="true">
-                {r ?? "?"}
+        <div className="blk">
+          <span className="hm-kick">Así va la temporada</span>
+          <h2 className="hm-h2">{played ? `${plural(played, "partido", "partidos")}, ${plural(pulse.gf, "gol", "goles")}` : "Todo a cero"}</h2>
+          <dl className="hm-stats">
+            <div>
+              <dt>Partidos</dt>
+              <dd className={played ? undefined : "ph"}>{played}</dd>
+            </div>
+            <div>
+              <dt>Goles</dt>
+              <dd className={played ? "sky" : "ph"}>{pulse.gf}</dd>
+            </div>
+            <div>
+              <dt>Victorias</dt>
+              <dd className={played ? undefined : "ph"}>{pulse.wins}</dd>
+            </div>
+          </dl>
+          <span className="hm-kick" style={{ margin: "6px 0 0" }}>
+            Forma · últimos 5
+          </span>
+          <div className="hm-form" aria-label={pulse.form.length ? `Últimos partidos: ${pulse.form.map((x) => RESULT_LABEL[x].toLowerCase()).join(", ")}` : "Sin partidos todavía"}>
+            {form.map((x, i) => (
+              <i key={i} className={x ?? "q"} aria-hidden="true">
+                {x ?? "?"}
               </i>
             ))}
           </div>
-          <span className="s">G victoria · E empate · P derrota{pulse.form.length ? " · el más reciente a la izquierda" : ""}</span>
+        </div>
+        <div className="blk">
+          <span className="hm-kick">Calendario</span>
+          <h2 className="hm-h2">Lo que viene</h2>
+          {upcoming.length ? (
+            <ul className="hm-next">
+              {upcoming.map((m) => {
+                const at = dateMillis(m.date);
+                return (
+                  <li key={m.id}>
+                    <Link to="/matches/$matchId" params={{ matchId: m.id }}>
+                      <span className="d">
+                        {at ? (
+                          <>
+                            <b>{DAYN.format(at)}</b>
+                            <small>{MONTH.format(at).replace(".", "")}</small>
+                          </>
+                        ) : (
+                          <b>?</b>
+                        )}
+                      </span>
+                      <span>
+                        <span className="r">vs {m.rival ?? "Rival por anunciar"}</span>
+                        <span className="s">{[m.home === false ? "Fuera" : "En casa", m.venue].filter(Boolean).join(" · ")}</span>
+                      </span>
+                      <span className="t">{at && at > now ? HOUR.format(at) : ""}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="hm-empty">
+              <b>El calendario llega pronto.</b>Suscríbete arriba y cada partido entrará solo en tu calendario, con hora y campo.
+            </div>
+          )}
+          <Link className="hm-link" to="/partidos">
+            Todo el calendario <Icon name="arrow" size={15} stroke={2.2} />
+          </Link>
         </div>
       </div>
     </section>
@@ -123,133 +204,6 @@ export function RaceAndBirthdays({ scorers, assister, birthdays }: { scorers: Pl
             </ul>
           </div>
         )}
-      </div>
-    </section>
-  );
-}
-
-// ---------- vitrina
-const MEDAL_ICON: Record<string, IconName> = { debut: "flag", goal: "ball", win: "star", pichichi: "crown", assist: "boot", record: "flame" };
-export function ClubVitrina({ medals, seasonName }: { medals: ClubMedal[]; seasonName: string }) {
-  const earned = medals.filter((m) => m.earned).length;
-  return (
-    <section className="hm-sec" aria-labelledby="hm-vit">
-      <span className="hm-kick">
-        La vitrina del club · {seasonName} · {earned} de {medals.length}
-      </span>
-      <h2 className="hm-h2" id="hm-vit">
-        {earned ? (
-          <>
-            Lo que ya <em>es historia</em>
-          </>
-        ) : (
-          <>
-            Una vitrina <em>por estrenar</em>
-          </>
-        )}
-      </h2>
-      <ul className="hm-medals">
-        {medals.map((m) => (
-          <li key={m.id} className={`hm-medal${m.earned ? (m.tone === "sky" ? " sky" : "") : " off"}`}>
-            <span className="m">
-              <Icon name={MEDAL_ICON[m.id]} size={26} stroke={2} />
-            </span>
-            <span className="k">{m.kicker}</span>
-            <b>{m.title}</b>
-            <span>
-              {m.detail}
-              <span className="hm-sr">{m.earned ? " · conseguido" : " · pendiente"}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-// ---------- calendario + equipaciones
-function Game({ m, now, nameOf, hot }: { m: ClubMatch; now: number; nameOf: (id: string) => string; hot: boolean }) {
-  const done = isCompleted(m);
-  const r = done ? resultOf(m) : null;
-  const scorers = done
-    ? (m.events ?? [])
-        .filter((e) => /^goal/.test(e.type) && e.playerId)
-        .reduce((acc, e) => acc.set(e.playerId!, (acc.get(e.playerId!) ?? 0) + 1), new Map<string, number>())
-    : null;
-  const who = scorers?.size ? [...scorers.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => (n > 1 ? `${nameOf(id)} ×${n}` : nameOf(id))).join(" · ") : done ? "Sin goles del Piti" : dateMillis(m.date) > now ? formatDate(m.date, true) : "Resultado pendiente";
-  return (
-    <Link to="/matches/$matchId" params={{ matchId: m.id }} className={`hm-game${done ? " res" : ""}${hot ? " hot" : ""}`}>
-      <span className="d">
-        {formatDate(m.date)}
-        {r && (
-          <span className={`tag ${r}`} aria-label={RESULT_LABEL[r]}>
-            {r}
-          </span>
-        )}
-      </span>
-      <div className="sc">
-        <div className="vx-flap">
-          <b>{done ? (m.goalsFor ?? 0) : "?"}</b>
-        </div>
-        <i>–</i>
-        <div className="vx-flap them">
-          <b>{done ? (m.goalsAgainst ?? 0) : "?"}</b>
-        </div>
-      </div>
-      <b className="r">{m.rival ?? "Rival por anunciar"}</b>
-      <small>{who}</small>
-    </Link>
-  );
-}
-export function CalendarAndKits({ pulse, now, nameOf, kit, onKit }: { pulse: Pulse; now: number; nameOf: (id: string) => string; kit: "home" | "away"; onKit: (k: "home" | "away") => void }) {
-  const upcoming = pulse.upcoming.filter((m) => !isCompleted(m));
-  const results = [...pulse.played].reverse();
-  const games = [...upcoming, ...results];
-  const pickKit = (k: "home" | "away") => {
-    onKit(k);
-    document.querySelector(".hm-poster")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
-  };
-  const shirt = (
-    <svg className="sh" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2} aria-hidden="true">
-      <path d={SHIRT} />
-    </svg>
-  );
-  return (
-    <section className="hm-sec" aria-labelledby="hm-fx">
-      <div className="hm-row" style={{ justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <span className="hm-kick">Calendario</span>
-          <h2 className="hm-h2" id="hm-fx">
-            Jornada a jornada
-          </h2>
-        </div>
-        <Link className="hm-link" to="/partidos">
-          Todo el calendario <Icon name="arrow" size={15} stroke={2.2} />
-        </Link>
-      </div>
-      <div className="hm-fx">
-        {games.length === 0 && (
-          <article className="hm-game next">
-            <span className="d">Partido inaugural</span>
-            <b>Fecha por confirmar</b>
-            <span className="hm-link">El calendario se publica aquí</span>
-          </article>
-        )}
-        {games.map((m) => (
-          <Game key={m.id} m={m} now={now} nameOf={nameOf} hot={m.id === pulse.last?.id || m.id === pulse.live?.id} />
-        ))}
-      </div>
-      <div className="hm-kits">
-        <button type="button" className="hm-kitcard home" aria-pressed={kit === "home"} onClick={() => pickKit("home")}>
-          {shirt}
-          <span className="k">1ª equipación · pruébatela arriba</span>
-          <b>Local</b>
-        </button>
-        <button type="button" className="hm-kitcard away" aria-pressed={kit === "away"} onClick={() => pickKit("away")}>
-          {shirt}
-          <span className="k">2ª equipación · pruébatela arriba</span>
-          <b>Visitante</b>
-        </button>
       </div>
     </section>
   );

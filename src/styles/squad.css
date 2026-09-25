@@ -5,13 +5,6 @@
 [data-theme="light"] .sq{--hook:#5b6d8c}
 .sq[data-kit=away],.sq-layer[data-kit=away]{--kit:#1d1d22;--kit2:#0b0b0e;--kit-ink:#F5F5F5;--kit-acc:#D6161F;--slash:.95}
 
-/* flat shirt (fallback while the photos render, or without WebGL) */
-.sq-shirt{display:block;width:100%;height:auto;overflow:visible}
-.sq-shirt .body{fill:var(--kit);stroke:rgba(0,0,0,.18);stroke-width:1}
-.sq-shirt .slash{fill:var(--kit-acc);opacity:var(--slash)}
-.sq-shirt .trim{fill:none;stroke:var(--kit-acc);stroke-width:3;stroke-linecap:round}
-.sq-shirt .name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:25px;letter-spacing:1px;fill:var(--kit-ink)}
-.sq-shirt .num{font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:104px;fill:var(--kit-ink);stroke:var(--kit-acc);stroke-width:2.5;paint-order:stroke}
 
 /* shared controls */
 .sq-round{width:44px;height:44px;flex:0 0 44px;border-radius:50%;border:0;background:var(--chip);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
