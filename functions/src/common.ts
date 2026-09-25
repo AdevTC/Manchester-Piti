@@ -2,11 +2,15 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2";
+import { defineString } from "firebase-functions/params";
 import { z } from "zod";
 
 initializeApp();
 setGlobalOptions({ region: "europe-west1", maxInstances: 5 });
 export const db = getFirestore();
+export const siteUrl = defineString("PUBLIC_SITE_URL", {
+  default: "https://futbolmanagement-dc6cb.web.app",
+});
 export const idSchema = z
   .string()
   .min(1)

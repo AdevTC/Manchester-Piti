@@ -57,7 +57,7 @@ export function VestuarioPage() {
   const { lock, member } = useTeam();
   const { seasons } = useSeason();
   const { matches, players } = useClubData();
-  const now = useClock();
+  const now = useClock(60_000);
   const theme = useDocumentTheme();
   const uid = user?.uid ?? "";
   const admin = ["admin", "superadmin"].includes(profile?.role ?? "");

@@ -22,7 +22,7 @@ export function HomePage() {
   const { matches, players } = useClubData();
   const { seasons } = useSeason();
   const content = useClubContent();
-  const now = useClock();
+  const now = useClock(60_000);
   const theme = useDocumentTheme();
   const seasonId = currentSeasonId(nextFixture(matches, now), matches, seasons);
   const seasonName = seasons.find((s) => s.id === seasonId)?.name ?? "Temporada";

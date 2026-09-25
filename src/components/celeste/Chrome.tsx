@@ -44,7 +44,7 @@ export function CelesteHeader({ active, sub, actions }: { active: CelestePage; s
   return (
     <header className="vx-top">
       <Link className="vx-brand" to="/">
-        <img src="/crest.png" alt="Escudo del Manchester Piti" />
+        <img src="/crest-128.webp" alt="Escudo del Manchester Piti" />
         <span className="vx-brand-name">Manchester Piti</span>
         <span className="vx-brand-sub">{sub}</span>
       </Link>
@@ -68,7 +68,7 @@ export function CelesteDock({ active }: { active: CelestePage }) {
       {DOCK.map((d) =>
         d.key === active ? (
           <Link key={d.key} to={d.to} className="on" aria-current="page">
-            <img src="/crest.png" alt="" />
+            <img src="/crest-128.webp" alt="" />
             <span className="lbl">{d.label}</span>
           </Link>
         ) : (
@@ -85,7 +85,7 @@ export function CelesteFooter() {
   return (
     <footer className="vx-foot">
       <span className="b">
-        <img src="/crest.png" alt="" />
+        <img src="/crest-128.webp" alt="" />
         Manchester Piti
       </span>
       <nav aria-label="Pie de página">

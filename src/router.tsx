@@ -7,7 +7,6 @@ import {
 } from "@tanstack/react-router";
 import { z } from "zod";
 import { RootLayout } from "./RootLayout";
-import { VestuarioPage } from "./pages/vestuario/VestuarioPage";
 import {
   RoutePending,
   RouteError,
@@ -140,7 +139,10 @@ const clubRoute = createRoute({
 const vestuarioRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/vestuario",
-  component: VestuarioPage,
+  component: lazyRouteComponent(
+    () => import("./pages/vestuario/VestuarioPage"),
+    "VestuarioPage",
+  ),
 });
 const pizarraRoute = createRoute({
   getParentRoute: () => rootRoute,

@@ -1,9 +1,8 @@
 // Subscribable iCalendar feed of the club's matches (webcal://…/calendario.ics).
 // Phones refresh it on their own, so a new fixture shows up in everyone's calendar.
 import { onRequest } from "firebase-functions/v2/https";
-import { db } from "./common.js";
+import { db, siteUrl } from "./common.js";
 import { dateMillis } from "./matchEngine.js";
-import { siteUrl } from "./social.js";
 
 const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 const esc = (s: string) => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\r?\n/g, "\\n");

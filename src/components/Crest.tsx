@@ -23,7 +23,7 @@ export const Crest: React.FC<CrestProps> = ({
   style,
 }) => (
   <img
-    src="/crest.png"
+    src={size !== undefined && size <= 64 ? "/crest-128.webp" : "/crest.png"}
     width={size}
     height={size}
     alt={alt}
