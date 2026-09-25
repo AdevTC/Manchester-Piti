@@ -1,9 +1,10 @@
 // Vestuario features: account ↔ player link (claim + admin approval), training date
-// polls, the season porra and the team board. All writes go through the backend.
+// polls, the season porra and the team board. Everyday member writes (training votes,
+// porra, board messages) go straight to Firestore under the rules; the rest lives here.
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
-import { db, idSchema, parse, member, admin, identity } from "./common.js";
+import { db, idSchema, parse, memberAs, admin } from "./common.js";
 import { predictionPoints, sortPorra, type PorraRow } from "./vestuarioLogic.js";
 
 const DAY = 24 * 60 * 60_000;
@@ -14,12 +15,11 @@ const playerLabel = (p: FirebaseFirestore.DocumentSnapshot) =>
 
 // ---------- account ↔ player
 export const requestPlayerClaim = onCall(async (req) => {
-  const uid = await member(req);
   const { playerId } = parse(z.object({ playerId: idSchema }), req.data);
-  const [player, link, profile] = await Promise.all([
+  const [{ uid, profile }, player, link] = await Promise.all([
+    memberAs(req),
     db.doc(`players/${playerId}`).get(),
     db.doc(`playerLinks/${playerId}`).get(),
-    db.doc(`users/${uid}`).get(),
   ]);
   if (!player.exists)
     throw new HttpsError("not-found", "Esa ficha no existe.");
@@ -93,7 +93,7 @@ const slotInput = z.object({
   place: z.string().trim().max(80).default(""),
 });
 export const proposeTraining = onCall(async (req) => {
-  const uid = await member(req);
+  const { uid, who } = await memberAs(req);
   const { slots, note } = parse(
     z.object({
       slots: z.array(slotInput).min(1).max(4),
@@ -106,7 +106,6 @@ export const proposeTraining = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "Cada hueco debe acabar después de empezar y durar como mucho 6 horas.");
   if (slots.some((s) => s.at <= now || s.at > now + 60 * DAY))
     throw new HttpsError("invalid-argument", "Propón fechas de los próximos dos meses.");
-  const who = await identity(req, uid);
   const sorted = [...slots].sort((a, b) => a.at - b.at);
   const ref = await db.collection("trainings").add({
     slots: sorted.map((s, i) => ({ id: `s${i + 1}`, at: Timestamp.fromMillis(s.at), ...(s.end ? { end: Timestamp.fromMillis(s.end) } : {}), place: s.place })),
@@ -119,34 +118,6 @@ export const proposeTraining = onCall(async (req) => {
   return { id: ref.id };
 });
 
-export const voteTraining = onCall(async (req) => {
-  const uid = await member(req);
-  const { trainingId, slotIds } = parse(
-    z.object({ trainingId: idSchema, slotIds: z.array(z.string().max(8)).max(4) }),
-    req.data,
-  );
-  const training = await db.doc(`trainings/${trainingId}`).get();
-  if (!training.exists) throw new HttpsError("not-found", "Ese entreno ya no existe.");
-  const now = Date.now();
-  const slots = (training.get("slots") ?? []) as { id: string; at: Timestamp }[];
-  const open = new Set(slots.filter((s) => s.at.toMillis() > now).map((s) => s.id));
-  if (!open.size) throw new HttpsError("failed-precondition", "La votación ya ha terminado.");
-  const chosen = [...new Set(slotIds)];
-  if (chosen.some((id) => !open.has(id)))
-    throw new HttpsError("invalid-argument", "Elige huecos que todavía no hayan pasado.");
-  // Once confirmed, the vote is closed: only "voy / no puedo" for the confirmed slot.
-  const confirmed = training.get("confirmed.slotId") as string | undefined;
-  if (confirmed && chosen.some((id) => id !== confirmed))
-    throw new HttpsError("failed-precondition", "La votación está cerrada: el entreno ya está confirmado.");
-  const ref = db.doc(`trainings/${trainingId}/votes/${uid}`);
-  if (!chosen.length) await ref.delete();
-  else {
-    const who = await identity(req, uid);
-    await ref.set({ slotIds: chosen, name: who.name, playerId: who.playerId, at: FieldValue.serverTimestamp() });
-  }
-  return { ok: true };
-});
-
 const MADRID = "Europe/Madrid";
 const slotLabel = (at: number, end?: number) => {
   const day = new Intl.DateTimeFormat("es-ES", { timeZone: MADRID, weekday: "long", day: "numeric", month: "short" }).format(at);
@@ -156,15 +127,13 @@ const slotLabel = (at: number, end?: number) => {
 
 /** Proposer or admin fixes the winning slot (or reopens the vote with slotId null). */
 export const confirmTraining = onCall(async (req) => {
-  const uid = await member(req);
   const { trainingId, slotId } = parse(
     z.object({ trainingId: idSchema, slotId: z.string().max(8).nullable() }),
     req.data,
   );
   const ref = db.doc(`trainings/${trainingId}`);
-  const [training, profile] = await Promise.all([ref.get(), db.doc(`users/${uid}`).get()]);
+  const [{ uid, isAdmin, who }, training] = await Promise.all([memberAs(req), ref.get()]);
   if (!training.exists) throw new HttpsError("not-found", "Ese entreno ya no existe.");
-  const isAdmin = ["admin", "superadmin"].includes(profile.get("role"));
   if (training.get("proposedBy") !== uid && !isAdmin)
     throw new HttpsError("permission-denied", "Solo quien lo propuso o un administrador puede confirmarlo.");
   if (slotId === null) {
@@ -175,7 +144,6 @@ export const confirmTraining = onCall(async (req) => {
   const slot = slots.find((s) => s.id === slotId);
   if (!slot) throw new HttpsError("not-found", "Ese hueco no existe.");
   if (slot.at.toMillis() <= Date.now()) throw new HttpsError("failed-precondition", "Ese hueco ya ha pasado.");
-  const who = await identity(req, uid);
   const place = slot.place || "";
   await ref.update({
     confirmed: { slotId, at: slot.at, ...(slot.end ? { end: slot.end } : {}), place, by: uid, byName: who.name, confirmedAt: FieldValue.serverTimestamp() },
@@ -192,39 +160,17 @@ export const confirmTraining = onCall(async (req) => {
 });
 
 export const deleteTraining = onCall(async (req) => {
-  const uid = await member(req);
   const { trainingId } = parse(z.object({ trainingId: idSchema }), req.data);
   const ref = db.doc(`trainings/${trainingId}`);
-  const [training, profile] = await Promise.all([ref.get(), db.doc(`users/${uid}`).get()]);
+  const [{ uid, isAdmin }, training] = await Promise.all([memberAs(req), ref.get()]);
   if (!training.exists) return { ok: true };
-  if (training.get("proposedBy") !== uid && !["admin", "superadmin"].includes(profile.get("role")))
+  if (training.get("proposedBy") !== uid && !isAdmin)
     throw new HttpsError("permission-denied", "Solo quien lo propuso o un administrador puede borrarlo.");
   await db.recursiveDelete(ref);
   return { ok: true };
 });
 
-// ---------- porra
-const goals = z.number().int().min(0).max(30);
-export const predictScore = onCall(async (req) => {
-  const uid = await member(req);
-  const { matchId, goalsFor, goalsAgainst } = parse(
-    z.object({ matchId: idSchema, goalsFor: goals, goalsAgainst: goals }),
-    req.data,
-  );
-  const match = await db.doc(`matches/${matchId}`).get();
-  if (!match.exists || match.get("status") !== "scheduled" || match.get("date").toMillis() <= Date.now())
-    throw new HttpsError("failed-precondition", "La porra se cierra al empezar el partido.");
-  const who = await identity(req, uid);
-  await db.doc(`matchPrivate/${matchId}/predictions/${uid}`).set({
-    goalsFor,
-    goalsAgainst,
-    name: who.name,
-    playerId: who.playerId,
-    at: FieldValue.serverTimestamp(),
-  });
-  return { ok: true };
-});
-
+// ---------- porra (predictions are written by each member; the table is rebuilt here)
 /** Rebuild a season's porra table from every finished match and its predictions. */
 export async function recomputePorra(seasonId: string) {
   const finished = await db
@@ -233,9 +179,10 @@ export async function recomputePorra(seasonId: string) {
     .where("status", "==", "finished")
     .get();
   const rows = new Map<string, PorraRow>();
-  for (const match of finished.docs) {
+  const allPredictions = await Promise.all(finished.docs.map((m) => db.collection(`matchPrivate/${m.id}/predictions`).get()));
+  for (const [i, match] of finished.docs.entries()) {
     const result = { goalsFor: match.get("goalsFor") ?? 0, goalsAgainst: match.get("goalsAgainst") ?? 0 };
-    const predictions = await db.collection(`matchPrivate/${match.id}/predictions`).get();
+    const predictions = allPredictions[i];
     for (const p of predictions.docs) {
       const row = rows.get(p.id) ?? { uid: p.id, name: p.get("name") ?? "Miembro", playerId: p.get("playerId") ?? null, points: 0, exact: 0, hits: 0, played: 0 };
       const pts = predictionPoints({ goalsFor: p.get("goalsFor"), goalsAgainst: p.get("goalsAgainst") }, result);
@@ -256,31 +203,4 @@ export async function recomputePorra(seasonId: string) {
   });
 }
 
-// ---------- board
-export const postBoardMessage = onCall(async (req) => {
-  const uid = await member(req);
-  const { text } = parse(z.object({ text: z.string().trim().min(1, "Escribe algo.").max(500) }), req.data);
-  const who = await identity(req, uid);
-  const rateRef = db.doc(`boardRate/${uid}`);
-  const ref = db.collection("board").doc();
-  await db.runTransaction(async (tx) => {
-    const rate = await tx.get(rateRef);
-    if (Date.now() - (rate.get("at") ?? 0) < 5000)
-      throw new HttpsError("resource-exhausted", "Espera un momento antes de volver a escribir.");
-    tx.set(rateRef, { at: Date.now() });
-    tx.set(ref, { text, uid, name: who.name, playerId: who.playerId, at: FieldValue.serverTimestamp() });
-  });
-  return { id: ref.id };
-});
-
-export const deleteBoardMessage = onCall(async (req) => {
-  const uid = await member(req);
-  const { id } = parse(z.object({ id: idSchema }), req.data);
-  const ref = db.doc(`board/${id}`);
-  const [message, profile] = await Promise.all([ref.get(), db.doc(`users/${uid}`).get()]);
-  if (!message.exists) return { ok: true };
-  if (message.get("uid") !== uid && !["admin", "superadmin"].includes(profile.get("role")))
-    throw new HttpsError("permission-denied", "Solo puedes borrar tus mensajes.");
-  await ref.delete();
-  return { ok: true };
-});
+// ---------- board: members post and delete directly (firestore.rules, boardRate/{uid}).

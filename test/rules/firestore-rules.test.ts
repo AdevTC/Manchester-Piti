@@ -13,6 +13,8 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  serverTimestamp,
+  writeBatch,
   Timestamp,
 } from "firebase/firestore";
 import { beforeAll, beforeEach, afterAll, describe, it } from "vitest";
@@ -205,7 +207,7 @@ describe("Votos y convocatorias", () => {
     );
     await assertFails(getDocs(collection(db(), "matches", "m", "votes")));
   });
-  it("los votos solo los escribe el backend", async () => {
+  it("un voto sin firmar ni fecha se rechaza", async () => {
     await assertFails(
       setDoc(doc(db("member"), "matches", "m", "votes", "member"), {
         playerId: "p",
@@ -218,7 +220,7 @@ describe("Votos y convocatorias", () => {
     await assertFails(getDoc(doc(db(), "matchPrivate", "m")));
     await assertFails(getDoc(doc(db("outsider"), "matchPrivate", "m")));
   });
-  it("las respuestas solo se escriben a través del backend", async () => {
+  it("una respuesta sin firmar se rechaza", async () => {
     await assertFails(
       setDoc(doc(db("member"), "matchPrivate", "m", "availability", "member"), {
         response: "yes",
@@ -237,7 +239,7 @@ describe("Vestuario: porra, entrenos, tablón y fichas", () => {
     "playerLinks/p",
     "matchPrivate/m/predictions/member",
   ]) {
-    it("solo el backend escribe " + path, async () => {
+    it("un documento mal formado no entra en " + path, async () => {
       await assertFails(setDoc(doc(db("member"), path), { value: 1 }));
       await assertFails(setDoc(doc(db("admin"), path), { value: 1 }));
     });
@@ -334,5 +336,82 @@ describe("Pizarra", () => {
     await seed("lineups/x", { ...board, isOfficial: true });
     await assertFails(deleteDoc(doc(db("member"), "lineups", "x")));
     await assertSucceeds(deleteDoc(doc(db("admin"), "lineups", "x")));
+  });
+});
+
+describe("Escrituras directas del vestuario", () => {
+  const HOUR = 3600000;
+  const signed = (uid: string, extra: object) => ({ ...extra, name: uid, playerId: null, at: serverTimestamp() });
+  beforeEach(async () => {
+    await seed("matches/done", {
+      status: "finished",
+      date: Timestamp.fromMillis(Date.now() - 2 * HOUR),
+      voteClosesAt: Date.now() + HOUR,
+      ledger: { p: { played: true }, q: { played: false } },
+    });
+    await seed("matches/closed", { status: "finished", date: Timestamp.fromMillis(Date.now() - 72 * HOUR), voteClosesAt: Date.now() - HOUR, ledger: { p: { played: true } } });
+    await seed("matches/next", { status: "scheduled", date: Timestamp.fromMillis(Date.now() + 24 * HOUR) });
+    await seed("matches/started", { status: "scheduled", date: Timestamp.fromMillis(Date.now() - HOUR) });
+    await seed("trainings/t", { slots: [{ id: "s1" }, { id: "s2" }], lastSlotAt: Timestamp.fromMillis(Date.now() + 48 * HOUR) });
+    await seed("trainings/fixed", { slots: [{ id: "s1" }, { id: "s2" }], lastSlotAt: Timestamp.fromMillis(Date.now() + 48 * HOUR), confirmed: { slotId: "s2" } });
+  });
+  it("MVP: tu voto, a quien jugó y con la votación abierta", async () => {
+    const vote = (who: string, match: string, extra: object = {}) =>
+      setDoc(doc(db(who), "matches", match, "votes", who), { playerId: "p", voterName: who, at: serverTimestamp(), ...extra });
+    await assertSucceeds(vote("member", "done"));
+    await assertSucceeds(vote("member", "done")); // cambiar el voto
+    await assertFails(vote("member", "done", { playerId: "q" }));
+    await assertFails(vote("member", "done", { voterName: "otro" }));
+    await assertFails(vote("member", "closed"));
+    await assertFails(vote("outsider", "done"));
+    await assertFails(setDoc(doc(db("member"), "matches", "done", "votes", "other"), { playerId: "p", voterName: "member", at: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(db("member"), "matches", "done", "votes", "member")));
+  });
+  it("Convocatoria: voy / no puedo antes del partido y firmado", async () => {
+    const answer = (who: string, match: string, data: object) => setDoc(doc(db(who), "matchPrivate", match, "availability", who), data);
+    await assertSucceeds(answer("member", "next", signed("member", { response: "yes" })));
+    await assertSucceeds(answer("member", "next", signed("member", { response: "maybe" })));
+    await assertFails(answer("member", "next", signed("member", { response: "claro" })));
+    await assertFails(answer("member", "next", { ...signed("member", { response: "yes" }), name: "other" }));
+    await assertFails(answer("member", "started", signed("member", { response: "yes" })));
+    await assertFails(answer("outsider", "next", signed("outsider", { response: "yes" })));
+  });
+  it("Porra: marcador entre 0 y 30 hasta el inicio", async () => {
+    const guess = (match: string, goalsFor: number, goalsAgainst = 1) =>
+      setDoc(doc(db("member"), "matchPrivate", match, "predictions", "member"), signed("member", { goalsFor, goalsAgainst }));
+    await assertSucceeds(guess("next", 3));
+    await assertFails(guess("next", 31));
+    await assertFails(guess("next", 1.5));
+    await assertFails(guess("started", 2));
+  });
+  it("Entrenos: huecos de la propuesta y, confirmado, solo el fijado", async () => {
+    const vote = (training: string, slotIds: string[]) =>
+      setDoc(doc(db("member"), "trainings", training, "votes", "member"), signed("member", { slotIds }));
+    await assertSucceeds(vote("t", ["s1", "s2"]));
+    await assertFails(vote("t", ["s3"]));
+    await assertFails(vote("t", []));
+    await assertSucceeds(vote("fixed", ["s2"]));
+    await assertFails(vote("fixed", ["s1"]));
+    await assertSucceeds(deleteDoc(doc(db("member"), "trainings", "t", "votes", "member")));
+    await assertFails(setDoc(doc(db("member"), "trainings", "t", "votes", "other"), signed("member", { slotIds: ["s1"] })));
+  });
+  it("Tablón: mensaje firmado con su sello de ritmo, uno cada 5 s", async () => {
+    const post = (who: string, text: string, name = who) => {
+      const c = db(who);
+      const b = writeBatch(c);
+      b.set(doc(c, "boardRate", who), { at: serverTimestamp() });
+      b.set(doc(collection(c, "board")), { text, uid: who, name, playerId: null, at: serverTimestamp() });
+      return b.commit();
+    };
+    await assertSucceeds(post("member", "¡Hola, equipo!"));
+    await assertFails(post("member", "otra vez")); // antes de 5 s
+    await assertFails(post("other", "   "));
+    await assertFails(post("other", "hola", "member"));
+    await assertFails(setDoc(doc(db("other"), "board", "solo"), { text: "sin sello", uid: "other", name: "other", playerId: null, at: serverTimestamp() }));
+    await seed("board/mine", { text: "x", uid: "member", name: "member", playerId: null, at: Timestamp.now() });
+    await assertFails(deleteDoc(doc(db("other"), "board", "mine")));
+    await assertSucceeds(deleteDoc(doc(db("member"), "board", "mine")));
+    await seed("board/theirs", { text: "x", uid: "other", name: "other", playerId: null, at: Timestamp.now() });
+    await assertSucceeds(deleteDoc(doc(db("admin"), "board", "theirs")));
   });
 });

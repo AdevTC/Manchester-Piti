@@ -45,3 +45,25 @@ test("el cartel responde a la convocatoria y guarda porra, entreno y tablón en 
   await expect(page.getByText(text)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+test("lo que escribe un miembro aparece al instante en la pantalla de otro", async ({ browser }) => {
+  const [a, b] = await Promise.all([browser.newContext(), browser.newContext()]).then((cs) => Promise.all(cs.map((c) => c.newPage())));
+  await enterVestuario(a);
+  await enterVestuario(b);
+  const rsvp = a.getByRole("radiogroup", { name: "Tu respuesta a la convocatoria" });
+  const t0 = Date.now();
+  await rsvp.getByRole("radio", { name: "Duda" }).click();
+  await expect(rsvp.getByRole("radio", { name: "Duda" })).toHaveAttribute("aria-checked", "true");
+  const tap = Date.now() - t0;
+
+  const text = `En tiempo real ${Date.now()}`;
+  await a.getByPlaceholder("Escribe al vestuario…").fill(text);
+  const t1 = Date.now();
+  await a.getByRole("button", { name: "Enviar" }).click();
+  await expect(a.getByText(text)).toBeVisible();
+  const mine = Date.now() - t1;
+  await expect(b.getByText(text)).toBeVisible({ timeout: 5000 });
+  const theirs = Date.now() - t1;
+  test.info().annotations.push({ type: "latencia", description: `respuesta ${tap} ms · mensaje propio ${mine} ms · en la otra pantalla ${theirs} ms` });
+  await rsvp.getByRole("radio", { name: "Voy" }).click();
+});

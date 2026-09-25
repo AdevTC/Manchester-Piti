@@ -53,7 +53,7 @@ async function google(label) {
 }
 async function call(name, user, data) {
   const response = await fetch(
-    "http://127.0.0.1:5001/demo-manchester-piti/europe-west1/" + name,
+    "http://127.0.0.1:5001/demo-manchester-piti/us-central1/" + name,
     {
       method: "POST",
       headers: {
@@ -76,6 +76,49 @@ async function denied(name, user, data, status) {
   const r = await call(name, user, data);
   assert.equal(r.error?.status, status, JSON.stringify(r));
   checked++;
+}
+// Everyday vestuario actions are client writes checked by firestore.rules: exercise them
+// the way the app does, with the member's own token against the emulator.
+const DOCS = "projects/demo-manchester-piti/databases/(default)/documents/";
+const value = (v) =>
+  v === null ? { nullValue: null }
+  : typeof v === "string" ? { stringValue: v }
+  : typeof v === "boolean" ? { booleanValue: v }
+  : typeof v === "number" ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v })
+  : Array.isArray(v) ? { arrayValue: { values: v.map(value) } }
+  : { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, value(x)])) } };
+/** `writes`: [path, data] sets (`at` becomes the server time) or [path, null] deletes. */
+async function commit(user, writes) {
+  const response = await fetch("http://127.0.0.1:8080/v1/" + DOCS.slice(0, -1) + ":commit", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer " + user.token },
+    body: JSON.stringify({
+      writes: writes.map(([path, data]) =>
+        data === null
+          ? { delete: DOCS + path }
+          : { update: { name: DOCS + path, fields: value(data).mapValue.fields }, updateTransforms: [{ fieldPath: "at", setToServerValue: "REQUEST_TIME" }] },
+      ),
+    }),
+  });
+  if (process.env.DEBUG_WRITES && response.status !== 200) console.error(await response.text());
+  return response.status;
+}
+async function wrote(user, ...writes) {
+  assert.equal(await commit(user, writes), 200, JSON.stringify(writes));
+  checked++;
+}
+async function refused(user, ...writes) {
+  assert.equal(await commit(user, writes), 403, JSON.stringify(writes));
+  checked++;
+}
+/** The MVP tally is kept by a trigger: wait for it to settle. */
+async function tally(matchId, expect) {
+  for (let i = 0; i < 60; i++) {
+    const r = (await db.doc("mvpResults/" + matchId).get()).data();
+    if (r && expect(r)) return r;
+    await new Promise((ok) => setTimeout(ok, 250));
+  }
+  assert.fail("mvpResults/" + matchId + " did not settle: " + JSON.stringify((await db.doc("mvpResults/" + matchId).get()).data()));
 }
 const admin = await google("admin"),
   member = await google("member"),
@@ -186,13 +229,11 @@ assert.equal(
   "https://example.test/escudo.png",
 );
 checked += 2;
-await ok("setAvailability", member, { matchId: id, response: "yes" });
-await denied(
-  "voteMvp",
-  member,
-  { matchId: id, playerId: ids[0] },
-  "FAILED_PRECONDITION",
-);
+// Direct writes are signed with the nickname on users/{uid}, as the app does.
+const nickname = async (u) => (await db.doc("users/" + u.uid).get()).get("nickname");
+const memberName = await nickname(member), adminName = await nickname(admin);
+await wrote(member, [`matchPrivate/${id}/availability/${member.uid}`, { response: "yes", name: memberName, playerId: null, at: null }]);
+await refused(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[0], voterName: memberName, at: null }]);
 const finished = {
   ...sheet,
   revision: 1,
@@ -240,25 +281,14 @@ await denied(
   { id, sheet: finished, draft: false },
   "ABORTED",
 );
-await ok("voteMvp", member, { matchId: id, playerId: ids[7] });
-await ok("voteMvp", member, { matchId: id, playerId: ids[1] });
-await ok("voteMvp", member, { matchId: id, playerId: ids[1] });
-let votes = await db.doc("mvpResults/" + id).get();
-assert.equal(votes.get("total"), 1);
-assert.equal(votes.get("counts")[ids[1]], 1);
-checked += 2;
-await denied(
-  "voteMvp",
-  member,
-  { matchId: id, playerId: ids[9] },
-  "INVALID_ARGUMENT",
-);
-await denied(
-  "setAvailability",
-  member,
-  { matchId: id, response: "yes" },
-  "FAILED_PRECONDITION",
-);
+await wrote(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[7], voterName: memberName, at: null }]);
+await wrote(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[1], voterName: memberName, at: null }]);
+await wrote(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[1], voterName: memberName, at: null }]);
+const votes = await tally(id, (r) => r.total === 1 && r.counts[ids[1]] === 1 && !r.counts[ids[7]]);
+assert.equal(votes.total, 1);
+checked++;
+await refused(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[9], voterName: memberName, at: null }]);
+await refused(member, [`matchPrivate/${id}/availability/${member.uid}`, { response: "yes", name: memberName, playerId: null, at: null }]);
 const corrected = {
   ...finished,
   revision: 2,
@@ -288,7 +318,7 @@ const amended = {
   ),
 };
 await ok("saveMatchSheet", admin, { id, sheet: amended, draft: false });
-assert.equal((await db.doc("mvpResults/" + id).get()).get("total"), 0);
+assert.equal((await tally(id, (r) => r.total === 0)).total, 0);
 checked++;
 assert.equal(
   (await db.doc("matches/" + id + "/votes/" + member.uid).get()).exists,
@@ -298,27 +328,15 @@ checked++;
 await db
   .doc("teamMembers/" + member.uid)
   .set({ expiresAt: Timestamp.fromMillis(Date.now() - 1) });
-await denied(
-  "voteMvp",
-  member,
-  { matchId: id, playerId: ids[0] },
-  "PERMISSION_DENIED",
-);
-await ok("enterTeam", member, { password: secret });
+await refused(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[0], voterName: memberName, at: null }]);
+const access = await ok("enterTeam", member, { password: secret });
+// The key now unlocks the device for 30 days.
+assert.ok(access.expiresAt - Date.now() > 29 * 86400000);
+checked++;
 await ok("leaveTeam", member, {});
-await denied(
-  "voteMvp",
-  member,
-  { matchId: id, playerId: ids[0] },
-  "PERMISSION_DENIED",
-);
+await refused(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[0], voterName: memberName, at: null }]);
 await db.doc("matches/" + id).update({ voteClosesAt: Date.now() - 1 });
-await denied(
-  "voteMvp",
-  admin,
-  { matchId: id, playerId: ids[0] },
-  "FAILED_PRECONDITION",
-);
+await refused(admin, [`matches/${id}/votes/${admin.uid}`, { playerId: ids[0], voterName: adminName, at: null }]);
 // ---------- vestuario: identity in responses, ficha claims, trainings, porra, board
 const fan = newcomer;
 await denied("requestPlayerClaim", member, { playerId: ids[2] }, "PERMISSION_DENIED");
@@ -347,15 +365,15 @@ const upcoming = { ...sheet, revision: 0, date: Date.now() + 3 * 86400000, kit: 
 await ok("saveMatchSheet", admin, { id: nextId, sheet: upcoming, draft: false });
 assert.equal((await db.doc("matches/" + nextId).get()).get("kit"), "away");
 checked++;
-await ok("setAvailability", fan, { matchId: nextId, response: "yes" });
+await wrote(fan, [`matchPrivate/${nextId}/availability/${fan.uid}`, { response: "yes", name: "x" + suffix, playerId: ids[2], at: null }]);
 const answer = await db.doc("matchPrivate/" + nextId + "/availability/" + fan.uid).get();
 assert.equal(answer.get("playerId"), ids[2]);
 assert.equal(answer.get("name"), "x" + suffix);
 checked += 2;
-await ok("predictScore", admin, { matchId: nextId, goalsFor: 1, goalsAgainst: 0 });
-await ok("predictScore", fan, { matchId: nextId, goalsFor: 2, goalsAgainst: 0 });
-await denied("predictScore", fan, { matchId: nextId, goalsFor: -1, goalsAgainst: 0 }, "INVALID_ARGUMENT");
-await denied("predictScore", fan, { matchId: id, goalsFor: 1, goalsAgainst: 0 }, "FAILED_PRECONDITION");
+await wrote(admin, [`matchPrivate/${nextId}/predictions/${admin.uid}`, { goalsFor: 1, goalsAgainst: 0, name: adminName, playerId: null, at: null }]);
+await wrote(fan, [`matchPrivate/${nextId}/predictions/${fan.uid}`, { goalsFor: 2, goalsAgainst: 0, name: "x" + suffix, playerId: ids[2], at: null }]);
+await refused(fan, [`matchPrivate/${nextId}/predictions/${fan.uid}`, { goalsFor: -1, goalsAgainst: 0, name: "x" + suffix, playerId: ids[2], at: null }]);
+await refused(fan, [`matchPrivate/${id}/predictions/${fan.uid}`, { goalsFor: 1, goalsAgainst: 0, name: "x" + suffix, playerId: ids[2], at: null }]);
 await ok("saveMatchSheet", admin, {
   id: nextId,
   // Older than the e2e seed's finished match, which must stay the latest one with an MVP vote.
@@ -367,7 +385,7 @@ assert.equal(porra[0].uid, admin.uid);
 assert.equal(porra[0].points, 3);
 assert.equal(porra[1].points, 1);
 checked += 3;
-await denied("predictScore", admin, { matchId: nextId, goalsFor: 3, goalsAgainst: 0 }, "FAILED_PRECONDITION");
+await refused(admin, [`matchPrivate/${nextId}/predictions/${admin.uid}`, { goalsFor: 3, goalsAgainst: 0, name: adminName, playerId: null, at: null }]);
 
 await denied("proposeTraining", fan, { slots: [{ at: Date.now() - 1000 }] }, "INVALID_ARGUMENT");
 await denied("proposeTraining", fan, { slots: [{ at: Date.now() + 86400000, end: Date.now() + 86400000 - 60000 }] }, "INVALID_ARGUMENT");
@@ -381,12 +399,12 @@ assert.ok(tdoc.get("slots")[0].at.toMillis() < tdoc.get("slots")[1].at.toMillis(
 assert.equal(tdoc.get("slots")[1].end.toMillis() - tdoc.get("slots")[1].at.toMillis(), 90 * 60000);
 assert.equal(tdoc.get("slots")[0].end, undefined);
 checked += 2;
-await ok("voteTraining", admin, { trainingId: training.id, slotIds: ["s1", "s2"] });
-await denied("voteTraining", admin, { trainingId: training.id, slotIds: ["s9"] }, "INVALID_ARGUMENT");
-await ok("voteTraining", admin, { trainingId: training.id, slotIds: [] });
+await wrote(admin, [`trainings/${training.id}/votes/${admin.uid}`, { slotIds: ["s1", "s2"], name: adminName, playerId: null, at: null }]);
+await refused(admin, [`trainings/${training.id}/votes/${admin.uid}`, { slotIds: ["s9"], name: adminName, playerId: null, at: null }]);
+await wrote(admin, [`trainings/${training.id}/votes/${admin.uid}`, null]);
 assert.equal((await db.doc("trainings/" + training.id + "/votes/" + admin.uid).get()).exists, false);
 checked++;
-await ok("voteTraining", fan, { trainingId: training.id, slotIds: ["s2"] });
+await wrote(fan, [`trainings/${training.id}/votes/${fan.uid}`, { slotIds: ["s2"], name: "x" + suffix, playerId: ids[2], at: null }]);
 // Confirming closes the vote, announces it on the board and puts it in the calendar feed.
 await denied("confirmTraining", member, { trainingId: training.id, slotId: "s2" }, "PERMISSION_DENIED");
 await denied("confirmTraining", fan, { trainingId: training.id, slotId: "s9" }, "NOT_FOUND");
@@ -398,9 +416,9 @@ assert.equal(confirmedDoc.get("confirmed.place"), "Campo");
 const announce = await db.collection("board").where("uid", "==", "vestuario").get();
 assert.ok(announce.docs.some((d) => d.get("text").startsWith("Entreno confirmado:")));
 checked += 3;
-await denied("voteTraining", admin, { trainingId: training.id, slotIds: ["s1"] }, "FAILED_PRECONDITION");
-await ok("voteTraining", admin, { trainingId: training.id, slotIds: ["s2"] });
-const feed = await fetch("http://127.0.0.1:5001/demo-manchester-piti/europe-west1/clubCalendar").then((r) => r.text());
+await refused(admin, [`trainings/${training.id}/votes/${admin.uid}`, { slotIds: ["s1"], name: adminName, playerId: null, at: null }]);
+await wrote(admin, [`trainings/${training.id}/votes/${admin.uid}`, { slotIds: ["s2"], name: adminName, playerId: null, at: null }]);
+const feed = await fetch("http://127.0.0.1:5001/demo-manchester-piti/us-central1/clubCalendar").then((r) => r.text());
 assert.ok(feed.includes(`UID:training-${training.id}@manchester-piti`));
 await ok("confirmTraining", admin, { trainingId: training.id, slotId: null });
 assert.equal((await db.doc("trainings/" + training.id).get()).get("confirmed"), undefined);
@@ -410,20 +428,24 @@ await ok("deleteTraining", admin, { trainingId: training.id });
 assert.equal((await db.doc("trainings/" + training.id + "/votes/" + fan.uid).get()).exists, false);
 checked++;
 
-const post = await ok("postBoardMessage", fan, { text: "  Yo llevo balones  " });
-assert.equal((await db.doc("board/" + post.id).get()).get("text"), "Yo llevo balones");
+const message = (who, name, board, text, player = null) => [
+  [`boardRate/${who.uid}`, { at: null }],
+  [`board/${board}`, { text, uid: who.uid, name, playerId: player, at: null }],
+];
+await wrote(fan, ...message(fan, "x" + suffix, "post-" + suffix, "Yo llevo balones", ids[2]));
+assert.equal((await db.doc("board/post-" + suffix).get()).get("text"), "Yo llevo balones");
 checked++;
-await denied("postBoardMessage", fan, { text: "Otra vez" }, "RESOURCE_EXHAUSTED");
-await denied("postBoardMessage", admin, { text: "   " }, "INVALID_ARGUMENT");
-const theirs = await ok("postBoardMessage", admin, { text: "Tercer tiempo" });
-await denied("deleteBoardMessage", fan, { id: theirs.id }, "PERMISSION_DENIED");
-await ok("deleteBoardMessage", fan, { id: post.id });
-await ok("deleteBoardMessage", admin, { id: theirs.id });
+await refused(fan, ...message(fan, "x" + suffix, "again-" + suffix, "Otra vez", ids[2]));
+await refused(admin, ...message(admin, adminName, "blank-" + suffix, "   "));
+await wrote(admin, ...message(admin, adminName, "theirs-" + suffix, "Tercer tiempo"));
+await refused(fan, ["board/theirs-" + suffix, null]);
+await wrote(fan, ["board/post-" + suffix, null]);
+await wrote(admin, ["board/theirs-" + suffix, null]);
 assert.equal((await db.collection("board").where("uid", "==", fan.uid).get()).size, 0);
 checked++;
 
 const shareBase =
-  "http://127.0.0.1:5001/demo-manchester-piti/europe-west1/clubShare";
+  "http://127.0.0.1:5001/demo-manchester-piti/us-central1/clubShare";
 const html = await fetch(shareBase + "/compartir/partido/" + id).then((r) =>
   r.text(),
 );
@@ -458,7 +480,7 @@ assert.equal((await db.doc("players/" + ids[9]).get()).get("archived"), undefine
 assert.equal((await db.doc("matches/" + id).get()).get("rival"), "Rival de pruebas");
 checked += 5;
 assert.equal((await fetch(shareBase + "/compartir/partido/" + id)).status, 404);
-const calendarUrl = "http://127.0.0.1:5001/demo-manchester-piti/europe-west1/clubCalendar";
+const calendarUrl = "http://127.0.0.1:5001/demo-manchester-piti/us-central1/clubCalendar";
 const archivedFeed = await fetch(calendarUrl).then((r) => r.text());
 assert.ok(archivedFeed.startsWith("BEGIN:VCALENDAR"));
 assert.ok(!archivedFeed.includes(`UID:${id}@manchester-piti`));

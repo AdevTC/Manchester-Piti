@@ -17,15 +17,15 @@
   "rewrites": [
     {
       "source": "/calendario.ics",
-      "destination": "https://europe-west1-futbolmanagement-dc6cb.cloudfunctions.net/clubCalendar"
+      "destination": "https://us-central1-futbolmanagement-dc6cb.cloudfunctions.net/clubCalendar"
     },
     {
       "source": "/compartir/:path*",
-      "destination": "https://europe-west1-futbolmanagement-dc6cb.cloudfunctions.net/clubShare/compartir/:path*"
+      "destination": "https://us-central1-futbolmanagement-dc6cb.cloudfunctions.net/clubShare/compartir/:path*"
     },
     {
       "source": "/social/:path*",
-      "destination": "https://europe-west1-futbolmanagement-dc6cb.cloudfunctions.net/clubShare/social/:path*"
+      "destination": "https://us-central1-futbolmanagement-dc6cb.cloudfunctions.net/clubShare/social/:path*"
     },
     {
       "source": "/(.*)",

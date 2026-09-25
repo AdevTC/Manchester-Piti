@@ -1,7 +1,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { getFirestore } from "firebase-admin/firestore";
 import { readFileSync } from "node:fs";
-import { siteUrl } from "./common.js";
+import { REGION, siteUrl } from "./common.js";
 const escape = (s: string) =>
   s.replace(
     /[&<>"']/g,
@@ -11,7 +11,7 @@ const escape = (s: string) =>
       ]!,
   );
 export const clubShare = onRequest(
-  { region: "europe-west1", maxInstances: 3, memory: "256MiB" },
+  { region: REGION, maxInstances: 3, memory: "256MiB" },
   async (req, res) => {
     const found = req.path.match(
       /^\/(compartir|social)\/(partido|jugador)\/([a-zA-Z0-9_-]+)(?:\.png)?$/,

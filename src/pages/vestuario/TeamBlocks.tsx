@@ -1,17 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { dateMillis, type ClubMatch } from "../../lib/clubData";
-import {
-  apiError,
-  confirmTraining,
-  deleteBoardMessage,
-  deleteTraining,
-  postBoardMessage,
-  predictScore,
-  proposeTraining,
-  voteMvp,
-  voteTraining,
-} from "../../lib/clubApi";
+import { apiError, confirmTraining, deleteTraining, proposeTraining } from "../../lib/clubApi";
+import { deleteBoardMessage, postBoardMessage, predictScore, useMe, voteMvp, voteTraining } from "./writes";
 import { countdown, initials, MIN_PLAYERS, nextWeekday, slotStanding, slotTime, trainingOver, plural, podium, porraPosition, slotParts, type MvpResult } from "../../lib/vestuario";
 import {
   useMvpVoters,
@@ -43,6 +34,19 @@ function useAction() {
   };
   return { busy, error, run };
 }
+/**
+ * Direct writes land in the local cache at once (the listeners redraw immediately), so
+ * nothing waits for the server: the control never locks, and a refusal shows as an error
+ * while the SDK rolls the local change back.
+ */
+function useWrite() {
+  const [error, setError] = useState("");
+  const write = (fn: () => Promise<unknown>) => {
+    setError("");
+    fn().catch((e: unknown) => setError(apiError(e)));
+  };
+  return { error, write };
+}
 const Err = ({ text }: { text: string }) =>
   text ? (
     <p className="vx-error" role="alert">
@@ -60,13 +64,15 @@ export function TrainingPoll({ trainings, uid, admin, now }: { trainings: Traini
   const votes = useTrainingVotes(training?.id);
   const [proposing, setProposing] = useState<{ first: number | null } | null>(null);
   const act = useAction();
+  const vote = useWrite();
+  const me = useMe();
   const mine = votes.data.find((v) => v.uid === uid)?.slotIds ?? [];
   const standing = training ? slotStanding(training.slots, votes.data) : null;
   const canManage = !!training && (training.proposedBy === uid || admin);
   const toggle = (slotId: string) => {
     if (!training) return;
     const next = mine.includes(slotId) ? mine.filter((s) => s !== slotId) : [...mine, slotId];
-    void act.run(() => voteTraining({ trainingId: training.id, slotIds: next }));
+    if (me) vote.write(() => voteTraining(me, training.id, next));
   };
   const confirm = (slotId: string | null) => training && void act.run(() => confirmTraining({ trainingId: training.id, slotId }));
   const withdraw = () => training && void act.run(() => deleteTraining({ trainingId: training.id }));
@@ -81,11 +87,11 @@ export function TrainingPoll({ trainings, uid, admin, now }: { trainings: Traini
           going={votes.data.filter((v) => v.slotIds.includes(c.slotId))}
           mine={mine.includes(c.slotId)}
           busy={act.busy}
-          onGo={(go) => void act.run(() => voteTraining({ trainingId: training.id, slotIds: go ? [c.slotId] : [] }))}
+          onGo={(go) => me && vote.write(() => voteTraining(me, training.id, go ? [c.slotId] : []))}
           canManage={canManage}
           onReopen={() => confirm(null)}
           onWithdraw={withdraw}
-          error={act.error}
+          error={act.error || vote.error}
         />
       ) : training && !proposing ? (
         <>
@@ -102,7 +108,7 @@ export function TrainingPoll({ trainings, uid, admin, now }: { trainings: Traini
               const ready = standing?.ready.has(s.id);
               const top = standing?.top.has(s.id);
               return (
-                <button key={s.id} type="button" className={`vx-slot${top ? " top" : ""}`} aria-pressed={on} disabled={act.busy || past} onClick={() => toggle(s.id)}>
+                <button key={s.id} type="button" className={`vx-slot${top ? " top" : ""}`} aria-pressed={on} disabled={past} onClick={() => toggle(s.id)}>
                   {on && (
                     <span className="tick">
                       <Icon name="check" size={12} stroke={3.5} />
@@ -134,7 +140,7 @@ export function TrainingPoll({ trainings, uid, admin, now }: { trainings: Traini
               </div>
             </div>
           )}
-          <Err text={act.error} />
+          <Err text={act.error || vote.error} />
           <div className="vx-train-foot">
             <button type="button" className="vx-link-btn" onClick={() => setProposing({ first: null })}>
               Proponer otros huecos
@@ -204,11 +210,11 @@ function ConfirmedTraining({
         {c.place ? ` · ${c.place}` : ""}
       </span>
       <div className="vx-rsvp two" role="group" aria-label="¿Vas al entreno?">
-        <button type="button" aria-pressed={mine} disabled={busy} onClick={() => onGo(true)}>
+        <button type="button" aria-pressed={mine} onClick={() => onGo(true)}>
           {mine && <Icon name="check" size={15} stroke={3} />}
           Voy
         </button>
-        <button type="button" aria-pressed={false} disabled={busy || !mine} onClick={() => onGo(false)}>
+        <button type="button" aria-pressed={false} disabled={!mine} onClick={() => onGo(false)}>
           No puedo
         </button>
       </div>
@@ -332,7 +338,8 @@ function ProposeTraining({ first, onDone, canCancel, now }: { first: number | nu
 export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; uid: string; rows: PorraRow[]; now: number }) {
   const saved = useMyPrediction(next?.id, uid);
   const [draft, setDraft] = useState<{ id: string; gf: number; ga: number } | null>(null);
-  const act = useAction();
+  const act = useWrite();
+  const who = useMe();
   const open = !!next && next.status === "scheduled" && dateMillis(next.date) > now;
   const gf = draft?.id === next?.id && draft ? draft.gf : (saved.data?.goalsFor ?? 0);
   const ga = draft?.id === next?.id && draft ? draft.ga : (saved.data?.goalsAgainst ?? 0);
@@ -342,9 +349,10 @@ export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; u
     const base = { id: next.id, gf, ga };
     setDraft({ ...base, [side]: Math.max(0, Math.min(30, base[side] + delta)) });
   };
-  const save = async () => {
-    if (!next) return;
-    if (await act.run(() => predictScore({ matchId: next.id, goalsFor: gf, goalsAgainst: ga }))) setDraft(null);
+  const save = () => {
+    if (!next || !who) return;
+    act.write(() => predictScore(who, next.id, gf, ga));
+    setDraft(null);
   };
   const me = porraPosition(rows, uid);
   const leader = rows[0];
@@ -355,16 +363,16 @@ export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; u
       {next ? (
         <>
           <div className="vx-board-score">
-            <Side label="Piti" value={gf} disabled={!open || act.busy} onChange={(d) => set("gf", d)} them={false} />
+            <Side label="Piti" value={gf} disabled={!open} onChange={(d) => set("gf", d)} them={false} />
             <span className="vx-vs-dash" aria-hidden="true">
               –
             </span>
-            <Side label={next.rival ?? "Rival"} value={ga} disabled={!open || act.busy} onChange={(d) => set("ga", d)} them />
+            <Side label={next.rival ?? "Rival"} value={ga} disabled={!open} onChange={(d) => set("ga", d)} them />
           </div>
           {open ? (
             <div className="vx-porra-save">
-              <button type="button" className="vx-btn" disabled={act.busy || (!dirty && !!saved.data)} onClick={() => void save()}>
-                {act.busy ? "Guardando…" : saved.data && !dirty ? "Porra guardada" : saved.data ? "Cambiar mi porra" : "Guardar mi porra"}
+              <button type="button" className="vx-btn" disabled={!dirty && !!saved.data} onClick={save}>
+                {saved.data && !dirty ? "Porra guardada" : saved.data ? "Cambiar mi porra" : "Guardar mi porra"}
               </button>
             </div>
           ) : (
@@ -443,7 +451,8 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
   const myVote = useMyMvpVote(match?.id, uid);
   const voters = useMvpVoters(match?.id, admin);
   const [selection, setSelection] = useState<{ id: string; pick: string } | null>(null);
-  const act = useAction();
+  const act = useWrite();
+  const me = useMe();
   if (!match) {
     return (
       <section className="vx-mvp">
@@ -480,7 +489,7 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
     .filter(([, row]) => row.played)
     .map(([id]) => id)
     .sort((a, b) => (result?.counts[b] ?? 0) - (result?.counts[a] ?? 0) || playerName(a).localeCompare(playerName(b), "es"));
-  const vote = () => void act.run(() => voteMvp({ matchId: match.id, playerId: pick }));
+  const vote = () => me && act.write(() => voteMvp(me, match.id, pick));
   const heights = [74, 112, 54];
   return (
     <section className="vx-mvp">
@@ -526,15 +535,15 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
             <div className="vx-vote-list">
               {candidates.map((id) => (
                 <label key={id}>
-                  <input type="radio" name={`mvp-${match.id}`} value={id} checked={pick === id} disabled={act.busy} onChange={() => setSelection({ id: match.id, pick: id })} />
+                  <input type="radio" name={`mvp-${match.id}`} value={id} checked={pick === id} onChange={() => setSelection({ id: match.id, pick: id })} />
                   {playerName(id)}
                 </label>
               ))}
             </div>
           </fieldset>
           <div className="vx-vote-foot">
-            <button type="button" className="vx-btn" disabled={!pick || act.busy || pick === myVote.data} onClick={vote}>
-              {act.busy ? "Guardando…" : pick && pick === myVote.data ? "Voto guardado" : myVote.data ? "Cambiar mi voto" : "Votar al MVP"}
+            <button type="button" className="vx-btn" disabled={!pick || pick === myVote.data} onClick={vote}>
+              {pick && pick === myVote.data ? "Voto guardado" : myVote.data ? "Cambiar mi voto" : "Votar al MVP"}
             </button>
             <span className="vx-muted">{total} {total === 1 ? "voto del equipo" : "votos del equipo"}</span>
           </div>
@@ -561,12 +570,21 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
 const QUICK = ["¡Hola, equipo!", "¿Pachanga el sábado?", "Yo llevo balones"];
 export function Board({ messages, uid, admin, loading, now }: { messages: BoardMessage[]; uid: string; admin: boolean; loading: boolean; now: number }) {
   const [text, setText] = useState("");
-  const act = useAction();
-  const send = async (e: FormEvent) => {
+  const act = useWrite();
+  const me = useMe();
+  const send = (e: FormEvent) => {
     e.preventDefault();
-    if (await act.run(() => postBoardMessage({ text }))) setText("");
+    if (!me || !text.trim()) return;
+    const sent = text;
+    setText("");
+    act.write(() =>
+      postBoardMessage(me, sent).catch((error: unknown) => {
+        setText((t) => t || sent); // give the text back if it did not go out
+        throw error;
+      }),
+    );
   };
-  const quick = (t: string) => void act.run(() => postBoardMessage({ text: t }));
+  const quick = (t: string) => me && act.write(() => postBoardMessage(me, t));
   const ordered = [...messages].reverse();
   const ago = (at: number) => {
     const m = Math.round((now - at) / 60_000);
@@ -587,7 +605,7 @@ export function Board({ messages, uid, admin, loading, now }: { messages: BoardM
             <p className="vx-empty-line">Nadie ha escrito todavía. Preséntate con un toque:</p>
             <div className="vx-chips">
               {QUICK.map((t) => (
-                <button key={t} type="button" className="vx-chip" disabled={act.busy} onClick={() => quick(t)}>
+                <button key={t} type="button" className="vx-chip" onClick={() => quick(t)}>
                   {t}
                 </button>
               ))}
@@ -599,7 +617,7 @@ export function Board({ messages, uid, admin, loading, now }: { messages: BoardM
             <div key={m.id} className="vx-msg mine">
               <div className="bd">
                 {m.text}
-                <button type="button" className="vx-msg-del" onClick={() => void act.run(() => deleteBoardMessage({ id: m.id }))}>
+                <button type="button" className="vx-msg-del" onClick={() => act.write(() => deleteBoardMessage(m.id))}>
                   Borrar<span className="vx-sr"> tu mensaje</span>
                 </button>
               </div>
@@ -615,7 +633,7 @@ export function Board({ messages, uid, admin, loading, now }: { messages: BoardM
                 </span>
                 <p>{m.text}</p>
                 {admin && (
-                  <button type="button" className="vx-msg-del" onClick={() => void act.run(() => deleteBoardMessage({ id: m.id }))}>
+                  <button type="button" className="vx-msg-del" onClick={() => act.write(() => deleteBoardMessage(m.id))}>
                     Borrar<span className="vx-sr"> el mensaje de {m.name}</span>
                   </button>
                 )}
@@ -628,7 +646,7 @@ export function Board({ messages, uid, admin, loading, now }: { messages: BoardM
             Escribe al vestuario
           </label>
           <input id="vx-compose" value={text} maxLength={500} onChange={(e) => setText(e.target.value)} placeholder="Escribe al vestuario…" autoComplete="off" />
-          <button className="vx-send" aria-label="Enviar" disabled={!text.trim() || act.busy}>
+          <button className="vx-send" aria-label="Enviar" disabled={!text.trim()}>
             <Icon name="send" size={18} stroke={2.2} />
           </button>
         </form>

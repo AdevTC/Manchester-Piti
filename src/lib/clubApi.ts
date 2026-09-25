@@ -14,14 +14,6 @@ export const saveMatchSheet = httpsCallable<
   { id: string; sheet: MatchSheet; draft: boolean },
   { id: string }
 >(functions, "saveMatchSheet");
-export const voteMvp = httpsCallable<{ matchId: string; playerId: string }>(
-  functions,
-  "voteMvp",
-);
-export const setAvailability = httpsCallable<{
-  matchId: string;
-  response: string;
-}>(functions, "setAvailability");
 export const requestPlayerClaim = httpsCallable<{ playerId: string }, { ok: boolean; linked: boolean }>(
   functions,
   "requestPlayerClaim",
@@ -39,26 +31,9 @@ export const proposeTraining = httpsCallable<
   { id: string }
 >(functions, "proposeTraining");
 export const confirmTraining = httpsCallable<{ trainingId: string; slotId: string | null }>(functions, "confirmTraining");
-export const voteTraining = httpsCallable<{
-  trainingId: string;
-  slotIds: string[];
-}>(functions, "voteTraining");
 export const deleteTraining = httpsCallable<{ trainingId: string }>(
   functions,
   "deleteTraining",
-);
-export const predictScore = httpsCallable<{
-  matchId: string;
-  goalsFor: number;
-  goalsAgainst: number;
-}>(functions, "predictScore");
-export const postBoardMessage = httpsCallable<{ text: string }, { id: string }>(
-  functions,
-  "postBoardMessage",
-);
-export const deleteBoardMessage = httpsCallable<{ id: string }>(
-  functions,
-  "deleteBoardMessage",
 );
 export function apiError(error: unknown) {
   const e = error as { code?: string; message?: string };
@@ -79,5 +54,8 @@ export function apiError(error: unknown) {
     e.code === "functions/not-found"
   )
     return "No se puede conectar con el servicio del club. Inténtalo de nuevo en unos instantes.";
+  // Direct Firestore writes refused by the rules (closed vote, expired access, too fast…).
+  if (e.code === "permission-denied")
+    return "No se ha podido guardar: puede que ya esté cerrado o que tu acceso al vestuario haya caducado.";
   return e.message || "No se ha podido guardar. Vuelve a intentarlo.";
 }

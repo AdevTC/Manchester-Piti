@@ -17,15 +17,15 @@
     "rewrites": [
       {
         "source": "/compartir/**",
-        "function": { "functionId": "clubShare", "region": "europe-west1" }
+        "function": { "functionId": "clubShare", "region": "us-central1" }
       },
       {
         "source": "/social/**",
-        "function": { "functionId": "clubShare", "region": "europe-west1" }
+        "function": { "functionId": "clubShare", "region": "us-central1" }
       },
       {
         "source": "/calendario.ics",
-        "function": { "functionId": "clubCalendar", "region": "europe-west1" }
+        "function": { "functionId": "clubCalendar", "region": "us-central1" }
       },
       { "source": "**", "destination": "/index.html" }
     ]

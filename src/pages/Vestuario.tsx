@@ -15,7 +15,8 @@ import { useTeam } from "../context/TeamContext";
 import { db } from "../firebase";
 import { auth } from "../firebase";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-import { apiError, voteMvp } from "../lib/clubApi";
+import { apiError } from "../lib/clubApi";
+import { useMe, voteMvp } from "./vestuario/writes";
 import {
   useClubData,
   playerName,
@@ -191,8 +192,8 @@ export function MvpVote({ match }: { match: ClubMatch }) {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [selection, setSelection] = useState("");
   const [saved, setSaved] = useState("");
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const me = useMe();
   useEffect(
     () =>
       onSnapshot(
@@ -234,17 +235,11 @@ export function MvpVote({ match }: { match: ClubMatch }) {
   const candidates = players.filter((p) => match.ledger?.[p.id]?.played);
   const open = match.status === "finished" && (match.voteClosesAt ?? 0) > now;
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  const vote = async () => {
-    setBusy(true);
+  // Written straight to Firestore: "tu voto" updates at once, the tally follows in realtime.
+  const vote = () => {
+    if (!me) return;
     setError("");
-    try {
-      await voteMvp({ matchId: match.id, playerId: selection });
-      setSaved(selection);
-    } catch (e) {
-      setError(apiError(e));
-    } finally {
-      setBusy(false);
-    }
+    voteMvp(me, match.id, selection).catch((e: unknown) => setError(apiError(e)));
   };
   if (!match.voteClosesAt) return null;
   return (
@@ -269,7 +264,7 @@ export function MvpVote({ match }: { match: ClubMatch }) {
                 name={`mvp-${match.id}`}
                 value={p.id}
                 checked={selection === p.id}
-                disabled={!open || !member || busy}
+                disabled={!open || !member}
                 onChange={() => setSelection(p.id)}
               />
               <span>
@@ -293,16 +288,14 @@ export function MvpVote({ match }: { match: ClubMatch }) {
         (member ? (
           <button
             className="club-button"
-            disabled={!selection || busy || saved === selection}
+            disabled={!selection || saved === selection}
             onClick={vote}
           >
-            {busy
-              ? "Guardando…"
-              : saved === selection && saved
-                ? "Voto guardado"
-                : saved
-                  ? "Cambiar mi voto"
-                  : "Votar al MVP"}
+            {saved === selection && saved
+              ? "Voto guardado"
+              : saved
+                ? "Cambiar mi voto"
+                : "Votar al MVP"}
           </button>
         ) : (
           <Link to="/vestuario" className="club-button">
