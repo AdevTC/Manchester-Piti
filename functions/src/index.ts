@@ -1,5 +1,6 @@
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { defineSecret } from "firebase-functions/params";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
@@ -8,7 +9,7 @@ import {
   EVENT_LABELS,
   type MatchSheet,
 } from "./matchEngine.js";
-import { db, idSchema, parse, googleUser, member, admin, identity } from "./common.js";
+import { db, idSchema, parse, googleUser, member, admin } from "./common.js";
 import { recomputePorra } from "./vestuario.js";
 export { clubShare } from "./social.js";
 export { setSeasonArchived } from "./seasons.js";
@@ -17,12 +18,8 @@ export {
   requestPlayerClaim,
   resolvePlayerClaim,
   proposeTraining,
-  voteTraining,
   confirmTraining,
   deleteTraining,
-  predictScore,
-  postBoardMessage,
-  deleteBoardMessage,
 } from "./vestuario.js";
 
 const teamPassword = defineSecret("TEAM_PASSWORD");
@@ -74,6 +71,11 @@ export const sheetSchema = z.object({
   meetingNote: z.string().max(500).optional(),
   kit: z.enum(["home", "away"]).optional(),
 });
+/**
+ * How long the team key unlocks the vestuario on a device. Google sign-in is still
+ * required, "Salir del vestuario" revokes it at once and an admin can remove teamMembers/{uid}.
+ */
+const TEAM_ACCESS_MS = 30 * 24 * 60 * 60_000;
 export const enterTeam = onCall({ secrets: [teamPassword] }, async (req) => {
   const uid = googleUser(req);
   const { password } = parse(
@@ -107,7 +109,7 @@ export const enterTeam = onCall({ secrets: [teamPassword] }, async (req) => {
       "permission-denied",
       "La clave del equipo no es correcta.",
     );
-  const expiresAt = Timestamp.fromMillis(now + 12 * 60 * 60_000);
+  const expiresAt = Timestamp.fromMillis(now + TEAM_ACCESS_MS);
   await db
     .doc(`teamMembers/${uid}`)
     .set({ expiresAt, joinedAt: FieldValue.serverTimestamp() });
@@ -136,11 +138,11 @@ export const registerTeamProfile = onCall(async (req) => {
   const userRef = db.doc(`users/${uid}`),
     nameRef = db.doc(`nicknames/${nickname}`);
   const role = await db.runTransaction(async (tx) => {
-    const current = await tx.get(userRef),
-      claimed = await tx.get(nameRef);
-    const legacy = await tx.get(
-      db.collection("users").where("nickname", "==", nickname).limit(2),
-    );
+    const [current, claimed, legacy] = await Promise.all([
+      tx.get(userRef),
+      tx.get(nameRef),
+      tx.get(db.collection("users").where("nickname", "==", nickname).limit(2)),
+    ]);
     if (
       (claimed.exists && claimed.get("uid") !== uid) ||
       legacy.docs.some((d) => d.id !== uid)
@@ -291,10 +293,9 @@ export const saveMatchSheet = onCall(async (req) => {
       contribute(old.get("seasonId"), old.get("ledger") ?? {}, -1);
     if (finished) contribute(sheet.seasonId, ledger.players, 1);
     const totalsBefore = new Map<string, Record<string, number>>();
-    for (const key of deltas.keys()) {
-      const snap = await tx.get(db.doc(`playerSeasonStats/${key}`));
-      totalsBefore.set(key, snap.get("totals") ?? {});
-    }
+    const keys = [...deltas.keys()];
+    const stats = keys.length ? await tx.getAll(...keys.map((key) => db.doc(`playerSeasonStats/${key}`))) : [];
+    stats.forEach((snap, i) => totalsBefore.set(keys[i], snap.get("totals") ?? {}));
     // An amended lineup may remove a previously eligible MVP candidate.
     const counts: Record<string, number> = {};
     let total = 0;
@@ -345,68 +346,24 @@ export const saveMatchSheet = onCall(async (req) => {
   if (!input.draft) await recomputePorra(sheet.seasonId);
   return { id: input.id, draft: input.draft, ledger };
 });
-export const voteMvp = onCall(async (req) => {
-  const uid = await member(req);
-  const { matchId, playerId } = parse(
-    z.object({ matchId: idSchema, playerId: idSchema }),
-    req.data,
-  );
-  const voterName = (await identity(req, uid)).name;
+/**
+ * MVP tally: members write their own vote (matches/{id}/votes/{uid}, validated by the
+ * rules); this trigger recounts the match in a transaction so mvpResults is always
+ * the exact count of valid votes, whatever the order or retries of the events.
+ */
+export const tallyMvp = onDocumentWritten("matches/{matchId}/votes/{uid}", async (event) => {
+  const matchRef = db.doc(`matches/${event.params.matchId}`);
   await db.runTransaction(async (tx) => {
-    const match = await tx.get(db.doc(`matches/${matchId}`));
-    const voteRef = db.doc(`matches/${matchId}/votes/${uid}`);
-    const prior = await tx.get(voteRef);
-    const resultRef = db.doc(`mvpResults/${matchId}`);
-    const result = await tx.get(resultRef);
-    if (
-      match.get("status") !== "finished" ||
-      !match.get("voteClosesAt") ||
-      Date.now() >= match.get("voteClosesAt")
-    )
-      throw new HttpsError("failed-precondition", "La votación está cerrada.");
-    if (!match.get("ledger")?.[playerId]?.played)
-      throw new HttpsError(
-        "invalid-argument",
-        "Elige a un jugador que haya participado.",
-      );
-    const counts: Record<string, number> = result.get("counts") ?? {};
-    const previous = prior.get("playerId");
-    if (previous) counts[previous] = Math.max(0, (counts[previous] ?? 0) - 1);
-    counts[playerId] = (counts[playerId] ?? 0) + 1;
-    tx.set(voteRef, {
-      playerId,
-      voterName,
-      at: FieldValue.serverTimestamp(),
-    });
-    tx.set(resultRef, {
-      counts,
-      total: (result.get("total") ?? 0) + (prior.exists ? 0 : 1),
-    });
+    const [match, votes] = await Promise.all([tx.get(matchRef), tx.get(matchRef.collection("votes"))]);
+    const ledger = (match.get("ledger") ?? {}) as Record<string, { played?: boolean }>;
+    const counts: Record<string, number> = {};
+    let total = 0;
+    for (const vote of votes.docs) {
+      const playerId = vote.get("playerId") as string;
+      if (!ledger[playerId]?.played) continue;
+      counts[playerId] = (counts[playerId] ?? 0) + 1;
+      total++;
+    }
+    tx.set(db.doc(`mvpResults/${event.params.matchId}`), { counts, total });
   });
-  return { ok: true };
-});
-export const setAvailability = onCall(async (req) => {
-  const uid = await member(req);
-  const { matchId, response } = parse(
-    z.object({ matchId: idSchema, response: z.enum(["yes", "no", "maybe"]) }),
-    req.data,
-  );
-  const match = await db.doc(`matches/${matchId}`).get();
-  if (
-    !match.exists ||
-    match.get("status") !== "scheduled" ||
-    match.get("date").toMillis() <= Date.now()
-  )
-    throw new HttpsError(
-      "failed-precondition",
-      "Solo puedes responder para próximos partidos.",
-    );
-  const who = await identity(req, uid);
-  await db.doc(`matchPrivate/${matchId}/availability/${uid}`).set({
-    response,
-    name: who.name,
-    playerId: who.playerId,
-    at: FieldValue.serverTimestamp(),
-  });
-  return { ok: true };
 });

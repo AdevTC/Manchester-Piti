@@ -53,7 +53,7 @@ const secret = readFileSync(
   .join("=");
 const call = async (name, data) => {
   const r = await fetch(
-    "http://127.0.0.1:5001/demo-manchester-piti/europe-west1/" + name,
+    "http://127.0.0.1:5001/demo-manchester-piti/us-central1/" + name,
     {
       method: "POST",
       headers: {

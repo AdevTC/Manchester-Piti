@@ -29,7 +29,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const functions = getFunctions(app, "europe-west1");
+export const functions = getFunctions(app, "us-central1");
 if (USE_EMULATOR) connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 
 export const auth = getAuth(app);

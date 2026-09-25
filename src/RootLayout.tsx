@@ -5,21 +5,24 @@ import { SeasonUrlSync } from "./components/SeasonUrlSync";
 import { useAuth } from "./context/AuthContext";
 import { useTeam } from "./context/TeamContext";
 import { Crest } from "./components/Crest";
+import { RoutePending } from "./components/route-states";
 import "./styles/club.css";
 import "./styles/analytics.css";
 // Only private pages show the gate and the nickname step: keep them out of the entry chunk.
 const TeamGate = lazy(() => import("./pages/Vestuario").then((m) => ({ default: m.TeamGate })));
 const NicknameSetup = lazy(() => import("./pages/NicknameSetup").then((m) => ({ default: m.NicknameSetup })));
 export function RootLayout() {
-  const { profile } = useAuth();
-  const { member } = useTeam();
+  const { profile, loading } = useAuth();
+  const { member, ready } = useTeam();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const privatePage = ["/admin", "/profile", "/pizarra", "/vestuario"].some(
     (p) => pathname.startsWith(p),
   );
   const admin = profile?.role === "admin" || profile?.role === "superadmin";
   // Celeste pages (home, plantilla, vestuario) bring their own header, dock and footer: hide the site chrome there.
-  const immersive = pathname === "/" || pathname === "/plantilla" || (pathname === "/vestuario" && member && !!profile);
+  // While the session is being restored, private pages wait on a neutral skeleton (no gate flash).
+  const checking = privatePage && (!ready || (member && loading));
+  const immersive = pathname === "/" || pathname === "/plantilla" || (pathname === "/vestuario" && (checking || (member && !!profile)));
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
@@ -33,7 +36,9 @@ export function RootLayout() {
       {!immersive && <Navbar />}
       <SeasonUrlSync />
       <main id="contenido" className={immersive ? "club-main vx-main-shell" : "club-main"}>
-        {privatePage && !member ? (
+        {checking ? (
+          <RoutePending />
+        ) : privatePage && !member ? (
           <Suspense fallback={null}>
             <TeamGate />
           </Suspense>

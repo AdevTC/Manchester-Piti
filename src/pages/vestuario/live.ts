@@ -1,5 +1,7 @@
 // Realtime Firestore subscriptions for team-only vestuario data (onSnapshot, no polling).
-import { useEffect, useMemo, useState } from "react";
+// Listeners are shared by key and kept warm for a minute after the last reader leaves, so
+// coming back to the vestuario paints the last data at once instead of an empty block.
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import {
   collection,
   doc,
@@ -21,35 +23,70 @@ interface Live<T> {
   loading: boolean;
   error: boolean;
 }
-function useLiveDoc<T>(path: string | null, map: (d: DocumentData | undefined) => T, empty: T): Live<T> {
-  const [state, setState] = useState<{ path: string | null; data: T; loading: boolean; error: boolean }>({ path: null, data: empty, loading: true, error: false });
-  useEffect(() => {
-    if (!path) return;
-    return onSnapshot(
-      doc(db, path),
-      (s) => setState({ path, data: map(s.exists() ? s.data() : undefined), loading: false, error: false }),
-      () => setState({ path, data: empty, loading: false, error: true }),
-    );
-    // map/empty are module-level or stable per call site
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path]);
-  if (!path) return { data: empty, loading: false, error: false };
-  return state.path === path ? state : { data: empty, loading: true, error: false };
+interface Shared {
+  state: { data: unknown; loading: boolean; error: boolean } | null;
+  readers: Set<() => void>;
+  stop: (() => void) | null;
+  idle: ReturnType<typeof setTimeout> | null;
 }
-function useLiveQuery<T>(key: string | null, build: () => Query, map: (id: string, d: DocumentData) => T): Live<T[]> {
-  const [state, setState] = useState<{ key: string | null; data: T[]; loading: boolean; error: boolean }>({ key: null, data: [], loading: true, error: false });
-  useEffect(() => {
-    if (!key) return;
-    return onSnapshot(
-      build(),
-      (s) => setState({ key, data: s.docs.map((d) => map(d.id, d.data())), loading: false, error: false }),
-      () => setState({ key, data: [], loading: false, error: true }),
-    );
-    // the key fully describes the query
+const shared = new Map<string, Shared>();
+const KEEP_WARM_MS = 60_000;
+/** One onSnapshot per key, whoever reads it; `start` opens it and pushes each new state. */
+function useShared<T>(key: string | null, start: (emit: (data: T, error?: boolean) => void) => () => void, empty: T): Live<T> {
+  const subscribe = useCallback(
+    (notify: () => void) => {
+      if (!key) return () => {};
+      let e = shared.get(key);
+      if (!e) shared.set(key, (e = { state: null, readers: new Set(), stop: null, idle: null }));
+      const entry = e;
+      if (entry.idle) clearTimeout(entry.idle);
+      entry.idle = null;
+      entry.stop ??= start((data, error = false) => {
+        entry.state = { data, loading: false, error };
+        entry.readers.forEach((r) => r());
+      });
+      entry.readers.add(notify);
+      return () => {
+        entry.readers.delete(notify);
+        if (entry.readers.size) return;
+        entry.idle = setTimeout(() => {
+          entry.stop?.();
+          shared.delete(key);
+        }, KEEP_WARM_MS);
+      };
+    },
+    // the key fully describes the subscription (start/map/empty are stable per call site)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  if (!key) return { data: [], loading: false, error: false };
-  return state.key === key ? state : { data: [], loading: true, error: false };
+    [key],
+  );
+  const state = useSyncExternalStore(subscribe, () => (key ? shared.get(key)?.state ?? null : null));
+  if (!key) return { data: empty, loading: false, error: false };
+  return state ? (state as Live<T>) : { data: empty, loading: true, error: false };
+}
+function useLiveDoc<T>(path: string | null, map: (d: DocumentData | undefined) => T, empty: T): Live<T> {
+  return useShared<T>(
+    path && `doc:${path}`,
+    (emit) =>
+      onSnapshot(
+        doc(db, path!),
+        (s) => emit(map(s.exists() ? s.data() : undefined)),
+        () => emit(empty, true),
+      ),
+    empty,
+  );
+}
+const NONE: never[] = [];
+function useLiveQuery<T>(key: string | null, build: () => Query, map: (id: string, d: DocumentData) => T): Live<T[]> {
+  return useShared<T[]>(
+    key && `query:${key}`,
+    (emit) =>
+      onSnapshot(
+        build(),
+        (s) => emit(s.docs.map((d) => map(d.id, d.data()))),
+        () => emit(NONE, true),
+      ),
+    NONE,
+  );
 }
 const millis = (v: unknown) => (v instanceof Timestamp ? v.toMillis() : typeof v === "number" ? v : 0);
 

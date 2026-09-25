@@ -11,6 +11,15 @@ service cloud.firestore {
       return teamMember()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','superadmin'];
     }
+    // ---- direct vestuario writes: the member signs as themselves (nickname + linked ficha).
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function signedAsMe(d) {
+      return d.name == me().nickname && d.playerId == me().get('playerId', null) && d.at == request.time;
+    }
+    function upcoming(matchId) {
+      let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
+      return m.status == 'scheduled' && m.date > request.time;
+    }
     function superadminEmail() {
       return signedIn() && request.auth.token.email == 'adriantomascv@gmail.com' && request.auth.token.email_verified == true;
     }
@@ -22,13 +31,27 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if admin();
     }
+    function mvpOpen(matchId, playerId) {
+      let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
+      return m.status == 'finished' && m.get('voteClosesAt', 0) is number
+        && request.time.toMillis() < m.voteClosesAt
+        && m.get('ledger', {}).get(playerId, {}).get('played', false) == true;
+    }
     match /matches/{id} {
       allow read: if true;
       // Actas, result and computed minutes are written exclusively by the backend.
       allow write: if false;
+      // MVP vote: each member writes their own, while the 48 h window is open, for someone who played.
+      // The tally (mvpResults) is kept by the backend trigger; who voted what stays private.
       match /votes/{uid} {
         allow read: if teamMember() && (request.auth.uid == uid || admin());
-        allow write: if false;
+        allow create, update: if teamMember() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['playerId','voterName','at'])
+          && request.resource.data.playerId is string
+          && request.resource.data.voterName == me().nickname
+          && request.resource.data.at == request.time
+          && mvpOpen(id, request.resource.data.playerId);
+        allow delete: if false;
       }
     }
     match /teamMembers/{uid} {
@@ -41,12 +64,25 @@ service cloud.firestore {
     match /matchAudit/{id} { allow read: if admin(); allow write: if false; }
     match /matchPrivate/{id} {
       allow read: if teamMember(); allow write: if false;
-      match /availability/{uid} { allow read: if teamMember(); allow write: if false; }
+      match /availability/{uid} {
+        allow read: if teamMember();
+        allow create, update: if teamMember() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['response','name','playerId','at'])
+          && request.resource.data.response in ['yes','no','maybe']
+          && signedAsMe(request.resource.data) && upcoming(id);
+        allow delete: if false;
+      }
       // Porra: your own prediction always; everyone's once the match has kicked off.
       match /predictions/{uid} {
         allow read: if teamMember() && (request.auth.uid == uid
           || get(/databases/$(database)/documents/matches/$(id)).data.date <= request.time);
-        allow write: if false;
+        // Until kick-off; the table itself (porraStandings) is rebuilt by the backend.
+        allow create, update: if teamMember() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['goalsFor','goalsAgainst','name','playerId','at'])
+          && request.resource.data.goalsFor is int && request.resource.data.goalsFor >= 0 && request.resource.data.goalsFor <= 30
+          && request.resource.data.goalsAgainst is int && request.resource.data.goalsAgainst >= 0 && request.resource.data.goalsAgainst <= 30
+          && signedAsMe(request.resource.data) && upcoming(id);
+        allow delete: if false;
       }
     }
     match /porraStandings/{seasonId} { allow read: if teamMember(); allow write: if false; }
@@ -59,10 +95,47 @@ service cloud.firestore {
     match /playerLinks/{playerId} { allow read: if teamMember(); allow write: if false; }
     match /trainings/{id} {
       allow read: if teamMember(); allow write: if false;
-      match /votes/{uid} { allow read: if teamMember(); allow write: if false; }
+      // Slot votes: s1…sN of this training while it is open; once confirmed, only "voy" for that slot.
+      match /votes/{uid} {
+        allow read: if teamMember();
+        allow create, update: if teamMember() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['slotIds','name','playerId','at'])
+          && request.resource.data.slotIds is list
+          && request.resource.data.slotIds.size() >= 1 && request.resource.data.slotIds.size() <= 4
+          && trainingAccepts(id, request.resource.data.slotIds)
+          && signedAsMe(request.resource.data);
+        allow delete: if teamMember() && request.auth.uid == uid;
+      }
     }
-    match /board/{id} { allow read: if teamMember(); allow write: if false; }
-    match /boardRate/{uid} { allow read, write: if false; }
+    function trainingAccepts(trainingId, slotIds) {
+      let t = get(/databases/$(database)/documents/trainings/$(trainingId)).data;
+      return t.lastSlotAt > request.time
+        && slotIds.hasOnly(['s1','s2','s3','s4'][0:t.slots.size()])
+        && (!('confirmed' in t) || slotIds.hasOnly([t.confirmed.slotId]));
+    }
+    // Board: a member posts as themselves in the same batch that stamps boardRate/{uid};
+    // the stamp only moves forward 5 s after the previous one (one message every 5 s).
+    match /board/{id} {
+      allow read: if teamMember();
+      allow create: if teamMember()
+        && request.resource.data.keys().hasOnly(['text','uid','name','playerId','at'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 500
+        && request.resource.data.text.trim().size() >= 1
+        && signedAsMe(request.resource.data)
+        && getAfter(/databases/$(database)/documents/boardRate/$(request.auth.uid)).data.at == request.time;
+      allow update: if false;
+      allow delete: if teamMember() && (resource.data.uid == request.auth.uid || admin());
+    }
+    match /boardRate/{uid} {
+      allow read: if false;
+      allow create, update: if teamMember() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['at'])
+        && request.resource.data.at == request.time
+        && (resource == null || !(resource.data.at is timestamp) || resource.data.at + duration.value(5, 's') <= request.time);
+      allow delete: if false;
+    }
     match /mvpResults/{id} { allow read: if true; allow write: if false; }
     match /playerSeasonStats/{id} { allow read: if true; allow write: if false; }
     match /clubContent/{id} {

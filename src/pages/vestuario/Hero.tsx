@@ -1,7 +1,8 @@
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { dateMillis } from "../../lib/clubData";
 import type { ClubMatch } from "../../lib/clubData";
-import { apiError, requestPlayerClaim, setAvailability } from "../../lib/clubApi";
+import { apiError, requestPlayerClaim } from "../../lib/clubApi";
+import { setAvailability, useMe } from "./writes";
 import { shareClubPage } from "../../lib/share";
 import { calledUp, countdown, greeting, initials, kickoffLabel, MIN_PLAYERS, slotParts, slotTime } from "../../lib/vestuario";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
@@ -51,30 +52,24 @@ const RSVP = [
 
 export function Hero({ me, seasonName, next, meetingNote, availability, now, theme, faceName, claim, claimable, suggestion, admin, captain, training }: Props) {
   const shirt = useRef<Jersey3DRef>(null);
-  const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const who = useMe();
   // Opens on the next match's kit; the player can try the other one on.
   const [kitPick, setKitPick] = useState<"home" | "away" | null>(null);
   const kit = kitPick ?? next?.kit ?? "home";
   const mine = availability.find((a) => a.uid === me.uid)?.response;
-  const answer = pending ?? mine;
+  const answer = mine;
   const going = availability.filter((a) => a.response === "yes");
   const open = !!next && dateMillis(next.date) > now;
   const stamp = calledUp(next, me.playerId) ? "CONVOCADO" : answer === "yes" && open ? "CONFIRMADO" : null;
   const nameScale = Math.min(1, 6 / Math.max(6, me.displayName.length));
   const answerIndex = RSVP.findIndex((r) => r.value === answer);
 
-  const respond = async (value: string) => {
-    if (!next) return;
-    setPending(value);
+  // The local cache updates the answer at once; the rest of the team sees it in realtime.
+  const respond = (value: "yes" | "no" | "maybe") => {
+    if (!next || !who) return;
     setError("");
-    try {
-      await setAvailability({ matchId: next.id, response: value });
-    } catch (e) {
-      setError(apiError(e));
-    } finally {
-      setPending(null);
-    }
+    setAvailability(who, next.id, value).catch((e: unknown) => setError(apiError(e)));
   };
   return (
     <section className="vx-hero" aria-label="Tu cartel del partido">
@@ -169,8 +164,7 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
                         type="button"
                         role="radio"
                         aria-checked={answer === r.value}
-                        disabled={pending !== null}
-                        onClick={() => void respond(r.value)}
+                        onClick={() => respond(r.value)}
                       >
                         {answer === r.value && <Icon name="check" size={15} stroke={3} />}
                         {r.label}

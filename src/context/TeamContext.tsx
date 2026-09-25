@@ -12,29 +12,34 @@ import { useAuth } from "./AuthContext";
 import { enterTeam, leaveTeam } from "../lib/clubApi";
 interface TeamState {
   member: boolean;
+  /** False while we still don't know whether this device is inside (avoids flashing the gate). */
+  ready: boolean;
   unlock: (password: string) => Promise<void>;
   lock: () => Promise<void>;
 }
 const TeamContext = createContext<TeamState | null>(null);
 const sessionKey = "piti-vestuario-session";
-// A tab-local marker, never the password. Firestore remains the authority.
+const MAX_TIMER_MS = 2 ** 31 - 1;
+// A device marker (every tab of this browser), never the password: the key was typed
+// here. Firestore remains the authority: teamMembers/{uid} expires and the rules check it.
 function rememberedUid() {
   try {
-    return sessionStorage.getItem(sessionKey);
+    return localStorage.getItem(sessionKey);
   } catch {
     return null;
   }
 }
 function remember(uid: string | null) {
   try {
-    if (uid) sessionStorage.setItem(sessionKey, uid);
-    else sessionStorage.removeItem(sessionKey);
+    if (uid) localStorage.setItem(sessionKey, uid);
+    else localStorage.removeItem(sessionKey);
   } catch {
     /* Storage can be disabled. */
   }
 }
 export function TeamProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const [checked, setChecked] = useState<string | null>(null);
   const [session, setSession] = useState<{
     uid: string;
     expiresAt: number;
@@ -52,6 +57,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return onSnapshot(
       doc(db, "teamMembers", user.uid),
       (snap) => {
+        setChecked(user.uid);
         const expiresAt = snap.data()?.expiresAt?.toMillis?.() ?? 0;
         if (!snap.exists() || expiresAt <= Date.now()) {
           setSession(null);
@@ -59,14 +65,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         } else if (rememberedUid() === user.uid)
           setSession({ uid: user.uid, expiresAt });
       },
-      () => setSession(null),
+      () => {
+        setChecked(user.uid);
+        setSession(null);
+      },
     );
   }, [user]);
   useEffect(() => {
     if (!session) return;
+    // setTimeout overflows past ~24.8 days (2^31 ms) and would fire at once: re-check instead.
     const timer = setTimeout(
-      () => setSession(null),
-      Math.max(0, session.expiresAt - Date.now()),
+      () => setSession((s) => (s && s.expiresAt <= Date.now() ? null : s ? { ...s } : s)),
+      Math.min(MAX_TIMER_MS, Math.max(0, session.expiresAt - Date.now())),
     );
     return () => clearTimeout(timer);
   }, [session]);
@@ -82,10 +92,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     setSession(null);
     if (user && user.uid !== "preview") await leaveTeam();
   };
+  const ready = !loading && (!user || user.uid === "preview" || rememberedUid() !== user.uid || checked === user.uid);
   return (
     <TeamContext.Provider
       value={{
         member: !!user && session?.uid === user.uid,
+        ready,
         unlock,
         lock,
       }}
