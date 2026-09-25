@@ -40,7 +40,9 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 .vx *{box-sizing:border-box}
 .vx a{color:var(--accent)}
 .vx button{font-family:inherit;cursor:pointer}
-.vx-grain{position:absolute;inset:0;opacity:var(--grain);mix-blend-mode:overlay;pointer-events:none;z-index:1}
+/* A small pre-rendered noise tile (fractal noise) instead of an SVG filter rasterised over the whole page. */
+.vx-grain{position:absolute;inset:0;opacity:var(--grain);mix-blend-mode:overlay;pointer-events:none;z-index:1;background:url(/grain.webp) 0 0/64px 64px repeat}
+[data-theme="light"] .vx-grain{display:none}
 /* top */
 .vx-top{position:absolute;left:0;right:0;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:16px 20px}
 .vx-brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex:1}

@@ -11,7 +11,6 @@ import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon } from "../../components/celeste/icons";
-import { PRINT_FONTS } from "../../components/jersey3d/fonts";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { Percha } from "./Percha";
 import { FichaModal } from "./FichaModal";
@@ -103,7 +102,6 @@ export function SquadPage() {
   return (
     <div className="vx sq" data-kit={kit}>
       <CelesteBackdrop />
-      <link rel="stylesheet" href={PRINT_FONTS} precedence="default" />
       <CelesteHeader
         active="plantilla"
         sub="Plantilla"

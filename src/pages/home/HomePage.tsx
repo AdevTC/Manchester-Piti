@@ -7,7 +7,6 @@ import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon } from "../../components/celeste/icons";
-import { PRINT_FONTS } from "../../components/jersey3d/fonts";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { leaders, narrative, playerLines, playerOfTheMoment, seasonPulse, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
@@ -46,7 +45,6 @@ export function HomePage() {
   return (
     <div className="vx hm">
       <CelesteBackdrop />
-      <link rel="stylesheet" href={PRINT_FONTS} precedence="default" />
       <CelesteHeader
         active="inicio"
         sub="Manchester Piti"
