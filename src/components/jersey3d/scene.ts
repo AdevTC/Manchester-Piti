@@ -24,6 +24,7 @@ import {
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { PRINT_FONTS } from "./fonts";
 import { drawPrints, FONT_NUM, FONT_TXT, KIT_INK, type KitName, type Layouts } from "./prints";
 
 export interface JerseyOptions {
@@ -63,7 +64,6 @@ interface Assets {
   layout: Layouts;
 }
 // The prints need their own faces; the jersey loads them itself so it looks the same on every page.
-const PRINT_FONTS = "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@600;700&display=swap";
 function printFontsCss() {
   return new Promise<void>((resolve) => {
     let link = document.querySelector<HTMLLinkElement>("link[data-jersey-fonts]");
