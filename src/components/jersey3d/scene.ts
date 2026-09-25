@@ -24,7 +24,6 @@ import {
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { PRINT_FONTS } from "./fonts";
 import { STILL } from "./scene-constants";
 import { drawPrints, FONT_NUM, FONT_TXT, KIT_INK, type KitName, type Layouts } from "./prints";
 
@@ -79,29 +78,11 @@ interface Assets {
   gltf: GLTF;
   layout: Layouts;
 }
-// The prints need their own faces; the jersey loads them itself so it looks the same on every page.
-function printFontsCss() {
-  return new Promise<void>((resolve) => {
-    // Pages that print shirts already add this stylesheet (React hoists it): reuse it, never load it twice.
-    let link = document.querySelector<HTMLLinkElement>(`link[data-jersey-fonts], link[rel="stylesheet"][href="${PRINT_FONTS}"]`);
-    if (link?.sheet) return resolve();
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = PRINT_FONTS;
-      link.dataset.jerseyFonts = "";
-      document.head.appendChild(link);
-    }
-    link.addEventListener("load", () => resolve(), { once: true });
-    link.addEventListener("error", () => resolve(), { once: true });
-    setTimeout(resolve, 4000); // never block the shirt on a slow font host
-  });
-}
+// The prints need their own faces (self-hosted, styles/fonts.css): load them before painting.
 let shared: Promise<Assets> | null = null;
 function assets() {
   shared ??= (async () => {
-    await printFontsCss();
-    await Promise.all(
+    const faces = Promise.all(
       [`600 100px ${FONT_NUM}`, `700 100px ${FONT_NUM}`, `600 100px ${FONT_TXT}`, `700 100px ${FONT_TXT}`].map((f) =>
         document.fonts.load(f).catch(() => null),
       ),
@@ -114,6 +95,7 @@ function assets() {
       fetch(BASE + "kit-layout.json").then((r) => r.json() as Promise<Layouts>),
       new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(BASE + "jersey.glb"),
     ]);
+    await faces; // fetched alongside the model and textures
     return { home, away, crest, normal, gltf, layout };
   })();
   shared.catch(() => {

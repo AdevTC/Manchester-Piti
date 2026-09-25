@@ -56,6 +56,8 @@ test("lo que escribe un miembro aparece al instante en la pantalla de otro", asy
   await expect(rsvp.getByRole("radio", { name: "Duda" })).toHaveAttribute("aria-checked", "true");
   const tap = Date.now() - t0;
 
+  // The board takes one message every 5 s per member (firestore.rules): let the previous test's one clear.
+  await a.waitForTimeout(5000);
   const text = `En tiempo real ${Date.now()}`;
   await a.getByPlaceholder("Escribe al vestuario…").fill(text);
   const t1 = Date.now();

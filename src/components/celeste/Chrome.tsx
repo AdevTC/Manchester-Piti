@@ -5,9 +5,6 @@ import { Link } from "@tanstack/react-router";
 import { Icon, type IconName } from "./icons";
 import "../../styles/vestuario.css";
 
-const FONTS =
-  "https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,300..900&family=Geist:wght@300..800&family=Geist+Mono:wght@400..600&display=swap";
-
 export type CelestePage = "inicio" | "partidos" | "plantilla" | "stats" | "club" | "vestuario";
 const NAV: { key: CelestePage; to: string; label: string }[] = [
   { key: "inicio", to: "/", label: "Inicio" },
@@ -25,18 +22,10 @@ const DOCK: { key: CelestePage; to: string; label: string; icon: IconName }[] = 
   { key: "plantilla", to: "/plantilla", label: "Plantilla", icon: "team" },
 ];
 
-/** Page fonts + film grain, once per Celeste page. */
+/** Film grain, once per Celeste page (the faces are self-hosted: styles/fonts.css). */
 export function CelesteBackdrop() {
   return (
-    <>
-      <link rel="stylesheet" href={FONTS} precedence="default" />
-      <svg className="vx-grain" width="100%" height="100%" aria-hidden="true">
-        <filter id="vx-grain">
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves={2} stitchTiles="stitch" />
-        </filter>
-        <rect width="100%" height="100%" filter="url(#vx-grain)" />
-      </svg>
-    </>
+    <div className="vx-grain" aria-hidden="true" />
   );
 }
 

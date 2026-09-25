@@ -1,7 +1,7 @@
 /* Editorial sports-press tokens. Legacy names are kept (the inner pages
    reference them in inline styles) but remapped to the verified Manchester
    City palette and made theme-aware. Display = Anton, body = Archivo
-   (both loaded via index.html). The new --mp-* layer lives in styles/theme.css. */
+   (self-hosted in styles/fonts.css). The new --mp-* layer lives in styles/theme.css. */
 :root,
 [data-theme="dark"] {
   --bg-primary: #060d20;

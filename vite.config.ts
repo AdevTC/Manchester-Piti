@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import { fileURLToPath, URL } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 // Match a node_modules package by exact name, anchored on the package
@@ -15,7 +16,44 @@ const vendor = (...packages: [string, ...string[]]): RegExp => {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // Service worker (Workbox, generateSW): the app shell, every hashed chunk and the
+    // self-hosted fonts are precached, so repeat visits start without the network and
+    // route changes never wait for a download. A new deploy activates on the next load.
+    // Firestore/Auth traffic is cross-origin and never touched.
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: 'script-defer',
+      manifest: false, // public/manifest.webmanifest stays the source of truth
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,woff2,svg,webp}'],
+        // Not precached: latin-ext faces (only fetched for rare letters), the 3D assets (runtime cache
+        // below) and the admin-only screens.
+        globIgnores: ['**/*-latin-ext-*', 'models/**', 'assets/AdminHub-*', 'assets/ContentEditor-*'],
+        // The three.js chunk is ~590 KB minified: above Workbox's 2 MiB default it would be skipped silently.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        navigateFallback: 'index.html',
+        // Served by Cloud Functions through vercel.json rewrites: never answer them with the SPA.
+        navigateFallbackDenylist: [/^\/calendario\.ics/, /^\/compartir\//, /^\/social\//, /^\/__\//],
+        runtimeCaching: [
+          {
+            // The 3D model and kit textures: served from the device, refreshed in the background.
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/models/'),
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'piti-models', expiration: { maxEntries: 20 } },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/(crest|grain)[\w-]*\.(png|webp)$/.test(url.pathname),
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'piti-images', expiration: { maxEntries: 20 } },
+          },
+        ],
+      },
+    }),
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

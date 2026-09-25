@@ -48,6 +48,9 @@ export function postBoardMessage(me: Me, text: string) {
   const batch = writeBatch(db);
   batch.set(doc(db, "boardRate", me.uid), { at: serverTimestamp() });
   batch.set(doc(collection(db, "board")), { text: clean, uid: me.uid, name: me.name, playerId: me.playerId, at: serverTimestamp() });
-  return batch.commit();
+  // Another tab or device of this member posted less than 5 s ago: the rules refuse the stamp.
+  return batch.commit().catch((error: unknown) => {
+    throw (error as { code?: string }).code === "permission-denied" ? new TooSoon() : error;
+  });
 }
 export const deleteBoardMessage = (id: string) => deleteDoc(doc(db, "board", id));
