@@ -11,6 +11,9 @@ initializeApp();
 export const REGION = "europe-southwest1";
 setGlobalOptions({ region: REGION, maxInstances: 5 });
 export const db = getFirestore();
+// REST for one-shot reads/writes/transactions: skips loading gRPC at cold start (only
+// streaming listeners need it, and the functions use none).
+db.settings({ preferRest: true });
 export const siteUrl = defineString("PUBLIC_SITE_URL", {
   default: "https://futbolmanagement-dc6cb.web.app",
 });

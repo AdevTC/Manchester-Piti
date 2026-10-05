@@ -1,9 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 import {
+  browserLocalPersistence,
   connectAuthEmulator,
-  getAuth,
   GoogleAuthProvider,
+  indexedDBLocalPersistence,
+  initializeAuth,
 } from "firebase/auth";
 import {
   connectFirestoreEmulator,
@@ -32,7 +34,12 @@ const app = initializeApp(firebaseConfig);
 export const functions = getFunctions(app, "europe-southwest1");
 if (USE_EMULATOR) connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 
-export const auth = getAuth(app);
+// No popup/redirect resolver at start-up: getAuth() would load Google's gapi + the
+// firebaseapp.com auth iframe (~135 KB) on every page for every visitor. The resolver is
+// passed only to signInWithPopup (AuthContext), when someone actually signs in.
+export const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+});
 export const googleProvider = new GoogleAuthProvider();
 
 // Persistent IndexedDB cache: instant warm loads + fewer reads (free-tier friendly).
