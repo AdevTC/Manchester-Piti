@@ -47,3 +47,6 @@ ui-debug.log
 *.njsproj
 *.sln
 *.sw?
+
+# Firestore census output (runbook-firestore-madrid.md)
+functions/census-*.json

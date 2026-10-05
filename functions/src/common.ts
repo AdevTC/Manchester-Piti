@@ -6,9 +6,9 @@ import { defineString } from "firebase-functions/params";
 import { z } from "zod";
 
 initializeApp();
-// Next to the Firestore database (nam5 multi-region, served from us-central1): every
-// server read stays in the region instead of crossing the Atlantic.
-export const REGION = "us-central1";
+// Next to the Firestore database (europe-southwest1, Madrid): the team, the functions and the
+// data all sit in the same region, so every server read is a few milliseconds away.
+export const REGION = "europe-southwest1";
 setGlobalOptions({ region: REGION, maxInstances: 5 });
 export const db = getFirestore();
 export const siteUrl = defineString("PUBLIC_SITE_URL", {
