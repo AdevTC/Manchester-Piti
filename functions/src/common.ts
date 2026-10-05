@@ -12,8 +12,9 @@ export const REGION = "europe-southwest1";
 setGlobalOptions({ region: REGION, maxInstances: 5 });
 export const db = getFirestore();
 // REST for one-shot reads/writes/transactions: skips loading gRPC at cold start (only
-// streaming listeners need it, and the functions use none).
-db.settings({ preferRest: true });
+// streaming listeners need it, and the functions use none). Not under the emulator: its REST
+// client would try to fetch real Google credentials there.
+if (process.env.FUNCTIONS_EMULATOR !== "true") db.settings({ preferRest: true });
 export const siteUrl = defineString("PUBLIC_SITE_URL", {
   default: "https://futbolmanagement-dc6cb.web.app",
 });
