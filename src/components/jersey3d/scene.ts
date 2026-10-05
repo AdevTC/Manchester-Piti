@@ -1,5 +1,7 @@
 // three.js jersey scene (lazy-loaded chunk). Render-on-demand: frames are drawn only while something
 // moves (reveal, drag, turn, the idle sway fading out), while visible and while the page is shown.
+// The asset loading and the stage need no DOM, so the same code renders the stills in a Web Worker
+// (stills.worker.ts) on an OffscreenCanvas, off the main thread.
 import {
   Box3,
   CanvasTexture,
@@ -52,41 +54,55 @@ const LIVE_DPR = 1.5;
 /** The idle sway plays for a while after the last interaction, then fades out and the loop stops. */
 const SWAY_MS = 5000, SWAY_FADE = 1500;
 const BASE = "/models/";
-// Decoded off the main thread before use, so drawing or uploading the 2048² kits never stalls a frame.
+// Decoded off the main thread (createImageBitmap works in pages and workers alike), so drawing or
+// uploading the 2048² kits never stalls a frame. Raw pixels: three uploads bitmaps without any
+// colour-space or alpha conversion, as it did for <img> textures.
 const image = (src: string) =>
-  new Promise<HTMLImageElement>((ok, ko) => {
-    const i = new Image();
-    i.decoding = "async";
-    i.onload = () => i.decode().then(() => ok(i), () => ok(i));
-    i.onerror = ko;
-    i.src = src;
-  });
-/** The inside faces are barely seen: a 1024² copy of the kit is enough (a quarter of the GPU memory). */
-function half(img: HTMLImageElement) {
+  fetch(src)
+    .then((r) => {
+      if (!r.ok) throw new Error(`${src}: ${r.status}`);
+      return r.blob();
+    })
+    .then((b) => createImageBitmap(b, { colorSpaceConversion: "none", premultiplyAlpha: "none" }));
+type Surface = HTMLCanvasElement | OffscreenCanvas;
+/** A 2D/WebGL surface: OffscreenCanvas when available (always, in a worker), else a detached <canvas>. */
+export function makeCanvas(w: number, h: number): Surface {
+  if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h);
   const c = document.createElement("canvas");
-  c.width = c.height = KIT / 2;
-  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  c.width = w;
+  c.height = h;
+  return c;
+}
+const ctx2d = (c: Surface) => c.getContext("2d") as CanvasRenderingContext2D;
+/** The inside faces are barely seen: a 1024² copy of the kit is enough (a quarter of the GPU memory). */
+function half(img: ImageBitmap) {
+  const c = makeCanvas(KIT / 2, KIT / 2);
+  ctx2d(c).drawImage(img, 0, 0, KIT / 2, KIT / 2);
   return c;
 }
 /** Typing a name repaints the 2048² print canvas: wait for a short pause instead of every key. */
 const REPAINT_MS = 90;
 interface Assets {
-  home: HTMLImageElement;
-  away: HTMLImageElement;
-  crest: HTMLImageElement;
-  normal: HTMLImageElement;
+  home: ImageBitmap;
+  away: ImageBitmap;
+  crest: ImageBitmap;
+  normal: ImageBitmap;
   gltf: GLTF;
   layout: Layouts;
 }
-// The prints need their own faces (self-hosted, styles/fonts.css): load them before painting.
+/** The faces the prints are painted with (name and number). */
+export const PRINT_FACES = [`600 100px ${FONT_NUM}`, `700 100px ${FONT_NUM}`, `600 100px ${FONT_TXT}`, `700 100px ${FONT_TXT}`];
+// The prints need their own faces: on a page they come from styles/fonts.css; a worker has no
+// stylesheet and installs its own loader (FontFace from the same files).
+let loadFaces = (): Promise<void> =>
+  Promise.all(PRINT_FACES.map((f) => document.fonts.load(f).catch(() => null))).then(() => undefined);
+export function setFaceLoader(load: () => Promise<void>) {
+  loadFaces = load;
+}
 let shared: Promise<Assets> | null = null;
 function assets() {
   shared ??= (async () => {
-    const faces = Promise.all(
-      [`600 100px ${FONT_NUM}`, `700 100px ${FONT_NUM}`, `600 100px ${FONT_TXT}`, `700 100px ${FONT_TXT}`].map((f) =>
-        document.fonts.load(f).catch(() => null),
-      ),
-    );
+    const faces = loadFaces();
     const [home, away, crest, normal, layout, gltf] = await Promise.all([
       image(BASE + "kit-home.png"),
       image(BASE + "kit-away.png"),
@@ -114,10 +130,10 @@ vec2 mpKnit(vec2 uv){
 }`;
 
 /** The lit scene with the kit on a pivot; shared by the live jersey and the still renderer. */
-function stage(canvas: HTMLCanvasElement, o: Required<JerseyOptions>, A: Assets, preserve = false) {
+function stage(canvas: Surface, o: Required<JerseyOptions>, A: Assets, dpr: number, preserve = false) {
   // "default" keeps laptops on the integrated GPU; a shirt does not need the discrete one.
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "default", preserveDrawingBuffer: preserve });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, LIVE_DPR));
+  renderer.setPixelRatio(Math.min(dpr, LIVE_DPR));
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = NeutralToneMapping;
   renderer.toneMappingExposure = 1.05;
@@ -136,14 +152,12 @@ function stage(canvas: HTMLCanvasElement, o: Required<JerseyOptions>, A: Assets,
   const fill = new HemisphereLight(0x9fd0f2, 0x0a1532, 0.4);
   scene.add(key, key.target, rimL, rimR, fill);
 
-  const kitCanvas = document.createElement("canvas");
-  kitCanvas.width = kitCanvas.height = KIT;
+  const kitCanvas = makeCanvas(KIT, KIT);
   const kitTex = new CanvasTexture(kitCanvas);
   kitTex.flipY = false;
   kitTex.colorSpace = SRGBColorSpace;
   kitTex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-  const maskCanvas = document.createElement("canvas");
-  maskCanvas.width = maskCanvas.height = KIT / 2;
+  const maskCanvas = makeCanvas(KIT / 2, KIT / 2);
   const maskTex = new CanvasTexture(maskCanvas);
   maskTex.flipY = false;
   const normalTex = new Texture(A.normal);
@@ -200,11 +214,11 @@ function stage(canvas: HTMLCanvasElement, o: Required<JerseyOptions>, A: Assets,
   function paint() {
     const layout = A.layout[o.kit];
     const name = o.name.toUpperCase().slice(0, 14), num = o.num.replace(/\D/g, "").slice(0, 2);
-    const g = kitCanvas.getContext("2d")!;
+    const g = ctx2d(kitCanvas);
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.drawImage(A[o.kit], 0, 0, KIT, KIT);
     drawPrints(g, 1, layout, KIT_INK[o.kit], name, num, A.crest);
-    const gm = maskCanvas.getContext("2d")!;
+    const gm = ctx2d(maskCanvas);
     gm.setTransform(1, 0, 0, 1, 0, 0);
     gm.fillStyle = "#fff";
     gm.fillRect(0, 0, KIT, KIT);
@@ -238,7 +252,7 @@ function stage(canvas: HTMLCanvasElement, o: Required<JerseyOptions>, A: Assets,
     renderer.dispose();
     // Free the GPU memory now instead of waiting for garbage collection (browsers cap live contexts).
     // Only once the canvas has left the page: a remount on the same canvas shares its context.
-    if (!canvas.isConnected) renderer.forceContextLoss();
+    if (!("isConnected" in canvas) || !canvas.isConnected) renderer.forceContextLoss();
   };
   return { renderer, scene, camera, pivot, paint, light, dispose };
 }
@@ -247,7 +261,9 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
   const o: Required<JerseyOptions> = { view: "back", reveal: true, zoom: 1, lift: 0, ...initial };
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const A = await assets();
-  const { renderer, scene, camera, pivot, paint, light, dispose: disposeStage } = stage(canvas, o, A);
+  const { renderer, scene, camera, pivot, paint, light, dispose: disposeStage } = stage(canvas, o, A, devicePixelRatio);
+  // Compile the shaders without blocking (KHR_parallel_shader_compile) before the first frame.
+  await renderer.compileAsync(scene, camera).catch(() => undefined);
 
   const home = o.view === "front" ? 0 : Math.PI;
   let yaw = o.reveal && !reduceMotion ? home - Math.PI : home;
@@ -406,18 +422,32 @@ export interface StillRequest {
   /** Turn away from the straight back view, in radians (the duel angles the shirts towards each other). */
   yaw?: number;
 }
-let stills: Promise<{ canvas: HTMLCanvasElement; o: Required<JerseyOptions>; s: ReturnType<typeof stage> }> | null = null;
+type StillStage = { canvas: Surface; o: Required<JerseyOptions>; s: ReturnType<typeof stage> };
+let stills: Promise<StillStage> | null = null;
 let queue: Promise<unknown> = Promise.resolve();
-/** A photo of the real kit's back (transparent WebP), rendered off-screen with one shared renderer. */
-/** `scale` > 1 renders a sharper image (downloads); the rail uses the default. */
-export function renderStill(r: StillRequest, type: "image/webp" | "image/png" = "image/webp", scale = 1): Promise<Blob> {
+const encode = (c: Surface, type: string, quality: number): Promise<Blob> =>
+  "convertToBlob" in c
+    ? c.convertToBlob({ type, quality })
+    : new Promise((ok, ko) => c.toBlob((b) => (b ? ok(b) : ko(new Error("still"))), type, quality));
+// Safari can decode WebP but not encode it from a canvas: it silently hands back a PNG.
+let webp: Promise<boolean> | null = null;
+const canEncodeWebp = () => (webp ??= encode(makeCanvas(1, 1), "image/webp", 0.8).then((b) => b.type === "image/webp", () => false));
+/**
+ * A photo of the real kit's back (transparent WebP), rendered off-screen with one shared renderer.
+ * `scale` > 1 renders a sharper image (downloads); `dpr` is the page's devicePixelRatio (a worker
+ * has none of its own). Where WebP can't be encoded the photo is a PNG at most 1.5× (PNG is ~5× heavier).
+ */
+export async function renderStill(r: StillRequest, type: "image/webp" | "image/png" = "image/webp", scale = 1, dpr = globalThis.devicePixelRatio ?? 1): Promise<Blob> {
+  let base = Math.min(dpr, 2);
+  if (type === "image/webp" && !(await canEncodeWebp())) {
+    type = "image/png";
+    base = Math.min(base, 1.5);
+  }
   stills ??= assets().then((A) => {
-    const canvas = document.createElement("canvas");
+    const canvas = makeCanvas(STILL.w, STILL.h);
     const o: Required<JerseyOptions> = { view: "back", reveal: false, zoom: STILL.zoom, lift: STILL.lift, kit: r.kit, theme: r.theme, name: r.name, num: r.num };
-    // toBlob runs right after render, in the same task: no need to preserve the drawing buffer.
-    const s = stage(canvas, o, A);
-    s.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    s.renderer.setSize(STILL.w, STILL.h, false);
+    // Encoding runs right after render, in the same task: no need to preserve the drawing buffer.
+    const s = stage(canvas, o, A, base);
     s.camera.aspect = STILL.w / STILL.h;
     s.camera.position.set(0, 0.05 + STILL.lift, 6.4 / STILL.zoom);
     s.camera.updateProjectionMatrix();
@@ -427,31 +457,16 @@ export function renderStill(r: StillRequest, type: "image/webp" | "image/png" = 
     stills = null;
   });
   const job = queue.then(() =>
-    stills!.then(
-      ({ canvas, o, s }) =>
-        new Promise<Blob>((ok, ko) => {
-          Object.assign(o, { kit: r.kit, theme: r.theme, name: r.name, num: r.num });
-          s.paint();
-          s.light();
-          s.pivot.rotation.set(0, Math.PI + (r.yaw ?? 0), 0);
-          const base = Math.min(devicePixelRatio, 2);
-          s.renderer.setPixelRatio(base * scale);
-          s.renderer.setSize(STILL.w, STILL.h, false);
-          s.renderer.render(s.scene, s.camera);
-          if (scale !== 1) {
-            // read the big frame first, then return the shared canvas to its normal size
-            const done = (b: Blob | null) => {
-              s.renderer.setPixelRatio(base);
-              s.renderer.setSize(STILL.w, STILL.h, false);
-              if (b) ok(b);
-              else ko(new Error("still"));
-            };
-            canvas.toBlob(done, type, 0.92);
-            return;
-          }
-          canvas.toBlob((b) => (b ? ok(b) : ko(new Error("still"))), type, 0.9);
-        }),
-    ),
+    stills!.then(({ canvas, o, s }) => {
+      Object.assign(o, { kit: r.kit, theme: r.theme, name: r.name, num: r.num });
+      s.paint();
+      s.light();
+      s.pivot.rotation.set(0, Math.PI + (r.yaw ?? 0), 0);
+      s.renderer.setPixelRatio(base * scale);
+      s.renderer.setSize(STILL.w, STILL.h, false);
+      s.renderer.render(s.scene, s.camera);
+      return encode(canvas, type, scale !== 1 ? 0.92 : 0.9);
+    }),
   );
   queue = job.catch(() => null);
   return job;

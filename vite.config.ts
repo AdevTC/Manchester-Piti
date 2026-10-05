@@ -85,6 +85,8 @@ export default defineConfig({
       re2js: fileURLToPath(new URL('./src/lib/re2js-stub.ts', import.meta.url)),
     },
   },
+  // ES-module workers (stills.worker.ts uses import.meta and shares three with the page build).
+  worker: { format: 'es' },
   server: {
     port: 3000,
     strictPort: true,
