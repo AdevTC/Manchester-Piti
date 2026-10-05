@@ -53,7 +53,7 @@ async function google(label) {
 }
 async function call(name, user, data) {
   const response = await fetch(
-    "http://127.0.0.1:5001/demo-manchester-piti/us-central1/" + name,
+    "http://127.0.0.1:5001/demo-manchester-piti/europe-southwest1/" + name,
     {
       method: "POST",
       headers: {
@@ -418,7 +418,7 @@ assert.ok(announce.docs.some((d) => d.get("text").startsWith("Entreno confirmado
 checked += 3;
 await refused(admin, [`trainings/${training.id}/votes/${admin.uid}`, { slotIds: ["s1"], name: adminName, playerId: null, at: null }]);
 await wrote(admin, [`trainings/${training.id}/votes/${admin.uid}`, { slotIds: ["s2"], name: adminName, playerId: null, at: null }]);
-const feed = await fetch("http://127.0.0.1:5001/demo-manchester-piti/us-central1/clubCalendar").then((r) => r.text());
+const feed = await fetch("http://127.0.0.1:5001/demo-manchester-piti/europe-southwest1/clubCalendar").then((r) => r.text());
 assert.ok(feed.includes(`UID:training-${training.id}@manchester-piti`));
 await ok("confirmTraining", admin, { trainingId: training.id, slotId: null });
 assert.equal((await db.doc("trainings/" + training.id).get()).get("confirmed"), undefined);
@@ -445,7 +445,7 @@ assert.equal((await db.collection("board").where("uid", "==", fan.uid).get()).si
 checked++;
 
 const shareBase =
-  "http://127.0.0.1:5001/demo-manchester-piti/us-central1/clubShare";
+  "http://127.0.0.1:5001/demo-manchester-piti/europe-southwest1/clubShare";
 const html = await fetch(shareBase + "/compartir/partido/" + id).then((r) =>
   r.text(),
 );
@@ -480,7 +480,7 @@ assert.equal((await db.doc("players/" + ids[9]).get()).get("archived"), undefine
 assert.equal((await db.doc("matches/" + id).get()).get("rival"), "Rival de pruebas");
 checked += 5;
 assert.equal((await fetch(shareBase + "/compartir/partido/" + id)).status, 404);
-const calendarUrl = "http://127.0.0.1:5001/demo-manchester-piti/us-central1/clubCalendar";
+const calendarUrl = "http://127.0.0.1:5001/demo-manchester-piti/europe-southwest1/clubCalendar";
 const archivedFeed = await fetch(calendarUrl).then((r) => r.text());
 assert.ok(archivedFeed.startsWith("BEGIN:VCALENDAR"));
 assert.ok(!archivedFeed.includes(`UID:${id}@manchester-piti`));
