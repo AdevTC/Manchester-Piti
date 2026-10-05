@@ -15,6 +15,7 @@ import {
 } from "../../lib/clubData";
 import { Crest } from "../Crest";
 import { OpponentBadge } from "./OpponentBadge";
+import "../../styles/analytics.css";
 export function PhotoSpace({
   url,
   label = "La próxima foto de equipo va aquí",

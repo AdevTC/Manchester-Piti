@@ -33,6 +33,7 @@ import { useSeason } from "../../context/SeasonContext";
 import { saveMatchSheet, apiError } from "../../lib/clubApi";
 import { SectionTitle } from "../../components/club/ClubUI";
 import { downloadMatchPoster } from "../../lib/matchPoster";
+import "../../styles/analytics.css";
 const defaultSheet = (): MatchSheet => ({
   version: 2,
   revision: 0,

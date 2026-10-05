@@ -8,6 +8,7 @@ import {
 } from "../lib/clubData";
 import { PhotoSpace, SectionTitle } from "../components/club/ClubUI";
 import { Link } from "@tanstack/react-router";
+import "../styles/analytics.css";
 export function ClubPage() {
   const c = useClubContent();
   const { matches } = useClubData();

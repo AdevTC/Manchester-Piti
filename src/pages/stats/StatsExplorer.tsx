@@ -17,6 +17,7 @@ import {
   EvolutionChart,
   RankingBars,
 } from "../../components/club/AnalyticsCharts";
+import "../../styles/analytics.css";
 export type ExploreSection = "individual" | "streaks" | "team" | "evolution";
 function MatchLink({ match }: { match: ClubMatch }) {
   return (

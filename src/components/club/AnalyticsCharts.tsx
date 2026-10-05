@@ -6,6 +6,7 @@ import {
   medalFor,
   type PlayerAnalysis,
 } from "../../lib/clubAnalytics";
+import "../../styles/analytics.css";
 
 export function RankingBars({
   rows,

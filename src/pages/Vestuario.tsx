@@ -25,6 +25,7 @@ import {
 } from "../lib/clubData";
 import { useClock } from "../hooks/useClock";
 import { Crest } from "../components/Crest";
+import "../styles/analytics.css";
 
 export function TeamGate() {
   const { user, loading, loginWithGoogle, logout } = useAuth();

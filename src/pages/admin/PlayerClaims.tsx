@@ -4,6 +4,7 @@ import { db } from "../../firebase";
 import { apiError, resolvePlayerClaim } from "../../lib/clubApi";
 import { playerName, useClubData } from "../../lib/clubData";
 import { usePendingClaims } from "../vestuario/live";
+import "../../styles/analytics.css";
 
 /** Admin review of account ↔ player claims, plus the accounts already linked. */
 export function PlayerClaims({ pendingOnly = false }: { pendingOnly?: boolean }) {

@@ -6,6 +6,7 @@ import { useClubContent, type ClubContent } from "../../lib/clubContent";
 import { useClubData, playerName } from "../../lib/clubData";
 import { apiError } from "../../lib/clubApi";
 import { Save, Plus, Trash2 } from "lucide-react";
+import "../../styles/analytics.css";
 export function ContentEditor() {
   const content = useClubContent();
   const { players } = useClubData();
