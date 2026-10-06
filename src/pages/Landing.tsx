@@ -104,7 +104,7 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
   useEffect(() => {
     let active = true;
 
-    (async () => {
+    void (async () => {
       try {
         const [matchSnap, playerSnap] = await Promise.all([
           getDocs(collection(db, "matches")),

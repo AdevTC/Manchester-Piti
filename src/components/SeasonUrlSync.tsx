@@ -20,7 +20,7 @@ export const SeasonUrlSync = (): null => {
     // shareable (keep the URL clean for the "all" default).
     if (urlSeason === undefined) {
       if (selectedSeasonId !== "all") {
-        navigate({ to: ".", search: (prev) => ({ ...prev, season: selectedSeasonId }), replace: true });
+        void navigate({ to: ".", search: (prev) => ({ ...prev, season: selectedSeasonId }), replace: true });
       }
       return;
     }
@@ -30,7 +30,7 @@ export const SeasonUrlSync = (): null => {
     if (!known) {
       // Unknown season in the URL -> fall back to "all".
       if (selectedSeasonId !== "all") setSelectedSeasonId("all");
-      navigate({ to: ".", search: (prev) => ({ ...prev, season: "all" }), replace: true });
+      void navigate({ to: ".", search: (prev) => ({ ...prev, season: "all" }), replace: true });
       return;
     }
     // Adopt the URL's season (deep-link, back/forward, selector navigation).

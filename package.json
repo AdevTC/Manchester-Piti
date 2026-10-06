@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "oxlint",
     "test": "vitest run",
     "preview": "vite preview",
     "test:e2e": "playwright test",
@@ -47,7 +47,6 @@
   },
   "devDependencies": {
     "@babel/core": "^8.0.6",
-    "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^5.0.2",
     "@playwright/test": "^1.63.0",
     "@rolldown/plugin-babel": "^0.2.4",
@@ -64,13 +63,11 @@
     "@types/three": "0.170.0",
     "@vitejs/plugin-react": "^6.1.2",
     "babel-plugin-react-compiler": "^1.0.0",
-    "eslint": "^10.12.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.7",
-    "globals": "^17.13.0",
     "jsdom": "^29.1.1",
-    "typescript": "~6.0.2",
-    "typescript-eslint": "^8.71.1",
+    "oxlint": "1.87.0",
+    "oxlint-tsgolint": "7.0.2003",
+    "typescript": "~7.0.2",
     "vite": "^8.3.2",
     "vite-plugin-pwa": "2.0.0",
     "vitest": "^5.0.3"
