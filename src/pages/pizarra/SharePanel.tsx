@@ -23,7 +23,7 @@ export const SharePanel: React.FC<SharePanelProps> = ({ data, onClose }) => {
   useEffect(() => {
     let url: string | null = null;
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const crest = await loadImage("/crest.png");

@@ -57,7 +57,7 @@ export async function drawPoster(canvas: HTMLCanvasElement, d: PosterData): Prom
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (typeof document !== "undefined" && document.fonts?.ready) {
+  if (typeof document !== "undefined" && "fonts" in document) {
     try {
       await document.fonts.ready;
     } catch {

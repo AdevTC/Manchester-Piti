@@ -418,7 +418,7 @@ export const Expedientes: React.FC = () => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (d.startViewTransition && !reduce) {
       flushSync(() => setMorphingId(p.id)); // tag the clicked file before the snapshot
-      d.startViewTransition(() => flushSync(() => setSelectedPlayer(p))).finished.finally(() => setMorphingId(null));
+      void d.startViewTransition(() => flushSync(() => setSelectedPlayer(p))).finished.finally(() => setMorphingId(null));
     } else {
       setSelectedPlayer(p);
     }
@@ -428,7 +428,7 @@ export const Expedientes: React.FC = () => {
     const d = document as Document & { startViewTransition?: (cb: () => void) => { finished: Promise<void> } };
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (cur && d.startViewTransition && !reduce) {
-      d.startViewTransition(() => flushSync(() => { setMorphingId(cur.id); setSelectedPlayer(null); })).finished.finally(() => setMorphingId(null));
+      void d.startViewTransition(() => flushSync(() => { setMorphingId(cur.id); setSelectedPlayer(null); })).finished.finally(() => setMorphingId(null));
     } else {
       setSelectedPlayer(null);
     }
