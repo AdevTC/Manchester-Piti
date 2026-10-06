@@ -38,13 +38,21 @@ export function handleSnapshotError(
 interface SharedSub {
   count: number;
   unsub: () => void;
+  idle: ReturnType<typeof setTimeout> | null;
 }
 const sharedSubs = new Map<string, SharedSub>();
+/**
+ * After the last consumer leaves, the listener stays open this long: moving between pages that read
+ * the same collections (Inicio ↔ Plantilla ↔ Partidos) keeps one live connection instead of closing
+ * it and reading every document again.
+ */
+export const KEEP_WARM_MS = 60_000;
 
 /** Test-only: clears the shared-subscription registry so unit tests start from a
  *  clean slate (the registry is module-level, so ref counts would otherwise leak
  *  between tests). Not part of the production API. */
 export function _resetSharedSubsForTesting(): void {
+  for (const sub of sharedSubs.values()) if (sub.idle) clearTimeout(sub.idle);
   sharedSubs.clear();
 }
 
@@ -67,23 +75,26 @@ export function subscribeShared<T>(
   const existing = sharedSubs.get(hash);
   if (existing) {
     existing.count += 1;
+    if (existing.idle) clearTimeout(existing.idle);
+    existing.idle = null;
   } else {
     const unsub = onSnapshot(
       q,
       (snap) => { qc.setQueryData([...key, '__error'], null); qc.setQueryData(key, mapSnapshotDocs(snap, map)); },
       (err) => { qc.setQueryData([...key, '__error'], err); handleSnapshotError(qc, key, err); },
     );
-    sharedSubs.set(hash, { count: 1, unsub });
+    sharedSubs.set(hash, { count: 1, unsub, idle: null });
   }
 
   return () => {
     const entry = sharedSubs.get(hash);
     if (!entry) return;
     entry.count -= 1;
-    if (entry.count <= 0) {
+    if (entry.count > 0) return;
+    entry.idle = setTimeout(() => {
       entry.unsub();
       sharedSubs.delete(hash);
-    }
+    }, KEEP_WARM_MS);
   };
 }
 

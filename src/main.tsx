@@ -9,6 +9,10 @@ import './index.css'
 import './styles/theme.css'
 import App from './App.tsx'
 import { queryClient } from './lib/queryClient'
+import { primeFromBundle } from './lib/bundle'
+
+// Before React renders: the data bundle (already downloading since the HTML) goes into the cache.
+primeFromBundle()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
