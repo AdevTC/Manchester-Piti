@@ -48,6 +48,26 @@
       "destination": "https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net/clubShare/social/:path*"
     },
     {
+      "source": "/",
+      "destination": "/api/render?p=/"
+    },
+    {
+      "source": "/partidos",
+      "destination": "/api/render?p=/partidos"
+    },
+    {
+      "source": "/stats",
+      "destination": "/api/render?p=/stats"
+    },
+    {
+      "source": "/club",
+      "destination": "/api/render?p=/club"
+    },
+    {
+      "source": "/plantilla",
+      "destination": "/api/render?p=/plantilla"
+    },
+    {
       "source": "/(.*)",
       "destination": "/shell.html"
     }
