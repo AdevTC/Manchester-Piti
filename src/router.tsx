@@ -119,8 +119,8 @@ const playerProfileRoute = createRoute({
   path: "/jugadores/$playerId",
   pendingComponent: PlayerProfilePending,
   component: lazyRouteComponent(
-    () => import("./pages/PlayerProfile"),
-    "PlayerProfile",
+    () => import("./pages/jugador/JugadorPage"),
+    "JugadorPage",
   ),
 });
 
