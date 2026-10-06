@@ -25,8 +25,11 @@ test("jugador, datos de temporada y reparto real de minutos", async ({
   await expect(page.getByText("40′", { exact: true }).first()).toBeVisible();
   await page.goto("/stats?season=preview-season");
   await page.getByRole("button", { name: "Minutos", exact: true }).click();
-  const row = page.getByRole("row").filter({ hasText: "Hugo" });
-  await expect(row.getByRole("cell").nth(1)).toHaveText("40");
+  const row = page
+    .getByRole("table", { name: "Minutos y convocatorias" })
+    .getByRole("row")
+    .filter({ hasText: "Hugo" });
+  await expect(row.getByRole("cell").first()).toHaveText("40");
 });
 test("la clave nunca se pide antes de Google y admin está protegido", async ({
   page,

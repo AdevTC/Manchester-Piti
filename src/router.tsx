@@ -77,7 +77,7 @@ const statsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/stats",
   validateSearch: statsSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/ClubStats"), "ClubStats"),
+  component: lazyRouteComponent(() => import("./pages/stats/StatsPage"), "StatsPage"),
 });
 
 const plantillaRoute = createRoute({

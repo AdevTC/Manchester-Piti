@@ -36,6 +36,8 @@ const PATHS = {
   sun: (<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>),
   cloud: <path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.6A3.2 3.2 0 0 0 7 18Z" />,
   rain: (<><path d="M7 15h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.6A3.2 3.2 0 0 0 7 15Z" /><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3" /></>),
+  trophy: (<><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z" /><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" /></>),
+  download: <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />,
   cake: (<><path d="M4 21h16v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2Z" /><path d="M4 16c2 1.5 4 1.5 6 0s4-1.5 6 0 3 1 4 .5M12 11V7" /></>),
 };
 export type IconName = keyof typeof PATHS;
