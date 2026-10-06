@@ -10,6 +10,8 @@ import "./styles/club.css";
 // Only private pages show the gate and the nickname step: keep them out of the entry chunk.
 const TeamGate = lazy(() => import("./pages/Vestuario").then((m) => ({ default: m.TeamGate })));
 const NicknameSetup = lazy(() => import("./pages/NicknameSetup").then((m) => ({ default: m.NicknameSetup })));
+// The live island (a pill while a match is on) loads apart from the entry: it renders nothing otherwise.
+const LiveIsland = lazy(() => import("./components/celeste/LiveIsland").then((m) => ({ default: m.LiveIsland })));
 export function RootLayout() {
   const { profile, loading } = useAuth();
   const { member, ready } = useTeam();
@@ -21,7 +23,7 @@ export function RootLayout() {
   // Celeste pages (home, plantilla, vestuario) bring their own header, dock and footer: hide the site chrome there.
   // While the session is being restored, private pages wait on a neutral skeleton (no gate flash).
   const checking = privatePage && (!ready || (member && loading));
-  const immersive = pathname === "/" || pathname === "/plantilla" || (pathname === "/vestuario" && (checking || (member && !!profile)));
+  const immersive = pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || (pathname === "/vestuario" && (checking || (member && !!profile)));
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
@@ -34,6 +36,9 @@ export function RootLayout() {
       </a>
       {!immersive && <Navbar />}
       <SeasonUrlSync />
+      <Suspense fallback={null}>
+        <LiveIsland />
+      </Suspense>
       <main id="contenido" className={immersive ? "club-main vx-main-shell" : "club-main"}>
         {checking ? (
           <RoutePending />

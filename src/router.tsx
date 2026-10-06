@@ -128,8 +128,8 @@ const fixturesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/partidos",
   component: lazyRouteComponent(
-    () => import("./pages/Fixtures"),
-    "FixturesPage",
+    () => import("./pages/partidos/PartidosPage"),
+    "PartidosPage",
   ),
 });
 const clubRoute = createRoute({

@@ -42,7 +42,7 @@ const preloadCriticalFonts = (): Plugin => ({
 const ROUTE_CHUNKS: [RegExp, string][] = [
   [/^\/$/, 'src/pages/Home.tsx'],
   [/^\/plantilla\/?$/, 'src/pages/squad/SquadPage.tsx'],
-  [/^\/partidos\/?$/, 'src/pages/Fixtures.tsx'],
+  [/^\/partidos\/?$/, 'src/pages/partidos/PartidosPage.tsx'],
   [/^\/stats\/?$/, 'src/pages/ClubStats.tsx'],
   [/^\/club\/?$/, 'src/pages/Club.tsx'],
   [/^\/vestuario\/?$/, 'src/pages/vestuario/VestuarioPage.tsx'],
