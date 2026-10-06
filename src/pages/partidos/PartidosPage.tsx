@@ -12,6 +12,7 @@ import { Icon } from "../../components/celeste/icons";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Flip } from "../../components/celeste/Flip";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
+import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { leaders, matchEvent, playerLines, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
 import { opponentInitials } from "../../lib/clubAnalytics";
@@ -146,6 +147,7 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
           </p>
           {(kitLabel(m) || m.competition) && (
             <div className="pt-chips">
+              <WeatherChip match={m} now={now} />
               {kitLabel(m) && (
                 <span className="pt-chip">
                   <Icon name="shirt" size={14} /> {kitLabel(m)}
