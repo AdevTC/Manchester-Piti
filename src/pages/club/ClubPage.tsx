@@ -8,7 +8,7 @@ import { useClubContent } from "../../lib/clubContent";
 import { formatDate, nextFixture, playerForSeason, playerName, useClubData } from "../../lib/clubData";
 import { clubMedals, playerLines, seasonPulse, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
-import { classifieds, historyTrain, mapsUrl, mailto, sponsorWall, squadNumbers } from "../../lib/club";
+import { classifieds, extraTrophies, historyTrain, mapsUrl, mailto, sponsorWall, squadNumbers } from "../../lib/club";
 import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
@@ -28,7 +28,14 @@ const KITS = {
   home: { label: "1ª equipación", note: "Celeste de la casa, con el oro en el cuello y el bajo.", swatches: [["Celeste", "#8AC8F5"], ["Tinta", "#051330"], ["Oro", "#CFA862"]] },
   away: { label: "2ª equipación", note: "Negra de fuera, con la franja roja en diagonal.", swatches: [["Noche", "#1D1D22"], ["Tiza", "#F5F5F5"], ["Rojo", "#D6161F"]] },
 } as const;
-const MEDAL_ICON: Record<string, IconName> = { debut: "shirt", goal: "ball", win: "trophy", pichichi: "crown", assist: "send", record: "flame" };
+const MEDAL_ICON: Record<string, IconName> = { debut: "shirt", goal: "ball", win: "trophy", pichichi: "crown", assist: "send", record: "flame", hat: "star", clean: "shield" };
+const CHAPTERS = [
+  ["cl-trophies", "Trofeos"],
+  ["cl-kits", "Equipaciones"],
+  ["cl-history", "Historia"],
+  ["cl-ground", "El campo"],
+  ["cl-contact", "Contacto"],
+] as const;
 const ZONE_LABEL = { POR: "Porteros", DEF: "Defensas", MED: "Medios", DEL: "Delanteros" } as const;
 
 function Head({ kick, title, id, isNew, children }: { kick: string; title: string; id: string; isNew?: boolean; children?: React.ReactNode }) {
@@ -65,7 +72,7 @@ export function ClubPage() {
   const pulse = seasonPulse(matches, seasonId, now);
   const lines = playerLines(squad, pulse.played);
   const nameOf = (id: string) => lines.find((l) => l.id === id)?.name ?? playerName(players.find((p) => p.id === id));
-  const medals = clubMedals(pulse, lines, nameOf, (d) => formatDate(d).replace(/^[^,]*,\s*/, ""));
+  const medals = [...clubMedals(pulse, lines, nameOf, (d) => formatDate(d).replace(/^[^,]*,\s*/, "")), ...extraTrophies(pulse.played, nameOf)];
   const won = medals.filter((m) => m.earned).length;
   const stops = historyTrain(c.milestones, matches);
   const nums = squadNumbers(inSeason, new Date(now));
@@ -155,6 +162,14 @@ export function ClubPage() {
                 Ver los partidos
               </Link>
             </div>
+            <nav className="cl-chapters" aria-label="Capítulos de El club">
+              {CHAPTERS.map(([id, label], i) => (
+                <a key={id} href={`#${id}`}>
+                  <small>{String(i + 1).padStart(2, "0")}</small>
+                  {label}
+                </a>
+              ))}
+            </nav>
             {notice && (
               <p className="st-mono" role="status">
                 {notice}
