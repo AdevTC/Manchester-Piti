@@ -7,6 +7,7 @@ import type {
   Participation,
   MatchEvent,
 } from "../../functions/src/matchEngine";
+import { useSeasonsLoading } from "../context/SeasonContext";
 export {
   EVENT_LABELS,
   dateMillis,
@@ -30,10 +31,13 @@ const playerQuery = collection(db, "players");
 export function useClubData() {
   const matches = useFirestoreCollection(["matches"], matchQuery, mapMatch);
   const players = useFirestoreCollection(["players"], playerQuery, mapPlayer);
+  // Every page reads matches and players through the season: until the seasons arrive too, the page
+  // would paint itself empty for a moment and then jump (the data bundle makes the other two instant).
+  const seasonsLoading = useSeasonsLoading();
   return {
     matches: (matches.data ?? []) as ClubMatch[],
     players: players.data ?? [],
-    loading: matches.isPending || players.isPending,
+    loading: matches.isPending || players.isPending || seasonsLoading,
     error: matches.error || players.error,
   };
 }
