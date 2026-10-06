@@ -128,3 +128,15 @@ export function keyNumbers(events: MatchEvent[] | undefined) {
   const n = (types: string[]) => ev.filter((e) => types.includes(e.type)).length;
   return { saves: n(["penalty_saved"]), woodwork: n(["woodwork"]), cards: n(["yellow_card", "double_yellow", "red_card"]) };
 }
+
+/** Who is on the pitch now: the starters, after the substitutions and red cards in the acta. */
+export function onPitch(starters: string[] | undefined, events: MatchEvent[] | undefined) {
+  const on = new Set(starters ?? []);
+  for (const e of [...(events ?? [])].sort(byMinute)) {
+    if (e.type === "substitution" && e.playerId && e.inPlayerId) {
+      on.delete(e.playerId);
+      on.add(e.inPlayerId);
+    } else if ((e.type === "red_card" || e.type === "double_yellow") && e.playerId) on.delete(e.playerId);
+  }
+  return [...on];
+}

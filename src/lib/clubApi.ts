@@ -59,3 +59,9 @@ export function apiError(error: unknown) {
     return "No se ha podido guardar: puede que ya esté cerrado o que tu acceso al vestuario haya caducado.";
   return e.message || "No se ha podido guardar. Vuelve a intentarlo.";
 }
+/** Modo banda: an admin adds an event to the match being played (or undoes the last one written live). */
+export const liveEvent = httpsCallable<
+  | { action: "add"; matchId: string; event: { type: string; minute: number; playerId?: string; assistPlayerId?: string; inPlayerId?: string } }
+  | { action: "undo"; matchId: string },
+  { events: number }
+>(functions, "liveEvent");

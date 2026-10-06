@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEvent, Participation } from "../../functions/src/matchEngine";
-import { chapters, keyNumbers, playerLine, pulse, stintRows } from "./ficha";
+import { chapters, keyNumbers, onPitch, playerLine, pulse, stintRows } from "./ficha";
 
 const e = (type: string, minute: number, playerId?: string, assistPlayerId?: string) => ({ id: `${type}${minute}`, type, minute, playerId, assistPlayerId }) as MatchEvent;
 const names: Record<string, string> = { a: "ADRIÁN T.C.", h: "HUBEROSKI", i: "ILLESCAS", ev: "EVANS", er: "ERIK" };
@@ -57,5 +57,12 @@ describe("stintRows and playerLine", () => {
   });
   it("key numbers", () => {
     expect(keyNumbers(J7)).toEqual({ saves: 1, woodwork: 0, cards: 1 });
+  });
+});
+
+describe("onPitch", () => {
+  it("applies substitutions and red cards in minute order", () => {
+    const ev = [{ ...e("substitution", 30, "t"), inPlayerId: "k" }, e("red_card", 40, "i")] as MatchEvent[];
+    expect(onPitch(["a", "t", "i"], ev)).toEqual(["a", "k"]);
   });
 });

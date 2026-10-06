@@ -163,3 +163,19 @@
 .fc-pane,.fc-feed li,.fc-mom .u,.fc-mom .t,.fc-stints .tr i,.fc-votes .bar i{animation:none!important}
 .fc-tabs .ind,.fc-rsvp .th{transition:none}
 }
+
+/* modo banda (admins, live) */
+.fc-banda{padding:20px;border-radius:28px;background:linear-gradient(160deg,rgba(255,90,79,.14),rgba(255,90,79,.03));box-shadow:inset 0 0 0 1px rgba(255,90,79,.35)}
+.fc-banda-min{margin-top:14px;display:flex;align-items:center;gap:10px}
+.fc-banda-min output{min-width:84px;text-align:center;font-family:'Anybody';font-weight:900;font-size:44px;line-height:1;font-variation-settings:'wdth' 80}
+.fc-banda-min button{width:48px;height:48px;border-radius:50%;border:0;background:var(--btn);color:var(--btn-ink);font-size:24px;font-weight:700;cursor:pointer}
+.fc-banda-min button.now{width:auto;padding:0 16px;border-radius:999px;font-size:14px}
+.fc-banda-acts{margin:16px 0 8px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fc-banda-acts button{min-height:56px;border-radius:18px;border:0;background:var(--btn);color:var(--btn-ink);font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.fc-banda-acts button.gold{background:linear-gradient(120deg,#FFC659,#ffe0a0);color:#0c1733}
+.fc-banda-acts button.them{background:var(--bar)}
+.fc-banda-acts button[aria-pressed="true"]{box-shadow:0 0 0 3px #6CABDD}
+.fc-banda .hm-kick{margin-top:12px}
+.fc-banda .fc-acts{flex-wrap:wrap;overflow:visible}
+.fc-banda .hm-btn:disabled,.fc-banda .hm-ghostbtn:disabled{opacity:.45;cursor:not-allowed}
+@container (min-width:700px){.fc-banda-acts{grid-template-columns:repeat(4,minmax(0,1fr))}}

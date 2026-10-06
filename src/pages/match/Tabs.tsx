@@ -17,6 +17,7 @@ import { dateParts, resultOf, scoreOf } from "../../lib/partidos";
 import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMyMvpVote, useMyPrediction } from "../vestuario/live";
 import { predictScore, setAvailability, useMe, voteMvp } from "../vestuario/writes";
 import { apiError } from "../../lib/clubApi";
+import { Banda } from "./Banda";
 import type { PlayerDoc } from "../../lib/schemas";
 
 type NameOf = (id: string) => string;
@@ -179,9 +180,14 @@ export function PreviaTab({ match, matches }: { match: ClubMatch; matches: ClubM
 }
 
 export function DirectoTab({ match, nameOf }: { match: ClubMatch; nameOf: NameOf }) {
+  const { member } = useTeam();
+  const { profile } = useAuth();
+  const isAdmin = member && (profile?.role === "admin" || profile?.role === "superadmin");
   const rival = match.rival ?? "Rival";
   const feed = [...(match.events ?? [])].filter((e) => typeof e.minute === "number" && e.type !== "match_played").sort((a, b) => (b.minute ?? 0) - (a.minute ?? 0));
   return (
+    <>
+    {isAdmin && <Banda match={match} nameOf={nameOf} />}
     <section className="fc-sec" aria-labelledby="fc-live">
       <span className="hm-kick">Desde el acta · se actualiza solo</span>
       <h2 className="hm-h2" id="fc-live">
@@ -212,6 +218,7 @@ export function DirectoTab({ match, nameOf }: { match: ClubMatch; nameOf: NameOf
         <p className="fc-note">Aún no hay nada en el acta. Cada gol, tarjeta o cambio aparece aquí en cuanto se apunta.</p>
       )}
     </section>
+    </>
   );
 }
 
