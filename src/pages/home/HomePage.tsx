@@ -40,7 +40,9 @@ export function HomePage() {
   const story = narrative(pulse, { seasonName, squadSize: squad.length, now, nameOf, scorer });
   const moment = playerOfTheMoment(lines, pulse, now);
   const shot = moment ? [{ kit: "home" as const, theme, name: moment.line.name.toUpperCase(), num: moment.line.num }] : [];
-  const still = useShirtStills(shot);
+  // Off the main thread: on a first visit this photo is made while the page is still loading, and on
+  // the main thread its WebGL work held the headline back for seconds on a mid-range phone.
+  const still = useShirtStills(shot, { offMainThread: true });
 
   return (
     <div className="vx hm" aria-busy={loading}>

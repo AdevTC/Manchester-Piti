@@ -67,3 +67,7 @@ export const useSeason = () => {
   }
   return context;
 };
+
+/** Whether the seasons are still arriving (false outside the provider, e.g. in isolated tests). */
+// eslint-disable-next-line react-refresh/only-export-components -- a hook next to its context, like useSeason
+export const useSeasonsLoading = () => useContext(SeasonContext)?.loadingSeasons ?? false;
