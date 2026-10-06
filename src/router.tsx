@@ -135,7 +135,7 @@ const fixturesRoute = createRoute({
 const clubRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/club",
-  component: lazyRouteComponent(() => import("./pages/Club"), "ClubPage"),
+  component: lazyRouteComponent(() => import("./pages/club/ClubPage"), "ClubPage"),
 });
 const vestuarioRoute = createRoute({
   getParentRoute: () => rootRoute,

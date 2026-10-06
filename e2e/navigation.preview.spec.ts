@@ -31,6 +31,13 @@ test("jugador, datos de temporada y reparto real de minutos", async ({
     .filter({ hasText: "Hugo" });
   await expect(row.getByRole("cell").first()).toHaveText("40");
 });
+test("el club, con su vitrina, trofeos y contacto", async ({ page }) => {
+  await page.goto("/club");
+  await expect(page.getByRole("heading", { level: 1, name: "El club" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "La sala de trofeos" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /la sala/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Clasificados" })).toBeVisible();
+});
 test("la clave nunca se pide antes de Google y admin está protegido", async ({
   page,
 }) => {
