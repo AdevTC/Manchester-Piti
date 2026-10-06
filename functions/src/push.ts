@@ -72,7 +72,9 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   for (const n of noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", Date.now())) await send(n);
 });
 
-export const pushKickoff = onSchedule({ schedule: "every 5 minutes", timeZone: "Europe/Madrid", secrets: [vapidPrivate] }, async () => {
+// Cloud Scheduler has no Madrid location: the job (and this function) live in Belgium; it only reads a
+// handful of matches every 5 minutes.
+export const pushKickoff = onSchedule({ schedule: "every 5 minutes", timeZone: "Europe/Madrid", region: "europe-west1", secrets: [vapidPrivate] }, async () => {
   const now = Date.now();
   // Date range only (single-field index); the status is checked here.
   const due = await db.collection("matches").where("date", ">=", Timestamp.fromMillis(now - 10 * 60_000)).where("date", "<=", Timestamp.fromMillis(now + 60_000)).get();
