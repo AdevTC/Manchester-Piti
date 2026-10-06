@@ -4,6 +4,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import type { Plugin } from 'vite'
 
 // https://vite.dev/config/
 // Match a node_modules package by exact name, anchored on the package
@@ -16,12 +17,32 @@ const vendor = (...packages: [string, ...string[]]): RegExp => {
   return new RegExp(`${sep}node_modules${sep}(?:${escaped.join('|')})${sep}`)
 }
 
+// Preload the two faces that paint the first screen of the Celeste pages (headline + body), so they
+// arrive with the CSS instead of after it: no late swap re-flowing the text (CLS) and earlier LCP.
+const CRITICAL_FONTS = [/anybody-latin-standard-normal-.*.woff2$/, /geist-latin-wght-normal-.*.woff2$/]
+const preloadCriticalFonts = (): Plugin => ({
+  name: 'preload-critical-fonts',
+  apply: 'build',
+  transformIndexHtml: {
+    order: 'post',
+    handler(_html, ctx) {
+      const files = Object.keys(ctx.bundle ?? {}).filter((f) => CRITICAL_FONTS.some((re) => re.test(f)))
+      return files.map((f) => ({
+        tag: 'link',
+        attrs: { rel: 'preload', as: 'font', type: 'font/woff2', href: '/' + f, crossorigin: '' },
+        injectTo: 'head-prepend' as const,
+      }))
+    },
+  },
+})
+
 export default defineConfig({
   plugins: [
     react(),
     // React Compiler 1.0 (stable Babel path): automatic memoisation, fewer re-renders.
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
+    preloadCriticalFonts(),
     // Service worker (Workbox, generateSW): the app shell, every hashed chunk and the
     // self-hosted fonts are precached, so repeat visits start without the network and
     // route changes never wait for a download. A new deploy activates on the next load.

@@ -100,7 +100,7 @@ export function SquadPage() {
   };
 
   return (
-    <div className="vx sq" data-kit={kit}>
+    <div className="vx sq" data-kit={kit} aria-busy={loading}>
       <CelesteBackdrop />
       <CelesteHeader
         active="plantilla"
@@ -121,15 +121,10 @@ export function SquadPage() {
         <div className="sq-copy">
           <span className="hm-kick">Plantilla · {seasonName}</span>
           <h1 id="sq-title">
-            {loading ? (
-              "Plantilla"
-            ) : (
-              <>
-                {summary.size} {summary.size === 1 ? "camiseta" : "camisetas"}. <em>Una percha.</em>
-              </>
-            )}
+            {/* Same words while loading, so the heading keeps its lines and nothing below jumps. */}
+            {loading ? "—" : summary.size} {summary.size === 1 && !loading ? "camiseta" : "camisetas"}. <em>Una percha.</em>
           </h1>
-          <p className="hm-lede">{loading ? "Cargando la plantilla…" : "Toca una camiseta para descolgarla y abrir su ficha."}</p>
+          <p className="hm-lede">Toca una camiseta para descolgarla y abrir su ficha.</p>
           <div className="sq-tools">
             <div className="sq-kit" role="group" aria-label="Equipación">
               <button type="button" aria-pressed={kit === "home"} onClick={() => setKit("home")}>

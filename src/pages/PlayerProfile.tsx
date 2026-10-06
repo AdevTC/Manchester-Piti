@@ -14,6 +14,7 @@ import { SeasonSelector } from "../components/SeasonSelector";
 import { computeStats } from "../lib/playerStats";
 import { Jersey } from "../components/Jersey";
 import { DataState } from "../components/club/ClubUI";
+import "../styles/analytics.css";
 export function PlayerProfile() {
   const { playerId } = getRouteApi("/jugadores/$playerId").useParams();
   const { players, matches, loading, error } = useClubData();

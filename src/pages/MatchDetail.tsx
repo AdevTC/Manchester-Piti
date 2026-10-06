@@ -17,6 +17,7 @@ import {
 } from "../components/club/ClubUI";
 import { MvpVote } from "./Vestuario";
 import { downloadMatchPoster } from "../lib/matchPoster";
+import "../styles/analytics.css";
 export function MatchDetail() {
   const { matchId } = getRouteApi("/matches/$matchId").useParams();
   const { matches, players, loading, error } = useClubData();

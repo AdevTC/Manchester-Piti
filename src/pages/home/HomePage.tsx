@@ -18,7 +18,7 @@ import "../../styles/home-match.css";
 
 /** Public home, match day: the next game, the player of the moment, the season, and a shirt for the fans. */
 export function HomePage() {
-  const { matches, players } = useClubData();
+  const { matches, players, loading } = useClubData();
   const { seasons } = useSeason();
   const content = useClubContent();
   const now = useClock(60_000);
@@ -43,7 +43,7 @@ export function HomePage() {
   const still = useShirtStills(shot);
 
   return (
-    <div className="vx hm">
+    <div className="vx hm" aria-busy={loading}>
       <CelesteBackdrop />
       <CelesteHeader
         active="inicio"
@@ -59,7 +59,13 @@ export function HomePage() {
           </>
         }
       />
-      <MatchHero story={story} pulse={pulse} now={now} moment={moment} momentStill={shot[0] && still(shot[0])} />
+      {/* The headline is written from the data: until it arrives the hero keeps its place empty,
+          so the text appears once instead of changing (and pushing the page) as each collection lands. */}
+      {loading ? (
+        <section className="hm-match hm-wait" aria-label="Cargando el partido" />
+      ) : (
+        <MatchHero story={story} pulse={pulse} now={now} moment={moment} momentStill={shot[0] && still(shot[0])} />
+      )}
       <SeasonRow pulse={pulse} now={now} nameOf={nameOf} />
       <PonteLaCamiseta theme={theme} />
       <div className="hm-bottom">

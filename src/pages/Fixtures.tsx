@@ -4,6 +4,7 @@ import { useClock } from "../hooks/useClock";
 import { useSeason } from "../context/SeasonContext";
 import { SeasonSelector } from "../components/SeasonSelector";
 import { FixtureCard, DataState } from "../components/club/ClubUI";
+import "../styles/analytics.css";
 export function FixturesPage() {
   const { matches, loading, error } = useClubData();
   const now = useClock();

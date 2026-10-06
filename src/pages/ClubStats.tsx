@@ -22,6 +22,7 @@ import {
 } from "../components/club/AnalyticsCharts";
 import { OpponentBadge } from "../components/club/OpponentBadge";
 import type { ExploreSection } from "./stats/StatsExplorer";
+import "../styles/analytics.css";
 const Explorer = lazy(() =>
   import("./stats/StatsExplorer").then((m) => ({ default: m.StatsExplorer })),
 );

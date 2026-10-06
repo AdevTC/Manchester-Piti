@@ -158,56 +158,9 @@
 .club-main {
   min-height: 65vh;
 }
-.club-home-hero {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  min-height: 610px;
-  max-width: 1600px;
-  margin: auto;
-}
-.club-hero-copy {
-  padding: 50px 5vw 30px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-.club-edition {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  width: 100%;
-  color: var(--mp-muted);
-}
-.club-edition > span:last-child {
-  margin-left: auto;
-  font-weight: 800;
-}
-.club-dot {
-  width: 7px;
-  height: 7px;
-  background: #6cabdd;
-  border-radius: 50%;
-  display: inline-block;
-}
-.club-home-hero h1 {
-  font-size: clamp(64px, 7.6vw, 122px);
-  line-height: 0.98;
-  letter-spacing: -0.018em;
-  margin: 50px 0 26px;
-}
-.club-home-hero h1 > span {
-  color: var(--mp-sky-deep);
-}
-[data-theme="dark"] .club-home-hero h1 > span {
-  color: #6cabdd;
-}
-.club-hero-copy > p {
-  max-width: 340px;
-  font-size: 16px;
-  color: var(--mp-muted);
+/* While a page waits for its data, keep the footer below the fold so it doesn't jump (CLS). */
+.club-main:has(.club-loading, [aria-busy="true"]) {
+  min-height: calc(100svh + 200px);
 }
 .club-actions {
   display: flex;
@@ -263,22 +216,6 @@
 .club-text-link:hover {
   text-decoration: underline !important;
 }
-.club-hero-foot {
-  margin-top: auto;
-  padding-top: 35px;
-  display: flex;
-  gap: 20px;
-  justify-content: space-between;
-  width: 100%;
-  font-size: 9px;
-  letter-spacing: 0.09em;
-}
-.club-hero-foot span:first-child {
-  font-weight: 800;
-}
-.club-hero-foot span:last-child {
-  color: var(--mp-muted);
-}
 .club-photo {
   background: #1c2c5b;
   overflow: hidden;
@@ -294,10 +231,6 @@
   object-fit: cover;
   position: absolute;
   inset: 0;
-}
-.club-hero-photo {
-  border-radius: 0;
-  margin: 28px 28px 28px 0;
 }
 .club-photo:before {
   content: "";
@@ -375,25 +308,6 @@
   opacity: 0.06;
   line-height: 1;
   z-index: -1;
-}
-.club-marquee-static {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  gap: 25px;
-  background: #afd2eb;
-  color: #0c1733;
-  padding: 16px 5vw;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  overflow: hidden;
-}
-.club-marquee-static span {
-  white-space: nowrap;
-}
-.club-marquee-static b {
-  font-size: 17px;
 }
 .club-section {
   max-width: 1280px;
@@ -506,12 +420,6 @@
 .club-fixture.featured .club-fixture-score {
   font-size: 58px;
 }
-.club-rival-crest {
-  height: 60px;
-  display: grid;
-  place-items: center;
-  color: var(--mp-muted);
-}
 .club-fixture-date {
   text-align: center;
   font-size: 11px;
@@ -570,29 +478,6 @@
   color: var(--mp-muted);
   font-size: 10px;
 }
-.club-next-empty {
-  padding: 36px;
-  background: #1c2c5b;
-  border-radius: 5px;
-  color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-.club-next-empty h3 {
-  font-size: 54px;
-  line-height: 1.07;
-  margin: 25px 0;
-}
-.club-next-empty p {
-  font-size: 13px;
-  color: #c2cde2;
-  max-width: 310px;
-}
-.club-next-empty .club-text-link {
-  margin-top: auto;
-  padding-top: 30px;
-}
 .club-kicker {
   font-size: 10px;
   letter-spacing: 0.12em;
@@ -600,156 +485,6 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-}
-.club-next-empty .club-kicker {
-  color: #afd2eb;
-}
-.club-season-strip {
-  display: grid;
-  grid-template-columns: 2fr repeat(4, 1fr);
-  margin-top: 24px;
-  border-top: 1px solid var(--mp-line);
-  border-bottom: 1px solid var(--mp-line);
-  padding: 25px 0;
-}
-.club-season-strip > div {
-  padding: 5px 25px;
-  border-left: 1px solid var(--mp-line);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.club-season-strip > div:first-child {
-  border: 0;
-  padding-left: 0;
-}
-.club-season-strip b {
-  font: 38px var(--mp-font-display);
-}
-.club-season-strip h3 {
-  font-size: 24px;
-  margin-top: 8px;
-}
-.club-season-strip span {
-  font-size: 10px;
-  color: var(--mp-muted);
-  letter-spacing: 0.06em;
-}
-.club-protagonists {
-  padding-top: 0;
-}
-.club-spotlight,
-.club-feature-tile {
-  border-radius: 5px;
-  padding: 30px;
-  position: relative;
-  min-height: 310px;
-  background: var(--club-surface);
-  border: 1px solid var(--mp-line);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  transition: transform 0.2s;
-}
-.club-spotlight:hover,
-.club-feature-tile:hover {
-  transform: translateY(-4px);
-}
-.club-spotlight {
-  background: #1c2c5b;
-  color: white !important;
-}
-.club-spotlight .club-kicker {
-  color: #c6daef;
-}
-.club-spotlight-number {
-  font: 100px var(--mp-font-display);
-  line-height: 1.1;
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  margin: 20px 0 15px;
-  color: #aed2ee;
-}
-.club-spotlight-number small {
-  font: 10px var(--mp-font-ui);
-  padding-bottom: 13px;
-}
-.club-spotlight h3 {
-  font-size: 25px;
-  text-transform: uppercase;
-}
-.club-spotlight > span:last-child {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  margin-top: auto;
-  padding-top: 25px;
-  font-size: 11px;
-}
-.club-feature-tile h3 {
-  font-size: 36px;
-  line-height: 1.12;
-  margin: 25px 0 14px;
-}
-.club-feature-tile p {
-  font-size: 13px;
-  max-width: 240px;
-  color: var(--mp-muted);
-}
-.club-feature-tile > svg:last-child {
-  position: absolute;
-  right: 24px;
-  bottom: 24px;
-}
-.club-feature-tile.blue {
-  background: #afd2eb;
-  color: #0c1733 !important;
-  border-color: #afd2eb;
-}
-.club-feature-tile.blue p {
-  color: #314864;
-}
-.club-join-band {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #1c2c5b;
-  color: white;
-  gap: 40px;
-  padding: 65px max(calc((100vw - 1200px) / 2), 40px);
-}
-.club-join-band .club-kicker {
-  color: #afd2eb;
-}
-.club-join-band h2 {
-  font-size: clamp(36px, 5vw, 65px);
-  line-height: 1.08;
-  margin: 20px 0;
-}
-.club-join-band p {
-  font-size: 13px;
-  color: #c4d1e6;
-  max-width: 440px;
-}
-.club-join-band > .club-button {
-  flex-shrink: 0;
-}
-.club-sponsors {
-  display: flex;
-  gap: 40px;
-  flex-wrap: wrap;
-}
-.club-sponsors a {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-.club-sponsors img {
-  max-height: 60px;
-  max-width: 100px;
-  object-fit: contain;
 }
 .club-footer {
   padding: 42px max(5vw, 20px);
@@ -882,81 +617,6 @@
 }
 .club-page input::placeholder {
   color: var(--mp-muted);
-}
-.club-player-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-}
-.club-player-card {
-  background: var(--club-surface);
-  border: 1px solid var(--mp-line);
-  border-radius: 5px;
-  overflow: hidden;
-  transition: transform 0.2s;
-}
-.club-player-card:hover {
-  transform: translateY(-4px);
-}
-.club-player-art {
-  height: 260px;
-  position: relative;
-  background: var(--mp-surface-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-.club-player-dorsal {
-  position: absolute;
-  right: 10px;
-  bottom: -40px;
-  font: 210px var(--mp-font-display);
-  opacity: 0.055;
-  line-height: 1;
-}
-.club-player-art > img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.club-player-art > svg {
-  z-index: 1;
-  max-height: 200px;
-}
-.club-player-info {
-  padding: 22px;
-}
-.club-player-info > span {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--mp-muted);
-}
-.club-player-info h2 {
-  font-size: 25px;
-  text-transform: uppercase;
-  margin: 8px 0 20px;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: center;
-}
-.club-player-info > div {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--mp-line);
-  padding-top: 15px;
-}
-.club-player-info b {
-  font: 25px var(--mp-font-display);
-}
-.club-player-info small {
-  display: block;
-  font: 8px var(--mp-font-ui);
-  letter-spacing: 0.04em;
-  color: var(--mp-muted);
-  margin-top: 5px;
 }
 .club-panel {
   background: var(--club-surface);
@@ -1575,12 +1235,6 @@
   background: transparent;
   color: var(--mp-muted);
 }
-@media (min-width: 1500px) {
-  .club-home-hero {
-    border-left: 1px solid var(--mp-line);
-    border-right: 1px solid var(--mp-line);
-  }
-}
 @media (max-width: 1100px) {
   .club-nav {
     gap: 15px;
@@ -1591,16 +1245,6 @@
   }
   .club-lock-link {
     padding: 12px;
-  }
-  .club-hero-copy {
-    padding: 35px;
-  }
-  .club-home-hero {
-    min-height: 550px;
-  }
-  .club-home-hero h1 {
-    font-size: 80px;
-    margin-top: 45px;
   }
   .club-photo-pitch {
     inset: 55px 40px;
@@ -1652,21 +1296,6 @@
   .club-mobile-nav a.active svg {
     stroke-width: 2.6;
   }
-  .club-home-hero h1 {
-    font-size: 68px;
-  }
-  .club-home-hero {
-    min-height: 500px;
-  }
-  .club-hero-copy {
-    padding: 30px 25px;
-  }
-  .club-hero-photo {
-    margin: 20px 20px 20px 0;
-  }
-  .club-hero-foot {
-    display: none;
-  }
   .club-photo-caption {
     left: 20px;
     right: 20px;
@@ -1675,46 +1304,11 @@
   .club-section {
     padding: 40px 25px;
   }
-  .club-season-strip {
-    grid-template-columns: 1.5fr repeat(4, 1fr);
-  }
-  .club-season-strip > div {
-    padding: 5px 15px;
-  }
-  .club-season-strip b {
-    font-size: 30px;
-  }
   .club-grid-3 {
     gap: 16px;
   }
-  .club-feature-tile,
-  .club-spotlight {
-    padding: 24px;
-    min-height: 300px;
-  }
-  .club-feature-tile h3 {
-    font-size: 29px;
-  }
-  .club-join-band {
-    padding: 45px 25px;
-  }
   .club-page {
     padding: 35px 25px 55px;
-  }
-  .club-player-grid {
-    gap: 16px;
-  }
-  .club-player-art {
-    height: 210px;
-  }
-  .club-player-info {
-    padding: 18px;
-  }
-  .club-player-info h2 {
-    font-size: 22px;
-  }
-  .club-player-info small {
-    font-size: 7px;
   }
   .club-gate {
     padding: 0 25px;
@@ -1786,43 +1380,12 @@
   .club-lock-link > svg:last-child {
     display: none;
   }
-  .club-home-hero {
-    grid-template-columns: 1fr;
-  }
-  .club-hero-copy {
-    padding: 30px 22px;
-  }
-  .club-home-hero h1 {
-    font-size: clamp(66px, 17vw, 95px);
-    margin: 35px 0 20px;
-  }
-  .club-hero-copy > p {
-    font-size: 14px;
-  }
-  .club-hero-copy .club-actions {
-    margin: 22px 0 5px;
-    gap: 20px;
-  }
-  .club-hero-photo {
-    min-height: 310px;
-    margin: 0 22px 24px;
-  }
   .club-photo-pitch {
     inset: 35px 60px;
     transform: rotate(-13deg) scale(1.1);
   }
   .club-photo-caption {
     font-size: 10px;
-  }
-  .club-marquee-static {
-    justify-content: flex-start;
-    padding: 14px 22px;
-    font-size: 9px;
-    gap: 20px;
-  }
-  .club-marquee-static > span:nth-of-type(3),
-  .club-marquee-static > b:last-child {
-    display: none;
   }
   .club-section {
     padding: 36px 22px;
@@ -1863,53 +1426,6 @@
   .club-fixture-teams strong {
     font-size: 12px;
   }
-  .club-season-strip {
-    grid-template-columns: repeat(4, 1fr);
-    padding: 20px 0;
-  }
-  .club-season-strip > div:first-child {
-    grid-column: 1/-1;
-    padding: 0 0 20px;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .club-season-strip > div:nth-child(2) {
-    border: 0;
-    padding-left: 0;
-  }
-  .club-season-strip > div {
-    padding: 5px 13px;
-  }
-  .club-season-strip b {
-    font-size: 33px;
-  }
-  .club-season-strip h3 {
-    margin: 0;
-    font-size: 22px;
-  }
-  .club-season-strip span {
-    font-size: 9px;
-  }
-  .club-protagonists {
-    padding-top: 5px;
-  }
-  .club-feature-tile,
-  .club-spotlight {
-    min-height: 260px;
-  }
-  .club-feature-tile h3 {
-    font-size: 35px;
-  }
-  .club-join-band {
-    padding: 38px 22px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 25px;
-  }
-  .club-join-band h2 {
-    font-size: 43px;
-  }
   .club-page {
     padding: 28px 20px 45px;
   }
@@ -1936,39 +1452,6 @@
   .club-segments button {
     padding: 10px 12px;
     font-size: 11px;
-  }
-  .club-player-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-  .club-player-art {
-    height: 180px;
-  }
-  .club-player-art > svg {
-    max-width: 115px;
-  }
-  .club-player-info {
-    padding: 14px;
-  }
-  .club-player-info h2 {
-    font-size: 21px;
-    margin-bottom: 15px;
-  }
-  .club-player-info h2 svg {
-    width: 15px;
-  }
-  .club-player-info > span {
-    font-size: 8px;
-  }
-  .club-player-info b {
-    font-size: 22px;
-  }
-  .club-player-info small {
-    font-size: 6px;
-    letter-spacing: 0;
-  }
-  .club-player-info > div {
-    gap: 5px;
   }
   .club-panel {
     padding: 22px;
@@ -2164,33 +1647,6 @@
 .club-nav .mp-theme-toggle svg {
   width: 18px;
   height: 18px;
-}
-.club-duo {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 17px 0;
-  border-bottom: 1px solid var(--mp-line);
-  font-size: 13px;
-}
-.club-record-number {
-  font: 64px var(--mp-font-display);
-  color: var(--mp-accent);
-}
-.club-comparison > div {
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
-  text-align: center;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--mp-line);
-  align-items: center;
-}
-.club-comparison b {
-  font: 35px var(--mp-font-display);
-}
-.club-comparison span {
-  font-size: 12px;
-  color: var(--mp-muted);
 }
 .club-season-filter {
   display: flex;

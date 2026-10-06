@@ -7,7 +7,6 @@ import { useTeam } from "./context/TeamContext";
 import { Crest } from "./components/Crest";
 import { RoutePending } from "./components/route-states";
 import "./styles/club.css";
-import "./styles/analytics.css";
 // Only private pages show the gate and the nickname step: keep them out of the entry chunk.
 const TeamGate = lazy(() => import("./pages/Vestuario").then((m) => ({ default: m.TeamGate })));
 const NicknameSetup = lazy(() => import("./pages/NicknameSetup").then((m) => ({ default: m.NicknameSetup })));
