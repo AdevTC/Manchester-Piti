@@ -11,6 +11,7 @@ import { Icon } from "../../components/celeste/icons";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Flip } from "../../components/celeste/Flip";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
+import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { matchEvent } from "../../lib/home";
 import { countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf, seasonView } from "../../lib/partidos";
@@ -238,6 +239,7 @@ export function MatchPage() {
                 <Icon name="shirt" size={14} /> {kit}
               </span>
               {match.venue && <span className="pt-chip">{match.venue}</span>}
+              {upcoming && <WeatherChip match={match} now={now} />}
               {r && <span className={`pt-res ${r}`}>{r}</span>}
             </div>
           </article>
