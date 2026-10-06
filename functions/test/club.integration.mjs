@@ -11,10 +11,10 @@ const secret = readFileSync(
   new URL("../.secret.local", import.meta.url),
   "utf8",
 )
-  .trim()
-  .split("=")
-  .slice(1)
-  .join("=");
+  .split(/\r?\n/)
+  .find((line) => line.startsWith("TEAM_PASSWORD="))
+  .slice("TEAM_PASSWORD=".length)
+  .trim();
 const suffix = Date.now().toString(36);
 let checked = 0;
 async function google(label) {
