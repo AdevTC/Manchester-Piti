@@ -47,7 +47,7 @@ const ROUTE_CHUNKS: [RegExp, string][] = [
   [/^\/club\/?$/, 'src/pages/Club.tsx'],
   [/^\/vestuario\/?$/, 'src/pages/vestuario/VestuarioPage.tsx'],
   [/^\/matches\//, 'src/pages/match/MatchPage.tsx'],
-  [/^\/jugadores\//, 'src/pages/PlayerProfile.tsx'],
+  [/^\/jugadores\//, 'src/pages/jugador/JugadorPage.tsx'],
 ]
 // Same map, as JSON for the server render's shell (scripts/ssr-shell.mjs): which files each route needs.
 let routeAssets: (readonly [string, string[]])[] = []
