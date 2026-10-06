@@ -44,7 +44,7 @@ const ROUTE_CHUNKS: [RegExp, string][] = [
   [/^\/plantilla\/?$/, 'src/pages/squad/SquadPage.tsx'],
   [/^\/partidos\/?$/, 'src/pages/partidos/PartidosPage.tsx'],
   [/^\/stats\/?$/, 'src/pages/stats/StatsPage.tsx'],
-  [/^\/club\/?$/, 'src/pages/Club.tsx'],
+  [/^\/club\/?$/, 'src/pages/club/ClubPage.tsx'],
   [/^\/vestuario\/?$/, 'src/pages/vestuario/VestuarioPage.tsx'],
   [/^\/matches\//, 'src/pages/match/MatchPage.tsx'],
   [/^\/jugadores\//, 'src/pages/jugador/JugadorPage.tsx'],
