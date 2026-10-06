@@ -1,7 +1,7 @@
 // The live island: while a match is being played, a pill at the top of every page with the score and
 // the minute; tap it and it opens into the scoreboard with the last thing that happened. Hidden on that
 // match's own page, which already is the scoreboard.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { matchPhase, playerName, useClubData } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
@@ -17,7 +17,16 @@ export function LiveIsland() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const live = matches.find((m) => matchPhase(m, now) === "playing");
-  if (!live || pathname === `/matches/${live.id}`) return null;
+  const shown = !!live && pathname !== `/matches/${live.id}`;
+  // The heroes make room for the pill while it is on screen (styles: html[data-isle]).
+  useEffect(() => {
+    if (!shown) return;
+    document.documentElement.dataset.isle = "";
+    return () => {
+      delete document.documentElement.dataset.isle;
+    };
+  }, [shown]);
+  if (!live || !shown) return null;
 
   const { gf, ga } = scoreOf(live);
   const rival = live.rival ?? "Rival";

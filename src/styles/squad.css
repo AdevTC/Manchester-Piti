@@ -16,7 +16,7 @@
 .vx .sq-note{margin:0;font-size:13px;color:var(--muted)}
 
 /* hero */
-.sq-hero{position:relative;background:var(--hero-bg);padding:92px 0 12px;overflow:hidden}
+.sq-hero{position:relative;background:var(--hero-bg);padding:calc(92px + var(--isle,0px)) 0 12px;overflow:hidden}
 .sq-copy{position:relative;z-index:3;padding:0 20px;display:grid;gap:4px}
 .sq-copy h1{margin:0;font-family:'Anybody';font-weight:900;font-size:calc((100cqi - 40px) / 5.9);line-height:.86;letter-spacing:-.035em;font-variation-settings:'wdth' 92;text-wrap:balance}
 .sq-copy h1 em{font-style:normal;color:var(--accent)}
@@ -177,7 +177,7 @@
 .vx .sq-verdict{margin:0;padding:12px 14px;border-radius:16px;background:var(--well);font-size:14px;line-height:1.45;color:var(--soft)}
 
 @container (min-width:700px){
-.sq-hero{padding:112px 0 12px}
+.sq-hero{padding:calc(112px + var(--isle,0px)) 0 12px}
 .sq-copy{padding:0 40px}
 .sq-copy h1{font-size:calc((100cqi - 80px) / 7.4)}
 .sq-sum b{font-size:28px}

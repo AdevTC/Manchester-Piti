@@ -54,7 +54,7 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 .vx-actions{display:flex;gap:10px}
 .vx-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#b8e0fb,#3f86bd);color:#0c1733;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
 /* HERO POSTER */
-.vx-hero{position:relative;background:var(--hero-bg);padding:80px 20px 0;overflow:hidden}
+.vx-hero{position:relative;background:var(--hero-bg);padding:calc(80px + var(--isle,0px)) 20px 0;overflow:hidden}
 .vx-poster::after{content:"";position:absolute;left:-20%;right:-20%;bottom:-1px;height:22%;background:linear-gradient(180deg,transparent,var(--bg));z-index:2;pointer-events:none}
 .vx-poster{position:relative;width:100%;aspect-ratio:390/520;max-width:640px;margin:0 auto}
 .vx-num{position:absolute;left:-6%;right:-6%;top:-2%;text-align:center;font-family:'Anybody';font-weight:900;font-size:min(92cqi,560px);line-height:.8;letter-spacing:-.06em;font-variation-settings:'wdth' 58;color:transparent;-webkit-text-stroke:2px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;animation:vxNumIn 1.6s cubic-bezier(.16,1,.3,1) both}
@@ -175,7 +175,7 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 /* TABLET */
 @container (min-width:700px){
 .vx-top{padding:20px 40px}
-.vx-hero{padding:96px 40px 0}
+.vx-hero{padding:calc(96px + var(--isle,0px)) 40px 0}
 .vx-hero-in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end;gap:10px}
 .vx-hero-text{order:1;padding-bottom:56px}
 .vx-poster{order:2}
@@ -201,7 +201,7 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 .vx .vx-nav-in a{padding:10px 18px;border-radius:999px;text-decoration:none;font-size:14px;font-weight:500;color:var(--soft)}
 .vx .vx-nav-in a.on{background:var(--nav-on);color:var(--nav-on-ink);font-weight:600}
 .vx-actions{flex:0 0 280px;justify-content:flex-end}
-.vx-hero{padding:100px 64px 0}
+.vx-hero{padding:calc(100px + var(--isle,0px)) 64px 0}
 .vx-hero-in{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:24px}
 .vx-hero-text{padding-bottom:80px}
 .vx-name{font-size:min(calc((52cqi - 90px) / 4.75 * var(--vx-name-k,1)),150px)}
