@@ -16,6 +16,10 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
+        "source": "/datos/club.bundle",
+        "function": { "functionId": "clubBundle", "region": "europe-southwest1" }
+      },
+      {
         "source": "/compartir/**",
         "function": { "functionId": "clubShare", "region": "europe-southwest1" }
       },

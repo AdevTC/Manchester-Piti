@@ -14,6 +14,7 @@ import { recomputePorra } from "./vestuario.js";
 export { clubShare } from "./social.js";
 export { setSeasonArchived } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
+export { clubBundle } from "./bundle.js";
 export {
   requestPlayerClaim,
   resolvePlayerClaim,

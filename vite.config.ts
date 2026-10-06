@@ -19,7 +19,7 @@ const vendor = (...packages: [string, ...string[]]): RegExp => {
 
 // Preload the two faces that paint the first screen of the Celeste pages (headline + body), so they
 // arrive with the CSS instead of after it: no late swap re-flowing the text (CLS) and earlier LCP.
-const CRITICAL_FONTS = [/anybody-latin-standard-normal-.*.woff2$/, /geist-latin-wght-normal-.*.woff2$/]
+const CRITICAL_FONTS = [/anybody-latin-standard-normal-.*\.woff2$/, /geist-latin-wght-normal-.*\.woff2$/]
 const preloadCriticalFonts = (): Plugin => ({
   name: 'preload-critical-fonts',
   apply: 'build',
@@ -36,6 +36,60 @@ const preloadCriticalFonts = (): Plugin => ({
   },
 })
 
+// The page's own code is a lazy chunk the router asks for only after the entry has run. Starting it
+// from the HTML, by URL, removes that wait (one round trip less before the first paint with content).
+const ROUTE_CHUNKS: [RegExp, string][] = [
+  [/^\/$/, 'src/pages/Home.tsx'],
+  [/^\/plantilla\/?$/, 'src/pages/squad/SquadPage.tsx'],
+  [/^\/partidos\/?$/, 'src/pages/Fixtures.tsx'],
+  [/^\/stats\/?$/, 'src/pages/ClubStats.tsx'],
+  [/^\/club\/?$/, 'src/pages/Club.tsx'],
+  [/^\/vestuario\/?$/, 'src/pages/vestuario/VestuarioPage.tsx'],
+  [/^\/matches\//, 'src/pages/MatchDetail.tsx'],
+  [/^\/jugadores\//, 'src/pages/PlayerProfile.tsx'],
+]
+const preloadRouteChunk = (): Plugin => ({
+  name: 'preload-route-chunk',
+  apply: 'build',
+  transformIndexHtml: {
+    order: 'post',
+    handler(_html, ctx) {
+      const bundle = ctx.bundle ?? {}
+      const chunks = Object.values(bundle).filter((c) => c.type === 'chunk')
+      const byFile = new Map(chunks.map((c) => [c.fileName, c]))
+      const graph = (root: (typeof chunks)[number], skip = new Set<string>()) => {
+        const seen = new Set<string>()
+        const walk = (c: (typeof chunks)[number]) => {
+          if (seen.has(c.fileName) || skip.has(c.fileName)) return
+          seen.add(c.fileName)
+          for (const css of c.viteMetadata?.importedCss ?? []) seen.add(css)
+          for (const i of c.imports) {
+            const next = byFile.get(i)
+            if (next) walk(next)
+          }
+        }
+        walk(root)
+        return seen
+      }
+      // The HTML already loads the entry and everything it imports: only add the page's own files.
+      const entry = chunks.find((c) => c.isEntry)
+      const loaded = entry ? graph(entry) : new Set<string>()
+      const files = (route: (typeof chunks)[number]) => [...graph(route, loaded)].filter((f) => !loaded.has(f)).map((f) => '/' + f)
+      const map = ROUTE_CHUNKS.flatMap(([re, src]) => {
+        const chunk = chunks.find((c) => c.isDynamicEntry && c.facadeModuleId?.replace(/\\/g, '/').endsWith(src))
+        return chunk ? [[re.source, files(chunk)] as const] : []
+      })
+      // Tiny inline script: match the URL, add <link rel=modulepreload|preload> for its chunk graph.
+      const script =
+        `(function(){var p=location.pathname,m=${JSON.stringify(map)};` +
+        `for(var i=0;i<m.length;i++){if(new RegExp(m[i][0]).test(p)){m[i][1].forEach(function(h){` +
+        `var l=document.createElement('link');if(/\\.css$/.test(h)){l.rel='preload';l.as='style'}else{l.rel='modulepreload'}` +
+        `l.crossOrigin='';l.href=h;document.head.appendChild(l)});break}}})()`
+      return [{ tag: 'script', children: script, injectTo: 'head' as const }]
+    },
+  },
+})
+
 export default defineConfig({
   plugins: [
     react(),
@@ -43,6 +97,7 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
     preloadCriticalFonts(),
+    preloadRouteChunk(),
     // Service worker (Workbox, generateSW): the app shell, every hashed chunk and the
     // self-hosted fonts are precached, so repeat visits start without the network and
     // route changes never wait for a download. A new deploy activates on the next load.
@@ -61,8 +116,14 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
         // Served by Cloud Functions through vercel.json rewrites: never answer them with the SPA.
-        navigateFallbackDenylist: [/^\/calendario\.ics/, /^\/compartir\//, /^\/social\//, /^\/__\//],
+        navigateFallbackDenylist: [/^\/calendario\.ics/, /^\/compartir\//, /^\/social\//, /^\/__\//, /^\/datos\//],
         runtimeCaching: [
+          {
+            // Public data bundle: the last copy at once on repeat visits, a fresh one fetched behind it.
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname === '/datos/club.bundle',
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'piti-data', expiration: { maxEntries: 2 } },
+          },
           {
             // The 3D model and kit textures: served from the device, refreshed in the background.
             urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/models/'),
@@ -90,6 +151,15 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true,
+    // Against the emulators, serve the data bundle like the Vercel rewrite does in production.
+    proxy: process.env.VITE_USE_FIREBASE_EMULATOR === '1'
+      ? { '/datos/club.bundle': { target: 'http://127.0.0.1:5001', rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' } }
+      : undefined,
+  },
+  preview: {
+    proxy: process.env.VITE_USE_FIREBASE_EMULATOR === '1'
+      ? { '/datos/club.bundle': { target: 'http://127.0.0.1:5001', rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' } }
+      : undefined,
   },
   build: {
     // Vite 8 bundles with Rolldown; the object form of `manualChunks` is

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { QuerySnapshot, Query } from "firebase/firestore";
 import type { QueryClient } from "@tanstack/react-query";
-import { mapSnapshotDocs, handleSnapshotError, subscribeShared, _resetSharedSubsForTesting } from "./useFirestoreCollection";
+import { mapSnapshotDocs, handleSnapshotError, subscribeShared, _resetSharedSubsForTesting, KEEP_WARM_MS } from "./useFirestoreCollection";
 
 // onSnapshot is mocked so subscribeShared can be exercised without a live
 // Firestore: each call returns a distinct unsubscribe spy we can assert on.
@@ -49,6 +49,7 @@ describe("subscribeShared", () => {
   const map = (id: string, data: unknown) => ({ id, ...(data as object) });
 
   beforeEach(() => {
+    vi.useFakeTimers();
     // Clear the module-level registry so leftover ref counts can't leak in.
     _resetSharedSubsForTesting();
     onSnapshotMock.mockReset();
@@ -58,6 +59,7 @@ describe("subscribeShared", () => {
 
   afterEach(() => {
     _resetSharedSubsForTesting();
+    vi.useRealTimers();
   });
 
   it("abre una sola suscripción onSnapshot para varios consumidores de la misma key", () => {
@@ -76,7 +78,23 @@ describe("subscribeShared", () => {
     a();
     expect(unsub).not.toHaveBeenCalled();
     b();
+    // kept warm for a minute after the last consumer, then closed
+    expect(unsub).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(KEEP_WARM_MS);
     expect(unsub).toHaveBeenCalledOnce();
+  });
+
+  it("si alguien vuelve antes de un minuto, reutiliza la misma suscripción", () => {
+    const unsub = vi.fn();
+    onSnapshotMock.mockImplementationOnce(() => unsub);
+    const a = subscribeShared(fakeQc, ["players"], q, map);
+    a();
+    vi.advanceTimersByTime(KEEP_WARM_MS - 1);
+    const b = subscribeShared(fakeQc, ["players"], q, map);
+    expect(onSnapshotMock).toHaveBeenCalledOnce();
+    vi.advanceTimersByTime(KEEP_WARM_MS);
+    expect(unsub).not.toHaveBeenCalled();
+    b();
   });
 
   it("usa suscripciones independientes para keys distintas", () => {
@@ -90,6 +108,7 @@ describe("subscribeShared", () => {
   it("vuelve a abrir la suscripción si todos se fueron y luego entra uno nuevo", () => {
     const a = subscribeShared(fakeQc, ["users"], q, map);
     a();
+    vi.advanceTimersByTime(KEEP_WARM_MS);
     const b = subscribeShared(fakeQc, ["users"], q, map);
     expect(onSnapshotMock).toHaveBeenCalledTimes(2);
     b();
