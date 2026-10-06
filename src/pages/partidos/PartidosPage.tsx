@@ -11,6 +11,7 @@ import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../.
 import { Icon } from "../../components/celeste/icons";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Flip } from "../../components/celeste/Flip";
+import { Avisos } from "../../components/celeste/Avisos";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { leaders, matchEvent, playerLines, type SquadMember } from "../../lib/home";
@@ -379,6 +380,7 @@ export function PartidosPage() {
               </ol>
             </div>
           )}
+          <Avisos />
           <div className="pt-card">
             <span className="hm-kick" style={{ margin: 0 }}>
               En tu móvil

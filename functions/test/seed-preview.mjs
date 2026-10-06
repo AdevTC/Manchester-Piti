@@ -47,10 +47,8 @@ const secret = readFileSync(
   new URL("../.secret.local", import.meta.url),
   "utf8",
 )
-  .trim()
-  .split("=")
-  .slice(1)
-  .join("=");
+  .match(/^TEAM_PASSWORD=(.+)$/m)?.[1]
+  ?.trim();
 const call = async (name, data) => {
   const r = await fetch(
     "http://127.0.0.1:5001/demo-manchester-piti/europe-southwest1/" + name,

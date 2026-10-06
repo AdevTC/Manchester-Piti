@@ -16,6 +16,7 @@ export { setSeasonArchived } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
 export { clubBundle } from "./bundle.js";
 export { liveEvent } from "./live.js";
+export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushKickoff } from "./push.js";
 export {
   requestPlayerClaim,
   resolvePlayerClaim,
