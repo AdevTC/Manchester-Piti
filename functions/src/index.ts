@@ -15,6 +15,7 @@ export { clubShare } from "./social.js";
 export { setSeasonArchived } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
 export { clubBundle } from "./bundle.js";
+export { liveEvent } from "./live.js";
 export {
   requestPlayerClaim,
   resolvePlayerClaim,

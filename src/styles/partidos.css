@@ -15,13 +15,14 @@
 [data-theme="light"] .vx .pt-live{color:#b3261e;background:rgba(255,90,79,.16)}
 
 /* floodlights */
-.pt-beams{position:absolute;inset:-20% -30% auto;height:120%;pointer-events:none;z-index:0;opacity:.55;mix-blend-mode:screen}
-.pt-beams i{position:absolute;top:-10%;width:46%;height:130%;background:conic-gradient(from 180deg at 50% 0%,transparent 42%,rgba(159,208,242,.22) 50%,transparent 58%);filter:blur(6px);transform-origin:50% 0;animation:ptBeam 9s ease-in-out infinite alternate}
-.pt-beams i:nth-child(1){left:-6%;transform:rotate(-18deg)}
-.pt-beams i:nth-child(2){right:-6%;transform:rotate(18deg);animation-delay:-4.5s}
-.pt-beams i:nth-child(3){left:27%;opacity:.6;animation-duration:13s}
-@keyframes ptBeam{from{rotate:-10deg}to{rotate:12deg}}
-[data-theme="light"] .vx .pt-beams{mix-blend-mode:multiply;opacity:.18}
+.pt-beams{position:absolute;inset:-20% -30% auto;height:120%;pointer-events:none;z-index:0;opacity:.5}
+/* Each beam is its own GPU layer turning on transform only: no blend mode or per-frame repaint. */
+.pt-beams i{position:absolute;top:-10%;width:46%;height:130%;background:conic-gradient(from 180deg at 50% 0%,transparent 42%,rgba(159,208,242,.22) 50%,transparent 58%);filter:blur(6px);transform-origin:50% 0;will-change:transform;animation:ptBeam 9s ease-in-out infinite alternate}
+.pt-beams i:nth-child(1){left:-6%;--a0:-28deg;--a1:-6deg}
+.pt-beams i:nth-child(2){right:-6%;--a0:8deg;--a1:30deg;animation-delay:-4.5s}
+.pt-beams i:nth-child(3){left:27%;opacity:.6;--a0:-10deg;--a1:12deg;animation-duration:13s}
+@keyframes ptBeam{from{transform:rotate(var(--a0))}to{transform:rotate(var(--a1))}}
+[data-theme="light"] .vx .pt-beams{opacity:.18}
 
 /* hero */
 .pt-hero{position:relative;background:var(--hero-bg);padding:84px 20px 34px;overflow:hidden;container-type:inline-size}
