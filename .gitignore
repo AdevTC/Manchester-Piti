@@ -50,3 +50,6 @@ ui-debug.log
 
 # Firestore census output (runbook-firestore-madrid.md)
 functions/census-*.json
+
+# Server render build (pnpm build → vite build --ssr)
+dist-ssr

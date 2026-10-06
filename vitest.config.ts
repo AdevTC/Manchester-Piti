@@ -13,15 +13,18 @@ import viteConfig from "./vite.config";
 // - setupFiles: registers jest-dom matchers + per-test cleanup.
 // - include: widened to *.test.tsx (the previous default was *.test.ts only)
 //   so the new component tests are picked up alongside the existing pure ones.
-export default mergeConfig(
-  viteConfig,
-  defineConfig({
-    test: {
-      environment: "jsdom",
-      globals: true,
-      setupFiles: ["./src/test/setup.ts"],
-      css: false,
-      include: ["src/**/*.test.{ts,tsx}"],
-    },
-  }),
+// vite.config.ts is a function (client vs server-render build): resolve it for this run first.
+export default defineConfig((env) =>
+  mergeConfig(
+    viteConfig(env),
+    defineConfig({
+      test: {
+        environment: "jsdom",
+        globals: true,
+        setupFiles: ["./src/test/setup.ts"],
+        css: false,
+        include: ["src/**/*.test.{ts,tsx}"],
+      },
+    }),
+  ),
 );

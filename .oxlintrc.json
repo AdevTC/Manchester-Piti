@@ -26,7 +26,8 @@
     "playwright-report",
     "test-results",
     "functions/lib",
-    "dev-dist"
+    "dev-dist",
+    "dist-ssr"
   ],
   "rules": {
     "constructor-super": "error",

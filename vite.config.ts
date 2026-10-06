@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite'
-import { fileURLToPath, URL } from 'node:url'
+import { fileURLToPath, pathToFileURL, URL } from 'node:url'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import type { Plugin } from 'vite'
+import { readFileSync } from 'node:fs'
 
 // https://vite.dev/config/
 // Match a node_modules package by exact name, anchored on the package
@@ -48,9 +49,17 @@ const ROUTE_CHUNKS: [RegExp, string][] = [
   [/^\/matches\//, 'src/pages/MatchDetail.tsx'],
   [/^\/jugadores\//, 'src/pages/PlayerProfile.tsx'],
 ]
+// Same map, as JSON for the server render's shell (scripts/ssr-shell.mjs): which files each route needs.
+let routeAssets: (readonly [string, string[]])[] = []
 const preloadRouteChunk = (): Plugin => ({
   name: 'preload-route-chunk',
   apply: 'build',
+  generateBundle: {
+    order: 'post',
+    handler() {
+      if (routeAssets.length) this.emitFile({ type: 'asset', fileName: 'route-assets.json', source: JSON.stringify(routeAssets) })
+    },
+  },
   transformIndexHtml: {
     order: 'post',
     handler(_html, ctx) {
@@ -79,6 +88,7 @@ const preloadRouteChunk = (): Plugin => ({
         const chunk = chunks.find((c) => c.isDynamicEntry && c.facadeModuleId?.replace(/\\/g, '/').endsWith(src))
         return chunk ? [[re.source, files(chunk)] as const] : []
       })
+      routeAssets = map
       // Tiny inline script: match the URL, add <link rel=modulepreload|preload> for its chunk graph.
       const script =
         `(function(){var p=location.pathname,m=${JSON.stringify(map)};` +
@@ -90,19 +100,76 @@ const preloadRouteChunk = (): Plugin => ({
   },
 })
 
-export default defineConfig({
+// The client's HTML is the app shell, not the home page: `/` and the other public pages are
+// rendered by the server (api/render.js), every other path gets this shell (vercel.json, the SW).
+const shellHtml = (): Plugin => ({
+  name: 'shell-html',
+  apply: 'build',
+  generateBundle: {
+    order: 'post',
+    handler(_options, bundle) {
+      const html = bundle['index.html']
+      if (!html || html.type !== 'asset') return
+      delete bundle['index.html']
+      this.emitFile({ type: 'asset', fileName: 'shell.html', source: html.source })
+    },
+  },
+})
+
+// Server render build: ./firebase becomes ./firebase.server (no browser storage, no listeners).
+const serverFirebase = (): Plugin => ({
+  name: 'server-firebase',
+  enforce: 'pre',
+  async resolveId(source, importer, options) {
+    if (!importer || !/(^|\/)firebase$/.test(source)) return null
+    const resolved = await this.resolve(source, importer, { ...options, skipSelf: true })
+    return resolved && /[\\/]src[\\/]firebase\.ts$/.test(resolved.id) ? resolved.id.replace(/firebase\.ts$/, 'firebase.server.ts') : null
+  },
+})
+
+// `vite preview` answers like vercel.json: navigations get the shell; with SSR_PREVIEW=1 the public
+// pages go through api/render.js (production data), to check the server render before deploying.
+const SSR_PAGES = new Set(['/', '/partidos', '/stats', '/club', '/plantilla'])
+const previewLikeVercel = (): Plugin => ({
+  name: 'preview-like-vercel',
+  configurePreviewServer(server) {
+    server.middlewares.use((req, res, next) => {
+      const url = new URL(req.url ?? '/', 'http://localhost')
+      const navigation = req.method === 'GET' && (req.headers.accept ?? '').includes('text/html') && !/\.\w+$/.test(url.pathname)
+      if (!navigation) return next()
+      const ssr = process.env.SSR_PREVIEW === '1' && SSR_PAGES.has(url.pathname)
+      const page = ssr
+        ? import(pathToFileURL(fileURLToPath(new URL('./api/render.js', import.meta.url))).href)
+            .then(({ GET }) => GET(new Request(`http://localhost/api/render?p=${encodeURIComponent(url.pathname)}`)))
+            .then((r: Response) => r.text())
+        : Promise.resolve(readFileSync(fileURLToPath(new URL('./dist/shell.html', import.meta.url)), 'utf8'))
+      page.then(
+        (body) => {
+          res.setHeader('content-type', 'text/html; charset=utf-8')
+          res.end(body)
+        },
+        next,
+      )
+    })
+  },
+})
+
+export default defineConfig(({ isSsrBuild }) => ({
+  // The server render needs only its code: the static files are served from dist.
+  publicDir: isSsrBuild ? false : 'public',
+  // The server render carries its dependencies inside (dist-ssr), so the function needs nothing else.
+  ssr: { noExternal: true },
   plugins: [
     react(),
     // React Compiler 1.0 (stable Babel path): automatic memoisation, fewer re-renders.
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
-    preloadCriticalFonts(),
-    preloadRouteChunk(),
+    ...(isSsrBuild ? [serverFirebase()] : [preloadCriticalFonts(), preloadRouteChunk(), shellHtml(), previewLikeVercel()]),
     // Service worker (Workbox, generateSW): the app shell, every hashed chunk and the
     // self-hosted fonts are precached, so repeat visits start without the network and
     // route changes never wait for a download. A new deploy activates on the next load.
     // Firestore/Auth traffic is cross-origin and never touched.
-    VitePWA({
+    !isSsrBuild && VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script-defer',
       manifest: false, // public/manifest.webmanifest stays the source of truth
@@ -119,9 +186,10 @@ export default defineConfig({
         // tab to close, so people kept seeing the previous version.
         skipWaiting: true,
         clientsClaim: true,
-        navigateFallback: 'index.html',
+        // Navigations get the app shell; the server-rendered pages are for first visits (no SW yet).
+        navigateFallback: 'shell.html',
         // Served by Cloud Functions through vercel.json rewrites: never answer them with the SPA.
-        navigateFallbackDenylist: [/^\/calendario\.ics/, /^\/compartir\//, /^\/social\//, /^\/__\//, /^\/datos\//],
+        navigateFallbackDenylist: [/^\/calendario\.ics/, /^\/compartir\//, /^\/social\//, /^\/__\//, /^\/datos\//, /^\/api\//],
         runtimeCaching: [
           {
             // Public data bundle: the last copy at once on repeat visits, a fresh one fetched behind it.
@@ -164,7 +232,9 @@ export default defineConfig({
   preview: {
     proxy: process.env.VITE_USE_FIREBASE_EMULATOR === '1'
       ? { '/datos/club.bundle': { target: 'http://127.0.0.1:5001', rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' } }
-      : undefined,
+      : process.env.SSR_PREVIEW === '1'
+        ? { '/datos/club.bundle': { target: 'https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net', changeOrigin: true, rewrite: () => '/clubBundle' } }
+        : undefined,
   },
   build: {
     // Vite 8 bundles with Rolldown; the object form of `manualChunks` is
@@ -188,4 +258,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

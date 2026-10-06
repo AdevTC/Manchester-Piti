@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
-import { collection, query, orderBy } from "firebase/firestore";
-import { db } from "../firebase";
 import { useFirestoreCollection } from "../lib/useFirestoreCollection";
 import { mapSeason } from "../lib/firestoreMappers";
+import { SEASONS_KEY, seasonQuery } from "../lib/publicData";
 
 export interface Season {
   id: string;
@@ -20,14 +19,10 @@ interface SeasonContextType {
 
 const SeasonContext = createContext<SeasonContextType | undefined>(undefined);
 
-const SEASONS_KEY = ["seasons"] as const;
-
 export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const seasonsQuery = useMemo(() => query(collection(db, "seasons"), orderBy("name", "asc")), []);
-
   // Shared canonical mapper (full validated doc); derive the Season view here so
   // every ["seasons"] consumer reads the identical cached shape.
-  const { data, isPending } = useFirestoreCollection(SEASONS_KEY, seasonsQuery, mapSeason);
+  const { data, isPending } = useFirestoreCollection(SEASONS_KEY, seasonQuery, mapSeason);
   const seasons = useMemo<Season[]>(
     // Archived seasons stay in Firestore but are hidden from the whole app (Admin reads them directly).
     () => (data ?? []).filter((s) => !s.archived).map((s) => ({ id: s.id, name: s.name, captainPlayerId: s.captainPlayerId || undefined })),
@@ -36,6 +31,8 @@ export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const loadingSeasons = isPending;
 
   const [selectedSeasonIdRaw, setSelectedSeasonIdRaw] = useState<string>(() => {
+    // Server render: no saved choice there (the client mounts with its own).
+    if (typeof localStorage === "undefined") return "all";
     return localStorage.getItem("selected_season_id") || "all";
   });
 
