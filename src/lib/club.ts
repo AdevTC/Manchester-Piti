@@ -4,6 +4,7 @@
 import { ageOn } from "./clubAnalytics";
 import { dateMillis, isCompleted, type ClubMatch } from "./clubData";
 import type { ClubContent } from "./clubContentDefaults";
+import type { ClubMedal } from "./home";
 
 export const mapsUrl = (venue: string) => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(venue);
 export const mailto = (email: string, subject: string) => `mailto:${email}?subject=${encodeURIComponent(subject)}`;
@@ -71,4 +72,23 @@ export function classifieds(email: string): Ad[] {
 export function sponsorWall(sponsors: ClubContent["sponsors"]) {
   const https = (u: string) => (/^https:\/\//.test(u ?? "") ? u : undefined);
   return (sponsors ?? []).filter((s) => s && s.name).map((s) => ({ name: s.name, url: https(s.url), logo: https(s.logo) }));
+}
+
+/** Two more pieces for the trophy room: the first hat-trick and the first clean sheet of the season. */
+export function extraTrophies(played: ClubMatch[], nameOf: (id: string) => string): ClubMedal[] {
+  let hat: { match: ClubMatch; playerId: string } | undefined;
+  for (const m of played) {
+    const goals = new Map<string, number>();
+    for (const e of m.events ?? []) if (/^goal/.test(e.type) && e.playerId) goals.set(e.playerId, (goals.get(e.playerId) ?? 0) + 1);
+    const who = [...goals.entries()].find(([, n]) => n >= 3);
+    if (who) {
+      hat = { match: m, playerId: who[0] };
+      break;
+    }
+  }
+  const clean = played.find((m) => m.goalsAgainst === 0);
+  return [
+    { id: "hat", kicker: "Hat-trick", title: hat ? nameOf(hat.playerId) : "Por firmar", detail: hat ? `ante ${hat.match.rival ?? "el rival"}` : "tres goles en un partido", earned: !!hat, tone: "gold" },
+    { id: "clean", kicker: "Portería a cero", title: clean ? `${clean.goalsFor}–0` : "Por cerrar", detail: clean ? `ante ${clean.rival ?? "el rival"}` : "un partido sin encajar", earned: !!clean, tone: "sky" },
+  ];
 }

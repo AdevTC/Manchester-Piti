@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "./clubData";
-import { classifieds, historyTrain, mapsUrl, squadNumbers, sponsorWall } from "./club";
+import { classifieds, extraTrophies, historyTrain, mapsUrl, squadNumbers, sponsorWall } from "./club";
 
 const match = (id: string, day: number, status = "finished"): ClubMatch => ({ id, rival: "Accept", date: Date.UTC(2026, 8, day), status: status as ClubMatch["status"], goalsFor: 3, goalsAgainst: 2, events: [] });
 
@@ -55,5 +55,17 @@ describe("Clasificados, mecenas y campo", () => {
   });
   it("maps link searches the venue", () => {
     expect(mapsUrl("Campo de La Elipa, Madrid")).toBe("https://www.google.com/maps/search/?api=1&query=Campo%20de%20La%20Elipa%2C%20Madrid");
+  });
+});
+
+describe("Sala de trofeos: piezas extra", () => {
+  it("first hat-trick and first clean sheet, in date order", () => {
+    const g = (id: string, ga: number, scorers: string[]): ClubMatch => ({ id, rival: "R" + id, goalsFor: scorers.length, goalsAgainst: ga, status: "finished", events: scorers.map((p, i) => ({ id: id + i, type: "goal", minute: i + 1, playerId: p })) });
+    const t = extraTrophies([g("1", 2, ["a", "b"]), g("2", 0, ["a", "a", "a"]), g("3", 0, ["b", "b", "b"])], (id) => id.toUpperCase());
+    expect(t.map((x) => [x.kicker, x.title, x.detail, x.earned])).toEqual([
+      ["Hat-trick", "A", "ante R2", true],
+      ["Portería a cero", "3–0", "ante R2", true],
+    ]);
+    expect(extraTrophies([], (id) => id).every((x) => !x.earned)).toBe(true);
   });
 });

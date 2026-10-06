@@ -141,12 +141,14 @@ service cloud.firestore {
     match /clubContent/{id} {
       allow read: if true;
       allow create, update: if admin() && id == 'main'
-        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','photoUrl','milestones','sponsors','gallery'])
+        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','photoUrl','milestones','sponsors','gallery','faq','crestStory'])
         && request.resource.data.intro is string && request.resource.data.intro.size() < 1000
         && request.resource.data.story is string && request.resource.data.story.size() < 20000
         && request.resource.data.gallery is list && request.resource.data.gallery.size() <= 100
         && request.resource.data.sponsors is list && request.resource.data.sponsors.size() <= 50
-        && request.resource.data.milestones is list && request.resource.data.milestones.size() <= 100;
+        && request.resource.data.milestones is list && request.resource.data.milestones.size() <= 100
+        && (!('faq' in request.resource.data) || (request.resource.data.faq is list && request.resource.data.faq.size() <= 30))
+        && (!('crestStory' in request.resource.data) || (request.resource.data.crestStory is string && request.resource.data.crestStory.size() < 5000));
       allow delete: if false;
     }
     match /users/{uid} {

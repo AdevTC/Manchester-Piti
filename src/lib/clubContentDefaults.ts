@@ -11,6 +11,10 @@ export interface ClubContent {
   milestones: { year: string; title: string; text: string }[];
   sponsors: { name: string; url: string; logo: string }[];
   gallery: { url: string; caption: string }[];
+  /** Preguntas de vestuario (El club). */
+  faq: { q: string; a: string }[];
+  /** La historia del escudo (El club, bajo la vitrina). */
+  crestStory: string;
 }
 export const DEFAULT_CONTENT: ClubContent = {
   intro: "Resultados, calendario y estadísticas del Manchester Piti.",
@@ -25,4 +29,10 @@ export const DEFAULT_CONTENT: ClubContent = {
   milestones: [],
   sponsors: [],
   gallery: [],
+  faq: [
+    { q: "¿Cómo me apunto?", a: "Escríbenos desde «Un lugar en el equipo», en los clasificados de esta página: te contamos cuándo jugamos y te venimos a conocer." },
+    { q: "¿Dónde y cuándo jugamos?", a: "Los partidos, con fecha, hora y campo, están en Partidos; suscríbete al calendario y te llegan solos." },
+    { q: "¿Puedo venir a vernos?", a: "Claro. La grada es libre y el ánimo se agradece: el próximo partido está en esta misma página." },
+  ],
+  crestStory: "",
 };
