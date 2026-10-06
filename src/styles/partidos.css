@@ -26,6 +26,7 @@
 /* hero */
 .pt-hero{position:relative;background:var(--hero-bg);padding:84px 20px 34px;overflow:hidden;container-type:inline-size}
 .pt-hero-in{position:relative;z-index:2;display:grid;gap:22px}
+.pt-hero-in>*{min-width:0}
 .pt-ghost{position:absolute;left:-4%;right:-4%;top:58px;z-index:1;font-family:'Anybody';font-weight:900;font-size:31cqi;line-height:.8;letter-spacing:-.05em;font-variation-settings:'wdth' 60;color:transparent;-webkit-text-stroke:1.5px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;white-space:nowrap;pointer-events:none;overflow:hidden}
 .pt-tags{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .pt-h1{margin:6px 0 0;font-family:'Anybody';font-weight:900;font-size:60px;line-height:.86;letter-spacing:-.03em;font-variation-settings:'wdth' 112}

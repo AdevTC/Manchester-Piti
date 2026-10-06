@@ -109,8 +109,8 @@ const matchDetailRoute = createRoute({
   path: "/matches/$matchId",
   pendingComponent: MatchDetailPending,
   component: lazyRouteComponent(
-    () => import("./pages/MatchDetail"),
-    "MatchDetail",
+    () => import("./pages/match/MatchPage"),
+    "MatchPage",
   ),
 });
 

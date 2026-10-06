@@ -256,3 +256,12 @@ export function useHasPosted(uid: string | undefined) {
   );
   return { data: q.data.length > 0, loading: q.loading };
 }
+
+/** Everyone's porra for a match: members can read them once the match has kicked off (rules). */
+export function useMatchPredictions(matchId: string | undefined, enabled: boolean) {
+  return useLiveQuery<{ uid: string; name: string; goalsFor: number; goalsAgainst: number }>(
+    matchId && enabled ? `predictions/${matchId}` : null,
+    () => collection(db, "matchPrivate", matchId!, "predictions"),
+    (uid, d) => ({ uid, name: d.name ?? "Miembro", goalsFor: d.goalsFor, goalsAgainst: d.goalsAgainst }),
+  );
+}
