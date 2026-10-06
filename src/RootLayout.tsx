@@ -23,7 +23,7 @@ export function RootLayout() {
   // Celeste pages (home, plantilla, vestuario) bring their own header, dock and footer: hide the site chrome there.
   // While the session is being restored, private pages wait on a neutral skeleton (no gate flash).
   const checking = privatePage && (!ready || (member && loading));
-  const immersive = pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname.startsWith("/matches/") || (pathname === "/vestuario" && (checking || (member && !!profile)));
+  const immersive = pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname.startsWith("/matches/") || (pathname === "/vestuario" && (checking || (member && !!profile)));
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
