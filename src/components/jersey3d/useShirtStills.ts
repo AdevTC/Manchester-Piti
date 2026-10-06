@@ -49,8 +49,12 @@ async function toStore(k: string, blob: Blob) {
 const whenIdle = () =>
   new Promise<void>((ok) => ("requestIdleCallback" in window ? requestIdleCallback(() => ok(), { timeout: 1500 }) : setTimeout(ok, 200)));
 
-/** Returns a lookup for the stills of `reqs`; missing ones come from the device or render in the background, in order. */
-export function useShirtStills(reqs: StillRequest[]) {
+/**
+ * Returns a lookup for the stills of `reqs`; missing ones come from the device or render in the background, in order.
+ * `offMainThread`: render them in a Web Worker (worth it for a whole squad; it has its own copy of three.js,
+ * so a page that renders one or two stills next to a live jersey is better off on the main thread).
+ */
+export function useShirtStills(reqs: StillRequest[], { offMainThread = false } = {}) {
   const [, bump] = useState(0);
   const keys = reqs.map(stillKey).join("\n");
   useEffect(() => {
@@ -68,11 +72,13 @@ export function useShirtStills(reqs: StillRequest[]) {
       if (!cancelled && missing.length < todo.length) bump((n) => n + 1);
       if (!missing.length) return;
       await whenIdle();
-      const { renderStill } = await import("./scene");
+      const render = offMainThread
+        ? (await import("./stillsClient")).renderStillFast
+        : (await import("./scene")).renderStill;
       for (const k of missing) {
         if (cancelled) return;
         if (urls.has(k)) continue;
-        const blob = await renderStill(parse(k));
+        const blob = await render(parse(k));
         urls.set(k, URL.createObjectURL(blob));
         void toStore(k, blob);
         if (!cancelled) bump((n) => n + 1);
@@ -85,6 +91,8 @@ export function useShirtStills(reqs: StillRequest[]) {
     return () => {
       cancelled = true;
     };
+    // offMainThread is fixed per call site
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keys]);
   return (r: StillRequest) => urls.get(stillKey(r));
 }

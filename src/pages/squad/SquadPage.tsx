@@ -78,8 +78,8 @@ export function SquadPage() {
   const b = rows.find((r) => r.id === bId);
 
   const shot = (r: SquadRow, yaw = 0) => ({ kit, theme, name: r.name.toUpperCase(), num: r.num, yaw });
-  const still = useShirtStills(rows.map((r) => shot(r)));
-  const duelStills = useShirtStills([a && shot(a, DUEL_YAW.a), b && shot(b, DUEL_YAW.b)].filter((x) => x != null));
+  const still = useShirtStills(rows.map((r) => shot(r)), { offMainThread: true });
+  const duelStills = useShirtStills([a && shot(a, DUEL_YAW.a), b && shot(b, DUEL_YAW.b)].filter((x) => x != null), { offMainThread: true });
   const stillOf = (r: SquadRow) => still(shot(r));
 
   const openFicha = (id: string) => {
