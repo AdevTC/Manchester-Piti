@@ -25,12 +25,12 @@
 [data-theme="light"] .vx .pt-beams{opacity:.18}
 
 /* hero */
-.pt-hero{position:relative;background:var(--hero-bg);padding:84px 20px 34px;overflow:hidden;container-type:inline-size}
+.pt-hero{position:relative;background:var(--hero-bg);padding:calc(84px + var(--isle,0px)) 20px 34px;overflow:hidden;container-type:inline-size}
 .pt-hero-in{position:relative;z-index:2;display:grid;gap:22px}
 .pt-hero-in>*{min-width:0}
-.pt-ghost{position:absolute;left:-4%;right:-4%;top:58px;z-index:1;font-family:'Anybody';font-weight:900;font-size:31cqi;line-height:.8;letter-spacing:-.05em;font-variation-settings:'wdth' 60;color:transparent;-webkit-text-stroke:1.5px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;white-space:nowrap;pointer-events:none;overflow:hidden}
+.pt-ghost{position:absolute;left:-4%;right:-4%;bottom:14px;z-index:1;font-family:'Anybody';font-weight:900;font-size:31cqi;line-height:.8;letter-spacing:-.05em;font-variation-settings:'wdth' 60;color:transparent;-webkit-text-stroke:1.5px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;white-space:nowrap;pointer-events:none;overflow:hidden}
 .pt-tags{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.pt-h1{margin:6px 0 0;font-family:'Anybody';font-weight:900;font-size:60px;line-height:.86;letter-spacing:-.03em;font-variation-settings:'wdth' 112}
+.vx .pt-h1{margin:calc(4px + .18em) 0 0;font-family:'Anybody';font-weight:900;font-size:min(60px,calc((100cqi - 40px) / 5.6));line-height:.86;letter-spacing:-.03em;font-variation-settings:'wdth' 112}
 .vx .pt-lead{margin:10px 0 0;font-size:16px;line-height:1.45;color:var(--soft);max-width:34ch}
 .pt-rise{animation:ptRise .9s cubic-bezier(.16,1,.3,1) both}
 @keyframes ptRise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
@@ -39,8 +39,8 @@
 .pt-board{position:relative;border-radius:30px;padding:20px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02));box-shadow:inset 0 0 0 1px var(--line),0 50px 90px -40px rgba(0,0,0,.75);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);overflow:hidden;container-type:inline-size}
 [data-theme="light"] .vx .pt-board{background:rgba(255,255,255,.82);box-shadow:0 40px 70px -40px rgba(12,23,51,.4)}
 .pt-board.live{box-shadow:inset 0 0 0 1.5px rgba(255,90,79,.45),0 50px 90px -40px rgba(255,90,79,.35)}
-.pt-btop{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:'Geist Mono';font-size:12px;color:var(--muted)}
-.pt-btop b{color:var(--gold-ink);font-weight:600}
+.pt-btop{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:4px 8px;font-family:'Geist Mono';font-size:12px;color:var(--muted)}
+.pt-btop b{color:var(--gold-ink);font-weight:600;white-space:nowrap}
 .pt-teams{margin-top:16px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;text-align:center}
 .pt-team{display:grid;justify-items:center;gap:8px;min-width:0}
 .pt-team img,.pt-team .ini{width:56px;height:56px;border-radius:50%;object-fit:contain}
@@ -132,6 +132,13 @@
 .pt-pich li b{font-family:'Anybody';font-weight:900;font-size:24px;color:var(--accent)}
 
 /* the live island: on every page while a match is on */
+/* While the island shows, every Celeste hero leaves its height free at the top (LiveIsland sets the flag). */
+html[data-isle] .vx{--isle:58px}
+/* Pages still on the old chrome (Navbar): their content starts below the pill. */
+html[data-isle] .club-main:not(.vx-main-shell){margin-top:58px}
+.club-app:has(> .club-nav) .pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + 110px)}
+@media (min-width:700px){.club-app:has(> .club-nav) .pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + 120px)}}
+@media (min-width:1100px){.club-app:has(> .club-nav) .pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + 140px)}}
 .pt-isle-wrap{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 76px);z-index:60;display:flex;justify-content:center;padding:0 12px;pointer-events:none}
 .pt-isle{pointer-events:auto;width:min(100%,330px);min-height:46px;border-radius:999px;background:#05070d;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 8px 0 14px;border:0;font:inherit;box-shadow:0 18px 40px -18px rgba(0,0,0,.9);transition:width .6s cubic-bezier(.34,1.3,.64,1),border-radius .6s;cursor:pointer;text-align:left}
 .pt-isle .s{display:flex;align-items:center;gap:8px;font-family:'Anybody';font-weight:900;font-size:17px;font-variation-settings:'wdth' 90;min-width:0}
@@ -165,10 +172,10 @@
 @keyframes ptFall{0%{transform:translateY(0) rotate(var(--r));opacity:1}100%{transform:translateY(640px) rotate(calc(var(--r) + 720deg));opacity:.2}}
 
 @container (min-width:1100px){
-.pt-hero{padding:132px 64px 64px}
+.pt-hero{padding:calc(132px + var(--isle,0px)) 64px 64px}
 .pt-hero-in{max-width:1312px;margin:0 auto;grid-template-columns:minmax(0,1fr) 540px;gap:64px;align-items:end}
-.pt-h1{font-size:140px}
-.pt-ghost{top:96px;font-size:23cqi}
+.pt-h1{font-size:min(140px,calc((100cqi - 740px) / 5.4))}
+.pt-ghost{top:96px;bottom:auto;font-size:23cqi}
 .pt-main{max-width:1440px;margin:0 auto;padding:0 64px 40px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:0 64px;align-items:start}
 .pt-season-sec{grid-column:1/-1}
 .pt-tira{grid-template-columns:repeat(auto-fit,minmax(44px,1fr));gap:6px}

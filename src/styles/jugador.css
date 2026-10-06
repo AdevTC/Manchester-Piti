@@ -2,7 +2,7 @@
    home/partidos.css (buttons, floodlights). The cromo's tilt is contained in its stage; the
    presentation overlay never takes clicks. */
 
-.jg-hero{position:relative;background:var(--hero-bg);padding:88px 16px 32px;overflow:hidden}
+.jg-hero{position:relative;background:var(--hero-bg);padding:calc(88px + var(--isle,0px)) 16px 32px;overflow:hidden}
 .jg-hero-in{position:relative;z-index:2;display:grid;gap:28px;max-width:1312px;margin:0 auto}
 .jg-id{display:grid;gap:10px;align-content:start;justify-items:start;container-type:inline-size;width:100%}
 .vx a.jg-back{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px 0 10px;border-radius:999px;background:var(--chip);color:var(--ink);font-weight:600;font-size:14px;text-decoration:none}
@@ -114,7 +114,7 @@
 .jg-subs small{font-family:'Geist Mono';font-size:11px;color:var(--muted)}
 
 @container st-page (min-width:700px){
-.jg-hero{padding:104px 40px 40px}
+.jg-hero{padding:calc(104px + var(--isle,0px)) 40px 40px}
 .jg-hero-in{grid-template-columns:minmax(0,1fr) minmax(0,340px);align-items:center}
 .jg-main{padding:8px 40px 40px}
 .jg-chips{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
@@ -123,7 +123,7 @@
 .jg-tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
 @container st-page (min-width:1100px){
-.jg-hero{padding:132px 64px 56px}
+.jg-hero{padding:calc(132px + var(--isle,0px)) 64px 56px}
 .jg-hero-in{grid-template-columns:minmax(0,1fr) 400px;gap:72px}
 .jg-cromo{width:360px}
 .jg-main{padding:8px 64px 56px}

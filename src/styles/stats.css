@@ -17,7 +17,7 @@
 .st-sm{height:44px;padding:0 16px;font-size:14px}
 
 /* ── hero ── */
-.st-hero{position:relative;background:var(--hero-bg);padding:84px 16px 28px;overflow:hidden;container-type:inline-size}
+.st-hero{position:relative;background:var(--hero-bg);padding:calc(84px + var(--isle,0px)) 16px 28px;overflow:hidden;container-type:inline-size}
 .st-stars{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5;background-image:radial-gradient(1px 1px at 12% 18%,var(--star) 50%,transparent 51%),radial-gradient(1px 1px at 34% 62%,var(--star) 50%,transparent 51%),radial-gradient(1.4px 1.4px at 71% 22%,var(--star) 50%,transparent 51%),radial-gradient(1px 1px at 88% 70%,var(--star) 50%,transparent 51%),radial-gradient(1.2px 1.2px at 52% 8%,var(--star) 50%,transparent 51%),radial-gradient(1px 1px at 6% 84%,var(--star) 50%,transparent 51%);animation:stTwinkle 6s ease-in-out infinite alternate}
 @keyframes stTwinkle{from{opacity:.25}to{opacity:.6}}
 .st-hero-in{position:relative;z-index:2;display:grid;gap:24px;max-width:1312px;margin:0 auto}
@@ -397,7 +397,7 @@
 
 /* ── tablet ── */
 @container st-page (min-width:700px){
-.st-hero{padding:96px 40px 40px}
+.st-hero{padding:calc(96px + var(--isle,0px)) 40px 40px}
 .st-main{padding:0 40px 40px}
 .st-tabs{padding:12px 40px}
 .st-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -410,7 +410,7 @@
 }
 /* ── desktop ── */
 @container st-page (min-width:1100px){
-.st-hero{padding:128px 64px 56px}
+.st-hero{padding:calc(128px + var(--isle,0px)) 64px 56px}
 .st-hero-in{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:56px;align-items:start}
 .st-intro{padding-top:24px}
 .st-board{padding:24px 24px 18px}
