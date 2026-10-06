@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import { fileURLToPath, URL } from 'node:url'
-import react from '@vitejs/plugin-react'
+import react, { reactCompilerPreset } from '@vitejs/plugin-react'
+import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -18,6 +19,8 @@ const vendor = (...packages: [string, ...string[]]): RegExp => {
 export default defineConfig({
   plugins: [
     react(),
+    // React Compiler 1.0 (stable Babel path): automatic memoisation, fewer re-renders.
+    babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
     // Service worker (Workbox, generateSW): the app shell, every hashed chunk and the
     // self-hosted fonts are precached, so repeat visits start without the network and
@@ -57,6 +60,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Firestore bundles the RE2 engine for Pipelines, which we never use (see the stub).
+      re2js: fileURLToPath(new URL('./src/lib/re2js-stub.ts', import.meta.url)),
     },
   },
   server: {
@@ -73,7 +78,7 @@ export default defineConfig({
       output: {
         codeSplitting: {
           groups: [
-            { name: 'firebase', test: vendor('@firebase', 'firebase', 'idb', 're2js') },
+            { name: 'firebase', test: vendor('@firebase', 'firebase', 'idb') },
             { name: 'motion', test: vendor('motion-dom', 'framer-motion', 'motion-utils') },
             // React core lands in the `motion` chunk, not here: motion pulls it
             // in as a transitive dep and Rolldown keeps it there. Harmless —

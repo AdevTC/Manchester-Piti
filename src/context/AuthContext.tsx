@@ -1,6 +1,6 @@
 import { registerTeamProfile } from '../lib/clubApi';
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { type User, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { type User, browserPopupRedirectResolver, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, googleProvider, db } from "../firebase";
 import { userProfileSchema, normalizeNickname } from "../lib/schemas";
@@ -127,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithGoogle = async () => {
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
     } catch (error) {
       console.error("Google login failed:", error);
       setLoading(false);
