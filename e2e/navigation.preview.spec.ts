@@ -10,7 +10,7 @@ test("web pública, navegación y detalle sin iniciar sesión", async ({
   await nav.getByRole("link", { name: "Partidos", exact: true }).click();
   await expect(page).toHaveURL(/\/partidos/);
   await page.goto("/matches/preview-finished");
-  await expect(page.getByText("2 : 1", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status", { name: "Resultado: 2 a 1" })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Cartel cuadrado" }),
   ).toBeVisible();

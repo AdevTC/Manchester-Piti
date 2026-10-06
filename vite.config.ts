@@ -42,11 +42,11 @@ const preloadCriticalFonts = (): Plugin => ({
 const ROUTE_CHUNKS: [RegExp, string][] = [
   [/^\/$/, 'src/pages/Home.tsx'],
   [/^\/plantilla\/?$/, 'src/pages/squad/SquadPage.tsx'],
-  [/^\/partidos\/?$/, 'src/pages/Fixtures.tsx'],
+  [/^\/partidos\/?$/, 'src/pages/partidos/PartidosPage.tsx'],
   [/^\/stats\/?$/, 'src/pages/ClubStats.tsx'],
   [/^\/club\/?$/, 'src/pages/Club.tsx'],
   [/^\/vestuario\/?$/, 'src/pages/vestuario/VestuarioPage.tsx'],
-  [/^\/matches\//, 'src/pages/MatchDetail.tsx'],
+  [/^\/matches\//, 'src/pages/match/MatchPage.tsx'],
   [/^\/jugadores\//, 'src/pages/PlayerProfile.tsx'],
 ]
 // Same map, as JSON for the server render's shell (scripts/ssr-shell.mjs): which files each route needs.
