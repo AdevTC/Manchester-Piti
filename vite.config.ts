@@ -187,6 +187,8 @@ export default defineConfig(({ isSsrBuild }) => ({
         skipWaiting: true,
         clientsClaim: true,
         // Navigations get the app shell; the server-rendered pages are for first visits (no SW yet).
+        // Push notices (public/push-sw.js): shown even with the web closed.
+        importScripts: ['/push-sw.js'],
         navigateFallback: 'shell.html',
         // Served by Cloud Functions through vercel.json rewrites: never answer them with the SPA.
         navigateFallbackDenylist: [/^\/calendario\.ics/, /^\/compartir\//, /^\/social\//, /^\/__\//, /^\/datos\//, /^\/api\//],
