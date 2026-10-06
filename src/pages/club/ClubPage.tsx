@@ -73,6 +73,7 @@ export function ClubPage() {
   const ads = classifieds(c.email ?? "");
   const sponsors = sponsorWall(c.sponsors);
   const gallery = (c.gallery ?? []).filter((g) => g && /^https:\/\//.test(g.url ?? ""));
+  const faq = (c.faq ?? []).filter((f) => f && f.q?.trim() && f.a?.trim());
   const nextWhen = next ? formatDate(next.date) : "";
 
   const dialog = useRef<HTMLDialogElement>(null);
@@ -188,6 +189,17 @@ export function ClubPage() {
               </span>
             )}
           </p>
+          {c.crestStory?.trim() && (
+            <aside className="cl-crest-story" aria-labelledby="cl-crest">
+              <img src="/crest-128.webp" alt="" width="56" height="56" />
+              <div>
+                <h3 id="cl-crest">
+                  La historia del escudo <span className="st-new">nuevo</span>
+                </h3>
+                <p className="cl-copy sm">{c.crestStory}</p>
+              </div>
+            </aside>
+          )}
         </section>
 
         <section className="cl-sec" aria-labelledby="cl-trophies">
@@ -393,6 +405,27 @@ export function ClubPage() {
                 </button>
               </div>
             </dialog>
+          </section>
+        )}
+
+        {faq.length > 0 && (
+          <section className="cl-sec" aria-labelledby="cl-faq">
+            <Head kick="Antes de escribirnos" title="Preguntas de vestuario" id="cl-faq" isNew />
+            <div className="cl-faq">
+              {faq.map((f, i) => (
+                <details key={f.q + i} open={i === 0}>
+                  <summary>
+                    <span className="q">P.</span>
+                    {f.q}
+                    <Icon name="down" size={18} />
+                  </summary>
+                  <p>
+                    <span className="q">R.</span>
+                    {f.a}
+                  </p>
+                </details>
+              ))}
+            </div>
           </section>
         )}
 

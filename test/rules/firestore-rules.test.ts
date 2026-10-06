@@ -415,3 +415,36 @@ describe("Escrituras directas del vestuario", () => {
     await assertSucceeds(deleteDoc(doc(db("admin"), "board", "theirs")));
   });
 });
+describe("Contenido de El club", () => {
+  const content = {
+    intro: "Hola",
+    story: "Historia",
+    location: "",
+    founded: "",
+    venue: "",
+    email: "",
+    instagram: "",
+    photoUrl: "",
+    milestones: [],
+    sponsors: [],
+    gallery: [],
+    faq: [{ q: "¿Cómo me apunto?", a: "Escríbenos." }],
+    crestStory: "Lo dibujó el capitán.",
+  };
+  it("un admin publica el contenido con preguntas e historia del escudo", async () => {
+    await assertSucceeds(setDoc(doc(db("admin"), "clubContent", "main"), content));
+  });
+  it("un miembro no admin no puede publicarlo", async () => {
+    await assertFails(setDoc(doc(db("member"), "clubContent", "main"), content));
+  });
+  it("sin campos desconocidos, sin otro documento y con límites", async () => {
+    await assertFails(setDoc(doc(db("admin"), "clubContent", "main"), { ...content, hack: true }));
+    await assertFails(setDoc(doc(db("admin"), "clubContent", "otro"), content));
+    await assertFails(setDoc(doc(db("admin"), "clubContent", "main"), { ...content, faq: "no es una lista" }));
+    await assertFails(setDoc(doc(db("admin"), "clubContent", "main"), { ...content, crestStory: "x".repeat(5000) }));
+  });
+  it("los documentos antiguos sin preguntas siguen siendo válidos", async () => {
+    const { faq: _faq, crestStory: _crest, ...legacy } = content;
+    await assertSucceeds(setDoc(doc(db("admin"), "clubContent", "main"), legacy));
+  });
+});

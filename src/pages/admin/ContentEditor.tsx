@@ -45,6 +45,8 @@ export function ContentEditor() {
         value.sponsors.some((s) => !s.name.trim())
       )
         throw new Error("Completa los nombres de los hitos y colaboradores.");
+      if (value.faq.some((f) => !f.q.trim() || !f.a.trim()))
+        throw new Error("Cada pregunta de vestuario necesita pregunta y respuesta.");
       await setDoc(doc(db, "clubContent", "main"), value);
       setDraft(null);
       setMessage("Contenido del club actualizado.");
@@ -119,6 +121,68 @@ export function ContentEditor() {
             onChange={(e) => update("story", e.target.value)}
           />
         </label>
+        <label className="club-field">
+          La historia del escudo
+          <textarea
+            rows={4}
+            value={value.crestStory}
+            placeholder="Quién lo dibujó, qué significa cada pieza…"
+            onChange={(e) => update("crestStory", e.target.value)}
+          />
+        </label>
+      </section>
+      <section className="club-panel">
+        <h2>Preguntas de vestuario</h2>
+        {value.faq.map((f, i) => (
+          <div key={i} className="club-content-row">
+            <label>
+              Pregunta
+              <input
+                value={f.q}
+                onChange={(e) =>
+                  update(
+                    "faq",
+                    value.faq.map((x, j) =>
+                      j === i ? { ...x, q: e.target.value } : x,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label>
+              Respuesta
+              <input
+                value={f.a}
+                onChange={(e) =>
+                  update(
+                    "faq",
+                    value.faq.map((x, j) =>
+                      j === i ? { ...x, a: e.target.value } : x,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <button
+              aria-label="Quitar pregunta"
+              onClick={() =>
+                update(
+                  "faq",
+                  value.faq.filter((_, j) => j !== i),
+                )
+              }
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+        ))}
+        <button
+          className="club-button secondary"
+          onClick={() => update("faq", [...value.faq, { q: "", a: "" }])}
+        >
+          <Plus size={16} />
+          Añadir pregunta
+        </button>
       </section>
       <section className="club-panel">
         <h2>Momentos del club</h2>
