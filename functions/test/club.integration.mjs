@@ -388,8 +388,9 @@ await refused(admin, [`matchPrivate/${nextId}/predictions/${admin.uid}`, { goals
 await denied("proposeTraining", fan, { slots: [{ at: Date.now() - 1000 }] }, "INVALID_ARGUMENT");
 await denied("proposeTraining", fan, { slots: [{ at: Date.now() + 86400000, end: Date.now() + 86400000 - 60000 }] }, "INVALID_ARGUMENT");
 await denied("proposeTraining", fan, { slots: [{ at: Date.now() + 86400000, end: Date.now() + 86400000 + 7 * 3600000 }] }, "INVALID_ARGUMENT");
+const t0 = Date.now();
 const training = await ok("proposeTraining", fan, {
-  slots: [{ at: Date.now() + 2 * 86400000, end: Date.now() + 2 * 86400000 + 90 * 60000, place: "Campo" }, { at: Date.now() + 86400000 }],
+  slots: [{ at: t0 + 2 * 86400000, end: t0 + 2 * 86400000 + 90 * 60000, place: "Campo" }, { at: t0 + 86400000 }],
 });
 const tdoc = await db.doc("trainings/" + training.id).get();
 assert.equal(tdoc.get("slots")[0].id, "s1");
