@@ -114,6 +114,11 @@ export default defineConfig({
         // The three.js chunk is ~590 KB minified: above Workbox's 2 MiB default it would be skipped silently.
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         cleanupOutdatedCaches: true,
+        // A new deploy takes over at once (activate + control open tabs). vite-plugin-pwa only turns these
+        // on by itself with injectRegister 'auto'; with 'script-defer' the new worker waited for every
+        // tab to close, so people kept seeing the previous version.
+        skipWaiting: true,
+        clientsClaim: true,
         navigateFallback: 'index.html',
         // Served by Cloud Functions through vercel.json rewrites: never answer them with the SPA.
         navigateFallbackDenylist: [/^\/calendario\.ics/, /^\/compartir\//, /^\/social\//, /^\/__\//, /^\/datos\//],
