@@ -1,5 +1,3 @@
-import { collection, orderBy, query } from "firebase/firestore";
-import { db } from "../firebase";
 import { useFirestoreCollection } from "./useFirestoreCollection";
 import { mapMatch, mapPlayer } from "./firestoreMappers";
 import type {
@@ -8,6 +6,7 @@ import type {
   MatchEvent,
 } from "../../functions/src/matchEngine";
 import { useSeasonsLoading } from "../context/SeasonContext";
+import { MATCHES_KEY, PLAYERS_KEY, matchQuery, playerQuery } from "./publicData";
 export {
   EVENT_LABELS,
   dateMillis,
@@ -26,11 +25,9 @@ export interface ClubMatch extends Omit<
   events?: MatchEvent[];
   ledger?: Record<string, Participation>;
 }
-const matchQuery = query(collection(db, "matches"), orderBy("date", "desc"));
-const playerQuery = collection(db, "players");
 export function useClubData() {
-  const matches = useFirestoreCollection(["matches"], matchQuery, mapMatch);
-  const players = useFirestoreCollection(["players"], playerQuery, mapPlayer);
+  const matches = useFirestoreCollection(MATCHES_KEY, matchQuery, mapMatch);
+  const players = useFirestoreCollection(PLAYERS_KEY, playerQuery, mapPlayer);
   // Every page reads matches and players through the season: until the seasons arrive too, the page
   // would paint itself empty for a moment and then jump (the data bundle makes the other two instant).
   const seasonsLoading = useSeasonsLoading();

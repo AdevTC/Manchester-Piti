@@ -31,7 +31,7 @@
         "source": "/calendario.ics",
         "function": { "functionId": "clubCalendar", "region": "europe-southwest1" }
       },
-      { "source": "**", "destination": "/index.html" }
+      { "source": "**", "destination": "/shell.html" }
     ]
   },
   "emulators": {

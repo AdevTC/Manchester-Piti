@@ -437,3 +437,12 @@ body {
 /* Theme toggle in the app shell (themed for light + dark) */
 .mp-nav-toggle { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--border-color); }
 .mp-nav-toggle:hover { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--accent-cyan); }
+
+/* A page that arrived painted by the server (api/render.js) is already on screen: its entrance
+   animations jump to their end, so nothing fades out and back in when React takes the page over.
+   Looping animations keep running (only their phase shifts). main.tsx drops data-ssr on the next page. */
+html[data-ssr] #root *,
+html[data-ssr] #root *::before,
+html[data-ssr] #root *::after {
+  animation-delay: -60s !important;
+}

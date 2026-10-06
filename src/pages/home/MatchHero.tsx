@@ -21,6 +21,8 @@ interface Props {
 
 /** The home is match day: the next (or live) game on the left, the one player of the moment on the right. */
 export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
+  // The server render has no location; the browser fills in the absolute links once it takes over.
+  const origin = typeof location === "undefined" ? "" : location.origin;
   const m = pulse.live ?? pulse.next;
   const cd = pulse.next && !pulse.live ? countdownParts(dateMillis(pulse.next.date), now) : null;
   const rival = m?.rival;
@@ -94,9 +96,9 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
                 Seguir en directo <Icon name="arrow" size={16} stroke={2.2} />
               </Link>
             ) : (
-              pulse.next && <AddToCalendar className="hm-mini sky" label="Añadir este partido" event={matchEvent(pulse.next, location.origin)} />
+              pulse.next && <AddToCalendar className="hm-mini sky" label="Añadir este partido" event={matchEvent(pulse.next, origin)} />
             )}
-            <AddToCalendar className="hm-mini" iconName="cal" label="Suscribirme al calendario" feed={`${location.origin}/calendario.ics`} />
+            <AddToCalendar className="hm-mini" iconName="cal" label="Suscribirme al calendario" feed={`${origin}/calendario.ics`} />
           </div>
         </div>
         {moment && (

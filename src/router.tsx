@@ -4,6 +4,7 @@ import {
   createRouter,
   lazyRouteComponent,
   Navigate,
+  type RouterHistory,
 } from "@tanstack/react-router";
 import { z } from "zod";
 import { RootLayout } from "./RootLayout";
@@ -175,21 +176,24 @@ const routeTree = rootRoute.addChildren([
   playerProfileRoute,
 ]);
 
-export const router = createRouter({
-  routeTree,
-  defaultPreload: "intent",
-  scrollRestoration: true,
-  // Per-route boundaries (Phase 4). defaultPendingComponent only fires for routes
-  // WITH a loader (the detail routes; list routes are realtime, so they handle
-  // their own component-level loading) and only after defaultPendingMs (1000ms)
-  // for at least defaultPendingMinMs (500ms). defaultErrorComponent gives every
-  // route an error boundary so a loader/render failure never blanks the screen.
-  defaultPendingComponent: RoutePending,
-  defaultErrorComponent: RouteError,
-});
+// One router per app instance: the browser has one, the server render makes one per request.
+export const createAppRouter = (history?: RouterHistory) =>
+  createRouter({
+    routeTree,
+    history,
+    defaultPreload: "intent",
+    scrollRestoration: true,
+    // Per-route boundaries (Phase 4). defaultPendingComponent only fires for routes
+    // WITH a loader (the detail routes; list routes are realtime, so they handle
+    // their own component-level loading) and only after defaultPendingMs (1000ms)
+    // for at least defaultPendingMinMs (500ms). defaultErrorComponent gives every
+    // route an error boundary so a loader/render failure never blanks the screen.
+    defaultPendingComponent: RoutePending,
+    defaultErrorComponent: RouteError,
+  });
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router;
+    router: ReturnType<typeof createAppRouter>;
   }
 }

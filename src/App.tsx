@@ -4,8 +4,8 @@ import { TeamProvider } from "./context/TeamContext";
 import { SeasonProvider } from "./context/SeasonContext";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { router } from "./router";
-export default function App() {
+import type { createAppRouter } from "./router";
+export default function App({ router }: { router: ReturnType<typeof createAppRouter> }) {
   return (
     <AuthProvider>
       <TeamProvider>

@@ -1,5 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["cdg1"],
+  "functions": {
+    "api/render.js": { "includeFiles": "dist-ssr/**", "maxDuration": 10 }
+  },
   "headers": [
     {
       "source": "/datos/club.bundle",
@@ -45,7 +49,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/shell.html"
     }
   ]
 }
