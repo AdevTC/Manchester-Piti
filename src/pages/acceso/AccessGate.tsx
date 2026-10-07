@@ -952,6 +952,15 @@ export function AccessGate() {
     ["03", withInvite ? "Pase" : "Capitán"],
     ["04", "Dentro"],
   ];
+  // Steps already done take you back, without skipping any: «Puerta» signs out on this device (to
+  // come in with another account), «Tu ficha» reopens the shirts. Once inside there is no going back.
+  const inside = step === "aprobada" || step === "bienvenida";
+  const stepBack: Record<number, { verb: string; aria: string; go: () => void } | undefined> = inside
+    ? {}
+    : {
+        0: { verb: "SALIR", aria: "Volver a la puerta: salir de esta cuenta en este dispositivo", go: () => void door.exit() },
+        1: step === "pendiente" || step === "rechazada" ? { verb: "CAMBIAR", aria: "Volver a «Tu ficha»: elegir otra camiseta", go: door.choose } : undefined,
+      };
   const parallax = {
     onPointerMove: (e: PointerEvent<HTMLElement>) => {
       const t = e.currentTarget.closest<HTMLElement>(".tl");
@@ -986,12 +995,28 @@ export function AccessGate() {
       <section className="tl-stage" data-p={step} aria-labelledby="tl-t" {...parallax}>
         <div className="tl-hud">
           <ol className="tl-track" aria-label="Pasos para entrar">
-            {track.map(([n, label], i) => (
-              <li key={n} className={i < at ? "done" : i === at ? "now" : undefined} aria-current={i === at ? "step" : undefined}>
-                <b>{i < at ? "HECHO" : i === at ? "AHORA" : n}</b>
-                <span>{label}</span>
-              </li>
-            ))}
+            {track.map(([n, label], i) => {
+              const back = i < at ? stepBack[i] : undefined;
+              return (
+                <li key={n} className={(i < at ? "done" : i === at ? "now" : "") + (back ? " go" : "") || undefined} aria-current={i === at ? "step" : undefined}>
+                  {back ? (
+                    <button type="button" onClick={back.go} aria-label={back.aria}>
+                      <b>
+                        <DIcon name="undo" size={11} stroke={2.2} />
+                        <i className="h">HECHO</i>
+                        <i className="v">{back.verb}</i>
+                      </b>
+                      <span>{label}</span>
+                    </button>
+                  ) : (
+                    <>
+                      <b>{i < at ? "HECHO" : i === at ? "AHORA" : n}</b>
+                      <span>{label}</span>
+                    </>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </div>
         {door.inviteLoading ? (

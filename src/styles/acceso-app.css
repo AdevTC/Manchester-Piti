@@ -37,3 +37,15 @@ body *{visibility:hidden!important}
 /* Notices follow the viewport, not the top of the page. */
 .tl > .tl-toast{position:fixed;top:calc(84px + var(--isle,0px))}
 .tl.tl-cap .tabs{top:calc(8px + var(--isle,0px))}
+
+/* Steps already done are a way back (Puerta: sign out here; Tu ficha: pick another shirt). */
+.tl .tl-track li.go{padding:0}
+.tl .tl-track li.go button{display:grid;gap:2px;width:100%;height:100%;min-height:44px;padding:7px 8px;border:0;border-radius:11px;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer;transition:background .25s,box-shadow .25s}
+.tl .tl-track li.go button:hover{background:rgba(159,208,242,.1);box-shadow:inset 0 0 0 1px var(--panel-line)}
+.tl .tl-track li.go button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tl .tl-track li.go b{display:flex;align-items:center;gap:4px;min-width:0}
+.tl .tl-track li.go b svg{flex:0 0 auto}
+.tl .tl-track li.go b i{font-style:normal}
+.tl .tl-track li.go b .v{display:none}
+.tl .tl-track li.go button:hover b .h,.tl .tl-track li.go button:focus-visible b .h{display:none}
+.tl .tl-track li.go button:hover b .v,.tl .tl-track li.go button:focus-visible b .v{display:inline}
