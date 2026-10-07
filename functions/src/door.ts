@@ -197,6 +197,8 @@ export const revokeMember = onCall(async (req) => {
 // Public on purpose: the door shows who is already inside (shirts with an owner, how many accounts)
 // before signing in. The squad is public; which shirts are claimed and a head count are not secrets.
 export const doorShirts = onCall(async () => {
-  const [links, inside] = await Promise.all([db.collection("playerLinks").get(), db.collection("teamMembers").where("expiresAt", ">", Timestamp.now()).count().get()]);
-  return { taken: links.docs.map((d) => d.id), inside: inside.data().count };
+  // "With access" = everyone with a profile who wasn't removed: members from the old team key keep
+  // their access and walk back in on their next visit, even if their old session has lapsed.
+  const [links, people, removed] = await Promise.all([db.collection("playerLinks").get(), db.collection("users").count().get(), db.collection("users").where("removedAt", "!=", null).count().get()]);
+  return { taken: links.docs.map((d) => d.id), inside: people.data().count - removed.data().count };
 });
