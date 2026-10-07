@@ -7,6 +7,7 @@ import { Icon } from "./icons";
 import { PitchCromo } from "./Cromos";
 import { FxLayer } from "./Overlays";
 import { vars, type Hud, type PitchView, type PlanLayer } from "./view";
+import type { CmpMark } from "./compare";
 
 function Turf({ cam }: { cam: CamName }) {
   const a = pitchArt(cam);
@@ -52,6 +53,8 @@ export interface StageProps {
   rw: string;
   fxk: number;
   pulse: string;
+  /** Comparar: who would come in (dashed gold) and go out (red), on the pitch. */
+  cmp: CmpMark[];
   frameRef: RefObject<HTMLDivElement | null>;
   swpRef: RefObject<SVGPathElement | null>;
   onCard: (id: string, el: HTMLElement) => void;
@@ -122,6 +125,9 @@ export function Stage({ frameRef, swpRef, ...p }: StageProps) {
           <svg className="tac-svg" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
             <path className="heat" d={plan.heatD} style={vars({ d: `path('${plan.heatD}')` })} />
             {plan.dlOn && <path className="dline" d={plan.dlD} style={vars({ d: `path('${plan.dlD}')` })} />}
+            {plan.tarrs.map((a) => (
+              <path key={a.key} className={"tarr" + (a.c ? " " + a.c : "")} d={a.d} style={vars({ d: `path('${a.d}')` })} />
+            ))}
           </svg>
           <div className="lks" aria-hidden="true">
             {view.links.map((l) => (
@@ -143,6 +149,9 @@ export function Stage({ frameRef, swpRef, ...p }: StageProps) {
               <path className="swp" ref={swpRef} />
             </g>
           </svg>
+          {p.cmp.map((m) => (
+            <span key={m.key} className={"cmpg" + (m.cls ? " " + m.cls : "")} style={vars({ "--x": m.x, "--y": m.y })} aria-hidden="true" />
+          ))}
           {view.gslots.map((g) => (
             <span key={g.i} className={"gs" + (p.kb === g.i ? " mg" : "")} style={vars({ "--x": g.x, "--y": g.y, "--sc": g.sc })} data-gs={g.i} aria-hidden="true">
               <i />

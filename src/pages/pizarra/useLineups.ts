@@ -36,6 +36,8 @@ export interface OfficialScope {
 export interface UseLineups {
   official: LineupDoc[];
   mine: LineupDoc[];
+  /** Every board of the season the member can read (a shared link opens any of them). */
+  all: LineupDoc[];
   loading: boolean;
   /** Create a new owned board from the current lineup; returns the new id. */
   create: (lineup: Lineup, name: string) => Promise<string>;
@@ -156,6 +158,7 @@ export function useLineups(seasonId: string): UseLineups {
     return {
       official: items.filter((d) => d.isOfficial),
       mine: items.filter((d) => d.ownerUid === uid),
+      all: items,
       loading: false,
       create,
       save,
@@ -214,6 +217,7 @@ export function useLineups(seasonId: string): UseLineups {
     return {
       official: items.filter((d) => d.isOfficial),
       mine: items.filter((d) => d.ownerUid === uid),
+      all: items,
       loading: isPending,
       create,
       save,

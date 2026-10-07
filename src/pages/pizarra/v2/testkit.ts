@@ -1,7 +1,9 @@
 // Fixtures for the pizarra tests: a squad of cromos and lineups, without Firebase.
 import type { FormationName, Lineup, Zone } from "../formations";
 import { seedLineup } from "../lineupOps";
+import type { LineupDoc } from "../lineupDoc";
 import { pairKey, type Cromo, type PairStats, type Squad } from "./model";
+import type { BoardSession } from "./useBoardSession";
 
 export function cromo(id: string, num: number, pos: Zone | undefined, extra: Partial<Cromo> = {}): Cromo {
   return {
@@ -17,12 +19,13 @@ export function cromo(id: string, num: number, pos: Zone | undefined, extra: Par
   };
 }
 
-export function squadOf(list: Cromo[], pairs: [string, string, Partial<PairStats>][] = [], recentLabel = "J5–J7"): Squad {
+export function squadOf(list: Cromo[], pairs: [string, string, Partial<PairStats>][] = [], recentLabel = "J5–J7", games = 7): Squad {
   return {
     list,
     byId: new Map(list.map((c) => [c.id, c])),
     pairs: new Map(pairs.map(([a, b, p]) => [pairKey(a, b), { tog: 0, ast: 0, ...p }])),
     recentLabel,
+    games,
   };
 }
 
@@ -50,4 +53,54 @@ export function demoSquad(): Squad {
     cromo("erik", 9, "DEL", { rt: 96 }),
     cromo("kevin", 11, "DEL", { rt: 75 }),
   ]);
+}
+
+/** A board session for component tests: the lineup lives in the caller's state; every store action
+ *  is a resolved no-op unless overridden. */
+export function fakeSession(lineup: Lineup, over: Partial<BoardSession> = {}): BoardSession {
+  return {
+    key: "t1:b1",
+    ready: true,
+    id: "b1",
+    name: "J8 · MAD SKY",
+    lineup,
+    readOnly: false,
+    official: false,
+    owner: "capi",
+    matchId: null,
+    status: "saved",
+    savedAt: null,
+    mine: [],
+    officials: [],
+    notice: null,
+    commit: () => {},
+    duplicate: () => {},
+    openMine: () => {},
+    open: () => {},
+    newBoard: async () => "Tablero nuevo",
+    copyBoard: async () => "Copia",
+    rename: async () => {},
+    remove: () => () => {},
+    linkMatch: async () => {},
+    publish: async () => {},
+    unpublish: async () => {},
+    ...over,
+  };
+}
+
+/** A stored board as useLineups lists it. */
+export function boardDoc(id: string, lineup: Lineup, over: Partial<LineupDoc> = {}): LineupDoc {
+  return {
+    ...lineup,
+    id,
+    ownerUid: "me",
+    ownerNickname: "yo",
+    seasonId: "t1",
+    name: "Tablero " + id,
+    isOfficial: false,
+    matchId: null,
+    createdAt: 1,
+    updatedAt: 1,
+    ...over,
+  };
 }

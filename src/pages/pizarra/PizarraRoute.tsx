@@ -3,6 +3,8 @@
 import { lazy, Suspense } from "react";
 import { RoutePending } from "../../components/route-states";
 import { usePizarraV2 } from "./v2/flag";
+// Loaded with the route: it remembers ?tablero= and #panel before the season sync rewrites the URL.
+import "./v2/deeplink";
 
 const Current = lazy(() => import("./Pizarra").then((m) => ({ default: m.Pizarra })));
 const Next = lazy(() => import("./v2/PizarraV2").then((m) => ({ default: m.PizarraV2 })));
