@@ -159,7 +159,11 @@ assert.equal((await db.doc("accessRequests/" + asker.uid).get()).exists, false);
 checked += 2;
 // Removing someone: they can't walk back in on their own any more.
 await denied("revokeMember", admin, { uid: admin.uid }, "FAILED_PRECONDITION");
+// The door's public head count: everyone with a profile, minus whoever a captain removed.
+const before = (await ok("doorShirts", null, null)).inside;
 await ok("revokeMember", admin, { uid: asker.uid });
+assert.equal((await ok("doorShirts", null, null)).inside, before - 1);
+checked++;
 assert.equal((await db.doc("teamMembers/" + asker.uid).get()).exists, false);
 assert.equal((await ok("requestAccess", asker, { name: "Otra vez" })).status, "pending");
 checked += 2;
