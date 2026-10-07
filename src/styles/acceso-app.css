@@ -1,0 +1,39 @@
+/* App-only additions to acceso.css (generated from the canvas): the control room living inside the
+   vestuario page, the printable A4 poster with the invitation QR, and reduced motion. */
+
+/* «La puerta» inside the vestuario: no page header to clear, same gutters as the blocks around it. */
+.tl.tl-cap{position:relative;margin-top:36px;scroll-margin-top:calc(80px + var(--isle,0px))}
+.tl.tl-cap .cc{padding:0}
+.tl.tl-cap .tl-h1{font-size:clamp(48px,14cqi,104px)}
+.tl.tl-cap .push{margin-top:4px;max-width:420px}
+@container (min-width:1100px){
+.tl.tl-cap .cc{padding:0;max-width:none}
+}
+
+/* Account photo in «¿Quién eres?» */
+.tl .me .av{overflow:hidden}
+.tl .me .av img{width:100%;height:100%;object-fit:cover}
+
+/* The poster: only exists on paper. */
+.tl-poster-print{display:none}
+@media print{
+@page{size:A4;margin:0}
+body *{visibility:hidden!important}
+.tl-poster-print,.tl-poster-print *{visibility:visible!important}
+.tl-poster-print{display:grid!important;position:fixed;inset:0;z-index:9999;place-content:center;justify-items:center;gap:7mm;padding:16mm;background:#030817;color:#eef4ff;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.tl-poster-print img{width:34mm;height:34mm}
+.tl-poster-print b{font-family:'Anybody',sans-serif;font-weight:900;font-size:21mm;line-height:.92;letter-spacing:-.02em;color:#FFC659;font-variation-settings:'wdth' 78}
+.tl-poster-print p{margin:0;font-family:'Geist Mono',monospace;font-size:5mm;letter-spacing:.14em;text-transform:uppercase;color:#9fd0f2}
+.tl-poster-print .qr{width:112mm;padding:5mm;border-radius:5mm;background:#fff}
+.tl-poster-print .qr svg{display:block;width:100%;height:auto}
+.tl-poster-print small{max-width:150mm;font-size:6mm;line-height:1.35;color:#c9d8ef}
+}
+
+/* Reduced motion: every loop stops at rest and every entrance lands at once (the tunnel stays lit). */
+@media (prefers-reduced-motion:reduce){
+.tl *,.tl *::before,.tl *::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+
+/* Notices follow the viewport, not the top of the page. */
+.tl > .tl-toast{position:fixed;top:calc(84px + var(--isle,0px))}
+.tl.tl-cap .tabs{top:calc(8px + var(--isle,0px))}

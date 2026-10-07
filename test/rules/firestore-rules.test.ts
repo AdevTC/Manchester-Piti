@@ -139,7 +139,22 @@ describe("Vestuario e identidad", () => {
   it("solo se puede consultar el propio acceso", async () => {
     await assertSucceeds(getDoc(doc(db("member"), "teamMembers", "member")));
     await assertFails(getDoc(doc(db("member"), "teamMembers", "other")));
-    await assertFails(getDocs(collection(db("admin"), "teamMembers")));
+    await assertFails(getDocs(collection(db("member"), "teamMembers")));
+    // Captains see who is inside (the door's control room); nobody writes it from the client.
+    await assertSucceeds(getDocs(collection(db("admin"), "teamMembers")));
+    await assertFails(setDoc(doc(db("admin"), "teamMembers", "x"), { expiresAt: Timestamp.fromMillis(Date.now() + 3600000) }));
+  });
+  it("la puerta: invitaciones solo para capitanes y cada petición para su dueño", async () => {
+    await seed("invites/ABCDEFGH23", { by: "admin", uses: 0, maxUses: 1 });
+    await seed("accessRequests/new", { status: "pending" });
+    await assertSucceeds(getDocs(collection(db("admin"), "invites")));
+    await assertFails(getDoc(doc(db("member"), "invites", "ABCDEFGH23")));
+    await assertFails(getDoc(doc(db(), "invites", "ABCDEFGH23")));
+    await assertSucceeds(getDoc(doc(db("new"), "accessRequests", "new")));
+    await assertFails(getDoc(doc(db("member"), "accessRequests", "new")));
+    await assertSucceeds(getDocs(collection(db("admin"), "accessRequests")));
+    await assertFails(setDoc(doc(db("new"), "accessRequests", "new"), { status: "pending" }));
+    await assertFails(setDoc(doc(db("admin"), "invites", "ZZZZZZZZ22"), { by: "admin" }));
   });
   it("no se puede descubrir el contador de intentos", async () => {
     await assertFails(getDoc(doc(db("member"), "accessAttempts", "member")));

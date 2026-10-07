@@ -697,7 +697,7 @@ export function Access({ admin, playerId, onLogout }: { admin: boolean; playerId
         </div>
         <button type="button" className="vx-logout" onClick={onLogout}>
           <Icon name="logout" size={16} />
-          Cerrar sesión
+          Salir en este dispositivo
         </button>
       </div>
     </section>

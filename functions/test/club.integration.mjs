@@ -1,18 +1,11 @@
 // Run only with the demo emulators. No production credentials or endpoints.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
 const { initializeApp } = await import("firebase-admin/app");
 const { getFirestore, Timestamp } = await import("firebase-admin/firestore");
 initializeApp({ projectId: "demo-manchester-piti" });
 const db = getFirestore();
-const secret = readFileSync(
-  new URL("../.secret.local", import.meta.url),
-  "utf8",
-)
-  .match(/^TEAM_PASSWORD=(.+)$/m)?.[1]
-  ?.trim();
 const suffix = Date.now().toString(36);
 let checked = 0;
 async function google(label) {
@@ -127,39 +120,57 @@ await db
 await db
   .doc("users/" + member.uid)
   .set({ role: "user", nickname: "member", email: member.email });
-await denied("enterTeam", null, { password: secret }, "UNAUTHENTICATED");
-for (let i = 0; i < 5; i++)
-  await denied(
-    "enterTeam",
-    blocked,
-    { password: "wrong" },
-    "PERMISSION_DENIED",
-  );
-await denied("enterTeam", blocked, { password: secret }, "RESOURCE_EXHAUSTED");
-await ok("enterTeam", admin, { password: secret });
-await ok("enterTeam", member, { password: secret });
-const newcomer = await google("newcomer");
-await denied(
-  "registerTeamProfile",
-  newcomer,
-  { nickname: "n" + suffix },
-  "PERMISSION_DENIED",
-);
-await ok("enterTeam", newcomer, { password: secret });
-const registered = await ok("registerTeamProfile", newcomer, {
-  nickname: "n" + suffix,
-  role: "superadmin",
-});
-assert.equal(registered.role, "user");
+// ---------- the door: no shared key; invitations and access requests
+// Members from before (a vestuario profile) walk back in by asking.
+await denied("requestAccess", null, { name: "Nadie" }, "UNAUTHENTICATED");
+assert.equal((await ok("requestAccess", admin, { name: "Admin" })).status, "member");
+assert.equal((await ok("requestAccess", member, { name: "Member" })).status, "member");
+checked += 2;
+await denied("createInvite", null, {}, "UNAUTHENTICATED");
+await denied("createInvite", member, {}, "PERMISSION_DENIED");
+const invite = await ok("createInvite", admin, {});
+assert.match(invite.code, /^[A-Z2-9]{10}$/);
 checked++;
-await denied(
-  "registerTeamProfile",
-  member,
-  { nickname: "n" + suffix },
-  "ALREADY_EXISTS",
-);
-await ok("registerTeamProfile", newcomer, { nickname: "x" + suffix });
-await ok("registerTeamProfile", member, { nickname: "n" + suffix });
+const info = await ok("inviteInfo", null, { code: invite.code });
+assert.equal(info.state, "valid");
+assert.equal(info.by, "Admin"); // the captain's display name, not the nickname
+checked += 2;
+const newcomer = await google("newcomer");
+const joined = await ok("joinWithInvite", newcomer, { code: invite.code, name: "x" + suffix, role: "superadmin" });
+assert.equal(joined.nickname, "x" + suffix);
+const newcomerUser = (await db.doc("users/" + newcomer.uid).get()).data();
+assert.equal(newcomerUser.role, "user");
+assert.ok((await db.doc("teamMembers/" + newcomer.uid).get()).get("expiresAt").toMillis() > Date.UTC(2100, 0, 1));
+checked += 3;
+// A single-use invitation can't be used twice.
+await denied("joinWithInvite", blocked, { code: invite.code, name: "Otro" }, "FAILED_PRECONDITION");
+assert.equal((await ok("inviteInfo", null, { code: invite.code })).state, "used");
+checked++;
+// Asking for access: pending until a captain approves it.
+const asker = await google("asker");
+await denied("requestAccess", asker, {}, "INVALID_ARGUMENT");
+assert.equal((await ok("requestAccess", asker, { name: "Pide " + suffix })).status, "pending");
+assert.equal((await db.doc("accessRequests/" + asker.uid).get()).get("status"), "pending");
+checked += 2;
+await denied("resolveAccess", member, { uid: asker.uid, approve: true }, "PERMISSION_DENIED");
+await ok("resolveAccess", admin, { uid: asker.uid, approve: true });
+assert.equal((await db.doc("teamMembers/" + asker.uid).get()).exists, true);
+assert.equal((await db.doc("accessRequests/" + asker.uid).get()).exists, false);
+checked += 2;
+// Removing someone: they can't walk back in on their own any more.
+await denied("revokeMember", admin, { uid: admin.uid }, "FAILED_PRECONDITION");
+await ok("revokeMember", admin, { uid: asker.uid });
+assert.equal((await db.doc("teamMembers/" + asker.uid).get()).exists, false);
+assert.equal((await ok("requestAccess", asker, { name: "Otra vez" })).status, "pending");
+checked += 2;
+await ok("resolveAccess", admin, { uid: asker.uid, approve: false });
+assert.equal((await db.doc("accessRequests/" + asker.uid).get()).get("status"), "rejected");
+checked++;
+// A revoked invitation is dead.
+const second = await ok("createInvite", admin, { maxUses: 0, days: 1 });
+await ok("revokeInvite", admin, { code: second.code });
+assert.equal((await ok("inviteInfo", null, { code: second.code })).state, "revoked");
+checked++;
 const season = "integration-" + suffix;
 await db.doc("seasons/" + season).set({ name: "Temporada de prueba" });
 const ids = Array.from({ length: 10 }, (_, i) => "p" + i + "-" + suffix);
@@ -327,11 +338,8 @@ await db
   .doc("teamMembers/" + member.uid)
   .set({ expiresAt: Timestamp.fromMillis(Date.now() - 1) });
 await refused(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[0], voterName: memberName, at: null }]);
-const access = await ok("enterTeam", member, { password: secret });
-// The key now unlocks the device for 30 days.
-assert.ok(access.expiresAt - Date.now() > 29 * 86400000);
-checked++;
-await ok("leaveTeam", member, {});
+// Access is back only when a captain lets them in again (here, by removing and approving).
+await db.doc("teamMembers/" + member.uid).delete();
 await refused(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[0], voterName: memberName, at: null }]);
 await db.doc("matches/" + id).update({ voteClosesAt: Date.now() - 1 });
 await refused(admin, [`matches/${id}/votes/${admin.uid}`, { playerId: ids[0], voterName: adminName, at: null }]);

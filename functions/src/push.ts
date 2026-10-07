@@ -1,7 +1,7 @@
 // Push notices (Web Push with the club's own VAPID keys, no third party): anyone can ask for them
 // on the web, by topic; the server sends them when a match changes (goals written live, final
 // whistle, MVP vote, new dates) and at kick-off (a job every 5 minutes).
-import { onCall } from "firebase-functions/v2/https";
+import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
@@ -9,8 +9,8 @@ import { FieldValue, Timestamp, type DocumentData } from "firebase-admin/firesto
 import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
-import { db, parse } from "./common.js";
-import { kickoffNotice, noticesFor, TOPICS, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
+import { db, googleUser, memberAs, parse } from "./common.js";
+import { DOOR_TOPICS, kickoffNotice, noticesFor, TOPICS, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
 
 const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
 /** Public half of the key pair (also in the app, src/lib/push.ts). */
@@ -24,13 +24,21 @@ const subscription = z.object({
 const subId = (endpoint: string) => createHash("sha256").update(endpoint).digest("hex").slice(0, 40);
 
 export const pushSubscribe = onCall(async (req) => {
-  const input = parse(z.object({ subscription, topics: z.array(z.enum(TOPICS)).max(TOPICS.length) }), req.data);
+  const input = parse(z.object({ subscription, topics: z.array(z.enum([...TOPICS, ...DOOR_TOPICS])).max(TOPICS.length + DOOR_TOPICS.length) }), req.data);
+  // Door notices are personal: "access" needs the Google account that asked, "door" an admin.
+  let uid: string | undefined;
+  if (input.topics.includes("access")) uid = googleUser(req);
+  if (input.topics.includes("door")) {
+    const me = await memberAs(req);
+    if (!me.isAdmin) throw new HttpsError("permission-denied", "Solo los administradores reciben la puerta.");
+    uid = me.uid;
+  }
   const ref = db.doc(`pushSubscriptions/${subId(input.subscription.endpoint)}`);
   if (!input.topics.length) {
     await ref.delete();
     return { topics: [] };
   }
-  await ref.set({ endpoint: input.subscription.endpoint, keys: input.subscription.keys, topics: [...new Set(input.topics)], updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  await ref.set({ endpoint: input.subscription.endpoint, keys: input.subscription.keys, topics: [...new Set(input.topics)], ...(uid ? { uid } : {}), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   return { topics: input.topics };
 });
 
@@ -40,8 +48,11 @@ export const pushUnsubscribe = onCall(async (req) => {
   return { ok: true };
 });
 
-async function send(notice: Notice) {
-  const subs = await db.collection("pushSubscriptions").where("topics", "array-contains", notice.topic satisfies Topic).get();
+/** Sends a notice to everyone subscribed to its topic (or only to `uid`'s devices). */
+export async function sendTo(notice: Notice, uid?: string) {
+  let q = db.collection("pushSubscriptions").where("topics", "array-contains", notice.topic satisfies Topic);
+  if (uid) q = q.where("uid", "==", uid);
+  const subs = await q.get();
   // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
   if (subs.empty) return;
   webpush.setVapidDetails(SITE, VAPID_PUBLIC, vapidPrivate.value());
@@ -69,7 +80,7 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   const ids = new Set((after?.events ?? []).map((e) => e.playerId).filter(Boolean) as string[]);
   const players = await Promise.all([...ids].map((id) => db.doc(`players/${id}`).get()));
   const names = new Map(players.map((p) => [p.id, (p.get("shirtName") as string) || [p.get("firstName"), p.get("lastName")].filter(Boolean).join(" ") || "Jugador"]));
-  for (const n of noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", Date.now())) await send(n);
+  for (const n of noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", Date.now())) await sendTo(n);
 });
 
 // Cloud Scheduler has no Madrid location: the job (and this function) live in Belgium; it only reads a
@@ -86,7 +97,7 @@ export const pushKickoff = onSchedule({ schedule: "every 5 minutes", timeZone: "
     } catch {
       continue;
     }
-    await send(kickoffNotice(m.id, m.get("rival") ?? "el rival"));
+    await sendTo(kickoffNotice(m.id, m.get("rival") ?? "el rival"));
   }
 });
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, lazy, Suspense } from "react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
@@ -26,6 +26,8 @@ import { CaptainStrip } from "./Captain";
 import { BestPartner, FirstSteps, SeasonFeats, SeasonPlaceholder, Vitrina } from "./SeasonBlocks";
 import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+// The door's control room only loads for captains.
+const CaptainDoor = lazy(() => import("../acceso/CaptainDoor").then((m) => ({ default: m.CaptainDoor })));
 
 
 
@@ -54,7 +56,7 @@ function useStepsHidden(uid: string) {
 
 export function VestuarioPage() {
   const { user, profile, logout } = useAuth();
-  const { lock, member } = useTeam();
+  const { member } = useTeam();
   const { seasons } = useSeason();
   const { matches, players } = useClubData();
   const now = useClock(60_000);
@@ -121,13 +123,8 @@ export function VestuarioPage() {
   );
   const fichaName = (c: { playerId: string; playerName: string }) => playerName(players.find((p) => p.id === c.playerId)) || c.playerName;
 
-  const signOut = async () => {
-    try {
-      await lock();
-    } finally {
-      await logout();
-    }
-  };
+  // Only this device: the membership stays until a captain removes it.
+  const signOut = () => logout();
   return (
     <div className="vx">
       <CelesteBackdrop />
@@ -192,6 +189,11 @@ export function VestuarioPage() {
           <Board messages={board.data} uid={uid} admin={admin} loading={board.loading} now={now} />
           <Access admin={admin} playerId={playerId} onLogout={() => void signOut()} />
         </div>
+        {admin && (
+          <Suspense fallback={null}>
+            <CaptainDoor />
+          </Suspense>
+        )}
       </main>
 
       <CelesteFooter />

@@ -1,15 +1,23 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
 import type { MatchSheet } from "./clubData";
-export const enterTeam = httpsCallable<
-  { password: string },
-  { expiresAt: number }
->(functions, "enterTeam");
-export const leaveTeam = httpsCallable(functions, "leaveTeam");
-export const registerTeamProfile = httpsCallable<
-  { nickname: string },
-  { nickname: string; role: "admin" | "superadmin" | "user" }
->(functions, "registerTeamProfile");
+// ---------- the vestuario door (functions/src/door.ts)
+export interface Who {
+  playerId?: string;
+  name?: string;
+}
+export type InviteInfo =
+  | { state: "valid"; by: string; expiresAt: number; playerId: string | null; playerName: string | null }
+  | { state: "missing" | "expired" | "used" | "revoked"; problem: string };
+export const inviteInfo = httpsCallable<{ code: string }, InviteInfo>(functions, "inviteInfo");
+export const joinWithInvite = httpsCallable<Who & { code: string }, { nickname: string; linked: boolean }>(functions, "joinWithInvite");
+export const requestAccess = httpsCallable<Who, { status: "member" | "pending" }>(functions, "requestAccess");
+export const cancelAccessRequest = httpsCallable<void, { ok: boolean }>(functions, "cancelAccessRequest");
+export const createInvite = httpsCallable<{ playerId?: string; maxUses?: 0 | 1; days?: number }, { code: string; expiresAt: number }>(functions, "createInvite");
+export const revokeInvite = httpsCallable<{ code: string }, { ok: boolean }>(functions, "revokeInvite");
+export const resolveAccess = httpsCallable<{ uid: string; approve: boolean; playerId?: string }, { ok: boolean }>(functions, "resolveAccess");
+export const revokeMember = httpsCallable<{ uid: string }, { ok: boolean }>(functions, "revokeMember");
+export const doorShirts = httpsCallable<void, { taken: string[]; inside: number }>(functions, "doorShirts");
 export const saveMatchSheet = httpsCallable<
   { id: string; sheet: MatchSheet; draft: boolean },
   { id: string }
@@ -57,6 +65,8 @@ export function apiError(error: unknown) {
   // Direct Firestore writes refused by the rules (closed vote, expired access, too fast…).
   if (e.code === "permission-denied")
     return "No se ha podido guardar: puede que ya esté cerrado o que tu acceso al vestuario haya caducado.";
+  // Any other Google sign-in hiccup: never show the raw SDK text.
+  if (e.code?.startsWith("auth/")) return "No se ha podido entrar con Google. Vuelve a intentarlo.";
   return e.message || "No se ha podido guardar. Vuelve a intentarlo.";
 }
 /** Modo banda: an admin adds an event to the match being played (or undoes the last one written live). */

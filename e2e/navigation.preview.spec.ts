@@ -38,12 +38,12 @@ test("el club, con su vitrina, trofeos y contacto", async ({ page }) => {
   await expect(page.getByRole("button", { name: /la sala/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Clasificados" })).toBeVisible();
 });
-test("la clave nunca se pide antes de Google y admin está protegido", async ({
+test("la puerta no pide clave y admin está protegido", async ({
   page,
 }) => {
   await page.goto("/admin");
   await expect(
-    page.getByRole("button", { name: "Continuar con Google" }),
+    page.getByRole("button", { name: "Entrar con Google" }),
   ).toBeVisible();
   await expect(page.getByLabel("Clave del vestuario")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Nuevo partido" })).toHaveCount(
