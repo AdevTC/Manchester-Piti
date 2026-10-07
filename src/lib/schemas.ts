@@ -159,6 +159,99 @@ export const lineupSchema = z.looseObject({
 });
 export type LineupRawDoc = z.infer<typeof lineupSchema>;
 
+// ── Pizarra: dibujos, jugadas y reacciones ───────────────────────────────────
+
+/**
+ * Límites de los campos nuevos del tablero. Las reglas de Firestore solo pueden
+ * comprobar el tamaño de las listas (dibujos ≤ 60, jugadas ≤ 12); el resto se
+ * valida aquí, al leer (un elemento inválido se descarta, no el tablero entero).
+ */
+export const PIZARRA_LIMITS = {
+  strokes: 60,
+  strokePoints: 64,
+  strokeText: 40,
+  plays: 12,
+  playName: 40,
+  framesMin: 2,
+  framesMax: 8,
+  /** Jugadores nuestros por paso (el siete). */
+  framePlayers: 7,
+  rivals: 7,
+  arrows: 10,
+  frameTitle: 40,
+  frameNote: 140,
+  id: 40,
+} as const;
+
+/** Punto del campo en % (x 0→100 izquierda→derecha, y 0 = portería rival → 100 = la nuestra). */
+const pitchCoord = z.number().min(0).max(100);
+export const boardPointSchema = z.object({ x: pitchCoord, y: pitchCoord });
+export type BoardPoint = z.infer<typeof boardPointSchema>;
+const itemId = z.string().min(1).max(PIZARRA_LIMITS.id);
+
+export const STROKE_KINDS = ["carrera", "pase", "conduccion", "zona", "lapiz", "texto"] as const;
+export const STROKE_COLORS = ["sky", "gold", "white"] as const;
+/**
+ * Trazo de la pizarra (telestrator). `texto` es un único punto con su texto;
+ * el resto, un camino de 2 o más puntos (flechas: inicio, medio, fin; zona:
+ * dos esquinas opuestas; lápiz: el trazo simplificado).
+ */
+export const strokeSchema = z
+  .object({
+    id: itemId,
+    kind: z.enum(STROKE_KINDS),
+    color: z.enum(STROKE_COLORS),
+    points: z.array(boardPointSchema).min(1).max(PIZARRA_LIMITS.strokePoints),
+    text: z.string().trim().min(1).max(PIZARRA_LIMITS.strokeText).optional(),
+  })
+  .refine((s) => (s.kind === "texto" ? s.text !== undefined && s.points.length === 1 : s.points.length >= 2), {
+    message: "Un texto lleva un punto y su texto; el resto de trazos, dos puntos o más.",
+  });
+export type Stroke = z.infer<typeof strokeSchema>;
+export type StrokeKind = Stroke["kind"];
+export type StrokeColor = Stroke["color"];
+
+export const ARROW_KINDS = ["pase", "carrera", "conduccion"] as const;
+export const playArrowSchema = z.object({ from: boardPointSchema, to: boardPointSchema, kind: z.enum(ARROW_KINDS) });
+export type PlayArrow = z.infer<typeof playArrowSchema>;
+
+export const playRivalSchema = z.object({ id: itemId, x: pitchCoord, y: pitchCoord });
+export type PlayRival = z.infer<typeof playRivalSchema>;
+
+/** Un paso de una jugada: dónde está cada uno de los nuestros (por id), el balón, los rivales y las flechas. */
+export const playFrameSchema = z
+  .object({
+    players: z.record(itemId, boardPointSchema),
+    ball: boardPointSchema,
+    rivals: z.array(playRivalSchema).max(PIZARRA_LIMITS.rivals),
+    arrows: z.array(playArrowSchema).max(PIZARRA_LIMITS.arrows),
+    title: z.string().trim().max(PIZARRA_LIMITS.frameTitle).optional(),
+    note: z.string().trim().max(PIZARRA_LIMITS.frameNote).optional(),
+  })
+  .refine((f) => Object.keys(f.players).length <= PIZARRA_LIMITS.framePlayers, { message: "Como mucho siete jugadores por paso." })
+  .refine((f) => new Set(f.rivals.map((r) => r.id)).size === f.rivals.length, { message: "Rivales repetidos en un paso." });
+export type PlayFrame = z.infer<typeof playFrameSchema>;
+
+export const PLAY_KINDS = ["propia", "corner", "falta", "banda", "salida"] as const;
+export const playSchema = z.object({
+  id: itemId,
+  name: z.string().trim().min(1).max(PIZARRA_LIMITS.playName),
+  kind: z.enum(PLAY_KINDS),
+  frames: z.array(playFrameSchema).min(PIZARRA_LIMITS.framesMin).max(PIZARRA_LIMITS.framesMax),
+});
+export type Play = z.infer<typeof playSchema>;
+export type PlayKind = Play["kind"];
+
+/** `lineups/{id}/reactions/{uid}`: lo que opina cada miembro del siete oficial. */
+export const REACTION_VALUES = ["ok", "dudas"] as const;
+export const reactionSchema = z.object({
+  id: z.string(),
+  value: z.enum(REACTION_VALUES),
+  at: firestoreDate.optional(),
+});
+export type ReactionDoc = z.infer<typeof reactionSchema>;
+export type ReactionValue = ReactionDoc["value"];
+
 export const roleSchema = z.enum(["superadmin", "admin", "user"]);
 
 /** Reutilizable en NicknameSetup (RHF). Normaliza igual que registerNickname. */

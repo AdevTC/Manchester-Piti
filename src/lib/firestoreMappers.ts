@@ -15,10 +15,12 @@ import {
   playerSchema,
   seasonMatchSchema,
   lineupSchema,
+  reactionSchema,
   dropNullFields,
   type SeasonDoc,
   type PlayerDoc,
   type SeasonMatchDoc,
+  type ReactionDoc,
 } from "./schemas";
 import { reportDroppedDoc } from "./docTelemetry";
 
@@ -75,4 +77,15 @@ export function mapLineup(id: string, data: unknown): RawLineupDoc | null {
     return null;
   }
   return { id, ...raw };
+}
+
+/** Canonical `["lineupReactions", lineupId]` mapper — one member's reaction to
+ *  an official board (`lineups/{id}/reactions/{uid}`; the doc id is the uid). */
+export function mapReaction(id: string, data: unknown): ReactionDoc | null {
+  const r = reactionSchema.safeParse({ id, ...dropNullFields(data as Record<string, unknown>) });
+  if (!r.success) {
+    reportDroppedDoc("lineups.reactions", id, r.error.issues);
+    return null;
+  }
+  return r.data;
 }

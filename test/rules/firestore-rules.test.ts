@@ -352,6 +352,70 @@ describe("Pizarra", () => {
     await assertFails(deleteDoc(doc(db("member"), "lineups", "x")));
     await assertSucceeds(deleteDoc(doc(db("admin"), "lineups", "x")));
   });
+  it("dibujos y jugadas: listas con tope (60 trazos, 12 jugadas)", async () => {
+    const stroke = { id: "k", kind: "carrera", color: "gold", points: [{ x: 10, y: 10 }, { x: 20, y: 20 }] };
+    const play = { id: "j", name: "Córner", kind: "propia", frames: [] };
+    await assertSucceeds(
+      setDoc(doc(db("member"), "lineups", "x"), { ...board, drawings: [stroke], plays: [play] }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(db("member"), "lineups", "x"), {
+        drawings: Array.from({ length: 60 }, () => stroke),
+        plays: Array.from({ length: 12 }, () => play),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(db("member"), "lineups", "x"), { drawings: Array.from({ length: 61 }, () => stroke) }),
+    );
+    await assertFails(
+      updateDoc(doc(db("member"), "lineups", "x"), { plays: Array.from({ length: 13 }, () => play) }),
+    );
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { drawings: "nada" }));
+    await assertFails(
+      setDoc(doc(db("member"), "lineups", "y"), { ...board, plays: { j: play } }),
+    );
+    // un tablero antiguo, sin los campos nuevos, se sigue editando
+    await seed("lineups/old", board);
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "old"), { name: "Viejo" }));
+  });
+  describe("reacciones al siete oficial", () => {
+    const official = { ...board, isOfficial: true };
+    const mine = (uid: string, value: unknown) =>
+      setDoc(doc(db(uid), "lineups", "x", "reactions", uid), { value, at: serverTimestamp() });
+    it("un miembro opina en su propio documento, con «ok» o «dudas»", async () => {
+      await seed("lineups/x", official);
+      await assertSucceeds(mine("member", "ok"));
+      await assertSucceeds(mine("member", "dudas"));
+      await assertFails(mine("member", "fatal"));
+      await assertFails(
+        setDoc(doc(db("member"), "lineups", "x", "reactions", "other"), { value: "ok", at: serverTimestamp() }),
+      );
+      await assertFails(
+        setDoc(doc(db("member"), "lineups", "x", "reactions", "member"), { value: "ok", at: serverTimestamp(), extra: 1 }),
+      );
+      await assertFails(
+        setDoc(doc(db("member"), "lineups", "x", "reactions", "member"), { value: "ok", at: Timestamp.fromMillis(0) }),
+      );
+    });
+    it("solo en un tablero oficial, y solo miembros", async () => {
+      await seed("lineups/x", board);
+      await assertFails(mine("member", "ok"));
+      await seed("lineups/x", official);
+      await assertFails(mine("outsider", "ok"));
+      await assertFails(
+        setDoc(doc(db(), "lineups", "x", "reactions", "anon"), { value: "ok", at: serverTimestamp() }),
+      );
+    });
+    it("los miembros ven las reacciones; cada uno borra solo la suya", async () => {
+      await seed("lineups/x", official);
+      await seed("lineups/x/reactions/other", { value: "dudas", at: Timestamp.now() });
+      await seed("lineups/x/reactions/member", { value: "ok", at: Timestamp.now() });
+      await assertSucceeds(getDocs(collection(db("member"), "lineups", "x", "reactions")));
+      await assertFails(getDocs(collection(db("outsider"), "lineups", "x", "reactions")));
+      await assertFails(deleteDoc(doc(db("member"), "lineups", "x", "reactions", "other")));
+      await assertSucceeds(deleteDoc(doc(db("member"), "lineups", "x", "reactions", "member")));
+    });
+  });
 });
 
 describe("Escrituras directas del vestuario", () => {
