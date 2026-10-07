@@ -3,7 +3,10 @@
 // Every change goes through commit(): history (undo/redo as a rewind), the morph of every cromo from
 // where it was, the química ripple, the 7/7 celebration and the board's autosave (the session).
 // Around the board: the plan painted on the pitch, the química panel, your boards and the official,
-// Comparar (the differences on the pitch), Compartir (the cartel) and Ajustes.
+// Comparar (the differences on the pitch), Compartir (the cartel) and Ajustes; the telestrator (Dibujar:
+// strokes of light saved with the board, with their own undo) and the jugadas (the library and your own,
+// the editor, the «REPETICIÓN» replay with its follow-cam and, where the device can, «En 3D»). Strokes and
+// jugadas are saved through the session too, but kept out of the lineup's undo/redo.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { FormationName, Lineup, RoleKey, Zone } from "../formations";
 import { ZONES } from "../formations";
@@ -37,6 +40,50 @@ import { deepHash } from "./deeplink";
 import { extractLineup, type LineupDoc } from "../lineupDoc";
 import { nextReaction, type ReactionValue } from "../reactions";
 import { apiError } from "../../../lib/clubApi";
+import { PIZARRA_LIMITS } from "../../../lib/schemas";
+import { addStroke, canAddStroke, clearStrokes, makeStroke, newId, removeStroke, undoStroke, type Stroke, type StrokeColor, type StrokeKind } from "../drawings";
+import {
+  addRival,
+  canAddPlay,
+  duplicateFrame,
+  duplicatePlay,
+  moveBall,
+  moveFrame,
+  movePlayer,
+  moveRival,
+  removeFrame,
+  removePlay,
+  removeRival,
+  renamePlay,
+  savePlay,
+  setFrameText,
+  validatePlay,
+  type Play,
+} from "../plays";
+import { unsupportedReason, type Unsupported } from "../../../components/pitch3d/support";
+import { framePointToPitch, hitStroke, inkView, pushInk, strokeLabel, TOOL_HINT } from "./telestrator";
+import {
+  addPlayers,
+  DEFAULT_JUGADA,
+  dropPlayers,
+  forkName,
+  forkPlay,
+  goneFrom,
+  jugadaList,
+  jugadaStage,
+  missingFrom,
+  ownName,
+  participants,
+  pickJugada,
+  playFromBoard,
+  rederive,
+  replayHud,
+  rivalSpot,
+} from "./jugadas";
+import { useReplay, type ReplayMove } from "./useReplay";
+import { JugadasPanel, type JugadaEditorView } from "./JugadasPanel";
+import { DibujarPanel } from "./DibujarPanel";
+import { Replay3D } from "./Replay3D";
 
 export interface BoardProps {
   session: BoardSession;
@@ -92,13 +139,19 @@ interface Ui {
   hist: History;
   /** Keyboard target slot while a cromo is in the hand. */
   kb: number | null;
+  /** The telestrator's own undo: the strokes as they were before each change. */
+  ink: Stroke[][];
+  /** The stroke marked on the pitch (Dibujar), and the rival marked in a jugada's paso. */
+  inkSel: string | null;
+  rivSel: string | null;
 }
-const UI0 = { sel: null, pick: null, fan: null, fic: null, hist: EMPTY_HISTORY, kb: null };
+const UI0 = { sel: null, pick: null, fan: null, fic: null, hist: EMPTY_HISTORY, kb: null, ink: [], inkSel: null, rivSel: null };
 
 const reducedMotion = (): boolean => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-// Deep links into a panel: /pizarra#comparar, #compartir, #tableros, #ajustes, #quimica, #plan.
-const HASH_MODOS: Modo[] = ["quimica", "mas", "tableros", "comparar", "compartir", "ajustes"];
+// Deep links into a panel: /pizarra#comparar, #compartir, #tableros, #ajustes, #quimica, #plan, #jugadas,
+// #dibujar.
+const HASH_MODOS: Modo[] = ["quimica", "jugadas", "dibujar", "mas", "tableros", "comparar", "compartir", "ajustes"];
 /** The panel a URL hash names (null = none we know). */
 function panelOf(hash: string): Modo | "plan" | null {
   const h = hash.replace(/^#/, "").toLowerCase();
@@ -115,6 +168,12 @@ interface Toast {
   /** One action (Deshacer); `aria` says what it does, apart from the app bar's own «Deshacer». */
   act?: { label: string; aria: string; run: () => void };
 }
+
+const LIM = PIZARRA_LIMITS;
+const PLAYS_FULL = "Ya hay " + LIM.plays + " jugadas propias en este tablero: borra una para guardar otra.";
+const PASOS_MSG = "Una jugada tiene entre " + LIM.framesMin + " y " + LIM.framesMax + " pasos.";
+const NO_3D = "Este dispositivo no muestra el estadio 3D: la jugada se ve con la cámara 2D que sigue al balón.";
+const FAIL_3D = "El estadio 3D no ha podido arrancar: la jugada se ve con la cámara 2D que sigue al balón.";
 
 const snapOf = (m: Modo): Snap => (m === "quimica" || m === "mas" || m === "comparar" || m === "charla" ? "half" : m === "tableros" || m === "compartir" || m === "ajustes" ? "full" : "peek");
 
@@ -168,6 +227,26 @@ export function Board(props: BoardProps) {
   const [dragFrom, setDragFrom] = useState<null | "pitch" | "bench">(null);
   const [introDone, setIntroDone] = useState(rm);
   const [fit, setFit] = useState({ kp: 1, kh: 0.64 });
+  // Dibujar: the tool, the colour, the text for the field, and the strokes drawn in this visit (they
+  // light up at once; the ones already there light up one after another).
+  const [tool, setTool] = useState<StrokeKind>("carrera");
+  const [inkColor, setInkColor] = useState<StrokeColor>("gold");
+  const [inkText, setInkText] = useState("¡PRESIÓN!");
+  const [fresh, setFresh] = useState<ReadonlySet<string>>(() => new Set());
+  // Jugadas: which one, the replay's toggles, the crest wipe, the 3D stadium.
+  const [jidPick, setJid] = useState<string>(DEFAULT_JUGADA);
+  const [spd, setSpd] = useState(false);
+  const [onion, setOnion] = useState(true);
+  const [trails, setTrails] = useState(true);
+  const [rivOn, setRivOn] = useState(true);
+  const [ballOn, setBallOn] = useState(true);
+  const [wipe, setWipe] = useState<number | null>(() => (start.modo === "jugadas" && !rm ? 1 : null));
+  // Opened on the jugadas by a link: they play until the first touch (as designed).
+  const [untouched, setUntouched] = useState(start.modo === "jugadas" && !rm);
+  // Whether this device gets the 3D (asked the first time it is wanted; undefined = not asked yet).
+  const [sup3d, setSup3d] = useState<Unsupported | null | undefined>(() => (start.modo === "jugadas" && prefs.v3 && !rm ? unsupportedReason() : undefined));
+  const [fail3d, setFail3d] = useState(false);
+  const [ready3d, setReady3d] = useState(false);
   // Loading only counts until the board has shown once (a later blip must not jump the footer).
   const [seenReady, setSeenReady] = useState(ready);
   if (ready && !seenReady) setSeenReady(true);
@@ -178,8 +257,12 @@ export function Board(props: BoardProps) {
   const sheetRef = useRef<HTMLElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
   const swpRef = useRef<SVGPathElement>(null);
+  const liveRef = useRef<SVGPathElement>(null);
   const fxTimer = useRef(0);
   const toastTimer = useRef(0);
+  const wipeTimer = useRef(0);
+  /** Where everything was drawn at the last render (frame %), for the next glide to start from. */
+  const drawn = useRef<{ p: Record<string, [number, number]>; r: Record<string, [number, number]>; b: [number, number] | null } | null>(null);
   const snd = useBoardSound(prefs.snd);
   // No tap on the board may move the page (only the user scrolls it).
   useNoScrollJump(rootRef);
@@ -192,9 +275,16 @@ export function Board(props: BoardProps) {
     () => () => {
       window.clearTimeout(fxTimer.current);
       window.clearTimeout(toastTimer.current);
+      window.clearTimeout(wipeTimer.current);
     },
     [],
   );
+  // The opening crest wipe (a link straight to the jugadas) goes once it has crossed.
+  useEffect(() => {
+    if (wipe == null) return;
+    window.clearTimeout(wipeTimer.current);
+    wipeTimer.current = window.setTimeout(() => setWipe(null), 1200);
+  }, [wipe]);
   // The 2D intro (floodlights on, crane down onto the pitch, cromos dealt) once the board has loaded.
   useEffect(() => {
     if (!ready || introDone) return;
@@ -230,7 +320,7 @@ export function Board(props: BoardProps) {
   const fic = u.fic && sq.byId.has(u.fic.id) ? u.fic : null;
   // The plan is painted while its tab is open; the plan, the química and Comparar show the cromos as discs.
   const showPlan = modo === "editar" && tab === "p";
-  const mini = modo === "quimica" || modo === "comparar" || showPlan;
+  const mini = modo === "quimica" || modo === "comparar" || modo === "jugadas" || modo === "dibujar" || showPlan;
   const view = pitchView({ L, sq, ch, cam, modo, fx, selId: sel?.id ?? null, pick, ro: !canEdit, rm, meId: props.meId, mini });
   const plan = planLayer(L, cam, modo, showPlan);
   const match = props.match;
@@ -262,13 +352,28 @@ export function Board(props: BoardProps) {
     window.clearTimeout(fxTimer.current);
     fxTimer.current = window.setTimeout(() => setFx((f) => ({ ...FX0, k: f.k })), fxDuration(next));
   };
-  const morph = (drop: Record<string, [number, number]> | null, extra: Partial<Fx> = {}): Fx => ({
-    ...FX0,
-    k: fx.k + 1,
-    from: { ...positionsOf(L, cam), ...(drop ?? {}) },
-    q0: ch.v,
-    ...extra,
-  });
+  const morph = (drop: Record<string, [number, number]> | null, extra: Partial<Fx> = {}): Fx => {
+    const d = drawn.current;
+    return {
+      ...FX0,
+      k: fx.k + 1,
+      from: { ...(d?.p ?? positionsOf(L, cam)), ...(drop ?? {}) },
+      rfrom: d?.r ?? null,
+      bfrom: d?.b ?? null,
+      q0: ch.v,
+      ...extra,
+    };
+  };
+  /** Strokes and jugadas: saved with the board, outside the lineup's undo (they keep their own). */
+  const saveExtras = (next: Lineup): boolean => {
+    if (!ready) return false;
+    if (ro) {
+      say(roMsg);
+      return false;
+    }
+    session.commit(next);
+    return true;
+  };
 
   /** Every change to the lineup goes through here. */
   const commit = (next: Lineup, o: { drop?: Record<string, [number, number]> | null; ui?: Partial<Ui>; fx?: Partial<Fx>; snap?: Snap } = {}) => {
@@ -328,9 +433,375 @@ export function Board(props: BoardProps) {
     buzz(25);
   };
 
-  // ── pointer: drag, long press, the línea and the sheet handle ──
+  // ── jugadas: the library and yours, the replay, the editor ──
+  const jl = useMemo(() => jugadaList(L), [L]);
+  const cur = pickJugada(jl, jidPick);
+  const jplay = cur.play;
+  const nJ = jplay.frames.length;
+  const want3d = modo === "jugadas" && prefs.v3 && sup3d === null && !fail3d;
+  const wipeNow = () => {
+    if (!rm) setWipe((w) => (w ?? 0) + 1);
+  };
+  // every paso change glides the pieces from where they are drawn (and going round again wipes)
+  const pasoGlide = (to: number, how: ReplayMove) => {
+    if (how === "wrap") wipeNow();
+    if (!rm) runFx(morph(null, { slow: true, long: spd }));
+    // (the hint, which says the paso, is not shown over a jugada: the screen reader hears it here)
+    if (how === "user") announce("Paso " + (to + 1) + " de " + nJ + ": " + (jplay.frames[to]?.title || "Paso " + (to + 1)));
+  };
+  const rpl = useReplay({
+    key: session.key + ":" + jplay.id,
+    n: nJ,
+    slow: spd,
+    loop: true,
+    frozen: modo !== "jugadas" || (want3d && ready3d),
+    autoplay: untouched && modo === "jugadas",
+    onMove: pasoGlide,
+  });
+  const jf = rpl.frame;
+  const live3d = want3d && ready3d && rpl.playing;
+  const pieces = canEdit && modo === "jugadas" && !live3d;
+  // the 2D stand-in for «Ver en 3D»: the TV camera follows the ball while it plays
+  const follow = modo === "jugadas" && prefs.v3 && rpl.playing && !live3d;
+  const cam3d = !prefs.v3 ? "" : live3d ? " · 3D" : follow || sup3d || fail3d ? " · CÁMARA TV" : "";
+  const note3d = prefs.v3 && (fail3d || sup3d) ? (fail3d ? FAIL_3D : NO_3D) : null;
+  const rivSel = u.rivSel && jplay.frames[jf]?.rivals.some((r) => r.id === u.rivSel) ? u.rivSel : null;
+
+  /** Whether this device gets the 3D: asked once, the first time it is wanted (the stadium loads later). */
+  const ask3d = (): Unsupported | null => {
+    if (sup3d !== undefined) return sup3d;
+    const r = unsupportedReason();
+    setSup3d(r);
+    return r;
+  };
+  const playToggle = () => {
+    setUntouched(false);
+    if (!rpl.playing && prefs.v3) ask3d();
+    rpl.toggle();
+  };
+  const jStep = (d: 1 | -1) => {
+    setUntouched(false);
+    rpl.step(d);
+  };
+  const jSeek = (i: number) => {
+    setUntouched(false);
+    rpl.seek(i);
+  };
+
+  /**
+   * Every change to a jugada goes through here: a built-in one becomes yours first (while there is
+   * room), the arrows follow the moves, and it is checked before it is saved. `goTo` = the paso to show
+   * after it. Returns the jugada saved, or null when nothing changed (`refused` says why, if anything).
+   */
+  const editJugada = (fn: (p: Play) => Play, refused: string, goTo?: number): Play | null => {
+    if (!ready) return null;
+    if (ro) {
+      say(roMsg);
+      return null;
+    }
+    const changed = fn(jplay);
+    if (changed === jplay) {
+      if (refused) say(refused);
+      return null;
+    }
+    const list = L.plays ?? [];
+    let next = rederive(changed);
+    if (!cur.own) {
+      if (!canAddPlay(list)) {
+        say(PLAYS_FULL);
+        return null;
+      }
+      next = { ...next, id: newId("j"), name: forkName(jplay.name, list.map((x) => x.name)) };
+    }
+    const errs = validatePlay(next);
+    if (errs.length) {
+      say(errs[0]);
+      return null;
+    }
+    if (!saveExtras({ ...L, plays: savePlay(list, next) })) return null;
+    if (!cur.own) {
+      setJid(next.id);
+      rpl.reset(session.key + ":" + next.id, false, goTo ?? jf);
+      say("«" + jplay.name + "» ya es tuya: se guarda con el tablero");
+    } else if (goTo != null && goTo !== jf) rpl.seek(goTo, next.frames.length);
+    return next;
+  };
+  /** Brings back the board's jugadas as they were (a toast's Deshacer), if that board is still open. */
+  const restorePlays = (k: string, plays: Play[], jid: string) => {
+    const now = later.current;
+    if (now.key !== k || !now.save({ ...now.L, plays })) return;
+    setJid(jid);
+  };
+  const jPick = (id: string) => {
+    setUntouched(false);
+    setJid(id);
+    rpl.reset(session.key + ":" + id, false);
+    patchUi({ rivSel: null });
+    if (!rm) runFx(morph(null, { slow: true }));
+    wipeNow();
+    buzz(8);
+  };
+  const jAddPaso = () => {
+    const at = nJ;
+    const r = editJugada(
+      (p) => {
+        if (p.frames.length >= LIM.framesMax) return p;
+        const f = structuredClone(p.frames[jf] ?? p.frames[p.frames.length - 1]);
+        delete f.note;
+        return { ...p, frames: [...p.frames, { ...f, title: "Paso nuevo", arrows: [] }] };
+      },
+      PASOS_MSG,
+      at,
+    );
+    // (a built-in jugada just made yours says that instead)
+    if (r && cur.own) say("Paso " + (at + 1) + " añadido: mueve los cromos");
+  };
+  const jMovePaso = (i: number, d: 1 | -1) => {
+    const to = i + d;
+    editJugada((p) => moveFrame(p, i, to), "", jf === i ? to : jf === to ? i : jf);
+  };
+  const jCopyPaso = (i: number) => {
+    if (editJugada((p) => duplicateFrame(p, i), PASOS_MSG, i + 1) && cur.own) say("Paso " + (i + 1) + " duplicado");
+  };
+  const jDelPaso = (i: number) => {
+    const before = L.plays ?? [];
+    const k = session.key;
+    // (undoing it on a built-in jugada drops the copy that the cut made: the original is back)
+    const was = jplay.id;
+    if (!editJugada((p) => removeFrame(p, i), PASOS_MSG, Math.max(0, Math.min(jf > i ? jf - 1 : jf, nJ - 2)))) return;
+    say((cur.own ? "" : "«" + jplay.name + "» ya es tuya · ") + "Paso " + (i + 1) + " quitado", { label: "Deshacer", aria: "Deshacer: recuperar el paso " + (i + 1), run: () => restorePlays(k, before, was) }, DELETE_MS);
+  };
+  const jTitle = (v: string) => editJugada((p) => setFrameText(p, jf, { title: v }), "");
+  const jNote = (v: string) => editJugada((p) => setFrameText(p, jf, { note: v }), "");
+  const jAddRival = () => {
+    const r = editJugada((p) => addRival(p, rivalSpot(p)), "Como mucho siete rivales.");
+    if (!r) return;
+    setRivOn(true);
+    const f = r.frames[Math.min(jf, r.frames.length - 1)];
+    patchUi({ rivSel: f.rivals[f.rivals.length - 1]?.id ?? null });
+    buzz(8);
+  };
+  const jDelRival = () => {
+    const f = jplay.frames[jf];
+    const id = rivSel ?? f?.rivals[f.rivals.length - 1]?.id;
+    if (!id) return;
+    if (editJugada((p) => removeRival(p, id), "")) {
+      patchUi({ rivSel: null });
+      buzz(8);
+    }
+  };
+  const jAddMissing = () => {
+    const miss = missingFrom(jplay, L);
+    const r = editJugada((p) => {
+      const q = addPlayers(p, miss, L);
+      return participants(q).length === participants(p).length ? p : q;
+    }, "No cabe nadie más: siete por paso.");
+    if (r && cur.own) say(miss.length === 1 ? "Ya está en la jugada" : "Ya están en la jugada");
+  };
+  const jDropGone = () => {
+    const gone = goneFrom(jplay, L);
+    if (gone.length && editJugada((p) => dropPlayers(p, gone), "")) say(gone.length === 1 ? "Fuera de la jugada: ya no está en el siete" : "Fuera de la jugada: ya no están en el siete");
+  };
+  const jNew = () => {
+    if (!ready) return;
+    if (ro) {
+      say(roMsg);
+      return;
+    }
+    const list = L.plays ?? [];
+    if (!canAddPlay(list)) {
+      say(PLAYS_FULL);
+      return;
+    }
+    const pl = playFromBoard(L, ownName(list));
+    if (!pl) {
+      say("Coloca a alguien en el campo para crear una jugada");
+      return;
+    }
+    if (!saveExtras({ ...L, plays: savePlay(list, pl) })) return;
+    setUntouched(false);
+    setJid(pl.id);
+    rpl.reset(session.key + ":" + pl.id, false);
+    patchUi({ rivSel: null });
+    if (!rm) runFx(morph(null, { slow: true }));
+    buzz([10, 30, 10]);
+    say("Jugada nueva: añade pasos y arrastra");
+  };
+  const jRename = (v: string) => {
+    editJugada((p) => renamePlay(p, v), "");
+  };
+  const jDuplicate = () => {
+    if (!ready) return;
+    if (ro) {
+      say(roMsg);
+      return;
+    }
+    const list = L.plays ?? [];
+    if (!canAddPlay(list)) {
+      say(PLAYS_FULL);
+      return;
+    }
+    const next = cur.own ? duplicatePlay(list, jplay.id) : savePlay(list, forkPlay(jplay, list.map((x) => x.name), newId("j")));
+    if (next === list || !saveExtras({ ...L, plays: next })) return;
+    const copy = next[next.length - 1];
+    setJid(copy.id);
+    rpl.reset(session.key + ":" + copy.id, false, jf);
+    buzz(10);
+    say("Copia guardada: «" + copy.name + "»");
+  };
+  const jDelete = () => {
+    if (!cur.own) return;
+    const before = L.plays ?? [];
+    const k = session.key;
+    const was = jplay;
+    if (!saveExtras({ ...L, plays: removePlay(before, was.id) })) return;
+    setJid(DEFAULT_JUGADA);
+    rpl.reset(k + ":" + DEFAULT_JUGADA, false);
+    patchUi({ rivSel: null });
+    buzz([20, 40, 20]);
+    say("«" + was.name + "» borrada", { label: "Deshacer", aria: "Deshacer el borrado de «" + was.name + "»", run: () => restorePlays(k, before, was.id) }, DELETE_MS);
+  };
+  // the pieces of the paso: our cromos, the rivals and the ball
+  const onPiece = (piece: string, at: { X: number; Y: number; inside: boolean } | null) => {
+    const kind = piece === "b" ? "b" : piece.slice(0, 2);
+    const id = piece.slice(2);
+    const back = (): void => {
+      // let go off the pitch: it glides back to its spot
+      if (!at) return;
+      if (kind === "p:") runFx(morph({ [id]: [at.X, at.Y] }));
+      else if (kind === "r:") runFx(morph(null, { rfrom: { ...(drawn.current?.r ?? {}), [id]: [at.X, at.Y] } }));
+      else runFx(morph(null, { bfrom: [at.X, at.Y] }));
+    };
+    if (!at || !at.inside) return back();
+    const pt = framePointToPitch(C, at.X, at.Y);
+    if (kind === "b") {
+      if (editJugada((p) => moveBall(p, jf, pt), "")) runFx(morph(null, { bfrom: [at.X, at.Y] }));
+      else back();
+    } else if (kind === "r:") {
+      if (editJugada((p) => moveRival(p, jf, id, pt), "")) runFx(morph(null, { rfrom: { ...(drawn.current?.r ?? {}), [id]: [at.X, at.Y] } }));
+      else back();
+    } else if (kind === "p:") {
+      if (editJugada((p) => movePlayer(p, jf, id, pt), "No caben más de siete en un paso.")) runFx(morph({ [id]: [at.X, at.Y] }, { rip: [id] }));
+      else back();
+    }
+    buzz(12);
+  };
+  const onPieceTap = (piece: string) => {
+    if (!piece.startsWith("r:")) return;
+    const id = piece.slice(2);
+    const on = rivSel !== id;
+    patchUi({ rivSel: on ? id : null });
+    buzz(8);
+    if (on) announce("Rival marcado: «Quitar el rival marcado» lo quita de la jugada");
+  };
+
+  // ── Dibujar: strokes of light on the grass, with their own undo ──
+  const strokes = L.drawings ?? [];
+  const inkSel = u.inkSel && strokes.some((x) => x.id === u.inkSel) ? u.inkSel : null;
+  const setInk = (next: Stroke[]): boolean => {
+    if (!saveExtras({ ...L, drawings: next })) return false;
+    patchUi({ ink: pushInk(u.ink, strokes), inkSel: null });
+    return true;
+  };
+  const inkUndo = () => {
+    if (!canEdit) return;
+    if (u.ink.length) {
+      if (!saveExtras({ ...L, drawings: u.ink[u.ink.length - 1] })) return;
+      patchUi({ ink: u.ink.slice(0, -1), inkSel: null });
+    } else if (strokes.length) {
+      if (!saveExtras({ ...L, drawings: undoStroke(strokes) })) return;
+      patchUi({ inkSel: null });
+    } else return;
+    buzz([6, 20, 6]);
+    announce("Trazo deshecho");
+  };
+  /** A toast's Deshacer for the strokes (only while the same board is open). */
+  const inkUndoAct = (aria: string): Toast["act"] => {
+    const k = session.key;
+    return { label: "Deshacer", aria, run: () => later.current.key === k && later.current.inkUndo() };
+  };
+  const inkDelete = (id: string) => {
+    if (!strokes.some((x) => x.id === id) || !setInk(removeStroke(strokes, id))) return;
+    buzz(10);
+    say("Trazo borrado", inkUndoAct("Deshacer: recuperar el trazo"));
+  };
+  const inkClear = () => {
+    if (!strokes.length || !setInk(clearStrokes())) return;
+    buzz([20, 40, 20]);
+    say("Césped limpio", inkUndoAct("Deshacer: recuperar los trazos"));
+  };
+  const onDraw = (pts: [number, number][], tap: boolean) => {
+    if (!canEdit || !pts.length) return;
+    if (tap && tool !== "texto") {
+      // a tap marks the stroke under it (or lets go of the marked one)
+      const id = hitStroke(strokes, C, pts[0][0], pts[0][1]);
+      const next = id && id !== inkSel ? id : null;
+      patchUi({ inkSel: next });
+      const st = next ? strokes.find((x) => x.id === next) : undefined;
+      if (st) {
+        buzz(8);
+        announce("Marcado: " + strokeLabel(st) + ". «Borrar trazo» lo quita.");
+      }
+      return;
+    }
+    if (!canAddStroke(strokes)) {
+      say("Ya hay " + LIM.strokes + " trazos: borra alguno para dibujar más");
+      return;
+    }
+    if (tool === "texto" && !inkText.trim()) {
+      say("Escribe el texto antes de tocar el césped");
+      return;
+    }
+    const st = makeStroke(
+      tool,
+      inkColor,
+      pts.map(([x, y]) => framePointToPitch(C, x, y)),
+      inkText,
+    );
+    if (!st) {
+      say(tool === "zona" ? "Arrastra en diagonal para marcar la zona" : "Trazo muy corto: arrastra un poco más");
+      return;
+    }
+    const next = addStroke(strokes, st);
+    if (next === strokes) {
+      say("Ese trazo no se puede guardar");
+      return;
+    }
+    if (!setInk(next)) return;
+    setFresh((f) => new Set(f).add(st.id));
+    buzz(10);
+  };
+
+  // Latest values for the toasts' Deshacer (they run later, maybe on another board).
+  const later = useRef({ key: session.key, L, save: saveExtras, inkUndo });
+  useEffect(() => {
+    later.current = { key: session.key, L, save: saveExtras, inkUndo };
+  });
+
+  // ── «En 3D»: the jugada in the stadium ──
+  const on3dFail = (why: "unsupported" | "failed") => {
+    setReady3d(false);
+    if (why === "unsupported") setSup3d("no-webgl2");
+    else {
+      setFail3d(true);
+      say("El 3D no ha podido arrancar: seguimos en 2D");
+    }
+  };
+  const toggle3d = () => {
+    const on = !prefs.v3;
+    props.onPrefs({ v3: on });
+    if (!on) {
+      setReady3d(false);
+      say("Vista 2D");
+      return;
+    }
+    setFail3d(false);
+    say(ask3d() ? "Sin 3D aquí: cámara de televisión que sigue al balón" : "Ver en 3D: la jugada se juega en el estadio");
+  };
+
+  // ── pointer: drag, long press, the línea, the sheet handle, drawing and the jugada's pieces ──
   const ctl = useDragController(
-    { root: rootRef, frame: frameRef, sheet: sheetRef, layer: layerRef, swp: swpRef },
+    { root: rootRef, frame: frameRef, sheet: sheetRef, layer: layerRef, swp: swpRef, live: liveRef },
     {
       lineup: L,
       cam,
@@ -338,6 +809,9 @@ export function Board(props: BoardProps) {
       canMove: canEdit && (modo === "editar" || modo === "quimica"),
       canLine: canEdit && modo === "editar" && plan.dlOn,
       magnets: canEdit && modo === "editar" && !L.freeMode,
+      draw: canEdit && modo === "dibujar",
+      drawRo: ready && ro && modo === "dibujar",
+      pieces,
     },
     {
       onStart: (kind, _id, from) => {
@@ -379,6 +853,15 @@ export function Board(props: BoardProps) {
         buzz(8);
       },
       onBaja: () => say("De baja: no se puede colocar"),
+      onDraw,
+      onDrawRo: () => say(roMsg),
+      onPieceStart: () => {
+        setUntouched(false);
+        rpl.pause();
+        buzz(10);
+      },
+      onPiece,
+      onPieceTap,
     },
   );
 
@@ -444,7 +927,7 @@ export function Board(props: BoardProps) {
     if (!canEdit) return;
     const r = undo(u.hist, L);
     if (!r) return;
-    session.commit(r.lineup);
+    session.commit({ ...r.lineup, drawings: L.drawings, plays: L.plays });
     patchUi({ hist: r.history, sel: null, pick: null, fan: null, kb: null });
     runFx(morph(null, { rw: "REBOBINANDO" }));
     buzz([6, 20, 6]);
@@ -455,7 +938,7 @@ export function Board(props: BoardProps) {
     if (!canEdit) return;
     const r = redo(u.hist, L);
     if (!r) return;
-    session.commit(r.lineup);
+    session.commit({ ...r.lineup, drawings: L.drawings, plays: L.plays });
     patchUi({ hist: r.history, sel: null, pick: null, fan: null, kb: null });
     runFx(morph(null, { rw: "AVANCE" }));
     buzz([6, 20, 6]);
@@ -491,10 +974,21 @@ export function Board(props: BoardProps) {
   };
   const goModo = (m: Modo | "plan") => {
     const target: Modo = m === "plan" ? "editar" : m;
+    // Into the jugadas (or out of them) the cromos glide between the board and the paso; the jugadas
+    // open paused with the crest wipe, as designed, and the 3D stadium goes when they close.
+    if ((target === "jugadas") !== (modo === "jugadas") && !rm) runFx(morph(null, { slow: true }));
+    if (target === "jugadas") {
+      rpl.pause();
+      wipeNow();
+    } else if (modo === "jugadas") {
+      rpl.pause();
+      setReady3d(false);
+    }
+    setUntouched(false);
     setModo(target);
     setSnap(m === "plan" ? "half" : snapOf(target));
     setTab(m === "plan" ? "p" : "b");
-    patchUi({ sel: null, pick: null, fan: null, fic: null, kb: null });
+    patchUi({ sel: null, pick: null, fan: null, fic: null, kb: null, inkSel: null, rivSel: null });
     setMk((k) => k + 1);
     buzz(10);
   };
@@ -565,7 +1059,9 @@ export function Board(props: BoardProps) {
     const mod = e.ctrlKey || e.metaKey;
     if (mod && !field && e.key.toLowerCase() === "z") {
       e.preventDefault();
-      if (e.shiftKey) doRedo();
+      // Dibujar: the strokes' own undo
+      if (modo === "dibujar" && !e.shiftKey) inkUndo();
+      else if (e.shiftKey) doRedo();
       else doUndo();
       return;
     }
@@ -574,8 +1070,19 @@ export function Board(props: BoardProps) {
       doRedo();
       return;
     }
+    if (modo === "dibujar" && inkSel && !field && (e.key === "Delete" || e.key === "Backspace")) {
+      e.preventDefault();
+      inkDelete(inkSel);
+      return;
+    }
     if (e.key === "Escape") {
       if (fan || fic) return;
+      if ((modo === "dibujar" && inkSel) || (modo === "jugadas" && rivSel)) {
+        e.preventDefault();
+        patchUi({ inkSel: null, rivSel: null });
+        announce("Desmarcado");
+        return;
+      }
       if (sel || pick != null || u.kb != null) {
         e.preventDefault();
         patchUi({ sel: null, pick: null, kb: null });
@@ -600,6 +1107,34 @@ export function Board(props: BoardProps) {
       dropOn(u.kb);
     }
   };
+
+  // ── the replay's keys: Space plays / pauses, ← → go a paso back / forward ──
+  const replayKeys = (e: globalThis.KeyboardEvent) => {
+    if (modo !== "jugadas" || fan || fic || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target instanceof HTMLElement ? e.target : null;
+    const root = rootRef.current;
+    if (t && t !== document.body && root && !root.contains(t)) return;
+    const tag = t?.tagName ?? "";
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || t?.isContentEditable) return;
+    if (e.key === " " || e.key === "Spacebar") {
+      // a focused control keeps its own Space
+      if (tag === "BUTTON" || tag === "A") return;
+      e.preventDefault();
+      playToggle();
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      e.preventDefault();
+      jStep(e.key === "ArrowLeft" ? -1 : 1);
+    }
+  };
+  const keysLatest = useRef(replayKeys);
+  useEffect(() => {
+    keysLatest.current = replayKeys;
+  });
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => keysLatest.current(e);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   // ── bench, album, bajas, reparto ──
   const benchAll = sq.list.filter((c) => !onPitch.has(c.id));
@@ -932,6 +1467,37 @@ export function Board(props: BoardProps) {
   // The cartel goes to the group with the whole seven.
   const shareBlock = ch.n < 7 ? "Completa el siete para compartir (" + ch.n + "/7)." : null;
 
+  // ── what the pitch shows: a jugada's paso, or the strokes; and where it is all drawn ──
+  const rh = replayHud(cur, jf, cam3d, pieces);
+  const jug =
+    modo === "jugadas"
+      ? jugadaStage({ play: jplay, frame: jf, L, sq, cam, fx, meId: props.meId, edit: pieces, selRival: rivSel, onion, trails, rivals: rivOn, ball: ballOn, follow })
+      : null;
+  const ink = modo === "jugadas" || modo === "charla" ? null : inkView(strokes, C, modo === "dibujar" ? inkSel : null, fresh);
+  const drawnNow = jug ? jug.drawn : { p: Object.fromEntries(view.cards.map((c): [string, [number, number]] => [c.id, [c.x, c.y]])), r: {}, b: null };
+  useEffect(() => {
+    drawn.current = drawnNow;
+  });
+  /** The editor's view of the jugada on screen (its paso, rivals, who of the seven it leaves out). */
+  const jugadaEditor = (): JugadaEditorView => {
+    const fr = jplay.frames[jf];
+    const room = LIM.framePlayers - Math.max(0, ...jplay.frames.map((f) => Object.keys(f.players).length));
+    return {
+      id: jplay.id,
+      name: jplay.name,
+      own: cur.own,
+      pasos: jplay.frames.map((f, i) => ({ title: f.title || "Paso " + (i + 1), cur: i === jf })),
+      cur: jf,
+      title: fr?.title ?? "",
+      note: fr?.note ?? "",
+      rivals: fr?.rivals.length ?? 0,
+      rivalMarked: !!rivSel,
+      missing: Math.max(0, Math.min(missingFrom(jplay, L).length, room)),
+      gone: goneFrom(jplay, L).length,
+      errors: cur.own ? validatePlay(jplay) : [],
+    };
+  };
+
   // ── hint, save state, root ──
   const n = ch.n;
   const hint = !ready
@@ -944,15 +1510,19 @@ export function Board(props: BoardProps) {
         ? "Cada luz une a dos vecinos: oro ++, cielo +, discontinua –. Cambia un cromo y mira cómo se reenciende."
         : modo === "comparar"
           ? "En el campo: oro discontinuo = entra, rojo = sale."
-          : sel?.k === "p"
-            ? nm(sel.id) + " en la mano: toca otro cromo para cambiarlos, o tócalo otra vez para su ficha."
-            : sel?.k === "b"
-              ? nm(sel.id) + " en la mano: toca un hueco o un cromo del campo."
-              : n === 0
-                ? "Toca un hueco para empezar, o abre un sobre con «Sugerir siete»."
-                : L.freeMode
-                  ? "Arrastra o toca un cromo. Mantén pulsado para galones. En libre, cada cromo se queda donde lo sueltes."
-                  : "Arrastra o toca un cromo. Mantén pulsado para galones. Desliza la línea azul para subir o bajar la defensa.";
+          : modo === "jugadas"
+            ? "Paso " + (jf + 1) + " de " + nJ + (pieces ? " · arrastra una ficha para retocar el paso" : "") + "; el bug de arriba abre la biblioteca."
+            : modo === "dibujar"
+              ? "Dibuja sobre el césped: " + TOOL_HINT[tool] + "."
+              : sel?.k === "p"
+                ? nm(sel.id) + " en la mano: toca otro cromo para cambiarlos, o tócalo otra vez para su ficha."
+                : sel?.k === "b"
+                  ? nm(sel.id) + " en la mano: toca un hueco o un cromo del campo."
+                  : n === 0
+                    ? "Toca un hueco para empezar, o abre un sobre con «Sugerir siete»."
+                    : L.freeMode
+                      ? "Arrastra o toca un cromo. Mantén pulsado para galones. En libre, cada cromo se queda donde lo sueltes."
+                      : "Arrastra o toca un cromo. Mantén pulsado para galones. Desliza la línea azul para subir o bajar la defensa.";
   const saveTxt = ro
     ? session.official
       ? "Oficial · solo lectura"
@@ -988,6 +1558,14 @@ export function Board(props: BoardProps) {
     dragKind === "line" ? "dl-drag" : "",
     !ready ? "loading" : "",
     toast ? "toasting" : "",
+    // the replay: 0,5×, the estelas off, the follow-cam, the 3D stadium live, pieces that can be moved
+    modo === "jugadas" && spd ? "slow2" : "",
+    modo === "jugadas" && !trails ? "no-trails" : "",
+    follow ? "fcam" : "",
+    live3d ? "v3" : "",
+    pieces ? "j-edit" : "",
+    // Dibujar on an editable board: the pitch is a canvas
+    canEdit && modo === "dibujar" ? "d-on" : "",
   ].filter(Boolean).join(" ");
   const shown: ReactNode =
     modo === "editar" ? (
@@ -1222,6 +1800,72 @@ export function Board(props: BoardProps) {
         onSeason={props.onSeason}
         onBack={() => goModo("mas")}
       />
+    ) : modo === "jugadas" ? (
+      <JugadasPanel
+        hud={rh}
+        frame={jf}
+        n={nJ}
+        playing={rpl.playing}
+        v3={prefs.v3}
+        slow={spd}
+        onion={onion}
+        trails={trails}
+        riv={rivOn}
+        ball={ballOn}
+        lib={jl.map((j) => ({ id: j.play.id, short: j.short, aria: j.play.name + (j.own ? " (propia)" : " (estrategia)"), on: j.play.id === jplay.id }))}
+        canEdit={canEdit}
+        note3d={note3d}
+        editor={jugadaEditor()}
+        onToggle={playToggle}
+        onStep={jStep}
+        onSeek={jSeek}
+        on3d={toggle3d}
+        onSlow={() => setSpd((v) => !v)}
+        onOnion={() => setOnion((v) => !v)}
+        onTrails={() => setTrails((v) => !v)}
+        onRiv={() => setRivOn((v) => !v)}
+        onBall={() => setBallOn((v) => !v)}
+        onPick={jPick}
+        onAddPaso={jAddPaso}
+        onNew={jNew}
+        onCharla={() => goModo("charla")}
+        onRename={jRename}
+        onDuplicate={jDuplicate}
+        onDelete={jDelete}
+        onPaso={jSeek}
+        onMovePaso={jMovePaso}
+        onCopyPaso={jCopyPaso}
+        onDelPaso={jDelPaso}
+        onTitle={jTitle}
+        onNote={jNote}
+        onAddRival={jAddRival}
+        onDelRival={jDelRival}
+        onAddMissing={jAddMissing}
+        onDropGone={jDropGone}
+      />
+    ) : modo === "dibujar" ? (
+      <DibujarPanel
+        ro={!canEdit}
+        tool={tool}
+        color={inkColor}
+        text={inkText}
+        strokes={strokes.map((x) => ({ id: x.id, label: strokeLabel(x), sel: x.id === inkSel }))}
+        selLabel={inkSel ? strokeLabel(strokes.find((x) => x.id === inkSel) ?? strokes[0]) : null}
+        canUndo={canEdit && (u.ink.length > 0 || strokes.length > 0)}
+        onTool={(k) => {
+          setTool(k);
+          buzz(6);
+        }}
+        onColor={(c) => {
+          setInkColor(c);
+          buzz(6);
+        }}
+        onText={setInkText}
+        onUndo={inkUndo}
+        onClear={inkClear}
+        onSelect={(id) => patchUi({ inkSel: id })}
+        onDelete={inkDelete}
+      />
     ) : (
       <SoonPanel modo={modo} onBack={() => goModo("mas")} />
     );
@@ -1247,6 +1891,33 @@ export function Board(props: BoardProps) {
         <Stage
           cam={cam}
           view={view}
+          ink={ink}
+          jug={jug}
+          pieces={pieces}
+          focusCards={modo !== "jugadas" && modo !== "dibujar"}
+          bug={modo === "jugadas" ? { a: rh.bugA, b: rh.bugB, k: rh.bugK, aria: rh.bugAria } : null}
+          trailsDraw={!!fx.from && !rm}
+          trailsDur={spd ? "3.2s" : "1.7s"}
+          wipe={wipe}
+          p3d={
+            want3d ? (
+              <Replay3D
+                play={jplay}
+                frame={jf}
+                active={rpl.playing}
+                slow={spd}
+                squad={sq}
+                roles={L.roles}
+                meId={props.meId}
+                led={["Manchester Piti", "Sistema " + (L.freeMode ? "libre" : L.formation), "Química " + ch.v, props.match?.short ?? "", "Vamos Piti"]}
+                onFrame={rpl.reached}
+                onReady={() => setReady3d(true)}
+                onFail={on3dFail}
+              />
+            ) : null
+          }
+          liveRef={liveRef}
+          onBug={() => setSnap("half")}
           plan={plan}
           hud={hud}
           wmY={(proj(C, 50, 37).y - 15).toFixed(2)}

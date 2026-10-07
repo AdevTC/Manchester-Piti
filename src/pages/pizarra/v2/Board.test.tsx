@@ -150,8 +150,9 @@ describe("La pizarra · el tablero", () => {
     expect(commits.at(-1)?.formation).toBe("3-2-1");
     expect(screen.getByRole("button", { name: "Sistema 3-2-1: elegir sistema" })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole("navigation", { name: "Modos de la pizarra" })).getByRole("button", { name: /Jugadas/ }));
-    expect(screen.getByRole("heading", { name: "Jugadas" })).toBeInTheDocument();
-    expect(screen.getByText("llega pronto")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Repetición de la jugada" })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Modos de la pizarra" })).getByRole("button", { name: /Dibujar/ }));
+    expect(screen.getByRole("group", { name: "Herramienta de dibujo" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "La charla: presentar el siete" }));
     expect(screen.getByRole("heading", { name: "El guion" })).toBeInTheDocument();
   });

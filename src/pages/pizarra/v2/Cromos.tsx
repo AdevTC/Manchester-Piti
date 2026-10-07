@@ -29,10 +29,12 @@ export interface PitchCromoProps {
   mini: boolean;
   hov: boolean;
   focusable: boolean;
+  /** A jugada's paso: the cromo is a piece that can be moved in it («p:<id>»). */
+  piece?: string;
   onTap: (id: string, el: HTMLElement) => void;
 }
 
-export function PitchCromo({ c, showGal, mini, hov, focusable, onTap }: PitchCromoProps) {
+export function PitchCromo({ c, showGal, mini, hov, focusable, piece, onTap }: PitchCromoProps) {
   return (
     <div
       className={"cd " + c.cls + (hov ? " hov" : "")}
@@ -40,6 +42,7 @@ export function PitchCromo({ c, showGal, mini, hov, focusable, onTap }: PitchCro
       data-tok={c.id}
       data-zone="p"
       data-slot-i={c.i}
+      data-piece={piece}
     >
       <span className="cd-sh" aria-hidden="true" />
       <span className="cd-ring" aria-hidden="true" />

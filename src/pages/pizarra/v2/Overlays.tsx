@@ -1,7 +1,7 @@
 // The board's overlays: the long-press radial fan, the ficha (the cromo flies to the centre and flips to
-// its stats), and the stage FX (the «¡Siete listo!» flash and the rewind).
+// its stats), and the stage FX (the «¡Siete listo!» flash, the replay's crest wipe and the rewind).
 import { useEffect, useRef } from "react";
-import { Icon, Shirt } from "./icons";
+import { CREST, Icon, Shirt } from "./icons";
 import { SPARKS } from "./geometry";
 import type { FanItem } from "./fan";
 import { vars } from "./view";
@@ -158,7 +158,7 @@ export function Ficha({ f, rm, onFlip, onClose }: { f: FichaView; rm: boolean; o
   );
 }
 
-export function FxLayer({ cele, celeSub, rw, rwKey }: { cele: boolean; celeSub: string; rw: string; rwKey: number }) {
+export function FxLayer({ cele, celeSub, rw, rwKey, wipe = null }: { cele: boolean; celeSub: string; rw: string; rwKey: number; wipe?: number | null }) {
   return (
     <div className="fx" aria-hidden="true">
       {cele && (
@@ -171,6 +171,12 @@ export function FxLayer({ cele, celeSub, rw, rwKey }: { cele: boolean; celeSub: 
           </div>
           <b>¡SIETE LISTO!</b>
           <span>{celeSub}</span>
+        </div>
+      )}
+      {wipe != null && (
+        <div key={wipe} className={"wipe " + (wipe % 2 ? "wa" : "wb")}>
+          <img src={CREST} alt="" />
+          <b>REPETICIÓN</b>
         </div>
       )}
       {rw && (

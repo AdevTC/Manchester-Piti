@@ -1,6 +1,6 @@
 // The board's HUD and tools: the app bar (board name + autosave, the 7/7 chip, undo/redo, la charla),
 // the read-only strip, the sheet with its handle, the «Once» tool (Banquillo · Sistema · Plan), the tray
-// (tap a slot or a cromo), the «Más» tiles, the panels still to come, and the mode bar / rail.
+// (tap a slot or a cromo), the «Más» tiles, the panel still to come (la charla), and the mode bar / rail.
 import { useRef, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import type { FormationName, RoleKey, Zone } from "../formations";
 import { FORM, SYSTEMS } from "./geometry";
@@ -9,20 +9,8 @@ import { AlbumCromo, BajaCromo } from "./Cromos";
 import type { Cromo } from "./model";
 import { grabLabel, type Snap } from "./sheet";
 import { vars, type Hud, type Modo } from "./view";
+import { mag } from "./mag";
 
-// Buttons that lean toward the pointer (the gold ones).
-const magMove = (e: PointerEvent<HTMLElement>) => {
-  const el = e.currentTarget;
-  const r = el.getBoundingClientRect();
-  if (!r.width || !r.height) return;
-  el.style.setProperty("--tx", (((e.clientX - r.left) / r.width - 0.5) * 10).toFixed(1));
-  el.style.setProperty("--ty", (((e.clientY - r.top) / r.height - 0.5) * 8).toFixed(1));
-};
-const magLeave = (e: PointerEvent<HTMLElement>) => {
-  e.currentTarget.style.removeProperty("--tx");
-  e.currentTarget.style.removeProperty("--ty");
-};
-const mag = { onPointerMove: magMove, onPointerLeave: magLeave };
 
 export interface AppBarProps {
   crest: ReactNode;
@@ -454,7 +442,7 @@ export function Tray({ d, ...p }: TrayProps) {
   );
 }
 
-// ── «Más» and the panels still to come ──
+// ── «Más» and the panel still to come ──
 export function MasPanel({ tacSum, onGo }: { tacSum: string; onGo: (m: Modo | "plan") => void }) {
   return (
     <>
@@ -501,8 +489,6 @@ export function MasPanel({ tacSum, onGo }: { tacSum: string; onGo: (m: Modo | "p
 }
 
 const SOON: Partial<Record<Modo, { kick: string; title: string; txt: string; back?: boolean }>> = {
-  jugadas: { kick: "Repetición", title: "Jugadas", txt: "Córners, faltas, salida de balón y tus jugadas, paso a paso." },
-  dibujar: { kick: "Trazos de luz", title: "Dibujar", txt: "Carreras, pases, conducciones y zonas dibujadas sobre el césped." },
   charla: { kick: "La charla", title: "El guion", txt: "Presenta el sistema, los siete, el plan y la jugada antes del partido.", back: true },
 };
 
