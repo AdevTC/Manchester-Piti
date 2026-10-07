@@ -8,6 +8,7 @@ import { defaultTactics } from "../tactics";
 import { CAMS, depthScale, framePath, lineDepth, PRESS_BAND, proj, slotLabel, slotPos, slotZone, type CamName } from "./geometry";
 import { fits, galonesOf, natOf, type Squad } from "./model";
 import { reelFor } from "./pack";
+import { planArrows, type PlanArrow } from "./plan";
 import { hops, linkMark, tierOf, type Chem } from "./quimica";
 
 export type Modo = "editar" | "quimica" | "jugadas" | "dibujar" | "mas" | "tableros" | "comparar" | "compartir" | "ajustes" | "charla";
@@ -23,8 +24,10 @@ export interface Fx {
   spin: boolean;
   cele: boolean;
   rw: "" | "REBOBINANDO" | "AVANCE";
+  /** The camera moved: the turf eases in. */
+  cam: boolean;
 }
-export const FX0: Fx = { k: 0, from: null, slow: false, q0: null, rip: [], spin: false, cele: false, rw: "" };
+export const FX0: Fx = { k: 0, from: null, slow: false, q0: null, rip: [], spin: false, cele: false, rw: "", cam: false };
 /** How long each kind of change animates before the board settles (ms). */
 export const fxDuration = (fx: Fx): number => (fx.spin ? 2800 : fx.cele ? 2700 : fx.slow ? 1900 : 1300);
 
@@ -113,6 +116,8 @@ export interface PitchArgs {
   ro: boolean;
   rm: boolean;
   meId: string | null;
+  /** Cromos as discs (the química, the plan and the comparison read better without the cards). */
+  mini?: boolean;
 }
 
 export interface PitchView {
@@ -124,9 +129,8 @@ export interface PitchView {
   mini: boolean;
 }
 
-export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId }: PitchArgs): PitchView {
+export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId, mini = modo === "quimica" }: PitchArgs): PitchView {
   const C = CAMS[cam];
-  const mini = modo === "quimica";
   const fk = fx.k;
   const linkT = new Map<number, number[]>();
   ch.links.forEach((l) => [l.i, l.j].forEach((i) => linkT.set(i, (linkT.get(i) ?? []).concat([l.t]))));
@@ -231,7 +235,7 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId 
     const rip = hp < 9 && !fx.spin;
     const d = (fx.spin ? 1.8 : 0) + (rip ? hp * 0.16 : n * 0.07);
     links.push({ key: l.a + "|" + l.b, cls: "t" + l.t + (rip ? " rip" : ""), x: a.x.toFixed(2), y: a.y.toFixed(2), l: len.toFixed(2), a: ang.toFixed(1) + "deg", d: d.toFixed(2) + "s" });
-    if (mini) badges.push({ key: l.a + "|" + l.b, cls: "t" + l.t, x: ((a.x + b.x) / 2).toFixed(2), y: ((a.y + b.y) / 2).toFixed(2), d: d.toFixed(2) + "s", t: linkMark(l.t) });
+    if (modo === "quimica") badges.push({ key: l.a + "|" + l.b, cls: "t" + l.t, x: ((a.x + b.x) / 2).toFixed(2), y: ((a.y + b.y) / 2).toFixed(2), d: d.toFixed(2) + "s", t: linkMark(l.t) });
   });
 
   return { cards, slots, gslots, links, badges, mini };
@@ -245,9 +249,11 @@ export interface PlanLayer {
   dlX: string;
   dlY: string;
   defLine: string;
+  /** Salida and foco, painted while the plan is open. */
+  tarrs: PlanArrow[];
 }
 
-export function planLayer(L: Lineup, cam: CamName, modo: Modo): PlanLayer {
+export function planLayer(L: Lineup, cam: CamName, modo: Modo, showPlan = false): PlanLayer {
   const C = CAMS[cam];
   const t = { ...defaultTactics(), ...L.tactics };
   const pr = PRESS_BAND[t.press] ?? [26, 60];
@@ -262,6 +268,7 @@ export function planLayer(L: Lineup, cam: CamName, modo: Modo): PlanLayer {
     dlX: (B.x - 0.5).toFixed(2),
     dlY: A.y.toFixed(2),
     defLine: t.defLine,
+    tarrs: showPlan ? planArrows(L, cam) : [],
   };
 }
 
@@ -332,7 +339,7 @@ export function hud(L: Lineup, sq: Squad, ch: Chem, fx: Fx, rm: boolean, match: 
     valOk: !bad && !warn.length,
     valN: n + "/7",
     valTxt,
-    valAria: n + " de 7 colocados. " + (bad ? (!L.slots[0]?.playerId ? "Sin portero" : !ch.gk ? "Portero fuera de su sitio" : valTxt) : warn.length ? warnTxt : "Once listo, con portero"),
+    valAria: n + " de 7 colocados. " + (bad ? (!L.slots[0]?.playerId ? "Sin portero" : !ch.gk ? "Portero fuera de su sitio" : valTxt) : warn.length ? warnTxt : "Siete listo, con portero"),
     pitchAria: sysName + ", " + n + " de 7 colocados, química " + v,
   };
 }

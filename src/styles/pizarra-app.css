@@ -76,3 +76,41 @@
 @media (prefers-reduced-motion:reduce){
 .pzv *,.pzv *::before,.pzv *::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* ── Phase 3: plan, química, tableros, comparar, compartir, ajustes ── */
+/* Ajustes → «Nota» off: the form rating leaves the cromo (like the dorsal, name, position, galones). */
+.pzv.h-rt .cc-top b{visibility:hidden}
+/* Controls that can't be used right now (read-only board, no answers to the convocatoria…). */
+.pzv .tg[disabled],.pzv .sg button[disabled],.pzv .reac button[disabled],.pzv .tabs button[disabled]{opacity:.45;cursor:default}
+.pzv input[type=range][disabled]{opacity:.5}
+.pzv .bd-cur input[disabled]{opacity:.7}
+/* The autosave dot next to the name (the same states as the app bar's). */
+.pzv .auto i.saving,.pzv .auto i.offline,.pzv .bname small i.offline{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.pzv .auto i.error{background:var(--red);box-shadow:0 0 8px var(--red)}
+.pzv .auto i.draft{background:var(--muted);box-shadow:none}
+.pzv .auto i.ro{background:var(--gold);box-shadow:none}
+/* A name that can't be used says why, under the field. */
+.pzv .sheet .nm-err{margin:0;font-size:12px;font-weight:600;color:var(--red)}
+.pzv .bd-cur input[aria-invalid=true]{box-shadow:inset 0 0 0 1.5px var(--red)}
+/* Deleting asks once more, right where it was asked. */
+.pzv .cfm{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;border-radius:12px;background:rgba(255,138,126,.1);box-shadow:inset 0 0 0 1px rgba(255,138,126,.45);font-size:12.5px;color:var(--soft)}
+.pzv .cfm > span{flex:1 1 160px;min-width:0}
+.pzv .bl .cfm{grid-column:1 / -1;margin:2px}
+.pzv .b3.danger{background:rgba(255,138,126,.16);color:var(--red);box-shadow:inset 0 0 0 1px rgba(255,138,126,.55)}
+/* The toast can carry one action (Deshacer). */
+.pzv .tst .tst-a{flex:0 0 auto;min-height:32px;margin:-4px -6px -4px 4px;padding:0 10px;border:0;border-radius:9px;background:#FFC659;color:#0c1733;font-weight:700;font-size:13px;pointer-events:auto}
+.pzv .tst:not(.on) .tst-a{pointer-events:none}
+/* The result band of the linked match: the letter says it, the colour only backs it. */
+.pzv .res{display:inline-grid;place-items:center;flex:0 0 auto;border-radius:10px;font-family:'Anybody';font-weight:900;line-height:1;color:#0c1733;background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl)}
+.pzv .res.g{background:var(--ok)}
+.pzv .res.e{background:#FFC659}
+.pzv .res.p{background:var(--red)}
+.pzv .res.f{color:var(--muted)}
+/* Whose convocatoria the Voy / Duda / No va chips come from. */
+.pzv .sheet .cvl{margin-top:8px;font-family:'Geist Mono';font-size:10.5px;letter-spacing:.04em;color:var(--muted)}
+/* Why something can't be done yet (publish an incomplete seven, share it). */
+.pzv .sheet .why{margin-top:6px;font-size:12.5px;font-weight:600;color:var(--amber)}
+.pzv .off .why{color:#ffd98c}
+.pzv .off .cfm{color:#eef4ff}
+/* The official card's notes and its «Quitar el oficial». */
+.pzv .off .b3:not(.gold){justify-self:start}

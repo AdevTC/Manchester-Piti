@@ -1,54 +1,14 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Lineup } from "../formations";
-import { Board } from "./Board";
-import type { BoardSession } from "./useBoardSession";
 import { demoSquad, lineupOf } from "./testkit";
+import { BoardHarness as Harness } from "./testkitBoard";
 
 // The board as a user drives it (no Firebase): a harness session keeps the lineup in state, like the
 // real one does between autosaves.
 
 const sq = demoSquad();
 const SEVEN = ["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "adrian"];
-
-function Harness({ initial, ro = false, onCommit, onDuplicate }: { initial: Lineup; ro?: boolean; onCommit?: (l: Lineup) => void; onDuplicate?: () => void }) {
-  const [lineup, setLineup] = useState(initial);
-  const session: BoardSession = {
-    key: "t1:b1",
-    ready: true,
-    name: "J8 · MAD SKY",
-    lineup,
-    readOnly: ro,
-    official: ro,
-    owner: "capi",
-    matchId: null,
-    status: "saved",
-    savedAt: null,
-    commit: (n) => {
-      onCommit?.(n);
-      setLineup(n);
-    },
-    duplicate: onDuplicate ?? (() => {}),
-    openMine: () => {},
-  };
-  return (
-    <Board
-      session={session}
-      squad={sq}
-      seasonId="t1"
-      seasonName="Temporada 1"
-      seasons={[{ id: "t1", name: "Temporada 1" }]}
-      onSeason={() => {}}
-      match={{ short: "J8 · MAD SKY", date: "sáb 8 nov" }}
-      meId="tello"
-      prefs={{ snd: false, grid: true }}
-      onPrefs={() => {}}
-      now={0}
-      crest={<a href="/">Inicio</a>}
-    />
-  );
-}
 
 const cromoButton = (name: string) => screen.getByRole("button", { name: new RegExp("^" + name + ", dorsal") });
 const cardOf = (container: HTMLElement, id: string) => container.querySelector(`.cd[data-tok="${id}"]`) as HTMLElement;
@@ -192,7 +152,7 @@ describe("La pizarra · el tablero", () => {
     fireEvent.click(within(screen.getByRole("navigation", { name: "Modos de la pizarra" })).getByRole("button", { name: /Jugadas/ }));
     expect(screen.getByRole("heading", { name: "Jugadas" })).toBeInTheDocument();
     expect(screen.getByText("llega pronto")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "La charla: presentar el once" }));
+    fireEvent.click(screen.getByRole("button", { name: "La charla: presentar el siete" }));
     expect(screen.getByRole("heading", { name: "El guion" })).toBeInTheDocument();
   });
 });

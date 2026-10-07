@@ -54,6 +54,11 @@ const ICONS = {
     </Svg>
   ),
   copy: ({ w = 16 }: P) => <Svg w={w}><rect x="8" y="8" width="13" height="13" rx="3" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></Svg>,
+  trash: ({ w = 16 }: P) => <Svg w={w}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></Svg>,
+  eye: ({ w = 16 }: P) => <Svg w={w}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></Svg>,
+  thumb: ({ w = 16 }: P) => <Svg w={w}><path d="M7 11v9H4v-9ZM7 11l4-8a2 2 0 0 1 2 2v4h6a2 2 0 0 1 2 2.3l-1.3 7A2 2 0 0 1 17.7 20H7" /></Svg>,
+  download: ({ w = 16 }: P) => <Svg w={w} sw={2}><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></Svg>,
+  link: ({ w = 16 }: P) => <Svg w={w}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></Svg>,
   lock: ({ w = 14 }: P) => <Svg w={w} sw={2.2}><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></Svg>,
   doubt: ({ w = 16 }: P) => <Svg w={w} sw={2}><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 0 1 4.8 1c0 1.7-2.3 2-2.3 3.5M12 17h.01" /></Svg>,
   chevL: ({ w = 18 }: P) => <Svg w={w} sw={2.4}><path d="m15 6-6 6 6 6" /></Svg>,

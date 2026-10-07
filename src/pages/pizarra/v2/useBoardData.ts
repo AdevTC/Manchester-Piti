@@ -8,17 +8,12 @@ import { useMvpResults } from "../../vestuario/live";
 import { useClock } from "../../../hooks/useClock";
 import { usePizarraPlayers } from "../usePizarraPlayers";
 import { usePizarraStats } from "../usePizarraStats";
+import { scoreOf } from "../../../lib/partidos";
 import { buildSquad } from "./ratings";
 import type { Squad } from "./model";
+import type { CalMatch } from "./boards";
 
-export interface CalMatch {
-  id: string;
-  /** Jornada: the match's order in the season calendar. */
-  j: number;
-  rival: string;
-  dateMs: number;
-  played: boolean;
-}
+export type { CalMatch };
 
 export interface BoardData {
   squad: Squad;
@@ -45,7 +40,22 @@ export function useBoardData(seasonId: string): BoardData {
   );
 
   const calendar = useMemo<CalMatch[]>(
-    () => season.map((m, i) => ({ id: m.id, j: i + 1, rival: m.rival || "Rival", dateMs: dateMillis(m.date) || 0, played: isCompleted(m) })),
+    () =>
+      season.map((m, i) => {
+        const played = isCompleted(m);
+        const s = played ? scoreOf(m) : null;
+        return {
+          id: m.id,
+          j: i + 1,
+          rival: m.rival || "Rival",
+          dateMs: dateMillis(m.date) || 0,
+          played,
+          gf: s ? s.gf : null,
+          ga: s ? s.ga : null,
+          home: typeof m.home === "boolean" ? m.home : null,
+          venue: typeof m.venue === "string" ? m.venue : "",
+        };
+      }),
     [season],
   );
 

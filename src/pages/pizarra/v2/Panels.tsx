@@ -61,7 +61,7 @@ export function AppBar(p: AppBarProps) {
       <button type="button" className="ib" onClick={p.onRedo} disabled={p.noRedo} aria-label="Rehacer">
         <Icon n="redo" />
       </button>
-      <button type="button" className="ib gold mag" {...mag} onClick={p.onCharla} aria-label="La charla: presentar el once">
+      <button type="button" className="ib gold mag" {...mag} onClick={p.onCharla} aria-label="La charla: presentar el siete">
         <Icon n="whistle" />
       </button>
     </div>
@@ -120,7 +120,7 @@ export type OnceTab = "b" | "s" | "p";
 export function OnceTabs({ tab, onTab }: { tab: OnceTab; onTab: (t: OnceTab) => void }) {
   return (
     <div className="tabrow">
-      <div className="tabs" role="group" aria-label="Herramienta del once">
+      <div className="tabs" role="group" aria-label="Herramienta del siete">
         <button type="button" onClick={() => onTab("b")} aria-pressed={tab === "b"}>
           Banquillo
         </button>
@@ -155,6 +155,10 @@ export interface BenchTabProps {
   q: string;
   zf: string;
   oc: boolean;
+  /** «Solo convocados» needs answers to the convocatoria. */
+  ocOff: boolean;
+  /** Whose convocatoria the chips show and how it stands. */
+  convTxt: string;
   seasons: { id: string; name: string }[];
   seasonId: string;
   bajas: Cromo[];
@@ -202,7 +206,7 @@ export function BenchTab(p: BenchTabProps) {
           </button>
         </div>
       )}
-      {!p.rail.length && <p className="tr-e">{p.q || p.zf !== "Todos" ? "Nadie en el banquillo con ese filtro." : "No queda nadie libre en el banquillo."}</p>}
+      {!p.rail.length && <p className="tr-e">{p.q || p.zf !== "Todos" || p.oc ? "Nadie en el banquillo con ese filtro." : "No queda nadie libre en el banquillo."}</p>}
       <div className="s-half">
         <h3>Buscar en la colección · {p.seasonName}</h3>
         <label className="srch">
@@ -217,7 +221,7 @@ export function BenchTab(p: BenchTabProps) {
           ))}
         </div>
         <div className="al-row">
-          <button type="button" className="tg" onClick={p.onOc} aria-pressed={p.oc}>
+          <button type="button" className="tg" onClick={p.onOc} aria-pressed={p.oc} disabled={p.ocOff}>
             Solo convocados <Nuevo />
           </button>
           <label className="selw">
@@ -232,6 +236,7 @@ export function BenchTab(p: BenchTabProps) {
             </select>
           </label>
         </div>
+        {p.convTxt && <p className="cvl">{p.convTxt}</p>}
         <h3>Bajas · el auto no las coloca</h3>
         <div className="bj4">
           {p.bajas.map((b) => (
@@ -344,17 +349,6 @@ export function SystemTab(p: SystemTabProps) {
   );
 }
 
-export function PlanSoon() {
-  return (
-    <p className="soon">
-      <Icon n="plan" w={16} />
-      <span>
-        El plan en el campo: línea defensiva, presión, amplitud, salida y foco de ataque. <Nuevo>próximamente</Nuevo>
-      </span>
-    </p>
-  );
-}
-
 // ── the tray: candidates for a slot, and what to do with the cromo in your hand ──
 export interface TrayData {
   kick: string;
@@ -432,7 +426,7 @@ export function Tray({ d, ...p }: TrayProps) {
               ))}
             </div>
             <span>Juega de</span>
-            <div className="gr4 p" role="group" aria-label={"Posición de " + d.held.name + " en este once"}>
+            <div className="gr4 p" role="group" aria-label={"Posición de " + d.held.name + " en este siete"}>
               {d.held.pos.map((q) => (
                 <button key={q.z} type="button" className="gb" onClick={() => p.onPos(q.z)} aria-pressed={q.on}>
                   {q.z}
@@ -474,7 +468,7 @@ export function MasPanel({ tacSum, onGo }: { tacSum: string; onGo: (m: Modo | "p
         <button type="button" className="tile go" onClick={() => onGo("charla")}>
           <Icon n="whistle" w={22} />
           <b>La charla</b>
-          <small>El once, el plan y la jugada</small>
+          <small>El siete, el plan y la jugada</small>
         </button>
         <button type="button" className="tile" onClick={() => onGo("tableros")}>
           <Icon n="boards" w={22} />
@@ -484,7 +478,7 @@ export function MasPanel({ tacSum, onGo }: { tacSum: string; onGo: (m: Modo | "p
         <button type="button" className="tile" onClick={() => onGo("comparar")}>
           <Icon n="compare" w={22} />
           <b>Comparar</b>
-          <small>Dos onces cara a cara</small>
+          <small>Dos sietes cara a cara</small>
         </button>
         <button type="button" className="tile" onClick={() => onGo("compartir")}>
           <Icon n="share" w={22} />
@@ -507,13 +501,8 @@ export function MasPanel({ tacSum, onGo }: { tacSum: string; onGo: (m: Modo | "p
 }
 
 const SOON: Partial<Record<Modo, { kick: string; title: string; txt: string; back?: boolean }>> = {
-  quimica: { kick: "Química del once", title: "Química", txt: "El radar del once, la química por líneas y cada luz explicada." },
   jugadas: { kick: "Repetición", title: "Jugadas", txt: "Córners, faltas, salida de balón y tus jugadas, paso a paso." },
   dibujar: { kick: "Trazos de luz", title: "Dibujar", txt: "Carreras, pases, conducciones y zonas dibujadas sobre el césped." },
-  tableros: { kick: "Guardado automático", title: "Tableros", txt: "Tus tableros, el oficial del equipo y el partido de cada uno.", back: true },
-  comparar: { kick: "Cara a cara", title: "Comparar", txt: "Dos onces frente a frente, con quién entra y quién sale en el campo.", back: true },
-  compartir: { kick: "Al grupo del equipo", title: "Compartir", txt: "El cartel de los siete para mandarlo al grupo.", back: true },
-  ajustes: { kick: "Lo que enseñan los cromos", title: "Ajustes", txt: "Qué enseñan los cromos, la cámara, el sonido y el partido de día.", back: true },
   charla: { kick: "La charla", title: "El guion", txt: "Presenta el sistema, los siete, el plan y la jugada antes del partido.", back: true },
 };
 
@@ -556,7 +545,7 @@ export function ModeBar({ modo, onGo }: { modo: Modo; onGo: (m: Modo) => void })
   );
   return (
     <nav className="mbar" aria-label="Modos de la pizarra">
-      {b("editar", <Icon n="card" />, "Once")}
+      {b("editar", <Icon n="card" />, "Siete")}
       {b("quimica", <Icon n="spark" />, "Química")}
       {b("jugadas", <Icon n="film" />, "Jugadas", "", true)}
       {b("dibujar", <Icon n="pen" />, "Dibujar", "", true)}

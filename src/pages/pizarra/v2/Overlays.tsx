@@ -132,7 +132,7 @@ export function Ficha({ f, rm, onFlip, onClose }: { f: FichaView; rm: boolean; o
                   </div>
                 ))}
               </div>
-              <span className="fc-k">EN ESTE ONCE</span>
+              <span className="fc-k">EN ESTE SIETE</span>
               <ul className="fc-ln">
                 {f.ln.map((l) => (
                   <li key={l.k}>

@@ -114,5 +114,5 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
   goalLinks(games).forEach((l) => bump(l.from, l.to, "ast", l.n));
   const js = recent.map((m) => jornada.get(m.id)).filter((n): n is number => typeof n === "number");
   const recentLabel = js.length ? (js.length === 1 ? `J${js[0]}` : `J${js[0]}–J${js[js.length - 1]}`) : "";
-  return { list, byId: new Map(list.map((c) => [c.id, c])), pairs, recentLabel };
+  return { list, byId: new Map(list.map((c) => [c.id, c])), pairs, recentLabel, games: games.length };
 }

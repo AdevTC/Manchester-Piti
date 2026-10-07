@@ -62,7 +62,7 @@ export function applyFan(item: FanItem, L: Lineup, sq: Squad, id: string): FanOu
       return { kind: "lineup", lineup: next, toast: (g?.label ?? "") + ": " + (next.roles[item.role as RoleKey] ? name : "sin asignar") };
     }
     case "zone":
-      return { kind: "lineup", lineup: setPlaysAs(L, sq, id, item.zone as Zone), toast: name + " juega de " + item.zone + " en este once" };
+      return { kind: "lineup", lineup: setPlaysAs(L, sq, id, item.zone as Zone), toast: name + " juega de " + item.zone + " en este siete" };
     case "jugar":
       return { kind: "sub", sub: true };
     case "volver":

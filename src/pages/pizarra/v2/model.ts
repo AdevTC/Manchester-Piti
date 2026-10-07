@@ -47,6 +47,8 @@ export interface Squad {
   pairs: Map<string, PairStats>;
   /** The recent window, e.g. "J5–J7" (empty when nothing has been played). */
   recentLabel: string;
+  /** Matches the team has finished this season (the química is only a hint with very few). */
+  games: number;
 }
 
 export const pairKey = (a: string, b: string): string => (a < b ? a + "|" + b : b + "|" + a);
