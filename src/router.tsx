@@ -156,8 +156,8 @@ const pizarraRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/pizarra",
   component: lazyRouteComponent(
-    () => import("./pages/pizarra/Pizarra"),
-    "Pizarra",
+    () => import("./pages/pizarra/PizarraRoute"),
+    "PizarraRoute",
   ),
 });
 const contentRoute = createRoute({
