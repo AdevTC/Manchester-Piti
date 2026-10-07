@@ -26,10 +26,15 @@ export interface Fx {
   rw: "" | "REBOBINANDO" | "AVANCE";
   /** The camera moved: the turf eases in. */
   cam: boolean;
+  /** A jugada's rivals and ball: where they were drawn before (by rival id; the ball). */
+  rfrom: Record<string, [number, number]> | null;
+  bfrom: [number, number] | null;
+  /** The replay at 0,5×: the glide takes 3.2 s instead of 1.7 s. */
+  long: boolean;
 }
-export const FX0: Fx = { k: 0, from: null, slow: false, q0: null, rip: [], spin: false, cele: false, rw: "", cam: false };
+export const FX0: Fx = { k: 0, from: null, slow: false, q0: null, rip: [], spin: false, cele: false, rw: "", cam: false, rfrom: null, bfrom: null, long: false };
 /** How long each kind of change animates before the board settles (ms). */
-export const fxDuration = (fx: Fx): number => (fx.spin ? 2800 : fx.cele ? 2700 : fx.slow ? 1900 : 1300);
+export const fxDuration = (fx: Fx): number => (fx.spin ? 2800 : fx.cele ? 2700 : fx.slow ? (fx.long ? 3400 : 1900) : 1300);
 
 const n2 = (n: number): number => +n.toFixed(2);
 
@@ -263,7 +268,8 @@ export function planLayer(L: Lineup, cam: CamName, modo: Modo, showPlan = false)
   const B = proj(C, 100, v);
   return {
     heatD,
-    dlOn: !L.freeMode && modo !== "dibujar",
+    // (no línea under the strokes, nor over a jugada's paso)
+    dlOn: !L.freeMode && modo !== "dibujar" && modo !== "jugadas",
     dlD: framePath(C, [[0, v], [100, v]]),
     dlX: (B.x - 0.5).toFixed(2),
     dlY: A.y.toFixed(2),

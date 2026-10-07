@@ -1,12 +1,15 @@
 // The board's hands: one pointer controller (mouse, touch and pen) for dragging cromos from the pitch
-// and the bench (magnetic ghost slots + swap arc), the línea defensiva, the sheet's handle, and the
-// long-press. While a finger moves, only the dragged element's style changes (no re-render per frame);
-// everything it touched is put back before the drop is turned into a lineup change.
+// and the bench (magnetic ghost slots + swap arc), the línea defensiva, the sheet's handle, the
+// long-press, drawing on the pitch (Dibujar: the whole frame is the canvas, nothing else moves) and the
+// pieces of a jugada's paso (our cromos, the rivals, the ball). While a finger moves, only the dragged
+// element's style changes (no re-render per frame); everything it touched is put back before the drop
+// is turned into a lineup change.
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import { CAMS, proj, unproj, nearestLine, type CamName } from "./geometry";
 import { CLICK_GUARD_MS, DRAG_SLOP, LONG_PRESS_MS, pickMagnet, swapArc, tilt, type Magnet } from "./drag";
 import type { DragSource, DropTarget } from "./ops";
 import { dragHeight, SNAP_H, type Snap } from "./sheet";
+import { liveD } from "./telestrator";
 import type { Lineup } from "../formations";
 import { slotPos } from "./geometry";
 
@@ -20,6 +23,12 @@ export interface DragState {
   canLine: boolean;
   /** Ghost slots exist (system mode, editing). */
   magnets: boolean;
+  /** Dibujar on an editable board: a finger on the pitch draws. */
+  draw: boolean;
+  /** Dibujar on a read-only board: a finger on the pitch only hears why not. */
+  drawRo: boolean;
+  /** Jugadas on an editable board: the paso's pieces ([data-piece]) can be moved. */
+  pieces: boolean;
 }
 
 export interface DragHandlers {
@@ -30,6 +39,14 @@ export interface DragHandlers {
   onLine: (value: string | null) => void;
   onGrab: (height: number, velocity: number, full: number) => void;
   onBaja: () => void;
+  /** A finger lifted after drawing: its path (frame %); `tap` = it never really moved. */
+  onDraw: (pts: [number, number][], tap: boolean) => void;
+  onDrawRo: () => void;
+  /** A piece of the paso started moving (the replay pauses). */
+  onPieceStart: () => void;
+  /** A piece let go: where (frame %, `inside` the frame or not). */
+  onPiece: (piece: string, at: { X: number; Y: number; inside: boolean } | null) => void;
+  onPieceTap: (piece: string) => void;
 }
 
 interface Refs {
@@ -38,11 +55,15 @@ interface Refs {
   sheet: RefObject<HTMLElement | null>;
   layer: RefObject<HTMLDivElement | null>;
   swp: RefObject<SVGPathElement | null>;
+  /** The ink layer's live path (the stroke being drawn). */
+  live: RefObject<SVGPathElement | null>;
 }
 
 type Drag =
   | { kind: "grab"; y0: number; lastY: number; lastT: number; v: number; on: boolean; start: number; full: number; sh: number }
   | { kind: "line"; el: HTMLElement; y0: number; on: boolean; val: string | null }
+  | { kind: "draw"; pts: [number, number][]; moved: boolean }
+  | { kind: "piece"; el: HTMLElement; piece: string; x0: number; y0: number; on: boolean; lift: number }
   | {
       kind: "tok";
       el: HTMLElement;
@@ -152,6 +173,8 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       refs.sheet.current.classList.remove("drg");
       refs.sheet.current.style.removeProperty("transform");
     }
+    if (d?.kind === "piece") d.el.classList.remove("drag");
+    if (d?.kind === "draw" && refs.live.current) refs.live.current.removeAttribute("d");
     restore.current.undo();
     clearMag();
     hover(null);
@@ -178,6 +201,37 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       if (sh) {
         sh.classList.add("drg");
         sh.style.setProperty("transform", `translateY(${d.full - d.sh}px)`);
+      }
+      e.preventDefault();
+      return;
+    }
+    if (d.kind === "draw") {
+      const q = framePoint(e.clientX, e.clientY);
+      if (!q) return;
+      const l = d.pts[d.pts.length - 1];
+      // a new point every ~1% of travel (as designed): enough for the shape, light for the path
+      if (Math.abs(q.X - l[0]) + Math.abs(q.Y - l[1]) > 0.9) {
+        d.pts.push([q.X, q.Y]);
+        d.moved = true;
+        refs.live.current?.setAttribute("d", liveD(d.pts));
+      }
+      e.preventDefault();
+      return;
+    }
+    if (d.kind === "piece") {
+      const dx = e.clientX - d.x0;
+      const dy = e.clientY - d.y0;
+      if (!d.on && Math.hypot(dx, dy) < DRAG_SLOP) return;
+      if (!d.on) {
+        d.on = true;
+        d.el.classList.add("drag");
+        latest.current.h.onPieceStart();
+      }
+      const q = framePoint(e.clientX, e.clientY);
+      if (q) {
+        restore.current.set(d.el, "animation", "none");
+        restore.current.set(d.el, "--x", q.X.toFixed(2));
+        restore.current.set(d.el, "--y", (q.Y + d.lift).toFixed(2));
       }
       e.preventDefault();
       return;
@@ -294,6 +348,22 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       hh.onGrab(d.sh, d.v, d.full);
       return;
     }
+    if (d.kind === "draw") {
+      const { pts, moved } = d;
+      cleanup();
+      guard();
+      hh.onDraw(pts, !moved);
+      return;
+    }
+    if (d.kind === "piece") {
+      const { on, piece, lift } = d;
+      const q = framePoint(e.clientX, e.clientY);
+      cleanup();
+      guard();
+      if (!on) return hh.onPieceTap(piece);
+      hh.onPiece(piece, q ? { X: q.X, Y: q.Y + lift, inside: q.inside } : null);
+      return;
+    }
     if (d.kind === "line") {
       const { on, val } = d;
       cleanup();
@@ -330,7 +400,7 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
   const cancel = () => {
     const was = drag.current;
     cleanup();
-    if (was && was.kind !== "grab" && was.on) latest.current.h.onEnd();
+    if (was && (was.kind === "tok" || was.kind === "line") && was.on) latest.current.h.onEnd();
   };
 
   const attach = () => {
@@ -354,6 +424,24 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       const full = refs.sheet.current.offsetHeight || SNAP_H.full;
       const start = st.snap === "full" ? full : Math.min(SNAP_H[st.snap], full);
       drag.current = { kind: "grab", y0: e.clientY, lastY: e.clientY, lastT: Date.now(), v: 0, on: false, start, full, sh: start };
+      attach();
+      return;
+    }
+    const fe = refs.frame.current;
+    if ((st.draw || st.drawRo) && fe?.contains(target)) {
+      if (!st.draw) return hh.onDrawRo();
+      const q = framePoint(e.clientX, e.clientY);
+      if (!q) return;
+      e.preventDefault();
+      drag.current = { kind: "draw", pts: [[q.X, q.Y]], moved: false };
+      attach();
+      return;
+    }
+    const pc = st.pieces ? target.closest<HTMLElement>("[data-piece]") : null;
+    if (pc && fe?.contains(pc)) {
+      const piece = pc.getAttribute("data-piece") ?? "";
+      // our cromos are held by their feet, like on the board; a rival or the ball by its middle
+      drag.current = { kind: "piece", el: pc, piece, x0: e.clientX, y0: e.clientY, on: false, lift: piece.startsWith("p:") ? 4 : 0 };
       attach();
       return;
     }

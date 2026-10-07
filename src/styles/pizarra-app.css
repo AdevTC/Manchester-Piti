@@ -114,3 +114,33 @@
 .pzv .off .cfm{color:#eef4ff}
 /* The official card's notes and its «Quitar el oficial». */
 .pzv .off .b3:not(.gold){justify-self:start}
+
+/* ── Phase 4: dibujar and jugadas ── */
+/* Dibujar on an editable board: the whole pitch is a canvas (no scrolling or zooming under the finger). */
+.pzv.d-on .pfr,.pzv.d-on .pfr *{touch-action:none;cursor:crosshair}
+/* The marked stroke shines brighter and thicker; a marked texto gets its outline. */
+.pzv .ink g.sel{filter:drop-shadow(0 0 7px var(--c)) drop-shadow(0 0 2px #fff)}
+.pzv .ink g.sel .ln2,.pzv .ink g.sel .hd{stroke-width:5.2}
+.pzv .ink g.sel .dt{stroke-width:6.4}
+.pzv .ink g.sel .zf{stroke-width:3;fill-opacity:.28}
+.pzv .itx.sel{box-shadow:0 0 0 2px var(--c),0 0 16px var(--c)}
+.pzv .tools2 .dsel{flex:1 1 auto;min-height:40px;min-width:0}
+/* A jugada's paso on an editable board: the rivals and the ball can be moved too; a marked rival
+   wears a gold ring. */
+.pzv.j-edit .rv,.pzv.j-edit .ball{pointer-events:auto;cursor:grab;touch-action:none}
+.pzv .rv.drag,.pzv .ball.drag{z-index:4000;cursor:grabbing;animation:none;transform:translate(-50%,-50%) scale(calc(var(--sc,1) * 1.25))}
+.pzv .rv.sel::after{content:"";position:absolute;inset:-22%;border-radius:50%;border:2px solid #FFC659;box-shadow:0 0 12px rgba(255,198,89,.8);pointer-events:none}
+/* «En 3D»: the stadium fills its layer under the HUD. */
+.pzv .p3d .p3d-in{position:absolute;inset:0}
+/* The jugada editor (sheet, full): its name, the pasos with their controls, the paso's title and note. */
+.pzv .jed{display:grid;gap:8px;margin-top:12px}
+.pzv .jed h3{margin:4px 0 0}
+.pzv .pasos li{grid-template-columns:minmax(0,1fr) repeat(4,auto)}
+.pzv .pasos .ib[disabled]{opacity:.35}
+.pzv .jpaso{display:grid;gap:8px}
+.pzv .jf-f{display:grid;gap:4px;min-width:0;font-size:12px;font-weight:600;color:var(--soft)}
+.pzv .jf-f input,.pzv .jf-f textarea{min-width:0;min-height:44px;padding:10px 12px;border:0;border-radius:12px;background:var(--input);box-shadow:inset 0 0 0 1px var(--pl);color:var(--ink);font:inherit;font-size:14px;font-weight:500;resize:vertical}
+.pzv .jf-f [aria-invalid=true]{box-shadow:inset 0 0 0 1.5px var(--red)}
+/* Touch targets of at least 44px for the replay's pills, the library and the colours. */
+.pzv .pill,.pzv .sw{position:relative}
+.pzv .pill::before,.pzv .sw::before,.pzv .jl::before{content:"";position:absolute;inset:-2px}

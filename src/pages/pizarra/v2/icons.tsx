@@ -81,6 +81,24 @@ const ICONS = {
   plan: ({ w = 18 }: P) => <Svg w={w}><path d="M4 4h16v11l-5 5H4Z" /><path d="M15 20v-5h5M8 9h8M8 13h4" /></Svg>,
   plus: ({ w = 17 }: P) => <Svg w={w} sw={2.2}><path d="M12 5v14M5 12h14" /></Svg>,
   search: ({ w = 19 }: P) => <Svg w={w}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></Svg>,
+  // the replay's transport and toggles
+  play: ({ w = 20 }: P) => <Svg w={w} sw={2}><path d="M7 4v16l13-8Z" /></Svg>,
+  pause: ({ w = 20 }: P) => <Svg w={w} sw={2.6}><path d="M8 4v16M16 4v16" /></Svg>,
+  prev: ({ w = 20 }: P) => <Svg w={w} sw={2}><path d="M18 5 8 12l10 7ZM6 5v14" /></Svg>,
+  next: ({ w = 20 }: P) => <Svg w={w} sw={2}><path d="m6 5 10 7-10 7ZM18 5v14" /></Svg>,
+  cube: ({ w = 16 }: P) => <Svg w={w}><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z" /><path d="m4 7.5 8 4.5 8-4.5M12 12v9" /></Svg>,
+  layers: ({ w = 16 }: P) => <Svg w={w}><path d="m12 3 9 5-9 5-9-5Z" /><path d="m3 13 9 5 9-5" strokeDasharray="2 2" /></Svg>,
+  trail: ({ w = 16 }: P) => <Svg w={w}><circle cx="18" cy="6" r="3" /><path d="M15 8c-4 2-6 6-12 10" strokeDasharray="2 3" /></Svg>,
+  slow: ({ w = 16 }: P) => <Svg w={w}><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2M10 2h4" /></Svg>,
+  chevU: ({ w = 18 }: P) => <Svg w={w} sw={2.4}><path d="m6 15 6-6 6 6" /></Svg>,
+  chevD: ({ w = 18 }: P) => <Svg w={w} sw={2.4}><path d="m6 9 6 6 6-6" /></Svg>,
+  // the telestrator's tools
+  run: ({ w = 18 }: P) => <Svg w={w} sw={2.2}><path d="M4 18C9 18 9 8 18 7" strokeDasharray="1 3.2" /><path d="m15 4 3 3-3 3" /></Svg>,
+  pass: ({ w = 18 }: P) => <Svg w={w} sw={2}><path d="M4 18 18 6" /><path d="M12 6h6v6" /></Svg>,
+  drib: ({ w = 18 }: P) => <Svg w={w}><path d="M3 16c2-3 3 1 5-2s3 1 5-2 3 1 5-2" /><path d="m16 6 3 3-3 3" /></Svg>,
+  zone: ({ w = 18 }: P) => <Svg w={w}><rect x="4" y="6" width="16" height="12" rx="3" strokeDasharray="3 2" /></Svg>,
+  pencil: ({ w = 18 }: P) => <Svg w={w}><path d="M4 17c3-5 5 2 8-3s5-3 8-6" /></Svg>,
+  text: ({ w = 18 }: P) => <Svg w={w} sw={2}><path d="M5 6h14M12 6v13M9 19h6" /></Svg>,
 };
 
 export type IconName = keyof typeof ICONS;
@@ -95,6 +113,22 @@ export function Icon({ n, w }: { n: IconName; w?: number }) {
 export const Shirt = () => (
   <svg className="sh" viewBox="0 0 200 210" aria-hidden="true">
     <path d="M62 8 C75 22 125 22 138 8 L190 34 L176 84 L156 76 L156 202 L44 202 L44 76 L24 84 L10 34 Z" />
+  </svg>
+);
+
+/** A rival on the jugada board (a red cross in a disc). */
+export const RivalMark = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 8l8 8M16 8l-8 8" />
+  </svg>
+);
+
+/** The ball on the jugada board. */
+export const BallMark = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="10" fill="#f4f8ff" stroke="#0c1733" strokeWidth="1.4" />
+    <path d="m12 7.2 4 2.9-1.5 4.7h-5L8 10.1Z" fill="#0c1733" />
   </svg>
 );
 
