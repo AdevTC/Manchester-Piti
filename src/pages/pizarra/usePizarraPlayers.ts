@@ -5,6 +5,7 @@ import { useSeason, type Season } from "../../context/SeasonContext";
 import type { Zone } from "./formations";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import { mapPlayer } from "../../lib/firestoreMappers";
+import { normZone } from "./positions";
 
 const PLAYERS_KEY = ["players"] as const;
 const playersQuery = collection(db, "players");
@@ -109,7 +110,8 @@ export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolea
           lastName: p.lastName || "",
           shirtName,
           number,
-          naturalPosition: p.naturalPosition,
+          // Stored as POR/DEF/MED/DEL or as words («Portero», «Defensa»…): always the code here.
+          naturalPosition: normZone(p.naturalPosition),
           seasonsCount: p.seasons?.length ?? 0,
           injured: p.injured === true,
           active: p.active !== false,
