@@ -145,6 +145,13 @@ const vestuarioRoute = createRoute({
     "VestuarioPage",
   ),
 });
+// Invitation links (/invitacion/<code>): the layout shows the door until the account is inside;
+// once it is, the link just leads into the vestuario.
+const invitationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/invitacion/$code",
+  component: () => <Navigate to="/vestuario" replace />,
+});
 const pizarraRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/pizarra",
@@ -162,6 +169,7 @@ const contentRoute = createRoute({
   ),
 });
 const routeTree = rootRoute.addChildren([
+  invitationRoute,
   fixturesRoute,
   clubRoute,
   vestuarioRoute,

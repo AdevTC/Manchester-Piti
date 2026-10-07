@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { enterVestuario } from "./helpers";
-test("Google y clave permiten votar una vez por cuenta y cambiar el voto", async ({
+test("Google permite votar una vez por cuenta y cambiar el voto", async ({
   page,
 }) => {
   await enterVestuario(page);

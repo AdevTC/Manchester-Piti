@@ -265,3 +265,60 @@ export function useMatchPredictions(matchId: string | undefined, enabled: boolea
     (uid, d) => ({ uid, name: d.name ?? "Miembro", goalsFor: d.goalsFor, goalsAgainst: d.goalsAgainst }),
   );
 }
+
+// ---------- the door (admins): requests, invitations and who is inside
+export interface DoorRequestRow {
+  uid: string;
+  status: "pending" | "rejected" | "removed";
+  googleName: string;
+  email: string;
+  photo: string;
+  playerId: string | null;
+  playerName: string | null;
+  name: string | null;
+  at: number;
+}
+export function useDoorRequests(enabled: boolean) {
+  return useLiveQuery<DoorRequestRow>(
+    enabled ? "accessRequests" : null,
+    () => query(collection(db, "accessRequests"), where("status", "==", "pending")),
+    (uid, d) => ({ uid, status: d.status, googleName: d.googleName ?? "", email: d.email ?? "", photo: d.photo ?? "", playerId: d.playerId ?? null, playerName: d.playerName ?? null, name: d.name ?? null, at: millis(d.at) }),
+  );
+}
+export interface InviteRow {
+  code: string;
+  byName: string;
+  expiresAt: number;
+  maxUses: number;
+  uses: number;
+  revoked: boolean;
+  playerId: string | null;
+  playerName: string | null;
+}
+export function useInvites(enabled: boolean) {
+  return useLiveQuery<InviteRow>(
+    enabled ? "invites" : null,
+    () => query(collection(db, "invites"), where("expiresAt", ">", Timestamp.fromMillis(Date.now()))),
+    (code, d) => ({ code, byName: d.byName ?? "", expiresAt: millis(d.expiresAt), maxUses: d.maxUses ?? 1, uses: d.uses ?? 0, revoked: !!d.revoked, playerId: d.playerId ?? null, playerName: d.playerName ?? null }),
+  );
+}
+export interface MemberRow {
+  uid: string;
+  joinedAt: number;
+  via: string;
+}
+export function useTeamMembers(enabled: boolean) {
+  return useLiveQuery<MemberRow>(enabled ? "teamMembers" : null, () => collection(db, "teamMembers"), (uid, d) => ({ uid, joinedAt: millis(d.joinedAt), via: d.via ?? "clave" }));
+}
+export interface PersonRow {
+  uid: string;
+  nickname: string;
+  displayName: string;
+  email: string;
+  role: string;
+  playerId: string | null;
+  removed: boolean;
+}
+export function useClubPeople(enabled: boolean) {
+  return useLiveQuery<PersonRow>(enabled ? "users" : null, () => collection(db, "users"), (uid, d) => ({ uid, nickname: d.nickname ?? "", displayName: d.displayName ?? "", email: d.email ?? "", role: d.role ?? "user", playerId: d.playerId || null, removed: !!d.removedAt }));
+}

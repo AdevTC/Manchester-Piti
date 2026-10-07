@@ -54,11 +54,20 @@ service cloud.firestore {
         allow delete: if false;
       }
     }
+    // Membership lasts until an admin removes it (backend only). Admins see who has access.
     match /teamMembers/{uid} {
-      allow get: if signedIn() && request.auth.uid == uid;
-      allow list, write: if false;
+      allow get: if signedIn() && (request.auth.uid == uid || admin());
+      allow list: if admin();
+      allow write: if false;
     }
     match /accessAttempts/{uid} { allow read, write: if false; }
+    // The door: invitation links (captains) and access requests (each one sees their own).
+    match /invites/{code} { allow read: if admin(); allow write: if false; }
+    match /accessRequests/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || admin());
+      allow list: if admin();
+      allow write: if false;
+    }
     match /nicknames/{name} { allow read: if teamMember(); allow write: if false; }
     match /matchDrafts/{id} { allow read: if admin(); allow write: if false; }
     match /matchAudit/{id} { allow read: if admin(); allow write: if false; }

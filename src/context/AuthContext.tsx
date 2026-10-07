@@ -1,9 +1,8 @@
-import { registerTeamProfile } from '../lib/clubApi';
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { type User, browserPopupRedirectResolver, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { type User, browserPopupRedirectResolver, getRedirectResult, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, googleProvider, db } from "../firebase";
-import { userProfileSchema, normalizeNickname } from "../lib/schemas";
+import { userProfileSchema } from "../lib/schemas";
 import { reportDroppedDoc } from "../lib/docTelemetry";
 
 export interface UserProfile {
@@ -21,7 +20,6 @@ interface AuthContextType {
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  registerNickname: (nickname: string) => Promise<boolean>;
   updateUserRole: (targetUid: string, targetEmail: string, newRole: "admin" | "user") => Promise<boolean>;
   setLocalAdminRole: (isAdmin: boolean) => void; // Developer helper
 }
@@ -124,10 +122,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [localAdminOverride, PREVIEW]);
 
+  // A web app added to an iPhone/iPad home screen can't open Google's popup: go there and back.
+  const standalone = () =>
+    typeof window !== "undefined" &&
+    (window.matchMedia?.("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true);
+  useEffect(() => {
+    if (!standalone()) return;
+    getRedirectResult(auth, browserPopupRedirectResolver).catch((error: unknown) => console.error("Google redirect failed:", error));
+  }, []);
   const loginWithGoogle = async () => {
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
+      if (standalone()) await signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver);
+      else await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
     } catch (error) {
       console.error("Google login failed:", error);
       setLoading(false);
@@ -143,24 +150,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Logout failed:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const registerNickname = async (nickname: string): Promise<boolean> => {
-    if (!user) return false;
-    
-    const formattedNickname = normalizeNickname(nickname);
-    if (!formattedNickname || formattedNickname.length < 3) {
-      throw new Error("El nickname debe tener al menos 3 caracteres.");
-    }
-
-    try {
-      const result = await registerTeamProfile({ nickname: formattedNickname });
-      setProfile({ email: user.email || '', nickname: result.data.nickname, role: result.data.role, createdAt: new Date() });
-      return true;
-    } catch (error) {
-      console.error("Error registering nickname:", error);
-      throw error;
     }
   };
 
@@ -189,7 +178,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loading, 
       loginWithGoogle, 
       logout, 
-      registerNickname, 
       updateUserRole,
       setLocalAdminRole 
     }}>

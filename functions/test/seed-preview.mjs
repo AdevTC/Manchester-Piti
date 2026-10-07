@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
 const { initializeApp } = await import("firebase-admin/app");
@@ -43,12 +42,6 @@ await db
     role: "admin",
     createdAt: new Date(),
   });
-const secret = readFileSync(
-  new URL("../.secret.local", import.meta.url),
-  "utf8",
-)
-  .match(/^TEAM_PASSWORD=(.+)$/m)?.[1]
-  ?.trim();
 const call = async (name, data) => {
   const r = await fetch(
     "http://127.0.0.1:5001/demo-manchester-piti/europe-southwest1/" + name,
@@ -65,7 +58,8 @@ const call = async (name, data) => {
   if (json.error) throw new Error(JSON.stringify(json));
   return json.result;
 };
-await call("enterTeam", { password: secret });
+// The preview admin was already in the vestuario: asking lets them straight back in.
+await call("requestAccess", { name: "Capitán" });
 await db
   .doc("seasons/preview-season")
   .set({ name: "Temporada 2026/27 · Prueba" });
@@ -152,6 +146,33 @@ for (const [id, sheet] of [
     sheet: { ...sheet, revision: old.get("revision") ?? 0 },
     draft: false,
   });
+}
+// The emulator's "Fichaje de prueba" (preview-fan) always starts outside the door, so the door
+// e2e can ask and be let in on every run.
+const fan = await fetch(
+  "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=demo",
+  {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      postBody: new URLSearchParams({
+        id_token:
+          b({ alg: "none", typ: "JWT" }) +
+          "." +
+          b({ sub: "preview-fan", email: "fichaje@piti.test", email_verified: true, name: "Erik de pruebas", aud: "demo", iss: "https://accounts.google.com" }) +
+          ".",
+        providerId: "google.com",
+      }).toString(),
+      requestUri: "http://localhost",
+      returnSecureToken: true,
+    }),
+  },
+).then((r) => r.json());
+if (fan.localId) {
+  const uid = fan.localId;
+  for (const c of ["playerLinks", "nicknames"])
+    for (const d of (await db.collection(c).where("uid", "==", uid).get()).docs) await d.ref.delete();
+  for (const p of ["teamMembers/", "users/", "accessRequests/"]) await db.doc(p + uid).delete();
 }
 console.log(
   "Vista de pruebas preparada: Google de prueba, temporada 2026/27, próximo encuentro y acta finalizada.",

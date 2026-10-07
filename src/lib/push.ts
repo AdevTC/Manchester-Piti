@@ -4,7 +4,9 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
 
 export const VAPID_PUBLIC = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
-export type Topic = "start" | "goals" | "final" | "mvp" | "dates";
+export type Topic = "start" | "goals" | "final" | "mvp" | "dates" | DoorTopic;
+/** The vestuario door: "door" for captains (someone knocks), "access" for whoever waits to be let in. */
+export type DoorTopic = "door" | "access";
 export const TOPIC_LABELS: { id: Topic; label: string; hint?: string }[] = [
   { id: "start", label: "Cuando empiece el partido" },
   { id: "goals", label: "Cada gol", hint: "Del Piti y del rival, en directo" },
@@ -60,3 +62,9 @@ export async function setTopics(topics: Topic[]): Promise<Topic[]> {
   }
   return topics;
 }
+
+/** Turns one topic on or off on this device, keeping the others. */
+export const toggleTopic = (topic: Topic, on: boolean) => {
+  const rest = savedTopics().filter((t) => t !== topic);
+  return setTopics(on ? [...rest, topic] : rest);
+};

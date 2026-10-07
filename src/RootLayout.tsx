@@ -6,10 +6,10 @@ import { useAuth } from "./context/AuthContext";
 import { useTeam } from "./context/TeamContext";
 import { Crest } from "./components/Crest";
 import { RoutePending } from "./components/route-states";
+import { useWelcome } from "./lib/doorWelcome";
 import "./styles/club.css";
-// Only private pages show the gate and the nickname step: keep them out of the entry chunk.
-const TeamGate = lazy(() => import("./pages/Vestuario").then((m) => ({ default: m.TeamGate })));
-const NicknameSetup = lazy(() => import("./pages/NicknameSetup").then((m) => ({ default: m.NicknameSetup })));
+// Only private pages (and invitation links) show the door: keep it out of the entry chunk.
+const AccessGate = lazy(() => import("./pages/acceso/AccessGate").then((m) => ({ default: m.AccessGate })));
 // The live island (a pill while a match is on) loads apart from the entry: it renders nothing otherwise.
 const LiveIsland = lazy(() => import("./components/celeste/LiveIsland").then((m) => ({ default: m.LiveIsland })));
 export function RootLayout() {
@@ -19,11 +19,15 @@ export function RootLayout() {
   const privatePage = ["/admin", "/profile", "/pizarra", "/vestuario"].some(
     (p) => pathname.startsWith(p),
   );
+  const invitation = pathname.startsWith("/invitacion/");
+  // The door stays up through the walkout after being let in.
+  const welcome = useWelcome();
+  const door = (privatePage || invitation) && (!member || !profile || !!welcome);
   const admin = profile?.role === "admin" || profile?.role === "superadmin";
   // Celeste pages (home, plantilla, vestuario) bring their own header, dock and footer: hide the site chrome there.
   // While the session is being restored, private pages wait on a neutral skeleton (no gate flash).
-  const checking = privatePage && (!ready || (member && loading));
-  const immersive = pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname === "/club" || pathname.startsWith("/matches/") || pathname.startsWith("/jugadores/") || (pathname === "/vestuario" && (checking || (member && !!profile)));
+  const checking = (privatePage || invitation) && (!ready || (member && loading));
+  const immersive = pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname === "/club" || pathname.startsWith("/matches/") || pathname.startsWith("/jugadores/") || (pathname === "/vestuario" && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
@@ -42,13 +46,9 @@ export function RootLayout() {
       <main id="contenido" className={immersive ? "club-main vx-main-shell" : "club-main"}>
         {checking ? (
           <RoutePending />
-        ) : privatePage && !member ? (
-          <Suspense fallback={null}>
-            <TeamGate />
-          </Suspense>
-        ) : privatePage && !profile ? (
-          <Suspense fallback={null}>
-            <NicknameSetup />
+        ) : door ? (
+          <Suspense fallback={<RoutePending />}>
+            <AccessGate />
           </Suspense>
         ) : pathname.startsWith("/admin") && !admin ? (
           <div className="club-empty">

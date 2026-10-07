@@ -1,15 +1,14 @@
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { defineSecret } from "firebase-functions/params";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import {
   calculateLedger,
   EVENT_LABELS,
   type MatchSheet,
 } from "./matchEngine.js";
-import { db, idSchema, parse, googleUser, member, admin } from "./common.js";
+import { db, idSchema, parse, admin } from "./common.js";
 import { recomputePorra } from "./vestuario.js";
 export { clubShare } from "./social.js";
 export { setSeasonArchived } from "./seasons.js";
@@ -17,6 +16,7 @@ export { clubCalendar } from "./calendar.js";
 export { clubBundle } from "./bundle.js";
 export { liveEvent } from "./live.js";
 export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushKickoff } from "./push.js";
+export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";
 export {
   requestPlayerClaim,
   resolvePlayerClaim,
@@ -25,7 +25,6 @@ export {
   deleteTraining,
 } from "./vestuario.js";
 
-const teamPassword = defineSecret("TEAM_PASSWORD");
 const url = z.union([
   z.literal(""),
   z.url().refine((v) => v.startsWith("https://"), "Usa una URL HTTPS."),
@@ -73,115 +72,6 @@ export const sheetSchema = z.object({
   gallery: z.array(url).max(20).optional(),
   meetingNote: z.string().max(500).optional(),
   kit: z.enum(["home", "away"]).optional(),
-});
-/**
- * How long the team key unlocks the vestuario on a device. Google sign-in is still
- * required, "Salir del vestuario" revokes it at once and an admin can remove teamMembers/{uid}.
- */
-const TEAM_ACCESS_MS = 30 * 24 * 60 * 60_000;
-export const enterTeam = onCall({ secrets: [teamPassword] }, async (req) => {
-  const uid = googleUser(req);
-  const { password } = parse(
-    z.object({ password: z.string().max(200) }),
-    req.data,
-  );
-  const now = Date.now();
-  const attemptRef = db.doc(`accessAttempts/${uid}`);
-  const allowed = await db.runTransaction(async (tx) => {
-    const snap = await tx.get(attemptRef);
-    const fresh = now - (snap.get("since") ?? 0) > 15 * 60_000;
-    const attempts = fresh ? 0 : (snap.get("count") ?? 0);
-    if (attempts >= 5) return false;
-    tx.set(attemptRef, {
-      since: fresh ? now : snap.get("since"),
-      count: attempts + 1,
-    });
-    return true;
-  });
-  if (!allowed)
-    throw new HttpsError(
-      "resource-exhausted",
-      "Demasiados intentos. Prueba dentro de 15 minutos.",
-    );
-  const digest = (s: string) => createHash("sha256").update(s).digest();
-  if (
-    !teamPassword.value() ||
-    !timingSafeEqual(digest(password), digest(teamPassword.value()))
-  )
-    throw new HttpsError(
-      "permission-denied",
-      "La clave del equipo no es correcta.",
-    );
-  const expiresAt = Timestamp.fromMillis(now + TEAM_ACCESS_MS);
-  await db
-    .doc(`teamMembers/${uid}`)
-    .set({ expiresAt, joinedAt: FieldValue.serverTimestamp() });
-  await attemptRef.delete();
-  return { expiresAt: expiresAt.toMillis() };
-});
-export const leaveTeam = onCall(async (req) => {
-  const uid = googleUser(req);
-  await db.doc(`teamMembers/${uid}`).delete();
-  return { ok: true };
-});
-export const registerTeamProfile = onCall(async (req) => {
-  const uid = await member(req);
-  const { nickname } = parse(
-    z.object({
-      nickname: z
-        .string()
-        .trim()
-        .toLowerCase()
-        .min(3)
-        .max(15)
-        .regex(/^[a-z0-9_]+$/),
-    }),
-    req.data,
-  );
-  const userRef = db.doc(`users/${uid}`),
-    nameRef = db.doc(`nicknames/${nickname}`);
-  const role = await db.runTransaction(async (tx) => {
-    const [current, claimed, legacy] = await Promise.all([
-      tx.get(userRef),
-      tx.get(nameRef),
-      tx.get(db.collection("users").where("nickname", "==", nickname).limit(2)),
-    ]);
-    if (
-      (claimed.exists && claimed.get("uid") !== uid) ||
-      legacy.docs.some((d) => d.id !== uid)
-    )
-      throw new HttpsError(
-        "already-exists",
-        "Ese nombre ya lo utiliza otro miembro.",
-      );
-    const currentRole =
-      current.get("role") ??
-      (req.auth?.token.email === "adriantomascv@gmail.com" &&
-      req.auth?.token.email_verified === true
-        ? "superadmin"
-        : "user");
-    const previous = current.get("nickname");
-    const previousRef =
-      previous && previous !== nickname && /^[a-z0-9_]{3,15}$/.test(previous)
-        ? db.doc(`nicknames/${previous}`)
-        : null;
-    const previousClaim = previousRef ? await tx.get(previousRef) : null;
-    tx.set(nameRef, { uid });
-    if (previousRef && previousClaim?.get("uid") === uid)
-      tx.delete(previousRef);
-    tx.set(
-      userRef,
-      {
-        email: req.auth?.token.email ?? "",
-        nickname,
-        role: currentRole,
-        createdAt: current.get("createdAt") ?? FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-    return currentRole;
-  });
-  return { nickname, role };
 });
 export const saveMatchSheet = onCall(async (req) => {
   const uid = await admin(req);

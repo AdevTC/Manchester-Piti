@@ -51,8 +51,7 @@ jobs:
       - run: npm --prefix functions run build
       - name: Create emulator-only fixture secret
         run: |
-          echo "TEAM_PASSWORD=ci-team-only" > functions/.secret.local
-          echo "VAPID_PRIVATE_KEY=ci-not-a-key" >> functions/.secret.local
+          echo "VAPID_PRIVATE_KEY=ci-not-a-key" > functions/.secret.local
       - run: pnpm exec playwright install --with-deps chromium
       - name: Run isolated integration suite
         run: >-

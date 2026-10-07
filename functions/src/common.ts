@@ -47,7 +47,7 @@ function checkAccess(access: FirebaseFirestore.DocumentSnapshot) {
   )
     throw new HttpsError(
       "permission-denied",
-      "Introduce la clave del vestuario.",
+      "Pide acceso al vestuario.",
     );
 }
 export async function member(req: CallableRequest) {

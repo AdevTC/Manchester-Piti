@@ -1,7 +1,9 @@
 // Pure rules of the push notices (functions/src/push.ts): which change of a match deserves a notice,
 // to which topic, and its words. Apart so the app's tests can run them.
 export const TOPICS = ["start", "goals", "final", "mvp", "dates"] as const;
-export type Topic = (typeof TOPICS)[number];
+/** Personal notices of the vestuario door: "door" for admins (someone asks to come in), "access" for whoever asked. */
+export const DOOR_TOPICS = ["door", "access"] as const;
+export type Topic = (typeof TOPICS)[number] | (typeof DOOR_TOPICS)[number];
 
 export interface Notice {
   topic: Topic;
