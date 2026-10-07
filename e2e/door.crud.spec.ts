@@ -17,6 +17,13 @@ test("la puerta: un fichaje elige camiseta, pide acceso y el capitán le abre", 
   await fan.getByRole("button", { name: "Pedir acceso" }).click();
   await expect(fan.getByRole("heading", { name: /En la puerta/i })).toBeVisible();
 
+  // A step already done is a way back: «Tu ficha» reopens the shirts, and asking again keeps waiting.
+  await fan.getByRole("button", { name: /Volver a «Tu ficha»/ }).click();
+  await expect(fan.getByRole("heading", { name: /Quién/ })).toBeVisible();
+  await fan.locator(".fc").filter({ hasText: label }).first().click();
+  await fan.getByRole("button", { name: "Pedir acceso" }).click();
+  await expect(fan.getByRole("heading", { name: /En la puerta/i })).toBeVisible();
+
   // The captain sees the request on the swipe card and approves it (after the undo window).
   const capCtx = await browser.newContext();
   const cap = await capCtx.newPage();
