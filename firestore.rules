@@ -173,15 +173,33 @@ service cloud.firestore {
           && request.resource.data.role == 'superadmin');
       allow delete: if false;
     }
+    // Drawings and jugadas of a board: lists of bounded size (their content is validated on read).
+    function boardExtrasOk(d) {
+      return d.get('drawings', []) is list && d.get('drawings', []).size() <= 60
+        && d.get('plays', []) is list && d.get('plays', []).size() <= 12;
+    }
     match /lineups/{id} {
       allow read: if teamMember();
       allow create: if teamMember() && request.resource.data.ownerUid == request.auth.uid
-        && (!request.resource.data.get('isOfficial',false) || admin());
+        && (!request.resource.data.get('isOfficial',false) || admin())
+        && boardExtrasOk(request.resource.data);
       allow update: if teamMember()
         && request.resource.data.ownerUid == resource.data.ownerUid
         && (admin() || (resource.data.ownerUid == request.auth.uid
-          && !resource.data.get('isOfficial',false) && !request.resource.data.get('isOfficial',false)));
+          && !resource.data.get('isOfficial',false) && !request.resource.data.get('isOfficial',false)))
+        && boardExtrasOk(request.resource.data);
       allow delete: if teamMember() && (admin() || (resource.data.ownerUid == request.auth.uid && !resource.data.get('isOfficial',false)));
+      // What each member thinks of the official seven: their own doc, «ok» or «dudas», only while
+      // the board is official. Everyone inside sees the counts.
+      match /reactions/{uid} {
+        allow read: if teamMember();
+        allow create, update: if teamMember() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['value','at'])
+          && request.resource.data.value in ['ok','dudas']
+          && request.resource.data.at == request.time
+          && get(/databases/$(database)/documents/lineups/$(id)).data.get('isOfficial', false) == true;
+        allow delete: if teamMember() && request.auth.uid == uid;
+      }
     }
   }
 }

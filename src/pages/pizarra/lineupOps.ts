@@ -29,6 +29,8 @@ export function seedLineup(formation: FormationName, playerIds: string[]): Lineu
     tactics: defaultTactics(),
     playerPositions: {},
     pinned: [],
+    drawings: [],
+    plays: [],
   };
 }
 

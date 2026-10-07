@@ -8,6 +8,7 @@
 // stable order is what lets a player at index `i` travel to the new index-`i`
 // position when the formation changes (the morph).
 
+import type { Play, Stroke } from "../../lib/schemas";
 import type { Tactics } from "./tactics";
 
 /** Vertical zone of a slot/player — used for the out-of-position cue. */
@@ -53,6 +54,10 @@ export interface Lineup {
   playerPositions: Record<string, Zone>;
   /** Players pinned to their slot (immune to formation change / Auto-XI). */
   pinned: string[];
+  /** Telestrator strokes over the pitch (≤ 60; see drawings.ts). */
+  drawings: Stroke[];
+  /** The board's own jugadas (≤ 12; see plays.ts). The built-in ones are not stored. */
+  plays: Play[];
 }
 
 // Position labels (Spanish): POR portero · LD/LI lateral · DFC central ·

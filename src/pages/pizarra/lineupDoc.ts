@@ -3,6 +3,8 @@
 // unit-testable (sub-project 4). Firestore rejects `undefined`, so writes are
 // pruned and `matchId` is normalized to `null`.
 import type { Lineup } from "./formations";
+import { parseDrawings, strokeToData } from "./drawings";
+import { parsePlays, playToData } from "./plays";
 
 /** Metadata stored alongside the board fields in the `lineups` collection. */
 export interface LineupMeta {
@@ -54,6 +56,8 @@ export function extractLineup(d: LineupDoc): Lineup {
     tactics: { ...d.tactics },
     playerPositions: { ...d.playerPositions },
     pinned: [...d.pinned],
+    drawings: structuredClone(d.drawings),
+    plays: structuredClone(d.plays),
   };
 }
 
@@ -68,6 +72,8 @@ export function lineupToData(lineup: Lineup, meta: LineupMeta): Record<string, u
     tactics: { ...lineup.tactics },
     playerPositions: { ...lineup.playerPositions },
     pinned: [...lineup.pinned],
+    drawings: (lineup.drawings ?? []).map(strokeToData),
+    plays: (lineup.plays ?? []).map(playToData),
     ownerUid: meta.ownerUid,
     ownerNickname: meta.ownerNickname,
     seasonId: meta.seasonId,
@@ -90,6 +96,9 @@ export function dataToLineupDoc(id: string, data: Record<string, unknown>): Line
     tactics: (d.tactics as LineupDoc["tactics"]) ?? ({} as LineupDoc["tactics"]),
     playerPositions: (d.playerPositions as LineupDoc["playerPositions"]) ?? {},
     pinned: (d.pinned as string[]) ?? [],
+    // boards saved before drawings/jugadas existed load with none; invalid items are dropped
+    drawings: parseDrawings(data.drawings, id),
+    plays: parsePlays(data.plays, id),
     ownerUid: (d.ownerUid as string) ?? "",
     ownerNickname: (d.ownerNickname as string) ?? "",
     seasonId: (d.seasonId as string) ?? "all",
