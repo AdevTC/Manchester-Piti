@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test";
 import { enterVestuario } from "./helpers";
 
 test("la puerta: un fichaje elige camiseta, pide acceso y el capitán le abre", async ({ browser }) => {
+  // Two browsers, the captain's undo window and the walkout: more than the default 30 s on a busy CI runner.
+  test.setTimeout(90_000);
   const fanCtx = await browser.newContext();
   const fan = await fanCtx.newPage();
   await fan.goto("/vestuario");
