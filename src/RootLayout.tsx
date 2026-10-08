@@ -28,7 +28,10 @@ export function RootLayout() {
   // While the session is being restored, private pages wait on a neutral skeleton (no gate flash).
   const checking = (privatePage || invitation) && (!ready || (member && loading));
   // The pizarra and the profile are Celeste pages too.
-  const immersive = pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname === "/club" || pathname.startsWith("/matches/") || pathname.startsWith("/jugadores/") || ((pathname === "/vestuario" || pathname === "/pizarra" || pathname === "/profile") && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
+  // The admin is its own app (fixed frame, slim header, own mobile bar): no site chrome around it.
+  // While the session is being checked, /admin shows no site chrome either (no flash of the old menu).
+  const adminApp = pathname.startsWith("/admin") && (checking || (!door && admin));
+  const immersive = adminApp || pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname === "/club" || pathname.startsWith("/matches/") || pathname.startsWith("/jugadores/") || ((pathname === "/vestuario" || pathname === "/pizarra" || pathname === "/profile") && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
@@ -41,9 +44,11 @@ export function RootLayout() {
       </a>
       {!immersive && <Navbar />}
       <SeasonUrlSync />
-      <Suspense fallback={null}>
-        <LiveIsland />
-      </Suspense>
+      {!pathname.startsWith("/admin") && (
+        <Suspense fallback={null}>
+          <LiveIsland />
+        </Suspense>
+      )}
       <main id="contenido" className={immersive ? "club-main vx-main-shell" : "club-main"}>
         {checking ? (
           <RoutePending />

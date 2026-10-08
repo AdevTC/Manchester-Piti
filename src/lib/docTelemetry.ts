@@ -1,8 +1,7 @@
 // Central surface for documents discarded at the Firestore read boundary.
 //
 // Every per-collection mapper (firestoreMappers.ts), `parseDocs`/`safeParseDoc`
-// (schemas.ts) and the bespoke `users` mapper (Admin.tsx) drop+log invalid docs
-// instead of throwing, so the UI stays resilient. Historically each call site
+// (schemas.ts) drop+log invalid docs instead of throwing, so the UI stays resilient. Historically each call site
 // did its own `console.error("[schema] ...")`, which scattered the only signal
 // of data corruption across the console with no way to count or monitor it.
 //

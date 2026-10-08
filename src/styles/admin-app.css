@@ -1,0 +1,58 @@
+/* App-only additions to admin.css (generated from the canvas): the real frame around the design — the
+   100dvh frame inside the site's layout, the generic bottom sheet the layers share, the popover's flip,
+   error toasts, skeletons, the footer error line, the temporary legacy bodies (P0) and a keyframe the
+   canvas declared inside a container query. */
+
+/* The frame IS the viewport: the page never scrolls (each list scrolls inside its panel). */
+.vx.adm{height:100dvh;isolation:isolate}
+.club-main:has(> .vx.adm){min-height:0}
+.club-app:has(> .club-demo-banner) .vx.adm{height:calc(100dvh - 30px)}
+
+/* (.adm-layers / .adm-toasts are static, box-less wrappers: their children position against the frame.) */
+
+/* Bottom sheet (Sheet): phones' menus and pickers; `.mas` / `.pks` refine it. */
+.adm .sht{left:0;right:0;bottom:0;max-height:88%;border-radius:26px 26px 0 0;animation:ad-sheetUp .5s var(--spring) both}
+.adm .pks.sht{max-height:78%}
+.adm .ad-pk-sheet{background:none;box-shadow:none;border-radius:0;animation:none}
+.adm .ad-pk-step{color:var(--accent)}
+
+/* The modal's entrance once it is centred (≥ 600): the canvas re-declared the keyframes inside the
+   container query; a separate name works in every engine. */
+@keyframes ad-mdlInC{from{opacity:0;transform:translate(-50%,-46%) scale(.94)}to{opacity:1;transform:translate(-50%,-50%)}}
+@container mp (min-width:600px){.adm .mdl{animation-name:ad-mdlInC}}
+
+/* Popover: the arrow follows the anchor, and flips when the popover opens upwards. */
+.adm .pop::before{left:var(--ad-arrow,26px)}
+.adm .pop.up::before{top:auto;bottom:-8px;box-shadow:1.5px 1.5px 0 0 var(--accent)}
+.adm .pop.up{animation-name:ad-popInUp}
+@keyframes ad-popInUp{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+
+/* Toasts sit above every layer; errors are red and say so with their icon. */
+.adm .tst{z-index:60}
+.adm .tst.err{background:var(--red);color:#fff}
+.adm .tst.err svg,.adm .tst.err button{color:#fff}
+[data-theme="light"] .adm .tst.err{background:#b3261e}
+.adm .tst .ad-tst-x{display:inline-grid;place-items:center;width:40px;min-height:40px;padding:0;box-shadow:none;opacity:.8}
+
+/* A save/confirm error at the head of a layer's footer. */
+.adm .ov-f .ad-ferr{flex:1 1 100%;margin:0}
+
+/* Skeleton rows while a list loads. */
+.adm .ad-skel{display:grid;gap:8px;padding:4px 0}
+.adm .ad-skel-row{display:block;height:56px;border-radius:14px;background:linear-gradient(90deg,var(--row) 0%,var(--row-hi) 50%,var(--row) 100%);background-size:200% 100%;animation:ad-skel 1.4s linear infinite}
+@keyframes ad-skel{from{background-position:100% 0}to{background-position:-100% 0}}
+
+/* Load error (Inicio): the dashed empty state, in red, with «Reintentar». */
+.adm .empty.ad-err svg{color:var(--red)}
+.adm .empty .btn{margin-top:6px}
+
+/* Inicio: the «no match» lines show on phones too (the card's .hint is desktop-only). */
+.adm .jm2 .hint.ad-show{display:block}
+
+/* TEMPORARY (P0): views that still embed their old component. */
+.adm .ad-legacy{display:grid;gap:14px;align-content:start;padding-bottom:24px}
+.adm .ad-legacy-note{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--chip-gold);color:var(--gold-ink);font-size:13px;line-height:1.4}
+.adm .ad-legacy-note svg{flex:none;margin-top:2px}
+.adm .ad-legacy .club-page{padding-top:0}
+
+@media (prefers-reduced-motion:reduce){.vx.adm .ad-skel-row{animation:none}}

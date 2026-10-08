@@ -1,0 +1,64 @@
+/* The admin's club views (Fichas, Plantilla, Temporadas, Capitanes, Contenido): what the canvas kit
+   (admin.css) leaves to the real data — section heads inside a list, the linked accounts, rows of players
+   outside the active season, per-season shirt/dorsal, the captain button, list item actions, gallery rows
+   with their caption, previews and the publish bar's warning. Same tokens, same container (`mp`). */
+
+.adm .ad-list,.adm .ad-items{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.adm .ad-lbl{margin:10px 0 0}
+.adm .ad-lbl:first-child{margin-top:0}
+.adm .ad-lbl:focus{outline:none}
+.adm .ad-pad{padding:4px 2px}
+.adm .ad-self{justify-self:start}
+.adm .ad-block{display:block}
+.adm .ad-mt{margin-top:12px}
+.adm .ad-m12{margin:12px}
+.adm .ad-fichas{gap:10px;padding-bottom:16px}
+
+/* Fichas · the linked accounts keep the resolved look but show «Desvincular». */
+.adm .fc.ad-linked{grid-template-columns:44px minmax(0,1fr);align-items:center}
+.adm .fc.ad-linked .ad-unlink{grid-column:1 / -1;justify-self:start}
+
+/* Plantilla · players outside the active season read quieter; you, in Capitanes. */
+.adm .prw.ad-out{opacity:.72}
+.adm .prw.ad-out:hover,.adm .prw.ad-out[aria-current=true]{opacity:1}
+.adm .ad-you{font-family:'Geist Mono';font-size:11px;font-weight:600;color:var(--muted)}
+
+/* Player drawer · the photo, and a season's own shirt name / dorsal. */
+.adm .ad-pho{object-fit:cover;padding:0;background:var(--well)}
+.adm .ad-ovr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 72px;gap:8px;align-items:center;padding:8px 10px;border-radius:12px;background:var(--well);box-shadow:inset 0 0 0 1px var(--well-line)}
+.adm .ad-ovr-t{display:grid;gap:1px;min-width:0}
+.adm .ad-ovr-t b{font-family:'Geist Mono';font-size:12px;color:var(--accent)}
+.adm .ad-ovr-t small{font-size:11.5px;color:var(--muted);overflow-wrap:anywhere}
+.adm .ad-ovr .chk{grid-column:1 / -1}
+
+/* Temporadas · the captain is a button inside its tile. */
+.adm .ad-cap{display:inline-flex;align-items:center;gap:6px;min-height:28px;margin:-4px 0;padding:0;border:0;background:none;color:var(--ink);font:inherit;font-weight:700;text-align:left;cursor:pointer;overflow-wrap:anywhere}
+.adm .ad-cap svg{flex:none;color:var(--accent)}
+.adm .ad-cap:hover{color:var(--accent)}
+
+/* Contenido · list items with actions, gallery rows with a caption, previews. */
+.adm .ad-acts{display:inline-flex;gap:4px;align-items:center}
+.adm .ad-acts .ib[data-act=up] svg,.adm .ad-acts .ib[data-act=down] svg{transform:rotate(90deg)}
+.adm .ad-acts .ib:disabled{opacity:.35}
+.adm .evr.ad-row{grid-template-columns:52px minmax(0,1fr);row-gap:6px}
+.adm .evr.ad-row .ad-acts{grid-column:1 / -1;justify-content:flex-end}
+.adm .evr.ad-on{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.adm .evr.ad-gal .mn2{display:grid;place-items:center;width:44px;height:44px;border-radius:10px;overflow:hidden;background:var(--well);color:var(--muted)}
+.adm .evr.ad-gal .mn2 img{width:100%;height:100%;object-fit:cover}
+.adm .ad-url{font-size:12px;overflow-wrap:anywhere}
+.adm .ad-capin{min-height:38px;font-size:13.5px}
+.adm .ad-item{display:grid;gap:10px;padding:12px;border-radius:14px;background:var(--row);box-shadow:inset 0 0 0 1px var(--well-line)}
+.adm .ad-item-h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.adm .ad-item-h b{font-size:14px;overflow-wrap:anywhere}
+.adm .ad-prev{display:block;width:100%;max-height:220px;object-fit:cover;border-radius:14px;background:var(--well)}
+.adm .ad-prev-sq{width:120px;height:120px}
+.adm .note.ad-warn{background:color-mix(in srgb,var(--gold) 14%,transparent);color:var(--gold-ink,var(--ink))}
+.adm .pubbar.ad-blocked small{color:var(--red)}
+.adm .pubbar small svg{display:inline-block;vertical-align:-2px;margin-right:4px}
+
+@container mp (min-width:600px){
+  .adm .evr.ad-row{grid-template-columns:52px minmax(0,1fr) auto}
+  .adm .evr.ad-row .ad-acts{grid-column:auto}
+  .adm .fc.ad-linked{grid-template-columns:44px minmax(0,1fr) auto}
+  .adm .fc.ad-linked .ad-unlink{grid-column:auto}
+}

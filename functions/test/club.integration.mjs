@@ -642,6 +642,25 @@ assert.equal((await ok("requestAccess", rival, { name: "Rival" })).status, "pend
 checked++;
 // Leave the door empty for the browser suite that runs next on the same emulators.
 await ok("cancelAccessRequest", rival, {});
+// ---------- «Borrar partido»: only a match nobody has played (draft / scheduled), with its private side
+const delId = "del-" + suffix, playedId = "jugado-" + suffix, draftOnly = "borrador-" + suffix;
+await db.doc("matches/" + delId).set({ seasonId: perfilSeason, rival: "Borrable", status: "scheduled", date: Timestamp.fromMillis(Date.now() + 86_400_000) });
+await db.doc("matchPrivate/" + delId).set({ meetingNote: "quedada" });
+await db.doc("matchPrivate/" + delId + "/availability/" + lea.uid).set({ status: "yes" });
+await db.doc("matches/" + playedId).set({ seasonId: perfilSeason, rival: "Jugado", status: "finished", date: Timestamp.fromMillis(Date.now() - 86_400_000) });
+await db.doc("matchDrafts/" + draftOnly).set({ seasonId: perfilSeason, rival: "Solo borrador", status: "scheduled" });
+await denied("deleteMatch", lea, { id: delId }, "PERMISSION_DENIED");
+await denied("deleteMatch", admin, { id: playedId }, "FAILED_PRECONDITION");
+await denied("deleteMatch", admin, { id: "no-existe-" + suffix }, "NOT_FOUND");
+await ok("deleteMatch", admin, { id: delId });
+assert.equal((await db.doc("matches/" + delId).get()).exists, false);
+assert.equal((await db.doc("matchPrivate/" + delId).get()).exists, false);
+assert.equal((await db.doc("matchPrivate/" + delId + "/availability/" + lea.uid).get()).exists, false);
+assert.equal((await db.doc("matches/" + playedId).get()).exists, true);
+await ok("deleteMatch", admin, { id: draftOnly });
+assert.equal((await db.doc("matchDrafts/" + draftOnly).get()).exists, false);
+checked += 6;
+await db.doc("matches/" + playedId).delete();
 console.log(
   checked +
     " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos, disponibilidad, avisos del siete y perfil.",

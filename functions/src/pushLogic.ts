@@ -29,6 +29,9 @@ export interface MatchLike {
   goalsAgainst?: number | null;
   voteClosesAt?: number;
   archived?: boolean;
+  seasonId?: string;
+  /** The convocatoria's titulares (its notice goes when they first appear on a published match). */
+  starters?: string[];
 }
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -121,4 +124,24 @@ export function lineupNotice(id: string, before: LineupLike | undefined, after: 
       ? "El capitán ya ha publicado el siete del partido. Ábrelo y mira la charla."
       : "El capitán ya ha publicado el siete de la temporada. Ábrelo y mira la charla.";
   return { topic: "lineup", title: "Ya está el siete", body, tag: `lineup-${id}-${mid ?? "temporada"}`, url: `/pizarra?tablero=${encodeURIComponent(id)}#charla` };
+}
+
+/**
+ * «Ya está la convocatoria»: the first time a match still to be played is published WITH its titulares
+ * (Convocatorias → «Publicar y avisar», or the match published with its convocatoria done). push.ts
+ * keeps it to once per match (pushLog), whatever the corrections afterwards. `jornada` is the match's
+ * number in its season (null when unknown).
+ */
+export function convocatoriaNotice(id: string, before: MatchLike | undefined, after: MatchLike | undefined, jornada: number | null, now: number): Notice | null {
+  if (!after || after.archived || after.status !== "scheduled") return null;
+  if (typeof after.date !== "number" || after.date <= now) return null;
+  if (!(after.starters?.length ?? 0) || (before?.starters?.length ?? 0) > 0) return null;
+  const rival = after.rival ?? "el rival";
+  return {
+    topic: "lineup",
+    title: jornada ? `Ya está la convocatoria de la J${jornada}` : "Ya está la convocatoria",
+    body: `${rival} · ${when(after.date).replace(/^./, (c) => c.toUpperCase())}. Mira si te toca en la web.`,
+    tag: `conv-${id}`,
+    url: `/matches/${id}`,
+  };
 }
