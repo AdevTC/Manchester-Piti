@@ -1,8 +1,10 @@
 name: CI
 on:
+  # main on every push; any other branch only through its pull request (one run per push, not two).
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
