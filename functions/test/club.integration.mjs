@@ -541,7 +541,9 @@ async function socio(label, extra = {}) {
   return u;
 }
 const pA = "pa-" + suffix, pB = "pb-" + suffix, pC = "pc-" + suffix, pD = "pd-" + suffix;
-await db.doc("players/" + pA).set({ shirtName: "Lea " + suffix, firstName: "Lea", number: 21, seasons: [perfilSeason], active: true, seasonDetails: { [perfilSeason]: { shirtName: "Lea " + suffix, number: 21 } } });
+// A legacy shirt name the rules refuse today (digits), whatever the random suffix looks like.
+const legacyName = "Lea 7" + suffix;
+await db.doc("players/" + pA).set({ shirtName: legacyName, firstName: "Lea", number: 21, seasons: [perfilSeason], active: true, seasonDetails: { [perfilSeason]: { shirtName: legacyName, number: 21 } } });
 await db.doc("players/" + pB).set({ shirtName: "É" + tag, firstName: "Otro", number: 9, seasons: [perfilSeason], active: true });
 await db.doc("players/" + pC).set({ shirtName: "C" + tag, firstName: "Libre", number: 30, seasons: [perfilSeason], active: true });
 await db.doc("players/" + pD).set({ shirtName: "D" + tag, firstName: "Baja", number: 31, seasons: [perfilSeason], active: true });
@@ -587,24 +589,24 @@ const clash = await call("setShirtName", lea, { name: "e" + tag.toLowerCase() })
 assert.equal(clash.error?.message, "Ya la lleva el 9 (É" + tag + "): elige otro");
 checked++;
 const stamped = await ok("setShirtName", lea, { name: "  q  " + tag.toLowerCase() + " " });
-assert.deepEqual(stamped, { shirtName: "Q " + tag, previous: "Lea " + suffix, changed: true });
+assert.deepEqual(stamped, { shirtName: "Q " + tag, previous: legacyName, changed: true });
 const pa = (await db.doc("players/" + pA).get()).data();
 assert.equal(pa.shirtName, "Q " + tag);
 assert.equal(pa.shirtNameBy, lea.uid);
 assert.equal(pa.seasonDetails[perfilSeason].shirtName, "Q " + tag);
 assert.equal(pa.seasonDetails[perfilSeason].number, 21);
-assert.equal(pa.shirtNamePrev, "Lea " + suffix);
+assert.equal(pa.shirtNamePrev, legacyName);
 checked += 5;
 assert.equal((await ok("setShirtName", lea, { name: "Q " + tag })).changed, false);
 checked++;
 // Deshacer: the legacy name (digits) comes back inside the 10-minute window…
-assert.equal((await ok("setShirtName", lea, { name: "Lea " + suffix })).shirtName, "Lea " + suffix);
-assert.equal((await db.doc("players/" + pA).get()).get("shirtName"), "Lea " + suffix);
+assert.equal((await ok("setShirtName", lea, { name: legacyName })).shirtName, legacyName);
+assert.equal((await db.doc("players/" + pA).get()).get("shirtName"), legacyName);
 checked++;
 // …but not after it.
 await ok("setShirtName", lea, { name: "Q " + tag });
 await db.doc("players/" + pA).update({ shirtNamePrevAt: Timestamp.fromMillis(Date.now() - 11 * 60_000) });
-await denied("setShirtName", lea, { name: "Lea " + suffix }, "INVALID_ARGUMENT");
+await denied("setShirtName", lea, { name: legacyName }, "INVALID_ARGUMENT");
 // Nobody else can take it now: «Q TAG» is lea's.
 await denied("setShirtName", rival, { name: "q " + tag }, "ALREADY_EXISTS");
 // Cancelar la petición: only a pending one, and twice is fine.
