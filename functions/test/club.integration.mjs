@@ -528,8 +528,120 @@ assert.equal((await fetch(shareBase + "/compartir/partido/" + id)).status, 200);
 checked += 4;
 assert.ok((await fetch(calendarUrl).then((r) => r.text())).includes(`UID:${id}@manchester-piti`));
 checked++;
+// ---------- /profile: apodo, nombre en la espalda, cancelar la petición de ficha y darse de baja
+const tag = suffix.replace(/[0-9]/g, (d) => "ABCDEFGHIJ"[Number(d)]).toUpperCase();
+const perfilSeason = "perfil-" + suffix;
+await db.doc("seasons/" + perfilSeason).set({ name: "Temporada del perfil" });
+const forever = Timestamp.fromMillis(Date.UTC(2200, 0, 1));
+async function socio(label, extra = {}) {
+  const u = await google(label);
+  await db.doc("teamMembers/" + u.uid).set({ expiresAt: forever, joinedAt: Timestamp.now(), via: "invite", by: admin.uid });
+  await db.doc("users/" + u.uid).set({ role: "user", nickname: label + "_" + suffix, email: u.email, ...extra });
+  await db.doc("nicknames/" + label + "_" + suffix).set({ uid: u.uid });
+  return u;
+}
+const pA = "pa-" + suffix, pB = "pb-" + suffix, pC = "pc-" + suffix, pD = "pd-" + suffix;
+await db.doc("players/" + pA).set({ shirtName: "Lea " + suffix, firstName: "Lea", number: 21, seasons: [perfilSeason], active: true, seasonDetails: { [perfilSeason]: { shirtName: "Lea " + suffix, number: 21 } } });
+await db.doc("players/" + pB).set({ shirtName: "É" + tag, firstName: "Otro", number: 9, seasons: [perfilSeason], active: true });
+await db.doc("players/" + pC).set({ shirtName: "C" + tag, firstName: "Libre", number: 30, seasons: [perfilSeason], active: true });
+await db.doc("players/" + pD).set({ shirtName: "D" + tag, firstName: "Baja", number: 31, seasons: [perfilSeason], active: true });
+const lea = await socio("lea", { playerId: pA });
+await db.doc("playerLinks/" + pA).set({ uid: lea.uid });
+const rival = await socio("rival", { playerId: pD });
+await db.doc("playerLinks/" + pD).set({ uid: rival.uid });
+const pend = await socio("pend");
+const impostor = await socio("impostor", { playerId: pB }); // says pB is his, but the link is someone else's
+await db.doc("playerLinks/" + pB).set({ uid: rival.uid });
+const boss = await socio("boss", { role: "superadmin" });
+// Tu apodo: the backend's rules, unique among members, the old reservation freed.
+await denied("setNickname", null, { nickname: "nadie_" + suffix }, "UNAUTHENTICATED");
+await denied("setNickname", blocked, { nickname: "fuera_" + suffix }, "PERMISSION_DENIED");
+await denied("setNickname", lea, { nickname: "ab" }, "INVALID_ARGUMENT");
+await denied("setNickname", lea, { nickname: "Lea.Mayus" }, "INVALID_ARGUMENT");
+await denied("setNickname", lea, { nickname: "admin" }, "INVALID_ARGUMENT");
+await denied("setNickname", lea, { nickname: "x".repeat(16) }, "INVALID_ARGUMENT");
+const nick = "nk_" + suffix;
+const renamed = await ok("setNickname", lea, { nickname: nick });
+assert.deepEqual(renamed, { nickname: nick, previous: "lea_" + suffix, changed: true });
+assert.equal((await db.doc("users/" + lea.uid).get()).get("nickname"), nick);
+assert.ok((await db.doc("users/" + lea.uid).get()).get("nicknameAt"));
+assert.equal((await db.doc("nicknames/" + nick).get()).get("uid"), lea.uid);
+assert.equal((await db.doc("nicknames/lea_" + suffix).get()).exists, false);
+checked += 5;
+assert.equal((await ok("setNickname", lea, { nickname: nick })).changed, false);
+checked++;
+await denied("setNickname", rival, { nickname: nick }, "ALREADY_EXISTS");
+// The freed handle can be taken by someone else.
+assert.equal((await ok("setNickname", rival, { nickname: "lea_" + suffix })).changed, true);
+checked++;
+// En la espalda: only the owner of the ficha, the rules, unique without caring about case or accents.
+await denied("setShirtName", pend, { name: "PENDIENTE" }, "FAILED_PRECONDITION");
+await denied("setShirtName", impostor, { name: "IMPOSTOR" }, "FAILED_PRECONDITION");
+await denied("setShirtName", blocked, { name: "FUERA" }, "PERMISSION_DENIED");
+await denied("setShirtName", lea, { name: "R2D" + tag }, "INVALID_ARGUMENT");
+await denied("setShirtName", lea, { name: "A" }, "INVALID_ARGUMENT");
+await denied("setShirtName", lea, { name: "ABCDEFGHIJKLM" }, "INVALID_ARGUMENT");
+await denied("setShirtName", lea, { name: "LEA_" + tag }, "INVALID_ARGUMENT");
+await denied("setShirtName", lea, { name: "e" + tag.toLowerCase() }, "ALREADY_EXISTS");
+const clash = await call("setShirtName", lea, { name: "e" + tag.toLowerCase() });
+assert.equal(clash.error?.message, "Ya la lleva el 9 (É" + tag + "): elige otro");
+checked++;
+const stamped = await ok("setShirtName", lea, { name: "  q  " + tag.toLowerCase() + " " });
+assert.deepEqual(stamped, { shirtName: "Q " + tag, previous: "Lea " + suffix, changed: true });
+const pa = (await db.doc("players/" + pA).get()).data();
+assert.equal(pa.shirtName, "Q " + tag);
+assert.equal(pa.shirtNameBy, lea.uid);
+assert.equal(pa.seasonDetails[perfilSeason].shirtName, "Q " + tag);
+assert.equal(pa.seasonDetails[perfilSeason].number, 21);
+assert.equal(pa.shirtNamePrev, "Lea " + suffix);
+checked += 5;
+assert.equal((await ok("setShirtName", lea, { name: "Q " + tag })).changed, false);
+checked++;
+// Deshacer: the legacy name (digits) comes back inside the 10-minute window…
+assert.equal((await ok("setShirtName", lea, { name: "Lea " + suffix })).shirtName, "Lea " + suffix);
+assert.equal((await db.doc("players/" + pA).get()).get("shirtName"), "Lea " + suffix);
+checked++;
+// …but not after it.
+await ok("setShirtName", lea, { name: "Q " + tag });
+await db.doc("players/" + pA).update({ shirtNamePrevAt: Timestamp.fromMillis(Date.now() - 11 * 60_000) });
+await denied("setShirtName", lea, { name: "Lea " + suffix }, "INVALID_ARGUMENT");
+// Nobody else can take it now: «Q TAG» is lea's.
+await denied("setShirtName", rival, { name: "q " + tag }, "ALREADY_EXISTS");
+// Cancelar la petición: only a pending one, and twice is fine.
+await ok("requestPlayerClaim", pend, { playerId: pC });
+assert.equal((await db.doc("playerClaims/" + pend.uid).get()).get("status"), "pending");
+await ok("cancelPlayerClaim", pend, {});
+assert.equal((await db.doc("playerClaims/" + pend.uid).get()).exists, false);
+await ok("cancelPlayerClaim", pend, {});
+await db.doc("playerClaims/" + lea.uid).set({ playerId: pA, status: "approved" });
+await ok("cancelPlayerClaim", lea, {});
+assert.equal((await db.doc("playerClaims/" + lea.uid).get()).get("status"), "approved");
+checked += 3;
+// Darme de baja: like a captain removing you, plus this account's notices; the ficha link stays.
+await db.doc("pushSubscriptions/perfil-" + suffix).set({ endpoint: "https://example.test/push/" + suffix, keys: { p256dh: "x", auth: "y" }, topics: ["access"], uid: rival.uid });
+await denied("leaveVestuario", rival, {}, "INVALID_ARGUMENT");
+await denied("leaveVestuario", rival, { confirm: false }, "INVALID_ARGUMENT");
+await denied("leaveVestuario", boss, { confirm: true }, "PERMISSION_DENIED");
+assert.equal((await db.doc("teamMembers/" + boss.uid).get()).exists, true);
+checked++;
+await ok("leaveVestuario", rival, { confirm: true });
+assert.equal((await db.doc("teamMembers/" + rival.uid).get()).exists, false);
+assert.ok((await db.doc("users/" + rival.uid).get()).get("removedAt"));
+const left = (await db.doc("accessRequests/" + rival.uid).get()).data();
+assert.equal(left.status, "left");
+assert.equal(left.resolvedBy, rival.uid);
+assert.equal((await db.doc("pushSubscriptions/perfil-" + suffix).get()).exists, false);
+assert.equal((await db.doc("playerLinks/" + pD).get()).get("uid"), rival.uid);
+checked += 6;
+await denied("setNickname", rival, { nickname: "vuelta_" + suffix }, "PERMISSION_DENIED");
+await denied("leaveVestuario", rival, { confirm: true }, "PERMISSION_DENIED");
+// Gone means gone: asking again waits for a captain.
+assert.equal((await ok("requestAccess", rival, { name: "Rival" })).status, "pending");
+checked++;
+// Leave the door empty for the browser suite that runs next on the same emulators.
+await ok("cancelAccessRequest", rival, {});
 console.log(
   checked +
-    " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos, disponibilidad y avisos del siete.",
+    " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos, disponibilidad, avisos del siete y perfil.",
 );
 await db.terminate();
