@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
@@ -121,15 +121,20 @@ const matchesQuery = query(collection(db, "matches"), orderBy("date", "desc"));
 // Active tab lives in the `?tab` search param (validated by adminSearchSchema,
 // merged with the inherited `season`) so it is deep-linkable and persists on
 // reload. The role guard is unchanged — it gates this page in RootLayout.
-const route = getRouteApi("/admin");
+// (Read loosely: inside the /admin shell's views the section comes from the `section` prop.)
+const ADMIN_TABS: readonly AdminSection[] = ["matches", "roster", "seasons", "admins"];
 
-export const Admin: React.FC = () => {
+type AdminSection = "seasons" | "roster" | "matches" | "admins";
+/** `section` pins one area and drops the page header + tabs: the /admin shell's views embed the old
+ *  sections this way until their redesign replaces them. Without it, the tab comes from `?tab`. */
+export const Admin: React.FC<{ section?: AdminSection }> = ({ section }) => {
   // Read the tab from the URL (source of truth); write via navigate with a
   // functional updater so `season`/other params are preserved.
-  const { tab: activeTab } = route.useSearch();
-  const navigate = useNavigate({ from: "/admin" });
-  const setActiveTab = (tab: "seasons" | "roster" | "matches" | "admins") =>
-    void navigate({ search: (prev) => ({ ...prev, tab }) });
+  const search: { tab?: unknown } = useSearch({ strict: false });
+  const urlTab = ADMIN_TABS.find((t) => t === search.tab);
+  const activeTab: AdminSection = section ?? urlTab ?? "matches";
+  const navigate = useNavigate();
+  const setActiveTab = (tab: AdminSection) => void navigate({ to: ".", search: (prev) => ({ ...prev, tab }) });
   const { updateUserRole } = useAuth();
 
   // Real-time collections loaded for form dropdowns (deduped via the bridge).
@@ -514,6 +519,7 @@ export const Admin: React.FC = () => {
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
       {/* Editorial header */}
+      {!section && (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
         <div>
           <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400, textTransform: "uppercase", fontSize: "clamp(2.2rem, 6vw, 3.4rem)", lineHeight: 0.9, letterSpacing: "0.01em", color: "var(--text-primary)" }}>
@@ -529,6 +535,7 @@ export const Admin: React.FC = () => {
           Modo administrador
         </div>
       </div>
+      )}
 
       {/* Action alerts */}
       {successMsg && (
@@ -567,6 +574,7 @@ export const Admin: React.FC = () => {
       )}
 
       {/* Tabs — content below is driven by the ?tab search param */}
+      {!section && (
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "seasons" | "roster" | "matches" | "admins")} activationMode="manual">
         <TabsList variant="line" aria-label="Secciones de administración" className="w-full justify-start overflow-x-auto border-b border-border">
           {([
@@ -585,6 +593,7 @@ export const Admin: React.FC = () => {
           })}
         </TabsList>
       </Tabs>
+      )}
 
       {/* TAB CONTENT: 1. REGISTRAR PARTIDO */}
       {activeTab === "matches" && (

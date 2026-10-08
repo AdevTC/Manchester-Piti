@@ -4,6 +4,7 @@ import {
   createRouter,
   lazyRouteComponent,
   Navigate,
+  redirect,
   type RouterHistory,
 } from "@tanstack/react-router";
 import { z } from "zod";
@@ -50,13 +51,42 @@ export const statsSearchSchema = z.object({
     .catch(undefined),
 });
 
-// Admin route's `validateSearch`: same pattern for the admin tab. (The role
-// guard is unchanged — it lives in RootLayout.) Invalid `tab` → "matches".
+// /admin is the admin app's shell (a layout route; the admin-only guard lives in RootLayout). Inicio's
+// only search param is the legacy `tab` of the old single page: /admin?tab=matches|roster|seasons|admins
+// redirects to the new section (old links and bookmarks keep working).
 export const adminSearchSchema = z.object({
-  tab: z
-    .enum(["matches", "roster", "seasons", "admins"])
-    .default("matches")
-    .catch("matches"),
+  tab: z.enum(["matches", "roster", "seasons", "admins"]).optional().catch(undefined),
+});
+const LEGACY_ADMIN_TAB = {
+  matches: "/admin/partidos",
+  roster: "/admin/plantilla",
+  seasons: "/admin/temporadas",
+  admins: "/admin/capitanes",
+} as const;
+// The admin sections' deep-linkable state (drawers, modals and tabs live in the URL).
+const optionalTrue = z.boolean().optional().catch(undefined);
+const optionalString = z.union([z.string(), z.number()]).transform(String).optional().catch(undefined);
+export const adminPartidosSearchSchema = z.object({
+  /** Open the «Nuevo partido» modal. */
+  nuevo: optionalTrue,
+});
+export const adminPartidoSearchSchema = z.object({
+  /** The match's tab; absent = the view's default (acta for drafts / played matches). */
+  tab: z.enum(["encuentro", "convocatoria", "acta", "publicar"]).optional().catch(undefined),
+});
+export const adminConvocatoriasSearchSchema = z.object({
+  /** The match whose convocatoria is open (match id). */
+  j: optionalString,
+});
+export const adminPlantillaSearchSchema = z.object({
+  /** The player whose edit drawer is open (player id). */
+  jugador: optionalString,
+  /** The «Alta de jugador» drawer is open. */
+  nuevo: optionalTrue,
+});
+export const adminContenidoSearchSchema = z.object({
+  /** The content section whose editor drawer is open. */
+  seccion: optionalString,
 });
 
 const rootRoute = createRootRoute({
@@ -96,11 +126,61 @@ const profileRoute = createRoute({
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
+  component: lazyRouteComponent(() => import("./pages/admin/shell/AdminLayout"), "AdminLayout"),
+});
+const adminIndexRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/",
   validateSearch: adminSearchSchema,
-  component: lazyRouteComponent(
-    () => import("./pages/admin/AdminHub"),
-    "AdminHub",
-  ),
+  beforeLoad: ({ search }) => {
+    if (search.tab) throw redirect({ to: LEGACY_ADMIN_TAB[search.tab], replace: true });
+  },
+  component: lazyRouteComponent(() => import("./pages/admin/views/Inicio"), "Inicio"),
+});
+const adminPartidosRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "partidos",
+  validateSearch: adminPartidosSearchSchema,
+  component: lazyRouteComponent(() => import("./pages/admin/views/Partidos"), "Partidos"),
+});
+const adminPartidoRoute = createRoute({
+  getParentRoute: () => adminPartidosRoute,
+  path: "$matchId",
+  validateSearch: adminPartidoSearchSchema,
+  component: lazyRouteComponent(() => import("./pages/admin/views/Partidos"), "PartidoDetail"),
+});
+const adminConvocatoriasRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "convocatorias",
+  validateSearch: adminConvocatoriasSearchSchema,
+  component: lazyRouteComponent(() => import("./pages/admin/views/Convocatorias"), "Convocatorias"),
+});
+const adminFichasRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "fichas",
+  component: lazyRouteComponent(() => import("./pages/admin/views/Fichas"), "Fichas"),
+});
+const adminPlantillaRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "plantilla",
+  validateSearch: adminPlantillaSearchSchema,
+  component: lazyRouteComponent(() => import("./pages/admin/views/Plantilla"), "Plantilla"),
+});
+const adminTemporadasRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "temporadas",
+  component: lazyRouteComponent(() => import("./pages/admin/views/Temporadas"), "Temporadas"),
+});
+const adminCapitanesRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "capitanes",
+  component: lazyRouteComponent(() => import("./pages/admin/views/Capitanes"), "Capitanes"),
+});
+const adminContenidoRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "contenido",
+  validateSearch: adminContenidoSearchSchema,
+  component: lazyRouteComponent(() => import("./pages/admin/views/Contenido"), "Contenido"),
 });
 
 // Detail pages share the realtime collection cache with the club pages.
@@ -160,26 +240,26 @@ const pizarraRoute = createRoute({
     "PizarraRoute",
   ),
 });
-const contentRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/admin/contenido",
-  component: lazyRouteComponent(
-    () => import("./pages/admin/ContentEditor"),
-    "ContentEditor",
-  ),
-});
 const routeTree = rootRoute.addChildren([
   invitationRoute,
   fixturesRoute,
   clubRoute,
   vestuarioRoute,
   pizarraRoute,
-  contentRoute,
   matchesRoute,
   statsRoute,
   plantillaRoute,
   profileRoute,
-  adminRoute,
+  adminRoute.addChildren([
+    adminIndexRoute,
+    adminPartidosRoute.addChildren([adminPartidoRoute]),
+    adminConvocatoriasRoute,
+    adminFichasRoute,
+    adminPlantillaRoute,
+    adminTemporadasRoute,
+    adminCapitanesRoute,
+    adminContenidoRoute,
+  ]),
   matchDetailRoute,
   playerProfileRoute,
 ]);
