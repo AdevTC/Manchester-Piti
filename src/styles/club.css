@@ -1665,6 +1665,13 @@
   max-width: 100%;
 }
 .club-demo-banner {
+  /* A fixed height: the admin's 100dvh frame subtracts it exactly. */
+  box-sizing: border-box;
+  height: 30px;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   background: #ffd369;
   color: #142440;
   font-size: 11px;

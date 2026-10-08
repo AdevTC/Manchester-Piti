@@ -18,6 +18,8 @@ export const revokeInvite = httpsCallable<{ code: string }, { ok: boolean }>(fun
 export const resolveAccess = httpsCallable<{ uid: string; approve: boolean; playerId?: string }, { ok: boolean }>(functions, "resolveAccess");
 export const revokeMember = httpsCallable<{ uid: string }, { ok: boolean }>(functions, "revokeMember");
 export const doorShirts = httpsCallable<void, { taken: string[]; inside: number }>(functions, "doorShirts");
+/** «Borrar partido»: only a match nobody has played yet (the server refuses a finished one). */
+export const deleteMatch = httpsCallable<{ id: string }, { ok: boolean }>(functions, "deleteMatch");
 export const saveMatchSheet = httpsCallable<
   { id: string; sheet: MatchSheet; draft: boolean },
   { id: string }

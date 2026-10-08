@@ -1,8 +1,8 @@
 // «¿Borrar la J7 · FUSION 7?» — the red confirmation of «Borrar partido» (Encuentro), with what is lost.
-// The write goes through the admin's existing delete mutation (useAdminMutations.useDeleteMatch).
+// The server (deleteMatch callable) only deletes a match nobody has played: a played one is corrected or
+// set to «Cancelado» — it feeds the stats, the MVP and the porra.
 import { useState } from "react";
-import { apiError } from "../../../lib/clubApi";
-import { useDeleteMatch } from "../useAdminMutations";
+import { apiError, deleteMatch } from "../../../lib/clubApi";
 import { ConfirmModal } from "../ui/layers";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -13,6 +13,7 @@ export function DeleteMatchModal({
   goals,
   events,
   called,
+  played,
   onClose,
   onDeleted,
 }: {
@@ -22,11 +23,14 @@ export function DeleteMatchModal({
   goals: number;
   events: number;
   called: number;
+  /** Finished and published: the server refuses, so the modal explains instead of offering it. */
+  played: boolean;
   onClose: () => void;
   onDeleted: () => void;
 }) {
-  const del = useDeleteMatch();
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const blocked = "Este partido ya se jugó y cuenta en las estadísticas: corrige el acta o pon el estado «Cancelado».";
   return (
     <ConfirmModal
       open
@@ -43,19 +47,17 @@ export function DeleteMatchModal({
       cancelLabel="Mejor no"
       confirmLabel="Borrar partido"
       confirmTone="red solid"
-      busy={del.isPending}
-      error={error || undefined}
+      busy={busy}
+      confirmDisabled={played}
+      error={played ? blocked : error || undefined}
       onConfirm={() => {
+        if (played || busy) return;
         setError("");
-        del.mutate(matchId, {
-          onSuccess: onDeleted,
-          onError: (e) =>
-            setError(
-              (e as { code?: string }).code === "permission-denied"
-                ? "El servidor no deja borrar partidos desde aquí. Mientras tanto, pon el estado «Cancelado» en «Encuentro»."
-                : apiError(e),
-            ),
-        });
+        setBusy(true);
+        deleteMatch({ id: matchId })
+          .then(() => onDeleted())
+          .catch((e: unknown) => setError(apiError(e)))
+          .finally(() => setBusy(false));
       }}
     />
   );

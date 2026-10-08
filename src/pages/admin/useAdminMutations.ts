@@ -133,5 +133,4 @@ export const useUpsertSeason = () => useOptimisticUpsert("seasons");
 export const useDeleteSeason = () => useOptimisticDelete("seasons");
 export const useUpsertPlayer = () => useOptimisticUpsert("players");
 export const useDeletePlayer = () => useOptimisticDelete("players");
-export const useUpsertMatch = () => useOptimisticUpsert("matches");
-export const useDeleteMatch = () => useOptimisticDelete("matches");
+// Matches are written only by the server (saveMatchSheet / deleteMatch): the rules forbid client writes.

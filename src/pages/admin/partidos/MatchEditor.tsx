@@ -356,6 +356,7 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDeleted }
           goals={gf + ga}
           events={sheet.events.length}
           called={sheet.starters.length + sheet.bench.length}
+          played={match.published && match.status === "finished"}
           onClose={() => setDelOpen(false)}
           onDeleted={() => {
             buf.reset();

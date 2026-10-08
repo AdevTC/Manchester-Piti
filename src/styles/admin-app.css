@@ -6,7 +6,7 @@
 /* The frame IS the viewport: the page never scrolls (each list scrolls inside its panel). */
 .vx.adm{height:100dvh;isolation:isolate}
 .club-main:has(> .vx.adm){min-height:0}
-.club-app:has(> .club-demo-banner) .vx.adm{height:calc(100dvh - 29px)}
+.club-app:has(> .club-demo-banner) .vx.adm{height:calc(100dvh - 30px)}
 
 /* (.adm-layers / .adm-toasts are static, box-less wrappers: their children position against the frame.) */
 

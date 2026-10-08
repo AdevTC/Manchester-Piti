@@ -28,7 +28,7 @@ async function openPartidos(page: Page) {
   await page.getByRole("link", { name: /Administrar el club/ }).click();
   await page
     .getByRole("navigation", { name: "Secciones de administración" })
-    .getByRole("button", { name: /Partidos y actas/ })
+    .getByRole("link", { name: /Partidos y actas/ })
     .click();
   await expect(page).toHaveURL(/\/admin\/partidos/);
 }

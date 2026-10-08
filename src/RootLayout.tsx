@@ -29,7 +29,8 @@ export function RootLayout() {
   const checking = (privatePage || invitation) && (!ready || (member && loading));
   // The pizarra and the profile are Celeste pages too.
   // The admin is its own app (fixed frame, slim header, own mobile bar): no site chrome around it.
-  const adminApp = pathname.startsWith("/admin") && !checking && !door && admin;
+  // While the session is being checked, /admin shows no site chrome either (no flash of the old menu).
+  const adminApp = pathname.startsWith("/admin") && (checking || (!door && admin));
   const immersive = adminApp || pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname === "/club" || pathname.startsWith("/matches/") || pathname.startsWith("/jugadores/") || ((pathname === "/vestuario" || pathname === "/pizarra" || pathname === "/profile") && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
