@@ -56,6 +56,8 @@ export interface NextMatch {
   rival: string;
   dateMs: number;
   home: boolean | null;
+  /** Its jornada in the season's calendar (null when it isn't in this season's). */
+  j: number | null;
 }
 
 export interface ProfileData {
@@ -74,7 +76,7 @@ export interface ProfileData {
   seasonName: string;
   ficha: { state: FichaState; playerId: string | null; rejectedPlayerId: string | null; claim: Claim | null };
   /** «En la espalda»: what you wear now and every other shirt (for «Ya la lleva el 9 (ERIK)»). */
-  shirt: { current: string; number: string; squad: SquadShirt[] };
+  shirt: { current: string; number: string; squad: SquadShirt[]; fullName: string };
   card: CardView;
   freeFichas: FreeFicha[];
   next: NextMatch | null;
@@ -190,10 +192,10 @@ export function useProfileData(): ProfileData {
     seasonId,
     seasonName,
     ficha: { ...info, claim: claim.data },
-    shirt: { current: me?.shirtName || [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" "), number: me && me.number ? String(me.number) : "", squad: shirtSquad },
+    shirt: { current: me?.shirtName || [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" "), number: me && me.number ? String(me.number) : "", squad: shirtSquad, fullName: [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" ") },
     card,
     freeFichas,
-    next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null } : null,
+    next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: calendar.findIndex((m) => m.id === next.id) + 1 || null } : null,
     stuff: {
       boards: boardsLine(lineups.mine),
       porra: porraLine(porra.data, uid),

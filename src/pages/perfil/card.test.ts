@@ -224,7 +224,10 @@ describe("evoluciones", () => {
     expect(by.goleador).toMatchObject({ done: false, cur: 6, pct: 60 });
     // erik ↔ adri: o1 (1), j1 (1), j2 (1), j4 (1) = 4
     expect(by.duo).toMatchObject({ done: false, cur: 4, pct: 40 });
-    expect(by.double.reward).toBe("+1 de valoración");
+    expect(by.double.reward).toBe("Sello «×2» en la carta");
+    expect(by.duo.with).toBe("erik");
+    // every reward is something the card shows: none of them changes the rating
+    expect(evo.some((e) => /valoración|\+\d/.test(e.reward))).toBe(false);
   });
   it("la próxima es la más cercana; con todo por hacer, el debut", () => {
     const evo = evoluciones("adri", [old, ...SEASON], MVP, [], NOW);
@@ -233,6 +236,23 @@ describe("evoluciones", () => {
     expect(none.every((e) => !e.done && e.cur === 0)).toBe(true);
     expect(nextEvolution(none, false)).toMatchObject({ id: "debut", text: "Tu primer objetivo, en cuanto juegues" });
     expect(nextEvolution(evo.map((e) => ({ ...e, done: true })), true)).toBeNull();
+  });
+});
+
+describe("la carta enseña lo conseguido", () => {
+  const old: ClubMatch = match("o1", 1, [played("adri"), goal("adri"), goal("adri"), goal("adri", "erik")], 3, 0, { seasonId: "t0" });
+  it("vinculada: estela, ×2, estrella y balón de oro; aún sin Fijo, Goleador ni Dúo", () => {
+    const card = buildCard(input({ matches: [old, ...SEASON], mvpResults: MVP, seasons: [{ id: "t0", name: "Temporada 0" }, { id: "t1", name: "Temporada 1" }] }));
+    expect(card.rewards).toEqual({ trail: true, double: true, mvp: true, fijo: false, goleador: false, hat: true, duo: null });
+  });
+  it("el dúo lleva el dorsal del socio", () => {
+    const many = Array.from({ length: 10 }, (_, i) => match("d" + i, 50 + i, [played("adri"), played("erik"), goal("erik", "adri")]));
+    const card = buildCard(input({ matches: many }));
+    expect(card.rewards.duo).toBe("9");
+  });
+  it("sin ficha o pendiente: nada en la carta", () => {
+    expect(buildCard(input({ state: "pendiente", matches: SEASON })).rewards.trail).toBe(false);
+    expect(buildCard(input({ state: "sin-ficha", playerId: null, matches: SEASON })).rewards).toEqual({ trail: false, double: false, mvp: false, fijo: false, goleador: false, hat: false, duo: null });
   });
 });
 

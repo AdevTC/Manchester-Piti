@@ -90,7 +90,7 @@ const plantillaRoute = createRoute({
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/profile",
-  component: lazyRouteComponent(() => import("./pages/Profile"), "Profile"),
+  component: lazyRouteComponent(() => import("./pages/perfil/ProfilePage"), "ProfilePage"),
 });
 
 const adminRoute = createRoute({

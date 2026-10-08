@@ -1,0 +1,56 @@
+/* App-only additions to perfil.css (generated from the canvas): the real page around the design — the
+   header's «Vestuario» link, the toast rail on the screen, loading, reduced motion, the marks the earned
+   evoluciones leave on the card, and two selector collisions of the canvas CSS fixed. */
+
+/* The header's «Vestuario» link (the canvas .mp-cta-top): desktop only, like the design. */
+.pcv .pc-cta-top{display:none;align-items:center;gap:8px;height:44px;padding:0 18px;border-radius:999px;background:var(--cta);color:var(--cta-ink);font-weight:700;font-size:14px;text-decoration:none}
+@container (min-width:1100px){.pcv .pc-cta-top{display:inline-flex}}
+
+/* The canvas CSS styles `.bk` (a menu block) and `.sh` (the share sheet): the card's back face (.fc.bk)
+   and the shirt's path (.tee .sh) carry those class names too and must not get their margins/animation. */
+.pcv .fc.bk{display:block;gap:0;margin:0;min-width:0}
+.pcv .tee .sh{margin:0;padding:0;animation:none;max-width:none}
+/* The dock's label (.lbl) is the app's, not the design's mono kicker. */
+.pcv .vx-dock .lbl{display:inline;margin:0;font:inherit;letter-spacing:normal;text-transform:none;color:inherit}
+
+/* The example chip can wrap on narrow phones instead of overflowing. */
+.pcv .ex{height:auto;min-height:24px;max-width:100%;padding:3px 10px;line-height:1.35;text-align:center}
+
+/* Toasts sit on the screen (above the dock on phones), not at the end of the page. */
+.pcv .pf-toast-rail{position:fixed;bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+@container (min-width:1100px){.pcv .pf-toast-rail{bottom:32px}}
+.pcv .pf-toast.bad{background:#ffe1dd;color:#5a0f0a}
+.pcv .pf-toast span{overflow-wrap:anywhere}
+
+/* The tab is hidden: the whole page holds still ([data-paused] on the root; offscreen pieces pause
+   themselves with the generated [data-paused] rules). */
+.vx.pcv[data-paused] *,.vx.pcv[data-paused] *::before,.vx.pcv[data-paused] *::after{animation-play-state:paused!important}
+
+/* While the profile loads (or can't). */
+.pcv .pc-wait{display:grid;align-content:start;justify-items:center;min-height:100svh;padding:150px 16px 0}
+.pcv .pc-load{margin:0;font-family:'Geist Mono';font-size:12px;letter-spacing:.06em;color:var(--muted)}
+.pcv .pc-wait .note{max-width:420px}
+
+/* The disabled shirt field can't be typed in. */
+.pcv .es-off{pointer-events:none}
+/* Busy buttons. */
+.pcv .btn[aria-busy=true]{cursor:progress}
+
+/* Evoluciones on the card: what each earned reward shows (the rating never changes).
+   Primer gol → a golden trail behind the name · Fijo → a thicker gold frame · MVP → a star ·
+   Doblete → «×2» · Hat-trick → a golden ball · Goleador → «G» · Dúo → your partner's dorsal. */
+.pcv .cf-ev{display:flex;flex-wrap:wrap;justify-content:center;gap:.3em;width:5.6em;margin-top:.15em}
+.pcv .cf-ev i{display:grid;place-items:center;min-width:1.55em;height:1.55em;padding:0 .2em;border-radius:999px;background:radial-gradient(circle at 35% 30%,#fff3cf,#FFC659 55%,#b57e1c);color:#0c1733;font-style:normal;font-family:'Anybody';font-weight:900;font-size:1em;line-height:1;font-variation-settings:'wdth' 90;box-shadow:0 .12em .35em rgba(0,0,0,.35)}
+.pcv .cf-ev i svg{width:1em;height:1em}
+.pcv .cf-ev i.duo{display:inline-flex;gap:.15em;padding:0 .35em;font-size:.9em}
+.pcv .cd.ev-trail .cf-nm{text-shadow:-.05em .03em 0 rgba(255,198,89,.6),-.1em .06em 0 rgba(255,198,89,.35),-.15em .09em 0 rgba(255,198,89,.18)}
+.pcv .cd.ev-fijo .fc.ft{background:linear-gradient(140deg,#fff3cf,#FFC659 30%,#b57e1c 62%,#ffe3a3)}
+.pcv .cd.ev-fijo .fc.ft > .fc-in{inset:.8em}
+
+/* Reduced motion: the final frame, nothing moves (the intro never starts either). */
+@media (prefers-reduced-motion:reduce){
+.pcv *,.pcv *::before,.pcv *::after{animation:none!important;transition:none!important}
+}
+
+/* The card name clips its own overflow (ellipsis): line-height 1 cut the accents (ADRIÁN). Taller line, same baseline. */
+.pcv .cf-nm{line-height:1.22;margin-top:-.11em}

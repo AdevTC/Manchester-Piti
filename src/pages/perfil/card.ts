@@ -109,7 +109,31 @@ export interface Evo {
   /** 0–100. */
   pct: number;
   reward: string;
+  /** Dúo: the teammate you have combined the most goals with (his player id). */
+  with?: string;
 }
+
+/**
+ * What the evoluciones you have earned put on the card (each reward is something the card really shows;
+ * the rating never changes: it is always the pizarra cromo's).
+ */
+export interface CardRewards {
+  /** Primer gol: a golden trail under the name. */
+  trail: boolean;
+  /** Doblete: a «×2» seal. */
+  double: boolean;
+  /** MVP: a star by the rating. */
+  mvp: boolean;
+  /** Fijo: the «Fijo» frame (an inner gold border). */
+  fijo: boolean;
+  /** Goleador: a «G» seal. */
+  goleador: boolean;
+  /** Hat-trick: a golden ball. */
+  hat: boolean;
+  /** Dúo: your partner's dorsal on a plate (null = not earned). */
+  duo: string | null;
+}
+export const NO_REWARDS: CardRewards = { trail: false, double: false, mvp: false, fijo: false, goleador: false, hat: false, duo: null };
 
 export interface CardInput {
   state: FichaState;
@@ -162,6 +186,8 @@ export interface CardView {
   partner: PartnerView | null;
   evo: Evo[];
   nextEvo: (Evo & { text: string }) | null;
+  /** What the earned evoluciones show on the card (vinculada only). */
+  rewards: CardRewards;
   /** The season's first match (for «Se revela en la J1…»). */
   first: { dateMs: number; rival: string } | null;
 }
@@ -263,22 +289,23 @@ export function evoluciones(playerId: string | null, matches: ClubMatch[], resul
       if (other) pairs.set(other, (pairs.get(other) ?? 0) + 1);
     }
   const combos = Math.max(0, ...pairs.values());
+  const duoWith = [...pairs.entries()].find(([, n]) => n === combos && n > 0)?.[0];
   // The medals of the vitrina that are the same thing say whether it's done.
   const medals = new Map(vitrina(id, games, results, seasons, now).map((m) => [m.id, m.earned]));
   const rows: [Evo["id"], string, string, EvoShape, number, number, string, string | null][] = [
     ["debut", "Debut", "Juega tu primer partido", "shield", 1, played, "Tu carta entra en la colección", "debut"],
     ["goal", "Primer gol", "Marca tu primer gol", "circle", 1, goals, "Estela dorada en el nombre", "goal"],
-    ["double", "Doblete", "2 goles en un partido", "circle", 2, maxG, "+1 de valoración", null],
+    ["double", "Doblete", "2 goles en un partido", "circle", 2, maxG, "Sello «×2» en la carta", null],
     ["mvp", "MVP", "Gana una votación al MVP", "star", 1, mvps, "Estrella en la carta", "mvp"],
     ["fijo", "Fijo", "Juega 10 partidos", "shield", 10, played, "Marco «Fijo»", "ten"],
-    ["goleador", "Goleador", "Llega a 10 goles", "circle", 10, goals, "Carta «Goleador» · +2", null],
+    ["goleador", "Goleador", "Llega a 10 goles", "circle", 10, goals, "Sello «G» de goleador en la carta", null],
     ["hat", "Hat-trick", "3 goles en un partido", "circle", 3, maxG, "Balón de oro en la carta", "hat"],
-    ["duo", "Dúo", "10 goles combinados con el mismo compañero", "hex", 10, combos, "Carta dúo con tu socio", null],
+    ["duo", "Dúo", "10 goles combinados con el mismo compañero", "hex", 10, combos, "Placa dúo con el dorsal de tu socio", null],
   ];
   return rows.map(([eid, k, d, shape, goal, raw, reward, medal]) => {
     const cur = Math.min(raw, goal);
     const done = medal ? medals.get(medal) === true : raw >= goal;
-    return { id: eid, k, d, shape, goal, cur, done, pct: Math.round((cur / goal) * 100), reward };
+    return { id: eid, k, d, shape, goal, cur, done, pct: Math.round((cur / goal) * 100), reward, ...(eid === "duo" && duoWith ? { with: duoWith } : {}) };
   });
 }
 /** «Próxima evolución»: the closest one still to do (the first of the list on a tie). */
@@ -370,6 +397,20 @@ export function buildCard(input: CardInput): CardView {
 
   const evo = evoluciones(vinc ? playerId : null, matches, mvpResults, input.seasons, now);
   const ticker = tickerFor({ state, name, number, posLong, captain, nickname: input.nickname });
+  const done = new Map(evo.map((e) => [e.id, e.done]));
+  const duo = evo.find((e) => e.id === "duo");
+  const duoMate = duo?.done && duo.with ? squad.byId.get(duo.with) : undefined;
+  const rewards: CardRewards = vinc
+    ? {
+        trail: !!done.get("goal"),
+        double: !!done.get("double"),
+        mvp: !!done.get("mvp"),
+        fijo: !!done.get("fijo"),
+        goleador: !!done.get("goleador"),
+        hat: !!done.get("hat"),
+        duo: duo?.done ? (duoMate && duoMate.num ? String(duoMate.num) : "?") : null,
+      }
+    : NO_REWARDS;
   return {
     state,
     started,
@@ -399,6 +440,7 @@ export function buildCard(input: CardInput): CardView {
     partner: shown ? partnerOf(shown.id, games, squad) : null,
     evo,
     nextEvo: nextEvolution(evo, vinc && evo.some((e) => e.cur > 0)),
+    rewards,
     first,
   };
 }
