@@ -11,7 +11,7 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { DOOR_TOPICS, kickoffNotice, lineupNotice, noticesFor, TOPICS, type LineupLike, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
+import { convocatoriaNotice, DOOR_TOPICS, kickoffNotice, lineupNotice, noticesFor, TOPICS, type LineupLike, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
 
 const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
 /** Public half of the key pair (also in the app, src/lib/push.ts). */
@@ -82,7 +82,26 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   const players = await Promise.all([...ids].map((id) => db.doc(`players/${id}`).get()));
   const names = new Map(players.map((p) => [p.id, (p.get("shirtName") as string) || [p.get("firstName"), p.get("lastName")].filter(Boolean).join(" ") || "Jugador"]));
   for (const n of noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", Date.now())) await sendTo(n);
+  // «Ya está la convocatoria»: the first time it is published with titulares — once per match (pushLog).
+  if (!convocatoriaNotice(event.params.matchId, before, after, null, Date.now())) return;
+  const jornada = after?.seasonId ? await jornadaOf(after.seasonId, after.date) : null;
+  const conv = convocatoriaNotice(event.params.matchId, before, after, jornada, Date.now());
+  if (!conv) return;
+  try {
+    await db.doc(`pushLog/${conv.tag}`).create({ at: FieldValue.serverTimestamp() });
+  } catch {
+    return;
+  }
+  await sendTo(conv);
 });
+
+/** A match's number in its season, by date (as the admin numbers them: J1, J2…). */
+async function jornadaOf(seasonId: string, date: number | undefined): Promise<number | null> {
+  if (typeof date !== "number") return null;
+  const all = await db.collection("matches").where("seasonId", "==", seasonId).get();
+  const dates = all.docs.filter((d) => !d.get("archived")).map((d) => (d.get("date") as Timestamp | undefined)?.toMillis?.() ?? NaN);
+  return dates.filter((t) => Number.isFinite(t) && t <= date).length || null;
+}
 
 // «Ya está el siete»: a board becomes the official one (or the official moves to another match). The
 // notice goes once per board and match (pushLog), whatever the retries of the trigger or a captain
