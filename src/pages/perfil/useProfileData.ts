@@ -40,6 +40,7 @@ import {
   type PorraLine,
 } from "./profileData";
 import type { SquadShirt } from "./rules";
+import { upcomingRows, type UpcomingRow } from "./avisos";
 
 export type Role = "superadmin" | "admin" | "user";
 /** A ficha the member can still ask for (the claim picker): this season's, nobody linked to it. */
@@ -80,6 +81,8 @@ export interface ProfileData {
   card: CardView;
   freeFichas: FreeFicha[];
   next: NextMatch | null;
+  /** Avisos › Calendario: the next three matches to play. */
+  upcoming: UpcomingRow[];
   stuff: { boards: BoardsLine; porra: PorraLine | null; convocatorias: ConvocatoriaLine; loading: boolean };
   captain: { doorRequests: DoorRequestRow[]; pendingClaims: Claim[] } | null;
 }
@@ -196,6 +199,7 @@ export function useProfileData(): ProfileData {
     card,
     freeFichas,
     next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: calendar.findIndex((m) => m.id === next.id) + 1 || null } : null,
+    upcoming: upcomingRows(matches, minute),
     stuff: {
       boards: boardsLine(lineups.mine),
       porra: porraLine(porra.data, uid),

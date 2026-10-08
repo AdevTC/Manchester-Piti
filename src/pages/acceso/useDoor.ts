@@ -13,6 +13,7 @@ import { currentSeasonId, kickoffLabel } from "../../lib/vestuario";
 import { apiError, cancelAccessRequest, doorShirts, inviteInfo, joinWithInvite, requestAccess, type Who } from "../../lib/clubApi";
 import { doorStep, inviteCodeFrom, shirtsToPick } from "../../lib/door";
 import { endWelcome, startWelcome, useWelcome, walkOut } from "../../lib/doorWelcome";
+import { onDoorNotice, takeDoorNotice } from "../../lib/doorNotice";
 import { pushState, savedTopics, toggleTopic } from "../../lib/push";
 
 export type DoorScreen = ReturnType<typeof doorStep> | "aprobada" | "bienvenida";
@@ -68,6 +69,18 @@ export function useDoor() {
     setNotice(text);
     noticeTimer.current = setTimeout(() => setNotice(""), 2600);
   };
+  // What the profile left for the door (signed out there, or left the vestuario): shown a little longer.
+  useEffect(() => {
+    const show = () => {
+      const text = takeDoorNotice();
+      if (!text) return;
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+      setNotice(text);
+      noticeTimer.current = setTimeout(() => setNotice(""), 6000);
+    };
+    show();
+    return onDoorNotice(show);
+  }, []);
 
   const invite = useQuery({ queryKey: ["invite", code], queryFn: async () => (await inviteInfo({ code: code! })).data, enabled: !!code, staleTime: 60_000, retry: 1 });
   const shirtsQ = useQuery({

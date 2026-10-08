@@ -10,13 +10,16 @@ import { askGyro, buzz, copyText, errorMessage, gyroNeedsPermission, isOffline, 
 import { Ic } from "./icons";
 import { stuffLines } from "./lines";
 import { Menu } from "./Menu";
-import { introSeen, markIntroSeen, readProfilePrefs, readSharedPrefs, shouldPlayIntro } from "./prefs";
+import { introSeen, markIntroSeen, readProfilePrefs, readSharedPrefs, shouldPlayIntro, writeProfilePrefs, type ProfilePrefs } from "./prefs";
 import { normalizeShirtName, shirtNameCheck, typeShirtName } from "./rules";
 import { TabCarta } from "./TabCarta";
-import { TabAjustes, TabAvisos, TabCapitania, TabCuenta } from "./TabsRest";
+import { TabAjustes } from "./TabAjustes";
+import { TabAvisos } from "./TabAvisos";
+import { TabCapitania } from "./TabCapitania";
+import { TabCuenta } from "./TabCuenta";
 import { TabTemporada } from "./TabTemporada";
 import { deepHash, forgetDeepHash, hashOf, slideDir, tabFromHash, tabsFor, type TabId } from "./tabs";
-import { prefersReducedMotion, usePauseHidden, usePauseOffscreen, useTilt } from "./useMotion";
+import { prefersReducedMotion, usePauseHidden, usePauseOffscreen, useReducedMotion, useTilt } from "./useMotion";
 import type { SetShirtNameResult } from "./api";
 import type { ProfileData } from "./useProfileData";
 
@@ -27,6 +30,10 @@ export interface ProfileActions {
   nicknameTaken: (nick: string) => Promise<boolean>;
   cancelClaim: () => Promise<void>;
   requestClaim: (playerId: string) => Promise<{ linked: boolean }>;
+  /** «Salir en este dispositivo»: this device only. */
+  signOut: () => Promise<void>;
+  /** «Darme de baja del vestuario»: leaveVestuario({ confirm: true }) and then out of this device. */
+  leaveVestuario: () => Promise<void>;
 }
 
 export interface ProfileViewProps {
@@ -52,11 +59,24 @@ interface Undo {
 }
 
 const upper = (s: string) => s.toLocaleUpperCase("es-ES");
+/** The avatar's letters: the shirt name's initials (ADRIÁN T.C. → AT), else the apodo's first two. */
+function initialsOf(shirt: string, nick: string): string {
+  const fromShirt = upper(shirt)
+    .replace(/[^A-ZÁÉÍÓÚÜÑÇ ]/g, "")
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2);
+  return fromShirt || upper(nick.slice(0, 2)) || "?";
+}
 const wait = (ms: number) => new Promise<void>((r) => (ms > 0 ? window.setTimeout(r, ms) : r()));
 
 export function ProfileView({ data, actions, now, origin, header, footer }: ProfileViewProps) {
   const [rm] = useState(prefersReducedMotion);
-  const [prefs] = useState(readProfilePrefs);
+  const [prefs, setPrefs] = useState(readProfilePrefs);
+  // Ajustes › Animaciones shows the device's setting live (the page itself decided at load).
+  const rmLive = useReducedMotion();
   const ready = !data.loading && !data.error;
   const root = useRef<HTMLDivElement>(null);
   const pz = usePauseOffscreen();
@@ -121,6 +141,19 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
     asked.current = true;
     void askGyro().then((ok) => ok && setGyroAllowed(true));
   };
+  // ── Ajustes: «Salida de la carta» counts from the next visit; «Brillo al inclinar» right now (turning it
+  // on asks iOS for the gyro from that same tap).
+  const savePrefs = (p: Partial<ProfilePrefs>) => {
+    const next = { ...prefs, ...p };
+    writeProfilePrefs(next);
+    setPrefs(next);
+  };
+  const setTiltPref = (on: boolean) => {
+    savePrefs({ tilt: on });
+    if (!on || gyroAllowed || rm) return;
+    asked.current = true;
+    void askGyro().then((ok) => ok && setGyroAllowed(true));
+  };
 
   // ── the menu: tabs (+ #hash deep links)
   const isCaptain = data.isCaptain;
@@ -146,7 +179,7 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
     const t = window.setTimeout(() => document.getElementById("pe-menu")?.scrollIntoView?.({ behavior: "auto", block: "start" }), 120);
     return () => window.clearTimeout(t);
   }, [ready]);
-  const goTab = (id: TabId, then?: string) => {
+  const goTab = (id: TabId, then?: string, focus?: string) => {
     setDir(slideDir(tab, id, ids));
     setTab(id);
     try {
@@ -155,6 +188,12 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
       /* sandboxed: the tab still changes */
     }
     later(() => {
+      if (focus) {
+        const el = document.getElementById(focus);
+        el?.focus();
+        el?.scrollIntoView?.({ behavior: rm ? "auto" : "smooth", block: "center" });
+        return;
+      }
       if (then) {
         scrollToId(then);
         return;
@@ -416,13 +455,26 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
     ) : tab === "temp" ? (
       <TabTemporada card={data.card} seasonName={data.seasonName} stuff={stuffLines({ next: data.next, boards: data.stuff.boards, porra: data.stuff.porra, conv: data.stuff.convocatorias, now })} stuffLoading={data.stuff.loading} onGoPick={goPick} />
     ) : tab === "avisos" ? (
-      <TabAvisos />
+      <TabAvisos isCaptain={isCaptain} testName={vinc ? shirt : upper(nick)} next={data.next ? { rival: data.next.rival, j: data.next.j } : null} upcoming={data.upcoming} feed={origin + "/calendario.ics"} say={say} rm={rm} />
     ) : tab === "ajustes" ? (
-      <TabAjustes />
+      <TabAjustes prefs={prefs} onIntro={(intro) => savePrefs({ intro })} onTilt={setTiltPref} rm={rmLive} />
     ) : tab === "cuenta" ? (
-      <TabCuenta nick={nick} shirtLine={vinc ? `${shirt}${data.card.number ? " · dorsal " + data.card.number : ""}` : state === "pendiente" ? "Cuando el capitán acepte tu ficha" : "Cuando tengas ficha"} onChange={() => goTab("carta", "pe-nombre")} />
+      <TabCuenta
+        nick={nick}
+        shirtLine={vinc ? `${shirt}${data.card.number ? " · dorsal " + data.card.number : ""}` : state === "pendiente" ? "Cuando el capitán acepte tu ficha" : "Cuando tengas ficha"}
+        onChange={() => goTab("carta", "pe-nombre")}
+        google={data.google}
+        initials={initialsOf(vinc ? shirt : "", nick)}
+        roleLong={isCaptain ? "Capitán" : "Jugador"}
+        access={data.access}
+        uid={data.uid}
+        isSuperadmin={data.isSuperadmin}
+        onSignOut={actions.signOut}
+        onLeave={actions.leaveVestuario}
+        say={say}
+      />
     ) : (
-      <TabCapitania />
+      <TabCapitania requests={data.captain?.doorRequests ?? []} squad={data.shirt.squad} now={now} onGoAvisos={() => goTab("avisos", undefined, "pe-tp-door")} />
     );
 
   const season = upper(data.seasonName);

@@ -1,7 +1,7 @@
 // «La puerta», the tunnel's control room inside the vestuario (captains only): the monitor, who is
 // knocking (a swipeable stack with undo), invitation links (copy, WhatsApp, QR, a poster for the real
 // door), who is inside (remove access) and the live passes. Same LED language as the door.
-import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { Icon } from "../../components/celeste/icons";
 import { inviteUrl } from "../../lib/door";
 import { pushState, savedTopics, toggleTopic } from "../../lib/push";
@@ -62,6 +62,14 @@ export function CaptainDoor() {
   const [doorPush, setDoorPush] = useState(() => savedTopics().includes("door"));
   const card = useRef<HTMLElement>(null);
   const drag = useRef({ on: false, x0: 0, dx: 0 });
+
+  // «Ir a La puerta» (/vestuario#puerta, from the profile's Capitanía): this panel loads lazily, after
+  // the browser looked for the anchor, so it brings itself into view once it is there.
+  useEffect(() => {
+    if (!cap.admin || window.location.hash !== "#puerta") return;
+    const t = window.setTimeout(() => document.getElementById("puerta")?.scrollIntoView?.({ block: "start" }), 60);
+    return () => window.clearTimeout(t);
+  }, [cap.admin]);
 
   if (!cap.admin) return null;
   const origin = typeof window !== "undefined" ? window.location.origin : "";

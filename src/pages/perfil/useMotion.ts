@@ -2,7 +2,7 @@
 // ([data-paused] via IntersectionObserver, and the whole page while the tab is hidden), and the living
 // card's tilt (pointer always; the phone's gyro when «Brillo al inclinar» is on — on iOS only after the
 // permission asked from a tap). Everything writes CSS custom properties: no re-renders.
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function prefersReducedMotion(): boolean {
   try {
@@ -10,6 +10,24 @@ export function prefersReducedMotion(): boolean {
   } catch {
     return false;
   }
+}
+
+/** The device's «reduce motion», live (Ajustes › Animaciones follows it as it changes). */
+export function useReducedMotion(): boolean {
+  const [rm, setRm] = useState(prefersReducedMotion);
+  useEffect(() => {
+    let mq: MediaQueryList | undefined;
+    try {
+      mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    } catch {
+      return;
+    }
+    if (!mq) return;
+    const on = () => setRm(!!mq?.matches);
+    mq.addEventListener?.("change", on);
+    return () => mq?.removeEventListener?.("change", on);
+  }, []);
+  return rm;
 }
 
 /** A ref callback: each element it gets pauses its loops ([data-paused]) while it is offscreen. */
