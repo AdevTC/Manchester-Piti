@@ -6,7 +6,10 @@ import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/cele
 import { Icon } from "../../components/celeste/icons";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { useClock } from "../../hooks/useClock";
-import { cancelPlayerClaim, nicknameTaken, requestPlayerClaim, setNickname, setShirtName } from "./api";
+import { useAuth } from "../../context/AuthContext";
+import { leaveDoorNotice } from "../../lib/doorNotice";
+import { savedTopics, setTopics } from "../../lib/push";
+import { cancelPlayerClaim, leaveVestuario, nicknameTaken, requestPlayerClaim, setNickname, setShirtName } from "./api";
 import { ProfileView, type ProfileActions } from "./ProfileView";
 import { useProfileData } from "./useProfileData";
 import "../../styles/perfil.css";
@@ -14,6 +17,7 @@ import "../../styles/perfil-app.css";
 
 export function ProfilePage() {
   const data = useProfileData();
+  const { logout } = useAuth();
   const now = useClock(60_000);
   const uid = data.uid;
   const actions: ProfileActions = {
@@ -26,6 +30,17 @@ export function ProfilePage() {
     requestClaim: async (playerId) => {
       const r = await requestPlayerClaim({ playerId });
       return { linked: r.data.linked };
+    },
+    signOut: async () => {
+      leaveDoorNotice("Has salido en este dispositivo");
+      await logout();
+    },
+    leaveVestuario: async () => {
+      await leaveVestuario({ confirm: true });
+      // The server dropped this account's notices: this device forgets its topics too (best effort).
+      if (savedTopics().length) void setTopics([]).catch(() => undefined);
+      leaveDoorNotice("Te has dado de baja del vestuario. Para volver, un capitán tendrá que abrirte otra vez.");
+      await logout();
     },
   };
   return (
