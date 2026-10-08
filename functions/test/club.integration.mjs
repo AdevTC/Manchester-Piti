@@ -638,6 +638,8 @@ await denied("leaveVestuario", rival, { confirm: true }, "PERMISSION_DENIED");
 // Gone means gone: asking again waits for a captain.
 assert.equal((await ok("requestAccess", rival, { name: "Rival" })).status, "pending");
 checked++;
+// Leave the door empty for the browser suite that runs next on the same emulators.
+await ok("cancelAccessRequest", rival, {});
 console.log(
   checked +
     " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos, disponibilidad, avisos del siete y perfil.",
