@@ -6,7 +6,7 @@ import { recentForm, squadNorms, suspendedSet, type SquadNorms } from "./chemist
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import { mapMatch } from "../../lib/firestoreMappers";
 
-// Shared with MatchCenter/Stats/Expedientes/useSeasonMatches via the CANONICAL
+// Shared with MatchCenter/Stats/Expedientes via the CANONICAL
 // mapper: ONE realtime subscription to all matches (date desc), full validated
 // docs in the cache. seasonMatchSchema is a looseObject, so `events` passes
 // through; the per-season filter + `{ events }` reduction happens in memory
@@ -23,9 +23,8 @@ export interface PizarraStats {
 }
 
 /** Realtime per-season match stats for the board's chemistry layer. Reads the
- *  shared `matches` subscription (with events, date-desc) and derives the maps
- *  the chemistry needs. Separate from useSeasonMatches (which feeds the official
- *  picker and carries no events) but backed by the SAME cache key + mapper. */
+ *  shared `matches` subscription (with events, date-desc; the SAME cache key +
+ *  mapper as every other reader) and derives the maps the chemistry needs. */
 export function usePizarraStats(seasonId: string, players: { id: string; seasonsCount: number }[]): PizarraStats {
   const { data, isPending } = useFirestoreCollection(MATCHES_KEY, matchesQuery, mapMatch);
 

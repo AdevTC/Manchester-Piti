@@ -17,6 +17,25 @@
 .pzv .sheet .sh-in{max-height:calc(var(--sh) - 20px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 .pzv[data-snap=full] .sheet .sh-in{max-height:calc(100% - 20px)}
 }
+/* Tablets: the phone's composition, centred, with a 560 px pitch. The app screen is the viewport too (up
+   to 900), and the pitch is scaled to fit above the sheet the same way (--kp at peek, --kh at half),
+   with the hint line under it. */
+@container (min-width:700px) and (max-width:1099px){
+.pzv .app{height:clamp(560px,100svh,900px)}
+.pzv[data-snap=peek] .b2d{--k:var(--kp,1)}
+.pzv[data-snap=half] .b2d,.pzv[data-snap=full] .b2d{--k:var(--kh,.5)}
+.pzv .hint{top:calc(64px + var(--fh) * 560px * var(--kp,1))}
+.pzv .sheet{height:min(700px,calc(100% - 80px));transform:translateY(calc(100% - var(--sh)))}
+.pzv[data-snap=full] .sheet{transform:none}
+.pzv .sheet .sh-in{max-height:calc(var(--sh) - 20px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.pzv[data-snap=full] .sheet .sh-in{max-height:calc(100% - 20px)}
+}
+/* Desktop: the pitch keeps its 600 px but is scaled (--kd, measured by the board) when it is taller than
+   the screen allows (the top-down camera), with the hint line under it; the TV camera fits as drawn. */
+@container (min-width:1100px){
+.pzv .b2d,.pzv[data-snap] .b2d{--k:var(--kd,1)}
+.pzv .hint{top:calc(166px + var(--fh) * 600px * var(--kd,1))}
+}
 /* The dock sits at the bottom of the page, under the footer (as designed), not over the mode bar. */
 .pzv .vx-dock{position:absolute;bottom:calc(22px + env(safe-area-inset-bottom,0px))}
 
@@ -144,3 +163,15 @@
 /* Touch targets of at least 44px for the replay's pills, the library and the colours. */
 .pzv .pill,.pzv .sw{position:relative}
 .pzv .pill::before,.pzv .sw::before,.pzv .jl::before{content:"";position:absolute;inset:-2px}
+
+/* ── Phase 5: the opening and la charla ── */
+/* The 3D intro: a tap anywhere on the app (or «Saltar») crossfades to the board. */
+.pzv .i3-tap{position:absolute;inset:0;z-index:40;margin:0;padding:0;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pzv .i3-skip{position:absolute;z-index:41;top:70px;right:12px;min-height:44px;padding:0 16px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:pz-skipIn .5s var(--ez) .4s both}
+@keyframes pz-skipIn{from{opacity:0;transform:translateY(-8px)}}
+@container (min-width:1100px){
+.pzv .i3-skip{top:auto;right:auto;left:calc((100% - 284px) / 2 - 45px);top:calc(166px + var(--fh) * 600px);width:90px}
+}
+/* While the 3D intro plays, nothing of the 2D board's chrome shows over the stadium (the hint line, the
+   read-only strip); they come back with the crossfade. */
+.pzv.i3 .app .hint,.pzv.i3 .app .robar{opacity:0;visibility:hidden}

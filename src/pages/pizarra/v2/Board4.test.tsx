@@ -355,6 +355,22 @@ describe("Jugadas · la repetición", () => {
     expect(bug()).toHaveAccessibleName(/paso 1 de 4/);
   });
 
+  it("quick presses of the transport all count (even before the board has drawn them)", () => {
+    render(<Harness initial={L7()} />);
+    go("Jugadas");
+    const next = screen.getByRole("button", { name: "Paso siguiente" });
+    act(() => {
+      for (let k = 0; k < 3; k++) next.click();
+    });
+    expect(bug()).toHaveAccessibleName(/paso 4 de 4/);
+    const prev = screen.getByRole("button", { name: "Paso anterior" });
+    act(() => {
+      prev.click();
+      prev.click();
+    });
+    expect(bug()).toHaveAccessibleName(/paso 2 de 4/);
+  });
+
   it("paso by paso by hand: the arrows, the timeline with its ticks, the keyboard", () => {
     const { container } = render(<Harness initial={L7()} />);
     go("Jugadas");
@@ -690,7 +706,7 @@ describe("Jugadas · en 3D", () => {
   it("where the device can: the jugada plays in the stadium under the HUD; pausing goes back to 2D", async () => {
     sup.reason = null;
     const { h, ctl } = handle();
-    const { container } = render(<Harness initial={L7()} />);
+    const { container, unmount } = render(<Harness initial={L7()} />);
     go("Jugadas");
     expect(s3.mounts).toBe(0);
     fireEvent.click(screen.getByRole("button", { name: "Reproducir la repetición" }));
@@ -712,9 +728,13 @@ describe("Jugadas · en 3D", () => {
     expect(ctl.stop).toHaveBeenCalledTimes(2);
     expect(root(container)).not.toHaveClass("v3");
     expect(bug()).toHaveAccessibleName(/paso 3 de 4/);
-    // leaving the jugadas lets the stadium go
+    // leaving the jugadas, the one stadium stays (resting) for the board's next 3D moment
     go("Siete");
-    expect(container.querySelector("[data-testid=stadium3d]")).toBeNull();
+    expect(container.querySelector(".p3d [data-testid=stadium3d]")).not.toBeNull();
+    expect(s3.mounts).toBe(1);
+    await waitFor(() => expect(h.pause).toHaveBeenCalled(), { timeout: 2000 });
+    // and it goes with the board
+    unmount();
     expect(s3.unmounts).toBe(1);
   });
 

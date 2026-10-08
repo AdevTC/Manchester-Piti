@@ -146,9 +146,9 @@ describe("tableros", () => {
     expect(matchLabel(m({}))).toBe("J8 · MAD SKY");
   });
 
-  it("the link to a board turns the new board on while it is behind its switch", () => {
-    expect(boardLink("https://piti.club", "a b")).toBe("https://piti.club/pizarra?tablero=a%20b&v2");
-    expect(boardLink("https://piti.club", "x", false)).toBe("https://piti.club/pizarra?tablero=x");
+  it("the link to a board, and the one straight to its charla", () => {
+    expect(boardLink("https://piti.club", "a b")).toBe("https://piti.club/pizarra?tablero=a%20b");
+    expect(boardLink("https://piti.club", "x", true)).toBe("https://piti.club/pizarra?tablero=x#charla");
   });
 });
 

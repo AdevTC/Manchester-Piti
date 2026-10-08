@@ -10,6 +10,9 @@ import { chem } from "./quimica";
 // Phase 3 as a user drives it: the plan on the pitch, the química panel, Tableros (mine, official,
 // partido), Comparar, Compartir, Ajustes and the convocatoria on the cromos — with a fake session.
 
+// No WebGL in tests: the device «is» under automation, so the 3D stadium never starts.
+vi.mock("../../../components/pitch3d/support", () => ({ unsupportedReason: () => "webdriver", supported: () => false }));
+
 vi.mock("./cartel", async (orig) => {
   const real = await orig<typeof import("./cartel")>();
   return { ...real, crestImage: async () => null, cartelBlob: vi.fn(async () => new Blob(["png"], { type: "image/png" })) };
@@ -387,7 +390,11 @@ describe("Compartir", () => {
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ title: "Los siete · J8 · MAD SKY", files: [expect.any(File)] }));
     fireEvent.click(screen.getByRole("button", { name: "Copiar enlace al tablero" }));
     expect(await screen.findByText("Enlace copiado: pégalo en el grupo")).toBeInTheDocument();
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.origin + "/pizarra?tablero=b1&v2");
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.origin + "/pizarra?tablero=b1");
+    // and the one the captain sends before the match: straight to the charla
+    fireEvent.click(screen.getByRole("button", { name: "Copiar el enlace que abre la charla de este tablero" }));
+    expect(await screen.findByText("Enlace a la charla copiado: pégalo en el grupo")).toBeInTheDocument();
+    expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith(window.location.origin + "/pizarra?tablero=b1#charla");
     Object.assign(navigator, { share: undefined, canShare: undefined });
   });
 

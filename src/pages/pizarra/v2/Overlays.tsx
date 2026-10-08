@@ -1,5 +1,6 @@
 // The board's overlays: the long-press radial fan, the ficha (the cromo flies to the centre and flips to
-// its stats), and the stage FX (the «¡Siete listo!» flash, the replay's crest wipe and the rewind).
+// its stats), and the stage FX (the «¡Siete listo!» and «¡A por ellos!» flash, the replay's crest wipe and
+// the rewind).
 import { useEffect, useRef } from "react";
 import { CREST, Icon, Shirt } from "./icons";
 import { SPARKS } from "./geometry";
@@ -158,7 +159,7 @@ export function Ficha({ f, rm, onFlip, onClose }: { f: FichaView; rm: boolean; o
   );
 }
 
-export function FxLayer({ cele, celeSub, rw, rwKey, wipe = null }: { cele: boolean; celeSub: string; rw: string; rwKey: number; wipe?: number | null }) {
+export function FxLayer({ cele, rw, rwKey, wipe = null }: { cele: { txt: string; sub: string } | null; rw: string; rwKey: number; wipe?: number | null }) {
   return (
     <div className="fx" aria-hidden="true">
       {cele && (
@@ -169,8 +170,8 @@ export function FxLayer({ cele, celeSub, rw, rwKey, wipe = null }: { cele: boole
               <i key={k} style={vars({ "--x": s.x, "--c": s.c, "--d": s.d, "--w": s.w, "--r": s.r })} />
             ))}
           </div>
-          <b>¡SIETE LISTO!</b>
-          <span>{celeSub}</span>
+          <b>{cele.txt}</b>
+          <span>{cele.sub}</span>
         </div>
       )}
       {wipe != null && (

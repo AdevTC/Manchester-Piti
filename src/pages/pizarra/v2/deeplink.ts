@@ -1,6 +1,6 @@
-// Deep links into the new board: /pizarra?tablero=<id> opens a board, #comparar / #compartir / … open a
-// panel. The season sync rewrites the URL as soon as the app starts (and drops what it doesn't know),
-// so, like the v2 switch, the first load remembers them here until the board has used them.
+// Deep links into the board: /pizarra?tablero=<id> opens a board, #charla / #comparar / #compartir / …
+// open a panel. The season sync rewrites the URL as soon as the app starts (and drops what it doesn't
+// know), so the first load remembers them here until the board has used them.
 const read = () => {
   if (typeof window === "undefined") return { tablero: null, hash: "" };
   return { tablero: new URLSearchParams(window.location.search).get("tablero"), hash: window.location.hash.replace(/^#/, "").toLowerCase() };

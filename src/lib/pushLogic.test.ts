@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { kickoffNotice, noticesFor } from "../../functions/src/pushLogic";
+import { kickoffNotice, lineupNotice, noticesFor, TOPICS } from "../../functions/src/pushLogic";
 
 const NOW = Date.UTC(2026, 10, 8, 11, 20);
 const nameOf = (id: string) => ({ e: "ERIK", a: "ADRIÁN T.C." })[id] ?? "Jugador";
@@ -40,5 +40,42 @@ describe("push notices", () => {
   it("archived matches never notify; kick-off notice", () => {
     expect(noticesFor("x", undefined, { ...base, date: NOW + 1e9, archived: true }, nameOf, NOW)).toEqual([]);
     expect(kickoffNotice("j8", "MAD SKY")).toMatchObject({ topic: "start", title: "¡Empieza el partido! Piti vs MAD SKY", url: "/matches/j8" });
+  });
+});
+
+describe("«Ya está el siete» (the official seven on the pizarra)", () => {
+  const j8 = { rival: "MAD SKY", status: "scheduled", date: Date.UTC(2026, 10, 8, 11) };
+  it("a board that becomes the official one for a match: the notice with the match, to the charla", () => {
+    expect(lineupNotice("b1", { isOfficial: false, matchId: null }, { isOfficial: true, matchId: "j8" }, j8)).toEqual({
+      topic: "lineup",
+      title: "Ya está el siete",
+      body: "Contra MAD SKY (domingo, 8 nov, 12:00): el capitán ya ha publicado el siete. Ábrelo y mira la charla.",
+      tag: "lineup-b1-j8",
+      url: "/pizarra?tablero=b1#charla",
+    });
+    expect(TOPICS).toContain("lineup");
+  });
+  it("the official for the whole season, and one whose match can't be read", () => {
+    expect(lineupNotice("b2", undefined, { isOfficial: true, matchId: null }, null)).toMatchObject({
+      body: "El capitán ya ha publicado el siete de la temporada. Ábrelo y mira la charla.",
+      tag: "lineup-b2-temporada",
+      url: "/pizarra?tablero=b2#charla",
+    });
+    expect(lineupNotice("b2", undefined, { isOfficial: true, matchId: "gone" }, undefined)?.body).toBe("El capitán ya ha publicado el siete del partido. Ábrelo y mira la charla.");
+  });
+  it("its alcance changes: a new notice (with its own tag); edits of an official that stays put: none", () => {
+    const off = { isOfficial: true, matchId: "j8" };
+    expect(lineupNotice("b1", off, { isOfficial: true, matchId: null }, null)?.tag).toBe("lineup-b1-temporada");
+    expect(lineupNotice("b1", { isOfficial: true, matchId: null }, off, j8)?.tag).toBe("lineup-b1-j8");
+    expect(lineupNotice("b1", off, { ...off }, j8)).toBeNull();
+    expect(lineupNotice("b1", { isOfficial: true }, { isOfficial: true, matchId: null }, null)).toBeNull();
+  });
+  it("nothing for boards that are not official, unpublishing, deleting, or a match already over", () => {
+    expect(lineupNotice("b1", undefined, { isOfficial: false, matchId: "j8" }, j8)).toBeNull();
+    expect(lineupNotice("b1", { isOfficial: true, matchId: "j8" }, { isOfficial: false, matchId: "j8" }, j8)).toBeNull();
+    expect(lineupNotice("b1", { isOfficial: true, matchId: "j8" }, undefined, j8)).toBeNull();
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j7" }, { ...j8, status: "finished" })).toBeNull();
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j7" }, { ...j8, status: "cancelled" })).toBeNull();
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j7" }, { ...j8, archived: true })).toBeNull();
   });
 });

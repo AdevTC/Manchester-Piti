@@ -8,6 +8,7 @@ import type { StrokeColor, StrokeKind } from "../drawings";
 import { Icon, Nuevo, type IconName } from "./icons";
 import { COLORS, TOOLS } from "./telestrator";
 import { vars } from "./view";
+import { pluralWord } from "./plural";
 
 const TOOL_ICON: Record<StrokeKind, IconName> = { carrera: "run", pase: "pass", conduccion: "drib", zona: "zone", lapiz: "pencil", texto: "text" };
 const LEGEND: [IconName, string][] = [
@@ -83,7 +84,7 @@ export function DibujarPanel(p: DibujarPanelProps) {
           {ask && n > 0 && (
             <div className="cfm" role="group" aria-label="¿Borrar todos los trazos?" style={{ marginTop: 8 }}>
               <span>
-                ¿Borrar los <b>{n}</b> {n === 1 ? "trazo" : "trazos"} del césped? Podrás deshacerlo.
+                ¿Borrar los <b>{n}</b> {pluralWord(n, "trazo")} del césped? Podrás deshacerlo.
               </span>
               <button
                 type="button"

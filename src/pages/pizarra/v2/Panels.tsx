@@ -1,6 +1,6 @@
 // The board's HUD and tools: the app bar (board name + autosave, the 7/7 chip, undo/redo, la charla),
 // the read-only strip, the sheet with its handle, the «Once» tool (Banquillo · Sistema · Plan), the tray
-// (tap a slot or a cromo), the «Más» tiles, the panel still to come (la charla), and the mode bar / rail.
+// (tap a slot or a cromo), the «Más» tiles, and the mode bar / rail.
 import { useRef, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import type { FormationName, RoleKey, Zone } from "../formations";
 import { FORM, SYSTEMS } from "./geometry";
@@ -442,7 +442,7 @@ export function Tray({ d, ...p }: TrayProps) {
   );
 }
 
-// ── «Más» and the panel still to come ──
+// ── «Más» ──
 export function MasPanel({ tacSum, onGo }: { tacSum: string; onGo: (m: Modo | "plan") => void }) {
   return (
     <>
@@ -484,37 +484,6 @@ export function MasPanel({ tacSum, onGo }: { tacSum: string; onGo: (m: Modo | "p
           <small>Cromos, cámara, sonido</small>
         </button>
       </div>
-    </>
-  );
-}
-
-const SOON: Partial<Record<Modo, { kick: string; title: string; txt: string; back?: boolean }>> = {
-  charla: { kick: "La charla", title: "El guion", txt: "Presenta el sistema, los siete, el plan y la jugada antes del partido.", back: true },
-};
-
-export function SoonPanel({ modo, onBack }: { modo: Modo; onBack: () => void }) {
-  const s = SOON[modo];
-  if (!s) return null;
-  return (
-    <>
-      <div className="sh-h">
-        {s.back && (
-          <button type="button" className="back" onClick={onBack}>
-            <Icon n="chevL" w={16} />
-            Más
-          </button>
-        )}
-        <div>
-          <span className="k2">{s.kick}</span>
-          <h2>{s.title}</h2>
-        </div>
-      </div>
-      <p className="soon">
-        <Icon n="film" w={16} />
-        <span>
-          {s.txt} <Nuevo>llega pronto</Nuevo>
-        </span>
-      </p>
     </>
   );
 }

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { chem, hops, links, tierOf } from "./quimica";
 import { formRating, buildSquad } from "./ratings";
 import { hud, ago, pitchView, positionsOf, FX0 } from "./view";
-import { parseV2 } from "./flag";
 import type { ClubMatch } from "../../../lib/clubData";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
 
@@ -165,12 +164,5 @@ describe("small things", () => {
     expect(ago(0 + 1, 5 * 60_000)).toBe("hace 4 min");
     expect(ago(1, 3 * 3600_000)).toBe("hace 2 h");
     expect(ago(1, 30 * 3600_000)).toBe("ayer");
-  });
-  it("reads the v2 switch from the URL", () => {
-    expect(parseV2("?v2")).toBe(true);
-    expect(parseV2("v2=1&season=x")).toBe(true);
-    expect(parseV2("?v2=0")).toBe(false);
-    expect(parseV2("?season=x")).toBeNull();
-    expect(parseV2("")).toBeNull();
   });
 });
