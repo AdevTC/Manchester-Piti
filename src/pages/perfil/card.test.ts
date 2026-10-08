@@ -259,6 +259,8 @@ describe("la carta enseña lo conseguido", () => {
 describe("temporada", () => {
   it("«T1» de «Temporada 1»", () => {
     expect(seasonShort("Temporada 1")).toBe("T1");
+    expect(seasonShort("Temporada 2026/27")).toBe("T26/27");
+    expect(seasonShort("2025-2026")).toBe("T25/26");
     expect(seasonShort("Liga de verano")).toBe("LIGA DE VERANO");
   });
 });

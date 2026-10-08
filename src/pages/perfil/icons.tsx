@@ -188,6 +188,7 @@ const PATHS = {
     </>
   ),
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+  download: <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />,
   ball: (
     <>
       <circle cx="12" cy="12" r="9" />

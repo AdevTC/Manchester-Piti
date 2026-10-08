@@ -50,7 +50,7 @@ export const PRESS_TOAST_MS = 1900;
 export const UNDO_MS = 6000;
 
 /**
- * The share studio («Compartir mi carta», «Mi póster») arrives in phase 4: until then its buttons stay
- * out of the page. Phase 4 flips this.
+ * The share studio («Compartir mi carta», «Mi póster», «Mi póster de socio»): its buttons are on the page.
+ * One switch, kept so the studio can be taken out again in one place if it ever has to.
  */
-export const SHARE_READY = false;
+export const SHARE_READY = true;

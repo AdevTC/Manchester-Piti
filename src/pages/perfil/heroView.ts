@@ -27,6 +27,8 @@ export interface HeroView {
   front: FrontFace;
   back: BackFace;
   cardCls: string;
+  /** The card's colours (the t-… class): bronce · plata · oro · racha · nuevo. */
+  tierCls: string;
   cardAria: string;
   ticker: Ticker;
   tierKey: string;
@@ -123,6 +125,7 @@ export function heroView(i: HeroInput): HeroView {
     },
     back: { name: shirt, since: i.access.sinceText, howIn: i.access.howIn, whoOpened: i.access.whoOpened, path, url: i.origin + path },
     cardCls,
+    tierCls,
     cardAria,
     ticker,
     tierKey: c.tierKey,
