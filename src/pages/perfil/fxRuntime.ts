@@ -1,6 +1,7 @@
 // /profile «La carta»: the small browser effects — the rising beeps of a replayed walkout (only with
 // Sonido on, the audio created inside the tap), the haptic taps, copying a link (with a fallback for
-// browsers without the async clipboard), the gyro permission on iOS and the error copy of the callables.
+// browsers without the async clipboard), saving a file (the share image), the gyro permission on iOS and
+// the error copy of the callables.
 
 type AudioCtor = typeof AudioContext;
 let ctx: AudioContext | null = null;
@@ -40,10 +41,27 @@ export function playBeeps(): void {
   }
 }
 
-/** A haptic tap (only ever in answer to a gesture). */
+/** Saves a file on this device: an object URL on a hidden <a download>, revoked once the click has taken it. */
+export function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** A haptic tap, only in answer to a gesture: the intro's slams also buzz, and before any tap the browser blocks it (with a console error). */
 export function buzz(pattern: number | number[]): void {
   try {
-    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(pattern);
+    if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+    const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean; isActive: boolean } }).userActivation;
+    if (ua && !(ua.hasBeenActive && ua.isActive)) return;
+    navigator.vibrate(pattern);
   } catch {
     /* no vibration: nothing */
   }

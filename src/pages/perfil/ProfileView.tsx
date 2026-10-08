@@ -2,7 +2,7 @@
 // LED videoboard, the card on its pedestal with the walkout intro, the living card (foil, tilt, flip),
 // the CTAs of each state, the heat press + 6 s undo after «Estampar», and the menu with its panels.
 // The data and the callables come in as props (ProfilePage wires the real ones; the tests, fakes).
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { Arena, Stage, Videoboard } from "./Hero";
 import { heroView } from "./heroView";
 import { INTRO_MS, PRESS_TOAST_MS, SHARE_READY, UNDO_MS } from "./fx";
@@ -10,6 +10,10 @@ import { askGyro, buzz, copyText, errorMessage, gyroNeedsPermission, isOffline, 
 import { Ic } from "./icons";
 import { stuffLines } from "./lines";
 import { Menu } from "./Menu";
+import { seasonShort } from "./card";
+import { monthYear } from "./profileData";
+import { pageText, shareLink } from "./share";
+import { ShareStudio } from "./ShareStudio";
 import { introSeen, markIntroSeen, readProfilePrefs, readSharedPrefs, shouldPlayIntro, writeProfilePrefs, type ProfilePrefs } from "./prefs";
 import { normalizeShirtName, shirtNameCheck, typeShirtName } from "./rules";
 import { TabCarta } from "./TabCarta";
@@ -390,6 +394,9 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
       setClaimBusy(false);
     }
   };
+  // ── the share studio (a sheet over the page)
+  const [shareOpen, setShareOpen] = useState(false);
+  const closeShare = useCallback(() => setShareOpen(false), []);
   const goFicha = () => goTab("carta", "pe-ficha");
   const goPick = () => goTab("carta", "pe-pick");
   const onCard = () => {
@@ -533,9 +540,15 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
             onGoPick={goPick}
             onCancel={() => void cancelClaim()}
             cancelBusy={cancelBusy}
-            share={{ ready: SHARE_READY, open: () => undefined }}
+            share={{
+              ready: SHARE_READY,
+              open: () => {
+                buzz(12);
+                setShareOpen(true);
+              },
+            }}
             undo={vinc && undo ? { name: undo.name, n: undo.n, busy: undoBusy, onUndo: () => void undoShirt() } : null}
-            example={data.card.started ? null : `Datos de ejemplo: la ${data.seasonName} aún no ha empezado`}
+            example={data.card.started ? null : `La ${data.seasonName} aún no ha empezado: tus números salen en la J1`}
             srStatus={playing ? "" : hv.srStatus}
           />
           <div className="pe-side">
@@ -544,6 +557,19 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
             </Menu>
           </div>
         </div>
+      )}
+      {ready && shareOpen && SHARE_READY && (
+        <ShareStudio
+          hv={hv}
+          nick={nick}
+          posLong={data.card.posLong}
+          season={seasonShort(data.seasonName)}
+          link={shareLink({ origin, playerId: data.card.playerId, state, dev: import.meta.env.DEV })}
+          foot={pageText(origin, data.card.playerId)}
+          presented={data.access.since ? data.access.sinceText : monthYear(now)}
+          rm={rm}
+          onClose={closeShare}
+        />
       )}
       {footer}
       <div className="pf-toast-rail" aria-live="polite">

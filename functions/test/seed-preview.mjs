@@ -38,7 +38,7 @@ await db
   .doc("users/" + user.localId)
   .set({
     email: "admin@piti.test",
-    nickname: "capitan",
+    nickname: "capi_prueba", // not a reserved handle: the profile e2e changes it and puts it back
     role: "admin",
     createdAt: new Date(),
   });

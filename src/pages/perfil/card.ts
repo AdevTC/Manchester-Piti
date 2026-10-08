@@ -210,8 +210,10 @@ export function seasonSquad(squad: SquadPlayer[], matches: ClubMatch[], seasonId
   return { squad: buildSquad({ players: squad, games, jornada, suspended: new Set(), mvps }), calendar, games, jornada };
 }
 
-/** «T1» from «Temporada 1». */
+/** «T1» from «Temporada 1»; «T26/27» from «Temporada 2026/27» (a year range keeps both years, short). */
 export function seasonShort(name: string): string {
+  const years = /(?:19|20)?(\d{2})\s*[/-]\s*(?:19|20)?(\d{2})\b/.exec(name);
+  if (years) return `T${years[1]}/${years[2]}`;
   const n = /(\d+)/.exec(name)?.[1];
   return n ? `T${n}` : name.toLocaleUpperCase("es");
 }

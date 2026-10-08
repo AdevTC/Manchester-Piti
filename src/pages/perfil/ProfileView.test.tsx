@@ -177,14 +177,14 @@ describe("la salida de la carta", () => {
 });
 
 describe("estados: CTAs y videomarcador", () => {
-  it("vinculada: «Ver el dorso» + ↻ (compartir llega en la fase 4)", () => {
+  it("vinculada: «Compartir mi carta», «Ver el dorso» + ↻", () => {
     noIntro();
     view();
     expect(screen.getByText(/^Videomarcador:/)).toHaveTextContent("Videomarcador: ¡YA ES OFICIAL! · ADRI · DORSAL 10 · DELANTERO");
     expect(screen.getByRole("button", { name: "Ver el dorso" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Compartir mi carta/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Compartir mi carta/ })).toHaveClass("btn", "gold", "first");
     expect(screen.getByText("Toca la carta para girarla · muévela para ver el brillo")).toBeInTheDocument();
-    expect(screen.queryByText(/Datos de ejemplo/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/aún no ha empezado/)).not.toBeInTheDocument();
   });
 
   it("pendiente: sobre cerrado, «Ver mi petición» y «Cancelar»", async () => {
@@ -232,7 +232,7 @@ describe("estados: CTAs y videomarcador", () => {
     expect(screen.getByText("Por estrenar")).toHaveClass("tier");
     expect(screen.getByText(/^Se revela en la J1, el .* contra MAD SKY\.$/)).toBeInTheDocument();
     expect(container.querySelector(".cf-club")).toHaveTextContent("SE REVELA EN LA J1");
-    expect(screen.getByText("Datos de ejemplo: la Temporada 1 aún no ha empezado")).toHaveClass("ex");
+    expect(screen.getByText("La Temporada 1 aún no ha empezado: tus números salen en la J1")).toHaveClass("ex");
     expect(screen.getByText(/^Videomarcador:/)).toHaveTextContent("Videomarcador: ¡YA ES OFICIAL! · ADRI · DORSAL 10 · DELANTERO");
   });
 
