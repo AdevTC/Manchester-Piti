@@ -119,25 +119,6 @@ export type PlayerDoc = z.infer<typeof playerSchema>;
 /** Alias explícito para el consumidor de la pizarra (mismo schema). */
 export const pizarraPlayerSchema = playerSchema;
 
-// ── Colección: users ─────────────────────────────────────────────────────────
-
-/**
- * Doc de la colección `users`. Nota: Firestore usa el uid del usuario como
- * document ID; `parseDocs` inyecta `{ id: d.id, ...data }` pero UserDoc usa
- * `uid` como campo. Por ello los call sites de Admin pasan `{ uid: d.id, ...data }`
- * manualmente (ver Admin.tsx) para que el campo quede como `uid`.
- *
- * `role` es `z.string()` permisivo (no el `roleSchema` enum) para no descartar
- * ninguna fila aunque el role tenga un valor inesperado.
- */
-export const userDocSchema = z.object({
-  uid: z.string(),
-  nickname: z.string(),
-  email: z.string(),
-  role: z.string(),
-});
-export type UserDocParsed = z.infer<typeof userDocSchema>;
-
 // ── Colección: lineups ───────────────────────────────────────────────────────
 
 /**
@@ -291,39 +272,6 @@ export const matchResultSchema = z.object({
   seasonId: z.string().min(1),
 });
 export type MatchResult = z.infer<typeof matchResultSchema>;
-
-/** Match create/edit form (Admin). Reuses matchResultSchema's shape. */
-export const matchFormSchema = matchResultSchema.extend({
-  seasonId: z.string().min(1, "Debes seleccionar una Temporada."),
-  competition: z.string().min(1),
-  date: z.string().min(1, "Escribe la fecha y hora del partido."),
-  // Friendly required-message for the empty number inputs (RHF maps empty→undefined);
-  // without this they'd surface Zod's raw "expected number, received undefined".
-  goalsFor: z.number({ message: "Introduce los goles a favor." }).int().min(0, "No puede ser negativo."),
-  goalsAgainst: z.number({ message: "Introduce los goles en contra." }).int().min(0, "No puede ser negativo."),
-});
-export type MatchFormValues = z.infer<typeof matchFormSchema>;
-
-/** Player create/edit form (Admin) — scalar fields only. Per-season details and
- *  the dorsal-duplicate check stay imperative in onSubmit (data-dependent). */
-export const playerFormSchema = z.object({
-  firstName: z.string().trim().min(1, "El nombre es obligatorio."),
-  lastName: z.string().trim().optional(),
-  shirtName: z.string().trim().min(1, "El nombre en camiseta es obligatorio."),
-  number: z.number({ message: "El dorsal es obligatorio." }).int("Dorsal inválido.").min(0, "No puede ser negativo."),
-  birthDate: z.string().optional(),
-  // Allow 0 (the old handler stored any parsed integer; only NaN→null). `.positive()`
-  // would silently reject a 0 — e.g. when editing a doc that holds height/weight 0.
-  height: z.number().int("Altura inválida.").min(0, "No puede ser negativa.").optional(),
-  weight: z.number().int("Peso inválido.").min(0, "No puede ser negativo.").optional(),
-});
-export type PlayerFormValues = z.infer<typeof playerFormSchema>;
-
-/** Season create/edit form (Admin). */
-export const seasonFormSchema = z.object({
-  name: z.string().trim().min(1, "El nombre de la temporada es obligatorio."),
-});
-export type SeasonFormValues = z.infer<typeof seasonFormSchema>;
 
 /**
  * Valida `data` y, si falla, loguea y devuelve `fallback` (no rompe la UI).
