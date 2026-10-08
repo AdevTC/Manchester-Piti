@@ -4,6 +4,7 @@ import type { PointerEvent } from "react";
 import { Icon, Shirt, CREST } from "./icons";
 import { vars, type CardView } from "./view";
 import type { Cromo } from "./model";
+import { plural } from "./plural";
 
 // The cromo tilts toward the pointer and its foil follows (mouse and pen only).
 function tiltMove(e: PointerEvent<HTMLSpanElement>) {
@@ -114,7 +115,7 @@ function albumAria(p: Cromo, me: boolean): string {
   return (
     p.name + ", dorsal " + p.num + ", " + (p.pos ?? "sin posición") + ", forma " + p.rt +
     (p.cv ? ", convocatoria: " + CV_TXT[p.cv].toLowerCase() : "") +
-    ", " + p.stats.minutes + " minutos esta temporada" + (me ? ", eres tú" : "")
+    ", " + plural(p.stats.minutes, "minuto") + " esta temporada" + (me ? ", eres tú" : "")
   );
 }
 

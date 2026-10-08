@@ -1,6 +1,7 @@
 // Push notices (Web Push with the club's own VAPID keys, no third party): anyone can ask for them
 // on the web, by topic; the server sends them when a match changes (goals written live, final
-// whistle, MVP vote, new dates) and at kick-off (a job every 5 minutes).
+// whistle, MVP vote, new dates), at kick-off (a job every 5 minutes) and when the captain publishes
+// the official seven on the pizarra («Ya está el siete»).
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -10,7 +11,7 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { DOOR_TOPICS, kickoffNotice, noticesFor, TOPICS, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
+import { DOOR_TOPICS, kickoffNotice, lineupNotice, noticesFor, TOPICS, type LineupLike, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
 
 const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
 /** Public half of the key pair (also in the app, src/lib/push.ts). */
@@ -81,6 +82,26 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   const players = await Promise.all([...ids].map((id) => db.doc(`players/${id}`).get()));
   const names = new Map(players.map((p) => [p.id, (p.get("shirtName") as string) || [p.get("firstName"), p.get("lastName")].filter(Boolean).join(" ") || "Jugador"]));
   for (const n of noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", Date.now())) await sendTo(n);
+});
+
+// «Ya está el siete»: a board becomes the official one (or the official moves to another match). The
+// notice goes once per board and match (pushLog), whatever the retries of the trigger or a captain
+// publishing, unpublishing and publishing it again.
+export const pushOnLineup = onDocumentWritten({ document: "lineups/{lineupId}", secrets: [vapidPrivate] }, async (event) => {
+  const before = event.data?.before.data() as LineupLike | undefined;
+  const after = event.data?.after.data() as LineupLike | undefined;
+  // (most writes are autosaves of boards that are not official: nothing to read for them)
+  if (!after?.isOfficial || (before?.isOfficial && (before.matchId ?? null) === (after.matchId ?? null))) return;
+  const mid = after.matchId ?? null;
+  const match = mid ? asMatch((await db.doc(`matches/${mid}`).get()).data()) : null;
+  const notice = lineupNotice(event.params.lineupId, before, after, match);
+  if (!notice) return;
+  try {
+    await db.doc(`pushLog/${notice.tag}`).create({ at: FieldValue.serverTimestamp() });
+  } catch {
+    return;
+  }
+  await sendTo(notice);
 });
 
 // Cloud Scheduler has no Madrid location: the job (and this function) live in Belgium; it only reads a

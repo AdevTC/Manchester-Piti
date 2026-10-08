@@ -7,6 +7,9 @@ import { BoardHarness as Harness } from "./testkitBoard";
 // The board as a user drives it (no Firebase): a harness session keeps the lineup in state, like the
 // real one does between autosaves.
 
+// No WebGL in tests: the device «is» under automation, so the 3D stadium never starts.
+vi.mock("../../../components/pitch3d/support", () => ({ unsupportedReason: () => "webdriver", supported: () => false }));
+
 const sq = demoSquad();
 const SEVEN = ["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "adrian"];
 

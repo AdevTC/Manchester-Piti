@@ -1,7 +1,7 @@
-// La pizarra «Noche de partido» (behind /pizarra?v2 until it replaces the old board): the Celeste chrome
-// around the app screen, wired to the app's data — the season's squad and matches, your boards
-// (useLineups, autosaved), the board you are allowed to edit, the official the team sees (with the
-// reactions to it) and the convocatoria of the board's match on the cromos.
+// La pizarra «Noche de partido» (/pizarra): the Celeste chrome around the app screen, wired to the
+// app's data — the season's squad and matches, your boards (useLineups, autosaved), the board you are
+// allowed to edit, the official the team sees (with the reactions to it) and the convocatoria of the
+// board's match on the cromos.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../../../context/AuthContext";
@@ -18,7 +18,7 @@ import { useBoardSession } from "./useBoardSession";
 import { useConvocatoria } from "./useConvocatoria";
 import { Board } from "./Board";
 import { readPrefs, writePrefs, type BoardPrefs } from "./prefs";
-import { matchDay, matchShort, officialFor, withConvocatoria } from "./boards";
+import { matchDay, matchShort, matchTime, officialFor, withConvocatoria } from "./boards";
 import { CREST, Icon } from "./icons";
 import { forgetDeepLink } from "./deeplink";
 import "../../../styles/pizarra.css";
@@ -45,7 +45,7 @@ function ThemeButton({ dark, onToggle }: { dark: boolean; onToggle: () => void }
   );
 }
 
-export function PizarraV2() {
+export function PizarraPage() {
   const { user, profile } = useAuth();
   const { seasons, selectedSeasonId } = useSeason();
   const navigate = useNavigate();
@@ -81,7 +81,7 @@ export function PizarraV2() {
   const m = linked ?? data.next;
   const conv = useConvocatoria(m?.id ?? null);
   const squad = useMemo(() => withConvocatoria(data.squad, conv.conv), [data.squad, conv.conv]);
-  const match = m ? { short: matchShort(m), date: matchDay(m.dateMs) } : null;
+  const match = m ? { short: matchShort(m), date: matchDay(m.dateMs), time: matchTime(m.dateMs), j: "J" + m.j } : null;
   // The official the team sees for this board: the one on screen when it is, else the match's or the season's.
   const official = session.official ? (lineups.official.find((d) => d.id === session.id) ?? null) : officialFor(session.officials, m?.id ?? null);
   const reactions = useReactions(official ? { id: official.id, isOfficial: official.isOfficial } : null);

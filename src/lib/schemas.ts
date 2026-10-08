@@ -39,7 +39,7 @@ export type SeasonDoc = z.infer<typeof seasonSchema>;
 
 /**
  * Doc crudo de la colección `matches` (los campos que lleguen de Firestore).
- * - `seasonId` es OPCIONAL: las queries "all" (useSeasonMatches) y la lista de
+ * - `seasonId` es OPCIONAL: la suscripción compartida a `matches` y la lista de
  *   Admin leen todos los partidos sin filtrar por temporada, y partidos legacy
  *   sin `seasonId` renderizaban antes — requerirlo los descartaría (regresión).
  * - `goalsFor`/`goalsAgainst` son opcionales (partido en curso) pero, si están
@@ -56,8 +56,8 @@ export type SeasonDoc = z.infer<typeof seasonSchema>;
  *   ningún doc renderizable se descarta y se evita un crash por dato corrupto.
  *
  * Es un `z.looseObject`: deja pasar campos extra (competition, date en forma de
- * Timestamp) que el MatchDoc de Admin necesita. useSeasonMatches solo lee los
- * campos conocidos, así que el passthrough no le afecta.
+ * Timestamp) que el MatchDoc de Admin necesita. Los demás consumidores solo leen
+ * los campos conocidos, así que el passthrough no les afecta.
  */
 export const seasonMatchSchema = z.looseObject({
   id: z.string(),

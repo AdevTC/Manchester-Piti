@@ -10,6 +10,7 @@ import { fits, galonesOf, natOf, type Squad } from "./model";
 import { reelFor } from "./pack";
 import { planArrows, type PlanArrow } from "./plan";
 import { hops, linkMark, tierOf, type Chem } from "./quimica";
+import { plural } from "./plural";
 
 export type Modo = "editar" | "quimica" | "jugadas" | "dibujar" | "mas" | "tableros" | "comparar" | "compartir" | "ajustes" | "charla";
 
@@ -123,6 +124,10 @@ export interface PitchArgs {
   meId: string | null;
   /** Cromos as discs (the química, the plan and the comparison read better without the cards). */
   mini?: boolean;
+  /** La charla's step: the cromos lie face down until their step turns them (1–7 = slot 0–6), the one
+   *  presented is the hero and the rest of the revealed ones dim; no empty-slot buttons, and the química
+   *  lights up from the plan on. */
+  present?: number;
 }
 
 export interface PitchView {
@@ -134,7 +139,9 @@ export interface PitchView {
   mini: boolean;
 }
 
-export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId, mini = modo === "quimica" }: PitchArgs): PitchView {
+export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId, mini = modo === "quimica", present }: PitchArgs): PitchView {
+  const ch0 = present != null;
+  const hero = ch0 && present >= 1 && present <= 7 ? present - 1 : -1;
   const C = CAMS[cam];
   const fk = fx.k;
   const linkT = new Map<number, number[]>();
@@ -162,6 +169,9 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId,
     const sel = selId === id;
     const h = hop.get(i);
     const tag = p.cv === "no" ? "NO VA" : p.baja ? p.baja.toUpperCase() : "";
+    // la charla: face down until presented; the one presented now flips and leads, the rest dim
+    const rev = !ch0 || present >= i + 1;
+    const me = meId === id && rev;
     const cls = [
       fk % 2 ? "ma" : "mb",
       fx.slow ? "slow" : "",
@@ -169,12 +179,16 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId,
       oop && !mini ? "oop" : "",
       sel ? "sel" : "",
       mini ? "mini" : "",
-      fx.from && !f ? "in" : "",
+      !rev ? "hide" : "",
+      ch0 && present === i + 1 ? "flip" : "",
+      hero === i ? "hero" : "",
+      hero >= 0 && hero !== i && rev ? "dim" : "",
+      fx.from && !f && !ch0 ? "in" : "",
       h != null && !fx.spin ? (h === 0 ? "land" : "rip") : "",
       fx.spin && !rm ? "spin" : "",
       fx.rw ? "rw" : "",
       !mini ? "q" + Math.max(...(lt.length ? lt : [1])) : "",
-      meId === id ? "me" : "",
+      me ? "me" : "",
     ].filter(Boolean).join(" ");
     const nat = natOf(L, sq, id);
     cards.push({
@@ -196,19 +210,20 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId,
       zoneTxt: oop && nat ? nat + "›" + zl : zl,
       oop,
       gal,
-      tag,
+      tag: rev ? tag : "",
       q: [lq >= 1, lq >= 2, lq >= 3],
       spin: !!fx.spin && !rm,
       reel: reelFor(i, nums),
       sel,
-      me: meId === id,
-      aria:
-        p.name + ", dorsal " + p.num + ", " + slotLabel(L, i) +
+      me,
+      aria: !rev
+        ? "Cromo boca abajo: aún por presentar"
+        : p.name + ", dorsal " + p.num + ", " + slotLabel(L, i) +
         (oop && nat ? ", fuera de posición (natural " + nat + ")" : "") +
         ", forma " + p.rt +
         (gal.length ? ", galones " + gal.join(" ") : "") +
         (p.cv === "no" ? ", dijo que no va" : p.baja ? ", " + p.baja.toLowerCase() : "") +
-        (meId === id ? ", eres tú" : "") +
+        (me ? ", eres tú" : "") +
         (modo === "editar" && !ro ? ". Toca para cogerlo, otra vez para su ficha; mantén pulsado para el menú rápido" : ""),
     });
   });
@@ -220,14 +235,15 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId,
     const sp = proj(C, pp.u, pp.v);
     const sc = depthScale(C, sp.s).toFixed(3);
     if (!L.freeMode && modo === "editar" && !ro) gslots.push({ i, x: sp.x.toFixed(2), y: sp.y.toFixed(2), sc });
-    if (s.playerId && sq.byId.has(s.playerId)) return;
+    if ((s.playerId && sq.byId.has(s.playerId)) || ch0) return;
     const lab = slotLabel(L, i);
     slots.push({ i, x: sp.x.toFixed(2), y: sp.y.toFixed(2), sc, lab, on: pick === i, aria: "Hueco " + lab + " vacío: toca para elegir jugador" });
   });
 
   const links: LinkView[] = [];
   const badges: BadgeView[] = [];
-  ch.links.forEach((l, n) => {
+  // (in the charla the química lights up once the seven have been presented)
+  if (!ch0 || present >= 8) ch.links.forEach((l, n) => {
     const pa = slotPos(L, l.i);
     const pb = slotPos(L, l.j);
     const a = proj(C, pa.u, pa.v);
@@ -268,8 +284,8 @@ export function planLayer(L: Lineup, cam: CamName, modo: Modo, showPlan = false)
   const B = proj(C, 100, v);
   return {
     heatD,
-    // (no línea under the strokes, nor over a jugada's paso)
-    dlOn: !L.freeMode && modo !== "dibujar" && modo !== "jugadas",
+    // (no línea under the strokes, nor over a jugada's paso, nor in the charla)
+    dlOn: !L.freeMode && modo !== "dibujar" && modo !== "jugadas" && modo !== "charla",
     dlD: framePath(C, [[0, v], [100, v]]),
     dlX: (B.x - 0.5).toFixed(2),
     dlY: A.y.toFixed(2),
@@ -329,7 +345,7 @@ export function hud(L: Lineup, sq: Squad, ch: Chem, fx: Fx, rm: boolean, match: 
       : n < 7
         ? "Faltan " + (7 - n)
         : warn.length
-          ? warn.length + (warn.length === 1 ? " aviso" : " avisos")
+          ? plural(warn.length, "aviso")
           : "Listo";
   const warnTxt = warn.map((c) => c.name + (c.cv === "no" ? " dijo que no va" : " está " + (c.baja === "Inactivo" ? "inactivo" : c.baja?.toLowerCase()))).join(", ");
   return {

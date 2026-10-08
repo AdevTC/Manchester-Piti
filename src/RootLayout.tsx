@@ -7,7 +7,6 @@ import { useTeam } from "./context/TeamContext";
 import { Crest } from "./components/Crest";
 import { RoutePending } from "./components/route-states";
 import { useWelcome } from "./lib/doorWelcome";
-import { usePizarraV2 } from "./pages/pizarra/v2/flag";
 import "./styles/club.css";
 // Only private pages (and invitation links) show the door: keep it out of the entry chunk.
 const AccessGate = lazy(() => import("./pages/acceso/AccessGate").then((m) => ({ default: m.AccessGate })));
@@ -28,9 +27,8 @@ export function RootLayout() {
   // Celeste pages (home, plantilla, vestuario) bring their own header, dock and footer: hide the site chrome there.
   // While the session is being restored, private pages wait on a neutral skeleton (no gate flash).
   const checking = (privatePage || invitation) && (!ready || (member && loading));
-  // The new pizarra (behind its switch) is a Celeste page too.
-  const pizarraV2 = usePizarraV2();
-  const immersive = pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname === "/club" || pathname.startsWith("/matches/") || pathname.startsWith("/jugadores/") || ((pathname === "/vestuario" || (pathname === "/pizarra" && pizarraV2)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
+  // The pizarra is a Celeste page too.
+  const immersive = pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname === "/club" || pathname.startsWith("/matches/") || pathname.startsWith("/jugadores/") || ((pathname === "/vestuario" || pathname === "/pizarra") && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (

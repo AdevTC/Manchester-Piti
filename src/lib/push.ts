@@ -4,7 +4,7 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
 
 export const VAPID_PUBLIC = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
-export type Topic = "start" | "goals" | "final" | "mvp" | "dates" | DoorTopic;
+export type Topic = "start" | "goals" | "final" | "mvp" | "dates" | "lineup" | DoorTopic;
 /** The vestuario door: "door" for captains (someone knocks), "access" for whoever waits to be let in. */
 export type DoorTopic = "door" | "access";
 export const TOPIC_LABELS: { id: Topic; label: string; hint?: string }[] = [
@@ -13,6 +13,7 @@ export const TOPIC_LABELS: { id: Topic; label: string; hint?: string }[] = [
   { id: "final", label: "Resultado final" },
   { id: "mvp", label: "Se abre el voto del MVP" },
   { id: "dates", label: "Fechas nuevas y cambios", hint: "Partidos nuevos o cambios de hora" },
+  { id: "lineup", label: "Cuando salga el siete oficial", hint: "Con el enlace a la charla de la pizarra" },
 ];
 const KEY = "piti-push-topics";
 

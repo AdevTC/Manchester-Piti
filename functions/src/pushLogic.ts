@@ -1,6 +1,7 @@
-// Pure rules of the push notices (functions/src/push.ts): which change of a match deserves a notice,
-// to which topic, and its words. Apart so the app's tests can run them.
-export const TOPICS = ["start", "goals", "final", "mvp", "dates"] as const;
+// Pure rules of the push notices (functions/src/push.ts): which change of a match (or of the official
+// seven on the pizarra) deserves a notice, to which topic, and its words. Apart so the app's tests can
+// run them.
+export const TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"] as const;
 /** Personal notices of the vestuario door: "door" for admins (someone asks to come in), "access" for whoever asked. */
 export const DOOR_TOPICS = ["door", "access"] as const;
 export type Topic = (typeof TOPICS)[number] | (typeof DOOR_TOPICS)[number];
@@ -94,3 +95,30 @@ export const kickoffNotice = (id: string, rival: string): Notice => ({
   tag: `start-${id}`,
   url: `/matches/${id}`,
 });
+
+/** The fields of a `lineups` board the «Ya está el siete» notice looks at. */
+export interface LineupLike {
+  isOfficial?: boolean;
+  /** The match it is official for (null = the whole season). */
+  matchId?: string | null;
+}
+
+/**
+ * «Ya está el siete»: when a board BECOMES the official one, or the official's match (its alcance)
+ * changes — never on the edits of an official that stays put. Not for a match already played or
+ * cancelled. The tag is per board and match, so a phone keeps one notice for each.
+ */
+export function lineupNotice(id: string, before: LineupLike | undefined, after: LineupLike | undefined, match: MatchLike | null | undefined): Notice | null {
+  if (!after?.isOfficial) return null;
+  const mid = after.matchId ?? null;
+  if (before?.isOfficial && (before.matchId ?? null) === mid) return null;
+  if (mid && match && (match.archived || match.status === "finished" || match.status === "cancelled")) return null;
+  const rival = mid ? match?.rival : undefined;
+  const day = mid && typeof match?.date === "number" ? when(match.date) : "";
+  const body = rival
+    ? `Contra ${rival}${day ? ` (${day})` : ""}: el capitán ya ha publicado el siete. Ábrelo y mira la charla.`
+    : mid
+      ? "El capitán ya ha publicado el siete del partido. Ábrelo y mira la charla."
+      : "El capitán ya ha publicado el siete de la temporada. Ábrelo y mira la charla.";
+  return { topic: "lineup", title: "Ya está el siete", body, tag: `lineup-${id}-${mid ?? "temporada"}`, url: `/pizarra?tablero=${encodeURIComponent(id)}#charla` };
+}

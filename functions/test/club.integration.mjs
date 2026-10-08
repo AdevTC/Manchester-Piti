@@ -375,6 +375,28 @@ const upcoming = { ...sheet, revision: 0, date: Date.now() + 3 * 86400000, kit: 
 await ok("saveMatchSheet", admin, { id: nextId, sheet: upcoming, draft: false });
 assert.equal((await db.doc("matches/" + nextId).get()).get("kit"), "away");
 checked++;
+
+// ---------- «Ya está el siete»: publishing the official seven on the pizarra notifies (pushOnLineup),
+// once per board and match; the trigger logs it before sending (nobody is subscribed in the emulators).
+async function pushLogged(tag) {
+  for (let i = 0; i < 60; i++) {
+    if ((await db.doc("pushLog/" + tag).get()).exists) return;
+    await new Promise((ok) => setTimeout(ok, 250));
+  }
+  assert.fail("pushLog/" + tag + " did not appear");
+}
+const boardId = "board-" + suffix;
+await db.doc("lineups/" + boardId).set({
+  ownerUid: admin.uid, ownerNickname: adminName, seasonId: season, name: "Oficial " + suffix, isOfficial: false, matchId: null,
+  formation: "2-3-1", freeMode: false, slots: [], bench: [], roles: {}, tactics: {}, playerPositions: {}, pinned: [], drawings: [], plays: [],
+});
+await db.doc("lineups/" + boardId).update({ isOfficial: true, matchId: nextId });
+await pushLogged(`lineup-${boardId}-${nextId}`);
+await db.doc("lineups/" + boardId).update({ name: "Oficial retocado " + suffix });
+await db.doc("lineups/" + boardId).update({ matchId: null });
+await pushLogged(`lineup-${boardId}-temporada`);
+await db.doc("lineups/" + boardId).delete();
+checked += 2;
 await wrote(fan, [`matchPrivate/${nextId}/availability/${fan.uid}`, { response: "yes", name: "x" + suffix, playerId: ids[2], at: null }]);
 const answer = await db.doc("matchPrivate/" + nextId + "/availability/" + fan.uid).get();
 assert.equal(answer.get("playerId"), ids[2]);
@@ -508,6 +530,6 @@ assert.ok((await fetch(calendarUrl).then((r) => r.text())).includes(`UID:${id}@m
 checked++;
 console.log(
   checked +
-    " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos y disponibilidad.",
+    " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos, disponibilidad y avisos del siete.",
 );
 await db.terminate();

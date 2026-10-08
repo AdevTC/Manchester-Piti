@@ -16,8 +16,6 @@
     "emulators": "npx --yes firebase-tools@15.30.2 emulators:start --only auth,firestore,functions --project demo-manchester-piti"
   },
   "dependencies": {
-    "@dnd-kit/helpers": "^0.5.0",
-    "@dnd-kit/react": "^0.5.0",
     "@fontsource-variable/anybody": "^5.3.0",
     "@fontsource-variable/archivo": "^5.3.0",
     "@fontsource-variable/geist": "^5.3.0",

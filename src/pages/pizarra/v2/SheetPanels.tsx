@@ -5,6 +5,7 @@ import { useId, useState, type ReactNode } from "react";
 import type { TacticKey } from "../tactics";
 import { Icon, Nuevo, CREST } from "./icons";
 import { vars } from "./view";
+import { plural } from "./plural";
 import { linkMark, tierOf, type Chem } from "./quimica";
 import type { TacRow } from "./plan";
 import type { TapeRow } from "./compare";
@@ -117,7 +118,7 @@ export function QuimicaPanel({ ch, sq, seasonName, oop }: QuimicaProps) {
       key: l.a + "|" + l.b,
       t: l.t,
       who: nm(l.a) + " · " + nm(l.b),
-      why: [l.ast ? l.ast + (l.ast > 1 ? " goles juntos" : " gol juntos") : "", l.tog ? l.tog + (l.tog > 1 ? " partidos juntos" : " partido juntos") : "sin partidos juntos", l.nat ? "" : "alguno fuera de sitio"].filter(Boolean).join(" · "),
+      why: [l.ast ? plural(l.ast, "gol", "goles") + " juntos" : "", l.tog ? plural(l.tog, "partido") + " juntos" : "sin partidos juntos", l.nat ? "" : "alguno fuera de sitio"].filter(Boolean).join(" · "),
     }));
   return (
     <>
@@ -225,7 +226,7 @@ export function QuimicaPanel({ ch, sq, seasonName, oop }: QuimicaProps) {
             <Icon n="alert" w={16} />
             <span>
               <b>Pocos partidos:</b>{" "}
-              {sq.games === 0 ? "esta temporada aún no se ha jugado ninguno; la química solo mira posiciones y forma." : "con " + sq.games + (sq.games === 1 ? " jugado" : " jugados") + ", la química aún es orientativa."}
+              {sq.games === 0 ? "esta temporada aún no se ha jugado ninguno; la química solo mira posiciones y forma." : "con " + plural(sq.games, "jugado") + ", la química aún es orientativa."}
             </span>
           </div>
         )}
@@ -345,7 +346,8 @@ export interface CompartirProps {
   canLink: boolean;
   onShare: () => void;
   onPng: () => void;
-  onLink: () => void;
+  /** Copy the board's link (`charla` = the link that opens its charla). */
+  onLink: (charla: boolean) => void;
   onBack: () => void;
 }
 
@@ -392,9 +394,13 @@ export function CompartirPanel({ cartel, block, busy, canLink, onShare, onPng, o
         </p>
       )}
       <div className="row" style={{ marginTop: 8 }}>
-        <button type="button" className="b3" onClick={onLink} disabled={!canLink}>
+        <button type="button" className="b3" onClick={() => onLink(false)} disabled={!canLink}>
           <Icon n="link" w={16} />
           Copiar enlace al tablero
+        </button>
+        <button type="button" className="b3" onClick={() => onLink(true)} disabled={!canLink} aria-label="Copiar el enlace que abre la charla de este tablero">
+          <Icon n="whistle" w={16} />
+          Enlace a la charla
         </button>
       </div>
       {!canLink && <p className="empty">El enlace llega en cuanto el tablero se guarde (con tu primer cambio).</p>}

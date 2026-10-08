@@ -2,7 +2,8 @@
 // mowed into the grass, the LED boards, the plan painted on the turf (presión, línea defensiva), the
 // química as light, the telestrator's strokes, the slots and the cromos; above it, the system pill and
 // the química scoreboard. A jugada puts its paso on the pitch instead (discs, rivals, the ball, the calco
-// and the estelas, the follow-cam) with the «REPETICIÓN» bug above; «En 3D» plays under it all.
+// and the estelas, the follow-cam) with the «REPETICIÓN» bug above; la charla turns the cromos one by
+// one under a spotlight, with the camera pushing in; the 3D stadium plays under it all.
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { FLASHES, pitchArt, type CamName } from "./geometry";
 import { BallMark, Icon, RivalMark } from "./icons";
@@ -53,7 +54,6 @@ export interface StageProps {
   showGal: boolean;
   kb: number | null;
   selId: string | null;
-  celeSub: string;
   rw: string;
   fxk: number;
   pulse: string;
@@ -74,8 +74,14 @@ export interface StageProps {
   trailsDur: string;
   /** The crest wipe (its run number), or null. */
   wipe: number | null;
-  /** The 3D stadium's layer content («En 3D»). */
+  /** The 3D stadium's layer content (the intro, the charla, «En 3D»). */
   p3d?: ReactNode;
+  /** The 2D camera's transform of the frame (the charla pushing in), over the follow-cam's. */
+  camT?: string | null;
+  /** The spotlight under the cromo the charla presents (frame %; `ar` = the captain's armband ring). */
+  spot?: { id: string; x: number; y: number; ar: boolean } | null;
+  /** The big flash with sparks: «¡SIETE LISTO!» (or none, at «¡A por ellos!»). */
+  cele: { txt: string; sub: string } | null;
   frameRef: RefObject<HTMLDivElement | null>;
   swpRef: RefObject<SVGPathElement | null>;
   liveRef: RefObject<SVGPathElement | null>;
@@ -91,7 +97,7 @@ export interface StageProps {
 export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
   const { view, plan, hud, jug } = p;
   const cards = jug ? jug.cards : view.cards;
-  const camT = jug && jug.camT !== "none" ? jug.camT : null;
+  const camT = p.camT ?? (jug && jug.camT !== "none" ? jug.camT : null);
   const stage = useRef<HTMLElement>(null);
   // Loops (and anything heavy) pause while the stadium is offscreen.
   useEffect(() => {
@@ -156,6 +162,11 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
               <path key={a.key} className={"tarr" + (a.c ? " " + a.c : "")} d={a.d} style={vars({ d: `path('${a.d}')` })} />
             ))}
           </svg>
+          {p.spot && (
+            <span key={p.spot.id} className={"spot" + (p.spot.ar ? " ar" : "")} style={vars({ "--x": p.spot.x, "--y": p.spot.y })} aria-hidden="true">
+              <i />
+            </span>
+          )}
           <div className="lks" aria-hidden="true">
             {!jug && view.links.map((l) => (
               <span key={l.key} className={"lk " + l.cls} style={vars({ "--x": l.x, "--y": l.y, "--l": l.l, "--a": l.a, "--d": l.d, "--rit": p.pulse })}>
@@ -303,7 +314,7 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
                     ))}
                   </span>
                 </button>
-                {hud.qUp > 0 && !hud.celeOn && (
+                {hud.qUp > 0 && !p.cele && (
                   <span className="qup" aria-hidden="true">
                     +{hud.qUp}
                   </span>
@@ -313,7 +324,7 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
           )}
         </div>
       </div>
-      <FxLayer cele={hud.celeOn} celeSub={p.celeSub} rw={p.rw} rwKey={p.fxk} wipe={p.wipe} />
+      <FxLayer cele={p.cele} rw={p.rw} rwKey={p.fxk} wipe={p.wipe} />
       <div className="blk" aria-hidden="true" />
     </section>
   );

@@ -6,7 +6,9 @@
 // Comparar (the differences on the pitch), Compartir (the cartel) and Ajustes; the telestrator (Dibujar:
 // strokes of light saved with the board, with their own undo) and the jugadas (the library and your own,
 // the editor, the «REPETICIÓN» replay with its follow-cam and, where the device can, «En 3D»). Strokes and
-// jugadas are saved through the session too, but kept out of the lineup's undo/redo.
+// jugadas are saved through the session too, but kept out of the lineup's undo/redo. La charla presents
+// it all before the match (the system, the seven one by one, the plan, the jugada, «¡A por ellos!»),
+// read-only boards included. One 3D stadium serves the intro, the charla and the jugadas.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { FormationName, Lineup, RoleKey, Zone } from "../formations";
 import { ZONES } from "../formations";
@@ -17,15 +19,16 @@ import { autoPlace, cycleDefLine, goFree, normalize, place, resetFree, resolveDr
 import { suggestSeven } from "./pack";
 import { applyFan, fanCentre, fanItems, type FanItem } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
-import { cycle, settle, step, type Snap } from "./sheet";
+import { cycle, settle, stageFit, step, type Snap } from "./sheet";
 import { DIR_KEYS, slotInDirection } from "./drag";
 import { ago, FX0, fxDuration, hud as buildHud, pitchView, planLayer, positionsOf, tacSummary, vars, type Fx, type Modo } from "./view";
 import { useDragController } from "./useDragController";
 import { useBoardSound, buzz } from "./sound";
+import { plural } from "./plural";
 import { useNoScrollJump } from "./useNoScrollJump";
 import type { BoardSession } from "./useBoardSession";
 import { Stage } from "./Stage";
-import { AppBar, BenchTab, MasPanel, ModeBar, OnceTabs, ReadOnlyStrip, Sheet, SoonPanel, SystemTab, Tray, type OnceTab, type RepRow, type TrayData } from "./Panels";
+import { AppBar, BenchTab, MasPanel, ModeBar, OnceTabs, ReadOnlyStrip, Sheet, SystemTab, Tray, type OnceTab, type RepRow, type TrayData } from "./Panels";
 import { AjustesPanel, CompararPanel, CompartirPanel, PlanTab, QuimicaPanel } from "./SheetPanels";
 import { SHOW0, type BoardPrefs, type ShowKey } from "./prefs";
 import { TablerosPanel, type BoardRowView, type ReactionsView, type TbTab } from "./Tableros";
@@ -34,6 +37,11 @@ import { Icon } from "./icons";
 import { setTactic, tacRows } from "./plan";
 import { changes, cmpMarks, tape } from "./compare";
 import { boardLink, boardMeta, convCounts, matchLabel, matchShort, type CalMatch } from "./boards";
+import { charlaJugada, charlaLast, charlaView, pushIn, STEP_JUGADA, stepKind, type CharlaMatch } from "./charla";
+import { useCharla } from "./useCharla";
+import { CharlaGuion, CharlaOverlay } from "./CharlaOverlay";
+import { DEAL_MS, INTRO_2D_MS, INTRO_MAX_MS, INTRO_WAIT_MS, introKind, introSeen, markIntroSeen, type IntroKind } from "./intro";
+import { engineCast, engineDriven, enginePasos, engineSeven, type Shot } from "./director";
 import { cartelBlob, cartelFile, cartelLayout, crestImage, download, shareCartel } from "./cartel";
 import { DELETE_MS } from "./useBoardSession";
 import { deepHash } from "./deeplink";
@@ -47,6 +55,7 @@ import {
   canAddPlay,
   duplicateFrame,
   duplicatePlay,
+  engineRivals,
   moveBall,
   moveFrame,
   movePlayer,
@@ -57,6 +66,7 @@ import {
   renamePlay,
   savePlay,
   setFrameText,
+  toEngineFrames,
   validatePlay,
   type Play,
 } from "../plays";
@@ -83,7 +93,7 @@ import {
 import { useReplay, type ReplayMove } from "./useReplay";
 import { JugadasPanel, type JugadaEditorView } from "./JugadasPanel";
 import { DibujarPanel } from "./DibujarPanel";
-import { Replay3D } from "./Replay3D";
+import { Board3D } from "./Board3D";
 
 export interface BoardProps {
   session: BoardSession;
@@ -92,8 +102,9 @@ export interface BoardProps {
   seasonName: string;
   seasons: { id: string; name: string }[];
   onSeason: (id: string) => void;
-  /** The board's match, for its name on the LED boards («J8 · MAD SKY», «sáb 8 nov»). */
-  match: { short: string; date: string } | null;
+  /** The board's match, for its name on the LED boards and the charla («J8 · MAD SKY», «sáb 8 nov»,
+   *  «12:00», «J8»). */
+  match: CharlaMatch | null;
   /** The signed-in member's own player («Tu sitio»). */
   meId: string | null;
   prefs: BoardPrefs;
@@ -150,8 +161,8 @@ const UI0 = { sel: null, pick: null, fan: null, fic: null, hist: EMPTY_HISTORY, 
 const reducedMotion = (): boolean => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 // Deep links into a panel: /pizarra#comparar, #compartir, #tableros, #ajustes, #quimica, #plan, #jugadas,
-// #dibujar.
-const HASH_MODOS: Modo[] = ["quimica", "jugadas", "dibujar", "mas", "tableros", "comparar", "compartir", "ajustes"];
+// #dibujar, and #charla (the link the captain sends to the group).
+const HASH_MODOS: Modo[] = ["quimica", "jugadas", "dibujar", "mas", "tableros", "comparar", "compartir", "ajustes", "charla"];
 /** The panel a URL hash names (null = none we know). */
 function panelOf(hash: string): Modo | "plan" | null {
   const h = hash.replace(/^#/, "").toLowerCase();
@@ -170,12 +181,14 @@ interface Toast {
 }
 
 const LIM = PIZARRA_LIMITS;
-const PLAYS_FULL = "Ya hay " + LIM.plays + " jugadas propias en este tablero: borra una para guardar otra.";
+const PLAYS_FULL = "Ya hay " + plural(LIM.plays, "jugada propia", "jugadas propias") + " en este tablero: borra una para guardar otra.";
 const PASOS_MSG = "Una jugada tiene entre " + LIM.framesMin + " y " + LIM.framesMax + " pasos.";
 const NO_3D = "Este dispositivo no muestra el estadio 3D: la jugada se ve con la cámara 2D que sigue al balón.";
 const FAIL_3D = "El estadio 3D no ha podido arrancar: la jugada se ve con la cámara 2D que sigue al balón.";
 
-const snapOf = (m: Modo): Snap => (m === "quimica" || m === "mas" || m === "comparar" || m === "charla" ? "half" : m === "tableros" || m === "compartir" || m === "ajustes" ? "full" : "peek");
+const snapOf = (m: Modo): Snap => (m === "quimica" || m === "mas" || m === "comparar" ? "half" : m === "tableros" || m === "compartir" || m === "ajustes" ? "full" : "peek");
+
+type IntroPhase = "wait" | "run" | "done";
 
 const SHEET_TITLE: Record<Modo, string> = {
   editar: "Banquillo, sistema y plan",
@@ -225,8 +238,7 @@ export function Board(props: BoardProps) {
   const [tpk, setTpk] = useState(0);
   const [dragKind, setDragKind] = useState<null | "tok" | "line">(null);
   const [dragFrom, setDragFrom] = useState<null | "pitch" | "bench">(null);
-  const [introDone, setIntroDone] = useState(rm);
-  const [fit, setFit] = useState({ kp: 1, kh: 0.64 });
+  const [fit, setFit] = useState({ kp: 1, kh: 0.64, kd: 1 });
   // Dibujar: the tool, the colour, the text for the field, and the strokes drawn in this visit (they
   // light up at once; the ones already there light up one after another).
   const [tool, setTool] = useState<StrokeKind>("carrera");
@@ -243,10 +255,26 @@ export function Board(props: BoardProps) {
   const [wipe, setWipe] = useState<number | null>(() => (start.modo === "jugadas" && !rm ? 1 : null));
   // Opened on the jugadas by a link: they play until the first touch (as designed).
   const [untouched, setUntouched] = useState(start.modo === "jugadas" && !rm);
-  // Whether this device gets the 3D (asked the first time it is wanted; undefined = not asked yet).
-  const [sup3d, setSup3d] = useState<Unsupported | null | undefined>(() => (start.modo === "jugadas" && prefs.v3 && !rm ? unsupportedReason() : undefined));
+  // The opening (once per session, see intro.ts) and whether this device gets the 3D (asked the first
+  // time it is wanted: the 3D intro, a link straight to the charla or the jugadas; undefined = not yet).
+  const [boot] = useState(() => {
+    let why: Unsupported | null | undefined;
+    const ask = (): Unsupported | null => (why === undefined ? (why = unsupportedReason()) : why);
+    const where = start.modo === "charla" ? "charla" : start.modo === "jugadas" ? "jugadas" : "board";
+    const kind = introKind({ rm, seen: introSeen(), v3: prefs.v3, why3d: ask, start: where });
+    if (where !== "board" && prefs.v3 && !rm) ask();
+    return { kind, why };
+  });
+  const [intro, setIntro] = useState<{ kind: IntroKind; phase: IntroPhase }>({ kind: boot.kind, phase: boot.kind === "none" ? "done" : boot.kind === "3d" ? "wait" : "run" });
+  // The cromos deal in as the 2D board comes back after the 3D intro.
+  const [hand, setHand] = useState(false);
+  const [sup3d, setSup3d] = useState<Unsupported | null | undefined>(boot.why);
   const [fail3d, setFail3d] = useState(false);
   const [ready3d, setReady3d] = useState(false);
+  // The stadium, once a 3D moment has wanted it, stays (paused) for the next one.
+  const [mount3d, setMount3d] = useState(false);
+  // The jugada picked in Jugadas (else the charla presents the board's first own one, or the córner).
+  const [jChosen, setJChosen] = useState(false);
   // Loading only counts until the board has shown once (a later blip must not jump the footer).
   const [seenReady, setSeenReady] = useState(ready);
   if (ready && !seenReady) setSeenReady(true);
@@ -261,9 +289,23 @@ export function Board(props: BoardProps) {
   const fxTimer = useRef(0);
   const toastTimer = useRef(0);
   const wipeTimer = useRef(0);
+  const sndTimer = useRef(0);
   /** Where everything was drawn at the last render (frame %), for the next glide to start from. */
   const drawn = useRef<{ p: Record<string, [number, number]>; r: Record<string, [number, number]>; b: [number, number] | null } | null>(null);
   const snd = useBoardSound(prefs.snd);
+  // Turning the sound on answers with a «clac» (as designed; it is still the tap's gesture).
+  const sndWas = useRef(prefs.snd);
+  const sndLatest = useRef(snd);
+  useEffect(() => {
+    sndLatest.current = snd;
+  });
+  useEffect(() => {
+    const was = sndWas.current;
+    sndWas.current = prefs.snd;
+    if (!prefs.snd || was) return;
+    const t = window.setTimeout(() => sndLatest.current("clac"), 30);
+    return () => window.clearTimeout(t);
+  }, [prefs.snd]);
   // No tap on the board may move the page (only the user scrolls it).
   useNoScrollJump(rootRef);
 
@@ -276,9 +318,12 @@ export function Board(props: BoardProps) {
       window.clearTimeout(fxTimer.current);
       window.clearTimeout(toastTimer.current);
       window.clearTimeout(wipeTimer.current);
+      window.clearTimeout(sndTimer.current);
     },
     [],
   );
+  // This visit has had its opening: later ones in the session find the board at rest.
+  useEffect(() => markIntroSeen(), []);
   // The opening crest wipe (a link straight to the jugadas) goes once it has crossed.
   useEffect(() => {
     if (wipe == null) return;
@@ -287,11 +332,33 @@ export function Board(props: BoardProps) {
   }, [wipe]);
   // The 2D intro (floodlights on, crane down onto the pitch, cromos dealt) once the board has loaded.
   useEffect(() => {
-    if (!ready || introDone) return;
-    const t = window.setTimeout(() => setIntroDone(true), 3300);
+    if (!ready || intro.kind !== "2d" || intro.phase !== "run") return;
+    const t = window.setTimeout(() => setIntro((i) => (i.kind === "2d" ? { ...i, phase: "done" } : i)), INTRO_2D_MS);
     return () => window.clearTimeout(t);
-  }, [ready, introDone]);
-  // Phones shorter than the designed 844 screen: the pitch shrinks so the sheet never covers it.
+  }, [ready, intro.kind, intro.phase]);
+  // The 3D intro: the stadium has a moment from the page opening to be up with the board, else the 2D
+  // crane plays instead; once running it never lasts longer than INTRO_MAX_MS.
+  useEffect(() => {
+    if (intro.kind !== "3d" || intro.phase === "done") return;
+    const waiting = intro.phase === "wait";
+    const t = window.setTimeout(() => {
+      if (waiting) setIntro({ kind: "2d", phase: "run" });
+      else {
+        setIntro({ kind: "3d", phase: "done" });
+        setHand(true);
+      }
+    }, waiting ? INTRO_WAIT_MS : INTRO_MAX_MS);
+    return () => window.clearTimeout(t);
+  }, [intro.kind, intro.phase]);
+  if (intro.kind === "3d" && intro.phase === "wait" && ready && ready3d) setIntro({ kind: "3d", phase: "run" });
+  useEffect(() => {
+    if (!hand) return;
+    const t = window.setTimeout(() => setHand(false), DEAL_MS);
+    return () => window.clearTimeout(t);
+  }, [hand]);
+  // The pitch is scaled to fit: on phones and tablets between the app bar and the sheet (at peek, and at
+  // half for the dolly back), whatever the screen's height — the sheet never covers it; on desktop above
+  // the screen's bottom (the top-down camera is taller than the TV one). See stageFit.
   useEffect(() => {
     const app = appRef.current;
     if (!app || typeof ResizeObserver === "undefined") return;
@@ -299,10 +366,10 @@ export function Board(props: BoardProps) {
       const w = app.clientWidth;
       const h = app.clientHeight;
       if (!w || !h) return;
-      const ph = w * C.Fh;
-      const kp = Math.max(0.4, Math.min(1, (h - 72 - 200 - 60 - 44) / ph));
-      const kh = Math.max(0.3, Math.min(0.64, (h - 72 - 404 - 66) / ph));
-      setFit((f) => (Math.abs(f.kp - kp) < 0.005 && Math.abs(f.kh - kh) < 0.005 ? f : { kp: +kp.toFixed(3), kh: +kh.toFixed(3) }));
+      const { kp, kh, kd } = stageFit(w, h, C.Fh);
+      setFit((f) =>
+        Math.abs(f.kp - kp) < 0.005 && Math.abs(f.kh - kh) < 0.005 && Math.abs(f.kd - kd) < 0.005 ? f : { kp: +kp.toFixed(3), kh: +kh.toFixed(3), kd: +kd.toFixed(3) },
+      );
     });
     ro2.observe(app);
     return () => ro2.disconnect();
@@ -318,11 +385,6 @@ export function Board(props: BoardProps) {
   const pick = u.pick != null && u.pick >= 0 && u.pick < L.slots.length ? u.pick : null;
   const fan = u.fan && onPitch.has(u.fan.id) ? u.fan : null;
   const fic = u.fic && sq.byId.has(u.fic.id) ? u.fic : null;
-  // The plan is painted while its tab is open; the plan, the química and Comparar show the cromos as discs.
-  const showPlan = modo === "editar" && tab === "p";
-  const mini = modo === "quimica" || modo === "comparar" || modo === "jugadas" || modo === "dibujar" || showPlan;
-  const view = pitchView({ L, sq, ch, cam, modo, fx, selId: sel?.id ?? null, pick, ro: !canEdit, rm, meId: props.meId, mini });
-  const plan = planLayer(L, cam, modo, showPlan);
   const match = props.match;
   const hud = buildHud(L, sq, ch, fx, rm, match);
   const tacSum = tacSummary(L);
@@ -389,6 +451,11 @@ export function Board(props: BoardProps) {
     if (o.snap) setSnap(o.snap);
     runFx(morph(o.drop ?? null, { rip, cele, ...o.fx }));
     snd("clac");
+    // the química scoreboard flips when its number changes
+    if (chem(next, sq).v !== ch.v) {
+      window.clearTimeout(sndTimer.current);
+      sndTimer.current = window.setTimeout(() => snd("flip"), 180);
+    }
     if (cele) {
       buzz([30, 60, 30, 60, 120]);
       snd("crowd");
@@ -438,7 +505,9 @@ export function Board(props: BoardProps) {
   const cur = pickJugada(jl, jidPick);
   const jplay = cur.play;
   const nJ = jplay.frames.length;
-  const want3d = modo === "jugadas" && prefs.v3 && sup3d === null && !fail3d;
+  // The 3D stadium where the device can and «3D» is on; the jugadas want it while their replay plays.
+  const can3d = prefs.v3 && sup3d === null && !fail3d;
+  const want3d = modo === "jugadas" && can3d;
   const wipeNow = () => {
     if (!rm) setWipe((w) => (w ?? 0) + 1);
   };
@@ -521,6 +590,7 @@ export function Board(props: BoardProps) {
     if (!saveExtras({ ...L, plays: savePlay(list, next) })) return null;
     if (!cur.own) {
       setJid(next.id);
+      setJChosen(true);
       rpl.reset(session.key + ":" + next.id, false, goTo ?? jf);
       say("«" + jplay.name + "» ya es tuya: se guarda con el tablero");
     } else if (goTo != null && goTo !== jf) rpl.seek(goTo, next.frames.length);
@@ -535,6 +605,7 @@ export function Board(props: BoardProps) {
   const jPick = (id: string) => {
     setUntouched(false);
     setJid(id);
+    setJChosen(true);
     rpl.reset(session.key + ":" + id, false);
     patchUi({ rivSel: null });
     if (!rm) runFx(morph(null, { slow: true }));
@@ -621,6 +692,7 @@ export function Board(props: BoardProps) {
     if (!saveExtras({ ...L, plays: savePlay(list, pl) })) return;
     setUntouched(false);
     setJid(pl.id);
+    setJChosen(true);
     rpl.reset(session.key + ":" + pl.id, false);
     patchUi({ rivSel: null });
     if (!rm) runFx(morph(null, { slow: true }));
@@ -645,6 +717,7 @@ export function Board(props: BoardProps) {
     if (next === list || !saveExtras({ ...L, plays: next })) return;
     const copy = next[next.length - 1];
     setJid(copy.id);
+    setJChosen(true);
     rpl.reset(session.key + ":" + copy.id, false, jf);
     buzz(10);
     say("Copia guardada: «" + copy.name + "»");
@@ -745,7 +818,7 @@ export function Board(props: BoardProps) {
       return;
     }
     if (!canAddStroke(strokes)) {
-      say("Ya hay " + LIM.strokes + " trazos: borra alguno para dibujar más");
+      say("Ya hay " + plural(LIM.strokes, "trazo") + ": borra alguno para dibujar más");
       return;
     }
     if (tool === "texto" && !inkText.trim()) {
@@ -778,9 +851,11 @@ export function Board(props: BoardProps) {
     later.current = { key: session.key, L, save: saveExtras, inkUndo };
   });
 
-  // ── «En 3D»: the jugada in the stadium ──
+  // ── the 3D stadium: «En 3D» and the board's other 3D moments ──
   const on3dFail = (why: "unsupported" | "failed") => {
     setReady3d(false);
+    // an opening still waiting for the stadium plays in 2D; one already running ends
+    setIntro((i) => (i.kind !== "3d" || i.phase === "done" ? i : i.phase === "wait" ? { kind: "2d", phase: "run" } : { ...i, phase: "done" }));
     if (why === "unsupported") setSup3d("no-webgl2");
     else {
       setFail3d(true);
@@ -791,13 +866,96 @@ export function Board(props: BoardProps) {
     const on = !prefs.v3;
     props.onPrefs({ v3: on });
     if (!on) {
-      setReady3d(false);
       say("Vista 2D");
       return;
     }
     setFail3d(false);
     say(ask3d() ? "Sin 3D aquí: cámara de televisión que sigue al balón" : "Ver en 3D: la jugada se juega en el estadio");
   };
+  /** The 3D intro is skipped (a tap, «Saltar», another mode): the 2D board crossfades in. */
+  const skipIntro = () => {
+    if (intro.kind !== "3d" || intro.phase === "done") return;
+    setIntro({ kind: "3d", phase: "done" });
+    if (intro.phase === "run") setHand(true);
+  };
+  const intro3d = intro.kind === "3d" && intro.phase !== "done";
+
+  // ── la charla ──
+  const charlaOn = modo === "charla";
+  const chItem = charlaJugada(jl, jChosen ? cur : null);
+  const chPlay = chItem.play;
+  const chLast = charlaLast(chPlay.frames.length);
+  const chSlots = L.slots.map((s) => (s.playerId && sq.byId.has(s.playerId) ? s.playerId : null));
+  const live3dC = charlaOn && can3d && ready3d;
+  const chArgs = { L, sq, play: chPlay, playShort: chItem.short, match, boardName: session.name, sysName: hud.sysName, tacSum, qv: ch.v, in3d: live3dC, loading: !ready };
+  /** What a step says, for screen readers (the graphics change without focus moving). */
+  const sayStep = (to: number, playing: boolean) => {
+    const v = charlaView({ ...chArgs, step: to, playing });
+    announce(v.n + " · " + v.nk.toLowerCase() + ": " + (v.lt ? v.lt.t + (v.lt.d ? ". " + v.lt.d : "") : (v.plan ?? []).map((c) => c.t + ": " + c.d).join(" ")));
+  };
+  // (a link straight to the charla waits for the board before it runs)
+  const chl = useCharla({
+    on: charlaOn && ready,
+    last: chLast,
+    rm,
+    engine: (step, playing) => live3dC && engineDriven(step, chLast, playing, chSlots),
+    onMove: (to, how) => {
+      if (!rm) runFx(morph(null, { slow: to >= STEP_JUGADA }));
+      sayStep(to, false);
+      const k = stepKind(to, chLast);
+      if (k === "siete") {
+        // (the tap only buzzes when it is a press of the transport, never while the charla plays itself)
+        if (how === "user") buzz(14);
+        snd("flip");
+      } else if (k === "final") snd("crowd");
+    },
+  });
+  const cv = charlaOn ? charlaView({ ...chArgs, step: chl.step, playing: chl.playing }) : null;
+  const chKind = cv?.kind ?? null;
+
+  // ── what the pitch shows ──
+  // The plan is painted while its tab is open (and at the charla's plan); the plan, the química and
+  // Comparar show the cromos as discs.
+  const showPlan = (modo === "editar" && tab === "p") || chKind === "plan";
+  const mini = modo === "quimica" || modo === "comparar" || modo === "jugadas" || modo === "dibujar" || showPlan;
+  const view = pitchView({ L, sq, ch, cam, modo, fx, selId: sel?.id ?? null, pick, ro: !canEdit, rm, meId: props.meId, mini, present: charlaOn ? chl.step : undefined });
+  const plan = planLayer(L, cam, modo, showPlan);
+
+  // ── the stadium: what it films ──
+  // (it is mounted the first time a 3D moment wants it and stays, paused, until «3D» goes off)
+  const wantNow = can3d && (intro3d || charlaOn || (want3d && rpl.playing));
+  if (wantNow && !mount3d) setMount3d(true);
+  if (!can3d && mount3d) setMount3d(false);
+  const keep3d = can3d && (mount3d || wantNow);
+  if (!keep3d && ready3d) setReady3d(false);
+  const led3d = ["Manchester Piti", "Sistema " + (L.freeMode ? "libre" : L.formation), "Química " + ch.v, props.match?.short ?? "", "Vamos Piti"].filter(Boolean);
+  const heroId = chKind === "siete" ? chSlots[chl.step - 1] : null;
+  let shot: Shot;
+  if (intro3d) shot = intro.phase === "run" ? { kind: "intro", players: engineSeven(L, sq, props.meId) } : { kind: "hold" };
+  else if (charlaOn && cv)
+    shot = {
+      kind: "charla",
+      step: chl.step,
+      playing: chl.playing,
+      players: engineSeven(L, sq, chl.playing ? null : heroId),
+      slots: chSlots,
+      // (a new seven — the board loaded, another tab — films the step again)
+      jugada: { key: chPlay.id + ":" + chPlay.frames.length + ":" + chSlots.join(","), frames: toEngineFrames(chPlay), pasos: enginePasos(chPlay) },
+      board: cv.board3d.start,
+      boardEnd: cv.board3d.end,
+    };
+  else if (want3d && rpl.playing)
+    shot = { kind: "jugada", key: jplay.id, board: led3d, players: engineCast(jplay, sq, L, props.meId), rivals: engineRivals(jplay), frames: toEngineFrames(jplay), from: jf, slow: spd };
+  else shot = { kind: "rest", players: engineSeven(L, sq, props.meId), board: led3d };
+  const chNote3d = !prefs.v3
+    ? "Vista 2D."
+    : live3dC
+      ? "En el estadio 3D: la cámara visita a cada jugador."
+      : fail3d
+        ? "El estadio 3D no ha podido arrancar: la charla se presenta sobre la pizarra."
+        : sup3d
+          ? "Sin 3D en este dispositivo: la charla se presenta sobre la pizarra."
+          : "Preparando el estadio 3D: mientras, la charla va sobre la pizarra.";
 
   // ── pointer: drag, long press, the línea, the sheet handle, drawing and the jugada's pieces ──
   const ctl = useDragController(
@@ -974,15 +1132,19 @@ export function Board(props: BoardProps) {
   };
   const goModo = (m: Modo | "plan") => {
     const target: Modo = m === "plan" ? "editar" : m;
-    // Into the jugadas (or out of them) the cromos glide between the board and the paso; the jugadas
-    // open paused with the crest wipe, as designed, and the 3D stadium goes when they close.
-    if ((target === "jugadas") !== (modo === "jugadas") && !rm) runFx(morph(null, { slow: true }));
+    // Into the jugadas or the charla (or out of them) the cromos glide between the board and the paso;
+    // the jugadas open paused with the crest wipe, as designed, and the charla from its first step.
+    const staged = (x: Modo) => x === "jugadas" || x === "charla";
+    if ((staged(target) || staged(modo)) && target !== modo && !rm) runFx(morph(null, { slow: true }));
+    skipIntro();
     if (target === "jugadas") {
       rpl.pause();
       wipeNow();
-    } else if (modo === "jugadas") {
-      rpl.pause();
-      setReady3d(false);
+    } else if (modo === "jugadas") rpl.pause();
+    if (target === "charla" && modo !== "charla") {
+      chl.reset();
+      if (prefs.v3) ask3d();
+      sayStep(0, !rm);
     }
     setUntouched(false);
     setModo(target);
@@ -1108,22 +1270,35 @@ export function Board(props: BoardProps) {
     }
   };
 
-  // ── the replay's keys: Space plays / pauses, ← → go a paso back / forward ──
+  // ── the replay's and the charla's keys: Space plays / pauses, ← → go a step back / forward, and
+  // Escape leaves the charla (or skips the 3D intro) ──
   const replayKeys = (e: globalThis.KeyboardEvent) => {
-    if (modo !== "jugadas" || fan || fic || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (intro3d && e.key === "Escape") {
+      skipIntro();
+      return;
+    }
+    if ((modo !== "jugadas" && modo !== "charla") || fan || fic || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     const t = e.target instanceof HTMLElement ? e.target : null;
     const root = rootRef.current;
     if (t && t !== document.body && root && !root.contains(t)) return;
     const tag = t?.tagName ?? "";
+    if (modo === "charla" && e.key === "Escape") {
+      e.preventDefault();
+      goModo("editar");
+      return;
+    }
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || t?.isContentEditable) return;
     if (e.key === " " || e.key === "Spacebar") {
       // a focused control keeps its own Space
       if (tag === "BUTTON" || tag === "A") return;
       e.preventDefault();
-      playToggle();
+      if (modo === "charla") chl.toggle();
+      else playToggle();
     } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
-      jStep(e.key === "ArrowLeft" ? -1 : 1);
+      const d = e.key === "ArrowLeft" ? -1 : 1;
+      if (modo === "charla") chl.step1(d);
+      else jStep(d);
     }
   };
   const keysLatest = useRef(replayKeys);
@@ -1290,7 +1465,7 @@ export function Board(props: BoardProps) {
         .slice(0, 3)
         .map((l) => {
           const o = l.a === fic.id ? l.b : l.a;
-          return { k: "con " + nm(o) + (l.tog ? " · " + l.tog + " partidos" : ""), v: l.t === 3 ? "++" : l.t === 2 ? "+" : "–" };
+          return { k: "con " + nm(o) + (l.tog ? " · " + plural(l.tog, "partido") : ""), v: l.t === 3 ? "++" : l.t === 2 ? "+" : "–" };
         });
       if (fi < 0) ln = [{ k: p.baja ? p.baja + ": no disponible" : "En el banquillo", v: "" }];
       else if (!ln.length) ln = [{ k: "Sin vecinos cerca en este siete", v: "" }];
@@ -1423,12 +1598,12 @@ export function Board(props: BoardProps) {
       setShareBusy(false);
     }
   };
-  const copyLink = async () => {
+  const copyLink = async (charla: boolean) => {
     if (!session.id) return;
-    const url = boardLink(window.location.origin, session.id);
+    const url = boardLink(window.location.origin, session.id, charla);
     try {
       await navigator.clipboard.writeText(url);
-      say("Enlace copiado: pégalo en el grupo");
+      say(charla ? "Enlace a la charla copiado: pégalo en el grupo" : "Enlace copiado: pégalo en el grupo");
     } catch {
       say("Copia el enlace: " + url, undefined, 6000);
     }
@@ -1469,10 +1644,18 @@ export function Board(props: BoardProps) {
 
   // ── what the pitch shows: a jugada's paso, or the strokes; and where it is all drawn ──
   const rh = replayHud(cur, jf, cam3d, pieces);
+  const chPaso = cv ? cv.paso : -1;
   const jug =
     modo === "jugadas"
       ? jugadaStage({ play: jplay, frame: jf, L, sq, cam, fx, meId: props.meId, edit: pieces, selRival: rivSel, onion, trails, rivals: rivOn, ball: ballOn, follow })
-      : null;
+      : chPaso >= 0
+        ? jugadaStage({ play: chPlay, frame: chPaso, L, sq, cam, fx, meId: props.meId, edit: false, selRival: null, onion: false, trails: true, rivals: true, ball: true, follow: false })
+        : null;
+  // la charla: the camera pushes in on the cromo presented (under a spotlight) and on the ball
+  const heroCard = cv && cv.hero >= 0 ? view.cards.find((c) => c.i === cv.hero) : undefined;
+  const chBall = jug && chPaso >= 0 ? jug.drawn.b : null;
+  const chCamT = heroCard ? pushIn(heroCard.x, heroCard.y, 1.22, 46) : chBall ? pushIn(chBall[0], chBall[1], 1.2) : null;
+  const chFinal = chKind === "final" && !rm;
   const ink = modo === "jugadas" || modo === "charla" ? null : inkView(strokes, C, modo === "dibujar" ? inkSel : null, fresh);
   const drawnNow = jug ? jug.drawn : { p: Object.fromEntries(view.cards.map((c): [string, [number, number]] => [c.id, [c.x, c.y]])), r: {}, b: null };
   useEffect(() => {
@@ -1538,15 +1721,17 @@ export function Board(props: BoardProps) {
             : session.status === "error"
               ? "Sin guardar · revisa la conexión"
               : "Guardado · " + ago(session.savedAt, props.now);
-  const intro = ready && !introDone && !rm;
   const rootCls = [
     "vx",
     "pzv",
-    "m-" + (modo === "charla" ? "charla-pronto" : modo),
-    intro ? "intro" : "",
-    hud.qUp || hud.celeOn ? "cheer" : "",
+    "m-" + modo,
+    // the openings: the 2D crane, the 3D intro (the 2D board hidden), the cromos dealt in after it
+    ready && intro.kind === "2d" && intro.phase === "run" && !charlaOn ? "intro" : "",
+    intro3d ? "i3" : "",
+    hand ? "hand" : "",
+    hud.qUp || hud.celeOn || chFinal ? "cheer" : "",
     modo === "quimica" || show.chem ? "s-chem" : "",
-    showPlan ? "t-plan" : "",
+    showPlan ? (charlaOn ? "chp" : "t-plan") : "",
     show.num ? "" : "h-num",
     show.name ? "" : "h-name",
     show.pos ? "" : "h-pos",
@@ -1561,8 +1746,8 @@ export function Board(props: BoardProps) {
     // the replay: 0,5×, the estelas off, the follow-cam, the 3D stadium live, pieces that can be moved
     modo === "jugadas" && spd ? "slow2" : "",
     modo === "jugadas" && !trails ? "no-trails" : "",
-    follow ? "fcam" : "",
-    live3d ? "v3" : "",
+    follow || !!chCamT ? "fcam" : "",
+    live3d || live3dC ? "v3" : "",
     pieces ? "j-edit" : "",
     // Dibujar on an editable board: the pitch is a canvas
     canEdit && modo === "dibujar" ? "d-on" : "",
@@ -1775,7 +1960,7 @@ export function Board(props: BoardProps) {
         onBoards={() => goModo("tableros")}
       />
     ) : modo === "compartir" ? (
-      <CompartirPanel cartel={cartel} block={shareBlock} busy={shareBusy} canLink={!!session.id} onShare={() => void toGroup("share")} onPng={() => void toGroup("png")} onLink={() => void copyLink()} onBack={() => goModo("mas")} />
+      <CompartirPanel cartel={cartel} block={shareBlock} busy={shareBusy} canLink={!!session.id} onShare={() => void toGroup("share")} onPng={() => void toGroup("png")} onLink={(charla) => void copyLink(charla)} onBack={() => goModo("mas")} />
     ) : modo === "ajustes" ? (
       <AjustesPanel
         show={show}
@@ -1792,6 +1977,7 @@ export function Board(props: BoardProps) {
         on3d={() => {
           const on = !prefs.v3;
           props.onPrefs({ v3: on });
+          if (on) setFail3d(false);
           say(on ? "3D en las jugadas y la charla, si este dispositivo puede" : "Vista 2D");
         }}
         onSnd={() => props.onPrefs({ snd: !prefs.snd })}
@@ -1828,7 +2014,11 @@ export function Board(props: BoardProps) {
         onPick={jPick}
         onAddPaso={jAddPaso}
         onNew={jNew}
-        onCharla={() => goModo("charla")}
+        onCharla={() => {
+          // «Verla en la charla»: the charla presents this jugada
+          setJChosen(true);
+          goModo("charla");
+        }}
         onRename={jRename}
         onDuplicate={jDuplicate}
         onDelete={jDelete}
@@ -1866,9 +2056,9 @@ export function Board(props: BoardProps) {
         onSelect={(id) => patchUi({ inkSel: id })}
         onDelete={inkDelete}
       />
-    ) : (
-      <SoonPanel modo={modo} onBack={() => goModo("mas")} />
-    );
+    ) : cv ? (
+      <CharlaGuion v={cv} title={match?.short ?? session.name} note3d={chNote3d} />
+    ) : null;
 
   return (
     <div
@@ -1877,7 +2067,7 @@ export function Board(props: BoardProps) {
       data-modo={modo}
       data-snap={snap}
       aria-busy={!seenReady}
-      style={vars({ "--kp": fit.kp, "--kh": fit.kh, "--fh": C.Fh })}
+      style={vars({ "--kp": fit.kp, "--kh": fit.kh, "--kd": fit.kd, "--fh": C.Fh })}
       onPointerDown={ctl.onPointerDown}
       onKeyDown={onKey}
       onContextMenu={(e) => {
@@ -1894,32 +2084,30 @@ export function Board(props: BoardProps) {
           ink={ink}
           jug={jug}
           pieces={pieces}
-          focusCards={modo !== "jugadas" && modo !== "dibujar"}
+          focusCards={modo !== "jugadas" && modo !== "dibujar" && !charlaOn}
           bug={modo === "jugadas" ? { a: rh.bugA, b: rh.bugB, k: rh.bugK, aria: rh.bugAria } : null}
           trailsDraw={!!fx.from && !rm}
           trailsDur={spd ? "3.2s" : "1.7s"}
           wipe={wipe}
+          camT={chCamT}
+          spot={heroCard ? { id: heroCard.id, x: heroCard.x, y: heroCard.y, ar: L.roles.captainId === heroCard.id } : null}
+          cele={chFinal ? { txt: "", sub: "" } : hud.celeOn ? { txt: "¡SIETE LISTO!", sub: hud.sysName + " · QUÍMICA " + hud.qv } : null}
           p3d={
-            want3d ? (
-              <Replay3D
-                play={jplay}
-                frame={jf}
-                active={rpl.playing}
-                slow={spd}
-                squad={sq}
-                roles={L.roles}
-                meId={props.meId}
-                led={["Manchester Piti", "Sistema " + (L.freeMode ? "libre" : L.formation), "Química " + ch.v, props.match?.short ?? "", "Vamos Piti"]}
-                onFrame={rpl.reached}
+            keep3d ? (
+              <Board3D
+                shot={shot}
+                players={engineSeven(L, sq, props.meId)}
+                board={led3d}
                 onReady={() => setReady3d(true)}
                 onFail={on3dFail}
+                events={{ onIntroDone: skipIntro, onFrame: rpl.reached, onStep: chl.reached }}
               />
             ) : null
           }
           liveRef={liveRef}
           onBug={() => setSnap("half")}
           plan={plan}
-          hud={hud}
+          hud={cv ? { ...hud, ledTop: cv.led } : hud}
           wmY={(proj(C, 50, 37).y - 15).toFixed(2)}
           sysk={sysk}
           ro={!canEdit}
@@ -1927,7 +2115,6 @@ export function Board(props: BoardProps) {
           showGal={show.gal}
           kb={u.kb}
           selId={sel?.id ?? null}
-          celeSub={hud.sysName + " · QUÍMICA " + hud.qv}
           rw={rm ? "" : fx.rw}
           fxk={fx.k}
           pulse={(TEMPO_PULSE[L.tactics.tempo] ?? 2.4) + "s"}
@@ -1963,6 +2150,26 @@ export function Board(props: BoardProps) {
           {shown}
         </Sheet>
         <ModeBar modo={modo} onGo={goModo} />
+        {cv && (
+          <CharlaOverlay
+            v={cv}
+            step={chl.step}
+            playing={chl.playing}
+            rm={rm}
+            onToggle={chl.toggle}
+            onStep={chl.step1}
+            onSeek={chl.seek}
+            onExit={() => goModo("editar")}
+          />
+        )}
+        {intro3d && (
+          <>
+            <button type="button" className="i3-tap" onClick={skipIntro} tabIndex={-1} aria-hidden="true" />
+            <button type="button" className="b3 i3-skip" onClick={skipIntro} aria-label="Saltar la presentación">
+              Saltar
+            </button>
+          </>
+        )}
         {fan && (
           <Fan
             cx={fan.cx}

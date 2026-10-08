@@ -79,6 +79,8 @@ const dayFmt = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", wee
 const timeFmt = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 /** «sáb 8 nov» (empty without a date). */
 export const matchDay = (ms: number): string => (ms ? dayFmt.format(new Date(ms)).replace(/,/g, "") : "");
+/** «12:00» (empty without a date). */
+export const matchTime = (ms: number): string => (ms ? timeFmt.format(new Date(ms)) : "");
 
 export interface Band {
   /** g = victoria, e = empate, p = derrota, f = por jugar (and no match). */
@@ -143,7 +145,7 @@ export function convCounts(sq: Squad): ConvCounts {
   return n;
 }
 
-/** The link to a board (while the new board is behind its switch, the link turns it on). */
-export function boardLink(origin: string, id: string, v2 = true): string {
-  return origin + "/pizarra?tablero=" + encodeURIComponent(id) + (v2 ? "&v2" : "");
+/** The link to a board (`#charla` = straight to its charla). */
+export function boardLink(origin: string, id: string, charla = false): string {
+  return origin + "/pizarra?tablero=" + encodeURIComponent(id) + (charla ? "#charla" : "");
 }

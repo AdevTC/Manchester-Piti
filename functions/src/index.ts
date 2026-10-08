@@ -15,7 +15,7 @@ export { setSeasonArchived } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
 export { clubBundle } from "./bundle.js";
 export { liveEvent } from "./live.js";
-export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushKickoff } from "./push.js";
+export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff } from "./push.js";
 export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";
 export {
   requestPlayerClaim,
