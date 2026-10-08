@@ -322,3 +322,19 @@ export interface PersonRow {
 export function useClubPeople(enabled: boolean) {
   return useLiveQuery<PersonRow>(enabled ? "users" : null, () => collection(db, "users"), (uid, d) => ({ uid, nickname: d.nickname ?? "", displayName: d.displayName ?? "", email: d.email ?? "", role: d.role ?? "user", playerId: d.playerId || null, removed: !!d.removedAt }));
 }
+
+// ---------- your own membership (/profile: «Tu acceso» and the back of the card)
+export interface Membership {
+  joinedAt: number;
+  /** How the account came in: "invite", "request", "returning"; older ones have none (the shared key). */
+  via: string;
+  /** Who let it in (a captain's uid; your own for "returning"). */
+  by: string;
+}
+export function useMembership(uid: string | undefined) {
+  return useLiveDoc<Membership | null>(uid ? `teamMembers/${uid}` : null, (d) => (d ? { joinedAt: millis(d.joinedAt), via: d.via ?? "", by: d.by ?? "" } : null), null);
+}
+/** A member's handle (users/{uid}.nickname), e.g. the captain who opened the door for you. */
+export function useNicknameOf(uid: string | undefined) {
+  return useLiveDoc<string>(uid ? `users/${uid}` : null, (d) => (d?.nickname as string | undefined) ?? "", "");
+}

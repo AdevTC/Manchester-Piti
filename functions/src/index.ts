@@ -17,6 +17,7 @@ export { clubBundle } from "./bundle.js";
 export { liveEvent } from "./live.js";
 export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff } from "./push.js";
 export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";
+export { setNickname, setShirtName, cancelPlayerClaim, leaveVestuario } from "./profile.js";
 export {
   requestPlayerClaim,
   resolvePlayerClaim,
