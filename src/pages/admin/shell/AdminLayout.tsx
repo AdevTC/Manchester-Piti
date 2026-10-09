@@ -23,6 +23,9 @@ import { AdminHeader, BottomBar, MasSheet, SideNav, type Captain } from "./Chrom
 import { AdminDataContext, ShellContext, useAdminGo, type ShellApi } from "./context";
 import { SECTIONS, sectionOf, type SectionKey } from "./nav";
 import { useSidePref } from "./sidePref";
+// The Celeste tokens and the `.vx` size container the admin CSS builds on: imported here too, so /admin
+// works when it is the first page loaded (a refresh, a bookmark, a push link), not only after a site page.
+import "../../../styles/vestuario.css";
 import "../../../styles/admin.css";
 import "../../../styles/admin-app.css";
 

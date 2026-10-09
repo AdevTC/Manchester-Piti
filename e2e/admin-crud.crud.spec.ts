@@ -110,3 +110,16 @@ test("el acta: convocatoria, gol con «¿Quién marcó?» y publicar cuando cuad
   await expect(page.getByText(/Acta J\d+ publicada · web al día · MVP abierto 48 h\./)).toBeVisible();
   await expect(page.getByText("Acta publicada")).toBeVisible();
 });
+
+// /admin as the FIRST page loaded (refresh, bookmark, push link): its styles must not depend on a site page
+// having loaded the Celeste tokens first — desktop gets the side menu, not the phone layout.
+test("el admin cargado directamente tiene su menú lateral y sus colores", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await enterVestuario(page);
+  await page.goto("/admin/partidos");
+  const side = page.getByRole("navigation", { name: "Secciones de administración" });
+  await expect(side).toBeVisible();
+  const root = page.locator(".vx.adm");
+  await expect(root).toHaveCSS("container-type", "inline-size");
+  expect(await root.evaluate((el) => getComputedStyle(el).getPropertyValue("--bg").trim())).not.toBe("");
+});
