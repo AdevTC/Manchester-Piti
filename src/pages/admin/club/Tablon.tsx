@@ -191,7 +191,6 @@ export function Tablon(props: TablonProps) {
               <th colSpan={9} scope="rowgroup" role="rowheader">
                 {g.title}
                 <em>{g.rows.length}</em>
-                {g.key === "none" ? <small>Toca su línea para colocarlos</small> : null}
               </th>
             </tr>
             {g.rows.map((r) => row(r, false))}

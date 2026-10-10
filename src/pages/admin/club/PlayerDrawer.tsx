@@ -149,6 +149,7 @@ export function PlayerDrawer({ player, players, seasons, activeSeason, cromo, ga
       <Drawer
         open
         inline={inline}
+        className="pdr"
         onClose={close}
         title={isNew ? "Alta de jugador" : `Ficha de ${shownName}`}
         status={dirty ? { text: "● Cambios sin guardar", tone: "warn" } : undefined}
@@ -173,7 +174,7 @@ export function PlayerDrawer({ player, players, seasons, activeSeason, cromo, ga
           </>
         }
       >
-        <div className="fld">
+        <div className="fld half">
           <label htmlFor={`${uid}-n`}>Nombre en la camiseta · {form.shirtName.length}/12</label>
           <input
             ref={nameRef}
@@ -194,7 +195,7 @@ export function PlayerDrawer({ player, players, seasons, activeSeason, cromo, ga
             </span>
           ) : null}
         </div>
-        <div className="fld">
+        <div className="fld half">
           <label htmlFor={`${uid}-d`}>{dorsalLabel}</label>
           <input
             className={dorsal.tone === "bad" ? "inp bad" : "inp"}
@@ -210,7 +211,7 @@ export function PlayerDrawer({ player, players, seasons, activeSeason, cromo, ga
           />
           <Line check={dorsal} id={`${uid}-dl`} />
         </div>
-        <div className="fld">
+        <div className="fld half">
           <span className="lb" id={`${uid}-p`}>
             Posición
           </span>
@@ -222,7 +223,7 @@ export function PlayerDrawer({ player, players, seasons, activeSeason, cromo, ga
             ))}
           </div>
         </div>
-        <div className="fld">
+        <div className="fld half">
           <span className="lb" id={`${uid}-e`}>
             Estado
           </span>
@@ -260,11 +261,11 @@ export function PlayerDrawer({ player, players, seasons, activeSeason, cromo, ga
         </button>
         {more ? (
           <>
-            <div className="fld">
+            <div className="fld half">
               <label htmlFor={`${uid}-fn`}>Nombre</label>
               <input className="inp" id={`${uid}-fn`} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} autoComplete="off" />
             </div>
-            <div className="fld">
+            <div className="fld half">
               <label htmlFor={`${uid}-ln`}>Apellidos</label>
               <input className="inp" id={`${uid}-ln`} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} autoComplete="off" />
             </div>

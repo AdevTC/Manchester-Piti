@@ -24,10 +24,12 @@
 
 /* ── the layout: the tablón and, beside it, the squad at a glance or the open ficha ── */
 .adm .plg2{flex:1;min-height:0;display:flex;gap:20px}
-.adm .plg2>.drw,.adm .plg2>.pls{flex:0 0 400px}
-@container mp (max-width:1599px){.adm .plg2>.pls{flex-basis:330px}.adm .plg2>.drw{flex-basis:390px}}
+/* the ficha takes the room it needs to be worked on (the tablón folds its columns meanwhile) */
+.adm .plg2>.pls{flex:0 0 400px}
+.adm .plg2>.drw{flex:0 0 clamp(420px,44%,660px)}
+@container mp (max-width:1599px){.adm .plg2>.pls{flex-basis:330px}}
 @container mp (max-width:1199px){
-  .adm .plg2>.drw{flex-basis:350px}
+  .adm .plg2>.drw{flex-basis:clamp(360px,48%,480px)}
   .adm .plg2>.pls{flex-basis:300px}
   .adm .plg2{gap:14px}
 }
@@ -43,8 +45,8 @@
 .adm .tbn thead th.c-stats span,.adm .tbn td.c-stats span{display:inline-block;width:33.3%;text-align:center}
 .adm .tbn thead th.c-acc svg{vertical-align:-3px}
 .adm :is(.tbn,.pls) .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-.adm .tbn tr.gh{display:block;position:sticky;top:38px;z-index:2;background:var(--sheet);box-shadow:inset 0 -1px 0 var(--pline);view-transition-class:pl-row}
-.adm .tbn .gh th{display:block;padding:16px 12px 7px;text-align:left;font-size:14px;font-weight:700;color:var(--soft)}
+.adm .tbn tr.gh{display:block;box-shadow:inset 0 -1px 0 var(--pline);view-transition-class:pl-row}
+.adm .tbn .gh th{display:block;padding:14px 12px 6px;text-align:left;font-size:14px;font-weight:700;color:var(--soft)}
 .adm .tbn .gh em{font-style:normal;font-family:'Geist Mono';font-size:12px;font-weight:600;color:var(--muted);margin-left:8px}
 .adm .tbn .gh small{font-size:12px;font-weight:500;color:var(--muted);margin-left:12px}
 .adm .tbn .grp.none .gh th{color:var(--amber)}
@@ -161,6 +163,23 @@
 .adm .pls .exp{margin-top:auto;align-self:flex-start}
 
 /* ── the ficha's extras: the kit photo in the cromo, the slots, account and web ── */
+/* the ficha (drawer .pdr): a tighter cromo, and wide enough the fields pair up so more fits at once */
+.adm .drw.pdr{container:pdr/inline-size;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--pline) transparent}
+/* one scroll for the whole ficha (the cromo scrolls away, the fields get the height); title and buttons stay */
+.adm .drw.pdr:focus{outline:none}
+.adm .drw.pdr .drh{position:sticky;top:0;z-index:2;padding-bottom:10px;background:var(--sheet)}
+.adm .drw.pdr .fx2{flex:none;overflow:visible}
+.adm .drw.pdr .ft{position:sticky;bottom:0;z-index:2;margin-top:auto;background:var(--sheet)}
+.adm .drw.pdr .cromo{margin:2px 16px 0;padding:12px 18px;gap:6px 14px}
+.adm .drw.pdr .cromo .rt{font-size:42px}
+.adm .drw.pdr .cromo .nm{font-size:26px}
+.adm .drw.pdr .cromo .kit img{width:96px;height:107px}
+@container pdr (min-width:470px){
+  .adm .drw.pdr .fx2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;align-content:start}
+  .adm .drw.pdr .fx2>*{grid-column:1/-1}
+  .adm .drw.pdr .fx2>.half{grid-column:auto}
+  .adm .drw.pdr .fx2>.half>:is(label,.lb){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
 .adm .cromo .kit{display:grid;place-items:center;view-transition-class:pl-kit}
 .adm .cromo .kit img{width:112px;height:124px;object-fit:contain}
 .adm .fslots{display:flex;align-items:center;gap:6px;margin:10px 16px 0;flex:0 0 auto}
@@ -188,7 +207,6 @@
 .adm.m .tbn table{--cols:56px 40px minmax(0,1fr) auto}
 .adm.m .tbn{overflow:visible;border-radius:16px;container-type:normal}
 .adm.m .tbn thead,.adm.m .tbn :is(td,th):is(.c-sel,.c-pos,.c-st,.c-acc,.c-stats){display:none}
-.adm.m .tbn tr.gh{top:0}
 .adm.m .tbn tr.tr{min-height:64px}
 .adm.m .tbn .nmb .nfu{display:none}
 .adm.m .tbn .nmb .nsb{display:block}
