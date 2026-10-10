@@ -1,6 +1,7 @@
 // The club views' own live data (what useAdminData does not carry): every ficha claim with its dates and
 // who resolved it, how each member came into the vestuario, the counts of archived seasons (their docs
-// never reach the app) and the club content with a «loaded» flag. Kept apart so the views' tests can
+// never reach the app), the MVP results (the vitrina's «Más veces MVP») and the club content with a
+// «loaded» flag. Kept apart so the views' tests can
 // replace it.
 import { useEffect, useState } from "react";
 import { collection, getCountFromServer, onSnapshot, query, Timestamp, where, type DocumentData } from "firebase/firestore";
@@ -8,6 +9,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { db } from "../../../firebase";
 import { useClubContent, type ClubContent } from "../../../lib/clubContent";
 import { CONTENT_KEY } from "../../../lib/publicData";
+import type { MvpResult } from "../../../lib/vestuario";
+import { useMvpResults } from "../../vestuario/live";
 import type { MemberVia } from "./fichasLogic";
 import type { HiddenCounts } from "./seasonsLogic";
 
@@ -100,4 +103,9 @@ export function useLiveClubContent(): { content: ClubContent; loaded: boolean } 
   const content = useClubContent();
   const qc = useQueryClient();
   return { content, loaded: qc.getQueryData(CONTENT_KEY) !== undefined };
+}
+
+/** Every match's MVP tally (the app's shared mvpResults listener). */
+export function useMvpTally(): Map<string, MvpResult> {
+  return useMvpResults();
 }

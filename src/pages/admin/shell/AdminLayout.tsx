@@ -11,7 +11,7 @@ import { useTheme } from "../../../hooks/useTheme";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { initials } from "../../../lib/vestuario";
 import { useAdminData, type AdminData } from "../data/useAdminData";
-import { jLabel, shortDate } from "../data/adminLogic";
+import { clockTime, jLabel, shortDate } from "../data/adminLogic";
 import { CommandPalette } from "../palette/CommandPalette";
 import { CommandRegistryProvider } from "../palette/CommandRegistryProvider";
 import { useRegisterCommands } from "../palette/registry";
@@ -125,8 +125,9 @@ function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTM
     const hero = data.hero;
     if (hero && hero.moment === "antes")
       cmds.push({ id: "a:convocar", group: "Acciones", icon: "✓", title: `Convocar la ${jLabel(hero.match)}`, description: hero.match.rival ?? "Rival", hint: "acción", keywords: "convocar titulares siete", run: () => go({ section: "convocar", matchId: hero.match.id }) });
+    const drafts = data.overview.pending.filter((p) => p.key.startsWith("draft-")).length;
     cmds.push(
-      { id: "a:contenido", group: "Acciones", icon: "↑", title: "Publicar contenido", description: "Contenido", hint: "acción", keywords: "publicar editar textos web", run: () => go({ section: "contenido" }) },
+      { id: "a:contenido", group: "Acciones", icon: "↑", title: "Publicar contenido", description: drafts ? `${drafts} ${drafts === 1 ? "cambio" : "cambios"} sin publicar` : "al día", hint: "acción", keywords: "publicar editar textos web contenido", run: () => go({ section: "contenido" }) },
       { id: "a:tema", group: "Acciones", icon: "◐", title: theme === "dark" ? "Tema de día" : "Tema de noche", description: "Colores de la sala", hint: "acción", keywords: "tema oscuro claro modo", run: toggle },
     );
     for (const s of SECTIONS) {
@@ -145,7 +146,7 @@ function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTM
         group: "Partidos",
         icon: j || "vs",
         title: `${j ? `${j} · ` : ""}${m.rival ?? "Rival"}`,
-        description: score || shortDate(t),
+        description: score || (Number.isFinite(t) ? `${shortDate(t).replace(/^\S+ /, "")} · ${clockTime(t)}` : "sin fecha"),
         hint: "abrir",
         keywords: `${m.competition ?? ""} ${shortDate(t)}`,
         exact: j ? [j] : undefined,
@@ -161,9 +162,9 @@ function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTM
         group: "Jugadores",
         icon: p.number != null ? String(p.number) : "·",
         title: p.number != null ? `${p.number} · ${p.name}` : p.name,
-        description: POS[p.position] ?? "Jugador",
+        description: p.position || "Jugador",
         hint: "editar",
-        keywords: [p.doc.firstName, p.doc.lastName].filter(Boolean).join(" "),
+        keywords: [POS[p.position], p.doc.firstName, p.doc.lastName].filter(Boolean).join(" "),
         exact: p.number != null ? [String(p.number)] : undefined,
         whenEmpty: false,
         run: () => go({ section: "plantilla", playerId: p.id }),

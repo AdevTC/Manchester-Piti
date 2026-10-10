@@ -44,14 +44,14 @@ describe("AdminLayout · the v2 shell", () => {
     expect(within(nav).getByRole("link", { name: "Plantilla" }).querySelector(".n")).toBeNull();
   });
 
-  it("navigates from the rail; the header follows; a legacy view renders inside .v1", async () => {
+  it("navigates from the rail; the header follows; a redesigned view renders without the v1 wrapper", async () => {
     const user = userEvent.setup();
     const router = mountAdmin("/admin");
     const nav = await screen.findByRole("navigation", { name: "Sala de control" });
     await user.click(within(nav).getByRole("link", { name: /^Temporadas/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/temporadas"));
     expect(await screen.findByTestId("view")).toHaveTextContent("vista temporadas");
-    expect(screen.getByTestId("view").closest(".v1")).not.toBeNull();
+    expect(screen.getByTestId("view").closest(".v1")).toBeNull();
     expect(screen.getByRole("banner")).toHaveTextContent("Sala de control · Temporadas");
     expect(within(nav).getByRole("link", { name: /^Temporadas/ })).toHaveAttribute("aria-current", "page");
   });
@@ -133,7 +133,10 @@ describe("command palette", () => {
     const input = within(dialog).getByRole("combobox");
     expect(input).toHaveFocus();
     const list = within(dialog).getByRole("listbox", { name: "Resultados" });
-    expect(within(list).getAllByRole("group").map((g) => g.getAttribute("aria-label"))).toEqual(["Acciones", "Secciones", "Partidos"]);
+    expect(within(list).getAllByRole("group").map((g) => g.getAttribute("aria-label"))).toEqual(["Acciones", "Partidos", "Secciones"]);
+    // the design's hints: what is pending to publish, a match's day and time, a player's position
+    expect(within(list).getByRole("option", { name: /Publicar contenido/ })).toHaveTextContent("al día");
+    expect(within(list).getByRole("option", { name: /J2 · FUSION 7/ })).toHaveTextContent("3–1");
     const options = within(list).getAllByRole("option");
     expect(input).toHaveAttribute("aria-activedescendant", options[0].id);
     await user.keyboard("{ArrowDown}");
@@ -143,6 +146,7 @@ describe("command palette", () => {
     await user.clear(input);
     await user.type(input, "J3");
     expect(within(list).getAllByRole("option").map((o) => o.textContent)).toEqual([expect.stringContaining("J3 · MAD SKY")]);
+    expect(within(list).getByRole("option")).toHaveTextContent("8 nov · 12:00");
     await user.keyboard("{Enter}");
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8"));
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -156,7 +160,7 @@ describe("command palette", () => {
     await user.click(buscar);
     const input = screen.getByRole("combobox");
     await user.type(input, "9");
-    expect(screen.getByRole("group", { name: "Jugadores" })).toHaveTextContent("ERIK");
+    expect(screen.getByRole("group", { name: "Jugadores" })).toHaveTextContent("9 · ERIKDEL");
     await user.clear(input);
     await user.type(input, "zzz");
     expect(screen.getByText("Nada con «zzz».")).toBeInTheDocument();

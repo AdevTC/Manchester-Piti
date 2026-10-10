@@ -42,6 +42,40 @@ export function resolveSection(v: unknown): ContentKey | null {
   return SECTIONS.some((x) => x.key === s) ? (s as ContentKey) : null;
 }
 
+/**
+ * «Programa del club»: the index the captains see — six numbered entries, each one or two sections of the
+ * model, and where it shows on the web. `?seccion=` names an entry (any section key also finds its entry).
+ */
+export type GroupKey = "frase" | "contacto" | "momentos" | "historias" | "preguntas" | "galeria";
+export interface ContentGroup {
+  key: GroupKey;
+  title: string;
+  keys: readonly ContentKey[];
+  /** Where the web shows it («→ El club · Momentos»). */
+  where: string;
+}
+export const GROUPS: readonly ContentGroup[] = [
+  { key: "frase", title: "Frase, historia y campo", keys: ["frase", "historia"], where: "El club · portada e historia" },
+  { key: "contacto", title: "Contacto, redes y foto de equipo", keys: ["contacto"], where: "El club · contacto y foto" },
+  { key: "momentos", title: "Momentos del club", keys: ["momentos"], where: "El club · Momentos" },
+  { key: "historias", title: "Historias de jugadores", keys: ["historias"], where: "Cada perfil de jugador" },
+  { key: "preguntas", title: "Preguntas de vestuario", keys: ["preguntas"], where: "El club · Preguntas" },
+  { key: "galeria", title: "Galería y colaboradores", keys: ["galeria", "colaboradores"], where: "El club · Galería e Inicio" },
+];
+export const groupOf = (k: ContentKey): ContentGroup => GROUPS.find((g) => g.keys.includes(k)) ?? GROUPS[0];
+/** `?seccion=` → an entry of the index (a section key, «escudo» or «foto» find theirs). */
+export const resolveGroup = (v: unknown): GroupKey | null => {
+  const k = resolveSection(v);
+  return k ? groupOf(k).key : null;
+};
+/** «Oct 2026» (Madrid): the date a new momento starts with. */
+export function monthLabel(ms: number): string {
+  const parts = new Intl.DateTimeFormat("es-ES", { month: "short", year: "numeric", timeZone: "Europe/Madrid" }).formatToParts(ms);
+  const month = (parts.find((p) => p.type === "month")?.value ?? "").replace(".", "");
+  const year = parts.find((p) => p.type === "year")?.value ?? "";
+  return `${month.charAt(0).toLocaleUpperCase("es")}${month.slice(1)} ${year}`.trim();
+}
+
 /** Rules' limits (firestore.rules · clubContent). */
 export const LIMITS = { intro: 999, story: 19_999, crestStory: 4_999, gallery: 100, sponsors: 50, milestones: 100, faq: 30 } as const;
 

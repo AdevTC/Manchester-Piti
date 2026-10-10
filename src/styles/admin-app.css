@@ -50,6 +50,18 @@
 .adm .skel i{display:block;height:64px;border-radius:16px;background:linear-gradient(90deg,var(--panel) 0%,var(--panel2) 50%,var(--panel) 100%);background-size:200% 100%;animation:ad-skel 1.4s linear infinite}
 @keyframes ad-skel{from{background-position:100% 0}to{background-position:-100% 0}}
 
+/* Club (V2): the vitrina's captain is a button (change it); the content editor's momento rows open the
+   momento, its sub-heading, and the player picker of «Historias» (✓ = written, the ring = the one open). */
+.adm .capb{display:block;border-radius:12px;padding:4px 6px;margin-right:-6px}
+.adm .capb b{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.adm .capb:hover b{color:var(--accent)}
+.adm .hl .hlb{display:block;min-height:44px;min-width:0;text-align:left;font-size:15px;overflow-wrap:anywhere;border-radius:8px}
+.adm .hl .hlb:hover{color:var(--accent)}
+.adm .ce .ceh{font-size:15px;font-weight:700;margin:8px 0 0}
+.adm .ce .fx2>.warn{font-size:14px}
+.adm .tgl button.ok{background:var(--chip);color:var(--ink)}
+.adm .tgl button[aria-current=true]{box-shadow:inset 0 0 0 2px var(--sky);color:var(--ink)}
+
 /* TEMPORARY (V0): a v1 view inside the v2 workspace (LegacyScope). Delete with the last legacy view. */
 .adm .ws > .v1,.adm .mws > .v1{flex:1;min-height:0;display:flex;flex-direction:column}
 .adm .ws > .v1 > *,.adm .mws > .v1 > *{flex:1;min-height:0}
