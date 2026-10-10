@@ -16,7 +16,6 @@ import { Chip, EmptyState, SkeletonRows } from "../ui/controls";
 import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
 import { LoadError } from "../club/ClubStates";
-import "../../../styles/admin-club.css";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const RESOLVED_SHOWN = 12;

@@ -13,9 +13,8 @@ import { AdminView } from "../shell/AdminView";
 import { useAdmin } from "../shell/context";
 import { Chip, EmptyState, Segmented, SkeletonRows } from "../ui/controls";
 import { AdIcon } from "../ui/icons";
-import { ConfirmModal, type Consequence } from "../ui/layers";
+import { ConfirmModal, type Consequence } from "../ui/layersV1";
 import { useToast } from "../ui/toastContext";
-import "../../../styles/admin-club.css";
 
 /** The super admin's account (AuthContext.updateUserRole refuses to touch it). */
 export const SUPERADMIN_EMAIL = "adriantomascv@gmail.com";

@@ -63,7 +63,7 @@ describe("Temporadas", () => {
     expect(screen.getByText("Renombrada: «Temporada Uno».")).toBeInTheDocument();
     expect(card("Temporada Uno")).toBeInTheDocument();
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.saveSeason).toHaveBeenCalledWith("t1", { name: "Temporada Uno" });
   });
@@ -98,7 +98,7 @@ describe("Temporadas", () => {
     expect(ask).toHaveTextContent("La Temporada 1 sigue siendo la activa");
     await user.click(within(ask).getByRole("button", { name: "Desarchivar" }));
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.setArchived).toHaveBeenCalledWith("t0", false);
   });
@@ -158,7 +158,7 @@ describe("Temporadas", () => {
     expect(screen.getByText("Capitán de la Temporada 1: ERIK.")).toBeInTheDocument();
     expect(within(card("Temporada 1")).getByRole("button", { name: /ahora: ERIK/ })).toBeInTheDocument();
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.saveSeason).toHaveBeenCalledWith("t1", { captainPlayerId: "erik" });
   });

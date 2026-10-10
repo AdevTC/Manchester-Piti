@@ -24,7 +24,6 @@ import { MatchEditor } from "../partidos/MatchEditor";
 import { MatchList } from "../partidos/MatchList";
 import { MatchSummary } from "../partidos/MatchSummary";
 import { NuevoPartido } from "../partidos/NuevoPartido";
-import "../partidos/partidos.css";
 
 interface PartidosSearch {
   tab?: string;

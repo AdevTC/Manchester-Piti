@@ -93,7 +93,7 @@ describe("Plantilla", () => {
     expect(within(rowsList()).getByRole("button", { name: "Editar a ERIK, dorsal 99" })).toHaveTextContent("Lesionado");
     expect(h.writes.savePlayer).not.toHaveBeenCalled();
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", expect.objectContaining({ number: 99, injured: true, shirtName: "ERIK", seasons: ["t1"], seasonDetails: { t1: { shirtName: "ERIK", number: 99 } } }));
     expect(h.writes.savePlayer.mock.calls[0][1]).not.toHaveProperty("createdAt");
@@ -142,7 +142,7 @@ describe("Plantilla", () => {
     expect(screen.getByText("Alta: PABLO con el 7.")).toBeInTheDocument();
     expect(within(rowsList()).getByRole("button", { name: "Editar a PABLO, dorsal 7" })).toBeInTheDocument();
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.savePlayer).toHaveBeenCalledWith("nuevo1", expect.objectContaining({ firstName: "Pablo", shirtName: "PABLO", number: 7, naturalPosition: "MED", active: true, createdAt: expect.any(Date) }));
   });
@@ -176,7 +176,7 @@ describe("Plantilla", () => {
     await user.click(within(d).getByRole("button", { name: "Dar de baja" }));
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Dar de baja" }));
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.deletePlayer).toHaveBeenCalledWith("erik");
   });

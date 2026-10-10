@@ -25,6 +25,11 @@ describe("modo banda rules", () => {
     expect(liveProblem(match, { type: "substitution", minute: 30, playerId: "c", inPlayerId: "c" }, KICKOFF)).toMatch(/cambio/);
     expect(liveProblem(match, { type: "substitution", minute: 30, playerId: "c", inPlayerId: "d" }, KICKOFF)).toBeNull();
   });
+  it("a plain goal can wait for its scorer («Lo completo luego»), not with an assist nor a penalty", () => {
+    expect(liveProblem(match, { type: "goal", minute: 12 }, KICKOFF)).toBeNull();
+    expect(liveProblem(match, { type: "goal", minute: 12, assistPlayerId: "a" }, KICKOFF)).toMatch(/convocado/);
+    expect(liveProblem(match, { type: "goal_penalty", minute: 12 }, KICKOFF)).toMatch(/convocado/);
+  });
   it("the minute has to fit the match", () => {
     expect(liveProblem(match, { ...goal, minute: 66 }, KICKOFF)).toMatch(/no cabe/);
   });

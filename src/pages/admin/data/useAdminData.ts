@@ -2,9 +2,12 @@
 // subscriptions (each collection has ONE listener, shared with the rest of the app through the cache
 // bridge / the vestuario's shared store): published matches + players (useClubData), every season
 // (archived ones too), match drafts, pending ficha claims, users (roles), door requests, the next
-// match's RSVP and meeting note, MVP results and the club content. The domain logic lives in
-// adminLogic.ts (pure); this hook only wires the sources and memoizes.
+// match's RSVP and meeting note, MVP results, the club content (+ this captain's unpublished drafts) and
+// the season's cromos. Hoy's hero (moments.ts) and the overview (Por hacer, «N hechas», the rail's
+// counters) are derived here once. The domain logic lives in adminLogic.ts / moments.ts (pure); this hook
+// only wires the sources and memoizes.
 import { useCallback, useMemo } from "react";
+import { useAuth } from "../../../context/AuthContext";
 import { collection, orderBy, query } from "firebase/firestore";
 import { db } from "../../../firebase";
 import { useClock } from "../../../hooks/useClock";
@@ -15,7 +18,15 @@ import { SEASONS_KEY, seasonQuery } from "../../../lib/publicData";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import { useFirestoreCollection } from "../../../lib/useFirestoreCollection";
 import { mvpWinners } from "../../../lib/vestuario";
+import { seasonSquad } from "../../perfil/card";
+import { seasonPlayers } from "../../perfil/profileData";
+import type { Squad } from "../../pizarra/v2/model";
+import { pendingKeys, sectionTitle, storyOf } from "../club/contentModel";
+import { useContentDrafts } from "../club/contentDraftStore";
+import { hoyHero, matchMoment, type Hero } from "./moments";
+import { useWhistled } from "./whistleStore";
 import {
+  type Availability,
   useAvailability,
   useClubPeople,
   useDoorRequests,
@@ -28,6 +39,7 @@ import {
 import {
   buildOverview,
   contentGaps,
+  doneLines,
   convocatoriaState,
   lastActaMatch,
   matchState,
@@ -81,8 +93,14 @@ export interface AdminData {
   reviewOf: (m: AdminMatch) => ActaReview;
   /** The played match whose acta matters now (pending first), with its review. */
   last: { match: AdminMatch; review: ActaReview; publishedClean: boolean } | null;
-  /** The next match to prepare, its convocatoria, RSVP counts and meeting note. */
-  next: { match: AdminMatch; conv: ConvocatoriaState; rsvp: RsvpCounts; note: string } | null;
+  /** The next match to prepare, its convocatoria, RSVP counts, the answers themselves and the meeting note. */
+  next: { match: AdminMatch; conv: ConvocatoriaState; rsvp: RsvpCounts; answers: Availability[]; note: string } | null;
+  /** Hoy's hero: the match being played, just played or next, and its moment (null = off-season). */
+  hero: Hero<AdminMatch> | null;
+  /** The season's cromos (the pizarra's ratings: buildSquad / formRating), for the kit's CromoCard. */
+  squad: Squad;
+  /** Matches the team has finished this season (with none, the cromos' rating reads «—»). */
+  games: number;
   /** Pending ficha claims (with the requested player resolved). */
   claims: (Claim & { player: RosterPlayer | null; playerLabel: string })[];
   /** users/* (roles): admins = admin + superadmin. */
@@ -93,7 +111,7 @@ export interface AdminData {
   content: { gaps: ContentGap[] };
   /** The Jornada card's MVP line. */
   mvp: string;
-  /** Por hacer + the menu's live counters. */
+  /** Hoy's «Por hacer» (exceptions only), «N hechas» and the rail's counters. */
   overview: Overview;
 }
 
@@ -102,14 +120,17 @@ const isAdminRole = (r: string) => r === "admin" || r === "superadmin";
 
 export function useAdminData(): AdminData {
   const now = useClock(60_000);
+  const { user } = useAuth();
+  const whistled = useWhistled();
+  const mvpResults = useMvpResults();
   const club = useClubData();
   const seasonsQ = useFirestoreCollection(SEASONS_KEY, seasonQuery, mapSeason);
   const draftsQ = useFirestoreCollection(DRAFTS_KEY, draftsQuery, mapMatch);
   const claimsQ = usePendingClaims(true);
   const peopleQ = useClubPeople(true);
   const doorQ = useDoorRequests(true);
-  const mvpResults = useMvpResults();
   const content = useClubContent();
+  const [contentDrafts] = useContentDrafts(user?.uid);
 
   const seasons = useMemo(() => seasonsQ.data ?? [], [seasonsQ.data]);
   const published = club.matches;
@@ -146,8 +167,10 @@ export function useAdminData(): AdminData {
   const nextView = useMemo(() => {
     if (!next) return null;
     const ids = rosterOf(next.seasonId).map((p) => p.id);
-    return { match: next, conv: convocatoriaState(next, ids, next.published && !next.draft), rsvp: rsvpCounts(avail.data, ids), note: note.data };
+    return { match: next, conv: convocatoriaState(next, ids, next.published && !next.draft), rsvp: rsvpCounts(avail.data, ids), answers: avail.data, note: note.data };
   }, [next, rosterOf, avail.data, note.data]);
+  const hero = useMemo(() => hoyHero(matches, now, whistled), [matches, now, whistled]);
+  const built = useMemo(() => seasonSquad(seasonPlayers(club.players, seasonId, seasons, null), published, seasonId, mvpResults, now), [club.players, seasonId, seasons, published, mvpResults, now]);
 
   const claims = useMemo(
     () =>
@@ -162,7 +185,7 @@ export function useAdminData(): AdminData {
   const admins = people.filter((p) => !p.removed && isAdminRole(p.role)).length;
   const gaps = useMemo(() => contentGaps(content, roster.map((p) => ({ name: p.name, bio: p.doc.bio }))), [content, roster]);
 
-  const mvp = useMemo(() => {
+  const mvpView = useMemo(() => {
     const pub = matches.filter((m) => m.published && m.voteClosesAt && m.status === "finished");
     const open = pub.find((m) => (m.voteClosesAt ?? 0) > now);
     const closed = pub.filter((m) => (m.voteClosesAt ?? 0) <= now).sort((a, b) => dateMillis(b.date) - dateMillis(a.date))[0];
@@ -172,25 +195,32 @@ export function useAdminData(): AdminData {
       const ids = mvpWinners(closed, res, now);
       if (ids.length && res) previous = { jornada: closed.jornada, names: ids.map((id) => playerName(club.players.find((p) => p.id === id))), votes: res.counts[ids[0]] ?? 0 };
     }
-    return mvpNote({ openUntil: open?.voteClosesAt ?? null, actaPending: !!lastView && !lastView.publishedClean, previous });
+    return { note: mvpNote({ openUntil: open?.voteClosesAt ?? null, actaPending: !!lastView && !lastView.publishedClean, previous }), previous };
   }, [matches, mvpResults, now, club.players, lastView]);
 
-  const actasPending = useMemo(() => matches.filter((m) => ["draft", "acta"].includes(matchState(m, now, next?.id))).length, [matches, now, next?.id]);
-  const overview = useMemo(
-    () =>
-      buildOverview({
-        last: lastView ? { ...lastView, mvpOpen: !!lastView.match.voteClosesAt && lastView.match.voteClosesAt > now } : null,
-        next: nextView,
-        claims: claims.map((c) => ({ uid: c.uid, nickname: c.nickname, playerName: c.playerLabel })),
-        contentGaps: gaps,
-        actasPending,
-        roster: roster.length,
-        seasons: seasons.length,
-        admins,
-        doorRequests: doorQ.data.length,
-      }),
-    [lastView, nextView, claims, gaps, actasPending, roster.length, seasons.length, admins, doorQ.data.length, now],
+  const draftSections = useMemo(
+    () => pendingKeys(contentDrafts, content, (id) => storyOf(club.players.find((x) => x.id === id))).map((key) => ({ key, title: sectionTitle(key) })),
+    [contentDrafts, content, club.players],
   );
+  const overview = useMemo(() => {
+    const actas = matches
+      .filter((m) => m.status !== "cancelled" && m.status !== "postponed" && matchMoment(m, now, whistled.has(m.id)) === "final")
+      .map((m) => ({ match: m, review: reviewOf(m) }));
+    const lastPub = matches.filter((m) => m.published && !m.draft && m.status === "finished").at(-1);
+    const notified = next && typeof next.convocatoriaNotifiedAt === "number" ? next : null;
+    return buildOverview({
+      actas,
+      heroId: hero?.match.id ?? null,
+      claims: claims.map((c) => ({ playerName: c.playerLabel })),
+      contentGaps: gaps,
+      contentDrafts: draftSections,
+      done: doneLines({
+        lastPublished: lastPub ? { match: lastPub, goalsFor: lastPub.goalsFor ?? 0, goalsAgainst: lastPub.goalsAgainst ?? 0 } : null,
+        mvp: mvpView.previous,
+        notified,
+      }),
+    });
+  }, [matches, now, whistled, reviewOf, next, hero, claims, gaps, draftSections, mvpView.previous]);
 
   return {
     loading: club.loading || seasonsQ.isPending,
@@ -205,12 +235,15 @@ export function useAdminData(): AdminData {
     reviewOf,
     last: lastView,
     next: nextView,
+    hero,
+    squad: built.squad,
+    games: built.games.length,
     claims,
     people,
     admins,
     doorRequests: doorQ.data.length,
     content: { gaps },
-    mvp,
+    mvp: mvpView.note,
     overview,
   };
 }

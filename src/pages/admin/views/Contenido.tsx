@@ -43,7 +43,6 @@ import { useAdmin } from "../shell/context";
 import { Chip, SkeletonRows } from "../ui/controls";
 import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
-import "../../../styles/admin-club.css";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);

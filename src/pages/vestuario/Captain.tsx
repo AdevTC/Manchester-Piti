@@ -41,9 +41,7 @@ export function CaptainStrip({ hasNext, claims, linked, squad, fichaName }: Prop
             </i>
           )}
         </h2>
-        <Link to="/admin" search={{ tab: "matches" }}>
-          Administración ↗
-        </Link>
+        <Link to="/admin">Administración</Link>
       </div>
       <div className="vx-cap-grid">
         {!hasNext && (

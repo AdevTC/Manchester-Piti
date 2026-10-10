@@ -6,7 +6,7 @@ import type { SeasonDoc } from "../../../lib/schemas";
 import { opponentInitials } from "../../../lib/clubAnalytics";
 import { FieldCheck, Segmented } from "../ui/controls";
 import { AdIcon } from "../ui/icons";
-import { ConfirmModal } from "../ui/layers";
+import { ConfirmModal } from "../ui/layersV1";
 import { dateInput, madridTime } from "../acta/dates";
 import { changeSeason, okHttps, score, type MatchSheet } from "../acta/sheetModel";
 

@@ -41,7 +41,7 @@ describe("Convocatorias", () => {
   afterEach(() => vi.useRealTimers());
 
   it("shows the next match with its counters, RSVP and rows", async () => {
-    mountAdmin("/admin/convocatorias", { convocatorias: Convocatorias });
+    mountAdmin("/admin/convocar", { convocar: Convocatorias });
     expect(await screen.findByRole("heading", { level: 1, name: "Convocatorias" })).toBeInTheDocument();
     expect(within(screen.getByRole("group", { name: "Partido" })).getByRole("button", { name: "J3 · MSK" })).toHaveAttribute("aria-pressed", "true");
     const counts = screen.getByRole("group", { name: "Recuento" });
@@ -57,7 +57,7 @@ describe("Convocatorias", () => {
   it("max seven titulares; Publicar y avisar asks for everyone first, then publishes behind «Deshacer»", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    mountAdmin("/admin/convocatorias", { convocatorias: Convocatorias });
+    mountAdmin("/admin/convocar", { convocar: Convocatorias });
     await screen.findByText("6 de 7 titulares");
     await user.click(screen.getByRole("button", { name: "Publicar y avisar" }));
     expect(screen.getByText("Faltan 3 jugadores por asignar: titular, suplente o no convocado.")).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe("Convocatorias", () => {
     // again, and let it go
     await user.click(screen.getByRole("button", { name: "Publicar y avisar" }));
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(save).toHaveBeenCalledTimes(1);
     const arg = call();
@@ -95,7 +95,7 @@ describe("Convocatorias", () => {
 
   it("copies the previous convocatoria (with undo) and saves a draft", async () => {
     const user = userEvent.setup();
-    mountAdmin("/admin/convocatorias", { convocatorias: Convocatorias });
+    mountAdmin("/admin/convocar", { convocar: Convocatorias });
     await user.click(await screen.findByRole("button", { name: "Copiar la convocatoria de la J2" }));
     expect(screen.getByText("7 de 7 titulares")).toBeInTheDocument();
     expect(screen.getByText("0 sin asignar")).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe("Convocatorias", () => {
 
   it("switching match with unsaved changes asks first", async () => {
     const user = userEvent.setup();
-    const router = mountAdmin("/admin/convocatorias?j=m7", { convocatorias: Convocatorias });
+    const router = mountAdmin("/admin/convocar?j=m7", { convocar: Convocatorias });
     expect(await screen.findByRole("button", { name: "J2 · FU7" })).toHaveAttribute("aria-pressed", "true");
     await user.click(screen.getByRole("group", { name: "Convocatoria de KEVIN para la J2" }).querySelector<HTMLButtonElement>("button[aria-label='No convocado']")!);
     await user.click(screen.getByRole("button", { name: "J3 · MSK" }));
@@ -123,7 +123,7 @@ describe("Convocatorias", () => {
 
   it("says when there is nothing to call up", async () => {
     setAdminData(adminFixture({ matches: adminFixture().matches.filter((m) => m.id === "m6") }));
-    mountAdmin("/admin/convocatorias", { convocatorias: Convocatorias });
+    mountAdmin("/admin/convocar", { convocar: Convocatorias });
     expect(await screen.findByText("No hay partidos por jugar")).toBeInTheDocument();
   });
 });

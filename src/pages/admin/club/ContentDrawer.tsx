@@ -10,7 +10,7 @@ import type { PlayerDoc } from "../../../lib/schemas";
 import { clockTime } from "../data/adminLogic";
 import { FieldCheck, TextAreaField, TextField } from "../ui/controls";
 import { AdIcon } from "../ui/icons";
-import { Drawer } from "../ui/layers";
+import { Drawer } from "../ui/layersV1";
 import { useUnsavedGuard } from "../ui/guard";
 import { LIMITS, emailOk, same, sectionTitle, sliceOf, type ClubKey, type ContentKey, type DraftEntry, type PlayerStory, type Slice } from "./contentModel";
 import { linkState } from "./plantillaLogic";

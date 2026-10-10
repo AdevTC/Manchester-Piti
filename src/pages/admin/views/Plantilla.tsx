@@ -33,7 +33,6 @@ import { useAdmin } from "../shell/context";
 import { Chip, EmptyState, Segmented, SkeletonRows } from "../ui/controls";
 import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
-import "../../../styles/admin-club.css";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const truthy = (v: unknown) => v === true || v === 1 || v === "1" || v === "true";

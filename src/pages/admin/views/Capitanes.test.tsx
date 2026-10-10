@@ -61,7 +61,7 @@ describe("Capitanes", () => {
     expect(red).toHaveTextContent("Sigue siendo socio: su cuenta y su ficha no cambian");
     await user.click(within(red).getByRole("button", { name: "Quitar admin" }));
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.setRole).toHaveBeenCalledWith("a2", "segundo.capitan@gmail.com", "user");
   });

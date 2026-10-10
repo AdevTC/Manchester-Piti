@@ -72,7 +72,7 @@ describe("Fichas", () => {
     await user.click(screen.getByRole("button", { name: "Rechazar la petición de @fer.portero12" }));
     expect(screen.getByText("Petición de @fer.portero12 rechazada · puede volver a pedirla.")).toBeInTheDocument();
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.resolveClaim).toHaveBeenCalledWith("u2", false);
   });
@@ -84,7 +84,7 @@ describe("Fichas", () => {
     mountAdmin("/admin/fichas", { fichas: Fichas });
     await user.click(await screen.findByRole("button", { name: "Aprobar: @nuevo.socio es KEVIN" }));
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("No se ha podido aprobar la ficha: Error: sin red"));
     expect(within(screen.getByRole("list", { name: "Pendientes" })).getAllByRole("listitem")).toHaveLength(2);
@@ -99,7 +99,7 @@ describe("Fichas", () => {
     expect(screen.getByText("@erik9 ya no es ERIK · su cuenta sigue en el vestuario.")).toBeInTheDocument();
     expect(within(screen.getByRole("list", { name: "Cuentas vinculadas" })).getAllByRole("listitem")).toHaveLength(1);
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.resolveClaim).toHaveBeenCalledWith("a2", false);
   });

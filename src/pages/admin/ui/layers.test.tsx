@@ -29,7 +29,7 @@ function DrawerWithModal() {
       <button type="button" onClick={() => setDrawer(true)}>
         Abrir cajón
       </button>
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title="ERIK" kicker="Plantilla" status={{ text: "● Cambios sin guardar", tone: "warn" }} footer={<button type="button">Guardar</button>}>
+      <Drawer open={drawer} onClose={() => setDrawer(false)} title="ERIK" status={{ text: "● Cambios sin guardar", tone: "warn" }} footer={<button type="button">Guardar</button>}>
         <input aria-label="Nombre" />
         <button type="button" onClick={() => setModal(true)}>
           Dar de baja
@@ -40,12 +40,9 @@ function DrawerWithModal() {
         onClose={() => setModal(false)}
         title="¿Dar de baja a ERIK?"
         lede="Deja la plantilla."
-        consequences={[
-          { tone: "r", text: "Deja de salir en la plantilla" },
-          { tone: "o", text: "Sus estadísticas se conservan" },
-        ]}
+        consequences={["Su camiseta deja la percha", "Sus actas y su carta se quedan"]}
         confirmLabel="Dar de baja"
-        confirmTone="red solid"
+        confirmTone="redf"
         onConfirm={() => setModal(false)}
       />
     </>
@@ -81,15 +78,14 @@ describe("layers", () => {
     expect(dialog).toHaveFocus();
     expect(screen.getByTestId("app")).toHaveAttribute("inert");
     expect(screen.getByTestId("app")).toHaveAttribute("aria-hidden", "true");
-    // Tab cycles: Cerrar → Rival → Crear partido → back to Cerrar.
-    await user.tab();
-    expect(screen.getByRole("button", { name: "Cerrar" })).toHaveFocus();
+    expect(dialog).toHaveClass("md");
+    // Tab cycles: Rival → Crear partido → back to Rival.
     await user.tab();
     expect(screen.getByRole("textbox", { name: "Rival" })).toHaveFocus();
     await user.tab();
     expect(screen.getByRole("button", { name: "Crear partido" })).toHaveFocus();
     await user.tab();
-    expect(screen.getByRole("button", { name: "Cerrar" })).toHaveFocus();
+    expect(screen.getByRole("textbox", { name: "Rival" })).toHaveFocus();
     await user.tab({ shift: true });
     expect(screen.getByRole("button", { name: "Crear partido" })).toHaveFocus();
     await user.keyboard("{Escape}");
@@ -113,7 +109,9 @@ describe("layers", () => {
     const confirm = screen.getByRole("alertdialog", { name: "¿Dar de baja a ERIK?" });
     expect(confirm).toHaveFocus();
     expect(drawer).toHaveAttribute("inert");
-    expect(confirm.querySelectorAll(".csq li")).toHaveLength(2);
+    expect(confirm).toHaveClass("md", "dz");
+    expect(confirm.querySelectorAll(".cs li")).toHaveLength(2);
+    expect(drawer).toHaveClass("drw", "ovl");
     // Two scrims: the second one dims the drawer.
     expect(document.querySelectorAll(".scrim")).toHaveLength(2);
     expect(document.querySelector(".scrim.hi")).not.toBeNull();
@@ -154,7 +152,7 @@ describe("layers", () => {
           <button type="button" ref={anchor} onClick={() => setOpen((o) => !o)}>
             Elegir
           </button>
-          <Popover open={open} onClose={() => setOpen(false)} anchorRef={anchor} title="Gol 3 · ¿Quién marcó?" subtitle="Paso 1 de 2 · goleador" kicker="Acta · J7" footer={<button type="button">Lo completo luego</button>}>
+          <Popover open={open} onClose={() => setOpen(false)} anchorRef={anchor} title="¿Quién marcó?" subtitle="Gol 3 · paso 1 de 2" footer={<button type="button">Lo completo luego</button>}>
             <button type="button">ERIK</button>
           </Popover>
           <button type="button">Fuera</button>
@@ -163,22 +161,19 @@ describe("layers", () => {
     );
   }
 
-  it("a popover opens in place without scrolling, closes on Esc / outside and returns focus to its anchor", async () => {
+  it("a popover opens in place, closes on Esc / outside and returns focus to its anchor", async () => {
     const user = userEvent.setup();
     render(
       <Harness>
         <PopoverHost />
       </Harness>,
     );
-    const scroller = document.querySelector(".scr") as HTMLElement;
-    scroller.scrollTop = 0;
     await user.click(screen.getByRole("button", { name: "Elegir" }));
-    const pop = screen.getByRole("dialog", { name: "Gol 3 · ¿Quién marcó?" });
-    expect(pop).toHaveClass("pop");
+    const pop = screen.getByRole("dialog", { name: "¿Quién marcó?" });
+    expect(pop).toHaveClass("picker");
     expect(pop).not.toHaveAttribute("aria-modal");
     expect(pop).toHaveFocus();
-    expect(pop.style.visibility).toBe("visible");
-    expect(scroller.scrollTop).toBe(0);
+    expect(pop).toHaveTextContent("Gol 3 · paso 1 de 2");
     expect(screen.getByTestId("app")).not.toHaveAttribute("inert");
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -196,10 +191,10 @@ describe("layers", () => {
       </Harness>,
     );
     await user.click(screen.getByRole("button", { name: "Elegir" }));
-    const sheet = screen.getByRole("dialog", { name: "Gol 3 · ¿Quién marcó?" });
-    expect(sheet).toHaveClass("ovl", "sht", "pks");
+    const sheet = screen.getByRole("dialog", { name: "¿Quién marcó?" });
+    expect(sheet).toHaveClass("sheet");
     expect(sheet).toHaveAttribute("aria-modal", "true");
-    expect(sheet).toHaveTextContent("Paso 1 de 2 · goleador");
+    expect(sheet).toHaveTextContent("Gol 3 · paso 1 de 2");
     expect(screen.getByTestId("app")).toHaveAttribute("inert");
     act(() => {
       fireEvent.keyDown(document, { key: "Escape" });

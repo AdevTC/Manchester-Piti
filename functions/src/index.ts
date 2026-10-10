@@ -17,6 +17,7 @@ export { clubBundle } from "./bundle.js";
 export { liveEvent } from "./live.js";
 export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff } from "./push.js";
 export { deleteMatch } from "./matches.js";
+export { setConvocatoria } from "./convocatoria.js";
 export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";
 export { setNickname, setShirtName, cancelPlayerClaim, leaveVestuario } from "./profile.js";
 export {
@@ -213,8 +214,11 @@ export const saveMatchSheet = onCall(async (req) => {
         updatedAt: FieldValue.serverTimestamp(),
       });
     }
+    // setConvocatoria's stamps live outside the sheet: a save keeps them (the trigger and Hoy read them).
+    const stamps = Object.fromEntries((["convocatoriaAt", "convocatoriaNotifiedAt"] as const).flatMap((k) => (typeof old.get(k) === "number" ? [[k, old.get(k) as number]] : [])));
     tx.set(ref, {
       ...publicSheet,
+      ...stamps,
       date: Timestamp.fromMillis(sheet.date),
       revision: (sheet.revision ?? 0) + 1,
       goalsFor: finished ? sheet.goalsFor : null,

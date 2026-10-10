@@ -93,7 +93,7 @@ describe("Contenido del club", () => {
 
     await user.click(publishBtn());
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.publishContent).toHaveBeenCalledTimes(1);
     const [content, stories] = h.writes.publishContent.mock.calls[0];
@@ -184,7 +184,7 @@ describe("Contenido del club", () => {
     expect(row("Historias de jugadores")).toHaveTextContent("9 de 12 · faltan FER, ANDIA y BRAWAN");
     await user.click(publishBtn());
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.publishContent).toHaveBeenCalledWith(null, [{ id: "kevin", data: { bio: "El once del Piti.", quote: "", photoUrl: "" } }]);
   });

@@ -661,8 +661,59 @@ await ok("deleteMatch", admin, { id: draftOnly });
 assert.equal((await db.doc("matchDrafts/" + draftOnly).get()).exists, false);
 checked += 6;
 await db.doc("matches/" + playedId).delete();
+// ---------- setConvocatoria: the one convocatoria (Hoy, Convocar): ≤ 7, nobody twice, the season's players;
+// written to the match (+ its draft) with a revision bump, the rest «no convocados»; «avisar» once, then
+// «Cambios en la convocatoria» once.
+const convId = "conv-" + suffix, convDraftOnly = "convb-" + suffix, convPlayed = "convj-" + suffix;
+await db.doc("matches/" + convId).set({ seasonId: perfilSeason, rival: "Convocable", status: "scheduled", date: Timestamp.fromMillis(Date.now() + 2 * 86_400_000), revision: 3 });
+await db.doc("matchDrafts/" + convId).set({ seasonId: perfilSeason, rival: "Convocable", status: "scheduled", revision: 3, starters: [], bench: [] });
+await db.doc("matchDrafts/" + convDraftOnly).set({ seasonId: perfilSeason, rival: "Solo borrador", status: "scheduled" });
+await db.doc("matches/" + convPlayed).set({ seasonId: perfilSeason, rival: "Ya jugado", status: "finished", date: Timestamp.fromMillis(Date.now() - 86_400_000) });
+await denied("setConvocatoria", lea, { matchId: convId, starters: [pA], bench: [], notify: false }, "PERMISSION_DENIED");
+await denied("setConvocatoria", admin, { matchId: convId, starters: [pA, pA], bench: [], notify: false }, "INVALID_ARGUMENT");
+await denied("setConvocatoria", admin, { matchId: convId, starters: [pA], bench: [pA], notify: false }, "INVALID_ARGUMENT");
+await denied("setConvocatoria", admin, { matchId: convId, starters: [pA, ids[0]], bench: [], notify: false }, "INVALID_ARGUMENT");
+await denied("setConvocatoria", admin, { matchId: convId, starters: ["a", "b", "c", "d", "e", "f", "g", "h"], bench: [], notify: false }, "INVALID_ARGUMENT");
+await denied("setConvocatoria", admin, { matchId: convPlayed, starters: [pA], bench: [], notify: false }, "FAILED_PRECONDITION");
+await denied("setConvocatoria", admin, { matchId: convDraftOnly, starters: [pA], bench: [], notify: true }, "FAILED_PRECONDITION");
+await denied("setConvocatoria", admin, { matchId: "no-existe-" + suffix, starters: [], bench: [], notify: false }, "NOT_FOUND");
+const quiet = await ok("setConvocatoria", admin, { matchId: convId, starters: [pA, pB], bench: [pC], notify: false });
+assert.equal(quiet.notice, null);
+let conv = (await db.doc("matches/" + convId).get()).data();
+assert.deepEqual(conv.starters, [pA, pB]);
+assert.deepEqual(conv.bench, [pC]);
+assert.deepEqual(conv.notCalled, [pD]);
+assert.equal(conv.revision, 4);
+assert.equal(conv.convocatoriaAt, quiet.at);
+assert.equal(conv.convocatoriaNotifiedAt, undefined);
+const convDraft = (await db.doc("matchDrafts/" + convId).get()).data();
+assert.deepEqual(convDraft.starters, [pA, pB]);
+assert.equal(convDraft.revision, 3);
+// a quiet save never notifies (the trigger leaves managed convocatorias to the callable)
+await new Promise((r) => setTimeout(r, 1500));
+assert.equal((await db.doc("pushLog/conv-" + convId).get()).exists, false);
+checked += 9;
+const first = await ok("setConvocatoria", admin, { matchId: convId, starters: [pA, pB], bench: [pC], notify: true });
+assert.equal(first.notice, "first");
+assert.ok((await db.doc("pushLog/conv-" + convId).get()).exists);
+assert.equal((await db.doc("matches/" + convId).get()).get("convocatoriaNotifiedAt"), first.at);
+const again = await ok("setConvocatoria", admin, { matchId: convId, starters: [pA, pB], bench: [pC], notify: true });
+assert.equal(again.notice, null);
+await ok("setConvocatoria", admin, { matchId: convId, starters: [pA, pB, pC], bench: [], notify: false });
+const changes = await ok("setConvocatoria", admin, { matchId: convId, starters: [pA, pB, pC], bench: [], notify: true });
+assert.equal(changes.notice, "changes");
+assert.ok((await db.doc("pushLog/conv-" + convId + "-cambios").get()).exists);
+await ok("setConvocatoria", admin, { matchId: convId, starters: [pA], bench: [pB], notify: false });
+assert.equal((await ok("setConvocatoria", admin, { matchId: convId, starters: [pA], bench: [pB], notify: true })).notice, null);
+// a draft-only match takes a quiet convocatoria (no notice: it is not in the calendar yet)
+await ok("setConvocatoria", admin, { matchId: convDraftOnly, starters: [pA], bench: [], notify: false });
+assert.deepEqual((await db.doc("matchDrafts/" + convDraftOnly).get()).get("starters"), [pA]);
+checked += 7;
+for (const id of [convId, convPlayed]) await db.doc("matches/" + id).delete();
+for (const id of [convId, convDraftOnly]) await db.doc("matchDrafts/" + id).delete();
+for (const id of ["conv-" + convId, "conv-" + convId + "-cambios"]) await db.doc("pushLog/" + id).delete();
 console.log(
   checked +
-    " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos, disponibilidad, avisos del siete y perfil.",
+    " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos, disponibilidad, avisos del siete, perfil y convocatoria.",
 );
 await db.terminate();

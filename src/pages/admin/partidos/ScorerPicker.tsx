@@ -3,7 +3,7 @@
 // (titulares first, suplentes marked) or «Autogol de RIVAL»; step 2: the assist, optional («Sin
 // asistencia»). «Lo completo luego» / Esc close it. Typing a dorsal picks that player.
 import { useEffect, useRef, type RefObject } from "react";
-import { Popover } from "../ui/layers";
+import { Popover } from "../ui/layersV1";
 import { useFrame } from "../ui/frame";
 import type { PickOption } from "./pickModel";
 

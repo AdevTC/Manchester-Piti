@@ -24,7 +24,6 @@ import { upcomingMatches } from "../partidos/listModel";
 import { useMatchNote, useMatchRsvp } from "../partidos/live";
 import { LineupTools } from "../partidos/TabConvocatoria";
 import { useEditBuffer } from "../partidos/useEditBuffer";
-import "../partidos/partidos.css";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const isLineup = (v: unknown): v is Lineup => {

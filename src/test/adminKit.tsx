@@ -12,7 +12,11 @@ import type { ReactElement } from "react";
 import type { MatchEvent } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "../lib/clubData";
 import type { PlayerDoc, SeasonDoc } from "../lib/schemas";
-import { buildOverview, contentGaps, convocatoriaState, lastActaMatch, matchState, mergeMatches, mvpNote, nextMatch, reviewActa, type AdminMatch } from "../pages/admin/data/adminLogic";
+import { buildOverview, contentGaps, convocatoriaState, doneLines, lastActaMatch, matchState, mergeMatches, mvpNote, nextMatch, reviewActa, rsvpCounts, type AdminMatch } from "../pages/admin/data/adminLogic";
+import { hoyHero, matchMoment } from "../pages/admin/data/moments";
+import { seasonSquad } from "../pages/perfil/card";
+import { seasonPlayers } from "../pages/perfil/profileData";
+import type { Availability } from "../pages/vestuario/live";
 import type { AdminData, RosterPlayer } from "../pages/admin/data/useAdminData";
 import { AdminLayout } from "../pages/admin/shell/AdminLayout";
 
@@ -64,19 +68,36 @@ const seasons: SeasonDoc[] = [
   { id: "t1", name: "Temporada 1", captainPlayerId: "adrian" },
   { id: "t0", name: "Temporada 0 · pre-Piti", archived: true },
 ];
+const answer = (playerId: string, response: Availability["response"]): Availability => ({ uid: `u-${playerId}`, response, name: playerId, playerId });
+/** The J8's RSVP (as in the design): 8 come, ALMACHI and ANDIA doubt, BRAWAN can't, FER hasn't answered. */
+export const fixtureAnswers: Availability[] = [
+  ...["evans", "illescas", "tello", "eguzquiza", "huberoski", "erik", "adrian", "kevin"].map((id) => answer(id, "yes")),
+  answer("almachi", "maybe"),
+  answer("andia", "maybe"),
+  answer("brawan", "no"),
+];
 
-/** A full AdminData as useAdminData would return it for the fixture club (override any part). */
-export function adminFixture({ claimsCount, ...over }: Partial<AdminData> & { claimsCount?: number } = {}): AdminData {
+/** A full AdminData as useAdminData would return it for the fixture club (override any part). `published`
+ *  replaces the published matches (e.g. the J8 with live events), `answers` the next match's RSVP. */
+export function adminFixture({
+  claimsCount,
+  published = fixturePublished,
+  answers = fixtureAnswers,
+  whistled = new Set<string>(),
+  contentDrafts = [],
+  ...over
+}: Partial<AdminData> & { claimsCount?: number; published?: ClubMatch[]; answers?: Availability[]; whistled?: ReadonlySet<string>; contentDrafts?: { key: string; title: string }[] } = {}): AdminData {
   const now = over.now ?? NOW;
-  const matches: AdminMatch[] = mergeMatches(fixturePublished, fixtureDrafts);
+  const matches: AdminMatch[] = mergeMatches(published, fixtureDrafts);
   const roster: RosterPlayer[] = fixturePlayers
     .map((p) => ({ id: p.id, name: p.shirtName!, number: p.number ?? null, position: p.naturalPosition ?? "", injured: !!p.injured, doc: p }))
     .sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
   const ids = roster.map((p) => p.id);
-  const next = nextMatch(matches, now)!;
-  const last = lastActaMatch(matches, now)!;
-  const lastView = { match: last, review: reviewActa(last, ids, now, last.published && !last.draft), publishedClean: last.published && !last.draft };
-  const nextView = { match: next, conv: convocatoriaState(next, ids, next.published && !next.draft), rsvp: { yes: 9, maybe: 2, no: 1, none: 0 }, note: "Quedada 11:15" };
+  const next = nextMatch(matches, now) ?? null;
+  const last = lastActaMatch(matches, now) ?? null;
+  const reviewOf = (m: AdminMatch) => reviewActa(m, ids, now, m.published && !m.draft);
+  const lastView = last ? { match: last, review: reviewOf(last), publishedClean: last.published && !last.draft } : null;
+  const nextView = next ? { match: next, conv: convocatoriaState(next, ids, next.published && !next.draft), rsvp: rsvpCounts(answers, ids), answers, note: "Quedada 11:15" } : null;
   const claims = [
     { uid: "u1", playerId: "kevin", playerName: "KEVIN", nickname: "nuevo.socio", email: "nuevo.socio@gmail.com", status: "pending" as const },
     { uid: "u2", playerId: "fer", playerName: "FER", nickname: "fer.portero12", email: "fernando.portero.doce.piti@gmail.com", status: "pending" as const },
@@ -92,17 +113,21 @@ export function adminFixture({ claimsCount, ...over }: Partial<AdminData> & { cl
     { uid: "a3", nickname: "kevin11", displayName: "", email: "kevin@hotmail.com", role: "user", playerId: null, removed: false },
   ];
   const gaps = contentGaps({ crestStory: "", email: "club@piti.es", instagram: "", photoUrl: "https://x/equipo.jpg" }, roster.map((p) => ({ name: p.name, bio: p.doc.bio })));
+  const hero = hoyHero(matches, now, whistled);
+  const lastPub = matches.filter((m) => m.published && !m.draft && m.status === "finished").at(-1);
   const overview = buildOverview({
-    last: { ...lastView, mvpOpen: false },
-    next: nextView,
-    claims: claims.map((c) => ({ uid: c.uid, nickname: c.nickname, playerName: c.playerLabel })),
+    actas: matches.filter((m) => matchMoment(m, now, whistled.has(m.id)) === "final").map((m) => ({ match: m, review: reviewOf(m) })),
+    heroId: hero?.match.id ?? null,
+    claims: claims.map((c) => ({ playerName: c.playerLabel })),
     contentGaps: gaps,
-    actasPending: matches.filter((m) => ["draft", "acta"].includes(matchState(m, now, next.id))).length,
-    roster: roster.length,
-    seasons: seasons.length,
-    admins: 2,
-    doorRequests: 2,
+    contentDrafts,
+    done: doneLines({
+      lastPublished: lastPub ? { match: lastPub, goalsFor: lastPub.goalsFor ?? 0, goalsAgainst: lastPub.goalsAgainst ?? 0 } : null,
+      mvp: { jornada: 1, names: ["ERIK"] },
+      notified: next && typeof next.convocatoriaNotifiedAt === "number" ? next : null,
+    }),
   });
+  const built = seasonSquad(seasonPlayers(fixturePlayers, "t1", seasons, null), published, "t1", new Map(), now);
   return {
     loading: false,
     error: false,
@@ -112,10 +137,13 @@ export function adminFixture({ claimsCount, ...over }: Partial<AdminData> & { cl
     players: fixturePlayers,
     roster,
     matches,
-    stateOf: (m) => matchState(m, now, next.id),
-    reviewOf: (m) => reviewActa(m, ids, now, m.published && !m.draft),
+    stateOf: (m) => matchState(m, now, next?.id),
+    reviewOf,
     last: lastView,
     next: nextView,
+    hero,
+    squad: built.squad,
+    games: built.games.length,
     claims,
     people,
     admins: 2,
@@ -136,19 +164,21 @@ const Marker = (name: string): View => {
 };
 /**
  * The real AdminLayout on a memory router at `path`. Views are markers («vista partidos»…) unless
- * given (`views.inicio`, `views.partidos`…).
+ * given (`views.hoy`, `views.partidos`…).
  */
-export function mountAdmin(path: string, views: Partial<Record<"inicio" | "partidos" | "convocatorias" | "fichas" | "plantilla" | "temporadas" | "capitanes" | "contenido", View>> = {}) {
+type ViewKey = "hoy" | "partidos" | "detalle" | "enjuego" | "convocar" | "fichas" | "plantilla" | "temporadas" | "capitanes" | "contenido";
+export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> = {}) {
   const root = createRootRoute({ component: () => <Outlet /> });
   const admin = createRoute({ getParentRoute: () => root, path: "/admin", component: AdminLayout });
-  const child = (p: string, key: keyof typeof views) => createRoute({ getParentRoute: () => admin, path: p, component: views[key] ?? Marker(`vista ${key}`) });
+  const child = (p: string, key: ViewKey) => createRoute({ getParentRoute: () => admin, path: p, component: views[key] ?? Marker(`vista ${key}`) });
   const partidos = child("partidos", "partidos");
-  const detail = createRoute({ getParentRoute: () => partidos, path: "$matchId", component: Marker("detalle") });
+  const detail = createRoute({ getParentRoute: () => partidos, path: "$matchId", component: views.detalle ?? Marker("detalle") });
   const tree = root.addChildren([
     admin.addChildren([
-      child("/", "inicio"),
+      child("/", "hoy"),
       partidos.addChildren([detail]),
-      child("convocatorias", "convocatorias"),
+      child("en-juego/$matchId", "enjuego"),
+      child("convocar", "convocar"),
       child("fichas", "fichas"),
       child("plantilla", "plantilla"),
       child("temporadas", "temporadas"),
@@ -156,6 +186,7 @@ export function mountAdmin(path: string, views: Partial<Record<"inicio" | "parti
       child("contenido", "contenido"),
     ]),
     createRoute({ getParentRoute: () => root, path: "/", component: Marker("la web") }),
+    createRoute({ getParentRoute: () => root, path: "/vestuario", component: Marker("el vestuario") }),
   ]);
   const router = createRouter({ routeTree: tree, history: createMemoryHistory({ initialEntries: [path] }) });
   render(<RouterProvider router={router} />);

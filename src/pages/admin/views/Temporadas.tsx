@@ -14,9 +14,8 @@ import { AdminView } from "../shell/AdminView";
 import { useAdmin } from "../shell/context";
 import { Chip, FieldCheck, SkeletonRows, Switch, type ChipTone } from "../ui/controls";
 import { AdIcon, type AdIconName } from "../ui/icons";
-import { ConfirmModal, type Consequence } from "../ui/layers";
+import { ConfirmModal, type Consequence } from "../ui/layersV1";
 import { useToast } from "../ui/toastContext";
-import "../../../styles/admin-club.css";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 type ModalState = { k: "arch" | "unarch" | "del" | "cap"; id: string } | { k: "new" } | null;

@@ -42,6 +42,8 @@ export class LayerStore {
 export interface LayerContextValue {
   store: LayerStore;
   host: HTMLElement | null;
+  /** TEMPORARY (admin v2 · V0): the `.v1` host the legacy views' layers (layersV1.tsx) portal into. */
+  legacyHost: HTMLElement | null;
 }
 export const LayerContext = createContext<LayerContextValue | null>(null);
 
@@ -72,6 +74,10 @@ export function useLayerStack() {
 /** The portal host for things that must live outside the inert app (toasts, layers). */
 export function useLayerHost(): HTMLElement | null {
   return useLayers().host;
+}
+/** TEMPORARY (admin v2 · V0): the host of the legacy views' layers (styled by admin-v1.css). */
+export function useLegacyLayerHost(): HTMLElement | null {
+  return useLayers().legacyHost;
 }
 
 interface UseLayerOptions {
@@ -113,3 +119,6 @@ export function useLayer({ modal, trap, onClose, ref, initialFocus, returnFocus 
   return { depth, isTop: at < 0 || at === stack.length - 1 };
 }
 
+/** z-index per depth (v2 layers): the scrim of a layer sits right under it, so a modal over a drawer dims the drawer. */
+export const zLayer = (depth: number) => 41 + depth * 2;
+export const zScrim = (depth: number) => 40 + depth * 2;

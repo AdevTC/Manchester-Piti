@@ -16,7 +16,7 @@ import type { PaletteCommand } from "../palette/search";
 import { MATCH_TABS, type MatchTab } from "../shell/nav";
 import { Chip, type ChipTone } from "../ui/controls";
 import { AdIcon } from "../ui/icons";
-import { ConfirmModal } from "../ui/layers";
+import { ConfirmModal } from "../ui/layersV1";
 import { useUnsavedGuard } from "../ui/guard";
 import { useToast } from "../ui/toastContext";
 import { previousLineup } from "../acta/convocatoria";

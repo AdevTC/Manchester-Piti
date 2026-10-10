@@ -9,7 +9,7 @@ import type { SeasonDoc } from "../../../lib/schemas";
 import { clockTime, jLabel, shortDate, type AdminMatch } from "../data/adminLogic";
 import { FieldCheck, Segmented } from "../ui/controls";
 import { AdIcon } from "../ui/icons";
-import { Modal } from "../ui/layers";
+import { Modal } from "../ui/layersV1";
 import { joinDate, proposeDate, splitDate } from "../acta/dates";
 import { defaultSheet, newId, toPayload } from "../acta/sheetModel";
 import { returnOf } from "./listModel";

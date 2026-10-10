@@ -3,7 +3,7 @@
 // set to «Cancelado» — it feeds the stats, the MVP and the porra.
 import { useState } from "react";
 import { apiError, deleteMatch } from "../../../lib/clubApi";
-import { ConfirmModal } from "../ui/layers";
+import { ConfirmModal } from "../ui/layersV1";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 

@@ -33,12 +33,11 @@ export function GuardProvider({ children }: { children: ReactNode }) {
         open={!!req}
         onClose={() => done("stay")}
         role="alertdialog"
-        kicker="Cambios sin guardar"
         title="¿Salir sin guardar?"
         lede={req ? `Hay cambios sin guardar en ${req.what} · si sales ahora, se pierden.` : undefined}
         cancelLabel="Seguir editando"
         confirmLabel="Descartar cambios"
-        confirmTone="red"
+        confirmTone="redf"
         alt={req?.altLabel ? { label: req.altLabel, onClick: () => done("alt") } : undefined}
         onConfirm={() => done("discard")}
       />

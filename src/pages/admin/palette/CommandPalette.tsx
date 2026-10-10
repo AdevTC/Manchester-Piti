@@ -1,10 +1,10 @@
-// ⌘K / Ctrl K / «Buscar»: the command palette (`.ovl.cmd`). A combobox input drives a grouped listbox
+// ⌘K / Ctrl K / «Buscar»: the command palette (`.pal`, the v2 canvas). A combobox input drives a grouped listbox
 // through aria-activedescendant: ↑↓ move (wrapping), Enter runs, Esc closes (the layer stack), a click
 // runs. Running a command closes the palette first, then acts (so a command can open another layer).
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AdIcon } from "../ui/icons";
-import { useLayer, useLayerHost } from "../ui/layerCore";
+import { useLayer, useLayerHost, zLayer, zScrim } from "../ui/layerCore";
 import { usePaletteCommands } from "./registry";
 import { buildPaletteGroups, flatten, type PaletteCommand } from "./search";
 
@@ -48,9 +48,9 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
   const starts = groups.map((_, gi) => groups.slice(0, gi).reduce((n, g) => n + g.items.length, 0));
   const node = (
     <>
-      <div className={depth ? "scrim hi" : "scrim"} style={{ zIndex: 20 + depth * 2 }} onClick={isTop ? onClose : undefined} aria-hidden="true" />
-      <div ref={ref} className="ovl cmd" role="dialog" aria-modal="true" aria-label="Buscar en la administración" tabIndex={-1} style={{ zIndex: 21 + depth * 2 }}>
-        <div className="ci">
+      <div className={depth ? "scrim hi" : "scrim"} style={{ zIndex: zScrim(depth) }} onClick={isTop ? onClose : undefined} aria-hidden="true" />
+      <div ref={ref} className="pal" role="dialog" aria-modal="true" aria-label="Buscar" tabIndex={-1} style={{ zIndex: zLayer(depth) }}>
+        <div className="qi">
           <AdIcon name="search" size={20} />
           <input
             ref={input}
@@ -59,10 +59,10 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={at >= 0 ? optId(at) : undefined}
-            aria-label="Buscar sección, partido, jugador o acción"
+            aria-label="Busca un partido, un jugador o una acción"
             autoComplete="off"
             spellCheck={false}
-            placeholder="Sección, partido (J7), jugador o acción…"
+            placeholder="Busca un partido, un jugador o una acción"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -70,14 +70,12 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
             }}
             onKeyDown={onKey}
           />
-          <button type="button" className="kbd" onClick={onClose} aria-label="Cerrar">
-            Esc
-          </button>
+          <kbd>Esc</kbd>
         </div>
-        <div className="cres scr" id={listId} role="listbox" aria-label="Resultados">
+        <div className="scr" id={listId} role="listbox" aria-label="Resultados">
           {groups.map((g, gi) => (
-            <div className="cg2" role="group" aria-label={g.title} key={g.title}>
-              <p className="lbl" aria-hidden="true">
+            <div role="group" aria-label={g.title} key={g.title}>
+              <p className="gh" aria-hidden="true">
                 {g.title}
               </p>
               {g.items.map((c, ci) => {
@@ -85,7 +83,7 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
                 return (
                   <button
                     type="button"
-                    className="co"
+                    className="op"
                     role="option"
                     id={optId(i)}
                     key={c.id}
@@ -94,39 +92,20 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
                     onMouseMove={() => i !== at && setActive(i)}
                     onClick={() => runCommand(c)}
                   >
-                    <span className="ci2" aria-hidden="true">
-                      {c.icon}
-                    </span>
-                    <span className="w">
-                      <b>{c.title}</b>
-                      {c.description && <small>{c.description}</small>}
-                    </span>
-                    {c.hint && <em>{c.hint}</em>}
+                    <AdIcon name="right" size={16} />
+                    {c.title}
+                    {c.description || c.hint ? <small>{c.description || c.hint}</small> : null}
                   </button>
                 );
               })}
             </div>
           ))}
-          {!flat.length && (
-            <div className="empty" style={{ margin: 10 }}>
-              <AdIcon name="search" size={22} />
-              <b>Nada con «{query}»</b>
-              <small>Prueba con una jornada (J8), un rival, un dorsal o «nuevo».</small>
-            </div>
-          )}
+          {!flat.length && <p className="none">Nada con «{query}».</p>}
         </div>
         <div className="ft" aria-hidden="true">
-          <span>
-            <AdIcon name="updown" size={14} />
-            moverse
-          </span>
-          <span>
-            <AdIcon name="enter" size={14} />
-            abrir
-          </span>
-          <span>
-            <span className="kbd">Esc</span>cerrar
-          </span>
+          <span>↑↓ moverse</span>
+          <span>Enter abrir</span>
+          <span>Esc cerrar</span>
         </div>
       </div>
     </>

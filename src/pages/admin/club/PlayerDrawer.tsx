@@ -7,7 +7,7 @@
 // and the unsaved-changes guard on every way out (X, Esc, scrim, Cancelar, navigation).
 import { useId, useMemo, useRef, useState } from "react";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
-import { ConfirmModal, Drawer, type Consequence } from "../ui/layers";
+import { ConfirmModal, Drawer, type Consequence } from "../ui/layersV1";
 import { FieldCheck, Segmented, TextField, Toggles } from "../ui/controls";
 import { AdIcon } from "../ui/icons";
 import { useUnsavedGuard } from "../ui/guard";

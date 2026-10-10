@@ -20,6 +20,21 @@ export const revokeMember = httpsCallable<{ uid: string }, { ok: boolean }>(func
 export const doorShirts = httpsCallable<void, { taken: string[]; inside: number }>(functions, "doorShirts");
 /** «Borrar partido»: only a match nobody has played yet (the server refuses a finished one). */
 export const deleteMatch = httpsCallable<{ id: string }, { ok: boolean }>(functions, "deleteMatch");
+/** The one convocatoria (functions/src/convocatoria.ts): el siete + banquillo of a match; `notify` sends its push
+ *  («Ya está la convocatoria» / once «Cambios en la convocatoria»). `at` = the `convocatoriaAt` it stamped. */
+export interface SetConvocatoriaInput {
+  matchId: string;
+  starters: string[];
+  bench: string[];
+  notify: boolean;
+}
+export interface SetConvocatoriaResult {
+  at: number;
+  revision: number;
+  /** The notice that went (null = none: not asked, already sent, or the match has started). */
+  notice: "first" | "changes" | null;
+}
+export const setConvocatoria = httpsCallable<SetConvocatoriaInput, SetConvocatoriaResult>(functions, "setConvocatoria");
 export const saveMatchSheet = httpsCallable<
   { id: string; sheet: MatchSheet; draft: boolean },
   { id: string }
