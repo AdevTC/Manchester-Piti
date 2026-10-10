@@ -88,6 +88,7 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
                     id={optId(i)}
                     key={c.id}
                     aria-selected={i === at}
+                    aria-keyshortcuts={c.keys ? c.keys.toLowerCase() : undefined}
                     tabIndex={-1}
                     onMouseMove={() => i !== at && setActive(i)}
                     onClick={() => runCommand(c)}
@@ -95,6 +96,11 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
                     <AdIcon name="right" size={16} />
                     {c.title}
                     {c.description || c.hint ? <small>{c.description || c.hint}</small> : null}
+                    {c.keys && (
+                      <kbd className="ks" aria-hidden="true">
+                        {c.keys}
+                      </kbd>
+                    )}
                   </button>
                 );
               })}
@@ -106,6 +112,7 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
           <span>↑↓ moverse</span>
           <span>Enter abrir</span>
           <span>Esc cerrar</span>
+          <span className="gk">G + letra ir a una sección</span>
         </div>
       </div>
     </>

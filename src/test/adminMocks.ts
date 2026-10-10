@@ -11,7 +11,16 @@ export function currentAdminData(): AdminData {
   if (!current) throw new Error("setAdminData(adminFixture()) before mounting the admin.");
   return current;
 }
+/** The mocked AuthContext's logout (the captain's «Salir en este dispositivo»): calls are recorded. */
+export const fakeLogout = { calls: 0 };
 /** A signed-in super admin for the mocked AuthContext. */
 export function fakeAuth() {
-  return { user: { uid: "a1" }, profile: { nickname: "adrian_tc", role: "superadmin", email: "capitan.adrian.tc@gmail.com", playerId: "adrian", createdAt: new Date(0) }, loading: false };
+  return {
+    user: { uid: "a1" },
+    profile: { nickname: "adrian_tc", role: "superadmin", email: "capitan.adrian.tc@gmail.com", playerId: "adrian", createdAt: new Date(0) },
+    loading: false,
+    logout: async () => {
+      fakeLogout.calls += 1;
+    },
+  };
 }

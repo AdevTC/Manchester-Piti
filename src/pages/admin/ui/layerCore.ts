@@ -82,12 +82,14 @@ interface UseLayerOptions {
   initialFocus?: RefObject<HTMLElement | null>;
   /** Where the focus goes back on close; by default whatever had it when the layer opened. */
   returnFocus?: RefObject<HTMLElement | null>;
+  /** False = leave the stack now while staying mounted (a layer playing its exit animation). Default true. */
+  active?: boolean;
 }
 /**
  * Registers a mounted layer on the stack (mount = open). Focuses it on open (no scroll), returns the focus
  * on close, and reports its depth / whether it is on top. Build custom layers on it (the palette does).
  */
-export function useLayer({ modal, trap, onClose, ref, initialFocus, returnFocus }: UseLayerOptions) {
+export function useLayer({ modal, trap, onClose, ref, initialFocus, returnFocus, active = true }: UseLayerOptions) {
   const { store } = useLayers();
   const id = useId();
   const closeRef = useRef(onClose);
@@ -95,18 +97,29 @@ export function useLayer({ modal, trap, onClose, ref, initialFocus, returnFocus 
     closeRef.current = onClose;
   });
   useLayoutEffect(() => {
+    if (!active) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     store.add({ id, modal, trap, el: () => ref.current, close: () => closeRef.current() });
     const back = returnFocus?.current ?? previous;
-    const target = initialFocus?.current ?? ref.current;
+    const self = ref.current;
+    const target = initialFocus?.current ?? self;
     target?.focus({ preventScroll: true });
     return () => {
       store.remove(id);
-      if (back && back.isConnected) back.focus({ preventScroll: true });
+      if (!back || !back.isConnected) return;
+      back.focus({ preventScroll: true });
+      // A layer leaving while still mounted (playing its exit): after this commit React restores the focus
+      // to what had it before (inside the layer) — send it back home once more (unless it is open again,
+      // as when StrictMode re-runs the effect).
+      queueMicrotask(() => {
+        const now = document.activeElement;
+        const reopened = store.getSnapshot().some((e) => e.id === id);
+        if (!reopened && self?.isConnected && now instanceof Node && self.contains(now) && back.isConnected) back.focus({ preventScroll: true });
+      });
     };
     // A layer's kind and refs are fixed for its lifetime (mount = open, unmount = close).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store, id]);
+  }, [store, id, active]);
   const stack = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const at = stack.findIndex((e) => e.id === id);
   const depth = at < 0 ? stack.length : at;

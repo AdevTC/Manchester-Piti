@@ -3,9 +3,11 @@
 // view). Phones (`.m`): the header, the view and the bar Hoy · Partidos · Convocar · Plantilla · Más — both
 // hidden inside the match workspace and En juego. It owns the providers every view uses: layers (Esc,
 // focus trap, inert), the lower thirds, the unsaved-changes guard, the command palette (⌘K / Ctrl K) and
-// its registry, the frame width, and the one useAdminData().
+// its registry, the frame width, and the one useAdminData(). Motion follows the device's reduced-motion
+// setting (<MotionConfig reducedMotion="user">; the CSS honours it too).
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { Outlet, useRouterState } from "@tanstack/react-router";
+import { MotionConfig } from "motion/react";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../hooks/useTheme";
 import { dateMillis } from "../../../../functions/src/matchEngine";
@@ -18,11 +20,18 @@ import { useRegisterCommands } from "../palette/registry";
 import type { PaletteCommand } from "../palette/search";
 import { FrameContext, frameOf } from "../ui/frame";
 import { GuardProvider } from "../ui/GuardProvider";
+import { useLayerStack } from "../ui/layerCore";
 import { LayerProvider } from "../ui/layers";
 import { ToastProvider } from "../ui/toasts";
-import { AdminHeader, BottomBar, MasSheet, MobileHeader, Rail, type Captain } from "./Chrome";
+import { LogoutConfirm } from "./CaptainMenu";
+import { AdminHeader, MobileHeader } from "./Chrome";
+import { useChromeMotion } from "./chromeMotion";
 import { AdminDataContext, ShellContext, useAdminGo, type ShellApi } from "./context";
-import { isEnJuego, isWorkspace, SECTIONS, sectionOf, titleOf, type SectionKey } from "./nav";
+import { goHint, isEnJuego, isWorkspace, SECTIONS, sectionOf, titleOf, type Captain, type SectionKey } from "./nav";
+import { BottomBar, MasSheet } from "./Phone";
+import { Rail } from "./Rail";
+import { ICON_RAIL_BELOW, useRailFold } from "./railPrefs";
+import { useShellShortcuts } from "./shortcuts";
 // The Celeste tokens and the `.vx` size container the admin CSS builds on: imported here too, so /admin
 // works when it is the first page loaded (a refresh, a bookmark, a push link), not only after a site page.
 import "../../../styles/vestuario.css";
@@ -57,27 +66,29 @@ export function AdminLayout() {
   // Phones: where the lower thirds sit — above the bar, the pads (En juego) or the workspace footer.
   const style = frame.desktop ? undefined : ({ "--ltb": !bare ? "80px" : isEnJuego(pathname) ? "262px" : "150px" } as CSSProperties);
   return (
-    <FrameContext.Provider value={frame}>
-      <AdminDataContext.Provider value={data}>
-        <div ref={rootRef} className={`vx adm ${frame.desktop ? "d" : "m"}`} style={style}>
-          <LayerProvider appRef={appRef}>
-            <ToastProvider>
-              <GuardProvider>
-                <CommandRegistryProvider>
-                  <AdminShell appRef={appRef} data={data} desktop={frame.desktop} pathname={pathname} />
-                </CommandRegistryProvider>
-              </GuardProvider>
-            </ToastProvider>
-          </LayerProvider>
-        </div>
-      </AdminDataContext.Provider>
-    </FrameContext.Provider>
+    <MotionConfig reducedMotion="user">
+      <FrameContext.Provider value={frame}>
+        <AdminDataContext.Provider value={data}>
+          <div ref={rootRef} className={`vx adm ${frame.desktop ? "d" : "m"}`} style={style}>
+            <LayerProvider appRef={appRef}>
+              <ToastProvider>
+                <GuardProvider>
+                  <CommandRegistryProvider>
+                    <AdminShell appRef={appRef} data={data} desktop={frame.desktop} wide={frame.width >= ICON_RAIL_BELOW} pathname={pathname} />
+                  </CommandRegistryProvider>
+                </GuardProvider>
+              </ToastProvider>
+            </LayerProvider>
+          </div>
+        </AdminDataContext.Provider>
+      </FrameContext.Provider>
+    </MotionConfig>
   );
 }
 
 const ROLE: Record<string, string> = { superadmin: "Capitán general", admin: "Capitán", user: "Socio" };
 
-function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTMLDivElement | null>; data: AdminData; desktop: boolean; pathname: string }) {
+function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObject<HTMLDivElement | null>; data: AdminData; desktop: boolean; wide: boolean; pathname: string }) {
   const section = sectionOf(pathname);
   const title = titleOf(pathname);
   const bare = isWorkspace(pathname);
@@ -86,7 +97,13 @@ function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTM
   const { profile } = useAuth();
   const [palette, setPalette] = useState(false);
   const [mas, setMas] = useState(false);
+  const [bye, setBye] = useState(false);
   const counters = data.overview.counters;
+  const animate = useChromeMotion();
+  // The rail folds only where it has labels to fold (≥ 1200 px); below that it is always icon-only.
+  const rail = useRailFold(animate);
+  const iconRail = !wide || rail.phase === "closed";
+  const { modalOpen } = useLayerStack();
 
   // ⌘K / Ctrl K opens the palette from anywhere in the admin.
   useEffect(() => {
@@ -103,7 +120,7 @@ function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTM
 
   const captain: Captain = useMemo(() => {
     const nick = profile?.nickname || "capitán";
-    return { nickname: nick, initials: initials(nick), role: ROLE[profile?.role ?? "admin"] ?? "Capitán" };
+    return { nickname: nick, initials: initials(nick), role: ROLE[profile?.role ?? "admin"] ?? "Capitán", general: profile?.role === "superadmin" };
   }, [profile]);
 
   const shell: ShellApi = { openPalette: () => setPalette(true), theme, toggleTheme: toggle };
@@ -111,6 +128,8 @@ function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTM
     setMas(false);
     go({ section: key });
   };
+  // g + a section's key jumps there; `[` folds the rail (wide desktop only). Not while a modal layer is open.
+  useShellShortcuts({ onGo: (key) => go({ section: key }), onRail: desktop && wide ? rail.toggle : undefined, blocked: () => modalOpen });
 
   // The palette's built-ins: actions, sections, matches (the hero and the pending acta pinned), players.
   const builtins = useMemo<PaletteCommand[]>(() => {
@@ -131,7 +150,7 @@ function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTM
     );
     for (const s of SECTIONS) {
       const c = s.key in counters ? counters[s.key as keyof typeof counters] : undefined;
-      cmds.push({ id: `s:${s.key}`, group: "Secciones", icon: s.name.slice(0, 2).toUpperCase(), title: s.name, description: c && c.n ? c.label : s.blurb, hint: "ir", run: () => go({ section: s.key }) });
+      cmds.push({ id: `s:${s.key}`, group: "Secciones", icon: s.name.slice(0, 2).toUpperCase(), title: s.name, description: c && c.n ? c.label : s.blurb, hint: "ir", keys: goHint(s.key), run: () => go({ section: s.key }) });
     }
     const pinned = new Set([actaMatch?.id, hero?.match.id].filter(Boolean));
     const ordered = [...data.matches].reverse();
@@ -181,9 +200,20 @@ function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTM
   return (
     <ShellContext.Provider value={shell}>
       {desktop ? (
-        <div ref={appRef} className="dk">
+        <div ref={appRef} className={iconRail ? "dk ic" : "dk"} data-rail={wide ? rail.phase : "closed"}>
           <AdminHeader title={title} dark={theme === "dark"} onSearch={openPalette} onTheme={toggle} />
-          <Rail current={section} counters={counters} captain={captain} />
+          <Rail
+            current={section}
+            counters={counters}
+            captain={captain}
+            icon={iconRail}
+            foldable={wide}
+            folded={rail.folded}
+            onFold={rail.toggle}
+            dark={theme === "dark"}
+            onTheme={toggle}
+            onLogout={() => setBye(true)}
+          />
           <main key={section} className="ws anim" id="ws">
             {view}
           </main>
@@ -206,7 +236,9 @@ function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTM
         onGo={goSection}
         onSearch={openPalette}
         onTheme={toggle}
+        onLogout={() => setBye(true)}
       />
+      <LogoutConfirm open={bye} onClose={() => setBye(false)} nickname={captain.nickname} />
       <CommandPalette open={palette} onClose={() => setPalette(false)} />
     </ShellContext.Provider>
   );
