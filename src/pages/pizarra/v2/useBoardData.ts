@@ -54,6 +54,7 @@ export function useBoardData(seasonId: string): BoardData {
           ga: s ? s.ga : null,
           home: typeof m.home === "boolean" ? m.home : null,
           venue: typeof m.venue === "string" ? m.venue : "",
+          conv: { starters: [...(m.starters ?? [])], bench: [...(m.bench ?? [])] },
         };
       }),
     [season],

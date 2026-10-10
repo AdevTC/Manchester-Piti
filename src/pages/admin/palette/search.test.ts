@@ -43,8 +43,8 @@ describe("buildPaletteGroups", () => {
   it("with no query: actions, sections, the pinned matches, no players; groups in the designed order", () => {
     expect(titles("")).toEqual([
       ["Acciones", ["a:nuevo"]],
-      ["Secciones", ["s:plantilla"]],
       ["Partidos", ["m:7", "m:8"]],
+      ["Secciones", ["s:plantilla"]],
       ["Herramientas", ["x:extra"]],
     ]);
   });

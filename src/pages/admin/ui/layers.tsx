@@ -29,7 +29,6 @@ import { focusablesIn, LayerContext, LayerStore, useLayer, useLayerHost, zLayer,
 export function LayerProvider({ children, appRef }: { children: ReactNode; appRef?: RefObject<HTMLElement | null> }) {
   const [store] = useState(() => new LayerStore());
   const [host, setHost] = useState<HTMLDivElement | null>(null);
-  const [legacyHost, setLegacyHost] = useState<HTMLDivElement | null>(null);
   // inert + aria-hidden on the app (any modal open) and on each layer covered by a modal one.
   useLayoutEffect(() => {
     const mark = (el: HTMLElement | null | undefined, on: boolean) => {
@@ -82,11 +81,9 @@ export function LayerProvider({ children, appRef }: { children: ReactNode; appRe
     return () => document.removeEventListener("keydown", onKey);
   }, [store]);
   return (
-    <LayerContext.Provider value={{ store, host, legacyHost }}>
+    <LayerContext.Provider value={{ store, host }}>
       {children}
       <div className="adm-layers" ref={setHost} />
-      {/* TEMPORARY (V0): the legacy views' layers (layersV1.tsx), styled by admin-v1.css. */}
-      <div className="adm-layers v1" ref={setLegacyHost} />
     </LayerContext.Provider>
   );
 }

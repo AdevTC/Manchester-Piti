@@ -42,8 +42,6 @@ export class LayerStore {
 export interface LayerContextValue {
   store: LayerStore;
   host: HTMLElement | null;
-  /** TEMPORARY (admin v2 · V0): the `.v1` host the legacy views' layers (layersV1.tsx) portal into. */
-  legacyHost: HTMLElement | null;
 }
 export const LayerContext = createContext<LayerContextValue | null>(null);
 
@@ -74,10 +72,6 @@ export function useLayerStack() {
 /** The portal host for things that must live outside the inert app (toasts, layers). */
 export function useLayerHost(): HTMLElement | null {
   return useLayers().host;
-}
-/** TEMPORARY (admin v2 · V0): the host of the legacy views' layers (styled by admin-v1.css). */
-export function useLegacyLayerHost(): HTMLElement | null {
-  return useLayers().legacyHost;
 }
 
 interface UseLayerOptions {

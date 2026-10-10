@@ -19,6 +19,8 @@ vi.mock("../club/clubLive", () => ({
 }));
 
 const row = (over: Partial<ClaimLogRow> & { uid: string }): ClaimLogRow => ({ playerId: "", playerName: "", nickname: "", email: "", status: "pending", at: 0, resolvedAt: 0, resolvedBy: "", ...over });
+const cards = () => screen.queryAllByRole("article");
+const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("adm-toasts"))!;
 
 describe("Fichas", () => {
   beforeEach(() => {
@@ -34,50 +36,67 @@ describe("Fichas", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("lists who asks for which ficha, when and how they came in; resolved and linked accounts below", async () => {
+  it("a claim card per request (who, which shirt, when, how they came in, e-mail); resolved folded; the shirts' percha; three notes", async () => {
+    const user = userEvent.setup();
     mountAdmin("/admin/fichas", { fichas: Fichas });
     expect(await screen.findByRole("heading", { level: 1, name: "Fichas" })).toBeInTheDocument();
-    const pending = screen.getByRole("list", { name: "Pendientes" });
-    const items = within(pending).getAllByRole("listitem");
-    expect(items).toHaveLength(2);
-    expect(items[0]).toHaveTextContent("@nuevo.socio pide la ficha de 11KEVIN");
-    expect(items[0]).toHaveTextContent("hace 2 h · entró con la invitación de erik9 · nuevo.socio@gmail.com");
-    expect(items[1]).toHaveTextContent("ayer, 21:40 · llamó a la puerta y le abrió adrian_tc · fernando.portero.doce.piti@gmail.com");
-    const resolved = within(screen.getByRole("list", { name: "Resueltas" })).getAllByRole("listitem");
-    expect(resolved[0]).toHaveTextContent("@andia19 · ficha de 19ANDIA Aprobada");
-    expect(resolved[0]).toHaveTextContent("28 oct · aprobada por erik9");
-    expect(resolved[1]).toHaveTextContent("se aprobó sola (es administrador)");
-    const linked = within(screen.getByRole("list", { name: "Cuentas vinculadas" })).getAllByRole("listitem");
-    expect(linked.map((li) => li.querySelector("b")?.textContent)).toEqual(["@adrian_tc", "@erik9"]);
-    expect(within(linked[0]).queryByRole("button")).toBeNull();
-    expect(within(linked[0]).getByText("vinculada al entrar en el vestuario")).toBeInTheDocument();
-    expect(within(linked[1]).getByRole("button", { name: "Desvincular a @erik9 de ERIK" })).toBeInTheDocument();
+    expect(screen.getByText("Socios que piden su camiseta · al aprobar, su cuenta queda unida a esa ficha")).toBeInTheDocument();
+    expect(cards()).toHaveLength(2);
+    const kevin = screen.getByRole("article", { name: "@nuevo.socio pide la ficha de KEVIN" });
+    expect(within(kevin).getByRole("heading", { level: 3 })).toHaveTextContent("quiere el 11 · KEVIN");
+    expect(kevin.querySelector(".who")).toHaveTextContent("@nuevo.socio");
+    expect(kevin.querySelector(".meta")).toHaveTextContent("hace 2 h · entró con la invitación de erik9nuevo.socio@gmail.com");
+    expect(kevin.querySelector(".hang .sh b")).toHaveTextContent("11");
+    expect(cards()[1].querySelector(".meta")).toHaveTextContent("ayer, 21:40 · llamó a la puerta y le abrió adrian_tc");
+    // resolved, folded
+    const fold = screen.getByRole("button", { name: "2 resueltas" });
+    expect(fold).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("list", { name: "Fichas resueltas" })).toBeNull();
+    await user.click(fold);
+    const res = within(screen.getByRole("list", { name: "Fichas resueltas" })).getAllByRole("listitem");
+    expect(res[0]).toHaveTextContent("@andia19 → ANDIA · Aprobada por erik9 · 28 oct");
+    expect(within(res[0]).queryByRole("button")).toBeNull();
+    expect(res[1]).toHaveTextContent("@erik9 → ERIK · Se aprobó sola (es administrador) · 20 oct");
+    expect(within(res[1]).getByRole("button", { name: "Desvincular a @erik9 de ERIK" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Volver a pendiente/ })).toBeNull();
+    // the percha: exceptions only
+    const owners = screen.getByRole("region", { name: "Camisetas y socios" });
+    expect(within(owners).getByText("La percha de las fichas · 2 de 12 camisetas ya tienen su socio")).toBeInTheDocument();
+    const sub = (name: string) => [...owners.querySelectorAll(".peg")].find((p) => p.querySelector(".nm")?.textContent === name)?.querySelector(".rv")?.textContent ?? "";
+    expect(sub("KEVIN")).toBe("pedida");
+    expect(sub("FER")).toBe("pedida");
+    expect(sub("EVANS")).toBe("sin socio");
+    expect(sub("ERIK")).toBe("");
+    expect(document.querySelector(".expl")).toHaveTextContent("Qué pasa al aprobar");
   });
 
-  it("approves behind an undo toast: Deshacer means the call never happens", async () => {
+  it("approves behind the «FICHA» lower third: Deshacer means the call never happens", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     mountAdmin("/admin/fichas", { fichas: Fichas });
     await user.click(await screen.findByRole("button", { name: "Aprobar: @nuevo.socio es KEVIN" }));
-    expect(within(screen.getByRole("list", { name: "Pendientes" })).getAllByRole("listitem")).toHaveLength(1);
-    expect(within(screen.getByRole("list", { name: "Resueltas" })).getAllByRole("listitem")[0]).toHaveTextContent("ahora mismo · aprobada por adrian_tc");
-    expect(screen.getByText("Ficha aprobada · @nuevo.socio ya es KEVIN (11).")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Deshacer" }));
-    expect(within(screen.getByRole("list", { name: "Pendientes" })).getAllByRole("listitem")).toHaveLength(2);
+    expect(cards()).toHaveLength(1);
+    expect(caption()).toHaveTextContent("@nuevo.socio ya es KEVIN · su carta y su voto, activos");
+    expect(caption().querySelector(".lt .k")).toHaveTextContent("FICHA");
+    expect(screen.getByText("La percha de las fichas · 3 de 12 camisetas ya tienen su socio")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "3 resueltas" }));
+    expect(within(screen.getByRole("list", { name: "Fichas resueltas" })).getAllByRole("listitem")[0]).toHaveTextContent("@nuevo.socio → KEVIN · Aprobada por adrian_tc · ahora mismo");
+    await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
+    expect(cards()).toHaveLength(2);
     await act(async () => {
       vi.advanceTimersByTime(6000);
     });
     expect(h.writes.resolveClaim).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Rechazar la petición de @fer.portero12" }));
-    expect(screen.getByText("Petición de @fer.portero12 rechazada · puede volver a pedirla.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Rechazar la ficha de @fer.portero12" }));
+    expect(caption()).toHaveTextContent("Ficha de @fer.portero12 rechazada · no se le avisa");
     await act(async () => {
       vi.advanceTimersByTime(5300);
     });
     expect(h.writes.resolveClaim).toHaveBeenCalledWith("u2", false);
   });
 
-  it("puts the row back and says so when the write fails", async () => {
+  it("puts the card back and says so when the write fails", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     h.writes.resolveClaim.mockImplementationOnce(() => Promise.reject(new Error("sin red")));
@@ -86,34 +105,37 @@ describe("Fichas", () => {
     await act(async () => {
       vi.advanceTimersByTime(5300);
     });
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("No se ha podido aprobar la ficha: Error: sin red"));
-    expect(within(screen.getByRole("list", { name: "Pendientes" })).getAllByRole("listitem")).toHaveLength(2);
-    expect(within(screen.getByRole("alert")).getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("No se ha podido aprobar la ficha"));
+    expect(cards()).toHaveLength(2);
   });
 
-  it("unlinks an account behind an undo toast", async () => {
+  it("«Desvincular» an approved one, behind «Deshacer»", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     mountAdmin("/admin/fichas", { fichas: Fichas });
-    await user.click(await screen.findByRole("button", { name: "Desvincular a @erik9 de ERIK" }));
-    expect(screen.getByText("@erik9 ya no es ERIK · su cuenta sigue en el vestuario.")).toBeInTheDocument();
-    expect(within(screen.getByRole("list", { name: "Cuentas vinculadas" })).getAllByRole("listitem")).toHaveLength(1);
+    await user.click(await screen.findByRole("button", { name: "2 resueltas" }));
+    await user.click(screen.getByRole("button", { name: "Desvincular a @erik9 de ERIK" }));
+    expect(caption()).toHaveTextContent("@erik9 ya no es ERIK · su cuenta sigue en el vestuario");
+    expect(screen.queryByRole("button", { name: "Desvincular a @erik9 de ERIK" })).toBeNull();
+    expect(screen.getByText("La percha de las fichas · 1 de 12 camisetas ya tienen su socio")).toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(5300);
     });
     expect(h.writes.resolveClaim).toHaveBeenCalledWith("a2", false);
   });
 
-  it("says there is nothing pending", async () => {
+  it("nothing pending: the dashed shirt «Fichas al día» and the way to invite", async () => {
     setAdminData(adminFixture({ claimsCount: 0 }));
     mountAdmin("/admin/fichas", { fichas: Fichas });
-    expect(await screen.findByText("No hay fichas pendientes")).toBeInTheDocument();
-    expect(screen.getByText("Al día")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 3, name: "Fichas al día" })).toBeInTheDocument();
+    expect(document.querySelector(".void .sh")).toHaveClass("empty");
+    expect(screen.getByRole("link", { name: "Invitar desde La puerta" })).toHaveAttribute("href", "/vestuario#puerta");
+    expect(cards()).toHaveLength(0);
   });
 
-  it("shows loading and error states", async () => {
+  it("shows the loading state", async () => {
     setAdminData(adminFixture({ loading: true }));
     mountAdmin("/admin/fichas", { fichas: Fichas });
-    expect(await screen.findByRole("status", { name: "Cargando las fichas…" })).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: "Cargando las fichas" })).toBeInTheDocument();
   });
 });

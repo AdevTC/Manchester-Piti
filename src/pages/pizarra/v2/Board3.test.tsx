@@ -238,6 +238,31 @@ describe("Tableros · oficial y partido", () => {
     expect(openMine).toHaveBeenCalledTimes(1);
   });
 
+  it("one source: publishing a match's official that is not its convocatoria's siete asks to update it", async () => {
+    const publish = vi.fn(async () => {});
+    const sync = vi.fn(async () => {});
+    const M8c = m({ conv: { starters: OTHER, bench: ["fer"] } });
+    const { unmount } = render(<Harness initial={L7()} session={{ publish }} props={{ isAdmin: true, calendar: [M8c], nextMatch: M8c, onSyncConvocatoria: sync }} />);
+    go("Tableros");
+    fireEvent.click(screen.getByRole("button", { name: "Oficial" }));
+    fireEvent.click(screen.getByRole("button", { name: "Publicar mi tablero como oficial" }));
+    expect(await screen.findByText("Publicado como oficial · este partido · ¿Actualizar la convocatoria con este siete?")).toBeInTheDocument();
+    expect(sync).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Actualizar la convocatoria de J8 · MAD SKY con este siete" }));
+    const seven = L7().slots.map((x) => x.playerId);
+    expect(sync).toHaveBeenCalledWith("m8", { starters: seven, bench: ["fer", "kevin", "erik"] });
+    expect(await screen.findByText("Convocatoria de J8 · MAD SKY al día: este es su siete")).toBeInTheDocument();
+    unmount();
+    // the same siete: nothing to ask
+    const same = m({ conv: { starters: [...SEVEN].reverse(), bench: [] } });
+    render(<Harness initial={L7()} session={{ publish }} props={{ isAdmin: true, calendar: [same], nextMatch: same, onSyncConvocatoria: sync }} />);
+    go("Tableros");
+    fireEvent.click(screen.getByRole("button", { name: "Oficial" }));
+    fireEvent.click(screen.getByRole("button", { name: "Publicar mi tablero como oficial" }));
+    expect(await screen.findByText("Publicado como oficial · este partido")).toBeInTheDocument();
+    expect(sync).toHaveBeenCalledTimes(1);
+  });
+
   it("a captain publishes the board for this match or the season, and takes the official down", async () => {
     const publish = vi.fn(async () => {});
     const unpublish = vi.fn(async () => {});
@@ -473,6 +498,15 @@ describe("La convocatoria en el tablero", () => {
       .filter((l) => /, dorsal /.test(l));
     expect(names).toHaveLength(1);
     expect(names[0]).toMatch(/^ERIK/);
+  });
+
+  it("«Sugerir siete» deals the match's convocatoria first (the one source)", () => {
+    const commits: Lineup[] = [];
+    const M8c = m({ conv: { starters: OTHER, bench: [] } });
+    render(<Harness initial={lineupOf([], "2-3-1", sq)} onCommit={(l) => commits.push(l)} props={{ calendar: [M8c], nextMatch: M8c }} />);
+    fireEvent.click(screen.getByRole("button", { name: /Sugerir siete/ }));
+    expect(new Set(commits.at(-1)?.slots.map((s) => s.playerId))).toEqual(new Set(OTHER));
+    expect(screen.getByText("Sobre abierto: el siete de la convocatoria de J8 · MAD SKY")).toBeInTheDocument();
   });
 
   it("«Sugerir siete» leaves out who said no", () => {

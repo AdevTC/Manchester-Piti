@@ -47,9 +47,10 @@ export function CromoCard({ cromo, name, num, pos, games }: CromoViewProps) {
   );
 }
 
-/** `.cromo.new`: «Percha nueva» — the dashed shirt until a name or a dorsal is typed. */
+/** `.cromo.new`: «Percha nueva» — the shirt is stamped as the name («NOMBRE» until then) and the dorsal
+ *  («?»; dashed until there is one) are typed. */
 export function CromoNew({ name, num }: { name: string; num: string }) {
-  const blank = !name.trim() && !num.trim();
+  const shown = name.trim() ? name.toLocaleUpperCase("es") : "NOMBRE";
   return (
     <div className="cromo new">
       <span>
@@ -57,8 +58,8 @@ export function CromoNew({ name, num }: { name: string; num: string }) {
         <br />
         <span className="hint">La camiseta se estampa al escribir</span>
       </span>
-      <ShirtBack num={num} name={name.toLocaleUpperCase("es")} size={96} big state={blank ? "empty" : ""} />
-      <span className="nm">{name.toLocaleUpperCase("es")}</span>
+      <ShirtBack num={num.trim() || "?"} name={shown} size={96} big state={num.trim() ? "" : "empty"} />
+      <span className="nm">{shown}</span>
     </div>
   );
 }

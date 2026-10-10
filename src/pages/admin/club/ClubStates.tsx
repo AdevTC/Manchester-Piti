@@ -1,17 +1,17 @@
-// The club views' load error (the Inicio pattern): the dashed empty state in red, with «Reintentar».
+// The club views' load error (v2): the wall panel (`.void`) with the alert, what failed and «Reintentar».
 import { AdIcon } from "../ui/icons";
 
 export function LoadError({ what }: { what: string }) {
   return (
-    <div className="vb scr">
-      <div className="empty ad-err" role="alert">
+    <div className="void" role="alert">
+      <span className="bad">
         <AdIcon name="alert" size={22} />
-        <b>No se han podido cargar {what}</b>
-        <small>Comprueba la conexión y vuelve a intentarlo.</small>
-        <button type="button" className="btn sm line" onClick={() => window.location.reload()}>
-          Reintentar
-        </button>
-      </div>
+      </span>
+      <h3>No se han podido cargar {what}</h3>
+      <p>Comprueba la conexión y vuelve a intentarlo.</p>
+      <button type="button" className="btn line" onClick={() => window.location.reload()}>
+        Reintentar
+      </button>
     </div>
   );
 }

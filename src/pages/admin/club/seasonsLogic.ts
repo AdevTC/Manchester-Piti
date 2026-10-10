@@ -113,3 +113,108 @@ export function copyRosterPlan(players: readonly PlayerDoc[], fromId: string): C
     .filter((e): e is CopyEntry => e.number != null)
     .sort((a, b) => a.number - b.number);
 }
+
+// ───────────────────────── the vitrina (the active season as silverware) ─────────────────────────
+/** Our goals with a scorer (penalties and free kicks included; own goals and the rival's own goals not). */
+const SCORED = new Set(["goal", "goal_penalty", "goal_freekick"]);
+type Letter = "V" | "E" | "D";
+const letterOf = (gf: number, ga: number): Letter => (gf > ga ? "V" : gf === ga ? "E" : "D");
+const WORD: Record<Letter, string> = { V: "Victoria", E: "Empate", D: "Derrota" };
+
+/** One jornada on the shelf: its V/E/D once its acta is published, a gap otherwise. */
+export interface ShelfSlot {
+  id: string;
+  /** «J4» (or the rival when the match has no jornada). */
+  label: string;
+  /** null = a gap (not played yet, or played and not published). */
+  r: Letter | null;
+  /** «J4 · Victoria 4–1 a Emirates», «J7 · sin publicar», «J9 · por jugar». */
+  aria: string;
+}
+export interface Showcase {
+  v: number;
+  e: number;
+  d: number;
+  gf: number;
+  ga: number;
+  /** Matches whose acta is published (the ones that count). */
+  published: number;
+  /** The season's matches in the calendar (not cancelled). */
+  total: number;
+  shelf: ShelfSlot[];
+  /** The top scorer of the published actas (ties: the first by name). */
+  pichichi: { id: string; goals: number } | null;
+  /** The widest win. */
+  biggest: { gf: number; ga: number; rival: string; label: string } | null;
+  /** The longest run of wins in a row. */
+  streak: number;
+  /** Who was MVP most often (ties share it). */
+  mvp: { ids: string[]; times: number } | null;
+  /** Played matches whose acta is not published yet (they enter the vitrina when it is). */
+  waiting: string[];
+}
+/**
+ * The vitrina of `seasonId`: the record, the goals, the Pichichi, the shelf of jornadas and the trophies —
+ * computed from the PUBLISHED actas only (the web's numbers). `mvpOf` = the MVP winners of a match.
+ */
+export function seasonShowcase(o: {
+  seasonId: string;
+  matches: readonly AdminMatch[];
+  stateOf: (m: AdminMatch) => AdminMatchState;
+  now: number;
+  mvpOf: (m: AdminMatch) => readonly string[];
+  nameOf: (id: string) => string;
+}): Showcase {
+  const ms = o.matches.filter((m) => m.seasonId === o.seasonId && m.status !== "cancelled").sort((a, b) => dateMillis(a.date) - dateMillis(b.date));
+  const label = (m: AdminMatch) => (m.jornada ? `J${m.jornada}` : m.rival || "Partido");
+  const counts = (m: AdminMatch) => o.stateOf(m) === "published" && m.status === "finished" && typeof m.goalsFor === "number";
+  const pub = ms.filter(counts);
+  const out: Showcase = { v: 0, e: 0, d: 0, gf: 0, ga: 0, published: pub.length, total: ms.length, shelf: [], pichichi: null, biggest: null, streak: 0, mvp: null, waiting: [] };
+  const goals = new Map<string, number>();
+  const mvps = new Map<string, number>();
+  let run = 0;
+  for (const m of pub) {
+    const gf = m.goalsFor ?? 0;
+    const ga = m.goalsAgainst ?? 0;
+    const r = letterOf(gf, ga);
+    out[r === "V" ? "v" : r === "E" ? "e" : "d"] += 1;
+    out.gf += gf;
+    out.ga += ga;
+    run = r === "V" ? run + 1 : 0;
+    out.streak = Math.max(out.streak, run);
+    if (r === "V" && (!out.biggest || gf - ga > out.biggest.gf - out.biggest.ga)) out.biggest = { gf, ga, rival: m.rival || "Rival", label: label(m) };
+    for (const e of m.events ?? []) if (SCORED.has(e.type) && e.playerId) goals.set(e.playerId, (goals.get(e.playerId) ?? 0) + 1);
+    for (const id of o.mvpOf(m)) mvps.set(id, (mvps.get(id) ?? 0) + 1);
+  }
+  const byName = (a: string, b: string) => o.nameOf(a).localeCompare(o.nameOf(b), "es");
+  const top = [...goals.entries()].sort((a, b) => b[1] - a[1] || byName(a[0], b[0]))[0];
+  if (top) out.pichichi = { id: top[0], goals: top[1] };
+  const most = Math.max(0, ...mvps.values());
+  if (most) out.mvp = { ids: [...mvps.keys()].filter((id) => mvps.get(id) === most).sort(byName), times: most };
+  out.shelf = ms.map((m) => {
+    const l = label(m);
+    if (counts(m)) {
+      const gf = m.goalsFor ?? 0;
+      const ga = m.goalsAgainst ?? 0;
+      const r = letterOf(gf, ga);
+      return { id: m.id, label: l, r, aria: `${l} · ${WORD[r]} ${gf}–${ga} a ${m.rival || "Rival"}` };
+    }
+    const played = dateMillis(m.date) <= o.now && m.status !== "postponed";
+    return { id: m.id, label: l, r: null, aria: `${l} · ${m.status === "postponed" ? "aplazado" : played ? "sin publicar" : "por jugar"}` };
+  });
+  out.waiting = ms.filter((m) => !counts(m) && m.status !== "postponed" && dateMillis(m.date) <= o.now).map(label);
+  return out;
+}
+
+/** The vitrina's foot: only published actas count — and which played ones are still waiting. */
+export function countsNote(waiting: readonly string[]): string {
+  if (!waiting.length) return "Cuentan las actas publicadas";
+  const list = waiting.length < 2 ? waiting[0] : `${waiting.slice(0, -1).join(", ")} y ${waiting[waiting.length - 1]}`;
+  return `Cuentan las actas publicadas · ${waiting.length === 1 ? `la ${list} entra al publicarla` : `la ${list} entran al publicarlas`}`;
+}
+
+/** The lower thirds' tag for a season: «T1» for «Temporada 1», «TEMP» otherwise. */
+export function seasonTag(name: string): string {
+  const n = /temporada\s+(\d+)/i.exec(name)?.[1];
+  return n ? `T${n}` : "TEMP";
+}

@@ -176,7 +176,6 @@ export interface LiveCheck {
   text: string;
 }
 export interface FormCheck {
-  firstName: string | null;
   /** The shirt name is out of 2–12 letters (null = fine or still empty). */
   shirtName: string | null;
   /** The dorsal's live line: mut (empty, the rule), ok («Libre en la Temporada 1»), bad (why not). */
@@ -224,8 +223,7 @@ export function checkPlayerForm(form: PlayerForm, ctx: CheckContext): FormCheck 
   const seasonName = (id: string) => ctx.seasons.find((s) => s.id === id)?.name ?? "la temporada";
   const start = ctx.start ?? null;
 
-  const firstName = form.firstName.trim() ? null : "Falta el nombre.";
-  if (firstName) errors.push(firstName);
+  // The person's name is optional: the shirt name is what the club calls him («Más datos» has the rest).
 
   const shirt = form.shirtName.trim();
   const shirtBad = shirt.length < 2 || shirt.length > 12;
@@ -296,7 +294,7 @@ export function checkPlayerForm(form: PlayerForm, ctx: CheckContext): FormCheck 
   const photo: LiveCheck | null = ls === "empty" ? null : ls === "ok" ? { tone: "ok", text: "Enlace seguro · se ve en su página" } : { tone: "bad", text: "Tiene que empezar por https://" };
   if (ls === "bad") errors.push("La foto tiene que ser un enlace https://.");
 
-  return { firstName, shirtName, number, overrides, height, weight, photo, errors, ok: errors.length === 0 };
+  return { shirtName, number, overrides, height, weight, photo, errors, ok: errors.length === 0 };
 }
 
 /** The Firestore write for the form (players/{id}, merged): the same fields the old Admin form saved —
@@ -372,4 +370,32 @@ export function rosterCsv(rows: readonly PlantillaRow[]): string {
 export function csvFileName(seasonName: string | undefined): string {
   const slug = fold(seasonName ?? "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   return `plantilla${slug ? `-${slug}` : ""}.csv`;
+}
+
+// ───────────────────────── the percha (v2) ─────────────────────────
+/** The wall: the season's shirts (search + position filter) and, while searching, players of other seasons. */
+export function perchaOf(rows: readonly PlantillaRow[], q: string, pos: PosFilter, hasSeason: boolean): { squad: PlantillaRow[]; others: PlantillaRow[] } {
+  const squad = hasSeason ? rows.filter((r) => r.inSeason) : [...rows];
+  const others = hasSeason && q.trim() ? filterRows(rows.filter((r) => !r.inSeason), q, pos) : [];
+  return { squad: filterRows(squad, q, pos), others };
+}
+/** The drawer's shirt-name line: «Mínimo 2 letras» / «Máximo 12 letras» (nothing for an alta not typed yet). */
+export function shirtNameError(name: string, isNew: boolean): string {
+  const t = name.trim();
+  if (!t && isNew) return "";
+  if (t.length < 2) return "Mínimo 2 letras";
+  if (t.length > 12) return "Máximo 12 letras";
+  return "";
+}
+/** The drawer's dorsal line: «Su dorsal · solo lo lleva él», «Libre en la Temporada 1», «El 9 ya lo lleva ERIK en la Temporada 1». */
+export function dorsalLine(check: FormCheck, form: PlayerForm, start: PlayerForm | null): LiveCheck {
+  const raw = form.number.trim();
+  if (!raw) return start ? { tone: "bad", text: "Pon un dorsal del 1 al 99" } : { tone: "mut", text: "Del 1 al 99 · único en la temporada" };
+  if (check.number.tone !== "ok") return { tone: "bad", text: check.number.text.replace(/\.$/, "") };
+  if (start && raw === start.number.trim()) return { tone: "ok", text: "Su dorsal · solo lo lleva él" };
+  return check.number;
+}
+/** «Dar de baja»: his shirt leaves the season's percha — the doc, his actas, goals and carta stay. */
+export function bajaPayload(p: Pick<PlayerDoc, "seasons">, seasonId: string): { seasons: string[] } {
+  return { seasons: (p.seasons ?? []).filter((s) => s !== seasonId) };
 }

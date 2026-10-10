@@ -160,7 +160,7 @@ const adminConvocarRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "convocar",
   validateSearch: adminConvocarSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/admin/views/Convocatorias"), "Convocatorias"),
+  component: lazyRouteComponent(() => import("./pages/admin/views/Convocar"), "Convocar"),
 });
 // v1's path: old links keep working.
 const adminConvocatoriasRoute = createRoute({

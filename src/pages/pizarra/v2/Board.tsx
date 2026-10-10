@@ -36,7 +36,7 @@ import { Fan, Ficha, type FichaView } from "./Overlays";
 import { Icon } from "./icons";
 import { setTactic, tacRows } from "./plan";
 import { changes, cmpMarks, tape } from "./compare";
-import { boardLink, boardMeta, convCounts, matchLabel, matchShort, type CalMatch } from "./boards";
+import { boardLink, boardMeta, convCounts, convocatoriaFromBoard, matchLabel, matchShort, type CalMatch } from "./boards";
 import { charlaJugada, charlaLast, charlaView, pushIn, STEP_JUGADA, stepKind, type CharlaMatch } from "./charla";
 import { useCharla } from "./useCharla";
 import { CharlaGuion, CharlaOverlay } from "./CharlaOverlay";
@@ -121,6 +121,8 @@ export interface BoardProps {
   reactions: (ReactionsView & { react: (v: ReactionValue | null) => Promise<void> }) | null;
   /** The convocatoria on the cromos: whose match, and whether it could be read. */
   conv: { match: CalMatch | null; loading: boolean; error: boolean };
+  /** Captains: the match's one convocatoria takes the official's siete (setConvocatoria). */
+  onSyncConvocatoria?: (matchId: string, lineup: { starters: string[]; bench: string[] }) => Promise<void>;
   /** «Partido de día»: the app's theme. */
   theme: { day: boolean; toggle: () => void };
   crest: ReactNode;
@@ -1105,14 +1107,17 @@ export function Board(props: BoardProps) {
   };
   const doSuggest = () => {
     if (!canEdit) return;
-    const next = suggestSeven(L, sq);
+    // The board's match (linked, else the next): its convocatoria's siete comes first in the pack.
+    const cm = props.calendar.find((c) => c.id === session.matchId) ?? props.nextMatch;
+    const own = cm?.conv?.starters ?? [];
+    const next = suggestSeven(L, sq, own);
     if (!next.slots.some((s) => s.playerId)) {
       say("No hay nadie disponible para el sobre");
       return;
     }
     commit(next, { ui: { sel: null, pick: null, kb: null }, fx: { spin: !rm } });
     buzz([10, 40, 10, 40, 10, 40, 60]);
-    say("Sobre abierto: los siete en mejor forma" + (sq.recentLabel ? " (" + sq.recentLabel + ")" : ""));
+    say(own.length && cm ? "Sobre abierto: el siete de la convocatoria de " + matchShort(cm) : "Sobre abierto: los siete en mejor forma" + (sq.recentLabel ? " (" + sq.recentLabel + ")" : ""));
   };
   const doAuto = () => {
     if (!canEdit) return;
@@ -1920,7 +1925,28 @@ export function Board(props: BoardProps) {
                 .publish(mid)
                 .then(() => {
                   buzz([20, 40, 60]);
-                  say("Publicado como oficial · " + (mid ? "este partido" : "toda la temporada"));
+                  const done = "Publicado como oficial · " + (mid ? "este partido" : "toda la temporada");
+                  // One source: a match's official that is not its convocatoria's siete asks to update it.
+                  const pm = mid ? calById(mid) : null;
+                  const sync = pm && props.onSyncConvocatoria ? convocatoriaFromBoard(pm.conv, L.slots.map((x) => x.playerId)) : null;
+                  const syncTo = props.onSyncConvocatoria;
+                  if (!pm || !sync || !syncTo) {
+                    say(done);
+                    return;
+                  }
+                  say(
+                    done + " · ¿Actualizar la convocatoria con este siete?",
+                    {
+                      label: "Actualizar",
+                      aria: "Actualizar la convocatoria de " + matchShort(pm) + " con este siete",
+                      run: () => {
+                        syncTo(pm.id, sync)
+                          .then(() => say("Convocatoria de " + matchShort(pm) + " al día: este es su siete"))
+                          .catch(tbFail);
+                      },
+                    },
+                    9000,
+                  );
                 })
                 .catch(tbFail)
         }

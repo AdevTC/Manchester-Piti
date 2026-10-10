@@ -4,7 +4,7 @@
 // the search (a rival, or a jornada as «J8» / «8») and each row — J + date, the rival's full name, a
 // subtitle ONLY for exceptions (amber «Falta 1 goleador», «Sin publicar», «Convocatoria 6 de 7», «En
 // juego»; otherwise where it is played) and the score with its V/E/D mark, or the kick-off time.
-import { dateMillis, matchPhase } from "../../../../functions/src/matchEngine";
+import { dateMillis } from "../../../../functions/src/matchEngine";
 import { scoreOf } from "../../../lib/partidos";
 import { normalize } from "../palette/search";
 import { clockTime, type ActaReview, type AdminMatch } from "../data/adminLogic";
@@ -165,12 +165,3 @@ export function returnOf(matches: readonly AdminMatch[], seasonId: string, rival
   return { match: m, played: dateMillis(m.date) <= now };
 }
 
-/** The matches to call up (Convocatorias, v1): the next three still to play, plus the one asked for. */
-export function upcomingMatches(matches: readonly AdminMatch[], now: number, wanted?: string): AdminMatch[] {
-  const next = matches
-    .filter((m) => m.status !== "cancelled" && ["scheduled", "playing"].includes(matchPhase(m, now)))
-    .sort((a, b) => dateMillis(a.date) - dateMillis(b.date))
-    .slice(0, 3);
-  const w = wanted ? matches.find((m) => m.id === wanted) : undefined;
-  return w && !next.includes(w) ? [...next, w].sort((a, b) => dateMillis(a.date) - dateMillis(b.date)) : next;
-}

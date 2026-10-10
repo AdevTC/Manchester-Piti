@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONTENT, type ClubContent } from "../../../lib/clubContentDefaults";
 import {
+  GROUPS,
   NO_DRAFTS,
+  monthLabel,
+  resolveGroup,
   applyClub,
   canonical,
   contentIssues,
@@ -130,5 +133,25 @@ describe("publishPlan", () => {
     expect(plan.content?.gallery).toHaveLength(2);
     expect(plan.stories).toEqual([{ id: "kevin", data: { bio: "Once", quote: "", photoUrl: "" } }]);
     expect(publishPlan(putStoryDrafts(NO_DRAFTS, { kevin: { bio: "x", quote: "", photoUrl: "" } }, liveStory, 1), live, liveStory).content).toBeNull();
+  });
+});
+
+describe("the programa del club", () => {
+  it("covers every section once, in six numbered entries", () => {
+    expect(GROUPS.map((g) => g.key)).toEqual(["frase", "contacto", "momentos", "historias", "preguntas", "galeria"]);
+    expect(GROUPS.flatMap((g) => g.keys).sort()).toEqual(["colaboradores", "contacto", "frase", "galeria", "historia", "historias", "momentos", "preguntas"]);
+  });
+  it("resolves ?seccion= to its entry (section keys and Hoy's gaps too)", () => {
+    expect(resolveGroup("historia")).toBe("frase");
+    expect(resolveGroup("escudo")).toBe("frase");
+    expect(resolveGroup("foto")).toBe("contacto");
+    expect(resolveGroup("colaboradores")).toBe("galeria");
+    expect(resolveGroup("momentos")).toBe("momentos");
+    expect(resolveGroup("nada")).toBeNull();
+    expect(resolveGroup(undefined)).toBeNull();
+  });
+  it("dates a new momento with the month in Madrid", () => {
+    expect(monthLabel(Date.UTC(2026, 10, 2, 9))).toBe("Nov 2026");
+    expect(monthLabel(Date.UTC(2026, 9, 31, 23, 30))).toBe("Nov 2026");
   });
 });

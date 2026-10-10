@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { adminFixture, NOW } from "../../../test/adminKit";
 import type { AdminMatch } from "../data/adminLogic";
-import { buildMatchList, defaultMatch, matchesQuery, returnOf, upcomingMatches, type ListContext } from "./listModel";
+import { buildMatchList, defaultMatch, matchesQuery, returnOf, type ListContext } from "./listModel";
 
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
 vi.mock("../../../context/AuthContext", async () => ({ useAuth: (await import("../../../test/adminMocks")).fakeAuth }));
@@ -75,8 +75,4 @@ describe("the match list", () => {
     expect(returnOf(data.matches, "t0", "Emirates", NOW)).toBeNull();
   });
 
-  it("Convocatorias offers the next matches to play (and the one asked for)", () => {
-    expect(upcomingMatches(data.matches, NOW).map((x) => x.id)).toEqual(["m8"]);
-    expect(upcomingMatches(data.matches, NOW, "m7").map((x) => x.id)).toEqual(["m7", "m8"]);
-  });
 });

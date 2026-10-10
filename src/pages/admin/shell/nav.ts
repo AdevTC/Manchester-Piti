@@ -52,12 +52,6 @@ export const isEnJuego = (pathname: string) => seg(pathname, 2) === "en-juego" &
 /** The header's «Sala de control · {sección}» (En juego says so). */
 export const titleOf = (pathname: string) => (isEnJuego(pathname) ? "En juego" : SECTION[sectionOf(pathname)].name);
 
-/**
- * TEMPORARY (V0): the sections that still render their v1 view inside the v2 shell (LegacyScope + the
- * `.v1` styles of admin-v1.css). Each phase removes its sections; delete with the last one.
- */
-export const LEGACY: ReadonlySet<SectionKey> = new Set<SectionKey>(["convocar", "plantilla", "fichas", "temporadas", "capitanes", "contenido"]);
-
 /** The match workspace's tabs (`/admin/partidos/$matchId?tab=`). */
 export type MatchTab = "encuentro" | "convocatoria" | "acta" | "publicar";
 export const MATCH_TABS: readonly MatchTab[] = ["encuentro", "convocatoria", "acta", "publicar"];
