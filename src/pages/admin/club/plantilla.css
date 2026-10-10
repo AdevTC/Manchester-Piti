@@ -1,0 +1,208 @@
+/* Plantilla · «el tablón» (views/Plantilla.tsx, club/Tablon.tsx, club/PlantillaSide.tsx, the ficha's extras
+   in club/PlayerDrawer.tsx). Admin tokens only (--sheet, --panel2, --pline, --chip, --sky, --amber, --ink,
+   --soft, --muted, --pill-on). The tablón sizes itself by container queries: columns step out as its own
+   width shrinks (the side panel or the ficha takes the rest), and on phones the rows fold. */
+
+/* ── the bar under the title: the collection and the gap chips (or the batch bar) ── */
+.adm .plbar{display:flex;align-items:center;gap:14px 18px;flex-wrap:wrap;min-height:44px;margin:14px 0 12px;flex:0 0 auto}
+.adm .plbar .coll{display:flex;align-items:center;gap:12px;flex:0 0 auto}
+.adm .plbar .coll .tx{font-size:13px;color:var(--muted);white-space:nowrap}
+.adm .plbar .coll .tx b{font-family:'Anybody';font-weight:900;font-size:22px;font-variation-settings:'wdth' 90;color:var(--ink);margin-right:1px;font-variant-numeric:tabular-nums}
+.adm .plbar .cells{display:flex;gap:3px;align-items:center}
+.adm .plbar .cells i{width:7px;height:20px;border-radius:3px;border:1px dashed var(--muted);opacity:.55}
+.adm .plbar .cells i.on{background:var(--sky);border-color:transparent;opacity:1}
+.adm .plbar .chips{display:flex;gap:6px;flex-wrap:wrap}
+.adm .plbar .chips button{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:600;color:var(--soft);box-shadow:inset 0 0 0 1px var(--pline);transition:background-color .18s,box-shadow .18s,color .18s}
+.adm .plbar .chips button:hover{background:var(--panel2);color:var(--ink)}
+.adm .plbar .chips button em{font-style:normal;font-family:'Geist Mono';font-size:12px;font-weight:600;color:var(--amber);font-variant-numeric:tabular-nums}
+.adm .plbar .chips button[aria-pressed=true]{background:var(--chip);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--sky)}
+.adm .plbar .ok{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.adm .plbar .ok svg{color:var(--sky)}
+.adm .plbar.bulk{padding:5px 6px 5px 14px;border-radius:14px;background:var(--chip);box-shadow:inset 0 0 0 1.5px var(--sky);gap:10px;animation:pl-in .28s cubic-bezier(.16,1,.3,1)}
+.adm .plbar.bulk b{font-size:14px;margin-right:4px}
+.adm .plbar.bulk .clr{margin-left:auto}
+
+/* ── the layout: the tablón and, beside it, the squad at a glance or the open ficha ── */
+.adm .plg2{flex:1;min-height:0;display:flex;gap:20px}
+.adm .plg2>.drw,.adm .plg2>.pls{flex:0 0 400px}
+@container mp (max-width:1599px){.adm .plg2>.pls{flex-basis:330px}.adm .plg2>.drw{flex-basis:390px}}
+@container mp (max-width:1199px){
+  .adm .plg2>.drw{flex-basis:350px}
+  .adm .plg2>.pls{flex-basis:300px}
+  .adm .plg2{gap:14px}
+}
+
+/* ── the tablón: a table whose rows lay out as grids, so a column that steps out gives its width back ── */
+.adm .tbn{position:relative;flex:1;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;border-radius:20px;background:var(--sheet);box-shadow:inset 0 0 0 1px var(--pline);container:tbn/inline-size;scrollbar-width:thin;scrollbar-color:var(--pline) transparent}
+.adm .tbn:focus{outline:none}
+.adm .tbn table,.adm .tbn thead,.adm .tbn tbody{display:block;width:100%}
+.adm .tbn table{--cols:40px 58px 46px minmax(0,1fr) 160px 122px 40px 120px 104px}
+.adm .tbn thead tr,.adm .tbn tr.tr{display:grid;grid-template-columns:var(--cols);align-items:center}
+.adm .tbn thead tr{position:sticky;top:0;z-index:3;height:38px;background:var(--sheet);box-shadow:inset 0 -1px 0 var(--pline)}
+.adm .tbn thead th{padding:0 8px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden}
+.adm .tbn thead th.c-stats span,.adm .tbn td.c-stats span{display:inline-block;width:33.3%;text-align:center}
+.adm .tbn thead th.c-acc svg{vertical-align:-3px}
+.adm :is(.tbn,.pls) .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.adm .tbn tr.gh{display:block;position:sticky;top:38px;z-index:2;background:var(--sheet);box-shadow:inset 0 -1px 0 var(--pline);view-transition-class:pl-row}
+.adm .tbn .gh th{display:block;padding:16px 12px 7px;text-align:left;font-size:14px;font-weight:700;color:var(--soft)}
+.adm .tbn .gh em{font-style:normal;font-family:'Geist Mono';font-size:12px;font-weight:600;color:var(--muted);margin-left:8px}
+.adm .tbn .gh small{font-size:12px;font-weight:500;color:var(--muted);margin-left:12px}
+.adm .tbn .grp.none .gh th{color:var(--amber)}
+.adm .tbn .grp.other .gh th{color:var(--muted)}
+
+.adm .tbn tr.tr{min-height:62px;cursor:pointer;box-shadow:inset 0 -1px 0 var(--pline);transition:background-color .18s;view-transition-class:pl-row}
+.adm .tbn tr.tr td{min-width:0;padding:0 8px}
+.adm .tbn tr.tr:hover{background:var(--panel2)}
+.adm .tbn tr.tr.on{background:color-mix(in srgb,var(--sky) 16%,var(--sheet))}
+.adm .tbn tr.tr.fresh{animation:pl-fresh 1.6s cubic-bezier(.16,1,.3,1)}
+.adm .tbn tr.tr.other>td{opacity:.6}
+.adm .tbn tr.tr.other:hover>td{opacity:.85}
+
+.adm .tbn .ck{width:18px;height:18px;margin:0 0 0 4px;accent-color:var(--sky);cursor:pointer;vertical-align:middle}
+.adm .tbn .kit{display:grid;place-items:center;width:46px;height:51px;view-transition-class:pl-kit}
+.adm .tbn .kit img{width:46px;height:51px;object-fit:contain;transition:transform .32s cubic-bezier(.16,1,.3,1)}
+.adm .tbn tr.tr:hover .kit img{transform:translateY(-2px) rotate(-3deg)}
+.adm .tbn .kit.dim{opacity:.7;filter:grayscale(.6)}
+.adm .tbn .c-num b{font-family:'Anybody';font-weight:900;font-size:22px;font-variation-settings:'wdth' 90;color:var(--ink);font-variant-numeric:tabular-nums}
+.adm .tbn .c-num b.dup{color:var(--amber);text-decoration:underline wavy var(--amber);text-underline-offset:4px;text-decoration-thickness:1.5px}
+.adm .tbn .nmb{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;min-width:0;padding:6px 0;text-align:left}
+.adm .tbn .nmb b{max-width:100%;font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.adm .tbn .nmb small{max-width:100%;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.adm .tbn .nmb .nsb{display:none}
+.adm .tbn .nmb:focus-visible{outline:2px solid var(--sky);outline-offset:2px;border-radius:6px}
+
+.adm .tbn .pseg,.adm .plbar .pseg{display:inline-flex;gap:2px;padding:2px;border-radius:11px;box-shadow:inset 0 0 0 1px var(--pline)}
+.adm .tbn .pseg button,.adm .plbar .pseg button{height:30px;min-width:34px;padding:0 5px;border-radius:9px;font-family:'Geist Mono';font-size:12px;font-weight:600;color:var(--muted);transition:background-color .15s,color .15s}
+.adm .tbn .pseg button:hover,.adm .plbar .pseg button:hover{background:var(--panel2);color:var(--ink)}
+.adm .tbn .pseg button[aria-pressed=true]{background:var(--pill-on);color:var(--pill-on-ink)}
+.adm .tbn .grp.none .pseg{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--amber) 45%,transparent)}
+.adm .tbn .grp.none .pseg button{color:var(--soft)}
+.adm .tbn .mut{font-family:'Geist Mono';font-size:12px;color:var(--muted)}
+
+.adm .tbn .stb{position:relative;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:999px;font-size:13px;font-weight:600;color:var(--soft);box-shadow:inset 0 0 0 1px var(--pline);transition:background-color .15s,color .15s,box-shadow .15s}
+.adm .tbn .stb svg{color:var(--sky)}
+.adm .tbn .stb:hover{background:var(--panel2);color:var(--ink)}
+.adm .tbn .stb.inj{color:var(--amber);background:color-mix(in srgb,var(--amber) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--amber) 45%,transparent)}
+.adm .tbn .stb.inj svg{color:var(--amber)}
+
+.adm .tbn .acc{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px}
+.adm .tbn .acc.vinculada{color:var(--sky)}
+.adm .tbn .acc.pide{color:var(--amber);background:color-mix(in srgb,var(--amber) 12%,transparent)}
+.adm .tbn .acc.sin{color:var(--muted);opacity:.6}
+.adm .tbn td.c-stats{font-family:'Geist Mono';font-size:13px;color:var(--soft);font-variant-numeric:tabular-nums}
+.adm .tbn .slots,.adm .tbn .lgd{display:inline-flex;gap:3px;align-items:center}
+.adm .tbn .slots i{width:15px;height:16px;border-radius:3px;background:var(--sky)}
+.adm .tbn .lgd i{width:15px;font-style:normal;font-size:10px;letter-spacing:0;text-align:center;text-transform:none}
+.adm .tbn .slots i.no{background:transparent;border:1px dashed var(--muted);opacity:.75}
+.adm .tbn .nores{padding:56px 16px;text-align:center;color:var(--muted)}
+
+/* the columns step out as the tablón narrows (what they said moves into the name's second line) */
+@container tbn (max-width:960px){
+  .adm .tbn table{--cols:40px 58px 46px minmax(0,1fr) 160px 48px 40px 112px 104px}
+  .adm .tbn .stb{width:32px;padding:0;justify-content:center}
+  .adm .tbn .stb .stx{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .adm .tbn thead th.c-st{font-size:0}
+}
+@container tbn (max-width:740px){
+  .adm .tbn table{--cols:40px 58px 46px minmax(0,1fr) 160px 48px 40px 104px}
+  .adm .tbn .c-stats{display:none}
+}
+@container tbn (max-width:660px){
+  .adm .tbn table{--cols:40px 58px 46px minmax(0,1fr) 160px 48px 104px}
+  .adm .tbn .c-acc{display:none}
+}
+@container tbn (max-width:620px){
+  .adm .tbn .nmb .nfu{display:none}
+  .adm .tbn .nmb .nsb{display:block}
+}
+@container tbn (max-width:540px){
+  .adm .tbn table{--cols:36px 52px 40px minmax(0,1fr) 150px 44px}
+  .adm .tbn .c-slots{display:none}
+  .adm .tbn .pseg button{min-width:33px;padding:0 3px}
+}
+
+/* ── the squad at a glance (no ficha open) ── */
+.adm .pls{display:flex;flex-direction:column;gap:20px;min-height:0;overflow:auto;padding:20px;border-radius:20px;background:var(--sheet);box-shadow:inset 0 0 0 1px var(--pline);scrollbar-width:thin;animation:pl-in .38s cubic-bezier(.16,1,.3,1)}
+.adm .pls h2{font-size:24px}
+.adm .pls .nxt{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:center;padding:12px 14px 14px 6px;border-radius:16px;background:radial-gradient(90% 80% at 15% 35%,color-mix(in srgb,var(--sky) 24%,transparent),transparent 70%),var(--panel2);box-shadow:inset 0 0 0 1px var(--pline)}
+.adm .pls .nxt .big{display:grid;place-items:center;width:96px;height:107px}
+.adm .pls .nxt .big img{width:96px;height:107px;object-fit:contain;filter:drop-shadow(0 8px 12px rgba(8,19,47,.24))}
+.adm .pls .nxt .nx{min-width:0}
+.adm .pls .nxt .who{margin:0;display:flex;align-items:baseline;gap:7px;min-width:0;font-family:'Anybody';font-weight:900;font-size:20px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.adm .pls .nxt .who b{font-size:22px;color:var(--sky);font-variant-numeric:tabular-nums}
+.adm .pls .nxt .fsl{display:flex;flex-wrap:wrap;gap:3px;margin:7px 0 0}
+.adm .pls .nxt .fsl i{display:grid;place-items:center;height:20px;padding:0 5px;border-radius:5px;font-style:normal;font-size:10.5px;font-weight:600;color:var(--pill-on-ink);background:var(--sky)}
+.adm .pls .nxt .fsl i.no{color:var(--muted);background:transparent;outline:1px dashed var(--muted);outline-offset:-1px}
+.adm .pls .nxt .nx>.mut{display:none}
+.adm .pls .nxt .btn{grid-column:1/-1;justify-content:center;width:100%}
+.adm .pls h3{font-size:15px;font-weight:700;margin-bottom:10px}
+.adm .pls .lines{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.adm .pls .ln{display:grid;justify-items:center;gap:2px;padding:12px 6px 10px;border-radius:14px;background:var(--panel2);box-shadow:inset 0 0 0 1px var(--pline)}
+.adm .pls .stack{display:flex;height:36px;align-items:flex-end;margin-bottom:4px}
+.adm .pls .mk{position:relative;display:grid;place-items:end center;width:30px;height:34px}
+.adm .pls .mk+.mk{margin-left:-13px}
+.adm .pls .mk img{width:30px;height:33px;object-fit:contain}
+.adm .pls .ln b{font-family:'Anybody';font-weight:900;font-size:32px;line-height:1;font-variation-settings:'wdth' 90;font-variant-numeric:tabular-nums}
+.adm .pls .ln small{font-family:'Geist Mono';font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--muted)}
+.adm .pls .nudge{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border-radius:14px;text-align:left;font-size:14px;color:var(--ink);background:color-mix(in srgb,var(--amber) 11%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--amber) 40%,transparent);transition:background-color .18s}
+.adm .pls .nudge:hover{background:color-mix(in srgb,var(--amber) 18%,transparent)}
+.adm .pls .nudge svg{color:var(--amber);flex:0 0 auto}
+.adm .pls .nudge svg:last-child{margin-left:auto}
+.adm .pls .inj{display:grid;gap:2px}
+.adm .pls .inj button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:10px;font-size:14px;font-weight:600;text-align:left}
+.adm .pls .inj button:hover{background:var(--panel2)}
+.adm .pls .inj b{font-family:'Anybody';font-weight:900;font-size:18px;min-width:26px;color:var(--amber);font-variant-numeric:tabular-nums}
+.adm .pls .inj svg{margin-left:auto;color:var(--muted)}
+.adm .pls .mut{font-size:13px;color:var(--muted)}
+.adm .pls .free{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.adm .pls .free button{height:40px;border-radius:10px;font-family:'Anybody';font-weight:900;font-size:17px;font-variation-settings:'wdth' 90;color:var(--soft);outline:1px dashed color-mix(in srgb,var(--muted) 70%,transparent);outline-offset:-1px;transition:background-color .15s,color .15s,transform .2s cubic-bezier(.16,1,.3,1),outline-color .15s}
+.adm .pls .free button:hover{background:var(--chip);color:var(--ink);outline:1.5px solid var(--sky);transform:translateY(-1px)}
+.adm .pls .free button:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+.adm .pls .exp{margin-top:auto;align-self:flex-start}
+
+/* ── the ficha's extras: the kit photo in the cromo, the slots, account and web ── */
+.adm .cromo .kit{display:grid;place-items:center;view-transition-class:pl-kit}
+.adm .cromo .kit img{width:112px;height:124px;object-fit:contain}
+.adm .fslots{display:flex;align-items:center;gap:6px;margin:10px 16px 0;flex:0 0 auto}
+.adm .fslots .sl{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 8px;border-radius:8px;font-size:12px;font-weight:600;color:var(--soft);background:var(--panel2)}
+.adm .fslots .sl i{width:7px;height:10px;border-radius:2px;background:var(--sky)}
+.adm .fslots .sl.no{color:var(--muted);background:transparent;outline:1px dashed var(--pline);outline-offset:-1px}
+.adm .fslots .sl.no i{background:transparent;border:1px dashed var(--muted)}
+.adm .fslots .tx{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+.adm .fweb{display:grid;gap:10px;margin-top:8px;padding-top:14px;border-top:1px solid var(--pline)}
+.adm .fweb .acc{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;line-height:1.45;color:var(--soft)}
+.adm .fweb .acc>svg{flex:0 0 auto;margin-top:2px;color:var(--muted)}
+.adm .fweb .acc.vinculada>svg{color:var(--sky)}
+.adm .fweb .acc.pide>svg{color:var(--amber)}
+.adm .fweb .acc b{color:var(--ink)}
+.adm .fweb .acc .lnk{margin-left:auto;white-space:nowrap}
+
+/* ── phones: search + alta, the bar, the folded rows (kit · dorsal · name · slots); the ficha is a sheet ── */
+.adm.m .plm .mtop{display:flex;gap:8px}
+.adm.m .plm .mtop .srch{flex:1;min-width:0}
+.adm .btn.gold.ic{width:40px;padding:0;justify-content:center}
+.adm.m .plbar{flex-direction:column;align-items:stretch;gap:10px;margin:0}
+.adm.m .plbar .chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px;mask-image:linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 24px),transparent)}
+.adm.m .plbar .chips::-webkit-scrollbar{display:none}
+.adm.m .plbar .chips button{flex:0 0 auto}
+.adm.m .tbn table{--cols:56px 40px minmax(0,1fr) auto}
+.adm.m .tbn{overflow:visible;border-radius:16px;container-type:normal}
+.adm.m .tbn thead,.adm.m .tbn :is(td,th):is(.c-sel,.c-pos,.c-st,.c-acc,.c-stats){display:none}
+.adm.m .tbn tr.gh{top:0}
+.adm.m .tbn tr.tr{min-height:64px}
+.adm.m .tbn .nmb .nfu{display:none}
+.adm.m .tbn .nmb .nsb{display:block}
+.adm.m .tbn .slots i{width:9px;height:14px}
+.adm.m .tbn .gh small{display:none}
+/* (without a line, the quick fix comes along: the line under the name) */
+.adm.m .tbn .grp.none tr.tr td.c-pos{order:1;display:flex;grid-column:2/-1;min-height:0;padding:0 8px 12px}
+
+@keyframes pl-fresh{from{background:color-mix(in srgb,var(--sky) 30%,transparent)}}
+@keyframes pl-in{from{opacity:0;transform:translateY(6px)}}
+
+/* ── view transitions: the kit flies between its row and the ficha; rows glide to their new line ── */
+::view-transition-group(*.pl-kit){animation-duration:.56s;animation-timing-function:cubic-bezier(.16,1,.3,1)}
+::view-transition-old(*.pl-kit),::view-transition-new(*.pl-kit){height:100%;width:100%;object-fit:contain}
+::view-transition-group(*.pl-row){animation-duration:.46s;animation-timing-function:cubic-bezier(.2,.8,.2,1)}
+::view-transition-old(*.pl-row){animation-duration:.2s}
+::view-transition-new(*.pl-row){animation-duration:.3s}
