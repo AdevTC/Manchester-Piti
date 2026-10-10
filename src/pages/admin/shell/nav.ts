@@ -56,7 +56,7 @@ export const titleOf = (pathname: string) => (isEnJuego(pathname) ? "En juego" :
  * TEMPORARY (V0): the sections that still render their v1 view inside the v2 shell (LegacyScope + the
  * `.v1` styles of admin-v1.css). Each phase removes its sections; delete with the last one.
  */
-export const LEGACY: ReadonlySet<SectionKey> = new Set<SectionKey>(["partidos", "convocar", "plantilla", "fichas", "temporadas", "capitanes", "contenido"]);
+export const LEGACY: ReadonlySet<SectionKey> = new Set<SectionKey>(["partidos", "temporadas", "capitanes", "contenido"]);
 
 /** The match workspace's tabs (`/admin/partidos/$matchId?tab=`). */
 export type MatchTab = "encuentro" | "convocatoria" | "acta" | "publicar";

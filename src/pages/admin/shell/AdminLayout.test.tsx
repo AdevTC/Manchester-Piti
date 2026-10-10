@@ -48,12 +48,12 @@ describe("AdminLayout · the v2 shell", () => {
     const user = userEvent.setup();
     const router = mountAdmin("/admin");
     const nav = await screen.findByRole("navigation", { name: "Sala de control" });
-    await user.click(within(nav).getByRole("link", { name: /^Fichas/ }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/fichas"));
-    expect(await screen.findByTestId("view")).toHaveTextContent("vista fichas");
+    await user.click(within(nav).getByRole("link", { name: /^Temporadas/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/temporadas"));
+    expect(await screen.findByTestId("view")).toHaveTextContent("vista temporadas");
     expect(screen.getByTestId("view").closest(".v1")).not.toBeNull();
-    expect(screen.getByRole("banner")).toHaveTextContent("Sala de control · Fichas");
-    expect(within(nav).getByRole("link", { name: /^Fichas/ })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("banner")).toHaveTextContent("Sala de control · Temporadas");
+    expect(within(nav).getByRole("link", { name: /^Temporadas/ })).toHaveAttribute("aria-current", "page");
   });
 
   it("toggles the theme from the header", async () => {

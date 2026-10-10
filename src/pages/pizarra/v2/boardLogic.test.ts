@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { autoPlace, freeSpot, goFree, normalize, resetFree, resolveDrop, setPlaysAs, setSystem, stepSystem, cycleDefLine } from "./ops";
 import { applyFan, fanCentre, fanItems, FAN_RADIUS } from "./fan";
 import { packRanking, reelFor, suggestSeven, packDelay } from "./pack";
+import { convocatoriaFromBoard } from "./boards";
 import { slotPos } from "./geometry";
 import { isFull, natOf } from "./model";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
@@ -154,6 +155,18 @@ describe("«Sugerir siete»: the pack", () => {
     expect(n.slots.filter((s) => s.playerId)).toHaveLength(7);
     expect(n.slots[0].playerId).toBe("gk1");
   });
+  it("deals the convocatoria's siete first: a whole one is exactly those seven, a partial one is completed", () => {
+    // the pack alone would take m1, f1, gk1, d1, d2, m2, …: the convocatoria wins (even the low-form m3 and gk2)
+    const own = ["gk2", "d3", "m2", "m3", "f2", "d1", "m1"];
+    const whole = suggestSeven(lineupOf([], "2-3-1", sq), sq, own);
+    expect(new Set(ids(whole))).toEqual(new Set(own));
+    expect(whole.slots[0].playerId).toBe("gk2");
+    const part = suggestSeven(lineupOf([], "2-3-1", sq), sq, ["m3", "f2"]);
+    expect(ids(part)).toContain("m3");
+    expect(ids(part)).toContain("f2");
+    expect(part.slots.filter((s) => s.playerId)).toHaveLength(7);
+    expect(part.slots[0].playerId).toBe("gk1");
+  });
   it("spins a reel of squad dorsales before each cromo lands, one after another", () => {
     expect(reelFor(0, [1, 2, 3])).toHaveLength(12);
     expect(reelFor(2, [7])).toEqual(Array(12).fill(7));
@@ -198,5 +211,13 @@ describe("the long-press fan", () => {
     expect(fanCentre(10, 10, 390, 844)).toEqual({ cx: 118, cy: 150 });
     expect(fanCentre(380, 840, 390, 844)).toEqual({ cx: 272, cy: 614 });
     expect(fanCentre(200, 400, 390, 844)).toEqual({ cx: 200, cy: 400 });
+  });
+});
+
+describe("the convocatoria from the official (one source)", () => {
+  it("is null when the pitch already is its siete (or it is not known); else the siete + the banquillo keeps the rest called", () => {
+    expect(convocatoriaFromBoard(undefined, ["a"])).toBeNull();
+    expect(convocatoriaFromBoard({ starters: ["a", "b"], bench: ["c"] }, ["b", null, "a"])).toBeNull();
+    expect(convocatoriaFromBoard({ starters: ["a", "b"], bench: ["c", "d"] }, ["a", "c", null])).toEqual({ starters: ["a", "c"], bench: ["d", "b"] });
   });
 });

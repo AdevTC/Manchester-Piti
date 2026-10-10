@@ -10,6 +10,7 @@ import { useClock } from "../../../hooks/useClock";
 import { useTheme } from "../../../hooks/useTheme";
 import { Hint } from "../../../components/ui/hint";
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../../components/celeste/Chrome";
+import { setConvocatoria } from "../../../lib/clubApi";
 import { initials } from "../../../lib/vestuario";
 import { useLineups } from "../useLineups";
 import { useReactions } from "../useReactions";
@@ -111,6 +112,13 @@ export function PizarraPage() {
       official={official}
       reactions={official ? { enabled: reactions.enabled, ok: reactions.ok, dudas: reactions.dudas, mine: reactions.mine, react: reactions.react } : null}
       conv={{ match: m, loading: conv.loading, error: conv.error }}
+      onSyncConvocatoria={
+        isAdmin
+          ? async (matchId, l) => {
+              await setConvocatoria({ matchId, starters: l.starters, bench: l.bench, notify: false });
+            }
+          : undefined
+      }
       theme={{ day: theme === "light", toggle: toggleTheme }}
       crest={
         <Link className="crest" to="/" aria-label="Manchester Piti: inicio">

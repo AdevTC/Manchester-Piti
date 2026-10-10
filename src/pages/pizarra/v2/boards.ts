@@ -69,6 +69,8 @@ export interface CalMatch {
   ga: number | null;
   home: boolean | null;
   venue: string;
+  /** The match's one convocatoria (the admin's Convocar): el siete and the banquillo. Absent = not read. */
+  conv?: { starters: string[]; bench: string[] };
 }
 
 /** «J8 · MAD SKY», with the score once played: «J8 · MAD SKY · 3–1». */
@@ -143,6 +145,19 @@ export function convCounts(sq: Squad): ConvCounts {
     else n.sin++;
   });
   return n;
+}
+
+/**
+ * Publishing the official for a match whose pitch is not the convocatoria's siete: the convocatoria with
+ * this siete (the banquillo keeps its order; whoever leaves the siete stays called, on the banquillo) — or
+ * null when it already is that siete (or the convocatoria is not known).
+ */
+export function convocatoriaFromBoard(conv: { starters: readonly string[]; bench: readonly string[] } | undefined, seven: readonly (string | null)[]): { starters: string[]; bench: string[] } | null {
+  if (!conv) return null;
+  const s = seven.filter((id): id is string => !!id);
+  if (s.length === conv.starters.length && s.every((id) => conv.starters.includes(id))) return null;
+  const out = (id: string) => !s.includes(id);
+  return { starters: s, bench: [...conv.bench.filter(out), ...conv.starters.filter((id) => out(id) && !conv.bench.includes(id))] };
 }
 
 /** The link to a board (`#charla` = straight to its charla). */
