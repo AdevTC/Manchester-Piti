@@ -4,8 +4,9 @@
    lower third's error tone and the temporary legacy wrapper. */
 
 /* The frame IS the viewport: the page never scrolls (each list scrolls inside its panel). `mp` names it
-   for the container queries of the legacy views. */
-.vx.adm{height:100dvh;isolation:isolate;container-name:mp}
+   for the container queries of the legacy views. `.vx` (vestuario.css) asks for min-height:100vh, which
+   would beat the height below and push the frame 30 px under the demo banner: not here. */
+.vx.adm{height:100dvh;min-height:0;isolation:isolate;container-name:mp}
 .club-main:has(> .vx.adm){min-height:0}
 .club-app:has(> .club-demo-banner) .vx.adm{height:calc(100dvh - 30px)}
 
@@ -15,7 +16,6 @@
 /* The phone bar's sections are links (the canvas drew buttons): same look. */
 .adm .bar a{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:600;color:var(--muted);text-decoration:none}
 .adm .bar a[aria-current=page]{color:var(--ink)}
-.adm .bar a[aria-current=page]::before{content:"";position:absolute;top:0;left:28%;right:28%;height:3px;border-radius:0 0 3px 3px;background:var(--sky)}
 
 /* (.adm-layers is a static, box-less wrapper: its children position against the frame.) */
 
@@ -150,18 +150,9 @@
 /* The publish peak's cartel: a long rival name ellipsizes inside the card. */
 .adm .cartel span{max-width:calc(100% - 6px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* Below 1200 px: the rail keeps its icons; the side columns give back a little. */
+/* Below 1200 px the rail keeps only its icons (Rail.tsx: `.dk.ic`, see «The rail» below); the side
+   columns give back a little. */
 @container mp (max-width:1199px){
-  .adm.d .dk{grid-template-columns:76px minmax(0,1fr)}
-  .adm.d .rail{position:relative;z-index:5;padding:14px 12px;align-items:stretch}
-  .adm.d .rail .it{position:relative;justify-content:center;padding:0;gap:0}
-  .adm.d .rail .it>span:not(.n):not(.x),.adm.d .rail .me>span:not(.av),.adm.d .rail .me>span:not(.av)>*{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-  .adm.d .rail .it .x{display:none}
-  .adm.d .rail .it .n{position:absolute;top:0;right:0;margin:0;min-width:20px;height:20px;padding:0 5px}
-  .adm.d .rail .g{height:1px;margin:10px 8px;overflow:hidden;background:var(--pline);color:transparent;white-space:nowrap}
-  .adm.d .rail .me{justify-content:center;padding:12px 0 0}
-  /* The label as a tooltip on hover / keyboard focus. */
-  .adm.d .rail .it:hover>span:not(.n):not(.x),.adm.d .rail .it:focus-visible>span:not(.n):not(.x){left:calc(100% + 10px);top:50%;width:auto;height:auto;overflow:visible;clip:auto;transform:translateY(-50%);padding:6px 10px;border-radius:8px;background:var(--pop);color:var(--ink);font-size:14px;box-shadow:0 10px 24px rgba(0,0,0,.4),inset 0 0 0 1px var(--pline);z-index:50;pointer-events:none}
   .adm.d .hoy{grid-template-columns:minmax(0,1fr) 320px}
   .adm.d .cvv{grid-template-columns:360px minmax(0,1fr)}
   .adm.d .tg{grid-template-columns:minmax(0,1fr) 300px}
@@ -169,3 +160,207 @@
   .adm.d .prg{grid-template-columns:240px minmax(0,1fr)}
   .adm.d .prg.wd{grid-template-columns:minmax(0,1fr) 400px}
 }
+
+/* ═══ The chrome: header, rail, phone bar, «Más» (Chrome.tsx, Rail.tsx, Phone.tsx, ChromeBits.tsx) ═══
+   Quiet Celeste chrome: sky = where you are, amber = exceptions, gold only for the capitán general's
+   armband. Motion is transform / opacity (the rail's width is the one layout transition); under
+   prefers-reduced-motion admin.css' last rule kills every animation / transition here and Motion renders
+   plain elements. */
+
+/* Focus: a 2 px sky ring with air, on every chrome control (`.fr`); the site's gold ring is THE action's. */
+.adm .fr:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+.adm .rail .fr:focus-visible{outline-offset:1px}
+.adm .bar .fr:focus-visible{outline-offset:-5px;border-radius:16px}
+
+/* The desktop grid: the rail and its light share column 1; the width moves when the rail folds. */
+.adm.d .dk{transition:grid-template-columns .26s cubic-bezier(.3,.7,.2,1)}
+.adm.d .dk.ic{grid-template-columns:76px minmax(0,1fr)}
+.adm.d .rail,.adm.d .rspot{grid-column:1;grid-row:2}
+.adm.d .ws{grid-column:2;grid-row:2}
+
+/* The rail scrolls inside itself when the screen is short (thin bar, edges fade where there is more). */
+.adm .rail{position:relative;z-index:5;overflow:hidden auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--pline) transparent}
+.adm .rail[data-fade]{--ft:0px;--fb:0px;-webkit-mask-image:linear-gradient(#0000,#000 var(--ft),#000 calc(100% - var(--fb)),#0000);mask-image:linear-gradient(#0000,#000 var(--ft),#000 calc(100% - var(--fb)),#0000)}
+.adm .rail[data-fade~=t]{--ft:28px}
+.adm .rail[data-fade~=b]{--fb:28px}
+
+/* Items: the label nudges 2 px on hover; icons sit at the same x folded or not (12 + 16 = 28 px). */
+.adm .rail .it{position:relative;isolation:isolate;flex:0 0 auto;padding:0 12px 0 16px;white-space:nowrap;transition:color .2s ease,background-color .2s ease}
+.adm .rail .it:hover{color:var(--ink)}
+.adm .rail .it>svg{flex:0 0 auto}
+.adm .rail .it[aria-current=page]{background:none;box-shadow:none;color:var(--ink)}
+.adm .rail :is(.lb,.nw,.x,.g,.who){transition:opacity .2s ease calc(var(--i,0) * 14ms),transform .26s cubic-bezier(.2,.8,.2,1) calc(var(--i,0) * 14ms)}
+.adm .rail .lb{min-width:0;overflow:hidden;text-overflow:ellipsis;transition:translate .18s cubic-bezier(.2,.8,.2,1),opacity .2s ease calc(var(--i,0) * 14ms),transform .26s cubic-bezier(.2,.8,.2,1) calc(var(--i,0) * 14ms)}
+.adm .rail .it:hover .lb{translate:2px 0}
+.adm .rail .nw{margin-left:auto;display:flex}
+.adm .rail .nw:empty{display:none}
+
+/* The floodlight under the current item (one element gliding between items): a soft sky pill, a thin LED
+   edge on the left and its faint glow. */
+.adm .rail .fl{position:absolute;inset:0;z-index:-1;border-radius:12px;pointer-events:none;background:radial-gradient(120% 160% at 0% 50%,color-mix(in srgb,var(--sky) 24%,transparent),transparent 62%),color-mix(in srgb,var(--sky) 9%,var(--chip));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sky) 16%,transparent)}
+.adm .rail .fl::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--sky);box-shadow:0 0 8px 1px color-mix(in srgb,var(--sky) 70%,transparent),0 0 18px 2px color-mix(in srgb,var(--sky) 28%,transparent)}
+
+/* The light that follows the pointer (its own clipped layer under the rail). */
+.adm .rspot{position:relative;z-index:4;overflow:hidden;pointer-events:none}
+.adm .rspot .spot{position:absolute;left:0;top:0;width:260px;height:260px;margin:-130px 0 0 -130px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--sky) 14%,transparent),transparent);opacity:0;transition:opacity .4s ease;will-change:transform}
+.adm .rail:hover+.rspot .spot{opacity:1}
+.adm .dk.ic .rspot .spot{width:150px;height:150px;margin:-75px 0 0 -75px}
+
+/* The foot: «Plegar menú» ([) and the captain (a button: his menu). */
+.adm .rail .foot{margin-top:auto;display:flex;flex-direction:column;gap:4px;padding-top:10px;border-top:1px solid var(--pline)}
+.adm .rail .fold{height:38px;color:var(--muted);font-size:14px}
+.adm .rail .fold kbd{min-width:20px;height:20px;padding:0 5px;border-radius:6px;display:grid;place-items:center;font-family:'Geist Mono';font-size:11px;color:var(--muted);box-shadow:inset 0 0 0 1px var(--pline)}
+.adm .rail .me{margin:0;border:0;display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:12px;text-align:left;transition:background-color .2s ease}
+.adm .rail .me:hover,.adm .rail .me[aria-expanded=true]{background:var(--panel)}
+.adm .rail .me .who{min-width:0;display:flex;flex-direction:column}
+.adm .rail .me .who b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adm .rail .me small{display:block;color:var(--muted);font-size:13px}
+/* The armband «C» on the avatar (gold = capitán general). */
+.adm .av{position:relative}
+.adm .av .cc{position:absolute;right:-6px;bottom:-4px;min-width:16px;height:16px;padding:0 3px;border-radius:4px;background:var(--sky);color:#0c1733;font-family:'Anybody';font-style:normal;font-weight:900;font-size:10px;line-height:1;display:grid;place-items:center;transform:rotate(-8deg);box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.adm .av .cc.gen{background:var(--gold);color:#3a2600}
+[data-theme="light"] .vx.adm .av .cc.gen{color:#fff}
+
+/* Folding, in two beats (Rail.tsx data-rail): labels out, then the width; the width, then the labels (staggered). */
+.adm .dk:is([data-rail=fold],[data-rail=unfold]) .rail :is(.lb,.nw,.x,.g,.who){opacity:0;transform:translateX(-8px)}
+.adm .dk[data-rail=fold] .rail :is(.lb,.nw,.x,.g,.who){transition:opacity .12s ease calc(var(--i,0) * 8ms),transform .14s ease calc(var(--i,0) * 8ms)}
+
+/* Icon-only (below 1200 px, or folded): names as tooltips, counters as badges on the icon. */
+.adm.d .dk.ic .rail .it{justify-content:center;padding:0;gap:0}
+.adm.d .dk.ic .rail :is(.lb,.who){position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.adm.d .dk.ic .rail .x,.adm.d .dk.ic .rail .fold .nw{display:none}
+.adm.d .dk.ic .rail .nw{position:absolute;top:0;right:0;margin:0}
+.adm.d .dk.ic .rail .nw .n{min-width:20px;height:20px;padding:0 5px}
+.adm.d .dk.ic .rail .fold svg{transform:scaleX(-1)}
+.adm.d .dk.ic .rail .g{height:1px;margin:10px 8px;overflow:hidden;background:var(--pline);color:transparent;white-space:nowrap}
+.adm.d .dk.ic .rail .me{justify-content:center;padding:6px 0}
+
+/* Short screens: denser rail (40 px items, tighter gaps, a compact captain). */
+@media (max-height:719px){
+  .adm.d .rail{padding-top:10px;padding-bottom:10px;gap:0}
+  .adm.d .rail .it{height:40px}
+  .adm.d .rail .g{margin:8px 12px 4px}
+  .adm.d .dk.ic .rail .g{margin:6px 8px}
+  .adm.d .rail .foot{padding-top:6px;gap:2px}
+  .adm.d .rail .fold{height:34px}
+  .adm.d .rail .me{padding:5px 10px}
+  .adm.d .dk.ic .rail .me{padding:4px 0}
+  .adm.d .rail .me .av{width:30px;height:30px;font-size:12px}
+  .adm.d .rail .me small{font-size:12px}
+}
+
+/* When the frame is short for a view (a laptop at 1366 × 620, a browser with bars, the narrower 1000–1199
+   columns) the workspace scrolls instead of cutting its panels: the hero, the siete and the vitrina keep
+   their natural height (the lists beside them still scroll inside); master–detail views already scroll in
+   their own panels and keep their footers in view; the page itself never scrolls. */
+.adm.d .ws{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--pline) transparent}
+.adm.d .ws>*{flex-shrink:0}
+.adm.d .ws>:is(.hoy,.cvv,.tg),.adm.d .ws>:is(.hoy,.cvv,.tg)>:is(.dug,.hB,.sv,.cab){min-height:min-content}
+.adm.d .ws>:is(.hoy,.cvv,.tg)>.scr{contain:size}
+
+/* The first entrance of the session: rows stagger in 40 ms apart, the floodlight lands last. */
+.adm .rail.in>:is(.it,.g,.foot){animation:ad-rIn .52s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0) * 40ms)}
+.adm .rail.in .fl{animation:ad-flLand .6s cubic-bezier(.3,1.25,.5,1) both;animation-delay:calc(var(--n,10) * 40ms + 80ms)}
+@keyframes ad-rIn{from{opacity:0;transform:translateX(-12px)}}
+@keyframes ad-flLand{from{opacity:0;scale:.86 .6}}
+
+/* The icon rail's tooltip: name · counter in words · its shortcut. */
+.adm .rtip{position:fixed;z-index:60;translate:0 -50%;display:flex;align-items:center;gap:8px;padding:7px 8px 7px 12px;border-radius:10px;background:var(--pop);color:var(--ink);font-size:14px;white-space:nowrap;pointer-events:none;box-shadow:0 12px 28px rgba(0,0,0,.42),inset 0 0 0 1px var(--pline)}
+.adm .rtip::before{content:"";position:absolute;left:-4px;top:50%;width:8px;height:8px;margin-top:-4px;background:var(--pop);transform:rotate(45deg);box-shadow:-1px 1px 0 var(--pline)}
+.adm .rtip b{font-weight:600}
+.adm .rtip small{color:var(--muted);font-size:13px;font-weight:600}
+.adm .rtip small.w{color:var(--amber)}
+.adm .rtip kbd{padding:2px 6px;border-radius:6px;font-family:'Geist Mono';font-size:11px;color:var(--muted);box-shadow:inset 0 0 0 1px var(--pline)}
+
+/* The captain's menu (springs up above him). */
+.adm .cmenu{position:fixed;z-index:46;min-width:240px;padding:6px;border-radius:16px;background:var(--pop);box-shadow:0 24px 50px -14px rgba(0,0,0,.65),inset 0 0 0 1px var(--pline);display:flex;flex-direction:column;gap:2px;transform-origin:24px 100%}
+.adm .cmenu .cmh{display:flex;flex-direction:column;padding:8px 12px 6px}
+.adm .cmenu .cmh small{color:var(--muted);font-size:13px}
+.adm .cmenu [role=menuitem]{display:flex;align-items:center;gap:12px;width:100%;min-height:42px;padding:0 12px;border-radius:10px;font-size:15px;font-weight:600;color:var(--ink);text-align:left;text-decoration:none;transition:background-color .15s ease}
+.adm .cmenu [role=menuitem]:hover{background:var(--chip)}
+.adm .cmenu [role=menuitem]>svg,.adm .cmenu .thm{color:var(--accent)}
+.adm .cmenu .x2{margin-left:auto;color:var(--muted)}
+.adm .cmenu .sep{height:1px;margin:4px 8px;background:var(--pline)}
+
+/* ⌘K: a section's shortcut as a key cap; the hint in the footer only where there is a keyboard; never
+   taller than a short frame. */
+.adm .pal .op .ks{margin-left:auto;flex:0 0 auto;padding:2px 6px;border-radius:6px;font-family:'Geist Mono';font-size:11px;color:var(--muted);box-shadow:inset 0 0 0 1px var(--pline)}
+.adm .pal .op small+.ks{margin-left:10px}
+.adm .pal .ft{flex-wrap:wrap;row-gap:4px}
+.adm.m .pal .ft .gk{display:none}
+.adm.d .pal{max-height:min(620px,calc(100% - 120px))}
+
+/* The theme's sun ↔ moon: they swap with a turn. */
+.adm .thm{display:inline-grid;place-items:center;flex:0 0 auto}
+.adm .thm>span{grid-area:1/1;display:grid;transition:transform .5s cubic-bezier(.3,1.35,.5,1),opacity .22s ease}
+.adm .thm.is-dark .moon{opacity:0;transform:rotate(90deg) scale(.4)}
+.adm .thm.is-light .sun{opacity:0;transform:rotate(-90deg) scale(.4)}
+
+/* Counters: the odometer (digits roll), the pop and one soft ring when they go up. */
+.adm .odo{display:inline-flex;align-items:center;justify-content:center}
+.adm .n.odo{position:relative}
+.adm .odo .dg{position:relative;display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden}
+.adm .odo .dg>span{display:block}
+.adm .odo .ring{position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 0 2px var(--amber);opacity:0;pointer-events:none;animation:ad-ctrRing .7s cubic-bezier(.2,.7,.3,1)}
+.adm .odo.popA{animation:ad-ctrPopA .42s cubic-bezier(.3,1.6,.5,1)}
+.adm .odo.popB{animation:ad-ctrPopB .42s cubic-bezier(.3,1.6,.5,1)}
+@keyframes ad-ctrPopA{40%{scale:1.3}}
+@keyframes ad-ctrPopB{40%{scale:1.3}}
+@keyframes ad-ctrRing{from{opacity:.75;transform:scale(1)}to{opacity:0;transform:scale(1.9)}}
+
+/* The phone bar: the floodlight behind the current tab, tabs press in, the current icon lifts. */
+.adm .bar>a,.adm .bar>button{isolation:isolate;transition:transform .16s cubic-bezier(.3,.7,.4,1),color .2s ease;-webkit-tap-highlight-color:transparent}
+.adm .bar>a:active,.adm .bar>button:active{transform:scale(.92)}
+.adm .bar>*>svg{transition:transform .32s cubic-bezier(.3,1.5,.5,1)}
+.adm .bar>[aria-current=page]>svg{transform:translateY(-2px)}
+.adm .bar>[aria-current=page]::before{content:none}
+.adm .bar .fl{position:absolute;z-index:-1;top:0;left:14%;right:14%;height:48px;border-radius:0 0 18px 18px;background:linear-gradient(180deg,color-mix(in srgb,var(--sky) 22%,transparent),transparent);pointer-events:none}
+.adm .bar .fl::before{content:"";position:absolute;top:0;left:20%;right:20%;height:3px;border-radius:0 0 3px 3px;background:var(--sky);box-shadow:0 0 10px 1px color-mix(in srgb,var(--sky) 65%,transparent)}
+
+/* «Más»: springs up (Motion), drags down from its grab bar; the captain's row opens his own two rows. */
+.adm .sheet.mas,.adm .scrim.mscrim{animation:none}
+.adm .sheet .mgrab{display:flex;justify-content:center;align-items:center;flex:0 0 auto;height:28px;margin:-8px -16px -8px;touch-action:none;cursor:grab}
+.adm .sheet .mgrab:active{cursor:grabbing}
+.adm button.mcap{width:100%;text-align:left;transition:background-color .2s ease}
+.adm .mcap .who{min-width:0;display:flex;flex-direction:column}
+.adm .mcap .chev{margin-left:auto;display:grid;color:var(--muted);transition:transform .28s cubic-bezier(.3,1.3,.5,1)}
+.adm .mcap[aria-expanded=true] .chev{transform:rotate(180deg)}
+.adm .msl.mine{padding-left:12px}
+.adm .msl>li>:is(a,button){transition:background-color .15s ease,transform .12s ease}
+.adm .msl>li>:is(a,button):active{transform:scale(.98);background:var(--panel)}
+
+/* The section icons' micro-animations (≤ 400 ms): on hover / keyboard focus, and when the item becomes
+   current. Hoy rises, Partidos flips a page, Convocar's shirt sways, Plantilla's people nudge, Fichas drops
+   a card, Temporadas' flag waves, a shine crosses Capitanes' shield, Contenido's lines draw, La puerta
+   opens a crack. */
+.adm .nvi .a1,.adm .nvi .a2{transform-box:fill-box;transform-origin:50% 50%}
+.adm .nvi.cal .a1{opacity:0;transform-origin:50% 0}
+.adm .nvi.shirt .a1{transform-origin:50% 0}
+.adm .nvi.inbox .a2,.adm .nvi.shield .a1{opacity:0}
+.adm .nvi.flag .a1,.adm .nvi.door .a1{transform-origin:0 50%}
+.adm .nvi.doc .a1,.adm .nvi.doc .a2{stroke-dasharray:1}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.home .a1{animation:ad-iRise .4s cubic-bezier(.3,1.4,.5,1)}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.home .a2{animation:ad-iRoof .4s cubic-bezier(.3,1.4,.5,1)}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.cal .a1{animation:ad-iFlip .38s cubic-bezier(.5,0,.7,.4)}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.shirt .a1{animation:ad-iSway .4s ease-in-out}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.team .a1{animation:ad-iNudgeL .36s ease}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.team .a2{animation:ad-iNudgeR .34s ease .05s}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.inbox .a2{animation:ad-iDrop .4s cubic-bezier(.5,0,.6,1)}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.inbox .a1{animation:ad-iBump .4s ease}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.flag .a1{animation:ad-iWave .4s ease-in-out}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.shield .a1{animation:ad-iShine .4s ease-out}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.doc .a1{animation:ad-iDraw .3s ease-out both}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.doc .a2{animation:ad-iDraw .3s ease-out .08s both}
+.adm :is(a:hover,a:focus-visible,button:hover,button:focus-visible,[aria-current=page]) .nvi.door .a1{animation:ad-iDoor .4s cubic-bezier(.3,1.2,.5,1)}
+@keyframes ad-iRise{40%{transform:translateY(-3px)}70%{transform:translateY(.5px)}}
+@keyframes ad-iRoof{40%{transform:translateY(-1.5px)}}
+@keyframes ad-iFlip{0%{opacity:1;transform:scaleY(1)}60%{opacity:.85;transform:scaleY(-.25)}100%{opacity:0;transform:scaleY(-.25)}}
+@keyframes ad-iSway{20%{transform:rotate(-10deg)}48%{transform:rotate(7deg)}74%{transform:rotate(-3deg)}}
+@keyframes ad-iNudgeL{45%{transform:translateX(-1.5px)}}
+@keyframes ad-iNudgeR{45%{transform:translateX(1.8px)}}
+@keyframes ad-iDrop{0%{opacity:0;transform:translateY(-7px)}30%{opacity:1}75%{opacity:1;transform:translateY(3px)}100%{opacity:0;transform:translateY(4px)}}
+@keyframes ad-iBump{0%,60%{transform:none}78%{transform:translateY(1px)}}
+@keyframes ad-iWave{25%{transform:skewY(-8deg) scaleX(.9)}55%{transform:skewY(5deg) scaleX(.97)}80%{transform:skewY(-2deg)}}
+@keyframes ad-iShine{0%{opacity:0;transform:translateX(-12px)}25%{opacity:.6}100%{opacity:0;transform:translateX(13px)}}
+@keyframes ad-iDraw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes ad-iDoor{45%{transform:scaleX(.8) skewY(-5deg)}}

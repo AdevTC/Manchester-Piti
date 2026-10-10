@@ -12,6 +12,8 @@ export interface PaletteCommand {
   description?: string;
   /** The right-hand word: «acción», «ir», «abrir», «editar». */
   hint?: string;
+  /** Its keyboard shortcut, shown as a key cap («G H» for a section). */
+  keys?: string;
   /** Extra words that should find it (not shown). */
   keywords?: string;
   /** Tokens that find it only when typed exactly (a dorsal: "9" must not match "19"). */
