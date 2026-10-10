@@ -7,6 +7,7 @@
 // «Ver su página ↗». Footer: Dar de baja (modal) · Cerrar · Guardar / Dar de alta (disabled without changes
 // or with an error). «● Cambios sin guardar» and the unsaved-changes guard on every way out.
 import { useId, useMemo, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import type { Cromo } from "../../pizarra/v2/model";
 import { CromoCard, CromoNew } from "../kit";
@@ -26,6 +27,7 @@ import {
   type LiveCheck,
   type PlayerForm,
 } from "./plantillaLogic";
+import { ACCOUNT_LABEL, GAPS, gapsText, type Account, type GapKey } from "./plantillaBoard";
 
 export interface PlayerDrawerProps {
   /** The player to edit; null = «Alta de jugador». */
@@ -43,6 +45,18 @@ export interface PlayerDrawerProps {
   onClose: () => void;
   onSave: (form: PlayerForm) => void;
   onBaja: () => void;
+  /** The photo of his real kit (shown while the shirt name and dorsal are the saved ones). */
+  still?: string;
+  /** The kit's `view-transition-name` (it flies in from his row). */
+  vt?: string;
+  /** What his ficha lacks (the slots under the cromo). */
+  gaps?: readonly GapKey[];
+  /** His account in the vestuario and who has it / asks for it. */
+  account?: { state: Account; who: string };
+  /** His story on the web (bio / quote) is written. */
+  story?: boolean;
+  /** «Alta» starting on a free dorsal (`?dorsal=`). */
+  initialNumber?: number | null;
 }
 
 const digits = (v: string, max: number) => v.replace(/\D/g, "").slice(0, max);
@@ -63,10 +77,10 @@ function Line({ check, id }: { check: LiveCheck | null; id: string }) {
   );
 }
 
-export function PlayerDrawer({ player, players, seasons, activeSeason, cromo, games, inline, onClose, onSave, onBaja }: PlayerDrawerProps) {
+export function PlayerDrawer({ player, players, seasons, activeSeason, cromo, games, inline, onClose, onSave, onBaja, still, vt, gaps, account, story, initialNumber }: PlayerDrawerProps) {
   const isNew = !player;
   const activeId = activeSeason?.id;
-  const [start] = useState<PlayerForm>(() => (player ? formFromPlayer(player) : emptyForm(activeId && !activeSeason?.archived ? [activeId] : [])));
+  const [start] = useState<PlayerForm>(() => (player ? formFromPlayer(player) : { ...emptyForm(activeId && !activeSeason?.archived ? [activeId] : []), number: initialNumber ? String(initialNumber) : "" }));
   const [form, setForm] = useState<PlayerForm>(start);
   const [more, setMore] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -106,10 +120,28 @@ export function PlayerDrawer({ player, players, seasons, activeSeason, cromo, ga
   const dorsalLabel = activeSeason && !(own && (own.shirtName || own.number)) ? `Dorsal en la ${activeSeason.name}` : "Dorsal por defecto";
   const selectedSeasons = seasons.filter((s) => form.seasons.includes(s.id));
 
+  // The photo of his kit shows what is saved: while the name or the dorsal are being retyped, the drawn
+  // shirt is stamped live instead.
+  const asSaved = form.shirtName.trim() === shownName.toLocaleUpperCase("es") && form.number.trim() === String(shownNum ?? "");
   const top = isNew ? (
     <CromoNew name={form.shirtName} num={form.number} />
   ) : (
-    <CromoCard cromo={cromo} name={form.shirtName.trim() || shownName} num={form.number.trim() || shownNum} pos={form.position || "—"} games={games} />
+    <>
+      <CromoCard cromo={cromo} name={form.shirtName.trim() || shownName} num={form.number.trim() || shownNum} pos={form.position || "—"} games={games} still={asSaved ? still : undefined} vt={vt} />
+      {gaps ? (
+        <div className="fslots" role="group" aria-label={gapsText(gaps)}>
+          {GAPS.map((g) => (
+            <span key={g.key} className={gaps.includes(g.key) ? "sl no" : "sl"} aria-hidden="true">
+              <i />
+              {g.short}
+            </span>
+          ))}
+          <span className="tx" aria-hidden="true">
+            {gaps.length ? `Faltan ${gaps.length}` : "Completa"}
+          </span>
+        </div>
+      ) : null}
+    </>
   );
 
   return (
@@ -309,10 +341,37 @@ export function PlayerDrawer({ player, players, seasons, activeSeason, cromo, ga
           </>
         ) : null}
         {player ? (
-          <a className="lnk" href={`/jugadores/${encodeURIComponent(player.id)}`} target="_blank" rel="noopener noreferrer">
-            Ver su página
-            <AdIcon name="ext" size={14} />
-          </a>
+          <section className="fweb" aria-label="Cuenta y web">
+            <span className="lb">Cuenta y web</span>
+            {account ? (
+              <p className={`acc ${account.state}`}>
+                <AdIcon name={account.state === "vinculada" ? "link" : account.state === "pide" ? "inbox" : "lock"} size={16} />
+                <span>
+                  <b>{ACCOUNT_LABEL[account.state]}</b>
+                  {account.state === "vinculada" ? ` · ${account.who || "un socio"} entra al vestuario con su ficha` : account.state === "pide" ? ` · ${account.who || "un socio"} la ha pedido` : " · nadie entra al vestuario con su ficha"}
+                </span>
+                {account.state === "pide" ? (
+                  <Link className="lnk" to="/admin/fichas">
+                    Revisar en Fichas
+                  </Link>
+                ) : null}
+              </p>
+            ) : null}
+            <p className="acc">
+              <AdIcon name="doc" size={16} />
+              <span>
+                <b>{story ? "Su historia está escrita" : "Sin historia"}</b>
+                {" · la que sale en su perfil"}
+              </span>
+              <Link className="lnk" to="/admin/contenido" search={{ seccion: "historias" }}>
+                {story ? "Editarla" : "Escribirla"}
+              </Link>
+            </p>
+            <a className="lnk" href={`/jugadores/${encodeURIComponent(player.id)}`} target="_blank" rel="noopener noreferrer">
+              Ver su página
+              <AdIcon name="ext" size={14} />
+            </a>
+          </section>
         ) : null}
       </Drawer>
       <ConfirmModal
