@@ -1,58 +1,171 @@
-/* App-only additions to admin.css (generated from the canvas): the real frame around the design — the
-   100dvh frame inside the site's layout, the generic bottom sheet the layers share, the popover's flip,
-   error toasts, skeletons, the footer error line, the temporary legacy bodies (P0) and a keyframe the
-   canvas declared inside a container query. */
+/* App-only additions to admin.css (generated from the v2 canvas): the real frame around the design — the
+   100dvh frame inside the site's layout (the demo banner's 30 px), the phone workspace, the layers' extra
+   bits the canvas drew inline (the drawer as an overlay, the sheet title row, the modal's error line), the
+   lower third's error tone and the temporary legacy wrapper. */
 
-/* The frame IS the viewport: the page never scrolls (each list scrolls inside its panel). */
-.vx.adm{height:100dvh;isolation:isolate}
+/* The frame IS the viewport: the page never scrolls (each list scrolls inside its panel). `mp` names it
+   for the container queries of the legacy views. */
+.vx.adm{height:100dvh;isolation:isolate;container-name:mp}
 .club-main:has(> .vx.adm){min-height:0}
 .club-app:has(> .club-demo-banner) .vx.adm{height:calc(100dvh - 30px)}
 
-/* (.adm-layers / .adm-toasts are static, box-less wrappers: their children position against the frame.) */
+/* Phones: the routed view between the header and the bar (a view brings its own `.msc` scroller). */
+.adm .mws{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
 
-/* Bottom sheet (Sheet): phones' menus and pickers; `.mas` / `.pks` refine it. */
-.adm .sht{left:0;right:0;bottom:0;max-height:88%;border-radius:26px 26px 0 0;animation:ad-sheetUp .5s var(--spring) both}
-.adm .pks.sht{max-height:78%}
-.adm .ad-pk-sheet{background:none;box-shadow:none;border-radius:0;animation:none}
-.adm .ad-pk-step{color:var(--accent)}
+/* The phone bar's sections are links (the canvas drew buttons): same look. */
+.adm .bar a{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:600;color:var(--muted);text-decoration:none}
+.adm .bar a[aria-current=page]{color:var(--ink)}
+.adm .bar a[aria-current=page]::before{content:"";position:absolute;top:0;left:28%;right:28%;height:3px;border-radius:0 0 3px 3px;background:var(--sky)}
 
-/* The modal's entrance once it is centred (≥ 600): the canvas re-declared the keyframes inside the
-   container query; a separate name works in every engine. */
-@keyframes ad-mdlInC{from{opacity:0;transform:translate(-50%,-46%) scale(.94)}to{opacity:1;transform:translate(-50%,-50%)}}
-@container mp (min-width:600px){.adm .mdl{animation-name:ad-mdlInC}}
+/* (.adm-layers is a static, box-less wrapper: its children position against the frame.) */
 
-/* Popover: the arrow follows the anchor, and flips when the popover opens upwards. */
-.adm .pop::before{left:var(--ad-arrow,26px)}
-.adm .pop.up::before{top:auto;bottom:-8px;box-shadow:1.5px 1.5px 0 0 var(--accent)}
-.adm .pop.up{animation-name:ad-popInUp}
-@keyframes ad-popInUp{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+/* Modal: never taller than the frame; a lead line and an error line above the buttons. */
+.adm .md{max-height:calc(100% - 32px);overflow:auto}
+.adm .md .lede{color:var(--soft);font-size:15px}
+.adm .md .ferr,.adm .drw .ferr{display:flex;align-items:center;gap:8px;margin:0;color:var(--red);font-size:14px;font-weight:600}
+.adm .btn[aria-disabled=true]{opacity:.55;cursor:not-allowed}
+.adm .btn.gold[aria-disabled=true]{opacity:1;background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1.5px var(--pline)}
 
-/* Toasts sit above every layer; errors are red and say so with their icon. */
-.adm .tst{z-index:60}
-.adm .tst.err{background:var(--red);color:#fff}
-.adm .tst.err svg,.adm .tst.err button{color:#fff}
-[data-theme="light"] .adm .tst.err{background:#b3261e}
-.adm .tst .ad-tst-x{display:inline-grid;place-items:center;width:40px;min-height:40px;padding:0;box-shadow:none;opacity:.8}
+/* Drawer as a layer: on the right on desktop, a sheet from the bottom on phones (the canvas drew it inline). */
+.adm .drw.ovl{position:absolute;top:72px;right:16px;bottom:16px;width:420px;z-index:41}
+.adm.m .drw.ovl{top:56px;left:0;right:0;bottom:0;width:auto;border-radius:22px 22px 0 0}
+.adm .drw .svd{font-size:13px;color:var(--muted)}
+.adm .drw .svd.warn{color:var(--amber)}
+.adm .drw .svd.ok{color:var(--accent)}
 
-/* A save/confirm error at the head of a layer's footer. */
-.adm .ov-f .ad-ferr{flex:1 1 100%;margin:0}
+/* Sheet: its title row (the canvas' `.hh`) and a footer. */
+.adm .sheet .ft{display:flex;gap:10px;flex-wrap:wrap}
+.adm .sheet .ft .btn{flex:1}
 
-/* Skeleton rows while a list loads. */
-.adm .ad-skel{display:grid;gap:8px;padding:4px 0}
-.adm .ad-skel-row{display:block;height:56px;border-radius:14px;background:linear-gradient(90deg,var(--row) 0%,var(--row-hi) 50%,var(--row) 100%);background-size:200% 100%;animation:ad-skel 1.4s linear infinite}
+/* Shirt stickers: a red card (the canvas drew the ball and the yellow). */
+.adm .stk i.r{border-radius:3px;width:14px;height:20px;background:#ff5a4f}
+
+/* Lower thirds: errors in red (their tag says «!»). */
+.adm .lt.err .k{background:var(--red);color:#fff}
+.adm .lt.err .t{box-shadow:inset 0 -3px 0 var(--red)}
+.adm .lt .x{display:inline-grid;place-items:center;width:36px;min-height:36px;color:#9fb3d3}
+
+/* Load states inside a view. */
+.adm .skel{display:grid;gap:10px}
+.adm .skel i{display:block;height:64px;border-radius:16px;background:linear-gradient(90deg,var(--panel) 0%,var(--panel2) 50%,var(--panel) 100%);background-size:200% 100%;animation:ad-skel 1.4s linear infinite}
 @keyframes ad-skel{from{background-position:100% 0}to{background-position:-100% 0}}
 
-/* Load error (Inicio): the dashed empty state, in red, with «Reintentar». */
-.adm .empty.ad-err svg{color:var(--red)}
-.adm .empty .btn{margin-top:6px}
+/* Club (V2): the vitrina's captain is a button (change it); the content editor's momento rows open the
+   momento, its sub-heading, and the player picker of «Historias» (✓ = written, the ring = the one open). */
+.adm .capb{display:block;border-radius:12px;padding:4px 6px;margin-right:-6px}
+.adm .capb b{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.adm .capb:hover b{color:var(--accent)}
+.adm .hl .hlb{display:block;min-height:44px;min-width:0;text-align:left;font-size:15px;overflow-wrap:anywhere;border-radius:8px}
+.adm .hl .hlb:hover{color:var(--accent)}
+.adm .ce .ceh{font-size:15px;font-weight:700;margin:8px 0 0}
+.adm .ce .fx2>.warn{font-size:14px}
+.adm .tgl button.ok{background:var(--chip);color:var(--ink)}
+.adm .tgl button[aria-current=true]{box-shadow:inset 0 0 0 2px var(--sky);color:var(--ink)}
 
-/* Inicio: the «no match» lines show on phones too (the card's .hint is desktop-only). */
-.adm .jm2 .hint.ad-show{display:block}
+/* TEMPORARY (V0): a v1 view inside the v2 workspace (LegacyScope). Delete with the last legacy view. */
+.adm .ws > .v1,.adm .mws > .v1{flex:1;min-height:0;display:flex;flex-direction:column}
+.adm .ws > .v1 > *,.adm .mws > .v1 > *{flex:1;min-height:0}
+.adm .mws > .v1{overflow:auto;padding:4px 12px 12px}
 
-/* TEMPORARY (P0): views that still embed their old component. */
-.adm .ad-legacy{display:grid;gap:14px;align-content:start;padding-bottom:24px}
-.adm .ad-legacy-note{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--chip-gold);color:var(--gold-ink);font-size:13px;line-height:1.4}
-.adm .ad-legacy-note svg{flex:none;margin-top:2px}
-.adm .ad-legacy .club-page{padding-top:0}
+@media (prefers-reduced-motion:reduce){.vx.adm .skel i{animation:none}}
 
-@media (prefers-reduced-motion:reduce){.vx.adm .ad-skel-row{animation:none}}
+/* ═══ Between the phone and the 1440 canvas (1000–1439 px) ═══
+   The canvas was drawn at 1440 and at phone widths; in between the composition adapts (the look stays):
+   the header never wraps the brand, pegs and their shirts shrink to their rail, the LED sizes its type to
+   its own width, panels hand their side columns over below a width, and below 1200 px the rail keeps only
+   its icons (labels as tooltips, counters as badges). Container `mp` = the admin frame. */
+
+/* Header: the brand and the section never wrap; the search gives way first. */
+.adm .hd .br{flex:0 0 auto;white-space:nowrap}
+.adm .hd .sec{flex:0 0 auto;white-space:nowrap}
+.adm .hd .q{width:auto;flex:0 4 320px;min-width:180px}
+.adm .hd .q span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+/* Title rows: the actions wrap under the title instead of squeezing it. */
+.adm .vh{flex-wrap:wrap;row-gap:12px}
+.adm .vh .r{flex-wrap:wrap;justify-content:flex-end}
+
+/* Pegs shrink to their rail; the shirt follows (never wider than its peg) and its print scales with it. */
+.adm .peg{min-width:0}
+.adm .peg .sh{width:min(var(--w,64px),100%);height:auto;aspect-ratio:1;container-type:inline-size}
+.adm .peg .sh b{font-size:36cqi}
+.adm .peg .sh i{font-size:12cqi}
+
+/* The LED board sizes its type to its own width; the score never wraps. */
+.adm .sb{container-type:inline-size}
+.adm .sb .pn{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:clamp(10px,2.6cqi,20px);padding:clamp(18px,3.9cqi,30px) clamp(14px,3.4cqi,26px)}
+.adm .sb .big{font-size:clamp(64px,21cqi,132px);white-space:nowrap}
+.adm .sb .mid .big[style]{font-size:clamp(44px,13cqi,100px)!important}
+.adm .sb .sub{white-space:nowrap}
+.adm .sb .tm{min-width:0;max-width:100%;font-size:clamp(15px,3.2cqi,24px);white-space:normal;text-align:center;overflow-wrap:anywhere;line-height:1.1}
+.adm .sb .tm img,.adm .sb .tm .rc{width:clamp(40px,7.8cqi,60px);height:clamp(40px,7.8cqi,60px)}
+.adm .pubv .sb .big{font-size:clamp(56px,16cqi,96px)}
+
+/* Partidos: the list narrows with the workspace (350 on the canvas); its filter tightens with it. */
+.adm .pt{grid-template-columns:clamp(304px,31%,350px) minmax(0,1fr)}
+.adm .ml{container:ad-ml/inline-size}
+@container ad-ml (max-width:330px){.adm .ml .seg2 button{padding:0 6px}}
+/* The match header: the tabs drop under a long title; the footer's buttons under its status. */
+.adm .dh{flex-wrap:wrap;row-gap:8px}
+.adm .dh .tt{flex:1 1 auto}
+.adm .dh .tt b{flex-wrap:wrap;row-gap:0;white-space:normal}
+.adm .df{flex-wrap:wrap;justify-content:flex-end;row-gap:8px}
+.adm .df .st{flex:1 1 200px}
+.adm .ah{flex-wrap:wrap;row-gap:6px}
+/* The workspace body: the acta's «La cuenta» / «¿Cuadra?» column goes under the goals below a width. */
+.adm .db{container:ad-db/inline-size}
+.adm .fgs{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+@container ad-db (max-width:619px){
+  .adm .acta{grid-template-columns:minmax(0,1fr)}
+  .adm .cuenta{position:static;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));align-items:start}
+  .adm .pubg{grid-template-columns:minmax(0,1fr)}
+}
+
+/* Temporadas: the vitrina's title takes its row (actions under it) and the tiles go 2 × 2 when narrow. */
+.adm .cab{container:ad-cab/inline-size}
+.adm .arch .top{flex-wrap:wrap;row-gap:6px}
+.adm .arch .rr{flex-wrap:wrap;gap:2px 16px}
+@container ad-cab (max-width:599px){
+  .adm .cab .top{flex-direction:column;align-items:flex-start;gap:12px}
+  .adm .cab .top .r{margin-left:0;flex-wrap:wrap}
+}
+@container ad-cab (max-width:579px){.adm .rec{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Capitanes: lockers wide enough for a nick and an e-mail on one line each. */
+.adm .capA{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+
+/* Convocar: the readers' tiles keep a readable width. */
+.adm .rdrs{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+
+/* Contenido: the cover's title fits its card; the index puts each destination under its title when narrow. */
+.adm .cover{container-type:inline-size}
+.adm .cover h2{font-size:clamp(26px,14cqi,40px)}
+.adm .idx{container:ad-idx/inline-size}
+@container ad-idx (max-width:639px){
+  .adm .ir{grid-template-columns:50px minmax(0,1fr)}
+  .adm .ir>:nth-child(3){grid-column:2;flex-flow:row wrap!important;align-items:center!important;gap:4px 8px!important}
+  .adm .ir .pg2{white-space:normal}
+}
+
+/* The publish peak's cartel: a long rival name ellipsizes inside the card. */
+.adm .cartel span{max-width:calc(100% - 6px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Below 1200 px: the rail keeps its icons; the side columns give back a little. */
+@container mp (max-width:1199px){
+  .adm.d .dk{grid-template-columns:76px minmax(0,1fr)}
+  .adm.d .rail{position:relative;z-index:5;padding:14px 12px;align-items:stretch}
+  .adm.d .rail .it{position:relative;justify-content:center;padding:0;gap:0}
+  .adm.d .rail .it>span:not(.n):not(.x),.adm.d .rail .me>span:not(.av),.adm.d .rail .me>span:not(.av)>*{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .adm.d .rail .it .x{display:none}
+  .adm.d .rail .it .n{position:absolute;top:0;right:0;margin:0;min-width:20px;height:20px;padding:0 5px}
+  .adm.d .rail .g{height:1px;margin:10px 8px;overflow:hidden;background:var(--pline);color:transparent;white-space:nowrap}
+  .adm.d .rail .me{justify-content:center;padding:12px 0 0}
+  /* The label as a tooltip on hover / keyboard focus. */
+  .adm.d .rail .it:hover>span:not(.n):not(.x),.adm.d .rail .it:focus-visible>span:not(.n):not(.x){left:calc(100% + 10px);top:50%;width:auto;height:auto;overflow:visible;clip:auto;transform:translateY(-50%);padding:6px 10px;border-radius:8px;background:var(--pop);color:var(--ink);font-size:14px;box-shadow:0 10px 24px rgba(0,0,0,.4),inset 0 0 0 1px var(--pline);z-index:50;pointer-events:none}
+  .adm.d .hoy{grid-template-columns:minmax(0,1fr) 320px}
+  .adm.d .cvv{grid-template-columns:360px minmax(0,1fr)}
+  .adm.d .tg{grid-template-columns:minmax(0,1fr) 300px}
+  .adm.d .cpg{grid-template-columns:minmax(0,1fr) 280px}
+  .adm.d .prg{grid-template-columns:240px minmax(0,1fr)}
+  .adm.d .prg.wd{grid-template-columns:minmax(0,1fr) 400px}
+}

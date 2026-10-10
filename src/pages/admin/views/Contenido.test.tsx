@@ -18,6 +18,7 @@ const clean: ClubContent = {
   ],
   gallery: [{ url: "https://firebasestorage.googleapis.com/j6.jpg", caption: "J6" }],
 };
+const withBadLink: ClubContent = { ...clean, gallery: [...clean.gallery, { url: "http://i.imgur.com/piti-banquillo.jpg", caption: "" }] };
 const h = vi.hoisted(() => ({
   content: null as ClubContent | null,
   writes: { publishContent: vi.fn((content: unknown, stories: unknown) => Promise.resolve(void [content, stories])) },
@@ -28,11 +29,14 @@ vi.mock("../../../lib/clubApi", () => ({ apiError: (e: unknown) => String(e) }))
 vi.mock("../club/useClubWrites", () => ({ useClubWrites: () => h.writes }));
 vi.mock("../club/clubLive", () => ({ useLiveClubContent: () => ({ content: h.content, loaded: true }) }));
 
-const row = (title: string) => screen.getByRole("button", { name: new RegExp(`^Editar ${title}`) });
-const bar = () => document.querySelector<HTMLElement>(".pubbar")!;
-const publishBtn = () => within(bar()).getByRole("button", { name: "Publicar contenido", hidden: true });
+const WIDTH = window.innerWidth;
+const KEY = "mp.admin.contentDrafts.v1:a1";
+const entry = (no: string) => screen.getByRole("button", { name: new RegExp(`^${no} `) });
+const bar = () => document.querySelector<HTMLElement>(".pbar")!;
+const publishBtn = () => within(bar()).getByRole("button", { name: "Publicar contenido" });
+const editor = (name: string) => screen.findByRole("dialog", { name });
 
-describe("Contenido del club", () => {
+describe("Contenido · el programa del club", () => {
   beforeEach(() => {
     localStorage.clear();
     resetContentDraftsForTests();
@@ -40,52 +44,71 @@ describe("Contenido del club", () => {
     h.content = clean;
     setAdminData(adminFixture());
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: WIDTH });
+  });
 
-  it("lists the sections with their state and what they hold", async () => {
-    h.content = { ...clean, gallery: [...clean.gallery, { url: "http://i.imgur.com/piti-banquillo.jpg", caption: "" }] };
+  it("is a cover and a numbered index 01–06 with where each shows, marking only the exceptions", async () => {
+    h.content = withBadLink;
     mountAdmin("/admin/contenido", { contenido: Contenido });
-    expect(await screen.findByRole("heading", { level: 1, name: "Contenido del club" })).toBeInTheDocument();
-    expect(row("Frase, localidad y campo")).toHaveAccessibleName("Editar Frase, localidad y campo · Publicado");
-    expect(row("Frase, localidad y campo")).toHaveTextContent("«El equipo más celeste de la liga» · Madrid · Polideportivo Norte");
-    expect(row("Historias de jugadores")).toHaveTextContent("8 de 12 · faltan KEVIN, FER, ANDIA y BRAWAN");
-    expect(row("Momentos del club")).toHaveTextContent("2 hitos · el último, «Primera victoria fuera»");
-    expect(row("Galería")).toHaveAccessibleName("Editar Galería · Revisar");
-    expect(row("Galería")).toHaveTextContent("2 fotos · 1 enlace no es HTTPS");
+    expect(await screen.findByRole("heading", { level: 1, name: "Contenido" })).toBeInTheDocument();
+    expect(document.querySelector(".cover")).toHaveTextContent("PROGRAMA DEL CLUB · T1");
+    expect(document.querySelector(".cover")).toHaveTextContent("Edición de noviembre");
+    const list = within(screen.getByRole("list", { name: "Programa del club" })).getAllByRole("button");
+    expect(list.map((b) => b.getAttribute("aria-label"))).toEqual([
+      "01 Frase, historia y campo",
+      "02 Contacto, redes y foto de equipo",
+      "03 Momentos del club",
+      "04 Historias de jugadores",
+      "05 Preguntas de vestuario",
+      "06 Galería y colaboradores · Revisar",
+    ]);
+    expect(entry("01")).toHaveAccessibleDescription(/^«El equipo más celeste de la liga» · Madrid · Polideportivo Norte · falta la historia del escudo$/);
+    expect(entry("01")).toHaveTextContent("→ El club · portada e historia");
+    expect(entry("03")).toHaveAccessibleDescription("2 hitos · el último, «Primera victoria fuera»");
+    expect(entry("04")).toHaveAccessibleDescription("8 de 12 perfiles con historia · faltan KEVIN, FER, ANDIA y BRAWAN");
+    expect(entry("06")).toHaveAccessibleDescription("2 fotos · 0 colaboradores · 1 enlace no es HTTPS");
+    expect(entry("06").querySelector(".tag.rd")).toHaveTextContent("Revisar");
+    expect(entry("01").querySelector(".tag")).toBeNull();
     expect(bar()).toHaveTextContent("Todo publicado");
-    expect(bar()).toHaveTextContent("Para publicar, arregla: Galería: 1 enlace no es HTTPS");
+    expect(bar()).toHaveTextContent("Revisa: Galería: 1 enlace no es HTTPS");
     expect(publishBtn()).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("saves a section as a draft and publishes every draft at once, behind an undo toast", async () => {
+  it("saves as it is written and publishes every draft at once, behind a lower third with «Deshacer»", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const router = mountAdmin("/admin/contenido", { contenido: Contenido });
-    await user.click(await screen.findByRole("button", { name: /^Editar Frase, localidad y campo/ }));
+    await user.click(await screen.findByRole("button", { name: /^01 Frase/ }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ seccion: "frase" }));
-    const d = screen.getByRole("dialog", { name: "Frase, localidad y campo" });
-    expect(within(d).getByText("✓ Igual que lo publicado")).toBeInTheDocument();
-    expect(within(d).getByRole("button", { name: "Guardar borrador" })).toHaveAttribute("aria-disabled", "true");
-    expect(publishBtn()).toHaveAttribute("aria-disabled", "true");
+    const d = await editor("Frase, historia y campo");
+    expect(d).toHaveTextContent("Se ve en: El club · portada e historia");
+    expect(d).toHaveTextContent("Se guarda como borrador al escribir");
+    expect(document.querySelector(".cover")).toBeNull();
+    expect(entry("01")).toHaveAttribute("aria-current", "true");
+    expect(within(d).queryByRole("button", { name: "Descartar borrador" })).toBeNull();
     const loc = within(d).getByRole("textbox", { name: "Localidad" });
     await user.clear(loc);
     await user.type(loc, "Getafe");
-    expect(within(d).getByText("● Cambios sin guardar")).toBeInTheDocument();
-    await user.click(within(d).getByRole("button", { name: "Guardar borrador" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Guardado en borrador · falta publicar.")).toBeInTheDocument();
-    expect(row("Frase, localidad y campo")).toHaveAccessibleName("Editar Frase, localidad y campo · Sin publicar");
-    expect(row("Frase, localidad y campo")).toHaveTextContent("Getafe");
+    // saved at once: the entry is marked, the bar counts it, the draft is on this device
+    expect(entry("01")).toHaveAccessibleName("01 Frase, historia y campo · Sin publicar");
+    expect(entry("01")).toHaveAccessibleDescription(/Getafe/);
     expect(bar()).toHaveTextContent("1 cambio sin publicar");
-    expect(bar()).toHaveTextContent("Frase, localidad y campo");
-    expect(localStorage.getItem("mp.admin.contentDrafts.v1:a1")).toContain("Getafe");
+    expect(bar()).toHaveTextContent("Frase, historia y campo");
+    expect(localStorage.getItem(KEY)).toContain("Getafe");
+    expect(within(d).getByRole("button", { name: "Descartar borrador" })).toBeInTheDocument();
+    await user.click(within(d).getByRole("button", { name: "Listo" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(router.state.location.search).not.toHaveProperty("seccion");
 
     // Deshacer: nothing is written, the draft is still there
     await user.click(publishBtn());
-    expect(screen.getByText("Contenido publicado · ya sale en «El club» (Frase, localidad y campo).")).toBeInTheDocument();
-    expect(row("Frase, localidad y campo")).toHaveAccessibleName("Editar Frase, localidad y campo · Publicado");
+    expect(screen.getByText("Contenido publicado · la web ya lo enseña")).toBeInTheDocument();
+    expect(screen.getByText("WEB")).toBeInTheDocument();
+    expect(entry("01")).toHaveAccessibleName("01 Frase, historia y campo");
     await user.click(screen.getByRole("button", { name: "Deshacer" }));
-    expect(row("Frase, localidad y campo")).toHaveAccessibleName("Editar Frase, localidad y campo · Sin publicar");
+    expect(entry("01")).toHaveAccessibleName("01 Frase, historia y campo · Sin publicar");
     await act(async () => {
       vi.advanceTimersByTime(6000);
     });
@@ -93,132 +116,134 @@ describe("Contenido del club", () => {
 
     await user.click(publishBtn());
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.publishContent).toHaveBeenCalledTimes(1);
     const [content, stories] = h.writes.publishContent.mock.calls[0];
     expect(content).toEqual({ ...clean, location: "Getafe" });
     expect(stories).toEqual([]);
-    await waitFor(() => expect(localStorage.getItem("mp.admin.contentDrafts.v1:a1")).toBeNull());
+    await waitFor(() => expect(localStorage.getItem(KEY)).toBeNull());
   });
 
-  it("checks every gallery link live, and a broken link blocks publishing until it is gone", async () => {
+  it("checks every gallery link live; a broken link in what is about to be published stops it", async () => {
     const user = userEvent.setup();
-    h.content = { ...clean, gallery: [...clean.gallery, { url: "http://i.imgur.com/piti-banquillo.jpg", caption: "" }] };
+    h.content = withBadLink;
     mountAdmin("/admin/contenido?seccion=galeria", { contenido: Contenido });
-    const d = await screen.findByRole("dialog", { name: "Galería" });
-    const photos = within(within(d).getByRole("list", { name: "Fotos de la galería" })).getAllByRole("listitem");
-    expect(photos[0]).toHaveTextContent("HTTPS · se ve en la web");
-    expect(photos[1]).toHaveTextContent("No es HTTPS · no se verá en la web");
-    const add = within(d).getByRole("textbox", { name: /Añadir foto/ });
+    const d = await editor("Galería y colaboradores");
+    const photos = () => within(within(d).getByRole("list", { name: "Fotos de la galería" })).getAllByRole("listitem");
+    expect(photos()[0]).toHaveTextContent("HTTPS");
+    expect(photos()[1]).toHaveTextContent("No es HTTPS");
+    const add = within(d).getByRole("textbox", { name: "Añadir foto (HTTPS)" });
     await user.type(add, "http://x.es/a.jpg");
     expect(within(d).getByText("Tiene que empezar por https://")).toBeInTheDocument();
-    expect(within(d).getByRole("button", { name: "Añadir a la galería" })).toHaveAttribute("aria-disabled", "true");
+    expect(within(d).getByRole("button", { name: "Añadir" })).toHaveAttribute("aria-disabled", "true");
     await user.clear(add);
     await user.type(add, "https://x.es/j7.jpg");
-    expect(within(d).getByText("Enlace seguro · se puede añadir")).toBeInTheDocument();
-    await user.click(within(d).getByRole("button", { name: "Añadir a la galería" }));
+    await user.click(within(d).getByRole("button", { name: "Añadir" }));
+    expect(photos()).toHaveLength(3);
+    // the gallery is about to be published with a broken link: publishing waits
+    expect(entry("06")).toHaveAccessibleName("06 Galería y colaboradores · Sin publicar · Revisar");
+    expect(bar()).toHaveTextContent("para publicar, arregla: Galería: 1 enlace no es HTTPS");
+    expect(publishBtn()).toHaveAttribute("aria-disabled", "true");
+    await user.click(publishBtn());
+    expect(screen.getByText("Antes de publicar: Galería: 1 enlace no es HTTPS")).toBeInTheDocument();
+    expect(h.writes.publishContent).not.toHaveBeenCalled();
+
     await user.click(within(d).getByRole("button", { name: "Quitar la foto 2" }));
-    expect(within(within(d).getByRole("list", { name: "Fotos de la galería" })).getAllByRole("listitem").map((li) => li.querySelector("b")?.textContent)).toEqual([
-      "https://firebasestorage.googleapis.com/j6.jpg",
-      "https://x.es/j7.jpg",
-    ]);
-    await user.click(within(d).getByRole("button", { name: "Guardar borrador" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(row("Galería")).toHaveAccessibleName("Editar Galería · Sin publicar");
-    expect(bar()).not.toHaveTextContent("Para publicar");
+    expect(photos().map((li) => li.firstElementChild?.textContent)).toEqual(["https://firebasestorage.googleapis.com/j6.jpg", "https://x.es/j7.jpg"]);
+    expect(entry("06")).toHaveAccessibleName("06 Galería y colaboradores · Sin publicar");
+    expect(bar()).not.toHaveTextContent("para publicar");
     expect(publishBtn()).toHaveAttribute("aria-disabled", "false");
   });
 
-  it("adds, reorders and removes momentos", async () => {
+  it("adds momentos (the new ones in amber, dated this month), edits and removes them", async () => {
     const user = userEvent.setup();
     mountAdmin("/admin/contenido?seccion=momentos", { contenido: Contenido });
-    const d = await screen.findByRole("dialog", { name: "Momentos del club" });
+    const d = await editor("Momentos del club");
     const list = () => within(within(d).getByRole("list", { name: "Momentos" })).getAllByRole("listitem");
-    expect(within(d).getByRole("button", { name: "Añadir momento" })).toHaveAttribute("aria-disabled", "true");
-    await user.type(within(d).getByRole("textbox", { name: "Fecha" }), "Nov 2026");
-    await user.type(within(d).getByRole("textbox", { name: "Momento" }), "Primer doblete: ERIK");
-    await user.click(within(d).getByRole("button", { name: "Añadir momento" }));
+    expect(within(d).getByRole("button", { name: "Añadir" })).toHaveAttribute("aria-disabled", "true");
+    expect(within(d).getByRole("textbox", { name: "Fecha" })).toHaveValue("Nov 2026");
+    await user.type(within(d).getByRole("textbox", { name: "Nuevo momento" }), "Primer doblete: ERIK{Enter}");
     expect(list()).toHaveLength(3);
-    expect(list()[2]).toHaveTextContent("Primer doblete: ERIK● Sin publicar");
-    expect(list()[0]).toHaveTextContent("✓ Publicado");
-    await user.click(within(d).getByRole("button", { name: "Subir «Primer doblete: ERIK»" }));
-    expect(list()[1]).toHaveTextContent("Primer doblete: ERIK");
+    expect(list()[2]).toHaveClass("dr");
+    expect(list()[2]).toHaveTextContent("Nov 2026Primer doblete: ERIKSin publicar");
+    expect(list()[0]).not.toHaveClass("dr");
+    expect(entry("03")).toHaveAccessibleDescription("3 hitos · «Primer doblete: ERIK» sin publicar");
+
     await user.click(within(d).getByRole("button", { name: "Editar «Primer partido de liga»" }));
     const title = within(d).getByRole("textbox", { name: "Momento" });
     expect(title).toHaveValue("Primer partido de liga");
     await user.clear(title);
     await user.type(title, "Primer partido");
-    await user.click(within(d).getByRole("button", { name: "Guardar momento" }));
-    expect(list()[0]).toHaveTextContent("Primer partido● Sin publicar");
+    await user.click(within(d).getByRole("button", { name: "Guardar" }));
+    expect(list()[0]).toHaveTextContent("Primer partidoSin publicar");
     await user.click(within(d).getByRole("button", { name: "Quitar «Primera victoria fuera»" }));
     expect(list()).toHaveLength(2);
   });
 
-  it("writes player stories (as drafts) and publishes them on the player docs", async () => {
+  it("writes player stories as drafts and publishes them on the player docs", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     mountAdmin("/admin/contenido?seccion=historias", { contenido: Contenido });
-    const d = await screen.findByRole("dialog", { name: "Historias de jugadores" });
-    expect(within(d).getByRole("combobox", { name: /^Jugador/ })).toHaveValue("kevin");
-    expect(within(d).getByText("8 de 12 con historia")).toBeInTheDocument();
+    const d = await editor("Historias de jugadores");
+    const players = within(within(d).getByRole("group", { name: "Jugadores" })).getAllByRole("button");
+    expect(players).toHaveLength(12);
+    expect(within(d).getByRole("button", { name: "11 KEVIN · falta" })).toHaveAttribute("aria-current", "true");
+    expect(within(d).getByRole("button", { name: "1 EVANS ✓" })).toHaveClass("ok");
     await user.type(within(d).getByRole("textbox", { name: "Presentación" }), "El once del Piti.");
-    await user.type(within(d).getByRole("textbox", { name: /Foto/ }), "http://x.es/k.jpg");
+    await user.type(within(d).getByRole("textbox", { name: "Foto de KEVIN (HTTPS)" }), "http://x.es/k.jpg");
     expect(within(d).getByText("No es HTTPS · no se verá en la web")).toBeInTheDocument();
-    await user.click(within(d).getByRole("button", { name: "Guardar borrador" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Guardado en borrador · 1 historia sin publicar.")).toBeInTheDocument();
-    expect(row("Historias de jugadores")).toHaveAccessibleName("Editar Historias de jugadores · Revisar");
-    expect(bar()).toHaveTextContent("Historias: la foto de KEVIN no es HTTPS");
+    expect(within(d).getByRole("button", { name: "11 KEVIN ✓ ●" })).toBeInTheDocument();
+    expect(entry("04")).toHaveAccessibleName("04 Historias de jugadores · Sin publicar · Revisar");
+    expect(bar()).toHaveTextContent("para publicar, arregla: Historias: la foto de KEVIN no es HTTPS");
 
-    await user.click(row("Historias de jugadores"));
-    const again = await screen.findByRole("dialog", { name: "Historias de jugadores" });
-    // the next player without a story comes first; KEVIN keeps his draft
-    expect(within(again).getByRole("combobox", { name: /^Jugador/ })).toHaveValue("fer");
-    await user.selectOptions(within(again).getByRole("combobox", { name: /^Jugador/ }), "kevin");
-    const photo = within(again).getByRole("textbox", { name: /Foto/ });
-    expect(photo).toHaveValue("http://x.es/k.jpg");
-    await user.clear(photo);
-    await user.click(within(again).getByRole("button", { name: "Guardar borrador" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(row("Historias de jugadores")).toHaveTextContent("9 de 12 · faltan FER, ANDIA y BRAWAN");
+    await user.clear(within(d).getByRole("textbox", { name: "Foto de KEVIN (HTTPS)" }));
+    expect(entry("04")).toHaveAccessibleName("04 Historias de jugadores · Sin publicar");
+    expect(entry("04")).toHaveAccessibleDescription("9 de 12 perfiles con historia · faltan FER, ANDIA y BRAWAN");
     await user.click(publishBtn());
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.publishContent).toHaveBeenCalledWith(null, [{ id: "kevin", data: { bio: "El once del Piti.", quote: "", photoUrl: "" } }]);
   });
 
-  it("guards unsaved edits, can save the draft on the way out, and discard it later (with undo)", async () => {
+  it("Esc keeps what was written; «Descartar borrador» goes back to the web (with «Deshacer»)", async () => {
     const user = userEvent.setup();
     mountAdmin("/admin/contenido?seccion=escudo", { contenido: Contenido });
-    const d = await screen.findByRole("dialog", { name: "Nuestra historia y el escudo" });
+    let d = await editor("Frase, historia y campo");
     await user.type(within(d).getByRole("textbox", { name: "La historia del escudo" }), "Lo dibujó Tello.");
     await user.keyboard("{Escape}");
-    const guard = await screen.findByRole("alertdialog", { name: "¿Salir sin guardar?" });
-    expect(guard).toHaveTextContent("Hay cambios sin guardar en «Nuestra historia y el escudo»");
-    await user.click(within(guard).getByRole("button", { name: "Guardar borrador y salir" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(row("Nuestra historia y el escudo")).toHaveAccessibleName("Editar Nuestra historia y el escudo · Sin publicar");
-    expect(row("Nuestra historia y el escudo")).toHaveTextContent("escudo: escrito");
+    expect(entry("01")).toHaveAccessibleName("01 Frase, historia y campo · Sin publicar");
+    expect(entry("01")).not.toHaveAccessibleDescription(/falta la historia del escudo/);
 
-    await user.click(row("Nuestra historia y el escudo"));
-    const again = await screen.findByRole("dialog", { name: "Nuestra historia y el escudo" });
-    expect(within(again).getByText(/● Borrador guardado a las \d\d:\d\d · sin publicar/)).toBeInTheDocument();
-    await user.click(within(again).getByRole("button", { name: "Descartar borrador" }));
+    await user.click(entry("01"));
+    d = await editor("Frase, historia y campo");
+    expect(within(d).getByRole("textbox", { name: "La historia del escudo" })).toHaveValue("Lo dibujó Tello.");
+    await user.click(within(d).getByRole("button", { name: "Descartar borrador" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(row("Nuestra historia y el escudo")).toHaveAccessibleName("Editar Nuestra historia y el escudo · Publicado");
-    expect(screen.getByText("Borrador de «Nuestra historia y el escudo» descartado · vuelve a lo publicado.")).toBeInTheDocument();
+    expect(entry("01")).toHaveAccessibleName("01 Frase, historia y campo");
+    expect(screen.getByText("Borrador de «Frase, historia y campo» descartado · vuelve a lo publicado")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Deshacer" }));
-    expect(row("Nuestra historia y el escudo")).toHaveAccessibleName("Editar Nuestra historia y el escudo · Sin publicar");
+    expect(entry("01")).toHaveAccessibleName("01 Frase, historia y campo · Sin publicar");
   });
 
   it("flags a draft whose section changed on the web meanwhile", async () => {
-    localStorage.setItem("mp.admin.contentDrafts.v1:a1", JSON.stringify({ club: { frase: { value: { intro: "Mía", location: "Madrid", founded: "", venue: "Polideportivo Norte" }, base: { intro: "Antigua", location: "Madrid", founded: "", venue: "Polideportivo Norte" }, at: 1 } }, stories: {} }));
+    localStorage.setItem(KEY, JSON.stringify({ club: { frase: { value: { intro: "Mía", location: "Madrid", founded: "", venue: "Polideportivo Norte" }, base: { intro: "Antigua", location: "Madrid", founded: "", venue: "Polideportivo Norte" }, at: 1 } }, stories: {} }));
     mountAdmin("/admin/contenido", { contenido: Contenido });
-    const r = await screen.findByRole("button", { name: /^Editar Frase, localidad y campo/ });
-    expect(r).toHaveAccessibleName("Editar Frase, localidad y campo · Revisar");
-    expect(r).toHaveTextContent("ha cambiado en la web desde tu borrador");
+    const r = await screen.findByRole("button", { name: /^01 / });
+    expect(r).toHaveAccessibleName("01 Frase, historia y campo · Sin publicar · Revisar");
+    expect(r).toHaveAccessibleDescription(/ha cambiado en la web desde tu borrador$/);
     expect(bar()).toHaveTextContent("1 cambio sin publicar");
+  });
+
+  it("on a phone: no cover, and the editor is a sheet over the index", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    mountAdmin("/admin/contenido?seccion=contacto", { contenido: Contenido });
+    const d = await editor("Contacto, redes y foto de equipo");
+    expect(d).toHaveAttribute("aria-modal", "true");
+    expect(document.querySelector(".cover")).toBeNull();
+    expect(within(d).getByRole("textbox", { name: "Correo" })).toHaveValue("club@piti.es");
+    expect(within(d).getByText("Correo válido")).toBeInTheDocument();
   });
 });

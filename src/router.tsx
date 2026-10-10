@@ -51,9 +51,9 @@ export const statsSearchSchema = z.object({
     .catch(undefined),
 });
 
-// /admin is the admin app's shell (a layout route; the admin-only guard lives in RootLayout). Inicio's
-// only search param is the legacy `tab` of the old single page: /admin?tab=matches|roster|seasons|admins
-// redirects to the new section (old links and bookmarks keep working).
+// /admin is the admin app's shell (a layout route; the admin-only guard lives in RootLayout). Hoy's only
+// search param is the legacy `tab` of the old single page: /admin?tab=matches|roster|seasons|admins
+// redirects to the new section (old links and bookmarks keep working), like /admin/convocatorias → convocar.
 export const adminSearchSchema = z.object({
   tab: z.enum(["matches", "roster", "seasons", "admins"]).optional().catch(undefined),
 });
@@ -73,8 +73,10 @@ export const adminPartidosSearchSchema = z.object({
 export const adminPartidoSearchSchema = z.object({
   /** The match's tab; absent = the view's default (acta for drafts / played matches). */
   tab: z.enum(["encuentro", "convocatoria", "acta", "publicar"]).optional().catch(undefined),
+  /** The publish peak (the vitrina) of a published acta. */
+  vitrina: optionalTrue,
 });
-export const adminConvocatoriasSearchSchema = z.object({
+export const adminConvocarSearchSchema = z.object({
   /** The match whose convocatoria is open (match id). */
   j: optionalString,
 });
@@ -135,7 +137,7 @@ const adminIndexRoute = createRoute({
   beforeLoad: ({ search }) => {
     if (search.tab) throw redirect({ to: LEGACY_ADMIN_TAB[search.tab], replace: true });
   },
-  component: lazyRouteComponent(() => import("./pages/admin/views/Inicio"), "Inicio"),
+  component: lazyRouteComponent(() => import("./pages/admin/views/Hoy"), "Hoy"),
 });
 const adminPartidosRoute = createRoute({
   getParentRoute: () => adminRoute,
@@ -149,11 +151,25 @@ const adminPartidoRoute = createRoute({
   validateSearch: adminPartidoSearchSchema,
   component: lazyRouteComponent(() => import("./pages/admin/views/Partidos"), "PartidoDetail"),
 });
+const adminEnJuegoRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "en-juego/$matchId",
+  component: lazyRouteComponent(() => import("./pages/admin/views/EnJuego"), "EnJuego"),
+});
+const adminConvocarRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "convocar",
+  validateSearch: adminConvocarSearchSchema,
+  component: lazyRouteComponent(() => import("./pages/admin/views/Convocar"), "Convocar"),
+});
+// v1's path: old links keep working.
 const adminConvocatoriasRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "convocatorias",
-  validateSearch: adminConvocatoriasSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/admin/views/Convocatorias"), "Convocatorias"),
+  validateSearch: adminConvocarSearchSchema,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/admin/convocar", search: { j: search.j }, replace: true });
+  },
 });
 const adminFichasRoute = createRoute({
   getParentRoute: () => adminRoute,
@@ -253,6 +269,8 @@ const routeTree = rootRoute.addChildren([
   adminRoute.addChildren([
     adminIndexRoute,
     adminPartidosRoute.addChildren([adminPartidoRoute]),
+    adminEnJuegoRoute,
+    adminConvocarRoute,
     adminConvocatoriasRoute,
     adminFichasRoute,
     adminPlantillaRoute,

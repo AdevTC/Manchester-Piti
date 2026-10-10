@@ -1,29 +1,31 @@
-// «¿Quién marcó?» — the scorer picker of a goal row: a popover anchored under the row (it never scrolls
-// the acta; it flips above when there is no room) and a bottom sheet on phones. Step 1: the scorer
-// (titulares first, suplentes marked) or «Autogol de RIVAL»; step 2: the assist, optional («Sin
-// asistencia»). «Lo completo luego» / Esc close it. Typing a dorsal picks that player.
+// «¿Quién marcó?» — the scorer picker of a goal row, as on the canvas (stats-gen/ad-v2-full.mjs `pkBody`,
+// shots-adv2f/partidos-acta.png): the v2 Popover, IN PLACE right under its row (the row goes to the top
+// of the panel, so the scoreboard never scrolls away), a bottom sheet on phones. Step 1: the scorer by
+// dorsal — on the pitch first («titulares primero»), then the banquillo — or «Autogol de RIVAL» /
+// «Lo completo luego» / «Quitar este gol»; step 2: the pass, optional («Sin asistencia», «← Cambiar
+// goleador»). Esc / a press outside close it; typing a dorsal picks that player.
 import { useEffect, useRef, type RefObject } from "react";
 import { Popover } from "../ui/layers";
-import { useFrame } from "../ui/frame";
 import type { PickOption } from "./pickModel";
 
 export interface ScorerPickerProps {
   step: "s" | "a";
   /** 1-based goal number, its minute and (step 2) its scorer's name. */
   goal: { n: number; minute: number | undefined; scorerName: string };
-  /** Called-up players for this step (the scorer is left out in step 2). */
-  options: PickOption[];
+  /** Starters (and step 2: without the scorer). */
+  field: PickOption[];
+  bench: PickOption[];
   /** The current choice (highlighted). */
   current: string | null;
   rival: string;
-  /** «Acta · J7 · 3–1» (the phone sheet's kicker). */
-  kicker: string;
   anchorRef: RefObject<HTMLElement | null>;
-  containerRef?: RefObject<HTMLElement | null>;
   onScorer: (id: string | "og") => void;
   onAssist: (id: string | null) => void;
+  /** Step 2 → back to step 1. */
+  onBack: () => void;
+  onRemove: () => void;
   onClose: () => void;
-  /** No one is called up yet: go and fill the convocatoria. */
+  /** Nobody is called up yet: go and make the convocatoria. */
   onGoConvocatoria: () => void;
 }
 
@@ -67,60 +69,78 @@ function useDorsalKeys(options: PickOption[], pick: (id: string) => void) {
 }
 
 export function ScorerPicker(p: ScorerPickerProps) {
-  const { desktop } = useFrame();
   const first = useRef<HTMLButtonElement>(null);
-  const { step, goal, options, current, rival } = p;
-  useDorsalKeys(options, (id) => (step === "s" ? p.onScorer(id) : p.onAssist(id)));
-  const title = step === "s" ? `Gol ${goal.n}${goal.minute !== undefined ? ` (${goal.minute}′)` : ""} · ¿Quién marcó?` : `Gol ${goal.n} de ${goal.scorerName} · ¿Quién dio el pase?`;
-  const subtitle = step === "s" ? "Paso 1 de 2 · goleador" : "Paso 2 de 2 · asistencia, opcional";
-  const footer = (
-    <>
-      <button type="button" className="btn sm line" onClick={p.onClose}>
-        Lo completo luego
-      </button>
-      {desktop && <span className="kb">Esc para cerrar</span>}
-    </>
-  );
-  const players = options.map((o, i) => (
+  const { step, goal, field, bench, current, rival } = p;
+  const all = [...field, ...bench];
+  useDorsalKeys(all, (id) => (step === "s" ? p.onScorer(id) : p.onAssist(id)));
+  const option = (o: PickOption, i: number, isBench: boolean) => (
     <button
       key={o.id}
-      ref={i === 0 && step === "s" ? first : undefined}
+      ref={!isBench && i === 0 ? first : undefined}
       type="button"
-      className={`pp${current === o.id ? " on" : ""}`}
+      className={["pp", isBench ? "bench" : "", current === o.id ? "on" : ""].filter(Boolean).join(" ")}
       aria-pressed={current === o.id}
-      aria-label={step === "s" ? `Gol ${goal.n}: lo marcó ${o.name}, dorsal ${o.num}` : `Asistencia de ${o.name}, dorsal ${o.num}`}
+      aria-label={step === "s" ? `${o.name} marcó el gol ${goal.n}` : `Pase de ${o.name}`}
       onClick={() => (step === "s" ? p.onScorer(o.id) : p.onAssist(o.id))}
     >
       <b>{o.num}</b>
       <small>{o.name}</small>
-      <em>{o.tag}</em>
     </button>
-  ));
+  );
+  const footer =
+    step === "s" ? (
+      <>
+        <button type="button" onClick={() => p.onScorer("og")} aria-pressed={current === "og"}>
+          Autogol de {rival}
+        </button>
+        <button type="button" onClick={p.onClose}>
+          Lo completo luego
+        </button>
+        <button type="button" onClick={p.onRemove}>
+          Quitar este gol
+        </button>
+      </>
+    ) : (
+      <>
+        <button type="button" onClick={() => p.onAssist(null)}>
+          Sin asistencia
+        </button>
+        <button type="button" onClick={p.onBack}>
+          ← Cambiar goleador
+        </button>
+      </>
+    );
   return (
-    <Popover open onClose={p.onClose} anchorRef={p.anchorRef} containerRef={p.containerRef} title={title} subtitle={subtitle} kicker={p.kicker} footer={footer} initialFocus={first} gap={20} className="ad-pick">
-      {step === "s" && !options.length && (
-        <div className="ad-pk-none">
-          <p className="hint">Aún no hay convocados: el goleador sale de la convocatoria.</p>
-          <button type="button" className="btn sm" onClick={p.onGoConvocatoria}>
-            Hacer la convocatoria
-          </button>
-        </div>
+    <Popover
+      open
+      onClose={p.onClose}
+      anchorRef={p.anchorRef}
+      title={step === "s" ? "¿Quién marcó?" : "¿Quién le dio el pase?"}
+      subtitle={step === "s" ? `Gol ${goal.n}${goal.minute !== undefined ? ` (${goal.minute}′)` : ""} · paso 1 de 2` : `Gol de ${goal.scorerName} · paso 2 de 2`}
+      footer={footer}
+      initialFocus={all.length ? first : undefined}
+    >
+      {!all.length ? (
+        <>
+          <p className="pk-lb">Aún no hay convocados: el goleador sale de la convocatoria.</p>
+          <div className="pkx">
+            <button type="button" onClick={p.onGoConvocatoria}>
+              Hacer la convocatoria
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="pk-lb">{step === "s" ? "En el campo · titulares primero" : "Asistencia (opcional)"}</p>
+          <div className="pg">{field.map((o, i) => option(o, i, false))}</div>
+          {bench.length ? (
+            <>
+              <p className="pk-lb">Banquillo</p>
+              <div className="pg">{bench.map((o, i) => option(o, i, true))}</div>
+            </>
+          ) : null}
+        </>
       )}
-      <div className="pg">
-        {step === "a" && (
-          <button ref={first} type="button" className={`pp wide${current === null ? " on" : ""}`} aria-label={`Gol ${goal.n} sin asistencia`} onClick={() => p.onAssist(null)}>
-            <b>Sin asistencia</b>
-            <small>Jugada individual, rebote o penalti</small>
-          </button>
-        )}
-        {players}
-        {step === "s" && (
-          <button ref={options.length ? undefined : first} type="button" className={`pp wide${current === "og" ? " on" : ""}`} aria-label={`Gol ${goal.n}: autogol de ${rival}`} onClick={() => p.onScorer("og")}>
-            <b>Autogol de {rival}</b>
-            <small>Suma para el Piti, sin goleador nuestro</small>
-          </button>
-        )}
-      </div>
     </Popover>
   );
 }

@@ -32,6 +32,8 @@ export interface MatchLike {
   seasonId?: string;
   /** The convocatoria's titulares (its notice goes when they first appear on a published match). */
   starters?: string[];
+  /** setConvocatoria's stamp (ms): the convocatoria is managed (and announced) by «Convocar y avisar». */
+  convocatoriaAt?: number;
 }
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -67,7 +69,8 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
       const { gf, ga } = liveScore(after.events);
       const last = fresh[fresh.length - 1];
       const ours = OURS.has(last.type);
-      const who = last.type === "opponent_own_goal" ? `Autogol de ${rival}` : ours && last.playerId ? nameOf(last.playerId) : rival;
+      // a goal written live without its scorer yet («Lo completo luego») is still the Piti's
+      const who = last.type === "opponent_own_goal" ? `Autogol de ${rival}` : ours ? (last.playerId ? nameOf(last.playerId) : "Manchester Piti") : rival;
       out.push({
         topic: "goals",
         title: ours ? `¡GOL del Piti! ${gf}–${ga}` : `Gol de ${rival}. ${gf}–${ga}`,
@@ -128,20 +131,28 @@ export function lineupNotice(id: string, before: LineupLike | undefined, after: 
 
 /**
  * «Ya está la convocatoria»: the first time a match still to be played is published WITH its titulares
- * (Convocatorias → «Publicar y avisar», or the match published with its convocatoria done). push.ts
- * keeps it to once per match (pushLog), whatever the corrections afterwards. `jornada` is the match's
- * number in its season (null when unknown).
+ * (the match published with its convocatoria done). push.ts keeps it to once per match (pushLog),
+ * whatever the corrections afterwards. A convocatoria managed by setConvocatoria (it stamps
+ * `convocatoriaAt`) is never announced by the trigger: «Convocar y avisar» sends its own notice.
+ * `jornada` is the match's number in its season (null when unknown).
  */
 export function convocatoriaNotice(id: string, before: MatchLike | undefined, after: MatchLike | undefined, jornada: number | null, now: number): Notice | null {
   if (!after || after.archived || after.status !== "scheduled") return null;
+  if (typeof after.convocatoriaAt === "number") return null;
   if (typeof after.date !== "number" || after.date <= now) return null;
   if (!(after.starters?.length ?? 0) || (before?.starters?.length ?? 0) > 0) return null;
-  const rival = after.rival ?? "el rival";
-  return {
-    topic: "lineup",
-    title: jornada ? `Ya está la convocatoria de la J${jornada}` : "Ya está la convocatoria",
-    body: `${rival} · ${when(after.date).replace(/^./, (c) => c.toUpperCase())}. Mira si te toca en la web.`,
-    tag: `conv-${id}`,
-    url: `/matches/${id}`,
-  };
+  return convocatoriaMessage(id, "first", after, jornada);
+}
+
+/**
+ * The convocatoria's notices: «Ya está la convocatoria de la J8» (first) and «Cambios en la convocatoria
+ * de la J8» (an already-notified one changed). Same tag: the phone keeps only the latest.
+ */
+export function convocatoriaMessage(id: string, kind: "first" | "changes", match: Pick<MatchLike, "rival" | "date">, jornada: number | null): Notice {
+  const rival = match.rival ?? "el rival";
+  const day = typeof match.date === "number" ? ` · ${when(match.date).replace(/^./, (c) => c.toUpperCase())}` : "";
+  const of = jornada ? ` de la J${jornada}` : "";
+  return kind === "first"
+    ? { topic: "lineup", title: `Ya está la convocatoria${of}`, body: `${rival}${day}. Mira si te toca en la web.`, tag: `conv-${id}`, url: `/matches/${id}` }
+    : { topic: "lineup", title: `Cambios en la convocatoria${of}`, body: `${rival}${day}. Mira cómo queda en la web.`, tag: `conv-${id}`, url: `/matches/${id}` };
 }

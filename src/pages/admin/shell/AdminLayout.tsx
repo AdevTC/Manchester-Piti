@@ -1,16 +1,17 @@
-// /admin — the admin app's shell («elegida»): a fixed 100dvh frame (the page never scrolls; each list
-// scrolls inside its panel) with the slim header, the side menu (≥ 1000 px; folds to icons at 1000–1199
-// or when pinned), the workspace (the routed view) and, on phones, the bottom bar + «Más» sheet. It owns
-// the providers every view uses: layers (Esc, focus trap, inert), toasts, the unsaved-changes guard, the
-// command palette (⌘K / Ctrl K) and its registry, the frame width, and the one useAdminData().
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+// /admin — the admin v2 «Sala de control»: a fixed 100dvh frame (the page never scrolls; each list scrolls
+// inside its panel). ≥ 1000 px (`.d`): the 60 px header, the 224 px rail and the workspace (the routed
+// view). Phones (`.m`): the header, the view and the bar Hoy · Partidos · Convocar · Plantilla · Más — both
+// hidden inside the match workspace and En juego. It owns the providers every view uses: layers (Esc,
+// focus trap, inert), the lower thirds, the unsaved-changes guard, the command palette (⌘K / Ctrl K) and
+// its registry, the frame width, and the one useAdminData().
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { Outlet, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../hooks/useTheme";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { initials } from "../../../lib/vestuario";
 import { useAdminData, type AdminData } from "../data/useAdminData";
-import { jLabel, shortDate } from "../data/adminLogic";
+import { clockTime, jLabel, shortDate } from "../data/adminLogic";
 import { CommandPalette } from "../palette/CommandPalette";
 import { CommandRegistryProvider } from "../palette/CommandRegistryProvider";
 import { useRegisterCommands } from "../palette/registry";
@@ -19,15 +20,15 @@ import { FrameContext, frameOf } from "../ui/frame";
 import { GuardProvider } from "../ui/GuardProvider";
 import { LayerProvider } from "../ui/layers";
 import { ToastProvider } from "../ui/toasts";
-import { AdminHeader, BottomBar, MasSheet, SideNav, type Captain } from "./Chrome";
+import { AdminHeader, BottomBar, MasSheet, MobileHeader, Rail, type Captain } from "./Chrome";
 import { AdminDataContext, ShellContext, useAdminGo, type ShellApi } from "./context";
-import { SECTIONS, sectionOf, type SectionKey } from "./nav";
-import { useSidePref } from "./sidePref";
+import { isEnJuego, isWorkspace, SECTIONS, sectionOf, titleOf, type SectionKey } from "./nav";
 // The Celeste tokens and the `.vx` size container the admin CSS builds on: imported here too, so /admin
 // works when it is the first page loaded (a refresh, a bookmark, a push link), not only after a site page.
 import "../../../styles/vestuario.css";
 import "../../../styles/admin.css";
 import "../../../styles/admin-app.css";
+// TEMPORARY (V0): the v1 styles of the views not redesigned yet (scoped under .v1).
 
 /** The frame's inner width, live (ResizeObserver on the `.vx.adm` root). */
 function useFrameWidth(ref: RefObject<HTMLElement | null>) {
@@ -49,21 +50,21 @@ export function AdminLayout() {
   const rootRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<HTMLDivElement>(null);
   const width = useFrameWidth(rootRef);
-  const { user } = useAuth();
-  const side = useSidePref(user?.uid, width);
   const data = useAdminData();
   const frame = useMemo(() => frameOf(width), [width]);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const bare = isWorkspace(pathname);
+  // Phones: where the lower thirds sit — above the bar, the pads (En juego) or the workspace footer.
+  const style = frame.desktop ? undefined : ({ "--ltb": !bare ? "80px" : isEnJuego(pathname) ? "262px" : "150px" } as CSSProperties);
   return (
     <FrameContext.Provider value={frame}>
       <AdminDataContext.Provider value={data}>
-        <div ref={rootRef} className={`vx adm ${side.className}`.trim()}>
-          <div className="adm-bg" aria-hidden="true" />
-          <div className="vx-grain" aria-hidden="true" />
+        <div ref={rootRef} className={`vx adm ${frame.desktop ? "d" : "m"}`} style={style}>
           <LayerProvider appRef={appRef}>
             <ToastProvider>
               <GuardProvider>
                 <CommandRegistryProvider>
-                  <AdminShell appRef={appRef} data={data} collapsed={side.collapsed} onToggleSide={side.toggle} />
+                  <AdminShell appRef={appRef} data={data} desktop={frame.desktop} pathname={pathname} />
                 </CommandRegistryProvider>
               </GuardProvider>
             </ToastProvider>
@@ -74,11 +75,12 @@ export function AdminLayout() {
   );
 }
 
-const ROLE: Record<string, string> = { superadmin: "Super admin", admin: "Administrador", user: "Usuario" };
+const ROLE: Record<string, string> = { superadmin: "Capitán general", admin: "Capitán", user: "Socio" };
 
-function AdminShell({ appRef, data, collapsed, onToggleSide }: { appRef: RefObject<HTMLDivElement | null>; data: AdminData; collapsed: boolean; onToggleSide: () => void }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+function AdminShell({ appRef, data, desktop, pathname }: { appRef: RefObject<HTMLDivElement | null>; data: AdminData; desktop: boolean; pathname: string }) {
   const section = sectionOf(pathname);
+  const title = titleOf(pathname);
+  const bare = isWorkspace(pathname);
   const go = useAdminGo();
   const { theme, toggle } = useTheme();
   const { profile } = useAuth();
@@ -101,60 +103,54 @@ function AdminShell({ appRef, data, collapsed, onToggleSide }: { appRef: RefObje
 
   const captain: Captain = useMemo(() => {
     const nick = profile?.nickname || "capitán";
-    const role = ROLE[profile?.role ?? "admin"] ?? "Administrador";
-    const isCaptain = !!profile?.playerId && data.season?.captainPlayerId === profile.playerId;
-    return {
-      nickname: nick,
-      initials: initials(nick),
-      role: isCaptain ? `${role} · capitán` : role,
-      roleLong: isCaptain && data.season ? `${role} · capitán de la ${data.season.name}` : role,
-    };
-  }, [profile, data.season]);
+    return { nickname: nick, initials: initials(nick), role: ROLE[profile?.role ?? "admin"] ?? "Capitán" };
+  }, [profile]);
 
-  const shell = useMemo<ShellApi>(() => ({ openPalette: () => setPalette(true), theme, toggleTheme: toggle }), [theme, toggle]);
+  const shell: ShellApi = { openPalette: () => setPalette(true), theme, toggleTheme: toggle };
   const goSection = (key: SectionKey) => {
     setMas(false);
     go({ section: key });
   };
 
-  // The palette's built-ins: actions, sections, matches (J7 / J8 pinned), players (by name or dorsal).
+  // The palette's built-ins: actions, sections, matches (the hero and the pending acta pinned), players.
   const builtins = useMemo<PaletteCommand[]>(() => {
     const cmds: PaletteCommand[] = [
-      { id: "a:nuevo-partido", group: "Acciones", icon: "+", title: "Nuevo partido", description: "Rival, fecha y campo", hint: "acción", keywords: "crear añadir", run: () => go({ section: "partidos", nuevo: true }) },
-      { id: "a:alta", group: "Acciones", icon: "+", title: "Alta de jugador", description: "Ficha nueva en la plantilla", hint: "acción", keywords: "nuevo crear jugador", run: () => go({ section: "plantilla", nuevo: true }) },
+      { id: "a:nuevo-partido", group: "Acciones", icon: "+", title: "Nuevo partido", description: "Partidos", hint: "acción", keywords: "crear añadir", run: () => go({ section: "partidos", nuevo: true }) },
+      { id: "a:alta", group: "Acciones", icon: "+", title: "Alta de jugador", description: "Plantilla", hint: "acción", keywords: "nuevo crear jugador", run: () => go({ section: "plantilla", nuevo: true }) },
     ];
-    const last = data.last;
-    if (last && !last.publishedClean)
-      cmds.push({ id: "a:acta", group: "Acciones", icon: "✎", title: `Abrir el acta de la ${jLabel(last.match)}`, description: `${last.match.rival ?? "Rival"} · ${last.review.goalsFor}–${last.review.goalsAgainst} · ${last.match.draft ? "borrador" : "sin empezar"}`, hint: "acción", keywords: "acta editar", run: () => go({ section: "partidos", matchId: last.match.id, tab: "acta" }) });
-    if (data.next)
-      cmds.push({ id: "a:convocar", group: "Acciones", icon: "✓", title: `Preparar la convocatoria de la ${jLabel(data.next.match)}`, description: data.next.conv.text, hint: "acción", keywords: "convocar titulares", run: () => go({ section: "convocatorias", matchId: data.next?.match.id }) });
+    const acta = data.overview.pending.find((p) => p.key.startsWith("acta-"));
+    const actaMatch = acta ? data.matches.find((m) => `acta-${m.id}` === acta.key) : undefined;
+    if (actaMatch) cmds.push({ id: "a:acta", group: "Acciones", icon: "✎", title: `Completar el acta ${jLabel(actaMatch)}`, description: actaMatch.rival ?? "Rival", hint: "acción", keywords: "acta editar", run: () => go({ section: "partidos", matchId: actaMatch.id, tab: "acta" }) });
+    const hero = data.hero;
+    if (hero && hero.moment === "antes")
+      cmds.push({ id: "a:convocar", group: "Acciones", icon: "✓", title: `Convocar la ${jLabel(hero.match)}`, description: hero.match.rival ?? "Rival", hint: "acción", keywords: "convocar titulares siete", run: () => go({ section: "convocar", matchId: hero.match.id }) });
+    const drafts = data.overview.pending.filter((p) => p.key.startsWith("draft-")).length;
     cmds.push(
-      { id: "a:contenido", group: "Acciones", icon: "↑", title: "Contenido del club", description: data.content.gaps.length ? `${data.content.gaps.length} por completar` : "Completo", hint: "acción", keywords: "publicar editar textos", run: () => go({ section: "contenido" }) },
-      { id: "a:tema", group: "Acciones", icon: "◐", title: theme === "dark" ? "Tema de día" : "Tema de noche", description: "Cambia los colores del panel", hint: "acción", keywords: "tema oscuro claro modo", run: toggle },
+      { id: "a:contenido", group: "Acciones", icon: "↑", title: "Publicar contenido", description: drafts ? `${drafts} ${drafts === 1 ? "cambio" : "cambios"} sin publicar` : "al día", hint: "acción", keywords: "publicar editar textos web contenido", run: () => go({ section: "contenido" }) },
+      { id: "a:tema", group: "Acciones", icon: "◐", title: theme === "dark" ? "Tema de día" : "Tema de noche", description: "Colores de la sala", hint: "acción", keywords: "tema oscuro claro modo", run: toggle },
     );
     for (const s of SECTIONS) {
-      const c = counters[s.key];
-      cmds.push({ id: `s:${s.key}`, group: "Secciones", icon: s.abbr, title: s.name, description: c.n && c.tone ? c.label : s.key === "plantilla" ? c.label : s.blurb, hint: "ir", run: () => go({ section: s.key }) });
+      const c = s.key in counters ? counters[s.key as keyof typeof counters] : undefined;
+      cmds.push({ id: `s:${s.key}`, group: "Secciones", icon: s.name.slice(0, 2).toUpperCase(), title: s.name, description: c && c.n ? c.label : s.blurb, hint: "ir", run: () => go({ section: s.key }) });
     }
-    const pinned = new Set([last?.match.id, data.next?.match.id].filter(Boolean));
+    const pinned = new Set([actaMatch?.id, hero?.match.id].filter(Boolean));
     const ordered = [...data.matches].reverse();
     ordered.forEach((m, i) => {
       const t = dateMillis(m.date);
-      const state = data.stateOf(m);
       const j = m.jornada ? `J${m.jornada}` : "";
+      const state = data.stateOf(m);
       const score = typeof m.goalsFor === "number" && state !== "scheduled" && state !== "next" ? `${m.goalsFor}–${m.goalsAgainst ?? 0}` : "";
-      const what = state === "draft" ? "Borrador" : state === "acta" ? "Acta por hacer" : state === "published" ? "Publicada" : state === "cancelled" ? "Cancelado" : state === "postponed" ? "Aplazado" : state === "next" ? "Próximo" : "Programado";
       cmds.push({
         id: `m:${m.id}`,
         group: "Partidos",
         icon: j || "vs",
         title: `${j ? `${j} · ` : ""}${m.rival ?? "Rival"}`,
-        description: [what, score || `${shortDate(t)}`].join(" · "),
+        description: score || (Number.isFinite(t) ? `${shortDate(t).replace(/^\S+ /, "")} · ${clockTime(t)}` : "sin fecha"),
         hint: "abrir",
         keywords: `${m.competition ?? ""} ${shortDate(t)}`,
         exact: j ? [j] : undefined,
         whenEmpty: pinned.has(m.id),
-        order: pinned.has(m.id) ? (m.id === last?.match.id ? -2 : -1) : i,
+        order: pinned.has(m.id) ? (m.id === actaMatch?.id ? -2 : -1) : i,
         run: () => go({ section: "partidos", matchId: m.id }),
       });
     });
@@ -164,10 +160,10 @@ function AdminShell({ appRef, data, collapsed, onToggleSide }: { appRef: RefObje
         id: `p:${p.id}`,
         group: "Jugadores",
         icon: p.number != null ? String(p.number) : "·",
-        title: p.name,
-        description: `${POS[p.position] ?? "Jugador"} · editar ficha`,
+        title: p.number != null ? `${p.number} · ${p.name}` : p.name,
+        description: p.position || "Jugador",
         hint: "editar",
-        keywords: [p.doc.firstName, p.doc.lastName].filter(Boolean).join(" "),
+        keywords: [POS[p.position], p.doc.firstName, p.doc.lastName].filter(Boolean).join(" "),
         exact: p.number != null ? [String(p.number)] : undefined,
         whenEmpty: false,
         run: () => go({ section: "plantilla", playerId: p.id }),
@@ -176,33 +172,39 @@ function AdminShell({ appRef, data, collapsed, onToggleSide }: { appRef: RefObje
   }, [data, counters, go, theme, toggle]);
   useRegisterCommands(builtins);
 
-  const archived = data.seasons.filter((s) => s.archived).length;
-  const seasonsText = `${data.season ? `${data.season.name} activa` : "Sin temporada activa"}${archived ? ` · ${archived} archivada${archived === 1 ? "" : "s"}` : ""}`;
+  const view = <Outlet />;
+  const openPalette = () => {
+    setMas(false);
+    setPalette(true);
+  };
 
   return (
     <ShellContext.Provider value={shell}>
-      <div ref={appRef} className="app">
-        <AdminHeader section={section} dark={theme === "dark"} onSearch={() => setPalette(true)} onTheme={toggle} />
-        <SideNav section={section} counters={counters} captain={captain} collapsed={collapsed} onToggle={onToggleSide} onGo={goSection} />
-        <div className="ws" id="ws">
-          <Outlet />
+      {desktop ? (
+        <div ref={appRef} className="dk">
+          <AdminHeader title={title} dark={theme === "dark"} onSearch={openPalette} onTheme={toggle} />
+          <Rail current={section} counters={counters} captain={captain} />
+          <main key={section} className="ws anim" id="ws">
+            {view}
+          </main>
         </div>
-        <BottomBar section={section} counters={counters} masOpen={mas} onGo={goSection} onMas={() => setMas(true)} />
-      </div>
+      ) : (
+        <div ref={appRef} className="mb">
+          {!bare && <MobileHeader title={title} onSearch={openPalette} />}
+          <main className="mws" id="ws">
+            {view}
+          </main>
+          {!bare && <BottomBar current={section} counters={counters} masOpen={mas} onMas={() => setMas(true)} />}
+        </div>
+      )}
       <MasSheet
-        open={mas}
+        open={mas && !desktop}
         onClose={() => setMas(false)}
-        section={section}
         counters={counters}
         captain={captain}
         dark={theme === "dark"}
-        convText={data.next ? data.next.conv.text : "Sin partidos por jugar"}
-        seasonsText={seasonsText}
         onGo={goSection}
-        onSearch={() => {
-          setMas(false);
-          setPalette(true);
-        }}
+        onSearch={openPalette}
         onTheme={toggle}
       />
       <CommandPalette open={palette} onClose={() => setPalette(false)} />

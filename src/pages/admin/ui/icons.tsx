@@ -1,5 +1,5 @@
-// The admin's stroke icons, drawn exactly as on the Design canvas (stats-gen/ad-elegida.mjs `K` + the
-// shared ICON set it borrows: calendar, team, search, sun, moon, star, ball, bell).
+// The admin's stroke icons, drawn exactly as on the Design canvas (stats-gen/ad-v2-full.mjs and ad-elegida.mjs
+// `K` + the shared ICON set they borrow: calendar, team, search, sun, moon, star, ball, bell).
 import type { ReactNode } from "react";
 
 const P: Record<string, { d: ReactNode; sw: number }> = {
@@ -43,12 +43,17 @@ const P: Record<string, { d: ReactNode; sw: number }> = {
   star: { d: <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z" />, sw: 1.8 },
   ball: { d: (<><circle cx="12" cy="12" r="9" /><path d="m12 7 4 3-1.5 4.5h-5L8 10Z" /></>), sw: 1.6 },
   bell: { d: (<><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z" /><path d="M10 21h4" /></>), sw: 1.8 },
+  shirt: { d: <path d="M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0Z" />, sw: 1.9 },
+  card: { d: <rect x="7" y="3" width="10" height="16" rx="2" />, sw: 1.9 },
+  whistle: { d: (<><circle cx="9" cy="14" r="5" /><path d="M12 10h9v4h-5M5 9 3 6" /></>), sw: 1.9 },
+  share: { d: (<><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" /></>), sw: 1.9 },
+  down: { d: <path d="m6 9 6 6 6-6" />, sw: 2.4 },
 };
 export type AdIconName =
   | "check" | "alert" | "info" | "clock" | "pencil" | "x" | "plus" | "minus" | "back" | "right" | "ext" | "door"
   | "inbox" | "flag" | "shield" | "doc" | "lock" | "swap" | "glove" | "spark" | "home" | "list" | "dots" | "side"
   | "image" | "link" | "bolt" | "trash" | "arch" | "undo" | "enter" | "updown" | "cal" | "team" | "search" | "sun"
-  | "moon" | "star" | "ball" | "bell";
+  | "moon" | "star" | "ball" | "bell" | "shirt" | "card" | "whistle" | "share" | "down";
 
 /** One of the admin's icons (decorative: aria-hidden). `size` defaults to the canvas' usual 18. */
 export function AdIcon({ name, size = 18 }: { name: AdIconName; size?: number }) {

@@ -10,7 +10,11 @@ vi.mock("../../../context/AuthContext", async () => ({ useAuth: (await import(".
 vi.mock("../../../lib/clubApi", () => ({ apiError: (e: unknown) => String(e) }));
 vi.mock("../club/useClubWrites", () => ({ useClubWrites: () => h.writes }));
 
-const members = () => within(screen.getByRole("list", { name: "Miembros" })).getAllByRole("listitem");
+const captains = () => within(screen.getByRole("list", { name: /^Con brazalete/ })).queryAllByRole("listitem");
+const socios = () => {
+  const list = screen.queryByRole("list", { name: /^Socios/ });
+  return list ? within(list).getAllByRole("listitem") : [];
+};
 
 describe("Capitanes", () => {
   beforeEach(() => {
@@ -20,70 +24,82 @@ describe("Capitanes", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("lists the members by role, filters them and protects the super admin", async () => {
-    const user = userEvent.setup();
+  it("hangs the armbands in lockers (gold = capitán general, protected) and lists the socios", async () => {
     mountAdmin("/admin/capitanes", { capitanes: Capitanes });
     expect(await screen.findByRole("heading", { level: 1, name: "Capitanes" })).toBeInTheDocument();
-    expect(screen.getByText("2 administradores · 1 usuario")).toBeInTheDocument();
-    const rows = members();
-    expect(rows.map((r) => r.querySelector("b")?.textContent)).toEqual(["adrian_tc(tú)Super admin", "erik9Administrador", "kevin11Usuario"]);
-    expect(rows[0]).toHaveTextContent("capitan.adrian.tc@gmail.com");
-    expect(within(rows[0]).getByText("Protegido")).toBeInTheDocument();
-    expect(within(rows[0]).queryByRole("button")).toBeNull();
-    expect(within(rows[1]).getByRole("button", { name: "Quitar admin a erik9" })).toBeInTheDocument();
-    expect(within(rows[2]).getByRole("button", { name: "Hacer administrador a kevin11" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Usuarios/ }));
-    expect(members()).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: /^Administradores/ }));
-    expect(members().map((r) => r.querySelector("b")?.firstChild?.textContent)).toEqual(["adrian_tc", "erik9"]);
+    expect(screen.getByText("Con brazalete")).toHaveTextContent("Con brazalete 2");
+    expect(screen.getByText("Socios")).toHaveTextContent("Socios 1");
+    const [adrian, erik] = captains();
+    expect(adrian).toHaveAccessibleName("@adrian_tc (tú) · Capitán general · super admin");
+    expect(adrian).toHaveTextContent("Capitán general · super admin · capitan.adrian.tc@gmail.com");
+    expect(adrian.querySelector(".arm.gd")).toHaveTextContent("C");
+    expect(within(adrian).getByText("Protegido")).toBeInTheDocument();
+    expect(within(adrian).queryByRole("button")).toBeNull();
+    expect(erik.querySelector(".arm:not(.gd)")).toHaveTextContent("C");
+    expect(within(erik).getByRole("button", { name: "Quitar el brazalete a @erik9" })).toBeInTheDocument();
+    const [kevin] = socios();
+    expect(kevin).toHaveTextContent("Socio · kevin@hotmail.com");
+    expect(kevin.querySelector(".arm")).toBeNull();
+    expect(within(kevin).getByRole("button", { name: "Dar el brazalete a @kevin11" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Las normas del brazalete" })).toHaveTextContent("el último no puede quitárselo");
   });
 
-  it("makes someone an admin after asking, behind an undo toast", async () => {
+  it("gives the armband after asking, behind a lower third with «Deshacer»; taking it off is red", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     mountAdmin("/admin/capitanes", { capitanes: Capitanes });
-    await user.click(await screen.findByRole("button", { name: "Hacer administrador a kevin11" }));
-    const ask = screen.getByRole("alertdialog", { name: "¿Hacer administrador a kevin11?" });
-    expect(ask).toHaveTextContent("Podrá editar actas, plantilla, temporadas y contenido");
-    expect(ask).toHaveTextContent("No podrá quitar al super admin");
-    await user.click(within(ask).getByRole("button", { name: "Hacer administrador" }));
-    expect(screen.getByText("kevin11 ya es administrador.")).toBeInTheDocument();
-    expect(screen.getByText("3 administradores · 0 usuarios")).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Dar el brazalete a @kevin11" }));
+    const ask = screen.getByRole("dialog", { name: "¿Dar el brazalete a @kevin11?" });
+    expect(ask).toHaveTextContent("Podrá publicar actas y convocar");
+    expect(ask).toHaveTextContent("Podrá aprobar fichas y cambiar el contenido");
+    await user.click(within(ask).getByRole("button", { name: "Dar el brazalete" }));
+    expect(screen.getByText("@kevin11 ya lleva el brazalete")).toBeInTheDocument();
+    expect(captains()).toHaveLength(3);
+    expect(socios()).toHaveLength(0);
     await user.click(screen.getByRole("button", { name: "Deshacer" }));
-    expect(screen.getByText("2 administradores · 1 usuario")).toBeInTheDocument();
+    expect(captains()).toHaveLength(2);
     await act(async () => {
       vi.advanceTimersByTime(6000);
     });
     expect(h.writes.setRole).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Quitar admin a erik9" }));
-    const red = screen.getByRole("alertdialog", { name: "¿Quitar el admin a erik9?" });
-    expect(red).toHaveTextContent("Sigue siendo socio: su cuenta y su ficha no cambian");
-    await user.click(within(red).getByRole("button", { name: "Quitar admin" }));
+    await user.click(screen.getByRole("button", { name: "Quitar el brazalete a @erik9" }));
+    const red = screen.getByRole("alertdialog", { name: "¿Quitar el brazalete a @erik9?" });
+    expect(red).toHaveTextContent("Deja de ver la sala de control");
+    expect(red).toHaveTextContent("Sigue siendo socio: su carta y su voto no cambian");
+    await user.click(within(red).getByRole("button", { name: "Quitar el brazalete" }));
+    expect(screen.getByText("@erik9 deja el brazalete · sigue como socio")).toBeInTheDocument();
     await act(async () => {
-      vi.advanceTimersByTime(5100);
+      vi.advanceTimersByTime(5300);
     });
     expect(h.writes.setRole).toHaveBeenCalledWith("a2", "segundo.capitan@gmail.com", "user");
   });
 
-  it("warns you when you are removing your own access", async () => {
+  it("the last captain cannot take his own armband off", async () => {
+    const base = adminFixture();
+    setAdminData({ ...base, people: base.people.filter((p) => p.uid !== "a1") });
+    mountAdmin("/admin/capitanes", { capitanes: Capitanes });
+    const [erik] = await screen.findAllByRole("listitem", { name: /@erik9/ });
+    expect(within(erik).getByText("Último capitán")).toBeInTheDocument();
+    expect(within(erik).queryByRole("button")).toBeNull();
+  });
+
+  it("warns you when you are taking your own armband off", async () => {
     const user = userEvent.setup();
     const base = adminFixture();
     setAdminData({ ...base, people: base.people.map((p) => (p.uid === "a1" ? { ...p, role: "admin" } : p)) });
     mountAdmin("/admin/capitanes", { capitanes: Capitanes });
-    await user.click(await screen.findByRole("button", { name: "Quitar admin a adrian_tc" }));
-    const ask = screen.getByRole("alertdialog", { name: "¿Quitar el admin a adrian_tc?" });
+    await user.click(await screen.findByRole("button", { name: "Quitar el brazalete a @adrian_tc" }));
+    const ask = screen.getByRole("alertdialog", { name: "¿Quitar el brazalete a @adrian_tc?" });
     expect(ask).toHaveTextContent("Eres tú: dejarás de ver esta página en cuanto se guarde");
-    expect(ask).toHaveTextContent("Dejarás de poder entrar en esta administración.");
   });
 
   it("keeps the super admin protected by e-mail even without the role", async () => {
     const base = adminFixture();
     setAdminData({ ...base, people: [...base.people, { uid: "s1", nickname: "jefe", displayName: "", email: "adriantomascv@gmail.com", role: "admin", playerId: null, removed: false }] });
     mountAdmin("/admin/capitanes", { capitanes: Capitanes });
-    const jefe = (await screen.findAllByRole("listitem")).find((li) => li.textContent?.startsWith("JEjefe"));
-    expect(jefe).toBeDefined();
-    expect(within(jefe!).getByText("Protegido")).toBeInTheDocument();
-    expect(within(jefe!).queryByRole("button")).toBeNull();
+    const [jefe] = await screen.findAllByRole("listitem", { name: /@jefe/ });
+    expect(within(jefe).getByText("Protegido")).toBeInTheDocument();
+    expect(within(jefe).queryByRole("button")).toBeNull();
   });
 });

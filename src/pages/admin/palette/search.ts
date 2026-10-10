@@ -1,5 +1,5 @@
 // The command palette's model (pure): what a command is, and how a query becomes the grouped results.
-// Groups come in a fixed order (Acciones, Secciones, Partidos, Jugadores, then anything a view adds).
+// Groups come in the designed order (Acciones, Partidos, Jugadores, Secciones, then anything a view adds).
 
 export type PaletteGroup = "Acciones" | "Secciones" | "Partidos" | "Jugadores" | (string & {});
 export interface PaletteCommand {
@@ -27,7 +27,7 @@ export interface PaletteSection {
   items: PaletteCommand[];
 }
 
-const GROUP_ORDER = ["Acciones", "Secciones", "Partidos", "Jugadores"];
+const GROUP_ORDER = ["Acciones", "Partidos", "Jugadores", "Secciones"];
 /** Partidos / Jugadores list at most this many (the design's 6). */
 export const GROUP_LIMIT: Record<string, number> = { Partidos: 6, Jugadores: 6 };
 

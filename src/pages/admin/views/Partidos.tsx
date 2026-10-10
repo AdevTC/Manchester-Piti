@@ -1,40 +1,47 @@
-// Partidos y actas — master–detail. The list (search, filters, sticky groups) and the selected match:
-// an acta to do (a draft, or a played match not published) opens as the editor (tabs Encuentro ·
-// Convocatoria · Acta · Publicar, in the URL: /admin/partidos/$matchId?tab=); a published match or one
-// still to be played opens as its summary with its action. On phones the list and the match take the
-// whole screen in turn (← back). «Nuevo partido» is a modal (?nuevo; the N key opens it too).
+// Partidos (/admin/partidos, /admin/partidos/$matchId?tab=&vitrina=) — master–detail, as on the canvas
+// (stats-gen/ad-v2-full.mjs `partidosD`, `mPartidos`; shots-adv2f/partidos-acta.png, m-partidos-lista.png):
+// the header «Partidos» (N jornadas · N por hacer) with «Nuevo partido», the list (search, filter, sticky
+// groups) and the selected match's workspace (MatchEditor). Desktop shows a match even without one in the
+// URL (the first to do). Phones: the list alone (with the shell's header and bar), then the match full
+// screen (the bar hides) with ←. `?vitrina` on a played match = the publish peak. «Nuevo partido» is a modal
+// (?nuevo; the N key opens it too); «Borrar partido» hides the match at once and deletes it behind
+// «Deshacer».
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { apiError, deleteMatch } from "../../../lib/clubApi";
+import { jLabel, type AdminMatch } from "../data/adminLogic";
 import type { AdminData } from "../data/useAdminData";
-import { jLabel, matchGroup, type AdminMatch } from "../data/adminLogic";
+import { useWhistled } from "../data/whistleStore";
+import { ShirtBack } from "../kit";
 import { useRegisterCommands } from "../palette/registry";
 import type { PaletteCommand } from "../palette/search";
-import { AdminView } from "../shell/AdminView";
 import { useAdmin } from "../shell/context";
 import { MATCH_TABS, type MatchTab } from "../shell/nav";
-import { EmptyState, SkeletonRows } from "../ui/controls";
-import { AdIcon } from "../ui/icons";
 import { useFrame } from "../ui/frame";
+import { AdIcon } from "../ui/icons";
 import { useLayerStack } from "../ui/layerCore";
 import { useToast } from "../ui/toastContext";
-import { rosterFor } from "../acta/roster";
-import { buildMatchList, type ListFilter } from "../partidos/listModel";
+import { buildMatchList, defaultMatch, groupOf, type ListFilter } from "../partidos/listModel";
 import { useMatchNote } from "../partidos/live";
 import { MatchEditor } from "../partidos/MatchEditor";
 import { MatchList } from "../partidos/MatchList";
-import { MatchSummary } from "../partidos/MatchSummary";
 import { NuevoPartido } from "../partidos/NuevoPartido";
+import { phaseOf } from "../partidos/workspaceModel";
+import { Publicado } from "../publicado/Publicado";
 import "../partidos/partidos.css";
 
 interface PartidosSearch {
   tab?: string;
   nuevo?: boolean | string;
+  vitrina?: boolean | string;
 }
 const isTab = (t: unknown): t is MatchTab => typeof t === "string" && (MATCH_TABS as readonly string[]).includes(t);
+const isOn = (v: unknown) => v === true || v === "true";
 const isTyping = (t: EventTarget | null) => {
   const el = t as HTMLElement | null;
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
 };
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export function Partidos() {
   const data = useAdmin();
@@ -42,25 +49,27 @@ export function Partidos() {
   const toast = useToast();
   const { stack } = useLayerStack();
   const { desktop } = useFrame();
+  const whistled = useWhistled();
   const params = useParams({ strict: false }) as { matchId?: string };
   const search = useSearch({ strict: false }) as PartidosSearch;
   const matchId = params.matchId;
   const tabParam = isTab(search.tab) ? search.tab : undefined;
-  const nuevo = search.nuevo === true || search.nuevo === "true";
+  const nuevo = isOn(search.nuevo);
   const [filter, setFilter] = useState<ListFilter>("todo");
   const [query, setQuery] = useState("");
+  // Deleted here, waiting behind «Deshacer»: out of the list already.
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
+  // Just created: its workspace waits for the first snapshot instead of saying «no está».
+  const [created, setCreated] = useState<string | null>(null);
 
-  const { matches, stateOf, reviewOf, players, seasons } = data;
-  const lastId = data.last?.match.id;
-  const rosterIds = useCallback((m: AdminMatch) => rosterFor(players, seasons, m.seasonId).map((p) => p.id), [players, seasons]);
-  const model = useMemo(() => buildMatchList(matches, { stateOf, reviewOf, rosterIds }, filter, query), [matches, stateOf, reviewOf, rosterIds, filter, query]);
-  // Desktop shows a match even without one in the URL: the first one to do (else the latest).
-  const fallback = useMemo(() => {
-    const todo = matches.filter((m) => matchGroup(stateOf(m)) === "hacer");
-    return todo[0]?.id ?? matches.at(-1)?.id ?? null;
-  }, [matches, stateOf]);
+  const { reviewOf, now } = data;
+  const matches = useMemo(() => data.matches.filter((m) => !hidden.has(m.id)), [data.matches, hidden]);
+  const nextId = data.next?.match.id ?? null;
+  const ctx = useMemo(() => ({ now, whistled, nextId, reviewOf }), [now, whistled, nextId, reviewOf]);
+  const model = useMemo(() => buildMatchList(matches, ctx, filter, query), [matches, ctx, filter, query]);
+  const fallback = useMemo(() => defaultMatch(matches, ctx)?.id ?? null, [matches, ctx]);
   const selectedId = matchId ?? (desktop ? fallback : null);
-  const selected = data.matches.find((m) => m.id === selectedId) ?? null;
+  const selected = matchId && hidden.has(matchId) ? null : (matches.find((m) => m.id === selectedId) ?? null);
 
   const open = useCallback((id: string, tab?: MatchTab) => void navigate({ to: "/admin/partidos/$matchId", params: { matchId: id }, search: { tab } }), [navigate]);
   const setTab = (tab: MatchTab) => selectedId && void navigate({ to: "/admin/partidos/$matchId", params: { matchId: selectedId }, search: { tab }, replace: true });
@@ -86,114 +95,192 @@ export function Partidos() {
     return () => document.removeEventListener("keydown", onKey);
   }, [layerOpen, openNuevo]);
 
-  // Palette: «Abrir el acta de la Jn» for every acta to do (the shell already lists the latest one).
+  // Palette: «Abrir el acta de la Jn» for every acta to do (the shell already pins the pending one).
   const commands = useMemo<PaletteCommand[]>(
     () =>
       matches
-        .filter((m) => ["draft", "acta"].includes(stateOf(m)) && m.id !== lastId)
+        .filter((m) => groupOf(m, ctx) === "hacer")
         .map((m) => ({
           id: `partidos:acta:${m.id}`,
           group: "Acciones",
           icon: "✎",
           title: `Abrir el acta de la ${jLabel(m)}`,
-          description: `${m.rival ?? "Rival"} · ${stateOf(m) === "draft" ? "borrador" : "sin empezar"}`,
+          description: m.rival ?? "Rival",
           hint: "acción",
           keywords: "acta editar",
           run: () => open(m.id, "acta"),
         })),
-    [matches, stateOf, lastId, open],
+    [matches, ctx, open],
   );
   useRegisterCommands(commands);
 
+  const remove = (m: AdminMatch) => {
+    const j = jLabel(m);
+    const unhide = () =>
+      setHidden((s) => {
+        const n = new Set(s);
+        n.delete(m.id);
+        return n;
+      });
+    setHidden((s) => new Set(s).add(m.id));
+    void navigate({ to: "/admin/partidos" });
+    toast.defer({
+      tag: j,
+      message: `${j} borrada del calendario`,
+      commit: () => deleteMatch({ id: m.id }),
+      errorMessage: `No se ha podido borrar la ${j}`,
+      onUndo: () => {
+        unhide();
+        open(m.id, "encuentro");
+      },
+      onError: unhide,
+    });
+  };
+  const onCreated = ({ id, j, rival }: { id: string; j: string; rival: string }) => {
+    setCreated(id);
+    void navigate({ to: "/admin/partidos/$matchId", params: { matchId: id }, search: { tab: "encuentro" } });
+    toast.show({
+      tag: j,
+      message: `${j} · ${rival} creada · completa el campo cuando lo sepas`,
+      undo: () => {
+        setHidden((s) => new Set(s).add(id));
+        void navigate({ to: "/admin/partidos" });
+        deleteMatch({ id }).then(
+          () => toast.show({ tag: j, message: `${j} · ${rival} quitada` }),
+          (e: unknown) => {
+            setHidden((s) => {
+              const n = new Set(s);
+              n.delete(id);
+              return n;
+            });
+            toast.show({ tone: "error", message: `No se ha podido quitar la ${j}: ${apiError(e)}` });
+          },
+        );
+      },
+    });
+  };
+
   const hacer = model.counts.hacer;
-  return (
-    <AdminView
-      kicker="Jornada"
-      title="Partidos y actas"
-      lead={`${data.matches.length} ${data.matches.length === 1 ? "jornada" : "jornadas"} · ${hacer} por hacer · toca un partido para abrirlo`}
-      className={`vpa${matchId ? " det" : ""}`}
-      actions={
-        <button type="button" className="btn sm gold" onClick={openNuevo} aria-haspopup="dialog" aria-keyshortcuts="N">
-          <AdIcon name="plus" size={16} />
-          Nuevo partido
-        </button>
-      }
-    >
-      <div className="vb md">
-        <MatchList model={model} filter={filter} query={query} selectedId={selectedId} loading={data.loading} error={data.error && !data.matches.length} onFilter={setFilter} onQuery={setQuery} onOpen={(id) => open(id)} onNew={openNuevo} />
-        <div className="cd dp" role="region" aria-label="Partido seleccionado">
-          {data.loading ? (
-            <div className="dp-b">
-              <SkeletonRows rows={4} label="Cargando el partido…" />
-            </div>
-          ) : selected ? (
-            <MatchPane key={selected.id} match={selected} data={data} tabParam={tabParam} onTab={setTab} onOpenTab={(t) => open(selected.id, t)} onBack={back} />
+  const nuevoModal = nuevo && <NuevoPartido matches={data.matches} seasons={data.seasons} season={data.season} now={now} onClose={closeNuevo} onCreated={onCreated} />;
+
+  // The publish peak (a played match only).
+  if (isOn(search.vitrina) && selected && phaseOf(selected, now, whistled.has(selected.id)) === "jugado") return <Publicado match={selected} />;
+
+  const detail = data.loading ? (
+    <section className="det" aria-label="Partido">
+      <div className="db">
+        <div className="skel" role="status" aria-label="Cargando el partido">
+          <i />
+          <i />
+          <i />
+        </div>
+      </div>
+    </section>
+  ) : selected ? (
+    <MatchPane key={selected.id} match={selected} data={data} tab={tabParam} onTab={setTab} onBack={back} onDelete={remove} onPublished={() => void navigate({ to: "/admin/partidos/$matchId", params: { matchId: selected.id }, search: { vitrina: true } })} />
+  ) : matchId && matchId === created && !hidden.has(matchId) ? (
+    <section className="det" aria-label="Partido">
+      <div className="db">
+        <div className="skel" role="status" aria-label="Abriendo el partido">
+          <i />
+          <i />
+        </div>
+      </div>
+    </section>
+  ) : desktop || matchId ? (
+    <section className="det" aria-label="Partido">
+      <div className="db" style={{ display: "flex" }}>
+        <div className="void" style={{ flex: 1 }}>
+          <ShirtBack size={90} big state="empty" />
+          {matchId ? (
+            <>
+              <h3>Ese partido no está</h3>
+              <p>Puede que se haya borrado o que aún se esté creando.</p>
+              <button type="button" className="btn line" onClick={back}>
+                <AdIcon name="back" size={18} />
+                Volver a la lista
+              </button>
+            </>
           ) : (
-            <div className="dp-b">
-              {matchId ? (
-                <EmptyState icon="search" title="No encontramos ese partido">
-                  Puede que se haya borrado o que aún se esté creando.
-                </EmptyState>
-              ) : (
-                <EmptyState icon="cal" title="Todavía no hay partidos">
-                  Crea el primero con «Nuevo partido».
-                </EmptyState>
-              )}
-              {matchId && (
-                <div className="row ad-ml-new">
-                  <button type="button" className="btn sm line" onClick={back}>
-                    <AdIcon name="back" size={16} />
-                    Volver a la lista
-                  </button>
-                </div>
-              )}
-            </div>
+            <>
+              <h3>Todavía no hay partidos</h3>
+              <p>Crea el primero: rival, fecha y hora. El resto, cuando lo sepas.</p>
+              <button type="button" className="btn gold" onClick={openNuevo}>
+                <AdIcon name="plus" size={18} />
+                Nuevo partido
+              </button>
+            </>
           )}
         </div>
       </div>
-      {nuevo && (
-        <NuevoPartido
-          matches={data.matches}
-          seasons={data.seasons}
-          season={data.season}
-          now={data.now}
-          onClose={closeNuevo}
-          onCreated={(id, message) => {
-            toast.show({ message });
-            void navigate({ to: "/admin/partidos/$matchId", params: { matchId: id }, search: { tab: "encuentro" } });
-          }}
-        />
-      )}
-    </AdminView>
+    </section>
+  ) : null;
+
+  const list = (
+    <MatchList model={model} filter={filter} query={query} selectedId={desktop ? selectedId : null} loading={data.loading} error={data.error && !data.matches.length} onFilter={setFilter} onQuery={setQuery} onOpen={(id) => open(id)} />
+  );
+
+  if (!desktop)
+    return (
+      <>
+        {matchId ? (
+          detail
+        ) : (
+          <div className="msc">
+            <button type="button" className="btn line" onClick={openNuevo} aria-haspopup="dialog">
+              <AdIcon name="plus" />
+              Nuevo partido
+            </button>
+            {list}
+          </div>
+        )}
+        {nuevoModal}
+      </>
+    );
+  return (
+    <>
+      <div className="vh">
+        <div>
+          <h1 className="ttl">Partidos</h1>
+          <p className="ld">
+            {plural(data.matches.length, "jornada", "jornadas")} · {hacer} por hacer · por hacer primero
+          </p>
+        </div>
+        <div className="r">
+          <button type="button" className="btn line" onClick={openNuevo} aria-haspopup="dialog" aria-keyshortcuts="N">
+            <AdIcon name="plus" />
+            Nuevo partido
+          </button>
+        </div>
+      </div>
+      <div className="pt">
+        {list}
+        {detail}
+      </div>
+      {nuevoModal}
+    </>
   );
 }
 
-/** The selected match: its editor (an acta to do, or a tab asked for) or its summary. */
-function MatchPane({ match, data, tabParam, onTab, onOpenTab, onBack }: { match: AdminMatch; data: AdminData; tabParam: MatchTab | undefined; onTab: (t: MatchTab) => void; onOpenTab: (t: MatchTab) => void; onBack: () => void }) {
-  const navigate = useNavigate();
-  const state = data.stateOf(match);
-  const editing = state === "draft" || state === "acta" || !!tabParam;
-  const note = useMatchNote(editing ? match.id : undefined);
-  if (!editing)
-    return (
-      <MatchSummary
-        match={match}
-        data={data}
-        state={state}
-        onEdit={onOpenTab}
-        onConvocatoria={() => void navigate({ to: "/admin/convocatorias", search: { j: match.id } })}
-        onBack={onBack}
-      />
-    );
+/** The selected match: its private note (loaded first), then the workspace. */
+function MatchPane({ match, data, tab, onTab, onBack, onDelete, onPublished }: { match: AdminMatch; data: AdminData; tab: MatchTab | undefined; onTab: (t: MatchTab) => void; onBack: () => void; onDelete: (m: AdminMatch) => void; onPublished: () => void }) {
+  const whistled = useWhistled();
+  const note = useMatchNote(match.id);
   if (note.loading)
     return (
-      <div className="dp-b">
-        <SkeletonRows rows={4} label="Cargando el acta…" />
-      </div>
+      <section className="det" aria-label="Partido">
+        <div className="db">
+          <div className="skel" role="status" aria-label="Cargando el acta">
+            <i />
+            <i />
+            <i />
+          </div>
+        </div>
+      </section>
     );
-  const played = data.reviewOf(match).finished;
-  const tab: MatchTab = tabParam ?? (played ? "acta" : "encuentro");
-  return <MatchEditor match={match} data={data} note={note.data} tab={tab} onTab={onTab} onBack={onBack} onDeleted={onBack} />;
+  const phase = phaseOf(match, data.now, whistled.has(match.id));
+  const current: MatchTab = tab ?? (phase === "jugado" || phase === "juego" ? "acta" : "encuentro");
+  return <MatchEditor match={match} data={data} note={note.data} tab={current} onTab={onTab} onBack={onBack} onDelete={onDelete} onPublished={onPublished} />;
 }
 
 /** /admin/partidos/$matchId — the Partidos view renders the selected match itself (master–detail). */

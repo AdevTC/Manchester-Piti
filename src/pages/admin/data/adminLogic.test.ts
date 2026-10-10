@@ -5,6 +5,7 @@ import {
   buildOverview,
   contentGaps,
   convocatoriaState,
+  doneLines,
   lastActaMatch,
   matchGroup,
   matchState,
@@ -198,57 +199,56 @@ describe("mvpNote", () => {
   });
 });
 
-describe("buildOverview (Por hacer + counters)", () => {
+describe("buildOverview (Hoy: Por hacer, «N hechas», the rail counters)", () => {
   const list = mergeMatches(published, [draft7]);
   const m7 = list.find((m) => m.id === "m7")!;
   const m8 = list.find((m) => m.id === "m8")!;
   const base: OverviewInput = {
-    last: { match: m7, review: reviewActa(m7, ROSTER, NOW), publishedClean: false, mvpOpen: false },
-    next: { match: m8, conv: convocatoriaState(m8, ROSTER, true), rsvp: { yes: 9, maybe: 2, no: 1, none: 0 } },
-    claims: [
-      { uid: "u1", nickname: "nuevo.socio", playerName: "KEVIN" },
-      { uid: "u2", nickname: "fer", playerName: "FER" },
-    ],
+    actas: [{ match: m7, review: reviewActa(m7, ROSTER, NOW) }],
+    heroId: m8.id,
+    claims: [{ playerName: "KEVIN" }, { playerName: "FER" }],
     contentGaps: [{ key: "escudo", title: "Historia del escudo", detail: "Sin escribir" }],
-    actasPending: 1,
-    roster: 12,
-    seasons: 2,
-    admins: 2,
-    doorRequests: 2,
+    contentDrafts: [{ key: "momentos", title: "Momentos del club" }],
+    done: ["Acta J1 publicada · Emirates 4–1"],
   };
-  it("lists the four things to do, with their actions", () => {
+  it("lists only what is pending, with its action", () => {
     const o = buildOverview(base);
-    expect(o.pending).toBe(4);
-    expect(o.todo.map((t) => [t.key, t.done, t.title])).toEqual([
-      ["acta", false, "Acta J2 · falta el goleador del gol 3"],
-      ["convocatoria", false, "Convocatoria J3 · 9 sin asignar"],
-      ["fichas", false, "2 fichas pendientes"],
-      ["contenido", false, "Contenido · 1 cosa por completar"],
-    ]);
-    expect(o.todo[0].action).toEqual({ label: "Abrir acta", tone: "gold", target: { section: "partidos", matchId: "m7", tab: "acta" } });
-    expect(o.todo[1].detail).toBe("MAD SKY · dom 8 nov · 9 vienen");
-    expect(o.todo[2].detail).toBe("KEVIN y FER piden su ficha");
+    expect(o.pending.map((t) => t.title)).toEqual(["Acta J2 · falta el goleador del gol 3", "2 fichas piden paso", "Momentos del club · sin publicar", "Historia del escudo · por completar"]);
+    expect(o.pending[0]).toMatchObject({ detail: "FUSION 7 · 3–1", ved: "V", action: { label: "Completar", target: { section: "partidos", matchId: "m7", tab: "acta" } } });
+    expect(o.pending[1]).toMatchObject({ detail: "KEVIN y FER quieren su camiseta", ved: null, action: { label: "Revisar", target: { section: "fichas" } } });
+    expect(o.pending[2].action).toEqual({ label: "Publicar", target: { section: "contenido", seccion: "momentos" } });
+    expect(o.pending[3].action).toEqual({ label: "Completar", target: { section: "contenido", seccion: "escudo" } });
+    expect(o.done).toEqual(["Acta J1 publicada · Emirates 4–1"]);
   });
-  it("ticks items off as they get done", () => {
-    const o = buildOverview({ ...base, last: { ...base.last!, publishedClean: true, mvpOpen: true }, claims: [], contentGaps: [] });
-    expect(o.todo.filter((t) => t.done).map((t) => t.title)).toEqual(["Acta J2 publicada", "Fichas al día", "Contenido completo"]);
-    expect(o.pending).toBe(1);
-    expect(o.todo[0].detail).toBe("MVP abierto 48 h");
+  it("leaves the hero's own acta out of «Por hacer» (Hoy shows it) but counts it in Partidos", () => {
+    const o = buildOverview({ ...base, heroId: m7.id });
+    expect(o.pending.some((t) => t.key === "acta-m7")).toBe(false);
+    expect(o.counters.partidos).toEqual({ n: 1, label: "1 por hacer" });
   });
-  it("gives every menu entry its live counter and words", () => {
+  it("counts exceptions only: Hoy = pending, Partidos = played unpublished, Fichas, Contenido", () => {
     const c = buildOverview(base).counters;
-    expect(c.inicio).toEqual({ n: 4, tone: "w", label: "4 cosas por hacer" });
-    expect(c.partidos).toMatchObject({ n: 1, tone: "w" });
-    expect(c.convocatorias).toMatchObject({ n: 9, tone: "w", label: "9 sin asignar" });
-    expect(c.fichas).toEqual({ n: 2, tone: "hot", label: "2 fichas pendientes" });
-    expect(c.plantilla).toEqual({ n: 12, tone: "", label: "12 jugadores" });
-    expect(c.capitanes.label).toBe("2 administradores");
-    expect(c.puerta).toMatchObject({ n: 2, tone: "hot" });
+    expect(c.hoy).toEqual({ n: 4, label: "4 por hacer" });
+    expect(c.fichas).toEqual({ n: 2, label: "2 por hacer" });
+    expect(c.contenido).toEqual({ n: 2, label: "2 por hacer" });
+    const none = buildOverview({ ...base, actas: [], claims: [], contentGaps: [], contentDrafts: [] });
+    expect(none.pending).toEqual([]);
+    expect(none.counters.hoy).toEqual({ n: 0, label: "" });
   });
-  it("copes with an empty season", () => {
-    const o = buildOverview({ ...base, last: null, next: null, claims: [], contentGaps: [], actasPending: 0 });
-    expect(o.pending).toBe(0);
-    expect(o.todo[1].action.target).toEqual({ section: "partidos", nuevo: true });
-    expect(o.counters.convocatorias.n).toBe(0);
+  it("one ficha reads in the singular", () => {
+    expect(buildOverview({ ...base, claims: [{ playerName: "KEVIN" }] }).pending[1]).toMatchObject({ title: "1 ficha pide paso", detail: "KEVIN quiere su camiseta" });
+  });
+});
+
+describe("doneLines («N hechas»)", () => {
+  const list = mergeMatches(published, [draft7]);
+  it("the notice sent, the last acta published and the MVP closed", () => {
+    const m8 = list.find((m) => m.id === "m8")!;
+    const m7 = list.find((m) => m.id === "m7")!;
+    expect(doneLines({ lastPublished: { match: m7, goalsFor: 4, goalsAgainst: 1 }, mvp: { jornada: 6, names: ["ERIK"] }, notified: m8 })).toEqual([
+      "Aviso de la J3 enviado · RSVP abierta",
+      "Acta J2 publicada · FUSION 7 4–1",
+      "MVP J6 cerrado · ganó ERIK",
+    ]);
+    expect(doneLines({ lastPublished: null, mvp: { jornada: null, names: ["ERIK", "EVANS"] }, notified: null })).toEqual(["MVP del último partido cerrado · empate entre ERIK y EVANS"]);
   });
 });

@@ -1,10 +1,10 @@
 // The admin's domain logic, pure (tested in adminLogic.test.ts): matches merged with their drafts and
 // numbered by jornada, the acta review («¿Cuadra?» — the checks MatchEditor's save and the backend's
 // saveMatchSheet apply, extracted), the convocatoria state, RSVP counts, the content gaps, and the
-// Inicio overview (Por hacer + the live counters). Router-, React- and Firebase-free.
+// Hoy overview (Por hacer + the rail counters). Router-, React- and Firebase-free.
 import { calculateLedger, dateMillis, matchPhase, type MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../../lib/clubData";
-import type { AdminTarget, Counter, SectionKey } from "../shell/nav";
+import type { AdminTarget, Counter } from "../shell/nav";
 
 const TZ = "Europe/Madrid";
 const GOAL_TYPES = new Set(["goal", "goal_penalty", "goal_freekick"]);
@@ -55,7 +55,9 @@ export function mergeMatches(published: readonly ClubMatch[], drafts: readonly W
     const saved = dateMillis(d.updatedAt);
     const { updatedAt: _updated, ...rest } = d;
     void _updated;
-    byId.set(d.id, { ...(pub ?? {}), ...rest, draft: true, published: !!pub, jornada: null, draftSavedAt: Number.isFinite(saved) ? saved : undefined });
+    // The convocatoria's stamps: the latest of both (an editor save of the draft does not carry them).
+    const stamp = (k: "convocatoriaAt" | "convocatoriaNotifiedAt") => Math.max(pub?.[k] ?? 0, d[k] ?? 0) || undefined;
+    byId.set(d.id, { ...(pub ?? {}), ...rest, draft: true, published: !!pub, jornada: null, draftSavedAt: Number.isFinite(saved) ? saved : undefined, convocatoriaAt: stamp("convocatoriaAt"), convocatoriaNotifiedAt: stamp("convocatoriaNotifiedAt") });
   }
   const list = [...byId.values()].sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0));
   const count = new Map<string, number>();
@@ -381,98 +383,95 @@ export function mvpNote(o: {
   return prev || "la votación se abre sola al publicar cada acta y dura 48 h.";
 }
 
-// ───────────────────────── Inicio: Por hacer + counters ─────────────────────────
-export interface TodoItem {
-  key: "acta" | "convocatoria" | "fichas" | "contenido";
-  done: boolean;
+// ───────────────────────── Hoy: Por hacer (exceptions only), «N hechas» + the counters ─────────────────────────
+export const jLabel = (m: { jornada: number | null; rival?: string }) => (m.jornada ? `J${m.jornada}` : m.rival || "Partido");
+const letter = (gf: number, ga: number): "V" | "E" | "D" => (gf > ga ? "V" : gf === ga ? "E" : "D");
+
+/** A line of «Por hacer»: what is missing, where it is and the button that goes there. */
+export interface PendingItem {
+  key: string;
   title: string;
   detail: string;
-  action: { label: string; tone: "gold" | "line"; target: AdminTarget };
+  /** The V/E/D mark before the detail (actas). */
+  ved: "V" | "E" | "D" | null;
+  action: { label: string; target: AdminTarget };
 }
 export interface OverviewInput {
-  last: { match: AdminMatch; review: ActaReview; publishedClean: boolean; mvpOpen: boolean } | null;
-  next: { match: AdminMatch; conv: ConvocatoriaState; rsvp: RsvpCounts } | null;
-  /** Pending ficha claims: who asks for which player. */
-  claims: readonly { uid: string; nickname: string; playerName: string }[];
+  /** Played matches whose acta is not published yet (any order), with their review. */
+  actas: readonly { match: AdminMatch; review: ActaReview }[];
+  /** Hoy's hero: its own acta is the hero itself, not a «Por hacer» line. */
+  heroId: string | null;
+  /** Pending ficha claims: the requested shirt's name. */
+  claims: readonly { playerName: string }[];
   contentGaps: readonly ContentGap[];
-  /** Matches with an acta to do (drafts + played, unpublished). */
-  actasPending: number;
-  roster: number;
-  seasons: number;
-  admins: number;
-  doorRequests: number;
+  /** Content sections with drafts not published yet (this captain's device). */
+  contentDrafts: readonly { key: string; title: string }[];
+  /** What was done lately (the «N hechas» fold), newest first. */
+  done: readonly string[];
 }
-export type CounterKey = SectionKey | "puerta";
+export type CounterKey = "hoy" | "partidos" | "fichas" | "contenido";
 export interface Overview {
-  todo: TodoItem[];
-  pending: number;
+  pending: PendingItem[];
+  done: string[];
+  /** The rail's counters (exceptions only): Hoy = pending, Partidos = played unpublished, Fichas, Contenido. */
   counters: Record<CounterKey, Counter>;
 }
-export const jLabel = (m: { jornada: number | null; rival?: string }) => (m.jornada ? `J${m.jornada}` : m.rival || "Partido");
+const counter = (n: number): Counter => ({ n, label: n ? `${n} por hacer` : "" });
 
+/** «Por hacer» (only what is pending), the done lines and the counters. */
 export function buildOverview(o: OverviewInput): Overview {
-  const todo: TodoItem[] = [];
-  // 1 · the acta
-  if (o.last) {
-    const { match, review, publishedClean, mvpOpen } = o.last;
+  const pending: PendingItem[] = [];
+  const actas = [...o.actas].sort((a, b) => dateMillis(b.match.date) - dateMillis(a.match.date));
+  for (const { match, review } of actas) {
+    if (match.id === o.heroId) continue;
     const j = jLabel(match);
-    const score = `${review.goalsFor}–${review.goalsAgainst}`;
-    todo.push(
-      publishedClean
-        ? { key: "acta", done: true, title: `Acta ${j} publicada`, detail: mvpOpen ? "MVP abierto 48 h" : `${match.rival ?? ""} · ${score}`, action: { label: "Ver el acta", tone: "line", target: { section: "partidos", matchId: match.id, tab: "acta" } } }
-        : {
-            key: "acta",
-            done: false,
-            title: review.cuadra ? `Acta ${j} · cuadra, falta publicar` : `Acta ${j} · ${review.reasons[0] ?? "sin terminar"}`,
-            detail: `${match.rival ?? "Rival"} · ${score} · ${match.draft ? "borrador" : "sin empezar"}`,
-            action: { label: "Abrir acta", tone: "gold", target: { section: "partidos", matchId: match.id, tab: "acta" } },
-          },
-    );
-  } else {
-    todo.push({ key: "acta", done: true, title: "Actas al día", detail: "Ningún partido jugado por cerrar", action: { label: "Ver partidos", tone: "line", target: { section: "partidos" } } });
-  }
-  // 2 · the convocatoria
-  if (o.next) {
-    const { match, conv, rsvp } = o.next;
-    const j = jLabel(match);
-    const when = shortDate(dateMillis(match.date));
-    todo.push({
-      key: "convocatoria",
-      done: conv.published,
-      title: conv.published ? `Convocatoria ${j} publicada` : `Convocatoria ${j} · ${conv.unassigned ? `${conv.unassigned} sin asignar` : conv.ready ? "falta publicar" : conv.text.toLowerCase()}`,
-      detail: `${match.rival ?? "Rival"} · ${when} · ${plural(rsvp.yes, "viene", "vienen")}`,
-      action: { label: conv.published ? "Ver" : "Preparar", tone: "line", target: { section: "convocatorias", matchId: match.id } },
+    const missing = review.firstMissingGoal;
+    pending.push({
+      key: `acta-${match.id}`,
+      title: missing ? `Acta ${j} · falta el goleador del gol ${missing}` : review.cuadra ? `Acta ${j} · lista para publicar` : `Acta ${j} · ${review.reasons[0] ?? "sin terminar"}`,
+      detail: `${match.rival ?? "Rival"} · ${review.goalsFor}–${review.goalsAgainst}`,
+      ved: letter(review.goalsFor, review.goalsAgainst),
+      action: { label: review.cuadra ? "Publicar" : "Completar", target: { section: "partidos", matchId: match.id, tab: "acta" } },
     });
-  } else {
-    todo.push({ key: "convocatoria", done: true, title: "Sin partidos por jugar", detail: "Programa el siguiente", action: { label: "Nuevo partido", tone: "line", target: { section: "partidos", nuevo: true } } });
   }
-  // 3 · fichas
   const nF = o.claims.length;
-  const names = [...new Set(o.claims.map((c) => c.playerName))];
-  todo.push(
-    nF
-      ? { key: "fichas", done: false, title: plural(nF, "ficha pendiente", "fichas pendientes"), detail: `${andList(names.length > 3 ? [...names.slice(0, 2), `${names.length - 2} más`] : names)} ${nF === 1 ? "pide su ficha" : "piden su ficha"}`, action: { label: "Revisar", tone: "line", target: { section: "fichas" } } }
-      : { key: "fichas", done: true, title: "Fichas al día", detail: "Nada que revisar", action: { label: "Ver", tone: "line", target: { section: "fichas" } } },
-  );
-  // 4 · contenido
-  const nC = o.contentGaps.length;
-  todo.push(
-    nC
-      ? { key: "contenido", done: false, title: `Contenido · ${plural(nC, "cosa por completar", "cosas por completar")}`, detail: o.contentGaps.map((g) => g.title.split(":")[0]).join(" · "), action: { label: "Completar", tone: "line", target: { section: "contenido", seccion: o.contentGaps[0].key } } }
-      : { key: "contenido", done: true, title: "Contenido completo", detail: "La web está al día", action: { label: "Ver", tone: "line", target: { section: "contenido" } } },
-  );
-  const pending = todo.filter((t) => !t.done).length;
-  const conv = o.next?.conv;
-  const counters: Record<CounterKey, Counter> = {
-    inicio: { n: pending, tone: "w", label: plural(pending, "cosa por hacer", "cosas por hacer") },
-    partidos: { n: o.actasPending, tone: "w", label: plural(o.actasPending, "acta por hacer", "actas por hacer") },
-    convocatorias: { n: conv && !conv.published ? conv.unassigned : 0, tone: "w", label: conv ? `${conv.unassigned} sin asignar` : "" },
-    fichas: { n: nF, tone: "hot", label: plural(nF, "ficha pendiente", "fichas pendientes") },
-    plantilla: { n: o.roster, tone: "", label: plural(o.roster, "jugador", "jugadores") },
-    temporadas: { n: o.seasons, tone: "", label: plural(o.seasons, "temporada", "temporadas") },
-    capitanes: { n: o.admins, tone: "", label: plural(o.admins, "administrador", "administradores") },
-    contenido: { n: nC, tone: "w", label: plural(nC, "cosa por completar", "cosas por completar") },
-    puerta: { n: o.doorRequests, tone: "hot", label: plural(o.doorRequests, "llamando", "llamando") },
+  if (nF) {
+    const names = [...new Set(o.claims.map((c) => c.playerName))];
+    const shown = names.length > 3 ? [...names.slice(0, 2), `${names.length - 2} más`] : names;
+    pending.push({
+      key: "fichas",
+      title: nF === 1 ? "1 ficha pide paso" : `${nF} fichas piden paso`,
+      detail: `${andList(shown)} ${names.length === 1 ? "quiere su camiseta" : "quieren su camiseta"}`,
+      ved: null,
+      action: { label: "Revisar", target: { section: "fichas" } },
+    });
+  }
+  for (const d of o.contentDrafts)
+    pending.push({ key: `draft-${d.key}`, title: `${d.title} · sin publicar`, detail: "Guardado como borrador en este dispositivo", ved: null, action: { label: "Publicar", target: { section: "contenido", seccion: d.key } } });
+  for (const g of o.contentGaps)
+    pending.push({ key: `gap-${g.key}`, title: `${g.title.split(":")[0]} · por completar`, detail: g.detail, ved: null, action: { label: "Completar", target: { section: "contenido", seccion: g.key } } });
+  return {
+    pending,
+    done: [...o.done],
+    counters: {
+      hoy: counter(pending.length),
+      partidos: counter(o.actas.length),
+      fichas: counter(nF),
+      contenido: counter(o.contentGaps.length + o.contentDrafts.length),
+    },
   };
-  return { todo, pending, counters };
+}
+
+/** The «N hechas» lines from the club's data: the last published acta, the last MVP closed, the notice sent. */
+export function doneLines(o: {
+  lastPublished: { match: AdminMatch; goalsFor: number; goalsAgainst: number } | null;
+  mvp: { jornada: number | null; names: string[] } | null;
+  notified: AdminMatch | null;
+}): string[] {
+  const out: string[] = [];
+  if (o.notified) out.push(`Aviso de la ${jLabel(o.notified)} enviado · RSVP abierta`);
+  if (o.lastPublished) out.push(`Acta ${jLabel(o.lastPublished.match)} publicada · ${o.lastPublished.match.rival ?? "Rival"} ${o.lastPublished.goalsFor}–${o.lastPublished.goalsAgainst}`);
+  if (o.mvp && o.mvp.names.length)
+    out.push(`MVP ${o.mvp.jornada ? `J${o.mvp.jornada}` : "del último partido"} cerrado · ${o.mvp.names.length > 1 ? `empate entre ${andList(o.mvp.names)}` : `ganó ${o.mvp.names[0]}`}`);
+  return out;
 }

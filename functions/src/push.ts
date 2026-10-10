@@ -13,7 +13,7 @@ import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
 import { convocatoriaNotice, DOOR_TOPICS, kickoffNotice, lineupNotice, noticesFor, TOPICS, type LineupLike, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
 
-const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
+export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
 /** Public half of the key pair (also in the app, src/lib/push.ts). */
 export const VAPID_PUBLIC = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
 const SITE = "https://manchester-piti.vercel.app";
@@ -96,7 +96,7 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
 });
 
 /** A match's number in its season, by date (as the admin numbers them: J1, J2…). */
-async function jornadaOf(seasonId: string, date: number | undefined): Promise<number | null> {
+export async function jornadaOf(seasonId: string, date: number | undefined): Promise<number | null> {
   if (typeof date !== "number") return null;
   const all = await db.collection("matches").where("seasonId", "==", seasonId).get();
   const dates = all.docs.filter((d) => !d.get("archived")).map((d) => (d.get("date") as Timestamp | undefined)?.toMillis?.() ?? NaN);

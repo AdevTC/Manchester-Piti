@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import { matchState, mergeMatches, type AdminMatch } from "../data/adminLogic";
-import { archiveImpact, copyRosterPlan, nextSeasonName, seasonCards, seasonNameError } from "./seasonsLogic";
+import { archiveImpact, copyRosterPlan, countsNote, nextSeasonName, seasonCards, seasonNameError, seasonShowcase, seasonTag } from "./seasonsLogic";
 
 const NOW = Date.UTC(2026, 10, 2, 9);
 const day = 86_400_000;
@@ -72,5 +72,39 @@ describe("copyRosterPlan", () => {
     ]);
     expect(copyRosterPlan(players, "t0")).toEqual([{ id: "adrian", shirtName: "ADRI", number: 7 }]);
     expect(copyRosterPlan(players, "t2")).toEqual([]);
+  });
+});
+
+describe("seasonShowcase (the vitrina)", () => {
+  const ms: AdminMatch[] = mergeMatches(
+    [
+      { id: "a", seasonId: "t1", rival: "A", date: NOW - 21 * day, status: "finished", goalsFor: 4, goalsAgainst: 1, events: [{ id: "1", type: "goal", playerId: "erik" }, { id: "2", type: "goal_penalty", playerId: "erik" }, { id: "3", type: "own_goal", playerId: "adrian" }] },
+      { id: "b", seasonId: "t1", rival: "B", date: NOW - 14 * day, status: "finished", goalsFor: 2, goalsAgainst: 0, events: [{ id: "4", type: "goal_freekick", playerId: "adrian" }] },
+      { id: "c", seasonId: "t1", rival: "C", date: NOW - 7 * day, status: "finished", goalsFor: 1, goalsAgainst: 1 },
+      { id: "x", seasonId: "t1", rival: "X", date: NOW - 8 * day, status: "cancelled" },
+      { id: "f", seasonId: "t1", rival: "F", date: NOW + 5 * day, status: "scheduled" },
+    ],
+    [{ id: "d", seasonId: "t1", rival: "D", date: NOW - 1 * day, status: "finished", goalsFor: 9, goalsAgainst: 0 }],
+  );
+  const sc = seasonShowcase({ seasonId: "t1", matches: ms, stateOf: (m) => matchState(m, NOW), now: NOW, mvpOf: (m) => (m.id === "a" || m.id === "b" ? ["erik"] : []), nameOf: (id) => id.toUpperCase() });
+  it("counts only the published actas: record, goals, Pichichi, trophies", () => {
+    expect(sc).toMatchObject({ v: 2, e: 1, d: 0, gf: 7, ga: 2, published: 3, total: 5, streak: 2 });
+    expect(sc.pichichi).toEqual({ id: "erik", goals: 2 });
+    expect(sc.biggest).toEqual({ gf: 4, ga: 1, rival: "A", label: "J1" });
+    expect(sc.mvp).toEqual({ ids: ["erik"], times: 2 });
+  });
+  it("puts every jornada on the shelf: a mark when published, a gap otherwise (cancelled ones left out)", () => {
+    expect(sc.shelf.map((s) => `${s.label}:${s.r ?? "-"}`)).toEqual(["J1:V", "J2:V", "J4:E", "J5:-", "J6:-"]);
+    expect(sc.shelf.map((s) => s.aria)).toEqual(["J1 · Victoria 4–1 a A", "J2 · Victoria 2–0 a B", "J4 · Empate 1–1 a C", "J5 · sin publicar", "J6 · por jugar"]);
+    expect(sc.waiting).toEqual(["J5"]);
+  });
+  it("says what counts", () => {
+    expect(countsNote([])).toBe("Cuentan las actas publicadas");
+    expect(countsNote(["J7"])).toBe("Cuentan las actas publicadas · la J7 entra al publicarla");
+    expect(countsNote(["J7", "J8"])).toBe("Cuentan las actas publicadas · la J7 y J8 entran al publicarlas");
+  });
+  it("tags a season for the lower thirds", () => {
+    expect(seasonTag("Temporada 1")).toBe("T1");
+    expect(seasonTag("Verano 2026")).toBe("TEMP");
   });
 });

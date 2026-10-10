@@ -1,23 +1,26 @@
-// The admin's layers — Modal, ConfirmModal, Drawer, Sheet and Popover — on one stack.
+// The admin's layers (v2 «Sala de control») — Dialog, Modal, ConfirmModal, Drawer, Sheet and Popover — on
+// one stack.
 //
 // Every open layer registers on the LayerProvider's stack (an external store, so registering never sets
 // React state inside an effect). The stack gives each layer its depth (z-index, scrim, `inert` when it is
 // not on top) and drives the shared keyboard: Esc closes the TOP layer only, Tab / Shift+Tab cycle inside
 // the top layer when it traps focus. A layer focuses itself (or `initialFocus`) when it opens — always
 // with `preventScroll`, so opening never scrolls a list — and gives the focus back to whatever had it
-// (the trigger) when it closes. While any modal layer is open the app behind (`appRef`, the `.app`) is
-// `inert` + aria-hidden, and so is every layer covered by a modal one. Those attributes are set by the
-// provider synchronously on every stack change (not on the next render), so the focus can go back to
-// the trigger the moment a layer closes.
+// (the trigger) when it closes. While any modal layer is open the app behind (`appRef`) is `inert` +
+// aria-hidden, and so is every layer covered by a modal one. Those attributes are set by the provider
+// synchronously on every stack change (not on the next render), so the focus can go back to the trigger
+// the moment a layer closes.
 //
-// Layers render through a portal into the provider's host (inside the `.vx.adm` frame, after `.app`),
-// except the Popover, which renders in place (anchored inside its scroll container) and turns into a
-// bottom Sheet when the frame is narrower than `sheetBelow` (1000 px by default).
+// Markup = the canvas' (stats-gen/ad-v2-full.mjs): `.scrim`, `.md` (modal: h2, `.cs` consequences, `.ac`
+// buttons), `.sheet` (phones: `.gb` grab, `.hh` title row), `.drw` (drawer: `.drh`, a top slot for the
+// cromo, `.fx2` body, `.ft` footer), `.picker` (the in-flow «¿Quién marcó?» panel under its row). Modal
+// layers portal into the provider's host (inside the `.vx.adm` frame, after the app); an inline Drawer and
+// the Popover render in place; below 1000 px the Popover is a Sheet and an inline Drawer an overlay.
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { AdIcon } from "./icons";
 import { useFrame } from "./frame";
-import { focusablesIn, LayerContext, LayerStore, useLayer, useLayerHost } from "./layerCore";
+import { focusablesIn, LayerContext, LayerStore, useLayer, useLayerHost, zLayer, zScrim } from "./layerCore";
 
 /**
  * Hosts the admin's layers: the stack, the shared Esc / focus-trap keyboard and the portal host. Wrap the
@@ -85,130 +88,122 @@ export function LayerProvider({ children, appRef }: { children: ReactNode; appRe
   );
 }
 
-/** z-index per depth: the scrim of a layer sits right under it, so a modal over a drawer dims the drawer. */
-const zLayer = (depth: number) => 21 + depth * 2;
-const zScrim = (depth: number) => 20 + depth * 2;
 
 function Scrim({ depth, onClick }: { depth: number; onClick?: () => void }) {
   return <div className={depth ? "scrim hi" : "scrim"} style={{ zIndex: zScrim(depth) }} onClick={onClick} aria-hidden="true" />;
 }
 
-function CloseButton({ onClick, label = "Cerrar" }: { onClick: () => void; label?: string }) {
+/** The round «×» of a layer's title row (`.ib2.x`). */
+export function CloseButton({ onClick, label = "Cerrar" }: { onClick: () => void; label?: string }) {
   return (
-    <button type="button" className="ib" onClick={onClick} aria-label={label}>
+    <button type="button" className="ib2 x" onClick={onClick} aria-label={label}>
       <AdIcon name="x" />
     </button>
   );
 }
 
-export type StatusTone = "" | "ok" | "warn";
-/** «✓ Guardado 12:04 · hora de Madrid» / «● Cambios sin guardar» — the `.svd` line under a title. */
-export interface LayerStatus {
-  text: ReactNode;
-  tone?: StatusTone;
-}
-
-// ───────────────────────── Modal ─────────────────────────
-export interface ModalProps {
+// ───────────────────────── Dialog (the base) ─────────────────────────
+export interface DialogProps {
   open: boolean;
-  /** Called by the X, Esc and the scrim (wrap it with an unsaved guard when the modal holds edits). */
+  /** Called by Esc and the scrim (wrap it with an unsaved guard when the layer holds edits). */
   onClose: () => void;
-  title: ReactNode;
-  kicker?: ReactNode;
-  /** The lead paragraph (`.lede`); it also describes the dialog (aria-describedby). */
-  lede?: ReactNode;
-  /** `red` = destructive (red outline). */
-  tone?: "" | "red";
-  /** `alertdialog` for confirmations that interrupt (deletes, unsaved changes). */
+  /** The layer's own class: `md` (modal), `lpk` (the live picker), `pal` (palette), `sheet`… */
+  className: string;
+  /** Names the dialog: the id of its visible title… */
+  labelledBy?: string;
+  /** …or a label when it has none. */
+  label?: string;
+  describedBy?: string;
   role?: "dialog" | "alertdialog";
   children?: ReactNode;
-  /** The `.ov-f` row (buttons). */
-  footer?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
   returnFocus?: RefObject<HTMLElement | null>;
-  className?: string;
 }
-/** `.ovl.mdl`: a centred modal (full width on phones), scale + spring in. */
-export function Modal(props: ModalProps) {
-  return props.open ? <ModalLayer {...props} /> : null;
+/**
+ * A modal layer with the canvas' look given by `className`: scrim + the panel, portalled into the layer
+ * host, focus trapped, Esc / scrim close it. Modal, Sheet and the live picker are built on it; use it for
+ * any other centred panel.
+ */
+export function Dialog(props: DialogProps) {
+  return props.open ? <DialogLayer {...props} /> : null;
 }
-function ModalLayer({ onClose, title, kicker, lede, tone = "", role = "dialog", children, footer, initialFocus, returnFocus, className = "" }: ModalProps) {
+function DialogLayer({ onClose, className, labelledBy, label, describedBy, role = "dialog", children, initialFocus, returnFocus }: DialogProps) {
   const ref = useRef<HTMLDivElement>(null);
   const host = useLayerHost();
   const { depth, isTop } = useLayer({ modal: true, trap: true, onClose, ref, initialFocus, returnFocus });
-  const tid = useId();
-  const did = useId();
   const node = (
     <>
       <Scrim depth={depth} onClick={isTop ? onClose : undefined} />
-      <div
-        ref={ref}
-        className={`ovl mdl ${tone} ${className}`.replace(/\s+/g, " ").trim()}
-        role={role}
-        aria-modal="true"
-        aria-labelledby={tid}
-        aria-describedby={lede ? did : undefined}
-        tabIndex={-1}
-        style={{ zIndex: zLayer(depth) }}
-      >
-        <div className="ov-h">
-          <div className="t">
-            {kicker && (
-              <p className="kk">
-                <i />
-                {kicker}
-              </p>
-            )}
-            <h2 className="h2s" id={tid}>
-              {title}
-            </h2>
-          </div>
-          <CloseButton onClick={onClose} />
-        </div>
-        <div className="ov-b scr">
-          {lede && (
-            <p className="lede" id={did}>
-              {lede}
-            </p>
-          )}
-          {children}
-        </div>
-        {footer && <div className="ov-f">{footer}</div>}
+      <div ref={ref} className={className} role={role} aria-modal="true" aria-labelledby={labelledBy} aria-label={labelledBy ? undefined : label} aria-describedby={describedBy} tabIndex={-1} style={{ zIndex: zLayer(depth) }}>
+        {children}
       </div>
     </>
   );
   return host ? createPortal(node, host) : null;
 }
 
-// ───────────────────────── ConfirmModal ─────────────────────────
-/** A consequence line: `r` = se pierde / afecta (⚠), `o` = se conserva (✓), `g` = aviso dorado (i), `` = info (i). */
-export interface Consequence {
-  tone: "r" | "o" | "g" | "";
-  text: ReactNode;
+// ───────────────────────── Modal ─────────────────────────
+export interface ModalProps {
+  open: boolean;
+  /** Called by Esc and the scrim (and usually «Cancelar» in the footer). */
+  onClose: () => void;
+  title: ReactNode;
+  /** A lead paragraph under the title; it also describes the dialog (aria-describedby). */
+  lede?: ReactNode;
+  /** `dz` = destructive (its consequences get the red ⚠). */
+  tone?: "" | "dz";
+  /** `alertdialog` for confirmations that interrupt (deletes, unsaved changes). */
+  role?: "dialog" | "alertdialog";
+  children?: ReactNode;
+  /** The `.ac` row (buttons, right-aligned). */
+  footer?: ReactNode;
+  initialFocus?: RefObject<HTMLElement | null>;
+  returnFocus?: RefObject<HTMLElement | null>;
+  className?: string;
 }
-export function ConsequenceList({ items }: { items: Consequence[] }) {
+/** `.md`: the centred modal (full width minus 16 px on phones). */
+export function Modal({ open, onClose, title, lede, tone = "", role = "dialog", children, footer, initialFocus, returnFocus, className = "" }: ModalProps) {
+  const tid = useId();
+  const did = useId();
+  return (
+    <Dialog open={open} onClose={onClose} className={`md ${tone} ${className}`.replace(/\s+/g, " ").trim()} role={role} labelledBy={tid} describedBy={lede ? did : undefined} initialFocus={initialFocus} returnFocus={returnFocus}>
+      <h2 id={tid}>{title}</h2>
+      {lede && (
+        <p className="lede" id={did}>
+          {lede}
+        </p>
+      )}
+      {children}
+      {footer && <div className="ac">{footer}</div>}
+    </Dialog>
+  );
+}
+
+// ───────────────────────── ConfirmModal ─────────────────────────
+/** What will happen, one line each (`.cs`): a ✓ — or a red ⚠ when the modal is destructive (`tone="dz"`). */
+export function ConsequenceList({ items, danger = false }: { items: ReactNode[]; danger?: boolean }) {
   if (!items.length) return null;
   return (
-    <ul className="csq">
-      {items.map((c, i) => (
-        <li key={i} className={c.tone}>
-          <AdIcon name={c.tone === "o" ? "check" : c.tone === "r" ? "alert" : "info"} size={14} />
-          <span>{c.text}</span>
+    <ul className="cs">
+      {items.map((t, i) => (
+        <li key={i}>
+          <AdIcon name={danger ? "alert" : "check"} size={16} />
+          <span>{t}</span>
         </li>
       ))}
     </ul>
   );
 }
 export interface ConfirmModalProps extends Omit<ModalProps, "footer" | "role"> {
-  consequences?: Consequence[];
+  consequences?: ReactNode[];
   confirmLabel: ReactNode;
   onConfirm: () => void;
   cancelLabel?: ReactNode;
-  /** The confirm button's look: `pri` (default), `gold`, `red` (outline) or `red solid`. */
-  confirmTone?: "pri" | "gold" | "red" | "red solid";
+  /** The confirm button: `sky` (default), `gold` (THE action of the moment) or `redf` (destructive, solid). */
+  confirmTone?: "sky" | "gold" | "redf";
   /** aria-disabled (stays focusable): clicking does nothing. */
   confirmDisabled?: boolean;
-  /** While the action runs: the confirm button reads «…» and is aria-disabled. */
+  /** While the action runs: the confirm button reads «Un momento…» and is aria-disabled. */
   busy?: boolean;
   /** An optional third action before Cancel (e.g. «Guardar borrador y salir»). */
   alt?: { label: ReactNode; onClick: () => void };
@@ -217,184 +212,177 @@ export interface ConfirmModalProps extends Omit<ModalProps, "footer" | "role"> {
   /** Defaults to alertdialog when the confirm is red. */
   role?: "dialog" | "alertdialog";
 }
-/** A modal that asks before doing something, listing what will happen (`.csq`). */
+/** A modal that asks before doing something, listing what will happen (`.cs`). */
 export function ConfirmModal({
   consequences = [],
   confirmLabel,
   onConfirm,
   cancelLabel = "Cancelar",
-  confirmTone = "pri",
+  confirmTone = "sky",
   confirmDisabled,
   busy,
   alt,
   error,
   role,
   children,
+  tone,
   ...modal
 }: ConfirmModalProps) {
   const off = !!confirmDisabled || !!busy;
+  const danger = tone === "dz" || confirmTone === "redf";
   return (
     <Modal
       {...modal}
-      role={role ?? (confirmTone.startsWith("red") ? "alertdialog" : "dialog")}
+      tone={danger ? "dz" : ""}
+      role={role ?? (confirmTone === "redf" ? "alertdialog" : "dialog")}
       footer={
         <>
-          {error && (
-            <p className="note ad-ferr" role="alert">
-              <AdIcon name="alert" size={15} />
-              {error}
-            </p>
-          )}
           {alt && (
-            <button type="button" className="btn sm line" onClick={alt.onClick}>
+            <button type="button" className="btn line" onClick={alt.onClick}>
               {alt.label}
             </button>
           )}
-          <button type="button" className="btn sm line" onClick={modal.onClose}>
+          <button type="button" className="btn line" onClick={modal.onClose}>
             {cancelLabel}
           </button>
-          <button type="button" className={`btn sm ${confirmTone}`} aria-disabled={off} onClick={() => !off && onConfirm()}>
+          <button type="button" className={`btn ${confirmTone}`} aria-disabled={off} onClick={() => !off && onConfirm()}>
             {busy ? "Un momento…" : confirmLabel}
           </button>
         </>
       }
     >
       {children}
-      <ConsequenceList items={consequences} />
+      <ConsequenceList items={consequences} danger={danger} />
+      {error && (
+        <p className="ferr" role="alert">
+          <AdIcon name="alert" size={15} />
+          {error}
+        </p>
+      )}
     </Modal>
   );
-}
-
-// ───────────────────────── Drawer ─────────────────────────
-export interface DrawerProps {
-  open: boolean;
-  onClose: () => void;
-  title: ReactNode;
-  kicker?: ReactNode;
-  /** The save state under the title (`.svd`). */
-  status?: LayerStatus;
-  footer?: ReactNode;
-  /** A save error shown in the footer (role=alert). */
-  error?: ReactNode;
-  children?: ReactNode;
-  initialFocus?: RefObject<HTMLElement | null>;
-  returnFocus?: RefObject<HTMLElement | null>;
-  className?: string;
-}
-/** `.ovl.drw`: a 480 px panel from the right on desktop, a bottom sheet (with grab) on phones. */
-export function Drawer(props: DrawerProps) {
-  return props.open ? <DrawerLayer {...props} /> : null;
-}
-function DrawerLayer({ onClose, title, kicker, status, footer, error, children, initialFocus, returnFocus, className = "" }: DrawerProps) {
-  const ref = useRef<HTMLElement>(null);
-  const host = useLayerHost();
-  const { depth, isTop } = useLayer({ modal: true, trap: true, onClose, ref, initialFocus, returnFocus });
-  const tid = useId();
-  const node = (
-    <>
-      <Scrim depth={depth} onClick={isTop ? onClose : undefined} />
-      <aside
-        ref={ref}
-        className={`ovl drw ${className}`.trim()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={tid}
-        tabIndex={-1}
-        style={{ zIndex: zLayer(depth) }}
-      >
-        <div className="ov-h">
-          <span className="grab" aria-hidden="true" />
-          <div className="t">
-            {kicker && (
-              <p className="kk">
-                <i />
-                {kicker}
-              </p>
-            )}
-            <h2 className="h2s" id={tid}>
-              {title}
-            </h2>
-          </div>
-          <CloseButton onClick={onClose} />
-          {status && (
-            <p className={`svd ${status.tone ?? ""}`.trim()} role="status">
-              {status.text}
-            </p>
-          )}
-        </div>
-        <div className="ov-b scr">{children}</div>
-        {(footer || error) && (
-          <div className="ov-f">
-            {error && (
-              <p className="note ad-ferr" role="alert">
-                <AdIcon name="alert" size={15} />
-                {error}
-              </p>
-            )}
-            {footer}
-          </div>
-        )}
-      </aside>
-    </>
-  );
-  return host ? createPortal(node, host) : null;
 }
 
 // ───────────────────────── Sheet ─────────────────────────
 export interface SheetProps {
   open: boolean;
   onClose: () => void;
-  title: ReactNode;
+  /** The `.hh` title row (with ×). Leave it out when the children bring their own header (`labelledBy` / `label`). */
+  title?: ReactNode;
+  /** The accent line over the title (e.g. «GOL · 31′ · paso 1 de 2»). */
   kicker?: ReactNode;
+  labelledBy?: string;
+  label?: string;
   footer?: ReactNode;
   children?: ReactNode;
-  /** Extra class on `.ovl.sht` (`mas` = the «Más» sheet, `pks` = the scorer picker). */
   className?: string;
-  /** Extra class on the body (`.ov-b.scr`). */
-  bodyClassName?: string;
   initialFocus?: RefObject<HTMLElement | null>;
   returnFocus?: RefObject<HTMLElement | null>;
   closeLabel?: string;
 }
-/** `.ovl.sht`: a bottom sheet (grab, title, close) — the phone's way to show a menu or a picker. */
-export function Sheet(props: SheetProps) {
-  return props.open ? <SheetLayer {...props} /> : null;
-}
-function SheetLayer({ onClose, title, kicker, footer, children, className = "", bodyClassName = "", initialFocus, returnFocus, closeLabel }: SheetProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const host = useLayerHost();
-  const { depth, isTop } = useLayer({ modal: true, trap: true, onClose, ref, initialFocus, returnFocus });
+/** `.sheet`: the phone's bottom sheet (grab, optional title row, body, footer). */
+export function Sheet({ open, onClose, title, kicker, labelledBy, label, footer, children, className = "", initialFocus, returnFocus, closeLabel }: SheetProps) {
   const tid = useId();
-  const node = (
-    <>
-      <Scrim depth={depth} onClick={isTop ? onClose : undefined} />
-      <div
-        ref={ref}
-        className={`ovl sht ${className}`.trim()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={tid}
-        tabIndex={-1}
-        style={{ zIndex: zLayer(depth) }}
-      >
-        <div className="ov-h">
-          <span className="grab" aria-hidden="true" />
-          <div className="t">
-            {kicker && (
-              <p className="kk">
-                <i />
-                {kicker}
-              </p>
-            )}
-            <h2 className="h2s" id={tid}>
-              {title}
-            </h2>
-          </div>
+  return (
+    <Dialog open={open} onClose={onClose} className={`sheet ${className}`.trim()} labelledBy={title ? tid : labelledBy} label={label} initialFocus={initialFocus} returnFocus={returnFocus}>
+      <span className="gb" aria-hidden="true" />
+      {title && (
+        <div className="hh">
+          <span>
+            {kicker && <small>{kicker}</small>}
+            <b id={tid}>{title}</b>
+          </span>
           <CloseButton onClick={onClose} label={closeLabel} />
         </div>
-        <div className={`ov-b scr ${bodyClassName}`.trim()}>{children}</div>
-        {footer && <div className="ov-f">{footer}</div>}
+      )}
+      {children}
+      {footer && <div className="ft">{footer}</div>}
+    </Dialog>
+  );
+}
+
+// ───────────────────────── Drawer ─────────────────────────
+export type StatusTone = "" | "ok" | "warn";
+/** «● Cambios sin guardar» (warn) / «Guardado 12:04» — the line next to a drawer's title. */
+export interface LayerStatus {
+  text: ReactNode;
+  tone?: StatusTone;
+}
+export interface DrawerProps {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  status?: LayerStatus;
+  /** Between the title row and the body, not scrolling (the plantilla's cromo). */
+  top?: ReactNode;
+  /** The `.ft` row (buttons). */
+  footer?: ReactNode;
+  /** A save error shown above the footer (role=alert). */
+  error?: ReactNode;
+  children?: ReactNode;
+  /**
+   * Desktop: render in place as a column of the view (the plantilla's cajón beside the percha), not modal.
+   * Below 1000 px it is always a modal overlay from the bottom.
+   */
+  inline?: boolean;
+  initialFocus?: RefObject<HTMLElement | null>;
+  returnFocus?: RefObject<HTMLElement | null>;
+  className?: string;
+}
+/** `.drw`: a side panel (inline on desktop, or an overlay on the right) and a bottom sheet on phones. */
+export function Drawer(props: DrawerProps) {
+  const { desktop } = useFrame();
+  if (!props.open) return null;
+  return props.inline && desktop ? <InlineDrawer {...props} /> : <OverlayDrawer {...props} />;
+}
+function DrawerBody({ title, status, top, footer, error, children, onClose, tid }: DrawerProps & { tid: string }) {
+  return (
+    <>
+      <div className="drh">
+        <span>
+          <b id={tid}>{title}</b>
+          {status && (
+            <small className={`svd ${status.tone ?? ""}`.trim()} role="status">
+              {" · "}
+              {status.text}
+            </small>
+          )}
+        </span>
+        <CloseButton onClick={onClose} />
       </div>
+      {top}
+      <div className="fx2">{children}</div>
+      {error && (
+        <p className="ferr" role="alert" style={{ padding: "0 16px" }}>
+          <AdIcon name="alert" size={15} />
+          {error}
+        </p>
+      )}
+      {footer && <div className="ft">{footer}</div>}
+    </>
+  );
+}
+function InlineDrawer(props: DrawerProps) {
+  const ref = useRef<HTMLElement>(null);
+  const tid = useId();
+  useLayer({ modal: false, trap: false, onClose: props.onClose, ref, initialFocus: props.initialFocus, returnFocus: props.returnFocus });
+  return (
+    <aside ref={ref} className={`drw ${props.className ?? ""}`.trim()} role="dialog" aria-labelledby={tid} tabIndex={-1}>
+      <DrawerBody {...props} tid={tid} />
+    </aside>
+  );
+}
+function OverlayDrawer(props: DrawerProps) {
+  const ref = useRef<HTMLElement>(null);
+  const host = useLayerHost();
+  const tid = useId();
+  const { depth, isTop } = useLayer({ modal: true, trap: true, onClose: props.onClose, ref, initialFocus: props.initialFocus, returnFocus: props.returnFocus });
+  const node = (
+    <>
+      <Scrim depth={depth} onClick={isTop ? props.onClose : undefined} />
+      <aside ref={ref} className={`drw ovl ${props.className ?? ""}`.trim()} role="dialog" aria-modal="true" aria-labelledby={tid} tabIndex={-1} style={{ zIndex: zLayer(depth) }}>
+        <DrawerBody {...props} tid={tid} />
+      </aside>
     </>
   );
   return host ? createPortal(node, host) : null;
@@ -404,99 +392,68 @@ function SheetLayer({ onClose, title, kicker, footer, children, className = "", 
 export interface PopoverProps {
   open: boolean;
   onClose: () => void;
-  /** The element it points at (and gives the focus back to). */
+  /** The element it belongs to (and gives the focus back to): the acta's goal row button. */
   anchorRef: RefObject<HTMLElement | null>;
-  /** The scroll container it must stay inside; by default the anchor's closest `.scr`. */
+  /** The panel that scrolls (the row is brought to its top on open); by default the anchor's closest `.db` / `.scr`. */
   containerRef?: RefObject<HTMLElement | null>;
-  /** `.pk-h` title (popover) / sheet title (phones). Names the dialog. */
+  /** The question (`.pkh b`), e.g. «¿Quién marcó?». Names the dialog. */
   title: ReactNode;
-  /** `.pk-h small` (popover) / the accent `.lbl` line (sheet), e.g. «Paso 1 de 2 · goleador». */
+  /** The accent line over it (`.pkh small`), e.g. «Gol 3 (46′) · paso 1 de 2». */
   subtitle?: ReactNode;
-  /** Sheet kicker on phones, e.g. «Acta · J7 · 3–1». */
-  kicker?: ReactNode;
-  /** `.pk-x` row (popover) / `.ov-f` (sheet). */
+  /** The extra buttons row (`.pkx`): «Autogol de …», «Lo completo luego». */
   footer?: ReactNode;
   children?: ReactNode;
-  /** Below this frame width it is a bottom sheet (default 1000; 0 = always a popover). */
+  /** Below this frame width it is a bottom sheet (default 1000; 0 = always in place). */
   sheetBelow?: number;
-  /** Gap between the anchor and the popover, px (default 12). */
-  gap?: number;
   initialFocus?: RefObject<HTMLElement | null>;
   className?: string;
 }
 /**
- * `.pop`: a dialog anchored under (or, when there is no room, over) its anchor, kept inside its scroll
- * container WITHOUT scrolling it; re-placed when the container scrolls or resizes. Render it inside a
- * `position: relative` wrapper as wide as the popover should be (the acta: `.ac-main`). Esc / a click
- * outside close it; the focus goes back to the anchor. On phones it becomes a bottom Sheet.
+ * `.picker`: a non-modal panel rendered IN PLACE, right after its anchor's row (put it there in the
+ * markup); on open the row is brought to the top of its scrolling panel. Esc / a press outside close it;
+ * the focus goes back to the anchor. On phones it becomes a bottom Sheet (modal).
  */
 export function Popover(props: PopoverProps) {
   const { width } = useFrame();
   if (!props.open) return null;
   const sheetBelow = props.sheetBelow ?? 1000;
-  if (width < sheetBelow) {
-    return (
-      <Sheet
-        open
-        onClose={props.onClose}
-        title={props.title}
-        kicker={props.kicker}
-        footer={props.footer}
-        className={`pks ${props.className ?? ""}`.trim()}
-        bodyClassName="pk ad-pk-sheet"
-        initialFocus={props.initialFocus}
-        returnFocus={props.anchorRef}
-      >
-        {props.subtitle && <p className="lbl ad-pk-step">{props.subtitle}</p>}
-        {props.children}
-      </Sheet>
-    );
-  }
+  if (width < sheetBelow) return <PickerSheet {...props} />;
   return <PopoverLayer {...props} />;
 }
-function PopoverLayer({ onClose, anchorRef, containerRef, title, subtitle, footer, children, gap = 12, initialFocus, className = "" }: PopoverProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  useLayer({ modal: false, trap: false, onClose, ref, initialFocus, returnFocus: anchorRef });
+function PickerHead({ title, subtitle, onClose, tid }: { title: ReactNode; subtitle?: ReactNode; onClose: () => void; tid: string }) {
+  return (
+    <div className="pkh">
+      <span>
+        {subtitle && <small>{subtitle}</small>}
+        <b id={tid}>{title}</b>
+      </span>
+      <CloseButton onClick={onClose} />
+    </div>
+  );
+}
+function PickerSheet({ open, onClose, anchorRef, title, subtitle, footer, children, initialFocus, className = "" }: PopoverProps) {
   const tid = useId();
+  return (
+    <Sheet open={open} onClose={onClose} labelledBy={tid} className={className} initialFocus={initialFocus} returnFocus={anchorRef}>
+      <PickerHead title={title} subtitle={subtitle} onClose={onClose} tid={tid} />
+      {children}
+      {footer && <div className="pkx">{footer}</div>}
+    </Sheet>
+  );
+}
+function PopoverLayer({ onClose, anchorRef, containerRef, title, subtitle, footer, children, initialFocus, className = "" }: PopoverProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const tid = useId();
+  useLayer({ modal: false, trap: false, onClose, ref, initialFocus, returnFocus: anchorRef });
+  // The row goes to the top of its panel (12 px of air), so the picker below it is in view.
   useLayoutEffect(() => {
-    const pop = ref.current;
     const anchor = anchorRef.current;
-    if (!pop || !anchor) return;
-    const scroller = containerRef?.current ?? anchor.closest<HTMLElement>(".scr");
-    const place = () => {
-      const parent = (pop.offsetParent as HTMLElement | null) ?? pop.parentElement;
-      if (!parent) return;
-      const a = anchor.getBoundingClientRect();
-      const p = parent.getBoundingClientRect();
-      const view = scroller ? scroller.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
-      pop.style.maxHeight = "";
-      const h = pop.offsetHeight;
-      const below = view.bottom - a.bottom - gap - 8;
-      const above = a.top - view.top - gap - 8;
-      const up = below < h && above > below;
-      const room = up ? above : below;
-      if (h > room && room > 0) {
-        pop.style.maxHeight = `${Math.max(160, room)}px`;
-        pop.style.overflow = "auto";
-      }
-      const height = Math.min(h, pop.offsetHeight);
-      pop.style.top = `${up ? a.top - p.top - gap - height : a.bottom - p.top + gap}px`;
-      pop.style.setProperty("--ad-arrow", `${Math.max(16, Math.min(p.width - 30, a.left + a.width / 2 - p.left - 7))}px`);
-      pop.classList.toggle("up", up);
-      pop.style.visibility = "visible";
-    };
-    place();
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(place) : null;
-    ro?.observe(pop);
-    if (scroller) ro?.observe(scroller);
-    scroller?.addEventListener("scroll", place, { passive: true });
-    window.addEventListener("resize", place);
-    return () => {
-      ro?.disconnect();
-      scroller?.removeEventListener("scroll", place);
-      window.removeEventListener("resize", place);
-    };
-  }, [anchorRef, containerRef, gap]);
+    if (!anchor) return;
+    const scroller = containerRef?.current ?? anchor.closest<HTMLElement>(".db, .scr");
+    if (!scroller) return;
+    const row = anchor.closest<HTMLElement>(".gr") ?? anchor;
+    scroller.scrollBy?.({ top: row.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 12 });
+  }, [anchorRef, containerRef]);
   // A press outside (and not on the anchor, which toggles it itself) closes it.
   useEffect(() => {
     const onDown = (e: PointerEvent) => {
@@ -508,13 +465,10 @@ function PopoverLayer({ onClose, anchorRef, containerRef, title, subtitle, foote
     return () => document.removeEventListener("pointerdown", onDown);
   }, [anchorRef, onClose]);
   return (
-    <div ref={ref} className={`pop ${className}`.trim()} role="dialog" aria-labelledby={tid} tabIndex={-1}>
-      <div className="pk-h">
-        <b id={tid}>{title}</b>
-        {subtitle && <small>{subtitle}</small>}
-      </div>
+    <div ref={ref} className={`picker ${className}`.trim()} role="dialog" aria-labelledby={tid} tabIndex={-1}>
+      <PickerHead title={title} subtitle={subtitle} onClose={onClose} tid={tid} />
       {children}
-      {footer && <div className="pk-x">{footer}</div>}
+      {footer && <div className="pkx">{footer}</div>}
     </div>
   );
 }

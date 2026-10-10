@@ -34,7 +34,7 @@ describe("toasts", () => {
     function T() {
       const toast = useToast();
       return (
-        <button type="button" onClick={() => toast.defer({ message: "Ficha aprobada · @kevin ya es KEVIN (11).", commit, onUndo })}>
+        <button type="button" onClick={() => toast.defer({ message: "Ficha aprobada · @kevin ya es KEVIN (11).", tag: "FICHA", commit, onUndo })}>
           Aprobar
         </button>
       );
@@ -47,16 +47,18 @@ describe("toasts", () => {
     act(() => screen.getByRole("button", { name: "Aprobar" }).click());
     const status = screen.getAllByRole("status").find((s) => s.classList.contains("adm-toasts"))!;
     expect(status).toHaveTextContent("Ficha aprobada · @kevin ya es KEVIN (11).");
+    // a lower third: the tag, the message, «Deshacer»
+    expect(status.querySelector(".lt .k")).toHaveTextContent("FICHA");
     act(() => screen.getByRole("button", { name: "Deshacer" }).click());
     expect(onUndo).toHaveBeenCalledTimes(1);
     await act(async () => {
       vi.advanceTimersByTime(6000);
     });
     expect(commit).not.toHaveBeenCalled();
-    // again, without undo: the write happens after 5 s
+    // again, without undo: the write happens after 5.2 s
     act(() => screen.getByRole("button", { name: "Aprobar" }).click());
     await act(async () => {
-      vi.advanceTimersByTime(4900);
+      vi.advanceTimersByTime(5100);
     });
     expect(commit).not.toHaveBeenCalled();
     await act(async () => {
@@ -97,7 +99,8 @@ describe("toasts", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("No se ha podido aprobar la ficha: sin conexión");
-    expect(alert.querySelector(".tst.err")).not.toBeNull();
+    expect(alert.querySelector(".lt.err")).not.toBeNull();
+    expect(alert.querySelector(".lt .k")).toHaveTextContent("!");
     fail = false;
     await act(async () => {
       screen.getByRole("button", { name: "Reintentar" }).click();

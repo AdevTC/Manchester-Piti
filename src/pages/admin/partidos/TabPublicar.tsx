@@ -1,158 +1,204 @@
-// The «Publicar» tab: «Antes de publicar» — the crónica (+ «Preparar resumen con los datos del acta»), the
-// match photo and the gallery with a live HTTPS check, «Minutos y participación» (computed, as the
-// backend will) and the MVP line (status only: it opens at publish, closes 48 h later, has a winner).
+// The «Publicar» tab, as on the canvas (stats-gen/ad-v2-full.mjs `pubT`): the crónica in a light card (its
+// headline from the acta, the text editable) + «Preparar resumen con el acta», the match photo with its
+// HTTPS check (and the gallery), the minutes computed from the convocatoria and the changes, and the MVP
+// status (it opens by itself when the acta is published and closes 48 h later: never by hand). A match
+// still to play has nothing to publish yet.
 import { useId, useState } from "react";
-import { FieldCheck, Chip } from "../ui/controls";
 import { AdIcon } from "../ui/icons";
 import { minutesTable } from "../acta/minutes";
 import { buildResumen } from "../acta/resumen";
 import { okHttps, type MatchSheet } from "../acta/sheetModel";
+import { dayOf } from "./listModel";
+import { cronicaHeadline, cronicaKicker, type Phase } from "./workspaceModel";
+
+const MAX_GALLERY = 20;
+
+function HttpsCheck({ id, url }: { id: string; url: string }) {
+  if (!url) return null;
+  return okHttps(url) ? (
+    <span id={id} className="okk" style={{ fontSize: 13 }}>
+      <AdIcon name="check" size={13} />
+      Se ve bien
+    </span>
+  ) : (
+    <span id={id} className="bad" style={{ fontSize: 13 }}>
+      <AdIcon name="x" size={13} />
+      No es HTTPS
+    </span>
+  );
+}
 
 export function TabPublicar({
+  phase,
   sheet,
   update,
+  j,
+  rival,
+  gf,
+  ga,
   nameOf,
-  status,
   mvp,
   onPoster,
 }: {
+  phase: Phase;
   sheet: MatchSheet;
   update: (f: (s: MatchSheet) => MatchSheet) => void;
+  j: string;
+  rival: string;
+  gf: number;
+  ga: number;
   nameOf: (id: string) => string;
-  /** The footer's state («Cuadra · lista para publicar»…) and its tone. */
-  status: { text: string; tone: "ok" | "warn" | "" };
-  mvp: string;
+  mvp: { title: string; detail: string };
   onPoster: () => void;
 }) {
   const id = useId();
   const [newUrl, setNewUrl] = useState("");
+  if (phase !== "jugado")
+    return (
+      <div className="void">
+        <h3>Aún no hay nada que publicar</h3>
+        <p>Cuando se juegue y cuadre el acta, aquí verás la crónica, la foto, los minutos y el MVP.</p>
+      </div>
+    );
   const photo = sheet.photoUrl ?? "";
-  const photoOk = okHttps(photo);
   const gallery = sheet.gallery ?? [];
-  const newOk = !!newUrl.trim() && okHttps(newUrl);
+  const newOk = !!newUrl.trim() && okHttps(newUrl.trim());
   const table = minutesTable(sheet, nameOf);
   const addPhoto = () => {
-    if (!newOk || gallery.length >= 20) return;
+    if (!newOk || gallery.length >= MAX_GALLERY) return;
     update((s) => ({ ...s, gallery: [...(s.gallery ?? []), newUrl.trim()] }));
     setNewUrl("");
   };
   return (
-    <div className="pnl">
-      <div className="bh">
-        <h3 className="h3">Antes de publicar</h3>
-        <Chip tone={status.tone}>{status.text}</Chip>
-      </div>
-      <label className="fld">
-        <span className="lbl">Crónica</span>
-        <textarea className="inp ad-cron" value={sheet.report} maxLength={10000} onChange={(e) => update((s) => ({ ...s, report: e.target.value }))} placeholder="Cuenta el partido en dos líneas…" />
-      </label>
-      <div className="row">
-        <button type="button" className="btn sm" onClick={() => update((s) => ({ ...s, report: buildResumen(s, nameOf) }))}>
-          <AdIcon name="spark" size={16} />
-          Preparar resumen con los datos del acta
-        </button>
-        <button type="button" className="btn sm line" onClick={onPoster}>
-          <AdIcon name="image" size={16} />
-          Descargar cartel
-        </button>
-      </div>
-      <div className="fld">
-        <label className="lbl" htmlFor={`${id}-fo`}>
-          Foto del partido (URL HTTPS)
-        </label>
-        <input id={`${id}-fo`} className={`inp ${photo ? (photoOk ? "good" : "bad") : ""}`.trim()} type="url" value={photo} placeholder="https://" onChange={(e) => update((s) => ({ ...s, photoUrl: e.target.value }))} aria-describedby={`${id}-ph`} aria-invalid={!photoOk || undefined} />
-        <FieldCheck id={`${id}-ph`} tone={!photo ? "mut" : photoOk ? "ok" : "bad"}>
-          {!photo ? "Opcional · un enlace que empiece por https://" : photoOk ? "Enlace seguro: la foto saldrá en la ficha del partido" : "Tiene que empezar por https:// o no se verá en la web"}
-        </FieldCheck>
-      </div>
-      <div>
-        <div className="bh">
-          <h3 className="h3">Galería</h3>
-          <span className="chip">{gallery.length} de 20</span>
-        </div>
-        {gallery.length > 0 && (
-          <ul className="evl">
-            {gallery.map((u, i) => {
-              const ok = okHttps(u) && !!u.trim();
-              return (
-                <li key={`${i}-${u}`} className="evr ad-gal">
-                  <span className="mn2">
-                    <AdIcon name="image" size={18} />
-                  </span>
-                  <span className="w">
-                    <b className="mono ad-url">{u}</b>
-                    <small className={`chk ${ok ? "ok" : "bad"}`}>
-                      <AdIcon name={ok ? "check" : "x"} size={12} />
-                      {ok ? "HTTPS · se ve en la web" : "No es HTTPS · no se verá en la web"}
-                    </small>
-                  </span>
-                  <button type="button" className="ib" onClick={() => update((s) => ({ ...s, gallery: (s.gallery ?? []).filter((_, k) => k !== i) }))} aria-label={`Quitar ${u}`}>
-                    <AdIcon name="trash" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        <div className="fld ad-galnew">
-          <label className="lbl" htmlFor={`${id}-ga`}>
-            Añadir foto (URL HTTPS)
-          </label>
-          <input
-            id={`${id}-ga`}
-            className={`inp ${newUrl ? (newOk ? "good" : "bad") : ""}`.trim()}
-            type="url"
-            value={newUrl}
-            placeholder="https://"
-            onChange={(e) => setNewUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addPhoto();
-              }
-            }}
-            aria-describedby={`${id}-gn`}
+    <div className="pubg">
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="cron">
+          <span className="k">{cronicaKicker(j, sheet.date, dayOf)}</span>
+          <b>{cronicaHeadline(gf, ga, sheet.home, rival)}</b>
+          <textarea
+            className="crt"
+            aria-label="Crónica"
+            value={sheet.report}
+            maxLength={10000}
+            onChange={(e) => update((s) => ({ ...s, report: e.target.value }))}
+            placeholder="Cuenta el partido en dos líneas, o pulsa «Preparar resumen con el acta»."
           />
-          <FieldCheck id={`${id}-gn`} tone={!newUrl ? "mut" : newOk ? "ok" : "bad"}>
-            {!newUrl ? "Una foto por enlace, hasta 20" : newOk ? "Enlace seguro" : "Tiene que empezar por https://"}
-          </FieldCheck>
         </div>
-        <div className="row">
-          <button type="button" className="btn sm" onClick={addPhoto} aria-disabled={!newOk || gallery.length >= 20}>
-            <AdIcon name="plus" size={16} />
-            Añadir a la galería
+        <div className="cta-row">
+          <button type="button" className="btn sm line" onClick={() => update((s) => ({ ...s, report: buildResumen(s, nameOf) }))}>
+            Preparar resumen con el acta
           </button>
+          <span className="hint">Se puede retocar antes de publicar</span>
+        </div>
+        <div className="fld">
+          <label htmlFor={`${id}-ph`}>Foto del partido (HTTPS)</label>
+          <input
+            id={`${id}-ph`}
+            className={`inp${photo && !okHttps(photo) ? " bad" : ""}`}
+            type="url"
+            value={photo}
+            placeholder="https://…"
+            onChange={(e) => update((s) => ({ ...s, photoUrl: e.target.value }))}
+            aria-invalid={(!!photo && !okHttps(photo)) || undefined}
+            aria-describedby={photo ? `${id}-phk` : undefined}
+          />
+          <HttpsCheck id={`${id}-phk`} url={photo} />
+        </div>
+        <div className="fld">
+          <span className="lb">
+            Galería · {gallery.length} de {MAX_GALLERY}
+          </span>
+          {gallery.length > 0 && (
+            <ul className="hl">
+              {gallery.map((u, i) => {
+                const ok = !!u.trim() && okHttps(u);
+                return (
+                  <li key={`${i}-${u}`} style={{ gridTemplateColumns: "minmax(0, 1fr) auto auto" }}>
+                    <span style={{ overflowWrap: "anywhere", fontSize: 14 }}>{u}</span>
+                    {ok ? (
+                      <span className="okk" style={{ fontSize: 13 }}>
+                        <AdIcon name="check" size={13} />
+                        HTTPS
+                      </span>
+                    ) : (
+                      <span className="bad" style={{ fontSize: 13 }}>
+                        <AdIcon name="x" size={13} />
+                        No es HTTPS
+                      </span>
+                    )}
+                    <button type="button" className="ib2" onClick={() => update((s) => ({ ...s, gallery: (s.gallery ?? []).filter((_, k) => k !== i) }))} aria-label={`Quitar ${u}`}>
+                      <AdIcon name="x" size={16} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              className="inp"
+              type="url"
+              value={newUrl}
+              placeholder="https://…"
+              aria-label="Añadir foto a la galería (HTTPS)"
+              onChange={(e) => setNewUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addPhoto();
+                }
+              }}
+            />
+            <button type="button" className="btn sm line" onClick={addPhoto} disabled={!newOk || gallery.length >= MAX_GALLERY}>
+              Añadir
+            </button>
+          </div>
+          {newUrl.trim() && !newOk ? (
+            <span className="bad" style={{ fontSize: 13 }}>
+              <AdIcon name="x" size={13} />
+              Tiene que empezar por https://
+            </span>
+          ) : null}
         </div>
       </div>
-      <div>
-        <div className="bh">
-          <h3 className="h3">Minutos y participación</h3>
-          {table.errors.length ? <Chip tone="warn">revisa los eventos</Chip> : <Chip tone="ok">calculado</Chip>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="mvpc">
+          <span className="st">
+            <AdIcon name="star" size={22} />
+          </span>
+          <span>
+            <b>{mvp.title}</b>
+            <small>{mvp.detail}</small>
+          </span>
         </div>
-        {table.rows.length ? (
-          <ul className="evl" aria-label="Minutos y participación">
-            {table.rows.map((r) => (
-              <li key={r.id} className="evr">
-                <span className="mn2">{r.minutes}′</span>
-                <span className="w">
-                  <b>{r.name}</b>
-                  <small>{r.detail}</small>
+        <div className="calm">
+          <h3>
+            Minutos <em>de la convocatoria y los cambios</em>
+          </h3>
+          {table.rows.length ? (
+            <div className="mins" role="list" aria-label="Minutos">
+              {table.rows.map((r) => (
+                <span key={r.id} role="listitem" title={r.detail}>
+                  {r.name}
+                  <b>{r.minutes}′</b>
                 </span>
-                <span />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="hint">Salen de la convocatoria y los cambios: haz primero la convocatoria.</p>
-        )}
-        {table.errors.length > 0 && <p className="hint">{table.errors[0]}</p>}
+              ))}
+            </div>
+          ) : (
+            <p className="hint">Salen de la convocatoria: hazla primero en Convocar.</p>
+          )}
+          {table.errors.length > 0 && (
+            <p className="warn" style={{ fontSize: 13 }}>
+              <AdIcon name="alert" size={14} />
+              {table.errors[0]}
+            </p>
+          )}
+        </div>
+        <button type="button" className="btn sm line" onClick={onPoster} style={{ alignSelf: "flex-start" }}>
+          <AdIcon name="image" size={16} />
+          Descargar el cartel
+        </button>
       </div>
-      <p className="mvp">
-        <AdIcon name="star" size={18} />
-        <span>
-          <b>MVP:</b> {mvp}
-        </span>
-      </p>
     </div>
   );
 }

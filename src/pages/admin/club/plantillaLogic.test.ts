@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import {
+  bajaPayload,
   checkPlayerForm,
   csvCell,
   csvFileName,
   dorsalHolder,
+  dorsalLine,
   emptyForm,
   filterRows,
   formDirty,
   formFromPlayer,
   linkState,
+  perchaOf,
   plantillaRows,
   playerPayload,
   previewDoc,
@@ -17,6 +20,7 @@ import {
   rosterSummary,
   seasonCode,
   seasonLabel,
+  shirtNameError,
 } from "./plantillaLogic";
 
 const seasons: SeasonDoc[] = [
@@ -107,7 +111,7 @@ describe("checkPlayerForm", () => {
     expect(checkPlayerForm({ ...base, shirtName: "K" }, ctx).shirtName).toBe("El nombre en camiseta va de 2 a 12 letras.");
     expect(checkPlayerForm({ ...base, number: "" }, ctx)).toMatchObject({ ok: false, number: { tone: "mut", text: "Del 1 al 99 · único en la temporada" } });
     expect(checkPlayerForm({ ...base, number: "0" }, ctx).number).toEqual({ tone: "bad", text: "El dorsal va del 1 al 99." });
-    expect(checkPlayerForm({ ...base, firstName: " " }, ctx).errors[0]).toBe("Falta el nombre.");
+    expect(checkPlayerForm({ ...base, firstName: " " }, ctx).ok).toBe(true);
     expect(checkPlayerForm({ ...base, height: "1800" }, ctx).height).toBe("La altura va en centímetros, sin decimales.");
     const photo = checkPlayerForm({ ...base, photoUrl: "http://x.com/a.jpg" }, ctx);
     expect(photo.photo).toEqual({ tone: "bad", text: "Tiene que empezar por https://" });
@@ -184,5 +188,41 @@ describe("CSV", () => {
     expect(lines[4]).toBe("4;VIEJO;Nombre;old;Medio;Lesionado;T0;;;");
     expect(csvFileName("Temporada 1")).toBe("plantilla-temporada-1.csv");
     expect(csvFileName(undefined)).toBe("plantilla.csv");
+  });
+});
+
+describe("the percha (v2)", () => {
+  const rows = plantillaRows(players, seasons, "t1");
+  it("hangs the season's squad; while searching, the others too", () => {
+    expect(perchaOf(rows, "", "Todos", true)).toEqual({ squad: rows.filter((r) => r.inSeason), others: [] });
+    expect(perchaOf(rows, "viejo", "Todos", true).others.map((r) => r.id)).toEqual(["old"]);
+    expect(perchaOf(rows, "", "POR", true).squad.map((r) => r.id)).toEqual(["evans"]);
+    expect(perchaOf(rows, "", "Todos", false).squad).toHaveLength(4);
+  });
+  it("the shirt name's line: nothing for an untouched alta, then 2–12", () => {
+    expect(shirtNameError("", true)).toBe("");
+    expect(shirtNameError("", false)).toBe("Mínimo 2 letras");
+    expect(shirtNameError("K", true)).toBe("Mínimo 2 letras");
+    expect(shirtNameError("KEVIN", true)).toBe("");
+    expect(shirtNameError("ABCDEFGHIJKLM", false)).toBe("Máximo 12 letras");
+  });
+  it("the dorsal's line: his own, free, taken, out of range, missing", () => {
+    const ctx = { players, seasons, editingId: "erik" };
+    const start = formFromPlayer(players[0]);
+    const line = (number: string) => {
+      const f = { ...start, number };
+      return dorsalLine(checkPlayerForm(f, { ...ctx, start }), f, start);
+    };
+    expect(line("9")).toEqual({ tone: "ok", text: "Su dorsal · solo lo lleva él" });
+    expect(line("99")).toEqual({ tone: "ok", text: "Libre en la Temporada 1 y la Temporada 0 · pre-Piti" });
+    expect(line("10")).toEqual({ tone: "bad", text: "El 10 ya lo lleva ADRIÁN T.C. en la Temporada 1" });
+    expect(line("0")).toEqual({ tone: "bad", text: "El dorsal va del 1 al 99" });
+    expect(line("")).toEqual({ tone: "bad", text: "Pon un dorsal del 1 al 99" });
+    const alta = emptyForm(["t1"]);
+    expect(dorsalLine(checkPlayerForm(alta, { players, seasons, editingId: null }), alta, null)).toEqual({ tone: "mut", text: "Del 1 al 99 · único en la temporada" });
+  });
+  it("«Dar de baja» takes the season off his seasons", () => {
+    expect(bajaPayload({ seasons: ["t1", "t0"] }, "t1")).toEqual({ seasons: ["t0"] });
+    expect(bajaPayload({}, "t1")).toEqual({ seasons: [] });
   });
 });

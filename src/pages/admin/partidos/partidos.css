@@ -1,69 +1,22 @@
-/* Partidos y actas + Convocatorias: the app-only additions to admin.css (the canvas kit): what the real
-   data needs beyond the prototype — the recovery banner, inline event forms, rival goal rows with their
-   minute, the gallery list, the picker's chosen option, and «Guardar» on phones. */
+/* Partidos + En juego (admin v2): the few rules the generated admin.css (from the canvas) does not have —
+   the list's group wrapper (its sticky title stays with its rows), the device-recovery banner, the crónica's
+   editable text inside its light card, and the «Deshacer lo último» row over the live log. */
 
-/* The chosen option in «¿Quién marcó?». */
-.adm .pp.on{background:var(--row-on);box-shadow:inset 0 0 0 2px var(--accent)}
-.adm .ad-pk-none{display:grid;gap:8px;justify-items:start}
+.adm .ml .mg{display:flex;flex-direction:column;gap:6px}
 
-/* Local draft recovery: «Recuperar cambios sin guardar de hh:mm». */
-.adm .ad-rec{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 10px;align-items:start;padding:12px 14px;border-radius:14px;background:var(--chip-gold);color:var(--gold-ink);animation:ad-rowIn .35s var(--ez)}
-.adm .ad-rec > svg{margin-top:2px}
-.adm .ad-rec > span:not(.row){display:grid;gap:2px;min-width:0}
-.adm .ad-rec b{color:var(--ink);font-size:14px}
-.adm .ad-rec small{font-size:12.5px}
-.adm .ad-rec .row{grid-column:1 / -1}
+/* «Hay cambios sin guardar en este dispositivo» (local draft recovery), at the top of the workspace body. */
+.adm .rec2{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;border-radius:14px;background:var(--glass);box-shadow:inset 0 0 0 1.5px var(--amber);color:var(--soft);font-size:14px}
+.adm .rec2>svg{flex:0 0 auto;color:var(--amber)}
+.adm .rec2>span{flex:1 1 220px;min-width:0}
+.adm .rec2 b{display:block;color:var(--ink);font-size:15px}
+.adm .rec2 small{color:var(--muted);font-size:13px}
 
-/* A warning that is not an error (the match was played but is still «Programado»). */
-.adm .note.ad-note-warn{background:color-mix(in srgb,var(--amber) 10%,transparent);color:var(--amber)}
-.adm .note.ad-note-warn span{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.adm .note.ad-note-warn .btn{color:var(--ink)}
+/* The crónica: the card's own text, editable (light card, dark ink). */
+.adm .cron .crt{width:100%;min-height:120px;padding:8px 10px;margin:0 -10px;border:0;border-radius:10px;background:transparent;color:#0c1733;font:inherit;line-height:1.5;resize:vertical;outline:none}
+.adm .cron .crt::placeholder{color:#4a5b7d}
+.adm .cron .crt:focus-visible{box-shadow:inset 0 0 0 2px #2a73ad}
 
-/* Rival goals: the same row as ours, with their minute and a remove button. */
-.adm .gr.ad-rg .who b{font-size:14px}
-.adm .ac-rest[inert]{opacity:.28}
-
-/* Red cards. */
-.adm .cardy.ad-red{background:#ff5a4f}
-
-/* «Otros eventos»: the inline add / edit form. */
-.adm .evl > li:has(> .ad-evf){list-style:none}
-.adm .ad-evf .h3{grid-column:1 / -1}
-.adm .ad-addev{margin-top:8px}
-
-/* Publicar: crónica, gallery links, the new link field. */
-.adm textarea.ad-cron{min-height:120px}
-.adm .ad-gal .w b.ad-url{font-size:12px;word-break:break-all}
-.adm .ad-gal .chk{min-height:0}
-.adm .ad-galnew{margin-top:8px}
-
-/* Convocatoria helpers (copy the previous one, mark the rest as not called). */
-.adm .ad-cvtools{margin:0}
-.adm .ad-cvacts{display:flex;flex-wrap:wrap;gap:8px}
-
-/* Empty list / unknown match. */
-.adm .ad-ml-new{justify-content:center;margin-top:10px}
-.adm .ad-ml-empty{margin-top:12px}
-.adm .dp > .dp-b:only-child{padding:16px}
-
-/* The publish modal's summary line for a match still to be played. */
-.adm .ad-psum .hint{margin:0}
-
-/* «Guardar borrador» stays on phones, as «Guardar» (the canvas hid it there). */
-.adm .dp-f .sv{display:inline-flex}
-.adm .dp-f .sv .l1{display:none}
-.adm .dp-f .bt{flex-wrap:nowrap}
-@container mp (min-width:1000px){
-  .adm .dp-f .sv .l1{display:inline}
-  .adm .dp-f .sv .l2{display:none}
-}
-
-@media (prefers-reduced-motion:reduce){.vx.adm .ad-rec{animation:none}}
-
-/* Convocatorias view: the list's padding and the message under the counters. */
-.adm .ad-cvpad{padding:10px 12px 14px}
-.adm .ad-cvpad > * + *{margin-top:10px}
-.adm .ad-cvmsg{margin:10px 12px 0}
-
-/* The scorer sheet on phones: «Lo completo luego» spans the footer. */
-.adm .pks .ov-f .btn{flex:1}
+/* En juego (phones): «Lo que va pasando» + «Deshacer lo último» on one row. */
+.adm .lvh{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.adm .lvh h3{margin:0}
+.adm .lvh .btn{margin-left:auto}

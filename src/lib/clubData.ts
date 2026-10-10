@@ -24,6 +24,9 @@ export interface ClubMatch extends Omit<
   date?: unknown;
   events?: MatchEvent[];
   ledger?: Record<string, Participation>;
+  /** setConvocatoria's stamps (ms): when the convocatoria last changed, when its notice last went. */
+  convocatoriaAt?: number;
+  convocatoriaNotifiedAt?: number;
 }
 export function useClubData() {
   const matches = useFirestoreCollection(MATCHES_KEY, matchQuery, mapMatch);

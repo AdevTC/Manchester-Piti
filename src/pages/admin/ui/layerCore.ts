@@ -113,3 +113,6 @@ export function useLayer({ modal, trap, onClose, ref, initialFocus, returnFocus 
   return { depth, isTop: at < 0 || at === stack.length - 1 };
 }
 
+/** z-index per depth (v2 layers): the scrim of a layer sits right under it, so a modal over a drawer dims the drawer. */
+export const zLayer = (depth: number) => 41 + depth * 2;
+export const zScrim = (depth: number) => 40 + depth * 2;

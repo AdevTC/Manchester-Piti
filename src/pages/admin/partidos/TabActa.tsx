@@ -1,491 +1,368 @@
-// The «Acta» tab: the score (± with the number roll) always equal to the goals written down; «Goles del
-// Piti» (editable minute, scorer, assist, «Elegir») with the «¿Quién marcó?» picker anchored to the row
-// (adding a goal opens it; removing a named goal asks inline); the rival's goals; «Otros eventos» (every
-// other kind, «+ Añadir» by type, edit / remove inline); and, on the right, «La cuenta» and «¿Cuadra?».
-import { useLayoutEffect, useRef, useState } from "react";
-import { EVENT_LABELS, type EventType, type MatchEvent } from "../../../../functions/src/matchEngine";
+// The «Acta» tab, as on the canvas (stats-gen/ad-v2-full.mjs `actaT`, shots-adv2f/partidos-acta.png, m-acta.png):
+// «Goles del Piti» in big rows (editable minute, the scorer large, the pass; a goal without scorer in amber
+// «¿Quién marcó?» + «Elegir») with the dorsal picker opening right UNDER its row; «Goles de RIVAL» (minute,
+// remove with «Deshacer», «Portería a cero»); «Lo demás» grouped Tarjetas · Cambios · Penaltis · Otros
+// (each with its «+», a row opens it for editing); and on the right «La cuenta» (dots) and «¿Cuadra?».
+// A match still to play: «El acta se escribe en el partido»; being played: «Abrir En juego».
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import type { MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ActaReview } from "../data/adminLogic";
-import type { MatchTab } from "../shell/nav";
+import { ShirtBack } from "../kit";
+import { liveLog } from "../live/liveModel";
 import { AdIcon } from "../ui/icons";
-import { calledUp } from "../acta/convocatoria";
-import {
-  addOurGoal,
-  addRivalGoal,
-  goalRows,
-  lastOurGoal,
-  lastRivalGoal,
-  newId,
-  otherEvents,
-  removeEvent,
-  rivalInitialsOf,
-  rivalRows,
-  score,
-  setAssist,
-  setMinute,
-  setScorer,
-  upsertEvent,
-  type GoalRow,
-  type MatchSheet,
-} from "../acta/sheetModel";
-import { EventForm } from "./EventForm";
-import { OTHER_TYPES, pickOptions } from "./pickModel";
+import { useToast } from "../ui/toastContext";
+import { addOurGoal, addRivalGoal, goalRows, newId, otherEvents, removeEvent, rivalRows, setAssist, setMinute, setScorer, upsertEvent, type MatchSheet } from "../acta/sheetModel";
+import { EventPanel } from "./EventPanel";
+import { GROUPS, groupOfEvent, kindLabel, pickOptions, type EventGroup } from "./pickModel";
 import { ScorerPicker } from "./ScorerPicker";
-import { useFrame } from "../ui/frame";
+import { cuentaOf, goalSub, goalWho, type Phase } from "./workspaceModel";
 
 export interface PlayerInfo {
   name: string;
   number: number | null;
-  position: string;
 }
 export interface TabActaProps {
+  phase: Phase;
   sheet: MatchSheet;
   update: (f: (s: MatchSheet) => MatchSheet) => void;
   review: ActaReview;
   rival: string;
-  /** «J7». */
+  /** «J7» (the lower thirds' tag). */
   j: string;
-  /** The season's squad ids, by dorsal (the picker's order). */
-  rosterOrder: string[];
   info: (id: string) => PlayerInfo;
-  onGoTab: (tab: MatchTab) => void;
+  onOpenLive: () => void;
+  onGoConvocar: () => void;
 }
 
-type Pick = { id: string; step: "s" | "a" } | null;
-type Remove = { side: "ours" | "theirs"; id: string } | null;
-type Editing = { event: MatchEvent; isNew: boolean } | null;
+type Open = { k: "goal"; id: string; step: "s" | "a" } | { k: "ev"; group: EventGroup; editId: string | null; newId: string } | null;
 
-const CARD = new Set(["yellow_card", "double_yellow", "red_card"]);
-function EventIcon({ type }: { type: string }) {
-  if (CARD.has(type)) return <i className={`cardy${type === "yellow_card" ? "" : " ad-red"}`} aria-hidden="true" />;
-  if (type === "substitution") return <AdIcon name="swap" size={16} />;
-  if (type === "woodwork" || type === "goal_penalty" || type === "goal_freekick" || type === "own_goal") return <AdIcon name="ball" size={16} />;
-  return <AdIcon name="glove" size={16} />;
+/** Puts an event back where it was (the «Deshacer» of a removal). */
+const restoreAt = (s: MatchSheet, e: MatchEvent, at: number): MatchSheet => {
+  if (s.events.some((x) => x.id === e.id)) return s;
+  const events = [...s.events];
+  events.splice(Math.min(at, events.length), 0, e);
+  return { ...s, events };
+};
+
+export function TabActa(props: TabActaProps) {
+  const { phase } = props;
+  if (phase === "antes" || phase === "off")
+    return (
+      <div className="void">
+        <ShirtBack size={90} big state="empty" />
+        <h3>{props.sheet.status === "cancelled" ? "Partido cancelado" : props.sheet.status === "postponed" ? "Partido aplazado" : "El acta se escribe en el partido"}</h3>
+        <p>
+          {props.sheet.status === "cancelled"
+            ? "No tiene acta: un partido cancelado no cuenta para las estadísticas."
+            : props.sheet.status === "postponed"
+              ? "Pon la nueva fecha en «Encuentro»: el acta se escribe el día que se juegue."
+              : "El día del partido, cada gol, tarjeta y cambio se apunta a un toque desde «En juego» en Hoy. Al pitar el final llega aquí para repasarla y publicarla."}
+        </p>
+      </div>
+    );
+  if (phase === "juego")
+    return (
+      <div className="void">
+        <ShirtBack size={90} big />
+        <h3>Se está jugando ahora</h3>
+        <p>Apunta los goles desde «En juego»: llegan aquí solos.</p>
+        <button type="button" className="btn gold" onClick={props.onOpenLive}>
+          <AdIcon name="ball" size={18} />
+          Abrir En juego
+        </button>
+      </div>
+    );
+  return <ActaEditor {...props} />;
 }
 
-export function TabActa({ sheet, update, review, rival, j, rosterOrder, info, onGoTab }: TabActaProps) {
-  const { desktop } = useFrame();
-  const [pick, setPick] = useState<Pick>(null);
-  const [rm, setRm] = useState<Remove>(null);
-  const [roll, setRoll] = useState({ f: 0, a: 0 });
-  const [editing, setEditing] = useState<Editing>(null);
-  const [addType, setAddType] = useState<EventType>("yellow_card");
+function ActaEditor({ sheet, update, review, rival, j, info, onGoConvocar }: TabActaProps) {
+  const toast = useToast();
+  const [open, setOpen] = useState<Open>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
-  const minusRef = useRef<HTMLButtonElement>(null);
   const focusMinute = useRef<string | null>(null);
   const mainRef = useRef<HTMLDivElement>(null);
 
   const rows = goalRows(sheet);
   const rivals = rivalRows(sheet);
   const others = otherEvents(sheet);
-  const { gf, ga } = score(sheet);
-  const lineup = { starters: sheet.starters, bench: sheet.bench, notCalled: sheet.notCalled };
-  const called = calledUp(lineup, rosterOrder);
-  const calledNames = called.map((c) => ({ id: c.id, name: info(c.id).name }));
-  const nameOf = (id: string | null | undefined) => (id ? info(id).name : "—");
-  const active = pick ? rows.find((r) => r.id === pick.id) : undefined;
-  const pickOpen = !!(pick && active);
+  const nameOf = (id: string) => info(id).name;
+  const field = pickOptions(sheet.starters, info);
+  const bench = pickOptions(sheet.bench, info);
 
   // Focus a minute box that was just added (a rival goal).
   useLayoutEffect(() => {
     const id = focusMinute.current;
     if (!id) return;
     focusMinute.current = null;
-    const box = Array.from(mainRef.current?.querySelectorAll<HTMLInputElement>("input[data-minute]") ?? []).find((x) => x.dataset.minute === id);
-    box?.focus();
+    Array.from(mainRef.current?.querySelectorAll<HTMLInputElement>("input[data-minute]") ?? [])
+      .find((x) => x.dataset.minute === id)
+      ?.focus();
   });
 
-  const gfUp = () => {
+  const close = () => setOpen(null);
+  const indexOf = (id: string) => sheet.events.findIndex((e) => e.id === id);
+  const removeWithUndo = (e: MatchEvent, message: string) => {
+    const at = indexOf(e.id);
+    update((s) => removeEvent(s, e.id));
+    toast.show({ tag: j, message, undo: () => update((s) => restoreAt(s, e, at)) });
+  };
+
+  // ── our goals ──
+  const addGoal = () => {
     const id = newId();
     update((s) => addOurGoal(s, "goal", id).sheet);
-    setRoll((r) => ({ ...r, f: r.f + 1 }));
-    setRm(null);
-    setPick({ id, step: "s" });
+    setOpen({ k: "goal", id, step: "s" });
   };
-  const gfDown = () => {
-    const last = lastOurGoal(sheet);
-    if (!last) return;
-    setPick(null);
-    if (last.scorer || last.kind === "og") {
-      setRm({ side: "ours", id: last.id });
-      return;
-    }
-    update((s) => removeEvent(s, last.id));
-    setRoll((r) => ({ ...r, f: r.f + 1 }));
-  };
-  const gaUp = () => {
-    const id = newId();
-    update((s) => addRivalGoal(s, id).sheet);
-    setRoll((r) => ({ ...r, a: r.a + 1 }));
-    focusMinute.current = id;
-  };
-  const gaDown = () => {
-    const last = lastRivalGoal(sheet);
-    if (!last) return;
-    if (last.own && last.playerId) {
-      setRm({ side: "theirs", id: last.id });
-      return;
-    }
-    update((s) => removeEvent(s, last.id));
-    setRoll((r) => ({ ...r, a: r.a + 1 }));
-  };
-  const confirmRemove = () => {
-    if (!rm) return;
-    update((s) => removeEvent(s, rm.id));
-    setRoll((r) => (rm.side === "ours" ? { ...r, f: r.f + 1 } : { ...r, a: r.a + 1 }));
-    setRm(null);
-    minusRef.current?.focus({ preventScroll: true });
-  };
-
-  const rmRow = rm ? (rm.side === "ours" ? rows.find((r) => r.id === rm.id) : undefined) : undefined;
-  const rmRival = rm && rm.side === "theirs" ? rivals.find((r) => r.id === rm.id) : undefined;
-  const rmQuestion = rmRow
-    ? `¿Quitar el gol ${rmRow.n}${rmRow.kind === "og" ? ` (autogol de ${rival})` : rmRow.scorer ? ` de ${nameOf(rmRow.scorer)}` : ""}${rmRow.minute !== undefined ? ` (${rmRow.minute}′)` : ""}?`
-    : rmRival
-      ? `¿Quitar el gol en propia de ${nameOf(rmRival.playerId)}${rmRival.minute !== undefined ? ` (${rmRival.minute}′)` : ""}?`
-      : "";
-
-  const closePick = () => setPick(null);
+  const active = open?.k === "goal" ? rows.find((r) => r.id === open.id) : undefined;
   const chooseScorer = (who: string | "og") => {
-    if (!pick) return;
-    update((s) => setScorer(s, pick.id, who));
-    setPick(who === "og" ? null : { id: pick.id, step: "a" });
+    if (open?.k !== "goal" || !active) return;
+    update((s) => setScorer(s, open.id, who));
+    if (who === "og") {
+      setOpen(null);
+      toast.show({ tag: j, message: `Gol ${active.n}: autogol de ${rival}` });
+    } else setOpen({ ...open, step: "a" });
   };
   const chooseAssist = (who: string | null) => {
-    if (!pick) return;
-    update((s) => setAssist(s, pick.id, who));
-    setPick(null);
+    if (open?.k !== "goal" || !active) return;
+    update((s) => setAssist(s, open.id, who));
+    setOpen(null);
+    const scorer = active.scorer ? nameOf(active.scorer) : "";
+    toast.show({ tag: j, message: `Gol ${active.n}: ${scorer}, ${who ? `pase de ${nameOf(who)}` : "sin asistencia"}` });
+  };
+  const removeGoal = () => {
+    if (open?.k !== "goal" || !active) return;
+    const e = sheet.events.find((x) => x.id === open.id);
+    setOpen(null);
+    if (e) removeWithUndo(e, `Gol ${active.n} quitado`);
   };
 
-  const sub = (g: GoalRow) => {
-    const kind = g.kind === "goal_penalty" ? " de penalti" : g.kind === "goal_freekick" ? " de falta" : "";
-    const base = `Gol ${g.n}${kind}`;
-    if (g.open) return `${base} · falta quién marcó`;
-    if (g.kind === "og") return `${base} · cuenta para el Piti`;
-    if (pick?.id === g.id && pick.step === "a") return `${base} · ¿asistencia? (opcional)`;
-    return g.assist ? `${base} · asiste ${nameOf(g.assist)}` : `${base} · sin asistencia`;
+  // ── rival goals ──
+  const addRival = () => {
+    const id = newId();
+    update((s) => addRivalGoal(s, id).sheet);
+    focusMinute.current = id;
   };
 
-  const startAdd = () => {
-    if (addType === "goal_penalty" || addType === "goal_freekick") {
-      const id = newId();
-      update((s) => addOurGoal(s, addType, id).sheet);
-      setRoll((r) => ({ ...r, f: r.f + 1 }));
-      setPick({ id, step: "s" });
-      return;
-    }
-    setEditing({ event: { id: newId(), type: addType }, isNew: true });
-  };
+  // ── Lo demás ──
+  const groups = GROUPS.map((g) => {
+    const list = others.filter((e) => groupOfEvent(e) === g.key);
+    const log = liveLog(list, rival, nameOf).reverse();
+    return { ...g, list, log };
+  });
   const saveEvent = (e: MatchEvent) => {
+    const editing = open?.k === "ev" && open.editId;
     update((s) => upsertEvent(s, e));
-    if (e.type === "own_goal" && editing?.isNew) setRoll((r) => ({ ...r, a: r.a + 1 }));
-    setEditing(null);
+    setOpen(null);
+    const who = e.type === "substitution" ? `Entra ${nameOf(e.inPlayerId ?? "")}, sale ${nameOf(e.playerId ?? "")}` : `${kindLabel(e.type)} · ${nameOf(e.playerId ?? "")}`;
+    toast.show({ tag: j, message: `${editing ? "Corregido" : "Apuntado"}: ${who} · ${e.minute}′` });
   };
 
-  const finishedWarn = review.items.find((i) => i.key === "encuentro" && i.title === "Márcalo como finalizado");
-  const notPlayed = review.items.some((i) => i.key === "fecha") || (!review.finished && sheet.status === "scheduled");
-  const ours = rows.filter((r) => r.kind !== "og");
-  const named = rows.filter((r) => !r.open).length;
-  const assisted = ours.filter((r) => r.assist).length;
-  const missing = rows.filter((r) => r.open).length;
-  const pickerOptions = pick
-    ? pickOptions(
-        pick.step === "s" ? called : called.filter((c) => c.id !== active?.scorer),
-        (id) => info(id),
-      )
-    : [];
+  const cuenta = cuentaOf(rows);
 
   return (
-    <div className="pnl acta">
-      <div className="ac-main" ref={mainRef}>
-        {finishedWarn && (
-          <p className="note ad-note-warn" role="note">
-            <AdIcon name="alert" size={15} />
-            <span>
-              El partido ya se jugó y sigue como «Programado».{" "}
-              <button type="button" className="btn sm line" onClick={() => update((s) => ({ ...s, status: "finished" }))}>
-                Marcar como finalizado
-              </button>
-            </span>
-          </p>
-        )}
-        {notPlayed && !finishedWarn && <p className="hint">El partido aún no se ha jugado: el acta se completa cuando acabe.</p>}
-        <div className="sb" role="group" aria-label="Marcador">
-          <div className="tm">
-            <span className="nm">
-              <img src="/crest-128.webp" alt="" width={22} height={22} />
-              Piti
-            </span>
-            <div className="ctl">
-              <button ref={minusRef} type="button" className="ib mn" onClick={gfDown} aria-label="Quitar el último gol del Piti" aria-disabled={!gf}>
-                <AdIcon name="minus" />
-              </button>
-              <output aria-live="polite" aria-label="Goles del Piti">
-                <span key={roll.f} className={roll.f ? (roll.f % 2 ? "rA" : "rB") : ""}>
-                  {gf}
-                </span>
-              </output>
-              <button type="button" className="ib pl" onClick={gfUp} aria-label="Añadir un gol del Piti" aria-haspopup="dialog">
-                <AdIcon name="plus" />
-              </button>
-            </div>
+    <div className="acta">
+      <div className="acol" ref={mainRef}>
+        <section aria-labelledby="ad-h-gp">
+          <div className="ah">
+            <h3 id="ad-h-gp">Goles del Piti</h3>
+            <span className="n">{rows.length}</span>
+            <button type="button" className="btn sm line add" onClick={addGoal} aria-haspopup="dialog">
+              <AdIcon name="plus" size={16} />
+              Gol del Piti
+            </button>
           </div>
-          <span className="dash" aria-hidden="true">
-            –
-          </span>
-          <div className="tm">
-            <span className="nm">
-              <span className="ini">{rivalInitialsOf(sheet)}</span>
-              {rival}
-            </span>
-            <div className="ctl">
-              <button type="button" className="ib mn" onClick={gaDown} aria-label={`Quitar un gol de ${rival}`} aria-disabled={!ga}>
-                <AdIcon name="minus" />
-              </button>
-              <output aria-live="polite" aria-label={`Goles de ${rival}`}>
-                <span key={roll.a} className={roll.a ? (roll.a % 2 ? "rA" : "rB") : ""}>
-                  {ga}
-                </span>
-              </output>
-              <button type="button" className="ib pl" onClick={gaUp} aria-label={`Añadir un gol de ${rival}`}>
-                <AdIcon name="plus" />
-              </button>
-            </div>
-          </div>
-        </div>
-        {rm && rmQuestion && (
-          <div className="cfm" role="alertdialog" aria-labelledby="ad-rmq">
-            <p id="ad-rmq">
-              {rmQuestion}
-              <small>{rm.side === "ours" ? "Se borra con su goleador y su asistencia." : "Se borra el gol y el jugador que lo marcó."}</small>
-            </p>
-            <div className="row">
-              <button type="button" className="btn sm red solid" onClick={confirmRemove}>
-                Quitar el gol
-              </button>
-              <button
-                type="button"
-                className="btn sm line"
-                onClick={() => {
-                  setRm(null);
-                  minusRef.current?.focus({ preventScroll: true });
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div>
-          <div className="bh">
-            <h3 className="h3">Goles del Piti</h3>
-            <span className={`chip ${missing ? "warn" : "ok"}`}>
-              <AdIcon name={missing ? "alert" : "check"} size={12} />
-              {missing ? `${missing} sin goleador` : `${gf} de ${gf} con goleador`}
-            </span>
-          </div>
-          {rows.length ? (
-            <ol className="gl">
-              {rows.map((g) => {
-                const act = pick?.id === g.id;
-                return (
-                  <li key={g.id} className={`gr${act ? " act" : g.open ? " open" : ""}`}>
-                    <label className="mi">
-                      <span className="sr">Minuto del gol {g.n}</span>
-                      <input className="inp tn" data-minute={g.id} inputMode="numeric" maxLength={3} value={g.minute ?? ""} placeholder="min" onChange={(e) => update((s) => setMinute(s, g.id, e.target.value))} />
-                    </label>
-                    <span className="who">
-                      <b>{g.kind === "og" ? `Autogol de ${rival}` : g.scorer ? nameOf(g.scorer) : "¿Quién marcó?"}</b>
-                      <small>{sub(g)}</small>
-                    </span>
-                    <button
-                      ref={act ? anchorRef : undefined}
-                      type="button"
-                      className="ib pick"
-                      onClick={() => {
-                        setRm(null);
-                        setPick(act ? null : { id: g.id, step: "s" });
-                      }}
-                      aria-label={g.open ? `Elegir quién marcó el gol ${g.n}` : `Cambiar goleador y asistencia del gol ${g.n}`}
-                      aria-haspopup="dialog"
-                      aria-expanded={act}
-                    >
-                      {g.open ? "Elegir" : <AdIcon name="pencil" />}
+          <div className="gl">
+            {rows.map((g) => {
+              const act = open?.k === "goal" && open.id === g.id;
+              const edit = () => setOpen(act ? null : { k: "goal", id: g.id, step: "s" });
+              return (
+                <Fragment key={g.id}>
+                  <div className={["gr", act ? "act" : g.open ? "miss" : ""].filter(Boolean).join(" ")}>
+                    <input className="m" data-minute={g.id} value={g.minute ?? ""} onChange={(e) => update((s) => setMinute(s, g.id, e.target.value))} aria-label={`Minuto del gol ${g.n}`} inputMode="numeric" maxLength={3} placeholder="min" />
+                    <button ref={act ? anchorRef : undefined} type="button" className="gw" onClick={edit} aria-expanded={act} aria-haspopup="dialog">
+                      <b>{goalWho(g, rival, nameOf)}</b>
+                      <small>{goalSub(g, nameOf)}</small>
                     </button>
-                  </li>
-                );
-              })}
-            </ol>
-          ) : (
-            <p className="hint">Sin goles del Piti. Pulsa + en el marcador para apuntar uno.</p>
-          )}
-        </div>
-        {pickOpen && active && pick && (
-          <ScorerPicker
-            key={pick.id}
-            step={pick.step}
-            goal={{ n: active.n, minute: active.minute, scorerName: nameOf(active.scorer) }}
-            options={pickerOptions}
-            current={pick.step === "s" ? (active.kind === "og" ? "og" : active.scorer) : active.assist}
-            rival={rival}
-            kicker={`Acta · ${j} · ${gf}–${ga}`}
-            anchorRef={anchorRef}
-            onScorer={chooseScorer}
-            onAssist={chooseAssist}
-            onClose={closePick}
-            onGoConvocatoria={() => {
-              setPick(null);
-              onGoTab("convocatoria");
-            }}
-          />
-        )}
-
-        <div className="ac-rest" aria-hidden={pickOpen && desktop ? true : undefined} inert={pickOpen && desktop ? true : undefined}>
-          <div>
-            <div className="bh">
-              <h3 className="h3">Goles de {rival}</h3>
-              <span className="chip">{ga} en el marcador</span>
-            </div>
-            {rivals.length ? (
-              <ul className="gl">
-                {rivals.map((r) => {
-                  const noMin = r.minute === undefined;
-                  return (
-                    <li key={r.id} className={`gr ad-rg${noMin ? " open" : ""}`}>
-                      <label className="mi">
-                        <span className="sr">Minuto del gol {r.n} de {rival}</span>
-                        <input className="inp tn" data-minute={r.id} inputMode="numeric" maxLength={3} value={r.minute ?? ""} placeholder="min" onChange={(e) => update((s) => setMinute(s, r.id, e.target.value))} />
-                      </label>
-                      <span className="who">
-                        <b>{r.own ? `Gol en propia · ${nameOf(r.playerId)}` : "Gol rival"}</b>
-                        <small>{noMin ? "Falta el minuto · apúntalo para publicar" : r.own ? `Cuenta para ${rival}` : "Solo cuenta para el marcador"}</small>
-                      </span>
-                      <button type="button" className="ib" onClick={() => (r.own && r.playerId ? setRm({ side: "theirs", id: r.id }) : update((s) => removeEvent(s, r.id)))} aria-label={`Quitar el gol ${r.n} de ${rival}`}>
-                        <AdIcon name="trash" />
+                    {g.open ? (
+                      <button type="button" className="btn sm sky" onClick={() => setOpen({ k: "goal", id: g.id, step: "s" })} aria-label={`Elegir quién marcó el gol ${g.n}`}>
+                        Elegir
                       </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="hint">Sin goles de {rival}.</p>
-            )}
-          </div>
-          <div>
-            <div className="bh">
-              <h3 className="h3">Otros eventos</h3>
-              <span className="chip">{others.length}</span>
-            </div>
-            <ul className="evl">
-              {others.map((e) =>
-                editing && !editing.isNew && editing.event.id === e.id ? (
-                  <li key={e.id}>
-                    <EventForm
-                      event={e}
-                      duration={sheet.duration}
-                      options={calledNames}
-                      isNew={false}
-                      onSave={saveEvent}
-                      onCancel={() => setEditing(null)}
-                      onRemove={() => {
-                        update((s) => removeEvent(s, e.id));
-                        setEditing(null);
+                    ) : (
+                      <button type="button" className="e" onClick={() => setOpen({ k: "goal", id: g.id, step: "s" })} aria-label={`Cambiar goleador del gol ${g.n}`}>
+                        <AdIcon name="pencil" />
+                      </button>
+                    )}
+                  </div>
+                  {act && open.k === "goal" && (
+                    <ScorerPicker
+                      key={`${g.id}-${open.step}`}
+                      step={open.step}
+                      goal={{ n: g.n, minute: g.minute, scorerName: g.scorer ? nameOf(g.scorer) : "" }}
+                      field={open.step === "a" ? field.filter((o) => o.id !== g.scorer) : field}
+                      bench={open.step === "a" ? bench.filter((o) => o.id !== g.scorer) : bench}
+                      current={open.step === "s" ? (g.kind === "og" ? "og" : g.scorer) : g.assist}
+                      rival={rival}
+                      anchorRef={anchorRef}
+                      onScorer={chooseScorer}
+                      onAssist={chooseAssist}
+                      onBack={() => setOpen({ k: "goal", id: g.id, step: "s" })}
+                      onRemove={removeGoal}
+                      onClose={close}
+                      onGoConvocatoria={() => {
+                        setOpen(null);
+                        onGoConvocar();
                       }}
                     />
-                  </li>
-                ) : (
-                  <li key={e.id} className="evr">
-                    <span className="mn2">{e.minute !== undefined ? `${e.minute}′` : "—"}</span>
-                    <span className="w">
-                      <b>
-                        <EventIcon type={e.type} />
-                        {EVENT_LABELS[e.type] ?? e.type}
-                        {e.type === "substitution" ? ` · Entra ${nameOf(e.inPlayerId)}` : e.playerId ? ` · ${nameOf(e.playerId)}` : ""}
-                      </b>
-                      {(e.type === "substitution" || e.note) && <small>{[e.type === "substitution" ? `Sale ${nameOf(e.playerId)}` : "", e.note ?? ""].filter(Boolean).join(" · ")}</small>}
-                    </span>
-                    <button type="button" className="ib" aria-label={`Editar ${(EVENT_LABELS[e.type] ?? e.type).toLowerCase()} del ${e.minute ?? "?"}′`} onClick={() => setEditing({ event: e, isNew: false })}>
-                      <AdIcon name="pencil" />
-                    </button>
-                  </li>
-                ),
-              )}
-              {editing?.isNew && (
-                <li>
-                  <EventForm event={editing.event} duration={sheet.duration} options={calledNames} isNew onSave={saveEvent} onCancel={() => setEditing(null)} />
-                </li>
-              )}
-            </ul>
-            {!others.length && !editing && <p className="hint">Tarjetas, cambios, penaltis, palos…</p>}
-            <div className="addev ad-addev">
-              <label className="fld">
-                <span className="sr">Tipo de evento</span>
-                <select className="inp" value={addType} onChange={(e) => setAddType(e.target.value as EventType)}>
-                  {OTHER_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {EVENT_LABELS[t]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="button" className="btn sm" onClick={startAdd}>
-                <AdIcon name="plus" size={16} />
-                Añadir
-              </button>
-            </div>
+                  )}
+                </Fragment>
+              );
+            })}
+            {!rows.length && <p className="hint">Sin goles del Piti. «Gol del Piti» apunta uno.</p>}
           </div>
-        </div>
+        </section>
+
+        <section aria-labelledby="ad-h-gr">
+          <div className="ah">
+            <h3 id="ad-h-gr">Goles de {rival}</h3>
+            <span className="n">{rivals.length}</span>
+            <button type="button" className="btn sm line add" onClick={addRival}>
+              <AdIcon name="plus" size={16} />
+              Gol en contra
+            </button>
+          </div>
+          <div className="gl">
+            {rivals.map((r) => {
+              const noMin = r.minute === undefined;
+              const e = sheet.events.find((x) => x.id === r.id);
+              return (
+                <div key={r.id} className={`gr rvl${noMin ? " miss" : ""}`}>
+                  <input className="m" data-minute={r.id} value={r.minute ?? ""} onChange={(ev) => update((s) => setMinute(s, r.id, ev.target.value))} aria-label={`Minuto del gol ${r.n} de ${rival}`} inputMode="numeric" maxLength={3} placeholder="min" />
+                  <span>
+                    <b>{r.own ? `Gol en propia de ${nameOf(r.playerId ?? "")}` : `Gol de ${rival}`}</b>
+                    <small>{noMin ? "Falta el minuto · apúntalo para publicar" : "En contra"}</small>
+                  </span>
+                  <button type="button" className="e" onClick={() => e && removeWithUndo(e, `Gol de ${rival} quitado`)} aria-label={`Quitar el gol ${r.n} de ${rival}`}>
+                    <AdIcon name="trash" />
+                  </button>
+                </div>
+              );
+            })}
+            {!rivals.length && <p className="hint">Portería a cero.</p>}
+          </div>
+        </section>
+
+        <section aria-labelledby="ad-h-ev">
+          <div className="ah">
+            <h3 id="ad-h-ev">Lo demás</h3>
+          </div>
+          <div className="evg">
+            {groups.map((g) => {
+              const here = open?.k === "ev" && open.group === g.key ? open : null;
+              const editing = here?.editId ? (g.list.find((e) => e.id === here.editId) ?? null) : null;
+              return (
+                <div key={g.key} className="eg" style={here ? { gridColumn: "1 / -1" } : undefined}>
+                  <div className="ah">
+                    <h3>{g.title}</h3>
+                    <span className="n">{g.list.length}</span>
+                    <button
+                      ref={here && !here.editId ? anchorRef : undefined}
+                      type="button"
+                      className="ib2 add"
+                      style={{ width: 40, height: 40 }}
+                      onClick={() => setOpen(here && !here.editId ? null : { k: "ev", group: g.key, editId: null, newId: newId() })}
+                      aria-label={`Añadir en ${g.title}`}
+                      aria-haspopup="dialog"
+                      aria-expanded={!!here && !here.editId}
+                    >
+                      <AdIcon name="plus" size={16} />
+                    </button>
+                  </div>
+                  {g.log.length ? (
+                    <ul className="evl">
+                      {g.log.map((x) => (
+                        <li key={x.id} className={x.cls || undefined}>
+                          <span className="m">{x.minute}′</span>
+                          <span className="ic">{x.icon ? <AdIcon name={x.icon} size={18} /> : null}</span>
+                          <span>
+                            {x.text} {x.detail ? <small>{x.detail}</small> : null}
+                          </span>
+                          <button
+                            ref={here?.editId === x.id ? anchorRef : undefined}
+                            type="button"
+                            className="ib2"
+                            onClick={() => setOpen(here?.editId === x.id ? null : { k: "ev", group: g.key, editId: x.id, newId: x.id })}
+                            aria-label={`Editar: ${x.text} (${x.minute}′)`}
+                            aria-haspopup="dialog"
+                            aria-expanded={here?.editId === x.id}
+                          >
+                            <AdIcon name="pencil" size={16} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="emp">{g.empty}</p>
+                  )}
+                  {here && (
+                    <EventPanel
+                      key={`${g.key}-${here.editId ?? here.newId}`}
+                      group={g.key}
+                      title={g.title}
+                      event={editing}
+                      newId={here.newId}
+                      duration={sheet.duration}
+                      field={field}
+                      bench={bench}
+                      anchorRef={anchorRef}
+                      onSave={saveEvent}
+                      onRemove={(e) => {
+                        setOpen(null);
+                        removeWithUndo(e, `${kindLabel(e.type)} quitado`);
+                      }}
+                      onClose={close}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </div>
 
-      <aside className="ac-side" aria-label="Comprobación">
-        <div className="tally" role="group" aria-label="La cuenta">
-          <p className="lbl">La cuenta</p>
-          <div className="tr2">
-            <span>Marcador</span>
-            <span className="dots" aria-label={`${gf} goles en el marcador`}>
-              {rows.map((g) => (
-                <i key={g.id} className="f" />
-              ))}
-              <em>{gf}</em>
-            </span>
-          </div>
-          <div className="tr2">
-            <span>Con goleador</span>
-            <span className="dots" aria-label={`${named} de ${gf} con goleador`}>
-              {rows.map((g) => (
-                <i key={g.id} className={g.open ? "o" : "f"} />
-              ))}
-              <em>
-                {named} de {gf}
-              </em>
-            </span>
-          </div>
-          <div className="tr2">
-            <span>Asistencias</span>
-            <span className="dots" aria-label={`${assisted} de ${ours.length} con asistencia`}>
-              {ours.map((g) => (
-                <i key={g.id} className={g.assist ? "f" : "r"} />
-              ))}
-              <em>
-                {assisted} de {ours.length}
-              </em>
-            </span>
+      <aside className="cuenta" aria-label="Comprobación del acta">
+        <div className="calm">
+          <h3>La cuenta</h3>
+          <div className="dots">
+            {cuenta.map((c) => (
+              <div key={c.title} className="r" role="group" aria-label={`${c.title}: ${c.value}`}>
+                <span>
+                  {c.title} <b>{c.value}</b>
+                </span>
+                <i aria-hidden="true">
+                  {c.dots.map((d, i) => (
+                    <u key={i} className={d || undefined} />
+                  ))}
+                </i>
+              </div>
+            ))}
           </div>
         </div>
-        <h3 className="h3">¿Cuadra?</h3>
-        <ul className="cq" aria-label="¿Cuadra?">
-          {review.items.map((q) => (
-            <li key={`${q.key}-${q.title}`}>
-              <span className={`ic ${q.tone === "info" ? "" : q.tone}`} aria-hidden="true">
-                {q.tone === "ok" ? "✓" : q.tone === "warn" ? "!" : "i"}
-              </span>
-              <span>
-                <b>{q.title}</b>
-                <small>{q.detail}</small>
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="calm">
+          <h3>¿Cuadra?</h3>
+          <ul className="ck2">
+            {review.items.map((q) => (
+              <li key={`${q.key}-${q.title}`} className={q.tone === "warn" ? "no" : undefined}>
+                <span className="i" aria-hidden="true">
+                  {q.tone === "ok" ? <AdIcon name="check" size={13} /> : q.tone === "warn" ? "!" : "i"}
+                </span>
+                <span>
+                  {q.title}
+                  <small>{q.key === "goles" && q.tone === "warn" && review.missingScorers ? "Toca la fila en ámbar" : q.detail}</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </aside>
     </div>
   );
