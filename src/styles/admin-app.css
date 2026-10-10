@@ -68,3 +68,104 @@
 .adm .mws > .v1{overflow:auto;padding:4px 12px 12px}
 
 @media (prefers-reduced-motion:reduce){.vx.adm .skel i{animation:none}}
+
+/* ═══ Between the phone and the 1440 canvas (1000–1439 px) ═══
+   The canvas was drawn at 1440 and at phone widths; in between the composition adapts (the look stays):
+   the header never wraps the brand, pegs and their shirts shrink to their rail, the LED sizes its type to
+   its own width, panels hand their side columns over below a width, and below 1200 px the rail keeps only
+   its icons (labels as tooltips, counters as badges). Container `mp` = the admin frame. */
+
+/* Header: the brand and the section never wrap; the search gives way first. */
+.adm .hd .br{flex:0 0 auto;white-space:nowrap}
+.adm .hd .sec{flex:0 0 auto;white-space:nowrap}
+.adm .hd .q{width:auto;flex:0 4 320px;min-width:180px}
+.adm .hd .q span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+/* Title rows: the actions wrap under the title instead of squeezing it. */
+.adm .vh{flex-wrap:wrap;row-gap:12px}
+.adm .vh .r{flex-wrap:wrap;justify-content:flex-end}
+
+/* Pegs shrink to their rail; the shirt follows (never wider than its peg) and its print scales with it. */
+.adm .peg{min-width:0}
+.adm .peg .sh{width:min(var(--w,64px),100%);height:auto;aspect-ratio:1;container-type:inline-size}
+.adm .peg .sh b{font-size:36cqi}
+.adm .peg .sh i{font-size:12cqi}
+
+/* The LED board sizes its type to its own width; the score never wraps. */
+.adm .sb{container-type:inline-size}
+.adm .sb .pn{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:clamp(10px,2.6cqi,20px);padding:clamp(18px,3.9cqi,30px) clamp(14px,3.4cqi,26px)}
+.adm .sb .big{font-size:clamp(64px,21cqi,132px);white-space:nowrap}
+.adm .sb .mid .big[style]{font-size:clamp(44px,13cqi,100px)!important}
+.adm .sb .sub{white-space:nowrap}
+.adm .sb .tm{min-width:0;max-width:100%;font-size:clamp(15px,3.2cqi,24px);white-space:normal;text-align:center;overflow-wrap:anywhere;line-height:1.1}
+.adm .sb .tm img,.adm .sb .tm .rc{width:clamp(40px,7.8cqi,60px);height:clamp(40px,7.8cqi,60px)}
+.adm .pubv .sb .big{font-size:clamp(56px,16cqi,96px)}
+
+/* Partidos: the list narrows with the workspace (350 on the canvas); its filter tightens with it. */
+.adm .pt{grid-template-columns:clamp(304px,31%,350px) minmax(0,1fr)}
+.adm .ml{container:ad-ml/inline-size}
+@container ad-ml (max-width:330px){.adm .ml .seg2 button{padding:0 6px}}
+/* The match header: the tabs drop under a long title; the footer's buttons under its status. */
+.adm .dh{flex-wrap:wrap;row-gap:8px}
+.adm .dh .tt{flex:1 1 auto}
+.adm .dh .tt b{flex-wrap:wrap;row-gap:0;white-space:normal}
+.adm .df{flex-wrap:wrap;justify-content:flex-end;row-gap:8px}
+.adm .df .st{flex:1 1 200px}
+.adm .ah{flex-wrap:wrap;row-gap:6px}
+/* The workspace body: the acta's «La cuenta» / «¿Cuadra?» column goes under the goals below a width. */
+.adm .db{container:ad-db/inline-size}
+.adm .fgs{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+@container ad-db (max-width:619px){
+  .adm .acta{grid-template-columns:minmax(0,1fr)}
+  .adm .cuenta{position:static;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));align-items:start}
+  .adm .pubg{grid-template-columns:minmax(0,1fr)}
+}
+
+/* Temporadas: the vitrina's title takes its row (actions under it) and the tiles go 2 × 2 when narrow. */
+.adm .cab{container:ad-cab/inline-size}
+.adm .arch .top{flex-wrap:wrap;row-gap:6px}
+.adm .arch .rr{flex-wrap:wrap;gap:2px 16px}
+@container ad-cab (max-width:599px){
+  .adm .cab .top{flex-direction:column;align-items:flex-start;gap:12px}
+  .adm .cab .top .r{margin-left:0;flex-wrap:wrap}
+}
+@container ad-cab (max-width:579px){.adm .rec{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Capitanes: lockers wide enough for a nick and an e-mail on one line each. */
+.adm .capA{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+
+/* Convocar: the readers' tiles keep a readable width. */
+.adm .rdrs{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+
+/* Contenido: the cover's title fits its card; the index puts each destination under its title when narrow. */
+.adm .cover{container-type:inline-size}
+.adm .cover h2{font-size:clamp(26px,14cqi,40px)}
+.adm .idx{container:ad-idx/inline-size}
+@container ad-idx (max-width:639px){
+  .adm .ir{grid-template-columns:50px minmax(0,1fr)}
+  .adm .ir>:nth-child(3){grid-column:2;flex-flow:row wrap!important;align-items:center!important;gap:4px 8px!important}
+  .adm .ir .pg2{white-space:normal}
+}
+
+/* The publish peak's cartel: a long rival name ellipsizes inside the card. */
+.adm .cartel span{max-width:calc(100% - 6px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Below 1200 px: the rail keeps its icons; the side columns give back a little. */
+@container mp (max-width:1199px){
+  .adm.d .dk{grid-template-columns:76px minmax(0,1fr)}
+  .adm.d .rail{position:relative;z-index:5;padding:14px 12px;align-items:stretch}
+  .adm.d .rail .it{position:relative;justify-content:center;padding:0;gap:0}
+  .adm.d .rail .it>span:not(.n):not(.x),.adm.d .rail .me>span:not(.av),.adm.d .rail .me>span:not(.av)>*{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .adm.d .rail .it .x{display:none}
+  .adm.d .rail .it .n{position:absolute;top:0;right:0;margin:0;min-width:20px;height:20px;padding:0 5px}
+  .adm.d .rail .g{height:1px;margin:10px 8px;overflow:hidden;background:var(--pline);color:transparent;white-space:nowrap}
+  .adm.d .rail .me{justify-content:center;padding:12px 0 0}
+  /* The label as a tooltip on hover / keyboard focus. */
+  .adm.d .rail .it:hover>span:not(.n):not(.x),.adm.d .rail .it:focus-visible>span:not(.n):not(.x){left:calc(100% + 10px);top:50%;width:auto;height:auto;overflow:visible;clip:auto;transform:translateY(-50%);padding:6px 10px;border-radius:8px;background:var(--pop);color:var(--ink);font-size:14px;box-shadow:0 10px 24px rgba(0,0,0,.4),inset 0 0 0 1px var(--pline);z-index:50;pointer-events:none}
+  .adm.d .hoy{grid-template-columns:minmax(0,1fr) 320px}
+  .adm.d .cvv{grid-template-columns:360px minmax(0,1fr)}
+  .adm.d .tg{grid-template-columns:minmax(0,1fr) 300px}
+  .adm.d .cpg{grid-template-columns:minmax(0,1fr) 280px}
+  .adm.d .prg{grid-template-columns:240px minmax(0,1fr)}
+  .adm.d .prg.wd{grid-template-columns:minmax(0,1fr) 400px}
+}

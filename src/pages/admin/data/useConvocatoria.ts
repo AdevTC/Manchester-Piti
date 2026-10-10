@@ -5,7 +5,7 @@
 //     stamp the last write returned (no flash back while the snapshot travels).
 //   · publish() — «Convocar y avisar»: the lower third with «Deshacer» first, then setConvocatoria
 //     (notify:true) after its 5.2 s; «Deshacer» means nobody gets a notice.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiError, setConvocatoria, type SetConvocatoriaResult } from "../../../lib/clubApi";
 import { useToast } from "../ui/toastContext";
 import type { AdminMatch } from "./adminLogic";
@@ -37,6 +37,16 @@ export function useConvocatoria(match: AdminMatch | null): ConvocatoriaApi {
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const [publishing, setPublishing] = useState<Publishing | null>(null);
   const queue = useRef<{ running: boolean; next: { matchId: string; lineup: Lineup } | null }>({ running: false, next: null });
+  // Leaving the page (reload, close) while a change is still being written would lose it: the browser asks.
+  useEffect(() => {
+    const onLeave = (e: BeforeUnloadEvent) => {
+      if (!queue.current.running && !queue.current.next) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, []);
 
   const id = match?.id ?? "";
   const serverAt = match?.convocatoriaAt ?? 0;

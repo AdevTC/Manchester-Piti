@@ -29,6 +29,14 @@ describe("Convocar's model", () => {
     expect(convocables(matches, NOW, "m11").map((m) => m.id)).toEqual(["m8", "m9", "m10", "m11"]);
     expect(convocables(matches, NOW, "m6").map((m) => m.id)).toEqual(["m8", "m9", "m10"]);
   });
+  it("keeps a played match whose acta is still a draft when asked for (the acta needs its seven)", () => {
+    const withDraft = mergeMatches(
+      [{ id: "m8", seasonId: "t1", rival: "MAD SKY", date: at(8, 12), status: "scheduled" }],
+      [{ id: "m7", seasonId: "t1", rival: "FUSION 7", date: at(1, 10), status: "finished" }],
+    );
+    expect(convocables(withDraft, NOW, "m7").map((m) => m.id)).toEqual(["m7", "m8"]);
+    expect(convocables(withDraft, NOW).map((m) => m.id)).toEqual(["m8"]);
+  });
   it("names the match in full and says when and where", () => {
     const m8 = matches.find((m) => m.id === "m8")!;
     expect(matchTitle(m8)).toBe("J2 · MAD SKY");

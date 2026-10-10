@@ -48,7 +48,10 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
     if (season.get("archived") === true) throw new HttpsError("failed-precondition", "Esa temporada está archivada. Restáurala para cambiar sus partidos.");
     const players = await tx.get(db.collection("players").where("seasons", "array-contains", seasonId));
     const roster = players.docs.map((p) => p.id);
-    const problem = convocatoriaProblem(lineup, { roster, status: shown.get("status") as string | undefined });
+    // Closed once the match is PUBLISHED as played (its acta corrects the minutes); an acta still in draft
+    // — played but unpublished — can complete its convocatoria. Cancelled: closed either way.
+    const status = pub.exists ? (pub.get("status") as string | undefined) : shown.get("status") === "cancelled" ? "cancelled" : undefined;
+    const problem = convocatoriaProblem(lineup, { roster, status });
     if (problem) throw new HttpsError(problem.startsWith("Ese partido") ? "failed-precondition" : "invalid-argument", problem);
 
     const now = Date.now();
@@ -62,7 +65,9 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
     // The draft keeps its own revision (the acta editor's base): only the lineup follows.
     if (draft.exists) tx.update(draftRef, fields);
     tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, revision, updatedBy: uid, at: FieldValue.serverTimestamp(), convocatoria: data.notify ? "notify" : "save" });
-    return { now, revision, changed, seasonId, date: millis(shown.get("date")), rival: (shown.get("rival") as string | undefined) ?? "el rival" };
+    // The notice tells what the members see: the calendar's (published) date and rival, else the draft's.
+    const told = (field: string) => (pub.exists && pub.get(field) != null ? pub.get(field) : shown.get(field));
+    return { now, revision, changed, seasonId, date: millis(told("date")), rival: (told("rival") as string | undefined) ?? "el rival" };
   });
 
   let notice: ConvocatoriaNoticeKind | null = null;

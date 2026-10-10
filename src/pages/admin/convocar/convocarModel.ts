@@ -6,14 +6,19 @@ import { copyLineup, previousLineup } from "../acta/convocatoria";
 import { clockTime, jLabel, shortDate, type AdminMatch } from "../data/adminLogic";
 import { sameLineup, type Lineup, type Rsvp } from "../data/lineup";
 
-/** The matches to call up: the next three still to play (not cancelled), plus the one asked for (`?j=`). */
+/**
+ * The matches to call up: the next three still to play (not cancelled), plus the one asked for (`?j=`) — that
+ * one even when already played, as long as its acta isn't published (the acta needs its seven: «Completarla
+ * en Convocar»). A published played match or a cancelled one has its convocatoria closed.
+ */
 export function convocables(matches: readonly AdminMatch[], now: number, wanted?: string): AdminMatch[] {
   const playable = (m: AdminMatch) => ["scheduled", "playing"].includes(matchPhase(m, now));
+  const open = (m: AdminMatch) => m.status !== "cancelled" && !(m.published && m.status === "finished");
   const next = matches
     .filter(playable)
     .sort((a, b) => dateMillis(a.date) - dateMillis(b.date))
     .slice(0, 3);
-  const w = wanted ? matches.find((m) => m.id === wanted && playable(m)) : undefined;
+  const w = wanted ? matches.find((m) => m.id === wanted && (playable(m) || open(m))) : undefined;
   return w && !next.includes(w) ? [...next, w].sort((a, b) => dateMillis(a.date) - dateMillis(b.date)) : next;
 }
 

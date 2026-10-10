@@ -675,6 +675,13 @@ await denied("setConvocatoria", admin, { matchId: convId, starters: [pA], bench:
 await denied("setConvocatoria", admin, { matchId: convId, starters: [pA, ids[0]], bench: [], notify: false }, "INVALID_ARGUMENT");
 await denied("setConvocatoria", admin, { matchId: convId, starters: ["a", "b", "c", "d", "e", "f", "g", "h"], bench: [], notify: false }, "INVALID_ARGUMENT");
 await denied("setConvocatoria", admin, { matchId: convPlayed, starters: [pA], bench: [], notify: false }, "FAILED_PRECONDITION");
+// An acta still in draft (played, never published) can complete its convocatoria; it can't be announced.
+const convActaDraft = "conva-" + suffix;
+await db.doc("matchDrafts/" + convActaDraft).set({ seasonId: perfilSeason, rival: "Acta en borrador", status: "finished", date: Timestamp.fromMillis(Date.now() - 86_400_000) });
+assert.equal((await ok("setConvocatoria", admin, { matchId: convActaDraft, starters: [pA, pB], bench: [], notify: false })).notice, null);
+assert.deepEqual((await db.doc("matchDrafts/" + convActaDraft).get()).get("starters"), [pA, pB]);
+checked += 2;
+await db.doc("matchDrafts/" + convActaDraft).delete();
 await denied("setConvocatoria", admin, { matchId: convDraftOnly, starters: [pA], bench: [], notify: true }, "FAILED_PRECONDITION");
 await denied("setConvocatoria", admin, { matchId: "no-existe-" + suffix, starters: [], bench: [], notify: false }, "NOT_FOUND");
 const quiet = await ok("setConvocatoria", admin, { matchId: convId, starters: [pA, pB], bench: [pC], notify: false });

@@ -90,13 +90,25 @@ test("el acta: convocatoria en Convocar, gol con «¿Quién marcó?» y publicar
   await openPartidos(page);
   const rival = `Acta E2E ${Date.now()}`;
   const id = await nuevoPartido(page, { rival, date: madridDay(-1), time: "10:00", venue: "Campo de pruebas" });
+  // The field was just typed: save it (leaving with unsaved changes rightly asks «¿Salir sin guardar?»).
+  await footer(page).getByRole("button", { name: "Guardar borrador" }).click();
+  await expect(footer(page).getByText(/^Guardado .* · hora de Madrid$/)).toBeVisible();
   // Played yesterday without its seven: the Convocatoria tab sends to Convocar (the one convocatoria).
   // (Convocar's markup is phase V1b's: a row per player with «Siete» / «Banq.».)
   await page.getByRole("tab", { name: /Convocatoria/ }).click();
   await page.getByRole("button", { name: "Completarla en Convocar" }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/convocar\\?j=${id}`));
+  // Each tap writes the convocatoria (serialized, last one wins): wait until none is still travelling before
+  // leaving the page (a reload would cut the last write — the app asks first, rightly).
+  let inFlight = 0;
+  page.on("request", (r) => r.url().includes("setConvocatoria") && inFlight++);
+  page.on("requestfinished", (r) => r.url().includes("setConvocatoria") && inFlight--);
+  page.on("requestfailed", (r) => r.url().includes("setConvocatoria") && inFlight--);
   for (const name of ["Álex", "Dani", "Marcos", "Pablo", "Sergio", "David", "Mario"])
     await page.locator(".pr", { hasText: name }).getByRole("button", { name: "Siete" }).click();
+  await expect.poll(() => inFlight, { timeout: 10_000 }).toBe(0);
+  await page.waitForTimeout(400); // a queued write starts right after the previous one ends
+  await expect.poll(() => inFlight, { timeout: 10_000 }).toBe(0);
   // Acta: add the goal, name its scorer and its pass, then its minute.
   await page.goto(`/admin/partidos/${id}?tab=acta`);
   await page.getByRole("button", { name: "Gol del Piti" }).click();
