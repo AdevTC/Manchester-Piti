@@ -1,6 +1,9 @@
-// The match list (`.cd.ml`): search (rival or «J8»), the filter Todo / Por hacer / Publicados / Por jugar
-// with counts, sticky groups and the rows (J·fecha, rival, state chip, score or time). Scrolls inside.
-import { EmptyState, Segmented, SkeletonRows } from "../ui/controls";
+// The match list (`.ml`), as on the canvas (stats-gen/ad-v2-full.mjs `master`, `mrow`): the search (rival or
+// «J8»), the filter Todo / Por hacer / Por jugar / Publicados, sticky groups and the rows — J + date, the
+// rival's full name, the exception under it in amber (or where it is played), the score with its V/E/D
+// mark or the kick-off time. Scrolls inside its panel (phones: inside the page's scroller).
+import { useId } from "react";
+import { ResultMark } from "../kit";
 import { AdIcon } from "../ui/icons";
 import { FILTERS, type ListFilter, type MatchListModel } from "./listModel";
 
@@ -14,7 +17,6 @@ export function MatchList({
   onFilter,
   onQuery,
   onOpen,
-  onNew,
 }: {
   model: MatchListModel;
   filter: ListFilter;
@@ -25,73 +27,67 @@ export function MatchList({
   onFilter: (f: ListFilter) => void;
   onQuery: (q: string) => void;
   onOpen: (id: string) => void;
-  onNew: () => void;
 }) {
-  const empty = !model.groups.length;
+  const id = useId();
+  const q = query.trim();
   return (
-    <div className="cd ml">
-      <div className="tools">
-        <label className="srch">
-          <AdIcon name="search" />
-          <span className="sr">Buscar partido</span>
-          <input className="inp" type="search" placeholder="Buscar rival o jornada" value={query} onChange={(e) => onQuery(e.target.value)} />
-        </label>
-        <Segmented
-          className="g4"
-          label="Filtrar partidos"
-          value={filter}
-          options={FILTERS.map((f) => ({ value: f.key, label: f.label, count: model.counts[f.key] }))}
-          onChange={onFilter}
-        />
+    <div className="ml">
+      <label className="srch">
+        <AdIcon name="search" />
+        <input id={`${id}-q`} type="search" value={query} onChange={(e) => onQuery(e.target.value)} placeholder="Rival o jornada (J8)" aria-label="Buscar partido" />
+      </label>
+      <div className="seg2 sm" role="group" aria-label="Filtrar partidos">
+        {FILTERS.map((f) => (
+          <button key={f.key} type="button" aria-pressed={filter === f.key} onClick={() => onFilter(f.key)}>
+            {f.label}
+          </button>
+        ))}
       </div>
       <div className="scr">
         {loading ? (
-          <SkeletonRows rows={5} label="Cargando partidos…" />
+          <div className="skel" role="status" aria-label="Cargando partidos">
+            <i />
+            <i />
+            <i />
+          </div>
         ) : error ? (
-          <EmptyState icon="alert" title="No se han podido cargar los partidos" className="ad-err">
-            Revisa la conexión: la lista se actualiza sola en cuanto vuelva.
-          </EmptyState>
+          <p className="bad" role="alert" style={{ padding: "20px 8px" }}>
+            <AdIcon name="alert" size={16} />
+            No se han podido cargar los partidos: la lista se actualiza sola en cuanto vuelva la conexión.
+          </p>
         ) : (
           <>
             {model.groups.map((g) => (
-              <div className="mg" key={g.key} role="group" aria-label={g.title}>
-                <p className="lbl">
-                  <span>{g.title}</span>
-                  <span>{g.rows.length}</span>
+              <div key={g.key} className="mg" role="group" aria-labelledby={`${id}-${g.key}`}>
+                <p className="mgh" id={`${id}-${g.key}`}>
+                  {g.title} <em>{g.rows.length}</em>
                 </p>
                 {g.rows.map((r) => (
                   <button key={r.id} type="button" className="mr" aria-current={selectedId === r.id ? "true" : undefined} onClick={() => onOpen(r.id)} aria-label={r.aria}>
                     <span className="j">
                       <b>{r.j}</b>
-                      {r.day}
+                      <small>{r.day}</small>
                     </span>
-                    <span className="m">
+                    <span className="w">
                       <b>{r.rival}</b>
-                      <span className={`chip ${r.chip.tone}`.trim()}>
-                        {r.chip.icon && <AdIcon name={r.chip.icon} size={12} />}
-                        {r.chip.text}
+                      <small className={r.warn ? "am" : undefined}>{r.sub}</small>
+                    </span>
+                    {r.score ? (
+                      <span className="s">
+                        <ResultMark r={r.score.r} />
+                        {r.score.gf}–{r.score.ga}
                       </span>
-                    </span>
-                    <span className="r">
-                      <span className={`sc${r.dim ? " dim" : ""}`}>{r.score}</span>
-                      <small>{r.where}</small>
-                    </span>
+                    ) : (
+                      <span className="s t">{r.time}</span>
+                    )}
                   </button>
                 ))}
               </div>
             ))}
-            {empty && (
-              <EmptyState icon="search" title="Ningún partido" className="ad-ml-empty">
-                {query.trim() ? `Nada con «${query.trim()}». Busca por rival o por jornada (J8).` : model.counts.todo ? "No hay partidos con ese filtro." : "Todavía no hay partidos: crea el primero."}
-              </EmptyState>
-            )}
-            {empty && !model.counts.todo && (
-              <div className="row ad-ml-new">
-                <button type="button" className="btn sm gold" onClick={onNew}>
-                  <AdIcon name="plus" size={16} />
-                  Nuevo partido
-                </button>
-              </div>
+            {!model.groups.length && (
+              <p className="hint" style={{ padding: "20px 8px" }}>
+                {q ? `Ningún partido con «${q}».` : model.counts.todo ? "Ningún partido con ese filtro." : "Todavía no hay partidos: crea el primero con «Nuevo partido»."}
+              </p>
             )}
           </>
         )}

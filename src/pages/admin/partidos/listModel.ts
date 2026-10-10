@@ -1,20 +1,27 @@
-// The match list of «Partidos y actas» (pure, tested): groups Por hacer / Publicados / Por jugar, the
-// filters with their counts, the search (a rival, or a jornada as «J8» / «8») and each row's words —
-// jornada · date, rival, the state chip (icon + word, never colour alone) and the score or the time.
+// The match list of Partidos (pure, tested in listModel.test.ts), as on the canvas (stats-gen/ad-v2-full.mjs
+// `master`, ad-v2-full-logic.js `mrow`): sticky groups Por hacer (played or being played, acta not
+// published) · Por jugar · Publicados (newest first), the filter Todo / Por hacer / Por jugar / Publicados,
+// the search (a rival, or a jornada as «J8» / «8») and each row — J + date, the rival's full name, a
+// subtitle ONLY for exceptions (amber «Falta 1 goleador», «Sin publicar», «Convocatoria 6 de 7», «En
+// juego»; otherwise where it is played) and the score with its V/E/D mark, or the kick-off time.
 import { dateMillis, matchPhase } from "../../../../functions/src/matchEngine";
+import { scoreOf } from "../../../lib/partidos";
 import { normalize } from "../palette/search";
-import { clockTime, convocatoriaState, matchGroup, type ActaReview, type AdminMatch, type AdminMatchState } from "../data/adminLogic";
-import type { AdIconName } from "../ui/icons";
-import type { ChipTone } from "../ui/controls";
+import { clockTime, type ActaReview, type AdminMatch } from "../data/adminLogic";
+import { matchMoment, type MatchMoment } from "../data/moments";
+import { resultLetter, resultWord, type ResultLetter } from "../kit/result";
 
-export type ListFilter = "todo" | "hacer" | "publicados" | "jugar";
-export const FILTERS: { key: ListFilter; label: string }[] = [
+export type ListGroupKey = "hacer" | "jugar" | "publicados";
+export type ListFilter = "todo" | ListGroupKey;
+export const FILTERS: readonly { key: ListFilter; label: string }[] = [
   { key: "todo", label: "Todo" },
   { key: "hacer", label: "Por hacer" },
-  { key: "publicados", label: "Publicados" },
   { key: "jugar", label: "Por jugar" },
+  { key: "publicados", label: "Publicados" },
 ];
-const GROUP_TITLE: Record<Exclude<ListFilter, "todo">, string> = { hacer: "Por hacer", publicados: "Publicados", jugar: "Por jugar" };
+const GROUP_TITLE: Record<ListGroupKey, string> = { hacer: "Por hacer", jugar: "Por jugar", publicados: "Publicados" };
+const ORDER: readonly ListGroupKey[] = ["hacer", "jugar", "publicados"];
+const SEVEN = 7;
 
 export interface ListRow {
   id: string;
@@ -23,76 +30,92 @@ export interface ListRow {
   /** «1 nov». */
   day: string;
   rival: string;
-  chip: { tone: ChipTone; icon: AdIconName | null; text: string };
-  /** «3–1», or the kick-off time when there is no result. */
-  score: string;
-  dim: boolean;
-  where: string;
+  /** The line under the rival: the exception, or where it is played. */
+  sub: string;
+  /** Amber: something of ours is missing. */
+  warn: boolean;
+  /** The result (played / being played) or null (the time is shown). */
+  score: { gf: number; ga: number; r: ResultLetter } | null;
+  /** «12:00» (Madrid). */
+  time: string;
   aria: string;
 }
 export interface ListGroup {
-  key: Exclude<ListFilter, "todo">;
+  key: ListGroupKey;
   title: string;
   rows: ListRow[];
 }
 export interface ListContext {
-  stateOf: (m: AdminMatch) => AdminMatchState;
+  now: number;
+  /** Matches whose end was whistled on this device. */
+  whistled: ReadonlySet<string>;
+  /** The next match to prepare (its convocatoria is an exception until it has seven). */
+  nextId?: string | null;
   reviewOf: (m: AdminMatch) => ActaReview;
-  /** The season's player ids of a match (for its convocatoria state). */
-  rosterIds: (m: AdminMatch) => string[];
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-const dayOf = (ms: number) => {
+/** «1 nov» (Madrid). */
+export function dayOf(ms: number): string {
   if (!Number.isFinite(ms)) return "sin fecha";
   const p = Object.fromEntries(new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short" }).formatToParts(ms).map((x) => [x.type, x.value]));
   return `${p.day} ${String(p.month).replace(".", "")}`;
-};
+}
+/** «en casa» / «fuera». */
+export const whereOf = (m: { home?: boolean }) => (m.home === false ? "fuera" : "en casa");
 
-/** The state chip of a row. */
-export function rowChip(m: AdminMatch, state: AdminMatchState, review: ActaReview, rosterIds: string[]): ListRow["chip"] {
-  switch (state) {
-    case "draft":
-      if (!review.finished) return { tone: "warn", icon: "alert", text: "Borrador · sin publicar" };
-      if (review.cuadra) return { tone: "warn", icon: "alert", text: "Borrador · cuadra" };
-      if (review.missingScorers) return { tone: "warn", icon: "alert", text: `Borrador · falta ${plural(review.missingScorers, "goleador", "goleadores")}` };
-      return { tone: "warn", icon: "alert", text: "Borrador · no cuadra" };
-    case "acta":
-      return { tone: "warn", icon: "alert", text: "Acta por hacer" };
-    case "published":
-      return { tone: "ok", icon: "check", text: "Publicada" };
-    case "cancelled":
-      return { tone: "", icon: "x", text: "Cancelado" };
-    case "postponed":
-      return { tone: "", icon: "clock", text: "Aplazado" };
-    case "next": {
-      const c = convocatoriaState(m, rosterIds, m.published && !m.draft);
-      return { tone: "sky", icon: "clock", text: c.published ? "Próximo · convocados" : c.unassigned ? `Próximo · ${c.unassigned} sin convocar` : c.ready ? "Próximo · convocatoria lista" : "Próximo · sin convocatoria" };
-    }
-    default:
-      return { tone: "", icon: "clock", text: "Programado" };
-  }
+/** The match's moment on this device (the whistle counts). */
+export const momentOf = (m: AdminMatch, ctx: Pick<ListContext, "now" | "whistled">): MatchMoment => matchMoment(m, ctx.now, ctx.whistled.has(m.id));
+
+/** Its group: played (or being played) and not published → Por hacer; still to play → Por jugar. */
+export function groupOf(m: AdminMatch, ctx: Pick<ListContext, "now" | "whistled">): ListGroupKey {
+  if (m.status === "cancelled") return "publicados";
+  if (m.status === "postponed") return "jugar";
+  const mo = momentOf(m, ctx);
+  return mo === "publicado" ? "publicados" : mo === "antes" ? "jugar" : "hacer";
 }
 
 export function toRow(m: AdminMatch, ctx: ListContext): ListRow {
-  const state = ctx.stateOf(m);
-  const review = ctx.reviewOf(m);
   const t = dateMillis(m.date);
-  const hasScore = (state === "published" || state === "draft" || state === "acta") && review.finished && typeof m.goalsFor === "number";
-  const chip = rowChip(m, state, review, ctx.rosterIds(m));
-  const j = m.jornada ? `J${m.jornada}` : "—";
+  const group = groupOf(m, ctx);
+  const mo = momentOf(m, ctx);
   const rival = m.rival?.trim() || "Rival por confirmar";
-  const score = hasScore ? `${m.goalsFor}–${m.goalsAgainst ?? 0}` : clockTime(t);
+  const j = m.jornada ? `J${m.jornada}` : "—";
+  let sub = whereOf(m);
+  let warn = false;
+  if (m.status === "cancelled") sub = "Cancelado";
+  else if (m.status === "postponed") sub = "Aplazado";
+  else if (mo === "juego") {
+    sub = "En juego";
+    warn = true;
+  } else if (group === "hacer") {
+    const missing = ctx.reviewOf(m).missingScorers;
+    sub = missing ? `${missing === 1 ? "Falta" : "Faltan"} ${plural(missing, "goleador", "goleadores")}` : "Sin publicar";
+    warn = true;
+  } else if (group === "jugar") {
+    const n = m.starters?.length ?? 0;
+    if (!m.published) {
+      sub = "Sin publicar";
+      warn = true;
+    } else if (m.id === ctx.nextId && n < SEVEN) {
+      sub = `Convocatoria ${n} de ${SEVEN}`;
+      warn = true;
+    }
+  }
+  const played = m.status !== "cancelled" && (group === "hacer" || group === "publicados");
+  const s = played ? scoreOf(m) : null;
+  const score = s ? { gf: s.gf, ga: s.ga, r: resultLetter(s.gf, s.ga) } : null;
+  const time = clockTime(t);
   return {
     id: m.id,
     j,
     day: dayOf(t),
     rival,
-    chip,
+    sub,
+    warn,
     score,
-    dim: !hasScore,
-    where: m.home === false ? "Fuera" : "En casa",
-    aria: `${m.jornada ? `Jornada ${m.jornada}` : "Partido"}, ${rival}, ${chip.text}${hasScore ? `, ${score}` : ""}`,
+    time,
+    aria: [j, rival, sub, score ? `${resultWord(score.r)} ${score.gf}–${score.ga}` : time].join(", "),
   };
 }
 
@@ -111,19 +134,25 @@ export interface MatchListModel {
   groups: ListGroup[];
   counts: Record<ListFilter, number>;
 }
+/** The groups (in the canvas' order: Por hacer · Por jugar · Publicados), filtered and searched. */
 export function buildMatchList(matches: readonly AdminMatch[], ctx: ListContext, filter: ListFilter, query: string): MatchListModel {
-  const by: Record<Exclude<ListFilter, "todo">, AdminMatch[]> = { hacer: [], publicados: [], jugar: [] };
-  for (const m of matches) by[matchGroup(ctx.stateOf(m))].push(m);
+  const by: Record<ListGroupKey, AdminMatch[]> = { hacer: [], jugar: [], publicados: [] };
+  for (const m of matches) by[groupOf(m, ctx)].push(m);
   const asc = (a: AdminMatch, b: AdminMatch) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0);
   by.hacer.sort(asc);
   by.jugar.sort(asc);
   by.publicados.sort((a, b) => asc(b, a));
-  const counts = { todo: matches.length, hacer: by.hacer.length, publicados: by.publicados.length, jugar: by.jugar.length };
-  const keys = (["hacer", "publicados", "jugar"] as const).filter((k) => filter === "todo" || filter === k);
-  const groups = keys
+  const counts = { todo: matches.length, hacer: by.hacer.length, jugar: by.jugar.length, publicados: by.publicados.length };
+  const groups = ORDER.filter((k) => filter === "todo" || filter === k)
     .map((k) => ({ key: k, title: GROUP_TITLE[k], rows: by[k].filter((m) => matchesQuery(m, query)).map((m) => toRow(m, ctx)) }))
     .filter((g) => g.rows.length);
   return { groups, counts };
+}
+
+/** The match the desktop shows when none is in the URL: the first to do, else the next to play, else the latest. */
+export function defaultMatch(matches: readonly AdminMatch[], ctx: Pick<ListContext, "now" | "whistled">): AdminMatch | null {
+  const sorted = [...matches].sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0));
+  return sorted.find((m) => groupOf(m, ctx) === "hacer") ?? sorted.find((m) => groupOf(m, ctx) === "jugar" && m.status !== "postponed") ?? sorted.at(-1) ?? null;
 }
 
 /** Same rival already in the season: the return match (or a duplicate still to play). */
@@ -136,8 +165,7 @@ export function returnOf(matches: readonly AdminMatch[], seasonId: string, rival
   return { match: m, played: dateMillis(m.date) <= now };
 }
 
-
-/** The matches to call up (Convocatorias): the next three still to play, plus the one asked for. */
+/** The matches to call up (Convocatorias, v1): the next three still to play, plus the one asked for. */
 export function upcomingMatches(matches: readonly AdminMatch[], now: number, wanted?: string): AdminMatch[] {
   const next = matches
     .filter((m) => m.status !== "cancelled" && ["scheduled", "playing"].includes(matchPhase(m, now)))

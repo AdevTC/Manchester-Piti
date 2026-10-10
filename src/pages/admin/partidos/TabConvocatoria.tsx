@@ -1,22 +1,85 @@
-// The match's «Convocatoria» tab: «El siete y los nuestros» — each player of the season as Titular /
-// Suplente / No convocado, at most seven titulares (with the message), the counters, «Copiar la
-// convocatoria de la J7» and «Marcar los restantes como no convocados».
-import { useState } from "react";
+// The match's «Convocatoria» tab — read only, as on the canvas (stats-gen/ad-v2-full.mjs `cvT`): el siete in
+// shirts, the banquillo, the «Una sola convocatoria» note and «Cambiarla en Convocar» (→ /admin/convocar?j=)
+// while the match is still to play; once played the convocatoria is closed (the acta's changes adjust the
+// minutes) — unless it was never completed (a played acta without its seven: «Completarla en Convocar»).
+// There is ONE convocatoria: Convocar writes it; this tab, the pizarra and the acta read it.
 import type { RosterPlayer } from "../data/useAdminData";
+import { Peg } from "../kit";
 import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
-import { assign, copyLineup, lineupCounts, restNotCalled, type Lineup, type Role } from "../acta/convocatoria";
-import type { MatchSheet } from "../acta/sheetModel";
-import { ConvocatoriaRows } from "./ConvocatoriaRows";
+import { copyLineup, lineupCounts, restNotCalled, type Lineup } from "../acta/convocatoria";
+import { positionCode } from "../acta/roster";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const SEVEN = 7;
 
+export function TabConvocatoria({
+  starters,
+  bench,
+  info,
+  mode,
+  onConvocar,
+}: {
+  starters: readonly string[];
+  bench: readonly string[];
+  info: (id: string) => { name: string; number: number | null; position: string };
+  /** cambiar = still to play · completar = played without its seven · cerrada = played · cancelado. */
+  mode: "cambiar" | "completar" | "cerrada" | "cancelado";
+  onConvocar: () => void;
+}) {
+  const seven = [...starters.slice(0, SEVEN), ...Array.from({ length: Math.max(0, SEVEN - starters.length) }, () => null)];
+  return (
+    <div className="cvr">
+      <div className="s7r" role="group" aria-label={`El siete · ${Math.min(starters.length, SEVEN)} de ${SEVEN}`}>
+        {seven.map((id, i) => {
+          if (!id) return <Peg key={`free-${i}`} label="Libre" size={64} big state="empty" />;
+          const p = info(id);
+          return <Peg key={id} num={p.number ?? ""} shirtName={p.name} label={p.name} sub={positionCode(p.position)} size={64} big />;
+        })}
+      </div>
+      <p className="ch3">
+        Banquillo{" "}
+        <em>
+          {bench.length
+            ? bench.map((id) => {
+                const p = info(id);
+                return (
+                  <span key={id} className="bqi">
+                    {p.number ?? ""} {p.name}
+                  </span>
+                );
+              })
+            : "nadie todavía"}
+        </em>
+      </p>
+      <div className="src">
+        <AdIcon name="shirt" size={20} />
+        <span>
+          <b>Una sola convocatoria.</b> Esta pestaña lee de Convocar, igual que la pizarra (el siete oficial) y el acta (titulares y suplentes).
+        </span>
+      </div>
+      {mode === "cambiar" || mode === "completar" ? (
+        <div className="cta-row">
+          <button type="button" className="btn line" onClick={onConvocar}>
+            <AdIcon name="shirt" size={18} />
+            {mode === "cambiar" ? "Cambiarla en Convocar" : "Completarla en Convocar"}
+          </button>
+          {mode === "completar" && <span className="warn">Sin el siete completo el acta no se puede publicar</span>}
+        </div>
+      ) : (
+        <p className="hint">{mode === "cancelado" ? "Partido cancelado: no hay convocatoria que cambiar." : "Partido jugado: la convocatoria queda cerrada; los cambios del acta ajustan los minutos."}</p>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────── TEMPORARY (v1 Convocatorias) ─────────────────────────
+// The v1 «Convocatorias» view (views/Convocatorias.tsx, replaced by Convocar in phase V1b) still uses these
+// tools; delete them with it.
 export interface PreviousLineup {
   /** «J7». */
   label: string;
   lineup: Lineup;
 }
-
 export function LineupTools({ lineup, roster, previous, onChange }: { lineup: Lineup; roster: readonly RosterPlayer[]; previous: PreviousLineup | null; onChange: (l: Lineup) => void }) {
   const toast = useToast();
   const ids = roster.map((p) => p.id);
@@ -43,50 +106,6 @@ export function LineupTools({ lineup, roster, previous, onChange }: { lineup: Li
           Marcar {c.unassigned === 1 ? "al que falta" : `los ${c.unassigned} restantes`} como no convocado{c.unassigned === 1 ? "" : "s"}
         </button>
       )}
-    </div>
-  );
-}
-
-export function TabConvocatoria({ sheet, update, roster, previous }: { sheet: MatchSheet; update: (f: (s: MatchSheet) => MatchSheet) => void; roster: readonly RosterPlayer[]; previous: PreviousLineup | null }) {
-  const [msg, setMsg] = useState("");
-  const lineup: Lineup = { starters: sheet.starters, bench: sheet.bench, notCalled: sheet.notCalled };
-  const c = lineupCounts(
-    lineup,
-    roster.map((p) => p.id),
-  );
-  const setRole = (id: string, role: Role) => {
-    const r = assign(lineup, id, role, roster.find((p) => p.id === id)?.name);
-    if (!r.ok) {
-      setMsg(r.error);
-      return;
-    }
-    setMsg("");
-    update((s) => ({ ...s, ...r.lineup }));
-  };
-  return (
-    <div className="pnl">
-      <div className="bh">
-        <h3 className="h3">El siete y los nuestros</h3>
-        <div className="cvc">
-          <span className={`chip ${c.starters === 7 ? "ok" : "warn"}`}>{c.starters} de 7 titulares</span>
-          <span className="chip">{plural(c.bench, "suplente", "suplentes")}</span>
-          <span className="chip">{plural(c.notCalled, "no convocado", "no convocados")}</span>
-          {c.unassigned > 0 && <span className="chip warn">{c.unassigned} sin asignar</span>}
-        </div>
-      </div>
-      {msg && (
-        <p className="note" role="alert">
-          <AdIcon name="alert" size={15} />
-          {msg}
-        </p>
-      )}
-      <LineupTools lineup={lineup} roster={roster} previous={previous} onChange={(l) => update((s) => ({ ...s, ...l }))} />
-      {roster.length ? (
-        <ConvocatoriaRows roster={roster} lineup={lineup} onSet={setRole} />
-      ) : (
-        <p className="hint">{sheet.seasonId ? "Nadie en la plantilla de esta temporada: asocia jugadores desde Plantilla." : "Elige primero la temporada en «Encuentro»."}</p>
-      )}
-      <p className="hint">Los cambios durante el partido se apuntan en el acta, en «Otros eventos».</p>
     </div>
   );
 }

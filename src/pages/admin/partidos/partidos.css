@@ -1,0 +1,22 @@
+/* Partidos + En juego (admin v2): the few rules the generated admin.css (from the canvas) does not have —
+   the list's group wrapper (its sticky title stays with its rows), the device-recovery banner, the crónica's
+   editable text inside its light card, and the «Deshacer lo último» row over the live log. */
+
+.adm .ml .mg{display:flex;flex-direction:column;gap:6px}
+
+/* «Hay cambios sin guardar en este dispositivo» (local draft recovery), at the top of the workspace body. */
+.adm .rec2{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;border-radius:14px;background:var(--glass);box-shadow:inset 0 0 0 1.5px var(--amber);color:var(--soft);font-size:14px}
+.adm .rec2>svg{flex:0 0 auto;color:var(--amber)}
+.adm .rec2>span{flex:1 1 220px;min-width:0}
+.adm .rec2 b{display:block;color:var(--ink);font-size:15px}
+.adm .rec2 small{color:var(--muted);font-size:13px}
+
+/* The crónica: the card's own text, editable (light card, dark ink). */
+.adm .cron .crt{width:100%;min-height:120px;padding:8px 10px;margin:0 -10px;border:0;border-radius:10px;background:transparent;color:#0c1733;font:inherit;line-height:1.5;resize:vertical;outline:none}
+.adm .cron .crt::placeholder{color:#4a5b7d}
+.adm .cron .crt:focus-visible{box-shadow:inset 0 0 0 2px #2a73ad}
+
+/* En juego (phones): «Lo que va pasando» + «Deshacer lo último» on one row. */
+.adm .lvh{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.adm .lvh h3{margin:0}
+.adm .lvh .btn{margin-left:auto}
