@@ -1,5 +1,8 @@
-// La pizarra «Noche de partido» — the app screen. The stadium fills the screen; the bench and the tools
-// live in a bottom sheet with three snap points above the mode bar (desktop: a mode rail and one panel).
+// La pizarra «FUT» — the app screen, sized from the screen's height (--vh). Phone: the command bar, the
+// pitch fitted to the width, the tools in a bottom sheet (half / full) above the mode bar. Tablet: the
+// pitch fitted to the height, the panel docked under it. Desktop: the site header, the command bar, the
+// «Acciones» rail flush left, the pitch (keeper always in view), the panel flush right and the prompt bar
+// along the bottom, with the keyboard shortcuts (1–8, Q / E, R, C / G / F, Esc, Ctrl Z).
 // Every change goes through commit(): history (undo/redo as a rewind), the morph of every cromo from
 // where it was, the química ripple, the 7/7 celebration and the board's autosave (the session).
 // Around the board: the plan painted on the pitch, the química panel, your boards and the official,
@@ -10,16 +13,15 @@
 // it all before the match (the system, the seven one by one, the plan, the jugada, «¡A por ellos!»),
 // read-only boards included. One 3D stadium serves the intro, the charla and the jugadas.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { FormationName, Lineup, RoleKey, Zone } from "../formations";
-import { ZONES } from "../formations";
-import { CAMS, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
+import type { FormationName, Lineup } from "../formations";
+import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
 import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
 import { chem } from "./quimica";
-import { autoPlace, cycleDefLine, goFree, normalize, place, resetFree, resolveDrop, setDefLine, setPlaysAs, setSystem, snapAll, stepSystem, swap, toBench, toggleRole } from "./ops";
+import { autoPlace, cycleDefLine, goFree, normalize, place, resetFree, resolveDrop, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { suggestSeven } from "./pack";
 import { applyFan, fanCentre, fanItems, type FanItem } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
-import { cycle, settle, stageFit, step, type Snap } from "./sheet";
+import { cycle, settle, snapOf, step, type Snap } from "./sheet";
 import { DIR_KEYS, slotInDirection } from "./drag";
 import { ago, FX0, fxDuration, hud as buildHud, pitchView, planLayer, positionsOf, tacSummary, vars, type Fx, type Modo } from "./view";
 import { useDragController } from "./useDragController";
@@ -28,7 +30,7 @@ import { plural } from "./plural";
 import { useNoScrollJump } from "./useNoScrollJump";
 import type { BoardSession } from "./useBoardSession";
 import { Stage } from "./Stage";
-import { AppBar, BenchTab, MasPanel, ModeBar, OnceTabs, ReadOnlyStrip, Sheet, SystemTab, Tray, type OnceTab, type RepRow, type TrayData } from "./Panels";
+import { AppBar, BenchTab, MasPanel, ModeBar, OnceTabs, ReadOnlyStrip, Sheet, SystemTab, type OnceTab, type RepRow } from "./Panels";
 import { AjustesPanel, CompararPanel, CompartirPanel, PlanTab, QuimicaPanel } from "./SheetPanels";
 import { SHOW0, type BoardPrefs, type ShowKey } from "./prefs";
 import { TablerosPanel, type BoardRowView, type ReactionsView, type TbTab } from "./Tableros";
@@ -94,6 +96,13 @@ import { useReplay, type ReplayMove } from "./useReplay";
 import { JugadasPanel, type JugadaEditorView } from "./JugadasPanel";
 import { DibujarPanel } from "./DibujarPanel";
 import { Board3D } from "./Board3D";
+import type { MatchCard } from "./Panels";
+import { RAIL_ORDER } from "./rail";
+import { PromptBar } from "./PromptBar";
+import type { PromptActs, PromptCtx } from "./prompt";
+import { SelBar } from "./SelBar";
+import { selBarView } from "./handView";
+import { readBenchView, writeBenchView, type BenchView } from "./benchView";
 
 export interface BoardProps {
   session: BoardSession;
@@ -188,8 +197,6 @@ const PASOS_MSG = "Una jugada tiene entre " + LIM.framesMin + " y " + LIM.frames
 const NO_3D = "Este dispositivo no muestra el estadio 3D: la jugada se ve con la cámara 2D que sigue al balón.";
 const FAIL_3D = "El estadio 3D no ha podido arrancar: la jugada se ve con la cámara 2D que sigue al balón.";
 
-const snapOf = (m: Modo): Snap => (m === "quimica" || m === "mas" || m === "comparar" ? "half" : m === "tableros" || m === "compartir" || m === "ajustes" ? "full" : "peek");
-
 type IntroPhase = "wait" | "run" | "done";
 
 const SHEET_TITLE: Record<Modo, string> = {
@@ -218,8 +225,14 @@ export function Board(props: BoardProps) {
   const [rm] = useState(reducedMotion);
   const [start] = useState(fromHash);
   const [modo, setModo] = useState<Modo>(start.modo);
-  const [snap, setSnap] = useState<Snap>(() => (start.tab === "p" ? "half" : snapOf(start.modo)));
+  const [snap, setSnap] = useState<Snap>(() => snapOf(start.modo));
   const [tab, setTab] = useState<OnceTab>(start.tab);
+  // The bench as FUT list rows or cromos (R), remembered on this device.
+  const [benchView, setBenchViewState] = useState<BenchView>(readBenchView);
+  const setBenchView = (v: BenchView) => {
+    setBenchViewState(v);
+    writeBenchView(v);
+  };
   const [mk, setMk] = useState(0);
   const [sysk, setSysk] = useState(0);
   const [ui, setUi] = useState<Ui>({ key: session.key, ...UI0 });
@@ -236,11 +249,8 @@ export function Board(props: BoardProps) {
   const [zf, setZf] = useState("Todos");
   const [oc, setOc] = useState(false);
   const [rp, setRp] = useState(0);
-  const [tp, setTp] = useState(0);
-  const [tpk, setTpk] = useState(0);
   const [dragKind, setDragKind] = useState<null | "tok" | "line">(null);
   const [dragFrom, setDragFrom] = useState<null | "pitch" | "bench">(null);
-  const [fit, setFit] = useState({ kp: 1, kh: 0.64, kd: 1 });
   // Dibujar: the tool, the colour, the text for the field, and the strokes drawn in this visit (they
   // light up at once; the ones already there light up one after another).
   const [tool, setTool] = useState<StrokeKind>("carrera");
@@ -358,25 +368,6 @@ export function Board(props: BoardProps) {
     const t = window.setTimeout(() => setHand(false), DEAL_MS);
     return () => window.clearTimeout(t);
   }, [hand]);
-  // The pitch is scaled to fit: on phones and tablets between the app bar and the sheet (at peek, and at
-  // half for the dolly back), whatever the screen's height — the sheet never covers it; on desktop above
-  // the screen's bottom (the top-down camera is taller than the TV one). See stageFit.
-  useEffect(() => {
-    const app = appRef.current;
-    if (!app || typeof ResizeObserver === "undefined") return;
-    const ro2 = new ResizeObserver(() => {
-      const w = app.clientWidth;
-      const h = app.clientHeight;
-      if (!w || !h) return;
-      const { kp, kh, kd } = stageFit(w, h, C.Fh);
-      setFit((f) =>
-        Math.abs(f.kp - kp) < 0.005 && Math.abs(f.kh - kh) < 0.005 && Math.abs(f.kd - kd) < 0.005 ? f : { kp: +kp.toFixed(3), kh: +kh.toFixed(3), kd: +kd.toFixed(3) },
-      );
-    });
-    ro2.observe(app);
-    return () => ro2.disconnect();
-  }, [C.Fh]);
-
   // ── derived ──
   const ch = chem(L, sq);
   const squadIds = useMemo(() => sq.list.map((c) => c.id), [sq]);
@@ -385,6 +376,8 @@ export function Board(props: BoardProps) {
   let sel = u.sel;
   if (sel && (sel.k === "p" ? !onPitch.has(sel.id) : onPitch.has(sel.id) || !sq.byId.has(sel.id))) sel = null;
   const pick = u.pick != null && u.pick >= 0 && u.pick < L.slots.length ? u.pick : null;
+  // The player in the hand, while editing an editable board: his action bar, the targets that glow.
+  const inHand = modo === "editar" && canEdit ? sel : null;
   const fan = u.fan && onPitch.has(u.fan.id) ? u.fan : null;
   const fic = u.fic && sq.byId.has(u.fic.id) ? u.fic : null;
   const match = props.match;
@@ -471,7 +464,7 @@ export function Board(props: BoardProps) {
       return;
     }
     const occ = L.slots[i]?.playerId;
-    commit(place(L, id, i), { ui: { sel: null, pick: null, kb: null }, snap: "peek" });
+    commit(place(L, id, i), { ui: { sel: null, pick: null, kb: null }, snap: "half" });
     buzz([12, 30, 12]);
     announce(occ && occ !== id ? nm(id) + " por " + nm(occ) + " en " + slotLabel(L, i) : nm(id) + " a " + slotLabel(L, i));
   };
@@ -920,7 +913,7 @@ export function Board(props: BoardProps) {
   // Comparar show the cromos as discs.
   const showPlan = (modo === "editar" && tab === "p") || chKind === "plan";
   const mini = modo === "quimica" || modo === "comparar" || modo === "jugadas" || modo === "dibujar" || showPlan;
-  const view = pitchView({ L, sq, ch, cam, modo, fx, selId: sel?.id ?? null, pick, ro: !canEdit, rm, meId: props.meId, mini, present: charlaOn ? chl.step : undefined });
+  const view = pitchView({ L, sq, ch, cam, modo, fx, selId: sel?.id ?? null, hand: inHand, pick, ro: !canEdit, rm, meId: props.meId, mini, present: charlaOn ? chl.step : undefined });
   const plan = planLayer(L, cam, modo, showPlan);
 
   // ── the stadium: what it films ──
@@ -965,7 +958,6 @@ export function Board(props: BoardProps) {
     {
       lineup: L,
       cam,
-      snap,
       canMove: canEdit && (modo === "editar" || modo === "quimica"),
       canLine: canEdit && modo === "editar" && plan.dlOn,
       magnets: canEdit && modo === "editar" && !L.freeMode,
@@ -994,7 +986,7 @@ export function Board(props: BoardProps) {
           runFx(morph(drop));
           return;
         }
-        commit(r.lineup, { drop, ui: { sel: null, pick: null, kb: null }, snap: "peek" });
+        commit(r.lineup, { drop, ui: { sel: null, pick: null, kb: null }, snap: "half" });
         buzz([12, 30, 12]);
         const k = r.lineup.slots.findIndex((s) => s.playerId === src.id);
         announce(k >= 0 ? nm(src.id) + " a " + slotLabel(r.lineup, k) : nm(src.id) + " al banquillo");
@@ -1006,10 +998,8 @@ export function Board(props: BoardProps) {
           say("Línea " + val.toLowerCase() + ": la defensa se mueve");
         } else runFx(morph(null));
       },
-      onGrab: (h, v, full) => {
-        const s = settle(h, v, full);
-        if (s === "peek" && tab !== "b") setTab("b");
-        setSnap(s);
+      onGrab: (dy, v) => {
+        setSnap(settle(dy, v, snap));
         buzz(8);
       },
       onBaja: () => say("De baja: no se puede colocar"),
@@ -1039,7 +1029,7 @@ export function Board(props: BoardProps) {
       return;
     }
     if (sel?.k === "p") {
-      commit(swap(L, sel.id, id), { ui: { sel: null, pick: null, kb: null }, snap: "peek" });
+      commit(swap(L, sel.id, id), { ui: { sel: null, pick: null, kb: null }, snap: "half" });
       buzz([12, 30, 12]);
       announce("Cambio: " + nm(sel.id) + " por " + nm(id));
       return;
@@ -1049,7 +1039,6 @@ export function Board(props: BoardProps) {
       return;
     }
     patchUi({ sel: { k: "p", id }, pick: i, kb: null });
-    setTp(0);
     setModo("editar");
     setSnap("half");
     buzz(8);
@@ -1062,9 +1051,8 @@ export function Board(props: BoardProps) {
       return;
     }
     patchUi({ pick: pick === i ? null : i, kb: null });
-    setTp(0);
     setModo("editar");
-    setSnap("peek");
+    setSnap("half");
     buzz(8);
   };
   const tapBench = (id: string) => {
@@ -1153,7 +1141,7 @@ export function Board(props: BoardProps) {
     }
     setUntouched(false);
     setModo(target);
-    setSnap(m === "plan" ? "half" : snapOf(target));
+    setSnap(snapOf(target));
     setTab(m === "plan" ? "p" : "b");
     patchUi({ sel: null, pick: null, fan: null, fic: null, kb: null, inkSel: null, rivSel: null });
     setMk((k) => k + 1);
@@ -1178,22 +1166,13 @@ export function Board(props: BoardProps) {
     setSnap("half");
     patchUi({ sel: null, pick: null, kb: null });
   };
-  const onTab = (t: OnceTab) => {
-    setTab(t);
-    if (t !== "b") setSnap(snap === "full" ? "full" : "half");
-  };
+  const onTab = (t: OnceTab) => setTab(t);
   const cycleSnap = () => {
     if (ctl.guarded()) return;
-    const n = cycle(snap);
-    if (n === "peek" && tab !== "b") setTab("b");
-    setSnap(n);
+    setSnap(cycle(snap));
     buzz(6);
   };
-  const stepSnap = (d: 1 | -1) => {
-    const n = step(snap, d);
-    if (n === "peek" && tab !== "b") setTab("b");
-    setSnap(n);
-  };
+  const stepSnap = (d: 1 | -1) => setSnap(step(snap, d));
   const cycleLine = () => {
     if (ctl.guarded() || !canEdit) return;
     const next = cycleDefLine(L);
@@ -1253,7 +1232,6 @@ export function Board(props: BoardProps) {
       if (sel || pick != null || u.kb != null) {
         e.preventDefault();
         patchUi({ sel: null, pick: null, kb: null });
-        setSnap("peek");
         announce("Cancelado");
       }
       return;
@@ -1275,40 +1253,114 @@ export function Board(props: BoardProps) {
     }
   };
 
-  // ── the replay's and the charla's keys: Space plays / pauses, ← → go a step back / forward, and
-  // Escape leaves the charla (or skips the 3D intro) ──
-  const replayKeys = (e: globalThis.KeyboardEvent) => {
+  // ── the player in the hand: his action bar (and the C / G / F / Esc keys) ──
+  const tokEl = (id: string): HTMLElement | null => {
+    const els = rootRef.current?.querySelectorAll<HTMLElement>("[data-tok]") ?? [];
+    return cardEl(id) ?? Array.from(els).find((e) => e.getAttribute("data-tok") === id) ?? null;
+  };
+  const capSel = () => {
+    if (!inHand || inHand.k !== "p" || !canEdit) return;
+    const was = L.roles.captainId === inHand.id;
+    commit(toggleRole(L, "captainId", inHand.id), { ui: { sel: inHand } });
+    buzz(10);
+    say(was ? "Sin capitán" : "Capitán: " + nm(inHand.id));
+  };
+  const galSel = () => {
+    if (inHand?.k === "p") openFan(inHand.id, cardEl(inHand.id));
+  };
+  const ficSel = () => {
+    if (inHand) openFic(inHand.id, tokEl(inHand.id));
+  };
+  const dropSel = () => {
+    if (!sel && pick == null && u.kb == null) return;
+    patchUi({ sel: null, pick: null, kb: null });
+    buzz(6);
+  };
+  const selV = inHand
+    ? (() => {
+        const c = sq.byId.get(inHand.id);
+        const at = L.slots.findIndex((s) => s.playerId === inHand.id);
+        return c ? selBarView(c, inHand.k === "p" && at >= 0 ? slotLabel(L, at) : null, L.roles.captainId === inHand.id) : null;
+      })()
+    : null;
+  const selBar = (k: "sb-p" | "sb-s"): ReactNode => (selV ? <SelBar k={k} v={selV} onCap={capSel} onGal={galSel} onFicha={ficSel} onClear={dropSel} /> : null);
+  // (the sheet's own one, at the top of the Siete tool on phones)
+  const selS = selBar("sb-s");
+
+  // ── the keyboard (mouse + keyboard screens; the prompt bar teaches it): 1–8 the tools; Siete: Q / E the
+  // tabs, R the bench as list or cromos, and with a player in the hand C capitán · G galones · F ficha ·
+  // Esc soltar; Esc otherwise back to the siete; Ctrl Z deshacer (Dibujar: the last stroke); the replay
+  // and the charla: Space plays / pauses, ← → a step back / forward, and Esc leaves the charla (or skips
+  // the 3D intro). Typing, the fan and the ficha keep their keys. ──
+  const ONCE_TABS: OnceTab[] = ["b", "s", "p"];
+  const boardKeys = (e: globalThis.KeyboardEvent) => {
     if (intro3d && e.key === "Escape") {
       skipIntro();
       return;
     }
-    if ((modo !== "jugadas" && modo !== "charla") || fan || fic || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (fan || fic || e.defaultPrevented || e.metaKey || e.altKey) return;
     const t = e.target instanceof HTMLElement ? e.target : null;
     const root = rootRef.current;
     if (t && t !== document.body && root && !root.contains(t)) return;
     const tag = t?.tagName ?? "";
+    const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || !!t?.isContentEditable;
+    if (e.ctrlKey) {
+      const k = e.key.toLowerCase();
+      if (typing || (k !== "z" && k !== "y")) return;
+      e.preventDefault();
+      if (k === "y" || e.shiftKey) doRedo();
+      else if (modo === "dibujar") inkUndo();
+      else doUndo();
+      return;
+    }
     if (modo === "charla" && e.key === "Escape") {
       e.preventDefault();
       goModo("editar");
       return;
     }
-    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || t?.isContentEditable) return;
-    if (e.key === " " || e.key === "Spacebar") {
-      // a focused control keeps its own Space
-      if (tag === "BUTTON" || tag === "A") return;
+    if (typing) return;
+    if (/^[1-8]$/.test(e.key)) {
       e.preventDefault();
-      if (modo === "charla") chl.toggle();
-      else playToggle();
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-      e.preventDefault();
-      const d = e.key === "ArrowLeft" ? -1 : 1;
-      if (modo === "charla") chl.step1(d);
-      else jStep(d);
+      goModo(RAIL_ORDER[+e.key - 1]);
+      return;
     }
+    if (modo === "jugadas" || modo === "charla") {
+      if (e.key === " " || e.key === "Spacebar") {
+        // a focused control keeps its own Space
+        if (tag === "BUTTON" || tag === "A") return;
+        e.preventDefault();
+        if (modo === "charla") chl.toggle();
+        else playToggle();
+        return;
+      }
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const d = e.key === "ArrowLeft" ? -1 : 1;
+        if (modo === "charla") chl.step1(d);
+        else jStep(d);
+        return;
+      }
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if ((modo === "dibujar" && inkSel) || (modo === "jugadas" && rivSel)) patchUi({ inkSel: null, rivSel: null });
+      else if (sel || pick != null || u.kb != null) dropSel();
+      else if (modo !== "editar") goModo("editar");
+      return;
+    }
+    if (modo !== "editar" || e.ctrlKey || e.shiftKey) return;
+    const k = e.key.toLowerCase();
+    if (k === "q" || k === "e") {
+      setTab(ONCE_TABS[(ONCE_TABS.indexOf(tab) + (k === "q" ? 2 : 1)) % 3]);
+      buzz(6);
+    } else if (k === "r") setBenchView(benchView === "lista" ? "cromos" : "lista");
+    else if (k === "c") capSel();
+    else if (k === "g") galSel();
+    else if (k === "f") ficSel();
   };
-  const keysLatest = useRef(replayKeys);
+  const keysLatest = useRef(boardKeys);
   useEffect(() => {
-    keysLatest.current = replayKeys;
+    keysLatest.current = boardKeys;
   });
   useEffect(() => {
     const onKeyDown = (e: globalThis.KeyboardEvent) => keysLatest.current(e);
@@ -1368,80 +1420,6 @@ export function Board(props: BoardProps) {
     say(nm(r.id) + " entra por " + nm(r.out) + ": más minutos para quien menos ha jugado");
   };
 
-  // ── the tray (a slot or a pitch cromo picked) ──
-  let tray: TrayData | null = null;
-  if (modo === "editar" && pick != null && canEdit) {
-    const occ = L.slots[pick]?.playerId ?? null;
-    const lb = slotLabel(L, pick);
-    const zz = slotZone(L, pick);
-    const rank = (id: string) => {
-      const c = sq.byId.get(id);
-      if (!c) return -Infinity;
-      let r = c.rt + (c.pos === zz ? 40 : 0) + (c.cv === "no" ? -60 : c.cv === "duda" ? -8 : 0);
-      if ((pick === 0) !== (c.pos === "POR")) r -= 50;
-      return r;
-    };
-    const cand = benchAll.filter((c) => !c.baja).sort((a, b) => rank(b.id) - rank(a.id));
-    const pages = Math.max(1, Math.ceil(cand.length / 5));
-    const tpi = Math.min(tp, pages - 1);
-    const held = occ && sel?.k === "p" && sel.id === occ ? occ : null;
-    tray = {
-      kick: (occ ? "En la mano · cámbialo por" : "Los mejores para " + zz) + (pages > 1 ? " · " + (tpi + 1) + "/" + pages : ""),
-      title: occ ? nm(occ) + " · " + lb : "Hueco " + lb,
-      cards: cand.slice(tpi * 5, tpi * 5 + 5),
-      meId: props.meId,
-      page: { n: tpi + 1, of: pages },
-      pageCls: tpk % 2 ? "pa" : tpk ? "pb" : "",
-      hot: dragFrom === "pitch",
-      held: held
-        ? {
-            id: held,
-            name: nm(held),
-            gal: GALONES.map((g) => ({ key: g.key, letter: g.letter, label: g.label, on: L.roles[g.key] === held })),
-            pos: ZONES.map((z) => ({ z, on: natOf(L, sq, held) === z })),
-          }
-        : null,
-    };
-  }
-  const heldId = tray?.held?.id ?? null;
-  const trPage = (d: 1 | -1) => {
-    if (!tray) return;
-    setTp(Math.max(0, Math.min(tray.page.of - 1, tray.page.n - 1 + d)));
-    setTpk((k) => k + 1);
-  };
-  const trClose = () => {
-    patchUi({ sel: null, pick: null, kb: null });
-    setSnap("peek");
-  };
-  const trCard = (id: string) => {
-    if (ctl.guarded() || pick == null) return;
-    placeAt(pick, id);
-  };
-  const trGal = (k: RoleKey) => {
-    if (!heldId) return;
-    const next = toggleRole(L, k, heldId);
-    commit(next, { ui: { sel: { k: "p", id: heldId }, pick: next.slots.findIndex((s) => s.playerId === heldId) } });
-  };
-  const trPos = (z: Zone) => {
-    if (!heldId) return;
-    commit(setPlaysAs(L, sq, heldId, z), { ui: { sel: { k: "p", id: heldId }, pick } });
-    say(nm(heldId) + " juega de " + z + " en este siete");
-  };
-  const trBench = () => {
-    if (!heldId) return;
-    const i = L.slots.findIndex((s) => s.playerId === heldId);
-    commit(toBench(L, heldId), { ui: { sel: null, pick: i, kb: null }, snap: "peek" });
-    announce(nm(heldId) + " al banquillo");
-  };
-  const trFicha = () => {
-    if (heldId) openFic(heldId, cardEl(heldId));
-  };
-  const trFan = () => {
-    if (!heldId) return;
-    setSnap("peek");
-    openFan(heldId, cardEl(heldId));
-  };
-
   // ── the fan and the ficha ──
   const fanList = fan ? fanItems(L, sq, fan.id, fan.sub) : [];
   const onFanItem = (it: FanItem) => {
@@ -1454,7 +1432,6 @@ export function Board(props: BoardProps) {
       if (o.toast) say(o.toast);
       if (o.pick != null) {
         setModo("editar");
-        setTp(0);
         announce(nm(fan.id) + " al banquillo");
       }
     }
@@ -1730,6 +1707,10 @@ export function Board(props: BoardProps) {
     "vx",
     "pzv",
     "m-" + modo,
+    // a player in the hand: his action bar instead of the hint, the targets glow
+    selV ? "has-sel" : "",
+    // the bench as FUT list rows (desktop)
+    benchView === "lista" ? "b-lista" : "",
     // the openings: the 2D crane, the 3D intro (the 2D board hidden), the cromos dealt in after it
     ready && intro.kind === "2d" && intro.phase === "run" && !charlaOn ? "intro" : "",
     intro3d ? "i3" : "",
@@ -1759,10 +1740,8 @@ export function Board(props: BoardProps) {
   ].filter(Boolean).join(" ");
   const shown: ReactNode =
     modo === "editar" ? (
-      tray ? (
-        <Tray d={tray} onPrev={() => trPage(-1)} onNext={() => trPage(1)} onClose={trClose} onCard={trCard} onGal={trGal} onPos={trPos} onBench={trBench} onFicha={trFicha} onFan={trFan} />
-      ) : (
         <>
+          {selS}
           <OnceTabs tab={tab} onTab={onTab} />
           {tab === "b" && (
             <BenchTab
@@ -1805,6 +1784,8 @@ export function Board(props: BoardProps) {
               }}
               onSeason={props.onSeason}
               onRotate={doRotate}
+              benchView={benchView}
+              onBenchView={setBenchView}
             />
           )}
           {tab === "s" && (
@@ -1829,7 +1810,6 @@ export function Board(props: BoardProps) {
           )}
           {tab === "p" && <PlanTab rows={tac} ro={!canEdit} onSet={onTactic} />}
         </>
-      )
     ) : modo === "mas" ? (
       <MasPanel tacSum={tacSum} onGo={goModo} />
     ) : modo === "quimica" ? (
@@ -2086,6 +2066,42 @@ export function Board(props: BoardProps) {
       <CharlaGuion v={cv} title={match?.short ?? session.name} note3d={chNote3d} />
     ) : null;
 
+  // ── the chrome: the camera's geometry for the layout, the rail's match card, the prompt bar ──
+  const geo = camGeo(cam);
+  const saveCls = ro ? "ro" : session.status;
+  const cvMatch = props.conv.match;
+  const cvN = convCounts(sq);
+  const matchCard: MatchCard | null = match
+    ? {
+        kick: cvMatch && props.nextMatch && cvMatch.id !== props.nextMatch.id ? "Partido del tablero" : "Próximo partido",
+        title: match.short,
+        when: [match.date, match.time].filter(Boolean).join(" · "),
+        counts: cvMatch && !props.conv.loading && !props.conv.error && cvN.voy + cvN.duda + cvN.no > 0 ? { voy: cvN.voy, duda: cvN.duda, no: cvN.no } : null,
+        note: !cvMatch ? "Sin convocatoria" : props.conv.error ? "No se ha podido leer la convocatoria" : props.conv.loading ? "Leyendo la convocatoria…" : "Nadie ha respondido aún",
+      }
+    : null;
+  const pmCtx: PromptCtx = {
+    modo,
+    ro: !canEdit,
+    hand: selV && inHand ? { k: inHand.k, name: selV.name, rt: selV.rt } : null,
+    benchView,
+    playing: charlaOn ? chl.playing && !!cv && chl.step < cv.last : rpl.playing,
+    pieces,
+  };
+  const pmActs: PromptActs = {
+    undo: doUndo,
+    undoStroke: inkUndo,
+    captain: capSel,
+    galones: galSel,
+    ficha: ficSel,
+    drop: dropSel,
+    toggle: charlaOn ? chl.toggle : playToggle,
+    prev: () => (charlaOn ? chl.step1(-1) : jStep(-1)),
+    next: () => (charlaOn ? chl.step1(1) : jStep(1)),
+    siete: () => goModo("editar"),
+    exitCharla: () => goModo("editar"),
+  };
+
   return (
     <div
       ref={rootRef}
@@ -2093,7 +2109,7 @@ export function Board(props: BoardProps) {
       data-modo={modo}
       data-snap={snap}
       aria-busy={!seenReady}
-      style={vars({ "--kp": fit.kp, "--kh": fit.kh, "--kd": fit.kd, "--fh": C.Fh })}
+      style={vars({ "--fh": C.Fh, "--vr": geo.vr, "--cut": geo.cut, "--kb": geo.kb })}
       onPointerDown={ctl.onPointerDown}
       onKeyDown={onKey}
       onContextMenu={(e) => {
@@ -2111,7 +2127,7 @@ export function Board(props: BoardProps) {
           jug={jug}
           pieces={pieces}
           focusCards={modo !== "jugadas" && modo !== "dibujar" && !charlaOn}
-          bug={modo === "jugadas" ? { a: rh.bugA, b: rh.bugB, k: rh.bugK, aria: rh.bugAria } : null}
+          selbar={selBar("sb-p")}
           trailsDraw={!!fx.from && !rm}
           trailsDur={spd ? "3.2s" : "1.7s"}
           wipe={wipe}
@@ -2131,7 +2147,6 @@ export function Board(props: BoardProps) {
             ) : null
           }
           liveRef={liveRef}
-          onBug={() => setSnap("half")}
           plan={plan}
           hud={cv ? { ...hud, ledTop: cv.led } : hud}
           wmY={(proj(C, 50, 37).y - 15).toFixed(2)}
@@ -2150,22 +2165,30 @@ export function Board(props: BoardProps) {
           onCard={tapCard}
           onSlot={tapSlot}
           onLine={cycleLine}
-          onSys={(d) => canEdit && toSystem(stepSystem(L, d))}
-          onSysPick={goSis}
-          onQuimica={() => goModo("quimica")}
         />
         <AppBar
           crest={props.crest}
           name={session.name}
+          matchShort={match?.short ?? null}
           saveTxt={saveTxt}
-          saveCls={ro ? "ro" : session.status}
+          saveCls={saveCls}
           hud={hud}
+          cele={!!chFinal || hud.celeOn}
+          sysk={sysk}
+          ro={!canEdit}
           noUndo={!canEdit || !u.hist.past.length}
           noRedo={!canEdit || !u.hist.future.length}
+          bug={modo === "jugadas" ? { a: rh.bugA, b: rh.bugB, k: rh.bugK, aria: rh.bugAria } : null}
+          shareOn={modo === "compartir"}
           onName={() => goModo("tableros")}
           onUndo={doUndo}
           onRedo={doRedo}
+          onShare={() => goModo("compartir")}
           onCharla={() => goModo("charla")}
+          onSys={(d) => canEdit && toSystem(stepSystem(L, d))}
+          onSysPick={goSis}
+          onQuimica={() => goModo("quimica")}
+          onBug={() => setSnap("half")}
         />
         {ro && ready && <ReadOnlyStrip label={session.official ? "OFICIAL · SOLO LECTURA" : "SOLO LECTURA · @" + session.owner.toUpperCase()} onDuplicate={session.duplicate} onMine={session.openMine} />}
         <p className="hint" aria-live="polite">
@@ -2175,7 +2198,8 @@ export function Board(props: BoardProps) {
         <Sheet title={SHEET_TITLE[modo]} snap={snap} mk={mk} sheetRef={sheetRef} onCycle={cycleSnap} onStep={stepSnap}>
           {shown}
         </Sheet>
-        <ModeBar modo={modo} onGo={goModo} />
+        <ModeBar modo={modo} onGo={goModo} card={matchCard} />
+        <PromptBar ctx={pmCtx} acts={pmActs} saveTxt={saveTxt} saveCls={saveCls} />
         {cv && (
           <CharlaOverlay
             v={cv}

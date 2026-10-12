@@ -40,7 +40,7 @@ describe("TV camera", () => {
 describe("slots on the pitch", () => {
   it("places the system's spots, the goalkeeper never moved by the plan", () => {
     const L = lineupOf([]);
-    expect(slotPos(L, 0)).toEqual({ u: 50, v: 92 });
+    expect(slotPos(L, 0)).toEqual({ u: 50, v: 95 });
     expect(slotPos(L, 6)).toEqual({ u: 50, v: 24 });
     expect(slotLabel(L, 3)).toBe("MI");
     expect(slotZone(L, 1)).toBe("DEF");

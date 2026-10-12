@@ -84,6 +84,16 @@ export function PitchCromo({ c, showGal, mini, hov, focusable, piece, onTap }: P
               !
             </span>
           )}
+          {c.me && !mini && (
+            <span className="cc-me" aria-hidden="true">
+              TÚ
+            </span>
+          )}
+          {c.tgt && (
+            <span className="cc-tg" aria-hidden="true">
+              {c.tg}
+            </span>
+          )}
           {c.spin && (
             <span className="reel" aria-hidden="true">
               <span>
@@ -98,11 +108,6 @@ export function PitchCromo({ c, showGal, mini, hov, focusable, piece, onTap }: P
       {c.tag && !mini && (
         <span className="cc-no" aria-hidden="true">
           {c.tag}
-        </span>
-      )}
-      {c.me && !mini && (
-        <span className="cc-me" aria-hidden="true">
-          Tú
         </span>
       )}
     </div>

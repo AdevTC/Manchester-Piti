@@ -21,17 +21,16 @@ afterEach(() => {
 });
 
 describe("La pizarra · el tablero", () => {
-  it("tap to place: tap an empty slot, then a cromo from the tray", () => {
+  it("tap to place: tap an empty slot, then a cromo from the bench", () => {
     const commits: Lineup[] = [];
-    render(<Harness initial={lineupOf(["evans", null, "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq)} onCommit={(l) => commits.push(l)} />);
+    const { container } = render(<Harness initial={lineupOf(["evans", null, "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq)} onCommit={(l) => commits.push(l)} />);
     expect(screen.getByText("6/7")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Hueco DFC vacío: toca para elegir jugador" }));
-    expect(screen.getByRole("heading", { name: "Hueco DFC" })).toBeInTheDocument();
-    const tray = screen.getByRole("group", { name: "Hueco DFC" });
-    // the best fit for a defence slot comes first: the available natural defender
-    const first = within(tray).getAllByRole("button")[0];
-    expect(first).toHaveAccessibleName(/^ILLESCAS, dorsal 4/);
-    fireEvent.click(first);
+    const slot = screen.getByRole("button", { name: "Hueco DFC vacío: toca para elegir jugador" });
+    fireEvent.click(slot);
+    // the slot is picked (no tray any more: the bench is the picker)
+    expect(slot.classList.contains("on")).toBe(true);
+    expect(container.querySelector(".trayc")).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: /^ILLESCAS, dorsal 4/ })[0]);
     expect(commits.at(-1)?.slots[1].playerId).toBe("illescas");
     expect(cromoButton("ILLESCAS")).toHaveAccessibleName(/ILLESCAS, dorsal 4, DFC/);
     expect(screen.getByText("7/7")).toBeInTheDocument();
@@ -79,7 +78,7 @@ describe("La pizarra · el tablero", () => {
     const redoB = screen.getByRole("button", { name: "Rehacer" });
     expect(undoB).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Hueco DFC vacío: toca para elegir jugador" }));
-    fireEvent.click(within(screen.getByRole("group", { name: "Hueco DFC" })).getAllByRole("button")[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /^ILLESCAS, dorsal 4/ })[0]);
     expect(screen.getByText("7/7")).toBeInTheDocument();
     fireEvent.click(undoB);
     expect(screen.getByText("6/7")).toBeInTheDocument();
@@ -117,7 +116,9 @@ describe("La pizarra · el tablero", () => {
     const dup = vi.fn();
     const { container } = render(<Harness initial={lineupOf(["evans", null, "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq)} ro onCommit={(l) => commits.push(l)} onDuplicate={dup} />);
     expect(screen.getByText("OFICIAL · SOLO LECTURA")).toBeInTheDocument();
-    expect(screen.getByText("Oficial · solo lectura")).toBeInTheDocument();
+    // the autosave line says it, in the command bar (and in the prompt bar on desktop)
+    expect(container.querySelector(".cmd .bname small")?.textContent).toContain("Oficial · solo lectura");
+    expect(container.querySelector(".pmb .pm-sv")?.textContent).toBe("Oficial · solo lectura");
     expect(screen.getByRole("button", { name: "Hueco DFC vacío: toca para elegir jugador" })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Sugerir siete/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Auto-colocar por posición" })).toBeDisabled();
@@ -138,11 +139,12 @@ describe("La pizarra · el tablero", () => {
     expect(dup).toHaveBeenCalledTimes(1);
   });
 
-  it("«Tu sitio»: your cromo wears the ring and the «Tú» tag", () => {
+  it("«Tu sitio»: your cromo wears the ring and the «TÚ» tag", () => {
     const { container } = render(<Harness initial={lineupOf(SEVEN, "2-3-1", sq)} />);
     const me = cardOf(container, "tello");
     expect(me.classList.contains("me")).toBe(true);
-    expect(me.querySelector(".cc-me")?.textContent).toBe("Tú");
+    expect(me.querySelector(".cd-me")).not.toBeNull();
+    expect(me.querySelector(".cc-in .cc-me")?.textContent).toBe("TÚ");
     expect(cardOf(container, "evans").querySelector(".cc-me")).toBeNull();
   });
 
@@ -152,9 +154,9 @@ describe("La pizarra · el tablero", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sistema siguiente" }));
     expect(commits.at(-1)?.formation).toBe("3-2-1");
     expect(screen.getByRole("button", { name: "Sistema 3-2-1: elegir sistema" })).toBeInTheDocument();
-    fireEvent.click(within(screen.getByRole("navigation", { name: "Modos de la pizarra" })).getByRole("button", { name: /Jugadas/ }));
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Herramientas de la pizarra" })).getByRole("button", { name: /Jugadas/ }));
     expect(screen.getByRole("group", { name: "Repetición de la jugada" })).toBeInTheDocument();
-    fireEvent.click(within(screen.getByRole("navigation", { name: "Modos de la pizarra" })).getByRole("button", { name: /Dibujar/ }));
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Herramientas de la pizarra" })).getByRole("button", { name: /Dibujar/ }));
     expect(screen.getByRole("group", { name: "Herramienta de dibujo" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "La charla: presentar el siete" }));
     expect(screen.getByRole("heading", { name: "El guion" })).toBeInTheDocument();

@@ -8,7 +8,7 @@ import { useEffect, useRef, type PointerEvent as ReactPointerEvent, type RefObje
 import { CAMS, proj, unproj, nearestLine, type CamName } from "./geometry";
 import { CLICK_GUARD_MS, DRAG_SLOP, LONG_PRESS_MS, pickMagnet, swapArc, tilt, type Magnet } from "./drag";
 import type { DragSource, DropTarget } from "./ops";
-import { dragHeight, SNAP_H, type Snap } from "./sheet";
+import { dragHeight } from "./sheet";
 import { liveD } from "./telestrator";
 import type { Lineup } from "../formations";
 import { slotPos } from "./geometry";
@@ -16,7 +16,6 @@ import { slotPos } from "./geometry";
 export interface DragState {
   lineup: Lineup;
   cam: CamName;
-  snap: Snap;
   /** Cromos can be moved (editing mode, an editable board, loaded). */
   canMove: boolean;
   /** The línea defensiva can be moved. */
@@ -37,7 +36,8 @@ export interface DragHandlers {
   onDrop: (src: DragSource, target: DropTarget | null, at: [number, number] | null) => void;
   onLongPress: (id: string, from: DragSource["from"], el: Element) => void;
   onLine: (value: string | null) => void;
-  onGrab: (height: number, velocity: number, full: number) => void;
+  /** The sheet's handle let go after a drag of `dy` px (down = positive) at `velocity` px/ms. */
+  onGrab: (dy: number, velocity: number) => void;
   onBaja: () => void;
   /** A finger lifted after drawing: its path (frame %); `tap` = it never really moved. */
   onDraw: (pts: [number, number][], tap: boolean) => void;
@@ -60,7 +60,7 @@ interface Refs {
 }
 
 type Drag =
-  | { kind: "grab"; y0: number; lastY: number; lastT: number; v: number; on: boolean; start: number; full: number; sh: number }
+  | { kind: "grab"; y0: number; lastY: number; lastT: number; v: number; on: boolean; h0: number; dy: number }
   | { kind: "line"; el: HTMLElement; y0: number; on: boolean; val: string | null }
   | { kind: "draw"; pts: [number, number][]; moved: boolean }
   | { kind: "piece"; el: HTMLElement; piece: string; x0: number; y0: number; on: boolean; lift: number }
@@ -171,7 +171,7 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     }
     if (d?.kind === "grab" && refs.sheet.current) {
       refs.sheet.current.classList.remove("drg");
-      refs.sheet.current.style.removeProperty("transform");
+      refs.sheet.current.style.removeProperty("height");
     }
     if (d?.kind === "piece") d.el.classList.remove("drag");
     if (d?.kind === "draw" && refs.live.current) refs.live.current.removeAttribute("d");
@@ -196,11 +196,11 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       d.v = (e.clientY - d.lastY) / Math.max(1, now - d.lastT);
       d.lastY = e.clientY;
       d.lastT = now;
-      d.sh = dragHeight(d.start, dy, d.full);
+      d.dy = dy;
       const sh = refs.sheet.current;
       if (sh) {
         sh.classList.add("drg");
-        sh.style.setProperty("transform", `translateY(${d.full - d.sh}px)`);
+        sh.style.setProperty("height", dragHeight(d.h0, dy) + "px");
       }
       e.preventDefault();
       return;
@@ -345,7 +345,7 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       cleanup();
       if (!on) return;
       guard();
-      hh.onGrab(d.sh, d.v, d.full);
+      hh.onGrab(d.dy, d.v);
       return;
     }
     if (d.kind === "draw") {
@@ -421,9 +421,7 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     const target = e.target as Element;
     const grab = target.closest("[data-grab]");
     if (grab && refs.sheet.current) {
-      const full = refs.sheet.current.offsetHeight || SNAP_H.full;
-      const start = st.snap === "full" ? full : Math.min(SNAP_H[st.snap], full);
-      drag.current = { kind: "grab", y0: e.clientY, lastY: e.clientY, lastT: Date.now(), v: 0, on: false, start, full, sh: start };
+      drag.current = { kind: "grab", y0: e.clientY, lastY: e.clientY, lastT: Date.now(), v: 0, on: false, h0: refs.sheet.current.offsetHeight, dy: 0 };
       attach();
       return;
     }

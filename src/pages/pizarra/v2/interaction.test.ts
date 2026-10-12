@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CAMS, proj } from "./geometry";
 import { MAGNET_LIFT, pickMagnet, slotInDirection, swapArc, tilt } from "./drag";
-import { cycle, dragHeight, grabLabel, settle, SNAP_H, step } from "./sheet";
+import { cycle, dragHeight, grabLabel, settle, snapOf, step } from "./sheet";
 import { EMPTY_HISTORY, HISTORY_MAX, pushHistory, redo, undo } from "./history";
 import { lineupOf } from "./testkit";
 
@@ -63,34 +63,35 @@ describe("keyboard moves between slots", () => {
   });
 });
 
-describe("bottom sheet physics", () => {
-  it("settles by the released height projected by the fling", () => {
-    expect(settle(SNAP_H.peek, 0)).toBe("peek");
-    expect(settle(SNAP_H.half, 0)).toBe("half");
-    expect(settle(650, 0)).toBe("full");
-    // a fast flick up from peek lands on full; a fast flick down from full lands on peek
-    expect(settle(260, -2.5)).toBe("full");
-    expect(settle(600, 2.6)).toBe("peek");
-    // a slow drag past the midpoint
-    expect(settle(310, 0)).toBe("half");
-  });
-  it("uses the tallest sheet the screen allows for full", () => {
-    expect(settle(470, 0, 520)).toBe("full");
-    expect(settle(440, 0, 520)).toBe("half");
+describe("bottom sheet (two heights, as designed)", () => {
+  it("settles by the drag projected by the fling; a short one stays", () => {
+    // dragged up 80 px: full; down 80 px: half
+    expect(settle(-80, 0, "half")).toBe("full");
+    expect(settle(80, 0, "full")).toBe("half");
+    // a short drag leaves it where it was
+    expect(settle(-30, 0, "half")).toBe("half");
+    expect(settle(30, 0, "full")).toBe("full");
+    // a short drag with a fast flick still goes (160 ms of projection)
+    expect(settle(-10, -0.5, "half")).toBe("full");
+    expect(settle(10, 0.5, "full")).toBe("half");
   });
   it("keeps the dragged height on the rails", () => {
-    expect(dragHeight(200, 500)).toBe(120);
-    expect(dragHeight(200, -900)).toBe(SNAP_H.full + 20);
+    expect(dragHeight(280, 500)).toBe(120);
+    expect(dragHeight(280, -900)).toBe(280 + 260);
     expect(dragHeight(404, 4)).toBe(400);
   });
-  it("cycles and steps like a button and arrow keys", () => {
-    expect(cycle("peek")).toBe("half");
+  it("toggles and steps like a button and arrow keys", () => {
     expect(cycle("half")).toBe("full");
-    expect(cycle("full")).toBe("peek");
-    expect(step("peek", -1)).toBe("peek");
+    expect(cycle("full")).toBe("half");
     expect(step("half", 1)).toBe("full");
     expect(step("full", 1)).toBe("full");
+    expect(step("full", -1)).toBe("half");
+    expect(grabLabel("half")).toBe("Ampliar el panel");
     expect(grabLabel("full")).toBe("Bajar el panel");
+  });
+  it("opens the lists full and every other tool at half", () => {
+    expect((["tableros", "comparar", "compartir", "ajustes"] as const).map(snapOf)).toEqual(["full", "full", "full", "full"]);
+    expect((["editar", "quimica", "jugadas", "dibujar", "mas", "charla"] as const).map(snapOf)).toEqual(["half", "half", "half", "half", "half", "half"]);
   });
 });
 

@@ -26,7 +26,7 @@ const m = (o: Partial<CalMatch>): CalMatch => ({ id: "m8", j: 8, rival: "MAD SKY
 const M7 = m({ id: "m7", j: 7, rival: "RAYO", played: true, gf: 3, ga: 1 });
 const M8 = m({});
 
-const nav = () => screen.getByRole("navigation", { name: "Modos de la pizarra" });
+const nav = () => screen.getByRole("navigation", { name: "Herramientas de la pizarra" });
 const go = (name: string) => fireEvent.click(within(nav()).getByRole("button", { name: new RegExp("^(nuevo)?" + name + "$") }));
 const root = (c: HTMLElement) => c.querySelector(".pzv") as HTMLElement;
 /** The panel's «‹ Más» (the mode bar has its own «Más»). */

@@ -260,6 +260,9 @@ export function jugadaStage(a: JugadaStageArgs): JugadaStage {
       reel: [],
       sel: false,
       me: a.meId === id,
+      tgt: false,
+      best: false,
+      tg: "",
       aria: p.name + ", dorsal " + p.num + ", paso " + (jf + 1) + " de " + n + (a.edit ? ": arrástralo para recolocarlo en este paso" : ""),
     });
   });

@@ -51,7 +51,7 @@ const SEVEN = ["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi"
 const L7 = (): Lineup => lineupOf(SEVEN, "2-3-1", sq);
 
 const root = (c: HTMLElement) => c.querySelector(".pzv") as HTMLElement;
-const nav = () => screen.getByRole("navigation", { name: "Modos de la pizarra" });
+const nav = () => screen.getByRole("navigation", { name: "Herramientas de la pizarra" });
 const go = (name: string) => fireEvent.click(within(nav()).getByRole("button", { name: new RegExp("^(nuevo)?" + name + "$") }));
 const openCharla = () => fireEvent.click(screen.getByRole("button", { name: "La charla: presentar el siete" }));
 const counter = () => screen.getByRole("status", { name: /^Paso \d+\/\d+/ });
