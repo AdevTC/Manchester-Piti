@@ -15,25 +15,33 @@ const SEVEN = ["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi"
 
 const cromoButton = (name: string) => screen.getByRole("button", { name: new RegExp("^" + name + ", dorsal") });
 const cardOf = (container: HTMLElement, id: string) => container.querySelector(`.cd[data-tok="${id}"]`) as HTMLElement;
+/** The bench as FUT rows (Lista). */
+const benchList = () => screen.getByRole("group", { name: /^Banquillo en lista/ });
+const benchRow = (name: string) => within(benchList()).getByRole("button", { name: new RegExp("^" + name + ", dorsal") });
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
 describe("La pizarra · el tablero", () => {
-  it("tap to place: tap an empty slot, then a cromo from the bench", () => {
+  it("tap to place: tap an empty slot, then a player of the bench (the bench is the picker)", () => {
     const commits: Lineup[] = [];
-    const { container } = render(<Harness initial={lineupOf(["evans", null, "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq)} onCommit={(l) => commits.push(l)} />);
-    expect(screen.getByText("6/7")).toBeInTheDocument();
-    const slot = screen.getByRole("button", { name: "Hueco DFC vacío: toca para elegir jugador" });
-    fireEvent.click(slot);
-    // the slot is picked (no tray any more: the bench is the picker)
-    expect(slot.classList.contains("on")).toBe(true);
-    expect(container.querySelector(".trayc")).toBeNull();
-    fireEvent.click(screen.getAllByRole("button", { name: /^ILLESCAS, dorsal 4/ })[0]);
+    render(<Harness initial={lineupOf(["evans", null, "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq)} onCommit={(l) => commits.push(l)} />);
+    expect(screen.getByText("6/7", { selector: ".val b" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Hueco DFC vacío: toca para elegir jugador" }));
+    // every one who can come in glows «Entra aquí»; the natural defender is the best fit
+    const first = benchRow("ILLESCAS");
+    expect(first).toHaveAccessibleName(/^ILLESCAS, dorsal 4, DEF.*Toca: entra en el hueco$/);
+    expect(first).toHaveClass("tgt", "best");
+    expect(first.querySelector(".ar-tg")).toHaveTextContent("Entra aquí");
+    expect(benchRow("KEVIN")).toHaveClass("tgt");
+    expect(benchRow("KEVIN")).not.toHaveClass("best");
+    // a baja is never a target
+    expect(benchRow("BRAWAN")).not.toHaveClass("tgt");
+    fireEvent.click(first);
     expect(commits.at(-1)?.slots[1].playerId).toBe("illescas");
     expect(cromoButton("ILLESCAS")).toHaveAccessibleName(/ILLESCAS, dorsal 4, DFC/);
-    expect(screen.getByText("7/7")).toBeInTheDocument();
+    expect(screen.getByText("7/7", { selector: ".val b" })).toBeInTheDocument();
     expect(screen.getByText("Listo")).toBeInTheDocument();
   });
 
@@ -50,6 +58,24 @@ describe("La pizarra · el tablero", () => {
     expect(within(ficha).getByText("PARTIDOS")).toBeInTheDocument();
     fireEvent.click(within(ficha).getByRole("button", { name: "Cerrar" }));
     expect(screen.queryByRole("dialog", { name: "Ficha de ADRIAN" })).not.toBeInTheDocument();
+  });
+
+  it("a pitch cromo in the hand, then a bench player: he comes in for him; a baja can't", () => {
+    const commits: Lineup[] = [];
+    render(<Harness initial={lineupOf(SEVEN, "2-3-1", sq)} onCommit={(l) => commits.push(l)} />);
+    fireEvent.click(cromoButton("TELLO"));
+    const kevin = benchRow("KEVIN");
+    expect(kevin).toHaveAccessibleName(/Toca: entra por TELLO$/);
+    expect(kevin.querySelector(".ar-tg")).toHaveTextContent("Entra por él");
+    // the bajas are rows too, but they stay out
+    fireEvent.click(benchRow("BRAWAN"));
+    expect(screen.getByText("BRAWAN: lesionado, no se puede colocar")).toBeInTheDocument();
+    expect(commits).toHaveLength(0);
+    fireEvent.click(kevin);
+    expect(commits.at(-1)?.slots[2].playerId).toBe("kevin");
+    expect(screen.getByText("KEVIN entra por TELLO")).toBeInTheDocument();
+    // TELLO is on the bench now, with his season line
+    expect(benchRow("TELLO").querySelector(".ar-n small")).toHaveTextContent("0 PJ · 0 G · 0 A · 0'");
   });
 
   it("long-press on a pitch cromo opens the fan; Capitán gives him the armband", () => {
@@ -78,20 +104,20 @@ describe("La pizarra · el tablero", () => {
     const redoB = screen.getByRole("button", { name: "Rehacer" });
     expect(undoB).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Hueco DFC vacío: toca para elegir jugador" }));
-    fireEvent.click(screen.getAllByRole("button", { name: /^ILLESCAS, dorsal 4/ })[0]);
-    expect(screen.getByText("7/7")).toBeInTheDocument();
+    fireEvent.click(benchRow("ILLESCAS"));
+    expect(screen.getByText("7/7", { selector: ".val b" })).toBeInTheDocument();
     fireEvent.click(undoB);
-    expect(screen.getByText("6/7")).toBeInTheDocument();
+    expect(screen.getByText("6/7", { selector: ".val b" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Hueco DFC vacío: toca para elegir jugador" })).toBeInTheDocument();
     expect(redoB).toBeEnabled();
     fireEvent.click(redoB);
-    expect(screen.getByText("7/7")).toBeInTheDocument();
+    expect(screen.getByText("7/7", { selector: ".val b" })).toBeInTheDocument();
     expect(redoB).toBeDisabled();
     // keyboard too
     fireEvent.keyDown(screen.getByRole("button", { name: "Deshacer" }), { key: "z", ctrlKey: true });
-    expect(screen.getByText("6/7")).toBeInTheDocument();
+    expect(screen.getByText("6/7", { selector: ".val b" })).toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole("button", { name: "Deshacer" }), { key: "y", ctrlKey: true });
-    expect(screen.getByText("7/7")).toBeInTheDocument();
+    expect(screen.getByText("7/7", { selector: ".val b" })).toBeInTheDocument();
   });
 
   it("keyboard: a cromo in the hand moves with the arrows and drops with Enter", () => {
@@ -121,7 +147,7 @@ describe("La pizarra · el tablero", () => {
     expect(container.querySelector(".pmb .pm-sv")?.textContent).toBe("Oficial · solo lectura");
     expect(screen.getByRole("button", { name: "Hueco DFC vacío: toca para elegir jugador" })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Sugerir siete/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Auto-colocar por posición" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Auto-colocar: cada uno a su posición natural" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Deshacer" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Sistema siguiente" })).toBeDisabled();
     fireEvent.click(cromoButton("TELLO"));

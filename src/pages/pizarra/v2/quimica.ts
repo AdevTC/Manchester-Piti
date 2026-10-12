@@ -4,6 +4,7 @@
 import type { Lineup, Zone } from "../formations";
 import { slotPos, slotZone, planeDist2 } from "./geometry";
 import { fits, pairOf, type Squad } from "./model";
+import { plural } from "./plural";
 
 export interface Link {
   /** Slot indexes (i < j) and their players. */
@@ -126,6 +127,42 @@ export function tierOf(v: number): [label: string, sym: string] {
 }
 
 export const linkMark = (t: 1 | 2 | 3): string => (t === 3 ? "++" : t === 2 ? "+" : "–");
+
+/** Why the química is what it is, in one line. */
+export function chemWhy(ch: Chem): string {
+  if (ch.n < 7) return "Faltan cromos: la química sube al completar el siete.";
+  if (!ch.gk) return "Sin portero natural la química se resiente.";
+  const out = 7 - ch.natN;
+  return out ? out + " fuera de su posición natural: recoloca para sumar." : "Todos en su sitio natural.";
+}
+
+/** «9 luces», «1 luz». */
+export const lucesTxt = (n: number): string => plural(n, "luz", "luces");
+
+export interface Luz {
+  key: string;
+  t: 1 | 2 | 3;
+  /** «++», «+», «–». */
+  mark: string;
+  who: string;
+  why: string;
+}
+
+/** The strongest links of the seven, best first, as the lists show them. */
+export function lucesOf(ch: Chem, sq: Squad, n: number): Luz[] {
+  const nm = (id: string) => sq.byId.get(id)?.name ?? "Jugador";
+  return ch.links
+    .slice()
+    .sort((a, b) => b.s - a.s)
+    .slice(0, n)
+    .map((l) => ({
+      key: l.a + "|" + l.b,
+      t: l.t,
+      mark: linkMark(l.t),
+      who: nm(l.a) + " · " + nm(l.b),
+      why: [l.ast ? plural(l.ast, "gol", "goles") + " juntos" : "", l.tog ? plural(l.tog, "partido") + " juntos" : "sin partidos juntos", l.nat ? "" : "alguno fuera de sitio"].filter(Boolean).join(" · "),
+    }));
+}
 
 /** Ripple: hop distance (through the links) from the slots whose player just changed. */
 export function hops(L: Lineup, ls: Link[], changed: string[]): Map<number, number> {

@@ -1,5 +1,5 @@
-// La pizarra «Noche de partido» — the plan (Once → Plan): the seven consignas as the sheet shows them
-// (ordered scales as sliders, the two choices as segmented buttons) and what the plan paints on the
+// La pizarra «Noche de partido» — the plan (Siete → Plan): the seven consignas as the sheet shows them
+// (a card each: what it tells the team, and a stepper through its three values) and what the plan paints on the
 // pitch besides the línea and the presión: the salida de balón (from the keeper to whom he plays) and
 // the foco de ataque (the lanes the attack goes through). Pure.
 import type { Lineup } from "../formations";
@@ -17,7 +17,21 @@ export interface TacRow {
   value: string;
   /** Index of the value on its scale. */
   vi: number;
+  /** The consigna the value gives the team: its title and one line («Presión alta», «Mordemos arriba…»). */
+  ct: string;
+  cd: string;
 }
+
+/** What each value of each instruction tells the team (the Plan's cards, the charla's plan). */
+export const CONSIGNA: Record<TacticKey, Record<string, [string, string]>> = {
+  press: { Alta: ["Presión alta", "Mordemos arriba: que no salgan jugando."], Media: ["Presión media", "Esperamos en el medio y saltamos juntos."], Repliegue: ["Repliegue", "Juntos atrás y a la contra."] },
+  defLine: { Alta: ["Línea alta", "Los centrales cerca del medio: campo corto."], Media: ["Línea media", "Ni encima del portero ni a la espalda."], Baja: ["Línea baja", "Cerca del área, sin espacio a la espalda."] },
+  width: { Amplia: ["Campo grande", "Las bandas pegadas a la cal."], Media: ["Amplitud media", "Abrimos sin perder el centro."], Estrecha: ["Juntos por dentro", "Cerramos el centro y salimos por dentro."] },
+  buildup: { Corta: ["Salida corta", "El portero a los centrales, siempre al pie."], Mixta: ["Salida mixta", "Corta si se puede, larga si aprietan."], "En largo": ["En largo", "Al 9 y a por la segunda jugada."] },
+  mentality: { Defensiva: ["Primero, no encajar", "Bloque junto y a la contra."], Equilibrada: ["Equilibrados", "Siempre dos por detrás del balón."], Ofensiva: ["A por el partido", "Todos arriba: el portero hace de líbero."] },
+  tempo: { Pausado: ["Balón quieto", "Tocamos y esperamos el hueco."], Medio: ["Ritmo medio", "Dos toques y cambio de orientación."], "Rápido": ["A un toque", "Robo y vertical, sin pensarlo."] },
+  attackFocus: { Bandas: ["Por fuera", "Abrimos a banda y centro atrás."], Centro: ["Por dentro", "Paredes en la frontal."], Equilibrado: ["Por todo el frente", "Donde haya espacio, sin prisa."] },
+};
 
 // As designed: the five scales first, then the salida and the foco.
 const ORDER: TacticKey[] = ["defLine", "press", "width", "mentality", "tempo", "buildup", "attackFocus"];
@@ -29,7 +43,8 @@ export function tacRows(L: Lineup): TacRow[] {
   return ORDER.map((key) => {
     const d = TACTICS.find((x) => x.key === key)!;
     const value = d.options.includes(t[key]) ? t[key] : d.def;
-    return { key, label: d.label, options: d.options, kind: KIND[key], value, vi: d.options.indexOf(value) };
+    const [ct, cd] = CONSIGNA[key][value] ?? [value, ""];
+    return { key, label: d.label, options: d.options, kind: KIND[key], value, vi: d.options.indexOf(value), ct, cd };
   });
 }
 

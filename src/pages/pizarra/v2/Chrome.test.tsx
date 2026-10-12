@@ -30,7 +30,7 @@ describe("the command bar", () => {
     const bar = cmd(container);
     // 87 + 83 + 79 + 95 + 81 + 74 + 96 = 595 → 85
     expect(within(bar).getByRole("status", { name: "Media del siete: 85" })).toHaveTextContent("MEDIA85");
-    expect(within(bar).getByText("7/7")).toBeInTheDocument();
+    expect(within(bar).getByText("7/7", { selector: ".val b" })).toBeInTheDocument();
     expect(within(bar).getByRole("button", { name: /^Química \d+ de 100/ })).toBeInTheDocument();
     expect(within(bar).getByRole("button", { name: "Sistema 2-3-1: elegir sistema" })).toBeInTheDocument();
     // the board's name with its match and the autosave line
@@ -171,12 +171,13 @@ describe("the keyboard", () => {
     render(<Harness initial={lineupOf(["evans", null, "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq)} onCommit={(l) => commits.push(l)} />);
     fireEvent.click(screen.getByRole("button", { name: "Hueco DFC vacío: toca para elegir jugador" }));
     fireEvent.click(screen.getAllByRole("button", { name: /^ILLESCAS, dorsal 4/ })[0]);
-    expect(screen.getByText("7/7")).toBeInTheDocument();
+    expect(screen.getByText("7/7", { selector: ".val b" })).toBeInTheDocument();
     key("z", { ctrlKey: true });
-    expect(screen.getByText("6/7")).toBeInTheDocument();
+    expect(screen.getByText("6/7", { selector: ".val b" })).toBeInTheDocument();
     key("z", { ctrlKey: true, shiftKey: true });
-    expect(screen.getByText("7/7")).toBeInTheDocument();
+    expect(screen.getByText("7/7", { selector: ".val b" })).toBeInTheDocument();
     // a key typed into a field is the field's
+    fireEvent.click(screen.getByRole("button", { name: "Buscar en la plantilla" }));
     const search = screen.getByRole("searchbox", { name: "Buscar jugador" });
     fireEvent.keyDown(search, { key: "2" });
     expect(within(rail()).getByRole("button", { name: "Siete" })).toHaveAttribute("aria-pressed", "true");

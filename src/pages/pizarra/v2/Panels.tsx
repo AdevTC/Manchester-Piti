@@ -1,12 +1,15 @@
 // The board's HUD and tools: the app bar (board name + autosave, the 7/7 chip, undo/redo, la charla),
-// the read-only strip, the sheet with its handle, the «Once» tool (Banquillo · Sistema · Plan), the tray
-// (tap a slot or a cromo), the «Más» tiles, and the mode bar / rail.
-import { useRef, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
-import type { FormationName, RoleKey, Zone } from "../formations";
+// the read-only strip, the sheet with its handle, the «Siete» tool (the squad bars, then Convocatoria ·
+// Sistema · Plan; the bench grid is the picker), the «Más» tiles, and the mode bar / rail.
+import { useId, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import type { FormationName } from "../formations";
 import { FORM, SYSTEMS } from "./geometry";
 import { Icon, Nuevo } from "./icons";
-import { AlbumCromo, BajaCromo } from "./Cromos";
-import type { Cromo } from "./model";
+import { AlbumCromo, BenchRowItem } from "./Cromos";
+import { andList, sysLines, type BenchGroup, type ConvHead, type SquadInfo } from "./bench";
+import type { Squad } from "./model";
+import { lucesTxt, type Chem } from "./quimica";
+import { ChemLines, ChemTop, LucesList, PanelHead } from "./SheetPanels";
 import { grabLabel, type Snap } from "./sheet";
 import { vars, type Hud, type Modo } from "./view";
 import { mag } from "./mag";
@@ -187,178 +190,244 @@ export function Sheet({ title, snap, mk, sheetRef, onCycle, onStep, children }: 
   );
 }
 
-// ── «Once»: Banquillo · Sistema · Plan ──
+/// ── «Siete»: the squad bars, then Convocatoria · Sistema · Plan ──
 export type OnceTab = "b" | "s" | "p";
+
+export interface SquadBarsProps {
+  info: SquadInfo;
+  /** «3-2-1» / «Libre». */
+  sysName: string;
+  /** «J8 · MAD SKY» (empty without a match). */
+  matchShort: string;
+  qv: number;
+  qTier: string;
+}
+
+/** «Tu siete» in numbers: media, química, on the pitch, and the four bars (desktop shows only the bars). */
+export function SquadBars({ info, sysName, matchShort, qv, qTier }: SquadBarsProps) {
+  return (
+    <section className="fsq" aria-label="El siete en números">
+      <h2 className="fsq-h">
+        Tu siete<small>{[sysName, matchShort].filter(Boolean).join(" · ")}</small>
+      </h2>
+      <div className="fsq-p">
+        <div className="fp">
+          <small>MEDIA</small>
+          <b>{info.media}</b>
+        </div>
+        <div className="fp q">
+          <small>QUÍMICA</small>
+          <b>{qv}</b>
+          <span className="dm" role="img" aria-label={qTier}>
+            {info.dm.map((on, k) => (
+              <i key={k} className={on ? "on" : ""} />
+            ))}
+          </span>
+        </div>
+        <div className="fp">
+          <small>EN EL CAMPO</small>
+          <b>{info.once}</b>
+        </div>
+      </div>
+      <div className="fsq-b">
+        {info.bars.map((b) => (
+          <div key={b.k} className={"fb" + (b.cls ? " " + b.cls : "")}>
+            <span>{b.k}</span>
+            <i style={vars({ "--v": b.v })} aria-hidden="true" />
+            <b>{b.v}</b>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export function OnceTabs({ tab, onTab }: { tab: OnceTab; onTab: (t: OnceTab) => void }) {
   return (
     <div className="tabrow">
+      <kbd className="bk" aria-hidden="true">
+        Q
+      </kbd>
       <div className="tabs" role="group" aria-label="Herramienta del siete">
         <button type="button" onClick={() => onTab("b")} aria-pressed={tab === "b"}>
-          Banquillo
+          Convocatoria
         </button>
         <button type="button" onClick={() => onTab("s")} aria-pressed={tab === "s"}>
           Sistema
         </button>
         <button type="button" onClick={() => onTab("p")} aria-pressed={tab === "p"}>
-          Plan <Nuevo />
+          Plan
         </button>
       </div>
+      <kbd className="bk" aria-hidden="true">
+        E
+      </kbd>
     </div>
   );
 }
 
-export interface RepRow {
-  id: string;
-  num: number;
-  name: string;
-  m: string;
-  min: string;
-}
+export type BenchView = "lista" | "cromos";
 
 export interface BenchTabProps {
   ro: boolean;
+  /** A pitch cromo is being dragged: the bench is a drop target. */
   hot: boolean;
+  /** The «sobre»'s window, «J5–J7» (empty when nothing has been played). */
   recentLabel: string;
-  rail: Cromo[];
-  selBench: string | null;
-  meId: string | null;
-  railPage: { n: number; of: number };
-  seasonName: string;
+  conv: ConvHead;
+  groups: BenchGroup[];
+  /** «Buscar en la plantilla» is open. */
+  srx: boolean;
   q: string;
   zf: string;
   oc: boolean;
   /** «Solo convocados» needs answers to the convocatoria. */
   ocOff: boolean;
-  /** Whose convocatoria the chips show and how it stands. */
-  convTxt: string;
   seasons: { id: string; name: string }[];
   seasonId: string;
-  bajas: Cromo[];
-  counts: { les: number; san: number; ina: number };
-  rep: RepRow[];
-  repTxt: string;
-  canRotate: boolean;
-  galLeg: { l: string; t: string }[];
+  /** Lista (FUT rows) or Cromos, on desktop (phones always show the cromo strip). Default: lista. */
+  benchView?: BenchView;
+  onBenchView?: (v: BenchView) => void;
   onSuggest: () => void;
   onAuto: () => void;
+  onAvisar: () => void;
+  onSrx: () => void;
   onTapBench: (id: string, el: HTMLElement) => void;
-  onRailNext: () => void;
   onQ: (q: string) => void;
   onZf: (z: string) => void;
   onOc: () => void;
   onSeason: (id: string) => void;
-  onRotate: () => void;
-  /** The bench as FUT list rows or cromos (desktop; R toggles it). */
-  benchView?: "lista" | "cromos";
-  onBenchView?: (v: "lista" | "cromos") => void;
 }
 
 const ZONE_FILTERS = ["Todos", "POR", "DEF", "MED", "DEL"];
 
+/** The Convocatoria page: the answers, the two big actions, the search, and the bench (rows or cromos). */
 export function BenchTab(p: BenchTabProps) {
+  const srxId = useId();
+  const view = p.benchView ?? "lista";
+  const { conv } = p;
+  const hot = p.hot ? " hot" : "";
   return (
-    <>
-      <div className={"rail" + (p.hot ? " hot" : "")} data-bench="1" role="group" aria-label="Banquillo: arrastra un cromo al campo o tócalo">
-        <button type="button" className="pk gold mag" {...mag} onClick={p.onSuggest} disabled={p.ro} aria-label="Sugerir siete por forma reciente: abre un sobre">
-          <Icon n="pack" w={22} />
-          <b>Sugerir siete</b>
-          <small>SOBRE · {p.recentLabel || "FORMA"}</small>
+    <div className="pg pc">
+      <div className="cv-h">
+        <div className="cv-k">
+          <b>{conv.title}</b>
+          <span className="k2">{conv.kick}</span>
+        </div>
+        <ul className="cv-n" aria-label={conv.aria}>
+          <li className="cvn voy">
+            <Icon n="check" w={13} />
+            <b>{conv.voy}</b>voy
+          </li>
+          <li className="cvn duda">
+            <Icon n="doubt" w={13} />
+            <b>{conv.duda}</b>duda
+          </li>
+          <li className="cvn no">
+            <Icon n="x" w={12} />
+            <b>{conv.no}</b>no va
+          </li>
+        </ul>
+        <button type="button" className="avi" onClick={p.onAvisar} aria-label={conv.dudas.length ? "Avisar a los que dudan: " + andList(conv.dudas) : "Avisar a los que dudan: nadie tiene dudas"}>
+          <Icon n="bell" w={15} />
+          <span>Avisar a los que dudan</span>
+          <em>{conv.dudas.join(" · ")}</em>
         </button>
-        <button type="button" className="pk dark" onClick={p.onAuto} disabled={p.ro} aria-label="Auto-colocar por posición">
-          <Icon n="wand" w={22} />
-          <b>Auto-colocar</b>
-          <small>POR POSICIÓN</small>
+      </div>
+      <div className="cv-a">
+        <button type="button" className="b4 gold mag" {...mag} onClick={p.onSuggest} disabled={p.ro} aria-label="Sugerir siete por forma reciente: abre un sobre">
+          <Icon n="pack" w={20} />
+          <span>
+            <b>Sugerir siete</b>
+            <small>{"Por forma" + (p.recentLabel ? " · " + p.recentLabel : "")}</small>
+          </span>
         </button>
-        {p.rail.map((c) => (
-          <AlbumCromo key={c.id} p={c} sel={p.selBench === c.id} me={p.meId === c.id} onTap={p.onTapBench} />
+        <button type="button" className="b4" onClick={p.onAuto} disabled={p.ro} aria-label="Auto-colocar: cada uno a su posición natural">
+          <Icon n="wand" w={20} />
+          <span>
+            <b>Auto-colocar</b>
+            <small>Cada uno a su sitio</small>
+          </span>
+        </button>
+      </div>
+      <div className="srx">
+        <button type="button" className="srx-b" onClick={p.onSrx} aria-expanded={p.srx} aria-controls={srxId}>
+          <Icon n="search" w={16} />
+          <span>Buscar en la plantilla</span>
+          <Icon n="chevD" w={16} />
+        </button>
+        {p.srx && (
+          <div className="srx-p" id={srxId}>
+            <label className="srch">
+              <Icon n="search" w={18} />
+              <input type="search" placeholder="Nombre o dorsal" value={p.q} onChange={(e) => p.onQ(e.target.value)} aria-label="Buscar jugador" />
+            </label>
+            <div className="seg5" role="group" aria-label="Filtrar por posición">
+              {ZONE_FILTERS.map((z) => (
+                <button key={z} type="button" onClick={() => p.onZf(z)} aria-pressed={p.zf === z}>
+                  {z}
+                </button>
+              ))}
+            </div>
+            <div className="al-row">
+              <button type="button" className="tg" onClick={p.onOc} aria-pressed={p.oc} disabled={p.ocOff}>
+                Solo convocados
+              </button>
+              <label className="selw">
+                Temporada
+                <select value={p.seasonId} onChange={(e) => p.onSeason(e.target.value)} aria-label="Temporada">
+                  {p.seasonId === "all" && <option value="all">Histórico total</option>}
+                  {p.seasons.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="bvt" role="group" aria-label="Vista del banquillo">
+        <button type="button" onClick={() => p.onBenchView?.("lista")} aria-pressed={view === "lista"}>
+          Lista
+        </button>
+        <button type="button" onClick={() => p.onBenchView?.("cromos")} aria-pressed={view === "cromos"}>
+          Cromos
+        </button>
+        <kbd aria-hidden="true">R</kbd>
+      </div>
+      <div className={"cvb" + hot} data-bench="1" role="group" aria-label="Banquillo: arrastra un cromo al campo o tócalo">
+        {p.groups.map((g) => (
+          <div key={g.k} className={"grp " + g.cls}>
+            <h3 className="grp-h">
+              <span>{g.t}</span>
+              <span className="cnt">{g.rows.length}</span>
+            </h3>
+            {!g.rows.length && <p className="grp-e">{g.emptyTxt}</p>}
+            <div className="bgrid">
+              {g.rows.map((r) => (
+                <AlbumCromo key={r.id} r={r} onTap={p.onTapBench} />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
-      {p.railPage.of > 1 && (
-        <div className="pgr">
-          <button type="button" className="b3" onClick={p.onRailNext} aria-label="Más cromos del banquillo">
-            {"Más cromos · " + p.railPage.n + "/" + p.railPage.of + " "}
-            <Icon n="chevR" w={14} />
-          </button>
-        </div>
-      )}
-      {!p.rail.length && <p className="tr-e">{p.q || p.zf !== "Todos" || p.oc ? "Nadie en el banquillo con ese filtro." : "No queda nadie libre en el banquillo."}</p>}
-      <div className="s-half">
-        <h3>Buscar en la colección · {p.seasonName}</h3>
-        <label className="srch">
-          <Icon n="search" w={18} />
-          <input type="search" placeholder="Nombre o dorsal" value={p.q} onChange={(e) => p.onQ(e.target.value)} aria-label="Buscar jugador" />
-        </label>
-        <div className="seg5" role="group" aria-label="Filtrar por zona">
-          {ZONE_FILTERS.map((z) => (
-            <button key={z} type="button" onClick={() => p.onZf(z)} aria-pressed={p.zf === z}>
-              {z}
-            </button>
-          ))}
-        </div>
-        <div className="al-row">
-          <button type="button" className="tg" onClick={p.onOc} aria-pressed={p.oc} disabled={p.ocOff}>
-            Solo convocados <Nuevo />
-          </button>
-          <label className="selw">
-            Temporada
-            <select value={p.seasonId} onChange={(e) => p.onSeason(e.target.value)} aria-label="Temporada">
-              {p.seasonId === "all" && <option value="all">Histórico total</option>}
-              {p.seasons.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        {p.convTxt && <p className="cvl">{p.convTxt}</p>}
-        <h3>Bajas · el auto no las coloca</h3>
-        <div className="bj4">
-          {p.bajas.map((b) => (
-            <BajaCromo key={b.id} p={b} />
-          ))}
-          <div className="lg">
-            <span>Lesionado · {p.counts.les}</span>
-            <span>Sancionado · {p.counts.san}</span>
-            <span>Inactivo · {p.counts.ina}</span>
+      <div className={"cvl" + hot} data-bench="1" role="group" aria-label="Banquillo en lista: arrastra a un jugador al campo o tócalo">
+        {p.groups.map((g) => (
+          <div key={g.k} className={"lg " + g.cls}>
+            <h3 className="lg-h">
+              <span>{g.t}</span>
+              <span className="cnt">{g.rows.length}</span>
+            </h3>
+            {!g.rows.length && <p className="grp-e">{g.emptyTxt}</p>}
+            {g.rows.map((r) => (
+              <BenchRowItem key={r.id} r={r} onTap={p.onTapBench} />
+            ))}
           </div>
-        </div>
+        ))}
       </div>
-      <div className="s-full">
-        <h3>
-          Reparto de minutos <Nuevo />
-        </h3>
-        <div className="rep">
-          {p.rep.map((r) => (
-            <div key={r.id} className="rep-r">
-              <b>{r.num}</b>
-              <span>{r.name}</span>
-              <i style={vars({ "--m": r.m })} aria-hidden="true" />
-              <small>{r.min}</small>
-            </div>
-          ))}
-        </div>
-        <div className="eq">
-          <p>{p.repTxt}</p>
-          <button type="button" className="b3" onClick={p.onRotate} disabled={p.ro || !p.canRotate}>
-            <Icon n="rot" />
-            Darle minutos
-          </button>
-        </div>
-        <h3>
-          Galones · mantén pulsado un cromo <Nuevo />
-        </h3>
-        <div className="leg">
-          {p.galLeg.map((g) => (
-            <span key={g.l}>
-              <b>{g.l}</b>
-              {g.t}
-            </span>
-          ))}
-        </div>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -379,20 +448,24 @@ export interface SystemTabProps {
   free: boolean;
   grid: boolean;
   ro: boolean;
+  ch: Chem;
+  sq: Squad;
   onSystem: (f: FormationName) => void;
   onLibre: () => void;
   onGrid: () => void;
   onReset: () => void;
 }
 
+/** The Sistema page: the six systems and Libre as tiles, then the química of the seven in short. */
 export function SystemTab(p: SystemTabProps) {
   return (
-    <>
+    <div className="pg">
       <div className="sysg" role="group" aria-label="Sistema de juego">
         {SYSTEMS.map((k) => (
           <button key={k} type="button" className="sy" onClick={() => p.onSystem(k)} aria-pressed={!p.free && p.formation === k} aria-label={"Sistema " + k} disabled={p.ro}>
             <MiniSystem name={k} />
             <b>{k}</b>
+            <small>{sysLines(k)}</small>
           </button>
         ))}
         <button type="button" className="sy lib" onClick={p.onLibre} aria-pressed={p.free} disabled={p.ro} aria-label="Modo libre: arrastra a cualquier sitio">
@@ -406,10 +479,11 @@ export function SystemTab(p: SystemTabProps) {
             <circle className="g" cx="30" cy="72" r="4.2" />
           </svg>
           <b>Libre</b>
+          <small>a mano</small>
         </button>
       </div>
-      {p.free && !p.ro ? (
-        <div className="row" style={{ marginTop: 8 }}>
+      {p.free && !p.ro && (
+        <div className="row">
           <button type="button" className="tg" onClick={p.onGrid} aria-pressed={p.grid}>
             Ajustar a la rejilla
           </button>
@@ -418,115 +492,12 @@ export function SystemTab(p: SystemTabProps) {
             Reset de posiciones
           </button>
         </div>
-      ) : (
-        !p.free && <p style={{ marginTop: 10 }}>Cada sistema mueve a los siete con su animación. También puedes cambiarlo con las flechas del campo.</p>
       )}
-    </>
-  );
-}
-
-// ── the tray: candidates for a slot, and what to do with the cromo in your hand ──
-export interface TrayData {
-  kick: string;
-  title: string;
-  cards: Cromo[];
-  meId: string | null;
-  page: { n: number; of: number };
-  pageCls: string;
-  hot: boolean;
-  held: null | {
-    id: string;
-    name: string;
-    gal: { key: RoleKey; letter: string; label: string; on: boolean }[];
-    pos: { z: Zone; on: boolean }[];
-  };
-}
-
-export interface TrayProps {
-  d: TrayData;
-  onPrev: () => void;
-  onNext: () => void;
-  onClose: () => void;
-  onCard: (id: string) => void;
-  onGal: (k: RoleKey) => void;
-  onPos: (z: Zone) => void;
-  onBench: () => void;
-  onFicha: () => void;
-  onFan: () => void;
-}
-
-export function Tray({ d, ...p }: TrayProps) {
-  const x0 = useRef<number | null>(null);
-  // Swipe the deck to page through the cromos.
-  const down = (e: PointerEvent<HTMLDivElement>) => {
-    x0.current = (e.target as Element).closest(".ac") ? null : e.clientX;
-  };
-  const upSwipe = (e: PointerEvent<HTMLDivElement>) => {
-    if (x0.current == null) return;
-    const dx = e.clientX - x0.current;
-    x0.current = null;
-    if (Math.abs(dx) > 40) (dx < 0 ? p.onNext : p.onPrev)();
-  };
-  return (
-    <>
-      <div className="sh-h">
-        <div>
-          <span className="k2">{d.kick}</span>
-          <h2>{d.title}</h2>
-        </div>
-        <button type="button" className="ib" onClick={p.onPrev} disabled={d.page.n <= 1} aria-label="Cromos anteriores">
-          <Icon n="chevL" />
-        </button>
-        <button type="button" className="ib" onClick={p.onNext} disabled={d.page.n >= d.page.of} aria-label="Más cromos">
-          <Icon n="chevR" />
-        </button>
-        <button type="button" className="ib" onClick={p.onClose} aria-label="Cerrar">
-          <Icon n="x" />
-        </button>
-      </div>
-      <div className={"trayc " + d.pageCls + (d.hot ? " hot" : "")} data-bench="1" role="group" aria-label={d.title} onPointerDown={down} onPointerUp={upSwipe}>
-        {d.cards.map((c) => (
-          <AlbumCromo key={c.id} p={c} sel={false} me={d.meId === c.id} onTap={() => p.onCard(c.id)} />
-        ))}
-      </div>
-      {!d.cards.length && <p className="tr-e">No queda nadie libre en el banquillo para este hueco.</p>}
-      <div className="s-half">
-        {d.held && (
-          <div className="ops">
-            <span>Galones</span>
-            <div className="gr4" role="group" aria-label={"Galones de " + d.held.name}>
-              {d.held.gal.map((g) => (
-                <button key={g.key} type="button" className="gb" onClick={() => p.onGal(g.key)} aria-pressed={g.on} aria-label={g.label + (g.on ? ": " + d.held?.name : "")}>
-                  {g.letter}
-                </button>
-              ))}
-            </div>
-            <span>Juega de</span>
-            <div className="gr4 p" role="group" aria-label={"Posición de " + d.held.name + " en este siete"}>
-              {d.held.pos.map((q) => (
-                <button key={q.z} type="button" className="gb" onClick={() => p.onPos(q.z)} aria-pressed={q.on}>
-                  {q.z}
-                </button>
-              ))}
-            </div>
-            <div className="row">
-              <button type="button" className="b3" onClick={p.onBench}>
-                <Icon n="bench" />
-                Al banquillo
-              </button>
-              <button type="button" className="b3" onClick={p.onFicha}>
-                <Icon n="info" w={16} />
-                Ver ficha
-              </button>
-              <button type="button" className="b3" onClick={p.onFan}>
-                <Icon n="dots" w={16} />
-                Menú rápido <Nuevo />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </>
+      <h3>Química del siete · {lucesTxt(p.ch.links.length)}</h3>
+      <ChemTop ch={p.ch} cls="qsum" />
+      <ChemLines ch={p.ch} />
+      <LucesList ch={p.ch} sq={p.sq} n={3} />
+    </div>
   );
 }
 
@@ -534,12 +505,7 @@ export function Tray({ d, ...p }: TrayProps) {
 export function MasPanel({ tacSum, onGo }: { tacSum: string; onGo: (m: Modo | "plan") => void }) {
   return (
     <>
-      <div className="sh-h">
-        <div>
-          <span className="k2">Todo lo demás</span>
-          <h2>Más</h2>
-        </div>
-      </div>
+      <PanelHead kick="Todo lo demás" title="Más" />
       <div className="tiles">
         <button type="button" className="tile go" onClick={() => onGo("charla")}>
           <Icon n="whistle" w={22} />

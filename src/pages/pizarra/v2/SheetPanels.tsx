@@ -1,19 +1,21 @@
-// The sheet's tools beyond the bench: the plan (Once → Plan), the química, Comparar, Compartir and
-// Ajustes, as designed. Each one is a thin view over pure data (plan.ts, quimica.ts, compare.ts,
-// cartel.ts); the board does the changes.
+// The sheet's tools beyond the bench: the plan (Siete → Plan: the consignas and the reparto de
+// minutos), the química, Comparar, Compartir and Ajustes, as designed. Each one is a thin view over pure
+// data (plan.ts, bench.ts, quimica.ts, compare.ts, cartel.ts); the board does the changes.
 import { useId, useState, type ReactNode } from "react";
 import type { TacticKey } from "../tactics";
 import { Icon, Nuevo, CREST } from "./icons";
 import { vars } from "./view";
 import { plural } from "./plural";
-import { linkMark, tierOf, type Chem } from "./quimica";
+import { chemWhy, lucesOf, lucesTxt, tierOf, type Chem } from "./quimica";
 import type { TacRow } from "./plan";
+import type { RepRow } from "./bench";
 import type { TapeRow } from "./compare";
 import type { Cartel } from "./cartel";
 import type { Squad } from "./model";
 import type { ShowKey, ShowPrefs } from "./prefs";
 
-/** The «‹ Más» heading of the panels that live behind «Más». */
+/** A panel's heading: the title speaks first and the old kicker is the line under it (the panels
+ *  behind «Más» have «‹ Más» before it). */
 export function PanelHead({ kick, title, onBack, extra }: { kick: ReactNode; title: string; onBack?: () => void; extra?: ReactNode }) {
   return (
     <div className="sh-h">
@@ -24,56 +26,145 @@ export function PanelHead({ kick, title, onBack, extra }: { kick: ReactNode; tit
         </button>
       )}
       <div>
-        <span className="k2">{kick}</span>
         <h2>{title}</h2>
+        <span className="k2">{kick}</span>
       </div>
       {extra}
     </div>
   );
 }
 
-// ── Once → Plan ──
-export function PlanTab({ rows, ro, onSet }: { rows: TacRow[]; ro: boolean; onSet: (k: TacticKey, v: string) => void }) {
+/** The química's big number (it counts up from the last value on every change), its tier and why. */
+export function ChemTop({ ch, cls }: { ch: Chem; cls: "qp-top" | "qsum" }) {
+  const [anim, setAnim] = useState({ v: ch.v, q0: 0, k: 0 });
+  if (anim.v !== ch.v) setAnim({ v: ch.v, q0: anim.v, k: anim.k + 1 });
+  const [tier, sym] = tierOf(ch.v);
+  return (
+    <div className={cls}>
+      <div className="qp-big">
+        <span className={"qn " + (anim.k % 2 ? "ka" : "kb")} style={vars({ "--q": ch.v, "--q0": anim.q0 })} aria-hidden="true" />
+        <span className="sr">{ch.v} de 100</span>
+        <small>DE 100</small>
+      </div>
+      <div>
+        <span className="tier">
+          <i>{sym}</i>
+          {tier}
+        </span>
+        <p>{chemWhy(ch)}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Goals, assists and minutes by line. */
+export function ChemLines({ ch }: { ch: Chem }) {
+  return (
+    <div className="lines">
+      {ch.lines.map((l) => (
+        <div key={l.z}>
+          <b>{l.z}</b>
+          <span>
+            <strong>{l.g}</strong>gol.
+          </span>
+          <span>
+            <strong>{l.a}</strong>asist.
+          </span>
+          <span>
+            <strong>{l.min}</strong>min
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The strongest lights of the seven. */
+export function LucesList({ ch, sq, n }: { ch: Chem; sq: Squad; n: number }) {
+  const luces = lucesOf(ch, sq, n);
+  if (!luces.length) return <p className="empty">Sin luces todavía: coloca cromos vecinos y se encienden.</p>;
+  return (
+    <ul className="lk-list">
+      {luces.map((li) => (
+        <li key={li.key}>
+          <span className={"lkb t" + li.t}>{li.mark}</span>
+          <span>
+            {li.who}
+            <small>{li.why}</small>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ── Siete → Plan ──
+export interface PlanTabProps {
+  rows: TacRow[];
+  ro: boolean;
+  rep: RepRow[];
+  repTxt: string;
+  canRotate: boolean;
+  onSet: (k: TacticKey, v: string) => void;
+  onRotate: () => void;
+}
+
+export function PlanTab({ rows, ro, rep, repTxt, canRotate, onSet, onRotate }: PlanTabProps) {
   const uid = useId();
   return (
-    <div className="tac">
-      {rows.map((t) => {
-        const lid = uid + "tac-" + t.key;
-        return (
-          <div key={t.key}>
-            <span className="lb" id={lid}>
-              {t.label}
+    <div className="pg">
+      <div className="cons">
+        {rows.map((t) => {
+          const lid = uid + "tac-" + t.key;
+          const last = t.options.length - 1;
+          return (
+            <div key={t.key} className="con" title={t.ct + ": " + t.cd}>
+              <div className="con-t">
+                <b>{t.ct}</b>
+                <span className="cd2">{t.cd}</span>
+              </div>
+              <div className="stp" role="group" aria-labelledby={lid}>
+                <button type="button" className="ib" onClick={() => onSet(t.key, t.options[t.vi - 1])} disabled={ro || t.vi <= 0} aria-label={t.label + ": opción anterior"}>
+                  <Icon n="chevL" w={16} />
+                </button>
+                <output aria-live="polite">
+                  <small id={lid}>{t.label}</small>
+                  {t.value}
+                  <span aria-hidden="true">
+                    {t.options.map((o, k) => (
+                      <i key={o} className={k === t.vi ? "on" : ""} />
+                    ))}
+                  </span>
+                </output>
+                <button type="button" className="ib" onClick={() => onSet(t.key, t.options[t.vi + 1])} disabled={ro || t.vi >= last} aria-label={t.label + ": opción siguiente"}>
+                  <Icon n="chevR" w={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <h3>Reparto de minutos · temporada</h3>
+      <div className="rep">
+        {rep.map((r) => (
+          <div key={r.id} className={"rep-r" + (r.inS ? " in" : "")}>
+            <b>{r.num}</b>
+            <span>
+              {r.name}
+              {r.inS && <em>SIETE</em>}
             </span>
-            {t.kind === "esc" ? (
-              <span className="esc">
-                <input
-                  type="range"
-                  min={0}
-                  max={t.options.length - 1}
-                  step={1}
-                  value={t.vi}
-                  onChange={(e) => {
-                    const o = t.options[+e.target.value];
-                    if (o && o !== t.value) onSet(t.key, o);
-                  }}
-                  aria-labelledby={lid}
-                  aria-valuetext={t.value}
-                  disabled={ro}
-                />
-                <output>{t.value}</output>
-              </span>
-            ) : (
-              <span className="sg" role="group" aria-labelledby={lid}>
-                {t.options.map((o) => (
-                  <button key={o} type="button" onClick={() => onSet(t.key, o)} aria-pressed={t.value === o} disabled={ro}>
-                    {o}
-                  </button>
-                ))}
-              </span>
-            )}
+            <i style={vars({ "--m": r.m })} aria-hidden="true" />
+            <small>{r.min}</small>
           </div>
-        );
-      })}
+        ))}
+      </div>
+      <div className="eq">
+        <p>{repTxt}</p>
+        <button type="button" className="b3" onClick={onRotate} disabled={ro || !canRotate}>
+          <Icon n="rot" />
+          Darle minutos
+        </button>
+      </div>
     </div>
   );
 }
@@ -90,18 +181,6 @@ export interface QuimicaProps {
 const rv = (v: number) => (40 * v) / 100;
 
 export function QuimicaPanel({ ch, sq, seasonName, oop }: QuimicaProps) {
-  // The big number counts up from 0 when the panel opens, and from the last value on every change.
-  const [anim, setAnim] = useState({ v: ch.v, q0: 0, k: 0 });
-  if (anim.v !== ch.v) setAnim({ v: ch.v, q0: anim.v, k: anim.k + 1 });
-  const [tier, sym] = tierOf(ch.v);
-  const why =
-    ch.n < 7
-      ? "Faltan cromos: la química sube al completar el siete."
-      : !ch.gk
-        ? "Sin portero natural la química se resiente."
-        : 7 - ch.natN
-          ? 7 - ch.natN + " fuera de su posición natural: recoloca para sumar."
-          : "Todos en su sitio natural.";
   const axes: [string, number][] = [
     ["Ataque", ch.at],
     ["Defensa", ch.de],
@@ -109,34 +188,10 @@ export function QuimicaPanel({ ch, sq, seasonName, oop }: QuimicaProps) {
     ["Experiencia", ch.ex],
   ];
   const radarD = "M50 " + (50 - rv(ch.at)).toFixed(1) + "L" + (50 + rv(ch.de)).toFixed(1) + " 50L50 " + (50 + rv(ch.fo)).toFixed(1) + "L" + (50 - rv(ch.ex)).toFixed(1) + " 50Z";
-  const nm = (id: string) => sq.byId.get(id)?.name ?? "Jugador";
-  const luces = ch.links
-    .slice()
-    .sort((a, b) => b.s - a.s)
-    .slice(0, 4)
-    .map((l) => ({
-      key: l.a + "|" + l.b,
-      t: l.t,
-      who: nm(l.a) + " · " + nm(l.b),
-      why: [l.ast ? plural(l.ast, "gol", "goles") + " juntos" : "", l.tog ? plural(l.tog, "partido") + " juntos" : "sin partidos juntos", l.nat ? "" : "alguno fuera de sitio"].filter(Boolean).join(" · "),
-    }));
   return (
     <>
-      <PanelHead kick={"Química del siete · " + seasonName} title="Química" extra={<span className="cnt">{ch.links.length === 1 ? "1 luz" : ch.links.length + " luces"}</span>} />
-      <div className="qp-top">
-        <div className="qp-big">
-          <span className={"qn " + (anim.k % 2 ? "ka" : "kb")} style={vars({ "--q": ch.v, "--q0": anim.q0 })} aria-hidden="true" />
-          <span className="sr">{ch.v} de 100</span>
-          <small>DE 100</small>
-        </div>
-        <div>
-          <span className="tier">
-            <i>{sym}</i>
-            {tier}
-          </span>
-          <p>{why}</p>
-        </div>
-      </div>
+      <PanelHead kick={"Química del siete · " + seasonName} title="Química" extra={<span className="cnt">{lucesTxt(ch.links.length)}</span>} />
+      <ChemTop ch={ch} cls="qp-top" />
       <div className="s-half">
         <div className="radar">
           <svg viewBox="-14 -10 128 120" role="img" aria-label={"Radar del siete: " + axes.map((a) => a[0].toLowerCase() + " " + a[1]).join(", ")}>
@@ -181,38 +236,9 @@ export function QuimicaPanel({ ch, sq, seasonName, oop }: QuimicaProps) {
       </div>
       <div className="s-full">
         <h3>Por líneas · goles, asistencias y minutos</h3>
-        <div className="lines">
-          {ch.lines.map((l) => (
-            <div key={l.z}>
-              <b>{l.z}</b>
-              <span>
-                <strong>{l.g}</strong>gol.
-              </span>
-              <span>
-                <strong>{l.a}</strong>asist.
-              </span>
-              <span>
-                <strong>{l.min}</strong>min
-              </span>
-            </div>
-          ))}
-        </div>
+        <ChemLines ch={ch} />
         <h3>Las luces del siete</h3>
-        {luces.length ? (
-          <ul className="lk-list">
-            {luces.map((li) => (
-              <li key={li.key}>
-                <span className={"lkb t" + li.t}>{linkMark(li.t)}</span>
-                <span>
-                  {li.who}
-                  <small>{li.why}</small>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="empty">Sin luces todavía: coloca cromos vecinos y se encienden.</p>
-        )}
+        <LucesList ch={ch} sq={sq} n={4} />
         {ch.fresh.length > 0 && (
           <div className="cav">
             <Icon n="alert" w={16} />

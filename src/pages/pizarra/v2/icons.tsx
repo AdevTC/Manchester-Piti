@@ -81,6 +81,7 @@ const ICONS = {
   plan: ({ w = 18 }: P) => <Svg w={w}><path d="M4 4h16v11l-5 5H4Z" /><path d="M15 20v-5h5M8 9h8M8 13h4" /></Svg>,
   plus: ({ w = 17 }: P) => <Svg w={w} sw={2.2}><path d="M12 5v14M5 12h14" /></Svg>,
   search: ({ w = 19 }: P) => <Svg w={w}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></Svg>,
+  bell: ({ w = 16 }: P) => <Svg w={w}><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z" /><path d="M10 21h4" /></Svg>,
   // the replay's transport and toggles
   play: ({ w = 20 }: P) => <Svg w={w} sw={2}><path d="M7 4v16l13-8Z" /></Svg>,
   pause: ({ w = 20 }: P) => <Svg w={w} sw={2.6}><path d="M8 4v16M16 4v16" /></Svg>,
