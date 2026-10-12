@@ -1,41 +1,15 @@
 /* App-only additions to pizarra.css (generated from the canvas): the real screen around the app area,
-   the dragged album cromo, «Tu sitio», the autosave states and reduced motion. */
+   the dragged album cromo, «Tu sitio», the autosave states, touch targets and reduced motion. */
 .pzv *{box-sizing:border-box}
 .pzv button{font-family:inherit;cursor:pointer}
 .pzv button:disabled{cursor:default}
 
-/* Phones: the app screen is the viewport (up to the designed 844), so editing never scrolls the page.
-   Shorter screens shrink the pitch (--kp/--kh, measured by the board) and cap the sheet; the sheet's
-   content scrolls inside it. */
-@container (max-width:699px){
-.pzv .app{height:clamp(560px,100svh,844px)}
-.pzv[data-snap=peek] .b2d{--k:var(--kp,1)}
-.pzv[data-snap=half] .b2d,.pzv[data-snap=full] .b2d{--k:var(--kh,.64)}
-.pzv .hint{top:calc(62px + var(--fh) * 100cqw * var(--kp,1))}
-.pzv .sheet{height:min(700px,calc(100% - 80px));transform:translateY(calc(100% - var(--sh)))}
-.pzv[data-snap=full] .sheet{transform:none}
-.pzv .sheet .sh-in{max-height:calc(var(--sh) - 20px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
-.pzv[data-snap=full] .sheet .sh-in{max-height:calc(100% - 20px)}
-}
-/* Tablets: the phone's composition, centred, with a 560 px pitch. The app screen is the viewport too (up
-   to 900), and the pitch is scaled to fit above the sheet the same way (--kp at peek, --kh at half),
-   with the hint line under it. */
-@container (min-width:700px) and (max-width:1099px){
-.pzv .app{height:clamp(560px,100svh,900px)}
-.pzv[data-snap=peek] .b2d{--k:var(--kp,1)}
-.pzv[data-snap=half] .b2d,.pzv[data-snap=full] .b2d{--k:var(--kh,.5)}
-.pzv .hint{top:calc(64px + var(--fh) * 560px * var(--kp,1))}
-.pzv .sheet{height:min(700px,calc(100% - 80px));transform:translateY(calc(100% - var(--sh)))}
-.pzv[data-snap=full] .sheet{transform:none}
-.pzv .sheet .sh-in{max-height:calc(var(--sh) - 20px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
-.pzv[data-snap=full] .sheet .sh-in{max-height:calc(100% - 20px)}
-}
-/* Desktop: the pitch keeps its 600 px but is scaled (--kd, measured by the board) when it is taller than
-   the screen allows (the top-down camera), with the hint line under it; the TV camera fits as drawn. */
-@container (min-width:1100px){
-.pzv .b2d,.pzv[data-snap] .b2d{--k:var(--kd,1)}
-.pzv .hint{top:calc(166px + var(--fh) * 600px * var(--kd,1))}
-}
+/* The real screen: the design sizes everything from --vh (its artboard's height). Here it is the
+   viewport's (the small viewport on phones, so the URL bar never pushes the mode bar off), between a
+   short landscape phone and a 1440p screen. The board's root sets the camera's --vr / --cut / --kb. */
+.pzv{--vh:clamp(560px,100vh,1600px)}
+@supports (height:100svh){.pzv{--vh:clamp(560px,100svh,1600px)}}
+
 /* The dock sits at the bottom of the page, under the footer (as designed), not over the mode bar. */
 .pzv .vx-dock{position:absolute;bottom:calc(22px + env(safe-area-inset-bottom,0px))}
 
@@ -44,51 +18,38 @@
 .pzv .ac.ac-ghost{position:absolute;z-index:61;margin:0;pointer-events:none}
 .pzv .ac.lift{opacity:.35}
 
-/* «Tu sitio»: your own cromo wears a sky ring on the grass and a «Tú» tag. */
+/* «Tu sitio»: your own cromo wears a sky ring on the grass (the «TÚ» tag is the design's); on the bench,
+   a sky outline while it is not picked or a target. */
 .pzv .cd-me{position:absolute;left:0;top:0;width:calc(var(--cw) * 1.16cqw);height:calc(var(--cw) * .4cqw);transform:translate(-50%,-50%) scale(var(--sc));border-radius:50%;border:2px solid rgba(159,208,242,.9);box-shadow:0 0 14px rgba(108,171,221,.75),inset 0 0 10px rgba(108,171,221,.4);pointer-events:none}
-.pzv .cc-me{position:absolute;z-index:7;left:0;top:0;transform:translate(-50%,calc(var(--cw) * -1.26cqw)) scale(var(--sc));padding:1px 7px;border-radius:999px;background:linear-gradient(180deg,#d4ecfc,#6CABDD);color:#0c1733;font-family:'Anybody';font-weight:900;font-size:10px;letter-spacing:.04em;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,.5);pointer-events:none;white-space:nowrap}
 .pzv .cd.sel .cc-me,.pzv .cd.drag .cc-me{opacity:0}
-.pzv .ac .ac-me{position:absolute;z-index:4;left:50%;top:-7px;transform:translateX(-50%);padding:0 6px;border-radius:999px;background:linear-gradient(180deg,#d4ecfc,#6CABDD);color:#0c1733;font-family:'Anybody';font-weight:900;font-size:9.5px;line-height:1.5;box-shadow:0 2px 5px rgba(0,0,0,.45);pointer-events:none}
-.pzv .ac.me .ac-f{box-shadow:0 0 0 2px rgba(159,208,242,.85),0 10px 18px -10px rgba(0,0,0,.8)}
+.pzv .ac.me:not([aria-pressed=true]):not(.tgt) .ac-c .cc-f{box-shadow:0 0 0 2px rgba(159,208,242,.85),0 10px 18px -10px rgba(0,0,0,.8)}
 
-/* Autosave line: saving (amber), not saved (red), new draft (muted), read-only (gold). */
-.pzv .bname small i.saving{background:var(--amber)}
-.pzv .bname small i.error{background:var(--red)}
-.pzv .bname small i.draft{background:var(--muted)}
-.pzv .bname small i.ro{background:var(--gold)}
+/* Autosave line (the command bar's and the prompt bar's): saving / offline (amber), not saved (red),
+   new draft (muted), read-only (gold). */
+.pzv .bname small i.saving,.pzv .bname small i.offline,.pzv .pm-sv i.saving,.pzv .pm-sv i.offline{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.pzv .bname small i.error,.pzv .pm-sv i.error{background:var(--red);box-shadow:0 0 6px var(--red)}
+.pzv .bname small i.draft,.pzv .pm-sv i.draft{background:var(--muted);box-shadow:none}
+.pzv .bname small i.ro,.pzv .pm-sv i.ro{background:var(--gold);box-shadow:none}
 
 /* Bajas: «Inactivo» next to Lesionado / Sancionado. */
-.pzv .ac-bj.ina{color:var(--muted);background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl)}
+.pzv .ac-bj.ina,.pzv .ac-cv.ina{color:var(--muted);background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl)}
 
 /* Touch targets of at least 44px without changing what is drawn: invisible hit areas around the
-   controls drawn smaller (icon buttons, pills, galones, the sheet handle). */
-.pzv .ib::before,.pzv .sysn::before,.pzv .b3::before,.pzv .gb::before,.pzv .back::before{content:"";position:absolute;inset:-2px}
-.pzv .sysn,.pzv .b3,.pzv .gb,.pzv .back{position:relative}
+   controls drawn smaller (icon buttons, pills, galones, the selected player's actions, the handle). */
+.pzv .ib::before,.pzv .sysn::before,.pzv .b3::before,.pzv .gb::before,.pzv .back::before,.pzv .sbb::before{content:"";position:absolute;inset:-2px}
+.pzv .sysn,.pzv .b3,.pzv .gb,.pzv .back,.pzv .sbb{position:relative}
+.pzv .sbb::before{inset:-3px}
 .pzv .robar .b3::before{inset:-4px -2px}
 .pzv .grab::after{inset:-12px 0}
 
 /* Holding a cromo is a long press, not a text selection or the system's callout. */
-.pzv .cc,.pzv .ac,.pzv .dl-h,.pzv .grab{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.pzv .cc,.pzv .ac,.pzv .ar,.pzv .dl-h,.pzv .grab{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .pzv .cc img,.pzv .ac img{pointer-events:none;-webkit-user-drag:none}
 
 /* The page never re-anchors its scroll on the board's changes. */
 .pzv,.pzv *{overflow-anchor:none}
 
-/* The hint and the toast share the line under the pitch: one at a time. The hint goes out before the
-   toast comes in and only returns once the toast has gone; a new hint slides in (the old one is gone). */
-.pzv .hint{transition:opacity .2s ease .32s,visibility 0s linear .32s}
-.pzv.toasting .hint{opacity:0;visibility:hidden;transition:opacity .12s ease,visibility 0s linear .12s}
-.pzv .tst.on{transition-delay:.12s}
-.pzv .hint span{animation:pz-hintIn .35s cubic-bezier(.16,1,.3,1) both}
-@keyframes pz-hintIn{from{opacity:0;transform:translateY(6px)}}
-
-/* App bar on narrow phones: the board's name keeps at least ~10 characters; the 7/7 chip's reason
-   stacks on two short lines and the icon buttons give a little width first. */
-.pzv .bname{min-width:96px}
-.pzv .val small{justify-self:center;max-width:50px;white-space:normal;line-height:1.05}
-.pzv .bar .ib{flex-shrink:1;min-width:34px}
-
-/* The crest in the app bar is a real link home. */
+/* The crest in the command bar is a real link home. */
 .pzv a.crest{text-decoration:none}
 
 /* Reduced motion: every loop stops at rest and every entrance lands at once. */
@@ -103,8 +64,8 @@
 .pzv .tg[disabled],.pzv .sg button[disabled],.pzv .reac button[disabled],.pzv .tabs button[disabled]{opacity:.45;cursor:default}
 .pzv input[type=range][disabled]{opacity:.5}
 .pzv .bd-cur input[disabled]{opacity:.7}
-/* The autosave dot next to the name (the same states as the app bar's). */
-.pzv .auto i.saving,.pzv .auto i.offline,.pzv .bname small i.offline{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+/* The autosave dot next to the name (the same states as the command bar's). */
+.pzv .auto i.saving,.pzv .auto i.offline{background:var(--amber);box-shadow:0 0 8px var(--amber)}
 .pzv .auto i.error{background:var(--red);box-shadow:0 0 8px var(--red)}
 .pzv .auto i.draft{background:var(--muted);box-shadow:none}
 .pzv .auto i.ro{background:var(--gold);box-shadow:none}
@@ -125,8 +86,6 @@
 .pzv .res.e{background:#FFC659}
 .pzv .res.p{background:var(--red)}
 .pzv .res.f{color:var(--muted)}
-/* Whose convocatoria the Voy / Duda / No va chips come from. */
-.pzv .sheet .cvl{margin-top:8px;font-family:'Geist Mono';font-size:10.5px;letter-spacing:.04em;color:var(--muted)}
 /* Why something can't be done yet (publish an incomplete seven, share it). */
 .pzv .sheet .why{margin-top:6px;font-size:12.5px;font-weight:600;color:var(--amber)}
 .pzv .off .why{color:#ffd98c}
@@ -165,13 +124,17 @@
 .pzv .pill::before,.pzv .sw::before,.pzv .jl::before{content:"";position:absolute;inset:-2px}
 
 /* ── Phase 5: the opening and la charla ── */
-/* The 3D intro: a tap anywhere on the app (or «Saltar») crossfades to the board. */
+/* The 3D intro: a tap anywhere on the app (or «Saltar») crossfades to the board. «Saltar» sits under the
+   command bar (phone: two rows; tablet: one), and on desktop at the foot of the pitch's column. */
 .pzv .i3-tap{position:absolute;inset:0;z-index:40;margin:0;padding:0;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.pzv .i3-skip{position:absolute;z-index:41;top:70px;right:12px;min-height:44px;padding:0 16px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:pz-skipIn .5s var(--ez) .4s both}
+.pzv .i3-skip{position:absolute;z-index:41;top:100px;right:12px;min-height:44px;padding:0 16px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:pz-skipIn .5s var(--ez) .4s both}
 @keyframes pz-skipIn{from{opacity:0;transform:translateY(-8px)}}
-@container (min-width:1100px){
-.pzv .i3-skip{top:auto;right:auto;left:calc((100% - 284px) / 2 - 45px);top:calc(166px + var(--fh) * 600px);width:90px}
+@container (min-width:700px){
+.pzv .i3-skip{top:76px;right:var(--g)}
 }
-/* While the 3D intro plays, nothing of the 2D board's chrome shows over the stadium (the hint line, the
-   read-only strip); they come back with the crossfade. */
-.pzv.i3 .app .hint,.pzv.i3 .app .robar{opacity:0;visibility:hidden}
+@container (min-width:1100px){
+.pzv .i3-skip{top:auto;right:auto;left:calc(var(--cl) + (100% - var(--cl) - var(--cr)) / 2 - 45px);bottom:calc(var(--pmh,0px) + 24px);width:90px}
+}
+/* While the 3D intro plays, nothing of the 2D board's chrome shows over the stadium (the read-only strip,
+   the selected player's bar); they come back with the crossfade. */
+.pzv.i3 .app .robar,.pzv.i3 .app .selbar{opacity:0;visibility:hidden}
