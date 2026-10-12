@@ -6,6 +6,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { PIZARRA_LIMITS } from "../../../lib/schemas";
 import { Icon, Nuevo } from "./icons";
+import { nuevoOn } from "./rail";
 import { mag } from "./mag";
 import { vars } from "./view";
 import type { ReplayHud } from "./jugadas";
@@ -216,7 +217,7 @@ export function JugadasPanel(p: JugadasPanelProps) {
       </div>
       <div className="s-half">
         <h3>
-          Biblioteca · estrategia y propias <Nuevo />
+          Biblioteca · estrategia y propias {nuevoOn("jugadas") && <Nuevo />}
         </h3>
         <div className="jlib" role="group" aria-label="Biblioteca de jugadas">
           {p.lib.map((j) => (

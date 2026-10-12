@@ -6,6 +6,7 @@ import { useState } from "react";
 import { PIZARRA_LIMITS } from "../../../lib/schemas";
 import type { StrokeColor, StrokeKind } from "../drawings";
 import { Icon, Nuevo, type IconName } from "./icons";
+import { nuevoOn } from "./rail";
 import { COLORS, TOOLS } from "./telestrator";
 import { vars } from "./view";
 import { pluralWord } from "./plural";
@@ -108,7 +109,7 @@ export function DibujarPanel(p: DibujarPanelProps) {
       )}
       <div className="s-half">
         <h3>
-          Trazos de luz <Nuevo /> · {n} en el césped
+          Trazos de luz {nuevoOn("dibujar") && <Nuevo />} · {n} en el césped
         </h3>
         <ul className="dleg">
           {LEGEND.map(([ic, t]) => (

@@ -4,6 +4,7 @@
 import { useId, useState, type ReactNode } from "react";
 import type { TacticKey } from "../tactics";
 import { Icon, Nuevo, CREST } from "./icons";
+import { nuevoOn } from "./rail";
 import { vars } from "./view";
 import { plural } from "./plural";
 import { chemWhy, lucesOf, lucesTxt, tierOf, type Chem } from "./quimica";
@@ -300,7 +301,7 @@ export function CompararPanel(p: CompararProps) {
       <PanelHead
         kick={
           <>
-            Cara a cara · en el campo <Nuevo />
+            Cara a cara · en el campo {nuevoOn("comparar") && <Nuevo />}
           </>
         }
         title="Comparar"
@@ -546,7 +547,7 @@ export function AjustesPanel(p: AjustesProps) {
         {p.v3 ? "Al abrir la pizarra, una vez por visita. Sin ella, la pizarra no descarga el estadio hasta que lo pidas." : "Enciende el Estadio 3D para verla."}
       </p>
       <h3>
-        Pantalla y sonido <Nuevo />
+        Pantalla y sonido {nuevoOn("ajustes") && <Nuevo />}
       </h3>
       <div className="aj">
         <button type="button" className="tg" onClick={p.onSnd} aria-pressed={p.snd}>

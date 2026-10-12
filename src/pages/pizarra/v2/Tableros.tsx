@@ -4,6 +4,7 @@
 // (the match the board is for, with its result band, and the season the data comes from).
 import { useEffect, useId, useRef, useState } from "react";
 import { Icon, Nuevo } from "./icons";
+import { nuevoOn } from "./rail";
 import { PanelHead } from "./SheetPanels";
 import { useConfirmKeys } from "./useConfirmKeys";
 import { matchBand, matchLabel, nameError, NAME_MAX, type CalMatch } from "./boards";
@@ -316,7 +317,7 @@ export function TablerosPanel(p: TablerosProps) {
                     <Icon n="doubt" />
                     Con dudas <b>{p.reactions.dudas}</b>
                   </button>
-                  <Nuevo />
+                  {nuevoOn("tableros") && <Nuevo />}
                 </div>
               )}
             </>
