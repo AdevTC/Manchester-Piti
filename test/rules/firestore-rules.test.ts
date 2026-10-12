@@ -621,3 +621,36 @@ describe("Contenido de El club", () => {
     await assertSucceeds(setDoc(doc(db("admin"), "clubContent", "main"), legacy));
   });
 });
+describe("Pizarra · el día de partido (variantes y recordatorios)", () => {
+  const board = { ownerUid: "member", ownerNickname: "member", seasonId: "season", name: "Mi siete", isOfficial: false };
+  const slot = { slotId: "pz-slot-0", playerId: null, position: "POR", zone: "POR", x: 50, y: 90 };
+  const variant = (id: string) => ({ id, name: id === "vb" ? "Plan B" : "2ª parte", formation: "3-2-1", freeMode: false, slots: Array.from({ length: 7 }, () => slot), tactics: { press: "Alta" } });
+  it("un tablero lleva hasta dos variantes, cada una con sus siete huecos", async () => {
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, variants: [variant("v2"), variant("vb")] }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { variants: [] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { variants: [variant("v2"), variant("vb"), variant("v2")] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { variants: [{ ...variant("v2"), slots: [slot] }] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { variants: [{ ...variant("v2"), name: "x".repeat(25) }] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { variants: "Plan B" }));
+    // the official carries its variants: only a captain edits them
+    await seed("lineups/off", { ...board, isOfficial: true });
+    await assertFails(updateDoc(doc(db("member"), "lineups", "off"), { variants: [variant("vb")] }));
+    await assertSucceeds(updateDoc(doc(db("admin"), "lineups", "off"), { variants: [variant("vb")] }));
+  });
+  it("«Recordatorios automáticos»: los capitanes los encienden o apagan; el equipo los ve", async () => {
+    const off = { auto: false, by: "admin", at: serverTimestamp() };
+    await assertSucceeds(setDoc(doc(db("admin"), "convocatoriaReminders", "m1"), off));
+    await assertSucceeds(getDoc(doc(db("member"), "convocatoriaReminders", "m1")));
+    await assertFails(getDoc(doc(db("outsider"), "convocatoriaReminders", "m1")));
+    await assertFails(setDoc(doc(db("member"), "convocatoriaReminders", "m2"), { auto: false, by: "member", at: serverTimestamp() }));
+    await assertFails(setDoc(doc(db("admin"), "convocatoriaReminders", "m2"), { ...off, by: "other" }));
+    await assertFails(setDoc(doc(db("admin"), "convocatoriaReminders", "m2"), { ...off, auto: "no" }));
+    await assertFails(setDoc(doc(db("admin"), "convocatoriaReminders", "m2"), { ...off, extra: 1 }));
+    await assertFails(deleteDoc(doc(db("admin"), "convocatoriaReminders", "m1")));
+  });
+  it("el registro de avisos (pushLog) es solo del servidor", async () => {
+    await seed("pushLog/seven-x", { at: 1 });
+    await assertFails(getDoc(doc(db("admin"), "pushLog", "seven-x")));
+    await assertFails(setDoc(doc(db("admin"), "pushLog", "seven-y"), { at: 1 }));
+  });
+});

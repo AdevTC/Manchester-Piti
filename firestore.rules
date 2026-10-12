@@ -188,10 +188,23 @@ service cloud.firestore {
         && d.slots[0] is map && d.slots[1] is map && d.slots[2] is map && d.slots[3] is map
         && d.slots[4] is map && d.slots[5] is map && d.slots[6] is map);
     }
+    // The other versions of the seven («2ª parte», «Plan B»): at most two maps, each with its own seven
+    // slots (their content is validated on read, see lineupDoc.ts parseVariants).
+    function variantOk(v) {
+      return v is map && v.get('slots', []) is list && v.get('slots', []).size() == 7
+        && v.get('name', '') is string && v.get('name', '').size() <= 24
+        && v.get('tactics', {}) is map && v.get('tactics', {}).size() <= 12;
+    }
+    function variantsOk(d) {
+      return !('variants' in d) || (d.variants is list && d.variants.size() <= 2
+        && (d.variants.size() < 1 || variantOk(d.variants[0]))
+        && (d.variants.size() < 2 || variantOk(d.variants[1])));
+    }
     // Every field of a board: only the known keys, each with its type and a size cap.
     // (`bench` and `pinned` are no longer written, but older boards still carry them.)
     function boardOk(d) {
       return d.keys().hasOnly(['formation','freeMode','slots','bench','roles','tactics','playerPositions','pinned',
+          'variants','subs','takers',
           'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt'])
         && d.ownerUid is string
         && d.get('seasonId', null) is string && d.seasonId.size() <= 128
@@ -206,6 +219,7 @@ service cloud.firestore {
         && d.get('pinned', []) is list && d.get('pinned', []).size() <= 7
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp)
+        && variantsOk(d)
         && boardExtrasOk(d);
     }
     match /lineups/{id} {
@@ -254,6 +268,17 @@ service cloud.firestore {
           + (request.resource.data.matchId == null ? 'temporada' : request.resource.data.matchId)
         && request.resource.data.at == request.time;
       allow delete: if admin();
+    }
+    // «Recordatorios automáticos» of a match's convocatoria (the 48 h / 24 h push to who hasn't
+    // answered, functions/src/reminders.ts): on unless a captain turns them off. Captains write it.
+    match /convocatoriaReminders/{matchId} {
+      allow read: if teamMember();
+      allow create, update: if admin()
+        && request.resource.data.keys().hasOnly(['auto','by','at'])
+        && request.resource.data.auto is bool
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time;
+      allow delete: if false;
     }
   }
 }

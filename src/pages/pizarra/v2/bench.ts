@@ -64,6 +64,8 @@ export interface ConvHead {
   voy: number;
   duda: number;
   no: number;
+  /** «Sin responder»: of those it counts (the convocados, else the squad), who hasn't answered. */
+  sin: number;
   aria: string;
   /** Names of those in doubt. */
   dudas: string[];
@@ -103,7 +105,8 @@ export function convHead(o: { sq: Squad; match: CalMatch | null; loading: boolea
     voy: n.voy,
     duda: n.duda,
     no: n.no,
-    aria: "Respuestas: " + n.voy + " voy, " + n.duda + " duda, " + n.no + " no va",
+    sin: n.sin,
+    aria: "Respuestas: " + n.voy + " voy, " + n.duda + " duda, " + n.no + " no va, " + n.sin + " sin responder",
     dudas,
     aviso,
     answered,
@@ -132,15 +135,17 @@ export interface BenchFilter {
   zf: string;
   /** «Solo los que van» = those who said «Voy». */
   oc: boolean;
+  /** «Sin responder» = those who haven't answered (and aren't a baja). */
+  sin?: boolean;
 }
 
 /** Whether «Buscar en la plantilla» is filtering at all (a name or dorsal, a position, «Solo los que van»). */
-export const isFiltering = (f: BenchFilter): boolean => f.on && (!!f.q.trim() || f.zf !== "Todos" || f.oc);
+export const isFiltering = (f: BenchFilter): boolean => f.on && (!!f.q.trim() || f.zf !== "Todos" || f.oc || !!f.sin);
 /** Accent- and case-blind text, so «al» finds ÁLEX. */
 const fold = (s: string): string => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const matches = (c: Cromo, f: BenchFilter): boolean => {
   const qq = fold(f.q.trim());
-  return (!qq || fold(c.name).includes(qq) || String(c.num) === qq) && (f.zf === "Todos" || c.pos === f.zf) && (!f.oc || c.cv === "voy");
+  return (!qq || fold(c.name).includes(qq) || String(c.num) === qq) && (f.zf === "Todos" || c.pos === f.zf) && (!f.oc || c.cv === "voy") && (!f.sin || (!c.cv && !c.baja));
 };
 
 /** «Buscar en la plantilla» finds the ones on the pitch too: who, and the slot he plays. */

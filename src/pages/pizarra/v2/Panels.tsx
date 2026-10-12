@@ -286,6 +286,9 @@ export interface BenchTabProps {
   oc: boolean;
   /** «Solo los que van» needs answers to the convocatoria. */
   ocOff: boolean;
+  /** «Sin responder»: only those who haven't answered. */
+  sinF?: boolean;
+  onSin?: () => void;
   seasons: { id: string; name: string }[];
   seasonId: string;
   /** Lista (FUT rows) or Cromos, on desktop (phones always show the cromo strip). Default: lista. */
@@ -334,6 +337,9 @@ export function BenchTab(p: BenchTabProps) {
             <Icon n="x" w={12} />
             <b>{conv.no}</b>no va
           </li>
+          <li className="cvn sin">
+            <b>{conv.sin}</b>sin responder
+          </li>
         </ul>
         <button type="button" className="avi" onClick={p.onAvisar} aria-label={conv.aviso.length ? "Avisar a los que dudan: " + andList(conv.aviso) : "Avisar a los que dudan: nadie tiene dudas"}>
           <Icon n="bell" w={15} />
@@ -380,6 +386,11 @@ export function BenchTab(p: BenchTabProps) {
               <button type="button" className="tg" onClick={p.onOc} aria-pressed={p.oc} disabled={p.ocOff}>
                 Solo los que van
               </button>
+              {p.onSin && (
+                <button type="button" className="tg" onClick={p.onSin} aria-pressed={!!p.sinF}>
+                  Sin responder
+                </button>
+              )}
               <label className="selw">
                 Temporada
                 <select value={p.seasonId} onChange={(e) => p.onSeason(e.target.value)} aria-label="Temporada">
@@ -572,7 +583,7 @@ export interface MatchCard {
   title: string;
   when: string;
   /** Voy / duda / no va (null while there is nothing to count: not read yet, or nobody answered). */
-  counts: { voy: number; duda: number; no: number } | null;
+  counts: { voy: number; duda: number; no: number; sin?: number } | null;
   /** Instead of the counts. */
   note: string;
 }
@@ -622,6 +633,7 @@ export function ModeBar({ modo, onGo, card }: { modo: Modo; onGo: (m: Modo) => v
               {card.counts.duda} duda
               <i className="n" aria-hidden="true" />
               {card.counts.no} no va
+              {!!card.counts.sin && <> · {card.counts.sin} sin responder</>}
             </span>
           ) : (
             <span className="mft-c">{card.note}</span>

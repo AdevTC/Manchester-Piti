@@ -79,8 +79,13 @@ export function PitchCromo({ c, showGal, mini, hov, focusable, piece, onTap }: P
             </span>
           )}
           {c.oop && (
-            <span className="cc-oop" aria-hidden="true">
+            <span className={"cc-oop" + (c.fam === "!" ? " never" : "")} aria-hidden="true">
               !
+            </span>
+          )}
+          {(c.fam === "++" || c.fam === "+") && !mini && (
+            <span className="cc-fam" aria-hidden="true">
+              {c.fam}
             </span>
           )}
           {c.me && !mini && (

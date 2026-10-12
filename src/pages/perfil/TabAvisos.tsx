@@ -13,7 +13,7 @@ import { CREST, GLogo, Ic, type PIcon } from "./icons";
 import { topicIds } from "./panels";
 import { usePushDevice } from "./usePushDevice";
 
-const TP_ICON: Record<Topic, PIcon> = { start: "flag", goals: "ball", final: "trophy", mvp: "star", dates: "cal", lineup: "shirt", door: "door", access: "door" };
+const TP_ICON: Record<Topic, PIcon> = { start: "flag", goals: "ball", final: "trophy", mvp: "star", dates: "cal", lineup: "shirt", door: "door", access: "door", convocatoria: "cal" };
 const TP_W: Partial<Record<Topic, number>> = { start: 18 };
 
 const Bold = ({ s }: { s: string }) => (

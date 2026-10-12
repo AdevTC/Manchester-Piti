@@ -243,9 +243,9 @@ describe("«Sugerir siete»: the pack", () => {
 describe("the long-press fan", () => {
   const sq = demoSquad();
   const L = lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq);
-  it("lays the galones, Jugar de, Banquillo and Ficha on a circle from the top", () => {
+  it("lays the galones, Jugar de, Banquillo, Mover a and Ficha on a circle from the top", () => {
     const items = fanItems(L, sq, "tello", false);
-    expect(items.map((i) => i.label)).toEqual(["Capitán", "Penaltis", "Faltas", "Córners", "Jugar de", "Banquillo", "Ficha"]);
+    expect(items.map((i) => i.label)).toEqual(["Capitán", "Penaltis", "Faltas", "Córners", "Jugar de", "Banquillo", "Mover a", "Ficha"]);
     expect(items[0]).toMatchObject({ dx: 0, dy: -FAN_RADIUS, glyph: "C", on: false });
     items.forEach((it) => expect(Math.round(Math.hypot(it.dx, it.dy))).toBeGreaterThanOrEqual(FAN_RADIUS - 1));
   });
@@ -270,7 +270,10 @@ describe("the long-press fan", () => {
     const bench = applyFan(main[5], L, sq, "tello");
     expect(bench).toMatchObject({ kind: "lineup", pick: 2 });
     expect(bench.kind === "lineup" && bench.lineup.slots[2].playerId).toBeNull();
-    expect(applyFan(main[6], L, sq, "tello")).toEqual({ kind: "ficha" });
+    // «Mover a…» opens the list of the seven's puestos (moving without dragging)
+    expect(applyFan(main[6], L, sq, "tello")).toEqual({ kind: "mover" });
+    expect(main[6].aria).toBe("Mover a TELLO a otro puesto: elegir de una lista");
+    expect(applyFan(main[7], L, sq, "tello")).toEqual({ kind: "ficha" });
   });
   it("keeps its centre inside the app screen", () => {
     expect(fanCentre(10, 10, 390, 844)).toEqual({ cx: 118, cy: 150 });

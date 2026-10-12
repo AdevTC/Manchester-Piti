@@ -58,6 +58,22 @@ export interface Lineup {
   drawings: Stroke[];
   /** The board's own jugadas (≤ 12; see plays.ts). The built-in ones are not stored. */
   plays: Play[];
+  /** The board's other versions of the seven for its match (≤ 2: «2ª parte», «Plan B»; see v2/variants.ts). */
+  variants?: LineupVariant[];
+}
+
+/** Which other version of the seven a variant is: «2ª parte» or «Plan B» (the board itself is «Titular»). */
+export type VariantId = "v2" | "vb";
+
+/** Another version of the board's seven: its own system, spots and plan (the galones, the strokes and
+ *  the jugadas stay the board's). */
+export interface LineupVariant {
+  id: VariantId;
+  name: string;
+  formation: FormationName;
+  freeMode: boolean;
+  slots: SlotState[];
+  tactics: Tactics;
 }
 
 // Position labels (Spanish): POR portero · LD/LI lateral · DFC central ·

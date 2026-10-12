@@ -68,7 +68,7 @@ export function Fan({ cx, cy, num, title, items, onItem, onClose }: FanProps) {
         {items.map((it) => (
           <button key={it.key} type="button" className="fi" style={vars({ "--dx": it.dx, "--dy": it.dy, "--d": it.d + "s" })} onClick={() => onItem(it)} aria-pressed={it.on} aria-label={it.aria}>
             <i aria-hidden="true">
-              {it.kind === "role" || it.kind === "zone" ? it.glyph : it.kind === "banquillo" ? <Icon n="bench" w={19} /> : it.kind === "ficha" ? <Icon n="info" w={19} /> : it.kind === "jugar" ? <Icon n="swap" w={19} /> : <Icon n="chevL" w={19} />}
+              {it.kind === "role" || it.kind === "zone" ? it.glyph : it.kind === "banquillo" ? <Icon n="bench" w={19} /> : it.kind === "ficha" ? <Icon n="info" w={19} /> : it.kind === "jugar" ? <Icon n="swap" w={19} /> : it.kind === "mover" ? <Icon n="chevR" w={19} /> : <Icon n="chevL" w={19} />}
             </i>
             <small>{it.label}</small>
           </button>

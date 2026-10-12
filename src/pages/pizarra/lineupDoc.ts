@@ -3,7 +3,7 @@
 // unit-testable (sub-project 4). Firestore rejects `undefined`, so writes are
 // pruned and `matchId` is normalized to `null`.
 import type { z } from "zod";
-import { emptySlots, type FormationName, type Lineup, type SlotState } from "./formations";
+import { emptySlots, type FormationName, type Lineup, type LineupVariant, type SlotState } from "./formations";
 import { defaultTactics, TACTICS, type Tactics } from "./tactics";
 import { parseDrawings, strokeToData } from "./drawings";
 import { parsePlays, playToData } from "./plays";
@@ -16,6 +16,8 @@ import {
   lineupSlotSchema,
   lineupSlotsSchema,
   lineupTacticsSchema,
+  lineupVariantSchema,
+  VARIANT_LIMITS,
 } from "../../lib/schemas";
 
 /** Metadata stored alongside the board fields in the `lineups` collection. */
@@ -36,7 +38,7 @@ export interface LineupDoc extends Lineup, LineupMeta {
 }
 
 /** The fields the board itself edits (an autosave writes only these: never the metadata). */
-export const BOARD_FIELDS = ["formation", "freeMode", "slots", "roles", "tactics", "playerPositions", "drawings", "plays"] as const;
+export const BOARD_FIELDS = ["formation", "freeMode", "slots", "roles", "tactics", "playerPositions", "drawings", "plays", "subs", "takers", "variants"] as const;
 
 /** A Firestore Timestamp-ish value (avoids importing the class for a type). */
 interface TimestampLike {
@@ -73,6 +75,7 @@ export function extractLineup(d: LineupDoc): Lineup {
     pinned: [...d.pinned],
     drawings: structuredClone(d.drawings),
     plays: structuredClone(d.plays),
+    variants: structuredClone(d.variants ?? []),
   };
 }
 
@@ -90,7 +93,13 @@ export function boardToData(lineup: Lineup): Record<string, unknown> {
     playerPositions: { ...lineup.playerPositions },
     drawings: (lineup.drawings ?? []).map(strokeToData),
     plays: (lineup.plays ?? []).map(playToData),
+    variants: (lineup.variants ?? []).map(variantToData),
   };
+}
+
+/** A variant as stored (plain objects, nothing undefined). */
+export function variantToData(v: LineupVariant): Record<string, unknown> {
+  return { id: v.id, name: v.name, formation: v.formation, freeMode: v.freeMode, slots: v.slots.map((s) => ({ ...s })), tactics: { ...v.tactics } };
 }
 
 /** Plain board+meta payload for a new board (timestamps added by the caller). */
@@ -141,6 +150,30 @@ function readSlots(raw: unknown, formation: FormationName, docId: string): SlotS
 
 const TACTIC_KEYS = new Set<string>(TACTICS.map((t) => t.key));
 
+/** The board's variants: each one through its schema (an invalid one is dropped and reported), once per id. */
+export function parseVariants(raw: unknown, docId: string): LineupVariant[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    reportDroppedDoc("lineups.variants", docId, []);
+    return [];
+  }
+  const out: LineupVariant[] = [];
+  raw.forEach((item) => {
+    const r = lineupVariantSchema.safeParse(item);
+    if (!r.success) {
+      reportDroppedDoc("lineups.variants", docId, r.error.issues);
+      return;
+    }
+    if (out.length >= VARIANT_LIMITS.variants || out.some((v) => v.id === r.data.id)) return;
+    const tactics: Tactics = defaultTactics();
+    Object.entries(r.data.tactics).forEach(([k, val]) => {
+      if (TACTIC_KEYS.has(k)) tactics[k as keyof Tactics] = val;
+    });
+    out.push({ id: r.data.id, name: r.data.name, formation: r.data.formation, freeMode: r.data.freeMode, slots: r.data.slots, tactics });
+  });
+  return out;
+}
+
 /** Build a LineupDoc from a raw store record (Firestore data or local JSON), repairing what is malformed. */
 export function dataToLineupDoc(id: string, data: Record<string, unknown>): LineupDoc {
   let formation: FormationName = "2-3-1";
@@ -166,6 +199,7 @@ export function dataToLineupDoc(id: string, data: Record<string, unknown>): Line
     // boards saved before drawings/jugadas existed load with none; invalid items are dropped
     drawings: parseDrawings(data.drawings, id),
     plays: parsePlays(data.plays, id),
+    variants: parseVariants(data.variants, id),
     ownerUid: str(data.ownerUid, LINEUP_LIMITS.id, ""),
     ownerNickname: str(data.ownerNickname, LINEUP_LIMITS.nickname, ""),
     seasonId: str(data.seasonId, LINEUP_LIMITS.id, "all"),

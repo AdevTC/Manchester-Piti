@@ -43,7 +43,9 @@ describe("the convocatoria's head", () => {
     const h = convHead({ sq: conv, match: M8, loading: false, error: false });
     expect(h).toMatchObject({ kick: "Convocatoria · J8 · MAD SKY", voy: 1, duda: 2, no: 1, answered: true, dudas: ["ALMACHI", "KEVIN"] });
     expect(h.title).toBe("4 respuestas · 8 sin responder · 2 bajas");
-    expect(h.aria).toBe("Respuestas: 1 voy, 2 duda, 1 no va");
+    expect(h.aria).toBe("Respuestas: 1 voy, 2 duda, 1 no va, 8 sin responder");
+    // «Sin responder» is a state of its own
+    expect(h.sin).toBe(8);
   });
 
   it("the captain's convocatoria counts who it calls (the answers, those without one, the bajas)", () => {
