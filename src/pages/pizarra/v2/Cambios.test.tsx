@@ -106,6 +106,9 @@ describe("Siete → Cambios", () => {
     expect(mk).toHaveTextContent("40′");
     fireEvent.pointerUp(mk, { pointerId: 1, clientX: 400 });
     expect(commits.at(-1)?.subs?.[0].min).toBe(40);
+    // the click that ends the drag doesn't send the scrub back to the old minute
+    fireEvent.click(screen.getByRole("button", { name: /^Tanda del 40′: KEVIN/ }));
+    expect(screen.getByRole("slider", { name: "El campo en el minuto" })).toHaveValue("40");
   });
 
   it("«Repartir minutos» proposes the tandas first (before → after), «Aplicar» saves them; the table says who eats bench", () => {

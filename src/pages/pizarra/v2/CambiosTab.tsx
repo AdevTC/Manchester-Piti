@@ -69,6 +69,8 @@ export interface CambiosTabProps {
 function Timeline({ v, ro, live, onScrub, onNow, onMoveWave }: Pick<CambiosTabProps, "v" | "ro" | "onScrub" | "onNow" | "onMoveWave"> & { live: number | null }) {
   const track = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
+  // (a marker just dragged doesn't also take its click: the scrub goes where it was let go)
+  const dragged = useRef(false);
   const D = v.duration;
   const minAt = (clientX: number): number => {
     const r = track.current?.getBoundingClientRect();
@@ -85,6 +87,7 @@ function Timeline({ v, ro, live, onScrub, onNow, onMoveWave }: Pick<CambiosTabPr
     if (drag) setDrag({ ...drag, to: minAt(e.clientX) });
   };
   const onUp = () => {
+    dragged.current = !!drag && drag.to !== drag.from;
     if (drag && drag.to !== drag.from) onMoveWave(drag.from, drag.to);
     setDrag(null);
   };
@@ -116,7 +119,10 @@ function Timeline({ v, ro, live, onScrub, onNow, onMoveWave }: Pick<CambiosTabPr
               onPointerUp={onUp}
               onPointerCancel={() => setDrag(null)}
               onKeyDown={(e) => onKey(e, m.min)}
-              onClick={() => onScrub(m.min)}
+              onClick={() => {
+                if (dragged.current) dragged.current = false;
+                else onScrub(m.min);
+              }}
             >
               <b>{at}′</b>
               {m.n > 1 && <small>×{m.n}</small>}

@@ -1995,6 +1995,10 @@ export function Board(props: BoardProps) {
             ? "Paso " + (jf + 1) + " de " + nJ + (pieces ? " · arrastra una ficha para retocar el paso" : "") + "; el bug de arriba abre la biblioteca."
             : modo === "dibujar"
               ? "Dibuja sobre el césped: " + TOOL_HINT[tool] + "."
+              : modo === "editar" && tab === "c" && !sel
+                ? cb.live
+                  ? "En directo, minuto " + cb.live.minute + ": el campo enseña el plan a esta hora."
+                  : "Arrastra una tanda por la línea del partido; desliza el minuto para ver el campo en ese momento."
               : sel?.k === "p"
                 ? nm(sel.id) + " en la mano: toca otro cromo para cambiarlos, o tócalo otra vez para su ficha."
                 : sel?.k === "b"
