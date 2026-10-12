@@ -17,15 +17,26 @@ export type { CalMatch };
 
 export interface BoardData {
   squad: Squad;
+  /** The squad's ids, the SAME array while they don't change (the squad is rebuilt every minute). */
+  squadIds: string[];
   calendar: CalMatch[];
   next: CalMatch | null;
   loading: boolean;
 }
 
+/**
+ * The ids as one array that keeps its identity while its content is the same: the squad object is
+ * rebuilt on every clock tick (the MVP windows), and a new ids array each minute would look like a new
+ * squad to whoever depends on it (the autosave re-sent the same board every minute offline).
+ */
+export function useSameIds(ids: readonly string[]): string[] {
+  const key = ids.join("\n");
+  return useMemo(() => (key ? key.split("\n") : []), [key]);
+}
+
 export function useBoardData(seasonId: string): BoardData {
   const { players, loading: playersLoading } = usePizarraPlayers();
-  const statsArg = useMemo(() => players.map((p) => ({ id: p.id, seasonsCount: p.seasonsCount })), [players]);
-  const { suspended, loading: statsLoading } = usePizarraStats(seasonId, statsArg);
+  const { suspended, loading: statsLoading } = usePizarraStats(seasonId);
   const { matches, loading: matchesLoading } = useClubData();
   const mvpResults = useMvpResults();
   const now = useClock(60_000);
@@ -73,5 +84,7 @@ export function useBoardData(seasonId: string): BoardData {
     return (n && calendar.find((c) => c.id === n.id)) || null;
   }, [season, calendar, now]);
 
-  return { squad, calendar, next, loading: playersLoading || statsLoading || matchesLoading };
+  const squadIds = useSameIds(squad.list.map((c) => c.id));
+
+  return { squad, squadIds, calendar, next, loading: playersLoading || statsLoading || matchesLoading };
 }

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Lineup } from "../formations";
 import type { LineupDoc } from "../lineupDoc";
 import type { UseLineups } from "../useLineups";
-import { useBoardSession, type SessionArgs } from "./useBoardSession";
+import { DELETE_MS, RETRY_MS, useBoardSession, type SessionArgs } from "./useBoardSession";
 import { lineupOf } from "./testkit";
 
 // Which board is on screen, who may edit it, and the autosave — with a fake store.
@@ -244,7 +244,7 @@ describe("useBoardSession · tableros", () => {
     expect(result.current.id).toBe("b1");
     expect(result.current.mine.map((d) => d.id)).toEqual(["b1", "b2"]);
     act(() => {
-      vi.advanceTimersByTime(10_000);
+      vi.advanceTimersByTime(DELETE_MS + 1000);
     });
     expect(s.remove).not.toHaveBeenCalled();
     // this time it goes
@@ -252,7 +252,7 @@ describe("useBoardSession · tableros", () => {
       result.current.remove("b2");
     });
     act(() => {
-      vi.advanceTimersByTime(6000);
+      vi.advanceTimersByTime(DELETE_MS);
     });
     expect(s.remove).toHaveBeenCalledWith("b2");
   });
@@ -265,7 +265,7 @@ describe("useBoardSession · tableros", () => {
       result.current.remove("b2");
     });
     await act(async () => {
-      vi.advanceTimersByTime(6000);
+      vi.advanceTimersByTime(DELETE_MS);
       await Promise.resolve();
     });
     await flush();
@@ -409,5 +409,166 @@ describe("useBoardSession · lo que cambia por debajo", () => {
     });
     expect(r2.result.current.status).toBe("offline");
     spy.mockRestore();
+  });
+});
+
+describe("useBoardSession · no edit is lost", () => {
+  it("hiding the page (closing the tab, switching app) writes the edit waiting for its debounce", async () => {
+    const s = store([doc("b1")]);
+    const { result } = renderHook(() => useBoardSession(args(s)));
+    await act(async () => {
+      result.current.commit(withPlayer(result.current.lineup, 6, "adrian"));
+    });
+    const vis = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    vis.mockRestore();
+    expect(s.save).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(s.save).mock.calls[0][1].slots[6].playerId).toBe("adrian");
+    // the debounce does not send it a second time, nor does pagehide while it is on its way
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(s.save).toHaveBeenCalledTimes(1);
+
+    const s2 = store([doc("b2")]);
+    const r2 = renderHook(() => useBoardSession(args(s2)));
+    await act(async () => {
+      r2.result.current.commit(withPlayer(r2.result.current.lineup, 5, "almachi"));
+    });
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    expect(s2.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("a failed save is retried with backoff and stays «Sin guardar» until one goes through", async () => {
+    const s = store([doc("b1")]);
+    const down = Object.assign(new Error("unavailable"), { code: "unavailable" });
+    vi.mocked(s.save).mockRejectedValueOnce(down).mockRejectedValueOnce(down).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useBoardSession(args(s)));
+    await act(async () => {
+      result.current.commit(withPlayer(result.current.lineup, 4, "eguzquiza"));
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    await flush();
+    expect(s.save).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe("error");
+    await act(async () => {
+      vi.advanceTimersByTime(RETRY_MS[0]);
+    });
+    await flush();
+    expect(s.save).toHaveBeenCalledTimes(2);
+    expect(result.current.status).toBe("error"); // a quiet retry: still «Sin guardar»
+    expect(result.current.notice?.n).toBe(1); // said once
+    await act(async () => {
+      vi.advanceTimersByTime(RETRY_MS[1]);
+    });
+    await flush();
+    expect(s.save).toHaveBeenCalledTimes(3);
+    expect(result.current.status).toBe("saved");
+    expect(vi.mocked(s.save).mock.calls[2][1].slots[4].playerId).toBe("eguzquiza");
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(s.save).toHaveBeenCalledTimes(3);
+  });
+
+  it("after the retries, the connection coming back tries again", async () => {
+    const s = store([doc("b1")]);
+    const down = Object.assign(new Error("unavailable"), { code: "unavailable" });
+    vi.mocked(s.save).mockRejectedValue(down);
+    const { result } = renderHook(() => useBoardSession(args(s)));
+    await act(async () => {
+      result.current.commit(withPlayer(result.current.lineup, 4, "eguzquiza"));
+    });
+    for (const ms of [1000, ...RETRY_MS, 60_000]) {
+      await act(async () => {
+        vi.advanceTimersByTime(ms);
+      });
+      await flush();
+    }
+    expect(s.save).toHaveBeenCalledTimes(1 + RETRY_MS.length);
+    vi.mocked(s.save).mockResolvedValue(undefined);
+    const spy = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    act(() => {
+      window.dispatchEvent(new Event("offline"));
+    });
+    spy.mockReturnValue(true);
+    act(() => {
+      window.dispatchEvent(new Event("online"));
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    await flush();
+    spy.mockRestore();
+    expect(s.save).toHaveBeenCalledTimes(2 + RETRY_MS.length);
+    expect(result.current.status).toBe("saved");
+  });
+
+  it("offline, a write on its way is not sent again (the squad rebuilt every minute must not resend it)", async () => {
+    const s = store([doc("b1")]);
+    vi.mocked(s.save).mockReturnValue(new Promise(() => {})); // offline: no server ack
+    const { result, rerender } = renderHook((p: SessionArgs) => useBoardSession(p), { initialProps: args(s) });
+    await act(async () => {
+      result.current.commit(withPlayer(result.current.lineup, 4, "eguzquiza"));
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(s.save).toHaveBeenCalledTimes(1);
+    for (let minute = 0; minute < 3; minute++) {
+      rerender(args(s, { squadIds: [...SQUAD] })); // a new array with the same squad
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+      });
+    }
+    expect(s.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("«Nuevo» and «Duplicar» tapped twice make one board", async () => {
+    const s = store([doc("b1", { updatedAt: 9 })]);
+    let done: (id: string) => void = () => {};
+    vi.mocked(s.create).mockReturnValue(new Promise<string>((ok) => (done = ok)));
+    const { result } = renderHook(() => useBoardSession(args(s)));
+    let a: Promise<string> = Promise.resolve("");
+    let b: Promise<string> = Promise.resolve("");
+    act(() => {
+      a = result.current.newBoard();
+      b = result.current.newBoard();
+    });
+    await act(async () => {
+      done("n1");
+      await Promise.all([a, b]);
+    });
+    expect(s.create).toHaveBeenCalledTimes(1);
+    expect(result.current.id).toBe("n1");
+    vi.mocked(s.create).mockResolvedValue("n2");
+    await act(async () => {
+      await Promise.all([result.current.copyBoard(null, true), result.current.copyBoard(null, true)]);
+    });
+    expect(s.create).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("useSameIds", () => {
+  it("keeps the same array while the ids are the same", async () => {
+    const { useSameIds } = await import("./useBoardData");
+    const { result, rerender } = renderHook((ids: string[]) => useSameIds(ids), { initialProps: ["a", "b"] });
+    const first = result.current;
+    rerender(["a", "b"]);
+    expect(result.current).toBe(first);
+    rerender(["a", "c"]);
+    expect(result.current).toEqual(["a", "c"]);
+    expect(result.current).not.toBe(first);
+    rerender([]);
+    expect(result.current).toEqual([]);
   });
 });

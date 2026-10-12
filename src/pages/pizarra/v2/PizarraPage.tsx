@@ -3,7 +3,7 @@
 // allowed to edit, the official the team sees (with the reactions to it) and the convocatoria of the
 // board's match on the cromos.
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuth } from "../../../context/AuthContext";
 import { useSeason } from "../../../context/SeasonContext";
 import { useClock } from "../../../hooks/useClock";
@@ -19,7 +19,7 @@ import { useBoardSession } from "./useBoardSession";
 import { useConvocatoria } from "./useConvocatoria";
 import { Board } from "./Board";
 import { readPrefs, writePrefs, type BoardPrefs } from "./prefs";
-import { matchDay, matchShort, matchTime, officialFor, withConvocatoria } from "./boards";
+import { matchDay, matchShort, matchTime, officialFor, seasonPending, withConvocatoria } from "./boards";
 import { CREST, Icon } from "./icons";
 import { forgetDeepLink } from "./deeplink";
 import "../../../styles/pizarra.css";
@@ -53,9 +53,11 @@ export function PizarraPage() {
   // The season is URL-authoritative (SeasonUrlSync adopts ?season into context): picking one navigates.
   const pickSeason = (id: string) => void navigate({ to: ".", search: (prev) => ({ ...prev, season: id }) });
   const isAdmin = profile?.role === "admin" || profile?.role === "superadmin";
+  // A shared link brings its season (?season=): until SeasonUrlSync has adopted it, the board waits.
+  const urlSeason = useSearch({ strict: false, select: (s) => (s as { season?: string }).season });
+  const waitSeason = seasonPending(urlSeason, selectedSeasonId);
   const data = useBoardData(selectedSeasonId);
   const lineups = useLineups(selectedSeasonId);
-  const squadIds = useMemo(() => data.squad.list.map((c) => c.id), [data.squad]);
   const now = useClock(60_000);
   const { theme, toggle: toggleTheme } = useTheme();
   const [prefs, setPrefsState] = useState(readPrefs);
@@ -71,8 +73,8 @@ export function PizarraPage() {
   const session = useBoardSession({
     seasonId: selectedSeasonId,
     lineups,
-    squadIds,
-    squadReady: !data.loading,
+    squadIds: data.squadIds,
+    squadReady: !data.loading && !waitSeason,
     uid: user?.uid ?? "preview",
     isAdmin,
     draftName,

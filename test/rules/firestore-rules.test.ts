@@ -13,6 +13,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   serverTimestamp,
   writeBatch,
   Timestamp,
@@ -300,6 +301,7 @@ describe("Vestuario: porra, entrenos, tablón y fichas", () => {
 describe("Pizarra", () => {
   const board = {
     ownerUid: "member",
+    ownerNickname: "member",
     seasonId: "season",
     name: "Mi siete",
     isOfficial: false,
@@ -378,6 +380,87 @@ describe("Pizarra", () => {
     await seed("lineups/old", board);
     await assertSucceeds(updateDoc(doc(db("member"), "lineups", "old"), { name: "Viejo" }));
   });
+  it("un tablero solo lleva sus campos, con su tipo y su tope", async () => {
+    const slot = { slotId: "pz-slot-0", playerId: null, position: "POR", zone: "POR", x: 50, y: 90 };
+    const full = {
+      ...board,
+      formation: "2-3-1",
+      freeMode: false,
+      slots: Array.from({ length: 7 }, () => slot),
+      roles: { captainId: "p1" },
+      tactics: { press: "Alta" },
+      playerPositions: { p1: "DEF" },
+      drawings: [],
+      plays: [],
+      matchId: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), full));
+    await assertFails(setDoc(doc(db("member"), "lineups", "y"), { ...full, extra: 1 }));
+    await assertFails(setDoc(doc(db("member"), "lineups", "y"), { ...full, name: "x".repeat(61) }));
+    await assertFails(setDoc(doc(db("member"), "lineups", "y"), { ...full, name: "" }));
+    await assertFails(setDoc(doc(db("member"), "lineups", "y"), { ...full, slots: [slot] }));
+    await assertFails(setDoc(doc(db("member"), "lineups", "y"), { ...full, slots: Array.from({ length: 7 }, () => "x") }));
+    await assertFails(setDoc(doc(db("member"), "lineups", "y"), { ...full, isOfficial: "no" }));
+    await assertFails(setDoc(doc(db("member"), "lineups", "y"), { ...full, matchId: 8 }));
+    await assertFails(setDoc(doc(db("member"), "lineups", "y"), { ...full, roles: "capi" }));
+    await assertFails(
+      setDoc(doc(db("member"), "lineups", "y"), {
+        ...full,
+        playerPositions: Object.fromEntries(Array.from({ length: 61 }, (_, i) => ["p" + i, "DEF"])),
+      }),
+    );
+    // the autosave: only the board fields, the old bench and «pinned» dropped
+    await seed("lineups/old", { ...board, bench: ["a", "b"], pinned: [] });
+    await assertSucceeds(
+      updateDoc(doc(db("member"), "lineups", "old"), {
+        slots: full.slots,
+        tactics: full.tactics,
+        bench: deleteField(),
+        pinned: deleteField(),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(updateDoc(doc(db("member"), "lineups", "old"), { slots: [slot, slot] }));
+  });
+  it("el autor firma con su propio apodo; la temporada no cambia", async () => {
+    await assertFails(setDoc(doc(db("member"), "lineups", "x"), { ...board, ownerNickname: "admin" }));
+    await assertFails(setDoc(doc(db("member"), "lineups", "x"), { ownerUid: "member", seasonId: "season", name: "Sin apodo" }));
+    await seed("lineups/x", board);
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { ownerNickname: "other" }));
+    await assertFails(updateDoc(doc(db("admin"), "lineups", "x"), { ownerNickname: "admin" }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { seasonId: "otra" }));
+    await assertFails(updateDoc(doc(db("admin"), "lineups", "x"), { seasonId: "otra" }));
+    // the owner's nickname changed in the profile: the board may follow it
+    await seed("lineups/y", { ...board, ownerNickname: "antiguo" });
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "y"), { ownerNickname: "member" }));
+  });
+  describe("el oficial de cada alcance", () => {
+    const scope = (matchId: string | null) => ({ lineupId: "x", seasonId: "season", matchId, at: serverTimestamp() });
+    it("solo los capitanes lo escriben, con el id de su alcance; los miembros lo leen", async () => {
+      await seed("lineups/x", board);
+      await assertFails(setDoc(doc(db("member"), "lineupOfficials", "season__m8"), scope("m8")));
+      await assertFails(setDoc(doc(db("admin"), "lineupOfficials", "season__m9"), scope("m8")));
+      await assertFails(setDoc(doc(db("admin"), "lineupOfficials", "season__m8"), { ...scope("m8"), extra: 1 }));
+      await assertSucceeds(setDoc(doc(db("admin"), "lineupOfficials", "season__m8"), scope("m8")));
+      await assertSucceeds(setDoc(doc(db("admin"), "lineupOfficials", "season__temporada"), scope(null)));
+      await assertSucceeds(getDoc(doc(db("member"), "lineupOfficials", "season__m8")));
+      await assertFails(getDoc(doc(db("outsider"), "lineupOfficials", "season__m8")));
+      await assertFails(deleteDoc(doc(db("member"), "lineupOfficials", "season__m8")));
+      await assertSucceeds(deleteDoc(doc(db("admin"), "lineupOfficials", "season__m8")));
+    });
+    it("publicar es atómico: el tablero, el anterior oficial y el alcance a la vez", async () => {
+      await seed("lineups/x", board);
+      await seed("lineups/prev", { ...board, isOfficial: true, matchId: "m8" });
+      const a = db("admin");
+      const b = writeBatch(a);
+      b.update(doc(a, "lineups", "prev"), { isOfficial: false, updatedAt: serverTimestamp() });
+      b.update(doc(a, "lineups", "x"), { isOfficial: true, matchId: "m8", updatedAt: serverTimestamp() });
+      b.set(doc(a, "lineupOfficials", "season__m8"), scope("m8"));
+      await assertSucceeds(b.commit());
+    });
+  });
   describe("reacciones al siete oficial", () => {
     const official = { ...board, isOfficial: true };
     const mine = (uid: string, value: unknown) =>
@@ -414,6 +497,17 @@ describe("Pizarra", () => {
       await assertFails(getDocs(collection(db("outsider"), "lineups", "x", "reactions")));
       await assertFails(deleteDoc(doc(db("member"), "lineups", "x", "reactions", "other")));
       await assertSucceeds(deleteDoc(doc(db("member"), "lineups", "x", "reactions", "member")));
+    });
+    it("al dejar de ser oficial o borrarse, se limpian: los capitanes, o el dueño si ya no es oficial", async () => {
+      await seed("lineups/x", official);
+      await seed("lineups/x/reactions/other", { value: "dudas", at: Timestamp.now() });
+      await seed("lineups/x/reactions/admin", { value: "ok", at: Timestamp.now() });
+      // the owner (a member) cannot empty the reactions of a board that is still official
+      await assertFails(deleteDoc(doc(db("member"), "lineups", "x", "reactions", "other")));
+      await assertSucceeds(deleteDoc(doc(db("admin"), "lineups", "x", "reactions", "other")));
+      await seed("lineups/x", board);
+      await assertFails(deleteDoc(doc(db("other"), "lineups", "x", "reactions", "admin")));
+      await assertSucceeds(deleteDoc(doc(db("member"), "lineups", "x", "reactions", "admin")));
     });
   });
 });

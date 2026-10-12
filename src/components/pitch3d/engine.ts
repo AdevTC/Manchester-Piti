@@ -5,7 +5,9 @@
 // the clock without a frame, so a sequence can never hang. pause() freezes the clock.
 import {
   Group,
+  Mesh,
   NeutralToneMapping,
+  Object3D,
   PCFSoftShadowMap,
   PerspectiveCamera,
   Plane,
@@ -14,6 +16,7 @@ import {
   Raycaster,
   Scene,
   SRGBColorSpace,
+  Texture,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -30,6 +33,24 @@ import { unsupportedReason } from "./support";
 import type { CameraPreset, EngineInfo, Handle, MountOptions, PickResult, PlayController, PlayFrame, PlayOptions, PlayerSpec, Quality, RevealOptions, RivalSpec, Theme } from "./types";
 
 const MAX_DPR = 1.75;
+
+/** Disposes the GPU resources of every object left in a scene (safe on already disposed ones). */
+function disposeScene(root: Object3D): void {
+  const seen = new Set<object>();
+  const once = (x: { dispose(): void } | null | undefined) => {
+    if (!x || seen.has(x)) return;
+    seen.add(x);
+    x.dispose();
+  };
+  root.traverse((o) => {
+    const { geometry, material } = o as Partial<Mesh>;
+    once(geometry);
+    for (const m of Array.isArray(material) ? material : material ? [material] : []) {
+      for (const v of Object.values(m)) if (v instanceof Texture) once(v);
+      once(m);
+    }
+  });
+}
 
 class Cancelled extends Error {
   constructor() {
@@ -145,6 +166,8 @@ export async function mount(el: HTMLElement, opts: MountOptions): Promise<Handle
   let day = opts.theme === "light" ? 1 : 0, dayTarget = day;
   const power: [number, number, number, number] = [1, 1, 1, 1];
   let raf = 0, alive = true, visible = true, userPaused = false;
+  /** handleDispose() has run (it can run during the mount, on abort: declared before that await). */
+  let disposed = false;
   let pausedAt = 0, pausedTotal = 0;
   /** Engine clock (s): wall time minus host pauses. */
   const nowClock = () => ((userPaused ? pausedAt : performance.now()) - pausedTotal) / 1000;
@@ -736,8 +759,13 @@ export async function mount(el: HTMLElement, opts: MountOptions): Promise<Handle
     },
     dispose: () => handleDispose(),
   };
+  /**
+   * Frees everything the engine holds. Idempotent, and it must not depend on the DOM: the host's
+   * effect cleanup runs after React has already removed the element (the canvas is detached by then).
+   */
   function handleDispose() {
-    if (!canvas.isConnected) return;
+    if (disposed) return;
+    disposed = true;
     cancelSequences();
     alive = false;
     cancelAnimationFrame(raf);
@@ -754,9 +782,13 @@ export async function mount(el: HTMLElement, opts: MountOptions): Promise<Handle
     ringGeo.dispose();
     stadium.dispose();
     kit.dispose();
+    // whatever is still in the scene (jugada arrows, trails…): geometries, materials and their maps
+    disposeScene(scene);
+    scene.environment = null;
     env.dispose();
     room.dispose();
     pmrem.dispose();
+    renderer.renderLists.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
     canvas.remove();
