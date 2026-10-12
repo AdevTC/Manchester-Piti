@@ -20,7 +20,7 @@ export function LowerThird({ tag, message, action, tone = "ok" }: LowerThirdProp
       <span className="t">
         <span>{message}</span>
         {action ? (
-          <button type="button" onClick={action.onClick}>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={action.onClick}>
             <AdIcon name={action.icon ?? "undo"} size={16} />
             {action.label}
           </button>

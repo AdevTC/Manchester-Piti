@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerDoc } from "../../../lib/schemas";
-import { accountOf, boardGroups, boardRows, collection, dorsalParam, filterChips, freeDorsals, gapsOf, gapsText, lineCounts, matchesFilter, repeatedDorsals } from "./plantillaBoard";
+import { accountOf, boardGroups, boardRows, collection, dorsalParam, filterChips, freeDorsals, gapsOf, gapsText, lineCounts, listOrder, matchesFilter, nextIncomplete, repeatedDorsals, stepIn } from "./plantillaBoard";
 import { plantillaRows } from "./plantillaLogic";
 
 const SEASONS = [{ id: "t1", name: "Temporada 1" }];
@@ -32,7 +32,19 @@ describe("plantillaBoard", () => {
     const dup = repeatedDorsals(rows);
     expect([...dup]).toEqual([9]);
     expect(rows.filter((r) => matchesFilter(r, "cuenta", dup)).map((r) => r.id)).toEqual(["erik"]);
-    expect(boardGroups(rows).map((g) => `${g.title}: ${g.rows.map((r) => r.id).join(",")}`)).toEqual(["Porteros: evans", "Delanteros: erik", "Sin posición: fer"]);
+    const groups = boardGroups(rows);
+    expect(groups.map((g) => `${g.title}: ${g.rows.map((r) => r.id).join(",")}`)).toEqual(["Sin posición: fer", "Porteros: evans", "Delanteros: erik"]);
+    const order = listOrder(groups);
+    expect(order).toEqual(["fer", "evans", "erik"]);
+    // evans is complete: «siguiente sin completar» skips him
+    expect(nextIncomplete(order, rows, "fer")).toBe("erik");
+    expect(nextIncomplete(order, rows, "erik")).toBe("fer");
+    expect(nextIncomplete(order, rows, null)).toBe("fer");
+    expect(nextIncomplete(["evans"], rows, "evans")).toBeNull();
+    expect(stepIn(order, "evans", 1)).toBe("erik");
+    expect(stepIn(order, "fer", -1)).toBe("erik");
+    expect(stepIn(order, "nadie", 1)).toBe("fer");
+    expect(stepIn([], "fer", 1)).toBeNull();
     expect(lineCounts(rows).map((l) => `${l.label}${l.n}`)).toEqual(["POR1", "DEF0", "MED0", "DEL1", "Sin1"]);
   });
 

@@ -85,6 +85,8 @@ export const adminPlantillaSearchSchema = z.object({
   jugador: optionalString,
   /** The «Alta de jugador» drawer is open. */
   nuevo: optionalTrue,
+  /** «Todos en cromos» instead of the list + ficha. */
+  vista: z.enum(["cromos"]).optional().catch(undefined),
   /** «Alta» starting on this free dorsal (1–99; anything else is dropped). */
   dorsal: z.coerce.number().int().min(1).max(99).optional().catch(undefined),
 });
