@@ -8,14 +8,15 @@ import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
 const SEVEN = ["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "adrian"];
 
 describe("química as light", () => {
-  it("links every cromo to its nearest neighbours, scored by fit, assists and matches together", () => {
-    const sq = squadOf(demoSquad().list, [["evans", "illescas", { tog: 6, ast: 2 }]]);
+  it("links every cromo to its nearest neighbours, scored by fit, assists and minutes together", () => {
+    // 7 matches of 50′: 300′ together is more than half the team's minutes
+    const sq = squadOf(demoSquad().list, [["evans", "illescas", { tog: 6, min: 300, ast: 2 }]]);
     const L = lineupOf(SEVEN, "2-3-1", sq);
     const ls = links(L, sq);
     const back = ls.find((l) => l.i === 0 && l.j === 1);
-    expect(back).toMatchObject({ s: 1 + 1 + 2 + 1, t: 3, nat: true });
-    // no history together: just the fit
-    expect(ls.find((l) => l.i === 0 && l.j === 2)).toMatchObject({ s: 2, t: 2 });
+    expect(back).toMatchObject({ s: 1 + 2 + 2, t: 3, nat: true, min: 300 });
+    // no minutes together: the fit alone is a weak link
+    expect(ls.find((l) => l.i === 0 && l.j === 2)).toMatchObject({ s: 1, t: 1 });
     // neighbours only: the goalkeeper never links to the striker
     expect(ls.some((l) => l.i === 0 && l.j === 6)).toBe(false);
     ls.forEach((l) => expect(l.i).toBeLessThan(l.j));
@@ -52,15 +53,35 @@ describe("química as light", () => {
 });
 
 describe("form rating", () => {
-  it("is the design's formula over a 7-match half season", () => {
-    // 55 + 7·2 + min(16, 10·1.6) + 150/150·12 + 0 + 2·1.5 = 100 → capped at 96
-    expect(formRating({ played: 7, ga: 10, recentMin: 150, recentMax: 150, saves: 0, mvps: 2, games: 7 })).toBe(96);
-    // 55 + 3·2 + 1.6 + 60/150·12 = 67.4
-    expect(formRating({ played: 3, ga: 1, recentMin: 60, recentMax: 150, saves: 0, mvps: 0, games: 7 })).toBe(67);
-    expect(formRating({ played: 0, ga: 0, recentMin: 0, recentMax: 0, saves: 0, mvps: 0, games: 0 })).toBe(55);
+  const base = { teamW: 10, playedW: 0, shareW: 0, minW: 0, gaW: 0, concW: 0, mvpW: 0, cardsW: 0, savesW: 0 };
+  // four matches of 50′, the last three counting double: Σw = 7
+  const allIn = { ...base, teamW: 7, playedW: 7, shareW: 7, minW: 350 };
+  it("is null before the first match (shown as «—»)", () => {
+    expect(formRating(base)).toBeNull();
   });
-  it("scales longer seasons to the same range", () => {
-    expect(formRating({ played: 14, ga: 0, recentMin: 0, recentMax: 150, saves: 0, mvps: 0, games: 14 })).toBe(69);
+  it("follows the documented formula", () => {
+    // presence 1, nothing else, a forward: 45 + 50·0.35 = 62.5 → 63
+    expect(formRating({ ...allIn, role: "DEL" })).toBe(63);
+    // + 1.5 G+A per 90 and an MVP every match: 45 + 50·(0.35 + 0.45 + 0.2) = 95, the top
+    expect(formRating({ ...allIn, role: "DEL", gaW: 50, mvpW: 7 })).toBe(95);
+    // a keeper who concedes nothing: defence = 1 − (3·90 / 440) / 6 ≈ 0.90
+    expect(formRating({ ...allIn, role: "POR" })).toBe(Math.round(45 + 50 * (0.35 + 0.45 * (1 - (3 * 90) / 440 / 6))));
+  });
+  it("spreads the squad over 45–95: a scorer in form, a regular, a cameo", () => {
+    const scorer = formRating({ ...allIn, role: "DEL", gaW: 12 })!;
+    const regular = formRating({ ...allIn, role: "MED" })!;
+    const cameo = formRating({ ...base, role: "DEL", playedW: 1, shareW: 0.2, minW: 10 })!;
+    expect(scorer).toBeGreaterThan(regular);
+    expect(regular).toBeGreaterThan(cameo);
+    expect(cameo).toBeGreaterThanOrEqual(45);
+    expect(scorer).toBeLessThanOrEqual(95);
+    expect(scorer - cameo).toBeGreaterThanOrEqual(25);
+  });
+  it("a defender who concedes less while on the pitch is in better form; cards cost", () => {
+    const solid = formRating({ ...allIn, role: "DEF", concW: 2 })!;
+    const leaky = formRating({ ...allIn, role: "DEF", concW: 20 })!;
+    expect(solid).toBeGreaterThan(leaky);
+    expect(formRating({ ...allIn, role: "MED", cardsW: 7 })!).toBeLessThan(formRating({ ...allIn, role: "MED" })!);
   });
 });
 
@@ -72,13 +93,14 @@ describe("the squad from the season's matches", () => {
     { id: "b", shirtName: "", firstName: "Álex", number: 2, naturalPosition: "Defensa central", injured: true, active: true },
     { id: "c", shirtName: "Ce", firstName: "C", number: 3, naturalPosition: "DEL" as const, injured: false, active: false },
   ];
-  it("counts matches together, assists between them, bajas and the recent window", () => {
+  it("counts matches and minutes together, assists between them, bajas and the recent window", () => {
     const games = [
       m("g1", 1, { a: { minutes: 50, started: true, played: true }, b: { minutes: 30, started: false, played: true } }, [{ type: "goal", playerId: "b", assistPlayerId: "a" } as never]),
       m("g2", 2, { a: { minutes: 50, started: true, played: true }, b: { minutes: 50, started: true, played: true } }),
     ];
     const sq = buildSquad({ players, games, jornada: new Map([["g1", 4], ["g2", 5]]), suspended: new Set(["a"]), mvps: new Map([["g2", ["a"]]]) });
-    expect(sq.pairs.get("a|b")).toEqual({ tog: 2, ast: 1 });
+    // (no stints in these ledgers: the shorter of their minutes, 30′ + 50′)
+    expect(sq.pairs.get("a|b")).toEqual({ tog: 2, ast: 1, min: 80 });
     expect(sq.byId.get("a")?.stats).toMatchObject({ played: 2, minutes: 100, starts: 2, mvps: 1 });
     expect(sq.byId.get("a")?.baja).toBe("Sancionado");
     expect(sq.byId.get("b")?.baja).toBe("Lesionado");
@@ -88,7 +110,10 @@ describe("the squad from the season's matches", () => {
     expect(sq.byId.get("b")?.pos).toBe("DEF");
     expect(sq.byId.get("a")?.name).toBe("AAA");
     expect(sq.recentLabel).toBe("J4–J5");
-    expect(sq.byId.get("c")?.rt).toBe(55);
+    // never played: no form yet, the floor for sorting and «—» on the cromo
+    expect(sq.byId.get("c")).toMatchObject({ rt: 45, unrated: true, why: "Sin partidos esta temporada" });
+    expect(sq.teamMin).toBe(100);
+
   });
 });
 

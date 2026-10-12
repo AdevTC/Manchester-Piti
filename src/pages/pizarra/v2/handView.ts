@@ -1,10 +1,12 @@
 // What the selected player's action bar says (pure): who is in the hand, where, and what a tap does now.
+import { rtTxt } from "./model";
 
 export interface SelBarView {
   id: string;
   name: string;
   num: number;
-  rt: number;
+  /** The rating as printed («—» before his first match). */
+  rt: string;
   /** His slot's label on the pitch, else his natural position. */
   pos: string;
   gk: boolean;
@@ -18,13 +20,13 @@ export interface SelBarView {
 }
 
 /** What the bar says for the player in the hand (`slot` = his slot's label when he is on the pitch). */
-export function selBarView(p: { id: string; name: string; num: number; rt: number; pos?: string | null }, slot: string | null, captain: boolean): SelBarView {
+export function selBarView(p: { id: string; name: string; num: number; rt: number; unrated?: boolean; pos?: string | null }, slot: string | null, captain: boolean): SelBarView {
   const onPitch = slot != null;
   return {
     id: p.id,
     name: p.name,
     num: p.num,
-    rt: p.rt,
+    rt: rtTxt(p),
     pos: slot ?? p.pos ?? "—",
     gk: p.pos === "POR",
     onPitch,

@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import type { FormationName, Lineup } from "../formations";
 import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
 import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
-import { chem, tierOf } from "./quimica";
+import { chem, linkMark, tierOf, togTxt } from "./quimica";
 import { autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { suggestSeven } from "./pack";
 import { applyFan, fanCentre, fanItems, type FanItem } from "./fan";
@@ -1608,7 +1608,7 @@ export function Board(props: BoardProps) {
         .slice(0, 3)
         .map((l) => {
           const o = l.a === fic.id ? l.b : l.a;
-          return { k: "con " + nm(o) + (l.tog ? " · " + plural(l.tog, "partido") : ""), v: l.t === 3 ? "++" : l.t === 2 ? "+" : "–" };
+          return { k: "con " + nm(o) + " · " + togTxt(l.min), v: linkMark(l.t) };
         });
       if (fi < 0) ln = [{ k: p.baja ? p.baja + ": no disponible" : "En el banquillo", v: "" }];
       else if (!ln.length) ln = [{ k: "Sin vecinos cerca en este siete", v: "" }];
@@ -1619,7 +1619,8 @@ export function Board(props: BoardProps) {
         rt: p.rt,
         pos: p.pos ?? "—",
         gk: p.pos === "POR",
-        sub: (p.pos ? p.pos + " natural" : "Sin posición") + (fi >= 0 ? " · juega de " + slotLabel(L, fi) : "") + cv,
+        // (and why his form is what it is: «3 goles en sus 2 últimos»)
+        sub: (p.pos ? p.pos + " natural" : "Sin posición") + (fi >= 0 ? " · juega de " + slotLabel(L, fi) : "") + cv + (p.why ? " · " + p.why : ""),
         st: [
           { k: "PARTIDOS", v: p.stats.played },
           { k: "GOLES", v: p.stats.goals },

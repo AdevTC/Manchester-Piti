@@ -1,9 +1,11 @@
 // La pizarra «Noche de partido» — the química as light: every cromo links to its two nearest neighbours,
-// each link scored by fit, goals assisted to each other and matches together; the total (0–100) reads
-// the links, who plays in his natural zone, the goalkeeper and the form. Pure.
+// each link scored by fit, goals assisted to each other and minutes on the pitch together (scaled by
+// the minutes the team has played); the total (0–100) reads the links, who plays in his natural zone
+// (an unknown position is not natural), the goalkeeper and the form. The tiers (and the squad bars'
+// diamonds) come from one table: TIERS. Pure.
 import type { Lineup, Zone } from "../formations";
 import { slotPos, slotZone, planeDist2 } from "./geometry";
-import { fits, pairOf, type Squad } from "./model";
+import { fits, natural, pairOf, teamMinutes, type Squad } from "./model";
 import { plural } from "./plural";
 
 export interface Link {
@@ -12,18 +14,30 @@ export interface Link {
   j: number;
   a: string;
   b: string;
-  /** 1 + fit + assists (≤ 2) + 5 matches together. */
+  /** fit (1) + minutes together (≤ 2) + assists (≤ 2): 0–5. */
   s: number;
   /** 3 = ++ (oro), 2 = + (cielo), 1 = – (discontinua). */
   t: 1 | 2 | 3;
   ast: number;
   tog: number;
+  /** Minutes on the pitch together this season. */
+  min: number;
   nat: boolean;
 }
+
+/** Minutes together as link points: half the team's minutes or more = 2, a fifth = 1, less = 0. */
+export function togPoints(min: number, teamMin: number): 0 | 1 | 2 {
+  if (teamMin <= 0 || min <= 0) return 0;
+  const share = min / teamMin;
+  return share >= 0.5 ? 2 : share >= 0.2 ? 1 : 0;
+}
+/** A link's tier from its score: ++ (4–5), + (2–3), – (0–1). */
+export const linkTier = (s: number): 1 | 2 | 3 => (s >= 4 ? 3 : s >= 2 ? 2 : 1);
 
 const MAX_LINK = 66;
 
 export function links(L: Lineup, sq: Squad): Link[] {
+  const tm = teamMinutes(sq);
   const ids = L.slots.map((s) => s.playerId);
   const seen = new Set<string>();
   const out: [number, number][] = [];
@@ -50,10 +64,10 @@ export function links(L: Lineup, sq: Squad): Link[] {
   return out.map(([i, j]) => {
     const a = ids[i] as string;
     const b = ids[j] as string;
-    const nat = fits(L, sq, a, slotZone(L, i)) && fits(L, sq, b, slotZone(L, j));
-    const { ast, tog } = pairOf(sq, a, b);
-    const s = 1 + (nat ? 1 : 0) + Math.min(2, ast) + (tog >= 5 ? 1 : 0);
-    return { i, j, a, b, s, t: s >= 4 ? 3 : s >= 2 ? 2 : 1, ast, tog, nat };
+    const nat = natural(L, sq, a, slotZone(L, i)) && natural(L, sq, b, slotZone(L, j));
+    const { ast, tog, min } = pairOf(sq, a, b);
+    const s = (nat ? 1 : 0) + togPoints(min, tm) + Math.min(2, ast);
+    return { i, j, a, b, s, t: linkTier(s), ast, tog, min, nat };
   });
 }
 
@@ -68,7 +82,11 @@ export interface Chem {
   v: number;
   links: Link[];
   n: number;
+  /** A keeper in goal (an unknown position may keep goal: the 7/7 chip). */
   gk: boolean;
+  /** A natural keeper in goal (what the química rewards). */
+  gkNat: boolean;
+  /** Placed players in their natural zone (unknown positions don't count). */
   natN: number;
   /** Radar axes (0–100): ataque, defensa, forma (mean rating), experiencia. */
   at: number;
@@ -76,7 +94,7 @@ export interface Chem {
   fo: number;
   ex: number;
   lines: LineTotals[];
-  /** Names of the placed players with no match yet (their química counts as neutral). */
+  /** Names of the placed players with no match yet (no minutes together: their links are weak). */
   fresh: string[];
 }
 
@@ -84,15 +102,18 @@ export function chem(L: Lineup, sq: Squad): Chem {
   const placed = L.slots.map((s, i) => ({ id: s.playerId, i })).filter((x): x is { id: string; i: number } => !!x.id && sq.byId.has(x.id));
   const n = placed.length;
   const lines: LineTotals[] = (["DEF", "MED", "DEL"] as const).map((z) => ({ z, g: 0, a: 0, min: 0 }));
-  if (!n) return { v: 0, links: [], n: 0, gk: false, natN: 0, at: 0, de: 0, fo: 0, ex: 0, lines, fresh: [] };
+  if (!n) return { v: 0, links: [], n: 0, gk: false, gkNat: false, natN: 0, at: 0, de: 0, fo: 0, ex: 0, lines, fresh: [] };
   const ls = links(L, sq);
   const g0 = L.slots[0]?.playerId;
   const gk = !!g0 && sq.byId.has(g0) && fits(L, sq, g0, "POR");
-  const natN = placed.filter((p) => fits(L, sq, p.id, slotZone(L, p.i))).length;
+  const gkNat = !!g0 && sq.byId.has(g0) && natural(L, sq, g0, "POR");
+  const natN = placed.filter((p) => natural(L, sq, p.id, slotZone(L, p.i))).length;
   const la = ls.length ? ls.reduce((a, l) => a + l.s, 0) / ls.length / 5 : 0;
   const cs = placed.map((p) => sq.byId.get(p.id)!);
-  const fa = cs.reduce((a, c) => a + c.rt, 0) / n;
-  const v = Math.round((la * 50 + (natN / n) * 28 + (gk ? 12 : 0) + (fa / 99) * 10) * (n / 7));
+  // the form of those who have played (a debutant has no form yet: he neither adds nor takes)
+  const rated = cs.filter((c) => !c.unrated);
+  const fa = rated.length ? rated.reduce((a, c) => a + c.rt, 0) / rated.length : 0;
+  const v = Math.round((la * 50 + (natN / n) * 28 + (gkNat ? 12 : 0) + (fa / 99) * 10) * (n / 7));
   let defMin = 0;
   placed.forEach((p, k) => {
     const c = cs[k];
@@ -107,36 +128,60 @@ export function chem(L: Lineup, sq: Squad): Chem {
   });
   const ga = cs.reduce((a, c) => a + c.stats.goals + c.stats.assists, 0);
   const played = cs.reduce((a, c) => a + c.stats.played, 0);
+  // The bars are scaled by the matches the team has played (full = a strong seven's season so far):
+  // ATA 40/7 goals + assists a match, DEF three defenders' minutes, EXP all seven in every match.
+  const g = sq.games;
+  const tm = teamMinutes(sq);
+  const pct = (x: number, full: number) => (full > 0 ? Math.min(100, Math.round((x / full) * 100)) : 0);
   return {
     v: Math.max(0, Math.min(100, v)),
     links: ls,
     n,
     gk,
+    gkNat,
     natN,
-    at: Math.min(100, Math.round((ga / 40) * 100)),
-    de: Math.min(100, Math.round((gk ? 30 : 0) + Math.min(70, (defMin / 1050) * 70))),
+    at: pct(ga, (g * 40) / 7),
+    de: Math.min(100, Math.round((gkNat ? 30 : 0) + (tm > 0 ? Math.min(70, (defMin / (tm * 3)) * 70) : 0))),
     fo: Math.round(fa),
-    ex: Math.min(100, Math.round((played / 49) * 100)),
+    ex: pct(played, g * 7),
     lines,
     fresh: cs.filter((c) => !c.stats.played).map((c) => c.name),
   };
 }
 
+/** The química's tiers, best first: from (inclusive), label, symbol, and the diamonds it lights on the
+ *  squad bars. The one source for the scoreboard, the panel and the diamonds. */
+export const TIERS: readonly { from: number; label: string; sym: string; dm: 0 | 1 | 2 | 3 }[] = [
+  { from: 85, label: "De campeones", sym: "+++", dm: 3 },
+  { from: 72, label: "Muy alta", sym: "++", dm: 2 },
+  { from: 58, label: "Buena", sym: "+", dm: 1 },
+  { from: 40, label: "Justa", sym: "=", dm: 0 },
+  { from: 0, label: "Floja", sym: "–", dm: 0 },
+];
+const tierRow = (v: number) => TIERS.find((t) => v >= t.from) ?? TIERS[TIERS.length - 1];
+
 export function tierOf(v: number): [label: string, sym: string] {
-  return v >= 85 ? ["De campeones", "+++"] : v >= 72 ? ["Muy alta", "++"] : v >= 58 ? ["Buena", "+"] : v >= 40 ? ["Justa", "="] : ["Floja", "–"];
+  const t = tierRow(v);
+  return [t.label, t.sym];
 }
+/** How many of the three diamonds the química lights (its tier's). */
+export const tierDiamonds = (v: number): 0 | 1 | 2 | 3 => tierRow(v).dm;
 
 export const linkMark = (t: 1 | 2 | 3): string => (t === 3 ? "++" : t === 2 ? "+" : "–");
 
 /** Why the química is what it is, in one line. */
 export function chemWhy(ch: Chem): string {
   if (ch.n < 7) return "Faltan cromos: la química sube al completar el siete.";
-  if (!ch.gk) return "Sin portero natural la química se resiente.";
+  if (!ch.gkNat) return "Sin portero natural la química se resiente.";
   const out = 7 - ch.natN;
   return out ? out + " fuera de su posición natural: recoloca para sumar." : "Todos en su sitio natural.";
 }
 
+/** «120′ juntos» / «sin minutos juntos». */
+export const togTxt = (min: number): string => (min > 0 ? Math.round(min) + "′ juntos" : "sin minutos juntos");
+
 /** «9 luces», «1 luz». */
+
 export const lucesTxt = (n: number): string => plural(n, "luz", "luces");
 
 export interface Luz {
@@ -160,7 +205,7 @@ export function lucesOf(ch: Chem, sq: Squad, n: number): Luz[] {
       t: l.t,
       mark: linkMark(l.t),
       who: nm(l.a) + " · " + nm(l.b),
-      why: [l.ast ? plural(l.ast, "gol", "goles") + " juntos" : "", l.tog ? plural(l.tog, "partido") + " juntos" : "sin partidos juntos", l.nat ? "" : "alguno fuera de sitio"].filter(Boolean).join(" · "),
+      why: [l.ast ? plural(l.ast, "gol", "goles") + " juntos" : "", togTxt(l.min), l.nat ? "" : "alguno fuera de sitio"].filter(Boolean).join(" · "),
     }));
 }
 

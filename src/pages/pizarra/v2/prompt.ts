@@ -7,7 +7,7 @@ export interface PromptCtx {
   /** Read-only (or still loading): nothing that edits is offered. */
   ro: boolean;
   /** The player in the hand (from the pitch or the bench). */
-  hand: { k: "p" | "b"; name: string; rt: number } | null;
+  hand: { k: "p" | "b"; name: string; rt: number | string } | null;
   benchView: "lista" | "cromos";
   /** The replay (Jugadas) or the charla is playing. */
   playing: boolean;

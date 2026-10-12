@@ -9,7 +9,7 @@ import { libraryPlayId, libraryPlays } from "../playLibrary";
 import { deriveArrows, newPlay, playPoseAt, setFrameText, type Play, type PlayKind, type PlayPose, type PlayRival } from "../plays";
 import { PIZARRA_LIMITS } from "../../../lib/schemas";
 import { CAMS, depthScale, f1, proj, slotPos, slotZone, type CamName } from "./geometry";
-import { galonesOf, type Squad } from "./model";
+import { galonesOf, rtTxt, type Squad } from "./model";
 import type { CardView, Fx } from "./view";
 
 const L_ = PIZARRA_LIMITS;
@@ -248,7 +248,7 @@ export function jugadaStage(a: JugadaStageArgs): JugadaStage {
       z: Math.round(y * 10),
       rd: "0s",
       cls: [mc, fx.slow ? "slow" : "", si === 0 ? "gk" : "", "mini", fx.from && !f ? "in" : "", fx.rip.includes(id) ? "land" : "", a.meId === id ? "me" : ""].filter(Boolean).join(" "),
-      rt: p.rt,
+      rt: rtTxt(p),
       num: p.num,
       name: p.name,
       zoneTxt: zone,

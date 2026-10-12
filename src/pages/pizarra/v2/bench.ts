@@ -4,10 +4,11 @@
 // is in the hand — and the reparto de minutos. Pure.
 import type { FormationName, Lineup, Zone } from "../formations";
 import { FORM, slotZone } from "./geometry";
-import type { Cromo, Squad } from "./model";
-import type { Chem } from "./quimica";
+import { formAria, rtTxt, type Cromo, type Squad } from "./model";
+import { tierDiamonds, type Chem } from "./quimica";
 import { matchShort, type CalMatch } from "./boards";
 import { plural } from "./plural";
+import { mediaOf } from "./view";
 
 // ── the squad bars ──
 export interface SquadBar {
@@ -17,19 +18,18 @@ export interface SquadBar {
   cls: "" | "hi" | "lo";
 }
 export interface SquadInfo {
-  /** Mean form rating of the seven on the pitch (0 with nobody). */
+  /** Mean form rating of the seven on the pitch who have played (0 with nobody). */
   media: number;
   /** «7/7». */
   once: string;
-  /** The química's three diamonds (lit up to its tier). */
+  /** The química's three diamonds (lit up to its tier: quimica.ts TIERS). */
   dm: boolean[];
   bars: SquadBar[];
 }
 
 export function squadInfo(L: Lineup, sq: Squad, ch: Chem): SquadInfo {
-  const rts = L.slots.map((s) => (s.playerId ? sq.byId.get(s.playerId)?.rt : undefined)).filter((x): x is number => x != null);
-  const media = rts.length ? Math.round(rts.reduce((a, b) => a + b, 0) / rts.length) : 0;
-  const t = ch.v >= 80 ? 3 : ch.v >= 60 ? 2 : ch.v >= 35 ? 1 : 0;
+  const media = mediaOf(L, sq);
+  const t = tierDiamonds(ch.v);
   const bar = (k: SquadBar["k"], v: number): SquadBar => ({ k, v, cls: v >= 80 ? "hi" : v < 50 ? "lo" : "" });
   return { media, once: ch.n + "/7", dm: [0, 1, 2].map((i) => i < t), bars: [bar("ATA", ch.at), bar("DEF", ch.de), bar("FOR", ch.fo), bar("EXP", ch.ex)] };
 }
@@ -154,7 +154,8 @@ export type BenchHand = { kind: "p"; name: string; zone: Zone } | { kind: "slot"
 
 export interface BenchRow {
   id: string;
-  rt: number;
+  /** The rating as printed («—» before his first match). */
+  rt: string;
   pos: string;
   num: number;
   name: string;
@@ -201,7 +202,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
   const s = c.stats;
   return {
     id: c.id,
-    rt: c.rt,
+    rt: rtTxt(c),
     pos: c.pos ?? "—",
     num: c.num,
     name: c.name,
@@ -216,7 +217,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
     tg: tgt && h ? (h.kind === "p" ? "Entra por él" : "Entra aquí") : null,
     cls: [c.pos === "POR" ? "gk" : "", c.cv === "no" && !bj ? "no-va" : "", sin ? "sin" : "", bj ? "baja" : "", tgt ? "tgt" : "", best ? "best" : "", me ? "me" : ""].filter(Boolean).join(" "),
     aria:
-      c.name + ", dorsal " + c.num + ", " + (c.pos ?? "sin posición") + ", forma " + c.rt + ", " +
+      c.name + ", dorsal " + c.num + ", " + (c.pos ?? "sin posición") + ", " + formAria(c) + ", " +
       (bj ? cv.toLowerCase() + ", no disponible" : "convocatoria: " + cv.toLowerCase()) +
       ", " + plural(s.minutes, "minuto") + " esta temporada" + (me ? ", eres tú" : "") +
       (tgt && h ? (h.kind === "p" ? ". Toca: entra por " + h.name : ". Toca: entra en el hueco") : ""),
@@ -224,6 +225,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
 }
 
 /** The bench (everyone off the pitch) in its three groups, filtered by «Buscar en la plantilla». */
+
 export function benchGroups(o: { bench: Cromo[]; called: ReadonlySet<string> | null; filter: BenchFilter; hand: BenchHand | null; selId: string | null; meId: string | null }): BenchGroup[] {
   const f = o.filter;
   const filtering = isFiltering(f);
