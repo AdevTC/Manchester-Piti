@@ -1,0 +1,65 @@
+/* La pizarra · Bloque 4 (dibujo, jugadas, rival, compartir). Every class is prefixed dr- so nothing here
+   meets the generated pizarra.css (its short names: .cb, .tg, .dt…), which stays untouched. */
+
+/* ── on the pitch (inside .pfr, a size container: cqw / cqh are the frame's) ── */
+.pzv .dr-svg{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;overflow:visible}
+.pzv .dr-l{fill:none;vector-effect:non-scaling-stroke;stroke:var(--c);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 4px var(--c))}
+.pzv .dr-l.c-s,.pzv .dr-foco.c-s,.pzv .dr-lab.c-s{--c:#9fd0f2}
+.pzv .dr-l.c-g,.pzv .dr-foco.c-g,.pzv .dr-lab.c-g{--c:#FFC659}
+.pzv .dr-l.c-w,.pzv .dr-foco.c-w,.pzv .dr-lab.c-w{--c:#f4f8ff}
+.pzv .dr-unir{fill:var(--c);fill-opacity:.12}
+.pzv .dr-medir{stroke-dasharray:10 7}
+.pzv .dr-fuera{stroke-width:2.6;stroke-dasharray:3 6}
+/* the marked one: thicker, with a white halo (not only another colour) */
+.pzv .dr-l.dr-sel{stroke-width:5.5;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 8px var(--c))}
+.pzv .dr-lab{position:absolute;left:0;top:0;z-index:4;translate:calc(var(--x) * 1cqw) calc(var(--y) * 1cqh);transform:translate(-50%,-140%);padding:2px 7px;border-radius:6px;background:rgba(2,5,14,.78);color:var(--c);font-family:'Anybody';font-weight:900;font-size:12px;letter-spacing:.04em;white-space:nowrap;pointer-events:none}
+.pzv .dr-lab.dr-sel{box-shadow:0 0 0 1.5px #fff}
+.pzv .dr-foco{position:absolute;left:0;top:0;z-index:1;width:calc(var(--cw) * 2cqw);height:calc(var(--cw) * .75cqw);translate:calc(var(--x) * 1cqw) calc(var(--y) * 1cqh);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--c) 70%,transparent),color-mix(in srgb,var(--c) 18%,transparent) 62%,transparent);box-shadow:0 0 0 2px var(--c);pointer-events:none;animation:dr-in .5s ease-out both}
+.pzv .dr-foco.dr-sel{box-shadow:0 0 0 2px #fff,0 0 14px var(--c)}
+/* the rival seven: red diamonds with their dorsal (a shape of their own, not only a colour) */
+.pzv .dr-rv{position:absolute;left:0;top:0;z-index:4;display:grid;place-items:center;width:calc(var(--cw) * .42cqw);aspect-ratio:1;translate:calc(var(--x) * 1cqw) calc(var(--y) * 1cqh);transform:translate(-50%,-50%) scale(var(--sc)) rotate(45deg);border-radius:4px;background:#d8344a;box-shadow:0 0 0 2px #fff,0 4px 8px rgba(0,0,0,.5);pointer-events:none}
+.pzv .dr-rv b{transform:rotate(-45deg);color:#fff;font-family:'Anybody';font-weight:900;font-size:calc(var(--cw) * .2cqw);line-height:1}
+.pzv .dr-rv.dr-noted::after{content:"!";position:absolute;right:-30%;top:-30%;display:grid;place-items:center;width:46%;aspect-ratio:1;transform:rotate(-45deg);border-radius:50%;background:#FFC659;color:#071230;font:900 calc(var(--cw) * .16cqw)/1 'Anybody'}
+.pzv .dr-pk-r{position:absolute;left:0;top:0;z-index:2;width:calc(var(--cw) * .9cqw);aspect-ratio:1;translate:calc(var(--x) * 1cqw) calc(var(--y) * 1cqh);transform:translate(-50%,-50%);border-radius:50%;border:2.5px dashed #FFC659;pointer-events:none}
+/* a jugada's path handle: drag it (or arrows) to bend the run */
+.pzv .dr-ch{position:absolute;left:0;top:0;z-index:2900;width:30px;height:30px;padding:0;translate:calc(var(--x) * 1cqw) calc(var(--y) * 1cqh);transform:translate(-50%,-50%);border:2px dashed #9fd0f2;border-radius:50%;background:rgba(6,13,34,.55);cursor:grab;touch-action:none}
+.pzv .dr-ch::after{content:"";position:absolute;inset:8px;border-radius:50%;background:#9fd0f2}
+.pzv .dr-ch.dr-bent{border-style:solid;border-color:#FFC659}
+.pzv .dr-ch.dr-bent::after{background:#FFC659}
+.pzv .dr-ch:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.pzv .dr-ch.drag{cursor:grabbing}
+@keyframes dr-in{from{opacity:0;transform:translate(-50%,-50%) scale(.6)}}
+
+/* ── in the panels ── */
+.pzv .dr-bar,.pzv .dr-rival,.pzv .dr-share{display:grid;gap:8px;margin-top:12px}
+.pzv .dr-tools{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pzv .dr-hint{margin:0;font-size:13px;color:var(--soft)}
+.pzv .dr-row{flex-wrap:wrap}
+.pzv .dr-pk,.pzv .dr-flt{display:flex;flex-wrap:wrap;gap:6px}
+.pzv .dr-flt{margin:4px 0 8px}
+.pzv .dr-chip{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;border:0;background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl);color:var(--ink);font:inherit;font-weight:700;font-size:13px;clip-path:var(--angr)}
+.pzv .dr-chip[aria-pressed="true"]{background:var(--slab);color:var(--slab-ink);box-shadow:inset 0 0 0 2px #FFC659}
+.pzv .dr-ord{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:50%;background:#FFC659;color:#071230;font-size:11px}
+.pzv .dr-rv-t::after{background:#d8344a}
+.pzv .dr-rl{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.pzv .dr-rl li{display:grid;grid-template-columns:44px 52px minmax(0,1fr);align-items:center;gap:6px;min-height:44px;padding:4px 10px 4px 6px;background:rgba(255,255,255,.045);clip-path:var(--angr)}
+[data-theme="light"] .pzv .dr-rl li{background:rgba(12,23,51,.045)}
+.pzv .dr-rl li .dr-ro{grid-column:2 / -1;font-size:13px}
+.pzv .dr-pos{display:grid;place-items:center;height:26px;background:#d8344a;color:#fff;font-family:'Anybody';font-weight:900;font-size:12px;clip-path:var(--ang)}
+.pzv .dr-num,.pzv .dr-note{min-width:0;min-height:40px;padding:0 8px;border:0;border-radius:8px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl);color:var(--ink);font:inherit;font-size:14px}
+.pzv .dr-num{text-align:center;font-family:'Anybody';font-weight:900}
+.pzv .dr-sys{display:inline-flex;align-items:center;gap:6px;font-size:13px}
+.pzv .dr-sys select{min-height:40px;padding:0 8px;border:0;border-radius:8px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl);color:var(--ink);font:inherit}
+.pzv .dr-cnt{font-weight:600;opacity:.8}
+.pzv .dr-qrw{display:grid;grid-template-columns:132px minmax(0,1fr);align-items:center;gap:12px}
+.pzv .dr-qrw p{margin:0;font-size:13px}
+.pzv .dr-qr{display:block;width:132px;height:132px;border-radius:6px}
+.pzv .dr-clip{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.pzv .dr-clip-t{font-family:'Geist Mono';font-size:12px;color:var(--soft)}
+.pzv .dr-prog{flex:1 1 140px;height:10px;accent-color:#FFC659}
+.pzv .dr-gold{box-shadow:inset 0 0 0 2px #FFC659}
+.pzv .dr-speed{display:inline-flex;gap:4px}
+/* the replay at 1,5× (0,5× is the generated .slow2) */
+.pzv.dr-fast .pfr{transition-duration:1.1s}
+.pzv.dr-fast .cd.slow.ma,.pzv.dr-fast .cd.slow.mb,.pzv.dr-fast .rv,.pzv.dr-fast .ball{animation-duration:1.1s}
+@container (max-width:439px){.pzv .dr-qrw{grid-template-columns:108px minmax(0,1fr)}.pzv .dr-qr{width:108px;height:108px}}

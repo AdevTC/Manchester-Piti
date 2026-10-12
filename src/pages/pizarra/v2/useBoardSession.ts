@@ -8,7 +8,7 @@
 // What changes under the board (another tab, a new official, a board deleted elsewhere, a failed
 // save) comes back as a notice for the board to say.
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import type { Lineup } from "../formations";
+import type { FormationName, Lineup } from "../formations";
 import { seedLineup } from "../lineupOps";
 import { dataToLineupDoc, extractLineup, lineupToData, type LineupDoc } from "../lineupDoc";
 import type { UseLineups } from "../useLineups";
@@ -46,8 +46,8 @@ export interface BoardSession {
   /** Back to your own board (the latest; a draft if you have none). */
   openMine: () => void;
   open: (id: string) => void;
-  /** A new empty board (the same system), opened. */
-  newBoard: () => Promise<string>;
+  /** A new empty board (the same system), opened; with a seed, its seven and its name. */
+  newBoard: (seed?: NewBoardSeed) => Promise<string>;
   /** A copy of a board (null = the one on screen, with its unsaved edits); returns the copy's name. */
   copyBoard: (id: string | null, openIt: boolean) => Promise<string>;
   /** Rename the board on screen (rejects with the reason when the name can't be used). */
@@ -60,6 +60,13 @@ export interface BoardSession {
   publish: (matchId: string | null) => Promise<void>;
   /** Admins: a board stops being official. */
   unpublish: (id: string) => Promise<void>;
+}
+
+/** What a new board starts with besides an empty seven: a system, its seven by slot, and a name. */
+export interface NewBoardSeed {
+  formation: FormationName;
+  slots: (string | null)[];
+  name: string;
 }
 
 export interface SessionArgs {
@@ -429,10 +436,13 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     setChoice({ season: seasonId, id: oid });
   };
 
-  const newBoard = (): Promise<string> =>
+  const newBoard = (seed?: NewBoardSeed): Promise<string> =>
     once(async () => {
-      const L = withBench({ ...seedLineup(lineup.formation, []) }, squadIds);
-      const nm = uniqueName("Tablero nuevo", taken());
+      const L0 = seedLineup(seed?.formation ?? lineup.formation, []);
+      // (a seed: «Copiar el siete del último partido» — its seven on the same system, and its name)
+      const slots = seed ? L0.slots.map((s, i) => ({ ...s, playerId: seed.slots[i] ?? null })) : L0.slots;
+      const L = withBench({ ...L0, slots }, squadIds);
+      const nm = uniqueName(seed?.name ?? "Tablero nuevo", taken());
       const nid = await lineups.create(L, nm);
       openFresh(nid, L, nm);
       return nm;

@@ -82,7 +82,9 @@ import {
   dropPlayers,
   forkName,
   forkPlay,
+  freeName,
   goneFrom,
+
   jugadaList,
   jugadaStage,
   missingFrom,
@@ -119,6 +121,24 @@ import { MoverA } from "./MoverA";
 import { OficialBanner } from "./OficialBanner";
 import { useOficialBanner } from "./useOficialBanner";
 import { moveOptions } from "./moveTo";
+import { useTactica } from "./useTactica";
+import { charlaShape } from "./phases";
+import { lastPlayed, sevenFromStarters } from "./record";
+import { isExtraKind } from "./drawKinds";
+import { boardPlaces, cartelExtras, extraLabel, extraView, fueraOf, hitExtra, livePoints, makeFoco, makeFuera, makeMedir, makeUnir, metres, metresTxt, nearestPlayer, offsideY, rivalTokens, togglePick, type Side } from "./drawTools";
+import { bendTo, curveHandles, curveOf, drawingToPlay, rateLabel, trailsDurOf, type Rate } from "./playPaths";
+import { newRival, rivalName, setRivalNote, setRivalNum, setRivalSystem, type RivalSeven } from "./rival";
+import { DrawLayer, DrawToolsBar } from "./DrawExtras";
+import { RivalPanel } from "./RivalPanel";
+import { BoardShare } from "./BoardShare";
+import { ClipExport } from "./ClipExport";
+import type { Cartel } from "./cartel";
+
+/** The cartel with Bloque 4's extras on its pitch (none: the cartel as it was). */
+function withCartelExtras(c: Cartel, strokes: Stroke[], L: Lineup, rivalOn: boolean): Cartel {
+  const extras = cartelExtras(strokes, L, L.rival, c.cromos, rivalOn);
+  return extras.length ? { ...c, extras } : c;
+}
 
 export interface BoardProps {
   session: BoardSession;
@@ -324,9 +344,15 @@ export function Board(props: BoardProps) {
   const [inkColor, setInkColor] = useState<StrokeColor>("gold");
   const [inkText, setInkText] = useState("¡PRESIÓN!");
   const [fresh, setFresh] = useState<ReadonlySet<string>>(() => new Set());
+  // Bloque 4: the players picked for Unir / Medir, the rival's red tokens on the pitch, Tableros by rival.
+  const [picked, setPicked] = useState<string[]>([]);
+  const [rivalOn, setRivalOn] = useState(true);
+  const [rivalPick, setRivalPick] = useState<string | null>(null);
   // Jugadas: which one, the replay's toggles, the crest wipe, the 3D stadium.
   const [jidPick, setJid] = useState<string>(DEFAULT_JUGADA);
-  const [spd, setSpd] = useState(false);
+  // (the replay's speed: 0,5× · 1× · 1,5×; spd = the design's 0,5×, which the 3D stadium also plays)
+  const [rate, setRate] = useState<Rate>(1);
+  const spd = rate === 0.5;
   const [onion, setOnion] = useState(true);
   const [trails, setTrails] = useState(true);
   const [rivOn, setRivOn] = useState(true);
@@ -686,7 +712,7 @@ export function Board(props: BoardProps) {
   const rpl = useReplay({
     key: session.key + ":" + jplay.id,
     n: nJ,
-    slow: spd,
+    slow: rate,
     loop: true,
     frozen: modo !== "jugadas" || (want3d && ready3d),
     autoplay: untouched && modo === "jugadas",
@@ -939,6 +965,17 @@ export function Board(props: BoardProps) {
   const onPiece = (piece: string, at: { X: number; Y: number; inside: boolean } | null) => {
     const kind = piece === "b" ? "b" : piece.slice(0, 2);
     const id = piece.slice(2);
+    // a path's handle let go: the run bends through where it was put (playPaths.ts)
+    if (kind === "c:") {
+      if (!at || !at.inside) return;
+      const bent = editJugada((p) => bendTo(p, jf, id, framePointToPitch(C, at.X, at.Y)), "");
+      if (bent) {
+        buzz(8);
+        announce("Carrera de " + nm(id) + (curveOf(bent, jf, id) ? " curvada" : " recta"));
+      }
+      return;
+
+    }
     const back = (): void => {
       // let go off the pitch: it glides back to its spot
       if (!at) return;
@@ -984,6 +1021,15 @@ export function Board(props: BoardProps) {
     rpl.pause();
     const kind = piece === "b" ? "b" : piece.slice(0, 2);
     const id = piece.slice(2);
+    if (kind === "c:") {
+      const h = curveHandles(jplay, jf, C, () => true).find((x) => x.id === id);
+      if (!h) return;
+      if (editJugada((p) => bendTo(p, jf, id, nudgePoint(h.mid, dx, dy)), "", undefined, "k" + jf + piece)) {
+        buzz(6);
+        announce("Carrera de " + nm(id) + " curvada " + toPlace(nudgePoint(h.mid, dx, dy)));
+      }
+      return;
+    }
     const from = kind === "b" ? curFrame.ball : kind === "r:" ? curFrame.rivals.find((r) => r.id === id) : curFrame.players[id];
     if (!from) return;
     const to = nudgePoint(from, dx, dy);
@@ -1043,9 +1089,17 @@ export function Board(props: BoardProps) {
     buzz(10);
     say("Trazo borrado", inkUndoAct("Deshacer: recuperar el trazo"));
   };
-  const markedTxt = (st: Stroke) => "Marcado: " + strokeLabel(st) + ", en " + placeOf(strokeMid(st.points)) + ". Flechas para moverlo; «Borrar trazo» o Supr lo quita.";
+  const markedTxt = (st: Stroke) =>
+    pinnedStroke(st)
+      ? "Marcado: " + inkLabel(st) + ". Va pegado a los jugadores; «Borrar trazo» o Supr lo quita."
+      : "Marcado: " + inkLabel(st) + ", en " + placeOf(strokeMid(st.points)) + ". Flechas para moverlo; «Borrar trazo» o Supr lo quita.";
   /** The marked stroke moved with the arrows (the keyboard's drag): it stays marked, each step undoable. */
   const inkNudge = (id: string, dx: number, dy: number) => {
+    const pin = strokes.find((x) => x.id === id);
+    if (pin && pinnedStroke(pin)) {
+      announce("Va pegado a los jugadores: se mueve con ellos");
+      return;
+    }
     if (!canEdit) return;
     const next = moveStroke(strokes, id, dx, dy);
     if (next === strokes || !saveExtras({ ...L, drawings: next })) return;
@@ -1060,9 +1114,11 @@ export function Board(props: BoardProps) {
   };
   const onDraw = (pts: [number, number][], tap: boolean) => {
     if (!canEdit || !pts.length) return;
+    // Unir, Foco, Medir: a tap on one of the seven picks him, a drag measures (see drawPinned)
+    if (isExtraKind(tool) && drawPinned(pts, tap)) return;
     if (tap && tool !== "texto") {
       // a tap marks the stroke under it (or lets go of the marked one)
-      const id = hitStroke(strokes, C, pts[0][0], pts[0][1]);
+      const id = hitStroke(strokes, C, pts[0][0], pts[0][1]) ?? hitExtra(strokes, L, L.rival, C, pts[0][0], pts[0][1]);
       const next = id && id !== inkSel ? id : null;
       patchUi({ inkSel: next });
       const st = next ? strokes.find((x) => x.id === next) : undefined;
@@ -1100,7 +1156,152 @@ export function Board(props: BoardProps) {
     buzz(10);
   };
 
+  // ── Dibujar, Bloque 4: Unir, Foco, Medir and the fuera de juego, pinned to the players (drawTools.ts) ──
+  const places = boardPlaces(L);
+  const pickable = picked.filter((id) => !!places[id]);
+  const inkLabel = (st: Stroke): string => (isExtraKind(st.kind) ? extraLabel(st, nm, livePoints(st, places, L, L.rival)) : strokeLabel(st));
+  const pinnedStroke = (st: Stroke): boolean => !!st.anchors || st.kind === "fuera";
+  /** The seven where the frame draws them (frame %), to find the one a tap lands on. */
+  const pinCards = () =>
+    Object.entries(places).map(([id, q]) => {
+      const f = proj(C, q.x, q.y);
+      return { id, x: f.x, y: f.y };
+    });
+  const addPinned = (st: Stroke | null, msg: string, bad: string): boolean => {
+    if (!st) {
+      if (bad) say(bad);
+      return false;
+    }
+    if (!canAddStroke(strokes)) {
+      say("Ya hay " + plural(LIM.strokes, "trazo") + ": borra alguno para dibujar más");
+      return false;
+    }
+    const next = addStroke(strokes, st);
+    if (next === strokes || !setInk(next)) return false;
+    setFresh((f) => new Set(f).add(st.id));
+    buzz(10);
+    say(msg);
+    return true;
+  };
+  /** One of the seven picked for the tool on screen (a tap on the grass or a chip in Dibujar). */
+  const pickPlayer = (id: string) => {
+    if (!canEdit) return;
+    if (tool === "foco") {
+      addPinned(makeFoco(id, places, inkColor), "Foco en " + nm(id), "Ese jugador no está en el campo");
+      return;
+    }
+    if (tool === "medir") {
+      const two = togglePick(pickable, id, 2);
+      if (two.length < 2) {
+        setPicked(two);
+        announce(two.length ? nm(id) + " elegido: elige otro para medir" : "Ninguno elegido");
+        return;
+      }
+      setPicked([]);
+      const a = places[two[0]];
+      const b = places[two[1]];
+      addPinned(makeMedir(a, b, inkColor, [two[0], two[1]]), nm(two[0]) + " – " + nm(two[1]) + ": " + metresTxt(metres(a, b)), "Están demasiado cerca para medir");
+      return;
+    }
+    const next = togglePick(pickable, id, 4);
+    if (next === pickable && !pickable.includes(id)) {
+      say("Como mucho cuatro: pulsa «Unir» o quita a alguno");
+      return;
+    }
+    setPicked(next);
+    buzz(6);
+    announce((next.includes(id) ? nm(id) + " elegido" : nm(id) + " fuera") + " · " + plural(next.length, "jugador", "jugadores") + " para unir");
+  };
+  const doUnir = () => {
+    if (addPinned(makeUnir(pickable, places, inkColor), "Unidos: " + pickable.map(nm).join(", ") + ". Se mueven juntos", "Elige de 2 a 4 jugadores para unirlos")) setPicked([]);
+  };
+  /** A gesture with Unir / Foco / Medir: true when it was theirs (a drag measures; a tap picks a player). */
+  const drawPinned = (pts: [number, number][], tap: boolean): boolean => {
+    const [X0, Y0] = pts[0];
+    const [X1, Y1] = pts[pts.length - 1];
+    if (tool === "medir" && !tap) {
+      const a = nearestPlayer(pinCards(), X0, Y0, C.Fh);
+      const b = nearestPlayer(pinCards(), X1, Y1, C.Fh);
+      const both: [string, string] | null = a && b && a !== b ? [a, b] : null;
+      const pa = both ? places[both[0]] : framePointToPitch(C, X0, Y0);
+      const pb = both ? places[both[1]] : framePointToPitch(C, X1, Y1);
+      addPinned(makeMedir(pa, pb, inkColor, both), "Medido: " + metresTxt(metres(pa, pb)), "Arrastra un poco más para medir");
+      return true;
+    }
+    if (!tap) return tool === "unir" || tool === "foco";
+    const id = nearestPlayer(pinCards(), X0, Y0, C.Fh);
+    if (!id) return false;
+    pickPlayer(id);
+    return true;
+  };
+  const toggleFuera = (side: Side) => {
+    if (!canEdit) return;
+    const had = fueraOf(strokes, side);
+    if (had) {
+      if (setInk(removeStroke(strokes, had.id))) say("Fuera de juego quitado", inkUndoAct("Deshacer: recuperar la línea del fuera de juego"));
+      return;
+    }
+    const y = offsideY(L, side, L.rival);
+    if (y == null) {
+      say(side === "rival" ? "Añade el siete rival (Siete → Plan) para ver su línea" : "Hacen falta dos en el campo para la línea");
+      return;
+    }
+    addPinned(makeFuera(side, y, inkColor), side === "rival" ? "Fuera de juego en su último defensa: se mueve solo" : "Fuera de juego en nuestro último defensa: se mueve solo", "");
+  };
+  /** «Convertir el dibujo en jugada»: the carreras, pases and conducciones become a two-paso jugada. */
+  const toJugada = () => {
+    if (!ready) return;
+    if (ro) {
+      say(roMsg);
+      return;
+    }
+    const list = L.plays ?? [];
+    if (!canAddPlay(list)) {
+      say(PLAYS_FULL);
+      return;
+    }
+    const pl = drawingToPlay(strokes, L, freeName("Del dibujo", list.map((x) => x.name)));
+    if (!pl) {
+      say("Ningún trazo sale de un jugador: dibuja la carrera o el pase desde un cromo");
+      return;
+    }
+    if (!saveExtras({ ...L, plays: savePlay(list, pl) })) return;
+    pushJ({ id: pl.id, before: null, after: pl, jid0: jplay.id, jid1: pl.id });
+    setUntouched(false);
+    setJid(pl.id);
+    setJChosen(true);
+    rpl.reset(session.key + ":" + pl.id, false);
+    goModo("jugadas");
+    buzz([10, 30, 10]);
+    say("«" + pl.name + "» creada desde el dibujo: dos pasos para retocar");
+  };
+
+  // ── el rival (Siete → Plan): their seven, a dorsal and a note each, red tokens with «Rival» ──
+  const setRival = (next: RivalSeven | null, msg: string, act?: Toast["act"]): boolean => {
+    if (!saveExtras({ ...L, rival: next })) return false;
+    if (msg) say(msg, act);
+    return true;
+  };
+  const rivalAdd = () => {
+    if (L.rival) return;
+    if (setRival(newRival(), "Siete rival en el campo, en rojo: apunta sus dorsales y qué hacer con cada uno")) setRivalOn(true);
+  };
+  const rivalRemove = () => {
+    const was = L.rival;
+    if (!was) return;
+    const k = session.key;
+    setRival(null, "Rival quitado", {
+      label: "Deshacer",
+      aria: "Deshacer: recuperar el siete rival",
+      run: () => {
+        const now = later.current;
+        if (now.key === k) now.save({ ...now.L, rival: was });
+      },
+    });
+  };
+
   // Latest values for the toasts' Deshacer (they run later, maybe on another board).
+
   const later = useRef({ key: session.key, L, save: saveExtras, inkUndo });
   useEffect(() => {
     later.current = { key: session.key, L, save: saveExtras, inkUndo };
@@ -1145,7 +1346,7 @@ export function Board(props: BoardProps) {
   const chMissing = chSlots.filter((x) => !x).length;
   const chGate = charlaOn && ready && !chOk && chMissing > 0;
   const live3dC = charlaOn && can3d && ready3d;
-  const chArgs = { L, sq, play: chPlay, playShort: chItem.short, match, boardName: session.name, sysName: hud.sysName, tacSum, qv: ch.v, in3d: live3dC, loading: !ready, planB: charlaOn ? charlaPlanB(vr.titular, squadIds, nm) : null };
+  const chArgs = { L, sq, play: chPlay, playShort: chItem.short, match, boardName: session.name, sysName: hud.sysName, tacSum, qv: ch.v, in3d: live3dC, loading: !ready, planB: charlaOn ? charlaPlanB(vr.titular, squadIds, nm) : null, sinBalon: charlaOn ? charlaShape(L, nm) : null };
   /** What a step says, for screen readers (the graphics change without focus moving). */
   const sayStep = (to: number, playing: boolean) => {
     const v = charlaView({ ...chArgs, step: to, playing });
@@ -1173,8 +1374,25 @@ export function Board(props: BoardProps) {
   const cv = charlaOn ? charlaView({ ...chArgs, step: chl.step, playing: chPlaying }) : null;
   const chKind = cv?.kind ?? null;
 
+  // ── Bloque 4 · la táctica: con / sin balón and the fases on the pitch, the styles, the conditional plan,
+  // the química por jugador (useTactica.tsx) ──
+  const tq = useTactica({
+    key: session.key,
+    L,
+    sq,
+    canEdit,
+    commit: (next) => commit(next),
+    say,
+    announce,
+    glide: () => {
+      if (!rm) runFx(morph(null, { slow: true }));
+    },
+    nm,
+  });
+
   // ── día de partido: Siete → Cambios, the scrubbed minute on the pitch, the live plate ──
   const cb = useCambios({
+    liveExtra: tq.liveExtra,
     L,
     sq,
     called: calledOf(props.conv.match),
@@ -1202,10 +1420,15 @@ export function Board(props: BoardProps) {
   // Comparar show the cromos as discs.
   const showPlan = (modo === "editar" && tab === "p") || chKind === "plan";
   const mini = modo === "quimica" || modo === "comparar" || modo === "jugadas" || modo === "dibujar" || showPlan;
-  const view0 = pitchView({ L: cb.pitch, sq, ch, cam, modo, fx, selId: sel?.id ?? null, hand: inHand, pick, ro: !canEdit, rm, meId: props.meId, mini, present: charlaOn ? chl.step : undefined });
+  // (the Plan tab may show a phase or a style's preview: the cromos go there and can't be moved meanwhile)
+  const tpv = tq.pitch(cb.pitch, modo === "editar" && tab === "p", cam);
+  const view0 = pitchView({ L: tpv.L, sq, ch, cam, modo, fx, selId: sel?.id ?? null, hand: inHand, pick, ro: !canEdit || tpv.on, rm, meId: props.meId, mini, present: charlaOn ? chl.step : undefined });
+  // (each cromo's own química: 0–3 diamonds)
+  const view1 = { ...view0, cards: tq.withDiamonds(view0.cards, cb.pitch) };
   // (the familiarity badge on the cromos while the siete is edited: «++», «+», «!»)
-  const view = modo === "editar" && !mini && fam.games ? { ...view0, cards: view0.cards.map((c) => withFam(c)) } : view0;
-  const plan = planLayer(L, cam, modo, showPlan);
+  const view = modo === "editar" && !mini && fam.games ? { ...view1, cards: view1.cards.map((c) => withFam(c)) } : view1;
+  const plan0 = planLayer(tpv.planL ?? L, cam, modo, showPlan);
+  const plan = tpv.on ? { ...plan0, dlOn: false, tarrs: tpv.arrows ?? plan0.tarrs } : plan0;
 
   // ── the stadium: what it films ──
   // (it is mounted the first time a 3D moment wants it and stays, paused, for the next one; after a
@@ -1248,7 +1471,7 @@ export function Board(props: BoardProps) {
     {
       lineup: L,
       cam,
-      canMove: canEdit && !cb.preview && (modo === "editar" || modo === "quimica"),
+      canMove: canEdit && !cb.preview && !tpv.on && (modo === "editar" || modo === "quimica"),
       canLine: canEdit && modo === "editar" && plan.dlOn,
       magnets: canEdit && modo === "editar" && !L.freeMode,
       draw: canEdit && modo === "dibujar",
@@ -1258,6 +1481,8 @@ export function Board(props: BoardProps) {
     {
       // a bench cromo lifted off the phone strip (long press): the hand feels it
       onLift: () => buzz(12),
+      // «+2 química aquí» over the spot the carried cromo would land on
+      onTarget: (src, t) => tq.onTarget(src, t, frameRef.current),
       onStart: (kind, _id, from) => {
         setDragKind(kind);
         setDragFrom(from);
@@ -1540,7 +1765,9 @@ export function Board(props: BoardProps) {
   });
   const describeSlot = (k: number) => {
     const occ = L.slots[k]?.playerId;
-    return occ && occ !== sel?.id ? "Sobre " + nm(occ) + ", " + slotLabel(L, k) + ": Intro para cambiarlos" : "Hueco " + slotLabel(L, k) + ": Intro para soltarlo";
+    // (and what it would do to the química por jugador: « · +1 química aquí»)
+    const q = sel && !(sel.k === "p" && occ === sel.id) && isAvailable(sq, sel.id) ? tq.chemTxt(place(L, sel.id, k), sel.id) : "";
+    return (occ && occ !== sel?.id ? "Sobre " + nm(occ) + ", " + slotLabel(L, k) + ": Intro para cambiarlos" : "Hueco " + slotLabel(L, k) + ": Intro para soltarlo") + q;
   };
   const dropOn = (k: number) => {
     if (!sel) return;
@@ -1858,7 +2085,8 @@ export function Board(props: BoardProps) {
     .map((d) => {
       const on = d.id === session.id;
       const Ld = on ? L : normalize(extractLineup(d), squadIds);
-      return { id: d.id, name: on ? session.name : d.name, meta: boardMeta(Ld, sq, on ? session.savedAt : (d.updatedAt ?? d.createdAt), props.now), on, official: d.isOfficial, deletable: !d.isOfficial || props.isAdmin };
+      const rv = calById(d.matchId)?.rival;
+      return { id: d.id, name: on ? session.name : d.name, meta: boardMeta(Ld, sq, on ? session.savedAt : (d.updatedAt ?? d.createdAt), props.now), on, official: d.isOfficial, deletable: !d.isOfficial || props.isAdmin, ...(rv ? { rival: rv } : {}) };
     });
   const isMine = !!session.id && session.mine.some((d) => d.id === session.id);
   const off = props.official;
@@ -1876,6 +2104,8 @@ export function Board(props: BoardProps) {
     fail(err);
   };
   const linked = calById(session.matchId);
+  // («Copiar el siete del último partido», in Tableros)
+  const lastM = modo === "tableros" ? lastPlayed(cal) : null;
 
   // ── Comparar: another board (yours or the official) face to face ──
   const cmpDocs = (() => {
@@ -1905,7 +2135,8 @@ export function Board(props: BoardProps) {
   // ── Compartir: the cartel ──
   // (laid out, and its key stringified, only while Compartir is open)
   const shareOn = modo === "compartir";
-  const cartel = shareOn ? cartelLayout(L, sq, ch, match, props.seasonName) : null;
+  // (with the strokes pinned to the players and, while «Rival» is on, the rival's tokens)
+  const cartel = shareOn ? withCartelExtras(cartelLayout(L, sq, ch, match, props.seasonName), strokes, L, rivalOn) : null;
   const cartelKey = cartel ? JSON.stringify(cartel) : "";
   const cartelNow = useRef(cartel);
   useEffect(() => {
@@ -2024,6 +2255,37 @@ export function Board(props: BoardProps) {
   const chCamT = heroCard ? pushIn(heroCard.x, heroCard.y, 1.22, 46) : chBall ? pushIn(chBall[0], chBall[1], 1.2) : null;
   const chFinal = chKind === "final" && !rm;
   const ink = modo === "jugadas" || modo === "charla" ? null : inkView(strokes, C, modo === "dibujar" ? inkSel : null, fresh);
+  // Bloque 4 on the pitch: the pinned strokes, the rival's tokens (Plan, Dibujar), the players picked for a
+  // tool, the handles that bend the paso's runs
+  const rivalShown = !!L.rival && rivalOn && (modo === "dibujar" || (modo === "editar" && tab === "p"));
+  const drawLayer = (
+    <DrawLayer
+      view={ink ? extraView(strokes, L, L.rival, C, modo === "dibujar" ? inkSel : null) : null}
+      rival={rivalShown && L.rival ? rivalTokens(L.rival, C, L.slots.map((_, i) => { const q = slotPos(L, i); return { x: q.u, y: q.v }; })) : null}
+      picked={
+        modo === "dibujar" && canEdit
+          ? pickable.map((id) => {
+              const f = proj(C, places[id].x, places[id].y);
+              return { id, x: f.x.toFixed(2), y: f.y.toFixed(2) };
+            })
+          : []
+      }
+      handles={pieces && modo === "jugadas" ? curveHandles(jplay, jf, C, (id) => sq.byId.has(id)) : null}
+      handleAria={(h) => "Curva de la carrera de " + nm(h.id) + " al paso " + (jf + 1) + (h.bent ? ", curvada" : ", recta") + ". Arrástrala o usa las flechas para curvarla"}
+    />
+  );
+  // «La jugada en vídeo» (Jugadas and Compartir): the jugada on screen, at the replay's speed
+  const clipEl =
+    modo === "jugadas" || modo === "compartir" ? (
+      <ClipExport
+        key={jplay.id}
+        play={jplay}
+        who={Object.fromEntries(participants(jplay).map((id) => [id, { num: sq.byId.get(id)?.num ?? 0, name: nm(id) }]))}
+        head={match?.short ?? session.name}
+        rate={rate}
+        say={(m) => say(m)}
+      />
+    ) : null;
   const drawnNow = jug ? jug.drawn : { p: Object.fromEntries(view.cards.map((c): [string, [number, number]] => [c.id, [c.x, c.y]])), r: {}, b: null };
   useEffect(() => {
     drawn.current = drawnNow;
@@ -2120,6 +2382,7 @@ export function Board(props: BoardProps) {
     toast ? "toasting" : "",
     // the replay: 0,5×, the estelas off, the follow-cam, the 3D stadium live, pieces that can be moved
     modo === "jugadas" && spd ? "slow2" : "",
+    modo === "jugadas" && rate === 1.5 ? "dr-fast" : "",
     modo === "jugadas" && !trails ? "no-trails" : "",
     follow || !!chCamT ? "fcam" : "",
     live3d || live3dC ? "v3" : "",
@@ -2172,6 +2435,7 @@ export function Board(props: BoardProps) {
             ro={!canEdit}
             ch={ch}
             sq={sq}
+            dm={tq.dm}
             onSystem={(f: FormationName) => canEdit && toSystem(setSystem(L, f))}
             onLibre={() => {
               if (!canEdit || L.freeMode) return;
@@ -2187,12 +2451,35 @@ export function Board(props: BoardProps) {
           />
         )}
         {tab === "c" && cb.tab}
-        {tab === "p" && <PlanTab rows={tac} ro={!canEdit} rep={rp.rows} repTxt={rp.txt} canRotate={!!rot} note={planNote(L)} onSet={onTactic} onRotate={doRotate} />}
+        {tab === "p" && <PlanTab rows={tac} ro={!canEdit} rep={rp.rows} repTxt={rp.txt} canRotate={!!rot} note={planNote(L)} top={tq.planTop(cal, linked, !canEdit)} after={tq.planAfter(cb.live, !canEdit)} onSet={onTactic} onRotate={doRotate} />}
+        {tab === "p" && (
+          <RivalPanel
+            rival={L.rival}
+            on={rivalOn}
+            ro={!canEdit}
+            matchRival={linked?.rival ?? null}
+            onAdd={rivalAdd}
+            onRemove={rivalRemove}
+            onSystem={(f) => L.rival && setRival(setRivalSystem(L.rival, f), "Rival en " + f)}
+            onNum={(i, v) => {
+              const next = L.rival ? setRivalNum(L.rival, i, v) : null;
+              if (next && next !== L.rival) setRival(next, "Dorsal guardado: " + rivalName(next, i).toLowerCase());
+            }}
+            onNote={(i, v) => {
+              const next = L.rival ? setRivalNote(L.rival, i, v) : null;
+              if (next && next !== L.rival) setRival(next, next.players[i].note ? "Nota guardada para " + rivalName(next, i).toLowerCase() : "Nota quitada");
+            }}
+            onToggle={() => {
+              setRivalOn(!rivalOn);
+              announce(rivalOn ? "Rival fuera del campo" : "Rival en el campo, en rojo");
+            }}
+          />
+        )}
       </>
     ) : modo === "mas" ? (
       <MasPanel tacSum={tacSum} onGo={goModo} />
     ) : modo === "quimica" ? (
-      <QuimicaPanel ch={ch} sq={sq} seasonName={props.seasonName} oop={oopNames} />
+      <QuimicaPanel ch={ch} sq={sq} seasonName={props.seasonName} oop={oopNames} dm={tq.dm} />
     ) : modo === "tableros" ? (
       <TablerosPanel
         tab={tbTab}
@@ -2218,6 +2505,15 @@ export function Board(props: BoardProps) {
           session
             .newBoard()
             .then(() => say("Tablero nuevo: toca un hueco para empezar"))
+            .catch(tbFail);
+        }}
+        lastMatch={lastM ? matchShort(lastM) : null}
+        onNewFromLast={() => {
+          if (!lastM) return;
+          const ms = matchShort(lastM);
+          session
+            .newBoard({ formation: L.formation, slots: sevenFromStarters(L.formation, lastM.conv?.starters ?? [], sq, L), name: "Como en " + ms })
+            .then(() => say("Tablero nuevo con el siete de " + ms))
             .catch(tbFail);
         }}
         onOpen={(bid) => {
@@ -2253,6 +2549,11 @@ export function Board(props: BoardProps) {
           say("«" + was + "» borrado", { label: "Deshacer", aria: "Deshacer el borrado de «" + was + "»", run }, DELETE_MS);
         }}
         pending={pendDel.map((d) => ({ id: d.id, name: d.name, undo: d.run }))}
+        rivalPick={rivalPick}
+        onRivalPick={(r) => {
+          setRivalPick(r);
+          announce(r ? "Tableros contra " + r : "Todos los tableros");
+        }}
         official={offView}
         reactions={props.reactions}
         isCap={props.isAdmin}
@@ -2349,7 +2650,33 @@ export function Board(props: BoardProps) {
         onBoards={() => goModo("tableros")}
       />
     ) : modo === "compartir" && cartel ? (
-      <CompartirPanel cartel={cartel} block={shareBlock} busy={shareBusy} ready={!!preparedFor(prepared, cartelKey)} canLink={!!session.id} onShare={() => void toGroup("share")} onPng={() => void toGroup("png")} onLink={(charla) => void copyLink(charla)} onBack={() => goModo("mas")} />
+      <CompartirPanel
+        cartel={cartel}
+        block={shareBlock}
+        busy={shareBusy}
+        ready={!!preparedFor(prepared, cartelKey)}
+        canLink={!!session.id}
+        onShare={() => void toGroup("share")}
+        onPng={() => void toGroup("png")}
+        onLink={(charla) => void copyLink(charla)}
+        onBack={() => goModo("mas")}
+        extra={
+          <BoardShare
+            link={session.id ? boardLink(typeof window === "undefined" ? "" : window.location.origin, session.id, false, props.seasonId) : null}
+            name={session.name}
+            readOnly={ro}
+            canClone={ready && !!session.id}
+            onClone={() => {
+              session
+                .copyBoard(null, true)
+                .then((v) => say("Clonado: «" + v + "» es tuyo para editar"))
+                .catch(tbFail);
+            }}
+            clip={clipEl}
+            clipName={jplay.name}
+          />
+        }
+      />
     ) : modo === "ajustes" ? (
       <AjustesPanel
         show={show}
@@ -2383,7 +2710,7 @@ export function Board(props: BoardProps) {
         n={nJ}
         playing={rpl.playing}
         v3={prefs.v3}
-        slow={spd}
+        rate={rate}
         onion={onion}
         trails={trails}
         riv={rivOn}
@@ -2391,12 +2718,16 @@ export function Board(props: BoardProps) {
         lib={jl.map((j) => ({ id: j.play.id, short: j.short, aria: j.play.name + (j.own ? " (propia)" : " (estrategia)"), on: j.play.id === jplay.id }))}
         canEdit={canEdit}
         note3d={note3d}
+        clip={clipEl}
         editor={jugadaEditor()}
         onToggle={playToggle}
         onStep={jStep}
         onSeek={jSeek}
         on3d={toggle3d}
-        onSlow={() => setSpd((v) => !v)}
+        onRate={(r) => {
+          setRate(r === 0.5 || r === 1.5 ? r : 1);
+          announce("Repetición a " + rateLabel(r));
+        }}
         onOnion={() => setOnion((v) => !v)}
         onTrails={() => setTrails((v) => !v)}
         onRiv={() => setRivOn((v) => !v)}
@@ -2429,11 +2760,12 @@ export function Board(props: BoardProps) {
         tool={tool}
         color={inkColor}
         text={inkText}
-        strokes={strokes.map((x) => ({ id: x.id, label: strokeLabel(x), sel: x.id === inkSel }))}
-        selLabel={inkSel ? strokeLabel(strokes.find((x) => x.id === inkSel) ?? strokes[0]) : null}
+        strokes={strokes.map((x) => ({ id: x.id, label: inkLabel(x), sel: x.id === inkSel }))}
+        selLabel={inkSel ? inkLabel(strokes.find((x) => x.id === inkSel) ?? strokes[0]) : null}
         canUndo={canEdit && (u.ink.past.length > 0 || strokes.length > 0)}
         onTool={(k) => {
           setTool(k);
+          setPicked([]);
           buzz(6);
         }}
         onColor={(c) => {
@@ -2449,6 +2781,32 @@ export function Board(props: BoardProps) {
           if (st) announce(markedTxt(st));
         }}
         onDelete={inkDelete}
+        extra={
+          <DrawToolsBar
+            tool={tool}
+            onTool={(k) => {
+              setTool(k);
+              setPicked([]);
+              buzz(6);
+            }}
+            players={L.slots.flatMap((x) => {
+              const c = x.playerId ? sq.byId.get(x.playerId) : undefined;
+              return c ? [{ id: c.id, name: c.name, num: c.num }] : [];
+            })}
+            picked={pickable}
+            onPick={pickPlayer}
+            onUnir={doUnir}
+            fuera={{ nos: !!fueraOf(strokes, "nos"), rival: !!fueraOf(strokes, "rival"), canRival: !!L.rival }}
+            onFuera={toggleFuera}
+            rival={{ has: !!L.rival, on: rivalOn }}
+            onRival={() => {
+              setRivalOn(!rivalOn);
+              announce(rivalOn ? "Rival fuera del campo" : "Rival en el campo, en rojo");
+            }}
+            canConvert={canEdit && drawingToPlay(strokes, L, "x") !== null}
+            onConvert={toJugada}
+          />
+        }
       />
     ) : cv ? (
       <CharlaGuion v={cv} title={match?.short ?? session.name} note3d={chNote3d} />
@@ -2567,7 +2925,7 @@ export function Board(props: BoardProps) {
           focusCards={modo !== "jugadas" && modo !== "dibujar" && !charlaOn}
           selbar={phone ? null : selBarEl}
           trailsDraw={!!fx.from && !rm}
-          trailsDur={spd ? "3.2s" : "1.7s"}
+          trailsDur={trailsDurOf(rate)}
           wipe={wipe}
           camT={chCamT}
           spot={heroCard ? { id: heroCard.id, x: heroCard.x, y: heroCard.y, ar: L.roles.captainId === heroCard.id } : null}
@@ -2606,6 +2964,7 @@ export function Board(props: BoardProps) {
           pieceAria={pieceAria}
           onPieceKey={onPieceKey}
           onPieceTap={onPieceTap}
+          extras={drawLayer}
         />
         <AppBar
           crest={props.crest}
@@ -2742,6 +3101,7 @@ export function Board(props: BoardProps) {
           {live.msg ? live.msg + (live.n % 2 ? "​" : "‌") : ""}
         </p>
         <div className="pz-dragl" ref={layerRef} aria-hidden="true" />
+        {tq.dropBadge(canEdit && modo === "editar" && dragKind === "tok", prefs.grid, cam)}
       </section>
       {props.footer}
     </div>

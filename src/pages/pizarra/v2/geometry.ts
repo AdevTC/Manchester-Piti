@@ -138,6 +138,9 @@ export interface UV {
 
 /** Where slot i stands: the free spot, or the system's spot moved by the plan (línea, mentalidad, amplitud). */
 export function slotPos(L: Lineup, i: number): UV {
+  // (the plan's phase on screen: a view of the lineup with each slot somewhere else, see phases.ts)
+  const at = L.phaseAt?.[i];
+  if (at) return { u: at.u, v: at.v };
   const s = L.slots[i];
   if (L.freeMode && s) return { u: s.x, v: s.y };
   const f = spotOf(L, i);

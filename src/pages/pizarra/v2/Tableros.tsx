@@ -10,6 +10,8 @@ import { useConfirmKeys } from "./useConfirmKeys";
 import { matchBand, matchLabel, nameError, NAME_MAX, type CalMatch } from "./boards";
 import type { ReactionValue } from "../reactions";
 import { apiError } from "../../../lib/clubApi";
+import { RivalFilter } from "./RivalPanel";
+import { filterByRival, rivalOptions } from "./rival";
 
 export type TbTab = "m" | "o" | "p";
 
@@ -21,6 +23,8 @@ export interface BoardRowView {
   official: boolean;
   /** Only admins delete an official board. */
   deletable: boolean;
+  /** The rival of the board's linked match («MAD SKY»), for the filter. */
+  rival?: string;
 }
 
 export interface OfficialView {
@@ -68,6 +72,9 @@ export interface TablerosProps {
   onDelete: (id: string) => void;
   /** Boards deleted a moment ago: still undoable until the deletion goes through. */
   pending: { id: string; name: string; undo: () => void }[];
+  /** Filter Mis tableros by the rival of each board's match (null = all). */
+  rivalPick?: string | null;
+  onRivalPick?: (r: string | null) => void;
   // Oficial
   official: OfficialView | null;
   reactions: ReactionsView | null;
@@ -94,6 +101,9 @@ export interface TablerosProps {
   seasons: { id: string; name: string }[];
   seasonId: string;
   onSeason: (id: string) => void;
+  /** «Copiar el siete del último partido»: a new board with the seven that started it («J7 · MAD SKY»). */
+  lastMatch?: string | null;
+  onNewFromLast?: () => void;
 }
 
 /** The name of the board on screen, renamed as you type (saved after a pause, on Enter or on leaving). */
@@ -249,6 +259,9 @@ export function TablerosPanel(p: TablerosProps) {
       </div>
     );
 
+  // (the filter by rival: only rivals some board is linked to; a pick no board has any more is «Todos»)
+  const rivals = rivalOptions(p.boards);
+  const rPick = p.rivalPick && rivals.includes(p.rivalPick) ? p.rivalPick : null;
   return (
     <>
       <PanelHead kick="Guardado automático" title="Tableros" onBack={p.onBack} />
@@ -285,6 +298,12 @@ export function TablerosPanel(p: TablerosProps) {
                 <Icon n="plus" w={15} />
                 Nuevo
               </button>
+              {p.lastMatch && p.onNewFromLast && (
+                <button type="button" className="b3" onClick={p.onNewFromLast} disabled={!p.ready} aria-label={"Copiar el siete del último partido (" + p.lastMatch + ") en un tablero nuevo"}>
+                  <Icon n="copy" />
+                  Copiar el siete del último partido
+                </button>
+              )}
             </div>
             {p.id && confirmRow(p.id, p.name, "cur")}
           </div>
@@ -299,9 +318,10 @@ export function TablerosPanel(p: TablerosProps) {
             </div>
           ))}
           <h3>Mis tableros · {p.seasonName}</h3>
+          {p.onRivalPick && <RivalFilter rivals={rivals} value={rPick} onPick={p.onRivalPick} />}
           {p.boards.length ? (
             <ul className="bl">
-              {p.boards.map((b) => (
+              {filterByRival(p.boards, rPick).map((b) => (
                 <li key={b.id} className={b.on ? "on" : ""}>
                   <button type="button" className="op" onClick={() => p.onOpen(b.id)} aria-current={b.on}>
                     <b>{b.name}</b>

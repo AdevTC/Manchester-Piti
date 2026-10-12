@@ -9,7 +9,9 @@
 // position when the formation changes (the morph).
 
 import type { Play, Stroke } from "../../lib/schemas";
+import type { CondRule, ShapeOff, StyleId } from "../../lib/tacticaSchemas";
 import type { Tactics } from "./tactics";
+import type { RivalSeven } from "./v2/rival";
 
 /** Vertical zone of a slot/player — used for the out-of-position cue. */
 export type Zone = "POR" | "DEF" | "MED" | "DEL";
@@ -73,12 +75,23 @@ export interface Lineup {
   subs?: Sub[];
   /** Lanzadores en orden (≤ 3 each): the first of each list on the pitch takes it (see v2/takers.ts). */
   takers?: Takers;
+  /** El rival: su siete (un sistema reflejado en su campo) con dorsal y nota por jugador; null = quitado
+   *  (se guarda así para borrarlo), ausente = nunca tuvo (see v2/rival.ts). */
+  rival?: RivalSeven | null;
   /** Telestrator strokes over the pitch (≤ 60; see drawings.ts). */
   drawings: Stroke[];
   /** The board's own jugadas (≤ 12; see plays.ts). The built-in ones are not stored. */
   plays: Play[];
   /** The board's other versions of the seven for its match (≤ 2: «2ª parte», «Plan B»; see v2/variants.ts). */
   variants?: LineupVariant[];
+  /** «Sin balón»: the second shape of the seven (its system and each slot's nudge; see v2/phases.ts). */
+  shapeOff?: ShapeOff | null;
+  /** El plan condicional: «si vamos ganando por 2 desde el 30′ → …» (≤ 3; see v2/condPlan.ts). */
+  condPlan?: CondRule[];
+  /** The predefined style last applied («Presión alta»…; see v2/tacStyles.ts). Absent = none. */
+  style?: StyleId | null;
+  /** View only, never stored: where each slot stands in the plan's phase on screen (v2/phases.ts). */
+  phaseAt?: { u: number; v: number }[];
 }
 
 /** Which other version of the seven a variant is: «2ª parte» or «Plan B» (the board itself is «Titular»). */

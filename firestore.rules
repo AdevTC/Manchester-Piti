@@ -190,6 +190,14 @@ service cloud.firestore {
         && d.takers.get('freekicks', []) is list && d.takers.get('freekicks', []).size() <= 3
         && d.takers.get('corners', []) is list && d.takers.get('corners', []).size() <= 3);
     }
+    // The rival seven (null once taken off): their system and at most seven players, each a small map
+    // (a dorsal and a note; their content is validated on read, see v2/rival.ts parseRival).
+    function rivalOk(d) {
+      return !('rival' in d) || d.rival == null || (d.rival is map
+        && d.rival.keys().hasOnly(['formation','players'])
+        && d.rival.get('formation', null) is string && d.rival.formation.size() <= 10
+        && d.rival.get('players', []) is list && d.rival.get('players', []).size() <= 7);
+    }
     // A string field that may be missing (older boards) but, when there, is a bounded string.
     function optStr(d, k, max) {
       return !(k in d) || (d[k] is string && d[k].size() <= max);
@@ -212,12 +220,30 @@ service cloud.firestore {
         && (d.variants.size() < 1 || variantOk(d.variants[0]))
         && (d.variants.size() < 2 || variantOk(d.variants[1])));
     }
+    // La táctica (Bloque 4): «sin balón» (null, or its system and seven nudges), the conditional plan
+    // (≤ 3 rule maps) and the style last applied (a short id, "" = none). Their content is validated on
+    // read (lineupDoc.ts → tacticaData.ts).
+    function shapeOffOk(d) {
+      return d.get('shapeOff', null) == null || (d.shapeOff is map
+        && d.shapeOff.keys().hasOnly(['formation','offs'])
+        && d.shapeOff.get('formation', '') is string && d.shapeOff.get('formation', '').size() <= 10
+        && d.shapeOff.get('offs', []) is list && d.shapeOff.get('offs', []).size() <= 7);
+    }
+    function condPlanOk(d) {
+      return !('condPlan' in d) || (d.condPlan is list && d.condPlan.size() <= 3
+        && (d.condPlan.size() < 1 || (d.condPlan[0] is map && d.condPlan[0].size() <= 8))
+        && (d.condPlan.size() < 2 || (d.condPlan[1] is map && d.condPlan[1].size() <= 8))
+        && (d.condPlan.size() < 3 || (d.condPlan[2] is map && d.condPlan[2].size() <= 8)));
+    }
+    function tacticaOk(d) {
+      return shapeOffOk(d) && condPlanOk(d) && optStr(d, 'style', 24);
+    }
     // Every field of a board: only the known keys, each with its type and a size cap.
     // (`bench` and `pinned` are no longer written, but older boards still carry them.)
     function boardOk(d) {
       return d.keys().hasOnly(['formation','freeMode','slots','bench','roles','tactics','playerPositions','pinned',
           'variants','subs','takers',
-          'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt'])
+          'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt','shapeOff','condPlan','style','rival'])
         && d.ownerUid is string
         && d.get('seasonId', null) is string && d.seasonId.size() <= 128
         && optStr(d, 'name', 60) && optStr(d, 'ownerNickname', 40) && optStr(d, 'formation', 10)
@@ -229,9 +255,11 @@ service cloud.firestore {
         && d.get('playerPositions', {}) is map && d.get('playerPositions', {}).size() <= 60
         && d.get('bench', []) is list && d.get('bench', []).size() <= 60
         && d.get('pinned', []) is list && d.get('pinned', []).size() <= 7
-        && subsOk(d) && takersOk(d)
+        && subsOk(d) && takersOk(d) && rivalOk(d)
+
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp)
+        && tacticaOk(d)
         && variantsOk(d)
         && boardExtrasOk(d);
     }

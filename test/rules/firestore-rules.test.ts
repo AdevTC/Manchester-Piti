@@ -380,6 +380,26 @@ describe("Pizarra", () => {
     await seed("lineups/old", board);
     await assertSucceeds(updateDoc(doc(db("member"), "lineups", "old"), { name: "Viejo" }));
   });
+  it("el rival en la pizarra: su sistema y hasta siete jugadores; null lo quita; trazos pegados y curvas caben", async () => {
+    const rival = { formation: "2-3-1", players: Array.from({ length: 7 }, (_, i) => (i === 6 ? { num: 9, note: "presionar al 9 por su izquierda" } : {})) };
+    const unir = { id: "k1", kind: "unir", color: "gold", anchors: ["p1", "p2"], points: [{ x: 10, y: 10 }, { x: 20, y: 20 }] };
+    const fuera = { id: "k2", kind: "fuera", color: "white", side: "nos", points: [{ x: 0, y: 70 }, { x: 100, y: 70 }] };
+    const frame = { players: {}, ball: { x: 50, y: 50 }, rivals: [], arrows: [], curves: { p1: { x: 40, y: 40 } } };
+    const play = { id: "j", name: "Curva", kind: "propia", frames: [frame, frame] };
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, rival, drawings: [unir, fuera], plays: [play] }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { rival: null }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { rival: { formation: "3-2-1", players: [] } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: { ...rival, players: Array.from({ length: 8 }, () => ({})) } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: { ...rival, extra: true } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: { players: [] } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: { formation: "2-3-1-y-mucho-más", players: [] } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: "MAD SKY" }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: { formation: "2-3-1", players: { a: {} } } }));
+    // el rival de otro no se toca
+    await seed("lineups/z", { ...board, ownerUid: "other" });
+    await assertFails(updateDoc(doc(db("member"), "lineups", "z"), { rival }));
+  });
+
   it("día de partido: cambios (≤ 20), lanzadores en orden (≤ 3 por lista) y vice-capitán", async () => {
     const sub = { id: "s1", min: 25, out: "p1", in: "p2" };
     const takers = { penalties: ["p1", "p2", "p3"], freekicks: [], corners: ["p2"] };
@@ -439,6 +459,26 @@ describe("Pizarra", () => {
       }),
     );
     await assertFails(updateDoc(doc(db("member"), "lineups", "old"), { slots: [slot, slot] }));
+  });
+  it("la táctica del tablero: sin balón, plan condicional (≤ 3) y estilo, con su tipo y su tope", async () => {
+    const offs = Array.from({ length: 7 }, () => ({ du: 0, dv: 6 }));
+    const rule = { id: "r1", when: "ganando", by: 2, from: 30, key: "mentality", value: "Defensiva", sub: { out: "p1", in: "p2" } };
+    const tactica = { shapeOff: { formation: "3-2-1", offs }, condPlan: [rule], style: "presion" };
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, ...tactica }));
+    // the autosave writes them always: nothing («null», [], "") is valid too
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { shapeOff: null, condPlan: [], style: "" }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { condPlan: [rule, rule, rule] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { condPlan: [rule, rule, rule, rule] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { condPlan: ["si ganamos"] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { condPlan: { r1: rule } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { shapeOff: { formation: "3-2-1", offs, extra: 1 } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { shapeOff: { formation: "3-2-1", offs: [...offs, { du: 0, dv: 0 }] } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { shapeOff: "3-2-1" }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { style: "x".repeat(25) }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { style: 3 }));
+    // a board from before the táctica still saves
+    await seed("lineups/old", board);
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "old"), { name: "Viejo" }));
   });
   it("el autor firma con su propio apodo; la temporada no cambia", async () => {
     await assertFails(setDoc(doc(db("member"), "lineups", "x"), { ...board, ownerNickname: "admin" }));

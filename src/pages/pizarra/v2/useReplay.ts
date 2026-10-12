@@ -13,7 +13,8 @@ export interface ReplayArgs {
   key: string;
   /** Pasos of the jugada. */
   n: number;
-  slow: boolean;
+  /** 0,5× (true) or the speed (0.5, 1, 1.5). */
+  slow: boolean | number;
   loop: boolean;
   /** The clock stands still: the 3D engine plays the jugada (and reports the pasos), or the jugada is
    *  not on screen. */

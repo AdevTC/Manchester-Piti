@@ -232,6 +232,10 @@ export const PIZARRA_LIMITS = {
   frameTitle: 40,
   frameNote: 140,
   id: 40,
+  /** Jugadores a los que va pegado un trazo «Unir» (línea o polígono de 2 a 4). */
+  strokeAnchors: 4,
+  /** Trayectorias curvas (un punto de control por jugador) en un paso. */
+  curves: 7,
 } as const;
 
 /** Punto del campo en % (x 0→100 izquierda→derecha, y 0 = portería rival → 100 = la nuestra). */
@@ -240,13 +244,35 @@ export const boardPointSchema = z.object({ x: pitchCoord, y: pitchCoord });
 export type BoardPoint = z.infer<typeof boardPointSchema>;
 const itemId = z.string().min(1).max(PIZARRA_LIMITS.id);
 
-export const STROKE_KINDS = ["carrera", "pase", "conduccion", "zona", "lapiz", "texto"] as const;
+export const STROKE_KINDS = ["carrera", "pase", "conduccion", "zona", "lapiz", "texto", "unir", "foco", "medir", "fuera"] as const;
+/** De qué lado se mira el fuera de juego: nuestra última línea o la del rival. */
+export const OFFSIDE_SIDES = ["nos", "rival"] as const;
 export const STROKE_COLORS = ["sky", "gold", "white"] as const;
 /**
  * Trazo de la pizarra (telestrator). `texto` es un único punto con su texto;
  * el resto, un camino de 2 o más puntos (flechas: inicio, medio, fin; zona:
- * dos esquinas opuestas; lápiz: el trazo simplificado).
+ * dos esquinas opuestas; lápiz: el trazo simplificado). Los de Bloque 4:
+ * `unir` va pegado a 2–4 jugadores (`anchors`, con un punto de reserva por
+ * cada uno), `foco` a uno, `medir` son dos puntos (o dos jugadores) y `fuera`
+ * es la línea del fuera de juego de un lado (`side`), que se recoloca sola.
  */
+const strokeOk = (s: { kind: string; points: unknown[]; text?: string; anchors?: string[]; side?: string }): boolean => {
+  const a = s.anchors;
+  switch (s.kind) {
+    case "texto":
+      return s.text !== undefined && s.points.length === 1;
+    case "unir":
+      return !!a && a.length >= 2 && new Set(a).size === a.length && s.points.length === a.length;
+    case "foco":
+      return !!a && a.length === 1 && s.points.length === 1;
+    case "medir":
+      return s.points.length === 2 && (!a || (a.length === 2 && a[0] !== a[1]));
+    case "fuera":
+      return s.points.length === 2 && s.side !== undefined;
+    default:
+      return s.points.length >= 2;
+  }
+};
 export const strokeSchema = z
   .object({
     id: itemId,
@@ -254,9 +280,11 @@ export const strokeSchema = z
     color: z.enum(STROKE_COLORS),
     points: z.array(boardPointSchema).min(1).max(PIZARRA_LIMITS.strokePoints),
     text: z.string().trim().min(1).max(PIZARRA_LIMITS.strokeText).optional(),
+    anchors: z.array(itemId).min(1).max(PIZARRA_LIMITS.strokeAnchors).optional(),
+    side: z.enum(OFFSIDE_SIDES).optional(),
   })
-  .refine((s) => (s.kind === "texto" ? s.text !== undefined && s.points.length === 1 : s.points.length >= 2), {
-    message: "Un texto lleva un punto y su texto; el resto de trazos, dos puntos o más.",
+  .refine(strokeOk, {
+    message: "Un texto lleva un punto y su texto; «Unir» de 2 a 4 jugadores; «Foco» uno; «Medir» y el fuera de juego, dos puntos; el resto, dos puntos o más.",
   });
 export type Stroke = z.infer<typeof strokeSchema>;
 export type StrokeKind = Stroke["kind"];
@@ -278,7 +306,10 @@ export const playFrameSchema = z
     arrows: z.array(playArrowSchema).max(PIZARRA_LIMITS.arrows),
     title: z.string().trim().max(PIZARRA_LIMITS.frameTitle).optional(),
     note: z.string().trim().max(PIZARRA_LIMITS.frameNote).optional(),
+    /** Trayectorias curvas: el punto de control del camino de cada jugador que llega a este paso. */
+    curves: z.record(itemId, boardPointSchema).optional(),
   })
+  .refine((f) => Object.keys(f.curves ?? {}).length <= PIZARRA_LIMITS.curves, { message: "Demasiadas curvas en un paso." })
   .refine((f) => Object.keys(f.players).length <= PIZARRA_LIMITS.framePlayers, { message: "Como mucho siete jugadores por paso." })
   .refine((f) => new Set(f.rivals.map((r) => r.id)).size === f.rivals.length, { message: "Rivales repetidos en un paso." });
 export type PlayFrame = z.infer<typeof playFrameSchema>;

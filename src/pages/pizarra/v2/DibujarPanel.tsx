@@ -2,7 +2,7 @@
 // three colours, the text for the field (with Texto), undo and «borrar todo» (asked once more); then the
 // legend of the strokes and, full, every stroke on the grass to pick or delete one by one (the way to
 // do it without drawing). A read-only board shows its strokes and no tools.
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { PIZARRA_LIMITS } from "../../../lib/schemas";
 import type { StrokeColor, StrokeKind } from "../drawings";
 import { Icon, Nuevo, type IconName } from "./icons";
@@ -12,7 +12,7 @@ import { vars } from "./view";
 import { pluralWord } from "./plural";
 import { useConfirmKeys } from "./useConfirmKeys";
 
-const TOOL_ICON: Record<StrokeKind, IconName> = { carrera: "run", pase: "pass", conduccion: "drib", zona: "zone", lapiz: "pencil", texto: "text" };
+const TOOL_ICON: Partial<Record<StrokeKind, IconName>> = { carrera: "run", pase: "pass", conduccion: "drib", zona: "zone", lapiz: "pencil", texto: "text" };
 const LEGEND: [IconName, string][] = [
   ["run", "Carrera · puntos"],
   ["pass", "Pase · línea"],
@@ -39,6 +39,8 @@ export interface DibujarPanelProps {
   onClear: () => void;
   onSelect: (id: string | null) => void;
   onDelete: (id: string) => void;
+  /** Bloque 4's tools pinned to the players (DrawToolsBar), under the six. */
+  extra?: ReactNode;
 }
 
 export function DibujarPanel(p: DibujarPanelProps) {
@@ -58,7 +60,7 @@ export function DibujarPanel(p: DibujarPanelProps) {
           <div className="tools" role="group" aria-label="Herramienta de dibujo">
             {TOOLS.map((t) => (
               <button key={t.k} type="button" className="dt" onClick={() => p.onTool(t.k)} aria-pressed={p.tool === t.k}>
-                <Icon n={TOOL_ICON[t.k]} />
+                <Icon n={TOOL_ICON[t.k] ?? "pen"} />
                 <span>{t.label}</span>
               </button>
             ))}
@@ -84,6 +86,7 @@ export function DibujarPanel(p: DibujarPanelProps) {
               <Icon n="trash" w={18} />
             </button>
           </div>
+          {p.extra}
           {ask && n > 0 && (
             <div className="cfm" role="group" aria-label="¿Borrar todos los trazos?" style={{ marginTop: 8 }}>
               <span>

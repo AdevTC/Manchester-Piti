@@ -110,6 +110,8 @@ export const clearStrokes = (): Stroke[] => [];
 export function strokeToData(s: Stroke): Record<string, unknown> {
   const out: Record<string, unknown> = { id: s.id, kind: s.kind, color: s.color, points: s.points.map((p) => ({ x: p.x, y: p.y })) };
   if (s.text !== undefined) out.text = s.text;
+  if (s.anchors !== undefined) out.anchors = [...s.anchors];
+  if (s.side !== undefined) out.side = s.side;
   return out;
 }
 
