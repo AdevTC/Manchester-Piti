@@ -1367,8 +1367,6 @@
 .pzv{--ang:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%);--angr:polygon(0 0,100% 0,calc(100% - 12px) 100%,0 100%)}
 /* controls: the angled cut */
 .pzv .b3,.pzv .pill,.pzv .jl,.pzv .dt,.pzv .reac button,.pzv .cvn,.pzv .avi,.pzv .selw,.pzv .selw select,.pzv .bd-cur input,.pzv .srch,.pzv .back,.pzv .sbb,.pzv .ex,.pzv .tg,.pzv .ib:not(.pl),.pzv .stp,.pzv .legl span,.pzv .tst,.pzv .bug,.pzv .ch-top .ch-n{border-radius:0;clip-path:var(--ang)}
-.pzv .tg::before,.pzv .tg::after{border-radius:0}
-.pzv .tg::before{clip-path:var(--ang)}
 .pzv .sbb .coin{border-radius:50%}
 /* rows and cards: the FC row, cut on the right */
 .pzv .bl li,.pzv .lk-list li,.pzv .lines div,.pzv .tile,.pzv .con,.pzv .cap,.pzv .chg div,.pzv .qsum,.pzv .sy,.pzv .guion li,.pzv .off,.pzv .band,.pzv .cav,.pzv .cv-h,.pzv .selbar,.pzv .srx-p,.pzv .tape > div{border-radius:0;clip-path:var(--angr)}
@@ -1418,3 +1416,9 @@
 .pzv[data-snap=full]{--shv:calc(var(--vh) - 64px - 102px - var(--vr) * 50cqw)}
 .pzv[data-snap=full] .b2d{top:calc(98px - var(--cut) * 50cqw)}
 }
+
+/* round 2 of the audit: the «nuevo» badge on the active tool, the slab inside the dark official card (day theme), the
+   phone/tablet mode bar keeps its badge unclipped */
+.pzv .mbt[aria-pressed=true] .nv,[data-theme="light"] .pzv .mbt[aria-pressed=true] .nv{background:rgba(7,18,48,.14);color:var(--slab-ink);box-shadow:inset 0 0 0 1px rgba(7,18,48,.35)}
+@container (max-width:1099px){.pzv .mbt[aria-pressed=true],[data-theme="light"] .pzv .mbt[aria-pressed=true]{clip-path:none;border-radius:12px}}
+[data-theme="light"] .pzv .off{--slab:linear-gradient(100deg,#f6fbff 0%,#d4ecfc 58%,#9fd0f2 100%);--slab-ink:#071230}
