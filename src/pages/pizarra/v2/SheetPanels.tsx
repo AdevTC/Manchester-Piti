@@ -105,14 +105,24 @@ export interface PlanTabProps {
   rep: RepRow[];
   repTxt: string;
   canRotate: boolean;
+  /** What the plan does in free mode (plan.ts planNote), shown over the consignas; null with a system. */
+  note?: string | null;
   onSet: (k: TacticKey, v: string) => void;
   onRotate: () => void;
 }
 
-export function PlanTab({ rows, ro, rep, repTxt, canRotate, onSet, onRotate }: PlanTabProps) {
+export function PlanTab({ rows, ro, rep, repTxt, canRotate, note, onSet, onRotate }: PlanTabProps) {
   const uid = useId();
   return (
     <div className="pg">
+      {note && (
+        <div className="cav">
+          <Icon n="alert" w={16} />
+          <span>
+            <b>Modo libre:</b> {note}
+          </span>
+        </div>
+      )}
       <div className="cons">
         {rows.map((t) => {
           const lid = uid + "tac-" + t.key;
@@ -243,7 +253,7 @@ export function QuimicaPanel({ ch, sq, seasonName, oop }: QuimicaProps) {
           <div className="cav">
             <Icon n="alert" w={16} />
             <span>
-              <b>Sin historial:</b> {ch.fresh.join(", ")}. Su química cuenta como neutra hasta que {ch.fresh.length > 1 ? "jueguen" : "juegue"}.
+              <b>Sin historial:</b> {ch.fresh.join(", ")}. Sin minutos juntos todavía: sus luces son débiles hasta que {ch.fresh.length > 1 ? "jueguen" : "juegue"}.
             </span>
           </div>
         )}

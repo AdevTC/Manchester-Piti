@@ -81,7 +81,8 @@ export function Fan({ cx, cy, num, title, items, onItem, onClose }: FanProps) {
 export interface FichaView {
   name: string;
   num: number;
-  rt: number;
+  /** The form chip («—» for a player with no match yet). */
+  rt: number | string;
   pos: string;
   gk: boolean;
   sub: string;

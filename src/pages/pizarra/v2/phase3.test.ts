@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planArrows, setTactic, tacRows } from "./plan";
+import { planArrows, planNote, setTactic, tacRows } from "./plan";
 import { planLayer } from "./view";
 import { changes, cmpMarks, meanForm, tape } from "./compare";
 import { boardLink, convCounts, convocatoriaOf, copyName, matchBand, matchLabel, nameError, officialFor, seasonPending, uniqueName, withConvocatoria, type CalMatch } from "./boards";
@@ -59,7 +59,18 @@ describe("el plan", () => {
     expect(mixta.filter((a) => !a.c.startsWith("sky")).every((a) => a.c === "thin")).toBe(true);
     expect(mixta.filter((a) => a.c === "sky thin")).toHaveLength(3);
     mixta.forEach((a) => expect(a.d).toMatch(/^M[\d.]+ [\d.]+Q/));
-    expect(planArrows({ ...withTac({}), freeMode: true }, "tv")).toEqual([]);
+  });
+
+  it("free mode: the salida and the foco are painted from where the cromos stand; the Plan tab says the scales move nobody", () => {
+    const sys = withTac({ buildup: "Corta", attackFocus: "Centro" });
+    // the cromos where the system had them, then the right central pushed up into the middle
+    const free = { ...sys, freeMode: true, slots: sys.slots.map((s, i) => ({ ...s, x: slotPos(sys, i).u, y: i === 2 ? 50 : slotPos(sys, i).v })) };
+    const arr = planArrows(free, "tv");
+    // one central left in the line: one short pass from the keeper, and the centre lane
+    expect(arr.map((a) => a.key)).toEqual(["s0", "f0"]);
+    expect(arr[0].d).toBe(planArrows(sys, "tv")[0].d);
+    expect(planNote(free)).toBe("En modo libre el plan no mueve a nadie: colócalos tú. La salida y el foco sí se pintan, desde donde los has puesto.");
+    expect(planNote(sys)).toBeNull();
   });
 
   it("the plan layer paints the arrows only while the plan is open", () => {
