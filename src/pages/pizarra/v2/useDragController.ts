@@ -28,6 +28,12 @@ export interface DragState {
   drawRo: boolean;
   /** Jugadas on an editable board: the paso's pieces ([data-piece]) can be moved. */
   pieces: boolean;
+  /** Bloque 5: several fichas can be picked (free mode, a jugada's paso being edited). */
+  multi?: boolean;
+  /** «Seleccionar» is on (touch): a tap picks instead of acting. */
+  selecting?: boolean;
+  /** The fichas picked (free mode: player ids; a paso: pieces), which a drag of one of them moves together. */
+  group?: readonly string[];
 }
 
 export interface DragHandlers {
@@ -51,6 +57,17 @@ export interface DragHandlers {
   onLift?: () => void;
   /** The spot a carried cromo would land on changed (null = none, or the drag ended): only on a change. */
   onTarget?: (src: DragSource, target: DropTarget | null) => void;
+  /** Bloque 5: a ficha tapped with Shift / Ctrl (or with «Seleccionar» on): in or out of the group. */
+  onMultiTap?: (key: string) => void;
+  /** Bloque 5: the group let go after a drag of one of them, moved by (dX, dY) frame %. */
+  onGroup?: (keys: string[], d: { dX: number; dY: number }) => void;
+}
+
+/** The other fichas of the group riding along with a drag (and their marks), from where they were drawn. */
+interface Rider {
+  el: HTMLElement;
+  x0: number;
+  y0: number;
 }
 
 /** A cromo of the bench while the bench is a strip that scrolls sideways (the phone's). */
@@ -75,7 +92,7 @@ type Drag =
   | { kind: "grab"; y0: number; lastY: number; lastT: number; v: number; on: boolean; h0: number; dy: number }
   | { kind: "line"; el: HTMLElement; y0: number; on: boolean; val: string | null }
   | { kind: "draw"; pts: [number, number][]; moved: boolean }
-  | { kind: "piece"; el: HTMLElement; piece: string; x0: number; y0: number; on: boolean; lift: number }
+  | { kind: "piece"; el: HTMLElement; piece: string; x0: number; y0: number; on: boolean; lift: number; multi?: boolean; riders?: Rider[] | null }
   | {
       kind: "tok";
       el: HTMLElement;
@@ -92,7 +109,16 @@ type Drag =
       strip: boolean;
       /** The strip cromo was held still long enough: it follows the finger anywhere now. */
       lifted: boolean;
+      /** Bloque 5: pressed to pick (Shift / Ctrl, or «Seleccionar»): a tap toggles it in the group. */
+      multi?: boolean;
+      /** Bloque 5: the rest of the group, riding along. */
+      riders?: Rider[] | null;
     };
+
+const num = (v: string): number => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : 0;
+};
 
 /** Inline styles, attributes and text the drag overrode, to put back exactly (React keeps owning them). */
 class Restore {
@@ -182,6 +208,36 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     const X = ((x - r.left) / r.width) * 100;
     const Y = ((y - r.top) / r.height) * 100;
     return { X, Y, inside: X >= 0 && X <= 100 && Y >= 0 && Y <= 100, r };
+  };
+  /** Bloque 5: the group a drag of `key` carries (itself included, and every mark), or null when the
+   *  ficha is not in a group of two or more. */
+  const ridersOf = (key: string, piece: boolean): Rider[] | null => {
+    const g = latest.current.state.group ?? [];
+    const fe = refs.frame.current;
+    if (g.length < 2 || !g.includes(key) || !fe) return null;
+    const attr = piece ? "data-piece" : "data-tok";
+    const out: Rider[] = [];
+    const add = (el: HTMLElement) => out.push({ el, x0: num(el.style.getPropertyValue("--x")), y0: num(el.style.getPropertyValue("--y")) });
+    fe.querySelectorAll<HTMLElement>("[" + attr + "]").forEach((el) => {
+      if (g.includes(el.getAttribute(attr) ?? "")) add(el);
+    });
+    fe.querySelectorAll<HTMLElement>("[data-msel]").forEach((el) => {
+      if (g.includes(el.getAttribute("data-msel") ?? "")) add(el);
+    });
+    return out;
+  };
+  /** The pointer's travel since the press, in frame %. */
+  const travel = (x0: number, y0: number, x: number, y: number) => {
+    const r = refs.frame.current?.getBoundingClientRect();
+    if (!r || !r.width || !r.height) return { dX: 0, dY: 0 };
+    return { dX: +(((x - x0) / r.width) * 100).toFixed(2), dY: +(((y - y0) / r.height) * 100).toFixed(2) };
+  };
+  const ride = (riders: Rider[], dX: number, dY: number) => {
+    riders.forEach((r) => {
+      restore.current.set(r.el, "animation", "none");
+      restore.current.set(r.el, "--x", (r.x0 + dX).toFixed(2));
+      restore.current.set(r.el, "--y", (r.y0 + dY).toFixed(2));
+    });
   };
   const hover = (el: Element | null) => {
     if (hovEl.current === el) return;
@@ -282,7 +338,14 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
         d.on = true;
         capture(d.el);
         d.el.classList.add("drag");
+        d.riders = ridersOf(d.piece, true);
         latest.current.h.onPieceStart();
+      }
+      if (d.riders) {
+        const t = travel(d.x0, d.y0, e.clientX, e.clientY);
+        ride(d.riders, t.dX, t.dY);
+        e.preventDefault();
+        return;
       }
       const q = framePoint(e.clientX, e.clientY);
       if (q) {
@@ -355,6 +418,13 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
         }
       }
       latest.current.h.onStart("tok", d.id, d.from);
+      if (d.from === "pitch") d.riders = ridersOf(d.id, false);
+    }
+    if (d.riders) {
+      const t = travel(d.x0, d.y0, e.clientX, e.clientY);
+      ride(d.riders, t.dX, t.dY);
+      e.preventDefault();
+      return;
     }
     const q = framePoint(e.clientX, e.clientY);
     let mag: number | null = null;
@@ -435,11 +505,15 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       return;
     }
     if (d.kind === "piece") {
-      const { on, piece, lift } = d;
+      const { on, piece, lift, multi, riders } = d;
       const q = framePoint(e.clientX, e.clientY);
+      const t = travel(d.x0, d.y0, e.clientX, e.clientY);
+      const g = [...(latest.current.state.group ?? [])];
       cleanup();
       guard();
+      if (!on && multi && hh.onMultiTap) return hh.onMultiTap(piece);
       if (!on) return hh.onPieceTap(piece);
+      if (riders && hh.onGroup) return hh.onGroup(g, t);
       hh.onPiece(piece, q ? { X: q.X, Y: q.Y + lift, inside: q.inside } : null);
       return;
     }
@@ -452,8 +526,24 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       hh.onLine(val);
       return;
     }
-    if (!d.on) return cleanup();
+    if (!d.on) {
+      const { multi, id } = d;
+      cleanup();
+      if (multi && hh.onMultiTap) {
+        guard();
+        hh.onMultiTap(id);
+      }
+      return;
+    }
     guard();
+    if (d.riders && hh.onGroup) {
+      const t = travel(d.x0, d.y0, e.clientX, e.clientY);
+      const g = [...(latest.current.state.group ?? [])];
+      cleanup();
+      hh.onEnd();
+      hh.onGroup(g, t);
+      return;
+    }
     const u = under(e.clientX, e.clientY, d.ghost ?? d.el);
     const pt = framePoint(e.clientX, e.clientY);
     const tok = u?.closest("[data-tok]");
@@ -530,7 +620,9 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     if (pc && fe?.contains(pc)) {
       const piece = pc.getAttribute("data-piece") ?? "";
       // our cromos are held by their feet, like on the board; a rival or the ball by its middle
-      drag.current = { kind: "piece", el: pc, piece, x0: e.clientX, y0: e.clientY, on: false, lift: piece.startsWith("p:") ? 4 : 0 };
+      // (Bloque 5: with Shift / Ctrl, or «Seleccionar» on, a tap picks the piece; a curve's handle never)
+      const multi = !!st.multi && !piece.startsWith("c:") && (e.shiftKey || e.ctrlKey || e.metaKey || !!st.selecting);
+      drag.current = { kind: "piece", el: pc, piece, x0: e.clientX, y0: e.clientY, on: false, lift: piece.startsWith("p:") ? 4 : 0, multi };
       attach();
       return;
     }
@@ -553,7 +645,13 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     const from: DragSource["from"] = zone === "p" ? "pitch" : "bench";
     // a finger (not the mouse) on the phone's bench strip waits for a hold or an upward move
     const strip = from === "bench" && (e.pointerType === "touch" || e.pointerType === "pen") && inStrip(tk);
-    drag.current = { kind: "tok", el: tk, id, from, i0: from === "pitch" ? st.lineup.slots.findIndex((s) => s.playerId === id) : -1, x0: e.clientX, y0: e.clientY, lx: e.clientX, on: false, mag: null, ghost: null, strip, lifted: false };
+    // (Bloque 5: in free mode, with Shift / Ctrl or «Seleccionar» on, a tap picks the cromo — no long press)
+    const multi = !!st.multi && from === "pitch" && (e.shiftKey || e.ctrlKey || e.metaKey || !!st.selecting);
+    drag.current = { kind: "tok", el: tk, id, from, i0: from === "pitch" ? st.lineup.slots.findIndex((s) => s.playerId === id) : -1, x0: e.clientX, y0: e.clientY, lx: e.clientX, on: false, mag: null, ghost: null, strip, lifted: false, multi };
+    if (multi) {
+      attach();
+      return;
+    }
     tk.classList.add("lp");
     window.clearTimeout(lpTimer.current);
     window.clearTimeout(liftTimer.current);

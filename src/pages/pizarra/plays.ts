@@ -320,7 +320,26 @@ export const isValidPlay = (play: Play) => playSchema.safeParse(play).success;
 
 /** Firestore payload (no `undefined`). */
 export function playToData(play: Play): Record<string, unknown> {
-  return { id: play.id, name: play.name, kind: play.kind, frames: play.frames.map((f) => ({ ...cloneFrame(f) })) };
+  return {
+    id: play.id,
+    name: play.name,
+    kind: play.kind,
+    frames: play.frames.map((f) => ({ ...cloneFrame(f) })),
+    ...(play.video ? { video: { url: play.video.url, at: play.video.at } } : {}),
+  };
+}
+
+/** Links a video to the jugada (an https URL and the second it starts at), or takes it off (null). */
+export function setPlayVideo(play: Play, video: { url: string; at: number } | null): Play {
+  if (!video) {
+    if (!play.video) return play;
+    const rest = { ...play };
+    delete rest.video;
+    return rest;
+  }
+  const v = { url: video.url.trim(), at: Math.max(0, Math.round(video.at)) };
+  if (play.video && play.video.url === v.url && play.video.at === v.at) return play;
+  return { ...play, video: v };
 }
 
 /** Reads the `plays` of a stored board: invalid jugadas are dropped (and reported), ≤ 12 kept. */
