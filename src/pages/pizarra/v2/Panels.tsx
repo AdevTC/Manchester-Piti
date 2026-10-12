@@ -6,7 +6,7 @@ import type { FormationName } from "../formations";
 import { FORM, SYSTEMS } from "./geometry";
 import { Icon, Nuevo } from "./icons";
 import { AlbumCromo, BenchRowItem } from "./Cromos";
-import { andList, sysLines, type BenchGroup, type ConvHead, type SquadInfo } from "./bench";
+import { andList, sysLines, type BenchGroup, type ConvHead, type PitchHit, type SquadInfo } from "./bench";
 import type { Squad } from "./model";
 import { lucesTxt, type Chem } from "./quimica";
 import { ChemLines, ChemTop, LucesList, PanelHead } from "./SheetPanels";
@@ -281,7 +281,7 @@ export interface BenchTabProps {
   q: string;
   zf: string;
   oc: boolean;
-  /** «Solo convocados» needs answers to the convocatoria. */
+  /** «Solo los que van» needs answers to the convocatoria. */
   ocOff: boolean;
   seasons: { id: string; name: string }[];
   seasonId: string;
@@ -297,6 +297,9 @@ export interface BenchTabProps {
   onZf: (z: string) => void;
   onOc: () => void;
   onSeason: (id: string) => void;
+  /** Who of those on the pitch «Buscar en la plantilla» finds; tapping one marks him on the pitch. */
+  found?: PitchHit[];
+  onFound?: (id: string) => void;
 }
 
 const ZONE_FILTERS = ["Todos", "POR", "DEF", "MED", "DEL"];
@@ -328,10 +331,10 @@ export function BenchTab(p: BenchTabProps) {
             <b>{conv.no}</b>no va
           </li>
         </ul>
-        <button type="button" className="avi" onClick={p.onAvisar} aria-label={conv.dudas.length ? "Avisar a los que dudan: " + andList(conv.dudas) : "Avisar a los que dudan: nadie tiene dudas"}>
+        <button type="button" className="avi" onClick={p.onAvisar} aria-label={conv.aviso.length ? "Avisar a los que dudan: " + andList(conv.aviso) : "Avisar a los que dudan: nadie tiene dudas"}>
           <Icon n="bell" w={15} />
           <span>Avisar a los que dudan</span>
-          <em>{conv.dudas.join(" · ")}</em>
+          <em>{conv.aviso.join(" · ")}</em>
         </button>
       </div>
       <div className="cv-a">
@@ -371,7 +374,7 @@ export function BenchTab(p: BenchTabProps) {
             </div>
             <div className="al-row">
               <button type="button" className="tg" onClick={p.onOc} aria-pressed={p.oc} disabled={p.ocOff}>
-                Solo convocados
+                Solo los que van
               </button>
               <label className="selw">
                 Temporada
@@ -385,6 +388,16 @@ export function BenchTab(p: BenchTabProps) {
                 </select>
               </label>
             </div>
+            {!!p.found?.length && (
+              <div className="srx-on" role="group" aria-label="En el campo">
+                <span>En el campo:</span>
+                {p.found.map((f) => (
+                  <button key={f.id} type="button" className="b3" onClick={() => p.onFound?.(f.id)} aria-label={f.name + ", en el campo de " + f.slot + ": señalarlo"}>
+                    {f.name} · {f.slot}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

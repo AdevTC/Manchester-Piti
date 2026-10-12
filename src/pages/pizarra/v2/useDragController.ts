@@ -6,7 +6,7 @@
 // is turned into a lineup change.
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import { CAMS, proj, unproj, nearestLine, type CamName } from "./geometry";
-import { CLICK_GUARD_MS, DRAG_SLOP, LONG_PRESS_MS, pickMagnet, swapArc, tilt, type Magnet } from "./drag";
+import { BENCH_FICHA_MS, BENCH_HOLD_MS, CLICK_GUARD_MS, DRAG_SLOP, LONG_PRESS_MS, pickMagnet, stripGesture, swapArc, tilt, type Magnet } from "./drag";
 import type { DragSource, DropTarget } from "./ops";
 import { dragHeight } from "./sheet";
 import { liveD } from "./telestrator";
@@ -47,6 +47,16 @@ export interface DragHandlers {
   /** A piece let go: where (frame %, `inside` the frame or not). */
   onPiece: (piece: string, at: { X: number; Y: number; inside: boolean } | null) => void;
   onPieceTap: (piece: string) => void;
+  /** A finger held a cromo of the phone's bench strip still long enough: it lifts (a buzz says so). */
+  onLift?: () => void;
+}
+
+/** A cromo of the bench while the bench is a strip that scrolls sideways (the phone's). */
+function inStrip(el: Element): boolean {
+  const sc = el.closest(".cvb");
+  if (!sc || typeof getComputedStyle !== "function") return false;
+  const ox = getComputedStyle(sc).overflowX;
+  return ox === "auto" || ox === "scroll";
 }
 
 interface Refs {
@@ -76,6 +86,10 @@ type Drag =
       on: boolean;
       mag: number | null;
       ghost: HTMLElement | null;
+      /** A finger on the phone's bench strip: it waits for a hold or an upward move (else the strip scrolls). */
+      strip: boolean;
+      /** The strip cromo was held still long enough: it follows the finger anywhere now. */
+      lifted: boolean;
     };
 
 /** Inline styles, attributes and text the drag overrode, to put back exactly (React keeps owning them). */
@@ -113,7 +127,13 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     latest.current = { state, h };
   });
   const drag = useRef<Drag | null>(null);
+  /** The one pointer the drag follows (a second finger is ignored), and the element holding its capture. */
+  const pid = useRef<number | null>(null);
+  const capEl = useRef<Element | null>(null);
+  /** The element pressed (the sheet's handle), to capture once the drag really starts. */
+  const pressEl = useRef<Element | null>(null);
   const lpTimer = useRef(0);
+  const liftTimer = useRef(0);
   const guardUntil = useRef(0);
   const restore = useRef(new Restore());
   const hovEl = useRef<Element | null>(null);
@@ -122,10 +142,23 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
   useEffect(
     () => () => {
       window.clearTimeout(lpTimer.current);
+      window.clearTimeout(liftTimer.current);
       detach.current?.();
     },
     [],
   );
+  /** The drag's pointer stays with the element it started on (until it is let go or cancelled). */
+  const capture = (el: Element) => {
+    if (pid.current == null || capEl.current) return;
+    try {
+      el.setPointerCapture?.(pid.current);
+      capEl.current = el;
+    } catch {
+      /* the pointer is already gone */
+    }
+  };
+  /** Events of another pointer (a second finger) than the one dragging. */
+  const other = (e: PointerEvent) => pid.current != null && e.pointerId != null && e.pointerId !== pid.current;
 
   /** True right after a drag or a long press: the click it produces must not count as a tap. */
   const guarded = () => Date.now() < guardUntil.current;
@@ -163,10 +196,21 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
   };
   const cleanup = () => {
     window.clearTimeout(lpTimer.current);
+    window.clearTimeout(liftTimer.current);
     refs.root.current?.querySelectorAll(".lp").forEach((x) => x.classList.remove("lp"));
+    const ce = capEl.current;
+    if (ce && pid.current != null) {
+      try {
+        if (ce.hasPointerCapture?.(pid.current)) ce.releasePointerCapture(pid.current);
+      } catch {
+        /* already released */
+      }
+    }
+    capEl.current = null;
+    pid.current = null;
     const d = drag.current;
     if (d?.kind === "tok") {
-      d.el.classList.remove("drag", "snapd", "lift");
+      d.el.classList.remove("drag", "snapd", "lift", "armed");
       d.ghost?.remove();
     }
     if (d?.kind === "grab" && refs.sheet.current) {
@@ -185,12 +229,13 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
 
   const move = (e: PointerEvent) => {
     const d = drag.current;
-    if (!d) return;
+    if (!d || other(e)) return;
     const { state: st } = latest.current;
     const C = CAMS[st.cam];
     if (d.kind === "grab") {
       const dy = e.clientY - d.y0;
       if (!d.on && Math.abs(dy) < 4) return;
+      if (!d.on && pressEl.current) capture(pressEl.current);
       d.on = true;
       const now = Date.now();
       d.v = (e.clientY - d.lastY) / Math.max(1, now - d.lastT);
@@ -224,6 +269,7 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       if (!d.on && Math.hypot(dx, dy) < DRAG_SLOP) return;
       if (!d.on) {
         d.on = true;
+        capture(d.el);
         d.el.classList.add("drag");
         latest.current.h.onPieceStart();
       }
@@ -242,6 +288,7 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       if (!d.on && Math.abs(e.clientY - d.y0) < 4) return;
       if (!d.on) {
         d.on = true;
+        capture(d.el);
         latest.current.h.onStart("line", null, null);
       }
       const v = Math.max(50, Math.min(90, unproj(C, 50, q.Y).v));
@@ -263,11 +310,18 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     }
     const dx = e.clientX - d.x0;
     const dy = e.clientY - d.y0;
-    if (!d.on && Math.hypot(dx, dy) < DRAG_SLOP) return;
+    if (!d.on && d.strip) {
+      // the phone's strip: a sideways swipe is the strip's scroll, not a drag
+      const g = stripGesture(dx, dy, d.lifted);
+      if (g === "wait") return;
+      if (g === "scroll") return cleanup();
+    } else if (!d.on && Math.hypot(dx, dy) < DRAG_SLOP) return;
     if (!d.on) {
       d.on = true;
       window.clearTimeout(lpTimer.current);
-      d.el.classList.remove("lp");
+      window.clearTimeout(liftTimer.current);
+      capture(d.el);
+      d.el.classList.remove("lp", "armed");
       d.el.classList.add("drag");
       if (d.from === "bench") {
         // The album cromo travels as a copy over the whole app (the sheet would clip it).
@@ -336,6 +390,7 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
   };
 
   const up = (e: PointerEvent) => {
+    if (other(e)) return;
     window.clearTimeout(lpTimer.current);
     const d = drag.current;
     const { h: hh } = latest.current;
@@ -397,10 +452,16 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     hh.onDrop(src, t, at);
   };
 
-  const cancel = () => {
+  const cancel = (e: PointerEvent) => {
+    if (other(e)) return;
     const was = drag.current;
     cleanup();
     if (was && (was.kind === "tok" || was.kind === "line") && was.on) latest.current.h.onEnd();
+  };
+  // A lifted strip cromo must not scroll the strip as the finger carries it sideways.
+  const noScroll = (e: TouchEvent) => {
+    const d = drag.current;
+    if (d?.kind === "tok" && d.strip && (d.lifted || d.on) && e.cancelable) e.preventDefault();
   };
 
   const attach = () => {
@@ -408,10 +469,12 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     window.addEventListener("pointermove", move, { passive: false });
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", cancel);
+    window.addEventListener("touchmove", noScroll, { passive: false });
     detach.current = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("touchmove", noScroll);
     };
   };
 
@@ -419,8 +482,11 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     if (e.button > 0 || drag.current) return;
     const { state: st, h: hh } = latest.current;
     const target = e.target as Element;
+    pid.current = e.pointerId ?? null;
+    pressEl.current = null;
     const grab = target.closest("[data-grab]");
     if (grab && refs.sheet.current) {
+      pressEl.current = grab;
       drag.current = { kind: "grab", y0: e.clientY, lastY: e.clientY, lastT: Date.now(), v: 0, on: false, h0: refs.sheet.current.offsetHeight, dy: 0 };
       attach();
       return;
@@ -432,6 +498,7 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
       if (!q) return;
       e.preventDefault();
       drag.current = { kind: "draw", pts: [[q.X, q.Y]], moved: false };
+      capture(fe);
       attach();
       return;
     }
@@ -460,16 +527,30 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     if (!st.canMove) return;
     const id = tk.getAttribute("data-tok") ?? "";
     const from: DragSource["from"] = zone === "p" ? "pitch" : "bench";
-    drag.current = { kind: "tok", el: tk, id, from, i0: from === "pitch" ? st.lineup.slots.findIndex((s) => s.playerId === id) : -1, x0: e.clientX, y0: e.clientY, lx: e.clientX, on: false, mag: null, ghost: null };
+    // a finger (not the mouse) on the phone's bench strip waits for a hold or an upward move
+    const strip = from === "bench" && (e.pointerType === "touch" || e.pointerType === "pen") && inStrip(tk);
+    drag.current = { kind: "tok", el: tk, id, from, i0: from === "pitch" ? st.lineup.slots.findIndex((s) => s.playerId === id) : -1, x0: e.clientX, y0: e.clientY, lx: e.clientX, on: false, mag: null, ghost: null, strip, lifted: false };
     tk.classList.add("lp");
     window.clearTimeout(lpTimer.current);
-    lpTimer.current = window.setTimeout(() => {
-      const d = drag.current;
-      if (!d || d.kind !== "tok" || d.on || d.id !== id) return;
-      cleanup();
-      guard();
-      latest.current.h.onLongPress(id, from, from === "pitch" ? (tk.querySelector(".cc") ?? tk) : tk);
-    }, LONG_PRESS_MS);
+    window.clearTimeout(liftTimer.current);
+    if (strip)
+      liftTimer.current = window.setTimeout(() => {
+        const d = drag.current;
+        if (!d || d.kind !== "tok" || d.on || d.id !== id) return;
+        d.lifted = true;
+        tk.classList.add("armed");
+        latest.current.h.onLift?.();
+      }, BENCH_HOLD_MS);
+    lpTimer.current = window.setTimeout(
+      () => {
+        const d = drag.current;
+        if (!d || d.kind !== "tok" || d.on || d.id !== id) return;
+        cleanup();
+        guard();
+        latest.current.h.onLongPress(id, from, from === "pitch" ? (tk.querySelector(".cc") ?? tk) : tk);
+      },
+      strip ? BENCH_FICHA_MS : LONG_PRESS_MS,
+    );
     attach();
   };
 

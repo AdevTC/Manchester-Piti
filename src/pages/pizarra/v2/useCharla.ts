@@ -5,7 +5,7 @@
 // play the step's sound. Each press of the transport acts at once, from where the charla really is:
 // quick presses add up even when the board (or the stadium) is slow to draw them.
 import { useEffect, useRef, useState } from "react";
-import { advance, charla0, goTo, hide, show, stepMs, toggle as toggleOf, type CharlaState } from "./charla";
+import { advance, charla0, ENGINE_MAX_MS, goTo, hide, show, stepMs, toggle as toggleOf, type CharlaState } from "./charla";
 
 export type CharlaMove = "tick" | "engine" | "user";
 
@@ -62,10 +62,11 @@ export function useCharla({ on, last, rm, engine, onMove }: CharlaArgs): CharlaA
     moveLatest.current = move;
   });
 
-  // the beat: one step after another while it plays
+  // the beat: one step after another while it plays (a step the 3D stadium paces waits for its report,
+  // but never longer than ENGINE_MAX_MS)
   useEffect(() => {
-    if (!on || !st.playing || paced || st.step >= last) return;
-    const t = window.setTimeout(() => moveLatest.current((s, l) => advance(s, l), "tick"), stepMs(st.step, last));
+    if (!on || !st.playing || st.step >= last) return;
+    const t = window.setTimeout(() => moveLatest.current((s, l) => advance(s, l), "tick"), paced ? ENGINE_MAX_MS : stepMs(st.step, last));
     return () => window.clearTimeout(t);
   }, [on, st.playing, st.step, paced, last]);
 

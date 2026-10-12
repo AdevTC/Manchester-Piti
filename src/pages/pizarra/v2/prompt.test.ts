@@ -9,6 +9,8 @@ import { RAIL, RAIL_ORDER } from "./rail";
 const acts = (): PromptActs => ({
   undo: vi.fn(),
   undoStroke: vi.fn(),
+  redoStroke: vi.fn(),
+  undoJugada: vi.fn(),
   captain: vi.fn(),
   galones: vi.fn(),
   ficha: vi.fn(),
@@ -45,9 +47,11 @@ describe("the prompt bar's items", () => {
   });
 
   it("jugadas, dibujar, la charla, química and the rest", () => {
-    expect(show(ctx({ modo: "jugadas" }))).toEqual(["Espacio Reproducir ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Esc Volver al siete ▸"]);
-    expect(show(ctx({ modo: "jugadas", playing: true, pieces: true }))).toEqual(["Espacio Pausa ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Arrastra Retocar el paso", "Esc Volver al siete ▸"]);
-    expect(show(ctx({ modo: "dibujar" }))).toEqual(["Arrastra Dibujar en el césped", "Ctrl Z Deshacer trazo ▸", "Esc Volver al siete ▸"]);
+    // Ctrl Z is the tool's own: the jugadas' edits, the strokes (with their redo); never the hidden siete
+    expect(show(ctx({ modo: "jugadas" }))).toEqual(["Espacio Reproducir ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Ctrl Z Deshacer en la jugada ▸", "Esc Volver al siete ▸"]);
+    expect(show(ctx({ modo: "jugadas", ro: true }))).toEqual(["Espacio Reproducir ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Esc Volver al siete ▸"]);
+    expect(show(ctx({ modo: "jugadas", playing: true, pieces: true }))).toEqual(["Espacio Pausa ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Arrastra Retocar el paso", "Ctrl Z Deshacer en la jugada ▸", "Esc Volver al siete ▸"]);
+    expect(show(ctx({ modo: "dibujar" }))).toEqual(["Arrastra Dibujar en el césped", "Ctrl Z Deshacer trazo ▸", "Ctrl ⇧ Z Rehacer trazo ▸", "Esc Volver al siete ▸"]);
     expect(show(ctx({ modo: "dibujar", ro: true }))).toEqual(["Esc Volver al siete ▸"]);
     expect(show(ctx({ modo: "charla", playing: true }))).toEqual(["Espacio Pausa ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Esc Salir de la charla ▸"]);
     expect(show(ctx({ modo: "quimica" }))).toEqual(["Clic Cambia a un jugador y mira cómo se reencienden las luces", "Esc Volver al siete ▸"]);

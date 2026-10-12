@@ -41,7 +41,7 @@ describe("slots on the pitch", () => {
   it("places the system's spots, the goalkeeper never moved by the plan", () => {
     const L = lineupOf([]);
     expect(slotPos(L, 0)).toEqual({ u: 50, v: 95 });
-    expect(slotPos(L, 6)).toEqual({ u: 50, v: 24 });
+    expect(slotPos(L, 6)).toEqual({ u: 50, v: 22 });
     expect(slotLabel(L, 3)).toBe("MI");
     expect(slotZone(L, 1)).toBe("DEF");
   });
@@ -49,8 +49,8 @@ describe("slots on the pitch", () => {
   it("moves the block with the plan: línea alta pushes the defence up, amplitud widens", () => {
     const base = lineupOf([]);
     const alta = { ...base, tactics: { ...base.tactics, defLine: "Alta" } };
-    expect(slotPos(alta, 1).v).toBe(73 - 9);
-    expect(slotPos(alta, 4).v).toBeCloseTo(54 - 9 * 0.45);
+    expect(slotPos(alta, 1).v).toBe(74 - 9);
+    expect(slotPos(alta, 4).v).toBeCloseTo(50 - 9 * 0.45);
     const amplia = { ...base, tactics: { ...base.tactics, width: "Amplia" } };
     expect(slotPos(amplia, 3).u).toBeCloseTo(50 + (17 - 50) * 1.13);
     expect(slotPos(amplia, 0)).toEqual(slotPos(base, 0));

@@ -482,15 +482,17 @@ export function AjustesPanel(p: AjustesProps) {
         ))}
       </div>
       <h3>Cámara</h3>
-      <div className="sg" role="group" aria-label="Cámara">
+      <div className="sg two" role="group" aria-label="Cámara">
         <button type="button" onClick={() => p.onCam("tv")} aria-pressed={p.cam === "tv"}>
           Estadio · TV
         </button>
         <button type="button" onClick={() => p.onCam("top")} aria-pressed={p.cam === "top"}>
           Cenital
         </button>
-        <button type="button" onClick={p.on3d} aria-pressed={p.v3}>
-          3D
+      </div>
+      <div className="aj" style={{ marginTop: 6 }}>
+        <button type="button" className="tg" onClick={p.on3d} aria-pressed={p.v3}>
+          Estadio 3D
         </button>
       </div>
       <h3>

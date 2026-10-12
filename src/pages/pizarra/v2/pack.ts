@@ -1,21 +1,24 @@
 // La pizarra «Noche de partido» — «Sugerir siete»: a pack of cromos opened on the pitch. The seven in
 // the best recent form (minutes and goals+assists of the last matches, then the rating), each dealt to
-// a slot of his natural zone, the bajas and the «no voy» left out. When the match has its convocatoria
-// (the admin's Convocar: the one source), its siete is dealt first. Pure.
+// a slot of his natural zone, the bajas and the «no voy» left out (and, when the match has its
+// convocatoria, whoever it doesn't call). The convocatoria's siete (the admin's Convocar: the one source)
+// is dealt first. Those who stay on the pitch keep their «Jugar de». Pure.
 import type { Lineup } from "../formations";
 import { slotZone } from "./geometry";
-import { isAvailable, type Squad } from "./model";
+import type { Squad } from "./model";
+import { answerRank, canCome, dropBenchedRoles } from "./ops";
 
-/** The ranking the pack deals from (best first). */
-export function packRanking(sq: Squad): string[] {
+/** The ranking the pack deals from (best first): «Voy», then no answer, then «Duda», each by form;
+ *  never a baja, a «no va» or (with a convocatoria) someone it doesn't call. */
+export function packRanking(sq: Squad, called: ReadonlySet<string> | null = null): string[] {
   const score = (id: string) => {
     const c = sq.byId.get(id);
     return c ? c.recentMin + c.recentGA * 15 + c.rt : -Infinity;
   };
   return sq.list
-    .filter((c) => isAvailable(sq, c.id) && c.cv !== "no")
+    .filter((c) => canCome(sq, c.id, called))
     .map((c) => c.id)
-    .sort((a, b) => score(b) - score(a));
+    .sort((a, b) => answerRank(sq, a) - answerRank(sq, b) || score(b) - score(a));
 }
 
 /**
@@ -23,9 +26,10 @@ export function packRanking(sq: Squad): string[] {
  * `first` (the convocatoria's siete) is dealt before anyone else: a whole siete is exactly those seven;
  * a partial one goes first and the pack completes it (a keeper from the pack before an outfielder in goal).
  */
-export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = []): Lineup {
-  const rank = packRanking(sq);
-  const own = first.filter((id) => sq.byId.has(id));
+export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = [], called: ReadonlySet<string> | null = null): Lineup {
+  const rank = packRanking(sq, called);
+  // (the convocatoria's siete, minus whoever is now a baja or said no)
+  const own = first.filter((id) => canCome(sq, id, null));
   const out: (string | null)[] = L.slots.map(() => null);
   const used = new Set<string>();
   const isGk = (id: string) => sq.byId.get(id)?.pos === "POR";
@@ -53,7 +57,10 @@ export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = []
     deal(own, [2]);
     deal(rank, [2]);
   }
-  return { ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })), playerPositions: {} };
+  // «Jugar de» stays with whoever was on the pitch and still is
+  const was = new Set(L.slots.map((s) => s.playerId).filter((x): x is string => !!x));
+  const playerPositions = Object.fromEntries(Object.entries(L.playerPositions ?? {}).filter(([id]) => was.has(id) && used.has(id)));
+  return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })), playerPositions });
 }
 
 /** The slot-machine reel each cromo spins before it lands: six dorsales of the squad, twice. */

@@ -58,22 +58,27 @@ export interface ConvHead {
   duda: number;
   no: number;
   aria: string;
-  /** Names of those in doubt («Avisar a los que dudan»). */
+  /** Names of those in doubt. */
   dudas: string[];
-  /** Whether anyone has answered (else «Solo convocados» has nothing to filter by). */
+  /** Who «Avisar a los que dudan» calls on: those in doubt and, with the captain's convocatoria, the
+   *  called who haven't answered (never a baja, never someone it doesn't call). */
+  aviso: string[];
+  /** Whether anyone has answered (else «Solo los que van» has nothing to filter by). */
   answered: boolean;
 }
 
 export function convHead(o: { sq: Squad; match: CalMatch | null; loading: boolean; error: boolean }): ConvHead {
   const { sq, match: m } = o;
+  const called = calledOf(m);
+  // With the captain's convocatoria, everything counts over who it calls.
+  const pool = called ? sq.list.filter((c) => called.has(c.id)) : sq.list;
   const n = { voy: 0, duda: 0, no: 0, sin: 0 };
-  sq.list.forEach((c) => {
+  pool.forEach((c) => {
     if (c.cv) n[c.cv]++;
     else n.sin++;
   });
   const answered = n.voy + n.duda + n.no > 0;
-  const called = calledOf(m);
-  const bajas = sq.list.filter((c) => c.baja).length;
+  const bajas = pool.filter((c) => c.baja).length;
   const title = !m
     ? "Sin partido a la vista: sin convocatoria."
     : o.error
@@ -82,8 +87,9 @@ export function convHead(o: { sq: Squad; match: CalMatch | null; loading: boolea
         ? "Leyendo la convocatoria de " + matchShort(m) + "…"
         : !answered && !called
           ? "Nadie ha respondido aún a la convocatoria de " + matchShort(m) + "."
-          : [called ? plural(called.size, "convocado") : plural(n.voy + n.duda + n.no, "respuesta"), n.sin ? n.sin + " sin responder" : "", plural(bajas, "baja")].filter(Boolean).join(" · ");
-  const dudas = sq.list.filter((c) => c.cv === "duda").map((c) => c.name);
+          : [called ? plural(called.size, "convocado") : plural(n.voy + n.duda + n.no, "respuesta"), n.sin ? n.sin + " sin responder" : "", bajas ? plural(bajas, "baja") : ""].filter(Boolean).join(" · ");
+  const dudas = pool.filter((c) => c.cv === "duda" && !c.baja).map((c) => c.name);
+  const aviso = pool.filter((c) => !c.baja && (c.cv === "duda" || (!!called && !c.cv))).map((c) => c.name);
   return {
     kick: "Convocatoria" + (m ? " · " + matchShort(m) : ""),
     title,
@@ -92,6 +98,7 @@ export function convHead(o: { sq: Squad; match: CalMatch | null; loading: boolea
     no: n.no,
     aria: "Respuestas: " + n.voy + " voy, " + n.duda + " duda, " + n.no + " no va",
     dudas,
+    aviso,
     answered,
   };
 }
@@ -99,11 +106,15 @@ export function convHead(o: { sq: Squad; match: CalMatch | null; loading: boolea
 /** «Kevin y Almachi» / «A, B y C». */
 export const andList = (xs: string[]): string => (xs.length < 2 ? (xs[0] ?? "") : xs.slice(0, -1).join(", ") + " y " + xs[xs.length - 1]);
 
-/** The message «Avisar a los que dudan» sends to the group (null when nobody is in doubt). */
-export function avisoTxt(dudas: string[], m: CalMatch | null): string | null {
-  if (!dudas.length) return null;
-  return (m ? matchShort(m) + ": " : "") + andList(dudas) + ", ¿venís? Contestad a la convocatoria en el vestuario.";
+/** The message «Avisar a los que dudan» sends to the group, with the link where they answer (null when
+ *  there is nobody to call on). */
+export function avisoTxt(names: string[], m: CalMatch | null, url?: string): string | null {
+  if (!names.length) return null;
+  return (m ? matchShort(m) + ": " : "") + andList(names) + ", ¿venís? Contestad a la convocatoria en el vestuario" + (url ? ": " + url : ".");
 }
+
+/** Where the convocatoria is answered (the link «Avisar a los que dudan» carries). */
+export const avisoUrl = (origin: string): string => origin + "/vestuario";
 
 // ── the bench ──
 export interface BenchFilter {
@@ -112,8 +123,30 @@ export interface BenchFilter {
   q: string;
   /** "Todos" or a zone. */
   zf: string;
-  /** «Solo convocados» = those who said «Voy». */
+  /** «Solo los que van» = those who said «Voy». */
   oc: boolean;
+}
+
+/** Whether «Buscar en la plantilla» is filtering at all (a name or dorsal, a position, «Solo los que van»). */
+export const isFiltering = (f: BenchFilter): boolean => f.on && (!!f.q.trim() || f.zf !== "Todos" || f.oc);
+const matches = (c: Cromo, f: BenchFilter): boolean => {
+  const qq = f.q.trim().toLowerCase();
+  return (!qq || c.name.toLowerCase().includes(qq) || String(c.num) === qq) && (f.zf === "Todos" || c.pos === f.zf) && (!f.oc || c.cv === "voy");
+};
+
+/** «Buscar en la plantilla» finds the ones on the pitch too: who, and the slot he plays. */
+export interface PitchHit {
+  id: string;
+  name: string;
+  num: number;
+  slot: string;
+}
+export function pitchFound(L: Lineup, sq: Squad, f: BenchFilter, label: (i: number) => string): PitchHit[] {
+  if (!isFiltering(f)) return [];
+  return L.slots.flatMap((s, i) => {
+    const c = s.playerId ? sq.byId.get(s.playerId) : undefined;
+    return c && matches(c, f) ? [{ id: c.id, name: c.name, num: c.num, slot: label(i) }] : [];
+  });
 }
 
 /** Who is in the hand: a player of the pitch (his slot's zone), or an empty slot picked. */
@@ -193,9 +226,8 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
 /** The bench (everyone off the pitch) in its three groups, filtered by «Buscar en la plantilla». */
 export function benchGroups(o: { bench: Cromo[]; called: ReadonlySet<string> | null; filter: BenchFilter; hand: BenchHand | null; selId: string | null; meId: string | null }): BenchGroup[] {
   const f = o.filter;
-  const qq = f.q.trim().toLowerCase();
-  const filtering = f.on && (!!qq || f.zf !== "Todos" || f.oc);
-  const keep = (c: Cromo) => !f.on || ((!qq || c.name.toLowerCase().includes(qq) || String(c.num) === qq) && (f.zf === "Todos" || c.pos === f.zf) && (!f.oc || c.cv === "voy"));
+  const filtering = isFiltering(f);
+  const keep = (c: Cromo) => !f.on || matches(c, f);
   const grpOf = (c: Cromo): BenchGroup["k"] => (c.baja ? "x" : o.called && !o.called.has(c.id) ? "s" : "b");
   const of = (k: BenchGroup["k"]) => o.bench.filter((c) => grpOf(c) === k && keep(c));
   const rank = (c: Cromo) => (c.cv ? CV_ORDER[c.cv] : 3);

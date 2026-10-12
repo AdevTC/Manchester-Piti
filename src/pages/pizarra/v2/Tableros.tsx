@@ -5,6 +5,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Icon, Nuevo } from "./icons";
 import { PanelHead } from "./SheetPanels";
+import { useConfirmKeys } from "./useConfirmKeys";
 import { matchBand, matchLabel, nameError, NAME_MAX, type CalMatch } from "./boards";
 import type { ReactionValue } from "../reactions";
 import { apiError } from "../../../lib/clubApi";
@@ -59,6 +60,8 @@ export interface TablerosProps {
   onOpen: (id: string) => void;
   onCopy: (id: string) => void;
   onDelete: (id: string) => void;
+  /** Boards deleted a moment ago: still undoable until the deletion goes through. */
+  pending: { id: string; name: string; undo: () => void }[];
   // Oficial
   official: OfficialView | null;
   reactions: ReactionsView | null;
@@ -164,6 +167,16 @@ export function TablerosPanel(p: TablerosProps) {
   const [publishing, setPublishing] = useState(false);
   // Publishing a seven with warnings asks once more, in the card (undefined = not asking).
   const [askPub, setAskPub] = useState<string | null | undefined>(undefined);
+  // «Quitar el oficial» and linking the official to another match (it republishes it and tells the team)
+  // ask once more too.
+  const [askUnpub, setAskUnpub] = useState(false);
+  const [askLink, setAskLink] = useState<string | null | undefined>(undefined);
+  useConfirmKeys(!!confirm || askPub !== undefined || askUnpub || askLink !== undefined, () => {
+    setConfirm(null);
+    setAskPub(undefined);
+    setAskUnpub(false);
+    setAskLink(undefined);
+  });
   const doPublish = (mid: string | null) => {
     setAskPub(undefined);
     setPublishing(true);
@@ -171,6 +184,8 @@ export function TablerosPanel(p: TablerosProps) {
   };
   const linked = p.calendar.find((m) => m.id === p.matchId) ?? null;
   const band = matchBand(linked);
+  const linkM = askLink ? p.calendar.find((m) => m.id === askLink) : undefined;
+  const linkTo = !askLink ? "toda la temporada" : linkM ? matchLabel(linkM) : "otro partido";
   const scopeTxt = (matchId: string | null) => (matchId ? "este partido" : "toda la temporada");
 
   const confirmRow = (bid: string, name: string, at: "cur" | "row") =>
@@ -236,6 +251,16 @@ export function TablerosPanel(p: TablerosProps) {
             </div>
             {p.id && confirmRow(p.id, p.name, "cur")}
           </div>
+          {p.pending.map((d) => (
+            <div key={d.id} className="cfm" role="group" aria-label={"«" + d.name + "» borrado"} style={{ marginTop: 10 }}>
+              <span>
+                <b>«{d.name}»</b> borrado: aún puedes recuperarlo.
+              </span>
+              <button type="button" className="b3" onClick={d.undo} aria-label={"Deshacer el borrado de «" + d.name + "»"}>
+                Deshacer
+              </button>
+            </div>
+          ))}
           <h3>Mis tableros · {p.seasonName}</h3>
           {p.boards.length ? (
             <ul className="bl">
@@ -338,10 +363,30 @@ export function TablerosPanel(p: TablerosProps) {
               {p.canPublish && !sameScope && p.pubBlock && <p className="why">{p.pubBlock}</p>}
               {p.onScreenOfficial && <p>Publicado: el equipo ya lo ve como oficial ({scopeTxt(p.onScreenOfficial.matchId)}).</p>}
               {p.official && (
-                <button type="button" className="b3" onClick={() => p.official && p.onUnpublish(p.official.id)}>
+                <button type="button" className="b3" onClick={() => setAskUnpub(true)} aria-expanded={askUnpub}>
                   <Icon n="x" w={16} />
                   Quitar el oficial
                 </button>
+              )}
+              {p.official && askUnpub && (
+                <div className="cfm" role="group" aria-label="¿Quitar el oficial?">
+                  <span>
+                    ¿Quitar <b>{p.official.name}</b> como oficial? El equipo dejará de verlo.
+                  </span>
+                  <button
+                    type="button"
+                    className="b3 danger"
+                    onClick={() => {
+                      setAskUnpub(false);
+                      if (p.official) p.onUnpublish(p.official.id);
+                    }}
+                  >
+                    Quitarlo
+                  </button>
+                  <button type="button" className="b3" onClick={() => setAskUnpub(false)}>
+                    Cancelar
+                  </button>
+                </div>
               )}
             </>
           ) : (
@@ -355,7 +400,17 @@ export function TablerosPanel(p: TablerosProps) {
           <h3>Partido</h3>
           <label className="selw full">
             Vincular a
-            <select value={p.matchId ?? ""} onChange={(e) => p.onLink(e.target.value || null)} aria-label="Vincular a un partido" disabled={p.ro || !p.ready}>
+            <select
+              value={p.matchId ?? ""}
+              onChange={(e) => {
+                const mid = e.target.value || null;
+                // an official's match is its alcance: changing it republishes it and the team is told
+                if (p.onScreenOfficial) setAskLink(mid);
+                else p.onLink(mid);
+              }}
+              aria-label="Vincular a un partido"
+              disabled={p.ro || !p.ready}
+            >
               <option value="">Sin partido</option>
               {p.matchId && !linked && <option value={p.matchId}>Un partido de otra temporada</option>}
               {p.calendar.map((m) => (
@@ -365,6 +420,27 @@ export function TablerosPanel(p: TablerosProps) {
               ))}
             </select>
           </label>
+          {askLink !== undefined && (
+            <div className="cfm" role="group" aria-label="¿Cambiar el partido del oficial?" style={{ marginTop: 8 }}>
+              <span>
+                Esto cambia el oficial {linked ? "del " + matchLabel(linked) : p.matchId ? "de su partido" : "de toda la temporada"} a <b>{linkTo}</b> y avisa al equipo.
+              </span>
+              <button
+                type="button"
+                className="b3 gold"
+                onClick={() => {
+                  const mid = askLink;
+                  setAskLink(undefined);
+                  p.onLink(mid);
+                }}
+              >
+                Cambiarlo
+              </button>
+              <button type="button" className="b3" onClick={() => setAskLink(undefined)}>
+                Cancelar
+              </button>
+            </div>
+          )}
           <div className="band">
             <span className={"res " + band.r} aria-hidden="true">
               {band.letter}
