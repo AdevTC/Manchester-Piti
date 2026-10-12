@@ -15,13 +15,9 @@ export interface CromoViewProps {
   pos: string;
   /** Matches the team has finished this season: with none, the rating reads «—». */
   games: number;
-  /** A photo of his real 3D kit (Plantilla): shown instead of the drawn shirt once it is ready. */
-  still?: string;
-  /** The shirt's `view-transition-name` (it flies here from his row). */
-  vt?: string;
 }
 /** `.cromo`: rating + position, the shirt, the name and the season line. */
-export function CromoCard({ cromo, name, num, pos, games, still, vt }: CromoViewProps) {
+export function CromoCard({ cromo, name, num, pos, games }: CromoViewProps) {
   const rating = cromo && games > 0 ? String(cromo.rt) : "—";
   const s = cromo?.stats;
   return (
@@ -31,9 +27,7 @@ export function CromoCard({ cromo, name, num, pos, games, still, vt }: CromoView
         <br />
         <span className="ps">{pos}</span>
       </span>
-      <span className="kit" style={vt ? { viewTransitionName: vt } : undefined}>
-        {still ? <img src={still} alt="" width={112} height={124} decoding="async" /> : <ShirtBack num={num} name={name} size={96} big />}
-      </span>
+      <ShirtBack num={num} name={name} size={96} big />
       <span className="nm">{name}</span>
       <span className="st">
         <span>

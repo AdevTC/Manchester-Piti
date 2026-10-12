@@ -116,16 +116,37 @@ export function collection(rows: readonly BoardRow[]): { done: number; total: nu
   return { done, total: rows.length, text: `${done} de ${plural(rows.length, "ficha completa", "fichas completas")}` };
 }
 
-/** The tablón's groups: one per line in the field's order, «Sin posición» last; empty lines left out. */
+/** The list's groups: «Sin posición» first (they need a line), then one per line in the field's order; empty
+ *  groups left out. */
 export interface BoardGroup {
   key: Position | "none";
   title: string;
   rows: BoardRow[];
 }
 export function boardGroups(rows: readonly BoardRow[]): BoardGroup[] {
-  const lines: BoardGroup[] = POSITIONS.map((p) => ({ key: p, title: `${POS_LABEL[p]}s`, rows: rows.filter((r) => r.position === p) }));
-  lines.push({ key: "none", title: "Sin posición", rows: rows.filter((r) => !r.position) });
+  const lines: BoardGroup[] = [{ key: "none", title: "Sin posición", rows: rows.filter((r) => !r.position) }];
+  for (const p of POSITIONS) lines.push({ key: p, title: `${POS_LABEL[p]}s`, rows: rows.filter((r) => r.position === p) });
   return lines.filter((g) => g.rows.length);
+}
+
+/** The players in the list's order (group by group): what ↑ ↓ and «Anterior / Siguiente» walk. */
+export const listOrder = (groups: readonly BoardGroup[]): string[] => groups.flatMap((g) => g.rows.map((r) => r.id));
+/** The next player after `from` (wrapping) whose ficha still lacks something; null when all are complete. */
+export function nextIncomplete(order: readonly string[], rows: readonly BoardRow[], from: string | null): string | null {
+  const gaps = new Map(rows.map((r) => [r.id, r.gaps.length]));
+  const at = from ? order.indexOf(from) : -1;
+  for (let i = 1; i <= order.length; i++) {
+    const id = order[(at + i + order.length) % order.length];
+    if ((gaps.get(id) ?? 0) > 0 && id !== from) return id;
+  }
+  return null;
+}
+/** The neighbour of `from` in the list (wrapping); `from` itself when it is not in the list. */
+export function stepIn(order: readonly string[], from: string | null, dir: 1 | -1): string | null {
+  if (!order.length) return null;
+  const at = from ? order.indexOf(from) : -1;
+  if (at < 0) return order[dir === 1 ? 0 : order.length - 1];
+  return order[(at + dir + order.length) % order.length];
 }
 
 /** The season's free dorsals (1–99, smallest first): «Alta» can start on one of them. */

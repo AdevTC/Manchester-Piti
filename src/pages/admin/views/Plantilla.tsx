@@ -1,24 +1,26 @@
-// Plantilla (/admin/plantilla?jugador=&nuevo&dorsal=) — «el tablón»: the season's players grouped by line,
-// each row his real kit (the photo of the 3D shirt), dorsal, name, the line and Activo / Lesionado set in
-// place, his account, GOL · ASI · PJ and the ficha's slots (what it lacks). Above it the collection («4 de 12
-// fichas completas») and the gap chips (Sin posición · Sin foto · Faltan datos · Lesionados · Sin cuenta ·
-// Piden su ficha · Dorsal repetido) that isolate who needs what; rows can be selected for the batch bar
-// (line, estado). Beside it, the open ficha (club/PlayerDrawer: his cromo with the kit flown in from the row
-// by a view transition, the form, his account and web) or, with none open, the squad at a glance
-// (club/PlantillaSide: lines, injured, free dorsals that start an «Alta»). Every write waits behind a lower
-// third with «Deshacer» (the tablón shows it at once; undone, nothing is written). «Dar de baja» takes him
-// off the season (his doc, actas and carta stay). While searching, players of other seasons show too,
-// dimmed (that is how one comes back). CSV export. Phones: the rows fold, the ficha is a sheet.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// Plantilla (/admin/plantilla?jugador=&nuevo&dorsal=&vista=cromos) — «ficha a ficha»: on the left the season
+// grouped by line, «Sin posición» first with POR · DEF · MED · DEL right in the row (club/PlantillaList); on the
+// right one player's ficha, big (club/FichaWorkspace: his real kit, Línea and Estado one tap each, the cards
+// Camiseta · Datos · Cuenta y web that save themselves, «Siguiente sin completar», ↑ ↓). With no player in
+// the URL the ficha shows the first one that still lacks something. «Todos en cromos» (?vista=cromos) shows the
+// whole squad big (club/CromosGrid); «Alta de jugador» takes the ficha's place (club/AltaWorkspace). Above it
+// the collection («4/16 fichas completas») and the gap chips that isolate who needs what. Every write waits
+// behind a lower third with «Deshacer» (the screen shows it at once; undone, nothing is written). «Dar de baja»
+// takes him off the season (his doc, actas and carta stay). While searching, players of other seasons show at
+// the end, dimmed. View Transitions: the kit flies from the row / cromo into the ficha, rows glide to their new
+// line. Phones: the list (or cromos) is the screen; a player opens his ficha full screen. CSV export.
+import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import { useDocumentTheme } from "../../../hooks/useDocumentTheme";
 import type { PlayerDoc } from "../../../lib/schemas";
+import { AltaWorkspace } from "../club/AltaWorkspace";
 import { LoadError } from "../club/ClubStates";
+import { CromosGrid } from "../club/CromosGrid";
 import { downloadText } from "../club/download";
-import { PlayerDrawer } from "../club/PlayerDrawer";
-import { PlantillaSide } from "../club/PlantillaSide";
+import { FichaWorkspace } from "../club/FichaWorkspace";
+import { PlantillaList } from "../club/PlantillaList";
 import {
   FILTER_LABEL,
   boardGroups,
@@ -26,65 +28,71 @@ import {
   collection,
   dorsalParam,
   filterChips,
+  freeDorsals,
+  listOrder,
   matchesFilter,
+  nextIncomplete,
   repeatedDorsals,
+  stepIn,
   type BoardFilter,
   type BoardRow,
 } from "../club/plantillaBoard";
-import { POSITIONS, bajaPayload, csvFileName, filterRows, nameIn, numberIn, playerPayload, plantillaRows, previewDoc, rosterCsv, seasonCode, type PlayerForm, type Position } from "../club/plantillaLogic";
-import { Tablon } from "../club/Tablon";
+import { bajaPayload, csvFileName, filterRows, nameIn, numberIn, playerPayload, plantillaRows, previewDoc, rosterCsv, seasonCode, type PlayerForm, type Position } from "../club/plantillaLogic";
 import { useClubWrites } from "../club/useClubWrites";
 import { useSlashFocus } from "../club/useSlashFocus";
 import { useRegisterCommands } from "../palette/registry";
 import type { PaletteCommand } from "../palette/search";
 import { useAdmin } from "../shell/context";
+import { isTypingTarget } from "../shell/shortcuts";
 import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
+import { useLayerStack } from "../ui/layerCore";
 import { useToast } from "../ui/toastContext";
 import { canTransition, viewTransition, vtName } from "../ui/viewTransition";
 import "../club/plantilla.css";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const truthy = (v: unknown) => v === true || v === 1 || v === "1" || v === "true";
-const FRESH_MS = 1600;
 /** «pasa a la defensa» / «pasa al medio». */
 const LINE_TO: Record<Position, string> = { POR: "a la portería", DEF: "a la defensa", MED: "al medio", DEL: "a la delantera" };
 /** How long a flying kit / row keeps its transition name (longer than the morph). */
 const FLIGHT_MS = 900;
 
 type Pending = Record<string, PlayerDoc | null>;
+type Search = { jugador?: string; nuevo?: true; dorsal?: number; vista?: "cromos" };
 
 export function Plantilla() {
   const data = useAdmin();
   const { desktop } = useFrame();
+  const phone = !desktop;
   const toast = useToast();
   const writes = useClubWrites();
   const navigate = useNavigate();
   const theme = useDocumentTheme();
-  const search: { jugador?: unknown; nuevo?: unknown; dorsal?: unknown } = useSearch({ strict: false });
+  const { modalOpen } = useLayerStack();
+  const search: { jugador?: unknown; nuevo?: unknown; dorsal?: unknown; vista?: unknown } = useSearch({ strict: false });
   const openId = search.jugador != null && search.jugador !== "" ? String(search.jugador) : null;
   const altaOpen = !openId && truthy(search.nuevo);
   const altaDorsal = dorsalParam(search.dorsal);
+  const cromos = !openId && !altaOpen && search.vista === "cromos";
+  /** A ficha opened from «Todos en cromos» goes back there. */
+  const fromCromos = search.vista === "cromos";
 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<BoardFilter>("todos");
-  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   /** Writes waiting behind «Deshacer»: the doc as it will be, or null when it is being deleted. */
   const [pending, setPending] = useState<Pending>({});
-  const [fresh, setFresh] = useState("");
-  /** Re-mounts the ficha after a save (its starting point becomes what was saved). */
-  const [saves, setSaves] = useState(0);
-  /** What carries a view-transition name right now («kit:id» flies to / from the ficha, «row:id» moves). */
+  /** Re-mounts a ficha after an «Deshacer» (its starting point goes back to what is written). */
+  const [revs, setRevs] = useState<Record<string, number>>({});
+  /** What carries a view-transition name right now («kit:id» flies to / from the ficha, «row:id» glides). */
   const [flying, setFlying] = useState<ReadonlySet<string>>(new Set());
   const flightT = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const freshT = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const searchRef = useRef<HTMLInputElement>(null);
-  const boxRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLElement>(null);
   useSlashFocus(searchRef);
   useEffect(
     () => () => {
       clearTimeout(flightT.current);
-      clearTimeout(freshT.current);
     },
     [],
   );
@@ -102,45 +110,81 @@ export function Plantilla() {
   const dup = useMemo(() => repeatedDorsals(squad), [squad]);
   const chips = useMemo(() => filterChips(squad), [squad]);
   const coll = collection(squad);
-  // the filter of a chip that no longer matches anybody stays on (it says «nadie»), so a fix doesn't jump
   const term = q.trim();
   const hits = new Set(filterRows(squad, q, "Todos").map((r) => r.id));
   const shown = squad.filter((r) => hits.has(r.id) && matchesFilter(r, filter, dup));
   const others = active && term ? board.filter((r) => !r.inSeason && filterRows([r], q, "Todos").length) : [];
   const groups = boardGroups(shown);
-  const editing = openId ? (players.find((p) => p.id === openId) ?? null) : null;
+  // ↑ ↓ / Anterior · Siguiente walk what is shown; «Siguiente sin completar» the whole season
+  const order = [...listOrder(groups), ...others.map((r) => r.id)];
+  const fullOrder = useMemo(() => listOrder(boardGroups(squad)), [squad]);
+  // desktop: with nobody in the URL the ficha shows the first one that still lacks something
+  const fallbackId = desktop && !altaOpen && !cromos ? (nextIncomplete(fullOrder, squad, null) ?? fullOrder[0] ?? null) : null;
+  const curId = openId ?? fallbackId;
+  // …and pins it in the URL, so fixing his line (he leaves «Sin posición») doesn't swap the ficha under you
+  useEffect(() => {
+    if (!openId && fallbackId) void navigate({ to: "/admin/plantilla", search: { jugador: fallbackId }, replace: true });
+  }, [openId, fallbackId, navigate]);
+  const editing = curId ? (players.find((p) => p.id === curId) ?? null) : null;
   const editingRow = editing ? board.find((r) => r.id === editing.id) : undefined;
-  const drawerOpen = !data.loading && (altaOpen || !!editing);
 
   // The photos of the real kit (rendered once per name and dorsal, then kept on the device).
   const shot = (r: BoardRow) => ({ kit: "home" as const, theme, name: r.name.toLocaleUpperCase("es"), num: r.number != null ? String(r.number) : "" });
   const still = useShirtStills([...squad, ...others].map(shot), { offMainThread: true });
   const stillOf = (r: BoardRow) => still(shot(r));
 
-  // ── flights (view transitions) ──
+  // ── navigation and flights (view transitions) ──
   const fly = (keys: string[]) => {
     clearTimeout(flightT.current);
     flushSync(() => setFlying(new Set(keys)));
     flightT.current = setTimeout(() => setFlying(new Set()), FLIGHT_MS);
   };
-  const vt = desktop && canTransition();
-  const goTo = (s: { jugador?: string; nuevo?: true; dorsal?: number }) => void navigate({ to: "/admin/plantilla", search: s, viewTransition: vt });
+  const vt = canTransition();
+  const go = (s: Search, flight: string[] = []) => {
+    if (vt && flight.length) fly(flight);
+    void navigate({ to: "/admin/plantilla", search: s, viewTransition: vt });
+  };
   const openPlayer = (id: string) => {
     if (id === openId) return;
-    if (vt) fly([`kit:${id}`]);
-    goTo({ jugador: id });
+    go(phone && fromCromos ? { jugador: id, vista: "cromos" } : { jugador: id }, desktop ? [`kit:${id}`] : []);
   };
-  const closeDrawer = () => {
-    if (vt && openId) fly([`kit:${openId}`]);
-    void navigate({ to: "/admin/plantilla", search: {}, viewTransition: vt });
+  const backToList = () => go(fromCromos ? { vista: "cromos" } : {});
+  const openNow = useRef(openId);
+  useEffect(() => {
+    openNow.current = openId;
+  });
+  const openAlta = (dorsal: number | null = null) => go(dorsal ? { nuevo: true, dorsal } : { nuevo: true });
+  const setView = (v: "lista" | "cromos") => go(v === "cromos" ? { vista: "cromos" } : {});
+  const step = (dir: 1 | -1) => {
+    const id = stepIn(order, curId, dir);
+    if (id && id !== curId) openPlayer(id);
   };
-  const openAlta = (dorsal: number | null) => goTo(dorsal ? { nuevo: true, dorsal } : { nuevo: true });
+  const nextGapId = nextIncomplete(fullOrder, squad, curId);
 
-  const mark = (id: string) => {
-    setFresh(id);
-    clearTimeout(freshT.current);
-    freshT.current = setTimeout(() => setFresh((f) => (f === id ? "" : f)), FRESH_MS);
-  };
+  // the selected row stays in view in the list (↑ ↓, «Siguiente sin completar»)
+  useEffect(() => {
+    if (!curId) return;
+    const row = listRef.current?.querySelector<HTMLElement>(`[data-id="${CSS.escape(curId)}"]`);
+    row?.scrollIntoView?.({ block: "nearest" });
+  }, [curId]);
+
+  // ↑ ↓ walk the list (never while typing, with a modifier or a modal open)
+  const keys = useRef({ step, modalOpen, enabled: !altaOpen && !cromos && (desktop || !!openId) });
+  useEffect(() => {
+    keys.current = { step, modalOpen, enabled: !altaOpen && !cromos && (desktop || !!openId) };
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const k = keys.current;
+      if (!k.enabled || k.modalOpen || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      k.step(e.key === "ArrowDown" ? 1 : -1);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   /** Drops the pending docs once their write is settled — unless a newer change replaced them meanwhile. */
   const settle = (docs: Pending) => () =>
     setPending((p) => {
@@ -155,126 +199,117 @@ export function Plantilla() {
     });
   /** The rows and group heads in view (plus `also`): they glide in a transition; the rest just appears. */
   const inView = (also: readonly string[] = []) => {
-    const box = boxRef.current?.getBoundingClientRect();
-    const keys = new Set(also.map((id) => `row:${id}`));
-    if (!box) return [...keys];
-    for (const el of boxRef.current?.querySelectorAll<HTMLElement>("tr[data-id], tr[data-g]") ?? []) {
+    const keySet = new Set(also.map((id) => `row:${id}`));
+    const box = listRef.current?.getBoundingClientRect();
+    if (!box) return [...keySet];
+    for (const el of listRef.current?.querySelectorAll<HTMLElement>("[data-id], [data-g]") ?? []) {
       const r = el.getBoundingClientRect();
-      if (r.bottom > box.top && r.top < box.bottom) keys.add(el.dataset.id ? `row:${el.dataset.id}` : `gh:${el.dataset.g}`);
+      if (r.bottom > box.top && r.top < box.bottom) keySet.add(el.dataset.id ? `row:${el.dataset.id}` : `gh:${el.dataset.g}`);
     }
-    return [...keys];
+    return [...keySet];
   };
-  /** Changes the tablón with its rows gliding to their new place (a plain update without the API). */
+  /** Changes the list with its rows gliding to their new place (a plain update without the API). */
   const reflow = (apply: () => void, also: readonly string[] = []) => {
-    if (!canTransition()) return apply();
+    if (!vt) return apply();
     fly(inView(also));
     void viewTransition(apply);
   };
-  /** Shows docs at once; with `move`, the rows glide to their new place. */
-  const show = (docs: Pending, move: boolean) => {
-    const apply = () => setPending((p) => ({ ...p, ...docs }));
-    if (!move) return apply();
-    reflow(apply, Object.keys(docs));
+  /** «Deshacer» on a ficha: it remounts on what is written, dropping what was typed (no save on the way out). */
+  const resetting = useRef<string | null>(null);
+  const reopen = (id: string) => {
+    resetting.current = id;
+    setRevs((r) => ({ ...r, [id]: (r[id] ?? 0) + 1 }));
   };
+  useEffect(() => {
+    resetting.current = null;
+  }, [revs]);
 
-  // ── quick edits in the tablón (line, estado; one or a selection) ──
-  const setLine = (targets: readonly BoardRow[], p: Position) => {
-    const list = targets.filter((r) => r.position !== p);
-    if (!list.length) return;
-    const docs: Pending = Object.fromEntries(list.map((r) => [r.id, { ...r.doc, naturalPosition: p }]));
-    show(docs, true);
+  // ── quick edits: the line (from the list or the ficha) and Activo / Lesionado ──
+  const setLine = (target: BoardRow, p: Position) => {
+    if (target.position === p) return;
+    const docs: Pending = { [target.id]: { ...target.doc, naturalPosition: p } };
+    reflow(() => setPending((s) => ({ ...s, ...docs })), [target.id]);
     const done = settle(docs);
     toast.defer({
       tag: "LÍNEA",
-      message: list.length === 1 ? `${list[0].name} pasa ${LINE_TO[p]}` : `${plural(list.length, "jugador pasa", "jugadores pasan")} ${LINE_TO[p]}`,
-      commit: () => Promise.all(list.map((r) => writes.savePlayer(r.id, { naturalPosition: p }))),
-      onUndo: () => reflow(done, list.map((r) => r.id)),
+      message: `${target.name} pasa ${LINE_TO[p]}`,
+      commit: () => writes.savePlayer(target.id, { naturalPosition: p }),
+      onUndo: () => reflow(done, [target.id]),
       onError: done,
       onDone: done,
-      errorMessage: list.length === 1 ? `No se ha podido cambiar la línea de ${list[0].name}` : "No se han podido cambiar las líneas",
+      errorMessage: `No se ha podido cambiar la línea de ${target.name}`,
     });
   };
-  const setInjured = (targets: readonly BoardRow[], injured: boolean) => {
-    const list = targets.filter((r) => r.injured !== injured);
-    if (!list.length) return;
-    const docs: Pending = Object.fromEntries(list.map((r) => [r.id, { ...r.doc, injured }]));
-    show(docs, filter === "lesion");
+  const setInjured = (target: BoardRow, injured: boolean) => {
+    if (target.injured === injured) return;
+    const docs: Pending = { [target.id]: { ...target.doc, injured } };
+    setPending((s) => ({ ...s, ...docs }));
     const done = settle(docs);
-    const who = list.length === 1 ? list[0].name : plural(list.length, "jugador", "jugadores");
     toast.defer({
       tag: "PARTE",
-      message: injured ? `${who}, ${list.length === 1 ? "lesionado" : "lesionados"}` : `${who} ${list.length === 1 ? "vuelve" : "vuelven"} a estar disponible${list.length === 1 ? "" : "s"}`,
-      commit: () => Promise.all(list.map((r) => writes.savePlayer(r.id, { injured }))),
+      message: injured ? `${target.name}, lesionado` : `${target.name} vuelve a estar disponible`,
+      commit: () => writes.savePlayer(target.id, { injured }),
       onUndo: done,
       onError: done,
       onDone: done,
-      errorMessage: `No se ha podido cambiar el estado de ${who}`,
+      errorMessage: `No se ha podido cambiar el estado de ${target.name}`,
     });
-  };
-  const pick = (ids: readonly string[], on: boolean) =>
-    setPicked((s) => {
-      const n = new Set(s);
-      for (const id of ids) {
-        if (on) n.add(id);
-        else n.delete(id);
-      }
-      return n;
-    });
-  const pickedRows = squad.filter((r) => picked.has(r.id));
-  const batch = (fn: () => void) => {
-    fn();
-    setPicked(new Set());
   };
 
-  // ── the ficha: save, alta, baja ──
-  const save = (player: PlayerDoc | null, form: PlayerForm) => {
-    const id = player?.id ?? writes.newPlayerId();
-    const payload = playerPayload(form, player ? null : { createdAt: new Date() });
+  // ── the ficha saving itself, the alta, the baja ──
+  const save = (player: PlayerDoc, form: PlayerForm) => {
+    const id = player.id;
+    const payload = playerPayload(form, null);
     const doc = previewDoc(player, id, payload);
+    const sid = active && (doc.seasons ?? []).includes(active.id) ? active.id : undefined;
+    const name = nameIn(doc, sid);
+    const docs: Pending = { [id]: doc };
+    const done = settle(docs);
+    setPending((p) => ({ ...p, ...docs }));
+    toast.defer({
+      tag: "FICHA",
+      message: `Ficha de ${name} guardada`,
+      commit: () => writes.savePlayer(id, payload),
+      onUndo: () => {
+        done();
+        reopen(id);
+      },
+      onError: () => {
+        done();
+        reopen(id);
+      },
+      onDone: done,
+      errorMessage: `No se ha podido guardar a ${name}`,
+    });
+  };
+  const alta = (form: PlayerForm) => {
+    const id = writes.newPlayerId();
+    const payload = playerPayload(form, { createdAt: new Date() });
+    const doc = previewDoc(null, id, payload);
     const sid = active && (doc.seasons ?? []).includes(active.id) ? active.id : undefined;
     const name = nameIn(doc, sid);
     const num = numberIn(doc, sid);
     const docs: Pending = { [id]: doc };
     const done = settle(docs);
     setPending((p) => ({ ...p, ...docs }));
-    mark(id);
-    if (player) {
-      // Guardar: the ficha stays open on what was saved; «Deshacer» closes it, as it was.
-      setSaves((n) => n + 1);
-      const back = () => {
-        done();
-        setSaves((n) => n + 1);
-      };
-      toast.defer({
-        tag: "FICHA",
-        message: `Ficha de ${name} guardada`,
-        commit: () => writes.savePlayer(id, payload),
-        onUndo: () => {
-          done();
-          closeDrawer();
-        },
-        onError: back,
-        onDone: done,
-        errorMessage: `No se ha podido guardar a ${name}`,
-      });
-      return;
-    }
-    void navigate({ to: "/admin/plantilla", search: {} });
+    go({ jugador: id });
     toast.defer({
       tag: "ALTA",
       message: `${name} entra en la plantilla con el ${num ?? "—"}`,
       commit: () => writes.savePlayer(id, payload),
-      onUndo: done,
+      onUndo: () => {
+        done();
+        if (openNow.current === id) go({});
+      },
       onError: done,
       onDone: done,
       errorMessage: `No se ha podido dar de alta a ${name}`,
     });
   };
-
   const baja = (player: PlayerDoc) => {
     const sid = active && (player.seasons ?? []).includes(active.id) ? active.id : undefined;
     const name = nameIn(player, sid);
-    void navigate({ to: "/admin/plantilla", search: {} });
+    go({});
     if (active) {
       const payload = bajaPayload(player, active.id);
       const docs: Pending = { [player.id]: { ...player, ...payload } };
@@ -284,10 +319,7 @@ export function Plantilla() {
         tag: "BAJA",
         message: `${name} de baja · sus actas y estadísticas se quedan`,
         commit: () => writes.savePlayer(player.id, payload),
-        onUndo: () => {
-          done();
-          mark(player.id);
-        },
+        onUndo: done,
         onError: done,
         onDone: done,
         errorMessage: `No se ha podido dar de baja a ${name}`,
@@ -308,14 +340,18 @@ export function Plantilla() {
     });
   };
 
-  const exportCsv = useCallback(() => {
+  const exportCsv = () => {
     downloadText(csvFileName(active?.name), rosterCsv(rows));
     toast.show({ tag: "CSV", message: `Plantilla exportada · ${plural(rows.length, "jugador", "jugadores")} en el CSV` });
-  }, [active?.name, rows, toast]);
+  };
+  const exportRef = useRef(exportCsv);
+  useEffect(() => {
+    exportRef.current = exportCsv;
+  });
   useRegisterCommands(
     useMemo<PaletteCommand[]>(
-      () => [{ id: "plantilla:exportar", group: "Acciones", icon: "↓", title: "Exportar plantilla (CSV)", description: `${plural(rows.length, "jugador", "jugadores")} · se abre en Excel`, hint: "acción", keywords: "csv excel descargar hoja", run: exportCsv }],
-      [rows.length, exportCsv],
+      () => [{ id: "plantilla:exportar", group: "Acciones", icon: "↓", title: "Exportar plantilla (CSV)", description: `${plural(rows.length, "jugador", "jugadores")} · se abre en Excel`, hint: "acción", keywords: "csv excel descargar hoja", run: () => exportRef.current() }],
+      [rows.length],
     ),
   );
 
@@ -326,145 +362,157 @@ export function Plantilla() {
   const empty = shown.length || others.length ? null : term ? `Nadie con «${term}».` : filter !== "todos" ? `Ya no queda nadie en «${FILTER_LABEL[filter as Exclude<BoardFilter, "todos">]}».` : "La plantilla está vacía: da de alta al primero.";
   const lead = filter !== "todos" || term ? `${shown.length} de ${plural(squad.length, "jugador", "jugadores")}` : `${active?.name ?? "Sin temporada"} · ${plural(squad.length, "jugador", "jugadores")}`;
   const stats = (id: string) => data.squad.byId.get(id)?.stats;
+  const free = freeDorsals(squad, 24);
 
-  const table = data.error ? (
-    <LoadError what="la plantilla" />
-  ) : data.loading ? (
-    <div className="skel" aria-label="Cargando la plantilla" role="status" style={{ flex: 1 }}>
-      <i />
-      <i />
-      <i />
-    </div>
-  ) : (
-    <Tablon
-      groups={groups}
-      others={others}
-      code={code}
-      selectedId={editing?.id ?? null}
-      picked={desktop ? picked : new Set()}
-      onPick={pick}
-      onOpen={openPlayer}
-      onPosition={setLine}
-      onInjured={(r, v) => setInjured([r], v)}
-      still={stillOf}
-      flying={flying}
-      dup={dup}
-      stats={stats}
-      fresh={fresh}
-      empty={empty}
-      boxRef={boxRef}
-    />
-  );
-
-  const drawer = drawerOpen ? (
-    <PlayerDrawer
-      key={editing ? `${editing.id}:${saves}` : `nuevo:${altaDorsal ?? ""}`}
-      player={editing}
-      players={players}
-      seasons={data.seasons}
-      activeSeason={active}
-      cromo={editing ? data.squad.byId.get(editing.id) : undefined}
-      games={data.games}
-      inline={desktop}
-      onClose={closeDrawer}
-      onSave={(form) => save(editing, form)}
-      onBaja={() => editing && baja(editing)}
-      still={editingRow ? stillOf(editingRow) : undefined}
-      vt={desktop && editing ? vtName("pl-kit", editing.id) : undefined}
-      gaps={editingRow?.gaps}
-      account={editingRow ? { state: editingRow.account, who: editingRow.who } : undefined}
-      story={!!(editing?.bio?.trim() || editing?.quote?.trim())}
-      initialNumber={altaOpen ? altaDorsal : null}
-    />
-  ) : null;
-
+  // ── pieces ──
   const searchBox = (
     <label className="srch">
       <AdIcon name="search" size={18} />
       <input ref={searchRef} id="plq" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nombre o dorsal" aria-label="Buscar jugador" aria-keyshortcuts="/" autoComplete="off" />
     </label>
   );
+  const viewSeg = (
+    <span className="vseg" role="group" aria-label="Vista">
+      <button type="button" aria-pressed={!cromos} onClick={() => setView("lista")}>
+        <AdIcon name="team" size={16} />
+        {phone ? "Lista" : "Ficha a ficha"}
+      </button>
+      <button type="button" aria-pressed={cromos} onClick={() => setView("cromos")}>
+        <AdIcon name="card" size={16} />
+        {phone ? "Cromos" : "Todos en cromos"}
+      </button>
+    </span>
+  );
   const altaButton = (
-    <button type="button" className={desktop ? "btn sm gold" : "btn sm gold ic"} onClick={() => openAlta(null)} aria-label={desktop ? undefined : "Alta de jugador"}>
+    <button type="button" className={phone ? "btn sm gold ic" : "btn sm gold"} onClick={() => openAlta()} aria-label={phone ? "Alta de jugador" : undefined}>
       <AdIcon name="plus" size={16} />
-      {desktop ? "Alta de jugador" : null}
+      {phone ? null : "Alta de jugador"}
     </button>
   );
-  const bar =
-    desktop && pickedRows.length ? (
-      <div className="plbar bulk" role="toolbar" aria-label="Cambiar a los seleccionados">
-        <b>{plural(pickedRows.length, "seleccionado", "seleccionados")}</b>
-        <span className="pseg" role="group" aria-label="Línea de los seleccionados">
-          {POSITIONS.map((p) => (
-            <button key={p} type="button" onClick={() => batch(() => setLine(pickedRows, p))}>
-              {p}
+  const bar = (
+    <div className="plbar">
+      <div className="coll" role="img" aria-label={`Fichas completas: ${coll.done} de ${coll.total}`}>
+        <span className="tx" aria-hidden="true">
+          <b>{coll.done}</b>/{coll.total} fichas completas
+        </span>
+        <span className="cells" aria-hidden="true">
+          {squad
+            .map((r) => !r.gaps.length)
+            .sort((a, b) => Number(b) - Number(a))
+            .map((done, i) => (
+              <i key={i} className={done ? "on" : ""} />
+            ))}
+        </span>
+      </div>
+      {chips.length ? (
+        <div className="chips" role="group" aria-label="Qué falta">
+          {chips.map((c) => (
+            <button key={c.key} type="button" aria-pressed={filter === c.key} onClick={() => toggleFilter(c.key)}>
+              {c.label}
+              <em>{c.n}</em>
             </button>
           ))}
-        </span>
-        <button type="button" className="btn sm line" onClick={() => batch(() => setInjured(pickedRows, true))}>
-          Lesionados
-        </button>
-        <button type="button" className="btn sm line" onClick={() => batch(() => setInjured(pickedRows, false))}>
-          Disponibles
-        </button>
-        <button type="button" className="btn sm line clr" onClick={() => setPicked(new Set())}>
-          <AdIcon name="x" size={14} />
-          Quitar selección
-        </button>
-      </div>
-    ) : (
-      <div className="plbar">
-        <div className="coll" role="img" aria-label={`Fichas completas: ${coll.done} de ${coll.total}`}>
-          <span className="tx" aria-hidden="true">
-            <b>{coll.done}</b>/{coll.total} fichas completas
-          </span>
-          <span className="cells" aria-hidden="true">
-            {squad
-              .map((r) => !r.gaps.length)
-              .sort((a, b) => Number(b) - Number(a))
-              .map((done, i) => (
-                <i key={i} className={done ? "on" : ""} />
-              ))}
-          </span>
+          {filter !== "todos" && !chips.some((c) => c.key === filter) ? (
+            <button type="button" aria-pressed onClick={() => toggleFilter("todos")}>
+              {FILTER_LABEL[filter]}
+              <em>0</em>
+            </button>
+          ) : null}
         </div>
-        {chips.length ? (
-          <div className="chips" role="group" aria-label="Qué falta">
-            {chips.map((c) => (
-              <button key={c.key} type="button" aria-pressed={filter === c.key} onClick={() => toggleFilter(c.key)}>
-                {c.label}
-                <em>{c.n}</em>
-              </button>
-            ))}
-            {filter !== "todos" && !chips.some((c) => c.key === filter) ? (
-              <button type="button" aria-pressed onClick={() => toggleFilter("todos")}>
-                {FILTER_LABEL[filter]}
-                <em>0</em>
-              </button>
-            ) : null}
-          </div>
-        ) : (
-          <p className="ok">
-            <AdIcon name="check" size={16} />
-            Todo en orden: fichas completas, sin repetidos
-          </p>
-        )}
+      ) : (
+        <p className="ok">
+          <AdIcon name="check" size={16} />
+          Todo en orden: fichas completas, sin repetidos
+        </p>
+      )}
+    </div>
+  );
+  const list = (
+    <PlantillaList
+      groups={groups}
+      others={others}
+      code={code}
+      selectedId={curId}
+      still={stillOf}
+      onOpen={openPlayer}
+      onLine={setLine}
+      flying={flying}
+      boxRef={listRef}
+      empty={empty}
+      quickLine
+    />
+  );
+  const grid = <CromosGrid rows={shown} still={stillOf} onOpen={openPlayer} onAlta={() => openAlta()} flying={flying} empty={empty} phone={phone} />;
+  const csv = (
+    <button type="button" className="btn sm line csv" onClick={exportCsv} disabled={!rows.length} aria-label="Exportar la plantilla (CSV)">
+      <AdIcon name="doc" size={16} />
+      Exportar CSV
+    </button>
+  );
+  const ficha =
+    editing && editingRow ? (
+      <FichaWorkspace
+        key={`${editing.id}:${revs[editing.id] ?? 0}`}
+        player={editing}
+        row={editingRow}
+        players={players}
+        seasons={data.seasons}
+        activeSeason={active}
+        stats={stats(editing.id)}
+        still={stillOf(editingRow)}
+        vt={vt ? vtName("pl-kit", editing.id) : undefined}
+        index={Math.max(1, order.indexOf(editing.id) + 1)}
+        total={order.length || squad.length}
+        story={!!(editing.bio?.trim() || editing.quote?.trim())}
+        phone={phone}
+        onLine={(p) => setLine(editingRow, p)}
+        onInjured={(v) => setInjured(editingRow, v)}
+        onSave={(form) => save(editing, form)}
+        onBaja={() => baja(editing)}
+        onPrev={() => step(-1)}
+        onNext={() => step(1)}
+        onNextGap={nextGapId ? () => openPlayer(nextGapId) : null}
+        onBack={backToList}
+        keepOnLeave={() => resetting.current !== editing.id}
+      />
+    ) : null;
+  const altaWs = <AltaWorkspace key={`alta:${altaDorsal ?? ""}`} players={players} seasons={data.seasons} activeSeason={active} free={free} initialNumber={altaDorsal} phone={phone} onCancel={() => go({})} onAlta={alta} />;
+  const noFicha = (
+    <section className="pl3f none" aria-label="Sin ficha abierta">
+      <p>{squad.length ? "Elige un jugador de la lista para ver su ficha." : "Todavía no hay nadie en la plantilla."}</p>
+      <button type="button" className="btn gold" onClick={() => openAlta()}>
+        <AdIcon name="plus" size={16} />
+        Alta de jugador
+      </button>
+    </section>
+  );
+
+  if (data.error) return <LoadError what="la plantilla" />;
+  if (data.loading)
+    return (
+      <div className="skel" aria-label="Cargando la plantilla" role="status" style={{ flex: 1 }}>
+        <i />
+        <i />
+        <i />
       </div>
     );
 
-  if (!desktop)
+  if (phone) {
+    if (altaOpen) return <div className="msc plm">{altaWs}</div>;
+    if (openId && ficha) return <div className="msc plm">{ficha}</div>;
     return (
-      <>
-        <div className="msc plm">
-          <div className="mtop">
-            {searchBox}
-            {altaButton}
-          </div>
-          {bar}
-          {table}
+      <div className="msc plm">
+        <div className="mtop">
+          {searchBox}
+          {altaButton}
         </div>
-        {drawer}
-      </>
+        {bar}
+        {viewSeg}
+        {cromos ? grid : list}
+        {csv}
+      </div>
     );
+  }
   return (
     <>
       <div className="vh">
@@ -476,16 +524,25 @@ export function Plantilla() {
         </div>
         <div className="r">
           {searchBox}
+          {viewSeg}
           {altaButton}
         </div>
       </div>
       {bar}
-      <div className="plg2">
-        {table}
-        {drawer ?? (
-          <PlantillaSide rows={squad} still={stillOf} onFilter={toggleFilter} onOpen={openPlayer} onAlta={openAlta} onExport={exportCsv} />
-        )}
-      </div>
+      {cromos ? (
+        <div className="pl3c">
+          {grid}
+          {csv}
+        </div>
+      ) : (
+        <div className="pl3s">
+          <div className="pl3lw">
+            {list}
+            {csv}
+          </div>
+          {altaOpen ? altaWs : (ficha ?? noFicha)}
+        </div>
+      )}
     </>
   );
 }
