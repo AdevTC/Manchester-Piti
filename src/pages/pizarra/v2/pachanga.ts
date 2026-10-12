@@ -184,7 +184,7 @@ export function makeTeams(inp: PachangaInput): Pachanga {
     });
     if (best < 0) {
       // no team without a «separados» clash: the one with most room, and the clash is reported
-      best = teams.reduce((bi, t, i) => (teams[i].length < teams[bi].length ? i : bi), 0);
+      best = teams.reduce((bi, t, i) => (t.length < teams[bi].length ? i : bi), 0);
       apart.filter((p) => (g.includes(p.a) && teams[best].includes(p.b)) || (g.includes(p.b) && teams[best].includes(p.a))).forEach((p) => broken.push(p));
     }
     teams[best].push(...g);

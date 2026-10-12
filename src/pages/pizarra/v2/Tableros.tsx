@@ -12,6 +12,9 @@ import type { ReactionValue } from "../reactions";
 import { apiError } from "../../../lib/clubApi";
 import { RivalFilter } from "./RivalPanel";
 import { filterByRival, rivalOptions } from "./rival";
+import { countTxt, organize, readSort, recentRows, writeSort, type BoardSort } from "./boardList";
+import { tagsInUse } from "./tags";
+import { BoardOrganizer, CaptainCard, RecentStrip, RowTags, TagEditor, type CaptainView } from "./TablerosOrg";
 
 export type TbTab = "m" | "o" | "p";
 
@@ -25,6 +28,11 @@ export interface BoardRowView {
   deletable: boolean;
   /** The rival of the board's linked match («MAD SKY»), for the filter. */
   rival?: string;
+  /** Bloque 5: its tags, its last change (ms) and its linked match (date, «J8 · MAD SKY»), to organize the list. */
+  tags?: string[];
+  at?: number;
+  matchMs?: number;
+  matchTxt?: string;
 }
 
 export interface OfficialView {
@@ -104,6 +112,13 @@ export interface TablerosProps {
   /** «Copiar el siete del último partido»: a new board with the seven that started it («J7 · MAD SKY»). */
   lastMatch?: string | null;
   onNewFromLast?: () => void;
+  /** Bloque 5: the tags of the board on screen (absent = not editable here). */
+  tags?: string[];
+  onTags?: (tags: string[]) => void;
+  /** The boards opened last on this device (ids, latest first), for «Recientes». */
+  recent?: string[];
+  /** «Capitán rotativo» (Partido). */
+  captain?: CaptainView | null;
 }
 
 /** The name of the board on screen, renamed as you type (saved after a pause, on Enter or on leaving). */
@@ -175,6 +190,9 @@ function NameField({ id, name, ro, boards, onRename }: { id: string | null; name
 export function TablerosPanel(p: TablerosProps) {
   // A delete waits for a second tap, next to where it was asked for (the card on top or the row).
   const [confirm, setConfirm] = useState<{ id: string; at: "cur" | "row" } | null>(null);
+  const [q, setQ] = useState("");
+  const [tag, setTag] = useState<string | null>(null);
+  const [sort, setSort] = useState<BoardSort>(readSort);
   const scopeDefault: "p" | "t" = p.onScreenOfficial ? (p.onScreenOfficial.matchId ? "p" : "t") : p.scopeMatch ? "p" : "t";
   const [alc, setAlc] = useState<"p" | "t" | null>(null);
   const scope = alc === "p" && !p.scopeMatch ? "t" : (alc ?? scopeDefault);
@@ -262,6 +280,12 @@ export function TablerosPanel(p: TablerosProps) {
   // (the filter by rival: only rivals some board is linked to; a pick no board has any more is «Todos»)
   const rivals = rivalOptions(p.boards);
   const rPick = p.rivalPick && rivals.includes(p.rivalPick) ? p.rivalPick : null;
+  // (Bloque 5: search, tag filter and sort; a tag no board has any more is «Todas»)
+  const inUse = tagsInUse(p.boards);
+  const tPick = tag && inUse.includes(tag) ? tag : null;
+  const shown = organize(filterByRival(p.boards, rPick), { q, tag: tPick, sort });
+  const filtering = !!q.trim() || !!tPick || !!rPick;
+  const recents = recentRows(p.boards, p.recent ?? [], p.id);
   return (
     <>
       <PanelHead kick="Guardado automático" title="Tableros" onBack={p.onBack} />
@@ -281,6 +305,7 @@ export function TablerosPanel(p: TablerosProps) {
         <>
           <div className="bd-cur" style={{ marginTop: 12 }}>
             <NameField key={p.id ?? "draft"} id={p.id} name={p.name} ro={p.ro || !p.ready} boards={p.boards} onRename={p.onRename} />
+            {p.tags && p.onTags && <TagEditor tags={p.tags} inUse={inUse} ro={p.ro || !p.ready} onChange={p.onTags} />}
             <span className="auto">
               <i aria-hidden="true" className={p.saveCls} />
               {p.saveTxt}
@@ -317,15 +342,32 @@ export function TablerosPanel(p: TablerosProps) {
               </button>
             </div>
           ))}
+          <RecentStrip rows={recents} onOpen={p.onOpen} />
           <h3>Mis tableros · {p.seasonName}</h3>
+          {p.boards.length > 1 && (
+            <BoardOrganizer
+              q={q}
+              onQ={setQ}
+              sort={sort}
+              onSort={(s) => {
+                setSort(s);
+                writeSort(s);
+              }}
+              tags={inUse}
+              tag={tPick}
+              onTag={setTag}
+              count={countTxt(shown.length, p.boards.length, filtering)}
+            />
+          )}
           {p.onRivalPick && <RivalFilter rivals={rivals} value={rPick} onPick={p.onRivalPick} />}
           {p.boards.length ? (
             <ul className="bl">
-              {filterByRival(p.boards, rPick).map((b) => (
+              {shown.map((b) => (
                 <li key={b.id} className={b.on ? "on" : ""}>
                   <button type="button" className="op" onClick={() => p.onOpen(b.id)} aria-current={b.on}>
                     <b>{b.name}</b>
                     <small>{(b.official ? "Oficial · " : "") + b.meta}</small>
+                    <RowTags tags={b.tags} />
                   </button>
                   <button type="button" className="ib" onClick={() => p.onCopy(b.id)} aria-label={"Duplicar " + b.name}>
                     <Icon n="copy" />
@@ -524,6 +566,7 @@ export function TablerosPanel(p: TablerosProps) {
           </div>
           {!p.calendar.length && <p className="empty">Esta temporada aún no tiene partidos en el calendario.</p>}
           {p.onScreenOfficial && <p className="empty">Es el oficial: el partido vinculado es su alcance (sin partido = toda la temporada).</p>}
+          {p.captain && <CaptainCard c={p.captain} />}
           <h3>Temporada</h3>
           <label className="selw full">
             Datos de

@@ -29,6 +29,8 @@ export interface BoardShareProps {
   /** The jugada as a video. */
   clip: ReactNode;
   clipName: string;
+  /** Bloque 5: «Imprimir el plan». */
+  print?: ReactNode;
 }
 
 export function BoardShare(p: BoardShareProps) {
@@ -52,6 +54,12 @@ export function BoardShare(p: BoardShareProps) {
       {p.readOnly && <p className="dr-hint">No es tuyo: la copia sí lo será, con su siete, sus trazos y sus jugadas.</p>}
       <h3>{"La jugada en vídeo · " + p.clipName}</h3>
       {p.clip}
+      {p.print && (
+        <>
+          <h3>El plan en papel</h3>
+          <div className="row">{p.print}</div>
+        </>
+      )}
     </div>
   );
 }

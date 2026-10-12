@@ -5,8 +5,8 @@ import type { Modo } from "./view";
 
 export type Snap = "half" | "full";
 
-/** The sheet's height for a tool: the lists (Tableros, Comparar, Compartir, Ajustes) open full. */
-export const snapOf = (m: Modo): Snap => (m === "tableros" || m === "comparar" || m === "compartir" || m === "ajustes" ? "full" : "half");
+/** The sheet's height for a tool: the lists (Tableros, Comparar, Compartir, Ajustes, Pachanga) open full. */
+export const snapOf = (m: Modo): Snap => (m === "tableros" || m === "comparar" || m === "compartir" || m === "ajustes" || m === "pachanga" ? "full" : "half");
 
 /** How far (ms) the release velocity is projected. */
 const PROJECT_MS = 160;

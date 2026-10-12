@@ -4,7 +4,7 @@ import { selBarView } from "./handView";
 import { RAIL, RAIL_ORDER } from "./rail";
 
 // What the prompt bar offers in each context (as designed), and that nothing that edits is offered on a
-// read-only board; the selected player's bar texts; the rail's order (the 1–8 shortcuts).
+// read-only board; the selected player's bar texts; the rail's order (the 1–9 shortcuts).
 
 const acts = (): PromptActs => ({
   undo: vi.fn(),
@@ -26,10 +26,10 @@ const show = (c: PromptCtx, a = acts()) => promptItems(c, a).map((x) => x.k + " 
 
 describe("the prompt bar's items", () => {
   it("the siete: how to edit, the tabs, the bench view, the tools, deshacer", () => {
-    expect(show(ctx({}))).toEqual(["Clic Elegir jugador", "Arrastra Mover al campo", "Q E Pestañas", "R Ver en cromos", "1–8 Herramientas", "Ctrl Z Deshacer ▸"]);
+    expect(show(ctx({}))).toEqual(["Clic Elegir jugador", "Arrastra Mover al campo", "Q E Pestañas", "R Ver en cromos", "1–9 Herramientas", "Ctrl Z Deshacer ▸"]);
     expect(show(ctx({ benchView: "cromos" }))[3]).toBe("R Ver en lista");
     // read-only: nothing that edits
-    expect(show(ctx({ ro: true }))).toEqual(["Q E Pestañas", "R Ver en cromos", "1–8 Herramientas"]);
+    expect(show(ctx({ ro: true }))).toEqual(["Q E Pestañas", "R Ver en cromos", "1–9 Herramientas"]);
   });
 
   it("a player in the hand: who (with his rating) and his actions, as buttons", () => {
@@ -58,7 +58,7 @@ describe("the prompt bar's items", () => {
     expect(show(ctx({ modo: "dibujar", ro: true }))).toEqual(["Esc Volver al siete ▸"]);
     expect(show(ctx({ modo: "charla", playing: true }))).toEqual(["Espacio Pausa ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Esc Salir de la charla ▸"]);
     expect(show(ctx({ modo: "quimica" }))).toEqual(["Clic Cambia a un jugador y mira cómo se reencienden las luces", "Esc Volver al siete ▸"]);
-    expect(show(ctx({ modo: "tableros" }))).toEqual(["1–8 Herramientas", "Esc Volver al siete ▸"]);
+    expect(show(ctx({ modo: "tableros" }))).toEqual(["1–9 Herramientas", "Esc Volver al siete ▸"]);
   });
 
   it("a new context has a new key (the items play in again)", () => {
@@ -78,8 +78,8 @@ describe("the selected player's bar", () => {
 });
 
 describe("the rail", () => {
-  it("En el campo, then Gestión: the 1–8 order", () => {
+  it("En el campo, then Gestión: the 1–9 order", () => {
     expect(RAIL.map((g) => g.g)).toEqual(["En el campo", "Gestión"]);
-    expect(RAIL_ORDER).toEqual(["editar", "quimica", "jugadas", "dibujar", "tableros", "comparar", "compartir", "ajustes"]);
+    expect(RAIL_ORDER).toEqual(["editar", "quimica", "jugadas", "dibujar", "tableros", "comparar", "compartir", "ajustes", "pachanga"]);
   });
 });

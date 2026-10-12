@@ -68,7 +68,7 @@ export function promptItems(c: PromptCtx, a: PromptActs): PromptItem[] {
   }
   if (c.modo === "editar" && c.tab === "c") {
     const scrub: PromptItem = { k: ", .", t: "Minuto en el campo (⇧ 5′)" };
-    if (c.ro) return [{ k: "Q E", t: "Pestañas" }, scrub, { k: "1–8", t: "Herramientas" }];
+    if (c.ro) return [{ k: "Q E", t: "Pestañas" }, scrub, { k: "1–9", t: "Herramientas" }];
     return [
       { k: "Q E", t: "Pestañas" },
       scrub,
@@ -80,8 +80,8 @@ export function promptItems(c: PromptCtx, a: PromptActs): PromptItem[] {
   }
   if (c.modo === "editar") {
     const view: PromptItem = { k: "R", t: c.benchView === "lista" ? "Ver en cromos" : "Ver en lista" };
-    if (c.ro) return [{ k: "Q E", t: "Pestañas" }, view, { k: "1–8", t: "Herramientas" }];
-    return [{ k: "Clic", t: "Elegir jugador" }, { k: "Arrastra", t: "Mover al campo" }, { k: "Q E", t: "Pestañas" }, view, { k: "1–8", t: "Herramientas" }, { k: "Ctrl Z", t: "Deshacer", go: a.undo }];
+    if (c.ro) return [{ k: "Q E", t: "Pestañas" }, view, { k: "1–9", t: "Herramientas" }];
+    return [{ k: "Clic", t: "Elegir jugador" }, { k: "Arrastra", t: "Mover al campo" }, { k: "Q E", t: "Pestañas" }, view, { k: "1–9", t: "Herramientas" }, { k: "Ctrl Z", t: "Deshacer", go: a.undo }];
   }
   if (c.modo === "jugadas")
     return [
@@ -106,7 +106,7 @@ export function promptItems(c: PromptCtx, a: PromptActs): PromptItem[] {
       { k: "→", t: "Paso siguiente", go: a.next },
       { k: "Esc", t: "Salir de la charla", go: a.exitCharla },
     ];
-  if (c.modo === "quimica") return c.ro ? [{ k: "1–8", t: "Herramientas" }, back] : [{ k: "Clic", t: "Cambia a un jugador y mira cómo se reencienden las luces" }, back];
-  return [{ k: "1–8", t: "Herramientas" }, back];
+  if (c.modo === "quimica") return c.ro ? [{ k: "1–9", t: "Herramientas" }, back] : [{ k: "Clic", t: "Cambia a un jugador y mira cómo se reencienden las luces" }, back];
+  return [{ k: "1–9", t: "Herramientas" }, back];
 }
 
