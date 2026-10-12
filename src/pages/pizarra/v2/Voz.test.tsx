@@ -33,10 +33,9 @@ class FakeRec {
   mimeType: string;
   ondataavailable: ((e: { data: Blob }) => void) | null = null;
   onstop: (() => void) | null = null;
-  constructor(
-    public stream: unknown,
-    opts?: { mimeType?: string; audioBitsPerSecond?: number },
-  ) {
+  stream: unknown;
+  constructor(stream: unknown, opts?: { mimeType?: string; audioBitsPerSecond?: number }) {
+    this.stream = stream;
     this.mimeType = opts?.mimeType ?? "";
     this.opts = opts;
     recs.push(this);
