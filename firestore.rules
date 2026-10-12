@@ -178,19 +178,57 @@ service cloud.firestore {
       return d.get('drawings', []) is list && d.get('drawings', []).size() <= 60
         && d.get('plays', []) is list && d.get('plays', []).size() <= 12;
     }
+    // A string field that may be missing (older boards) but, when there, is a bounded string.
+    function optStr(d, k, max) {
+      return !(k in d) || (d[k] is string && d[k].size() <= max);
+    }
+    // The seven: exactly seven slot maps (their content is validated on read, see lineupDoc.ts).
+    function slotsOk(d) {
+      return !('slots' in d) || (d.slots is list && d.slots.size() == 7
+        && d.slots[0] is map && d.slots[1] is map && d.slots[2] is map && d.slots[3] is map
+        && d.slots[4] is map && d.slots[5] is map && d.slots[6] is map);
+    }
+    // Every field of a board: only the known keys, each with its type and a size cap.
+    // (`bench` and `pinned` are no longer written, but older boards still carry them.)
+    function boardOk(d) {
+      return d.keys().hasOnly(['formation','freeMode','slots','bench','roles','tactics','playerPositions','pinned',
+          'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt'])
+        && d.ownerUid is string
+        && d.get('seasonId', null) is string && d.seasonId.size() <= 128
+        && optStr(d, 'name', 60) && optStr(d, 'ownerNickname', 40) && optStr(d, 'formation', 10)
+        && d.get('isOfficial', false) is bool && d.get('freeMode', false) is bool
+        && (d.get('matchId', null) == null || (d.matchId is string && d.matchId.size() <= 128))
+        && slotsOk(d)
+        && d.get('roles', {}) is map && d.get('roles', {}).size() <= 4
+        && d.get('tactics', {}) is map && d.get('tactics', {}).size() <= 12
+        && d.get('playerPositions', {}) is map && d.get('playerPositions', {}).size() <= 60
+        && d.get('bench', []) is list && d.get('bench', []).size() <= 60
+        && d.get('pinned', []) is list && d.get('pinned', []).size() <= 7
+        && (!('createdAt' in d) || d.createdAt is timestamp)
+        && (!('updatedAt' in d) || d.updatedAt is timestamp)
+        && boardExtrasOk(d);
+    }
     match /lineups/{id} {
       allow read: if teamMember();
+      // The author signs with their own profile nickname.
       allow create: if teamMember() && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.get('name', null) is string && request.resource.data.name.size() > 0
+        && request.resource.data.get('ownerNickname', null) == me().nickname
         && (!request.resource.data.get('isOfficial',false) || admin())
-        && boardExtrasOk(request.resource.data);
+        && boardOk(request.resource.data);
+      // The owner and the season never change; the nickname only to the owner's own current one.
       allow update: if teamMember()
         && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.get('seasonId', null) == resource.data.get('seasonId', null)
+        && (request.resource.data.get('ownerNickname', null) == resource.data.get('ownerNickname', null)
+          || (resource.data.ownerUid == request.auth.uid && request.resource.data.get('ownerNickname', null) == me().nickname))
         && (admin() || (resource.data.ownerUid == request.auth.uid
           && !resource.data.get('isOfficial',false) && !request.resource.data.get('isOfficial',false)))
-        && boardExtrasOk(request.resource.data);
+        && boardOk(request.resource.data);
       allow delete: if teamMember() && (admin() || (resource.data.ownerUid == request.auth.uid && !resource.data.get('isOfficial',false)));
       // What each member thinks of the official seven: their own doc, «ok» or «dudas», only while
-      // the board is official. Everyone inside sees the counts.
+      // the board is official. Everyone inside sees the counts. When the board stops being official
+      // or is deleted, the captains (or its owner, once it is not official) clear them.
       match /reactions/{uid} {
         allow read: if teamMember();
         allow create, update: if teamMember() && request.auth.uid == uid
@@ -198,8 +236,24 @@ service cloud.firestore {
           && request.resource.data.value in ['ok','dudas']
           && request.resource.data.at == request.time
           && get(/databases/$(database)/documents/lineups/$(id)).data.get('isOfficial', false) == true;
-        allow delete: if teamMember() && request.auth.uid == uid;
+        allow delete: if teamMember() && (request.auth.uid == uid || admin()
+          || (get(/databases/$(database)/documents/lineups/$(id)).data.ownerUid == request.auth.uid
+            && !get(/databases/$(database)/documents/lineups/$(id)).data.get('isOfficial', false)));
       }
+    }
+    // One official per scope (a match, or the season: «<season>__<match|temporada>»): the doc names
+    // the board, so publishing is a transaction on it (useLineups.publishOfficial). Captains only.
+    match /lineupOfficials/{scope} {
+      allow read: if teamMember();
+      allow create, update: if admin()
+        && request.resource.data.keys().hasOnly(['lineupId','seasonId','matchId','at'])
+        && request.resource.data.lineupId is string && request.resource.data.lineupId.size() <= 128
+        && request.resource.data.seasonId is string
+        && (request.resource.data.matchId == null || request.resource.data.matchId is string)
+        && scope == request.resource.data.seasonId + '__'
+          + (request.resource.data.matchId == null ? 'temporada' : request.resource.data.matchId)
+        && request.resource.data.at == request.time;
+      allow delete: if admin();
     }
   }
 }
