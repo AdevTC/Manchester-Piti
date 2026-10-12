@@ -15,8 +15,9 @@ export interface ReplayState {
 export const replay0 = (key: string, playing = false): ReplayState => ({ key, frame: 0, playing, resume: false });
 
 /** How long a paso stays on screen while playing (ms), as designed; the last one a little longer, and
- *  everything 1.9× slower at 0,5×. */
-export const holdMs = (atEnd: boolean, slow: boolean): number => (atEnd ? 2600 : 2300) * (slow ? 1.9 : 1);
+ *  everything 1.9× slower at 0,5×. `slow` may be the replay's speed instead (0.5, 1 or 1.5: playPaths.ts). */
+export const holdMs = (atEnd: boolean, slow: boolean | number): number =>
+  (atEnd ? 2600 : 2300) * (typeof slow === "number" ? (slow === 0.5 ? 1.9 : slow === 1.5 ? 1 / 1.5 : 1) : slow ? 1.9 : 1);
 
 const clampFrame = (i: number, n: number): number => Math.max(0, Math.min(Math.max(0, n - 1), Number.isFinite(i) ? Math.round(i) : 0));
 

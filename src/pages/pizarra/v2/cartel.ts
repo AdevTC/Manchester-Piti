@@ -12,6 +12,7 @@ import { defaultTactics } from "../tactics";
 import { CONSIGNA } from "./plan";
 import { availTxt, suplentes, type CharlaMatch } from "./charla";
 import { wavesTxt } from "./cambios";
+import { drawCartelExtras, type CartelExtra } from "./drawTools";
 
 export const CARTEL_W = 1080;
 export const CARTEL_H = 1350;
@@ -51,6 +52,8 @@ export interface Cartel {
   cons: string[];
   /** The planned tandas, one line each («25′ · KEVIN por TELLO»); empty without cambios. */
   subs?: string[];
+  /** Unir, Foco, Medir, the fuera de juego and the rival's tokens (drawTools.ts cartelExtras). */
+  extras?: CartelExtra[];
   aria: string;
 }
 
@@ -414,6 +417,7 @@ export async function drawCartel(canvas: HTMLCanvasElement, d: Cartel, crest: HT
   narrow(ctx, false);
   pitch(ctx, d.sys);
   lights(ctx, d.links);
+  if (d.extras?.length) drawCartelExtras(ctx, d.extras, PITCH_BOX);
   d.cromos
     .slice()
     .sort((a, b) => a.y - b.y)

@@ -6,6 +6,7 @@
 import type { BoardPoint } from "../../../lib/schemas";
 import { clampPoint, type Stroke, type StrokeColor, type StrokeKind } from "../drawings";
 import { f1, proj, unproj, type Cam } from "./geometry";
+import { isExtraKind } from "./drawKinds";
 
 export const TOOLS: { k: StrokeKind; label: string }[] = [
   { k: "carrera", label: "Carrera" },
@@ -28,8 +29,12 @@ export const TOOL_HINT: Record<StrokeKind, string> = {
   zona: "zona (arrastra en diagonal)",
   lapiz: "lápiz libre",
   texto: "texto (toca donde va)",
+  unir: "unir (toca de 2 a 4 jugadores y luego «Unir»)",
+  foco: "foco (toca un jugador)",
+  medir: "medir (arrastra de un punto a otro)",
+  fuera: "fuera de juego (se coloca solo)",
 };
-export const KIND_NAME: Record<StrokeKind, string> = { carrera: "Carrera", pase: "Pase", conduccion: "Conducción", zona: "Zona", lapiz: "Lápiz", texto: "Texto" };
+export const KIND_NAME: Record<StrokeKind, string> = { carrera: "Carrera", pase: "Pase", conduccion: "Conducción", zona: "Zona", lapiz: "Lápiz", texto: "Texto", unir: "Unir", foco: "Foco", medir: "Medir", fuera: "Fuera de juego" };
 export const COLOR_NAME: Record<StrokeColor, string> = { sky: "cielo", gold: "oro", white: "blanco" };
 /** The design's colour classes (c-s / c-g / c-w). */
 export const colorCls = (c: StrokeColor): string => "c-" + (c === "sky" ? "s" : c === "gold" ? "g" : "w");
@@ -180,6 +185,8 @@ export function inkView(strokes: Stroke[], C: Cam, selId: string | null, fresh: 
   const paths: InkPath[] = [];
   const texts: InkText[] = [];
   strokes.forEach((s, n) => {
+    // (Unir, Foco, Medir and the fuera de juego follow the players: drawTools.ts draws them)
+    if (isExtraKind(s.kind)) return;
     const cls = colorCls(s.color);
     const sel = s.id === selId;
     if (s.kind === "texto") {
@@ -221,6 +228,7 @@ export function hitStroke(strokes: Stroke[], C: Cam, X: number, Y: number): stri
   const p: UV = [X, Y];
   const at = unproj(C, X, Y);
   strokes.forEach((s) => {
+    if (isExtraKind(s.kind)) return;
     const sh = shapeOf(s, C);
     let d = Infinity;
     let tol = HIT_TOL;

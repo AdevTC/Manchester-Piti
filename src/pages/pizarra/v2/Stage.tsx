@@ -97,6 +97,8 @@ export interface StageProps {
   onPieceKey?: (piece: string, dx: number, dy: number) => void;
   /** Enter / Space on a rival: marks it (as a tap does). */
   onPieceTap?: (piece: string) => void;
+  /** Bloque 4's layer inside the frame (DrawLayer: pinned strokes, the rival, the paths' handles). */
+  extras?: ReactNode;
 }
 
 export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
@@ -232,6 +234,7 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
           {jug?.ghosts.map((g) => (
             <span key={g.key} className="gh" style={vars({ "--x": g.x, "--y": g.y, "--sc": g.sc })} aria-hidden="true" />
           ))}
+          {p.extras}
           {p.cmp.map((m) => (
             <span key={m.key} className={"cmpg" + (m.cls ? " " + m.cls : "")} style={vars({ "--x": m.x, "--y": m.y })} aria-hidden="true" />
           ))}

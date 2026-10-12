@@ -41,6 +41,7 @@ const cloneFrame = (f: PlayFrame): PlayFrame => {
   };
   if (f.title !== undefined) out.title = f.title;
   if (f.note !== undefined) out.note = f.note;
+  if (f.curves && Object.keys(f.curves).length) out.curves = Object.fromEntries(Object.entries(f.curves).map(([id, c]) => [id, { x: c.x, y: c.y }]));
   return out;
 };
 const withFrames = (play: Play, frames: PlayFrame[]): Play => ({ ...play, frames });
@@ -224,6 +225,11 @@ function catmull(p0: BoardPoint, p1: BoardPoint, p2: BoardPoint, p3: BoardPoint,
   const c = (a: number, b: number, cc: number, d: number) => 0.5 * (2 * b + (-a + cc) * t + (2 * a - 5 * b + 4 * cc - d) * t2 + (-a + 3 * b - 3 * cc + d) * t3);
   return { x: c(p0.x, p1.x, p2.x, p3.x), y: c(p0.y, p1.y, p2.y, p3.y) };
 }
+/** The quadratic Bézier a → c → b at u (a bent path), clamped to the pitch. */
+function bezier(a: BoardPoint, c: BoardPoint, b: BoardPoint, u: number): BoardPoint {
+  const s = 1 - u;
+  return { x: clamp(s * s * a.x + 2 * s * u * c.x + u * u * b.x, 0, 100), y: clamp(s * s * a.y + 2 * s * u * c.y + u * u * b.y, 0, 100) };
+}
 /** Smooth path through all the pasos (Catmull-Rom), clamped to the pitch. */
 function along(pts: BoardPoint[], i: number, u: number): BoardPoint {
   const n = pts.length;
@@ -253,8 +259,10 @@ export function playPoseAt(play: Play, t: number): PlayPose {
   const s = T - seg;
   const lin = clamp((s - HOLD) / (1 - HOLD), 0, 1);
   const u = easeInOutCubic(lin);
+  // (a path bent by hand, see v2/playPaths.ts: a quadratic through its control point instead)
+  const bent = frames[seg + 1].curves ?? {};
   const pose: PlayPose = {
-    players: Object.fromEntries([...players].map(([id, pts]) => [id, along(pts, seg, u)])),
+    players: Object.fromEntries([...players].map(([id, pts]) => [id, bent[id] ? bezier(pts[seg], bent[id], pts[seg + 1], u) : along(pts, seg, u)])),
     ball: { x: 0, y: 0, h: 0 },
     rivals: [...rivals].map(([id, pts]) => ({ id, ...along(pts, seg, u) })),
     frame: u >= 1 ? seg + 1 : seg,
