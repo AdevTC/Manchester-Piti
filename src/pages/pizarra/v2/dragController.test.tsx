@@ -8,7 +8,7 @@ import { lineupOf } from "./testkit";
 // The board's hands on their own: the phone's bench strip (a finger scrolls it sideways, lifts a cromo
 // with a hold or an upward move) and one finger at a time.
 
-function handlers(): DragHandlers & { [k: string]: ReturnType<typeof vi.fn> } {
+function handlers(): DragHandlers {
   return {
     onStart: vi.fn(),
     onEnd: vi.fn(),
@@ -142,7 +142,7 @@ describe("one finger at a time", () => {
     expect(h.onStart).toHaveBeenCalledTimes(1);
     fireEvent.pointerUp(window, { ...touch, clientX: 140, clientY: 130 });
     expect(h.onDrop).toHaveBeenCalledTimes(1);
-    expect(h.onDrop.mock.calls[0][0]).toEqual({ id: "evans", from: "pitch" });
+    expect(vi.mocked(h.onDrop).mock.calls[0][0]).toEqual({ id: "evans", from: "pitch" });
   });
 
   it("the drag's own finger cancelled (the system took it) ends the drag", () => {

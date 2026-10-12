@@ -9,6 +9,7 @@ import { Icon, Nuevo } from "./icons";
 import { mag } from "./mag";
 import { vars } from "./view";
 import type { ReplayHud } from "./jugadas";
+import { useConfirmKeys } from "./useConfirmKeys";
 
 /** A text that is written as you go and kept on Enter, on leaving the field or after a short pause;
  *  `check` says what is wrong with it (then it is not kept). */
@@ -142,6 +143,7 @@ const nameCheck = (v: string) => (v.trim().length < 1 || v.trim().length > L.pla
 export function JugadasPanel(p: JugadasPanelProps) {
   const { hud, editor: ed } = p;
   const [ask, setAsk] = useState<string | null>(null);
+  useConfirmKeys(ask != null, () => setAsk(null));
   const full = ed.pasos.length >= L.framesMax;
   const few = ed.pasos.length <= L.framesMin;
   return (

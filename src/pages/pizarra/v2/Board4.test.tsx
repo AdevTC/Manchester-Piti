@@ -128,8 +128,12 @@ describe("Dibujar", () => {
     const g = container.querySelector(".ink g.c-g") as SVGGElement;
     expect(g.style.getPropertyValue("--dl")).toBe("0.00s");
     expect(g.querySelector("path.dt.drw")).not.toBeNull();
-    // the strokes have their own undo: the lineup's stays as it was
-    expect(screen.getByRole("button", { name: "Deshacer" })).toBeDisabled();
+    // the strokes have their own undo: here Deshacer (and Ctrl Z) is theirs, Rehacer brings it back
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+    expect(commits.at(-1)?.drawings).toHaveLength(0);
+    expect(commits.at(-1)?.formation).toBe("2-3-1");
+    fireEvent.click(screen.getByRole("button", { name: "Rehacer" }));
+    expect(commits.at(-1)?.drawings).toHaveLength(1);
     // a zona in cielo
     fireEvent.click(toolBtn("Zona"));
     fireEvent.click(screen.getByRole("button", { name: "Color Cielo" }));
@@ -300,11 +304,12 @@ describe("Dibujar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sistema siguiente" }));
     go("Dibujar");
     swipe(frame(container), line("tv", [20, 80], [50, 40]));
+    // (in Dibujar, Deshacer is the strokes': the lineup's is the siete's)
+    go("Siete");
     fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
     expect(commits.at(-1)?.formation).toBe("2-3-1");
     expect(commits.at(-1)?.drawings).toHaveLength(1);
     // and they show on the board (plus the live stroke's layer), not over a jugada
-    go("Siete");
     expect(container.querySelectorAll(".ink g")).toHaveLength(2);
     go("Jugadas");
     expect(container.querySelectorAll(".ink g")).toHaveLength(1);
@@ -504,8 +509,8 @@ describe("Jugadas · el editor", () => {
     expect(p.frames).toHaveLength(2);
     expect(screen.getByText("Jugada nueva: añade pasos y arrastra")).toBeInTheDocument();
     expect(within(screen.getByRole("group", { name: "Biblioteca de jugadas" })).getByRole("button", { name: "Tu jugada 1 (propia)" })).toHaveAttribute("aria-pressed", "true");
-    // the lineup's undo is not touched
-    expect(screen.getByRole("button", { name: "Deshacer" })).toBeDisabled();
+    // here Deshacer is the jugadas' own (the new jugada), never the lineup's
+    expect(screen.getByRole("button", { name: "Deshacer" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Paso" }));
     expect(commits.at(-1)?.plays[0].frames).toHaveLength(3);
     expect(commits.at(-1)?.plays[0].frames[2].title).toBe("Paso nuevo");
