@@ -2451,7 +2451,7 @@ export function Board(props: BoardProps) {
   const clipEl =
     modo === "jugadas" || modo === "compartir" ? (
       <ClipExport
-        key={jplay.id}
+        key={"clip:" + jplay.id}
         play={jplay}
         who={Object.fromEntries(participants(jplay).map((id) => [id, { num: sq.byId.get(id)?.num ?? 0, name: nm(id) }]))}
         head={match?.short ?? session.name}
@@ -2973,7 +2973,7 @@ export function Board(props: BoardProps) {
         canEdit={canEdit}
         note3d={note3d}
         clip={clipEl}
-        video={<JugadaVideo key={jplay.id} video={jplay.video ?? null} canEdit={canEdit} onSave={jVideo} />}
+        video={<JugadaVideo key={"video:" + jplay.id} video={jplay.video ?? null} canEdit={canEdit} onSave={jVideo} />}
         editor={jugadaEditor()}
         onToggle={playToggle}
         onStep={jStep}

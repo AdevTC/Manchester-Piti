@@ -94,3 +94,7 @@
 /* la charla keeps its transport at the bottom: only «Salir» joins it, at the top right under the LED */
 .pzv .b5p-pbar.ch{left:auto;right:var(--b5p-sr);bottom:auto;top:calc(var(--b5p-st) + var(--b5p-ledh) + 8px);transform:none;min-height:0;padding:4px}
 .pzv.b5p-pres[data-modo=charla] .ch-top{left:var(--b5p-sl);right:auto;width:min(640px,calc(100% - var(--b5p-sl) - var(--b5p-sr) - 140px));transform:none;top:calc(var(--b5p-st) + var(--b5p-ledh) + 8px)}
+
+/* The voice row makes the charla's transport taller: the lower third and the plan's cards go up by as much,
+   so they never sit under it. */
+.pzv .ch:has(.b5p-voz) .ch-lt,.pzv .ch:has(.b5p-voz) .ch-plan{translate:0 -58px}
