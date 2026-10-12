@@ -178,6 +178,18 @@ service cloud.firestore {
       return d.get('drawings', []) is list && d.get('drawings', []).size() <= 60
         && d.get('plays', []) is list && d.get('plays', []).size() <= 12;
     }
+    // The planned cambios (≤ 20 maps; each one is validated on read, see lineupDoc.ts).
+    function subsOk(d) {
+      return !('subs' in d) || (d.subs is list && d.subs.size() <= 20);
+    }
+    // The dead-ball takers in order: three lists of at most three ids each.
+    function takersOk(d) {
+      return !('takers' in d) || (d.takers is map
+        && d.takers.keys().hasOnly(['penalties','freekicks','corners'])
+        && d.takers.get('penalties', []) is list && d.takers.get('penalties', []).size() <= 3
+        && d.takers.get('freekicks', []) is list && d.takers.get('freekicks', []).size() <= 3
+        && d.takers.get('corners', []) is list && d.takers.get('corners', []).size() <= 3);
+    }
     // A string field that may be missing (older boards) but, when there, is a bounded string.
     function optStr(d, k, max) {
       return !(k in d) || (d[k] is string && d[k].size() <= max);
@@ -192,6 +204,7 @@ service cloud.firestore {
     // (`bench` and `pinned` are no longer written, but older boards still carry them.)
     function boardOk(d) {
       return d.keys().hasOnly(['formation','freeMode','slots','bench','roles','tactics','playerPositions','pinned',
+          'variants','subs','takers',
           'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt'])
         && d.ownerUid is string
         && d.get('seasonId', null) is string && d.seasonId.size() <= 128
@@ -199,11 +212,12 @@ service cloud.firestore {
         && d.get('isOfficial', false) is bool && d.get('freeMode', false) is bool
         && (d.get('matchId', null) == null || (d.matchId is string && d.matchId.size() <= 128))
         && slotsOk(d)
-        && d.get('roles', {}) is map && d.get('roles', {}).size() <= 4
+        && d.get('roles', {}) is map && d.get('roles', {}).size() <= 5
         && d.get('tactics', {}) is map && d.get('tactics', {}).size() <= 12
         && d.get('playerPositions', {}) is map && d.get('playerPositions', {}).size() <= 60
         && d.get('bench', []) is list && d.get('bench', []).size() <= 60
         && d.get('pinned', []) is list && d.get('pinned', []).size() <= 7
+        && subsOk(d) && takersOk(d)
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp)
         && boardExtrasOk(d);

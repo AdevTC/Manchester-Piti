@@ -15,6 +15,10 @@ export interface PromptCtx {
   pieces: boolean;
   /** Dibujar: a stroke is marked (the arrows move it, Supr deletes it). */
   marked?: boolean;
+  /** The Siete's tab on screen («c» = Cambios). */
+  tab?: "b" | "s" | "p" | "c";
+  /** Cambios with the match live, for a captain: «Hacer el cambio». */
+  live?: boolean;
 }
 
 export interface PromptActs {
@@ -33,6 +37,10 @@ export interface PromptActs {
   next: () => void;
   siete: () => void;
   exitCharla: () => void;
+  /** Cambios: a new cambio, «Repartir minutos» (live: «Recalcular»), «Hacer el cambio». */
+  addSub?: () => void;
+  repartir?: () => void;
+  hacer?: () => void;
 }
 
 export interface PromptItem {
@@ -46,7 +54,7 @@ export interface PromptItem {
 /** The context's key: a new one plays the items in again. */
 export function promptKey(c: PromptCtx): string {
   if (c.modo === "editar" && c.hand) return "s" + c.hand.k + c.hand.name;
-  return c.modo + (c.ro ? ":ro" : "") + (c.marked ? ":m" : "");
+  return c.modo + (c.modo === "editar" && c.tab === "c" ? ":c" + (c.live ? "l" : "") : "") + (c.ro ? ":ro" : "") + (c.marked ? ":m" : "");
 }
 
 /** What the prompt bar offers right now (as designed: the hand, then each tool). */
@@ -57,6 +65,18 @@ export function promptItems(c: PromptCtx, a: PromptActs): PromptItem[] {
     if (c.hand.k === "p")
       return [who, { k: "Clic", t: "Cambiar con otro o con un hueco" }, { k: "C", t: "Capitán", go: a.captain }, { k: "G", t: "Galones", go: a.galones }, { k: "F", t: "Ficha", go: a.ficha }, { k: "Esc", t: "Soltar", go: a.drop }];
     return [who, { k: "Clic", t: "Entra por un cromo del campo" }, { k: "F", t: "Ficha", go: a.ficha }, { k: "Esc", t: "Soltar", go: a.drop }];
+  }
+  if (c.modo === "editar" && c.tab === "c") {
+    const scrub: PromptItem = { k: ", .", t: "Minuto en el campo (⇧ 5′)" };
+    if (c.ro) return [{ k: "Q E", t: "Pestañas" }, scrub, { k: "1–8", t: "Herramientas" }];
+    return [
+      { k: "Q E", t: "Pestañas" },
+      scrub,
+      { k: "N", t: "Añadir cambio", go: a.addSub },
+      { k: "M", t: c.live ? "Recalcular" : "Repartir minutos", go: a.repartir },
+      ...(c.live ? [{ k: "H", t: "Hacer el cambio", go: a.hacer }] : []),
+      { k: "Ctrl Z", t: "Deshacer", go: a.undo },
+    ];
   }
   if (c.modo === "editar") {
     const view: PromptItem = { k: "R", t: c.benchView === "lista" ? "Ver en cromos" : "Ver en lista" };

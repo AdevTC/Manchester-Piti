@@ -426,6 +426,12 @@ export function CompartirPanel({ cartel, block, busy, ready = true, canLink, onS
             <span>{cartel.bench.join(" · ")}</span>
           </div>
         )}
+        {!!cartel.subs?.length && (
+          <div className="po-f">
+            <span>CAMBIOS</span>
+            <span>{cartel.subs.join(" · ")}</span>
+          </div>
+        )}
         <div className="po-f">
           <span>
             QUÍMICA <b>{cartel.qv}</b>
@@ -582,7 +588,7 @@ export function AjustesPanel(p: AjustesProps) {
           </span>
         ))}
       </div>
-      <p style={{ marginTop: 10 }}>Para cambiarlos, mantén pulsado un cromo del campo.</p>
+      <p style={{ marginTop: 10 }}>Para cambiarlos, mantén pulsado un cromo del campo, o en Siete → Cambios («Galones en orden»). Los lanzadores van en orden: tira el primero que esté en el campo.</p>
     </>
   );
 }

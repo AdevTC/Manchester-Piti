@@ -32,15 +32,30 @@ export interface SlotState extends SlotDef {
   playerId: string | null;
 }
 
-/** Gold-galón role assignments for one lineup (single holder per role). */
+/** Gold-galón role assignments for one lineup (single holder per role). The dead-ball ones mirror the
+ *  first of their ordered list (`Lineup.takers`) on the pitch. */
 export interface Roles {
   captainId?: string;
+  /** Vice-capitán: wears the brazalete while the captain is off the pitch. */
+  viceId?: string;
   penaltiesId?: string;
   freekicksId?: string;
   cornersId?: string;
 }
 
 export type RoleKey = keyof Roles;
+
+/** One planned substitution: at minute `min`, `in` takes `out`'s place on the pitch. */
+export interface Sub {
+  id: string;
+  min: number;
+  out: string;
+  in: string;
+}
+
+export type TakerKind = "penalties" | "freekicks" | "corners";
+/** The dead-ball takers, in order (1º, 2º, 3º). */
+export type Takers = Record<TakerKind, string[]>;
 
 /** The full lineup shape (mirrors the proposed `lineups` Firestore doc). */
 export interface Lineup {
@@ -54,6 +69,10 @@ export interface Lineup {
   playerPositions: Record<string, Zone>;
   /** Players pinned to their slot (immune to formation change / Auto-XI). */
   pinned: string[];
+  /** Cambios por tandas: who leaves for whom, and when (≤ 20; see v2/cambios.ts). */
+  subs?: Sub[];
+  /** Lanzadores en orden (≤ 3 each): the first of each list on the pitch takes it (see v2/takers.ts). */
+  takers?: Takers;
   /** Telestrator strokes over the pitch (≤ 60; see drawings.ts). */
   drawings: Stroke[];
   /** The board's own jugadas (≤ 12; see plays.ts). The built-in ones are not stored. */

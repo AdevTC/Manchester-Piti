@@ -14,6 +14,7 @@ import { dataToLineupDoc, extractLineup, lineupToData, type LineupDoc } from "..
 import type { UseLineups } from "../useLineups";
 import { apiError } from "../../../lib/clubApi";
 import { cleanName, copyName, nameError, uniqueName } from "./boards";
+import { takersOf } from "./takers";
 import { normalize, withBench } from "./ops";
 import { deepTablero } from "./deeplink";
 
@@ -97,7 +98,7 @@ const newest = (docs: LineupDoc[]): LineupDoc | undefined =>
 
 /** What a lineup looks like once stored and read back (to tell our own writes from someone else's). */
 const sig = (L: Lineup): string =>
-  JSON.stringify([L.formation, L.freeMode, L.slots.map((s) => [s.playerId, s.x, s.y]), L.roles, L.tactics, L.playerPositions, L.drawings, L.plays]);
+  JSON.stringify([L.formation, L.freeMode, L.slots.map((s) => [s.playerId, s.x, s.y]), L.roles, L.tactics, L.playerPositions, L.drawings, L.plays, L.subs ?? [], takersOf(L)]);
 const META = { ownerUid: "", ownerNickname: "", seasonId: "", name: "", isOfficial: false, matchId: null };
 const storedSig = (L: Lineup, squadIds: string[]): string => sig(normalize(extractLineup(dataToLineupDoc("x", lineupToData(L, META))), squadIds));
 

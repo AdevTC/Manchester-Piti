@@ -1,40 +1,29 @@
 // La pizarra «Noche de partido» — every change the board makes to a lineup, as pure functions over the
 // stored Lineup (formations.ts) built on lineupOps. No React. The design's slot table (geometry.ts FORM)
 // places the cromos; free mode keeps each slot's own spot in slots[i].x/y.
-import { applyFormation, type FormationName, type Lineup, type RoleKey, type Roles, type Zone } from "../formations";
+import { applyFormation, type FormationName, type Lineup, type RoleKey, type Zone } from "../formations";
 import { placeIntoSlot, sendToBench, swapPlayers, XI } from "../lineupOps";
 import { defaultTactics } from "../tactics";
 import { DEF_LINE_VALUES, planeDist2, slotPos, slotZone, SYSTEMS } from "./geometry";
 import { isAvailable, natOf, type Squad } from "./model";
+import { knownTakers, ROLE_TAKER, rolesFor, syncRoles, takersOf, toggleFirst } from "./takers";
 
 const cloneSlots = (L: Lineup) => L.slots.map((s) => ({ ...s }));
 
-// ── the galones belong to the seven: whoever leaves the pitch leaves his galones ──
+// ── the galones belong to the seven: whoever leaves the pitch leaves his galones (the dead-ball ones
+// pass to the next of their list on the pitch, see takers.ts) ──
 const ROLE_KEYS: RoleKey[] = ["captainId", "penaltiesId", "freekicksId", "cornersId"];
 /** «la capitanía», «los penaltis»… (for «X deja la capitanía»). */
-const ROLE_WORD: Record<RoleKey, string> = { captainId: "la capitanía", penaltiesId: "los penaltis", freekicksId: "las faltas", cornersId: "los córners" };
-const pitchIds = (L: Lineup): Set<string> => new Set(L.slots.map((s) => s.playerId).filter((x): x is string => !!x));
-function pitchRoles(roles: Roles, onPitch: ReadonlySet<string>): Roles {
-  const out: Roles = {};
-  ROLE_KEYS.forEach((k) => {
-    const h = roles[k];
-    if (h && onPitch.has(h)) out[k] = h;
-  });
-  return out;
-}
+const ROLE_WORD: Record<Exclude<RoleKey, "viceId">, string> = { captainId: "la capitanía", penaltiesId: "los penaltis", freekicksId: "las faltas", cornersId: "los córners" };
 /** The lineup with only the galones of those on the pitch (the same object when nothing changes). */
-export function dropBenchedRoles(L: Lineup): Lineup {
-  const on = pitchIds(L);
-  if (ROLE_KEYS.every((k) => !L.roles[k] || on.has(L.roles[k]))) return L;
-  return { ...L, roles: pitchRoles(L.roles, on) };
-}
+export const dropBenchedRoles = (L: Lineup): Lineup => syncRoles(L);
 /** What a change took off the pitch's galones: «KEVIN deja la capitanía y los penaltis» (null = nothing). */
 export function rolesLost(before: Lineup, after: Lineup, name: (id: string) => string): string | null {
   const by = new Map<string, string[]>();
   ROLE_KEYS.forEach((k) => {
     const h = before.roles[k];
     // (only who wore it on the pitch: a stale galón of someone already on the bench says nothing)
-    if (h && after.roles[k] !== h && before.slots.some((s) => s.playerId === h) && !after.slots.some((s) => s.playerId === h)) by.set(h, [...(by.get(h) ?? []), ROLE_WORD[k]]);
+    if (k !== "viceId" && h && after.roles[k] !== h && before.slots.some((s) => s.playerId === h) && !after.slots.some((s) => s.playerId === h)) by.set(h, [...(by.get(h) ?? []), ROLE_WORD[k]]);
   });
   if (!by.size) return null;
   const and = (xs: string[]) => (xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " y " + xs[xs.length - 1]);
@@ -54,11 +43,18 @@ export function normalize(L: Lineup, squadIds: string[]): Lineup {
     return s;
   });
   const onPitch = new Set(slots.map((s) => s.playerId).filter((x): x is string => !!x));
+  const vice = L.roles.viceId && (!known.size || known.has(L.roles.viceId)) ? L.roles.viceId : undefined;
+  const base = { ...L.roles, viceId: vice };
+  if (!vice) delete base.viceId;
+  const takers = L.takers ? knownTakers(L.takers, known) : undefined;
+  const subs = L.subs ? L.subs.filter((x) => !known.size || (known.has(x.out) && known.has(x.in))) : undefined;
   return {
     ...L,
     slots,
     bench: squadIds.filter((id) => !onPitch.has(id)),
-    roles: pitchRoles(L.roles, onPitch),
+    roles: rolesFor({ slots, roles: base, takers }),
+    ...(takers ? { takers } : {}),
+    ...(subs ? { subs } : {}),
     tactics: { ...defaultTactics(), ...L.tactics },
     playerPositions: { ...L.playerPositions },
   };
@@ -68,7 +64,7 @@ export function normalize(L: Lineup, squadIds: string[]): Lineup {
  *  left out; keys in a fixed order): a lineup with another one came from somewhere else. */
 export function editSig(L: Lineup): string {
   const sorted = (o: object | undefined) => Object.entries(o ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  return JSON.stringify([L.formation, !!L.freeMode, L.slots.map((s) => [s.playerId ?? null, s.x, s.y]), sorted(L.roles), sorted(L.tactics), sorted(L.playerPositions)]);
+  return JSON.stringify([L.formation, !!L.freeMode, L.slots.map((s) => [s.playerId ?? null, s.x, s.y]), sorted(L.roles), sorted(L.tactics), sorted(L.playerPositions), (L.subs ?? []).map((x) => [x.id, x.min, x.out, x.in]), takersOf(L)]);
 }
 
 /** Keep the stored bench in step with the pitch (the old board reads it). */
@@ -130,11 +126,18 @@ export function cycleDefLine(L: Lineup): Lineup {
   return setDefLine(L, o[(i < 0 ? 1 : i + 1) % 3]);
 }
 
-/** A galón goes to `id`, or comes off him if he already wore it. */
+/** A galón goes to `id`, or comes off him if he already wore it. The dead-ball ones put him 1º of their
+ *  list (see takers.ts); the brazalete and the vice-capitanía never go to the same player. */
 export function toggleRole(L: Lineup, key: RoleKey, id: string): Lineup {
+  const kind = ROLE_TAKER[key];
+  if (kind) return toggleFirst(L, kind, id);
   const roles = { ...L.roles };
   if (roles[key] === id) delete roles[key];
-  else roles[key] = id;
+  else {
+    roles[key] = id;
+    const other: RoleKey = key === "captainId" ? "viceId" : "captainId";
+    if (roles[other] === id) delete roles[other];
+  }
   return { ...L, roles };
 }
 

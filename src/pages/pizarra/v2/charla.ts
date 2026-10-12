@@ -14,6 +14,8 @@ import { slotLabel } from "./geometry";
 import { CONSIGNA } from "./plan";
 import { GALONES, galonesOf, isFull, placedCount, type Cromo, type Squad } from "./model";
 import { plural } from "./plural";
+import { wavesTxt } from "./cambios";
+import { orderTxt, ROLE_TAKER, takersOf } from "./takers";
 
 /** El sistema, the first step. */
 export const STEP_SISTEMA = 0;
@@ -160,13 +162,18 @@ export function suplentesTxt(list: Cromo[], max = 8): string {
   return shown.join(" · ") + (list.length > max ? " y " + (list.length - max) + " más" : "");
 }
 
-/** Who wears each galón of the dead ball (and the brazalete), as the charla says it. */
+/** Who wears each galón of the dead ball (and the brazalete), as the charla says it: the dead balls in
+ *  their order («TELLO › KEVIN»: the first on the pitch takes it), the brazalete with its vice. */
 export function lanzadores(L: Lineup, sq: Squad): { label: string; letter: string; name: string | null; onPitch: boolean }[] {
   const on = new Set(L.slots.map((s) => s.playerId).filter(Boolean));
+  const nm = (id: string) => sq.byId.get(id)?.name ?? "";
+  const t = takersOf(L);
   return GALONES.map((g) => {
-    const id = L.roles[g.key];
-    const c = id ? sq.byId.get(id) : undefined;
-    return { label: g.key === "captainId" ? "Brazalete" : g.label, letter: g.letter, name: c?.name ?? null, onPitch: !!id && on.has(id) };
+    const kind = ROLE_TAKER[g.key];
+    const list = (kind ? t[kind] : [L.roles[g.key]]).filter((id): id is string => !!id && sq.byId.has(id));
+    const vice = g.key === "captainId" && L.roles.viceId && sq.byId.has(L.roles.viceId) ? L.roles.viceId : null;
+    const name = list.length ? orderTxt(list, nm) + (vice && vice !== list[0] ? " (vice: " + nm(vice) + ")" : "") : vice ? "vice " + nm(vice) : null;
+    return { label: g.key === "captainId" ? "Brazalete" : g.label, letter: g.letter, name, onPitch: list.some((id) => on.has(id)) || (!!vice && on.has(vice)) };
   });
 }
 
@@ -227,6 +234,8 @@ export interface CharlaView {
   hero: number;
   /** The jugada's paso on the pitch, else -1. */
   paso: number;
+  /** The plan's cambios, one line per tanda («25′ · KEVIN por TELLO»), at the plan step (null = none). */
+  cambios: string[] | null;
   /** The LED board over the pitch. */
   led: string;
   /** The 3D LED boards during the charla and at «¡A por ellos!». */
@@ -337,7 +346,7 @@ export function charlaView(a: CharlaArgs): CharlaView {
     ...Array.from({ length: 7 }, (_, i) => nm(i)),
     "Los suplentes · " + nSup,
     "Las pelotas paradas",
-    "El plan · " + a.tacSum,
+    "El plan · " + a.tacSum + (L.subs?.length ? " · " + plural(L.subs.length, "cambio") : ""),
     ...play.frames.map((f, k) => a.playShort + " · " + (k + 1) + " · " + (f.title || "Paso " + (k + 1))),
     "La quedada" + (match?.date ? " · " + match.date : ""),
     "¡A por ellos!",
@@ -357,6 +366,7 @@ export function charlaView(a: CharlaArgs): CharlaView {
     guion,
     hero: kind === "siete" ? cs - 1 : -1,
     paso: kind === "jugada" ? cs - STEP_JUGADA : -1,
+    cambios: kind === "plan" && L.subs?.length ? wavesTxt(L.subs, (id) => sq.byId.get(id)?.name ?? "Jugador") : null,
     led: "LA CHARLA · " + ms.toUpperCase() + " · " + a.sysName + " · QUÍMICA " + a.qv + " · ",
     board3d: { start: ["La charla", ms, "Sistema " + a.sysName, "Vamos Piti"], end: ["¡A por ellos!", "Manchester Piti", ms] },
   };
