@@ -480,6 +480,19 @@ describe("Pizarra", () => {
     await seed("lineups/old", board);
     await assertSucceeds(updateDoc(doc(db("member"), "lineups", "old"), { name: "Viejo" }));
   });
+  it("las etiquetas del tablero: hasta tres textos de 1 a 20 letras", async () => {
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, tags: ["Liga", "Copa"] }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { tags: [] }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { tags: ["Liga", "Copa", "x".repeat(20)] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { tags: ["Liga", "Copa", "Entreno", "Final"] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { tags: ["x".repeat(21)] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { tags: [""] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { tags: [3] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { tags: "Liga" }));
+    // las etiquetas de otro no se tocan
+    await seed("lineups/z", { ...board, ownerUid: "other", ownerNickname: "other" });
+    await assertFails(updateDoc(doc(db("member"), "lineups", "z"), { tags: ["Liga"] }));
+  });
   it("el autor firma con su propio apodo; la temporada no cambia", async () => {
     await assertFails(setDoc(doc(db("member"), "lineups", "x"), { ...board, ownerNickname: "admin" }));
     await assertFails(setDoc(doc(db("member"), "lineups", "x"), { ownerUid: "member", seasonId: "season", name: "Sin apodo" }));

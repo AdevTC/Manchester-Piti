@@ -10,6 +10,7 @@ import { parseDrawings, strokeToData } from "./drawings";
 import { parsePlays, playToData } from "./plays";
 import { copyTactica, parseCondPlan, parseShapeOff, parseStyle, tacticaToData } from "./v2/tacticaData";
 import { copyRival, parseRival, rivalToData } from "./v2/rival";
+import { parseTags } from "./v2/tags";
 import { reportDroppedDoc } from "../../lib/docTelemetry";
 import {
   LINEUP_FORMATIONS,
@@ -44,7 +45,7 @@ export interface LineupDoc extends Lineup, LineupMeta {
 }
 
 /** The fields the board itself edits (an autosave writes only these: never the metadata). */
-export const BOARD_FIELDS = ["formation", "freeMode", "slots", "roles", "tactics", "playerPositions", "drawings", "plays", "subs", "takers", "variants", "shapeOff", "condPlan", "style", "rival"] as const;
+export const BOARD_FIELDS = ["formation", "freeMode", "slots", "roles", "tactics", "playerPositions", "drawings", "plays", "subs", "takers", "variants", "shapeOff", "condPlan", "style", "rival", "tags"] as const;
 
 /** A Firestore Timestamp-ish value (avoids importing the class for a type). */
 interface TimestampLike {
@@ -86,6 +87,7 @@ export function extractLineup(d: LineupDoc): Lineup {
     plays: structuredClone(d.plays),
     variants: structuredClone(d.variants ?? []),
     ...copyTactica(d),
+    ...(d.tags ? { tags: [...d.tags] } : {}),
   };
 }
 
@@ -109,6 +111,8 @@ export function boardToData(lineup: Lineup): Record<string, unknown> {
     plays: (lineup.plays ?? []).map(playToData),
     variants: (lineup.variants ?? []).map(variantToData),
     ...tacticaToData(lineup),
+    // (only once tags were ever set: older rules never see the field otherwise)
+    ...(lineup.tags !== undefined ? { tags: [...lineup.tags] } : {}),
   };
 }
 
@@ -244,6 +248,7 @@ export function dataToLineupDoc(id: string, data: Record<string, unknown>): Line
     shapeOff: parseShapeOff(data.shapeOff, id),
     condPlan: parseCondPlan(data.condPlan, id),
     style: parseStyle(data.style, id),
+    ...(data.tags !== undefined ? { tags: parseTags(data.tags, id) } : {}),
     ownerUid: str(data.ownerUid, LINEUP_LIMITS.id, ""),
     ownerNickname: str(data.ownerNickname, LINEUP_LIMITS.nickname, ""),
     seasonId: str(data.seasonId, LINEUP_LIMITS.id, "all"),

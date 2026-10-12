@@ -235,6 +235,16 @@ service cloud.firestore {
         && (d.condPlan.size() < 2 || (d.condPlan[1] is map && d.condPlan[1].size() <= 8))
         && (d.condPlan.size() < 3 || (d.condPlan[2] is map && d.condPlan[2].size() <= 8)));
     }
+    // The board's tags («Liga», «Copa», «Entreno»): at most three short texts (Bloque 5, see v2/tags.ts).
+    function tagOk(t) {
+      return t is string && t.size() > 0 && t.size() <= 20;
+    }
+    function tagsOk(d) {
+      return !('tags' in d) || (d.tags is list && d.tags.size() <= 3
+        && (d.tags.size() < 1 || tagOk(d.tags[0]))
+        && (d.tags.size() < 2 || tagOk(d.tags[1]))
+        && (d.tags.size() < 3 || tagOk(d.tags[2])));
+    }
     function tacticaOk(d) {
       return shapeOffOk(d) && condPlanOk(d) && optStr(d, 'style', 24);
     }
@@ -243,7 +253,7 @@ service cloud.firestore {
     function boardOk(d) {
       return d.keys().hasOnly(['formation','freeMode','slots','bench','roles','tactics','playerPositions','pinned',
           'variants','subs','takers',
-          'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt','shapeOff','condPlan','style','rival'])
+          'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt','shapeOff','condPlan','style','rival','tags','voz'])
         && d.ownerUid is string
         && d.get('seasonId', null) is string && d.seasonId.size() <= 128
         && optStr(d, 'name', 60) && optStr(d, 'ownerNickname', 40) && optStr(d, 'formation', 10)
@@ -260,6 +270,7 @@ service cloud.firestore {
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp)
         && tacticaOk(d)
+        && tagsOk(d)
         && variantsOk(d)
         && boardExtrasOk(d);
     }
