@@ -128,8 +128,8 @@ export function CharlaGuion({ v, title, note3d }: { v: CharlaView; title: string
     <>
       <div className="sh-h">
         <div>
-          <span className="k2">La charla · {title}</span>
           <h2>El guion</h2>
+          <span className="k2">La charla · {title}</span>
         </div>
         <span className="cnt">{v.n}</span>
       </div>

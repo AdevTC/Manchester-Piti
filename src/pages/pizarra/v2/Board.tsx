@@ -10,12 +10,11 @@
 // it all before the match (the system, the seven one by one, the plan, the jugada, «¡A por ellos!»),
 // read-only boards included. One 3D stadium serves the intro, the charla and the jugadas.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { FormationName, Lineup, RoleKey, Zone } from "../formations";
-import { ZONES } from "../formations";
+import type { FormationName, Lineup } from "../formations";
 import { CAMS, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
 import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
-import { chem } from "./quimica";
-import { autoPlace, cycleDefLine, goFree, normalize, place, resetFree, resolveDrop, setDefLine, setPlaysAs, setSystem, snapAll, stepSystem, swap, toBench, toggleRole } from "./ops";
+import { chem, tierOf } from "./quimica";
+import { autoPlace, cycleDefLine, goFree, normalize, place, resetFree, resolveDrop, setDefLine, setSystem, snapAll, stepSystem, swap } from "./ops";
 import { suggestSeven } from "./pack";
 import { applyFan, fanCentre, fanItems, type FanItem } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
@@ -28,7 +27,8 @@ import { plural } from "./plural";
 import { useNoScrollJump } from "./useNoScrollJump";
 import type { BoardSession } from "./useBoardSession";
 import { Stage } from "./Stage";
-import { AppBar, BenchTab, MasPanel, ModeBar, OnceTabs, ReadOnlyStrip, Sheet, SystemTab, Tray, type OnceTab, type RepRow, type TrayData } from "./Panels";
+import { AppBar, BenchTab, MasPanel, ModeBar, OnceTabs, ReadOnlyStrip, Sheet, SquadBars, SystemTab, type OnceTab } from "./Panels";
+import { avisoTxt, benchGroups, calledOf, convHead, reparto, squadInfo, type BenchHand } from "./bench";
 import { AjustesPanel, CompararPanel, CompartirPanel, PlanTab, QuimicaPanel } from "./SheetPanels";
 import { SHOW0, type BoardPrefs, type ShowKey } from "./prefs";
 import { TablerosPanel, type BoardRowView, type ReactionsView, type TbTab } from "./Tableros";
@@ -36,7 +36,7 @@ import { Fan, Ficha, type FichaView } from "./Overlays";
 import { Icon } from "./icons";
 import { setTactic, tacRows } from "./plan";
 import { changes, cmpMarks, tape } from "./compare";
-import { boardLink, boardMeta, convCounts, convocatoriaFromBoard, matchLabel, matchShort, type CalMatch } from "./boards";
+import { boardLink, boardMeta, convocatoriaFromBoard, matchLabel, matchShort, type CalMatch } from "./boards";
 import { charlaJugada, charlaLast, charlaView, pushIn, STEP_JUGADA, stepKind, type CharlaMatch } from "./charla";
 import { useCharla } from "./useCharla";
 import { CharlaGuion, CharlaOverlay } from "./CharlaOverlay";
@@ -235,9 +235,8 @@ export function Board(props: BoardProps) {
   const [q, setQ] = useState("");
   const [zf, setZf] = useState("Todos");
   const [oc, setOc] = useState(false);
-  const [rp, setRp] = useState(0);
-  const [tp, setTp] = useState(0);
-  const [tpk, setTpk] = useState(0);
+  // «Buscar en la plantilla» open (its filters only apply while it is)
+  const [srx, setSrx] = useState(false);
   const [dragKind, setDragKind] = useState<null | "tok" | "line">(null);
   const [dragFrom, setDragFrom] = useState<null | "pitch" | "bench">(null);
   const [fit, setFit] = useState({ kp: 1, kh: 0.64, kd: 1 });
@@ -1048,9 +1047,9 @@ export function Board(props: BoardProps) {
       placeAt(i, sel.id);
       return;
     }
-    patchUi({ sel: { k: "p", id }, pick: i, kb: null });
-    setTp(0);
+    patchUi({ sel: { k: "p", id }, pick: null, kb: null });
     setModo("editar");
+    setTab("b");
     setSnap("half");
     buzz(8);
     announce(nm(id) + " en la mano: toca otro cromo o un hueco. Con el teclado, flechas para elegir sitio e Intro para soltar.");
@@ -1062,22 +1061,36 @@ export function Board(props: BoardProps) {
       return;
     }
     patchUi({ pick: pick === i ? null : i, kb: null });
-    setTp(0);
     setModo("editar");
-    setSnap("peek");
+    setTab("b");
+    setSnap("half");
     buzz(8);
   };
+  // A bench player: a slot picked or a pitch player in the hand → he comes in there; else he is in the hand.
   const tapBench = (id: string) => {
     if (ctl.guarded() || !canEdit) return;
+    const c = sq.byId.get(id);
+    if (c?.baja) {
+      say(c.name + ": " + c.baja.toLowerCase() + ", no se puede colocar");
+      return;
+    }
     if (pick != null) {
       placeAt(pick, id);
       return;
+    }
+    if (sel?.k === "p") {
+      const i = L.slots.findIndex((s) => s.playerId === sel.id);
+      if (i >= 0) {
+        placeAt(i, id);
+        say(nm(id) + " entra por " + nm(sel.id));
+        return;
+      }
     }
     if (sel?.id === id) {
       patchUi({ sel: null, kb: null });
       return;
     }
-    patchUi({ sel: { k: "b", id }, kb: null });
+    patchUi({ sel: { k: "b", id }, pick: null, kb: null });
     buzz(8);
     announce(nm(id) + " en la mano: toca un hueco o un cromo del campo.");
   };
@@ -1316,44 +1329,25 @@ export function Board(props: BoardProps) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // ── bench, album, bajas, reparto ──
-  const benchAll = sq.list.filter((c) => !onPitch.has(c.id));
-  const qq = q.trim().toLowerCase();
-  // «Solo convocados» = those who said «Voy» (it needs answers to the convocatoria).
-  const cc = convCounts(sq);
-  const answered = cc.voy + cc.duda + cc.no > 0;
-  const ocOn = oc && answered;
-  const benchF = benchAll.filter(
-    (c) => !c.baja && (!qq || c.name.toLowerCase().includes(qq) || String(c.num) === qq) && (zf === "Todos" || c.pos === zf) && (!ocOn || c.cv === "voy"),
-  );
+  // ── the squad bars, the convocatoria, the bench (Banquillo · Sin convocar · Bajas), the reparto ──
+  const sInfo = squadInfo(L, sq, ch);
   const cm = props.conv.match;
-  const convTxt = !cm
-    ? "Sin partido a la vista: sin convocatoria."
-    : props.conv.error
-      ? "No se ha podido leer la convocatoria de " + matchShort(cm) + "."
-      : props.conv.loading
-        ? "Leyendo la convocatoria de " + matchShort(cm) + "…"
-        : answered
-          ? "Convocatoria " + matchShort(cm) + ": " + [cc.voy + " voy", cc.duda + " duda", cc.no + " no va", cc.sin ? cc.sin + " sin responder" : ""].filter(Boolean).join(" · ")
-          : "Nadie ha respondido aún a la convocatoria de " + matchShort(cm) + ".";
-  const railPages = Math.max(1, Math.ceil(benchF.length / 3));
-  const rpi = Math.min(rp, railPages - 1);
-  const rail = benchF.slice(rpi * 3, rpi * 3 + 3);
-  const bajas = sq.list.filter((c) => c.baja);
-  const counts = { les: bajas.filter((c) => c.baja === "Lesionado").length, san: bajas.filter((c) => c.baja === "Sancionado").length, ina: bajas.filter((c) => c.baja === "Inactivo").length };
-  const avl = sq.list.filter((c) => !c.baja && c.pos !== "POR").sort((a, b) => a.stats.minutes - b.stats.minutes);
-  const maxMin = Math.max(1, ...sq.list.map((c) => c.stats.minutes));
-  const rep: RepRow[] = avl.slice(0, 4).map((c) => ({ id: c.id, num: c.num, name: c.name, m: Math.max(2, Math.round((c.stats.minutes / maxMin) * 100)) + "%", min: c.stats.minutes + "′" }));
-  const low = avl.find((c) => !onPitch.has(c.id) && c.cv !== "no");
-  let rot: { id: string; i: number; out: string } | null = null;
-  if (low?.pos) {
-    const cands = L.slots
-      .map((s, i) => ({ id: s.playerId, i }))
-      .filter((x): x is { id: string; i: number } => !!x.id && x.i > 0 && slotZone(L, x.i) === low.pos)
-      .sort((a, b) => (sq.byId.get(b.id)?.stats.minutes ?? 0) - (sq.byId.get(a.id)?.stats.minutes ?? 0));
-    if (cands[0]) rot = { id: low.id, i: cands[0].i, out: cands[0].id };
-  }
-  const repTxt = rot && low ? low.name + " lleva " + low.stats.minutes + "′; " + nm(rot.out) + ", " + (sq.byId.get(rot.out)?.stats.minutes ?? 0) + "′." : "El reparto está equilibrado.";
+  const called = calledOf(cm);
+  const conv = convHead({ sq, match: cm, loading: props.conv.loading, error: props.conv.error });
+  // «Solo convocados» = those who said «Voy» (it needs answers to the convocatoria).
+  const ocOn = oc && conv.answered;
+  const selP = sel?.k === "p" ? L.slots.findIndex((s) => s.playerId === sel.id) : -1;
+  const benchHand: BenchHand | null = !canEdit || modo !== "editar" ? null : sel && selP >= 0 ? { kind: "p", name: nm(sel.id), zone: slotZone(L, selP) } : pick != null ? { kind: "slot", zone: slotZone(L, pick) } : null;
+  const groups = benchGroups({
+    bench: sq.list.filter((c) => !onPitch.has(c.id)),
+    called,
+    filter: { on: srx, q, zf, oc: ocOn },
+    hand: benchHand,
+    selId: sel?.k === "b" ? sel.id : null,
+    meId: props.meId,
+  });
+  const rp = reparto(L, sq, called);
+  const rot = rp.rot;
   const galLeg = GALONES.map((g) => {
     const h = L.roles[g.key];
     return { l: g.letter, t: g.label + " · " + (h && sq.byId.has(h) ? nm(h) : "sin asignar") };
@@ -1367,79 +1361,26 @@ export function Board(props: BoardProps) {
     placeAt(r.i, r.id);
     say(nm(r.id) + " entra por " + nm(r.out) + ": más minutos para quien menos ha jugado");
   };
-
-  // ── the tray (a slot or a pitch cromo picked) ──
-  let tray: TrayData | null = null;
-  if (modo === "editar" && pick != null && canEdit) {
-    const occ = L.slots[pick]?.playerId ?? null;
-    const lb = slotLabel(L, pick);
-    const zz = slotZone(L, pick);
-    const rank = (id: string) => {
-      const c = sq.byId.get(id);
-      if (!c) return -Infinity;
-      let r = c.rt + (c.pos === zz ? 40 : 0) + (c.cv === "no" ? -60 : c.cv === "duda" ? -8 : 0);
-      if ((pick === 0) !== (c.pos === "POR")) r -= 50;
-      return r;
-    };
-    const cand = benchAll.filter((c) => !c.baja).sort((a, b) => rank(b.id) - rank(a.id));
-    const pages = Math.max(1, Math.ceil(cand.length / 5));
-    const tpi = Math.min(tp, pages - 1);
-    const held = occ && sel?.k === "p" && sel.id === occ ? occ : null;
-    tray = {
-      kick: (occ ? "En la mano · cámbialo por" : "Los mejores para " + zz) + (pages > 1 ? " · " + (tpi + 1) + "/" + pages : ""),
-      title: occ ? nm(occ) + " · " + lb : "Hueco " + lb,
-      cards: cand.slice(tpi * 5, tpi * 5 + 5),
-      meId: props.meId,
-      page: { n: tpi + 1, of: pages },
-      pageCls: tpk % 2 ? "pa" : tpk ? "pb" : "",
-      hot: dragFrom === "pitch",
-      held: held
-        ? {
-            id: held,
-            name: nm(held),
-            gal: GALONES.map((g) => ({ key: g.key, letter: g.letter, label: g.label, on: L.roles[g.key] === held })),
-            pos: ZONES.map((z) => ({ z, on: natOf(L, sq, held) === z })),
-          }
-        : null,
-    };
-  }
-  const heldId = tray?.held?.id ?? null;
-  const trPage = (d: 1 | -1) => {
-    if (!tray) return;
-    setTp(Math.max(0, Math.min(tray.page.of - 1, tray.page.n - 1 + d)));
-    setTpk((k) => k + 1);
-  };
-  const trClose = () => {
-    patchUi({ sel: null, pick: null, kb: null });
-    setSnap("peek");
-  };
-  const trCard = (id: string) => {
-    if (ctl.guarded() || pick == null) return;
-    placeAt(pick, id);
-  };
-  const trGal = (k: RoleKey) => {
-    if (!heldId) return;
-    const next = toggleRole(L, k, heldId);
-    commit(next, { ui: { sel: { k: "p", id: heldId }, pick: next.slots.findIndex((s) => s.playerId === heldId) } });
-  };
-  const trPos = (z: Zone) => {
-    if (!heldId) return;
-    commit(setPlaysAs(L, sq, heldId, z), { ui: { sel: { k: "p", id: heldId }, pick } });
-    say(nm(heldId) + " juega de " + z + " en este siete");
-  };
-  const trBench = () => {
-    if (!heldId) return;
-    const i = L.slots.findIndex((s) => s.playerId === heldId);
-    commit(toBench(L, heldId), { ui: { sel: null, pick: i, kb: null }, snap: "peek" });
-    announce(nm(heldId) + " al banquillo");
-  };
-  const trFicha = () => {
-    if (heldId) openFic(heldId, cardEl(heldId));
-  };
-  const trFan = () => {
-    if (!heldId) return;
-    setSnap("peek");
-    openFan(heldId, cardEl(heldId));
+  // «Avisar a los que dudan»: a message for the team's group (the share sheet, else the clipboard)
+  const doAvisar = async () => {
+    const txt = avisoTxt(conv.dudas, cm);
+    if (!txt) {
+      say("Nadie tiene dudas");
+      return;
+    }
+    buzz(10);
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ text: txt });
+        return;
+      }
+      await navigator.clipboard.writeText(txt);
+      say("Aviso copiado: pégalo en el grupo");
+    } catch (err) {
+      // (closing the share sheet is not an error)
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      say("Manda el aviso: " + txt, undefined, 6000);
+    }
   };
 
   // ── the fan and the ficha ──
@@ -1454,7 +1395,7 @@ export function Board(props: BoardProps) {
       if (o.toast) say(o.toast);
       if (o.pick != null) {
         setModo("editar");
-        setTp(0);
+        setTab("b");
         announce(nm(fan.id) + " al banquillo");
       }
     }
@@ -1759,77 +1700,58 @@ export function Board(props: BoardProps) {
   ].filter(Boolean).join(" ");
   const shown: ReactNode =
     modo === "editar" ? (
-      tray ? (
-        <Tray d={tray} onPrev={() => trPage(-1)} onNext={() => trPage(1)} onClose={trClose} onCard={trCard} onGal={trGal} onPos={trPos} onBench={trBench} onFicha={trFicha} onFan={trFan} />
-      ) : (
-        <>
-          <OnceTabs tab={tab} onTab={onTab} />
-          {tab === "b" && (
-            <BenchTab
-              ro={!canEdit}
-              hot={dragFrom === "pitch"}
-              recentLabel={sq.recentLabel}
-              rail={rail}
-              selBench={sel?.k === "b" ? sel.id : null}
-              meId={props.meId}
-              railPage={{ n: rpi + 1, of: railPages }}
-              seasonName={props.seasonName}
-              q={q}
-              zf={zf}
-              oc={ocOn}
-              ocOff={!answered}
-              convTxt={convTxt}
-              seasons={props.seasons}
-              seasonId={props.seasonId}
-              bajas={bajas}
-              counts={counts}
-              rep={rep}
-              repTxt={repTxt}
-              canRotate={!!rot}
-              galLeg={galLeg}
-              onSuggest={doSuggest}
-              onAuto={doAuto}
-              onTapBench={tapBench}
-              onRailNext={() => setRp((rpi + 1) % railPages)}
-              onQ={(v) => {
-                setQ(v);
-                setRp(0);
-              }}
-              onZf={(z) => {
-                setZf(z);
-                setRp(0);
-              }}
-              onOc={() => {
-                setOc(!oc);
-                setRp(0);
-              }}
-              onSeason={props.onSeason}
-              onRotate={doRotate}
-            />
-          )}
-          {tab === "s" && (
-            <SystemTab
-              formation={L.formation}
-              free={L.freeMode}
-              grid={prefs.grid}
-              ro={!canEdit}
-              onSystem={(f: FormationName) => canEdit && toSystem(setSystem(L, f))}
-              onLibre={() => {
-                if (!canEdit || L.freeMode) return;
-                commit(goFree(L));
-                say("Modo libre: arrastra cada cromo donde quieras");
-              }}
-              onGrid={onGrid}
-              onReset={() => {
-                if (!canEdit) return;
-                commit(resetFree(L));
-                say("Posiciones del sistema " + L.formation);
-              }}
-            />
-          )}
-          {tab === "p" && <PlanTab rows={tac} ro={!canEdit} onSet={onTactic} />}
-        </>
-      )
+      <>
+        <SquadBars info={sInfo} sysName={hud.sysName} matchShort={match?.short ?? ""} qv={ch.v} qTier={tierOf(ch.v)[0]} />
+        <OnceTabs tab={tab} onTab={onTab} />
+        {tab === "b" && (
+          <BenchTab
+            ro={!canEdit}
+            hot={dragFrom === "pitch"}
+            recentLabel={sq.recentLabel}
+            conv={conv}
+            groups={groups}
+            srx={srx}
+            q={q}
+            zf={zf}
+            oc={ocOn}
+            ocOff={!conv.answered}
+            seasons={props.seasons}
+            seasonId={props.seasonId}
+            onSuggest={doSuggest}
+            onAuto={doAuto}
+            onAvisar={() => void doAvisar()}
+            onSrx={() => setSrx(!srx)}
+            onTapBench={tapBench}
+            onQ={setQ}
+            onZf={setZf}
+            onOc={() => setOc(!oc)}
+            onSeason={props.onSeason}
+          />
+        )}
+        {tab === "s" && (
+          <SystemTab
+            formation={L.formation}
+            free={L.freeMode}
+            grid={prefs.grid}
+            ro={!canEdit}
+            ch={ch}
+            sq={sq}
+            onSystem={(f: FormationName) => canEdit && toSystem(setSystem(L, f))}
+            onLibre={() => {
+              if (!canEdit || L.freeMode) return;
+              commit(goFree(L));
+              say("Modo libre: arrastra cada cromo donde quieras");
+            }}
+            onGrid={onGrid}
+            onReset={() => {
+              if (!canEdit) return;
+              commit(resetFree(L));
+              say("Posiciones del sistema " + L.formation);
+            }}
+          />
+        )}
+        {tab === "p" && <PlanTab rows={tac} ro={!canEdit} rep={rp.rows} repTxt={rp.txt} canRotate={!!rot} onSet={onTactic} onRotate={doRotate} />}
+      </>
     ) : modo === "mas" ? (
       <MasPanel tacSum={tacSum} onGo={goModo} />
     ) : modo === "quimica" ? (

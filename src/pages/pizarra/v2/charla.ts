@@ -9,6 +9,7 @@ import type { Lineup } from "../formations";
 import type { Play } from "../plays";
 import { defaultTactics } from "../tactics";
 import { slotLabel } from "./geometry";
+import { CONSIGNA } from "./plan";
 import { galonesOf, isFull, placedCount, type Squad } from "./model";
 import { plural } from "./plural";
 
@@ -78,29 +79,6 @@ export const show = (s: CharlaState): CharlaState => (s.resume ? { ...s, playing
 // ───────────────────────────── what it says ─────────────────────────────
 
 /** The consignas the plan step shows, from the tactics (as designed: presión, línea, amplitud, salida). */
-const CONSIGNA: Record<"press" | "defLine" | "width" | "buildup", Record<string, [string, string]>> = {
-  press: {
-    Alta: ["Presión alta", "Mordemos arriba: que no salgan jugando."],
-    Media: ["Presión media", "Esperamos en el medio y saltamos juntos."],
-    Repliegue: ["Repliegue", "Juntos atrás y a la contra."],
-  },
-  defLine: {
-    Alta: ["Línea alta", "Los centrales cerca del medio: campo corto."],
-    Media: ["Línea media", "Ni encima del portero ni a la espalda."],
-    Baja: ["Línea baja", "Cerca del área, sin espacio a la espalda."],
-  },
-  width: {
-    Amplia: ["Campo grande", "Las bandas pegadas a la cal."],
-    Media: ["Amplitud media", "Abrimos sin perder el centro."],
-    Estrecha: ["Juntos por dentro", "Cerramos el centro y salimos por dentro."],
-  },
-  buildup: {
-    Corta: ["Salida corta", "El portero a los centrales, siempre al pie."],
-    Mixta: ["Salida mixta", "Corta si se puede, larga si aprietan."],
-    "En largo": ["En largo", "Al 9 y a por la segunda jugada."],
-  },
-};
-
 export interface Consigna {
   t: string;
   d: string;
