@@ -30,13 +30,13 @@ describe("the «nuevo» badges", () => {
     expect(nuevoOn("dibujar", NUEVO_DESDE + NUEVO_DIAS * DAY)).toBe(false);
   });
 
-  it("the rail reads them live (Jugadas and Dibujar wear one)", () => {
+  it("the rail reads them live (Jugadas, Dibujar and Pachanga wear one)", () => {
     vi.spyOn(Date, "now").mockReturnValue(soon);
     const items = RAIL.flatMap((g) => g.items);
-    expect(items.filter((x) => x.nv).map((x) => x.m)).toEqual(["jugadas", "dibujar"]);
+    expect(items.filter((x) => x.nv).map((x) => x.m)).toEqual(["jugadas", "dibujar", "pachanga"]);
     noteToolOpened("dibujar");
     noteToolOpened("dibujar");
-    expect(items.filter((x) => x.nv).map((x) => x.m)).toEqual(["jugadas"]);
+    expect(items.filter((x) => x.nv).map((x) => x.m)).toEqual(["jugadas", "pachanga"]);
   });
 
   it("a storage that throws: the badges stay, nothing breaks", () => {

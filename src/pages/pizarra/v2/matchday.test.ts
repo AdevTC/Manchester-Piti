@@ -218,7 +218,7 @@ describe("the prompt bar in Cambios", () => {
   it("the tab's keys, «Hacer el cambio» only live for a captain, nothing that edits read-only", () => {
     expect(show(ctx({}))).toEqual(["Q E Pestañas", ", . Minuto en el campo (⇧ 5′)", "N Añadir cambio ▸", "M Repartir minutos ▸", "Ctrl Z Deshacer ▸"]);
     expect(show(ctx({ live: true }))).toEqual(["Q E Pestañas", ", . Minuto en el campo (⇧ 5′)", "N Añadir cambio ▸", "M Recalcular ▸", "H Hacer el cambio ▸", "Ctrl Z Deshacer ▸"]);
-    expect(show(ctx({ ro: true }))).toEqual(["Q E Pestañas", ", . Minuto en el campo (⇧ 5′)", "1–8 Herramientas"]);
+    expect(show(ctx({ ro: true }))).toEqual(["Q E Pestañas", ", . Minuto en el campo (⇧ 5′)", "1–9 Herramientas"]);
     expect(promptKey(ctx({ live: true }))).toBe("editar:cl");
     expect(promptKey(ctx({ tab: "b" }))).toBe("editar");
   });

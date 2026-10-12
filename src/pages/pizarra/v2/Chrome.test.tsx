@@ -65,7 +65,7 @@ describe("the command bar", () => {
 });
 
 describe("the «Acciones» rail", () => {
-  it("En el campo / Gestión, a line each, the shortcut 1–8 and «nuevo» on Jugadas and Dibujar", () => {
+  it("En el campo / Gestión, a line each, the shortcut 1–9 and «nuevo» on Jugadas, Dibujar and Pachanga", () => {
     // (the badges expire 30 days after NUEVO_DESDE: a day into them)
     const now = vi.spyOn(Date, "now").mockReturnValue(NUEVO_DESDE + 86_400_000);
     onTestFinished(() => now.mockRestore());
@@ -73,11 +73,11 @@ describe("the «Acciones» rail", () => {
     const nav = rail();
     expect(Array.from(nav.querySelectorAll(".mg-h")).map((h) => h.textContent)).toEqual(["En el campo", "Gestión"]);
     const tools = Array.from(nav.querySelectorAll<HTMLButtonElement>(".mbt:not(.mob)"));
-    expect(tools.map((b) => b.getAttribute("aria-label"))).toEqual(["Siete", "Química", "Jugadas", "Dibujar", "Tableros", "Comparar", "Compartir", "Ajustes"]);
-    expect(tools.map((b) => b.querySelector(".mk")?.textContent)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8"]);
+    expect(tools.map((b) => b.getAttribute("aria-label"))).toEqual(["Siete", "Química", "Jugadas", "Dibujar", "Tableros", "Comparar", "Compartir", "Ajustes", "Pachanga"]);
+    expect(tools.map((b) => b.querySelector(".mk")?.textContent)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
     expect(tools.map((b) => b.querySelector("small")?.textContent)[0]).toBe("Alineación y banquillo");
-    expect(tools.filter((b) => b.querySelector(".nv")).map((b) => b.getAttribute("aria-label"))).toEqual(["Jugadas", "Dibujar"]);
-    // the four of Gestión are the desktop's (the phone has «Más»)
+    expect(tools.filter((b) => b.querySelector(".nv")).map((b) => b.getAttribute("aria-label"))).toEqual(["Jugadas", "Dibujar", "Pachanga"]);
+    // the five of Gestión are the desktop's (the phone has «Más»)
     expect(tools.slice(4).every((b) => b.classList.contains("dsk"))).toBe(true);
     expect(within(nav).getByRole("button", { name: "Más" }).classList.contains("mob")).toBe(true);
     expect(within(nav).getByRole("button", { name: "Siete" })).toHaveAttribute("aria-pressed", "true");
@@ -111,12 +111,14 @@ describe("the «Acciones» rail", () => {
 });
 
 describe("the keyboard", () => {
-  it("1–8 open the tools; Esc goes back to the siete", () => {
+  it("1–9 open the tools; Esc goes back to the siete", () => {
     render(<Harness initial={lineupOf(SEVEN, "2-3-1", sq)} />);
     key("2");
     expect(panel("Química")).toBeInTheDocument();
     key("5");
     expect(panel("Tableros")).toBeInTheDocument();
+    key("9");
+    expect(panel("Pachanga")).toBeInTheDocument();
     key("8");
     expect(panel("Ajustes")).toBeInTheDocument();
     key("Escape");
@@ -239,7 +241,7 @@ describe("the prompt bar", () => {
   it("teaches the siete's keys; with a player in the hand, his actions", () => {
     render(<Harness initial={lineupOf(SEVEN, "2-3-1", sq)} />);
     const items = () => Array.from(pmb().querySelectorAll(".pm")).map((x) => x.textContent);
-    expect(items()).toEqual(["ClicElegir jugador", "ArrastraMover al campo", "Q EPestañas", "RVer en cromos", "1–8Herramientas", "Ctrl ZDeshacer"]);
+    expect(items()).toEqual(["ClicElegir jugador", "ArrastraMover al campo", "Q EPestañas", "RVer en cromos", "1–9Herramientas", "Ctrl ZDeshacer"]);
     expect(pmb().querySelector(".pm-sv")?.textContent).toBe("Guardado · ahora");
     fireEvent.click(cromoButton("TELLO"));
     expect(items()).toEqual(["79TELLO en la mano", "ClicCambiar con otro o con un hueco", "CCapitán", "GGalones", "FFicha", "EscSoltar"]);

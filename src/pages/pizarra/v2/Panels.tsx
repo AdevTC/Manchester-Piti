@@ -583,13 +583,18 @@ export function MasPanel({ tacSum, onGo }: { tacSum: string; onGo: (m: Modo | "p
           <b>Ajustes</b>
           <small>Cromos, cámara, sonido</small>
         </button>
+        <button type="button" className="tile" data-go="pachanga" onClick={() => onGo("pachanga")}>
+          <Icon n="rot" w={22} />
+          <b>Pachanga</b>
+          <small>Equipos para el entreno</small>
+        </button>
       </div>
     </>
   );
 }
 
 // ── the tools: phone / tablet = the bottom mode bar (Siete · Química · Jugadas · Dibujar · Más); desktop =
-// the «Acciones» rail flush left (En el campo / Gestión, a line each and the shortcut 1–8) with the next
+// the «Acciones» rail flush left (En el campo / Gestión, a line each and the shortcut 1–9) with the next
 // match's card at its foot ──
 /** The rail's foot: the board's match and how its convocatoria stands. */
 export interface MatchCard {
@@ -603,7 +608,7 @@ export interface MatchCard {
 }
 
 export function ModeBar({ modo, onGo, card }: { modo: Modo; onGo: (m: Modo) => void; card: MatchCard | null }) {
-  const masOn = ["mas", "tableros", "comparar", "compartir", "ajustes"].includes(modo);
+  const masOn = ["mas", "tableros", "comparar", "compartir", "ajustes", "pachanga"].includes(modo);
   return (
     <nav className="mbar" aria-label="Herramientas de la pizarra">
       {RAIL.flatMap((grp, gi) => [

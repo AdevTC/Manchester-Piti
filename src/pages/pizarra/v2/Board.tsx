@@ -133,6 +133,14 @@ import { RivalPanel } from "./RivalPanel";
 import { BoardShare } from "./BoardShare";
 import { ClipExport } from "./ClipExport";
 import type { Cartel } from "./cartel";
+// Bloque 5 · equipo y organización (pachanga, capitán rotativo, tableros organizados, plan imprimible)
+import { PachangaPanel } from "./PachangaPanel";
+import { applyCaptain, armbands, nextCaptain, rowTxt, whyTxt } from "./captain";
+import { noteOpened, recentIds } from "./boardList";
+import { matchDay as dayOf } from "./boards";
+import { PrintPlan } from "./PrintPlan";
+import { printView } from "./printSheet";
+import { OFFLINE_TXT, useOnline } from "./online";
 
 /** The cartel with Bloque 4's extras on its pitch (none: the cartel as it was). */
 function withCartelExtras(c: Cartel, strokes: Stroke[], L: Lineup, rivalOn: boolean): Cartel {
@@ -208,7 +216,7 @@ interface Ui {
 const UI0 = { sel: null, pick: null, fan: null, fic: null, hist: EMPTY_HISTORY, kb: null, ink: emptyStack<InkOp>(), jh: emptyStack<PlayOp>(), inkSel: null, rivSel: null };
 
 /** The tools «Más» opens (their «Volver» goes back to it). */
-const MAS_KIDS: Modo[] = ["tableros", "comparar", "compartir", "ajustes"];
+const MAS_KIDS: Modo[] = ["tableros", "comparar", "compartir", "ajustes", "pachanga"];
 
 /** Focus a panel's first visible heading (else the panel itself), without scrolling. */
 function focusHeading(sheet: HTMLElement | null): void {
@@ -221,7 +229,7 @@ function focusHeading(sheet: HTMLElement | null): void {
 
 // Deep links into a panel: /pizarra#comparar, #compartir, #tableros, #ajustes, #quimica, #plan, #jugadas,
 // #dibujar, and #charla (the link the captain sends to the group).
-const HASH_MODOS: Modo[] = ["quimica", "jugadas", "dibujar", "mas", "tableros", "comparar", "compartir", "ajustes", "charla"];
+const HASH_MODOS: Modo[] = ["quimica", "jugadas", "dibujar", "mas", "tableros", "comparar", "compartir", "ajustes", "charla", "pachanga"];
 /** The panel a URL hash names (null = none we know). */
 function panelOf(hash: string): Modo | "plan" | null {
   const h = hash.replace(/^#/, "").toLowerCase();
@@ -280,6 +288,7 @@ const SHEET_TITLE: Record<Modo, string> = {
   compartir: "Compartir",
   ajustes: "Ajustes",
   charla: "El guion de la charla",
+  pachanga: "Pachanga",
 };
 
 export function Board(props: BoardProps) {
@@ -298,6 +307,8 @@ export function Board(props: BoardProps) {
 
   // (read live: the system's setting can change with the page open)
   const rm = useReducedMotion();
+  // (Bloque 5: offline on the field, the save line says so even with nothing pending)
+  const online = useOnline();
   const [start] = useState(fromHash);
   const [modo, setModo] = useState<Modo>(start.modo);
   const [snap, setSnap] = useState<Snap>(() => snapOf(start.modo));
@@ -1895,7 +1906,7 @@ export function Board(props: BoardProps) {
       return;
     }
     if (typing) return;
-    if (/^[1-8]$/.test(e.key)) {
+    if (/^[1-9]$/.test(e.key)) {
       e.preventDefault();
       goModo(RAIL_ORDER[+e.key - 1]);
       return;
@@ -2085,9 +2096,28 @@ export function Board(props: BoardProps) {
     .map((d) => {
       const on = d.id === session.id;
       const Ld = on ? L : normalize(extractLineup(d), squadIds);
-      const rv = calById(d.matchId)?.rival;
-      return { id: d.id, name: on ? session.name : d.name, meta: boardMeta(Ld, sq, on ? session.savedAt : (d.updatedAt ?? d.createdAt), props.now), on, official: d.isOfficial, deletable: !d.isOfficial || props.isAdmin, ...(rv ? { rival: rv } : {}) };
+      const lm = calById(d.matchId);
+      const rv = lm?.rival;
+      return {
+        id: d.id,
+        name: on ? session.name : d.name,
+        meta: boardMeta(Ld, sq, on ? session.savedAt : (d.updatedAt ?? d.createdAt), props.now),
+        on,
+        official: d.isOfficial,
+        deletable: !d.isOfficial || props.isAdmin,
+        ...(rv ? { rival: rv } : {}),
+        // (Bloque 5: what the search, the tag filter and the sorts read)
+        tags: (on ? vr.titular.tags : d.tags) ?? [],
+        at: d.updatedAt ?? d.createdAt ?? 0,
+        ...(lm ? { matchMs: lm.dateMs, matchTxt: matchShort(lm) } : {}),
+      };
     });
+  // The boards opened on this device («Recientes» in Tableros): this one, once it is stored.
+  useEffect(() => {
+    if (ready && session.id) noteOpened(props.seasonId, session.id);
+  }, [ready, session.id, props.seasonId]);
+  // «Capitán rotativo» (Tableros → Partido): only worked out while Tableros is open
+  const capPick = modo === "tableros" ? nextCaptain(vr.titular, sq, armbands(session.officials, cal)) : null;
   const isMine = !!session.id && session.mine.some((d) => d.id === session.id);
   const off = props.official;
   const offMatch = off ? calById(off.matchId) : null;
@@ -2350,10 +2380,12 @@ export function Board(props: BoardProps) {
         : session.status === "saving"
           ? "Guardando…"
           : session.status === "offline"
-            ? "Sin conexión · se guarda al volver"
+            ? OFFLINE_TXT
             : session.status === "error"
               ? "Sin guardar · revisa la conexión"
-              : "Guardado · " + ago(session.savedAt, props.now);
+              : !online
+                ? OFFLINE_TXT
+                : "Guardado · " + ago(session.savedAt, props.now);
   const rootCls = [
     "vx",
     "pzv",
@@ -2632,7 +2664,34 @@ export function Board(props: BoardProps) {
         seasons={props.seasons}
         seasonId={props.seasonId}
         onSeason={props.onSeason}
+        tags={vr.titular.tags ?? []}
+        onTags={(tags) => {
+          if (!canEdit) return;
+          // (the tags are the board's, whatever version of the seven is on screen)
+          props.session.commit({ ...vr.titular, tags });
+          announce(tags.length ? "Etiquetas: " + tags.join(", ") : "Sin etiquetas");
+        }}
+        recent={recentIds(props.seasonId)}
+        captain={
+          capPick
+            ? {
+                name: capPick.id ? nm(capPick.id) : null,
+                why: whyTxt(capPick, nm),
+                rows: capPick.rows.map((r) => ({ id: r.id, name: nm(r.id), txt: rowTxt(r) })),
+                already: capPick.already,
+                canApply: canEdit,
+                onApply: () => {
+                  const cid = capPick.id;
+                  if (!cid) return;
+                  commit(applyCaptain(L, cid));
+                  say("Brazalete para " + nm(cid) + ": capitán del próximo partido");
+                },
+              }
+            : null
+        }
       />
+    ) : modo === "pachanga" ? (
+      <PachangaPanel sq={sq} when={dayOf(props.now)} onBack={() => goModo("mas")} say={announce} />
     ) : modo === "comparar" ? (
       <CompararPanel
         options={cmpOpts}
@@ -2674,6 +2733,18 @@ export function Board(props: BoardProps) {
             }}
             clip={clipEl}
             clipName={jplay.name}
+            print={
+              <PrintPlan
+                view={() =>
+                  printView(L, sq, {
+                    name: session.name + (vr.active !== "titular" ? " · " + vr.name : ""),
+                    match: match ? [match.short, match.date, match.time, match.place].filter(Boolean).join(" · ") : "",
+                    called: match?.called ? new Set(match.called) : null,
+                  })
+                }
+                onFail={say}
+              />
+            }
           />
         }
       />
