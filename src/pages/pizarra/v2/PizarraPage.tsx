@@ -112,7 +112,7 @@ export function PizarraPage() {
       nextMatch={data.next}
       isAdmin={isAdmin}
       official={official}
-      reactions={official ? { enabled: reactions.enabled, ok: reactions.ok, dudas: reactions.dudas, mine: reactions.mine, react: reactions.react } : null}
+      reactions={official ? { enabled: reactions.enabled, ok: reactions.ok, dudas: reactions.dudas, mine: reactions.mine, react: reactions.react, ...(reactions.who ? { who: reactions.who } : {}) } : null}
       conv={{ match: m, loading: conv.loading, error: conv.error }}
       onSyncConvocatoria={
         isAdmin

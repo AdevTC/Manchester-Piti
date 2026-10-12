@@ -37,7 +37,12 @@ export interface ReactionsView {
   ok: number;
   dudas: number;
   mine: ReactionValue | null;
+  /** Admins only: who has doubts (useReactions). */
+  who?: string[];
 }
+
+/** «Quitar el oficial» waits this long (ms) with a «Deshacer» before it goes through. */
+export const UNPUB_MS = 6000;
 
 export interface TablerosProps {
   tab: TbTab;
@@ -172,6 +177,37 @@ export function TablerosPanel(p: TablerosProps) {
   // ask once more too.
   const [askUnpub, setAskUnpub] = useState(false);
   const [askLink, setAskLink] = useState<string | null | undefined>(undefined);
+  // «Quitarlo» waits a few seconds with a «Deshacer»; leaving the panel sends it at once.
+  const [unpub, setUnpub] = useState<{ id: string; name: string } | null>(null);
+  const unpubT = useRef<{ id: string; t: number } | null>(null);
+  const onUnpublish = useRef(p.onUnpublish);
+  useEffect(() => {
+    onUnpublish.current = p.onUnpublish;
+  });
+  const sendUnpub = () => {
+    const u = unpubT.current;
+    if (!u) return;
+    window.clearTimeout(u.t);
+    unpubT.current = null;
+    onUnpublish.current(u.id);
+  };
+  useEffect(() => sendUnpub, []);
+  const askedUnpub = (id: string, name: string) => {
+    sendUnpub();
+    setUnpub({ id, name });
+    unpubT.current = {
+      id,
+      t: window.setTimeout(() => {
+        sendUnpub();
+        setUnpub(null);
+      }, UNPUB_MS),
+    };
+  };
+  const undoUnpub = () => {
+    if (unpubT.current) window.clearTimeout(unpubT.current.t);
+    unpubT.current = null;
+    setUnpub(null);
+  };
   useConfirmKeys(!!confirm || askPub !== undefined || askUnpub || askLink !== undefined, () => {
     setConfirm(null);
     setAskPub(undefined);
@@ -320,6 +356,11 @@ export function TablerosPanel(p: TablerosProps) {
                   {nuevoOn("tableros") && <Nuevo />}
                 </div>
               )}
+              {p.reactions?.who && p.reactions.who.length > 0 && (
+                <p className="empty">
+                  <b>Con dudas:</b> {p.reactions.who.join(", ")} <small>(solo lo ven los admins)</small>
+                </p>
+              )}
             </>
           ) : (
             <>
@@ -363,13 +404,23 @@ export function TablerosPanel(p: TablerosProps) {
               {!p.canPublish && !p.onScreenOfficial && <p>Abre uno de tus tableros para publicarlo.</p>}
               {p.canPublish && !sameScope && p.pubBlock && <p className="why">{p.pubBlock}</p>}
               {p.onScreenOfficial && <p>Publicado: el equipo ya lo ve como oficial ({scopeTxt(p.onScreenOfficial.matchId)}).</p>}
-              {p.official && (
+              {p.official && !unpub && (
                 <button type="button" className="b3" onClick={() => setAskUnpub(true)} aria-expanded={askUnpub}>
                   <Icon n="x" w={16} />
                   Quitar el oficial
                 </button>
               )}
-              {p.official && askUnpub && (
+              {unpub && (
+                <div className="cfm" role="group" aria-label={"«" + unpub.name + "» deja de ser el oficial"}>
+                  <span role="status">
+                    <b>«{unpub.name}»</b> deja de ser el oficial en unos segundos.
+                  </span>
+                  <button type="button" className="b3" onClick={undoUnpub} aria-label={"Deshacer: «" + unpub.name + "» sigue de oficial"}>
+                    Deshacer
+                  </button>
+                </div>
+              )}
+              {p.official && askUnpub && !unpub && (
                 <div className="cfm" role="group" aria-label="¿Quitar el oficial?">
                   <span>
                     ¿Quitar <b>{p.official.name}</b> como oficial? El equipo dejará de verlo.
@@ -379,7 +430,7 @@ export function TablerosPanel(p: TablerosProps) {
                     className="b3 danger"
                     onClick={() => {
                       setAskUnpub(false);
-                      if (p.official) p.onUnpublish(p.official.id);
+                      if (p.official) askedUnpub(p.official.id, p.official.name);
                     }}
                   >
                     Quitarlo

@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { mapReaction } from "../../lib/firestoreMappers";
-import { canReact, nextReaction, tallyReactions } from "./reactions";
+import { canReact, doubters, nextReaction, tallyReactions } from "./reactions";
+
+describe("doubters (admins)", () => {
+  it("names who has doubts, from the uid each reaction is stored under", () => {
+    const docs = [
+      { id: "u1", value: "dudas" as const },
+      { id: "u2", value: "ok" as const },
+      { id: "u3", value: "dudas" as const },
+      { id: "u4", value: "dudas" as const },
+    ];
+    expect(doubters(docs, new Map([["u1", "@zeta"], ["u3", "@alba"]]))).toEqual(["@alba", "@zeta", "un miembro"]);
+    expect(doubters([], new Map())).toEqual([]);
+  });
+});
 
 describe("tallyReactions", () => {
   it("counts each value and finds mine", () => {
