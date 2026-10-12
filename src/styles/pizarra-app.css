@@ -138,3 +138,8 @@
 /* While the 3D intro plays, nothing of the 2D board's chrome shows over the stadium (the read-only strip,
    the selected player's bar); they come back with the crossfade. */
 .pzv.i3 .app .robar,.pzv.i3 .app .selbar{opacity:0;visibility:hidden}
+
+/* Fine fits found on the real screen: the phone's player-in-the-hand bar leaves its mini cromo room under the
+   sheet's edge; «Convocatoria» fits its tab at 1440; the board's autosave line («Nuevo · se guarda…») has room. */
+@container (max-width:699px){.pzv .sheet .selbar{margin-top:12px}}
+@container (min-width:1100px){.pzv .tabs button{letter-spacing:.03em}.pzv .cmd .bname{width:clamp(220px,22cqw,380px)}}
