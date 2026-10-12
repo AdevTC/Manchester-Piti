@@ -717,7 +717,8 @@ describe("Jugadas · en 3D", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reproducir la repetición" }));
     await waitFor(() => expect(root(container)).toHaveClass("v3"));
     expect(container.querySelector(".p3d [data-testid=stadium3d]")).not.toBeNull();
-    expect(h.play).toHaveBeenCalledWith(toEngineFrames(corner()), expect.objectContaining({ loop: true, speed: 1 }));
+    // (the stadium is handed the jugada once it has mounted: on a busy machine that is a beat after the class)
+    await waitFor(() => expect(h.play).toHaveBeenCalledWith(toEngineFrames(corner()), expect.objectContaining({ loop: true, speed: 1 })));
     expect(within(bug()).getByText("REPETICIÓN · CÓRNER · 1/4 · 3D")).toBeInTheDocument();
     expect(root(container)).not.toHaveClass("fcam");
     // the engine says where it is
