@@ -45,14 +45,20 @@ describe("the stadium's mount", () => {
     rerender({ can: true, want: true });
     expect(result.current).toBe(true);
     rerender({ can: true, want: false });
-    act(() => vi.advanceTimersByTime(STADIUM_IDLE_MS - 1));
+    act(() => {
+      vi.advanceTimersByTime(STADIUM_IDLE_MS - 1);
+    });
     expect(result.current).toBe(true);
     // another moment within the minute: the clock starts again after it
     rerender({ can: true, want: true });
     rerender({ can: true, want: false });
-    act(() => vi.advanceTimersByTime(STADIUM_IDLE_MS - 1));
+    act(() => {
+      vi.advanceTimersByTime(STADIUM_IDLE_MS - 1);
+    });
     expect(result.current).toBe(true);
-    act(() => vi.advanceTimersByTime(1));
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     expect(result.current).toBe(false);
     rerender({ can: true, want: true });
     expect(result.current).toBe(true);

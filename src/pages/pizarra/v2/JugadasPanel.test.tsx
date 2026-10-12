@@ -26,12 +26,9 @@ const editor = (cur: number): JugadaEditorView => ({
 const noop = () => undefined;
 
 /** The board's side of it: the replay plays and, while it plays, a tick moves it to the next paso. */
-function Harness({ onTitle, onNote, tick }: { onTitle: (cur: number, v: string) => void; onNote: (cur: number, v: string) => void; tick: { current: () => void } }) {
+function Harness({ onTitle, onNote }: { onTitle: (cur: number, v: string) => void; onNote: (cur: number, v: string) => void }) {
   const [playing, setPlaying] = useState(true);
   const [cur, setCur] = useState(0);
-  tick.current = () => {
-    if (playing) setCur((c) => (c + 1) % 3);
-  };
   const props: JugadasPanelProps = {
     hud,
     frame: cur,
@@ -74,22 +71,29 @@ function Harness({ onTitle, onNote, tick }: { onTitle: (cur: number, v: string) 
     onAddMissing: noop,
     onDropGone: noop,
   };
-  return <JugadasPanel {...props} />;
+  return (
+    <>
+      {/* the replay's beat */}
+      <button type="button" onClick={() => playing && setCur((c) => (c + 1) % 3)}>
+        tick
+      </button>
+      <JugadasPanel {...props} />
+    </>
+  );
 }
 
 describe("Jugadas · writing a paso while the replay plays", () => {
   it("the replay stops on focus, so the text survives its beat and is kept on the paso it was written for", () => {
     const onTitle = vi.fn();
     const onNote = vi.fn();
-    const tick = { current: noop };
-    render(<Harness onTitle={onTitle} onNote={onNote} tick={tick} />);
+    render(<Harness onTitle={onTitle} onNote={onNote} />);
     expect(screen.getByRole("button", { name: "Pausar la repetición" })).toBeInTheDocument();
     const title = screen.getByLabelText("Título del paso 1");
     act(() => title.focus());
     expect(screen.getByRole("button", { name: "Reproducir la repetición" })).toBeInTheDocument();
     fireEvent.change(title, { target: { value: "Arranca el 9" } });
     // the replay's beat comes: nothing moves while it is paused
-    act(() => tick.current());
+    fireEvent.click(screen.getByRole("button", { name: "tick" }));
     expect(screen.getByLabelText("Título del paso 1")).toHaveValue("Arranca el 9");
     fireEvent.blur(screen.getByLabelText("Título del paso 1"));
     expect(onTitle).toHaveBeenCalledWith(0, "Arranca el 9");
@@ -102,8 +106,7 @@ describe("Jugadas · writing a paso while the replay plays", () => {
   });
 
   it("a paused replay stays paused (focus never starts it)", () => {
-    const tick = { current: noop };
-    render(<Harness onTitle={vi.fn()} onNote={vi.fn()} tick={tick} />);
+    render(<Harness onTitle={vi.fn()} onNote={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Pausar la repetición" }));
     fireEvent.focus(screen.getByLabelText("Título del paso 1"));
     expect(screen.getByRole("button", { name: "Reproducir la repetición" })).toBeInTheDocument();
