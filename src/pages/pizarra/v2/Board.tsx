@@ -2261,7 +2261,7 @@ export function Board(props: BoardProps) {
   const drawLayer = (
     <DrawLayer
       view={ink ? extraView(strokes, L, L.rival, C, modo === "dibujar" ? inkSel : null) : null}
-      rival={rivalShown && L.rival ? rivalTokens(L.rival, C) : null}
+      rival={rivalShown && L.rival ? rivalTokens(L.rival, C, L.slots.map((_, i) => { const q = slotPos(L, i); return { x: q.u, y: q.v }; })) : null}
       picked={
         modo === "dibujar" && canEdit
           ? pickable.map((id) => {

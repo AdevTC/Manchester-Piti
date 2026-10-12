@@ -213,8 +213,29 @@ export function extraView(strokes: Stroke[], L: Lineup, rival: RivalSeven | null
 }
 
 /** The rival seven's red tokens on the frame. */
-export function rivalTokens(rival: RivalSeven, C: Cam): RivalToken[] {
-  return rivalSpots(rival).map((p, i) => {
+/** Board units a rival token keeps from our players: closer, it stands beside him (marking), not on him. */
+export const RIVAL_GAP = 13;
+/** Where rival `p` is drawn: its spot, or beside the nearest of `ours` when it would sit on top of him. */
+export function rivalSpotNear(p: BoardPoint, ours: readonly BoardPoint[]): BoardPoint {
+  let best: BoardPoint | null = null;
+  let bd = Infinity;
+  for (const o of ours) {
+    const d = Math.hypot(o.x - p.x, o.y - p.y);
+    if (d < bd) [bd, best] = [d, o];
+  }
+  if (!best || bd >= RIVAL_GAP) return p;
+  // a step up the pitch from him (between the lines, as a rival facing him stands): his own column, so two
+  // rivals beside two of ours never meet
+  const up = { x: p.x, y: Math.max(4, best.y - RIVAL_GAP) };
+  // (by their goal the camera squeezes the pitch: a step up there still sits on him on screen)
+  if (best.y - RIVAL_GAP >= 16 && Math.hypot(up.x - best.x, up.y - best.y) >= RIVAL_GAP * 0.9) return up;
+  // (no room up there, by their goal: beside him instead, toward the middle)
+  return { x: Math.max(4, Math.min(96, best.x + (best.x > 50 ? -1 : 1) * RIVAL_GAP)), y: p.y };
+}
+
+export function rivalTokens(rival: RivalSeven, C: Cam, ours: readonly BoardPoint[] = []): RivalToken[] {
+  return rivalSpots(rival).map((p0, i) => {
+    const p = rivalSpotNear(p0, ours);
     const q = proj(C, p.x, p.y);
     const pl = rival.players[i];
     return {

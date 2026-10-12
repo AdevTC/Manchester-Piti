@@ -6,6 +6,8 @@ import { demoSquad, lineupOf } from "./testkit";
 import { hitStroke, inkView } from "./telestrator";
 import { newRival, rivalSpots } from "./rival";
 import {
+  RIVAL_GAP,
+  rivalSpotNear,
   boardPlaces,
   cartelExtras,
   drawCartelExtras,
@@ -214,4 +216,14 @@ describe("in the cartel", () => {
 
 it("never reads the other strokes as pinned ones", () => {
   expect(extraView([{ id: "z", kind: "zona", color: "gold", points: [{ x: 1, y: 1 }, { x: 9, y: 9 }] }], L, null, C, null)).toEqual({ lines: [], labels: [], focos: [] });
+});
+
+describe("rival tokens never sit on our players", () => {
+  it("a rival spot within the gap of one of ours steps up the pitch from him; a free one stays", () => {
+    expect(rivalSpotNear({ x: 50, y: 48 }, [{ x: 50, y: 52 }])).toEqual({ x: 50, y: 52 - RIVAL_GAP });
+    expect(rivalSpotNear({ x: 70, y: 30 }, [{ x: 72, y: 31 }])).toEqual({ x: 70, y: 31 - RIVAL_GAP });
+    expect(rivalSpotNear({ x: 20, y: 20 }, [{ x: 50, y: 52 }])).toEqual({ x: 20, y: 20 });
+    // their keeper by our striker, with no room above: beside him
+    expect(rivalSpotNear({ x: 50, y: 10 }, [{ x: 50, y: 22 }])).toEqual({ x: 50 + RIVAL_GAP, y: 10 });
+  });
 });
