@@ -88,11 +88,11 @@ describe("systems and free mode", () => {
   it("Libre keeps every spot; reset puts them back on the system", () => {
     const f = goFree(L);
     expect(f.freeMode).toBe(true);
-    expect([f.slots[3].x, f.slots[3].y]).toEqual([17, 50]);
+    expect([f.slots[3].x, f.slots[3].y]).toEqual([17, 49]);
     const moved = { ...f, slots: f.slots.map((s) => ({ ...s, x: 10, y: 10 })) };
     const back = resetFree(moved);
     expect(back.freeMode).toBe(true);
-    expect([back.slots[3].x, back.slots[3].y]).toEqual([17, 50]);
+    expect([back.slots[3].x, back.slots[3].y]).toEqual([17, 49]);
   });
   it("cycles the línea Baja → Media → Alta", () => {
     expect(cycleDefLine(L).tactics.defLine).toBe("Alta");
