@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CompartirPanel, PlanTab } from "./SheetPanels";
+import { AjustesPanel, CompartirPanel, PlanTab } from "./SheetPanels";
+import { intro3dWanted, setIntro3dWanted } from "./intro";
+import { SHOW0 } from "./prefs";
 import { cartelLayout } from "./cartel";
 import { chem } from "./quimica";
 import { planNote, tacRows } from "./plan";
@@ -37,6 +39,53 @@ describe("Compartir", () => {
     expect(screen.getByText("J8 · MAD SKY · 2-3-1 · DOM 8 NOV · 12:00")).toBeInTheDocument();
     expect(screen.getByText("Presión media · Línea media · Salida mixta")).toBeInTheDocument();
     expect(screen.getByText("KEVIN")).toBeInTheDocument();
+  });
+});
+
+describe("Ajustes · «Ver la presentación en 3D»", () => {
+  const ajustes = (v3: boolean, onIntro3d = vi.fn()) =>
+    render(
+      <AjustesPanel
+        show={SHOW0}
+        cam="tv"
+        v3={v3}
+        snd={false}
+        day={false}
+        grid
+        seasons={[]}
+        seasonId="t1"
+        galLeg={[]}
+        onShow={vi.fn()}
+        onCam={vi.fn()}
+        on3d={vi.fn()}
+        onSnd={vi.fn()}
+        onDay={vi.fn()}
+        onGrid={vi.fn()}
+        onSeason={vi.fn()}
+        onBack={vi.fn()}
+        onIntro3d={onIntro3d}
+      />,
+    );
+
+  it("opts in on this device (and plays it now); off again forgets it", () => {
+    setIntro3dWanted(false);
+    const play = vi.fn();
+    ajustes(true, play);
+    const btn = screen.getByRole("button", { name: "Ver la presentación en 3D" });
+    expect(btn).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(btn);
+    expect(btn).toHaveAttribute("aria-pressed", "true");
+    expect(intro3dWanted()).toBe(true);
+    expect(play).toHaveBeenCalledTimes(1);
+    fireEvent.click(btn);
+    expect(intro3dWanted()).toBe(false);
+    expect(play).toHaveBeenCalledTimes(1);
+  });
+
+  it("with the 3D off it can't be asked for, and says why", () => {
+    ajustes(false);
+    expect(screen.getByRole("button", { name: "Ver la presentación en 3D" })).toBeDisabled();
+    expect(screen.getByText("Enciende el Estadio 3D para verla.")).toBeInTheDocument();
   });
 });
 

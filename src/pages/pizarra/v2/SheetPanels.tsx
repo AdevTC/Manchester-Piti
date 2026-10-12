@@ -13,6 +13,7 @@ import type { TapeRow } from "./compare";
 import { cartelHead, type Cartel } from "./cartel";
 import type { Squad } from "./model";
 import type { ShowKey, ShowPrefs } from "./prefs";
+import { intro3dWanted, setIntro3dWanted } from "./intro";
 
 /** A panel's heading: the title speaks first and the old kicker is the line under it (the panels
  *  behind «Más» have «‹ Más» before it). */
@@ -494,9 +495,14 @@ export interface AjustesProps {
   onGrid: () => void;
   onSeason: (id: string) => void;
   onBack: () => void;
+  /** Turning «Ver la presentación en 3D» on plays it now (else it waits for the next visit). */
+  onIntro3d?: () => void;
 }
 
 export function AjustesPanel(p: AjustesProps) {
+  // «Ver la presentación en 3D»: kept on this device (intro.ts); the opening plays it from the next visit
+  const [i3d, setI3d] = useState(intro3dWanted);
+  const i3dHint = useId();
   return (
     <>
       <PanelHead kick="Lo que enseñan los cromos" title="Ajustes" onBack={p.onBack} />
@@ -520,7 +526,25 @@ export function AjustesPanel(p: AjustesProps) {
         <button type="button" className="tg" onClick={p.on3d} aria-pressed={p.v3}>
           Estadio 3D
         </button>
+        <button
+          type="button"
+          className="tg"
+          onClick={() => {
+            const on = !i3d;
+            setI3d(on);
+            setIntro3dWanted(on);
+            if (on) p.onIntro3d?.();
+          }}
+          aria-pressed={i3d && p.v3}
+          disabled={!p.v3}
+          aria-describedby={i3dHint}
+        >
+          Ver la presentación en 3D
+        </button>
       </div>
+      <p id={i3dHint} className="empty" style={{ marginTop: 6 }}>
+        {p.v3 ? "Al abrir la pizarra, una vez por visita. Sin ella, la pizarra no descarga el estadio hasta que lo pidas." : "Enciende el Estadio 3D para verla."}
+      </p>
       <h3>
         Pantalla y sonido <Nuevo />
       </h3>

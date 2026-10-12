@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Stadium3DHandle } from "../../../components/pitch3d/Stadium3D";
 import type { PlayController, PlayOptions, RevealOptions } from "../../../components/pitch3d/types";
 import type { Lineup } from "../formations";
-import { INTRO_KEY } from "./intro";
+import { INTRO_KEY, setIntro3dWanted } from "./intro";
 import { PREFS0 } from "./prefs";
 import { demoSquad, lineupOf } from "./testkit";
 import { BoardHarness as Harness } from "./testkitBoard";
@@ -418,6 +418,19 @@ describe("La charla en el estadio 3D", () => {
 });
 
 describe("La apertura", () => {
+  afterEach(() => setIntro3dWanted(false));
+
+  it("the 3D presentation is opt-in: a first visit plays the 2D crane and downloads no stadium", () => {
+    vi.useFakeTimers();
+    sessionStorage.clear();
+    sup.reason = null;
+    handle();
+    const { container } = render(<Harness initial={L7()} />);
+    expect(root(container)).toHaveClass("intro");
+    expect(root(container)).not.toHaveClass("i3");
+    expect(s3.mounts).toBe(0);
+  });
+
   it("the 2D crane once per session; the next visit finds the board at rest", () => {
     vi.useFakeTimers();
     sessionStorage.clear();
@@ -430,9 +443,10 @@ describe("La apertura", () => {
     expect(root(again.container)).not.toHaveClass("intro");
   });
 
-  it("the 3D intro where the device can: the 2D board hidden, the engine's intro; «Saltar» crossfades to the board", async () => {
+  it("asked for («Ver la presentación en 3D»), the 3D intro where the device can: the 2D board hidden, the engine's intro; «Saltar» crossfades to the board", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     sessionStorage.clear();
+    setIntro3dWanted(true);
     sup.reason = null;
     const { h } = handle();
     const { container } = render(<Harness initial={L7()} />);
@@ -451,6 +465,7 @@ describe("La apertura", () => {
   it("Escape skips the 3D intro too", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     sessionStorage.clear();
+    setIntro3dWanted(true);
     sup.reason = null;
     const { h } = handle();
     const { container } = render(<Harness initial={L7()} />);
@@ -462,6 +477,7 @@ describe("La apertura", () => {
   it("the 3D intro never lasts longer than 3,5 s", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     sessionStorage.clear();
+    setIntro3dWanted(true);
     sup.reason = null;
     const { h } = handle();
     const { container } = render(<Harness initial={L7()} />);
@@ -473,6 +489,7 @@ describe("La apertura", () => {
   it("a stadium slow to come up: the 2D crane plays instead", () => {
     vi.useFakeTimers();
     sessionStorage.clear();
+    setIntro3dWanted(true);
     sup.reason = null;
     s3.mode = "slow";
     handle();
