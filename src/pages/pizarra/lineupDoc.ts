@@ -3,7 +3,8 @@
 // unit-testable (sub-project 4). Firestore rejects `undefined`, so writes are
 // pruned and `matchId` is normalized to `null`.
 import type { z } from "zod";
-import { emptySlots, type FormationName, type Lineup, type SlotState } from "./formations";
+import { emptySlots, type FormationName, type Lineup, type SlotState, type Sub, type Takers } from "./formations";
+import { migrateTakers, takersOf } from "./v2/takers";
 import { defaultTactics, TACTICS, type Tactics } from "./tactics";
 import { parseDrawings, strokeToData } from "./drawings";
 import { parsePlays, playToData } from "./plays";
@@ -15,7 +16,10 @@ import {
   lineupRolesSchema,
   lineupSlotSchema,
   lineupSlotsSchema,
+  lineupSubSchema,
   lineupTacticsSchema,
+  lineupTakersSchema,
+  MATCHDAY_LIMITS,
 } from "../../lib/schemas";
 
 /** Metadata stored alongside the board fields in the `lineups` collection. */
@@ -36,7 +40,7 @@ export interface LineupDoc extends Lineup, LineupMeta {
 }
 
 /** The fields the board itself edits (an autosave writes only these: never the metadata). */
-export const BOARD_FIELDS = ["formation", "freeMode", "slots", "roles", "tactics", "playerPositions", "drawings", "plays"] as const;
+export const BOARD_FIELDS = ["formation", "freeMode", "slots", "roles", "tactics", "playerPositions", "drawings", "plays", "subs", "takers", "variants"] as const;
 
 /** A Firestore Timestamp-ish value (avoids importing the class for a type). */
 interface TimestampLike {
@@ -71,6 +75,8 @@ export function extractLineup(d: LineupDoc): Lineup {
     tactics: { ...d.tactics },
     playerPositions: { ...d.playerPositions },
     pinned: [...d.pinned],
+    ...(d.subs ? { subs: d.subs.map((x) => ({ ...x })) } : {}),
+    ...(d.takers ? { takers: copyTakers(d.takers) } : {}),
     drawings: structuredClone(d.drawings),
     plays: structuredClone(d.plays),
   };
@@ -88,6 +94,8 @@ export function boardToData(lineup: Lineup): Record<string, unknown> {
     roles: pruneUndefined(lineup.roles as Record<string, unknown>),
     tactics: { ...lineup.tactics },
     playerPositions: { ...lineup.playerPositions },
+    subs: (lineup.subs ?? []).map((x) => ({ id: x.id, min: x.min, out: x.out, in: x.in })),
+    takers: copyTakers(takersOf(lineup)),
     drawings: (lineup.drawings ?? []).map(strokeToData),
     plays: (lineup.plays ?? []).map(playToData),
   };
@@ -139,6 +147,27 @@ function readSlots(raw: unknown, formation: FormationName, docId: string): SlotS
   return slots;
 }
 
+/** The planned cambios: the valid ones (at most SUBS_MAX), an invalid one dropped and reported. */
+function readSubs(raw: unknown, docId: string): Sub[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    reportDroppedDoc("lineups.subs", docId, []);
+    return [];
+  }
+  const out: Sub[] = [];
+  const seen = new Set<string>();
+  raw.forEach((x) => {
+    const r = lineupSubSchema.safeParse(x);
+    if (r.success && !seen.has(r.data.id) && out.length < MATCHDAY_LIMITS.subs) {
+      seen.add(r.data.id);
+      out.push(r.data);
+    } else reportDroppedDoc("lineups.subs", docId, r.success ? [] : r.error.issues);
+  });
+  return out;
+}
+
+const copyTakers = (t: Takers): Takers => ({ penalties: [...t.penalties], freekicks: [...t.freekicks], corners: [...t.corners] });
+
 const TACTIC_KEYS = new Set<string>(TACTICS.map((t) => t.key));
 
 /** Build a LineupDoc from a raw store record (Firestore data or local JSON), repairing what is malformed. */
@@ -152,6 +181,7 @@ export function dataToLineupDoc(id: string, data: Record<string, unknown>): Line
   });
   const str = (v: unknown, max: number, fallback: string) => (typeof v === "string" && v.length <= max ? v : fallback);
   const ids = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  const roles = pruneUndefined(field(lineupRolesSchema, data.roles, {}, id, "roles"));
   return {
     id,
     formation,
@@ -159,10 +189,13 @@ export function dataToLineupDoc(id: string, data: Record<string, unknown>): Line
     slots: readSlots(data.slots, formation, id),
     // not stored any more (rebuilt from the squad); older docs still carry it
     bench: ids(data.bench),
-    roles: pruneUndefined(field(lineupRolesSchema, data.roles, {}, id, "roles")),
+    roles,
     tactics,
     playerPositions: field(lineupPositionsSchema, data.playerPositions, {}, id, "playerPositions"),
     pinned: ids(data.pinned),
+    // boards saved before the cambios plan none; the old single galones read as one-item lists
+    subs: readSubs(data.subs, id),
+    takers: migrateTakers(field(lineupTakersSchema.nullable(), data.takers, null, id, "takers"), roles),
     // boards saved before drawings/jugadas existed load with none; invalid items are dropped
     drawings: parseDrawings(data.drawings, id),
     plays: parsePlays(data.plays, id),

@@ -170,6 +170,7 @@ export const lineupSlotSchema = z.object({
 export const lineupSlotsSchema = z.array(lineupSlotSchema).length(LINEUP_LIMITS.slots);
 export const lineupRolesSchema = z.object({
   captainId: lineupRef.optional(),
+  viceId: lineupRef.optional(),
   penaltiesId: lineupRef.optional(),
   freekicksId: lineupRef.optional(),
   cornersId: lineupRef.optional(),
@@ -178,6 +179,36 @@ export const lineupTacticsSchema = z.record(z.string().max(LINEUP_LIMITS.tactic)
 export const lineupPositionsSchema = z
   .record(lineupRef, z.enum(LINEUP_ZONES))
   .refine((r) => Object.keys(r).length <= LINEUP_LIMITS.playerPositions, { message: "Demasiadas posiciones." });
+
+// ── Pizarra: el día de partido (cambios por tandas y lanzadores en orden) ──────
+/** Topes de los cambios y los lanzadores (los mismos que firestore.rules). */
+export const MATCHDAY_LIMITS = {
+  /** Cambios planeados en un tablero. */
+  subs: 20,
+  /** El minuto más alto que un cambio puede llevar (la duración real lo acota al editarlo). */
+  subMinute: 149,
+  /** Lanzadores por pelota parada (1º, 2º, 3º). */
+  takers: 3,
+} as const;
+/** Un cambio planeado: en el minuto `min`, `in` entra por `out`. */
+export const lineupSubSchema = z
+  .object({
+    id: z.string().min(1).max(40),
+    min: z.number().int().min(1).max(MATCHDAY_LIMITS.subMinute),
+    out: lineupRef,
+    in: lineupRef,
+  })
+  .refine((s) => s.out !== s.in, { message: "Un cambio necesita dos jugadores distintos." });
+const takerList = z
+  .array(lineupRef)
+  .max(MATCHDAY_LIMITS.takers)
+  .refine((l) => new Set(l).size === l.length, { message: "Un lanzador repetido." });
+/** Los lanzadores en orden: el primero de cada lista que esté en el campo la toca. */
+export const lineupTakersSchema = z.object({
+  penalties: takerList.default([]),
+  freekicks: takerList.default([]),
+  corners: takerList.default([]),
+});
 
 // ── Pizarra: dibujos, jugadas y reacciones ───────────────────────────────────
 
