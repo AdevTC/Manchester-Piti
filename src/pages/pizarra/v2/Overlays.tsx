@@ -81,11 +81,16 @@ export function Fan({ cx, cy, num, title, items, onItem, onClose }: FanProps) {
 export interface FichaView {
   name: string;
   num: number;
-  rt: number;
+  /** The form chip («—» for a player with no match yet). */
+  rt: number | string;
   pos: string;
   gk: boolean;
   sub: string;
   st: { k: string; v: number }[];
+  /** His last matches (ficha.ts formBars): «FORMA · J4–J8» and a bar per match. */
+  form?: { k: string; bars: { j: string; h: number; played: boolean; t: string }[] };
+  /** Minutes against the team's, where he plays, galones, the match (ficha.ts). */
+  facts?: { k: string; v: string }[];
   ln: { k: string; v: string }[];
   ox: string;
   oy: string;
@@ -133,6 +138,39 @@ export function Ficha({ f, rm, onFlip, onClose }: { f: FichaView; rm: boolean; o
                   </div>
                 ))}
               </div>
+              {f.form && (
+                <>
+                  <span className="fc-k">{f.form.k}</span>
+                  {/* minutes per match as bars (a match he missed is a flat dash); the words say it all */}
+                  <div className="fc-fm" role="img" aria-label={"Últimos partidos: " + f.form.bars.map((b) => b.t).join(", ")} style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 30 }}>
+                    {f.form.bars.map((b) => (
+                      <span key={b.j} title={b.t} style={{ flex: 1, display: "grid", justifyItems: "center", alignContent: "end", gap: 2, height: "100%" }}>
+                        <i
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            height: b.played ? b.h * 0.2 + "px" : "2px",
+                            borderRadius: 3,
+                            background: b.played ? "#FFC659" : "transparent",
+                            borderTop: b.played ? undefined : "2px dashed rgba(212,236,252,.55)",
+                          }}
+                        />
+                        <small style={{ fontFamily: "'Geist Mono'", fontSize: 8.5, color: "#9fd0f2", lineHeight: 1 }}>{b.played ? b.j : b.j + "·–"}</small>
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+              {f.facts && f.facts.length > 0 && (
+                <ul className="fc-ln fc-x">
+                  {f.facts.map((x) => (
+                    <li key={x.k}>
+                      <span>{x.k}</span>
+                      <b>{x.v}</b>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <span className="fc-k">EN ESTE SIETE</span>
               <ul className="fc-ln">
                 {f.ln.map((l) => (

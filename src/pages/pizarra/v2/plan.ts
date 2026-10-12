@@ -62,9 +62,11 @@ export interface PlanArrow {
   d: string;
 }
 
-/** The salida and foco arrows in the 1000×1000 frame box (system mode only: free mode has no plan). */
+/** The salida and foco arrows in the 1000×1000 frame box. In free mode too: they say where the ball
+ *  goes, which doesn't need a system — the salida starts from wherever the keeper and the defenders
+ *  stand (the line is read from where each cromo is). The scales (línea, presión, amplitud,
+ *  mentalidad) are what free mode leaves out: there nobody is moved by the plan (see planNote). */
 export function planArrows(L: Lineup, cam: CamName): PlanArrow[] {
-  if (L.freeMode) return [];
   const C = CAMS[cam];
   const t = { ...defaultTactics(), ...L.tactics };
   const pt = (u: number, v: number): [number, number] => {
@@ -103,6 +105,12 @@ export function planArrows(L: Lineup, cam: CamName): PlanArrow[] {
         : [[18, 46, 18, 18], [50, 44, 50, 16], [82, 46, 82, 18]];
   lanes.forEach((ln, k) => out.push({ key: "f" + k, c: "sky" + (lanes.length > 2 ? " thin" : ""), d: arc([ln[0], ln[1]], [ln[2], ln[3]], 0.02) }));
   return out;
+}
+
+/** What the Plan tab says about free mode (null with a system): the scales move nobody there, the
+ *  salida and the foco are still painted. */
+export function planNote(L: Lineup): string | null {
+  return L.freeMode ? "En modo libre el plan no mueve a nadie: colócalos tú. La salida y el foco sí se pintan, desde donde los has puesto." : null;
 }
 
 /** How the plan reads in one line (screen readers, the «Más» tile). */

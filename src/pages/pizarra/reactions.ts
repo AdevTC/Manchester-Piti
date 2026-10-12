@@ -26,6 +26,15 @@ export function tallyReactions(docs: Pick<ReactionDoc, "id" | "value">[], uid: s
   return t;
 }
 
+/** Who has doubts, by name (admins see them: each reaction is stored under its member's uid), sorted;
+ *  a member whose profile can't be read is «un miembro». */
+export function doubters(docs: Pick<ReactionDoc, "id" | "value">[], names: ReadonlyMap<string, string>): string[] {
+  return docs
+    .filter((d) => d.value === "dudas")
+    .map((d) => names.get(d.id) || "un miembro")
+    .sort((a, b) => a.localeCompare(b, "es"));
+}
+
 /** Only members react, and only to an official board. */
 export const canReact = (board: { isOfficial: boolean } | null | undefined, member: boolean, uid: string | null | undefined) =>
   !!board?.isOfficial && member && !!uid;

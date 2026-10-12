@@ -4,15 +4,17 @@
 import { useId, useState, type ReactNode } from "react";
 import type { TacticKey } from "../tactics";
 import { Icon, Nuevo, CREST } from "./icons";
+import { nuevoOn } from "./rail";
 import { vars } from "./view";
 import { plural } from "./plural";
 import { chemWhy, lucesOf, lucesTxt, tierOf, type Chem } from "./quimica";
 import type { TacRow } from "./plan";
 import type { RepRow } from "./bench";
 import type { TapeRow } from "./compare";
-import type { Cartel } from "./cartel";
+import { cartelHead, type Cartel } from "./cartel";
 import type { Squad } from "./model";
 import type { ShowKey, ShowPrefs } from "./prefs";
+import { intro3dWanted, setIntro3dWanted } from "./intro";
 
 /** A panel's heading: the title speaks first and the old kicker is the line under it (the panels
  *  behind «Más» have «‹ Más» before it). */
@@ -105,14 +107,24 @@ export interface PlanTabProps {
   rep: RepRow[];
   repTxt: string;
   canRotate: boolean;
+  /** What the plan does in free mode (plan.ts planNote), shown over the consignas; null with a system. */
+  note?: string | null;
   onSet: (k: TacticKey, v: string) => void;
   onRotate: () => void;
 }
 
-export function PlanTab({ rows, ro, rep, repTxt, canRotate, onSet, onRotate }: PlanTabProps) {
+export function PlanTab({ rows, ro, rep, repTxt, canRotate, note, onSet, onRotate }: PlanTabProps) {
   const uid = useId();
   return (
     <div className="pg">
+      {note && (
+        <div className="cav">
+          <Icon n="alert" w={16} />
+          <span>
+            <b>Modo libre:</b> {note}
+          </span>
+        </div>
+      )}
       <div className="cons">
         {rows.map((t) => {
           const lid = uid + "tac-" + t.key;
@@ -243,7 +255,7 @@ export function QuimicaPanel({ ch, sq, seasonName, oop }: QuimicaProps) {
           <div className="cav">
             <Icon n="alert" w={16} />
             <span>
-              <b>Sin historial:</b> {ch.fresh.join(", ")}. Su química cuenta como neutra hasta que {ch.fresh.length > 1 ? "jueguen" : "juegue"}.
+              <b>Sin historial:</b> {ch.fresh.join(", ")}. Sin minutos juntos todavía: sus luces son débiles hasta que {ch.fresh.length > 1 ? "jueguen" : "juegue"}.
             </span>
           </div>
         )}
@@ -289,7 +301,7 @@ export function CompararPanel(p: CompararProps) {
       <PanelHead
         kick={
           <>
-            Cara a cara · en el campo <Nuevo />
+            Cara a cara · en el campo {nuevoOn("comparar") && <Nuevo />}
           </>
         }
         title="Comparar"
@@ -369,6 +381,9 @@ export interface CompartirProps {
   /** Why the cartel can't go to the group yet (fewer than seven); null = it can. */
   block: string | null;
   busy: boolean;
+  /** The PNG of this cartel is drawn (cartel.ts preparedFor): «Mandar al grupo» waits for it, so the
+   *  share sheet opens inside the tap (Safari). Absent = ready. */
+  ready?: boolean;
   canLink: boolean;
   onShare: () => void;
   onPng: () => void;
@@ -377,7 +392,8 @@ export interface CompartirProps {
   onBack: () => void;
 }
 
-export function CompartirPanel({ cartel, block, busy, canLink, onShare, onPng, onLink, onBack }: CompartirProps) {
+export function CompartirPanel({ cartel, block, busy, ready = true, canLink, onShare, onPng, onLink, onBack }: CompartirProps) {
+  const waiting = busy || (!ready && !block);
   return (
     <>
       <PanelHead kick="Al grupo del equipo" title="Compartir" onBack={onBack} />
@@ -385,7 +401,7 @@ export function CompartirPanel({ cartel, block, busy, canLink, onShare, onPng, o
         <div className="po-h">
           <img src={CREST} alt="" />
           <div>
-            <small>{cartel.kick}</small>
+            <small>{cartelHead(cartel)}</small>
             <b>LOS SIETE</b>
           </div>
         </div>
@@ -397,6 +413,18 @@ export function CompartirPanel({ cartel, block, busy, canLink, onShare, onPng, o
             </span>
           ))}
         </div>
+        {cartel.cons.length > 0 && (
+          <div className="po-f">
+            <span>CONSIGNAS</span>
+            <span>{cartel.cons.join(" · ")}</span>
+          </div>
+        )}
+        {cartel.bench.length > 0 && (
+          <div className="po-f">
+            <span>BANQUILLO</span>
+            <span>{cartel.bench.join(" · ")}</span>
+          </div>
+        )}
         <div className="po-f">
           <span>
             QUÍMICA <b>{cartel.qv}</b>
@@ -405,9 +433,9 @@ export function CompartirPanel({ cartel, block, busy, canLink, onShare, onPng, o
         </div>
       </div>
       <div className="shr">
-        <button type="button" className="b2 gold mag" onClick={onShare} disabled={busy || !!block} aria-busy={busy} aria-describedby={block ? "pz-share-why" : undefined}>
+        <button type="button" className="b2 gold mag" onClick={onShare} disabled={waiting || !!block} aria-busy={waiting} aria-describedby={block ? "pz-share-why" : undefined}>
           <Icon n="share" w={18} />
-          <span>{busy ? "Preparando el cartel…" : "Mandar al grupo"}</span>
+          <span>{waiting ? "Preparando el cartel…" : "Mandar al grupo"}</span>
         </button>
         <button type="button" className="b3" onClick={onPng} disabled={busy || !!block} style={{ minHeight: 48 }} aria-label="Descargar el cartel en PNG" aria-describedby={block ? "pz-share-why" : undefined}>
           <Icon n="download" w={16} />
@@ -468,9 +496,14 @@ export interface AjustesProps {
   onGrid: () => void;
   onSeason: (id: string) => void;
   onBack: () => void;
+  /** Turning «Ver la presentación en 3D» on plays it now (else it waits for the next visit). */
+  onIntro3d?: () => void;
 }
 
 export function AjustesPanel(p: AjustesProps) {
+  // «Ver la presentación en 3D»: kept on this device (intro.ts); the opening plays it from the next visit
+  const [i3d, setI3d] = useState(intro3dWanted);
+  const i3dHint = useId();
   return (
     <>
       <PanelHead kick="Lo que enseñan los cromos" title="Ajustes" onBack={p.onBack} />
@@ -494,9 +527,27 @@ export function AjustesPanel(p: AjustesProps) {
         <button type="button" className="tg" onClick={p.on3d} aria-pressed={p.v3}>
           Estadio 3D
         </button>
+        <button
+          type="button"
+          className="tg"
+          onClick={() => {
+            const on = !i3d;
+            setI3d(on);
+            setIntro3dWanted(on);
+            if (on) p.onIntro3d?.();
+          }}
+          aria-pressed={i3d && p.v3}
+          disabled={!p.v3}
+          aria-describedby={i3dHint}
+        >
+          Ver la presentación en 3D
+        </button>
       </div>
+      <p id={i3dHint} className="empty" style={{ marginTop: 6 }}>
+        {p.v3 ? "Al abrir la pizarra, una vez por visita. Sin ella, la pizarra no descarga el estadio hasta que lo pidas." : "Enciende el Estadio 3D para verla."}
+      </p>
       <h3>
-        Pantalla y sonido <Nuevo />
+        Pantalla y sonido {nuevoOn("ajustes") && <Nuevo />}
       </h3>
       <div className="aj">
         <button type="button" className="tg" onClick={p.onSnd} aria-pressed={p.snd}>

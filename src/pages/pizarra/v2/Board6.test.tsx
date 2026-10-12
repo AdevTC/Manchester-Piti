@@ -164,13 +164,13 @@ describe("la charla with holes in the seven", () => {
     act(() => {
       vi.advanceTimersByTime(6000);
     });
-    expect(screen.getByRole("status", { name: /^Paso 1\/14/ })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /^Paso 1\/17/ })).toBeInTheDocument();
     fireEvent.click(within(ask).getByRole("button", { name: "Presentar igualmente" }));
     expect(screen.queryByRole("group", { name: /presentar igualmente/ })).toBeNull();
     act(() => {
       vi.advanceTimersByTime(2700);
     });
-    expect(screen.getByRole("status", { name: /^Paso 2\/14/ })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /^Paso 2\/17/ })).toBeInTheDocument();
     unmount();
     // the empty seven: only the plan or back to the siete
     const r = render(<Harness initial={lineupOf([], "2-3-1", sq)} />);
@@ -178,7 +178,7 @@ describe("la charla with holes in the seven", () => {
     const empty = screen.getByRole("group", { name: "El siete está vacío: ¿presentar igualmente?" });
     expect(within(empty).queryByRole("button", { name: "Presentar igualmente" })).toBeNull();
     fireEvent.click(within(empty).getByRole("button", { name: "Empezar por el plan" }));
-    expect(screen.getByRole("status", { name: /^Paso 9\/14/ })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /^Paso 11\/17: el plan/ })).toBeInTheDocument();
     r.unmount();
     // «Completar el siete» goes back to it
     const r2 = render(<Harness initial={six} />);

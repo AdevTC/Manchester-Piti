@@ -7,6 +7,7 @@ import { withConvocatoria, type CalMatch } from "./boards";
 import { PREFS0, SHOW0 } from "./prefs";
 import { chem } from "./quimica";
 import { DELETE_MS } from "./useBoardSession";
+import { UNPUB_MS } from "./Tableros";
 
 // Phase 3 as a user drives it: the plan on the pitch, the química panel, Tableros (mine, official,
 // partido), Comparar, Compartir, Ajustes and the convocatoria on the cromos — with a fake session.
@@ -361,7 +362,19 @@ describe("Tableros · oficial y partido", () => {
     expect(screen.queryByRole("group", { name: "¿Quitar el oficial?" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Quitar el oficial" }));
     fireEvent.click(within(screen.getByRole("group", { name: "¿Quitar el oficial?" })).getByRole("button", { name: "Quitarlo" }));
+    // a few seconds to undo it
+    expect(unpublish).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /^Deshacer: «.+» sigue de oficial$/ }));
+    expect(screen.getByRole("button", { name: "Quitar el oficial" })).toBeInTheDocument();
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "Quitar el oficial" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "¿Quitar el oficial?" })).getByRole("button", { name: "Quitarlo" }));
+    act(() => {
+      vi.advanceTimersByTime(UNPUB_MS);
+    });
+    expect(unpublish).toHaveBeenCalledTimes(1);
     expect(unpublish).toHaveBeenCalledWith("b1");
+    vi.useRealTimers();
   });
 
   it("only a whole seven with a goalkeeper can be the official; warnings are asked first", () => {

@@ -16,6 +16,17 @@ export interface CromoStats {
   mvps: number;
 }
 
+/** One of the season's last matches for a player (the ficha's form bars). */
+export interface FormGame {
+  /** Jornada. */
+  j: number;
+  played: boolean;
+  /** Minutes on the pitch (0 when he didn't play). */
+  min: number;
+  /** Goals + assists. */
+  ga: number;
+}
+
 /** A player as the board shows him. */
 export interface Cromo {
   id: string;
@@ -30,6 +41,8 @@ export interface Cromo {
   /** Minutes and goals+assists over the recent window (the «sobre»). */
   recentMin: number;
   recentGA: number;
+  /** The season's last matches, oldest first (ficha.ts formGames); absent = not worked out. */
+  form?: FormGame[];
   baja?: Baja;
   cv?: Convocatoria;
 }
