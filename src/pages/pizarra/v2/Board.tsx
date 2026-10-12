@@ -17,7 +17,7 @@ import type { FormationName, Lineup } from "../formations";
 import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
 import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
 import { chem, tierOf } from "./quimica";
-import { autoPlace, cycleDefLine, goFree, normalize, place, resetFree, resolveDrop, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
+import { autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { suggestSeven } from "./pack";
 import { applyFan, fanCentre, fanItems, type FanItem } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
@@ -31,7 +31,7 @@ import { useNoScrollJump } from "./useNoScrollJump";
 import type { BoardSession } from "./useBoardSession";
 import { Stage } from "./Stage";
 import { AppBar, BenchTab, MasPanel, ModeBar, OnceTabs, ReadOnlyStrip, Sheet, SquadBars, SystemTab, type OnceTab } from "./Panels";
-import { avisoTxt, benchGroups, calledOf, convHead, reparto, squadInfo, type BenchHand } from "./bench";
+import { avisoTxt, avisoUrl, benchGroups, calledOf, convHead, pitchFound, reparto, squadInfo, type BenchHand } from "./bench";
 import { AjustesPanel, CompararPanel, CompartirPanel, PlanTab, QuimicaPanel } from "./SheetPanels";
 import { SHOW0, type BoardPrefs, type ShowKey } from "./prefs";
 import { TablerosPanel, type BoardRowView, type ReactionsView, type TbTab } from "./Tableros";
@@ -40,7 +40,7 @@ import { Icon } from "./icons";
 import { setTactic, tacRows } from "./plan";
 import { changes, cmpMarks, tape } from "./compare";
 import { boardLink, boardMeta, convocatoriaFromBoard, matchLabel, matchShort, type CalMatch } from "./boards";
-import { charlaJugada, charlaLast, charlaView, pushIn, STEP_JUGADA, stepKind, type CharlaMatch } from "./charla";
+import { charlaJugada, charlaLast, charlaView, pushIn, STEP_JUGADA, STEP_PLAN, stepKind, type CharlaMatch } from "./charla";
 import { useCharla } from "./useCharla";
 import { CharlaGuion, CharlaOverlay } from "./CharlaOverlay";
 import { DEAL_MS, INTRO_2D_MS, INTRO_MAX_MS, INTRO_WAIT_MS, introKind, introSeen, markIntroSeen, type IntroKind } from "./intro";
@@ -48,7 +48,7 @@ import { engineCast, engineDriven, enginePasos, engineSeven, type Shot } from ".
 import { cartelBlob, cartelFile, cartelLayout, crestImage, download, shareCartel } from "./cartel";
 import { DELETE_MS } from "./useBoardSession";
 import { deepHash } from "./deeplink";
-import { extractLineup, type LineupDoc } from "../lineupDoc";
+import { dataToLineupDoc, extractLineup, lineupToData, type LineupDoc, type LineupMeta } from "../lineupDoc";
 import { nextReaction, type ReactionValue } from "../reactions";
 import { apiError } from "../../../lib/clubApi";
 import { PIZARRA_LIMITS } from "../../../lib/schemas";
@@ -74,7 +74,8 @@ import {
   type Play,
 } from "../plays";
 import { unsupportedReason, type Unsupported } from "../../../components/pitch3d/support";
-import { framePointToPitch, hitStroke, inkView, pushInk, strokeLabel, TOOL_HINT } from "./telestrator";
+import { framePointToPitch, hitStroke, inkView, strokeLabel, TOOL_HINT } from "./telestrator";
+import { emptyStack, inkBack, inkForward, inkOp, mergePlay, popFuture, popPast, pushOp, undoScopeOf, withPlay, type InkOp, type PlayOp, type Stack } from "./undoScope";
 import {
   addPlayers,
   DEFAULT_JUGADA,
@@ -162,13 +163,15 @@ interface Ui {
   hist: History;
   /** Keyboard target slot while a cromo is in the hand. */
   kb: number | null;
-  /** The telestrator's own undo: the strokes as they were before each change. */
-  ink: Stroke[][];
+  /** The telestrator's own undo / redo: each change to the strokes, by stroke id. */
+  ink: Stack<InkOp>;
+  /** The jugadas' own undo / redo: each edit of a jugada. */
+  jh: Stack<PlayOp>;
   /** The stroke marked on the pitch (Dibujar), and the rival marked in a jugada's paso. */
   inkSel: string | null;
   rivSel: string | null;
 }
-const UI0 = { sel: null, pick: null, fan: null, fic: null, hist: EMPTY_HISTORY, kb: null, ink: [], inkSel: null, rivSel: null };
+const UI0 = { sel: null, pick: null, fan: null, fic: null, hist: EMPTY_HISTORY, kb: null, ink: emptyStack<InkOp>(), jh: emptyStack<PlayOp>(), inkSel: null, rivSel: null };
 
 const reducedMotion = (): boolean => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -190,9 +193,20 @@ interface Toast {
   msg: string;
   /** One action (Deshacer); `aria` says what it does, apart from the app bar's own «Deshacer». */
   act?: { label: string; aria: string; run: () => void };
+  /** The board whose deletion this toast can still undo. */
+  del?: string;
+}
+
+/** A board deleted a moment ago: the session deletes it for good after DELETE_MS; until then, `run` undoes it. */
+interface PendingDel {
+  id: string;
+  name: string;
+  run: () => void;
 }
 
 const LIM = PIZARRA_LIMITS;
+/** (only to read a lineup back as the store would: see markOurs) */
+const STORE_META: LineupMeta = { ownerUid: "", ownerNickname: "", seasonId: "", name: "", isOfficial: false, matchId: null };
 const PLAYS_FULL = "Ya hay " + plural(LIM.plays, "jugada propia", "jugadas propias") + " en este tablero: borra una para guardar otra.";
 const PASOS_MSG = "Una jugada tiene entre " + LIM.framesMin + " y " + LIM.framesMax + " pasos.";
 const NO_3D = "Este dispositivo no muestra el estadio 3D: la jugada se ve con la cámara 2D que sigue al balón.";
@@ -289,6 +303,8 @@ export function Board(props: BoardProps) {
   const [mount3d, setMount3d] = useState(false);
   // The jugada picked in Jugadas (else the charla presents the board's first own one, or the córner).
   const [jChosen, setJChosen] = useState(false);
+  // La charla with holes in the seven waits for «Presentar igualmente» or «Empezar por el plan».
+  const [chOk, setChOk] = useState(false);
   // Loading only counts until the board has shown once (a later blip must not jump the footer).
   const [seenReady, setSeenReady] = useState(ready);
   if (ready && !seenReady) setSeenReady(true);
@@ -302,6 +318,12 @@ export function Board(props: BoardProps) {
   const liveRef = useRef<SVGPathElement>(null);
   const fxTimer = useRef(0);
   const toastTimer = useRef(0);
+  // Boards deleted a moment ago (undoable until the session deletes them), and their timers.
+  const [pendDel, setPendDel] = useState<PendingDel[]>([]);
+  const pendRef = useRef<PendingDel[]>([]);
+  const delTimers = useRef(new Map<string, number>());
+  /** «X deja la capitanía»: said along with the message of the change that cost it (same tick). */
+  const lostNote = useRef<string | null>(null);
   const wipeTimer = useRef(0);
   const sndTimer = useRef(0);
   /** Where everything was drawn at the last render (frame %), for the next glide to start from. */
@@ -333,6 +355,7 @@ export function Board(props: BoardProps) {
       window.clearTimeout(toastTimer.current);
       window.clearTimeout(wipeTimer.current);
       window.clearTimeout(sndTimer.current);
+      delTimers.current.forEach((t) => window.clearTimeout(t));
     },
     [],
   );
@@ -386,12 +409,28 @@ export function Board(props: BoardProps) {
   const hud = buildHud(L, sq, ch, fx, rm, match);
   const tacSum = tacSummary(L);
 
+  /** A deleted board's toast (the latest still pending), to come back after any other message. */
+  const delToast = (): Toast | null => {
+    const d = pendRef.current[pendRef.current.length - 1];
+    return d ? { msg: "«" + d.name + "» borrado", act: { label: "Deshacer", aria: "Deshacer el borrado de «" + d.name + "»", run: d.run }, del: d.id } : null;
+  };
   const say = (msg: string, act?: Toast["act"], ms = 2600) => {
     window.clearTimeout(toastTimer.current);
-    setToast({ msg, act });
-    toastTimer.current = window.setTimeout(() => setToast(null), ms);
+    // what a change cost the galones is said with whatever the change says itself
+    const note = lostNote.current;
+    setToast({ msg: note && note !== msg ? note + " · " + msg : msg, act });
+    // (a board deletion still pending comes back once this one has been read)
+    toastTimer.current = window.setTimeout(() => setToast(delToast()), ms);
   };
   const fail = (err: unknown) => say(apiError(err));
+  /** A deleted board is no longer pending (undone, or deleted for good): its row and toast go. */
+  const dropPend = (bid: string) => {
+    window.clearTimeout(delTimers.current.get(bid));
+    delTimers.current.delete(bid);
+    pendRef.current = pendRef.current.filter((x) => x.id !== bid);
+    setPendDel(pendRef.current);
+    setToast((t) => (t?.del === bid ? delToast() : t));
+  };
   // What changed under the board (another tab, a new official, a failed save…) is said as a toast.
   const notice = session.notice;
   const sayLatest = useRef(say);
@@ -434,6 +473,26 @@ export function Board(props: BoardProps) {
     return true;
   };
 
+  // ── the lineup's undo knows which changes were ours: one from another tab or device (the session's
+  // lineup turning into something we never committed) starts the history again, so Deshacer can never
+  // put back a lineup over it ──
+  const ours = useRef<{ key: string; sigs: Set<string> }>({ key: "", sigs: new Set() });
+  const markOurs = (next: Lineup) => {
+    if (ours.current.key !== session.key) ours.current = { key: session.key, sigs: new Set() };
+    ours.current.sigs.add(editSig(next));
+    // (and as it reads back once stored)
+    ours.current.sigs.add(editSig(normalize(extractLineup(dataToLineupDoc("x", lineupToData(next, STORE_META))), squadIds)));
+  };
+  const lsig = editSig(L);
+  useEffect(() => {
+    if (!ready) return;
+    const o = ours.current;
+    if (o.key === session.key && o.sigs.has(lsig)) return;
+    const remote = o.key === session.key;
+    ours.current = { key: session.key, sigs: new Set([lsig]) };
+    if (remote) setUi((prev) => (prev.key === session.key && (prev.hist.past.length || prev.hist.future.length) ? { ...prev, hist: EMPTY_HISTORY } : prev));
+  }, [lsig, session.key, ready]);
+
   /** Every change to the lineup goes through here. */
   const commit = (next: Lineup, o: { drop?: Record<string, [number, number]> | null; ui?: Partial<Ui>; fx?: Partial<Fx>; snap?: Snap } = {}) => {
     if (!ready) return;
@@ -444,7 +503,17 @@ export function Board(props: BoardProps) {
     const rip = next.slots.map((s, i) => (s.playerId && L.slots[i]?.playerId !== s.playerId ? s.playerId : null)).filter((x): x is string => !!x);
     const cele = !isFull(L, sq) && isFull(next, sq) && !rm;
     session.commit(next);
+    markOurs(next);
     patchUi({ hist: pushHistory(u.hist, L), ...o.ui });
+    // whoever left the pitch left his galones: said now, and with the change's own message if it has one
+    const lost = rolesLost(L, next, nm);
+    if (lost) {
+      lostNote.current = lost;
+      say(lost);
+      window.setTimeout(() => {
+        if (lostNote.current === lost) lostNote.current = null;
+      }, 0);
+    }
     if (o.snap) setSnap(o.snap);
     runFx(morph(o.drop ?? null, { rip, cele, ...o.fx }));
     snd("clac");
@@ -559,7 +628,7 @@ export function Board(props: BoardProps) {
    * room), the arrows follow the moves, and it is checked before it is saved. `goTo` = the paso to show
    * after it. Returns the jugada saved, or null when nothing changed (`refused` says why, if anything).
    */
-  const editJugada = (fn: (p: Play) => Play, refused: string, goTo?: number): Play | null => {
+  const editJugada = (fn: (p: Play) => Play, refused: string, goTo?: number, tag?: string): Play | null => {
     if (!ready) return null;
     if (ro) {
       say(roMsg);
@@ -585,6 +654,7 @@ export function Board(props: BoardProps) {
       return null;
     }
     if (!saveExtras({ ...L, plays: savePlay(list, next) })) return null;
+    pushJ({ id: next.id, before: cur.own ? jplay : null, after: next, jid0: jplay.id, jid1: next.id, tag });
     if (!cur.own) {
       setJid(next.id);
       setJChosen(true);
@@ -592,6 +662,39 @@ export function Board(props: BoardProps) {
       say("«" + jplay.name + "» ya es tuya: se guarda con el tablero");
     } else if (goTo != null && goTo !== jf) rpl.seek(goTo, next.frames.length);
     return next;
+  };
+  /** One edit of the jugadas into their own undo (typing a paso's title or note is one step). */
+  const pushJ = (op: PlayOp) => patchUi({ jh: pushOp(u.jh, op, mergePlay) });
+  /** Show jugada `id` after an undo / redo (on the same paso when it is the same jugada). */
+  const showJugada = (id: string, plays: Play[]) => {
+    const n = jugadaList({ ...L, plays }).find((j) => j.play.id === id)?.play.frames.length ?? 1;
+    setJid(id);
+    setJChosen(true);
+    rpl.reset(session.key + ":" + id, false, id === jplay.id ? Math.min(jf, n - 1) : 0);
+    patchUi({ rivSel: null });
+  };
+  /** Ctrl Z in Jugadas: the last edit of a jugada, undone on the jugadas there are now. */
+  const jUndo = () => {
+    if (!canEdit) return;
+    const r = popPast(u.jh);
+    if (!r) return;
+    const plays = withPlay(L.plays ?? [], r.op.id, r.op.before);
+    if (!saveExtras({ ...L, plays })) return;
+    patchUi({ jh: r.stack });
+    showJugada(r.op.before || r.op.jid0 !== r.op.id ? r.op.jid0 : DEFAULT_JUGADA, plays);
+    buzz([6, 20, 6]);
+    announce("Deshecho en la jugada");
+  };
+  const jRedo = () => {
+    if (!canEdit) return;
+    const r = popFuture(u.jh);
+    if (!r) return;
+    const plays = withPlay(L.plays ?? [], r.op.id, r.op.after);
+    if (!saveExtras({ ...L, plays })) return;
+    patchUi({ jh: r.stack });
+    showJugada(r.op.after ? r.op.jid1 : DEFAULT_JUGADA, plays);
+    buzz([6, 20, 6]);
+    announce("Rehecho en la jugada");
   };
   /** Brings back the board's jugadas as they were (a toast's Deshacer), if that board is still open. */
   const restorePlays = (k: string, plays: Play[], jid: string) => {
@@ -639,8 +742,8 @@ export function Board(props: BoardProps) {
     if (!editJugada((p) => removeFrame(p, i), PASOS_MSG, Math.max(0, Math.min(jf > i ? jf - 1 : jf, nJ - 2)))) return;
     say((cur.own ? "" : "«" + jplay.name + "» ya es tuya · ") + "Paso " + (i + 1) + " quitado", { label: "Deshacer", aria: "Deshacer: recuperar el paso " + (i + 1), run: () => restorePlays(k, before, was) }, DELETE_MS);
   };
-  const jTitle = (v: string) => editJugada((p) => setFrameText(p, jf, { title: v }), "");
-  const jNote = (v: string) => editJugada((p) => setFrameText(p, jf, { note: v }), "");
+  const jTitle = (v: string) => editJugada((p) => setFrameText(p, jf, { title: v }), "", undefined, "t" + jf);
+  const jNote = (v: string) => editJugada((p) => setFrameText(p, jf, { note: v }), "", undefined, "n" + jf);
   const jAddRival = () => {
     const r = editJugada((p) => addRival(p, rivalSpot(p)), "Como mucho siete rivales.");
     if (!r) return;
@@ -687,6 +790,7 @@ export function Board(props: BoardProps) {
       return;
     }
     if (!saveExtras({ ...L, plays: savePlay(list, pl) })) return;
+    pushJ({ id: pl.id, before: null, after: pl, jid0: jplay.id, jid1: pl.id });
     setUntouched(false);
     setJid(pl.id);
     setJChosen(true);
@@ -697,7 +801,7 @@ export function Board(props: BoardProps) {
     say("Jugada nueva: añade pasos y arrastra");
   };
   const jRename = (v: string) => {
-    editJugada((p) => renamePlay(p, v), "");
+    editJugada((p) => renamePlay(p, v), "", undefined, "name");
   };
   const jDuplicate = () => {
     if (!ready) return;
@@ -713,6 +817,7 @@ export function Board(props: BoardProps) {
     const next = cur.own ? duplicatePlay(list, jplay.id) : savePlay(list, forkPlay(jplay, list.map((x) => x.name), newId("j")));
     if (next === list || !saveExtras({ ...L, plays: next })) return;
     const copy = next[next.length - 1];
+    pushJ({ id: copy.id, before: null, after: copy, jid0: jplay.id, jid1: copy.id });
     setJid(copy.id);
     setJChosen(true);
     rpl.reset(session.key + ":" + copy.id, false, jf);
@@ -727,7 +832,7 @@ export function Board(props: BoardProps) {
     if (!saveExtras({ ...L, plays: removePlay(before, was.id) })) return;
     setJid(DEFAULT_JUGADA);
     rpl.reset(k + ":" + DEFAULT_JUGADA, false);
-    patchUi({ rivSel: null });
+    patchUi({ rivSel: null, jh: pushOp(u.jh, { id: was.id, before: was, after: null, jid0: was.id, jid1: DEFAULT_JUGADA }) });
     buzz([20, 40, 20]);
     say("«" + was.name + "» borrada", { label: "Deshacer", aria: "Deshacer el borrado de «" + was.name + "»", run: () => restorePlays(k, before, was.id) }, DELETE_MS);
   };
@@ -770,20 +875,32 @@ export function Board(props: BoardProps) {
   const inkSel = u.inkSel && strokes.some((x) => x.id === u.inkSel) ? u.inkSel : null;
   const setInk = (next: Stroke[]): boolean => {
     if (!saveExtras({ ...L, drawings: next })) return false;
-    patchUi({ ink: pushInk(u.ink, strokes), inkSel: null });
+    patchUi({ ink: pushOp(u.ink, inkOp(strokes, next)), inkSel: null });
     return true;
   };
+  // (undone by stroke id, on the strokes there are now: what another tab drew meanwhile stays)
   const inkUndo = () => {
     if (!canEdit) return;
-    if (u.ink.length) {
-      if (!saveExtras({ ...L, drawings: u.ink[u.ink.length - 1] })) return;
-      patchUi({ ink: u.ink.slice(0, -1), inkSel: null });
+    const r = popPast(u.ink);
+    if (r) {
+      if (!saveExtras({ ...L, drawings: inkBack(strokes, r.op) })) return;
+      patchUi({ ink: r.stack, inkSel: null });
     } else if (strokes.length) {
-      if (!saveExtras({ ...L, drawings: undoStroke(strokes) })) return;
-      patchUi({ inkSel: null });
+      // nothing drawn in this visit: the last stroke goes (and can come back with Rehacer)
+      const next = undoStroke(strokes);
+      if (!saveExtras({ ...L, drawings: next })) return;
+      patchUi({ ink: { past: [], future: u.ink.future.concat([inkOp(strokes, next)]) }, inkSel: null });
     } else return;
     buzz([6, 20, 6]);
     announce("Trazo deshecho");
+  };
+  const inkRedo = () => {
+    if (!canEdit) return;
+    const r = popFuture(u.ink);
+    if (!r || !saveExtras({ ...L, drawings: inkForward(strokes, r.op) })) return;
+    patchUi({ ink: r.stack, inkSel: null });
+    buzz([6, 20, 6]);
+    announce("Trazo rehecho");
   };
   /** A toast's Deshacer for the strokes (only while the same board is open). */
   const inkUndoAct = (aria: string): Toast["act"] => {
@@ -883,6 +1000,9 @@ export function Board(props: BoardProps) {
   const chPlay = chItem.play;
   const chLast = charlaLast(chPlay.frames.length);
   const chSlots = L.slots.map((s) => (s.playerId && sq.byId.has(s.playerId) ? s.playerId : null));
+  // fewer than seven: «Faltan N: ¿presentar igualmente?» before anything plays
+  const chMissing = chSlots.filter((x) => !x).length;
+  const chGate = charlaOn && ready && !chOk && chMissing > 0;
   const live3dC = charlaOn && can3d && ready3d;
   const chArgs = { L, sq, play: chPlay, playShort: chItem.short, match, boardName: session.name, sysName: hud.sysName, tacSum, qv: ch.v, in3d: live3dC, loading: !ready };
   /** What a step says, for screen readers (the graphics change without focus moving). */
@@ -892,7 +1012,7 @@ export function Board(props: BoardProps) {
   };
   // (a link straight to the charla waits for the board before it runs)
   const chl = useCharla({
-    on: charlaOn && ready,
+    on: charlaOn && ready && !chGate,
     last: chLast,
     rm,
     engine: (step, playing) => live3dC && engineDriven(step, chLast, playing, chSlots),
@@ -907,7 +1027,9 @@ export function Board(props: BoardProps) {
       } else if (k === "final") snd("crowd");
     },
   });
-  const cv = charlaOn ? charlaView({ ...chArgs, step: chl.step, playing: chl.playing }) : null;
+  // (while the charla asks about the holes, nothing plays)
+  const chPlaying = chl.playing && !chGate;
+  const cv = charlaOn ? charlaView({ ...chArgs, step: chl.step, playing: chPlaying }) : null;
   const chKind = cv?.kind ?? null;
 
   // ── what the pitch shows ──
@@ -933,8 +1055,8 @@ export function Board(props: BoardProps) {
     shot = {
       kind: "charla",
       step: chl.step,
-      playing: chl.playing,
-      players: engineSeven(L, sq, chl.playing ? null : heroId),
+      playing: chPlaying,
+      players: engineSeven(L, sq, chPlaying ? null : heroId),
       slots: chSlots,
       // (a new seven — the board loaded, another tab — films the step again)
       jugada: { key: chPlay.id + ":" + chPlay.frames.length + ":" + chSlots.join(","), frames: toEngineFrames(chPlay), pasos: enginePasos(chPlay) },
@@ -968,6 +1090,8 @@ export function Board(props: BoardProps) {
       pieces,
     },
     {
+      // a bench cromo lifted off the phone strip (long press): the hand feels it
+      onLift: () => buzz(12),
       onStart: (kind, _id, from) => {
         setDragKind(kind);
         setDragFrom(from);
@@ -1094,6 +1218,7 @@ export function Board(props: BoardProps) {
     const r = undo(u.hist, L);
     if (!r) return;
     session.commit({ ...r.lineup, drawings: L.drawings, plays: L.plays });
+    markOurs(r.lineup);
     patchUi({ hist: r.history, sel: null, pick: null, fan: null, kb: null });
     runFx(morph(null, { rw: "REBOBINANDO" }));
     buzz([6, 20, 6]);
@@ -1105,18 +1230,26 @@ export function Board(props: BoardProps) {
     const r = redo(u.hist, L);
     if (!r) return;
     session.commit({ ...r.lineup, drawings: L.drawings, plays: L.plays });
+    markOurs(r.lineup);
     patchUi({ hist: r.history, sel: null, pick: null, fan: null, kb: null });
     runFx(morph(null, { rw: "AVANCE" }));
     buzz([6, 20, 6]);
     snd("flip");
     announce("Rehecho");
   };
+  // Deshacer / Rehacer (the keys and the command bar's buttons) act on the tool on screen: the siete's
+  // lineup, Dibujar's strokes, the jugadas' edits; elsewhere nothing (never the lineup hidden behind).
+  const scope = canEdit ? undoScopeOf(modo) : null;
+  const ctxUndo = () => (scope === "lineup" ? doUndo() : scope === "ink" ? inkUndo() : scope === "jugada" ? jUndo() : undefined);
+  const ctxRedo = () => (scope === "lineup" ? doRedo() : scope === "ink" ? inkRedo() : scope === "jugada" ? jRedo() : undefined);
+  const canUndoCtx = scope === "lineup" ? u.hist.past.length > 0 : scope === "ink" ? u.ink.past.length > 0 || strokes.length > 0 : scope === "jugada" ? u.jh.past.length > 0 : false;
+  const canRedoCtx = scope === "lineup" ? u.hist.future.length > 0 : scope === "ink" ? u.ink.future.length > 0 : scope === "jugada" ? u.jh.future.length > 0 : false;
   const doSuggest = () => {
     if (!canEdit) return;
     // The board's match (linked, else the next): its convocatoria's siete comes first in the pack.
     const cm = props.calendar.find((c) => c.id === session.matchId) ?? props.nextMatch;
     const own = cm?.conv?.starters ?? [];
-    const next = suggestSeven(L, sq, own);
+    const next = suggestSeven(L, sq, own, calledOf(cm));
     if (!next.slots.some((s) => s.playerId)) {
       say("No hay nadie disponible para el sobre");
       return;
@@ -1127,7 +1260,7 @@ export function Board(props: BoardProps) {
   };
   const doAuto = () => {
     if (!canEdit) return;
-    const next = autoPlace(L, sq);
+    const next = autoPlace(L, sq, called);
     if (next.slots.every((s, i) => s.playerId === L.slots[i]?.playerId)) {
       say(next.slots.some((s) => s.playerId) ? "Ya está cada cromo en su sitio" : "No hay nadie disponible para colocar");
       return;
@@ -1153,6 +1286,7 @@ export function Board(props: BoardProps) {
       wipeNow();
     } else if (modo === "jugadas") rpl.pause();
     if (target === "charla" && modo !== "charla") {
+      setChOk(false);
       chl.reset();
       if (prefs.v3) ask3d();
       sayStep(0, !rm);
@@ -1220,21 +1354,9 @@ export function Board(props: BoardProps) {
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const tag = (e.target as HTMLElement).tagName;
     const field = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
-    const mod = e.ctrlKey || e.metaKey;
-    if (mod && !field && e.key.toLowerCase() === "z") {
-      e.preventDefault();
-      // Dibujar: the strokes' own undo
-      if (modo === "dibujar" && !e.shiftKey) inkUndo();
-      else if (e.shiftKey) doRedo();
-      else doUndo();
-      return;
-    }
-    if (mod && !field && e.key.toLowerCase() === "y") {
-      e.preventDefault();
-      doRedo();
-      return;
-    }
-    if (modo === "dibujar" && inkSel && !field && (e.key === "Delete" || e.key === "Backspace")) {
+    // (Ctrl Z / Ctrl Y are the board's keys: see boardKeys) — typing keeps every key, Escape included
+    if (field || e.defaultPrevented) return;
+    if (modo === "dibujar" && inkSel && (e.key === "Delete" || e.key === "Backspace")) {
       e.preventDefault();
       inkDelete(inkSel);
       return;
@@ -1254,7 +1376,7 @@ export function Board(props: BoardProps) {
       }
       return;
     }
-    if (field || !sel || !canEdit || modo !== "editar") return;
+    if (!sel || !canEdit || modo !== "editar") return;
     const dir = DIR_KEYS[e.key];
     if (dir) {
       e.preventDefault();
@@ -1316,19 +1438,20 @@ export function Board(props: BoardProps) {
       skipIntro();
       return;
     }
-    if (fan || fic || e.defaultPrevented || e.metaKey || e.altKey) return;
+    // (Alt: AltGr types characters with Ctrl + Alt on Windows; it is never a shortcut here)
+    if (fan || fic || e.defaultPrevented || e.altKey) return;
     const t = e.target instanceof HTMLElement ? e.target : null;
     const root = rootRef.current;
     if (t && t !== document.body && root && !root.contains(t)) return;
     const tag = t?.tagName ?? "";
     const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || !!t?.isContentEditable;
-    if (e.ctrlKey) {
+    // Ctrl Z / ⌘ Z undoes what the tool on screen did; Ctrl ⇧ Z / Ctrl Y redoes it (see undoScope.ts)
+    if (e.ctrlKey || e.metaKey) {
       const k = e.key.toLowerCase();
       if (typing || (k !== "z" && k !== "y")) return;
       e.preventDefault();
-      if (k === "y" || e.shiftKey) doRedo();
-      else if (modo === "dibujar") inkUndo();
-      else doUndo();
+      if (k === "y" || e.shiftKey) ctxRedo();
+      else ctxUndo();
       return;
     }
     if (modo === "charla" && e.key === "Escape") {
@@ -1391,7 +1514,7 @@ export function Board(props: BoardProps) {
   const cm = props.conv.match;
   const called = calledOf(cm);
   const conv = convHead({ sq, match: cm, loading: props.conv.loading, error: props.conv.error });
-  // «Solo convocados» = those who said «Voy» (it needs answers to the convocatoria).
+  // «Solo los que van» = those who said «Voy» (it needs answers to the convocatoria).
   const ocOn = oc && conv.answered;
   const selP = sel?.k === "p" ? L.slots.findIndex((s) => s.playerId === sel.id) : -1;
   const benchHand: BenchHand | null = !canEdit || modo !== "editar" ? null : sel && selP >= 0 ? { kind: "p", name: nm(sel.id), zone: slotZone(L, selP) } : pick != null ? { kind: "slot", zone: slotZone(L, pick) } : null;
@@ -1403,14 +1526,31 @@ export function Board(props: BoardProps) {
     selId: sel?.k === "b" ? sel.id : null,
     meId: props.meId,
   });
+  // «Buscar en la plantilla» finds the ones on the pitch too: tapping one marks him there
+  const found = pitchFound(L, sq, { on: srx, q, zf, oc: ocOn }, (i) => slotLabel(L, i));
+  const onFound = (id: string) => {
+    const i = L.slots.findIndex((s) => s.playerId === id);
+    if (i < 0) return;
+    cardEl(id)?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    buzz(8);
+    if (canEdit) {
+      patchUi({ sel: { k: "p", id }, pick: null, kb: null });
+      announce(nm(id) + " está en el campo, de " + slotLabel(L, i) + ": en la mano. Toca otro cromo o un hueco.");
+    } else say(nm(id) + " está en el campo, de " + slotLabel(L, i));
+  };
   const rp = reparto(L, sq, called);
   const rot = rp.rot;
   const galLeg = GALONES.map((g) => {
     const h = L.roles[g.key];
-    return { l: g.letter, t: g.label + " · " + (h && sq.byId.has(h) ? nm(h) : "sin asignar") };
+    // (only who wears it on the pitch: a galón never stays on the bench)
+    return { l: g.letter, t: g.label + " · " + (h && onPitch.has(h) ? nm(h) : "sin asignar") };
   });
   const doRotate = () => {
-    if (!rot || !canEdit) {
+    if (!canEdit) {
+      say(ready ? roMsg : "Cargando el tablero…");
+      return;
+    }
+    if (!rot) {
       say("El reparto ya está equilibrado");
       return;
     }
@@ -1420,9 +1560,9 @@ export function Board(props: BoardProps) {
   };
   // «Avisar a los que dudan»: a message for the team's group (the share sheet, else the clipboard)
   const doAvisar = async () => {
-    const txt = avisoTxt(conv.dudas, cm);
+    const txt = avisoTxt(conv.aviso, cm, avisoUrl(window.location.origin));
     if (!txt) {
-      say("Nadie tiene dudas");
+      say("Nadie a quien avisar: no hay dudas ni convocados sin responder");
       return;
     }
     buzz(10);
@@ -1603,7 +1743,7 @@ export function Board(props: BoardProps) {
   };
   const copyLink = async (charla: boolean) => {
     if (!session.id) return;
-    const url = boardLink(window.location.origin, session.id, charla);
+    const url = boardLink(window.location.origin, session.id, charla, props.seasonId);
     try {
       await navigator.clipboard.writeText(url);
       say(charla ? "Enlace a la charla copiado: pégalo en el grupo" : "Enlace copiado: pégalo en el grupo");
@@ -1790,6 +1930,8 @@ export function Board(props: BoardProps) {
             onSeason={props.onSeason}
             benchView={benchView}
             onBenchView={setBenchView}
+            found={found}
+            onFound={onFound}
           />
         )}
         {tab === "s" && (
@@ -1863,19 +2005,23 @@ export function Board(props: BoardProps) {
           const was = session.mine.find((d) => d.id === bid)?.name ?? "Tablero";
           const undoDel = session.remove(bid);
           buzz([20, 40, 20]);
-          say(
-            "«" + was + "» borrado",
-            {
-              label: "Deshacer",
-              aria: "Deshacer el borrado de «" + was + "»",
-              run: () => {
-                undoDel();
-                say("«" + was + "» recuperado");
-              },
-            },
-            DELETE_MS,
+          // Undoable until the session deletes it (DELETE_MS): a row in Tableros, and a toast that comes
+          // back after any other message.
+          const run = () => {
+            dropPend(bid);
+            undoDel();
+            say("«" + was + "» recuperado");
+          };
+          pendRef.current = [...pendRef.current.filter((x) => x.id !== bid), { id: bid, name: was, run }];
+          setPendDel(pendRef.current);
+          window.clearTimeout(delTimers.current.get(bid));
+          delTimers.current.set(
+            bid,
+            window.setTimeout(() => dropPend(bid), DELETE_MS),
           );
+          say("«" + was + "» borrado", { label: "Deshacer", aria: "Deshacer el borrado de «" + was + "»", run }, DELETE_MS);
         }}
+        pending={pendDel.map((d) => ({ id: d.id, name: d.name, undo: d.run }))}
         official={offView}
         reactions={props.reactions}
         isCap={props.isAdmin}
@@ -2053,7 +2199,7 @@ export function Board(props: BoardProps) {
         text={inkText}
         strokes={strokes.map((x) => ({ id: x.id, label: strokeLabel(x), sel: x.id === inkSel }))}
         selLabel={inkSel ? strokeLabel(strokes.find((x) => x.id === inkSel) ?? strokes[0]) : null}
-        canUndo={canEdit && (u.ink.length > 0 || strokes.length > 0)}
+        canUndo={canEdit && (u.ink.past.length > 0 || strokes.length > 0)}
         onTool={(k) => {
           setTool(k);
           buzz(6);
@@ -2091,12 +2237,14 @@ export function Board(props: BoardProps) {
     ro: !canEdit,
     hand: selV && inHand ? { k: inHand.k, name: selV.name, rt: selV.rt } : null,
     benchView,
-    playing: charlaOn ? chl.playing && !!cv && chl.step < cv.last : rpl.playing,
+    playing: charlaOn ? chPlaying && !!cv && chl.step < cv.last : rpl.playing,
     pieces,
   };
   const pmActs: PromptActs = {
     undo: doUndo,
     undoStroke: inkUndo,
+    redoStroke: inkRedo,
+    undoJugada: jUndo,
     captain: capSel,
     galones: galSel,
     ficha: ficSel,
@@ -2148,7 +2296,7 @@ export function Board(props: BoardProps) {
                 board={led3d}
                 onReady={() => setReady3d(true)}
                 onFail={on3dFail}
-                events={{ onIntroDone: skipIntro, onFrame: rpl.reached, onStep: chl.reached }}
+                events={{ onIntroDone: skipIntro, onFrame: rpl.reached, onStep: (i: number) => !chGate && chl.reached(i) }}
               />
             ) : null
           }
@@ -2182,13 +2330,13 @@ export function Board(props: BoardProps) {
           cele={!!chFinal || hud.celeOn}
           sysk={sysk}
           ro={!canEdit}
-          noUndo={!canEdit || !u.hist.past.length}
-          noRedo={!canEdit || !u.hist.future.length}
+          noUndo={!canUndoCtx}
+          noRedo={!canRedoCtx}
           bug={modo === "jugadas" ? { a: rh.bugA, b: rh.bugB, k: rh.bugK, aria: rh.bugAria } : null}
           shareOn={modo === "compartir"}
           onName={() => goModo("tableros")}
-          onUndo={doUndo}
-          onRedo={doRedo}
+          onUndo={ctxUndo}
+          onRedo={ctxRedo}
           onShare={() => goModo("compartir")}
           onCharla={() => goModo("charla")}
           onSys={(d) => canEdit && toSystem(stepSystem(L, d))}
@@ -2210,12 +2358,25 @@ export function Board(props: BoardProps) {
           <CharlaOverlay
             v={cv}
             step={chl.step}
-            playing={chl.playing}
+            playing={chPlaying}
             rm={rm}
             onToggle={chl.toggle}
             onStep={chl.step1}
             onSeek={chl.seek}
             onExit={() => goModo("editar")}
+            gate={
+              chGate
+                ? {
+                    missing: chMissing,
+                    onAnyway: () => setChOk(true),
+                    onPlan: () => {
+                      setChOk(true);
+                      chl.seek(STEP_PLAN);
+                      if (!rm) chl.toggle();
+                    },
+                  }
+                : null
+            }
           />
         )}
         {intro3d && (

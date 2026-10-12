@@ -1,7 +1,8 @@
 // The board being edited: which one (a deep link, the last one opened here, your latest, or a fresh
 // draft that becomes a board on its first change), its lineup (your unsaved edits over the stored doc),
 // whether you may edit it (useLineups' docs + the lineups rules: your own non-official boards; admins
-// any), and the autosave (one write ~1s after the last change; pending edits are flushed on leave).
+// any), and the autosave (one write ~1s after the last change, retried when it fails; pending edits are
+// flushed when the page is hidden or closed and when you leave the board).
 // Around it, your boards: open, new, copy, rename (unique per owner and season), delete (with a few
 // seconds to undo), the linked match and the official (admins publish it for a match or the season).
 // What changes under the board (another tab, a new official, a board deleted elsewhere, a failed
@@ -71,8 +72,17 @@ export interface SessionArgs {
   draftName: string;
 }
 
-/** How long a deleted board can still be brought back (ms). */
-export const DELETE_MS = 6000;
+/** How long a deleted board can still be brought back (ms): ≥ 10 s to reach «Deshacer» (WCAG 2.2.1). */
+export const DELETE_MS = 12000;
+/** The autosave writes this long after the last change (ms). */
+export const SAVE_DEBOUNCE_MS = 1000;
+/** A failed save is tried again after these waits (ms); then on the next edit or when the connection is back. */
+export const RETRY_MS = [2000, 5000, 15000] as const;
+/** Refusals that a retry cannot fix (the rules said no, the board is gone, the data is invalid). */
+const permanent = (err: unknown): boolean => {
+  const code = (err as { code?: unknown } | null)?.code;
+  return code === "permission-denied" || code === "not-found" || code === "invalid-argument";
+};
 
 const REMEMBER = "mp_pizarra_v2_board:";
 const remembered = (seasonId: string): string | null => {
@@ -139,6 +149,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
   const [sent, setSent] = useState<{ key: string; sig: string } | null>(null);
   const [watch, setWatch] = useState<Watch | null>(null);
   const creating = useRef(false);
+  const making = useRef<Promise<string> | null>(null);
   const failing = useRef(false);
   const deleting = useRef(new Map<string, number>());
   const online = useSyncExternalStore(subscribeOnline, onlineNow, () => true);
@@ -185,7 +196,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
               // whoever was only looking at the official goes on looking at the official
               if (w.owner !== uid && !isAdmin) setChoice({ season: seasonId, id: repl.id });
             } else msg = "Este tablero ya no es el oficial";
-          } else if (w.sig !== cur.sig && cur.sig && w.squad === cur.squad && !(sent?.key === key && sent.sig === cur.sig)) {
+          } else if (w.sig && cur.sig && w.sig !== cur.sig && w.squad === cur.squad && !(sent?.key === key && sent.sig === cur.sig)) {
             msg = mine?.dirty ? "Otra pestaña ha cambiado este tablero: se queda tu versión" : "Tablero actualizado desde otra pestaña o dispositivo";
           }
         } else if (w.id !== cur.id && !all.some((d) => d.id === w.id) && !hidden.includes(w.id)) {
@@ -202,9 +213,55 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
   }
 
   // Latest values for the timers and the leave-flush (written after render, read in callbacks).
-  const latest = useRef({ save: lineups.save, remove: lineups.remove, id, pending: null as Lineup | null });
+  const latest = useRef({ save: lineups.save, remove: lineups.remove, id, key, squadIds, pending: null as Lineup | null, send: (() => undefined) as (k: string, id: string, L: Lineup, quiet: boolean) => void });
+  /** The debounce timer of the autosave, and the retries of a failed one. */
+  const debounce = useRef(0);
+  const retry = useRef({ n: 0, t: 0 });
+  /** The lineup whose write is on its way (not sent again until it fails). */
+  const inFlight = useRef<Lineup | null>(null);
+
+  /**
+   * Writes the board now. A failed write is retried (2 s, 5 s, 15 s, then when the connection comes
+   * back) with whatever is pending then; meanwhile the status stays «Sin guardar» (`quiet` retries do
+   * not flip it to «Guardando»). Reads only refs and setters: safe from any timer or listener.
+   */
+  const send = (k: string, bid: string, snapshot: Lineup, quiet: boolean) => {
+    window.clearTimeout(debounce.current);
+    window.clearTimeout(retry.current.t);
+    debounce.current = 0;
+    retry.current.t = 0;
+    if (!quiet) setSaved({ key: k, status: "saving", at: 0 });
+    setSent({ key: k, sig: storedSig(snapshot, latest.current.squadIds) });
+    inFlight.current = snapshot;
+    latest.current
+      .save(bid, snapshot)
+      .then(() => {
+        if (inFlight.current === snapshot) inFlight.current = null;
+        failing.current = false;
+        retry.current.n = 0;
+        setLocal((p) => (p && p.key === k && p.lineup === snapshot ? { ...p, dirty: false } : p));
+        setSaved({ key: k, status: "saved", at: Date.now() });
+      })
+      .catch((err: unknown) => {
+        if (inFlight.current === snapshot) inFlight.current = null;
+        console.error("No se pudo guardar el tablero", err);
+        // said once per run of failures, not on every retry
+        if (!failing.current) tell(apiError(err));
+        failing.current = true;
+        setSaved({ key: k, status: "error", at: 0 });
+        const n = retry.current.n;
+        if (n >= RETRY_MS.length || permanent(err)) return; // the next edit, or the connection coming back, tries again
+        retry.current.n = n + 1;
+        retry.current.t = window.setTimeout(() => {
+          retry.current.t = 0;
+          const cur = latest.current;
+          if (cur.key === k && cur.id === bid && cur.pending && inFlight.current !== cur.pending) cur.send(k, bid, cur.pending, true);
+        }, RETRY_MS[n]);
+      });
+  };
+
   useEffect(() => {
-    latest.current = { save: lineups.save, remove: lineups.remove, id, pending: mine?.dirty && id && !readOnly ? mine.lineup : null };
+    latest.current = { save: lineups.save, remove: lineups.remove, id, key, squadIds, pending: mine?.dirty && id && !readOnly ? mine.lineup : null, send };
   });
 
   // Remember the board for the next visit (per season).
@@ -217,37 +274,51 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     }
   }, [ready, id, seasonId]);
 
-  // Autosave: one write ~1s after the last change (again when the connection comes back).
+  // The connection is back: a failed save gets its retries again (the autosave below re-runs on it).
+  useEffect(() => {
+    if (online) retry.current.n = 0;
+  }, [online]);
+
+  // Autosave: one write ~1s after the last change (again when the connection comes back). An edit whose
+  // write is already on its way is not sent again (offline, its write waits in the cache).
   useEffect(() => {
     if (!mine?.dirty || !id || readOnly) return;
     const snapshot = mine.lineup;
-    const t = window.setTimeout(() => {
-      setSaved({ key, status: "saving", at: 0 });
-      setSent({ key, sig: storedSig(snapshot, squadIds) });
-      latest.current
-        .save(id, snapshot)
-        .then(() => {
-          failing.current = false;
-          setLocal((p) => (p && p.key === key && p.lineup === snapshot ? { ...p, dirty: false } : p));
-          setSaved({ key, status: "saved", at: Date.now() });
-        })
-        .catch((err: unknown) => {
-          console.error("No se pudo guardar el tablero", err);
-          // said once per run of failures, not on every retry
-          if (!failing.current) tell(apiError(err));
-          failing.current = true;
-          setSaved({ key, status: "error", at: 0 });
-        });
-    }, 1000);
+    if (inFlight.current === snapshot) return;
+    const t = window.setTimeout(() => latest.current.send(key, id, snapshot, false), SAVE_DEBOUNCE_MS);
+    debounce.current = t;
     return () => window.clearTimeout(t);
-  }, [mine, id, readOnly, key, online, squadIds]);
+  }, [mine, id, readOnly, key, online]);
+
+  // Closing the tab, switching app or locking the phone: the edit waiting for its debounce is written
+  // now (the page may never come back to run the timer, nor unmount).
+  useEffect(() => {
+    const flush = () => {
+      const { id: lid, key: k, pending, send: go } = latest.current;
+      if (lid && pending && inFlight.current !== pending) go(k, lid, pending, false);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   // Leaving this board (another board or season, or the page) with an edit still waiting for its write:
   // write it now. The cleanup runs before `latest` moves on, so it still holds the board being left.
   useEffect(
     () => () => {
+      window.clearTimeout(retry.current.t);
+      retry.current = { n: 0, t: 0 };
       const { save, id: lid, pending } = latest.current;
-      if (lid && pending) save(lid, pending).catch((err: unknown) => console.error("No se pudo guardar el tablero", err));
+      if (lid && pending && inFlight.current !== pending) {
+        inFlight.current = pending;
+        save(lid, pending).catch((err: unknown) => console.error("No se pudo guardar el tablero", err));
+      }
     },
     [key],
   );
@@ -317,7 +388,18 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
       });
   };
 
-  const copyBoard = async (srcId: string | null, openIt: boolean): Promise<string> => {
+  /** One new board at a time: a second tap while one is being made gets the same one (no extra copies). */
+  const once = (make: () => Promise<string>): Promise<string> => {
+    if (making.current) return making.current;
+    const p = make().finally(() => {
+      if (making.current === p) making.current = null;
+    });
+    making.current = p;
+    return p;
+  };
+
+  const copyBoard = (srcId: string | null, openIt: boolean): Promise<string> => once(() => copyNow(srcId, openIt));
+  const copyNow = async (srcId: string | null, openIt: boolean): Promise<string> => {
     const other = srcId && srcId !== id ? find(srcId) : undefined;
     if (srcId && srcId !== id && !other) throw new Error("Ese tablero ya no existe");
     const L = other ? normalize(extractLineup(other), squadIds) : lineup;
@@ -346,13 +428,14 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     setChoice({ season: seasonId, id: oid });
   };
 
-  const newBoard = async (): Promise<string> => {
-    const L = withBench({ ...seedLineup(lineup.formation, []) }, squadIds);
-    const nm = uniqueName("Tablero nuevo", taken());
-    const nid = await lineups.create(L, nm);
-    openFresh(nid, L, nm);
-    return nm;
-  };
+  const newBoard = (): Promise<string> =>
+    once(async () => {
+      const L = withBench({ ...seedLineup(lineup.formation, []) }, squadIds);
+      const nm = uniqueName("Tablero nuevo", taken());
+      const nid = await lineups.create(L, nm);
+      openFresh(nid, L, nm);
+      return nm;
+    });
 
   const rename = async (raw: string): Promise<void> => {
     if (!ready || readOnly) throw new Error("Este tablero es de solo lectura");

@@ -1,13 +1,45 @@
 // La pizarra «Noche de partido» — every change the board makes to a lineup, as pure functions over the
 // stored Lineup (formations.ts) built on lineupOps. No React. The design's slot table (geometry.ts FORM)
 // places the cromos; free mode keeps each slot's own spot in slots[i].x/y.
-import { applyFormation, type FormationName, type Lineup, type RoleKey, type Zone } from "../formations";
+import { applyFormation, type FormationName, type Lineup, type RoleKey, type Roles, type Zone } from "../formations";
 import { placeIntoSlot, sendToBench, swapPlayers, XI } from "../lineupOps";
 import { defaultTactics } from "../tactics";
 import { DEF_LINE_VALUES, planeDist2, slotPos, slotZone, SYSTEMS } from "./geometry";
 import { isAvailable, natOf, type Squad } from "./model";
 
 const cloneSlots = (L: Lineup) => L.slots.map((s) => ({ ...s }));
+
+// ── the galones belong to the seven: whoever leaves the pitch leaves his galones ──
+const ROLE_KEYS: RoleKey[] = ["captainId", "penaltiesId", "freekicksId", "cornersId"];
+/** «la capitanía», «los penaltis»… (for «X deja la capitanía»). */
+const ROLE_WORD: Record<RoleKey, string> = { captainId: "la capitanía", penaltiesId: "los penaltis", freekicksId: "las faltas", cornersId: "los córners" };
+const pitchIds = (L: Lineup): Set<string> => new Set(L.slots.map((s) => s.playerId).filter((x): x is string => !!x));
+function pitchRoles(roles: Roles, onPitch: ReadonlySet<string>): Roles {
+  const out: Roles = {};
+  ROLE_KEYS.forEach((k) => {
+    const h = roles[k];
+    if (h && onPitch.has(h)) out[k] = h;
+  });
+  return out;
+}
+/** The lineup with only the galones of those on the pitch (the same object when nothing changes). */
+export function dropBenchedRoles(L: Lineup): Lineup {
+  const on = pitchIds(L);
+  if (ROLE_KEYS.every((k) => !L.roles[k] || on.has(L.roles[k]))) return L;
+  return { ...L, roles: pitchRoles(L.roles, on) };
+}
+/** What a change took off the pitch's galones: «KEVIN deja la capitanía y los penaltis» (null = nothing). */
+export function rolesLost(before: Lineup, after: Lineup, name: (id: string) => string): string | null {
+  const by = new Map<string, string[]>();
+  ROLE_KEYS.forEach((k) => {
+    const h = before.roles[k];
+    // (only who wore it on the pitch: a stale galón of someone already on the bench says nothing)
+    if (h && after.roles[k] !== h && before.slots.some((s) => s.playerId === h) && !after.slots.some((s) => s.playerId === h)) by.set(h, [...(by.get(h) ?? []), ROLE_WORD[k]]);
+  });
+  if (!by.size) return null;
+  const and = (xs: string[]) => (xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " y " + xs[xs.length - 1]);
+  return Array.from(by, ([id, ws]) => name(id) + " deja " + and(ws)).join(" · ");
+}
 
 /** Make a stored lineup safe to edit: seven slots of its system, every player known and only once,
  *  and the bench = the rest of the squad. */
@@ -26,10 +58,17 @@ export function normalize(L: Lineup, squadIds: string[]): Lineup {
     ...L,
     slots,
     bench: squadIds.filter((id) => !onPitch.has(id)),
-    roles: { ...L.roles },
+    roles: pitchRoles(L.roles, onPitch),
     tactics: { ...defaultTactics(), ...L.tactics },
     playerPositions: { ...L.playerPositions },
   };
+}
+
+/** What the lineup's undo rewinds, as a comparable string (the strokes, the jugadas and the stored bench
+ *  left out; keys in a fixed order): a lineup with another one came from somewhere else. */
+export function editSig(L: Lineup): string {
+  const sorted = (o: object | undefined) => Object.entries(o ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return JSON.stringify([L.formation, !!L.freeMode, L.slots.map((s) => [s.playerId ?? null, s.x, s.y]), sorted(L.roles), sorted(L.tactics), sorted(L.playerPositions)]);
 }
 
 /** Keep the stored bench in step with the pitch (the old board reads it). */
@@ -107,7 +146,11 @@ export function setPlaysAs(L: Lineup, sq: Squad, id: string, zone: Zone): Lineup
   return { ...L, playerPositions };
 }
 
-export { placeIntoSlot as place, sendToBench as toBench, swapPlayers as swap };
+/** A player into slot i (whoever was there goes where he came from; off the pitch, without his galones). */
+export const place = (L: Lineup, id: string, i: number): Lineup => dropBenchedRoles(placeIntoSlot(L, id, i));
+/** Off to the bench, galones and all. */
+export const toBench = (L: Lineup, id: string): Lineup => dropBenchedRoles(sendToBench(L, id));
+export const swap = (L: Lineup, a: string, b: string): Lineup => dropBenchedRoles(swapPlayers(L, a, b));
 
 /** The nearest slot to a plane point (optionally only the empty ones; -1 if none). */
 export function nearestSlot(L: Lineup, u: number, v: number, emptyOnly = false): number {
@@ -142,15 +185,15 @@ export function resolveDrop(L: Lineup, sq: Squad, src: DragSource, t: DropTarget
     if (i < 0) return null;
     switch (t.k) {
       case "bench":
-        return { lineup: sendToBench(L, src.id) };
+        return { lineup: toBench(L, src.id) };
       case "gslot":
       case "slot":
-        return t.i === i ? null : { lineup: placeIntoSlot(L, src.id, t.i) };
+        return t.i === i ? null : { lineup: place(L, src.id, t.i) };
       case "tok":
         if (t.id === src.id) return null;
-        if (t.from === "pitch") return { lineup: swapPlayers(L, src.id, t.id) };
+        if (t.from === "pitch") return { lineup: swap(L, src.id, t.id) };
         if (!isAvailable(sq, t.id)) return { toast: name(t.id) + " está de baja" };
-        return { lineup: placeIntoSlot(L, t.id, i) };
+        return { lineup: place(L, t.id, i) };
       case "pitch": {
         if (L.freeMode) {
           const [x, y] = freeSpot(t.u, t.v, grid);
@@ -159,7 +202,7 @@ export function resolveDrop(L: Lineup, sq: Squad, src: DragSource, t: DropTarget
           return { lineup: { ...L, slots } };
         }
         const k = nearestSlot(L, t.u, t.v);
-        return k === i || k < 0 ? null : { lineup: placeIntoSlot(L, src.id, k) };
+        return k === i || k < 0 ? null : { lineup: place(L, src.id, k) };
       }
     }
   }
@@ -173,7 +216,7 @@ export function resolveDrop(L: Lineup, sq: Squad, src: DragSource, t: DropTarget
     if (k < 0) k = nearestSlot(L, t.u, t.v);
   }
   if (k < 0) return null;
-  let next = placeIntoSlot(L, src.id, k);
+  let next = place(L, src.id, k);
   if (next.freeMode && t.k === "pitch") {
     const [x, y] = freeSpot(t.u, t.v, grid);
     const slots = cloneSlots(next);
@@ -183,11 +226,25 @@ export function resolveDrop(L: Lineup, sq: Squad, src: DragSource, t: DropTarget
   return { lineup: next };
 }
 
+// ── who can come in from the bench ──
+/** Can be dealt from the bench: not a baja, didn't say no, and called (when the match has a convocatoria). */
+export function canCome(sq: Squad, id: string, called: ReadonlySet<string> | null): boolean {
+  return isAvailable(sq, id) && sq.byId.get(id)?.cv !== "no" && (!called || called.has(id));
+}
+/** The answer's rank: «Voy» first, then no answer yet, then «Duda». */
+export function answerRank(sq: Squad, id: string): number {
+  const cv = sq.byId.get(id)?.cv;
+  return cv === "voy" ? 0 : cv === "duda" ? 2 : 1;
+}
+
 // ── Auto-colocar: every cromo to his natural zone (the pitch first, then the best of the bench) ──
-export function autoPlace(L: Lineup, sq: Squad): Lineup {
+export function autoPlace(L: Lineup, sq: Squad, called: ReadonlySet<string> | null = null): Lineup {
   const ok = (id: string) => isAvailable(sq, id) && sq.byId.get(id)?.cv !== "no";
   const pool = L.slots.map((s) => s.playerId).filter((id): id is string => !!id && ok(id));
-  const benchAv = sq.list.filter((c) => !pool.includes(c.id) && ok(c.id) && !L.slots.some((s) => s.playerId === c.id)).sort((a, b) => b.rt - a.rt).map((c) => c.id);
+  const benchAv = sq.list
+    .filter((c) => !pool.includes(c.id) && canCome(sq, c.id, called) && !L.slots.some((s) => s.playerId === c.id))
+    .sort((a, b) => answerRank(sq, a.id) - answerRank(sq, b.id) || b.rt - a.rt)
+    .map((c) => c.id);
   const cand = pool.concat(benchAv);
   const out: (string | null)[] = L.slots.map(() => null);
   const used = new Set<string>();
@@ -215,5 +272,5 @@ export function autoPlace(L: Lineup, sq: Squad): Lineup {
       used.add(id);
     }
   }
-  return { ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })) };
+  return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })) });
 }

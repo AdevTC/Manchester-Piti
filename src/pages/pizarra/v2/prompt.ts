@@ -16,8 +16,12 @@ export interface PromptCtx {
 }
 
 export interface PromptActs {
+  /** The lineup's undo (the siete). */
   undo: () => void;
   undoStroke: () => void;
+  redoStroke: () => void;
+  /** The jugadas' own undo (their edits). */
+  undoJugada: () => void;
   captain: () => void;
   galones: () => void;
   ficha: () => void;
@@ -63,9 +67,12 @@ export function promptItems(c: PromptCtx, a: PromptActs): PromptItem[] {
       { k: "←", t: "Paso anterior", go: a.prev },
       { k: "→", t: "Paso siguiente", go: a.next },
       ...(c.pieces ? [{ k: "Arrastra", t: "Retocar el paso" }] : []),
+      // (Ctrl Z here undoes the jugadas' edits, never the siete hidden behind them)
+      ...(c.ro ? [] : [{ k: "Ctrl Z", t: "Deshacer en la jugada", go: a.undoJugada }]),
       back,
     ];
-  if (c.modo === "dibujar") return c.ro ? [back] : [{ k: "Arrastra", t: "Dibujar en el césped" }, { k: "Ctrl Z", t: "Deshacer trazo", go: a.undoStroke }, back];
+  if (c.modo === "dibujar")
+    return c.ro ? [back] : [{ k: "Arrastra", t: "Dibujar en el césped" }, { k: "Ctrl Z", t: "Deshacer trazo", go: a.undoStroke }, { k: "Ctrl ⇧ Z", t: "Rehacer trazo", go: a.redoStroke }, back];
   if (c.modo === "charla")
     return [
       { k: "Espacio", t: c.playing ? "Pausa" : "Reproducir", go: a.toggle },

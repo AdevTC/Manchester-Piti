@@ -86,15 +86,37 @@ export function depthScale(C: Cam, s: number): number {
 }
 
 // ── The systems, as designed: [label, zone, u, v] per slot (0 = POR, then back to front). ──
+// Spaced so that, with the plan's línea Media and mentalidad Equilibrada (any amplitud), no two cromos
+// overlap on either camera at the phone's card size (--cw 16, the largest): a card is 5:7, held at 84%
+// of its height (see fit.test.ts).
 export type SlotSpot = readonly [label: string, zone: Zone, u: number, v: number];
 export const FORM: Record<FormationName, readonly SlotSpot[]> = {
-  "2-3-1": [["POR", "POR", 50, 95], ["DFC", "DEF", 30, 73], ["DFC", "DEF", 70, 73], ["MI", "MED", 17, 50], ["MC", "MED", 50, 54], ["MD", "MED", 83, 50], ["DC", "DEL", 50, 24]],
-  "3-2-1": [["POR", "POR", 50, 95], ["LI", "DEF", 18, 70], ["DFC", "DEF", 50, 74], ["LD", "DEF", 82, 70], ["MC", "MED", 32, 49], ["MC", "MED", 68, 49], ["DC", "DEL", 50, 24]],
-  "3-1-2": [["POR", "POR", 50, 95], ["LI", "DEF", 18, 70], ["DFC", "DEF", 50, 74], ["LD", "DEF", 82, 70], ["MC", "MED", 50, 51], ["DC", "DEL", 31, 26], ["DC", "DEL", 69, 26]],
-  "2-1-3": [["POR", "POR", 50, 95], ["DFC", "DEF", 30, 74], ["DFC", "DEF", 70, 74], ["MC", "MED", 50, 54], ["EI", "DEL", 17, 32], ["DC", "DEL", 50, 23], ["ED", "DEL", 83, 32]],
-  "1-3-2": [["POR", "POR", 50, 95], ["LIB", "DEF", 50, 74], ["MI", "MED", 17, 51], ["MC", "MED", 50, 53], ["MD", "MED", 83, 51], ["DC", "DEL", 31, 26], ["DC", "DEL", 69, 26]],
-  "2-1-2-1": [["POR", "POR", 50, 95], ["DFC", "DEF", 29, 76], ["DFC", "DEF", 71, 76], ["MCD", "MED", 50, 59], ["MI", "MED", 20, 41], ["MD", "MED", 80, 41], ["DC", "DEL", 50, 20]],
+  "2-3-1": [["POR", "POR", 50, 95], ["DFC", "DEF", 30, 74], ["DFC", "DEF", 70, 74], ["MI", "MED", 17, 49], ["MC", "MED", 50, 50], ["MD", "MED", 83, 49], ["DC", "DEL", 50, 22]],
+  "3-2-1": [["POR", "POR", 50, 95], ["LI", "DEF", 18, 72], ["DFC", "DEF", 50, 74], ["LD", "DEF", 82, 72], ["MC", "MED", 25, 46], ["MC", "MED", 75, 46], ["DC", "DEL", 50, 22]],
+  "3-1-2": [["POR", "POR", 50, 95], ["LI", "DEF", 18, 72], ["DFC", "DEF", 50, 74], ["LD", "DEF", 82, 72], ["MC", "MED", 50, 48], ["DC", "DEL", 22, 22], ["DC", "DEL", 78, 22]],
+  "2-1-3": [["POR", "POR", 50, 95], ["DFC", "DEF", 30, 74], ["DFC", "DEF", 70, 74], ["MC", "MED", 50, 50], ["EI", "DEL", 17, 30], ["DC", "DEL", 50, 22], ["ED", "DEL", 83, 30]],
+  "1-3-2": [["POR", "POR", 50, 95], ["LIB", "DEF", 50, 74], ["MI", "MED", 17, 50], ["MC", "MED", 50, 48], ["MD", "MED", 83, 50], ["DC", "DEL", 22, 22], ["DC", "DEL", 78, 22]],
+  "2-1-2-1": [["POR", "POR", 50, 95], ["DFC", "DEF", 24, 74], ["DFC", "DEF", 76, 74], ["MCD", "MED", 50, 59], ["MI", "MED", 20, 41], ["MD", "MED", 80, 41], ["DC", "DEL", 50, 20]],
 };
+
+/** A cromo's box on the pitch frame, in % of the frame's width (x and y alike), as the CSS draws it:
+ *  width --cw × its depth scale, 5:7, held at 50% across and 84% down (translate(-50%,-84%)). */
+export interface CardRect {
+  l: number;
+  r: number;
+  t: number;
+  b: number;
+}
+export function cardRect(C: Cam, u: number, v: number, cw: number): CardRect {
+  const p = proj(C, u, v);
+  const sc = depthScale(C, p.s);
+  const w = cw * sc;
+  const h = w * 1.4;
+  const y = p.y * C.Fh;
+  return { l: p.x - w / 2, r: p.x + w / 2, t: y - 0.84 * h, b: y + 0.16 * h };
+}
+/** Whether two cromo boxes cover each other (touching edges do not). */
+export const cardsOverlap = (a: CardRect, b: CardRect): boolean => Math.min(a.r, b.r) - Math.max(a.l, b.l) > 0 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 0;
 export const SYSTEMS = Object.keys(FORM) as FormationName[];
 
 // How the plan moves the seven (v offsets in % of the length; amplitude multiplier).

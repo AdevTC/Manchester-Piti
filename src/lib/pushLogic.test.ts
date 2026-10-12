@@ -63,6 +63,9 @@ describe("«Ya está el siete» (the official seven on the pizarra)", () => {
     });
     expect(lineupNotice("b2", undefined, { isOfficial: true, matchId: "gone" }, undefined)?.body).toBe("El capitán ya ha publicado el siete del partido. Ábrelo y mira la charla.");
   });
+  it("the notice opens the board in its own season", () => {
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8", seasonId: "t2" }, j8)?.url).toBe("/pizarra?tablero=b1&season=t2#charla");
+  });
   it("its alcance changes: a new notice (with its own tag); edits of an official that stays put: none", () => {
     const off = { isOfficial: true, matchId: "j8" };
     expect(lineupNotice("b1", off, { isOfficial: true, matchId: null }, null)?.tag).toBe("lineup-b1-temporada");

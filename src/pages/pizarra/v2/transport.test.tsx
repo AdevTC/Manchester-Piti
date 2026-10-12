@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useCharla } from "./useCharla";
 import { useReplay } from "./useReplay";
+import { ENGINE_MAX_MS } from "./charla";
 
 // The transports act at once on every press, from where the charla / the replay really is: quick
 // presses add up even when the board (or the 3D stadium) has not drawn the previous one yet — here, many
@@ -44,6 +45,30 @@ describe("la charla's transport", () => {
     expect(result.current.step).toBe(2);
     act(() => api.reached(5));
     expect(result.current.step).toBe(2);
+  });
+
+  it("a 3D stadium that never reports doesn't freeze the charla: the step moves on after ENGINE_MAX_MS", () => {
+    vi.useFakeTimers();
+    try {
+      const onMove = vi.fn();
+      // the engine paces steps 1 on (the seven), and never says it reached one
+      const { result } = renderHook(() => useCharla({ on: true, last: 13, rm: false, engine: (s) => s >= 1, onMove }));
+      act(() => {
+        vi.advanceTimersByTime(2600);
+      });
+      expect(result.current.step).toBe(1);
+      act(() => {
+        vi.advanceTimersByTime(ENGINE_MAX_MS - 100);
+      });
+      expect(result.current.step).toBe(1);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(result.current.step).toBe(2);
+      expect(onMove).toHaveBeenLastCalledWith(2, "tick");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("play / pause pressed twice quickly is back where it was", () => {

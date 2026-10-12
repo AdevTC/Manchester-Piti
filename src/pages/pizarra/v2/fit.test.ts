@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { CAMS, camGeo, FORM, proj, SYSTEMS } from "./geometry";
+import { CAMS, camGeo, cardRect, cardsOverlap, FORM, proj, slotLabel, slotPos, SYSTEMS } from "./geometry";
+import { lineupOf } from "./testkit";
 
 // The pitch is fitted by the layout (CSS), from the camera's geometry: --cut (the frame above the far LED
 // ribbon, the pitch's top edge on screen), --vr (the visible frame) and --kb (just under the keeper's
@@ -33,5 +34,45 @@ describe("the camera's geometry for the layout", () => {
 
   it("the keeper stands at 95 in every system (as designed)", () => {
     expect(SYSTEMS.map((s) => FORM[s][0][3])).toEqual(SYSTEMS.map(() => 95));
+  });
+});
+
+// The cromo's size in pizarra.css: .app{--cw:16} on phones, 15.2 on tablets, 15 on desktop (in cqw of the
+// frame), 5:7, held at translate(-50%,-84%) scale(--sc) where --sc is depthScale. Same frame units for
+// every viewport, so the largest (the phone's) is the one that must fit.
+const CW = [16, 15.2, 15];
+
+describe("no two cromos cover each other", () => {
+  for (const cam of ["tv", "top"] as const)
+    for (const width of ["Estrecha", "Media", "Amplia"])
+      it(`${cam} camera, amplitud ${width}: every system with the default plan`, () => {
+        const C = CAMS[cam];
+        const hits: string[] = [];
+        for (const f of SYSTEMS) {
+          const base = lineupOf([], f);
+          const L = { ...base, tactics: { ...base.tactics, width } };
+          for (const cw of CW) {
+            const rects = L.slots.map((_, i) => {
+              const p = slotPos(L, i);
+              return cardRect(C, p.u, p.v, cw);
+            });
+            for (let a = 0; a < rects.length; a++)
+              for (let b = a + 1; b < rects.length; b++) if (cardsOverlap(rects[a], rects[b])) hits.push(f + " " + slotLabel(L, a) + "/" + slotLabel(L, b) + " @" + cw);
+          }
+        }
+        expect(hits).toEqual([]);
+      });
+
+  it("the reported overlaps are gone: 1-3-2's líbero and MC, 2-3-1's DFCs and MC on the phone", () => {
+    const C = CAMS.tv;
+    const at = (f: "1-3-2" | "2-3-1", i: number) => {
+      const p = slotPos(lineupOf([], f), i);
+      return cardRect(C, p.u, p.v, 16);
+    };
+    expect(cardsOverlap(at("1-3-2", 1), at("1-3-2", 3))).toBe(false);
+    expect(cardsOverlap(at("2-3-1", 1), at("2-3-1", 4))).toBe(false);
+    expect(cardsOverlap(at("2-3-1", 2), at("2-3-1", 4))).toBe(false);
+    // (the boxes are real: the same spot overlaps itself)
+    expect(cardsOverlap(at("2-3-1", 4), at("2-3-1", 4))).toBe(true);
   });
 });

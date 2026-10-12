@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import {
-  addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   query,
+  runTransaction,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
   writeBatch,
@@ -14,7 +16,7 @@ import {
 import { db } from "../../firebase";
 import { useAuth } from "../../context/AuthContext";
 import type { Lineup } from "./formations";
-import { dataToLineupDoc, lineupToData, type LineupDoc, type LineupMeta } from "./lineupDoc";
+import { boardToData, dataToLineupDoc, lineupToData, type LineupDoc, type LineupMeta } from "./lineupDoc";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import { mapLineup } from "../../lib/firestoreMappers";
 
@@ -68,6 +70,89 @@ function localId(): string {
   return `local-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
 
+/** The autosave's update: the board fields (and the match only when one is passed). */
+export function saveData(lineup: Lineup, matchId?: string | null): Record<string, unknown> {
+  return {
+    ...boardToData(lineup),
+    ...(matchId !== undefined ? { matchId } : {}),
+    // no longer stored (see boardToData): dropped from older docs on their next save
+    bench: deleteField(),
+    pinned: deleteField(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
+/** The doc that holds an official's scope (a match, or the season): one board per scope. */
+export const officialScopeId = (seasonId: string, matchId: string | null): string => `${seasonId}__${matchId ?? "temporada"}`;
+
+/**
+ * Publishes `id` as the official of `scope` (or unpublishes it, scope null) in ONE transaction: the
+ * scope doc (`lineupOfficials`) names its board, so two captains publishing at once serialize on it —
+ * the second sees the first's board and unmarks it — and never leave two officials. Officials from
+ * before the scope doc are found with a query and unmarked in the same transaction. Returns the boards
+ * that stopped being official (their reactions go).
+ */
+export async function publishOfficial(seasonId: string, id: string, scope: OfficialScope | null): Promise<string[]> {
+  const legacy = scope
+    ? (await getDocs(query(collection(db, "lineups"), where("seasonId", "==", seasonId), where("isOfficial", "==", true)))).docs
+        .filter((p) => p.id !== id && ((p.data().matchId as string | null | undefined) ?? null) === scope.matchId)
+        .map((p) => p.id)
+    : [];
+  return runTransaction(db, async (tx) => {
+    const ref = doc(db, "lineups", id);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("Ese tablero ya no existe");
+    const was = snap.data();
+    const wasOfficial = was.isOfficial === true;
+    const wasScope = ((was.matchId as string | null | undefined) ?? null) as string | null;
+    const at = serverTimestamp();
+    // reads first (a transaction writes after all its reads)
+    const oldLockRef = wasOfficial && (!scope || wasScope !== scope.matchId) ? doc(db, "lineupOfficials", officialScopeId(seasonId, wasScope)) : null;
+    const oldLock = oldLockRef ? await tx.get(oldLockRef) : null;
+    const lockRef = scope ? doc(db, "lineupOfficials", officialScopeId(seasonId, scope.matchId)) : null;
+    const lock = lockRef ? await tx.get(lockRef) : null;
+    const others = new Set(legacy);
+    const holder = lock?.exists() ? (lock.data().lineupId as unknown) : null;
+    if (typeof holder === "string" && holder !== id) others.add(holder);
+    const otherSnaps = await Promise.all([...others].map((o) => tx.get(doc(db, "lineups", o))));
+    // writes
+    const unmarked: string[] = [];
+    if (scope && lockRef) {
+      for (const o of otherSnaps) {
+        const d = o.data();
+        if (o.exists() && d?.isOfficial === true && ((d.matchId as string | null | undefined) ?? null) === scope.matchId) {
+          tx.update(o.ref, { isOfficial: false, updatedAt: at });
+          unmarked.push(o.id);
+        }
+      }
+      tx.update(ref, { isOfficial: true, matchId: scope.matchId, updatedAt: at });
+      tx.set(lockRef, { lineupId: id, seasonId, matchId: scope.matchId, at });
+    } else {
+      tx.update(ref, { isOfficial: false, updatedAt: at });
+      if (wasOfficial) unmarked.push(id);
+    }
+    if (oldLockRef && oldLock?.exists() && oldLock.data().lineupId === id) tx.delete(oldLockRef);
+    return unmarked;
+  });
+}
+
+/** Deletes the reactions to boards that are no longer official (or are being deleted), in batches. */
+export async function clearReactions(ids: string[]): Promise<void> {
+  for (const lid of ids) {
+    try {
+      const snap = await getDocs(collection(db, "lineups", lid, "reactions"));
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        const batch = writeBatch(db);
+        snap.docs.slice(i, i + 400).forEach((r) => batch.delete(r.ref));
+        await batch.commit();
+      }
+    } catch (err) {
+      // the board change already happened: stale reactions are only shown on an official again
+      console.error("No se pudieron limpiar las reacciones del tablero", err);
+    }
+  }
+}
+
 export function useLineups(seasonId: string): UseLineups {
   const { user, profile } = useAuth();
   const uid = user?.uid ?? "preview";
@@ -111,17 +196,12 @@ export function useLineups(seasonId: string): UseLineups {
       setLocalRecords((prev) => {
         const i = prev.findIndex((r) => r.id === id);
         if (i < 0) return prev;
-        const cur = dataToLineupDoc(id, prev[i]);
-        const meta: LineupMeta = {
-          ownerUid: cur.ownerUid,
-          ownerNickname: cur.ownerNickname,
-          seasonId: cur.seasonId,
-          name: cur.name,
-          isOfficial: cur.isOfficial,
-          matchId: matchId !== undefined ? matchId : cur.matchId,
-        };
         const next = [...prev];
-        next[i] = { id, ...lineupToData(lineup, meta), createdAt: cur.createdAt ?? Date.now(), updatedAt: Date.now() };
+        const rec: LocalRecord = { ...prev[i], ...boardToData(lineup), id, updatedAt: Date.now() };
+        delete rec.bench;
+        delete rec.pinned;
+        if (matchId !== undefined) rec.matchId = matchId;
+        next[i] = rec;
         return persistLocal(next);
       });
     };
@@ -169,49 +249,31 @@ export function useLineups(seasonId: string): UseLineups {
   }, [localRecords, uid, nickname, seasonId]);
 
   const firestoreApi = useMemo<UseLineups>(() => {
+    // The id is made here and the write goes to the local cache at once: the new board is there (and
+    // opens) even offline; the server ack comes when it comes. A refused write shows up as a failed save.
     const create: UseLineups["create"] = async (lineup, name) => {
       const meta: LineupMeta = { ownerUid: uid, ownerNickname: nickname, seasonId, name, isOfficial: false, matchId: null };
-      const ref = await addDoc(collection(db, "lineups"), {
-        ...lineupToData(lineup, meta),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      const ref = doc(collection(db, "lineups"));
+      setDoc(ref, { ...lineupToData(lineup, meta), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }).catch((err: unknown) =>
+        console.error("No se pudo crear el tablero", err),
+      );
       return ref.id;
     };
+    // Only what the board edits: a rename, a publish or a match link made elsewhere is never rewritten
+    // with this device's (maybe stale) copy when a queued autosave lands. The old dead weight goes.
     const save: UseLineups["save"] = async (id, lineup, matchId) => {
-      const cur = items.find((d) => d.id === id);
-      const meta: LineupMeta = {
-        ownerUid: cur?.ownerUid ?? uid,
-        ownerNickname: cur?.ownerNickname ?? nickname,
-        seasonId,
-        name: cur?.name ?? "Sin nombre",
-        isOfficial: cur?.isOfficial ?? false,
-        matchId: matchId !== undefined ? matchId : (cur?.matchId ?? null),
-      };
-      await updateDoc(doc(db, "lineups", id), { ...lineupToData(lineup, meta), updatedAt: serverTimestamp() });
+      await updateDoc(doc(db, "lineups", id), saveData(lineup, matchId));
     };
     const rename: UseLineups["rename"] = async (id, name) => {
       await updateDoc(doc(db, "lineups", id), { name, updatedAt: serverTimestamp() });
     };
     const remove: UseLineups["remove"] = async (id) => {
+      await clearReactions([id]);
       await deleteDoc(doc(db, "lineups", id));
     };
     const markOfficial: UseLineups["markOfficial"] = async (id, scope) => {
-      const batch = writeBatch(db);
-      if (scope) {
-        // Uniqueness: unmark the current official of the same scope.
-        const prevSnap = await getDocs(
-          query(collection(db, "lineups"), where("seasonId", "==", seasonId), where("isOfficial", "==", true)),
-        );
-        prevSnap.forEach((p) => {
-          const m = (p.data().matchId as string | null) ?? null;
-          if (p.id !== id && m === scope.matchId) batch.update(p.ref, { isOfficial: false, updatedAt: serverTimestamp() });
-        });
-        batch.update(doc(db, "lineups", id), { isOfficial: true, matchId: scope.matchId, updatedAt: serverTimestamp() });
-      } else {
-        batch.update(doc(db, "lineups", id), { isOfficial: false, updatedAt: serverTimestamp() });
-      }
-      await batch.commit();
+      const unmarked = await publishOfficial(seasonId, id, scope);
+      await clearReactions(unmarked);
     };
 
     return {

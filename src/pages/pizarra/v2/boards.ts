@@ -160,7 +160,18 @@ export function convocatoriaFromBoard(conv: { starters: readonly string[]; bench
   return { starters: s, bench: [...conv.bench.filter(out), ...conv.starters.filter((id) => out(id) && !conv.bench.includes(id))] };
 }
 
-/** The link to a board (`#charla` = straight to its charla). */
-export function boardLink(origin: string, id: string, charla = false): string {
-  return origin + "/pizarra?tablero=" + encodeURIComponent(id) + (charla ? "#charla" : "");
+/**
+ * The link to a board (`#charla` = straight to its charla). With the board's season (`?season=`, the
+ * app-wide search param) the receiver opens it in that season, whatever season they had picked.
+ */
+/**
+ * A link's `?season=` not adopted yet by the season context (SeasonUrlSync does it in an effect, once the
+ * seasons are loaded): the board waits, else it would look for the link's board in the old season.
+ */
+export const seasonPending = (urlSeason: string | undefined, selectedSeasonId: string): boolean =>
+  urlSeason !== undefined && urlSeason !== selectedSeasonId;
+
+export function boardLink(origin: string, id: string, charla = false, seasonId?: string | null): string {
+  const season = seasonId ? "&season=" + encodeURIComponent(seasonId) : "";
+  return origin + "/pizarra?tablero=" + encodeURIComponent(id) + season + (charla ? "#charla" : "");
 }

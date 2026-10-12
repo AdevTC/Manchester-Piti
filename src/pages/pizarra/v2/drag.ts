@@ -50,6 +50,22 @@ export const LONG_PRESS_MS = 480;
 /** After a drag or a long press, the click that follows is ignored for this long. */
 export const CLICK_GUARD_MS = 450;
 
+// The phone's bench is a strip that scrolls sideways under the finger: there a finger only lifts a cromo
+// after holding it still (it lifts, with a buzz) or by moving it mostly upwards, toward the pitch; a
+// sideways swipe scrolls the strip. The mouse drags at once.
+/** Holding a strip cromo this long lifts it: from then on it follows the finger anywhere. */
+export const BENCH_HOLD_MS = 300;
+/** On the strip the ficha (the long press) waits a little longer, so a lifted cromo can still be moved. */
+export const BENCH_FICHA_MS = 800;
+
+/** What a finger moving (dx, dy px from where it pressed) on a strip cromo does: still `wait`ing, `drag`
+ *  (lifted already, or mostly upwards), or `scroll` (sideways or downwards: the strip's, not ours). */
+export function stripGesture(dx: number, dy: number, lifted: boolean): "wait" | "drag" | "scroll" {
+  if (Math.hypot(dx, dy) < DRAG_SLOP) return "wait";
+  if (lifted) return "drag";
+  return -dy > Math.abs(dx) ? "drag" : "scroll";
+}
+
 export type Dir = "up" | "down" | "left" | "right";
 export const DIR_KEYS: Record<string, Dir> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
 

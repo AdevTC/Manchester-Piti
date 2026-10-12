@@ -19,16 +19,55 @@ export interface CharlaOverlayProps {
   onStep: (d: 1 | -1) => void;
   onSeek: (i: number) => void;
   onExit: () => void;
+  /** The seven isn't whole: the charla waits for the captain to choose (present it anyway, start from
+   *  the plan, or go back to complete it). */
+  gate?: CharlaGate | null;
 }
 
-export function CharlaOverlay({ v, step, playing, rm, onToggle, onStep, onSeek, onExit }: CharlaOverlayProps) {
+export interface CharlaGate {
+  missing: number;
+  onAnyway: () => void;
+  onPlan: () => void;
+}
+
+/** «Faltan N: ¿presentar igualmente?» before a charla with holes in the seven. */
+function Gate({ g, onExit }: { g: CharlaGate; onExit: () => void }) {
+  const first = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    first.current?.focus({ preventScroll: true });
+  }, []);
+  const t = g.missing >= 7 ? "El siete está vacío" : g.missing === 1 ? "Falta 1 en el siete" : "Faltan " + g.missing + " en el siete";
+  return (
+    <div className="ch-gate" role="group" aria-label={t + ": ¿presentar igualmente?"}>
+      <b>{t}</b>
+      <span>{g.missing >= 7 ? "No hay nadie a quien presentar: empieza por el plan o coloca el siete." : "Sus huecos saldrán en la charla. ¿Presentarla igualmente?"}</span>
+      <div className="row">
+        {g.missing < 7 && (
+          <button ref={first} type="button" className="b3 gold" onClick={g.onAnyway}>
+            Presentar igualmente
+          </button>
+        )}
+        <button ref={g.missing >= 7 ? first : undefined} type="button" className="b3" onClick={g.onPlan}>
+          Empezar por el plan
+        </button>
+        <button type="button" className="b3" onClick={onExit}>
+          Completar el siete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function CharlaOverlay({ v, step, playing, rm, onToggle, onStep, onSeek, onExit, gate }: CharlaOverlayProps) {
   const running = playing && step < v.last;
   // The transport takes the focus while the charla is on (the app bar that opened it is hidden on
   // phones) and gives it back when it closes.
   const playRef = useRef<HTMLButtonElement>(null);
+  // (opened asking about the holes in the seven, the question has the focus)
+  const asked = useRef(!!gate);
   useEffect(() => {
     const prev = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
-    playRef.current?.focus({ preventScroll: true });
+    if (!asked.current) playRef.current?.focus({ preventScroll: true });
     return () => {
       if (prev?.isConnected) prev.focus({ preventScroll: true });
     };
@@ -52,7 +91,8 @@ export function CharlaOverlay({ v, step, playing, rm, onToggle, onStep, onSeek, 
           <Icon n="x" />
         </button>
       </div>
-      {v.big && (
+      {gate && <Gate g={gate} onExit={onExit} />}
+      {v.big && !gate && (
         <div key={"big" + step} className={"ch-big" + (v.big.fin ? " fin" : "")} aria-hidden="true">
           <b>{v.big.txt}</b>
         </div>

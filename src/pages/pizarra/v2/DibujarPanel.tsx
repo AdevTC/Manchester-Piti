@@ -9,6 +9,7 @@ import { Icon, Nuevo, type IconName } from "./icons";
 import { COLORS, TOOLS } from "./telestrator";
 import { vars } from "./view";
 import { pluralWord } from "./plural";
+import { useConfirmKeys } from "./useConfirmKeys";
 
 const TOOL_ICON: Record<StrokeKind, IconName> = { carrera: "run", pase: "pass", conduccion: "drib", zona: "zone", lapiz: "pencil", texto: "text" };
 const LEGEND: [IconName, string][] = [
@@ -41,6 +42,7 @@ export interface DibujarPanelProps {
 
 export function DibujarPanel(p: DibujarPanelProps) {
   const [ask, setAsk] = useState(false);
+  useConfirmKeys(ask, () => setAsk(false));
   const n = p.strokes.length;
   const sel = p.strokes.find((s) => s.sel) ?? null;
   return (

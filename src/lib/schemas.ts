@@ -140,6 +140,45 @@ export const lineupSchema = z.looseObject({
 });
 export type LineupRawDoc = z.infer<typeof lineupSchema>;
 
+/**
+ * Campos del tablero, validados uno a uno al leer (`dataToLineupDoc`): un campo
+ * inválido se repara a un valor seguro (y se avisa por telemetría) en vez de
+ * descartar el tablero o romper la pizarra. Los mismos topes que firestore.rules.
+ */
+export const LINEUP_LIMITS = {
+  slots: 7,
+  name: 60,
+  nickname: 40,
+  id: 128,
+  position: 8,
+  tactic: 40,
+  playerPositions: 60,
+} as const;
+export const LINEUP_FORMATIONS = ["2-3-1", "3-2-1", "3-1-2", "2-1-3", "1-3-2", "2-1-2-1"] as const;
+export const LINEUP_ZONES = ["POR", "DEF", "MED", "DEL"] as const;
+const lineupRef = z.string().min(1).max(LINEUP_LIMITS.id);
+/** Coordenada del campo en %: un número fuera de 0–100 se lleva al borde. */
+const lineupPct = z.number().refine(Number.isFinite).transform((v) => Math.min(100, Math.max(0, v)));
+export const lineupSlotSchema = z.object({
+  slotId: z.string().min(1).max(40),
+  playerId: lineupRef.nullable(),
+  position: z.string().max(LINEUP_LIMITS.position),
+  zone: z.enum(LINEUP_ZONES),
+  x: lineupPct,
+  y: lineupPct,
+});
+export const lineupSlotsSchema = z.array(lineupSlotSchema).length(LINEUP_LIMITS.slots);
+export const lineupRolesSchema = z.object({
+  captainId: lineupRef.optional(),
+  penaltiesId: lineupRef.optional(),
+  freekicksId: lineupRef.optional(),
+  cornersId: lineupRef.optional(),
+});
+export const lineupTacticsSchema = z.record(z.string().max(LINEUP_LIMITS.tactic), z.string().max(LINEUP_LIMITS.tactic));
+export const lineupPositionsSchema = z
+  .record(lineupRef, z.enum(LINEUP_ZONES))
+  .refine((r) => Object.keys(r).length <= LINEUP_LIMITS.playerPositions, { message: "Demasiadas posiciones." });
+
 // ── Pizarra: dibujos, jugadas y reacciones ───────────────────────────────────
 
 /**

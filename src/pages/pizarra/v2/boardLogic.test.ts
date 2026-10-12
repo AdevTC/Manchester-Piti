@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { autoPlace, freeSpot, goFree, normalize, resetFree, resolveDrop, setPlaysAs, setSystem, stepSystem, cycleDefLine } from "./ops";
+import { autoPlace, dropBenchedRoles, freeSpot, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setPlaysAs, setSystem, stepSystem, swap, toBench, cycleDefLine } from "./ops";
 import { applyFan, fanCentre, fanItems, FAN_RADIUS } from "./fan";
 import { packRanking, reelFor, suggestSeven, packDelay } from "./pack";
-import { convocatoriaFromBoard } from "./boards";
+import { convocatoriaFromBoard, withConvocatoria } from "./boards";
 import { slotPos } from "./geometry";
 import { isFull, natOf } from "./model";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
@@ -88,11 +88,11 @@ describe("systems and free mode", () => {
   it("Libre keeps every spot; reset puts them back on the system", () => {
     const f = goFree(L);
     expect(f.freeMode).toBe(true);
-    expect([f.slots[3].x, f.slots[3].y]).toEqual([17, 50]);
+    expect([f.slots[3].x, f.slots[3].y]).toEqual([17, 49]);
     const moved = { ...f, slots: f.slots.map((s) => ({ ...s, x: 10, y: 10 })) };
     const back = resetFree(moved);
     expect(back.freeMode).toBe(true);
-    expect([back.slots[3].x, back.slots[3].y]).toEqual([17, 50]);
+    expect([back.slots[3].x, back.slots[3].y]).toEqual([17, 49]);
   });
   it("cycles the línea Baja → Media → Alta", () => {
     expect(cycleDefLine(L).tactics.defLine).toBe("Alta");
@@ -119,6 +119,41 @@ describe("Auto-colocar", () => {
     expect(sq.byId.get(n.slots[6].playerId as string)?.pos).toBe("DEL");
     expect(n.slots.filter((s) => s.playerId)).toHaveLength(7);
     expect(isFull(n, sq)).toBe(true);
+  });
+  it("with a convocatoria: never brings in someone it doesn't call; «Voy» before «Duda»", () => {
+    const sq = withConvocatoria(demoSquad(), new Map([["kevin", "duda"], ["erik", "voy"]]));
+    const L = lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", null], "2-3-1", sq);
+    expect(autoPlace(L, sq, new Set(["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "kevin"])).slots[6].playerId).toBe("kevin");
+    expect(autoPlace(L, sq, new Set(["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi"])).slots[6].playerId).toBeNull();
+    // (adrian, 96, has not answered: erik said «Voy»)
+    expect(autoPlace(L, sq).slots[6].playerId).toBe("erik");
+  });
+});
+
+describe("the galones belong to the seven", () => {
+  const sq = demoSquad();
+  const L = { ...lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq), roles: { captainId: "tello", penaltiesId: "tello", cornersId: "adrian" } };
+  const nm = (id: string) => sq.byId.get(id)?.name ?? id;
+  it("whoever goes to the bench leaves his galones (and says so)", () => {
+    const b = toBench(L, "tello");
+    expect(b.roles).toEqual({ cornersId: "adrian" });
+    expect(rolesLost(L, b, nm)).toBe("TELLO deja la capitanía y los penaltis");
+    const f = applyFan(fanItems(L, sq, "tello", false)[5], L, sq, "tello");
+    expect(f.kind === "lineup" && f.lineup.roles.captainId).toBeUndefined();
+  });
+  it("a bench player coming in for him, a swap with the bench and Auto-colocar too", () => {
+    const p = place(L, "kevin", 6);
+    expect(p.roles).toEqual({ captainId: "tello", penaltiesId: "tello" });
+    expect(rolesLost(L, p, nm)).toBe("ADRIAN deja los córners");
+    expect(swap(L, "tello", "illescas").roles).toEqual(L.roles);
+    const r = resolveDrop(L, sq, { id: "tello", from: "pitch" }, { k: "bench" }, false);
+    expect(r && "lineup" in r && r.lineup.roles.captainId).toBeUndefined();
+  });
+  it("a stored board's galones off the pitch are dropped when it is opened; moving on the pitch keeps them", () => {
+    const stale = { ...lineupOf(["evans"], "2-3-1", sq), roles: { captainId: "kevin", penaltiesId: "evans" } };
+    expect(normalize(stale, sq.list.map((c) => c.id)).roles).toEqual({ penaltiesId: "evans" });
+    expect(dropBenchedRoles(L)).toBe(L);
+    expect(rolesLost(L, swap(L, "tello", "adrian"), nm)).toBeNull();
   });
 });
 
@@ -157,7 +192,7 @@ describe("«Sugerir siete»: the pack", () => {
   });
   it("deals the convocatoria's siete first: a whole one is exactly those seven, a partial one is completed", () => {
     // the pack alone would take m1, f1, gk1, d1, d2, m2, …: the convocatoria wins (even the low-form m3 and gk2)
-    const own = ["gk2", "d3", "m2", "m3", "f2", "d1", "m1"];
+    const own = ["gk2", "d2", "m2", "m3", "f2", "d1", "m1"];
     const whole = suggestSeven(lineupOf([], "2-3-1", sq), sq, own);
     expect(new Set(ids(whole))).toEqual(new Set(own));
     expect(whole.slots[0].playerId).toBe("gk2");
@@ -166,6 +201,36 @@ describe("«Sugerir siete»: the pack", () => {
     expect(ids(part)).toContain("f2");
     expect(part.slots.filter((s) => s.playerId)).toHaveLength(7);
     expect(part.slots[0].playerId).toBe("gk1");
+  });
+  it("never deals the convocatoria's bajas or «no va»: the pack completes the seven", () => {
+    const own = ["gk2", "d3", "m2", "m3", "f2", "d1", "m4"];
+    const n = suggestSeven(lineupOf([], "2-3-1", sq), sq, own);
+    expect(ids(n)).not.toContain("d3");
+    expect(ids(n)).not.toContain("m4");
+    expect(n.slots.filter((s) => s.playerId)).toHaveLength(7);
+    ["gk2", "m2", "m3", "f2", "d1"].forEach((id) => expect(ids(n)).toContain(id));
+  });
+  it("keeps «Jugar de» for those who stay on the pitch, and drops the galones of those who leave", () => {
+    const L = { ...lineupOf(["gk2", "d3", null, "m3", null, null, null], "2-3-1", sq), playerPositions: { m3: "DEL" as const, d3: "MED" as const }, roles: { captainId: "d3", penaltiesId: "m1" } };
+    const n = suggestSeven(L, sq, ["m3"]);
+    expect(ids(n)).toContain("m3");
+    expect(ids(n)).not.toContain("d3");
+    expect(n.playerPositions).toEqual({ m3: "DEL" });
+    expect(ids(n)).toContain("m1");
+    expect(n.roles).toEqual({ penaltiesId: "m1" });
+  });
+  it("with a convocatoria: only those it calls, «Voy» before no answer before «Duda»", () => {
+    const s2 = squadOf([
+      cromo("a", 1, "MED", { recentMin: 10, cv: "voy" }),
+      cromo("b", 2, "MED", { recentMin: 300, cv: "duda" }),
+      cromo("c", 3, "MED", { recentMin: 100 }),
+      cromo("d", 4, "MED", { recentMin: 500 }),
+      cromo("e", 5, "MED", { recentMin: 900, cv: "no" }),
+    ]);
+    expect(packRanking(s2, new Set(["a", "b", "c", "e"]))).toEqual(["a", "c", "b"]);
+    expect(packRanking(s2)).toEqual(["a", "d", "c", "b"]);
+    const n = suggestSeven(lineupOf([], "2-3-1", s2), s2, [], new Set(["a", "b"]));
+    expect(ids(n).filter(Boolean).sort()).toEqual(["a", "b"]);
   });
   it("spins a reel of squad dorsales before each cromo lands, one after another", () => {
     expect(reelFor(0, [1, 2, 3])).toHaveLength(12);

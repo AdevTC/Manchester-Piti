@@ -1,0 +1,168 @@
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { seedLineup } from "./lineupOps";
+
+// useLineups over a fake Firestore (an in-memory map of paths): what an autosave writes, a board
+// created offline, the official published in one transaction, and the reactions it leaves behind.
+
+type Data = Record<string, unknown>;
+const fs = vi.hoisted(() => ({
+  store: new Map<string, Record<string, unknown>>(),
+  /** setDoc never acks (offline) while true. */
+  offline: false,
+  auto: 0,
+  updates: [] as { path: string; data: Record<string, unknown> }[],
+  /** Docs a query does not see (it ran before they were written: the race between two captains). */
+  staleQuery: new Set<string>(),
+}));
+
+vi.mock("../../firebase", () => ({ db: {} }));
+vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: { uid: "me" }, profile: { nickname: "yo" } }) }));
+vi.mock("../../lib/useFirestoreCollection", () => ({ useFirestoreCollection: () => ({ data: [], isPending: false }) }));
+vi.mock("firebase/firestore", () => {
+  type Ref = { path: string; id: string };
+  const ref = (path: string): Ref => ({ path, id: path.split("/").pop() ?? "" });
+  const snap = (r: Ref) => {
+    const d = fs.store.get(r.path);
+    return { id: r.id, ref: r, exists: () => d !== undefined, data: () => (d ? { ...d } : undefined) };
+  };
+  const apply = (r: Ref, data: Record<string, unknown>, merge: boolean) => {
+    const next: Record<string, unknown> = merge ? { ...(fs.store.get(r.path) ?? {}) } : {};
+    for (const [k, v] of Object.entries(data)) {
+      if (v === "__delete__") delete next[k];
+      else next[k] = v;
+    }
+    fs.store.set(r.path, next);
+  };
+  const children = (path: string) => [...fs.store.keys()].filter((k) => k.startsWith(path + "/") && !k.slice(path.length + 1).includes("/"));
+  return {
+    collection: (base: { path?: string }, ...segs: string[]) => ({ path: [base.path, ...segs].filter(Boolean).join("/") }),
+    doc: (base: { path?: string }, ...segs: string[]) =>
+      segs.length ? ref([base.path, ...segs].filter(Boolean).join("/")) : ref(`${base.path}/auto${++fs.auto}`),
+    where: (field: string, _op: string, value: unknown) => ({ field, value }),
+    query: (c: { path: string }, ...wheres: { field: string; value: unknown }[]) => ({ path: c.path, wheres }),
+    getDocs: async (q: { path: string; wheres?: { field: string; value: unknown }[] }) => ({
+      docs: children(q.path)
+        .filter((p) => !fs.staleQuery.has(p) && (q.wheres ?? []).every((w) => fs.store.get(p)?.[w.field] === w.value))
+        .map((p) => snap(ref(p))),
+    }),
+    serverTimestamp: () => "__ts__",
+    deleteField: () => "__delete__",
+    setDoc: (r: Ref, data: Record<string, unknown>) => {
+      apply(r, data, false); // the local cache has it at once…
+      return fs.offline ? new Promise(() => {}) : Promise.resolve(); // …the server ack, when online
+    },
+    updateDoc: async (r: Ref, data: Record<string, unknown>) => {
+      fs.updates.push({ path: r.path, data });
+      apply(r, data, true);
+    },
+    deleteDoc: async (r: Ref) => void fs.store.delete(r.path),
+    writeBatch: () => {
+      const ops: (() => void)[] = [];
+      return { delete: (r: Ref) => void ops.push(() => fs.store.delete(r.path)), commit: async () => ops.forEach((f) => f()) };
+    },
+    runTransaction: async <T,>(_db: unknown, fn: (tx: unknown) => Promise<T>): Promise<T> =>
+      fn({
+        get: async (r: Ref) => snap(r),
+        update: (r: Ref, d: Record<string, unknown>) => apply(r, d, true),
+        set: (r: Ref, d: Record<string, unknown>) => apply(r, d, false),
+        delete: (r: Ref) => void fs.store.delete(r.path),
+      }),
+  };
+});
+
+const { useLineups, saveData, officialScopeId } = await import("./useLineups");
+
+const board = (over: Data = {}): Data => ({ ownerUid: "me", ownerNickname: "yo", seasonId: "t1", name: "Mi siete", isOfficial: false, matchId: null, ...over });
+const officials = () => [...fs.store.entries()].filter(([p, d]) => p.startsWith("lineups/") && p.split("/").length === 2 && d.isOfficial === true).map(([p]) => p.slice(8));
+
+beforeEach(() => {
+  fs.store.clear();
+  fs.updates.length = 0;
+  fs.offline = false;
+  fs.staleQuery.clear();
+});
+
+describe("useLineups · autosave", () => {
+  it("writes only the board's fields: a rename or a publish made elsewhere is never reverted", async () => {
+    fs.store.set("lineups/b1", board({ name: "Renombrado en el móvil", isOfficial: true, matchId: "m8", bench: ["x"], pinned: [] }));
+    const { result } = renderHook(() => useLineups("t1"));
+    await act(() => result.current.save("b1", seedLineup("3-2-1", ["a", "b"])));
+    const written = fs.updates[0].data;
+    for (const k of ["name", "isOfficial", "matchId", "ownerNickname", "ownerUid", "seasonId"]) expect(written).not.toHaveProperty(k);
+    expect(fs.store.get("lineups/b1")).toMatchObject({ name: "Renombrado en el móvil", isOfficial: true, matchId: "m8", formation: "3-2-1" });
+    // the dead weight goes: no bench (the whole squad) nor «pinned» stored any more
+    expect(fs.store.get("lineups/b1")).not.toHaveProperty("bench");
+    expect(fs.store.get("lineups/b1")).not.toHaveProperty("pinned");
+  });
+
+  it("links a match only when one is passed", () => {
+    const L = seedLineup("2-3-1", []);
+    expect(saveData(L)).not.toHaveProperty("matchId");
+    expect(saveData(L, "m9")).toHaveProperty("matchId", "m9");
+    expect(saveData(L, null)).toHaveProperty("matchId", null);
+  });
+});
+
+describe("useLineups · a new board offline", () => {
+  it("resolves at once with its id (the write waits for the connection in the cache)", async () => {
+    fs.offline = true;
+    const { result } = renderHook(() => useLineups("t1"));
+    let id = "";
+    await act(async () => {
+      id = await result.current.create(seedLineup("2-3-1", ["a"]), "Tablero nuevo");
+    });
+    expect(id).toMatch(/^auto\d+$/);
+    expect(fs.store.get("lineups/" + id)).toMatchObject({ name: "Tablero nuevo", ownerUid: "me", ownerNickname: "yo", seasonId: "t1", isOfficial: false });
+  });
+});
+
+describe("useLineups · the official", () => {
+  it("publishing replaces the scope's official in one go, even one the other captain's query didn't see", async () => {
+    fs.store.set("lineups/a", board());
+    fs.store.set("lineups/b", board());
+    fs.store.set("lineups/c", board());
+    const { result } = renderHook(() => useLineups("t1"));
+    await act(() => result.current.markOfficial("a", { matchId: "m8" }));
+    expect(officials()).toEqual(["a"]);
+    expect(fs.store.get("lineupOfficials/" + officialScopeId("t1", "m8"))).toMatchObject({ lineupId: "a" });
+    // b: the scope doc names a → a is unmarked in the same transaction
+    await act(() => result.current.markOfficial("b", { matchId: "m8" }));
+    expect(officials()).toEqual(["b"]);
+    // c, published by a captain whose query ran before b was published (it found nobody): the scope doc
+    // still names b, so b goes — never two officials
+    fs.staleQuery.add("lineups/b");
+    await act(() => result.current.markOfficial("c", { matchId: "m8" }));
+    expect(officials()).toEqual(["c"]);
+    // another scope (the season) keeps its own official
+    await act(() => result.current.markOfficial("a", { matchId: null }));
+    expect(officials().sort()).toEqual(["a", "c"]);
+  });
+
+  it("officials from before the scope doc are found and unmarked too", async () => {
+    fs.store.set("lineups/old", board({ isOfficial: true, matchId: "m8" }));
+    fs.store.set("lineups/new", board());
+    const { result } = renderHook(() => useLineups("t1"));
+    await act(() => result.current.markOfficial("new", { matchId: "m8" }));
+    expect(officials()).toEqual(["new"]);
+  });
+
+  it("unpublishing, replacing or deleting a board clears its reactions", async () => {
+    fs.store.set("lineups/a", board());
+    fs.store.set("lineups/b", board());
+    const { result } = renderHook(() => useLineups("t1"));
+    await act(() => result.current.markOfficial("a", { matchId: "m8" }));
+    fs.store.set("lineups/a/reactions/u1", { value: "ok" });
+    fs.store.set("lineups/a/reactions/u2", { value: "dudas" });
+    await act(() => result.current.markOfficial("b", { matchId: "m8" }));
+    expect([...fs.store.keys()].filter((k) => k.startsWith("lineups/a/reactions/"))).toEqual([]);
+    fs.store.set("lineups/b/reactions/u1", { value: "ok" });
+    await act(() => result.current.markOfficial("b", null));
+    expect(officials()).toEqual([]);
+    expect(fs.store.has("lineups/b/reactions/u1")).toBe(false);
+    expect(fs.store.has("lineupOfficials/" + officialScopeId("t1", "m8"))).toBe(false);
+    fs.store.set("lineups/b/reactions/u3", { value: "ok" });
+    await act(() => result.current.remove("b"));
+    expect([...fs.store.keys()].filter((k) => k.startsWith("lineups/b"))).toEqual([]);
+  });
+});

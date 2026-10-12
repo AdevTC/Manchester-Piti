@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { andList, avisoTxt, benchGroups, calledOf, convHead, reparto, squadInfo, sysLines, type BenchFilter } from "./bench";
+import { andList, avisoTxt, avisoUrl, benchGroups, calledOf, convHead, pitchFound, reparto, squadInfo, sysLines, type BenchFilter } from "./bench";
+import { slotLabel } from "./geometry";
 import { withConvocatoria, type CalMatch } from "./boards";
 import { chem } from "./quimica";
 import { tacRows } from "./plan";
@@ -45,9 +46,21 @@ describe("the convocatoria's head", () => {
     expect(h.aria).toBe("Respuestas: 1 voy, 2 duda, 1 no va");
   });
 
-  it("the captain's convocatoria counts who it calls", () => {
+  it("the captain's convocatoria counts who it calls (the answers, those without one, the bajas)", () => {
     const h = convHead({ sq: conv, match: { ...M8, conv: { starters: SEVEN, bench: ["kevin"] } }, loading: false, error: false });
-    expect(h.title).toBe("8 convocados · 8 sin responder · 2 bajas");
+    // (erik said «Voy» but isn't called; the two bajas aren't either)
+    expect(h.title).toBe("8 convocados · 5 sin responder");
+    expect(h).toMatchObject({ voy: 0, duda: 2, no: 1 });
+    const withBaja = convHead({ sq: conv, match: { ...M8, conv: { starters: SEVEN, bench: ["kevin", "brawan"] } }, loading: false, error: false });
+    expect(withBaja.title).toBe("9 convocados · 6 sin responder · 1 baja");
+  });
+
+  it("«Avisar a los que dudan» calls on those in doubt and the called who haven't answered, never a baja or the uncalled", () => {
+    const h = convHead({ sq: conv, match: { ...M8, conv: { starters: SEVEN, bench: ["kevin", "brawan"] } }, loading: false, error: false });
+    expect(h.aviso).toEqual(["EVANS", "ILLESCAS", "HUBEROSKI", "EGUZQUIZA", "ALMACHI", "ADRIAN", "KEVIN"]);
+    // without the captain's list, only those in doubt (nobody is «called» yet)
+    expect(convHead({ sq: conv, match: M8, loading: false, error: false }).aviso).toEqual(["ALMACHI", "KEVIN"]);
+    expect(avisoTxt(["KEVIN"], M8, avisoUrl("https://piti.club"))).toBe("J8 · MAD SKY: KEVIN, ¿venís? Contestad a la convocatoria en el vestuario: https://piti.club/vestuario");
   });
 
   it("says what is going on when there is nothing to count", () => {
@@ -134,6 +147,17 @@ describe("the bench", () => {
     const oc = run({ on: true, oc: true });
     expect(oc[0].rows.map((r) => r.id)).toEqual(["erik"]);
     expect(oc[2].emptyTxt).toBe("Nadie con ese filtro.");
+  });
+
+  it("«Buscar en la plantilla» finds the ones on the pitch too (with their slot), only while it filters", () => {
+    const lab = (i: number) => slotLabel(L, i);
+    expect(pitchFound(L, conv, { ...OFF, on: true, q: "hub" }, lab)).toEqual([{ id: "huberoski", name: "HUBEROSKI", num: 14, slot: "MI" }]);
+    expect(pitchFound(L, conv, { ...OFF, on: true, q: "10" }, lab).map((h) => h.slot)).toEqual(["DC"]);
+    // accent- and case-blind: «Adrián» finds ADRIAN (and «al» would find ÁLEX)
+    expect(pitchFound(L, conv, { ...OFF, on: true, q: "Adrián" }, lab).map((h) => h.id)).toEqual(["adrian"]);
+    expect(pitchFound(L, conv, { ...OFF, on: true, zf: "DEF" }, lab).map((h) => h.id)).toEqual(["illescas"]);
+    expect(pitchFound(L, conv, { ...OFF, on: true }, lab)).toEqual([]);
+    expect(pitchFound(L, conv, { ...OFF, q: "hub" }, lab)).toEqual([]);
   });
 });
 

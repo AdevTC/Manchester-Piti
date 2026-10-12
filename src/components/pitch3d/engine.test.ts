@@ -71,12 +71,13 @@ function glStub(canvas: HTMLCanvasElement): unknown {
   const fns: Record<string, unknown> = {
     getParameter: param,
     getExtension: (name: string) =>
-      name === "WEBGL_lose_context" ? { loseContext: noop, restoreContext: noop } : new Proxy({}, { get: (_, k) => (typeof k === "string" ? id(k) : undefined) }),
+      name === "WEBGL_lose_context" ? { loseContext: () => void contextsLost++, restoreContext: noop } : new Proxy({}, { get: (_, k) => (typeof k === "string" ? id(k) : undefined) }),
     getSupportedExtensions: () => [],
     getContextAttributes: () => ({ alpha: false, antialias: true, depth: true, stencil: false, premultipliedAlpha: true, preserveDrawingBuffer: false, powerPreference: "high-performance" }),
     getShaderPrecisionFormat: () => ({ precision: 23, rangeMin: 127, rangeMax: 127 }),
     getShaderParameter: () => true,
-    getProgramParameter: (_: unknown, p: number) => (names.get(p) === "ACTIVE_UNIFORMS" || names.get(p) === "ACTIVE_ATTRIBUTES" ? 0 : true),
+    getProgramParameter: (_: unknown, p: number) =>
+      p === 0x91b1 /* COMPLETION_STATUS_KHR */ ? !compileHeld : names.get(p) === "ACTIVE_UNIFORMS" || names.get(p) === "ACTIVE_ATTRIBUTES" ? 0 : true,
     getProgramInfoLog: () => "",
     getShaderInfoLog: () => "",
     getShaderSource: () => "",
@@ -101,6 +102,10 @@ function glStub(canvas: HTMLCanvasElement): unknown {
 }
 
 // ---------- manual clock: setTimeout + performance.now (fake timers) and our own rAF queue ----------
+/** WEBGL_lose_context.loseContext() calls (renderer.forceContextLoss). */
+let contextsLost = 0;
+/** While true the shaders never finish compiling (the mount waits in compileAsync). */
+let compileHeld = false;
 let rafQ = new Map<number, FrameRequestCallback>(), rafId = 0, maxChains = 0, nextFrame = 0;
 let frameEvery = 1000 / 60;
 const now = () => performance.now();
@@ -144,6 +149,8 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
   rafQ = new Map();
   maxChains = 0;
+  contextsLost = 0;
+  compileHeld = false;
   frameEvery = 1000 / 60;
   nextFrame = now();
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => (rafQ.set(++rafId, cb), rafId));
@@ -280,6 +287,75 @@ describe("pitch3d engine (mocked WebGL, manual clock)", () => {
     h.dispose();
     expect(el.querySelector("canvas")).toBeNull();
     expect(errors).toEqual([]);
+  }, 60_000);
+
+  it("disposes everything after React has removed the element (the unmount order), and only once", async () => {
+    const three = await import("three");
+    const geoDispose = vi.spyOn(three.BufferGeometry.prototype, "dispose");
+    const unlisten = vi.spyOn(document, "removeEventListener");
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect = disconnect;
+      },
+    );
+    const errors: string[] = [];
+    const { h, el } = await mountEngine(errors);
+    await run(200);
+    const canvas = el.querySelector("canvas");
+    if (!canvas) throw new Error("no canvas");
+    // renderer.dispose() unhooks its own context listeners from the canvas
+    const canvasUnlisten = vi.spyOn(canvas, "removeEventListener");
+    const rendererDisposed = () => canvasUnlisten.mock.calls.filter(([type]) => type === "webglcontextrestored").length;
+    // React detaches the host's DOM first, then runs the effect cleanup that calls dispose()
+    el.remove();
+    expect(canvas.isConnected).toBe(false);
+    const lost0 = contextsLost; // (the support probe at mount loses its own test context)
+    h.dispose();
+    expect(rendererDisposed()).toBe(1);
+    expect(contextsLost - lost0).toBe(1);
+    expect(geoDispose).toHaveBeenCalled();
+    expect(disconnect).toHaveBeenCalled();
+    expect(unlisten).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+    expect(el.querySelector("canvas")).toBeNull();
+    // a second dispose (fail() then the cleanup) does nothing
+    h.dispose();
+    expect(rendererDisposed()).toBe(1);
+    expect(contextsLost - lost0).toBe(1);
+    // the loop is stopped: no frame is requested after the dispose
+    await run(500);
+    expect(rafQ.size).toBe(0);
+    expect(errors).toEqual([]);
+  }, 60_000);
+
+  it("a mount cancelled while the shaders compile frees everything even when the element is already gone", async () => {
+    const unlisten = vi.spyOn(document, "removeEventListener");
+    const { mount } = await import("./engine");
+    const el = document.createElement("div");
+    document.body.append(el);
+    const ac = new AbortController();
+    let outcome = "";
+    compileHeld = true; // the shaders never finish meanwhile: the mount waits in compileAsync
+    mount(el, { theme: "dark", quality: "low", players: SEVEN, signal: ac.signal }).then(
+      () => (outcome = "mounted"),
+      (e: unknown) => (outcome = (e as { name?: string }).name ?? String(e)),
+    );
+    await run(200);
+    expect(outcome).toBe("");
+    expect(el.querySelector("canvas")).not.toBeNull();
+    // unmount meanwhile: the host is detached, then the signal aborts (and the compile ends)
+    const lost0 = contextsLost;
+    el.remove();
+    ac.abort();
+    compileHeld = false;
+    for (let i = 0; i < 100 && !outcome; i++) await run(20);
+    expect(outcome).toBe("AbortError");
+    expect(contextsLost - lost0).toBe(1);
+    // the full dispose ran (the listeners added once the scene was built are gone too)
+    expect(unlisten).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+    expect(el.querySelector("canvas")).toBeNull();
   }, 60_000);
 
   it("keeps the sequences on schedule when the page gives a frame only every 2 s", async () => {

@@ -6,6 +6,7 @@ import { BoardHarness as Harness } from "./testkitBoard";
 import { withConvocatoria, type CalMatch } from "./boards";
 import { PREFS0, SHOW0 } from "./prefs";
 import { chem } from "./quimica";
+import { DELETE_MS } from "./useBoardSession";
 
 // Phase 3 as a user drives it: the plan on the pitch, the química panel, Tableros (mine, official,
 // partido), Comparar, Compartir, Ajustes and the convocatoria on the cromos — with a fake session.
@@ -185,7 +186,7 @@ describe("Tableros · mis tableros", () => {
   it("delete asks once more, then can be undone from the toast", () => {
     const undo = vi.fn();
     const remove = vi.fn(() => undo);
-    render(<Harness initial={L7()} session={{ mine: mine(), remove }} />);
+    const { container } = render(<Harness initial={L7()} session={{ mine: mine(), remove }} />);
     go("Tableros");
     fireEvent.click(screen.getByRole("button", { name: "Borrar Plan B" }));
     const ask = screen.getByRole("group", { name: "¿Borrar Plan B?" });
@@ -194,10 +195,62 @@ describe("Tableros · mis tableros", () => {
     fireEvent.click(screen.getByRole("button", { name: "Borrar Plan B" }));
     fireEvent.click(within(screen.getByRole("group", { name: "¿Borrar Plan B?" })).getByRole("button", { name: "Borrar" }));
     expect(remove).toHaveBeenCalledWith("b2");
-    expect(screen.getByText("«Plan B» borrado")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Deshacer el borrado de «Plan B»" }));
+    const toast = () => container.querySelector(".tst") as HTMLElement;
+    expect(within(toast()).getByText("«Plan B» borrado")).toBeInTheDocument();
+    fireEvent.click(within(toast()).getByRole("button", { name: "Deshacer el borrado de «Plan B»" }));
     expect(undo).toHaveBeenCalledTimes(1);
     expect(screen.getByText("«Plan B» recuperado")).toBeInTheDocument();
+    // (nothing pending any more)
+    expect(screen.queryByRole("group", { name: "«Plan B» borrado" })).toBeNull();
+  });
+
+  it("a deleted board stays undoable until it is really deleted: another message doesn't take its Deshacer away", () => {
+    vi.useFakeTimers();
+    const undo = vi.fn();
+    const remove = vi.fn(() => undo);
+    const { container } = render(<Harness initial={L7()} session={{ mine: mine(), remove }} />);
+    go("Tableros");
+    fireEvent.click(screen.getByRole("button", { name: "Borrar Plan B" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "¿Borrar Plan B?" })).getByRole("button", { name: "Borrar" }));
+    // a row in Tableros says it, with its own Deshacer
+    const row = screen.getByRole("group", { name: "«Plan B» borrado" });
+    expect(within(row).getByRole("button", { name: "Deshacer el borrado de «Plan B»" })).toBeInTheDocument();
+    // another message replaces the toast for a moment…
+    fireEvent.click(screen.getByRole("button", { name: "Duplicar" }));
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    // …then the deletion's toast is back, still undoable
+    const toast = container.querySelector(".tst") as HTMLElement;
+    expect(toast).toHaveClass("on");
+    expect(within(toast).getByText("«Plan B» borrado")).toBeInTheDocument();
+    expect(within(toast).getByRole("button", { name: "Deshacer el borrado de «Plan B»" })).toBeInTheDocument();
+    // once the session has deleted it, both go
+    act(() => {
+      vi.advanceTimersByTime(DELETE_MS);
+    });
+    expect(screen.queryByRole("group", { name: "«Plan B» borrado" })).toBeNull();
+    expect(container.querySelector(".tst")).not.toHaveClass("on");
+    expect(undo).not.toHaveBeenCalled();
+  });
+
+  it("Escape with the delete confirmation open closes only it; 1–8 don't leave it", () => {
+    const remove = vi.fn(() => () => {});
+    const { container } = render(<Harness initial={L7()} session={{ mine: mine(), remove }} />);
+    const modo = () => container.querySelector(".pzv")?.getAttribute("data-modo");
+    go("Tableros");
+    fireEvent.click(screen.getByRole("button", { name: "Borrar Plan B" }));
+    fireEvent.keyDown(document.body, { key: "1" });
+    expect(screen.getByRole("group", { name: "¿Borrar Plan B?" })).toBeInTheDocument();
+    expect(modo()).toBe("tableros");
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(screen.queryByRole("group", { name: "¿Borrar Plan B?" })).toBeNull();
+    // still in Tableros
+    expect(modo()).toBe("tableros");
+    expect(remove).not.toHaveBeenCalled();
+    // and with nothing to confirm, Escape goes back to the siete as before
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(modo()).toBe("editar");
   });
 
   it("with a single board, nothing to delete; without boards, how the first one is born", () => {
@@ -301,7 +354,13 @@ describe("Tableros · oficial y partido", () => {
     go("Tableros");
     fireEvent.click(screen.getByRole("button", { name: "Oficial" }));
     expect(screen.getByRole("button", { name: "Ya es el oficial" })).toBeDisabled();
+    // taking the official down asks once more
     fireEvent.click(screen.getByRole("button", { name: "Quitar el oficial" }));
+    expect(unpublish).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole("group", { name: "¿Quitar el oficial?" })).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("group", { name: "¿Quitar el oficial?" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Quitar el oficial" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "¿Quitar el oficial?" })).getByRole("button", { name: "Quitarlo" }));
     expect(unpublish).toHaveBeenCalledWith("b1");
   });
 
@@ -371,6 +430,23 @@ describe("Tableros · oficial y partido", () => {
     expect(linkMatch).toHaveBeenLastCalledWith(null);
   });
 
+  it("linking the official to another match asks first: it republishes it and tells the team", async () => {
+    const linkMatch = vi.fn(async () => {});
+    render(<Harness initial={L7()} session={{ official: true, matchId: "m7", linkMatch }} props={{ isAdmin: true, calendar: [M7, M8], nextMatch: M8 }} />);
+    go("Tableros");
+    fireEvent.click(screen.getByRole("button", { name: "Partido" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Vincular a un partido" }), { target: { value: "m8" } });
+    expect(linkMatch).not.toHaveBeenCalled();
+    const ask = screen.getByRole("group", { name: "¿Cambiar el partido del oficial?" });
+    expect(ask).toHaveTextContent("Esto cambia el oficial del J7 · RAYO · 3–1 a J8 · MAD SKY y avisa al equipo.");
+    fireEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
+    expect(linkMatch).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("combobox", { name: "Vincular a un partido" }), { target: { value: "m8" } });
+    fireEvent.click(within(screen.getByRole("group", { name: "¿Cambiar el partido del oficial?" })).getByRole("button", { name: "Cambiarlo" }));
+    expect(linkMatch).toHaveBeenCalledWith("m8");
+    expect(await screen.findByText("Vinculado a J8 · MAD SKY")).toBeInTheDocument();
+  });
+
   it("a failed action says why (apiError)", async () => {
     const linkMatch = vi.fn(async () => {
       throw Object.assign(new Error("x"), { code: "permission-denied" });
@@ -433,11 +509,11 @@ describe("Compartir", () => {
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ title: "Los siete · J8 · MAD SKY", files: [expect.any(File)] }));
     fireEvent.click(screen.getByRole("button", { name: "Copiar enlace al tablero" }));
     expect(await screen.findByText("Enlace copiado: pégalo en el grupo")).toBeInTheDocument();
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.origin + "/pizarra?tablero=b1");
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.origin + "/pizarra?tablero=b1&season=t1");
     // and the one the captain sends before the match: straight to the charla
     fireEvent.click(screen.getByRole("button", { name: "Copiar el enlace que abre la charla de este tablero" }));
     expect(await screen.findByText("Enlace a la charla copiado: pégalo en el grupo")).toBeInTheDocument();
-    expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith(window.location.origin + "/pizarra?tablero=b1#charla");
+    expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith(window.location.origin + "/pizarra?tablero=b1&season=t1#charla");
     Object.assign(navigator, { share: undefined, canShare: undefined });
   });
 
@@ -499,7 +575,7 @@ describe("Ajustes", () => {
 describe("La convocatoria en el tablero", () => {
   const conv = withConvocatoria(sq, new Map([["tello", "no"], ["kevin", "duda"], ["erik", "voy"]]));
 
-  it("NO VA on the pitch, the 7/7 warning, the chips on the bench and «Solo convocados»", () => {
+  it("NO VA on the pitch, the 7/7 warning, the chips on the bench and «Solo los que van»", () => {
     const { container } = render(<Harness initial={L7()} props={{ squad: conv, conv: { match: M8, loading: false, error: false } }} />);
     expect(container.querySelector('.cd[data-tok="tello"] .cc-no')).toHaveTextContent("NO VA");
     expect(screen.getByText("1 aviso")).toBeInTheDocument();
@@ -520,11 +596,11 @@ describe("La convocatoria en el tablero", () => {
     expect(grp("g-x").querySelector('.ar[data-tok="brawan"] .ac-cv')).toHaveTextContent("Lesionado");
     // nobody uncalled without a convocatoria from the captain
     expect(grp("g-s")).toHaveTextContent("Nadie fuera de la convocatoria.");
-    // «Solo convocados» lives in «Buscar en la plantilla» (its filters only apply while it is open)
+    // «Solo los que van» lives in «Buscar en la plantilla» (its filters only apply while it is open)
     const srx = screen.getByRole("button", { name: "Buscar en la plantilla" });
     expect(srx).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(srx);
-    const oc = screen.getByRole("button", { name: /Solo convocados/ });
+    const oc = screen.getByRole("button", { name: /Solo los que van/ });
     expect(oc).toBeEnabled();
     fireEvent.click(oc);
     const names = within(rail)
@@ -542,7 +618,7 @@ describe("La convocatoria en el tablero", () => {
   it("the captain's convocatoria: who it leaves out is «Sin convocar», never a target", () => {
     const M8c = m({ conv: { starters: SEVEN, bench: ["erik", "kevin"] } });
     const { container } = render(<Harness initial={lineupOf([null, ...SEVEN.slice(1)], "2-3-1", sq)} props={{ squad: conv, conv: { match: M8c, loading: false, error: false }, calendar: [M8c], nextMatch: M8c }} />);
-    expect(screen.getByText("9 convocados · 9 sin responder · 2 bajas")).toBeInTheDocument();
+    expect(screen.getByText("9 convocados · 6 sin responder")).toBeInTheDocument();
     const sin = container.querySelector(".cvl .lg.g-s") as HTMLElement;
     expect(Array.from(sin.querySelectorAll(".ar")).map((b) => b.getAttribute("data-tok"))).toEqual(["fer"]);
     expect(sin.querySelector(".ac-cv.sin")).toHaveTextContent("Sin convocar");
@@ -556,7 +632,7 @@ describe("La convocatoria en el tablero", () => {
     Object.defineProperty(navigator, "share", { value: share, configurable: true });
     render(<Harness initial={L7()} props={{ squad: conv, conv: { match: M8, loading: false, error: false } }} />);
     fireEvent.click(screen.getByRole("button", { name: /^Avisar a los que dudan/ }));
-    expect(share).toHaveBeenCalledWith({ text: "J8 · MAD SKY: KEVIN, ¿venís? Contestad a la convocatoria en el vestuario." });
+    expect(share).toHaveBeenCalledWith({ text: "J8 · MAD SKY: KEVIN, ¿venís? Contestad a la convocatoria en el vestuario: " + window.location.origin + "/vestuario" });
     Reflect.deleteProperty(navigator, "share");
     const write = vi.fn(async () => {});
     Object.defineProperty(navigator, "clipboard", { value: { writeText: write }, configurable: true });
@@ -584,7 +660,7 @@ describe("La convocatoria en el tablero", () => {
   it("no answers yet, no match, or answers that can't be read", () => {
     const { unmount } = render(<Harness initial={L7()} props={{ conv: { match: M8, loading: false, error: false } }} />);
     fireEvent.click(screen.getByRole("button", { name: "Buscar en la plantilla" }));
-    expect(screen.getByRole("button", { name: /Solo convocados/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Solo los que van/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Avisar a los que dudan: nadie tiene dudas" })).toBeInTheDocument();
     expect(screen.getByText("Nadie ha respondido aún a la convocatoria de J8 · MAD SKY.")).toBeInTheDocument();
     unmount();

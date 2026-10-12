@@ -37,6 +37,10 @@ export function stepMs(step: number, last: number): number {
   return k === "sistema" ? 2600 : k === "siete" ? 2300 : k === "plan" ? 4400 : k === "jugada" ? 2400 : 2000;
 }
 
+/** The longest the 3D stadium may take over a step it paces (ms): a stadium that never reports moves on
+ *  by the clock, so a hung engine never freezes the charla. */
+export const ENGINE_MAX_MS = 12000;
+
 const clampStep = (i: number, last: number): number => Math.max(0, Math.min(last, Number.isFinite(i) ? Math.round(i) : 0));
 
 // ───────────────────────────── the controller ─────────────────────────────
