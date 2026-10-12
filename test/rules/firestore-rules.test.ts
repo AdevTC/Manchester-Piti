@@ -380,6 +380,22 @@ describe("Pizarra", () => {
     await seed("lineups/old", board);
     await assertSucceeds(updateDoc(doc(db("member"), "lineups", "old"), { name: "Viejo" }));
   });
+  it("día de partido: cambios (≤ 20), lanzadores en orden (≤ 3 por lista) y vice-capitán", async () => {
+    const sub = { id: "s1", min: 25, out: "p1", in: "p2" };
+    const takers = { penalties: ["p1", "p2", "p3"], freekicks: [], corners: ["p2"] };
+    const roles = { captainId: "p1", viceId: "p2", penaltiesId: "p1", freekicksId: "p3", cornersId: "p2" };
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, subs: [sub], takers, roles }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { subs: Array.from({ length: 20 }, () => sub) }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { subs: Array.from({ length: 21 }, () => sub) }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { subs: { s1: sub } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { takers: { ...takers, penalties: ["a", "b", "c", "d"] } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { takers: { ...takers, throwins: [] } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { takers: ["p1"] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { roles: { ...roles, extra: "p9" } }));
+    // a board from before the match day still saves
+    await seed("lineups/old", board);
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "old"), { roles: { captainId: "p1" } }));
+  });
   it("un tablero solo lleva sus campos, con su tipo y su tope", async () => {
     const slot = { slotId: "pz-slot-0", playerId: null, position: "POR", zone: "POR", x: 50, y: 90 };
     const full = {

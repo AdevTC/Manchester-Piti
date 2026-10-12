@@ -257,7 +257,7 @@ export function CambiosTab(p: CambiosTabProps) {
               <h3>¿Quién no puede seguir?</h3>
               <div className="cb-ppl" role="group" aria-label="Quién no puede seguir o no ha llegado">
                 {live.people.map((x) => (
-                  <button key={x.id} type="button" className={"chip3" + (x.off ? " on" : "")} aria-pressed={x.off} onClick={() => p.onOff(x.id)}>
+                  <button key={x.id} type="button" className={"chip3" + (x.off ? " on" : "")} aria-pressed={x.off} aria-label={x.label + (x.field ? ", en el campo" : ", en el banquillo")} onClick={() => p.onOff(x.id)}>
                     {x.label}
                     <small>{x.off ? "no puede" : x.field ? "en el campo" : "banquillo"}</small>
                   </button>
