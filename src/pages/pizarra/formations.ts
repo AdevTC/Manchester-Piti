@@ -9,6 +9,7 @@
 // position when the formation changes (the morph).
 
 import type { Play, Stroke } from "../../lib/schemas";
+import type { CondRule, ShapeOff, StyleId } from "../../lib/tacticaSchemas";
 import type { Tactics } from "./tactics";
 
 /** Vertical zone of a slot/player — used for the out-of-position cue. */
@@ -79,6 +80,14 @@ export interface Lineup {
   plays: Play[];
   /** The board's other versions of the seven for its match (≤ 2: «2ª parte», «Plan B»; see v2/variants.ts). */
   variants?: LineupVariant[];
+  /** «Sin balón»: the second shape of the seven (its system and each slot's nudge; see v2/phases.ts). */
+  shapeOff?: ShapeOff | null;
+  /** El plan condicional: «si vamos ganando por 2 desde el 30′ → …» (≤ 3; see v2/condPlan.ts). */
+  condPlan?: CondRule[];
+  /** The predefined style last applied («Presión alta»…; see v2/tacStyles.ts). Absent = none. */
+  style?: StyleId | null;
+  /** View only, never stored: where each slot stands in the plan's phase on screen (v2/phases.ts). */
+  phaseAt?: { u: number; v: number }[];
 }
 
 /** Which other version of the seven a variant is: «2ª parte» or «Plan B» (the board itself is «Titular»). */

@@ -5,7 +5,7 @@
 // the tandas as FUT rows «SALE X → ENTRA Y»; «Repartir minutos» with its preview; the minutes table; and
 // the galones in order (brazalete, vice, 1º · 2º · 3º of each dead ball). A thin view: useCambios does
 // the changes and the board's one announcer says them.
-import { useId, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent } from "react";
+import { useId, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from "react";
 import type { TakerKind } from "../formations";
 import { Icon } from "./icons";
 import type { CambiosView, Opt, SubRow } from "./cambiosView";
@@ -42,6 +42,8 @@ export interface CambiosTabProps {
   v: CambiosView;
   ro: boolean;
   live: LiveCard | null;
+  /** More on the live card (the conditional plan's suggestion). */
+  liveExtra?: ReactNode;
   /** «Rotar portero» for «Repartir minutos». */
   rotK: boolean;
   /** «Repartir minutos» / «Recalcular»'s proposal, until it is applied or dropped. */
@@ -224,6 +226,7 @@ export function CambiosTab(p: CambiosTabProps) {
             <Icon n={live.due ? "whistle" : "bell"} w={16} />
             <b>{live.line}</b>
           </p>
+          {p.liveExtra}
           {live.pending.length > 0 && (
             <ul className="cb-pend">
               {live.pending.map((x) => (

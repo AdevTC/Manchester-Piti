@@ -8,6 +8,7 @@ import { migrateTakers, takersOf } from "./v2/takers";
 import { defaultTactics, TACTICS, type Tactics } from "./tactics";
 import { parseDrawings, strokeToData } from "./drawings";
 import { parsePlays, playToData } from "./plays";
+import { copyTactica, parseCondPlan, parseShapeOff, parseStyle, tacticaToData } from "./v2/tacticaData";
 import { reportDroppedDoc } from "../../lib/docTelemetry";
 import {
   LINEUP_FORMATIONS,
@@ -42,7 +43,7 @@ export interface LineupDoc extends Lineup, LineupMeta {
 }
 
 /** The fields the board itself edits (an autosave writes only these: never the metadata). */
-export const BOARD_FIELDS = ["formation", "freeMode", "slots", "roles", "tactics", "playerPositions", "drawings", "plays", "subs", "takers", "variants"] as const;
+export const BOARD_FIELDS = ["formation", "freeMode", "slots", "roles", "tactics", "playerPositions", "drawings", "plays", "subs", "takers", "variants", "shapeOff", "condPlan", "style", "rival"] as const;
 
 /** A Firestore Timestamp-ish value (avoids importing the class for a type). */
 interface TimestampLike {
@@ -82,6 +83,7 @@ export function extractLineup(d: LineupDoc): Lineup {
     drawings: structuredClone(d.drawings),
     plays: structuredClone(d.plays),
     variants: structuredClone(d.variants ?? []),
+    ...copyTactica(d),
   };
 }
 
@@ -102,6 +104,7 @@ export function boardToData(lineup: Lineup): Record<string, unknown> {
     drawings: (lineup.drawings ?? []).map(strokeToData),
     plays: (lineup.plays ?? []).map(playToData),
     variants: (lineup.variants ?? []).map(variantToData),
+    ...tacticaToData(lineup),
   };
 }
 
@@ -233,6 +236,9 @@ export function dataToLineupDoc(id: string, data: Record<string, unknown>): Line
     drawings: parseDrawings(data.drawings, id),
     plays: parsePlays(data.plays, id),
     variants: parseVariants(data.variants, id),
+    shapeOff: parseShapeOff(data.shapeOff, id),
+    condPlan: parseCondPlan(data.condPlan, id),
+    style: parseStyle(data.style, id),
     ownerUid: str(data.ownerUid, LINEUP_LIMITS.id, ""),
     ownerNickname: str(data.ownerNickname, LINEUP_LIMITS.nickname, ""),
     seasonId: str(data.seasonId, LINEUP_LIMITS.id, "all"),

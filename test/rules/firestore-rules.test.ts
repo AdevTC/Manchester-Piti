@@ -440,6 +440,26 @@ describe("Pizarra", () => {
     );
     await assertFails(updateDoc(doc(db("member"), "lineups", "old"), { slots: [slot, slot] }));
   });
+  it("la táctica del tablero: sin balón, plan condicional (≤ 3) y estilo, con su tipo y su tope", async () => {
+    const offs = Array.from({ length: 7 }, () => ({ du: 0, dv: 6 }));
+    const rule = { id: "r1", when: "ganando", by: 2, from: 30, key: "mentality", value: "Defensiva", sub: { out: "p1", in: "p2" } };
+    const tactica = { shapeOff: { formation: "3-2-1", offs }, condPlan: [rule], style: "presion" };
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, ...tactica }));
+    // the autosave writes them always: nothing («null», [], "") is valid too
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { shapeOff: null, condPlan: [], style: "" }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { condPlan: [rule, rule, rule] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { condPlan: [rule, rule, rule, rule] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { condPlan: ["si ganamos"] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { condPlan: { r1: rule } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { shapeOff: { formation: "3-2-1", offs, extra: 1 } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { shapeOff: { formation: "3-2-1", offs: [...offs, { du: 0, dv: 0 }] } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { shapeOff: "3-2-1" }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { style: "x".repeat(25) }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { style: 3 }));
+    // a board from before the táctica still saves
+    await seed("lineups/old", board);
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "old"), { name: "Viejo" }));
+  });
   it("el autor firma con su propio apodo; la temporada no cambia", async () => {
     await assertFails(setDoc(doc(db("member"), "lineups", "x"), { ...board, ownerNickname: "admin" }));
     await assertFails(setDoc(doc(db("member"), "lineups", "x"), { ownerUid: "member", seasonId: "season", name: "Sin apodo" }));

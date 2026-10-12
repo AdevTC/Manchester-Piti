@@ -1,0 +1,48 @@
+/* La pizarra · Bloque 4 «profundidad táctica» (Plan tab): con / sin balón, fases, estilos, plan condicional,
+   lo planeado frente a lo jugado, la química por jugador. FUT slabs and angled rows like the rest of the
+   app layer; every class is prefixed t4- (the generated pizarra.css owns the short names). */
+.pzv .t4-box{display:grid;gap:8px;padding:10px 18px 12px 12px;background:rgba(255,255,255,.045);clip-path:var(--angr)}
+.pzv .t4-seg{display:flex;flex-wrap:wrap;gap:4px;padding:3px;background:var(--glass);clip-path:var(--ang)}
+.pzv .t4-seg button{flex:1 1 auto;min-height:44px;padding:0 12px;border:0;background:transparent;color:var(--soft);font-family:'Anybody';font-weight:800;font-variation-settings:'wdth' 92;font-size:12px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;clip-path:var(--ang)}
+.pzv .t4-seg button[aria-pressed=true]{background:var(--slab);color:var(--slab-ink);box-shadow:var(--slab-sh)}
+.pzv .t4-seg button:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+.pzv .t4-seg button[disabled]{opacity:.5}
+.pzv .t4-fases{display:grid;gap:4px}
+.pzv .t4-fases input[type=range]{width:100%;min-height:44px;accent-color:var(--gold)}
+.pzv .t4-ticks{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));font-size:10.5px;color:var(--muted);text-align:center}
+.pzv .t4-ticks span.on{color:var(--ink);font-weight:700}
+.pzv .t4-ticks span.on::before{content:"▲ ";font-size:8px}
+.pzv .t4-d{margin:0;font-size:12.5px;color:var(--soft);line-height:1.4}
+.pzv .t4-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.pzv .t4-row select{min-width:0;height:38px;border:0;clip-path:var(--ang);background:var(--input);color:var(--ink);font:inherit;font-size:13px;font-weight:700;padding:0 10px}
+.pzv .t4-warn{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;margin:0;padding:6px 14px 6px 10px;background:rgba(255,181,71,.12);box-shadow:inset 3px 0 0 var(--amber);clip-path:var(--angr);font-size:12.5px;color:var(--ink)}
+.pzv .t4-warn svg{color:var(--amber);margin-top:2px}
+.pzv .t4-rec{display:grid;gap:2px;padding:8px 18px 8px 12px;background:var(--slab);color:var(--slab-ink);box-shadow:var(--slab-sh);clip-path:var(--angr);font-size:13px}
+.pzv .t4-rec b{font-family:'Anybody';font-weight:900;font-size:15px;font-variant-numeric:tabular-nums}
+.pzv .t4-rec small{font-size:12px;opacity:.85}
+.pzv .t4-sty{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px}
+.pzv .t4-sty button{display:grid;gap:2px;min-height:48px;padding:6px 16px 6px 10px;border:0;background:var(--chip);color:var(--ink);text-align:left;font:inherit;font-size:13px;font-weight:700;clip-path:var(--angr)}
+.pzv .t4-sty button small{font-size:11px;font-weight:500;color:var(--muted)}
+.pzv .t4-sty button[aria-pressed=true]{background:var(--slab);color:var(--slab-ink)}
+.pzv .t4-sty button[aria-pressed=true] small{color:inherit;opacity:.8}
+.pzv .t4-sty button:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+.pzv .t4-pv{display:grid;gap:6px;padding:10px 18px 12px 12px;background:rgba(255,198,89,.08);box-shadow:inset 3px 0 0 var(--gold);clip-path:var(--angr);font-size:12.5px}
+.pzv .t4-pv ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}
+.pzv .t4-pv li b{font-weight:800}
+.pzv .t4-pc{display:grid;gap:2px;margin:0}
+.pzv .t4-pc dt{font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.pzv .t4-pc dd{margin:0 0 4px}
+.pzv .t4-rules{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.pzv .t4-rule{display:grid;gap:6px;padding:8px 18px 10px 10px;background:rgba(255,255,255,.045);clip-path:var(--angr)}
+.pzv .t4-rule p{margin:0;font-size:12.5px;font-weight:700}
+.pzv .t4-rule input[type=number]{width:64px;height:38px;border:0;clip-path:var(--ang);background:var(--input);color:var(--ink);font:inherit;font-size:13px;font-weight:700;padding:0 8px}
+.pzv .t4-live{display:grid;gap:6px;padding:8px 18px 10px 12px;background:rgba(255,198,89,.12);box-shadow:inset 3px 0 0 var(--gold);clip-path:var(--angr);font-size:13px}
+.pzv .t4-live p{margin:0;font-weight:700}
+/* «+2 química aquí»: the badge over the spot a carried cromo would land on. */
+.pzv .t4-drop{position:absolute;z-index:3000;left:calc(var(--x) * 1%);top:calc(var(--y) * 1%);transform:translate(-50%,-260%);padding:3px 12px 3px 8px;background:var(--slab);color:var(--slab-ink);box-shadow:var(--slab-sh);clip-path:var(--angr);font-family:'Anybody';font-weight:900;font-size:12px;letter-spacing:.04em;white-space:nowrap;pointer-events:none}
+.pzv .t4-drop.dn{background:#5a1a14;color:#ffd9d4;box-shadow:none}
+.pzv .t4-dm{font-size:12.5px;color:var(--soft)}
+.pzv .t4-dm b{font-family:'Anybody';font-weight:900;color:var(--ink)}
+@media (prefers-reduced-motion:no-preference){.pzv .t4-drop{animation:t4-pop .18s var(--ez) both}}
+@keyframes t4-pop{from{opacity:0;transform:translate(-50%,-220%)}to{opacity:1;transform:translate(-50%,-260%)}}
+.pzv .t4-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}

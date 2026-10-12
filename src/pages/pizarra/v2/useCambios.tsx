@@ -38,6 +38,8 @@ export interface CambiosCtx {
   announce: (msg: string) => void;
   /** Opens Siete → Cambios (the live plate's tap). */
   onOpen: () => void;
+  /** More for the live card (the conditional plan's suggestion, useTactica). */
+  liveExtra?: (live: LiveNow) => ReactNode;
 }
 
 export interface Cambios {
@@ -260,6 +262,7 @@ export function useCambios(c: CambiosCtx): Cambios {
       v={cambiosView({ L, sq, subs: shownSubs, pool, duration: D, keeperFixed: !rotK, scrub, minute: live?.minute ?? null, made })}
       ro={!c.canEdit}
       live={card}
+      liveExtra={live ? c.liveExtra?.(live) : null}
       rotK={rotK}
       preview={prop ? { title: prop.title, ...previewDiff(L, subs, prop.subs, pool, D, sq) } : null}
       takers={{ options: pool.map((id) => ({ id, label: (sq.byId.get(id)?.num ?? "–") + " · " + nm(id) })), captainId: L.roles.captainId ?? "", viceId: L.roles.viceId ?? "", lists: t }}

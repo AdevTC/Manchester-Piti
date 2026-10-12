@@ -204,6 +204,8 @@ export interface CharlaArgs {
   loading?: boolean;
   /** The board's «Plan B» (variants.ts charlaPlanB): one more card at the plan step. */
   planB?: { t: string; d: string } | null;
+  /** The board's shape without the ball (phases.ts charlaShape): one more card at the plan step. */
+  sinBalon?: { t: string; d: string } | null;
 }
 
 export interface LowerThird {
@@ -306,6 +308,7 @@ export function charlaView(a: CharlaArgs): CharlaView {
   } else if (kind === "plan") {
     plan = consignas(L);
     if (a.planB) plan.push({ t: a.planB.t, d: a.planB.d, dl: (plan.length * 0.18).toFixed(2) + "s" });
+    if (a.sinBalon) plan.push({ t: a.sinBalon.t, d: a.sinBalon.d, dl: (plan.length * 0.18).toFixed(2) + "s" });
   }
   else if (kind === "quedada") {
     lt = match

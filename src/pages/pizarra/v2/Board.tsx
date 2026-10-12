@@ -119,6 +119,9 @@ import { MoverA } from "./MoverA";
 import { OficialBanner } from "./OficialBanner";
 import { useOficialBanner } from "./useOficialBanner";
 import { moveOptions } from "./moveTo";
+import { useTactica } from "./useTactica";
+import { charlaShape } from "./phases";
+import { lastPlayed, sevenFromStarters } from "./record";
 
 export interface BoardProps {
   session: BoardSession;
@@ -1145,7 +1148,7 @@ export function Board(props: BoardProps) {
   const chMissing = chSlots.filter((x) => !x).length;
   const chGate = charlaOn && ready && !chOk && chMissing > 0;
   const live3dC = charlaOn && can3d && ready3d;
-  const chArgs = { L, sq, play: chPlay, playShort: chItem.short, match, boardName: session.name, sysName: hud.sysName, tacSum, qv: ch.v, in3d: live3dC, loading: !ready, planB: charlaOn ? charlaPlanB(vr.titular, squadIds, nm) : null };
+  const chArgs = { L, sq, play: chPlay, playShort: chItem.short, match, boardName: session.name, sysName: hud.sysName, tacSum, qv: ch.v, in3d: live3dC, loading: !ready, planB: charlaOn ? charlaPlanB(vr.titular, squadIds, nm) : null, sinBalon: charlaOn ? charlaShape(L, nm) : null };
   /** What a step says, for screen readers (the graphics change without focus moving). */
   const sayStep = (to: number, playing: boolean) => {
     const v = charlaView({ ...chArgs, step: to, playing });
@@ -1173,8 +1176,25 @@ export function Board(props: BoardProps) {
   const cv = charlaOn ? charlaView({ ...chArgs, step: chl.step, playing: chPlaying }) : null;
   const chKind = cv?.kind ?? null;
 
+  // ── Bloque 4 · la táctica: con / sin balón and the fases on the pitch, the styles, the conditional plan,
+  // the química por jugador (useTactica.tsx) ──
+  const tq = useTactica({
+    key: session.key,
+    L,
+    sq,
+    canEdit,
+    commit: (next) => commit(next),
+    say,
+    announce,
+    glide: () => {
+      if (!rm) runFx(morph(null, { slow: true }));
+    },
+    nm,
+  });
+
   // ── día de partido: Siete → Cambios, the scrubbed minute on the pitch, the live plate ──
   const cb = useCambios({
+    liveExtra: tq.liveExtra,
     L,
     sq,
     called: calledOf(props.conv.match),
@@ -1202,10 +1222,15 @@ export function Board(props: BoardProps) {
   // Comparar show the cromos as discs.
   const showPlan = (modo === "editar" && tab === "p") || chKind === "plan";
   const mini = modo === "quimica" || modo === "comparar" || modo === "jugadas" || modo === "dibujar" || showPlan;
-  const view0 = pitchView({ L: cb.pitch, sq, ch, cam, modo, fx, selId: sel?.id ?? null, hand: inHand, pick, ro: !canEdit, rm, meId: props.meId, mini, present: charlaOn ? chl.step : undefined });
+  // (the Plan tab may show a phase or a style's preview: the cromos go there and can't be moved meanwhile)
+  const tpv = tq.pitch(cb.pitch, modo === "editar" && tab === "p", cam);
+  const view0 = pitchView({ L: tpv.L, sq, ch, cam, modo, fx, selId: sel?.id ?? null, hand: inHand, pick, ro: !canEdit || tpv.on, rm, meId: props.meId, mini, present: charlaOn ? chl.step : undefined });
+  // (each cromo's own química: 0–3 diamonds)
+  const view1 = { ...view0, cards: tq.withDiamonds(view0.cards, cb.pitch) };
   // (the familiarity badge on the cromos while the siete is edited: «++», «+», «!»)
-  const view = modo === "editar" && !mini && fam.games ? { ...view0, cards: view0.cards.map((c) => withFam(c)) } : view0;
-  const plan = planLayer(L, cam, modo, showPlan);
+  const view = modo === "editar" && !mini && fam.games ? { ...view1, cards: view1.cards.map((c) => withFam(c)) } : view1;
+  const plan0 = planLayer(tpv.planL ?? L, cam, modo, showPlan);
+  const plan = tpv.on ? { ...plan0, dlOn: false, tarrs: tpv.arrows ?? plan0.tarrs } : plan0;
 
   // ── the stadium: what it films ──
   // (it is mounted the first time a 3D moment wants it and stays, paused, for the next one; after a
@@ -1248,7 +1273,7 @@ export function Board(props: BoardProps) {
     {
       lineup: L,
       cam,
-      canMove: canEdit && !cb.preview && (modo === "editar" || modo === "quimica"),
+      canMove: canEdit && !cb.preview && !tpv.on && (modo === "editar" || modo === "quimica"),
       canLine: canEdit && modo === "editar" && plan.dlOn,
       magnets: canEdit && modo === "editar" && !L.freeMode,
       draw: canEdit && modo === "dibujar",
@@ -1258,6 +1283,8 @@ export function Board(props: BoardProps) {
     {
       // a bench cromo lifted off the phone strip (long press): the hand feels it
       onLift: () => buzz(12),
+      // «+2 química aquí» over the spot the carried cromo would land on
+      onTarget: (src, t) => tq.onTarget(src, t, frameRef.current),
       onStart: (kind, _id, from) => {
         setDragKind(kind);
         setDragFrom(from);
@@ -1540,7 +1567,9 @@ export function Board(props: BoardProps) {
   });
   const describeSlot = (k: number) => {
     const occ = L.slots[k]?.playerId;
-    return occ && occ !== sel?.id ? "Sobre " + nm(occ) + ", " + slotLabel(L, k) + ": Intro para cambiarlos" : "Hueco " + slotLabel(L, k) + ": Intro para soltarlo";
+    // (and what it would do to the química por jugador: « · +1 química aquí»)
+    const q = sel && !(sel.k === "p" && occ === sel.id) && isAvailable(sq, sel.id) ? tq.chemTxt(place(L, sel.id, k), sel.id) : "";
+    return (occ && occ !== sel?.id ? "Sobre " + nm(occ) + ", " + slotLabel(L, k) + ": Intro para cambiarlos" : "Hueco " + slotLabel(L, k) + ": Intro para soltarlo") + q;
   };
   const dropOn = (k: number) => {
     if (!sel) return;
@@ -1876,6 +1905,8 @@ export function Board(props: BoardProps) {
     fail(err);
   };
   const linked = calById(session.matchId);
+  // («Copiar el siete del último partido», in Tableros)
+  const lastM = modo === "tableros" ? lastPlayed(cal) : null;
 
   // ── Comparar: another board (yours or the official) face to face ──
   const cmpDocs = (() => {
@@ -2172,6 +2203,7 @@ export function Board(props: BoardProps) {
             ro={!canEdit}
             ch={ch}
             sq={sq}
+            dm={tq.dm}
             onSystem={(f: FormationName) => canEdit && toSystem(setSystem(L, f))}
             onLibre={() => {
               if (!canEdit || L.freeMode) return;
@@ -2187,12 +2219,12 @@ export function Board(props: BoardProps) {
           />
         )}
         {tab === "c" && cb.tab}
-        {tab === "p" && <PlanTab rows={tac} ro={!canEdit} rep={rp.rows} repTxt={rp.txt} canRotate={!!rot} note={planNote(L)} onSet={onTactic} onRotate={doRotate} />}
+        {tab === "p" && <PlanTab rows={tac} ro={!canEdit} rep={rp.rows} repTxt={rp.txt} canRotate={!!rot} note={planNote(L)} top={tq.planTop(cal, linked, !canEdit)} after={tq.planAfter(cb.live, !canEdit)} onSet={onTactic} onRotate={doRotate} />}
       </>
     ) : modo === "mas" ? (
       <MasPanel tacSum={tacSum} onGo={goModo} />
     ) : modo === "quimica" ? (
-      <QuimicaPanel ch={ch} sq={sq} seasonName={props.seasonName} oop={oopNames} />
+      <QuimicaPanel ch={ch} sq={sq} seasonName={props.seasonName} oop={oopNames} dm={tq.dm} />
     ) : modo === "tableros" ? (
       <TablerosPanel
         tab={tbTab}
@@ -2218,6 +2250,15 @@ export function Board(props: BoardProps) {
           session
             .newBoard()
             .then(() => say("Tablero nuevo: toca un hueco para empezar"))
+            .catch(tbFail);
+        }}
+        lastMatch={lastM ? matchShort(lastM) : null}
+        onNewFromLast={() => {
+          if (!lastM) return;
+          const ms = matchShort(lastM);
+          session
+            .newBoard({ formation: L.formation, slots: sevenFromStarters(L.formation, lastM.conv?.starters ?? [], sq, L), name: "Como en " + ms })
+            .then(() => say("Tablero nuevo con el siete de " + ms))
             .catch(tbFail);
         }}
         onOpen={(bid) => {
@@ -2742,6 +2783,7 @@ export function Board(props: BoardProps) {
           {live.msg ? live.msg + (live.n % 2 ? "​" : "‌") : ""}
         </p>
         <div className="pz-dragl" ref={layerRef} aria-hidden="true" />
+        {tq.dropBadge(canEdit && modo === "editar" && dragKind === "tok", prefs.grid, cam)}
       </section>
       {props.footer}
     </div>
