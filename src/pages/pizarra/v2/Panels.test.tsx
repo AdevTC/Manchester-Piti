@@ -56,7 +56,7 @@ describe("«Siete»", () => {
     const onTab = vi.fn();
     const { container } = render(<OnceTabs tab="s" onTab={onTab} />);
     const tabs = within(screen.getByRole("group", { name: "Herramienta del siete" })).getAllByRole("button");
-    expect(tabs.map((b) => b.textContent)).toEqual(["Convocatoria", "Sistema", "Plan", "Cambios"]);
+    expect(tabs.map((b) => b.getAttribute("aria-label") ?? b.textContent)).toEqual(["Convocatoria", "Sistema", "Plan", "Cambios"]);
     expect(tabs[1]).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(tabs[2]);
     expect(onTab).toHaveBeenCalledWith("p");

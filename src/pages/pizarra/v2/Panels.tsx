@@ -255,8 +255,14 @@ export function OnceTabs({ tab, onTab }: { tab: OnceTab; onTab: (t: OnceTab) => 
         Q
       </kbd>
       <div className="tabs" role="group" aria-label="Herramienta del siete">
-        <button type="button" onClick={() => onTab("b")} aria-pressed={tab === "b"}>
-          Convocatoria
+        {/* (on a phone the four tabs share 390 px: «Convocados» is the label that fits) */}
+        <button type="button" onClick={() => onTab("b")} aria-pressed={tab === "b"} aria-label="Convocatoria">
+          <span className="tl-l" aria-hidden="true">
+            Convocatoria
+          </span>
+          <span className="tl-s" aria-hidden="true">
+            Convocados
+          </span>
         </button>
         <button type="button" onClick={() => onTab("s")} aria-pressed={tab === "s"}>
           Sistema

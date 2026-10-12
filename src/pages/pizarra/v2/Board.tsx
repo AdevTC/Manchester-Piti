@@ -2633,18 +2633,16 @@ export function Board(props: BoardProps) {
           live={cb.plate}
         />
         {ro && ready && <ReadOnlyStrip label={session.official ? "OFICIAL · SOLO LECTURA" : "SOLO LECTURA · @" + session.owner.toUpperCase()} onDuplicate={session.duplicate} onMine={session.openMine} />}
-        {ready && modo !== "charla" && (
-          <div className={"pz-top" + (ro ? " low" : "")}>
-            {variantPills}
-            {ofb.msg && <OficialBanner msg={ofb.msg} onView={offOther ? () => { ofb.dismiss(); session.open(offOther); } : null} onOk={ofb.dismiss} />}
-          </div>
-        )}
         {/* (not live: it changes with every paso of a replay; what matters is announced on its own) */}
         <p className="hint">
           <i aria-hidden="true" />
           <span key={hint}>{hint}</span>
         </p>
         <Sheet title={SHEET_TITLE[modo]} snap={snap} mk={mk} sheetRef={sheetRef} onCycle={cycleSnap} onStep={stepSnap}>
+          {/* «El oficial ha cambiado» and the versions of the seven head the panel: over the pitch they covered
+              the LED board and the far cromos */}
+          {ready && modo !== "charla" && ofb.msg && <OficialBanner msg={ofb.msg} onView={offOther ? () => { ofb.dismiss(); session.open(offOther); } : null} onOk={ofb.dismiss} />}
+          {ready && modo === "editar" && variantPills}
           {shown}
         </Sheet>
         <ModeBar modo={modo} onGo={goModo} card={matchCard} />

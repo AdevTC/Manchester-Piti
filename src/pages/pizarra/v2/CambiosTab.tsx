@@ -214,7 +214,7 @@ export function CambiosTab(p: CambiosTabProps) {
   const { v, ro, live } = p;
   const rotId = useId();
   return (
-    <div className="pg cb">
+    <div className="pg cbt">
       {live && (
         <section className={"cb-live" + (live.due ? " due" : "")} aria-label="Partido en directo">
           <h3 className="lg-h">

@@ -196,10 +196,10 @@
 /* Four tabs in the Siete: Convocatoria · Sistema · Plan · Cambios. */
 .pzv .tabrow .tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
 @container (max-width:439px){.pzv .tabrow .tabs button{font-size:12px;padding:0 2px}}
-.pzv .cb .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-.pzv .sheet .cb .lg-h{margin:14px 0 8px}
-.pzv .sheet .cb .lg-h:first-child{margin-top:4px}
-.pzv .cb .lg-h .cnt{font-size:11px;text-transform:none;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pzv .cbt .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.pzv .sheet .cbt .lg-h{margin:14px 0 8px}
+.pzv .sheet .cbt .lg-h:first-child{margin-top:4px}
+.pzv .cbt .lg-h .cnt{font-size:11px;text-transform:none;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 /* The live plate, first in the command bar's plates: an angled slab, the minute big, the score, the next
    tanda. On a phone it takes the place of MEDIA and 7/7 (the sheet's bars still say them). */
 .pzv .lvp{position:relative;display:inline-grid;grid-template-columns:auto auto auto;align-items:center;column-gap:8px;flex:0 0 auto;min-height:44px;padding:3px 16px 3px 10px;border:0;background:var(--slab);color:var(--slab-ink);box-shadow:var(--slab-sh);clip-path:var(--angr);font:inherit;text-align:left}
@@ -224,8 +224,8 @@
 .pzv .cb-act a.b3{text-decoration:none}
 .pzv .cb-act .empty{margin:0}
 .pzv .b3.cb-go{background:var(--slab);color:var(--slab-ink);box-shadow:var(--slab-sh);clip-path:var(--ang);border-radius:0}
-.pzv .cb .b3 kbd{margin-left:2px}
-@media (hover:none){.pzv .cb .b3 kbd{display:none}}
+.pzv .cbt .b3 kbd{margin-left:2px}
+@media (hover:none){.pzv .cbt .b3 kbd{display:none}}
 .pzv .cb-tn{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0;font-size:12.5px;color:var(--soft)}
 .pzv .cb-tn > span{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--ink)}
 .pzv .cb-tn b,.pzv .cb-tk3 legend b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#0c1733;font-family:'Anybody';font-weight:900;font-size:11px}
@@ -304,7 +304,7 @@
 .pzv .cb-tk3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:0;padding:0;border:0;min-width:0}
 .pzv .cb-tk3 legend{display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:0;font-weight:700;font-size:12.5px;color:var(--soft)}
 .pzv .cb-tk3 select{width:100%;min-width:0;height:38px;border:0;clip-path:var(--ang);background:var(--input);color:var(--ink);font:inherit;font-size:12.5px;padding:0 8px}
-.pzv .cb select:disabled{opacity:.6}
+.pzv .cbt select:disabled{opacity:.6}
 /* La charla's plan step: the tandas next to the consignas. */
 .pzv .ch-cb{position:absolute;z-index:14;right:12px;top:96px;display:grid;gap:4px;max-width:min(320px,calc(100% - 24px));padding:8px 16px 10px 10px;background:var(--glass);clip-path:var(--angr);font-size:12.5px}
 .pzv .ch-cb b{font-family:'Anybody';font-weight:900;font-size:14px;text-transform:uppercase;color:var(--gold-ink)}
@@ -366,3 +366,20 @@
 /* «Sin responder» as its own chip next to voy / duda / no va (outlined: nothing said yet). */
 .pzv .cv-n{flex-wrap:wrap}
 .pzv .cvn.sin{background:transparent;box-shadow:inset 0 0 0 1px var(--pl)}
+
+/* The versions of the seven and «El oficial ha cambiado» live at the head of the panel (nothing over the pitch).
+   Four tabs in the Siete: tighter letters so «Convocatoria» fits; Q/E stay as keys (the prompt bar teaches them). */
+.pzv .sheet .vpills{justify-items:stretch;margin:0 0 10px}
+.pzv .sheet .vp-row{justify-content:flex-start;background:var(--chip);backdrop-filter:none;-webkit-backdrop-filter:none}
+.pzv .sheet .vp{flex:1 1 auto;justify-content:center}
+.pzv .sheet .vp-acts,.pzv .sheet .vp-ed{justify-content:flex-start;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:0}
+.pzv .sheet .ofb{margin:0 0 10px}
+.pzv .tabrow .tabs button{letter-spacing:.01em;padding:0 2px}
+.pzv .tabrow .bk{display:none}
+@container (min-width:700px){.pzv .tabrow .tabs button{font-size:11.5px}}
+/* The Cambios page fits its panel: its columns never grow past it. */
+.pzv .pg.cbt{grid-template-columns:minmax(0,1fr)}
+.pzv .pg.cbt > *{min-width:0}
+@container (max-width:439px){.pzv .tabrow .tabs button{font-size:11px;letter-spacing:0}}
+.pzv .tabrow .tl-s{display:none}
+@container (max-width:439px){.pzv .tabrow .tl-l{display:none}.pzv .tabrow .tl-s{display:inline}}
