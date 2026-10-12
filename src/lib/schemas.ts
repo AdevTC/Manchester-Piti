@@ -293,6 +293,25 @@ export const playSchema = z.object({
 export type Play = z.infer<typeof playSchema>;
 export type PlayKind = Play["kind"];
 
+// ── Pizarra: variantes del siete («2ª parte», «Plan B») ──────────────────────
+
+/** Variantes de un tablero: sus ids fijos y sus topes (los mismos que firestore.rules: variantsOk). */
+export const VARIANT_IDS = ["v2", "vb"] as const;
+export const VARIANT_LIMITS = { variants: 2, name: 24 } as const;
+export const lineupVariantSchema = z.object({
+  id: z.enum(VARIANT_IDS),
+  name: z.string().trim().min(1).max(VARIANT_LIMITS.name),
+  formation: z.enum(LINEUP_FORMATIONS),
+  freeMode: z.boolean(),
+  slots: lineupSlotsSchema,
+  tactics: lineupTacticsSchema,
+});
+export const lineupVariantsSchema = z
+  .array(lineupVariantSchema)
+  .max(VARIANT_LIMITS.variants)
+  .refine((vs) => new Set(vs.map((v) => v.id)).size === vs.length, { message: "Variantes repetidas." });
+export type LineupVariantData = z.infer<typeof lineupVariantSchema>;
+
 /** `lineups/{id}/reactions/{uid}`: lo que opina cada miembro del siete oficial. */
 export const REACTION_VALUES = ["ok", "dudas"] as const;
 export const reactionSchema = z.object({

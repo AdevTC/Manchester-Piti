@@ -4,7 +4,10 @@
 export const TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"] as const;
 /** Personal notices of the vestuario door: "door" for admins (someone asks to come in), "access" for whoever asked. */
 export const DOOR_TOPICS = ["door", "access"] as const;
-export type Topic = (typeof TOPICS)[number] | (typeof DOOR_TOPICS)[number];
+/** Personal notices of the convocatoria: the reminders to whoever hasn't answered, and (captains) the
+ *  answers changed at the last minute. The subscription carries the member's uid. */
+export const PERSONAL_TOPICS = ["convocatoria"] as const;
+export type Topic = (typeof TOPICS)[number] | (typeof DOOR_TOPICS)[number] | (typeof PERSONAL_TOPICS)[number];
 
 export interface Notice {
   topic: Topic;
@@ -109,6 +112,8 @@ export interface LineupLike {
   matchId?: string | null;
   /** The board's season: the link opens it there (`?season=`). */
   seasonId?: string;
+  /** The seven (only who stands in each slot matters to the notices). */
+  slots?: unknown;
 }
 
 /**
@@ -158,4 +163,72 @@ export function convocatoriaMessage(id: string, kind: "first" | "changes", match
   return kind === "first"
     ? { topic: "lineup", title: `Ya está la convocatoria${of}`, body: `${rival}${day}. Mira si te toca en la web.`, tag: `conv-${id}`, url: `/matches/${id}` }
     : { topic: "lineup", title: `Cambios en la convocatoria${of}`, body: `${rival}${day}. Mira cómo queda en la web.`, tag: `conv-${id}`, url: `/matches/${id}` };
+}
+
+// ── «Cambio en el siete»: the official's seven changed after it was published ──
+
+/** At most one «Cambio en el siete» per board every this long: the changes in between go together. */
+export const SEVEN_DEBOUNCE_MS = 10 * 60_000;
+
+/** Who stands in the seven, in slot order (an empty slot or a malformed one counts as nobody). */
+export function sevenOf(slots: unknown): string[] {
+  if (!Array.isArray(slots)) return [];
+  const out: string[] = [];
+  for (const s of slots) {
+    const id = s && typeof s === "object" ? (s as { playerId?: unknown }).playerId : null;
+    if (typeof id === "string" && id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+/** Who comes in and who goes out from `from` to `to` (each in its own order). */
+export function sevenDiff(from: readonly string[], to: readonly string[]): { ins: string[]; outs: string[] } {
+  const a = new Set(from);
+  const b = new Set(to);
+  return { ins: to.filter((id) => !a.has(id)), outs: from.filter((id) => !b.has(id)) };
+}
+
+const andList = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : xs.slice(0, -1).join(", ") + " y " + xs[xs.length - 1]);
+
+/** «entra ERIK por KEVIN», «entran A y B por C y D», «sale KEVIN», «entra ERIK» (null = nobody changes). */
+export function sevenChangeTxt(d: { ins: string[]; outs: string[] }, nameOf: (id: string) => string): string | null {
+  const ins = d.ins.map(nameOf);
+  const outs = d.outs.map(nameOf);
+  if (!ins.length && !outs.length) return null;
+  const verb = ins.length > 1 ? "entran " : "entra ";
+  if (ins.length && outs.length) return verb + andList(ins) + " por " + andList(outs);
+  if (ins.length) return verb + andList(ins);
+  return (outs.length > 1 ? "salen " : "sale ") + andList(outs);
+}
+
+/** Whether the official's seven may still be news: a match still to be played (or the season's). */
+export function sevenNewsworthy(after: LineupLike | undefined, match: MatchLike | null | undefined, now: number): boolean {
+  if (!after?.isOfficial) return false;
+  if (!after.matchId) return true;
+  if (!match || match.archived || match.status === "finished" || match.status === "cancelled") return false;
+  return typeof match.date !== "number" || match.date > now;
+}
+
+/**
+ * The «Cambio en el siete» notice, from the seven the team was last told about (`baseline`) to the one
+ * there is now; null when, all told, nobody comes in or goes out (moved around, or changed back).
+ */
+export function sevenChangeNotice(id: string, baseline: readonly string[], now7: readonly string[], after: LineupLike, match: MatchLike | null | undefined, nameOf: (id: string) => string): Notice | null {
+  const txt = sevenChangeTxt(sevenDiff(baseline, now7), nameOf);
+  if (!txt) return null;
+  const rival = after.matchId ? match?.rival : undefined;
+  const season = typeof after.seasonId === "string" && after.seasonId ? `&season=${encodeURIComponent(after.seasonId)}` : "";
+  return {
+    topic: "lineup",
+    title: "Cambio en el siete",
+    body: txt.replace(/^./, (c) => c.toUpperCase()) + (rival ? ` · contra ${rival}` : "") + ". Mira el oficial en la pizarra.",
+    tag: `seven-${id}`,
+    url: `/pizarra?tablero=${encodeURIComponent(id)}${season}`,
+  };
+}
+
+/** The debounce: send now when the last notice of this board is older than SEVEN_DEBOUNCE_MS (or there
+ *  was none), else hold it for the job (pushReminders) to send, grouped, once the window is over. */
+export function sevenStep(lastSentAt: number | null, now: number): "send" | "hold" {
+  return lastSentAt == null || now - lastSentAt >= SEVEN_DEBOUNCE_MS ? "send" : "hold";
 }

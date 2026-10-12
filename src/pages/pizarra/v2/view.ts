@@ -89,6 +89,8 @@ export interface CardView {
   /** The target's badge: «Entra por él» (a bench player in the hand) or «Intercambiar». */
   tg: string;
   aria: string;
+  /** Familiarity with the slot's zone (familiarity.ts): «++», «+» or «!» (absent = nothing to say). */
+  fam?: "++" | "+" | "!";
 }
 export interface SlotView {
   i: number;

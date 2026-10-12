@@ -202,6 +202,8 @@ export interface CharlaArgs {
   playing: boolean;
   /** The board is still loading (a link straight to the charla): it waits for it. */
   loading?: boolean;
+  /** The board's «Plan B» (variants.ts charlaPlanB): one more card at the plan step. */
+  planB?: { t: string; d: string } | null;
 }
 
 export interface LowerThird {
@@ -301,7 +303,10 @@ export function charlaView(a: CharlaArgs): CharlaView {
         : "Nadie lleva galones: mantén pulsado un cromo para darle el brazalete, los penaltis, las faltas o los córners.",
       gal: ls.flatMap((x) => (x.name ? [{ l: x.letter, t: x.name }] : [])),
     };
-  } else if (kind === "plan") plan = consignas(L);
+  } else if (kind === "plan") {
+    plan = consignas(L);
+    if (a.planB) plan.push({ t: a.planB.t, d: a.planB.d, dl: (plan.length * 0.18).toFixed(2) + "s" });
+  }
   else if (kind === "quedada") {
     lt = match
       ? { n: match.j ?? "–", nSm: true, k: "LA QUEDADA · " + match.short.toUpperCase(), t: "Nos vemos allí", d: quedadaTxt(match) + ".", gal: [] }
@@ -346,7 +351,7 @@ export function charlaView(a: CharlaArgs): CharlaView {
     ...Array.from({ length: 7 }, (_, i) => nm(i)),
     "Los suplentes · " + nSup,
     "Las pelotas paradas",
-    "El plan · " + a.tacSum + (L.subs?.length ? " · " + plural(L.subs.length, "cambio") : ""),
+    "El plan · " + a.tacSum + (a.planB ? " · " + a.planB.t : "") + (L.subs?.length ? " · " + plural(L.subs.length, "cambio") : ""),
     ...play.frames.map((f, k) => a.playShort + " · " + (k + 1) + " · " + (f.title || "Paso " + (k + 1))),
     "La quedada" + (match?.date ? " · " + match.date : ""),
     "¡A por ellos!",

@@ -111,7 +111,7 @@ describe("Avisos · este móvil", () => {
     expect(within(dv).getByText("Listo")).toBeInTheDocument();
     expect(within(dv).getByText("Este móvil recibe avisos")).toBeInTheDocument();
     expect(within(dv).getByText("Chrome en Android · avisos permitidos")).toBeInTheDocument();
-    expect(screen.getByText("2 de 6 activos en este móvil.")).toBeInTheDocument();
+    expect(screen.getByText("2 de 7 activos en este móvil.")).toBeInTheDocument();
     expect(sw(/Empieza el partido/)).toHaveAttribute("aria-pressed", "true");
     expect(sw(/^Goles/)).toHaveAttribute("aria-pressed", "true");
     expect(sw(/MVP de la jornada/)).toHaveAttribute("aria-pressed", "false");
@@ -125,7 +125,7 @@ describe("Avisos · este móvil", () => {
     m.savedTopics.mockReturnValue(["start", "goals"]);
     m.subscribed.mockResolvedValue(false);
     open("#avisos");
-    await waitFor(() => expect(screen.getByText("0 de 6 activos en este móvil.")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("0 de 7 activos en este móvil.")).toBeInTheDocument());
     expect(screen.getByText("Este móvil puede recibir avisos")).toBeInTheDocument();
   });
 
@@ -133,7 +133,7 @@ describe("Avisos · este móvil", () => {
     open("#avisos", makeData({ captain: true }));
     const door = sw(/Alguien llama a la puerta/);
     expect(within(door).getByText("CAPITANES")).toBeInTheDocument();
-    expect(screen.getByText("0 de 7 activos en este móvil.")).toBeInTheDocument();
+    expect(screen.getByText("0 de 8 activos en este móvil.")).toBeInTheDocument();
   });
 
   it("iPhone sin instalar: los pasos, interruptores bloqueados con el motivo, «Probar» explica por qué", () => {
@@ -201,7 +201,7 @@ describe("Avisos · interruptores", () => {
     expect(goles).toHaveAttribute("aria-pressed", "true");
     expect(goles).not.toHaveAttribute("aria-busy");
     expect(within(goles).getByText("SÍ")).toBeInTheDocument();
-    expect(screen.getByText("1 de 6 activos en este móvil.")).toBeInTheDocument();
+    expect(screen.getByText("1 de 7 activos en este móvil.")).toBeInTheDocument();
     expect(screen.getByText("Avisos activados en este móvil")).toBeInTheDocument();
   });
 
@@ -213,7 +213,7 @@ describe("Avisos · interruptores", () => {
     expect(goles).toHaveAttribute("aria-pressed", "true");
     await waitFor(() => expect(goles).toHaveAttribute("aria-pressed", "false"));
     expect(screen.getByRole("alert")).toHaveTextContent("Sin permiso no te podemos avisar: este navegador ha dicho que no.");
-    expect(screen.getByText("0 de 6 activos en este móvil.")).toBeInTheDocument();
+    expect(screen.getByText("0 de 7 activos en este móvil.")).toBeInTheDocument();
   });
 
   it("sin conexión: no lo intenta", () => {

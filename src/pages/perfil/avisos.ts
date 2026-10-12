@@ -108,6 +108,7 @@ export const TOPIC_COPY: Record<Topic, { label: string; sub: string; capOnly?: b
   lineup: { label: "Cuando salga el siete oficial", sub: "El capitán publica el once del domingo" },
   door: { label: "Alguien llama a la puerta", sub: "Peticiones de acceso al vestuario", capOnly: true },
   access: { label: "Te abren la puerta", sub: "Cuando un capitán te deja entrar" },
+  convocatoria: { label: "Si no has contestado", sub: "Te recordamos la convocatoria 48 h y 24 h antes; a los capitanes, los cambios de última hora" },
 };
 
 /** «3 de 7 activos en este móvil.» / not ready: why they are off. */

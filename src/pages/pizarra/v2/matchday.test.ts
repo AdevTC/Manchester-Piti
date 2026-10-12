@@ -143,7 +143,7 @@ describe("the fan's galones in order", () => {
   it("P opens 1º · 2º · 3º; a place puts him there; the same place again takes him off", () => {
     const L = setTaker(L7(), "penalties", "adrian", 0);
     const main = fanItems(L, sq, "tello", false);
-    expect(main.map((i) => i.label)).toEqual(["Capitán", "Penaltis", "Faltas", "Córners", "Jugar de", "Banquillo", "Ficha"]);
+    expect(main.map((i) => i.label)).toEqual(["Capitán", "Penaltis", "Faltas", "Córners", "Jugar de", "Banquillo", "Mover a", "Ficha"]);
     expect(main[1].aria).toBe("Penaltis: elegir el orden de TELLO");
     expect(applyFan(main[1], L, sq, "tello")).toEqual({ kind: "sub", sub: "penalties" });
     const order = fanItems(L, sq, "tello", "penalties");

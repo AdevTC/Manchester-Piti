@@ -7,7 +7,7 @@ import { natOf, GALONES, type Squad } from "./model";
 import { setPlaysAs, toBench, toggleRole } from "./ops";
 import { ORDINAL, ROLE_TAKER, setTaker, TAKER_LABEL, TAKER_ROLE, takersOf } from "./takers";
 
-export type FanKind = "role" | "zone" | "jugar" | "banquillo" | "ficha" | "volver";
+export type FanKind = "role" | "zone" | "jugar" | "banquillo" | "ficha" | "volver" | "mover";
 export interface FanItem {
   key: string;
   kind: FanKind;
@@ -60,6 +60,7 @@ export function fanItems(L: Lineup, sq: Squad, id: string, sub: FanSub): FanItem
         }),
         { key: "jugar", kind: "jugar", glyph: "", label: "Jugar de", aria: "Jugar como: elegir posición", on: false },
         { key: "bench", kind: "banquillo", glyph: "", label: "Banquillo", aria: "Mandar al banquillo", on: false },
+        { key: "mover", kind: "mover", glyph: "", label: "Mover a", aria: "Mover a " + name + " a otro puesto: elegir de una lista", on: false },
         { key: "ficha", kind: "ficha", glyph: "", label: "Ficha", aria: "Ver la ficha de " + name, on: false },
       ];
   return raw.map((it, k) => {
@@ -71,7 +72,8 @@ export function fanItems(L: Lineup, sq: Squad, id: string, sub: FanSub): FanItem
 export type FanOutcome =
   | { kind: "lineup"; lineup: Lineup; toast?: string; pick?: number }
   | { kind: "sub"; sub: FanSub }
-  | { kind: "ficha" };
+  | { kind: "ficha" }
+  | { kind: "mover" };
 
 export function applyFan(item: FanItem, L: Lineup, sq: Squad, id: string): FanOutcome {
   const name = sq.byId.get(id)?.name ?? "";
@@ -98,6 +100,8 @@ export function applyFan(item: FanItem, L: Lineup, sq: Squad, id: string): FanOu
       return { kind: "lineup", lineup: toBench(L, id), pick: L.slots.findIndex((s) => s.playerId === id) };
     case "ficha":
       return { kind: "ficha" };
+    case "mover":
+      return { kind: "mover" };
   }
 }
 

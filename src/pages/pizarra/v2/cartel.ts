@@ -56,6 +56,42 @@ export interface Cartel {
 
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
+/** A cartel cromo (112 × 132 px) in % of the pitch box: two closer than this overlap (the systems keep their
+ *  own spots: their lines are never closer than this). */
+export const CARTEL_GAP = { x: 13, y: 16 } as const;
+/**
+ * In free mode two cromos can stand on (almost) the same spot: on the cartel they would hide each other.
+ * Overlapping ones are nudged apart along the axis that needs the shorter move, a few rounds, inside the
+ * pitch (the systems' own spots never overlap, so they never move). Pure; same order in, same order out.
+ */
+export function spreadCromos(pts: readonly [number, number][], gap: { x: number; y: number } = CARTEL_GAP): [number, number][] {
+  const p = pts.map(([x, y]) => [x, y] as [number, number]);
+  for (let round = 0; round < 40; round++) {
+    let moved = false;
+    for (let a = 0; a < p.length; a++) {
+      for (let b = a + 1; b < p.length; b++) {
+        const dx = p[b][0] - p[a][0];
+        const dy = p[b][1] - p[a][1];
+        const ox = gap.x - Math.abs(dx);
+        const oy = gap.y - Math.abs(dy);
+        if (ox <= 0.01 || oy <= 0.01) continue;
+        moved = true;
+        if (ox / gap.x <= oy / gap.y) {
+          const s = dx === 0 ? (p[a][0] > 50 ? -1 : 1) : Math.sign(dx);
+          p[a][0] = clamp(p[a][0] - (s * ox) / 2, 7, 93);
+          p[b][0] = clamp(p[b][0] + (s * ox) / 2, 7, 93);
+        } else {
+          const s = dy === 0 ? 1 : Math.sign(dy);
+          p[a][1] = clamp(p[a][1] - (s * oy) / 2, 8, 86);
+          p[b][1] = clamp(p[b][1] + (s * oy) / 2, 8, 86);
+        }
+      }
+    }
+    if (!moved) break;
+  }
+  return p.map(([x, y]) => [+x.toFixed(1), +y.toFixed(1)]);
+}
+
 /** The kicker line as printed: «J8 · MAD SKY · 2-3-1 · DOM 8 NOV · 12:00». */
 export const cartelHead = (c: Cartel): string => [c.kick, c.when].filter(Boolean).join(" · ");
 
@@ -85,6 +121,16 @@ export function cartelLayout(L: Lineup, sq: Squad, ch: Chem, match: string | Cha
     at.set(i, [x, y]);
     cromos.push({ id: c.id, num: c.num, name: c.name, rt: c.rt, gk: i === 0, gal: galonesOf(L, c.id).map((g) => g.letter), x, y });
   });
+  // (free mode: two cromos on the same spot are nudged apart, so neither hides the other)
+  if (L.freeMode && cromos.length > 1) {
+    const keys = [...at.keys()];
+    const spread = spreadCromos(keys.map((k) => at.get(k) as [number, number]));
+    keys.forEach((k, n) => {
+      at.set(k, spread[n]);
+      cromos[n].x = spread[n][0];
+      cromos[n].y = spread[n][1];
+    });
+  }
   const links: CartelLink[] = [];
   ch.links.forEach((l) => {
     const a = at.get(l.i);

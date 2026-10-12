@@ -4,7 +4,7 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
 
 export const VAPID_PUBLIC = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
-export type Topic = "start" | "goals" | "final" | "mvp" | "dates" | "lineup" | DoorTopic;
+export type Topic = "start" | "goals" | "final" | "mvp" | "dates" | "lineup" | DoorTopic | "convocatoria";
 /** The vestuario door: "door" for captains (someone knocks), "access" for whoever waits to be let in. */
 export type DoorTopic = "door" | "access";
 export const TOPIC_LABELS: { id: Topic; label: string; hint?: string }[] = [

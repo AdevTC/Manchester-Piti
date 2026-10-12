@@ -2,9 +2,10 @@
 // ◀ ▶ selectors' wrap-around, the door in words), apart from the components so they are unit-tested.
 import { TOPIC_LABELS, type Topic } from "../../lib/push";
 
-/** The ids of «Qué te avisamos», in order: push.ts's topics, then the door for captains. */
+/** The ids of «Qué te avisamos», in order: push.ts's topics, the convocatoria's reminders (personal), then
+ *  the door for captains. */
 export function topicIds(captain: boolean): Topic[] {
-  return [...TOPIC_LABELS.map((t) => t.id), ...(captain ? (["door"] as Topic[]) : [])];
+  return [...TOPIC_LABELS.map((t) => t.id), "convocatoria", ...(captain ? (["door"] as Topic[]) : [])];
 }
 
 export type Opt<K extends string> = readonly [K, string];

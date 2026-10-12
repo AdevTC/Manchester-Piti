@@ -601,7 +601,8 @@ describe("La convocatoria en el tablero", () => {
     // the head: the counts (icon + number + word) and who is in doubt
     expect(screen.getByText("3 respuestas · 9 sin responder · 2 bajas")).toBeInTheDocument();
     expect(screen.getByText("Convocatoria · J8 · MAD SKY")).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "Respuestas: 1 voy, 1 duda, 1 no va" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Respuestas: 1 voy, 1 duda, 1 no va, 9 sin responder" })).toBeInTheDocument();
+    expect(container.querySelector(".cvn.sin")).toHaveTextContent("9sin responder");
     expect(screen.getByRole("button", { name: "Avisar a los que dudan: KEVIN" })).toBeInTheDocument();
     // (the desktop renders the bench as list rows: only the view on screen is in the page)
     const rail = screen.getByRole("group", { name: /^Banquillo en lista/ });

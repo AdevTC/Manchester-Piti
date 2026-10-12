@@ -16,6 +16,8 @@ vi.mock("../convocar/live", async () => {
   const kit = await import("../../../test/adminKit");
   return { useMatchAnswers: (id: string | undefined) => ({ data: id === "m8" ? kit.fixtureAnswers : [], loading: false }) };
 });
+const { setReminders } = vi.hoisted(() => ({ setReminders: vi.fn((_on: boolean) => Promise.resolve()) }));
+vi.mock("../convocar/reminders", () => ({ useReminders: () => ({ auto: true, loading: false, set: setReminders }) }));
 const setConv = vi.mocked(api.setConvocatoria);
 
 const WIDTH = window.innerWidth;
@@ -159,5 +161,15 @@ describe("Convocar", () => {
     expect(document.querySelector(".msticky")).toHaveTextContent("Falta 1 para el siete · ANDIA, ALMACHI en duda");
     expect(within(document.querySelector(".msticky") as HTMLElement).getByRole("button", { name: "Publicar y avisar" })).toBeDisabled();
     expect(screen.getByRole("group", { name: "Jugadores por respuesta" })).toBeInTheDocument();
+  });
+
+  it("«Recordatorios automáticos»: on by default, says who it chases, and the captain turns them off for this match", async () => {
+    setReminders.mockClear();
+    mountAdmin("/admin/convocar", { convocar: Convocar });
+    const sw = await screen.findByRole("switch", { name: "Recordatorios automáticos de este partido" });
+    expect(sw).toBeChecked();
+    expect(screen.getByText(/48 h y 24 h antes del partido, un aviso a cada convocado que no ha contestado/)).toBeInTheDocument();
+    await userEvent.click(sw);
+    expect(setReminders).toHaveBeenCalledWith(false);
   });
 });

@@ -364,3 +364,9 @@
 @keyframes ad-iShine{0%{opacity:0;transform:translateX(-12px)}25%{opacity:.6}100%{opacity:0;transform:translateX(13px)}}
 @keyframes ad-iDraw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 @keyframes ad-iDoor{45%{transform:scaleX(.8) skewY(-5deg)}}
+
+/* Convocar › «Recordatorios automáticos»: the switch at the end of its note (the words say on or off). */
+.adm .rmd{align-items:center}
+.adm .rmd-sw{display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex:0 0 auto;min-height:44px;cursor:pointer}
+.adm .rmd-sw input{width:40px;height:22px;accent-color:var(--accent);cursor:pointer}
+.adm .rmd-sw small{min-width:2ch;font-weight:600;color:var(--ink)}
