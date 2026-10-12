@@ -94,6 +94,9 @@ export interface TablerosProps {
   seasons: { id: string; name: string }[];
   seasonId: string;
   onSeason: (id: string) => void;
+  /** «Copiar el siete del último partido»: a new board with the seven that started it («J7 · MAD SKY»). */
+  lastMatch?: string | null;
+  onNewFromLast?: () => void;
 }
 
 /** The name of the board on screen, renamed as you type (saved after a pause, on Enter or on leaving). */
@@ -285,6 +288,12 @@ export function TablerosPanel(p: TablerosProps) {
                 <Icon n="plus" w={15} />
                 Nuevo
               </button>
+              {p.lastMatch && p.onNewFromLast && (
+                <button type="button" className="b3" onClick={p.onNewFromLast} disabled={!p.ready} aria-label={"Copiar el siete del último partido (" + p.lastMatch + ") en un tablero nuevo"}>
+                  <Icon n="copy" />
+                  Copiar el siete del último partido
+                </button>
+              )}
             </div>
             {p.id && confirmRow(p.id, p.name, "cur")}
           </div>

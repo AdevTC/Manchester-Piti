@@ -15,6 +15,7 @@ import { cartelHead, type Cartel } from "./cartel";
 import type { Squad } from "./model";
 import type { ShowKey, ShowPrefs } from "./prefs";
 import { intro3dWanted, setIntro3dWanted } from "./intro";
+import { TeamDiamonds } from "./TacticaPanel";
 
 /** A panel's heading: the title speaks first and the old kicker is the line under it (the panels
  *  behind «Más» have «‹ Más» before it). */
@@ -37,7 +38,7 @@ export function PanelHead({ kick, title, onBack, extra }: { kick: ReactNode; tit
 }
 
 /** The química's big number (it counts up from the last value on every change), its tier and why. */
-export function ChemTop({ ch, cls }: { ch: Chem; cls: "qp-top" | "qsum" }) {
+export function ChemTop({ ch, cls, dm }: { ch: Chem; cls: "qp-top" | "qsum"; dm?: number }) {
   const [anim, setAnim] = useState({ v: ch.v, q0: 0, k: 0 });
   if (anim.v !== ch.v) setAnim({ v: ch.v, q0: anim.v, k: anim.k + 1 });
   const [tier, sym] = tierOf(ch.v);
@@ -54,6 +55,7 @@ export function ChemTop({ ch, cls }: { ch: Chem; cls: "qp-top" | "qsum" }) {
           {tier}
         </span>
         <p>{chemWhy(ch)}</p>
+        {dm != null && <TeamDiamonds n={dm} />}
       </div>
     </div>
   );
@@ -109,14 +111,18 @@ export interface PlanTabProps {
   canRotate: boolean;
   /** What the plan does in free mode (plan.ts planNote), shown over the consignas; null with a system. */
   note?: string | null;
+  /** Bloque 4 (TacticaPanel.tsx): before the consignas (the record, the phases, the styles) and after them (the conditional plan). */
+  top?: ReactNode;
+  after?: ReactNode;
   onSet: (k: TacticKey, v: string) => void;
   onRotate: () => void;
 }
 
-export function PlanTab({ rows, ro, rep, repTxt, canRotate, note, onSet, onRotate }: PlanTabProps) {
+export function PlanTab({ rows, ro, rep, repTxt, canRotate, note, top, after, onSet, onRotate }: PlanTabProps) {
   const uid = useId();
   return (
     <div className="pg">
+      {top}
       {note && (
         <div className="cav">
           <Icon n="alert" w={16} />
@@ -157,6 +163,7 @@ export function PlanTab({ rows, ro, rep, repTxt, canRotate, note, onSet, onRotat
           );
         })}
       </div>
+      {after}
       <h3>Reparto de minutos · temporada</h3>
       <div className="rep">
         {rep.map((r) => (
@@ -189,11 +196,13 @@ export interface QuimicaProps {
   seasonName: string;
   /** Out of position in this seven: «TELLO (DEF›MED)». */
   oop: string[];
+  /** La química por jugador: the team's diamonds (0–21). */
+  dm?: number;
 }
 
 const rv = (v: number) => (40 * v) / 100;
 
-export function QuimicaPanel({ ch, sq, seasonName, oop }: QuimicaProps) {
+export function QuimicaPanel({ ch, sq, seasonName, oop, dm }: QuimicaProps) {
   const axes: [string, number][] = [
     ["Ataque", ch.at],
     ["Defensa", ch.de],
@@ -204,7 +213,7 @@ export function QuimicaPanel({ ch, sq, seasonName, oop }: QuimicaProps) {
   return (
     <>
       <PanelHead kick={"Química del siete · " + seasonName} title="Química" extra={<span className="cnt">{lucesTxt(ch.links.length)}</span>} />
-      <ChemTop ch={ch} cls="qp-top" />
+      <ChemTop ch={ch} cls="qp-top" dm={dm} />
       <div className="s-half">
         <div className="radar">
           <svg viewBox="-14 -10 128 120" role="img" aria-label={"Radar del siete: " + axes.map((a) => a[0].toLowerCase() + " " + a[1]).join(", ")}>

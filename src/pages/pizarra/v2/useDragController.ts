@@ -49,6 +49,8 @@ export interface DragHandlers {
   onPieceTap: (piece: string) => void;
   /** A finger held a cromo of the phone's bench strip still long enough: it lifts (a buzz says so). */
   onLift?: () => void;
+  /** The spot a carried cromo would land on changed (null = none, or the drag ended): only on a change. */
+  onTarget?: (src: DragSource, target: DropTarget | null) => void;
 }
 
 /** A cromo of the bench while the bench is a strip that scrolls sideways (the phone's). */
@@ -138,6 +140,14 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
   const restore = useRef(new Restore());
   const hovEl = useRef<Element | null>(null);
   const detach = useRef<(() => void) | null>(null);
+  /** The landing spot last told (onTarget), as a key. */
+  const tgtKey = useRef<string | null>(null);
+  const tellTarget = (src: DragSource, t: DropTarget | null) => {
+    const k = t ? JSON.stringify(t) : null;
+    if (k === tgtKey.current) return;
+    tgtKey.current = k;
+    latest.current.h.onTarget?.(src, t);
+  };
 
   useEffect(
     () => () => {
@@ -212,6 +222,7 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     if (d?.kind === "tok") {
       d.el.classList.remove("drag", "snapd", "lift", "armed");
       d.ghost?.remove();
+      if (tgtKey.current) tellTarget({ id: d.id, from: d.from }, null);
     }
     if (d?.kind === "grab" && refs.sheet.current) {
       refs.sheet.current.classList.remove("drg");
@@ -386,6 +397,19 @@ export function useDragController(refs: Refs, state: DragState, h: DragHandlers)
     const u = under(e.clientX, e.clientY, d.ghost ?? d.el);
     const tg = u && (u.closest(".cd[data-tok]") || u.closest("[data-slot]"));
     hover(tg && tg !== d.el ? tg : null);
+    // (the board previews what landing there would do: «+2 química aquí»)
+    const tz = tg && tg !== d.el ? tg.getAttribute("data-zone") : null;
+    const tslot = tg && tg !== d.el && tg.hasAttribute("data-slot") ? Number(tg.getAttribute("data-slot")) : null;
+    tellTarget(
+      { id: d.id, from: d.from },
+      mag != null
+        ? { k: "gslot", i: mag }
+        : tz === "p" || tz === "b"
+          ? { k: "tok", id: tg?.getAttribute("data-tok") ?? "", from: tz === "p" ? "pitch" : "bench" }
+          : tslot != null && Number.isFinite(tslot)
+            ? { k: "slot", i: tslot }
+            : null,
+    );
     e.preventDefault();
   };
 

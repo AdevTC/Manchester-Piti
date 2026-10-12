@@ -7,6 +7,7 @@ import { defaultTactics } from "../tactics";
 import { DEF_LINE_VALUES, planeDist2, slotPos, slotZone, SYSTEMS } from "./geometry";
 import { isAvailable, natOf, type Squad } from "./model";
 import { knownTakers, ROLE_TAKER, rolesFor, syncRoles, takersOf, toggleFirst } from "./takers";
+import { tacticaSig } from "./tacticaData";
 
 const cloneSlots = (L: Lineup) => L.slots.map((s) => ({ ...s }));
 
@@ -64,7 +65,7 @@ export function normalize(L: Lineup, squadIds: string[]): Lineup {
  *  left out; keys in a fixed order): a lineup with another one came from somewhere else. */
 export function editSig(L: Lineup): string {
   const sorted = (o: object | undefined) => Object.entries(o ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  return JSON.stringify([L.formation, !!L.freeMode, L.slots.map((s) => [s.playerId ?? null, s.x, s.y]), sorted(L.roles), sorted(L.tactics), sorted(L.playerPositions), (L.subs ?? []).map((x) => [x.id, x.min, x.out, x.in]), takersOf(L)]);
+  return JSON.stringify([L.formation, !!L.freeMode, L.slots.map((s) => [s.playerId ?? null, s.x, s.y]), sorted(L.roles), sorted(L.tactics), sorted(L.playerPositions), (L.subs ?? []).map((x) => [x.id, x.min, x.out, x.in]), takersOf(L), tacticaSig(L)]);
 }
 
 /** Keep the stored bench in step with the pitch (the old board reads it). */

@@ -494,6 +494,8 @@ export interface SystemTabProps {
   ro: boolean;
   ch: Chem;
   sq: Squad;
+  /** La química por jugador: the team's diamonds (0–21). */
+  dm?: number;
   onSystem: (f: FormationName) => void;
   onLibre: () => void;
   onGrid: () => void;
@@ -538,7 +540,7 @@ export function SystemTab(p: SystemTabProps) {
         </div>
       )}
       <h3>Química del siete · {lucesTxt(p.ch.links.length)}</h3>
-      <ChemTop ch={p.ch} cls="qsum" />
+      <ChemTop ch={p.ch} cls="qsum" dm={p.dm} />
       <ChemLines ch={p.ch} />
       <LucesList ch={p.ch} sq={p.sq} n={3} />
     </div>
