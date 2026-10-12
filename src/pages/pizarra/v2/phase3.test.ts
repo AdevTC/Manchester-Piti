@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { planArrows, planNote, setTactic, tacRows } from "./plan";
 import { planLayer } from "./view";
 import { changes, cmpMarks, galonesOn, meanForm, naturalCount, PLAYED_ID, playedOption, playedSeven, tape } from "./compare";
 import { boardLink, charlaMatch, convCounts, convocatoriaOf, copyName, matchBand, matchLabel, nameError, officialFor, seasonPending, uniqueName, withConvocatoria, type CalMatch } from "./boards";
-import { CARTEL_H, CARTEL_W, cartelFile, cartelLayout, drawCartel } from "./cartel";
+import { CARTEL_H, CARTEL_W, cartelConsignas, cartelFile, cartelHead, cartelLayout, drawCartel, preparedFor, shareCartel } from "./cartel";
 import { parsePrefs, PREFS0, readPrefs, SHOW0, writePrefs } from "./prefs";
 import { chem } from "./quimica";
 import { slotPos } from "./geometry";
@@ -301,6 +301,67 @@ describe("el cartel", () => {
     const none = document.createElement("canvas");
     Object.defineProperty(none, "getContext", { value: () => null });
     expect(await drawCartel(none, c, null)).toBe(false);
+  });
+
+  it("with the board's match: day and time, the convocatoria's banquillo and up to three consignas (the captain's first)", () => {
+    const L = { ...lineupOf(SEVEN, "2-3-1", sq), tactics: { ...lineupOf(SEVEN).tactics, buildup: "En largo" } };
+    const sq2 = { ...sq, byId: new Map(sq.byId) };
+    sq2.byId.set("erik", { ...sq.byId.get("erik")!, cv: "duda" });
+    const c = cartelLayout(L, sq2, chem(L, sq2), { short: "J8 · MAD SKY", date: "dom 8 nov", time: "12:00", j: "J8", called: [...SEVEN, "kevin", "erik"] }, "Temporada 1");
+    expect(c.kick).toBe("J8 · MAD SKY · 2-3-1");
+    expect(c.when).toBe("DOM 8 NOV · 12:00");
+    expect(cartelHead(c)).toBe("J8 · MAD SKY · 2-3-1 · DOM 8 NOV · 12:00");
+    expect(c.bench).toEqual(["KEVIN", "ERIK (duda)"]);
+    expect(c.cons).toEqual(["En largo", "Presión media", "Línea media"]);
+    expect(cartelConsignas(lineupOf(SEVEN))).toEqual(["Presión media", "Línea media", "Salida mixta"]);
+    expect(c.aria).toMatch(/^Cartel: los siete de J8 · MAD SKY \(dom 8 nov · 12:00\), 2-3-1, química \d+: .*\. Banquillo: KEVIN, ERIK \(duda\)\. Consignas: En largo, Presión media, Línea media$/);
+    // no convocatoria, no banquillo (the cartel never guesses it); just a name, no date
+    const plain = cartelLayout(L, sq, chem(L, sq), { short: "J8 · MAD SKY", date: "" }, "Temporada 1");
+    expect([plain.bench, plain.when]).toEqual([[], ""]);
+  });
+
+  it("draws the date, the consignas and the banquillo under the pitch", async () => {
+    const texts: string[] = [];
+    const grad = { addColorStop: () => {} };
+    const ctx = new Proxy({} as Record<string | symbol, unknown>, {
+      get(t, k) {
+        if (k in t) return t[k];
+        if (k === "fillText" || k === "strokeText") return (s: string) => texts.push(s);
+        if (k === "measureText") return (s: string) => ({ width: s.length * 12 });
+        if (k === "createLinearGradient" || k === "createRadialGradient") return () => grad;
+        return () => {};
+      },
+      set(t, k, v) {
+        t[k] = v;
+        return true;
+      },
+    });
+    const canvas = document.createElement("canvas");
+    Object.defineProperty(canvas, "getContext", { value: () => ctx });
+    const L = lineupOf(SEVEN, "2-3-1", sq);
+    const c = cartelLayout(L, sq, chem(L, sq), { short: "J8 · MAD SKY", date: "dom 8 nov", time: "12:00", called: [...SEVEN, "kevin"] }, "Temporada 1");
+    expect(await drawCartel(canvas, c, null)).toBe(true);
+    expect(texts).toContain("J8 · MAD SKY · 2-3-1 · DOM 8 NOV · 12:00");
+    expect(texts).toContain("CONSIGNAS");
+    expect(texts).toContain("PRESIÓN MEDIA · LÍNEA MEDIA · SALIDA MIXTA");
+    expect(texts).toContain("BANQUILLO");
+    expect(texts).toContain("KEVIN");
+  });
+
+  it("Safari keeps the tap: the share sheet opens synchronously with the PNG prepared for this very cartel", async () => {
+    const blob = new Blob(["png"], { type: "image/png" });
+    expect(preparedFor({ key: "a", blob }, "a")).toBe(blob);
+    expect(preparedFor({ key: "a", blob }, "b")).toBeNull();
+    expect(preparedFor(null, "a")).toBeNull();
+    const share = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    Object.defineProperty(navigator, "canShare", { value: () => true, configurable: true });
+    const p = shareCartel(blob, "pizarra.png", "Los siete", "J8");
+    // called in the same task as the tap, before anything is awaited
+    expect(share).toHaveBeenCalledTimes(1);
+    await expect(p).resolves.toBe("shared");
+    Reflect.deleteProperty(navigator, "share");
+    Reflect.deleteProperty(navigator, "canShare");
   });
 
   it("names the PNG after the board", () => {

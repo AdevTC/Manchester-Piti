@@ -10,7 +10,7 @@ import { chemWhy, lucesOf, lucesTxt, tierOf, type Chem } from "./quimica";
 import type { TacRow } from "./plan";
 import type { RepRow } from "./bench";
 import type { TapeRow } from "./compare";
-import type { Cartel } from "./cartel";
+import { cartelHead, type Cartel } from "./cartel";
 import type { Squad } from "./model";
 import type { ShowKey, ShowPrefs } from "./prefs";
 
@@ -379,6 +379,9 @@ export interface CompartirProps {
   /** Why the cartel can't go to the group yet (fewer than seven); null = it can. */
   block: string | null;
   busy: boolean;
+  /** The PNG of this cartel is drawn (cartel.ts preparedFor): «Mandar al grupo» waits for it, so the
+   *  share sheet opens inside the tap (Safari). Absent = ready. */
+  ready?: boolean;
   canLink: boolean;
   onShare: () => void;
   onPng: () => void;
@@ -387,7 +390,8 @@ export interface CompartirProps {
   onBack: () => void;
 }
 
-export function CompartirPanel({ cartel, block, busy, canLink, onShare, onPng, onLink, onBack }: CompartirProps) {
+export function CompartirPanel({ cartel, block, busy, ready = true, canLink, onShare, onPng, onLink, onBack }: CompartirProps) {
+  const waiting = busy || (!ready && !block);
   return (
     <>
       <PanelHead kick="Al grupo del equipo" title="Compartir" onBack={onBack} />
@@ -395,7 +399,7 @@ export function CompartirPanel({ cartel, block, busy, canLink, onShare, onPng, o
         <div className="po-h">
           <img src={CREST} alt="" />
           <div>
-            <small>{cartel.kick}</small>
+            <small>{cartelHead(cartel)}</small>
             <b>LOS SIETE</b>
           </div>
         </div>
@@ -407,6 +411,18 @@ export function CompartirPanel({ cartel, block, busy, canLink, onShare, onPng, o
             </span>
           ))}
         </div>
+        {cartel.cons.length > 0 && (
+          <div className="po-f">
+            <span>CONSIGNAS</span>
+            <span>{cartel.cons.join(" · ")}</span>
+          </div>
+        )}
+        {cartel.bench.length > 0 && (
+          <div className="po-f">
+            <span>BANQUILLO</span>
+            <span>{cartel.bench.join(" · ")}</span>
+          </div>
+        )}
         <div className="po-f">
           <span>
             QUÍMICA <b>{cartel.qv}</b>
@@ -415,9 +431,9 @@ export function CompartirPanel({ cartel, block, busy, canLink, onShare, onPng, o
         </div>
       </div>
       <div className="shr">
-        <button type="button" className="b2 gold mag" onClick={onShare} disabled={busy || !!block} aria-busy={busy} aria-describedby={block ? "pz-share-why" : undefined}>
+        <button type="button" className="b2 gold mag" onClick={onShare} disabled={waiting || !!block} aria-busy={waiting} aria-describedby={block ? "pz-share-why" : undefined}>
           <Icon n="share" w={18} />
-          <span>{busy ? "Preparando el cartel…" : "Mandar al grupo"}</span>
+          <span>{waiting ? "Preparando el cartel…" : "Mandar al grupo"}</span>
         </button>
         <button type="button" className="b3" onClick={onPng} disabled={busy || !!block} style={{ minHeight: 48 }} aria-label="Descargar el cartel en PNG" aria-describedby={block ? "pz-share-why" : undefined}>
           <Icon n="download" w={16} />

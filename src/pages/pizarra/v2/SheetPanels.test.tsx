@@ -1,6 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { PlanTab } from "./SheetPanels";
+import { CompartirPanel, PlanTab } from "./SheetPanels";
+import { cartelLayout } from "./cartel";
+import { chem } from "./quimica";
 import { planNote, tacRows } from "./plan";
 import { demoSquad, lineupOf } from "./testkit";
 
@@ -9,6 +11,34 @@ import { demoSquad, lineupOf } from "./testkit";
 const sq = demoSquad();
 const SEVEN = ["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "adrian"];
 const L = lineupOf(SEVEN, "2-3-1", sq);
+
+describe("Compartir", () => {
+  const cartel = cartelLayout(L, sq, chem(L, sq), { short: "J8 · MAD SKY", date: "dom 8 nov", time: "12:00", called: [...SEVEN, "kevin"] }, "Temporada 1");
+  const panel = (o: { ready?: boolean; block?: string | null } = {}) => {
+    const onShare = vi.fn();
+    const r = render(<CompartirPanel cartel={cartel} block={o.block ?? null} busy={false} ready={o.ready} canLink onShare={onShare} onPng={vi.fn()} onLink={vi.fn()} onBack={vi.fn()} />);
+    return { ...r, onShare };
+  };
+
+  it("while the PNG is being drawn, «Mandar al grupo» waits (Safari needs it ready inside the tap) and says so", () => {
+    const { onShare, rerender } = panel({ ready: false });
+    const btn = screen.getByRole("button", { name: "Preparando el cartel…" });
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("aria-busy", "true");
+    fireEvent.click(btn);
+    expect(onShare).not.toHaveBeenCalled();
+    rerender(<CompartirPanel cartel={cartel} block={null} busy={false} ready canLink onShare={onShare} onPng={vi.fn()} onLink={vi.fn()} onBack={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Mandar al grupo" }));
+    expect(onShare).toHaveBeenCalledTimes(1);
+  });
+
+  it("the preview carries the day, the consignas and the banquillo", () => {
+    panel();
+    expect(screen.getByText("J8 · MAD SKY · 2-3-1 · DOM 8 NOV · 12:00")).toBeInTheDocument();
+    expect(screen.getByText("Presión media · Línea media · Salida mixta")).toBeInTheDocument();
+    expect(screen.getByText("KEVIN")).toBeInTheDocument();
+  });
+});
 
 describe("Siete → Plan", () => {
   const plan = (note: string | null) => render(<PlanTab rows={tacRows(L)} ro={false} rep={[]} repTxt="" canRotate={false} note={note} onSet={vi.fn()} onRotate={vi.fn()} />);
