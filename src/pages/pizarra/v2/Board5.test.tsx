@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Stadium3DHandle } from "../../../components/pitch3d/Stadium3D";
 import type { PlayController, PlayOptions, RevealOptions } from "../../../components/pitch3d/types";
 import type { Lineup } from "../formations";
-import { INTRO_KEY } from "./intro";
+import { INTRO_KEY, setIntro3dWanted } from "./intro";
 import { PREFS0 } from "./prefs";
 import { demoSquad, lineupOf } from "./testkit";
 import { BoardHarness as Harness } from "./testkitBoard";
@@ -54,7 +54,7 @@ const root = (c: HTMLElement) => c.querySelector(".pzv") as HTMLElement;
 const nav = () => screen.getByRole("navigation", { name: "Herramientas de la pizarra" });
 const go = (name: string) => fireEvent.click(within(nav()).getByRole("button", { name: new RegExp("^(nuevo)?" + name + "$") }));
 const openCharla = () => fireEvent.click(screen.getByRole("button", { name: "La charla: presentar el siete" }));
-const counter = () => screen.getByRole("status", { name: /^Paso \d+\/\d+/ });
+const counter = () => screen.getByRole("img", { name: /^Paso \d+\/\d+/ });
 const lt = (c: HTMLElement) => c.querySelector(".ch-lt") as HTMLElement | null;
 const card = (c: HTMLElement, id: string) => c.querySelector(`.cd[data-tok="${id}"]`) as HTMLElement;
 const tick = (ms: number) =>
@@ -103,12 +103,12 @@ afterEach(() => {
 });
 
 describe("La charla", () => {
-  it("runs as designed: the system, the seven face up one by one, the plan, the jugada, «¡A por ellos!»", () => {
+  it("runs as designed: the system, the seven face up one by one, the suplentes, the lanzadores, the plan, the jugada, la quedada, «¡A por ellos!»", () => {
     vi.useFakeTimers();
     const { container } = render(<Harness initial={L7()} />);
     openCharla();
     expect(root(container)).toHaveClass("m-charla");
-    expect(counter()).toHaveAccessibleName("Paso 1/14: sistema");
+    expect(counter()).toHaveAccessibleName("Paso 1/17: sistema");
     expect(within(lt(container)!).getByText("Así salimos")).toBeInTheDocument();
     expect(container.querySelector(".ch-big b")?.textContent).toBe("2-3-1");
     expect(container.querySelector(".bug small")?.textContent).toBe("LA CHARLA · SÁB 8 NOV");
@@ -121,7 +121,7 @@ describe("La charla", () => {
     expect(screen.getByRole("button", { name: "Pausar la charla" })).toHaveFocus();
     // the first of the seven: he flips under the spotlight, the camera pushes in
     tick(2600);
-    expect(counter()).toHaveAccessibleName("Paso 2/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 2/17: los siete");
     expect(card(container, "evans")).toHaveClass("flip", "hero");
     expect(container.querySelectorAll(".cd.hide")).toHaveLength(6);
     expect(container.querySelector(".spot")).not.toBeNull();
@@ -131,9 +131,15 @@ describe("La charla", () => {
     expect(card(container, "illescas")).toHaveClass("hero");
     expect(card(container, "evans")).toHaveClass("dim");
     expect(card(container, "evans")).not.toHaveClass("hide");
-    // the rest of the seven, then the plan: discs, the consignas, the plan painted, the química lit
+    // the rest of the seven, the suplentes, who takes the dead balls, then the plan: discs, the
+    // consignas, the plan painted, the química lit
     for (let i = 0; i < 6; i++) tick(2300);
-    expect(counter()).toHaveAccessibleName("Paso 9/14: el plan");
+    expect(counter()).toHaveAccessibleName("Paso 9/17: banquillo");
+    expect(within(lt(container)!).getByText("Los suplentes")).toBeInTheDocument();
+    tick(3200);
+    expect(counter()).toHaveAccessibleName("Paso 10/17: balón parado");
+    tick(3000);
+    expect(counter()).toHaveAccessibleName("Paso 11/17: el plan");
     expect(container.querySelectorAll(".cd.mini")).toHaveLength(7);
     expect(container.querySelectorAll(".ch-plan > div")).toHaveLength(4);
     expect(lt(container)).toBeNull();
@@ -142,22 +148,26 @@ describe("La charla", () => {
     expect(container.querySelector(".lks .lk")).not.toBeNull();
     // the jugada: its pasos on the pitch, with the rivals and the ball
     tick(4400);
-    expect(counter()).toHaveAccessibleName("Paso 10/14: jugada");
+    expect(counter()).toHaveAccessibleName("Paso 12/17: jugada");
     expect(within(lt(container)!).getByText("LA JUGADA · CÓRNER · PASO 1 DE 4")).toBeInTheDocument();
     expect(container.querySelectorAll(".rv")).toHaveLength(5);
     expect(container.querySelector(".ball")).not.toBeNull();
     for (let i = 0; i < 4; i++) tick(2400);
+    // la quedada: when and where
+    expect(counter()).toHaveAccessibleName("Paso 16/17: quedada");
+    expect(within(lt(container)!).getByText("LA QUEDADA · J8 · MAD SKY")).toBeInTheDocument();
+    tick(3200);
     // «¡A por ellos!»: the flash and the sparks, the big words; it stops there
-    expect(counter()).toHaveAccessibleName("Paso 14/14: final");
+    expect(counter()).toHaveAccessibleName("Paso 17/17: final");
     expect(container.querySelector(".ch-big.fin b")?.textContent).toBe("¡A POR ELLOS!");
     expect(container.querySelector(".fx .cele")).not.toBeNull();
     expect(root(container)).toHaveClass("cheer");
     expect(screen.getByRole("button", { name: "Reproducir la charla" })).toBeInTheDocument();
     tick(10000);
-    expect(counter()).toHaveAccessibleName("Paso 14/14: final");
+    expect(counter()).toHaveAccessibleName("Paso 17/17: final");
     // play again: from the start
     fireEvent.click(screen.getByRole("button", { name: "Reproducir la charla" }));
-    expect(counter()).toHaveAccessibleName("Paso 1/14: sistema");
+    expect(counter()).toHaveAccessibleName("Paso 1/17: sistema");
     // «Salir»: back to the board, everything face up
     fireEvent.click(screen.getByRole("button", { name: "Salir" }));
     expect(root(container)).toHaveClass("m-editar");
@@ -170,21 +180,23 @@ describe("La charla", () => {
     render(<Harness initial={L7()} />);
     openCharla();
     fireEvent.click(screen.getByRole("button", { name: "Paso siguiente" }));
-    expect(counter()).toHaveAccessibleName("Paso 2/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 2/17: los siete");
     expect(screen.getByRole("button", { name: "Reproducir la charla" })).toBeInTheDocument();
     tick(10000);
-    expect(counter()).toHaveAccessibleName("Paso 2/14: los siete");
-    fireEvent.change(screen.getByRole("slider", { name: "Momento de la charla" }), { target: { value: "8" } });
-    expect(counter()).toHaveAccessibleName("Paso 9/14: el plan");
+    expect(counter()).toHaveAccessibleName("Paso 2/17: los siete");
+    fireEvent.change(screen.getByRole("slider", { name: "Momento de la charla" }), { target: { value: "10" } });
+    expect(counter()).toHaveAccessibleName("Paso 11/17: el plan");
     fireEvent.click(screen.getByRole("button", { name: "Paso anterior" }));
-    expect(counter()).toHaveAccessibleName("Paso 8/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 10/17: balón parado");
+    fireEvent.change(screen.getByRole("slider", { name: "Momento de la charla" }), { target: { value: "7" } });
+    expect(counter()).toHaveAccessibleName("Paso 8/17: los siete");
     const guion = screen.getByRole("heading", { name: "El guion" }).closest("section") as HTMLElement;
     expect(within(guion).getByText("10 · ADRIAN").closest("li")).toHaveAttribute("aria-current", "step");
     expect(within(guion).getByText("Córner · 1 · Colocación")).toBeInTheDocument();
     expect(within(guion).getByText("Sin 3D en este dispositivo: la charla se presenta sobre la pizarra.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Reproducir la charla" }));
     tick(2300);
-    expect(counter()).toHaveAccessibleName("Paso 9/14: el plan");
+    expect(counter()).toHaveAccessibleName("Paso 9/17: banquillo");
   });
 
   it("the keys: Space plays / pauses, ← → step, Escape leaves", () => {
@@ -196,9 +208,9 @@ describe("La charla", () => {
     expect(screen.getByRole("button", { name: "Reproducir la charla" })).toBeInTheDocument();
     fireEvent.keyDown(document.body, { key: "ArrowRight" });
     fireEvent.keyDown(document.body, { key: "ArrowRight" });
-    expect(counter()).toHaveAccessibleName("Paso 3/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 3/17: los siete");
     fireEvent.keyDown(document.body, { key: "ArrowLeft" });
-    expect(counter()).toHaveAccessibleName("Paso 2/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 2/17: los siete");
     fireEvent.keyDown(document.body, { key: " " });
     expect(screen.getByRole("button", { name: "Pausar la charla" })).toBeInTheDocument();
     fireEvent.keyDown(document.body, { key: "Escape" });
@@ -215,13 +227,13 @@ describe("La charla", () => {
     });
     expect(screen.getByRole("button", { name: "Reproducir la charla" })).toBeInTheDocument();
     tick(10000);
-    expect(counter()).toHaveAccessibleName("Paso 1/14: sistema");
+    expect(counter()).toHaveAccessibleName("Paso 1/17: sistema");
     act(() => {
       Object.defineProperty(document, "hidden", { value: false, configurable: true });
       document.dispatchEvent(new Event("visibilitychange"));
     });
     tick(2600);
-    expect(counter()).toHaveAccessibleName("Paso 2/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 2/17: los siete");
   });
 
   it("reduced motion: no clock and no flash — one step at a time by hand", () => {
@@ -230,14 +242,14 @@ describe("La charla", () => {
     const { container } = render(<Harness initial={L7()} />);
     openCharla();
     tick(10000);
-    expect(counter()).toHaveAccessibleName("Paso 1/14: sistema");
+    expect(counter()).toHaveAccessibleName("Paso 1/17: sistema");
     fireEvent.click(screen.getByRole("button", { name: "Avanzar la charla un paso" }));
-    expect(counter()).toHaveAccessibleName("Paso 2/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 2/17: los siete");
     expect(container.querySelector(".cd.slow")).toBeNull();
-    fireEvent.change(screen.getByRole("slider", { name: "Momento de la charla" }), { target: { value: "13" } });
+    fireEvent.change(screen.getByRole("slider", { name: "Momento de la charla" }), { target: { value: "16" } });
     expect(container.querySelector(".fx .cele")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Volver al principio de la charla" }));
-    expect(counter()).toHaveAccessibleName("Paso 1/14: sistema");
+    expect(counter()).toHaveAccessibleName("Paso 1/17: sistema");
   });
 
   it("anyone can watch the official: a read-only board presents too", () => {
@@ -245,7 +257,7 @@ describe("La charla", () => {
     const { container } = render(<Harness initial={L7()} ro />);
     openCharla();
     tick(2600);
-    expect(counter()).toHaveAccessibleName("Paso 2/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 2/17: los siete");
     expect(container.querySelector(".tst.on")).toBeNull();
   });
 
@@ -270,7 +282,7 @@ describe("La charla", () => {
     openCharla();
     vibrate.mockClear();
     tick(2600);
-    expect(counter()).toHaveAccessibleName("Paso 2/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 2/17: los siete");
     expect(vibrate).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Paso siguiente" }));
     expect(vibrate).toHaveBeenCalledWith(14);
@@ -299,9 +311,9 @@ describe("La charla", () => {
     fireEvent.click(screen.getByRole("button", { name: "Falta frontal (estrategia)" }));
     fireEvent.click(screen.getByRole("button", { name: "Verla en la charla" }));
     expect(root(container)).toHaveClass("m-charla");
-    // a falta has three pasos: 9 + 3 + 1 steps
-    expect(counter()).toHaveAccessibleName("Paso 1/13: sistema");
-    fireEvent.change(screen.getByRole("slider", { name: "Momento de la charla" }), { target: { value: "9" } });
+    // a falta has three pasos: 11 + 3 + 2 steps
+    expect(counter()).toHaveAccessibleName("Paso 1/16: sistema");
+    fireEvent.change(screen.getByRole("slider", { name: "Momento de la charla" }), { target: { value: "11" } });
     expect(within(lt(container)!).getByText("LA JUGADA · FALTA · PASO 1 DE 3")).toBeInTheDocument();
   });
 
@@ -311,10 +323,10 @@ describe("La charla", () => {
     const { container, rerender } = render(<Harness initial={L7()} session={{ ready: false }} />);
     expect(within(lt(container)!).getByText(/Cargando el siete…/)).toBeInTheDocument();
     tick(10000);
-    expect(counter()).toHaveAccessibleName("Paso 1/14: sistema");
+    expect(counter()).toHaveAccessibleName("Paso 1/17: sistema");
     rerender(<Harness initial={L7()} session={{ ready: true }} />);
     tick(2600);
-    expect(counter()).toHaveAccessibleName("Paso 2/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 2/17: los siete");
   });
 
   it("a link straight to #charla opens it (with no intro)", () => {
@@ -323,7 +335,7 @@ describe("La charla", () => {
     const { container } = render(<Harness initial={L7()} />);
     expect(root(container)).toHaveClass("m-charla");
     expect(root(container)).not.toHaveClass("intro");
-    expect(counter()).toHaveAccessibleName("Paso 1/14: sistema");
+    expect(counter()).toHaveAccessibleName("Paso 1/17: sistema");
   });
 });
 
@@ -343,10 +355,10 @@ describe("La charla en el estadio 3D", () => {
     tick(2600);
     expect(h.reveal).toHaveBeenCalledWith(SEVEN, expect.objectContaining({ stepMs: 2300 }));
     tick(10000);
-    expect(counter()).toHaveAccessibleName("Paso 2/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 2/17: los siete");
     const o = h.reveal.mock.calls[0][1];
     act(() => o?.onStep?.(2, { id: "tello", name: "TELLO", num: 20, x: 0, y: 0 }));
-    expect(counter()).toHaveAccessibleName("Paso 4/14: los siete");
+    expect(counter()).toHaveAccessibleName("Paso 4/17: los siete");
     const guion = screen.getByRole("heading", { name: "El guion" }).closest("section") as HTMLElement;
     expect(within(guion).getByText("En el estadio 3D: la cámara visita a cada jugador.")).toBeInTheDocument();
     // paused: the low camera on the hero
@@ -366,7 +378,7 @@ describe("La charla en el estadio 3D", () => {
     expect(s3.mounts).toBe(1);
   });
 
-  it("the transport acts on every press while the stadium films: fourteen quick «siguiente» reach the end", async () => {
+  it("the transport acts on every press while the stadium films: sixteen quick «siguiente» reach the end", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     sup.reason = null;
     const { h } = handle();
@@ -378,9 +390,9 @@ describe("La charla en el estadio 3D", () => {
     const next = screen.getByRole("button", { name: "Paso siguiente" });
     // all the presses land before the board draws any of them
     act(() => {
-      for (let k = 0; k < 14; k++) next.click();
+      for (let k = 0; k < 16; k++) next.click();
     });
-    expect(counter()).toHaveAccessibleName("Paso 14/14: final");
+    expect(counter()).toHaveAccessibleName("Paso 17/17: final");
     // the stadium is cut to the step asked for at once: «¡A por ellos!» in the stands
     await waitFor(() => expect(h.setCamera).toHaveBeenLastCalledWith("stands", { duration: 2600 }));
     expect(h.setBoard).toHaveBeenLastCalledWith(["¡A por ellos!", "Manchester Piti", "J8 · MAD SKY"]);
@@ -389,7 +401,7 @@ describe("La charla en el estadio 3D", () => {
     act(() => {
       for (let k = 0; k < 3; k++) prev.click();
     });
-    expect(counter()).toHaveAccessibleName("Paso 11/14: jugada");
+    expect(counter()).toHaveAccessibleName("Paso 14/17: jugada");
   });
 
   it("if the stadium fails, the charla goes on over the board", async () => {
@@ -401,11 +413,24 @@ describe("La charla en el estadio 3D", () => {
     await screen.findByText("El 3D no ha podido arrancar: seguimos en 2D");
     expect(root(container)).not.toHaveClass("v3");
     expect(container.querySelector("[data-testid=stadium3d]")).toBeNull();
-    expect(counter()).toHaveAccessibleName("Paso 1/14: sistema");
+    expect(counter()).toHaveAccessibleName("Paso 1/17: sistema");
   });
 });
 
 describe("La apertura", () => {
+  afterEach(() => setIntro3dWanted(false));
+
+  it("the 3D presentation is opt-in: a first visit plays the 2D crane and downloads no stadium", () => {
+    vi.useFakeTimers();
+    sessionStorage.clear();
+    sup.reason = null;
+    handle();
+    const { container } = render(<Harness initial={L7()} />);
+    expect(root(container)).toHaveClass("intro");
+    expect(root(container)).not.toHaveClass("i3");
+    expect(s3.mounts).toBe(0);
+  });
+
   it("the 2D crane once per session; the next visit finds the board at rest", () => {
     vi.useFakeTimers();
     sessionStorage.clear();
@@ -418,9 +443,10 @@ describe("La apertura", () => {
     expect(root(again.container)).not.toHaveClass("intro");
   });
 
-  it("the 3D intro where the device can: the 2D board hidden, the engine's intro; «Saltar» crossfades to the board", async () => {
+  it("asked for («Ver la presentación en 3D»), the 3D intro where the device can: the 2D board hidden, the engine's intro; «Saltar» crossfades to the board", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     sessionStorage.clear();
+    setIntro3dWanted(true);
     sup.reason = null;
     const { h } = handle();
     const { container } = render(<Harness initial={L7()} />);
@@ -439,6 +465,7 @@ describe("La apertura", () => {
   it("Escape skips the 3D intro too", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     sessionStorage.clear();
+    setIntro3dWanted(true);
     sup.reason = null;
     const { h } = handle();
     const { container } = render(<Harness initial={L7()} />);
@@ -450,6 +477,7 @@ describe("La apertura", () => {
   it("the 3D intro never lasts longer than 3,5 s", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     sessionStorage.clear();
+    setIntro3dWanted(true);
     sup.reason = null;
     const { h } = handle();
     const { container } = render(<Harness initial={L7()} />);
@@ -461,6 +489,7 @@ describe("La apertura", () => {
   it("a stadium slow to come up: the 2D crane plays instead", () => {
     vi.useFakeTimers();
     sessionStorage.clear();
+    setIntro3dWanted(true);
     sup.reason = null;
     s3.mode = "slow";
     handle();

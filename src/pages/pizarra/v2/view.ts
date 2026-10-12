@@ -6,7 +6,8 @@ import type { CSSProperties } from "react";
 import type { Lineup } from "../formations";
 import { defaultTactics } from "../tactics";
 import { CAMS, depthScale, framePath, lineDepth, PRESS_BAND, proj, slotLabel, slotPos, slotZone, type CamName } from "./geometry";
-import { fits, galonesOf, natOf, type Squad } from "./model";
+import { fits, formAria, galonesOf, natOf, rtTxt, type Squad } from "./model";
+
 import { reelFor } from "./pack";
 import { planArrows, type PlanArrow } from "./plan";
 import { hops, linkMark, tierOf, type Chem } from "./quimica";
@@ -68,7 +69,8 @@ export interface CardView {
   z: number;
   rd: string;
   cls: string;
-  rt: number;
+  /** The rating as printed («—» before his first match). */
+  rt: string;
   num: number;
   name: string;
   zoneTxt: string;
@@ -221,7 +223,7 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, 
       z: Math.round(y * 10) + (sel ? 2000 : 0),
       rd: ((h ?? 0) * 0.16).toFixed(2) + "s",
       cls,
-      rt: p.rt,
+      rt: rtTxt(p),
       num: p.num,
       name: p.name,
       zoneTxt: oop && nat ? nat + "›" + zl : zl,
@@ -240,7 +242,7 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, 
         ? "Cromo boca abajo: aún por presentar"
         : p.name + ", dorsal " + p.num + ", " + slotLabel(L, i) +
         (oop && nat ? ", fuera de posición (natural " + nat + ")" : "") +
-        ", forma " + p.rt +
+        ", " + formAria(p) +
         (gal.length ? ", galones " + gal.join(" ") : "") +
         (p.cv === "no" ? ", dijo que no va" : p.baja ? ", " + p.baja.toLowerCase() : "") +
         (me ? ", eres tú" : "") +
@@ -345,9 +347,13 @@ export interface Hud {
   media: number;
 }
 
-/** The mean form rating of the players on the pitch, rounded (the command bar's MEDIA plate). */
+/** The mean form rating of the players on the pitch who have played (a debutant's «—» doesn't count),
+ *  rounded: the command bar's MEDIA plate and the squad bars. */
 export function mediaOf(L: Lineup, sq: Squad): number {
-  const rts = L.slots.map((s) => (s.playerId ? sq.byId.get(s.playerId)?.rt : undefined)).filter((x): x is number => x != null);
+  const rts = L.slots
+    .map((s) => (s.playerId ? sq.byId.get(s.playerId) : undefined))
+    .filter((c): c is NonNullable<typeof c> => !!c && !c.unrated)
+    .map((c) => c.rt);
   return rts.length ? Math.round(rts.reduce((a, b) => a + b, 0) / rts.length) : 0;
 }
 
@@ -399,6 +405,14 @@ export function hud(L: Lineup, sq: Squad, ch: Chem, fx: Fx, rm: boolean, match: 
     pitchAria: sysName + ", " + n + " de 7 colocados, química " + v,
     media: mediaOf(L, sq),
   };
+}
+
+/** Two announcements of one action joined into one: a part the new one already says goes, and a new one
+ *  the message already says adds nothing («Capitán: X» is said once). */
+export function joinLive(prev: string, next: string): string {
+  if (!prev || prev.includes(next)) return prev || next;
+  const parts = prev.split(". ").filter((x) => x && !next.includes(x));
+  return [...parts, next].join(". ");
 }
 
 /** «ahora», «hace 3 min», «ayer»… for the autosave line. */

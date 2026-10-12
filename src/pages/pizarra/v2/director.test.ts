@@ -177,34 +177,41 @@ describe("the stadium's director", () => {
     expect(h.reveal).toHaveBeenLastCalledWith(SEVEN.slice(2), expect.anything());
   });
 
-  it("the plan from above; «¡A por ellos!» back in the stands with its LED boards", () => {
+  it("the suplentes on the TV camera; the pelotas paradas and the plan from above; la quedada and «¡A por ellos!» back in the stands with their LED boards", () => {
     const { h, handle } = fake();
     const d = new Director(handle, events());
     d.direct(charla(8, true));
+    expect(h.setCamera).toHaveBeenLastCalledWith("tv", { duration: 900 });
+    d.direct(charla(9, true));
+    expect(h.setCamera).toHaveBeenLastCalledWith("top", { duration: 1400 });
+    d.direct(charla(10, true));
     expect(h.setCamera).toHaveBeenLastCalledWith("top", { duration: 1400 });
     const last = charlaLast(corner().frames.length);
+    d.direct(charla(last - 1, true));
+    expect(h.setBoard).toHaveBeenLastCalledWith(["La charla", "J8 · MAD SKY", "Sistema 2-3-1", "Vamos Piti"]);
+    expect(h.setCamera).toHaveBeenLastCalledWith("stands", { duration: 2200 });
     d.direct(charla(last, false));
     expect(h.setBoard).toHaveBeenLastCalledWith(["¡A por ellos!", "Manchester Piti", "J8 · MAD SKY"]);
     expect(h.setCamera).toHaveBeenLastCalledWith("stands", { duration: 2600 });
   });
 
-  it("the jugada in the charla: played once from the paso on screen, each paso reported, the end is «¡A por ellos!»", () => {
+  it("the jugada in the charla: played once from the paso on screen, each paso reported, the end goes on to la quedada", () => {
     const { h, handle, ctl } = fake();
     const ev = events();
     const d = new Director(handle, ev);
     const p = corner();
     const last = charlaLast(p.frames.length);
-    d.direct(charla(10, true));
+    d.direct(charla(12, true));
     expect(h.play).toHaveBeenCalledWith(toEngineFrames(p).slice(1), expect.objectContaining({ loop: false, speed: 1 }));
     const o = h.play.mock.calls[0][1];
     o?.onFrame?.(1);
-    expect(ev.onStep).toHaveBeenLastCalledWith(11);
-    d.direct(charla(11, true));
+    expect(ev.onStep).toHaveBeenLastCalledWith(13);
+    d.direct(charla(13, true));
     expect(h.play).toHaveBeenCalledTimes(1);
     o?.onEnd?.();
-    expect(ev.onStep).toHaveBeenLastCalledWith(last);
+    expect(ev.onStep).toHaveBeenLastCalledWith(last - 1);
     // paused on a paso: everyone where it has them, the TV camera
-    d.direct(charla(10, false));
+    d.direct(charla(12, false));
     expect(ctl.stop).toHaveBeenCalled();
     const pose = enginePasos(p)[1];
     expect(h.setRivals).toHaveBeenLastCalledWith(pose.rivals, { animate: true });
@@ -222,7 +229,7 @@ describe("the stadium's director", () => {
     h.play.mockImplementation(() => {
       throw new Error("sin frames");
     });
-    d.direct(charla(9, true));
+    d.direct(charla(11, true));
     expect(ev.onFail).toHaveBeenCalledTimes(1);
     d.direct(charla(1, true));
     reveal.fail(new Error("contexto perdido"));
@@ -230,13 +237,17 @@ describe("the stadium's director", () => {
   });
 
   it("which charla steps the engine paces (the clock waits for it)", () => {
-    const last = 13;
+    const last = charlaLast(4);
     expect(engineDriven(0, last, true, SEVEN)).toBe(false);
     expect(engineDriven(3, last, true, SEVEN)).toBe(true);
     expect(engineDriven(3, last, false, SEVEN)).toBe(false);
     expect(engineDriven(7, last, true, [...SEVEN.slice(0, 6), null])).toBe(false);
     expect(engineDriven(8, last, true, SEVEN)).toBe(false);
-    expect(engineDriven(10, last, true, SEVEN)).toBe(true);
+    expect(engineDriven(9, last, true, SEVEN)).toBe(false);
+    expect(engineDriven(10, last, true, SEVEN)).toBe(false);
+    expect(engineDriven(12, last, true, SEVEN)).toBe(true);
+    // la quedada and the end go by the clock
+    expect(engineDriven(last - 1, last, true, SEVEN)).toBe(false);
     expect(engineDriven(last, last, true, SEVEN)).toBe(false);
   });
 

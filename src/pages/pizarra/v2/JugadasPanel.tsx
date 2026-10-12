@@ -6,14 +6,32 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { PIZARRA_LIMITS } from "../../../lib/schemas";
 import { Icon, Nuevo } from "./icons";
+import { nuevoOn } from "./rail";
 import { mag } from "./mag";
 import { vars } from "./view";
 import type { ReplayHud } from "./jugadas";
 import { useConfirmKeys } from "./useConfirmKeys";
 
 /** A text that is written as you go and kept on Enter, on leaving the field or after a short pause;
- *  `check` says what is wrong with it (then it is not kept). */
-function DraftField({ value, label, max, area, check, onSave }: { value: string; label: string; max: number; area?: boolean; check?: (v: string) => string | null; onSave: (v: string) => void }) {
+ *  `check` says what is wrong with it (then it is not kept). `onFocus`: the field is being written in
+ *  (the paso's fields stop the replay, so the paso can't change under the text). */
+function DraftField({
+  value,
+  label,
+  max,
+  area,
+  check,
+  onSave,
+  onFocus,
+}: {
+  value: string;
+  label: string;
+  max: number;
+  area?: boolean;
+  check?: (v: string) => string | null;
+  onSave: (v: string) => void;
+  onFocus?: () => void;
+}) {
   const id = useId();
   const [edit, setEdit] = useState<string | null>(null);
   const shown = edit ?? value;
@@ -37,6 +55,7 @@ function DraftField({ value, label, max, area, check, onSave }: { value: string;
     maxLength: max,
     "aria-invalid": !!err,
     "aria-describedby": err ? id + "-e" : undefined,
+    onFocus,
     onBlur: () => {
       save();
       if (!err) setEdit(null);
@@ -146,6 +165,11 @@ export function JugadasPanel(p: JugadasPanelProps) {
   useConfirmKeys(ask != null, () => setAsk(null));
   const full = ed.pasos.length >= L.framesMax;
   const few = ed.pasos.length <= L.framesMin;
+  // Writing a paso's title or note stops the replay: the paso stays on screen until the field is left
+  // (where the text is kept), so nothing typed is lost to the next paso.
+  const hold = () => {
+    if (p.playing) p.onToggle();
+  };
   return (
     <>
       <div className="tp" role="group" aria-label="Repetición de la jugada">
@@ -193,7 +217,7 @@ export function JugadasPanel(p: JugadasPanelProps) {
       </div>
       <div className="s-half">
         <h3>
-          Biblioteca · estrategia y propias <Nuevo />
+          Biblioteca · estrategia y propias {nuevoOn("jugadas") && <Nuevo />}
         </h3>
         <div className="jlib" role="group" aria-label="Biblioteca de jugadas">
           {p.lib.map((j) => (
@@ -319,9 +343,10 @@ export function JugadasPanel(p: JugadasPanelProps) {
             </ol>
             {(full || few) && <p className="empty">{"Una jugada tiene entre " + L.framesMin + " y " + L.framesMax + " pasos."}</p>}
             <div className="jpaso">
-              {/* (keyed by the paso only: a built-in jugada made yours on the first letter keeps the field) */}
-              <DraftField key={"t" + ed.cur} value={ed.title} label={"Título del paso " + (ed.cur + 1)} max={L.frameTitle} onSave={p.onTitle} />
-              <DraftField key={"n" + ed.cur} value={ed.note} label="Nota del paso" max={L.frameNote} area onSave={p.onNote} />
+              {/* (keyed by the paso only: a built-in jugada made yours on the first letter keeps the field;
+                  the replay stops while they are written in) */}
+              <DraftField key={"t" + ed.cur} value={ed.title} label={"Título del paso " + (ed.cur + 1)} max={L.frameTitle} onSave={p.onTitle} onFocus={hold} />
+              <DraftField key={"n" + ed.cur} value={ed.note} label="Nota del paso" max={L.frameNote} area onSave={p.onNote} onFocus={hold} />
             </div>
             {(ed.missing > 0 || ed.gone > 0) && (
               <>

@@ -14,6 +14,7 @@ import { grabLabel, type Snap } from "./sheet";
 import { vars, type Hud, type Modo } from "./view";
 import { mag } from "./mag";
 import { RAIL } from "./rail";
+import { shownBench, useWide } from "./useWide";
 
 
 // ── the command bar: the board (name, match, autosave) · the siete's plates (MEDIA, 7/7, QUÍMICA,
@@ -82,11 +83,12 @@ export function AppBar(p: AppBarProps) {
           </button>
         ) : (
           <>
-            <span className="mdp" role="status" aria-label={"Media del siete: " + hud.media}>
+            {/* (plates, not live regions: what changes is said once, by the board's announcer) */}
+            <span className="mdp" role="img" aria-label={"Media del siete: " + hud.media}>
               <small>MEDIA</small>
               <b>{hud.media}</b>
             </span>
-            <span className={"val " + hud.valCls} role="status" aria-label={hud.valAria}>
+            <span className={"val " + hud.valCls} role="img" aria-label={hud.valAria}>
               {hud.valOk ? <Icon n="check" w={14} /> : <Icon n="alert" w={14} />}
               <b>{hud.valN}</b>
               <small>{hud.valTxt}</small>
@@ -146,7 +148,8 @@ export function AppBar(p: AppBarProps) {
 
 export function ReadOnlyStrip({ label, onDuplicate, onMine }: { label: string; onDuplicate: () => void; onMine: () => void }) {
   return (
-    <div className="robar" role="status">
+    // (a group, not a live region: the board says «solo lectura» when an edit is tried)
+    <div className="robar" role="group" aria-label={label}>
       <b>
         <Icon n="lock" />
         {label}
@@ -308,6 +311,7 @@ const ZONE_FILTERS = ["Todos", "POR", "DEF", "MED", "DEL"];
 export function BenchTab(p: BenchTabProps) {
   const srxId = useId();
   const view = p.benchView ?? "lista";
+  const shown = shownBench(view, useWide());
   const { conv } = p;
   const hot = p.hot ? " hot" : "";
   return (
@@ -410,36 +414,40 @@ export function BenchTab(p: BenchTabProps) {
         </button>
         <kbd aria-hidden="true">R</kbd>
       </div>
-      <div className={"cvb" + hot} data-bench="1" role="group" aria-label="Banquillo: arrastra un cromo al campo o tócalo">
-        {p.groups.map((g) => (
-          <div key={g.k} className={"grp " + g.cls}>
-            <h3 className="grp-h">
-              <span>{g.t}</span>
-              <span className="cnt">{g.rows.length}</span>
-            </h3>
-            {!g.rows.length && <p className="grp-e">{g.emptyTxt}</p>}
-            <div className="bgrid">
+      {/* only the view on screen is rendered: the list where it shows (wide), else the cromos */}
+      {shown === "cromos" ? (
+        <div className={"cvb" + hot} data-bench="1" role="group" aria-label="Banquillo: arrastra un cromo al campo o tócalo">
+          {p.groups.map((g) => (
+            <div key={g.k} className={"grp " + g.cls}>
+              <h3 className="grp-h">
+                <span>{g.t}</span>
+                <span className="cnt">{g.rows.length}</span>
+              </h3>
+              {!g.rows.length && <p className="grp-e">{g.emptyTxt}</p>}
+              <div className="bgrid">
+                {g.rows.map((r) => (
+                  <AlbumCromo key={r.id} r={r} onTap={p.onTapBench} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={"cvl" + hot} data-bench="1" role="group" aria-label="Banquillo en lista: arrastra a un jugador al campo o tócalo">
+          {p.groups.map((g) => (
+            <div key={g.k} className={"lg " + g.cls}>
+              <h3 className="lg-h">
+                <span>{g.t}</span>
+                <span className="cnt">{g.rows.length}</span>
+              </h3>
+              {!g.rows.length && <p className="grp-e">{g.emptyTxt}</p>}
               {g.rows.map((r) => (
-                <AlbumCromo key={r.id} r={r} onTap={p.onTapBench} />
+                <BenchRowItem key={r.id} r={r} onTap={p.onTapBench} />
               ))}
             </div>
-          </div>
-        ))}
-      </div>
-      <div className={"cvl" + hot} data-bench="1" role="group" aria-label="Banquillo en lista: arrastra a un jugador al campo o tócalo">
-        {p.groups.map((g) => (
-          <div key={g.k} className={"lg " + g.cls}>
-            <h3 className="lg-h">
-              <span>{g.t}</span>
-              <span className="cnt">{g.rows.length}</span>
-            </h3>
-            {!g.rows.length && <p className="grp-e">{g.emptyTxt}</p>}
-            {g.rows.map((r) => (
-              <BenchRowItem key={r.id} r={r} onTap={p.onTapBench} />
-            ))}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -520,32 +528,32 @@ export function MasPanel({ tacSum, onGo }: { tacSum: string; onGo: (m: Modo | "p
     <>
       <PanelHead kick="Todo lo demás" title="Más" />
       <div className="tiles">
-        <button type="button" className="tile go" onClick={() => onGo("charla")}>
+        <button type="button" className="tile go" data-go="charla" onClick={() => onGo("charla")}>
           <Icon n="whistle" w={22} />
           <b>La charla</b>
           <small>El siete, el plan y la jugada</small>
         </button>
-        <button type="button" className="tile" onClick={() => onGo("tableros")}>
+        <button type="button" className="tile" data-go="tableros" onClick={() => onGo("tableros")}>
           <Icon n="boards" w={22} />
           <b>Tableros</b>
           <small>Míos, oficial, partido</small>
         </button>
-        <button type="button" className="tile" onClick={() => onGo("comparar")}>
+        <button type="button" className="tile" data-go="comparar" onClick={() => onGo("comparar")}>
           <Icon n="compare" w={22} />
           <b>Comparar</b>
           <small>Dos sietes cara a cara</small>
         </button>
-        <button type="button" className="tile" onClick={() => onGo("compartir")}>
+        <button type="button" className="tile" data-go="compartir" onClick={() => onGo("compartir")}>
           <Icon n="share" w={22} />
           <b>Compartir</b>
           <small>Cartel para el grupo</small>
         </button>
-        <button type="button" className="tile" onClick={() => onGo("plan")}>
+        <button type="button" className="tile" data-go="plan" onClick={() => onGo("plan")}>
           <Icon n="plan" w={22} />
           <b>El plan</b>
           <small>{tacSum}</small>
         </button>
-        <button type="button" className="tile" onClick={() => onGo("ajustes")}>
+        <button type="button" className="tile" data-go="ajustes" onClick={() => onGo("ajustes")}>
           <Icon n="sliders" w={22} />
           <b>Ajustes</b>
           <small>Cromos, cámara, sonido</small>

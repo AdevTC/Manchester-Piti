@@ -7,6 +7,7 @@ import { withConvocatoria, type CalMatch } from "./boards";
 import { PREFS0, SHOW0 } from "./prefs";
 import { chem } from "./quimica";
 import { DELETE_MS } from "./useBoardSession";
+import { UNPUB_MS } from "./Tableros";
 
 // Phase 3 as a user drives it: the plan on the pitch, the química panel, Tableros (mine, official,
 // partido), Comparar, Compartir, Ajustes and the convocatoria on the cromos — with a fake session.
@@ -52,7 +53,7 @@ describe("Siete → Plan", () => {
     // each consigna is a card: what it tells the team, and a stepper through its three values
     const card = (title: string) => screen.getByText(title, { selector: ".con-t b" }).closest(".con") as HTMLElement;
     expect(card("Presión media")).toHaveTextContent("Esperamos en el medio y saltamos juntos.");
-    expect(within(screen.getByRole("group", { name: "Presión" })).getByRole("status")).toHaveTextContent("Media");
+    expect(screen.getByRole("group", { name: "Presión" }).querySelector("output")).toHaveTextContent("Media");
     fireEvent.click(screen.getByRole("button", { name: "Presión: opción siguiente" }));
     expect(commits.at(-1)?.tactics.press).toBe("Alta");
     expect(card("Presión alta")).toHaveTextContent("Mordemos arriba: que no salgan jugando.");
@@ -65,7 +66,7 @@ describe("Siete → Plan", () => {
     expect(screen.getByText("Línea alta: la defensa se mueve")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Salida de balón: opción siguiente" }));
     expect(commits.at(-1)?.tactics.buildup).toBe("En largo");
-    expect(within(screen.getByRole("group", { name: "Salida de balón" })).getByRole("status")).toHaveTextContent("En largo");
+    expect(screen.getByRole("group", { name: "Salida de balón" }).querySelector("output")).toHaveTextContent("En largo");
     fireEvent.click(screen.getByRole("button", { name: "Foco de ataque: opción anterior" }));
     expect(commits.at(-1)?.tactics.attackFocus).toBe("Centro");
     // the ritmo is the pulse of the química lights
@@ -88,7 +89,7 @@ describe("Siete → Plan", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Plan/ }));
     expect(screen.getByRole("button", { name: "Presión: opción siguiente" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Foco de ataque: opción anterior" })).toBeDisabled();
-    expect(within(screen.getByRole("group", { name: "Foco de ataque" })).getByRole("status")).toHaveTextContent("Equilibrado");
+    expect(screen.getByRole("group", { name: "Foco de ataque" }).querySelector("output")).toHaveTextContent("Equilibrado");
     expect(screen.getByRole("button", { name: "Darle minutos" })).toBeDisabled();
   });
 });
@@ -164,10 +165,10 @@ describe("Tableros · mis tableros", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Duplicar Plan B" }));
     expect(copyBoard).toHaveBeenCalledWith("b2", false);
-    expect(await screen.findByText("Duplicado: Plan B (copia)")).toBeInTheDocument();
+    expect(await screen.findByText("Duplicado: Plan B (copia)", { selector: ".tst span" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^Nuevo$/ }));
     expect(newBoard).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText("Tablero nuevo: toca un hueco para empezar")).toBeInTheDocument();
+    expect(await screen.findByText("Tablero nuevo: toca un hueco para empezar", { selector: ".tst span" })).toBeInTheDocument();
   });
 
   it("a pause while typing saves the name", () => {
@@ -199,7 +200,7 @@ describe("Tableros · mis tableros", () => {
     expect(within(toast()).getByText("«Plan B» borrado")).toBeInTheDocument();
     fireEvent.click(within(toast()).getByRole("button", { name: "Deshacer el borrado de «Plan B»" }));
     expect(undo).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("«Plan B» recuperado")).toBeInTheDocument();
+    expect(screen.getByText("«Plan B» recuperado", { selector: ".tst span" })).toBeInTheDocument();
     // (nothing pending any more)
     expect(screen.queryByRole("group", { name: "«Plan B» borrado" })).toBeNull();
   });
@@ -322,7 +323,7 @@ describe("Tableros · oficial y partido", () => {
     fireEvent.click(screen.getByRole("button", { name: "Actualizar la convocatoria de J8 · MAD SKY con este siete" }));
     const seven = L7().slots.map((x) => x.playerId);
     expect(sync).toHaveBeenCalledWith("m8", { starters: seven, bench: ["fer", "kevin", "erik"] });
-    expect(await screen.findByText("Convocatoria de J8 · MAD SKY al día: este es su siete")).toBeInTheDocument();
+    expect(await screen.findByText("Convocatoria de J8 · MAD SKY al día: este es su siete", { selector: ".tst span" })).toBeInTheDocument();
     unmount();
     // the same siete: nothing to ask
     const same = m({ conv: { starters: [...SEVEN].reverse(), bench: [] } });
@@ -361,7 +362,19 @@ describe("Tableros · oficial y partido", () => {
     expect(screen.queryByRole("group", { name: "¿Quitar el oficial?" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Quitar el oficial" }));
     fireEvent.click(within(screen.getByRole("group", { name: "¿Quitar el oficial?" })).getByRole("button", { name: "Quitarlo" }));
+    // a few seconds to undo it
+    expect(unpublish).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /^Deshacer: «.+» sigue de oficial$/ }));
+    expect(screen.getByRole("button", { name: "Quitar el oficial" })).toBeInTheDocument();
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "Quitar el oficial" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "¿Quitar el oficial?" })).getByRole("button", { name: "Quitarlo" }));
+    act(() => {
+      vi.advanceTimersByTime(UNPUB_MS);
+    });
+    expect(unpublish).toHaveBeenCalledTimes(1);
     expect(unpublish).toHaveBeenCalledWith("b1");
+    vi.useRealTimers();
   });
 
   it("only a whole seven with a goalkeeper can be the official; warnings are asked first", () => {
@@ -456,7 +469,7 @@ describe("Tableros · oficial y partido", () => {
     go("Tableros");
     fireEvent.click(screen.getByRole("button", { name: "Partido" }));
     fireEvent.change(screen.getByRole("combobox", { name: "Vincular a un partido" }), { target: { value: "m8" } });
-    expect(await screen.findByText(/No se ha podido guardar: puede que/)).toBeInTheDocument();
+    expect(await screen.findByText(/No se ha podido guardar: puede que/, { selector: ".tst span" })).toBeInTheDocument();
   });
 });
 
@@ -502,13 +515,18 @@ describe("Compartir", () => {
     Object.assign(navigator, { share, canShare: () => true, clipboard: { writeText: vi.fn(async () => {}) } });
     render(<Harness initial={L7()} />);
     go("Compartir");
-    const poster = screen.getByRole("img", { name: /^Cartel: los siete de J8 · MAD SKY, 2-3-1, química \d+/ });
+    // (the cartel now carries the match's day and time too)
+    const poster = screen.getByRole("img", { name: /^Cartel: los siete de J8 · MAD SKY( \([^)]*\))?, 2-3-1, química \d+/ });
     expect(poster.querySelectorAll(".po-d")).toHaveLength(7);
-    fireEvent.click(screen.getByRole("button", { name: "Mandar al grupo" }));
+    // the PNG is prepared as Compartir opens; until then the button waits (Safari opens the share sheet
+    // only straight from the tap, so nothing may be awaited before it)
+    expect(screen.getByRole("button", { name: "Preparando el cartel…" })).toBeDisabled();
+    fireEvent.click(await screen.findByRole("button", { name: "Mandar al grupo" }));
+    expect(share).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Cartel listo para el grupo")).toBeInTheDocument();
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ title: "Los siete · J8 · MAD SKY", files: [expect.any(File)] }));
     fireEvent.click(screen.getByRole("button", { name: "Copiar enlace al tablero" }));
-    expect(await screen.findByText("Enlace copiado: pégalo en el grupo")).toBeInTheDocument();
+    expect(await screen.findByText("Enlace copiado: pégalo en el grupo", { selector: ".tst span" })).toBeInTheDocument();
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.origin + "/pizarra?tablero=b1&season=t1");
     // and the one the captain sends before the match: straight to the charla
     fireEvent.click(screen.getByRole("button", { name: "Copiar el enlace que abre la charla de este tablero" }));
@@ -533,11 +551,11 @@ describe("Compartir", () => {
     Object.assign(URL, { createObjectURL: vi.fn(() => "blob:x"), revokeObjectURL: vi.fn() });
     render(<Harness initial={L7()} session={{ id: null, status: "draft" }} />);
     go("Compartir");
-    fireEvent.click(screen.getByRole("button", { name: "Mandar al grupo" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Mandar al grupo" }));
     expect(await screen.findByText("Cartel descargado: mándalo al grupo")).toBeInTheDocument();
     expect(click).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Descargar el cartel en PNG" }));
-    expect(await screen.findByText("Cartel guardado como PNG")).toBeInTheDocument();
+    expect(await screen.findByText("Cartel guardado como PNG", { selector: ".tst span" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copiar enlace al tablero" })).toBeDisabled();
   });
 });
@@ -579,13 +597,15 @@ describe("La convocatoria en el tablero", () => {
     const { container } = render(<Harness initial={L7()} props={{ squad: conv, conv: { match: M8, loading: false, error: false } }} />);
     expect(container.querySelector('.cd[data-tok="tello"] .cc-no')).toHaveTextContent("NO VA");
     expect(screen.getByText("1 aviso")).toBeInTheDocument();
-    expect(screen.getByRole("status", { name: /TELLO dijo que no va/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /TELLO dijo que no va/ })).toBeInTheDocument();
     // the head: the counts (icon + number + word) and who is in doubt
     expect(screen.getByText("3 respuestas · 9 sin responder · 2 bajas")).toBeInTheDocument();
     expect(screen.getByText("Convocatoria · J8 · MAD SKY")).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Respuestas: 1 voy, 1 duda, 1 no va" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Avisar a los que dudan: KEVIN" })).toBeInTheDocument();
-    const rail = screen.getByRole("group", { name: /^Banquillo:/ });
+    // (the desktop renders the bench as list rows: only the view on screen is in the page)
+    const rail = screen.getByRole("group", { name: /^Banquillo en lista/ });
+    expect(screen.queryByRole("group", { name: /^Banquillo:/ })).not.toBeInTheDocument();
     expect(within(rail).getByRole("button", { name: /^KEVIN.*convocatoria: duda/ })).toBeInTheDocument();
     // the banquillo goes voy, duda, then those who haven't answered; the bajas in their own group
     const grp = (k: string) => container.querySelector(".cvl .lg." + k) as HTMLElement;

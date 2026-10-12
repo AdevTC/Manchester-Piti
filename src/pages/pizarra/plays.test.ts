@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PIZARRA_LIMITS } from "../../lib/schemas";
 import { seedLineup } from "./lineupOps";
-import { libraryPlays, PLAY_LIBRARY } from "./playLibrary";
+import { LIBRARY_SHORT, libraryPlays, partSlots, PLAY_LIBRARY } from "./playLibrary";
 import {
   addArrow,
   addFrame,
@@ -257,9 +257,13 @@ describe("built-in library", () => {
     return l;
   };
 
-  it("builds córner, falta, banda and salida for the seven on the board", () => {
+  it("builds córner, falta, banda and salida — and the four new set pieces — for the seven on the board", () => {
     const plays = libraryPlays(lineup());
-    expect(plays.map((p) => p.kind)).toEqual(["corner", "falta", "banda", "salida"]);
+    expect(plays.map((p) => p.kind)).toEqual(["corner", "falta", "banda", "salida", "corner", "falta", "banda", "salida"]);
+    // the design's four keep their ids; every jugada has its own
+    expect(plays.map((p) => p.id)).toEqual(["lib-corner", "lib-falta", "lib-banda", "lib-salida", "lib-corner-contra", "lib-falta-lateral", "lib-banda-larga", "lib-salida-porteria"]);
+    expect(plays.slice(4).map((p) => p.name)).toEqual(["Córner en contra", "Falta lateral a favor", "Saque de banda largo", "Saque de portería en corto"]);
+    expect(PLAY_LIBRARY.map((p) => LIBRARY_SHORT[p.id])).toEqual(["Córner", "Falta", "Banda", "Salida", "Córner en contra", "Falta lateral", "Banda larga", "Saque de puerta"]);
     for (const p of plays) {
       expect(isValidPlay(p)).toBe(true);
       expect(Object.keys(p.frames[0].players).sort()).toEqual([...SEVEN].sort());
@@ -281,8 +285,48 @@ describe("built-in library", () => {
     for (const p of libraryPlays(l)) expect(Object.keys(p.frames[0].players)).toHaveLength(5);
   });
 
-  it("matches the design's data (pasos per jugada)", () => {
-    expect(PLAY_LIBRARY.map((p) => p.steps.length)).toEqual([4, 3, 3, 4]);
+  it("matches the design's data (pasos per jugada), every paso written in Spanish within the limits", () => {
+    expect(PLAY_LIBRARY.map((p) => p.steps.length)).toEqual([4, 3, 3, 4, 4, 4, 3, 4]);
+    for (const p of PLAY_LIBRARY)
+      for (const s of p.steps) {
+        expect(s.title.length).toBeLessThanOrEqual(PIZARRA_LIMITS.frameTitle);
+        expect(s.note.length).toBeLessThanOrEqual(PIZARRA_LIMITS.frameNote);
+        expect(s.p).toHaveLength(7);
+        expect(s.r.length).toBeLessThanOrEqual(PIZARRA_LIMITS.rivals);
+      }
+  });
+
+  it("casts by line and side, not by slot number: the right players take the right parts in any system", () => {
+    // 2-3-1, the design's own system: part = slot
+    expect(partSlots(seedLineup("2-3-1", SEVEN))).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    // 3-2-1 (LD, DFC, LI · MC, MC · DC): the side centrales stay centrales, the medios take the side
+    // medios' parts and the middle central goes up as the «MC» (he was in slot 4 = a medio before)
+    const s321 = partSlots(seedLineup("3-2-1", SEVEN));
+    expect(s321).toEqual([0, 1, 3, 4, 2, 5, 6]);
+    // 2-1-3 (DFC, DFC · MC · ED, DC, EI): the extremos take the side medios' parts, the MC the centre
+    // one and the DC the punta (before, the right winger was the «DC»)
+    expect(partSlots(seedLineup("2-1-3", SEVEN))).toEqual([0, 1, 2, 4, 3, 6, 5]);
+    // 1-3-2 (DFC · MI, MC, MD · DC, DC): one central left; the other central part goes to the nearest
+    // line, and each of the two puntas takes a part on its side
+    const s132 = partSlots(seedLineup("1-3-2", SEVEN));
+    expect(s132[0]).toBe(0);
+    expect(new Set(s132).size).toBe(7);
+    expect(s132[6]).toBeGreaterThanOrEqual(5);
+    // free mode: the line comes from where each cromo stands
+    const free = { ...seedLineup("2-3-1", SEVEN), freeMode: true };
+    free.slots = free.slots.map((s, i) => (i === 6 ? { ...s, x: 50, y: 70 } : i === 1 ? { ...s, x: 30, y: 20 } : s));
+    const fs = partSlots(free);
+    expect(fs[6]).toBe(1); // the one standing up front is the punta
+    expect(fs.slice(1, 3)).toContain(6); // the one standing back is a central
+  });
+
+  it("in a 3-2-1 the córner's remate goes to a real player of the right line", () => {
+    const l = seedLineup("3-2-1", SEVEN); // por, d1 (LD), d2 (DFC), mi (LI), mc (MC), md (MC), dc
+    const [corner] = libraryPlays(l);
+    // part 4 (the «MC» in the box) is the middle central now, and the LI is still a central
+    expect(corner.frames[0].players.d2).toEqual({ x: 42, y: 22 });
+    expect(corner.frames[0].players.mi).toEqual({ x: 62, y: 30 });
+    expect(corner.frames[0].players.dc).toEqual({ x: 28, y: 12 });
   });
 });
 

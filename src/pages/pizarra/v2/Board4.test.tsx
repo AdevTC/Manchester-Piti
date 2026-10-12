@@ -196,7 +196,7 @@ describe("Dibujar", () => {
     expect(container.querySelector(".ink g.sel")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Borrar el trazo marcado: Pase · oro" }));
     expect(commits.at(-1)?.drawings.map((s) => s.id)).toEqual(["k2"]);
-    expect(screen.getByText("Trazo borrado")).toBeInTheDocument();
+    expect(screen.getByText("Trazo borrado", { selector: ".tst span" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Deshacer: recuperar el trazo" }));
     expect(commits.at(-1)?.drawings.map((s) => s.id)).toEqual(["k1", "k2"]);
     // the keyboard: Suprimir deletes the marked one, Escape lets go of it
@@ -267,7 +267,7 @@ describe("Dibujar", () => {
     expect(screen.getByText("Trazo muy corto: arrastra un poco más")).toBeInTheDocument();
     fireEvent.click(toolBtn("Zona"));
     swipe(frame(container), line("tv", [20, 50], [60, 50.4]));
-    expect(screen.getByText("Arrastra en diagonal para marcar la zona")).toBeInTheDocument();
+    expect(screen.getByText("Arrastra en diagonal para marcar la zona", { selector: ".tst span" })).toBeInTheDocument();
     expect(commits).toHaveLength(0);
   });
 
@@ -480,7 +480,7 @@ describe("Jugadas · la repetición", () => {
     });
     expect(bug()).toHaveAccessibleName(/paso 2 de 4/);
     const lib = screen.getByRole("group", { name: "Biblioteca de jugadas" });
-    expect(within(lib).getAllByRole("button").map((b) => b.textContent)).toEqual(["Córner", "Falta", "Banda", "Salida"]);
+    expect(within(lib).getAllByRole("button").map((b) => b.textContent)).toEqual(["Córner", "Falta", "Banda", "Salida", "Córner en contra", "Falta lateral", "Banda larga", "Saque de puerta"]);
     fireEvent.click(within(lib).getByRole("button", { name: "Falta frontal (estrategia)" }));
     expect(bug()).toHaveAccessibleName("Repetición: Falta frontal, paso 1 de 3, Barrera. Abrir la biblioteca");
     expect(screen.getByRole("button", { name: "Reproducir la repetición" })).toBeInTheDocument();
@@ -626,11 +626,11 @@ describe("Jugadas · el editor", () => {
     expect(p.id).not.toBe("lib-corner");
     expect(p.frames).toHaveLength(4);
     expect(p.frames[1].ball.x).toBeCloseTo(70, 0);
-    expect(screen.getByText("«Córner a favor» ya es tuya: se guarda con el tablero")).toBeInTheDocument();
+    expect(screen.getByText("«Córner a favor» ya es tuya: se guarda con el tablero", { selector: ".tst span" })).toBeInTheDocument();
     expect(bug()).toHaveAccessibleName(/^Repetición: Córner a favor \(tuya\), paso 2 de 4/);
     // the library keeps the original
     const lib = screen.getByRole("group", { name: "Biblioteca de jugadas" });
-    expect(within(lib).getAllByRole("button").map((b) => b.textContent)).toEqual(["Córner", "Falta", "Banda", "Salida", "Córner a favor (tuya)"]);
+    expect(within(lib).getAllByRole("button").map((b) => b.textContent)).toEqual(["Córner", "Falta", "Banda", "Salida", "Córner en contra", "Falta lateral", "Banda larga", "Saque de puerta", "Córner a favor (tuya)"]);
   });
 
   it("twelve of your own at most: it says so instead", () => {
@@ -782,7 +782,7 @@ describe("Jugadas · en 3D", () => {
     expect(root(container)).not.toHaveClass("fcam");
     expect(within(bug()).getByText("REPETICIÓN · CÓRNER · 1/4")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "En 3D" }));
-    expect(screen.getByText("Sin 3D aquí: cámara de televisión que sigue al balón")).toBeInTheDocument();
+    expect(screen.getByText("Sin 3D aquí: cámara de televisión que sigue al balón", { selector: ".tst span" })).toBeInTheDocument();
     expect(root(container)).toHaveClass("fcam");
     expect(s3.mounts).toBe(0);
   });

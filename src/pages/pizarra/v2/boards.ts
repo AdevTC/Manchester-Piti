@@ -84,6 +84,16 @@ export const matchDay = (ms: number): string => (ms ? dayFmt.format(new Date(ms)
 /** «12:00» (empty without a date). */
 export const matchTime = (ms: number): string => (ms ? timeFmt.format(new Date(ms)) : "");
 
+/** «En casa · Campo de la Mina» / «Fuera» / the venue alone (empty when the calendar doesn't say). */
+export const matchPlace = (m: CalMatch): string => (m.home == null ? m.venue : (m.home ? "En casa" : "Fuera") + (m.venue ? " · " + m.venue : ""));
+
+/** The board's match as the charla, the cartel and the ficha read it: its name, day, time, jornada,
+ *  campo and who its convocatoria calls (absent when it calls nobody yet). */
+export function charlaMatch(m: CalMatch): { short: string; date: string; time: string; j: string; place: string; called?: string[] } {
+  const called = m.conv ? [...m.conv.starters, ...m.conv.bench] : [];
+  return { short: matchShort(m), date: matchDay(m.dateMs), time: matchTime(m.dateMs), j: "J" + m.j, place: matchPlace(m), ...(called.length ? { called } : {}) };
+}
+
 export interface Band {
   /** g = victoria, e = empate, p = derrota, f = por jugar (and no match). */
   r: "g" | "e" | "p" | "f";
@@ -95,7 +105,7 @@ export interface Band {
 /** The result band of the linked match: V / E / D once played, «·» while it is to be played. */
 export function matchBand(m: CalMatch | null): Band {
   if (!m) return { r: "f", letter: "·", title: "Sin partido vinculado", sub: "Elige uno arriba: el tablero lleva su nombre y su convocatoria." };
-  const where = m.home == null ? m.venue : (m.home ? "En casa" : "Fuera") + (m.venue ? " · " + m.venue : "");
+  const where = matchPlace(m);
   const sub = ["J" + m.j, matchDay(m.dateMs), m.dateMs ? timeFmt.format(new Date(m.dateMs)) : "", where].filter(Boolean).join(" · ");
   if (!m.played || m.gf == null || m.ga == null) return { r: "f", letter: "·", title: "Por jugar · " + m.rival, sub };
   const r = m.gf > m.ga ? "g" : m.gf === m.ga ? "e" : "p";

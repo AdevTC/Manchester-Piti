@@ -83,7 +83,8 @@ export function CharlaOverlay({ v, step, playing, rm, onToggle, onStep, onSeek, 
             <b>{v.title}</b>
           </div>
         </div>
-        <span className="ch-n" role="status" aria-label={"Paso " + v.n + ": " + v.nk.toLowerCase()}>
+        {/* (not a live region: the board's one announcer says each step) */}
+        <span className="ch-n" role="img" aria-label={"Paso " + v.n + ": " + v.nk.toLowerCase()}>
           <b>{v.n}</b>
           <small>{v.nk}</small>
         </span>

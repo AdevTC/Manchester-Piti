@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { planArrows, setTactic, tacRows } from "./plan";
+import { describe, expect, it, vi } from "vitest";
+import { planArrows, planNote, setTactic, tacRows } from "./plan";
 import { planLayer } from "./view";
-import { changes, cmpMarks, meanForm, tape } from "./compare";
-import { boardLink, convCounts, convocatoriaOf, copyName, matchBand, matchLabel, nameError, officialFor, seasonPending, uniqueName, withConvocatoria, type CalMatch } from "./boards";
-import { CARTEL_H, CARTEL_W, cartelFile, cartelLayout, drawCartel } from "./cartel";
+import { changes, cmpMarks, galonesOn, meanForm, naturalCount, PLAYED_ID, playedOption, playedSeven, tape } from "./compare";
+import { boardLink, charlaMatch, convCounts, convocatoriaOf, copyName, matchBand, matchLabel, nameError, officialFor, seasonPending, uniqueName, withConvocatoria, type CalMatch } from "./boards";
+import { CARTEL_H, CARTEL_W, cartelConsignas, cartelFile, cartelHead, cartelLayout, drawCartel, preparedFor, shareCartel } from "./cartel";
 import { parsePrefs, PREFS0, readPrefs, SHOW0, writePrefs } from "./prefs";
 import { chem } from "./quimica";
 import { slotPos } from "./geometry";
@@ -59,7 +59,18 @@ describe("el plan", () => {
     expect(mixta.filter((a) => !a.c.startsWith("sky")).every((a) => a.c === "thin")).toBe(true);
     expect(mixta.filter((a) => a.c === "sky thin")).toHaveLength(3);
     mixta.forEach((a) => expect(a.d).toMatch(/^M[\d.]+ [\d.]+Q/));
-    expect(planArrows({ ...withTac({}), freeMode: true }, "tv")).toEqual([]);
+  });
+
+  it("free mode: the salida and the foco are painted from where the cromos stand; the Plan tab says the scales move nobody", () => {
+    const sys = withTac({ buildup: "Corta", attackFocus: "Centro" });
+    // the cromos where the system had them, then the right central pushed up into the middle
+    const free = { ...sys, freeMode: true, slots: sys.slots.map((s, i) => ({ ...s, x: slotPos(sys, i).u, y: i === 2 ? 50 : slotPos(sys, i).v })) };
+    const arr = planArrows(free, "tv");
+    // one central left in the line: one short pass from the keeper, and the centre lane
+    expect(arr.map((a) => a.key)).toEqual(["s0", "f0"]);
+    expect(arr[0].d).toBe(planArrows(sys, "tv")[0].d);
+    expect(planNote(free)).toBe("En modo libre el plan no mueve a nadie: colócalos tú. La salida y el foco sí se pintan, desde donde los has puesto.");
+    expect(planNote(sys)).toBeNull();
   });
 
   it("the plan layer paints the arrows only while the plan is open", () => {
@@ -73,15 +84,48 @@ describe("comparar", () => {
   const A = lineupOf(SEVEN, "2-3-1", sq);
   const B = lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "kevin", "erik"], "3-2-1", sq);
 
-  it("the tale of the tape: química, system, mean form and goals+assists per line, the better side marked", () => {
+  it("the tale of the tape: química, system, media, the seven's minutes, natural positions and galones, the better side marked", () => {
     const rows = tape(A, B, sq);
-    expect(rows.map((r) => r.k)).toEqual(["Química", "Sistema", "Forma media", "DEF · G+A", "MED · G+A", "DEL · G+A"]);
+    expect(rows.map((r) => r.k)).toEqual(["Química", "Sistema", "Media", "Minutos del siete", "En su posición", "Galones en el campo"]);
     expect(rows[1]).toMatchObject({ a: "2-3-1", b: "3-2-1", ca: "", cb: "" });
     const form = rows[2];
     expect(form.a).toBe(meanForm(A, sq));
     expect(form.b).toBe(meanForm(B, sq));
     if (form.a !== form.b) expect(form.a > form.b ? form.ca : form.cb).toBe("w");
     expect(meanForm(lineupOf([]), sq)).toBe(0);
+  });
+
+  it("the rows that matter for a lineup come from real data", () => {
+    const sq2 = { ...sq, byId: new Map(sq.byId) };
+    sq2.byId.set("evans", { ...sq.byId.get("evans")!, stats: { played: 6, goals: 0, assists: 0, minutes: 300, starts: 6, mvps: 0 } });
+    sq2.byId.set("kevin", { ...sq.byId.get("kevin")!, stats: { played: 9, goals: 3, assists: 1, minutes: 1250, starts: 8, mvps: 1 } });
+    // 2-3-1 with everyone in his line; B (3-2-1) has huberoski (MED) in the third defender's slot and kevin
+    // (DEL) in an MC slot: 5 in their line
+    const Ag = { ...A, roles: { captainId: "illescas", penaltiesId: "adrian", cornersId: "kevin" } };
+    const Bg = { ...B, roles: Ag.roles };
+    const rows = tape(Ag, Bg, sq2);
+    expect(rows[3]).toEqual({ k: "Minutos del siete", a: "300′", b: "1550′", ca: "", cb: "w" });
+    expect(rows[4]).toEqual({ k: "En su posición", a: "7/7", b: "5/7", ca: "w", cb: "" });
+    expect(rows[5]).toEqual({ k: "Galones en el campo", a: "2/4", b: "2/4", ca: "", cb: "" });
+    expect(naturalCount(lineupOf([]), sq)).toBe(0);
+    expect(galonesOn(lineupOf([]))).toBe(0);
+  });
+
+  it("«El siete que jugó»: the match's starters as a seven on this system (keeper in goal, each in his line)", () => {
+    const m: CalMatch = { id: "m8", j: 8, rival: "MAD SKY", dateMs: 0, played: true, gf: 3, ga: 1, home: true, venue: "", conv: { starters: ["kevin", "tello", "evans", "huberoski", "illescas", "eguzquiza", "erik"], bench: ["fer"] } };
+    expect(playedOption(m)).toEqual({ id: PLAYED_ID, name: "El siete que jugó · J8 · MAD SKY" });
+    expect(playedOption({ ...m, played: false })?.name).toBe("El siete convocado · J8 · MAD SKY");
+    expect(playedOption({ ...m, conv: { starters: [], bench: [] } })).toBeNull();
+    expect(playedOption(null)).toBeNull();
+    const P = playedSeven(A, m.conv!.starters, sq);
+    // 2-3-1: POR · DFC DFC · MI MC MD · DC
+    expect(P.slots.map((s) => s.playerId)).toEqual(["evans", "tello", "illescas", "huberoski", "eguzquiza", "erik", "kevin"]);
+    expect(P.formation).toBe("2-3-1");
+    expect(changes(A, P)).toEqual({ ins: ["erik", "kevin"], outs: ["almachi", "adrian"] });
+    // no keeper among them: the last one left goes in goal; never more than seven
+    const nk = playedSeven(A, ["tello", "illescas", "huberoski", "eguzquiza", "almachi", "adrian", "erik", "kevin"], sq);
+    expect(nk.slots.filter((s) => s.playerId)).toHaveLength(7);
+    expect(nk.slots[0].playerId).toBe("erik");
   });
 
   it("who comes in and who goes out, marked on the pitch", () => {
@@ -144,6 +188,13 @@ describe("tableros", () => {
     expect(matchBand(null).title).toBe("Sin partido vinculado");
     expect(matchLabel(m({ played: true, gf: 3, ga: 1 }))).toBe("J8 · MAD SKY · 3–1");
     expect(matchLabel(m({}))).toBe("J8 · MAD SKY");
+  });
+
+  it("the match as the charla reads it: day, time, campo and who the convocatoria calls", () => {
+    expect(charlaMatch(m({ conv: { starters: ["evans", "tello"], bench: ["kevin"] } }))).toEqual({ short: "J8 · MAD SKY", date: "dom 8 nov", time: "11:00", j: "J8", place: "En casa · Campo 3", called: ["evans", "tello", "kevin"] });
+    // no convocatoria yet: nobody called (the charla falls back to the available)
+    expect(charlaMatch(m({ home: false, venue: "", conv: { starters: [], bench: [] } }))).toEqual({ short: "J8 · MAD SKY", date: "dom 8 nov", time: "11:00", j: "J8", place: "Fuera" });
+    expect(charlaMatch(m({ home: null, venue: "Polideportivo", dateMs: 0 }))).toMatchObject({ date: "", time: "", place: "Polideportivo" });
   });
 
   it("the link to a board, and the one straight to its charla", () => {
@@ -250,6 +301,67 @@ describe("el cartel", () => {
     const none = document.createElement("canvas");
     Object.defineProperty(none, "getContext", { value: () => null });
     expect(await drawCartel(none, c, null)).toBe(false);
+  });
+
+  it("with the board's match: day and time, the convocatoria's banquillo and up to three consignas (the captain's first)", () => {
+    const L = { ...lineupOf(SEVEN, "2-3-1", sq), tactics: { ...lineupOf(SEVEN).tactics, buildup: "En largo" } };
+    const sq2 = { ...sq, byId: new Map(sq.byId) };
+    sq2.byId.set("erik", { ...sq.byId.get("erik")!, cv: "duda" });
+    const c = cartelLayout(L, sq2, chem(L, sq2), { short: "J8 · MAD SKY", date: "dom 8 nov", time: "12:00", j: "J8", called: [...SEVEN, "kevin", "erik"] }, "Temporada 1");
+    expect(c.kick).toBe("J8 · MAD SKY · 2-3-1");
+    expect(c.when).toBe("DOM 8 NOV · 12:00");
+    expect(cartelHead(c)).toBe("J8 · MAD SKY · 2-3-1 · DOM 8 NOV · 12:00");
+    expect(c.bench).toEqual(["KEVIN", "ERIK (duda)"]);
+    expect(c.cons).toEqual(["En largo", "Presión media", "Línea media"]);
+    expect(cartelConsignas(lineupOf(SEVEN))).toEqual(["Presión media", "Línea media", "Salida mixta"]);
+    expect(c.aria).toMatch(/^Cartel: los siete de J8 · MAD SKY \(dom 8 nov · 12:00\), 2-3-1, química \d+: .*\. Banquillo: KEVIN, ERIK \(duda\)\. Consignas: En largo, Presión media, Línea media$/);
+    // no convocatoria, no banquillo (the cartel never guesses it); just a name, no date
+    const plain = cartelLayout(L, sq, chem(L, sq), { short: "J8 · MAD SKY", date: "" }, "Temporada 1");
+    expect([plain.bench, plain.when]).toEqual([[], ""]);
+  });
+
+  it("draws the date, the consignas and the banquillo under the pitch", async () => {
+    const texts: string[] = [];
+    const grad = { addColorStop: () => {} };
+    const ctx = new Proxy({} as Record<string | symbol, unknown>, {
+      get(t, k) {
+        if (k in t) return t[k];
+        if (k === "fillText" || k === "strokeText") return (s: string) => texts.push(s);
+        if (k === "measureText") return (s: string) => ({ width: s.length * 12 });
+        if (k === "createLinearGradient" || k === "createRadialGradient") return () => grad;
+        return () => {};
+      },
+      set(t, k, v) {
+        t[k] = v;
+        return true;
+      },
+    });
+    const canvas = document.createElement("canvas");
+    Object.defineProperty(canvas, "getContext", { value: () => ctx });
+    const L = lineupOf(SEVEN, "2-3-1", sq);
+    const c = cartelLayout(L, sq, chem(L, sq), { short: "J8 · MAD SKY", date: "dom 8 nov", time: "12:00", called: [...SEVEN, "kevin"] }, "Temporada 1");
+    expect(await drawCartel(canvas, c, null)).toBe(true);
+    expect(texts).toContain("J8 · MAD SKY · 2-3-1 · DOM 8 NOV · 12:00");
+    expect(texts).toContain("CONSIGNAS");
+    expect(texts).toContain("PRESIÓN MEDIA · LÍNEA MEDIA · SALIDA MIXTA");
+    expect(texts).toContain("BANQUILLO");
+    expect(texts).toContain("KEVIN");
+  });
+
+  it("Safari keeps the tap: the share sheet opens synchronously with the PNG prepared for this very cartel", async () => {
+    const blob = new Blob(["png"], { type: "image/png" });
+    expect(preparedFor({ key: "a", blob }, "a")).toBe(blob);
+    expect(preparedFor({ key: "a", blob }, "b")).toBeNull();
+    expect(preparedFor(null, "a")).toBeNull();
+    const share = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    Object.defineProperty(navigator, "canShare", { value: () => true, configurable: true });
+    const p = shareCartel(blob, "pizarra.png", "Los siete", "J8");
+    // called in the same task as the tap, before anything is awaited
+    expect(share).toHaveBeenCalledTimes(1);
+    await expect(p).resolves.toBe("shared");
+    Reflect.deleteProperty(navigator, "share");
+    Reflect.deleteProperty(navigator, "canShare");
   });
 
   it("names the PNG after the board", () => {

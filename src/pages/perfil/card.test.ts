@@ -51,9 +51,9 @@ describe("la carta: valoración = la del cromo de la pizarra", () => {
     expect(card.rating).toBe(sq.byId.get("adri")!.rt);
     expect(card.ratingText).toBe(String(card.rating));
   });
-  it("un solo partido: 55 + 2 + 1,6 + 12 → 71, plata", () => {
+  it("un solo partido con gol: la forma de la pizarra (presencia + gol por 90) → 77, plata", () => {
     const card = buildCard(input({ matches: [match("j1", 10, [played("adri"), goal("adri")])] }));
-    expect(card.rating).toBe(71);
+    expect(card.rating).toBe(77);
     expect(card.tier).toBe("plata");
     expect(card.tierKey).toBe("plata");
     expect(card.tierName).toBe("Plata");
@@ -86,6 +86,17 @@ describe("la carta: estados", () => {
     expect(card.partner).toBeNull();
     // still the official ticker: the ficha is his
     expect(card.ticker.text).toBe("¡YA ES OFICIAL! · ADRI · DORSAL 10 · DELANTERO ·");
+  });
+  it("temporada empezada sin jugar aún: «—» (no el suelo de la forma) y se revela con su primer partido", () => {
+    const card = buildCard(input({ matches: [match("j1", 10, [played("erik"), goal("erik")])] }));
+    expect(card.started).toBe(true);
+    expect(card.showNumbers).toBe(true);
+    expect(card.rating).toBeNull();
+    expect(card.ratingText).toBe("—");
+    expect(card.tier).toBeNull();
+    expect(card.tierKey).toBe("nuevo");
+    expect(card.tierWhy).toBe("Se revela con tu primer partido de la temporada.");
+    expect(card.totals.played).toBe(0);
   });
   it("sin partidos de ningún tipo: se revela con el primero", () => {
     const card = buildCard(input());

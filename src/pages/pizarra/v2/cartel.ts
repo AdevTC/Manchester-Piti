@@ -8,11 +8,14 @@ import { CREST } from "./icons";
 import { slotPos } from "./geometry";
 import { galonesOf, type Squad } from "./model";
 import { tierOf, type Chem } from "./quimica";
+import { defaultTactics } from "../tactics";
+import { CONSIGNA } from "./plan";
+import { availTxt, suplentes, type CharlaMatch } from "./charla";
 
 export const CARTEL_W = 1080;
 export const CARTEL_H = 1350;
-/** The pitch inside the cartel (px). */
-export const PITCH_BOX = { x: 72, y: 236, w: 936, h: 912 };
+/** The pitch inside the cartel (px): under it, the consignas and the banquillo. */
+export const PITCH_BOX = { x: 72, y: 236, w: 936, h: 820 };
 
 export interface CartelCromo {
   id: string;
@@ -34,18 +37,39 @@ export interface CartelLink {
 export interface Cartel {
   /** «J8 · MAD SKY · 2-3-1». */
   kick: string;
+  /** «DOM 8 NOV · 12:00» (empty without a match or a date). */
+  when: string;
   sys: string;
   qv: number;
   tier: string;
   cromos: CartelCromo[];
   links: CartelLink[];
+  /** The suplentes the convocatoria calls («KEVIN», «ERIK (duda)»); empty without a convocatoria. */
+  bench: string[];
+  /** Up to three consignas of the plan («Presión alta»), the captain's own choices first. */
+  cons: string[];
   aria: string;
 }
 
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
-/** Where everything goes, as designed: across = u, along = 6 + v × 0.86 (% of the pitch box). */
-export function cartelLayout(L: Lineup, sq: Squad, ch: Chem, matchShort: string | null, seasonName: string): Cartel {
+/** The kicker line as printed: «J8 · MAD SKY · 2-3-1 · DOM 8 NOV · 12:00». */
+export const cartelHead = (c: Cartel): string => [c.kick, c.when].filter(Boolean).join(" · ");
+
+/** The consignas the cartel prints: the ones the captain changed from the default first, three at most. */
+export function cartelConsignas(L: Lineup): string[] {
+  const t = { ...defaultTactics(), ...L.tactics };
+  const d = defaultTactics();
+  const keys = (["press", "defLine", "buildup", "width", "attackFocus", "mentality", "tempo"] as const).filter((k) => CONSIGNA[k][t[k]]);
+  const mine = keys.filter((k) => t[k] !== d[k]);
+  return [...mine, ...keys.filter((k) => !mine.includes(k))].slice(0, 3).map((k) => CONSIGNA[k][t[k]][0]);
+}
+
+/** Where everything goes, as designed: across = u, along = 6 + v × 0.86 (% of the pitch box). `match`:
+ *  the board's match (its name, day, time and convocatoria), or just its name, or none. */
+export function cartelLayout(L: Lineup, sq: Squad, ch: Chem, match: string | CharlaMatch | null, seasonName: string): Cartel {
+  const m = typeof match === "string" ? null : match;
+  const matchShort = typeof match === "string" ? match : (match?.short ?? null);
   const sys = L.freeMode ? "LIBRE" : L.formation;
   const at = new Map<number, [number, number]>();
   const cromos: CartelCromo[] = [];
@@ -65,9 +89,24 @@ export function cartelLayout(L: Lineup, sq: Squad, ch: Chem, matchShort: string 
     if (a && b) links.push({ key: l.a + "|" + l.b, a, b, t: l.t });
   });
   const kick = (matchShort ?? seasonName) + " · " + sys;
+  const when = m ? [m.date, m.time].filter(Boolean).join(" · ").toLocaleUpperCase("es") : "";
+  const sup = m?.called?.length ? suplentes(L, sq, m.called).list : [];
+  const bench = sup.map((c) => c.name + (c.baja || (c.cv && c.cv !== "voy") ? " (" + availTxt(c) + ")" : ""));
+  const cons = cartelConsignas(L);
   const [tier] = tierOf(ch.v);
-  const aria = "Cartel: los siete de " + (matchShort ?? seasonName) + ", " + sys + ", química " + ch.v + (cromos.length ? ": " + cromos.map((c) => c.num + " " + c.name).join(", ") : ": sin cromos todavía");
-  return { kick, sys, qv: ch.v, tier, cromos, links, aria };
+  const aria =
+    "Cartel: los siete de " +
+    (matchShort ?? seasonName) +
+    (when ? " (" + when.toLocaleLowerCase("es") + ")" : "") +
+    ", " +
+    sys +
+    ", química " +
+    ch.v +
+    (cromos.length ? ": " + cromos.map((c) => c.num + " " + c.name).join(", ") : ": sin cromos todavía") +
+    (bench.length ? ". Banquillo: " + bench.join(", ") : "") +
+    ". Consignas: " +
+    cons.join(", ");
+  return { kick, when, sys, qv: ch.v, tier, cromos, links, bench, cons, aria };
 }
 
 /** «pizarra-j8-mad-sky.png». */
@@ -316,7 +355,7 @@ export async function drawCartel(canvas: HTMLCanvasElement, d: Cartel, crest: HT
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = SKY;
   ctx.font = `600 30px ${MONO}`;
-  ctx.fillText(truncate(ctx, d.kick.toUpperCase(), 800), crest ? 216 : 64, 104);
+  ctx.fillText(truncate(ctx, cartelHead(d).toUpperCase(), crest ? 800 : 950), crest ? 216 : 64, 104);
   ctx.fillStyle = INK;
   ctx.font = `900 104px ${DISPLAY}`;
   narrow(ctx, true);
@@ -328,6 +367,21 @@ export async function drawCartel(canvas: HTMLCanvasElement, d: Cartel, crest: HT
     .slice()
     .sort((a, b) => a.y - b.y)
     .forEach((c) => cromo(ctx, c));
+  // under the pitch: the consignas, then the banquillo
+  const under = (label: string, text: string, y: number) => {
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = SKY;
+    ctx.font = `600 24px ${MONO}`;
+    ctx.fillText(label, 72, y);
+    const lw = ctx.measureText(label + "  ").width;
+    ctx.fillStyle = INK;
+    ctx.font = `800 28px ${DISPLAY}`;
+    ctx.fillText(truncate(ctx, text, CARTEL_W - 144 - lw), 72 + lw, y);
+  };
+  const uy = PITCH_BOX.y + PITCH_BOX.h + 62;
+  if (d.cons.length) under("CONSIGNAS", d.cons.join(" · ").toUpperCase(), uy);
+  if (d.bench.length) under("BANQUILLO", d.bench.join(" · "), uy + 52);
   // footer: the química and the board
   const fy = CARTEL_H - 72;
   ctx.textAlign = "left";
@@ -385,6 +439,11 @@ export function download(blob: Blob, filename: string): void {
 }
 
 export type ShareResult = "shared" | "downloaded" | "cancelled";
+
+/** The PNG already prepared for this cartel (`key`: its layout), or null while it is still being drawn.
+ *  «Mandar al grupo» only opens the share sheet with it: Safari drops the tap's user gesture after any
+ *  await, so the PNG is drawn when Compartir opens (and on every change) and the tap shares it at once. */
+export const preparedFor = (prepared: { key: string; blob: Blob } | null, key: string): Blob | null => (prepared?.key === key ? prepared.blob : null);
 
 /** To the group: the system share sheet with the PNG where it can take files, else a download. */
 export async function shareCartel(blob: Blob, filename: string, title: string, text: string): Promise<ShareResult> {

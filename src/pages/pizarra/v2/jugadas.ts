@@ -5,11 +5,11 @@
 // calco of the paso before, the estelas, the follow-cam and the «REPETICIÓN» bug. Pure.
 import type { BoardPoint } from "../../../lib/schemas";
 import type { Lineup } from "../formations";
-import { libraryPlayId, libraryPlays } from "../playLibrary";
+import { LIBRARY_SHORT, libraryPlayId, libraryPlays } from "../playLibrary";
 import { deriveArrows, newPlay, playPoseAt, setFrameText, type Play, type PlayKind, type PlayPose, type PlayRival } from "../plays";
 import { PIZARRA_LIMITS } from "../../../lib/schemas";
 import { CAMS, depthScale, f1, proj, slotPos, slotZone, type CamName } from "./geometry";
-import { galonesOf, type Squad } from "./model";
+import { galonesOf, rtTxt, type Squad } from "./model";
 import type { CardView, Fx } from "./view";
 
 const L_ = PIZARRA_LIMITS;
@@ -29,7 +29,7 @@ export interface JugadaItem {
 /** The library for the seven on the board, then the board's own jugadas. */
 export function jugadaList(L: Lineup): JugadaItem[] {
   return [
-    ...libraryPlays(L).map((play) => ({ play, own: false, short: LIB_SHORT[play.kind as Exclude<PlayKind, "propia">] ?? play.name })),
+    ...libraryPlays(L).map((play) => ({ play, own: false, short: LIBRARY_SHORT[play.id] ?? LIB_SHORT[play.kind as Exclude<PlayKind, "propia">] ?? play.name })),
     ...(L.plays ?? []).map((play) => ({ play, own: true, short: play.name })),
   ];
 }
@@ -248,7 +248,7 @@ export function jugadaStage(a: JugadaStageArgs): JugadaStage {
       z: Math.round(y * 10),
       rd: "0s",
       cls: [mc, fx.slow ? "slow" : "", si === 0 ? "gk" : "", "mini", fx.from && !f ? "in" : "", fx.rip.includes(id) ? "land" : "", a.meId === id ? "me" : ""].filter(Boolean).join(" "),
-      rt: p.rt,
+      rt: rtTxt(p),
       num: p.num,
       name: p.name,
       zoneTxt: zone,
