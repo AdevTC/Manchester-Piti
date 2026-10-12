@@ -26,7 +26,7 @@ const m = (o: Partial<CalMatch>): CalMatch => ({ id: "m8", j: 8, rival: "MAD SKY
 const M7 = m({ id: "m7", j: 7, rival: "RAYO", played: true, gf: 3, ga: 1 });
 const M8 = m({});
 
-const nav = () => screen.getByRole("navigation", { name: "Modos de la pizarra" });
+const nav = () => screen.getByRole("navigation", { name: "Herramientas de la pizarra" });
 const go = (name: string) => fireEvent.click(within(nav()).getByRole("button", { name: new RegExp("^(nuevo)?" + name + "$") }));
 const root = (c: HTMLElement) => c.querySelector(".pzv") as HTMLElement;
 /** The panel's «‹ Más» (the mode bar has its own «Más»). */
@@ -48,20 +48,36 @@ describe("Siete → Plan", () => {
     expect(root(container)).toHaveClass("t-plan");
     expect(container.querySelectorAll(".cd.mini")).toHaveLength(7);
     expect(container.querySelectorAll(".tarr").length).toBeGreaterThan(0);
-    fireEvent.change(screen.getByRole("slider", { name: "Presión" }), { target: { value: "2" } });
+    // each consigna is a card: what it tells the team, and a stepper through its three values
+    const card = (title: string) => screen.getByText(title, { selector: ".con-t b" }).closest(".con") as HTMLElement;
+    expect(card("Presión media")).toHaveTextContent("Esperamos en el medio y saltamos juntos.");
+    expect(within(screen.getByRole("group", { name: "Presión" })).getByRole("status")).toHaveTextContent("Media");
+    fireEvent.click(screen.getByRole("button", { name: "Presión: opción siguiente" }));
     expect(commits.at(-1)?.tactics.press).toBe("Alta");
-    fireEvent.change(screen.getByRole("slider", { name: "Línea defensiva" }), { target: { value: "2" } });
+    expect(card("Presión alta")).toHaveTextContent("Mordemos arriba: que no salgan jugando.");
+    // the last value: «siguiente» is spent; its dot is the third
+    expect(screen.getByRole("button", { name: "Presión: opción siguiente" })).toBeDisabled();
+    expect(card("Presión alta").querySelectorAll(".stp output i.on")).toHaveLength(1);
+    expect(card("Presión alta").querySelectorAll(".stp output i")[2]).toHaveClass("on");
+    fireEvent.click(screen.getByRole("button", { name: "Línea defensiva: opción siguiente" }));
     expect(commits.at(-1)?.tactics.defLine).toBe("Alta");
     expect(screen.getByText("Línea alta: la defensa se mueve")).toBeInTheDocument();
-    fireEvent.click(within(screen.getByRole("group", { name: "Salida de balón" })).getByRole("button", { name: "En largo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salida de balón: opción siguiente" }));
     expect(commits.at(-1)?.tactics.buildup).toBe("En largo");
-    expect(within(screen.getByRole("group", { name: "Salida de balón" })).getByRole("button", { name: "En largo" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(screen.getByRole("group", { name: "Salida de balón" })).getByRole("status")).toHaveTextContent("En largo");
+    fireEvent.click(screen.getByRole("button", { name: "Foco de ataque: opción anterior" }));
+    expect(commits.at(-1)?.tactics.attackFocus).toBe("Centro");
     // the ritmo is the pulse of the química lights
-    fireEvent.change(screen.getByRole("slider", { name: "Ritmo" }), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ritmo: opción siguiente" }));
     expect(commits.at(-1)?.tactics.tempo).toBe("Rápido");
+    expect(card("A un toque")).toBeInTheDocument();
     expect((container.querySelector(".lk") as HTMLElement).style.getPropertyValue("--rit")).toBe("1.3s");
+    // the reparto de minutos lives on the plan: the six who have played least, the siete marked
+    expect(container.querySelectorAll(".rep-r")).toHaveLength(6);
+    expect(container.querySelectorAll(".rep-r.in em")).not.toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Darle minutos" })).toBeInTheDocument();
     // back to the bench: no plan on the pitch
-    fireEvent.click(screen.getByRole("button", { name: "Banquillo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Convocatoria" }));
     expect(root(container)).not.toHaveClass("t-plan");
     expect(container.querySelector(".tarr")).toBeNull();
   });
@@ -69,8 +85,10 @@ describe("Siete → Plan", () => {
   it("read-only: the plan can be read, not changed", () => {
     render(<Harness initial={L7()} ro />);
     fireEvent.click(screen.getByRole("button", { name: /^Plan/ }));
-    expect(screen.getByRole("slider", { name: "Presión" })).toBeDisabled();
-    expect(within(screen.getByRole("group", { name: "Foco de ataque" })).getByRole("button", { name: "Centro" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Presión: opción siguiente" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Foco de ataque: opción anterior" })).toBeDisabled();
+    expect(within(screen.getByRole("group", { name: "Foco de ataque" })).getByRole("status")).toHaveTextContent("Equilibrado");
+    expect(screen.getByRole("button", { name: "Darle minutos" })).toBeDisabled();
   });
 });
 
@@ -486,9 +504,26 @@ describe("La convocatoria en el tablero", () => {
     expect(container.querySelector('.cd[data-tok="tello"] .cc-no')).toHaveTextContent("NO VA");
     expect(screen.getByText("1 aviso")).toBeInTheDocument();
     expect(screen.getByRole("status", { name: /TELLO dijo que no va/ })).toBeInTheDocument();
-    expect(screen.getByText("Convocatoria J8 · MAD SKY: 1 voy · 1 duda · 1 no va · 9 sin responder")).toBeInTheDocument();
-    const rail = screen.getByRole("group", { name: /^Banquillo/ });
+    // the head: the counts (icon + number + word) and who is in doubt
+    expect(screen.getByText("3 respuestas · 9 sin responder · 2 bajas")).toBeInTheDocument();
+    expect(screen.getByText("Convocatoria · J8 · MAD SKY")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Respuestas: 1 voy, 1 duda, 1 no va" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Avisar a los que dudan: KEVIN" })).toBeInTheDocument();
+    const rail = screen.getByRole("group", { name: /^Banquillo:/ });
     expect(within(rail).getByRole("button", { name: /^KEVIN.*convocatoria: duda/ })).toBeInTheDocument();
+    // the banquillo goes voy, duda, then those who haven't answered; the bajas in their own group
+    const grp = (k: string) => container.querySelector(".cvl .lg." + k) as HTMLElement;
+    const ids = (el: HTMLElement) => Array.from(el.querySelectorAll(".ar")).map((b) => b.getAttribute("data-tok"));
+    expect(ids(grp("g-b")).slice(0, 2)).toEqual(["erik", "kevin"]);
+    expect(ids(grp("g-x"))).toEqual(["brawan", "andia"]);
+    expect(grp("g-x").querySelector('.ar[data-tok="brawan"]')).toHaveAttribute("data-zone", "x");
+    expect(grp("g-x").querySelector('.ar[data-tok="brawan"] .ac-cv')).toHaveTextContent("Lesionado");
+    // nobody uncalled without a convocatoria from the captain
+    expect(grp("g-s")).toHaveTextContent("Nadie fuera de la convocatoria.");
+    // «Solo convocados» lives in «Buscar en la plantilla» (its filters only apply while it is open)
+    const srx = screen.getByRole("button", { name: "Buscar en la plantilla" });
+    expect(srx).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(srx);
     const oc = screen.getByRole("button", { name: /Solo convocados/ });
     expect(oc).toBeEnabled();
     fireEvent.click(oc);
@@ -498,6 +533,36 @@ describe("La convocatoria en el tablero", () => {
       .filter((l) => /, dorsal /.test(l));
     expect(names).toHaveLength(1);
     expect(names[0]).toMatch(/^ERIK/);
+    expect(grp("g-x")).toHaveTextContent("Nadie con ese filtro.");
+    // closed, the whole bench is back
+    fireEvent.click(srx);
+    expect(ids(grp("g-x"))).toEqual(["brawan", "andia"]);
+  });
+
+  it("the captain's convocatoria: who it leaves out is «Sin convocar», never a target", () => {
+    const M8c = m({ conv: { starters: SEVEN, bench: ["erik", "kevin"] } });
+    const { container } = render(<Harness initial={lineupOf([null, ...SEVEN.slice(1)], "2-3-1", sq)} props={{ squad: conv, conv: { match: M8c, loading: false, error: false }, calendar: [M8c], nextMatch: M8c }} />);
+    expect(screen.getByText("9 convocados · 9 sin responder · 2 bajas")).toBeInTheDocument();
+    const sin = container.querySelector(".cvl .lg.g-s") as HTMLElement;
+    expect(Array.from(sin.querySelectorAll(".ar")).map((b) => b.getAttribute("data-tok"))).toEqual(["fer"]);
+    expect(sin.querySelector(".ac-cv.sin")).toHaveTextContent("Sin convocar");
+    fireEvent.click(screen.getByRole("button", { name: "Hueco POR vacío: toca para elegir jugador" }));
+    expect(sin.querySelector(".ar")).not.toHaveClass("tgt");
+    expect(container.querySelector('.cvl .ar[data-tok="evans"]')).toHaveClass("tgt", "best");
+  });
+
+  it("«Avisar a los que dudan» sends the group a message (the share sheet, else the clipboard)", async () => {
+    const share = vi.fn(async () => {});
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    render(<Harness initial={L7()} props={{ squad: conv, conv: { match: M8, loading: false, error: false } }} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Avisar a los que dudan/ }));
+    expect(share).toHaveBeenCalledWith({ text: "J8 · MAD SKY: KEVIN, ¿venís? Contestad a la convocatoria en el vestuario." });
+    Reflect.deleteProperty(navigator, "share");
+    const write = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: write }, configurable: true });
+    fireEvent.click(screen.getByRole("button", { name: /^Avisar a los que dudan/ }));
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Aviso copiado: pégalo en el grupo")).toBeInTheDocument();
   });
 
   it("«Sugerir siete» deals the match's convocatoria first (the one source)", () => {
@@ -518,7 +583,9 @@ describe("La convocatoria en el tablero", () => {
 
   it("no answers yet, no match, or answers that can't be read", () => {
     const { unmount } = render(<Harness initial={L7()} props={{ conv: { match: M8, loading: false, error: false } }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Buscar en la plantilla" }));
     expect(screen.getByRole("button", { name: /Solo convocados/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Avisar a los que dudan: nadie tiene dudas" })).toBeInTheDocument();
     expect(screen.getByText("Nadie ha respondido aún a la convocatoria de J8 · MAD SKY.")).toBeInTheDocument();
     unmount();
     const r2 = render(<Harness initial={L7()} />);
@@ -541,7 +608,7 @@ describe("enlaces y avisos", () => {
   it("the URL hash wins on load and a new hash switches the panel", () => {
     window.history.replaceState(null, "", "/pizarra#plan");
     render(<Harness initial={L7()} />);
-    expect(screen.getByRole("slider", { name: "Presión" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Presión" })).toBeInTheDocument();
     act(() => {
       window.history.replaceState(null, "", "/pizarra#tableros");
       window.dispatchEvent(new HashChangeEvent("hashchange"));
@@ -551,13 +618,13 @@ describe("enlaces y avisos", () => {
       window.history.replaceState(null, "", "/pizarra#plan");
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     });
-    expect(screen.getByRole("slider", { name: "Presión" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Presión" })).toBeInTheDocument();
     // a hash that names no panel leaves the board as it is
     act(() => {
       window.history.replaceState(null, "", "/pizarra#nada");
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     });
-    expect(screen.getByRole("slider", { name: "Presión" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Presión" })).toBeInTheDocument();
     // fútbol 7: the mode is «Siete»
     expect(within(nav()).getByRole("button", { name: "Siete" })).toHaveAttribute("aria-pressed", "true");
   });
@@ -576,6 +643,6 @@ describe("enlaces y avisos", () => {
       fireEvent.click(back());
     }
     fireEvent.click(screen.getByRole("button", { name: /^El plan/ }));
-    expect(screen.getByRole("slider", { name: "Presión" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Presión" })).toBeInTheDocument();
   });
 });

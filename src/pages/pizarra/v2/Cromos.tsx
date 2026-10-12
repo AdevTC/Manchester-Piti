@@ -1,10 +1,9 @@
 // The cromos: on the pitch (club cromo with the form rating, zone, dorsal, name plate, galones stickers,
-// the out-of-position «!», the «NO VA» tag, the pack reel) and in the album (bench rail, tray, bajas).
+// the out-of-position «!», the «NO VA» tag, the pack reel) and on the bench (album cromos and FUT rows).
 import type { PointerEvent } from "react";
 import { Icon, Shirt, CREST } from "./icons";
 import { vars, type CardView } from "./view";
-import type { Cromo } from "./model";
-import { plural } from "./plural";
+import type { BenchRow } from "./bench";
 
 // The cromo tilts toward the pointer and its foil follows (mouse and pen only).
 function tiltMove(e: PointerEvent<HTMLSpanElement>) {
@@ -84,6 +83,16 @@ export function PitchCromo({ c, showGal, mini, hov, focusable, piece, onTap }: P
               !
             </span>
           )}
+          {c.me && !mini && (
+            <span className="cc-me" aria-hidden="true">
+              TÚ
+            </span>
+          )}
+          {c.tgt && (
+            <span className="cc-tg" aria-hidden="true">
+              {c.tg}
+            </span>
+          )}
           {c.spin && (
             <span className="reel" aria-hidden="true">
               <span>
@@ -100,76 +109,81 @@ export function PitchCromo({ c, showGal, mini, hov, focusable, piece, onTap }: P
           {c.tag}
         </span>
       )}
-      {c.me && !mini && (
-        <span className="cc-me" aria-hidden="true">
-          Tú
-        </span>
-      )}
     </div>
   );
 }
 
-const CV_TXT = { voy: "Voy", duda: "Duda", no: "No va" } as const;
-
-function albumAria(p: Cromo, me: boolean): string {
+// ── the bench: the album cromo (the same parts as the pitch cromo) and the FUT list row ──
+function CvChip({ r }: { r: BenchRow }) {
   return (
-    p.name + ", dorsal " + p.num + ", " + (p.pos ?? "sin posición") + ", forma " + p.rt +
-    (p.cv ? ", convocatoria: " + CV_TXT[p.cv].toLowerCase() : "") +
-    ", " + plural(p.stats.minutes, "minuto") + " esta temporada" + (me ? ", eres tú" : "")
+    <span className={"ac-cv " + r.cvCls} aria-hidden="true">
+      {r.icon && <Icon n={r.icon} w={11} />}
+      {r.cv}
+    </span>
   );
 }
 
-export function AlbumCromo({ p, sel, me, onTap }: { p: Cromo; sel: boolean; me: boolean; onTap: (id: string, el: HTMLElement) => void }) {
-  const cls = ["ac", p.pos === "POR" ? "gk" : "", p.cv === "no" ? "no-va" : "", me ? "me" : ""].filter(Boolean).join(" ");
+export interface BenchItemProps {
+  r: BenchRow;
+  onTap: (id: string, el: HTMLElement) => void;
+}
+
+/** A bench cromo (Cromos view, and the strip on phones). */
+export function AlbumCromo({ r, onTap }: BenchItemProps) {
   return (
-    <button type="button" className={cls} data-tok={p.id} data-zone="b" onClick={(e) => onTap(p.id, e.currentTarget)} aria-label={albumAria(p, me)} aria-pressed={sel}>
-      <span className="ac-f" aria-hidden="true">
-        <span className="ac-top">
-          <b>{p.rt}</b>
-          <i>{p.pos ?? "—"}</i>
+    <button type="button" className={"ac" + (r.cls ? " " + r.cls : "")} data-tok={r.id} data-zone={r.zone} onClick={(e) => onTap(r.id, e.currentTarget)} aria-label={r.aria} aria-pressed={r.sel}>
+      <span className="ac-c">
+        <span className="cc-f" aria-hidden="true">
+          <span className="cc-top">
+            <b>{r.rt}</b>
+            <i>{r.pos}</i>
+          </span>
+          <span className="cc-art">
+            <Shirt />
+            <b>{r.num}</b>
+          </span>
+          <span className="cc-nm">{r.name}</span>
+          <i className="foil" />
         </span>
-        <span className="ac-art">
-          <Shirt />
-          <b>{p.num}</b>
-        </span>
-        <span className="ac-nm">{p.name}</span>
-        <i className="foil" />
+        {r.me && (
+          <span className="ac-me" aria-hidden="true">
+            TÚ
+          </span>
+        )}
+        {r.tg && (
+          <span className="ac-tg" aria-hidden="true">
+            {r.tg}
+          </span>
+        )}
       </span>
-      {p.cv && (
-        <span className={"ac-cv " + p.cv} aria-hidden="true">
-          {p.cv === "voy" ? <Icon n="check" w={11} /> : p.cv === "duda" ? <Icon n="doubt" w={11} /> : <Icon n="x" w={11} />}
-          {CV_TXT[p.cv]}
-        </span>
-      )}
-      {me && (
-        <span className="ac-me" aria-hidden="true">
-          Tú
-        </span>
-      )}
+      <CvChip r={r} />
     </button>
   );
 }
 
-const BAJA_CLS = { Lesionado: "les", Sancionado: "san", Inactivo: "ina" } as const;
-
-export function BajaCromo({ p }: { p: Cromo }) {
-  const why = p.baja ?? "Inactivo";
+/** A bench player as a FUT list row (Lista view): rating shield, shirt, name and season line, status. */
+export function BenchRowItem({ r, onTap }: BenchItemProps) {
   return (
-    <div className={"ac baja" + (p.pos === "POR" ? " gk" : "")} data-tok={p.id} data-zone="x" role="img" aria-label={p.name + ", dorsal " + p.num + ": " + why.toLowerCase() + ", no disponible"}>
-      <span className="ac-f" aria-hidden="true">
-        <span className="ac-top">
-          <b>{p.rt}</b>
-          <i>{p.pos ?? "—"}</i>
-        </span>
-        <span className="ac-art">
-          <Shirt />
-          <b>{p.num}</b>
-        </span>
-        <span className="ac-nm">{p.name}</span>
+    <button type="button" className={"ar" + (r.cls ? " " + r.cls : "")} data-tok={r.id} data-zone={r.zone} onClick={(e) => onTap(r.id, e.currentTarget)} aria-label={r.aria} aria-pressed={r.sel}>
+      <span className="ar-r" aria-hidden="true">
+        <b>{r.rt}</b>
+        <i>{r.pos}</i>
       </span>
-      <span className={"ac-bj " + BAJA_CLS[why]} aria-hidden="true">
-        {why}
+      <span className="ar-s" aria-hidden="true">
+        <Shirt />
+        <b>{r.num}</b>
       </span>
-    </div>
+      <span className="ar-n">
+        <b>{r.name}</b>
+        <small>{r.line}</small>
+      </span>
+      <CvChip r={r} />
+      {r.tg && (
+        <span className="ar-tg" aria-hidden="true">
+          <Icon n="swap" w={12} />
+          {r.tg}
+        </span>
+      )}
+    </button>
   );
 }

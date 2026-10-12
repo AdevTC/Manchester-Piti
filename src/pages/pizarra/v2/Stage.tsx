@@ -1,9 +1,11 @@
 // The stadium: stands with camera flashes, masts and sweeping beams, the TV-camera pitch with the system
 // mowed into the grass, the LED boards, the plan painted on the turf (presión, línea defensiva), the
-// química as light, the telestrator's strokes, the slots and the cromos; above it, the system pill and
-// the química scoreboard. A jugada puts its paso on the pitch instead (discs, rivals, the ball, the calco
-// and the estelas, the follow-cam) with the «REPETICIÓN» bug above; la charla turns the cromos one by
-// one under a spotlight, with the camera pushing in; the 3D stadium plays under it all.
+// química as light, the telestrator's strokes, the slots and the cromos (the ones a player in the hand
+// can go to glow), the línea's round handle on the touchline and, on the apron, the selected player's
+// action bar. A jugada puts its paso on the pitch instead (discs, rivals, the ball, the calco and the
+// estelas, the follow-cam); la charla turns the cromos one by one under a spotlight, with the camera
+// pushing in; the 3D stadium plays under it all. (The system, the química scoreboard and the
+// «REPETICIÓN» bug live in the command bar.)
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { FLASHES, pitchArt, type CamName } from "./geometry";
 import { BallMark, Icon, RivalMark } from "./icons";
@@ -67,8 +69,8 @@ export interface StageProps {
   pieces: boolean;
   /** The cromos are reached with Tab (not when they are only part of a drawing or a jugada). */
   focusCards: boolean;
-  /** The «REPETICIÓN» bug instead of the system pill and the scoreboard. */
-  bug: { a: string; b: string; k: string; aria: string } | null;
+  /** The selected player's action bar on the pitch's apron (tablet; desktop on a touch screen). */
+  selbar?: ReactNode;
   /** The estelas draw themselves (a glide is on) or are simply there. */
   trailsDraw: boolean;
   trailsDur: string;
@@ -88,10 +90,6 @@ export interface StageProps {
   onCard: (id: string, el: HTMLElement) => void;
   onSlot: (i: number) => void;
   onLine: () => void;
-  onSys: (d: 1 | -1) => void;
-  onSysPick: () => void;
-  onQuimica: () => void;
-  onBug: () => void;
 }
 
 export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
@@ -103,10 +101,14 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
   useEffect(() => {
     const el = stage.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
+    // (on the stage, and on the board's root for the chrome's loops: the charla's shine, the targets' pulse)
     const io = new IntersectionObserver((es) => {
       const e = es[es.length - 1];
-      if (e.isIntersecting) e.target.removeAttribute("data-paused");
-      else e.target.setAttribute("data-paused", "");
+      for (const t of [e.target, e.target.closest(".pzv")]) {
+        if (!t) continue;
+        if (e.isIntersecting) t.removeAttribute("data-paused");
+        else t.setAttribute("data-paused", "");
+      }
     });
     io.observe(el);
     return () => io.disconnect();
@@ -279,50 +281,7 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
             </button>
           )}
         </div>
-        <div className="rowb">
-          {p.bug ? (
-            <button type="button" className={"bug " + p.bug.k} key={p.bug.k + p.bug.b} onClick={p.onBug} aria-label={p.bug.aria} style={{ textAlign: "left", border: 0, color: "inherit" }}>
-              <i aria-hidden="true" />
-              <div>
-                <small>{p.bug.a}</small>
-                <b>{p.bug.b}</b>
-              </div>
-            </button>
-          ) : (
-            <>
-              <div className="sysp" role="group" aria-label="Sistema de juego">
-                <button type="button" className="ib" onClick={() => p.onSys(-1)} disabled={p.ro} aria-label="Sistema anterior">
-                  <Icon n="chevL" />
-                </button>
-                <button type="button" className={"sysn " + (p.sysk % 2 ? "sa" : "sb")} onClick={p.onSysPick} aria-label={"Sistema " + hud.sysName + ": elegir sistema"}>
-                  <small>SISTEMA</small>
-                  <b>{hud.sysName}</b>
-                </button>
-                <button type="button" className="ib" onClick={() => p.onSys(1)} disabled={p.ro} aria-label="Sistema siguiente">
-                  <Icon n="chevR" />
-                </button>
-              </div>
-              <span className="sbdw">
-                <button type="button" className="sbd" onClick={p.onQuimica} aria-label={"Química " + hud.qv + " de 100, " + hud.tier + ". Abrir la química"}>
-                  <small>QUÍMICA</small>
-                  <span className="t">{hud.tier}</span>
-                  <span className="flp" aria-hidden="true">
-                    {hud.qDigits.map((q, k) => (
-                      <i key={k} className={q.k} style={vars({ "--d": q.d })}>
-                        {q.v}
-                      </i>
-                    ))}
-                  </span>
-                </button>
-                {hud.qUp > 0 && !p.cele && (
-                  <span className="qup" aria-hidden="true">
-                    +{hud.qUp}
-                  </span>
-                )}
-              </span>
-            </>
-          )}
-        </div>
+        {p.selbar}
       </div>
       <FxLayer cele={p.cele} rw={p.rw} rwKey={p.fxk} wipe={p.wipe} />
       <div className="blk" aria-hidden="true" />

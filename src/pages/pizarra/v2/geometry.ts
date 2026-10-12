@@ -51,6 +51,16 @@ export interface FramePoint {
   s: number;
 }
 
+/** The layout's view of a camera (as the design's GEO), in frame widths: `cut` = the frame above the far
+ *  LED ribbon (the pitch's top edge on screen), `vr` = the visible frame's height (from the ribbon down),
+ *  `kb` = just under the keeper's cromo. The CSS sizes the pitch, the sheet and the action bar with them
+ *  (--cut, --vr, --kb on the board's root). */
+export function camGeo(cam: CamName): { cut: number; vr: number; kb: number } {
+  const C = CAMS[cam];
+  const cut = Math.max(0, ((proj(C, 50, -5).y - 5) / 100) * C.Fh - 0.012);
+  return { cut: +cut.toFixed(4), vr: +(C.Fh - cut).toFixed(4), kb: +((proj(C, 50, 95).y / 100) * C.Fh + 0.04).toFixed(4) };
+}
+
 /** Plane (u, v) → frame (x, y) in %. */
 export function proj(C: Cam, u: number, v: number): FramePoint {
   const x = u / 100 - 0.5;
@@ -78,12 +88,12 @@ export function depthScale(C: Cam, s: number): number {
 // ── The systems, as designed: [label, zone, u, v] per slot (0 = POR, then back to front). ──
 export type SlotSpot = readonly [label: string, zone: Zone, u: number, v: number];
 export const FORM: Record<FormationName, readonly SlotSpot[]> = {
-  "2-3-1": [["POR", "POR", 50, 92], ["DFC", "DEF", 30, 73], ["DFC", "DEF", 70, 73], ["MI", "MED", 17, 50], ["MC", "MED", 50, 54], ["MD", "MED", 83, 50], ["DC", "DEL", 50, 24]],
-  "3-2-1": [["POR", "POR", 50, 92], ["LI", "DEF", 18, 70], ["DFC", "DEF", 50, 74], ["LD", "DEF", 82, 70], ["MC", "MED", 32, 49], ["MC", "MED", 68, 49], ["DC", "DEL", 50, 24]],
-  "3-1-2": [["POR", "POR", 50, 92], ["LI", "DEF", 18, 70], ["DFC", "DEF", 50, 74], ["LD", "DEF", 82, 70], ["MC", "MED", 50, 51], ["DC", "DEL", 31, 26], ["DC", "DEL", 69, 26]],
-  "2-1-3": [["POR", "POR", 50, 92], ["DFC", "DEF", 30, 74], ["DFC", "DEF", 70, 74], ["MC", "MED", 50, 54], ["EI", "DEL", 17, 32], ["DC", "DEL", 50, 23], ["ED", "DEL", 83, 32]],
-  "1-3-2": [["POR", "POR", 50, 92], ["LIB", "DEF", 50, 74], ["MI", "MED", 17, 51], ["MC", "MED", 50, 53], ["MD", "MED", 83, 51], ["DC", "DEL", 31, 26], ["DC", "DEL", 69, 26]],
-  "2-1-2-1": [["POR", "POR", 50, 92], ["DFC", "DEF", 29, 76], ["DFC", "DEF", 71, 76], ["MCD", "MED", 50, 59], ["MI", "MED", 20, 41], ["MD", "MED", 80, 41], ["DC", "DEL", 50, 20]],
+  "2-3-1": [["POR", "POR", 50, 95], ["DFC", "DEF", 30, 73], ["DFC", "DEF", 70, 73], ["MI", "MED", 17, 50], ["MC", "MED", 50, 54], ["MD", "MED", 83, 50], ["DC", "DEL", 50, 24]],
+  "3-2-1": [["POR", "POR", 50, 95], ["LI", "DEF", 18, 70], ["DFC", "DEF", 50, 74], ["LD", "DEF", 82, 70], ["MC", "MED", 32, 49], ["MC", "MED", 68, 49], ["DC", "DEL", 50, 24]],
+  "3-1-2": [["POR", "POR", 50, 95], ["LI", "DEF", 18, 70], ["DFC", "DEF", 50, 74], ["LD", "DEF", 82, 70], ["MC", "MED", 50, 51], ["DC", "DEL", 31, 26], ["DC", "DEL", 69, 26]],
+  "2-1-3": [["POR", "POR", 50, 95], ["DFC", "DEF", 30, 74], ["DFC", "DEF", 70, 74], ["MC", "MED", 50, 54], ["EI", "DEL", 17, 32], ["DC", "DEL", 50, 23], ["ED", "DEL", 83, 32]],
+  "1-3-2": [["POR", "POR", 50, 95], ["LIB", "DEF", 50, 74], ["MI", "MED", 17, 51], ["MC", "MED", 50, 53], ["MD", "MED", 83, 51], ["DC", "DEL", 31, 26], ["DC", "DEL", 69, 26]],
+  "2-1-2-1": [["POR", "POR", 50, 95], ["DFC", "DEF", 29, 76], ["DFC", "DEF", 71, 76], ["MCD", "MED", 50, 59], ["MI", "MED", 20, 41], ["MD", "MED", 80, 41], ["DC", "DEL", 50, 20]],
 };
 export const SYSTEMS = Object.keys(FORM) as FormationName[];
 

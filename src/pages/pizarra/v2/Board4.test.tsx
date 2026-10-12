@@ -59,7 +59,7 @@ const SEVEN = ["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi"
 const L7 = (): Lineup => lineupOf(SEVEN, "2-3-1", sq);
 const W = 400;
 
-const nav = () => screen.getByRole("navigation", { name: "Modos de la pizarra" });
+const nav = () => screen.getByRole("navigation", { name: "Herramientas de la pizarra" });
 const go = (name: string) => fireEvent.click(within(nav()).getByRole("button", { name: new RegExp("^(nuevo)?" + name + "$") }));
 const root = (c: HTMLElement) => c.querySelector(".pzv") as HTMLElement;
 const frame = (c: HTMLElement) => c.querySelector("[data-frame]") as HTMLElement;

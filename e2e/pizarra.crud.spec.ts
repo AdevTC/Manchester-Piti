@@ -6,7 +6,7 @@ import { enterVestuario } from "./helpers";
 // team's reaction, a stroke on the grass, a jugada stepped paso by paso and the charla opened and left.
 // Under Playwright (navigator.webdriver) the 3D stadium never starts: everything runs on the 2D board.
 
-const modes = (page: Page) => page.getByRole("navigation", { name: "Modos de la pizarra" });
+const modes = (page: Page) => page.getByRole("navigation", { name: "Herramientas de la pizarra" });
 const toMode = (page: Page, name: string) => modes(page).getByRole("button", { name: new RegExp("^(nuevo\\s*)?" + name + "$", "i") }).click();
 
 test("la pizarra: sugerir el siete, guardarlo, publicarlo, reaccionar, dibujar, la jugada y la charla", async ({ page }) => {
@@ -26,12 +26,12 @@ test("la pizarra: sugerir el siete, guardarlo, publicarlo, reaccionar, dibujar, 
 
   // «Sugerir siete»: the pack opens and the seven are on the pitch
   await page.getByRole("button", { name: "Sugerir siete por forma reciente: abre un sobre" }).click();
-  await expect(page.locator(".bar .val b")).toHaveText("7/7");
-  await expect(page.locator(".bar .bname small")).toContainText("Guardado");
+  await expect(page.locator(".cmd .val b")).toHaveText("7/7");
+  await expect(page.locator(".cmd .bname small")).toContainText("Guardado");
 
   // saved: a reload brings the same seven back
   await page.reload();
-  await expect(page.locator(".bar .val b")).toHaveText("7/7");
+  await expect(page.locator(".cmd .val b")).toHaveText("7/7");
 
   // published as the official for the next match
   await toMode(page, "Tableros");
@@ -63,7 +63,7 @@ test("la pizarra: sugerir el siete, guardarlo, publicarlo, reaccionar, dibujar, 
   await toMode(page, "Jugadas");
   const bug = page.getByRole("button", { name: /^Repetición:/ });
   await expect(bug).toHaveAccessibleName(/paso 1 de 4/);
-  await page.getByRole("button", { name: "Paso siguiente" }).click();
+  await page.getByRole("group", { name: "Repetición de la jugada" }).getByRole("button", { name: "Paso siguiente" }).click();
   await expect(bug).toHaveAccessibleName(/paso 2 de 4/);
   await page.getByRole("button", { name: "Reproducir la repetición" }).click();
   await expect(page.getByText("Este dispositivo no muestra el estadio 3D: la jugada se ve con la cámara 2D que sigue al balón.")).toBeVisible();
@@ -75,7 +75,7 @@ test("la pizarra: sugerir el siete, guardarlo, publicarlo, reaccionar, dibujar, 
   const counter = page.getByRole("status", { name: /^Paso \d+\/\d+/ });
   await expect(counter).toHaveAccessibleName(/^Paso 1\/\d+: sistema/);
   await expect(page.locator(".ch-lt")).toContainText("Así salimos");
-  await page.getByRole("button", { name: "Paso siguiente" }).click();
+  await page.getByRole("group", { name: "Controles de la charla" }).getByRole("button", { name: "Paso siguiente" }).click();
   await expect(counter).toHaveAccessibleName(/^Paso 2\/\d+: los siete/);
   await expect(page.getByRole("button", { name: "Reproducir la charla" })).toBeVisible();
   await page.getByRole("button", { name: "Salir", exact: true }).click();

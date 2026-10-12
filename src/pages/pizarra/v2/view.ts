@@ -81,6 +81,11 @@ export interface CardView {
   reel: number[];
   sel: boolean;
   me: boolean;
+  /** A player is in the hand and this cromo is where he can go («tgt»; «best» = his own line). */
+  tgt: boolean;
+  best: boolean;
+  /** The target's badge: «Entra por él» (a bench player in the hand) or «Intercambiar». */
+  tg: string;
   aria: string;
 }
 export interface SlotView {
@@ -118,6 +123,8 @@ export interface PitchArgs {
   modo: Modo;
   fx: Fx;
   selId: string | null;
+  /** The player in the hand (from the pitch or the bench): the cromos he can swap with glow. */
+  hand?: { k: "p" | "b"; id: string } | null;
   pick: number | null;
   ro: boolean;
   rm: boolean;
@@ -139,8 +146,14 @@ export interface PitchView {
   mini: boolean;
 }
 
-export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId, mini = modo === "quimica", present }: PitchArgs): PitchView {
+export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, ro, rm, meId, mini = modo === "quimica", present }: PitchArgs): PitchView {
   const ch0 = present != null;
+  // the player in the hand: a pitch cromo (swap) or a bench one (comes in); his line is the best target
+  const handI = hand?.k === "p" ? L.slots.findIndex((s) => s.playerId === hand.id) : -1;
+  const handP = hand?.k === "p" && handI >= 0 ? hand : null;
+  const handB = hand?.k === "b" && sq.byId.has(hand.id) ? hand : null;
+  const handZ = handP ? slotZone(L, handI) : handB ? (sq.byId.get(handB.id)?.pos ?? null) : null;
+  const handName = (handP ?? handB) ? (sq.byId.get((handP ?? handB)?.id ?? "")?.name ?? "") : "";
   const hero = ch0 && present >= 1 && present <= 7 ? present - 1 : -1;
   const C = CAMS[cam];
   const fk = fx.k;
@@ -172,7 +185,12 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId,
     // la charla: face down until presented; the one presented now flips and leads, the rest dim
     const rev = !ch0 || present >= i + 1;
     const me = meId === id && rev;
+    const nat = natOf(L, sq, id);
+    const tgt = !mini && rev && !ch0 && ((!!handP && handP.id !== id) || !!handB);
+    const best = tgt && handZ != null && (handB ? zl === handZ : nat === handZ);
     const cls = [
+      tgt ? "tgt" : "",
+      best ? "best" : "",
       fk % 2 ? "ma" : "mb",
       fx.slow ? "slow" : "",
       i === 0 ? "gk" : "",
@@ -190,7 +208,6 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId,
       !mini ? "q" + Math.max(...(lt.length ? lt : [1])) : "",
       me ? "me" : "",
     ].filter(Boolean).join(" ");
-    const nat = natOf(L, sq, id);
     cards.push({
       id,
       i,
@@ -216,6 +233,9 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId,
       reel: reelFor(i, nums),
       sel,
       me,
+      tgt,
+      best,
+      tg: handB ? "Entra por él" : "Intercambiar",
       aria: !rev
         ? "Cromo boca abajo: aún por presentar"
         : p.name + ", dorsal " + p.num + ", " + slotLabel(L, i) +
@@ -224,7 +244,13 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, pick, ro, rm, meId,
         (gal.length ? ", galones " + gal.join(" ") : "") +
         (p.cv === "no" ? ", dijo que no va" : p.baja ? ", " + p.baja.toLowerCase() : "") +
         (me ? ", eres tú" : "") +
-        (modo === "editar" && !ro ? ". Toca para cogerlo, otra vez para su ficha; mantén pulsado para el menú rápido" : ""),
+        (tgt
+          ? handB
+            ? ". Toca: entra " + handName + " por él"
+            : ". Toca para intercambiarlo con " + handName
+          : modo === "editar" && !ro
+            ? ". Toca para cogerlo, otra vez para su ficha; mantén pulsado para el menú rápido"
+            : ""),
     });
   });
 
@@ -315,6 +341,14 @@ export interface Hud {
   valTxt: string;
   valAria: string;
   pitchAria: string;
+  /** MEDIA: the seven on the pitch's mean form rating (0 with nobody on it). */
+  media: number;
+}
+
+/** The mean form rating of the players on the pitch, rounded (the command bar's MEDIA plate). */
+export function mediaOf(L: Lineup, sq: Squad): number {
+  const rts = L.slots.map((s) => (s.playerId ? sq.byId.get(s.playerId)?.rt : undefined)).filter((x): x is number => x != null);
+  return rts.length ? Math.round(rts.reduce((a, b) => a + b, 0) / rts.length) : 0;
 }
 
 export function hud(L: Lineup, sq: Squad, ch: Chem, fx: Fx, rm: boolean, match: { short: string; date: string } | null): Hud {
@@ -363,6 +397,7 @@ export function hud(L: Lineup, sq: Squad, ch: Chem, fx: Fx, rm: boolean, match: 
     valTxt,
     valAria: n + " de 7 colocados. " + (bad ? (!L.slots[0]?.playerId ? "Sin portero" : !ch.gk ? "Portero fuera de su sitio" : valTxt) : warn.length ? warnTxt : "Siete listo, con portero"),
     pitchAria: sysName + ", " + n + " de 7 colocados, química " + v,
+    media: mediaOf(L, sq),
   };
 }
 
