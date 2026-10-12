@@ -59,5 +59,16 @@ export function usePresenta(root: RefObject<HTMLElement | null>, announce: (msg:
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, [on]);
 
+  // leaving the pizarra (a link, the back button) while presenting gives the browser its window back
+  useEffect(
+    () => () => {
+      if (fs.current && typeof document !== "undefined" && document.fullscreenElement) {
+        fs.current = false;
+        void leaveFullscreen(document);
+      }
+    },
+    [],
+  );
+
   return { on, enter, exit, toggle: () => (on ? exit() : enter()) };
 }

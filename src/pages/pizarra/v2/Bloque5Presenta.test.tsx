@@ -194,6 +194,29 @@ describe("modo presentación", () => {
     delete (document as { fullscreenElement?: unknown }).fullscreenElement;
   });
 
+  it("leaving the pizarra while presenting gives the browser its window back", async () => {
+    let fsEl: Element | null = null;
+    Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => fsEl });
+    const req = vi.fn(async () => {
+      fsEl = document.body;
+    });
+    const exit = vi.fn(async () => {
+      fsEl = null;
+    });
+    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", { configurable: true, value: req });
+    Object.defineProperty(document, "exitFullscreen", { configurable: true, value: exit });
+    const { unmount } = render(<Harness initial={L7()} props={P0} />);
+    await act(async () => {
+      fireEvent.keyDown(document.body, { key: "P" });
+    });
+    expect(req).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(exit).toHaveBeenCalledTimes(1);
+    delete (HTMLElement.prototype as { requestFullscreen?: unknown }).requestFullscreen;
+    delete (document as { fullscreenElement?: unknown }).fullscreenElement;
+    delete (document as { exitFullscreen?: unknown }).exitFullscreen;
+  });
+
   it("the prompt bar offers «P Presentar»", () => {
     const { container } = render(<Harness initial={L7()} props={P0} />);
     fireEvent.click(within(container.querySelector(".pmb") as HTMLElement).getByRole("button", { name: "Presentar (P)" }));
