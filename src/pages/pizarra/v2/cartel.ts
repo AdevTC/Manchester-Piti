@@ -11,6 +11,7 @@ import { tierOf, type Chem } from "./quimica";
 import { defaultTactics } from "../tactics";
 import { CONSIGNA } from "./plan";
 import { availTxt, suplentes, type CharlaMatch } from "./charla";
+import { wavesTxt } from "./cambios";
 
 export const CARTEL_W = 1080;
 export const CARTEL_H = 1350;
@@ -48,6 +49,8 @@ export interface Cartel {
   bench: string[];
   /** Up to three consignas of the plan («Presión alta»), the captain's own choices first. */
   cons: string[];
+  /** The planned tandas, one line each («25′ · KEVIN por TELLO»); empty without cambios. */
+  subs?: string[];
   aria: string;
 }
 
@@ -93,6 +96,7 @@ export function cartelLayout(L: Lineup, sq: Squad, ch: Chem, match: string | Cha
   const sup = m?.called?.length ? suplentes(L, sq, m.called).list : [];
   const bench = sup.map((c) => c.name + (c.baja || (c.cv && c.cv !== "voy") ? " (" + availTxt(c) + ")" : ""));
   const cons = cartelConsignas(L);
+  const subs = wavesTxt(L.subs ?? [], (id) => sq.byId.get(id)?.name ?? "Jugador");
   const [tier] = tierOf(ch.v);
   const aria =
     "Cartel: los siete de " +
@@ -105,8 +109,9 @@ export function cartelLayout(L: Lineup, sq: Squad, ch: Chem, match: string | Cha
     (cromos.length ? ": " + cromos.map((c) => c.num + " " + c.name).join(", ") : ": sin cromos todavía") +
     (bench.length ? ". Banquillo: " + bench.join(", ") : "") +
     ". Consignas: " +
-    cons.join(", ");
-  return { kick, when, sys, qv: ch.v, tier, cromos, links, bench, cons, aria };
+    cons.join(", ") +
+    (subs.length ? ". Cambios: " + subs.join("; ") : "");
+  return { kick, when, sys, qv: ch.v, tier, cromos, links, bench, cons, ...(subs.length ? { subs } : {}), aria };
 }
 
 /** «pizarra-j8-mad-sky.png». */
@@ -382,6 +387,7 @@ export async function drawCartel(canvas: HTMLCanvasElement, d: Cartel, crest: HT
   const uy = PITCH_BOX.y + PITCH_BOX.h + 62;
   if (d.cons.length) under("CONSIGNAS", d.cons.join(" · ").toUpperCase(), uy);
   if (d.bench.length) under("BANQUILLO", d.bench.join(" · "), uy + 52);
+  if (d.subs?.length) under("CAMBIOS", d.subs.join(" · "), uy + (d.bench.length ? 104 : 52));
   // footer: the química and the board
   const fy = CARTEL_H - 72;
   ctx.textAlign = "left";

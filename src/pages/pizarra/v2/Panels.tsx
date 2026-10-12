@@ -47,6 +47,8 @@ export interface AppBarProps {
   onSysPick: () => void;
   onQuimica: () => void;
   onBug: () => void;
+  /** The live match's plate (LivePlate), while the board's match is being played. */
+  live?: ReactNode;
 }
 
 export function AppBar(p: AppBarProps) {
@@ -72,7 +74,8 @@ export function AppBar(p: AppBarProps) {
           </b>
         </button>
       </div>
-      <div className="cmd-s" role="group" aria-label="Estado del siete">
+      <div className={"cmd-s" + (p.live ? " lv" : "")} role="group" aria-label="Estado del siete">
+        {p.live}
         {p.bug ? (
           <button type="button" className={"bug cbug " + p.bug.k} key={p.bug.k + p.bug.b} onClick={p.onBug} aria-label={p.bug.aria}>
             <i aria-hidden="true" />
@@ -193,8 +196,8 @@ export function Sheet({ title, snap, mk, sheetRef, onCycle, onStep, children }: 
   );
 }
 
-/// ── «Siete»: the squad bars, then Convocatoria · Sistema · Plan ──
-export type OnceTab = "b" | "s" | "p";
+/// ── «Siete»: the squad bars, then Convocatoria · Sistema · Plan · Cambios ──
+export type OnceTab = "b" | "s" | "p" | "c";
 
 export interface SquadBarsProps {
   info: SquadInfo;
@@ -260,6 +263,9 @@ export function OnceTabs({ tab, onTab }: { tab: OnceTab; onTab: (t: OnceTab) => 
         </button>
         <button type="button" onClick={() => onTab("p")} aria-pressed={tab === "p"}>
           Plan
+        </button>
+        <button type="button" onClick={() => onTab("c")} aria-pressed={tab === "c"}>
+          Cambios
         </button>
       </div>
       <kbd className="bk" aria-hidden="true">

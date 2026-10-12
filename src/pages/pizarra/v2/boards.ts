@@ -3,6 +3,7 @@
 // is the official for a match, the match a board is linked to (with its result band) and the
 // convocatoria of that match on the cromos. Pure.
 import type { Lineup } from "../formations";
+import type { MatchEvent } from "../../../lib/clubData";
 import type { LineupDoc } from "../lineupDoc";
 import { ago } from "./view";
 import { chem } from "./quimica";
@@ -71,6 +72,10 @@ export interface CalMatch {
   venue: string;
   /** The match's one convocatoria (the admin's Convocar): el siete and the banquillo. Absent = not read. */
   conv?: { starters: string[]; bench: string[] };
+  /** The match day (live.ts): its length in minutes (absent = 50), its status and the acta's events. */
+  duration?: number;
+  status?: string;
+  events?: MatchEvent[];
 }
 
 /** «J8 · MAD SKY», with the score once played: «J8 · MAD SKY · 3–1». */

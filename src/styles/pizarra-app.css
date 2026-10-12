@@ -191,3 +191,121 @@
 .pzv .ops > span,.pzv .tac .lb,.pzv .bl .op small,.pzv .tape small,.pzv .chg small{font-size:11px}
 /* the ficha's back, filled with real data, scrolls inside the card on a phone */
 @media (max-width:767px){.pzv .fc-b{overflow-y:auto}}
+
+/* ── Bloque 3: el día de partido (Siete → Cambios, la placa en directo, los galones en orden) ── */
+/* Four tabs in the Siete: Convocatoria · Sistema · Plan · Cambios. */
+.pzv .tabrow .tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
+@container (max-width:439px){.pzv .tabrow .tabs button{font-size:12px;padding:0 2px}}
+.pzv .cb .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.pzv .sheet .cb .lg-h{margin:14px 0 8px}
+.pzv .sheet .cb .lg-h:first-child{margin-top:4px}
+.pzv .cb .lg-h .cnt{font-size:11px;text-transform:none;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* The live plate, first in the command bar's plates: an angled slab, the minute big, the score, the next
+   tanda. On a phone it takes the place of MEDIA and 7/7 (the sheet's bars still say them). */
+.pzv .lvp{position:relative;display:inline-grid;grid-template-columns:auto auto auto;align-items:center;column-gap:8px;flex:0 0 auto;min-height:44px;padding:3px 16px 3px 10px;border:0;background:var(--slab);color:var(--slab-ink);box-shadow:var(--slab-sh);clip-path:var(--angr);font:inherit;text-align:left}
+.pzv .lvp-l{display:inline-flex;align-items:center;gap:5px;font-family:'Geist Mono';font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.pzv .lvp-l i{width:8px;height:8px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 2px rgba(229,72,77,.35);animation:pz-lvp 1.6s ease-in-out infinite}
+.pzv .lvp > b{font-family:'Anybody';font-weight:900;font-size:22px;line-height:1;font-variation-settings:'wdth' 80;font-variant-numeric:tabular-nums}
+.pzv .lvp-s{font-family:'Anybody';font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
+.pzv .lvp small{grid-column:1 / -1;display:inline-flex;align-items:center;gap:4px;font-family:'Geist Mono';font-size:11px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+.pzv .lvp.due small{text-decoration:underline;text-underline-offset:2px}
+.pzv .lvp:focus-visible{outline:2px solid #FFC659;outline-offset:2px}
+@keyframes pz-lvp{50%{opacity:.35}}
+@container (max-width:699px){.pzv .cmd-s.lv .mdp,.pzv .cmd-s.lv .val{display:none}.pzv .lvp{column-gap:6px;padding-right:14px}.pzv .lvp > b{font-size:20px}}
+/* The live card: what is due, «Hacer el cambio», «Anotar en el acta», who can't go on. */
+.pzv .cb-live{display:grid;gap:8px;padding:10px 16px 12px 12px;background:rgba(255,255,255,.045);clip-path:var(--angr)}
+[data-theme="light"] .pzv .cb-live{background:rgba(12,23,51,.045)}
+.pzv .cb-live.due{box-shadow:inset 3px 0 0 var(--gold)}
+.pzv .sheet .cb-live h3{margin:0}
+.pzv .cb-nx{display:flex;align-items:center;gap:8px;margin:0;font-family:'Anybody';font-size:16px;font-weight:900;text-transform:uppercase;font-variation-settings:'wdth' 88}
+.pzv .cb-pend{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.pzv .cb-pend li{padding:6px 14px 6px 10px;background:var(--chip);clip-path:var(--angr);font-weight:700;font-size:13px}
+.pzv .cb-act{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.pzv .cb-act a.b3{text-decoration:none}
+.pzv .cb-act .empty{margin:0}
+.pzv .b3.cb-go{background:var(--slab);color:var(--slab-ink);box-shadow:var(--slab-sh);clip-path:var(--ang);border-radius:0}
+.pzv .cb .b3 kbd{margin-left:2px}
+@media (hover:none){.pzv .cb .b3 kbd{display:none}}
+.pzv .cb-tn{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0;font-size:12.5px;color:var(--soft)}
+.pzv .cb-tn > span{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--ink)}
+.pzv .cb-tn b,.pzv .cb-tk3 legend b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#0c1733;font-family:'Anybody';font-weight:900;font-size:11px}
+.pzv .cb-ppl{display:flex;flex-wrap:wrap;gap:6px}
+.pzv .cb-ppl .chip3{min-height:44px;gap:6px;border:0;font-family:inherit;font-size:12px;color:var(--ink)}
+.pzv .cb-ppl .chip3 small{font-family:'Geist Mono';font-size:11px;color:var(--muted)}
+.pzv .cb-ppl .chip3[aria-pressed=true] small{color:var(--gold-ink)}
+/* The timeline 0′…D′: the FUT bar, the tandas as markers (drag, or arrows), the scrub. */
+.pzv .cb-tl{display:grid;gap:6px;margin-bottom:6px}
+.pzv .cb-tr{position:relative;height:44px;margin:0 18px;touch-action:none}
+.pzv .cb-tr::before{content:"";position:absolute;left:0;right:0;top:50%;height:6px;transform:translateY(-50%);background:rgba(255,255,255,.1);clip-path:polygon(0 0,100% 0,calc(100% - 4px) 100%,0 100%)}
+[data-theme="light"] .pzv .cb-tr::before{background:rgba(12,23,51,.1)}
+.pzv .cb-sc{position:absolute;left:0;top:50%;height:6px;width:calc(var(--p) * 1%);transform:translateY(-50%);background:var(--accent);pointer-events:none}
+.pzv .cb-now{position:absolute;top:6px;bottom:6px;left:calc(var(--p) * 1%);width:2px;background:#e5484d;pointer-events:none}
+.pzv .cb-mk{position:absolute;top:50%;left:calc(var(--p) * 1%);display:inline-flex;align-items:center;justify-content:center;gap:2px;min-width:44px;min-height:44px;padding:0 4px;transform:translate(-50%,-50%);border:0;background:none;color:var(--ink);cursor:grab;touch-action:none}
+.pzv .cb-mk b{display:inline-grid;place-items:center;min-width:34px;height:24px;padding:0 5px;background:var(--slab);color:var(--slab-ink);clip-path:var(--ang);font-family:'Anybody';font-weight:900;font-size:12.5px;font-variant-numeric:tabular-nums;transition:transform .15s var(--ez)}
+.pzv .cb-mk small{font-family:'Geist Mono';font-size:11px;font-weight:700;color:var(--gold-ink)}
+.pzv .cb-mk.drag{cursor:grabbing;z-index:2}
+.pzv .cb-mk.drag b{transform:scale(1.12)}
+.pzv .cb-mk:focus-visible{outline:2px solid #FFC659;outline-offset:0}
+.pzv .cb-tk{position:relative;height:14px;margin:0 18px}
+.pzv .cb-tk span{position:absolute;left:calc(var(--p) * 1%);transform:translateX(-50%);font-family:'Geist Mono';font-size:11px;color:var(--muted)}
+.pzv .cb-scr{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"l l l" "r b n";align-items:center;gap:4px 8px;font-size:12.5px;font-weight:600;color:var(--soft)}
+.pzv .cb-scr > span{grid-area:l}
+.pzv .cb-scr input{grid-area:r;width:100%;min-height:32px;accent-color:#6CABDD}
+.pzv .cb-scr > b{grid-area:b;min-width:34px;text-align:right;font-family:'Anybody';font-weight:900;font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums}
+.pzv .cb-scr .b3{grid-area:n;min-height:36px}
+.pzv .cb-st{margin:0;font-size:12.5px;color:var(--muted)}
+/* A tanda: its minute and its cambios as FUT rows «SALE X → ENTRA Y». */
+.pzv .cb-w{display:grid;gap:4px;margin-top:8px}
+.pzv .cb-w.past{opacity:.72}
+.pzv .cb-wh{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.pzv .cb-wh > b{display:inline-grid;place-items:center;min-width:46px;height:30px;padding:0 8px;background:var(--slab);color:var(--slab-ink);clip-path:var(--ang);font-family:'Anybody';font-weight:900;font-size:16px;font-variant-numeric:tabular-nums}
+.pzv .cb-wh .b3{min-height:36px;margin-left:auto}
+.pzv .cb-rs{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.pzv .cb-r{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;align-items:center;gap:6px 8px;padding:6px 18px 6px 8px;background:rgba(255,255,255,.045);clip-path:var(--angr)}
+[data-theme="light"] .pzv .cb-r{background:rgba(12,23,51,.045)}
+.pzv .cb-r > svg{color:var(--gold-ink)}
+.pzv .cb-io{display:grid;gap:2px;min-width:0}
+.pzv .cb-io b{font-family:'Anybody';font-weight:900;font-size:14px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variation-settings:'wdth' 86}
+.pzv .cb-io select{width:100%;min-width:0;height:38px;border:0;border-radius:0;clip-path:var(--ang);background:var(--input);color:var(--ink);font:inherit;font-size:13px;font-weight:700;padding:0 10px}
+.pzv .cb-k{font-family:'Geist Mono';font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.pzv .cb-k.out{color:var(--red)}
+.pzv .cb-k.in{color:var(--ok)}
+.pzv .cb-r.bad{box-shadow:inset 3px 0 0 var(--red)}
+.pzv .cb-why{grid-column:1 / -1;display:flex;align-items:center;gap:6px;margin:0;font-size:12px;font-weight:600;color:var(--red)}
+.pzv .cb-ok{grid-column:1 / -1;display:inline-flex;align-items:center;gap:4px;font-style:normal;font-family:'Geist Mono';font-size:11px;font-weight:700;color:var(--ok)}
+.pzv .cb-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.pzv .cb-tools .empty{flex:1 1 100%;margin:0}
+/* «Repartir minutos» / «Recalcular»: the proposal before it is applied. */
+.pzv .cb-pv{display:grid;gap:8px;margin-top:12px;padding:10px 18px 12px 12px;background:rgba(255,198,89,.08);box-shadow:inset 3px 0 0 var(--gold);clip-path:var(--angr)}
+.pzv .sheet .cb-pv h3{margin:0}
+.pzv .cb-pw{display:grid;gap:3px;margin:0;padding-left:18px;font-weight:700;font-size:13px}
+.pzv .cb-pd{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 12px;margin:0;padding:0;list-style:none;font-size:12.5px}
+.pzv .cb-pd li{display:flex;justify-content:space-between;gap:8px}
+.pzv .cb-pd span{font-family:'Geist Mono';font-variant-numeric:tabular-nums;color:var(--soft)}
+/* The minutes table: a FUT bar per player, the fair share as a tick, «se come banquillo» in words. */
+.pzv .cb-mt{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.pzv .cb-m{display:grid;grid-template-columns:minmax(0,9fr) minmax(0,7fr) 34px minmax(70px,auto);align-items:center;gap:8px;min-height:28px;font-size:12.5px}
+.pzv .cb-mn{display:flex;align-items:center;gap:6px;min-width:0;font-family:'Anybody';font-weight:800;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pzv .cb-mn b{font-family:'Geist Mono';font-size:11px;color:var(--muted)}
+.pzv .cb-mn em{font-style:normal;font-family:'Geist Mono';font-size:11px;color:var(--gold-ink)}
+.pzv .cb-m > i{position:relative;height:6px;background:rgba(255,255,255,.1);clip-path:polygon(0 0,100% 0,calc(100% - 4px) 100%,0 100%)}
+[data-theme="light"] .pzv .cb-m > i{background:rgba(12,23,51,.1)}
+.pzv .cb-m > i::before{content:"";position:absolute;inset:0 auto 0 0;width:calc(var(--v) * 1%);background:var(--accent)}
+.pzv .cb-m > i::after{content:"";position:absolute;top:0;bottom:0;left:calc(var(--t) * 1% - 1px);width:2px;background:var(--ink);opacity:.7}
+.pzv .cb-m.lo > i::before{background:var(--amber)}
+.pzv .cb-m.hi > i::before{background:var(--gold)}
+.pzv .cb-m > b{font-family:'Anybody';font-weight:900;font-size:14px;text-align:right;font-variant-numeric:tabular-nums}
+.pzv .cb-m > small{font-family:'Geist Mono';font-size:11px;color:var(--muted);white-space:nowrap}
+.pzv .cb-m.eaten > small{color:var(--amber);font-weight:700}
+@container (min-width:700px){.pzv .cb-m{grid-template-columns:minmax(0,7fr) minmax(0,10fr) 40px 130px}}
+/* The galones in order: the brazalete and its vice, then 1º · 2º · 3º of each dead ball. */
+.pzv .cb-gal{display:grid;gap:8px}
+.pzv .cb-gal .selw{display:flex;justify-content:space-between}
+.pzv .cb-tk3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:0;padding:0;border:0;min-width:0}
+.pzv .cb-tk3 legend{display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:0;font-weight:700;font-size:12.5px;color:var(--soft)}
+.pzv .cb-tk3 select{width:100%;min-width:0;height:38px;border:0;clip-path:var(--ang);background:var(--input);color:var(--ink);font:inherit;font-size:12.5px;padding:0 8px}
+.pzv .cb select:disabled{opacity:.6}
+/* La charla's plan step: the tandas next to the consignas. */
+.pzv .ch-cb{position:absolute;z-index:14;right:12px;top:96px;display:grid;gap:4px;max-width:min(320px,calc(100% - 24px));padding:8px 16px 10px 10px;background:var(--glass);clip-path:var(--angr);font-size:12.5px}
+.pzv .ch-cb b{font-family:'Anybody';font-weight:900;font-size:14px;text-transform:uppercase;color:var(--gold-ink)}
+.pzv .ch-cb ol{display:grid;gap:2px;margin:0;padding-left:16px;font-weight:600}

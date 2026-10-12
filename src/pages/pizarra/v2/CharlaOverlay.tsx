@@ -118,6 +118,16 @@ export function CharlaOverlay({ v, step, playing, rm, onToggle, onStep, onSeek, 
           </div>
         </div>
       )}
+      {v.cambios && (
+        <div className="ch-cb" aria-label="Los cambios">
+          <b>Cambios</b>
+          <ol>
+            {v.cambios.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ol>
+        </div>
+      )}
       {v.plan && (
         <div className="ch-plan">
           {v.plan.map((c) => (

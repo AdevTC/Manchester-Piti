@@ -19,7 +19,7 @@ import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
 import { chemOf, tierOf } from "./quimica";
 import { autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { suggestSeven } from "./pack";
-import { applyFan, fanCentre, fanItems, type FanItem } from "./fan";
+import { applyFan, fanCentre, fanItems, type FanItem, type FanSub } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
 import { cycle, settle, snapOf, step, type Snap } from "./sheet";
 import { DIR_KEYS, moveStroke, nudgeOf, nudgePoint, placeOf, slotInDirection, strokeMid, toPlace } from "./drag";
@@ -108,6 +108,8 @@ import { SelBar } from "./SelBar";
 import { selBarView } from "./handView";
 import { readBenchView, writeBenchView, type BenchView } from "./benchView";
 import { shownBench, usePhone, useWide } from "./useWide";
+import { useCambios } from "./useCambios";
+import { orderTxt, ROLE_TAKER, takersOf } from "./takers";
 
 export interface BoardProps {
   session: BoardSession;
@@ -149,7 +151,7 @@ interface FanState {
   id: string;
   cx: number;
   cy: number;
-  sub: boolean;
+  sub: FanSub;
 }
 interface FicState {
   id: string;
@@ -1100,7 +1102,7 @@ export function Board(props: BoardProps) {
   /** What a step says, for screen readers (the graphics change without focus moving). */
   const sayStep = (to: number, playing: boolean) => {
     const v = charlaView({ ...chArgs, step: to, playing });
-    announce(v.n + " · " + v.nk.toLowerCase() + ": " + (v.lt ? v.lt.t + (v.lt.d ? ". " + v.lt.d : "") : (v.plan ?? []).map((c) => c.t + ": " + c.d).join(" ")));
+    announce(v.n + " · " + v.nk.toLowerCase() + ": " + (v.lt ? v.lt.t + (v.lt.d ? ". " + v.lt.d : "") : (v.plan ?? []).map((c) => c.t + ": " + c.d).join(" ") + (v.cambios ? " Cambios: " + v.cambios.join("; ") + "." : "")));
   };
   // (a link straight to the charla waits for the board before it runs)
   const chl = useCharla({
@@ -1124,12 +1126,36 @@ export function Board(props: BoardProps) {
   const cv = charlaOn ? charlaView({ ...chArgs, step: chl.step, playing: chPlaying }) : null;
   const chKind = cv?.kind ?? null;
 
+  // ── día de partido: Siete → Cambios, the scrubbed minute on the pitch, the live plate ──
+  const cb = useCambios({
+    L,
+    sq,
+    called: calledOf(props.conv.match),
+    canEdit,
+    ready,
+    roMsg,
+    match: props.calendar.find((c) => c.id === session.matchId) ?? null,
+    isAdmin: props.isAdmin,
+    now: props.now,
+    open: modo === "editar" && tab === "c",
+    commit: (next) => commit(next),
+    say,
+    announce,
+    onOpen: () => {
+      setModo("editar");
+      setTab("c");
+      setSnap("half");
+      focusNext.current = "heading";
+      setMk((k) => k + 1);
+    },
+  });
+
   // ── what the pitch shows ──
   // The plan is painted while its tab is open (and at the charla's plan); the plan, the química and
   // Comparar show the cromos as discs.
   const showPlan = (modo === "editar" && tab === "p") || chKind === "plan";
   const mini = modo === "quimica" || modo === "comparar" || modo === "jugadas" || modo === "dibujar" || showPlan;
-  const view = pitchView({ L, sq, ch, cam, modo, fx, selId: sel?.id ?? null, hand: inHand, pick, ro: !canEdit, rm, meId: props.meId, mini, present: charlaOn ? chl.step : undefined });
+  const view = pitchView({ L: cb.pitch, sq, ch, cam, modo, fx, selId: sel?.id ?? null, hand: inHand, pick, ro: !canEdit, rm, meId: props.meId, mini, present: charlaOn ? chl.step : undefined });
   const plan = planLayer(L, cam, modo, showPlan);
 
   // ── the stadium: what it films ──
@@ -1173,7 +1199,7 @@ export function Board(props: BoardProps) {
     {
       lineup: L,
       cam,
-      canMove: canEdit && (modo === "editar" || modo === "quimica"),
+      canMove: canEdit && !cb.preview && (modo === "editar" || modo === "quimica"),
       canLine: canEdit && modo === "editar" && plan.dlOn,
       magnets: canEdit && modo === "editar" && !L.freeMode,
       draw: canEdit && modo === "dibujar",
@@ -1233,9 +1259,16 @@ export function Board(props: BoardProps) {
   );
 
   // ── taps ──
+  /** Siete → Cambios with another minute on the pitch: the seven is edited at minute 0. */
+  const scrubbed = () => {
+    if (!cb.preview) return false;
+    say("El campo enseña otro minuto: vuelve al 0′ para cambiar el siete");
+    return true;
+  };
   const tapCard = (id: string, el: HTMLElement) => {
     if (ctl.guarded() || !ready) return;
     if (modo !== "editar" && modo !== "quimica") return;
+    if (scrubbed()) return;
     if (ro) {
       say(roMsg);
       return;
@@ -1263,7 +1296,7 @@ export function Board(props: BoardProps) {
     announce(nm(id) + " en la mano: toca otro cromo o un hueco. Con el teclado, flechas para elegir sitio e Intro para soltar.");
   };
   const tapSlot = (i: number) => {
-    if (ctl.guarded() || !canEdit) return;
+    if (ctl.guarded() || !canEdit || scrubbed()) return;
     if (sel) {
       placeAt(i, sel.id);
       return;
@@ -1556,7 +1589,7 @@ export function Board(props: BoardProps) {
   // Esc soltar; Esc otherwise back to the siete; Ctrl Z deshacer (Dibujar: the last stroke); the replay
   // and the charla: Space plays / pauses, ← → a step back / forward, and Esc leaves the charla (or skips
   // the 3D intro). Typing, the fan and the ficha keep their keys. ──
-  const ONCE_TABS: OnceTab[] = ["b", "s", "p"];
+  const ONCE_TABS: OnceTab[] = ["b", "s", "p", "c"];
   const boardKeys = (e: globalThis.KeyboardEvent) => {
     if (intro3d && e.key === "Escape") {
       skipIntro();
@@ -1613,10 +1646,15 @@ export function Board(props: BoardProps) {
       else if (modo !== "editar") goModo("editar");
       return;
     }
+    // (Cambios: , . the minute on the pitch, N a cambio, M repartir, H hacer el cambio)
+    if (modo === "editar" && tab === "c" && !e.ctrlKey && !e.metaKey && cb.key(e)) {
+      e.preventDefault();
+      return;
+    }
     if (modo !== "editar" || e.ctrlKey || e.shiftKey) return;
     const k = e.key.toLowerCase();
     if (k === "q" || k === "e") {
-      setTab(ONCE_TABS[(ONCE_TABS.indexOf(tab) + (k === "q" ? 2 : 1)) % 3]);
+      setTab(ONCE_TABS[(ONCE_TABS.indexOf(tab) + (k === "q" ? ONCE_TABS.length - 1 : 1)) % ONCE_TABS.length]);
       buzz(6);
     } else if (k === "r") setBenchView(benchView === "lista" ? "cromos" : "lista");
     else if (k === "c") capSel();
@@ -1673,8 +1711,10 @@ export function Board(props: BoardProps) {
   const rot = rp.rot;
   const galLeg = GALONES.map((g) => {
     const h = L.roles[g.key];
-    // (only who wears it on the pitch: a galón never stays on the bench)
-    return { l: g.letter, t: g.label + " · " + (h && onPitch.has(h) ? nm(h) : "sin asignar") };
+    const kind = ROLE_TAKER[g.key];
+    const order = kind ? takersOf(L)[kind] : [];
+    // (only who wears it on the pitch: a galón never stays on the bench; the dead balls say their order)
+    return { l: g.letter, t: g.label + " · " + (order.length > 1 ? orderTxt(order, nm) : h && onPitch.has(h) ? nm(h) : "sin asignar") };
   });
   const doRotate = () => {
     if (!canEdit) {
@@ -2071,6 +2111,7 @@ export function Board(props: BoardProps) {
             }}
           />
         )}
+        {tab === "c" && cb.tab}
         {tab === "p" && <PlanTab rows={tac} ro={!canEdit} rep={rp.rows} repTxt={rp.txt} canRotate={!!rot} note={planNote(L)} onSet={onTactic} onRotate={doRotate} />}
       </>
     ) : modo === "mas" ? (
@@ -2360,6 +2401,8 @@ export function Board(props: BoardProps) {
     playing: charlaOn ? chPlaying && !!cv && chl.step < cv.last : rpl.playing,
     pieces,
     marked: modo === "dibujar" && !!inkSel,
+    tab,
+    live: !!cb.live && props.isAdmin,
   };
   const pmActs: PromptActs = {
     undo: doUndo,
@@ -2375,6 +2418,9 @@ export function Board(props: BoardProps) {
     next: () => (charlaOn ? chl.step1(1) : jStep(1)),
     siete: () => goModo("editar"),
     exitCharla: () => goModo("editar"),
+    addSub: cb.add,
+    repartir: cb.repartir,
+    hacer: cb.hacer,
   };
 
   return (
@@ -2467,6 +2513,7 @@ export function Board(props: BoardProps) {
           onSysPick={goSis}
           onQuimica={() => goModo("quimica")}
           onBug={() => setSnap("half")}
+          live={cb.plate}
         />
         {ro && ready && <ReadOnlyStrip label={session.official ? "OFICIAL · SOLO LECTURA" : "SOLO LECTURA · @" + session.owner.toUpperCase()} onDuplicate={session.duplicate} onMine={session.openMine} />}
         {/* (not live: it changes with every paso of a replay; what matters is announced on its own) */}
@@ -2516,7 +2563,7 @@ export function Board(props: BoardProps) {
           <Fan
             // «Jugar de» opens a new set of items: a fresh fan focuses its first one again (and closing
             // it still gives the focus back to the cromo)
-            key={fan.id + (fan.sub ? ":sub" : ":main")}
+            key={fan.id + ":" + (fan.sub === true ? "sub" : fan.sub || "main")}
             cx={fan.cx}
             cy={fan.cy}
             num={sq.byId.get(fan.id)?.num ?? 0}
