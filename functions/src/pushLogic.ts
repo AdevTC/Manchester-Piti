@@ -107,6 +107,8 @@ export interface LineupLike {
   isOfficial?: boolean;
   /** The match it is official for (null = the whole season). */
   matchId?: string | null;
+  /** The board's season: the link opens it there (`?season=`). */
+  seasonId?: string;
 }
 
 /**
@@ -126,7 +128,8 @@ export function lineupNotice(id: string, before: LineupLike | undefined, after: 
     : mid
       ? "El capitán ya ha publicado el siete del partido. Ábrelo y mira la charla."
       : "El capitán ya ha publicado el siete de la temporada. Ábrelo y mira la charla.";
-  return { topic: "lineup", title: "Ya está el siete", body, tag: `lineup-${id}-${mid ?? "temporada"}`, url: `/pizarra?tablero=${encodeURIComponent(id)}#charla` };
+  const season = typeof after.seasonId === "string" && after.seasonId ? `&season=${encodeURIComponent(after.seasonId)}` : "";
+  return { topic: "lineup", title: "Ya está el siete", body, tag: `lineup-${id}-${mid ?? "temporada"}`, url: `/pizarra?tablero=${encodeURIComponent(id)}${season}#charla` };
 }
 
 /**
