@@ -139,7 +139,8 @@ export function PlanTab({ rows, ro, rep, repTxt, canRotate, note, onSet, onRotat
                 <button type="button" className="ib" onClick={() => onSet(t.key, t.options[t.vi - 1])} disabled={ro || t.vi <= 0} aria-label={t.label + ": opción anterior"}>
                   <Icon n="chevL" w={16} />
                 </button>
-                <output aria-live="polite">
+                {/* (not a live region: the board's one announcer says the change) */}
+                <output role="none">
                   <small id={lid}>{t.label}</small>
                   {t.value}
                   <span aria-hidden="true">

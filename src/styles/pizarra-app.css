@@ -189,3 +189,5 @@
 .pzv .dl-h,.pzv .slot b,.pzv .cc-no,.pzv .chip3,.pzv .nv{font-size:11px}
 .pzv .grp-h,.pzv .grp-h .cnt,.pzv .bname small,.pzv .sb-t small,.pzv .b4 small,.pzv .fp small,.pzv .mft small{font-size:11px}
 .pzv .ops > span,.pzv .tac .lb,.pzv .bl .op small,.pzv .tape small,.pzv .chg small{font-size:11px}
+/* the ficha's back, filled with real data, scrolls inside the card on a phone */
+@media (max-width:767px){.pzv .fc-b{overflow-y:auto}}

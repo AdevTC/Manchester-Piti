@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import type { FormationName, Lineup } from "../formations";
 import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
 import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
-import { chemOf, linkMark, tierOf, togTxt } from "./quimica";
+import { chemOf, tierOf } from "./quimica";
 import { autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { suggestSeven } from "./pack";
 import { applyFan, fanCentre, fanItems, type FanItem } from "./fan";
@@ -35,17 +35,17 @@ import { avisoTxt, avisoUrl, benchGroups, calledOf, convHead, pitchFound, repart
 import { AjustesPanel, CompararPanel, CompartirPanel, PlanTab, QuimicaPanel } from "./SheetPanels";
 import { SHOW0, type BoardPrefs, type ShowKey } from "./prefs";
 import { TablerosPanel, type BoardRowView, type ReactionsView, type TbTab } from "./Tableros";
-import { Fan, Ficha, type FichaView } from "./Overlays";
+import { Fan, Ficha } from "./Overlays";
 import { Icon } from "./icons";
-import { setTactic, tacRows } from "./plan";
-import { changes, cmpMarks, tape } from "./compare";
+import { planNote, setTactic, tacRows } from "./plan";
+import { changes, cmpMarks, PLAYED_ID, playedOption, playedSeven, tape } from "./compare";
 import { boardLink, boardMeta, convocatoriaFromBoard, matchLabel, matchShort, type CalMatch } from "./boards";
 import { charlaJugada, charlaLast, charlaView, pushIn, STEP_JUGADA, STEP_PLAN, stepKind, type CharlaMatch } from "./charla";
 import { useCharla } from "./useCharla";
 import { CharlaGuion, CharlaOverlay } from "./CharlaOverlay";
 import { DEAL_MS, INTRO_2D_MS, INTRO_MAX_MS, INTRO_WAIT_MS, introKind, introSeen, markIntroSeen, type IntroKind } from "./intro";
 import { engineCast, engineDriven, enginePasos, engineSeven, type Shot } from "./director";
-import { cartelBlob, cartelFile, cartelLayout, crestImage, download, shareCartel } from "./cartel";
+import { cartelBlob, cartelFile, cartelLayout, crestImage, download, preparedFor, shareCartel } from "./cartel";
 import { DELETE_MS } from "./useBoardSession";
 import { deepHash } from "./deeplink";
 import { dataToLineupDoc, extractLineup, lineupToData, type LineupDoc, type LineupMeta } from "../lineupDoc";
@@ -99,7 +99,9 @@ import { JugadasPanel, type JugadaEditorView } from "./JugadasPanel";
 import { DibujarPanel } from "./DibujarPanel";
 import { Board3D } from "./Board3D";
 import type { MatchCard } from "./Panels";
-import { RAIL_ORDER } from "./rail";
+import { noteToolOpened, RAIL_ORDER } from "./rail";
+import { useReducedMotion, useStadiumMount } from "./useDevice";
+import { fichaOf } from "./ficha";
 import { PromptBar } from "./PromptBar";
 import type { PromptActs, PromptCtx } from "./prompt";
 import { SelBar } from "./SelBar";
@@ -186,8 +188,6 @@ function focusHeading(sheet: HTMLElement | null): void {
   h.focus({ preventScroll: true });
 }
 
-const reducedMotion = (): boolean => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
 // Deep links into a panel: /pizarra#comparar, #compartir, #tableros, #ajustes, #quimica, #plan, #jugadas,
 // #dibujar, and #charla (the link the captain sends to the group).
 const HASH_MODOS: Modo[] = ["quimica", "jugadas", "dibujar", "mas", "tableros", "comparar", "compartir", "ajustes", "charla"];
@@ -261,7 +261,8 @@ export function Board(props: BoardProps) {
   const C = CAMS[cam];
   const show = { ...SHOW0, ...prefs.show };
 
-  const [rm] = useState(reducedMotion);
+  // (read live: the system's setting can change with the page open)
+  const rm = useReducedMotion();
   const [start] = useState(fromHash);
   const [modo, setModo] = useState<Modo>(start.modo);
   const [snap, setSnap] = useState<Snap>(() => snapOf(start.modo));
@@ -330,8 +331,6 @@ export function Board(props: BoardProps) {
   const [sup3d, setSup3d] = useState<Unsupported | null | undefined>(boot.why);
   const [fail3d, setFail3d] = useState(false);
   const [ready3d, setReady3d] = useState(false);
-  // The stadium, once a 3D moment has wanted it, stays (paused) for the next one.
-  const [mount3d, setMount3d] = useState(false);
   // The jugada picked in Jugadas (else the charla presents the board's first own one, or the córner).
   const [jChosen, setJChosen] = useState(false);
   // La charla with holes in the seven waits for «Presentar igualmente» or «Empezar por el plan».
@@ -1134,11 +1133,10 @@ export function Board(props: BoardProps) {
   const plan = planLayer(L, cam, modo, showPlan);
 
   // ── the stadium: what it films ──
-  // (it is mounted the first time a 3D moment wants it and stays, paused, until «3D» goes off)
+  // (it is mounted the first time a 3D moment wants it and stays, paused, for the next one; after a
+  // minute with no 3D moment it is unmounted, and «3D» off unmounts it at once)
   const wantNow = can3d && (intro3d || charlaOn || (want3d && rpl.playing));
-  if (wantNow && !mount3d) setMount3d(true);
-  if (!can3d && mount3d) setMount3d(false);
-  const keep3d = can3d && (mount3d || wantNow);
+  const keep3d = useStadiumMount(can3d, wantNow);
   if (!keep3d && ready3d) setReady3d(false);
   const led3d = ["Manchester Piti", "Sistema " + (L.freeMode ? "libre" : L.formation), "Química " + ch.v, props.match?.short ?? "", "Vamos Piti"].filter(Boolean);
   const heroId = chKind === "siete" ? chSlots[chl.step - 1] : null;
@@ -1397,6 +1395,8 @@ export function Board(props: BoardProps) {
       // (la charla takes the focus to its own transport)
       focusNext.current = target === "charla" ? null : "heading";
     }
+    // (its «nuevo» badge goes once the tool has been opened twice on this device)
+    if (target !== modo) noteToolOpened(target);
     setUntouched(false);
     setModo(target);
     setSnap(snapOf(target));
@@ -1728,45 +1728,7 @@ export function Board(props: BoardProps) {
       }
     }
   };
-  let ficha: FichaView | null = null;
-  if (fic) {
-    const p = sq.byId.get(fic.id);
-    const fi = L.slots.findIndex((s) => s.playerId === fic.id);
-    if (p) {
-      let ln = ch.links
-        .filter((l) => l.a === fic.id || l.b === fic.id)
-        .sort((a, b) => b.s - a.s)
-        .slice(0, 3)
-        .map((l) => {
-          const o = l.a === fic.id ? l.b : l.a;
-          return { k: "con " + nm(o) + " · " + togTxt(l.min), v: linkMark(l.t) };
-        });
-      if (fi < 0) ln = [{ k: p.baja ? p.baja + ": no disponible" : "En el banquillo", v: "" }];
-      else if (!ln.length) ln = [{ k: "Sin vecinos cerca en este siete", v: "" }];
-      const cv = p.cv === "voy" ? " · Voy" : p.cv === "duda" ? " · Duda" : p.cv === "no" ? " · No va" : "";
-      ficha = {
-        name: p.name,
-        num: p.num,
-        rt: p.rt,
-        pos: p.pos ?? "—",
-        gk: p.pos === "POR",
-        // (and why his form is what it is: «3 goles en sus 2 últimos»)
-        sub: (p.pos ? p.pos + " natural" : "Sin posición") + (fi >= 0 ? " · juega de " + slotLabel(L, fi) : "") + cv + (p.why ? " · " + p.why : ""),
-        st: [
-          { k: "PARTIDOS", v: p.stats.played },
-          { k: "GOLES", v: p.stats.goals },
-          { k: "ASIST.", v: p.stats.assists },
-          { k: "MINUTOS", v: p.stats.minutes },
-          { k: "TITULAR", v: p.stats.starts },
-          { k: "MVP", v: p.stats.mvps },
-        ],
-        ln,
-        ox: fic.ox,
-        oy: fic.oy,
-        side: fic.side,
-      };
-    }
-  }
+  const ficha = fic ? fichaOf({ id: fic.id, L, sq, ch, match, ox: fic.ox, oy: fic.oy, side: fic.side }) : null;
 
   // ── the plan ──
   const tac = tacRows(L);
@@ -1777,6 +1739,8 @@ export function Board(props: BoardProps) {
     commit(next);
     buzz(8);
     if (k === "defLine") say("Línea " + v.toLowerCase() + ": la defensa se mueve");
+    // (the stepper is not a live region: the board's one announcer says the new value)
+    else announce((tac.find((t) => t.key === k)?.label ?? "Consigna") + ": " + v);
   };
 
   // ── the boards around this one ──
@@ -1813,18 +1777,26 @@ export function Board(props: BoardProps) {
     const seen = new Set<string>();
     return [...session.mine, ...session.officials].filter((d) => d.id !== session.id && (seen.has(d.id) ? false : (seen.add(d.id), true)));
   })();
-  const cmpOpts = cmpDocs.map((d) => ({ id: d.id, name: (d.isOfficial && !/^oficial/i.test(d.name) ? "Oficial · " : "") + d.name }));
+  // («El siete que jugó» of the linked match first, when its acta says who started)
+  const played = playedOption(linked);
+  const cmpOpts = [...(played ? [played] : []), ...cmpDocs.map((d) => ({ id: d.id, name: (d.isOfficial && !/^oficial/i.test(d.name) ? "Oficial · " : "") + d.name }))];
   const cmpId = cmpPick && cmpOpts.some((o) => o.id === cmpPick) ? cmpPick : (cmpOpts[0]?.id ?? null);
   const cmpDoc = cmpDocs.find((d) => d.id === cmpId) ?? null;
-  const LB = cmpDoc && modo === "comparar" ? normalize(extractLineup(cmpDoc), squadIds) : null;
+  const LB =
+    modo !== "comparar"
+      ? null
+      : cmpId === PLAYED_ID && linked?.conv
+        ? playedSeven(L, linked.conv.starters, sq)
+        : cmpDoc
+          ? normalize(extractLineup(cmpDoc), squadIds)
+          : null;
   const cmp = LB ? cmpMarks(L, LB, cam) : [];
   const chg = LB ? changes(L, LB) : { ins: [], outs: [] };
 
   // ── Compartir: the cartel ──
   // (laid out, and its key stringified, only while Compartir is open)
   const shareOn = modo === "compartir";
-  const matchSh = match?.short ?? null;
-  const cartel = shareOn ? cartelLayout(L, sq, ch, matchSh, props.seasonName) : null;
+  const cartel = shareOn ? cartelLayout(L, sq, ch, match, props.seasonName) : null;
   const cartelKey = cartel ? JSON.stringify(cartel) : "";
   const cartelNow = useRef(cartel);
   useEffect(() => {
@@ -1854,22 +1826,29 @@ export function Board(props: BoardProps) {
       say("Completa el siete para compartir");
       return;
     }
+    // «Mandar al grupo» only with the PNG already prepared: no await before the share sheet, so Safari
+    // still sees the tap (the PNG is prepared as soon as Compartir opens)
+    const png = preparedFor(prepared, cartelKey);
+    if (mode === "share" && !png) {
+      say("Preparando el cartel…");
+      return;
+    }
     setShareBusy(true);
     try {
-      const blob = cartelKey && prepared?.key === cartelKey ? prepared.blob : await cartelBlob(cartel ?? cartelLayout(L, sq, ch, matchSh, props.seasonName), await crestImage());
+      const file = cartelFile(session.name);
+      if (mode === "share" && png) {
+        const r = await shareCartel(png, file, "Los siete · " + session.name, (match ? match.short + " · " : "") + hud.sysName + " · química " + ch.v);
+        if (r === "downloaded") say("Cartel descargado: mándalo al grupo");
+        else if (r === "shared") say("Cartel listo para el grupo");
+        return;
+      }
+      const blob = png ?? (await cartelBlob(cartel ?? cartelLayout(L, sq, ch, match, props.seasonName), await crestImage()));
       if (!blob) {
         say("Este navegador no puede crear el cartel");
         return;
       }
-      const file = cartelFile(session.name);
-      if (mode === "png") {
-        download(blob, file);
-        say("Cartel guardado como PNG");
-        return;
-      }
-      const r = await shareCartel(blob, file, "Los siete · " + session.name, (match ? match.short + " · " : "") + hud.sysName + " · química " + ch.v);
-      if (r === "downloaded") say("Cartel descargado: mándalo al grupo");
-      else if (r === "shared") say("Cartel listo para el grupo");
+      download(blob, file);
+      say("Cartel guardado como PNG");
     } catch (err) {
       console.error("No se pudo crear el cartel", err);
       say("No se ha podido crear el cartel");
@@ -2092,7 +2071,7 @@ export function Board(props: BoardProps) {
             }}
           />
         )}
-        {tab === "p" && <PlanTab rows={tac} ro={!canEdit} rep={rp.rows} repTxt={rp.txt} canRotate={!!rot} onSet={onTactic} onRotate={doRotate} />}
+        {tab === "p" && <PlanTab rows={tac} ro={!canEdit} rep={rp.rows} repTxt={rp.txt} canRotate={!!rot} note={planNote(L)} onSet={onTactic} onRotate={doRotate} />}
       </>
     ) : modo === "mas" ? (
       <MasPanel tacSum={tacSum} onGo={goModo} />
@@ -2254,7 +2233,7 @@ export function Board(props: BoardProps) {
         onBoards={() => goModo("tableros")}
       />
     ) : modo === "compartir" && cartel ? (
-      <CompartirPanel cartel={cartel} block={shareBlock} busy={shareBusy} canLink={!!session.id} onShare={() => void toGroup("share")} onPng={() => void toGroup("png")} onLink={(charla) => void copyLink(charla)} onBack={() => goModo("mas")} />
+      <CompartirPanel cartel={cartel} block={shareBlock} busy={shareBusy} ready={!!preparedFor(prepared, cartelKey)} canLink={!!session.id} onShare={() => void toGroup("share")} onPng={() => void toGroup("png")} onLink={(charla) => void copyLink(charla)} onBack={() => goModo("mas")} />
     ) : modo === "ajustes" ? (
       <AjustesPanel
         show={show}
@@ -2278,6 +2257,7 @@ export function Board(props: BoardProps) {
         onDay={props.theme.toggle}
         onGrid={onGrid}
         onSeason={props.onSeason}
+        onIntro3d={can3d ? () => setIntro({ kind: "3d", phase: "wait" }) : undefined}
         onBack={() => goModo("mas")}
       />
     ) : modo === "jugadas" ? (

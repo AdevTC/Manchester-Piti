@@ -3,29 +3,18 @@
 // matches as small bars (minutes per match, with goals + assists said in words); his minutes against
 // the team's; where he plays («Jugar de») and his natural line; the galones he wears; whether he goes to
 // the board's match; and his química links in this seven. Pure.
-import type { ClubMatch } from "../../../lib/clubData";
-import { playerGame } from "../../../lib/clubAnalytics";
 import type { Lineup } from "../formations";
 import { normZone } from "../positions";
 import { availTxt, type CharlaMatch } from "./charla";
 import { slotLabel } from "./geometry";
-import { galonesOf, type FormGame, type Squad } from "./model";
-import type { Chem } from "./quimica";
+import { galonesOf, rtTxt, type FormGame, type Squad } from "./model";
+import { linkMark, togTxt, type Chem } from "./quimica";
+import { formWhy } from "./ratings";
 import { plural } from "./plural";
 import type { FichaView } from "./Overlays";
 
-/** How many of the last matches the form bars show. */
-export const FORM_GAMES = 5;
-const DEFAULT_DURATION = 50;
-
-/** A player's last `n` matches of `games` (the season's finished ones, oldest first), oldest first. */
-export function formGames(playerId: string, games: readonly ClubMatch[], jornada: ReadonlyMap<string, number>, n = FORM_GAMES): FormGame[] {
-  return games.slice(-n).map((m, k) => {
-    const g = playerGame(playerId, m);
-    const min = g.minutes ?? (g.played ? (typeof m.duration === "number" && m.duration > 0 ? m.duration : DEFAULT_DURATION) : 0);
-    return { j: jornada.get(m.id) ?? games.length - Math.min(n, games.length) + k + 1, played: g.played, min, ga: g.ga };
-  });
-}
+// (his last matches are worked out with the squad, in ratings.ts buildSquad; re-exported for the ficha)
+export { FORM_GAMES, formGames } from "./ratings";
 
 export interface FormBar {
   j: string;
@@ -71,7 +60,7 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
     .filter((l) => l.a === id || l.b === id)
     .sort((a, b) => b.s - a.s)
     .slice(0, 3)
-    .map((l) => ({ k: "con " + nm(l.a === id ? l.b : l.a) + (l.tog ? " · " + plural(l.tog, "partido") : ""), v: l.t === 3 ? "++" : l.t === 2 ? "+" : "–" }));
+    .map((l) => ({ k: "con " + nm(l.a === id ? l.b : l.a) + " · " + togTxt(l.min), v: linkMark(l.t) }));
   if (fi < 0) ln = [{ k: p.baja ? p.baja + ": no disponible" : "En el banquillo", v: "" }];
   else if (!ln.length) ln = [{ k: "Sin vecinos cerca en este siete", v: "" }];
   const cv = p.cv === "voy" ? " · Voy" : p.cv === "duda" ? " · Duda" : p.cv === "no" ? " · No va" : "";
@@ -92,13 +81,16 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
   }
 
   const bars = formBars(p.form);
+  const why = formWhy(sq, id);
   return {
     name: p.name,
     num: p.num,
-    rt: p.rt,
+    // the form chip: «—» before his first match
+    rt: rtTxt(p),
     pos: p.pos ?? "—",
     gk: p.pos === "POR",
-    sub: (p.pos ? p.pos + " natural" : "Sin posición") + (fi >= 0 ? " · juega de " + slotLabel(L, fi) : "") + cv,
+    // (and why his form is what it is: «3 goles en sus 2 últimos»)
+    sub: (p.pos ? p.pos + " natural" : "Sin posición") + (fi >= 0 ? " · juega de " + slotLabel(L, fi) : "") + cv + (why !== "—" ? " · " + why : ""),
     st: [
       { k: "PARTIDOS", v: p.stats.played },
       { k: "GOLES", v: p.stats.goals },

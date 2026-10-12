@@ -6,7 +6,7 @@ import { playerGame } from "../../../lib/clubAnalytics";
 import { goalLinks } from "../../../lib/statsView";
 import type { Zone } from "../formations";
 import { normZone } from "../positions";
-import { pairKey, type Baja, type Convocatoria, type Cromo, type PairStats, type Squad } from "./model";
+import { pairKey, type Baja, type Convocatoria, type Cromo, type FormGame, type PairStats, type Squad } from "./model";
 import { plural } from "./plural";
 
 /** How many recent matches make the «sobre» (Sugerir siete) and weigh double in the form. */
@@ -139,6 +139,18 @@ export function formWhy(sq: Squad, id: string): string {
   return sq.byId.get(id)?.why ?? "—";
 }
 
+/** How many of the last matches the ficha's form bars show. */
+export const FORM_GAMES = 5;
+
+/** A player's last `n` matches of `games` (the season's finished ones, oldest first), oldest first. */
+export function formGames(playerId: string, games: readonly ClubMatch[], jornada: ReadonlyMap<string, number>, n = FORM_GAMES): FormGame[] {
+  return games.slice(-n).map((m, k) => {
+    const g = playerGame(playerId, m);
+    const min = g.minutes ?? (g.played ? durationOf(m) : 0);
+    return { j: jornada.get(m.id) ?? games.length - Math.min(n, games.length) + k + 1, played: g.played, min, ga: g.ga };
+  });
+}
+
 export interface SquadPlayer {
   id: string;
   shirtName: string;
@@ -228,6 +240,8 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       recentGA,
       baja,
       cv: convocatoria?.get(p.id),
+      // the ficha's form bars: his last matches
+      form: formGames(p.id, games, jornada),
     };
   });
   const pairs = new Map<string, PairStats>();

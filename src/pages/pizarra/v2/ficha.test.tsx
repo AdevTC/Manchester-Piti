@@ -67,6 +67,17 @@ describe("la ficha", () => {
     expect(fichaOf(args("nadie"))).toBeNull();
   });
 
+  it("the chip reads «—» before his first match; the why of his form and his links in minutes together", () => {
+    const sqU = { ...sq, byId: new Map(sq.byId) };
+    sqU.byId.set("kevin", { ...sq.byId.get("kevin")!, unrated: true, why: "Sin partidos esta temporada" });
+    sqU.byId.set("tello", { ...sq.byId.get("tello")!, why: "2 goles en sus 2 últimos" });
+    expect(fichaOf(args("kevin", { sq: sqU }))!.rt).toBe("—");
+    const t = fichaOf(args("tello", { sq: sqU }))!;
+    expect(t.rt).toBe(String(sq.byId.get("tello")!.rt));
+    expect(t.sub).toMatch(/ · 2 goles en sus 2 últimos$/);
+    t.ln.forEach((l) => expect(l.k).toMatch(/^con .+ · (\d+′ juntos|sin minutos juntos)$/));
+  });
+
   it("the back shows it all, the bars with their words for screen readers", () => {
     render(<Ficha f={fichaOf(args("tello"))!} rm onFlip={vi.fn()} onClose={vi.fn()} />);
     const dlg = screen.getByRole("dialog", { name: "Ficha de TELLO" });

@@ -87,6 +87,17 @@ describe("la carta: estados", () => {
     // still the official ticker: the ficha is his
     expect(card.ticker.text).toBe("¡YA ES OFICIAL! · ADRI · DORSAL 10 · DELANTERO ·");
   });
+  it("temporada empezada sin jugar aún: «—» (no el suelo de la forma) y se revela con su primer partido", () => {
+    const card = buildCard(input({ matches: [match("j1", 10, [played("erik"), goal("erik")])] }));
+    expect(card.started).toBe(true);
+    expect(card.showNumbers).toBe(true);
+    expect(card.rating).toBeNull();
+    expect(card.ratingText).toBe("—");
+    expect(card.tier).toBeNull();
+    expect(card.tierKey).toBe("nuevo");
+    expect(card.tierWhy).toBe("Se revela con tu primer partido de la temporada.");
+    expect(card.totals.played).toBe(0);
+  });
   it("sin partidos de ningún tipo: se revela con el primero", () => {
     const card = buildCard(input());
     expect(card.tierWhy).toBe("Se revela con el primer partido de la temporada.");

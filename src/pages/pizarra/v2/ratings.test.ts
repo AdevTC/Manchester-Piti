@@ -132,3 +132,17 @@ describe("la química en minutos juntos", () => {
     expect(squadInfo(L, sq, ch).dm.filter(Boolean).length).toBe(tierDiamonds(ch.v));
   });
 });
+
+describe("the ficha's form bars come with the squad", () => {
+  it("each cromo carries his last matches: minutes from the acta, goals + assists, a missed one as not played", () => {
+    const sq = squad();
+    expect(sq.byId.get("del")!.form).toEqual([
+      { j: 1, played: true, min: 40, ga: 0 },
+      { j: 2, played: true, min: 50, ga: 1 },
+      { j: 3, played: true, min: 50, ga: 2 },
+      { j: 4, played: true, min: 50, ga: 2 },
+    ]);
+    expect(sq.byId.get("cola")!.form?.map((g) => g.played)).toEqual([true, false, false, false]);
+    expect(sq.byId.get("nuevo")!.form?.every((g) => !g.played && g.min === 0)).toBe(true);
+  });
+});

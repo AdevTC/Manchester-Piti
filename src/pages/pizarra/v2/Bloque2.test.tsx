@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Lineup } from "../formations";
 import { libraryPlays } from "../playLibrary";
 import type { Play } from "../plays";
+import type { CalMatch } from "./boards";
 import { CAMS, proj } from "./geometry";
+import { NUEVO_DESDE } from "./rail";
 import { demoSquad, lineupOf } from "./testkit";
 import { BoardHarness as Harness } from "./testkitBoard";
 
@@ -74,6 +76,20 @@ describe("one announcer", () => {
     expect(container.querySelector(".hint")).not.toHaveAttribute("aria-live");
     expect(container.querySelector(".robar")).not.toHaveAttribute("role", "status");
     expect(screen.getByRole("img", { name: "Media del siete: 85" })).toBeInTheDocument();
+  });
+
+  it("the Plan tab's steppers and la charla's step counter are not live regions either", () => {
+    const { container } = render(<Harness initial={L7()} />);
+    const live = () => Array.from(root(container).querySelectorAll("[aria-live], [role=status], [role=alert], output:not([role])"));
+    fireEvent.click(screen.getByRole("button", { name: /^Plan/ }));
+    expect(screen.getByRole("group", { name: "Presión" })).toBeInTheDocument();
+    expect(live()).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Presión: opción siguiente" }));
+    expect(sr(container)).toBe("Presión: Alta");
+    fireEvent.click(screen.getByRole("button", { name: "La charla: presentar el siete" }));
+    expect(screen.getByRole("img", { name: /^Paso 1\/\d+: sistema/ })).toBeInTheDocument();
+    expect(live()).toHaveLength(1);
+    expect(live()[0]).toHaveClass("sr");
   });
 
   it("«Capitán: X» is said once, and the toast's words go through the announcer", () => {
@@ -246,5 +262,55 @@ describe("work only while it is on screen", () => {
     fireEvent.click(pills[0]);
     fireEvent.click(pills[0]);
     expect(spy.validate).toBe(n);
+  });
+});
+
+describe("the two halves of Bloque 2 together", () => {
+  it("Comparar faces «El siete que jugó» of the linked match: the acta's starters on this board's system", () => {
+    const m: CalMatch = { id: "m7", j: 7, rival: "MAD SKY", dateMs: 0, played: true, gf: 2, ga: 1, home: true, venue: "", conv: { starters: ["evans", "illescas", "tello", "huberoski", "eguzquiza", "kevin", "erik"], bench: [] } };
+    const { container } = render(<Harness initial={L7()} session={{ matchId: "m7" }} props={{ calendar: [m] }} />);
+    go("Comparar");
+    const pick = screen.getByRole("combobox", { name: "Tablero con el que comparar" });
+    expect(pick).toHaveValue("partido");
+    expect(within(pick).getByRole("option")).toHaveTextContent(/^El siete que jugó · /);
+    expect(within(container.querySelector(".chg .in") as HTMLElement).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["ERIK", "KEVIN"]);
+    expect(within(container.querySelector(".chg .out") as HTMLElement).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["ALMACHI", "ADRIAN"]);
+  });
+
+  it("the Plan tab says what the plan does in free mode (and nothing with a system)", () => {
+    const { unmount } = render(<Harness initial={{ ...L7(), freeMode: true }} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Plan/ }));
+    expect(screen.getByText(/En modo libre el plan no mueve a nadie/)).toBeInTheDocument();
+    unmount();
+    render(<Harness initial={L7()} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Plan/ }));
+    expect(screen.queryByText(/En modo libre el plan no mueve a nadie/)).toBeNull();
+  });
+
+  it("a tool's «nuevo» badge goes once it has been opened twice on this device", () => {
+    // (a day into the badges' 30)
+    vi.spyOn(Date, "now").mockReturnValue(NUEVO_DESDE + 86_400_000);
+    render(<Harness initial={L7()} />);
+    const badge = () => within(nav()).getByRole("button", { name: "Jugadas" }).querySelector(".nv");
+    expect(badge()).not.toBeNull();
+    go("Jugadas");
+    go("Siete");
+    expect(badge()).not.toBeNull();
+    go("Jugadas");
+    go("Siete");
+    expect(badge()).toBeNull();
+    // (Dibujar, never opened, keeps its own)
+    expect(within(nav()).getByRole("button", { name: "Dibujar" }).querySelector(".nv")).not.toBeNull();
+  });
+
+  it("the ficha the board opens is the full one (ficha.ts): his galones and the board's match", () => {
+    const fresh = { ...L7(), roles: { captainId: "tello" } };
+    render(<Harness initial={fresh} />);
+    fireEvent.click(cromoButton("TELLO"));
+    fireEvent.click(cromoButton("TELLO"));
+    const dlg = screen.getByRole("dialog", { name: "Ficha de TELLO" });
+    expect(within(dlg).getByText("Capitán")).toBeInTheDocument();
+    expect(within(dlg).getByText("Galones")).toBeInTheDocument();
+    expect(within(dlg).getByText("Partido")).toBeInTheDocument();
   });
 });

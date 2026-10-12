@@ -54,7 +54,7 @@ const root = (c: HTMLElement) => c.querySelector(".pzv") as HTMLElement;
 const nav = () => screen.getByRole("navigation", { name: "Herramientas de la pizarra" });
 const go = (name: string) => fireEvent.click(within(nav()).getByRole("button", { name: new RegExp("^(nuevo)?" + name + "$") }));
 const openCharla = () => fireEvent.click(screen.getByRole("button", { name: "La charla: presentar el siete" }));
-const counter = () => screen.getByRole("status", { name: /^Paso \d+\/\d+/ });
+const counter = () => screen.getByRole("img", { name: /^Paso \d+\/\d+/ });
 const lt = (c: HTMLElement) => c.querySelector(".ch-lt") as HTMLElement | null;
 const card = (c: HTMLElement, id: string) => c.querySelector(`.cd[data-tok="${id}"]`) as HTMLElement;
 const tick = (ms: number) =>

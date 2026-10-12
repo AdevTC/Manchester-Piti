@@ -53,7 +53,7 @@ describe("Siete → Plan", () => {
     // each consigna is a card: what it tells the team, and a stepper through its three values
     const card = (title: string) => screen.getByText(title, { selector: ".con-t b" }).closest(".con") as HTMLElement;
     expect(card("Presión media")).toHaveTextContent("Esperamos en el medio y saltamos juntos.");
-    expect(within(screen.getByRole("group", { name: "Presión" })).getByRole("status")).toHaveTextContent("Media");
+    expect(screen.getByRole("group", { name: "Presión" }).querySelector("output")).toHaveTextContent("Media");
     fireEvent.click(screen.getByRole("button", { name: "Presión: opción siguiente" }));
     expect(commits.at(-1)?.tactics.press).toBe("Alta");
     expect(card("Presión alta")).toHaveTextContent("Mordemos arriba: que no salgan jugando.");
@@ -66,7 +66,7 @@ describe("Siete → Plan", () => {
     expect(screen.getByText("Línea alta: la defensa se mueve")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Salida de balón: opción siguiente" }));
     expect(commits.at(-1)?.tactics.buildup).toBe("En largo");
-    expect(within(screen.getByRole("group", { name: "Salida de balón" })).getByRole("status")).toHaveTextContent("En largo");
+    expect(screen.getByRole("group", { name: "Salida de balón" }).querySelector("output")).toHaveTextContent("En largo");
     fireEvent.click(screen.getByRole("button", { name: "Foco de ataque: opción anterior" }));
     expect(commits.at(-1)?.tactics.attackFocus).toBe("Centro");
     // the ritmo is the pulse of the química lights
@@ -89,7 +89,7 @@ describe("Siete → Plan", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Plan/ }));
     expect(screen.getByRole("button", { name: "Presión: opción siguiente" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Foco de ataque: opción anterior" })).toBeDisabled();
-    expect(within(screen.getByRole("group", { name: "Foco de ataque" })).getByRole("status")).toHaveTextContent("Equilibrado");
+    expect(screen.getByRole("group", { name: "Foco de ataque" }).querySelector("output")).toHaveTextContent("Equilibrado");
     expect(screen.getByRole("button", { name: "Darle minutos" })).toBeDisabled();
   });
 });
@@ -515,9 +515,14 @@ describe("Compartir", () => {
     Object.assign(navigator, { share, canShare: () => true, clipboard: { writeText: vi.fn(async () => {}) } });
     render(<Harness initial={L7()} />);
     go("Compartir");
-    const poster = screen.getByRole("img", { name: /^Cartel: los siete de J8 · MAD SKY, 2-3-1, química \d+/ });
+    // (the cartel now carries the match's day and time too)
+    const poster = screen.getByRole("img", { name: /^Cartel: los siete de J8 · MAD SKY( \([^)]*\))?, 2-3-1, química \d+/ });
     expect(poster.querySelectorAll(".po-d")).toHaveLength(7);
-    fireEvent.click(screen.getByRole("button", { name: "Mandar al grupo" }));
+    // the PNG is prepared as Compartir opens; until then the button waits (Safari opens the share sheet
+    // only straight from the tap, so nothing may be awaited before it)
+    expect(screen.getByRole("button", { name: "Preparando el cartel…" })).toBeDisabled();
+    fireEvent.click(await screen.findByRole("button", { name: "Mandar al grupo" }));
+    expect(share).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Cartel listo para el grupo")).toBeInTheDocument();
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ title: "Los siete · J8 · MAD SKY", files: [expect.any(File)] }));
     fireEvent.click(screen.getByRole("button", { name: "Copiar enlace al tablero" }));
@@ -546,7 +551,7 @@ describe("Compartir", () => {
     Object.assign(URL, { createObjectURL: vi.fn(() => "blob:x"), revokeObjectURL: vi.fn() });
     render(<Harness initial={L7()} session={{ id: null, status: "draft" }} />);
     go("Compartir");
-    fireEvent.click(screen.getByRole("button", { name: "Mandar al grupo" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Mandar al grupo" }));
     expect(await screen.findByText("Cartel descargado: mándalo al grupo")).toBeInTheDocument();
     expect(click).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Descargar el cartel en PNG" }));

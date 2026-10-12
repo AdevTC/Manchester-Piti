@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { Lineup } from "../formations";
 import type { CalMatch } from "./boards";
 import { BENCH_VIEW_KEY } from "./benchView";
+import { NUEVO_DESDE } from "./rail";
 import { demoSquad, lineupOf, squadOf } from "./testkit";
 import { BoardHarness as Harness } from "./testkitBoard";
 
@@ -65,6 +66,9 @@ describe("the command bar", () => {
 
 describe("the «Acciones» rail", () => {
   it("En el campo / Gestión, a line each, the shortcut 1–8 and «nuevo» on Jugadas and Dibujar", () => {
+    // (the badges expire 30 days after NUEVO_DESDE: a day into them)
+    const now = vi.spyOn(Date, "now").mockReturnValue(NUEVO_DESDE + 86_400_000);
+    onTestFinished(() => now.mockRestore());
     const { container } = render(<Harness initial={lineupOf(SEVEN, "2-3-1", sq)} />);
     const nav = rail();
     expect(Array.from(nav.querySelectorAll(".mg-h")).map((h) => h.textContent)).toEqual(["En el campo", "Gestión"]);
@@ -215,13 +219,13 @@ describe("the keyboard", () => {
   it("la charla: → a step on, Esc leaves it", () => {
     const { container } = render(<Harness initial={lineupOf(SEVEN, "2-3-1", sq)} />);
     fireEvent.click(within(cmd(container)).getByRole("button", { name: "La charla: presentar el siete" }));
-    const counter = () => screen.getByRole("status", { name: /^Paso \d+\/\d+/ });
+    const counter = () => screen.getByRole("img", { name: /^Paso \d+\/\d+/ });
     expect(counter()).toHaveAccessibleName(/^Paso 1\//);
     key("ArrowRight");
     expect(counter()).toHaveAccessibleName(/^Paso 2\//);
     expect(within(pmb()).getByRole("button", { name: "Salir de la charla (Esc)" })).toBeInTheDocument();
     key("Escape");
-    expect(screen.queryByRole("status", { name: /^Paso \d+\/\d+/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /^Paso \d+\/\d+/ })).not.toBeInTheDocument();
   });
 });
 

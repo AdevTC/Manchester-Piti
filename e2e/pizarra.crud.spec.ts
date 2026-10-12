@@ -73,7 +73,7 @@ test("la pizarra: sugerir el siete, guardarlo, publicarlo, reaccionar, dibujar, 
 
   // la charla: the system first, a step on by hand, and out
   await page.getByRole("button", { name: "La charla: presentar el siete" }).click();
-  const counter = page.getByRole("status", { name: /^Paso \d+\/\d+/ });
+  const counter = page.getByRole("img", { name: /^Paso \d+\/\d+/ });
   await expect(counter).toHaveAccessibleName(/^Paso 1\/\d+: sistema/);
   await expect(page.locator(".ch-lt")).toContainText("Así salimos");
   await page.getByRole("group", { name: "Controles de la charla" }).getByRole("button", { name: "Paso siguiente" }).click();

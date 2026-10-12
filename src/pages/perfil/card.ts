@@ -353,7 +353,8 @@ export function buildCard(input: CardInput): CardView {
   const name = me?.name ?? "";
   const number = me && me.num ? String(me.num) : "";
 
-  const rating = shown ? shown.rt : null;
+  // (no match of his yet: the cromo's rating is only a floor for sorting, so the card prints «—»)
+  const rating = shown && !shown.unrated ? shown.rt : null;
   const form = shown ? formScore(shown.id, games, mvpsOf) : null;
   const racha = !!shown && onStreak(shown.id, games);
   const tier: Tier | null = rating === null ? null : racha ? "racha" : tierOf(rating);
@@ -429,7 +430,7 @@ export function buildCard(input: CardInput): CardView {
     tier,
     tierKey,
     tierName: TIER_NAME[tierKey],
-    tierWhy: tierWhy(tierKey, first),
+    tierWhy: tierKey === "nuevo" && started ? "Se revela con tu primer partido de la temporada." : tierWhy(tierKey, first),
     racha,
     attrs,
     totals,
