@@ -20,6 +20,8 @@ export const CLIP_OUTRO_MS = 1100;
 const MOVE_MS = 2300;
 /** The pitch in the frame (px): 60 × 40 m lying down. */
 export const CLIP_PITCH = { x: 400, y: 90, w: 840, h: 560 } as const;
+/** The text column left of the pitch: nothing written there reaches the grass. */
+const COL_W = CLIP_PITCH.x - 40 - 28;
 
 /** The clip's length (ms): every move at the replay's speed, plus the opening and the ending, kept to 6–12 s. */
 export function clipLength(nPasos: number, rate = 1): number {
@@ -54,7 +56,7 @@ export interface ClipCtx {
   arc(x: number, y: number, r: number, a0: number, a1: number): void;
   fill(): void;
   stroke(): void;
-  fillText(t: string, x: number, y: number): void;
+  fillText(t: string, x: number, y: number, maxWidth?: number): void;
   setLineDash(d: number[]): void;
   fillStyle: string | CanvasGradient | CanvasPattern;
   strokeStyle: string | CanvasGradient | CanvasPattern;
@@ -203,24 +205,24 @@ export function drawClipFrame(ctx: ClipCtx, scene: ClipScene, ms: number, total:
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = SKY;
   ctx.font = `600 20px ${MONO}`;
-  ctx.fillText("REPETICIÓN · LA PIZARRA", 40, 116);
+  ctx.fillText("REPETICIÓN · LA PIZARRA", 40, 116, COL_W);
   ctx.fillStyle = INK;
   ctx.font = `900 40px ${DISPLAY}`;
-  wrapText(play.name.toUpperCase(), 16, 2).forEach((l, k) => ctx.fillText(l, 40, 170 + k * 44));
+  wrapText(play.name.toUpperCase(), 13, 2).forEach((l, k) => ctx.fillText(l, 40, 170 + k * 44, COL_W));
   ctx.fillStyle = GOLD;
   ctx.font = `800 26px ${DISPLAY}`;
-  ctx.fillText("PASO " + (paso + 1) + "/" + n, 40, 290);
+  ctx.fillText("PASO " + (paso + 1) + "/" + n, 40, 290, COL_W);
   ctx.fillStyle = INK;
   ctx.font = `800 24px ${DISPLAY}`;
-  wrapText(f?.title || "Paso " + (paso + 1), 22, 2).forEach((l, k) => ctx.fillText(l, 40, 328 + k * 30));
+  wrapText(f?.title || "Paso " + (paso + 1), 22, 2).forEach((l, k) => ctx.fillText(l, 40, 328 + k * 30, COL_W));
   if (f?.note) {
     ctx.fillStyle = "#c9d8ef";
     ctx.font = `600 19px ${MONO}`;
-    wrapText(f.note, 28, 5).forEach((l, k) => ctx.fillText(l, 40, 400 + k * 26));
+    wrapText(f.note, 28, 5).forEach((l, k) => ctx.fillText(l, 40, 400 + k * 26, COL_W));
   }
   ctx.fillStyle = "#c9d8ef";
   ctx.font = `600 18px ${MONO}`;
-  ctx.fillText(scene.head.toUpperCase().slice(0, 30), 40, 640);
+  ctx.fillText(scene.head.toUpperCase().slice(0, 30), 40, 640, COL_W);
   // the clip's progress, under the pitch
   ctx.fillStyle = "rgba(238,246,255,.18)";
   ctx.fillRect(CLIP_PITCH.x, 676, CLIP_PITCH.w, 6);

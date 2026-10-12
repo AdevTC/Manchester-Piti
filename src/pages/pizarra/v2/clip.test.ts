@@ -90,18 +90,20 @@ describe("a frame of the clip", () => {
     const [ax, ay] = clipPoint({ x: 50, y: 40 });
     expect(calls).toContain("fillText(10," + Math.round(ax) + "," + Math.round(ay + 1) + ")");
     expect(calls).toContain("fillText(ADRIAN," + Math.round(ax) + "," + Math.round(ay + 36) + ")");
-    expect(calls).toContain("fillText(CÓRNER A FAVOR,40,170)");
-    expect(calls).toContain("fillText(PASO 1/2,40,290)");
-    expect(calls).toContain("fillText(Saque,40,328)");
+    // (the name wraps inside the text column: it never reaches the grass)
+    expect(calls).toContain("fillText(CÓRNER A,40,170,332)");
+    expect(calls).toContain("fillText(FAVOR,40,214,332)");
+    expect(calls).toContain("fillText(PASO 1/2,40,290,332)");
+    expect(calls).toContain("fillText(Saque,40,328,332)");
     expect(calls.some((c) => c.startsWith("fillText(Kevin la pone"))).toBe(true);
-    expect(calls).toContain("fillText(J8 · MAD SKY,40,640)");
+    expect(calls).toContain("fillText(J8 · MAD SKY,40,640,332)");
   });
   it("at the end shows the last paso, with the runner where it ends and the progress bar full", () => {
     const { ctx, calls } = recCtx();
     expect(drawClipFrame(ctx, { play: corner(), who, head: "x" }, 6000, 6000)).toBe(1);
     const [ax, ay] = clipPoint({ x: 50, y: 10 });
     expect(calls).toContain("fillText(10," + Math.round(ax) + "," + Math.round(ay + 1) + ")");
-    expect(calls).toContain("fillText(PASO 2/2,40,290)");
+    expect(calls).toContain("fillText(PASO 2/2,40,290,332)");
     expect(calls).toContain("fillRect(400,676,840,6)");
   });
   it("draws the moving arrows while the move is under way", () => {
