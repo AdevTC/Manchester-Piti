@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { planArrows, planNote, setTactic, tacRows } from "./plan";
 import { planLayer } from "./view";
-import { changes, cmpMarks, meanForm, tape } from "./compare";
+import { changes, cmpMarks, galonesOn, meanForm, naturalCount, PLAYED_ID, playedOption, playedSeven, tape } from "./compare";
 import { boardLink, convCounts, convocatoriaOf, copyName, matchBand, matchLabel, nameError, officialFor, seasonPending, uniqueName, withConvocatoria, type CalMatch } from "./boards";
 import { CARTEL_H, CARTEL_W, cartelFile, cartelLayout, drawCartel } from "./cartel";
 import { parsePrefs, PREFS0, readPrefs, SHOW0, writePrefs } from "./prefs";
@@ -84,15 +84,48 @@ describe("comparar", () => {
   const A = lineupOf(SEVEN, "2-3-1", sq);
   const B = lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "kevin", "erik"], "3-2-1", sq);
 
-  it("the tale of the tape: química, system, mean form and goals+assists per line, the better side marked", () => {
+  it("the tale of the tape: química, system, media, the seven's minutes, natural positions and galones, the better side marked", () => {
     const rows = tape(A, B, sq);
-    expect(rows.map((r) => r.k)).toEqual(["Química", "Sistema", "Forma media", "DEF · G+A", "MED · G+A", "DEL · G+A"]);
+    expect(rows.map((r) => r.k)).toEqual(["Química", "Sistema", "Media", "Minutos del siete", "En su posición", "Galones en el campo"]);
     expect(rows[1]).toMatchObject({ a: "2-3-1", b: "3-2-1", ca: "", cb: "" });
     const form = rows[2];
     expect(form.a).toBe(meanForm(A, sq));
     expect(form.b).toBe(meanForm(B, sq));
     if (form.a !== form.b) expect(form.a > form.b ? form.ca : form.cb).toBe("w");
     expect(meanForm(lineupOf([]), sq)).toBe(0);
+  });
+
+  it("the rows that matter for a lineup come from real data", () => {
+    const sq2 = { ...sq, byId: new Map(sq.byId) };
+    sq2.byId.set("evans", { ...sq.byId.get("evans")!, stats: { played: 6, goals: 0, assists: 0, minutes: 300, starts: 6, mvps: 0 } });
+    sq2.byId.set("kevin", { ...sq.byId.get("kevin")!, stats: { played: 9, goals: 3, assists: 1, minutes: 1250, starts: 8, mvps: 1 } });
+    // 2-3-1 with everyone in his line; B (3-2-1) has huberoski (MED) in the third defender's slot and kevin
+    // (DEL) in an MC slot: 5 in their line
+    const Ag = { ...A, roles: { captainId: "illescas", penaltiesId: "adrian", cornersId: "kevin" } };
+    const Bg = { ...B, roles: Ag.roles };
+    const rows = tape(Ag, Bg, sq2);
+    expect(rows[3]).toEqual({ k: "Minutos del siete", a: "300′", b: "1550′", ca: "", cb: "w" });
+    expect(rows[4]).toEqual({ k: "En su posición", a: "7/7", b: "5/7", ca: "w", cb: "" });
+    expect(rows[5]).toEqual({ k: "Galones en el campo", a: "2/4", b: "2/4", ca: "", cb: "" });
+    expect(naturalCount(lineupOf([]), sq)).toBe(0);
+    expect(galonesOn(lineupOf([]))).toBe(0);
+  });
+
+  it("«El siete que jugó»: the match's starters as a seven on this system (keeper in goal, each in his line)", () => {
+    const m: CalMatch = { id: "m8", j: 8, rival: "MAD SKY", dateMs: 0, played: true, gf: 3, ga: 1, home: true, venue: "", conv: { starters: ["kevin", "tello", "evans", "huberoski", "illescas", "eguzquiza", "erik"], bench: ["fer"] } };
+    expect(playedOption(m)).toEqual({ id: PLAYED_ID, name: "El siete que jugó · J8 · MAD SKY" });
+    expect(playedOption({ ...m, played: false })?.name).toBe("El siete convocado · J8 · MAD SKY");
+    expect(playedOption({ ...m, conv: { starters: [], bench: [] } })).toBeNull();
+    expect(playedOption(null)).toBeNull();
+    const P = playedSeven(A, m.conv!.starters, sq);
+    // 2-3-1: POR · DFC DFC · MI MC MD · DC
+    expect(P.slots.map((s) => s.playerId)).toEqual(["evans", "tello", "illescas", "huberoski", "eguzquiza", "erik", "kevin"]);
+    expect(P.formation).toBe("2-3-1");
+    expect(changes(A, P)).toEqual({ ins: ["erik", "kevin"], outs: ["almachi", "adrian"] });
+    // no keeper among them: the last one left goes in goal; never more than seven
+    const nk = playedSeven(A, ["tello", "illescas", "huberoski", "eguzquiza", "almachi", "adrian", "erik", "kevin"], sq);
+    expect(nk.slots.filter((s) => s.playerId)).toHaveLength(7);
+    expect(nk.slots[0].playerId).toBe("erik");
   });
 
   it("who comes in and who goes out, marked on the pitch", () => {
