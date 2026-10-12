@@ -17,6 +17,7 @@ import { dateParts, resultOf, scoreOf } from "../../lib/partidos";
 import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMyMvpVote, useMyPrediction } from "../vestuario/live";
 import { predictScore, setAvailability, useMe, voteMvp } from "../vestuario/writes";
 import { apiError } from "../../lib/clubApi";
+import { rsvpSummary } from "../../lib/rsvp";
 import { Banda } from "./Banda";
 import type { PlayerDoc } from "../../lib/schemas";
 
@@ -452,9 +453,9 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
     p.catch((e: unknown) => setError(apiError(e)));
   };
   const mine = availability.data.find((a) => a.uid === me.uid)?.response;
-  const counts = { yes: 0, maybe: 0, no: 0 };
-  for (const a of availability.data) counts[a.response]++;
-  const total = counts.yes + counts.maybe + counts.no;
+  // («Sin responder» counts too: the convocados who haven't said anything yet)
+  const counts = rsvpSummary(availability.data, [...(match.starters ?? []), ...(match.bench ?? [])]);
+  const total = counts.yes + counts.maybe + counts.no + counts.sin;
   const rsvpIndex = Math.max(0, RSVP.findIndex(([v]) => v === mine));
   const shownUs = pu ?? myPrediction.data?.goalsFor ?? 2;
   const shownThem = pt ?? myPrediction.data?.goalsAgainst ?? 1;
@@ -499,9 +500,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
                   <i style={{ width: `${(counts.maybe / total) * 100}%`, background: "#FFC659" }} />
                   <i style={{ width: `${(counts.no / total) * 100}%`, background: "var(--muted)" }} />
                 </div>
-                <small>
-                  {counts.yes} {counts.yes === 1 ? "va" : "van"} · {counts.maybe} en duda · {counts.no} {counts.no === 1 ? "no puede" : "no pueden"}
-                </small>
+                <small>{counts.txt}</small>
               </div>
             )}
           </section>

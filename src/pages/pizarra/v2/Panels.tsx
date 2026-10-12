@@ -47,6 +47,8 @@ export interface AppBarProps {
   onSysPick: () => void;
   onQuimica: () => void;
   onBug: () => void;
+  /** The live match's plate (LivePlate), while the board's match is being played. */
+  live?: ReactNode;
 }
 
 export function AppBar(p: AppBarProps) {
@@ -72,7 +74,8 @@ export function AppBar(p: AppBarProps) {
           </b>
         </button>
       </div>
-      <div className="cmd-s" role="group" aria-label="Estado del siete">
+      <div className={"cmd-s" + (p.live ? " lv" : "")} role="group" aria-label="Estado del siete">
+        {p.live}
         {p.bug ? (
           <button type="button" className={"bug cbug " + p.bug.k} key={p.bug.k + p.bug.b} onClick={p.onBug} aria-label={p.bug.aria}>
             <i aria-hidden="true" />
@@ -193,8 +196,8 @@ export function Sheet({ title, snap, mk, sheetRef, onCycle, onStep, children }: 
   );
 }
 
-/// ── «Siete»: the squad bars, then Convocatoria · Sistema · Plan ──
-export type OnceTab = "b" | "s" | "p";
+/// ── «Siete»: the squad bars, then Convocatoria · Sistema · Plan · Cambios ──
+export type OnceTab = "b" | "s" | "p" | "c";
 
 export interface SquadBarsProps {
   info: SquadInfo;
@@ -252,14 +255,23 @@ export function OnceTabs({ tab, onTab }: { tab: OnceTab; onTab: (t: OnceTab) => 
         Q
       </kbd>
       <div className="tabs" role="group" aria-label="Herramienta del siete">
-        <button type="button" onClick={() => onTab("b")} aria-pressed={tab === "b"}>
-          Convocatoria
+        {/* (on a phone the four tabs share 390 px: «Convocados» is the label that fits) */}
+        <button type="button" onClick={() => onTab("b")} aria-pressed={tab === "b"} aria-label="Convocatoria">
+          <span className="tl-l" aria-hidden="true">
+            Convocatoria
+          </span>
+          <span className="tl-s" aria-hidden="true">
+            Convocados
+          </span>
         </button>
         <button type="button" onClick={() => onTab("s")} aria-pressed={tab === "s"}>
           Sistema
         </button>
         <button type="button" onClick={() => onTab("p")} aria-pressed={tab === "p"}>
           Plan
+        </button>
+        <button type="button" onClick={() => onTab("c")} aria-pressed={tab === "c"}>
+          Cambios
         </button>
       </div>
       <kbd className="bk" aria-hidden="true">
@@ -286,6 +298,9 @@ export interface BenchTabProps {
   oc: boolean;
   /** «Solo los que van» needs answers to the convocatoria. */
   ocOff: boolean;
+  /** «Sin responder»: only those who haven't answered. */
+  sinF?: boolean;
+  onSin?: () => void;
   seasons: { id: string; name: string }[];
   seasonId: string;
   /** Lista (FUT rows) or Cromos, on desktop (phones always show the cromo strip). Default: lista. */
@@ -334,6 +349,9 @@ export function BenchTab(p: BenchTabProps) {
             <Icon n="x" w={12} />
             <b>{conv.no}</b>no va
           </li>
+          <li className="cvn sin">
+            <b>{conv.sin}</b>sin responder
+          </li>
         </ul>
         <button type="button" className="avi" onClick={p.onAvisar} aria-label={conv.aviso.length ? "Avisar a los que dudan: " + andList(conv.aviso) : "Avisar a los que dudan: nadie tiene dudas"}>
           <Icon n="bell" w={15} />
@@ -380,6 +398,11 @@ export function BenchTab(p: BenchTabProps) {
               <button type="button" className="tg" onClick={p.onOc} aria-pressed={p.oc} disabled={p.ocOff}>
                 Solo los que van
               </button>
+              {p.onSin && (
+                <button type="button" className="tg" onClick={p.onSin} aria-pressed={!!p.sinF}>
+                  Sin responder
+                </button>
+              )}
               <label className="selw">
                 Temporada
                 <select value={p.seasonId} onChange={(e) => p.onSeason(e.target.value)} aria-label="Temporada">
@@ -572,7 +595,7 @@ export interface MatchCard {
   title: string;
   when: string;
   /** Voy / duda / no va (null while there is nothing to count: not read yet, or nobody answered). */
-  counts: { voy: number; duda: number; no: number } | null;
+  counts: { voy: number; duda: number; no: number; sin?: number } | null;
   /** Instead of the counts. */
   note: string;
 }
@@ -622,6 +645,7 @@ export function ModeBar({ modo, onGo, card }: { modo: Modo; onGo: (m: Modo) => v
               {card.counts.duda} duda
               <i className="n" aria-hidden="true" />
               {card.counts.no} no va
+              {!!card.counts.sin && <> · {card.counts.sin} sin responder</>}
             </span>
           ) : (
             <span className="mft-c">{card.note}</span>

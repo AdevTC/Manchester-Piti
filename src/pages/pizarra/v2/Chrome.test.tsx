@@ -128,15 +128,21 @@ describe("the keyboard", () => {
   it("Q / E walk the siete's tabs; R switches the bench between list and cromos (remembered)", () => {
     const { container } = render(<Harness initial={lineupOf(SEVEN, "2-3-1", sq)} />);
     const pressed = () => onceTabs().map((b) => b.getAttribute("aria-pressed"));
-    expect(pressed()).toEqual(["true", "false", "false"]);
+    expect(pressed()).toEqual(["true", "false", "false", "false"]);
     key("e");
-    expect(pressed()).toEqual(["false", "true", "false"]);
+    expect(pressed()).toEqual(["false", "true", "false", "false"]);
     key("E");
-    expect(pressed()).toEqual(["false", "false", "true"]);
+    expect(pressed()).toEqual(["false", "false", "true", "false"]);
     key("e");
-    expect(pressed()).toEqual(["true", "false", "false"]);
+    expect(pressed()).toEqual(["false", "false", "false", "true"]);
+    key("e");
+    expect(pressed()).toEqual(["true", "false", "false", "false"]);
     key("q");
-    expect(pressed()).toEqual(["false", "false", "true"]);
+    expect(pressed()).toEqual(["false", "false", "false", "true"]);
+    key("q");
+    expect(pressed()).toEqual(["false", "false", "true", "false"]);
+    key("e");
+    key("e");
     const root = container.querySelector(".pzv") as HTMLElement;
     expect(root.classList.contains("b-lista")).toBe(true);
     key("r");

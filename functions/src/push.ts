@@ -11,7 +11,8 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { convocatoriaNotice, DOOR_TOPICS, kickoffNotice, lineupNotice, noticesFor, TOPICS, type LineupLike, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
+import { convocatoriaNotice, DOOR_TOPICS, kickoffNotice, lineupNotice, noticesFor, PERSONAL_TOPICS, TOPICS, type LineupLike, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
+import { sevenEdited, sevenPublished } from "./seven.js";
 
 export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
 /** Public half of the key pair (also in the app, src/lib/push.ts). */
@@ -25,7 +26,7 @@ const subscription = z.object({
 const subId = (endpoint: string) => createHash("sha256").update(endpoint).digest("hex").slice(0, 40);
 
 export const pushSubscribe = onCall(async (req) => {
-  const input = parse(z.object({ subscription, topics: z.array(z.enum([...TOPICS, ...DOOR_TOPICS])).max(TOPICS.length + DOOR_TOPICS.length) }), req.data);
+  const input = parse(z.object({ subscription, topics: z.array(z.enum([...TOPICS, ...DOOR_TOPICS, ...PERSONAL_TOPICS])).max(TOPICS.length + DOOR_TOPICS.length + PERSONAL_TOPICS.length) }), req.data);
   // Door notices are personal: "access" needs the Google account that asked, "door" an admin.
   let uid: string | undefined;
   if (input.topics.includes("access")) uid = googleUser(req);
@@ -33,6 +34,15 @@ export const pushSubscribe = onCall(async (req) => {
     const me = await memberAs(req);
     if (!me.isAdmin) throw new HttpsError("permission-denied", "Solo los administradores reciben la puerta.");
     uid = me.uid;
+  }
+  // The convocatoria's reminders are personal too (to whoever hasn't answered): members only. Anyone
+  // else keeps the rest of their topics, without this one.
+  if (input.topics.includes("convocatoria")) {
+    try {
+      uid = (await memberAs(req)).uid;
+    } catch {
+      input.topics = input.topics.filter((t) => t !== "convocatoria");
+    }
   }
   const ref = db.doc(`pushSubscriptions/${subId(input.subscription.endpoint)}`);
   if (!input.topics.length) {
@@ -110,7 +120,14 @@ export const pushOnLineup = onDocumentWritten({ document: "lineups/{lineupId}", 
   const before = event.data?.before.data() as LineupLike | undefined;
   const after = event.data?.after.data() as LineupLike | undefined;
   // (most writes are autosaves of boards that are not official: nothing to read for them)
-  if (!after?.isOfficial || (before?.isOfficial && (before.matchId ?? null) === (after.matchId ?? null))) return;
+  if (!after?.isOfficial) return;
+  // An official that stays official: «Cambio en el siete» when its seven changed (seven.ts).
+  if (before?.isOfficial && (before.matchId ?? null) === (after.matchId ?? null)) {
+    await sevenEdited(event.params.lineupId, before, after, (n) => sendTo(n));
+    return;
+  }
+  // (what the team is told about from now on: this seven)
+  await sevenPublished(event.params.lineupId, after);
   const mid = after.matchId ?? null;
   const match = mid ? asMatch((await db.doc(`matches/${mid}`).get()).data()) : null;
   const notice = lineupNotice(event.params.lineupId, before, after, match);

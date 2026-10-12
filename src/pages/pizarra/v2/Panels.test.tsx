@@ -52,14 +52,16 @@ describe("«Siete»", () => {
     expect((bars[2].querySelector("i") as HTMLElement).style.getPropertyValue("--v")).toBe(String(ch.fo));
   });
 
-  it("the tabs: Convocatoria · Sistema · Plan between the Q and E keys", () => {
+  it("the tabs: Convocatoria · Sistema · Plan · Cambios between the Q and E keys", () => {
     const onTab = vi.fn();
     const { container } = render(<OnceTabs tab="s" onTab={onTab} />);
     const tabs = within(screen.getByRole("group", { name: "Herramienta del siete" })).getAllByRole("button");
-    expect(tabs.map((b) => b.textContent)).toEqual(["Convocatoria", "Sistema", "Plan"]);
+    expect(tabs.map((b) => b.getAttribute("aria-label") ?? b.textContent)).toEqual(["Convocatoria", "Sistema", "Plan", "Cambios"]);
     expect(tabs[1]).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(tabs[2]);
     expect(onTab).toHaveBeenCalledWith("p");
+    fireEvent.click(tabs[3]);
+    expect(onTab).toHaveBeenCalledWith("c");
     const keys = container.querySelectorAll(".tabrow > kbd.bk");
     expect(Array.from(keys).map((k) => k.textContent)).toEqual(["Q", "E"]);
     keys.forEach((k) => expect(k).toHaveAttribute("aria-hidden", "true"));

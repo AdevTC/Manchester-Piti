@@ -12,6 +12,8 @@ import { rosterFor } from "../acta/roster";
 import { LoadError } from "../club/ClubStates";
 import { benchOf, convocables, copyFrom, matchLead, matchTitle, poolGroups, type PoolGroup } from "../convocar/convocarModel";
 import { useMatchAnswers } from "../convocar/live";
+import { useReminders } from "../convocar/reminders";
+import { RemindersToggle } from "../convocar/RemindersToggle";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
 import { place, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
 import { useConvocatoria } from "../data/useConvocatoria";
@@ -88,6 +90,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   const { desktop } = useFrame();
   const conv = useConvocatoria(match);
   const answers = useMatchAnswers(match.id);
+  const rem = useReminders(match.id);
   const [hung, setHung] = useState<string | null>(null);
   const hid = useId();
   const roster = useMemo(
@@ -156,6 +159,9 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
       Copiar la convocatoria de la {copy.label}
     </button>
   ) : null;
+  // «Recordatorios automáticos»: the convocados the 48 h / 24 h reminders would chase now
+  const pendingN = [...lineup.starters, ...lineup.bench].filter((id) => (rsvp.get(id) ?? "sin") === "sin").length;
+  const remindersEl = <RemindersToggle auto={rem.auto} loading={rem.loading} pending={pendingN} onSet={rem.set} onError={(message) => toast.show({ tag: "!", message })} />;
   const frontAria = (id: string | null) => (id ? `${nameOf(id)} en el siete: tocar para bajarlo al banquillo` : "Hueco libre en el siete");
 
   if (!desktop)
@@ -197,6 +203,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
           {copyBtn}
           <Pool groups={pool} onSet={setSlot} empty={!roster.length} />
           <SourceNote />
+          {remindersEl}
         </div>
         <div className="msticky">
           <span className="why">{why}</span>
@@ -256,6 +263,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
             </div>
           </div>
           <SourceNote />
+          {remindersEl}
           <div className="rdrs">
             <div>
               <b>

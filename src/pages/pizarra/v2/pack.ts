@@ -3,7 +3,7 @@
 // a slot of his natural zone, the bajas and the «no voy» left out (and, when the match has its
 // convocatoria, whoever it doesn't call). The convocatoria's siete (the admin's Convocar: the one source)
 // is dealt first. Those who stay on the pitch keep their «Jugar de». Pure.
-import type { Lineup } from "../formations";
+import type { Lineup, Zone } from "../formations";
 import { slotZone } from "./geometry";
 import type { Squad } from "./model";
 import { answerRank, canCome, dropBenchedRoles } from "./ops";
@@ -26,7 +26,7 @@ export function packRanking(sq: Squad, called: ReadonlySet<string> | null = null
  * `first` (the convocatoria's siete) is dealt before anyone else: a whole siete is exactly those seven;
  * a partial one goes first and the pack completes it (a keeper from the pack before an outfielder in goal).
  */
-export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = [], called: ReadonlySet<string> | null = null): Lineup {
+export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = [], called: ReadonlySet<string> | null = null, fam?: (id: string, z: Zone) => number): Lineup {
   const rank = packRanking(sq, called);
   // (the convocatoria's siete, minus whoever is now a baja or said no)
   const own = first.filter((id) => canCome(sq, id, null));
@@ -39,7 +39,10 @@ export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = []
       for (let i = 0; i < out.length; i++) {
         if (out[i]) continue;
         const z = slotZone(L, i);
-        for (const id of from) {
+        // (out of his natural zone, whoever has already played there in the official goes first: the
+        // familiarity breaks the tie, see familiarity.ts)
+        const order = pass === 1 && fam ? [...from].sort((a, b) => Number(fam(b, z) >= 2) - Number(fam(a, z) >= 2)) : from;
+        for (const id of order) {
           if (used.has(id)) continue;
           if (pass < 2 && (i === 0) !== isGk(id)) continue;
           if (pass === 0 && sq.byId.get(id)?.pos !== z) continue;
