@@ -1090,6 +1090,8 @@ export function Board(props: BoardProps) {
       pieces,
     },
     {
+      // a bench cromo lifted off the phone strip (long press): the hand feels it
+      onLift: () => buzz(12),
       onStart: (kind, _id, from) => {
         setDragKind(kind);
         setDragFrom(from);
@@ -1741,7 +1743,7 @@ export function Board(props: BoardProps) {
   };
   const copyLink = async (charla: boolean) => {
     if (!session.id) return;
-    const url = boardLink(window.location.origin, session.id, charla);
+    const url = boardLink(window.location.origin, session.id, charla, props.seasonId);
     try {
       await navigator.clipboard.writeText(url);
       say(charla ? "Enlace a la charla copiado: pégalo en el grupo" : "Enlace copiado: pégalo en el grupo");

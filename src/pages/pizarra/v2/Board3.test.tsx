@@ -509,11 +509,11 @@ describe("Compartir", () => {
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ title: "Los siete · J8 · MAD SKY", files: [expect.any(File)] }));
     fireEvent.click(screen.getByRole("button", { name: "Copiar enlace al tablero" }));
     expect(await screen.findByText("Enlace copiado: pégalo en el grupo")).toBeInTheDocument();
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.origin + "/pizarra?tablero=b1");
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.origin + "/pizarra?tablero=b1&season=t1");
     // and the one the captain sends before the match: straight to the charla
     fireEvent.click(screen.getByRole("button", { name: "Copiar el enlace que abre la charla de este tablero" }));
     expect(await screen.findByText("Enlace a la charla copiado: pégalo en el grupo")).toBeInTheDocument();
-    expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith(window.location.origin + "/pizarra?tablero=b1#charla");
+    expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith(window.location.origin + "/pizarra?tablero=b1&season=t1#charla");
     Object.assign(navigator, { share: undefined, canShare: undefined });
   });
 
