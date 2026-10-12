@@ -480,7 +480,7 @@ describe("Jugadas · la repetición", () => {
     });
     expect(bug()).toHaveAccessibleName(/paso 2 de 4/);
     const lib = screen.getByRole("group", { name: "Biblioteca de jugadas" });
-    expect(within(lib).getAllByRole("button").map((b) => b.textContent)).toEqual(["Córner", "Falta", "Banda", "Salida"]);
+    expect(within(lib).getAllByRole("button").map((b) => b.textContent)).toEqual(["Córner", "Falta", "Banda", "Salida", "Córner en contra", "Falta lateral", "Banda larga", "Saque de puerta"]);
     fireEvent.click(within(lib).getByRole("button", { name: "Falta frontal (estrategia)" }));
     expect(bug()).toHaveAccessibleName("Repetición: Falta frontal, paso 1 de 3, Barrera. Abrir la biblioteca");
     expect(screen.getByRole("button", { name: "Reproducir la repetición" })).toBeInTheDocument();
@@ -630,7 +630,7 @@ describe("Jugadas · el editor", () => {
     expect(bug()).toHaveAccessibleName(/^Repetición: Córner a favor \(tuya\), paso 2 de 4/);
     // the library keeps the original
     const lib = screen.getByRole("group", { name: "Biblioteca de jugadas" });
-    expect(within(lib).getAllByRole("button").map((b) => b.textContent)).toEqual(["Córner", "Falta", "Banda", "Salida", "Córner a favor (tuya)"]);
+    expect(within(lib).getAllByRole("button").map((b) => b.textContent)).toEqual(["Córner", "Falta", "Banda", "Salida", "Córner en contra", "Falta lateral", "Banda larga", "Saque de puerta", "Córner a favor (tuya)"]);
   });
 
   it("twelve of your own at most: it says so instead", () => {

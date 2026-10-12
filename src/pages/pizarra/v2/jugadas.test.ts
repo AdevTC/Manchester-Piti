@@ -40,11 +40,11 @@ const own = (L = L7): Play => playFromBoard(L, "Tu jugada 1") as Play;
 const carried = (): Play => rederive(movePlayer(moveBall(moveBall(own(), 0, { x: 50, y: 92 }), 1, { x: 50, y: 60 }), 1, "evans", { x: 50, y: 60 }));
 
 describe("the library and your jugadas", () => {
-  it("lists córner, falta, banda and salida for the seven on the board, then the board's own", () => {
+  it("lists córner, falta, banda and salida (and the four new set pieces) for the seven on the board, then the board's own", () => {
     const mine = own();
     const list = jugadaList({ ...L7, plays: [mine] });
-    expect(list.map((j) => j.short)).toEqual(["Córner", "Falta", "Banda", "Salida", "Tu jugada 1"]);
-    expect(list.map((j) => j.own)).toEqual([false, false, false, false, true]);
+    expect(list.map((j) => j.short)).toEqual(["Córner", "Falta", "Banda", "Salida", "Córner en contra", "Falta lateral", "Banda larga", "Saque de puerta", "Tu jugada 1"]);
+    expect(list.map((j) => j.own)).toEqual([false, false, false, false, false, false, false, false, true]);
     // the library moves the people in those slots
     expect(participants(list[0].play).sort()).toEqual([...SEVEN].sort());
     expect(pickJugada(list, mine.id).play).toBe(mine);
