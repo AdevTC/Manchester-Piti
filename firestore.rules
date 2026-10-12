@@ -190,6 +190,14 @@ service cloud.firestore {
         && d.takers.get('freekicks', []) is list && d.takers.get('freekicks', []).size() <= 3
         && d.takers.get('corners', []) is list && d.takers.get('corners', []).size() <= 3);
     }
+    // The rival seven (null once taken off): their system and at most seven players, each a small map
+    // (a dorsal and a note; their content is validated on read, see v2/rival.ts parseRival).
+    function rivalOk(d) {
+      return !('rival' in d) || d.rival == null || (d.rival is map
+        && d.rival.keys().hasOnly(['formation','players'])
+        && d.rival.get('formation', null) is string && d.rival.formation.size() <= 10
+        && d.rival.get('players', []) is list && d.rival.get('players', []).size() <= 7);
+    }
     // A string field that may be missing (older boards) but, when there, is a bounded string.
     function optStr(d, k, max) {
       return !(k in d) || (d[k] is string && d[k].size() <= max);
@@ -247,7 +255,8 @@ service cloud.firestore {
         && d.get('playerPositions', {}) is map && d.get('playerPositions', {}).size() <= 60
         && d.get('bench', []) is list && d.get('bench', []).size() <= 60
         && d.get('pinned', []) is list && d.get('pinned', []).size() <= 7
-        && subsOk(d) && takersOk(d)
+        && subsOk(d) && takersOk(d) && rivalOk(d)
+
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp)
         && tacticaOk(d)

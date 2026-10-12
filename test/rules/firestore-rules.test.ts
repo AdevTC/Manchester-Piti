@@ -380,6 +380,26 @@ describe("Pizarra", () => {
     await seed("lineups/old", board);
     await assertSucceeds(updateDoc(doc(db("member"), "lineups", "old"), { name: "Viejo" }));
   });
+  it("el rival en la pizarra: su sistema y hasta siete jugadores; null lo quita; trazos pegados y curvas caben", async () => {
+    const rival = { formation: "2-3-1", players: Array.from({ length: 7 }, (_, i) => (i === 6 ? { num: 9, note: "presionar al 9 por su izquierda" } : {})) };
+    const unir = { id: "k1", kind: "unir", color: "gold", anchors: ["p1", "p2"], points: [{ x: 10, y: 10 }, { x: 20, y: 20 }] };
+    const fuera = { id: "k2", kind: "fuera", color: "white", side: "nos", points: [{ x: 0, y: 70 }, { x: 100, y: 70 }] };
+    const frame = { players: {}, ball: { x: 50, y: 50 }, rivals: [], arrows: [], curves: { p1: { x: 40, y: 40 } } };
+    const play = { id: "j", name: "Curva", kind: "propia", frames: [frame, frame] };
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, rival, drawings: [unir, fuera], plays: [play] }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { rival: null }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { rival: { formation: "3-2-1", players: [] } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: { ...rival, players: Array.from({ length: 8 }, () => ({})) } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: { ...rival, extra: true } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: { players: [] } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: { formation: "2-3-1-y-mucho-más", players: [] } }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: "MAD SKY" }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { rival: { formation: "2-3-1", players: { a: {} } } }));
+    // el rival de otro no se toca
+    await seed("lineups/z", { ...board, ownerUid: "other" });
+    await assertFails(updateDoc(doc(db("member"), "lineups", "z"), { rival }));
+  });
+
   it("día de partido: cambios (≤ 20), lanzadores en orden (≤ 3 por lista) y vice-capitán", async () => {
     const sub = { id: "s1", min: 25, out: "p1", in: "p2" };
     const takers = { penalties: ["p1", "p2", "p3"], freekicks: [], corners: ["p2"] };

@@ -233,6 +233,10 @@ export function jugadaStage(a: JugadaStageArgs): JugadaStage {
     const fxx = f ? f[0] : x;
     const fyy = f ? f[1] : y;
     const dist = Math.hypot(fxx - x, fyy - y);
+    // a path bent by hand glides through its own middle (playPaths.ts)
+    const bentC = prev ? play.frames[jf]?.curves?.[id] : undefined;
+    const bentA = bentC ? prev?.players[id] : undefined;
+    const bentM = bentC && bentA ? proj(C, (bentA.x + 2 * bentC.x + at.x) / 4, (bentA.y + 2 * bentC.y + at.y) / 4) : null;
     const si = L.slots.findIndex((s) => s.playerId === id);
     const zone = si >= 0 ? slotZone(L, si) : (p.pos ?? "");
     cards.push({
@@ -242,8 +246,8 @@ export function jugadaStage(a: JugadaStageArgs): JugadaStage {
       y,
       fx: fxx,
       fy: fyy,
-      mx: ((fxx + x) / 2).toFixed(2),
-      my: ((fyy + y) / 2 - Math.min(9, dist * 0.35)).toFixed(2),
+      mx: (bentM && f ? bentM.x : (fxx + x) / 2).toFixed(2),
+      my: (bentM && f ? bentM.y : (fyy + y) / 2 - Math.min(9, dist * 0.35)).toFixed(2),
       sc: depthScale(C, sp.s).toFixed(3),
       z: Math.round(y * 10),
       rd: "0s",
@@ -314,8 +318,11 @@ export function jugadaStage(a: JugadaStageArgs): JugadaStage {
         if (!p0 || !p1 || !sq.byId.has(id) || Math.abs(p0.x - p1.x) + Math.abs(p0.y - p1.y) < 4) return;
         const A = box(p0);
         const B = box(p1);
-        const mx = (A[0] + B[0]) / 2 + (B[1] - A[1]) * 0.08;
-        const my = (A[1] + B[1]) / 2 - (B[0] - A[0]) * 0.08;
+        // (bent by hand: through its own control point)
+        const cv = play.frames[jf]?.curves?.[id];
+        const Q = cv ? box(cv) : null;
+        const mx = Q ? Q[0] : (A[0] + B[0]) / 2 + (B[1] - A[1]) * 0.08;
+        const my = Q ? Q[1] : (A[1] + B[1]) / 2 - (B[0] - A[0]) * 0.08;
         trails.push({ key: id, cls: "c-s", k: "", d: "M" + f1(A[0]) + " " + f1(A[1]) + "Q" + f1(mx) + " " + f1(my) + " " + f1(B[0]) + " " + f1(B[1]) });
       });
       const mv = ballMove(play, jf);

@@ -11,6 +11,7 @@
 import type { Play, Stroke } from "../../lib/schemas";
 import type { CondRule, ShapeOff, StyleId } from "../../lib/tacticaSchemas";
 import type { Tactics } from "./tactics";
+import type { RivalSeven } from "./v2/rival";
 
 /** Vertical zone of a slot/player — used for the out-of-position cue. */
 export type Zone = "POR" | "DEF" | "MED" | "DEL";
@@ -74,6 +75,9 @@ export interface Lineup {
   subs?: Sub[];
   /** Lanzadores en orden (≤ 3 each): the first of each list on the pitch takes it (see v2/takers.ts). */
   takers?: Takers;
+  /** El rival: su siete (un sistema reflejado en su campo) con dorsal y nota por jugador; null = quitado
+   *  (se guarda así para borrarlo), ausente = nunca tuvo (see v2/rival.ts). */
+  rival?: RivalSeven | null;
   /** Telestrator strokes over the pitch (≤ 60; see drawings.ts). */
   drawings: Stroke[];
   /** The board's own jugadas (≤ 12; see plays.ts). The built-in ones are not stored. */

@@ -3,7 +3,7 @@
 // (estrategia and yours), the paso's caption, Rivales / Balón and «+ Paso»; and, full, a new jugada of
 // your own and the editor: name, duplicate, delete, the pasos (go, reorder, copy, remove), the paso's
 // title and note, the rivals and whoever of the seven is missing.
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { PIZARRA_LIMITS } from "../../../lib/schemas";
 import { Icon, Nuevo } from "./icons";
 import { nuevoOn } from "./rail";
@@ -11,6 +11,7 @@ import { mag } from "./mag";
 import { vars } from "./view";
 import type { ReplayHud } from "./jugadas";
 import { useConfirmKeys } from "./useConfirmKeys";
+import { RATES, rateLabel } from "./playPaths";
 
 /** A text that is written as you go and kept on Enter, on leaving the field or after a short pause;
  *  `check` says what is wrong with it (then it is not kept). `onFocus`: the field is being written in
@@ -117,7 +118,8 @@ export interface JugadasPanelProps {
   n: number;
   playing: boolean;
   v3: boolean;
-  slow: boolean;
+  /** The replay's speed: 0.5, 1 or 1.5. */
+  rate: number;
   onion: boolean;
   trails: boolean;
   riv: boolean;
@@ -127,12 +129,14 @@ export interface JugadasPanelProps {
   canEdit: boolean;
   /** Why the 3D stadium is not there (shown while «En 3D» is on), or null. */
   note3d: string | null;
+  /** «La jugada en vídeo» (ClipExport), under the editor's hint. */
+  clip?: ReactNode;
   editor: JugadaEditorView;
   onToggle: () => void;
   onStep: (d: 1 | -1) => void;
   onSeek: (i: number) => void;
   on3d: () => void;
-  onSlow: () => void;
+  onRate: (r: number) => void;
   onOnion: () => void;
   onTrails: () => void;
   onRiv: () => void;
@@ -202,10 +206,14 @@ export function JugadasPanel(p: JugadasPanelProps) {
           <Icon n="cube" w={15} />
           En 3D
         </button>
-        <button type="button" className="pill" onClick={p.onSlow} aria-pressed={p.slow}>
-          <Icon n="slow" w={15} />
-          0,5×
-        </button>
+        <span className="dr-speed" role="group" aria-label="Velocidad de la repetición">
+          {RATES.map((r) => (
+            <button key={r} type="button" className="pill" onClick={() => p.onRate(r)} aria-pressed={p.rate === r}>
+              {r === 0.5 && <Icon n="slow" w={15} />}
+              {rateLabel(r)}
+            </button>
+          ))}
+        </span>
         <button type="button" className="pill" onClick={p.onOnion} aria-pressed={p.onion}>
           <Icon n="layers" w={15} />
           Calco
@@ -267,10 +275,10 @@ export function JugadasPanel(p: JugadasPanelProps) {
         <p className="soon">
           <Icon n="film" w={16} />
           <span>
-            {p.canEdit ? "Arrastra un cromo, el balón o un rival para retocar su sitio en este paso." : "Solo lectura: la jugada se ve, pero no se retoca."} Compartir la jugada como clip:{" "}
-            <Nuevo>próximamente</Nuevo>
+            {p.canEdit ? "Arrastra un cromo, el balón o un rival para retocar su sitio en este paso; el círculo a mitad de cada carrera la curva." : "Solo lectura: la jugada se ve, pero no se retoca."}
           </span>
         </p>
+        {p.clip}
         {p.canEdit && (
           <div className="jed">
             <h3>{ed.own ? "Tu jugada" : "De la biblioteca · al retocarla se guarda una copia tuya"}</h3>

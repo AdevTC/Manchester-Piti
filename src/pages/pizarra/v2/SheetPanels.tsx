@@ -400,9 +400,11 @@ export interface CompartirProps {
   /** Copy the board's link (`charla` = the link that opens its charla). */
   onLink: (charla: boolean) => void;
   onBack: () => void;
+  /** The board's QR, «Clonar este tablero» and the jugada as a video (BoardShare). */
+  extra?: ReactNode;
 }
 
-export function CompartirPanel({ cartel, block, busy, ready = true, canLink, onShare, onPng, onLink, onBack }: CompartirProps) {
+export function CompartirPanel({ cartel, block, busy, ready = true, canLink, onShare, onPng, onLink, onBack, extra }: CompartirProps) {
   const waiting = busy || (!ready && !block);
   return (
     <>
@@ -474,12 +476,7 @@ export function CompartirPanel({ cartel, block, busy, ready = true, canLink, onS
         </button>
       </div>
       {!canLink && <p className="empty">El enlace llega en cuanto el tablero se guarde (con tu primer cambio).</p>}
-      <p className="soon">
-        <Icon n="film" w={16} />
-        <span>
-          La jugada como clip animado <Nuevo>próximamente</Nuevo>
-        </span>
-      </p>
+      {extra}
     </>
   );
 }
