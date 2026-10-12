@@ -196,7 +196,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
               // whoever was only looking at the official goes on looking at the official
               if (w.owner !== uid && !isAdmin) setChoice({ season: seasonId, id: repl.id });
             } else msg = "Este tablero ya no es el oficial";
-          } else if (w.sig !== cur.sig && cur.sig && w.squad === cur.squad && !(sent?.key === key && sent.sig === cur.sig)) {
+          } else if (w.sig && cur.sig && w.sig !== cur.sig && w.squad === cur.squad && !(sent?.key === key && sent.sig === cur.sig)) {
             msg = mine?.dirty ? "Otra pestaña ha cambiado este tablero: se queda tu versión" : "Tablero actualizado desde otra pestaña o dispositivo";
           }
         } else if (w.id !== cur.id && !all.some((d) => d.id === w.id) && !hidden.includes(w.id)) {

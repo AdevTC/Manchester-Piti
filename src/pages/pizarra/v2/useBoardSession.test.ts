@@ -533,6 +533,20 @@ describe("useBoardSession · no edit is lost", () => {
     expect(s.save).toHaveBeenCalledTimes(1);
   });
 
+  it("a board just made is no news: it showing up in the store says nothing about another tab", async () => {
+    const s = store([doc("b1", { updatedAt: 9 })]);
+    vi.mocked(s.create).mockResolvedValueOnce("n1");
+    const { result, rerender } = renderHook((p: SessionArgs) => useBoardSession(p), { initialProps: args(s) });
+    await act(async () => {
+      await result.current.newBoard();
+    });
+    expect(result.current.id).toBe("n1");
+    // the write lands in the local cache a moment later: the new board appears in the store
+    rerender(args({ ...s, mine: [doc("b1", { updatedAt: 9 }), doc("n1", { name: "Tablero nuevo", updatedAt: 10 })], all: [doc("b1", { updatedAt: 9 }), doc("n1", { name: "Tablero nuevo", updatedAt: 10 })] }));
+    expect(result.current.id).toBe("n1");
+    expect(result.current.notice).toBeNull();
+  });
+
   it("«Nuevo» and «Duplicar» tapped twice make one board", async () => {
     const s = store([doc("b1", { updatedAt: 9 })]);
     let done: (id: string) => void = () => {};
