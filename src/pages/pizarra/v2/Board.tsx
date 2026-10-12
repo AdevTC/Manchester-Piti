@@ -16,14 +16,14 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import type { FormationName, Lineup } from "../formations";
 import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
 import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
-import { chem, linkMark, tierOf, togTxt } from "./quimica";
+import { chemOf, linkMark, tierOf, togTxt } from "./quimica";
 import { autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { suggestSeven } from "./pack";
 import { applyFan, fanCentre, fanItems, type FanItem } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
 import { cycle, settle, snapOf, step, type Snap } from "./sheet";
-import { DIR_KEYS, slotInDirection } from "./drag";
-import { ago, FX0, fxDuration, hud as buildHud, pitchView, planLayer, positionsOf, tacSummary, vars, type Fx, type Modo } from "./view";
+import { DIR_KEYS, moveStroke, nudgeOf, nudgePoint, placeOf, slotInDirection, strokeMid, toPlace } from "./drag";
+import { ago, FX0, fxDuration, hud as buildHud, joinLive, pitchView, planLayer, positionsOf, tacSummary, vars, type Fx, type Modo } from "./view";
 import { useDragController } from "./useDragController";
 import { useBoardSound, buzz } from "./sound";
 import { plural } from "./plural";
@@ -31,7 +31,7 @@ import { useNoScrollJump } from "./useNoScrollJump";
 import type { BoardSession } from "./useBoardSession";
 import { Stage } from "./Stage";
 import { AppBar, BenchTab, MasPanel, ModeBar, OnceTabs, ReadOnlyStrip, Sheet, SquadBars, SystemTab, type OnceTab } from "./Panels";
-import { avisoTxt, avisoUrl, benchGroups, calledOf, convHead, pitchFound, reparto, squadInfo, type BenchHand } from "./bench";
+import { avisoTxt, avisoUrl, benchGroups, calledOf, convHead, pitchFound, reparto, squadInfo, type BenchGroup, type BenchHand, type Reparto } from "./bench";
 import { AjustesPanel, CompararPanel, CompartirPanel, PlanTab, QuimicaPanel } from "./SheetPanels";
 import { SHOW0, type BoardPrefs, type ShowKey } from "./prefs";
 import { TablerosPanel, type BoardRowView, type ReactionsView, type TbTab } from "./Tableros";
@@ -105,6 +105,7 @@ import type { PromptActs, PromptCtx } from "./prompt";
 import { SelBar } from "./SelBar";
 import { selBarView } from "./handView";
 import { readBenchView, writeBenchView, type BenchView } from "./benchView";
+import { shownBench, usePhone, useWide } from "./useWide";
 
 export interface BoardProps {
   session: BoardSession;
@@ -173,6 +174,18 @@ interface Ui {
 }
 const UI0 = { sel: null, pick: null, fan: null, fic: null, hist: EMPTY_HISTORY, kb: null, ink: emptyStack<InkOp>(), jh: emptyStack<PlayOp>(), inkSel: null, rivSel: null };
 
+/** The tools «Más» opens (their «Volver» goes back to it). */
+const MAS_KIDS: Modo[] = ["tableros", "comparar", "compartir", "ajustes"];
+
+/** Focus a panel's first visible heading (else the panel itself), without scrolling. */
+function focusHeading(sheet: HTMLElement | null): void {
+  if (!sheet) return;
+  const hs = Array.from(sheet.querySelectorAll<HTMLElement>("h2, h3"));
+  const h = hs.find((x) => typeof x.checkVisibility !== "function" || x.checkVisibility()) ?? sheet;
+  if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
+  h.focus({ preventScroll: true });
+}
+
 const reducedMotion = (): boolean => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 // Deep links into a panel: /pizarra#comparar, #compartir, #tableros, #ajustes, #quimica, #plan, #jugadas,
@@ -205,6 +218,17 @@ interface PendingDel {
 }
 
 const LIM = PIZARRA_LIMITS;
+/** The reparto and the bench while their pages are not on screen (nothing is worked out for them). */
+const NO_REPARTO: Reparto = { rows: [], txt: "", rot: null };
+const NO_GROUPS: BenchGroup[] = [];
+const NO_ERRS: string[] = [];
+/** The editor's check of a jugada (Zod), once per jugada object (they are immutable values). */
+const playErrs = new WeakMap<Play, string[]>();
+function validated(p: Play): string[] {
+  let e = playErrs.get(p);
+  if (!e) playErrs.set(p, (e = validatePlay(p)));
+  return e;
+}
 /** (only to read a lineup back as the store would: see markOurs) */
 const STORE_META: LineupMeta = { ownerUid: "", ownerNickname: "", seasonId: "", name: "", isOfficial: false, matchId: null };
 const PLAYS_FULL = "Ya hay " + plural(LIM.plays, "jugada propia", "jugadas propias") + " en este tablero: borra una para guardar otra.";
@@ -244,6 +268,8 @@ export function Board(props: BoardProps) {
   const [tab, setTab] = useState<OnceTab>(start.tab);
   // The bench as FUT list rows or cromos (R), remembered on this device.
   const [benchView, setBenchViewState] = useState<BenchView>(readBenchView);
+  const wide = useWide();
+  const phone = usePhone();
   const setBenchView = (v: BenchView) => {
     setBenchViewState(v);
     writeBenchView(v);
@@ -260,6 +286,11 @@ export function Board(props: BoardProps) {
   // within the tap (Safari only opens it straight from a gesture).
   const [prepared, setPrepared] = useState<{ key: string; blob: Blob } | null>(null);
   const [live, setLive] = useState({ msg: "", n: 0 });
+  // An announcement made since the last render: the next one in the same tick joins it.
+  const liveOpen = useRef(false);
+  useEffect(() => {
+    liveOpen.current = false;
+  });
   const [q, setQ] = useState("");
   const [zf, setZf] = useState("Todos");
   const [oc, setOc] = useState(false);
@@ -310,6 +341,9 @@ export function Board(props: BoardProps) {
   if (ready && !seenReady) setSeenReady(true);
 
   const rootRef = useRef<HTMLDivElement>(null);
+  // Where the focus goes once the panel goModo opened is on screen, and what opened each panel.
+  const focusNext = useRef<"heading" | { el?: HTMLElement; sel?: string } | null>(null);
+  const openedBy = useRef(new Map<Modo, HTMLElement>());
   const appRef = useRef<HTMLElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
@@ -394,7 +428,8 @@ export function Board(props: BoardProps) {
     return () => window.clearTimeout(t);
   }, [hand]);
   // ── derived ──
-  const ch = chem(L, sq);
+  // (once per lineup and squad: the HUD, the cromos, the bars, the panels and the cartel all read it)
+  const ch = chemOf(L, sq);
   const squadIds = useMemo(() => sq.list.map((c) => c.id), [sq]);
   const nm = (id: string) => sq.byId.get(id)?.name ?? "Jugador";
   const onPitch = new Set(L.slots.map((s) => s.playerId).filter((x): x is string => !!x));
@@ -409,6 +444,17 @@ export function Board(props: BoardProps) {
   const hud = buildHud(L, sq, ch, fx, rm, match);
   const tacSum = tacSummary(L);
 
+  /**
+   * The board's one announcer (the `.sr` live region): the plates, the toast, the hint and the read-only
+   * strip are not live. What one action says in several places in the same tick is joined into one
+   * message (and said once: a part another part already says is dropped).
+   */
+  const announce = (msg: string) => {
+    if (!msg) return;
+    const joining = liveOpen.current;
+    liveOpen.current = true;
+    setLive((l) => ({ msg: joining ? joinLive(l.msg, msg) : msg, n: l.n + 1 }));
+  };
   /** A deleted board's toast (the latest still pending), to come back after any other message. */
   const delToast = (): Toast | null => {
     const d = pendRef.current[pendRef.current.length - 1];
@@ -418,7 +464,10 @@ export function Board(props: BoardProps) {
     window.clearTimeout(toastTimer.current);
     // what a change cost the galones is said with whatever the change says itself
     const note = lostNote.current;
-    setToast({ msg: note && note !== msg ? note + " · " + msg : msg, act });
+    const full = note && note !== msg ? note + " · " + msg : msg;
+    setToast({ msg: full, act });
+    // (the toast is not a live region: the board's one announcer says it)
+    announce(full);
     // (a board deletion still pending comes back once this one has been read)
     toastTimer.current = window.setTimeout(() => setToast(delToast()), ms);
   };
@@ -442,7 +491,6 @@ export function Board(props: BoardProps) {
     const t = window.setTimeout(() => sayLatest.current(notice.msg), 0);
     return () => window.clearTimeout(t);
   }, [notice]);
-  const announce = (msg: string) => setLive((l) => ({ msg, n: l.n + 1 }));
   const roMsg = session.official ? "Oficial: solo lectura. Duplícalo para editar" : "Solo lectura: duplícalo para editarlo";
 
   const runFx = (next: Fx) => {
@@ -518,7 +566,7 @@ export function Board(props: BoardProps) {
     runFx(morph(o.drop ?? null, { rip, cele, ...o.fx }));
     snd("clac");
     // the química scoreboard flips when its number changes
-    if (chem(next, sq).v !== ch.v) {
+    if (chemOf(next, sq).v !== ch.v) {
       window.clearTimeout(sndTimer.current);
       sndTimer.current = window.setTimeout(() => snd("flip"), 180);
     }
@@ -571,6 +619,9 @@ export function Board(props: BoardProps) {
   const cur = pickJugada(jl, jidPick);
   const jplay = cur.play;
   const nJ = jplay.frames.length;
+  // (the editor's check of your jugada, with Zod: once per jugada, and only while Jugadas is open)
+  const jOwn = cur.own;
+  const jErrs = modo === "jugadas" && jOwn ? validated(jplay) : NO_ERRS;
   // The 3D stadium where the device can and «3D» is on; the jugadas want it while their replay plays.
   const can3d = prefs.v3 && sup3d === null && !fail3d;
   const want3d = modo === "jugadas" && can3d;
@@ -869,6 +920,38 @@ export function Board(props: BoardProps) {
     buzz(8);
     if (on) announce("Rival marcado: «Quitar el rival marcado» lo quita de la jugada");
   };
+  // The keyboard's way to move a piece (a focused one, with the arrows): the same edit as a drag, one
+  // undo step per piece while the arrows keep moving it, and where it went, in words.
+  const curFrame = jplay.frames[jf];
+  const pieceAria: Record<string, string> = {};
+  if (pieces && curFrame) {
+    pieceAria.b = "Balón, en " + placeOf(curFrame.ball) + ". Flechas para moverlo; con Mayús, más lejos";
+    curFrame.rivals.forEach((r, k) => {
+      pieceAria["r:" + r.id] = "Rival " + (k + 1) + ", en " + placeOf(r) + ". Flechas para moverlo; Intro para marcarlo";
+    });
+  }
+  const onPieceKey = (piece: string, dx: number, dy: number) => {
+    if (!pieces || !curFrame) return;
+    setUntouched(false);
+    rpl.pause();
+    const kind = piece === "b" ? "b" : piece.slice(0, 2);
+    const id = piece.slice(2);
+    const from = kind === "b" ? curFrame.ball : kind === "r:" ? curFrame.rivals.find((r) => r.id === id) : curFrame.players[id];
+    if (!from) return;
+    const to = nudgePoint(from, dx, dy);
+    if (to.x === from.x && to.y === from.y) return;
+    const tag = "k" + jf + piece;
+    const done =
+      kind === "b"
+        ? editJugada((p) => moveBall(p, jf, to), "", undefined, tag)
+        : kind === "r:"
+          ? editJugada((p) => moveRival(p, jf, id, to), "", undefined, tag)
+          : editJugada((p) => movePlayer(p, jf, id, to), "No caben más de siete en un paso.", undefined, tag);
+    if (!done) return;
+    if (!rm) runFx(morph(null));
+    buzz(6);
+    announce((kind === "b" ? "Balón" : kind === "r:" ? "Rival" : nm(id)) + " movido " + toPlace(to));
+  };
 
   // ── Dibujar: strokes of light on the grass, with their own undo ──
   const strokes = L.drawings ?? [];
@@ -912,6 +995,16 @@ export function Board(props: BoardProps) {
     buzz(10);
     say("Trazo borrado", inkUndoAct("Deshacer: recuperar el trazo"));
   };
+  const markedTxt = (st: Stroke) => "Marcado: " + strokeLabel(st) + ", en " + placeOf(strokeMid(st.points)) + ". Flechas para moverlo; «Borrar trazo» o Supr lo quita.";
+  /** The marked stroke moved with the arrows (the keyboard's drag): it stays marked, each step undoable. */
+  const inkNudge = (id: string, dx: number, dy: number) => {
+    if (!canEdit) return;
+    const next = moveStroke(strokes, id, dx, dy);
+    if (next === strokes || !saveExtras({ ...L, drawings: next })) return;
+    patchUi({ ink: pushOp(u.ink, inkOp(strokes, next)) });
+    const st = next.find((x) => x.id === id);
+    if (st) announce("Trazo movido " + toPlace(strokeMid(st.points)));
+  };
   const inkClear = () => {
     if (!strokes.length || !setInk(clearStrokes())) return;
     buzz([20, 40, 20]);
@@ -927,7 +1020,7 @@ export function Board(props: BoardProps) {
       const st = next ? strokes.find((x) => x.id === next) : undefined;
       if (st) {
         buzz(8);
-        announce("Marcado: " + strokeLabel(st) + ". «Borrar trazo» lo quita.");
+        announce(markedTxt(st));
       }
       return;
     }
@@ -1291,6 +1384,19 @@ export function Board(props: BoardProps) {
       if (prefs.v3) ask3d();
       sayStep(0, !rm);
     }
+    // The focus follows: into the new panel's heading; back to what opened a panel when it closes (Esc,
+    // «Volver», «Más»'s back buttons — not the rail, which opens the panel it names).
+    const act = document.activeElement instanceof HTMLElement && rootRef.current?.contains(document.activeElement) ? document.activeElement : null;
+    const fromRail = !!act?.closest(".mbar");
+    const closing = m !== "plan" && !fromRail && target !== modo && (target === "editar" || (target === "mas" && MAS_KIDS.includes(modo)));
+    if (closing) {
+      const opener = openedBy.current.get(modo);
+      focusNext.current = target === "mas" ? { sel: '[data-go="' + modo + '"]' } : opener?.isConnected ? { el: opener } : "heading";
+    } else {
+      if (act && target !== modo) openedBy.current.set(target, act);
+      // (la charla takes the focus to its own transport)
+      focusNext.current = target === "charla" ? null : "heading";
+    }
     setUntouched(false);
     setModo(target);
     setSnap(snapOf(target));
@@ -1299,6 +1405,16 @@ export function Board(props: BoardProps) {
     setMk((k) => k + 1);
     buzz(10);
   };
+  // (after the panel is on screen: see goModo)
+  useEffect(() => {
+    const f = focusNext.current;
+    if (!f) return;
+    focusNext.current = null;
+    const root = rootRef.current;
+    const el = f === "heading" ? null : (f.el ?? (f.sel ? root?.querySelector<HTMLElement>(f.sel) : null));
+    if (el?.isConnected) el.focus({ preventScroll: true });
+    else focusHeading(sheetRef.current);
+  }, [mk]);
   // A new hash while on the page (#tableros, #plan…) opens its panel, like it does on load.
   const goLatest = useRef(goModo);
   useEffect(() => {
@@ -1359,6 +1475,13 @@ export function Board(props: BoardProps) {
     if (modo === "dibujar" && inkSel && (e.key === "Delete" || e.key === "Backspace")) {
       e.preventDefault();
       inkDelete(inkSel);
+      return;
+    }
+    // the marked stroke moves with the arrows (Shift: further)
+    const inkD = modo === "dibujar" && inkSel && canEdit && !e.altKey && !e.ctrlKey && !e.metaKey ? nudgeOf(e.key, e.shiftKey) : null;
+    if (inkD && inkSel) {
+      e.preventDefault();
+      inkNudge(inkSel, inkD[0], inkD[1]);
       return;
     }
     if (e.key === "Escape") {
@@ -1423,9 +1546,10 @@ export function Board(props: BoardProps) {
         return c ? selBarView(c, inHand.k === "p" && at >= 0 ? slotLabel(L, at) : null, L.roles.captainId === inHand.id) : null;
       })()
     : null;
-  const selBar = (k: "sb-p" | "sb-s"): ReactNode => (selV ? <SelBar k={k} v={selV} onCap={capSel} onGal={galSel} onFicha={ficSel} onClear={dropSel} /> : null);
-  // (the sheet's own one, at the top of the Siete tool on phones)
-  const selS = selBar("sb-s");
+  // Rendered once: at the top of the Siete tool on phones (sb-s), on the pitch's apron elsewhere (sb-p,
+  // which the CSS hides on a mouse desktop: the prompt bar has the hand there).
+  const selBarEl: ReactNode = selV ? <SelBar k={phone ? "sb-s" : "sb-p"} v={selV} onCap={capSel} onGal={galSel} onFicha={ficSel} onClear={dropSel} /> : null;
+  const selS = phone ? selBarEl : null;
 
   // ── the keyboard (mouse + keyboard screens; the prompt bar teaches it): 1–8 the tools; Siete: Q / E the
   // tabs, R the bench as list or cromos, and with a player in the hand C capitán · G galones · F ficha ·
@@ -1516,16 +1640,21 @@ export function Board(props: BoardProps) {
   const conv = convHead({ sq, match: cm, loading: props.conv.loading, error: props.conv.error });
   // «Solo los que van» = those who said «Voy» (it needs answers to the convocatoria).
   const ocOn = oc && conv.answered;
+  // The bench's groups are only worked out while the Convocatoria page is on screen (and the React
+  // Compiler keeps them while their inputs don't change).
+  const benchOn = modo === "editar" && tab === "b";
   const selP = sel?.k === "p" ? L.slots.findIndex((s) => s.playerId === sel.id) : -1;
-  const benchHand: BenchHand | null = !canEdit || modo !== "editar" ? null : sel && selP >= 0 ? { kind: "p", name: nm(sel.id), zone: slotZone(L, selP) } : pick != null ? { kind: "slot", zone: slotZone(L, pick) } : null;
-  const groups = benchGroups({
-    bench: sq.list.filter((c) => !onPitch.has(c.id)),
-    called,
-    filter: { on: srx, q, zf, oc: ocOn },
-    hand: benchHand,
-    selId: sel?.k === "b" ? sel.id : null,
-    meId: props.meId,
-  });
+  const benchHand: BenchHand | null = !benchOn || !canEdit ? null : sel && selP >= 0 ? { kind: "p", name: nm(sel.id), zone: slotZone(L, selP) } : pick != null ? { kind: "slot", zone: slotZone(L, pick) } : null;
+  const groups = benchOn
+    ? benchGroups({
+        bench: sq.list.filter((c) => !onPitch.has(c.id)),
+        called,
+        filter: { on: srx, q, zf, oc: ocOn },
+        hand: benchHand,
+        selId: sel?.k === "b" ? sel.id : null,
+        meId: props.meId,
+      })
+    : NO_GROUPS;
   // «Buscar en la plantilla» finds the ones on the pitch too: tapping one marks him there
   const found = pitchFound(L, sq, { on: srx, q, zf, oc: ocOn }, (i) => slotLabel(L, i));
   const onFound = (id: string) => {
@@ -1538,7 +1667,9 @@ export function Board(props: BoardProps) {
       announce(nm(id) + " está en el campo, de " + slotLabel(L, i) + ": en la mano. Toca otro cromo o un hueco.");
     } else say(nm(id) + " está en el campo, de " + slotLabel(L, i));
   };
-  const rp = reparto(L, sq, called);
+  // (the reparto only while the Plan page shows it)
+  const planOn = modo === "editar" && tab === "p";
+  const rp = planOn ? reparto(L, sq, called) : NO_REPARTO;
   const rot = rp.rot;
   const galLeg = GALONES.map((g) => {
     const h = L.roles[g.key];
@@ -1690,21 +1821,25 @@ export function Board(props: BoardProps) {
   const chg = LB ? changes(L, LB) : { ins: [], outs: [] };
 
   // ── Compartir: the cartel ──
-  const cartel = cartelLayout(L, sq, ch, match?.short ?? null, props.seasonName);
-  const cartelKey = JSON.stringify(cartel);
+  // (laid out, and its key stringified, only while Compartir is open)
+  const shareOn = modo === "compartir";
+  const matchSh = match?.short ?? null;
+  const cartel = shareOn ? cartelLayout(L, sq, ch, matchSh, props.seasonName) : null;
+  const cartelKey = cartel ? JSON.stringify(cartel) : "";
   const cartelNow = useRef(cartel);
   useEffect(() => {
     cartelNow.current = cartel;
   });
   useEffect(() => {
-    if (modo !== "compartir") return;
+    if (!cartelKey) return;
     let dead = false;
     const t = window.setTimeout(() => {
       const c = cartelNow.current;
+      if (!c) return;
       void crestImage()
         .then((crest) => cartelBlob(c, crest))
         .then((blob) => {
-          if (!dead && blob) setPrepared({ key: JSON.stringify(c), blob });
+          if (!dead && blob) setPrepared({ key: cartelKey, blob });
         })
         .catch((err: unknown) => console.error("No se pudo preparar el cartel", err));
     }, 300);
@@ -1712,7 +1847,7 @@ export function Board(props: BoardProps) {
       dead = true;
       window.clearTimeout(t);
     };
-  }, [modo, cartelKey]);
+  }, [cartelKey]);
   const toGroup = async (mode: "share" | "png") => {
     if (shareBusy) return;
     if (ch.n < 7) {
@@ -1721,7 +1856,7 @@ export function Board(props: BoardProps) {
     }
     setShareBusy(true);
     try {
-      const blob = prepared?.key === cartelKey ? prepared.blob : await cartelBlob(cartel, await crestImage());
+      const blob = cartelKey && prepared?.key === cartelKey ? prepared.blob : await cartelBlob(cartel ?? cartelLayout(L, sq, ch, matchSh, props.seasonName), await crestImage());
       if (!blob) {
         say("Este navegador no puede crear el cartel");
         return;
@@ -1821,7 +1956,7 @@ export function Board(props: BoardProps) {
       rivalMarked: !!rivSel,
       missing: Math.max(0, Math.min(missingFrom(jplay, L).length, room)),
       gone: goneFrom(jplay, L).length,
-      errors: cur.own ? validatePlay(jplay) : [],
+      errors: jErrs,
     };
   };
 
@@ -1871,8 +2006,8 @@ export function Board(props: BoardProps) {
     "m-" + modo,
     // a player in the hand: his action bar instead of the hint, the targets glow
     selV ? "has-sel" : "",
-    // the bench as FUT list rows (desktop)
-    benchView === "lista" ? "b-lista" : "",
+    // the bench as FUT list rows (desktop: the bench renders only the view on screen, see useWide)
+    shownBench(benchView, wide) === "lista" ? "b-lista" : "",
     // the openings: the 2D crane, the 3D intro (the 2D board hidden), the cromos dealt in after it
     ready && intro.kind === "2d" && intro.phase === "run" && !charlaOn ? "intro" : "",
     intro3d ? "i3" : "",
@@ -2118,7 +2253,7 @@ export function Board(props: BoardProps) {
         onBack={() => goModo("mas")}
         onBoards={() => goModo("tableros")}
       />
-    ) : modo === "compartir" ? (
+    ) : modo === "compartir" && cartel ? (
       <CompartirPanel cartel={cartel} block={shareBlock} busy={shareBusy} canLink={!!session.id} onShare={() => void toGroup("share")} onPng={() => void toGroup("png")} onLink={(charla) => void copyLink(charla)} onBack={() => goModo("mas")} />
     ) : modo === "ajustes" ? (
       <AjustesPanel
@@ -2212,7 +2347,11 @@ export function Board(props: BoardProps) {
         onText={setInkText}
         onUndo={inkUndo}
         onClear={inkClear}
-        onSelect={(id) => patchUi({ inkSel: id })}
+        onSelect={(id) => {
+          patchUi({ inkSel: id });
+          const st = id ? strokes.find((x) => x.id === id) : undefined;
+          if (st) announce(markedTxt(st));
+        }}
         onDelete={inkDelete}
       />
     ) : cv ? (
@@ -2240,6 +2379,7 @@ export function Board(props: BoardProps) {
     benchView,
     playing: charlaOn ? chPlaying && !!cv && chl.step < cv.last : rpl.playing,
     pieces,
+    marked: modo === "dibujar" && !!inkSel,
   };
   const pmActs: PromptActs = {
     undo: doUndo,
@@ -2263,7 +2403,6 @@ export function Board(props: BoardProps) {
       className={rootCls}
       data-modo={modo}
       data-snap={snap}
-      aria-busy={!seenReady}
       style={vars({ "--fh": C.Fh, "--vr": geo.vr, "--cut": geo.cut, "--kb": geo.kb })}
       onPointerDown={ctl.onPointerDown}
       onKeyDown={onKey}
@@ -2274,7 +2413,8 @@ export function Board(props: BoardProps) {
     >
       <div className="vx-grain" aria-hidden="true" />
       {props.header}
-      <section className="app" aria-label="La pizarra" ref={appRef}>
+      {/* (busy while the board first loads: only the board, never the site's header and footer) */}
+      <section className="app" aria-label="La pizarra" aria-busy={!seenReady} ref={appRef}>
         <Stage
           cam={cam}
           view={view}
@@ -2282,7 +2422,7 @@ export function Board(props: BoardProps) {
           jug={jug}
           pieces={pieces}
           focusCards={modo !== "jugadas" && modo !== "dibujar" && !charlaOn}
-          selbar={selBar("sb-p")}
+          selbar={phone ? null : selBarEl}
           trailsDraw={!!fx.from && !rm}
           trailsDur={spd ? "3.2s" : "1.7s"}
           wipe={wipe}
@@ -2320,6 +2460,9 @@ export function Board(props: BoardProps) {
           onCard={tapCard}
           onSlot={tapSlot}
           onLine={cycleLine}
+          pieceAria={pieceAria}
+          onPieceKey={onPieceKey}
+          onPieceTap={onPieceTap}
         />
         <AppBar
           crest={props.crest}
@@ -2346,7 +2489,8 @@ export function Board(props: BoardProps) {
           onBug={() => setSnap("half")}
         />
         {ro && ready && <ReadOnlyStrip label={session.official ? "OFICIAL · SOLO LECTURA" : "SOLO LECTURA · @" + session.owner.toUpperCase()} onDuplicate={session.duplicate} onMine={session.openMine} />}
-        <p className="hint" aria-live="polite">
+        {/* (not live: it changes with every paso of a replay; what matters is announced on its own) */}
+        <p className="hint">
           <i aria-hidden="true" />
           <span key={hint}>{hint}</span>
         </p>
@@ -2390,6 +2534,9 @@ export function Board(props: BoardProps) {
         )}
         {fan && (
           <Fan
+            // «Jugar de» opens a new set of items: a fresh fan focuses its first one again (and closing
+            // it still gives the focus back to the cromo)
+            key={fan.id + (fan.sub ? ":sub" : ":main")}
             cx={fan.cx}
             cy={fan.cy}
             num={sq.byId.get(fan.id)?.num ?? 0}
@@ -2410,7 +2557,8 @@ export function Board(props: BoardProps) {
             onClose={() => patchUi({ fic: null })}
           />
         )}
-        <div className={"tst" + (toast ? " on" : "")} role="status" aria-live="polite">
+        {/* (not live: say() hands its words to the board's one announcer, the .sr below) */}
+        <div className={"tst" + (toast ? " on" : "")}>
           <Icon n="check" w={18} />
           <span>{toast?.msg ?? ""}</span>
           {toast?.act && (
@@ -2428,8 +2576,10 @@ export function Board(props: BoardProps) {
             </button>
           )}
         </div>
+        {/* The board's one announcer. (An invisible mark that alternates makes the same words a new
+            message, so they are said again; it also keeps this hidden copy from reading as the toast.) */}
         <p className="sr" aria-live="polite">
-          {live.msg + (live.n % 2 ? "​" : "")}
+          {live.msg ? live.msg + (live.n % 2 ? "​" : "‌") : ""}
         </p>
         <div className="pz-dragl" ref={layerRef} aria-hidden="true" />
       </section>

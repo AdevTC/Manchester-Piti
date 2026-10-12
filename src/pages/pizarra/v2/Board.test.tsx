@@ -69,7 +69,7 @@ describe("La pizarra · el tablero", () => {
     expect(kevin.querySelector(".ar-tg")).toHaveTextContent("Entra por él");
     // the bajas are rows too, but they stay out
     fireEvent.click(benchRow("BRAWAN"));
-    expect(screen.getByText("BRAWAN: lesionado, no se puede colocar")).toBeInTheDocument();
+    expect(screen.getByText("BRAWAN: lesionado, no se puede colocar", { selector: ".tst span" })).toBeInTheDocument();
     expect(commits).toHaveLength(0);
     fireEvent.click(kevin);
     expect(commits.at(-1)?.slots[2].playerId).toBe("kevin");
@@ -127,7 +127,8 @@ describe("La pizarra · el tablero", () => {
     fireEvent.click(adrian);
     // from the striker, straight down is the centre midfielder: Enter swaps them
     fireEvent.keyDown(adrian, { key: "ArrowDown" });
-    expect(screen.getByText("Sobre EGUZQUIZA, MC: Intro para cambiarlos")).toBeInTheDocument();
+    // (said by the board's announcer)
+    expect(screen.getByText(/^Sobre EGUZQUIZA, MC: Intro para cambiarlos/, { selector: ".sr" })).toBeInTheDocument();
     fireEvent.keyDown(adrian, { key: "Enter" });
     expect(commits.at(-1)?.slots.map((s) => s.playerId).slice(4)).toEqual(["adrian", "almachi", "eguzquiza"]);
     // Escape lets go of a cromo in the hand

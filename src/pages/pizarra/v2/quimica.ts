@@ -98,6 +98,18 @@ export interface Chem {
   fresh: string[];
 }
 
+// The química of a lineup with a squad, worked out once: the board asks for it on every render and for
+// the lineup a change is about to commit (the scoreboard's flip), which is the next render's lineup.
+const chemCache = new WeakMap<Squad, WeakMap<Lineup, Chem>>();
+/** chem(), remembered per (squad, lineup) object: both are immutable values. */
+export function chemOf(L: Lineup, sq: Squad): Chem {
+  let byL = chemCache.get(sq);
+  if (!byL) chemCache.set(sq, (byL = new WeakMap()));
+  let c = byL.get(L);
+  if (!c) byL.set(L, (c = chem(L, sq)));
+  return c;
+}
+
 export function chem(L: Lineup, sq: Squad): Chem {
   const placed = L.slots.map((s, i) => ({ id: s.playerId, i })).filter((x): x is { id: string; i: number } => !!x.id && sq.byId.has(x.id));
   const n = placed.length;

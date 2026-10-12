@@ -45,9 +45,16 @@ export function sysLines(name: FormationName): string {
 // ── the convocatoria ──
 /** The players the match's convocatoria calls (starters + banquillo); null = it calls no one yet. */
 export function calledOf(m: CalMatch | null): ReadonlySet<string> | null {
-  const ids = m?.conv ? [...m.conv.starters, ...m.conv.bench] : [];
-  return ids.length ? new Set(ids) : null;
+  if (!m) return null;
+  // (the same set for the same match object: what is worked out from it is not redone every render)
+  const hit = calledCache.get(m);
+  if (hit !== undefined) return hit;
+  const ids = m.conv ? [...m.conv.starters, ...m.conv.bench] : [];
+  const out = ids.length ? new Set(ids) : null;
+  calledCache.set(m, out);
+  return out;
 }
+const calledCache = new WeakMap<CalMatch, ReadonlySet<string> | null>();
 
 export interface ConvHead {
   /** «Convocatoria · J8 · MAD SKY». */

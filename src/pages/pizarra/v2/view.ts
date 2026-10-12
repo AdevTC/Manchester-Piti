@@ -407,6 +407,14 @@ export function hud(L: Lineup, sq: Squad, ch: Chem, fx: Fx, rm: boolean, match: 
   };
 }
 
+/** Two announcements of one action joined into one: a part the new one already says goes, and a new one
+ *  the message already says adds nothing («Capitán: X» is said once). */
+export function joinLive(prev: string, next: string): string {
+  if (!prev || prev.includes(next)) return prev || next;
+  const parts = prev.split(". ").filter((x) => x && !next.includes(x));
+  return [...parts, next].join(". ");
+}
+
 /** «ahora», «hace 3 min», «ayer»… for the autosave line. */
 export function ago(t: number | null, now: number): string {
   if (!t) return "ahora";

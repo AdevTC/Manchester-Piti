@@ -36,3 +36,14 @@ export function selBarView(p: { id: string; name: string; num: number; rt: numbe
   };
 }
 
+/** A toolbar's roving index after a key: → ↓ next, ← ↑ previous (both wrap), Home / End the ends; null =
+ *  not a toolbar key. */
+export function rove(key: string, at: number, n: number): number | null {
+  if (n <= 0) return null;
+  if (key === "ArrowRight" || key === "ArrowDown") return (at + 1) % n;
+  if (key === "ArrowLeft" || key === "ArrowUp") return (at - 1 + n) % n;
+  if (key === "Home") return 0;
+  if (key === "End") return n - 1;
+  return null;
+}
+
