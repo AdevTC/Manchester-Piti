@@ -129,9 +129,11 @@ export interface BenchFilter {
 
 /** Whether «Buscar en la plantilla» is filtering at all (a name or dorsal, a position, «Solo los que van»). */
 export const isFiltering = (f: BenchFilter): boolean => f.on && (!!f.q.trim() || f.zf !== "Todos" || f.oc);
+/** Accent- and case-blind text, so «al» finds ÁLEX. */
+const fold = (s: string): string => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const matches = (c: Cromo, f: BenchFilter): boolean => {
-  const qq = f.q.trim().toLowerCase();
-  return (!qq || c.name.toLowerCase().includes(qq) || String(c.num) === qq) && (f.zf === "Todos" || c.pos === f.zf) && (!f.oc || c.cv === "voy");
+  const qq = fold(f.q.trim());
+  return (!qq || fold(c.name).includes(qq) || String(c.num) === qq) && (f.zf === "Todos" || c.pos === f.zf) && (!f.oc || c.cv === "voy");
 };
 
 /** «Buscar en la plantilla» finds the ones on the pitch too: who, and the slot he plays. */

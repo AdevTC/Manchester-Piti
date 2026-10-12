@@ -153,6 +153,8 @@ describe("the bench", () => {
     const lab = (i: number) => slotLabel(L, i);
     expect(pitchFound(L, conv, { ...OFF, on: true, q: "hub" }, lab)).toEqual([{ id: "huberoski", name: "HUBEROSKI", num: 14, slot: "MI" }]);
     expect(pitchFound(L, conv, { ...OFF, on: true, q: "10" }, lab).map((h) => h.slot)).toEqual(["DC"]);
+    // accent- and case-blind: «Adrián» finds ADRIAN (and «al» would find ÁLEX)
+    expect(pitchFound(L, conv, { ...OFF, on: true, q: "Adrián" }, lab).map((h) => h.id)).toEqual(["adrian"]);
     expect(pitchFound(L, conv, { ...OFF, on: true, zf: "DEF" }, lab).map((h) => h.id)).toEqual(["illescas"]);
     expect(pitchFound(L, conv, { ...OFF, on: true }, lab)).toEqual([]);
     expect(pitchFound(L, conv, { ...OFF, q: "hub" }, lab)).toEqual([]);
