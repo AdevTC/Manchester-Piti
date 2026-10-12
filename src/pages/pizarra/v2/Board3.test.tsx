@@ -165,10 +165,10 @@ describe("Tableros · mis tableros", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Duplicar Plan B" }));
     expect(copyBoard).toHaveBeenCalledWith("b2", false);
-    expect(await screen.findByText("Duplicado: Plan B (copia)")).toBeInTheDocument();
+    expect(await screen.findByText("Duplicado: Plan B (copia)", { selector: ".tst span" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^Nuevo$/ }));
     expect(newBoard).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText("Tablero nuevo: toca un hueco para empezar")).toBeInTheDocument();
+    expect(await screen.findByText("Tablero nuevo: toca un hueco para empezar", { selector: ".tst span" })).toBeInTheDocument();
   });
 
   it("a pause while typing saves the name", () => {
@@ -200,7 +200,7 @@ describe("Tableros · mis tableros", () => {
     expect(within(toast()).getByText("«Plan B» borrado")).toBeInTheDocument();
     fireEvent.click(within(toast()).getByRole("button", { name: "Deshacer el borrado de «Plan B»" }));
     expect(undo).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("«Plan B» recuperado")).toBeInTheDocument();
+    expect(screen.getByText("«Plan B» recuperado", { selector: ".tst span" })).toBeInTheDocument();
     // (nothing pending any more)
     expect(screen.queryByRole("group", { name: "«Plan B» borrado" })).toBeNull();
   });
@@ -323,7 +323,7 @@ describe("Tableros · oficial y partido", () => {
     fireEvent.click(screen.getByRole("button", { name: "Actualizar la convocatoria de J8 · MAD SKY con este siete" }));
     const seven = L7().slots.map((x) => x.playerId);
     expect(sync).toHaveBeenCalledWith("m8", { starters: seven, bench: ["fer", "kevin", "erik"] });
-    expect(await screen.findByText("Convocatoria de J8 · MAD SKY al día: este es su siete")).toBeInTheDocument();
+    expect(await screen.findByText("Convocatoria de J8 · MAD SKY al día: este es su siete", { selector: ".tst span" })).toBeInTheDocument();
     unmount();
     // the same siete: nothing to ask
     const same = m({ conv: { starters: [...SEVEN].reverse(), bench: [] } });
@@ -469,7 +469,7 @@ describe("Tableros · oficial y partido", () => {
     go("Tableros");
     fireEvent.click(screen.getByRole("button", { name: "Partido" }));
     fireEvent.change(screen.getByRole("combobox", { name: "Vincular a un partido" }), { target: { value: "m8" } });
-    expect(await screen.findByText(/No se ha podido guardar: puede que/)).toBeInTheDocument();
+    expect(await screen.findByText(/No se ha podido guardar: puede que/, { selector: ".tst span" })).toBeInTheDocument();
   });
 });
 
@@ -521,7 +521,7 @@ describe("Compartir", () => {
     expect(await screen.findByText("Cartel listo para el grupo")).toBeInTheDocument();
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ title: "Los siete · J8 · MAD SKY", files: [expect.any(File)] }));
     fireEvent.click(screen.getByRole("button", { name: "Copiar enlace al tablero" }));
-    expect(await screen.findByText("Enlace copiado: pégalo en el grupo")).toBeInTheDocument();
+    expect(await screen.findByText("Enlace copiado: pégalo en el grupo", { selector: ".tst span" })).toBeInTheDocument();
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.origin + "/pizarra?tablero=b1&season=t1");
     // and the one the captain sends before the match: straight to the charla
     fireEvent.click(screen.getByRole("button", { name: "Copiar el enlace que abre la charla de este tablero" }));
@@ -550,7 +550,7 @@ describe("Compartir", () => {
     expect(await screen.findByText("Cartel descargado: mándalo al grupo")).toBeInTheDocument();
     expect(click).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Descargar el cartel en PNG" }));
-    expect(await screen.findByText("Cartel guardado como PNG")).toBeInTheDocument();
+    expect(await screen.findByText("Cartel guardado como PNG", { selector: ".tst span" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copiar enlace al tablero" })).toBeDisabled();
   });
 });
@@ -592,13 +592,15 @@ describe("La convocatoria en el tablero", () => {
     const { container } = render(<Harness initial={L7()} props={{ squad: conv, conv: { match: M8, loading: false, error: false } }} />);
     expect(container.querySelector('.cd[data-tok="tello"] .cc-no')).toHaveTextContent("NO VA");
     expect(screen.getByText("1 aviso")).toBeInTheDocument();
-    expect(screen.getByRole("status", { name: /TELLO dijo que no va/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /TELLO dijo que no va/ })).toBeInTheDocument();
     // the head: the counts (icon + number + word) and who is in doubt
     expect(screen.getByText("3 respuestas · 9 sin responder · 2 bajas")).toBeInTheDocument();
     expect(screen.getByText("Convocatoria · J8 · MAD SKY")).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Respuestas: 1 voy, 1 duda, 1 no va" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Avisar a los que dudan: KEVIN" })).toBeInTheDocument();
-    const rail = screen.getByRole("group", { name: /^Banquillo:/ });
+    // (the desktop renders the bench as list rows: only the view on screen is in the page)
+    const rail = screen.getByRole("group", { name: /^Banquillo en lista/ });
+    expect(screen.queryByRole("group", { name: /^Banquillo:/ })).not.toBeInTheDocument();
     expect(within(rail).getByRole("button", { name: /^KEVIN.*convocatoria: duda/ })).toBeInTheDocument();
     // the banquillo goes voy, duda, then those who haven't answered; the bajas in their own group
     const grp = (k: string) => container.querySelector(".cvl .lg." + k) as HTMLElement;

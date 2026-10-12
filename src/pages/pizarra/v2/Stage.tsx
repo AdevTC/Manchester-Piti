@@ -6,8 +6,9 @@
 // estelas, the follow-cam); la charla turns the cromos one by one under a spotlight, with the camera
 // pushing in; the 3D stadium plays under it all. (The system, the química scoreboard and the
 // «REPETICIÓN» bug live in the command bar.)
-import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { FLASHES, pitchArt, type CamName } from "./geometry";
+import { nudgeOf } from "./drag";
 import { BallMark, Icon, RivalMark } from "./icons";
 import { PitchCromo } from "./Cromos";
 import { FxLayer } from "./Overlays";
@@ -90,6 +91,12 @@ export interface StageProps {
   onCard: (id: string, el: HTMLElement) => void;
   onSlot: (i: number) => void;
   onLine: () => void;
+  /** The pieces' names for screen readers, by piece («b», «r:<id>»): what it is and where. */
+  pieceAria?: Record<string, string>;
+  /** A focused piece moved with the arrows (pitch %). */
+  onPieceKey?: (piece: string, dx: number, dy: number) => void;
+  /** Enter / Space on a rival: marks it (as a tap does). */
+  onPieceTap?: (piece: string) => void;
 }
 
 export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
@@ -113,6 +120,21 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
     io.observe(el);
     return () => io.disconnect();
   }, []);
+  // A focused piece of the paso: the arrows move it (Shift: further), Enter / Space marks a rival.
+  // (handled here first: the replay's own ← → never see these)
+  const onPieceKeys = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!p.pieces || e.altKey || e.ctrlKey || e.metaKey) return;
+    const piece = (e.target as Element).closest("[data-piece]")?.getAttribute("data-piece");
+    if (!piece) return;
+    const d = nudgeOf(e.key, e.shiftKey);
+    if (d) {
+      e.preventDefault();
+      p.onPieceKey?.(piece, d[0], d[1]);
+    } else if ((e.key === "Enter" || e.key === " ") && piece.startsWith("r:")) {
+      e.preventDefault();
+      p.onPieceTap?.(piece);
+    }
+  };
   const dlhOn = plan.dlOn && p.editing && !p.ro;
   const lineTxt = "LÍNEA " + plan.defLine.toUpperCase();
   return (
@@ -137,7 +159,7 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
         {p.p3d}
       </div>
       <div className="b2d">
-        <div className={"pfr " + p.cam} data-frame="1" ref={frameRef} style={camT ? { transform: camT } : undefined}>
+        <div className={"pfr " + p.cam} data-frame="1" ref={frameRef} style={camT ? { transform: camT } : undefined} onKeyDown={onPieceKeys}>
           <div className="turf" aria-hidden="true">
             <Turf cam={p.cam} />
             <span className="vig" />
@@ -213,27 +235,40 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
           {p.cmp.map((m) => (
             <span key={m.key} className={"cmpg" + (m.cls ? " " + m.cls : "")} style={vars({ "--x": m.x, "--y": m.y })} aria-hidden="true" />
           ))}
-          {jug?.rivals.map((r) => (
-            <span
-              key={r.id}
-              className={"rv " + r.cls + (r.sel ? " sel" : "")}
-              style={vars({ "--x": r.x, "--y": r.y, "--fx": r.fx, "--fy": r.fy, "--mx": r.mx, "--my": r.my, "--sc": r.sc })}
-              data-piece={p.pieces ? "r:" + r.id : undefined}
-              aria-hidden="true"
-            >
-              <RivalMark />
-            </span>
-          ))}
-          {jug?.ball && (
-            <span
-              className={"ball " + jug.ball.cls}
-              style={vars({ "--x": jug.ball.x, "--y": jug.ball.y, "--fx": jug.ball.fx, "--fy": jug.ball.fy, "--mx": jug.ball.mx, "--my": jug.ball.my })}
-              data-piece={p.pieces ? "b" : undefined}
-              aria-hidden="true"
-            >
-              <BallMark />
-            </span>
-          )}
+          {/* (while a paso is edited the rivals and the ball are buttons too: Tab, the arrows move them) */}
+          {jug?.rivals.map((r) => {
+            const cls = "rv " + r.cls + (r.sel ? " sel" : "");
+            const style = vars({ "--x": r.x, "--y": r.y, "--fx": r.fx, "--fy": r.fy, "--mx": r.mx, "--my": r.my, "--sc": r.sc });
+            return p.pieces ? (
+              <button key={r.id} type="button" className={cls} style={style} data-piece={"r:" + r.id} aria-pressed={!!r.sel} aria-label={p.pieceAria?.["r:" + r.id] ?? "Rival"}>
+                <RivalMark />
+              </button>
+            ) : (
+              <span key={r.id} className={cls} style={style} aria-hidden="true">
+                <RivalMark />
+              </span>
+            );
+          })}
+          {jug?.ball &&
+            (p.pieces ? (
+              <button
+                type="button"
+                className={"ball " + jug.ball.cls}
+                style={vars({ "--x": jug.ball.x, "--y": jug.ball.y, "--fx": jug.ball.fx, "--fy": jug.ball.fy, "--mx": jug.ball.mx, "--my": jug.ball.my })}
+                data-piece="b"
+                aria-label={p.pieceAria?.b ?? "Balón"}
+              >
+                <BallMark />
+              </button>
+            ) : (
+              <span
+                className={"ball " + jug.ball.cls}
+                style={vars({ "--x": jug.ball.x, "--y": jug.ball.y, "--fx": jug.ball.fx, "--fy": jug.ball.fy, "--mx": jug.ball.mx, "--my": jug.ball.my })}
+                aria-hidden="true"
+              >
+                <BallMark />
+              </span>
+            ))}
           {!jug && view.gslots.map((g) => (
             <span key={g.i} className={"gs" + (p.kb === g.i ? " mg" : "")} style={vars({ "--x": g.x, "--y": g.y, "--sc": g.sc })} data-gs={g.i} aria-hidden="true">
               <i />
@@ -262,7 +297,7 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
               showGal={p.showGal}
               mini={jug ? true : view.mini}
               hov={!jug && p.kb === c.i && p.selId !== c.id}
-              focusable={p.focusCards}
+              focusable={p.focusCards || (!!jug && p.pieces)}
               piece={jug && p.pieces ? "p:" + c.id : undefined}
               onTap={p.onCard}
             />

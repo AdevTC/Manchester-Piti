@@ -162,3 +162,30 @@
    sheet's edge; «Convocatoria» fits its tab at 1440; the board's autosave line («Nuevo · se guarda…») has room. */
 @container (max-width:699px){.pzv .sheet .selbar{margin-top:12px}}
 @container (min-width:1100px){.pzv .tabs button{letter-spacing:.03em}.pzv .cmd .bname{width:clamp(220px,22cqw,380px)}}
+
+/* ── Bloque 2: accesibilidad y rendimiento ── */
+/* The bench renders only the view on screen (Panels.tsx / useWide.ts): the root's b-lista is set only where
+   the list is rendered, so the list shows whatever the container query says at the 1100 px edge. */
+.pzv.b-lista .cvl{display:grid;gap:14px}
+/* The selected player's bar is rendered once (sb-s on a phone, sb-p elsewhere, see useWide.ts): where the
+   container and the viewport disagree by a scrollbar at the 700 px edge, the one rendered still shows. */
+@container (max-width:699px){.pzv .app{--sbp:flex}}
+
+/* A jugada's rivals and ball are buttons while a paso is edited (the keyboard moves them): no button
+   chrome, and a focus ring that reads on the grass. */
+:where(.pzv) button.rv,:where(.pzv) button.ball{margin:0;padding:0;border:0;background:none;color:inherit;font:inherit;-webkit-appearance:none;appearance:none}
+.pzv .rv:focus-visible,.pzv .ball:focus-visible{outline:3px solid #FFC659;outline-offset:3px;border-radius:50%}
+.pzv .cd .cc:focus-visible{outline:3px solid #FFC659;outline-offset:2px}
+.pzv .sbb:focus-visible{outline:2px solid #FFC659;outline-offset:2px}
+/* The panel's heading takes the focus when the panel opens (goModo): no ring for a heading reached that way. */
+.pzv .sheet h2[tabindex="-1"]:focus,.pzv .sheet h3[tabindex="-1"]:focus,.pzv .sheet[tabindex="-1"]:focus{outline:none}
+
+/* Functional text never under 11px (WCAG 1.4.4 / the design's floor): the bench's status chips (a long one
+   wraps onto two lines instead of being clipped), the línea's label, the empty slot's position, the bench's
+   group headings, the autosave line, the hand's kicker, the panels' small labels and the rail's card. */
+.pzv .ac-cv{font-size:11px;height:auto;min-height:19px;padding:1px 3px;white-space:normal;line-height:1.05;text-align:center;overflow-wrap:anywhere}
+@container (min-width:110px){.pzv .ac-cv{font-size:11px;min-height:20px}}
+@container (min-width:140px){.pzv .ac-cv{font-size:11.5px;min-height:23px}}
+.pzv .dl-h,.pzv .slot b,.pzv .cc-no,.pzv .chip3,.pzv .nv{font-size:11px}
+.pzv .grp-h,.pzv .grp-h .cnt,.pzv .bname small,.pzv .sb-t small,.pzv .b4 small,.pzv .fp small,.pzv .mft small{font-size:11px}
+.pzv .ops > span,.pzv .tac .lb,.pzv .bl .op small,.pzv .tape small,.pzv .chg small{font-size:11px}

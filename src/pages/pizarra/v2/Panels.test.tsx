@@ -83,11 +83,10 @@ describe("«Siete»", () => {
     expect(p.onQ).toHaveBeenCalledWith("ker");
     fireEvent.click(within(screen.getByRole("group", { name: "Filtrar por posición" })).getByRole("button", { name: "DEF" }));
     expect(p.onZf).toHaveBeenCalledWith("DEF");
-    // both views are there (the CSS shows one): the FUT rows and the album cromos, the same players
+    // only the view on screen is rendered: the FUT rows (Lista, the default on a desktop)…
     const list = screen.getByRole("group", { name: /^Banquillo en lista/ });
-    const grid = screen.getByRole("group", { name: /^Banquillo:/ });
+    expect(screen.queryByRole("group", { name: /^Banquillo:/ })).not.toBeInTheDocument();
     expect(list).toHaveAttribute("data-bench", "1");
-    expect(grid).toHaveAttribute("data-bench", "1");
     const erikRow = within(list).getByRole("button", { name: /^ERIK, dorsal 9/ });
     expect(erikRow).toHaveClass("ar");
     expect(erikRow).toHaveAttribute("data-tok", "erik");
@@ -95,15 +94,33 @@ describe("«Siete»", () => {
     expect(erikRow.querySelector(".ar-r b")).toHaveTextContent("96");
     expect(erikRow.querySelector(".ar-s b")).toHaveTextContent("9");
     expect(erikRow.querySelector(".ar-n small")).toHaveTextContent("0 PJ · 0 G · 0 A · 0'");
-    const erikCard = within(grid).getByRole("button", { name: /^ERIK, dorsal 9/ });
-    expect(erikCard).toHaveClass("ac");
-    expect(erikCard.querySelector(".ac-c .cc-f .cc-nm")).toHaveTextContent("ERIK");
     fireEvent.click(erikRow);
     expect(p.onTapBench).toHaveBeenCalledWith("erik", erikRow);
     // the groups with their counts and empty texts
     expect(Array.from(container.querySelectorAll(".cvl .lg-h")).map((h) => h.textContent)).toEqual(["Banquillo3", "Sin convocar0", "Bajas2"]);
     expect(container.querySelector(".cvl .lg.g-s .grp-e")).toHaveTextContent("Nadie fuera de la convocatoria.");
     expect(within(list).getByRole("button", { name: /^BRAWAN/ })).toHaveAttribute("data-zone", "x");
+    // …or the album cromos, the same players
+    rerender(<BenchTab {...p} srx benchView="cromos" />);
+    expect(screen.queryByRole("group", { name: /^Banquillo en lista/ })).not.toBeInTheDocument();
+    const grid = screen.getByRole("group", { name: /^Banquillo:/ });
+    expect(grid).toHaveAttribute("data-bench", "1");
+    const erikCard = within(grid).getByRole("button", { name: /^ERIK, dorsal 9/ });
+    expect(erikCard).toHaveClass("ac");
+    expect(erikCard.querySelector(".ac-c .cc-f .cc-nm")).toHaveTextContent("ERIK");
+  });
+
+  it("under 1100 px the list is never rendered: the cromos, whatever the view says", () => {
+    window.matchMedia = vi.fn((q: string) => ({ matches: !q.includes("min-width: 1100px"), media: q, onchange: null, addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false }));
+    try {
+      render(<BenchTab {...benchProps({ benchView: "lista" })} />);
+      expect(screen.queryByRole("group", { name: /^Banquillo en lista/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("group", { name: /^Banquillo:/ })).toBeInTheDocument();
+      // (the toggle still says what is chosen for the desktop)
+      expect(within(screen.getByRole("group", { name: "Vista del banquillo" })).getByRole("button", { name: "Lista" })).toHaveAttribute("aria-pressed", "true");
+    } finally {
+      Reflect.deleteProperty(window, "matchMedia");
+    }
   });
 
   it("the bench view: Lista by default, Cromos on request (R)", () => {

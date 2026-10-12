@@ -29,7 +29,7 @@ describe("the command bar", () => {
     const { container } = render(<Harness initial={lineupOf(SEVEN, "2-3-1", sq)} />);
     const bar = cmd(container);
     // 87 + 83 + 79 + 95 + 81 + 74 + 96 = 595 → 85
-    expect(within(bar).getByRole("status", { name: "Media del siete: 85" })).toHaveTextContent("MEDIA85");
+    expect(within(bar).getByRole("img", { name: "Media del siete: 85" })).toHaveTextContent("MEDIA85");
     expect(within(bar).getByText("7/7", { selector: ".val b" })).toBeInTheDocument();
     expect(within(bar).getByRole("button", { name: /^Química \d+ de 100/ })).toBeInTheDocument();
     expect(within(bar).getByRole("button", { name: "Sistema 2-3-1: elegir sistema" })).toBeInTheDocument();
@@ -45,10 +45,10 @@ describe("the command bar", () => {
 
   it("MEDIA counts only who is on the pitch; an empty board is 0", () => {
     const { container, unmount } = render(<Harness initial={lineupOf(["evans", "illescas", null, null, null, null, null], "2-3-1", sq)} />);
-    expect(within(cmd(container)).getByRole("status", { name: "Media del siete: 85" })).toBeInTheDocument();
+    expect(within(cmd(container)).getByRole("img", { name: "Media del siete: 85" })).toBeInTheDocument();
     unmount();
     const r2 = render(<Harness initial={lineupOf([], "2-3-1", sq)} />);
-    expect(within(cmd(r2.container)).getByRole("status", { name: "Media del siete: 0" })).toBeInTheDocument();
+    expect(within(cmd(r2.container)).getByRole("img", { name: "Media del siete: 0" })).toBeInTheDocument();
   });
 
   it("in Jugadas the repetición bug takes the plates' slot", () => {
@@ -244,9 +244,9 @@ describe("the selected player's bar", () => {
     const { container } = render(<Harness initial={lineupOf(SEVEN, "2-3-1", sq)} onCommit={(l) => commits.push(l)} />);
     expect(container.querySelector(".selbar")).toBeNull();
     fireEvent.click(cromoButton("TELLO"));
-    // on the apron (tablet / touch desktop) and at the top of the sheet (phone): the CSS shows one
+    // rendered once: on the apron (tablet / desktop; a phone has it at the top of the sheet instead)
     const bars = screen.getAllByRole("toolbar", { name: "En la mano: TELLO" });
-    expect(bars.map((b) => b.classList.contains("sb-p") ? "p" : "s").sort()).toEqual(["p", "s"]);
+    expect(bars.map((b) => (b.classList.contains("sb-p") ? "p" : "s"))).toEqual(["p"]);
     const bar = bars[0];
     expect(bar.querySelector(".sb-t small")?.textContent).toBe("TELLO · DFC · en la mano");
     expect(bar.querySelector(".sb-t b")?.textContent).toBe("Toca con quién se cambia: otro del campo o uno del banquillo");

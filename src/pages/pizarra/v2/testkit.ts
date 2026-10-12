@@ -23,7 +23,7 @@ export function squadOf(list: Cromo[], pairs: [string, string, Partial<PairStats
   return {
     list,
     byId: new Map(list.map((c) => [c.id, c])),
-    pairs: new Map(pairs.map(([a, b, p]) => [pairKey(a, b), { tog: 0, ast: 0, ...p }])),
+    pairs: new Map(pairs.map(([a, b, p]) => [pairKey(a, b), { tog: 0, ast: 0, min: 0, ...p }])),
     recentLabel,
     games,
   };

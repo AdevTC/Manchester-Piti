@@ -50,8 +50,11 @@ describe("the prompt bar's items", () => {
     // Ctrl Z is the tool's own: the jugadas' edits, the strokes (with their redo); never the hidden siete
     expect(show(ctx({ modo: "jugadas" }))).toEqual(["Espacio Reproducir ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Ctrl Z Deshacer en la jugada ▸", "Esc Volver al siete ▸"]);
     expect(show(ctx({ modo: "jugadas", ro: true }))).toEqual(["Espacio Reproducir ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Esc Volver al siete ▸"]);
-    expect(show(ctx({ modo: "jugadas", playing: true, pieces: true }))).toEqual(["Espacio Pausa ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Arrastra Retocar el paso", "Ctrl Z Deshacer en la jugada ▸", "Esc Volver al siete ▸"]);
+    expect(show(ctx({ modo: "jugadas", playing: true, pieces: true }))).toEqual(["Espacio Pausa ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Arrastra Retocar el paso", "Tab ←↑→↓ Mover una ficha (⇧ más lejos)", "Ctrl Z Deshacer en la jugada ▸", "Esc Volver al siete ▸"]);
     expect(show(ctx({ modo: "dibujar" }))).toEqual(["Arrastra Dibujar en el césped", "Ctrl Z Deshacer trazo ▸", "Ctrl ⇧ Z Rehacer trazo ▸", "Esc Volver al siete ▸"]);
+    // a marked stroke: the keyboard's way to move it and delete it
+    expect(show(ctx({ modo: "dibujar", marked: true }))).toEqual(["←↑→↓ Mover el trazo (⇧ más lejos)", "Supr Borrar el trazo", "Esc Desmarcar", "Ctrl Z Deshacer trazo ▸"]);
+    expect(promptKey(ctx({ modo: "dibujar", marked: true }))).not.toBe(promptKey(ctx({ modo: "dibujar" })));
     expect(show(ctx({ modo: "dibujar", ro: true }))).toEqual(["Esc Volver al siete ▸"]);
     expect(show(ctx({ modo: "charla", playing: true }))).toEqual(["Espacio Pausa ▸", "← Paso anterior ▸", "→ Paso siguiente ▸", "Esc Salir de la charla ▸"]);
     expect(show(ctx({ modo: "quimica" }))).toEqual(["Clic Cambia a un jugador y mira cómo se reencienden las luces", "Esc Volver al siete ▸"]);

@@ -21,7 +21,8 @@ test("la pizarra: sugerir el siete, guardarlo, publicarlo, reaccionar, dibujar, 
   // a fresh board, so earlier runs don't matter
   await toMode(page, "Tableros");
   await page.getByRole("button", { name: "Nuevo", exact: true }).click();
-  await expect(page.getByText("Tablero nuevo: toca un hueco para empezar")).toBeVisible();
+  // (the toast; the board's announcer says the same words, hidden)
+  await expect(page.locator(".tst span").getByText("Tablero nuevo: toca un hueco para empezar")).toBeVisible();
   await toMode(page, "Siete");
 
   // «Sugerir siete»: the pack opens and the seven are on the pitch

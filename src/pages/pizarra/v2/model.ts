@@ -35,8 +35,12 @@ export interface Cromo {
   name: string;
   /** Natural position (set by an admin); unknown = fits anywhere. */
   pos?: Zone;
-  /** Form rating (48–96), from the season's stats. */
+  /** Form rating (45–95, see ratings.ts), from the season's matches. */
   rt: number;
+  /** No match played yet: the rating is only a floor for sorting, shown as «—» (see rtTxt). */
+  unrated?: boolean;
+  /** Why his form is what it is, in a few words («3 goles en sus 2 últimos»). */
+  why?: string;
   stats: CromoStats;
   /** Minutes and goals+assists over the recent window (the «sobre»). */
   recentMin: number;
@@ -48,8 +52,10 @@ export interface Cromo {
 }
 
 export interface PairStats {
-  /** Matches both played. */
+  /** Matches both were on the pitch at the same time. */
   tog: number;
+  /** Minutes both were on the pitch at the same time (the ledger's stints). */
+  min: number;
   /** Goals one assisted to the other (both directions). */
   ast: number;
 }
@@ -62,14 +68,32 @@ export interface Squad {
   recentLabel: string;
   /** Matches the team has finished this season (the química is only a hint with very few). */
   games: number;
+  /** Minutes the team has played this season (their durations; absent = 50 a match). */
+  teamMin?: number;
 }
 
+/** The rating as the cromo prints it: «—» before his first match. */
+export const rtTxt = (c: Pick<Cromo, "rt" | "unrated">): string => (c.unrated ? "—" : String(c.rt));
+/** «forma 82: 3 goles en sus 2 últimos» / «sin forma aún: sin partidos esta temporada». */
+export function formAria(c: Pick<Cromo, "rt" | "unrated" | "why">): string {
+  return (c.unrated ? "sin forma aún" : "forma " + c.rt) + (c.why ? ": " + c.why.charAt(0).toLowerCase() + c.why.slice(1) : "");
+}
+/** The team's minutes this season
+ (the scale of the química's minutes together). */
+export const teamMinutes = (sq: Squad): number => sq.teamMin ?? sq.games * 50;
+
 export const pairKey = (a: string, b: string): string => (a < b ? a + "|" + b : b + "|" + a);
-export const pairOf = (sq: Squad, a: string, b: string): PairStats => sq.pairs.get(pairKey(a, b)) ?? { tog: 0, ast: 0 };
+export const pairOf = (sq: Squad, a: string, b: string): PairStats => sq.pairs.get(pairKey(a, b)) ?? { tog: 0, ast: 0, min: 0 };
 
 /** The position a player plays in this lineup: the per-board override, else his natural one. */
 export function natOf(L: Lineup, sq: Squad, id: string): Zone | undefined {
   return normZone(L.playerPositions[id]) ?? sq.byId.get(id)?.pos;
+}
+
+/** Whether a player plays a zone as his natural one (an unknown position is NOT natural: the química
+ *  only rewards what it knows). */
+export function natural(L: Lineup, sq: Squad, id: string, zone: Zone): boolean {
+  return natOf(L, sq, id) === zone;
 }
 
 /** Whether a player fits a zone (an unknown position never counts against him). */

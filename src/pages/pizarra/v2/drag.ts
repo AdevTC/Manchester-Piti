@@ -91,3 +91,51 @@ export function slotInDirection(points: { i: number; x: number; y: number }[], f
   });
   return best;
 }
+
+// ── the keyboard on a jugada's pieces and on Dibujar's marked stroke (WCAG 2.1.1 / 2.5.7: every drag has
+// a keyboard way) ──
+/** Pitch % an arrow moves a piece: a fine step, Shift a big one. */
+export const NUDGE = 2;
+export const NUDGE_BIG = 10;
+/** The pitch step (dx, dy) an arrow key asks for, or null (y grows toward our goal, down the screen). */
+export function nudgeOf(key: string, big: boolean): [number, number] | null {
+  const s = big ? NUDGE_BIG : NUDGE;
+  const d = DIR_KEYS[key];
+  return d === "up" ? [0, -s] : d === "down" ? [0, s] : d === "left" ? [-s, 0] : d === "right" ? [s, 0] : null;
+}
+const clampPct = (v: number) => Math.round(Math.max(0, Math.min(100, v)) * 10) / 10;
+/** A point moved by (dx, dy), kept on the pitch. */
+export const nudgePoint = (p: { x: number; y: number }, dx: number, dy: number): { x: number; y: number } => ({ x: clampPct(p.x + dx), y: clampPct(p.y + dy) });
+
+/** Moves a whole stroke by (dx, dy), as far as it can while every point stays on the pitch. The same
+ *  array when it can't move (already against the edge) or isn't there. */
+export function moveStroke<S extends { id: string; points: { x: number; y: number }[] }>(strokes: S[], id: string, dx: number, dy: number): S[] {
+  const s = strokes.find((x) => x.id === id);
+  if (!s || !s.points.length) return strokes;
+  const xs = s.points.map((p) => p.x);
+  const ys = s.points.map((p) => p.y);
+  const mx = Math.max(-Math.min(...xs), Math.min(100 - Math.max(...xs), dx));
+  const my = Math.max(-Math.min(...ys), Math.min(100 - Math.max(...ys), dy));
+  if (!mx && !my) return strokes;
+  return strokes.map((x) => (x.id === id ? { ...x, points: x.points.map((p) => ({ x: clampPct(p.x + mx), y: clampPct(p.y + my) })) } : x));
+}
+
+const PLACES: [number, string][] = [
+  [18, "el área rival"],
+  [40, "el campo rival"],
+  [60, "el centro del campo"],
+  [82, "nuestro campo"],
+  [101, "nuestra área"],
+];
+/** Where a point is, in words: «el centro del campo», «el campo rival, banda izquierda». */
+export function placeOf(p: { x: number; y: number }): string {
+  const band = (PLACES.find(([to]) => p.y < to) ?? PLACES[PLACES.length - 1])[1];
+  return band + (p.x < 33 ? ", banda izquierda" : p.x > 67 ? ", banda derecha" : "");
+}
+/** «al centro del campo», «a nuestra área»: where something was moved to. */
+export const toPlace = (p: { x: number; y: number }): string => ("a " + placeOf(p)).replace(/^a el /, "al ");
+/** The middle of a stroke (where it is said to be). */
+export function strokeMid(points: { x: number; y: number }[]): { x: number; y: number } {
+  const n = Math.max(1, points.length);
+  return { x: points.reduce((a, p) => a + p.x, 0) / n, y: points.reduce((a, p) => a + p.y, 0) / n };
+}

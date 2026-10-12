@@ -7,12 +7,14 @@ export interface PromptCtx {
   /** Read-only (or still loading): nothing that edits is offered. */
   ro: boolean;
   /** The player in the hand (from the pitch or the bench). */
-  hand: { k: "p" | "b"; name: string; rt: number } | null;
+  hand: { k: "p" | "b"; name: string; rt: number | string } | null;
   benchView: "lista" | "cromos";
   /** The replay (Jugadas) or the charla is playing. */
   playing: boolean;
   /** Jugadas: the paso's pieces can be dragged. */
   pieces: boolean;
+  /** Dibujar: a stroke is marked (the arrows move it, Supr deletes it). */
+  marked?: boolean;
 }
 
 export interface PromptActs {
@@ -44,7 +46,7 @@ export interface PromptItem {
 /** The context's key: a new one plays the items in again. */
 export function promptKey(c: PromptCtx): string {
   if (c.modo === "editar" && c.hand) return "s" + c.hand.k + c.hand.name;
-  return c.modo + (c.ro ? ":ro" : "");
+  return c.modo + (c.ro ? ":ro" : "") + (c.marked ? ":m" : "");
 }
 
 /** What the prompt bar offers right now (as designed: the hand, then each tool). */
@@ -66,13 +68,17 @@ export function promptItems(c: PromptCtx, a: PromptActs): PromptItem[] {
       { k: "Espacio", t: c.playing ? "Pausa" : "Reproducir", go: a.toggle },
       { k: "←", t: "Paso anterior", go: a.prev },
       { k: "→", t: "Paso siguiente", go: a.next },
-      ...(c.pieces ? [{ k: "Arrastra", t: "Retocar el paso" }] : []),
+      ...(c.pieces ? [{ k: "Arrastra", t: "Retocar el paso" }, { k: "Tab ←↑→↓", t: "Mover una ficha (⇧ más lejos)" }] : []),
       // (Ctrl Z here undoes the jugadas' edits, never the siete hidden behind them)
       ...(c.ro ? [] : [{ k: "Ctrl Z", t: "Deshacer en la jugada", go: a.undoJugada }]),
       back,
     ];
   if (c.modo === "dibujar")
-    return c.ro ? [back] : [{ k: "Arrastra", t: "Dibujar en el césped" }, { k: "Ctrl Z", t: "Deshacer trazo", go: a.undoStroke }, { k: "Ctrl ⇧ Z", t: "Rehacer trazo", go: a.redoStroke }, back];
+    return c.ro
+      ? [back]
+      : c.marked
+        ? [{ k: "←↑→↓", t: "Mover el trazo (⇧ más lejos)" }, { k: "Supr", t: "Borrar el trazo" }, { k: "Esc", t: "Desmarcar" }, { k: "Ctrl Z", t: "Deshacer trazo", go: a.undoStroke }]
+        : [{ k: "Arrastra", t: "Dibujar en el césped" },{ k: "Ctrl Z", t: "Deshacer trazo", go: a.undoStroke }, { k: "Ctrl ⇧ Z", t: "Rehacer trazo", go: a.redoStroke }, back];
   if (c.modo === "charla")
     return [
       { k: "Espacio", t: c.playing ? "Pausa" : "Reproducir", go: a.toggle },
