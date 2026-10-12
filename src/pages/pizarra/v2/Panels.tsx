@@ -49,6 +49,8 @@ export interface AppBarProps {
   onBug: () => void;
   /** The live match's plate (LivePlate), while the board's match is being played. */
   live?: ReactNode;
+  /** Bloque 5: «Presentar» (the presentation mode), before la charla. */
+  extra?: ReactNode;
 }
 
 export function AppBar(p: AppBarProps) {
@@ -140,6 +142,7 @@ export function AppBar(p: AppBarProps) {
           <Icon n="share" w={16} />
           Compartir
         </button>
+        {p.extra}
         <button type="button" className="chb mag" {...mag} onClick={p.onCharla} aria-label="La charla: presentar el siete">
           <Icon n="whistle" />
           <span>La charla</span>

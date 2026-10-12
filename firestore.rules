@@ -243,7 +243,7 @@ service cloud.firestore {
     function boardOk(d) {
       return d.keys().hasOnly(['formation','freeMode','slots','bench','roles','tactics','playerPositions','pinned',
           'variants','subs','takers',
-          'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt','shapeOff','condPlan','style','rival'])
+          'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt','shapeOff','condPlan','style','rival','tags','voz'])
         && d.ownerUid is string
         && d.get('seasonId', null) is string && d.seasonId.size() <= 128
         && optStr(d, 'name', 60) && optStr(d, 'ownerNickname', 40) && optStr(d, 'formation', 10)
@@ -295,6 +295,30 @@ service cloud.firestore {
           || (get(/databases/$(database)/documents/lineups/$(id)).data.ownerUid == request.auth.uid
             && !get(/databases/$(database)/documents/lineups/$(id)).data.get('isOfficial', false)));
       }
+      // La voz en off de la charla (Bloque 5): at most six clips (the slot ids v0…v5), each a step's key, an
+      // audio type, ≤ 30 s and ≤ 900 000 characters of base64 (well under a doc's 1 MiB). The team hears
+      // them; whoever may edit the board (its owner while it is not official, or a captain) records and
+      // deletes them — the board must still exist (its clips go before it does).
+      match /voz/{slot} {
+        allow read: if teamMember();
+        allow create, update: if teamMember() && vozEditor(id)
+          && slot in ['v0','v1','v2','v3','v4','v5']
+          && request.resource.data.keys().hasOnly(['step','mime','ms','data','by','at'])
+          && request.resource.data.step is string
+          && request.resource.data.step.matches('(sistema|banquillo|balon|plan|quedada|final|siete-[1-7]|jugada-[1-8])')
+          && request.resource.data.mime is string && request.resource.data.mime.size() <= 60
+          && request.resource.data.mime.matches('audio/[a-z0-9.+-]+(;.*)?')
+          && request.resource.data.ms is int && request.resource.data.ms > 0 && request.resource.data.ms <= 30000
+          && request.resource.data.data is string && request.resource.data.data.size() > 0
+          && request.resource.data.data.size() <= 900000
+          && request.resource.data.by == request.auth.uid
+          && request.resource.data.at == request.time;
+        allow delete: if teamMember() && vozEditor(id);
+      }
+    }
+    function vozEditor(lineupId) {
+      let b = get(/databases/$(database)/documents/lineups/$(lineupId)).data;
+      return admin() || (b.ownerUid == request.auth.uid && !b.get('isOfficial', false));
     }
     // One official per scope (a match, or the season: «<season>__<match|temporada>»): the doc names
     // the board, so publishing is a transaction on it (useLineups.publishOfficial). Captains only.

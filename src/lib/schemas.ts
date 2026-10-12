@@ -314,12 +314,30 @@ export const playFrameSchema = z
   .refine((f) => new Set(f.rivals.map((r) => r.id)).size === f.rivals.length, { message: "Rivales repetidos en un paso." });
 export type PlayFrame = z.infer<typeof playFrameSchema>;
 
+/** El vídeo enlazado a una jugada (Bloque 5): un enlace https y el momento (segundos) en que empieza. */
+export const PLAY_VIDEO_LIMITS = { url: 300, at: 5 * 3600 } as const;
+const httpsUrl = (v: string): boolean => {
+  try {
+    const u = new URL(v);
+    return u.protocol === "https:" && !!u.hostname && !u.username && !u.password;
+  } catch {
+    return false;
+  }
+};
+export const playVideoSchema = z.object({
+  url: z.string().trim().min(12).max(PLAY_VIDEO_LIMITS.url).refine(httpsUrl, { message: "El enlace tiene que empezar por https://" }),
+  at: z.number().int().min(0).max(PLAY_VIDEO_LIMITS.at),
+});
+export type PlayVideo = z.infer<typeof playVideoSchema>;
+
 export const PLAY_KINDS = ["propia", "corner", "falta", "banda", "salida"] as const;
 export const playSchema = z.object({
   id: itemId,
   name: z.string().trim().min(1).max(PIZARRA_LIMITS.playName),
   kind: z.enum(PLAY_KINDS),
   frames: z.array(playFrameSchema).min(PIZARRA_LIMITS.framesMin).max(PIZARRA_LIMITS.framesMax),
+  /** (lenient: a broken link is dropped, never the jugada) */
+  video: playVideoSchema.optional().catch(undefined),
 });
 export type Play = z.infer<typeof playSchema>;
 export type PlayKind = Play["kind"];
