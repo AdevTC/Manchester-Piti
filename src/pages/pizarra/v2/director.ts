@@ -2,8 +2,9 @@
 // stadium should show (a «shot»: at rest, the intro, a jugada playing, or a step of the charla) and the
 // director turns each change into engine calls, as designed: the intro once; a jugada played on a loop
 // while the replay plays; the charla filmed step by step (the system from the stands down to the TV
-// camera, the hero shots of the seven with the engine reporting each one, the plan from above, the
-// jugada with the engine reporting each paso, «¡A por ellos!» back in the stands); and, at rest, the
+// camera, the hero shots of the seven with the engine reporting each one, the suplentes on the TV
+// camera, the pelotas paradas and the plan from above, the jugada with the engine reporting each paso,
+// la quedada and «¡A por ellos!» back in the stands); and, at rest, the
 // seven back at their spots and the engine paused once the 2D board has faded back in. Shots that don't
 // change don't touch the engine. No React here: the board owns the stadium, the director only talks to
 // its handle.
@@ -11,7 +12,7 @@ import type { Stadium3DHandle } from "../../../components/pitch3d/Stadium3D";
 import type { PitchPoint, PlayController, PlayFrame, PlayerSpec, RivalSpec } from "../../../components/pitch3d/types";
 import type { Lineup } from "../formations";
 import { toEnginePoint, type Play } from "../plays";
-import { charlaLast, STEP_JUGADA, STEP_PLAN, stepKind } from "./charla";
+import { charlaLast, STEP_BANQUILLO, STEP_JUGADA, stepKind, stepQuedada } from "./charla";
 import { slotPos } from "./geometry";
 import { participants, pasoPose } from "./jugadas";
 import { GALONES, type Squad } from "./model";
@@ -227,7 +228,7 @@ export class Director {
           () => {
             if (this.rv === tok) {
               this.rv = null;
-              this.ev.onStep(STEP_PLAN);
+              this.ev.onStep(STEP_BANQUILLO);
             }
           },
           (err: unknown) => {
@@ -244,9 +245,23 @@ export class Director {
       void h.setCamera("low", { duration: 900 }).catch(() => undefined);
       return;
     }
-    if (k === "plan") {
+    if (k === "plan" || k === "balon") {
+      // the plan, and who takes the dead balls: from above
       h.setPlayers(s.players, { animate: true });
       void h.setCamera("top", { duration: 1400 }).catch(() => undefined);
+      return;
+    }
+    if (k === "banquillo") {
+      // the suplentes: back on the TV camera, the seven at their spots
+      h.setPlayers(s.players, { animate: true });
+      void h.setCamera("tv", { duration: 900 }).catch(() => undefined);
+      return;
+    }
+    if (k === "quedada") {
+      // la quedada: up in the stands, the charla still on the LED boards
+      h.setPlayers(s.players, { animate: true });
+      h.setBoard(s.board);
+      void h.setCamera("stands", { duration: 2200 }).catch(() => undefined);
       return;
     }
     if (k === "jugada") {
@@ -262,7 +277,7 @@ export class Director {
           loop: false,
           onFrame: (i) => this.playTok === tok && this.ev.onStep(c + i),
           // (the engine holds the last picture until the next shot stops the jugada)
-          onEnd: () => this.playTok === tok && this.ev.onStep(last),
+          onEnd: () => this.playTok === tok && this.ev.onStep(stepQuedada(last)),
         });
         return;
       }

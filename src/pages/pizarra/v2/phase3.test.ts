@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { planArrows, planNote, setTactic, tacRows } from "./plan";
 import { planLayer } from "./view";
 import { changes, cmpMarks, galonesOn, meanForm, naturalCount, PLAYED_ID, playedOption, playedSeven, tape } from "./compare";
-import { boardLink, convCounts, convocatoriaOf, copyName, matchBand, matchLabel, nameError, officialFor, seasonPending, uniqueName, withConvocatoria, type CalMatch } from "./boards";
+import { boardLink, charlaMatch, convCounts, convocatoriaOf, copyName, matchBand, matchLabel, nameError, officialFor, seasonPending, uniqueName, withConvocatoria, type CalMatch } from "./boards";
 import { CARTEL_H, CARTEL_W, cartelFile, cartelLayout, drawCartel } from "./cartel";
 import { parsePrefs, PREFS0, readPrefs, SHOW0, writePrefs } from "./prefs";
 import { chem } from "./quimica";
@@ -188,6 +188,13 @@ describe("tableros", () => {
     expect(matchBand(null).title).toBe("Sin partido vinculado");
     expect(matchLabel(m({ played: true, gf: 3, ga: 1 }))).toBe("J8 · MAD SKY · 3–1");
     expect(matchLabel(m({}))).toBe("J8 · MAD SKY");
+  });
+
+  it("the match as the charla reads it: day, time, campo and who the convocatoria calls", () => {
+    expect(charlaMatch(m({ conv: { starters: ["evans", "tello"], bench: ["kevin"] } }))).toEqual({ short: "J8 · MAD SKY", date: "dom 8 nov", time: "11:00", j: "J8", place: "En casa · Campo 3", called: ["evans", "tello", "kevin"] });
+    // no convocatoria yet: nobody called (the charla falls back to the available)
+    expect(charlaMatch(m({ home: false, venue: "", conv: { starters: [], bench: [] } }))).toEqual({ short: "J8 · MAD SKY", date: "dom 8 nov", time: "11:00", j: "J8", place: "Fuera" });
+    expect(charlaMatch(m({ home: null, venue: "Polideportivo", dateMs: 0 }))).toMatchObject({ date: "", time: "", place: "Polideportivo" });
   });
 
   it("the link to a board, and the one straight to its charla", () => {

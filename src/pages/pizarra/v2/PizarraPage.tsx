@@ -19,7 +19,7 @@ import { useBoardSession } from "./useBoardSession";
 import { useConvocatoria } from "./useConvocatoria";
 import { Board } from "./Board";
 import { readPrefs, writePrefs, type BoardPrefs } from "./prefs";
-import { matchDay, matchShort, matchTime, officialFor, seasonPending, withConvocatoria } from "./boards";
+import { charlaMatch, matchShort, officialFor, seasonPending, withConvocatoria } from "./boards";
 import { CREST, Icon } from "./icons";
 import { forgetDeepLink } from "./deeplink";
 import "../../../styles/pizarra.css";
@@ -84,7 +84,7 @@ export function PizarraPage() {
   const m = linked ?? data.next;
   const conv = useConvocatoria(m?.id ?? null);
   const squad = useMemo(() => withConvocatoria(data.squad, conv.conv), [data.squad, conv.conv]);
-  const match = m ? { short: matchShort(m), date: matchDay(m.dateMs), time: matchTime(m.dateMs), j: "J" + m.j } : null;
+  const match = m ? charlaMatch(m) : null;
   // The official the team sees for this board: the one on screen when it is, else the match's or the season's.
   const official = session.official ? (lineups.official.find((d) => d.id === session.id) ?? null) : officialFor(session.officials, m?.id ?? null);
   const reactions = useReactions(official ? { id: official.id, isOfficial: official.isOfficial } : null);

@@ -1,7 +1,9 @@
 // La pizarra «Noche de partido» — la charla: the team talk before the match, as a running order on the
 // pitch. Step 0 is the system; 1–7 present the seven one by one (slot order: the cromos flip face up);
-// 8 is el plan (the consignas of the tactics, painted on the pitch); then every paso of the jugada; and
-// the last one, «¡A por ellos!». A small controller says which step is on screen and whether it plays
+// 8 is the banquillo (the suplentes of the convocatoria, or the available, with whether each one goes);
+// 9 las pelotas paradas (who wears each galón: brazalete, penaltis, faltas, córners); 10 el plan (the
+// consignas of the tactics, painted on the pitch); then every paso of the jugada; la quedada (the
+// match's day, time and campo); and the last one, «¡A por ellos!». A small controller says which step is on screen and whether it plays
 // (each step holds for its beat, as designed; prev / next / the timeline pause it; a hidden tab pauses it
 // and the tab coming back resumes it), and what the broadcast graphics say at each step. Pure: the hook
 // in useCharla.ts gives it a clock, the board draws it, and the 3D director (director.ts) films it.
@@ -10,31 +12,42 @@ import type { Play } from "../plays";
 import { defaultTactics } from "../tactics";
 import { slotLabel } from "./geometry";
 import { CONSIGNA } from "./plan";
-import { galonesOf, isFull, placedCount, type Squad } from "./model";
+import { GALONES, galonesOf, isFull, placedCount, type Cromo, type Squad } from "./model";
 import { plural } from "./plural";
 
 /** El sistema, the first step. */
 export const STEP_SISTEMA = 0;
-/** El plan, after the seven. */
-export const STEP_PLAN = 8;
+/** Los suplentes, right after the seven. */
+export const STEP_BANQUILLO = 8;
+/** Las pelotas paradas: who takes what. */
+export const STEP_BALON = 9;
+/** El plan. */
+export const STEP_PLAN = 10;
 /** The first paso of the jugada. */
-export const STEP_JUGADA = 9;
-/** The last step («¡A por ellos!») of a charla whose jugada has `pasos` pasos. */
-export const charlaLast = (pasos: number): number => STEP_JUGADA + Math.max(0, pasos);
+export const STEP_JUGADA = 11;
+/** The last step («¡A por ellos!») of a charla whose jugada has `pasos` pasos (la quedada goes just before it). */
+export const charlaLast = (pasos: number): number => STEP_JUGADA + Math.max(0, pasos) + 1;
+/** La quedada: the step before «¡A por ellos!» (where the jugada's last paso hands over). */
+export const stepQuedada = (last: number): number => last - 1;
 
-export type StepKind = "sistema" | "siete" | "plan" | "jugada" | "final";
+export type StepKind = "sistema" | "siete" | "banquillo" | "balon" | "plan" | "jugada" | "quedada" | "final";
 
 export function stepKind(step: number, last: number): StepKind {
   if (step <= STEP_SISTEMA) return "sistema";
-  if (step < STEP_PLAN) return "siete";
+  if (step < STEP_BANQUILLO) return "siete";
+  if (step === STEP_BANQUILLO) return "banquillo";
+  if (step === STEP_BALON) return "balon";
   if (step === STEP_PLAN) return "plan";
-  return step < last ? "jugada" : "final";
+  if (step >= last) return "final";
+  return step === stepQuedada(last) ? "quedada" : "jugada";
 }
 
-/** How long a step stays on screen while the charla plays (ms), as designed. */
+const MS: Record<StepKind, number> = { sistema: 2600, siete: 2300, banquillo: 3200, balon: 3000, plan: 4400, jugada: 2400, quedada: 3200, final: 2000 };
+
+/** How long a step stays on screen while the charla plays (ms), as designed (the new steps read a list:
+ *  a little longer). */
 export function stepMs(step: number, last: number): number {
-  const k = stepKind(step, last);
-  return k === "sistema" ? 2600 : k === "siete" ? 2300 : k === "plan" ? 4400 : k === "jugada" ? 2400 : 2000;
+  return MS[stepKind(step, last)];
 }
 
 /** The longest the 3D stadium may take over a step it paces (ms): a stadium that never reports moves on
@@ -113,6 +126,54 @@ export interface CharlaMatch {
   date: string;
   time?: string;
   j?: string;
+  /** Where: «En casa · Campo de la Mina» (empty / absent when the calendar doesn't say). */
+  place?: string;
+  /** Everyone the match's convocatoria calls (starters and banquillo); absent = no convocatoria yet. */
+  called?: string[];
+}
+
+const CV_TXT = { voy: "va", duda: "duda", no: "no va" } as const;
+
+/** Whether a player goes, in words (never by colour alone): «va», «duda», «no va», «lesionado», «sin responder». */
+export function availTxt(c: Cromo): string {
+  if (c.baja) return c.baja.toLowerCase();
+  return c.cv ? CV_TXT[c.cv] : "sin responder";
+}
+
+// voy first, then who hasn't answered, the doubts, and those who can't
+const AVAIL_ORDER = (c: Cromo): number => (c.baja ? 4 : c.cv === "voy" ? 0 : !c.cv ? 1 : c.cv === "duda" ? 2 : 3);
+
+/** The suplentes: who the convocatoria calls and isn't in the seven; without a convocatoria, the squad
+ *  off the pitch that can play (no bajas, nobody who said no). `fromConv` says which. */
+export function suplentes(L: Lineup, sq: Squad, called: readonly string[] | undefined): { list: Cromo[]; fromConv: boolean } {
+  const on = new Set(L.slots.map((s) => s.playerId).filter(Boolean));
+  const fromConv = !!called?.length;
+  const pool = fromConv
+    ? called.filter((id, k) => called.indexOf(id) === k && !on.has(id)).flatMap((id) => sq.byId.get(id) ?? [])
+    : sq.list.filter((c) => !on.has(c.id) && !c.baja && c.cv !== "no");
+  return { list: pool.map((c, k) => ({ c, k })).sort((a, b) => AVAIL_ORDER(a.c) - AVAIL_ORDER(b.c) || a.k - b.k).map((x) => x.c), fromConv };
+}
+
+/** «KEVIN (va) · ERIK (duda) · … y 3 más». */
+export function suplentesTxt(list: Cromo[], max = 8): string {
+  const shown = list.slice(0, max).map((c) => c.name + " (" + availTxt(c) + ")");
+  return shown.join(" · ") + (list.length > max ? " y " + (list.length - max) + " más" : "");
+}
+
+/** Who wears each galón of the dead ball (and the brazalete), as the charla says it. */
+export function lanzadores(L: Lineup, sq: Squad): { label: string; letter: string; name: string | null; onPitch: boolean }[] {
+  const on = new Set(L.slots.map((s) => s.playerId).filter(Boolean));
+  return GALONES.map((g) => {
+    const id = L.roles[g.key];
+    const c = id ? sq.byId.get(id) : undefined;
+    return { label: g.key === "captainId" ? "Brazalete" : g.label, letter: g.letter, name: c?.name ?? null, onPitch: !!id && on.has(id) };
+  });
+}
+
+/** «Dom 8 nov · a las 12:00 · En casa · Campo de la Mina». */
+export function quedadaTxt(m: CharlaMatch): string {
+  const day = m.date ? m.date.charAt(0).toLocaleUpperCase("es") + m.date.slice(1) : "Fecha por confirmar";
+  return [day, m.time ? "a las " + m.time : "", m.place ?? ""].filter(Boolean).join(" · ");
 }
 
 export interface CharlaArgs {
@@ -172,6 +233,8 @@ export interface CharlaView {
   board3d: { start: string[]; end: string[] };
 }
 
+const NK: Record<StepKind, string> = { sistema: "SISTEMA", siete: "LOS SIETE", banquillo: "BANQUILLO", balon: "BALÓN PARADO", plan: "EL PLAN", jugada: "JUGADA", quedada: "QUEDADA", final: "FINAL" };
+
 /** The broadcast graphics of the charla at `step`. */
 export function charlaView(a: CharlaArgs): CharlaView {
   const { L, sq, play, match } = a;
@@ -206,7 +269,35 @@ export function charlaView(a: CharlaArgs): CharlaView {
         gal: galonesOf(L, id).map((g) => ({ l: g.letter, t: g.label })),
       };
     } else lt = { n: "–", nSm: false, k: "LOS SIETE · " + cs + " DE 7 · " + lab, t: "Hueco libre", d: "Falta un jugador en " + lab + ".", gal: [] };
+  } else if (kind === "banquillo") {
+    const s = suplentes(L, sq, match?.called);
+    lt = {
+      n: String(s.list.length),
+      nSm: false,
+      k: "EL BANQUILLO · " + (s.fromConv ? "CONVOCATORIA" : "SIN CONVOCATORIA: LOS DISPONIBLES"),
+      t: "Los suplentes",
+      d: s.list.length ? suplentesTxt(s.list) + "." : s.fromConv ? "La convocatoria no deja a nadie en el banquillo: los siete y a jugar." : "No queda nadie disponible fuera del siete.",
+      gal: [],
+    };
+  } else if (kind === "balon") {
+    const ls = lanzadores(L, sq);
+    const set = ls.filter((x) => x.name).length;
+    lt = {
+      n: set + "/" + ls.length,
+      nSm: true,
+      k: "LAS PELOTAS PARADAS · QUIÉN LA TOCA",
+      t: set ? "Los lanzadores" : "Sin lanzadores",
+      d: set
+        ? ls.map((x) => x.label + ": " + (x.name ? x.name + (x.onPitch ? "" : " (no está en el siete)") : "sin asignar")).join(" · ") + "."
+        : "Nadie lleva galones: mantén pulsado un cromo para darle el brazalete, los penaltis, las faltas o los córners.",
+      gal: ls.flatMap((x) => (x.name ? [{ l: x.letter, t: x.name }] : [])),
+    };
   } else if (kind === "plan") plan = consignas(L);
+  else if (kind === "quedada") {
+    lt = match
+      ? { n: match.j ?? "–", nSm: true, k: "LA QUEDADA · " + match.short.toUpperCase(), t: "Nos vemos allí", d: quedadaTxt(match) + ".", gal: [] }
+      : { n: "–", nSm: true, k: "LA QUEDADA", t: "Sin partido enlazado", d: "Enlaza el partido en Tableros y aquí saldrán el día, la hora y el campo.", gal: [] };
+  }
   else if (kind === "jugada") {
     const k = cs - STEP_JUGADA;
     const f = play.frames[k];
@@ -229,7 +320,7 @@ export function charlaView(a: CharlaArgs): CharlaView {
     };
     big = { txt: "¡A POR ELLOS!", fin: true };
   }
-  const widths = [2.6, ...Array.from({ length: 7 }, () => 2.3), 4.4, ...play.frames.map(() => 2.4), 2];
+  const widths = Array.from({ length: last + 1 }, (_, k) => MS[stepKind(k, last)] / 1000);
   const segs = widths.map((w, k) => ({
     w: w.toFixed(1),
     t: w + "s",
@@ -240,11 +331,15 @@ export function charlaView(a: CharlaArgs): CharlaView {
     const c = id ? sq.byId.get(id) : undefined;
     return c ? c.num + " · " + c.name : "Hueco · " + slotLabel(L, i);
   };
+  const nSup = suplentes(L, sq, match?.called).list.length;
   const steps = [
     "El sistema · " + a.sysName,
     ...Array.from({ length: 7 }, (_, i) => nm(i)),
+    "Los suplentes · " + nSup,
+    "Las pelotas paradas",
     "El plan · " + a.tacSum,
     ...play.frames.map((f, k) => a.playShort + " · " + (k + 1) + " · " + (f.title || "Paso " + (k + 1))),
+    "La quedada" + (match?.date ? " · " + match.date : ""),
     "¡A por ellos!",
   ];
   const guion = steps.map((t, k) => ({ n: k < 10 ? "0" + k : String(k), t, cls: k < cs ? "done" : k === cs ? "now" : "" }));
@@ -254,7 +349,7 @@ export function charlaView(a: CharlaArgs): CharlaView {
     kick,
     title: ms,
     n: cs + 1 + "/" + (last + 1),
-    nk: kind === "sistema" ? "SISTEMA" : kind === "siete" ? "LOS SIETE" : kind === "plan" ? "EL PLAN" : kind === "jugada" ? "JUGADA" : "FINAL",
+    nk: NK[kind],
     big,
     lt,
     plan,
