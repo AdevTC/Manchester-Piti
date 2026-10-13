@@ -96,6 +96,29 @@ export type SeasonMatchDoc = z.infer<typeof seasonMatchSchema>;
  * obligatorios y hay docs sin alguno que renderizaban antes. Requerirlos sería
  * una regresión; los defaults `|| ""` / `|| 0` downstream siguen aplicando.
  */
+/** Topes de la sanción a mano (los mismos que firestore.rules). */
+export const SANCTION_LIMITS = { games: 10, reason: 80, matchId: 128 } as const;
+/**
+ * `players/{id}.sanction` (Admin → Plantilla → Estado «Sancionado»). Permisivo: lo que sobra se recorta
+ * (partidos a 1–10, motivo a 80) y un campo opcional inválido (o null) se queda en ausente; solo sin
+ * `games` / `from` numéricos la sanción entera se ignora — nunca el jugador (`.catch` en playerSchema).
+ */
+export const sanctionSchema = z.object({
+  games: z
+    .number()
+    .refine(Number.isFinite)
+    .transform((v) => Math.min(SANCTION_LIMITS.games, Math.max(1, Math.round(v)))),
+  from: z.number().refine(Number.isFinite),
+  untilMatchId: z.string().min(1).max(SANCTION_LIMITS.matchId).optional().catch(undefined),
+  reason: z
+    .string()
+    .transform((v) => v.trim().slice(0, SANCTION_LIMITS.reason))
+    .optional()
+    .catch(undefined),
+  by: z.string().optional().catch(undefined),
+});
+export type SanctionDoc = z.infer<typeof sanctionSchema>;
+
 export const playerSchema = z.object({
   id: z.string(),
   firstName: z.string().optional(),
@@ -109,6 +132,9 @@ export const playerSchema = z.object({
   active: z.boolean().optional(),
   naturalPosition: z.string().optional(),
   injured: z.boolean().optional(),
+  // Sanción a mano y «Levantar la sanción» (ms): opcionales y permisivos (un valor roto no tira el doc).
+  sanction: sanctionSchema.optional().catch(undefined),
+  sanctionClearedAt: z.number().refine(Number.isFinite).optional().catch(undefined),
   photoUrl: z.string().optional(),
   bio: z.string().optional(),
   quote: z.string().optional(),

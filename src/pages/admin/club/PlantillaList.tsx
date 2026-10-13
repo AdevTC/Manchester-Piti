@@ -25,18 +25,21 @@ export interface PlantillaListProps {
   empty: string | null;
   /** Players without a line show the quick POR · DEF · MED · DEL. */
   quickLine: boolean;
+  /** Who is suspended (a red card or a sanction set by hand): «Sancionado» under his name. */
+  sanctioned?: ReadonlySet<string> | ReadonlyMap<string, unknown>;
 }
 
-const sub = (r: BoardRow, other: boolean, code: string) =>
-  other ? `fuera de la ${code}` : [r.injured ? "Lesionado" : "", r.gaps.length ? `faltan ${r.gaps.length}` : "ficha completa"].filter(Boolean).join(" · ");
+const sub = (r: BoardRow, other: boolean, code: string, sanctioned: boolean) =>
+  other ? `fuera de la ${code}` : [r.injured ? "Lesionado" : "", sanctioned ? "Sancionado" : "", r.gaps.length ? `faltan ${r.gaps.length}` : "ficha completa"].filter(Boolean).join(" · ");
 
-export function PlantillaList({ groups, others, code, selectedId, still, onOpen, onLine, flying, boxRef, empty, quickLine }: PlantillaListProps) {
+export function PlantillaList({ groups, others, code, selectedId, still, onOpen, onLine, flying, boxRef, empty, quickLine, sanctioned }: PlantillaListProps) {
   const row = (r: BoardRow, other: boolean, quick: boolean) => {
     const src = still(r);
     const kitStyle: CSSProperties | undefined = flying.has(`kit:${r.id}`) && selectedId !== r.id ? { viewTransitionName: vtName("pl-kit", r.id) } : undefined;
     const rowStyle: CSSProperties | undefined = flying.has(`row:${r.id}`) ? { viewTransitionName: vtName("pl-row", r.id) } : undefined;
+    const san = !other && !!sanctioned?.has(r.id);
     return (
-      <li key={r.id} data-id={r.id} style={rowStyle} className={["lr", r.injured ? "inj" : "", other ? "other" : ""].filter(Boolean).join(" ")}>
+      <li key={r.id} data-id={r.id} style={rowStyle} className={["lr", r.injured ? "inj" : "", san ? "san" : "", other ? "other" : ""].filter(Boolean).join(" ")}>
         <button
           type="button"
           className="li"
@@ -49,7 +52,7 @@ export function PlantillaList({ groups, others, code, selectedId, still, onOpen,
           </span>
           <span className="tx">
             <b>{r.name}</b>
-            <small>{sub(r, other, code)}</small>
+            <small>{sub(r, other, code, san)}</small>
           </span>
           <span className={r.gaps.length && !other ? "dot gap" : "dot"} aria-hidden="true" />
         </button>

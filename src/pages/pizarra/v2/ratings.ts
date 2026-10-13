@@ -6,6 +6,7 @@ import { playerGame } from "../../../lib/clubAnalytics";
 import { goalLinks } from "../../../lib/statsView";
 import type { Zone } from "../formations";
 import { normZone } from "../positions";
+import type { Sanction, Suspension } from "../chemistry";
 import { pairKey, type Baja, type Convocatoria, type Cromo, type FormGame, type PairStats, type Squad } from "./model";
 import { plural } from "./plural";
 
@@ -160,6 +161,9 @@ export interface SquadPlayer {
   naturalPosition?: Zone | string;
   injured: boolean;
   active: boolean;
+  /** A sanction set by hand and the last «Levantar la sanción» (chemistry.suspensions reads them). */
+  sanction?: Sanction | null;
+  sanctionClearedAt?: number | null;
 }
 
 export interface SquadInput {
@@ -168,7 +172,8 @@ export interface SquadInput {
   games: ClubMatch[];
   /** Jornada number of each match id (its order in the season calendar). */
   jornada: Map<string, number>;
-  suspended: Set<string>;
+  /** Who is suspended: the ids, or chemistry.suspensions() with what is left and why. */
+  suspended: ReadonlySet<string> | ReadonlyMap<string, Suspension>;
   /** MVP winners per match id. */
   mvps: Map<string, string[]>;
   convocatoria?: Map<string, Convocatoria>;
@@ -225,6 +230,7 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       }
     });
     const baja: Baja | undefined = !p.active ? "Inactivo" : p.injured ? "Lesionado" : suspended.has(p.id) ? "Sancionado" : undefined;
+    const susp = "get" in suspended ? suspended.get(p.id) : undefined;
     const form = formRating(f);
     return {
       id: p.id,
@@ -239,6 +245,7 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       recentMin,
       recentGA,
       baja,
+      ...(susp && baja === "Sancionado" ? { sancion: susp.reason ? { left: susp.left, reason: susp.reason } : { left: susp.left } } : {}),
       cv: convocatoria?.get(p.id),
       // the ficha's form bars: his last matches
       form: formGames(p.id, games, jornada),

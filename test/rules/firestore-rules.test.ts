@@ -136,6 +136,71 @@ describe("Publicación y cálculo del backend", () => {
     await assertSucceeds(getDoc(doc(db("admin"), "matchDrafts", "x")));
   });
 });
+describe("Sanciones a mano (players)", () => {
+  const ref = (uid: string) => doc(db(uid), "players", "erik");
+  const sanction = (over: object = {}) => ({ games: 2, from: 1_700_000_000_000, by: "admin", untilMatchId: null, reason: "Federación", ...over });
+  /** The stored doc, read past the rules (withSecurityRulesDisabled resolves to nothing: the value is kept here). */
+  const stored = async () => {
+    let data: Record<string, unknown> | undefined;
+    await env.withSecurityRulesDisabled(async (c) => {
+      data = (await getDoc(doc(c.firestore(), "players", "erik"))).data();
+    });
+    return data;
+  };
+  beforeEach(async () => {
+    await seed("players/erik", { shirtName: "ERIK", injured: false });
+  });
+  it("un admin sanciona por el camino de siempre (merge) y null la levanta; un jugador no puede", async () => {
+    await assertSucceeds(setDoc(ref("admin"), { sanction: sanction() }, { merge: true }));
+    await assertSucceeds(setDoc(ref("admin"), { sanction: sanction({ games: 1, untilMatchId: "m8", reason: null }) }, { merge: true }));
+    await assertFails(setDoc(ref("member"), { sanction: sanction({ by: "member" }) }, { merge: true }));
+    await assertFails(setDoc(ref("member"), { sanction: null, sanctionClearedAt: 1 }, { merge: true }));
+    await assertSucceeds(setDoc(ref("admin"), { sanction: null, sanctionClearedAt: 1_700_000_100_000 }, { merge: true }));
+    const after = await stored();
+    if (!after || after.sanction !== null || after.sanctionClearedAt !== 1_700_000_100_000 || after.shirtName !== "ERIK") throw new Error("la sanción no se levantó: " + JSON.stringify(after));
+  });
+  it("los nulls de los opcionales sustituyen a los de una sanción anterior (el merge no deja el motivo viejo)", async () => {
+    await assertSucceeds(setDoc(ref("admin"), { sanction: sanction() }, { merge: true }));
+    await assertSucceeds(setDoc(ref("admin"), { sanction: sanction({ games: 1, reason: null }) }, { merge: true }));
+    const s = (await stored())?.sanction as { reason?: unknown; games?: unknown } | undefined;
+    if (s?.reason !== null || s?.games !== 1) throw new Error("quedó el motivo viejo: " + JSON.stringify(s));
+  });
+  it("valida tipos y topes: 1–10 partidos enteros, motivo ≤ 80, partido ≤ 128, firmada por quien la pone, sin campos extra", async () => {
+    for (const bad of [
+      { games: 0 },
+      { games: 11 },
+      { games: 1.5 },
+      { games: "2" },
+      { from: "ayer" },
+      { from: 1.5 },
+      { by: "super" },
+      { reason: "x".repeat(81) },
+      { reason: 7 },
+      { untilMatchId: "m".repeat(129) },
+      { untilMatchId: "" },
+      { extra: true },
+    ])
+      await assertFails(setDoc(ref("admin"), { sanction: sanction(bad) }, { merge: true }));
+    await assertFails(setDoc(ref("admin"), { sanction: { games: 2, from: 1, untilMatchId: null, reason: null } }, { merge: true }));
+    await assertFails(setDoc(ref("admin"), { sanction: "dos partidos" }, { merge: true }));
+    await assertFails(setDoc(ref("admin"), { sanctionClearedAt: "ayer" }, { merge: true }));
+    await assertSucceeds(setDoc(ref("admin"), { sanction: sanction({ games: 10, reason: "x".repeat(80), untilMatchId: "m".repeat(128) }) }, { merge: true }));
+  });
+  it("otro admin edita la ficha sin tocar la sanción que firmó el primero", async () => {
+    await seed("players/erik", { shirtName: "ERIK", sanction: sanction(), sanctionClearedAt: 5 });
+    await assertSucceeds(setDoc(ref("super"), { shirtName: "ERIK 9", injured: true }, { merge: true }));
+    await assertSucceeds(updateDoc(ref("super"), { naturalPosition: "DEL" }));
+    // …but changing it signs it again
+    await assertFails(updateDoc(ref("super"), { "sanction.games": 3 }));
+    await assertSucceeds(setDoc(ref("super"), { sanction: sanction({ by: "super", games: 3 }) }, { merge: true }));
+  });
+  it("una ficha nueva puede nacer con o sin sanción válida", async () => {
+    await assertSucceeds(setDoc(doc(db("admin"), "players", "nuevo"), { shirtName: "NUEVO" }));
+    await assertFails(setDoc(doc(db("admin"), "players", "nuevo2"), { shirtName: "NUEVO", sanction: sanction({ games: 0 }) }));
+    await assertSucceeds(setDoc(doc(db("admin"), "players", "nuevo3"), { shirtName: "NUEVO", sanction: sanction() }));
+  });
+});
+
 describe("Vestuario e identidad", () => {
   it("solo se puede consultar el propio acceso", async () => {
     await assertSucceeds(getDoc(doc(db("member"), "teamMembers", "member")));

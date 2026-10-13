@@ -7,6 +7,7 @@ import type { ClubMatch } from "../../lib/clubData";
 import { chronological, playerGame } from "../../lib/clubAnalytics";
 import { resultOf } from "../../lib/partidos";
 import { bestPartner, mvpWinners, mvpWins, vitrina, type MvpResult } from "../../lib/vestuario";
+import { suspensions } from "../pizarra/chemistry";
 import type { Zone } from "../pizarra/formations";
 import type { Cromo, Squad } from "../pizarra/v2/model";
 import { buildSquad, type SquadPlayer } from "../pizarra/v2/ratings";
@@ -207,7 +208,9 @@ export function seasonSquad(squad: SquadPlayer[], matches: ClubMatch[], seasonId
   const jornada = new Map(calendar.map((m, i) => [m.id, i + 1]));
   const mvps = new Map<string, string[]>();
   games.forEach((m) => mvps.set(m.id, mvpWinners(m, mvpResults.get(m.id), now)));
-  return { squad: buildSquad({ players: squad, games, jornada, suspended: new Set(), mvps }), calendar, games, jornada };
+  // the same bajas as the board: sent off (acta) or sanctioned by hand, newest match first
+  const suspended = suspensions([...calendar].reverse(), squad);
+  return { squad: buildSquad({ players: squad, games, jornada, suspended, mvps }), calendar, games, jornada };
 }
 
 /** «T1» from «Temporada 1»; «T26/27» from «Temporada 2026/27» (a year range keeps both years, short). */

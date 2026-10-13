@@ -4,7 +4,7 @@
 // is in the hand — and the reparto de minutos. Pure.
 import type { FormationName, Lineup, Zone } from "../formations";
 import { FORM, slotZone } from "./geometry";
-import { formAria, rtTxt, type Cromo, type Squad } from "./model";
+import { bajaChip, bajaWords, formAria, rtTxt, type Cromo, type Squad } from "./model";
 import { tierDiamonds, type Chem } from "./quimica";
 import { matchShort, type CalMatch } from "./boards";
 import { plural } from "./plural";
@@ -207,7 +207,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
   const bj = grp === "x";
   const sin = grp === "s";
   const cvCls: BenchRow["cvCls"] = bj ? BAJA_CLS[c.baja ?? "Inactivo"] : sin ? "sin" : (c.cv ?? "sin");
-  const cv = bj ? (c.baja ?? "Baja") : sin ? "Sin convocar" : c.cv ? CV_TXT[c.cv] : "Sin respuesta";
+  const cv = bj ? bajaChip(c) || "Baja" : sin ? "Sin convocar" : c.cv ? CV_TXT[c.cv] : "Sin respuesta";
   const icon: BenchRow["icon"] = bj || c.cv === "no" ? "x" : sin ? null : c.cv === "voy" ? "check" : c.cv === "duda" ? "doubt" : null;
   const h = o.hand;
   const tgt = !!h && !bj && !sin && c.cv !== "no";
@@ -232,7 +232,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
     cls: [c.pos === "POR" ? "gk" : "", c.cv === "no" && !bj ? "no-va" : "", sin ? "sin" : "", bj ? "baja" : "", tgt ? "tgt" : "", best ? "best" : "", me ? "me" : ""].filter(Boolean).join(" "),
     aria:
       c.name + ", dorsal " + c.num + ", " + (c.pos ?? "sin posición") + ", " + formAria(c) + ", " +
-      (bj ? cv.toLowerCase() + ", no disponible" : "convocatoria: " + cv.toLowerCase()) +
+      (bj ? (bajaWords(c) || "baja") + ", no disponible" : "convocatoria: " + cv.toLowerCase()) +
       ", " + plural(s.minutes, "minuto") + " esta temporada" + (me ? ", eres tú" : "") +
       (tgt && h ? (h.kind === "p" ? ". Toca: entra por " + h.name : ". Toca: entra en el hueco") : ""),
   };

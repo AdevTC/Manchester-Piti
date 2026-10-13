@@ -67,6 +67,14 @@ describe("la ficha", () => {
     expect(fichaOf(args("nadie"))).toBeNull();
   });
 
+  it("a sanctioned player off the pitch: how many matches are left and why", () => {
+    const sqS = { ...sq, byId: new Map(sq.byId) };
+    sqS.byId.set("kevin", { ...sq.byId.get("kevin")!, baja: "Sancionado", sancion: { left: 2, reason: "Federación" } });
+    sqS.byId.set("fer", { ...sq.byId.get("fer")!, baja: "Lesionado" });
+    expect(fichaOf(args("kevin", { sq: sqS }))!.ln).toEqual([{ k: "Sancionado 2 partidos más (Federación): no disponible", v: "" }]);
+    expect(fichaOf(args("fer", { sq: sqS }))!.ln).toEqual([{ k: "Lesionado: no disponible", v: "" }]);
+  });
+
   it("the chip reads «—» before his first match; the why of his form and his links in minutes together", () => {
     const sqU = { ...sq, byId: new Map(sq.byId) };
     sqU.byId.set("kevin", { ...sq.byId.get("kevin")!, unrated: true, why: "Sin partidos esta temporada" });

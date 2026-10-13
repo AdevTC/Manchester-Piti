@@ -201,6 +201,24 @@ describe("playerSchema", () => {
     const r = playerSchema.safeParse({ id: "p1", firstName: "A", lastName: "B", shirtName: "AB", number: "siete" });
     expect(r.success).toBe(false);
   });
+
+  it("lee la sanción a mano y su levantamiento; los null de los opcionales quedan ausentes", () => {
+    const r = playerSchema.parse({ id: "p1", sanction: { games: 2, from: 1000, untilMatchId: null, reason: " Federación ", by: "a1" }, sanctionClearedAt: 500 });
+    expect(r.sanction).toEqual({ games: 2, from: 1000, reason: "Federación", by: "a1" });
+    expect(r.sanctionClearedAt).toBe(500);
+    expect(playerSchema.parse({ id: "p1", sanction: { games: 1, from: 1, untilMatchId: "m8", reason: null, by: null } }).sanction).toEqual({ games: 1, from: 1, untilMatchId: "m8" });
+  });
+
+  it("una sanción rota nunca tira al jugador: se recorta o se ignora", () => {
+    const capped = playerSchema.parse({ id: "p1", sanction: { games: 40, from: 1, reason: "x".repeat(200), untilMatchId: "m".repeat(300) } });
+    expect(capped.sanction).toEqual({ games: 10, from: 1, reason: "x".repeat(80) });
+    expect(playerSchema.parse({ id: "p1", sanction: { games: 0.2, from: 1 } }).sanction?.games).toBe(1);
+    const broken = playerSchema.safeParse({ id: "p1", shirtName: "AB", sanction: { games: "dos" }, sanctionClearedAt: "ayer" });
+    expect(broken.success).toBe(true);
+    expect(broken.data?.sanction).toBeUndefined();
+    expect(broken.data?.sanctionClearedAt).toBeUndefined();
+    expect(broken.data?.shirtName).toBe("AB");
+  });
 });
 
 describe("lineupSchema", () => {

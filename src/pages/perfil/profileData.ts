@@ -49,7 +49,17 @@ export function seasonPlayers(players: PlayerDoc[], seasonId: string, seasons: {
     .filter((p) => seasonId === "all" || p.seasons?.includes(seasonId) || p.id === me)
     .map((p) => {
       const { shirtName, number } = resolveShirt(p, seasonId, seasons);
-      return { id: p.id, shirtName, firstName: p.firstName ?? "", number, naturalPosition: p.naturalPosition, injured: p.injured === true, active: p.active !== false };
+      return {
+        id: p.id,
+        shirtName,
+        firstName: p.firstName ?? "",
+        number,
+        naturalPosition: p.naturalPosition,
+        injured: p.injured === true,
+        active: p.active !== false,
+        ...(p.sanction ? { sanction: p.sanction } : {}),
+        ...(typeof p.sanctionClearedAt === "number" ? { sanctionClearedAt: p.sanctionClearedAt } : {}),
+      };
     })
     .sort((a, b) => a.number - b.number);
 }

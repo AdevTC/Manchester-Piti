@@ -23,9 +23,30 @@ service cloud.firestore {
     function superadminEmail() {
       return signedIn() && request.auth.token.email == 'adriantomascv@gmail.com' && request.auth.token.email_verified == true;
     }
+    // A sanction set by hand (Admin → Plantilla → «Sancionado»): games 1–10 from `from` (ms) or until a match,
+    // an optional reason, signed by the admin who sets it; null lifts it. Optional keys travel as null (a merge
+    // write would keep an old map's keys otherwise).
+    function validSanction(s) {
+      return s == null || (s is map
+        && s.keys().hasAll(['games','from','by'])
+        && s.keys().hasOnly(['games','from','by','untilMatchId','reason'])
+        && s.games is int && s.games >= 1 && s.games <= 10
+        && s.from is int
+        && s.by == request.auth.uid
+        && (s.get('untilMatchId', null) == null || (s.untilMatchId is string && s.untilMatchId.size() >= 1 && s.untilMatchId.size() <= 128))
+        && (s.get('reason', null) == null || (s.reason is string && s.reason.size() <= 80)));
+    }
+    // Only when they change (another admin editing the ficha keeps someone else's sanction as it is).
+    function sanctionOk() {
+      let d = request.resource.data;
+      let changed = resource == null ? d.keys() : d.diff(resource.data).affectedKeys();
+      return (!changed.hasAny(['sanction']) || validSanction(d.get('sanction', null)))
+        && (!changed.hasAny(['sanctionClearedAt']) || d.get('sanctionClearedAt', null) == null || d.sanctionClearedAt is int);
+    }
     match /players/{id} {
       allow read: if true;
-      allow create, update, delete: if admin();
+      allow create, update: if admin() && sanctionOk();
+      allow delete: if admin();
     }
     match /seasons/{id} {
       allow read: if true;

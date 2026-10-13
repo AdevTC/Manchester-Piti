@@ -46,7 +46,7 @@ export function useMvpWinners(games: readonly ClubMatch[], results: ReadonlyMap<
 
 export function useBoardData(seasonId: string): BoardData {
   const { players, loading: playersLoading } = usePizarraPlayers();
-  const { suspended, loading: statsLoading } = usePizarraStats(seasonId);
+  const { suspended, loading: statsLoading } = usePizarraStats(seasonId, players);
   const { matches, loading: matchesLoading } = useClubData();
   const mvpResults = useMvpResults();
   const now = useClock(60_000);

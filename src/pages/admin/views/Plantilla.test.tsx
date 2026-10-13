@@ -374,3 +374,117 @@ describe("Plantilla · ficha a ficha", () => {
     expect(await screen.findByRole("status", { name: "Cargando la plantilla" })).toBeInTheDocument();
   });
 });
+
+describe("Plantilla · sanciones", () => {
+  const estado = (name: string) => within(ficha(name)).getByRole("group", { name: `Estado de ${name}` });
+  const row = (name: string) => within(list()).getByRole("button", { name: `Abrir la ficha de ${name}` });
+  beforeEach(() => {
+    localStorage.clear();
+    Object.values(h.writes).forEach((f) => f.mockClear());
+    setAdminData(adminFixture());
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("«Sancionado» opens a small form: 2 matches and a reason, behind «Deshacer»; the ficha and the list say it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    const san = within(estado("ERIK")).getByRole("button", { name: "Sancionado" });
+    expect(san).toHaveAttribute("aria-pressed", "false");
+    expect(within(estado("ERIK")).getByRole("button", { name: "Activo" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(san);
+    const form = screen.getByRole("form", { name: "Sanción de ERIK" });
+    const games = within(form).getByRole("spinbutton", { name: /Partidos de sanción/ });
+    expect(games).toHaveFocus();
+    expect(games).toHaveValue(1);
+    await user.clear(games);
+    await user.type(games, "2");
+    await user.type(within(form).getByRole("textbox", { name: /Motivo/ }), "Federación");
+    await user.click(within(form).getByRole("button", { name: "Sancionar" }));
+    expect(caption()).toHaveTextContent("ERIK, sancionado 2 partidos · Federación");
+    expect(caption().querySelector(".lt .k")).toHaveTextContent("SANCIÓN");
+    expect(screen.queryByRole("form", { name: "Sanción de ERIK" })).toBeNull();
+    expect(ficha("ERIK")).toHaveTextContent("Sancionado · quedan 2 partidos · Federación");
+    expect(within(estado("ERIK")).getByRole("button", { name: "Sancionado" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(estado("ERIK")).getByRole("button", { name: "Activo" })).toHaveAttribute("aria-pressed", "false");
+    expect(row("ERIK")).toHaveTextContent("Sancionado");
+    await act(async () => {
+      vi.advanceTimersByTime(5300);
+    });
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", { sanction: { games: 2, from: adminFixture().now, untilMatchId: null, reason: "Federación", by: "a1" } });
+  });
+
+  it("«hasta la J…» picks a match of the calendar; «Deshacer» writes nothing; a bad count is never written", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(estado("ERIK")).getByRole("button", { name: "Sancionado" }));
+    let form = screen.getByRole("form", { name: "Sanción de ERIK" });
+    const games = within(form).getByRole("spinbutton", { name: /Partidos de sanción/ });
+    await user.clear(games);
+    await user.type(games, "11");
+    await user.click(within(form).getByRole("button", { name: "Sancionar" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("Entre 1 y 10 partidos.");
+    expect(games).toHaveAttribute("aria-invalid", "true");
+    await user.click(within(form).getByRole("button", { name: "Hasta la jornada" }));
+    const until = within(form).getByRole("combobox", { name: "Hasta la jornada (incluida)" });
+    expect(within(until).getAllByRole("option").map((o) => o.textContent)).toEqual([expect.stringMatching(/^J3 · MAD SKY · /)]);
+    await user.click(within(form).getByRole("button", { name: "Sancionar" }));
+    expect(caption()).toHaveTextContent("ERIK, sancionado hasta la J3");
+    expect(ficha("ERIK")).toHaveTextContent("Sancionado · queda 1 partido (hasta la J3)");
+    await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
+    expect(ficha("ERIK")).not.toHaveTextContent("Sancionado ·");
+    await act(async () => {
+      vi.advanceTimersByTime(6000);
+    });
+    expect(h.writes.savePlayer).not.toHaveBeenCalled();
+    // «Cancelar» closes the form
+    await user.click(within(estado("ERIK")).getByRole("button", { name: "Sancionado" }));
+    form = screen.getByRole("form", { name: "Sanción de ERIK" });
+    await user.click(within(form).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("form", { name: "Sanción de ERIK" })).toBeNull();
+  });
+
+  it("a sanction set by hand: what is left, and «Levantar la sanción» (with undo) clears it and the acta's red", async () => {
+    const base = adminFixture();
+    setAdminData({ ...base, players: base.players.map((p) => (p.id === "kevin" ? { ...p, sanction: { games: 3, from: base.now - 1000, reason: "Roja en Copa", by: "a2" } } : p)) });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?jugador=kevin", { plantilla: Plantilla });
+    const f = await screen.findByRole("region", { name: "Ficha de KEVIN" });
+    expect(f).toHaveTextContent("Sancionado · quedan 3 partidos · Roja en Copa");
+    expect(row("KEVIN")).toHaveTextContent("Sancionado");
+    expect(row("ERIK")).not.toHaveTextContent("Sancionado");
+    await user.click(within(f).getByRole("button", { name: "Levantar la sanción" }));
+    expect(caption()).toHaveTextContent("KEVIN, sanción levantada · vuelve a estar disponible");
+    expect(ficha("KEVIN")).not.toHaveTextContent("Sancionado ·");
+    expect(row("KEVIN")).not.toHaveTextContent("Sancionado");
+    await act(async () => {
+      vi.advanceTimersByTime(5300);
+    });
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("kevin", { sanction: null, sanctionClearedAt: base.now });
+  });
+
+  it("a red card in the last acta shows as a sanction too; «Activo» lifts it", async () => {
+    const base = adminFixture();
+    const red = { id: "rc", type: "red_card" as const, minute: 40, playerId: "tello" };
+    setAdminData({ ...base, matches: base.matches.map((m) => (m.id === "m7" ? { ...m, events: [...(m.events ?? []), red] } : m)) });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?jugador=tello", { plantilla: Plantilla });
+    const f = await screen.findByRole("region", { name: "Ficha de TELLO" });
+    expect(f).toHaveTextContent("Sancionado · queda 1 partido · por expulsión");
+    expect(row("TELLO")).toHaveTextContent("Sancionado");
+    await user.click(within(estado("TELLO")).getByRole("button", { name: "Activo" }));
+    expect(caption()).toHaveTextContent("TELLO, sanción levantada");
+    expect(ficha("TELLO")).not.toHaveTextContent("Sancionado ·");
+    await act(async () => {
+      vi.advanceTimersByTime(5300);
+    });
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("tello", { sanction: null, sanctionClearedAt: base.now });
+  });
+});

@@ -114,6 +114,15 @@ describe("the bench", () => {
     expect(ina[2].rows[0]).toMatchObject({ cvCls: "ina", cv: "Inactivo", zone: "x" });
   });
 
+  it("a sanction says how many matches are left, in the chip and aloud (with its reason)", () => {
+    const g = benchGroups({ bench: [cromo("s", 7, "MED", { baja: "Sancionado", sancion: { left: 2, reason: "Federación" } }), cromo("r", 8, "DEF", { baja: "Sancionado", sancion: { left: 1 } })], called: null, filter: OFF, hand: null, selId: null, meId: null });
+    const [s, r] = g[2].rows;
+    expect(s).toMatchObject({ cvCls: "san", cv: "Sancionado · 2", zone: "x", baja: true });
+    expect(s.aria).toMatch(/sancionado 2 partidos más \(Federación\), no disponible/);
+    expect(r.cv).toBe("Sancionado · 1");
+    expect(r.aria).toMatch(/sancionado 1 partido más, no disponible/);
+  });
+
   it("the captain's convocatoria leaves the others «Sin convocar»", () => {
     const g = benchGroups({ bench: off(L, conv), called: new Set([...SEVEN, "erik"]), filter: OFF, hand: null, selId: "erik", meId: null });
     expect(g[0].rows.map((r) => r.id)).toEqual(["erik", "tello"]);

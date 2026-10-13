@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import type { MvpResult } from "../../lib/vestuario";
 import { buildSquad, type SquadPlayer } from "../pizarra/v2/ratings";
-import { buildCard, evoluciones, formScore, nextEvolution, onStreak, seasonShort, tickerFor, tierOf, type CardInput } from "./card";
+import { buildCard, evoluciones, formScore, nextEvolution, onStreak, seasonShort, seasonSquad, tickerFor, tierOf, type CardInput } from "./card";
 
 const DAY = 86_400_000;
 let seq = 0;
@@ -273,5 +273,19 @@ describe("temporada", () => {
     expect(seasonShort("Temporada 2026/27")).toBe("T26/27");
     expect(seasonShort("2025-2026")).toBe("T25/26");
     expect(seasonShort("Liga de verano")).toBe("LIGA DE VERANO");
+  });
+});
+
+describe("seasonSquad: las bajas de la pizarra", () => {
+  it("un expulsado en la última jornada y un sancionado a mano salen como «Sancionado»; levantada, no", () => {
+    const red = match("j5", 38, [played("adri"), { id: "r1", type: "red_card", playerId: "illescas" }], 1, 3);
+    const season = [...SEASON.filter((m) => m.id !== "j5"), red];
+    const squad = SQUAD.map((p) => (p.id === "evans" ? { ...p, sanction: { games: 2, from: 40 * DAY, reason: "Federación" } } : p));
+    const { squad: sq } = seasonSquad(squad, season, "t1", new Map(), NOW);
+    expect(sq.byId.get("illescas")).toMatchObject({ baja: "Sancionado", sancion: { left: 1 } });
+    expect(sq.byId.get("evans")).toMatchObject({ baja: "Sancionado", sancion: { left: 2, reason: "Federación" } });
+    expect(sq.byId.get("adri")?.baja).toBeUndefined();
+    const lifted = squad.map((p) => (p.id === "illescas" ? { ...p, sanctionClearedAt: 39 * DAY } : p));
+    expect(seasonSquad(lifted, season, "t1", new Map(), NOW).squad.byId.get("illescas")?.baja).toBeUndefined();
   });
 });
