@@ -229,18 +229,29 @@ button.pos-spot:focus-visible .pos-dot {
 }
 
 /* ── Debajo del campo ─────────────────────────────────────────────────────── */
+/* the gap separates the items (no «·» that could start a wrapped line); on a narrow map they wrap onto
+   centred lines, and a single item still wraps its own words rather than overflow */
 .pos-legend {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.25rem 0.875rem; /* the gap separates the items: no «·» that could start a wrapped line */
+  row-gap: 0.25rem;
+  column-gap: 0.875rem;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
   font-size: 0.75rem;
   color: var(--_pos-dim);
+  text-align: center;
 }
 
+/* the symbol and its word stay together on one line */
 .pos-legend-item {
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .pos-legend-sym {
@@ -268,7 +279,10 @@ button.pos-spot:focus-visible .pos-dot {
 }
 
 .pos-summary {
+  min-width: 0;
   margin: 0;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
   text-align: center;
   font-size: 0.875rem;
   font-weight: 600;

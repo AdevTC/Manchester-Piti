@@ -86,19 +86,19 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
           </div>
           {/* under the map (desktop «Posiciones») the shirt is out of reach: not focusable, not announced, no arrow keys */}
           <div className="sq-shirt-slot" inert={mapOnStage}>
-          <Jersey3D
-            ref={shirt}
-            className="sq-shirt3d"
-            kit={kit}
-            theme={theme}
-            name={row.name.toUpperCase()}
-            num={row.num}
-            zoom={STILL.zoom}
-            lift={STILL.lift}
-            reveal={false}
-            flip
-            label={`Camiseta de ${row.name}, dorsal ${row.num}. Arrástrala o usa las flechas para girarla.`}
-          />
+            <Jersey3D
+              ref={shirt}
+              className="sq-shirt3d"
+              kit={kit}
+              theme={theme}
+              name={row.name.toUpperCase()}
+              num={row.num}
+              zoom={STILL.zoom}
+              lift={STILL.lift}
+              reveal={false}
+              flip
+              label={`Camiseta de ${row.name}, dorsal ${row.num}. Arrástrala o usa las flechas para girarla.`}
+            />
           </div>
           {!mapOnStage && (
             <>

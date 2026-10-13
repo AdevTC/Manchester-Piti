@@ -49,6 +49,22 @@ describe("posiciones.css theme contract", () => {
     expect(css).toMatch(/\.pos-map--s \.pos-tag\s*\{\s*display:\s*none/);
   });
 
+  it("wraps the legend onto centred lines on a narrow map (no «·» separators, no unbreakable line) and the summary too", () => {
+    // the body of the top-level rule whose selector is exactly `sel`
+    const rule = (sel: string) => {
+      const at = css.replace(/\r\n/g, "\n").indexOf(`\n${sel} {`);
+      return at < 0 ? "" : css.replace(/\r\n/g, "\n").slice(at).split("}")[0];
+    };
+    const legend = rule(".pos-legend");
+    expect(legend).toMatch(/flex-wrap:\s*wrap/);
+    expect(legend).toMatch(/justify-content:\s*center/);
+    expect(legend).toMatch(/row-gap:/);
+    expect(legend).toMatch(/max-width:\s*100%/);
+    expect(rule(".pos-legend-item")).not.toMatch(/white-space:\s*nowrap/);
+    expect(css).not.toMatch(/\.pos-legend-item\s*\+\s*\.pos-legend-item::before/);
+    expect(rule(".pos-summary")).toMatch(/overflow-wrap:\s*anywhere/);
+  });
+
   it("keeps the forced-colors ring only for keyboard focus", () => {
     expect(css).toMatch(/button\.pos-spot:focus-visible\s*\{[^}]*outline:\s*2px solid transparent/);
   });
