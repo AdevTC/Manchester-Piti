@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { andList, avisoTxt, avisoUrl, benchGroups, calledOf, convHead, pitchFound, reparto, squadInfo, sysLines, type BenchFilter } from "./bench";
+import { andList, avisoTxt, avisoUrl, benchGroups, calledOf, convHead, pitchFound, reparto, squadInfo, type BenchFilter } from "./bench";
 import { slotLabel } from "./geometry";
 import { withConvocatoria, type CalMatch } from "./boards";
 import { chem } from "./quimica";
@@ -26,13 +26,6 @@ describe("the squad bars", () => {
     expect(info.dm.filter(Boolean)).toHaveLength(lit);
     const empty = squadInfo(lineupOf([], "2-3-1", sq), sq, chem(lineupOf([], "2-3-1", sq), sq));
     expect(empty).toMatchObject({ media: 0, once: "0/7", dm: [false, false, false] });
-  });
-
-  it("each system's lines, as its tile says them", () => {
-    expect(sysLines("2-3-1")).toBe("2 DEF · 3 MED · 1 DEL");
-    expect(sysLines("3-2-1")).toBe("3 DEF · 2 MED · 1 DEL");
-    expect(sysLines("2-1-2-1")).toBe("2 DEF · 3 MED · 1 DEL");
-    expect(sysLines("1-3-2")).toBe("1 DEF · 3 MED · 2 DEL");
   });
 });
 

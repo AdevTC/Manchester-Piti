@@ -3,10 +3,11 @@
 // Sistema · Plan; the bench grid is the picker), the «Más» tiles, and the mode bar / rail.
 import { useId, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import type { FormationName } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import { FORM, SYSTEMS } from "./geometry";
 import { Icon, Nuevo } from "./icons";
 import { AlbumCromo, BenchRowItem } from "./Cromos";
-import { andList, sysLines, type BenchGroup, type ConvHead, type PitchHit, type SquadInfo } from "./bench";
+import { andList, type BenchGroup, type ConvHead, type PitchHit, type SquadInfo } from "./bench";
 import type { Squad } from "./model";
 import { lucesTxt, type Chem } from "./quimica";
 import { ChemLines, ChemTop, LucesList, PanelHead } from "./SheetPanels";
@@ -505,18 +506,21 @@ export interface SystemTabProps {
   onReset: () => void;
 }
 
-/** The Sistema page: the six systems and Libre as tiles, then the química of the seven in short. */
+/** The Sistema page: the systems and Libre as tiles, then the química of the seven in short. */
 export function SystemTab(p: SystemTabProps) {
   return (
     <div className="pg">
       <div className="sysg" role="group" aria-label="Sistema de juego">
-        {SYSTEMS.map((k) => (
-          <button key={k} type="button" className="sy" onClick={() => p.onSystem(k)} aria-pressed={!p.free && p.formation === k} aria-label={"Sistema " + k} disabled={p.ro}>
-            <MiniSystem name={k} />
-            <b>{k}</b>
-            <small>{sysLines(k)}</small>
-          </button>
-        ))}
+        {SYSTEMS.map((k) => {
+          const s = systemDef(k);
+          return (
+            <button key={k} type="button" className="sy" onClick={() => p.onSystem(k)} aria-pressed={!p.free && p.formation === k} aria-label={`Sistema ${s.label} ${s.name}`} disabled={p.ro}>
+              <MiniSystem name={k} />
+              <b>{s.label}</b>
+              <small>{s.name}</small>
+            </button>
+          );
+        })}
         <button type="button" className="sy lib" onClick={p.onLibre} aria-pressed={p.free} disabled={p.ro} aria-label="Modo libre: arrastra a cualquier sitio">
           <svg viewBox="0 0 60 80" aria-hidden="true">
             <rect x="2" y="2" width="56" height="76" rx="4" />

@@ -3,6 +3,7 @@
 // The layout is pure (the sheet's preview and the PNG read the same spots); the drawing reuses the
 // old poster's canvas helpers (poster.ts) on a 1080×1350 canvas.
 import type { Lineup } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import { canvasToBlob, loadImage, roundRect, truncate } from "../poster";
 import { CREST } from "./icons";
 import { slotPos } from "./geometry";
@@ -112,7 +113,7 @@ export function cartelConsignas(L: Lineup): string[] {
 export function cartelLayout(L: Lineup, sq: Squad, ch: Chem, match: string | CharlaMatch | null, seasonName: string): Cartel {
   const m = typeof match === "string" ? null : match;
   const matchShort = typeof match === "string" ? match : (match?.short ?? null);
-  const sys = L.freeMode ? "LIBRE" : L.formation;
+  const sys = L.freeMode ? "LIBRE" : systemDef(L.formation).label;
   const at = new Map<number, [number, number]>();
   const cromos: CartelCromo[] = [];
   L.slots.forEach((s, i) => {

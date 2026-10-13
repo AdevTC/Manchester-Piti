@@ -6,6 +6,7 @@
 import { useId } from "react";
 import { createPortal } from "react-dom";
 import type { FormationName } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import type { CondKey, CondRule, CondWhen, StyleId } from "../../../lib/tacticaSchemas";
 import { COND_KEYS, COND_WHEN, TACTICA_LIMITS } from "../../../lib/tacticaSchemas";
 import { Icon } from "./icons";
@@ -74,7 +75,7 @@ export function PhasePanel(p: PhasePanelProps) {
               <select id={uid + "sys"} value={p.off.formation} onChange={(e) => p.onOffSystem(e.target.value as FormationName)}>
                 {SYSTEMS.map((f) => (
                   <option key={f} value={f}>
-                    {f}
+                    {systemDef(f).label} · {systemDef(f).name}
                   </option>
                 ))}
               </select>

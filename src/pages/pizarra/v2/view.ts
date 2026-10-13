@@ -4,6 +4,7 @@
 // renderer and the rules are testable.
 import type { CSSProperties } from "react";
 import type { Lineup } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import { defaultTactics } from "../tactics";
 import { CAMS, depthScale, framePath, lineDepth, PRESS_BAND, proj, slotLabel, slotPos, slotZone, type CamName } from "./geometry";
 import { fits, formAria, galonesOf, natOf, rtTxt, type Squad } from "./model";
@@ -360,7 +361,7 @@ export function mediaOf(L: Lineup, sq: Squad): number {
 }
 
 export function hud(L: Lineup, sq: Squad, ch: Chem, fx: Fx, rm: boolean, match: { short: string; date: string } | null): Hud {
-  const sysName = L.freeMode ? "LIBRE" : L.formation;
+  const sysName = L.freeMode ? "LIBRE" : systemDef(L.formation).label;
   const v = ch.v;
   const [tier] = tierOf(v);
   const qUp = fx.from && fx.q0 != null && v > fx.q0 ? v - fx.q0 : 0;

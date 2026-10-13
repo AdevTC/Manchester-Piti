@@ -5,6 +5,7 @@
 // go out. Besides another board, the board can face «El siete que jugó» (or the convocatoria's siete) of
 // its match. Pure.
 import type { Lineup, Zone } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import { CAMS, proj, slotPos, slotZone, type CamName } from "./geometry";
 import { matchShort, type CalMatch } from "./boards";
 import { GALONES, type Squad } from "./model";
@@ -48,7 +49,7 @@ export function tape(A: Lineup, B: Lineup, sq: Squad): TapeRow[] {
   const num = (k: string, a: number, b: number, show: (n: number) => string | number = (n) => n): TapeRow => ({ k, a: show(a), b: show(b), ca: a > b ? "w" : "", cb: b > a ? "w" : "" });
   return [
     num("Química", chem(A, sq).v, chem(B, sq).v),
-    { k: "Sistema", a: A.freeMode ? "Libre" : A.formation, b: B.freeMode ? "Libre" : B.formation, ca: "", cb: "" },
+    { k: "Sistema", a: A.freeMode ? "Libre" : systemDef(A.formation).label, b: B.freeMode ? "Libre" : systemDef(B.formation).label, ca: "", cb: "" },
     num("Media", meanForm(A, sq), meanForm(B, sq)),
     num("Minutos del siete", sevenMinutes(A, sq), sevenMinutes(B, sq), (n) => n.toLocaleString("es-ES") + "′"),
     num("En su posición", naturalCount(A, sq), naturalCount(B, sq), (n) => n + "/7"),

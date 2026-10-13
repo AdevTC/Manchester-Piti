@@ -14,6 +14,7 @@
 // read-only boards included. One 3D stadium serves the intro, the charla and the jugadas.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { FormationName, Lineup } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
 import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
 import { chemOf, tierOf } from "./quimica";
@@ -673,7 +674,7 @@ export function Board(props: BoardProps) {
     if (cele) {
       buzz([30, 60, 30, 60, 120]);
       snd("crowd");
-      announce("¡Siete listo! " + (next.freeMode ? "Libre" : next.formation));
+      announce("¡Siete listo! " + (next.freeMode ? "Libre" : systemDef(next.formation).label));
     }
   };
 
@@ -1577,7 +1578,7 @@ export function Board(props: BoardProps) {
   const wantNow = can3d && (intro3d || charlaOn || (want3d && rpl.playing));
   const keep3d = useStadiumMount(can3d, wantNow);
   if (!keep3d && ready3d) setReady3d(false);
-  const led3d = ["Manchester Piti", "Sistema " + (L.freeMode ? "libre" : L.formation), "Química " + ch.v, props.match?.short ?? "", "Vamos Piti"].filter(Boolean);
+  const led3d = ["Manchester Piti", "Sistema " + (L.freeMode ? "libre" : systemDef(L.formation).label), "Química " + ch.v, props.match?.short ?? "", "Vamos Piti"].filter(Boolean);
   const heroId = chKind === "siete" ? chSlots[chl.step - 1] : null;
   let shot: Shot;
   if (intro3d) shot = intro.phase === "run" ? { kind: "intro", players: engineSeven(L, sq, props.meId) } : { kind: "hold" };
@@ -2661,7 +2662,7 @@ export function Board(props: BoardProps) {
             onReset={() => {
               if (!canEdit) return;
               commit(resetFree(L));
-              say("Posiciones del sistema " + L.formation);
+              say("Posiciones del sistema " + systemDef(L.formation).label);
             }}
           />
         )}

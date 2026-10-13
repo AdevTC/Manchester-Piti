@@ -2,6 +2,7 @@
 // seven on a pitch (top view: their spots as the board draws them), the bench, the consignas, the cambios
 // by tandas, the lanzadores and what we know of the rival. Pure; PrintPlan.tsx lays it out.
 import type { Lineup } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import { slotLabel, slotPos } from "./geometry";
 import type { Squad } from "./model";
 import { tacRows } from "./plan";
@@ -63,14 +64,14 @@ export function printView(L: Lineup, sq: Squad, o: PrintInput): PrintView {
   const riv = L.rival ?? null;
   return {
     title: o.name,
-    sub: [o.match, L.freeMode ? "Libre" : L.formation].filter(Boolean).join(" · "),
+    sub: [o.match, L.freeMode ? "Libre" : systemDef(L.formation).label].filter(Boolean).join(" · "),
     seven,
     empty: L.slots.length - seven.length,
     bench,
     consignas: tacRows(L).map((r) => ({ t: r.ct, d: r.cd })),
     tandas: wavesTxt(L.subs ?? [], name),
     takers,
-    rivalSys: riv ? riv.formation : null,
+    rivalSys: riv ? systemDef(riv.formation).label : null,
     rival: riv ? riv.players.flatMap((p, i) => (p.note ? [{ who: rivalName(riv, i), note: p.note }] : [])) : [],
   };
 }

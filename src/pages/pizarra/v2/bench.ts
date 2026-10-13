@@ -2,8 +2,8 @@
 // the four axes), the convocatoria's head (the counts, who is in doubt), the bench in three groups
 // (Banquillo · Sin convocar · Bajas) as FUT rows or cromos — with the targets that glow while a player
 // is in the hand — and the reparto de minutos. Pure.
-import type { FormationName, Lineup, Zone } from "../formations";
-import { FORM, slotZone } from "./geometry";
+import type { Lineup, Zone } from "../formations";
+import { slotZone } from "./geometry";
 import { bajaChip, bajaWords, formAria, rtTxt, type Cromo, type Squad } from "./model";
 import { tierDiamonds, type Chem } from "./quimica";
 import { matchShort, type CalMatch } from "./boards";
@@ -32,14 +32,6 @@ export function squadInfo(L: Lineup, sq: Squad, ch: Chem): SquadInfo {
   const t = tierDiamonds(ch.v);
   const bar = (k: SquadBar["k"], v: number): SquadBar => ({ k, v, cls: v >= 80 ? "hi" : v < 50 ? "lo" : "" });
   return { media, once: ch.n + "/7", dm: [0, 1, 2].map((i) => i < t), bars: [bar("ATA", ch.at), bar("DEF", ch.de), bar("FOR", ch.fo), bar("EXP", ch.ex)] };
-}
-
-// ── the systems ──
-/** «3 DEF · 2 MED · 1 DEL». */
-export function sysLines(name: FormationName): string {
-  const zs = FORM[name].map((f) => f[1]);
-  const n = (z: string) => zs.filter((x) => x === z).length;
-  return n("DEF") + " DEF · " + n("MED") + " MED · " + n("DEL") + " DEL";
 }
 
 // ── the convocatoria ──

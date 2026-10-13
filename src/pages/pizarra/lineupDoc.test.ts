@@ -100,3 +100,11 @@ describe("lineup document: drawings and jugadas", () => {
     expect(d.drawings[0].points[0].x).toBe(10);
   });
 });
+
+describe("lineup document: the 15 systems", () => {
+  it("a board saved with a new system keeps it; an unknown id still falls back to 2-3-1", () => {
+    const data = json(lineupToData(seedLineup("2-3-1", ["a"]), meta));
+    expect(extractLineup(dataToLineupDoc("x", { ...data, formation: "4-1-1" })).formation).toBe("4-1-1");
+    expect(extractLineup(dataToLineupDoc("y", { ...data, formation: "9-9-9" })).formation).toBe("2-3-1");
+  });
+});

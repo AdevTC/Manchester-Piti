@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { reportDroppedDoc } from "./docTelemetry";
+import { SYSTEM_IDS } from "./formations";
 
 /**
  * Firestore Timestamp-ish (tiene toMillis) o Date o número epoch.
@@ -194,7 +195,7 @@ export const LINEUP_LIMITS = {
   tactic: 40,
   playerPositions: 60,
 } as const;
-export const LINEUP_FORMATIONS = ["2-3-1", "3-2-1", "3-1-2", "2-1-3", "1-3-2", "2-1-2-1"] as const;
+export const LINEUP_FORMATIONS = SYSTEM_IDS;
 export const LINEUP_ZONES = ["POR", "DEF", "MED", "DEL"] as const;
 const lineupRef = z.string().min(1).max(LINEUP_LIMITS.id);
 /** Coordenada del campo en %: un número fuera de 0–100 se lleva al borde. */

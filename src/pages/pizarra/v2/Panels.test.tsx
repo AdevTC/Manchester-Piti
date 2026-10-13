@@ -144,17 +144,17 @@ describe("«Siete»", () => {
     expect(screen.getByRole("button", { name: /^Auto-colocar/ })).toBeDisabled();
   });
 
-  it("Sistema: the six systems and Libre as tiles with their lines, then the química in short", () => {
+  it("Sistema: the systems and Libre as tiles with their names, then the química in short", () => {
     const onSystem = vi.fn();
     const { container } = render(<SystemTab formation="2-3-1" free={false} grid={false} ro={false} ch={ch} sq={sq} onSystem={onSystem} onLibre={vi.fn()} onGrid={vi.fn()} onReset={vi.fn()} />);
     const tiles = within(screen.getByRole("group", { name: "Sistema de juego" })).getAllByRole("button");
-    expect(tiles.map((t) => t.querySelector("b")?.textContent)).toEqual(["2-3-1", "3-2-1", "3-1-2", "2-1-3", "1-3-2", "2-1-2-1", "Libre"]);
+    expect(tiles.map((t) => t.querySelector("b")?.textContent)).toEqual(["2-3-1", "2-1-2-1", "2-2-2", "2-2-1-1", "3-2-1", "3-1-2", "3-1-1-1", "4-1-1", "3-3", "2-1-3", "1-3-2", "1-2-3", "1-2-2-1", "1-1-2-1-1", "2-1-2-1", "Libre"]);
     expect(tiles[0]).toHaveAttribute("aria-pressed", "true");
-    expect(tiles[1].querySelector("small")).toHaveTextContent("3 DEF · 2 MED · 1 DEL");
-    expect(tiles[6].querySelector("small")).toHaveTextContent("a mano");
+    expect(tiles[1].querySelector("small")).toHaveTextContent("Rombo");
+    expect(tiles[15].querySelector("small")).toHaveTextContent("a mano");
     expect(tiles[1].querySelectorAll("circle")).toHaveLength(7);
     fireEvent.click(tiles[1]);
-    expect(onSystem).toHaveBeenCalledWith("3-2-1");
+    expect(onSystem).toHaveBeenCalledWith("2-1-2-1");
     expect(screen.getByRole("heading", { name: /^Química del siete · \d+ luc(es|z)$/ })).toBeInTheDocument();
     expect(container.querySelector(".qsum .sr")).toHaveTextContent(ch.v + " de 100");
     expect(container.querySelectorAll(".lines > div")).toHaveLength(3);
