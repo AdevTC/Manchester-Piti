@@ -50,6 +50,10 @@ describe("MapaPosiciones · editar", () => {
     expect(onChange).not.toHaveBeenCalled();
     expect(onRefuse).toHaveBeenCalledWith("Máximo 6 posiciones de «también»");
     expect(screen.getByRole("status")).toHaveTextContent("Máximo 6 posiciones de «también»");
+    const first = screen.getByRole("status").textContent;
+    fireEvent.click(screen.getByRole("button", { name: /^DC · / }));
+    expect(onRefuse).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("status").textContent).not.toBe(first); // re-announced
   });
 
   it("uses a single tab stop and moves focus with the arrows", () => {
@@ -68,6 +72,28 @@ describe("MapaPosiciones · editar", () => {
     expect(screen.getByRole("button", { name: /^POR · / })).toHaveFocus();
     fireEvent.keyDown(document.activeElement as HTMLElement, { key: "End" });
     expect(screen.getByRole("button", { name: /^DC · / })).toHaveFocus();
+  });
+
+  it("leaves arrows and Home/End with a modifier to the browser", () => {
+    render(<MapaPosiciones label="Mapa" value={set} onChange={() => {}} />);
+    const mc = screen.getByRole("button", { name: /^MC · / });
+    mc.focus();
+    for (const mod of [{ altKey: true }, { ctrlKey: true }, { metaKey: true }]) {
+      expect(fireEvent.keyDown(mc, { key: "ArrowUp", ...mod })).toBe(true); // not prevented
+      fireEvent.keyDown(mc, { key: "Home", ...mod });
+      expect(mc).toHaveFocus();
+    }
+    expect(fireEvent.keyDown(mc, { key: "ArrowUp" })).toBe(false);
+  });
+
+  it("lifts the DFC hit area 1 % so it never overlaps LIB, keeping its dot in place", () => {
+    const { container } = render(<MapaPosiciones label="Mapa" value={set} onChange={() => {}} />);
+    const dfc = container.querySelector<HTMLElement>('[data-code="DFC"]');
+    expect(dfc?.style.top).toBe("75%");
+    expect(dfc?.style.getPropertyValue("--_pos-shift")).toBe("1.75cqw");
+    const lib = container.querySelector<HTMLElement>('[data-code="LIB"]');
+    expect(lib?.style.top).toBe("84%");
+    expect(lib?.style.getPropertyValue("--_pos-shift")).toBe("");
   });
 
   it("shows the legend and the one-line summary under the pitch", () => {
@@ -108,6 +134,12 @@ describe("MapaPosiciones · solo ver", () => {
         name: "Posiciones de Jordi. Preferida: Pivote (MCD). También: Mediocentro (MC), Central (DFC).",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("hides the legend and summary from screen readers (the image label already says it all)", () => {
+    const { container } = render(<MapaPosiciones label="Mapa" value={set} />);
+    expect(container.querySelector(".pos-legend")).toHaveAttribute("aria-hidden", "true");
+    expect(container.querySelector(".pos-summary")).toHaveAttribute("aria-hidden", "true");
   });
 
   it("still draws every state", () => {

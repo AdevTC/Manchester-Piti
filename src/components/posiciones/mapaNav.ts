@@ -6,6 +6,15 @@ import { proposalDiff } from "../../lib/positionsEdit";
 /** Height / width of the drawn pitch (portrait). The CSS aspect-ratio (4 / 7) must match. */
 export const PITCH_ASPECT = 7 / 4;
 
+/** Smallest pitch width (px) the host may give the map at size m and still get ≥ 44 px targets. */
+export const MIN_PITCH_WIDTH = 280;
+/** Height of every hit area, in % of the pitch height (CSS: 9 % × 7/4 = 15.75cqw of the pitch width). */
+export const HIT_BAND = 9;
+/** DFC and LIB are only 8 % apart: DFC's hit area moves up 1 % (its dot stays put) so the bands touch, not overlap. */
+export const HIT_NUDGE: Partial<Record<PosCode, number>> = { DFC: -1 };
+/** Vertical centre of a spot's hit area, in % of the pitch height. */
+export const hitCentre = (code: PosCode): number => POSITIONS[code].y + (HIT_NUDGE[code] ?? 0);
+
 export type Direction = "up" | "down" | "left" | "right";
 export type SpotState = "preferida" | "también" | "nada";
 

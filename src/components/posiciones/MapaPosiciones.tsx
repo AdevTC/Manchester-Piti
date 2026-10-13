@@ -1,11 +1,13 @@
 // «Mapa de posiciones»: a portrait F7 mini-pitch (our goal at the bottom) with the 13 spots. Read-only
 // when there is no onChange (an image with its full description); otherwise every spot is a button that
 // cycles nada → también → preferida. `compare` marks what changed against a reference (captain's review).
-// Themed only through --pos-* custom properties set by the host (defaults suit a dark navy background).
-import { useRef, useState, type KeyboardEvent } from "react";
+// Themed only through the --pos-* tokens, which the host may set on ANY ancestor (wrapper, [data-theme],
+// :root) or on the map via className; the defaults suit a dark navy background. Size m needs a pitch
+// ≥ MIN_PITCH_WIDTH (280 px) for 44 px targets.
+import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { POSITIONS, POS_CODES, type PosCode, type PositionSet } from "../../lib/positions";
 import { cyclePosition, proposalDiff } from "../../lib/positionsEdit";
-import { DEFAULT_EMPTY, fullText, nearestSpot, spotState, stateWord, summaryText, type Direction, type SpotState } from "./mapaNav";
+import { DEFAULT_EMPTY, HIT_NUDGE, PITCH_ASPECT, fullText, hitCentre, nearestSpot, spotState, stateWord, summaryText, type Direction, type SpotState } from "./mapaNav";
 import "../../styles/posiciones.css";
 
 export const REFUSE_MESSAGE = "Máximo 6 posiciones de «también»";
@@ -28,6 +30,15 @@ export interface MapaPosicionesProps {
 
 const KEY_DIR: Record<string, Direction> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
 const STATE_ATTR: Record<SpotState, string> = { preferida: "preferida", también: "tambien", nada: "nada" };
+
+/** Where the hit area goes: at the spot, except a nudged one (DFC), whose dot shifts back onto its real place. */
+function spotStyle(code: PosCode): CSSProperties {
+  const p = POSITIONS[code];
+  const style: CSSProperties & Record<`--${string}`, string> = { left: `${p.x}%`, top: `${hitCentre(code)}%` };
+  const nudge = HIT_NUDGE[code];
+  if (nudge) style["--_pos-shift"] = `${-nudge * PITCH_ASPECT}cqw`; // 1 % of the height = 1.75 % of the width
+  return style;
+}
 
 function PitchLines() {
   // 40 × 70 = the 4 / 7 aspect of .pos-pitch; y grows towards our goal (bottom).
@@ -85,6 +96,7 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
   };
 
   const onKeyDown = (code: PosCode, e: KeyboardEvent) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return; // browser / AT shortcuts
     const dir = KEY_DIR[e.key];
     if (dir) moveTo(nearestSpot(code, dir) ?? code, e);
     else if (e.key === "Home") moveTo(POS_CODES[0], e);
@@ -120,7 +132,7 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
       "data-state": STATE_ATTR[state],
       "data-side": p.side,
       "data-diff": change ?? undefined,
-      style: { left: `${p.x}%`, top: `${p.y}%` },
+      style: spotStyle(code),
     };
     if (!editable) {
       return (
@@ -162,7 +174,7 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
           {spots}
         </div>
       )}
-      <p className="pos-legend">
+      <p className="pos-legend" aria-hidden={editable ? undefined : true}>
         <span className="pos-legend-item">
           <span className="pos-legend-sym pos-legend-sym--pref" aria-hidden="true">★</span> Preferida
         </span>
@@ -186,7 +198,8 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
       {editable && (
         <p className="pos-sr" role="status">
           {live.text}
-          {live.n % 2 ? " " : ""}
+          {/* a trailing space on every other message, so the same text twice is still a change to announce */}
+          {live.n % 2 === 1 ? " " : ""}
         </p>
       )}
     </div>

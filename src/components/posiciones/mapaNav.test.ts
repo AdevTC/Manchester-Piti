@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { nearestSpot, spotState, summaryText, fullText } from "./mapaNav";
-import { POS_CODES, type PosCode } from "../../lib/positions";
+import { HIT_BAND, MIN_PITCH_WIDTH, PITCH_ASPECT, hitCentre, nearestSpot, spotState, summaryText, fullText } from "./mapaNav";
+import { POSITIONS, POS_CODES, type PosCode } from "../../lib/positions";
 
 describe("nearestSpot", () => {
   it("climbs the central spine one spot at a time", () => {
@@ -52,6 +52,30 @@ describe("nearestSpot", () => {
       }
     }
     expect([...seen].sort()).toEqual([...POS_CODES].sort());
+  });
+});
+
+describe("hit areas", () => {
+  it("keep every spot ≥ 44 px tall without overlapping, down to the smallest supported pitch", () => {
+    const width = MIN_PITCH_WIDTH;
+    const height = width * PITCH_ASPECT;
+    const hitW = 48; // --_pos-hit-w at size m (3rem)
+    expect((HIT_BAND / 100) * height).toBeGreaterThanOrEqual(44);
+    for (const a of POS_CODES) {
+      const ca = hitCentre(a);
+      expect(ca - HIT_BAND / 2).toBeGreaterThanOrEqual(0);
+      expect(ca + HIT_BAND / 2).toBeLessThanOrEqual(100);
+      for (const b of POS_CODES) {
+        if (a >= b) continue;
+        const apartX = (Math.abs(POSITIONS[a].x - POSITIONS[b].x) / 100) * width >= hitW;
+        const apartY = Math.abs(ca - hitCentre(b)) >= HIT_BAND;
+        expect(apartX || apartY, `${a}/${b}`).toBe(true);
+      }
+    }
+  });
+
+  it("keeps the nudged hit area over its dot", () => {
+    for (const code of POS_CODES) expect(Math.abs(hitCentre(code) - POSITIONS[code].y)).toBeLessThanOrEqual(2);
   });
 });
 
