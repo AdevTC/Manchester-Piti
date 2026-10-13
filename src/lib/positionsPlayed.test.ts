@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculateLedger, type MatchEvent } from "../../functions/src/matchEngine";
 import type { PosCode } from "../../functions/src/positions";
-import { positionsPlayed, type PositionEvents } from "../../functions/src/positionsPlayed";
+import { backfillPatch, positionFields, positionsPlayed, type PositionEvents } from "../../functions/src/positionsPlayed";
 
 // a POR · b DFC · c DFC · d MI · e MC · f MD · g DC (the 2-3-1 board); h, i, k on the bench.
 const STARTERS = ["a", "b", "c", "d", "e", "f", "g"];
@@ -202,5 +202,103 @@ describe("positionsPlayed (ha jugado de — minutos y acciones por posición des
     expect(rows.h.positionEvents).toEqual({ DC: { ...none, yellowCards: 1 } });
     // the one going off owns t only through the stint that ends there: his card at t is his DC too
     expect(rows.g.positionEvents).toEqual({ DC: { ...none, yellowCards: 1 } });
+  });
+});
+
+describe("positionFields (what saveMatchSheet stores on each ledger row)", () => {
+  it("omits empty maps and a false «estimado»", () => {
+    expect(positionFields({ positionsPlayed: {}, positionEvents: {}, positionsEstimated: false })).toEqual({});
+    expect(positionFields({ positionsPlayed: { DC: 20 }, positionEvents: {}, positionsEstimated: false })).toEqual({ positionsPlayed: { DC: 20 } });
+    expect(positionFields({ positionsPlayed: { DC: 20 }, positionEvents: { DC: { ...none, goals: 1 } }, positionsEstimated: true })).toEqual({
+      positionsPlayed: { DC: 20 },
+      positionEvents: { DC: { ...none, goals: 1 } },
+      positionsEstimated: true,
+    });
+  });
+});
+
+describe("backfillPatch (relleno de actas antiguas)", () => {
+  // the stored board behind BOARD: 2-3-1, slots in order a…g
+  const board = { formation: "2-3-1", freeMode: false, slots: STARTERS.map((playerId, i) => ({ playerId, x: 50, y: 10 + i * 10 })) };
+  type Patch = Record<string, unknown>;
+  type Doc = { ledger: Record<string, Record<string, unknown>>; events: MatchEvent[]; system?: string | null };
+  const matchOf = (events: MatchEvent[]): Doc => ({ ledger: structuredClone(play(events).players) as unknown as Doc["ledger"], events });
+  /** Applies a patch the way Firestore would (null deletes the field). */
+  const apply = (m: Doc, patch: Patch): Doc => {
+    const out = structuredClone(m);
+    for (const [k, v] of Object.entries(patch)) {
+      if (k === "system") {
+        out.system = v as string | null;
+        continue;
+      }
+      const [, pid, field] = k.split(".");
+      if (v === null) delete out.ledger[pid][field];
+      else out.ledger[pid][field] = v;
+    }
+    return out;
+  };
+
+  it("an old match with a board: exact minutes and actions per position, the system, nothing estimated", () => {
+    const events = [sub(20, "g", "h"), ev("goal", 35, "h", { assistPlayerId: "b" })];
+    const patch = backfillPatch(matchOf(events), board, MAINS);
+    expect(patch).not.toBeNull();
+    expect(patch!.system).toBe("2-3-1");
+    expect(patch!["ledger.g.positionsPlayed"]).toEqual({ DC: 20 });
+    expect(patch!["ledger.h.positionsPlayed"]).toEqual({ DC: 30 });
+    expect(patch!["ledger.h.positionEvents"]).toEqual({ DC: { ...none, goals: 1 } });
+    expect(patch!["ledger.b.positionEvents"]).toEqual({ DFC: { ...none, assists: 1 } });
+    expect(Object.keys(patch!).some((k) => k.endsWith(".positionsEstimated"))).toBe(false);
+    // the bench and empty maps are never written
+    expect(Object.keys(patch!).some((k) => k.startsWith("ledger.i.") || k.startsWith("ledger.k."))).toBe(false);
+    expect(patch!["ledger.g.positionEvents"]).toBeUndefined();
+  });
+
+  it("is idempotent: once applied, nothing changes", () => {
+    const events = [sub(20, "g", "h"), ev("goal", 35, "h", { assistPlayerId: "b" })];
+    const m = matchOf(events);
+    const once = apply(m, backfillPatch(m, board, MAINS)!);
+    expect(backfillPatch(once, board, MAINS)).toBeNull();
+    const estimated = apply(m, backfillPatch(m, null, MAINS)!);
+    expect(backfillPatch(estimated, null, MAINS)).toBeNull();
+  });
+
+  it("without a board: mains, «estimado» and system null", () => {
+    const patch = backfillPatch(matchOf([]), null, MAINS);
+    expect(patch!.system).toBeNull();
+    expect(patch!["ledger.b.positionsPlayed"]).toEqual({ LI: 50 });
+    expect(patch!["ledger.b.positionsEstimated"]).toBe(true);
+  });
+
+  it("a free-mode board is «libre»", () => {
+    expect(backfillPatch(matchOf([]), { ...board, freeMode: true }, MAINS)!.system).toBe("libre");
+  });
+
+  it("stale keys are removed (null) when the data no longer supports them", () => {
+    const m = matchOf([]);
+    const estimated = apply(m, backfillPatch(m, null, MAINS)!);
+    // a board appeared since: exact codes replace the estimates and «estimado» goes
+    const patch = backfillPatch(estimated, board, MAINS)!;
+    expect(patch["ledger.b.positionsPlayed"]).toEqual({ DFC: 50 });
+    expect(patch["ledger.b.positionsEstimated"]).toBeNull();
+    expect(patch.system).toBe("2-3-1");
+    // and with no data at all, every stored key goes
+    const gone = backfillPatch(estimated, null, {})!;
+    expect(gone["ledger.b.positionsPlayed"]).toBeNull();
+    expect(gone["ledger.b.positionsEstimated"]).toBeNull();
+  });
+
+  it("nothing to say (no board, no mains, nothing stored): null; an absent system counts as null", () => {
+    expect(backfillPatch(matchOf([]), null, {})).toBeNull();
+    expect(backfillPatch({ ...matchOf([]), system: null }, null, {})).toBeNull();
+  });
+
+  it("a stored system without a board now goes back to null", () => {
+    const patch = backfillPatch({ ...matchOf([]), system: "2-3-1" }, null, {});
+    expect(patch).toEqual({ system: null });
+  });
+
+  it("an old match with no ledger or events does not crash", () => {
+    expect(backfillPatch({}, board, MAINS)).toEqual({ system: "2-3-1" });
+    expect(backfillPatch({ ledger: null, events: null }, null, MAINS)).toBeNull();
   });
 });

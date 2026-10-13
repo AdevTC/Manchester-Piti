@@ -775,8 +775,69 @@ assert.equal(totalOf(liveIds[7]).goals, 1);
 assert.equal(totalOf(liveIds[7]).played, 1);
 assert.equal(totalOf(liveIds[1]).minutes, 50);
 checked += 14;
+// «Ha jugado de»: the published acta stores each one's minutes and actions by exact position and the
+// system of the match's official board; without one (or with only the season's) it estimates by
+// each player's preferred position and the system is null.
+const posSeason = "pos-season-" + suffix;
+const posMatchId = "pos-match-" + suffix;
+const posIds = Array.from({ length: 10 }, (_, i) => `pos-player-${suffix}-${i}`);
+const posMains = ["POR", "LI", "LD", "MD", "MCO", "MI", "EI", "ED", "MCD", null];
+await db.doc(`seasons/${posSeason}`).set({ name: "Posiciones integration" });
+await Promise.all(posIds.map((playerId, i) => db.doc(`players/${playerId}`).set({
+  firstName: playerId, seasons: [posSeason], ...(posMains[i] ? { positions: { main: posMains[i], also: [] } } : {}),
+})));
+const posBoard = "pos-board-" + suffix;
+await db.doc("lineups/" + posBoard).set({
+  ownerUid: admin.uid, ownerNickname: adminName, seasonId: posSeason, name: "Oficial " + suffix, isOfficial: false, matchId: null,
+  formation: "2-3-1", freeMode: false, slots: posIds.slice(0, 7).map((playerId, i) => ({ playerId, x: 50, y: 10 + i * 10 })),
+  bench: [], roles: {}, tactics: {}, playerPositions: {}, pinned: [], drawings: [], plays: [],
+});
+await db.doc("lineups/" + posBoard).update({ isOfficial: true, matchId: posMatchId });
+await db.doc(`lineupOfficials/${posSeason}__${posMatchId}`).set({ lineupId: posBoard, seasonId: posSeason, matchId: posMatchId, at: Timestamp.now() });
+const posSheet = {
+  ...sheet, seasonId: posSeason, revision: 0, status: "finished", date: Date.now() - 3 * 3600000,
+  starters: posIds.slice(0, 7), bench: posIds.slice(7, 9), notCalled: [posIds[9]], goalsFor: 1, goalsAgainst: 0,
+  // the punta (slot 6, DC) goes off at 20; the substitute scores at 35 from the left-back's pass
+  events: [
+    { id: "pos-change", type: "substitution", minute: 20, playerId: posIds[6], inPlayerId: posIds[7] },
+    { id: "pos-goal", type: "goal", minute: 35, playerId: posIds[7], assistPlayerId: posIds[1] },
+  ],
+};
+const none = { goals: 0, assists: 0, yellowCards: 0, redCards: 0 };
+await ok("saveMatchSheet", admin, { id: posMatchId, sheet: posSheet });
+let posDoc = (await db.doc("matches/" + posMatchId).get()).data();
+assert.equal(posDoc.system, "2-3-1");
+assert.deepEqual(posDoc.ledger[posIds[6]].positionsPlayed, { DC: 20 });
+assert.deepEqual(posDoc.ledger[posIds[7]].positionsPlayed, { DC: 40 });
+assert.deepEqual(posDoc.ledger[posIds[7]].positionEvents, { DC: { ...none, goals: 1 } });
+assert.deepEqual(posDoc.ledger[posIds[1]].positionsPlayed, { DFC: 60 });
+assert.deepEqual(posDoc.ledger[posIds[1]].positionEvents, { DFC: { ...none, assists: 1 } });
+// nothing estimated, no empty maps, and the bench keeps no position keys
+assert.equal(Object.values(posDoc.ledger).some((r) => "positionsEstimated" in r), false);
+assert.equal("positionEvents" in posDoc.ledger[posIds[6]], false);
+assert.equal("positionsPlayed" in posDoc.ledger[posIds[8]], false);
+// the season totals only sum numbers: the maps never reach them
+const posTotals = (await db.collection("playerSeasonStats").where("seasonId", "==", posSeason).get()).docs.find((d) => d.get("playerId") === posIds[7]).get("totals");
+assert.equal(posTotals.minutes, 40);
+assert.equal("positionsPlayed" in posTotals, false);
+checked += 11;
+// Without the match's board (the season's official does not count): estimated by preferred position.
+await db.doc("lineups/" + posBoard).update({ matchId: null });
+await db.doc(`lineupOfficials/${posSeason}__${posMatchId}`).delete();
+await db.doc(`lineupOfficials/${posSeason}__temporada`).set({ lineupId: posBoard, seasonId: posSeason, matchId: null, at: Timestamp.now() });
+await ok("saveMatchSheet", admin, { id: posMatchId, sheet: { ...posSheet, revision: posDoc.revision } });
+posDoc = (await db.doc("matches/" + posMatchId).get()).data();
+assert.equal(posDoc.system, null);
+assert.deepEqual(posDoc.ledger[posIds[1]].positionsPlayed, { LI: 60 });
+assert.equal(posDoc.ledger[posIds[1]].positionsEstimated, true);
+assert.deepEqual(posDoc.ledger[posIds[7]].positionsPlayed, { EI: 40 });
+assert.deepEqual(posDoc.ledger[posIds[7]].positionEvents, { EI: { ...none, goals: 1 } });
+assert.equal(posDoc.ledger[posIds[7]].positionsEstimated, true);
+checked += 6;
+await db.doc("lineups/" + posBoard).delete();
+await db.doc(`lineupOfficials/${posSeason}__temporada`).delete();
 console.log(
   checked +
-    " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos, disponibilidad, avisos del siete, perfil y convocatoria.",
+    " comprobaciones de integración correctas: acceso, límites, borradores, actas, minutos, revisiones, acumulados, votos, disponibilidad, avisos del siete, perfil, convocatoria y posiciones jugadas.",
 );
 await db.terminate();

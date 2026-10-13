@@ -1,6 +1,7 @@
 // «Ha jugado de»: de un acta publicada (su ledger y sus eventos) y de la pizarra oficial del partido,
 // cuántos minutos jugó cada uno en cada posición exacta y qué goles, asistencias y tarjetas vinieron
 // de ahí. Puro: lo usan saveMatchSheet, el relleno de actas antiguas y sus tests.
+import { boardCodeByPlayer, boardSystem, type BoardLike } from "./boardCodes.js";
 import type { MatchEvent, Participation } from "./matchEngine.js";
 import type { PosCode } from "./positions.js";
 
@@ -145,4 +146,60 @@ export function positionsPlayed(
     } else if (e.type === "red_card") bump(e.playerId, t, "redCards");
   }
   return rows;
+}
+
+/** What a ledger row stores from a {@link PositionsRow}: empty maps and a false «estimado» are left out. */
+export function positionFields(row: PositionsRow): Pick<Participation, "positionsPlayed" | "positionEvents" | "positionsEstimated"> {
+  return {
+    ...(Object.keys(row.positionsPlayed).length ? { positionsPlayed: row.positionsPlayed } : {}),
+    ...(Object.keys(row.positionEvents).length ? { positionEvents: row.positionEvents } : {}),
+    ...(row.positionsEstimated ? { positionsEstimated: true as const } : {}),
+  };
+}
+
+const POSITION_KEYS = ["positionsPlayed", "positionEvents", "positionsEstimated"] as const;
+
+/** Key-order-independent equality for the plain values stored here (absent ≡ null). */
+function same(a: unknown, b: unknown): boolean {
+  if (a === undefined || a === null || b === undefined || b === null) return (a ?? null) === (b ?? null);
+  if (typeof a !== "object" || typeof b !== "object") return a === b;
+  const ka = Object.keys(a).filter((k) => (a as Record<string, unknown>)[k] !== undefined);
+  const kb = Object.keys(b).filter((k) => (b as Record<string, unknown>)[k] !== undefined);
+  return ka.length === kb.length && ka.every((k) => same((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+}
+
+/** A stored match as the backfill reads it: anything may be missing on an old acta. */
+export interface BackfillMatch {
+  ledger?: Record<string, unknown> | null;
+  events?: unknown;
+  system?: unknown;
+}
+
+/**
+ * The update that brings a stored finished match to what saveMatchSheet would store today:
+ * `ledger.<pid>.<key>` for each of the three position keys that differs (null = delete the field) and
+ * `system`, or null when nothing changes — so a second run writes nothing.
+ */
+export function backfillPatch(
+  match: BackfillMatch,
+  board: BoardLike | null,
+  mains: Record<string, PosCode | null>,
+): Record<string, unknown> | null {
+  const ledger: Record<string, Record<string, unknown>> = {};
+  for (const [pid, row] of Object.entries(match.ledger ?? {}))
+    if (row && typeof row === "object") ledger[pid] = row as Record<string, unknown>;
+  const events = Array.isArray(match.events) ? (match.events as EventLike[]).filter((e) => e && typeof e === "object") : [];
+  const rows = positionsPlayed(ledger as unknown as Record<string, LedgerRow>, events, {
+    board: board ? boardCodeByPlayer(board) : null,
+    main: mains,
+  });
+  const patch: Record<string, unknown> = {};
+  for (const [pid, stored] of Object.entries(ledger)) {
+    const want: Record<string, unknown> = rows[pid] ? positionFields(rows[pid]) : {};
+    for (const key of POSITION_KEYS)
+      if (!same(stored[key], want[key])) patch[`ledger.${pid}.${key}`] = want[key] ?? null;
+  }
+  const system = board ? boardSystem(board) : null;
+  if (Object.keys(patch).length === 0 && same(match.system, system)) return null;
+  return { ...patch, system };
 }
