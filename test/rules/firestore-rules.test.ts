@@ -200,6 +200,57 @@ describe("Sanciones a mano (players)", () => {
     await assertSucceeds(setDoc(doc(db("admin"), "players", "nuevo3"), { shirtName: "NUEVO", sanction: sanction() }));
   });
 });
+describe("Posiciones: propuesta del jugador y aprobación", () => {
+  const ref = (uid: string, id = "erik") => doc(db(uid), "players", id);
+  const set = (main: string | null, also: string[] = []) => ({ main, also });
+  beforeEach(async () => {
+    await seed("users/member", { email: "member@test.dev", nickname: "member", role: "user", playerId: "erik" });
+    await seed("players/erik", { shirtName: "ERIK", naturalPosition: "DEF" });
+    await seed("players/otro", { shirtName: "OTRO" });
+  });
+  it("el jugador propone las suyas (y puede retirarlas)", async () => {
+    await assertSucceeds(updateDoc(ref("member"), { positionsProposal: { ...set("LD", ["MD", "DFC"]), at: serverTimestamp() } }));
+    await assertSucceeds(updateDoc(ref("member"), { positionsProposal: null }));
+  });
+  it("no puede proponer por otro, ni tocar otro campo, ni aprobarse", async () => {
+    await assertFails(updateDoc(ref("member", "otro"), { positionsProposal: { ...set("MC"), at: serverTimestamp() } }));
+    await assertFails(updateDoc(ref("member"), { positionsProposal: { ...set("MC"), at: serverTimestamp() }, shirtName: "YO" }));
+    await assertFails(updateDoc(ref("member"), { positions: set("MC") }));
+    await assertFails(updateDoc(ref("other"), { positionsProposal: { ...set("MC"), at: serverTimestamp() } }));
+  });
+  it("una propuesta mal formada se rechaza", async () => {
+    for (const bad of [
+      { ...set("XX"), at: serverTimestamp() },
+      { ...set("MC", ["MC"]), at: serverTimestamp() },
+      { ...set("MC", ["MI", "MI"]), at: serverTimestamp() },
+      { ...set("MC", ["POR", "DFC", "LIB", "LI", "LD", "MCD", "MI"]), at: serverTimestamp() },
+      { ...set("MC"), at: 5 },
+      { ...set("MC"), at: serverTimestamp(), extra: 1 },
+      { main: "MC", at: serverTimestamp() },
+    ])
+      await assertFails(updateDoc(ref("member"), { positionsProposal: bad }));
+  });
+  it("el admin aprueba: positions + revisión firmada + propuesta a null", async () => {
+    await assertSucceeds(
+      updateDoc(ref("admin"), {
+        positions: set("LD", ["MD"]),
+        naturalPosition: "DEF",
+        positionsProposal: null,
+        positionsReview: { status: "aprobada", at: serverTimestamp(), by: "admin" },
+      }),
+    );
+    await assertFails(updateDoc(ref("admin"), { positions: set("LD", ["LD"]) }));
+    await assertFails(updateDoc(ref("admin"), { positionsReview: { status: "aprobada", at: serverTimestamp(), by: "otro" } }));
+    await assertFails(updateDoc(ref("admin"), { positionsReview: { status: "quizá", at: serverTimestamp(), by: "admin" } }));
+  });
+  it("el admin cambia la línea (merge, main a null) y crea fichas con o sin posiciones válidas", async () => {
+    await assertSucceeds(setDoc(ref("admin"), { naturalPosition: "MED", positions: set(null, ["MD"]) }, { merge: true }));
+    await assertSucceeds(setDoc(doc(db("admin"), "players", "nuevo"), { shirtName: "NUEVO" }));
+    await assertSucceeds(setDoc(doc(db("admin"), "players", "nuevo2"), { shirtName: "NUEVO", positions: set("DC") }));
+    await assertFails(setDoc(doc(db("admin"), "players", "nuevo3"), { shirtName: "NUEVO", positions: { ...set("DC"), extra: 1 } }));
+    await assertFails(setDoc(doc(db("admin"), "players", "nuevo4"), { shirtName: "NUEVO", positions: "DC" }));
+  });
+});
 
 describe("Vestuario e identidad", () => {
   it("solo se puede consultar el propio acceso", async () => {
