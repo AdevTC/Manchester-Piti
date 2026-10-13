@@ -4,22 +4,19 @@ test("Google permite votar una vez por cuenta y cambiar el voto", async ({
   page,
 }) => {
   await enterVestuario(page);
-  const first = (await page.getByRole("radio", { name: /Hugo/ }).isChecked())
-    ? /Mario/
-    : /Hugo/;
-  await page.getByRole("radio", { name: first }).check();
-  await page
-    .getByRole("button", { name: /Votar al MVP|Cambiar mi voto/ })
-    .click();
-  await expect(page.getByText("Voto guardado")).toBeVisible();
-  await page
-    .getByRole("radio", { name: first.source === "Hugo" ? /Mario/ : /Hugo/ })
-    .check();
-  await page.getByRole("button", { name: "Cambiar mi voto" }).click();
-  await expect(page.getByText("Voto guardado")).toBeVisible();
-  await expect(
-    page.getByText("1 voto del equipo", { exact: true }),
-  ).toBeVisible();
+  // The MVP block votes on the last finished match, whoever played it (the functions suites add their own
+  // matches to the same emulator): two of its candidates, whichever they are.
+  const mvp = page.locator("section", { has: page.getByRole("heading", { name: "El MVP" }) });
+  const radios = mvp.getByRole("radio");
+  await expect(radios.nth(1)).toBeVisible();
+  const [first, second] = (await radios.nth(0).isChecked()) ? [radios.nth(1), radios.nth(0)] : [radios.nth(0), radios.nth(1)];
+  await first.check();
+  await mvp.getByRole("button", { name: /Votar al MVP|Cambiar mi voto/ }).click();
+  await expect(mvp.getByText("Voto guardado")).toBeVisible();
+  await second.check();
+  await mvp.getByRole("button", { name: "Cambiar mi voto" }).click();
+  await expect(mvp.getByText("Voto guardado")).toBeVisible();
+  await expect(mvp.getByText("1 voto del equipo", { exact: true })).toBeVisible();
 });
 
 // ── /admin/partidos (admin v2 «Sala de control»): «Nuevo partido» (modal) → the match workspace (Encuentro ·
@@ -89,14 +86,14 @@ test("el borrador se guarda sin modificar el encuentro público", async ({ page 
 test("el acta: convocatoria en Convocar, gol con «¿Quién marcó?» y publicar cuando cuadra → la vitrina", async ({ page }) => {
   await openPartidos(page);
   const rival = `Acta E2E ${Date.now()}`;
-  const id = await nuevoPartido(page, { rival, date: madridDay(-1), time: "10:00", venue: "Campo de pruebas" });
-  // The field was just typed: save it (leaving with unsaved changes rightly asks «¿Salir sin guardar?»).
-  await footer(page).getByRole("button", { name: "Guardar borrador" }).click();
-  await expect(footer(page).getByText(/^Guardado .* · hora de Madrid$/)).toBeVisible();
-  // Played yesterday without its seven: the Convocatoria tab sends to Convocar (the one convocatoria).
-  // (Convocar's markup is phase V1b's: a row per player with «Siete» / «Banq.».)
+  // The shared clock needs it in the calendar: scheduled for tomorrow, published, then played now.
+  const id = await nuevoPartido(page, { rival, date: madridDay(1), time: "10:00", venue: "Campo de pruebas" });
+  await footer(page).getByRole("button", { name: "Publicar en el calendario" }).click();
+  await expect(page.getByText(/publicado · ya sale en el calendario/)).toBeVisible();
+  // Nobody has whistled it yet, so it is still «por jugar»: the Convocatoria tab sends to Convocar (the one
+  // convocatoria). (Convocar's markup is phase V1b's: a row per player with «Siete» / «Banq.».)
   await page.getByRole("tab", { name: /Convocatoria/ }).click();
-  await page.getByRole("button", { name: "Completarla en Convocar" }).click();
+  await page.getByRole("button", { name: "Cambiarla en Convocar" }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/convocar\\?j=${id}`));
   // Each tap writes the convocatoria (serialized, last one wins): wait until none is still travelling before
   // leaving the page (a reload would cut the last write — the app asks first, rightly).
@@ -109,15 +106,25 @@ test("el acta: convocatoria en Convocar, gol con «¿Quién marcó?» y publicar
   await expect.poll(() => inFlight, { timeout: 10_000 }).toBe(0);
   await page.waitForTimeout(400); // a queued write starts right after the previous one ends
   await expect.poll(() => inFlight, { timeout: 10_000 }).toBe(0);
+  // Played on the shared clock («En juego»): a match is «jugado» once it is whistled — the final sends to the acta.
+  await page.goto(`/admin/en-juego/${id}`);
+  const clock = page.getByRole("region", { name: "Reloj compartido del partido" });
+  for (const step of ["Iniciar partido · 1ª parte", "Terminar 1ª parte", "Iniciar 2ª parte", "Pitar el final"])
+    await clock.getByRole("button", { name: step }).click();
+  await clock.getByRole("group", { name: "Confirmar cambio del reloj" }).getByRole("button", { name: "Confirmar" }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/partidos/${id}\\?tab=acta`));
+  // Its acta says it was played yesterday (so the home's seeded last result stays the latest).
+  await page.getByRole("tab", { name: /Encuentro/ }).click();
+  await page.getByLabel("Fecha", { exact: true }).fill(madridDay(-1));
+  await page.getByRole("tab", { name: /^Acta/ }).click();
   // Acta: add the goal, name its scorer and its pass, then its minute.
-  await page.goto(`/admin/partidos/${id}?tab=acta`);
   await page.getByRole("button", { name: "Gol del Piti" }).click();
   const picker = page.getByRole("dialog", { name: "¿Quién marcó?" });
   await expect(picker).toBeVisible();
   await picker.getByRole("button", { name: "Mario marcó el gol 1" }).click();
   await page.getByRole("dialog", { name: "¿Quién le dio el pase?" }).getByRole("button", { name: "Pase de Pablo" }).click();
   await expect(footer(page).getByText("No cuadra: falta el minuto del gol 1")).toBeVisible();
-  await page.getByLabel("Minuto del gol 1", { exact: true }).fill("12");
+  await page.getByLabel("Minuto del gol 1", { exact: true }).fill("0"); // whistled seconds after kick-off: only the 0′ fits
   await expect(footer(page).getByText("Cuadra · 1 gol, con goleador")).toBeVisible();
   await footer(page).getByRole("button", { name: "Publicar acta" }).click();
   // The publish peak: FINAL → the vitrina → the hand-off.
