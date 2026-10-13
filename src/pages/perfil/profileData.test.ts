@@ -4,11 +4,13 @@ import type { PlayerDoc } from "../../lib/schemas";
 import {
   accessInfo,
   boardsLine,
+  canSendPositions,
   convocatoriaLine,
   convocatoriaMatches,
   fichaInfo,
   monthYear,
   porraLine,
+  positionsInfo,
   resolveShirt,
   seasonPlayers,
   squadShirts,
@@ -132,5 +134,42 @@ describe("las posiciones viajan a la pizarra", () => {
     expect(byId.get("old")!.positions).toEqual({ main: "LD", also: [] });
     expect(byId.get("old")!.naturalPosition).toBe("DEF");
     expect(byId.get("nada")!.positions).toEqual({ main: null, also: [] });
+  });
+});
+
+describe("Tus posiciones: lo que dice la ficha vinculada", () => {
+  it("sin ficha (o sin documento): nada que enseñar", () => {
+    expect(positionsInfo(undefined)).toBeNull();
+  });
+  it("sin posiciones: vacío, sin propuesta, ninguna", () => {
+    expect(positionsInfo({ naturalPosition: "Defensa" })).toEqual({ approved: { main: null, also: [] }, proposal: null, state: "ninguna" });
+  });
+  it("aprobadas: las de positions (o el código del texto antiguo), con el estado de la última revisión", () => {
+    expect(positionsInfo({ positions: { main: "MCD", also: ["MC", "DFC"] }, positionsReview: { status: "aprobada", at: 1, by: "cap" } })).toEqual({
+      approved: { main: "MCD", also: ["MC", "DFC"] },
+      proposal: null,
+      state: "aprobada",
+    });
+    expect(positionsInfo({ naturalPosition: "Pivote" })?.approved).toEqual({ main: "MCD", also: [] });
+  });
+  it("pendiente: la propuesta, limpia (códigos raros fuera, la preferida no se repite)", () => {
+    const info = positionsInfo({ positions: { main: "DFC", also: [] }, positionsProposal: { main: "MCD", also: ["MCD", "XX", "MC"], at: 1 }, positionsReview: { status: "rechazada", at: 1 } });
+    expect(info).toEqual({ approved: { main: "DFC", also: [] }, proposal: { main: "MCD", also: ["MC"] }, state: "pendiente" });
+  });
+  it("ajustada y rechazada se leen de la revisión", () => {
+    expect(positionsInfo({ positions: { main: "MC", also: [] }, positionsProposal: null, positionsReview: { status: "ajustada", at: 1 } })?.state).toBe("ajustada");
+    expect(positionsInfo({ positionsProposal: null, positionsReview: { status: "rechazada", at: 1 } })?.state).toBe("rechazada");
+  });
+  it("«Enviar al capitán»: solo si hay algo marcado y es distinto de lo aprobado y de lo pendiente (sin importar el orden)", () => {
+    const approved = { main: "MCD" as const, also: ["MC" as const, "DFC" as const] };
+    const info = { approved, proposal: null, state: "aprobada" as const };
+    expect(canSendPositions({ main: "MCD", also: ["DFC", "MC"] }, info)).toBe(false);
+    expect(canSendPositions({ main: "MC", also: ["MCD", "DFC"] }, info)).toBe(true);
+    expect(canSendPositions({ main: null, also: [] }, info)).toBe(false);
+    const pending = { approved, proposal: { main: "DC" as const, also: [] }, state: "pendiente" as const };
+    expect(canSendPositions({ main: "DC", also: [] }, pending)).toBe(false);
+    expect(canSendPositions(approved, pending)).toBe(false);
+    expect(canSendPositions({ main: "DC", also: ["MCO"] }, pending)).toBe(true);
+    expect(canSendPositions({ main: null, also: ["MI"] }, { approved: { main: null, also: [] }, proposal: null, state: "ninguna" })).toBe(true);
   });
 });

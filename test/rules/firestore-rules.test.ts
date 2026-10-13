@@ -20,7 +20,7 @@ import {
 } from "firebase/firestore";
 import { beforeAll, beforeEach, afterAll, describe, it } from "vitest";
 import type { PosCode, PositionSet } from "../../src/lib/positions";
-import { positionsPayload, reviewPayload } from "../../src/lib/positionsEdit";
+import { positionsPayload, proposalPayload, reviewPayload } from "../../src/lib/positionsEdit";
 let env: RulesTestEnvironment;
 const db = (uid?: string) =>
   uid
@@ -219,6 +219,17 @@ describe("Posiciones: propuesta del jugador y aprobación", () => {
     await assertFails(updateDoc(ref("member"), { positionsProposal: { ...set("MC"), at: serverTimestamp() }, shirtName: "YO" }));
     await assertFails(updateDoc(ref("member"), { positions: set("MC") }));
     await assertFails(updateDoc(ref("other"), { positionsProposal: { ...set("MC"), at: serverTimestamp() } }));
+  });
+  // Perfil › «Tus posiciones» writes updateDoc(players/{id}, proposalPayload(set | null, serverTimestamp())).
+  it("lo que envía «Tus posiciones» del perfil: proposalPayload con updateDoc", async () => {
+    const pos = (main: PosCode | null, also: PosCode[] = []): PositionSet => ({ main, also });
+    await assertSucceeds(updateDoc(ref("member"), proposalPayload(pos("MCD", ["MC", "DFC"]), serverTimestamp())));
+    await assertSucceeds(updateDoc(ref("member"), proposalPayload(pos(null, ["MI"]), serverTimestamp())));
+    await assertSucceeds(updateDoc(ref("member"), proposalPayload(pos("DC", ["EI", "ED", "MCO", "MI", "MD", "MC"]), serverTimestamp())));
+    await assertSucceeds(updateDoc(ref("member"), proposalPayload(null, serverTimestamp())));
+    // dated by the client, or on someone else's ficha: refused
+    await assertFails(updateDoc(ref("member"), proposalPayload(pos("MCD"), Timestamp.now())));
+    await assertFails(updateDoc(ref("member", "otro"), proposalPayload(pos("MCD"), serverTimestamp())));
   });
   it("una propuesta mal formada se rechaza", async () => {
     for (const bad of [

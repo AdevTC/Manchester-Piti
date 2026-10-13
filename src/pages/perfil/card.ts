@@ -5,7 +5,7 @@
 import { dateMillis, isCompleted } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../lib/clubData";
 import { chronological, playerGame } from "../../lib/clubAnalytics";
-import { LINE_NAMES } from "../../lib/positions";
+import { LINE_NAMES, POSITIONS, type PosCode } from "../../lib/positions";
 import { resultOf } from "../../lib/partidos";
 import { bestPartner, mvpWinners, mvpWins, vitrina, type MvpResult } from "../../lib/vestuario";
 import { suspensions } from "../pizarra/chemistry";
@@ -164,7 +164,9 @@ export interface CardView {
   playerId: string | null;
   name: string;
   number: string;
-  pos: Zone | null;
+  /** What the card prints by the rating: the preferida's code («MCD») when known, else the line («MED»). */
+  pos: PosCode | Zone | null;
+  /** Its name («Pivote» / «Centrocampista»): the LED, the ficha line and the share images. */
   posLong: string | null;
   captain: boolean;
   rating: number | null;
@@ -352,8 +354,10 @@ export function buildCard(input: CardInput): CardView {
   /** The cromo whose numbers the card shows (vinculada, season started). */
   const shown = vinc && started ? me : undefined;
   const showNumbers = !!shown;
-  const pos = me?.pos ?? null;
-  const posLong = pos ? POSITION_LONG[pos] : null;
+  const main = me?.ps?.main ?? null;
+  const line = me?.pos ?? null;
+  const pos = main ?? line;
+  const posLong = main ? POSITIONS[main].name : line ? POSITION_LONG[line] : null;
   const name = me?.name ?? "";
   const number = me && me.num ? String(me.num) : "";
 

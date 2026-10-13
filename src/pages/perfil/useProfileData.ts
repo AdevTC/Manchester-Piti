@@ -31,6 +31,7 @@ import {
   convocatoriaMatches,
   fichaInfo,
   porraLine,
+  positionsInfo,
   seasonPlayers,
   squadShirts,
   type AccessInfo,
@@ -38,6 +39,7 @@ import {
   type BoardsLine,
   type ConvocatoriaLine,
   type PorraLine,
+  type PositionsInfo,
 } from "./profileData";
 import type { SquadShirt } from "./rules";
 import { upcomingRows, type UpcomingRow } from "./avisos";
@@ -79,6 +81,8 @@ export interface ProfileData {
   /** «En la espalda»: what you wear now and every other shirt (for «Ya la lleva el 9 (ERIK)»). */
   shirt: { current: string; number: string; squad: SquadShirt[]; fullName: string };
   card: CardView;
+  /** «Tus posiciones» (vinculada only, live: the captain's answer shows as it lands). */
+  positions: PositionsInfo | null;
   freeFichas: FreeFicha[];
   next: NextMatch | null;
   /** Avisos › Calendario: the next three matches to play. */
@@ -181,6 +185,8 @@ export function useProfileData(): ProfileData {
 
   const me = info.state === "vinculada" ? squadPlayers.find((p) => p.id === info.playerId) : undefined;
   const meDoc = me ? players.find((p) => p.id === me.id) : undefined;
+  // (the linked ficha's own doc, not the season squad's: a ficha of another season still has positions)
+  const fichaDoc = info.state === "vinculada" ? players.find((p) => p.id === info.playerId) : undefined;
   const createdAt = toMillis(profile?.createdAt);
   return {
     loading: authLoading || clubLoading || loadingSeasons || claim.loading || membership.loading,
@@ -197,6 +203,7 @@ export function useProfileData(): ProfileData {
     ficha: { ...info, claim: claim.data },
     shirt: { current: me?.shirtName || [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" "), number: me && me.number ? String(me.number) : "", squad: shirtSquad, fullName: [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" ") },
     card,
+    positions: positionsInfo(fichaDoc),
     freeFichas,
     next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: calendar.findIndex((m) => m.id === next.id) + 1 || null } : null,
     upcoming: upcomingRows(matches, minute),

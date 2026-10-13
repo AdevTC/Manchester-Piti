@@ -3,7 +3,8 @@
 import { isCompleted } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../lib/clubData";
 import type { PlayerDoc } from "../../lib/schemas";
-import { resolvePositions } from "../../lib/positions";
+import { resolvePositions, sanitizePositions, type PositionSet } from "../../lib/positions";
+import { proposalDiff, proposalState, type ProposalState } from "../../lib/positionsEdit";
 import { porraPosition } from "../../lib/vestuario";
 import type { SquadPlayer } from "../pizarra/v2/ratings";
 import type { FichaState } from "./card";
@@ -75,6 +76,29 @@ export function squadShirts(players: PlayerDoc[], seasonId: string, seasons: { i
       return { id: p.id, name: shirtName || [p.firstName, p.lastName].filter(Boolean).join(" "), number: number || null };
     })
     .filter((s) => !!s.name);
+}
+
+export interface PositionsInfo {
+  /** What the ficha says now (`positions`, else the code an old text names). */
+  approved: PositionSet;
+  /** The proposal waiting for the captain (cleaned), null = none. */
+  proposal: PositionSet | null;
+  state: ProposalState;
+}
+/** «Tus posiciones»: the linked ficha's positions, its pending proposal and how the last one went. */
+export function positionsInfo(doc: Pick<PlayerDoc, "positions" | "naturalPosition" | "positionsProposal" | "positionsReview"> | undefined): PositionsInfo | null {
+  if (!doc) return null;
+  const r = resolvePositions(doc);
+  return { approved: { main: r.main, also: r.also }, proposal: sanitizePositions(doc.positionsProposal), state: proposalState(doc) };
+}
+const samePositions = (a: PositionSet, b: PositionSet): boolean => {
+  const d = proposalDiff(a, b);
+  return !d.added.length && !d.removed.length && !d.mainChange;
+};
+/** «Enviar al capitán»: something marked, and not what the ficha already says nor what is already pending. */
+export function canSendPositions(draft: PositionSet, info: PositionsInfo): boolean {
+  if (!draft.main && !draft.also.length) return false;
+  return !samePositions(draft, info.approved) && !(info.proposal && samePositions(draft, info.proposal));
 }
 
 /** «sep 2026», in club time. */

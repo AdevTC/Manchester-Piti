@@ -289,3 +289,23 @@ describe("seasonSquad: las bajas de la pizarra", () => {
     expect(seasonSquad(lifted, season, "t1", new Map(), NOW).squad.byId.get("illescas")?.baja).toBeUndefined();
   });
 });
+
+describe("la carta lleva la posición exacta", () => {
+  const withPos = (positions: unknown): SquadPlayer[] => SQUAD.map((p) => (p.id === "adri" ? { ...p, naturalPosition: "MED", positions } : p));
+  it("con preferida: el código en la cara («MCD») y el nombre largo en el videomarcador («PIVOTE»)", () => {
+    const card = buildCard(input({ squad: withPos({ main: "MCD", also: ["MC"] }), matches: SEASON, mvpResults: MVP }));
+    expect(card.pos).toBe("MCD");
+    expect(card.posLong).toBe("Pivote");
+    expect(card.ticker.sr).toContain("DORSAL 10 · PIVOTE");
+  });
+  it("sin preferida: la línea, como siempre («MED», «CENTROCAMPISTA»)", () => {
+    const card = buildCard(input({ squad: withPos({ main: null, also: ["MC"] }), matches: SEASON }));
+    expect(card.pos).toBe("MED");
+    expect(card.posLong).toBe("Centrocampista");
+    expect(card.ticker.sr).toContain("CENTROCAMPISTA");
+  });
+  it("el portero sigue siendo «POR»", () => {
+    const card = buildCard(input({ playerId: "evans", matches: SEASON }));
+    expect(card.pos).toBe("POR");
+  });
+});

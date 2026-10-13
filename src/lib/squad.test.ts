@@ -15,6 +15,12 @@ describe("squadRow position", () => {
     expect(row({ id: "q", naturalPosition: "DEF" }).position).toBe("Defensa");
     expect(row({ id: "r", naturalPosition: "Banquillo" }).position).toBeUndefined();
   });
+  it("«También MC · DFC»: the other positions, only when there are any", () => {
+    expect(row({ id: "p", positions: { main: "MCD", also: ["MC", "DFC"] } }).also).toBe("MC · DFC");
+    expect(row({ id: "s", positions: { main: null, also: ["MI"] } }).also).toBe("MI");
+    expect(row({ id: "q", positions: { main: "MCD", also: [] } }).also).toBeUndefined();
+    expect(row({ id: "r", naturalPosition: "Pivote" }).also).toBeUndefined();
+  });
 });
 
 describe("squadRow", () => {

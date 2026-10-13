@@ -25,6 +25,7 @@ import { TabTemporada } from "./TabTemporada";
 import { deepHash, forgetDeepHash, hashOf, slideDir, tabFromHash, tabsFor, type TabId } from "./tabs";
 import { prefersReducedMotion, usePauseHidden, usePauseOffscreen, useReducedMotion, useTilt } from "./useMotion";
 import type { SetShirtNameResult } from "./api";
+import type { PositionSet } from "../../lib/positions";
 import type { ProfileData } from "./useProfileData";
 
 export interface ProfileActions {
@@ -34,6 +35,8 @@ export interface ProfileActions {
   nicknameTaken: (nick: string) => Promise<boolean>;
   cancelClaim: () => Promise<void>;
   requestClaim: (playerId: string) => Promise<{ linked: boolean }>;
+  /** «Tus posiciones»: send the proposal (a set) or withdraw it (null). */
+  proposePositions: (set: PositionSet | null) => Promise<void>;
   /** «Salir en este dispositivo»: this device only. */
   signOut: () => Promise<void>;
   /** «Darme de baja del vestuario»: leaveVestuario({ confirm: true }) and then out of this device. */
@@ -458,6 +461,7 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
           claimError: claimErr,
           rejectedNum: rejected ? String(rejected.number ?? rejected.name) : null,
         }}
+        posiciones={vinc && data.positions ? { info: data.positions, save: actions.proposePositions, say } : null}
       />
     ) : tab === "temp" ? (
       <TabTemporada card={data.card} seasonName={data.seasonName} stuff={stuffLines({ next: data.next, boards: data.stuff.boards, porra: data.stuff.porra, conv: data.stuff.convocatorias, now })} stuffLoading={data.stuff.loading} onGoPick={goPick} />
