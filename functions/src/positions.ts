@@ -148,3 +148,9 @@ export function fitGrade(p: PositionSet & { line?: Line | null }, slot: PosCode)
   const line = lineOf(slot);
   return mine.some((c) => c !== "POR" && (lineOf(c) === line || POSITIONS[c].neighbours.includes(slot))) ? 1 : 0;
 }
+
+/** Lo que se lee de un jugador en una línea de texto: «Pivote», o «Defensa» si solo se sabe la línea. */
+export function positionText(doc: { positions?: unknown; naturalPosition?: unknown }): string | undefined {
+  const r = resolvePositions(doc);
+  return r.main ? POSITIONS[r.main].name : r.line ? LINE_NAMES[r.line].name : undefined;
+}

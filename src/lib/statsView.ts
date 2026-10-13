@@ -4,6 +4,7 @@
 // the finished matches already loaded (clubAnalytics' PlayerAnalysis rows), no extra reads.
 import type { ClubMatch } from "./clubData";
 import type { MatchEvent } from "../../functions/src/matchEngine";
+import { resolvePositions } from "./positions";
 import { competitionRanks, milestoneSteps, milestones, opponentInitials, teamAnalysis, type PlayerAnalysis } from "./clubAnalytics";
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -115,7 +116,7 @@ export function goalLinks(games: ClubMatch[]): StarLink[] {
 export function constellation(rows: PlayerAnalysis[], links: StarLink[]) {
   const linked = new Set(links.flatMap((l) => [l.from, l.to]));
   const shown = rows.filter((p) => p.ga > 0 || linked.has(p.id));
-  const zone = (p: PlayerAnalysis) => (ZONE_Y[String(p.naturalPosition ?? "").toUpperCase()] !== undefined ? String(p.naturalPosition).toUpperCase() : "MED");
+  const zone = (p: PlayerAnalysis) => resolvePositions(p).line ?? "MED";
   const byZone = new Map<string, PlayerAnalysis[]>();
   for (const p of shown) byZone.set(zone(p), [...(byZone.get(zone(p)) ?? []), p]);
   const maxGa = Math.max(1, ...shown.map((p) => p.ga));

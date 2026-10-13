@@ -17,6 +17,7 @@ import { useUnsavedGuard } from "../ui/guard";
 import { AdIcon } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
 import { ACCOUNT_LABEL, GAPS, gapsText, type BoardRow } from "./plantillaBoard";
+import { resolvePositions } from "../../../lib/positions";
 import { POSITIONS, asPosition, checkPlayerForm, dorsalLine, formDirty, formFromPlayer, linkState, shirtNameError, type LiveCheck, type PlayerForm, type Position } from "./plantillaLogic";
 import { checkSanction, sanctionForm, untilLabel, type SanctionChoice, type SanctionForm } from "./sanctionLogic";
 
@@ -182,7 +183,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
   const sanctioned = !!props.suspension;
   // Línea and Estado are written on their own (one tap); the form always carries their live value, so a
   // field saved later never puts back an old line or state.
-  const livePos = asPosition(player.naturalPosition);
+  const livePos = asPosition(resolvePositions(player).line);
   const liveInj = !!player.injured;
   const live = (f: PlayerForm): PlayerForm => ({ ...f, position: livePos, injured: liveInj });
   const check = checkPlayerForm(live(form), { players, seasons, editingId: player.id, start: live(start) });

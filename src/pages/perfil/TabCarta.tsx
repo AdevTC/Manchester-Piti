@@ -2,6 +2,7 @@
 // pending: the request with Cancelar; none: the picker of free fichas) → Qué significa cada número →
 // Tipos de carta → Evoluciones. Copy and structure as designed (pf-g.mjs pCarta).
 import { Link } from "@tanstack/react-router";
+import { LINES, LINE_NAMES } from "../../lib/positions";
 import type { CardView, Evo, EvoShape } from "./card";
 import { TIERS } from "./card";
 import { Cromo } from "./CardFaces";
@@ -10,7 +11,7 @@ import { CREST, Ic } from "./icons";
 import { Nombre, type NickField, type ShirtField } from "./Nombre";
 import type { FreeFicha } from "./useProfileData";
 
-const ZONE: Record<string, string> = { Portero: "POR", Defensa: "DEF", Centrocampista: "MED", Delantero: "DEL" };
+const ZONE: Record<string, string> = Object.fromEntries(LINES.map((l) => [LINE_NAMES[l].name, l]));
 
 function AwIcon({ shape }: { shape: EvoShape }) {
   return shape === "shield" ? <Ic n="shirt" w={20} /> : shape === "circle" ? <Ic n="ball" w={20} /> : shape === "star" ? <Ic n="star" w={18} /> : <Ic n="team" w={20} />;

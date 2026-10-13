@@ -1,6 +1,8 @@
 // Domain logic for the public squad page ("Plantilla"): one row per player of the season,
 // sorting, search, squad figures and the head-to-head comparison.
 
+import { positionText } from "./positions";
+
 const DAY = 86_400_000;
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const SIGNS: [number, number, string][] = [
@@ -36,6 +38,7 @@ export interface SquadPlayer {
   height?: number;
   weight?: number;
   naturalPosition?: string;
+  positions?: unknown;
   active?: boolean;
 }
 export interface SquadStats {
@@ -89,7 +92,7 @@ export function squadRow(p: SquadPlayer, stats: SquadStats, now: number): SquadR
     name: p.shirtName || [p.firstName, p.lastName].filter(Boolean).join(" ") || "Jugador",
     num: p.number != null ? String(p.number) : "",
     full: [p.firstName, p.lastName].filter(Boolean).join(" "),
-    position: p.naturalPosition || undefined,
+    position: positionText(p),
     age: age != null && age >= 0 && age < 110 ? age : null,
     year: b?.y ?? null,
     height,

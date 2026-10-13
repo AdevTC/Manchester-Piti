@@ -3,6 +3,7 @@
 // (linked, asking for his ficha, none), the gap filters with their counts, the rows grouped by line
 // (POR · DEF · MED · DEL · Sin posición), the repeated and the free dorsals. Router-, React- and Firebase-free.
 import type { PlayerDoc } from "../../../lib/schemas";
+import { resolvePositions } from "../../../lib/positions";
 import { POSITIONS, POS_LABEL, type PlantillaRow, type Position } from "./plantillaLogic";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -18,9 +19,9 @@ export const GAPS: readonly { key: GapKey; short: string; label: string }[] = [
 ];
 const has = (v: unknown) => (typeof v === "string" ? v.trim() !== "" : typeof v === "number" ? Number.isFinite(v) && v > 0 : false);
 /** What his ficha still lacks, in the slots' order. */
-export function gapsOf(p: Pick<PlayerDoc, "naturalPosition" | "photoUrl" | "birthDate" | "height" | "weight">): GapKey[] {
+export function gapsOf(p: Pick<PlayerDoc, "naturalPosition" | "positions" | "photoUrl" | "birthDate" | "height" | "weight">): GapKey[] {
   const present: Record<GapKey, boolean> = {
-    pos: (POSITIONS as readonly string[]).includes(String(p.naturalPosition ?? "").toUpperCase()),
+    pos: resolvePositions(p).line !== null,
     foto: has(p.photoUrl),
     nac: has(p.birthDate),
     alt: has(p.height),

@@ -5,6 +5,7 @@
 import { dateMillis, isCompleted } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../lib/clubData";
 import { chronological, playerGame } from "../../lib/clubAnalytics";
+import { LINE_NAMES } from "../../lib/positions";
 import { resultOf } from "../../lib/partidos";
 import { bestPartner, mvpWinners, mvpWins, vitrina, type MvpResult } from "../../lib/vestuario";
 import { suspensions } from "../pizarra/chemistry";
@@ -20,7 +21,7 @@ export type Tier = "bronce" | "plata" | "oro" | "racha";
 /** The tier chip: a real tier, or the card before it has numbers / before it exists. */
 export type TierKey = Tier | "nuevo" | "down" | "pack";
 
-export const POSITION_LONG: Record<Zone, string> = { POR: "Portero", DEF: "Defensa", MED: "Centrocampista", DEL: "Delantero" };
+export const POSITION_LONG: Record<Zone, string> = { POR: LINE_NAMES.POR.name, DEF: LINE_NAMES.DEF.name, MED: LINE_NAMES.MED.name, DEL: LINE_NAMES.DEL.name };
 export const TIER_NAME: Record<TierKey, string> = {
   racha: "En racha",
   oro: "Oro",

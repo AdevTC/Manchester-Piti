@@ -69,3 +69,11 @@ describe("Sala de trofeos: piezas extra", () => {
     expect(extraTrophies([], (id) => id).every((x) => !x.earned)).toBe(true);
   });
 });
+
+describe("squadNumbers reads positions through the resolver", () => {
+  it("counts words and the new field by line, the unknown apart", () => {
+    const n = squadNumbers([{ id: "a", naturalPosition: "Portero" }, { id: "b", positions: { main: "LD", also: [] } }, { id: "c", naturalPosition: "Mediocentro" }, { id: "d" }], new Date("2026-10-13"));
+    expect(n.byZone).toMatchObject({ POR: 1, DEF: 1, MED: 1, DEL: 0 });
+    expect(n.other).toBe(1);
+  });
+});

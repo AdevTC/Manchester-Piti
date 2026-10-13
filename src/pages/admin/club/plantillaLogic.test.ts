@@ -226,3 +226,11 @@ describe("the percha (v2)", () => {
     expect(bajaPayload({}, "t1")).toEqual({ seasons: [] });
   });
 });
+
+describe("plantillaRows reads positions through the resolver", () => {
+  it("words and the new field both give a line", () => {
+    const rs = plantillaRows([P("w", 2, "W", { naturalPosition: "Portero" }), P("n", 3, "N", { naturalPosition: undefined, positions: { main: "MI", also: [] } })], seasons, "t1");
+    expect(rs.find((r) => r.id === "w")?.position).toBe("POR");
+    expect(rs.find((r) => r.id === "n")?.position).toBe("MED");
+  });
+});

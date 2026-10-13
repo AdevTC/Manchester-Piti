@@ -13,6 +13,7 @@ import { db } from "../../../firebase";
 import { useMatchClock } from "../../../hooks/useMatchClock";
 import { useClubContent } from "../../../lib/clubContent";
 import { dateMillis, playerForSeason, playerName, useClubData, type ClubMatch } from "../../../lib/clubData";
+import { resolvePositions } from "../../../lib/positions";
 import { mapMatch, mapSeason } from "../../../lib/firestoreMappers";
 import { SEASONS_KEY, seasonQuery } from "../../../lib/publicData";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
@@ -148,7 +149,7 @@ export function useAdminData(): AdminData {
     for (const p of club.players)
       for (const sid of p.seasons ?? []) {
         const s = playerForSeason(p, sid, seasons);
-        const row = { id: p.id, name: playerName(s), number: typeof s.number === "number" ? s.number : null, position: String(p.naturalPosition ?? "").toUpperCase(), injured: !!p.injured, doc: p };
+        const row = { id: p.id, name: playerName(s), number: typeof s.number === "number" ? s.number : null, position: resolvePositions(p).line ?? "", injured: !!p.injured, doc: p };
         out.set(sid, [...(out.get(sid) ?? []), row]);
       }
     out.forEach((list) => list.sort((a, b) => (a.number ?? 999) - (b.number ?? 999)));

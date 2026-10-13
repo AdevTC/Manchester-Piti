@@ -9,6 +9,14 @@ const eguz = row({ id: "e", shirtName: "EGUZQUIZA", firstName: "Miguel", lastNam
 const erik = row({ id: "k", shirtName: "ERIK", firstName: "Erik", number: 9 });
 const brawan = row({ id: "b", shirtName: "BRAWAN", number: 33, birthDate: "2003-06-11", height: 173, weight: 71 });
 
+describe("squadRow position", () => {
+  it("prints the exact name from the new field, the line from a word, nothing when unknown", () => {
+    expect(row({ id: "p", positions: { main: "LD", also: [] } }).position).toBe("Lateral derecho");
+    expect(row({ id: "q", naturalPosition: "DEF" }).position).toBe("Defensa");
+    expect(row({ id: "r", naturalPosition: "Banquillo" }).position).toBeUndefined();
+  });
+});
+
 describe("squadRow", () => {
   it("derives age, next birthday, sign and full name", () => {
     expect(adrian).toMatchObject({ name: "ADRIÁN T.C.", num: "10", full: "Adrián Tomás Cerdá", age: 22, year: 2004, sign: "Aries", missing: [] });

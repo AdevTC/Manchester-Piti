@@ -5,15 +5,13 @@
 // Firestore payload, and the CSV export. Router-, React- and Firebase-free.
 import { isDorsalTaken } from "../../../lib/dorsalValidation";
 import { playerName } from "../../../lib/clubData";
+import { LINE_NAMES, isLine, parsePosition, resolvePositions } from "../../../lib/positions";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 
 export const POSITIONS = ["POR", "DEF", "MED", "DEL"] as const;
 export type Position = (typeof POSITIONS)[number];
-export const POS_LABEL: Record<Position, string> = { POR: "Portero", DEF: "Defensa", MED: "Medio", DEL: "Delantero" };
-export const asPosition = (v: unknown): Position | "" => {
-  const up = String(v ?? "").toUpperCase();
-  return (POSITIONS as readonly string[]).includes(up) ? (up as Position) : "";
-};
+export const POS_LABEL: Record<Position, string> = { POR: LINE_NAMES.POR.short, DEF: LINE_NAMES.DEF.short, MED: LINE_NAMES.MED.short, DEL: LINE_NAMES.DEL.short };
+export const asPosition = (v: unknown): Position | "" => (isLine(v) ? v : parsePosition(v).line) ?? "";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
@@ -78,7 +76,7 @@ export function plantillaRows(players: readonly PlayerDoc[], seasons: readonly S
       number: numberIn(p, sid),
       name: nameIn(p, sid),
       full: [p.firstName, p.lastName].filter(Boolean).join(" ") || "Sin nombre",
-      position: asPosition(p.naturalPosition),
+      position: asPosition(resolvePositions(p).line),
       injured: !!p.injured,
       seasons: codes.join(" · ") || "—",
       inSeason,
@@ -147,7 +145,7 @@ export function formFromPlayer(p: PlayerDoc): PlayerForm {
     lastName: p.lastName ?? "",
     shirtName: shirt,
     number: num != null ? String(num) : "",
-    position: asPosition(p.naturalPosition),
+    position: asPosition(resolvePositions(p).line),
     injured: !!p.injured,
     seasons,
     overrides,

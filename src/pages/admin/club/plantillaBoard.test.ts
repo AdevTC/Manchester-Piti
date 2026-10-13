@@ -11,7 +11,7 @@ describe("plantillaBoard", () => {
   it("lists what a ficha lacks, in the slots' order, and says it", () => {
     expect(gapsOf(full)).toEqual([]);
     expect(gapsOf({})).toEqual(["pos", "foto", "nac", "alt", "peso"]);
-    expect(gapsOf({ ...full, naturalPosition: "lateral", height: 0, photoUrl: " " })).toEqual(["pos", "foto", "alt"]);
+    expect(gapsOf({ ...full, naturalPosition: "banquillo", height: 0, photoUrl: " " })).toEqual(["pos", "foto", "alt"]);
     expect(gapsText([])).toBe("Ficha completa");
     expect(gapsText(["foto"])).toBe("Le falta la foto");
     expect(gapsText(["nac", "alt", "peso"])).toBe("Le falta el nacimiento, la altura y el peso");
@@ -57,5 +57,12 @@ describe("plantillaBoard", () => {
     expect(dorsalParam("0")).toBeNull();
     expect(dorsalParam("100")).toBeNull();
     expect(dorsalParam("x")).toBeNull();
+  });
+});
+
+describe("gapsOf reads positions through the resolver", () => {
+  it("a word that names a line is not a gap", () => {
+    expect(gapsOf({ ...full, naturalPosition: "Defensa" })).toEqual([]);
+    expect(gapsOf({ ...full, naturalPosition: undefined, positions: { main: "LD", also: [] } })).toEqual([]);
   });
 });

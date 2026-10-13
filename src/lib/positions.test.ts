@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LINE_NAMES, POS_CODES, POSITIONS, fitGrade, isPosCode, lineOf, parsePosition, positionLabel, resolvePositions, sanitizePositions } from "./positions";
+import { LINE_NAMES, POS_CODES, POSITIONS, fitGrade, isPosCode, lineOf, parsePosition, positionLabel, positionText, resolvePositions, sanitizePositions } from "./positions";
 
 describe("catálogo de posiciones de fútbol 7", () => {
   it("has the 13 codes, each in its line", () => {
@@ -122,5 +122,13 @@ describe("fitGrade", () => {
     expect(fitGrade({ main: null, also: [], line: "DEF" }, "LD")).toBe(1);
     expect(fitGrade({ main: null, also: [], line: "DEF" }, "MC")).toBe(0);
     expect(fitGrade({ main: null, also: [], line: null }, "MC")).toBeNull();
+  });
+});
+
+describe("positionText", () => {
+  it("exact name, else line, else nothing", () => {
+    expect(positionText({ positions: { main: "MCD", also: [] } })).toBe("Pivote");
+    expect(positionText({ naturalPosition: "Defensa" })).toBe("Defensa");
+    expect(positionText({ naturalPosition: "Banquillo" })).toBeUndefined();
   });
 });

@@ -2,6 +2,7 @@
 // useAdminData builds for the current season, for any match's season — and the names of every player
 // (for events of players who left the squad since).
 import { playerForSeason, playerName } from "../../../lib/clubData";
+import { LINE_NAMES, isLine, parsePosition, resolvePositions } from "../../../lib/positions";
 import type { PlayerDoc } from "../../../lib/schemas";
 import type { RosterPlayer } from "../data/useAdminData";
 
@@ -11,7 +12,7 @@ export function rosterFor(players: readonly PlayerDoc[], seasons: readonly { id:
     .filter((p) => p.seasons?.includes(seasonId))
     .map((p) => {
       const s = playerForSeason(p, seasonId, [...seasons]);
-      return { id: p.id, name: playerName(s), number: typeof s.number === "number" ? s.number : null, position: String(p.naturalPosition ?? "").toUpperCase(), injured: !!p.injured, doc: p };
+      return { id: p.id, name: playerName(s), number: typeof s.number === "number" ? s.number : null, position: resolvePositions(p).line ?? "", injured: !!p.injured, doc: p };
     })
     .sort((a, b) => (a.number ?? 999) - (b.number ?? 999));
 }
@@ -22,9 +23,11 @@ export function namesFor(players: readonly PlayerDoc[], seasons: readonly { id: 
   return (id) => (id ? (map.get(id) ?? "Jugador") : "—");
 }
 
-const POSITION: Record<string, string> = { POR: "Portero", PORTERO: "Portero", DEF: "Defensa", DEFENSA: "Defensa", MED: "Medio", MEDIO: "Medio", MEDIOCENTRO: "Medio", DEL: "Delantero", DELANTERO: "Delantero" };
 /** «Portero» for POR / Portero…; «Jugador» when unknown. */
-export const positionName = (p: string) => POSITION[p.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase()] ?? "Jugador";
+export const positionName = (p: string) => {
+  const line = isLine(p) ? p : parsePosition(p).line;
+  return line ? LINE_NAMES[line].short : "Jugador";
+};
 /** «POR», «DEF», «MED», «DEL» (the picker's tag); "" when unknown. */
 export function positionCode(p: string): string {
   const n = positionName(p);
