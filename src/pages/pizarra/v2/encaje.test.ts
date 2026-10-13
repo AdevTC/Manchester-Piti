@@ -2,10 +2,11 @@
 // on each system (an exact assignment, the keeper's slot only to a declared keeper).
 import { describe, expect, it } from "vitest";
 import { systemDef } from "../../../lib/formations";
-import type { PosCode, ResolvedPositions } from "../../../lib/positions";
+import type { FitGrade, PosCode, ResolvedPositions } from "../../../lib/positions";
 import { lineOf, POSITIONS } from "../../../lib/positions";
-import { assign, bestEncaje, boardInPlace, encajeBySystem, encajeCandidates, faltaTxt, fitAt, hasFitData, slotCode } from "./encaje";
-import { SYSTEMS } from "./geometry";
+import { adapted, assign, bestEncaje, boardInPlace, encajeBySystem, encajeCandidates, faltaTxt, fitAt, hasFitData, homeName, inPlace, logicGrade, out, slotCode } from "./encaje";
+import { fits, natural } from "./model";
+import { slotZone, SYSTEMS } from "./geometry";
 import { cromo, lineupOf, squadOf } from "./testkit";
 
 const ps = (main: PosCode | null, ...also: PosCode[]): ResolvedPositions => ({ main, also, line: main ? lineOf(main) : null });
@@ -296,5 +297,89 @@ describe("the Sistema panel's words", () => {
     const m = encajeBySystem(["k", "d", "m"], sq);
     expect(Object.keys(m)).toEqual(SYSTEMS);
     expect(m["2-3-1"]).toEqual(bestEncaje("2-3-1", ["k", "d", "m"], sq));
+  });
+});
+
+describe("logicGrade", () => {
+  const sq = squadOf([
+    withPs("pref", 1, "MC"),
+    withPs("tamb", 2, "MI", "MC"),
+    withPs("adap", 3, "MD"),
+    withPs("fuera", 4, "DC"),
+    cromo("nada", 5, undefined),
+    cromo("linea", 6, "MED"),
+    withPs("gk", 7, "POR"),
+    cromo("lgk", 8, "POR"),
+  ]);
+  const L = lineupOf([], "2-3-1", sq);
+
+  it("exact data: fitAt's grade (MC is slot 4)", () => {
+    expect(logicGrade(L, sq, "pref", 4)).toBe(3);
+    expect(logicGrade(L, sq, "tamb", 4)).toBe(2);
+    expect(logicGrade(L, sq, "adap", 4)).toBe(1);
+    expect(logicGrade(L, sq, "fuera", 4)).toBe(0);
+    expect(logicGrade(L, sq, "gk", 0)).toBe(3);
+    expect(logicGrade(L, sq, "gk", 4)).toBe(0);
+    expect(logicGrade(L, sq, "pref", 0)).toBe(0);
+  });
+
+  it("a line alone: 3 on his line, 0 off it; a POR line in goal is 3; no data is null", () => {
+    expect(logicGrade(L, sq, "linea", 4)).toBe(3);
+    expect(logicGrade(L, sq, "linea", 1)).toBe(0);
+    expect(logicGrade(L, sq, "linea", 0)).toBe(0);
+    expect(logicGrade(L, sq, "lgk", 0)).toBe(3);
+    expect(logicGrade(L, sq, "lgk", 4)).toBe(0);
+    expect(logicGrade(L, sq, "nada", 4)).toBeNull();
+    expect(logicGrade(L, sq, "nobody", 4)).toBeNull();
+  });
+
+  it("a per-board «Jugar de» (a zone) is fitAt's: 2 on its line, 0 elsewhere", () => {
+    const O = { ...L, playerPositions: { fuera: "MED" as const, linea: "DEF" as const, nada: "DEL" as const } };
+    expect(logicGrade(O, sq, "fuera", 4)).toBe(2);
+    expect(logicGrade(O, sq, "fuera", 6)).toBe(0);
+    expect(logicGrade(O, sq, "linea", 1)).toBe(2);
+    expect(logicGrade(O, sq, "linea", 4)).toBe(0);
+    expect(logicGrade(O, sq, "nada", 6)).toBe(2);
+  });
+
+  it("inPlace / adapted / out (null is none of them)", () => {
+    const gs: (FitGrade | null)[] = [3, 2, 1, 0, null];
+    expect(gs.map(inPlace)).toEqual([true, true, false, false, false]);
+    expect(gs.map(adapted)).toEqual([false, false, true, false, false]);
+    expect(gs.map(out)).toEqual([false, false, false, true, false]);
+  });
+
+  it("line-only squads: inPlace is today's natural() and «not out» today's fits(), on every system, free mode and overrides", () => {
+    const ls = squadOf([cromo("p", 1, "POR"), cromo("d", 2, "DEF"), cromo("m", 3, "MED"), cromo("f", 4, "DEL"), cromo("u", 5, undefined)]);
+    const who = ls.list.map((c) => c.id);
+    const free = (B: ReturnType<typeof lineupOf>) => ({ ...B, freeMode: true, slots: B.slots.map((s, i) => ({ ...s, x: (s.x + 37 * i) % 100, y: (s.y + 23 * i) % 100 })) });
+    const boards = SYSTEMS.flatMap((k) => {
+      const B = lineupOf([], k, ls);
+      const O = { ...B, playerPositions: { d: "MED" as const, u: "DEL" as const, p: "DEF" as const } };
+      return [B, O, free(B), free(O)];
+    });
+    let n = 0;
+    for (const B of boards)
+      for (let i = 0; i < B.slots.length; i++)
+        for (const id of who) {
+          const g = logicGrade(B, ls, id, i);
+          expect(inPlace(g), id + "@" + i).toBe(natural(B, ls, id, slotZone(B, i)));
+          expect(!out(g), id + "@" + i).toBe(fits(B, ls, id, slotZone(B, i)));
+          expect(adapted(g)).toBe(false);
+          n++;
+        }
+    expect(n).toBeGreaterThan(400);
+  });
+});
+
+describe("homeName", () => {
+  it("his preferida, else his first también, else a «Jugar de» line or his line, lower-cased (null without data)", () => {
+    const sq = squadOf([withPs("pref", 1, "DC"), withPs("tamb", 2, null, "MI"), cromo("linea", 3, "DEF"), cromo("nada", 4, undefined)]);
+    const L = lineupOf([], "2-3-1", sq);
+    expect(homeName(L, sq, "pref")).toBe("punta");
+    expect(homeName(L, sq, "tamb")).toBe("interior izquierdo");
+    expect(homeName(L, sq, "linea")).toBe("defensa");
+    expect(homeName(L, sq, "nada")).toBeNull();
+    expect(homeName({ ...L, playerPositions: { pref: "MED" } }, sq, "pref")).toBe("centrocampista");
   });
 });

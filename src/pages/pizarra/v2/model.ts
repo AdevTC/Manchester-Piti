@@ -4,6 +4,7 @@ import type { Lineup, RoleKey, Zone } from "../formations";
 import { normZone } from "../positions";
 import type { ResolvedPositions } from "../../../lib/positions";
 import { plural } from "./plural";
+import { inPlace, logicGrade } from "./encaje";
 
 export type Baja = "Lesionado" | "Sancionado" | "Inactivo";
 /** The player's answer to the convocatoria (wired in phase 3; absent = unknown). */
@@ -143,8 +144,11 @@ export const GALONES: Galon[] = [
 ];
 export const galonesOf = (L: Lineup, id: string): Galon[] => GALONES.filter((g) => L.roles[g.key] === id);
 
-/** A board is «siete listo» with seven on the pitch and a goalkeeper in goal. */
+/** A board is «siete listo» with seven on the pitch and a goalkeeper in goal: one in his place there
+ *  (the encaje's logicGrade), or one nobody knows the position of. */
 export function isFull(L: Lineup, sq: Squad): boolean {
   const g = L.slots[0]?.playerId;
-  return placedCount(L) === 7 && !!g && fits(L, sq, g, "POR");
+  if (placedCount(L) !== 7 || !g) return false;
+  const x = logicGrade(L, sq, g, 0);
+  return x == null || inPlace(x);
 }

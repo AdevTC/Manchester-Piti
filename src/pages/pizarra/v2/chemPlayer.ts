@@ -1,10 +1,11 @@
-// La pizarra · Bloque 4 — la química por jugador: 0–3 diamonds on each cromo, from where he plays (his natural
-// zone lights one; out of position he can't have more than one) and his links (a «++» link is one diamond, a
+// La pizarra · Bloque 4 — la química por jugador: 0–3 diamonds on each cromo, from where he plays (in his
+// place — the encaje's logicGrade ≥ 2 — lights one; adapted lights none; out of his place he can't have
+// more than one) and his links (a «++» link is one diamond, a
 // «+» half of one; two at most), and the team's sum over 21 next to the 0–100. While a player is carried
 // over a spot, what dropping him there would do to that sum («+2 química aquí»). Pure.
 import type { Lineup } from "../formations";
-import { slotZone } from "./geometry";
-import { fits, natural, type Squad } from "./model";
+import { inPlace, logicGrade, out } from "./encaje";
+import type { Squad } from "./model";
 import { chemOf, type Chem } from "./quimica";
 
 export type Diamonds = 0 | 1 | 2 | 3;
@@ -14,11 +15,11 @@ export const TEAM_MAX = 21;
 export function playerDiamonds(L: Lineup, sq: Squad, ch: Chem, i: number): Diamonds {
   const id = L.slots[i]?.playerId;
   if (!id || !sq.byId.has(id)) return 0;
-  const z = slotZone(L, i);
-  const pos = natural(L, sq, id, z) ? 1 : 0;
+  const g = logicGrade(L, sq, id, i);
+  const pos = inPlace(g) ? 1 : 0;
   const lk = ch.links.filter((l) => l.i === i || l.j === i).reduce((a, l) => a + (l.t === 3 ? 1 : l.t === 2 ? 0.5 : 0), 0);
   let d = pos + Math.min(2, Math.floor(lk + 1e-9));
-  if (!fits(L, sq, id, z)) d = Math.min(d, 1);
+  if (out(g)) d = Math.min(d, 1);
   return Math.max(0, Math.min(3, d)) as Diamonds;
 }
 

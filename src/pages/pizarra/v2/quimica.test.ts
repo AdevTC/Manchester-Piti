@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { chem, hops, links, tierOf } from "./quimica";
+import { chem, chemWhy, hops, links, lucesOf, tierOf } from "./quimica";
+import { lineOf, type PosCode } from "../../../lib/positions";
 import { formRating, buildSquad } from "./ratings";
 import { hud, ago, pitchView, positionsOf, FX0 } from "./view";
 import type { ClubMatch } from "../../../lib/clubData";
@@ -199,5 +200,75 @@ describe("small things", () => {
     expect(ago(0 + 1, 5 * 60_000)).toBe("hace 4 min");
     expect(ago(1, 3 * 3600_000)).toBe("hace 2 h");
     expect(ago(1, 30 * 3600_000)).toBe("ayer");
+  });
+});
+
+describe("química by exact encaje", () => {
+  const xp = (id: string, num: number, main: PosCode | null, ...also: PosCode[]) =>
+    cromo(id, num, main ? lineOf(main) : undefined, { ps: { main, also, line: main ? lineOf(main) : null } });
+  // 2-3-1: POR · DFC DFC · MI MC MD · DC
+  const sq = squadOf([
+    xp("k", 1, "POR"),
+    xp("a", 2, "DFC"),
+    xp("b", 3, "DFC"),
+    xp("pablo", 4, "MD"),
+    xp("tamb", 5, "MCD", "MC"),
+    xp("erik", 6, "DC"),
+    xp("dc", 9, "DC"),
+    xp("mi", 10, "MI"),
+    xp("md", 11, "MD"),
+  ]);
+
+  it("también is in place, adapted counts half, fuera nothing; the keeper by his POR", () => {
+    const L = lineupOf(["k", "a", "b", "pablo", "tamb", "erik", "dc"], "2-3-1", sq);
+    const ch = chem(L, sq);
+    expect(ch.natN).toBe(5);
+    expect(ch.adaN).toBe(1);
+    expect(ch.gkNat).toBe(true);
+    expect(ch.gk).toBe(true);
+    const la = ch.links.reduce((x, l) => x + l.s, 0) / ch.links.length / 5;
+    expect(ch.v).toBe(Math.round(la * 50 + (5.5 / 7) * 28 + 12 + (70 / 99) * 10));
+    // a link is «natural» only with both in place (pablo, adapted, is not)
+    ch.links.forEach((l) => expect(l.nat).toBe(![l.a, l.b].some((x) => x === "pablo" || x === "erik")));
+    // and its light says why: «alguno adaptado» when nobody is out
+    const lz = lucesOf(ch, sq, 99);
+    ch.links.forEach((l) => {
+      const why = lz.find((z) => z.key === l.a + "|" + l.b)?.why ?? "";
+      const has = (x: string) => l.a === x || l.b === x;
+      expect(why.includes("alguno fuera de sitio")).toBe(has("erik"));
+      expect(why.includes("alguno adaptado")).toBe(has("pablo") && !has("erik"));
+    });
+  });
+
+  it("an outfield player in goal is no keeper (not even for the 7/7 chip)", () => {
+    const ch = chem(lineupOf(["a", "k", "b", "mi", "tamb", "md", "dc"], "2-3-1", sq), sq);
+    expect(ch.gk).toBe(false);
+    expect(ch.gkNat).toBe(false);
+  });
+
+  it("says who is adapted and who is out, by the positions' names", () => {
+    expect(chemWhy(chem(lineupOf(["k", "a", "b", "mi", "tamb", "md", "dc"], "2-3-1", sq), sq))).toBe("Todos en su sitio.");
+    expect(chemWhy(chem(lineupOf(["k", "a", "b", "pablo", "tamb", "md", "dc"], "2-3-1", sq), sq))).toBe("6 en su sitio · PABLO adaptado de interior izquierdo.");
+    expect(chemWhy(chem(lineupOf(["k", "a", "b", "mi", "tamb", "erik", "dc"], "2-3-1", sq), sq))).toBe("6 en su sitio · ERIK fuera de su sitio (de punta en interior derecho).");
+    // fuera first, two names at most, then «y N más»
+    expect(chemWhy(chem(lineupOf(["k", "a", "dc", "pablo", "tamb", "erik", "b"], "2-3-1", sq), sq))).toBe(
+      "3 en su sitio · DC fuera de su sitio (de punta en central) · ERIK fuera de su sitio (de punta en interior derecho) y 2 más.",
+    );
+  });
+
+  it("a player with no data is not in place and is counted apart", () => {
+    const s2 = squadOf([...sq.list, cromo("nadie", 20, undefined)]);
+    expect(chemWhy(chem(lineupOf(["k", "a", "b", "mi", "tamb", "nadie", "dc"], "2-3-1", s2), s2))).toBe("6 en su sitio · 1 sin posición conocida.");
+  });
+
+  it("line-only squads keep today's words", () => {
+    const d = demoSquad();
+    expect(chemWhy(chem(lineupOf(SEVEN, "2-3-1", d), d))).toBe("Todos en su sitio natural.");
+    expect(chemWhy(chem(lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "adrian", "almachi"], "2-3-1", d), d))).toBe(
+      "2 fuera de su posición natural: recoloca para sumar.",
+    );
+    expect(chemWhy(chem(lineupOf(["illescas", "evans", "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", d), d))).toBe(
+      "Sin portero natural la química se resiente.",
+    );
   });
 });

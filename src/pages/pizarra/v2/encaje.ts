@@ -1,7 +1,7 @@
 // La pizarra «Noche de partido» — el encaje: the exact position of each slot, how well a player fits
 // it (positions.fitGrade), and the best seven a squad can put on a system. Pure (no React).
 import { systemDef } from "../../../lib/formations";
-import { fitGrade, POS_CODES, POSITIONS, type FitGrade, type PosCode } from "../../../lib/positions";
+import { fitGrade, LINE_NAMES, POS_CODES, POSITIONS, type FitGrade, type PosCode } from "../../../lib/positions";
 import type { FormationName, Lineup } from "../formations";
 import { normZone } from "../positions";
 import { planeDist2, slotZone, SYSTEMS } from "./geometry";
@@ -69,6 +69,38 @@ export function shownFit(L: Lineup, sq: Squad, id: string, i: number): FitGrade 
   const g = fitAt(L, sq, id, i);
   if (g == null || g === 0) return g;
   return normZone(L.playerPositions[id]) || exactOf(sq.byId.get(id)) ? g : null;
+}
+
+/** The grade the board's logic reasons with (química, diamonds, «siete listo»), consistent with the
+ *  cromo: exact data (his positions, or a per-board «Jugar de») → fitAt's grade; a line alone → 3 on
+ *  his line (slotZone) and 0 off it (a POR line in goal is 3); no data → null (unknown: never
+ *  rewarded, never penalised). For a squad known only by lines this is exactly the old natural/fits. */
+export function logicGrade(L: Lineup, sq: Squad, id: string, i: number): FitGrade | null {
+  const c = sq.byId.get(id);
+  if (normZone(L.playerPositions[id]) || exactOf(c)) return fitAt(L, sq, id, i);
+  const line = c ? resolved(c).line : null;
+  if (!line) return null;
+  return line === slotZone(L, i) ? 3 : 0;
+}
+
+/** In his place: preferida or también (or a line alone on its line). Unknown is not. */
+export const inPlace = (g: FitGrade | null): boolean => g != null && g >= 2;
+/** Adapted: his line or a neighbouring position. */
+export const adapted = (g: FitGrade | null): boolean => g === 1;
+/** Out of his place. Unknown is not. */
+export const out = (g: FitGrade | null): boolean => g === 0;
+
+/** Where a player is at home, lower-cased for a sentence: a per-board «Jugar de» line, his preferida,
+ *  his first también, else his line («punta», «interior izquierdo», «defensa»); null without data. */
+export function homeName(L: Lineup, sq: Squad, id: string): string | null {
+  const over = normZone(L.playerPositions[id]);
+  if (over) return LINE_NAMES[over].name.toLowerCase();
+  const c = sq.byId.get(id);
+  if (!c) return null;
+  const ps = resolved(c);
+  const code = ps.main ?? ps.also[0];
+  if (code) return POSITIONS[code].name.toLowerCase();
+  return ps.line ? LINE_NAMES[ps.line].name.toLowerCase() : null;
 }
 
 /** The best seven of a squad on a system. */

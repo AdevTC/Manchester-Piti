@@ -289,3 +289,15 @@ describe("the convocatoria from the official (one source)", () => {
     expect(convocatoriaFromBoard({ starters: ["a", "b"], bench: ["c", "d"] }, ["a", "c", null])).toEqual({ starters: ["a", "c"], bench: ["d", "b"] });
   });
 });
+
+describe("«siete listo» by encaje", () => {
+  const xp = (id: string, num: number, main: "POR" | "DFC" | "MC" | "DC", also: ("POR" | "MC")[] = []) =>
+    cromo(id, num, main === "POR" ? "POR" : main === "DFC" ? "DEF" : main === "MC" ? "MED" : "DEL", { ps: { main, also, line: main === "POR" ? "POR" : main === "DFC" ? "DEF" : main === "MC" ? "MED" : "DEL" } });
+  const sq = squadOf([xp("k", 1, "POR"), xp("d1", 2, "DFC"), xp("d2", 3, "DFC"), xp("m1", 4, "MC"), xp("m2", 5, "MC"), xp("m3", 6, "MC"), xp("f", 9, "DC"), xp("both", 7, "DFC", ["POR"]), cromo("u", 8, undefined)]);
+  it("a declared keeper (preferida or también) in goal, or one we know nothing about; never an outfield player", () => {
+    expect(isFull(lineupOf(["k", "d1", "d2", "m1", "m2", "m3", "f"], "2-3-1", sq), sq)).toBe(true);
+    expect(isFull(lineupOf(["both", "d1", "d2", "m1", "m2", "m3", "f"], "2-3-1", sq), sq)).toBe(true);
+    expect(isFull(lineupOf(["u", "d1", "d2", "m1", "m2", "m3", "f"], "2-3-1", sq), sq)).toBe(true);
+    expect(isFull(lineupOf(["d1", "k", "d2", "m1", "m2", "m3", "f"], "2-3-1", sq), sq)).toBe(false);
+  });
+});
