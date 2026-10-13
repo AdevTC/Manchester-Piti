@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { autoPlace, dropBenchedRoles, freeSpot, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setPlaysAs, setSystem, stepSystem, swap, toBench, cycleDefLine } from "./ops";
+import { autoByEncajeOn, autoPlace, dropBenchedRoles, freeSpot, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setPlaysAs, setSystem, stepSystem, swap, toBench, cycleDefLine } from "./ops";
 import { applyFan, fanCentre, fanItems, FAN_RADIUS } from "./fan";
-import { packRanking, reelFor, suggestSeven, packDelay } from "./pack";
+import { packRanking, reelFor, sevenByEncajeOn, suggestSeven, packDelay } from "./pack";
 import { convocatoriaFromBoard, withConvocatoria } from "./boards";
 import { slotPos } from "./geometry";
 import { isFull, natOf, type Cromo } from "./model";
@@ -365,6 +365,33 @@ describe("Auto-colocar and «Sugerir siete» by encaje (exact positions)", () =>
     expect(ids(n)).toContain("c1");
     expect(ids(n)).not.toContain("c2");
     expect(n.slots[6].playerId).toBe("pun");
+  });
+  it("Sugerir siete: a player in place never loses his slot to one out of it (answers, form or familiarity)", () => {
+    // DC: pun in place, «Duda», 50 · lat LD, «Voy», 95, fuera at DC (adaptado only in the defence, behind two in place)
+    const famLat = (id: string) => (id === "lat" ? 9 : 0);
+    const sq = squadOf([...base, x("pun", 9, "DC", [], { rt: 50, cv: "duda" }), x("lat", 10, "LD", [], { rt: 95, cv: "voy" })]);
+    expect(suggestSeven(lineupOf([], "2-3-1", sq), sq, [], null, famLat).slots[6].playerId).toBe("pun");
+    // adaptado over fuera at any form, familiarity or not: ext EI, «Duda», 45 (adaptado at DC)
+    const s2 = squadOf([...base, x("ext", 11, "EI", [], { rt: 45, cv: "duda" }), x("lat", 10, "LD", [], { rt: 95, cv: "voy" })]);
+    expect(suggestSeven(lineupOf([], "2-3-1", s2), s2, [], null, famLat).slots[6].playerId).toBe("ext");
+  });
+  it("Sugerir siete: between two in place, «Voy» before «Duda» at equal form, and the better form at equal answers", () => {
+    const s1 = squadOf([...base, x("dd", 9, "DC", [], { rt: 70, cv: "duda", recentMin: 300 }), x("vv", 10, "DC", [], { rt: 70, cv: "voy" })]);
+    expect(suggestSeven(lineupOf([], "2-3-1", s1), s1).slots[6].playerId).toBe("vv");
+    const s2 = squadOf([...base, x("p1", 9, "DC", [], { rt: 70, recentMin: 300 }), x("p2", 10, "DC", [], { rt: 72 })]);
+    expect(suggestSeven(lineupOf([], "2-3-1", s2), s2).slots[6].playerId).toBe("p2");
+  });
+  it("says whether it placed by encaje: only when someone it can place has an exact outfield position", () => {
+    const exact = squadOf([...base, x("pun", 9, "DC")]);
+    expect(autoByEncajeOn(lineupOf(["gk"], "2-3-1", exact), exact)).toBe(true);
+    expect(sevenByEncajeOn(lineupOf([], "2-3-1", exact), exact)).toBe(true);
+    const lines = demoSquad();
+    expect(autoByEncajeOn(lineupOf(["evans"], "2-3-1", lines), lines)).toBe(false);
+    expect(sevenByEncajeOn(lineupOf([], "2-3-1", lines), lines)).toBe(false);
+    // (the only exact one is a baja, or not called: by lines)
+    const hurt = squadOf([cromo("gk", 1, "POR"), cromo("d", 2, "DEF"), x("pun", 9, "DC", [], { baja: "Lesionado" })]);
+    expect(autoByEncajeOn(lineupOf([], "2-3-1", hurt), hurt)).toBe(false);
+    expect(sevenByEncajeOn(lineupOf([], "2-3-1", exact), exact, [], new Set(["gk"]))).toBe(false);
   });
   it("Sugerir siete: a keeper in goal however low his form; the convocatoria's siete still goes first", () => {
     const sq = squadOf([x("gk", 1, "POR", [], { rt: 45 }), ...base.slice(1), x("pun", 9, "DC", [], { rt: 95 }), x("lib", 10, "LIB", [], { rt: 99 }), x("low", 11, "LI", [], { rt: 45 })]);

@@ -244,15 +244,29 @@ export function answerRank(sq: Squad, id: string): number {
 
 // ── Auto-colocar: every cromo to his place (the pitch first, then the best of the bench) ──
 export function autoPlace(L: Lineup, sq: Squad, called: ReadonlySet<string> | null = null): Lineup {
+  const { pool, bench } = autoCandidates(L, sq, called);
+  const cand = pool.concat(bench);
+  const out = hasFitData(cand, sq) ? autoByEncaje(L, sq, pool, bench) : autoByLine(L, sq, pool, cand);
+  return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })) });
+}
+
+/** Who Auto-colocar places: the pitch (without bajas or a «no voy»), then the bench that can come
+ *  («Voy», no answer, «Duda», each by form). */
+function autoCandidates(L: Lineup, sq: Squad, called: ReadonlySet<string> | null): { pool: string[]; bench: string[] } {
   const ok = (id: string) => isAvailable(sq, id) && sq.byId.get(id)?.cv !== "no";
   const pool = L.slots.map((s) => s.playerId).filter((id): id is string => !!id && ok(id));
-  const benchAv = sq.list
+  const bench = sq.list
     .filter((c) => !pool.includes(c.id) && canCome(sq, c.id, called) && !L.slots.some((s) => s.playerId === c.id))
     .sort((a, b) => answerRank(sq, a.id) - answerRank(sq, b.id) || b.rt - a.rt)
     .map((c) => c.id);
-  const cand = pool.concat(benchAv);
-  const out = hasFitData(cand, sq) ? autoByEncaje(L, sq, pool, benchAv) : autoByLine(L, sq, pool, cand);
-  return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })) });
+  return { pool, bench };
+}
+
+/** Whether Auto-colocar places by exact encaje (someone it can place has a preferida or a también)
+ *  rather than by lines — for the words that tell what it did. */
+export function autoByEncajeOn(L: Lineup, sq: Squad, called: ReadonlySet<string> | null = null): boolean {
+  const { pool, bench } = autoCandidates(L, sq, called);
+  return hasFitData(pool.concat(bench), sq);
 }
 
 /**

@@ -18,8 +18,8 @@ import { systemDef } from "../../../lib/formations";
 import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
 import { GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
 import { chemOf, tierOf } from "./quimica";
-import { autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
-import { suggestSeven } from "./pack";
+import { autoByEncajeOn, autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
+import { sevenByEncajeOn, suggestSeven } from "./pack";
 import { boardInPlace, encajeCandidates, shownFit, slotCode } from "./encaje";
 import { applyFan, fanCentre, fanItems, type FanItem, type FanSub } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
@@ -1805,18 +1805,21 @@ export function Board(props: BoardProps) {
     }
     commit(next, { ui: { sel: null, pick: null, kb: null }, fx: { spin: !rm } });
     buzz([10, 40, 10, 40, 10, 40, 60]);
-    say(own.length && cm ? "Sobre abierto: el siete de la convocatoria de " + matchShort(cm) : "Sobre abierto: los siete en mejor forma" + (sq.recentLabel ? " (" + sq.recentLabel + ")" : ""));
+    // (with exact positions the pack deals by encaje first, form only between equals)
+    const best = sevenByEncajeOn(L, sq, own, calledOf(cm)) ? "los siete que mejor encajan, por forma" : "los siete en mejor forma";
+    say(own.length && cm ? "Sobre abierto: el siete de la convocatoria de " + matchShort(cm) : "Sobre abierto: " + best + (sq.recentLabel ? " (" + sq.recentLabel + ")" : ""));
   };
   const doAuto = () => {
     if (!canEdit) return;
     const next = autoPlace(L, sq, called);
+    const exact = autoByEncajeOn(L, sq, called);
     if (next.slots.every((s, i) => s.playerId === L.slots[i]?.playerId)) {
-      say(next.slots.some((s) => s.playerId) ? "Ya está cada cromo en su sitio" : "No hay nadie disponible para colocar");
+      say(next.slots.some((s) => s.playerId) ? (exact ? "Ya está cada cromo donde mejor encaja" : "Ya está cada cromo en su sitio") : "No hay nadie disponible para colocar");
       return;
     }
     commit(next, { ui: { sel: null, pick: null, kb: null } });
     buzz([10, 30, 10, 30, 10]);
-    say("Cada cromo a su sitio natural · bajas y «no voy» fuera");
+    say((exact ? "Cada cromo donde mejor encaja" : "Cada cromo a su sitio natural") + " · bajas y «no voy» fuera");
   };
   const toSystem = (next: Lineup) => {
     commit(next, { ui: { pick: null } });
