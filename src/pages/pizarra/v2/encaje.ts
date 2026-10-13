@@ -1,10 +1,10 @@
 // La pizarra «Noche de partido» — el encaje: the exact position of each slot, how well a player fits
 // it (positions.fitGrade), and the best seven a squad can put on a system. Pure (no React).
 import { systemDef } from "../../../lib/formations";
-import { fitGrade, lineOf, POS_CODES, POSITIONS, type FitGrade, type PosCode } from "../../../lib/positions";
+import { fitGrade, POS_CODES, POSITIONS, type FitGrade, type PosCode } from "../../../lib/positions";
 import type { FormationName, Lineup } from "../formations";
 import { normZone } from "../positions";
-import { planeDist2 } from "./geometry";
+import { planeDist2, slotZone } from "./geometry";
 import type { Cromo, Squad } from "./model";
 
 const OUTFIELD = POS_CODES.filter((c) => c !== "POR");
@@ -34,12 +34,21 @@ const gradeOf = (c: Cromo | undefined, code: PosCode): FitGrade | null =>
   c ? fitGrade(c.ps ?? { main: null, also: [], line: c.pos ?? null }, code) : null;
 
 /** How well a player fits slot i of this lineup: 3 preferida · 2 también · 1 adaptado · 0 fuera ·
- *  null sin datos. A per-board «Jugar de» (a line) counts as también on that line and fuera elsewhere. */
+ *  null sin datos. A per-board «Jugar de» (a line) counts as también on that line and fuera elsewhere.
+ *  What is only known as a line is compared with the board's own line for the slot (slotZone: in free
+ *  mode its depth bands, which near the middle are not the nearest code's line). */
 export function fitAt(L: Lineup, sq: Squad, id: string, i: number): FitGrade | null {
-  const code = slotCode(L, i);
+  const zone = slotZone(L, i);
   const over = normZone(L.playerPositions[id]);
-  if (over) return over === lineOf(code) ? 2 : 0;
-  return gradeOf(sq.byId.get(id), code);
+  if (over) return over === zone ? 2 : 0;
+  const c = sq.byId.get(id);
+  if (!c) return null;
+  const ps = c.ps ?? { main: null, also: [], line: c.pos ?? null };
+  if (!ps.main && !ps.also.length) {
+    if (!ps.line) return null;
+    return zone !== "POR" && ps.line !== "POR" && ps.line === zone ? 1 : 0;
+  }
+  return fitGrade(ps, slotCode(L, i));
 }
 
 /** The best seven of a squad on a system. */

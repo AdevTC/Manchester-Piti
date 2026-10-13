@@ -281,7 +281,7 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, 
       tg: handB ? "Entra por él" : "Intercambiar",
       aria: !rev
         ? "Cromo boca abajo: aún por presentar"
-        : p.name + ", dorsal " + p.num + ", " + slotLabel(L, i) +
+        : p.name + ", dorsal " + p.num + ", " + code +
         (fit != null ? ", " + FIT_WORDS[fit] + (oop && natTxt ? " (natural " + natTxt + ")" : "") : "") +
         ", " + formAria(p) +
         (gal.length ? ", galones " + gal.join(" ") : "") +

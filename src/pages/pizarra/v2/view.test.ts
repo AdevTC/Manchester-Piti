@@ -86,7 +86,28 @@ describe("the cromo prints the slot's exact position and how well he fits", () =
   it("free mode prints the nearest catalogue position", () => {
     const base = lineupOf(SEVEN, "2-3-1", sq);
     const L = { ...base, freeMode: true, slots: base.slots.map((s, i) => (i === 2 ? { ...s, x: 14, y: 70 } : s)) };
-    expect(card(view(L), "tamb")).toMatchObject({ zoneTxt: "LI", fit: 3 });
+    const w = view(L);
+    expect(card(w, "tamb")).toMatchObject({ zoneTxt: "LI", fit: 3 });
+    // the label says the printed code too
+    expect(card(w, "tamb").aria).toMatch(/^TAMB, dorsal 3, LI, en su posición,/);
+  });
+
+  it("free mode: a line-only player is judged by the board's own line for the slot, not the nearest code's", () => {
+    // y 64 is DEF on the free board (bands at 62 / 36) though its nearest catalogue point is MCD;
+    // y 30 is DEL though its nearest is MCO
+    const base = lineupOf(["gk", "cen", "tamb", "lindef", "adap", null, null], "2-3-1", sq);
+    const L = { ...base, freeMode: true, slots: base.slots.map((s, i) => (i === 3 ? { ...s, x: 50, y: 64 } : i === 6 ? { ...s, x: 50, y: 30 } : s)) };
+    const w = view(L);
+    expect(card(w, "lindef")).toMatchObject({ zoneTxt: "MCD", oop: false, fit: null });
+    expect(card(w, "lindef").cls.split(" ")).not.toContain("oop");
+    // a line-only DEL player in the hand: the DEL slot at y 30 is his line (no «!»), the DEF one is not
+    const del = squadOf([...sq.list, cromo("lindel", 10, "DEL")]);
+    const h = pitchView({ L: { ...L, bench: ["lindel"] }, sq: del, ch: chem(L, del), cam: "tv", modo: "editar", fx: FX0, selId: null, pick: null, ro: false, rm: false, meId: null, hand: { k: "b", id: "lindel" } });
+    expect(h.slots.find((s) => s.i === 6)?.cls).toBe("");
+    expect(h.cards.find((c) => c.id === "lindef")?.cls.split(" ")).toContain("pzp-g0");
+    // and the same player held from the bench over the y-64 slot: no «fuera»
+    const d = pitchView({ L, sq, ch: chem(L, sq), cam: "tv", modo: "editar", fx: FX0, selId: null, pick: null, ro: false, rm: false, meId: null, hand: { k: "b", id: "lindef" } });
+    expect(d.cards.find((c) => c.id === "cen")?.cls.split(" ")).not.toContain("pzp-g0");
   });
 });
 
