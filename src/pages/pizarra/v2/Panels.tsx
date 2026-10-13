@@ -1,9 +1,11 @@
 // The board's HUD and tools: the app bar (board name + autosave, the 7/7 chip, undo/redo, la charla),
 // the read-only strip, the sheet with its handle, the «Siete» tool (the squad bars, then Convocatoria ·
 // Sistema · Plan; the bench grid is the picker), the «Más» tiles, and the mode bar / rail.
-import { useId, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { useId, useMemo, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import type { FormationName } from "../formations";
 import { systemDef } from "../../../lib/formations";
+import type { FitGrade } from "../../../lib/positions";
+import { encajeBySystem, faltaTxt, hasFitData } from "./encaje";
 import { FORM, SYSTEMS } from "./geometry";
 import { Icon, Nuevo } from "./icons";
 import { AlbumCromo, BenchRowItem } from "./Cromos";
@@ -479,16 +481,37 @@ export function BenchTab(p: BenchTabProps) {
   );
 }
 
-function MiniSystem({ name }: { name: FormationName }) {
+/** The system's seven as dots; with `grades` (the best seven's fit per slot), each outfield dot takes
+ *  its grade's shape (the keeper stays gold). */
+function MiniSystem({ name, grades }: { name: FormationName; grades?: (FitGrade | null)[] }) {
   return (
     <svg viewBox="0 0 60 80" aria-hidden="true">
       <rect x="2" y="2" width="56" height="76" rx="4" />
       <path d="M2 40h56" />
-      {FORM[name].map(([, z, u, v], k) => (
-        <circle key={k} className={z === "POR" ? "g" : ""} cx={(2 + (u / 100) * 56).toFixed(1)} cy={(2 + (v / 100) * 76).toFixed(1)} r="4.2" />
-      ))}
+      {FORM[name].map(([, z, u, v], k) => {
+        const x = grades?.[k];
+        const cls = z === "POR" ? "g" : x != null ? "pzp-dot-g" + x : "";
+        return <circle key={k} className={cls} cx={(2 + (u / 100) * 56).toFixed(1)} cy={(2 + (v / 100) * 76).toFixed(1)} r="4.2" />;
+      })}
     </svg>
   );
+}
+
+/** «Ordenar por encaje», remembered on this device (never required: blocked storage just starts off). */
+const SYSORDER_KEY = "mp_pizarra_v2_sysorder";
+function readSysOrder(): boolean {
+  try {
+    return localStorage.getItem(SYSORDER_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function writeSysOrder(on: boolean) {
+  try {
+    localStorage.setItem(SYSORDER_KEY, on ? "1" : "0");
+  } catch {
+    /* (a private window: the order lasts while the panel is open) */
+  }
 }
 
 export interface SystemTabProps {
@@ -498,6 +521,8 @@ export interface SystemTabProps {
   ro: boolean;
   ch: Chem;
   sq: Squad;
+  /** Who the board can count on (encajeCandidates): their best seven on each system. */
+  cands: string[];
   /** La química por jugador: the team's diamonds (0–21). */
   dm?: number;
   onSystem: (f: FormationName) => void;
@@ -506,18 +531,68 @@ export interface SystemTabProps {
   onReset: () => void;
 }
 
-/** The Sistema page: the systems and Libre as tiles, then the química of the seven in short. */
+/** The Sistema page: the current system's ficha, the systems (with how many of ours are in their place)
+ *  and Libre as tiles, then the química of the seven in short. */
 export function SystemTab(p: SystemTabProps) {
+  const { cands, sq } = p;
+  const enc = useMemo(() => encajeBySystem(cands, sq), [cands, sq]);
+  const data = useMemo(() => hasFitData(cands, sq), [cands, sq]);
+  const [byFit, setByFit] = useState(readSysOrder);
+  const toggleSort = () => {
+    setByFit(!byFit);
+    writeSysOrder(!byFit);
+  };
+  // (Array.prototype.sort is stable: equal counts keep the catalogue's order)
+  const order = data && byFit ? [...SYSTEMS].sort((a, b) => enc[b].inPlace - enc[a].inPlace) : SYSTEMS;
+  const cur = systemDef(p.formation);
+  const falta = data ? faltaTxt(enc[p.formation].missing) : "";
   return (
     <div className="pg">
+      {!p.free && (
+        <section className="pzp-sysf" aria-label={"Ficha del sistema " + cur.label}>
+          <p className="pzp-sysf-h">
+            <b>{cur.label}</b> · {cur.name}
+          </p>
+          <p>{cur.about}</p>
+          <p>
+            <b>Fuertes:</b> {cur.strengths}
+          </p>
+          <p>
+            <b>Débiles:</b> {cur.weaknesses}
+          </p>
+          {falta && <p className="pzp-sysf-f">{falta}</p>}
+        </section>
+      )}
+      {data && (
+        <div className="row pzp-sysort">
+          <button type="button" className="tg" onClick={toggleSort} aria-pressed={byFit}>
+            Ordenar por encaje
+          </button>
+        </div>
+      )}
       <div className="sysg" role="group" aria-label="Sistema de juego">
-        {SYSTEMS.map((k) => {
+        {order.map((k) => {
           const s = systemDef(k);
+          const e = enc[k];
+          const n = e.grades.length;
           return (
-            <button key={k} type="button" className="sy" onClick={() => p.onSystem(k)} aria-pressed={!p.free && p.formation === k} aria-label={`Sistema ${s.label} ${s.name}`} disabled={p.ro}>
-              <MiniSystem name={k} />
+            <button
+              key={k}
+              type="button"
+              className="sy"
+              onClick={() => p.onSystem(k)}
+              aria-pressed={!p.free && p.formation === k}
+              aria-label={`Sistema ${s.label} ${s.name}` + (data ? `, ${e.inPlace} de ${n} en su sitio` : "")}
+              disabled={p.ro}
+            >
+              <MiniSystem name={k} grades={data ? e.grades : undefined} />
               <b>{s.label}</b>
               <small>{s.name}</small>
+              {data && (
+                <span className="pzp-syf">
+                  {e.inPlace}/{n} en su sitio
+                </span>
+              )}
             </button>
           );
         })}

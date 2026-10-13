@@ -3,7 +3,8 @@
 import { describe, expect, it } from "vitest";
 import type { PosCode, ResolvedPositions } from "../../../lib/positions";
 import { lineOf } from "../../../lib/positions";
-import { assign, bestEncaje, encajeCandidates, fitAt, slotCode } from "./encaje";
+import { assign, bestEncaje, encajeBySystem, encajeCandidates, faltaTxt, fitAt, hasFitData, slotCode } from "./encaje";
+import { SYSTEMS } from "./geometry";
 import { cromo, lineupOf, squadOf } from "./testkit";
 
 const ps = (main: PosCode | null, ...also: PosCode[]): ResolvedPositions => ({ main, also, line: main ? lineOf(main) : null });
@@ -175,5 +176,29 @@ describe("encajeCandidates", () => {
     ]);
     const L = { ...lineupOf(["a", "b", null, "d"], "2-3-1"), bench: ["e", "c", "ghost"] };
     expect(encajeCandidates(L, sq)).toEqual(["a", "d", "e"]);
+  });
+});
+
+describe("the Sistema panel's words", () => {
+  it("hasFitData: only an exact position counts (a line alone, or nothing, is no data)", () => {
+    const sq = squadOf([withPs("a", 1, "MC"), withPs("b", 2, null, "LD"), cromo("l", 3, "DEF"), cromo("n", 4, undefined)]);
+    expect(hasFitData(["a", "l"], sq)).toBe(true);
+    expect(hasFitData(["b"], sq)).toBe(true);
+    expect(hasFitData(["l", "n", "ghost"], sq)).toBe(false);
+    expect(hasFitData([], sq)).toBe(false);
+  });
+
+  it("faltaTxt: Spanish names, «un» for all, «y» before the last, Falta / Faltan", () => {
+    expect(faltaTxt([])).toBe("");
+    expect(faltaTxt(["ED"])).toBe("Falta: un extremo derecho");
+    expect(faltaTxt(["MCD", "ED"])).toBe("Faltan: un pivote y un extremo derecho");
+    expect(faltaTxt(["POR", "DFC", "DFC", "MI"])).toBe("Faltan: un portero, un central y un interior izquierdo");
+  });
+
+  it("encajeBySystem: every system of the catalogue, each its best seven", () => {
+    const sq = squadOf([withPs("k", 1, "POR"), withPs("d", 4, "DFC"), withPs("m", 8, "MC")]);
+    const m = encajeBySystem(["k", "d", "m"], sq);
+    expect(Object.keys(m)).toEqual(SYSTEMS);
+    expect(m["2-3-1"]).toEqual(bestEncaje("2-3-1", ["k", "d", "m"], sq));
   });
 });

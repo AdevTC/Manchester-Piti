@@ -1,10 +1,16 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { systemDef } from "../../../lib/formations";
+import { lineOf, type PosCode, type ResolvedPositions } from "../../../lib/positions";
+import type { FormationName } from "../formations";
 import { BenchTab, OnceTabs, SquadBars, SystemTab, type BenchTabProps } from "./Panels";
 import { PanelHead } from "./SheetPanels";
 import { benchGroups, convHead, squadInfo } from "./bench";
+import { encajeBySystem } from "./encaje";
+import { SYSTEMS } from "./geometry";
+import type { Squad } from "./model";
 import { chem } from "./quimica";
-import { demoSquad, lineupOf } from "./testkit";
+import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
 
 // The «Siete» tool's pieces on their own: the squad bars, the tabs with their keys, the Convocatoria page
 // (rows or cromos), the Sistema tiles, and the panels' heading.
@@ -146,7 +152,7 @@ describe("«Siete»", () => {
 
   it("Sistema: the systems and Libre as tiles with their names, then the química in short", () => {
     const onSystem = vi.fn();
-    const { container } = render(<SystemTab formation="2-3-1" free={false} grid={false} ro={false} ch={ch} sq={sq} onSystem={onSystem} onLibre={vi.fn()} onGrid={vi.fn()} onReset={vi.fn()} />);
+    const { container } = render(<SystemTab formation="2-3-1" free={false} grid={false} ro={false} ch={ch} sq={sq} cands={sq.list.map((c) => c.id)} onSystem={onSystem} onLibre={vi.fn()} onGrid={vi.fn()} onReset={vi.fn()} />);
     const tiles = within(screen.getByRole("group", { name: "Sistema de juego" })).getAllByRole("button");
     expect(tiles.map((t) => t.querySelector("b")?.textContent)).toEqual(["2-3-1", "2-1-2-1", "2-2-2", "2-2-1-1", "3-2-1", "3-1-2", "3-1-1-1", "4-1-1", "3-3", "2-1-3", "1-3-2", "1-2-3", "1-2-2-1", "1-1-2-1-1", "2-1-2-1", "Libre"]);
     expect(tiles[0]).toHaveAttribute("aria-pressed", "true");
@@ -161,6 +167,122 @@ describe("«Siete»", () => {
     expect(container.querySelectorAll(".lk-list li").length).toBeLessThanOrEqual(3);
     // the free-mode row only in Libre
     expect(screen.queryByRole("button", { name: "Ajustar a la rejilla" })).not.toBeInTheDocument();
+  });
+
+  describe("Sistema: ¿nos encaja?", () => {
+    const ps = (main: PosCode | null, ...also: PosCode[]): ResolvedPositions => ({ main, also, line: main ? lineOf(main) : null });
+    const withPs = (id: string, num: number, main: PosCode | null, ...also: PosCode[]) => cromo(id, num, main ? lineOf(main) : undefined, { ps: ps(main, ...also) });
+    // two keepers, a LD, a DFC, two MCs (one also pivote), a punta and an extremo derecho
+    const fq = squadOf([
+      withPs("k1", 1, "POR"),
+      withPs("k2", 13, "POR"),
+      withPs("ld", 2, "LD"),
+      withPs("dfc", 4, "DFC"),
+      withPs("mc1", 8, "MC"),
+      withPs("mc2", 6, "MC", "MCD"),
+      withPs("dc", 9, "DC"),
+      withPs("ed", 7, "ED"),
+    ]);
+    const FL = lineupOf(["k1", "dfc", "ld", "mc1", "mc2", "ed", "dc"], "2-3-1", fq);
+    const fch = chem(FL, fq);
+    const ids = fq.list.map((c) => c.id);
+    const tab = (over: { formation?: FormationName; free?: boolean; sq?: Squad; cands?: string[] } = {}) => (
+      <SystemTab formation={over.formation ?? "2-3-1"} free={over.free ?? false} grid={false} ro={false} ch={fch} sq={over.sq ?? fq} cands={over.cands ?? ids} onSystem={vi.fn()} onLibre={vi.fn()} onGrid={vi.fn()} onReset={vi.fn()} />
+    );
+    const tilesOf = () => within(screen.getByRole("group", { name: "Sistema de juego" })).getAllByRole("button");
+    beforeEach(() => localStorage.clear());
+    afterEach(() => localStorage.clear());
+
+    it("each tile counts who is in his place, says it in words, and tints its dots by the best seven", () => {
+      render(tab());
+      const tiles = tilesOf();
+      expect(tiles[0]).toHaveAttribute("aria-label", "Sistema 2-3-1 Clásico, 4 de 7 en su sitio");
+      expect(tiles[0].querySelector(".pzp-syf")).toHaveTextContent("4/7 en su sitio");
+      expect(tiles[9].querySelector("b")).toHaveTextContent("2-1-3");
+      expect(tiles[9]).toHaveAttribute("aria-label", "Sistema 2-1-3 Tridente, 5 de 7 en su sitio");
+      // 2-3-1 grades [3,3,1,1,3,1,3]: the keeper stays gold, the rest by grade
+      const dots = Array.from(tiles[0].querySelectorAll("circle")).map((c) => c.getAttribute("class"));
+      expect(dots).toEqual(["g", "pzp-dot-g3", "pzp-dot-g1", "pzp-dot-g1", "pzp-dot-g3", "pzp-dot-g1", "pzp-dot-g3"]);
+      // Libre has no count
+      expect(tiles[15].querySelector(".pzp-syf")).toBeNull();
+    });
+
+    it("the strip: the current system's ficha and who is missing", () => {
+      render(tab());
+      const strip = screen.getByRole("region", { name: "Ficha del sistema 2-3-1" });
+      const def = systemDef("2-3-1");
+      expect(strip.querySelector(".pzp-sysf-h")).toHaveTextContent("2-3-1 · Clásico");
+      expect(strip).toHaveTextContent(def.about);
+      expect(strip).toHaveTextContent("Fuertes: " + def.strengths);
+      expect(strip).toHaveTextContent("Débiles: " + def.weaknesses);
+      expect(strip.querySelector(".pzp-sysf-f")).toHaveTextContent("Faltan: un central, un interior izquierdo y un interior derecho");
+    });
+
+    it("«Ordenar por encaje»: off by default (catalogue order); on, most in place first (stable), remembered", () => {
+      const { unmount } = render(tab());
+      const order = () => tilesOf().map((t) => t.querySelector("b")?.textContent);
+      const catalogue = order();
+      const sort = screen.getByRole("button", { name: "Ordenar por encaje" });
+      expect(sort).toHaveAttribute("aria-pressed", "false");
+      fireEvent.click(sort);
+      expect(sort).toHaveAttribute("aria-pressed", "true");
+      expect(localStorage.getItem("mp_pizarra_v2_sysorder")).toBe("1");
+      const enc = encajeBySystem(ids, fq);
+      const sorted = [...SYSTEMS].sort((a, b) => enc[b].inPlace - enc[a].inPlace).map((k) => systemDef(k).label);
+      expect(order()).toEqual([...sorted, "Libre"]);
+      expect(order()).not.toEqual(catalogue);
+      const counts = tilesOf().slice(0, -1).map((t) => Number(t.querySelector(".pzp-syf")?.textContent?.split("/")[0]));
+      expect(counts).toEqual([...counts].sort((a, b) => b - a));
+      // a new visit keeps the order
+      unmount();
+      render(tab());
+      expect(screen.getByRole("button", { name: "Ordenar por encaje" })).toHaveAttribute("aria-pressed", "true");
+      expect(order()).toEqual([...sorted, "Libre"]);
+    });
+
+    it("a single missing position: «Falta» in the singular", () => {
+      render(tab({ formation: "2-1-3" }));
+      expect(screen.getByRole("region", { name: "Ficha del sistema 2-1-3" }).querySelector(".pzp-sysf-f")).toHaveTextContent("Faltan: un central y un extremo izquierdo");
+      cleanup();
+      const full = squadOf([...fq.list, withPs("dfc2", 5, "DFC"), withPs("mi", 3, "MI"), withPs("md", 11, "MD", "ED")]);
+      render(tab({ sq: full, cands: full.list.map((c) => c.id).filter((id) => id !== "md") }));
+      expect(screen.getByRole("region", { name: "Ficha del sistema 2-3-1" }).querySelector(".pzp-sysf-f")).toHaveTextContent(/^Falta: un interior derecho$/);
+    });
+
+    it("no positions data (a line at most): no counts, no tints, no «Falta», no sort — the ficha stays", () => {
+      const { container } = render(tab({ sq, cands: sq.list.map((c) => c.id) }));
+      const tiles = tilesOf();
+      expect(tiles[0]).toHaveAttribute("aria-label", "Sistema 2-3-1 Clásico");
+      expect(container.querySelector(".pzp-syf")).toBeNull();
+      expect(container.querySelector("[class*='pzp-dot-g']")).toBeNull();
+      expect(container.querySelector(".pzp-sysf-f")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Ordenar por encaje" })).not.toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Ficha del sistema 2-3-1" })).toHaveTextContent(systemDef("2-3-1").about);
+    });
+
+    it("Libre has no ficha of its own", () => {
+      render(tab({ free: true }));
+      expect(screen.queryByRole("region", { name: /^Ficha del sistema/ })).not.toBeInTheDocument();
+    });
+
+    it("a blocked storage never breaks the panel", () => {
+      const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+        throw new Error("blocked");
+      });
+      const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throw new Error("blocked");
+      });
+      try {
+        render(tab());
+        const sort = screen.getByRole("button", { name: "Ordenar por encaje" });
+        expect(sort).toHaveAttribute("aria-pressed", "false");
+        fireEvent.click(sort);
+        expect(sort).toHaveAttribute("aria-pressed", "true");
+      } finally {
+        get.mockRestore();
+        set.mockRestore();
+      }
+    });
   });
 
   it("the panels' heading speaks first; the kicker is the line under it", () => {

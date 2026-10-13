@@ -20,6 +20,7 @@ import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
 import { chemOf, tierOf } from "./quimica";
 import { autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { suggestSeven } from "./pack";
+import { encajeCandidates } from "./encaje";
 import { applyFan, fanCentre, fanItems, type FanItem, type FanSub } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
 import { cycle, settle, snapOf, step, type Snap } from "./sheet";
@@ -502,7 +503,10 @@ export function Board(props: BoardProps) {
   // (once per lineup and squad: the HUD, the cromos, the bars, the panels and the cartel all read it)
   const ch = chemOf(L, sq);
   const squadIds = useMemo(() => sq.list.map((c) => c.id), [sq]);
-  const nm = (id: string) => sq.byId.get(id)?.name ?? "Jugador";
+  // (the Sistema tiles' pool, sorted: the same identity while nobody joins or leaves it)
+  const candKey = encajeCandidates(L, sq).sort().join(",");
+  const encCands = useMemo(() => (candKey ? candKey.split(",") : []), [candKey]);
+  const nm =(id: string) => sq.byId.get(id)?.name ?? "Jugador";
   // «El oficial ha cambiado: entra X» (since this device last saw it; never to whoever is editing it)
   const offB = props.official;
   const ofb = useOficialBanner(offB, !!offB && offB.id === props.session.id && ready && !ro, nm);
@@ -2651,6 +2655,7 @@ export function Board(props: BoardProps) {
             ro={!canEdit}
             ch={ch}
             sq={sq}
+            cands={encCands}
             dm={tq.dm}
             onSystem={(f: FormationName) => canEdit && toSystem(setSystem(L, f))}
             onLibre={() => {

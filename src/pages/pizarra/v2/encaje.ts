@@ -4,7 +4,7 @@ import { systemDef } from "../../../lib/formations";
 import { fitGrade, POS_CODES, POSITIONS, type FitGrade, type PosCode } from "../../../lib/positions";
 import type { FormationName, Lineup } from "../formations";
 import { normZone } from "../positions";
-import { planeDist2, slotZone } from "./geometry";
+import { planeDist2, slotZone, SYSTEMS } from "./geometry";
 import type { Cromo, Squad } from "./model";
 
 const OUTFIELD = POS_CODES.filter((c) => c !== "POR");
@@ -150,6 +150,28 @@ export function bestEncaje(system: FormationName, candidates: string[], sq: Squa
     else if ((!id || x != null) && !out.missing.includes(code)) out.missing.push(code);
   });
   return out;
+}
+
+/** The best seven of the candidates on every system of the catalogue (for the Sistema tiles). */
+export function encajeBySystem(candidates: string[], sq: Squad): Record<FormationName, Encaje> {
+  return Object.fromEntries(SYSTEMS.map((k) => [k, bestEncaje(k, candidates, sq)])) as Record<FormationName, Encaje>;
+}
+
+/** Someone among the candidates has an exact position (a preferida or a también): only then do the
+ *  counts mean anything — a line alone (the old «Defensa») says nobody is «en su sitio». */
+export function hasFitData(candidates: string[], sq: Squad): boolean {
+  return candidates.some((id) => {
+    const ps = sq.byId.get(id)?.ps;
+    return !!ps && (!!ps.main || ps.also.length > 0);
+  });
+}
+
+/** «Falta: un extremo derecho» · «Faltan: un central, un pivote y un punta» («» when nothing is missing). */
+export function faltaTxt(missing: PosCode[]): string {
+  const names = [...new Set(missing)].map((c) => "un " + POSITIONS[c].name.toLowerCase());
+  if (!names.length) return "";
+  // (bench's andList, inline: bench → view → encaje would make an import cycle)
+  return names.length === 1 ? "Falta: " + names[0] : "Faltan: " + names.slice(0, -1).join(", ") + " y " + names[names.length - 1];
 }
 
 /** Who the board can count on: the seven on the pitch and the bench, without bajas or a «no voy». */
