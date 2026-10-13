@@ -13,57 +13,72 @@ env:
   VITE_FIREBASE_AUTH_DOMAIN: demo-manchester-piti.firebaseapp.com
   VITE_FIREBASE_PROJECT_ID: demo-manchester-piti
   VITE_FIREBASE_APP_ID: demo-app
+# Every job runs in parallel; the slow suites are split in shards, each on its own runner (and, for the browser,
+# its own emulators and seed), so the wall time is the slowest shard, not the sum.
 jobs:
   verify:
-    name: Lint · Test · Build
+    name: Lint · Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: npm ci --prefix functions
-      - run: npm --prefix functions run build
+      - uses: ./.github/actions/setup
       - run: pnpm lint --max-warnings 0
-      - run: pnpm test
       - run: pnpm build
-  e2e:
-    name: Rules · Backend · Browser (demo emulators)
+  unit:
+    name: Unit ${{ matrix.shard }}/3
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm test --shard=${{ matrix.shard }}/3
+  backend:
+    name: Rules · Backend (demo emulators)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
+      - uses: ./.github/actions/setup
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
-      - run: pnpm install --frozen-lockfile
-      - run: npm ci --prefix functions
-      - run: npm --prefix functions run build
       - name: Create emulator-only fixture secret
-        run: |
-          echo "VAPID_PRIVATE_KEY=ci-not-a-key" > functions/.secret.local
-      - run: pnpm exec playwright install --with-deps chromium
-      - name: Run isolated integration suite
+        run: echo "VAPID_PRIVATE_KEY=ci-not-a-key" > functions/.secret.local
+      - name: Functions integration + Firestore rules
         run: >-
           pnpm dlx firebase-tools@15.30.2 emulators:exec
           --only auth,firestore,functions
           --project demo-manchester-piti
-          "npm --prefix functions test && pnpm exec vitest run --config vitest.rules.config.ts && pnpm test:e2e"
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+          "npm --prefix functions test && pnpm exec vitest run --config vitest.rules.config.ts"
+  e2e:
+    name: Browser ${{ matrix.shard }}/3 (demo emulators)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/setup-java@v4
         with:
-          name: playwright-report
+          distribution: temurin
+          java-version: 21
+      - name: Create emulator-only fixture secret
+        run: echo "VAPID_PRIVATE_KEY=ci-not-a-key" > functions/.secret.local
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Playwright on fresh emulators
+        run: >-
+          pnpm dlx firebase-tools@15.30.2 emulators:exec
+          --only auth,firestore,functions
+          --project demo-manchester-piti
+          "pnpm test:e2e --shard=${{ matrix.shard }}/3"
+      - uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: playwright-report-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
