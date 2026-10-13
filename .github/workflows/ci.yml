@@ -54,12 +54,12 @@ jobs:
           --project demo-manchester-piti
           "npm --prefix functions test && pnpm exec vitest run --config vitest.rules.config.ts"
   e2e:
-    name: Browser ${{ matrix.shard }}/3 (demo emulators)
+    name: Browser ${{ matrix.shard }}/4 (demo emulators)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -75,7 +75,7 @@ jobs:
           pnpm dlx firebase-tools@15.30.2 emulators:exec
           --only auth,firestore,functions
           --project demo-manchester-piti
-          "pnpm test:e2e --shard=${{ matrix.shard }}/3"
+          "pnpm test:e2e --shard=${{ matrix.shard }}/4"
       - uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
