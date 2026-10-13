@@ -70,8 +70,8 @@ const fold = (s: string) =>
     .replace(/[\s\-_/.,·]+/g, " ");
 
 // Frases completas → posición exacta (se comparan ya sin tildes, en minúsculas y con un espacio).
-const EXACT: Record<string, PosCode> = {};
-const ex = (c: PosCode, ...ws: string[]) => ws.forEach((w) => (EXACT[w] = c));
+const EXACT = new Map<string, PosCode>();
+const ex = (c: PosCode, ...ws: string[]) => ws.forEach((w) => EXACT.set(w, c));
 ex("POR", "por", "portero", "portera", "porteros", "guardameta", "arquero", "gk");
 ex("DFC", "dfc", "central", "centrales", "defensa central", "defensor central");
 ex("LIB", "lib", "libero", "ultimo hombre");
@@ -87,8 +87,8 @@ ex("ED", "ed", "extremo derecho", "extremo dcho");
 ex("DC", "delantero centro", "punta", "ariete", "nueve", "9", "dc");
 
 // Palabras que solo dicen la línea (la primera palabra decide, como hacía normZone).
-const LINE_WORDS: Record<string, Line> = {};
-const lw = (l: Line, ...ws: string[]) => ws.forEach((w) => (LINE_WORDS[w] = l));
+const LINE_WORDS = new Map<string, Line>();
+const lw = (l: Line, ...ws: string[]) => ws.forEach((w) => LINE_WORDS.set(w, l));
 lw("POR", "por", "portero", "portera", "porteros", "guardameta", "arquero", "gk");
 lw("DEF", "def", "defensa", "defensas", "defensor", "defensora", "defensores", "defensivo", "lateral", "laterales", "central", "centrales", "carrilero", "libero", "dfc", "ld", "li", "lib");
 lw("MED", "med", "medio", "medios", "media", "mediocampista", "centrocampista", "centrocampistas", "mediocentro", "mediapunta", "pivote", "interior", "volante", "mc", "mcd", "mco", "mi", "md");
@@ -99,8 +99,8 @@ export function parsePosition(x: unknown): { code: PosCode | null; line: Line | 
   if (typeof x !== "string") return { code: null, line: null };
   const s = fold(x);
   if (!s) return { code: null, line: null };
-  const code = EXACT[s] ?? null;
+  const code = EXACT.get(s) ?? null;
   if (code) return { code, line: lineOf(code) };
-  const line = LINE_WORDS[s] ?? LINE_WORDS[s.split(" ")[0]] ?? null;
+  const line = LINE_WORDS.get(s) ?? LINE_WORDS.get(s.split(" ")[0]) ?? null;
   return { code: null, line };
 }

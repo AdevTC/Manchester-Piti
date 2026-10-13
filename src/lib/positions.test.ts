@@ -62,6 +62,12 @@ describe("parsePosition: whatever was stored, never a guess", () => {
     ["  MED ", null, "MED"],
     ["", null, null],
     ["Banquillo", null, null],
+    ["constructor", null, null],
+    ["constructor foo", null, null],
+    ["toString x", null, null],
+    ["__proto__", null, null],
+    ["valueOf", null, null],
+    ["hasOwnProperty", null, null],
     [null, null, null],
     [7, null, null],
   ];
