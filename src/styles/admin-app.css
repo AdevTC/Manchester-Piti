@@ -39,6 +39,12 @@
 
 /* Shirt stickers: a red card (the canvas drew the ball and the yellow). */
 .adm .stk i.r{border-radius:3px;width:14px;height:20px;background:#ff5a4f}
+.adm .stk.counted{right:-12px;top:0;max-width:100px}
+.adm .stk.counted .mb-card{width:8px;height:12px;transform:none;border-radius:1px}
+.adm .stk.counted .yellow .mb-card{background:#ffc659;box-shadow:none}
+.adm .stk.counted .red .mb-card{background:#e74639;box-shadow:none}
+.adm .pub-bench{margin:14px 0 0;padding-top:14px;border-top:1px solid var(--line)}
+.adm .pub-bench>.lb{display:block;margin-bottom:12px;text-align:center;font:11px 'Geist Mono';color:var(--muted)}
 
 /* Lower thirds: errors in red (their tag says «!»). */
 .adm .lt.err .k{background:var(--red);color:#fff}
@@ -370,3 +376,7 @@
 .adm .rmd-sw{display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex:0 0 auto;min-height:44px;cursor:pointer}
 .adm .rmd-sw input{width:40px;height:22px;accent-color:var(--accent);cursor:pointer}
 .adm .rmd-sw small{min-width:2ch;font-weight:600;color:var(--ink)}
+
+/* Touchline header: the short metadata line must not inherit the match-list container. */
+.adm .lv .r1 .ml{container-type:normal;display:block;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;letter-spacing:.04em}
+.adm .lv .r1 .bk,.adm .lv .r1 .tally{flex-shrink:0}

@@ -57,7 +57,7 @@ export function mergeMatches(published: readonly ClubMatch[], drafts: readonly W
     void _updated;
     // The convocatoria's stamps: the latest of both (an editor save of the draft does not carry them).
     const stamp = (k: "convocatoriaAt" | "convocatoriaNotifiedAt") => Math.max(pub?.[k] ?? 0, d[k] ?? 0) || undefined;
-    byId.set(d.id, { ...(pub ?? {}), ...rest, draft: true, published: !!pub, jornada: null, draftSavedAt: Number.isFinite(saved) ? saved : undefined, convocatoriaAt: stamp("convocatoriaAt"), convocatoriaNotifiedAt: stamp("convocatoriaNotifiedAt") });
+    byId.set(d.id, { ...(pub ?? {}), ...rest, ...(pub?.clock ? { clock: pub.clock, liveEndedAt: pub.liveEndedAt, ...(["first", "halftime", "second"].includes(pub.clock.phase) ? { events: pub.events, starters: pub.starters, bench: pub.bench, notCalled: pub.notCalled, revision: pub.revision, status: pub.status } : {}) } : {}), draft: true, published: !!pub, jornada: null, draftSavedAt: Number.isFinite(saved) ? saved : undefined, convocatoriaAt: stamp("convocatoriaAt"), convocatoriaNotifiedAt: stamp("convocatoriaNotifiedAt") });
   }
   const list = [...byId.values()].sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0));
   const count = new Map<string, number>();
@@ -157,6 +157,8 @@ export interface SheetLike {
   date?: unknown;
   status?: string;
   duration?: number;
+  durationSeconds?: number;
+  clock?: ClubMatch["clock"];
   venue?: string;
   starters?: string[];
   bench?: string[];
@@ -175,7 +177,7 @@ export interface SheetLike {
  */
 export function reviewActa(sheet: SheetLike, roster: readonly string[], now: number, publishedClean = false): ActaReview {
   const date = dateMillis(sheet.date);
-  const played = Number.isFinite(date) && date <= now;
+  const played = sheet.clock ? sheet.clock.phase === "ended" : Number.isFinite(date) && date <= now;
   const status = sheet.status ?? (typeof sheet.goalsFor === "number" ? "finished" : "scheduled");
   const off = status === "cancelled" || status === "postponed";
   const finished = status === "finished" || (played && !off);
@@ -185,7 +187,7 @@ export function reviewActa(sheet: SheetLike, roster: readonly string[], now: num
   const events = sheet.events ?? [];
   const assigned = new Set([...starters, ...bench, ...notCalled]);
   const unassigned = roster.filter((id) => !assigned.has(id)).length;
-  const ledger = calculateLedger({ starters, bench, notCalled, events, duration: sheet.duration ?? 50 }, finished);
+  const ledger = calculateLedger({ starters, bench, notCalled, events, duration: sheet.duration ?? 50, durationSeconds: sheet.durationSeconds }, finished);
   const gf = sheet.goalsFor ?? 0;
   const ga = sheet.goalsAgainst ?? 0;
   const named = ledger.goalsFor;
@@ -225,7 +227,7 @@ export function reviewActa(sheet: SheetLike, roster: readonly string[], now: num
       items.push({ key: "goles", tone: "warn", title: `Goles de ${rival || "el rival"}: ${ga} en el marcador, ${ledger.goalsAgainst} apuntados`, detail: "Apunta cada gol rival con su minuto." });
     else items.push({ key: "goles", tone: "ok", title: `Goles: ${gf} en el marcador, ${named} con nombre`, detail: `El ${gf}–${ga} cuadra con los goles apuntados.` });
     // date
-    if (Number.isFinite(date) && date > now) items.push({ key: "fecha", tone: "warn", title: "El partido todavía no ha comenzado", detail: "Se publica como finalizado cuando ya se ha jugado." });
+    if (Number.isFinite(date) && date > now && sheet.clock?.phase !== "ended") items.push({ key: "fecha", tone: "warn", title: "El partido todavía no ha comenzado", detail: "Se publica como finalizado cuando ya se ha jugado." });
   }
   // the ledger's other errors (the seven-starters rule is the convocatoria's)
   const ledgerErrors = ledger.errors.filter((e) => e !== "Selecciona exactamente 7 titulares.");

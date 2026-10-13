@@ -42,8 +42,9 @@ describe("the live clock", () => {
     const l = liveNow(M({ events: [{ id: "a", type: "goal", minute: 3, playerId: "adrian" }, { id: "b", type: "opponent_goal", minute: 9 }, { id: "c", type: "goal", minute: 12 }] }), T0 + 12.5 * MIN);
     expect(l).toMatchObject({ minute: 13, gf: 2, ga: 1, duration: 50, nextTick: T0 + 13 * MIN });
     // the minute stops at the duration in added time; then it's over
-    expect(liveNow(M(), T0 + 60 * MIN)?.minute).toBe(50);
-    expect(liveNow(M(), T0 + 65 * MIN)).toBeNull();
+    expect(liveNow(M(), T0 + 59 * MIN)?.minute).toBe(50);
+    expect(liveNow(M(), T0 + 60 * MIN)).toBeNull();
+    expect(liveNow(M({ liveEndedAt: T0 + 40 * MIN }), T0 + 41 * MIN)).toBeNull();
     expect(liveNow(M({ duration: 70 }), T0 + 65 * MIN)?.minute).toBe(66);
     expect(liveNow(M({ status: "finished" }), T0 + MIN)).toBeNull();
     expect(liveNow(M({ played: true }), T0 + MIN)).toBeNull();

@@ -5,16 +5,18 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import {
   calculateLedger,
-  EVENT_LABELS,
   type MatchSheet,
 } from "./matchEngine.js";
 import { db, idSchema, parse, admin } from "./common.js";
+import { eventSchema } from "./eventSchema.js";
+import { readyClock } from "./matchClock.js";
 import { recomputePorra } from "./vestuario.js";
 export { clubShare } from "./social.js";
 export { setSeasonArchived } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
 export { clubBundle } from "./bundle.js";
 export { liveEvent } from "./live.js";
+export { controlMatchClock, setMatchScorers } from "./liveClock.js";
 export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff } from "./push.js";
 export { pushReminders, pushOnAnswer } from "./reminders.js";
 export { deleteMatch } from "./matches.js";
@@ -33,20 +35,6 @@ const url = z.union([
   z.literal(""),
   z.url().refine((v) => v.startsWith("https://"), "Usa una URL HTTPS."),
 ]);
-const eventSchema = z.object({
-  id: idSchema,
-  type: z.enum(
-    Object.keys(EVENT_LABELS) as [
-      keyof typeof EVENT_LABELS,
-      ...Array<keyof typeof EVENT_LABELS>,
-    ],
-  ),
-  minute: z.number().int().min(0).max(150),
-  playerId: z.string().max(128).optional(),
-  assistPlayerId: z.string().max(128).optional(),
-  inPlayerId: z.string().max(128).optional(),
-  note: z.string().max(300).optional(),
-});
 export const sheetSchema = z.object({
   version: z.literal(2),
   revision: z.number().int().min(0).optional(),
@@ -62,13 +50,16 @@ export const sheetSchema = z.object({
   competition: z.string().trim().min(1).max(80),
   date: z.number().finite().min(0),
   duration: z.number().int().min(1).max(150),
+  durationSeconds: z.number().int().min(1).max(9000).optional(),
+  analysisCoverage: z.enum(["partial", "complete"]).optional(),
+  analysisNotes: z.string().max(2000).optional(),
   venue: z.string().max(200),
   home: z.boolean(),
   status: z.enum(["scheduled", "finished", "cancelled", "postponed"]),
   starters: z.array(idSchema).max(7),
   bench: z.array(idSchema).max(30),
   notCalled: z.array(idSchema).max(100),
-  events: z.array(eventSchema).max(500),
+  events: z.array(eventSchema).max(2500),
   goalsFor: z.number().int().min(0).max(100).optional(),
   goalsAgainst: z.number().int().min(0).max(100).optional(),
   report: z.string().max(10000),
@@ -88,6 +79,7 @@ export const saveMatchSheet = onCall(async (req) => {
     req.data,
   );
   const sheet = input.sheet as MatchSheet;
+  if (Buffer.byteLength(JSON.stringify(sheet), "utf8") > 650_000) throw new HttpsError("invalid-argument", "El acta es demasiado grande. Reduce las notas de las jugadas.");
   const participants = [...sheet.starters, ...sheet.bench, ...sheet.notCalled];
   const season = await db.doc(`seasons/${sheet.seasonId}`).get();
   if (!season.exists)
@@ -121,11 +113,6 @@ export const saveMatchSheet = onCall(async (req) => {
         "invalid-argument",
         "Asigna una situación inicial a todos los jugadores de la temporada.",
       );
-    if (sheet.date > Date.now())
-      throw new HttpsError(
-        "invalid-argument",
-        "El partido todavía no ha comenzado.",
-      );
     if (
       sheet.goalsFor !== ledger.goalsFor ||
       sheet.goalsAgainst !== ledger.goalsAgainst
@@ -143,6 +130,9 @@ export const saveMatchSheet = onCall(async (req) => {
         "aborted",
         "Otro administrador ha actualizado este partido. Recarga antes de guardar.",
       );
+    const activeClock = old.get("clock");
+    if (!input.draft && sheet.status === "finished" && sheet.date > Date.now() && activeClock?.phase !== "ended") throw new HttpsError("invalid-argument", "El partido todavía no ha comenzado.");
+    if (!input.draft && activeClock && ["first", "halftime", "second"].includes(activeClock.phase)) throw new HttpsError("failed-precondition", "El partido sigue en marcha. Pita el final antes de publicar o modificar el acta.");
     if (input.draft) {
       tx.set(db.doc(`matchDrafts/${input.id}`), {
         ...sheet,
@@ -220,6 +210,8 @@ export const saveMatchSheet = onCall(async (req) => {
     tx.set(ref, {
       ...publicSheet,
       ...stamps,
+      clock: old.get("clock") ?? readyClock(),
+      ...(typeof old.get("liveEndedAt") === "number" && old.get("date")?.toMillis() === sheet.date ? { liveEndedAt: old.get("liveEndedAt") } : {}),
       date: Timestamp.fromMillis(sheet.date),
       revision: (sheet.revision ?? 0) + 1,
       goalsFor: finished ? sheet.goalsFor : null,
@@ -233,7 +225,7 @@ export const saveMatchSheet = onCall(async (req) => {
     tx.set(db.doc(`matchPrivate/${input.id}`), {
       meetingNote: meetingNote ?? "",
       updatedBy: uid,
-    });
+    }, { merge: true });
     tx.delete(db.doc(`matchDrafts/${input.id}`));
     tx.set(db.collection("matchAudit").doc(), {
       matchId: input.id,

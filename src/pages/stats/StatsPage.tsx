@@ -1,3 +1,4 @@
+import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 // Estadísticas (Celeste · "elegida"): the analyst's room with the stadium board on top — the Pichichi
 // race and the ticker — then six tabs (Resumen, Jugadores, Minutos, Rivales, Comparar, Explorar).
 // From the Design canvas "Estadísticas · elegida"; pure logic in lib/clubAnalytics.ts + lib/statsView.ts.
@@ -24,6 +25,7 @@ const route = getRouteApi("/stats");
 const VIEWS = {
   summary: "Resumen",
   players: "Jugadores",
+  game: "Análisis del juego",
   minutes: "Minutos",
   rivals: "Rivales",
   compare: "Comparar",
@@ -197,6 +199,7 @@ export function StatsPage() {
         )}
         {ready && games.length > 0 && (
           <div key={view} className="st-pane">
+            {view === "game" && <TechnicalStatsPanel matches={games} people={rows.map(p => ({ id: p.id, name: nameOf(p), number: p.number }))} />}
             {view === "summary" && <Resumen games={games} rows={rows} nameOf={nameOf} mvps={mvps} />}
             {view === "players" && <Jugadores rows={rows} nameOf={nameOf} />}
             {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} />}

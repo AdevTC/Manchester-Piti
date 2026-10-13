@@ -1,0 +1,7 @@
+.match-badges{display:inline-flex;justify-content:center;flex-wrap:wrap;gap:3px;vertical-align:middle}
+.match-badges .mb-stat{display:inline-flex;align-items:center;min-height:20px;padding:2px 4px;border-radius:6px;background:#eef4ff;color:#0c1733;box-shadow:0 0 0 1px #0c1733;font-family:'Geist Mono',monospace;font-size:10px;line-height:1;font-style:normal}
+.match-badges .mb-stat>span{display:inline-flex;align-items:center;gap:2px}
+.match-badges .mb-stat b{font:inherit;font-weight:700;color:inherit;white-space:nowrap;text-shadow:none}
+.match-badges .mb-stat.assist{background:#c7e7ff}
+.match-badges .mb-card{position:static;display:block;width:8px;height:12px;border-radius:1px;background:#ffc659;border:1px solid #675015;box-shadow:none}
+.match-badges .red .mb-card{background:#e74639;border-color:#8c1d16}

@@ -1,3 +1,4 @@
+import { MatchClockControl } from "../../../components/celeste/MatchClockControl";
 // Hoy (/admin) — the hero changes with the moment of the match that matters now (data.hero):
 //   · Antes: the peg wall — the J8 plaque with its countdown, who comes (RSVP with names), el siete on the
 //     front pegs («Libre» gaps), the banquillo and whoever can come on the back rail. Tap back → it hangs
@@ -12,11 +13,12 @@
 import { useId, useState } from "react";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { scoreOf } from "../../../lib/partidos";
+import { apiError, liveEvent } from "../../../lib/clubApi";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
 import { joinNames, place, rsvpGroups, rsvpOf, sevenWhy, SEVEN } from "../data/lineup";
 import { countdown, countdownShort, matchAfter, type MatchMoment } from "../data/moments";
 import { useConvocatoria } from "../data/useConvocatoria";
-import { whistle, unwhistle } from "../data/whistleStore";
+import { unwhistle } from "../data/whistleStore";
 import { LedBoard, Peg, PegRail, ResultMark, resultLetter, ShirtBack } from "../kit";
 import { LiveClock, LiveLog, LivePads, LivePicker } from "../live/LiveParts";
 import { liveLog } from "../live/liveModel";
@@ -145,7 +147,7 @@ function Antes({ match }: { match: AdminMatch }) {
       </span>
     </div>
   );
-  const cta = status.published ? (
+  const convocatoriaCta = status.published ? (
     <span className="okk">
       <AdIcon name="check" size={16} />
       Convocatoria publicada
@@ -156,6 +158,7 @@ function Antes({ match }: { match: AdminMatch }) {
       Convocar y avisar
     </button>
   );
+  const cta = <>{convocatoriaCta}<button type="button" className="btn sky" onClick={() => go({ section: "enjuego", matchId: match.id })}>Abrir mesa de partido</button></>;
   const openConvocar = () => go({ section: "convocar", matchId: match.id });
 
   if (!desktop)
@@ -270,7 +273,7 @@ function Juego({ match }: { match: AdminMatch }) {
   const start = dateMillis(match.date);
   const sub = (
     <>
-      <LiveClock start={start} /> · EN JUEGO
+      <LiveClock start={start} match={match} /> · EN JUEGO
     </>
   );
   if (!desktop)
@@ -283,11 +286,11 @@ function Juego({ match }: { match: AdminMatch }) {
         </button>
       </>
     );
-  const pitar = () => {
-    whistle(match.id);
+  const pitar = () => live.finish(() => {
+    unwhistle(match.id); // discard an older, device-only whistle; Firestore owns the final now
     live.close();
-    toast.show({ tag: "FINAL", message: `Final pitado · ${gf}–${ga} · repasa el acta y publícala`, undo: () => unwhistle(match.id) });
-  };
+    toast.show({ tag: "FINAL", message: `Final pitado · ${gf}–${ga} · repasa el acta y publícala`, undo: () => { void liveEvent({ action: "reopen", matchId: match.id }).then(() => unwhistle(match.id), (e: unknown) => toast.show({ tone: "error", message: apiError(e) })); } });
+  });
   return (
     <section className="hB" aria-label={`El marcador de la ${j} en juego`}>
       <LedBoard rival={match.rival ?? "Rival"} rivalLogoUrl={match.rivalLogoUrl} gf={gf} ga={ga} sub={sub} ticker={tickerText(match, note)} flash={live.flash} />
@@ -302,7 +305,8 @@ function Juego({ match }: { match: AdminMatch }) {
           <h3>
             Apunta a un toque <em>minuto del reloj</em>
           </h3>
-          <LivePads onGol={() => live.open("gol")} onRival={live.rivalGoal} onTarjeta={() => live.open("tar")} onCambio={() => live.open("cam")} onPitar={pitar} disabled={live.busy} />
+          <MatchClockControl match={match} />
+          <LivePads onGol={() => live.open("gol")} onRival={live.rivalGoal} onTarjeta={() => live.open("tar")} onCambio={() => live.open("cam")} onOcasion={() => live.open("oca")} onCorner={() => live.open("cor")} onPitar={match.clock ? undefined : pitar} disabled={live.busy} paused={match.clock?.phase === "halftime"} />
         </div>
       </div>
       <LivePicker view={live.view} onChoose={live.choose} onClose={live.close} mobile={false} disabled={live.busy} />

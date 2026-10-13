@@ -52,11 +52,11 @@ describe("stintRows and playerLine", () => {
     expect(rows[1].spans).toEqual([{ left: 60, width: 40 }]);
   });
   it("ledger line when published, events otherwise", () => {
-    expect(playerLine("k", ledger, J7)).toEqual({ minutes: 20, goals: 0, assists: 0, cards: 1 });
-    expect(playerLine("h", undefined, J7)).toEqual({ minutes: 0, goals: 1, assists: 1, cards: 0 });
+    expect(playerLine("k", ledger, J7)).toEqual({ minutes: 20, goals: 0, assists: 0, cards: 1, yellowCards: 1, redCards: 0 });
+    expect(playerLine("h", undefined, J7)).toEqual({ minutes: 0, goals: 1, assists: 1, cards: 0, yellowCards: 0, redCards: 0 });
   });
   it("key numbers", () => {
-    expect(keyNumbers(J7)).toEqual({ saves: 1, woodwork: 0, cards: 1 });
+    expect(keyNumbers(J7)).toEqual({ saves: 1, woodwork: 0, cards: 1, chances: 0, opponentChances: 0, corners: 0, opponentCorners: 0 });
   });
 });
 

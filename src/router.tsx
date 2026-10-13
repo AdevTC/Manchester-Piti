@@ -42,7 +42,7 @@ export const rootSearchSchema = z.object({
 export const statsSearchSchema = z.object({
   tab: z.enum(["general", "compare"]).default("general").catch("general"),
   view: z
-    .enum(["summary", "players", "minutes", "rivals", "compare", "explore"])
+    .enum(["summary", "players", "minutes", "rivals", "compare", "explore", "game"])
     .optional()
     .catch(undefined),
   section: z

@@ -10,7 +10,7 @@ import { useCallback, useMemo } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { collection, orderBy, query } from "firebase/firestore";
 import { db } from "../../../firebase";
-import { useClock } from "../../../hooks/useClock";
+import { useMatchClock } from "../../../hooks/useMatchClock";
 import { useClubContent } from "../../../lib/clubContent";
 import { dateMillis, playerForSeason, playerName, useClubData, type ClubMatch } from "../../../lib/clubData";
 import { mapMatch, mapSeason } from "../../../lib/firestoreMappers";
@@ -119,7 +119,6 @@ const NO_PLAYERS: RosterPlayer[] = [];
 const isAdminRole = (r: string) => r === "admin" || r === "superadmin";
 
 export function useAdminData(): AdminData {
-  const now = useClock(60_000);
   const { user } = useAuth();
   const whistled = useWhistled();
   const mvpResults = useMvpResults();
@@ -136,6 +135,7 @@ export function useAdminData(): AdminData {
   const published = club.matches;
   const drafts = useMemo(() => (draftsQ.data ?? []) as (ClubMatch & { updatedAt?: unknown })[], [draftsQ.data]);
   const matches = useMemo(() => mergeMatches(published, drafts), [published, drafts]);
+  const now = useMatchClock(matches);
   const next = useMemo(() => nextMatch(matches, now), [matches, now]);
   const last = useMemo(() => lastActaMatch(matches, now), [matches, now]);
   const visibleSeasons = useMemo(() => seasons.filter((s) => !s.archived), [seasons]);

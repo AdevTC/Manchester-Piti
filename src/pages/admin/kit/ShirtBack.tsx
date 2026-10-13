@@ -2,8 +2,8 @@
 // hangs on (`.peg`: name and a line under it), the rails (`.rail2`) and the peg wall (`.wall`). Markup and
 // sizes as on the canvas (stats-gen/ad-v2-full.mjs `sh`, `frontPegs`, `wallT`).
 import type { CSSProperties, ReactNode } from "react";
-import { AdIcon } from "../ui/icons";
 import { railsOf } from "./wall";
+import { MatchBadges } from "../../../components/celeste/MatchBadges";
 
 /** `empty` = the dashed «Libre» shirt (a free peg, a new player); `dim` = not placed yet. */
 export type ShirtState = "" | "empty" | "dim";
@@ -39,17 +39,13 @@ export function ShirtBack({ num, name, size = 64, big = false, state = "", class
 }
 
 /** A sticker on a shirt: a goal ball, a yellow card or a red card. */
-export type Sticker = "goal" | "yellow" | "red";
+export type Sticker = "goal" | "assist" | "yellow" | "red";
 /** `.stk`: the stickers stuck on a shirt (goals, cards), stacked by its shoulder. */
 export function Stickers({ list }: { list: readonly Sticker[] }) {
   if (!list.length) return null;
   return (
-    <span className="stk" aria-hidden="true">
-      {list.map((s, i) => (
-        <i key={i} className={s === "yellow" ? "y" : s === "red" ? "r" : ""}>
-          {s === "goal" ? <AdIcon name="ball" size={14} /> : null}
-        </i>
-      ))}
+    <span className="stk counted">
+      <MatchBadges goals={list.filter((s) => s === "goal").length} assists={list.filter((s) => s === "assist").length} yellowCards={list.filter((s) => s === "yellow").length} redCards={list.filter((s) => s === "red").length} />
     </span>
   );
 }

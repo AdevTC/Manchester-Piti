@@ -35,9 +35,9 @@ describe("kit · the shirt, pegs, rails and the wall", () => {
     expect(dim.tagName).toBe("SPAN");
     expect(dim.querySelector(".sh")).toHaveClass("dim");
     expect(screen.getByText("Duda")).toHaveClass("rv", "duda");
-    expect(dim.querySelectorAll(".stk i")).toHaveLength(3);
-    expect(dim.querySelector(".stk i.y")).not.toBeNull();
-    expect(dim.querySelector(".stk i.r")).not.toBeNull();
+    expect(within(dim as HTMLElement).getAllByRole("img")).toHaveLength(3);
+    expect(within(dim as HTMLElement).getByRole("img", { name: "1 amarilla" })).toBeInTheDocument();
+    expect(within(dim as HTMLElement).getByRole("img", { name: "1 roja" })).toBeInTheDocument();
   });
 
   it("the wall: 7 per rail, 5 beside the drawer, 3 on phones; empty message", () => {

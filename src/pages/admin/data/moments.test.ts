@@ -6,11 +6,11 @@ const KICK = Date.UTC(2026, 10, 8, 11); // Sunday 8 Nov, 12:00 Madrid
 const m8: MomentMatch = { id: "m8", date: KICK, duration: 50, status: "scheduled", published: true, draft: false };
 
 describe("matchMoment", () => {
-  it("antes → juego (kick-off … duration + 15′) → final → publicado", () => {
+  it("antes → juego (the same hour as the public site) → final → publicado", () => {
     expect(matchMoment(m8, KICK - 1)).toBe("antes");
     expect(matchMoment(m8, KICK)).toBe("juego");
-    expect(matchMoment(m8, KICK + 64 * MIN)).toBe("juego");
-    expect(matchMoment(m8, KICK + 65 * MIN)).toBe("final");
+    expect(matchMoment(m8, KICK + 59 * MIN)).toBe("juego");
+    expect(matchMoment(m8, KICK + 60 * MIN)).toBe("final");
     expect(matchMoment({ ...m8, status: "finished" }, KICK + 2 * MIN)).toBe("publicado");
     // a draft over a published final acta: still to publish
     expect(matchMoment({ ...m8, status: "finished", draft: true }, KICK + 90 * MIN)).toBe("final");
@@ -18,7 +18,8 @@ describe("matchMoment", () => {
   it("whistled early leaves «juego»; no date = antes; default duration 50", () => {
     expect(matchMoment(m8, KICK + 20 * MIN, true)).toBe("final");
     expect(matchMoment({ id: "x" }, KICK)).toBe("antes");
-    expect(matchMoment({ id: "x", date: KICK }, KICK + 64 * MIN)).toBe("juego");
+    expect(matchMoment({ id: "x", date: KICK }, KICK + 59 * MIN)).toBe("juego");
+    expect(matchMoment({ ...m8, liveEndedAt: KICK + 20 * MIN }, KICK + 21 * MIN)).toBe("final");
   });
 });
 
@@ -55,4 +56,12 @@ describe("clocks", () => {
     expect(clockText(KICK, KICK + (31 * 60 + 12) * 1000)).toBe("31:12");
     expect(clockText(KICK, KICK - 5000)).toBe("0:00");
   });
+});
+
+
+it("keeps a delayed manual kickoff visible and never calls an early finished match the next fixture", () => {
+  const delayed: MomentMatch={id:"delayed",date:KICK,version:2,status:"scheduled",clock:{phase:"ready",revision:0}};
+  expect(hoyHero([delayed],KICK+10*MIN)).toEqual({match:delayed,moment:"antes"});
+  const early: MomentMatch={...delayed,id:"early",date:KICK+60*MIN,clock:{phase:"ended",revision:4,endedAt:KICK}};
+  expect(hoyHero([early],KICK+MIN)).toEqual({match:early,moment:"final"});
 });

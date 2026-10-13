@@ -21,7 +21,7 @@ export const GROUPS: readonly { key: EventGroup; title: string; empty: string }[
   { key: "tar", title: "Tarjetas", empty: "Sin tarjetas" },
   { key: "cam", title: "Cambios", empty: "Sin cambios" },
   { key: "pen", title: "Penaltis", empty: "Sin penaltis" },
-  { key: "otro", title: "Otros", empty: "Palos, paradas…" },
+  { key: "otro", title: "Ocasiones y otras jugadas", empty: "Ocasiones, córners, palos…" },
 ];
 export interface EventKind {
   type: EventType;
@@ -43,6 +43,10 @@ export const KINDS: Record<EventGroup, readonly EventKind[]> = {
     { type: "goal_penalty", label: "Gol de penalti" },
   ],
   otro: [
+    { type: "chance", label: "Ocasión del Piti" },
+    { type: "opponent_chance", label: "Ocasión rival" },
+    { type: "corner", label: "Córner del Piti" },
+    { type: "opponent_corner", label: "Córner rival" },
     { type: "woodwork", label: "Tiro al palo" },
     { type: "goal_freekick", label: "Gol de falta" },
     { type: "own_goal", label: "Gol en propia" },
@@ -57,6 +61,7 @@ export function groupOfEvent(e: Pick<MatchEvent, "type">): EventGroup {
   return "otro";
 }
 export const kindLabel = (type: string) => Object.values(KINDS).flat().find((k) => k.type === type)?.label ?? "Jugada";
+export const playerMode = (type: string) => type.startsWith("opponent_") ? "none" : type === "chance" || type === "corner" ? "optional" : "required";
 /** The label over the player grid for a kind. */
 export function playerQuestion(type: string): string {
   if (type === "substitution") return "Sale del campo";
@@ -71,7 +76,7 @@ export function checkEvent(o: { type: string; minute: string; player: string; in
   const m = Number(o.minute);
   const top = Number.isFinite(o.duration) ? o.duration : 150;
   if (o.minute.trim() === "" || !Number.isInteger(m) || m < 0 || m > top) return `Pon el minuto (de 0 a ${top}).`;
-  if (!o.player) return o.type === "substitution" ? "Elige quién sale del campo." : "Elige el jugador por su dorsal.";
+  if (!o.player && playerMode(o.type) === "required") return o.type === "substitution" ? "Elige quién sale del campo." : "Elige el jugador por su dorsal.";
   if (o.type === "substitution" && (!o.inPlayer || o.inPlayer === o.player)) return "Elige quién entra (otro jugador).";
   return "";
 }

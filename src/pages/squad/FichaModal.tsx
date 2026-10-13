@@ -1,3 +1,4 @@
+import { pct } from "../../lib/technicalAnalysis";
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "@tanstack/react-router";
@@ -182,6 +183,7 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
                     <span>Minutos</span>
                   </div>
                 </div>
+                {s.technical && <div className="row"><div><b>{s.technical.passesCompleted}/{s.technical.passes}</b><span>Pases completados</span></div><div><b>{pct(s.technical.passesCompleted,s.technical.passesCompleted+s.technical.passesFailed)}</b><span>Precisión</span></div><div><b>{s.technical.shots}</b><span>Remates</span></div><div><b>{s.technical.recoveries}</b><span>Recuperaciones</span></div></div>}
                 <p>
                   {withStats
                     ? s.minutes == null

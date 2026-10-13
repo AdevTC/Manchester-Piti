@@ -88,7 +88,10 @@ export function apiError(error: unknown) {
 }
 /** Modo banda: an admin adds an event to the match being played (or undoes the last one written live). */
 export const liveEvent = httpsCallable<
-  | { action: "add"; matchId: string; event: { type: string; minute: number; playerId?: string; assistPlayerId?: string; inPlayerId?: string } }
-  | { action: "undo"; matchId: string },
+  | { action: "add"; matchId: string; requestId?: string; clockRevision?: number; manualTime?: boolean; event: { type: string; minute: number; playerId?: string; assistPlayerId?: string; inPlayerId?: string } }
+  | { action: "undo" | "finish" | "reopen"; matchId: string; eventId?: string },
   { events: number }
 >(functions, "liveEvent");
+
+export const controlMatchClock = httpsCallable<{ matchId: string; action: import("../../functions/src/matchClock").ClockAction; revision: number }, { clock: import("../../functions/src/matchClock").MatchClock; serverNow: number }>(functions, "controlMatchClock");
+export const setMatchScorers = httpsCallable<{ matchId: string; uids: string[] }, { ok: boolean }>(functions, "setMatchScorers");

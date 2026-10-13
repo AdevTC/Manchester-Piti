@@ -1,3 +1,4 @@
+import { clockReading } from "../../functions/src/matchClock";
 // Pure logic for the Partidos page (Celeste, "Noche de focos"): the season of one team as the page
 // tells it — the tile strip, the numbers, the next/live match and the calendar rows — plus the live
 // score read from the acta while a match is being played (goals are only stored once it's finished).
@@ -13,8 +14,8 @@ const TZ = "Europe/Madrid";
 const byDate = (a: ClubMatch, b: ClubMatch) => dateMillis(a.date) - dateMillis(b.date);
 
 /** Goals for/against: the stored score once finished, otherwise counted from the acta's events. */
-export function scoreOf(m: Pick<ClubMatch, "goalsFor" | "goalsAgainst" | "events">) {
-  if (typeof m.goalsFor === "number" && typeof m.goalsAgainst === "number") return { gf: m.goalsFor, ga: m.goalsAgainst };
+export function scoreOf(m: Pick<ClubMatch, "goalsFor" | "goalsAgainst" | "events" | "status">) {
+  if ((!m.status || m.status === "finished") && typeof m.goalsFor === "number" && typeof m.goalsAgainst === "number") return { gf: m.goalsFor, ga: m.goalsAgainst };
   let gf = 0, ga = 0;
   for (const e of m.events ?? []) {
     if (OURS.has(e.type)) gf++;
@@ -100,7 +101,8 @@ export function countdownParts(target: number, now: number) {
 }
 
 /** The minute being played (1–duration), from the kickoff time; null when not live. */
-export function liveMinute(m: Pick<ClubMatch, "date" | "duration">, now: number) {
+export function liveMinute(m: Pick<ClubMatch, "date" | "duration" | "clock">, now: number) {
+  if (m.clock) return m.clock.phase === "ready" ? null : Math.floor(clockReading(m.clock, now).elapsedSeconds / 60);
   const start = dateMillis(m.date);
   if (!Number.isFinite(start) || now < start) return null;
   return Math.min(m.duration ?? 50, Math.floor((now - start) / 60_000) + 1);
@@ -125,6 +127,6 @@ export function lastEvent(events: MatchEvent[] | undefined, nameOf: (id: string)
   const list = (events ?? []).filter((e) => e.type !== "match_played" && e.type !== "assist" && typeof e.minute === "number");
   const e = list.sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0)).at(-1);
   if (!e) return null;
-  const who = e.type === "opponent_goal" || e.type === "opponent_own_goal" ? rival : e.type === "substitution" && e.inPlayerId ? nameOf(e.inPlayerId) : e.playerId ? nameOf(e.playerId) : rival;
+  const who = e.type.startsWith("opponent_") ? rival : e.type === "substitution" && e.inPlayerId ? nameOf(e.inPlayerId) : e.playerId ? nameOf(e.playerId) : "Manchester Piti";
   return { minute: e.minute as number, who, label: EVENT_LABELS[e.type] ?? e.type, goal: OURS.has(e.type) };
 }

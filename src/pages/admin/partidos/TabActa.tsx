@@ -1,3 +1,4 @@
+import { AnalysisEditor } from "./AnalysisEditor";
 // The «Acta» tab, as on the canvas (stats-gen/ad-v2-full.mjs `actaT`, shots-adv2f/partidos-acta.png, m-acta.png):
 // «Goles del Piti» in big rows (editable minute, the scorer large, the pass; a goal without scorer in amber
 // «¿Quién marcó?» + «Elegir») with the dorsal picker opening right UNDER its row; «Goles de RIVAL» (minute,
@@ -22,6 +23,7 @@ export interface PlayerInfo {
   number: number | null;
 }
 export interface TabActaProps {
+  matchId?: string;
   phase: Phase;
   sheet: MatchSheet;
   update: (f: (s: MatchSheet) => MatchSheet) => void;
@@ -75,7 +77,7 @@ export function TabActa(props: TabActaProps) {
   return <ActaEditor {...props} />;
 }
 
-function ActaEditor({ sheet, update, review, rival, j, info, onGoConvocar }: TabActaProps) {
+function ActaEditor({ matchId, sheet, update, review, rival, j, info, onGoConvocar }: TabActaProps) {
   const toast = useToast();
   const [open, setOpen] = useState<Open>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
@@ -162,6 +164,7 @@ function ActaEditor({ sheet, update, review, rival, j, info, onGoConvocar }: Tab
   return (
     <div className="acta">
       <div className="acol" ref={mainRef}>
+        {matchId && <AnalysisEditor matchId={matchId} sheet={sheet} update={update} info={info} />}
         <section aria-labelledby="ad-h-gp">
           <div className="ah">
             <h3 id="ad-h-gp">Goles del Piti</h3>

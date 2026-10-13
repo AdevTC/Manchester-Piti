@@ -1,24 +1,24 @@
 // The match's moment as the admin lives it (pure, tested in moments.test.ts): «antes» (before kick-off),
-// «juego» (being played: from kick-off to the end of its duration plus a margin, or until a captain
-// whistles the end on this device), «final» (played, the acta not published yet) and «publicado». Hoy
+// «juego» (the shared public live window, or until a captain saves the whistle),
+// «final» (played, the acta not published yet) and «publicado». Hoy
 // picks its hero from them: the match being played, else the one just played (36 h), else the next one.
-import { dateMillis } from "../../../../functions/src/matchEngine";
+import { dateMillis, matchPhase, liveUntil as publicLiveUntil } from "../../../../functions/src/matchEngine";
 
 export type MatchMoment = "antes" | "juego" | "final" | "publicado";
 const MIN = 60_000;
-/** Minutes after the duration that still count as «en juego» (added time; the live window allows +15′). */
-export const LIVE_MARGIN_MIN = 15;
 /** How long the match just played stays as Hoy's hero (its FINAL / the vitrina). */
 export const RECENT_HERO_MS = 36 * 60 * MIN;
 /** …unless the next match kicks off within this long. */
 export const NEXT_WINS_MS = 12 * 60 * MIN;
-const DEFAULT_DURATION = 50;
 
 export interface MomentMatch {
   id: string;
   date?: unknown;
   duration?: number;
   status?: string;
+  liveEndedAt?: number;
+  version?: number;
+  clock?: import("../../../../functions/src/matchClock").MatchClock;
   /** In the public calendar (matches/{id}). */
   published?: boolean;
   /** A draft is waiting in matchDrafts. */
@@ -31,9 +31,9 @@ export const isPublishedFinal = (m: MomentMatch) => !!m.published && !m.draft &&
 /** Cancelled / postponed / archived matches never get a moment on Hoy. */
 export const isOff = (m: MomentMatch) => m.status === "cancelled" || m.status === "postponed" || !!m.archived;
 
-/** When «en juego» ends for this match (kick-off + duration + margin), ms. */
+/** The same automatic end as home and the public match page, ms. */
 export function liveUntil(m: Pick<MomentMatch, "date" | "duration">): number {
-  return dateMillis(m.date) + ((m.duration ?? DEFAULT_DURATION) + LIVE_MARGIN_MIN) * MIN;
+  return publicLiveUntil(m);
 }
 
 /**
@@ -42,9 +42,10 @@ export function liveUntil(m: Pick<MomentMatch, "date" | "duration">): number {
  */
 export function matchMoment(m: MomentMatch, now: number, whistled = false): MatchMoment {
   if (isPublishedFinal(m)) return "publicado";
+  if (m.clock || m.version === 2) { const phase = matchPhase(m, now); return phase === "playing" ? "juego" : phase === "finished" || phase === "awaiting_result" ? "final" : "antes"; }
   const start = dateMillis(m.date);
   if (!Number.isFinite(start) || now < start) return "antes";
-  if (m.status !== "finished" && !whistled && now < liveUntil(m)) return "juego";
+  if (m.status !== "finished" && !whistled && !m.liveEndedAt && now < liveUntil(m)) return "juego";
   return "final";
 }
 
@@ -62,8 +63,9 @@ export function hoyHero<M extends MomentMatch>(matches: readonly M[], now: numbe
   const moment = (m: M) => matchMoment(m, now, whistled.has(m.id));
   const live = on.find((m) => moment(m) === "juego");
   if (live) return { match: live, moment: "juego" };
-  const next = on.find((m) => dateMillis(m.date) > now);
-  const recent = on.filter((m) => dateMillis(m.date) <= now && now - dateMillis(m.date) <= RECENT_HERO_MS).at(-1);
+  const next = on.find((m) => moment(m) === "antes");
+  const endedAt = (m: M) => m.clock?.endedAt ?? dateMillis(m.date);
+  const recent = on.filter((m) => ["final", "publicado"].includes(moment(m)) && endedAt(m) <= now && now - endedAt(m) <= RECENT_HERO_MS).sort((a,b) => endedAt(a)-endedAt(b)).at(-1);
   // A match about to start (12 h) wins over the one just played: its convocatoria is what matters now.
   const soon = next && dateMillis(next.date) - now <= NEXT_WINS_MS;
   if (recent && !soon) return { match: recent, moment: moment(recent) };

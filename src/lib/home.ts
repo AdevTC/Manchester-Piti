@@ -1,10 +1,11 @@
 // Pure logic for the public home ("El vestidor"): everything shown is derived from real
 // match and player data, and every text is a template chosen by the season's moment.
-import { dateMillis, isCompleted, matchPhase } from "../../functions/src/matchEngine";
+import { dateMillis, matchPhase } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import { computeStats, EMPTY_STATS, type PlayerStats } from "./playerStats";
 import { kickoffLabel, plural } from "./vestuario";
 import type { CalendarEvent } from "./calendarLinks";
+import { scoreOf } from "./partidos";
 
 const DAY = 86_400_000;
 const GOAL = /^goal/;
@@ -30,8 +31,8 @@ const byDate = (a: ClubMatch, b: ClubMatch) => dateMillis(a.date) - dateMillis(b
 /** The season as the home tells it: played games (oldest first), the live one, the next one. */
 export function seasonPulse(matches: ClubMatch[], seasonId: string, now: number) {
   const season = matches.filter((m) => m.seasonId === seasonId);
-  const played = season.filter((m) => isCompleted(m)).sort(byDate);
-  const live = season.find((m) => matchPhase(m, now) === "playing");
+  const played = season.filter((m) => matchPhase(m, now) === "finished").sort(byDate);
+  const live = season.filter((m) => matchPhase(m, now) === "playing").sort(byDate)[0];
   const next = season.filter((m) => matchPhase(m, now) === "scheduled").sort(byDate)[0];
   const results = played.map(resultOf);
   const gf = played.reduce((s, m) => s + (m.goalsFor ?? 0), 0);
@@ -81,9 +82,10 @@ export function narrative(p: Pulse, ctx: { seasonName: string; squadSize: number
   const { seasonName, squadSize, now, nameOf, scorer } = ctx;
   const leaderLine = scorer ? `${scorer.name} lidera el Pichichi con ${plural(scorer.stats.goals, "gol", "goles")}.` : "El Pichichi sigue sin dueño.";
   if (p.live) {
+    const { gf, ga } = scoreOf(p.live);
     return {
       kick: `${seasonName} · en directo`,
-      head: `¡En juego! Piti ${p.live.goalsFor ?? 0}–${p.live.goalsAgainst ?? 0} ${p.live.rival ?? "rival"}.`,
+      head: `¡En juego! Piti ${gf}–${ga} ${p.live.rival ?? "rival"}.`,
       em: "El marcador se actualiza solo desde el acta.",
     };
   }

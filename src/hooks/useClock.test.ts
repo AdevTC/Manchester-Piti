@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useClock } from "./useClock";
+import { useMatchClock } from "./useMatchClock";
 
 describe("useClock", () => {
   beforeEach(() => {
@@ -24,5 +25,22 @@ describe("useClock", () => {
     const start = result.current;
     act(() => { vi.advanceTimersByTime(1_010); });
     expect(result.current).toBeGreaterThan(start);
+  });
+
+  it("also ticks on a match boundary between two minute ticks and catches up on focus", () => {
+    const kickoff = Date.now() + 12_000;
+    const { result } = renderHook(() => useClock(60_000, [kickoff]));
+    act(() => { vi.advanceTimersByTime(12_010); });
+    expect(result.current).toBeGreaterThanOrEqual(kickoff);
+    act(() => { vi.setSystemTime(kickoff + 600_000); window.dispatchEvent(new Event("focus")); });
+    expect(result.current).toBe(kickoff + 600_000);
+  });
+
+  it("aligns subsequent live minutes to a kickoff with seconds", () => {
+    const kickoff = Date.now() + 12_000;
+    const matches = [{ date: kickoff, duration: 60 }];
+    const { result } = renderHook(() => useMatchClock(matches));
+    act(() => { vi.advanceTimersByTime(72_010); });
+    expect(result.current).toBeGreaterThanOrEqual(kickoff + 60_000);
   });
 });

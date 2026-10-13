@@ -24,7 +24,7 @@ export interface SquadRow {
   sign: string | null;
   missing: MissingField[];
   historic: boolean;
-  stats: { played: number; goals: number; assists: number; minutes: number | null };
+  stats: { technical?: import("../../functions/src/matchAnalysis").TechnicalStats; played: number; goals: number; assists: number; minutes: number | null };
 }
 export interface SquadPlayer {
   id: string;
@@ -39,6 +39,7 @@ export interface SquadPlayer {
   active?: boolean;
 }
 export interface SquadStats {
+  technical?: import("../../functions/src/matchAnalysis").TechnicalStats;
   matchesPlayed: number;
   goals: number;
   assists: number;
@@ -97,7 +98,7 @@ export function squadRow(p: SquadPlayer, stats: SquadStats, now: number): SquadR
     sign: b ? zodiac(b.m, b.d) : null,
     missing,
     historic: p.active === false,
-    stats: { played: stats.matchesPlayed, goals: stats.goals, assists: stats.assists, minutes: stats.tracked ? stats.minutes : null },
+    stats: { ...(stats.technical ? { technical: stats.technical } : {}), played: stats.matchesPlayed, goals: stats.goals, assists: stats.assists, minutes: stats.tracked ? stats.minutes : null },
   };
 }
 

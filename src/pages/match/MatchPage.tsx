@@ -1,3 +1,9 @@
+import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
+import { Banda } from "./Banda";
+import { useAuth } from "../../context/AuthContext";
+import { useTeam } from "../../context/TeamContext";
+import { useMatchScorers } from "../vestuario/live";
+import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // Ficha de partido (Celeste): the stadium board on top (final score, live score with ¡GOL!, or the
 // countdown), then tabs — Crónica/Previa/Directo · Campo · Pulso · Vestuario. From the Design canvas
 // page "Partidos · elegida"; pure logic in lib/ficha.ts and lib/partidos.ts.
@@ -5,6 +11,7 @@ import { useState, type ReactNode } from "react";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { isCompleted, matchPhase, playerName, useClubData, dateMillis, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
+import { useMatchClock } from "../../hooks/useMatchClock";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon } from "../../components/celeste/icons";
@@ -52,6 +59,7 @@ function Countdown({ target }: { target: number }) {
 function headline(m: ClubMatch, phase: string, nameOf: (id: string) => string) {
   const rival = m.rival ?? "el rival";
   if (phase === "playing") return `Se juega contra ${rival}`;
+  if (phase === "awaiting_result") return `Terminado ante ${rival} · acta pendiente`;
   if (!isCompleted(m)) return m.home === false ? `Toca ${rival}, a domicilio` : `Toca ${rival}, en casa`;
   const { gf, ga } = scoreOf(m);
   const count = new Map<string, number>();
@@ -65,7 +73,11 @@ function headline(m: ClubMatch, phase: string, nameOf: (id: string) => string) {
 export function MatchPage() {
   const { matchId } = getRouteApi("/matches/$matchId").useParams();
   const { matches, players, loading } = useClubData();
-  const now = useClock(15_000);
+  const now = useMatchClock(matches);
+  const { user, profile } = useAuth();
+  const { member } = useTeam();
+  const scorers = useMatchScorers(member ? matchId : undefined);
+  const canScore = member && (!!user && scorers.data.includes(user.uid) || profile?.role === "admin" || profile?.role === "superadmin");
   const [tab, setTab] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const match = matches.find((m) => m.id === matchId);
@@ -110,7 +122,8 @@ export function MatchPage() {
   const phase = matchPhase(match, now);
   const live = phase === "playing";
   const done = isCompleted(match);
-  const upcoming = !live && !done;
+  const pending = phase === "awaiting_result";
+  const upcoming = phase === "scheduled" || phase === "unscheduled";
   const rival = match.rival ?? "Rival";
   const ini = match.rivalInitials || opponentInitials(rival);
   const { gf, ga } = scoreOf(match);
@@ -125,7 +138,7 @@ export function MatchPage() {
       .filter((e) => (ours ? ["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"] : ["opponent_goal", "own_goal"]).includes(e.type))
       .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
       .map((e) => ({ id: e.id, min: e.minute != null ? `${e.minute}′` : "", who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" }));
-  const firstTab = done ? "Crónica" : live ? "Directo" : "Previa";
+  const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
   const active = tab ?? 0;
 
   const share = async () => {
@@ -176,10 +189,10 @@ export function MatchPage() {
               {live ? (
                 <span className="pt-live">
                   <span className="pt-dot" />
-                  EN DIRECTO · {minute}′
+                  {match.clock ? <MatchClockDisplay match={match} /> : <>EN DIRECTO · {minute}′</>}
                 </span>
               ) : (
-                <b>{done ? "FINAL" : phase === "postponed" ? "APLAZADO" : phase === "awaiting_result" ? "RESULTADO PENDIENTE" : dateMillis(match.date) - now < 7 * 86_400_000 ? "ESTA SEMANA" : "PRÓXIMO"}</b>
+                <b>{done ? "FINAL" : phase === "cancelled" ? "CANCELADO" : phase === "postponed" ? "APLAZADO" : pending ? "MARCADOR PROVISIONAL · ACTA PENDIENTE" : dateMillis(match.date) - now < 7 * 86_400_000 ? "ESTA SEMANA" : "PRÓXIMO"}</b>
               )}
             </div>
             <div className="pt-teams">
@@ -188,7 +201,7 @@ export function MatchPage() {
                 <b>MANCHESTER PITI</b>
                 <small>{match.home === false ? "Visitante" : "Local"}</small>
               </div>
-              {done || live ? (
+              {done || live || pending ? (
                 <div className="pt-score" role="status" aria-label={`Resultado: ${gf} a ${ga}`}>
                   <Flip value={gf} />
                   <i>–</i>
@@ -203,7 +216,7 @@ export function MatchPage() {
                 <small>{match.home === false ? "Local" : "Visitante"}</small>
               </div>
             </div>
-            {(done || live) && (goalsOf(true).length > 0 || goalsOf(false).length > 0) && (
+            {(done || live || pending) && (goalsOf(true).length > 0 || goalsOf(false).length > 0) && (
               <div className="fc-goals">
                 <ul>
                   {goalsOf(true).map((g) => (
@@ -272,16 +285,18 @@ export function MatchPage() {
 
       <div className="fc-tabs" role="tablist" aria-label="Secciones del partido">
         <span className="ind" style={{ transform: `translateX(${active * 100}%)` }} aria-hidden="true" />
-        {[firstTab, "Campo", "Pulso", "Vestuario"].map((label, i) => (
+        {[firstTab, "Campo", "Pulso", "Vestuario", "Estadísticas"].map((label, i) => (
           <button key={label} type="button" role="tab" id={`fc-tab-${i}`} aria-selected={active === i} aria-controls={`fc-pane-${i}`} onClick={() => setTab(i)}>
             {label}
           </button>
         ))}
       </div>
-      <div className={`fc-pane${active === 0 && done ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} key={active}>
-        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live ? <DirectoTab match={match} nameOf={nameOf} /> : <PreviaTab match={match} matches={matches} />)}
+      {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
+      <div className={`fc-pane${(active === 0 && done) || active === 4 ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} key={active}>
+        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} />)}
         {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} />}
-        {active === 2 && <PulsoTab match={match} live={live} minute={minute} />}
+        {active === 2 && <PulsoTab match={match} live={live} minute={minute} pending={pending} />}
+        {active === 4 && <TechnicalStatsPanel matches={[match]} people={players.map(p => ({ id: p.id, name: nameOf(p.id), number: p.number }))} />}
         {active === 3 && <VestuarioTab match={match} players={players} phase={phase} />}
       </div>
     </>,

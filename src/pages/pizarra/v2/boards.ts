@@ -74,7 +74,10 @@ export interface CalMatch {
   conv?: { starters: string[]; bench: string[] };
   /** The match day (live.ts): its length in minutes (absent = 50), its status and the acta's events. */
   duration?: number;
+  version?: number;
+  clock?: import("../../../../functions/src/matchClock").MatchClock;
   status?: string;
+  liveEndedAt?: number;
   events?: MatchEvent[];
 }
 

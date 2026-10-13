@@ -13,8 +13,8 @@
 .fc-status{margin:8px 0 0;font-size:13px;color:var(--soft)}
 
 /* tabs */
-.fc-tabs{position:sticky;top:0;z-index:7;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;padding:8px 20px;background:var(--bg);box-shadow:0 1px 0 var(--line)}
-.fc-tabs .ind{position:absolute;bottom:6px;left:20px;width:calc((100% - 40px)/4);height:3px;border-radius:3px;background:var(--accent);transition:transform .45s cubic-bezier(.34,1.3,.64,1)}
+.fc-tabs{position:sticky;top:0;z-index:7;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;padding:8px 20px;background:var(--bg);box-shadow:0 1px 0 var(--line)}
+.fc-tabs .ind{position:absolute;bottom:6px;left:20px;width:calc((100% - 40px)/5);height:3px;border-radius:3px;background:var(--accent);transition:transform .45s cubic-bezier(.34,1.3,.64,1)}
 .fc-tabs button{height:46px;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:14px;cursor:pointer}
 .fc-tabs button[aria-selected="true"]{color:var(--ink)}
 .fc-pane{position:relative;z-index:2;padding:6px 20px 40px;animation:fcPane .5s cubic-bezier(.16,1,.3,1) both}
@@ -79,19 +79,26 @@
 .fc-pitch .circ{left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%}
 .fc-pitch .bx1{left:26%;right:26%;top:-2px;height:15%}.fc-pitch .bx2{left:26%;right:26%;bottom:-2px;height:15%}
 .fc-pl{position:absolute;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:2px;border:0;background:transparent;color:#eef4ff;font:inherit;cursor:pointer;width:84px;padding:0}
-.fc-pl span{position:relative;width:42px;height:42px;border-radius:50%;background:linear-gradient(180deg,#d4ecfc,#6CABDD);color:#0c1733;display:grid;place-items:center;font-family:'Anybody';font-weight:900;font-size:16px;box-shadow:0 8px 16px -6px rgba(0,0,0,.6);transition:transform .3s}
-.fc-pl[aria-pressed="true"] span{transform:scale(1.18);box-shadow:0 0 0 3px #FFC659}
-.fc-pl i{position:absolute;right:-6px;top:-6px;width:20px;height:20px;border-radius:50%;background:#fff;color:#0c1733;font-style:normal;font-size:11px;font-weight:800;display:grid;place-items:center;box-shadow:0 0 0 2px #0c1733}
+.fc-pl .fc-number{position:relative;width:42px;height:42px;border-radius:50%;background:linear-gradient(180deg,#d4ecfc,#6CABDD);color:#0c1733;display:grid;place-items:center;font-family:'Anybody';font-weight:900;font-size:16px;box-shadow:0 8px 16px -6px rgba(0,0,0,.6);transition:transform .3s}
+.fc-pl[aria-pressed="true"] .fc-number{transform:scale(1.08);box-shadow:0 0 0 3px #FFC659}
 .fc-pl b{font-size:10px;font-weight:700;text-shadow:0 2px 6px rgba(0,0,0,.7);white-space:nowrap}
 .fc-pinfo{margin-top:12px;padding:14px;border-radius:20px;background:var(--chip);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;text-align:center}
 .fc-pinfo dd{margin:0;order:-1;font-family:'Anybody';font-weight:900;font-size:24px}
 .fc-pinfo div{display:flex;flex-direction:column}
 .fc-pinfo dt{font-family:'Geist Mono';font-size:10px;color:var(--muted)}
 .fc-pinfo .nm{grid-column:1/-1;text-align:left;font-weight:700}
-.fc-bench{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px}
-.fc-bench li{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 14px 0 6px;border-radius:999px;background:var(--chip);font-weight:600;font-size:13px}
-.fc-bench li b{width:28px;height:28px;border-radius:50%;background:var(--bar);display:grid;place-items:center;font-family:'Anybody';font-weight:900;font-size:13px}
-.fc-bench li.in b{background:#6CABDD;color:#0c1733}
+.fc-dugout{margin-top:8px;padding:14px;border-radius:20px;background:var(--chip)}
+.fc-dugout .hm-kick{margin:0}
+.fc-bench{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:6px}
+.fc-bench li{min-width:0}
+.fc-bench button{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:8px;border:0;border-radius:12px;background:var(--chip);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.fc-bench button[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--accent)}
+.fc-bench button>b{flex:0 0 28px;height:28px;border-radius:50%;background:var(--bar);display:grid;place-items:center;font-family:'Anybody';font-weight:900;font-size:13px}
+.fc-bench li.in button>b{background:#6CABDD;color:#0c1733}
+.fc-bench-name{flex:1;min-width:0;font-weight:600;font-size:13px;overflow-wrap:anywhere}
+.fc-bench-name small{display:block;margin-top:3px}
+.fc-bench .match-badges{max-width:95px;flex-shrink:0}
+.fc-pl .match-badges{max-width:90px}
 .fc-bench li small{font-family:'Geist Mono';font-size:10px;color:var(--muted)}
 .fc-stints{margin-top:18px;display:grid;gap:7px}
 .fc-stints .r,.fc-stints .hd{display:grid;grid-template-columns:110px minmax(0,1fr) 34px;gap:10px;align-items:center;font-size:12px;font-weight:600}
@@ -105,6 +112,10 @@
 @keyframes fcGrowX{from{transform:scaleX(0)}to{transform:none}}
 
 /* pulso */
+.fc-attacks{margin:16px 0 0;display:grid;gap:6px}
+.fc-attacks>div{display:grid;grid-template-columns:60px 1fr 60px;align-items:center;gap:12px;padding:12px;border-radius:14px;background:var(--chip);text-align:center}
+.fc-attacks dt{font-size:14px;color:var(--soft)}
+.fc-attacks dd{margin:0;font:700 24px 'Anybody';color:var(--ink)}
 .fc-mom{position:relative;margin-top:16px;height:180px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:1px;align-items:center}
 .fc-mom::after{content:"";position:absolute;left:0;right:0;top:90px;height:1px;background:var(--line)}
 .fc-mom .c{display:grid;grid-template-rows:90px 90px;height:180px}
@@ -154,7 +165,7 @@
 .fc-hero .pt-hero-in{align-items:start}
 .fc-h1{font-size:64px}
 .fc-tabs{padding:10px max(64px,calc((100% - 1312px)/2))}
-.fc-tabs .ind{left:max(64px,calc((100% - 1312px)/2));width:calc((min(100%,1312px + 128px) - 128px)/4)}
+.fc-tabs .ind{left:max(64px,calc((100% - 1312px)/2));width:calc((min(100%,1312px + 128px) - 128px)/5)}
 .fc-pane{max-width:1440px;margin:0 auto;padding:6px 64px 60px}
 .fc-two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .fc-pane.wide{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:0 64px;align-items:start}
@@ -179,3 +190,5 @@
 .fc-banda .fc-acts{flex-wrap:wrap;overflow:visible}
 .fc-banda .hm-btn:disabled,.fc-banda .hm-ghostbtn:disabled{opacity:.45;cursor:not-allowed}
 @container (min-width:700px){.fc-banda-acts{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+@media(max-width:600px){.fc-tabs button{font-size:clamp(10px,2.8vw,14px)}}

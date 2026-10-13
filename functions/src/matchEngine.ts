@@ -1,5 +1,8 @@
 /** Shared, deterministic match ledger. Also executed by the backend before publishing. */
+import { ACTION_LABELS, actionProblem, analyseActions, eventSeconds, isAnalysisAction, type ActionDetails, type TechnicalStats } from "./matchAnalysis.js";
+import { type MatchClock } from "./matchClock.js";
 export const EVENT_LABELS = {
+  ...ACTION_LABELS,
   goal: "Gol",
   goal_penalty: "Gol de penalti",
   goal_freekick: "Gol de falta",
@@ -14,12 +17,16 @@ export const EVENT_LABELS = {
   penalty_saved: "Penalti parado",
   penalty_missed: "Penalti fallado",
   woodwork: "Tiro al palo",
+  chance: "Ocasión del Piti",
+  opponent_chance: "Ocasión rival",
+  corner: "Córner del Piti",
+  opponent_corner: "Córner rival",
   substitution: "Cambio",
   assist: "Asistencia (histórico)",
   match_played: "Participación (histórico)",
 } as const;
 export type EventType = keyof typeof EVENT_LABELS;
-export interface MatchEvent {
+export interface MatchEvent extends ActionDetails {
   id: string;
   type: EventType;
   minute?: number;
@@ -43,6 +50,12 @@ export interface MatchSheet {
   venue: string;
   home: boolean;
   status: MatchStatus;
+  /** Server-controlled whistle; the final ledger is still published after review. */
+  liveEndedAt?: number;
+  clock?: MatchClock;
+  durationSeconds?: number;
+  analysisCoverage?: "partial" | "complete";
+  analysisNotes?: string;
   starters: string[];
   bench: string[];
   notCalled: string[];
@@ -57,8 +70,9 @@ export interface MatchSheet {
   /** Kit the squad wears: 1ª (home) or 2ª (away) equipación. */
   kit?: "home" | "away";
 }
-export interface Participation {
+export interface Participation extends Partial<TechnicalStats> {
   minutes: number;
+  secondsPlayed?: number;
   started: boolean;
   benched: boolean;
   notCalled: boolean;
@@ -81,12 +95,17 @@ export interface Participation {
   goalFreekick: number;
   ownGoals: number;
   woodwork: number;
+  /** Absent from actas published before these events were introduced. */
+  chances?: number;
+  corners?: number;
 }
 export interface Ledger {
   players: Record<string, Participation>;
   goalsFor: number;
   goalsAgainst: number;
   errors: string[];
+  /** Shirt slots at the cutoff: a substitute inherits the outgoing player's place. */
+  field: (string | null)[];
 }
 export function emptyParticipation(): Participation {
   return {
@@ -113,24 +132,29 @@ export function emptyParticipation(): Participation {
     goalFreekick: 0,
     ownGoals: 0,
     woodwork: 0,
+    chances: 0,
+    corners: 0,
   };
 }
 export function calculateLedger(
   match: Pick<
     MatchSheet,
-    "starters" | "bench" | "notCalled" | "events" | "duration"
+    "starters" | "bench" | "notCalled" | "events" | "duration" | "durationSeconds"
   >,
   strict = true,
+  options: { until?: number; allowUnattributedGoals?: boolean } = {},
 ): Ledger {
   const result: Ledger = {
     players: {},
     goalsFor: 0,
     goalsAgainst: 0,
     errors: [],
+    field: [...match.starters],
   };
   const fail = (text: string) => result.errors.push(text);
-  const duration = match.duration;
-  if (!Number.isInteger(duration) || duration < 1 || duration > 150)
+  const duration = match.durationSeconds != null ? match.durationSeconds / 60 : match.duration;
+  const until = Math.max(0, Math.min(duration, options.until ?? duration));
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 150)
     fail("La duración debe estar entre 1 y 150 minutos.");
   const assignments = [...match.starters, ...match.bench, ...match.notCalled];
   if (new Set(assignments).size !== assignments.length)
@@ -157,9 +181,9 @@ export function calculateLedger(
   const ids = new Set<string>();
   const events = match.events
     .map((e, order) => ({ ...e, order }))
-    .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0) || a.order - b.order);
+    .sort((a, b) => eventSeconds(a) - eventSeconds(b) || a.order - b.order);
   for (const e of events) {
-    const minute = e.minute;
+    const minute = e.elapsedSeconds == null ? e.minute : e.elapsedSeconds / 60;
     if (!e.id || ids.has(e.id))
       fail("Cada evento debe tener una referencia única.");
     ids.add(e.id);
@@ -167,14 +191,36 @@ export function calculateLedger(
       fail("Tipo de evento desconocido.");
       continue;
     }
-    if (!Number.isInteger(minute) || minute! < 0 || minute! > duration) {
+    if (isAnalysisAction(e.type) && e.timingUnknown && e.minute == null && e.elapsedSeconds == null) {
+      const problem = actionProblem(e);
+      if (problem) fail(problem);
+      if (e.team === "opponent" && (e.playerId || e.receiverId)) fail("Una acción rival no puede atribuirse a un jugador del Piti.");
+      for (const id of [e.playerId, e.receiverId]) if (id && (!result.players[id] || result.players[id].notCalled)) fail("La acción sin minuto necesita jugadores convocados.");
+      continue;
+    }
+    if (!Number.isFinite(minute) || minute! < 0 || minute! > duration) {
       fail("Indica un minuto válido para cada evento.");
       continue;
     }
     const t = minute!;
+    if (t > until) continue;
+    const actionError = actionProblem(e);
+    if (actionError) { fail(`Minuto ${e.minute}: ${actionError}`); continue; }
+    if (isAnalysisAction(e.type)) {
+      if (e.team === "opponent") { if (e.playerId || e.receiverId) fail("Una acción rival no puede atribuirse a un jugador del Piti."); continue; }
+      if (e.playerId && !onPitch.has(e.playerId)) fail(`Minuto ${e.minute}: el autor de la acción no estaba en el campo.`);
+      if (e.receiverId && !onPitch.has(e.receiverId)) fail(`Minuto ${e.minute}: el receptor no estaba en el campo.`);
+      continue;
+    }
     if (e.type === "opponent_goal" || e.type === "opponent_own_goal") {
       if (e.type === "opponent_goal") result.goalsAgainst++;
       else result.goalsFor++;
+      continue;
+    }
+    if (e.type === "opponent_chance" || e.type === "opponent_corner") continue;
+    if ((e.type === "chance" || e.type === "corner") && !e.playerId) continue;
+    if (e.type === "goal" && !e.playerId && !e.assistPlayerId && options.allowUnattributedGoals) {
+      result.goalsFor++;
       continue;
     }
     const p = e.playerId ? result.players[e.playerId] : undefined;
@@ -204,6 +250,7 @@ export function calculateLedger(
       incoming.played = true;
       incoming.exchanges.push({ minute: t, with: id, direction: "in" });
       onPitch.set(e.inPlayerId!, t);
+      result.field[result.field.indexOf(id)] = e.inPlayerId!;
       continue;
     }
     const card = ["yellow_card", "double_yellow", "red_card"].includes(e.type);
@@ -235,10 +282,12 @@ export function calculateLedger(
       p.redCards++;
       p.dismissed = true;
       close(id, t);
+      result.field = result.field.map((who) => who === id ? null : who);
     } else if (e.type === "red_card") {
       p.redCards++;
       p.dismissed = true;
       close(id, t);
+      result.field = result.field.map((who) => who === id ? null : who);
     } else if (e.type === "own_goal") {
       p.ownGoals++;
       result.goalsAgainst++;
@@ -247,9 +296,17 @@ export function calculateLedger(
     else if (e.type === "penalty_saved") p.penaltySaved++;
     else if (e.type === "penalty_missed") p.penaltyMissed++;
     else if (e.type === "woodwork") p.woodwork++;
+    else if (e.type === "chance") p.chances = (p.chances ?? 0) + 1;
+    else if (e.type === "corner") p.corners = (p.corners ?? 0) + 1;
     else if (e.type === "assist") p.assists++;
   }
-  for (const id of [...onPitch.keys()]) close(id, duration);
+  for (const id of [...onPitch.keys()]) close(id, until);
+  const technical = analyseActions(match.events.filter(e => eventSeconds(e) <= until * 60));
+  for (const [id, row] of Object.entries(result.players)) {
+    row.secondsPlayed = Math.round(row.minutes * 60);
+    row.minutes = Math.round(row.secondsPlayed / 60 * 100) / 100;
+    Object.assign(row, technical.players[id] ?? {});
+  }
   return result;
 }
 export function dateMillis(value: unknown): number {
@@ -266,6 +323,9 @@ export function matchPhase(
     date?: unknown;
     version?: number;
     goalsFor?: number;
+    duration?: number;
+    liveEndedAt?: number;
+    clock?: MatchClock;
   },
   now: number,
 ) {
@@ -278,14 +338,25 @@ export function matchPhase(
       dateMillis(match.date) <= now)
   )
     return "finished";
+  if (match.clock) {
+    if (match.clock.phase === "ended") return "awaiting_result";
+    if (match.clock.phase !== "ready") return "playing";
+    return "scheduled";
+  }
+  if (match.version === 2 && match.status === "scheduled" && !match.liveEndedAt) return "scheduled";
   const start = dateMillis(match.date);
   if (!Number.isFinite(start)) return "unscheduled";
   if (now < start) return "scheduled";
-  if (now < start + 60 * 60 * 1000) return "playing";
+  if (match.liveEndedAt && match.liveEndedAt <= now) return "awaiting_result";
+  if (now < liveUntil(match)) return "playing";
   return "awaiting_result";
 }
+/** One hour for the usual F7 fixture; longer games use their configured duration. */
+export function liveUntil(match: { date?: unknown; duration?: number }): number {
+  return dateMillis(match.date) + Math.max(60, match.duration ?? 50) * 60_000;
+}
 export function nextFixture<
-  T extends { date?: unknown; status?: string; goalsFor?: number },
+  T extends { date?: unknown; status?: string; goalsFor?: number; duration?: number; liveEndedAt?: number },
 >(matches: T[], now: number): T | undefined {
   return matches
     .filter((m) => ["scheduled", "playing"].includes(matchPhase(m, now)))

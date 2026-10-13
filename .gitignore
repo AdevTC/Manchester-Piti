@@ -53,3 +53,6 @@ functions/census-*.json
 
 # Server render build (pnpm build → vite build --ssr)
 dist-ssr
+
+# Local pnpm package cache
+.pnpm-store/

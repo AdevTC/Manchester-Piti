@@ -36,6 +36,7 @@ export interface VitrinaView {
   /** «fuera» / «en casa». */
   where: string;
   seven: VitrinaShirt[];
+  bench: VitrinaShirt[];
   /** «Vitrina T1». */
   shelfLabel: string;
   shelf: ShelfItem[];
@@ -61,10 +62,12 @@ const GOALS = new Set(["goal", "goal_penalty", "goal_freekick"]);
 export function stickersOf(id: string, events: readonly MatchEvent[]): Sticker[] {
   const out: Sticker[] = [];
   for (const e of events) {
+    if (GOALS.has(e.type) && e.assistPlayerId === id || e.type === "assist" && e.playerId === id) out.push("assist");
     if (e.playerId !== id) continue;
     if (GOALS.has(e.type)) out.push("goal");
     else if (e.type === "yellow_card") out.push("yellow");
-    else if (e.type === "double_yellow" || e.type === "red_card") out.push("red");
+    else if (e.type === "double_yellow") out.push("yellow", "red");
+    else if (e.type === "red_card") out.push("red");
   }
   return out;
 }
@@ -108,6 +111,7 @@ export function vitrinaOf(o: VitrinaInput): VitrinaView {
     date: dayOf(t),
     where: whereOf(match),
     seven,
+    bench: (match.bench ?? []).map((id) => ({ id, num: o.numberOf(id), name: o.nameOf(id), stickers: stickersOf(id, events) })),
     shelfLabel: shelfLabelOf(o.seasonName),
     shelf,
     scorers,

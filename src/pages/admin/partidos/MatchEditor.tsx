@@ -1,3 +1,4 @@
+import { Scorers } from "./Scorers";
 // The match workspace, as on the canvas (stats-gen/ad-v2-full.mjs `detail`, shots-adv2f/partidos-acta.png,
 // partidos-encuentro.png, m-acta.png): the header merged with the tabs (kicker + «PITI 3–1 FUSION 7 [V]» |
 // Encuentro · Convocatoria · Acta · Publicar with ✓ / !; on phones ← back and the tabs under the title),
@@ -294,8 +295,9 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, o
             }}
           />
         )}
+        {tab === "encuentro" && match.published && <Scorers matchId={match.id} />}
         {tab === "convocatoria" && <TabConvocatoria starters={sheet.starters} bench={sheet.bench} info={info} mode={cvMode} onConvocar={() => go({ section: "convocar", matchId: match.id })} />}
-        {tab === "acta" && <TabActa phase={phase} sheet={sheet} update={update} review={review} rival={rival} j={j} info={info} onOpenLive={openLive} onGoConvocar={() => go({ section: "convocar", matchId: match.id })} />}
+        {tab === "acta" && <TabActa matchId={match.id} phase={phase} sheet={sheet} update={update} review={review} rival={rival} j={j} info={info} onOpenLive={openLive} onGoConvocar={() => go({ section: "convocar", matchId: match.id })} />}
         {tab === "publicar" && (
           <TabPublicar
             phase={phase}

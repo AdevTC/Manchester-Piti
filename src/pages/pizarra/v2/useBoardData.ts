@@ -76,7 +76,10 @@ export function useBoardData(seasonId: string): BoardData {
           home: typeof m.home === "boolean" ? m.home : null,
           venue: typeof m.venue === "string" ? m.venue : "",
           conv: { starters: [...(m.starters ?? [])], bench: [...(m.bench ?? [])] },
+          ...(m.clock ? { clock: m.clock } : {}),
+          ...(m.version ? { version: m.version } : {}),
           ...(typeof m.duration === "number" ? { duration: m.duration } : {}),
+          ...(typeof m.liveEndedAt === "number" ? { liveEndedAt: m.liveEndedAt } : {}),
           ...(typeof m.status === "string" ? { status: m.status } : {}),
           ...(m.events?.length ? { events: m.events } : {}),
         };

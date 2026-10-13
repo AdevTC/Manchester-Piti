@@ -1,3 +1,4 @@
+import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 // Ficha de jugador (Celeste · "elegida"): the stadium presents the dorsal, the player's holographic
 // cromo (season numbers on the back) and the analyst's report — radar, his jornadas, his goal clock,
 // his constellation with the best partner, the vitrina — plus season by season, last games and
@@ -173,7 +174,7 @@ export function JugadorPage() {
     const sg = chronological(matches.filter((m) => m.seasonId === id));
     const st = computeStats(p.id, sg);
     const led = sg.filter((m) => m.ledger?.[p.id]);
-    return { st, minutes: led.length ? led.reduce((n, m) => n + m.ledger![p.id].minutes, 0) : null, mvps: mvpWins(p.id, sg, results, now) };
+    return { st, minutes: led.length ? Math.round(led.reduce((n, m) => n + (m.ledger![p.id].secondsPlayed ?? m.ledger![p.id].minutes * 60), 0) / 60 * 100) / 100 : null, mvps: mvpWins(p.id, sg, results, now) };
   };
   const nameById = new Map(squad.map((x) => [x.id, nameOf(x)]));
   const share = () =>
@@ -249,6 +250,7 @@ export function JugadorPage() {
       </section>
 
       <main className="jg-main">
+        <div className="jg-wide"><TechnicalStatsPanel key={playerId} initialPlayer={playerId} matches={games} people={squad.map(p => ({id:p.id,name:nameOf(p),number:p.number}))} /></div>
         <ul className="jg-chips" aria-label="Su temporada en cinco números">
           {chips.map((c, i) => (
             <li key={c.k} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>

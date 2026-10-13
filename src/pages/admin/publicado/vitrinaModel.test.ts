@@ -23,8 +23,8 @@ describe("the publish peak's vitrina", () => {
       ["4", "ILLESCAS", []],
       ["20", "TELLO", ["red"]],
       ["8", "EGUZQUIZA", ["yellow"]],
-      ["14", "HUBEROSKI", []],
-      ["9", "ERIK", []],
+      ["14", "HUBEROSKI", ["assist"]],
+      ["9", "ERIK", ["assist"]],
       ["10", "ADRIÁN T.C.", ["goal", "goal"]],
     ]);
     expect(v.mvp).toEqual({ title: "MVP abierto · 48 h", detail: "Votan los socios hasta el miércoles, 10:00" });
@@ -53,7 +53,7 @@ describe("the publish peak's vitrina", () => {
   });
 
   it("stickers and the shelf's label", () => {
-    expect(stickersOf("a", [{ id: "1", type: "goal_penalty", minute: 3, playerId: "a" }, { id: "2", type: "double_yellow", minute: 9, playerId: "a" }, { id: "3", type: "goal", minute: 9, playerId: "b" }])).toEqual(["goal", "red"]);
+    expect(stickersOf("a", [{ id: "1", type: "goal_penalty", minute: 3, playerId: "a" }, { id: "2", type: "double_yellow", minute: 9, playerId: "a" }, { id: "3", type: "goal", minute: 9, playerId: "b" }])).toEqual(["goal", "yellow", "red"]);
     expect(shelfLabelOf("Temporada 2")).toBe("Vitrina T2");
     expect(shelfLabelOf("Liga de invierno")).toBe("Vitrina Liga de invierno");
   });

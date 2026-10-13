@@ -254,7 +254,7 @@ describe("Partidos · the workspace", () => {
     const user = userEvent.setup();
     acta();
     await screen.findByRole("heading", { name: "Lo demás" });
-    for (const t of ["Sin tarjetas", "Sin cambios", "Sin penaltis", "Palos, paradas…"]) expect(screen.getByText(t)).toBeInTheDocument();
+    for (const t of ["Sin tarjetas", "Sin cambios", "Sin penaltis", "Ocasiones, córners, palos…"]) expect(screen.getByText(t)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Añadir en Tarjetas" }));
     const panel = screen.getByRole("dialog", { name: "Añadir en Tarjetas" });
     expect(within(panel).getByLabelText("Minuto")).toHaveFocus();

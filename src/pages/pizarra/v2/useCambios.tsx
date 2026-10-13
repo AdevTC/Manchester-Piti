@@ -177,7 +177,7 @@ export function useCambios(c: CambiosCtx): Cambios {
     }
     setBusy(true);
     const run = async () => {
-      for (const s of todo) await liveEvent({ action: "add", matchId: m.id, event: { type: "substitution", minute: live.minute, playerId: s.out, inPlayerId: s.in } });
+      for (const s of todo) await liveEvent({ action: "add", matchId: m.id, requestId: crypto.randomUUID(), clockRevision: m.clock?.revision, event: { type: "substitution", minute: live.minute, playerId: s.out, inPlayerId: s.in } });
     };
     run().then(
       () => {

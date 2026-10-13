@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "node test/club.integration.mjs",
+    "test": "node test/club.integration.mjs && node test/match-analysis.integration.mjs",
     "seed:preview": "node test/seed-preview.mjs"
   },
   "dependencies": {

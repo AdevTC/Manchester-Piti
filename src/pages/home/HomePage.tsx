@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
 import { nextFixture, playerForSeason, playerName, useClubData } from "../../lib/clubData";
 import { useClubContent } from "../../lib/clubContent";
-import { useClock } from "../../hooks/useClock";
+import { useMatchClock } from "../../hooks/useMatchClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
@@ -21,7 +21,7 @@ export function HomePage() {
   const { matches, players, loading } = useClubData();
   const { seasons } = useSeason();
   const content = useClubContent();
-  const now = useClock(60_000);
+  const now = useMatchClock(matches);
   const theme = useDocumentTheme();
   const seasonId = currentSeasonId(nextFixture(matches, now), matches, seasons);
   const seasonName = seasons.find((s) => s.id === seasonId)?.name ?? "Temporada";

@@ -7,12 +7,22 @@ const ctx: PickerContext = { minute: 31, rival: "MAD SKY", field: ["evans", "tel
 const isEvent = (s: Step): s is Extract<Step, { event: unknown }> => "event" in s;
 
 describe("En juego · the picker", () => {
+  it.each(["oca", "cor"] as const)("%s asks for the team, then an optional player of ours", (k) => {
+    const type = k === "oca" ? "chance" : "corner";
+    const side = pickerView({ k, st: 1 }, ctx);
+    expect(side.extras[1].next).toMatchObject({ event: { type: `opponent_${type}`, minute: 31 } });
+    const ours = pickerView({ k, st: 2 }, ctx);
+    expect(ours.options.map((o) => o.id)).toEqual(ctx.field);
+    expect(ours.options[0].next).toMatchObject({ event: { type, minute: 31, playerId: "evans" } });
+    expect(ours.extras[0].next).toMatchObject({ event: { type, minute: 31 } });
+    expect(ours.bench).toBeNull();
+  });
   it("GOL: ¿Quién marcó? (on the pitch first, then the banquillo) → ¿Quién le dio el pase?", () => {
     const v = pickerView({ k: "gol", st: 1 }, ctx);
     expect(v.step).toBe("GOL · 31′ · paso 1 de 2");
     expect(v.question).toBe("¿Quién marcó?");
     expect(v.options.map((o) => o.name)).toEqual(["EVANS", "TELLO", "ERIK", "ADRIÁN T.C."]);
-    expect(v.bench?.map((o) => o.num)).toEqual(["11", "21"]);
+    expect(v.bench).toBeNull(); // a scorer must be on the pitch; register the substitution first
     expect(v.extras.map((x) => x.label)).toEqual(["Autogol de MAD SKY", "Lo completo luego"]);
     const erik = v.options[2].next;
     expect(erik).toEqual({ state: { k: "gol", st: 2, scorer: "erik" } });
@@ -51,7 +61,7 @@ describe("En juego · sides and the log", () => {
     { id: "e6", type: "goal", minute: 35 },
   ];
   it("who is on the pitch and who can come in (sent off never)", () => {
-    expect(liveSides(["evans", "tello", "erik", "adrian"], ["kevin", "almachi"], events)).toEqual({ field: ["erik", "adrian", "kevin"], bench: ["tello", "almachi"] });
+    expect(liveSides(["evans", "tello", "erik", "adrian"], ["kevin", "almachi"], events)).toEqual({ field: ["kevin", "erik", "adrian"], bench: ["tello", "almachi"] });
   });
   it("«Lo que va pasando», newest first", () => {
     const rows = liveLog(events, "MAD SKY", (id) => NAMES[id][1]);

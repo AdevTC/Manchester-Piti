@@ -1,16 +1,18 @@
+import { MatchClockControl } from "../../../components/celeste/MatchClockControl";
 // En juego (/admin/en-juego/$matchId), as on the canvas (stats-gen/ad-v2-full.mjs `mJuego`, `heroJuego`;
 // shots-adv2f/m-enjuego.png, hoy-juego.png). Phones (primary; the bar hides): back to Hoy, the «EN JUEGO»
 // tally, the LED (score + running clock, «GOOOL» flash), «Lo que va pasando» with «Deshacer lo último» and
 // the pads; the pads' picker is a bottom sheet. Desktop: the same as a view — the LED with its ticker, the
-// log and the pads, the picker as a dialog. «Pitar el final» whistles the end on this device and opens the
+// log and the pads, the picker as a dialog. «Pitar el final» saves the shared end and opens the
 // acta («Deshacer» takes the whistle back). Before kick-off / after the end it says so and points to Hoy /
-// the acta. Built on the shared live module (live/*: liveEvent add + undo).
+// the acta. Built on the shared live module (live/*: liveEvent add, undo, finish and reopen).
 import type { ReactNode } from "react";
 import { useParams } from "@tanstack/react-router";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { scoreOf } from "../../../lib/partidos";
+import { apiError, liveEvent } from "../../../lib/clubApi";
 import { clockTime, jLabel, shortDate, type AdminMatch } from "../data/adminLogic";
-import { unwhistle, useWhistled, whistle } from "../data/whistleStore";
+import { unwhistle, useWhistled } from "../data/whistleStore";
 import { LedBoard, ShirtBack } from "../kit";
 import { LiveClock, LiveLog, LivePads, LivePicker } from "../live/LiveParts";
 import { useLive } from "../live/useLive";
@@ -121,6 +123,7 @@ function NotLive({ match, phase }: { match: AdminMatch; phase: Phase }) {
   return (
     <Frame desktop={desktop} title="En juego" lead={`${j} · ${rival}`} line={metaLine(match)} onBack={() => go({ section: "hoy" })}>
       {body}
+      <MatchClockControl match={match} />
     </Frame>
   );
 }
@@ -136,13 +139,14 @@ function Live({ match }: { match: AdminMatch }) {
   const j = jLabel(match);
   const rival = match.rival ?? "Rival";
   const start = dateMillis(match.date);
-  const pitar = () => {
-    whistle(match.id);
+  const pitar = () => live.finish(() => {
+    unwhistle(match.id);
     live.close();
     go({ section: "partidos", matchId: match.id, tab: "acta" });
-    toast.show({ tag: "FINAL", message: `Final pitado · ${gf}–${ga} · repasa el acta y publícala`, undo: () => unwhistle(match.id) });
-  };
-  const pads = <LivePads onGol={() => live.open("gol")} onRival={live.rivalGoal} onTarjeta={() => live.open("tar")} onCambio={() => live.open("cam")} onPitar={pitar} disabled={live.busy} />;
+    toast.show({ tag: "FINAL", message: `Final pitado · ${gf}–${ga} · repasa el acta y publícala`, undo: () => { void liveEvent({ action: "reopen", matchId: match.id }).then(() => unwhistle(match.id), (e: unknown) => toast.show({ tone: "error", message: apiError(e) })); } });
+  });
+  const control = <MatchClockControl match={match} onFinish={() => go({ section: "partidos", matchId: match.id, tab: "acta" })} />;
+  const pads = <LivePads onGol={() => live.open("gol")} onRival={live.rivalGoal} onTarjeta={() => live.open("tar")} onCambio={() => live.open("cam")} onOcasion={() => live.open("oca")} onCorner={() => live.open("cor")} onPitar={match.clock ? undefined : pitar} disabled={live.busy} paused={match.clock?.phase === "halftime"} />;
   const undo = live.log.length ? (
     <button type="button" className="btn sm line" onClick={live.undo} disabled={live.busy} style={{ marginLeft: "auto" }}>
       <AdIcon name="undo" size={16} />
@@ -161,9 +165,10 @@ function Live({ match }: { match: AdminMatch }) {
             <span className="tally">EN JUEGO</span>
             <span className="ml">{metaLine(match)}</span>
           </div>
-          <LedBoard rival={rival} gf={gf} ga={ga} size="mob" flash={live.flash} sub={<LiveClock start={start} />} />
+          <LedBoard rival={rival} gf={gf} ga={ga} size="mob" flash={live.flash} sub={<LiveClock start={start} match={match} />} />
         </div>
         <div className="lvb">
+          {control}
           <div className="lvh">
             <h3>Lo que va pasando</h3>
             {undo}
@@ -198,7 +203,7 @@ function Live({ match }: { match: AdminMatch }) {
           ga={ga}
           sub={
             <>
-              <LiveClock start={start} /> · EN JUEGO
+              <LiveClock start={start} match={match} /> · EN JUEGO
             </>
           }
           ticker={tickerText(match, note)}
@@ -218,6 +223,7 @@ function Live({ match }: { match: AdminMatch }) {
             <h3>
               Apunta a un toque <em>minuto del reloj</em>
             </h3>
+            {control}
             {pads}
           </div>
         </div>

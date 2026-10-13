@@ -1,3 +1,4 @@
+import { isAnalysisAction } from "../../../../functions/src/matchAnalysis";
 // The acta's sheet model (pure, tested in sheetModel.test.ts) — what the old MatchEditor kept in its
 // state, made explicit: a MatchSheet (functions/src/matchEngine) whose score is ALWAYS the count of the
 // goals written down, exactly as the backend requires to publish (goalsFor = our goal events + rival own
@@ -106,6 +107,10 @@ export function fromMatch(m: MatchLike, note = ""): MatchSheet {
     competition: m.competition ?? "Liga",
     date: dateMillis(m.date),
     duration: m.duration ?? 60,
+    ...(m.clock ? { clock: m.clock } : {}),
+    ...(m.durationSeconds != null ? { durationSeconds: m.durationSeconds } : {}),
+    ...(m.analysisCoverage ? { analysisCoverage: m.analysisCoverage } : {}),
+    ...(m.analysisNotes ? { analysisNotes: m.analysisNotes } : {}),
     venue: m.venue ?? "",
     home: m.home ?? true,
     status,
@@ -123,12 +128,7 @@ export function fromMatch(m: MatchLike, note = ""): MatchSheet {
 
 /** An event without its undefined / empty optional fields. */
 function clean(e: MatchEvent): MatchEvent {
-  const out: MatchEvent = { id: e.id, type: e.type };
-  if (e.minute !== undefined && e.minute !== null) out.minute = e.minute;
-  if (e.playerId) out.playerId = e.playerId;
-  if (e.assistPlayerId) out.assistPlayerId = e.assistPlayerId;
-  if (e.inPlayerId) out.inPlayerId = e.inPlayerId;
-  if (e.note) out.note = e.note;
+  const out = Object.fromEntries(Object.entries(e).filter(([, v]) => v !== undefined && v !== "")) as unknown as MatchEvent;
   return out;
 }
 
@@ -207,7 +207,7 @@ export function rivalRows(sheet: Pick<MatchSheet, "events">): RivalRow[] {
 export function otherEvents(sheet: Pick<MatchSheet, "events">): MatchEvent[] {
   return sheet.events
     .map((e, order) => ({ e, order }))
-    .filter(({ e }) => !isOurGoal(e) && !isRivalGoal(e))
+    .filter(({ e }) => !isOurGoal(e) && !isRivalGoal(e) && !isAnalysisAction(e.type))
     .sort((a, b) => (a.e.minute ?? 0) - (b.e.minute ?? 0) || a.order - b.order)
     .map(({ e }) => e);
 }
@@ -247,7 +247,7 @@ export function removeEvent(sheet: MatchSheet, id: string): MatchSheet {
 /** Digits typed in a minute box → the event's minute (empty → none). */
 export function setMinute(sheet: MatchSheet, id: string, text: string): MatchSheet {
   const digits = text.replace(/[^0-9]/g, "").slice(0, 3);
-  return patch(sheet, id, (e) => ({ ...e, minute: digits === "" ? undefined : Number(digits) }));
+  return patch(sheet, id, (e) => ({ ...e, minute: digits === "" ? undefined : Number(digits), elapsedSeconds: undefined }));
 }
 /** Step 1 of «¿Quién marcó?»: a player of ours (the assist is chosen again) or a rival own goal. */
 export function setScorer(sheet: MatchSheet, id: string, scorer: string | "og"): MatchSheet {
@@ -323,6 +323,7 @@ export function toPayload(sheet: MatchSheet, draft: boolean, nameOf: NameOf, riv
       if (!draft) return { ok: false, error: `Pon el minuto del gol ${theirs.find((r) => r.id === e.id)?.n ?? ""} de ${rival}.`, eventId: e.id };
       continue;
     }
+    if (isAnalysisAction(e.type) && e.timingUnknown && e.minute == null) { events.push(clean(e)); continue; }
     if (!okMinute(e.minute)) {
       const row = ours.find((r) => r.id === e.id);
       const what = row ? `del gol ${row.n}${row.scorer ? ` (${nameOf(row.scorer)})` : row.kind === "og" ? ` (autogol de ${rival})` : ""}` : `de «${EVENT_LABELS[e.type] ?? e.type}${e.playerId ? ` · ${nameOf(e.playerId)}` : ""}»`;
@@ -342,6 +343,9 @@ export function toPayload(sheet: MatchSheet, draft: boolean, nameOf: NameOf, riv
     competition: sheet.competition.trim(),
     date: sheet.date,
     duration: sheet.duration,
+    ...(sheet.durationSeconds != null ? { durationSeconds: sheet.durationSeconds } : {}),
+    ...(sheet.analysisCoverage ? { analysisCoverage: sheet.analysisCoverage } : {}),
+    ...(sheet.analysisNotes ? { analysisNotes: sheet.analysisNotes } : {}),
     venue: sheet.venue.trim(),
     home: sheet.home,
     status: sheet.status,

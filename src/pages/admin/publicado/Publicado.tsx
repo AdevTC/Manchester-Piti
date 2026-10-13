@@ -103,6 +103,10 @@ export function Publicado({ match }: { match: AdminMatch }) {
             </span>
           ))}
         </div>
+        {v.bench.length > 0 && <div className="pub-bench" role="group" aria-label="Suplentes del acta">
+          <span className="lb">Suplentes</span>
+          <div className="s7">{v.bench.map((p) => <span key={p.id} className="peg" style={{ position: "relative" }}><ShirtBack num={p.num} size={44} /><Stickers list={p.stickers} /><span className="nm">{p.name}</span></span>)}</div>
+        </div>}
         <div className="pq lock">
           <ResultMark r={v.r} />
           {v.j} · {v.rival} {v.gf}–{v.ga}

@@ -5,7 +5,7 @@
 import { useId, useRef, useState, type RefObject } from "react";
 import type { EventType, MatchEvent } from "../../../../functions/src/matchEngine";
 import { Popover } from "../ui/layers";
-import { checkEvent, KINDS, playerQuestion, type EventGroup, type PickOption } from "./pickModel";
+import { checkEvent, KINDS, playerMode, playerQuestion, type EventGroup, type PickOption } from "./pickModel";
 
 export interface EventPanelProps {
   group: EventGroup;
@@ -42,7 +42,7 @@ export function EventPanel(p: EventPanelProps) {
       setError(why);
       return;
     }
-    p.onSave({ id: ev?.id ?? p.newId, type, minute: Number(minute), playerId: player, ...(sub ? { inPlayerId: inPlayer } : {}), ...(ev?.note ? { note: ev.note } : {}) });
+    p.onSave({ ...ev, id: ev?.id ?? p.newId, type, minute: Number(minute), elapsedSeconds: ev?.minute === Number(minute) ? ev.elapsedSeconds : undefined, playerId: player && playerMode(type) !== "none" ? player : undefined, inPlayerId: sub ? inPlayer : undefined });
   };
   const grid = (list: PickOption[], value: string, set: (v: string) => void, isBench: boolean, verb: string, skip?: string) => (
     <div className="pg">
@@ -101,7 +101,7 @@ export function EventPanel(p: EventPanelProps) {
           </span>
           <div className="sgf" role="group" aria-labelledby={`${id}-k`}>
             {kinds.map((k) => (
-              <button key={k.type} type="button" aria-pressed={type === k.type} onClick={() => setType(k.type)}>
+              <button key={k.type} type="button" aria-pressed={type === k.type} onClick={() => { setType(k.type); if (playerMode(k.type) === "none") setPlayer(""); setInPlayer(""); setError(""); }}>
                 {k.label}
               </button>
             ))}
@@ -124,7 +124,8 @@ export function EventPanel(p: EventPanelProps) {
           }}
         />
       </div>
-      {!all.length ? (
+      {playerMode(type) === "optional" && <button type="button" className="btn sm line" aria-pressed={!player} onClick={() => setPlayer("")}>Equipo · sin jugador</button>}
+      {playerMode(type) === "none" ? null : !all.length ? (
         <p className="pk-lb">Aún no hay convocados: los jugadores salen de la convocatoria.</p>
       ) : sub ? (
         <>

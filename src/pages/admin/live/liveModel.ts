@@ -18,6 +18,7 @@ export type CardType = "yellow_card" | "double_yellow" | "red_card";
 export const CARD_LABEL: Record<CardType, string> = { yellow_card: "Amarilla", double_yellow: "Segunda amarilla", red_card: "Roja directa" };
 
 export type PickState =
+  | { k: "oca" | "cor"; st: 1 | 2 }
   | { k: "gol"; st: 1 }
   | { k: "gol"; st: 2; scorer: string }
   | { k: "tar"; st: 1 }
@@ -70,6 +71,16 @@ export function pickerView(s: PickState, c: PickerContext): PickerView {
   const m = `${c.minute}′`;
   const opt = (id: string, aria: string, next: Step): PickOption => ({ id, ...c.player(id), aria, next });
   const name = (id: string) => c.player(id).name;
+  if (s.k === "oca" || s.k === "cor") {
+    const type = s.k === "oca" ? "chance" : "corner";
+    const label = s.k === "oca" ? "Ocasión" : "Córner";
+    const save = (ours: boolean, playerId?: string): Step => ({ event: { type: ours ? type : `opponent_${type}`, minute: c.minute, ...(playerId ? { playerId } : {}) }, caption: `${label} ${ours ? playerId ? `de ${name(playerId)}` : "del Piti" : `de ${c.rival}`} · ${m}` });
+    if (s.st === 1) return { step: `${label.toUpperCase()} · ${m}`, question: "¿De qué equipo?", label: "", options: [], bench: null, extras: [
+      { key: "us", label: "Manchester Piti", next: { state: { k: s.k, st: 2 } } },
+      { key: "them", label: c.rival, next: save(false) },
+    ] };
+    return { step: `${label.toUpperCase()} DEL PITI · ${m}`, question: "¿Qué jugador?", label: "En el campo · opcional", options: c.field.map((id) => opt(id, `${label} de ${name(id)}`, save(true, id))), bench: null, extras: [{ key: "team", label: "Apuntar al equipo, sin jugador", next: save(true) }] };
+  }
   if (s.k === "gol" && s.st === 1) {
     const toAssist = (id: string): Step => ({ state: { k: "gol", st: 2, scorer: id } });
     return {
@@ -77,7 +88,7 @@ export function pickerView(s: PickState, c: PickerContext): PickerView {
       question: "¿Quién marcó?",
       label: "En el campo",
       options: c.field.map((id) => opt(id, `Marcó ${name(id)}`, toAssist(id))),
-      bench: c.bench.length ? c.bench.map((id) => opt(id, `Marcó ${name(id)}`, toAssist(id))) : null,
+      bench: null,
       extras: [
         { key: "og", label: `Autogol de ${c.rival}`, next: { event: { type: "opponent_own_goal", minute: c.minute }, flash: `Autogol de ${c.rival} · ${m}` } },
         { key: "later", label: "Lo completo luego", next: { event: { type: "goal", minute: c.minute }, flash: `Gol del Piti · ${m}` } },
@@ -114,7 +125,7 @@ export function pickerView(s: PickState, c: PickerContext): PickerView {
       question: "¿A quién?",
       label: "En el campo",
       options: c.field.map((id) => opt(id, `${CARD_LABEL[s.card]} a ${name(id)}`, { event: { type: s.card, minute: c.minute, playerId: id }, caption: `${CARD_LABEL[s.card]} a ${name(id)} · ${m}` })),
-      bench: null,
+      bench: c.bench.length ? c.bench.map((id) => opt(id, `${CARD_LABEL[s.card]} a ${name(id)}`, { event: { type: s.card, minute: c.minute, playerId: id }, caption: `${CARD_LABEL[s.card]} a ${name(id)} · ${m}` })) : null,
       extras: [],
     };
   if (s.k === "cam" && s.st === 1)
@@ -143,7 +154,7 @@ export interface LogRow {
   minute: string;
   /** `rv` = theirs, `y` = yellow, `rj` = red / second yellow. */
   cls: "" | "rv" | "y" | "rj";
-  icon: "ball" | "card" | "swap" | null;
+  icon: "ball" | "card" | "swap" | "flag" | "spark" | null;
   text: string;
   detail: string;
 }
@@ -155,6 +166,11 @@ export function liveLog(events: readonly MatchEvent[] | undefined, rival: string
   const nm = (id?: string) => (id ? nameOf(id) : "—");
   const rows = (events ?? []).map((e, i): LogRow & { order: number; at: number } => {
     const base = { id: e.id, minute: typeof e.minute === "number" ? String(e.minute) : "–", order: i, at: typeof e.minute === "number" ? e.minute : -1 };
+    if (["chance", "opponent_chance", "corner", "opponent_corner"].includes(e.type)) {
+      const them = e.type.startsWith("opponent_");
+      const corner = e.type.endsWith("corner");
+      return { ...base, cls: them ? "rv" : "", icon: corner ? "flag" : "spark", text: `${corner ? "Córner" : "Ocasión"} de ${them ? rival : e.playerId ? nm(e.playerId) : "Manchester Piti"}`, detail: e.note ?? "" };
+    }
     if (GOALS.has(e.type)) {
       const how = e.type === "goal_penalty" ? "de penalti" : e.type === "goal_freekick" ? "de falta" : "";
       const detail = !e.playerId ? "falta el goleador" : [how, e.assistPlayerId ? `pase de ${nm(e.assistPlayerId)}` : ""].filter(Boolean).join(" · ");

@@ -338,3 +338,5 @@ export function useMembership(uid: string | undefined) {
 export function useNicknameOf(uid: string | undefined) {
   return useLiveDoc<string>(uid ? `users/${uid}` : null, (d) => (d?.nickname as string | undefined) ?? "", "");
 }
+
+export function useMatchScorers(matchId: string | undefined) { return useLiveDoc<string[]>(matchId ? `matchPrivate/${matchId}` : null, d => (d?.scorerUids as string[] | undefined) ?? [], []); }

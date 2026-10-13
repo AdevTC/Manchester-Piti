@@ -260,7 +260,7 @@ describe("the live match", () => {
     await act(async () => {
       fireEvent.click(within(card).getByRole("button", { name: /^Hacer el cambio/ }));
     });
-    expect(api.calls).toEqual([{ action: "add", matchId: "m8", event: { type: "substitution", minute: 25, playerId: "adrian", inPlayerId: "kevin" } }]);
+    expect(api.calls).toMatchObject([{ action: "add", matchId: "m8", event: { type: "substitution", minute: 25, playerId: "adrian", inPlayerId: "kevin" } }]);
     expect(sr(container)).toBe("En el acta, 25′: entra KEVIN por ADRIAN");
   });
 

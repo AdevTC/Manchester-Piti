@@ -51,6 +51,7 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
     // Closed once the match is PUBLISHED as played (its acta corrects the minutes); an acta still in draft
     // — played but unpublished — can complete its convocatoria. Cancelled: closed either way.
     const status = pub.exists ? (pub.get("status") as string | undefined) : shown.get("status") === "cancelled" ? "cancelled" : undefined;
+    if (pub.get("clock") && pub.get("clock.phase") !== "ready") throw new HttpsError("failed-precondition", "El siete inicial ya está en juego. Registra las sustituciones desde la mesa del partido.");
     const problem = convocatoriaProblem(lineup, { roster, status });
     if (problem) throw new HttpsError(problem.startsWith("Ese partido") ? "failed-precondition" : "invalid-argument", problem);
 

@@ -10,15 +10,15 @@ import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { useClock } from "../../hooks/useClock";
 import { ShirtBack } from "../../components/celeste/ShirtBack";
 import { Icon } from "../../components/celeste/icons";
+import { MatchBadges } from "../../components/celeste/MatchBadges";
 import { Jersey3D } from "../../components/jersey3d/Jersey3D";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
-import { chapters, F7_SPOTS, keyNumbers, playerLine, pulse, stintRows } from "../../lib/ficha";
+import { chapters, F7_SPOTS, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
 import { dateParts, resultOf, scoreOf } from "../../lib/partidos";
 import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMyMvpVote, useMyPrediction } from "../vestuario/live";
 import { predictScore, setAvailability, useMe, voteMvp } from "../vestuario/writes";
 import { apiError } from "../../lib/clubApi";
 import { rsvpSummary } from "../../lib/rsvp";
-import { Banda } from "./Banda";
 import type { PlayerDoc } from "../../lib/schemas";
 
 type NameOf = (id: string) => string;
@@ -180,34 +180,31 @@ export function PreviaTab({ match, matches }: { match: ClubMatch; matches: ClubM
   );
 }
 
-export function DirectoTab({ match, nameOf }: { match: ClubMatch; nameOf: NameOf }) {
-  const { member } = useTeam();
-  const { profile } = useAuth();
-  const isAdmin = member && (profile?.role === "admin" || profile?.role === "superadmin");
+export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; nameOf: NameOf; live?: boolean }) {
   const rival = match.rival ?? "Rival";
   const feed = [...(match.events ?? [])].filter((e) => typeof e.minute === "number" && e.type !== "match_played").sort((a, b) => (b.minute ?? 0) - (a.minute ?? 0));
   return (
     <>
-    {isAdmin && <Banda match={match} nameOf={nameOf} />}
+
     <section className="fc-sec" aria-labelledby="fc-live">
-      <span className="hm-kick">Desde el acta · se actualiza solo</span>
+      <span className="hm-kick">{live ? "Desde el acta · se actualiza solo" : "Registro provisional · pendiente de revisión del administrador"}</span>
       <h2 className="hm-h2" id="fc-live">
         Lo que va pasando
       </h2>
       {feed.length ? (
         <ol className="fc-feed" aria-live="polite">
           {feed.map((e) => {
-            const us = OURS.has(e.type);
-            const who = e.type === "opponent_goal" ? rival : e.type === "substitution" && e.inPlayerId ? nameOf(e.inPlayerId) : e.playerId ? nameOf(e.playerId) : rival;
+            const us = OURS.has(e.type) || e.type === "chance" || e.type === "corner";
+            const who = e.type.startsWith("opponent_") ? rival : e.type === "substitution" && e.inPlayerId ? nameOf(e.inPlayerId) : e.playerId ? nameOf(e.playerId) : "Manchester Piti";
             return (
               <li key={e.id} className={us ? "us" : ""}>
                 <b>{e.minute}′</b>
-                <span className="ic">{/yellow|red/.test(e.type) ? <i className="fc-yc" style={e.type === "red_card" ? { background: "#ff5a4f" } : undefined} /> : <Icon name={/goal/.test(e.type) ? "ball" : e.type === "substitution" ? "swap" : "flag"} size={15} />}</span>
+                <span className="ic">{/yellow|red/.test(e.type) ? <i className="fc-yc" style={e.type !== "yellow_card" ? { background: "#ff5a4f" } : undefined} /> : <Icon name={/goal/.test(e.type) ? "ball" : e.type === "substitution" ? "swap" : e.type === "assist" ? "boot" : "flag"} size={15} />}</span>
                 <span>
                   <strong>{who}</strong>
                   <small>
                     {EVENT_LABELS[e.type] ?? e.type}
-                    {e.assistPlayerId ? ` · asistencia de ${nameOf(e.assistPlayerId)}` : ""}
+                    {e.assistPlayerId && <> · <Icon name="boot" size={13} /> asistencia de {nameOf(e.assistPlayerId)}</>}
                     {e.type === "substitution" && e.playerId ? ` · sale ${nameOf(e.playerId)}` : ""}
                   </small>
                 </span>
@@ -228,9 +225,14 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
   const starters = match.starters ?? [];
   const [sel, setSel] = useState<string | null>(null);
   const done = isCompleted(match);
+  const now = useClock(1000);
+  const snapshot = matchSnapshot(match, now);
+  const ledger = done ? match.ledger : snapshot.players;
+  const field = live ? snapshot.field : starters;
+  const bench = live ? [...starters, ...(match.bench ?? [])].filter((id) => !field.includes(id)) : match.bench ?? [];
   const pick = sel ?? starters[0];
-  const line = pick ? playerLine(pick, match.ledger, match.events) : null;
-  const rows = done ? stintRows(match.ledger, match.events, match.duration ?? 50) : [];
+  const line = pick ? playerLine(pick, ledger, match.events) : null;
+  const rows = done || live ? stintRows(ledger, match.events, match.duration ?? 50) : [];
   if (!starters.length)
     return (
       <section className="fc-sec">
@@ -250,20 +252,38 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
           <span className="l circ" />
           <span className="l bx1" />
           <span className="l bx2" />
-          {starters.slice(0, 7).map((id, i) => {
+          {field.slice(0, 7).map((id, i) => {
+            if (!id) return null;
             const [x, y] = F7_SPOTS[i] ?? [50, 50];
-            const g = playerLine(id, match.ledger, match.events).goals;
+            const stats = playerLine(id, ledger, match.events);
             return (
-              <button key={id} type="button" className="fc-pl" style={{ left: `${x}%`, top: `${y}%` }} aria-pressed={pick === id} onClick={() => setSel(id)} aria-label={`${nameOf(id)}, dorsal ${numOf(id)}`}>
-                <span>
-                  {numOf(id)}
-                  {g > 0 && <i>{g}</i>}
-                </span>
+              <button key={id} type="button" className="fc-pl" style={{ left: `${x}%`, top: `${y}%` }} aria-pressed={pick === id} onClick={() => setSel(id)} aria-label={`${nameOf(id)}, dorsal ${numOf(id)}, ${stats.goals} goles, ${stats.assists} asistencias, ${stats.yellowCards} amarillas, ${stats.redCards} rojas`}>
+                <span className="fc-number">{numOf(id)}</span>
                 <b>{nameOf(id)}</b>
+                <MatchBadges {...stats} />
               </button>
             );
           })}
         </div>
+        {bench.length > 0 && (
+          <div className="fc-dugout">
+            <span className="hm-kick">{live ? "Fuera del campo · banquillo y expulsados" : "Suplentes · también cuentan"}</span>
+            <ul className="fc-bench">
+              {bench.map((id) => {
+                const p = ledger?.[id];
+                const stats = playerLine(id, ledger, match.events);
+                const entry = p?.exchanges?.find((x) => x.direction === "in");
+                return <li key={id} className={p?.played ? "in" : ""}>
+                  <button type="button" onClick={() => setSel(id)} aria-pressed={pick === id}>
+                    <b>{numOf(id)}</b>
+                    <span className="fc-bench-name">{nameOf(id)}<small>{p?.dismissed ? "Expulsado · " : ""}{p ? `${p.minutes} min${entry ? ` · entró ${entry.minute}′` : p.played ? "" : done ? " · no jugó" : " · sin entrar"}` : "Minutos sin registrar"}</small></span>
+                    <MatchBadges {...stats} />
+                  </button>
+                </li>;
+              })}
+            </ul>
+          </div>
+        )}
         {line && pick && (
           <dl className="fc-pinfo">
             <span className="nm">
@@ -271,14 +291,14 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
             </span>
             <div>
               <dt>min</dt>
-              <dd>{done ? line.minutes : "–"}</dd>
+              <dd>{ledger?.[pick] ? line.minutes : "–"}</dd>
             </div>
             <div>
               <dt>goles</dt>
               <dd>{line.goals}</dd>
             </div>
             <div>
-              <dt>asist.</dt>
+              <dt><Icon name="boot" size={13} /> asist.</dt>
               <dd>{line.assists}</dd>
             </div>
             <div>
@@ -287,26 +307,7 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
             </div>
           </dl>
         )}
-        <p className="fc-note">Posiciones orientativas, por el orden de la convocatoria.</p>
-        {(match.bench ?? []).length > 0 && (
-          <>
-            <span className="hm-kick" style={{ marginTop: 18 }}>
-              Banquillo
-            </span>
-            <ul className="fc-bench">
-              {(match.bench ?? []).map((id) => {
-                const p = match.ledger?.[id];
-                return (
-                  <li key={id} className={p?.played ? "in" : ""}>
-                    <b>{numOf(id)}</b>
-                    {nameOf(id)}
-                    <small>{p ? (p.played ? `entra ${p.subIn}′` : "no jugó") : ""}</small>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
+        <p className="fc-note">Posiciones orientativas. {live ? "Los cambios y las expulsiones actualizan el campo. Minutos provisionales hasta publicar el acta." : "Minutos calculados desde el siete inicial y cada entrada y salida."}</p>
       </section>
       {rows.length > 0 && (
         <section className="fc-sec fc-reveal" aria-labelledby="fc-st">
@@ -347,12 +348,12 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
   );
 }
 
-export function PulsoTab({ match, live, minute }: { match: ClubMatch; live: boolean; minute: number | null }) {
+export function PulsoTab({ match, live, minute, pending = false }: { match: ClubMatch; live: boolean; minute: number | null; pending?: boolean }) {
   const duration = match.duration ?? 50;
-  const bars = pulse(match.events, duration, live ? (minute ?? 0) : isCompleted(match) ? duration : 0);
+  const started = live || isCompleted(match) || pending;
+  const bars = pulse(match.events, duration, live ? (minute ?? 0) : started ? duration : 0);
   const k = keyNumbers(match.events);
   const { gf, ga } = scoreOf(match);
-  const started = live || isCompleted(match);
   return (
     <section className="fc-sec" aria-labelledby="fc-pu">
       <span className="hm-kick">Minuto a minuto, desde el acta</span>
@@ -378,7 +379,7 @@ export function PulsoTab({ match, live, minute }: { match: ClubMatch; live: bool
           <dd>{started ? `${gf}–${ga}` : "–"}</dd>
         </div>
         <div>
-          <dt>paradas</dt>
+          <dt>penaltis parados</dt>
           <dd>{started ? k.saves : "–"}</dd>
         </div>
         <div>
@@ -390,7 +391,12 @@ export function PulsoTab({ match, live, minute }: { match: ClubMatch; live: bool
           <dd>{started ? k.cards : "–"}</dd>
         </div>
       </dl>
-      <p className="fc-note">Cada barra es un minuto: arriba el Piti, abajo {match.rival ?? "el rival"}. Se calcula con lo que apunta el acta (goles, palos, penaltis, paradas y tarjetas){live ? " y se va llenando minuto a minuto" : ""}.</p>
+      <dl className="fc-attacks" aria-label="Ocasiones y córners registrados">
+        <div><dd>{started ? k.chances : "–"}</dd><dt>Ocasiones</dt><dd>{started ? k.opponentChances : "–"}</dd></div>
+        <div><dd>{started ? k.corners : "–"}</dd><dt>Córners</dt><dd>{started ? k.opponentCorners : "–"}</dd></div>
+      </dl>
+      <p className="fc-note">Piti a la izquierda · {match.rival ?? "rival"} a la derecha. Solo se cuentan las ocasiones y los córners registrados; un cero puede significar que aún no se han apuntado.</p>
+      <p className="fc-note">Cada barra es un minuto: arriba el Piti, abajo {match.rival ?? "el rival"}. Es un indicador de actividad a partir de goles, ocasiones, córners, palos, penaltis y tarjetas; no mide la posesión{live ? " y se actualiza durante el partido" : ""}.</p>
     </section>
   );
 }

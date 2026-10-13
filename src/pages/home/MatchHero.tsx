@@ -1,3 +1,4 @@
+import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 import { Link } from "@tanstack/react-router";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Icon } from "../../components/celeste/icons";
@@ -6,6 +7,7 @@ import { dateMillis } from "../../lib/clubData";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { countdownParts, matchEvent, type Moment, type Narrative, type Pulse } from "../../lib/home";
 import { kickoffLabel } from "../../lib/vestuario";
+import { scoreOf } from "../../lib/partidos";
 
 /** A score like 5–3 never breaks across lines (word joiners around the dash). */
 const keepScore = (s: string) => s.replace(/(\d)–(\d)/g, "$1⁠–⁠$2");
@@ -26,6 +28,7 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
   const m = pulse.live ?? pulse.next;
   const cd = pulse.next && !pulse.live ? countdownParts(dateMillis(pulse.next.date), now) : null;
   const rival = m?.rival;
+  const score = m ? scoreOf(m) : { gf: 0, ga: 0 };
   return (
     <section className="hm-match" aria-labelledby="hm-title">
       <div className="in">
@@ -45,8 +48,8 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
               <small>{m ? (m.home === false ? "Visitante" : "Local") : "Local"}</small>
             </div>
             {pulse.live ? (
-              <span className="score" aria-label={`Marcador: ${pulse.live.goalsFor ?? 0} a ${pulse.live.goalsAgainst ?? 0}`}>
-                {pulse.live.goalsFor ?? 0}–{pulse.live.goalsAgainst ?? 0}
+              <span className="score" role="status" aria-label={`Marcador: ${score.gf} a ${score.ga}`}>
+                {score.gf}–{score.ga}
               </span>
             ) : (
               <span className="x" aria-hidden="true">
@@ -64,7 +67,7 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
           <div className="when">
             {m ? (
               <>
-                <b>{pulse.live ? "En juego ahora" : kickoffLabel(m.date)}</b>
+                <b>{pulse.live ? (m.clock ? <MatchClockDisplay match={m} /> : "En juego ahora") : (cd && dateMillis(m.date) <= now) ? "Pendiente del pitido inicial" : kickoffLabel(m.date)}</b>
                 <span>{[m.venue, m.kit ? (m.kit === "home" ? "1ª equipación" : "2ª equipación") : null].filter(Boolean).join(" · ") || "Campo por confirmar"}</span>
               </>
             ) : (

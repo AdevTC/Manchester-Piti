@@ -9,12 +9,12 @@ import { liveMinute, scoreOf } from "../../../lib/partidos";
 import type { MatchEvent } from "../../../lib/clubData";
 import { liveSides } from "../../admin/live/liveModel";
 import { liveProblem } from "../../../../functions/src/liveLogic";
+import { liveUntil, matchPhase } from "../../../../functions/src/matchEngine";
 import type { CalMatch } from "./boards";
 import { DURATION0, playedFromActa, wavesOf, type Wave } from "./cambios";
 import { effectiveTaker, TAKER_KINDS, TAKER_LETTER } from "./takers";
 
 /** Added time: the board stays live this long after the match's minutes are up. */
-export const ADDED_MIN = 15;
 const MIN = 60_000;
 
 export const durationOf = (m: Pick<CalMatch, "duration"> | null): number => (m?.duration && m.duration > 1 ? m.duration : DURATION0);
@@ -42,8 +42,8 @@ export function liveNow(m: CalMatch | null, now: number): LiveNow | null {
   if (m.status === "finished" || m.status === "cancelled" || m.status === "postponed") return null;
   const D = durationOf(m);
   const start = m.dateMs;
-  if (now < start || now >= start + (D + ADDED_MIN) * MIN) return null;
-  const minute = liveMinute({ date: start, duration: D }, now);
+  if (matchPhase({ ...m, date: start, duration: D }, now) !== "playing") return null;
+  const minute = liveMinute({ date: start, duration: D, clock: m.clock }, now);
   if (minute == null) return null;
   const events = m.events ?? [];
   const { gf, ga } = scoreOf({ events });
@@ -57,7 +57,9 @@ export function liveNow(m: CalMatch | null, now: number): LiveNow | null {
  *  it (null = nothing to wait for). */
 export function nextClockAt(m: CalMatch | null, now: number): number | null {
   if (!m || !m.dateMs || m.played) return null;
-  const end = m.dateMs + (durationOf(m) + ADDED_MIN) * MIN;
+  if (m.liveEndedAt || m.status === "finished" || m.status === "cancelled" || m.status === "postponed") return null;
+  if (m.clock) return ["first", "second"].includes(m.clock.phase) ? now + 1000 : null;
+  const end = liveUntil({ date: m.dateMs, duration: durationOf(m) });
   if (now >= end) return null;
   if (now < m.dateMs) return m.dateMs;
   return m.dateMs + (Math.floor((now - m.dateMs) / MIN) + 1) * MIN;

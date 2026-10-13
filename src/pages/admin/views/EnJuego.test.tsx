@@ -46,17 +46,17 @@ describe("En juego", () => {
     expect(within(hero).getByLabelText("PITI 1, MAD SKY 1")).toHaveTextContent("1-1");
     expect(within(hero).getByRole("list", { name: "Lo que va pasando" }).children).toHaveLength(2);
     await user.click(within(hero).getByRole("button", { name: "Deshacer lo último" }));
-    expect(live).toHaveBeenLastCalledWith({ action: "undo", matchId: "m8" });
+    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "undo", matchId: "m8" }));
     expect(await screen.findByText("Deshecho lo último apuntado")).toBeInTheDocument();
     await user.click(within(hero).getByRole("button", { name: "GOL" }));
     const pick = screen.getByRole("dialog", { name: "¿Quién marcó?" });
     expect(pick).toHaveClass("lpk");
     await user.click(within(pick).getByRole("button", { name: "Marcó ERIK" }));
     await user.click(within(screen.getByRole("dialog", { name: "¿Quién le dio el pase?" })).getByRole("button", { name: "Sin asistencia" }));
-    expect(live).toHaveBeenLastCalledWith({ action: "add", matchId: "m8", event: { type: "goal", minute: 32, playerId: "erik" } });
+    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "add", matchId: "m8", event: { type: "goal", minute: 32, playerId: "erik" } }));
   });
 
-  it("«Pitar el final» whistles it on this device and opens the acta («Deshacer» takes it back)", async () => {
+  it("«Pitar el final» saves the whistle and opens the acta («Deshacer» reopens it on the server)", async () => {
     setAdminData(adminFixture({ now: at(8, 12, 31), published: playing }));
     const user = userEvent.setup();
     const router = mountAdmin("/admin/en-juego/m8", { enjuego: EnJuego });
@@ -64,9 +64,9 @@ describe("En juego", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8"));
     expect(router.state.location.search).toMatchObject({ tab: "acta" });
     expect(caption()).toHaveTextContent("Final pitado · 1–1 · repasa el acta y publícala");
-    expect(JSON.parse(localStorage.getItem("mp.admin.whistled.v1") ?? "{}")).toHaveProperty("m8");
+    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "finish", matchId: "m8" }));
     await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
-    expect(JSON.parse(localStorage.getItem("mp.admin.whistled.v1") ?? "{}")).not.toHaveProperty("m8");
+    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "reopen", matchId: "m8" }));
   });
 
   it("phones: the tally, the LED, «Deshacer lo último» over the log, the pads; the picker is a sheet", async () => {
@@ -78,7 +78,7 @@ describe("En juego", () => {
     expect(screen.getByText("J3 · LIGA · FUERA")).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Sala de control" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Deshacer lo último" }));
-    expect(live).toHaveBeenLastCalledWith({ action: "undo", matchId: "m8" });
+    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "undo", matchId: "m8" }));
     await user.click(screen.getByRole("button", { name: "Tarjeta" }));
     const sheet = screen.getByRole("dialog", { name: "¿Qué tarjeta?" });
     expect(sheet).toHaveClass("sheet");
@@ -99,4 +99,20 @@ describe("En juego", () => {
     await user.click(screen.getByRole("button", { name: "Repasar el acta" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8"));
   });
+});
+
+
+it("retries the same event id after a lost response and undo targets that goal", async () => {
+  setAdminData(adminFixture({ now: at(8, 12, 31), published: playing }));
+  const user = userEvent.setup();
+  mountAdmin("/admin/en-juego/m8", { enjuego: EnJuego });
+  live.mockRejectedValueOnce(new Error("connection lost"));
+  await user.click(await screen.findByRole("button", { name: "Gol rival" }));
+  await user.click(await screen.findByRole("button", { name: "Reintentar" }));
+  await screen.findByText(/Gol de MAD SKY ·/);
+  const first = live.mock.calls[0][0];
+  expect(live.mock.calls[1][0]).toEqual(first);
+  await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
+  if (!first || first.action !== "add") throw new Error("Expected an add request");
+  expect(live).toHaveBeenLastCalledWith({action:"undo",matchId:"m8",eventId:`live-${first.requestId}`});
 });

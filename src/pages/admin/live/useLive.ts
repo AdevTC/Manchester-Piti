@@ -28,6 +28,7 @@ export interface LiveApi {
   rivalGoal: () => void;
   /** Takes back the last event written live. */
   undo: () => void;
+  finish: (done: () => void) => void;
   /** The LED's «GOOOL» while it lasts. */
   flash: LedFlash | null;
   busy: boolean;
@@ -39,6 +40,7 @@ export function useLive(match: AdminMatch | null, now: number, nameOf: (id: stri
   const [pick, setPick] = useState<PickState | null>(null);
   const [flash, setFlash] = useState<LedFlash | null>(null);
   const [busy, setBusy] = useState(false);
+  const sending = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const minute = match ? (liveMinute(match, now) ?? 0) : 0;
   const rival = match?.rival ?? "el rival";
@@ -46,26 +48,30 @@ export function useLive(match: AdminMatch | null, now: number, nameOf: (id: stri
   const sides = liveSides(match?.starters, match?.bench, match?.events);
   const view = pick && match ? pickerView(pick, { minute, rival, field: sides.field, bench: sides.bench, player: (id) => ({ num: numberOf(id), name: nameOf(id) }) }) : null;
 
-  const undo = () => {
-    if (!match) return;
-    liveEvent({ action: "undo", matchId: match.id }).then(
+  const undoEvent = (eventId?: string) => {
+    if (!match || !eventId) return;
+    liveEvent({ action: "undo", matchId: match.id, eventId }).then(
       () => toast.show({ tag, message: "Deshecho lo último apuntado" }),
       (e: unknown) => toast.show({ tone: "error", message: `No se ha podido deshacer: ${apiError(e)}` }),
     );
   };
-  const send = (event: LiveEventInput, done: () => void) => {
-    if (!match) return;
-    setBusy(true);
-    liveEvent({ action: "add", matchId: match.id, event }).then(
-      () => {
-        setBusy(false);
-        done();
-      },
-      (e: unknown) => {
-        setBusy(false);
-        toast.show({ tone: "error", message: `No se ha podido apuntar: ${apiError(e)}` });
-      },
-    );
+  const undo = () => undoEvent(match?.events?.filter(e => e.id.startsWith("live-")).at(-1)?.id);
+  const send = (event: LiveEventInput, done: (eventId: string) => void) => {
+    if (!match || sending.current) return;
+    const requestId = crypto.randomUUID();
+    const payload = { action: "add" as const, matchId: match.id, requestId, clockRevision: match.clock?.revision, event };
+    const run = () => {
+      if (sending.current) return;
+      sending.current = true; setBusy(true);
+      liveEvent(payload).then(
+        () => { sending.current = false; setBusy(false); done(`live-${requestId}`); },
+        (e: unknown) => {
+          sending.current = false; setBusy(false);
+          toast.show({ tone: "error", message: `No se ha podido confirmar la jugada: ${apiError(e)}`, retry: run });
+        },
+      );
+    };
+    run();
   };
   const choose = (next: Step) => {
     if ("state" in next) {
@@ -82,7 +88,13 @@ export function useLive(match: AdminMatch | null, now: number, nameOf: (id: stri
       if (next.caption) toast.show({ tag, message: next.caption });
     });
   };
-  const rivalGoal = () => send({ type: "opponent_goal", minute }, () => toast.show({ tag, message: `Gol de ${rival} · ${minute}′`, undo }));
+  const rivalGoal = () => send({ type: "opponent_goal", minute }, (eventId) => toast.show({ tag, message: `Gol de ${rival} · ${minute}′`, undo: () => undoEvent(eventId) }));
+  const finish = (done: () => void) => {
+    if (!match || sending.current) return;
+    sending.current = true;
+    setBusy(true);
+    liveEvent({ action: "finish", matchId: match.id }).then(() => { setPick(null); done(); }, (e: unknown) => toast.show({ tone: "error", message: apiError(e) })).finally(() => { sending.current = false; setBusy(false); });
+  };
 
   return {
     minute,
@@ -94,6 +106,7 @@ export function useLive(match: AdminMatch | null, now: number, nameOf: (id: stri
     choose,
     rivalGoal,
     undo,
+    finish,
     flash,
     busy,
   };

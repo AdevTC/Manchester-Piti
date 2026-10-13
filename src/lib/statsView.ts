@@ -178,7 +178,7 @@ export function radarPoints(scores: number[], c: number, r: number) {
 /** G+A every 50′, over the games with minutes recorded (null when none). */
 export function per50(p: PlayerAnalysis) {
   const tracked = p.series.filter((g) => g.minutes !== null);
-  const minutes = tracked.reduce((s, g) => s + (g.minutes ?? 0), 0);
+  const minutes = Math.round(tracked.reduce((s, g) => s + (g.match.ledger?.[p.id]?.secondsPlayed ?? (g.minutes ?? 0) * 60), 0) / 60 * 100) / 100;
   return minutes ? Math.round((tracked.reduce((s, g) => s + g.ga, 0) / minutes) * 50 * 100) / 100 : null;
 }
 /** Share of the games he played that the team won (null when he hasn't played). */

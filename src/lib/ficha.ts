@@ -1,7 +1,9 @@
+import { clockReading } from "../../functions/src/matchClock";
 // Pure logic for the match page (ficha): the crónica told in chapters from the acta, the pulse of the
 // match minute by minute, who was on the pitch when, and the key numbers. Everything comes from the
 // events and the ledger the acta already stores.
-import type { MatchEvent, Participation } from "../../functions/src/matchEngine";
+import { calculateLedger, dateMillis, type MatchEvent, type Participation } from "../../functions/src/matchEngine";
+import type { ClubMatch } from "./clubData";
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
@@ -41,7 +43,13 @@ export function chapters(events: MatchEvent[] | undefined, nameOf: (id: string) 
     } else if (e.type === "penalty_missed") {
       out.push({ minute: e.minute!, title: "Penalti fallado", text: `${who} no acierta desde los once metros. Sigue el ${gf}–${ga}.`, side: "us", playerId: e.playerId });
     } else if (e.type === "red_card" || e.type === "double_yellow") {
-      out.push({ minute: e.minute!, title: `Roja para ${who}`, text: e.type === "double_yellow" ? "Segunda amarilla: el Piti juega con uno menos." : "Roja directa: el Piti juega con uno menos.", side: "them", playerId: e.playerId });
+      out.push({ minute: e.minute!, title: `Roja para ${who}`, text: e.type === "double_yellow" ? "Expulsión por segunda amarilla." : "Expulsión por roja directa.", side: "them", playerId: e.playerId });
+    } else if (["chance", "opponent_chance", "corner", "opponent_corner"].includes(e.type)) {
+      const theirs = e.type.startsWith("opponent_");
+      const corner = e.type.endsWith("corner");
+      out.push({ minute: e.minute!, title: `${corner ? "Córner" : "Ocasión"} ${theirs ? `para ${rival}` : who ? `de ${who}` : "del Piti"}`, text: e.note || `${corner ? "Saque de esquina" : "Ocasión sin gol"}. Sigue el ${gf}–${ga}.`, side: theirs ? "them" : "us", playerId: theirs ? undefined : e.playerId });
+    } else if (e.type === "substitution") {
+      out.push({ minute: e.minute!, title: `Entra ${e.inPlayerId ? nameOf(e.inPlayerId) : "un suplente"}`, text: `Sale ${who}.`, side: "us", playerId: e.inPlayerId });
     }
   }
   if (final) {
@@ -56,6 +64,7 @@ const WEIGHTS: Record<string, ["us" | "them", number]> = {
   penalty_received: ["us", 2], woodwork: ["us", 2], penalty_missed: ["us", 1], penalty_saved: ["them", 2],
   opponent_goal: ["them", 3], own_goal: ["them", 3], penalty_committed: ["them", 2],
   yellow_card: ["them", 1], double_yellow: ["them", 2], red_card: ["them", 2],
+  chance: ["us", 2], opponent_chance: ["them", 2], corner: ["us", 1], opponent_corner: ["them", 1],
 };
 
 /**
@@ -108,17 +117,23 @@ export interface PlayerLine {
   goals: number;
   assists: number;
   cards: number;
+  yellowCards: number;
+  redCards: number;
 }
 /** A player's line in this match: the ledger once published, otherwise counted from the events. */
 export function playerLine(id: string, ledger: Record<string, Participation> | undefined, events: MatchEvent[] | undefined): PlayerLine {
   const p = ledger?.[id];
-  if (p) return { minutes: p.minutes, goals: p.goals, assists: p.assists, cards: p.yellowCards + p.redCards };
+  if (p) return { minutes: p.minutes, goals: p.goals, assists: p.assists, cards: p.yellowCards + p.redCards, yellowCards: p.yellowCards, redCards: p.redCards };
   const ev = events ?? [];
+  const yellowCards = ev.filter((e) => e.playerId === id && ["yellow_card", "double_yellow"].includes(e.type)).length;
+  const redCards = ev.filter((e) => e.playerId === id && ["red_card", "double_yellow"].includes(e.type)).length;
   return {
     minutes: 0,
     goals: ev.filter((e) => e.playerId === id && /^goal/.test(e.type)).length,
-    assists: ev.filter((e) => e.assistPlayerId === id).length,
-    cards: ev.filter((e) => e.playerId === id && ["yellow_card", "double_yellow", "red_card"].includes(e.type)).length,
+    assists: ev.filter((e) => /^goal/.test(e.type) && e.assistPlayerId === id || e.type === "assist" && e.playerId === id).length,
+    cards: yellowCards + redCards,
+    yellowCards,
+    redCards,
   };
 }
 
@@ -126,17 +141,20 @@ export function playerLine(id: string, ledger: Record<string, Participation> | u
 export function keyNumbers(events: MatchEvent[] | undefined) {
   const ev = events ?? [];
   const n = (types: string[]) => ev.filter((e) => types.includes(e.type)).length;
-  return { saves: n(["penalty_saved"]), woodwork: n(["woodwork"]), cards: n(["yellow_card", "double_yellow", "red_card"]) };
+  return { saves: n(["penalty_saved"]), woodwork: n(["woodwork"]), cards: n(["yellow_card", "red_card"]) + 2 * n(["double_yellow"]), chances: n(["chance"]), opponentChances: n(["opponent_chance"]), corners: n(["corner"]), opponentCorners: n(["opponent_corner"]) };
 }
 
 /** Who is on the pitch now: the starters, after the substitutions and red cards in the acta. */
 export function onPitch(starters: string[] | undefined, events: MatchEvent[] | undefined) {
-  const on = new Set(starters ?? []);
-  for (const e of [...(events ?? [])].sort(byMinute)) {
-    if (e.type === "substitution" && e.playerId && e.inPlayerId) {
-      on.delete(e.playerId);
-      on.add(e.inPlayerId);
-    } else if ((e.type === "red_card" || e.type === "double_yellow") && e.playerId) on.delete(e.playerId);
-  }
-  return [...on];
+  const bench = [...new Set((events ?? []).flatMap((e) => [e.playerId, e.inPlayerId]).filter((id): id is string => !!id && !(starters ?? []).includes(id)))];
+  return calculateLedger({ starters: starters ?? [], bench, notCalled: [], events: events ?? [], duration: 150 }, false, { allowUnattributedGoals: true }).field.filter((id): id is string => id !== null);
+}
+
+/** Live minutes use the same stints and dismissals as the server's final ledger. */
+export function matchSnapshot(match: Pick<ClubMatch, "starters" | "bench" | "notCalled" | "events" | "duration" | "date" | "liveEndedAt" | "clock" | "durationSeconds">, now: number) {
+  const lastMinute = Math.max(0, ...(match.events ?? []).map((e) => e.minute ?? 0));
+  const duration = Math.max(match.duration ?? 50, lastMinute);
+  const start = dateMillis(match.date);
+  const elapsed = match.clock ? clockReading(match.clock, now).elapsedSeconds / 60 : Number.isFinite(start) ? Math.max(0, Math.floor(((match.liveEndedAt ?? now) - start) / 60_000)) : 0;
+  return calculateLedger({ starters: match.starters ?? [], bench: match.bench ?? [], notCalled: match.notCalled ?? [], events: match.events ?? [], duration: Math.max(duration, Math.ceil(elapsed)) }, false, { until: match.clock ? elapsed : Math.min(duration, Math.max(elapsed, lastMinute)), allowUnattributedGoals: true });
 }

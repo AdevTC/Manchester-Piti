@@ -1,3 +1,4 @@
+import { technicalForPlayer } from "./technicalAnalysis";
 import { dateMillis, isCompleted } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import type { PlayerDoc } from "./schemas";
@@ -114,10 +115,11 @@ export function analysePlayer(player: PlayerDoc, games: ClubMatch[]) {
   return {
     ...player,
     ...totals,
+    technical: technicalForPlayer(player.id, games),
     series,
     ga: totals.goals + totals.assists,
     tracked: tracked.length,
-    minutes: tracked.reduce((s, p) => s + p.minutes, 0),
+    minutes: Math.round(tracked.reduce((s, p) => s + (p.secondsPlayed ?? p.minutes * 60), 0) / 60 * 100) / 100,
     starts: tracked.filter((p) => p.started).length,
     bench: tracked.filter((p) => p.benched).length,
     notCalled: tracked.filter((p) => p.notCalled).length,

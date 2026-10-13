@@ -53,7 +53,7 @@ describe("home narrative", () => {
     expect(narrative(p, ctx(p)).em).toMatch(/^Revancha: .* ante Rival m2\.$/);
   });
   it("a live match wins over everything", () => {
-    const live: ClubMatch = { id: "l", seasonId: "s1", rival: "Rival L", status: "scheduled", date: NOW - 10 * 60_000, goalsFor: 1, goalsAgainst: 0 };
+    const live: ClubMatch = { id: "l", seasonId: "s1", rival: "Rival L", status: "scheduled", date: NOW - 10 * 60_000, goalsFor: 0, goalsAgainst: 0, events: [goal("a")] };
     const p = seasonPulse([played("m1", 1, 2, 2), live], "s1", NOW);
     expect(narrative(p, ctx(p)).head).toBe("¡En juego! Piti 1–0 Rival L.");
   });

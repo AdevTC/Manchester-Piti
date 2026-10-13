@@ -2,6 +2,8 @@
 // question, the dorsal grids — on the pitch first, then the banquillo — and the extra buttons), the log
 // «Lo que va pasando» (`.evl`), the pads (`.pads`: GOL in gold, Gol rival, Tarjeta, Cambio, «Pitar el
 // final y repasar el acta») and the running clock.
+import { MatchClockDisplay } from "../../../components/celeste/MatchClockControl";
+import type { ClubMatch } from "../../../lib/clubData";
 import { useId, useState } from "react";
 import { useClock } from "../../../hooks/useClock";
 import { clockText } from "../data/moments";
@@ -86,14 +88,14 @@ export function LiveLog({ rows, label }: { rows: LogRow[]; label?: string }) {
 }
 
 /** `.pads`: the one-tap buttons. GOL is gold (THE action of the moment). */
-export function LivePads({ onGol, onRival, onTarjeta, onCambio, onPitar, disabled = false }: { onGol: () => void; onRival: () => void; onTarjeta: () => void; onCambio: () => void; onPitar: () => void; disabled?: boolean }) {
+export function LivePads({ onGol, onRival, onTarjeta, onCambio, onOcasion, onCorner, onPitar, paused = false, disabled = false }: { onGol: () => void; onRival: () => void; onTarjeta: () => void; onCambio: () => void; onOcasion?: () => void; onCorner?: () => void; onPitar?: () => void; paused?: boolean; disabled?: boolean }) {
   return (
     <div className="pads">
-      <button type="button" className="pad gol" onClick={onGol} disabled={disabled}>
+      <button type="button" className="pad gol" onClick={onGol} disabled={disabled || paused}>
         <AdIcon name="ball" size={24} />
         GOL
       </button>
-      <button type="button" className="pad" onClick={onRival} disabled={disabled}>
+      <button type="button" className="pad" onClick={onRival} disabled={disabled || paused}>
         Gol rival
       </button>
       <button type="button" className="pad" onClick={onTarjeta} disabled={disabled}>
@@ -104,16 +106,18 @@ export function LivePads({ onGol, onRival, onTarjeta, onCambio, onPitar, disable
         <AdIcon name="swap" size={20} />
         Cambio
       </button>
-      <button type="button" className="pad fin" onClick={onPitar}>
+      {onOcasion && <button type="button" className="pad" onClick={onOcasion} disabled={disabled || paused}><AdIcon name="spark" size={20} />Ocasión</button>}
+      {onCorner && <button type="button" className="pad" onClick={onCorner} disabled={disabled || paused}><AdIcon name="flag" size={20} />Córner</button>}
+      {onPitar && <button type="button" className="pad fin" onClick={onPitar} disabled={disabled}>
         <AdIcon name="whistle" size={20} />
         Pitar el final y repasar el acta
-      </button>
+      </button>}
     </div>
   );
 }
 
 /** «31:12» since kick-off, ticking every second (only this text re-renders). */
-export function LiveClock({ start }: { start: number }) {
+export function LiveClock({ start, match }: { start: number; match?: ClubMatch }) {
   const now = useClock(1000);
-  return <span>{clockText(start, now)}</span>;
+  return match?.clock ? <MatchClockDisplay match={match} /> : <span>{clockText(start, now)}</span>;
 }
