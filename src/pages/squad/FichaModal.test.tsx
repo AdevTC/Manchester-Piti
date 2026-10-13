@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import type { PositionSet } from "../../lib/positions";
 import { squadRow, type SquadPlayer } from "../../lib/squad";
@@ -46,7 +46,11 @@ describe("FichaModal · Posiciones", () => {
   it("a third tab, «Posiciones», wired like the others", () => {
     withGames(season);
     const tabs = within(screen.getByRole("tablist", { name: "Secciones de la ficha" })).getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Ficha", "Temporada 1", "Posiciones"]);
+    expect(tabs.map((t) => t.getAttribute("aria-label") ?? t.textContent)).toEqual(["Ficha", "Temporada 1", "Posiciones"]);
+    // the season tab: its full name, or «Temporada» where three tabs would truncate it (CSS picks one)
+    const seasonTab = screen.getByRole("tab", { name: "Temporada 1" });
+    expect(seasonTab.querySelector(".lg")).toHaveTextContent("Temporada 1");
+    expect(seasonTab.querySelector(".sh")).toHaveTextContent(/^Temporada$/);
     const pos = screen.getByRole("tab", { name: "Posiciones" });
     expect(pos).toHaveAttribute("aria-selected", "false");
     expect(pos).toHaveAttribute("aria-controls", "sq-panel");
@@ -56,12 +60,13 @@ describe("FichaModal · Posiciones", () => {
     expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "sq-tab-posiciones");
   });
 
-  it("the map with his positions and the season's minutes, then a table of at most 5 positions", () => {
+  it("phone: the map with his positions and the season's minutes, then a table of at most 5 positions", () => {
     withGames(season);
     fireEvent.click(screen.getByRole("tab", { name: "Posiciones" }));
     const panel = screen.getByRole("tabpanel");
     expect(within(panel).getByRole("img", { name: /^Dónde ha jugado ERIK en Temporada 1\. Ha jugado de Pivote \(MCD\), 70 minutos; Mediocentro \(MC\), 20 minutos;/ })).toBeInTheDocument();
     expect(within(panel).getByText("Algunos minutos estimados por su posición preferida")).toBeInTheDocument();
+    expect(within(panel).getByText(/^Más minutos de/)).toHaveTextContent("Más minutos de Pivote (MCD): 70′ en 2 partidos");
     const table = within(panel).getByRole("table", { name: "Minutos por posición en Temporada 1" });
     expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Posición", "Min", "PJ", "G", "A"]);
     const rows = within(table).getAllByRole("row").slice(1);
@@ -84,5 +89,40 @@ describe("FichaModal · Posiciones", () => {
     open({ id: "nadie", shirtName: "NADIE", number: 1 });
     fireEvent.click(screen.getByRole("tab", { name: "Posiciones" }));
     expect(screen.getByRole("img", { name: /^Dónde ha jugado NADIE en Temporada 1\. Aún sin minutos con posición\.$/ })).toBeInTheDocument();
+  });
+});
+
+describe("FichaModal · Posiciones en escritorio", () => {
+  const desk = (matches: boolean) =>
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: matches && q === "(min-width: 900px)", media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+  afterEach(() => vi.unstubAllGlobals());
+  const season = [match(1, { erik: row(50, { positionsPlayed: { MC: 40, MCD: 10 } }) })];
+
+  it("puts the map over the shirt's column and keeps the words in the tab, so it fits unscrolled", () => {
+    desk(true);
+    const { container } = withGames(season);
+    expect(container.ownerDocument.querySelector(".sq-pos-stage")).toBeNull();
+    expect(screen.getByRole("button", { name: "Girar la camiseta" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Posiciones" }));
+    const stage = document.querySelector(".sq-pos-stage");
+    expect(stage).not.toBeNull();
+    expect(within(stage as HTMLElement).getByRole("img", { name: /^Dónde ha jugado ERIK en Temporada 1\. Ha jugado de Mediocentro \(MC\), 40 minutos/ })).toBeInTheDocument();
+    const panel = screen.getByRole("tabpanel");
+    expect(within(panel).queryByRole("img")).toBeNull();
+    expect(within(panel).getByText(/^Más minutos de/)).toHaveTextContent("Más minutos de Mediocentro (MC): 40′ en 1 partido");
+    expect(within(panel).getByRole("table")).toBeInTheDocument();
+    // the shirt's caption and turn button step aside while the map is there
+    expect(screen.queryByRole("button", { name: "Girar la camiseta" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Jugador siguiente" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Ficha" }));
+    expect(document.querySelector(".sq-pos-stage")).toBeNull();
+  });
+
+  it("phone: the map stays in the tab", () => {
+    desk(false);
+    withGames(season);
+    fireEvent.click(screen.getByRole("tab", { name: "Posiciones" }));
+    expect(document.querySelector(".sq-pos-stage")).toBeNull();
+    expect(within(screen.getByRole("tabpanel")).getByRole("img")).toBeInTheDocument();
   });
 });

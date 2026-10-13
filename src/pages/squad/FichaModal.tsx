@@ -1,5 +1,5 @@
 import { pct } from "../../lib/technicalAnalysis";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
@@ -10,7 +10,7 @@ import { useFocusTrap } from "../pizarra/useFocusTrap";
 import { formatHeight, missingText, type SquadRow } from "../../lib/squad";
 import type { ClubMatch } from "../../lib/clubData";
 import { POSITIONS, type PositionSet } from "../../lib/positions";
-import { playerPositions } from "../../lib/positionStats";
+import { playerPositions, type PlayerPositions } from "../../lib/positionStats";
 import { MapaPosiciones } from "../../components/posiciones/MapaPosiciones";
 import { shareClubPage } from "../../lib/share";
 import { VT_SHIRT } from "./Percha";
@@ -35,51 +35,67 @@ const NO_GAMES: ClubMatch[] = [];
 const NO_POSITIONS: PositionSet = { main: null, also: [] };
 type Tab = "ficha" | "temporada" | "posiciones";
 
-/** «Posiciones»: where he played this season — the map with minutes, and the top five positions. */
-function PosicionesPanel({ row, seasonName, games, positions }: { row: SquadRow; seasonName: string; games: ClubMatch[]; positions: PositionSet }) {
-  const pos = useMemo(() => playerPositions(row.id, games), [row.id, games]);
+/** The ficha's desktop layout (squad.css switches at the same width): two columns, the shirt on the left.
+ *  No matchMedia (tests, old browsers) counts as the phone sheet. */
+const DESK_QUERY = "(min-width: 900px)";
+const deskList = (): MediaQueryList | null => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia(DESK_QUERY) : null);
+function subscribeDesk(cb: () => void): () => void {
+  const m = deskList();
+  if (!m) return () => {};
+  m.addEventListener("change", cb);
+  return () => m.removeEventListener("change", cb);
+}
+const useDesk = () => useSyncExternalStore(subscribeDesk, () => deskList()?.matches ?? false, () => false);
+
+const partidos = (n: number) => `${n} ${n === 1 ? "partido" : "partidos"}`;
+
+/** «Posiciones»' map: in the tab on the phone; over the shirt's column on desktop, so the tab fits unscrolled. */
+function PosMap({ row, seasonName, positions, pos }: { row: SquadRow; seasonName: string; positions: PositionSet; pos: PlayerPositions }) {
   const played = Object.fromEntries(pos.lines.map((l) => [l.code, l.minutes]));
+  return <MapaPosiciones size="m" label={`Dónde ha jugado ${row.name} en ${seasonName}`} value={positions} played={played} estimated={pos.estimatedMatches > 0} />;
+}
+
+/** «Posiciones»' words: his most-played position, then the top five (or where the data comes from). */
+function PosTable({ seasonName, pos }: { seasonName: string; pos: PlayerPositions }) {
+  const top = pos.lines[0];
+  if (!top) return <p className="sq-pos-note">Cada acta dice dónde jugó: la pizarra oficial del partido o, sin ella, su posición preferida.</p>;
   return (
-    <div className="sq-pos">
-      <div className="sq-pos-pitch">
-        <MapaPosiciones size="m" label={`Dónde ha jugado ${row.name} en ${seasonName}`} value={positions} played={played} estimated={pos.estimatedMatches > 0} />
-      </div>
-      {pos.lines.length ? (
-        <table className="sq-pos-table">
-          <caption className="hm-sr">Minutos por posición en {seasonName}</caption>
-          <thead>
-            <tr>
-              <th scope="col">Posición</th>
-              <th scope="col">Min</th>
-              <th scope="col">
-                <abbr title="Partidos jugados">PJ</abbr>
+    <>
+      <p className="sq-pos-lead">
+        Más minutos de <b>{`${POSITIONS[top.code].name} (${top.code})`}</b>: {`${Math.round(top.minutes)}′`} en {partidos(top.matches)}
+      </p>
+      <table className="sq-pos-table">
+        <caption className="hm-sr">Minutos por posición en {seasonName}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Posición</th>
+            <th scope="col">Min</th>
+            <th scope="col">
+              <abbr title="Partidos jugados">PJ</abbr>
+            </th>
+            <th scope="col">
+              <abbr title="Goles">G</abbr>
+            </th>
+            <th scope="col">
+              <abbr title="Asistencias">A</abbr>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {pos.lines.slice(0, 5).map((l) => (
+            <tr key={l.code}>
+              <th scope="row">
+                {POSITIONS[l.code].name} <span>({l.code})</span>
               </th>
-              <th scope="col">
-                <abbr title="Goles">G</abbr>
-              </th>
-              <th scope="col">
-                <abbr title="Asistencias">A</abbr>
-              </th>
+              <td>{Math.round(l.minutes)}′</td>
+              <td>{l.matches}</td>
+              <td>{l.goals}</td>
+              <td>{l.assists}</td>
             </tr>
-          </thead>
-          <tbody>
-            {pos.lines.slice(0, 5).map((l) => (
-              <tr key={l.code}>
-                <th scope="row">
-                  {POSITIONS[l.code].name} <span>({l.code})</span>
-                </th>
-                <td>{Math.round(l.minutes)}′</td>
-                <td>{l.matches}</td>
-                <td>{l.goals}</td>
-                <td>{l.assists}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className="sq-pos-note">Cada acta dice dónde jugó: la pizarra oficial del partido o, sin ella, su posición preferida.</p>
-      )}
-    </div>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }
 
@@ -95,6 +111,9 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
   const shirt = useRef<Jersey3DRef>(null);
   const [tab, setTab] = useState<Tab>("ficha");
   const [shared, setShared] = useState(false);
+  const desk = useDesk();
+  const pos = useMemo(() => playerPositions(row.id, games), [row.id, games]);
+  const mapOnStage = desk && tab === "posiciones";
   useFocusTrap(panel, onClose);
   // The page behind stays put while the ficha is open.
   useEffect(() => {
@@ -141,10 +160,14 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
             flip
             label={`Camiseta de ${row.name}, dorsal ${row.num}. Arrástrala o usa las flechas para girarla.`}
           />
-          <span className="cap">{kit === "home" ? "1ª" : "2ª"} equipación · arrástrala</span>
-          <button type="button" className="sq-round turn" onClick={() => shirt.current?.turn()} aria-label="Girar la camiseta">
-            <Icon name="turn" size={19} />
-          </button>
+          {!mapOnStage && (
+            <>
+              <span className="cap">{kit === "home" ? "1ª" : "2ª"} equipación · arrástrala</span>
+              <button type="button" className="sq-round turn" onClick={() => shirt.current?.turn()} aria-label="Girar la camiseta">
+                <Icon name="turn" size={19} />
+              </button>
+            </>
+          )}
           <button type="button" className="sq-round nav l" onClick={() => onStep(-1)} aria-label="Jugador anterior">
             <Icon name="left" size={18} stroke={2.2} />
           </button>
@@ -152,6 +175,11 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
             <Icon name="right" size={18} stroke={2.2} />
           </button>
         </div>
+        {mapOnStage && (
+          <div className="sq-pos-stage" key={`pos-${row.id}`}>
+            <PosMap row={row} seasonName={seasonName} positions={positions} pos={pos} />
+          </div>
+        )}
         <div className="sq-info" key={row.id}>
           <div className="sq-tag" style={{ "--d": ".05s" } as CSSProperties}>
             <span className="d">{row.num}</span>
@@ -171,8 +199,14 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
             <button type="button" role="tab" id="sq-tab-ficha" aria-selected={tab === "ficha"} aria-controls="sq-panel" onClick={() => setTab("ficha")}>
               Ficha
             </button>
-            <button type="button" role="tab" id="sq-tab-temporada" aria-selected={tab === "temporada"} aria-controls="sq-panel" onClick={() => setTab("temporada")}>
-              {seasonName}
+            <button type="button" role="tab" id="sq-tab-temporada" aria-label={seasonName} aria-selected={tab === "temporada"} aria-controls="sq-panel" onClick={() => setTab("temporada")}>
+              {/* the full name, or «Temporada» where three tabs would truncate it (squad.css) */}
+              <span className="lg" aria-hidden="true">
+                {seasonName}
+              </span>
+              <span className="sh" aria-hidden="true">
+                Temporada
+              </span>
             </button>
             <button type="button" role="tab" id="sq-tab-posiciones" aria-selected={tab === "posiciones"} aria-controls="sq-panel" onClick={() => setTab("posiciones")}>
               Posiciones
@@ -230,7 +264,14 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
                 )}
               </>
             ) : tab === "posiciones" ? (
-              <PosicionesPanel row={row} seasonName={seasonName} games={games} positions={positions} />
+              <div className="sq-pos">
+                {!desk && (
+                  <div className="sq-pos-pitch">
+                    <PosMap row={row} seasonName={seasonName} positions={positions} pos={pos} />
+                  </div>
+                )}
+                <PosTable seasonName={seasonName} pos={pos} />
+              </div>
             ) : (
               <div className={`sq-season${withStats ? "" : " ph"}`}>
                 <div className="row">

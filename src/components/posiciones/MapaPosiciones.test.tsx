@@ -203,6 +203,21 @@ describe("MapaPosiciones · ha jugado de", () => {
     expect(screen.queryByText("0′")).toBeNull();
   });
 
+  it("leaves out the centre and penalty spots (they would peek out next to DC and POR)", () => {
+    const { container, rerender } = render(<MapaPosiciones label="Mapa" value={set} />);
+    expect(container.querySelector(".pos-points")).not.toBeNull();
+    rerender(<MapaPosiciones label="Mapa" value={set} played={played} />);
+    expect(container.querySelector(".pos-points")).toBeNull();
+    expect(container.querySelector(".pos-lines rect")).not.toBeNull();
+  });
+
+  it("separates the legend items with space, never a «·» that could start a wrapped line", () => {
+    const { container } = render(<MapaPosiciones label="Mapa" value={set} played={played} />);
+    const legend = container.querySelector(".pos-legend")!;
+    expect(legend.querySelectorAll(".pos-legend-item")).toHaveLength(3);
+    expect(legend.textContent).not.toContain("·");
+  });
+
   it("summarises with playedSummary and adds a legend line for the disc size", () => {
     render(<MapaPosiciones label="Mapa" value={set} played={played} />);
     expect(screen.getByText("Pivote (MCD) 320′ · MC 140′ · DFC 20′")).toBeInTheDocument();

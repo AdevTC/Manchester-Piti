@@ -230,15 +230,14 @@ button.pos-spot:focus-visible .pos-dot {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.25rem 0.5rem;
+  gap: 0.25rem 0.875rem; /* the gap separates the items: no «·» that could start a wrapped line */
   margin: 0;
   font-size: 0.75rem;
   color: var(--_pos-dim);
 }
 
-.pos-legend-item + .pos-legend-item::before {
-  content: "·" / "";
-  margin-right: 0.5rem;
+.pos-legend-item {
+  white-space: nowrap;
 }
 
 .pos-legend-sym {

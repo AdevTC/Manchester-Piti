@@ -76,7 +76,8 @@ function historySummary(played: Partial<Record<PosCode, number>>): string {
   return playedSummary({ lines, minutes: 0, estimatedMatches: 0, matches: 0, top: lines[0]?.code ?? null });
 }
 
-function PitchLines() {
+/** `spots` = the centre and penalty spots (left out of the history map, where they peek out next to the discs). */
+function PitchLines({ spots = true }: { spots?: boolean }) {
   // 40 × 70 = the 4 / 7 aspect of .pos-pitch; y grows towards our goal (bottom).
   return (
     <svg className="pos-lines" viewBox="0 0 40 70" preserveAspectRatio="none" aria-hidden="true" focusable="false">
@@ -91,11 +92,13 @@ function PitchLines() {
         <rect className="pos-goal" x="16.5" y="0.3" width="7" height="1.2" vectorEffect="non-scaling-stroke" />
         <rect className="pos-goal pos-goal--own" x="16.5" y="68.5" width="7" height="1.2" vectorEffect="non-scaling-stroke" />
       </g>
-      <g className="pos-points">
-        <circle cx="20" cy="35" r="0.45" />
-        <circle cx="20" cy="8" r="0.4" />
-        <circle cx="20" cy="62" r="0.4" />
-      </g>
+      {spots && (
+        <g className="pos-points">
+          <circle cx="20" cy="35" r="0.45" />
+          <circle cx="20" cy="8" r="0.4" />
+          <circle cx="20" cy="62" r="0.4" />
+        </g>
+      )}
     </svg>
   );
 }
@@ -215,7 +218,7 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
         </div>
       ) : (
         <div className="pos-pitch" role="img" aria-label={`${label}. ${history ? playedText(value, played, estimated) : fullText(value, compare, emptyText)}`}>
-          <PitchLines />
+          <PitchLines spots={!history} />
           {spots}
         </div>
       )}
