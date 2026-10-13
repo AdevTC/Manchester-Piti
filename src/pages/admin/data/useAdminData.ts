@@ -47,6 +47,7 @@ import {
   mergeMatches,
   mvpNote,
   nextMatch,
+  pendingProposals,
   reviewActa,
   rsvpCounts,
   type ActaReview,
@@ -213,6 +214,7 @@ export function useAdminData(): AdminData {
       actas,
       heroId: hero?.match.id ?? null,
       claims: claims.map((c) => ({ playerName: c.playerLabel })),
+      proposals: pendingProposals(roster),
       contentGaps: gaps,
       contentDrafts: draftSections,
       done: doneLines({
@@ -221,7 +223,7 @@ export function useAdminData(): AdminData {
         notified,
       }),
     });
-  }, [matches, now, whistled, reviewOf, next, hero, claims, gaps, draftSections, mvpView.previous]);
+  }, [matches, now, whistled, reviewOf, next, hero, claims, roster, gaps, draftSections, mvpView.previous]);
 
   return {
     loading: club.loading || seasonsQ.isPending,

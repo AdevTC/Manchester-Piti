@@ -4,6 +4,7 @@
 // Hoy overview (Por hacer + the rail counters). Router-, React- and Firebase-free.
 import { calculateLedger, dateMillis, matchPhase, type MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../../lib/clubData";
+import { proposalState } from "../../../lib/positionsEdit";
 import type { AdminTarget, Counter } from "../shell/nav";
 
 const TZ = "Europe/Madrid";
@@ -405,6 +406,8 @@ export interface OverviewInput {
   heroId: string | null;
   /** Pending ficha claims: the requested shirt's name. */
   claims: readonly { playerName: string }[];
+  /** Players of the current season with a position proposal waiting (roster order): see pendingProposals. */
+  proposals: readonly { playerId: string; playerName: string }[];
   contentGaps: readonly ContentGap[];
   /** Content sections with drafts not published yet (this captain's device). */
   contentDrafts: readonly { key: string; title: string }[];
@@ -419,6 +422,11 @@ export interface Overview {
   counters: Record<CounterKey, Counter>;
 }
 const counter = (n: number): Counter => ({ n, label: n ? `${n} por hacer` : "" });
+
+/** The season's players (roster order) whose position proposal is still waiting for the captain. */
+export function pendingProposals(roster: readonly { id: string; name: string; doc: { positionsProposal?: unknown; positionsReview?: unknown } }[]): { playerId: string; playerName: string }[] {
+  return roster.filter((p) => proposalState(p.doc) === "pendiente").map((p) => ({ playerId: p.id, playerName: p.name }));
+}
 
 /** «Por hacer» (only what is pending), the done lines and the counters. */
 export function buildOverview(o: OverviewInput): Overview {
@@ -446,6 +454,17 @@ export function buildOverview(o: OverviewInput): Overview {
       detail: `${andList(shown)} ${names.length === 1 ? "quiere su camiseta" : "quieren su camiseta"}`,
       ved: null,
       action: { label: "Revisar", target: { section: "fichas" } },
+    });
+  }
+  if (o.proposals.length) {
+    const names = o.proposals.map((p) => p.playerName);
+    const shown = names.length > 3 ? [...names.slice(0, 2), `${names.length - 2} más`] : names;
+    pending.push({
+      key: "posiciones",
+      title: "Posiciones propuestas · por revisar",
+      detail: andList(shown),
+      ved: null,
+      action: { label: "Revisar", target: { section: "plantilla", playerId: o.proposals[0].playerId } },
     });
   }
   for (const d of o.contentDrafts)

@@ -72,6 +72,27 @@ describe("Hoy · Antes: the peg wall", () => {
     expect(within(side).queryByText("Después")).toBeNull();
   });
 
+  it("pending position proposals: a Por hacer line counted in the Hoy badge; «Revisar» opens the first player's ficha in Plantilla", async () => {
+    const data = adminFixture({ now: sat, published: j8, proposing: ["tello", "evans", "erik"] });
+    expect(data.overview.counters.hoy.n).toBe(5);
+    setAdminData(data);
+    const user = userEvent.setup();
+    const router = mountAdmin("/admin", { hoy: Hoy });
+    const side = await screen.findByRole("complementary", { name: /Por hacer/ });
+    expect(within(side).getAllByRole("listitem").map((li) => li.querySelector("b")?.textContent)).toEqual([
+      "Acta J2 · falta el goleador del gol 3",
+      "2 fichas piden paso",
+      "Posiciones propuestas · por revisar",
+      "Historias de jugadores · por completar",
+      "Historia del escudo · por completar",
+    ]);
+    expect(within(side).getByText("EVANS, ERIK y TELLO")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Hoy · 5 por hacer/ })).toBeInTheDocument();
+    await user.click(within(side).getByRole("button", { name: "Revisar: Posiciones propuestas · por revisar" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla"));
+    expect(router.state.location.search).toMatchObject({ jugador: "evans" });
+  });
+
   it("tap back → hangs in el siete (written at once, «Deshacer» puts it back); tap front → down to the banquillo; «Ya hay siete»", async () => {
     setAdminData(adminFixture({ now: sat, published: j8 }));
     const user = userEvent.setup();
