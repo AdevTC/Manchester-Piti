@@ -1,8 +1,8 @@
 // The cromos: on the pitch (club cromo with the form rating, zone, dorsal, name plate, galones stickers,
-// the out-of-position «!», the «NO VA» tag, the pack reel) and on the bench (album cromos and FUT rows).
+// the fit mark — «✓» también, «~» adaptado, the out-of-position «!» —, the «NO VA» tag, the pack reel) and on the bench (album cromos and FUT rows).
 import type { PointerEvent } from "react";
 import { Icon, Shirt, CREST } from "./icons";
-import { vars, type CardView } from "./view";
+import { FIT_GLYPH, FIT_WORDS, vars, type CardView } from "./view";
 import type { BenchRow } from "./bench";
 
 // The cromo tilts toward the pointer and its foil follows (mouse and pen only).
@@ -79,8 +79,13 @@ export function PitchCromo({ c, showGal, mini, hov, focusable, piece, onTap }: P
             </span>
           )}
           {c.oop && (
-            <span className={"cc-oop" + (c.fam === "!" ? " never" : "")} aria-hidden="true">
-              !
+            <span className={"cc-oop" + (c.fam === "!" ? " never" : "")} role="img" aria-label={FIT_WORDS[0]}>
+              {FIT_GLYPH[0]}
+            </span>
+          )}
+          {(c.fit === 2 || c.fit === 1) && !mini && (
+            <span className={"pzp-fit pzp-f" + c.fit} role="img" aria-label={FIT_WORDS[c.fit]}>
+              {FIT_GLYPH[c.fit]}
             </span>
           )}
           {(c.fam === "++" || c.fam === "+") && !mini && (

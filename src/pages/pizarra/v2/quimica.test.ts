@@ -177,7 +177,7 @@ describe("the cromos on the pitch", () => {
     expect(t.gal).toEqual(["C"]);
     const a = v.cards.find((c) => c.id === "adrian")!;
     expect(a.oop).toBe(true);
-    expect(a.zoneTxt).toBe("DEL›DEF");
+    expect(a.zoneTxt).toBe("DEL›DFC"); // his line › the slot's exact code
     // no natural position known: never out of position
     expect(v.cards.find((c) => c.id === "nopos")?.oop).toBe(false);
     expect(v.gslots).toHaveLength(7);

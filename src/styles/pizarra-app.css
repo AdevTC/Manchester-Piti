@@ -383,3 +383,25 @@
 @container (max-width:439px){.pzv .tabrow .tabs button{font-size:11px;letter-spacing:0}}
 .pzv .tabrow .tl-s{display:none}
 @container (max-width:439px){.pzv .tabrow .tl-l{display:none}.pzv .tabrow .tl-s{display:inline}}
+/* The fit mark on the pitch cromo: inside the card, at the bottom-right of the art (opposite the rating),
+   the glyph is the signal — «✓» también (a filled disc), «~» adaptado (an outlined ring). The «!» fuera
+   is the existing out-of-position badge; preferida and «nothing known» print no mark. */
+.pzv .pzp-fit{position:absolute;z-index:6;right:calc(var(--u) * 4);bottom:calc(var(--u) * 19.5);display:grid;place-items:center;width:calc(var(--u) * 12);height:calc(var(--u) * 12);border-radius:50%;font-family:'Anybody',system-ui,sans-serif;font-weight:900;font-size:calc(var(--u) * 8.4);line-height:1;pointer-events:none}
+.pzv .pzp-fit.pzp-f2{background:#d4ecfc;color:#0c1733;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.pzv .pzp-fit.pzp-f1{background:rgba(7,18,48,.85);color:#ffcf85;box-shadow:inset 0 0 0 calc(var(--u) * 1.2) #ffcf85}
+.pzv .cd.hide .pzp-fit,.pzv.h-pos .pzp-fit{visibility:hidden}
+/* A player in the hand: each target lights by how well he would fit there. Cromos: en su posición rings gold,
+   adaptado dims a little, fuera dims and stops pulsing (its label says it). Empty slots: the border goes solid
+   when he fits (gold for his preferida), stays dashed for adaptado, dotted and faded for fuera, and the code
+   gains the mark. */
+.pzv .cd.tgt.pzp-g3 .cc-f{box-shadow:0 0 0 2px #FFC659,0 0 24px rgba(255,198,89,.8),0 calc(var(--u) * 8) calc(var(--u) * 14) calc(var(--u) * -4) rgba(0,0,0,.75)}
+.pzv .cd.tgt.pzp-g1 .cc{filter:brightness(.85)}
+.pzv .cd.tgt.pzp-g0 .cc{filter:brightness(.6) saturate(.5)}
+.pzv .cd.tgt.pzp-g0 .cc-f{animation:none}
+.pzv .slot.pzp-g3 .so,.pzv .slot.pzp-g2 .so{border-style:solid}
+.pzv .slot.pzp-g3 .so{border-color:#FFC659}
+.pzv .slot.pzp-g0{opacity:.6}
+.pzv .slot.pzp-g0 .so{border-style:dotted;animation:none}
+.pzv .slot.pzp-g2 b::after{content:" ✓"}
+.pzv .slot.pzp-g1 b::after{content:" ~"}
+.pzv .slot.pzp-g0 b::after{content:" !"}

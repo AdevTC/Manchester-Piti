@@ -7,7 +7,10 @@ import type { Lineup } from "../formations";
 import { systemDef } from "../../../lib/formations";
 import { defaultTactics } from "../tactics";
 import { CAMS, depthScale, framePath, lineDepth, PRESS_BAND, proj, slotLabel, slotPos, slotZone, type CamName } from "./geometry";
-import { fits, formAria, galonesOf, natOf, rtTxt, type Squad } from "./model";
+import { formAria, galonesOf, natOf, rtTxt, type Squad } from "./model";
+import type { FitGrade } from "../../../lib/positions";
+import { normZone } from "../positions";
+import { fitAt, slotCode } from "./encaje";
 
 import { reelFor } from "./pack";
 import { planArrows, type PlanArrow } from "./plan";
@@ -74,8 +77,13 @@ export interface CardView {
   rt: string;
   num: number;
   name: string;
+  /** The slot's exact code («DFC»); out of position, what he is › the slot («DC›MC»). */
   zoneTxt: string;
+  /** Out of position: his fit there is 0 (fuera). Nothing known never is. */
   oop: boolean;
+  /** How well he fits the slot (3 preferida · 2 también · 1 adaptado · 0 fuera), as the cromo marks it:
+   *  null when nothing exact is known (no data, or only his line and he is on it). */
+  fit: FitGrade | null;
   gal: string[];
   /** The red tag under the cromo: «NO VA» or why he is out. */
   tag: string;
@@ -84,7 +92,8 @@ export interface CardView {
   reel: number[];
   sel: boolean;
   me: boolean;
-  /** A player is in the hand and this cromo is where he can go («tgt»; «best» = his own line). */
+  /** A player is in the hand and this cromo is where he can go («tgt»; «best» = his own line; and
+   *  «pzp-g3…g0» in `cls`: how well the held player would fit this slot). */
   tgt: boolean;
   best: boolean;
   /** The target's badge: «Entra por él» (a bench player in the hand) or «Intercambiar». */
@@ -100,6 +109,8 @@ export interface SlotView {
   sc: string;
   lab: string;
   on: boolean;
+  /** «pzp-g3…g0» with a player in the hand: how well he would fit this slot (else ""). */
+  cls: string;
   aria: string;
 }
 export interface LinkView {
@@ -151,6 +162,21 @@ export interface PitchView {
   mini: boolean;
 }
 
+/** The cromo's fit mark (text + shape, never colour alone): preferida needs none. */
+export const FIT_GLYPH: Record<FitGrade, string> = { 3: "", 2: "✓", 1: "~", 0: "!" };
+/** The fit in words (the mark's and the cromo's accessible text). */
+export const FIT_WORDS: Record<FitGrade, string> = { 3: "en su posición", 2: "también juega aquí", 1: "adaptado", 0: "fuera de su posición" };
+
+/** A player's fit at slot i as the board shows it: a grade only from what is known exactly (his
+ *  positions or a per-board «Jugar de»); a line alone only ever says «fuera». */
+function shownFit(L: Lineup, sq: Squad, id: string, i: number): FitGrade | null {
+  const g = fitAt(L, sq, id, i);
+  if (g == null || g === 0) return g;
+  const ps = sq.byId.get(id)?.ps;
+  const exact = !!normZone(L.playerPositions[id]) || !!ps?.main || !!ps?.also.length;
+  return exact ? g : null;
+}
+
 export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, ro, rm, meId, mini = modo === "quimica", present }: PitchArgs): PitchView {
   const ch0 = present != null;
   // the player in the hand: a pitch cromo (swap) or a bench one (comes in); his line is the best target
@@ -159,6 +185,10 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, 
   const handB = hand?.k === "b" && sq.byId.has(hand.id) ? hand : null;
   const handZ = handP ? slotZone(L, handI) : handB ? (sq.byId.get(handB.id)?.pos ?? null) : null;
   const handName = (handP ?? handB) ? (sq.byId.get((handP ?? handB)?.id ?? "")?.name ?? "") : "";
+  const heldId = (handP ?? handB)?.id ?? null;
+  // the held player's fit at slot i, and how it is said
+  const handFit = (i: number): FitGrade | null => (heldId ? shownFit(L, sq, heldId, i) : null);
+  const handSays = (g: FitGrade): string => "para " + handName + ": " + FIT_WORDS[g];
   const hero = ch0 && present >= 1 && present <= 7 ? present - 1 : -1;
   const C = CAMS[cam];
   const fk = fx.k;
@@ -177,7 +207,9 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, 
     const y = n2(sp.y);
     const f = fx.from?.[id];
     const zl = slotZone(L, i);
-    const oop = !fits(L, sq, id, zl);
+    const fit = shownFit(L, sq, id, i);
+    const oop = fit === 0;
+    const code = slotCode(L, i);
     const gal = galonesOf(L, id).map((g) => g.letter).slice(0, 3);
     const lt = linkT.get(i) ?? [];
     const lq = lt.length ? Math.round(lt.reduce((a, b) => a + b, 0) / lt.length) : 1;
@@ -191,11 +223,16 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, 
     const rev = !ch0 || present >= i + 1;
     const me = meId === id && rev;
     const nat = natOf(L, sq, id);
+    // what he is, as the cromo prints it: the board's «Jugar de», else his preferida, else his line
+    const natTxt = normZone(L.playerPositions[id]) ?? p.ps?.main ?? nat;
     const tgt = !mini && rev && !ch0 && ((!!handP && handP.id !== id) || !!handB);
     const best = tgt && handZ != null && (handB ? zl === handZ : nat === handZ);
+    const hf = tgt ? handFit(i) : null;
+    const hs = hf != null ? " (" + handSays(hf) + ")" : "";
     const cls = [
       tgt ? "tgt" : "",
       best ? "best" : "",
+      hf != null ? "pzp-g" + hf : "",
       fk % 2 ? "ma" : "mb",
       fx.slow ? "slow" : "",
       i === 0 ? "gk" : "",
@@ -229,8 +266,9 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, 
       rt: rtTxt(p),
       num: p.num,
       name: p.name,
-      zoneTxt: oop && nat ? nat + "›" + zl : zl,
+      zoneTxt: oop && natTxt ? natTxt + "›" + code : code,
       oop,
+      fit,
       gal,
       tag: rev ? tag : "",
       q: [lq >= 1, lq >= 2, lq >= 3],
@@ -244,15 +282,15 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, 
       aria: !rev
         ? "Cromo boca abajo: aún por presentar"
         : p.name + ", dorsal " + p.num + ", " + slotLabel(L, i) +
-        (oop && nat ? ", fuera de posición (natural " + nat + ")" : "") +
+        (fit != null ? ", " + FIT_WORDS[fit] + (oop && natTxt ? " (natural " + natTxt + ")" : "") : "") +
         ", " + formAria(p) +
         (gal.length ? ", galones " + gal.join(" ") : "") +
         (p.cv === "no" ? ", dijo que no va" : p.baja ? ", " + p.baja.toLowerCase() : "") +
         (me ? ", eres tú" : "") +
         (tgt
           ? handB
-            ? ". Toca: entra " + handName + " por él"
-            : ". Toca para intercambiarlo con " + handName
+            ? ". Toca: entra " + handName + " por él" + hs
+            : ". Toca para intercambiarlo con " + handName + hs
           : modo === "editar" && !ro
             ? ". Toca para cogerlo, otra vez para su ficha; mantén pulsado para el menú rápido"
             : ""),
@@ -268,7 +306,9 @@ export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, 
     if (!L.freeMode && modo === "editar" && !ro) gslots.push({ i, x: sp.x.toFixed(2), y: sp.y.toFixed(2), sc });
     if ((s.playerId && sq.byId.has(s.playerId)) || ch0) return;
     const lab = slotLabel(L, i);
-    slots.push({ i, x: sp.x.toFixed(2), y: sp.y.toFixed(2), sc, lab, on: pick === i, aria: "Hueco " + lab + " vacío: toca para elegir jugador" });
+    const hf = mini ? null : handFit(i);
+    const said = hf != null ? ". P" + handSays(hf).slice(1) : "";
+    slots.push({ i, x: sp.x.toFixed(2), y: sp.y.toFixed(2), sc, lab, on: pick === i, cls: hf != null ? "pzp-g" + hf : "", aria: "Hueco " + lab + " vacío: toca para elegir jugador" + said });
   });
 
   const links: LinkView[] = [];

@@ -281,7 +281,7 @@ export function Stage({ frameRef, swpRef, liveRef, ...p }: StageProps) {
             <button
               key={e.i}
               type="button"
-              className={"slot" + (e.on ? " on" : "") + (p.kb === e.i ? " hov" : "")}
+              className={"slot" + (e.on ? " on" : "") + (p.kb === e.i ? " hov" : "") + (e.cls ? " " + e.cls : "")}
               style={vars({ "--x": e.x, "--y": e.y, "--sc": e.sc })}
               data-slot={e.i}
               onClick={() => p.onSlot(e.i)}
