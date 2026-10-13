@@ -59,6 +59,18 @@ describe("la plantilla de la temporada, como la imprime la pizarra", () => {
   });
 });
 
+describe("la línea de cada uno, leída de sus posiciones", () => {
+  it("positions manda sobre el texto antiguo, y las palabras se leen", () => {
+    const ps: PlayerDoc[] = [
+      { id: "lat", seasons: ["t1"], positions: { main: "LD", also: [] }, naturalPosition: "DEL" },
+      { id: "por", seasons: ["t1"], naturalPosition: "Portero" },
+    ];
+    const byId = new Map(seasonPlayers(ps, "t1", SEASONS, null).map((p) => [p.id, p.naturalPosition]));
+    expect(byId.get("lat")).toBe("DEF");
+    expect(byId.get("por")).toBe("POR");
+  });
+});
+
 describe("tu acceso y el dorso de la carta", () => {
   const SEP = Date.UTC(2026, 8, 20, 12);
   it("«sep 2026» en hora del club", () => {

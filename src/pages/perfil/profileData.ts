@@ -3,6 +3,7 @@
 import { isCompleted } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../lib/clubData";
 import type { PlayerDoc } from "../../lib/schemas";
+import { resolvePositions } from "../../lib/positions";
 import { porraPosition } from "../../lib/vestuario";
 import type { SquadPlayer } from "../pizarra/v2/ratings";
 import type { FichaState } from "./card";
@@ -54,7 +55,7 @@ export function seasonPlayers(players: PlayerDoc[], seasonId: string, seasons: {
         shirtName,
         firstName: p.firstName ?? "",
         number,
-        naturalPosition: p.naturalPosition,
+        naturalPosition: resolvePositions(p).line ?? undefined,
         injured: p.injured === true,
         active: p.active !== false,
         ...(p.sanction ? { sanction: p.sanction } : {}),

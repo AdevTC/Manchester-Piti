@@ -5,7 +5,7 @@ import { useSeason, type Season } from "../../context/SeasonContext";
 import type { Zone } from "./formations";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import { mapPlayer } from "../../lib/firestoreMappers";
-import { normZone } from "./positions";
+import { resolvePositions } from "../../lib/positions";
 import type { Sanction } from "./chemistry";
 
 const PLAYERS_KEY = ["players"] as const;
@@ -116,8 +116,8 @@ export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolea
           lastName: p.lastName || "",
           shirtName,
           number,
-          // Stored as POR/DEF/MED/DEL or as words («Portero», «Defensa»…): always the code here.
-          naturalPosition: normZone(p.naturalPosition),
+          // The line of the approved positions (or of the old text): always POR/DEF/MED/DEL here.
+          naturalPosition: resolvePositions(p).line ?? undefined,
           seasonsCount: p.seasons?.length ?? 0,
           injured: p.injured === true,
           active: p.active !== false,
