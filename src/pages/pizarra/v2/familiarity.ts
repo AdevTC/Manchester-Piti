@@ -84,7 +84,7 @@ function markTxt(m: FamMark | null, n: number, where: string): string {
 /** His mark at slot i of this board, and in words: by the slot's exact position for a player with an
  *  exact outfield position («!» = never there and fuera), else by its zone (famOf, as it always was). */
 export function famSlot(t: FamTable, L: Lineup, sq: Squad, id: string, i: number): { mark: FamMark | null; txt: string } {
-  if (!hasFitData([id], sq)) {
+  if (!hasFitData([id], sq, L)) {
     const z = slotZone(L, i);
     const nat = natOf(L, sq, id);
     return { mark: famOf(t, id, z, nat), txt: famTxt(t, id, z, nat) };

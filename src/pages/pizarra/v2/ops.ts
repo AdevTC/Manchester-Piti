@@ -248,7 +248,7 @@ export function answerRank(sq: Squad, id: string): number {
 export function autoPlace(L: Lineup, sq: Squad, called: ReadonlySet<string> | null = null): Lineup {
   const { pool, bench } = autoCandidates(L, sq, called);
   const cand = pool.concat(bench);
-  const out = hasFitData(cand, sq) ? autoByEncaje(L, sq, pool, bench) : autoByLine(L, sq, pool, cand);
+  const out = hasFitData(cand, sq, L) ? autoByEncaje(L, sq, pool, bench) : autoByLine(L, sq, pool, cand);
   return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })) });
 }
 
@@ -268,7 +268,7 @@ function autoCandidates(L: Lineup, sq: Squad, called: ReadonlySet<string> | null
  *  rather than by lines — for the words that tell what it did. */
 export function autoByEncajeOn(L: Lineup, sq: Squad, called: ReadonlySet<string> | null = null): boolean {
   const { pool, bench } = autoCandidates(L, sq, called);
-  return hasFitData(pool.concat(bench), sq);
+  return hasFitData(pool.concat(bench), sq, L);
 }
 
 /**

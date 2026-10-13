@@ -5,7 +5,7 @@ import type { Lineup, RoleKey, TakerKind } from "../formations";
 import { normPlaysAs } from "../positions";
 import { isPosCode, LINE_NAMES, lineOf, POS_CODES, POSITIONS, type PosCode } from "../../../lib/positions";
 import { slotCode } from "./encaje";
-import { GALONES, type Squad } from "./model";
+import { GALONES, natOf, type Squad } from "./model";
 import { setPlaysAs, toBench, toggleRole } from "./ops";
 import { ORDINAL, ROLE_TAKER, setTaker, TAKER_LABEL, TAKER_ROLE, takersOf } from "./takers";
 
@@ -22,6 +22,8 @@ export interface FanItem {
   group?: string;
   /** «Volver»: where it goes back to (absent = the main fan). */
   back?: FanSub;
+  /** «Otra posición…»: the chip the focus starts on. */
+  first?: boolean;
   /** The letters on the disc (galones and codes); the icon kinds draw their own. */
   glyph: string;
   label: string;
@@ -73,9 +75,17 @@ export function fanItems(L: Lineup, sq: Squad, id: string, sub: FanSub): FanItem
     on: at === c,
     ...(full ? { group: LINE_NAMES[POSITIONS[c].line].plural } : {}),
   });
+  // «Otra posición…» opens on the code he plays, else on the first of his line (else of his slot's)
+  const allCodes = (): Raw[] => {
+    const items = POS_CODES.map((c) => codeItem(c, true));
+    const line = natOf(L, sq, id) ?? lineCodes(L, id).map(lineOf)[0];
+    const on = items.findIndex((it) => it.on);
+    const k = on >= 0 ? on : Math.max(0, items.findIndex((it) => !!it.code && lineOf(it.code) === line));
+    return items.map((it, j) => (j === k ? { ...it, first: true } : it));
+  };
   const list = isTaker(sub) ? takersOf(L)[sub] : [];
   const raw: Raw[] = sub === "otra"
-    ? [...POS_CODES.map((c) => codeItem(c, true)), { key: "back", kind: "volver", back: true, glyph: "", label: "Volver", aria: "Volver a las posiciones de su línea", on: false }]
+    ? [...allCodes(), { key: "back", kind: "volver", back: true, glyph: "", label: "Volver", aria: "Volver a las posiciones de su línea", on: false }]
     : isTaker(sub)
     ? [
         ...ORDINAL.map<Raw>((o, pos) => {

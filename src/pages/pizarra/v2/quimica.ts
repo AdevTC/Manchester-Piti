@@ -189,7 +189,7 @@ export function chem(L: Lineup, sq: Squad): Chem {
     gkNat,
     natN,
     adaN,
-    exact: hasFitData(placed.map((p) => p.id), sq),
+    exact: hasFitData(placed.map((p) => p.id), sq, L),
     off,
     unkN,
     at: pct(ga, (g * 40) / 7),

@@ -58,11 +58,12 @@ export interface FanProps {
 
 export function Fan({ cx, cy, num, title, items, onItem, onClose }: FanProps) {
   const ref = useRef<HTMLDivElement>(null);
-  useDialog(ref, ".fi", onClose);
-  // «Otra posición…»: too many for the ring — a panel with one row of chips per line
+  // «Otra posición…»: too many for the ring — a panel with one row of chips per line, the focus on the
+  // chip fanItems marks (the code he plays, else his line's first)
   const groups = [...new Set(items.flatMap((it) => (it.group ? [it.group] : [])))];
+  useDialog(ref, groups.length && items.some((it) => it.first) ? ".fi[data-first]" : ".fi", onClose);
   const chip = (it: FanItem) => (
-    <button key={it.key} type="button" className="fi" onClick={() => onItem(it)} aria-pressed={it.on} aria-label={it.aria}>
+    <button key={it.key} type="button" className="fi" onClick={() => onItem(it)} aria-pressed={it.on} aria-label={it.aria} data-first={it.first ? "" : undefined}>
       {it.kind === "volver" && <Icon n="chevL" w={15} />}
       <span>{it.label}</span>
     </button>

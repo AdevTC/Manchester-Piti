@@ -7,6 +7,8 @@ import { slotPos } from "./geometry";
 import { isFull, natOf, type Cromo } from "./model";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
 import { lineOf, type PosCode } from "../../../lib/positions";
+import { chem, chemWhy } from "./quimica";
+import { familiarity, famSlot } from "./familiarity";
 
 const ids = (L: { slots: { playerId: string | null }[] }) => L.slots.map((s) => s.playerId);
 
@@ -122,6 +124,39 @@ describe("systems and free mode", () => {
     expect(a.playerPositions.rodri).toBe("MC");
     expect(setPlaysAs(a, ex, "rodri", "MCD").playerPositions).toEqual({});
     expect(setPlaysAs(B, ex, "rodri", "MCD")).toEqual(B);
+  });
+});
+
+describe("a «Jugar de» by code in a squad known only by lines", () => {
+  // 2-3-1 = POR · DFC · DFC · MI · MC · MD · DC; m1 (a MED line) is told «MI» on this board
+  const ls = squadOf([cromo("p", 1, "POR"), cromo("d1", 2, "DEF"), cromo("d2", 3, "DEF"), cromo("m1", 4, "MED"), cromo("m2", 5, "MED"), cromo("m3", 6, "MED"), cromo("f", 7, "DEL")]);
+  const B = { ...lineupOf(["p", "d1", "d2", "m2", "m1", "m3", "f"], "2-3-1", ls), playerPositions: { m1: "MI" as const } };
+
+  it("the química names him: adapted at MC, not «1 fuera de su posición natural»", () => {
+    const ch = chem(B, ls);
+    expect(ch.exact).toBe(true);
+    expect(chemWhy(ch)).toBe("6 en su sitio · M1 adaptado de mediocentro.");
+    // without the override the words are the old ones
+    expect(chemWhy(chem({ ...B, playerPositions: {} }, ls))).toBe("Todos en su sitio natural.");
+  });
+
+  it("Auto-colocar takes the encaje path and puts him at MI", () => {
+    const A = { ...B, slots: B.slots.map((s, i) => ({ ...s, playerId: ["p", "d1", "d2", "m2", "m3", "m1", "f"][i] })) };
+    expect(autoByEncajeOn(A, ls)).toBe(true);
+    // (m3 keeps his MC; m2 takes the MD m1 leaves)
+    expect(ids(autoPlace(A, ls))).toEqual(["p", "d1", "d2", "m1", "m3", "m2", "f"]);
+    // by lines (no override) nobody moves
+    expect(autoByEncajeOn({ ...A, playerPositions: {} }, ls)).toBe(false);
+  });
+
+  it("familiarity reads his slot by code", () => {
+    const off = lineupOf(["p", "d1", "d2", "m2", "m1", "m3", "f"], "2-3-1", ls);
+    const t = familiarity(["j1", "j2", "j3"].map((matchId) => ({ ...off, matchId })), () => true);
+    // three officials at MC: by code at MC, nothing to say at MI (where the captain put him)
+    expect(famSlot(t, B, ls, "m1", 4)).toEqual({ mark: "+", txt: "ya ha jugado de mediocentro (3 partidos en el oficial)" });
+    expect(famSlot(t, B, ls, "m1", 3)).toEqual({ mark: null, txt: "" });
+    // by lines (no override) it is the zone's words
+    expect(famSlot(t, { ...B, playerPositions: {} }, ls, "m1", 3).txt).toBe("ya ha jugado de medio (3 partidos en el oficial)");
   });
 });
 
@@ -319,6 +354,10 @@ describe("the long-press fan", () => {
     expect([...new Set(all.slice(0, 13).map((i) => i.group))]).toEqual(["Porteros", "Defensas", "Medios", "Delanteros"]);
     expect(all[5]).toMatchObject({ kind: "code", label: "MCD · Pivote", aria: "TELLO juega de pivote (MCD)" });
     expect(applyFan(all[13], L, sq, "tello")).toEqual({ kind: "sub", sub: true });
+    // the focus starts on the code he plays, else on his line's first
+    expect(all.filter((i) => i.first).map((i) => i.code)).toEqual(["DFC"]);
+    expect(fanItems({ ...L, playerPositions: { tello: "MCO" } }, sq, "tello", "otra").filter((i) => i.first).map((i) => i.code)).toEqual(["MCO"]);
+    expect(fanItems(L, sq, "adrian", "otra").filter((i) => i.first).map((i) => i.code)).toEqual(["EI"]);
     const piv = applyFan(all[5], L, sq, "tello");
     expect(piv.kind === "lineup" && piv.lineup.playerPositions.tello).toBe("MCD");
   });

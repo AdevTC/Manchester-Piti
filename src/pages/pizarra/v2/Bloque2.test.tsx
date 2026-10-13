@@ -155,7 +155,8 @@ describe("focus", () => {
     fireEvent.click(within(fan()).getByRole("button", { name: "Otra posición: todas, por líneas" }));
     expect(within(fan()).getAllByRole("group").map((g) => g.getAttribute("aria-label"))).toEqual(["Porteros", "Defensas", "Medios", "Delanteros"]);
     expect(within(within(fan()).getByRole("group", { name: "Medios" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["MCD · Pivote", "MC · Mediocentro", "MI · Interior izquierdo", "MD · Interior derecho", "MCO · Mediapunta"]);
-    expect(document.activeElement).toBe(within(fan()).getByRole("button", { name: "TELLO juega de portero (POR)" }));
+    // (the focus starts on his line: TELLO is a defender)
+    expect(document.activeElement).toBe(within(fan()).getByRole("button", { name: "TELLO juega de central (DFC)" }));
     // «Volver» goes back to his line's codes
     fireEvent.click(within(fan()).getByRole("button", { name: "Volver a las posiciones de su línea" }));
     expect(within(fan()).getByRole("button", { name: "Otra posición: todas, por líneas" })).toBeInTheDocument();

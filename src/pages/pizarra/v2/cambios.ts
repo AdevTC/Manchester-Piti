@@ -230,7 +230,7 @@ export type SlotGrade = (id: string, i: number) => FitGrade | null;
  *  for a squad known only by lines, which keeps the line logic exactly as it was. */
 export function exactGrade(L: Lineup, sq: Squad, ids: readonly (string | null)[]): SlotGrade | undefined {
   const known = ids.filter((id): id is string => !!id);
-  return hasFitData(known, sq) ? (id, i) => logicGrade(L, sq, id, i) : undefined;
+  return hasFitData(known, sq, L) ? (id, i) => logicGrade(L, sq, id, i) : undefined;
 }
 
 type FitBy = Pick<GenInput, "nat" | "zones" | "grade">;

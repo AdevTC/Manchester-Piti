@@ -250,9 +250,12 @@ export function encajeBySystem(candidates: string[], sq: Squad): Record<Formatio
 
 /** Someone among the candidates has an exact OUTFIELD position (a preferida or a también): only then
  *  do the counts mean anything — a line alone (the old «Defensa») says nobody is «en su sitio», and a
- *  keeper's POR alone is what every old «Portero» parses to. */
-export function hasFitData(candidates: string[], sq: Squad): boolean {
+ *  keeper's POR alone is what every old «Portero» parses to. With the board `L`, an outfield «Jugar
+ *  de» by code on it counts too (the captain said exactly where he plays). */
+export function hasFitData(candidates: string[], sq: Squad, L?: Lineup): boolean {
   return candidates.some((id) => {
+    const over = L ? normPlaysAs(L.playerPositions[id]) : undefined;
+    if (over && isPosCode(over) && over !== "POR") return true;
     const ps = sq.byId.get(id)?.ps;
     return !!ps && ((!!ps.main && ps.main !== "POR") || ps.also.length > 0);
   });
