@@ -1,6 +1,7 @@
 // Plantilla (/admin/plantilla?jugador=&nuevo&dorsal=&vista=cromos) — «ficha a ficha»: on the left the season
 // grouped by line, «Sin posición» first with POR · DEF · MED · DEL right in the row (club/PlantillaList); on the
-// right one player's ficha, big (club/FichaWorkspace: his real kit, Línea and Estado one tap each, the cards
+// right one player's ficha, big (club/FichaWorkspace: his real kit, Línea and Estado one tap each — «Sancionado»
+// by hand, matches or «hasta la J…», derived with the acta's red cards in club/sanctionLogic —, the cards
 // Camiseta · Datos · Cuenta y web that save themselves, «Siguiente sin completar», ↑ ↓). With no player in
 // the URL the ficha shows the first one that still lacks something. «Todos en cromos» (?vista=cromos) shows the
 // whole squad big (club/CromosGrid); «Alta de jugador» takes the ficha's place (club/AltaWorkspace). Above it
@@ -38,7 +39,9 @@ import {
   type BoardRow,
 } from "../club/plantillaBoard";
 import { bajaPayload, csvFileName, filterRows, nameIn, numberIn, playerPayload, plantillaRows, previewDoc, rosterCsv, seasonCode, type PlayerForm, type Position } from "../club/plantillaLogic";
+import { liftedDoc, liftWrite, sanctionedDoc, sanctionStatus, sanctionToast, sanctionWrite, seasonSuspensions, upcomingFor, type SanctionChoice } from "../club/sanctionLogic";
 import { useClubWrites } from "../club/useClubWrites";
+import { useAuth } from "../../../context/AuthContext";
 import { useSlashFocus } from "../club/useSlashFocus";
 import { useRegisterCommands } from "../palette/registry";
 import type { PaletteCommand } from "../palette/search";
@@ -67,6 +70,7 @@ export function Plantilla() {
   const phone = !desktop;
   const toast = useToast();
   const writes = useClubWrites();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const theme = useDocumentTheme();
   const { modalOpen } = useLayerStack();
@@ -125,8 +129,12 @@ export function Plantilla() {
   useEffect(() => {
     if (!openId && fallbackId) void navigate({ to: "/admin/plantilla", search: { jugador: fallbackId }, replace: true });
   }, [openId, fallbackId, navigate]);
+  // who is out (red card or sanction by hand), with the changes still behind «Deshacer»; the matches to sanction until
+  const suspended = useMemo(() => seasonSuspensions(data.matches, active?.id, players), [data.matches, active?.id, players]);
+  const upcoming = useMemo(() => upcomingFor(data.matches, active?.id, data.now), [data.matches, active?.id, data.now]);
   const editing = curId ? (players.find((p) => p.id === curId) ?? null) : null;
   const editingRow = editing ? board.find((r) => r.id === editing.id) : undefined;
+  const editingSusp = editing ? suspended.get(editing.id) : undefined;
 
   // The photos of the real kit (rendered once per name and dorsal, then kept on the device).
   const shot = (r: BoardRow) => ({ kit: "home" as const, theme, name: r.name.toLocaleUpperCase("es"), num: r.number != null ? String(r.number) : "" });
@@ -238,6 +246,37 @@ export function Plantilla() {
       onError: done,
       onDone: done,
       errorMessage: `No se ha podido cambiar la línea de ${target.name}`,
+    });
+  };
+  // ── Sancionado: set by hand (matches or «hasta la J…») and lifted (the acta's red card too) ──
+  const setSanction = (target: BoardRow, choice: SanctionChoice) => {
+    const sanction = sanctionWrite(choice, data.now, user?.uid ?? "");
+    const docs: Pending = { [target.id]: sanctionedDoc(target.doc, sanction) };
+    setPending((s) => ({ ...s, ...docs }));
+    const done = settle(docs);
+    toast.defer({
+      tag: "SANCIÓN",
+      message: sanctionToast(target.name, choice, data.matches),
+      commit: () => writes.savePlayer(target.id, { sanction }),
+      onUndo: done,
+      onError: done,
+      onDone: done,
+      errorMessage: `No se ha podido sancionar a ${target.name}`,
+    });
+  };
+  const liftSanction = (target: BoardRow) => {
+    const at = data.now;
+    const docs: Pending = { [target.id]: liftedDoc(target.doc, at) };
+    setPending((s) => ({ ...s, ...docs }));
+    const done = settle(docs);
+    toast.defer({
+      tag: "SANCIÓN",
+      message: `${target.name}, sanción levantada · vuelve a estar disponible`,
+      commit: () => writes.savePlayer(target.id, liftWrite(at)),
+      onUndo: done,
+      onError: done,
+      onDone: done,
+      errorMessage: `No se ha podido levantar la sanción de ${target.name}`,
     });
   };
   const setInjured = (target: BoardRow, injured: boolean) => {
@@ -440,6 +479,7 @@ export function Plantilla() {
       boxRef={listRef}
       empty={empty}
       quickLine
+      sanctioned={suspended}
     />
   );
   const grid = <CromosGrid rows={shown} still={stillOf} onOpen={openPlayer} onAlta={() => openAlta()} flying={flying} empty={empty} phone={phone} />;
@@ -467,6 +507,11 @@ export function Plantilla() {
         phone={phone}
         onLine={(p) => setLine(editingRow, p)}
         onInjured={(v) => setInjured(editingRow, v)}
+        suspension={editingSusp}
+        suspensionText={editingSusp ? sanctionStatus(editingSusp, data.matches) : undefined}
+        upcoming={upcoming}
+        onSanction={(c) => setSanction(editingRow, c)}
+        onLift={() => liftSanction(editingRow)}
         onSave={(form) => save(editing, form)}
         onBaja={() => baja(editing)}
         onPrev={() => step(-1)}

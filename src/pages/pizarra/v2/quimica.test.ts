@@ -103,6 +103,16 @@ describe("the squad from the season's matches", () => {
     expect(sq.pairs.get("a|b")).toEqual({ tog: 2, ast: 1, min: 80 });
     expect(sq.byId.get("a")?.stats).toMatchObject({ played: 2, minutes: 100, starts: 2, mvps: 1 });
     expect(sq.byId.get("a")?.baja).toBe("Sancionado");
+    expect(sq.byId.get("a")?.sancion).toBeUndefined();
+    // with chemistry.suspensions(): what is left and why ride on the cromo (an injury still wins the baja)
+    const map = new Map([
+      ["a", { left: 2, source: "manual" as const, reason: "Federación" }],
+      ["b", { left: 1, source: "acta" as const }],
+    ]);
+    const sq2 = buildSquad({ players, games, jornada: new Map([["g1", 4], ["g2", 5]]), suspended: map, mvps: new Map() });
+    expect(sq2.byId.get("a")).toMatchObject({ baja: "Sancionado", sancion: { left: 2, reason: "Federación" } });
+    expect(sq2.byId.get("b")?.baja).toBe("Lesionado");
+    expect(sq2.byId.get("b")?.sancion).toBeUndefined();
     expect(sq.byId.get("b")?.baja).toBe("Lesionado");
     expect(sq.byId.get("c")?.baja).toBe("Inactivo");
     // names in capitals, positions as codes whatever the spelling stored

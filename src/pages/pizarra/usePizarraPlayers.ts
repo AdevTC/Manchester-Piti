@@ -6,6 +6,7 @@ import type { Zone } from "./formations";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import { mapPlayer } from "../../lib/firestoreMappers";
 import { normZone } from "./positions";
+import type { Sanction } from "./chemistry";
 
 const PLAYERS_KEY = ["players"] as const;
 const playersQuery = collection(db, "players");
@@ -23,6 +24,8 @@ interface PlayerDoc {
   active?: boolean;
   naturalPosition?: Zone;
   injured?: boolean;
+  sanction?: Sanction;
+  sanctionClearedAt?: number;
   seasonDetails?: Record<string, { shirtName: string; number: number }>;
 }
 
@@ -41,6 +44,9 @@ export interface PizarraPlayer {
   injured: boolean;
   /** Active in the squad (false = baja/archived). */
   active: boolean;
+  /** A sanction set by hand in Admin, and when one was last lifted (see chemistry.suspensions). */
+  sanction?: Sanction;
+  sanctionClearedAt?: number;
 }
 
 /**
@@ -115,6 +121,8 @@ export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolea
           seasonsCount: p.seasons?.length ?? 0,
           injured: p.injured === true,
           active: p.active !== false,
+          ...(p.sanction ? { sanction: p.sanction } : {}),
+          ...(typeof p.sanctionClearedAt === "number" ? { sanctionClearedAt: p.sanctionClearedAt } : {}),
         };
       })
       .sort((a, b) => a.number - b.number);

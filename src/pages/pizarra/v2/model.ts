@@ -2,6 +2,7 @@
 // lineup helpers every other module shares. Pure (no React).
 import type { Lineup, RoleKey, Zone } from "../formations";
 import { normZone } from "../positions";
+import { plural } from "./plural";
 
 export type Baja = "Lesionado" | "Sancionado" | "Inactivo";
 /** The player's answer to the convocatoria (wired in phase 3; absent = unknown). */
@@ -48,7 +49,23 @@ export interface Cromo {
   /** The season's last matches, oldest first (ficha.ts formGames); absent = not worked out. */
   form?: FormGame[];
   baja?: Baja;
+  /** Suspended: team matches he still misses and the sanction's reason (chemistry.suspensions). */
+  sancion?: { left: number; reason?: string };
   cv?: Convocatoria;
+}
+
+/** The baja's chip: «Sancionado · 2» with the matches he still misses, else the baja's word. */
+export function bajaChip(c: Pick<Cromo, "baja" | "sancion">): string {
+  if (!c.baja) return "";
+  return c.baja === "Sancionado" && c.sancion ? c.baja + " · " + c.sancion.left : c.baja;
+}
+
+/** The baja in words, for the screen reader and the ficha: «sancionado 2 partidos más (Federación)». */
+export function bajaWords(c: Pick<Cromo, "baja" | "sancion">): string {
+  if (!c.baja) return "";
+  const s = c.sancion;
+  if (c.baja !== "Sancionado" || !s) return c.baja.toLowerCase();
+  return "sancionado " + plural(s.left, "partido") + " más" + (s.reason ? " (" + s.reason + ")" : "");
 }
 
 export interface PairStats {

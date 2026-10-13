@@ -1,20 +1,24 @@
 // Plantilla's ficha workspace: one player at a time, big. The hero (his kit — the photo of the real 3D shirt —,
-// «Ficha 3 de 16», complete or what it lacks, dorsal + name, Línea and Estado one tap each, GOL · ASI · PJ ·
-// MVP) and three cards always in view: Camiseta (name on the shirt, dorsal with its live check, name and
+// «Ficha 3 de 16», complete or what it lacks, dorsal + name, Línea and Estado one tap each — «Sancionado» opens
+// a small form: matches or «hasta la J…», and a reason; while sanctioned, what is left and «Levantar la
+// sanción» —, GOL · ASI · PJ · MVP) and three cards always in view: Camiseta (name on the shirt, dorsal with its live check, name and
 // surnames, seasons, a season's own shirt), Datos (photo link, birth, height, weight) and Cuenta y web (his
 // account, his story, his page, «Dar de baja»). It saves itself: a field is written when you leave it (or press
 // Enter) if it is valid, a season toggle at once — every write behind the lower third's «Deshacer». An
 // invalid edit is never written and leaving with it asks first. «Siguiente sin completar», ← → and ↑ ↓ walk
 // the list. Phones: the same ficha full screen, with a back row and a sticky «Siguiente sin completar».
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
 import { Link } from "@tanstack/react-router";
-import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
+import { SANCTION_LIMITS, type PlayerDoc, type SeasonDoc } from "../../../lib/schemas";
+import type { Suspension } from "../../pizarra/chemistry";
+import type { AdminMatch } from "../data/adminLogic";
 import { ShirtBack } from "../kit";
 import { useUnsavedGuard } from "../ui/guard";
 import { AdIcon } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
 import { ACCOUNT_LABEL, GAPS, gapsText, type BoardRow } from "./plantillaBoard";
 import { POSITIONS, asPosition, checkPlayerForm, dorsalLine, formDirty, formFromPlayer, linkState, shirtNameError, type LiveCheck, type PlayerForm, type Position } from "./plantillaLogic";
+import { checkSanction, sanctionForm, untilLabel, type SanctionChoice, type SanctionForm } from "./sanctionLogic";
 
 export interface FichaStats {
   goals: number;
@@ -40,6 +44,16 @@ export interface FichaWorkspaceProps {
   phone: boolean;
   onLine: (p: Position) => void;
   onInjured: (injured: boolean) => void;
+  /** His suspension now (a red card or a sanction set by hand), with what is left; undefined = he can play. */
+  suspension?: Suspension;
+  /** «Sancionado · quedan 2 partidos (hasta la J8) · Federación». */
+  suspensionText?: string;
+  /** «Hasta la J…»: the season's matches still to play. */
+  upcoming: readonly AdminMatch[];
+  /** «Sancionar» with a checked form. */
+  onSanction: (choice: SanctionChoice) => void;
+  /** «Levantar la sanción» (a manual one and the acta's red card). */
+  onLift: () => void;
   /** A valid change to write (it replaces the ficha's starting point). */
   onSave: (form: PlayerForm) => void;
   onBaja: () => void;
@@ -70,12 +84,102 @@ function Line({ check, id }: { check: LiveCheck | null; id: string }) {
   );
 }
 
+/** «Sancionado»'s small form: how long (matches, or until a match of the calendar) and why. */
+function SanctionBox({ id, name, upcoming, onCancel, onSave }: { id: string; name: string; upcoming: readonly AdminMatch[]; onCancel: () => void; onSave: (choice: SanctionChoice) => void }) {
+  const [f, setF] = useState<SanctionForm>(() => sanctionForm(upcoming));
+  const [error, setError] = useState<string | null>(null);
+  const first = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    first.current?.focus();
+  }, []);
+  const set = <K extends keyof SanctionForm>(k: K, v: SanctionForm[K]) => {
+    setF((x) => ({ ...x, [k]: v }));
+    setError(null);
+  };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const r = checkSanction(f, upcoming);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    onSave(r.choice);
+  };
+  const errId = `${id}-e`;
+  return (
+    <form id={id} className="sanf" aria-label={`Sanción de ${name}`} onSubmit={submit} noValidate>
+      <div className="tgl" role="group" aria-label="Cuánto dura">
+        <button type="button" aria-pressed={f.mode === "games"} onClick={() => set("mode", "games")}>
+          Partidos
+        </button>
+        <button type="button" aria-pressed={f.mode === "until"} onClick={() => set("mode", "until")} disabled={!upcoming.length}>
+          Hasta la jornada
+        </button>
+      </div>
+      {f.mode === "games" ? (
+        <div className="fld">
+          <label htmlFor={`${id}-g`}>Partidos de sanción · de 1 a {SANCTION_LIMITS.games}</label>
+          <input
+            ref={first}
+            className={error ? "inp bad" : "inp"}
+            id={`${id}-g`}
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={SANCTION_LIMITS.games}
+            step={1}
+            value={f.games}
+            onChange={(e) => set("games", e.target.value)}
+            aria-invalid={!!error || undefined}
+            aria-describedby={error ? errId : undefined}
+          />
+        </div>
+      ) : (
+        <div className="fld">
+          <label htmlFor={`${id}-u`}>Hasta la jornada (incluida)</label>
+          <select className="inp" id={`${id}-u`} value={f.untilId} onChange={(e) => set("untilId", e.target.value)}>
+            {upcoming.map((m) => (
+              <option key={m.id} value={m.id}>
+                {untilLabel(m)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {upcoming.length ? null : <span className="hint">Sin partidos programados: cuenta por partidos.</span>}
+      <div className="fld">
+        <label htmlFor={`${id}-r`}>
+          Motivo · opcional · {f.reason.length}/{SANCTION_LIMITS.reason}
+        </label>
+        <input className="inp" id={`${id}-r`} value={f.reason} maxLength={SANCTION_LIMITS.reason} onChange={(e) => set("reason", e.target.value)} placeholder="Federación, Roja en Copa…" autoComplete="off" />
+      </div>
+      {error ? (
+        <span className="er" id={errId} role="alert">
+          <AdIcon name="x" size={13} />
+          {error}
+        </span>
+      ) : null}
+      <div className="sanb">
+        <button type="submit" className="btn sm red">
+          Sancionar
+        </button>
+        <button type="button" className="btn sm line" onClick={onCancel}>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export function FichaWorkspace(props: FichaWorkspaceProps) {
   const { player, row, players, seasons, activeSeason, stats, still, vt, index, total, story, phone } = props;
   const uid = useId();
   const [start, setStart] = useState<PlayerForm>(() => formFromPlayer(player));
   const [form, setForm] = useState<PlayerForm>(start);
   const [asking, setAsking] = useState(false);
+  /** «Sancionado» opens its small form here (a number of matches or «hasta la J…», and a reason). */
+  const [sanOpen, setSanOpen] = useState(false);
+  const sanctioned = !!props.suspension;
   // Línea and Estado are written on their own (one tap); the form always carries their live value, so a
   // field saved later never puts back an old line or state.
   const livePos = asPosition(player.naturalPosition);
@@ -160,17 +264,59 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
       ))}
     </span>
   );
+  // «Activo» puts him back: the injury first, else the sanction (lifted, with «Deshacer» like the rest)
+  const activo = () => {
+    if (liveInj) props.onInjured(false);
+    else if (sanctioned) props.onLift();
+  };
   const stateSeg = (
     <span className="pz" role="group" aria-label={`Estado de ${name}`}>
-      <button type="button" aria-pressed={!liveInj} onClick={() => liveInj && props.onInjured(false)}>
+      <button type="button" aria-pressed={!liveInj && !sanctioned} onClick={activo}>
         Activo
       </button>
       <button type="button" aria-pressed={liveInj} onClick={() => !liveInj && props.onInjured(true)}>
         <AdIcon name="alert" size={14} />
         Lesionado
       </button>
+      <button type="button" aria-pressed={sanctioned} aria-expanded={sanOpen} aria-controls={sanOpen ? `${uid}-san` : undefined} onClick={() => setSanOpen((o) => !o)}>
+        <AdIcon name="flag" size={14} />
+        Sancionado
+      </button>
     </span>
   );
+  const sanBlock =
+    sanctioned || sanOpen ? (
+      <div className="san">
+        {props.suspension ? (
+          <p className="sanl">
+            <AdIcon name="flag" size={14} />
+            <span>{props.suspensionText}</span>
+            <button
+              type="button"
+              className="btn sm line"
+              onClick={() => {
+                setSanOpen(false);
+                props.onLift();
+              }}
+            >
+              Levantar la sanción
+            </button>
+          </p>
+        ) : null}
+        {sanOpen ? (
+          <SanctionBox
+            id={`${uid}-san`}
+            name={name}
+            upcoming={props.upcoming}
+            onCancel={() => setSanOpen(false)}
+            onSave={(choice) => {
+              setSanOpen(false);
+              props.onSanction(choice);
+            }}
+          />
+        ) : null}
+      </div>
+    ) : null;
   const nav = (
     <>
       <button type="button" className="btn sm sky" onClick={props.onNextGap ?? undefined} disabled={!props.onNextGap}>
@@ -442,6 +588,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
           <span className="lb">Estado</span>
           {stateSeg}
         </div>
+        {sanBlock}
         {camiseta}
         {datos}
         {cuenta}
@@ -474,6 +621,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
               {stateSeg}
             </div>
           </div>
+          {sanBlock}
           {statLine}
         </div>
         <div className="nav2">

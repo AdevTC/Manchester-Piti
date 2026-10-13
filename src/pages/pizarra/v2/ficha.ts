@@ -7,7 +7,7 @@ import type { Lineup } from "../formations";
 import { normZone } from "../positions";
 import { availTxt, type CharlaMatch } from "./charla";
 import { slotLabel } from "./geometry";
-import { galonesOf, rtTxt, type FormGame, type Squad } from "./model";
+import { bajaWords, galonesOf, rtTxt, type FormGame, type Squad } from "./model";
 import { linkMark, togTxt, type Chem } from "./quimica";
 import { formWhy } from "./ratings";
 import { plural } from "./plural";
@@ -61,7 +61,7 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
     .sort((a, b) => b.s - a.s)
     .slice(0, 3)
     .map((l) => ({ k: "con " + nm(l.a === id ? l.b : l.a) + " · " + togTxt(l.min), v: linkMark(l.t) }));
-  if (fi < 0) ln = [{ k: p.baja ? p.baja + ": no disponible" : "En el banquillo", v: "" }];
+  if (fi < 0) ln = [{ k: p.baja ? bajaWords(p).replace(/^./, (x) => x.toLocaleUpperCase("es")) + ": no disponible" : "En el banquillo", v: "" }];
   else if (!ln.length) ln = [{ k: "Sin vecinos cerca en este siete", v: "" }];
   const cv = p.cv === "voy" ? " · Voy" : p.cv === "duda" ? " · Duda" : p.cv === "no" ? " · No va" : "";
 
