@@ -83,7 +83,7 @@ describe("systems and free mode", () => {
     expect(n.freeMode).toBe(false);
     expect(ids(n)).toEqual(ids(L));
     expect(stepSystem(L, 1).formation).toBe("2-1-2-1");
-    expect(stepSystem(L, -1).formation).toBe("2-1-2-1a");
+    expect(stepSystem(L, -1).formation).toBe("1-3-1-1");
   });
   it("Libre keeps every spot; reset puts them back on the system", () => {
     const f = goFree(L);

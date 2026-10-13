@@ -3,7 +3,7 @@
 // (geometry FORM) y lo que guarda (formations FORMATIONS). Ids ≤ 10 caracteres (firestore.rules).
 import type { PosCode } from "./positions";
 
-export const SYSTEM_IDS = ["2-3-1", "2-1-2-1", "2-2-2", "2-2-1-1", "3-2-1", "3-1-2", "3-1-1-1", "4-1-1", "3-3", "2-1-3", "1-3-2", "1-2-3", "1-2-2-1", "1-1-2-1-1", "2-1-2-1a"] as const;
+export const SYSTEM_IDS = ["2-3-1", "2-1-2-1", "2-2-2", "2-2-1-1", "3-2-1", "3-1-2", "3-1-1-1", "4-1-1", "3-3", "2-1-3", "1-3-2", "1-2-3", "1-2-2-1", "1-1-2-1-1", "1-3-1-1"] as const;
 export type FormationName = (typeof SYSTEM_IDS)[number];
 export type SystemCharacter = "equilibrado" | "defensivo" | "ofensivo";
 export type Spot = readonly [PosCode, number, number];
@@ -188,15 +188,15 @@ export const SYSTEMS_CATALOGUE: readonly SystemDef[] = [
     "Un pivote que cubra al líbero y un mediapunta con visión.",
   ),
   sys(
-    "2-1-2-1a",
-    "2-1-2-1",
-    "Clásico con alas",
+    "1-3-1-1",
+    "1-3-1-1",
+    "Escalera",
     "ofensivo",
-    [["DFC", 30, 74], ["DFC", 70, 74], ["MCD", 50, 50], ["EI", 17, 34], ["ED", 83, 34], ["DC", 50, 18]],
-    "Variante del clásico con extremos en lugar de interiores.",
-    "Amplitud arriba sin perder a los dos centrales.",
-    "El pivote cubre mucho campo él solo.",
-    "Extremos con ida y vuelta y un pivote fuerte.",
+    [["LIB", 50, 74], ["MI", 10, 42], ["MC", 38, 50], ["MD", 90, 42], ["MCO", 64, 44], ["DC", 50, 16]],
+    "Un líbero, tres medios y un mediapunta detrás del punta.",
+    "Superioridad en el medio y un enganche que conecta con el punta.",
+    "Un solo defensa: las bandas a la espalda de los interiores sufren.",
+    "Un líbero rápido e interiores que bajen.",
   ),
 ];
 

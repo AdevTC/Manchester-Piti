@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { lineOf } from "./positions";
-import { SYSTEMS_CATALOGUE, SYSTEM_IDS, systemDef } from "./formations";
+import { SYSTEMS_CATALOGUE, SYSTEM_IDS, isFormationName, systemDef } from "./formations";
 
 describe("los 15 sistemas de fútbol 7", () => {
   it("are the spec's, in order, with ids that fit the rules (≤ 10)", () => {
-    expect(SYSTEM_IDS).toEqual(["2-3-1", "2-1-2-1", "2-2-2", "2-2-1-1", "3-2-1", "3-1-2", "3-1-1-1", "4-1-1", "3-3", "2-1-3", "1-3-2", "1-2-3", "1-2-2-1", "1-1-2-1-1", "2-1-2-1a"]);
+    expect(SYSTEM_IDS).toEqual(["2-3-1", "2-1-2-1", "2-2-2", "2-2-1-1", "3-2-1", "3-1-2", "3-1-1-1", "4-1-1", "3-3", "2-1-3", "1-3-2", "1-2-3", "1-2-2-1", "1-1-2-1-1", "1-3-1-1"]);
     for (const id of SYSTEM_IDS) expect(id.length).toBeLessThanOrEqual(10);
   });
   for (const s of SYSTEMS_CATALOGUE)
@@ -32,6 +32,12 @@ describe("los 15 sistemas de fútbol 7", () => {
     }
   });
   it("systemDef finds each id", () => {
-    expect(systemDef("2-1-2-1a").name).toBe("Clásico con alas");
+    expect(systemDef("1-3-1-1").name).toBe("Escalera");
+  });
+  it("1-3-1-1 Escalera: líbero, three mids, mediapunta, punta; the retired 2-1-2-1a is no longer a system", () => {
+    expect(systemDef("1-3-1-1").spots.map(([c]) => c)).toEqual(["POR", "LIB", "MI", "MC", "MD", "MCO", "DC"]);
+    expect(systemDef("1-3-1-1").character).toBe("ofensivo");
+    expect(isFormationName("1-3-1-1")).toBe(true);
+    expect(isFormationName("2-1-2-1a")).toBe(false);
   });
 });
