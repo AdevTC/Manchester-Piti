@@ -50,12 +50,14 @@ export function seasonPlayers(players: PlayerDoc[], seasonId: string, seasons: {
     .filter((p) => seasonId === "all" || p.seasons?.includes(seasonId) || p.id === me)
     .map((p) => {
       const { shirtName, number } = resolveShirt(p, seasonId, seasons);
+      const pos = resolvePositions(p);
       return {
         id: p.id,
         shirtName,
         firstName: p.firstName ?? "",
         number,
-        naturalPosition: resolvePositions(p).line ?? undefined,
+        naturalPosition: pos.line ?? undefined,
+        positions: { main: pos.main, also: pos.also },
         injured: p.injured === true,
         active: p.active !== false,
         ...(p.sanction ? { sanction: p.sanction } : {}),

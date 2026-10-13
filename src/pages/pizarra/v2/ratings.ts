@@ -6,6 +6,7 @@ import { playerGame } from "../../../lib/clubAnalytics";
 import { goalLinks } from "../../../lib/statsView";
 import type { Zone } from "../formations";
 import { normZone } from "../positions";
+import { resolvePositions } from "../../../lib/positions";
 import type { Sanction, Suspension } from "../chemistry";
 import { pairKey, type Baja, type Convocatoria, type Cromo, type FormGame, type PairStats, type Squad } from "./model";
 import { plural } from "./plural";
@@ -159,6 +160,9 @@ export interface SquadPlayer {
   number: number;
   /** His line, always POR/DEF/MED/DEL now (resolvePositions' line, set by the callers); normZone is only a guard. */
   naturalPosition?: Zone | string;
+  /** His positions ({main, also}; the callers pass resolvePositions' set so the code of an old text
+   *  survives), read with resolvePositions; absent = only the line is known. */
+  positions?: unknown;
   injured: boolean;
   active: boolean;
   /** A sanction set by hand and the last «Levantar la sanción» (chemistry.suspensions reads them). */
@@ -238,6 +242,7 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       // Printed in capitals, like the cromos of the design (the stored name is left as it is).
       name: (p.shirtName || p.firstName || "Jugador").toLocaleUpperCase("es"),
       pos: role,
+      ps: resolvePositions({ positions: p.positions, naturalPosition: p.naturalPosition }),
       rt: form ?? FORM_MIN,
       ...(form == null ? { unrated: true } : {}),
       why: whyOf(r, role, played),

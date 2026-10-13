@@ -119,3 +119,18 @@ describe("tus cosas en el vestuario", () => {
     expect(convocatoriaLine(new Map(), [], null)).toEqual({ answered: 0, total: 0, yes: 0, maybe: 0, no: 0, next: null, nextId: null });
   });
 });
+
+describe("las posiciones viajan a la pizarra", () => {
+  it("seasonPlayers lleva las posiciones resueltas (también las leídas del texto antiguo)", () => {
+    const ps: PlayerDoc[] = [
+      { id: "lat", seasons: ["t1"], positions: { main: "LD", also: ["MD"] }, naturalPosition: "DEL" },
+      { id: "old", seasons: ["t1"], naturalPosition: "Lateral derecho" },
+      { id: "nada", seasons: ["t1"] },
+    ];
+    const byId = new Map(seasonPlayers(ps, "t1", SEASONS, null).map((p) => [p.id, p]));
+    expect(byId.get("lat")!.positions).toEqual({ main: "LD", also: ["MD"] });
+    expect(byId.get("old")!.positions).toEqual({ main: "LD", also: [] });
+    expect(byId.get("old")!.naturalPosition).toBe("DEF");
+    expect(byId.get("nada")!.positions).toEqual({ main: null, also: [] });
+  });
+});

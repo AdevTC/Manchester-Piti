@@ -5,7 +5,7 @@ import { useSeason, type Season } from "../../context/SeasonContext";
 import type { Zone } from "./formations";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import { mapPlayer } from "../../lib/firestoreMappers";
-import { resolvePositions } from "../../lib/positions";
+import { resolvePositions, type PositionSet } from "../../lib/positions";
 import type { Sanction } from "./chemistry";
 
 const PLAYERS_KEY = ["players"] as const;
@@ -23,6 +23,7 @@ interface PlayerDoc {
   seasons?: string[];
   active?: boolean;
   naturalPosition?: Zone;
+  positions?: unknown;
   injured?: boolean;
   sanction?: Sanction;
   sanctionClearedAt?: number;
@@ -38,6 +39,8 @@ export interface PizarraPlayer {
   number: number;
   /** His line, always POR/DEF/MED/DEL: resolvePositions' line (approved positions, else the old text). */
   naturalPosition?: Zone;
+  /** His exact positions, resolved ({main, also}: the approved ones, else the code of the old text). */
+  positions: PositionSet;
   /** Number of seasons in the club (for the chemistry experience axis). */
   seasonsCount: number;
   /** Admin-set unavailability flag. */
@@ -102,6 +105,7 @@ export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolea
     return inSeason
       .map((p) => {
         const { shirtName, number } = resolve(p, selectedSeasonId, seasons);
+        const pos = resolvePositions(p);
         return {
           id: p.id,
           firstName: p.firstName || "",
@@ -109,7 +113,8 @@ export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolea
           shirtName,
           number,
           // The line of the approved positions (or of the old text): always POR/DEF/MED/DEL here.
-          naturalPosition: resolvePositions(p).line ?? undefined,
+          naturalPosition: pos.line ?? undefined,
+          positions: { main: pos.main, also: pos.also },
           seasonsCount: p.seasons?.length ?? 0,
           injured: p.injured === true,
           active: p.active !== false,

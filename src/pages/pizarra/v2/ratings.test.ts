@@ -146,3 +146,18 @@ describe("the ficha's form bars come with the squad", () => {
     expect(sq.byId.get("nuevo")!.form?.every((g) => !g.played && g.min === 0)).toBe(true);
   });
 });
+
+describe("each cromo carries his resolved positions", () => {
+  it("positions when given, else what the line says", () => {
+    const players: SquadPlayer[] = [
+      { ...player("lat", "DEF"), positions: { main: "LD", also: ["MD", "XX"] } },
+      player("por", "POR"),
+      player("nada"),
+    ];
+    const sq = buildSquad({ players, games: [], jornada: new Map(), suspended: new Set(), mvps: new Map() });
+    expect(sq.byId.get("lat")!.ps).toEqual({ main: "LD", also: ["MD"], line: "DEF" });
+    expect(sq.byId.get("lat")!.pos).toBe("DEF");
+    expect(sq.byId.get("por")!.ps).toEqual({ main: "POR", also: [], line: "POR" });
+    expect(sq.byId.get("nada")!.ps).toEqual({ main: null, also: [], line: null });
+  });
+});

@@ -2,6 +2,7 @@
 // lineup helpers every other module shares. Pure (no React).
 import type { Lineup, RoleKey, Zone } from "../formations";
 import { normZone } from "../positions";
+import type { ResolvedPositions } from "../../../lib/positions";
 import { plural } from "./plural";
 
 export type Baja = "Lesionado" | "Sancionado" | "Inactivo";
@@ -36,6 +37,8 @@ export interface Cromo {
   name: string;
   /** Natural position (set by an admin); unknown = fits anywhere. */
   pos?: Zone;
+  /** His exact positions (preferida, también, línea: resolvePositions); absent = only `pos` is known. */
+  ps?: ResolvedPositions;
   /** Form rating (45–95, see ratings.ts), from the season's matches. */
   rt: number;
   /** No match played yet: the rating is only a floor for sorting, shown as «—» (see rtTxt). */
