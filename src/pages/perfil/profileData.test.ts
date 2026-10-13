@@ -139,37 +139,47 @@ describe("las posiciones viajan a la pizarra", () => {
 
 describe("Tus posiciones: lo que dice la ficha vinculada", () => {
   it("sin ficha (o sin documento): nada que enseñar", () => {
-    expect(positionsInfo(undefined)).toBeNull();
+    expect(positionsInfo(undefined, "t1")).toBeNull();
   });
   it("sin posiciones: vacío, sin propuesta, ninguna", () => {
-    expect(positionsInfo({ naturalPosition: "Defensa" })).toEqual({ approved: { main: null, also: [] }, proposal: null, state: "ninguna" });
+    expect(positionsInfo({ naturalPosition: "Defensa", seasons: ["t1"] }, "t1")).toEqual({ approved: { main: null, also: [] }, proposal: null, state: "ninguna", inSeason: true });
   });
   it("aprobadas: las de positions (o el código del texto antiguo), con el estado de la última revisión", () => {
-    expect(positionsInfo({ positions: { main: "MCD", also: ["MC", "DFC"] }, positionsReview: { status: "aprobada", at: 1, by: "cap" } })).toEqual({
+    expect(positionsInfo({ positions: { main: "MCD", also: ["MC", "DFC"] }, positionsReview: { status: "aprobada", at: 1, by: "cap" }, seasons: ["t1"] }, "t1")).toEqual({
       approved: { main: "MCD", also: ["MC", "DFC"] },
       proposal: null,
       state: "aprobada",
+      inSeason: true,
     });
-    expect(positionsInfo({ naturalPosition: "Pivote" })?.approved).toEqual({ main: "MCD", also: [] });
+    expect(positionsInfo({ naturalPosition: "Pivote" }, "t1")?.approved).toEqual({ main: "MCD", also: [] });
   });
   it("pendiente: la propuesta, limpia (códigos raros fuera, la preferida no se repite)", () => {
-    const info = positionsInfo({ positions: { main: "DFC", also: [] }, positionsProposal: { main: "MCD", also: ["MCD", "XX", "MC"], at: 1 }, positionsReview: { status: "rechazada", at: 1 } });
-    expect(info).toEqual({ approved: { main: "DFC", also: [] }, proposal: { main: "MCD", also: ["MC"] }, state: "pendiente" });
+    const info = positionsInfo({ positions: { main: "DFC", also: [] }, positionsProposal: { main: "MCD", also: ["MCD", "XX", "MC"], at: 1 }, positionsReview: { status: "rechazada", at: 1 }, seasons: ["t1"] }, "t1");
+    expect(info).toEqual({ approved: { main: "DFC", also: [] }, proposal: { main: "MCD", also: ["MC"] }, state: "pendiente", inSeason: true });
   });
   it("ajustada y rechazada se leen de la revisión", () => {
-    expect(positionsInfo({ positions: { main: "MC", also: [] }, positionsProposal: null, positionsReview: { status: "ajustada", at: 1 } })?.state).toBe("ajustada");
-    expect(positionsInfo({ positionsProposal: null, positionsReview: { status: "rechazada", at: 1 } })?.state).toBe("rechazada");
+    expect(positionsInfo({ positions: { main: "MC", also: [] }, positionsProposal: null, positionsReview: { status: "ajustada", at: 1 } }, "t1")?.state).toBe("ajustada");
+    expect(positionsInfo({ positionsProposal: null, positionsReview: { status: "rechazada", at: 1 } }, "t1")?.state).toBe("rechazada");
+  });
+  it("una ficha fuera de la temporada actual (o sin temporada en curso) no está en la temporada", () => {
+    expect(positionsInfo({ seasons: ["t0"] }, "t1")?.inSeason).toBe(false);
+    expect(positionsInfo({}, "t1")?.inSeason).toBe(false);
+    expect(positionsInfo({ seasons: ["t1"] }, "")?.inSeason).toBe(false);
+    expect(positionsInfo({ seasons: ["t0", "t1"] }, "t1")?.inSeason).toBe(true);
   });
   it("«Enviar al capitán»: solo si hay algo marcado y es distinto de lo aprobado y de lo pendiente (sin importar el orden)", () => {
     const approved = { main: "MCD" as const, also: ["MC" as const, "DFC" as const] };
-    const info = { approved, proposal: null, state: "aprobada" as const };
+    const info = { approved, proposal: null, state: "aprobada" as const, inSeason: true };
     expect(canSendPositions({ main: "MCD", also: ["DFC", "MC"] }, info)).toBe(false);
     expect(canSendPositions({ main: "MC", also: ["MCD", "DFC"] }, info)).toBe(true);
     expect(canSendPositions({ main: null, also: [] }, info)).toBe(false);
-    const pending = { approved, proposal: { main: "DC" as const, also: [] }, state: "pendiente" as const };
+    const pending = { approved, proposal: { main: "DC" as const, also: [] }, state: "pendiente" as const, inSeason: true };
     expect(canSendPositions({ main: "DC", also: [] }, pending)).toBe(false);
     expect(canSendPositions(approved, pending)).toBe(false);
     expect(canSendPositions({ main: "DC", also: ["MCO"] }, pending)).toBe(true);
-    expect(canSendPositions({ main: null, also: ["MI"] }, { approved: { main: null, also: [] }, proposal: null, state: "ninguna" })).toBe(true);
+    expect(canSendPositions({ main: null, also: ["MI"] }, { approved: { main: null, also: [] }, proposal: null, state: "ninguna", inSeason: true })).toBe(true);
+  });
+  it("«Enviar al capitán»: nunca con la ficha fuera de la temporada (el capitán no la vería)", () => {
+    expect(canSendPositions({ main: "DC", also: [] }, { approved: { main: null, also: [] }, proposal: null, state: "ninguna", inSeason: false })).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_ALSO, POS_CODES, type PosCode, type PositionSet } from "./positions";
-import { cyclePosition, positionsPayload, proposalDiff, proposalPayload, proposalState, reviewPayload } from "./positionsEdit";
+import { cyclePosition, editPositionsPayload, positionsPayload, proposalDiff, proposalKey, proposalPayload, proposalState, reviewPayload } from "./positionsEdit";
 
 const set = (main: PosCode | null, also: PosCode[] = []): PositionSet => ({ main, also });
 
@@ -119,8 +119,8 @@ describe("positionsPayload", () => {
 describe("proposalPayload", () => {
   const ts = { sentinel: "serverTimestamp" };
 
-  it("propuesta: main, also y at", () => {
-    expect(proposalPayload(set("MC", ["EI"]), ts)).toEqual({ positionsProposal: { main: "MC", also: ["EI"], at: ts } });
+  it("propuesta: main, also y at (y la última revisión se borra: ya no habla de esta)", () => {
+    expect(proposalPayload(set("MC", ["EI"]), ts)).toEqual({ positionsProposal: { main: "MC", also: ["EI"], at: ts }, positionsReview: null });
     const p = proposalPayload(set(null, ["EI"]), ts);
     expect(p.positionsProposal).toMatchObject({ main: null, also: ["EI"] });
     expect(p.positionsProposal && (p.positionsProposal as { at: unknown }).at).toBe(ts);
@@ -133,16 +133,47 @@ describe("proposalPayload", () => {
   });
 
   it("conjunto vacío sigue siendo una propuesta válida", () => {
-    expect(proposalPayload(set(null), ts)).toEqual({ positionsProposal: { main: null, also: [], at: ts } });
+    expect(proposalPayload(set(null), ts)).toEqual({ positionsProposal: { main: null, also: [], at: ts }, positionsReview: null });
   });
 
-  it("null retira la propuesta", () => {
-    expect(proposalPayload(null, ts)).toEqual({ positionsProposal: null });
+  it("null retira la propuesta (y borra la revisión)", () => {
+    expect(proposalPayload(null, ts)).toEqual({ positionsProposal: null, positionsReview: null });
   });
 
-  it("solo toca positionsProposal", () => {
-    expect(Object.keys(proposalPayload(set("MC"), ts))).toEqual(["positionsProposal"]);
-    expect(Object.keys(proposalPayload(null, ts))).toEqual(["positionsProposal"]);
+  it("solo toca positionsProposal y positionsReview (a null)", () => {
+    for (const p of [proposalPayload(set("MC"), ts), proposalPayload(null, ts)]) {
+      expect(Object.keys(p).sort()).toEqual(["positionsProposal", "positionsReview"]);
+      expect(p.positionsReview).toBeNull();
+    }
+  });
+});
+
+describe("editPositionsPayload", () => {
+  it("la edición a mano del capitán: positions (+ la línea) y la revisión anterior borrada", () => {
+    expect(editPositionsPayload(set("MCD", ["MC"]))).toEqual({ positions: { main: "MCD", also: ["MC"] }, naturalPosition: "MED", positionsReview: null });
+    expect(editPositionsPayload(set(null, ["MC"]))).toEqual({ positions: { main: null, also: ["MC"] }, positionsReview: null });
+  });
+});
+
+describe("proposalKey", () => {
+  it("null sin propuesta pendiente", () => {
+    expect(proposalKey({})).toBeNull();
+    expect(proposalKey({ positionsProposal: null, positionsReview: { status: "rechazada", at: 1, by: "x" } })).toBeNull();
+  });
+
+  it("la misma propuesta, la misma clave; otro conjunto u otra fecha, otra", () => {
+    const a = proposalKey({ positionsProposal: { main: "MC", also: ["EI"], at: 1 } });
+    expect(a).not.toBeNull();
+    expect(proposalKey({ positionsProposal: { main: "MC", also: ["EI"], at: 1 } })).toBe(a);
+    expect(proposalKey({ positionsProposal: { main: "MC", also: ["ED"], at: 1 } })).not.toBe(a);
+    expect(proposalKey({ positionsProposal: { main: "MC", also: ["EI"], at: 2 } })).not.toBe(a);
+  });
+
+  it("lee la fecha de un Timestamp (seconds/nanoseconds)", () => {
+    const k = (seconds: number, nanoseconds: number) => proposalKey({ positionsProposal: { main: "MC", also: [], at: { seconds, nanoseconds } } });
+    expect(k(10, 5)).toBe(k(10, 5));
+    expect(k(10, 5)).not.toBe(k(10, 6));
+    expect(k(10, 5)).not.toBe(k(11, 5));
   });
 });
 

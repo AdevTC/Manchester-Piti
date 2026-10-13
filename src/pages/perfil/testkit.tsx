@@ -53,7 +53,7 @@ export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?
     ficha: { state, playerId, rejectedPlayerId: null, claim: null },
     shirt: { current: state === "vinculada" ? "ADRI" : "", number: state === "vinculada" ? "10" : "", squad: SQUAD.map((p) => ({ id: p.id, name: p.shirtName, number: p.number })), fullName: "Adrián Tello" },
     card,
-    positions: o.positions !== undefined ? o.positions : state === "vinculada" ? { approved: { main: null, also: [] }, proposal: null, state: "ninguna" } : null,
+    positions: o.positions !== undefined ? o.positions : state === "vinculada" ? { approved: { main: null, also: [] }, proposal: null, state: "ninguna", inSeason: true } : null,
     freeFichas: [{ id: "illescas", name: "ILLESCAS", number: "4", posLong: "Defensa", rating: 60 }],
     next: null,
     upcoming: [],

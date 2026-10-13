@@ -18,8 +18,8 @@ import { serverTimestamp } from "firebase/firestore";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import { summaryText } from "../../../components/posiciones/mapaNav";
 import { useDocumentTheme } from "../../../hooks/useDocumentTheme";
-import { sanitizePositions, type PositionSet } from "../../../lib/positions";
-import { positionsPayload, reviewPayload } from "../../../lib/positionsEdit";
+import { resolvePositions, sanitizePositions, type PositionSet } from "../../../lib/positions";
+import { editPositionsPayload, reviewPayload } from "../../../lib/positionsEdit";
 import type { PlayerDoc } from "../../../lib/schemas";
 import { AltaWorkspace } from "../club/AltaWorkspace";
 import { LoadError } from "../club/ClubStates";
@@ -275,13 +275,15 @@ export function Plantilla() {
   const setPositions = (target: BoardRow, set: PositionSet, adjusted: boolean) => {
     if (adjusted && reviewer)
       writePositions(target, reviewPayload("ajustada", set, reviewer, serverTimestamp()), "PROPUESTA", `${target.name}: propuesta ajustada · ${summaryText(set)}`, `No se ha podido ajustar la propuesta de ${target.name}`);
-    else writePositions(target, positionsPayload(set), "POSICIÓN", `Posiciones de ${target.name}: ${summaryText(set)}`, `No se han podido cambiar las posiciones de ${target.name}`);
+    else writePositions(target, editPositionsPayload(set), "POSICIÓN", `Posiciones de ${target.name}: ${summaryText(set)}`, `No se han podido cambiar las posiciones de ${target.name}`);
   };
   const reviewProposal = (target: BoardRow, kind: "aprobada" | "rechazada") => {
     if (!reviewer) return;
     if (kind === "rechazada") {
-      // rejecting needs no readable proposal: it only closes it
-      writePositions(target, reviewPayload("rechazada", null, reviewer, serverTimestamp()), "PROPUESTA", `${target.name}: propuesta rechazada · siguen las de antes`, `No se ha podido rechazar la propuesta de ${target.name}`);
+      // rejecting needs no readable proposal: it only closes it («siguen las de antes» only if he had some)
+      const before = resolvePositions(target.doc);
+      const kept = before.main || before.also.length ? " · siguen las de antes" : "";
+      writePositions(target, reviewPayload("rechazada", null, reviewer, serverTimestamp()), "PROPUESTA", `${target.name}: propuesta rechazada${kept}`, `No se ha podido rechazar la propuesta de ${target.name}`);
       return;
     }
     const proposal = sanitizePositions(target.doc.positionsProposal);

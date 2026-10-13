@@ -32,11 +32,18 @@ export function resolveMigrationTarget(argv: readonly string[], env: { FIRESTORE
   return { ok: true, prod, write, projectId: DEMO_PROJECT, emulatorHost, label: `Destino: emulador ${emulatorHost} · ${DEMO_PROJECT}` };
 }
 
-export type WriteOutcome = "escrita" | "cambiada" | "error";
+export type WriteOutcome = "escrita" | "cambiada" | "sin confirmar" | "error";
 
-/** Código gRPC de un fallo de escritura: FAILED_PRECONDITION (9) o NOT_FOUND (5) = alguien la tocó mientras tanto. */
+/** Códigos gRPC que se reintentan: RESOURCE_EXHAUSTED (8) y UNAVAILABLE (14). DEADLINE_EXCEEDED (4) y ABORTED (10)
+ *  no: con la precondición `lastUpdateTime`, una escritura que sí llegó fallaría al reintentarla como «cambiada». */
+export const RETRY_CODES: ReadonlySet<number> = new Set([8, 14]);
+
+/** Código gRPC de un fallo de escritura: FAILED_PRECONDITION (9) o NOT_FOUND (5) = alguien la tocó mientras tanto;
+ *  DEADLINE_EXCEEDED (4) o ABORTED (10) = no se sabe si llegó (no se reintenta: hay que volver a lanzarla). */
 export function classifyWriteError(code: unknown): Exclude<WriteOutcome, "escrita"> {
-  return code === 9 || code === 5 ? "cambiada" : "error";
+  if (code === 9 || code === 5) return "cambiada";
+  if (code === 4 || code === 10) return "sin confirmar";
+  return "error";
 }
 
 /** Una línea con los recuentos por resultado. */
@@ -47,7 +54,16 @@ export function migrationSummary(r: { total: number; planned: number; write: boo
     `escritas ${count("escrita")}`,
     `saltadas (ya tenían) ${r.total - r.planned}`,
     `cambiadas mientras tanto ${count("cambiada")}`,
+    `no confirmadas ${count("sin confirmar")}`,
     `errores ${count("error")}`,
   ];
   return `${r.write ? "Resumen" : "Resumen (en seco)"}: ${parts.join(" · ")}`;
+}
+
+/** Cómo acaba una escritura: 0 solo si todas se escribieron; si alguna cambió entretanto o no se confirmó, 1 y
+ *  «vuelve a lanzarla» (es idempotente: solo toca fichas que siguen sin `positions`). */
+export function migrationExit(outcomes: readonly WriteOutcome[]): { code: 0 | 1; advice: string | null } {
+  if (outcomes.every((o) => o === "escrita")) return { code: 0, advice: null };
+  if (outcomes.includes("error")) return { code: 1, advice: "Hubo errores: revisa los mensajes de arriba y vuelve a lanzarla." };
+  return { code: 1, advice: "Quedan fichas sin migrar (cambiadas mientras tanto o no confirmadas): vuelve a lanzarla." };
 }

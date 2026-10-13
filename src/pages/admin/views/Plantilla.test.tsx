@@ -122,8 +122,9 @@ describe("Plantilla · ficha a ficha", () => {
       vi.advanceTimersByTime(5300);
     });
     expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", { injured: true });
-    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", { positions: { main: null, also: ["MCD"] } });
-    expect(h.writes.savePlayer).toHaveBeenLastCalledWith("erik", { positions: { main: "MCD", also: [] }, naturalPosition: "MED" });
+    // a hand edit clears the last review (it spoke of other positions)
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", { positions: { main: null, also: ["MCD"] }, positionsReview: null });
+    expect(h.writes.savePlayer).toHaveBeenLastCalledWith("erik", { positions: { main: "MCD", also: [] }, naturalPosition: "MED", positionsReview: null });
   });
 
   it("«Deshacer» on a position puts the map back and writes nothing", async () => {
@@ -611,6 +612,44 @@ describe("Plantilla · propuestas de posición", () => {
       vi.advanceTimersByTime(5300);
     });
     expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", { positionsProposal: null, positionsReview: { status: "rechazada", at: serverTimestamp(), by: "a1" } });
+  });
+
+  it("«Rechazar» with no positions before: no «siguen las de antes»", async () => {
+    const base = adminFixture();
+    setAdminData({ ...base, players: base.players.map((p) => (p.id === "erik" ? { ...p, naturalPosition: undefined, positions: undefined, positionsProposal: { main: "MCD", also: [], at: 1 } } : p)) });
+    const user = userEvent.setup();
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Rechazar" }));
+    expect(caption()).toHaveTextContent("ERIK: propuesta rechazada");
+    expect(caption()).not.toHaveTextContent("siguen las de antes");
+  });
+
+  it("«Ajustar» follows the live proposal: if he sends another meanwhile, the banner shows the new one (nothing written)", async () => {
+    const user = userEvent.setup();
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Ajustar" }));
+    expect(banner()).toHaveTextContent("Ajustando la propuesta de ERIK");
+    // he sends v2 while the captain adjusts v1 (the snapshot arrives)
+    const base = adminFixture();
+    act(() => setAdminData({ ...base, players: base.players.map((p) => (p.id === "erik" ? { ...p, positions: { main: "DC", also: [] }, positionsProposal: { main: "MCO", also: ["EI"], at: 2 } } : p)) }));
+    expect(banner()).not.toHaveTextContent("Ajustando");
+    expect(banner()).toHaveTextContent("ERIK propone: Mediapunta (MCO) · también EI");
+    expect(within(banner()).getAllByRole("button").map((b) => b.textContent)).toEqual(["Aprobar", "Ajustar", "Rechazar"]);
+    expect(within(ficha("ERIK")).queryByRole("group", { name: "Posiciones de ERIK" })).toBeNull();
+    expect(h.writes.savePlayer).not.toHaveBeenCalled();
+  });
+
+  it("«Ajustar» drops too when he withdraws and sends the same again (a new date)", async () => {
+    const user = userEvent.setup();
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Ajustar" }));
+    const base = adminFixture();
+    act(() => setAdminData({ ...base, players: base.players.map((p) => (p.id === "erik" ? { ...p, positions: { main: "DC", also: [] }, positionsProposal: { main: "MCD", also: ["MC"], at: 3 } } : p)) }));
+    expect(banner()).not.toHaveTextContent("Ajustando");
+    expect(within(banner()).getByRole("button", { name: "Aprobar" })).toBeInTheDocument();
   });
 
   it("keyboard: the focus follows the review — to the map after «Ajustar» or a decision, to «Ajustar» after «Cancelar»", async () => {

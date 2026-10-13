@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { squadRow, type SquadPlayer } from "../../lib/squad";
 import { FichaModal } from "./FichaModal";
 
-// The public ficha (/plantilla): «Posición: Pivote» and, under it, «También MC · DFC». No WebGL: the 3D kit is a stub.
+// The public ficha (/plantilla): «Posición: Pivote» and, under it, «También mediocentro (MC) · central (DFC)». No WebGL: the 3D kit is a stub.
 
 vi.mock("../../components/jersey3d/Jersey3D", () => ({ Jersey3D: () => null }));
 vi.mock("@tanstack/react-router", () => ({ Link: ({ children }: { children?: ReactNode }) => <a>{children}</a> }));
@@ -15,10 +15,10 @@ const open = (p: SquadPlayer) =>
 const posicion = () => screen.getByText("Posición").nextElementSibling as HTMLElement;
 
 describe("FichaModal · Posición", () => {
-  it("la preferida y, debajo, «También MC · DFC»", () => {
+  it("la preferida y, debajo, «También …» con nombre y código", () => {
     open({ id: "erik", shirtName: "ERIK", number: 9, positions: { main: "MCD", also: ["MC", "DFC"] } });
     expect(posicion()).toHaveTextContent("Pivote");
-    expect(posicion()).toHaveTextContent("También MC · DFC");
+    expect(posicion()).toHaveTextContent("También mediocentro (MC) · central (DFC)");
   });
   it("sin «también» no hay segunda línea", () => {
     open({ id: "erik", shirtName: "ERIK", number: 9, positions: { main: "MCD", also: [] } });

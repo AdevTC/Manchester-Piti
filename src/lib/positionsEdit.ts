@@ -28,14 +28,20 @@ export function positionsPayload(set: PositionSet): { positions: PositionSet; na
   return clean.main ? { positions: clean, naturalPosition: lineOf(clean.main) } : { positions: clean };
 }
 
-/** A member's proposal (with the server timestamp) or its withdrawal. */
+/** The captain's own edit of the map: his positions, and the last review cleared (it described other ones). */
+export function editPositionsPayload(set: PositionSet): { positions: PositionSet; naturalPosition?: Line; positionsReview: null } {
+  return { ...positionsPayload(set), positionsReview: null };
+}
+
+/** A member's proposal (with the server timestamp) or its withdrawal; either way the last review is cleared
+ *  (it spoke of an older proposal). The rules let him set `positionsReview` only to null, and only with this. */
 export function proposalPayload(
   set: PositionSet | null,
   ts: unknown,
-): { positionsProposal: { main: PosCode | null; also: PosCode[]; at: unknown } | null } {
-  if (!set) return { positionsProposal: null };
+): { positionsProposal: { main: PosCode | null; also: PosCode[]; at: unknown } | null; positionsReview: null } {
+  if (!set) return { positionsProposal: null, positionsReview: null };
   const clean = sanitizePositions(set) ?? EMPTY;
-  return { positionsProposal: { main: clean.main, also: clean.also, at: ts } };
+  return { positionsProposal: { main: clean.main, also: clean.also, at: ts }, positionsReview: null };
 }
 
 export interface ReviewPayload {
@@ -62,6 +68,25 @@ export function proposalState(doc: { positionsProposal?: unknown; positionsRevie
     if (typeof status === "string" && REVIEW_KINDS.includes(status)) return status as ReviewKind;
   }
   return "ninguna";
+}
+
+/** A date as text: a number/string as is, a Firestore Timestamp by its seconds and nanoseconds. */
+function stampOf(at: unknown): string {
+  if (typeof at === "number" || typeof at === "string") return String(at);
+  if (at && typeof at === "object") {
+    const { seconds, nanoseconds } = at as { seconds?: unknown; nanoseconds?: unknown };
+    if (typeof seconds === "number") return `${seconds}.${typeof nanoseconds === "number" ? nanoseconds : 0}`;
+  }
+  return "";
+}
+
+/** Which pending proposal this is (its set and its date), null without one: what the captain adjusts holds
+ *  only while the live proposal still has this key (a new one, or one withdrawn and sent again, changes it). */
+export function proposalKey(doc: { positionsProposal?: unknown; positionsReview?: unknown }): string | null {
+  if (proposalState(doc) !== "pendiente") return null;
+  const raw = doc.positionsProposal as { at?: unknown };
+  const set = sanitizePositions(raw) ?? EMPTY;
+  return JSON.stringify([set.main, set.also, stampOf(raw.at)]);
 }
 
 export interface ProposalDiff {

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // «Tus posiciones»: the member's write is exactly what firestore.rules allows him — updateDoc on his own
-// ficha with only `positionsProposal` ({main, also, at: serverTimestamp()}) or null. Firestore is faked.
+// ficha with `positionsProposal` ({main, also, at: serverTimestamp()}) or null, and `positionsReview` cleared
+// (the last verdict spoke of another proposal). Firestore is faked.
 
 const fs = vi.hoisted(() => ({ calls: [] as { path: string; data: unknown }[], STAMP: { __serverTimestamp: true } }));
 
@@ -16,7 +17,7 @@ vi.mock("firebase/firestore", () => ({
     fs.calls.push({ path: ref.path, data });
   }),
   setDoc: vi.fn(async () => {
-    throw new Error("setDoc no: la regla del socio solo deja updateDoc de positionsProposal");
+    throw new Error("setDoc no: la regla del socio solo deja updateDoc de su propuesta");
   }),
 }));
 
@@ -27,12 +28,12 @@ beforeEach(() => {
 });
 
 describe("proposePositions", () => {
-  it("enviar: solo positionsProposal, limpia y con la hora del servidor", async () => {
+  it("enviar: positionsProposal limpia y con la hora del servidor; la revisión anterior, a null", async () => {
     await proposePositions("erik", { main: "MCD", also: ["MC", "MCD", "DFC"] });
-    expect(fs.calls).toEqual([{ path: "players/erik", data: { positionsProposal: { main: "MCD", also: ["MC", "DFC"], at: fs.STAMP } } }]);
+    expect(fs.calls).toEqual([{ path: "players/erik", data: { positionsProposal: { main: "MCD", also: ["MC", "DFC"], at: fs.STAMP }, positionsReview: null } }]);
   });
-  it("retirar: positionsProposal a null", async () => {
+  it("retirar: positionsProposal y positionsReview a null", async () => {
     await proposePositions("erik", null);
-    expect(fs.calls).toEqual([{ path: "players/erik", data: { positionsProposal: null } }]);
+    expect(fs.calls).toEqual([{ path: "players/erik", data: { positionsProposal: null, positionsReview: null } }]);
   });
 });

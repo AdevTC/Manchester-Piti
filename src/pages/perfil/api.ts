@@ -34,7 +34,7 @@ export async function nicknameTaken(nick: string, myUid: string): Promise<boolea
 }
 
 /** «Enviar al capitán» (a set) / «Retirar propuesta» (null). firestore.rules let a member touch only
- *  `positionsProposal` of his own ficha, dated by the server: an update with exactly that key. */
+ *  `positionsProposal` of his own ficha, dated by the server, and clear `positionsReview` with it. */
 export async function proposePositions(playerId: string, set: PositionSet | null): Promise<void> {
   await updateDoc(doc(db, "players", playerId), proposalPayload(set, serverTimestamp()));
 }

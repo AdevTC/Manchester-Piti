@@ -25,6 +25,8 @@ export interface MapaPosicionesProps {
   label: string;
   /** Summary when nothing is marked (default «Sin posición»). */
   emptyText?: string;
+  /** Id of a help text that describes the editable map (its group's aria-describedby). */
+  describedBy?: string;
   className?: string;
 }
 
@@ -64,7 +66,7 @@ function PitchLines() {
   );
 }
 
-export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m", label, emptyText = DEFAULT_EMPTY, className }: MapaPosicionesProps) {
+export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m", label, emptyText = DEFAULT_EMPTY, describedBy, className }: MapaPosicionesProps) {
   const editable = Boolean(onChange);
   const [active, setActive] = useState<PosCode>(value.main ?? "MC");
   const [live, setLive] = useState({ text: "", n: 0 });
@@ -164,7 +166,7 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
   return (
     <div className={["pos-map", `pos-map--${size}`, editable ? "pos-map--edit" : "pos-map--view", className].filter(Boolean).join(" ")}>
       {editable ? (
-        <div className="pos-pitch" role="group" aria-label={label}>
+        <div className="pos-pitch" role="group" aria-label={label} aria-describedby={describedBy}>
           <PitchLines />
           {spots}
         </div>
@@ -199,7 +201,7 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
         <p className="pos-sr" role="status">
           {live.text}
           {/* a trailing no-break space on every other message, so the same text twice is still a change to announce */}
-          {live.n % 2 === 1 ? " " : ""}
+          {live.n % 2 === 1 ? "\u00a0" : ""}
         </p>
       )}
     </div>

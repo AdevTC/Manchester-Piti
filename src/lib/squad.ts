@@ -1,7 +1,7 @@
 // Domain logic for the public squad page ("Plantilla"): one row per player of the season,
 // sorting, search, squad figures and the head-to-head comparison.
 
-import { positionText, resolvePositions } from "./positions";
+import { POSITIONS, positionText, resolvePositions } from "./positions";
 
 const DAY = 86_400_000;
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -18,7 +18,7 @@ export interface SquadRow {
   num: string;
   full: string;
   position?: string;
-  /** The other positions he plays, as codes («MC · DFC»); absent = none. */
+  /** The other positions he plays, name and code («mediocentro (MC) · central (DFC)»); absent = none. */
   also?: string;
   age: number | null;
   year: number | null;
@@ -85,7 +85,9 @@ export function squadRow(p: SquadPlayer, stats: SquadStats, now: number): SquadR
   }
   const height = p.height || null;
   const weight = p.weight || null;
-  const also = resolvePositions(p).also.join(" · ");
+  const also = resolvePositions(p)
+    .also.map((c) => `${POSITIONS[c].name.toLocaleLowerCase("es")} (${c})`)
+    .join(" · ");
   const missing: MissingField[] = [];
   if (!b) missing.push("cumpleaños");
   if (!height) missing.push("altura");

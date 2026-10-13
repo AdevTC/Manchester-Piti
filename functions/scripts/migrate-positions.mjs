@@ -5,8 +5,10 @@
 // Idempotente: solo toca fichas sin `positions`. No cambia naturalPosition.
 // --prod se niega si FIRESTORE_EMULATOR_HOST está definida. Cada escritura lleva la precondición
 // `lastUpdateTime` de la lectura: si un admin tocó la ficha entretanto, esa no se pisa (y el resto sigue).
+// Bajo esa precondición un timeout o un ABORTED no se reintentan (si llegó, el reintento diría «cambiada»):
+// salen como «no confirmadas». Si queda alguna cambiada o sin confirmar, sale con 1: vuelve a lanzarla.
 import { legacyPlan } from "../src/positions.ts";
-import { classifyWriteError, migrationSummary, resolveMigrationTarget } from "../src/migratePositions.ts";
+import { RETRY_CODES, classifyWriteError, migrationExit, migrationSummary, resolveMigrationTarget } from "../src/migratePositions.ts";
 
 // Sin process.exit(): en Windows cortar el proceso con la salida aún en vuelo dispara un assert de libuv.
 process.exitCode = await main();
@@ -25,7 +27,14 @@ async function main() {
   const { getFirestore } = await import("firebase-admin/firestore");
   initializeApp({ projectId });
   const db = getFirestore();
+  try {
+    return await migrate(db, write);
+  } finally {
+    await db.terminate(); // cierra los canales gRPC: el proceso acaba solo, sin process.exit()
+  }
+}
 
+async function migrate(db, write) {
   const snap = await db.collection("players").get();
   const byId = new Map(snap.docs.map((d) => [d.id, d]));
   const plan = legacyPlan(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
@@ -39,9 +48,8 @@ async function main() {
   }
 
   // BulkWriter: lotes pequeños (≤ 20, muy por debajo de 450) y un resultado por ficha; un fallo no aborta el resto.
-  const TRANSIENT = new Set([4, 8, 10, 14]); // DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED, ABORTED, UNAVAILABLE
   const bulk = db.bulkWriter();
-  bulk.onWriteError((e) => TRANSIENT.has(e.code) && e.failedAttempts < 5);
+  bulk.onWriteError((e) => RETRY_CODES.has(e.code) && e.failedAttempts < 5);
   const pending = plan.map((p) => {
     const doc = byId.get(p.id);
     return bulk
@@ -50,6 +58,7 @@ async function main() {
       .catch((e) => {
         const outcome = classifyWriteError(e?.code);
         if (outcome === "cambiada") console.warn(`${p.id}: cambiada mientras tanto: no se toca.`);
+        else if (outcome === "sin confirmar") console.warn(`${p.id}: no confirmada (${e?.message ?? e}): vuelve a lanzarla.`);
         else console.error(`${p.id}: error al escribir: ${e?.message ?? e}`);
         return outcome;
       });
@@ -57,5 +66,7 @@ async function main() {
   await bulk.close(); // envía lo pendiente; las promesas de arriba ya no fallan (cada una recoge su error)
   const outcomes = await Promise.all(pending);
   console.log(migrationSummary({ total: snap.size, planned: plan.length, write: true, outcomes }));
-  return outcomes.includes("error") ? 1 : 0;
+  const exit = migrationExit(outcomes);
+  if (exit.advice) console.warn(exit.advice);
+  return exit.code;
 }

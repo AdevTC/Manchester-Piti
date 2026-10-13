@@ -21,7 +21,7 @@ import { ACCOUNT_LABEL, GAPS, gapsText, type BoardRow } from "./plantillaBoard";
 import { MapaPosiciones } from "../../../components/posiciones/MapaPosiciones";
 import { summaryText } from "../../../components/posiciones/mapaNav";
 import { resolvePositions, sanitizePositions, type PositionSet } from "../../../lib/positions";
-import { proposalState } from "../../../lib/positionsEdit";
+import { proposalKey, proposalState } from "../../../lib/positionsEdit";
 import { asPosition, checkPlayerForm, dorsalLine, formDirty, formFromPlayer, linkState, shirtNameError, type LiveCheck, type PlayerForm } from "./plantillaLogic";
 import { checkSanction, sanctionForm, untilLabel, type SanctionChoice, type SanctionForm } from "./sanctionLogic";
 
@@ -191,8 +191,10 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
   /** «Sancionado» opens its small form here (a number of matches or «hasta la J…», and a reason). */
   const [sanOpen, setSanOpen] = useState(false);
   const sanctioned = !!props.suspension;
-  /** «Ajustar»: his proposal, loaded into the editor; the next tap saves it as adjusted. */
-  const [adjusting, setAdjusting] = useState<PositionSet | null>(null);
+  /** «Ajustar»: the key of the proposal loaded into the editor (the next tap saves it as adjusted). It holds
+   *  only while the live proposal keeps that key: if he sends another (or withdraws and sends again) meanwhile,
+   *  the editor drops it and the banner shows the new one — an adjustment is never built on an old proposal. */
+  const [adjusting, setAdjusting] = useState<string | null>(null);
   /** The map refused a tap (the 6 «también» cap): said under it until the next change. */
   const [refused, setRefused] = useState<string | null>(null);
   // Posiciones and Estado are written on their own (one tap); the form always carries their live value, so a
@@ -276,7 +278,8 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
   const resolved = resolvePositions(player);
   const current: PositionSet = { main: resolved.main, also: resolved.also };
   const proposal = proposalState(player) === "pendiente" ? (sanitizePositions(player.positionsProposal) ?? NO_POSITIONS) : null;
-  const draft = proposal ? adjusting : null;
+  const liveKey = proposalKey(player);
+  const draft = proposal && adjusting !== null && adjusting === liveKey ? proposal : null;
   const onMap = (next: PositionSet) => {
     setRefused(null);
     setAdjusting(null);
@@ -337,7 +340,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
           disabled={off}
           onClick={() => {
             focusNext("map");
-            setAdjusting(proposal);
+            setAdjusting(liveKey);
           }}
         >
           Ajustar

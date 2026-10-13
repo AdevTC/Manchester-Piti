@@ -203,7 +203,7 @@ export function useProfileData(): ProfileData {
     ficha: { ...info, claim: claim.data },
     shirt: { current: me?.shirtName || [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" "), number: me && me.number ? String(me.number) : "", squad: shirtSquad, fullName: [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" ") },
     card,
-    positions: positionsInfo(fichaDoc),
+    positions: positionsInfo(fichaDoc, seasonId),
     freeFichas,
     next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: calendar.findIndex((m) => m.id === next.id) + 1 || null } : null,
     upcoming: upcomingRows(matches, minute),

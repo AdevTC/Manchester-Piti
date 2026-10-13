@@ -84,20 +84,24 @@ export interface PositionsInfo {
   /** The proposal waiting for the captain (cleaned), null = none. */
   proposal: PositionSet | null;
   state: ProposalState;
+  /** The ficha is in the current season: only then does the captain see a proposal (Hoy and the
+   *  Plantilla count the season), so only then can one be sent. */
+  inSeason: boolean;
 }
 /** «Tus posiciones»: the linked ficha's positions, its pending proposal and how the last one went. */
-export function positionsInfo(doc: Pick<PlayerDoc, "positions" | "naturalPosition" | "positionsProposal" | "positionsReview"> | undefined): PositionsInfo | null {
+export function positionsInfo(doc: Pick<PlayerDoc, "positions" | "naturalPosition" | "positionsProposal" | "positionsReview" | "seasons"> | undefined, seasonId: string): PositionsInfo | null {
   if (!doc) return null;
   const r = resolvePositions(doc);
-  return { approved: { main: r.main, also: r.also }, proposal: sanitizePositions(doc.positionsProposal), state: proposalState(doc) };
+  const inSeason = !!seasonId && !!doc.seasons?.includes(seasonId);
+  return { approved: { main: r.main, also: r.also }, proposal: sanitizePositions(doc.positionsProposal), state: proposalState(doc), inSeason };
 }
 const samePositions = (a: PositionSet, b: PositionSet): boolean => {
   const d = proposalDiff(a, b);
   return !d.added.length && !d.removed.length && !d.mainChange;
 };
-/** «Enviar al capitán»: something marked, and not what the ficha already says nor what is already pending. */
+/** «Enviar al capitán»: a ficha of this season, something marked, and not what the ficha already says nor what is already pending. */
 export function canSendPositions(draft: PositionSet, info: PositionsInfo): boolean {
-  if (!draft.main && !draft.also.length) return false;
+  if (!info.inSeason || (!draft.main && !draft.also.length)) return false;
   return !samePositions(draft, info.approved) && !(info.proposal && samePositions(draft, info.proposal));
 }
 

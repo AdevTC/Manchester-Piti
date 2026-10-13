@@ -27,9 +27,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const EMPTY: PositionsInfo = { approved: { main: null, also: [] }, proposal: null, state: "ninguna" };
-const APPROVED: PositionsInfo = { approved: { main: "MCD", also: ["MC", "DFC"] }, proposal: null, state: "aprobada" };
-const PENDING: PositionsInfo = { approved: { main: "MCD", also: ["MC", "DFC"] }, proposal: { main: "MC", also: ["MCO"] }, state: "pendiente" };
+const EMPTY: PositionsInfo = { approved: { main: null, also: [] }, proposal: null, state: "ninguna", inSeason: true };
+const APPROVED: PositionsInfo = { approved: { main: "MCD", also: ["MC", "DFC"] }, proposal: null, state: "aprobada", inSeason: true };
+const PENDING: PositionsInfo = { approved: { main: "MCD", also: ["MC", "DFC"] }, proposal: { main: "MC", also: ["MCO"] }, state: "pendiente", inSeason: true };
 
 const section = () => screen.getByRole("heading", { name: "Tus posiciones" }).closest(".bk") as HTMLElement;
 const spot = (code: string) => within(section()).getByRole("button", { name: new RegExp(`^${code} · `) });
@@ -105,17 +105,49 @@ describe("Tu carta › Tus posiciones", () => {
     expect(within(section()).getByText("El capitán la ajustó")).toBeInTheDocument();
     unmount();
     view(makeData({ positions: { ...APPROVED, state: "rechazada" } }));
-    expect(within(section()).getByText("El capitán no la aceptó: siguen las de antes")).toBeInTheDocument();
+    expect(within(section()).getByText("El capitán no la aceptó.")).toBeInTheDocument();
+    expect(within(section()).getByText(/Ahora en tu ficha: Pivote \(MCD\) · también MC, DFC/)).toBeInTheDocument();
   });
 
-  it("si no se puede guardar, lo dice en la sección; sin conexión ni lo intenta", async () => {
-    const actions = fakeActions({ proposePositions: vi.fn(async () => Promise.reject(new Error("Missing or insufficient permissions."))) });
+  it("rechazada sin posiciones en la ficha: no habla de «las de antes»", () => {
+    view(makeData({ positions: { ...EMPTY, state: "rechazada" } }));
+    expect(within(section()).getByText("El capitán no la aceptó.")).toBeInTheDocument();
+    expect(section()).not.toHaveTextContent("Ahora en tu ficha");
+    expect(section()).not.toHaveTextContent("las de antes");
+  });
+
+  it("la ayuda de los toques describe el mapa", () => {
+    view(makeData({ positions: EMPTY }));
+    const map = within(section()).getByRole("group", { name: "Tus posiciones: toca una para marcarla" });
+    expect(map).toHaveAccessibleDescription("Un toque: también juegas ahí (✓). Dos: tu preferida (★). Tres: se quita.");
+  });
+
+  it("ficha fuera de la temporada actual: sin «Enviar al capitán», lo dice, y el mapa solo se ve", () => {
+    view(makeData({ positions: { ...APPROVED, state: "ninguna", inSeason: false } }));
+    expect(within(section()).queryByRole("button", { name: /Enviar al capitán/ })).toBeNull();
+    expect(within(section()).getByText("Tu ficha no está en la temporada actual")).toBeInTheDocument();
+    expect(within(section()).queryByRole("group", { name: /Tus posiciones/ })).toBeNull();
+    expect(within(section()).getByRole("img", { name: /^Tus posiciones\. Preferida: Pivote \(MCD\)/ })).toBeInTheDocument();
+  });
+
+  it("fuera de la temporada con una propuesta pendiente: aún puede retirarla", () => {
+    view(makeData({ positions: { ...PENDING, inSeason: false } }));
+    expect(within(section()).queryByRole("button", { name: /Enviar al capitán/ })).toBeNull();
+    expect(within(section()).getByRole("button", { name: /Retirar propuesta/ })).toBeEnabled();
+  });
+
+  it("si no se puede guardar, lo dice en la sección (y lo deja en la consola); sin conexión ni lo intenta", async () => {
+    const failure = new Error("Missing or insufficient permissions.");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const actions = fakeActions({ proposePositions: vi.fn(async () => Promise.reject(failure)) });
     view(makeData({ positions: EMPTY }), actions);
     fireEvent.click(spot("DC"));
     await act(async () => {
       fireEvent.click(send());
     });
     expect(within(section()).getByRole("alert")).toHaveTextContent("No se ha podido enviar al capitán. Vuelve a intentarlo.");
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining("posiciones"), failure);
+    logged.mockRestore();
     vi.stubGlobal("navigator", { ...navigator, onLine: false });
     await act(async () => {
       fireEvent.click(send());

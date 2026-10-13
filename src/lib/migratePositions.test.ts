@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_EMULATOR, DEMO_PROJECT, PROD_PROJECT, classifyWriteError, migrationSummary, resolveMigrationTarget } from "../../functions/src/migratePositions";
+import { DEFAULT_EMULATOR, DEMO_PROJECT, PROD_PROJECT, RETRY_CODES, classifyWriteError, migrationExit, migrationSummary, resolveMigrationTarget } from "../../functions/src/migratePositions";
 
 describe("resolveMigrationTarget (a qué proyecto apunta la migración)", () => {
   it("defaults to the emulator, dry-run, on the demo project", () => {
@@ -56,6 +56,14 @@ describe("classifyWriteError", () => {
     expect(classifyWriteError(5)).toBe("cambiada");
   });
 
+  it("a timeout or an abort: not known whether it landed (never retried under the precondition)", () => {
+    expect(classifyWriteError(4)).toBe("sin confirmar");
+    expect(classifyWriteError(10)).toBe("sin confirmar");
+    expect(RETRY_CODES.has(4)).toBe(false);
+    expect(RETRY_CODES.has(10)).toBe(false);
+    expect([...RETRY_CODES].sort((a, b) => a - b)).toEqual([8, 14]);
+  });
+
   it("anything else is an error", () => {
     expect(classifyWriteError(7)).toBe("error");
     expect(classifyWriteError(undefined)).toBe("error");
@@ -63,16 +71,37 @@ describe("classifyWriteError", () => {
   });
 });
 
+describe("migrationExit", () => {
+  it("0 only when every write landed (or there was nothing to write)", () => {
+    expect(migrationExit(["escrita", "escrita"])).toEqual({ code: 0, advice: null });
+    expect(migrationExit([])).toEqual({ code: 0, advice: null });
+  });
+
+  it("changed meanwhile or unconfirmed: 1 and «vuelve a lanzarla»", () => {
+    for (const o of ["cambiada", "sin confirmar"] as const) {
+      const r = migrationExit(["escrita", o]);
+      expect(r.code).toBe(1);
+      expect(r.advice).toMatch(/vuelve a lanzarla/);
+    }
+  });
+
+  it("errors: 1, look above", () => {
+    const r = migrationExit(["cambiada", "error"]);
+    expect(r.code).toBe(1);
+    expect(r.advice).toMatch(/errores.*vuelve a lanzarla/);
+  });
+});
+
 describe("migrationSummary", () => {
   it("dry-run: counts what would be written and what is skipped", () => {
     expect(migrationSummary({ total: 30, planned: 3, write: false })).toBe(
-      "Resumen (en seco): a escribir 3 · escritas 0 · saltadas (ya tenían) 27 · cambiadas mientras tanto 0 · errores 0",
+      "Resumen (en seco): a escribir 3 · escritas 0 · saltadas (ya tenían) 27 · cambiadas mientras tanto 0 · no confirmadas 0 · errores 0",
     );
   });
 
   it("write: counts every outcome", () => {
-    expect(migrationSummary({ total: 30, planned: 4, write: true, outcomes: ["escrita", "escrita", "cambiada", "error"] })).toBe(
-      "Resumen: a escribir 4 · escritas 2 · saltadas (ya tenían) 26 · cambiadas mientras tanto 1 · errores 1",
+    expect(migrationSummary({ total: 30, planned: 5, write: true, outcomes: ["escrita", "escrita", "cambiada", "sin confirmar", "error"] })).toBe(
+      "Resumen: a escribir 5 · escritas 2 · saltadas (ya tenían) 25 · cambiadas mientras tanto 1 · no confirmadas 1 · errores 1",
     );
   });
 });
