@@ -6,6 +6,7 @@ import { nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
 import { analysePlayer, chronological } from "../../lib/clubAnalytics";
 import { currentSeasonId } from "../../lib/vestuario";
 import { matchesQuery, sortSquad, squadRow, squadSummary, type SquadRow } from "../../lib/squad";
+import { resolvePositions } from "../../lib/positions";
 import { leaders, playerLines, seasonPulse, upcomingBirthdays, type SquadMember } from "../../lib/home";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -43,8 +44,8 @@ export function SquadPage() {
     selectedSeasonId !== "all" && seasons.some((s) => s.id === selectedSeasonId) ? selectedSeasonId : currentSeasonId(nextFixture(matches, now), matches, seasons);
   const seasonName = seasons.find((s) => s.id === seasonId)?.name ?? "Temporada";
 
+  const games = useMemo(() => chronological(matches.filter((m) => m.seasonId === seasonId)), [matches, seasonId]);
   const { rows, withStats } = useMemo(() => {
-    const games = chronological(matches.filter((m) => m.seasonId === seasonId));
     const list = players
       .filter((p) => p.seasons?.includes(seasonId))
       .map((raw) => {
@@ -52,7 +53,7 @@ export function SquadPage() {
         return squadRow(p, analysePlayer(p, games), now);
       });
     return { rows: sortSquad(list, "num"), withStats: games.length > 0 };
-  }, [matches, players, seasonId, seasons, now]);
+  }, [games, players, seasonId, seasons, now]);
 
   // Pichichi, assists and birthdays live here: the home is about the match, this page about the players.
   const race = useMemo(() => {
@@ -69,6 +70,11 @@ export function SquadPage() {
 
   const visible = rows.filter((r) => matchesQuery(r, query));
   const open = rows.find((r) => r.id === openId);
+  const openRaw = open && players.find((p) => p.id === open.id);
+  const openPositions = useMemo(() => {
+    const r = openRaw ? resolvePositions(openRaw) : null;
+    return r ? { main: r.main, also: r.also } : undefined;
+  }, [openRaw]);
   const summary = squadSummary(rows);
 
   // Head-to-head: starts with the two first players that have a full ficha.
@@ -216,6 +222,8 @@ export function SquadPage() {
           theme={theme}
           onClose={closeFicha}
           onStep={step}
+          games={games}
+          positions={openPositions}
           onCompare={() => {
             setDuel([open.id, open.id === bId ? aId : bId]);
             closeFicha();
