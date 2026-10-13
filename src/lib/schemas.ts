@@ -83,9 +83,8 @@ export type SeasonMatchDoc = z.infer<typeof seasonMatchSchema>;
  * unión de campos necesarios. Exportar `pizarraPlayerSchema` como alias del
  * mismo schema evita divergencia y hace el commit body más claro.
  *
- * `naturalPosition` es de tipo Zone (string literal union en runtime); se acepta
- * como `z.string()` para no acoplar el schema a la lista de zonas ni rechazar
- * valores futuros. El código downstream ya los trata como Zone via cast.
+ * `naturalPosition` es texto libre heredado (códigos o palabras); la fuente de verdad es
+ * `positions` y se lee siempre con `resolvePositions`.
  *
  * `seasonDetails` se acepta como record<string, unknown> permisivo para no
  * rechazar docs cuyas sub-keys no nos importan validar aquí.
@@ -119,6 +118,18 @@ export const sanctionSchema = z.object({
 });
 export type SanctionDoc = z.infer<typeof sanctionSchema>;
 
+/** `players/{id}.positions` / `.positionsProposal`: permisivos (códigos raros se limpian al leer con
+ *  `resolvePositions`; un valor que no es un mapa se queda en ausente — nunca tira el jugador). */
+const positionSetSchema = z.object({
+  main: z.string().nullable().catch(null),
+  also: z.array(z.string()).catch([]),
+});
+const positionsReviewSchema = z.object({
+  status: z.enum(["aprobada", "ajustada", "rechazada"]),
+  at: z.unknown(),
+  by: z.string().optional().catch(undefined),
+});
+
 export const playerSchema = z.object({
   id: z.string(),
   firstName: z.string().optional(),
@@ -131,6 +142,9 @@ export const playerSchema = z.object({
   weight: z.number().optional(),
   active: z.boolean().optional(),
   naturalPosition: z.string().optional(),
+  positions: positionSetSchema.optional().catch(undefined),
+  positionsProposal: positionSetSchema.extend({ at: z.unknown() }).nullable().optional().catch(undefined),
+  positionsReview: positionsReviewSchema.nullable().optional().catch(undefined),
   injured: z.boolean().optional(),
   // Sanción a mano y «Levantar la sanción» (ms): opcionales y permisivos (un valor roto no tira el doc).
   sanction: sanctionSchema.optional().catch(undefined),

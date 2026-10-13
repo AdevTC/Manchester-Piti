@@ -104,3 +104,47 @@ export function parsePosition(x: unknown): { code: PosCode | null; line: Line | 
   const line = LINE_WORDS.get(s) ?? LINE_WORDS.get(s.split(" ")[0]) ?? null;
   return { code: null, line };
 }
+
+// ── Las posiciones de un jugador ───────────────────────────────────────────────
+export const MAX_ALSO = 6;
+export interface PositionSet {
+  main: PosCode | null;
+  also: PosCode[];
+}
+export interface ResolvedPositions extends PositionSet {
+  /** La línea: la de la preferida, o la del texto antiguo; null = no se sabe. */
+  line: Line | null;
+}
+
+/** Un mapa guardado, limpio: códigos válidos, sin repetidos, sin la preferida en «también», ≤ 6. */
+export function sanitizePositions(x: unknown): PositionSet | null {
+  if (!x || typeof x !== "object" || Array.isArray(x)) return null;
+  const r = x as { main?: unknown; also?: unknown };
+  const main = isPosCode(r.main) ? r.main : null;
+  const also: PosCode[] = [];
+  if (Array.isArray(r.also)) for (const c of r.also) if (isPosCode(c) && c !== main && !also.includes(c) && also.length < MAX_ALSO) also.push(c);
+  return { main, also };
+}
+
+/** Lo que vale para toda la web: `positions` si existe; si no, lo que se pueda leer de `naturalPosition`. */
+export function resolvePositions(doc: { positions?: unknown; naturalPosition?: unknown }): ResolvedPositions {
+  const legacy = parsePosition(doc.naturalPosition);
+  const set = sanitizePositions(doc.positions);
+  if (set) return { ...set, line: set.main ? lineOf(set.main) : legacy.line };
+  return { main: legacy.code, also: [], line: legacy.line };
+}
+
+export type FitGrade = 0 | 1 | 2 | 3;
+/** 3 preferida · 2 también · 1 adaptado (su línea o vecina) · 0 fuera de sitio · null sin datos. Portería: solo lo declarado. */
+export function fitGrade(p: PositionSet & { line?: Line | null }, slot: PosCode): FitGrade | null {
+  if (p.main === slot) return 3;
+  if (p.also.includes(slot)) return 2;
+  const mine = [...(p.main ? [p.main] : []), ...p.also];
+  if (!mine.length) {
+    if (!p.line) return null;
+    return slot !== "POR" && p.line !== "POR" && lineOf(slot) === p.line ? 1 : 0;
+  }
+  if (slot === "POR" || mine.every((c) => c === "POR")) return 0;
+  const line = lineOf(slot);
+  return mine.some((c) => c !== "POR" && (lineOf(c) === line || POSITIONS[c].neighbours.includes(slot))) ? 1 : 0;
+}

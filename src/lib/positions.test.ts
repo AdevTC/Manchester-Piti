@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LINE_NAMES, POS_CODES, POSITIONS, isPosCode, lineOf, parsePosition, positionLabel } from "./positions";
+import { LINE_NAMES, POS_CODES, POSITIONS, fitGrade, isPosCode, lineOf, parsePosition, positionLabel, resolvePositions, sanitizePositions } from "./positions";
 
 describe("catálogo de posiciones de fútbol 7", () => {
   it("has the 13 codes, each in its line", () => {
@@ -75,4 +75,52 @@ describe("parsePosition: whatever was stored, never a guess", () => {
     it(`${JSON.stringify(input)} → ${code ?? "—"} / ${line ?? "—"}`, () => {
       expect(parsePosition(input)).toEqual({ code, line });
     });
+});
+
+describe("sanitizePositions: a broken map still reads", () => {
+  it("keeps valid codes, drops the rest, dedupes, removes main from also, caps at 6", () => {
+    expect(sanitizePositions({ main: "MC", also: ["MCD", "MC", "MCD", "XX", 3, "MI", "LD", "LI", "EI", "ED", "DC"] })).toEqual({ main: "MC", also: ["MCD", "MI", "LD", "LI", "EI", "ED"] });
+  });
+  it("unknown main → null; also not an array → []", () => {
+    expect(sanitizePositions({ main: "MED", also: "MC" })).toEqual({ main: null, also: [] });
+  });
+  it("not an object → null", () => {
+    expect(sanitizePositions("MC")).toBeNull();
+    expect(sanitizePositions(null)).toBeNull();
+  });
+});
+
+describe("resolvePositions: new field first, old text as fallback", () => {
+  it("uses positions when present (line from main)", () => {
+    expect(resolvePositions({ positions: { main: "LD", also: ["MD"] }, naturalPosition: "DEL" })).toEqual({ main: "LD", also: ["MD"], line: "DEF" });
+  });
+  it("positions without main keeps the old line", () => {
+    expect(resolvePositions({ positions: { main: null, also: ["MC"] }, naturalPosition: "Defensa" })).toEqual({ main: null, also: ["MC"], line: "DEF" });
+  });
+  it("falls back to the old words", () => {
+    expect(resolvePositions({ naturalPosition: "Lateral derecho" })).toEqual({ main: "LD", also: [], line: "DEF" });
+    expect(resolvePositions({ naturalPosition: "DEL" })).toEqual({ main: null, also: [], line: "DEL" });
+    expect(resolvePositions({})).toEqual({ main: null, also: [], line: null });
+  });
+});
+
+describe("fitGrade", () => {
+  const p = { main: "MC" as const, also: ["MCD" as const] };
+  it("3 preferida, 2 también, 1 adaptado (same line or neighbour), 0 fuera", () => {
+    expect(fitGrade(p, "MC")).toBe(3);
+    expect(fitGrade(p, "MCD")).toBe(2);
+    expect(fitGrade(p, "MI")).toBe(1); // same line
+    expect(fitGrade(p, "DFC")).toBe(1); // neighbour of MCD
+    expect(fitGrade(p, "DC")).toBe(0);
+  });
+  it("goal: only declared counts", () => {
+    expect(fitGrade(p, "POR")).toBe(0);
+    expect(fitGrade({ main: "POR", also: [] }, "DFC")).toBe(0);
+    expect(fitGrade({ main: "DFC", also: ["POR"] }, "POR")).toBe(2);
+  });
+  it("only a line known: 1 in that line, 0 elsewhere; nothing known: null", () => {
+    expect(fitGrade({ main: null, also: [], line: "DEF" }, "LD")).toBe(1);
+    expect(fitGrade({ main: null, also: [], line: "DEF" }, "MC")).toBe(0);
+    expect(fitGrade({ main: null, also: [], line: null }, "MC")).toBeNull();
+  });
 });
