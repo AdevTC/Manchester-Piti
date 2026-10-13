@@ -10,7 +10,7 @@ import { apiError, liveEvent } from "../../../lib/clubApi";
 import { slotZone } from "./geometry";
 import { natOf, type Squad } from "./model";
 import { toggleRole } from "./ops";
-import { addSub, generateWaves, lineupAt, moveWave, nextWaveMinute, removeSub, replan, updateSub, wavesOf } from "./cambios";
+import { addSub, exactGrade, generateWaves, lineupAt, moveWave, nextWaveMinute, removeSub, replan, updateSub, wavesOf } from "./cambios";
 import { cambiosPool, cambiosView, previewDiff, suggestSub } from "./cambiosView";
 import { CambiosTab, type LiveCard } from "./CambiosTab";
 import { durationOf, liveNow, liveWave, playedNow, plateAria, subProblem, subsMade, takersNow, waveLine, type LiveNow } from "./live";
@@ -142,7 +142,8 @@ export function useCambios(c: CambiosCtx): Cambios {
       return;
     }
     const seats = L.slots.map((s) => s.playerId ?? null);
-    const next = generateWaves({ seats, zones, pool: pool.filter((id) => !seats.includes(id)), from: 0, duration: D, rotateKeeper: rotK, nat, newId: () => newId("s") });
+    const bench = pool.filter((id) => !seats.includes(id));
+    const next = generateWaves({ seats, zones, pool: bench, from: 0, duration: D, rotateKeeper: rotK, nat, grade: exactGrade(L, sq, [...seats, ...bench]), newId: () => newId("s") });
     propose("Repartir minutos", next, "Minutos repartidos");
   };
   const recalc = () => {
@@ -151,7 +152,8 @@ export function useCambios(c: CambiosCtx): Cambios {
       c.say(c.roMsg);
       return;
     }
-    const next = replan({ L, subs, from: live.minute, duration: D, field: live.field, pool: live.bench, played: playedNow(live), unavailable: off, rotateKeeper: rotK, nat, zones, newId: () => newId("s") });
+    const grade = exactGrade(L, sq, [...live.field, ...live.bench]);
+    const next = replan({ L, subs, from: live.minute, duration: D, field: live.field, pool: live.bench, played: playedNow(live), unavailable: off, rotateKeeper: rotK, nat, grade, zones, newId: () => newId("s") });
     propose("Recalcular desde el " + live.minute + "′", next, "Plan recalculado desde el " + live.minute + "′");
   };
   const apply = () => {

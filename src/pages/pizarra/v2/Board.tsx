@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import type { FormationName, Lineup } from "../formations";
 import { systemDef } from "../../../lib/formations";
 import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
-import { GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
+import { GALONES, isAvailable, isFull, type Squad } from "./model";
 import { chemOf, tierOf } from "./quimica";
 import { autoByEncajeOn, autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { sevenByEncajeOn, suggestSeven } from "./pack";
@@ -130,7 +130,7 @@ import { orderTxt, ROLE_TAKER, takersOf } from "./takers";
 import { useVariants } from "./useVariants";
 import { VariantPills } from "./VariantPills";
 import { charlaPlanB, cmpVariantKey, variantCmpOptions, variantNameError, variantView } from "./variants";
-import { famCount, famLine, famOf, familiarity, famTxt } from "./familiarity";
+import { famCount, famLine, familiarity, famSlot } from "./familiarity";
 import type { CardView } from "./view";
 import { MoverA } from "./MoverA";
 import { OficialBanner } from "./OficialBanner";
@@ -525,11 +525,7 @@ export function Board(props: BoardProps) {
   // ── familiarity: where each one has lined up in the season's officials already played ──
   const cal0 = props.calendar;
   const fam = useMemo(() => familiarity(session.officials, (mid) => !!cal0.find((c) => c.id === mid)?.played), [session.officials, cal0]);
-  const famAt = (id: string, i: number) => {
-    const z = slotZone(L, i);
-    const nat = natOf(L, sq, id);
-    return { mark: famOf(fam, id, z, nat), txt: famTxt(fam, id, z, nat) };
-  };
+  const famAt = (id: string, i: number) => famSlot(fam, L, sq, id, i);
   const withFam = (c: CardView): CardView => {
     const f = famAt(c.id, c.i);
     if (!f.mark) return c;

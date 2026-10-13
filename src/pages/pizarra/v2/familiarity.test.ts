@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { FAM0, famCount, famLine, famOf, familiarity, famTxt } from "./familiarity";
+import { FAM0, famCodeCount, famCount, famLine, famOf, familiarity, famSlot, famTxt } from "./familiarity";
 import { moveOptions } from "./moveTo";
 import { suggestSeven } from "./pack";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
+import type { Lineup } from "../formations";
+import type { Cromo } from "./model";
+import { lineOf, type PosCode } from "../../../lib/positions";
 
 const sq = demoSquad();
 // 2-3-1: POR · DFC DFC · MI MC MD · DC
@@ -98,5 +101,67 @@ describe("«Mover a…»", () => {
     expect(o[6].aria).toMatch(/nunca ha jugado de delantero en el oficial$/);
     const holes = moveOptions({ ...L, slots: L.slots.map((s, i) => (i === 5 ? { ...s, playerId: null } : s)) }, sq, "tello", FAM0);
     expect(holes[5]).toMatchObject({ sub: "Hueco libre", aria: "Mover a TELLO al hueco MD" });
+  });
+});
+
+describe("familiaridad por posición exacta", () => {
+  // 2-3-1: POR · DFC DFC · MI MC MD · DC
+  const x = (id: string, num: number, main: PosCode, also: PosCode[] = []): Cromo => cromo(id, num, lineOf(main), { ps: { main, also, line: lineOf(main) } });
+  const xs = squadOf([x("gk", 1, "POR"), x("d1", 2, "DFC"), x("d2", 3, "DFC"), x("mi", 4, "MI"), x("mc", 5, "MC"), x("md", 6, "MD"), x("dc", 9, "DC"), x("x", 12, "MD"), x("k", 13, "POR"), cromo("kev", 14, "DEL")]);
+  const SEVEN = ["gk", "d1", "d2", "mi", "mc", "md", "dc"];
+  const BOARD = lineupOf(SEVEN, "2-3-1", xs);
+  const offX = (matchId: string, ids: (string | null)[]) => ({ ...lineupOf(ids, "2-3-1", xs), matchId });
+  // x at MI (slot 3) in `n` played officials
+  const xAtMi = (n: number) => familiarity(Array.from({ length: n }, (_, k) => offX("p" + k, ["gk", "d1", "d2", "x", "mc", "md", "dc"])), played);
+
+  it("counts each one's exact position (the stored board's code), and still his line", () => {
+    const t = familiarity([offX("p1", ["gk", "d1", "d2", "x", "mc", "md", "dc"]), offX("p2", ["gk", "d1", "d2", "x", "mc", "md", "dc"]), offX("p3", ["gk", "d1", "d2", "mi", "mc", "x", "dc"])], played);
+    expect(famCodeCount(t, "x", "MI")).toBe(2);
+    expect(famCodeCount(t, "x", "MD")).toBe(1);
+    expect(famCodeCount(t, "x", "MC")).toBe(0);
+    expect(famCodeCount(t, "gk", "POR")).toBe(3);
+    expect(famCount(t, "x", "MED")).toBe(3);
+  });
+
+  it("«++» from 5 and «+» from 2 at that position; «!» only never there and fuera; nothing for adaptado or in place", () => {
+    const t5 = xAtMi(5);
+    expect(famSlot(t5, BOARD, xs, "x", 3)).toEqual({ mark: "++", txt: "se lo sabe: 5 partidos de interior izquierdo en el oficial" });
+    const t2 = xAtMi(2);
+    expect(famSlot(t2, BOARD, xs, "x", 3)).toEqual({ mark: "+", txt: "ya ha jugado de interior izquierdo (2 partidos en el oficial)" });
+    // MC: never there, but adaptado (his line) — no «+» from the line's count, no «!»
+    expect(famSlot(t5, BOARD, xs, "x", 4)).toEqual({ mark: null, txt: "" });
+    // MD: his preferida, never there: nothing to say
+    expect(famSlot(t5, BOARD, xs, "x", 5)).toEqual({ mark: null, txt: "" });
+    // DC: never there and fuera
+    expect(famSlot(t5, BOARD, xs, "x", 6)).toEqual({ mark: "!", txt: "nunca ha jugado de punta en el oficial" });
+    expect(famSlot(FAM0, BOARD, xs, "x", 6)).toEqual({ mark: null, txt: "" });
+  });
+
+  it("free-mode boards count the position where he stood (the nearest of his line)", () => {
+    // DC's slot pulled out to the right wing: an extremo derecho
+    const wing = (L: Lineup): Lineup => ({ ...L, freeMode: true, slots: L.slots.map((s, i) => (i === 6 ? { ...s, x: 84, y: 22 } : s)) });
+    const t = familiarity([{ ...wing(offX("p1", SEVEN)), matchId: "p1" }, { ...wing(offX("p2", SEVEN)), matchId: "p2" }], played);
+    expect(famCodeCount(t, "dc", "ED")).toBe(2);
+    expect(famCodeCount(t, "dc", "DC")).toBe(0);
+    expect(famSlot(t, wing(BOARD), xs, "dc", 6)).toEqual({ mark: "+", txt: "ya ha jugado de extremo derecho (2 partidos en el oficial)" });
+    // on a 2-3-1 his slot is his preferida punta: never there by code, but in place
+    expect(famSlot(t, BOARD, xs, "dc", 6)).toEqual({ mark: null, txt: "" });
+  });
+
+  it("who has no exact outfield position keeps the line's count and marks", () => {
+    const t = familiarity([offX("p1", ["gk", "d1", "d2", "kev", "mc", "md", "dc"]), offX("p2", ["gk", "d1", "d2", "mi", "kev", "md", "dc"]), offX("p3", ["k", "gk", "d2", "mi", "mc", "md", "dc"]), offX("p4", ["k", "d1", "gk", "mi", "mc", "md", "dc"])], played);
+    // a line alone: two at MED (MI and MC) give «+» at MD
+    expect(famSlot(t, BOARD, xs, "kev", 5)).toEqual({ mark: "+", txt: famTxt(t, "kev", "MED", "DEL") });
+    expect(famSlot(t, BOARD, xs, "kev", 1)).toEqual({ mark: "!", txt: "nunca ha jugado de defensa en el oficial" });
+    // a keeper's POR alone (what every old «Portero» parses to): his line too — two at DEF, «+» on any defensa
+    expect(famSlot(t, BOARD, xs, "gk", 1)).toEqual({ mark: "+", txt: "ya ha jugado de defensa (2 partidos en el oficial)" });
+  });
+
+  it("«Mover a…» says the exact position's familiarity", () => {
+    const o = moveOptions(lineupOf(["gk", "d1", "d2", "mi", "mc", "x", "dc"], "2-3-1", xs), xs, "x", xAtMi(2));
+    expect(o[3]).toMatchObject({ fam: "+" });
+    expect(o[3].aria).toBe("Cambiar a X con MI, MI; ya ha jugado de interior izquierdo (2 partidos en el oficial)");
+    expect(o[4]).toMatchObject({ fam: null });
+    expect(o[6]).toMatchObject({ fam: "!" });
   });
 });

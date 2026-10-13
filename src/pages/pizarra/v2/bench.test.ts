@@ -244,6 +244,23 @@ describe("the reparto de minutos", () => {
     // uncalled players are left out
     expect(reparto(L, mins, new Set(["gk", "a"])).rows.map((x) => x.id)).toEqual(["a"]);
   });
+
+  it("with exact positions, the rested one goes in where he is in place, else where he is adaptado", () => {
+    // 2-3-1: POR · DFC DFC · MI MC MD · DC
+    const st = (minutes: number) => ({ stats: { played: 1, goals: 0, assists: 0, minutes, starts: 1, mvps: 0 } });
+    const x = (id: string, num: number, main: PosCode, minutes: number): Cromo => cromo(id, num, lineOf(main), { ps: { main, also: [], line: lineOf(main) }, ...st(minutes) });
+    const pitch = [x("gk", 1, "POR", 500), x("d", 2, "DFC", 100), x("c", 4, "MI", 400), x("a", 6, "MD", 300)];
+    const seven = ["gk", "d", null, "c", null, "a", null];
+    // an interior derecho: in for the interior derecho, not for the medio with most minutes
+    const sMd = squadOf([...pitch, x("l", 12, "MD", 10)]);
+    expect(reparto(lineupOf(seven, "2-3-1", sMd), sMd, null).rot).toEqual({ id: "l", i: 5, out: "a" });
+    // a lateral derecho (no LD on a 2-3-1): adaptado at DFC and MD — the one with most minutes of those
+    const sLd = squadOf([...pitch, x("l", 12, "LD", 10)]);
+    expect(reparto(lineupOf(seven, "2-3-1", sLd), sLd, null).rot).toEqual({ id: "l", i: 5, out: "a" });
+    // a punta with no punta, mediapunta or extremo on the pitch: no change to suggest
+    const sDc = squadOf([...pitch, x("l", 12, "DC", 10)]);
+    expect(reparto(lineupOf(seven, "2-3-1", sDc), sDc, null)).toMatchObject({ rot: null, txt: "El reparto está equilibrado." });
+  });
 });
 
 describe("the plan's cards", () => {

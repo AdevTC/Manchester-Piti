@@ -5,6 +5,8 @@ import {
   addSub,
   brokenSubs,
   checkSub,
+  exactGrade,
+  fitCost,
   generateWaves,
   lineupAt,
   minutesTable,
@@ -18,7 +20,10 @@ import {
   wavesOf,
   wavesTxt,
 } from "./cambios";
-import { demoSquad, lineupOf } from "./testkit";
+import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
+import { logicGrade } from "./encaje";
+import type { Cromo, Squad } from "./model";
+import { lineOf, type PosCode } from "../../../lib/positions";
 
 // Los cambios por tandas: who is on at each minute, the minutes each one plays, the checks of a cambio,
 // «Repartir minutos» (fair, the keeper fixed, each one to his line) and «Recalcular» from the acta.
@@ -205,5 +210,112 @@ describe("the live match", () => {
     expect(next.filter((s) => s.id !== "a").every((s) => s.min > 22)).toBe(true);
     expect(brokenSubs(L, next, 50).size).toBe(0);
     expect(seatsAt(L, next, 49).seats).not.toContain("illescas");
+  });
+});
+
+describe("cambios by encaje (exact positions)", () => {
+  // 2-3-1: POR · DFC DFC · MI MC MD · DC
+  const x = (id: string, num: number, main: PosCode, also: PosCode[] = [], extra: Partial<Cromo> = {}) => cromo(id, num, lineOf(main), { ps: { main, also, line: lineOf(main) }, ...extra });
+  const XS = ["gk", "d1", "d2", "mi", "mc", "md", "dc"];
+  const base = [x("gk", 1, "POR"), x("d1", 2, "DFC"), x("d2", 3, "DFC"), x("mi", 4, "MI"), x("mc", 5, "MC"), x("md", 6, "MD"), x("dc", 9, "DC")];
+  const setup = (bench: Cromo[]) => {
+    const s = squadOf([...base, ...bench]);
+    const L = lineupOf(XS, "2-3-1", s);
+    return { s, L };
+  };
+  const natS = (s: Squad) => (id: string): Zone | undefined => s.byId.get(id)?.pos;
+  const genX = (s: Squad, L: Lineup, o: Partial<Parameters<typeof generateWaves>[0]>, exact = true) =>
+    generateWaves({
+      seats: L.slots.map((q) => q.playerId),
+      zones: zonesOf(L),
+      pool: [],
+      from: 0,
+      duration: 50,
+      rotateKeeper: false,
+      nat: natS(s),
+      grade: exact ? (id, i) => logicGrade(L, s, id, i) : undefined,
+      newId,
+      ...o,
+    });
+
+  it("the one coming on takes the slot of his exact position, not just one of his line", () => {
+    const { s, L } = setup([x("x", 12, "MD")]);
+    expect(genX(s, L, { pool: ["x"] })[0]).toMatchObject({ in: "x", out: "md" });
+    // (by line alone, the first medio)
+    expect(genX(s, L, { pool: ["x"] }, false)[0]).toMatchObject({ in: "x", out: "mi" });
+  });
+
+  it("adaptado before fuera: a lateral derecho goes in for the interior derecho, not for the one with most minutes", () => {
+    const { s, L } = setup([x("x", 12, "LD")]);
+    const played = new Map([
+      ["mi", 30],
+      ["mc", 30],
+      ["md", 29],
+      ["dc", 30],
+    ]);
+    expect(genX(s, L, { pool: ["x"], played })[0]).toMatchObject({ in: "x", out: "md" });
+    expect(genX(s, L, { pool: ["x"], played }, false)[0]).toMatchObject({ in: "x", out: "mi" });
+  });
+
+  it("who can't go on is replaced by whoever is in place there first, then by the fewest minutes", () => {
+    const { s, L } = setup([x("y", 12, "MI"), x("z", 13, "MD")]);
+    const played = new Map([["z", 5]]);
+    expect(genX(s, L, { pool: ["y", "z"], played, out: new Set(["md"]) })[0]).toMatchObject({ min: 1, in: "z", out: "md" });
+    expect(genX(s, L, { pool: ["y", "z"], played, out: new Set(["md"]) }, false)[0]).toMatchObject({ min: 1, in: "y", out: "md" });
+  });
+
+  it("an injured keeper: a declared keeper (también POR) goes in goal before the one with fewer minutes", () => {
+    const { s, L } = setup([x("k2", 12, "DFC", ["POR"]), x("o", 13, "DC")]);
+    const played = new Map([["k2", 10]]);
+    expect(genX(s, L, { pool: ["k2", "o"], played, out: new Set(["gk"]) })[0]).toMatchObject({ min: 1, in: "k2", out: "gk" });
+  });
+
+  it("«Recalcular»: the plan put in line with the pitch matches each one to the slot he is in place in", () => {
+    const { s, L } = setup([x("z", 13, "MD"), x("y", 12, "MI")]);
+    const field = ["gk", "d1", "d2", "z", "mc", "y", "dc"];
+    const re = (exact: boolean) =>
+      replan({
+        L,
+        subs: [],
+        from: 20,
+        duration: 50,
+        field,
+        pool: [],
+        played: new Map(),
+        unavailable: new Set(),
+        rotateKeeper: false,
+        nat: natS(s),
+        grade: exact ? (id, i) => logicGrade(L, s, id, i) : undefined,
+        zones: zonesOf(L),
+        newId,
+      });
+    const fix = (subs: Sub[]) => subs.filter((q) => q.min === 21).map((q) => [q.out, q.in]);
+    expect(fix(re(true))).toEqual([
+      ["mi", "y"],
+      ["md", "z"],
+    ]);
+    expect(fix(re(false))).toEqual([
+      ["mi", "z"],
+      ["md", "y"],
+    ]);
+  });
+
+  it("the cost of a cambio out of place: fuera 1, adaptado ½, in place or unknown 0; by line, 1 off his line", () => {
+    const { s, L } = setup([x("x", 12, "LD"), cromo("u", 13, undefined)]);
+    const g = { nat: natS(s), zones: zonesOf(L), grade: (id: string, i: number) => logicGrade(L, s, id, i) };
+    expect(fitCost(g, "x", 3)).toBe(1);
+    expect(fitCost(g, "x", 5)).toBe(0.5);
+    expect(fitCost(g, "md", 5)).toBe(0);
+    expect(fitCost(g, "u", 5)).toBe(0);
+    const line = { nat: natS(s), zones: zonesOf(L) };
+    expect(fitCost(line, "x", 3)).toBe(1);
+    expect(fitCost(line, "x", 1)).toBe(0);
+    expect(fitCost(line, "u", 3)).toBe(0);
+  });
+
+  it("exact grades only when someone has an exact position (a squad known by lines keeps today's logic)", () => {
+    const { s, L } = setup([]);
+    expect(exactGrade(L, s, XS)?.("md", 5)).toBe(3);
+    expect(exactGrade(L7(), sq, SEVEN)).toBeUndefined();
   });
 });

@@ -2,9 +2,13 @@
 // `min`, `in` takes `out`'s slot); the subs at the same minute are one «tanda» (wave). From them: who is
 // on the pitch at any minute (the timeline's scrub, the live view), the minutes each one plays, the fair
 // share, who «se come banquillo», and «Repartir minutos», which plans the waves that share the minutes
-// out (the portero fixed unless he rotates, each one to his natural line when it can). Pure.
+// out (the portero fixed unless he rotates, each one where he is in his place when it can — his exact
+// position when the squad has them, else his natural line). Pure.
 import type { Lineup, Sub, Zone } from "../formations";
 import { MATCHDAY_LIMITS } from "../../../lib/schemas";
+import type { FitGrade } from "../../../lib/positions";
+import { adapted, hasFitData, inPlace, logicGrade, out } from "./encaje";
+import type { Squad } from "./model";
 import { shownAt } from "./takers";
 
 export const SUBS_MAX = MATCHDAY_LIMITS.subs;
@@ -207,6 +211,9 @@ export interface GenInput {
   rotateKeeper: boolean;
   /** His natural line (unknown = fits anywhere). */
   nat: (id: string) => Zone | undefined;
+  /** His grade at slot i (encaje.logicGrade, see exactGrade): when given, it decides where each one
+   *  fits instead of `nat`/`zones` (in place > adaptado > fuera). */
+  grade?: SlotGrade;
   /** On the pitch but can't go on (lesión): off in the first tanda. */
   out?: ReadonlySet<string>;
   /** Subs that can still be planned (SUBS_MAX minus the ones kept). */
@@ -215,6 +222,51 @@ export interface GenInput {
 }
 
 const fitsZone = (nat: Zone | undefined, z: Zone): boolean => nat == null || nat === z;
+
+/** A player's grade at slot i of the board (null = unknown). */
+export type SlotGrade = (id: string, i: number) => FitGrade | null;
+
+/** The board's exact grades (logicGrade) when any of `ids` has an exact outfield position; undefined
+ *  for a squad known only by lines, which keeps the line logic exactly as it was. */
+export function exactGrade(L: Lineup, sq: Squad, ids: readonly (string | null)[]): SlotGrade | undefined {
+  const known = ids.filter((id): id is string => !!id);
+  return hasFitData(known, sq) ? (id, i) => logicGrade(L, sq, id, i) : undefined;
+}
+
+type FitBy = Pick<GenInput, "nat" | "zones" | "grade">;
+
+/** How well he fits slot i, to rank who goes there: 2 in place (or on his line), 1 adaptado (or
+ *  unknown, with exact grades), 0 fuera. By line: 1 fits (his line, or unknown), 0 not. */
+function fitRank(g: FitBy, id: string, i: number): number {
+  if (!g.grade) return fitsZone(g.nat(id), g.zones[i]) ? 1 : 0;
+  const x = g.grade(id, i);
+  return inPlace(x) ? 2 : out(x) ? 0 : 1;
+}
+
+/** What playing him at slot i costs a plan: fuera 1, adaptado ½ (in place or unknown, nothing); by
+ *  line, 1 off his line. */
+export function fitCost(g: FitBy, id: string, i: number): number {
+  if (!g.grade) return fitsZone(g.nat(id), g.zones[i]) ? 0 : 1;
+  const x = g.grade(id, i);
+  return out(x) ? 1 : adapted(x) ? 0.5 : 0;
+}
+
+/** The best fit for slot i among `cands` (the first of the best: the order breaks ties). */
+function bestFor(g: FitBy, cands: readonly string[], i: number): string | undefined {
+  let best: string | undefined;
+  let br = -1;
+  for (const id of cands) {
+    const r = fitRank(g, id, i);
+    if (r > br) {
+      best = id;
+      br = r;
+    }
+  }
+  return best;
+}
+
+/** Whether he can take the goal: a declared keeper (in place there), or by line a POR. */
+const keeperOk = (g: FitBy, id: string): boolean => (g.grade ? inPlace(g.grade(id, 0)) : g.nat(id) === "POR");
 
 interface Sim {
   subs: Sub[];
@@ -251,7 +303,7 @@ function simulate(g: GenInput, waveMins: number[], perWave: number): Sim {
     const swap = (i: number, b: string) => {
       const f = seats[i] as string;
       subs.push({ id: "", min: w, out: f, in: b });
-      if (!fitsZone(g.nat(b), g.zones[i])) oop++;
+      oop += fitCost(g, b, i);
       seats[i] = b;
       changed.add(i);
       used.add(b);
@@ -261,30 +313,32 @@ function simulate(g: GenInput, waveMins: number[], perWave: number): Sim {
     if (wi === 0 && g.out?.size) {
       seats.forEach((f, i) => {
         if (!f || !g.out?.has(f) || subs.length >= room) return;
-        const cands = bench().filter((b) => (i === 0 ? g.nat(b) === "POR" || !bench().some((x) => g.nat(x) === "POR") : true));
-        const b = cands.find((x) => fitsZone(g.nat(x), g.zones[i])) ?? cands[0];
+        const cands = bench().filter((b) => (i === 0 ? keeperOk(g, b) || !bench().some((x) => keeperOk(g, x)) : true));
+        const b = bestFor(g, cands, i);
         if (b) swap(i, b);
       });
     }
+    const byMins = (a: { f: string }, b2: { f: string }) => (mins.get(b2.f) ?? 0) - (mins.get(a.f) ?? 0);
+    // (the best fit there is: in place, then adaptado with exact grades; by line, his line)
+    const topRank = g.grade ? 2 : 1;
     for (let n = 0; n < perWave && subs.length < room; n++) {
       const b = bench()[0];
       if (!b) break;
-      const nb = g.nat(b);
+      const kb = keeperOk(g, b);
       const slots = seats
         .map((f, i) => ({ f, i }))
         .filter((x): x is { f: string; i: number } => {
           if (!x.f || changed.has(x.i)) return false;
-          if (x.i === 0) return g.rotateKeeper && nb === "POR";
+          if (x.i === 0) return g.rotateKeeper && kb;
           // with the keeper fixed, a second keeper still plays (on the line he fits)
           return true;
         });
       if (!slots.length) break;
       const top = Math.max(...slots.map((x) => mins.get(x.f) ?? 0));
       const near = slots.filter((x) => (mins.get(x.f) ?? 0) >= top - span / 2);
-      const pick =
-        (g.rotateKeeper && nb === "POR" ? near.find((x) => x.i === 0) : undefined) ??
-        near.filter((x) => x.i !== 0 && fitsZone(nb, g.zones[x.i])).sort((a, b2) => (mins.get(b2.f) ?? 0) - (mins.get(a.f) ?? 0))[0] ??
-        slots.filter((x) => x.i !== 0).sort((a, b2) => (mins.get(b2.f) ?? 0) - (mins.get(a.f) ?? 0))[0];
+      let fit: { f: string; i: number } | undefined;
+      for (let r = topRank; r >= 1 && !fit; r--) fit = near.filter((x) => x.i !== 0 && fitRank(g, b, x.i) === r).sort(byMins)[0];
+      const pick = (g.rotateKeeper && kb ? near.find((x) => x.i === 0) : undefined) ?? fit ?? slots.filter((x) => x.i !== 0).sort(byMins)[0];
       if (!pick) break;
       // only when it evens the minutes out
       if ((mins.get(pick.f) ?? 0) - (mins.get(b) ?? 0) < Math.max(2, span / 2)) break;
@@ -362,6 +416,8 @@ export function replan(a: {
   unavailable: ReadonlySet<string>;
   rotateKeeper: boolean;
   nat: (id: string) => Zone | undefined;
+  /** As GenInput's: exact grades decide who fits each slot (see exactGrade). */
+  grade?: SlotGrade;
   zones: Zone[];
   newId: () => string;
 }): Sub[] {
@@ -374,9 +430,9 @@ export function replan(a: {
   const extra = a.field.filter((id) => !seats.includes(id));
   seats.forEach((id, i) => {
     if (!id || field.has(id)) return;
-    const z = a.zones[i];
-    const k = extra.findIndex((x) => fitsZone(a.nat(x), z));
-    const pick = k >= 0 ? extra.splice(k, 1)[0] : extra.shift();
+    // (whoever fits the slot best, the acta's order breaking ties)
+    const best = bestFor(a, extra, i);
+    const pick = best ? extra.splice(extra.indexOf(best), 1)[0] : undefined;
     if (pick && at > a.from) {
       fix.push({ id: a.newId(), min: at, out: id, in: pick });
       seats[i] = pick;
@@ -392,6 +448,7 @@ export function replan(a: {
     duration: a.duration,
     rotateKeeper: a.rotateKeeper,
     nat: a.nat,
+    grade: a.grade,
     out: new Set(a.field.filter((id) => a.unavailable.has(id))),
     room,
     newId: a.newId,

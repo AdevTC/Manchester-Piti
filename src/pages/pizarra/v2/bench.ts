@@ -5,6 +5,7 @@
 import { fitGrade, POSITIONS, type PosCode } from "../../../lib/positions";
 import type { Lineup, Zone } from "../formations";
 import { slotZone } from "./geometry";
+import { adapted, hasFitData, inPlace, logicGrade } from "./encaje";
 import { bajaChip, bajaWords, formAria, rtTxt, type Cromo, type Squad } from "./model";
 import { tierDiamonds, type Chem } from "./quimica";
 import { matchShort, type CalMatch } from "./boards";
@@ -307,7 +308,20 @@ export function reparto(L: Lineup, sq: Squad, called: ReadonlySet<string> | null
   const rows = avl.slice(0, 6).map((c) => ({ id: c.id, num: c.num, name: c.name, inS: onPitch.has(c.id), m: Math.max(2, Math.round((c.stats.minutes / maxMin) * 100)) + "%", min: c.stats.minutes + "′" }));
   const low = avl.find((c) => !onPitch.has(c.id));
   let rot: Reparto["rot"] = null;
-  if (low?.pos) {
+  const mins = (id: string) => sq.byId.get(id)?.stats.minutes ?? 0;
+  if (low && hasFitData([low.id], sq)) {
+    // with his exact position: in for whoever is where he is in place, else where he is adaptado (the
+    // one with most minutes of those)
+    const rank = (i: number) => {
+      const g = logicGrade(L, sq, low.id, i);
+      return inPlace(g) ? 2 : adapted(g) ? 1 : 0;
+    };
+    const cands = L.slots
+      .map((s, i) => ({ id: s.playerId, i, r: rank(i) }))
+      .filter((x): x is { id: string; i: number; r: number } => !!x.id && x.i > 0 && x.r > 0)
+      .sort((a, b) => b.r - a.r || mins(b.id) - mins(a.id));
+    if (cands[0]) rot = { id: low.id, i: cands[0].i, out: cands[0].id };
+  } else if (low?.pos) {
     const cands = L.slots
       .map((s, i) => ({ id: s.playerId, i }))
       .filter((x): x is { id: string; i: number } => !!x.id && x.i > 0 && slotZone(L, x.i) === low.pos)
