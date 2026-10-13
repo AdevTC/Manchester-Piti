@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { andList, avisoTxt, avisoUrl, benchGroups, calledOf, convHead, pitchFound, reparto, squadInfo, sysLines, type BenchFilter } from "./bench";
+import { lineOf, type PosCode, type ResolvedPositions } from "../../../lib/positions";
+import { andList, avisoTxt, avisoUrl, benchGroups, calledOf, convHead, pitchFound, reparto, squadInfo, type BenchFilter, type BenchHand } from "./bench";
+import type { Cromo } from "./model";
 import { slotLabel } from "./geometry";
 import { withConvocatoria, type CalMatch } from "./boards";
 import { chem } from "./quimica";
@@ -26,13 +28,6 @@ describe("the squad bars", () => {
     expect(info.dm.filter(Boolean)).toHaveLength(lit);
     const empty = squadInfo(lineupOf([], "2-3-1", sq), sq, chem(lineupOf([], "2-3-1", sq), sq));
     expect(empty).toMatchObject({ media: 0, once: "0/7", dm: [false, false, false] });
-  });
-
-  it("each system's lines, as its tile says them", () => {
-    expect(sysLines("2-3-1")).toBe("2 DEF · 3 MED · 1 DEL");
-    expect(sysLines("3-2-1")).toBe("3 DEF · 2 MED · 1 DEL");
-    expect(sysLines("2-1-2-1")).toBe("2 DEF · 3 MED · 1 DEL");
-    expect(sysLines("1-3-2")).toBe("1 DEF · 3 MED · 2 DEL");
   });
 });
 
@@ -149,6 +144,60 @@ describe("the bench", () => {
     expect(kevin.aria).toMatch(/\. Toca: entra por ADRIAN$/);
   });
 
+  describe("the exact positions", () => {
+    const ps = (main: PosCode | null, ...also: PosCode[]): ResolvedPositions => ({ main, also, line: main ? lineOf(main) : null });
+    const withPs = (id: string, num: number, main: PosCode | null, ...also: PosCode[]) => cromo(id, num, main ? lineOf(main) : undefined, { ps: ps(main, ...also) });
+    const rowsOf = (bench: Cromo[], hand: BenchHand | null = null) => benchGroups({ bench, called: null, filter: OFF, hand, selId: null, meId: null })[0].rows;
+
+    it("the badge is the preferida code; the line when it isn't known; «—» with nothing", () => {
+      const [a, b, c, d] = rowsOf([withPs("a", 1, "MCD"), cromo("b", 2, "DEF"), cromo("c", 3, undefined), withPs("d", 4, null, "ED")]);
+      expect(a.pos).toBe("MCD");
+      expect(b.pos).toBe("DEF");
+      expect(c.pos).toBe("—");
+      // only a «también» known: the badge falls back to what the line says
+      expect(d.pos).toBe("—");
+    });
+
+    it("«También …» lists where else he plays, three codes at most and then «+N»; nothing without them", () => {
+      const rows = rowsOf([withPs("a", 1, "MC", "MCD", "DFC"), withPs("b", 2, "MC"), cromo("c", 3, "MED"), withPs("d", 4, "LD", "LI", "DFC", "MC", "MCD", "ED")]);
+      expect(rows.map((r) => r.also)).toEqual(["También MCD · DFC", "", "", "También LI · DFC · MC +2"]);
+    });
+
+    it("the aria says the preferida and the también in words, only when known", () => {
+      const [a, b] = rowsOf([withPs("a", 1, "MCD", "DFC", "MC"), cromo("b", 2, "DEF")]);
+      expect(a.aria).toMatch(/^A, dorsal 1, pivote, también central y mediocentro, forma 70/);
+      expect(b.aria).toMatch(/^B, dorsal 2, DEF, forma 70/);
+    });
+
+    it("hand: a bench player is the best for the held slot's code at grade ≥ 2 (preferida or también), not at «adaptado»", () => {
+      const bench = [withPs("main", 1, "MC"), withPs("also", 2, "DFC", "MC"), withPs("near", 3, "MCD"), withPs("far", 4, "DC")];
+      const by = (hand: BenchHand) => Object.fromEntries(rowsOf(bench, hand).map((r) => [r.id, r.cls.split(" ")]));
+      for (const hand of [{ kind: "slot", zone: "MED", code: "MC" }, { kind: "p", name: "X", zone: "MED", code: "MC" }] as BenchHand[]) {
+        const cls = by(hand);
+        expect(cls.main).toContain("best");
+        expect(cls.also).toContain("best");
+        // MCD is on the same line as MC (the old rule would have called him best): only «adaptado» now
+        expect(cls.near).toContain("tgt");
+        expect(cls.near).not.toContain("best");
+        expect(cls.far).not.toContain("best");
+      }
+    });
+
+    it("hand: who is only known by a line keeps the line rule, with or without a slot code", () => {
+      const bench = [cromo("med", 1, "MED"), cromo("del", 2, "DEL"), withPs("exact", 3, "ED")];
+      const cls = (hand: BenchHand) => Object.fromEntries(rowsOf(bench, hand).map((r) => [r.id, r.cls.split(" ")]));
+      const withCode = cls({ kind: "slot", zone: "MED", code: "MC" });
+      expect(withCode.med).toContain("best");
+      expect(withCode.del).not.toContain("best");
+      // an exact player on another line is not best, line-only players are compared by line
+      expect(withCode.exact).not.toContain("best");
+      // no code (a caller that has only the zone): the line rule for everyone
+      const noCode = cls({ kind: "slot", zone: "DEL" });
+      expect(noCode.del).toContain("best");
+      expect(noCode.exact).toContain("best");
+    });
+  });
+
   it("«Buscar en la plantilla» filters only while it is open", () => {
     const run = (f: Partial<BenchFilter>) => benchGroups({ bench: off(L, conv), called: null, filter: { ...OFF, ...f }, hand: null, selId: null, meId: null });
     expect(run({ q: "kev" })[0].rows).toHaveLength(4);
@@ -194,6 +243,23 @@ describe("the reparto de minutos", () => {
     expect(reparto(lineupOf(["gk"], "2-3-1", mins), mins, null)).toMatchObject({ rot: null, txt: "El reparto está equilibrado." });
     // uncalled players are left out
     expect(reparto(L, mins, new Set(["gk", "a"])).rows.map((x) => x.id)).toEqual(["a"]);
+  });
+
+  it("with exact positions, the rested one goes in where he is in place, else where he is adaptado", () => {
+    // 2-3-1: POR · DFC DFC · MI MC MD · DC
+    const st = (minutes: number) => ({ stats: { played: 1, goals: 0, assists: 0, minutes, starts: 1, mvps: 0 } });
+    const x = (id: string, num: number, main: PosCode, minutes: number): Cromo => cromo(id, num, lineOf(main), { ps: { main, also: [], line: lineOf(main) }, ...st(minutes) });
+    const pitch = [x("gk", 1, "POR", 500), x("d", 2, "DFC", 100), x("c", 4, "MI", 400), x("a", 6, "MD", 300)];
+    const seven = ["gk", "d", null, "c", null, "a", null];
+    // an interior derecho: in for the interior derecho, not for the medio with most minutes
+    const sMd = squadOf([...pitch, x("l", 12, "MD", 10)]);
+    expect(reparto(lineupOf(seven, "2-3-1", sMd), sMd, null).rot).toEqual({ id: "l", i: 5, out: "a" });
+    // a lateral derecho (no LD on a 2-3-1): adaptado at DFC and MD — the one with most minutes of those
+    const sLd = squadOf([...pitch, x("l", 12, "LD", 10)]);
+    expect(reparto(lineupOf(seven, "2-3-1", sLd), sLd, null).rot).toEqual({ id: "l", i: 5, out: "a" });
+    // a punta with no punta, mediapunta or extremo on the pitch: no change to suggest
+    const sDc = squadOf([...pitch, x("l", 12, "DC", 10)]);
+    expect(reparto(lineupOf(seven, "2-3-1", sDc), sDc, null)).toMatchObject({ rot: null, txt: "El reparto está equilibrado." });
   });
 });
 

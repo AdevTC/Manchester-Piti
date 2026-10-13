@@ -1,6 +1,7 @@
 // Plantilla (/admin/plantilla?jugador=&nuevo&dorsal=&vista=cromos) — «ficha a ficha»: on the left the season
 // grouped by line, «Sin posición» first with POR · DEF · MED · DEL right in the row (club/PlantillaList); on the
-// right one player's ficha, big (club/FichaWorkspace: his real kit, Línea and Estado one tap each — «Sancionado»
+// right one player's ficha, big (club/FichaWorkspace: his real kit, his exact Posiciones on a map — and the
+// proposal he made from his profile, to approve, adjust or reject — and Estado one tap each — «Sancionado»
 // by hand, matches or «hasta la J…», derived with the acta's red cards in club/sanctionLogic —, the cards
 // Camiseta · Datos · Cuenta y web that save themselves, «Siguiente sin completar», ↑ ↓). With no player in
 // the URL the ficha shows the first one that still lacks something. «Todos en cromos» (?vista=cromos) shows the
@@ -13,8 +14,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { serverTimestamp } from "firebase/firestore";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
+import { summaryText } from "../../../components/posiciones/mapaNav";
 import { useDocumentTheme } from "../../../hooks/useDocumentTheme";
+import { resolvePositions, sanitizePositions, type PositionSet } from "../../../lib/positions";
+import { editPositionsPayload, reviewPayload } from "../../../lib/positionsEdit";
 import type { PlayerDoc } from "../../../lib/schemas";
 import { AltaWorkspace } from "../club/AltaWorkspace";
 import { LoadError } from "../club/ClubStates";
@@ -38,7 +43,7 @@ import {
   type BoardFilter,
   type BoardRow,
 } from "../club/plantillaBoard";
-import { bajaPayload, csvFileName, filterRows, nameIn, numberIn, playerPayload, plantillaRows, previewDoc, rosterCsv, seasonCode, type PlayerForm, type Position } from "../club/plantillaLogic";
+import { bajaPayload, csvFileName, filterRows, linePickPayload, nameIn, numberIn, playerPayload, plantillaRows, previewDoc, rosterCsv, seasonCode, type PlayerForm, type Position } from "../club/plantillaLogic";
 import { liftedDoc, liftWrite, sanctionedDoc, sanctionStatus, sanctionToast, sanctionWrite, seasonSuspensions, upcomingFor, type SanctionChoice } from "../club/sanctionLogic";
 import { useClubWrites } from "../club/useClubWrites";
 import { useAuth } from "../../../context/AuthContext";
@@ -235,18 +240,55 @@ export function Plantilla() {
   // ── quick edits: the line (from the list or the ficha) and Activo / Lesionado ──
   const setLine = (target: BoardRow, p: Position) => {
     if (target.position === p) return;
-    const docs: Pending = { [target.id]: { ...target.doc, naturalPosition: p } };
+    const write = linePickPayload(target.doc, p);
+    const docs: Pending = { [target.id]: { ...target.doc, ...write } };
     reflow(() => setPending((s) => ({ ...s, ...docs })), [target.id]);
     const done = settle(docs);
     toast.defer({
       tag: "LÍNEA",
       message: `${target.name} pasa ${LINE_TO[p]}`,
-      commit: () => writes.savePlayer(target.id, { naturalPosition: p }),
+      commit: () => writes.savePlayer(target.id, write),
       onUndo: () => reflow(done, [target.id]),
       onError: done,
       onDone: done,
       errorMessage: `No se ha podido cambiar la línea de ${target.name}`,
     });
+  };
+  // ── Posiciones: the ficha's map (a direct edit, or the captain's adjustment of a proposal) and the verdict
+  //    on a proposal. Writes replace `positions` whole (main + also), with naturalPosition in step. ──
+  const writePositions = (target: BoardRow, write: Partial<PlayerDoc>, tag: string, message: string, error: string) => {
+    const docs: Pending = { [target.id]: { ...target.doc, ...write } };
+    reflow(() => setPending((s) => ({ ...s, ...docs })), [target.id]);
+    const done = settle(docs);
+    toast.defer({
+      tag,
+      message,
+      commit: () => writes.savePlayer(target.id, write),
+      onUndo: () => reflow(done, [target.id]),
+      onError: done,
+      onDone: done,
+      errorMessage: error,
+    });
+  };
+  /** Who signs a review (the rules want by == his uid): nobody signed in, no review. */
+  const reviewer = user?.uid ?? null;
+  const setPositions = (target: BoardRow, set: PositionSet, adjusted: boolean) => {
+    if (adjusted && reviewer)
+      writePositions(target, reviewPayload("ajustada", set, reviewer, serverTimestamp()), "PROPUESTA", `${target.name}: propuesta ajustada · ${summaryText(set)}`, `No se ha podido ajustar la propuesta de ${target.name}`);
+    else writePositions(target, editPositionsPayload(set), "POSICIÓN", `Posiciones de ${target.name}: ${summaryText(set)}`, `No se han podido cambiar las posiciones de ${target.name}`);
+  };
+  const reviewProposal = (target: BoardRow, kind: "aprobada" | "rechazada") => {
+    if (!reviewer) return;
+    if (kind === "rechazada") {
+      // rejecting needs no readable proposal: it only closes it («siguen las de antes» only if he had some)
+      const before = resolvePositions(target.doc);
+      const kept = before.main || before.also.length ? " · siguen las de antes" : "";
+      writePositions(target, reviewPayload("rechazada", null, reviewer, serverTimestamp()), "PROPUESTA", `${target.name}: propuesta rechazada${kept}`, `No se ha podido rechazar la propuesta de ${target.name}`);
+      return;
+    }
+    const proposal = sanitizePositions(target.doc.positionsProposal);
+    if (!proposal) return;
+    writePositions(target, reviewPayload("aprobada", proposal, reviewer, serverTimestamp()), "PROPUESTA", `${target.name}: propuesta aprobada · ${summaryText(proposal)}`, `No se ha podido aprobar la propuesta de ${target.name}`);
   };
   // ── Sancionado: set by hand (matches or «hasta la J…») and lifted (the acta's red card too) ──
   const setSanction = (target: BoardRow, choice: SanctionChoice) => {
@@ -298,7 +340,7 @@ export function Plantilla() {
   // ── the ficha saving itself, the alta, the baja ──
   const save = (player: PlayerDoc, form: PlayerForm) => {
     const id = player.id;
-    const payload = playerPayload(form, null);
+    const payload = playerPayload(form, { stored: player });
     const doc = previewDoc(player, id, payload);
     const sid = active && (doc.seasons ?? []).includes(active.id) ? active.id : undefined;
     const name = nameIn(doc, sid);
@@ -321,9 +363,9 @@ export function Plantilla() {
       errorMessage: `No se ha podido guardar a ${name}`,
     });
   };
-  const alta = (form: PlayerForm) => {
+  const alta = (form: PlayerForm, positions: PositionSet) => {
     const id = writes.newPlayerId();
-    const payload = playerPayload(form, { createdAt: new Date() });
+    const payload = playerPayload(form, { createdAt: new Date(), positions });
     const doc = previewDoc(null, id, payload);
     const sid = active && (doc.seasons ?? []).includes(active.id) ? active.id : undefined;
     const name = nameIn(doc, sid);
@@ -505,7 +547,9 @@ export function Plantilla() {
         total={order.length || squad.length}
         story={!!(editing.bio?.trim() || editing.quote?.trim())}
         phone={phone}
-        onLine={(p) => setLine(editingRow, p)}
+        onPositions={(set, adjusted) => setPositions(editingRow, set, adjusted)}
+        onReview={(kind) => reviewProposal(editingRow, kind)}
+        canReview={!!reviewer}
         onInjured={(v) => setInjured(editingRow, v)}
         suspension={editingSusp}
         suspensionText={editingSusp ? sanctionStatus(editingSusp, data.matches) : undefined}

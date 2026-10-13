@@ -6,6 +6,7 @@ import { playerGame } from "../../../lib/clubAnalytics";
 import { goalLinks } from "../../../lib/statsView";
 import type { Zone } from "../formations";
 import { normZone } from "../positions";
+import { resolvePositions } from "../../../lib/positions";
 import type { Sanction, Suspension } from "../chemistry";
 import { pairKey, type Baja, type Convocatoria, type Cromo, type FormGame, type PairStats, type Squad } from "./model";
 import { plural } from "./plural";
@@ -16,6 +17,25 @@ const DEFAULT_DURATION = 50;
 /** The form's range: wide enough that differences show on the cromo. */
 export const FORM_MIN = 45;
 export const FORM_MAX = 95;
+
+// Encaje and form in balance (the user's «Equilibrio encaje + forma»): when Auto-colocar (ops.ts
+// autoByEncaje) and «Sugerir siete» (pack.ts sevenByEncaje) place by exact positions, a slot is worth
+// its fit tier + the player's form (rt, FORM_MIN–FORM_MAX) + small terms:
+//  · fuera 0 · adaptado or unknown FIT_ADAPTED · in place FIT_ADAPTED + FIT_FORM_STEP: an adaptado
+//    takes an in-place player's slot only with a form at least FIT_FORM_STEP (15) points higher;
+//  · the small terms — the answer (≤ 2 a step, ≤ 4 in all), familiarity (≤ 5, adaptado or unknown
+//    only), the grade and the order (< 1) — stay under the step: on their own they never cross it;
+//  · Auto-colocar arranges the seven, it doesn't re-pick it: those on the pitch get FIT_STICK (14,
+//    just under the step), so a bench player of the same fit comes in only with about 15 more form
+//    (≥ 15 for a «Duda»; his answer lowers it: no answer yet ≥ 13, «Voy» ≥ 11);
+//  · FIT_ADAPTED is above 7 × a slot's whole spread (form + step + all the small terms, stickiness
+//    included: FIT_SMALL_MAX), so in place or adaptado always beat fuera, even summed over the seven.
+// (the convocatoria's own siete stays above all of it in «Sugerir siete», pack.ts OWN)
+export const FIT_FORM_STEP = 15;
+export const FIT_STICK = FIT_FORM_STEP - 1;
+export const FIT_SMALL_MAX = 4 + 5 + FIT_STICK;
+export const FIT_ADAPTED = 7 * (FORM_MAX - FORM_MIN + FIT_FORM_STEP + FIT_SMALL_MAX + 1) + 10;
+export const FIT_IN_PLACE = FIT_ADAPTED + FIT_FORM_STEP;
 
 /**
  * One player's season, weighted: each team match counts 1, the last RECENT_GAMES count 2 (form is
@@ -157,8 +177,11 @@ export interface SquadPlayer {
   shirtName: string;
   firstName: string;
   number: number;
-  /** As stored: a code or a word («Portero»…); normalized here. */
+  /** His line, always POR/DEF/MED/DEL now (resolvePositions' line, set by the callers); normZone is only a guard. */
   naturalPosition?: Zone | string;
+  /** His positions ({main, also}; the callers pass resolvePositions' set so the code of an old text
+   *  survives), read with resolvePositions; absent = only the line is known. */
+  positions?: unknown;
   injured: boolean;
   active: boolean;
   /** A sanction set by hand and the last «Levantar la sanción» (chemistry.suspensions reads them). */
@@ -238,6 +261,7 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       // Printed in capitals, like the cromos of the design (the stored name is left as it is).
       name: (p.shirtName || p.firstName || "Jugador").toLocaleUpperCase("es"),
       pos: role,
+      ps: resolvePositions({ positions: p.positions, naturalPosition: p.naturalPosition }),
       rt: form ?? FORM_MIN,
       ...(form == null ? { unrated: true } : {}),
       why: whyOf(r, role, played),

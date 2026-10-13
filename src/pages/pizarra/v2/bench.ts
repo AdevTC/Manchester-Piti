@@ -2,8 +2,10 @@
 // the four axes), the convocatoria's head (the counts, who is in doubt), the bench in three groups
 // (Banquillo · Sin convocar · Bajas) as FUT rows or cromos — with the targets that glow while a player
 // is in the hand — and the reparto de minutos. Pure.
-import type { FormationName, Lineup, Zone } from "../formations";
-import { FORM, slotZone } from "./geometry";
+import { fitGrade, POSITIONS, type PosCode } from "../../../lib/positions";
+import type { Lineup, Zone } from "../formations";
+import { slotZone } from "./geometry";
+import { adapted, hasFitData, inPlace, logicGrade } from "./encaje";
 import { bajaChip, bajaWords, formAria, rtTxt, type Cromo, type Squad } from "./model";
 import { tierDiamonds, type Chem } from "./quimica";
 import { matchShort, type CalMatch } from "./boards";
@@ -32,14 +34,6 @@ export function squadInfo(L: Lineup, sq: Squad, ch: Chem): SquadInfo {
   const t = tierDiamonds(ch.v);
   const bar = (k: SquadBar["k"], v: number): SquadBar => ({ k, v, cls: v >= 80 ? "hi" : v < 50 ? "lo" : "" });
   return { media, once: ch.n + "/7", dm: [0, 1, 2].map((i) => i < t), bars: [bar("ATA", ch.at), bar("DEF", ch.de), bar("FOR", ch.fo), bar("EXP", ch.ex)] };
-}
-
-// ── the systems ──
-/** «3 DEF · 2 MED · 1 DEL». */
-export function sysLines(name: FormationName): string {
-  const zs = FORM[name].map((f) => f[1]);
-  const n = (z: string) => zs.filter((x) => x === z).length;
-  return n("DEF") + " DEF · " + n("MED") + " MED · " + n("DEL") + " DEL";
 }
 
 // ── the convocatoria ──
@@ -163,14 +157,17 @@ export function pitchFound(L: Lineup, sq: Squad, f: BenchFilter, label: (i: numb
   });
 }
 
-/** Who is in the hand: a player of the pitch (his slot's zone), or an empty slot picked. */
-export type BenchHand = { kind: "p"; name: string; zone: Zone } | { kind: "slot"; zone: Zone };
+/** Who is in the hand: a player of the pitch (his slot's zone and exact position), or an empty slot picked. */
+export type BenchHand = { kind: "p"; name: string; zone: Zone; code?: PosCode } | { kind: "slot"; zone: Zone; code?: PosCode };
 
 export interface BenchRow {
   id: string;
   /** The rating as printed («—» before his first match). */
   rt: string;
+  /** The badge: his preferida code, else his line, else «—». */
   pos: string;
+  /** «También MC · DFC» (three codes at most, then «+N»); "" when he has no también. */
+  also: string;
   num: number;
   name: string;
   /** «7 PJ · 4 G · 6 A · 335'». */
@@ -203,6 +200,23 @@ const CV_TXT = { voy: "Voy", duda: "Duda", no: "No va" } as const;
 const CV_ORDER = { voy: 0, duda: 1, no: 2 } as const;
 const BAJA_CLS = { Lesionado: "les", Sancionado: "san", Inactivo: "ina" } as const;
 
+const ALSO_SHOWN = 3;
+const alsoTxt = (also: readonly PosCode[]): string =>
+  also.length ? "También " + also.slice(0, ALSO_SHOWN).join(" · ") + (also.length > ALSO_SHOWN ? " +" + (also.length - ALSO_SHOWN) : "") : "";
+/** How he is read aloud: «pivote, también central y mediocentro» (his line when no exact position is known). */
+const posAria = (c: Cromo): string => {
+  const ps = c.ps;
+  const main = ps?.main ? POSITIONS[ps.main].name.toLowerCase() : (c.pos ?? "sin posición");
+  return ps?.also.length ? main + ", también " + andList(ps.also.map((x) => POSITIONS[x].name.toLowerCase())) : main;
+};
+/** Whether he is the best for what is in the hand: his grade at the held slot's code is ≥ 2; who is only
+ *  known by a line (or a hand without a code) keeps comparing lines. */
+function isBest(c: Cromo, h: BenchHand): boolean {
+  const ps = c.ps;
+  if (h.code && ps && (ps.main || ps.also.length)) return (fitGrade(ps, h.code) ?? 0) >= 2;
+  return c.pos === h.zone;
+}
+
 function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId: string | null; meId: string | null }): BenchRow {
   const bj = grp === "x";
   const sin = grp === "s";
@@ -211,13 +225,14 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
   const icon: BenchRow["icon"] = bj || c.cv === "no" ? "x" : sin ? null : c.cv === "voy" ? "check" : c.cv === "duda" ? "doubt" : null;
   const h = o.hand;
   const tgt = !!h && !bj && !sin && c.cv !== "no";
-  const best = tgt && c.pos === h.zone;
+  const best = tgt && isBest(c, h);
   const me = o.meId === c.id;
   const s = c.stats;
   return {
     id: c.id,
     rt: rtTxt(c),
-    pos: c.pos ?? "—",
+    pos: c.ps?.main ?? c.pos ?? "—",
+    also: alsoTxt(c.ps?.also ?? []),
     num: c.num,
     name: c.name,
     line: s.played + " PJ · " + s.goals + " G · " + s.assists + " A · " + s.minutes + "'",
@@ -231,7 +246,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
     tg: tgt && h ? (h.kind === "p" ? "Entra por él" : "Entra aquí") : null,
     cls: [c.pos === "POR" ? "gk" : "", c.cv === "no" && !bj ? "no-va" : "", sin ? "sin" : "", bj ? "baja" : "", tgt ? "tgt" : "", best ? "best" : "", me ? "me" : ""].filter(Boolean).join(" "),
     aria:
-      c.name + ", dorsal " + c.num + ", " + (c.pos ?? "sin posición") + ", " + formAria(c) + ", " +
+      c.name + ", dorsal " + c.num + ", " + posAria(c) + ", " + formAria(c) + ", " +
       (bj ? (bajaWords(c) || "baja") + ", no disponible" : "convocatoria: " + cv.toLowerCase()) +
       ", " + plural(s.minutes, "minuto") + " esta temporada" + (me ? ", eres tú" : "") +
       (tgt && h ? (h.kind === "p" ? ". Toca: entra por " + h.name : ". Toca: entra en el hueco") : ""),
@@ -293,7 +308,20 @@ export function reparto(L: Lineup, sq: Squad, called: ReadonlySet<string> | null
   const rows = avl.slice(0, 6).map((c) => ({ id: c.id, num: c.num, name: c.name, inS: onPitch.has(c.id), m: Math.max(2, Math.round((c.stats.minutes / maxMin) * 100)) + "%", min: c.stats.minutes + "′" }));
   const low = avl.find((c) => !onPitch.has(c.id));
   let rot: Reparto["rot"] = null;
-  if (low?.pos) {
+  const mins = (id: string) => sq.byId.get(id)?.stats.minutes ?? 0;
+  if (low && hasFitData([low.id], sq)) {
+    // with his exact position: in for whoever is where he is in place, else where he is adaptado (the
+    // one with most minutes of those)
+    const rank = (i: number) => {
+      const g = logicGrade(L, sq, low.id, i);
+      return inPlace(g) ? 2 : adapted(g) ? 1 : 0;
+    };
+    const cands = L.slots
+      .map((s, i) => ({ id: s.playerId, i, r: rank(i) }))
+      .filter((x): x is { id: string; i: number; r: number } => !!x.id && x.i > 0 && x.r > 0)
+      .sort((a, b) => b.r - a.r || mins(b.id) - mins(a.id));
+    if (cands[0]) rot = { id: low.id, i: cands[0].i, out: cands[0].id };
+  } else if (low?.pos) {
     const cands = L.slots
       .map((s, i) => ({ id: s.playerId, i }))
       .filter((x): x is { id: string; i: number } => !!x.id && x.i > 0 && slotZone(L, x.i) === low.pos)

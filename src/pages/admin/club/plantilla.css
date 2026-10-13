@@ -1,7 +1,8 @@
 /* Plantilla · «ficha a ficha» (views/Plantilla.tsx, club/PlantillaList.tsx, club/FichaWorkspace.tsx,
    club/AltaWorkspace.tsx, club/CromosGrid.tsx). Admin tokens only (--sheet, --panel, --panel2, --pline, --chip,
    --sky, --accent, --amber, --red, --ink, --soft, --muted, --pill-on). The ficha sizes itself by container
-   queries (three cards → two → one); on phones the list is the screen and a ficha opens full screen. */
+   queries (three cards → two → one); on phones the list is the screen and a ficha opens full screen. The map of
+   positions (components/posiciones, its own posiciones.css) is themed here through its --pos-* tokens. */
 
 /* ── header extras and the bar under the title: the collection and the gap chips ── */
 .adm .vh .r{flex-wrap:wrap;justify-content:flex-end}
@@ -113,6 +114,32 @@
 .adm .pl3f .baja{align-self:flex-start}
 .adm .pl3f .svd{display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:12.5px;color:var(--muted);flex:0 0 auto}
 .adm .pl3f .svd svg{color:var(--accent)}
+/* «Posiciones»: the map themed with the admin tokens (light and dark), at the right of the hero on desktop
+   (kit · name and state · map, the nav under the name), a field of its own on phones. A pending proposal
+   takes the map's place as a row under the name: what he proposes, «Ahora: …» and Aprobar · Ajustar ·
+   Rechazar first (in view at 1440 × 900), the compared map at their right; on phones it stacks. */
+.adm .pl3f{--pos-bg:var(--sheet);--pos-pitch:color-mix(in srgb,var(--sky) 8%,transparent);--pos-line:color-mix(in srgb,var(--muted) 45%,transparent);--pos-ink:var(--ink);--pos-dim:var(--muted);--pos-also:var(--accent);--pos-pref:var(--gold);--pos-pref-ink:var(--pill-on-ink);--pos-add:#5ee08a;--pos-remove:var(--red);--pos-focus:var(--sky);--pos-width:13rem}
+[data-theme="light"] .adm .pl3f{--pos-add:#1d7a3f;--pos-focus:var(--accent)}
+.adm .pl3f .hero.posh{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"kit hi pos" "kit nav pos";align-items:start}
+.adm .pl3f .hero.posh>.kit{grid-area:kit;align-self:center}
+.adm .pl3f .hero.posh>.hi{grid-area:hi}
+.adm .pl3f .hero.posh>.posx{grid-area:pos}
+.adm .pl3f .hero.posh>.nav2{grid-area:nav;flex-direction:row;align-items:center;justify-content:flex-start;flex-wrap:wrap;align-self:end}
+.adm .pl3f .hero.posh.pend{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"kit hi nav" "pos pos pos"}
+.adm .pl3f .hero.posh.pend>.nav2{flex-direction:column;align-items:flex-end;align-self:center}
+.adm .pl3f .ppr{--pos-bg:color-mix(in srgb,var(--gold) 9%,var(--sheet));display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto 1fr;grid-template-areas:"q map" "n map" "b map" "o map";gap:8px 24px;align-items:start;padding:12px 16px;border-radius:14px;background:color-mix(in srgb,var(--gold) 9%,var(--sheet));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--gold) 55%,transparent)}
+.adm .pl3f .ppr>.ppq{grid-area:q;font-size:15px}
+.adm .pl3f .ppr>.ppn{grid-area:n}
+.adm .pl3f .ppr>.ppo{grid-area:o}
+.adm .pl3f .ppr>.ppb{grid-area:b}
+.adm .pl3f .ppr>.pos-map{grid-area:map}
+.adm .pl3f .ppr .pos-summary{display:none}
+.adm .pl3f .ppa{display:flex;flex-direction:column;align-items:flex-start;gap:8px;max-width:calc(var(--pos-width) + 24px);padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--gold) 9%,var(--sheet));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--gold) 55%,transparent)}
+.adm .pl3f .ppq{display:flex;align-items:flex-start;gap:6px;font-size:13.5px;line-height:1.35;color:var(--soft)}
+.adm .pl3f .ppq b{color:var(--ink)}
+.adm .pl3f .ppq svg{flex:0 0 auto;margin-top:2px;color:var(--gold)}
+.adm .pl3f .ppn{font-size:12.5px;color:var(--muted)}
+.adm .pl3f .ppb{display:flex;flex-wrap:wrap;gap:8px}
 /* the alta */
 .adm .pl3f.alta .hero{grid-template-columns:auto minmax(0,1fr);align-items:start}
 .adm .pl3f .altf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;margin-top:6px}
@@ -133,6 +160,10 @@
 }
 @container pl3f (max-width:760px){
   .adm .pl3f .hero{grid-template-columns:auto minmax(0,1fr)}
+  .adm .pl3f .hero.posh{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"kit hi" "kit pos" "nav nav"}
+  .adm .pl3f .hero.posh>.kit{align-self:start}
+  .adm .pl3f .hero.posh.pend{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"kit hi" "pos pos" "nav nav"}
+  .adm .pl3f .hero.posh.pend>.nav2{flex-direction:row;align-items:center;justify-content:flex-start;flex-wrap:wrap}
   .adm .pl3f .nav2{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:flex-start;flex-wrap:wrap}
   .adm .pl3f .kb{display:none}
   .adm .pl3f .altf{grid-template-columns:1fr}
@@ -189,6 +220,11 @@
 .adm.m .pl3f .mnav .btn{flex:1;min-height:48px}
 .adm.m .pl3f .mnav .pn{order:-1}
 .adm.m .pl3f.alta .hero{grid-template-columns:1fr;justify-items:start}
+.adm.m .pl3f{--pos-width:18rem}
+.adm.m .pl3f .posx .pos-map{align-self:center}
+.adm.m .pl3f .ppr{display:flex;flex-direction:column}
+.adm.m .pl3f .ppb .btn{flex:1}
+.adm.m .pl3f .ppa{max-width:none}
 
 /* ── view transitions: the kit flies between the list / cromo and the ficha; rows glide to their new line ── */
 ::view-transition-group(*.pl-kit){animation-duration:.56s;animation-timing-function:cubic-bezier(.16,1,.3,1)}

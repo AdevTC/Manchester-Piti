@@ -30,4 +30,9 @@ describe("normZone", () => {
     expect(normZone(3)).toBeUndefined();
     expect(normZone(undefined)).toBeUndefined();
   });
+  it("reads the exact F7 words through the shared catalogue", () => {
+    expect(normZone("Pivote")).toBe("MED");
+    expect(normZone("Líbero")).toBe("DEF");
+    expect(normZone("Extremo derecho")).toBe("DEL");
+  });
 });

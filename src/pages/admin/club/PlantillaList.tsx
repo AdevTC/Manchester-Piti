@@ -1,6 +1,7 @@
 // Plantilla's list (the left column on desktop, the screen itself on phones): the season grouped by line with
 // «Sin posición» first — those carry POR · DEF · MED · DEL right under their name, so a line is one tap without
-// opening the ficha. Each row: his kit (the photo of the real 3D shirt), name, what his ficha lacks and a dot
+// opening the ficha. Each row: his kit (the photo of the real 3D shirt), name, his exact preferida when it is
+// known («MCD»), what his ficha lacks and a dot
 // (filled = complete, dashed = something missing). While searching, players of other seasons hang at the end,
 // dimmed (that is how one comes back).
 import type { CSSProperties, Ref } from "react";
@@ -33,7 +34,8 @@ const sub = (r: BoardRow, other: boolean, code: string, sanctioned: boolean) =>
   other
     ? `fuera de la ${code}`
     : // (next to a status, «faltan 5» could read as matches: it says what is missing)
-      [r.injured ? "Lesionado" : "", sanctioned ? "Sancionado" : "", r.gaps.length ? `faltan ${r.gaps.length}${r.injured || sanctioned ? " datos" : ""}` : "ficha completa"].filter(Boolean).join(" · ");
+      // his exact preferida first when it is known («MCD · faltan 3»)
+      [r.pref ?? "", r.injured ? "Lesionado" : "", sanctioned ? "Sancionado" : "", r.gaps.length ? `faltan ${r.gaps.length}${r.injured || sanctioned ? " datos" : ""}` : "ficha completa"].filter(Boolean).join(" · ");
 
 export function PlantillaList({ groups, others, code, selectedId, still, onOpen, onLine, flying, boxRef, empty, quickLine, sanctioned }: PlantillaListProps) {
   const row = (r: BoardRow, other: boolean, quick: boolean) => {

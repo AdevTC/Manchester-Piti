@@ -65,6 +65,15 @@ describe("La constelación", () => {
   });
 });
 
+describe("La constelación lee la posición con el resolutor", () => {
+  it("places a word-only forward on the DEL row, not MED", () => {
+    const delantero = analysePlayer({ id: "dan", shirtName: "DAN", naturalPosition: "Delantero centro" }, games);
+    const star = { ...delantero, ga: 3 };
+    const { nodes } = constellation([star], []);
+    expect([18, 24]).toContain(nodes[0].y);
+  });
+});
+
 describe("Radar, ritmo y porcentajes", () => {
   it("scores stay in 0–1 and the polygon has one point per axis", () => {
     const s = radarScores(rows[0], rows, games.length);

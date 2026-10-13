@@ -153,7 +153,10 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
                   </div>
                   <div>
                     <dt>Posición</dt>
-                    <dd className="sm">{row.position ?? "Por definir"}</dd>
+                    <dd className="sm">
+                      {row.position ?? "Por definir"}
+                      {row.also && <span className="also">También {row.also}</span>}
+                    </dd>
                   </div>
                 </dl>
                 {row.missing.length > 0 && (

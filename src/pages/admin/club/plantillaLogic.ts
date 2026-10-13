@@ -5,15 +5,21 @@
 // Firestore payload, and the CSV export. Router-, React- and Firebase-free.
 import { isDorsalTaken } from "../../../lib/dorsalValidation";
 import { playerName } from "../../../lib/clubData";
+import { LINE_NAMES, isLine, lineOf, parsePosition, resolvePositions, sanitizePositions, type PosCode, type PositionSet } from "../../../lib/positions";
+import { positionsPayload } from "../../../lib/positionsEdit";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 
 export const POSITIONS = ["POR", "DEF", "MED", "DEL"] as const;
 export type Position = (typeof POSITIONS)[number];
-export const POS_LABEL: Record<Position, string> = { POR: "Portero", DEF: "Defensa", MED: "Medio", DEL: "Delantero" };
-export const asPosition = (v: unknown): Position | "" => {
-  const up = String(v ?? "").toUpperCase();
-  return (POSITIONS as readonly string[]).includes(up) ? (up as Position) : "";
-};
+export const POS_LABEL: Record<Position, string> = { POR: LINE_NAMES.POR.short, DEF: LINE_NAMES.DEF.short, MED: LINE_NAMES.MED.short, DEL: LINE_NAMES.DEL.short };
+export const asPosition = (v: unknown): Position | "" => (isLine(v) ? v : parsePosition(v).line) ?? "";
+
+/** What the line picker writes: the line, and — if his exact main position sits in another line — the main cleared
+ *  (his «also» kept) so `positions` never contradicts the line just chosen. */
+export function linePickPayload(doc: Pick<PlayerDoc, "positions">, line: Position): Pick<PlayerDoc, "naturalPosition" | "positions"> {
+  const set = sanitizePositions(doc.positions);
+  return set?.main && lineOf(set.main) !== line ? { naturalPosition: line, positions: { main: null, also: set.also } } : { naturalPosition: line };
+}
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
@@ -56,6 +62,8 @@ export interface PlantillaRow {
   /** «Nombre Apellidos». */
   full: string;
   position: Position | "";
+  /** His exact preferida when it is known (`positions`, or an old exact word), else null. */
+  pref: PosCode | null;
   injured: boolean;
   /** «T1 · T0» (newest first). */
   seasons: string;
@@ -72,13 +80,15 @@ export function plantillaRows(players: readonly PlayerDoc[], seasons: readonly S
       .filter((id) => order.has(id))
       .sort((a, b) => (order.get(b) ?? 0) - (order.get(a) ?? 0))
       .map((id) => seasonCode(seasons[order.get(id) ?? 0].name));
+    const resolved = resolvePositions(p);
     return {
       id: p.id,
       doc: p,
       number: numberIn(p, sid),
       name: nameIn(p, sid),
       full: [p.firstName, p.lastName].filter(Boolean).join(" ") || "Sin nombre",
-      position: asPosition(p.naturalPosition),
+      position: asPosition(resolved.line),
+      pref: resolved.main,
       injured: !!p.injured,
       seasons: codes.join(" · ") || "—",
       inSeason,
@@ -126,9 +136,9 @@ export interface PlayerForm {
   weight: string;
   photoUrl: string;
 }
-/** «Alta de jugador»: empty, medio, active, in the given seasons (the active one). */
+/** «Alta de jugador»: empty, no position yet (the map starts empty), active, in the given seasons (the active one). */
 export function emptyForm(seasonIds: readonly string[]): PlayerForm {
-  return { firstName: "", lastName: "", shirtName: "", number: "", position: "MED", injured: false, seasons: [...seasonIds], overrides: {}, birthDate: "", height: "", weight: "", photoUrl: "" };
+  return { firstName: "", lastName: "", shirtName: "", number: "", position: "", injured: false, seasons: [...seasonIds], overrides: {}, birthDate: "", height: "", weight: "", photoUrl: "" };
 }
 /** The form for an existing player: the defaults, and an override wherever a season's value differs. */
 export function formFromPlayer(p: PlayerDoc): PlayerForm {
@@ -147,7 +157,7 @@ export function formFromPlayer(p: PlayerDoc): PlayerForm {
     lastName: p.lastName ?? "",
     shirtName: shirt,
     number: num != null ? String(num) : "",
-    position: asPosition(p.naturalPosition),
+    position: asPosition(resolvePositions(p).line),
     injured: !!p.injured,
     seasons,
     overrides,
@@ -297,9 +307,24 @@ export function checkPlayerForm(form: PlayerForm, ctx: CheckContext): FormCheck 
   return { shirtName, number, overrides, height, weight, photo, errors, ok: errors.length === 0 };
 }
 
+/** An alta (written with its creation date and, from its map, his positions) or an edit of the doc as it is stored. */
+export type PayloadMode = { createdAt: Date; positions?: PositionSet } | { stored: Pick<PlayerDoc, "naturalPosition" | "positions"> };
+/** The position part of the write: an alta writes the chosen line and the positions marked on its map (none
+ *  when it was left empty); an edit writes nothing unless the line changed against what is stored (so an old
+ *  exact word — «Lateral derecho» — survives for the migration), and then by the line picker's rule. */
+function positionWrite(form: PlayerForm, mode: PayloadMode): Partial<Pick<PlayerDoc, "naturalPosition" | "positions">> {
+  if ("createdAt" in mode) {
+    const set = mode.positions;
+    const marked = set && (set.main || set.also.length) ? positionsPayload(set) : {};
+    return { ...(form.position ? { naturalPosition: form.position } : {}), ...marked };
+  }
+  if (!form.position) return {};
+  return form.position === resolvePositions(mode.stored).line ? {} : linePickPayload(mode.stored, form.position);
+}
 /** The Firestore write for the form (players/{id}, merged): the same fields the old Admin form saved —
  *  defaults, a seasonDetails entry per season (override or default) — plus position, state and photo. */
-export function playerPayload(form: PlayerForm, create: { createdAt: Date } | null): Record<string, unknown> {
+export function playerPayload(form: PlayerForm, mode: PayloadMode): Record<string, unknown> {
+  const create = "createdAt" in mode ? mode : null;
   const shirt = form.shirtName.trim().toUpperCase();
   const num = Number(form.number.trim());
   const seasons = [...new Set(form.seasons)];
@@ -319,7 +344,7 @@ export function playerPayload(form: PlayerForm, create: { createdAt: Date } | nu
     seasonDetails,
     height: int(form.height),
     weight: int(form.weight),
-    ...(form.position ? { naturalPosition: form.position } : {}),
+    ...positionWrite(form, mode),
     injured: form.injured,
     photoUrl: form.photoUrl.trim(),
     ...(create ? { active: true, createdAt: create.createdAt } : {}),
@@ -346,13 +371,14 @@ export function previewDoc(base: PlayerDoc | null, id: string, payload: Record<s
     height: pick("height", isNum),
     weight: pick("weight", isNum),
     naturalPosition: pick("naturalPosition", isStr) ?? base?.naturalPosition,
+    positions: "positions" in payload ? sanitizePositions(payload.positions) ?? undefined : base?.positions,
     injured: pick("injured", isBool),
     photoUrl: pick("photoUrl", isStr),
   };
 }
 
 // ───────────────────────── CSV ─────────────────────────
-const CSV_HEAD = ["Dorsal", "Nombre en camiseta", "Nombre", "Apellidos", "Posición", "Estado", "Temporadas", "Nacimiento", "Altura (cm)", "Peso (kg)"];
+const CSV_HEAD = ["Dorsal", "Nombre en camiseta", "Nombre", "Apellidos", "Posición", "Preferida", "También", "Estado", "Temporadas", "Nacimiento", "Altura (cm)", "Peso (kg)"];
 /** One CSV cell: quoted when it needs it, and a leading = + - @ neutralised (no formulas in a sheet). */
 export function csvCell(v: string | number | null | undefined): string {
   let s = v == null ? "" : String(v);
@@ -362,7 +388,7 @@ export function csvCell(v: string | number | null | undefined): string {
 /** The plantilla as a spreadsheet (semicolons and a BOM: opens straight in a Spanish Excel). */
 export function rosterCsv(rows: readonly PlantillaRow[]): string {
   const lines = rows.map((r) =>
-    [r.number, r.name, r.doc.firstName ?? "", r.doc.lastName ?? "", r.position ? POS_LABEL[r.position] : "", r.injured ? "Lesionado" : "Activo", r.seasons === "—" ? "" : r.seasons, r.doc.birthDate ?? "", r.doc.height ?? "", r.doc.weight ?? ""].map(csvCell).join(";"),
+    [r.number, r.name, r.doc.firstName ?? "", r.doc.lastName ?? "", r.position ? POS_LABEL[r.position] : "", r.pref ?? "", resolvePositions(r.doc).also.join(", "), r.injured ? "Lesionado" : "Activo", r.seasons === "—" ? "" : r.seasons, r.doc.birthDate ?? "", r.doc.height ?? "", r.doc.weight ?? ""].map(csvCell).join(";"),
   );
   return `﻿${[CSV_HEAD.join(";"), ...lines].join("\r\n")}\r\n`;
 }

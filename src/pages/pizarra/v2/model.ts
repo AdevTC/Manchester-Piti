@@ -1,8 +1,10 @@
 // La pizarra «Noche de partido» — what the board knows about each player (a cromo) and the small
 // lineup helpers every other module shares. Pure (no React).
 import type { Lineup, RoleKey, Zone } from "../formations";
-import { normZone } from "../positions";
+import { normPlaysAs } from "../positions";
+import { isPosCode, lineOf, type ResolvedPositions } from "../../../lib/positions";
 import { plural } from "./plural";
+import { inPlace, logicGrade } from "./encaje";
 
 export type Baja = "Lesionado" | "Sancionado" | "Inactivo";
 /** The player's answer to the convocatoria (wired in phase 3; absent = unknown). */
@@ -36,6 +38,8 @@ export interface Cromo {
   name: string;
   /** Natural position (set by an admin); unknown = fits anywhere. */
   pos?: Zone;
+  /** His exact positions (preferida, también, línea: resolvePositions); absent = only `pos` is known. */
+  ps?: ResolvedPositions;
   /** Form rating (45–95, see ratings.ts), from the season's matches. */
   rt: number;
   /** No match played yet: the rating is only a floor for sorting, shown as «—» (see rtTxt). */
@@ -102,9 +106,12 @@ export const teamMinutes = (sq: Squad): number => sq.teamMin ?? sq.games * 50;
 export const pairKey = (a: string, b: string): string => (a < b ? a + "|" + b : b + "|" + a);
 export const pairOf = (sq: Squad, a: string, b: string): PairStats => sq.pairs.get(pairKey(a, b)) ?? { tog: 0, ast: 0, min: 0 };
 
-/** The position a player plays in this lineup: the per-board override, else his natural one. */
+/** The line a player plays in this lineup: the per-board override's (a «Jugar de» code reads as its
+ *  line), else his natural one. */
 export function natOf(L: Lineup, sq: Squad, id: string): Zone | undefined {
-  return normZone(L.playerPositions[id]) ?? sq.byId.get(id)?.pos;
+  const over = normPlaysAs(L.playerPositions[id]);
+  if (over) return isPosCode(over) ? lineOf(over) : over;
+  return sq.byId.get(id)?.pos;
 }
 
 /** Whether a player plays a zone as his natural one (an unknown position is NOT natural: the química
@@ -140,8 +147,11 @@ export const GALONES: Galon[] = [
 ];
 export const galonesOf = (L: Lineup, id: string): Galon[] => GALONES.filter((g) => L.roles[g.key] === id);
 
-/** A board is «siete listo» with seven on the pitch and a goalkeeper in goal. */
+/** A board is «siete listo» with seven on the pitch and a goalkeeper in goal: one in his place there
+ *  (the encaje's logicGrade), or one nobody knows the position of. */
 export function isFull(L: Lineup, sq: Squad): boolean {
   const g = L.slots[0]?.playerId;
-  return placedCount(L) === 7 && !!g && fits(L, sq, g, "POR");
+  if (placedCount(L) !== 7 || !g) return false;
+  const x = logicGrade(L, sq, g, 0);
+  return x == null || inPlace(x);
 }

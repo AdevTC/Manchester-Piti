@@ -8,6 +8,7 @@ import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { formatDate, playerForSeason, playerName, useClubData, type ClubMatch } from "../../lib/clubData";
 import { analysePlayer, chronological, competitionRanks, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { computeStats } from "../../lib/playerStats";
+import { positionText } from "../../lib/positions";
 import { collection, goalLinks, per50, radarAverage, radarScores, winRateWith } from "../../lib/statsView";
 import { bestPartner, mvpWinners, mvpWins, vitrina } from "../../lib/vestuario";
 import { shareClubPage } from "../../lib/share";
@@ -28,7 +29,6 @@ import "../../styles/jugador.css";
 
 const route = getRouteApi("/jugadores/$playerId");
 const nameOf = (p: PlayerAnalysis) => playerName(p);
-const POS: Record<string, string> = { POR: "Portero", DEF: "Defensa", MED: "Centrocampista", DEL: "Delantero" };
 const ML = { goals: ["gol", "goles"], assists: ["asistencia", "asistencias"], matchesPlayed: ["partido", "partidos"] } as const;
 const letter = (m: ClubMatch) => (m.goalsFor! > m.goalsAgainst! ? "V" : m.goalsFor === m.goalsAgainst ? "E" : "D");
 
@@ -139,7 +139,7 @@ export function JugadorPage() {
   const goalRank = me.goals > 0 ? competitionRanks(squad, (x) => x.goals).get(p.id) : undefined;
   const assistRank = me.assists > 0 ? competitionRanks(squad, (x) => x.assists).get(p.id) : undefined;
   const badges = [goalRank === 1 && "PICHICHI", assistRank === 1 && "MÁX. ASISTENTE", mvps > 0 && `MVP ×${mvps}`].filter(Boolean) as string[];
-  const position = POS[String(p.naturalPosition ?? "").toUpperCase()] ?? (p.naturalPosition || "Jugador");
+  const position = positionText(p) ?? "Jugador";
   const face: CromoFace = {
     name,
     num,

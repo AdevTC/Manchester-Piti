@@ -145,6 +145,14 @@ describe("la charla · what it says", () => {
     expect(charlaView(args({ L })).guion[2].t).toBe("Hueco · DFC");
   });
 
+  it("free mode: each of the seven is presented at the slot's exact code, not its line", () => {
+    const base = lineupOf(["evans", "illescas", "tello", null, "eguzquiza", "almachi", "adrian"], "2-3-1", sq);
+    const F = { ...base, freeMode: true, slots: base.slots.map((s, i) => (i === 3 ? { ...s, x: 50, y: 50 } : i === 2 ? { ...s, x: 86, y: 70 } : s)) };
+    expect(charlaView(args({ L: F, step: 3 })).lt?.k).toBe("LOS SIETE · 3 DE 7 · LD");
+    expect(charlaView(args({ L: F, step: 4 })).lt).toMatchObject({ k: "LOS SIETE · 4 DE 7 · MC", d: "Falta un jugador en MC." });
+    expect(charlaView(args({ L: F })).guion[4].t).toBe("Hueco · MC");
+  });
+
   it("the plan: the consigna cards from the tactics (no lower third)", () => {
     const L = setTactic(setTactic(L7(), "press", "Alta"), "buildup", "En largo");
     const v = charlaView(args({ L, step: 10 }));

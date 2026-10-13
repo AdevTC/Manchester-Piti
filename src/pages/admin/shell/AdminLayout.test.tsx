@@ -165,7 +165,7 @@ describe("command palette", () => {
     await user.click(buscar);
     const input = screen.getByRole("combobox");
     await user.type(input, "9");
-    expect(screen.getByRole("group", { name: "Jugadores" })).toHaveTextContent("9 · ERIKDEL");
+    expect(screen.getByRole("group", { name: "Jugadores" })).toHaveTextContent("9 · ERIKDelantero");
     await user.clear(input);
     await user.type(input, "zzz");
     expect(screen.getByText("Nada con «zzz».")).toBeInTheDocument();

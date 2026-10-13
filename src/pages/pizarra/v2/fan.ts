@@ -1,21 +1,31 @@
 // La pizarra «Noche de partido» — the long-press radial fan on a pitch cromo: the galones, «Jugar de»
-// (a sub-fan of zones), Banquillo and Ficha, laid out on a circle; and what each one does to the lineup.
-// Pure.
-import type { Lineup, RoleKey, TakerKind, Zone } from "../formations";
-import { ZONES } from "../formations";
-import { natOf, GALONES, type Squad } from "./model";
-import { setPlaysAs, toBench, toggleRole } from "./ops";
+// (a sub-fan of the codes of his line in this system — first «Como siempre» when he has one on this
+// board, which takes it off — and «Otra posición…» with all 13 grouped by line), Banquillo and Ficha,
+// laid out on a circle; and what each one does to the lineup. Pure.
+import type { Lineup, RoleKey, TakerKind } from "../formations";
+import { normPlaysAs } from "../positions";
+import { isPosCode, LINE_NAMES, lineOf, POS_CODES, POSITIONS, type PosCode } from "../../../lib/positions";
+import { slotCode } from "./encaje";
+import { GALONES, natOf, type Squad } from "./model";
+import { clearPlaysAs, setPlaysAs, toBench, toggleRole } from "./ops";
 import { ORDINAL, ROLE_TAKER, setTaker, TAKER_LABEL, TAKER_ROLE, takersOf } from "./takers";
 
-export type FanKind = "role" | "zone" | "jugar" | "banquillo" | "ficha" | "volver" | "mover";
+export type FanKind = "role" | "code" | "quitar" | "otra" | "jugar" | "banquillo" | "ficha" | "volver" | "mover";
 export interface FanItem {
   key: string;
   kind: FanKind;
   role?: RoleKey;
   /** A dead-ball list's place (0 = 1º), in the galón's own sub-fan. */
   pos?: number;
-  zone?: Zone;
-  /** The letter on the disc (galones and zones); the icon kinds draw their own. */
+  /** «Jugar de»: the position this item sets. */
+  code?: PosCode;
+  /** «Otra posición…»: the line it is listed under («Defensas»). */
+  group?: string;
+  /** «Volver»: where it goes back to (absent = the main fan). */
+  back?: FanSub;
+  /** «Otra posición…»: the chip the focus starts on. */
+  first?: boolean;
+  /** The letters on the disc (galones and codes); the icon kinds draw their own. */
   glyph: string;
   label: string;
   aria: string;
@@ -28,14 +38,56 @@ export interface FanItem {
 
 export const FAN_RADIUS = 98;
 
-/** `sub`: false = the main fan, true = «Jugar de» (the zones), a list = its 1º · 2º · 3º. */
-export type FanSub = boolean | TakerKind;
+/** `sub`: false = the main fan, true = «Jugar de» (his line's codes), "otra" = every position, a list =
+ *  its 1º · 2º · 3º. */
+export type FanSub = boolean | TakerKind | "otra";
+const isTaker = (s: FanSub): s is TakerKind => typeof s === "string" && s !== "otra";
+
+/** The codes «Jugar de» offers first: his slot's, then the rest of its line in this system, once each
+ *  (none when he is not on the pitch). */
+export function lineCodes(L: Lineup, id: string): PosCode[] {
+  const i = L.slots.findIndex((s) => s.playerId === id);
+  if (i < 0) return [];
+  const own = slotCode(L, i);
+  const line = L.slots.map((_, j) => slotCode(L, j)).filter((c) => lineOf(c) === lineOf(own));
+  return [...new Set([own, ...line])];
+}
+
+/** The code he plays on this board: his «Jugar de» code, else (none set) his preferida; null for a
+ *  legacy «Jugar de» line or without an exact position. */
+function playsAtCode(L: Lineup, sq: Squad, id: string): PosCode | null {
+  const over = normPlaysAs(L.playerPositions[id]);
+  if (over) return isPosCode(over) ? over : null;
+  return sq.byId.get(id)?.ps?.main ?? null;
+}
 
 export function fanItems(L: Lineup, sq: Squad, id: string, sub: FanSub): FanItem[] {
   const name = sq.byId.get(id)?.name ?? "";
   type Raw = Omit<FanItem, "dx" | "dy" | "d">;
-  const list = typeof sub === "string" ? takersOf(L)[sub] : [];
-  const raw: Raw[] = typeof sub === "string"
+  const at = sub === true || sub === "otra" ? playsAtCode(L, sq, id) : null;
+  // a code: on the disc in the ring (named under it), «MCD · Pivote» in the full list
+  const codeItem = (c: PosCode, full: boolean): Raw => ({
+    key: "c" + c,
+    kind: "code",
+    code: c,
+    glyph: c,
+    label: full ? c + " · " + POSITIONS[c].name : POSITIONS[c].name,
+    aria: name + " juega de " + POSITIONS[c].name.toLowerCase() + " (" + c + ")",
+    on: at === c,
+    ...(full ? { group: LINE_NAMES[POSITIONS[c].line].plural } : {}),
+  });
+  // «Otra posición…» opens on the code he plays, else on the first of his line (else of his slot's)
+  const allCodes = (): Raw[] => {
+    const items = POS_CODES.map((c) => codeItem(c, true));
+    const line = natOf(L, sq, id) ?? lineCodes(L, id).map(lineOf)[0];
+    const on = items.findIndex((it) => it.on);
+    const k = on >= 0 ? on : Math.max(0, items.findIndex((it) => !!it.code && lineOf(it.code) === line));
+    return items.map((it, j) => (j === k ? { ...it, first: true } : it));
+  };
+  const list = isTaker(sub) ? takersOf(L)[sub] : [];
+  const raw: Raw[] = sub === "otra"
+    ? [...allCodes(), { key: "back", kind: "volver", back: true, glyph: "", label: "Volver", aria: "Volver a las posiciones de su línea", on: false }]
+    : isTaker(sub)
     ? [
         ...ORDINAL.map<Raw>((o, pos) => {
           const on = list[pos] === id;
@@ -46,7 +98,10 @@ export function fanItems(L: Lineup, sq: Squad, id: string, sub: FanSub): FanItem
       ]
     : sub
     ? [
-        ...ZONES.map<Raw>((z) => ({ key: "z" + z, kind: "zone", zone: z, glyph: z.charAt(0), label: z, aria: name + " juega de " + z, on: natOf(L, sq, id) === z })),
+        // (a «Jugar de» on this board can always be taken off, whatever he is known as)
+        ...(normPlaysAs(L.playerPositions[id]) ? [{ key: "quitar", kind: "quitar" as const, glyph: "", label: "Como siempre", aria: "Quitar «jugar de»: " + name + " juega como siempre", on: false }] : []),
+        ...lineCodes(L, id).map((c) => codeItem(c, false)),
+        { key: "otra", kind: "otra", glyph: "", label: "Otra posición…", aria: "Otra posición: todas, por líneas", on: false },
         { key: "back", kind: "volver", glyph: "", label: "Volver", aria: "Volver al menú", on: false },
       ]
     : [
@@ -90,12 +145,18 @@ export function applyFan(item: FanItem, L: Lineup, sq: Squad, id: string): FanOu
       const g = GALONES.find((x) => x.key === item.role);
       return { kind: "lineup", lineup: next, toast: (g?.label ?? "") + ": " + (next.roles[item.role as RoleKey] ? name : "sin asignar") };
     }
-    case "zone":
-      return { kind: "lineup", lineup: setPlaysAs(L, sq, id, item.zone as Zone), toast: name + " juega de " + item.zone + " en este siete" };
+    case "code": {
+      const c = item.code as PosCode;
+      return { kind: "lineup", lineup: setPlaysAs(L, sq, id, c), toast: name + " juega de " + POSITIONS[c].name.toLowerCase() + " (" + c + ") en este siete" };
+    }
+    case "quitar":
+      return { kind: "lineup", lineup: clearPlaysAs(L, id), toast: name + " juega como siempre en este siete" };
     case "jugar":
       return { kind: "sub", sub: true };
+    case "otra":
+      return { kind: "sub", sub: "otra" };
     case "volver":
-      return { kind: "sub", sub: false };
+      return { kind: "sub", sub: item.back ?? false };
     case "banquillo":
       return { kind: "lineup", lineup: toBench(L, id), pick: L.slots.findIndex((s) => s.playerId === id) };
     case "ficha":

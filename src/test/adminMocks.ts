@@ -1,16 +1,31 @@
 // What the admin tests' module mocks return (kept apart from adminKit.tsx, which imports AdminLayout and
-// so the very modules being mocked). setAdminData(adminFixture()) before mounting.
+// so the very modules being mocked). setAdminData(adminFixture()) before mounting; called again while the
+// admin is mounted (inside act), it re-renders with the new data — like a Firestore snapshot arriving.
+import { useSyncExternalStore } from "react";
 import type { AdminData } from "../pages/admin/data/useAdminData";
 
 let current: AdminData | null = null;
+const listeners = new Set<() => void>();
 /** What the mocked useAdminData returns. */
 export function setAdminData(d: AdminData) {
   current = d;
+  listeners.forEach((l) => l());
 }
-export function currentAdminData(): AdminData {
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
+  };
+};
+const snapshot = (): AdminData => {
   if (!current) throw new Error("setAdminData(adminFixture()) before mounting the admin.");
   return current;
+};
+function useCurrentAdminData(): AdminData {
+  return useSyncExternalStore(subscribe, snapshot);
 }
+/** The mocked useAdminData (a hook: it follows setAdminData). */
+export const currentAdminData = useCurrentAdminData;
 /** The mocked AuthContext's logout (the captain's «Salir en este dispositivo»): calls are recorded. */
 export const fakeLogout = { calls: 0 };
 /** A signed-in super admin for the mocked AuthContext. */

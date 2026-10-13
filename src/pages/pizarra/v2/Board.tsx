@@ -14,16 +14,18 @@
 // read-only boards included. One 3D stadium serves the intro, the charla and the jugadas.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { FormationName, Lineup } from "../formations";
-import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
-import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
+import { systemDef } from "../../../lib/formations";
+import { CAMS, camGeo, proj, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
+import { GALONES, isAvailable, isFull, type Squad } from "./model";
 import { chemOf, tierOf } from "./quimica";
-import { autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
-import { suggestSeven } from "./pack";
+import { autoByEncajeOn, autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
+import { sevenByEncajeOn, suggestSeven } from "./pack";
+import { boardInPlace, encajeCandidates, hasFitData, shownFit, slotCode } from "./encaje";
 import { applyFan, fanCentre, fanItems, type FanItem, type FanSub } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
 import { cycle, settle, snapOf, step, type Snap } from "./sheet";
 import { DIR_KEYS, moveStroke, nudgeOf, nudgePoint, placeOf, slotInDirection, strokeMid, toPlace } from "./drag";
-import { ago, FX0, fxDuration, hud as buildHud, joinLive, pitchView, planLayer, positionsOf, tacSummary, vars, type Fx, type Modo } from "./view";
+import { ago, FX0, fxDuration, hud as buildHud, joinLive, natTxtOf, pitchView, planLayer, positionsOf, tacSummary, vars, type Fx, type Modo } from "./view";
 import { useDragController } from "./useDragController";
 import { useBoardSound, buzz } from "./sound";
 import { plural } from "./plural";
@@ -128,7 +130,7 @@ import { orderTxt, ROLE_TAKER, takersOf } from "./takers";
 import { useVariants } from "./useVariants";
 import { VariantPills } from "./VariantPills";
 import { charlaPlanB, cmpVariantKey, variantCmpOptions, variantNameError, variantView } from "./variants";
-import { famCount, famLine, famOf, familiarity, famTxt } from "./familiarity";
+import { famCodeCount, famCount, famLine, familiarity, famSlot } from "./familiarity";
 import type { CardView } from "./view";
 import { MoverA } from "./MoverA";
 import { OficialBanner } from "./OficialBanner";
@@ -501,6 +503,9 @@ export function Board(props: BoardProps) {
   // (once per lineup and squad: the HUD, the cromos, the bars, the panels and the cartel all read it)
   const ch = chemOf(L, sq);
   const squadIds = useMemo(() => sq.list.map((c) => c.id), [sq]);
+  // (the Sistema tiles' pool, sorted: the same identity while nobody joins or leaves it)
+  const candKey = encajeCandidates(L, sq).sort().join(",");
+  const encCands = useMemo(() => (candKey ? candKey.split(",") : []), [candKey]);
   const nm = (id: string) => sq.byId.get(id)?.name ?? "Jugador";
   // «El oficial ha cambiado: entra X» (since this device last saw it; never to whoever is editing it)
   const offB = props.official;
@@ -520,11 +525,7 @@ export function Board(props: BoardProps) {
   // ── familiarity: where each one has lined up in the season's officials already played ──
   const cal0 = props.calendar;
   const fam = useMemo(() => familiarity(session.officials, (mid) => !!cal0.find((c) => c.id === mid)?.played), [session.officials, cal0]);
-  const famAt = (id: string, i: number) => {
-    const z = slotZone(L, i);
-    const nat = natOf(L, sq, id);
-    return { mark: famOf(fam, id, z, nat), txt: famTxt(fam, id, z, nat) };
-  };
+  const famAt = (id: string, i: number) => famSlot(fam, L, sq, id, i);
   const withFam = (c: CardView): CardView => {
     const f = famAt(c.id, c.i);
     if (!f.mark) return c;
@@ -673,7 +674,7 @@ export function Board(props: BoardProps) {
     if (cele) {
       buzz([30, 60, 30, 60, 120]);
       snd("crowd");
-      announce("¡Siete listo! " + (next.freeMode ? "Libre" : next.formation));
+      announce("¡Siete listo! " + (next.freeMode ? "Libre" : systemDef(next.formation).label));
     }
   };
 
@@ -685,7 +686,7 @@ export function Board(props: BoardProps) {
     const occ = L.slots[i]?.playerId;
     commit(place(L, id, i), { ui: { sel: null, pick: null, kb: null }, snap: "half" });
     buzz([12, 30, 12]);
-    announce(occ && occ !== id ? nm(id) + " por " + nm(occ) + " en " + slotLabel(L, i) : nm(id) + " a " + slotLabel(L, i));
+    announce(occ && occ !== id ? nm(id) + " por " + nm(occ) + " en " + slotCode(L, i) : nm(id) + " a " + slotCode(L, i));
   };
 
   const cardEl = (id: string): HTMLElement | null => {
@@ -1577,7 +1578,7 @@ export function Board(props: BoardProps) {
   const wantNow = can3d && (intro3d || charlaOn || (want3d && rpl.playing));
   const keep3d = useStadiumMount(can3d, wantNow);
   if (!keep3d && ready3d) setReady3d(false);
-  const led3d = ["Manchester Piti", "Sistema " + (L.freeMode ? "libre" : L.formation), "Química " + ch.v, props.match?.short ?? "", "Vamos Piti"].filter(Boolean);
+  const led3d = ["Manchester Piti", "Sistema " + (L.freeMode ? "libre" : systemDef(L.formation).label), "Química " + ch.v, props.match?.short ?? "", "Vamos Piti"].filter(Boolean);
   const heroId = chKind === "siete" ? chSlots[chl.step - 1] : null;
   let shot: Shot;
   if (intro3d) shot = intro.phase === "run" ? { kind: "intro", players: engineSeven(L, sq, props.meId) } : { kind: "hold" };
@@ -1652,7 +1653,7 @@ export function Board(props: BoardProps) {
         commit(r.lineup, { drop, ui: { sel: null, pick: null, kb: null }, snap: "half" });
         buzz([12, 30, 12]);
         const k = r.lineup.slots.findIndex((s) => s.playerId === src.id);
-        announce(k >= 0 ? nm(src.id) + " a " + slotLabel(r.lineup, k) : nm(src.id) + " al banquillo");
+        announce(k >= 0 ? nm(src.id) + " a " + slotCode(r.lineup, k) : nm(src.id) + " al banquillo");
       },
       onLongPress: (id, from, el) => (from === "pitch" ? openFan(id, el) : openFic(id, el)),
       onLine: (val) => {
@@ -1793,25 +1794,28 @@ export function Board(props: BoardProps) {
     // The board's match (linked, else the next): its convocatoria's siete comes first in the pack.
     const cm = props.calendar.find((c) => c.id === session.matchId) ?? props.nextMatch;
     const own = cm?.conv?.starters ?? [];
-    const next = suggestSeven(L, sq, own, calledOf(cm), (id, z) => famCount(fam, id, z));
+    const next = suggestSeven(L, sq, own, calledOf(cm), (id, z, code) => (code ? famCodeCount(fam, id, code) : famCount(fam, id, z)));
     if (!next.slots.some((s) => s.playerId)) {
       say("No hay nadie disponible para el sobre");
       return;
     }
     commit(next, { ui: { sel: null, pick: null, kb: null }, fx: { spin: !rm } });
     buzz([10, 40, 10, 40, 10, 40, 60]);
-    say(own.length && cm ? "Sobre abierto: el siete de la convocatoria de " + matchShort(cm) : "Sobre abierto: los siete en mejor forma" + (sq.recentLabel ? " (" + sq.recentLabel + ")" : ""));
+    // (with exact positions the pack deals by encaje first, form only between equals)
+    const best = sevenByEncajeOn(L, sq, own, calledOf(cm)) ? "los siete que mejor encajan, por forma" : "los siete en mejor forma";
+    say(own.length && cm ? "Sobre abierto: el siete de la convocatoria de " + matchShort(cm) : "Sobre abierto: " + best + (sq.recentLabel ? " (" + sq.recentLabel + ")" : ""));
   };
   const doAuto = () => {
     if (!canEdit) return;
     const next = autoPlace(L, sq, called);
+    const exact = autoByEncajeOn(L, sq, called);
     if (next.slots.every((s, i) => s.playerId === L.slots[i]?.playerId)) {
-      say(next.slots.some((s) => s.playerId) ? "Ya está cada cromo en su sitio" : "No hay nadie disponible para colocar");
+      say(next.slots.some((s) => s.playerId) ? (exact ? "Ya está cada cromo donde mejor encaja" : "Ya está cada cromo en su sitio") : "No hay nadie disponible para colocar");
       return;
     }
     commit(next, { ui: { sel: null, pick: null, kb: null } });
     buzz([10, 30, 10, 30, 10]);
-    say("Cada cromo a su sitio natural · bajas y «no voy» fuera");
+    say((exact ? "Cada cromo donde mejor encaja" : "Cada cromo a su sitio natural") + " · bajas y «no voy» fuera");
   };
   const toSystem = (next: Lineup) => {
     commit(next, { ui: { pick: null } });
@@ -1913,7 +1917,7 @@ export function Board(props: BoardProps) {
     const occ = L.slots[k]?.playerId;
     // (and what it would do to the química por jugador: « · +1 química aquí»)
     const q = sel && !(sel.k === "p" && occ === sel.id) && isAvailable(sq, sel.id) ? tq.chemTxt(place(L, sel.id, k), sel.id) : "";
-    return (occ && occ !== sel?.id ? "Sobre " + nm(occ) + ", " + slotLabel(L, k) + ": Intro para cambiarlos" : "Hueco " + slotLabel(L, k) + ": Intro para soltarlo") + q;
+    return (occ && occ !== sel?.id ? "Sobre " + nm(occ) + ", " + slotCode(L, k) + ": Intro para cambiarlos" : "Hueco " + slotCode(L, k) + ": Intro para soltarlo") + q;
   };
   const dropOn = (k: number) => {
     if (!sel) return;
@@ -2000,7 +2004,7 @@ export function Board(props: BoardProps) {
     ? (() => {
         const c = sq.byId.get(inHand.id);
         const at = L.slots.findIndex((s) => s.playerId === inHand.id);
-        return c ? selBarView(c, inHand.k === "p" && at >= 0 ? slotLabel(L, at) : null, L.roles.captainId === inHand.id) : null;
+        return c ? selBarView(c, inHand.k === "p" && at >= 0 ? slotCode(L, at) : null, L.roles.captainId === inHand.id) : null;
       })()
     : null;
   // Rendered once: at the top of the Siete tool on phones (sb-s), on the pitch's apron elsewhere (sb-p,
@@ -2122,7 +2126,7 @@ export function Board(props: BoardProps) {
   // Compiler keeps them while their inputs don't change).
   const benchOn = modo === "editar" && tab === "b";
   const selP = sel?.k === "p" ? L.slots.findIndex((s) => s.playerId === sel.id) : -1;
-  const benchHand: BenchHand | null = !benchOn || !canEdit ? null : sel && selP >= 0 ? { kind: "p", name: nm(sel.id), zone: slotZone(L, selP) } : pick != null ? { kind: "slot", zone: slotZone(L, pick) } : null;
+  const benchHand: BenchHand | null = !benchOn || !canEdit ? null : sel && selP >= 0 ? { kind: "p", name: nm(sel.id), zone: slotZone(L, selP), code: slotCode(L, selP) } : pick != null ? { kind: "slot", zone: slotZone(L, pick), code: slotCode(L, pick) } : null;
   const groups = benchOn
     ? benchGroups({
         bench: sq.list.filter((c) => !onPitch.has(c.id)),
@@ -2134,7 +2138,7 @@ export function Board(props: BoardProps) {
       })
     : NO_GROUPS;
   // «Buscar en la plantilla» finds the ones on the pitch too: tapping one marks him there
-  const found = pitchFound(L, sq, { on: srx, q, zf, oc: ocOn, sin: sinF }, (i) => slotLabel(L, i));
+  const found = pitchFound(L, sq, { on: srx, q, zf, oc: ocOn, sin: sinF }, (i) => slotCode(L, i));
   const onFound = (id: string) => {
     const i = L.slots.findIndex((s) => s.playerId === id);
     if (i < 0) return;
@@ -2142,8 +2146,8 @@ export function Board(props: BoardProps) {
     buzz(8);
     if (canEdit) {
       patchUi({ sel: { k: "p", id }, pick: null, kb: null });
-      announce(nm(id) + " está en el campo, de " + slotLabel(L, i) + ": en la mano. Toca otro cromo o un hueco.");
-    } else say(nm(id) + " está en el campo, de " + slotLabel(L, i));
+      announce(nm(id) + " está en el campo, de " + slotCode(L, i) + ": en la mano. Toca otro cromo o un hueco.");
+    } else say(nm(id) + " está en el campo, de " + slotCode(L, i));
   };
   // (the reparto only while the Plan page shows it)
   const planOn = modo === "editar" && tab === "p";
@@ -2213,7 +2217,7 @@ export function Board(props: BoardProps) {
   };
   const ficha0 = fic ? fichaOf({ id: fic.id, L, sq, ch, match, ox: fic.ox, oy: fic.oy, side: fic.side }) : null;
   // (where he has lined up in the season's officials: the familiarity, on the ficha's back)
-  const famL = fic && fam.games ? famLine(fam, fic.id) : "";
+  const famL = fic && fam.games ? famLine(fam, fic.id, hasFitData([fic.id], sq, L)) : "";
   const ficha = ficha0 && fam.games ? { ...ficha0, facts: [...(ficha0.facts ?? []), { k: "En el oficial", v: famL || "Aún no ha salido en un oficial jugado" }] } : ficha0;
 
   // ── the plan ──
@@ -2392,11 +2396,12 @@ export function Board(props: BoardProps) {
     props.onPrefs({ grid: on });
     if (on && canEdit && L.freeMode) commit(snapAll(L));
   };
+  // out of position as the cromo says it («!»: shownFit 0), printed as the cromo prints it (nat›code)
   const oopNames = L.slots
     .map((s, i) => {
       const c = s.playerId ? sq.byId.get(s.playerId) : undefined;
-      if (!c || fits(L, sq, c.id, slotZone(L, i))) return null;
-      return c.name + " (" + (natOf(L, sq, c.id) ?? "?") + "›" + slotZone(L, i) + ")";
+      if (!c || shownFit(L, sq, c.id, i) !== 0) return null;
+      return c.name + " (" + (natTxtOf(L, sq, c.id) ?? "?") + "›" + slotCode(L, i) + ")";
     })
     .filter((x): x is string => !!x);
 
@@ -2408,7 +2413,7 @@ export function Board(props: BoardProps) {
       .map((s) => (s.playerId ? sq.byId.get(s.playerId) : undefined))
       .filter((c): c is NonNullable<typeof c> => !!c && (c.cv === "no" || !!c.baja))
       .map((c) => c.name + (c.cv === "no" ? " no va" : " " + (c.baja ?? "").toLowerCase())),
-    ...oopNames.map((x) => x + " fuera de posición"),
+    ...oopNames.map((x) => x + " fuera de sitio"),
   ];
   // The cartel goes to the group with the whole seven.
   const shareBlock = ch.n < 7 ? "Completa el siete para compartir (" + ch.n + "/7)." : null;
@@ -2627,6 +2632,7 @@ export function Board(props: BoardProps) {
             seasonId={props.seasonId}
             onSuggest={doSuggest}
             onAuto={doAuto}
+            autoExact={autoByEncajeOn(L, sq, called)}
             onAvisar={() => void doAvisar()}
             onSrx={() => setSrx(!srx)}
             onTapBench={tapBench}
@@ -2650,6 +2656,8 @@ export function Board(props: BoardProps) {
             ro={!canEdit}
             ch={ch}
             sq={sq}
+            cands={encCands}
+            now={boardInPlace(L, sq)}
             dm={tq.dm}
             onSystem={(f: FormationName) => canEdit && toSystem(setSystem(L, f))}
             onLibre={() => {
@@ -2661,7 +2669,7 @@ export function Board(props: BoardProps) {
             onReset={() => {
               if (!canEdit) return;
               commit(resetFree(L));
-              say("Posiciones del sistema " + L.formation);
+              say("Posiciones del sistema " + systemDef(L.formation).label);
             }}
           />
         )}
@@ -3321,7 +3329,7 @@ export function Board(props: BoardProps) {
             cx={fan.cx}
             cy={fan.cy}
             num={sq.byId.get(fan.id)?.num ?? 0}
-            title={nm(fan.id) + " · " + slotLabel(L, L.slots.findIndex((s) => s.playerId === fan.id))}
+            title={nm(fan.id) + " · " + slotCode(L, L.slots.findIndex((s) => s.playerId === fan.id))}
             items={fanList}
             onItem={onFanItem}
             onClose={() => patchUi({ fan: null })}

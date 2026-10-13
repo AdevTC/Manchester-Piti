@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/quality-gate.sh\"",
+            "timeout": 600,
+            "statusMessage": "Puerta de calidad: lint + tests de lo cambiado"
+          }
+        ]
+      }
+    ]
+  }
+}

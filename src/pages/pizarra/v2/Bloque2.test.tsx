@@ -146,6 +146,26 @@ describe("focus", () => {
     expect(document.activeElement).toBe(fan().querySelector(".fi"));
   });
 
+  it("«Otra posición…» lists every position by line, focus on the first; one closes the fan with the change said", () => {
+    render(<Harness initial={L7()} />);
+    fireEvent.click(cromoButton("TELLO"));
+    fireEvent.click(screen.getByRole("button", { name: "Galones y posición de TELLO" }));
+    const fan = () => screen.getByRole("dialog", { name: /Menú rápido de TELLO/ });
+    fireEvent.click(within(fan()).getByRole("button", { name: "Jugar como: elegir posición" }));
+    fireEvent.click(within(fan()).getByRole("button", { name: "Otra posición: todas, por líneas" }));
+    expect(within(fan()).getAllByRole("group").map((g) => g.getAttribute("aria-label"))).toEqual(["Porteros", "Defensas", "Medios", "Delanteros"]);
+    expect(within(within(fan()).getByRole("group", { name: "Medios" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["MCD · Pivote", "MC · Mediocentro", "MI · Interior izquierdo", "MD · Interior derecho", "MCO · Mediapunta"]);
+    // (the focus starts on his line: TELLO is a defender)
+    expect(document.activeElement).toBe(within(fan()).getByRole("button", { name: "TELLO juega de central (DFC)" }));
+    // «Volver» goes back to his line's codes
+    fireEvent.click(within(fan()).getByRole("button", { name: "Volver a las posiciones de su línea" }));
+    expect(within(fan()).getByRole("button", { name: "Otra posición: todas, por líneas" })).toBeInTheDocument();
+    fireEvent.click(within(fan()).getByRole("button", { name: "Otra posición: todas, por líneas" }));
+    fireEvent.click(within(fan()).getByRole("button", { name: "TELLO juega de pivote (MCD)" }));
+    expect(screen.queryByRole("dialog", { name: /Menú rápido de TELLO/ })).toBeNull();
+    expect(screen.getAllByText("TELLO juega de pivote (MCD) en este siete").length).toBeGreaterThan(0);
+  });
+
   it("aria-busy is on the board, not on the page around it", () => {
     const { container } = render(<Harness initial={L7()} session={{ ready: false }} />);
     expect(root(container)).not.toHaveAttribute("aria-busy");

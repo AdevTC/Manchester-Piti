@@ -7,7 +7,8 @@ import { CARTEL_H, CARTEL_W, cartelConsignas, cartelFile, cartelHead, cartelLayo
 import { parsePrefs, PREFS0, readPrefs, SHOW0, writePrefs } from "./prefs";
 import { chem } from "./quimica";
 import { slotPos } from "./geometry";
-import { boardDoc, demoSquad, lineupOf } from "./testkit";
+import { boardDoc, cromo, demoSquad, lineupOf, squadOf } from "./testkit";
+import { lineOf, type PosCode } from "../../../lib/positions";
 
 // The pure logic of phase 3: the plan painted on the pitch, Comparar, the boards (names, the official,
 // the match band), the convocatoria on the cromos, the cartel's layout and the stored preferences.
@@ -86,7 +87,7 @@ describe("comparar", () => {
 
   it("the tale of the tape: química, system, media, the seven's minutes, natural positions and galones, the better side marked", () => {
     const rows = tape(A, B, sq);
-    expect(rows.map((r) => r.k)).toEqual(["Química", "Sistema", "Media", "Minutos del siete", "En su posición", "Galones en el campo"]);
+    expect(rows.map((r) => r.k)).toEqual(["Química", "Sistema", "Media", "Minutos del siete", "En su sitio", "Galones en el campo"]);
     expect(rows[1]).toMatchObject({ a: "2-3-1", b: "3-2-1", ca: "", cb: "" });
     const form = rows[2];
     expect(form.a).toBe(meanForm(A, sq));
@@ -105,10 +106,26 @@ describe("comparar", () => {
     const Bg = { ...B, roles: Ag.roles };
     const rows = tape(Ag, Bg, sq2);
     expect(rows[3]).toEqual({ k: "Minutos del siete", a: "300′", b: "1550′", ca: "", cb: "w" });
-    expect(rows[4]).toEqual({ k: "En su posición", a: "7/7", b: "5/7", ca: "w", cb: "" });
+    expect(rows[4]).toEqual({ k: "En su sitio", a: "7/7", b: "5/7", ca: "w", cb: "" });
     expect(rows[5]).toEqual({ k: "Galones en el campo", a: "2/4", b: "2/4", ca: "", cb: "" });
     expect(naturalCount(lineupOf([]), sq)).toBe(0);
     expect(galonesOn(lineupOf([]))).toBe(0);
+  });
+
+  it("«En su sitio» with exact positions: in place = preferida or también (an adaptado is not)", () => {
+    // 2-3-1: POR · DFC DFC · MI MC MD · DC
+    const x = (id: string, num: number, main: PosCode, also: PosCode[] = []) => cromo(id, num, lineOf(main), { ps: { main, also, line: lineOf(main) } });
+    const xs = squadOf([x("gk", 1, "POR"), x("d1", 2, "DFC"), x("d2", 3, "DFC"), x("piv", 4, "MCD", ["MI"]), x("mc", 5, "MCO"), x("md", 6, "MD"), x("dc", 9, "DC")]);
+    // piv at MI (también), mc (a mediapunta) at MC: adaptado — 6 in place, not the 7 his line would say
+    const X = lineupOf(["gk", "d1", "d2", "piv", "mc", "md", "dc"], "2-3-1", xs);
+    expect(naturalCount(X, xs)).toBe(6);
+    // a «Jugar de» at that very position counts as in place
+    expect(naturalCount({ ...X, playerPositions: { mc: "MC" } }, xs)).toBe(7);
+    // «El siete que jugó» places the starters by encaje too, so its count is not low for the listed order
+    // (by line, md listed first would take MI and piv MD: 4 in place)
+    const P = playedSeven(X, ["dc", "md", "mc", "piv", "d2", "gk", "d1"], xs);
+    expect(P.slots.map((s) => s.playerId).slice(3, 6)).toEqual(["piv", "mc", "md"]);
+    expect(naturalCount(P, xs)).toBe(6);
   });
 
   it("«El siete que jugó»: the match's starters as a seven on this system (keeper in goal, each in his line)", () => {

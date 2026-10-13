@@ -43,9 +43,47 @@ service cloud.firestore {
       return (!changed.hasAny(['sanction']) || validSanction(d.get('sanction', null)))
         && (!changed.hasAny(['sanctionClearedAt']) || d.get('sanctionClearedAt', null) == null || d.sanctionClearedAt is int);
     }
+    // ---- posiciones de fútbol 7 (Admin → Plantilla; el jugador propone las suyas desde su perfil).
+    function posCodes() { return ['POR','DFC','LIB','LI','LD','MCD','MC','MI','MD','MCO','EI','ED','DC']; }
+    function validPosSet(p) {
+      return p is map
+        && p.keys().hasAll(['main','also'])
+        && (p.main == null || p.main in posCodes())
+        && p.also is list && p.also.size() <= 6
+        && p.also.toSet().size() == p.also.size()
+        && p.also.toSet().difference(posCodes().toSet()).size() == 0
+        && (p.main == null || !(p.main in p.also));
+    }
+    function validProposal(p) {
+      return p == null || (validPosSet(p) && p.keys().hasOnly(['main','also','at']) && p.at == request.time);
+    }
+    function validReview(r) {
+      return r == null || (r is map && r.keys().hasOnly(['status','at','by'])
+        && r.status in ['aprobada','ajustada','rechazada'] && r.at == request.time && r.by == request.auth.uid);
+    }
+    // Admin: only when they change (like the sanction).
+    function positionsOk() {
+      let d = request.resource.data;
+      let changed = resource == null ? d.keys() : d.diff(resource.data).affectedKeys();
+      return (!changed.hasAny(['positions']) || (validPosSet(d.positions) && d.positions.keys().hasOnly(['main','also'])))
+        && (!changed.hasAny(['positionsReview']) || validReview(d.get('positionsReview', null)))
+        && (!changed.hasAny(['positionsProposal']) || validProposal(d.get('positionsProposal', null)));
+    }
+    // The member linked to this ficha: only their own proposal (or withdrawing it). With it — never alone —
+    // he may clear the last review (it spoke of an older proposal); he can never give it a value.
+    function ownProposal(id) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return teamMember() && resource != null
+        && me().get('playerId', null) == id
+        && changed.hasOnly(['positionsProposal','positionsReview'])
+        && changed.hasAny(['positionsProposal'])
+        && request.resource.data.get('positionsReview', null) == null
+        && validProposal(request.resource.data.get('positionsProposal', null));
+    }
     match /players/{id} {
       allow read: if true;
-      allow create, update: if admin() && sanctionOk();
+      allow create: if admin() && sanctionOk() && positionsOk();
+      allow update: if (admin() && sanctionOk() && positionsOk()) || ownProposal(id);
       allow delete: if admin();
     }
     match /seasons/{id} {

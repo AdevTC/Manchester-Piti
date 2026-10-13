@@ -5,6 +5,7 @@
 import { dateMillis, isCompleted } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../lib/clubData";
 import { chronological, playerGame } from "../../lib/clubAnalytics";
+import { LINE_NAMES, POSITIONS, type PosCode } from "../../lib/positions";
 import { resultOf } from "../../lib/partidos";
 import { bestPartner, mvpWinners, mvpWins, vitrina, type MvpResult } from "../../lib/vestuario";
 import { suspensions } from "../pizarra/chemistry";
@@ -20,7 +21,7 @@ export type Tier = "bronce" | "plata" | "oro" | "racha";
 /** The tier chip: a real tier, or the card before it has numbers / before it exists. */
 export type TierKey = Tier | "nuevo" | "down" | "pack";
 
-export const POSITION_LONG: Record<Zone, string> = { POR: "Portero", DEF: "Defensa", MED: "Centrocampista", DEL: "Delantero" };
+export const POSITION_LONG: Record<Zone, string> = { POR: LINE_NAMES.POR.name, DEF: LINE_NAMES.DEF.name, MED: LINE_NAMES.MED.name, DEL: LINE_NAMES.DEL.name };
 export const TIER_NAME: Record<TierKey, string> = {
   racha: "En racha",
   oro: "Oro",
@@ -163,7 +164,9 @@ export interface CardView {
   playerId: string | null;
   name: string;
   number: string;
-  pos: Zone | null;
+  /** What the card prints by the rating: the preferida's code («MCD») when known, else the line («MED»). */
+  pos: PosCode | Zone | null;
+  /** Its name («Pivote» / «Centrocampista»): the LED, the ficha line and the share images. */
   posLong: string | null;
   captain: boolean;
   rating: number | null;
@@ -351,8 +354,10 @@ export function buildCard(input: CardInput): CardView {
   /** The cromo whose numbers the card shows (vinculada, season started). */
   const shown = vinc && started ? me : undefined;
   const showNumbers = !!shown;
-  const pos = me?.pos ?? null;
-  const posLong = pos ? POSITION_LONG[pos] : null;
+  const main = me?.ps?.main ?? null;
+  const line = me?.pos ?? null;
+  const pos = main ?? line;
+  const posLong = main ? POSITIONS[main].name : line ? POSITION_LONG[line] : null;
   const name = me?.name ?? "";
   const number = me && me.num ? String(me.num) : "";
 

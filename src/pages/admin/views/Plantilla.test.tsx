@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { serverTimestamp } from "firebase/firestore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { adminFixture, mountAdmin, setAdminData } from "../../../test/adminKit";
 import { Plantilla } from "./Plantilla";
@@ -88,7 +89,7 @@ describe("Plantilla · ficha a ficha", () => {
     expect(h.writes.savePlayer).toHaveBeenCalledWith("kevin", { naturalPosition: "DEF" });
   });
 
-  it("a player's ficha: his line and state are one tap, his account and story are there", async () => {
+  it("a player's ficha: his positions and state are one tap, his account and story are there", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const router = mountAdmin("/admin/plantilla", { plantilla: Plantilla });
@@ -96,7 +97,10 @@ describe("Plantilla · ficha a ficha", () => {
     await user.click(within(list()).getByRole("button", { name: "Abrir la ficha de ERIK" }));
     await waitFor(() => expect(router.state.location.search).toEqual({ jugador: "erik" }));
     const f = ficha("ERIK");
-    expect(within(f).getByRole("button", { name: "DEL" })).toHaveAttribute("aria-pressed", "true");
+    // known only by his line (DEL): the map has nothing marked yet
+    expect(within(f).queryByRole("group", { name: "Línea de ERIK" })).toBeNull();
+    expect(within(f).getByRole("group", { name: "Posiciones de ERIK" })).toBeInTheDocument();
+    expect(within(f).getByRole("button", { name: "DC · Punta: sin marcar" })).toBeInTheDocument();
     expect(within(f).getByRole("img", { name: "Le falta la foto, el nacimiento, la altura y el peso" })).toBeInTheDocument();
     expect(f).toHaveTextContent("Cuenta vinculada · erik9 entra al vestuario con su ficha");
     expect(within(f).getByRole("link", { name: /Editar su historia/ })).toHaveAttribute("href", "/admin/contenido?seccion=historias");
@@ -104,13 +108,38 @@ describe("Plantilla · ficha a ficha", () => {
     expect(within(f).getByText("Su dorsal · solo lo lleva él")).toBeInTheDocument();
     await user.click(within(within(f).getByRole("group", { name: "Estado de ERIK" })).getByRole("button", { name: /Lesionado/ }));
     expect(caption()).toHaveTextContent("ERIK, lesionado");
-    await user.click(within(within(f).getByRole("group", { name: "Línea de ERIK" })).getByRole("button", { name: "MED" }));
-    expect(caption()).toHaveTextContent("ERIK pasa al medio");
+    const map = () => within(ficha("ERIK")).getByRole("group", { name: "Posiciones de ERIK" });
+    await user.click(within(map()).getByRole("button", { name: /^MCD · Pivote/ }));
+    expect(caption()).toHaveTextContent("Posiciones de ERIK: También MCD");
+    await user.click(within(map()).getByRole("button", { name: /^MCD · Pivote/ }));
+    expect(caption()).toHaveTextContent("Posiciones de ERIK: Pivote (MCD)");
+    expect(caption().querySelector(".lt .k")).toHaveTextContent("POSICIÓN");
+    expect(within(map()).getByRole("button", { name: "MCD · Pivote: preferida" })).toBeInTheDocument();
+    // the preferida's line moves him to the medios, and the list says his exact position
+    expect(groups()[2]).toBe("Medios: EGUZQUIZA, ERIK, HUBEROSKI, ANDIA, ALMACHI");
+    expect(within(list()).getByRole("button", { name: "Abrir la ficha de ERIK" })).toHaveTextContent("MCD · Lesionado · faltan 4 datos");
     await act(async () => {
       vi.advanceTimersByTime(5300);
     });
     expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", { injured: true });
-    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", { naturalPosition: "MED" });
+    // a hand edit clears the last review (it spoke of other positions)
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", { positions: { main: null, also: ["MCD"] }, positionsReview: null });
+    expect(h.writes.savePlayer).toHaveBeenLastCalledWith("erik", { positions: { main: "MCD", also: [] }, naturalPosition: "MED", positionsReview: null });
+  });
+
+  it("«Deshacer» on a position puts the map back and writes nothing", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?jugador=tello", { plantilla: Plantilla });
+    const f = await screen.findByRole("region", { name: "Ficha de TELLO" });
+    await user.click(within(within(f).getByRole("group", { name: "Posiciones de TELLO" })).getByRole("button", { name: "LD · Lateral derecho: sin marcar" }));
+    expect(within(f).getByRole("button", { name: "LD · Lateral derecho: también" })).toBeInTheDocument();
+    await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
+    expect(within(ficha("TELLO")).getByRole("button", { name: "LD · Lateral derecho: sin marcar" })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(6000);
+    });
+    expect(h.writes.savePlayer).not.toHaveBeenCalled();
   });
 
   it("a claimed ficha points to Fichas", async () => {
@@ -134,8 +163,10 @@ describe("Plantilla · ficha a ficha", () => {
     await act(async () => {
       vi.advanceTimersByTime(5300);
     });
-    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", expect.objectContaining({ height: 180, naturalPosition: "DEL", injured: false, shirtName: "ERIK", seasons: ["t1"] }));
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", expect.objectContaining({ height: 180, injured: false, shirtName: "ERIK", seasons: ["t1"] }));
     expect(h.writes.savePlayer.mock.calls[0][1]).not.toHaveProperty("createdAt");
+    // his line is untouched, so it is not rewritten (an old exact word would survive for the migration)
+    expect(h.writes.savePlayer.mock.calls[0][1]).not.toHaveProperty("naturalPosition");
   });
 
   it("«Deshacer» after an autosave puts the field back and writes nothing", async () => {
@@ -241,7 +272,13 @@ describe("Plantilla · ficha a ficha", () => {
     const alta = within(a).getByRole("button", { name: "Dar de alta" });
     expect(alta).toBeDisabled();
     expect(within(a).getByRole("button", { name: "Temporada 1" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(a).getByRole("button", { name: "MED" })).toHaveAttribute("aria-pressed", "true");
+    // his positions on the same map as the ficha, empty to start with (optional)
+    expect(within(a).queryByRole("button", { name: "MED" })).toBeNull();
+    const map = within(a).getByRole("group", { name: "Posiciones del jugador nuevo" });
+    expect(within(map).getByRole("button", { name: "MCD · Pivote: sin marcar" })).toBeInTheDocument();
+    await user.click(within(map).getByRole("button", { name: /^MCD · Pivote/ }));
+    await user.click(within(map).getByRole("button", { name: /^MCD · Pivote/ }));
+    expect(within(map).getByRole("button", { name: "MCD · Pivote: preferida" })).toBeInTheDocument();
     await user.type(within(a).getByRole("textbox", { name: /Nombre en la camiseta/ }), "pablo");
     expect(within(a).getByRole("heading", { level: 2 })).toHaveTextContent("PABLO");
     await user.type(within(a).getByRole("textbox", { name: "Dorsal en la Temporada 1" }), "9");
@@ -258,7 +295,23 @@ describe("Plantilla · ficha a ficha", () => {
     await act(async () => {
       vi.advanceTimersByTime(5300);
     });
-    expect(h.writes.savePlayer).toHaveBeenCalledWith("nuevo1", expect.objectContaining({ shirtName: "PABLO", number: 2, naturalPosition: "MED", seasons: ["t1"], active: true, createdAt: expect.any(Date) }));
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("nuevo1", expect.objectContaining({ shirtName: "PABLO", number: 2, naturalPosition: "MED", positions: { main: "MCD", also: [] }, seasons: ["t1"], active: true, createdAt: expect.any(Date) }));
+  });
+
+  it("an alta with the map left empty writes no position (he waits in «Sin posición»)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?nuevo=true&dorsal=2", { plantilla: Plantilla });
+    const a = await screen.findByRole("region", { name: "Alta de jugador" });
+    await user.type(within(a).getByRole("textbox", { name: /Nombre en la camiseta/ }), "pablo");
+    await user.click(within(a).getByRole("button", { name: "Dar de alta" }));
+    expect(groups()[0]).toBe("Sin posición: PABLO");
+    await act(async () => {
+      vi.advanceTimersByTime(5300);
+    });
+    const payload = h.writes.savePlayer.mock.calls[0][1];
+    expect(payload).not.toHaveProperty("positions");
+    expect(payload).not.toHaveProperty("naturalPosition");
   });
 
   it("«Dar de baja» asks first, takes him off the season (the doc stays) and can be undone", async () => {
@@ -334,8 +387,8 @@ describe("Plantilla · ficha a ficha", () => {
     await user.click(await screen.findByRole("button", { name: "Exportar la plantilla (CSV)" }));
     expect(create).toHaveBeenCalledTimes(1);
     const text = await created[0].text();
-    expect(text).toContain("Dorsal;Nombre en camiseta;Nombre;Apellidos;Posición;Estado;Temporadas");
-    expect(text).toContain("9;ERIK;Nombre;Apellidos;Delantero;Activo;T1;;;");
+    expect(text).toContain("Dorsal;Nombre en camiseta;Nombre;Apellidos;Posición;Preferida;También;Estado;Temporadas");
+    expect(text).toContain("9;ERIK;Nombre;Apellidos;Delantero;;;Activo;T1;;;");
     expect(caption()).toHaveTextContent("Plantilla exportada · 12 jugadores en el CSV");
     click.mockRestore();
   });
@@ -486,5 +539,164 @@ describe("Plantilla · sanciones", () => {
       vi.advanceTimersByTime(5300);
     });
     expect(h.writes.savePlayer).toHaveBeenCalledWith("tello", { sanction: null, sanctionClearedAt: base.now });
+  });
+});
+
+describe("Plantilla · propuestas de posición", () => {
+  const banner = () => within(ficha("ERIK")).getByRole("group", { name: "Propuesta de ERIK" });
+  const map = () => within(ficha("ERIK")).getByRole("group", { name: "Posiciones de ERIK" });
+  beforeEach(() => {
+    localStorage.clear();
+    Object.values(h.writes).forEach((f) => f.mockClear());
+    const base = adminFixture();
+    setAdminData({ ...base, players: base.players.map((p) => (p.id === "erik" ? { ...p, positions: { main: "DC", also: [] }, positionsProposal: { main: "MCD", also: ["MC"], at: 1 } } : p)) });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("the ficha shows what he proposes on a map compared with his positions; «Propuestas» isolates who proposed", async () => {
+    const user = userEvent.setup();
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    expect(banner()).toHaveTextContent("ERIK propone: Pivote (MCD) · también MC");
+    expect(banner()).toHaveTextContent("Ahora: Punta (DC)");
+    // while it waits, the map is his proposal (the editor comes back with «Ajustar» or once it is decided)
+    expect(within(ficha("ERIK")).queryByRole("group", { name: "Posiciones de ERIK" })).toBeNull();
+    expect(within(banner()).getByRole("img", { name: /^Lo que propone ERIK\. Preferida: Pivote \(MCD\)\. También: Mediocentro \(MC\)\. Añadidas: .*Quitadas: Punta \(DC\)/ })).toBeInTheDocument();
+    expect(within(banner()).getAllByRole("button").map((b) => b.textContent)).toEqual(["Aprobar", "Ajustar", "Rechazar"]);
+    // the list says his exact preferida
+    expect(within(list()).getByRole("button", { name: "Abrir la ficha de ERIK" })).toHaveTextContent("DC · faltan 4");
+    const chips = screen.getByRole("group", { name: "Qué falta" });
+    expect(within(chips).getAllByRole("button")[0]).toHaveTextContent("Propuestas1");
+    await user.click(within(chips).getByRole("button", { name: /Propuestas/ }));
+    expect(groups()).toEqual(["Delanteros: ERIK"]);
+  });
+
+  it("«Aprobar» writes his proposal as his positions, signed (behind «Deshacer»)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Aprobar" }));
+    expect(caption()).toHaveTextContent("ERIK: propuesta aprobada · Pivote (MCD) · también MC");
+    expect(caption().querySelector(".lt .k")).toHaveTextContent("PROPUESTA");
+    expect(within(ficha("ERIK")).queryByRole("group", { name: "Propuesta de ERIK" })).toBeNull();
+    expect(within(map()).getByRole("button", { name: "MCD · Pivote: preferida" })).toBeInTheDocument();
+    // undone: the proposal is back, nothing written
+    await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
+    expect(banner()).toHaveTextContent("Ahora: Punta (DC)");
+    await user.click(within(banner()).getByRole("button", { name: "Aprobar" }));
+    await act(async () => {
+      vi.advanceTimersByTime(5300);
+    });
+    expect(h.writes.savePlayer).toHaveBeenCalledTimes(1);
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", {
+      positions: { main: "MCD", also: ["MC"] },
+      naturalPosition: "MED",
+      positionsProposal: null,
+      positionsReview: { status: "aprobada", at: serverTimestamp(), by: "a1" },
+    });
+  });
+
+  it("«Rechazar» closes the proposal and leaves his positions as they were", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Rechazar" }));
+    expect(caption()).toHaveTextContent("ERIK: propuesta rechazada · siguen las de antes");
+    expect(within(ficha("ERIK")).queryByRole("group", { name: "Propuesta de ERIK" })).toBeNull();
+    expect(within(map()).getByRole("button", { name: "DC · Punta: preferida" })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(5300);
+    });
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", { positionsProposal: null, positionsReview: { status: "rechazada", at: serverTimestamp(), by: "a1" } });
+  });
+
+  it("«Rechazar» with no positions before: no «siguen las de antes»", async () => {
+    const base = adminFixture();
+    setAdminData({ ...base, players: base.players.map((p) => (p.id === "erik" ? { ...p, naturalPosition: undefined, positions: undefined, positionsProposal: { main: "MCD", also: [], at: 1 } } : p)) });
+    const user = userEvent.setup();
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Rechazar" }));
+    expect(caption()).toHaveTextContent("ERIK: propuesta rechazada");
+    expect(caption()).not.toHaveTextContent("siguen las de antes");
+  });
+
+  it("«Ajustar» follows the live proposal: if he sends another meanwhile, the banner shows the new one (nothing written)", async () => {
+    const user = userEvent.setup();
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Ajustar" }));
+    expect(banner()).toHaveTextContent("Ajustando la propuesta de ERIK");
+    // he sends v2 while the captain adjusts v1 (the snapshot arrives)
+    const base = adminFixture();
+    act(() => setAdminData({ ...base, players: base.players.map((p) => (p.id === "erik" ? { ...p, positions: { main: "DC", also: [] }, positionsProposal: { main: "MCO", also: ["EI"], at: 2 } } : p)) }));
+    expect(banner()).not.toHaveTextContent("Ajustando");
+    expect(banner()).toHaveTextContent("ERIK propone: Mediapunta (MCO) · también EI");
+    expect(within(banner()).getAllByRole("button").map((b) => b.textContent)).toEqual(["Aprobar", "Ajustar", "Rechazar"]);
+    expect(within(ficha("ERIK")).queryByRole("group", { name: "Posiciones de ERIK" })).toBeNull();
+    expect(h.writes.savePlayer).not.toHaveBeenCalled();
+  });
+
+  it("«Ajustar» drops too when he withdraws and sends the same again (a new date)", async () => {
+    const user = userEvent.setup();
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Ajustar" }));
+    const base = adminFixture();
+    act(() => setAdminData({ ...base, players: base.players.map((p) => (p.id === "erik" ? { ...p, positions: { main: "DC", also: [] }, positionsProposal: { main: "MCD", also: ["MC"], at: 3 } } : p)) }));
+    expect(banner()).not.toHaveTextContent("Ajustando");
+    expect(within(banner()).getByRole("button", { name: "Aprobar" })).toBeInTheDocument();
+  });
+
+  it("keyboard: the focus follows the review — to the map after «Ajustar» or a decision, to «Ajustar» after «Cancelar»", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Ajustar" }));
+    await waitFor(() => expect(within(map()).getByRole("button", { name: "MCD · Pivote: preferida, añadida" })).toHaveFocus());
+    await user.click(within(banner()).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(within(banner()).getByRole("button", { name: "Ajustar" })).toHaveFocus());
+    await user.click(within(banner()).getByRole("button", { name: "Rechazar" }));
+    await waitFor(() => expect(within(map()).getByRole("button", { name: "DC · Punta: preferida" })).toHaveFocus());
+    await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
+    await user.click(within(banner()).getByRole("button", { name: "Aprobar" }));
+    await waitFor(() => expect(within(map()).getByRole("button", { name: "MCD · Pivote: preferida" })).toHaveFocus());
+    expect(document.body).not.toHaveFocus();
+  });
+
+  it("«Ajustar» puts his proposal in the editor (compared with his positions); the next tap saves it as adjusted", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Ajustar" }));
+    expect(banner()).toHaveTextContent("Ajustando la propuesta de ERIK");
+    expect(within(map()).getByRole("button", { name: "MCD · Pivote: preferida, añadida" })).toBeInTheDocument();
+    expect(within(map()).getByRole("button", { name: "DC · Punta: sin marcar, quitada" })).toBeInTheDocument();
+    // «Cancelar» goes back to the proposal as it came
+    await user.click(within(banner()).getByRole("button", { name: "Cancelar" }));
+    expect(within(banner()).getByRole("button", { name: "Aprobar" })).toBeInTheDocument();
+    expect(within(ficha("ERIK")).queryByRole("group", { name: "Posiciones de ERIK" })).toBeNull();
+    expect(h.writes.savePlayer).not.toHaveBeenCalled();
+
+    await user.click(within(banner()).getByRole("button", { name: "Ajustar" }));
+    await user.click(within(map()).getByRole("button", { name: /^MC · Mediocentro/ }));
+    expect(caption()).toHaveTextContent("ERIK: propuesta ajustada · Mediocentro (MC) · también MCD");
+    expect(within(ficha("ERIK")).queryByRole("group", { name: "Propuesta de ERIK" })).toBeNull();
+    expect(within(map()).getByRole("button", { name: "MC · Mediocentro: preferida" })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(5300);
+    });
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", {
+      positions: { main: "MC", also: ["MCD"] },
+      naturalPosition: "MED",
+      positionsProposal: null,
+      positionsReview: { status: "ajustada", at: serverTimestamp(), by: "a1" },
+    });
   });
 });

@@ -3,6 +3,7 @@
 // is the official for a match, the match a board is linked to (with its result band) and the
 // convocatoria of that match on the cromos. Pure.
 import type { Lineup } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import type { MatchEvent } from "../../../lib/clubData";
 import type { LineupDoc } from "../lineupDoc";
 import { ago } from "./view";
@@ -48,7 +49,7 @@ export const copyName = (name: string, official: boolean, taken: string[]): stri
 
 /** «2-3-1 · 76 de química · ahora». */
 export function boardMeta(L: Lineup, sq: Squad, at: number | null, now: number): string {
-  return (L.freeMode ? "Libre" : L.formation) + " · " + chem(L, sq).v + " de química · " + ago(at, now);
+  return (L.freeMode ? "Libre" : systemDef(L.formation).label) + " · " + chem(L, sq).v + " de química · " + ago(at, now);
 }
 
 /** The official for a match: the one published for that match, else the one for the whole season. */

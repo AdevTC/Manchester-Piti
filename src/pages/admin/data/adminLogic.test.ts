@@ -12,6 +12,7 @@ import {
   mergeMatches,
   mvpNote,
   nextMatch,
+  pendingProposals,
   reviewActa,
   rsvpCounts,
   shortDate,
@@ -207,6 +208,7 @@ describe("buildOverview (Hoy: Por hacer, «N hechas», the rail counters)", () =
     actas: [{ match: m7, review: reviewActa(m7, ROSTER, NOW) }],
     heroId: m8.id,
     claims: [{ playerName: "KEVIN" }, { playerName: "FER" }],
+    proposals: [],
     contentGaps: [{ key: "escudo", title: "Historia del escudo", detail: "Sin escribir" }],
     contentDrafts: [{ key: "momentos", title: "Momentos del club" }],
     done: ["Acta J1 publicada · Emirates 4–1"],
@@ -236,6 +238,56 @@ describe("buildOverview (Hoy: Por hacer, «N hechas», the rail counters)", () =
   });
   it("one ficha reads in the singular", () => {
     expect(buildOverview({ ...base, claims: [{ playerName: "KEVIN" }] }).pending[1]).toMatchObject({ title: "1 ficha pide paso", detail: "KEVIN quiere su camiseta" });
+  });
+  it("pending position proposals: one line after the fichas, «Revisar» opens the first player's ficha, counted in Hoy", () => {
+    const o = buildOverview({
+      ...base,
+      proposals: [
+        { playerId: "pablo", playerName: "Pablo" },
+        { playerId: "erik", playerName: "Erik" },
+        { playerId: "fer", playerName: "Fer" },
+        { playerId: "kev", playerName: "Kevin" },
+      ],
+    });
+    expect(o.pending.map((t) => t.title)).toEqual([
+      "Acta J2 · falta el goleador del gol 3",
+      "2 fichas piden paso",
+      "Posiciones propuestas · por revisar",
+      "Momentos del club · sin publicar",
+      "Historia del escudo · por completar",
+    ]);
+    expect(o.pending[2]).toEqual({
+      key: "posiciones",
+      title: "Posiciones propuestas · por revisar",
+      detail: "Pablo, Erik y 2 más",
+      ved: null,
+      action: { label: "Revisar", target: { section: "plantilla", playerId: "pablo" } },
+    });
+    expect(o.counters.hoy).toEqual({ n: 5, label: "5 por hacer" });
+  });
+  it("lists up to three proposers by name; two read «A y B»", () => {
+    const three = buildOverview({ ...base, proposals: ["Ana", "Beto", "Cris"].map((n) => ({ playerId: n, playerName: n })) });
+    expect(three.pending.find((t) => t.key === "posiciones")?.detail).toBe("Ana, Beto y Cris");
+    const two = buildOverview({ ...base, proposals: [{ playerId: "a", playerName: "Ana" }, { playerId: "b", playerName: "Beto" }] });
+    expect(two.pending.find((t) => t.key === "posiciones")?.detail).toBe("Ana y Beto");
+  });
+});
+
+describe("pendingProposals (current season's players with a proposal waiting)", () => {
+  const stamp = Date.UTC(2026, 10, 2);
+  const row = (id: string, doc: object) => ({ id, name: id.toUpperCase(), doc: { id, ...doc } as never });
+  it("keeps the roster order and only the pending ones", () => {
+    const roster = [
+      row("a", {}),
+      row("b", { positionsProposal: { main: "MC", also: [], at: stamp } }),
+      row("c", { positionsProposal: null, positionsReview: { status: "aprobada", at: stamp, by: "x" } }),
+      row("d", { positionsProposal: { main: null, also: ["EI"], at: stamp } }),
+    ];
+    expect(pendingProposals(roster)).toEqual([
+      { playerId: "b", playerName: "B" },
+      { playerId: "d", playerName: "D" },
+    ]);
+    expect(pendingProposals([])).toEqual([]);
   });
 });
 

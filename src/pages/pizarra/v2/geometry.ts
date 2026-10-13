@@ -2,6 +2,8 @@
 // The pitch plane is (u, v) in %: u across (0 left … 100 right), v along (0 = rival goal … 100 = our goal).
 // The frame is (x, y) in % of the drawn frame, with a real perspective tilt for the TV camera. The same
 // formulas draw the turf, place the cromos, the química links and the plan, and invert a pointer for drag.
+import { SYSTEMS_CATALOGUE } from "../../../lib/formations";
+import { lineOf } from "../../../lib/positions";
 import type { FormationName, Lineup, Zone } from "../formations";
 
 export interface Cam {
@@ -88,16 +90,11 @@ export function depthScale(C: Cam, s: number): number {
 // ── The systems, as designed: [label, zone, u, v] per slot (0 = POR, then back to front). ──
 // Spaced so that, with the plan's línea Media and mentalidad Equilibrada (any amplitud), no two cromos
 // overlap on either camera at the phone's card size (--cw 16, the largest): a card is 5:7, held at 84%
-// of its height (see fit.test.ts).
+// of its height (see fit.test.ts). (datos en src/lib/formations.ts)
 export type SlotSpot = readonly [label: string, zone: Zone, u: number, v: number];
-export const FORM: Record<FormationName, readonly SlotSpot[]> = {
-  "2-3-1": [["POR", "POR", 50, 95], ["DFC", "DEF", 30, 74], ["DFC", "DEF", 70, 74], ["MI", "MED", 17, 49], ["MC", "MED", 50, 50], ["MD", "MED", 83, 49], ["DC", "DEL", 50, 22]],
-  "3-2-1": [["POR", "POR", 50, 95], ["LI", "DEF", 18, 72], ["DFC", "DEF", 50, 74], ["LD", "DEF", 82, 72], ["MC", "MED", 25, 46], ["MC", "MED", 75, 46], ["DC", "DEL", 50, 22]],
-  "3-1-2": [["POR", "POR", 50, 95], ["LI", "DEF", 18, 72], ["DFC", "DEF", 50, 74], ["LD", "DEF", 82, 72], ["MC", "MED", 50, 48], ["DC", "DEL", 22, 22], ["DC", "DEL", 78, 22]],
-  "2-1-3": [["POR", "POR", 50, 95], ["DFC", "DEF", 30, 74], ["DFC", "DEF", 70, 74], ["MC", "MED", 50, 50], ["EI", "DEL", 17, 30], ["DC", "DEL", 50, 22], ["ED", "DEL", 83, 30]],
-  "1-3-2": [["POR", "POR", 50, 95], ["LIB", "DEF", 50, 74], ["MI", "MED", 17, 50], ["MC", "MED", 50, 48], ["MD", "MED", 83, 50], ["DC", "DEL", 22, 22], ["DC", "DEL", 78, 22]],
-  "2-1-2-1": [["POR", "POR", 50, 95], ["DFC", "DEF", 24, 74], ["DFC", "DEF", 76, 74], ["MCD", "MED", 50, 59], ["MI", "MED", 20, 41], ["MD", "MED", 80, 41], ["DC", "DEL", 50, 20]],
-};
+export const FORM = Object.fromEntries<readonly SlotSpot[]>(
+  SYSTEMS_CATALOGUE.map((s) => [s.id, s.spots.map(([code, u, v]) => [code, lineOf(code), u, v] as const)]),
+) as Record<FormationName, readonly SlotSpot[]>;
 
 /** A cromo's box on the pitch frame, in % of the frame's width (x and y alike), as the CSS draws it:
  *  width --cw × its depth scale, 5:7, held at 50% across and 84% down (translate(-50%,-84%)). */

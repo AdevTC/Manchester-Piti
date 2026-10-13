@@ -9,7 +9,7 @@ import { useClock } from "../../hooks/useClock";
 import { useAuth } from "../../context/AuthContext";
 import { leaveDoorNotice } from "../../lib/doorNotice";
 import { savedTopics, setTopics } from "../../lib/push";
-import { cancelPlayerClaim, leaveVestuario, nicknameTaken, requestPlayerClaim, setNickname, setShirtName } from "./api";
+import { cancelPlayerClaim, leaveVestuario, nicknameTaken, proposePositions, requestPlayerClaim, setNickname, setShirtName } from "./api";
 import { ProfileView, type ProfileActions } from "./ProfileView";
 import { useProfileData } from "./useProfileData";
 import "../../styles/perfil.css";
@@ -30,6 +30,11 @@ export function ProfilePage() {
     requestClaim: async (playerId) => {
       const r = await requestPlayerClaim({ playerId });
       return { linked: r.data.linked };
+    },
+    proposePositions: async (set) => {
+      const playerId = data.ficha.state === "vinculada" ? data.ficha.playerId : null;
+      if (!playerId) throw new Error("Sin ficha vinculada");
+      await proposePositions(playerId, set);
     },
     signOut: async () => {
       leaveDoorNotice("Has salido en este dispositivo");

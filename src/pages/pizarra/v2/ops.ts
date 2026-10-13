@@ -1,11 +1,13 @@
 // La pizarra «Noche de partido» — every change the board makes to a lineup, as pure functions over the
 // stored Lineup (formations.ts) built on lineupOps. No React. The design's slot table (geometry.ts FORM)
 // places the cromos; free mode keeps each slot's own spot in slots[i].x/y.
-import { applyFormation, type FormationName, type Lineup, type RoleKey, type Zone } from "../formations";
+import { applyFormation, type FormationName, type Lineup, type PlaysAs, type RoleKey } from "../formations";
 import { placeIntoSlot, sendToBench, swapPlayers, XI } from "../lineupOps";
 import { defaultTactics } from "../tactics";
 import { DEF_LINE_VALUES, planeDist2, slotPos, slotZone, SYSTEMS } from "./geometry";
+import { hasFitData, inPlace, logicGrade, out as fuera, placeByWeight } from "./encaje";
 import { isAvailable, natOf, type Squad } from "./model";
+import { FIT_ADAPTED, FIT_IN_PLACE, FIT_STICK } from "./ratings";
 import { knownTakers, ROLE_TAKER, rolesFor, syncRoles, takersOf, toggleFirst } from "./takers";
 import { tacticaSig } from "./tacticaData";
 
@@ -142,11 +144,21 @@ export function toggleRole(L: Lineup, key: RoleKey, id: string): Lineup {
   return { ...L, roles };
 }
 
-/** «Jugar de»: a per-board position; choosing his natural one clears the override. */
-export function setPlaysAs(L: Lineup, sq: Squad, id: string, zone: Zone): Lineup {
+/** «Jugar de»: a per-board position (a code, or a legacy line); choosing where he is at home clears
+ *  the override — his preferida, or for a player known only by his line, that line. */
+export function setPlaysAs(L: Lineup, sq: Squad, id: string, to: PlaysAs): Lineup {
+  const c = sq.byId.get(id);
   const playerPositions = { ...L.playerPositions };
-  if (sq.byId.get(id)?.pos === zone) delete playerPositions[id];
-  else playerPositions[id] = zone;
+  if ((c?.ps?.main ?? c?.pos) === to) delete playerPositions[id];
+  else playerPositions[id] = to;
+  return { ...L, playerPositions };
+}
+
+/** «Como siempre»: his «Jugar de» on this board comes off (a code or a legacy line, whoever he is). */
+export function clearPlaysAs(L: Lineup, id: string): Lineup {
+  if (!(id in L.playerPositions)) return L;
+  const playerPositions = { ...L.playerPositions };
+  delete playerPositions[id];
   return { ...L, playerPositions };
 }
 
@@ -241,15 +253,58 @@ export function answerRank(sq: Squad, id: string): number {
   return cv === "voy" ? 0 : cv === "duda" ? 2 : 1;
 }
 
-// ── Auto-colocar: every cromo to his natural zone (the pitch first, then the best of the bench) ──
+// ── Auto-colocar: every cromo to his place (the pitch first, then the best of the bench) ──
 export function autoPlace(L: Lineup, sq: Squad, called: ReadonlySet<string> | null = null): Lineup {
+  const { pool, bench } = autoCandidates(L, sq, called);
+  const cand = pool.concat(bench);
+  const out = hasFitData(cand, sq, L) ? autoByEncaje(L, sq, pool, bench) : autoByLine(L, sq, pool, cand);
+  return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })) });
+}
+
+/** Who Auto-colocar places: the pitch (without bajas or a «no voy»), then the bench that can come
+ *  («Voy», no answer, «Duda», each by form). */
+function autoCandidates(L: Lineup, sq: Squad, called: ReadonlySet<string> | null): { pool: string[]; bench: string[] } {
   const ok = (id: string) => isAvailable(sq, id) && sq.byId.get(id)?.cv !== "no";
   const pool = L.slots.map((s) => s.playerId).filter((id): id is string => !!id && ok(id));
-  const benchAv = sq.list
+  const bench = sq.list
     .filter((c) => !pool.includes(c.id) && canCome(sq, c.id, called) && !L.slots.some((s) => s.playerId === c.id))
     .sort((a, b) => answerRank(sq, a.id) - answerRank(sq, b.id) || b.rt - a.rt)
     .map((c) => c.id);
-  const cand = pool.concat(benchAv);
+  return { pool, bench };
+}
+
+/** Whether Auto-colocar places by exact encaje (someone it can place has a preferida or a también)
+ *  rather than by lines — for the words that tell what it did. */
+export function autoByEncajeOn(L: Lineup, sq: Squad, called: ReadonlySet<string> | null = null): boolean {
+  const { pool, bench } = autoCandidates(L, sq, called);
+  return hasFitData(pool.concat(bench), sq, L);
+}
+
+/**
+ * Auto-colocar with exact positions (someone has a preferida or a también): the best placement of the
+ * pitch and the bench, an exact max-weight assignment with encaje and form in balance (ratings.ts
+ * FIT_*): in place or adaptado (or unknown) always over fuera; between in place and adaptado the form
+ * decides once it is 15 points apart. It arranges the seven rather than re-picking it: the pitch gets
+ * FIT_STICK (14) over the bench, so the same fit from the bench comes in only with about 15 more form;
+ * the bench's answer («Voy», no answer, «Duda»: 2 a step) only tips near-equals; the grade (preferida
+ * over también) and staying in his own slot break exact ties. The keeper's slot only to a declared keeper while there is one.
+ */
+function autoByEncaje(L: Lineup, sq: Squad, pool: string[], bench: string[]): (string | null)[] {
+  const cand = pool.concat(bench);
+  const onPitch = new Set(pool);
+  const keeper = cand.some((id) => inPlace(logicGrade(L, sq, id, 0)));
+  return placeByWeight(L.slots.length, cand, (i, id) => {
+    const g = logicGrade(L, sq, id, i);
+    if (i === 0 && keeper && !inPlace(g)) return null;
+    // (1000: every slot filled while there is someone)
+    const tier = inPlace(g) ? FIT_IN_PLACE : fuera(g) ? 0 : FIT_ADAPTED;
+    const prio = onPitch.has(id) ? FIT_STICK + (L.slots[i]?.playerId === id ? 0.001 : 0) : 2 * (2 - answerRank(sq, id));
+    return 1000 + tier + (sq.byId.get(id)?.rt ?? 0) + prio + (g ?? 1) / 10;
+  });
+}
+
+/** Auto-colocar by lines (nobody with an exact position): natural zone first, the pitch first. */
+function autoByLine(L: Lineup, sq: Squad, pool: string[], cand: string[]): (string | null)[] {
   const out: (string | null)[] = L.slots.map(() => null);
   const used = new Set<string>();
   for (let pass = 0; pass < 2; pass++) {
@@ -276,5 +331,5 @@ export function autoPlace(L: Lineup, sq: Squad, called: ReadonlySet<string> | nu
       used.add(id);
     }
   }
-  return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })) });
+  return out;
 }

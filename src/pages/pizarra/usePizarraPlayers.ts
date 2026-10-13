@@ -5,7 +5,7 @@ import { useSeason, type Season } from "../../context/SeasonContext";
 import type { Zone } from "./formations";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import { mapPlayer } from "../../lib/firestoreMappers";
-import { normZone } from "./positions";
+import { resolvePositions, type PositionSet } from "../../lib/positions";
 import type { Sanction } from "./chemistry";
 
 const PLAYERS_KEY = ["players"] as const;
@@ -23,6 +23,7 @@ interface PlayerDoc {
   seasons?: string[];
   active?: boolean;
   naturalPosition?: Zone;
+  positions?: unknown;
   injured?: boolean;
   sanction?: Sanction;
   sanctionClearedAt?: number;
@@ -36,8 +37,10 @@ export interface PizarraPlayer {
   lastName: string;
   shirtName: string;
   number: number;
-  /** Squad-level natural position, set by an admin (Firestore). */
+  /** His line, always POR/DEF/MED/DEL: resolvePositions' line (approved positions, else the old text). */
   naturalPosition?: Zone;
+  /** His exact positions, resolved ({main, also}: the approved ones, else the code of the old text). */
+  positions: PositionSet;
   /** Number of seasons in the club (for the chemistry experience axis). */
   seasonsCount: number;
   /** Admin-set unavailability flag. */
@@ -47,14 +50,6 @@ export interface PizarraPlayer {
   /** A sanction set by hand in Admin, and when one was last lifted (see chemistry.suspensions). */
   sanction?: Sanction;
   sanctionClearedAt?: number;
-}
-
-/**
- * Persist a player's natural position. Caller must gate this to admins (the
- * Firestore rule also enforces admin role server-side — see the spec).
- */
-export async function setNaturalPosition(playerId: string, pos: Zone | null): Promise<void> {
-  await updateDoc(doc(db, "players", playerId), { naturalPosition: pos });
 }
 
 /**
@@ -96,8 +91,8 @@ export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolea
   const { selectedSeasonId, seasons } = useSeason();
   // Shared canonical subscription via the cache bridge (one onSnapshot for
   // `players` across all pages); per-season derivation stays here in useMemo.
-  // naturalPosition is string in the schema but Zone in the board interface —
-  // the cast is safe because the board only reads admin-written (valid) values.
+  // The raw naturalPosition (any old text) is never read as-is: the board's value
+  // is always resolvePositions' line (POR/DEF/MED/DEL), set in the map below.
   const { data, isPending } = useFirestoreCollection(PLAYERS_KEY, playersQuery, mapPlayer);
   const docs = useMemo(() => (data ?? []) as unknown as PlayerDoc[], [data]);
   const loading = isPending;
@@ -110,14 +105,16 @@ export function usePizarraPlayers(): { players: PizarraPlayer[]; loading: boolea
     return inSeason
       .map((p) => {
         const { shirtName, number } = resolve(p, selectedSeasonId, seasons);
+        const pos = resolvePositions(p);
         return {
           id: p.id,
           firstName: p.firstName || "",
           lastName: p.lastName || "",
           shirtName,
           number,
-          // Stored as POR/DEF/MED/DEL or as words («Portero», «Defensa»…): always the code here.
-          naturalPosition: normZone(p.naturalPosition),
+          // The line of the approved positions (or of the old text): always POR/DEF/MED/DEL here.
+          naturalPosition: pos.line ?? undefined,
+          positions: { main: pos.main, also: pos.also },
           seasonsCount: p.seasons?.length ?? 0,
           injured: p.injured === true,
           active: p.active !== false,

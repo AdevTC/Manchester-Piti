@@ -4,6 +4,7 @@
 // consignas take each cromo, as deterministic offsets from the plan's own geometry. The pitch shows a phase
 // through a view of the lineup (`phaseAt`, never stored), so the cromos glide there and back. Pure.
 import type { FormationName, Lineup } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import type { ShapeOff, ShapeOffset } from "../../../lib/tacticaSchemas";
 import { TACTICA_LIMITS } from "../../../lib/tacticaSchemas";
 import { defaultTactics } from "../tactics";
@@ -237,7 +238,7 @@ export function blockMetres(off: ShapeOff): number {
 export function shapeOffTxt(L: Lineup): string {
   const off = shapeOffOf(L);
   const m = blockMetres(off);
-  return off.formation + (m > 0 ? " · el bloque baja " + m + " m" : m < 0 ? " · el bloque sube " + -m + " m" : " · a la misma altura");
+  return systemDef(off.formation).label + (m > 0 ? " · el bloque baja " + m + " m" : m < 0 ? " · el bloque sube " + -m + " m" : " · a la misma altura");
 }
 
 /** La charla's card for the shape without the ball (null while the board has none of its own). */
@@ -245,7 +246,7 @@ export function charlaShape(L: Lineup, name: (id: string) => string): { t: strin
   if (!L.shapeOff) return null;
   const rs = runners(L);
   return {
-    t: "Sin balón · " + L.shapeOff.formation,
+    t: "Sin balón · " + systemDef(L.shapeOff.formation).label,
     d: "Al perderla, " + shapeOffTxt(L).replace(/^[^·]*· /, "") + "." + (rs[0] ? " Ojo: " + runnerTxt(name(rs[0].id), rs[0]) + "." : ""),
   };
 }

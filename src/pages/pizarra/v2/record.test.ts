@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { demoSquad, lineupOf } from "./testkit";
+import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
+import { lineOf, type PosCode } from "../../../lib/positions";
 import type { CalMatch } from "./boards";
 import { lastPlayed, plannedVsPlayed, pvpTxt, recordTxt, recordWith, sevenFromStarters } from "./record";
 
@@ -70,5 +71,27 @@ describe("copiar el siete del último partido", () => {
     expect(t.filter(Boolean)).toHaveLength(3);
     expect(t[0]).toBe("evans");
     expect(t).not.toContain("ghost");
+  });
+
+  it("with exact positions, each starter goes where he fits best (in place before adaptado), the keeper in goal", () => {
+    const x = (id: string, num: number, main: PosCode, also: PosCode[] = []) => cromo(id, num, lineOf(main), { ps: { main, also, line: lineOf(main) } });
+    const xs = squadOf([x("gk", 1, "POR"), x("d1", 2, "DFC"), x("d2", 3, "LI"), x("mi", 4, "MI"), x("md", 6, "MD"), x("mco", 5, "MCO", ["MC"]), x("dc", 9, "DC")]);
+    const L = lineupOf([], "2-3-1", xs);
+    // by line the first midfielder listed would take MI: md, mco, mi in that order
+    const s = sevenFromStarters("2-3-1", ["dc", "md", "mco", "mi", "d2", "gk", "d1"], xs, L);
+    // 2-3-1: POR · DFC DFC · MI MC MD · DC
+    expect(s).toEqual(["gk", expect.any(String), expect.any(String), "mi", "mco", "md", "dc"]);
+    expect([s[1], s[2]].sort()).toEqual(["d1", "d2"]);
+    // the new board has no «Jugar de»: the current board's don't move anyone (mi still at MI)
+    const J = { ...L, playerPositions: { mi: "MD" as const, md: "MI" as const } };
+    expect(sevenFromStarters("2-3-1", ["dc", "md", "mco", "mi", "d2", "gk", "d1"], xs, J).slice(3, 6)).toEqual(["mi", "mco", "md"]);
+  });
+
+  it("between equals, the first listed take the first slots", () => {
+    const x = (id: string, num: number, main: PosCode) => cromo(id, num, lineOf(main), { ps: { main, also: [], line: lineOf(main) } });
+    const xs = squadOf([x("gk", 1, "POR"), x("a", 2, "DFC"), x("b", 3, "DFC"), x("dc", 9, "DC")]);
+    const L = lineupOf([], "2-3-1", xs);
+    expect(sevenFromStarters("2-3-1", ["b", "a", "gk", "dc"], xs, L).slice(1, 3)).toEqual(["b", "a"]);
+    expect(sevenFromStarters("2-3-1", ["a", "b", "gk", "dc"], xs, L).slice(1, 3)).toEqual(["a", "b"]);
   });
 });

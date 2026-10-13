@@ -362,6 +362,10 @@
 .pzv .mv-s{min-width:0;font-size:13px;color:inherit;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pzv .mv-f{display:grid;place-items:center;min-width:28px;height:22px;padding:0 4px;background:var(--slab);color:var(--slab-ink);font-family:'Anybody';font-weight:900;font-size:13px;clip-path:var(--ang)}
 .pzv .mv-f.no{background:var(--red);color:#fff}
+/* «Mover a…» for a player with an exact position: the puesto by name and his fit over who is there. */
+.pzv .mv-s.pzp-mv2{display:grid;gap:1px;white-space:normal}
+.pzv .pzp-mv2 > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pzv .pzp-mv2 > span:first-child{font-weight:700}
 .pzv .mva-p > .b3{justify-self:end;min-height:40px}
 /* «Sin responder» as its own chip next to voy / duda / no va (outlined: nothing said yet). */
 .pzv .cv-n{flex-wrap:wrap}
@@ -383,3 +387,81 @@
 @container (max-width:439px){.pzv .tabrow .tabs button{font-size:11px;letter-spacing:0}}
 .pzv .tabrow .tl-s{display:none}
 @container (max-width:439px){.pzv .tabrow .tl-l{display:none}.pzv .tabrow .tl-s{display:inline}}
+/* The fit mark on the pitch cromo: inside the card, at the bottom-right of the art (opposite the rating),
+   the glyph is the signal — «✓» también (a filled disc), «~» adaptado (an outlined ring, a big stroked tilde).
+   The «!» fuera is the existing out-of-position badge, sized like them (never under 14px); preferida and
+   «nothing known» print no mark. */
+.pzv .pzp-fit{position:absolute;z-index:6;right:calc(var(--u) * 3);bottom:calc(var(--u) * 19);display:grid;place-items:center;width:max(14px,calc(var(--u) * 15));height:max(14px,calc(var(--u) * 15));border-radius:50%;font-family:'Anybody',system-ui,sans-serif;font-weight:900;font-size:max(10px,calc(var(--u) * 10));line-height:1;pointer-events:none}
+.pzv .pzp-fit.pzp-f2{background:#d4ecfc;color:#0c1733;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.pzv .pzp-fit.pzp-f1{background:rgba(7,18,48,.92);color:#ffcf85;box-shadow:inset 0 0 0 max(1.5px,calc(var(--u) * 1.4)) #ffcf85,0 1px 4px rgba(0,0,0,.5);font-size:max(15px,calc(var(--u) * 16));-webkit-text-stroke:max(.6px,calc(var(--u) * .6)) currentColor;padding-bottom:max(1px,calc(var(--u) * 1))}
+.pzv .cd:not(.mini) .cc-oop{width:max(14px,calc(var(--u) * 15));height:max(14px,calc(var(--u) * 15));font-size:max(10px,calc(var(--u) * 10))}
+.pzv .cd.hide .pzp-fit,.pzv.h-pos .pzp-fit{visibility:hidden}
+/* A player in the hand: each target says how well he would fit there by shape, not hue alone (its label says
+   it in words). Cromos: en su posición and también keep a solid bright ring (gold / sky), adaptado drops the
+   ring for a dashed frame, fuera has no ring, a dotted frame and a dimmed face — the swap badge stays bright.
+   Empty slots: solid border (gold for his preferida), dashed for adaptado, dotted and faded for fuera (the
+   code stays readable), and the code gains the mark. */
+.pzv .cd.tgt.pzp-g3 .cc-f{box-shadow:0 0 0 2.5px #FFC659,0 0 24px rgba(255,198,89,.8),0 calc(var(--u) * 8) calc(var(--u) * 14) calc(var(--u) * -4) rgba(0,0,0,.75)}
+.pzv .cd.tgt.pzp-g2 .cc-f{box-shadow:0 0 0 2.5px #d4ecfc,0 0 22px rgba(159,208,242,.9),0 calc(var(--u) * 8) calc(var(--u) * 14) calc(var(--u) * -4) rgba(0,0,0,.75)}
+.pzv .cd.tgt.pzp-g1 .cc-f{box-shadow:0 calc(var(--u) * 8) calc(var(--u) * 14) calc(var(--u) * -4) rgba(0,0,0,.75)}
+.pzv .cd.tgt.pzp-g1 .cc-f::before{border:max(2px,calc(var(--u) * 1.6)) dashed #d4ecfc}
+.pzv .cd.tgt.pzp-g0 .cc-f{box-shadow:0 calc(var(--u) * 8) calc(var(--u) * 14) calc(var(--u) * -4) rgba(0,0,0,.75);filter:brightness(.5) saturate(.4);animation:none}
+.pzv .cd.tgt.pzp-g0 .cc-f::before{border:max(2px,calc(var(--u) * 1.6)) dotted #fff}
+.pzv .slot.pzp-g3 .so,.pzv .slot.pzp-g2 .so{border-style:solid}
+.pzv .slot.pzp-g3 .so{border-color:#FFC659}
+.pzv .slot.pzp-g0 .so{border-style:dotted;opacity:.5;animation:none}
+.pzv .slot.pzp-g0 svg{opacity:.5}
+.pzv .slot.pzp-g2 b::after{content:" ✓"}
+.pzv .slot.pzp-g1 b::after{content:" ~";font-size:1.3em;font-weight:900;line-height:0}
+.pzv .slot.pzp-g0 b::after{content:" !";font-weight:900}
+/* Sistema · ¿nos encaja?: the current system's ficha above the tiles. A wide sheet shows it all (its name, what
+   it is, strong and weak points, who is missing, and «tu siete» against the best when the best does better); a
+   narrow one (the strip's own container, under 420 px: the phone's bottom sheet) keeps one short line — the
+   system and who is missing, else what it is — plus «tu siete» and «Ver ficha», which opens the rest.
+   On every tile «n/7 en su sitio» under its name (small, ≤ 2 lines on a phone's 3-up grid; the pressed tile's
+   light slab takes the slab's ink). The mini-pitch dots of the best seven take their fit by shape as well as
+   tone: solid (bright for preferida) when in place, a dashed ring for adaptado, a dotted hollow ring for fuera,
+   a thin faint ring for an empty slot or a player with nothing known; the keeper's dot stays gold. */
+.pzv .pzp-sysf{container:pzsf / inline-size;display:grid;gap:3px;padding:10px 12px;border-radius:14px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl);font-size:12px;line-height:1.35;color:var(--muted)}
+.pzv .pzp-sysf p{margin:0}
+.pzv .pzp-sysf b{color:var(--ink)}
+.pzv .pzp-sysf .pzp-sysf-h{color:var(--ink)}
+.pzv .pzp-sysf .pzp-sysf-nm{font-family:'Anybody';font-weight:900;font-size:15px;line-height:1.1;font-variation-settings:'wdth' 76}
+.pzv .pzp-sysf .pzp-sysf-m{display:grid;gap:3px}
+.pzv .pzp-sysf .pzp-sysf-f,.pzv .pzp-sysf .pzp-sysf-y{color:var(--ink);font-weight:600}
+.pzv .pzp-sysf .pzp-sysf-r{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.pzv .pzp-sysf .pzp-sysf-r0{display:none}
+.pzv .pzp-sysf .pzp-sysf-lead,.pzv .pzp-sysf .pzp-sysf-t{display:none}
+.pzv .pzp-sysf .pzp-sysf-t{align-items:center;gap:6px;min-height:32px;margin-left:auto;padding:0 10px;border:0;border-radius:10px;background:none;box-shadow:inset 0 0 0 1px var(--pl);color:var(--ink);font-size:12px;font-weight:600}
+.pzv .pzp-sysf .pzp-sysf-t::after{content:"▾";transition:transform .2s}
+.pzv .pzp-sysf .pzp-sysf-t[aria-expanded=true]::after{transform:rotate(180deg)}
+@media (prefers-reduced-motion:reduce){.pzv .pzp-sysf .pzp-sysf-t::after{transition:none}}
+@container pzsf (max-width:419px){
+  .pzv .pzp-sysf .pzp-sysf-lead{display:inline;font-weight:600}
+  .pzv .pzp-sysf .pzp-sysf-m,.pzv .pzp-sysf .pzp-sysf-f,.pzv .pzp-sysf .pzp-sysf-dup{display:none}
+  .pzv .pzp-sysf.pzp-open .pzp-sysf-m{display:grid}
+  .pzv .pzp-sysf .pzp-sysf-r{display:flex}
+  .pzv .pzp-sysf .pzp-sysf-t{display:inline-flex}
+}
+.pzv .sy .pzp-syf{font-family:'Geist Mono';font-size:9px;line-height:1.2;font-weight:600;color:var(--ink);text-align:center;text-wrap:balance}
+.pzv .sy[aria-pressed=true] .pzp-syf{color:var(--slab-ink)}
+.pzv .sy svg circle.pzp-dot-g3{fill:#eef6ff}
+.pzv .sy svg circle.pzp-dot-g2{fill:#9fd0f2}
+.pzv .sy svg circle.pzp-dot-g1{fill:rgba(159,208,242,.2);stroke:#9fd0f2;stroke-width:1.3;stroke-dasharray:2.2 1.6}
+.pzv .sy svg circle.pzp-dot-g0{fill:none;stroke:rgba(238,246,255,.75);stroke-width:1.3;stroke-dasharray:.8 1.6}
+.pzv .sy svg circle.pzp-dot-gn{fill:none;stroke:rgba(238,246,255,.4);stroke-width:.8}
+/* Bench list rows: «También MC · DFC» under the season line (one line, ellipsis: never pushes the «Entra por él» / status pills) */
+.pzv .ar-n .pzp-ar-also{font-size:10px;line-height:1.2;color:var(--ink);opacity:.72;letter-spacing:.02em}
+/* «Jugar de»: the codes on the ring's discs; «Otra posición…» as a panel, one row of chips per line
+   («MCD · Pivote»); the chosen one is gold and ticked (never colour alone). */
+.pzv .fi.pzp-fi-code i{font-family:'Geist Mono';font-size:12px;font-weight:700;letter-spacing:.02em}
+.pzv .pzp-fan-all{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;gap:10px;width:min(360px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;padding:14px;border-radius:16px;background:rgba(6,13,34,.96);box-shadow:inset 0 0 0 1px rgba(159,208,242,.3),0 20px 40px -12px rgba(0,0,0,.8);color:#eef4ff;animation:pz-fadeIn .25s ease both}
+.pzv .pzp-fan-all-t{margin:0;font-family:'Anybody';font-weight:800;font-size:13px;font-variation-settings:'wdth' 86}
+.pzv .pzp-fan-all-t b{color:#FFC659}
+.pzv .pzp-fan-g{display:grid;gap:5px}
+.pzv .pzp-fan-g > span{font-family:'Geist Mono';font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9fd0f2}
+.pzv .pzp-fan-g > div,.pzv .pzp-fan-x{display:flex;flex-wrap:wrap;gap:6px}
+.pzv .pzp-fan-all .fi{position:static;transform:none;animation:none;display:inline-flex;align-items:center;gap:4px;width:auto;min-height:44px;padding:0 12px;border-radius:12px;background:rgba(159,208,242,.08);box-shadow:inset 0 0 0 1px rgba(159,208,242,.35);color:#eef4ff;font-size:13px;font-weight:600}
+.pzv .pzp-fan-all .fi[aria-pressed=true]{background:#FFC659;color:#0c1733;box-shadow:none}
+.pzv .pzp-fan-all .fi[aria-pressed=true]::before{content:"✓";font-weight:800}
+.pzv .pzp-fan-all .fi:hover,.pzv .pzp-fan-all .fi:focus-visible{box-shadow:inset 0 0 0 2px #FFC659,0 0 0 2px rgba(255,198,89,.45)}

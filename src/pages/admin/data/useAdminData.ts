@@ -13,6 +13,7 @@ import { db } from "../../../firebase";
 import { useMatchClock } from "../../../hooks/useMatchClock";
 import { useClubContent } from "../../../lib/clubContent";
 import { dateMillis, playerForSeason, playerName, useClubData, type ClubMatch } from "../../../lib/clubData";
+import { resolvePositions } from "../../../lib/positions";
 import { mapMatch, mapSeason } from "../../../lib/firestoreMappers";
 import { SEASONS_KEY, seasonQuery } from "../../../lib/publicData";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
@@ -46,6 +47,7 @@ import {
   mergeMatches,
   mvpNote,
   nextMatch,
+  pendingProposals,
   reviewActa,
   rsvpCounts,
   type ActaReview,
@@ -148,7 +150,7 @@ export function useAdminData(): AdminData {
     for (const p of club.players)
       for (const sid of p.seasons ?? []) {
         const s = playerForSeason(p, sid, seasons);
-        const row = { id: p.id, name: playerName(s), number: typeof s.number === "number" ? s.number : null, position: String(p.naturalPosition ?? "").toUpperCase(), injured: !!p.injured, doc: p };
+        const row = { id: p.id, name: playerName(s), number: typeof s.number === "number" ? s.number : null, position: resolvePositions(p).line ?? "", injured: !!p.injured, doc: p };
         out.set(sid, [...(out.get(sid) ?? []), row]);
       }
     out.forEach((list) => list.sort((a, b) => (a.number ?? 999) - (b.number ?? 999)));
@@ -212,6 +214,7 @@ export function useAdminData(): AdminData {
       actas,
       heroId: hero?.match.id ?? null,
       claims: claims.map((c) => ({ playerName: c.playerLabel })),
+      proposals: pendingProposals(roster),
       contentGaps: gaps,
       contentDrafts: draftSections,
       done: doneLines({
@@ -220,7 +223,7 @@ export function useAdminData(): AdminData {
         notified,
       }),
     });
-  }, [matches, now, whistled, reviewOf, next, hero, claims, gaps, draftSections, mvpView.previous]);
+  }, [matches, now, whistled, reviewOf, next, hero, claims, roster, gaps, draftSections, mvpView.previous]);
 
   return {
     loading: club.loading || seasonsQ.isPending,

@@ -12,7 +12,7 @@ import type { ReactElement } from "react";
 import type { MatchEvent } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "../lib/clubData";
 import type { PlayerDoc, SeasonDoc } from "../lib/schemas";
-import { buildOverview, contentGaps, convocatoriaState, doneLines, lastActaMatch, matchState, mergeMatches, mvpNote, nextMatch, reviewActa, rsvpCounts, type AdminMatch } from "../pages/admin/data/adminLogic";
+import { buildOverview, contentGaps, convocatoriaState, doneLines, lastActaMatch, matchState, mergeMatches, mvpNote, nextMatch, pendingProposals, reviewActa, rsvpCounts, type AdminMatch } from "../pages/admin/data/adminLogic";
 import { hoyHero, matchMoment } from "../pages/admin/data/moments";
 import { seasonSquad } from "../pages/perfil/card";
 import { seasonPlayers } from "../pages/perfil/profileData";
@@ -85,11 +85,21 @@ export function adminFixture({
   answers = fixtureAnswers,
   whistled = new Set<string>(),
   contentDrafts = [],
+  proposing = [],
   ...over
-}: Partial<AdminData> & { claimsCount?: number; published?: ClubMatch[]; answers?: Availability[]; whistled?: ReadonlySet<string>; contentDrafts?: { key: string; title: string }[] } = {}): AdminData {
+}: Partial<AdminData> & {
+  claimsCount?: number;
+  published?: ClubMatch[];
+  answers?: Availability[];
+  whistled?: ReadonlySet<string>;
+  contentDrafts?: { key: string; title: string }[];
+  /** Ids of players with a position proposal waiting. */
+  proposing?: string[];
+} = {}): AdminData {
   const now = over.now ?? NOW;
   const matches: AdminMatch[] = mergeMatches(published, fixtureDrafts);
   const roster: RosterPlayer[] = fixturePlayers
+    .map((p) => (proposing.includes(p.id) ? { ...p, positionsProposal: { main: "MC" as const, also: [], at: now } } : p))
     .map((p) => ({ id: p.id, name: p.shirtName!, number: p.number ?? null, position: p.naturalPosition ?? "", injured: !!p.injured, doc: p }))
     .sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
   const ids = roster.map((p) => p.id);
@@ -119,6 +129,7 @@ export function adminFixture({
     actas: matches.filter((m) => matchMoment(m, now, whistled.has(m.id)) === "final").map((m) => ({ match: m, review: reviewOf(m) })),
     heroId: hero?.match.id ?? null,
     claims: claims.map((c) => ({ playerName: c.playerLabel })),
+    proposals: pendingProposals(roster),
     contentGaps: gaps,
     contentDrafts,
     done: doneLines({

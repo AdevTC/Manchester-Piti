@@ -4,6 +4,7 @@
 // lens: the variant is shown as a whole lineup, and every change to it is written back into its variant.
 // Publishing the official publishes them all (they live in the board). Pure (no React).
 import type { Lineup, LineupVariant, RoleKey, Roles, VariantId } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import { VARIANT_IDS, VARIANT_LIMITS } from "../../../lib/schemas";
 import { normalize } from "./ops";
 import { changes } from "./compare";
@@ -101,9 +102,10 @@ export function renameVariant(L: Lineup, id: VariantId, raw: string): Lineup {
 
 /** «3-2-1 · entra ERIK por KEVIN» — what a variant changes from the titular, in words. */
 export function variantSummary(titular: Lineup, v: Lineup, name: (id: string) => string): string {
-  const sys = v.freeMode ? "Libre" : v.formation;
+  const sys = v.freeMode ? "Libre" : systemDef(v.formation).label;
+  const sameSys = v.freeMode ? titular.freeMode : !titular.freeMode && v.formation === titular.formation;
   const c = changes(titular, v);
-  if (!c.ins.length && !c.outs.length) return sys + (sys === (titular.freeMode ? "Libre" : titular.formation) ? " · los mismos siete" : " · los mismos siete, otro dibujo");
+  if (!c.ins.length && !c.outs.length) return sys + (sameSys ? " · los mismos siete" : " · los mismos siete, otro dibujo");
   const and = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : xs.slice(0, -1).join(", ") + " y " + xs[xs.length - 1]);
   const ins = c.ins.map(name);
   const outs = c.outs.map(name);

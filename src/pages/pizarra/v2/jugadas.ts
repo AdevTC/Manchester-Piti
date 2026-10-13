@@ -257,6 +257,7 @@ export function jugadaStage(a: JugadaStageArgs): JugadaStage {
       name: p.name,
       zoneTxt: zone,
       oop: false,
+      fit: null,
       gal: galonesOf(L, id).map((g) => g.letter),
       tag: "",
       q: [true, false, false],

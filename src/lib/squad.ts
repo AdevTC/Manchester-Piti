@@ -1,6 +1,8 @@
 // Domain logic for the public squad page ("Plantilla"): one row per player of the season,
 // sorting, search, squad figures and the head-to-head comparison.
 
+import { POSITIONS, positionText, resolvePositions } from "./positions";
+
 const DAY = 86_400_000;
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const SIGNS: [number, number, string][] = [
@@ -16,6 +18,8 @@ export interface SquadRow {
   num: string;
   full: string;
   position?: string;
+  /** The other positions he plays, name and code («mediocentro (MC) · central (DFC)»); absent = none. */
+  also?: string;
   age: number | null;
   year: number | null;
   height: number | null;
@@ -36,6 +40,7 @@ export interface SquadPlayer {
   height?: number;
   weight?: number;
   naturalPosition?: string;
+  positions?: unknown;
   active?: boolean;
 }
 export interface SquadStats {
@@ -80,6 +85,9 @@ export function squadRow(p: SquadPlayer, stats: SquadStats, now: number): SquadR
   }
   const height = p.height || null;
   const weight = p.weight || null;
+  const also = resolvePositions(p)
+    .also.map((c) => `${POSITIONS[c].name.toLocaleLowerCase("es")} (${c})`)
+    .join(" · ");
   const missing: MissingField[] = [];
   if (!b) missing.push("cumpleaños");
   if (!height) missing.push("altura");
@@ -89,7 +97,8 @@ export function squadRow(p: SquadPlayer, stats: SquadStats, now: number): SquadR
     name: p.shirtName || [p.firstName, p.lastName].filter(Boolean).join(" ") || "Jugador",
     num: p.number != null ? String(p.number) : "",
     full: [p.firstName, p.lastName].filter(Boolean).join(" "),
-    position: p.naturalPosition || undefined,
+    position: positionText(p),
+    ...(also ? { also } : {}),
     age: age != null && age >= 0 && age < 110 ? age : null,
     year: b?.y ?? null,
     height,

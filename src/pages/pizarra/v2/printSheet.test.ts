@@ -27,6 +27,13 @@ describe("the plan's sheet", () => {
     expect(v.bench).toEqual(["FER", "ERIK", "KEVIN"]);
   });
 
+  it("free mode: each of the seven wears the slot's exact code, not its line", () => {
+    const base = lineupOf(SEVEN, "2-3-1", sq);
+    const F = { ...base, freeMode: true, slots: base.slots.map((s, i) => (i === 3 ? { ...s, x: 50, y: 50 } : s)) };
+    const v = printView(F, sq, { name: "J8", match: "J8", called: null });
+    expect(v.seven.find((s) => s.name === "HUBEROSKI")?.pos).toBe("MC");
+  });
+
   it("only the convocados on the bench when the convocatoria is known; «no va» never", () => {
     const sq2 = squadOf(sq.list.map((c) => (c.id === "erik" ? { ...c, cv: "no" as const } : c)));
     const v = printView(lineupOf(SEVEN, "2-3-1", sq2), sq2, { name: "x", match: "", called: new Set([...SEVEN, "fer", "erik"]) });

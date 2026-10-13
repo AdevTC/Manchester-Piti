@@ -61,7 +61,15 @@ export function MoverA({ name, num, options, onPick, onClose }: MoverAProps) {
             <li key={o.i}>
               <button type="button" className={"mv-o" + (o.here ? " here" : "")} disabled={o.here} aria-label={o.aria} onClick={() => onPick(o.i)}>
                 <span className="mv-l">{o.lab}</span>
-                <span className="mv-s">{o.sub}</span>
+                {o.pos ? (
+                  // (the puesto by name and how well he fits it, over who is there)
+                  <span className="mv-s pzp-mv2">
+                    <span>{o.pos}</span>
+                    <span>{o.sub}</span>
+                  </span>
+                ) : (
+                  <span className="mv-s">{o.sub}</span>
+                )}
                 {o.fam && (
                   <span className={"mv-f" + (o.fam === "!" ? " no" : "")} aria-hidden="true">
                     {o.fam}

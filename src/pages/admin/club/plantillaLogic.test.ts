@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolvePositions } from "../../../lib/positions";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import {
   bajaPayload,
@@ -11,6 +12,7 @@ import {
   filterRows,
   formDirty,
   formFromPlayer,
+  linePickPayload,
   linkState,
   perchaOf,
   plantillaRows,
@@ -77,8 +79,8 @@ describe("the drawer's form", () => {
     expect(formDirty({ ...f, overrides: { t1: { shirtName: "", number: "" } } }, f)).toBe(false);
     expect(formDirty({ ...f, injured: true }, f)).toBe(true);
   });
-  it("starts an alta in the active season, as a medio", () => {
-    expect(emptyForm(["t1"])).toMatchObject({ seasons: ["t1"], position: "MED", number: "" });
+  it("starts an alta in the active season, with no position (the map starts empty)", () => {
+    expect(emptyForm(["t1"])).toMatchObject({ seasons: ["t1"], position: "", number: "" });
   });
 });
 
@@ -154,12 +156,48 @@ describe("playerPayload", () => {
       active: true,
       createdAt: at,
     });
-    expect(playerPayload(f, null)).not.toHaveProperty("createdAt");
+    expect(playerPayload(f, { stored: {} })).not.toHaveProperty("createdAt");
   });
   it("previews the doc the table shows while the write waits", () => {
-    const doc = previewDoc(players[0], "erik", playerPayload({ ...formFromPlayer(players[0]), number: "19" }, null));
+    const doc = previewDoc(players[0], "erik", playerPayload({ ...formFromPlayer(players[0]), number: "19" }, { stored: players[0] }));
     expect(doc).toMatchObject({ id: "erik", number: 19, shirtName: "ERIK", naturalPosition: "DEL" });
     expect(doc.seasonDetails).toMatchObject({ t1: { number: 19 } });
+  });
+  it("an edit that leaves the line alone never rewrites the old exact word (the migration still reads LD)", () => {
+    const stored = P("lucas", 2, "LUCAS", { naturalPosition: "Lateral derecho" });
+    const payload = playerPayload({ ...formFromPlayer(stored), height: "182" }, { stored });
+    expect(payload).not.toHaveProperty("naturalPosition");
+    expect(payload).not.toHaveProperty("positions");
+    expect(payload.height).toBe(182);
+    const doc = previewDoc(stored, "lucas", payload);
+    expect(doc.naturalPosition).toBe("Lateral derecho");
+    expect(resolvePositions(doc)).toMatchObject({ main: "LD", line: "DEF" });
+  });
+  it("an edit that changes the line writes it, by the line picker's rule", () => {
+    const stored = P("lucas", 2, "LUCAS", { naturalPosition: "Lateral derecho" });
+    const payload = playerPayload({ ...formFromPlayer(stored), position: "MED" }, { stored });
+    expect(payload.naturalPosition).toBe("MED");
+    expect(payload).not.toHaveProperty("positions");
+    const mapped = P("rodri", 4, "RODRI", { naturalPosition: undefined, positions: { main: "LD", also: ["MD"] } });
+    expect(playerPayload({ ...formFromPlayer(mapped), height: "180" }, { stored: mapped })).not.toHaveProperty("naturalPosition");
+    const moved = playerPayload({ ...formFromPlayer(mapped), position: "MED" }, { stored: mapped });
+    expect(moved).toMatchObject(linePickPayload(mapped, "MED"));
+    expect(resolvePositions(previewDoc(mapped, "rodri", moved))).toMatchObject({ main: null, also: ["MD"], line: "MED" });
+  });
+  it("an alta always writes the chosen line", () => {
+    expect(playerPayload({ ...emptyForm(["t1"]), shirtName: "NUEVO", number: "30", position: "POR" }, { createdAt: new Date(0) }).naturalPosition).toBe("POR");
+  });
+  it("an alta with positions from the map writes them (and the preferida's line); an empty map writes neither", () => {
+    const form = { ...emptyForm(["t1"]), shirtName: "NUEVO", number: "30" };
+    const at = new Date(0);
+    expect(playerPayload({ ...form, position: "MED" }, { createdAt: at, positions: { main: "MCD", also: ["MC"] } })).toMatchObject({ positions: { main: "MCD", also: ["MC"] }, naturalPosition: "MED" });
+    const onlyAlso = playerPayload(form, { createdAt: at, positions: { main: null, also: ["MI"] } });
+    expect(onlyAlso.positions).toEqual({ main: null, also: ["MI"] });
+    expect(onlyAlso).not.toHaveProperty("naturalPosition");
+    const none = playerPayload(form, { createdAt: at, positions: { main: null, also: [] } });
+    expect(none).not.toHaveProperty("positions");
+    expect(none).not.toHaveProperty("naturalPosition");
+    expect(previewDoc(null, "n", playerPayload({ ...form, position: "MED" }, { createdAt: at, positions: { main: "MCD", also: [] } }))).toMatchObject({ positions: { main: "MCD", also: [] }, naturalPosition: "MED" });
   });
 });
 
@@ -183,9 +221,12 @@ describe("CSV", () => {
     const csv = rosterCsv(plantillaRows(players, seasons, "t1"));
     const lines = csv.slice(1).trim().split("\r\n");
     expect(csv.startsWith("﻿")).toBe(true);
-    expect(lines[0]).toBe("Dorsal;Nombre en camiseta;Nombre;Apellidos;Posición;Estado;Temporadas;Nacimiento;Altura (cm);Peso (kg)");
-    expect(lines[1]).toBe("1;EVANS;Nombre;evans;Portero;Activo;T1;;;");
-    expect(lines[4]).toBe("4;VIEJO;Nombre;old;Medio;Lesionado;T0;;;");
+    expect(lines[0]).toBe("Dorsal;Nombre en camiseta;Nombre;Apellidos;Posición;Preferida;También;Estado;Temporadas;Nacimiento;Altura (cm);Peso (kg)");
+    // a keeper known by his line is exactly POR (the line has one position)
+    expect(lines[1]).toBe("1;EVANS;Nombre;evans;Portero;POR;;Activo;T1;;;");
+    expect(lines[4]).toBe("4;VIEJO;Nombre;old;Medio;;;Lesionado;T0;;;");
+    const exact = rosterCsv(plantillaRows([P("rodri", 4, "RODRI", { naturalPosition: "MED", positions: { main: "MCD", also: ["MC", "DFC"] } })], seasons, "t1"));
+    expect(exact.slice(1).trim().split("\r\n")[1]).toBe("4;RODRI;Nombre;rodri;Medio;MCD;MC, DFC;Activo;T1;;;");
     expect(csvFileName("Temporada 1")).toBe("plantilla-temporada-1.csv");
     expect(csvFileName(undefined)).toBe("plantilla.csv");
   });
@@ -224,5 +265,31 @@ describe("the percha (v2)", () => {
   it("«Dar de baja» takes the season off his seasons", () => {
     expect(bajaPayload({ seasons: ["t1", "t0"] }, "t1")).toEqual({ seasons: ["t0"] });
     expect(bajaPayload({}, "t1")).toEqual({ seasons: [] });
+  });
+});
+
+describe("plantillaRows reads positions through the resolver", () => {
+  it("words and the new field both give a line", () => {
+    const rs = plantillaRows([P("w", 2, "W", { naturalPosition: "Portero" }), P("n", 3, "N", { naturalPosition: undefined, positions: { main: "MI", also: [] } })], seasons, "t1");
+    expect(rs.find((r) => r.id === "w")?.position).toBe("POR");
+    expect(rs.find((r) => r.id === "n")?.position).toBe("MED");
+  });
+  it("the exact preferida when it is known (the new field, or an old exact word); a bare line has none", () => {
+    const rs = plantillaRows([P("a", 2, "A", { naturalPosition: "Lateral derecho" }), P("b", 3, "B", { positions: { main: "MCD", also: ["MC"] } }), P("c", 4, "C", { naturalPosition: "DEF" }), P("d", 5, "D", { positions: { main: null, also: ["MC"] } })], seasons, "t1");
+    expect(Object.fromEntries(rs.map((r) => [r.id, r.pref]))).toEqual({ a: "LD", b: "MCD", c: null, d: null });
+  });
+});
+
+describe("linePickPayload", () => {
+  it("writes only the line unless his main position contradicts it", () => {
+    expect(linePickPayload({}, "DEF")).toEqual({ naturalPosition: "DEF" });
+    expect(linePickPayload({ positions: { main: "LD", also: ["MD"] } }, "DEF")).toEqual({ naturalPosition: "DEF" });
+    expect(linePickPayload({ positions: { main: "LD", also: ["MD"] } }, "MED")).toEqual({ naturalPosition: "MED", positions: { main: null, also: ["MD"] } });
+    expect(linePickPayload({ positions: { main: null, also: ["MD"] } }, "DEL")).toEqual({ naturalPosition: "DEL" });
+  });
+  it("the line the picker wrote then wins when read back", () => {
+    const doc: PlayerDoc = { id: "x", positions: { main: "LD", also: ["MD"] } };
+    const after = { ...doc, ...linePickPayload(doc, "MED") };
+    expect(resolvePositions(after)).toMatchObject({ main: null, also: ["MD"], line: "MED" });
   });
 });

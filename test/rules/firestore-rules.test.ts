@@ -19,6 +19,8 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { beforeAll, beforeEach, afterAll, describe, it } from "vitest";
+import type { PosCode, PositionSet } from "../../src/lib/positions";
+import { editPositionsPayload, positionsPayload, proposalPayload, reviewPayload } from "../../src/lib/positionsEdit";
 let env: RulesTestEnvironment;
 const db = (uid?: string) =>
   uid
@@ -198,6 +200,126 @@ describe("Sanciones a mano (players)", () => {
     await assertSucceeds(setDoc(doc(db("admin"), "players", "nuevo"), { shirtName: "NUEVO" }));
     await assertFails(setDoc(doc(db("admin"), "players", "nuevo2"), { shirtName: "NUEVO", sanction: sanction({ games: 0 }) }));
     await assertSucceeds(setDoc(doc(db("admin"), "players", "nuevo3"), { shirtName: "NUEVO", sanction: sanction() }));
+  });
+});
+describe("Posiciones: propuesta del jugador y aprobación", () => {
+  const ref = (uid: string, id = "erik") => doc(db(uid), "players", id);
+  const set = (main: string | null, also: string[] = []) => ({ main, also });
+  beforeEach(async () => {
+    await seed("users/member", { email: "member@test.dev", nickname: "member", role: "user", playerId: "erik" });
+    await seed("players/erik", { shirtName: "ERIK", naturalPosition: "DEF" });
+    await seed("players/otro", { shirtName: "OTRO" });
+  });
+  it("el jugador propone las suyas (y puede retirarlas)", async () => {
+    await assertSucceeds(updateDoc(ref("member"), { positionsProposal: { ...set("LD", ["MD", "DFC"]), at: serverTimestamp() } }));
+    await assertSucceeds(updateDoc(ref("member"), { positionsProposal: null }));
+  });
+  it("no puede proponer por otro, ni tocar otro campo, ni aprobarse", async () => {
+    await assertFails(updateDoc(ref("member", "otro"), { positionsProposal: { ...set("MC"), at: serverTimestamp() } }));
+    await assertFails(updateDoc(ref("member"), { positionsProposal: { ...set("MC"), at: serverTimestamp() }, shirtName: "YO" }));
+    await assertFails(updateDoc(ref("member"), { positions: set("MC") }));
+    await assertFails(updateDoc(ref("other"), { positionsProposal: { ...set("MC"), at: serverTimestamp() } }));
+  });
+  it("con su propuesta borra la revisión anterior; nunca la pone a otro valor ni la borra sola", async () => {
+    await seed("players/erik", { shirtName: "ERIK", positions: set("DFC"), positionsReview: { status: "rechazada", at: Timestamp.now(), by: "admin" } });
+    // a review of his own making, with or without a proposal: refused
+    for (const status of ["aprobada", "ajustada", "rechazada"])
+      await assertFails(updateDoc(ref("member"), { positionsProposal: { ...set("MC"), at: serverTimestamp() }, positionsReview: { status, at: serverTimestamp(), by: "member" } }));
+    await assertFails(updateDoc(ref("member"), { positionsProposal: { ...set("MC"), at: serverTimestamp() }, positionsReview: "nada" }));
+    // clearing the verdict alone (no proposal sent nor withdrawn): refused
+    await assertFails(updateDoc(ref("member"), { positionsReview: null }));
+    // with his proposal: the old verdict goes
+    await assertSucceeds(updateDoc(ref("member"), { positionsProposal: { ...set("MC"), at: serverTimestamp() }, positionsReview: null }));
+    const after = await getDoc(ref("admin"));
+    if (after.get("positionsReview") !== null) throw new Error("la revisión anterior no se borró: " + JSON.stringify(after.get("positionsReview")));
+    // and on withdrawing it
+    await assertSucceeds(updateDoc(ref("member"), { positionsProposal: null, positionsReview: null }));
+  });
+  // Perfil › «Tus posiciones» writes updateDoc(players/{id}, proposalPayload(set | null, serverTimestamp())).
+  it("lo que envía «Tus posiciones» del perfil: proposalPayload con updateDoc", async () => {
+    const pos = (main: PosCode | null, also: PosCode[] = []): PositionSet => ({ main, also });
+    await seed("players/erik", { shirtName: "ERIK", positions: set("DFC"), positionsReview: { status: "ajustada", at: Timestamp.now(), by: "admin" } });
+    await assertSucceeds(updateDoc(ref("member"), proposalPayload(pos("MCD", ["MC", "DFC"]), serverTimestamp())));
+    await assertSucceeds(updateDoc(ref("member"), proposalPayload(pos(null, ["MI"]), serverTimestamp())));
+    await assertSucceeds(updateDoc(ref("member"), proposalPayload(pos("DC", ["EI", "ED", "MCO", "MI", "MD", "MC"]), serverTimestamp())));
+    await assertSucceeds(updateDoc(ref("member"), proposalPayload(null, serverTimestamp())));
+    // withdrawn, sent again: still fine
+    await assertSucceeds(updateDoc(ref("member"), proposalPayload(pos("MCD"), serverTimestamp())));
+    // dated by the client, or on someone else's ficha: refused
+    await assertFails(updateDoc(ref("member"), proposalPayload(pos("MCD"), Timestamp.now())));
+    await assertFails(updateDoc(ref("member", "otro"), proposalPayload(pos("MCD"), serverTimestamp())));
+  });
+  it("una propuesta mal formada se rechaza", async () => {
+    for (const bad of [
+      { ...set("XX"), at: serverTimestamp() },
+      { ...set("MC", ["MC"]), at: serverTimestamp() },
+      { ...set("MC", ["MI", "MI"]), at: serverTimestamp() },
+      { ...set("MC", ["POR", "DFC", "LIB", "LI", "LD", "MCD", "MI"]), at: serverTimestamp() },
+      { ...set("MC"), at: 5 },
+      { ...set("MC"), at: serverTimestamp(), extra: 1 },
+      { main: "MC", at: serverTimestamp() },
+    ])
+      await assertFails(updateDoc(ref("member"), { positionsProposal: bad }));
+  });
+  it("el admin aprueba: positions + revisión firmada + propuesta a null", async () => {
+    await assertSucceeds(
+      updateDoc(ref("admin"), {
+        positions: set("LD", ["MD"]),
+        naturalPosition: "DEF",
+        positionsProposal: null,
+        positionsReview: { status: "aprobada", at: serverTimestamp(), by: "admin" },
+      }),
+    );
+    await assertFails(updateDoc(ref("admin"), { positions: set("LD", ["LD"]) }));
+    await assertFails(updateDoc(ref("admin"), { positionsReview: { status: "aprobada", at: serverTimestamp(), by: "otro" } }));
+    await assertFails(updateDoc(ref("admin"), { positionsReview: { status: "quizá", at: serverTimestamp(), by: "admin" } }));
+  });
+  it("el admin cambia la línea (merge, main a null) y crea fichas con o sin posiciones válidas", async () => {
+    await assertSucceeds(setDoc(ref("admin"), { naturalPosition: "MED", positions: set(null, ["MD"]) }, { merge: true }));
+    await assertSucceeds(setDoc(doc(db("admin"), "players", "nuevo"), { shirtName: "NUEVO" }));
+    await assertSucceeds(setDoc(doc(db("admin"), "players", "nuevo2"), { shirtName: "NUEVO", positions: set("DC") }));
+    await assertFails(setDoc(doc(db("admin"), "players", "nuevo3"), { shirtName: "NUEVO", positions: { ...set("DC"), extra: 1 } }));
+    await assertFails(setDoc(doc(db("admin"), "players", "nuevo4"), { shirtName: "NUEVO", positions: "DC" }));
+  });
+  // Admin › Plantilla writes through savePlayer = setDoc(…, { merge: true }): the exact payloads it sends.
+  describe("lo que escribe la ficha del admin (merge)", () => {
+    const pos = (main: PosCode | null, also: PosCode[] = []): PositionSet => ({ main, also });
+    const save = (data: object, id = "erik") => setDoc(ref("admin", id), data, { merge: true });
+    const proposal = async () =>
+      seed("players/erik", {
+        shirtName: "ERIK",
+        naturalPosition: "DEF",
+        positions: set("LD", ["MD", "DFC"]),
+        positionsProposal: { ...set("MCD", ["MC"]), at: Timestamp.now() },
+        positionsReview: { status: "rechazada", at: Timestamp.now(), by: "otroadmin" },
+      });
+    it("editar a mano: positions entero (y la línea con la preferida), también sin preferida o vacío; la revisión anterior se borra", async () => {
+      await proposal();
+      await assertSucceeds(save(editPositionsPayload(pos("MCD", ["MC"]))));
+      await assertSucceeds(save(editPositionsPayload(pos(null, ["MC"]))));
+      await assertSucceeds(save(editPositionsPayload(pos(null))));
+      const after = await getDoc(ref("admin"));
+      if (JSON.stringify(after.get("positions")) !== JSON.stringify({ main: null, also: [] })) throw new Error("positions no se sustituyó entero: " + JSON.stringify(after.get("positions")));
+      if (after.get("positionsReview") !== null) throw new Error("la revisión anterior no se borró");
+    });
+    it("aprobar, ajustar y rechazar, con la fecha del servidor y firmado por el admin", async () => {
+      await proposal();
+      await assertSucceeds(save(reviewPayload("aprobada", pos("MCD", ["MC"]), "admin", serverTimestamp())));
+      await proposal();
+      await assertSucceeds(save(reviewPayload("ajustada", pos("MC", ["MCD"]), "admin", serverTimestamp())));
+      const adjusted = await getDoc(ref("admin"));
+      if (adjusted.get("positionsProposal") !== null || adjusted.get("positionsReview.status") !== "ajustada" || adjusted.get("positionsReview.by") !== "admin" || adjusted.get("naturalPosition") !== "MED")
+        throw new Error("la revisión ajustada no quedó como se escribió");
+      await proposal();
+      await assertSucceeds(save(reviewPayload("rechazada", null, "admin", serverTimestamp())));
+      // signed by someone else, or dated by the client: refused
+      await proposal();
+      await assertFails(save(reviewPayload("aprobada", pos("MCD", ["MC"]), "otroadmin", serverTimestamp())));
+      await assertFails(save(reviewPayload("rechazada", null, "admin", Timestamp.now())));
+    });
+    it("un alta con las posiciones del mapa", async () => {
+      await assertSucceeds(save({ shirtName: "NUEVO", ...positionsPayload(pos("MCD", ["MC"])) }, "nuevo5"));
+    });
   });
 });
 

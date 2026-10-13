@@ -1,5 +1,6 @@
 // Plantilla's ficha workspace: one player at a time, big. The hero (his kit — the photo of the real 3D shirt —,
-// «Ficha 3 de 16», complete or what it lacks, dorsal + name, Línea and Estado one tap each — «Sancionado» opens
+// «Ficha 3 de 16», complete or what it lacks, dorsal + name, his Posiciones on the map and Estado one tap each —
+// a proposal of his waits there to be approved, adjusted or rejected; «Sancionado» opens
 // a small form: matches or «hasta la J…», and a reason; while sanctioned, what is left and «Levantar la
 // sanción» —, GOL · ASI · PJ · MVP) and three cards always in view: Camiseta (name on the shirt, dorsal with its live check, name and
 // surnames, seasons, a season's own shirt), Datos (photo link, birth, height, weight) and Cuenta y web (his
@@ -17,7 +18,11 @@ import { useUnsavedGuard } from "../ui/guard";
 import { AdIcon } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
 import { ACCOUNT_LABEL, GAPS, gapsText, type BoardRow } from "./plantillaBoard";
-import { POSITIONS, asPosition, checkPlayerForm, dorsalLine, formDirty, formFromPlayer, linkState, shirtNameError, type LiveCheck, type PlayerForm, type Position } from "./plantillaLogic";
+import { MapaPosiciones } from "../../../components/posiciones/MapaPosiciones";
+import { summaryText } from "../../../components/posiciones/mapaNav";
+import { resolvePositions, sanitizePositions, type PositionSet } from "../../../lib/positions";
+import { proposalKey, proposalState } from "../../../lib/positionsEdit";
+import { asPosition, checkPlayerForm, dorsalLine, formDirty, formFromPlayer, linkState, shirtNameError, type LiveCheck, type PlayerForm } from "./plantillaLogic";
 import { checkSanction, sanctionForm, untilLabel, type SanctionChoice, type SanctionForm } from "./sanctionLogic";
 
 export interface FichaStats {
@@ -42,7 +47,12 @@ export interface FichaWorkspaceProps {
   total: number;
   story: boolean;
   phone: boolean;
-  onLine: (p: Position) => void;
+  /** His positions from the map; `adjusted` = the captain's adjustment of his pending proposal. */
+  onPositions: (set: PositionSet, adjusted: boolean) => void;
+  /** His pending proposal: approved as it came, or rejected. */
+  onReview: (kind: "aprobada" | "rechazada") => void;
+  /** A captain is signed in (a review is signed with his uid): without one the review is off. */
+  canReview: boolean;
   onInjured: (injured: boolean) => void;
   /** His suspension now (a red card or a sanction set by hand), with what is left; undefined = he can play. */
   suspension?: Suspension;
@@ -67,6 +77,7 @@ export interface FichaWorkspaceProps {
 }
 
 const digits = (v: string, max: number) => v.replace(/\D/g, "").slice(0, max);
+const NO_POSITIONS: PositionSet = { main: null, also: [] };
 
 function Line({ check, id }: { check: LiveCheck | null; id: string }) {
   if (!check || !check.text) return null;
@@ -180,9 +191,17 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
   /** «Sancionado» opens its small form here (a number of matches or «hasta la J…», and a reason). */
   const [sanOpen, setSanOpen] = useState(false);
   const sanctioned = !!props.suspension;
-  // Línea and Estado are written on their own (one tap); the form always carries their live value, so a
-  // field saved later never puts back an old line or state.
-  const livePos = asPosition(player.naturalPosition);
+  /** «Ajustar»: the key of the proposal loaded into the editor (the next tap saves it as adjusted). It holds
+   *  only while the live proposal keeps that key: if he sends another (or withdraws and sends again) meanwhile,
+   *  the editor drops it and the banner shows the new one — an adjustment is never built on an old proposal. */
+  const [adjusting, setAdjusting] = useState<string | null>(null);
+  /** The map refused a tap (the 6 «también» cap): said under it until the next change. */
+  const [refused, setRefused] = useState<string | null>(null);
+  // Posiciones and Estado are written on their own (one tap); the form always carries their live value, so a
+  // field saved later never puts back an old line or state. That line equals the stored doc's resolved
+  // line, so the edit payload (playerPayload with `stored`) writes no naturalPosition: an old exact word
+  // («Lateral derecho») is not flattened to «DEF» before the migration reads it.
+  const livePos = asPosition(resolvePositions(player).line);
   const liveInj = !!player.injured;
   const live = (f: PlayerForm): PlayerForm => ({ ...f, position: livePos, injured: liveInj });
   const check = checkPlayerForm(live(form), { players, seasons, editingId: player.id, start: live(start) });
@@ -255,14 +274,117 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
       ))}
     </span>
   );
-  const lineSeg = (
-    <span className="pz" role="group" aria-label={`Línea de ${name}`}>
-      {POSITIONS.map((p) => (
-        <button key={p} type="button" aria-pressed={livePos === p} onClick={() => livePos !== p && props.onLine(p)}>
-          {p}
+  // ── Posiciones: the map (his exact positions, one tap each) or, while he proposes others, his proposal ──
+  const resolved = resolvePositions(player);
+  const current: PositionSet = { main: resolved.main, also: resolved.also };
+  const proposal = proposalState(player) === "pendiente" ? (sanitizePositions(player.positionsProposal) ?? NO_POSITIONS) : null;
+  const liveKey = proposalKey(player);
+  const draft = proposal && adjusting !== null && adjusting === liveKey ? proposal : null;
+  const onMap = (next: PositionSet) => {
+    setRefused(null);
+    setAdjusting(null);
+    props.onPositions(next, !!draft);
+  };
+  const editor = (
+    <>
+      <MapaPosiciones value={draft ?? current} compare={draft ? current : undefined} onChange={onMap} onRefuse={setRefused} size={phone ? "m" : "s"} label={`Posiciones de ${name}`} />
+      {refused ? (
+        <span className="er">
+          <AdIcon name="x" size={13} />
+          {refused}
+        </span>
+      ) : null}
+    </>
+  );
+  // the focus follows the review (the banner it was on goes away): to the map's spot after «Ajustar» or a
+  // decision, back to «Ajustar» after «Cancelar» — never dropped on <body>
+  const posRef = useRef<HTMLDivElement>(null);
+  const ajustarRef = useRef<HTMLButtonElement>(null);
+  const focusTo = useRef<{ to: "map" | "ajustar"; at: number } | null>(null);
+  useEffect(() => {
+    const f = focusTo.current;
+    if (!f) return;
+    if (Date.now() - f.at > 2000) {
+      focusTo.current = null;
+      return;
+    }
+    const el = f.to === "ajustar" ? ajustarRef.current : posRef.current?.querySelector<HTMLElement>('button.pos-spot[tabindex="0"]');
+    if (!el) return;
+    el.focus();
+    focusTo.current = null;
+  });
+  const focusNext = (to: "map" | "ajustar") => {
+    focusTo.current = { to, at: Date.now() };
+  };
+  const review = (kind: "aprobada" | "rechazada") => {
+    focusNext("map");
+    props.onReview(kind);
+  };
+  const off = !props.canReview;
+  const proposalBox = proposal ? (
+    <div className="ppr" role="group" aria-label={`Propuesta de ${name}`}>
+      <p className="ppq">
+        <span>
+          <b>{name} propone:</b> {summaryText(proposal)}
+        </span>
+      </p>
+      <p className="ppn">Ahora: {summaryText(current)}</p>
+      <div className="ppb">
+        <button type="button" className="btn sm gold" onClick={() => review("aprobada")} disabled={off}>
+          Aprobar
         </button>
-      ))}
-    </span>
+        <button
+          ref={ajustarRef}
+          type="button"
+          className="btn sm line"
+          disabled={off}
+          onClick={() => {
+            focusNext("map");
+            setAdjusting(liveKey);
+          }}
+        >
+          Ajustar
+        </button>
+        <button type="button" className="btn sm red" onClick={() => review("rechazada")} disabled={off}>
+          Rechazar
+        </button>
+      </div>
+      {off ? <p className="ppn ppo">Entra con tu cuenta de capitán para revisarla.</p> : null}
+      <MapaPosiciones value={proposal} compare={current} size={phone ? "m" : "s"} label={`Lo que propone ${name}`} />
+    </div>
+  ) : null;
+  const adjustBar = draft ? (
+    <div className="ppa" role="group" aria-label={`Propuesta de ${name}`}>
+      <p className="ppq">
+        <AdIcon name="pencil" size={14} />
+        <span>
+          <b>Ajustando la propuesta de {name}</b> · toca en el mapa: se guarda como ajustada
+        </span>
+      </p>
+      <button
+        type="button"
+        className="btn sm line"
+        onClick={() => {
+          focusNext("ajustar");
+          setAdjusting(null);
+        }}
+      >
+        Cancelar
+      </button>
+    </div>
+  ) : null;
+  const posBlock = (
+    <div className="fld posx" ref={posRef}>
+      <span className="lb">Posiciones</span>
+      {proposal && !draft ? (
+        proposalBox
+      ) : (
+        <>
+          {adjustBar}
+          {editor}
+        </>
+      )}
+    </div>
   );
   // «Activo» puts him back: the injury first, else the sanction (lifted, with «Deshacer» like the rest)
   const activo = () => {
@@ -580,10 +702,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
             )}
           </div>
         </div>
-        <div className="fld">
-          <span className="lb">Línea</span>
-          {lineSeg}
-        </div>
+        {posBlock}
         <div className="fld">
           <span className="lb">Estado</span>
           {stateSeg}
@@ -602,7 +721,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
     );
   return (
     <section className="pl3f" aria-label={`Ficha de ${name}`}>
-      <div className="hero">
+      <div className={proposal && !draft ? "hero posh pend" : "hero posh"}>
         {kit}
         <div className="hi">
           {head}
@@ -613,10 +732,6 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
           <p className="full">{fullT}</p>
           <div className="qk">
             <div className="fld">
-              <span className="lb">Línea</span>
-              {lineSeg}
-            </div>
-            <div className="fld">
               <span className="lb">Estado</span>
               {stateSeg}
             </div>
@@ -624,6 +739,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
           {sanBlock}
           {statLine}
         </div>
+        {posBlock}
         <div className="nav2">
           {nav}
           <small className="kb">↑ ↓ para pasar de jugador</small>

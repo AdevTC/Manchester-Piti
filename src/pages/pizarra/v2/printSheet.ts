@@ -2,7 +2,9 @@
 // seven on a pitch (top view: their spots as the board draws them), the bench, the consignas, the cambios
 // by tandas, the lanzadores and what we know of the rival. Pure; PrintPlan.tsx lays it out.
 import type { Lineup } from "../formations";
-import { slotLabel, slotPos } from "./geometry";
+import { systemDef } from "../../../lib/formations";
+import { slotPos } from "./geometry";
+import { slotCode } from "./encaje";
 import type { Squad } from "./model";
 import { tacRows } from "./plan";
 import { wavesTxt } from "./cambios";
@@ -54,7 +56,7 @@ export function printView(L: Lineup, sq: Squad, o: PrintInput): PrintView {
   L.slots.forEach((s, i) => {
     if (!s.playerId) return;
     const p = slotPos(L, i);
-    seven.push({ x: r1(p.u), y: r1(p.v * PITCH_RATIO), num: sq.byId.get(s.playerId)?.num ?? 0, name: name(s.playerId), pos: slotLabel(L, i), cap: L.roles.captainId === s.playerId });
+    seven.push({ x: r1(p.u), y: r1(p.v * PITCH_RATIO), num: sq.byId.get(s.playerId)?.num ?? 0, name: name(s.playerId), pos: slotCode(L, i), cap: L.roles.captainId === s.playerId });
   });
   const on = new Set(L.slots.map((s) => s.playerId).filter(Boolean));
   const bench = sq.list.filter((c) => !on.has(c.id) && !c.baja && c.cv !== "no" && (!o.called || o.called.has(c.id))).map((c) => c.name);
@@ -63,14 +65,14 @@ export function printView(L: Lineup, sq: Squad, o: PrintInput): PrintView {
   const riv = L.rival ?? null;
   return {
     title: o.name,
-    sub: [o.match, L.freeMode ? "Libre" : L.formation].filter(Boolean).join(" · "),
+    sub: [o.match, L.freeMode ? "Libre" : systemDef(L.formation).label].filter(Boolean).join(" · "),
     seven,
     empty: L.slots.length - seven.length,
     bench,
     consignas: tacRows(L).map((r) => ({ t: r.ct, d: r.cd })),
     tandas: wavesTxt(L.subs ?? [], name),
     takers,
-    rivalSys: riv ? riv.formation : null,
+    rivalSys: riv ? systemDef(riv.formation).label : null,
     rival: riv ? riv.players.flatMap((p, i) => (p.note ? [{ who: rivalName(riv, i), note: p.note }] : [])) : [],
   };
 }

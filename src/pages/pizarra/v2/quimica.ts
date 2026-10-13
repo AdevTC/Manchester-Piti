@@ -1,11 +1,14 @@
 // La pizarra «Noche de partido» — the química as light: every cromo links to its two nearest neighbours,
 // each link scored by fit, goals assisted to each other and minutes on the pitch together (scaled by
-// the minutes the team has played); the total (0–100) reads the links, who plays in his natural zone
-// (an unknown position is not natural), the goalkeeper and the form. The tiers (and the squad bars'
-// diamonds) come from one table: TIERS. Pure.
+// the minutes the team has played); the total (0–100) reads the links, who plays in his place (the
+// encaje's logicGrade: in place counts whole, adapted half, an unknown position nothing), the goalkeeper
+// and the form. The tiers (and the squad bars' diamonds) come from one table: TIERS. Pure.
+import { POSITIONS, type PosCode } from "../../../lib/positions";
 import type { Lineup, Zone } from "../formations";
+// (`out` is taken: links() keeps its pairs in a local `out`)
+import { adapted, hasFitData, homeName, inPlace, logicGrade, out as fuera, slotCode } from "./encaje";
 import { slotPos, slotZone, planeDist2 } from "./geometry";
-import { fits, natural, pairOf, teamMinutes, type Squad } from "./model";
+import { pairOf, teamMinutes, type Squad } from "./model";
 import { plural } from "./plural";
 
 export interface Link {
@@ -22,7 +25,10 @@ export interface Link {
   tog: number;
   /** Minutes on the pitch together this season. */
   min: number;
+  /** Both in their place (logicGrade ≥ 2). */
   nat: boolean;
+  /** Not both in place only because one is adapted (nobody out, nobody unknown). */
+  ada: boolean;
 }
 
 /** Minutes together as link points: half the team's minutes or more = 2, a fifth = 1, less = 0. */
@@ -64,10 +70,13 @@ export function links(L: Lineup, sq: Squad): Link[] {
   return out.map(([i, j]) => {
     const a = ids[i] as string;
     const b = ids[j] as string;
-    const nat = natural(L, sq, a, slotZone(L, i)) && natural(L, sq, b, slotZone(L, j));
+    const ga = logicGrade(L, sq, a, i);
+    const gb = logicGrade(L, sq, b, j);
+    const nat = inPlace(ga) && inPlace(gb);
+    const ada = !nat && [ga, gb].every((g) => inPlace(g) || adapted(g));
     const { ast, tog, min } = pairOf(sq, a, b);
     const s = (nat ? 1 : 0) + togPoints(min, tm) + Math.min(2, ast);
-    return { i, j, a, b, s, t: linkTier(s), ast, tog, min, nat };
+    return { i, j, a, b, s, t: linkTier(s), ast, tog, min, nat, ada };
   });
 }
 
@@ -78,16 +87,35 @@ export interface LineTotals {
   min: number;
 }
 
+/** A placed player not in his place, for the química's words. */
+export interface OffSpot {
+  name: string;
+  /** Out of his place (else adapted). */
+  out: boolean;
+  /** The slot's position. */
+  at: PosCode;
+  /** Where he is at home, lower-cased (homeName). */
+  from: string | null;
+}
+
 export interface Chem {
   v: number;
   links: Link[];
   n: number;
   /** A keeper in goal (an unknown position may keep goal: the 7/7 chip). */
   gk: boolean;
-  /** A natural keeper in goal (what the química rewards). */
+  /** A keeper in his place in goal (what the química rewards). */
   gkNat: boolean;
-  /** Placed players in their natural zone (unknown positions don't count). */
+  /** Placed players in their place (logicGrade ≥ 2; unknown positions don't count). */
   natN: number;
+  /** Placed players adapted (logicGrade 1): they count half. */
+  adaN: number;
+  /** Someone placed has an exact outfield position (hasFitData): the words name names. */
+  exact: boolean;
+  /** The placed players out of their place, then the adapted ones, in slot order. */
+  off: OffSpot[];
+  /** Placed players nobody knows the position of. */
+  unkN: number;
   /** Radar axes (0–100): ataque, defensa, forma (mean rating), experiencia. */
   at: number;
   de: number;
@@ -114,18 +142,26 @@ export function chem(L: Lineup, sq: Squad): Chem {
   const placed = L.slots.map((s, i) => ({ id: s.playerId, i })).filter((x): x is { id: string; i: number } => !!x.id && sq.byId.has(x.id));
   const n = placed.length;
   const lines: LineTotals[] = (["DEF", "MED", "DEL"] as const).map((z) => ({ z, g: 0, a: 0, min: 0 }));
-  if (!n) return { v: 0, links: [], n: 0, gk: false, gkNat: false, natN: 0, at: 0, de: 0, fo: 0, ex: 0, lines, fresh: [] };
+  if (!n) return { v: 0, links: [], n: 0, gk: false, gkNat: false, natN: 0, adaN: 0, exact: false, off: [], unkN: 0, at: 0, de: 0, fo: 0, ex: 0, lines, fresh: [] };
   const ls = links(L, sq);
-  const g0 = L.slots[0]?.playerId;
-  const gk = !!g0 && sq.byId.has(g0) && fits(L, sq, g0, "POR");
-  const gkNat = !!g0 && sq.byId.has(g0) && natural(L, sq, g0, "POR");
-  const natN = placed.filter((p) => natural(L, sq, p.id, slotZone(L, p.i))).length;
+  const grades = placed.map((p) => logicGrade(L, sq, p.id, p.i));
+  const k0 = placed.findIndex((p) => p.i === 0);
+  const gk = k0 >= 0 && (grades[k0] == null || inPlace(grades[k0]));
+  const gkNat = k0 >= 0 && inPlace(grades[k0]);
+  const natN = grades.filter(inPlace).length;
+  const adaN = grades.filter(adapted).length;
+  const offOf = (bad: (g: (typeof grades)[number]) => boolean, isOut: boolean): OffSpot[] =>
+    placed
+      .filter((_, k) => bad(grades[k]))
+      .map((p) => ({ name: sq.byId.get(p.id)?.name ?? "Jugador", out: isOut, at: slotCode(L, p.i), from: homeName(L, sq, p.id) }));
+  const off = [...offOf(fuera, true), ...offOf(adapted, false)];
+  const unkN = grades.filter((g) => g == null).length;
   const la = ls.length ? ls.reduce((a, l) => a + l.s, 0) / ls.length / 5 : 0;
   const cs = placed.map((p) => sq.byId.get(p.id)!);
   // the form of those who have played (a debutant has no form yet: he neither adds nor takes)
   const rated = cs.filter((c) => !c.unrated);
   const fa = rated.length ? rated.reduce((a, c) => a + c.rt, 0) / rated.length : 0;
-  const v = Math.round((la * 50 + (natN / n) * 28 + (gkNat ? 12 : 0) + (fa / 99) * 10) * (n / 7));
+  const v = Math.round((la * 50 + ((natN + 0.5 * adaN) / n) * 28 + (gkNat ? 12 : 0) + (fa / 99) * 10) * (n / 7));
   let defMin = 0;
   placed.forEach((p, k) => {
     const c = cs[k];
@@ -152,6 +188,10 @@ export function chem(L: Lineup, sq: Squad): Chem {
     gk,
     gkNat,
     natN,
+    adaN,
+    exact: hasFitData(placed.map((p) => p.id), sq, L),
+    off,
+    unkN,
     at: pct(ga, (g * 40) / 7),
     de: Math.min(100, Math.round((gkNat ? 30 : 0) + (tm > 0 ? Math.min(70, (defMin / (tm * 3)) * 70) : 0))),
     fo: Math.round(fa),
@@ -181,12 +221,28 @@ export const tierDiamonds = (v: number): 0 | 1 | 2 | 3 => tierRow(v).dm;
 
 export const linkMark = (t: 1 | 2 | 3): string => (t === 3 ? "++" : t === 2 ? "+" : "–");
 
-/** Why the química is what it is, in one line. */
+const offTxt = (o: OffSpot): string => {
+  const at = POSITIONS[o.at].name.toLowerCase();
+  return o.out ? o.name + " fuera de su sitio (" + (o.from ? "de " + o.from + " " : "") + "en " + at + ")" : o.name + " adaptado de " + at;
+};
+
+/** Why the química is what it is, in one line. With exact positions it names who is adapted or out
+ *  («6 en su sitio · PABLO adaptado de interior izquierdo»: those out first, two at most, then «y N
+ *  más»); a squad known only by lines keeps the old words. */
 export function chemWhy(ch: Chem): string {
   if (ch.n < 7) return "Faltan cromos: la química sube al completar el siete.";
   if (!ch.gkNat) return "Sin portero natural la química se resiente.";
-  const out = 7 - ch.natN;
-  return out ? out + " fuera de su posición natural: recoloca para sumar." : "Todos en su sitio natural.";
+  if (!ch.exact) {
+    const off = 7 - ch.natN;
+    return off ? off + " fuera de su posición natural: recoloca para sumar." : "Todos en su sitio natural.";
+  }
+  if (ch.natN === 7) return "Todos en su sitio.";
+  const named = ch.off.slice(0, 2).map(offTxt);
+  const more = ch.off.length - named.length;
+  const parts = [ch.natN + " en su sitio", ...named];
+  let txt = parts.join(" · ") + (more > 0 ? " y " + more + " más" : "");
+  if (ch.unkN) txt += " · " + ch.unkN + " sin posición conocida";
+  return txt + ".";
 }
 
 /** «120′ juntos» / «sin minutos juntos». */
@@ -217,7 +273,7 @@ export function lucesOf(ch: Chem, sq: Squad, n: number): Luz[] {
       t: l.t,
       mark: linkMark(l.t),
       who: nm(l.a) + " · " + nm(l.b),
-      why: [l.ast ? plural(l.ast, "gol", "goles") + " juntos" : "", togTxt(l.min), l.nat ? "" : "alguno fuera de sitio"].filter(Boolean).join(" · "),
+      why: [l.ast ? plural(l.ast, "gol", "goles") + " juntos" : "", togTxt(l.min), l.nat ? "" : l.ada ? "alguno adaptado" : "alguno fuera de sitio"].filter(Boolean).join(" · "),
     }));
 }
 

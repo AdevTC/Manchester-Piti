@@ -1,7 +1,10 @@
-// /profile: the callables of functions/src/profile.ts (typed) and the handle lookup for «Tu apodo».
+// /profile: the callables of functions/src/profile.ts (typed), the handle lookup for «Tu apodo» and
+// the one direct write a member makes: his «Tus posiciones» proposal.
 import { httpsCallable } from "firebase/functions";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db, functions } from "../../firebase";
+import type { PositionSet } from "../../lib/positions";
+import { proposalPayload } from "../../lib/positionsEdit";
 
 export { apiError, requestPlayerClaim } from "../../lib/clubApi";
 
@@ -28,4 +31,10 @@ export async function nicknameTaken(nick: string, myUid: string): Promise<boolea
   if (!snap.exists()) return false;
   const owner: unknown = snap.get("uid");
   return owner !== myUid;
+}
+
+/** «Enviar al capitán» (a set) / «Retirar propuesta» (null). firestore.rules let a member touch only
+ *  `positionsProposal` of his own ficha, dated by the server, and clear `positionsReview` with it. */
+export async function proposePositions(playerId: string, set: PositionSet | null): Promise<void> {
+  await updateDoc(doc(db, "players", playerId), proposalPayload(set, serverTimestamp()));
 }

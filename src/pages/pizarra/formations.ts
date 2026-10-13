@@ -8,17 +8,19 @@
 // stable order is what lets a player at index `i` travel to the new index-`i`
 // position when the formation changes (the morph).
 
+import { SYSTEMS_CATALOGUE, SYSTEM_IDS, type FormationName } from "../../lib/formations";
+import { LINE_NAMES, LINES, lineOf, type Line, type PosCode } from "../../lib/positions";
 import type { Play, Stroke } from "../../lib/schemas";
 import type { CondRule, ShapeOff, StyleId } from "../../lib/tacticaSchemas";
 import type { Tactics } from "./tactics";
 import type { RivalSeven } from "./v2/rival";
 
-/** Vertical zone of a slot/player — used for the out-of-position cue. */
-export type Zone = "POR" | "DEF" | "MED" | "DEL";
-
-export type FormationName = "2-3-1" | "3-2-1" | "3-1-2" | "2-1-3" | "1-3-2" | "2-1-2-1";
-
-export const FORMATION_NAMES: FormationName[] = ["2-3-1", "3-2-1", "3-1-2", "2-1-3", "1-3-2", "2-1-2-1"];
+export type { FormationName };
+export const FORMATION_NAMES: FormationName[] = [...SYSTEM_IDS];
+/** Vertical zone of a slot/player (= the position's line). */
+export type Zone = Line;
+/** A per-board «Jugar de»: a position code, or a line (as saved before codes; POR is both). */
+export type PlaysAs = PosCode | Zone;
 
 /** A position in a preset: a Spanish role label, its zone, and pitch spot. */
 export interface SlotDef {
@@ -67,8 +69,9 @@ export interface Lineup {
   bench: string[];
   roles: Roles;
   tactics: Tactics;
-  /** Per-lineup position override (beats the player's natural position). */
-  playerPositions: Record<string, Zone>;
+  /** Per-lineup position override, «Jugar de» (beats the player's natural position): a code, or a
+   *  line as saved before codes. */
+  playerPositions: Record<string, PlaysAs>;
   /** Players pinned to their slot (immune to formation change / Auto-XI). */
   pinned: string[];
   /** Cambios por tandas: who leaves for whom, and when (≤ 20; see v2/cambios.ts). */
@@ -110,64 +113,10 @@ export interface LineupVariant {
   tactics: Tactics;
 }
 
-// Position labels (Spanish): POR portero · LD/LI lateral · DFC central ·
-// MCD pivote · MC/MI/MD medio · MCO mediapunta · ED/EI extremo · DC delantero.
-export const FORMATIONS: Record<FormationName, SlotDef[]> = {
-  "2-3-1": [
-    { position: "POR", zone: "POR", x: 50, y: 90 },
-    { position: "DFC", zone: "DEF", x: 33, y: 75 },
-    { position: "DFC", zone: "DEF", x: 67, y: 75 },
-    { position: "MI", zone: "MED", x: 22, y: 52 },
-    { position: "MC", zone: "MED", x: 50, y: 54 },
-    { position: "MD", zone: "MED", x: 78, y: 52 },
-    { position: "DC", zone: "DEL", x: 50, y: 22 },
-  ],
-  "3-2-1": [
-    { position: "POR", zone: "POR", x: 50, y: 90 },
-    { position: "LD", zone: "DEF", x: 24, y: 74 },
-    { position: "DFC", zone: "DEF", x: 50, y: 77 },
-    { position: "LI", zone: "DEF", x: 76, y: 74 },
-    { position: "MC", zone: "MED", x: 36, y: 52 },
-    { position: "MC", zone: "MED", x: 64, y: 52 },
-    { position: "DC", zone: "DEL", x: 50, y: 22 },
-  ],
-  "3-1-2": [
-    { position: "POR", zone: "POR", x: 50, y: 90 },
-    { position: "LD", zone: "DEF", x: 24, y: 74 },
-    { position: "DFC", zone: "DEF", x: 50, y: 77 },
-    { position: "LI", zone: "DEF", x: 76, y: 74 },
-    { position: "MC", zone: "MED", x: 50, y: 53 },
-    { position: "DC", zone: "DEL", x: 35, y: 23 },
-    { position: "DC", zone: "DEL", x: 65, y: 23 },
-  ],
-  "2-1-3": [
-    { position: "POR", zone: "POR", x: 50, y: 90 },
-    { position: "DFC", zone: "DEF", x: 33, y: 75 },
-    { position: "DFC", zone: "DEF", x: 67, y: 75 },
-    { position: "MC", zone: "MED", x: 50, y: 55 },
-    { position: "ED", zone: "DEL", x: 22, y: 24 },
-    { position: "DC", zone: "DEL", x: 50, y: 20 },
-    { position: "EI", zone: "DEL", x: 78, y: 24 },
-  ],
-  "1-3-2": [
-    { position: "POR", zone: "POR", x: 50, y: 90 },
-    { position: "DFC", zone: "DEF", x: 50, y: 76 },
-    { position: "MI", zone: "MED", x: 24, y: 52 },
-    { position: "MC", zone: "MED", x: 50, y: 54 },
-    { position: "MD", zone: "MED", x: 76, y: 52 },
-    { position: "DC", zone: "DEL", x: 35, y: 24 },
-    { position: "DC", zone: "DEL", x: 65, y: 24 },
-  ],
-  "2-1-2-1": [
-    { position: "POR", zone: "POR", x: 50, y: 90 },
-    { position: "DFC", zone: "DEF", x: 33, y: 76 },
-    { position: "DFC", zone: "DEF", x: 67, y: 76 },
-    { position: "MCD", zone: "MED", x: 50, y: 62 },
-    { position: "MC", zone: "MED", x: 28, y: 46 },
-    { position: "MC", zone: "MED", x: 72, y: 46 },
-    { position: "DC", zone: "DEL", x: 50, y: 22 },
-  ],
-};
+// Each system's stored slots (label = the F7 position code, zone = its line), straight from the catalogue.
+export const FORMATIONS = Object.fromEntries(
+  SYSTEMS_CATALOGUE.map((s) => [s.id, s.spots.map(([code, x, y]) => ({ position: code, zone: lineOf(code), x, y }))]),
+) as Record<FormationName, SlotDef[]>;
 
 /** Stable slot id by index, so morphs map old index → new index. */
 export const slotIdFor = (index: number): string => `pz-slot-${index}`;
@@ -200,11 +149,5 @@ export const ROLE_META: RoleMeta[] = [
 ];
 
 /** Spanish label for a zone (used in position selectors / chips). */
-export const ZONE_LABEL: Record<Zone, string> = {
-  POR: "Portero",
-  DEF: "Defensa",
-  MED: "Medio",
-  DEL: "Delantero",
-};
-
-export const ZONES: Zone[] = ["POR", "DEF", "MED", "DEL"];
+export const ZONE_LABEL: Record<Zone, string> = { POR: LINE_NAMES.POR.name, DEF: LINE_NAMES.DEF.name, MED: "Medio", DEL: LINE_NAMES.DEL.name };
+export const ZONES: Zone[] = [...LINES];

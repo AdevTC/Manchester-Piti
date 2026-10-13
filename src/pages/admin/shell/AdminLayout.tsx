@@ -11,6 +11,7 @@ import { MotionConfig } from "motion/react";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../hooks/useTheme";
 import { dateMillis } from "../../../../functions/src/matchEngine";
+import { positionText } from "../../../lib/positions";
 import { initials } from "../../../lib/vestuario";
 import { useAdminData, type AdminData } from "../data/useAdminData";
 import { clockTime, jLabel, shortDate } from "../data/adminLogic";
@@ -173,16 +174,15 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
         run: () => go({ section: "partidos", matchId: m.id }),
       });
     });
-    const POS: Record<string, string> = { POR: "Portero", DEF: "Defensa", MED: "Medio", DEL: "Delantero" };
     for (const p of data.roster)
       cmds.push({
         id: `p:${p.id}`,
         group: "Jugadores",
         icon: p.number != null ? String(p.number) : "·",
         title: p.number != null ? `${p.number} · ${p.name}` : p.name,
-        description: p.position || "Jugador",
+        description: positionText(p.doc) ?? "Jugador",
         hint: "editar",
-        keywords: [POS[p.position], p.doc.firstName, p.doc.lastName].filter(Boolean).join(" "),
+        keywords: [positionText(p.doc), p.position, p.doc.firstName, p.doc.lastName].filter(Boolean).join(" "),
         exact: p.number != null ? [String(p.number)] : undefined,
         whenEmpty: false,
         run: () => go({ section: "plantilla", playerId: p.id }),

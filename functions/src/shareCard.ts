@@ -3,8 +3,6 @@
 // Pure SVG (sharp rasterises it in social.ts); no network, no fonts beyond the system sans.
 export const escapeXml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-const POSITIONS: Record<string, string> = { POR: "PORTERO", DEF: "DEFENSA", MED: "CENTROCAMPISTA", DEL: "DELANTERO" };
-
 export interface CardPlayer {
   name: string;
   number?: number | string;
@@ -17,7 +15,7 @@ export interface CardPlayer {
 export function playerCardSvg(p: CardPlayer, crest: string) {
   const name = escapeXml(p.name.toUpperCase().slice(0, 24));
   const num = escapeXml(String(p.number ?? "").slice(0, 3));
-  const pos = escapeXml(POSITIONS[String(p.position ?? "").toUpperCase()] ?? String(p.position || "UNO DE LOS NUESTROS").toUpperCase().slice(0, 24));
+  const pos = escapeXml(String(p.position || "UNO DE LOS NUESTROS").toUpperCase().slice(0, 24));
   // Font size from the width each name has (librsvg ignores textLength); bold sans ≈ 0.72em a glyph.
   const plain = p.name.toUpperCase().slice(0, 24);
   const fit = (width: number, max: number) => Math.floor(Math.min(max, width / (Math.max(1, [...plain].length) * 0.72)));

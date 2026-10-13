@@ -6,6 +6,7 @@ import type { DoorRequestRow } from "../vestuario/live";
 import type { SquadPlayer } from "../pizarra/v2/ratings";
 import { buildCard, type FichaState } from "./card";
 import { ProfileView, type ProfileActions } from "./ProfileView";
+import type { PositionsInfo } from "./profileData";
 import type { ProfileData } from "./useProfileData";
 
 export const DAY = 86_400_000;
@@ -21,7 +22,7 @@ export function doorRow(i: number, extra: Partial<DoorRequestRow> = {}): DoorReq
   return { uid: "r" + i, status: "pending", googleName: "Google " + i, email: `r${i}@example.com`, photo: "", playerId: null, playerName: null, name: "Socio " + i, at: 400 * DAY - (i + 1) * 3_600_000, ...extra };
 }
 
-export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?: boolean; started?: boolean; playerId?: string | null; doors?: number | DoorRequestRow[] } = {}): ProfileData {
+export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?: boolean; started?: boolean; playerId?: string | null; doors?: number | DoorRequestRow[]; positions?: PositionsInfo | null } = {}): ProfileData {
   const state = o.state ?? "vinculada";
   const playerId = o.playerId !== undefined ? o.playerId : state === "sin-ficha" ? null : state === "pendiente" ? "erik" : "adri";
   const card = buildCard({
@@ -52,6 +53,7 @@ export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?
     ficha: { state, playerId, rejectedPlayerId: null, claim: null },
     shirt: { current: state === "vinculada" ? "ADRI" : "", number: state === "vinculada" ? "10" : "", squad: SQUAD.map((p) => ({ id: p.id, name: p.shirtName, number: p.number })), fullName: "Adrián Tello" },
     card,
+    positions: o.positions !== undefined ? o.positions : state === "vinculada" ? { approved: { main: null, also: [] }, proposal: null, state: "ninguna", inSeason: true } : null,
     freeFichas: [{ id: "illescas", name: "ILLESCAS", number: "4", posLong: "Defensa", rating: 60 }],
     next: null,
     upcoming: [],
@@ -67,6 +69,7 @@ export function fakeActions(over: Partial<ProfileActions> = {}): ProfileActions 
     nicknameTaken: vi.fn(async () => false),
     cancelClaim: vi.fn(async () => undefined),
     requestClaim: vi.fn(async () => ({ linked: false })),
+    proposePositions: vi.fn(async () => undefined),
     signOut: vi.fn(async () => undefined),
     leaveVestuario: vi.fn(async () => undefined),
     ...over,

@@ -3,6 +3,7 @@
 // trophy room reuses clubMedals (lib/home.ts).
 import { ageOn } from "./clubAnalytics";
 import { dateMillis, isCompleted, type ClubMatch } from "./clubData";
+import { LINES, resolvePositions, type Line } from "./positions";
 import type { ClubContent } from "./clubContentDefaults";
 import type { ClubMedal } from "./home";
 
@@ -25,19 +26,19 @@ export function historyTrain(milestones: ClubContent["milestones"], matches: Clu
   return stops;
 }
 
-const ZONES = ["POR", "DEF", "MED", "DEL"] as const;
 export interface SquadNumbersInput {
   id: string;
   naturalPosition?: string;
+  positions?: unknown;
   birthDate?: string;
 }
 /** Size, players per line (unknown positions apart) and average age of a squad. */
 export function squadNumbers(players: SquadNumbersInput[], today: Date) {
-  const byZone = Object.fromEntries(ZONES.map((z) => [z, 0])) as Record<(typeof ZONES)[number], number>;
+  const byZone = Object.fromEntries(LINES.map((l) => [l, 0])) as Record<Line, number>;
   let other = 0;
   for (const p of players) {
-    const z = String(p.naturalPosition ?? "").toUpperCase() as (typeof ZONES)[number];
-    if (ZONES.includes(z)) byZone[z]++;
+    const z = resolvePositions(p).line;
+    if (z) byZone[z]++;
     else other++;
   }
   const ages = players.map((p) => ageOn(p.birthDate, today)).filter((a): a is number => a !== null);

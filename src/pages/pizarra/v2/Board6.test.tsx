@@ -30,7 +30,7 @@ describe("Deshacer acts on the tool on screen", () => {
     const commits: Lineup[] = [];
     const { container } = render(<Harness initial={L7()} onCommit={(l) => commits.push(l)} />);
     fireEvent.click(screen.getByRole("button", { name: "Sistema siguiente" }));
-    expect(commits.at(-1)?.formation).toBe("3-2-1");
+    expect(commits.at(-1)?.formation).toBe("2-1-2-1");
     const n = commits.length;
     go("Tableros");
     fireEvent.keyDown(document.body, { key: "z", ctrlKey: true });
@@ -57,7 +57,7 @@ describe("Deshacer acts on the tool on screen", () => {
     fireEvent.keyDown(document.body, { key: "z", metaKey: true });
     expect(commits.at(-1)?.formation).toBe("2-3-1");
     fireEvent.keyDown(document.body, { key: "z", metaKey: true, shiftKey: true });
-    expect(commits.at(-1)?.formation).toBe("3-2-1");
+    expect(commits.at(-1)?.formation).toBe("2-1-2-1");
     // ⌘ 1 is the browser's, not a tool
     fireEvent.keyDown(document.body, { key: "3", metaKey: true });
     expect(document.querySelector(".pzv")?.getAttribute("data-modo")).toBe("editar");

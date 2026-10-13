@@ -98,6 +98,8 @@
 .sq-facts dd.sm{font-size:17px;white-space:normal;overflow-wrap:break-word}
 .sq-facts dd small{font-family:'Geist';font-weight:500;font-size:12px;color:var(--muted);margin-left:3px}
 .sq-facts dd span{display:block;margin-top:5px;font-family:'Geist';font-weight:500;font-size:12px;color:var(--gold)}
+/* «También MC · DFC» under the position: quieter than the birthday countdown */
+.sq-facts dd span.also{color:var(--muted)}
 .vx .sq-missing{margin:0;display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:16px;background:var(--chip-gold);color:var(--gold-ink);font-size:13px;font-weight:600;line-height:1.35}
 .sq-missing svg{flex-shrink:0}
 .sq-season{border-radius:22px;background:var(--well);padding:14px 16px;display:grid;gap:10px}

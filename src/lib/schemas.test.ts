@@ -244,3 +244,17 @@ describe("lineupSchema", () => {
     expect(r.success).toBe(true);
   });
 });
+
+describe("playerSchema: positions are permissive", () => {
+  it("reads a good set, and a broken one never drops the player", () => {
+    expect(playerSchema.parse({ id: "a", positions: { main: "MC", also: ["MCD"] } }).positions).toEqual({ main: "MC", also: ["MCD"] });
+    const broken = playerSchema.parse({ id: "b", positions: "MC", positionsProposal: 4, positionsReview: { status: "x" } });
+    expect(broken.id).toBe("b");
+    expect(broken.positions).toBeUndefined();
+    expect(broken.positionsProposal).toBeUndefined();
+    expect(broken.positionsReview).toBeUndefined();
+  });
+  it("a proposal can be null (withdrawn)", () => {
+    expect(playerSchema.parse({ id: "c", positionsProposal: null }).positionsProposal).toBeNull();
+  });
+});

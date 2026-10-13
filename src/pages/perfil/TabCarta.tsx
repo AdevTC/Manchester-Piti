@@ -1,16 +1,19 @@
 // /profile › «Tu carta»: Tu nombre → Tu ficha (linked: the mini cromo, Mi página, Copiar enlace;
-// pending: the request with Cancelar; none: the picker of free fichas) → Qué significa cada número →
+// pending: the request with Cancelar; none: the picker of free fichas) → Tus posiciones (linked only) →
+// Qué significa cada número →
 // Tipos de carta → Evoluciones. Copy and structure as designed (pf-g.mjs pCarta).
 import { Link } from "@tanstack/react-router";
+import { LINES, LINE_NAMES } from "../../lib/positions";
 import type { CardView, Evo, EvoShape } from "./card";
 import { TIERS } from "./card";
 import { Cromo } from "./CardFaces";
 import { vars } from "./fx";
 import { CREST, Ic } from "./icons";
 import { Nombre, type NickField, type ShirtField } from "./Nombre";
+import { Posiciones, type PosicionesField } from "./Posiciones";
 import type { FreeFicha } from "./useProfileData";
 
-const ZONE: Record<string, string> = { Portero: "POR", Defensa: "DEF", Centrocampista: "MED", Delantero: "DEL" };
+const ZONE: Record<string, string> = Object.fromEntries(LINES.map((l) => [LINE_NAMES[l].name, l]));
 
 function AwIcon({ shape }: { shape: EvoShape }) {
   return shape === "shield" ? <Ic n="shirt" w={20} /> : shape === "circle" ? <Ic n="ball" w={20} /> : shape === "star" ? <Ic n="star" w={18} /> : <Ic n="team" w={20} />;
@@ -316,11 +319,12 @@ function Evoluciones({ card }: { card: CardView }) {
   );
 }
 
-export function TabCarta({ card, shirt, nick, ficha }: { card: CardView; shirt: ShirtField; nick: NickField; ficha: FichaProps }) {
+export function TabCarta({ card, shirt, nick, ficha, posiciones }: { card: CardView; shirt: ShirtField; nick: NickField; ficha: FichaProps; posiciones: PosicionesField | null }) {
   return (
     <>
       <Nombre shirt={shirt} nick={nick} />
       <Ficha {...ficha} />
+      {card.state === "vinculada" && posiciones && <Posiciones f={posiciones} />}
       <Numeros card={card} />
       <Tipos card={card} />
       <Evoluciones card={card} />

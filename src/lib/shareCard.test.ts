@@ -3,7 +3,7 @@ import { playerCardSvg } from "../../functions/src/shareCard";
 
 describe("cromo para compartir", () => {
   it("draws name, dorsal, position and the career numbers", () => {
-    const svg = playerCardSvg({ name: "Adrián T.C.", number: 10, position: "DEL", totals: { played: 7, goals: 6, assists: 4 } }, "AAAA");
+    const svg = playerCardSvg({ name: "Adrián T.C.", number: 10, position: "Delantero", totals: { played: 7, goals: 6, assists: 4 } }, "AAAA");
     expect(svg).toContain("ADRIÁN T.C.");
     expect(svg).toContain(">10<");
     expect(svg).toContain("DELANTERO");
@@ -16,5 +16,9 @@ describe("cromo para compartir", () => {
     expect(svg).toContain("A&lt;B&gt;&amp;&quot;C");
     expect(svg).not.toContain(">PARTIDOS<");
     expect(svg).toContain("HISTÓRICO");
+  });
+  it("prints the exact position name when the ficha has one", () => {
+    const svg = playerCardSvg({ name: "Erik", number: 4, position: "Lateral derecho" }, "AAAA");
+    expect(svg).toContain("LATERAL DERECHO");
   });
 });

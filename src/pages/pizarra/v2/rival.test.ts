@@ -45,7 +45,7 @@ describe("the rival seven", () => {
     const s = setRivalSystem(r, "2-1-3");
     expect(s.formation).toBe("2-1-3");
     expect(s.players[6]).toEqual(r.players[6]);
-    expect(rivalPos(s, 6)).toBe("EI");
+    expect(rivalPos(s, 6)).toBe("ED");
     expect(setRivalSystem(s, "2-1-3")).toBe(s);
   });
   it("clears a dorsal or a note when emptied, ignores what is not a dorsal, and the same value changes nothing", () => {

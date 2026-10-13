@@ -3,6 +3,8 @@
 import { isCompleted } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../lib/clubData";
 import type { PlayerDoc } from "../../lib/schemas";
+import { resolvePositions, sanitizePositions, type PositionSet } from "../../lib/positions";
+import { proposalDiff, proposalState, type ProposalState } from "../../lib/positionsEdit";
 import { porraPosition } from "../../lib/vestuario";
 import type { SquadPlayer } from "../pizarra/v2/ratings";
 import type { FichaState } from "./card";
@@ -49,12 +51,14 @@ export function seasonPlayers(players: PlayerDoc[], seasonId: string, seasons: {
     .filter((p) => seasonId === "all" || p.seasons?.includes(seasonId) || p.id === me)
     .map((p) => {
       const { shirtName, number } = resolveShirt(p, seasonId, seasons);
+      const pos = resolvePositions(p);
       return {
         id: p.id,
         shirtName,
         firstName: p.firstName ?? "",
         number,
-        naturalPosition: p.naturalPosition,
+        naturalPosition: pos.line ?? undefined,
+        positions: { main: pos.main, also: pos.also },
         injured: p.injured === true,
         active: p.active !== false,
         ...(p.sanction ? { sanction: p.sanction } : {}),
@@ -72,6 +76,33 @@ export function squadShirts(players: PlayerDoc[], seasonId: string, seasons: { i
       return { id: p.id, name: shirtName || [p.firstName, p.lastName].filter(Boolean).join(" "), number: number || null };
     })
     .filter((s) => !!s.name);
+}
+
+export interface PositionsInfo {
+  /** What the ficha says now (`positions`, else the code an old text names). */
+  approved: PositionSet;
+  /** The proposal waiting for the captain (cleaned), null = none. */
+  proposal: PositionSet | null;
+  state: ProposalState;
+  /** The ficha is in the current season: only then does the captain see a proposal (Hoy and the
+   *  Plantilla count the season), so only then can one be sent. */
+  inSeason: boolean;
+}
+/** «Tus posiciones»: the linked ficha's positions, its pending proposal and how the last one went. */
+export function positionsInfo(doc: Pick<PlayerDoc, "positions" | "naturalPosition" | "positionsProposal" | "positionsReview" | "seasons"> | undefined, seasonId: string): PositionsInfo | null {
+  if (!doc) return null;
+  const r = resolvePositions(doc);
+  const inSeason = !!seasonId && !!doc.seasons?.includes(seasonId);
+  return { approved: { main: r.main, also: r.also }, proposal: sanitizePositions(doc.positionsProposal), state: proposalState(doc), inSeason };
+}
+const samePositions = (a: PositionSet, b: PositionSet): boolean => {
+  const d = proposalDiff(a, b);
+  return !d.added.length && !d.removed.length && !d.mainChange;
+};
+/** «Enviar al capitán»: a ficha of this season, something marked, and not what the ficha already says nor what is already pending. */
+export function canSendPositions(draft: PositionSet, info: PositionsInfo): boolean {
+  if (!info.inSeason || (!draft.main && !draft.also.length)) return false;
+  return !samePositions(draft, info.approved) && !(info.proposal && samePositions(draft, info.proposal));
 }
 
 /** «sep 2026», in club time. */

@@ -179,8 +179,8 @@ describe("La pizarra · el tablero", () => {
     const commits: Lineup[] = [];
     render(<Harness initial={lineupOf(SEVEN, "2-3-1", sq)} onCommit={(l) => commits.push(l)} />);
     fireEvent.click(screen.getByRole("button", { name: "Sistema siguiente" }));
-    expect(commits.at(-1)?.formation).toBe("3-2-1");
-    expect(screen.getByRole("button", { name: "Sistema 3-2-1: elegir sistema" })).toBeInTheDocument();
+    expect(commits.at(-1)?.formation).toBe("2-1-2-1");
+    expect(screen.getByRole("button", { name: "Sistema 2-1-2-1: elegir sistema" })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole("navigation", { name: "Herramientas de la pizarra" })).getByRole("button", { name: /Jugadas/ }));
     expect(screen.getByRole("group", { name: "Repetición de la jugada" })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole("navigation", { name: "Herramientas de la pizarra" })).getByRole("button", { name: /Dibujar/ }));

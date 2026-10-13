@@ -1,14 +1,16 @@
 // «Alta de jugador» in the ficha's place: the empty shirt is stamped as the name and the dorsal are typed, the
-// season's free dorsales are one tap away, the line is chosen up front (Medio by default) and the seasons come
-// set to the active one. «Dar de alta» (gold: the one action here) is off until the shirt name (2–12 letters)
+// season's free dorsales are one tap away, his positions can be marked on the same map as the ficha (optional,
+// empty to start with: the preferida gives his line) and the seasons come set to the active one. «Dar de alta» (gold: the one action here) is off until the shirt name (2–12 letters)
 // and a free dorsal are there; photo, birth, height and weight come later in his ficha. Leaving with something
 // typed asks first.
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { MapaPosiciones } from "../../../components/posiciones/MapaPosiciones";
+import { lineOf, type PositionSet } from "../../../lib/positions";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import { ShirtBack } from "../kit";
 import { useUnsavedGuard } from "../ui/guard";
 import { AdIcon } from "../ui/icons";
-import { POSITIONS, checkPlayerForm, dorsalLine, emptyForm, formDirty, shirtNameError, type PlayerForm } from "./plantillaLogic";
+import { checkPlayerForm, dorsalLine, emptyForm, formDirty, shirtNameError, type PlayerForm } from "./plantillaLogic";
 
 export interface AltaWorkspaceProps {
   players: readonly PlayerDoc[];
@@ -19,7 +21,8 @@ export interface AltaWorkspaceProps {
   initialNumber: number | null;
   phone: boolean;
   onCancel: () => void;
-  onAlta: (form: PlayerForm) => void;
+  /** The form, and his positions from the map (possibly empty). */
+  onAlta: (form: PlayerForm, positions: PositionSet) => void;
 }
 
 const digits = (v: string, max: number) => v.replace(/\D/g, "").slice(0, max);
@@ -30,16 +33,24 @@ export function AltaWorkspace({ players, seasons, activeSeason, free, initialNum
   const activeId = activeSeason?.id;
   const [start] = useState<PlayerForm>(() => ({ ...emptyForm(activeId && !activeSeason?.archived ? [activeId] : []), number: initialNumber ? String(initialNumber) : "" }));
   const [form, setForm] = useState<PlayerForm>(start);
+  const [positions, setPositions] = useState<PositionSet>({ main: null, also: [] });
+  const [refused, setRefused] = useState<string | null>(null);
   const leaving = useRef(false);
   const nameRef = useRef<HTMLInputElement>(null);
   // desktop: straight to the name (on phones the keyboard would cover the shirt)
   useEffect(() => {
     if (!phone) nameRef.current?.focus();
   }, [phone]);
-  const dirty = formDirty(form, start);
+  const dirty = formDirty(form, start) || !!positions.main || positions.also.length > 0;
   const guard = useUnsavedGuard(dirty, { what: "el alta del jugador", shouldBlock: () => !leaving.current });
   const check = checkPlayerForm(form, { players, seasons, editingId: null, start: null });
   const set = <K extends keyof PlayerForm>(k: K, v: PlayerForm[K]) => setForm((f) => ({ ...f, [k]: v }));
+  /** The map: his positions, and the preferida's line as the form's line (none without a preferida). */
+  const mark = (next: PositionSet) => {
+    setRefused(null);
+    setPositions(next);
+    set("position", next.main ? lineOf(next.main) : "");
+  };
   const nameErr = shirtNameError(form.shirtName, true);
   const dorsal = dorsalLine(check, form, null);
   const shirt = form.shirtName.trim() ? form.shirtName.toLocaleUpperCase("es") : "NOMBRE";
@@ -49,7 +60,7 @@ export function AltaWorkspace({ players, seasons, activeSeason, free, initialNum
   const go = () => {
     if (off) return;
     leaving.current = true;
-    onAlta(form);
+    onAlta(form, positions);
   };
   const kitStyle: CSSProperties = { viewTransitionName: "pl-alta" };
 
@@ -128,17 +139,15 @@ export function AltaWorkspace({ players, seasons, activeSeason, free, initialNum
                 ))}
               </span>
             </div>
-            <div className="fld wide">
-              <span className="lb" id={`${uid}-p`}>
-                Línea
-              </span>
-              <span className="pz" role="group" aria-labelledby={`${uid}-p`}>
-                {POSITIONS.map((p) => (
-                  <button key={p} type="button" aria-pressed={form.position === p} onClick={() => set("position", p)}>
-                    {p}
-                  </button>
-                ))}
-              </span>
+            <div className="fld wide posx">
+              <span className="lb">Posiciones · opcional</span>
+              <MapaPosiciones value={positions} onChange={mark} onRefuse={setRefused} size={phone ? "m" : "s"} label="Posiciones del jugador nuevo" />
+              {refused ? (
+                <span className="er">
+                  <AdIcon name="x" size={13} />
+                  {refused}
+                </span>
+              ) : null}
             </div>
             <div className="fld wide">
               <span className="lb" id={`${uid}-s`}>

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { reportDroppedDoc } from "./docTelemetry";
+import { SYSTEM_IDS } from "./formations";
+import { POS_CODES } from "./positions";
 
 /**
  * Firestore Timestamp-ish (tiene toMillis) o Date o número epoch.
@@ -83,9 +85,8 @@ export type SeasonMatchDoc = z.infer<typeof seasonMatchSchema>;
  * unión de campos necesarios. Exportar `pizarraPlayerSchema` como alias del
  * mismo schema evita divergencia y hace el commit body más claro.
  *
- * `naturalPosition` es de tipo Zone (string literal union en runtime); se acepta
- * como `z.string()` para no acoplar el schema a la lista de zonas ni rechazar
- * valores futuros. El código downstream ya los trata como Zone via cast.
+ * `naturalPosition` es texto libre heredado (códigos o palabras); la fuente de verdad es
+ * `positions` y se lee siempre con `resolvePositions`.
  *
  * `seasonDetails` se acepta como record<string, unknown> permisivo para no
  * rechazar docs cuyas sub-keys no nos importan validar aquí.
@@ -119,6 +120,18 @@ export const sanctionSchema = z.object({
 });
 export type SanctionDoc = z.infer<typeof sanctionSchema>;
 
+/** `players/{id}.positions` / `.positionsProposal`: permisivos (códigos raros se limpian al leer con
+ *  `resolvePositions`; un valor que no es un mapa se queda en ausente — nunca tira el jugador). */
+const positionSetSchema = z.object({
+  main: z.string().nullable().catch(null),
+  also: z.array(z.string()).catch([]),
+});
+const positionsReviewSchema = z.object({
+  status: z.enum(["aprobada", "ajustada", "rechazada"]),
+  at: z.unknown(),
+  by: z.string().optional().catch(undefined),
+});
+
 export const playerSchema = z.object({
   id: z.string(),
   firstName: z.string().optional(),
@@ -131,6 +144,9 @@ export const playerSchema = z.object({
   weight: z.number().optional(),
   active: z.boolean().optional(),
   naturalPosition: z.string().optional(),
+  positions: positionSetSchema.optional().catch(undefined),
+  positionsProposal: positionSetSchema.extend({ at: z.unknown() }).nullable().optional().catch(undefined),
+  positionsReview: positionsReviewSchema.nullable().optional().catch(undefined),
   injured: z.boolean().optional(),
   // Sanción a mano y «Levantar la sanción» (ms): opcionales y permisivos (un valor roto no tira el doc).
   sanction: sanctionSchema.optional().catch(undefined),
@@ -180,7 +196,7 @@ export const LINEUP_LIMITS = {
   tactic: 40,
   playerPositions: 60,
 } as const;
-export const LINEUP_FORMATIONS = ["2-3-1", "3-2-1", "3-1-2", "2-1-3", "1-3-2", "2-1-2-1"] as const;
+export const LINEUP_FORMATIONS = SYSTEM_IDS;
 export const LINEUP_ZONES = ["POR", "DEF", "MED", "DEL"] as const;
 const lineupRef = z.string().min(1).max(LINEUP_LIMITS.id);
 /** Coordenada del campo en %: un número fuera de 0–100 se lleva al borde. */
@@ -202,8 +218,10 @@ export const lineupRolesSchema = z.object({
   cornersId: lineupRef.optional(),
 });
 export const lineupTacticsSchema = z.record(z.string().max(LINEUP_LIMITS.tactic), z.string().max(LINEUP_LIMITS.tactic));
+/** What a «Jugar de» may hold: a position code (MCD…) or, as saved before them, a line (POR is both). */
+export const LINEUP_PLAYS_AS = [...POS_CODES, "DEF", "MED", "DEL"] as const;
 export const lineupPositionsSchema = z
-  .record(lineupRef, z.enum(LINEUP_ZONES))
+  .record(lineupRef, z.enum(LINEUP_PLAYS_AS))
   .refine((r) => Object.keys(r).length <= LINEUP_LIMITS.playerPositions, { message: "Demasiadas posiciones." });
 
 // ── Pizarra: el día de partido (cambios por tandas y lanzadores en orden) ──────

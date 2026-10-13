@@ -1,10 +1,17 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { systemDef } from "../../../lib/formations";
+import { lineOf, type PosCode, type ResolvedPositions } from "../../../lib/positions";
+import type { FormationName } from "../formations";
 import { BenchTab, OnceTabs, SquadBars, SystemTab, type BenchTabProps } from "./Panels";
 import { PanelHead } from "./SheetPanels";
 import { benchGroups, convHead, squadInfo } from "./bench";
+import { encajeBySystem } from "./encaje";
+import { SYSTEMS } from "./geometry";
+import type { Squad } from "./model";
 import { chem } from "./quimica";
-import { demoSquad, lineupOf } from "./testkit";
+import { buildSquad, type SquadPlayer } from "./ratings";
+import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
 
 // The «Siete» tool's pieces on their own: the squad bars, the tabs with their keys, the Convocatoria page
 // (rows or cromos), the Sistema tiles, and the panels' heading.
@@ -75,6 +82,10 @@ describe("«Siete»", () => {
     expect(screen.getByText("Por forma · J5–J7")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Auto-colocar: cada uno a su posición natural" }));
     expect(p.onAuto).toHaveBeenCalled();
+    // with exact positions it says what it does: the best encaje
+    rerender(<BenchTab {...p} autoExact />);
+    expect(screen.getByRole("button", { name: "Auto-colocar: cada uno donde mejor encaja" })).toBeInTheDocument();
+    rerender(<BenchTab {...p} />);
     // the search is folded until asked for
     expect(screen.queryByRole("searchbox", { name: "Buscar jugador" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Buscar en la plantilla" }));
@@ -112,6 +123,31 @@ describe("«Siete»", () => {
     expect(erikCard.querySelector(".ac-c .cc-f .cc-nm")).toHaveTextContent("ERIK");
   });
 
+  it("the bench rows show the preferida in the badge and «También …» under the season line; the cromos only the code", () => {
+    const ps = (main: PosCode, ...also: PosCode[]): ResolvedPositions => ({ main, also, line: lineOf(main) });
+    const psq = squadOf([cromo("a", 8, "MED", { ps: ps("MC", "MCD", "DFC") }), cromo("b", 5, "DEF", { ps: ps("DFC") }), cromo("c", 3, "DEL")]);
+    const groups = benchGroups({ bench: psq.list, called: null, filter: { on: false, q: "", zf: "Todos", oc: false }, hand: null, selId: null, meId: null });
+    const { rerender } = render(<BenchTab {...benchProps({ groups })} />);
+    const list = screen.getByRole("group", { name: /^Banquillo en lista/ });
+    const a = within(list).getByRole("button", { name: /^A, dorsal 8/ });
+    expect(a.querySelector(".ar-r i")).toHaveTextContent("MC");
+    expect(a.querySelector(".ar-n .pzp-ar-also")).toHaveTextContent("También MCD · DFC");
+    expect(a.querySelector(".ar-n small")).toHaveTextContent("0 PJ · 0 G · 0 A · 0'");
+    // no «también», or no exact position: no second line, the line in the badge as before
+    const b = within(list).getByRole("button", { name: /^B, dorsal 5/ });
+    expect(b.querySelector(".ar-r i")).toHaveTextContent("DFC");
+    expect(b.querySelector(".pzp-ar-also")).toBeNull();
+    const c = within(list).getByRole("button", { name: /^C, dorsal 3/ });
+    expect(c.querySelector(".ar-r i")).toHaveTextContent("DEL");
+    expect(c.querySelector(".pzp-ar-also")).toBeNull();
+    // the cromos: the code in the badge, the «también» only aloud
+    rerender(<BenchTab {...benchProps({ groups, benchView: "cromos" })} />);
+    const card = within(screen.getByRole("group", { name: /^Banquillo:/ })).getByRole("button", { name: /^A, dorsal 8, mediocentro, también pivote y central/ });
+    expect(card.querySelector(".cc-top i")).toHaveTextContent("MC");
+    expect(card.querySelector(".pzp-ar-also")).toBeNull();
+    expect(card).not.toHaveTextContent("También");
+  });
+
   it("under 1100 px the list is never rendered: the cromos, whatever the view says", () => {
     window.matchMedia = vi.fn((q: string) => ({ matches: !q.includes("min-width: 1100px"), media: q, onchange: null, addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false }));
     try {
@@ -144,23 +180,191 @@ describe("«Siete»", () => {
     expect(screen.getByRole("button", { name: /^Auto-colocar/ })).toBeDisabled();
   });
 
-  it("Sistema: the six systems and Libre as tiles with their lines, then the química in short", () => {
+  it("Sistema: the systems and Libre as tiles with their names, then the química in short", () => {
     const onSystem = vi.fn();
-    const { container } = render(<SystemTab formation="2-3-1" free={false} grid={false} ro={false} ch={ch} sq={sq} onSystem={onSystem} onLibre={vi.fn()} onGrid={vi.fn()} onReset={vi.fn()} />);
+    const { container } = render(<SystemTab formation="2-3-1" free={false} grid={false} ro={false} ch={ch} sq={sq} cands={sq.list.map((c) => c.id)} onSystem={onSystem} onLibre={vi.fn()} onGrid={vi.fn()} onReset={vi.fn()} />);
     const tiles = within(screen.getByRole("group", { name: "Sistema de juego" })).getAllByRole("button");
-    expect(tiles.map((t) => t.querySelector("b")?.textContent)).toEqual(["2-3-1", "3-2-1", "3-1-2", "2-1-3", "1-3-2", "2-1-2-1", "Libre"]);
+    expect(tiles.map((t) => t.querySelector("b")?.textContent)).toEqual(["2-3-1", "2-1-2-1", "2-2-2", "2-2-1-1", "3-2-1", "3-1-2", "3-1-1-1", "4-1-1", "3-3", "2-1-3", "1-3-2", "1-2-3", "1-2-2-1", "1-1-2-1-1", "1-3-1-1", "Libre"]);
     expect(tiles[0]).toHaveAttribute("aria-pressed", "true");
-    expect(tiles[1].querySelector("small")).toHaveTextContent("3 DEF · 2 MED · 1 DEL");
-    expect(tiles[6].querySelector("small")).toHaveTextContent("a mano");
+    expect(tiles[1].querySelector("small")).toHaveTextContent("Rombo");
+    expect(tiles[15].querySelector("small")).toHaveTextContent("a mano");
     expect(tiles[1].querySelectorAll("circle")).toHaveLength(7);
     fireEvent.click(tiles[1]);
-    expect(onSystem).toHaveBeenCalledWith("3-2-1");
+    expect(onSystem).toHaveBeenCalledWith("2-1-2-1");
     expect(screen.getByRole("heading", { name: /^Química del siete · \d+ luc(es|z)$/ })).toBeInTheDocument();
     expect(container.querySelector(".qsum .sr")).toHaveTextContent(ch.v + " de 100");
     expect(container.querySelectorAll(".lines > div")).toHaveLength(3);
     expect(container.querySelectorAll(".lk-list li").length).toBeLessThanOrEqual(3);
     // the free-mode row only in Libre
     expect(screen.queryByRole("button", { name: "Ajustar a la rejilla" })).not.toBeInTheDocument();
+  });
+
+  describe("Sistema: ¿nos encaja?", () => {
+    const ps = (main: PosCode | null, ...also: PosCode[]): ResolvedPositions => ({ main, also, line: main ? lineOf(main) : null });
+    const withPs = (id: string, num: number, main: PosCode | null, ...also: PosCode[]) => cromo(id, num, main ? lineOf(main) : undefined, { ps: ps(main, ...also) });
+    // two keepers, a LD, a DFC, two MCs (one also pivote), a punta and an extremo derecho
+    const fq = squadOf([
+      withPs("k1", 1, "POR"),
+      withPs("k2", 13, "POR"),
+      withPs("ld", 2, "LD"),
+      withPs("dfc", 4, "DFC"),
+      withPs("mc1", 8, "MC"),
+      withPs("mc2", 6, "MC", "MCD"),
+      withPs("dc", 9, "DC"),
+      withPs("ed", 7, "ED"),
+    ]);
+    const FL = lineupOf(["k1", "dfc", "ld", "mc1", "mc2", "ed", "dc"], "2-3-1", fq);
+    const fch = chem(FL, fq);
+    const ids = fq.list.map((c) => c.id);
+    const tab = (over: { formation?: FormationName; free?: boolean; sq?: Squad; cands?: string[]; now?: number } = {}) => (
+      <SystemTab formation={over.formation ?? "2-3-1"} free={over.free ?? false} grid={false} ro={false} ch={fch} sq={over.sq ?? fq} cands={over.cands ?? ids} now={over.now} onSystem={vi.fn()} onLibre={vi.fn()} onGrid={vi.fn()} onReset={vi.fn()} />
+    );
+    const tilesOf = () => within(screen.getByRole("group", { name: "Sistema de juego" })).getAllByRole("button");
+    beforeEach(() => localStorage.clear());
+    afterEach(() => localStorage.clear());
+
+    it("each tile counts who is in his place, says it in words, and tints its dots by the best seven", () => {
+      render(tab());
+      const tiles = tilesOf();
+      expect(tiles[0]).toHaveAttribute("aria-label", "Sistema 2-3-1 Clásico, 4 de 7 en su sitio");
+      expect(tiles[0].querySelector(".pzp-syf")).toHaveTextContent("4/7 en su sitio");
+      expect(tiles[9].querySelector("b")).toHaveTextContent("2-1-3");
+      expect(tiles[9]).toHaveAttribute("aria-label", "Sistema 2-1-3 Tridente, 5 de 7 en su sitio");
+      // 2-3-1 grades [3,3,1,1,3,1,3]: the keeper stays gold, the rest by grade
+      const dots = Array.from(tiles[0].querySelectorAll("circle")).map((c) => c.getAttribute("class"));
+      expect(dots).toEqual(["g", "pzp-dot-g3", "pzp-dot-g1", "pzp-dot-g1", "pzp-dot-g3", "pzp-dot-g1", "pzp-dot-g3"]);
+      // Libre has no count
+      expect(tiles[15].querySelector(".pzp-syf")).toBeNull();
+    });
+
+    it("the strip: the current system's ficha and who is missing", () => {
+      render(tab());
+      const strip = screen.getByRole("region", { name: "Ficha del sistema 2-3-1" });
+      const def = systemDef("2-3-1");
+      expect(strip.querySelector(".pzp-sysf-h")).toHaveTextContent("2-3-1 · Clásico");
+      expect(strip).toHaveTextContent(def.about);
+      expect(strip).toHaveTextContent("Fuertes: " + def.strengths);
+      expect(strip).toHaveTextContent("Débiles: " + def.weaknesses);
+      expect(strip.querySelector(".pzp-sysf-f")).toHaveTextContent("Faltan: un central, un interior izquierdo y un interior derecho");
+    });
+
+    it("«Ordenar por encaje»: off by default (catalogue order); on, most in place first (stable), remembered", () => {
+      const { unmount } = render(tab());
+      const order = () => tilesOf().map((t) => t.querySelector("b")?.textContent);
+      const catalogue = order();
+      const sort = screen.getByRole("button", { name: "Ordenar por encaje" });
+      expect(sort).toHaveAttribute("aria-pressed", "false");
+      fireEvent.click(sort);
+      expect(sort).toHaveAttribute("aria-pressed", "true");
+      expect(localStorage.getItem("mp_pizarra_v2_sysorder")).toBe("1");
+      const enc = encajeBySystem(ids, fq);
+      const sorted = [...SYSTEMS].sort((a, b) => enc[b].inPlace - enc[a].inPlace).map((k) => systemDef(k).label);
+      expect(order()).toEqual([...sorted, "Libre"]);
+      expect(order()).not.toEqual(catalogue);
+      const counts = tilesOf().slice(0, -1).map((t) => Number(t.querySelector(".pzp-syf")?.textContent?.split("/")[0]));
+      expect(counts).toEqual([...counts].sort((a, b) => b - a));
+      // a new visit keeps the order
+      unmount();
+      render(tab());
+      expect(screen.getByRole("button", { name: "Ordenar por encaje" })).toHaveAttribute("aria-pressed", "true");
+      expect(order()).toEqual([...sorted, "Libre"]);
+    });
+
+    it("a single missing position: «Falta» in the singular", () => {
+      render(tab({ formation: "2-1-3" }));
+      expect(screen.getByRole("region", { name: "Ficha del sistema 2-1-3" }).querySelector(".pzp-sysf-f")).toHaveTextContent("Faltan: un central y un extremo izquierdo");
+      cleanup();
+      const full = squadOf([...fq.list, withPs("dfc2", 5, "DFC"), withPs("mi", 3, "MI"), withPs("md", 11, "MD", "ED")]);
+      render(tab({ sq: full, cands: full.list.map((c) => c.id).filter((id) => id !== "md") }));
+      expect(screen.getByRole("region", { name: "Ficha del sistema 2-3-1" }).querySelector(".pzp-sysf-f")).toHaveTextContent(/^Falta: un interior derecho$/);
+    });
+
+    it("no positions data (a line at most): no counts, no tints, no «Falta», no sort — the ficha stays", () => {
+      const { container } = render(tab({ sq, cands: sq.list.map((c) => c.id) }));
+      const tiles = tilesOf();
+      expect(tiles[0]).toHaveAttribute("aria-label", "Sistema 2-3-1 Clásico");
+      expect(container.querySelector(".pzp-syf")).toBeNull();
+      expect(container.querySelector("[class*='pzp-dot-g']")).toBeNull();
+      expect(container.querySelector(".pzp-sysf-f")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Ordenar por encaje" })).not.toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Ficha del sistema 2-3-1" })).toHaveTextContent(systemDef("2-3-1").about);
+    });
+
+    it("a real squad known only by lines (keepers stored as «POR»): no counts, no tints, no «Falta», no sort", () => {
+      const lines = ["POR", "POR", "DEF", "DEF", "DEF", "MED", "MED", "MED", "DEL", "DEL"];
+      const players: SquadPlayer[] = lines.map((naturalPosition, k) => ({ id: "p" + k, shirtName: "J" + k, firstName: "", number: k + 1, naturalPosition, injured: false, active: true }));
+      const real = buildSquad({ players, games: [], jornada: new Map(), suspended: new Set(), mvps: new Map() });
+      const { container } = render(tab({ sq: real, cands: real.list.map((c) => c.id), now: 1 }));
+      expect(tilesOf()[0]).toHaveAttribute("aria-label", "Sistema 2-3-1 Clásico");
+      expect(container.querySelector(".pzp-syf")).toBeNull();
+      expect(container.querySelector("[class*='pzp-dot-g']")).toBeNull();
+      expect(container.querySelector(".pzp-sysf-f")).toBeNull();
+      expect(container.querySelector(".pzp-sysf-y")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Ordenar por encaje" })).not.toBeInTheDocument();
+    });
+
+    it("an empty slot or a player without data is a faint ring, never a «también» dot", () => {
+      // three coded players and one with nothing known: 2-3-1 has three empty slots and one unknown
+      render(tab({ sq: squadOf([...fq.list, cromo("nada", 30, undefined)]), cands: ["k1", "dfc", "mc1", "nada"] }));
+      const tile = tilesOf()[0];
+      expect(tile).toHaveAttribute("aria-label", "Sistema 2-3-1 Clásico, 3 de 7 en su sitio");
+      const dots = Array.from(tile.querySelectorAll("circle")).map((c) => c.getAttribute("class"));
+      expect(dots[0]).toBe("g");
+      expect(dots.filter((c) => c === "pzp-dot-gn")).toHaveLength(4);
+      expect(dots.filter((c) => c === "pzp-dot-g3")).toHaveLength(2);
+      expect(dots.every((c) => !!c)).toBe(true);
+    });
+
+    it("the strip's short line (phones): the system and what is missing, else what it is; «Ver ficha» opens the rest", () => {
+      const { container } = render(tab());
+      const strip = screen.getByRole("region", { name: "Ficha del sistema 2-3-1" });
+      expect(strip.querySelector(".pzp-sysf-h .pzp-sysf-lead")).toHaveTextContent("— Faltan: un central, un interior izquierdo y un interior derecho");
+      const more = within(strip).getByRole("button", { name: "Ver ficha" });
+      expect(more).toHaveAttribute("aria-expanded", "false");
+      const panel = container.ownerDocument.getElementById(more.getAttribute("aria-controls") ?? "") as HTMLElement;
+      expect(panel).toHaveTextContent("Fuertes: " + systemDef("2-3-1").strengths);
+      expect(strip).not.toHaveClass("pzp-open");
+      fireEvent.click(more);
+      expect(more).toHaveAttribute("aria-expanded", "true");
+      expect(strip).toHaveClass("pzp-open");
+      cleanup();
+      // nothing missing (or no data): the short line is what the system is
+      render(tab({ sq, cands: sq.list.map((c) => c.id) }));
+      expect(screen.getByRole("region", { name: "Ficha del sistema 2-3-1" }).querySelector(".pzp-sysf-lead")).toHaveTextContent("— " + systemDef("2-3-1").about);
+    });
+
+    it("your seven against the best: said only when the best puts more in place", () => {
+      const { rerender } = render(tab({ now: 3 }));
+      expect(screen.getByRole("region", { name: "Ficha del sistema 2-3-1" }).querySelector(".pzp-sysf-y")).toHaveTextContent(/^Tu siete: 3\/7 en su sitio · el mejor posible: 4\/7$/);
+      rerender(tab({ now: 4 }));
+      expect(document.querySelector(".pzp-sysf-y")).toBeNull();
+      rerender(tab({ now: 0, sq, cands: sq.list.map((c) => c.id) }));
+      expect(document.querySelector(".pzp-sysf-y")).toBeNull();
+    });
+
+    it("Libre has no ficha of its own", () => {
+      render(tab({ free: true }));
+      expect(screen.queryByRole("region", { name: /^Ficha del sistema/ })).not.toBeInTheDocument();
+    });
+
+    it("a blocked storage never breaks the panel", () => {
+      const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+        throw new Error("blocked");
+      });
+      const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throw new Error("blocked");
+      });
+      try {
+        render(tab());
+        const sort = screen.getByRole("button", { name: "Ordenar por encaje" });
+        expect(sort).toHaveAttribute("aria-pressed", "false");
+        fireEvent.click(sort);
+        expect(sort).toHaveAttribute("aria-pressed", "true");
+      } finally {
+        get.mockRestore();
+        set.mockRestore();
+      }
+    });
   });
 
   it("the panels' heading speaks first; the kicker is the line under it", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { demoSquad, lineupOf, squadOf } from "./testkit";
+import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
+import { lineOf, type PosCode } from "../../../lib/positions";
 import { chemOf } from "./quimica";
 import { place } from "./ops";
 import { allDiamonds, diamondMarks, diamondsAria, dropPreview, playerDiamonds, TEAM_MAX, teamDiamonds } from "./chemPlayer";
@@ -51,5 +52,27 @@ describe("«+2 química aquí»", () => {
     const back = dropPreview(fix, L, sq, "illescas");
     expect(back.txt).toBe("−" + p.delta + " química aquí");
     expect(dropPreview(L, L, sq, "illescas").txt).toBe("= química aquí");
+  });
+});
+
+describe("los diamantes por encaje exacto", () => {
+  const xp = (id: string, num: number, main: PosCode, ...also: PosCode[]) => cromo(id, num, lineOf(main), { ps: { main, also, line: lineOf(main) } });
+  const ALL = ["k", "a", "b", "mi", "tamb", "md", "dc", "pablo", "erik"];
+  // everybody with everybody: every link is a «++»
+  const pairs = ALL.flatMap((x, n) => ALL.slice(n + 1).map((y): [string, string, { tog: number; min: number; ast: number }] => [x, y, { tog: 6, min: 300, ast: 2 }]));
+  const sq = squadOf(
+    [xp("k", 1, "POR"), xp("a", 2, "DFC"), xp("b", 3, "DFC"), xp("mi", 10, "MI"), xp("tamb", 5, "MCD", "MC"), xp("md", 11, "MD"), xp("dc", 9, "DC"), xp("pablo", 4, "MD"), xp("erik", 6, "DC")],
+    pairs,
+  );
+
+  it("en su sitio (también too) lights one; adaptado none but no cap; fuera at most one", () => {
+    const L = lineupOf(["k", "a", "b", "pablo", "tamb", "erik", "dc"], "2-3-1", sq);
+    const ch = chemOf(L, sq);
+    // (tamb plays MC as también: in place)
+    expect(playerDiamonds(L, sq, ch, 4)).toBe(3);
+    // pablo, MD at MI: adapted — his links alone (two «++») give two, no cap
+    expect(playerDiamonds(L, sq, ch, 3)).toBe(2);
+    // erik, DC at MD: fuera — capped at one
+    expect(playerDiamonds(L, sq, ch, 5)).toBe(1);
   });
 });

@@ -3,6 +3,7 @@
 // And the filter of Tableros by the rival of each board's match.
 import { useId, useState } from "react";
 import { FORMATION_NAMES, type FormationName } from "../formations";
+import { systemDef } from "../../../lib/formations";
 import { Icon } from "./icons";
 import { RIVAL_LIMITS, rivalName, rivalPos, type RivalSeven } from "./rival";
 import "../../../styles/pizarra-dibujo.css";
@@ -86,7 +87,7 @@ export function RivalPanel(p: RivalPanelProps) {
               <select id={sysId} value={r.formation} disabled={p.ro} onChange={(e) => p.onSystem(e.target.value as FormationName)}>
                 {FORMATION_NAMES.map((f) => (
                   <option key={f} value={f}>
-                    {f}
+                    {systemDef(f).label} · {systemDef(f).name}
                   </option>
                 ))}
               </select>
