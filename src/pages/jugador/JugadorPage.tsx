@@ -391,7 +391,7 @@ export function JugadorPage() {
                 Su constelación
               </h2>
             </div>
-            <Constellation rows={squad} links={links} nameOf={nameOf} focus={links.some((l) => l.from === p.id || l.to === p.id) ? p.id : undefined} />
+            <Constellation rows={squad} links={links} nameOf={nameOf} games={games} focus={links.some((l) => l.from === p.id || l.to === p.id) ? p.id : undefined} />
             {partner && partnerRow && (
               <div className="jg-partner">
                 <span className="st-mono">Mejor socio</span>

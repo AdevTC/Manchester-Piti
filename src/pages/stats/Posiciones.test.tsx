@@ -74,6 +74,12 @@ describe("Posiciones · Por posición", () => {
     expect(within(bodyRows()[3]).getAllByRole("cell").map((c) => c.textContent)).toEqual(["40′", "2", "0", "1", "DANI"]);
   });
 
+  it("marks the «Jugadores» column (header and cells) so the phone layout can drop it", () => {
+    show();
+    expect(within(table()).getByRole("columnheader", { name: "Jugadores" })).toHaveClass("jug");
+    expect(bodyRows().every((r) => within(r).getAllByRole("cell")[1].classList.contains("jug"))).toBe(true);
+  });
+
   it("sorts by a column (aria-sort), and back the other way", () => {
     show();
     const posHead = within(table()).getByRole("columnheader", { name: /Posición/ });

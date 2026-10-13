@@ -44,10 +44,10 @@ const discSize = (minutes: number, max: number) => (minutes > 0 ? DISC_MIN + DIS
 
 type SortKey = "pos" | "min" | "players" | "g" | "a" | "owner";
 type Sort = { key: SortKey; dir: 1 | -1 };
-const COLUMNS: { key: SortKey; label: string; title?: string; first: 1 | -1 }[] = [
+const COLUMNS: { key: SortKey; label: string; title?: string; first: 1 | -1; className?: string }[] = [
   { key: "pos", label: "Posición", first: 1 },
   { key: "min", label: "Min", title: "Minutos", first: -1 },
-  { key: "players", label: "Jugadores", first: -1 },
+  { key: "players", label: "Jugadores", first: -1, className: "jug" },
   { key: "g", label: "G", title: "Goles", first: -1 },
   { key: "a", label: "A", title: "Asistencias", first: -1 },
   { key: "owner", label: "Dueño", first: 1 },
@@ -225,7 +225,7 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
                 <thead>
                   <tr>
                     {COLUMNS.map((c) => (
-                      <th key={c.key} scope="col" aria-sort={sort.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined} className={sort.key === c.key ? "sel" : undefined}>
+                      <th key={c.key} scope="col" aria-sort={sort.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined} className={[c.className, sort.key === c.key && "sel"].filter(Boolean).join(" ") || undefined}>
                         <button type="button" onClick={() => sortBy(c.key)}>
                           {c.title ? <abbr title={c.title}>{c.label}</abbr> : c.label}
                         </button>
@@ -242,10 +242,12 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
                         </button>
                       </th>
                       <td>{mins(l.minutes)}</td>
-                      <td>{l.players}</td>
+                      <td className="jug">{l.players}</td>
                       <td>{l.goals}</td>
                       <td>{l.assists}</td>
-                      <td className="ow">{ownerOf(l)}</td>
+                      <td className="ow">
+                        <span>{ownerOf(l)}</span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
