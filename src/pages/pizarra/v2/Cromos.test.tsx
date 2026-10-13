@@ -46,7 +46,7 @@ describe("the fit mark on the pitch cromo", () => {
     expect(marks(draw(3))).toEqual([]);
     expect(marks(draw(2))).toEqual([["✓", "también juega aquí"]]);
     expect(marks(draw(1))).toEqual([["~", "adaptado"]]);
-    expect(marks(draw(0))).toEqual([["!", "fuera de su posición"]]);
+    expect(marks(draw(0))).toEqual([["!", "fuera de su sitio"]]);
     expect(marks(draw(null))).toEqual([]);
   });
 
@@ -56,6 +56,6 @@ describe("the fit mark on the pitch cromo", () => {
 
   it("as a disc only the «!» stays", () => {
     expect(marks(draw(2, true))).toEqual([]);
-    expect(marks(draw(0, true))).toEqual([["!", "fuera de su posición"]]);
+    expect(marks(draw(0, true))).toEqual([["!", "fuera de su sitio"]]);
   });
 });

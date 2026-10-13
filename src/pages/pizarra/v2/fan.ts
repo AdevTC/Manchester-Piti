@@ -1,15 +1,16 @@
 // La pizarra «Noche de partido» — the long-press radial fan on a pitch cromo: the galones, «Jugar de»
-// (a sub-fan of the codes of his line in this system, and «Otra posición…» with all 13 grouped by
-// line), Banquillo and Ficha, laid out on a circle; and what each one does to the lineup. Pure.
+// (a sub-fan of the codes of his line in this system — first «Como siempre» when he has one on this
+// board, which takes it off — and «Otra posición…» with all 13 grouped by line), Banquillo and Ficha,
+// laid out on a circle; and what each one does to the lineup. Pure.
 import type { Lineup, RoleKey, TakerKind } from "../formations";
 import { normPlaysAs } from "../positions";
 import { isPosCode, LINE_NAMES, lineOf, POS_CODES, POSITIONS, type PosCode } from "../../../lib/positions";
 import { slotCode } from "./encaje";
 import { GALONES, natOf, type Squad } from "./model";
-import { setPlaysAs, toBench, toggleRole } from "./ops";
+import { clearPlaysAs, setPlaysAs, toBench, toggleRole } from "./ops";
 import { ORDINAL, ROLE_TAKER, setTaker, TAKER_LABEL, TAKER_ROLE, takersOf } from "./takers";
 
-export type FanKind = "role" | "code" | "otra" | "jugar" | "banquillo" | "ficha" | "volver" | "mover";
+export type FanKind = "role" | "code" | "quitar" | "otra" | "jugar" | "banquillo" | "ficha" | "volver" | "mover";
 export interface FanItem {
   key: string;
   kind: FanKind;
@@ -97,6 +98,8 @@ export function fanItems(L: Lineup, sq: Squad, id: string, sub: FanSub): FanItem
       ]
     : sub
     ? [
+        // (a «Jugar de» on this board can always be taken off, whatever he is known as)
+        ...(normPlaysAs(L.playerPositions[id]) ? [{ key: "quitar", kind: "quitar" as const, glyph: "", label: "Como siempre", aria: "Quitar «jugar de»: " + name + " juega como siempre", on: false }] : []),
         ...lineCodes(L, id).map((c) => codeItem(c, false)),
         { key: "otra", kind: "otra", glyph: "", label: "Otra posición…", aria: "Otra posición: todas, por líneas", on: false },
         { key: "back", kind: "volver", glyph: "", label: "Volver", aria: "Volver al menú", on: false },
@@ -146,6 +149,8 @@ export function applyFan(item: FanItem, L: Lineup, sq: Squad, id: string): FanOu
       const c = item.code as PosCode;
       return { kind: "lineup", lineup: setPlaysAs(L, sq, id, c), toast: name + " juega de " + POSITIONS[c].name.toLowerCase() + " (" + c + ") en este siete" };
     }
+    case "quitar":
+      return { kind: "lineup", lineup: clearPlaysAs(L, id), toast: name + " juega como siempre en este siete" };
     case "jugar":
       return { kind: "sub", sub: true };
     case "otra":

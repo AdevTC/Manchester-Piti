@@ -164,8 +164,8 @@ export interface PitchView {
 
 /** The cromo's fit mark (text + shape, never colour alone): preferida needs none. */
 export const FIT_GLYPH: Record<FitGrade, string> = { 3: "", 2: "✓", 1: "~", 0: "!" };
-/** The fit in words (the mark's and the cromo's accessible text). */
-export const FIT_WORDS: Record<FitGrade, string> = { 3: "en su posición", 2: "también juega aquí", 1: "adaptado", 0: "fuera de su posición" };
+/** The fit in words (the mark's and the cromo's accessible text), the family of encaje.fitWord. */
+export const FIT_WORDS: Record<FitGrade, string> = { 3: "en su sitio", 2: "también juega aquí", 1: "adaptado", 0: "fuera de su sitio" };
 
 /** What a player is, as his cromo prints it when out of place: the board's «Jugar de» (its code, or a
  *  legacy line), else his preferida, else his line. */

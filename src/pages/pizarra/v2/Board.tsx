@@ -2413,7 +2413,7 @@ export function Board(props: BoardProps) {
       .map((s) => (s.playerId ? sq.byId.get(s.playerId) : undefined))
       .filter((c): c is NonNullable<typeof c> => !!c && (c.cv === "no" || !!c.baja))
       .map((c) => c.name + (c.cv === "no" ? " no va" : " " + (c.baja ?? "").toLowerCase())),
-    ...oopNames.map((x) => x + " fuera de posición"),
+    ...oopNames.map((x) => x + " fuera de sitio"),
   ];
   // The cartel goes to the group with the whole seven.
   const shareBlock = ch.n < 7 ? "Completa el siete para compartir (" + ch.n + "/7)." : null;
@@ -2632,6 +2632,7 @@ export function Board(props: BoardProps) {
             seasonId={props.seasonId}
             onSuggest={doSuggest}
             onAuto={doAuto}
+            autoExact={autoByEncajeOn(L, sq, called)}
             onAvisar={() => void doAvisar()}
             onSrx={() => setSrx(!srx)}
             onTapBench={tapBench}

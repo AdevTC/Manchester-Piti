@@ -82,6 +82,10 @@ describe("«Siete»", () => {
     expect(screen.getByText("Por forma · J5–J7")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Auto-colocar: cada uno a su posición natural" }));
     expect(p.onAuto).toHaveBeenCalled();
+    // with exact positions it says what it does: the best encaje
+    rerender(<BenchTab {...p} autoExact />);
+    expect(screen.getByRole("button", { name: "Auto-colocar: cada uno donde mejor encaja" })).toBeInTheDocument();
+    rerender(<BenchTab {...p} />);
     // the search is folded until asked for
     expect(screen.queryByRole("searchbox", { name: "Buscar jugador" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Buscar en la plantilla" }));

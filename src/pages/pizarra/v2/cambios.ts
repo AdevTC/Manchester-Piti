@@ -309,7 +309,8 @@ function simulate(g: GenInput, waveMins: number[], perWave: number): Sim {
       used.add(b);
       if (g.out?.has(f)) gone.add(f);
     };
-    // who can't go on leaves first (with whoever fits his line best, the fewest minutes first)
+    // who can't go on leaves first, for whoever fits his slot best (bestFor: in place, then adaptado or
+    // unknown, then fuera — by line, his line; the fewest minutes first between equals)
     if (wi === 0 && g.out?.size) {
       seats.forEach((f, i) => {
         if (!f || !g.out?.has(f) || subs.length >= room) return;

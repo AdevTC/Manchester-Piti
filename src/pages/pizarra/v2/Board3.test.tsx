@@ -108,21 +108,21 @@ describe("Química", () => {
     expect(container.querySelectorAll(".lk-list li").length).toBeGreaterThan(0);
     // nobody has played yet in the demo squad: every one is «sin historial»
     expect(screen.getByText(/Sin historial:/).parentElement).toHaveTextContent("EVANS");
-    expect(screen.getByText(/Fuera de posición:/).parentElement).toHaveTextContent("ADRIAN (DEL›DFC)");
+    expect(screen.getByText(/Fuera de sitio:/).parentElement).toHaveTextContent("ADRIAN (DEL›DFC)");
     expect(screen.queryByText(/Pocos partidos/)).toBeNull();
     // discs and ++/+/– badges on the pitch
     expect(container.querySelectorAll(".cd.mini")).toHaveLength(7);
     expect(container.querySelectorAll(".lkb").length).toBeGreaterThan(0);
   });
 
-  it("«Fuera de posición» says what the cromo says: a también there is not out of position", () => {
+  it("«Fuera de sitio» says what the cromo says: a también there is not out of position", () => {
     // adrian is a punta who also plays central (✓ at DFC); erik a punta and nothing else (! at MD)
     const ps = (main: "DC", ...also: "DFC"[]) => ({ main, also, line: "DEL" as const });
     const both = squadOf(demoSquad().list.map((c) => (c.id === "adrian" ? { ...c, ps: ps("DC", "DFC") } : c.id === "erik" ? { ...c, ps: ps("DC") } : c)));
     const L = lineupOf(["evans", "adrian", "tello", "huberoski", "eguzquiza", "erik", "kevin"], "2-3-1", both);
     render(<Harness initial={L} props={{ squad: both }} />);
     go("Química");
-    const line = screen.getByText(/Fuera de posición:/).parentElement;
+    const line = screen.getByText(/Fuera de sitio:/).parentElement;
     expect(line).toHaveTextContent("ERIK (DC›MD)");
     expect(line).not.toHaveTextContent("ADRIAN");
   });
@@ -414,7 +414,7 @@ describe("Tableros · oficial y partido", () => {
     fireEvent.click(screen.getByRole("button", { name: "Publicar mi tablero como oficial" }));
     const ask = screen.getByRole("group", { name: "¿Publicar con avisos?" });
     expect(ask).toHaveTextContent("TELLO no va");
-    expect(ask).toHaveTextContent("ERIK (DEL›MD) fuera de posición");
+    expect(ask).toHaveTextContent("ERIK (DEL›MD) fuera de sitio");
     fireEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
     expect(publish).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Publicar mi tablero como oficial" }));

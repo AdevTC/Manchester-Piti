@@ -35,12 +35,14 @@ export function slotCode(L: Lineup, i: number): PosCode {
 const resolved = (c: Cromo) => c.ps ?? { main: null, also: [], line: c.pos ?? null };
 const exactOf = (c: Cromo | undefined): boolean => !!c?.ps && (!!c.ps.main || c.ps.also.length > 0);
 
-/** A cromo's grade at a position: `raw` from his resolved positions, else what his line says (null =
- *  no data); `shown` as his cromo shows it (shownFit) — a line alone gives no grade on its line. */
-function gradeOf(c: Cromo | undefined, code: PosCode): { raw: FitGrade | null; shown: FitGrade | null } {
-  if (!c) return { raw: null, shown: null };
+/** A cromo's grade at a position, with no board: `shown` as his cromo shows it (shownFit) — a line
+ *  alone gives no grade on its line —; `logic` as the board's logic counts it (logicGrade) — a line
+ *  alone is 3 on its line (a POR line in goal too) and 0 off it; null = no data. */
+function gradeOf(c: Cromo | undefined, code: PosCode): { shown: FitGrade | null; logic: FitGrade | null } {
+  if (!c) return { shown: null, logic: null };
   const raw = fitGrade(resolved(c), code);
-  return { raw, shown: raw == null || raw === 0 || exactOf(c) ? raw : null };
+  const known = raw == null || raw === 0 || exactOf(c);
+  return { shown: known ? raw : null, logic: known ? raw : 3 };
 }
 
 /** How well a player fits slot i of this lineup: 3 preferida · 2 también · 1 adaptado · 0 fuera ·
@@ -119,17 +121,21 @@ export function homeName(L: Lineup, sq: Squad, id: string): string | null {
 
 /** The best seven of a squad on a system. */
 export interface Encaje {
-  /** Slots whose player plays there as preferida or también (grade ≥ 2). */
+  /** Slots whose player is in his place (logicGrade ≥ 2: preferida, también, or a line alone on its
+   *  line — the química's «en su sitio»). */
   inPlace: number;
-  /** Per slot: the grade of who is there (null = no data, or nobody). */
+  /** Per slot: the grade of who is there as his cromo shows it (shownFit; null = no data, a line
+   *  alone on its line, or nobody). */
   grades: (FitGrade | null)[];
   /** Per slot: who is there (null = nobody). */
   ids: (string | null)[];
-  /** The codes of the slots nobody fits (grade < 2, or empty), in slot order, once each. An unknown
+  /** The codes of the slots nobody fits (not in place, or empty), in slot order, once each. An unknown
    *  fit (no data) is not «missing». */
   missing: PosCode[];
 }
 
+// (a forbidden placement's cost: it must stay far above 7 × the heaviest allowed weight of any caller —
+// suggestSeven's tiers reach ~1.1e5 a slot, 7 × that < 1e6 — or the assignment could prefer it)
 const FORBIDDEN = 1e6;
 
 /**
@@ -184,25 +190,26 @@ export function assign(cost: number[][]): number[] {
 }
 
 /**
- * The best seven `candidates` can put on `system`: first as many in their place as possible, then the
- * most Σgrade (no grade counts as 1, an empty slot 0); the keeper's slot only takes a player with
- * grade ≥ 2 there whenever one of the candidates has it. Grades are reported as the cromos show them
- * (shownFit): a player known only by his line has none on it and is 0 off it.
+ * The best seven `candidates` can put on `system`: first as many in their place as possible (as the
+ * board's logic counts it, logicGrade: a line alone on its line is in place), then the most Σgrade (no
+ * grade counts as 1, an empty slot 0); the keeper's slot only takes a player in his place there
+ * whenever one of the candidates is. Grades are reported as the cromos show them (shownFit): a player
+ * known only by his line has none on his line (no tint, yet counted in place) and is 0 off it.
  */
 export function bestEncaje(system: FormationName, candidates: string[], sq: Squad): Encaje {
   const codes = systemDef(system).spots.map((s) => s[0]);
   const ids = [...new Set(candidates)].filter((id) => sq.byId.has(id));
   const g = codes.map((code) => ids.map((id) => gradeOf(sq.byId.get(id), code)));
-  const keeper = g[0]?.some((x) => x.raw != null && x.raw >= 2) ?? false;
+  const keeper = g[0]?.some((x) => inPlace(x.logic)) ?? false;
   // weight: 100 when in place (7 slots of ≤ 3 points never outweigh one more in place) + the grade
-  const weight = (x: FitGrade | null) => 100 * (x != null && x >= 2 ? 1 : 0) + (x ?? 1);
+  const weight = (x: FitGrade | null) => 100 * (inPlace(x) ? 1 : 0) + (x ?? 1);
   const n = Math.max(codes.length, ids.length);
   const cost = Array.from({ length: n }, (_, r) =>
     Array.from({ length: n }, (_, c) => {
       if (r >= codes.length) return 0; // a bench seat
       const x = c < ids.length ? g[r][c] : null;
-      if (r === 0 && keeper && (!x || x.raw == null || x.raw < 2)) return FORBIDDEN;
-      return x ? -weight(x.shown) : 0; // an empty slot
+      if (r === 0 && keeper && !inPlace(x?.logic ?? null)) return FORBIDDEN;
+      return x ? -weight(x.logic) : 0; // an empty slot
     }),
   );
   const rowTo = assign(cost);
@@ -210,11 +217,11 @@ export function bestEncaje(system: FormationName, candidates: string[], sq: Squa
   codes.forEach((code, r) => {
     const c = rowTo[r];
     const id = c >= 0 && c < ids.length ? ids[c] : null;
-    const x = id ? g[r][c].shown : null;
+    const x = id ? g[r][c] : null;
     out.ids.push(id);
-    out.grades.push(x);
-    if (x != null && x >= 2) out.inPlace++;
-    else if ((!id || x != null) && !out.missing.includes(code)) out.missing.push(code);
+    out.grades.push(x ? x.shown : null);
+    if (inPlace(x?.logic ?? null)) out.inPlace++;
+    else if ((!id || x?.logic != null) && !out.missing.includes(code)) out.missing.push(code);
   });
   return out;
 }
@@ -241,13 +248,11 @@ export function placeByWeight(slots: number, ids: readonly string[], weight: (i:
   });
 }
 
-/** How many of the board's own seven are in their place (fitAt ≥ 2: preferida, también or a «Jugar de»
- *  at the slot's code, or a legacy one on the slot's line). */
+/** How many of the board's own seven are in their place (inPlace(logicGrade): preferida, también or a
+ *  «Jugar de» at the slot's code, a legacy one on the slot's line, or a line alone on its line) — the
+ *  same count as the química's «en su sitio» and Comparar's. */
 export function boardInPlace(L: Lineup, sq: Squad): number {
-  return L.slots.reduce((n, s, i) => {
-    const x = s.playerId ? fitAt(L, sq, s.playerId, i) : null;
-    return n + (x != null && x >= 2 ? 1 : 0);
-  }, 0);
+  return L.slots.reduce((n, s, i) => n + (s.playerId && inPlace(logicGrade(L, sq, s.playerId, i)) ? 1 : 0), 0);
 }
 
 /** The best seven of the candidates on every system of the catalogue (for the Sistema tiles). */

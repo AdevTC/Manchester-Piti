@@ -314,6 +314,8 @@ export interface BenchTabProps {
   onBenchView?: (v: BenchView) => void;
   onSuggest: () => void;
   onAuto: () => void;
+  /** Auto-colocar places by exact encaje (ops.autoByEncajeOn): its words say so. */
+  autoExact?: boolean;
   onAvisar: () => void;
   onSrx: () => void;
   onTapBench: (id: string, el: HTMLElement) => void;
@@ -373,7 +375,7 @@ export function BenchTab(p: BenchTabProps) {
             <small>{"Por forma" + (p.recentLabel ? " · " + p.recentLabel : "")}</small>
           </span>
         </button>
-        <button type="button" className="b4" onClick={p.onAuto} disabled={p.ro} aria-label="Auto-colocar: cada uno a su posición natural">
+        <button type="button" className="b4" onClick={p.onAuto} disabled={p.ro} aria-label={p.autoExact ? "Auto-colocar: cada uno donde mejor encaja" : "Auto-colocar: cada uno a su posición natural"}>
           <Icon n="wand" w={20} />
           <span>
             <b>Auto-colocar</b>

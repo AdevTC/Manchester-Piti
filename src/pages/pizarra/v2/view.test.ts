@@ -51,17 +51,17 @@ describe("the cromo prints the slot's exact position and how well he fits", () =
   });
 
   it("says the fit in words on the cromo's label", () => {
-    expect(card(v, "gk").aria).toContain("GK, dorsal 1, POR, en su posición,");
+    expect(card(v, "gk").aria).toContain("GK, dorsal 1, POR, en su sitio,");
     expect(card(v, "tamb").aria).toContain("DFC, también juega aquí,");
     expect(card(v, "adap").aria).toContain("MI, adaptado,");
-    expect(card(v, "fuera").aria).toContain("MC, fuera de su posición (natural DC),");
+    expect(card(v, "fuera").aria).toContain("MC, fuera de su sitio (natural DC),");
     expect(card(v, "linea").aria).toMatch(/^LINEA, dorsal 6, MD, forma/);
     expect(card(v, "nada").aria).toMatch(/^NADA, dorsal 7, DC, forma/);
   });
 
   it("the marks follow the table: ✓ también · ~ adaptado · ! fuera, none for preferida", () => {
     expect(FIT_GLYPH).toEqual({ 3: "", 2: "✓", 1: "~", 0: "!" });
-    expect(FIT_WORDS).toEqual({ 3: "en su posición", 2: "también juega aquí", 1: "adaptado", 0: "fuera de su posición" });
+    expect(FIT_WORDS).toEqual({ 3: "en su sitio", 2: "también juega aquí", 1: "adaptado", 0: "fuera de su sitio" });
   });
 
   it("a line-only player out of his line keeps the old «nat›slot», now with the slot code", () => {
@@ -110,7 +110,7 @@ describe("the cromo prints the slot's exact position and how well he fits", () =
     const w = view(L);
     expect(card(w, "tamb")).toMatchObject({ zoneTxt: "LI", fit: 3 });
     // the label says the printed code too
-    expect(card(w, "tamb").aria).toMatch(/^TAMB, dorsal 3, LI, en su posición,/);
+    expect(card(w, "tamb").aria).toMatch(/^TAMB, dorsal 3, LI, en su sitio,/);
   });
 
   it("free mode: the printed code is on the board's own line for the slot, and a line-only player is judged by it", () => {
@@ -164,7 +164,7 @@ describe("the hand lights each target by the held player's fit", () => {
       ["DC", "pzp-g0"],
     ]);
     expect(card(v, "adap").aria).toContain("(para BANCA: también juega aquí)");
-    expect(v.slots[1].aria).toBe("Hueco DC vacío: toca para elegir jugador. Para BANCA: fuera de su posición");
+    expect(v.slots[1].aria).toBe("Hueco DC vacío: toca para elegir jugador. Para BANCA: fuera de su sitio");
   });
 
   it("a bench player in the hand: gold «best» only where he is in his place (grade ≥ 2), not his whole line", () => {

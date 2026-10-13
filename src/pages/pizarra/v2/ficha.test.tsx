@@ -73,6 +73,16 @@ describe("la ficha", () => {
     expect(f.facts?.find((x) => x.k === "Posición")?.v).toBe("Juega de pivote (MCD) · natural DEF");
   });
 
+  it("a line-only player with a «Jugar de» by code: where he plays by name and how well he fits, as Mover a and his cromo", () => {
+    // tello (DEF) in the second DFC of 2-3-1, told «DFC»: in his place; told «MI»: fuera there
+    const atDfc = { ...L, playerPositions: { tello: "DFC" as const } };
+    expect(fichaOf(args("tello", { L: atDfc, ch: chem(atDfc, sq) }))!.sub).toMatch(/^DEF natural · juega de central · en su sitio/);
+    const atMi = { ...L, playerPositions: { tello: "MI" as const } };
+    expect(fichaOf(args("tello", { L: atMi, ch: chem(atMi, sq) }))!.sub).toMatch(/^DEF natural · juega de central · fuera de su sitio/);
+    // a legacy line keeps the old words
+    expect(fichaOf(args("tello"))!.sub).toMatch(/^DEF natural · juega de DFC/);
+  });
+
   it("a sanctioned player off the pitch: how many matches are left and why", () => {
     const sqS = { ...sq, byId: new Map(sq.byId) };
     sqS.byId.set("kevin", { ...sq.byId.get("kevin")!, baja: "Sancionado", sancion: { left: 2, reason: "Federación" } });

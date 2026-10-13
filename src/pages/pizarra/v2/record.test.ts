@@ -82,8 +82,16 @@ describe("copiar el siete del último partido", () => {
     // 2-3-1: POR · DFC DFC · MI MC MD · DC
     expect(s).toEqual(["gk", expect.any(String), expect.any(String), "mi", "mco", "md", "dc"]);
     expect([s[1], s[2]].sort()).toEqual(["d1", "d2"]);
-    // a «Jugar de» on the board counts: mi said to play MD swaps sides with md
+    // the new board has no «Jugar de»: the current board's don't move anyone (mi still at MI)
     const J = { ...L, playerPositions: { mi: "MD" as const, md: "MI" as const } };
-    expect(sevenFromStarters("2-3-1", ["dc", "md", "mco", "mi", "d2", "gk", "d1"], xs, J).slice(3, 6)).toEqual(["md", "mco", "mi"]);
+    expect(sevenFromStarters("2-3-1", ["dc", "md", "mco", "mi", "d2", "gk", "d1"], xs, J).slice(3, 6)).toEqual(["mi", "mco", "md"]);
+  });
+
+  it("between equals, the first listed take the first slots", () => {
+    const x = (id: string, num: number, main: PosCode) => cromo(id, num, lineOf(main), { ps: { main, also: [], line: lineOf(main) } });
+    const xs = squadOf([x("gk", 1, "POR"), x("a", 2, "DFC"), x("b", 3, "DFC"), x("dc", 9, "DC")]);
+    const L = lineupOf([], "2-3-1", xs);
+    expect(sevenFromStarters("2-3-1", ["b", "a", "gk", "dc"], xs, L).slice(1, 3)).toEqual(["b", "a"]);
+    expect(sevenFromStarters("2-3-1", ["a", "b", "gk", "dc"], xs, L).slice(1, 3)).toEqual(["a", "b"]);
   });
 });

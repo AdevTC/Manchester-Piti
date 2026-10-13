@@ -282,7 +282,7 @@ export function QuimicaPanel({ ch, sq, seasonName, oop, dm }: QuimicaProps) {
           <div className="cav">
             <Icon n="alert" w={16} />
             <span>
-              <b>Fuera de posición:</b> {oop.join(", ")}. Cada uno resta química: recolócalo o cámbiale el «Jugar de».
+              <b>Fuera de sitio:</b> {oop.join(", ")}. Cada uno resta química: recolócalo o cámbiale el «Jugar de».
             </span>
           </div>
         )}

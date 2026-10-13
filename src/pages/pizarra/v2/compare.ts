@@ -4,13 +4,14 @@
 // pitch: a dashed gold ring where a player of the other board would come in, a red one on whoever would
 // go out. Besides another board, the board can face «El siete que jugó» (or the convocatoria's siete) of
 // its match. Pure.
-import type { Lineup, Zone } from "../formations";
+import type { Lineup } from "../formations";
 import { systemDef } from "../../../lib/formations";
-import { CAMS, proj, slotPos, slotZone, type CamName } from "./geometry";
+import { CAMS, proj, slotPos, type CamName } from "./geometry";
 import { matchShort, type CalMatch } from "./boards";
 import { GALONES, type Squad } from "./model";
 import { chem } from "./quimica";
-import { inPlace, logicGrade } from "./encaje";
+import { boardInPlace } from "./encaje";
+import { startersOn } from "./record";
 
 export interface TapeRow {
   k: string;
@@ -34,9 +35,10 @@ export function meanForm(L: Lineup, sq: Squad): number {
 /** The season minutes of the seven on the pitch, added up. */
 export const sevenMinutes = (L: Lineup, sq: Squad): number => placedIds(L).reduce((s, id) => s + (sq.byId.get(id)?.stats.minutes ?? 0), 0);
 
-/** How many of the seven are in their place (encaje.logicGrade: preferida, también or a «Jugar de» there;
- *  a player known only by his line, on his line); an unknown position doesn't count. */
-export const naturalCount = (L: Lineup, sq: Squad): number => L.slots.filter((s, i) => !!s.playerId && inPlace(logicGrade(L, sq, s.playerId, i))).length;
+/** How many of the seven are in their place (encaje.boardInPlace — the Sistema's and the química's
+ *  count: preferida, también or a «Jugar de» there; a player known only by his line, on his line); an
+ *  unknown position doesn't count. */
+export const naturalCount = (L: Lineup, sq: Squad): number => boardInPlace(L, sq);
 
 /** How many of the galones are worn by someone on the pitch. */
 export const galonesOn = (L: Lineup): number => {
@@ -54,7 +56,7 @@ export function tape(A: Lineup, B: Lineup, sq: Squad): TapeRow[] {
     { k: "Sistema", a: A.freeMode ? "Libre" : systemDef(A.formation).label, b: B.freeMode ? "Libre" : systemDef(B.formation).label, ca: "", cb: "" },
     num("Media", meanForm(A, sq), meanForm(B, sq)),
     num("Minutos del siete", sevenMinutes(A, sq), sevenMinutes(B, sq), (n) => n.toLocaleString("es-ES") + "′"),
-    num("En su posición", naturalCount(A, sq), naturalCount(B, sq), (n) => n + "/7"),
+    num("En su sitio", naturalCount(A, sq), naturalCount(B, sq), (n) => n + "/7"),
     num("Galones en el campo", galonesOn(A), galonesOn(B), (n) => n + "/" + GALONES.length),
   ];
 }
@@ -70,32 +72,16 @@ export function playedOption(m: CalMatch | null): { id: string; name: string } |
   return { id: PLAYED_ID, name: (m.played ? "El siete que jugó · " : "El siete convocado · ") + matchShort(m) };
 }
 
-const RANK: Record<Zone, number> = { POR: 0, DEF: 1, MED: 2, DEL: 3 };
-
 /**
- * The match's starters as a seven on this board's system (only the names are stored, not the spots):
- * the keeper in goal, then each one in the free slot of his natural line (else the nearest line), in
- * the order the convocatoria lists them. The board's galones stay, so the tape says which of them played.
+ * The match's starters as a seven on this board (only the names are stored, not the spots): placed as
+ * «Copiar el siete del último partido» places them (record.startersOn, on this board's own slots and
+ * with its «Jugar de»: the best encaje with exact positions, else each one on his line, the keeper in
+ * goal), so «En su sitio» counts them where they fit. The board's galones stay, so the tape says which
+ * of them played.
  */
 export function playedSeven(A: Lineup, starters: readonly string[], sq: Squad): Lineup {
-  const ids = starters.filter((id, k) => starters.indexOf(id) === k).slice(0, 7);
-  const slots = A.slots.map((s) => ({ ...s, playerId: null as string | null }));
-  const zone = (i: number) => (A.freeMode ? slotZone(A, i) : slots[i].zone);
-  const gk = ids.find((id) => sq.byId.get(id)?.pos === "POR") ?? null;
-  if (gk) slots[0].playerId = gk;
-  ids
-    .filter((id) => id !== gk)
-    .forEach((id) => {
-      const nat = sq.byId.get(id)?.pos;
-      const free = slots.map((_, i) => i).filter((i) => i > 0 && !slots[i].playerId);
-      // with no keeper among them, the last one left goes in goal
-      if (!free.length) {
-        if (!slots[0].playerId) slots[0].playerId = id;
-        return;
-      }
-      const best = nat && nat !== "POR" ? free.reduce((b, i) => (Math.abs(RANK[zone(i)] - RANK[nat]) < Math.abs(RANK[zone(b)] - RANK[nat]) ? i : b), free[0]) : free[0];
-      slots[best].playerId = id;
-    });
+  const seven = startersOn(A, starters, sq);
+  const slots = A.slots.map((s, i) => ({ ...s, playerId: seven[i] ?? null }));
   return { ...A, slots, bench: [], plays: [], drawings: [] };
 }
 

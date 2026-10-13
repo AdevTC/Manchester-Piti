@@ -100,7 +100,14 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
   if (ps && home) {
     const w = fi >= 0 ? fitWord(logicGrade(L, sq, id, fi)) : "";
     whoWhere = (ps.main ? POSITIONS[ps.main].name : "También " + ps.also.join(", ")) + (fi >= 0 ? " · juega de " + slotName(L, fi) + (w ? " · " + w : "") : "");
-  } else whoWhere = (p.pos ? p.pos + " natural" : "Sin posición") + (fi >= 0 ? " · juega de " + slotCode(L, fi) : "");
+  } else {
+    // (known only by his line, or not at all: a «Jugar de» by code on this board is exact data — the
+    // slot by name and how well he fits it, as «Mover a» and his cromo say; else the slot's code)
+    const byCode = fi >= 0 && hasFitData([id], sq, L);
+    const w = byCode ? fitWord(logicGrade(L, sq, id, fi)) : "";
+    const at = byCode ? slotName(L, fi) + (w ? " · " + w : "") : slotCode(L, fi);
+    whoWhere = (p.pos ? p.pos + " natural" : "Sin posición") + (fi >= 0 ? " · juega de " + at : "");
+  }
 
   const bars = formBars(p.form);
   const why = formWhy(sq, id);
