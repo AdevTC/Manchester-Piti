@@ -24,13 +24,16 @@ export const FORM_MAX = 95;
 //  · fuera 0 · adaptado or unknown FIT_ADAPTED · in place FIT_ADAPTED + FIT_FORM_STEP: an adaptado
 //    takes an in-place player's slot only with a form at least FIT_FORM_STEP (15) points higher;
 //  · the small terms — the answer (≤ 2 a step, ≤ 4 in all), familiarity (≤ 5, adaptado or unknown
-//    only), the pitch's stickiness in Auto-colocar (≤ 5), the grade and the order (< 1) — add at most
-//    FIT_SMALL_MAX < FIT_FORM_STEP: on their own they never cross the step;
-//  · FIT_ADAPTED is above 7 × a slot's whole spread (form + step + small terms), so in place or
-//    adaptado always beat fuera, even summed over the seven.
+//    only), the grade and the order (< 1) — stay under the step: on their own they never cross it;
+//  · Auto-colocar arranges the seven, it doesn't re-pick it: those on the pitch get FIT_STICK (14,
+//    just under the step), so a bench player of the same fit comes in only with about 15 more form
+//    (≥ 15 for a «Duda»; his answer lowers it: no answer yet ≥ 13, «Voy» ≥ 11);
+//  · FIT_ADAPTED is above 7 × a slot's whole spread (form + step + all the small terms, stickiness
+//    included: FIT_SMALL_MAX), so in place or adaptado always beat fuera, even summed over the seven.
 // (the convocatoria's own siete stays above all of it in «Sugerir siete», pack.ts OWN)
 export const FIT_FORM_STEP = 15;
-export const FIT_SMALL_MAX = 4 + 5 + 5;
+export const FIT_STICK = FIT_FORM_STEP - 1;
+export const FIT_SMALL_MAX = 4 + 5 + FIT_STICK;
 export const FIT_ADAPTED = 7 * (FORM_MAX - FORM_MIN + FIT_FORM_STEP + FIT_SMALL_MAX + 1) + 10;
 export const FIT_IN_PLACE = FIT_ADAPTED + FIT_FORM_STEP;
 

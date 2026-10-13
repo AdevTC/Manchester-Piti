@@ -7,7 +7,7 @@ import { defaultTactics } from "../tactics";
 import { DEF_LINE_VALUES, planeDist2, slotPos, slotZone, SYSTEMS } from "./geometry";
 import { hasFitData, inPlace, logicGrade, out as fuera, placeByWeight } from "./encaje";
 import { isAvailable, natOf, type Squad } from "./model";
-import { FIT_ADAPTED, FIT_IN_PLACE } from "./ratings";
+import { FIT_ADAPTED, FIT_IN_PLACE, FIT_STICK } from "./ratings";
 import { knownTakers, ROLE_TAKER, rolesFor, syncRoles, takersOf, toggleFirst } from "./takers";
 import { tacticaSig } from "./tacticaData";
 
@@ -284,9 +284,10 @@ export function autoByEncajeOn(L: Lineup, sq: Squad, called: ReadonlySet<string>
  * Auto-colocar with exact positions (someone has a preferida or a también): the best placement of the
  * pitch and the bench, an exact max-weight assignment with encaje and form in balance (ratings.ts
  * FIT_*): in place or adaptado (or unknown) always over fuera; between in place and adaptado the form
- * decides once it is 15 points apart. The pitch +5 over the bench and the bench's answer («Voy», no
- * answer, «Duda»: 2 a step) only tip near-equals; the grade (preferida over también) and staying in his
- * own slot break exact ties. The keeper's slot only to a declared keeper while there is one.
+ * decides once it is 15 points apart. It arranges the seven rather than re-picking it: the pitch gets
+ * FIT_STICK (14) over the bench, so the same fit from the bench comes in only with about 15 more form;
+ * the bench's answer («Voy», no answer, «Duda»: 2 a step) only tips near-equals; the grade (preferida
+ * over también) and staying in his own slot break exact ties. The keeper's slot only to a declared keeper while there is one.
  */
 function autoByEncaje(L: Lineup, sq: Squad, pool: string[], bench: string[]): (string | null)[] {
   const cand = pool.concat(bench);
@@ -297,7 +298,7 @@ function autoByEncaje(L: Lineup, sq: Squad, pool: string[], bench: string[]): (s
     if (i === 0 && keeper && !inPlace(g)) return null;
     // (1000: every slot filled while there is someone)
     const tier = inPlace(g) ? FIT_IN_PLACE : fuera(g) ? 0 : FIT_ADAPTED;
-    const prio = onPitch.has(id) ? 5 + (L.slots[i]?.playerId === id ? 0.001 : 0) : 2 * (2 - answerRank(sq, id));
+    const prio = onPitch.has(id) ? FIT_STICK + (L.slots[i]?.playerId === id ? 0.001 : 0) : 2 * (2 - answerRank(sq, id));
     return 1000 + tier + (sq.byId.get(id)?.rt ?? 0) + prio + (g ?? 1) / 10;
   });
 }

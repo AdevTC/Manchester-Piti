@@ -461,6 +461,12 @@ describe("Auto-colocar and «Sugerir siete» by encaje (exact positions)", () =>
     const L = lineupOf(["gk", "c2", "c1", "mi", "mc", "md", "dc"], "2-3-1", sq);
     const n = autoPlace(L, sq);
     expect(ids(n)).toEqual(ids(L));
+    // Auto-colocar arranges, it doesn't re-pick: the same fit from the bench comes in only with 15+ more
+    // form (here +10 stays out, +16 comes in)
+    expect(autoPlace(L, squadOf([...sq.list, x("ten", 12, "DC", [], { rt: 60 })])).slots[6].playerId).toBe("dc");
+    expect(autoPlace(L, squadOf([...sq.list, x("six", 12, "DC", [], { rt: 66 })])).slots[6].playerId).toBe("six");
+    const lat = squadOf([...base, x("ext", 11, "EI", [], { rt: 50 }), x("ed", 12, "ED", [], { rt: 60 })]);
+    expect(autoPlace(lineupOf(["gk", "c1", "c2", "mi", "mc", "md", "ext"], "2-3-1", lat), lat).slots[6].playerId).toBe("ext");
     const withStar = squadOf([...sq.list, x("star", 12, "DC", [], { rt: 99 })]);
     expect(autoPlace(L, withStar).slots[6].playerId).toBe("star");
     // someone out of place on the pitch: a bench player in place takes that slot, and between the
