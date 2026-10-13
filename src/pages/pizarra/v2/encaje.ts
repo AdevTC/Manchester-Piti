@@ -1,35 +1,19 @@
 // La pizarra «Noche de partido» — el encaje: the exact position of each slot, how well a player fits
 // it (positions.fitGrade), and the best seven a squad can put on a system. Pure (no React).
+import { boardSlotCodes } from "../../../../functions/src/boardCodes";
 import { systemDef } from "../../../lib/formations";
-import { fitGrade, isPosCode, LINE_NAMES, POS_CODES, POSITIONS, type FitGrade, type PosCode } from "../../../lib/positions";
+import { fitGrade, isPosCode, LINE_NAMES, POSITIONS, type FitGrade, type PosCode } from "../../../lib/positions";
 import type { FormationName, Lineup } from "../formations";
 import { normPlaysAs } from "../positions";
-import { planeDist2, slotZone, SYSTEMS } from "./geometry";
+import { slotZone, SYSTEMS } from "./geometry";
 import type { Cromo, Squad } from "./model";
-
-const OUTFIELD = POS_CODES.filter((c) => c !== "POR");
 
 /** The slot's exact position: the system's code, or in free mode the nearest catalogue position to
  *  where the slot stands among those of the board's own line for it (slotZone's depth bands), so the
- *  printed code, the fit and the line logic agree (slot 0 is always the keeper's; an outfield slot never is). */
+ *  printed code, the fit and the line logic agree (slot 0 is always the keeper's; an outfield slot never is).
+ *  Shared with the functions (boardSlotCodes), which read the official board's codes for «ha jugado de». */
 export function slotCode(L: Lineup, i: number): PosCode {
-  if (i === 0) return "POR";
-  const s = L.slots[i];
-  if (L.freeMode && s) {
-    const line = slotZone(L, i);
-    const codes = OUTFIELD.filter((c) => POSITIONS[c].line === line);
-    let best: PosCode = codes[0] ?? OUTFIELD[0];
-    let bd = Infinity;
-    for (const c of codes) {
-      const d = planeDist2({ u: s.x, v: s.y }, { u: POSITIONS[c].x, v: POSITIONS[c].y });
-      if (d < bd) {
-        bd = d;
-        best = c;
-      }
-    }
-    return best;
-  }
-  return systemDef(L.formation).spots[i]?.[0] ?? "MC";
+  return boardSlotCodes(L)[i] ?? "MC";
 }
 
 const resolved = (c: Cromo) => c.ps ?? { main: null, also: [], line: c.pos ?? null };

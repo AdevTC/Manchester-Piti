@@ -1,6 +1,8 @@
 /** Shared, deterministic match ledger. Also executed by the backend before publishing. */
 import { ACTION_LABELS, actionProblem, analyseActions, eventSeconds, isAnalysisAction, type ActionDetails, type TechnicalStats } from "./matchAnalysis.js";
 import { type MatchClock } from "./matchClock.js";
+import type { PosCode } from "./positions.js";
+import type { PositionEvents } from "./positionsPlayed.js";
 export const EVENT_LABELS = {
   ...ACTION_LABELS,
   goal: "Gol",
@@ -98,6 +100,13 @@ export interface Participation extends Partial<TechnicalStats> {
   /** Absent from actas published before these events were introduced. */
   chances?: number;
   corners?: number;
+  /** «Ha jugado de» (positionsPlayed.ts): minutes by exact position, 2 decimals, only codes > 0.
+   *  saveMatchSheet adds these; calculateLedger never fills them, and older actas lack them. */
+  positionsPlayed?: Partial<Record<PosCode, number>>;
+  /** Goals, assists and cards by the position he was playing; only codes with an event. */
+  positionEvents?: Partial<Record<PosCode, PositionEvents>>;
+  /** Some of his minutes came from his preferred position, not an official board. */
+  positionsEstimated?: true;
 }
 export interface Ledger {
   players: Record<string, Participation>;
