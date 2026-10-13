@@ -192,7 +192,7 @@ export const SYSTEMS_CATALOGUE: readonly SystemDef[] = [
     "1-3-1-1",
     "Escalera",
     "ofensivo",
-    [["LIB", 50, 74], ["MI", 10, 42], ["MC", 38, 50], ["MD", 90, 42], ["MCO", 64, 44], ["DC", 50, 16]],
+    [["LIB", 50, 74], ["MI", 17, 49], ["MC", 50, 50], ["MD", 83, 49], ["MCO", 36, 22], ["DC", 64, 14]],
     "Un líbero, tres medios y un mediapunta detrás del punta.",
     "Superioridad en el medio y un enganche que conecta con el punta.",
     "Un solo defensa: las bandas a la espalda de los interiores sufren.",

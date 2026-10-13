@@ -40,4 +40,12 @@ describe("los 15 sistemas de fútbol 7", () => {
     expect(isFormationName("1-3-1-1")).toBe(true);
     expect(isFormationName("2-1-2-1a")).toBe(false);
   });
+  it("1-3-1-1 climbs as a staircase: mediapunta ahead of the three medios, punta ahead of him, and its own shape", () => {
+    const spots = systemDef("1-3-1-1").spots;
+    const v = (c: string) => spots.find(([x]) => x === c)![2];
+    expect(v("MCO")).toBeLessThan(Math.min(v("MI"), v("MC"), v("MD")));
+    expect(v("DC")).toBeLessThan(v("MCO"));
+    const shape = (id: "1-3-1-1" | "1-1-2-1-1") => JSON.stringify(systemDef(id).spots.map(([, u, vv]) => [u, vv]));
+    expect(shape("1-3-1-1")).not.toBe(shape("1-1-2-1-1"));
+  });
 });
