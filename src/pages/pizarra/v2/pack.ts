@@ -1,9 +1,11 @@
 // La pizarra «Noche de partido» — «Sugerir siete»: a pack of cromos opened on the pitch. The seven in
 // the best recent form (minutes and goals+assists of the last matches, then the rating), each dealt to
-// a slot of his natural zone, the bajas and the «no voy» left out (and, when the match has its
-// convocatoria, whoever it doesn't call). The convocatoria's siete (the admin's Convocar: the one source)
-// is dealt first. Those who stay on the pitch keep their «Jugar de». Pure.
+// a slot of his natural zone (with exact positions: the best encaje, see sevenByEncaje), the bajas and
+// the «no voy» left out (and, when the match has its convocatoria, whoever it doesn't call). The
+// convocatoria's siete (the admin's Convocar: the one source) is dealt first. Those who stay on the
+// pitch keep their «Jugar de». Pure.
 import type { Lineup, Zone } from "../formations";
+import { adapted, hasFitData, inPlace, logicGrade, out as fuera, placeByWeight } from "./encaje";
 import { slotZone } from "./geometry";
 import type { Squad } from "./model";
 import { answerRank, canCome, dropBenchedRoles } from "./ops";
@@ -30,6 +32,41 @@ export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = []
   const rank = packRanking(sq, called);
   // (the convocatoria's siete, minus whoever is now a baja or said no)
   const own = first.filter((id) => canCome(sq, id, null));
+  // «Jugar de» stays with whoever was on the pitch and still is
+  const was = new Set(L.slots.map((s) => s.playerId).filter((x): x is string => !!x));
+  const kept = (used: ReadonlySet<string>) => Object.fromEntries(Object.entries(L.playerPositions ?? {}).filter(([id]) => was.has(id) && used.has(id)));
+  const cand = own.length >= L.slots.length ? own : [...new Set([...own, ...rank])];
+  const seven = hasFitData(cand, sq) ? sevenByEncaje(L, sq, cand, new Set(own), was, fam) : sevenByLine(L, sq, own, rank, fam);
+  const used = new Set(seven.filter((x): x is string => !!x));
+  return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: seven[i] })), playerPositions: kept(used) });
+}
+
+/**
+ * The seven with exact positions (someone has a preferida or a también): an exact assignment maximising
+ * Σ(form + 25 in place + 10 adaptado − 40 fuera), the form being the rating (unknown = neither bonus nor
+ * penalty). The convocatoria's siete always plays; «Voy» before no answer before «Duda» (−15 a step);
+ * out of his place, whoever has already played that line in the official (fam ≥ 2) gets +10; exact ties
+ * follow the pack's order. Keepers: the goal only to a declared keeper while there is one. Each is judged
+ * with the «Jugar de» he keeps (only those already on the pitch keep theirs).
+ */
+function sevenByEncaje(L: Lineup, sq: Squad, cand: string[], own: ReadonlySet<string>, was: ReadonlySet<string>, fam?: (id: string, z: Zone) => number): (string | null)[] {
+  const playerPositions = Object.fromEntries(Object.entries(L.playerPositions ?? {}).filter(([id]) => was.has(id)));
+  const B = { ...L, playerPositions };
+  const keeper = cand.some((id) => inPlace(logicGrade(B, sq, id, 0)));
+  return placeByWeight(L.slots.length, cand, (i, id) => {
+    const g = logicGrade(B, sq, id, i);
+    if (i === 0 && keeper && !inPlace(g)) return null;
+    const fit = inPlace(g) ? 25 : adapted(g) ? 10 : fuera(g) ? -40 : 0;
+    const known = !inPlace(g) && fam && fam(id, slotZone(L, i)) >= 2 ? 10 : 0;
+    // (1000: every slot filled while there is someone; the convocatoria's own on top of anyone)
+    const tie = (cand.length - cand.indexOf(id)) / 1e4;
+    return 1000 + (own.has(id) ? 1000 : 0) + (sq.byId.get(id)?.rt ?? 0) + fit + known - 15 * answerRank(sq, id) + tie;
+  });
+}
+
+/** The seven by lines (nobody with an exact position): slot by slot, keepers only in goal, each zone
+ *  with its own first, then whoever is left. */
+function sevenByLine(L: Lineup, sq: Squad, own: string[], rank: string[], fam?: (id: string, z: Zone) => number): (string | null)[] {
   const out: (string | null)[] = L.slots.map(() => null);
   const used = new Set<string>();
   const isGk = (id: string) => sq.byId.get(id)?.pos === "POR";
@@ -60,10 +97,7 @@ export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = []
     deal(own, [2]);
     deal(rank, [2]);
   }
-  // «Jugar de» stays with whoever was on the pitch and still is
-  const was = new Set(L.slots.map((s) => s.playerId).filter((x): x is string => !!x));
-  const playerPositions = Object.fromEntries(Object.entries(L.playerPositions ?? {}).filter(([id]) => was.has(id) && used.has(id)));
-  return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })), playerPositions });
+  return out;
 }
 
 /** The slot-machine reel each cromo spins before it lands: six dorsales of the squad, twice. */

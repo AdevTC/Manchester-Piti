@@ -4,8 +4,9 @@ import { applyFan, fanCentre, fanItems, FAN_RADIUS } from "./fan";
 import { packRanking, reelFor, suggestSeven, packDelay } from "./pack";
 import { convocatoriaFromBoard, withConvocatoria } from "./boards";
 import { slotPos } from "./geometry";
-import { isFull, natOf } from "./model";
+import { isFull, natOf, type Cromo } from "./model";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
+import { lineOf, type PosCode } from "../../../lib/positions";
 
 const ids = (L: { slots: { playerId: string | null }[] }) => L.slots.map((s) => s.playerId);
 
@@ -299,5 +300,86 @@ describe("«siete listo» by encaje", () => {
     expect(isFull(lineupOf(["both", "d1", "d2", "m1", "m2", "m3", "f"], "2-3-1", sq), sq)).toBe(true);
     expect(isFull(lineupOf(["u", "d1", "d2", "m1", "m2", "m3", "f"], "2-3-1", sq), sq)).toBe(true);
     expect(isFull(lineupOf(["d1", "k", "d2", "m1", "m2", "m3", "f"], "2-3-1", sq), sq)).toBe(false);
+  });
+});
+
+describe("Auto-colocar and «Sugerir siete» by encaje (exact positions)", () => {
+  // 2-3-1: POR · DFC DFC · MI MC MD · DC
+  const x = (id: string, num: number, main: PosCode, also: PosCode[] = [], extra: Partial<Cromo> = {}) => cromo(id, num, lineOf(main), { ps: { main, also, line: lineOf(main) }, ...extra });
+  const base = [x("gk", 1, "POR"), x("c1", 2, "DFC", [], { rt: 80 }), x("c2", 3, "DFC", [], { rt: 75 }), x("mi", 4, "MI"), x("mc", 5, "MC"), x("md", 6, "MD")];
+
+  it("Auto-colocar: everyone where he is preferida or también rather than adaptado, even against his form", () => {
+    // xa: MC (también MI), 90 · ya: MC, 60 · greedy by form would put xa in MC and ya adaptado in MI
+    const sq = squadOf([x("gk", 1, "POR"), x("c1", 2, "DFC"), x("c2", 3, "DFC"), x("xa", 4, "MC", ["MI"], { rt: 90 }), x("ya", 5, "MC", [], { rt: 60 }), x("za", 6, "MD"), x("dc", 9, "DC")]);
+    const L = lineupOf(["gk", "dc", "c2", "ya", "za", "xa", "c1"], "2-3-1", sq);
+    expect(ids(autoPlace(L, sq))).toEqual(["gk", "c1", "c2", "xa", "ya", "za", "dc"]);
+  });
+  it("Auto-colocar: from the bench, in place before adaptado, preferida before también, then form", () => {
+    const L6 = (sq: ReturnType<typeof squadOf>) => lineupOf(["gk", "c1", "c2", "mi", "mc", "md", null], "2-3-1", sq);
+    // ext: EI 99 (adaptado at DC) · d2: DC 60 · d3: DC 80 · d4: MCO también DC 95
+    const sq = squadOf([...base, x("ext", 11, "EI", [], { rt: 99 }), x("d2", 12, "DC", [], { rt: 60 }), x("d3", 13, "DC", [], { rt: 80 }), x("d4", 14, "MCO", ["DC"], { rt: 95 })]);
+    expect(autoPlace(L6(sq), sq).slots[6].playerId).toBe("d3");
+    const s2 = squadOf([...base, x("ext", 11, "EI", [], { rt: 99 }), x("d4", 14, "MCO", ["DC"], { rt: 60 })]);
+    expect(autoPlace(L6(s2), s2).slots[6].playerId).toBe("d4");
+    // the same bajas, «no voy» and convocatoria as always
+    const s3 = squadOf([...base, x("ext", 11, "EI", [], { rt: 50 }), x("hurt", 12, "DC", [], { rt: 99, baja: "Lesionado" }), x("no", 13, "DC", [], { rt: 99, cv: "no" }), x("notcalled", 14, "DC", [], { rt: 99 })]);
+    expect(autoPlace(L6(s3), s3, new Set(["gk", "c1", "c2", "mi", "mc", "md", "ext", "hurt", "no"])).slots[6].playerId).toBe("ext");
+  });
+  it("Auto-colocar: the seven on the pitch stay when they are in place (a better bench never pushes them out)", () => {
+    const sq = squadOf([...base, x("dc", 9, "DC", [], { rt: 50 }), x("star", 10, "DC", [], { rt: 99 }), x("c3", 11, "DFC", [], { rt: 99 })]);
+    const L = lineupOf(["gk", "c2", "c1", "mi", "mc", "md", "dc"], "2-3-1", sq);
+    const n = autoPlace(L, sq);
+    expect(ids(n)).toEqual(ids(L));
+    // someone out of place on the pitch: a bench player in place takes that slot, and between the
+    // three centrales of the pitch for two slots, form decides
+    const L2 = lineupOf(["gk", "c2", "c1", "mi", "mc", "md", "c3"], "2-3-1", sq);
+    const n2 = autoPlace(L2, sq);
+    expect(new Set(ids(n2))).toEqual(new Set(["gk", "c1", "c3", "mi", "mc", "md", "star"]));
+    expect(n2.slots[6].playerId).toBe("star");
+  });
+  it("Auto-colocar: never an outfield player in goal while a keeper is available", () => {
+    const sq = squadOf([...base.slice(1), x("dc", 9, "DC", [], { rt: 99 }), x("lib", 10, "LIB", [], { rt: 95 }), x("gk2", 13, "POR", [], { rt: 45 })]);
+    const L = lineupOf(["lib", "c1", "c2", "mi", "mc", "md", "dc"], "2-3-1", sq);
+    expect(autoPlace(L, sq).slots[0].playerId).toBe("gk2");
+    // nobody can keep goal: the seven still get placed
+    const noGk = squadOf(base.slice(1).concat([x("dc", 9, "DC"), x("lib", 10, "LIB")]));
+    expect(autoPlace(lineupOf(["lib", "c1", "c2", "mi", "mc", "md", "dc"], "2-3-1", noGk), noGk).slots.filter((s) => s.playerId)).toHaveLength(7);
+  });
+
+  it("Sugerir siete: a slightly lower-rated player in his preferida over a better one who'd be fuera", () => {
+    // cen: DFC 72 (fuera at DC; the two centrales are better) · pun: DC 65
+    const sq = squadOf([...base, x("cen", 7, "DFC", [], { rt: 72 }), x("pun", 9, "DC", [], { rt: 65 })]);
+    const n = suggestSeven(lineupOf([], "2-3-1", sq), sq);
+    expect(ids(n)).toEqual(["gk", "c1", "c2", "mi", "mc", "md", "pun"]);
+  });
+  it("Sugerir siete: each to his preferida when it costs only a little form (not the best three medios anywhere)", () => {
+    // MI MC MD: mc1 MC 95 · mc2 MC 90 (adaptado at MI/MD: 90 + 10 < 80 + 25) · mi MI 80 · md MD 80
+    const sq = squadOf([x("gk", 1, "POR"), x("c1", 2, "DFC"), x("c2", 3, "DFC"), x("dc", 9, "DC"), x("mc1", 5, "MC", [], { rt: 95 }), x("mc2", 6, "MC", [], { rt: 90 }), x("mi", 4, "MI", [], { rt: 80 }), x("md", 8, "MD", [], { rt: 80 })]);
+    const n = suggestSeven(lineupOf([], "2-3-1", sq), sq);
+    expect(ids(n).slice(3, 6)).toEqual(["mi", "mc1", "md"]);
+  });
+  it("Sugerir siete: between two in place, form still wins", () => {
+    const sq = squadOf([...base, x("pun", 9, "DC", [], { rt: 65 }), x("c3", 7, "DFC", [], { rt: 90 })]);
+    const n = suggestSeven(lineupOf([], "2-3-1", sq), sq);
+    expect(ids(n)).toContain("c3");
+    expect(ids(n)).toContain("c1");
+    expect(ids(n)).not.toContain("c2");
+    expect(n.slots[6].playerId).toBe("pun");
+  });
+  it("Sugerir siete: a keeper in goal however low his form; the convocatoria's siete still goes first", () => {
+    const sq = squadOf([x("gk", 1, "POR", [], { rt: 45 }), ...base.slice(1), x("pun", 9, "DC", [], { rt: 95 }), x("lib", 10, "LIB", [], { rt: 99 }), x("low", 11, "LI", [], { rt: 45 })]);
+    const n = suggestSeven(lineupOf([], "2-3-1", sq), sq);
+    expect(n.slots[0].playerId).toBe("gk");
+    expect(ids(n)).not.toContain("low");
+    const own = suggestSeven(lineupOf([], "2-3-1", sq), sq, ["low"]);
+    expect(ids(own)).toContain("low");
+    expect(own.slots[0].playerId).toBe("gk");
+  });
+  it("Sugerir siete: «Jugar de» stays only with whoever was on the pitch and still is", () => {
+    const sq = squadOf([...base, x("pun", 9, "DC", [], { rt: 65 }), x("bad", 10, "LI", [], { rt: 40 })]);
+    const L = { ...lineupOf(["gk", "c1", "c2", "mi", "bad", "md", null], "2-3-1", sq), playerPositions: { mc: "DEL" as const, bad: "MED" as const, c1: "DEF" as const } };
+    const n = suggestSeven(L, sq);
+    expect(ids(n)).not.toContain("bad");
+    expect(n.playerPositions).toEqual({ c1: "DEF" });
   });
 });

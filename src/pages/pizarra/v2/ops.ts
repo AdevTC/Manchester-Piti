@@ -5,6 +5,7 @@ import { applyFormation, type FormationName, type Lineup, type RoleKey, type Zon
 import { placeIntoSlot, sendToBench, swapPlayers, XI } from "../lineupOps";
 import { defaultTactics } from "../tactics";
 import { DEF_LINE_VALUES, planeDist2, slotPos, slotZone, SYSTEMS } from "./geometry";
+import { hasFitData, inPlace, logicGrade, placeByWeight } from "./encaje";
 import { isAvailable, natOf, type Squad } from "./model";
 import { knownTakers, ROLE_TAKER, rolesFor, syncRoles, takersOf, toggleFirst } from "./takers";
 import { tacticaSig } from "./tacticaData";
@@ -241,7 +242,7 @@ export function answerRank(sq: Squad, id: string): number {
   return cv === "voy" ? 0 : cv === "duda" ? 2 : 1;
 }
 
-// ── Auto-colocar: every cromo to his natural zone (the pitch first, then the best of the bench) ──
+// ── Auto-colocar: every cromo to his place (the pitch first, then the best of the bench) ──
 export function autoPlace(L: Lineup, sq: Squad, called: ReadonlySet<string> | null = null): Lineup {
   const ok = (id: string) => isAvailable(sq, id) && sq.byId.get(id)?.cv !== "no";
   const pool = L.slots.map((s) => s.playerId).filter((id): id is string => !!id && ok(id));
@@ -250,6 +251,33 @@ export function autoPlace(L: Lineup, sq: Squad, called: ReadonlySet<string> | nu
     .sort((a, b) => answerRank(sq, a.id) - answerRank(sq, b.id) || b.rt - a.rt)
     .map((c) => c.id);
   const cand = pool.concat(benchAv);
+  const out = hasFitData(cand, sq) ? autoByEncaje(L, sq, pool, benchAv) : autoByLine(L, sq, pool, cand);
+  return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })) });
+}
+
+/**
+ * Auto-colocar with exact positions (someone has a preferida or a también): the best placement of the
+ * pitch and the bench, an exact max-weight assignment — in place first (logicGrade ≥ 2), then the grade
+ * (unknown counts as adaptado), the form only breaking ties. The pitch keeps its places against an
+ * equal bench (a bench player comes in where he is in place and nobody of the pitch is, or to fill a
+ * gap) and each stays in his own slot when nothing is gained; the bench in its usual order («Voy», no
+ * answer, «Duda»). The keeper's slot only to a declared keeper while there is one.
+ */
+function autoByEncaje(L: Lineup, sq: Squad, pool: string[], bench: string[]): (string | null)[] {
+  const cand = pool.concat(bench);
+  const onPitch = new Set(pool);
+  const keeper = cand.some((id) => inPlace(logicGrade(L, sq, id, 0)));
+  return placeByWeight(L.slots.length, cand, (i, id) => {
+    const g = logicGrade(L, sq, id, i);
+    if (i === 0 && keeper && !inPlace(g)) return null;
+    // (1000: every slot filled while there is someone; 50 for the pitch < 100 in place, > 10·grade steps)
+    const prio = onPitch.has(id) ? 50 + (L.slots[i]?.playerId === id ? 0.001 : 0) : 2 - answerRank(sq, id);
+    return 1000 + 100 * (inPlace(g) ? 1 : 0) + 10 * (g ?? 1) + (sq.byId.get(id)?.rt ?? 0) / 100 + prio;
+  });
+}
+
+/** Auto-colocar by lines (nobody with an exact position): natural zone first, the pitch first. */
+function autoByLine(L: Lineup, sq: Squad, pool: string[], cand: string[]): (string | null)[] {
   const out: (string | null)[] = L.slots.map(() => null);
   const used = new Set<string>();
   for (let pass = 0; pass < 2; pass++) {
@@ -276,5 +304,5 @@ export function autoPlace(L: Lineup, sq: Squad, called: ReadonlySet<string> | nu
       used.add(id);
     }
   }
-  return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: out[i] })) });
+  return out;
 }

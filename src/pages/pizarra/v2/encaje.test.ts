@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { systemDef } from "../../../lib/formations";
 import type { FitGrade, PosCode, ResolvedPositions } from "../../../lib/positions";
 import { lineOf, POSITIONS } from "../../../lib/positions";
-import { adapted, assign, bestEncaje, boardInPlace, encajeBySystem, encajeCandidates, faltaTxt, fitAt, hasFitData, homeName, inPlace, logicGrade, out, slotCode } from "./encaje";
+import { adapted, assign, bestEncaje, boardInPlace, encajeBySystem, encajeCandidates, faltaTxt, fitAt, hasFitData, homeName, inPlace, logicGrade, out, placeByWeight, slotCode } from "./encaje";
 import { fits, natural } from "./model";
 import { slotZone, SYSTEMS } from "./geometry";
 import { cromo, lineupOf, squadOf } from "./testkit";
@@ -90,6 +90,16 @@ describe("fitAt", () => {
     expect(fitAt(O, sq, "fuera", 1)).toBe(0);
     expect(fitAt(O, sq, "pref", 0)).toBe(2);
     expect(fitAt(O, sq, "pref", 4)).toBe(0);
+  });
+});
+
+describe("placeByWeight", () => {
+  it("the max-weight placement: each slot at most one, each player once, null = not allowed there", () => {
+    // greedy would give slot 0 to a (5) and leave b nowhere better than 1
+    expect(placeByWeight(2, ["a", "b"], (i, id) => (id === "a" ? [5, 4] : [4, 1])[i])).toEqual(["b", "a"]);
+    expect(placeByWeight(2, ["a", "b", "c"], (i, id) => (i === 0 && id !== "c" ? null : 10))).toEqual(["c", "a"]);
+    expect(placeByWeight(3, ["a"], () => 1)).toEqual(["a", null, null]);
+    expect(placeByWeight(1, ["a"], () => null)).toEqual([null]);
   });
 });
 

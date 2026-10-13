@@ -205,6 +205,28 @@ export function bestEncaje(system: FormationName, candidates: string[], sq: Squa
   return out;
 }
 
+/**
+ * The max-weight placement of `ids` on `slots` slots (each slot at most one player, each player at most
+ * once): `weight(i, id)` is what having him in slot i is worth, null = he may not take it. Give every
+ * allowed placement a positive weight to have every slot filled while there are players. Per slot: who.
+ */
+export function placeByWeight(slots: number, ids: readonly string[], weight: (i: number, id: string) => number | null): (string | null)[] {
+  const w = Array.from({ length: slots }, (_, r) => ids.map((id) => weight(r, id)));
+  const n = Math.max(slots, ids.length);
+  const cost = Array.from({ length: n }, (_, r) =>
+    Array.from({ length: n }, (_, c) => {
+      if (r >= slots || c >= ids.length) return 0; // a bench seat, or an empty slot
+      const x = w[r][c];
+      return x == null ? FORBIDDEN : -x;
+    }),
+  );
+  const rowTo = assign(cost);
+  return Array.from({ length: slots }, (_, r) => {
+    const c = rowTo[r];
+    return c >= 0 && c < ids.length && w[r][c] != null ? ids[c] : null;
+  });
+}
+
 /** How many of the board's own seven are in their place (fitAt ≥ 2: preferida, también or a «Jugar de»
  *  on the slot's line). */
 export function boardInPlace(L: Lineup, sq: Squad): number {
