@@ -6,7 +6,9 @@ import type { ClubMatch } from "./clubData";
 import type { MatchEvent } from "../../functions/src/matchEngine";
 import { POSITIONS, resolvePositions } from "./positions";
 import { playerPositions } from "./positionStats";
-import { competitionRanks, milestoneSteps, milestones, opponentInitials, teamAnalysis, type PlayerAnalysis } from "./clubAnalytics";
+import { competitionRanks, milestoneSteps, milestones, opponentInitials, teamAnalysis, type PlayerAnalysis, type StarLink } from "./clubAnalytics";
+// goalLinks lives with the analytics (the pizarra's ratings read it too, without importing this page's module)
+export { goalLinks, type StarLink } from "./clubAnalytics";
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
@@ -94,25 +96,7 @@ export interface StarNode {
   y: number;
   r: number;
 }
-export interface StarLink {
-  from: string;
-  to: string;
-  n: number;
-}
 const ZONE_Y: Record<string, number> = { DEL: 18, MED: 46, DEF: 72, POR: 90 };
-/** Assister → scorer pairs from the goal events. */
-export function goalLinks(games: ClubMatch[]): StarLink[] {
-  const count = new Map<string, StarLink>();
-  for (const m of games)
-    for (const e of m.events ?? [])
-      if (SCORED.has(e.type) && e.playerId && e.assistPlayerId) {
-        const k = e.assistPlayerId + ">" + e.playerId;
-        const l = count.get(k) ?? { from: e.assistPlayerId, to: e.playerId, n: 0 };
-        l.n++;
-        count.set(k, l);
-      }
-  return [...count.values()].sort((a, b) => b.n - a.n || a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
-}
 /** The catalogue's y (0 = rival goal … 100 = ours) on the sky, the scale of ZONE_Y: DC 14 → 18, POR 93 → 90. */
 const skyY = (v: number) => Math.round((18 + ((v - 14) * 72) / 79) * 100) / 100;
 /** Two stars closer than this (in sky %) would overlap their labels. */

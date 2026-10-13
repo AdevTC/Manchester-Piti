@@ -6,7 +6,7 @@ import type { ClubMatch } from "./clubData";
 import { isCompleted } from "../../functions/src/matchEngine";
 import { SYSTEM_IDS, isFormationName, systemDef } from "./formations";
 import { POS_CODES, POSITIONS, isPosCode, lineOf, type PosCode } from "./positions";
-import { concededOnPitch, durationOf, formRating, type FormInput } from "../pages/pizarra/v2/ratings";
+import { cardPoints, concededOnPitch, durationOf, formRating, type FormInput } from "../pages/pizarra/v2/ratings";
 
 export interface PosLine {
   code: PosCode;
@@ -19,8 +19,9 @@ export interface PosLine {
   rating: number | null;
 }
 export interface PlayerPositions {
-  /** Only codes with minutes, by minutes desc (ties in catalogue order). */
+  /** Only codes with at least 1′ (rounded), by minutes desc (ties in catalogue order). */
   lines: PosLine[];
+  /** The true sum of his position minutes (lines under 1′ included). */
   minutes: number;
   /** Matches where some of his minutes came from his preferida, not an official board. */
   estimatedMatches: number;
@@ -57,7 +58,7 @@ function eventsAt(pe: unknown, code: PosCode): Ev {
  * most-played code (ties in catalogue order), each weighing 1 (no recency): teamW = playedW = those
  * matches, shareW = Σ min(1, minutes at the code / match duration), minW = Σ minutes at the code,
  * gaW = Σ goals + assists at the code, concW = Σ concededOnPitch (his whole time on the pitch that
- * match), cardsW = Σ yellows + 2 · reds at the code, savesW = 0, mvpW = Σ [mvpOf(match) === pid]
+ * match), cardsW = Σ cardPoints of the cards at the code (a second yellow counts once, 2), savesW = 0, mvpW = Σ [mvpOf(match) === pid]
  * (0 without `mvpOf`), role = the code's line. Null with fewer than 2 such matches.
  */
 export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: (matchId: string) => string | null): PlayerPositions {
@@ -95,7 +96,10 @@ export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: (matchI
     f.minW += min;
     f.gaW += e.goals + e.assists;
     f.concW += concededOnPitch(m, pid, row.minutes);
-    f.cardsW += e.yellowCards + 2 * e.redCards;
+    // a second yellow is stored at its code as one more yellow and a red (the first yellow too, when it
+    // fell at the same code): read it as cardPoints does, once, as the sending-off
+    const dy = Math.min(row.doubleYellows ?? 0, e.redCards, Math.floor(e.yellowCards / 2));
+    f.cardsW += cardPoints({ yellowCards: e.yellowCards, redCards: e.redCards, doubleYellows: dy });
     f.mvpW += mvpOf?.(m.id) === pid ? 1 : 0;
     form.set(code, f);
   }
@@ -104,6 +108,8 @@ export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: (matchI
       const f = form.get(l.code);
       return { ...l, minutes: round2(l.minutes), rating: f && f.playedW >= 2 ? formRating(f) : null };
     })
+    // a line that would read «0′» is not a line (its minutes still count in the total)
+    .filter((l) => Math.round(l.minutes) > 0)
     .sort((a, b) => b.minutes - a.minutes || order(a.code) - order(b.code));
   return { lines: list, minutes: round2(minutes), estimatedMatches, matches, top: list[0]?.code ?? null };
 }
@@ -140,8 +146,13 @@ export function clubPositions(games: ClubMatch[], nameOf: (id: string) => string
       }
   return POS_CODES.map((code) => {
     const c = per.get(code)!;
-    const ranked = [...c.mins.entries()].map(([id, min]) => ({ id, minutes: round2(min) })).sort((a, b) => b.minutes - a.minutes || nameOf(a.id).localeCompare(nameOf(b.id), "es") || a.id.localeCompare(b.id));
-    const minutes = round2([...c.mins.values()].reduce((s, v) => s + v, 0));
+    const ranked = [...c.mins.entries()]
+      .map(([id, min]) => ({ id, minutes: round2(min) }))
+      // nobody «owns» or counts at a position with less than 1′ (no «0′» rows)
+      .filter((o) => Math.round(o.minutes) > 0)
+      .sort((a, b) => b.minutes - a.minutes || nameOf(a.id).localeCompare(nameOf(b.id), "es") || a.id.localeCompare(b.id));
+    const sum = round2([...c.mins.values()].reduce((s, v) => s + v, 0));
+    const minutes = Math.round(sum) > 0 ? sum : 0;
     return { code, minutes, owner: ranked[0] ?? null, players: ranked.length, goals: c.goals, assists: c.assists };
   });
 }

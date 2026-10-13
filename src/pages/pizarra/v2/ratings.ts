@@ -2,8 +2,7 @@
 // pair stats the química reads (minutes on the pitch together, goals assisted to each other). Everything
 // is derived from the season's finished matches already loaded by the app (no extra reads). Pure.
 import type { ClubMatch, MatchEvent } from "../../../lib/clubData";
-import { playerGame } from "../../../lib/clubAnalytics";
-import { goalLinks } from "../../../lib/statsView";
+import { goalLinks, playerGame } from "../../../lib/clubAnalytics";
 import type { Zone } from "../formations";
 import { normZone } from "../positions";
 import { resolvePositions } from "../../../lib/positions";

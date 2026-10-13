@@ -3,6 +3,7 @@ import type { ClubMatch } from "./clubData";
 import { systemDef } from "./formations";
 import { POS_CODES } from "./positions";
 import { clubPositions, playedSummary, playerPositions, systemRecord } from "./positionStats";
+import { formRating } from "../pages/pizarra/v2/ratings";
 
 type Ev = NonNullable<ClubMatch["events"]>[number];
 type Row = NonNullable<ClubMatch["ledger"]>[string];
@@ -75,6 +76,29 @@ describe("playerPositions", () => {
   });
 });
 
+describe("playerPositions: cards and tiny lines", () => {
+  const three = (first: Partial<Row>) => [
+    match(1, { ana: row(50, { positionsPlayed: { MCD: 50 }, ...first }) }),
+    match(2, { ana: row(50, { positionsPlayed: { MCD: 50 } }) }),
+    match(3, { ana: row(50, { positionsPlayed: { MCD: 50 } }) }),
+  ];
+  const base = { role: "MED" as const, teamW: 3, playedW: 3, shareW: 3, minW: 150, gaW: 0, concW: 0, mvpW: 0, savesW: 0 };
+  it("a second yellow (yellow 2 + red 1 at the code) counts 2, as cardPoints", () => {
+    const dbl = playerPositions("ana", three({ yellowCards: 2, redCards: 1, doubleYellows: 1, positionEvents: { MCD: ev(0, 0, 2, 1) } }));
+    expect(dbl.lines[0].rating).toBe(formRating({ ...base, cardsW: 2 }));
+    expect(dbl.lines[0].rating).not.toBe(formRating({ ...base, cardsW: 4 }));
+    // a straight red is 2 too; a yellow and a red without a double yellow stay 1 + 2
+    expect(playerPositions("ana", three({ redCards: 1, positionEvents: { MCD: ev(0, 0, 0, 1) } })).lines[0].rating).toBe(formRating({ ...base, cardsW: 2 }));
+    expect(playerPositions("ana", three({ yellowCards: 1, redCards: 1, positionEvents: { MCD: ev(0, 0, 1, 1) } })).lines[0].rating).toBe(formRating({ ...base, cardsW: 3 }));
+  });
+  it("drops lines under 1′ but keeps them in the total", () => {
+    const p = playerPositions("ana", [match(1, { ana: row(50, { positionsPlayed: { MC: 49.6, DC: 0.4 } }) })]);
+    expect(p.lines.map((l) => l.code)).toEqual(["MC"]);
+    expect(p.minutes).toBe(50);
+    expect(playerPositions("ana", [match(1, { ana: row(1, { positionsPlayed: { DC: 0.4 } }) })])).toMatchObject({ lines: [], minutes: 0.4, top: null });
+  });
+});
+
 describe("playedSummary", () => {
   it("names the first position in full, then codes, minutes with ′", () => {
     const p = playerPositions("ana", games);
@@ -99,6 +123,14 @@ describe("clubPositions", () => {
     expect(dfc).toMatchObject({ minutes: 59.5, owner: { id: "bea", minutes: 50 }, players: 2, goals: 1 });
     const dc = c.find((l) => l.code === "DC")!;
     expect(dc).toEqual({ code: "DC", minutes: 0, owner: null, players: 0, goals: 0, assists: 0 });
+  });
+  it("shows no «0′» rows: under 1′ a code has no minutes, owner or players", () => {
+    const tiny = [match(1, { ana: row(50, { positionsPlayed: { MC: 49.6, DC: 0.4 } }), bea: row(1, { positionsPlayed: { LI: 0.4 } }), cris: row(1, { positionsPlayed: { LI: 0.4 } }), dani: row(1, { positionsPlayed: { LI: 0.4 } }) })];
+    const c = clubPositions(tiny);
+    expect(c.find((l) => l.code === "DC")).toEqual({ code: "DC", minutes: 0, owner: null, players: 0, goals: 0, assists: 0 });
+    // 1.2′ in all, but nobody played a whole minute there
+    expect(c.find((l) => l.code === "LI")).toMatchObject({ minutes: 1.2, owner: null, players: 0 });
+    expect(c.find((l) => l.code === "MC")).toMatchObject({ minutes: 49.6, owner: { id: "ana", minutes: 49.6 }, players: 1 });
   });
   it("breaks an owner tie by name", () => {
     const tie = [match(1, { zoe: row(25, { positionsPlayed: { POR: 25 } }), bea: row(25, { positionsPlayed: { POR: 25 } }) })];
