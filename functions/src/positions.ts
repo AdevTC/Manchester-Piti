@@ -66,8 +66,8 @@ const fold = (s: string) =>
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .trim()
-    .replace(/[\s\-_/.,·]+/g, " ");
+    .replace(/[\s\-_/.,·]+/g, " ")
+    .trim();
 
 // Frases completas → posición exacta (se comparan ya sin tildes, en minúsculas y con un espacio).
 const EXACT = new Map<string, PosCode>();

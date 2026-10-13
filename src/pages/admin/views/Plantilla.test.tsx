@@ -134,8 +134,10 @@ describe("Plantilla · ficha a ficha", () => {
     await act(async () => {
       vi.advanceTimersByTime(5300);
     });
-    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", expect.objectContaining({ height: 180, naturalPosition: "DEL", injured: false, shirtName: "ERIK", seasons: ["t1"] }));
+    expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", expect.objectContaining({ height: 180, injured: false, shirtName: "ERIK", seasons: ["t1"] }));
     expect(h.writes.savePlayer.mock.calls[0][1]).not.toHaveProperty("createdAt");
+    // his line is untouched, so it is not rewritten (an old exact word would survive for the migration)
+    expect(h.writes.savePlayer.mock.calls[0][1]).not.toHaveProperty("naturalPosition");
   });
 
   it("«Deshacer» after an autosave puts the field back and writes nothing", async () => {

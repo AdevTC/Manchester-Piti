@@ -157,7 +157,7 @@ export interface SquadPlayer {
   shirtName: string;
   firstName: string;
   number: number;
-  /** As stored: a code or a word («Portero»…); normalized here. */
+  /** His line, always POR/DEF/MED/DEL now (resolvePositions' line, set by the callers); normZone is only a guard. */
   naturalPosition?: Zone | string;
   injured: boolean;
   active: boolean;

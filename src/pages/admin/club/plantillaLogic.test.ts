@@ -156,12 +156,36 @@ describe("playerPayload", () => {
       active: true,
       createdAt: at,
     });
-    expect(playerPayload(f, null)).not.toHaveProperty("createdAt");
+    expect(playerPayload(f, { stored: {} })).not.toHaveProperty("createdAt");
   });
   it("previews the doc the table shows while the write waits", () => {
-    const doc = previewDoc(players[0], "erik", playerPayload({ ...formFromPlayer(players[0]), number: "19" }, null));
+    const doc = previewDoc(players[0], "erik", playerPayload({ ...formFromPlayer(players[0]), number: "19" }, { stored: players[0] }));
     expect(doc).toMatchObject({ id: "erik", number: 19, shirtName: "ERIK", naturalPosition: "DEL" });
     expect(doc.seasonDetails).toMatchObject({ t1: { number: 19 } });
+  });
+  it("an edit that leaves the line alone never rewrites the old exact word (the migration still reads LD)", () => {
+    const stored = P("lucas", 2, "LUCAS", { naturalPosition: "Lateral derecho" });
+    const payload = playerPayload({ ...formFromPlayer(stored), height: "182" }, { stored });
+    expect(payload).not.toHaveProperty("naturalPosition");
+    expect(payload).not.toHaveProperty("positions");
+    expect(payload.height).toBe(182);
+    const doc = previewDoc(stored, "lucas", payload);
+    expect(doc.naturalPosition).toBe("Lateral derecho");
+    expect(resolvePositions(doc)).toMatchObject({ main: "LD", line: "DEF" });
+  });
+  it("an edit that changes the line writes it, by the line picker's rule", () => {
+    const stored = P("lucas", 2, "LUCAS", { naturalPosition: "Lateral derecho" });
+    const payload = playerPayload({ ...formFromPlayer(stored), position: "MED" }, { stored });
+    expect(payload.naturalPosition).toBe("MED");
+    expect(payload).not.toHaveProperty("positions");
+    const mapped = P("rodri", 4, "RODRI", { naturalPosition: undefined, positions: { main: "LD", also: ["MD"] } });
+    expect(playerPayload({ ...formFromPlayer(mapped), height: "180" }, { stored: mapped })).not.toHaveProperty("naturalPosition");
+    const moved = playerPayload({ ...formFromPlayer(mapped), position: "MED" }, { stored: mapped });
+    expect(moved).toMatchObject(linePickPayload(mapped, "MED"));
+    expect(resolvePositions(previewDoc(mapped, "rodri", moved))).toMatchObject({ main: null, also: ["MD"], line: "MED" });
+  });
+  it("an alta always writes the chosen line", () => {
+    expect(playerPayload({ ...emptyForm(["t1"]), shirtName: "NUEVO", number: "30", position: "POR" }, { createdAt: new Date(0) }).naturalPosition).toBe("POR");
   });
 });
 

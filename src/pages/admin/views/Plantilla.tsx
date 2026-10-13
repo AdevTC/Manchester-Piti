@@ -299,7 +299,7 @@ export function Plantilla() {
   // ── the ficha saving itself, the alta, the baja ──
   const save = (player: PlayerDoc, form: PlayerForm) => {
     const id = player.id;
-    const payload = playerPayload(form, null);
+    const payload = playerPayload(form, { stored: player });
     const doc = previewDoc(player, id, payload);
     const sid = active && (doc.seasons ?? []).includes(active.id) ? active.id : undefined;
     const name = nameIn(doc, sid);

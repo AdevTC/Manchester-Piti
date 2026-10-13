@@ -182,7 +182,9 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
   const [sanOpen, setSanOpen] = useState(false);
   const sanctioned = !!props.suspension;
   // Línea and Estado are written on their own (one tap); the form always carries their live value, so a
-  // field saved later never puts back an old line or state.
+  // field saved later never puts back an old line or state. That line equals the stored doc's resolved
+  // line, so the edit payload (playerPayload with `stored`) writes no naturalPosition: an old exact word
+  // («Lateral derecho») is not flattened to «DEF» before the migration reads it.
   const livePos = asPosition(resolvePositions(player).line);
   const liveInj = !!player.injured;
   const live = (f: PlayerForm): PlayerForm => ({ ...f, position: livePos, injured: liveInj });

@@ -302,9 +302,20 @@ export function checkPlayerForm(form: PlayerForm, ctx: CheckContext): FormCheck 
   return { shirtName, number, overrides, height, weight, photo, errors, ok: errors.length === 0 };
 }
 
+/** An alta (written with its creation date) or an edit of the doc as it is stored. */
+export type PayloadMode = { createdAt: Date } | { stored: Pick<PlayerDoc, "naturalPosition" | "positions"> };
+/** The position part of the write: an alta writes the chosen line; an edit writes nothing unless the line
+ *  changed against what is stored (so an old exact word — «Lateral derecho» — survives for the migration),
+ *  and then by the line picker's rule. */
+function positionWrite(form: PlayerForm, mode: PayloadMode): Partial<Pick<PlayerDoc, "naturalPosition" | "positions">> {
+  if (!form.position) return {};
+  if ("createdAt" in mode) return { naturalPosition: form.position };
+  return form.position === resolvePositions(mode.stored).line ? {} : linePickPayload(mode.stored, form.position);
+}
 /** The Firestore write for the form (players/{id}, merged): the same fields the old Admin form saved —
  *  defaults, a seasonDetails entry per season (override or default) — plus position, state and photo. */
-export function playerPayload(form: PlayerForm, create: { createdAt: Date } | null): Record<string, unknown> {
+export function playerPayload(form: PlayerForm, mode: PayloadMode): Record<string, unknown> {
+  const create = "createdAt" in mode ? mode : null;
   const shirt = form.shirtName.trim().toUpperCase();
   const num = Number(form.number.trim());
   const seasons = [...new Set(form.seasons)];
@@ -324,7 +335,7 @@ export function playerPayload(form: PlayerForm, create: { createdAt: Date } | nu
     seasonDetails,
     height: int(form.height),
     weight: int(form.weight),
-    ...(form.position ? { naturalPosition: form.position } : {}),
+    ...positionWrite(form, mode),
     injured: form.injured,
     photoUrl: form.photoUrl.trim(),
     ...(create ? { active: true, createdAt: create.createdAt } : {}),
@@ -351,6 +362,7 @@ export function previewDoc(base: PlayerDoc | null, id: string, payload: Record<s
     height: pick("height", isNum),
     weight: pick("weight", isNum),
     naturalPosition: pick("naturalPosition", isStr) ?? base?.naturalPosition,
+    positions: "positions" in payload ? sanitizePositions(payload.positions) ?? undefined : base?.positions,
     injured: pick("injured", isBool),
     photoUrl: pick("photoUrl", isStr),
   };
