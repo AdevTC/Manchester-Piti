@@ -65,4 +65,19 @@ describe("gapsOf reads positions through the resolver", () => {
     expect(gapsOf({ ...full, naturalPosition: "Defensa" })).toEqual([]);
     expect(gapsOf({ ...full, naturalPosition: undefined, positions: { main: "LD", also: [] } })).toEqual([]);
   });
+  it("«Pos» = no preferida; a player known only by his line keeps his place until the migration", () => {
+    expect(gapsOf({ ...full, naturalPosition: undefined, positions: { main: null, also: ["MC"] } })).toEqual(["pos"]);
+    expect(gapsOf({ ...full, naturalPosition: "DEF", positions: { main: null, also: ["MC"] } })).toEqual([]);
+    expect(gapsOf({ ...full, naturalPosition: undefined, positions: { main: null, also: [] } })).toEqual(["pos"]);
+  });
+});
+
+describe("«Propuestas»: the players whose proposal waits for the captain", () => {
+  it("a chip with the count (first: it is the captain's to do) and its filter", () => {
+    const players = [p("pablo", { ...full, number: 7, positionsProposal: { main: "MCD", also: [], at: 1 } }), p("erik", { ...full, number: 9, positionsReview: { status: "aprobada", at: 1, by: "a1" } }), p("fer", { ...full, number: 1, positionsProposal: null })];
+    const rows = boardRows(plantillaRows(players, SEASONS, "t1"), { people: [{ playerId: "pablo", removed: false }, { playerId: "erik", removed: false }, { playerId: "fer", removed: false }], claims: [] });
+    expect(filterChips(rows).map((c) => `${c.label} ${c.n}`)).toEqual(["Propuestas 1"]);
+    const dup = repeatedDorsals(rows);
+    expect(rows.filter((r) => matchesFilter(r, "propuestas", dup)).map((r) => r.id)).toEqual(["pablo"]);
+  });
 });

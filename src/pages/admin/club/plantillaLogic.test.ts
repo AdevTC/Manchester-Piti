@@ -79,8 +79,8 @@ describe("the drawer's form", () => {
     expect(formDirty({ ...f, overrides: { t1: { shirtName: "", number: "" } } }, f)).toBe(false);
     expect(formDirty({ ...f, injured: true }, f)).toBe(true);
   });
-  it("starts an alta in the active season, as a medio", () => {
-    expect(emptyForm(["t1"])).toMatchObject({ seasons: ["t1"], position: "MED", number: "" });
+  it("starts an alta in the active season, with no position (the map starts empty)", () => {
+    expect(emptyForm(["t1"])).toMatchObject({ seasons: ["t1"], position: "", number: "" });
   });
 });
 
@@ -187,6 +187,18 @@ describe("playerPayload", () => {
   it("an alta always writes the chosen line", () => {
     expect(playerPayload({ ...emptyForm(["t1"]), shirtName: "NUEVO", number: "30", position: "POR" }, { createdAt: new Date(0) }).naturalPosition).toBe("POR");
   });
+  it("an alta with positions from the map writes them (and the preferida's line); an empty map writes neither", () => {
+    const form = { ...emptyForm(["t1"]), shirtName: "NUEVO", number: "30" };
+    const at = new Date(0);
+    expect(playerPayload({ ...form, position: "MED" }, { createdAt: at, positions: { main: "MCD", also: ["MC"] } })).toMatchObject({ positions: { main: "MCD", also: ["MC"] }, naturalPosition: "MED" });
+    const onlyAlso = playerPayload(form, { createdAt: at, positions: { main: null, also: ["MI"] } });
+    expect(onlyAlso.positions).toEqual({ main: null, also: ["MI"] });
+    expect(onlyAlso).not.toHaveProperty("naturalPosition");
+    const none = playerPayload(form, { createdAt: at, positions: { main: null, also: [] } });
+    expect(none).not.toHaveProperty("positions");
+    expect(none).not.toHaveProperty("naturalPosition");
+    expect(previewDoc(null, "n", playerPayload({ ...form, position: "MED" }, { createdAt: at, positions: { main: "MCD", also: [] } }))).toMatchObject({ positions: { main: "MCD", also: [] }, naturalPosition: "MED" });
+  });
 });
 
 describe("linkState", () => {
@@ -209,9 +221,12 @@ describe("CSV", () => {
     const csv = rosterCsv(plantillaRows(players, seasons, "t1"));
     const lines = csv.slice(1).trim().split("\r\n");
     expect(csv.startsWith("﻿")).toBe(true);
-    expect(lines[0]).toBe("Dorsal;Nombre en camiseta;Nombre;Apellidos;Posición;Estado;Temporadas;Nacimiento;Altura (cm);Peso (kg)");
-    expect(lines[1]).toBe("1;EVANS;Nombre;evans;Portero;Activo;T1;;;");
-    expect(lines[4]).toBe("4;VIEJO;Nombre;old;Medio;Lesionado;T0;;;");
+    expect(lines[0]).toBe("Dorsal;Nombre en camiseta;Nombre;Apellidos;Posición;Preferida;También;Estado;Temporadas;Nacimiento;Altura (cm);Peso (kg)");
+    // a keeper known by his line is exactly POR (the line has one position)
+    expect(lines[1]).toBe("1;EVANS;Nombre;evans;Portero;POR;;Activo;T1;;;");
+    expect(lines[4]).toBe("4;VIEJO;Nombre;old;Medio;;;Lesionado;T0;;;");
+    const exact = rosterCsv(plantillaRows([P("rodri", 4, "RODRI", { naturalPosition: "MED", positions: { main: "MCD", also: ["MC", "DFC"] } })], seasons, "t1"));
+    expect(exact.slice(1).trim().split("\r\n")[1]).toBe("4;RODRI;Nombre;rodri;Medio;MCD;MC, DFC;Activo;T1;;;");
     expect(csvFileName("Temporada 1")).toBe("plantilla-temporada-1.csv");
     expect(csvFileName(undefined)).toBe("plantilla.csv");
   });
@@ -258,6 +273,10 @@ describe("plantillaRows reads positions through the resolver", () => {
     const rs = plantillaRows([P("w", 2, "W", { naturalPosition: "Portero" }), P("n", 3, "N", { naturalPosition: undefined, positions: { main: "MI", also: [] } })], seasons, "t1");
     expect(rs.find((r) => r.id === "w")?.position).toBe("POR");
     expect(rs.find((r) => r.id === "n")?.position).toBe("MED");
+  });
+  it("the exact preferida when it is known (the new field, or an old exact word); a bare line has none", () => {
+    const rs = plantillaRows([P("a", 2, "A", { naturalPosition: "Lateral derecho" }), P("b", 3, "B", { positions: { main: "MCD", also: ["MC"] } }), P("c", 4, "C", { naturalPosition: "DEF" }), P("d", 5, "D", { positions: { main: null, also: ["MC"] } })], seasons, "t1");
+    expect(Object.fromEntries(rs.map((r) => [r.id, r.pref]))).toEqual({ a: "LD", b: "MCD", c: null, d: null });
   });
 });
 

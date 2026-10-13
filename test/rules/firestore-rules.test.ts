@@ -19,6 +19,8 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { beforeAll, beforeEach, afterAll, describe, it } from "vitest";
+import type { PosCode, PositionSet } from "../../src/lib/positions";
+import { positionsPayload, reviewPayload } from "../../src/lib/positionsEdit";
 let env: RulesTestEnvironment;
 const db = (uid?: string) =>
   uid
@@ -249,6 +251,45 @@ describe("Posiciones: propuesta del jugador y aprobación", () => {
     await assertSucceeds(setDoc(doc(db("admin"), "players", "nuevo2"), { shirtName: "NUEVO", positions: set("DC") }));
     await assertFails(setDoc(doc(db("admin"), "players", "nuevo3"), { shirtName: "NUEVO", positions: { ...set("DC"), extra: 1 } }));
     await assertFails(setDoc(doc(db("admin"), "players", "nuevo4"), { shirtName: "NUEVO", positions: "DC" }));
+  });
+  // Admin › Plantilla writes through savePlayer = setDoc(…, { merge: true }): the exact payloads it sends.
+  describe("lo que escribe la ficha del admin (merge)", () => {
+    const pos = (main: PosCode | null, also: PosCode[] = []): PositionSet => ({ main, also });
+    const save = (data: object, id = "erik") => setDoc(ref("admin", id), data, { merge: true });
+    const proposal = async () =>
+      seed("players/erik", {
+        shirtName: "ERIK",
+        naturalPosition: "DEF",
+        positions: set("LD", ["MD", "DFC"]),
+        positionsProposal: { ...set("MCD", ["MC"]), at: Timestamp.now() },
+        positionsReview: { status: "rechazada", at: Timestamp.now(), by: "otroadmin" },
+      });
+    it("editar a mano: positions entero (y la línea con la preferida), también sin preferida o vacío", async () => {
+      await proposal();
+      await assertSucceeds(save(positionsPayload(pos("MCD", ["MC"]))));
+      await assertSucceeds(save(positionsPayload(pos(null, ["MC"]))));
+      await assertSucceeds(save(positionsPayload(pos(null))));
+      const after = await getDoc(ref("admin"));
+      if (JSON.stringify(after.get("positions")) !== JSON.stringify({ main: null, also: [] })) throw new Error("positions no se sustituyó entero: " + JSON.stringify(after.get("positions")));
+    });
+    it("aprobar, ajustar y rechazar, con la fecha del servidor y firmado por el admin", async () => {
+      await proposal();
+      await assertSucceeds(save(reviewPayload("aprobada", pos("MCD", ["MC"]), "admin", serverTimestamp())));
+      await proposal();
+      await assertSucceeds(save(reviewPayload("ajustada", pos("MC", ["MCD"]), "admin", serverTimestamp())));
+      const adjusted = await getDoc(ref("admin"));
+      if (adjusted.get("positionsProposal") !== null || adjusted.get("positionsReview.status") !== "ajustada" || adjusted.get("positionsReview.by") !== "admin" || adjusted.get("naturalPosition") !== "MED")
+        throw new Error("la revisión ajustada no quedó como se escribió");
+      await proposal();
+      await assertSucceeds(save(reviewPayload("rechazada", null, "admin", serverTimestamp())));
+      // signed by someone else, or dated by the client: refused
+      await proposal();
+      await assertFails(save(reviewPayload("aprobada", pos("MCD", ["MC"]), "otroadmin", serverTimestamp())));
+      await assertFails(save(reviewPayload("rechazada", null, "admin", Timestamp.now())));
+    });
+    it("un alta con las posiciones del mapa", async () => {
+      await assertSucceeds(save({ shirtName: "NUEVO", ...positionsPayload(pos("MCD", ["MC"])) }, "nuevo5"));
+    });
   });
 });
 

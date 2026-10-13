@@ -1,9 +1,11 @@
 // «El tablón» (Plantilla), pure (tested in plantillaBoard.test.ts): what each ficha still lacks (the empty
 // slots of the row: posición, foto, nacimiento, altura, peso), whether he has his account in the vestuario
-// (linked, asking for his ficha, none), the gap filters with their counts, the rows grouped by line
+// (linked, asking for his ficha, none), the gap filters with their counts (and «Propuestas»: the positions a
+// player proposed, waiting for the captain), the rows grouped by line
 // (POR · DEF · MED · DEL · Sin posición), the repeated and the free dorsals. Router-, React- and Firebase-free.
 import type { PlayerDoc } from "../../../lib/schemas";
 import { resolvePositions } from "../../../lib/positions";
+import { proposalState } from "../../../lib/positionsEdit";
 import { POSITIONS, POS_LABEL, type PlantillaRow, type Position } from "./plantillaLogic";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -20,8 +22,10 @@ export const GAPS: readonly { key: GapKey; short: string; label: string }[] = [
 const has = (v: unknown) => (typeof v === "string" ? v.trim() !== "" : typeof v === "number" ? Number.isFinite(v) && v > 0 : false);
 /** What his ficha still lacks, in the slots' order. */
 export function gapsOf(p: Pick<PlayerDoc, "naturalPosition" | "positions" | "photoUrl" | "birthDate" | "height" | "weight">): GapKey[] {
+  const pos = resolvePositions(p);
   const present: Record<GapKey, boolean> = {
-    pos: resolvePositions(p).line !== null,
+    // «Pos» = no preferida; a player known only by his line keeps his place until the migration
+    pos: pos.main !== null || pos.line !== null,
     foto: has(p.photoUrl),
     nac: has(p.birthDate),
     alt: has(p.height),
@@ -66,8 +70,10 @@ export function boardRows(rows: readonly PlantillaRow[], src: AccountSources): B
 }
 
 /** The gap filters (the chips under the title): each one isolates the players that need that. */
-export type BoardFilter = "todos" | "pos" | "foto" | "datos" | "lesion" | "cuenta" | "pide" | "dup";
+export type BoardFilter = "todos" | "propuestas" | "pos" | "foto" | "datos" | "lesion" | "cuenta" | "pide" | "dup";
+/** In the chips' order («Propuestas» first: it is the captain's to do). */
 export const FILTER_LABEL: Record<Exclude<BoardFilter, "todos">, string> = {
+  propuestas: "Propuestas",
   pos: "Sin posición",
   foto: "Sin foto",
   datos: "Faltan datos",
@@ -87,6 +93,8 @@ export function matchesFilter(r: BoardRow, f: BoardFilter, dup: ReadonlySet<numb
   switch (f) {
     case "todos":
       return true;
+    case "propuestas":
+      return proposalState(r.doc) === "pendiente";
     case "pos":
       return r.gaps.includes("pos");
     case "foto":
