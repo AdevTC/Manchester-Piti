@@ -1,6 +1,6 @@
 // La pizarra «Noche de partido» — Comparar: two sevens face to face. The tale of the tape is what
 // matters for a lineup (química, system, media, the seven's minutes this season, how many play in their
-// natural line, how many of the board's galones are on the pitch) and who changes, marked on the
+// place, how many of the board's galones are on the pitch) and who changes, marked on the
 // pitch: a dashed gold ring where a player of the other board would come in, a red one on whoever would
 // go out. Besides another board, the board can face «El siete que jugó» (or the convocatoria's siete) of
 // its match. Pure.
@@ -10,6 +10,7 @@ import { CAMS, proj, slotPos, slotZone, type CamName } from "./geometry";
 import { matchShort, type CalMatch } from "./boards";
 import { GALONES, type Squad } from "./model";
 import { chem } from "./quimica";
+import { inPlace, logicGrade } from "./encaje";
 
 export interface TapeRow {
   k: string;
@@ -33,8 +34,9 @@ export function meanForm(L: Lineup, sq: Squad): number {
 /** The season minutes of the seven on the pitch, added up. */
 export const sevenMinutes = (L: Lineup, sq: Squad): number => placedIds(L).reduce((s, id) => s + (sq.byId.get(id)?.stats.minutes ?? 0), 0);
 
-/** How many of the seven stand in their natural line (an unknown position doesn't count). */
-export const naturalCount = (L: Lineup, sq: Squad): number => L.slots.filter((s, i) => !!s.playerId && sq.byId.get(s.playerId)?.pos === slotZone(L, i)).length;
+/** How many of the seven are in their place (encaje.logicGrade: preferida, también or a «Jugar de» there;
+ *  a player known only by his line, on his line); an unknown position doesn't count. */
+export const naturalCount = (L: Lineup, sq: Squad): number => L.slots.filter((s, i) => !!s.playerId && inPlace(logicGrade(L, sq, s.playerId, i))).length;
 
 /** How many of the galones are worn by someone on the pitch. */
 export const galonesOn = (L: Lineup): number => {

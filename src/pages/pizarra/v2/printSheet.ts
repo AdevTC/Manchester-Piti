@@ -3,7 +3,8 @@
 // by tandas, the lanzadores and what we know of the rival. Pure; PrintPlan.tsx lays it out.
 import type { Lineup } from "../formations";
 import { systemDef } from "../../../lib/formations";
-import { slotLabel, slotPos } from "./geometry";
+import { slotPos } from "./geometry";
+import { slotCode } from "./encaje";
 import type { Squad } from "./model";
 import { tacRows } from "./plan";
 import { wavesTxt } from "./cambios";
@@ -55,7 +56,7 @@ export function printView(L: Lineup, sq: Squad, o: PrintInput): PrintView {
   L.slots.forEach((s, i) => {
     if (!s.playerId) return;
     const p = slotPos(L, i);
-    seven.push({ x: r1(p.u), y: r1(p.v * PITCH_RATIO), num: sq.byId.get(s.playerId)?.num ?? 0, name: name(s.playerId), pos: slotLabel(L, i), cap: L.roles.captainId === s.playerId });
+    seven.push({ x: r1(p.u), y: r1(p.v * PITCH_RATIO), num: sq.byId.get(s.playerId)?.num ?? 0, name: name(s.playerId), pos: slotCode(L, i), cap: L.roles.captainId === s.playerId });
   });
   const on = new Set(L.slots.map((s) => s.playerId).filter(Boolean));
   const bench = sq.list.filter((c) => !on.has(c.id) && !c.baja && c.cv !== "no" && (!o.called || o.called.has(c.id))).map((c) => c.name);

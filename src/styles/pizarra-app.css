@@ -362,6 +362,10 @@
 .pzv .mv-s{min-width:0;font-size:13px;color:inherit;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pzv .mv-f{display:grid;place-items:center;min-width:28px;height:22px;padding:0 4px;background:var(--slab);color:var(--slab-ink);font-family:'Anybody';font-weight:900;font-size:13px;clip-path:var(--ang)}
 .pzv .mv-f.no{background:var(--red);color:#fff}
+/* «Mover a…» for a player with an exact position: the puesto by name and his fit over who is there. */
+.pzv .mv-s.pzp-mv2{display:grid;gap:1px;white-space:normal}
+.pzv .pzp-mv2 > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pzv .pzp-mv2 > span:first-child{font-weight:700}
 .pzv .mva-p > .b3{justify-self:end;min-height:40px}
 /* «Sin responder» as its own chip next to voy / duda / no va (outlined: nothing said yet). */
 .pzv .cv-n{flex-wrap:wrap}

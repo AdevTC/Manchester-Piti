@@ -15,12 +15,12 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { FormationName, Lineup } from "../formations";
 import { systemDef } from "../../../lib/formations";
-import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
+import { CAMS, camGeo, proj, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
 import { GALONES, isAvailable, isFull, type Squad } from "./model";
 import { chemOf, tierOf } from "./quimica";
 import { autoByEncajeOn, autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { sevenByEncajeOn, suggestSeven } from "./pack";
-import { boardInPlace, encajeCandidates, shownFit, slotCode } from "./encaje";
+import { boardInPlace, encajeCandidates, hasFitData, shownFit, slotCode } from "./encaje";
 import { applyFan, fanCentre, fanItems, type FanItem, type FanSub } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
 import { cycle, settle, snapOf, step, type Snap } from "./sheet";
@@ -130,7 +130,7 @@ import { orderTxt, ROLE_TAKER, takersOf } from "./takers";
 import { useVariants } from "./useVariants";
 import { VariantPills } from "./VariantPills";
 import { charlaPlanB, cmpVariantKey, variantCmpOptions, variantNameError, variantView } from "./variants";
-import { famCount, famLine, familiarity, famSlot } from "./familiarity";
+import { famCodeCount, famCount, famLine, familiarity, famSlot } from "./familiarity";
 import type { CardView } from "./view";
 import { MoverA } from "./MoverA";
 import { OficialBanner } from "./OficialBanner";
@@ -686,7 +686,7 @@ export function Board(props: BoardProps) {
     const occ = L.slots[i]?.playerId;
     commit(place(L, id, i), { ui: { sel: null, pick: null, kb: null }, snap: "half" });
     buzz([12, 30, 12]);
-    announce(occ && occ !== id ? nm(id) + " por " + nm(occ) + " en " + slotLabel(L, i) : nm(id) + " a " + slotLabel(L, i));
+    announce(occ && occ !== id ? nm(id) + " por " + nm(occ) + " en " + slotCode(L, i) : nm(id) + " a " + slotCode(L, i));
   };
 
   const cardEl = (id: string): HTMLElement | null => {
@@ -1653,7 +1653,7 @@ export function Board(props: BoardProps) {
         commit(r.lineup, { drop, ui: { sel: null, pick: null, kb: null }, snap: "half" });
         buzz([12, 30, 12]);
         const k = r.lineup.slots.findIndex((s) => s.playerId === src.id);
-        announce(k >= 0 ? nm(src.id) + " a " + slotLabel(r.lineup, k) : nm(src.id) + " al banquillo");
+        announce(k >= 0 ? nm(src.id) + " a " + slotCode(r.lineup, k) : nm(src.id) + " al banquillo");
       },
       onLongPress: (id, from, el) => (from === "pitch" ? openFan(id, el) : openFic(id, el)),
       onLine: (val) => {
@@ -1794,7 +1794,7 @@ export function Board(props: BoardProps) {
     // The board's match (linked, else the next): its convocatoria's siete comes first in the pack.
     const cm = props.calendar.find((c) => c.id === session.matchId) ?? props.nextMatch;
     const own = cm?.conv?.starters ?? [];
-    const next = suggestSeven(L, sq, own, calledOf(cm), (id, z) => famCount(fam, id, z));
+    const next = suggestSeven(L, sq, own, calledOf(cm), (id, z, code) => (code ? famCodeCount(fam, id, code) : famCount(fam, id, z)));
     if (!next.slots.some((s) => s.playerId)) {
       say("No hay nadie disponible para el sobre");
       return;
@@ -1917,7 +1917,7 @@ export function Board(props: BoardProps) {
     const occ = L.slots[k]?.playerId;
     // (and what it would do to the química por jugador: « · +1 química aquí»)
     const q = sel && !(sel.k === "p" && occ === sel.id) && isAvailable(sq, sel.id) ? tq.chemTxt(place(L, sel.id, k), sel.id) : "";
-    return (occ && occ !== sel?.id ? "Sobre " + nm(occ) + ", " + slotLabel(L, k) + ": Intro para cambiarlos" : "Hueco " + slotLabel(L, k) + ": Intro para soltarlo") + q;
+    return (occ && occ !== sel?.id ? "Sobre " + nm(occ) + ", " + slotCode(L, k) + ": Intro para cambiarlos" : "Hueco " + slotCode(L, k) + ": Intro para soltarlo") + q;
   };
   const dropOn = (k: number) => {
     if (!sel) return;
@@ -2004,7 +2004,7 @@ export function Board(props: BoardProps) {
     ? (() => {
         const c = sq.byId.get(inHand.id);
         const at = L.slots.findIndex((s) => s.playerId === inHand.id);
-        return c ? selBarView(c, inHand.k === "p" && at >= 0 ? slotLabel(L, at) : null, L.roles.captainId === inHand.id) : null;
+        return c ? selBarView(c, inHand.k === "p" && at >= 0 ? slotCode(L, at) : null, L.roles.captainId === inHand.id) : null;
       })()
     : null;
   // Rendered once: at the top of the Siete tool on phones (sb-s), on the pitch's apron elsewhere (sb-p,
@@ -2138,7 +2138,7 @@ export function Board(props: BoardProps) {
       })
     : NO_GROUPS;
   // «Buscar en la plantilla» finds the ones on the pitch too: tapping one marks him there
-  const found = pitchFound(L, sq, { on: srx, q, zf, oc: ocOn, sin: sinF }, (i) => slotLabel(L, i));
+  const found = pitchFound(L, sq, { on: srx, q, zf, oc: ocOn, sin: sinF }, (i) => slotCode(L, i));
   const onFound = (id: string) => {
     const i = L.slots.findIndex((s) => s.playerId === id);
     if (i < 0) return;
@@ -2146,8 +2146,8 @@ export function Board(props: BoardProps) {
     buzz(8);
     if (canEdit) {
       patchUi({ sel: { k: "p", id }, pick: null, kb: null });
-      announce(nm(id) + " está en el campo, de " + slotLabel(L, i) + ": en la mano. Toca otro cromo o un hueco.");
-    } else say(nm(id) + " está en el campo, de " + slotLabel(L, i));
+      announce(nm(id) + " está en el campo, de " + slotCode(L, i) + ": en la mano. Toca otro cromo o un hueco.");
+    } else say(nm(id) + " está en el campo, de " + slotCode(L, i));
   };
   // (the reparto only while the Plan page shows it)
   const planOn = modo === "editar" && tab === "p";
@@ -2217,7 +2217,7 @@ export function Board(props: BoardProps) {
   };
   const ficha0 = fic ? fichaOf({ id: fic.id, L, sq, ch, match, ox: fic.ox, oy: fic.oy, side: fic.side }) : null;
   // (where he has lined up in the season's officials: the familiarity, on the ficha's back)
-  const famL = fic && fam.games ? famLine(fam, fic.id) : "";
+  const famL = fic && fam.games ? famLine(fam, fic.id, hasFitData([fic.id], sq, L)) : "";
   const ficha = ficha0 && fam.games ? { ...ficha0, facts: [...(ficha0.facts ?? []), { k: "En el oficial", v: famL || "Aún no ha salido en un oficial jugado" }] } : ficha0;
 
   // ── the plan ──
@@ -3328,7 +3328,7 @@ export function Board(props: BoardProps) {
             cx={fan.cx}
             cy={fan.cy}
             num={sq.byId.get(fan.id)?.num ?? 0}
-            title={nm(fan.id) + " · " + slotLabel(L, L.slots.findIndex((s) => s.playerId === fan.id))}
+            title={nm(fan.id) + " · " + slotCode(L, L.slots.findIndex((s) => s.playerId === fan.id))}
             items={fanList}
             onItem={onFanItem}
             onClose={() => patchUi({ fan: null })}

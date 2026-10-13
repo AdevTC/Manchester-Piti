@@ -96,6 +96,13 @@ export const adapted = (g: FitGrade | null): boolean => g === 1;
 /** Out of his place. Unknown is not. */
 export const out = (g: FitGrade | null): boolean => g === 0;
 
+/** A grade in a sentence's words: «en su sitio» (preferida or también) · «adaptado» · «fuera de su
+ *  sitio»; «» when unknown. */
+export const fitWord = (g: FitGrade | null): string => (inPlace(g) ? "en su sitio" : adapted(g) ? "adaptado" : out(g) ? "fuera de su sitio" : "");
+
+/** The slot's exact position by name, lower-case for a sentence («interior izquierdo»). */
+export const slotName = (L: Lineup, i: number): string => POSITIONS[slotCode(L, i)].name.toLowerCase();
+
 /** Where a player is at home, lower-cased for a sentence: a per-board «Jugar de» (a code or a line),
  *  his preferida, his first también, else his line («punta», «interior izquierdo», «defensa»); null
  *  without data. */

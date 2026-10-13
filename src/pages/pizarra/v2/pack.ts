@@ -5,10 +5,15 @@
 // convocatoria's siete (the admin's Convocar: the one source) is dealt first. Those who stay on the
 // pitch keep their «Jugar de». Pure.
 import type { Lineup, Zone } from "../formations";
-import { adapted, hasFitData, inPlace, logicGrade, placeByWeight } from "./encaje";
+import type { PosCode } from "../../../lib/positions";
+import { adapted, hasFitData, inPlace, logicGrade, placeByWeight, slotCode } from "./encaje";
 import { slotZone } from "./geometry";
 import type { Squad } from "./model";
 import { answerRank, canCome, dropBenchedRoles } from "./ops";
+
+/** How many played officials put him there (familiarity.ts): by `z`, the slot's zone, or — passed only
+ *  for a player with an exact position — by `code`, the slot's exact position. */
+export type FamAt = (id: string, z: Zone, code?: PosCode) => number;
 
 /** The ranking the pack deals from (best first): «Voy», then no answer, then «Duda», each by form;
  *  never a baja, a «no va» or (with a convocatoria) someone it doesn't call. */
@@ -28,7 +33,7 @@ export function packRanking(sq: Squad, called: ReadonlySet<string> | null = null
  * `first` (the convocatoria's siete) is dealt before anyone else: a whole siete is exactly those seven;
  * a partial one goes first and the pack completes it (a keeper from the pack before an outfielder in goal).
  */
-export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = [], called: ReadonlySet<string> | null = null, fam?: (id: string, z: Zone) => number): Lineup {
+export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = [], called: ReadonlySet<string> | null = null, fam?: FamAt): Lineup {
   const rank = packRanking(sq, called);
   // (the convocatoria's siete, minus whoever is now a baja or said no)
   const own = first.filter((id) => canCome(sq, id, null));
@@ -65,19 +70,22 @@ export function sevenByEncajeOn(L: Lineup, sq: Squad, first: readonly string[] =
  * — the convocatoria's siete always plays; then in place (logicGrade ≥ 2) over adaptado over fuera or
  * unknown, so a player in place never loses his slot to one out of it; only between equals do the
  * answer («Voy» before no answer before «Duda», −5 a step), the form (the rating) and, for an adaptado or
- * an unknown, having played that line in the official (fam ≥ 2, +10) decide; exact ties follow the
- * pack's order. Keepers: the goal only to a declared keeper while there is one. Each is judged with the
- * «Jugar de» he keeps (only those already on the pitch keep theirs).
+ * an unknown, having played there in the official (fam ≥ 2, +10: that exact position for a player with
+ * one, else that line) decide; exact ties follow the pack's order. Keepers: the goal only to a declared
+ * keeper while there is one. Each is judged with the «Jugar de» he keeps (only those already on the
+ * pitch keep theirs).
  */
-function sevenByEncaje(L: Lineup, sq: Squad, cand: string[], own: ReadonlySet<string>, was: ReadonlySet<string>, fam?: (id: string, z: Zone) => number): (string | null)[] {
+function sevenByEncaje(L: Lineup, sq: Squad, cand: string[], own: ReadonlySet<string>, was: ReadonlySet<string>, fam?: FamAt): (string | null)[] {
   const playerPositions = Object.fromEntries(Object.entries(L.playerPositions ?? {}).filter(([id]) => was.has(id)));
   const B = { ...L, playerPositions };
   const keeper = cand.some((id) => inPlace(logicGrade(B, sq, id, 0)));
+  // (who is counted by exact position: the same rule as the familiarity marks, famSlot)
+  const exact = new Set(cand.filter((id) => hasFitData([id], sq, B)));
   return placeByWeight(L.slots.length, cand, (i, id) => {
     const g = logicGrade(B, sq, id, i);
     if (i === 0 && keeper && !inPlace(g)) return null;
     const fit = inPlace(g) ? IN_PLACE : adapted(g) ? ADAPTED : 0;
-    const known = (adapted(g) || g == null) && fam && fam(id, slotZone(L, i)) >= 2 ? 10 : 0;
+    const known = (adapted(g) || g == null) && fam && fam(id, slotZone(L, i), exact.has(id) ? slotCode(B, i) : undefined) >= 2 ? 10 : 0;
     const tie = (cand.length - cand.indexOf(id)) / 1e4;
     // (1000: every slot filled while there is someone, whatever his form)
     return 1000 + (own.has(id) ? OWN : 0) + fit + known - 5 * answerRank(sq, id) + (sq.byId.get(id)?.rt ?? 0) + tie;
@@ -86,7 +94,7 @@ function sevenByEncaje(L: Lineup, sq: Squad, cand: string[], own: ReadonlySet<st
 
 /** The seven by lines (nobody with an exact position): slot by slot, keepers only in goal, each zone
  *  with its own first, then whoever is left. */
-function sevenByLine(L: Lineup, sq: Squad, own: string[], rank: string[], fam?: (id: string, z: Zone) => number): (string | null)[] {
+function sevenByLine(L: Lineup, sq: Squad, own: string[], rank: string[], fam?: FamAt): (string | null)[] {
   const out: (string | null)[] = L.slots.map(() => null);
   const used = new Set<string>();
   const isGk = (id: string) => sq.byId.get(id)?.pos === "POR";

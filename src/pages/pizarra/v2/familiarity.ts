@@ -4,11 +4,11 @@
 // position: «++» = 5 or more matches at the slot's position, «+» = 2 or more, «!» = never there and fuera
 // (encaje.logicGrade). Who is known only by his line keeps the zone's count: «!» = never in that zone and
 // not his natural one. No marks until there is a played official to go by. Shown on the cromo, in the
-// fan, «Mover a…» and the ficha; «Sugerir siete» uses the zone's count to choose who plays out of his
-// natural zone. Pure.
+// fan, «Mover a…» and the ficha; «Sugerir siete» uses the count (by exact position for who has one) to
+// choose who plays out of his place. Pure.
 import type { Lineup, Zone } from "../formations";
 import { ZONES } from "../formations";
-import { POSITIONS, type PosCode } from "../../../lib/positions";
+import { POS_CODES, POSITIONS, type PosCode } from "../../../lib/positions";
 import { slotZone } from "./geometry";
 import { hasFitData, logicGrade, out, slotCode } from "./encaje";
 import { natOf, type Squad } from "./model";
@@ -96,8 +96,19 @@ export function famSlot(t: FamTable, L: Lineup, sq: Squad, id: string, i: number
   return { mark: m, txt: markTxt(m, n, POSITIONS[code].name.toLowerCase()) };
 }
 
-/** «DEF 6 · MED 2» — where he has lined up in the season's played officials (empty = nowhere yet). */
-export function famLine(t: FamTable, id: string): string {
+/** «DEF 6 · MED 2» — where he has lined up in the season's played officials (empty = nowhere yet); with
+ *  `byCode` (a player with an exact position, as famSlot decides) by exact position: «MCD 4 · MC 2 ·
+ *  DFC 1». Most first, then the catalogue's order. */
+export function famLine(t: FamTable, id: string, byCode = false): string {
+  if (byCode) {
+    const row = t.byCode.get(id);
+    if (!row) return "";
+    const n = (c: PosCode) => row[c] ?? 0;
+    return POS_CODES.filter((c) => n(c) > 0)
+      .sort((a, b) => n(b) - n(a))
+      .map((c) => c + " " + n(c))
+      .join(" · ");
+  }
   const row = t.by.get(id);
   if (!row) return "";
   return ZONES.filter((z) => row[z] > 0)

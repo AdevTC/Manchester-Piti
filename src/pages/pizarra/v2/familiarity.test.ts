@@ -160,8 +160,57 @@ describe("familiaridad por posición exacta", () => {
   it("«Mover a…» says the exact position's familiarity", () => {
     const o = moveOptions(lineupOf(["gk", "d1", "d2", "mi", "mc", "x", "dc"], "2-3-1", xs), xs, "x", xAtMi(2));
     expect(o[3]).toMatchObject({ fam: "+" });
-    expect(o[3].aria).toBe("Cambiar a X con MI, MI; ya ha jugado de interior izquierdo (2 partidos en el oficial)");
+    expect(o[3].aria).toBe("Cambiar a X con MI, MI · interior izquierdo, adaptado; ya ha jugado de interior izquierdo (2 partidos en el oficial)");
     expect(o[4]).toMatchObject({ fam: null });
     expect(o[6]).toMatchObject({ fam: "!" });
+  });
+
+  it("«Mover a…» names each puesto and how well he fits it (the code with its name, never by the sign alone)", () => {
+    const L = lineupOf(["gk", "d1", "d2", "mi", "mc", "x", "dc"], "2-3-1", xs);
+    const o = moveOptions(L, xs, "x", FAM0);
+    expect(o.map((q) => q.lab)).toEqual(["POR", "DFC", "DFC", "MI", "MC", "MD", "DC"]);
+    expect(o.map((q) => q.pos)).toEqual([
+      "Portero · fuera de su sitio",
+      "Central · fuera de su sitio",
+      "Central · fuera de su sitio",
+      "Interior izquierdo · adaptado",
+      "Mediocentro · adaptado",
+      "Interior derecho · en su sitio",
+      "Punta · fuera de su sitio",
+    ]);
+    expect(o[5]).toMatchObject({ here: true, aria: "MD · interior derecho: X ya está aquí" });
+    expect(o[4].aria).toBe("Cambiar a X con MC, MC · mediocentro, adaptado");
+    const holes = moveOptions({ ...L, slots: L.slots.map((s, i) => (i === 3 ? { ...s, playerId: null } : s)) }, xs, "x", FAM0);
+    expect(holes[3].aria).toBe("Mover a X al hueco MI · interior izquierdo, adaptado");
+    // who is known only by his line keeps the old row
+    expect(moveOptions(L, xs, "kev", FAM0)[3]).toEqual({ i: 3, lab: "MI", sub: "Con MI: se cambian", here: false, fam: null, aria: "Cambiar a KEV con MI, MI" });
+  });
+
+  it("free mode: «Mover a…» prints the slot's exact code, not its line", () => {
+    const base = lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq);
+    const F = { ...base, freeMode: true, slots: base.slots.map((s, i) => (i === 3 ? { ...s, x: 50, y: 50 } : s)) };
+    const o = moveOptions(F, sq, "tello", FAM0);
+    expect(o[3].lab).toBe("MC");
+    expect(o[3].aria).toBe("Cambiar a TELLO con HUBEROSKI, MC");
+  });
+
+  it("«En el oficial» by exact position for who has one («MI 2 · MC 1 · MD 1»), by line otherwise", () => {
+    const t = familiarity([offX("p1", ["gk", "d1", "d2", "x", "mc", "md", "dc"]), offX("p2", ["gk", "d1", "d2", "x", "mc", "md", "dc"]), offX("p3", ["gk", "d1", "d2", "mi", "mc", "x", "dc"]), offX("p4", ["gk", "d1", "d2", "mi", "x", "md", "dc"])], played);
+    // two at MI, one at MC and one at MD: most first, then the catalogue's order
+    expect(famLine(t, "x", true)).toBe("MI 2 · MC 1 · MD 1");
+    expect(famLine(t, "x")).toBe("MED 4");
+    expect(famLine(t, "gk", false)).toBe("POR 4");
+    expect(famLine(t, "kev", true)).toBe("");
+  });
+
+  it("«Sugerir siete» with exact positions: of two adaptados, who has played that very position goes first", () => {
+    // MI: two adaptados, a (MCO, better form) has played MC in the official, b (MCD) has played MI
+    const s = squadOf([x("gk", 1, "POR"), x("d1", 2, "DFC"), x("d2", 3, "DFC"), { ...x("mc", 5, "MC"), rt: 90 }, x("md", 6, "MD"), x("dc", 9, "DC"), { ...x("a", 10, "MCO"), rt: 80 }, { ...x("b", 11, "MCD"), rt: 75 }]);
+    const L = lineupOf([null, null, null, null, null, null, null], "2-3-1", s);
+    const byCode = (id: string, z: string, code?: PosCode) => (code ? ((id === "b" && code === "MI") || (id === "a" && code === "MC") ? 3 : 0) : (id === "a" || id === "b") && z === "MED" ? 3 : 0);
+    expect(suggestSeven(L, s, [], null, byCode).slots[3].playerId).toBe("b");
+    // by the line alone both have played there: the form decides
+    const byZone = (id: string, z: string) => ((id === "a" || id === "b") && z === "MED" ? 3 : 0);
+    expect(suggestSeven(L, s, [], null, byZone).slots[3].playerId).toBe("a");
   });
 });

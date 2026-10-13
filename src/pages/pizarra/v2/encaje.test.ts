@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { systemDef } from "../../../lib/formations";
 import type { FitGrade, PosCode, ResolvedPositions } from "../../../lib/positions";
 import { lineOf, POSITIONS } from "../../../lib/positions";
-import { adapted, assign, bestEncaje, boardInPlace, encajeBySystem, encajeCandidates, faltaTxt, fitAt, hasFitData, homeName, inPlace, logicGrade, out, placeByWeight, slotCode } from "./encaje";
+import { adapted, assign, bestEncaje, boardInPlace, encajeBySystem, encajeCandidates, faltaTxt, fitAt, fitWord, hasFitData, homeName, inPlace, logicGrade, out, placeByWeight, slotCode, slotName } from "./encaje";
 import { fits, natural } from "./model";
 import { slotZone, SYSTEMS } from "./geometry";
 import { cromo, lineupOf, squadOf } from "./testkit";
@@ -427,5 +427,19 @@ describe("homeName", () => {
     expect(homeName({ ...L, playerPositions: { pref: "MED" } }, sq, "pref")).toBe("centrocampista");
     expect(homeName({ ...L, playerPositions: { pref: "MCD", linea: "LD" } }, sq, "pref")).toBe("pivote");
     expect(homeName({ ...L, playerPositions: { pref: "MCD", linea: "LD" } }, sq, "linea")).toBe("lateral derecho");
+  });
+});
+
+describe("the fit and the slot in words", () => {
+  it("fitWord: en su sitio · adaptado · fuera de su sitio; nothing when unknown", () => {
+    expect([3, 2, 1, 0, null].map((g) => fitWord(g as FitGrade | null))).toEqual(["en su sitio", "en su sitio", "adaptado", "fuera de su sitio", ""]);
+  });
+
+  it("slotName: the slot's exact position, lower-case (free mode: the nearest code, never the line)", () => {
+    const L = lineupOf([], "2-3-1");
+    expect(slotName(L, 3)).toBe("interior izquierdo");
+    expect(slotName(L, 0)).toBe("portero");
+    const F = { ...L, freeMode: true, slots: L.slots.map((s, i) => (i === 3 ? { ...s, x: 50, y: 50 } : s)) };
+    expect(slotName(F, 3)).toBe("mediocentro");
   });
 });

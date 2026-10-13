@@ -10,7 +10,7 @@
 import type { Lineup } from "../formations";
 import type { Play } from "../plays";
 import { defaultTactics } from "../tactics";
-import { slotLabel } from "./geometry";
+import { slotCode } from "./encaje";
 import { CONSIGNA } from "./plan";
 import { GALONES, galonesOf, isFull, placedCount, type Cromo, type Squad } from "./model";
 import { plural } from "./plural";
@@ -269,7 +269,7 @@ export function charlaView(a: CharlaArgs): CharlaView {
     const i = cs - 1;
     const id = L.slots[i]?.playerId ?? null;
     const c = id ? sq.byId.get(id) : undefined;
-    const lab = slotLabel(L, i);
+    const lab = slotCode(L, i);
     if (id && c) {
       const st = c.stats;
       const why = c.cv === "no" ? " · dijo que no va" : c.baja ? " · " + c.baja.toLowerCase() : "";
@@ -346,7 +346,7 @@ export function charlaView(a: CharlaArgs): CharlaView {
   const nm = (i: number) => {
     const id = L.slots[i]?.playerId;
     const c = id ? sq.byId.get(id) : undefined;
-    return c ? c.num + " · " + c.name : "Hueco · " + slotLabel(L, i);
+    return c ? c.num + " · " + c.name : "Hueco · " + slotCode(L, i);
   };
   const nSup = suplentes(L, sq, match?.called).list.length;
   const steps = [

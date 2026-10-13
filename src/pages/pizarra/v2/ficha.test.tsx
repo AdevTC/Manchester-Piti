@@ -4,7 +4,8 @@ import type { ClubMatch } from "../../../lib/clubData";
 import { fichaOf, formBars, formGames } from "./ficha";
 import { Ficha } from "./Overlays";
 import { chem } from "./quimica";
-import { demoSquad, lineupOf } from "./testkit";
+import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
+import { lineOf, type PosCode } from "../../../lib/positions";
 
 // The ficha's back, filled with real data: the form over the last matches, his minutes against the
 // team's, where he plays, his galones and whether he goes to the board's match.
@@ -99,6 +100,13 @@ describe("la ficha", () => {
     expect(within(dlg).getByText("Convocado · duda")).toBeInTheDocument();
   });
 
+  it("free mode: a player known by his line is said where he plays by the slot's exact code, not its line", () => {
+    const F = { ...L, freeMode: true, slots: L.slots.map((s, i) => (i === 3 ? { ...s, x: 50, y: 50 } : s)) };
+    // huberoski (MED) stands in the middle of a free board: MC, not «MED»
+    expect(fichaOf(args("huberoski", { L: F }))!.sub).toMatch(/^MED natural · juega de MC/);
+    expect(fichaOf(args("huberoski"))!.sub).toMatch(/^MED natural · juega de MI/);
+  });
+
   it("formGames: his last matches from the season's, minutes from the acta (or the match's length)", () => {
     const m = (id: string, row: Record<string, unknown> | null, duration?: number): ClubMatch => ({ id, status: "finished", ledger: row ? { tello: row } : { otro: { played: true } }, ...(duration ? { duration } : {}) }) as unknown as ClubMatch;
     const games = [m("a", { played: true, minutes: 50 }), m("b", { played: true, minutes: 30, goals: 1, assists: 1 }), m("c", null, 60), m("d", { played: true }, 60)];
@@ -109,5 +117,53 @@ describe("la ficha", () => {
       // no minutes in the acta: the match's length
       { j: 4, played: true, min: 60, ga: 0 },
     ]);
+  });
+});
+
+describe("la ficha con posiciones exactas", () => {
+  // 2-3-1: POR · DFC DFC · MI MC MD · DC
+  const x = (id: string, num: number, main: PosCode | null, also: PosCode[] = []) => cromo(id, num, main ? lineOf(main) : lineOf(also[0]), { ps: { main, also, line: main ? lineOf(main) : lineOf(also[0]) } });
+  const xs = squadOf([x("gk", 1, "POR"), x("d1", 2, "DFC"), x("d2", 3, "DFC"), x("piv", 4, "MCD", ["MC"]), x("mc", 5, "MC"), x("md", 6, "MD"), x("dc", 9, "DC"), x("tam", 8, null, ["MC", "MCO"])]);
+  const XL = lineupOf(["gk", "d1", "d2", "piv", "mc", "md", "dc"], "2-3-1", xs);
+  const xa = (id: string, o: Partial<Parameters<typeof fichaOf>[0]> = {}) => ({ id, L: XL, sq: xs, ch: chem(XL, xs), match: null, ox: "0px", oy: "0px", side: "back" as const, ...o });
+  const pos = (f: ReturnType<typeof fichaOf>) => f?.facts?.find((k) => k.k === "Posición")?.v;
+
+  it("the position line names his preferida with its code and his también; the front chip wears the code", () => {
+    const f = fichaOf(xa("piv"))!;
+    expect(pos(f)).toBe("Pivote (MCD) · también MC");
+    expect(f.pos).toBe("MCD");
+    expect(f.gk).toBe(false);
+    // without a preferida: his también, the first with its name
+    expect(pos(fichaOf(xa("tam")))).toBe("También mediocentro (MC), MCO");
+    expect(fichaOf(xa("tam"))!.pos).toBe("MC");
+  });
+
+  it("where he plays in this seven, by the slot's name and how well he fits it", () => {
+    // the pivote at MI: his line → adaptado
+    expect(fichaOf(xa("piv"))!.sub).toBe("Pivote · juega de interior izquierdo · adaptado");
+    // at MC: his también → en su sitio
+    const atMc = lineupOf(["gk", "d1", "d2", "mc", "piv", "md", "dc"], "2-3-1", xs);
+    expect(fichaOf(xa("piv", { L: atMc, ch: chem(atMc, xs) }))!.sub).toBe("Pivote · juega de mediocentro · en su sitio");
+    // at DC: fuera
+    const atDc = lineupOf(["gk", "d1", "d2", "mc", "dc", "md", "piv"], "2-3-1", xs);
+    expect(fichaOf(xa("piv", { L: atDc, ch: chem(atDc, xs) }))!.sub).toBe("Pivote · juega de punta · fuera de su sitio");
+    // on the bench: only who he is
+    expect(fichaOf(xa("tam"))!.sub).toBe("También MC, MCO");
+  });
+
+  it("a «Jugar de» on this board is said first, his preferida after it", () => {
+    const J = { ...XL, playerPositions: { piv: "MI" as const } };
+    const f = fichaOf(xa("piv", { L: J, ch: chem(J, xs) }))!;
+    expect(pos(f)).toBe("Juega de interior izquierdo (MI) · preferida pivote (MCD)");
+    expect(f.sub).toBe("Pivote · juega de interior izquierdo · en su sitio");
+    // his preferida as «Jugar de» is no override to speak of
+    expect(pos(fichaOf(xa("piv", { L: { ...XL, playerPositions: { piv: "MCD" as const } } })))).toBe("Pivote (MCD) · también MC");
+  });
+
+  it("a keeper known only as POR keeps the old words", () => {
+    const f = fichaOf(xa("gk"))!;
+    expect(pos(f)).toBe("POR natural");
+    expect(f.sub).toBe("POR natural · juega de POR");
+    expect(f.pos).toBe("POR");
   });
 });

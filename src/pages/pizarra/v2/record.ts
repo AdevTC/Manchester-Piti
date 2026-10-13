@@ -5,6 +5,7 @@
 import type { FormationName, Lineup } from "../formations";
 import { FORM } from "./geometry";
 import { natOf, type Squad } from "./model";
+import { hasFitData, inPlace, logicGrade, placeByWeight } from "./encaje";
 import type { CalMatch } from "./boards";
 
 /** At least this many of the seven in common for a match to count as «this seven». */
@@ -85,11 +86,24 @@ export function lastPlayed(calendar: readonly CalMatch[]): CalMatch | null {
 
 /**
  * A match's starters on a system's slots: first each one in a slot of his own position (the keeper in goal),
- * then the rest in the slots left, in order; unknown players are left out. At most seven.
+ * then the rest in the slots left, in order; unknown players are left out. At most seven. When one of them
+ * has an exact position (encaje.hasFitData), by the best encaje instead: in place over adaptado over
+ * fuera (encaje.logicGrade, with the board's «Jugar de»), the goal only to a declared keeper while there
+ * is one, ties in the order listed.
  */
 export function sevenFromStarters(formation: FormationName, starters: readonly string[], sq: Squad, L: Lineup): (string | null)[] {
   const spots = FORM[formation];
   const ids = starters.filter((id, k) => sq.byId.has(id) && starters.indexOf(id) === k).slice(0, spots.length);
+  const B: Lineup = { ...L, formation, freeMode: false };
+  if (hasFitData(ids, sq, B)) {
+    const keeper = ids.some((id) => inPlace(logicGrade(B, sq, id, 0)));
+    return placeByWeight(spots.length, ids, (i, id) => {
+      const g = logicGrade(B, sq, id, i);
+      if (i === 0 && keeper && !inPlace(g)) return null;
+      // (1000: every slot filled while there is someone; 100 in place; 10 a grade point, unknown as adaptado)
+      return 1000 + (inPlace(g) ? 100 : 0) + 10 * (g ?? 1) + (ids.length - ids.indexOf(id)) / 1e3;
+    });
+  }
   const out: (string | null)[] = spots.map(() => null);
   const used = new Set<string>();
   spots.forEach((sp, i) => {
