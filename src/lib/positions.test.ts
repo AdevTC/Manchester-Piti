@@ -127,6 +127,11 @@ describe("fitGrade", () => {
     expect(fitGrade({ main: null, also: [], line: "DEF" }, "MC")).toBe(0);
     expect(fitGrade({ main: null, also: [], line: null }, "MC")).toBeNull();
   });
+  it("only the keeper's line known: his goal is his place (2), any outfield slot is fuera; no outfield line keeps goal", () => {
+    expect(fitGrade({ main: null, also: [], line: "POR" }, "POR")).toBe(2);
+    expect(fitGrade({ main: null, also: [], line: "POR" }, "DFC")).toBe(0);
+    expect(fitGrade({ main: null, also: [], line: "DEF" }, "POR")).toBe(0);
+  });
 });
 
 describe("positionText", () => {

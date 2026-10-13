@@ -142,7 +142,9 @@ export function fitGrade(p: PositionSet & { line?: Line | null }, slot: PosCode)
   const mine = [...(p.main ? [p.main] : []), ...p.also];
   if (!mine.length) {
     if (!p.line) return null;
-    return slot !== "POR" && p.line !== "POR" && lineOf(slot) === p.line ? 1 : 0;
+    // (a keeper known only by his line is in his place in goal: the line says it all there)
+    if (slot === "POR") return p.line === "POR" ? 2 : 0;
+    return p.line !== "POR" && lineOf(slot) === p.line ? 1 : 0;
   }
   if (slot === "POR" || mine.every((c) => c === "POR")) return 0;
   const line = lineOf(slot);

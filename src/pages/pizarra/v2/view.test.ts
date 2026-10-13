@@ -92,22 +92,34 @@ describe("the cromo prints the slot's exact position and how well he fits", () =
     expect(card(w, "tamb").aria).toMatch(/^TAMB, dorsal 3, LI, en su posición,/);
   });
 
-  it("free mode: a line-only player is judged by the board's own line for the slot, not the nearest code's", () => {
-    // y 64 is DEF on the free board (bands at 62 / 36) though its nearest catalogue point is MCD;
-    // y 30 is DEL though its nearest is MCO
+  it("free mode: the printed code is on the board's own line for the slot, and a line-only player is judged by it", () => {
+    // y 64 is DEF on the free board (bands at 62 / 36): it prints DFC (not the nearer MCD);
+    // y 30 is DEL: an empty marker there prints DC (not the nearer MCO, nor the line)
     const base = lineupOf(["gk", "cen", "tamb", "lindef", "adap", null, null], "2-3-1", sq);
     const L = { ...base, freeMode: true, slots: base.slots.map((s, i) => (i === 3 ? { ...s, x: 50, y: 64 } : i === 6 ? { ...s, x: 50, y: 30 } : s)) };
     const w = view(L);
-    expect(card(w, "lindef")).toMatchObject({ zoneTxt: "MCD", oop: false, fit: null });
+    expect(card(w, "lindef")).toMatchObject({ zoneTxt: "DFC", oop: false, fit: null });
     expect(card(w, "lindef").cls.split(" ")).not.toContain("oop");
+    expect(w.slots.find((s) => s.i === 6)).toMatchObject({ lab: "DC", aria: "Hueco DC vacío: toca para elegir jugador" });
     // a line-only DEL player in the hand: the DEL slot at y 30 is his line (no «!»), the DEF one is not
     const del = squadOf([...sq.list, cromo("lindel", 10, "DEL")]);
     const h = pitchView({ L: { ...L, bench: ["lindel"] }, sq: del, ch: chem(L, del), cam: "tv", modo: "editar", fx: FX0, selId: null, pick: null, ro: false, rm: false, meId: null, hand: { k: "b", id: "lindel" } });
     expect(h.slots.find((s) => s.i === 6)?.cls).toBe("");
     expect(h.cards.find((c) => c.id === "lindef")?.cls.split(" ")).toContain("pzp-g0");
-    // and the same player held from the bench over the y-64 slot: no «fuera»
-    const d = pitchView({ L, sq, ch: chem(L, sq), cam: "tv", modo: "editar", fx: FX0, selId: null, pick: null, ro: false, rm: false, meId: null, hand: { k: "b", id: "lindef" } });
-    expect(d.cards.find((c) => c.id === "cen")?.cls.split(" ")).not.toContain("pzp-g0");
+    // and a line-only defender held from the bench over the y-64 slot (someone else's): no «fuera»
+    const O = { ...L, slots: L.slots.map((s, i) => (i === 3 ? { ...s, playerId: "linea" } : s)), bench: ["lindef"] };
+    const d = pitchView({ L: O, sq, ch: chem(O, sq), cam: "tv", modo: "editar", fx: FX0, selId: null, pick: null, ro: false, rm: false, meId: null, hand: { k: "b", id: "lindef" } });
+    expect(card(d, "linea").cls.split(" ")).toContain("tgt");
+    expect(card(d, "linea").cls.split(" ")).not.toContain("pzp-g0");
+    expect(card(d, "adap").cls.split(" ")).toContain("pzp-g0");
+  });
+
+  it("a keeper known only by his line, in goal: no «!» (his place)", () => {
+    const s = squadOf([...sq.list, cromo("lgk", 11, "POR")]);
+    const L = lineupOf(["lgk", "cen"], "2-3-1", s);
+    const w = pitchView({ L, sq: s, ch: chem(L, s), cam: "tv", modo: "editar", fx: FX0, selId: null, pick: null, ro: false, rm: false, meId: null });
+    expect(card(w, "lgk")).toMatchObject({ zoneTxt: "POR", oop: false });
+    expect(card(w, "lgk").fit).not.toBe(0);
   });
 });
 
@@ -132,6 +144,15 @@ describe("the hand lights each target by the held player's fit", () => {
     ]);
     expect(card(v, "adap").aria).toContain("(para BANCA: también juega aquí)");
     expect(v.slots[1].aria).toBe("Hueco DC vacío: toca para elegir jugador. Para BANCA: fuera de su posición");
+  });
+
+  it("a bench player in the hand: gold «best» only where he is in his place (grade ≥ 2), not his whole line", () => {
+    const v = view(L, { hand: { k: "b", id: "banca" } });
+    // banca (MCD, también MC) is MED by line: MC (adap) is best, MD (linea, adaptado) is not
+    expect(v.cards.filter((c) => c.best).map((c) => c.id)).toEqual(["adap"]);
+    // a line-only bench player: no grade on his line, so his line still says where he goes
+    const m = view({ ...L, bench: ["lindef"] }, { hand: { k: "b", id: "lindef" } });
+    expect(m.cards.filter((c) => c.best).map((c) => c.id)).toEqual(["cen", "tamb"]);
   });
 
   it("a pitch player in the hand: every other cromo and the empty slots, never himself", () => {

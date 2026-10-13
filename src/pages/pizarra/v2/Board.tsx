@@ -16,16 +16,16 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import type { FormationName, Lineup } from "../formations";
 import { systemDef } from "../../../lib/formations";
 import { CAMS, camGeo, proj, slotLabel, slotPos, slotZone, TEMPO_PULSE } from "./geometry";
-import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
+import { GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
 import { chemOf, tierOf } from "./quimica";
 import { autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { suggestSeven } from "./pack";
-import { boardInPlace, encajeCandidates, slotCode } from "./encaje";
+import { boardInPlace, encajeCandidates, shownFit, slotCode } from "./encaje";
 import { applyFan, fanCentre, fanItems, type FanItem, type FanSub } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
 import { cycle, settle, snapOf, step, type Snap } from "./sheet";
 import { DIR_KEYS, moveStroke, nudgeOf, nudgePoint, placeOf, slotInDirection, strokeMid, toPlace } from "./drag";
-import { ago, FX0, fxDuration, hud as buildHud, joinLive, pitchView, planLayer, positionsOf, tacSummary, vars, type Fx, type Modo } from "./view";
+import { ago, FX0, fxDuration, hud as buildHud, joinLive, natTxtOf, pitchView, planLayer, positionsOf, tacSummary, vars, type Fx, type Modo } from "./view";
 import { useDragController } from "./useDragController";
 import { useBoardSound, buzz } from "./sound";
 import { plural } from "./plural";
@@ -2397,11 +2397,12 @@ export function Board(props: BoardProps) {
     props.onPrefs({ grid: on });
     if (on && canEdit && L.freeMode) commit(snapAll(L));
   };
+  // out of position as the cromo says it («!»: shownFit 0), printed as the cromo prints it (nat›code)
   const oopNames = L.slots
     .map((s, i) => {
       const c = s.playerId ? sq.byId.get(s.playerId) : undefined;
-      if (!c || fits(L, sq, c.id, slotZone(L, i))) return null;
-      return c.name + " (" + (natOf(L, sq, c.id) ?? "?") + "›" + slotZone(L, i) + ")";
+      if (!c || shownFit(L, sq, c.id, i) !== 0) return null;
+      return c.name + " (" + (natTxtOf(L, sq, c.id) ?? "?") + "›" + slotCode(L, i) + ")";
     })
     .filter((x): x is string => !!x);
 

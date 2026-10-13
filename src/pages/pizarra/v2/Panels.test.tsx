@@ -10,6 +10,7 @@ import { encajeBySystem } from "./encaje";
 import { SYSTEMS } from "./geometry";
 import type { Squad } from "./model";
 import { chem } from "./quimica";
+import { buildSquad, type SquadPlayer } from "./ratings";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
 
 // The «Siete» tool's pieces on their own: the squad bars, the tabs with their keys, the Convocatoria page
@@ -283,6 +284,19 @@ describe("«Siete»", () => {
       expect(container.querySelector(".pzp-sysf-f")).toBeNull();
       expect(screen.queryByRole("button", { name: "Ordenar por encaje" })).not.toBeInTheDocument();
       expect(screen.getByRole("region", { name: "Ficha del sistema 2-3-1" })).toHaveTextContent(systemDef("2-3-1").about);
+    });
+
+    it("a real squad known only by lines (keepers stored as «POR»): no counts, no tints, no «Falta», no sort", () => {
+      const lines = ["POR", "POR", "DEF", "DEF", "DEF", "MED", "MED", "MED", "DEL", "DEL"];
+      const players: SquadPlayer[] = lines.map((naturalPosition, k) => ({ id: "p" + k, shirtName: "J" + k, firstName: "", number: k + 1, naturalPosition, injured: false, active: true }));
+      const real = buildSquad({ players, games: [], jornada: new Map(), suspended: new Set(), mvps: new Map() });
+      const { container } = render(tab({ sq: real, cands: real.list.map((c) => c.id), now: 1 }));
+      expect(tilesOf()[0]).toHaveAttribute("aria-label", "Sistema 2-3-1 Clásico");
+      expect(container.querySelector(".pzp-syf")).toBeNull();
+      expect(container.querySelector("[class*='pzp-dot-g']")).toBeNull();
+      expect(container.querySelector(".pzp-sysf-f")).toBeNull();
+      expect(container.querySelector(".pzp-sysf-y")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Ordenar por encaje" })).not.toBeInTheDocument();
     });
 
     it("an empty slot or a player without data is a faint ring, never a «también» dot", () => {

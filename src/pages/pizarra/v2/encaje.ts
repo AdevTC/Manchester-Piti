@@ -10,14 +10,17 @@ import type { Cromo, Squad } from "./model";
 const OUTFIELD = POS_CODES.filter((c) => c !== "POR");
 
 /** The slot's exact position: the system's code, or in free mode the nearest catalogue position to
- *  where the slot stands (slot 0 is always the keeper's; an outfield slot never is). */
+ *  where the slot stands among those of the board's own line for it (slotZone's depth bands), so the
+ *  printed code, the fit and the line logic agree (slot 0 is always the keeper's; an outfield slot never is). */
 export function slotCode(L: Lineup, i: number): PosCode {
   if (i === 0) return "POR";
   const s = L.slots[i];
   if (L.freeMode && s) {
-    let best: PosCode = OUTFIELD[0];
+    const line = slotZone(L, i);
+    const codes = OUTFIELD.filter((c) => POSITIONS[c].line === line);
+    let best: PosCode = codes[0] ?? OUTFIELD[0];
     let bd = Infinity;
-    for (const c of OUTFIELD) {
+    for (const c of codes) {
       const d = planeDist2({ u: s.x, v: s.y }, { u: POSITIONS[c].x, v: POSITIONS[c].y });
       if (d < bd) {
         bd = d;
@@ -29,9 +32,16 @@ export function slotCode(L: Lineup, i: number): PosCode {
   return systemDef(L.formation).spots[i]?.[0] ?? "MC";
 }
 
-/** A cromo's grade at a position: his resolved positions, else what his line says (null = no data). */
-const gradeOf = (c: Cromo | undefined, code: PosCode): FitGrade | null =>
-  c ? fitGrade(c.ps ?? { main: null, also: [], line: c.pos ?? null }, code) : null;
+const resolved = (c: Cromo) => c.ps ?? { main: null, also: [], line: c.pos ?? null };
+const exactOf = (c: Cromo | undefined): boolean => !!c?.ps && (!!c.ps.main || c.ps.also.length > 0);
+
+/** A cromo's grade at a position: `raw` from his resolved positions, else what his line says (null =
+ *  no data); `shown` as his cromo shows it (shownFit) — a line alone gives no grade on its line. */
+function gradeOf(c: Cromo | undefined, code: PosCode): { raw: FitGrade | null; shown: FitGrade | null } {
+  if (!c) return { raw: null, shown: null };
+  const raw = fitGrade(resolved(c), code);
+  return { raw, shown: raw == null || raw === 0 || exactOf(c) ? raw : null };
+}
 
 /** How well a player fits slot i of this lineup: 3 preferida · 2 también · 1 adaptado · 0 fuera ·
  *  null sin datos. A per-board «Jugar de» (a line) counts as también on that line and fuera elsewhere.
@@ -43,12 +53,22 @@ export function fitAt(L: Lineup, sq: Squad, id: string, i: number): FitGrade | n
   if (over) return over === zone ? 2 : 0;
   const c = sq.byId.get(id);
   if (!c) return null;
-  const ps = c.ps ?? { main: null, also: [], line: c.pos ?? null };
+  const ps = resolved(c);
   if (!ps.main && !ps.also.length) {
     if (!ps.line) return null;
-    return zone !== "POR" && ps.line !== "POR" && ps.line === zone ? 1 : 0;
+    if (zone === "POR") return ps.line === "POR" ? 2 : 0;
+    return ps.line !== "POR" && ps.line === zone ? 1 : 0;
   }
   return fitGrade(ps, slotCode(L, i));
+}
+
+/** A player's fit at slot i as the board shows it (the cromo's mark, the hand's tints, «Fuera de
+ *  posición»): a grade only from what is known exactly (his positions or a per-board «Jugar de»); a
+ *  line alone only ever says «fuera». */
+export function shownFit(L: Lineup, sq: Squad, id: string, i: number): FitGrade | null {
+  const g = fitAt(L, sq, id, i);
+  if (g == null || g === 0) return g;
+  return normZone(L.playerPositions[id]) || exactOf(sq.byId.get(id)) ? g : null;
 }
 
 /** The best seven of a squad on a system. */
@@ -118,24 +138,25 @@ export function assign(cost: number[][]): number[] {
 }
 
 /**
- * The best seven `candidates` can put on `system`: maximises Σgrade (no data counts as 1, an empty
- * slot 0), ties broken towards more players in place; the keeper's slot only takes a player with
- * grade ≥ 2 there whenever one of the candidates has it.
+ * The best seven `candidates` can put on `system`: first as many in their place as possible, then the
+ * most Σgrade (no grade counts as 1, an empty slot 0); the keeper's slot only takes a player with
+ * grade ≥ 2 there whenever one of the candidates has it. Grades are reported as the cromos show them
+ * (shownFit): a player known only by his line has none on it and is 0 off it.
  */
 export function bestEncaje(system: FormationName, candidates: string[], sq: Squad): Encaje {
   const codes = systemDef(system).spots.map((s) => s[0]);
   const ids = [...new Set(candidates)].filter((id) => sq.byId.has(id));
   const g = codes.map((code) => ids.map((id) => gradeOf(sq.byId.get(id), code)));
-  const keeper = g[0]?.some((x) => x != null && x >= 2) ?? false;
-  // weight: 8 per grade point (7 slots of +1 never outweigh one point) + 1 when in place
-  const weight = (x: FitGrade | null) => 8 * (x ?? 1) + (x != null && x >= 2 ? 1 : 0);
+  const keeper = g[0]?.some((x) => x.raw != null && x.raw >= 2) ?? false;
+  // weight: 100 when in place (7 slots of ≤ 3 points never outweigh one more in place) + the grade
+  const weight = (x: FitGrade | null) => 100 * (x != null && x >= 2 ? 1 : 0) + (x ?? 1);
   const n = Math.max(codes.length, ids.length);
   const cost = Array.from({ length: n }, (_, r) =>
     Array.from({ length: n }, (_, c) => {
       if (r >= codes.length) return 0; // a bench seat
       const x = c < ids.length ? g[r][c] : null;
-      if (r === 0 && keeper && (c >= ids.length || x == null || x < 2)) return FORBIDDEN;
-      return c < ids.length ? -weight(x) : 0; // an empty slot
+      if (r === 0 && keeper && (!x || x.raw == null || x.raw < 2)) return FORBIDDEN;
+      return x ? -weight(x.shown) : 0; // an empty slot
     }),
   );
   const rowTo = assign(cost);
@@ -143,7 +164,7 @@ export function bestEncaje(system: FormationName, candidates: string[], sq: Squa
   codes.forEach((code, r) => {
     const c = rowTo[r];
     const id = c >= 0 && c < ids.length ? ids[c] : null;
-    const x = id ? g[r][c] : null;
+    const x = id ? g[r][c].shown : null;
     out.ids.push(id);
     out.grades.push(x);
     if (x != null && x >= 2) out.inPlace++;
@@ -166,12 +187,13 @@ export function encajeBySystem(candidates: string[], sq: Squad): Record<Formatio
   return Object.fromEntries(SYSTEMS.map((k) => [k, bestEncaje(k, candidates, sq)])) as Record<FormationName, Encaje>;
 }
 
-/** Someone among the candidates has an exact position (a preferida or a también): only then do the
- *  counts mean anything — a line alone (the old «Defensa») says nobody is «en su sitio». */
+/** Someone among the candidates has an exact OUTFIELD position (a preferida or a también): only then
+ *  do the counts mean anything — a line alone (the old «Defensa») says nobody is «en su sitio», and a
+ *  keeper's POR alone is what every old «Portero» parses to. */
 export function hasFitData(candidates: string[], sq: Squad): boolean {
   return candidates.some((id) => {
     const ps = sq.byId.get(id)?.ps;
-    return !!ps && (!!ps.main || ps.also.length > 0);
+    return !!ps && ((!!ps.main && ps.main !== "POR") || ps.also.length > 0);
   });
 }
 

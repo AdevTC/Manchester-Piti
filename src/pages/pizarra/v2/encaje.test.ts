@@ -1,8 +1,9 @@
 // El encaje: the exact code of each slot, how well a player fits it, and the best seven a squad can put
 // on each system (an exact assignment, the keeper's slot only to a declared keeper).
 import { describe, expect, it } from "vitest";
+import { systemDef } from "../../../lib/formations";
 import type { PosCode, ResolvedPositions } from "../../../lib/positions";
-import { lineOf } from "../../../lib/positions";
+import { lineOf, POSITIONS } from "../../../lib/positions";
 import { assign, bestEncaje, boardInPlace, encajeBySystem, encajeCandidates, faltaTxt, fitAt, hasFitData, slotCode } from "./encaje";
 import { SYSTEMS } from "./geometry";
 import { cromo, lineupOf, squadOf } from "./testkit";
@@ -28,6 +29,17 @@ describe("slotCode", () => {
     // an outfield slot dragged onto our goal is never the keeper's
     const g = { ...L, slots: L.slots.map((s, i) => (i === 1 ? { ...s, x: 50, y: 95 } : s)) };
     expect(slotCode(g, 1)).toBe("LIB");
+  });
+
+  it("free mode: the nearest code on the board's own line for the slot (its depth band), so code and line agree", () => {
+    const base = lineupOf([], "2-3-1");
+    // x 14, v 60 is the MED band: the nearest overall is LI, the nearest midfielder MI
+    const wide = { ...base, freeMode: true, slots: base.slots.map((s, i) => (i === 3 ? { ...s, x: 14, y: 60 } : s)) };
+    expect(slotCode(wide, 3)).toBe("MI");
+    // the centre at v 65 is the DEF band: the nearest overall is MCD, the nearest defender DFC
+    const centre = { ...base, freeMode: true, slots: base.slots.map((s, i) => (i === 3 ? { ...s, x: 50, y: 65 } : s)) };
+    expect(slotCode(centre, 3)).toBe("DFC");
+    expect(lineOf(slotCode(centre, 3))).toBe("DEF");
   });
 });
 
@@ -61,6 +73,14 @@ describe("fitAt", () => {
     expect(fitAt(L, sq, "gk", 0)).toBe(3);
     expect(fitAt(L, sq, "pref", 0)).toBe(0);
     expect(fitAt(L, sq, "gk", 4)).toBe(0);
+  });
+
+  it("a keeper known only by his line is in his place in goal, and fuera anywhere else", () => {
+    const s = squadOf([cromo("lgk", 1, "POR"), cromo("ldef", 2, "DEF")]);
+    const G = lineupOf([], "2-3-1", s);
+    expect(fitAt(G, s, "lgk", 0)).toBe(2);
+    expect(fitAt(G, s, "lgk", 1)).toBe(0);
+    expect(fitAt(G, s, "ldef", 0)).toBe(0);
   });
 
   it("a per-board «Jugar de» (a zone) counts as también on its line and fuera elsewhere", () => {
@@ -135,6 +155,67 @@ describe("bestEncaje", () => {
     expect(e.ids).toEqual(["k1", null, null, null, null, null, null]);
     expect(e.inPlace).toBe(1);
   });
+
+  it("a player known only by his line: on his line no grade (as his cromo), off it fuera", () => {
+    // a declared keeper and six midfielders known only as «Medio»: 2-3-1 puts three of them on the
+    // interiores/mediocentro (unknown, never «missing») and three off their line (fuera)
+    const s = squadOf([withPs("k", 1, "POR"), ...Array.from({ length: 6 }, (_, i) => cromo("m" + i, i + 2, "MED"))]);
+    const e = bestEncaje("2-3-1", s.list.map((c) => c.id), s);
+    expect(e.grades).toEqual([3, 0, 0, null, null, null, 0]);
+    expect(e.inPlace).toBe(1);
+    expect(e.missing).toEqual(["DFC", "DC"]);
+  });
+
+  it("a keeper known only by his line takes the goal (no grade, as his cromo)", () => {
+    const s = squadOf([cromo("x", 1, undefined), withPs("d", 2, "DFC"), cromo("lk", 3, "POR")]);
+    const e = bestEncaje("2-3-1", ["x", "d", "lk"], s);
+    expect(e.ids[0]).toBe("lk");
+    expect(e.grades[0]).toBeNull();
+    expect(e.missing).not.toContain("POR");
+  });
+
+  it("puts as many in their place as any assignment can (brute force on small random squads)", () => {
+    let seed = 11;
+    const rnd = (n: number) => {
+      seed = (seed * 48271) % 2147483647;
+      return Math.floor((seed / 2147483647) * n);
+    };
+    const LINES = ["POR", "DEF", "MED", "DEL"] as const;
+    const CODES = Object.keys(POSITIONS) as PosCode[];
+    for (let t = 0; t < 60; t++) {
+      const n = 1 + rnd(8);
+      const list = Array.from({ length: n }, (_, k) => {
+        const kind = rnd(4);
+        if (kind === 0) return cromo("p" + k, k + 1, undefined);
+        if (kind === 1) return cromo("p" + k, k + 1, LINES[rnd(4)]);
+        const main = rnd(5) ? CODES[rnd(CODES.length)] : null;
+        const also = [...new Set(Array.from({ length: rnd(3) }, () => CODES[rnd(CODES.length)]))].filter((c) => c !== main);
+        return withPs("p" + k, k + 1, main, ...also);
+      });
+      const s = squadOf(list);
+      const ids = list.map((c) => c.id);
+      for (const sys of SYSTEMS) {
+        const codes = systemDef(sys).spots.map((x) => x[0]);
+        // in place = an exact preferida/también there (a line alone never is)
+        const ok = (id: string, code: PosCode) => {
+          const p = s.byId.get(id)?.ps;
+          return !!p && (p.main === code || p.also.includes(code));
+        };
+        const best = (r: number, used: Set<string>): number => {
+          if (r === codes.length) return 0;
+          let m = best(r + 1, used); // nobody in place here
+          for (const id of ids)
+            if (!used.has(id) && ok(id, codes[r])) {
+              used.add(id);
+              m = Math.max(m, 1 + best(r + 1, used));
+              used.delete(id);
+            }
+          return m;
+        };
+        expect(bestEncaje(sys, ids, s).inPlace, sys + " #" + t).toBe(best(0, new Set()));
+      }
+    }
+  });
 });
 
 describe("assign (the Hungarian algorithm)", () => {
@@ -186,6 +267,12 @@ describe("the Sistema panel's words", () => {
     expect(hasFitData(["b"], sq)).toBe(true);
     expect(hasFitData(["l", "n", "ghost"], sq)).toBe(false);
     expect(hasFitData([], sq)).toBe(false);
+  });
+
+  it("hasFitData: a keeper's POR alone is not data (every old «Portero» parses to it)", () => {
+    const sq = squadOf([withPs("k", 1, "POR"), withPs("lp", 2, null), cromo("l", 3, "DEF"), withPs("kd", 4, "POR", "DFC")]);
+    expect(hasFitData(["k", "lp", "l"], sq)).toBe(false);
+    expect(hasFitData(["k", "kd"], sq)).toBe(true);
   });
 
   it("faltaTxt: Spanish names, «un» for all, «y» before the last, Falta / Faltan", () => {
