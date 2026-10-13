@@ -5,13 +5,20 @@
 // Firestore payload, and the CSV export. Router-, React- and Firebase-free.
 import { isDorsalTaken } from "../../../lib/dorsalValidation";
 import { playerName } from "../../../lib/clubData";
-import { LINE_NAMES, isLine, parsePosition, resolvePositions } from "../../../lib/positions";
+import { LINE_NAMES, isLine, lineOf, parsePosition, resolvePositions, sanitizePositions } from "../../../lib/positions";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 
 export const POSITIONS = ["POR", "DEF", "MED", "DEL"] as const;
 export type Position = (typeof POSITIONS)[number];
 export const POS_LABEL: Record<Position, string> = { POR: LINE_NAMES.POR.short, DEF: LINE_NAMES.DEF.short, MED: LINE_NAMES.MED.short, DEL: LINE_NAMES.DEL.short };
 export const asPosition = (v: unknown): Position | "" => (isLine(v) ? v : parsePosition(v).line) ?? "";
+
+/** What the line picker writes: the line, and — if his exact main position sits in another line — the main cleared
+ *  (his «also» kept) so `positions` never contradicts the line just chosen. */
+export function linePickPayload(doc: Pick<PlayerDoc, "positions">, line: Position): Pick<PlayerDoc, "naturalPosition" | "positions"> {
+  const set = sanitizePositions(doc.positions);
+  return set?.main && lineOf(set.main) !== line ? { naturalPosition: line, positions: { main: null, also: set.also } } : { naturalPosition: line };
+}
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);

@@ -9,10 +9,9 @@ import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useSeason } from "../../context/SeasonContext";
 import { nextFixture, playerForSeason, playerName, useClubData } from "../../lib/clubData";
-import { positionText } from "../../lib/positions";
 import { currentSeasonId, kickoffLabel } from "../../lib/vestuario";
 import { apiError, cancelAccessRequest, doorShirts, inviteInfo, joinWithInvite, requestAccess, type Who } from "../../lib/clubApi";
-import { doorStep, inviteCodeFrom, shirtsToPick } from "../../lib/door";
+import { doorPositionCode, doorStep, inviteCodeFrom, shirtsToPick } from "../../lib/door";
 import { endWelcome, startWelcome, useWelcome, walkOut } from "../../lib/doorWelcome";
 import { onDoorNotice, takeDoorNotice } from "../../lib/doorNotice";
 import { pushState, savedTopics, toggleTopic } from "../../lib/push";
@@ -43,7 +42,7 @@ export function useSeasonSquad() {
     .map((raw) => {
       const p = playerForSeason(raw, seasonId, seasons);
       // Printed like on the shirt: upper case.
-      return { id: p.id, name: playerName(p).toUpperCase(), num: p.number != null ? String(p.number) : "", position: positionText(p), first: p.firstName, last: p.lastName };
+      return { id: p.id, name: playerName(p).toUpperCase(), num: p.number != null ? String(p.number) : "", position: doorPositionCode(p), first: p.firstName, last: p.lastName };
     });
   return { next, squad };
 }

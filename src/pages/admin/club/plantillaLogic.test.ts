@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolvePositions } from "../../../lib/positions";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import {
   bajaPayload,
@@ -11,6 +12,7 @@ import {
   filterRows,
   formDirty,
   formFromPlayer,
+  linePickPayload,
   linkState,
   perchaOf,
   plantillaRows,
@@ -232,5 +234,19 @@ describe("plantillaRows reads positions through the resolver", () => {
     const rs = plantillaRows([P("w", 2, "W", { naturalPosition: "Portero" }), P("n", 3, "N", { naturalPosition: undefined, positions: { main: "MI", also: [] } })], seasons, "t1");
     expect(rs.find((r) => r.id === "w")?.position).toBe("POR");
     expect(rs.find((r) => r.id === "n")?.position).toBe("MED");
+  });
+});
+
+describe("linePickPayload", () => {
+  it("writes only the line unless his main position contradicts it", () => {
+    expect(linePickPayload({}, "DEF")).toEqual({ naturalPosition: "DEF" });
+    expect(linePickPayload({ positions: { main: "LD", also: ["MD"] } }, "DEF")).toEqual({ naturalPosition: "DEF" });
+    expect(linePickPayload({ positions: { main: "LD", also: ["MD"] } }, "MED")).toEqual({ naturalPosition: "MED", positions: { main: null, also: ["MD"] } });
+    expect(linePickPayload({ positions: { main: null, also: ["MD"] } }, "DEL")).toEqual({ naturalPosition: "DEL" });
+  });
+  it("the line the picker wrote then wins when read back", () => {
+    const doc: PlayerDoc = { id: "x", positions: { main: "LD", also: ["MD"] } };
+    const after = { ...doc, ...linePickPayload(doc, "MED") };
+    expect(resolvePositions(after)).toMatchObject({ main: null, also: ["MD"], line: "MED" });
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doorStep, inviteCodeFrom, inviteUrl, shirtsToPick, type DoorInput } from "./door";
+import { doorPositionCode, doorStep, inviteCodeFrom, inviteUrl, shirtsToPick, type DoorInput } from "./door";
 
 const base: DoorInput = { signedIn: false, member: false, hasProfile: false, request: null, invite: null, choosing: false };
 const valid = { state: "valid" as const, by: "capitan", expiresAt: 1, playerId: null, playerName: null };
@@ -51,5 +51,16 @@ describe("¿Quién eres?", () => {
     expect(shirts.map((s) => `${s.num}${s.taken ? "x" : ""}`)).toEqual(["10", "11", "9x"]);
     expect(suggestion?.id).toBe("a");
     expect(shirtsToPick([{ id: "e", name: "ERIK", num: "9" }], new Set(["e"]), "Erik").suggestion).toBeNull();
+  });
+});
+
+describe("doorPositionCode", () => {
+  it("is the code the badge prints: exact position, else line, else nothing", () => {
+    expect(doorPositionCode({ naturalPosition: "Centrocampista" })).toBe("MED");
+    expect(doorPositionCode({ naturalPosition: "MED" })).toBe("MED");
+    expect(doorPositionCode({ positions: { main: "LD", also: [] } })).toBe("LD");
+    expect(doorPositionCode({ positions: { main: "MCD", also: [] } })).toBe("MCD");
+    expect(doorPositionCode({ naturalPosition: "Portero" })).toBe("POR");
+    expect(doorPositionCode({})).toBeUndefined();
   });
 });

@@ -38,7 +38,7 @@ import {
   type BoardFilter,
   type BoardRow,
 } from "../club/plantillaBoard";
-import { bajaPayload, csvFileName, filterRows, nameIn, numberIn, playerPayload, plantillaRows, previewDoc, rosterCsv, seasonCode, type PlayerForm, type Position } from "../club/plantillaLogic";
+import { bajaPayload, csvFileName, filterRows, linePickPayload, nameIn, numberIn, playerPayload, plantillaRows, previewDoc, rosterCsv, seasonCode, type PlayerForm, type Position } from "../club/plantillaLogic";
 import { liftedDoc, liftWrite, sanctionedDoc, sanctionStatus, sanctionToast, sanctionWrite, seasonSuspensions, upcomingFor, type SanctionChoice } from "../club/sanctionLogic";
 import { useClubWrites } from "../club/useClubWrites";
 import { useAuth } from "../../../context/AuthContext";
@@ -235,13 +235,14 @@ export function Plantilla() {
   // ── quick edits: the line (from the list or the ficha) and Activo / Lesionado ──
   const setLine = (target: BoardRow, p: Position) => {
     if (target.position === p) return;
-    const docs: Pending = { [target.id]: { ...target.doc, naturalPosition: p } };
+    const write = linePickPayload(target.doc, p);
+    const docs: Pending = { [target.id]: { ...target.doc, ...write } };
     reflow(() => setPending((s) => ({ ...s, ...docs })), [target.id]);
     const done = settle(docs);
     toast.defer({
       tag: "LÍNEA",
       message: `${target.name} pasa ${LINE_TO[p]}`,
-      commit: () => writes.savePlayer(target.id, { naturalPosition: p }),
+      commit: () => writes.savePlayer(target.id, write),
       onUndo: () => reflow(done, [target.id]),
       onError: done,
       onDone: done,

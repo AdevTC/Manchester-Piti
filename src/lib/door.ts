@@ -1,6 +1,7 @@
 // The vestuario door on the client: which screen a visitor sees (from their account, membership,
 // request and the invitation in the link), the invitation code in the URL, and the shirts they can
 // pick in «¿Quién eres?». Pure; the screens live in pages/acceso.
+import { resolvePositions } from "./positions";
 import { suggestFicha } from "./vestuario";
 import type { DoorRequest } from "../context/TeamContext";
 import type { InviteInfo } from "./clubApi";
@@ -35,6 +36,12 @@ export function inviteCodeFrom(pathname: string, search: string) {
   return /^[A-Z2-9]{10}$/.test(code) ? code : null;
 }
 export const inviteUrl = (origin: string, code: string) => `${origin}/invitacion/${code}`;
+
+/** The badge's code on a shirt: his exact position («LD», «MCD»), else his line («MED»); undefined if unknown. */
+export function doorPositionCode(doc: { positions?: unknown; naturalPosition?: unknown }): string | undefined {
+  const r = resolvePositions(doc);
+  return r.main ?? r.line ?? undefined;
+}
 
 export interface Shirt {
   id: string;
