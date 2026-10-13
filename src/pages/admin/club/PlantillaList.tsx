@@ -30,7 +30,10 @@ export interface PlantillaListProps {
 }
 
 const sub = (r: BoardRow, other: boolean, code: string, sanctioned: boolean) =>
-  other ? `fuera de la ${code}` : [r.injured ? "Lesionado" : "", sanctioned ? "Sancionado" : "", r.gaps.length ? `faltan ${r.gaps.length}` : "ficha completa"].filter(Boolean).join(" · ");
+  other
+    ? `fuera de la ${code}`
+    : // (next to a status, «faltan 5» could read as matches: it says what is missing)
+      [r.injured ? "Lesionado" : "", sanctioned ? "Sancionado" : "", r.gaps.length ? `faltan ${r.gaps.length}${r.injured || sanctioned ? " datos" : ""}` : "ficha completa"].filter(Boolean).join(" · ");
 
 export function PlantillaList({ groups, others, code, selectedId, still, onOpen, onLine, flying, boxRef, empty, quickLine, sanctioned }: PlantillaListProps) {
   const row = (r: BoardRow, other: boolean, quick: boolean) => {
