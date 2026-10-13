@@ -1,8 +1,8 @@
 // La pizarra «Noche de partido» — what the board knows about each player (a cromo) and the small
 // lineup helpers every other module shares. Pure (no React).
 import type { Lineup, RoleKey, Zone } from "../formations";
-import { normZone } from "../positions";
-import type { ResolvedPositions } from "../../../lib/positions";
+import { normPlaysAs } from "../positions";
+import { isPosCode, lineOf, type ResolvedPositions } from "../../../lib/positions";
 import { plural } from "./plural";
 import { inPlace, logicGrade } from "./encaje";
 
@@ -106,9 +106,12 @@ export const teamMinutes = (sq: Squad): number => sq.teamMin ?? sq.games * 50;
 export const pairKey = (a: string, b: string): string => (a < b ? a + "|" + b : b + "|" + a);
 export const pairOf = (sq: Squad, a: string, b: string): PairStats => sq.pairs.get(pairKey(a, b)) ?? { tog: 0, ast: 0, min: 0 };
 
-/** The position a player plays in this lineup: the per-board override, else his natural one. */
+/** The line a player plays in this lineup: the per-board override's (a «Jugar de» code reads as its
+ *  line), else his natural one. */
 export function natOf(L: Lineup, sq: Squad, id: string): Zone | undefined {
-  return normZone(L.playerPositions[id]) ?? sq.byId.get(id)?.pos;
+  const over = normPlaysAs(L.playerPositions[id]);
+  if (over) return isPosCode(over) ? lineOf(over) : over;
+  return sq.byId.get(id)?.pos;
 }
 
 /** Whether a player plays a zone as his natural one (an unknown position is NOT natural: the química

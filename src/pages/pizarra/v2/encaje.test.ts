@@ -91,6 +91,24 @@ describe("fitAt", () => {
     expect(fitAt(O, sq, "pref", 0)).toBe(2);
     expect(fitAt(O, sq, "pref", 4)).toBe(0);
   });
+
+  it("a per-board «Jugar de» by code: 2 at that code; elsewhere as if it were his preferida", () => {
+    // 2-3-1 = POR · DFC · DFC · MI · MC · MD · DC
+    const O = { ...L, playerPositions: { fuera: "MI" as const, linea: "MC" as const, gk: "MCD" as const, pref: "POR" as const } };
+    expect(fitAt(O, sq, "fuera", 3)).toBe(2);
+    expect(fitAt(O, sq, "fuera", 4)).toBe(1); // same line
+    expect(fitAt(O, sq, "fuera", 1)).toBe(0);
+    expect(fitAt(O, sq, "fuera", 6)).toBe(0); // his preferida no longer counts on this board
+    expect(fitAt(O, sq, "fuera", 0)).toBe(0);
+    expect(fitAt(O, sq, "gk", 1)).toBe(1); // MCD's neighbour
+    expect(fitAt(O, sq, "gk", 0)).toBe(0);
+    // a line-only player told to play a code: the code rules, not his line
+    expect(fitAt(O, sq, "linea", 4)).toBe(2);
+    expect(fitAt(O, sq, "linea", 5)).toBe(1);
+    expect(fitAt(O, sq, "linea", 6)).toBe(0);
+    expect(fitAt(O, sq, "pref", 0)).toBe(2);
+    expect(fitAt(O, sq, "pref", 4)).toBe(0);
+  });
 });
 
 describe("placeByWeight", () => {
@@ -299,6 +317,10 @@ describe("the Sistema panel's words", () => {
     const L = lineupOf(["k", "d", "x", "n", "m", null, null], "2-3-1", sq);
     expect(boardInPlace(L, sq)).toBe(3);
     expect(boardInPlace({ ...L, playerPositions: { x: "DEF" as const } }, sq)).toBe(4);
+    // by code: «DFC» puts x in his place there; «LD» only adapts him (same line), «MC» takes m out of his
+    expect(boardInPlace({ ...L, playerPositions: { x: "DFC" as const } }, sq)).toBe(4);
+    expect(boardInPlace({ ...L, playerPositions: { x: "LD" as const } }, sq)).toBe(3);
+    expect(boardInPlace({ ...L, playerPositions: { x: "DFC" as const, m: "MCO" as const } }, sq)).toBe(3);
     expect(boardInPlace(lineupOf([], "2-3-1", sq), sq)).toBe(0);
   });
 
@@ -352,6 +374,18 @@ describe("logicGrade", () => {
     expect(logicGrade(O, sq, "nada", 6)).toBe(2);
   });
 
+  it("a per-board «Jugar de» by code is fitAt's too: in place at that code, adapted on its line", () => {
+    const O = { ...L, playerPositions: { fuera: "MI" as const, linea: "MC" as const, nada: "DC" as const } };
+    expect(inPlace(logicGrade(O, sq, "fuera", 3))).toBe(true);
+    expect(adapted(logicGrade(O, sq, "fuera", 4))).toBe(true);
+    expect(out(logicGrade(O, sq, "fuera", 6))).toBe(true);
+    // a line-only MED told «MC»: no longer 3 anywhere on his line
+    expect(logicGrade(O, sq, "linea", 4)).toBe(2);
+    expect(logicGrade(O, sq, "linea", 3)).toBe(1);
+    expect(logicGrade(O, sq, "nada", 6)).toBe(2);
+    expect(logicGrade(O, sq, "nada", 4)).toBe(0);
+  });
+
   it("inPlace / adapted / out (null is none of them)", () => {
     const gs: (FitGrade | null)[] = [3, 2, 1, 0, null];
     expect(gs.map(inPlace)).toEqual([true, true, false, false, false]);
@@ -391,5 +425,7 @@ describe("homeName", () => {
     expect(homeName(L, sq, "linea")).toBe("defensa");
     expect(homeName(L, sq, "nada")).toBeNull();
     expect(homeName({ ...L, playerPositions: { pref: "MED" } }, sq, "pref")).toBe("centrocampista");
+    expect(homeName({ ...L, playerPositions: { pref: "MCD", linea: "LD" } }, sq, "pref")).toBe("pivote");
+    expect(homeName({ ...L, playerPositions: { pref: "MCD", linea: "LD" } }, sq, "linea")).toBe("lateral derecho");
   });
 });

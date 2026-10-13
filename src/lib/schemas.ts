@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { reportDroppedDoc } from "./docTelemetry";
 import { SYSTEM_IDS } from "./formations";
+import { POS_CODES } from "./positions";
 
 /**
  * Firestore Timestamp-ish (tiene toMillis) o Date o número epoch.
@@ -217,8 +218,10 @@ export const lineupRolesSchema = z.object({
   cornersId: lineupRef.optional(),
 });
 export const lineupTacticsSchema = z.record(z.string().max(LINEUP_LIMITS.tactic), z.string().max(LINEUP_LIMITS.tactic));
+/** What a «Jugar de» may hold: a position code (MCD…) or, as saved before them, a line (POR is both). */
+export const LINEUP_PLAYS_AS = [...POS_CODES, "DEF", "MED", "DEL"] as const;
 export const lineupPositionsSchema = z
-  .record(lineupRef, z.enum(LINEUP_ZONES))
+  .record(lineupRef, z.enum(LINEUP_PLAYS_AS))
   .refine((r) => Object.keys(r).length <= LINEUP_LIMITS.playerPositions, { message: "Demasiadas posiciones." });
 
 // ── Pizarra: el día de partido (cambios por tandas y lanzadores en orden) ──────

@@ -83,6 +83,27 @@ describe("the cromo prints the slot's exact position and how well he fits", () =
     expect(card(w, "cen")).toMatchObject({ fit: 0, oop: true, zoneTxt: "DEL›DFC" });
   });
 
+  it("a per-board «Jugar de» by code: in place at that code, adapted on its line, and printed by code when fuera", () => {
+    // SEVEN on 2-3-1: gk POR · cen DFC · tamb DFC · adap MI · fuera MC · linea MD · nada DC
+    const L = { ...lineupOf(SEVEN, "2-3-1", sq), playerPositions: { fuera: "MC" as const, adap: "MCO" as const, cen: "DC" as const, linea: "MI" as const } };
+    const w = view(L);
+    expect(card(w, "fuera")).toMatchObject({ fit: 2, oop: false, zoneTxt: "MC" });
+    expect(card(w, "adap")).toMatchObject({ fit: 1, oop: false, zoneTxt: "MI" });
+    expect(card(w, "linea")).toMatchObject({ fit: 1, oop: false, zoneTxt: "MD" });
+    expect(card(w, "cen")).toMatchObject({ fit: 0, oop: true, zoneTxt: "DC›DFC" });
+    expect(card(w, "cen").aria).toContain("(natural DC)");
+    // the química says the same: cen fuera at DFC (a punta), adap and linea adapted
+    const ch = chem(L, sq);
+    expect(ch.off).toEqual(
+      expect.arrayContaining([
+        { name: "CEN", out: true, at: "DFC", from: "punta" },
+        { name: "ADAP", out: false, at: "MI", from: "mediapunta" },
+        { name: "LINEA", out: false, at: "MD", from: "interior izquierdo" },
+      ]),
+    );
+    expect(ch.off.map((o) => o.name)).not.toContain("FUERA");
+  });
+
   it("free mode prints the nearest catalogue position", () => {
     const base = lineupOf(SEVEN, "2-3-1", sq);
     const L = { ...base, freeMode: true, slots: base.slots.map((s, i) => (i === 2 ? { ...s, x: 14, y: 70 } : s)) };

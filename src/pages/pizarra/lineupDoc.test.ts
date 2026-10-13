@@ -30,6 +30,21 @@ describe("lineup document: drawings and jugadas", () => {
     expect(back.plays).toEqual(lineup.plays);
   });
 
+  it("«Jugar de»: round-trips position codes and still loads the lines saved before them", () => {
+    const lineup = seedLineup("2-3-1", ["a", "b", "c"]);
+    lineup.playerPositions = { a: "MCD", b: "DEF", c: "POR" };
+    const back = extractLineup(dataToLineupDoc("x", json(lineupToData(lineup, meta))));
+    expect(back.playerPositions).toEqual({ a: "MCD", b: "DEF", c: "POR" });
+    const old = json(lineupToData(seedLineup("2-3-1", ["a"]), meta));
+    old.playerPositions = { a: "MED", b: "DEL" };
+    expect(dataToLineupDoc("x", old).playerPositions).toEqual({ a: "MED", b: "DEL" });
+    // over 60 entries, or an unknown value, is repaired to none
+    old.playerPositions = { a: "MCX" };
+    expect(dataToLineupDoc("x", old).playerPositions).toEqual({});
+    old.playerPositions = Object.fromEntries(Array.from({ length: 61 }, (_, k) => ["p" + k, "MC"]));
+    expect(dataToLineupDoc("x", old).playerPositions).toEqual({});
+  });
+
   it("keeps the board when one stroke or jugada is corrupt", () => {
     const data = json(lineupToData(seedLineup("2-3-1", ["a"]), meta));
     data.drawings = [{ id: "k", kind: "pase", color: "rojo", points: [] }, { id: "k2", kind: "lapiz", color: "sky", points: [{ x: 1, y: 1 }, { x: 9, y: 9 }] }];

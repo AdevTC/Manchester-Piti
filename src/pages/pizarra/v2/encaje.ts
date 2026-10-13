@@ -1,9 +1,9 @@
 // La pizarra «Noche de partido» — el encaje: the exact position of each slot, how well a player fits
 // it (positions.fitGrade), and the best seven a squad can put on a system. Pure (no React).
 import { systemDef } from "../../../lib/formations";
-import { fitGrade, LINE_NAMES, POS_CODES, POSITIONS, type FitGrade, type PosCode } from "../../../lib/positions";
+import { fitGrade, isPosCode, LINE_NAMES, POS_CODES, POSITIONS, type FitGrade, type PosCode } from "../../../lib/positions";
 import type { FormationName, Lineup } from "../formations";
-import { normZone } from "../positions";
+import { normPlaysAs } from "../positions";
 import { planeDist2, slotZone, SYSTEMS } from "./geometry";
 import type { Cromo, Squad } from "./model";
 
@@ -44,12 +44,18 @@ function gradeOf(c: Cromo | undefined, code: PosCode): { raw: FitGrade | null; s
 }
 
 /** How well a player fits slot i of this lineup: 3 preferida · 2 también · 1 adaptado · 0 fuera ·
- *  null sin datos. A per-board «Jugar de» (a line) counts as también on that line and fuera elsewhere.
+ *  null sin datos. A per-board «Jugar de» by code is también at that code and, elsewhere, judged as if
+ *  it were his only position (his line or a neighbour adapted, else fuera); a legacy «Jugar de» line
+ *  counts as también on that line and fuera elsewhere.
  *  What is only known as a line is compared with the board's own line for the slot (slotZone: in free
  *  mode its depth bands, which near the middle are not the nearest code's line). */
 export function fitAt(L: Lineup, sq: Squad, id: string, i: number): FitGrade | null {
   const zone = slotZone(L, i);
-  const over = normZone(L.playerPositions[id]);
+  const over = normPlaysAs(L.playerPositions[id]);
+  if (over && isPosCode(over)) {
+    const code = slotCode(L, i);
+    return over === code ? 2 : fitGrade({ main: over, also: [] }, code);
+  }
   if (over) return over === zone ? 2 : 0;
   const c = sq.byId.get(id);
   if (!c) return null;
@@ -68,7 +74,7 @@ export function fitAt(L: Lineup, sq: Squad, id: string, i: number): FitGrade | n
 export function shownFit(L: Lineup, sq: Squad, id: string, i: number): FitGrade | null {
   const g = fitAt(L, sq, id, i);
   if (g == null || g === 0) return g;
-  return normZone(L.playerPositions[id]) || exactOf(sq.byId.get(id)) ? g : null;
+  return normPlaysAs(L.playerPositions[id]) || exactOf(sq.byId.get(id)) ? g : null;
 }
 
 /** The grade the board's logic reasons with (química, diamonds, «siete listo»), consistent with the
@@ -77,7 +83,7 @@ export function shownFit(L: Lineup, sq: Squad, id: string, i: number): FitGrade 
  *  rewarded, never penalised). For a squad known only by lines this is exactly the old natural/fits. */
 export function logicGrade(L: Lineup, sq: Squad, id: string, i: number): FitGrade | null {
   const c = sq.byId.get(id);
-  if (normZone(L.playerPositions[id]) || exactOf(c)) return fitAt(L, sq, id, i);
+  if (normPlaysAs(L.playerPositions[id]) || exactOf(c)) return fitAt(L, sq, id, i);
   const line = c ? resolved(c).line : null;
   if (!line) return null;
   return line === slotZone(L, i) ? 3 : 0;
@@ -90,11 +96,12 @@ export const adapted = (g: FitGrade | null): boolean => g === 1;
 /** Out of his place. Unknown is not. */
 export const out = (g: FitGrade | null): boolean => g === 0;
 
-/** Where a player is at home, lower-cased for a sentence: a per-board «Jugar de» line, his preferida,
- *  his first también, else his line («punta», «interior izquierdo», «defensa»); null without data. */
+/** Where a player is at home, lower-cased for a sentence: a per-board «Jugar de» (a code or a line),
+ *  his preferida, his first también, else his line («punta», «interior izquierdo», «defensa»); null
+ *  without data. */
 export function homeName(L: Lineup, sq: Squad, id: string): string | null {
-  const over = normZone(L.playerPositions[id]);
-  if (over) return LINE_NAMES[over].name.toLowerCase();
+  const over = normPlaysAs(L.playerPositions[id]);
+  if (over) return (isPosCode(over) ? POSITIONS[over].name : LINE_NAMES[over].name).toLowerCase();
   const c = sq.byId.get(id);
   if (!c) return null;
   const ps = resolved(c);
@@ -228,7 +235,7 @@ export function placeByWeight(slots: number, ids: readonly string[], weight: (i:
 }
 
 /** How many of the board's own seven are in their place (fitAt ≥ 2: preferida, también or a «Jugar de»
- *  on the slot's line). */
+ *  at the slot's code, or a legacy one on the slot's line). */
 export function boardInPlace(L: Lineup, sq: Squad): number {
   return L.slots.reduce((n, s, i) => {
     const x = s.playerId ? fitAt(L, sq, s.playerId, i) : null;

@@ -108,6 +108,21 @@ describe("systems and free mode", () => {
     expect(a.playerPositions.tello).toBe("MED");
     expect(setPlaysAs(a, sq, "tello", "DEF").playerPositions.tello).toBeUndefined();
   });
+  it("«Jugar de» by code: a line-only player keeps any code (only his own line clears it); natOf reads its line", () => {
+    const a = setPlaysAs(L, sq, "tello", "DFC");
+    expect(a.playerPositions.tello).toBe("DFC");
+    expect(natOf(a, sq, "tello")).toBe("DEF");
+    expect(natOf(setPlaysAs(L, sq, "tello", "MCD"), sq, "tello")).toBe("MED");
+    expect(setPlaysAs(a, sq, "tello", "DEF").playerPositions.tello).toBeUndefined();
+  });
+  it("«Jugar de» by code: an exact player's preferida clears it, anything else is kept", () => {
+    const ex = squadOf([cromo("rodri", 16, "MED", { ps: { main: "MCD", also: ["MC"], line: "MED" } })]);
+    const B = lineupOf(["rodri"], "2-3-1", ex);
+    const a = setPlaysAs(B, ex, "rodri", "MC");
+    expect(a.playerPositions.rodri).toBe("MC");
+    expect(setPlaysAs(a, ex, "rodri", "MCD").playerPositions).toEqual({});
+    expect(setPlaysAs(B, ex, "rodri", "MCD")).toEqual(B);
+  });
 });
 
 describe("Auto-colocar", () => {
@@ -260,14 +275,19 @@ describe("the long-press fan", () => {
     const again = applyFan(fanItems(o.lineup, sq, "tello", false)[0], o.lineup, sq, "tello");
     expect(again.kind === "lineup" && again.lineup.roles.captainId).toBeUndefined();
   });
-  it("Jugar de opens the zones; a zone sets the override; Banquillo leaves the slot picked", () => {
+  it("Jugar de opens the codes of his line in this system; a code sets the override; Banquillo leaves the slot picked", () => {
     const main = fanItems(L, sq, "tello", false);
     expect(applyFan(main[4], L, sq, "tello")).toEqual({ kind: "sub", sub: true });
+    // tello is in a DFC slot of 2-3-1: its DEF line is DFC · DFC (once), then the rest, then back
     const sub = fanItems(L, sq, "tello", true);
-    expect(sub.map((i) => i.label)).toEqual(["POR", "DEF", "MED", "DEL", "Volver"]);
-    expect(sub[1].on).toBe(true);
-    const med = applyFan(sub[2], L, sq, "tello");
-    expect(med.kind === "lineup" && med.lineup.playerPositions.tello).toBe("MED");
+    expect(sub.map((i) => i.label)).toEqual(["Central", "Otra posición…", "Volver"]);
+    expect(sub[0]).toMatchObject({ kind: "code", code: "DFC", glyph: "DFC", aria: "TELLO juega de central (DFC)", on: false });
+    const dfc = applyFan(sub[0], L, sq, "tello");
+    expect(dfc).toMatchObject({ kind: "lineup", toast: "TELLO juega de central (DFC) en este siete" });
+    expect(dfc.kind === "lineup" && dfc.lineup.playerPositions.tello).toBe("DFC");
+    if (dfc.kind === "lineup") expect(fanItems(dfc.lineup, sq, "tello", true)[0].on).toBe(true);
+    expect(applyFan(sub[1], L, sq, "tello")).toEqual({ kind: "sub", sub: "otra" });
+    expect(applyFan(sub[2], L, sq, "tello")).toEqual({ kind: "sub", sub: false });
     const bench = applyFan(main[5], L, sq, "tello");
     expect(bench).toMatchObject({ kind: "lineup", pick: 2 });
     expect(bench.kind === "lineup" && bench.lineup.slots[2].playerId).toBeNull();
@@ -275,6 +295,32 @@ describe("the long-press fan", () => {
     expect(applyFan(main[6], L, sq, "tello")).toEqual({ kind: "mover" });
     expect(main[6].aria).toBe("Mover a TELLO a otro puesto: elegir de una lista");
     expect(applyFan(main[7], L, sq, "tello")).toEqual({ kind: "ficha" });
+  });
+  it("Jugar de: his slot's code first, then the rest of its line in this system; his preferida is on", () => {
+    const ex = squadOf([...sq.list, cromo("rodri", 16, "MED", { ps: { main: "MC", also: [], line: "MED" } })]);
+    // 2-3-1 = POR · DFC · DFC · MI · MC · MD · DC: rodri in MD
+    const B = lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "rodri", "adrian"], "2-3-1", ex);
+    const sub = fanItems(B, ex, "rodri", true);
+    expect(sub.map((i) => i.code ?? i.kind)).toEqual(["MD", "MI", "MC", "otra", "volver"]);
+    expect(sub.filter((i) => i.on).map((i) => i.code)).toEqual(["MC"]);
+    // a legacy line override: none of the codes is on
+    expect(fanItems({ ...B, playerPositions: { rodri: "DEL" } }, ex, "rodri", true).some((i) => i.on)).toBe(false);
+    // the keeper's slot: only POR
+    expect(fanItems(B, ex, "evans", true).map((i) => i.code ?? i.kind)).toEqual(["POR", "otra", "volver"]);
+    // choosing his preferida clears the override
+    const O = { ...B, playerPositions: { rodri: "MI" as const } };
+    const mc = applyFan(sub[2], O, ex, "rodri");
+    expect(mc.kind === "lineup" && mc.lineup.playerPositions).toEqual({});
+  });
+  it("«Otra posición…»: all 13 codes grouped by line, «MCD · Pivote», back to Jugar de", () => {
+    const all = fanItems(L, sq, "tello", "otra");
+    expect(all).toHaveLength(14);
+    expect(all.slice(0, 13).map((i) => i.code)).toEqual(["POR", "DFC", "LIB", "LI", "LD", "MCD", "MC", "MI", "MD", "MCO", "EI", "ED", "DC"]);
+    expect([...new Set(all.slice(0, 13).map((i) => i.group))]).toEqual(["Porteros", "Defensas", "Medios", "Delanteros"]);
+    expect(all[5]).toMatchObject({ kind: "code", label: "MCD · Pivote", aria: "TELLO juega de pivote (MCD)" });
+    expect(applyFan(all[13], L, sq, "tello")).toEqual({ kind: "sub", sub: true });
+    const piv = applyFan(all[5], L, sq, "tello");
+    expect(piv.kind === "lineup" && piv.lineup.playerPositions.tello).toBe("MCD");
   });
   it("keeps its centre inside the app screen", () => {
     expect(fanCentre(10, 10, 390, 844)).toEqual({ cx: 118, cy: 150 });

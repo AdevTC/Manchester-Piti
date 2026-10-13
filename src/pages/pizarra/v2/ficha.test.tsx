@@ -67,6 +67,11 @@ describe("la ficha", () => {
     expect(fichaOf(args("nadie"))).toBeNull();
   });
 
+  it("a «Jugar de» by code is said with its code and name", () => {
+    const f = fichaOf(args("tello", { L: { ...L, playerPositions: { tello: "MCD" } } }))!;
+    expect(f.facts?.find((x) => x.k === "Posición")?.v).toBe("Juega de pivote (MCD) · natural DEF");
+  });
+
   it("a sanctioned player off the pitch: how many matches are left and why", () => {
     const sqS = { ...sq, byId: new Map(sq.byId) };
     sqS.byId.set("kevin", { ...sq.byId.get("kevin")!, baja: "Sancionado", sancion: { left: 2, reason: "Federación" } });

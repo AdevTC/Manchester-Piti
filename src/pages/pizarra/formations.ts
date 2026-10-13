@@ -9,7 +9,7 @@
 // position when the formation changes (the morph).
 
 import { SYSTEMS_CATALOGUE, SYSTEM_IDS, type FormationName } from "../../lib/formations";
-import { LINE_NAMES, LINES, lineOf, type Line } from "../../lib/positions";
+import { LINE_NAMES, LINES, lineOf, type Line, type PosCode } from "../../lib/positions";
 import type { Play, Stroke } from "../../lib/schemas";
 import type { CondRule, ShapeOff, StyleId } from "../../lib/tacticaSchemas";
 import type { Tactics } from "./tactics";
@@ -19,6 +19,8 @@ export type { FormationName };
 export const FORMATION_NAMES: FormationName[] = [...SYSTEM_IDS];
 /** Vertical zone of a slot/player (= the position's line). */
 export type Zone = Line;
+/** A per-board «Jugar de»: a position code, or a line (as saved before codes; POR is both). */
+export type PlaysAs = PosCode | Zone;
 
 /** A position in a preset: a Spanish role label, its zone, and pitch spot. */
 export interface SlotDef {
@@ -67,8 +69,9 @@ export interface Lineup {
   bench: string[];
   roles: Roles;
   tactics: Tactics;
-  /** Per-lineup position override (beats the player's natural position). */
-  playerPositions: Record<string, Zone>;
+  /** Per-lineup position override, «Jugar de» (beats the player's natural position): a code, or a
+   *  line as saved before codes. */
+  playerPositions: Record<string, PlaysAs>;
   /** Players pinned to their slot (immune to formation change / Auto-XI). */
   pinned: string[];
   /** Cambios por tandas: who leaves for whom, and when (≤ 20; see v2/cambios.ts). */

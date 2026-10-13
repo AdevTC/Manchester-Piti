@@ -9,7 +9,7 @@ import { defaultTactics } from "../tactics";
 import { CAMS, depthScale, framePath, lineDepth, PRESS_BAND, proj, slotPos, slotZone, type CamName } from "./geometry";
 import { formAria, galonesOf, natOf, rtTxt, type Squad } from "./model";
 import type { FitGrade } from "../../../lib/positions";
-import { normZone } from "../positions";
+import { normPlaysAs } from "../positions";
 import { shownFit, slotCode } from "./encaje";
 
 import { reelFor } from "./pack";
@@ -167,10 +167,10 @@ export const FIT_GLYPH: Record<FitGrade, string> = { 3: "", 2: "✓", 1: "~", 0:
 /** The fit in words (the mark's and the cromo's accessible text). */
 export const FIT_WORDS: Record<FitGrade, string> = { 3: "en su posición", 2: "también juega aquí", 1: "adaptado", 0: "fuera de su posición" };
 
-/** What a player is, as his cromo prints it when out of place: the board's «Jugar de», else his
- *  preferida, else his line. */
+/** What a player is, as his cromo prints it when out of place: the board's «Jugar de» (its code, or a
+ *  legacy line), else his preferida, else his line. */
 export function natTxtOf(L: Lineup, sq: Squad, id: string): string | undefined {
-  return normZone(L.playerPositions[id]) ?? sq.byId.get(id)?.ps?.main ?? natOf(L, sq, id);
+  return normPlaysAs(L.playerPositions[id]) ?? sq.byId.get(id)?.ps?.main ?? natOf(L, sq, id);
 }
 
 export function pitchView({ L, sq, ch, cam, modo, fx, selId, hand = null, pick, ro, rm, meId, mini = modo === "quimica", present }: PitchArgs): PitchView {

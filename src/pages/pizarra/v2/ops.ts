@@ -1,7 +1,7 @@
 // La pizarra «Noche de partido» — every change the board makes to a lineup, as pure functions over the
 // stored Lineup (formations.ts) built on lineupOps. No React. The design's slot table (geometry.ts FORM)
 // places the cromos; free mode keeps each slot's own spot in slots[i].x/y.
-import { applyFormation, type FormationName, type Lineup, type RoleKey, type Zone } from "../formations";
+import { applyFormation, type FormationName, type Lineup, type PlaysAs, type RoleKey } from "../formations";
 import { placeIntoSlot, sendToBench, swapPlayers, XI } from "../lineupOps";
 import { defaultTactics } from "../tactics";
 import { DEF_LINE_VALUES, planeDist2, slotPos, slotZone, SYSTEMS } from "./geometry";
@@ -143,11 +143,13 @@ export function toggleRole(L: Lineup, key: RoleKey, id: string): Lineup {
   return { ...L, roles };
 }
 
-/** «Jugar de»: a per-board position; choosing his natural one clears the override. */
-export function setPlaysAs(L: Lineup, sq: Squad, id: string, zone: Zone): Lineup {
+/** «Jugar de»: a per-board position (a code, or a legacy line); choosing where he is at home clears
+ *  the override — his preferida, or for a player known only by his line, that line. */
+export function setPlaysAs(L: Lineup, sq: Squad, id: string, to: PlaysAs): Lineup {
+  const c = sq.byId.get(id);
   const playerPositions = { ...L.playerPositions };
-  if (sq.byId.get(id)?.pos === zone) delete playerPositions[id];
-  else playerPositions[id] = zone;
+  if ((c?.ps?.main ?? c?.pos) === to) delete playerPositions[id];
+  else playerPositions[id] = to;
   return { ...L, playerPositions };
 }
 

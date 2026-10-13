@@ -4,7 +4,8 @@
 // the team's; where he plays («Jugar de») and his natural line; the galones he wears; whether he goes to
 // the board's match; and his química links in this seven. Pure.
 import type { Lineup } from "../formations";
-import { normZone } from "../positions";
+import { normPlaysAs } from "../positions";
+import { isPosCode, POSITIONS } from "../../../lib/positions";
 import { availTxt, type CharlaMatch } from "./charla";
 import { slotLabel } from "./geometry";
 import { bajaWords, galonesOf, rtTxt, type FormGame, type Squad } from "./model";
@@ -71,8 +72,10 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
   const teamMin = sq.list.reduce((s, c) => s + c.stats.minutes, 0) / 7;
   if (p.stats.minutes > 0 && teamMin > 0) facts.push({ k: "Minutos", v: p.stats.minutes + "′ · " + Math.min(100, Math.round((p.stats.minutes / teamMin) * 100)) + " % del equipo" });
   else facts.push({ k: "Minutos", v: "Aún sin minutos" });
-  const jugar = normZone(L.playerPositions[id]);
-  facts.push({ k: "Posición", v: jugar && jugar !== p.pos ? "Juega de " + jugar + (p.pos ? " · natural " + p.pos : "") : p.pos ? p.pos + " natural" : "Sin posición natural" });
+  const jugar = normPlaysAs(L.playerPositions[id]);
+  // (a code is said with its name: «Juega de pivote (MCD)»; a legacy line as it was: «Juega de MED»)
+  const jugarTxt = jugar && isPosCode(jugar) ? POSITIONS[jugar].name.toLowerCase() + " (" + jugar + ")" : jugar;
+  facts.push({ k: "Posición", v: jugar && jugar !== p.pos ? "Juega de " + jugarTxt + (p.pos ? " · natural " + p.pos : "") : p.pos ? p.pos + " natural" : "Sin posición natural" });
   const gal = galonesOf(L, id);
   facts.push({ k: "Galones", v: gal.length ? gal.map((g) => g.label).join(" · ") : "Ninguno" });
   if (match) {
