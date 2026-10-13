@@ -154,3 +154,10 @@ export function positionText(doc: { positions?: unknown; naturalPosition?: unkno
   const r = resolvePositions(doc);
   return r.main ? POSITIONS[r.main].name : r.line ? LINE_NAMES[r.line].name : undefined;
 }
+
+/** La migración: a quién le falta `positions` y qué se le escribe (sin adivinar códigos a partir de una línea). */
+export function legacyPlan(players: { id: string; positions?: unknown; naturalPosition?: unknown }[]): { id: string; from: string; to: PositionSet }[] {
+  return players
+    .filter((p) => sanitizePositions(p.positions) === null)
+    .map((p) => ({ id: p.id, from: typeof p.naturalPosition === "string" ? p.naturalPosition : "", to: { main: parsePosition(p.naturalPosition).code, also: [] } }));
+}

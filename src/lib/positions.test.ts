@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LINE_NAMES, POS_CODES, POSITIONS, fitGrade, isPosCode, lineOf, parsePosition, positionLabel, positionText, resolvePositions, sanitizePositions } from "./positions";
+import { LINE_NAMES, POS_CODES, POSITIONS, fitGrade, isPosCode, legacyPlan, lineOf, parsePosition, positionLabel, positionText, resolvePositions, sanitizePositions } from "./positions";
 
 describe("catálogo de posiciones de fútbol 7", () => {
   it("has the 13 codes, each in its line", () => {
@@ -130,5 +130,27 @@ describe("positionText", () => {
     expect(positionText({ positions: { main: "MCD", also: [] } })).toBe("Pivote");
     expect(positionText({ naturalPosition: "Defensa" })).toBe("Defensa");
     expect(positionText({ naturalPosition: "Banquillo" })).toBeUndefined();
+  });
+});
+
+describe("legacyPlan (migración)", () => {
+  it("fills positions from the old text, never guessing a code from a line", () => {
+    expect(
+      legacyPlan([
+        { id: "a", naturalPosition: "Portero" },
+        { id: "b", naturalPosition: "DEL" },
+        { id: "c", naturalPosition: "Lateral derecho" },
+        { id: "d" },
+        { id: "e", naturalPosition: "MC", positions: { main: "MCD", also: [] } },
+      ]),
+    ).toEqual([
+      { id: "a", from: "Portero", to: { main: "POR", also: [] } },
+      { id: "b", from: "DEL", to: { main: null, also: [] } },
+      { id: "c", from: "Lateral derecho", to: { main: "LD", also: [] } },
+      { id: "d", from: "", to: { main: null, also: [] } },
+    ]);
+  });
+  it("is a no-op once every player has positions", () => {
+    expect(legacyPlan([{ id: "e", positions: { main: null, also: [] } }])).toEqual([]);
   });
 });
