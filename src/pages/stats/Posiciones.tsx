@@ -2,7 +2,7 @@
 // 13 positions (each disc sized by its minutes, with its code, minutes and «el dueño»), a sortable table
 // and the players of the selected position — and «Por sistema», the record of every system played.
 // Every number comes from lib/positionStats (the actas' positionsPlayed / positionEvents and `system`).
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
 import type { ClubMatch } from "../../lib/clubData";
 import type { PlayerAnalysis } from "../../lib/clubAnalytics";
@@ -15,6 +15,10 @@ type NameOf = (p: PlayerAnalysis) => string;
 const full = (code: PosCode) => `${POSITIONS[code].name} (${code})`;
 const mins = (n: number) => `${Math.round(n)}′`;
 const comma = (n: number) => n.toFixed(2).replace(".", ",");
+const minutesWord = (n: number) => `${n} ${n === 1 ? "minuto" : "minutos"}`;
+/** Below this card width the detail panel sits under the pitch (stats.css `@container st-pos`). */
+const SIDE_BY_SIDE = 760;
+const reducedMotion = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * Where each position sits on the stats pitch (% of its width and height; our goal at the bottom). The
@@ -92,13 +96,28 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
     return out;
   }, [rows, games, names]);
   const estimated = useMemo(() => games.filter((m) => isCompleted(m) && Object.values(m.ledger ?? {}).some((r) => r?.positionsEstimated === true)).length, [games]);
-  const [picked, setPicked] = useState<PosCode | null>(null);
+  // the pick remembers the data it was made on: after a season change, a position without minutes
+  // there is no longer picked (no pressed spot for a row the table hides)
+  const [pick, setPick] = useState<{ code: PosCode; lines: ClubPosLine[] } | null>(null);
+  const picked = pick && (pick.lines === lines || (lines.find((l) => l.code === pick.code)?.minutes ?? 0) > 0) ? pick.code : null;
   const [sort, setSort] = useState<Sort>({ key: "min", dir: -1 });
+  // on the phone the detail is under the pitch: a pick on the pitch brings it into view (never on mount)
+  const [jump, setJump] = useState(0);
+  const posRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!jump || !posRef.current || posRef.current.getBoundingClientRect().width >= SIDE_BY_SIDE) return;
+    detailRef.current?.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
+  }, [jump]);
 
   const played = lines.filter((l) => l.minutes > 0);
   const max = Math.max(1, ...played.map((l) => l.minutes));
   const top = [...played].sort((a, b) => b.minutes - a.minutes)[0];
-  const toggle = (code: PosCode) => setPicked(picked === code ? null : code);
+  const toggle = (code: PosCode) => setPick(picked === code ? null : { code, lines });
+  const pickSpot = (code: PosCode) => {
+    if (picked !== code) setJump((n) => n + 1);
+    toggle(code);
+  };
   const value = (l: ClubPosLine, key: SortKey): number | string =>
     key === "pos" ? POS_CODES.indexOf(l.code) : key === "min" ? l.minutes : key === "players" ? l.players : key === "g" ? l.goals : key === "a" ? l.assists : ownerOf(l);
   const sorted = [...played].sort((a, b) => {
@@ -122,7 +141,7 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
           <p className="st-mono">Las posiciones salen de la pizarra oficial de cada partido (o de la preferida de cada jugador si no la hubo) al publicar el acta.</p>
         </>
       ) : (
-        <div className="st-pos">
+        <div className="st-pos" ref={posRef}>
           <div className="st-pos-field">
             <div className={`st-pitch${picked ? " has-pick" : ""}`} role="group" aria-label="El campo del club: los 13 puestos, con sus minutos y su dueño" style={{ ["--sx" as string]: `${sx}%`, ["--sy" as string]: `${sy}%` }}>
               <svg viewBox="0 0 100 175" aria-hidden="true" className="st-pitch-lines">
@@ -137,9 +156,10 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
                 const zero = l.minutes <= 0;
                 const on = picked === code;
                 const share = l.owner && l.minutes > 0 ? Math.min(1, l.owner.minutes / l.minutes) : 0;
+                // the visible text (code, «320′», owner) stays inside the accessible name
                 const label = zero
-                  ? `${code} · ${POSITIONS[code].name}: sin estrenar`
-                  : `${code} · ${POSITIONS[code].name}: ${Math.round(l.minutes)} minutos; el dueño, ${ownerOf(l)}, con ${Math.round(l.owner?.minutes ?? 0)}`;
+                  ? `${code} · ${POSITIONS[code].name}: Sin estrenar`
+                  : `${code} · ${POSITIONS[code].name}: ${mins(l.minutes)}, ${minutesWord(Math.round(l.minutes))}; el dueño, ${ownerOf(l)}, con ${minutesWord(Math.round(l.owner?.minutes ?? 0))}`;
                 return (
                   <button
                     key={code}
@@ -148,7 +168,7 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
                     style={{ left: `${x}%`, top: `${y}%`, ["--d" as string]: `${discSize(l.minutes, max).toFixed(2)}cqw`, ["--share" as string]: share.toFixed(3), animationDelay: `${0.1 + i * 0.045}s` } as CSSProperties}
                     aria-pressed={on}
                     aria-label={label}
-                    onClick={() => toggle(code)}
+                    onClick={() => pickSpot(code)}
                   >
                     <span className="disc">
                       <b>{code}</b>
@@ -178,7 +198,7 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
             </p>
           </div>
           <div className="st-pos-side">
-            <div className="st-posd" aria-live="polite">
+            <div className="st-posd" aria-live="polite" ref={detailRef}>
               {sel ? (
                 <>
                   <h3 className="st-h3">{full(sel.code)}</h3>
@@ -291,7 +311,11 @@ function MiniSystem({ id }: { id: string }) {
 
 function PorSistema({ games }: { games: ClubMatch[] }) {
   const { lines, withoutBoard } = useMemo(() => systemRecord(games), [games]);
-  const best = lines.filter((l) => l.played >= 2).reduce<SystemLine | null>((a, b) => (!a || b.ppg > a.ppg ? b : a), null);
+  // «Mejor sistema»: one clear best points per game (> 0) among the systems played at least twice
+  const contenders = lines.filter((l) => l.played >= 2);
+  const topPpg = Math.max(0, ...contenders.map((l) => l.ppg));
+  const leaders = contenders.filter((l) => l.ppg === topPpg);
+  const best: SystemLine | null = topPpg > 0 && leaders.length === 1 ? leaders[0] : null;
   return (
     <section className="st-card" aria-labelledby="st-sys-t">
       <Head kick="Por sistema" title="El récord de cada sistema" id="st-sys-t">

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
@@ -8,6 +8,7 @@ import { statsSearchSchema } from "../../router";
 // constellation placed by exact position. Data, season and router are stubbed: no Firebase.
 
 const search = vi.hoisted(() => ({ value: {} as Record<string, unknown> }));
+const navigate = vi.hoisted(() => vi.fn());
 const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[] }));
 
 vi.mock("@tanstack/react-router", async (orig) => ({
@@ -18,7 +19,7 @@ vi.mock("@tanstack/react-router", async (orig) => ({
     </a>
   ),
   getRouteApi: () => ({ useSearch: () => search.value }),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigate,
 }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ ...data, loading: false, error: null }) }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }], selectedSeasonId: "all", loadingSeasons: false }) }));
@@ -69,6 +70,14 @@ describe("StatsPage · Posiciones", () => {
     expect(tabs[labels.indexOf("Posiciones")]).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("region", { name: "¿De quién es cada puesto?" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "El récord de cada sistema" })).toHaveTextContent("2-3-1 · Clásico");
+  });
+
+  it("clicking «Posiciones» navigates to view=positions", () => {
+    search.value = { view: "summary" };
+    render(<StatsPage />);
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Secciones de estadísticas" })).getByRole("button", { name: "Posiciones" }));
+    const call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
+    expect(call.search({ season: "t1" })).toEqual({ season: "t1", view: "positions", tab: "general" });
   });
 
   it("the Resumen constellation places each star by the position he played", () => {

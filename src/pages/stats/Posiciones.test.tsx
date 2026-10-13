@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { analysePlayer } from "../../lib/clubAnalytics";
 import { playerName, type ClubMatch } from "../../lib/clubData";
 import { Posiciones } from "./Posiciones";
@@ -43,6 +43,8 @@ const spot = (code: string) => within(pitch()).getByRole("button", { name: new R
 const table = () => screen.getByRole("table", { name: "Minutos por posición" });
 const bodyRows = () => within(table()).getAllByRole("row").slice(1);
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("Posiciones · Por posición", () => {
   it("is an st-card with the 13 positions on the pitch", () => {
     show();
@@ -57,7 +59,14 @@ describe("Posiciones · Por posición", () => {
     expect(spot("DFC")).toHaveTextContent("DFC130′Pablo");
     // MC: 20′ each — tie by name: DANI before ERIK; Dani has no first name, his name is shown
     expect(spot("MC")).toHaveTextContent("MC40′DANI");
-    expect(spot("MCD")).toHaveAccessibleName("MCD · Pivote: 130 minutos; el dueño, Erik, con 130");
+    // label in name: the visible «130′» is inside it
+    expect(spot("MCD")).toHaveAccessibleName("MCD · Pivote: 130′, 130 minutos; el dueño, Erik, con 130 minutos");
+  });
+
+  it("«1 minuto» in the singular", () => {
+    show([match(1, 1, 0, null, { erik: row(1, { positionsPlayed: { MC: 1 } }) })]);
+    expect(spot("MC")).toHaveAccessibleName("MC · Mediocentro: 1′, 1 minuto; el dueño, Erik, con 1 minuto");
+    expect(spot("LIB")).toHaveAccessibleName("LIB · Líbero: Sin estrenar");
   });
 
   it("a position nobody played says «Sin estrenar», never «0′»", () => {
@@ -103,6 +112,33 @@ describe("Posiciones · Por posición", () => {
     fireEvent.click(spot("DFC"));
     expect(spot("DFC")).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByRole("list", { name: /Quién ha jugado/ })).toBeNull();
+  });
+
+  it("a pick on the pitch brings the detail into view (not on mount, not when unpicking)", () => {
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
+    show();
+    expect(scroll).not.toHaveBeenCalled();
+    fireEvent.click(spot("DFC"));
+    expect(scroll).toHaveBeenCalledTimes(1);
+    expect(scroll.mock.contexts[0]).toHaveClass("st-posd");
+    expect(scroll).toHaveBeenCalledWith({ block: "nearest", behavior: "smooth" });
+    fireEvent.click(spot("DFC"));
+    expect(scroll).toHaveBeenCalledTimes(1);
+    scroll.mockRestore();
+  });
+
+  it("a season change drops a pick whose position has no minutes there", () => {
+    const view = show();
+    fireEvent.click(spot("DFC"));
+    expect(spot("DFC")).toHaveAttribute("aria-pressed", "true");
+    const other = [games[3]]; // only Erik at MCD
+    view.rerender(<Posiciones games={other} rows={rowsOf(other)} nameOf={(p) => playerName(p)} />);
+    expect(within(pitch()).queryAllByRole("button", { pressed: true })).toHaveLength(0);
+    expect(screen.queryByRole("list", { name: /Quién ha jugado/ })).toBeNull();
+    // a position that still has minutes stays picked
+    fireEvent.click(spot("MCD"));
+    view.rerender(<Posiciones games={games} rows={rowsOf(games)} nameOf={(p) => playerName(p)} />);
+    expect(spot("MCD")).toHaveAttribute("aria-pressed", "true");
   });
 
   it("selecting a row presses its spot too", () => {
@@ -152,8 +188,26 @@ describe("Posiciones · Por sistema", () => {
     show();
     expect(within(sistemas()).getAllByText("Mejor sistema")).toHaveLength(1);
     expect(within(items()[0]).getByText("Mejor sistema")).toBeInTheDocument();
-    show([games[0], games[2]]);
-    expect(screen.getAllByRole("region", { name: "El récord de cada sistema" })[1]).not.toHaveTextContent("Mejor sistema");
+    cleanup();
+    show([games[0], games[2]]); // each system played once
+    expect(sistemas()).not.toHaveTextContent("Mejor sistema");
+  });
+
+  it("no «Mejor sistema» when the best is 0 points per game", () => {
+    show([match(1, 0, 1, "2-3-1", {}), match(2, 0, 2, "2-3-1", {})]);
+    expect(items()[0]).toHaveTextContent("0,00pts/partido");
+    expect(sistemas()).not.toHaveTextContent("Mejor sistema");
+  });
+
+  it("no «Mejor sistema» when two systems played at least twice tie on the best", () => {
+    show([match(1, 1, 0, "2-3-1", {}), match(2, 0, 1, "2-3-1", {}), match(3, 2, 0, "3-2-1", {}), match(4, 0, 0, "3-2-1", {}), match(5, 0, 0, "3-2-1", {}), match(6, 0, 3, "3-2-1", {})]);
+    // 2-3-1: 3 pts in 2 = 1,50; 3-2-1: 5 pts in 4 = 1,25 → not a tie yet
+    expect(sistemas()).toHaveTextContent("Mejor sistema");
+    cleanup();
+    show([match(1, 1, 0, "2-3-1", {}), match(2, 0, 1, "2-3-1", {}), match(3, 2, 0, "3-2-1", {}), match(4, 0, 2, "3-2-1", {}), match(5, 0, 0, "2-2-2", {})]);
+    // 2-3-1 and 3-2-1: 1,50 each
+    expect(items().filter((li) => li.textContent?.includes("1,50pts/partido"))).toHaveLength(2);
+    expect(sistemas()).not.toHaveTextContent("Mejor sistema");
   });
 
   it("the footer counts the matches without an official board", () => {
