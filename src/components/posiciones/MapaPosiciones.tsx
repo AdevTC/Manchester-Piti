@@ -6,8 +6,8 @@
 // Themed only through the --pos-* tokens, which the host may set on ANY ancestor (wrapper, [data-theme],
 // :root) or on the map via className; the defaults suit a dark navy background. Size m needs a pitch
 // ≥ MIN_PITCH_WIDTH (280 px) for 44 px targets.
-import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { POSITIONS, POS_CODES, type PosCode, type PositionSet } from "../../lib/positions";
+import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { POSITIONS, POS_CODES, isPosCode, type PosCode, type PositionSet } from "../../lib/positions";
 import { cyclePosition, proposalDiff } from "../../lib/positionsEdit";
 import { playedSummary } from "../../lib/positionStats";
 import {
@@ -18,6 +18,7 @@ import {
   fullText,
   hitCentre,
   nearestSpot,
+  geometryVars,
   playedDiscs,
   playedLines,
   playedText,
@@ -70,11 +71,8 @@ function spotStyle(code: PosCode, disc?: PlayedDisc, rank?: number): CSSProperti
   return style;
 }
 
-/** «Pivote (MCD) 320′ · MC 140′ · DFC 20′» through playedSummary (it only reads each line's code and minutes). */
-function historySummary(played: Partial<Record<PosCode, number>>): string {
-  const lines = playedLines(played).map((l) => ({ ...l, matches: 0, goals: 0, assists: 0, yellowCards: 0, redCards: 0, rating: null }));
-  return playedSummary({ lines, minutes: 0, estimatedMatches: 0, matches: 0, top: lines[0]?.code ?? null });
-}
+/** The drawing geometry (mapaNav GEOMETRY) as the stylesheet reads it: the same on every map. */
+const GEOMETRY_STYLE = geometryVars() as CSSProperties;
 
 /** `spots` = the centre and penalty spots (left out of the history map, where they peek out next to the discs). */
 function PitchLines({ spots = true }: { spots?: boolean }) {
@@ -106,8 +104,19 @@ function PitchLines({ spots = true }: { spots?: boolean }) {
 export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m", label, emptyText = DEFAULT_EMPTY, describedBy, played, estimated = false, className }: MapaPosicionesProps) {
   const history = played !== undefined;
   const editable = Boolean(onChange) && !history;
-  const lines = history ? playedLines(played) : [];
-  const discs = history ? playedDiscs(played, size, [...(value.main ? [value.main] : []), ...value.also]) : {};
+  const marked = [...(value.main ? [value.main] : []), ...value.also].join(",");
+  // keyed on the minutes themselves («MCD:320,MC:140»), so a host passing a fresh object each render does not re-run the layout
+  const playedKey = history ? playedLines(played).map((l) => `${l.code}:${l.minutes}`).join(",") : "";
+  const { lines, discs } = useMemo(() => {
+    const ls = playedKey
+      ? playedKey.split(",").flatMap((e) => {
+          const [code, min] = e.split(":");
+          return isPosCode(code) ? [{ code, minutes: Number(min) }] : [];
+        })
+      : [];
+    const record: Partial<Record<PosCode, number>> = Object.fromEntries(ls.map((l) => [l.code, l.minutes]));
+    return { lines: ls, discs: ls.length ? playedDiscs(record, size, marked.split(",").filter(isPosCode)) : {} };
+  }, [playedKey, size, marked]);
   const rank = new Map(lines.map((l, i) => [l.code, i]));
   const [active, setActive] = useState<PosCode>(value.main ?? "MC");
   const [live, setLive] = useState({ text: "", n: 0 });
@@ -210,7 +219,7 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
   });
 
   return (
-    <div className={["pos-map", `pos-map--${size}`, editable ? "pos-map--edit" : "pos-map--view", history && "pos-map--played", className].filter(Boolean).join(" ")}>
+    <div className={["pos-map", `pos-map--${size}`, editable ? "pos-map--edit" : "pos-map--view", history && "pos-map--played", className].filter(Boolean).join(" ")} style={GEOMETRY_STYLE}>
       {editable ? (
         <div className="pos-pitch" role="group" aria-label={label} aria-describedby={describedBy}>
           <PitchLines />
@@ -246,7 +255,7 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
         )}
       </p>
       <p className="pos-summary" aria-hidden={editable ? undefined : true}>
-        {history ? historySummary(played) : summaryText(value, emptyText)}
+        {history ? playedSummary({ lines }) : summaryText(value, emptyText)}
       </p>
       {history && estimated && lines.length > 0 && (
         <p className="pos-est" aria-hidden="true">

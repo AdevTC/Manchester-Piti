@@ -5,6 +5,8 @@ import type { ClubMatch } from "../../lib/clubData";
 import { POSITIONS, type PositionSet } from "../../lib/positions";
 import { playerPositions } from "../../lib/positionStats";
 import { MapaPosiciones } from "../../components/posiciones/MapaPosiciones";
+import { MasMinutos, PlayedNote } from "../../components/posiciones/haJugadoDe";
+import { usePlayed } from "../../components/posiciones/usePlayed";
 
 interface Props {
   playerId: string;
@@ -17,11 +19,9 @@ interface Props {
   mvpOf?: (matchId: string) => string | null;
 }
 
-const partidos = (n: number) => `${n} ${n === 1 ? "partido" : "partidos"}`;
-
 export function SusPosiciones({ playerId, name, positions, games, periodName, mvpOf }: Props) {
   const pos = useMemo(() => playerPositions(playerId, games, mvpOf), [playerId, games, mvpOf]);
-  const played = Object.fromEntries(pos.lines.map((l) => [l.code, l.minutes]));
+  const played = usePlayed(pos);
   const top = pos.lines[0];
   return (
     <section className="st-card jg-wide jg-two" aria-labelledby="jg-pos">
@@ -41,9 +41,7 @@ export function SusPosiciones({ playerId, name, positions, games, periodName, mv
         <div className="jg-pos-side">
           {top ? (
             <>
-              <p className="jg-pos-lead">
-                Más minutos de <b>{`${POSITIONS[top.code].name} (${top.code})`}</b>: {`${Math.round(top.minutes)}′`} en {partidos(top.matches)}
-              </p>
+              <MasMinutos top={top} className="jg-pos-lead" />
               <div className="st-tablebox">
                 <table className="st-table jg-pos-table" aria-label={`Sus posiciones · ${periodName}`}>
                   <thead>
@@ -81,7 +79,7 @@ export function SusPosiciones({ playerId, name, positions, games, periodName, mv
               <p className="st-mono">Valoración: su forma en los partidos que jugó sobre todo en ese puesto; aparece desde el segundo.</p>
             </>
           ) : (
-            <p className="st-empty">Cada acta dice dónde jugó: la pizarra oficial del partido o, sin ella, su posición preferida.</p>
+            <PlayedNote className="st-empty" />
           )}
         </div>
       </div>

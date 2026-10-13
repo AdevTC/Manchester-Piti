@@ -8,7 +8,8 @@ import { FichaModal } from "./FichaModal";
 
 // The public ficha (/plantilla): «Posición: Pivote» and, under it, «También mediocentro (MC) · central (DFC)». No WebGL: the 3D kit is a stub.
 
-vi.mock("../../components/jersey3d/Jersey3D", () => ({ Jersey3D: () => null }));
+// the kit's canvas stands in as what the real one is to the keyboard and screen readers: a focusable image
+vi.mock("../../components/jersey3d/Jersey3D", () => ({ Jersey3D: ({ label }: { label: string }) => <canvas tabIndex={0} role="img" aria-label={label} /> }));
 vi.mock("@tanstack/react-router", () => ({ Link: ({ children }: { children?: ReactNode }) => <a>{children}</a> }));
 
 const none = { matchesPlayed: 0, goals: 0, assists: 0, minutes: 0, tracked: 0 };
@@ -100,8 +101,9 @@ describe("FichaModal · Posiciones en escritorio", () => {
 
   it("puts the map over the shirt's column and keeps the words in the tab, so it fits unscrolled", () => {
     desk(true);
-    const { container } = withGames(season);
-    expect(container.ownerDocument.querySelector(".sq-pos-stage")).toBeNull();
+    withGames(season);
+    expect(document.querySelector(".sq-pos-stage")).toBeNull();
+    expect(screen.getByRole("img", { name: /^Camiseta de ERIK/ }).closest("[inert]")).toBeNull();
     expect(screen.getByRole("button", { name: "Girar la camiseta" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Posiciones" }));
     const stage = document.querySelector(".sq-pos-stage");
@@ -113,9 +115,14 @@ describe("FichaModal · Posiciones en escritorio", () => {
     expect(within(panel).getByRole("table")).toBeInTheDocument();
     // the shirt's caption and turn button step aside while the map is there
     expect(screen.queryByRole("button", { name: "Girar la camiseta" })).toBeNull();
+    // and the shirt under the map is inert: its canvas can't take focus, be announced or turn with the arrows
+    const canvas = document.querySelector("canvas")!;
+    expect(canvas.closest("[inert]")).not.toBeNull();
+    expect(canvas.closest(".sq-stage")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Jugador siguiente" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Ficha" }));
     expect(document.querySelector(".sq-pos-stage")).toBeNull();
+    expect(document.querySelector("canvas")!.closest("[inert]")).toBeNull();
   });
 
   it("phone: the map stays in the tab", () => {
@@ -124,5 +131,6 @@ describe("FichaModal · Posiciones en escritorio", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Posiciones" }));
     expect(document.querySelector(".sq-pos-stage")).toBeNull();
     expect(within(screen.getByRole("tabpanel")).getByRole("img")).toBeInTheDocument();
+    expect(document.querySelector("canvas")!.closest("[inert]")).toBeNull();
   });
 });

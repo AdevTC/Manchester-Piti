@@ -114,11 +114,15 @@ export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: (matchI
   return { lines: list, minutes: round2(minutes), estimatedMatches, matches, top: list[0]?.code ?? null };
 }
 
+/** The explicit empty copy of every «ha jugado de» view. */
+export const PLAYED_EMPTY = "Aún sin minutos con posición";
+
 /** «Pivote (MCD) 320′ · MC 140′ · DFC 20′»: the first position in full, then codes; lines that round
- *  to 0′ are left out. Without minutes: «Aún sin minutos con posición». */
-export function playedSummary(p: PlayerPositions, max = 3): string {
+ *  to 0′ are left out. Without minutes: «Aún sin minutos con posición». Reads only each line's code and
+ *  minutes (a PlayerPositions, or the map's own lines). */
+export function playedSummary(p: { lines: readonly { code: PosCode; minutes: number }[] }, max = 3): string {
   const shown = p.lines.filter((l) => Math.round(l.minutes) > 0).slice(0, max);
-  if (!shown.length) return "Aún sin minutos con posición";
+  if (!shown.length) return PLAYED_EMPTY;
   return shown.map((l, i) => (i === 0 ? `${POSITIONS[l.code].name} (${l.code})` : l.code) + ` ${Math.round(l.minutes)}′`).join(" · ");
 }
 

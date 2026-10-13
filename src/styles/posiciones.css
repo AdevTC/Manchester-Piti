@@ -6,7 +6,10 @@
    Tokens: --pos-bg (dot/badge backing ≈ host surface), --pos-pitch, --pos-line, --pos-ink, --pos-dim,
    --pos-also, --pos-pref, --pos-pref-ink, --pos-add, --pos-remove, --pos-focus, --pos-played, --pos-played-ink,
    --pos-width (fonts are inherited from the host).
-   Size m keeps ≥ 44 px targets while the pitch is ≥ 280 px wide (MIN_PITCH_WIDTH in mapaNav.ts). */
+   Size m keeps ≥ 44 px targets while the pitch is ≥ 280 px wide (MIN_PITCH_WIDTH in mapaNav.ts).
+   Geometry: the badge, pill, ring and disc sizes are NOT literals here. MapaPosiciones sets them inline on
+   .pos-map from GEOMETRY in mapaNav.ts (--_pos-badge*, --_pos-pill-*, --_pos-ring, --_pos-disc-*), the same
+   numbers the history layout checks for overlaps; --_pos-d / --_pos-i / --_pos-shift come inline per spot. */
 .pos-map {
   --_pos-bg: var(--pos-bg, #0b1730);
   --_pos-pitch: var(--pos-pitch, rgba(108, 196, 255, 0.06));
@@ -128,25 +131,25 @@ button.pos-spot {
 }
 
 /* ✓ / ★ outside the dot's top-right corner, + / − outside its top-left: they sit above the code's line
-   (badge bottom ≤ 0.55rem from the dot's top; the code starts lower) and never cover it */
+   (badge bottom = badge − badge-top below the dot's top; the code starts lower) and never cover it */
 .pos-mark,
 .pos-diff {
   position: absolute;
-  top: -0.3rem;
-  min-width: 0.85rem;
-  height: 0.85rem;
-  padding: 0 0.1rem;
+  top: calc(-1 * var(--_pos-badge-top));
+  width: var(--_pos-badge);
+  height: var(--_pos-badge);
+  padding: 0;
   box-sizing: border-box;
   border-radius: 999px;
   font-size: 0.55rem;
   font-weight: 800;
-  line-height: 0.85rem;
+  line-height: var(--_pos-badge);
   text-align: center;
   box-shadow: 0 0 0 2px var(--_pos-bg);
 }
 
 .pos-mark {
-  right: -0.55rem;
+  right: calc(-1 * var(--_pos-badge-side));
   background: var(--_pos-also);
   color: var(--_pos-bg);
 }
@@ -158,7 +161,7 @@ button.pos-spot {
 }
 
 .pos-diff {
-  left: -0.55rem;
+  left: calc(-1 * var(--_pos-badge-side));
   background: var(--_pos-add);
   color: var(--_pos-bg);
 }
@@ -286,18 +289,18 @@ button.pos-spot:focus-visible .pos-dot {
 
 /* ── Ha jugado de (history mode, read-only) ───────────────────────────────────
    A filled disc per position he played: --_pos-d (set inline by playedDiscs in mapaNav.ts) is its diameter
-   in px at a 320 px pitch, scaled with the pitch and never under 24 px; «320′» (.pos-min) sits under it, or
-   beside it (data-label="side") when the spot below leaves no room. The geometry here (pill 14 px tall,
-   5 px into the disc, 6 px beside it; badges 13.6 px) is the one mapaNav.ts lays out — change both together.
+   in px at the reference pitch, scaled with the pitch and never under the floor; «320′» (.pos-min) sits
+   under it, or beside it (data-label="side") when the spot below leaves no room. Every size here comes from
+   mapaNav.ts GEOMETRY (see the header).
    Spots he never played stay small and dim, still with their code and ★ / ✓. */
 .pos-map--played .pos-spot {
   width: 0;
   height: 0;
-  --_pos-dot: max(24px, calc(28 * 100cqw / 320));
+  --_pos-dot: max(var(--_pos-disc-floor), calc(var(--_pos-disc-min) * 100cqw / var(--_pos-disc-ref)));
 }
 
 .pos-map--played .pos-spot[data-played] {
-  --_pos-dot: max(24px, calc(var(--_pos-d, 28) * 100cqw / 320));
+  --_pos-dot: max(var(--_pos-disc-floor), calc(var(--_pos-d) * 100cqw / var(--_pos-disc-ref)));
 }
 
 .pos-map--played .pos-dot {
@@ -324,23 +327,27 @@ button.pos-spot:focus-visible .pos-dot {
   background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--_pos-played) 52%, #ffffff), var(--_pos-played) 64%);
   color: var(--_pos-played-ink);
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--_pos-played) 20%, transparent),
+    0 0 0 calc(var(--_pos-ring) - 1px) color-mix(in srgb, var(--_pos-played) 20%, transparent),
     0 6px 14px -6px color-mix(in srgb, var(--_pos-played) 75%, transparent);
 }
 
 /* his preferida, played: a gold ring on top of the ★ */
 .pos-map--played .pos-spot[data-played][data-state="preferida"] .pos-dot {
   box-shadow:
-    0 0 0 2px var(--_pos-bg),
-    0 0 0 4px var(--_pos-pref),
+    0 0 0 calc(var(--_pos-ring) - 2px) var(--_pos-bg),
+    0 0 0 var(--_pos-ring) var(--_pos-pref),
     0 6px 14px -6px color-mix(in srgb, var(--_pos-played) 75%, transparent);
 }
 
 .pos-min {
   position: absolute;
   left: 50%;
-  top: calc(100% - 5px);
+  top: calc(100% - var(--_pos-pill-into));
   translate: -50% 0;
+  box-sizing: border-box;
+  max-width: var(--_pos-pill-w);
+  height: var(--_pos-pill-h);
+  overflow: hidden;
   padding: 0 5px;
   border-radius: 999px;
   background: var(--_pos-bg);
@@ -348,21 +355,21 @@ button.pos-spot:focus-visible .pos-dot {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--_pos-played) 60%, transparent);
   font-size: 10px;
   font-weight: 800;
-  line-height: 14px;
+  line-height: var(--_pos-pill-h);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
 
 .pos-spot[data-label="side"] .pos-min {
-  left: calc(100% + 6px);
-  top: calc(50% + 2px);
+  left: calc(100% + var(--_pos-pill-beside));
+  top: calc(50% + var(--_pos-pill-low));
   translate: 0 -50%;
 }
 
 .pos-spot[data-label="side"][data-side="derecha"] .pos-min {
   left: auto;
-  right: calc(100% + 6px);
+  right: calc(100% + var(--_pos-pill-beside));
 }
 
 /* «estimado», in words, under the pitch */

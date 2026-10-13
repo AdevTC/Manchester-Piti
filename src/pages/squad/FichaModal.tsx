@@ -1,5 +1,5 @@
 import { pct } from "../../lib/technicalAnalysis";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
@@ -9,9 +9,10 @@ import { ShirtBack } from "../../components/celeste/ShirtBack";
 import { useFocusTrap } from "../pizarra/useFocusTrap";
 import { formatHeight, missingText, type SquadRow } from "../../lib/squad";
 import type { ClubMatch } from "../../lib/clubData";
-import { POSITIONS, type PositionSet } from "../../lib/positions";
-import { playerPositions, type PlayerPositions } from "../../lib/positionStats";
-import { MapaPosiciones } from "../../components/posiciones/MapaPosiciones";
+import type { PositionSet } from "../../lib/positions";
+import { playerPositions } from "../../lib/positionStats";
+import { PosMap, PosTable } from "./FichaPosiciones";
+import { useDesk } from "./useDesk";
 import { shareClubPage } from "../../lib/share";
 import { VT_SHIRT } from "./Percha";
 
@@ -34,70 +35,6 @@ interface Props {
 const NO_GAMES: ClubMatch[] = [];
 const NO_POSITIONS: PositionSet = { main: null, also: [] };
 type Tab = "ficha" | "temporada" | "posiciones";
-
-/** The ficha's desktop layout (squad.css switches at the same width): two columns, the shirt on the left.
- *  No matchMedia (tests, old browsers) counts as the phone sheet. */
-const DESK_QUERY = "(min-width: 900px)";
-const deskList = (): MediaQueryList | null => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia(DESK_QUERY) : null);
-function subscribeDesk(cb: () => void): () => void {
-  const m = deskList();
-  if (!m) return () => {};
-  m.addEventListener("change", cb);
-  return () => m.removeEventListener("change", cb);
-}
-const useDesk = () => useSyncExternalStore(subscribeDesk, () => deskList()?.matches ?? false, () => false);
-
-const partidos = (n: number) => `${n} ${n === 1 ? "partido" : "partidos"}`;
-
-/** «Posiciones»' map: in the tab on the phone; over the shirt's column on desktop, so the tab fits unscrolled. */
-function PosMap({ row, seasonName, positions, pos }: { row: SquadRow; seasonName: string; positions: PositionSet; pos: PlayerPositions }) {
-  const played = Object.fromEntries(pos.lines.map((l) => [l.code, l.minutes]));
-  return <MapaPosiciones size="m" label={`Dónde ha jugado ${row.name} en ${seasonName}`} value={positions} played={played} estimated={pos.estimatedMatches > 0} />;
-}
-
-/** «Posiciones»' words: his most-played position, then the top five (or where the data comes from). */
-function PosTable({ seasonName, pos }: { seasonName: string; pos: PlayerPositions }) {
-  const top = pos.lines[0];
-  if (!top) return <p className="sq-pos-note">Cada acta dice dónde jugó: la pizarra oficial del partido o, sin ella, su posición preferida.</p>;
-  return (
-    <>
-      <p className="sq-pos-lead">
-        Más minutos de <b>{`${POSITIONS[top.code].name} (${top.code})`}</b>: {`${Math.round(top.minutes)}′`} en {partidos(top.matches)}
-      </p>
-      <table className="sq-pos-table">
-        <caption className="hm-sr">Minutos por posición en {seasonName}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Posición</th>
-            <th scope="col">Min</th>
-            <th scope="col">
-              <abbr title="Partidos jugados">PJ</abbr>
-            </th>
-            <th scope="col">
-              <abbr title="Goles">G</abbr>
-            </th>
-            <th scope="col">
-              <abbr title="Asistencias">A</abbr>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {pos.lines.slice(0, 5).map((l) => (
-            <tr key={l.code}>
-              <th scope="row">
-                {POSITIONS[l.code].name} <span>({l.code})</span>
-              </th>
-              <td>{Math.round(l.minutes)}′</td>
-              <td>{l.matches}</td>
-              <td>{l.goals}</td>
-              <td>{l.assists}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
-  );
-}
 
 /** Long names shrink with their longest word so they never overflow the column. */
 function nameFit(name: string): CSSProperties {
@@ -147,6 +84,8 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
           <div className="still" style={{ viewTransitionName: VT_SHIRT }}>
             {still ? <img src={still} alt="" draggable={false} /> : <ShirtBack name={row.name} num={row.num} />}
           </div>
+          {/* under the map (desktop «Posiciones») the shirt is out of reach: not focusable, not announced, no arrow keys */}
+          <div className="sq-shirt-slot" inert={mapOnStage}>
           <Jersey3D
             ref={shirt}
             className="sq-shirt3d"
@@ -160,6 +99,7 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
             flip
             label={`Camiseta de ${row.name}, dorsal ${row.num}. Arrástrala o usa las flechas para girarla.`}
           />
+          </div>
           {!mapOnStage && (
             <>
               <span className="cap">{kit === "home" ? "1ª" : "2ª"} equipación · arrástrala</span>
@@ -177,7 +117,7 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
         </div>
         {mapOnStage && (
           <div className="sq-pos-stage" key={`pos-${row.id}`}>
-            <PosMap row={row} seasonName={seasonName} positions={positions} pos={pos} />
+            <PosMap name={row.name} seasonName={seasonName} positions={positions} pos={pos} />
           </div>
         )}
         <div className="sq-info" key={row.id}>
@@ -267,7 +207,7 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
               <div className="sq-pos">
                 {!desk && (
                   <div className="sq-pos-pitch">
-                    <PosMap row={row} seasonName={seasonName} positions={positions} pos={pos} />
+                    <PosMap name={row.name} seasonName={seasonName} positions={positions} pos={pos} />
                   </div>
                 )}
                 <PosTable seasonName={seasonName} pos={pos} />
