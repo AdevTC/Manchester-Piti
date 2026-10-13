@@ -270,17 +270,23 @@ export function Plantilla() {
       errorMessage: error,
     });
   };
+  /** Who signs a review (the rules want by == his uid): nobody signed in, no review. */
+  const reviewer = user?.uid ?? null;
   const setPositions = (target: BoardRow, set: PositionSet, adjusted: boolean) => {
-    if (adjusted)
-      writePositions(target, reviewPayload("ajustada", set, user?.uid ?? "", serverTimestamp()), "PROPUESTA", `${target.name}: propuesta ajustada · ${summaryText(set)}`, `No se ha podido ajustar la propuesta de ${target.name}`);
+    if (adjusted && reviewer)
+      writePositions(target, reviewPayload("ajustada", set, reviewer, serverTimestamp()), "PROPUESTA", `${target.name}: propuesta ajustada · ${summaryText(set)}`, `No se ha podido ajustar la propuesta de ${target.name}`);
     else writePositions(target, positionsPayload(set), "POSICIÓN", `Posiciones de ${target.name}: ${summaryText(set)}`, `No se han podido cambiar las posiciones de ${target.name}`);
   };
   const reviewProposal = (target: BoardRow, kind: "aprobada" | "rechazada") => {
+    if (!reviewer) return;
+    if (kind === "rechazada") {
+      // rejecting needs no readable proposal: it only closes it
+      writePositions(target, reviewPayload("rechazada", null, reviewer, serverTimestamp()), "PROPUESTA", `${target.name}: propuesta rechazada · siguen las de antes`, `No se ha podido rechazar la propuesta de ${target.name}`);
+      return;
+    }
     const proposal = sanitizePositions(target.doc.positionsProposal);
     if (!proposal) return;
-    const write = reviewPayload(kind, kind === "aprobada" ? proposal : null, user?.uid ?? "", serverTimestamp());
-    if (kind === "aprobada") writePositions(target, write, "PROPUESTA", `${target.name}: propuesta aprobada · ${summaryText(proposal)}`, `No se ha podido aprobar la propuesta de ${target.name}`);
-    else writePositions(target, write, "PROPUESTA", `${target.name}: propuesta rechazada · siguen las de antes`, `No se ha podido rechazar la propuesta de ${target.name}`);
+    writePositions(target, reviewPayload("aprobada", proposal, reviewer, serverTimestamp()), "PROPUESTA", `${target.name}: propuesta aprobada · ${summaryText(proposal)}`, `No se ha podido aprobar la propuesta de ${target.name}`);
   };
   // ── Sancionado: set by hand (matches or «hasta la J…») and lifted (the acta's red card too) ──
   const setSanction = (target: BoardRow, choice: SanctionChoice) => {
@@ -541,6 +547,7 @@ export function Plantilla() {
         phone={phone}
         onPositions={(set, adjusted) => setPositions(editingRow, set, adjusted)}
         onReview={(kind) => reviewProposal(editingRow, kind)}
+        canReview={!!reviewer}
         onInjured={(v) => setInjured(editingRow, v)}
         suspension={editingSusp}
         suspensionText={editingSusp ? sanctionStatus(editingSusp, data.matches) : undefined}

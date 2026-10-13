@@ -198,8 +198,8 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
       {editable && (
         <p className="pos-sr" role="status">
           {live.text}
-          {/* a trailing space on every other message, so the same text twice is still a change to announce */}
-          {live.n % 2 === 1 ? " " : ""}
+          {/* a trailing no-break space on every other message, so the same text twice is still a change to announce */}
+          {live.n % 2 === 1 ? " " : ""}
         </p>
       )}
     </div>

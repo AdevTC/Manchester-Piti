@@ -613,6 +613,23 @@ describe("Plantilla · propuestas de posición", () => {
     expect(h.writes.savePlayer).toHaveBeenCalledWith("erik", { positionsProposal: null, positionsReview: { status: "rechazada", at: serverTimestamp(), by: "a1" } });
   });
 
+  it("keyboard: the focus follows the review — to the map after «Ajustar» or a decision, to «Ajustar» after «Cancelar»", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla?jugador=erik", { plantilla: Plantilla });
+    await screen.findByRole("region", { name: "Ficha de ERIK" });
+    await user.click(within(banner()).getByRole("button", { name: "Ajustar" }));
+    await waitFor(() => expect(within(map()).getByRole("button", { name: "MCD · Pivote: preferida, añadida" })).toHaveFocus());
+    await user.click(within(banner()).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(within(banner()).getByRole("button", { name: "Ajustar" })).toHaveFocus());
+    await user.click(within(banner()).getByRole("button", { name: "Rechazar" }));
+    await waitFor(() => expect(within(map()).getByRole("button", { name: "DC · Punta: preferida" })).toHaveFocus());
+    await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
+    await user.click(within(banner()).getByRole("button", { name: "Aprobar" }));
+    await waitFor(() => expect(within(map()).getByRole("button", { name: "MCD · Pivote: preferida" })).toHaveFocus());
+    expect(document.body).not.toHaveFocus();
+  });
+
   it("«Ajustar» puts his proposal in the editor (compared with his positions); the next tap saves it as adjusted", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

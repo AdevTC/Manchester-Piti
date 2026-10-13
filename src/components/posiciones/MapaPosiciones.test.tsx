@@ -54,6 +54,8 @@ describe("MapaPosiciones · editar", () => {
     fireEvent.click(screen.getByRole("button", { name: /^DC · / }));
     expect(onRefuse).toHaveBeenCalledTimes(2);
     expect(screen.getByRole("status").textContent).not.toBe(first); // re-announced
+    // the toggle is a no-break space: a plain one would be collapsed away and not count as a change
+    expect([first, screen.getByRole("status").textContent].some((t) => t?.endsWith(" "))).toBe(true);
   });
 
   it("uses a single tab stop and moves focus with the arrows", () => {

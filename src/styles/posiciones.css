@@ -30,11 +30,12 @@
   color: var(--_pos-ink);
 }
 
+/* size s: a 28 px dot with a ≥ 10 px code (px floors: legible whatever the root size); no «PREF» tag (see below) */
 .pos-map--s {
   --_pos-width: var(--pos-width, 15rem);
-  --_pos-dot: 1.75rem;
-  --_pos-hit-w: 2.25rem;
-  --_pos-code-size: 0.6rem;
+  --_pos-dot: max(1.75rem, 28px);
+  --_pos-hit-w: max(2.25rem, 36px);
+  --_pos-code-size: max(0.65rem, 10px);
 }
 
 /* ── El campo ─────────────────────────────────────────────────────────────── */
@@ -123,25 +124,26 @@ button.pos-spot {
   border-color: var(--_pos-remove);
 }
 
-/* ✓ / ★ arriba a la derecha, + / − arriba a la izquierda */
+/* ✓ / ★ outside the dot's top-right corner, + / − outside its top-left: they sit above the code's line
+   (badge bottom ≤ 0.55rem from the dot's top; the code starts lower) and never cover it */
 .pos-mark,
 .pos-diff {
   position: absolute;
   top: -0.3rem;
-  min-width: 0.95rem;
-  height: 0.95rem;
+  min-width: 0.85rem;
+  height: 0.85rem;
   padding: 0 0.1rem;
   box-sizing: border-box;
   border-radius: 999px;
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   font-weight: 800;
-  line-height: 0.95rem;
+  line-height: 0.85rem;
   text-align: center;
   box-shadow: 0 0 0 2px var(--_pos-bg);
 }
 
 .pos-mark {
-  right: -0.3rem;
+  right: -0.55rem;
   background: var(--_pos-also);
   color: var(--_pos-bg);
 }
@@ -153,7 +155,7 @@ button.pos-spot {
 }
 
 .pos-diff {
-  left: -0.3rem;
+  left: -0.55rem;
   background: var(--_pos-add);
   color: var(--_pos-bg);
 }
@@ -182,6 +184,11 @@ button.pos-spot {
 .pos-spot[data-side="derecha"] .pos-tag {
   left: auto;
   right: calc(50% + var(--_pos-dot) / 2 + 0.25rem);
+}
+
+/* at size s the tag would reach the next spot: ★, the filled dot and the summary line say «preferida» */
+.pos-map--s .pos-tag {
+  display: none;
 }
 
 /* the visible ring is on the dot; the transparent one shows up as a real ring in forced-colors mode */

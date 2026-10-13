@@ -51,6 +51,8 @@ export interface FichaWorkspaceProps {
   onPositions: (set: PositionSet, adjusted: boolean) => void;
   /** His pending proposal: approved as it came, or rejected. */
   onReview: (kind: "aprobada" | "rechazada") => void;
+  /** A captain is signed in (a review is signed with his uid): without one the review is off. */
+  canReview: boolean;
   onInjured: (injured: boolean) => void;
   /** His suspension now (a red card or a sanction set by hand), with what is left; undefined = he can play. */
   suspension?: Suspension;
@@ -291,48 +293,94 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
       ) : null}
     </>
   );
+  // the focus follows the review (the banner it was on goes away): to the map's spot after «Ajustar» or a
+  // decision, back to «Ajustar» after «Cancelar» — never dropped on <body>
+  const posRef = useRef<HTMLDivElement>(null);
+  const ajustarRef = useRef<HTMLButtonElement>(null);
+  const focusTo = useRef<{ to: "map" | "ajustar"; at: number } | null>(null);
+  useEffect(() => {
+    const f = focusTo.current;
+    if (!f) return;
+    if (Date.now() - f.at > 2000) {
+      focusTo.current = null;
+      return;
+    }
+    const el = f.to === "ajustar" ? ajustarRef.current : posRef.current?.querySelector<HTMLElement>('button.pos-spot[tabindex="0"]');
+    if (!el) return;
+    el.focus();
+    focusTo.current = null;
+  });
+  const focusNext = (to: "map" | "ajustar") => {
+    focusTo.current = { to, at: Date.now() };
+  };
+  const review = (kind: "aprobada" | "rechazada") => {
+    focusNext("map");
+    props.onReview(kind);
+  };
+  const off = !props.canReview;
+  const proposalBox = proposal ? (
+    <div className="ppr" role="group" aria-label={`Propuesta de ${name}`}>
+      <p className="ppq">
+        <span>
+          <b>{name} propone:</b> {summaryText(proposal)}
+        </span>
+      </p>
+      <p className="ppn">Ahora: {summaryText(current)}</p>
+      <div className="ppb">
+        <button type="button" className="btn sm gold" onClick={() => review("aprobada")} disabled={off}>
+          Aprobar
+        </button>
+        <button
+          ref={ajustarRef}
+          type="button"
+          className="btn sm line"
+          disabled={off}
+          onClick={() => {
+            focusNext("map");
+            setAdjusting(proposal);
+          }}
+        >
+          Ajustar
+        </button>
+        <button type="button" className="btn sm red" onClick={() => review("rechazada")} disabled={off}>
+          Rechazar
+        </button>
+      </div>
+      {off ? <p className="ppn ppo">Entra con tu cuenta de capitán para revisarla.</p> : null}
+      <MapaPosiciones value={proposal} compare={current} size={phone ? "m" : "s"} label={`Lo que propone ${name}`} />
+    </div>
+  ) : null;
+  const adjustBar = draft ? (
+    <div className="ppa" role="group" aria-label={`Propuesta de ${name}`}>
+      <p className="ppq">
+        <AdIcon name="pencil" size={14} />
+        <span>
+          <b>Ajustando la propuesta de {name}</b> · toca en el mapa: se guarda como ajustada
+        </span>
+      </p>
+      <button
+        type="button"
+        className="btn sm line"
+        onClick={() => {
+          focusNext("ajustar");
+          setAdjusting(null);
+        }}
+      >
+        Cancelar
+      </button>
+    </div>
+  ) : null;
   const posBlock = (
-    <div className="fld posx">
+    <div className="fld posx" ref={posRef}>
       <span className="lb">Posiciones</span>
-      {proposal ? (
-        <div className={draft ? "ppr adj" : "ppr"} role="group" aria-label={`Propuesta de ${name}`}>
-          {draft ? (
-            <>
-              <p className="ppq">
-                <AdIcon name="pencil" size={14} />
-                <span>
-                  <b>Ajustando la propuesta de {name}</b> · toca en el mapa: se guarda como ajustada
-                </span>
-              </p>
-              <button type="button" className="btn sm line" onClick={() => setAdjusting(null)}>
-                Cancelar
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="ppq">
-                <span>
-                  <b>{name} propone:</b> {summaryText(proposal)}
-                </span>
-              </p>
-              <MapaPosiciones value={proposal} compare={current} size={phone ? "m" : "s"} label={`Lo que propone ${name}`} />
-              <p className="ppn">Ahora: {summaryText(current)}</p>
-              <div className="ppb">
-                <button type="button" className="btn sm gold" onClick={() => props.onReview("aprobada")}>
-                  Aprobar
-                </button>
-                <button type="button" className="btn sm line" onClick={() => setAdjusting(proposal)}>
-                  Ajustar
-                </button>
-                <button type="button" className="btn sm red" onClick={() => props.onReview("rechazada")}>
-                  Rechazar
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      ) : null}
-      {proposal && !draft ? null : editor}
+      {proposal && !draft ? (
+        proposalBox
+      ) : (
+        <>
+          {adjustBar}
+          {editor}
+        </>
+      )}
     </div>
   );
   // «Activo» puts him back: the injury first, else the sanction (lifted, with «Deshacer» like the rest)
@@ -670,7 +718,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
     );
   return (
     <section className="pl3f" aria-label={`Ficha de ${name}`}>
-      <div className="hero posh">
+      <div className={proposal && !draft ? "hero posh pend" : "hero posh"}>
         {kit}
         <div className="hi">
           {head}

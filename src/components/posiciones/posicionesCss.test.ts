@@ -36,6 +36,12 @@ describe("posiciones.css theme contract", () => {
     for (const u of used) expect(defined, u).toContain(u);
   });
 
+  it("size s: a ≥ 28 px dot, a ≥ 10 px code, no «PREF» tag reaching the next spot", () => {
+    expect(css).toMatch(/\.pos-map--s\s*\{[^}]*--_pos-dot:\s*max\(1\.75rem,\s*28px\)/);
+    expect(css).toMatch(/\.pos-map--s\s*\{[^}]*--_pos-code-size:\s*max\(0\.65rem,\s*10px\)/);
+    expect(css).toMatch(/\.pos-map--s \.pos-tag\s*\{\s*display:\s*none/);
+  });
+
   it("keeps the forced-colors ring only for keyboard focus", () => {
     expect(css).toMatch(/button\.pos-spot:focus-visible\s*\{[^}]*outline:\s*2px solid transparent/);
   });
