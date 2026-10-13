@@ -13,7 +13,7 @@ import { planArrows, type PlanArrow } from "./plan";
 import { hops, linkMark, tierOf, type Chem } from "./quimica";
 import { plural } from "./plural";
 
-export type Modo = "editar" | "quimica" | "jugadas" | "dibujar" | "mas" | "tableros" | "comparar" | "compartir" | "ajustes" | "charla";
+export type Modo = "editar" | "quimica" | "jugadas" | "dibujar" | "mas" | "tableros" | "comparar" | "compartir" | "ajustes" | "charla" | "pachanga";
 
 /** One change's animation: where each cromo was drawn before it, and what to celebrate. */
 export interface Fx {

@@ -2,16 +2,18 @@
 // the bottom with the shortcuts of the moment and, with a player in the hand, his actions (prompt.ts).
 // The items that act are real buttons (the same thing the key does); the rest only teach the key. The
 // autosave line closes it on the right.
-import { promptItems, promptKey, type PromptActs, type PromptCtx } from "./prompt";
+import { promptItems, promptKey, type PromptActs, type PromptCtx, type PromptItem } from "./prompt";
 
 export interface PromptBarProps {
   ctx: PromptCtx;
   acts: PromptActs;
   saveTxt: string;
   saveCls: string;
+  /** Bloque 5: the actions every context offers apart, before the autosave («P Presentar»). */
+  extra?: PromptItem[];
 }
 
-export function PromptBar({ ctx, acts, saveTxt, saveCls }: PromptBarProps) {
+export function PromptBar({ ctx, acts, saveTxt, saveCls, extra }: PromptBarProps) {
   const items = promptItems(ctx, acts);
   // a new context plays the items in again
   const k = promptKey(ctx);
@@ -32,6 +34,12 @@ export function PromptBar({ ctx, acts, saveTxt, saveCls }: PromptBarProps) {
           </span>
         );
       })}
+      {extra?.map((m) => (
+        <button key={m.k} type="button" className="b5p-pm" onClick={m.go} aria-label={m.t + " (" + m.k + ")"}>
+          <kbd aria-hidden="true">{m.k}</kbd>
+          {m.t}
+        </button>
+      ))}
       <span className="pm-sv">
         <i className={saveCls} aria-hidden="true" />
         {saveTxt}

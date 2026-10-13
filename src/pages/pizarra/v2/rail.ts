@@ -1,4 +1,4 @@
-// The tools, as the «Acciones» rail groups them (En el campo / Gestión): their order is the 1–8 shortcut.
+// The tools, as the «Acciones» rail groups them (En el campo / Gestión): their order is the 1–9 shortcut.
 // The «nuevo» badges expire: each one goes once its tool has been opened twice on this device, and all
 // of them 30 days after the FUT chrome came out.
 import type { IconName } from "./icons";
@@ -78,9 +78,10 @@ export const RAIL: { g: string; items: RailItem[] }[] = [
       item({ m: "comparar", l: "Comparar", d: "Dos sietes cara a cara", icon: "compare" }),
       item({ m: "compartir", l: "Compartir", d: "Cartel para el grupo", icon: "share", w: 20 }),
       item({ m: "ajustes", l: "Ajustes", d: "Cromos, cámara, sonido", icon: "sliders" }),
+      item({ m: "pachanga", l: "Pachanga", d: "Equipos para el entreno", icon: "rot", w: 20 }, true),
     ],
   },
 ];
 
-/** The tools in their shortcut order (1–8). */
+/** The tools in their shortcut order (1–9). */
 export const RAIL_ORDER: Modo[] = RAIL.flatMap((g) => g.items.map((x) => x.m));

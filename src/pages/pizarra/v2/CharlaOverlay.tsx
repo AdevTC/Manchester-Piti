@@ -3,7 +3,7 @@
 // (progress segments, prev / play-pause / next, the timeline, «Salir»); and, in the sheet (desktop), the
 // running order. The board decides the step (charla.ts, useCharla.ts) and tells screen readers what
 // each step says; this only draws it.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Icon } from "./icons";
 import { mag } from "./mag";
 import { vars } from "./view";
@@ -22,6 +22,8 @@ export interface CharlaOverlayProps {
   /** The seven isn't whole: the charla waits for the captain to choose (present it anyway, start from
    *  the plan, or go back to complete it). */
   gate?: CharlaGate | null;
+  /** Bloque 5 · la voz en off of the step (VozPanel), over the transport. */
+  voz?: ReactNode;
 }
 
 export interface CharlaGate {
@@ -58,7 +60,7 @@ function Gate({ g, onExit }: { g: CharlaGate; onExit: () => void }) {
   );
 }
 
-export function CharlaOverlay({ v, step, playing, rm, onToggle, onStep, onSeek, onExit, gate }: CharlaOverlayProps) {
+export function CharlaOverlay({ v, step, playing, rm, onToggle, onStep, onSeek, onExit, gate, voz }: CharlaOverlayProps) {
   const running = playing && step < v.last;
   // The transport takes the focus while the charla is on (the app bar that opened it is hidden on
   // phones) and gives it back when it closes.
@@ -139,6 +141,7 @@ export function CharlaOverlay({ v, step, playing, rm, onToggle, onStep, onSeek, 
         </div>
       )}
       <div className="ch-ctl" role="group" aria-label="Controles de la charla">
+        {!gate && voz}
         <div className="ch-seg" aria-hidden="true">
           {v.segs.map((s, k) => (
             <i key={k + ":" + (s.cls === "cur" ? step : "")} className={s.cls} style={vars({ "--w": s.w, "--t": s.t })} />

@@ -17,6 +17,7 @@ import { useReactions } from "../useReactions";
 import { useBoardData } from "./useBoardData";
 import { useBoardSession } from "./useBoardSession";
 import { useConvocatoria } from "./useConvocatoria";
+import { useVozStore } from "./vozStore";
 import { Board } from "./Board";
 import { readPrefs, writePrefs, type BoardPrefs } from "./prefs";
 import { charlaMatch, matchShort, officialFor, seasonPending, withConvocatoria } from "./boards";
@@ -88,6 +89,8 @@ export function PizarraPage() {
   // The official the team sees for this board: the one on screen when it is, else the match's or the season's.
   const official = session.official ? (lineups.official.find((d) => d.id === session.id) ?? null) : officialFor(session.officials, m?.id ?? null);
   const reactions = useReactions(official ? { id: official.id, isOfficial: official.isOfficial } : null);
+  // Bloque 5: the voice clips of the charla of the board on screen (read while the charla is open)
+  const voz = useVozStore(session.id, user?.uid ?? "preview");
   const seasonName = selectedSeasonId === "all" ? "Histórico total" : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
   const nick = profile?.nickname ?? "";
   // The board has opened where the link asked: coming back later starts from the board you left.
@@ -114,6 +117,7 @@ export function PizarraPage() {
       official={official}
       reactions={official ? { enabled: reactions.enabled, ok: reactions.ok, dudas: reactions.dudas, mine: reactions.mine, react: reactions.react, ...(reactions.who ? { who: reactions.who } : {}) } : null}
       conv={{ match: m, loading: conv.loading, error: conv.error }}
+      voz={voz}
       onSyncConvocatoria={
         isAdmin
           ? async (matchId, l) => {

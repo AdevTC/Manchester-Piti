@@ -43,6 +43,18 @@ import { boardLink, boardMeta, convocatoriaFromBoard, matchLabel, matchShort, ty
 import { charlaJugada, charlaLast, charlaView, pushIn, STEP_JUGADA, STEP_PLAN, stepKind, type CharlaMatch } from "./charla";
 import { useCharla } from "./useCharla";
 import { CharlaGuion, CharlaOverlay } from "./CharlaOverlay";
+// Bloque 5 · presentar: la voz en off, el vídeo de la jugada, varias fichas a la vez, el modo presentación
+import type { VozStore } from "./vozStore";
+import { useVozCharla } from "./useVozCharla";
+import { VozPanel } from "./VozPanel";
+import { JugadaVideo } from "./JugadaVideo";
+import { clockTxt, type PlayVideo } from "./playVideo";
+import { useMultiSel } from "./useMultiSel";
+import { MultiSelBar, MultiSelLayer, type MultiRing } from "./MultiSelView";
+import { centreOf, clampGroupDelta, fichasTxt, frameShift, freePoints, moveFreeGroup, movePiecesGroup, piecePoints } from "./multiSel";
+import { usePresenta } from "./usePresenta";
+import { PresentaBar } from "./PresentaBar";
+import { presJugadaTxt, presKey, presLed } from "./presenta";
 import { DEAL_MS, INTRO_2D_MS, INTRO_MAX_MS, INTRO_WAIT_MS, introKind, introSeen, markIntroSeen, type IntroKind } from "./intro";
 import { engineCast, engineDriven, enginePasos, engineSeven, type Shot } from "./director";
 import { cartelBlob, cartelFile, cartelLayout, crestImage, download, preparedFor, shareCartel } from "./cartel";
@@ -69,6 +81,7 @@ import {
   renamePlay,
   savePlay,
   setFrameText,
+  setPlayVideo,
   toEngineFrames,
   validatePlay,
   type Play,
@@ -133,6 +146,14 @@ import { RivalPanel } from "./RivalPanel";
 import { BoardShare } from "./BoardShare";
 import { ClipExport } from "./ClipExport";
 import type { Cartel } from "./cartel";
+// Bloque 5 · equipo y organización (pachanga, capitán rotativo, tableros organizados, plan imprimible)
+import { PachangaPanel } from "./PachangaPanel";
+import { applyCaptain, armbands, nextCaptain, rowTxt, whyTxt } from "./captain";
+import { noteOpened, recentIds } from "./boardList";
+import { matchDay as dayOf } from "./boards";
+import { PrintPlan } from "./PrintPlan";
+import { printView } from "./printSheet";
+import { OFFLINE_TXT, useOnline } from "./online";
 
 /** The cartel with Bloque 4's extras on its pitch (none: the cartel as it was). */
 function withCartelExtras(c: Cartel, strokes: Stroke[], L: Lineup, rivalOn: boolean): Cartel {
@@ -168,6 +189,8 @@ export interface BoardProps {
   conv: { match: CalMatch | null; loading: boolean; error: boolean };
   /** Captains: the match's one convocatoria takes the official's siete (setConvocatoria). */
   onSyncConvocatoria?: (matchId: string, lineup: { starters: string[]; bench: string[] }) => Promise<void>;
+  /** Bloque 5 · the charla's voice clips of this board (vozStore.ts; none in tests or without Firebase). */
+  voz?: VozStore;
   /** «Partido de día»: the app's theme. */
   theme: { day: boolean; toggle: () => void };
   crest: ReactNode;
@@ -208,7 +231,7 @@ interface Ui {
 const UI0 = { sel: null, pick: null, fan: null, fic: null, hist: EMPTY_HISTORY, kb: null, ink: emptyStack<InkOp>(), jh: emptyStack<PlayOp>(), inkSel: null, rivSel: null };
 
 /** The tools «Más» opens (their «Volver» goes back to it). */
-const MAS_KIDS: Modo[] = ["tableros", "comparar", "compartir", "ajustes"];
+const MAS_KIDS: Modo[] = ["tableros", "comparar", "compartir", "ajustes", "pachanga"];
 
 /** Focus a panel's first visible heading (else the panel itself), without scrolling. */
 function focusHeading(sheet: HTMLElement | null): void {
@@ -221,7 +244,7 @@ function focusHeading(sheet: HTMLElement | null): void {
 
 // Deep links into a panel: /pizarra#comparar, #compartir, #tableros, #ajustes, #quimica, #plan, #jugadas,
 // #dibujar, and #charla (the link the captain sends to the group).
-const HASH_MODOS: Modo[] = ["quimica", "jugadas", "dibujar", "mas", "tableros", "comparar", "compartir", "ajustes", "charla"];
+const HASH_MODOS: Modo[] = ["quimica", "jugadas", "dibujar", "mas", "tableros", "comparar", "compartir", "ajustes", "charla", "pachanga"];
 /** The panel a URL hash names (null = none we know). */
 function panelOf(hash: string): Modo | "plan" | null {
   const h = hash.replace(/^#/, "").toLowerCase();
@@ -280,6 +303,7 @@ const SHEET_TITLE: Record<Modo, string> = {
   compartir: "Compartir",
   ajustes: "Ajustes",
   charla: "El guion de la charla",
+  pachanga: "Pachanga",
 };
 
 export function Board(props: BoardProps) {
@@ -298,6 +322,8 @@ export function Board(props: BoardProps) {
 
   // (read live: the system's setting can change with the page open)
   const rm = useReducedMotion();
+  // (Bloque 5: offline on the field, the save line says so even with nothing pending)
+  const online = useOnline();
   const [start] = useState(fromHash);
   const [modo, setModo] = useState<Modo>(start.modo);
   const [snap, setSnap] = useState<Snap>(() => snapOf(start.modo));
@@ -1047,6 +1073,99 @@ export function Board(props: BoardProps) {
     announce((kind === "b" ? "Balón" : kind === "r:" ? "Rival" : nm(id)) + " movido " + toPlace(to));
   };
 
+  // ── Bloque 5 · varias fichas a la vez: the cromos in free mode, the pieces of a paso being edited.
+  // Shift / Ctrl-click (or «Seleccionar» on a touch screen) picks; dragging one moves them all; with the
+  // keyboard, Mayús + Intro picks the focused one and the arrows move the group (multiSel.ts). ──
+  const msFree = canEdit && modo === "editar" && !!L.freeMode;
+  const ms = useMultiSel(msFree ? "f:" + session.key : pieces ? "j:" + session.key + ":" + jplay.id + ":" + jf : null, (k) =>
+    msFree ? onPitch.has(k) : piecePoints(jplay, jf, [k]).size > 0,
+  );
+  const msName = (k: string) => (k === "b" ? "El balón" : k.startsWith("r:") ? "Un rival" : nm(k.startsWith("p:") ? k.slice(2) : k));
+  const msTap = (k: string) => {
+    const next = ms.toggle(k);
+    buzz(8);
+    announce(msName(k) + (next.includes(k) ? " elegido" : " fuera del grupo") + " · " + (next.length ? fichasTxt(next.length) + " para mover juntas" : "ninguna ficha elegida"));
+  };
+  /** Moves the group: `to` sends each pitch point; `drop` = where a drag let them go (frame %), to glide from. */
+  const msMove = (keys: string[], to: (p: { x: number; y: number }) => { x: number; y: number }, drop: { dX: number; dY: number } | null, tag?: string) => {
+    if (!keys.length) return;
+    const d = drawn.current;
+    const at = (xy: [number, number] | null | undefined): [number, number] | null => (xy && drop ? [xy[0] + drop.dX, xy[1] + drop.dY] : null);
+    if (msFree) {
+      const next = moveFreeGroup(L, keys, to, prefs.grid);
+      const from = drop ? Object.fromEntries(keys.map((k): [string, [number, number] | null] => [k, at(d?.p[k])]).filter((x): x is [string, [number, number]] => !!x[1])) : null;
+      if (next === L) {
+        runFx(morph(from));
+        return;
+      }
+      commit(next, { drop: from, ui: { sel: null, pick: null, kb: null } });
+      buzz([12, 30, 12]);
+      announce(fichasTxt(keys.length) + " movidas " + toPlace(centreOf(freePoints(next, keys))));
+      return;
+    }
+    const moved = editJugada((p) => movePiecesGroup(p, jf, keys, to), "", undefined, tag);
+    const pf: Record<string, [number, number]> = {};
+    const rf: Record<string, [number, number]> = { ...(d?.r ?? {}) };
+    let bf: [number, number] | null = null;
+    keys.forEach((k) => {
+      if (k === "b") bf = at(d?.b) ?? bf;
+      else if (k.startsWith("r:")) {
+        const v = at(d?.r[k.slice(2)]);
+        if (v) rf[k.slice(2)] = v;
+      } else {
+        const v = at(d?.p[k.slice(2)]);
+        if (v) pf[k.slice(2)] = v;
+      }
+    });
+    runFx(morph(drop ? pf : null, drop ? { rfrom: rf, bfrom: bf ?? d?.b ?? null } : {}));
+    if (!moved) return;
+    buzz(10);
+    announce(fichasTxt(keys.length) + " movidas " + toPlace(centreOf([...piecePoints(moved, jf, keys).values()])));
+  };
+  /** The arrows (pitch %): the group as far as it can go while all of it stays on the pitch. */
+  const msNudge = (dx0: number, dy0: number) => {
+    // (with the 5 % grid on, a step is one square of it)
+    const sq5 = (v: number) => (msFree && prefs.grid && v && Math.abs(v) < 5 ? Math.sign(v) * 5 : v);
+    const dx = sq5(dx0);
+    const dy = sq5(dy0);
+    const pts = msFree ? freePoints(L, ms.keys) : [...piecePoints(jplay, jf, ms.keys).values()];
+    const [cx, cy] = msFree ? clampGroupDelta(pts, dx, dy, 4, 96) : clampGroupDelta(pts, dx, dy, 0, 100);
+    if (!cx && !cy) return;
+    if (!msFree) {
+      setUntouched(false);
+      rpl.pause();
+    }
+    msMove(ms.keys, (p) => ({ x: p.x + cx, y: p.y + cy }), null, "k" + jf + "grupo");
+  };
+  /** (captured before the pieces' own keys) Mayús + Intro picks the focused ficha, Esc lets the group go,
+   *  and the arrows on a ficha of the group move all of it. */
+  const msKeyCapture = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!ms.on || e.altKey || e.ctrlKey || e.metaKey) return;
+    const t = e.target as Element;
+    const tag = (t as HTMLElement).tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    const key = msFree ? t.closest("[data-tok][data-zone='p']")?.getAttribute("data-tok") : t.closest("[data-piece]")?.getAttribute("data-piece");
+    if (e.key === "Enter" && e.shiftKey && key && !key.startsWith("c:")) {
+      e.preventDefault();
+      e.stopPropagation();
+      msTap(key);
+      return;
+    }
+    if (e.key === "Escape" && ms.keys.length && !sel) {
+      e.preventDefault();
+      e.stopPropagation();
+      ms.clear();
+      announce("Fichas soltadas");
+      return;
+    }
+    const d = key && !sel && ms.keys.includes(key) && (msFree || ms.keys.length > 1) ? nudgeOf(e.key, e.shiftKey) : null;
+    if (d) {
+      e.preventDefault();
+      e.stopPropagation();
+      msNudge(d[0], d[1]);
+    }
+  };
+
   // ── Dibujar: strokes of light on the grass, with their own undo ──
   const strokes = L.drawings ?? [];
   const inkSel = u.inkSel && strokes.some((x) => x.id === u.inkSel) ? u.inkSel : null;
@@ -1374,6 +1493,28 @@ export function Board(props: BoardProps) {
   const cv = charlaOn ? charlaView({ ...chArgs, step: chl.step, playing: chPlaying }) : null;
   const chKind = cv?.kind ?? null;
 
+  // ── Bloque 5 · la voz en off of each step (read only while the charla is on), and the presentation ──
+  const vozWant = props.voz?.want;
+  useEffect(() => {
+    vozWant?.(charlaOn);
+  }, [vozWant, charlaOn]);
+  const voz = useVozCharla({
+    store: props.voz,
+    on: charlaOn && ready && !chGate,
+    step: chl.step,
+    last: chLast,
+    playing: chPlaying,
+    canEdit,
+    pause: () => {
+      if (chl.playing && !rm) chl.toggle();
+    },
+    resume: () => {
+      if (!chl.playing && !rm && chl.step < chLast) chl.toggle();
+    },
+    announce,
+  });
+  const pres = usePresenta(rootRef, announce);
+
   // ── Bloque 4 · la táctica: con / sin balón and the fases on the pitch, the styles, the conditional plan,
   // the química por jugador (useTactica.tsx) ──
   const tq = useTactica({
@@ -1477,8 +1618,13 @@ export function Board(props: BoardProps) {
       draw: canEdit && modo === "dibujar",
       drawRo: ready && ro && modo === "dibujar",
       pieces,
+      multi: ms.on && (!msFree || (!cb.preview && !tpv.on)),
+      selecting: ms.selecting,
+      group: ms.keys,
     },
     {
+      onMultiTap: msTap,
+      onGroup: (keys, d) => msMove(keys, (p) => frameShift(cam, p, d.dX, d.dY), d),
       // a bench cromo lifted off the phone strip (long press): the hand feels it
       onLift: () => buzz(12),
       // «+2 química aquí» over the spot the carried cromo would land on
@@ -1889,13 +2035,21 @@ export function Board(props: BoardProps) {
       else ctxUndo();
       return;
     }
+    // (Bloque 5 · P opens or closes the presentation, Esc closes it; its hidden panels' keys wait)
+    const pk = presKey(e, pres.on, typing);
+    if (pk) {
+      e.preventDefault();
+      if (pk === "toggle") pres.toggle();
+      else if (pk === "exit") pres.exit();
+      return;
+    }
     if (modo === "charla" && e.key === "Escape") {
       e.preventDefault();
       goModo("editar");
       return;
     }
     if (typing) return;
-    if (/^[1-8]$/.test(e.key)) {
+    if (/^[1-9]$/.test(e.key)) {
       e.preventDefault();
       goModo(RAIL_ORDER[+e.key - 1]);
       return;
@@ -2085,9 +2239,28 @@ export function Board(props: BoardProps) {
     .map((d) => {
       const on = d.id === session.id;
       const Ld = on ? L : normalize(extractLineup(d), squadIds);
-      const rv = calById(d.matchId)?.rival;
-      return { id: d.id, name: on ? session.name : d.name, meta: boardMeta(Ld, sq, on ? session.savedAt : (d.updatedAt ?? d.createdAt), props.now), on, official: d.isOfficial, deletable: !d.isOfficial || props.isAdmin, ...(rv ? { rival: rv } : {}) };
+      const lm = calById(d.matchId);
+      const rv = lm?.rival;
+      return {
+        id: d.id,
+        name: on ? session.name : d.name,
+        meta: boardMeta(Ld, sq, on ? session.savedAt : (d.updatedAt ?? d.createdAt), props.now),
+        on,
+        official: d.isOfficial,
+        deletable: !d.isOfficial || props.isAdmin,
+        ...(rv ? { rival: rv } : {}),
+        // (Bloque 5: what the search, the tag filter and the sorts read)
+        tags: (on ? vr.titular.tags : d.tags) ?? [],
+        at: d.updatedAt ?? d.createdAt ?? 0,
+        ...(lm ? { matchMs: lm.dateMs, matchTxt: matchShort(lm) } : {}),
+      };
     });
+  // The boards opened on this device («Recientes» in Tableros): this one, once it is stored.
+  useEffect(() => {
+    if (ready && session.id) noteOpened(props.seasonId, session.id);
+  }, [ready, session.id, props.seasonId]);
+  // «Capitán rotativo» (Tableros → Partido): only worked out while Tableros is open
+  const capPick = modo === "tableros" ? nextCaptain(vr.titular, sq, armbands(session.officials, cal)) : null;
   const isMine = !!session.id && session.mine.some((d) => d.id === session.id);
   const off = props.official;
   const offMatch = off ? calById(off.matchId) : null;
@@ -2278,7 +2451,7 @@ export function Board(props: BoardProps) {
   const clipEl =
     modo === "jugadas" || modo === "compartir" ? (
       <ClipExport
-        key={jplay.id}
+        key={"clip:" + jplay.id}
         play={jplay}
         who={Object.fromEntries(participants(jplay).map((id) => [id, { num: sq.byId.get(id)?.num ?? 0, name: nm(id) }]))}
         head={match?.short ?? session.name}
@@ -2350,10 +2523,12 @@ export function Board(props: BoardProps) {
         : session.status === "saving"
           ? "Guardando…"
           : session.status === "offline"
-            ? "Sin conexión · se guarda al volver"
+            ? OFFLINE_TXT
             : session.status === "error"
               ? "Sin guardar · revisa la conexión"
-              : "Guardado · " + ago(session.savedAt, props.now);
+              : !online
+                ? OFFLINE_TXT
+                : "Guardado · " + ago(session.savedAt, props.now);
   const rootCls = [
     "vx",
     "pzv",
@@ -2389,7 +2564,47 @@ export function Board(props: BoardProps) {
     pieces ? "j-edit" : "",
     // Dibujar on an editable board: the pitch is a canvas
     canEdit && modo === "dibujar" ? "d-on" : "",
+    // Bloque 5 · modo presentación: the chrome hidden, the pitch over the whole screen
+    pres.on ? "b5p-pres" : "",
   ].filter(Boolean).join(" ");
+  // ── Bloque 5 on screen: the rings under the fichas picked, their bar, the jugada's video, the voice, the
+  // presentation's LED and controls ──
+  const msRings: MultiRing[] = ms.keys.flatMap((k): MultiRing[] => {
+    const xy = msFree ? drawnNow.p[k] : k === "b" ? jug?.drawn.b : k.startsWith("r:") ? jug?.drawn.r[k.slice(2)] : jug?.drawn.p[k.slice(2)];
+    return xy ? [{ key: k, x: xy[0], y: xy[1] }] : [];
+  });
+  const msBar = ms.on ? (
+    <MultiSelBar
+      n={ms.keys.length}
+      selecting={ms.selecting}
+      onSelecting={() => {
+        ms.setSelecting(!ms.selecting);
+        announce(ms.selecting ? "Seleccionar, apagado" : "Seleccionar: toca las fichas que quieras mover juntas");
+      }}
+      onClear={() => {
+        ms.clear();
+        announce("Fichas soltadas");
+      }}
+    />
+  ) : null;
+  const jVideo = (v: PlayVideo | null): boolean => {
+    const same = v ? jplay.video?.url === v.url.trim() && jplay.video?.at === v.at : !jplay.video;
+    if (same) return true;
+    if (!editJugada((p) => setPlayVideo(p, v), "", undefined, "video")) return false;
+    buzz(8);
+    say(v ? "Vídeo enlazado a la jugada (" + clockTxt(v.at) + ")" : "Vídeo quitado de la jugada");
+    return true;
+  };
+  const presEl = pres.on ? (
+    <PresentaBar
+      led={presLed({ match: match?.short ?? null, board: session.name, sys: hud.sysName, qv: ch.v, free: !!L.freeMode })}
+      modo={charlaOn ? "charla" : modo === "jugadas" ? "jugadas" : "otro"}
+      jugada={modo === "jugadas" ? { txt: presJugadaTxt(jf, nJ, jplay.frames[jf]?.title ?? ""), playing: rpl.playing, onToggle: playToggle, onStep: jStep } : null}
+      onCharla={() => goModo("charla")}
+      onJugadas={() => goModo("jugadas")}
+      onExit={pres.exit}
+    />
+  ) : null;
   const shown: ReactNode =
     modo === "editar" ? (
       <>
@@ -2632,7 +2847,34 @@ export function Board(props: BoardProps) {
         seasons={props.seasons}
         seasonId={props.seasonId}
         onSeason={props.onSeason}
+        tags={vr.titular.tags ?? []}
+        onTags={(tags) => {
+          if (!canEdit) return;
+          // (the tags are the board's, whatever version of the seven is on screen)
+          props.session.commit({ ...vr.titular, tags });
+          announce(tags.length ? "Etiquetas: " + tags.join(", ") : "Sin etiquetas");
+        }}
+        recent={recentIds(props.seasonId)}
+        captain={
+          capPick
+            ? {
+                name: capPick.id ? nm(capPick.id) : null,
+                why: whyTxt(capPick, nm),
+                rows: capPick.rows.map((r) => ({ id: r.id, name: nm(r.id), txt: rowTxt(r) })),
+                already: capPick.already,
+                canApply: canEdit,
+                onApply: () => {
+                  const cid = capPick.id;
+                  if (!cid) return;
+                  commit(applyCaptain(L, cid));
+                  say("Brazalete para " + nm(cid) + ": capitán del próximo partido");
+                },
+              }
+            : null
+        }
       />
+    ) : modo === "pachanga" ? (
+      <PachangaPanel sq={sq} when={dayOf(props.now)} onBack={() => goModo("mas")} say={announce} />
     ) : modo === "comparar" ? (
       <CompararPanel
         options={cmpOpts}
@@ -2674,6 +2916,18 @@ export function Board(props: BoardProps) {
             }}
             clip={clipEl}
             clipName={jplay.name}
+            print={
+              <PrintPlan
+                view={() =>
+                  printView(L, sq, {
+                    name: session.name + (vr.active !== "titular" ? " · " + vr.name : ""),
+                    match: match ? [match.short, match.date, match.time, match.place].filter(Boolean).join(" · ") : "",
+                    called: match?.called ? new Set(match.called) : null,
+                  })
+                }
+                onFail={say}
+              />
+            }
           />
         }
       />
@@ -2719,6 +2973,7 @@ export function Board(props: BoardProps) {
         canEdit={canEdit}
         note3d={note3d}
         clip={clipEl}
+        video={<JugadaVideo key={"video:" + jplay.id} video={jplay.video ?? null} canEdit={canEdit} onSave={jVideo} />}
         editor={jugadaEditor()}
         onToggle={playToggle}
         onStep={jStep}
@@ -2907,6 +3162,7 @@ export function Board(props: BoardProps) {
       style={vars({ "--fh": C.Fh, "--vr": geo.vr, "--cut": geo.cut, "--kb": geo.kb })}
       onPointerDown={ctl.onPointerDown}
       onKeyDown={onKey}
+      onKeyDownCapture={msKeyCapture}
       onContextMenu={(e) => {
         // a long press on a cromo opens the fan, not the browser's menu
         if ((e.target as Element).closest("[data-tok],[data-dline],[data-grab]")) e.preventDefault();
@@ -2923,7 +3179,12 @@ export function Board(props: BoardProps) {
           jug={jug}
           pieces={pieces}
           focusCards={modo !== "jugadas" && modo !== "dibujar" && !charlaOn}
-          selbar={phone ? null : selBarEl}
+          selbar={
+            <>
+              {phone ? null : selBarEl}
+              {msBar}
+            </>
+          }
           trailsDraw={!!fx.from && !rm}
           trailsDur={trailsDurOf(rate)}
           wipe={wipe}
@@ -2964,7 +3225,12 @@ export function Board(props: BoardProps) {
           pieceAria={pieceAria}
           onPieceKey={onPieceKey}
           onPieceTap={onPieceTap}
-          extras={drawLayer}
+          extras={
+            <>
+              {drawLayer}
+              <MultiSelLayer rings={msRings} />
+            </>
+          }
         />
         <AppBar
           crest={props.crest}
@@ -2990,6 +3256,12 @@ export function Board(props: BoardProps) {
           onQuimica={() => goModo("quimica")}
           onBug={() => setSnap("half")}
           live={cb.plate}
+          extra={
+            <button type="button" className="b3 b5p-pres-b" onClick={pres.enter} aria-label="Presentar: el campo a toda pantalla (P)">
+              <Icon n="eye" w={16} />
+              <span>Presentar</span>
+            </button>
+          }
         />
         {ro && ready && <ReadOnlyStrip label={session.official ? "OFICIAL · SOLO LECTURA" : "SOLO LECTURA · @" + session.owner.toUpperCase()} onDuplicate={session.duplicate} onMine={session.openMine} />}
         {/* (not live: it changes with every paso of a replay; what matters is announced on its own) */}
@@ -3005,7 +3277,7 @@ export function Board(props: BoardProps) {
           {shown}
         </Sheet>
         <ModeBar modo={modo} onGo={goModo} card={matchCard} />
-        <PromptBar ctx={pmCtx} acts={pmActs} saveTxt={saveTxt} saveCls={saveCls} />
+        <PromptBar ctx={pmCtx} acts={pmActs} saveTxt={saveTxt} saveCls={saveCls} extra={[{ k: "P", t: "Presentar", go: pres.enter }]} />
         {cv && (
           <CharlaOverlay
             v={cv}
@@ -3029,8 +3301,10 @@ export function Board(props: BoardProps) {
                   }
                 : null
             }
+            voz={<VozPanel v={voz} />}
           />
         )}
+        {presEl}
         {intro3d && (
           <>
             <button type="button" className="i3-tap" onClick={skipIntro} tabIndex={-1} aria-hidden="true" />

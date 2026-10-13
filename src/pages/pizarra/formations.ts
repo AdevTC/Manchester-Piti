@@ -90,6 +90,8 @@ export interface Lineup {
   condPlan?: CondRule[];
   /** The predefined style last applied («Presión alta»…; see v2/tacStyles.ts). Absent = none. */
   style?: StyleId | null;
+  /** Etiquetas del tablero («Liga», «Copa», «Entreno»: ≤ 3, ≤ 20 letras; see v2/tags.ts). Absent = never set. */
+  tags?: string[];
   /** View only, never stored: where each slot stands in the plan's phase on screen (v2/phases.ts). */
   phaseAt?: { u: number; v: number }[];
 }

@@ -131,6 +131,8 @@ export interface JugadasPanelProps {
   note3d: string | null;
   /** «La jugada en vídeo» (ClipExport), under the editor's hint. */
   clip?: ReactNode;
+  /** Bloque 5 · «Ver en vídeo» (JugadaVideo): the jugada's video link, under the clip. */
+  video?: ReactNode;
   editor: JugadaEditorView;
   onToggle: () => void;
   onStep: (d: 1 | -1) => void;
@@ -279,6 +281,7 @@ export function JugadasPanel(p: JugadasPanelProps) {
           </span>
         </p>
         {p.clip}
+        {p.video}
         {p.canEdit && (
           <div className="jed">
             <h3>{ed.own ? "Tu jugada" : "De la biblioteca · al retocarla se guarda una copia tuya"}</h3>

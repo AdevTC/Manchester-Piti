@@ -19,6 +19,7 @@ import type { Lineup } from "./formations";
 import { boardToData, dataToLineupDoc, lineupToData, type LineupDoc, type LineupMeta } from "./lineupDoc";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import { mapLineup } from "../../lib/firestoreMappers";
+import { clearVoz } from "./v2/vozStore";
 
 // `?preview` injects a mock session but no real Firebase auth token, so the
 // `lineups` rules (request.auth != null) would reject reads/writes. In preview
@@ -269,6 +270,8 @@ export function useLineups(seasonId: string): UseLineups {
     };
     const remove: UseLineups["remove"] = async (id) => {
       await clearReactions([id]);
+      // (Bloque 5: the charla's voice goes first — its rules read the board to allow it)
+      await clearVoz(id);
       await deleteDoc(doc(db, "lineups", id));
     };
     const markOfficial: UseLineups["markOfficial"] = async (id, scope) => {

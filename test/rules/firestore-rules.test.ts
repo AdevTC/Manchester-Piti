@@ -480,6 +480,19 @@ describe("Pizarra", () => {
     await seed("lineups/old", board);
     await assertSucceeds(updateDoc(doc(db("member"), "lineups", "old"), { name: "Viejo" }));
   });
+  it("las etiquetas del tablero: hasta tres textos de 1 a 20 letras", async () => {
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, tags: ["Liga", "Copa"] }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { tags: [] }));
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { tags: ["Liga", "Copa", "x".repeat(20)] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { tags: ["Liga", "Copa", "Entreno", "Final"] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { tags: ["x".repeat(21)] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { tags: [""] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { tags: [3] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { tags: "Liga" }));
+    // las etiquetas de otro no se tocan
+    await seed("lineups/z", { ...board, ownerUid: "other", ownerNickname: "other" });
+    await assertFails(updateDoc(doc(db("member"), "lineups", "z"), { tags: ["Liga"] }));
+  });
   it("el autor firma con su propio apodo; la temporada no cambia", async () => {
     await assertFails(setDoc(doc(db("member"), "lineups", "x"), { ...board, ownerNickname: "admin" }));
     await assertFails(setDoc(doc(db("member"), "lineups", "x"), { ownerUid: "member", seasonId: "season", name: "Sin apodo" }));
@@ -708,5 +721,49 @@ describe("Pizarra · el día de partido (variantes y recordatorios)", () => {
     await seed("pushLog/seven-x", { at: 1 });
     await assertFails(getDoc(doc(db("admin"), "pushLog", "seven-x")));
     await assertFails(setDoc(doc(db("admin"), "pushLog", "seven-y"), { at: 1 }));
+  });
+});
+
+describe("Pizarra · Bloque 5 (la voz de la charla, el vídeo de la jugada)", () => {
+  const board = { ownerUid: "member", ownerNickname: "member", seasonId: "season", name: "Mi siete", isOfficial: false };
+  const clip = (over: object = {}) => ({ step: "plan", mime: "audio/webm;codecs=opus", ms: 12000, data: "AQID", by: "member", at: serverTimestamp(), ...over });
+  const voz = (uid: string, slot: string) => doc(db(uid), "lineups", "x", "voz", slot);
+  it("el dueño graba la voz de un paso; el equipo la oye; fuera nadie", async () => {
+    await seed("lineups/x", board);
+    await assertSucceeds(setDoc(voz("member", "v0"), clip()));
+    await assertSucceeds(setDoc(voz("member", "v5"), clip({ step: "siete-3", mime: "audio/mp4" })));
+    await assertSucceeds(getDoc(voz("other", "v0")));
+    await assertSucceeds(getDocs(collection(db("other"), "lineups", "x", "voz")));
+    await assertFails(getDoc(voz("outsider", "v0")));
+    await assertFails(setDoc(voz("other", "v1"), clip({ by: "other" })));
+    await assertSucceeds(deleteDoc(voz("member", "v5")));
+    await assertFails(deleteDoc(voz("other", "v0")));
+  });
+  it("seis huecos como mucho, y cada clip con su tope (30 s, 900 000 caracteres, audio, un paso conocido)", async () => {
+    await seed("lineups/x", board);
+    await assertFails(setDoc(voz("member", "v6"), clip()));
+    await assertFails(setDoc(voz("member", "voz"), clip()));
+    await assertFails(setDoc(voz("member", "v0"), clip({ ms: 30001 })));
+    await assertFails(setDoc(voz("member", "v0"), clip({ ms: 1.5 })));
+    await assertFails(setDoc(voz("member", "v0"), clip({ data: "A".repeat(900001) })));
+    await assertSucceeds(setDoc(voz("member", "v0"), clip({ data: "A".repeat(900000) })));
+    await assertFails(setDoc(voz("member", "v1"), clip({ mime: "text/html" })));
+    await assertFails(setDoc(voz("member", "v1"), clip({ step: "siete-9" })));
+    await assertFails(setDoc(voz("member", "v1"), clip({ by: "other" })));
+    await assertFails(setDoc(voz("member", "v1"), clip({ at: Timestamp.fromMillis(0) })));
+    await assertFails(setDoc(voz("member", "v1"), clip({ extra: 1 })));
+  });
+  it("la voz del oficial solo la tocan los capitanes; sin tablero no hay voz", async () => {
+    await seed("lineups/x", { ...board, isOfficial: true });
+    await assertFails(setDoc(voz("member", "v0"), clip()));
+    await assertSucceeds(setDoc(voz("admin", "v0"), clip({ by: "admin" })));
+    await assertFails(deleteDoc(voz("member", "v0")));
+    await assertSucceeds(deleteDoc(voz("admin", "v0")));
+    await assertFails(setDoc(doc(db("member"), "lineups", "nada", "voz", "v0"), clip()));
+  });
+  it("una jugada lleva su vídeo enlazado dentro (la lista de jugadas sigue con su tope)", async () => {
+    const play = { id: "j", name: "Córner", kind: "propia", frames: [], video: { url: "https://youtu.be/abc", at: 75 } };
+    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, plays: [play] }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { plays: Array.from({ length: 13 }, () => play) }));
   });
 });
