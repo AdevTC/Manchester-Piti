@@ -81,12 +81,40 @@ describe("findOfficialBoard (the match-bound official board)", () => {
     expect(await findOfficialBoard(db, "s1", "m1")).toBeNull();
   });
 
-  it("a lock naming a missing board, or an odd lineupId, falls back without crashing", async () => {
+  it("a lock naming a missing board, or an odd lineupId, falls back without crashing; odd ids are reported", async () => {
     const db = fakeDb({ "lineupOfficials/s1__m1": { lineupId: "gone", seasonId: "s1", matchId: "m1" } });
     expect(await findOfficialBoard(db, "s1", "m1")).toBeNull();
     const odd = fakeDb({ "lineupOfficials/s1__m1": { lineupId: "a/b", seasonId: "s1", matchId: "m1" } });
-    expect(await findOfficialBoard(odd, "s1", "m1")).toBeNull();
+    const invalid: string[] = [];
+    const onInvalidId = (what: string, id: string) => invalid.push(`${what}:${id}`);
+    expect(await findOfficialBoard(odd, "s1", "m1", { onInvalidId })).toBeNull();
     expect(odd.reads).not.toContain("lineups/a/b");
+    expect(await findOfficialBoard(odd, "s/1", "m1", { onInvalidId })).toBeNull();
+    expect(await findOfficialBoard(odd, "s1", "", { onInvalidId })).toBeNull();
+    expect(invalid).toEqual(["pizarra:a/b", "temporada:s/1", "partido:"]);
+  });
+
+  it("a lock naming a board of another season is not trusted", async () => {
+    const db = fakeDb({
+      "lineupOfficials/s1__m1": { lineupId: "b1", seasonId: "s1", matchId: "m1" },
+      "lineups/b1": board({ seasonId: "s0", matchId: "m1" }),
+    });
+    expect(await findOfficialBoard(db, "s1", "m1")).toBeNull();
+  });
+
+  it("ties on updatedAt (or none at all) break by id, whatever the order the query returns", async () => {
+    const docs = {
+      "lineups/bz": board({ matchId: "m1", updatedAt: ms(5) }),
+      "lineups/ba": board({ matchId: "m1", updatedAt: ms(5) }),
+      "lineups/bold": board({ matchId: "m1", updatedAt: ms(1) }),
+    };
+    expect((await findOfficialBoard(fakeDb(docs), "s1", "m1"))?.id).toBe("ba");
+    const reversed = Object.fromEntries(Object.entries(docs).reverse());
+    expect((await findOfficialBoard(fakeDb(reversed), "s1", "m1"))?.id).toBe("ba");
+    const undated = { "lineups/y": board({ matchId: "m1" }), "lineups/x": board({ matchId: "m1" }) };
+    expect((await findOfficialBoard(fakeDb(undated), "s1", "m1"))?.id).toBe("x");
+    // a dated board beats an undated one
+    expect((await findOfficialBoard(fakeDb({ ...undated, "lineups/z": board({ matchId: "m1", updatedAt: ms(0) }) }), "s1", "m1"))?.id).toBe("z");
   });
 
   it("read failures are the caller's to handle (it throws)", async () => {

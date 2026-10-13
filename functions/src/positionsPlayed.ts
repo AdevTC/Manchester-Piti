@@ -3,6 +3,7 @@
 // de ahí. Puro: lo usan saveMatchSheet, el relleno de actas antiguas y sus tests.
 import { boardCodeByPlayer, boardSystem, type BoardLike } from "./boardCodes.js";
 import type { MatchEvent, Participation } from "./matchEngine.js";
+import { SAFE_ID } from "./officialBoard.js";
 import type { PosCode } from "./positions.js";
 
 export interface PositionEvents {
@@ -159,6 +160,34 @@ export function positionFields(row: PositionsRow): Pick<Participation, "position
 
 const POSITION_KEYS = ["positionsPlayed", "positionEvents", "positionsEstimated"] as const;
 
+type PositionsLedger = Record<string, Pick<Participation, "positionsPlayed" | "positionEvents" | "positionsEstimated">>;
+const clearPositions = (players: PositionsLedger) => {
+  for (const p of Object.values(players)) for (const key of POSITION_KEYS) delete p[key];
+};
+
+/** Puts each player's {@link positionFields} on the ledger, replacing whatever position keys it had. */
+export function withPositions(players: PositionsLedger, rows: Record<string, PositionsRow>): void {
+  clearPositions(players);
+  for (const [pid, row] of Object.entries(rows)) if (players[pid]) Object.assign(players[pid], positionFields(row));
+}
+
+/**
+ * The board could not be read: each player keeps the position keys his stored row had (a stored
+ * ledger from the match doc, possibly missing or odd), and nothing else; a player new to the acta gets none.
+ */
+export function keepStoredPositions(players: PositionsLedger, stored: unknown): void {
+  clearPositions(players);
+  if (!stored || typeof stored !== "object") return;
+  for (const [pid, p] of Object.entries(players)) {
+    const row: unknown = (stored as Record<string, unknown>)[pid];
+    if (!row || typeof row !== "object") continue;
+    const r = row as Record<string, unknown>;
+    if (r.positionsPlayed && typeof r.positionsPlayed === "object") p.positionsPlayed = r.positionsPlayed as PositionsLedger[string]["positionsPlayed"];
+    if (r.positionEvents && typeof r.positionEvents === "object") p.positionEvents = r.positionEvents as PositionsLedger[string]["positionEvents"];
+    if (r.positionsEstimated === true) p.positionsEstimated = true;
+  }
+}
+
 /** Key-order-independent equality for the plain values stored here (absent ≡ null). */
 function same(a: unknown, b: unknown): boolean {
   if (a === undefined || a === null || b === undefined || b === null) return (a ?? null) === (b ?? null);
@@ -168,23 +197,30 @@ function same(a: unknown, b: unknown): boolean {
   return ka.length === kb.length && ka.every((k) => same((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
 }
 
+
 /** A stored match as the backfill reads it: anything may be missing on an old acta. */
 export interface BackfillMatch {
   ledger?: Record<string, unknown> | null;
   events?: unknown;
   system?: unknown;
 }
+export type PositionKey = (typeof POSITION_KEYS)[number];
+/** What changes on a match: per player, each position key that differs (null = delete it), and `system`. */
+export interface BackfillPatch {
+  ledger: Record<string, Partial<Record<PositionKey, unknown>>>;
+  system: string | null;
+}
 
 /**
- * The update that brings a stored finished match to what saveMatchSheet would store today:
- * `ledger.<pid>.<key>` for each of the three position keys that differs (null = delete the field) and
- * `system`, or null when nothing changes — so a second run writes nothing.
+ * The change that brings a stored finished match to what saveMatchSheet would store today, or null
+ * when nothing changes — so a second run writes nothing. A player whose id can't safely be a field
+ * path segment (SAFE_ID) is left out: the script counts him as «id no válido».
  */
 export function backfillPatch(
   match: BackfillMatch,
   board: BoardLike | null,
   mains: Record<string, PosCode | null>,
-): Record<string, unknown> | null {
+): BackfillPatch | null {
   const ledger: Record<string, Record<string, unknown>> = {};
   for (const [pid, row] of Object.entries(match.ledger ?? {}))
     if (row && typeof row === "object") ledger[pid] = row as Record<string, unknown>;
@@ -193,13 +229,35 @@ export function backfillPatch(
     board: board ? boardCodeByPlayer(board) : null,
     main: mains,
   });
-  const patch: Record<string, unknown> = {};
+  const changes: BackfillPatch["ledger"] = {};
   for (const [pid, stored] of Object.entries(ledger)) {
+    if (!SAFE_ID.test(pid)) continue;
     const want: Record<string, unknown> = rows[pid] ? positionFields(rows[pid]) : {};
-    for (const key of POSITION_KEYS)
-      if (!same(stored[key], want[key])) patch[`ledger.${pid}.${key}`] = want[key] ?? null;
+    for (const key of POSITION_KEYS) if (!same(stored[key], want[key])) (changes[pid] ??= {})[key] = want[key] ?? null;
   }
   const system = board ? boardSystem(board) : null;
-  if (Object.keys(patch).length === 0 && same(match.system, system)) return null;
-  return { ...patch, system };
+  if (Object.keys(changes).length === 0 && same(match.system, system)) return null;
+  return { ledger: changes, system };
+}
+
+/**
+ * A patch as admin-SDK `update(ref, field, value, field, value, …)` pairs: `path("ledger", pid, key)`
+ * for each change (null → the injected delete sentinel) and `path("system")` (null stays null). A pid
+ * that fails SAFE_ID is skipped and listed in `invalid`.
+ */
+export function backfillUpdates<P, D>(
+  patch: BackfillPatch,
+  make: { path: (...segments: string[]) => P; del: D },
+): { pairs: [P, unknown][]; invalid: string[] } {
+  const pairs: [P, unknown][] = [];
+  const invalid: string[] = [];
+  for (const [pid, keys] of Object.entries(patch.ledger)) {
+    if (!SAFE_ID.test(pid)) {
+      invalid.push(pid);
+      continue;
+    }
+    for (const key of POSITION_KEYS) if (key in keys) pairs.push([make.path("ledger", pid, key), keys[key] === null ? make.del : keys[key]]);
+  }
+  pairs.push([make.path("system"), patch.system]);
+  return { pairs, invalid };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_EMULATOR, DEMO_PROJECT, PROD_PROJECT, RETRY_CODES, classifyWriteError, migrationExit, migrationSummary, resolveMigrationTarget } from "../../functions/src/migratePositions";
+import { DEFAULT_EMULATOR, DEMO_PROJECT, PROD_PROJECT, RETRY_CODES, checkExpected, classifyWriteError, credentialProject, migrationExit, migrationSummary, resolveMigrationTarget } from "../../functions/src/migratePositions";
 
 describe("resolveMigrationTarget (a qué proyecto apunta la migración)", () => {
   it("defaults to the emulator, dry-run, on the demo project", () => {
@@ -10,6 +10,7 @@ describe("resolveMigrationTarget (a qué proyecto apunta la migración)", () => 
       projectId: DEMO_PROJECT,
       emulatorHost: DEFAULT_EMULATOR,
       label: "Destino: emulador 127.0.0.1:8080 · demo-manchester-piti",
+      expect: null,
     });
   });
 
@@ -31,8 +32,37 @@ describe("resolveMigrationTarget (a qué proyecto apunta la migración)", () => 
       projectId: PROD_PROJECT,
       emulatorHost: null,
       label: "Destino: PRODUCCIÓN · futbolmanagement-dc6cb",
+      expect: null,
     });
-    expect(resolveMigrationTarget(["--prod", "--write"], {})).toMatchObject({ ok: true, prod: true, write: true });
+    expect(resolveMigrationTarget(["--prod", "--write", `--project=${PROD_PROJECT}`, "--expect=12"], {})).toMatchObject({
+      ok: true,
+      prod: true,
+      write: true,
+      projectId: PROD_PROJECT,
+      expect: 12,
+    });
+  });
+
+  it("--prod --write needs --project equal to the target and --expect", () => {
+    const err = (argv: string[]) => {
+      const t = resolveMigrationTarget(argv, {});
+      expect(t.ok).toBe(false);
+      return t.ok ? "" : t.error;
+    };
+    expect(err(["--prod", "--write"])).toMatch(/--project=futbolmanagement-dc6cb/);
+    expect(err(["--prod", "--write", "--expect=3"])).toMatch(/--project=/);
+    expect(err(["--prod", "--write", `--project=${PROD_PROJECT}`])).toMatch(/--expect=<N>/);
+    expect(err(["--prod", "--write", `--project=${DEMO_PROJECT}`, "--expect=3"])).toMatch(/no coincide/);
+    expect(err(["--prod", "--write", "--project=", "--expect=3"])).toMatch(/no coincide/);
+    expect(err(["--prod", "--write", `--project=${PROD_PROJECT}`, "--expect=tres"])).toMatch(/--expect necesita un número/);
+    expect(err(["--prod", "--write", `--project=${PROD_PROJECT}`, "--expect=-1"])).toMatch(/--expect necesita un número/);
+    // the emulator check still comes first
+    expect(resolveMigrationTarget(["--prod", "--write", `--project=${PROD_PROJECT}`, "--expect=3"], { FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080" })).toMatchObject({ ok: false });
+  });
+
+  it("on the emulator --project must name the demo project; --expect is optional and carried", () => {
+    expect(resolveMigrationTarget(["--write", `--project=${PROD_PROJECT}`], {}).ok).toBe(false);
+    expect(resolveMigrationTarget(["--write", `--project=${DEMO_PROJECT}`, "--expect=0"], {})).toMatchObject({ ok: true, write: true, expect: 0 });
   });
 
   it("refuses --prod while FIRESTORE_EMULATOR_HOST is set (even empty)", () => {
@@ -103,5 +133,38 @@ describe("migrationSummary", () => {
     expect(migrationSummary({ total: 30, planned: 5, write: true, outcomes: ["escrita", "escrita", "cambiada", "sin confirmar", "error"] })).toBe(
       "Resumen: a escribir 5 · escritas 2 · saltadas (ya tenían) 25 · cambiadas mientras tanto 1 · no confirmadas 1 · errores 1",
     );
+  });
+});
+
+describe("checkExpected (--expect frente al plan)", () => {
+  it("no --expect, or the same count: write", () => {
+    expect(checkExpected(null, 4)).toBeNull();
+    expect(checkExpected(4, 4)).toBeNull();
+    expect(checkExpected(0, 0)).toBeNull();
+  });
+
+  it("a different count: nothing is written", () => {
+    expect(checkExpected(3, 4)).toMatch(/--expect=3 .* 4 a escribir: no se escribe nada/);
+  });
+});
+
+describe("credentialProject (qué proyecto tiene la credencial)", () => {
+  const files = (map: Record<string, string>) => (p: string) => map[p] ?? null;
+  it("the environment wins", () => {
+    expect(credentialProject({ GOOGLE_CLOUD_PROJECT: "a", GCLOUD_PROJECT: "b" }, files({}))).toBe("a");
+    expect(credentialProject({ GCLOUD_PROJECT: "b" }, files({}))).toBe("b");
+  });
+
+  it("a service-account file's project_id, or the ADC quota project", () => {
+    expect(credentialProject({ GOOGLE_APPLICATION_CREDENTIALS: "/k.json" }, files({ "/k.json": '{"project_id":"sa-proj"}' }))).toBe("sa-proj");
+    expect(credentialProject({ APPDATA: "C:/AD" }, files({ "C:/AD/gcloud/application_default_credentials.json": '{"quota_project_id":"q"}' }))).toBe("q");
+    expect(credentialProject({ HOME: "/h" }, files({ "/h/.config/gcloud/application_default_credentials.json": '{"quota_project_id":"q2"}' }))).toBe("q2");
+  });
+
+  it("unknown: null (no file, bad JSON, no project in it)", () => {
+    expect(credentialProject({ HOME: "/h" }, files({}))).toBeNull();
+    expect(credentialProject({ GOOGLE_APPLICATION_CREDENTIALS: "/k" }, files({ "/k": "{oops" }))).toBeNull();
+    expect(credentialProject({ GOOGLE_APPLICATION_CREDENTIALS: "/k" }, files({ "/k": '{"type":"authorized_user"}' }))).toBeNull();
+    expect(credentialProject({}, files({}))).toBeNull();
   });
 });

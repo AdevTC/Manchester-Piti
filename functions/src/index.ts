@@ -11,10 +11,10 @@ import { db, idSchema, parse, admin } from "./common.js";
 import { eventSchema } from "./eventSchema.js";
 import { readyClock } from "./matchClock.js";
 import { recomputePorra } from "./vestuario.js";
-import { boardCodeByPlayer, boardSystem, type BoardLike } from "./boardCodes.js";
+import { boardCodeByPlayer, boardSystem } from "./boardCodes.js";
 import { findOfficialBoard } from "./officialBoard.js";
 import { isPosCode, type PosCode } from "./positions.js";
-import { positionFields, positionsPlayed } from "./positionsPlayed.js";
+import { keepStoredPositions, positionsPlayed, withPositions } from "./positionsPlayed.js";
 export { clubShare } from "./social.js";
 export { setSeasonArchived } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
@@ -132,17 +132,20 @@ export const saveMatchSheet = onCall(async (req) => {
         "Registra todos los goles de ambos equipos: el acta debe coincidir con el marcador.",
       );
   }
-  // The match's official board (never the season's) says who played where. Reading it must never
-  // block publishing: on a failure the acta goes out as if there were none (positions estimated).
-  let board: BoardLike | null = null;
+  // The match's official board (never the season's) says who played where. Reading or decoding it must
+  // never block publishing: on a failure the acta keeps what it had stored (see the transaction).
+  let board: { codes: Record<string, PosCode>; system: string } | null = null;
+  let boardFailed = false;
   if (!input.draft && sheet.status === "finished") {
     try {
-      board = (await findOfficialBoard(db, sheet.seasonId, input.id))?.board ?? null;
+      const found = await findOfficialBoard(db, sheet.seasonId, input.id, {
+        onInvalidId: (what, id) => console.warn("saveMatchSheet: id no válido", what, id),
+      });
+      board = found ? { codes: boardCodeByPlayer(found.board), system: boardSystem(found.board) } : null;
     } catch (error) {
-      console.error("saveMatchSheet: official board", input.id, error);
+      boardFailed = true;
+      console.error("saveMatchSheet: official board unreadable, keeping the stored positions", input.id, error);
     }
-    const rows = positionsPlayed(ledger.players, sheet.events, { board: board ? boardCodeByPlayer(board) : null, main });
-    for (const [pid, row] of Object.entries(rows)) Object.assign(ledger.players[pid], positionFields(row));
   }
   const ref = db.doc(`matches/${input.id}`);
   await db.runTransaction(async (tx) => {
@@ -165,6 +168,18 @@ export const saveMatchSheet = onCall(async (req) => {
     }
     const { meetingNote, ...publicSheet } = sheet;
     const finished = sheet.status === "finished";
+    // «Ha jugado de». With the board unreadable, a published acta keeps its stored positions and system
+    // rather than dropping to estimates; a first publication has nothing stored, so it estimates.
+    let system: string | null = null;
+    if (finished) {
+      if (boardFailed && old.get("status") === "finished") {
+        keepStoredPositions(ledger.players, old.get("ledger"));
+        system = typeof old.get("system") === "string" ? (old.get("system") as string) : null;
+      } else {
+        withPositions(ledger.players, positionsPlayed(ledger.players, sheet.events, { board: board?.codes ?? null, main }));
+        system = board?.system ?? null;
+      }
+    }
     const votes = await tx.get(ref.collection("votes"));
     // Replace this match's contribution atomically: corrections never double count.
     const deltas = new Map<
@@ -239,7 +254,7 @@ export const saveMatchSheet = onCall(async (req) => {
       goalsFor: finished ? sheet.goalsFor : null,
       goalsAgainst: finished ? sheet.goalsAgainst : null,
       ledger: finished ? ledger.players : {},
-      system: finished && board ? boardSystem(board) : null,
+      system,
       voteClosesAt: finished
         ? (old.get("voteClosesAt") ?? Date.now() + 48 * 60 * 60_000)
         : null,

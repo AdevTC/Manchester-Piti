@@ -821,6 +821,15 @@ const posTotals = (await db.collection("playerSeasonStats").where("seasonId", "=
 assert.equal(posTotals.minutes, 40);
 assert.equal("positionsPlayed" in posTotals, false);
 checked += 11;
+// A board that can't be decoded never blocks publishing: the acta keeps what it had stored.
+await db.doc("lineups/" + posBoard).update({ slots: 5 });
+await ok("saveMatchSheet", admin, { id: posMatchId, sheet: { ...posSheet, revision: posDoc.revision } });
+posDoc = (await db.doc("matches/" + posMatchId).get()).data();
+assert.equal(posDoc.system, "2-3-1");
+assert.deepEqual(posDoc.ledger[posIds[7]].positionsPlayed, { DC: 40 });
+assert.deepEqual(posDoc.ledger[posIds[1]].positionEvents, { DFC: { ...none, assists: 1 } });
+assert.equal(Object.values(posDoc.ledger).some((r) => "positionsEstimated" in r), false);
+checked += 4;
 // Without the match's board (the season's official does not count): estimated by preferred position.
 await db.doc("lineups/" + posBoard).update({ matchId: null });
 await db.doc(`lineupOfficials/${posSeason}__${posMatchId}`).delete();
