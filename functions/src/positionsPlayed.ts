@@ -34,7 +34,10 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
  * player he came in for ends at that minute, «estimado» included; when that one has no code, his own
  * main (estimated). An event counts at the stint that contains its minute (from ≤ t < to) or, when
  * none does, at the one that ends right then (his last minute: a red card, the minute he is
- * substituted, the final whistle); elsewhere (a card on the bench) it is not attributed.
+ * substituted, the final whistle); elsewhere (a card on the bench) it is not attributed. At a
+ * substitution minute t the one coming in owns t (his stint starts there), so his card at t counts at
+ * the position he inherited; the one going off only gets t through the stint that ends there.
+ * `positionsEstimated` is set only when an estimated stint gave him minutes.
  */
 export function positionsPlayed(
   ledger: Record<string, LedgerRow>,
@@ -86,26 +89,28 @@ export function positionsPlayed(
     return out;
   };
 
-  // Every stint in time order, so a chain (a substitute for a substitute) resolves front to back.
-  const all = Object.keys(ledger)
-    .flatMap((pid) => stintsOf(pid).map((s, i) => ({ pid, i, from: s.from })))
-    .sort((a, b) => a.from - b.from);
+  // resolve is memoised and recursive, so the order stints are visited in does not matter: a chain
+  // (a substitute for a substitute) resolves through whoever he replaced.
   const rows: Record<string, PositionsRow> = {};
   const minutes: Record<string, Partial<Record<PosCode, number>>> = {};
-  for (const { pid, i } of all) {
-    const c = resolve(pid, i);
-    if (!c) continue;
-    const s = stintsOf(pid)[i];
-    rows[pid] ??= { positionsPlayed: {}, positionEvents: {}, positionsEstimated: false };
-    if (c.estimated) rows[pid].positionsEstimated = true;
-    const m = (minutes[pid] ??= {});
-    m[c.code] = (m[c.code] ?? 0) + Math.max(0, s.to - s.from);
-  }
-  for (const [pid, m] of Object.entries(minutes))
+  for (const pid of Object.keys(ledger))
+    stintsOf(pid).forEach((s, i) => {
+      const c = resolve(pid, i);
+      if (!c) return;
+      const length = Math.max(0, s.to - s.from);
+      rows[pid] ??= { positionsPlayed: {}, positionEvents: {}, positionsEstimated: false };
+      if (c.estimated && length > 0) rows[pid].positionsEstimated = true;
+      const m = (minutes[pid] ??= {});
+      m[c.code] = (m[c.code] ?? 0) + length;
+    });
+  for (const [pid, m] of Object.entries(minutes)) {
     for (const [code, raw] of Object.entries(m) as [PosCode, number][]) {
       const v = round2(raw);
       if (v > 0) rows[pid].positionsPlayed[code] = v;
     }
+    // «estimado» only describes minutes he has: never on a row with none listed
+    if (Object.keys(rows[pid].positionsPlayed).length === 0) rows[pid].positionsEstimated = false;
+  }
 
   const codeAt = (pid: string | undefined, t: number): PosCode | null => {
     if (!pid || !rows[pid]) return null;

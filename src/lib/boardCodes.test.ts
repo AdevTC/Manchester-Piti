@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardCodeByPlayer, boardSlotCodes, boardSystem, type BoardLike } from "../../functions/src/boardCodes";
+import { boardCodeByPlayer, boardSlotCodes, boardSystem, freeLine, planeDist2Raw, type BoardLike } from "../../functions/src/boardCodes";
 import { systemDef } from "../../functions/src/formations";
 
 const slotsOf = (ids: (string | null)[], spots: readonly (readonly [unknown, number, number])[]) =>
@@ -70,5 +70,15 @@ describe("boardSystem", () => {
     expect(boardSystem({ formation: "3-2-1", freeMode: true })).toBe("libre");
     expect(boardSystem({ formation: "3-2-1", freeMode: false })).toBe("3-2-1");
     expect(boardSystem({ formation: "nope" })).toBe("2-3-1");
+  });
+});
+
+describe("free-mode helpers (shared with the pizarra's geometry)", () => {
+  it("freeLine: v ≥ 62 DEF, v ≥ 36 MED, else DEL", () => {
+    expect([freeLine(95), freeLine(62), freeLine(61.9), freeLine(36), freeLine(35.9), freeLine(0)]).toEqual(["DEF", "DEF", "MED", "MED", "DEL", "DEL"]);
+  });
+  it("planeDist2Raw weighs the length 1.42 : 1", () => {
+    expect(planeDist2Raw(10, 0, 0, 0)).toBe(100);
+    expect(planeDist2Raw(0, 10, 0, 0)).toBeCloseTo(201.64, 10);
   });
 });

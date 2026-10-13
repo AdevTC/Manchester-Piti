@@ -18,9 +18,12 @@ const OUTFIELD = POS_CODES.filter((c) => c !== "POR");
 
 const formationOf = (b: BoardLike): FormationName => (isFormationName(b.formation) ? b.formation : DEFAULT_FORMATION);
 
-// Free mode, as the pizarra's geometry reads it (slotZone's depth bands; planeDist2's 1.42 : 1 pitch).
-const freeLine = (v: number): Line => (v >= 62 ? "DEF" : v >= 36 ? "MED" : "DEL");
-const planeDist2 = (u1: number, v1: number, u2: number, v2: number): number => (u1 - u2) ** 2 + ((v1 - v2) * 1.42) ** 2;
+/** Free mode: the line a slot plays on by its depth (v 0 = rival goal … 100 = ours). The pizarra's
+ *  geometry.slotZone reads it from here. */
+export const freeLine = (v: number): Line => (v >= 62 ? "DEF" : v >= 36 ? "MED" : "DEL");
+/** Squared plane distance with the length weighted like the real pitch (1.42 : 1); geometry.planeDist2
+ *  is this on its UV points. */
+export const planeDist2Raw = (u1: number, v1: number, u2: number, v2: number): number => (u1 - u2) ** 2 + ((v1 - v2) * 1.42) ** 2;
 
 function freeCode(x: number, y: number): PosCode {
   const line = freeLine(y);
@@ -28,7 +31,7 @@ function freeCode(x: number, y: number): PosCode {
   let best: PosCode = codes[0] ?? OUTFIELD[0];
   let bd = Infinity;
   for (const c of codes) {
-    const d = planeDist2(x, y, POSITIONS[c].x, POSITIONS[c].y);
+    const d = planeDist2Raw(x, y, POSITIONS[c].x, POSITIONS[c].y);
     if (d < bd) {
       bd = d;
       best = c;

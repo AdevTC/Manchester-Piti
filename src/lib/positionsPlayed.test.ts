@@ -182,4 +182,25 @@ describe("positionsPlayed (ha jugado de — minutos y acciones por posición des
     expect(rows.h.positionsPlayed).toEqual({ DC: 50 });
     expect(rows.g?.positionsPlayed ?? {}).toEqual({});
   });
+
+  it("a zero-minute estimated stint never marks the row «estimado»", () => {
+    const board = { ...BOARD };
+    delete board.g;
+    const events = [sub(0, "g", "h")];
+    const L = play(events);
+    const rows = positionsPlayed(L.players, events, { board, main: MAINS });
+    // g (off the board → his main, estimated) leaves at 0: no minutes, so not estimated
+    expect(rows.g).toEqual({ positionsPlayed: {}, positionEvents: {}, positionsEstimated: false });
+    // h inherits g's estimated EI and plays all 50
+    expect(rows.h).toEqual({ positionsPlayed: { EI: 50 }, positionEvents: {}, positionsEstimated: true });
+  });
+
+  it("same minute: a card at t by the one coming on at t (listed after the sub) counts at his inherited position", () => {
+    const events = [sub(20, "g", "h"), ev("yellow_card", 20, "h"), ev("yellow_card", 20, "g")];
+    const L = play(events);
+    const rows = positionsPlayed(L.players, events, { board: BOARD, main: MAINS });
+    expect(rows.h.positionEvents).toEqual({ DC: { ...none, yellowCards: 1 } });
+    // the one going off owns t only through the stint that ends there: his card at t is his DC too
+    expect(rows.g.positionEvents).toEqual({ DC: { ...none, yellowCards: 1 } });
+  });
 });

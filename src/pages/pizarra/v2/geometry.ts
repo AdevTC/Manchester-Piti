@@ -2,6 +2,7 @@
 // The pitch plane is (u, v) in %: u across (0 left … 100 right), v along (0 = rival goal … 100 = our goal).
 // The frame is (x, y) in % of the drawn frame, with a real perspective tilt for the TV camera. The same
 // formulas draw the turf, place the cromos, the química links and the plan, and invert a pointer for drag.
+import { freeLine, planeDist2Raw } from "../../../../functions/src/boardCodes";
 import { SYSTEMS_CATALOGUE } from "../../../lib/formations";
 import { lineOf } from "../../../lib/positions";
 import type { FormationName, Lineup, Zone } from "../formations";
@@ -188,8 +189,7 @@ export function nearestLine(L: Lineup, v: number): (typeof DEF_LINE_VALUES)[numb
 export function slotZone(L: Lineup, i: number): Zone {
   if (i === 0) return "POR";
   if (L.freeMode && L.slots[i]) {
-    const v = L.slots[i].y;
-    return v >= 62 ? "DEF" : v >= 36 ? "MED" : "DEL";
+    return freeLine(L.slots[i].y);
   }
   return spotOf(L, i)[1];
 }
@@ -201,7 +201,7 @@ export function slotLabel(L: Lineup, i: number): string {
 }
 
 /** Squared plane distance with the length weighted like the real pitch (1.42 : 1). */
-export const planeDist2 = (a: UV, b: UV): number => (a.u - b.u) ** 2 + ((a.v - b.v) * 1.42) ** 2;
+export const planeDist2 = (a: UV, b: UV): number => planeDist2Raw(a.u, a.v, b.u, b.v);
 
 // ── Static pitch art (viewBox 0 0 1000 1000 stretched to the frame). ──
 export interface PitchArt {
