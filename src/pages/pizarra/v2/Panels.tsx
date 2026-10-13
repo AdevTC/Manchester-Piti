@@ -489,8 +489,8 @@ function MiniSystem({ name, grades }: { name: FormationName; grades?: (FitGrade 
       <rect x="2" y="2" width="56" height="76" rx="4" />
       <path d="M2 40h56" />
       {FORM[name].map(([, z, u, v], k) => {
-        const x = grades?.[k];
-        const cls = z === "POR" ? "g" : x != null ? "pzp-dot-g" + x : "";
+        // (an empty slot or a player with nothing known: «gn», a faint ring — never the plain «también» dot)
+        const cls = z === "POR" ? "g" : grades ? "pzp-dot-g" + (grades[k] ?? "n") : "";
         return <circle key={k} className={cls} cx={(2 + (u / 100) * 56).toFixed(1)} cy={(2 + (v / 100) * 76).toFixed(1)} r="4.2" />;
       })}
     </svg>
@@ -523,6 +523,8 @@ export interface SystemTabProps {
   sq: Squad;
   /** Who the board can count on (encajeCandidates): their best seven on each system. */
   cands: string[];
+  /** How many of the board's own seven are in their place now (boardInPlace). */
+  now?: number;
   /** La química por jugador: the team's diamonds (0–21). */
   dm?: number;
   onSystem: (f: FormationName) => void;
@@ -545,22 +547,43 @@ export function SystemTab(p: SystemTabProps) {
   // (Array.prototype.sort is stable: equal counts keep the catalogue's order)
   const order = data && byFit ? [...SYSTEMS].sort((a, b) => enc[b].inPlace - enc[a].inPlace) : SYSTEMS;
   const cur = systemDef(p.formation);
-  const falta = data ? faltaTxt(enc[p.formation].missing) : "";
+  const best = enc[p.formation];
+  const falta = data ? faltaTxt(best.missing) : "";
+  const better = data && p.now != null && best.inPlace > p.now;
+  const [open, setOpen] = useState(false);
+  const moreId = useId();
   return (
     <div className="pg">
       {!p.free && (
-        <section className="pzp-sysf" aria-label={"Ficha del sistema " + cur.label}>
+        // Wide sheets show it all; narrow ones (a container query in pizarra-app.css) one short line —
+        // the system and what is missing, else what it is — and «Ver ficha» for the rest.
+        <section className={"pzp-sysf" + (open ? " pzp-open" : "")} aria-label={"Ficha del sistema " + cur.label}>
           <p className="pzp-sysf-h">
-            <b>{cur.label}</b> · {cur.name}
+            <span className="pzp-sysf-nm">
+              <b>{cur.label}</b> · {cur.name}
+            </span>
+            <span className="pzp-sysf-lead"> — {falta || cur.about}</span>
           </p>
-          <p>{cur.about}</p>
-          <p>
-            <b>Fuertes:</b> {cur.strengths}
-          </p>
-          <p>
-            <b>Débiles:</b> {cur.weaknesses}
-          </p>
+          <div className="pzp-sysf-m" id={moreId}>
+            <p className={falta ? "" : "pzp-sysf-dup"}>{cur.about}</p>
+            <p>
+              <b>Fuertes:</b> {cur.strengths}
+            </p>
+            <p>
+              <b>Débiles:</b> {cur.weaknesses}
+            </p>
+          </div>
           {falta && <p className="pzp-sysf-f">{falta}</p>}
+          <div className={"pzp-sysf-r" + (better ? "" : " pzp-sysf-r0")}>
+            {better && (
+              <p className="pzp-sysf-y">
+                Tu siete: {p.now}/{best.grades.length} en su sitio · el mejor posible: {best.inPlace}/{best.grades.length}
+              </p>
+            )}
+            <button type="button" className="pzp-sysf-t" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={moreId}>
+              Ver ficha
+            </button>
+          </div>
         </section>
       )}
       {data && (

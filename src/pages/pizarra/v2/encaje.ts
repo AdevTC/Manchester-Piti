@@ -152,6 +152,15 @@ export function bestEncaje(system: FormationName, candidates: string[], sq: Squa
   return out;
 }
 
+/** How many of the board's own seven are in their place (fitAt ≥ 2: preferida, también or a «Jugar de»
+ *  on the slot's line). */
+export function boardInPlace(L: Lineup, sq: Squad): number {
+  return L.slots.reduce((n, s, i) => {
+    const x = s.playerId ? fitAt(L, sq, s.playerId, i) : null;
+    return n + (x != null && x >= 2 ? 1 : 0);
+  }, 0);
+}
+
 /** The best seven of the candidates on every system of the catalogue (for the Sistema tiles). */
 export function encajeBySystem(candidates: string[], sq: Squad): Record<FormationName, Encaje> {
   return Object.fromEntries(SYSTEMS.map((k) => [k, bestEncaje(k, candidates, sq)])) as Record<FormationName, Encaje>;

@@ -410,18 +410,39 @@
 .pzv .slot.pzp-g2 b::after{content:" ✓"}
 .pzv .slot.pzp-g1 b::after{content:" ~";font-size:1.3em;font-weight:900;line-height:0}
 .pzv .slot.pzp-g0 b::after{content:" !";font-weight:900}
-/* Sistema · ¿nos encaja?: the current system's ficha above the tiles (its name, what it is, strong and weak
-   points, and who is missing in words), and on every tile «n/7 en su sitio» under its name (small, ≤ 2 lines
-   on a phone's 3-up grid). The mini-pitch dots of the best seven take their fit by shape as well as tone:
-   solid (bright for preferida) when in place, a dashed ring for adaptado, a dotted hollow ring for fuera;
-   the keeper's dot stays gold. */
-.pzv .pzp-sysf{display:grid;gap:3px;padding:10px 12px;border-radius:14px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl);font-size:12px;line-height:1.35;color:var(--muted)}
+/* Sistema · ¿nos encaja?: the current system's ficha above the tiles. A wide sheet shows it all (its name, what
+   it is, strong and weak points, who is missing, and «tu siete» against the best when the best does better); a
+   narrow one (the strip's own container, under 420 px: the phone's bottom sheet) keeps one short line — the
+   system and who is missing, else what it is — plus «tu siete» and «Ver ficha», which opens the rest.
+   On every tile «n/7 en su sitio» under its name (small, ≤ 2 lines on a phone's 3-up grid; the pressed tile's
+   light slab takes the slab's ink). The mini-pitch dots of the best seven take their fit by shape as well as
+   tone: solid (bright for preferida) when in place, a dashed ring for adaptado, a dotted hollow ring for fuera,
+   a thin faint ring for an empty slot or a player with nothing known; the keeper's dot stays gold. */
+.pzv .pzp-sysf{container:pzsf / inline-size;display:grid;gap:3px;padding:10px 12px;border-radius:14px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl);font-size:12px;line-height:1.35;color:var(--muted)}
 .pzv .pzp-sysf p{margin:0}
 .pzv .pzp-sysf b{color:var(--ink)}
-.pzv .pzp-sysf .pzp-sysf-h{font-family:'Anybody';font-weight:900;font-size:15px;line-height:1.1;color:var(--ink);font-variation-settings:'wdth' 76}
-.pzv .pzp-sysf .pzp-sysf-f{color:var(--ink);font-weight:600}
+.pzv .pzp-sysf .pzp-sysf-h{color:var(--ink)}
+.pzv .pzp-sysf .pzp-sysf-nm{font-family:'Anybody';font-weight:900;font-size:15px;line-height:1.1;font-variation-settings:'wdth' 76}
+.pzv .pzp-sysf .pzp-sysf-m{display:grid;gap:3px}
+.pzv .pzp-sysf .pzp-sysf-f,.pzv .pzp-sysf .pzp-sysf-y{color:var(--ink);font-weight:600}
+.pzv .pzp-sysf .pzp-sysf-r{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.pzv .pzp-sysf .pzp-sysf-r0{display:none}
+.pzv .pzp-sysf .pzp-sysf-lead,.pzv .pzp-sysf .pzp-sysf-t{display:none}
+.pzv .pzp-sysf .pzp-sysf-t{align-items:center;gap:6px;min-height:32px;margin-left:auto;padding:0 10px;border:0;border-radius:10px;background:none;box-shadow:inset 0 0 0 1px var(--pl);color:var(--ink);font-size:12px;font-weight:600}
+.pzv .pzp-sysf .pzp-sysf-t::after{content:"▾";transition:transform .2s}
+.pzv .pzp-sysf .pzp-sysf-t[aria-expanded=true]::after{transform:rotate(180deg)}
+@media (prefers-reduced-motion:reduce){.pzv .pzp-sysf .pzp-sysf-t::after{transition:none}}
+@container pzsf (max-width:419px){
+  .pzv .pzp-sysf .pzp-sysf-lead{display:inline;font-weight:600}
+  .pzv .pzp-sysf .pzp-sysf-m,.pzv .pzp-sysf .pzp-sysf-f,.pzv .pzp-sysf .pzp-sysf-dup{display:none}
+  .pzv .pzp-sysf.pzp-open .pzp-sysf-m{display:grid}
+  .pzv .pzp-sysf .pzp-sysf-r{display:flex}
+  .pzv .pzp-sysf .pzp-sysf-t{display:inline-flex}
+}
 .pzv .sy .pzp-syf{font-family:'Geist Mono';font-size:9px;line-height:1.2;font-weight:600;color:var(--ink);text-align:center;text-wrap:balance}
+.pzv .sy[aria-pressed=true] .pzp-syf{color:var(--slab-ink)}
 .pzv .sy svg circle.pzp-dot-g3{fill:#eef6ff}
 .pzv .sy svg circle.pzp-dot-g2{fill:#9fd0f2}
 .pzv .sy svg circle.pzp-dot-g1{fill:rgba(159,208,242,.2);stroke:#9fd0f2;stroke-width:1.3;stroke-dasharray:2.2 1.6}
 .pzv .sy svg circle.pzp-dot-g0{fill:none;stroke:rgba(238,246,255,.75);stroke-width:1.3;stroke-dasharray:.8 1.6}
+.pzv .sy svg circle.pzp-dot-gn{fill:none;stroke:rgba(238,246,255,.4);stroke-width:.8}

@@ -186,8 +186,8 @@ describe("«Siete»", () => {
     const FL = lineupOf(["k1", "dfc", "ld", "mc1", "mc2", "ed", "dc"], "2-3-1", fq);
     const fch = chem(FL, fq);
     const ids = fq.list.map((c) => c.id);
-    const tab = (over: { formation?: FormationName; free?: boolean; sq?: Squad; cands?: string[] } = {}) => (
-      <SystemTab formation={over.formation ?? "2-3-1"} free={over.free ?? false} grid={false} ro={false} ch={fch} sq={over.sq ?? fq} cands={over.cands ?? ids} onSystem={vi.fn()} onLibre={vi.fn()} onGrid={vi.fn()} onReset={vi.fn()} />
+    const tab = (over: { formation?: FormationName; free?: boolean; sq?: Squad; cands?: string[]; now?: number } = {}) => (
+      <SystemTab formation={over.formation ?? "2-3-1"} free={over.free ?? false} grid={false} ro={false} ch={fch} sq={over.sq ?? fq} cands={over.cands ?? ids} now={over.now} onSystem={vi.fn()} onLibre={vi.fn()} onGrid={vi.fn()} onReset={vi.fn()} />
     );
     const tilesOf = () => within(screen.getByRole("group", { name: "Sistema de juego" })).getAllByRole("button");
     beforeEach(() => localStorage.clear());
@@ -258,6 +258,45 @@ describe("«Siete»", () => {
       expect(container.querySelector(".pzp-sysf-f")).toBeNull();
       expect(screen.queryByRole("button", { name: "Ordenar por encaje" })).not.toBeInTheDocument();
       expect(screen.getByRole("region", { name: "Ficha del sistema 2-3-1" })).toHaveTextContent(systemDef("2-3-1").about);
+    });
+
+    it("an empty slot or a player without data is a faint ring, never a «también» dot", () => {
+      // three coded players and one with nothing known: 2-3-1 has three empty slots and one unknown
+      render(tab({ sq: squadOf([...fq.list, cromo("nada", 30, undefined)]), cands: ["k1", "dfc", "mc1", "nada"] }));
+      const tile = tilesOf()[0];
+      expect(tile).toHaveAttribute("aria-label", "Sistema 2-3-1 Clásico, 3 de 7 en su sitio");
+      const dots = Array.from(tile.querySelectorAll("circle")).map((c) => c.getAttribute("class"));
+      expect(dots[0]).toBe("g");
+      expect(dots.filter((c) => c === "pzp-dot-gn")).toHaveLength(4);
+      expect(dots.filter((c) => c === "pzp-dot-g3")).toHaveLength(2);
+      expect(dots.every((c) => !!c)).toBe(true);
+    });
+
+    it("the strip's short line (phones): the system and what is missing, else what it is; «Ver ficha» opens the rest", () => {
+      const { container } = render(tab());
+      const strip = screen.getByRole("region", { name: "Ficha del sistema 2-3-1" });
+      expect(strip.querySelector(".pzp-sysf-h .pzp-sysf-lead")).toHaveTextContent("— Faltan: un central, un interior izquierdo y un interior derecho");
+      const more = within(strip).getByRole("button", { name: "Ver ficha" });
+      expect(more).toHaveAttribute("aria-expanded", "false");
+      const panel = container.ownerDocument.getElementById(more.getAttribute("aria-controls") ?? "") as HTMLElement;
+      expect(panel).toHaveTextContent("Fuertes: " + systemDef("2-3-1").strengths);
+      expect(strip).not.toHaveClass("pzp-open");
+      fireEvent.click(more);
+      expect(more).toHaveAttribute("aria-expanded", "true");
+      expect(strip).toHaveClass("pzp-open");
+      cleanup();
+      // nothing missing (or no data): the short line is what the system is
+      render(tab({ sq, cands: sq.list.map((c) => c.id) }));
+      expect(screen.getByRole("region", { name: "Ficha del sistema 2-3-1" }).querySelector(".pzp-sysf-lead")).toHaveTextContent("— " + systemDef("2-3-1").about);
+    });
+
+    it("your seven against the best: said only when the best puts more in place", () => {
+      const { rerender } = render(tab({ now: 3 }));
+      expect(screen.getByRole("region", { name: "Ficha del sistema 2-3-1" }).querySelector(".pzp-sysf-y")).toHaveTextContent(/^Tu siete: 3\/7 en su sitio · el mejor posible: 4\/7$/);
+      rerender(tab({ now: 4 }));
+      expect(document.querySelector(".pzp-sysf-y")).toBeNull();
+      rerender(tab({ now: 0, sq, cands: sq.list.map((c) => c.id) }));
+      expect(document.querySelector(".pzp-sysf-y")).toBeNull();
     });
 
     it("Libre has no ficha of its own", () => {

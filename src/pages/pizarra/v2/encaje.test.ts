@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { PosCode, ResolvedPositions } from "../../../lib/positions";
 import { lineOf } from "../../../lib/positions";
-import { assign, bestEncaje, encajeBySystem, encajeCandidates, faltaTxt, fitAt, hasFitData, slotCode } from "./encaje";
+import { assign, bestEncaje, boardInPlace, encajeBySystem, encajeCandidates, faltaTxt, fitAt, hasFitData, slotCode } from "./encaje";
 import { SYSTEMS } from "./geometry";
 import { cromo, lineupOf, squadOf } from "./testkit";
 
@@ -193,6 +193,15 @@ describe("the Sistema panel's words", () => {
     expect(faltaTxt(["ED"])).toBe("Falta: un extremo derecho");
     expect(faltaTxt(["MCD", "ED"])).toBe("Faltan: un pivote y un extremo derecho");
     expect(faltaTxt(["POR", "DFC", "DFC", "MI"])).toBe("Faltan: un portero, un central y un interior izquierdo");
+  });
+
+  it("boardInPlace: the board's own seven, by fitAt (grade ≥ 2, «Jugar de» included); empty slots don't count", () => {
+    const sq = squadOf([withPs("k", 1, "POR"), withPs("d", 4, "DFC"), withPs("m", 8, "MC"), withPs("x", 9, "DC"), cromo("n", 5, undefined)]);
+    // 2-3-1: POR k ✓ · DFC d ✓ · DFC x (fuera) · MI n (no data) · MC m ✓ · MD empty · DC empty
+    const L = lineupOf(["k", "d", "x", "n", "m", null, null], "2-3-1", sq);
+    expect(boardInPlace(L, sq)).toBe(3);
+    expect(boardInPlace({ ...L, playerPositions: { x: "DEF" as const } }, sq)).toBe(4);
+    expect(boardInPlace(lineupOf([], "2-3-1", sq), sq)).toBe(0);
   });
 
   it("encajeBySystem: every system of the catalogue, each its best seven", () => {
