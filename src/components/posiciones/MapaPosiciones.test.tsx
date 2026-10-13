@@ -1,0 +1,120 @@
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { MapaPosiciones } from "./MapaPosiciones";
+import type { PositionSet } from "../../lib/positions";
+
+const set: PositionSet = { main: "MCD", also: ["MC", "DFC"] };
+
+describe("MapaPosiciones · editar", () => {
+  it("renders the 13 spots as buttons inside a named group, codes always visible", () => {
+    render(<MapaPosiciones label="Tus posiciones" value={set} onChange={() => {}} />);
+    const group = screen.getByRole("group", { name: "Tus posiciones" });
+    const buttons = within(group).getAllByRole("button");
+    expect(buttons).toHaveLength(13);
+    expect(within(group).getByRole("button", { name: "MCD · Pivote: preferida" })).toHaveTextContent("MCD");
+    expect(within(group).getByRole("button", { name: "MCD · Pivote: preferida" })).toHaveTextContent("★");
+    expect(within(group).getByRole("button", { name: "MCD · Pivote: preferida" })).toHaveTextContent("PREF");
+    expect(within(group).getByRole("button", { name: "MC · Mediocentro: también" })).toHaveTextContent("✓");
+    expect(within(group).getByRole("button", { name: "DC · Punta: sin marcar" })).toHaveTextContent(/^DC$/);
+  });
+
+  it("cycles nada → también → preferida → nada through onChange", () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<MapaPosiciones label="Mapa" value={set} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: /^DC · / }));
+    expect(onChange).toHaveBeenLastCalledWith({ main: "MCD", also: ["MC", "DFC", "DC"] });
+
+    fireEvent.click(screen.getByRole("button", { name: /^MC · / }));
+    expect(onChange).toHaveBeenLastCalledWith({ main: "MC", also: ["DFC", "MCD"] });
+
+    fireEvent.click(screen.getByRole("button", { name: /^MCD · / }));
+    expect(onChange).toHaveBeenLastCalledWith({ main: null, also: ["MC", "DFC"] });
+
+    rerender(<MapaPosiciones label="Mapa" value={{ main: null, also: ["MC", "DFC"] }} onChange={onChange} />);
+    expect(screen.getByRole("button", { name: "MCD · Pivote: sin marcar" })).toBeInTheDocument();
+  });
+
+  it("announces the new state in the live region", () => {
+    const onChange = vi.fn();
+    render(<MapaPosiciones label="Mapa" value={set} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: /^MC · / }));
+    expect(screen.getByRole("status")).toHaveTextContent("MC · mediocentro: preferida");
+  });
+
+  it("refuses a 7th «también», tells the host and announces it", () => {
+    const onChange = vi.fn();
+    const onRefuse = vi.fn();
+    const full: PositionSet = { main: "POR", also: ["DFC", "LIB", "LI", "LD", "MCD", "MC"] };
+    render(<MapaPosiciones label="Mapa" value={full} onChange={onChange} onRefuse={onRefuse} />);
+    fireEvent.click(screen.getByRole("button", { name: /^DC · / }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onRefuse).toHaveBeenCalledWith("Máximo 6 posiciones de «también»");
+    expect(screen.getByRole("status")).toHaveTextContent("Máximo 6 posiciones de «también»");
+  });
+
+  it("uses a single tab stop and moves focus with the arrows", () => {
+    render(<MapaPosiciones label="Mapa" value={set} onChange={() => {}} />);
+    const tabbable = screen.getAllByRole("button").filter((b) => b.tabIndex === 0);
+    expect(tabbable).toHaveLength(1);
+    const mc = screen.getByRole("button", { name: /^MC · / });
+    mc.focus();
+    fireEvent.keyDown(mc, { key: "ArrowUp" });
+    const mco = screen.getByRole("button", { name: /^MCO · / });
+    expect(mco).toHaveFocus();
+    expect(mco.tabIndex).toBe(0);
+    fireEvent.keyDown(mco, { key: "ArrowLeft" });
+    expect(screen.getByRole("button", { name: /^MI · / })).toHaveFocus();
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: "Home" });
+    expect(screen.getByRole("button", { name: /^POR · / })).toHaveFocus();
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: "End" });
+    expect(screen.getByRole("button", { name: /^DC · / })).toHaveFocus();
+  });
+
+  it("shows the legend and the one-line summary under the pitch", () => {
+    render(<MapaPosiciones label="Mapa" value={set} onChange={() => {}} />);
+    expect(screen.getByText("Pivote (MCD) · también MC, DFC")).toBeInTheDocument();
+    expect(screen.getByText(/Preferida/)).toBeInTheDocument();
+    expect(screen.getByText(/También$/)).toBeInTheDocument();
+  });
+});
+
+describe("MapaPosiciones · comparar", () => {
+  it("marks codes added «+» and removed «−» against the reference, with a legend", () => {
+    const current: PositionSet = { main: "MCD", also: ["LIB"] };
+    render(<MapaPosiciones label="Propuesta" value={set} compare={current} />);
+    const img = screen.getByRole("img", { name: /^Propuesta\./ });
+    expect(img.querySelector('[data-code="MC"] .pos-diff')).toHaveTextContent("+");
+    expect(img.querySelector('[data-code="DFC"] .pos-diff')).toHaveTextContent("+");
+    expect(img.querySelector('[data-code="LIB"] .pos-diff')).toHaveTextContent("−");
+    expect(img.querySelector('[data-code="MCD"] .pos-diff')).toBeNull();
+    expect(screen.getByText(/Añadida/)).toBeInTheDocument();
+    expect(screen.getByText(/Quitada/)).toBeInTheDocument();
+  });
+
+  it("adds the difference to the buttons' names when editing", () => {
+    render(<MapaPosiciones label="Ajustar" value={set} compare={{ main: "MCD", also: ["LIB"] }} onChange={() => {}} />);
+    expect(screen.getByRole("button", { name: "MC · Mediocentro: también, añadida" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "LIB · Líbero: sin marcar, quitada" })).toBeInTheDocument();
+  });
+});
+
+describe("MapaPosiciones · solo ver", () => {
+  it("has no buttons and a full textual image label", () => {
+    render(<MapaPosiciones label="Posiciones de Jordi" value={set} />);
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(
+      screen.getByRole("img", {
+        name: "Posiciones de Jordi. Preferida: Pivote (MCD). También: Mediocentro (MC), Central (DFC).",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("still draws every state", () => {
+    const { container } = render(<MapaPosiciones label="Mapa" value={set} size="s" />);
+    expect(container.querySelector('[data-code="MCD"]')).toHaveAttribute("data-state", "preferida");
+    expect(container.querySelector('[data-code="MC"]')).toHaveAttribute("data-state", "tambien");
+    expect(container.querySelector('[data-code="DC"]')).toHaveAttribute("data-state", "nada");
+    expect(container.querySelector(".pos-map")).toHaveClass("pos-map--s");
+  });
+});
