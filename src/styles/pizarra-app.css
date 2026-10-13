@@ -446,3 +446,5 @@
 .pzv .sy svg circle.pzp-dot-g1{fill:rgba(159,208,242,.2);stroke:#9fd0f2;stroke-width:1.3;stroke-dasharray:2.2 1.6}
 .pzv .sy svg circle.pzp-dot-g0{fill:none;stroke:rgba(238,246,255,.75);stroke-width:1.3;stroke-dasharray:.8 1.6}
 .pzv .sy svg circle.pzp-dot-gn{fill:none;stroke:rgba(238,246,255,.4);stroke-width:.8}
+/* Bench list rows: «También MC · DFC» under the season line (one line, ellipsis: never pushes the «Entra por él» / status pills) */
+.pzv .ar-n .pzp-ar-also{font-size:10px;line-height:1.2;color:var(--ink);opacity:.72;letter-spacing:.02em}

@@ -20,7 +20,7 @@ import { fits, GALONES, isAvailable, isFull, natOf, type Squad } from "./model";
 import { chemOf, tierOf } from "./quimica";
 import { autoPlace, cycleDefLine, editSig, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setDefLine, setSystem, snapAll, stepSystem, swap, toggleRole } from "./ops";
 import { suggestSeven } from "./pack";
-import { boardInPlace, encajeCandidates } from "./encaje";
+import { boardInPlace, encajeCandidates, slotCode } from "./encaje";
 import { applyFan, fanCentre, fanItems, type FanItem, type FanSub } from "./fan";
 import { EMPTY_HISTORY, pushHistory, redo, undo, type History } from "./history";
 import { cycle, settle, snapOf, step, type Snap } from "./sheet";
@@ -2127,7 +2127,7 @@ export function Board(props: BoardProps) {
   // Compiler keeps them while their inputs don't change).
   const benchOn = modo === "editar" && tab === "b";
   const selP = sel?.k === "p" ? L.slots.findIndex((s) => s.playerId === sel.id) : -1;
-  const benchHand: BenchHand | null = !benchOn || !canEdit ? null : sel && selP >= 0 ? { kind: "p", name: nm(sel.id), zone: slotZone(L, selP) } : pick != null ? { kind: "slot", zone: slotZone(L, pick) } : null;
+  const benchHand: BenchHand | null = !benchOn || !canEdit ? null : sel && selP >= 0 ? { kind: "p", name: nm(sel.id), zone: slotZone(L, selP), code: slotCode(L, selP) } : pick != null ? { kind: "slot", zone: slotZone(L, pick), code: slotCode(L, pick) } : null;
   const groups = benchOn
     ? benchGroups({
         bench: sq.list.filter((c) => !onPitch.has(c.id)),

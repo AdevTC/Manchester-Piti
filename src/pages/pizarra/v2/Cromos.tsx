@@ -186,6 +186,7 @@ export function BenchRowItem({ r, onTap }: BenchItemProps) {
       <span className="ar-n">
         <b>{r.name}</b>
         <small>{r.line}</small>
+        {r.also && <small className="pzp-ar-also">{r.also}</small>}
       </span>
       <CvChip r={r} />
       {r.tg && (

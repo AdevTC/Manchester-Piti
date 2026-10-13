@@ -2,6 +2,7 @@
 // the four axes), the convocatoria's head (the counts, who is in doubt), the bench in three groups
 // (Banquillo · Sin convocar · Bajas) as FUT rows or cromos — with the targets that glow while a player
 // is in the hand — and the reparto de minutos. Pure.
+import { fitGrade, POSITIONS, type PosCode } from "../../../lib/positions";
 import type { Lineup, Zone } from "../formations";
 import { slotZone } from "./geometry";
 import { bajaChip, bajaWords, formAria, rtTxt, type Cromo, type Squad } from "./model";
@@ -155,14 +156,17 @@ export function pitchFound(L: Lineup, sq: Squad, f: BenchFilter, label: (i: numb
   });
 }
 
-/** Who is in the hand: a player of the pitch (his slot's zone), or an empty slot picked. */
-export type BenchHand = { kind: "p"; name: string; zone: Zone } | { kind: "slot"; zone: Zone };
+/** Who is in the hand: a player of the pitch (his slot's zone and exact position), or an empty slot picked. */
+export type BenchHand = { kind: "p"; name: string; zone: Zone; code?: PosCode } | { kind: "slot"; zone: Zone; code?: PosCode };
 
 export interface BenchRow {
   id: string;
   /** The rating as printed («—» before his first match). */
   rt: string;
+  /** The badge: his preferida code, else his line, else «—». */
   pos: string;
+  /** «También MC · DFC» (three codes at most, then «+N»); "" when he has no también. */
+  also: string;
   num: number;
   name: string;
   /** «7 PJ · 4 G · 6 A · 335'». */
@@ -195,6 +199,23 @@ const CV_TXT = { voy: "Voy", duda: "Duda", no: "No va" } as const;
 const CV_ORDER = { voy: 0, duda: 1, no: 2 } as const;
 const BAJA_CLS = { Lesionado: "les", Sancionado: "san", Inactivo: "ina" } as const;
 
+const ALSO_SHOWN = 3;
+const alsoTxt = (also: readonly PosCode[]): string =>
+  also.length ? "También " + also.slice(0, ALSO_SHOWN).join(" · ") + (also.length > ALSO_SHOWN ? " +" + (also.length - ALSO_SHOWN) : "") : "";
+/** How he is read aloud: «pivote, también central y mediocentro» (his line when no exact position is known). */
+const posAria = (c: Cromo): string => {
+  const ps = c.ps;
+  const main = ps?.main ? POSITIONS[ps.main].name.toLowerCase() : (c.pos ?? "sin posición");
+  return ps?.also.length ? main + ", también " + andList(ps.also.map((x) => POSITIONS[x].name.toLowerCase())) : main;
+};
+/** Whether he is the best for what is in the hand: his grade at the held slot's code is ≥ 2; who is only
+ *  known by a line (or a hand without a code) keeps comparing lines. */
+function isBest(c: Cromo, h: BenchHand): boolean {
+  const ps = c.ps;
+  if (h.code && ps && (ps.main || ps.also.length)) return (fitGrade(ps, h.code) ?? 0) >= 2;
+  return c.pos === h.zone;
+}
+
 function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId: string | null; meId: string | null }): BenchRow {
   const bj = grp === "x";
   const sin = grp === "s";
@@ -203,13 +224,14 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
   const icon: BenchRow["icon"] = bj || c.cv === "no" ? "x" : sin ? null : c.cv === "voy" ? "check" : c.cv === "duda" ? "doubt" : null;
   const h = o.hand;
   const tgt = !!h && !bj && !sin && c.cv !== "no";
-  const best = tgt && c.pos === h.zone;
+  const best = tgt && isBest(c, h);
   const me = o.meId === c.id;
   const s = c.stats;
   return {
     id: c.id,
     rt: rtTxt(c),
-    pos: c.pos ?? "—",
+    pos: c.ps?.main ?? c.pos ?? "—",
+    also: alsoTxt(c.ps?.also ?? []),
     num: c.num,
     name: c.name,
     line: s.played + " PJ · " + s.goals + " G · " + s.assists + " A · " + s.minutes + "'",
@@ -223,7 +245,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
     tg: tgt && h ? (h.kind === "p" ? "Entra por él" : "Entra aquí") : null,
     cls: [c.pos === "POR" ? "gk" : "", c.cv === "no" && !bj ? "no-va" : "", sin ? "sin" : "", bj ? "baja" : "", tgt ? "tgt" : "", best ? "best" : "", me ? "me" : ""].filter(Boolean).join(" "),
     aria:
-      c.name + ", dorsal " + c.num + ", " + (c.pos ?? "sin posición") + ", " + formAria(c) + ", " +
+      c.name + ", dorsal " + c.num + ", " + posAria(c) + ", " + formAria(c) + ", " +
       (bj ? (bajaWords(c) || "baja") + ", no disponible" : "convocatoria: " + cv.toLowerCase()) +
       ", " + plural(s.minutes, "minuto") + " esta temporada" + (me ? ", eres tú" : "") +
       (tgt && h ? (h.kind === "p" ? ". Toca: entra por " + h.name : ". Toca: entra en el hueco") : ""),

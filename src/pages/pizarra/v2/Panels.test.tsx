@@ -118,6 +118,31 @@ describe("«Siete»", () => {
     expect(erikCard.querySelector(".ac-c .cc-f .cc-nm")).toHaveTextContent("ERIK");
   });
 
+  it("the bench rows show the preferida in the badge and «También …» under the season line; the cromos only the code", () => {
+    const ps = (main: PosCode, ...also: PosCode[]): ResolvedPositions => ({ main, also, line: lineOf(main) });
+    const psq = squadOf([cromo("a", 8, "MED", { ps: ps("MC", "MCD", "DFC") }), cromo("b", 5, "DEF", { ps: ps("DFC") }), cromo("c", 3, "DEL")]);
+    const groups = benchGroups({ bench: psq.list, called: null, filter: { on: false, q: "", zf: "Todos", oc: false }, hand: null, selId: null, meId: null });
+    const { rerender } = render(<BenchTab {...benchProps({ groups })} />);
+    const list = screen.getByRole("group", { name: /^Banquillo en lista/ });
+    const a = within(list).getByRole("button", { name: /^A, dorsal 8/ });
+    expect(a.querySelector(".ar-r i")).toHaveTextContent("MC");
+    expect(a.querySelector(".ar-n .pzp-ar-also")).toHaveTextContent("También MCD · DFC");
+    expect(a.querySelector(".ar-n small")).toHaveTextContent("0 PJ · 0 G · 0 A · 0'");
+    // no «también», or no exact position: no second line, the line in the badge as before
+    const b = within(list).getByRole("button", { name: /^B, dorsal 5/ });
+    expect(b.querySelector(".ar-r i")).toHaveTextContent("DFC");
+    expect(b.querySelector(".pzp-ar-also")).toBeNull();
+    const c = within(list).getByRole("button", { name: /^C, dorsal 3/ });
+    expect(c.querySelector(".ar-r i")).toHaveTextContent("DEL");
+    expect(c.querySelector(".pzp-ar-also")).toBeNull();
+    // the cromos: the code in the badge, the «también» only aloud
+    rerender(<BenchTab {...benchProps({ groups, benchView: "cromos" })} />);
+    const card = within(screen.getByRole("group", { name: /^Banquillo:/ })).getByRole("button", { name: /^A, dorsal 8, mediocentro, también pivote y central/ });
+    expect(card.querySelector(".cc-top i")).toHaveTextContent("MC");
+    expect(card.querySelector(".pzp-ar-also")).toBeNull();
+    expect(card).not.toHaveTextContent("También");
+  });
+
   it("under 1100 px the list is never rendered: the cromos, whatever the view says", () => {
     window.matchMedia = vi.fn((q: string) => ({ matches: !q.includes("min-width: 1100px"), media: q, onchange: null, addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false }));
     try {
