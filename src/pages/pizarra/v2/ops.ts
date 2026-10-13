@@ -7,6 +7,7 @@ import { defaultTactics } from "../tactics";
 import { DEF_LINE_VALUES, planeDist2, slotPos, slotZone, SYSTEMS } from "./geometry";
 import { hasFitData, inPlace, logicGrade, out as fuera, placeByWeight } from "./encaje";
 import { isAvailable, natOf, type Squad } from "./model";
+import { FIT_ADAPTED, FIT_IN_PLACE } from "./ratings";
 import { knownTakers, ROLE_TAKER, rolesFor, syncRoles, takersOf, toggleFirst } from "./takers";
 import { tacticaSig } from "./tacticaData";
 
@@ -281,12 +282,11 @@ export function autoByEncajeOn(L: Lineup, sq: Squad, called: ReadonlySet<string>
 
 /**
  * Auto-colocar with exact positions (someone has a preferida or a también): the best placement of the
- * pitch and the bench, an exact max-weight assignment by tiers — in place (logicGrade ≥ 2) 100,
- * adaptado or unknown 40, fuera 0; then 3 a grade point (unknown as adaptado); the pitch 20 over the
- * bench, so a bench player comes in where he climbs a tier (in place over anyone not in place, adaptado
- * over fuera) or fills a gap, and never for a grade point alone; the answer («Voy», no answer, «Duda»)
- * and the form only break ties, and each stays in his own slot when nothing is gained. The keeper's
- * slot only to a declared keeper while there is one.
+ * pitch and the bench, an exact max-weight assignment with encaje and form in balance (ratings.ts
+ * FIT_*): in place or adaptado (or unknown) always over fuera; between in place and adaptado the form
+ * decides once it is 15 points apart. The pitch +5 over the bench and the bench's answer («Voy», no
+ * answer, «Duda»: 2 a step) only tip near-equals; the grade (preferida over también) and staying in his
+ * own slot break exact ties. The keeper's slot only to a declared keeper while there is one.
  */
 function autoByEncaje(L: Lineup, sq: Squad, pool: string[], bench: string[]): (string | null)[] {
   const cand = pool.concat(bench);
@@ -295,12 +295,10 @@ function autoByEncaje(L: Lineup, sq: Squad, pool: string[], bench: string[]): (s
   return placeByWeight(L.slots.length, cand, (i, id) => {
     const g = logicGrade(L, sq, id, i);
     if (i === 0 && keeper && !inPlace(g)) return null;
-    // (1000: every slot filled while there is someone. With the grade, in place is 106–109, adaptado or
-    // unknown 43, fuera 0: a tier step (≥ 43) beats the pitch's 20 plus the ties (answer ≤ 2, form < 1);
-    // the pitch's 20 beats a grade step (3) plus the ties, so a better grade alone brings nobody in)
-    const tier = inPlace(g) ? 100 : fuera(g) ? 0 : 40;
-    const prio = onPitch.has(id) ? 20 + (L.slots[i]?.playerId === id ? 0.001 : 0) : 2 - answerRank(sq, id);
-    return 1000 + tier + 3 * (g ?? 1) + (sq.byId.get(id)?.rt ?? 0) / 100 + prio;
+    // (1000: every slot filled while there is someone)
+    const tier = inPlace(g) ? FIT_IN_PLACE : fuera(g) ? 0 : FIT_ADAPTED;
+    const prio = onPitch.has(id) ? 5 + (L.slots[i]?.playerId === id ? 0.001 : 0) : 2 * (2 - answerRank(sq, id));
+    return 1000 + tier + (sq.byId.get(id)?.rt ?? 0) + prio + (g ?? 1) / 10;
   });
 }
 

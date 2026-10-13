@@ -10,7 +10,7 @@ import { adapted, hasFitData, inPlace, logicGrade, placeByWeight, slotCode } fro
 import { slotZone } from "./geometry";
 import type { Squad } from "./model";
 import { answerRank, canCome, dropBenchedRoles } from "./ops";
-import { FORM_MAX, FORM_MIN } from "./ratings";
+import { FIT_ADAPTED, FIT_IN_PLACE, FIT_SMALL_MAX, FORM_MAX } from "./ratings";
 
 /** How many played officials put him there (familiarity.ts): by `z`, the slot's zone, or — passed only
  *  for a player with an exact position — by `code`, the slot's exact position. */
@@ -48,14 +48,12 @@ export function suggestSeven(L: Lineup, sq: Squad, first: readonly string[] = []
   return dropBenchedRoles({ ...L, slots: L.slots.map((s, i) => ({ ...s, playerId: seven[i] })), playerPositions: kept(used) });
 }
 
-// The tiers of the seven by encaje, each above everything below it over all seven slots: a slot's
-// form + answer + familiarity spread is ≤ (FORM_MAX − FORM_MIN) + 10 + 10 (= 70 with the ratings'
-// 45–95; ×7 = 490 < ADAPTED, derived so a wider form range keeps the order); in place over adaptado +
-// that (7 × (ADAPTED + 70) < IN_PLACE); the convocatoria's own over all of it (7 × (IN_PLACE + 570) < OWN).
-const SPREAD = FORM_MAX - FORM_MIN + 10 + 10;
-const ADAPTED = 7 * SPREAD + 10;
-const IN_PLACE = 7 * (ADAPTED + SPREAD) + 10;
-const OWN = 25 * IN_PLACE;
+// The seven by encaje: encaje and form in balance (the tiers, and why, next to FORM_MIN in ratings.ts);
+// the convocatoria's own siete over all of it: a slot is worth at most FIT_IN_PLACE + FORM_MAX + the
+// small terms, and seven of those stay under OWN.
+const OWN = 10 * (FIT_IN_PLACE + FORM_MAX + FIT_SMALL_MAX);
+// (familiarity: an adaptado or an unknown who has played there in the official, +5)
+const KNOWN = 5;
 
 /** Who was on the pitch (keeps his «Jugar de» if he stays). */
 const wasOn = (L: Lineup): Set<string> => new Set(L.slots.map((s) => s.playerId).filter((x): x is string => !!x));
@@ -76,12 +74,12 @@ export function sevenByEncajeOn(L: Lineup, sq: Squad, first: readonly string[] =
 
 /**
  * The seven with exact positions (someone has a preferida or a también, or a «Jugar de» by code on the
- * pitch): an exact assignment, by tiers — the convocatoria's siete always plays; then in place
- * (logicGrade ≥ 2) over adaptado or unknown over fuera, so a player in place never loses his slot to
- * one out of it; only between equals do the answer («Voy» before no answer before «Duda», −5 a step),
- * the form (the rating) and, for an adaptado or an unknown, having played there in the official (fam ≥
- * 2, +10: that exact position for a player with one, else that line) decide; exact ties follow the
- * pack's order. Keepers: the goal only to a declared
+ * pitch): an exact assignment — the convocatoria's siete always plays; then encaje and form in balance
+ * (ratings.ts FIT_*): in place or adaptado (or unknown) always over fuera, and between in place and
+ * adaptado the form (the rating) decides once it is 15 points apart; the answer («Voy» before no answer
+ * before «Duda», −2 a step) and, for an adaptado or an unknown, having played there in the official
+ * (fam ≥ 2, +5: that exact position for a player with one, else that line) only tip near-equals; exact
+ * ties follow the pack's order. Keepers: the goal only to a declared
  * keeper while there is one. Each is judged with the «Jugar de» he keeps (only those already on the
  * pitch keep theirs).
  */
@@ -93,11 +91,11 @@ function sevenByEncaje(L: Lineup, sq: Squad, cand: string[], own: ReadonlySet<st
   return placeByWeight(L.slots.length, cand, (i, id) => {
     const g = logicGrade(B, sq, id, i);
     if (i === 0 && keeper && !inPlace(g)) return null;
-    const fit = inPlace(g) ? IN_PLACE : adapted(g) || g == null ? ADAPTED : 0;
-    const known = (adapted(g) || g == null) && fam && fam(id, slotZone(L, i), exact.has(id) ? slotCode(B, i) : undefined) >= 2 ? 10 : 0;
+    const fit = inPlace(g) ? FIT_IN_PLACE : adapted(g) || g == null ? FIT_ADAPTED : 0;
+    const known = (adapted(g) || g == null) && fam && fam(id, slotZone(L, i), exact.has(id) ? slotCode(B, i) : undefined) >= 2 ? KNOWN : 0;
     const tie = (cand.length - cand.indexOf(id)) / 1e4;
     // (1000: every slot filled while there is someone, whatever his form)
-    return 1000 + (own.has(id) ? OWN : 0) + fit + known - 5 * answerRank(sq, id) + (sq.byId.get(id)?.rt ?? 0) + tie;
+    return 1000 + (own.has(id) ? OWN : 0) + fit + known - 2 * answerRank(sq, id) + (sq.byId.get(id)?.rt ?? 0) + tie;
   });
 }
 

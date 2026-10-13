@@ -135,7 +135,8 @@ export interface Encaje {
 }
 
 // (a forbidden placement's cost: it must stay far above 7 × the heaviest allowed weight of any caller —
-// suggestSeven's tiers reach ~1.1e5 a slot, 7 × that < 1e6 — or the assignment could prefer it)
+// «Sugerir siete» with the convocatoria's own reaches < 1e4 a slot, 7 × that < 1e6 — or the assignment
+// could prefer it)
 const FORBIDDEN = 1e6;
 
 /**

@@ -18,6 +18,22 @@ const DEFAULT_DURATION = 50;
 export const FORM_MIN = 45;
 export const FORM_MAX = 95;
 
+// Encaje and form in balance (the user's «Equilibrio encaje + forma»): when Auto-colocar (ops.ts
+// autoByEncaje) and «Sugerir siete» (pack.ts sevenByEncaje) place by exact positions, a slot is worth
+// its fit tier + the player's form (rt, FORM_MIN–FORM_MAX) + small terms:
+//  · fuera 0 · adaptado or unknown FIT_ADAPTED · in place FIT_ADAPTED + FIT_FORM_STEP: an adaptado
+//    takes an in-place player's slot only with a form at least FIT_FORM_STEP (15) points higher;
+//  · the small terms — the answer (≤ 2 a step, ≤ 4 in all), familiarity (≤ 5, adaptado or unknown
+//    only), the pitch's stickiness in Auto-colocar (≤ 5), the grade and the order (< 1) — add at most
+//    FIT_SMALL_MAX < FIT_FORM_STEP: on their own they never cross the step;
+//  · FIT_ADAPTED is above 7 × a slot's whole spread (form + step + small terms), so in place or
+//    adaptado always beat fuera, even summed over the seven.
+// (the convocatoria's own siete stays above all of it in «Sugerir siete», pack.ts OWN)
+export const FIT_FORM_STEP = 15;
+export const FIT_SMALL_MAX = 4 + 5 + 5;
+export const FIT_ADAPTED = 7 * (FORM_MAX - FORM_MIN + FIT_FORM_STEP + FIT_SMALL_MAX + 1) + 10;
+export const FIT_IN_PLACE = FIT_ADAPTED + FIT_FORM_STEP;
+
 /**
  * One player's season, weighted: each team match counts 1, the last RECENT_GAMES count 2 (form is
  * what he has done lately). Sums over the team's matches, played or not (missing one lowers his share).

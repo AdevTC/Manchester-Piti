@@ -204,8 +204,8 @@ describe("familiaridad por posición exacta", () => {
   });
 
   it("«Sugerir siete» with exact positions: of two adaptados, who has played that very position goes first", () => {
-    // MI: two adaptados, a (MCO, better form) has played MC in the official, b (MCD) has played MI
-    const s = squadOf([x("gk", 1, "POR"), x("d1", 2, "DFC"), x("d2", 3, "DFC"), { ...x("mc", 5, "MC"), rt: 90 }, x("md", 6, "MD"), x("dc", 9, "DC"), { ...x("a", 10, "MCO"), rt: 80 }, { ...x("b", 11, "MCD"), rt: 75 }]);
+    // MI: two adaptados, a (MCO, 3 points better in form) has played MC in the official, b (MCD) has played MI (+5)
+    const s = squadOf([x("gk", 1, "POR"), x("d1", 2, "DFC"), x("d2", 3, "DFC"), { ...x("mc", 5, "MC"), rt: 90 }, x("md", 6, "MD"), x("dc", 9, "DC"), { ...x("a", 10, "MCO"), rt: 80 }, { ...x("b", 11, "MCD"), rt: 77 }]);
     const L = lineupOf([null, null, null, null, null, null, null], "2-3-1", s);
     const byCode = (id: string, z: string, code?: PosCode) => (code ? ((id === "b" && code === "MI") || (id === "a" && code === "MC") ? 3 : 0) : (id === "a" || id === "b") && z === "MED" ? 3 : 0);
     expect(suggestSeven(L, s, [], null, byCode).slots[3].playerId).toBe("b");
