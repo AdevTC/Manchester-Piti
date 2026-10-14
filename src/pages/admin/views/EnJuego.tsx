@@ -178,7 +178,7 @@ function Live({ match }: { match: AdminMatch }) {
     toast.show({ tag: "FINAL", message: `Final pitado · ${gf}–${ga} · repasa el acta y publícala`, undo: () => { void liveEvent({ action: "reopen", matchId: match.id }).then(() => unwhistle(match.id), (e: unknown) => toast.show({ tone: "error", message: apiError(e) })); } });
   });
   const control = <MatchClockControl match={match} onFinish={() => go({ section: "partidos", matchId: match.id, tab: "acta" })} />;
-  const pads = <LivePads onGol={() => live.open("gol")} onRival={live.rivalGoal} onTarjeta={() => live.open("tar")} onCambio={() => live.open("cam")} onOcasion={() => live.open("oca")} onCorner={() => live.open("cor")} onPitar={match.clock ? undefined : pitar} disabled={live.busy} paused={match.clock?.phase === "halftime"} />;
+  const pads = <LivePads onGol={() => live.open("gol")} onRival={live.rivalGoal} onTarjeta={() => live.open("tar")} onCambio={() => live.open("cam")} onOcasion={() => live.open("oca")} onCorner={() => live.open("cor")} onMas={() => live.open("mas")} onPitar={match.clock ? undefined : pitar} disabled={live.busy} paused={match.clock?.phase === "halftime"} />;
   const undo = live.log.length ? (
     <button type="button" className="btn sm line" onClick={live.undo} disabled={live.busy} style={{ marginLeft: "auto" }}>
       <AdIcon name="undo" size={16} />

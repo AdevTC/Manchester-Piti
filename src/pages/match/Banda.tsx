@@ -10,47 +10,34 @@ import { liveSides } from "../admin/live/liveModel";
 import { useClock } from "../../hooks/useClock";
 import { liveMinute, shownOffset } from "../../lib/partidos";
 import { Icon } from "../../components/celeste/icons";
-
-type Action = "goal" | "opponent_goal" | "yellow_card" | "double_yellow" | "red_card" | "substitution" | "penalty_saved" | "woodwork" | "penalty_missed" | "chance" | "opponent_chance" | "corner" | "opponent_corner";
-const ACTIONS: { type: Action; label: string; ours: boolean }[] = [
-  { type: "goal", label: "Gol del Piti", ours: true },
-  { type: "opponent_goal", label: "Gol rival", ours: false },
-  { type: "yellow_card", label: "Amarilla", ours: true },
-  { type: "double_yellow", label: "Segunda amarilla", ours: true },
-  { type: "red_card", label: "Roja", ours: true },
-  { type: "substitution", label: "Cambio", ours: true },
-  { type: "penalty_saved", label: "Penalti parado", ours: true },
-  { type: "woodwork", label: "Al palo", ours: true },
-  { type: "penalty_missed", label: "Penalti fallado", ours: true },
-  { type: "chance", label: "Ocasión del Piti", ours: true },
-  { type: "opponent_chance", label: "Ocasión rival", ours: false },
-  { type: "corner", label: "Córner del Piti", ours: true },
-  { type: "opponent_corner", label: "Córner rival", ours: false },
-];
+import { LIVE_ACTIONS, buildLiveEvent, liveAction, liveReady, type LiveEventType } from "../../lib/liveActions";
 
 export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string) => string }) {
   const now = useClock(1000);
   const playing = clockReading(match.clock, now).playing;
   const clock = liveMinute(match, now) ?? 0;
   const [minute, setMinute] = useState<number | null>(null);
-  const [action, setAction] = useState<Action | null>(null);
+  const [action, setAction] = useState<LiveEventType | null>(null);
   const [player, setPlayer] = useState<string | null>(null);
   const [second, setSecond] = useState<string | null>(null);
+  // «Lo completo luego»: a goal written without its scorer (the acta asks «¿Quién marcó?» afterwards)
+  const [later, setLater] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const shown = minute ?? clock;
   // (the stepper counts as the events are stamped; people read football's minute: +1 on a clock)
   const off = shownOffset(match);
   const { field: pitch, bench } = liveSides(match.starters, match.bench, match.events);
-  const optionalPlayer = action === "chance" || action === "corner";
-  const needsPlayer = action && !action.startsWith("opponent_");
-  const options = action && /card|yellow/.test(action) ? [...pitch, ...bench] : pitch;
-  const secondList = action === "goal" ? pitch.filter((id) => id !== player) : action === "substitution" ? bench : [];
+  const act = action ? liveAction(action) : null;
+  const needsPlayer = !!act && act.player !== "none";
+  const options = act?.pool === "squad" ? [...pitch, ...bench] : pitch;
+  const secondList = act?.second === "assist" ? pitch.filter((id) => id !== player) : act?.second === "in" ? bench : [];
 
   const reset = () => {
     setAction(null);
     setPlayer(null);
     setSecond(null);
+    setLater(false);
     setMinute(null);
   };
   const send = async (payload: Parameters<typeof liveEvent>[0], done: string) => {
@@ -67,14 +54,18 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
     }
   };
   const submit = () => {
-    if (!action) return;
-    const event: { type: string; minute: number; playerId?: string; assistPlayerId?: string; inPlayerId?: string } = { type: action, minute: shown };
-    if (needsPlayer) event.playerId = player ?? undefined;
-    if (action === "goal" && second) event.assistPlayerId = second;
-    if (action === "substitution") event.inPlayerId = second ?? undefined;
-    void send({ action: "add", matchId: match.id, requestId: crypto.randomUUID(), clockRevision: match.clock?.revision, manualTime: minute != null, event }, `${ACTIONS.find((a) => a.type === action)?.label} apuntado en el ${shown + off}′.`);
+    if (!act) return;
+    const event = buildLiveEvent(act, { playerId: player, assistPlayerId: second, inPlayerId: second }, shown);
+    const missing = act.player === "later" && !event.playerId ? " Falta el goleador: complétalo en el acta." : "";
+    void send({ action: "add", matchId: match.id, requestId: crypto.randomUUID(), clockRevision: match.clock?.revision, manualTime: minute != null, event }, `${act.label} apuntado en el ${shown + off}′.${missing}`);
   };
-  const ready = action && (!needsPlayer || optionalPlayer || player) && (action !== "substitution" || second);
+  const ready = !!act && liveReady(act, { playerId: player, inPlayerId: second, later });
+  const pickPlayer = (id: string | null) => {
+    setPlayer(id);
+    setLater(false);
+    // (no assist without a scorer, and never the scorer himself)
+    if (id === null || id === second) setSecond(null);
+  };
 
   return (
     <section className="fc-sec fc-banda" aria-labelledby="fc-banda">
@@ -99,28 +90,34 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
         )}
       </div>
       <div className="fc-banda-acts" role="group" aria-label="Qué ha pasado">
-        {ACTIONS.map((a) => (
-          <button key={a.type} type="button" className={a.type === "goal" ? "gold" : a.ours ? "" : "them"} disabled={!playing && !["substitution", "yellow_card", "double_yellow", "red_card"].includes(a.type)} aria-pressed={action === a.type} onClick={() => (setAction(a.type), setPlayer(null), setSecond(null))}>
+        {LIVE_ACTIONS.map((a) => (
+          <button key={a.type} type="button" className={a.type === "goal" ? "gold" : a.side === "them" ? "them" : ""} disabled={!playing && !a.atBreak} aria-pressed={action === a.type} onClick={() => (setAction(a.type), setPlayer(null), setSecond(null), setLater(false))}>
+            {a.icon && <Icon name={a.icon} size={18} />}
             {a.label}
           </button>
         ))}
       </div>
-      {needsPlayer && (
+      {act && needsPlayer && (
         <>
-          <span className="hm-kick">{action === "substitution" ? "Sale" : action === "penalty_saved" ? "¿Quién lo paró?" : "¿Quién?"}</span>
+          <span className="hm-kick">{act.ask}</span>
           <div className="fc-pick">
-            {optionalPlayer && <button type="button" aria-pressed={!player} onClick={() => setPlayer(null)}>Equipo · sin jugador</button>}
+            {act.player === "optional" && <button type="button" aria-pressed={!player} onClick={() => pickPlayer(null)}>Equipo · sin jugador</button>}
+            {act.player === "later" && (
+              <button type="button" aria-pressed={later} onClick={() => (pickPlayer(null), setLater(true))}>
+                Lo completo luego · sin goleador
+              </button>
+            )}
             {options.map((id) => (
-              <button key={id} type="button" aria-pressed={player === id} onClick={() => setPlayer(id)}>
+              <button key={id} type="button" aria-pressed={player === id} onClick={() => pickPlayer(id)}>
                 {nameOf(id)}
               </button>
             ))}
           </div>
         </>
       )}
-      {action && secondList.length > 0 && (action !== "goal" || player) && (
+      {act && secondList.length > 0 && (act.second !== "assist" || player) && (
         <>
-          <span className="hm-kick">{action === "goal" ? "Asistencia (opcional)" : "Entra"}</span>
+          <span className="hm-kick">{act.second === "assist" ? "Asistencia (opcional)" : "Entra"}</span>
           <div className="fc-pick">
             {secondList.map((id) => (
               <button key={id} type="button" aria-pressed={second === id} onClick={() => setSecond(second === id ? null : id)}>
@@ -131,7 +128,7 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
         </>
       )}
       <div className="fc-acts" style={{ marginTop: 18 }}>
-        <button type="button" className="hm-btn" disabled={!ready || busy || (!playing && !["substitution", "yellow_card", "double_yellow", "red_card"].includes(action ?? ""))} onClick={submit}>
+        <button type="button" className="hm-btn" disabled={!ready || busy || (!playing && !act?.atBreak)} onClick={submit}>
           {busy ? "Apuntando…" : "Apuntar"} <Icon name="check" size={16} stroke={2.4} />
         </button>
         <button type="button" className="hm-ghostbtn" disabled={busy} onClick={() => void send({ action: "undo", matchId: match.id, eventId: match.events?.filter(e => e.id.startsWith("live-")).at(-1)?.id }, "Deshecho lo último apuntado.")}>

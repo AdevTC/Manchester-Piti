@@ -328,7 +328,7 @@ function Juego({ match }: { match: AdminMatch }) {
             Apunta a un toque <em>minuto del reloj</em>
           </h3>
           <MatchClockControl match={match} />
-          <LivePads onGol={() => live.open("gol")} onRival={live.rivalGoal} onTarjeta={() => live.open("tar")} onCambio={() => live.open("cam")} onOcasion={() => live.open("oca")} onCorner={() => live.open("cor")} onPitar={match.clock ? undefined : pitar} disabled={live.busy} paused={match.clock?.phase === "halftime"} />
+          <LivePads onGol={() => live.open("gol")} onRival={live.rivalGoal} onTarjeta={() => live.open("tar")} onCambio={() => live.open("cam")} onOcasion={() => live.open("oca")} onCorner={() => live.open("cor")} onMas={() => live.open("mas")} onPitar={match.clock ? undefined : pitar} disabled={live.busy} paused={match.clock?.phase === "halftime"} />
         </div>
       </div>
       <LivePicker view={live.view} onChoose={live.choose} onClose={live.close} mobile={false} disabled={live.busy} />

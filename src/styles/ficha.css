@@ -246,7 +246,7 @@
 .fc-banda-min button{width:48px;height:48px;border-radius:50%;border:0;background:var(--btn);color:var(--btn-ink);font-size:24px;font-weight:700;cursor:pointer}
 .fc-banda-min button.now{width:auto;padding:0 16px;border-radius:999px;font-size:14px}
 .fc-banda-acts{margin:16px 0 8px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.fc-banda-acts button{min-height:56px;border-radius:18px;border:0;background:var(--btn);color:var(--btn-ink);font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.fc-banda-acts button{min-height:56px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 10px;border-radius:18px;border:0;background:var(--btn);color:var(--btn-ink);font:inherit;font-weight:700;font-size:15px;cursor:pointer}
 .fc-banda-acts button.gold{background:linear-gradient(120deg,#FFC659,#ffe0a0);color:#0c1733}
 .fc-banda-acts button.them{background:var(--bar)}
 .fc-banda-acts button[aria-pressed="true"]{box-shadow:0 0 0 3px #6CABDD}

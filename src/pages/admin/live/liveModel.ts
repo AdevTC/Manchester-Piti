@@ -1,22 +1,21 @@
 // En juego, pure (tested in liveModel.test.ts): who is on the pitch and on the bench, the log «Lo que va
 // pasando», and the picker the pads open — GOL → ¿Quién marcó? → ¿Quién le dio el pase? (or «Autogol de
-// …» / «Lo completo luego»), Tarjeta → which card → whom, Cambio → who leaves → who comes in. Each step
-// either leads to the next one or to the event the liveEvent callable writes. Shared by Hoy's «En juego»
-// hero and the En juego view.
+// …» / «Lo completo luego»), Tarjeta → which card → whom, Cambio → who leaves → who comes in, Penalti o
+// palo → which → whom. Each step either leads to the next one or to the event the liveEvent callable
+// writes, built from the shared catalogue (src/lib/liveActions.ts) that the match page's Mesa de partido
+// reads too. Shared by Hoy's «En juego» hero and the En juego view.
 import type { MatchEvent } from "../../../../functions/src/matchEngine";
 import { onPitch } from "../../../lib/ficha";
 import { eventMinute } from "../../../lib/partidos";
+import { buildLiveEvent, liveAction, type LiveEventInput } from "../../../lib/liveActions";
 
-/** What liveEvent({ action: "add" }) takes. */
-export interface LiveEventInput {
-  type: string;
-  minute: number;
-  playerId?: string;
-  assistPlayerId?: string;
-  inPlayerId?: string;
-}
+export type { LiveEventInput };
 export type CardType = "yellow_card" | "double_yellow" | "red_card";
-export const CARD_LABEL: Record<CardType, string> = { yellow_card: "Amarilla", double_yellow: "Segunda amarilla", red_card: "Roja directa" };
+const CARDS: readonly CardType[] = ["yellow_card", "double_yellow", "red_card"];
+export const CARD_LABEL = Object.fromEntries(CARDS.map((t) => [t, liveAction(t).name])) as Record<CardType, string>;
+/** Behind the «Penalti o palo» pad: the plays of ours that are not goals, cards or changes. */
+export type OtherType = "penalty_saved" | "woodwork" | "penalty_missed";
+const OTHERS: readonly OtherType[] = ["penalty_saved", "woodwork", "penalty_missed"];
 
 export type PickState =
   | { k: "oca" | "cor"; st: 1 | 2 }
@@ -25,7 +24,9 @@ export type PickState =
   | { k: "tar"; st: 1 }
   | { k: "tar"; st: 2; card: CardType }
   | { k: "cam"; st: 1 }
-  | { k: "cam"; st: 2; out: string };
+  | { k: "cam"; st: 2; out: string }
+  | { k: "mas"; st: 1 }
+  | { k: "mas"; st: 2; type: OtherType };
 export type PadKind = PickState["k"];
 
 /** Where a choice leads: the next question, or the event to write (+ the LED flash or the caption). */
@@ -77,8 +78,8 @@ export function pickerView(s: PickState, c: PickerContext): PickerView {
   const name = (id: string) => c.player(id).name;
   if (s.k === "oca" || s.k === "cor") {
     const type = s.k === "oca" ? "chance" : "corner";
-    const label = s.k === "oca" ? "Ocasión" : "Córner";
-    const save = (ours: boolean, playerId?: string): Step => ({ event: { type: ours ? type : `opponent_${type}`, minute: c.minute, ...(playerId ? { playerId } : {}) }, caption: `${label} ${ours ? playerId ? `de ${name(playerId)}` : "del Piti" : `de ${c.rival}`} · ${m}` });
+    const label = liveAction(type).name;
+    const save = (ours: boolean, playerId?: string): Step => ({ event: buildLiveEvent(ours ? type : `opponent_${type}`, { playerId }, c.minute), caption: `${label} ${ours ? playerId ? `de ${name(playerId)}` : "del Piti" : `de ${c.rival}`} · ${m}` });
     if (s.st === 1) return { step: `${label.toUpperCase()} · ${m}`, question: "¿De qué equipo?", label: "", options: [], bench: null, extras: [
       { key: "us", label: "Manchester Piti", next: { state: { k: s.k, st: 2 } } },
       { key: "them", label: c.rival, next: save(false) },
@@ -94,15 +95,15 @@ export function pickerView(s: PickState, c: PickerContext): PickerView {
       options: c.field.map((id) => opt(id, `Marcó ${name(id)}`, toAssist(id))),
       bench: null,
       extras: [
-        { key: "og", label: `Autogol de ${c.rival}`, next: { event: { type: "opponent_own_goal", minute: c.minute }, flash: `Autogol de ${c.rival} · ${m}` } },
-        { key: "later", label: "Lo completo luego", next: { event: { type: "goal", minute: c.minute }, flash: `Gol del Piti · ${m}` } },
+        { key: "og", label: `Autogol de ${c.rival}`, next: { event: buildLiveEvent("opponent_own_goal", {}, c.minute), flash: `Autogol de ${c.rival} · ${m}` } },
+        { key: "later", label: "Lo completo luego", next: { event: buildLiveEvent("goal", {}, c.minute), flash: `Gol del Piti · ${m}` } },
       ],
     };
   }
   if (s.k === "gol" && s.st === 2) {
     const scorer = name(s.scorer);
     const goal = (assist?: string): Step => ({
-      event: { type: "goal", minute: c.minute, playerId: s.scorer, ...(assist ? { assistPlayerId: assist } : {}) },
+      event: buildLiveEvent("goal", { playerId: s.scorer, assistPlayerId: assist }, c.minute),
       flash: `${scorer} · ${m}${assist ? ` · pase de ${name(assist)}` : ""}`,
     });
     return {
@@ -121,15 +122,15 @@ export function pickerView(s: PickState, c: PickerContext): PickerView {
       label: "",
       options: [],
       bench: null,
-      extras: (Object.keys(CARD_LABEL) as CardType[]).map((card) => ({ key: card, label: CARD_LABEL[card], next: { state: { k: "tar", st: 2, card } } })),
+      extras: CARDS.map((card) => ({ key: card, label: CARD_LABEL[card], next: { state: { k: "tar", st: 2, card } } })),
     };
   if (s.k === "tar" && s.st === 2)
     return {
       step: `${CARD_LABEL[s.card]} · paso 2 de 2`,
       question: "¿A quién?",
       label: "En el campo",
-      options: c.field.map((id) => opt(id, `${CARD_LABEL[s.card]} a ${name(id)}`, { event: { type: s.card, minute: c.minute, playerId: id }, caption: `${CARD_LABEL[s.card]} a ${name(id)} · ${m}` })),
-      bench: c.bench.length ? c.bench.map((id) => opt(id, `${CARD_LABEL[s.card]} a ${name(id)}`, { event: { type: s.card, minute: c.minute, playerId: id }, caption: `${CARD_LABEL[s.card]} a ${name(id)} · ${m}` })) : null,
+      options: c.field.map((id) => opt(id, `${CARD_LABEL[s.card]} a ${name(id)}`, { event: buildLiveEvent(s.card, { playerId: id }, c.minute), caption: `${CARD_LABEL[s.card]} a ${name(id)} · ${m}` })),
+      bench: c.bench.length ? c.bench.map((id) => opt(id, `${CARD_LABEL[s.card]} a ${name(id)}`, { event: buildLiveEvent(s.card, { playerId: id }, c.minute), caption: `${CARD_LABEL[s.card]} a ${name(id)} · ${m}` })) : null,
       extras: [],
     };
   if (s.k === "cam" && s.st === 1)
@@ -141,12 +142,32 @@ export function pickerView(s: PickState, c: PickerContext): PickerView {
       bench: null,
       extras: [],
     };
+  if (s.k === "mas" && s.st === 1)
+    return {
+      step: `PENALTI O PALO · ${m} · paso 1 de 2`,
+      question: "¿Qué ha pasado?",
+      label: "",
+      options: [],
+      bench: null,
+      extras: OTHERS.map((type) => ({ key: type, label: liveAction(type).name, next: { state: { k: "mas", st: 2, type } } })),
+    };
+  if (s.k === "mas" && s.st === 2) {
+    const what = liveAction(s.type);
+    return {
+      step: `${what.name} · ${m} · paso 2 de 2`,
+      question: what.ask,
+      label: "En el campo",
+      options: c.field.map((id) => opt(id, `${what.name} · ${name(id)}`, { event: buildLiveEvent(s.type, { playerId: id }, c.minute), caption: `${what.name} · ${name(id)} · ${m}` })),
+      bench: null,
+      extras: [],
+    };
+  }
   const out = (s as { out: string }).out;
   return {
     step: `Sale ${name(out)} · paso 2 de 2`,
     question: "¿Quién entra?",
     label: "Banquillo",
-    options: c.bench.map((id) => opt(id, `Entra ${name(id)}`, { event: { type: "substitution", minute: c.minute, playerId: out, inPlayerId: id }, caption: `Entra ${name(id)}, sale ${name(out)}` })),
+    options: c.bench.map((id) => opt(id, `Entra ${name(id)}`, { event: buildLiveEvent("substitution", { playerId: out, inPlayerId: id }, c.minute), caption: `Entra ${name(id)}, sale ${name(out)}` })),
     bench: null,
     extras: [],
   };
