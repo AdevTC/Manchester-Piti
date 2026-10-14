@@ -171,20 +171,27 @@ export function withPositions(players: PositionsLedger, rows: Record<string, Pos
   for (const [pid, row] of Object.entries(rows)) if (players[pid]) Object.assign(players[pid], positionFields(row));
 }
 
+/** What decides where a player's minutes and actions fall: if none of it changed, neither did they. */
+const ATTRIBUTION_KEYS = ["stints", "exchanges", "goals", "assists", "yellowCards", "redCards"] as const;
+type CorrectionLedger = Record<string, PositionsLedger[string] & Partial<Pick<Participation, (typeof ATTRIBUTION_KEYS)[number]>>>;
+
 /**
- * The board could not be read: each player keeps the position keys his stored row had (a stored
- * ledger from the match doc, possibly missing or odd), and nothing else; a player new to the acta gets none.
+ * The board could not be read during a correction. A player keeps the position keys his stored row had
+ * (a stored ledger from the match doc, possibly missing or odd) only when what places his minutes and
+ * actions is unchanged — his stints, exchanges, goals, assists, yellow and red cards; otherwise (or with
+ * nothing stored for him) he gets `fallback`'s row: the estimate by preferred position, «estimado».
  */
-export function keepStoredPositions(players: PositionsLedger, stored: unknown): void {
+export function keepStoredPositions(players: CorrectionLedger, stored: unknown, fallback: Record<string, PositionsRow>): void {
   clearPositions(players);
-  if (!stored || typeof stored !== "object") return;
+  const old = stored && typeof stored === "object" ? (stored as Record<string, unknown>) : {};
   for (const [pid, p] of Object.entries(players)) {
-    const row: unknown = (stored as Record<string, unknown>)[pid];
-    if (!row || typeof row !== "object") continue;
-    const r = row as Record<string, unknown>;
-    if (r.positionsPlayed && typeof r.positionsPlayed === "object") p.positionsPlayed = r.positionsPlayed as PositionsLedger[string]["positionsPlayed"];
-    if (r.positionEvents && typeof r.positionEvents === "object") p.positionEvents = r.positionEvents as PositionsLedger[string]["positionEvents"];
-    if (r.positionsEstimated === true) p.positionsEstimated = true;
+    const row: unknown = old[pid];
+    const r = row && typeof row === "object" ? (row as Record<string, unknown>) : null;
+    if (r && ATTRIBUTION_KEYS.every((k) => same(r[k], p[k]))) {
+      if (r.positionsPlayed && typeof r.positionsPlayed === "object") p.positionsPlayed = r.positionsPlayed as PositionsLedger[string]["positionsPlayed"];
+      if (r.positionEvents && typeof r.positionEvents === "object") p.positionEvents = r.positionEvents as PositionsLedger[string]["positionEvents"];
+      if (r.positionsEstimated === true) p.positionsEstimated = true;
+    } else if (fallback[pid]) Object.assign(p, positionFields(fallback[pid]));
   }
 }
 
@@ -242,22 +249,13 @@ export function backfillPatch(
 
 /**
  * A patch as admin-SDK `update(ref, field, value, field, value, …)` pairs: `path("ledger", pid, key)`
- * for each change (null → the injected delete sentinel) and `path("system")` (null stays null). A pid
- * that fails SAFE_ID is skipped and listed in `invalid`.
+ * for each change (null → the injected delete sentinel) and `path("system")` (null stays null). The
+ * pids are {@link backfillPatch}'s, which already left out any that fail SAFE_ID.
  */
-export function backfillUpdates<P, D>(
-  patch: BackfillPatch,
-  make: { path: (...segments: string[]) => P; del: D },
-): { pairs: [P, unknown][]; invalid: string[] } {
+export function backfillUpdates<P, D>(patch: BackfillPatch, make: { path: (...segments: string[]) => P; del: D }): { pairs: [P, unknown][] } {
   const pairs: [P, unknown][] = [];
-  const invalid: string[] = [];
-  for (const [pid, keys] of Object.entries(patch.ledger)) {
-    if (!SAFE_ID.test(pid)) {
-      invalid.push(pid);
-      continue;
-    }
+  for (const [pid, keys] of Object.entries(patch.ledger))
     for (const key of POSITION_KEYS) if (key in keys) pairs.push([make.path("ledger", pid, key), keys[key] === null ? make.del : keys[key]]);
-  }
   pairs.push([make.path("system"), patch.system]);
-  return { pairs, invalid };
+  return { pairs };
 }

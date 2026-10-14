@@ -53,8 +53,8 @@ async function main() {
   const lib = (name) => import(new URL(`../lib/${name}.js`, import.meta.url).href);
   const { resolveMigrationTarget, checkExpected, credentialProject, RETRY_CODES, classifyWriteError } = await lib("migratePositions");
   const { backfillPatch, backfillUpdates } = await lib("positionsPlayed");
-  const { findOfficialBoard } = await lib("officialBoard");
-  const { isPosCode } = await lib("positions");
+  const { findOfficialBoard, SAFE_ID } = await lib("officialBoard");
+  const { resolvePositions } = await lib("positions");
 
   const target = resolveMigrationTarget(process.argv.slice(2), process.env);
   if (!target.ok) {
@@ -74,7 +74,8 @@ async function main() {
       backfillPatch,
       backfillUpdates,
       findOfficialBoard,
-      isPosCode,
+      SAFE_ID,
+      resolvePositions,
       checkExpected,
       RETRY_CODES,
       classifyWriteError,
@@ -88,12 +89,8 @@ async function main() {
 
 async function backfill(db, write, expect, m) {
   const players = await db.collection("players").get();
-  const mains = Object.fromEntries(
-    players.docs.map((d) => {
-      const main = d.get("positions")?.main;
-      return [d.id, m.isPosCode(main) ? main : null];
-    }),
-  );
+  // la preferida como la lee la web (y saveMatchSheet): `positions`, si no la posición antigua en texto
+  const mains = Object.fromEntries(players.docs.map((d) => [d.id, m.resolvePositions(d.data() ?? {}).main]));
   const matches = await db.collection("matches").where("status", "==", "finished").get();
   const counts = { conPizarra: 0, estimados: 0, sinDatos: 0, sinCambios: 0, idNoValido: 0, fallidos: 0 };
   const invalidIds = [];
@@ -112,9 +109,9 @@ async function backfill(db, write, expect, m) {
       if (!seasonId) onInvalidId("temporada", String(match.seasonId));
       const board = found?.board ?? null;
       const patch = m.backfillPatch(match, board, mains);
-      for (const pid of Object.keys(match.ledger ?? {})) if (!/^[A-Za-z0-9_-]+$/.test(pid)) onInvalidId("jugador", pid);
+      // backfillPatch deja fuera a quien no pasa SAFE_ID: aquí solo se cuentan
+      for (const pid of Object.keys(match.ledger ?? {})) if (!m.SAFE_ID.test(pid)) onInvalidId("jugador", pid);
       const updates = patch ? m.backfillUpdates(patch, make) : null;
-      for (const pid of updates?.invalid ?? []) onInvalidId("jugador", pid); // (backfillPatch ya los deja fuera)
       if (board) counts.conPizarra++;
       // lo que tendrá el acta una vez escrita (o lo que ya tiene)
       const after = Object.entries(match.ledger ?? {}).map(([pid, row]) => {

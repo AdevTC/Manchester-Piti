@@ -783,8 +783,10 @@ const posMatchId = "pos-match-" + suffix;
 const posIds = Array.from({ length: 10 }, (_, i) => `pos-player-${suffix}-${i}`);
 const posMains = ["POR", "LI", "LD", "MD", "MCO", "MI", "EI", "ED", "MCD", null];
 await db.doc(`seasons/${posSeason}`).set({ name: "Posiciones integration" });
+// posIds[2] has no `positions` yet, only the old free-text one: his preferida is read like the web does
 await Promise.all(posIds.map((playerId, i) => db.doc(`players/${playerId}`).set({
-  firstName: playerId, seasons: [posSeason], ...(posMains[i] ? { positions: { main: posMains[i], also: [] } } : {}),
+  firstName: playerId, seasons: [posSeason],
+  ...(i === 2 ? { naturalPosition: "Lateral derecho" } : posMains[i] ? { positions: { main: posMains[i], also: [] } } : {}),
 })));
 const posBoard = "pos-board-" + suffix;
 await db.doc("lineups/" + posBoard).set({
@@ -821,15 +823,18 @@ const posTotals = (await db.collection("playerSeasonStats").where("seasonId", "=
 assert.equal(posTotals.minutes, 40);
 assert.equal("positionsPlayed" in posTotals, false);
 checked += 11;
-// A board that can't be decoded never blocks publishing: the acta keeps what it had stored.
+// A board that is read but can't be decoded never blocks publishing: it counts as no board, so the
+// acta estimates by preferred position (the old free-text one too) and has no system.
 await db.doc("lineups/" + posBoard).update({ slots: 5 });
 await ok("saveMatchSheet", admin, { id: posMatchId, sheet: { ...posSheet, revision: posDoc.revision } });
 posDoc = (await db.doc("matches/" + posMatchId).get()).data();
-assert.equal(posDoc.system, "2-3-1");
-assert.deepEqual(posDoc.ledger[posIds[7]].positionsPlayed, { DC: 40 });
-assert.deepEqual(posDoc.ledger[posIds[1]].positionEvents, { DFC: { ...none, assists: 1 } });
-assert.equal(Object.values(posDoc.ledger).some((r) => "positionsEstimated" in r), false);
-checked += 4;
+assert.equal(posDoc.system, null);
+assert.deepEqual(posDoc.ledger[posIds[7]].positionsPlayed, { EI: 40 });
+assert.deepEqual(posDoc.ledger[posIds[1]].positionEvents, { LI: { ...none, assists: 1 } });
+assert.deepEqual(posDoc.ledger[posIds[2]].positionsPlayed, { LD: 60 });
+assert.equal(posDoc.ledger[posIds[2]].positionsEstimated, true);
+checked += 5;
+await db.doc("lineups/" + posBoard).update({ slots: posIds.slice(0, 7).map((playerId, i) => ({ playerId, x: 50, y: 10 + i * 10 })) });
 // Without the match's board (the season's official does not count): estimated by preferred position.
 await db.doc("lineups/" + posBoard).update({ matchId: null });
 await db.doc(`lineupOfficials/${posSeason}__${posMatchId}`).delete();

@@ -307,7 +307,7 @@ describe("backfillUpdates (the patch as update pairs)", () => {
   const fresh = () => calculateLedger({ starters: STARTERS, bench: ["h", "i", "k"], notCalled: [], events: [], duration: 50 }).players;
 
   it("one pair per changed key with a segment path; null deletes; system always goes (null stays null)", () => {
-    const { pairs, invalid } = backfillUpdates(
+    const { pairs } = backfillUpdates(
       { ledger: { "p-1_a": { positionsPlayed: { DC: 20 }, positionsEstimated: null }, b: { positionEvents: null } }, system: null },
       make,
     );
@@ -317,7 +317,6 @@ describe("backfillUpdates (the patch as update pairs)", () => {
       ["ledger|b|positionEvents", DEL],
       ["system", null],
     ]);
-    expect(invalid).toEqual([]);
   });
 
   it("a stale estimate turns into a delete once a board covers him", () => {
@@ -332,21 +331,18 @@ describe("backfillUpdates (the patch as update pairs)", () => {
     expect(pairs).toContainEqual(["system", "2-3-1"]);
   });
 
-  it("an unsafe player id is skipped and reported (never a path)", () => {
-    const { pairs, invalid } = backfillUpdates(
-      { ledger: { "a.b": { positionsPlayed: { DC: 1 } }, "": { positionEvents: null }, ok: { positionsEstimated: true } }, system: "libre" },
-      make,
-    );
-    expect(invalid).toEqual(["a.b", ""]);
-    expect(pairs).toEqual([
-      ["ledger|ok|positionsEstimated", true],
-      ["system", "libre"],
-    ]);
-  });
-
-  it("backfillPatch leaves unsafe ids out, so they never keep a match «a escribir»", () => {
+  it("backfillPatch leaves unsafe ids out, so they never keep a match «a escribir» nor reach a path", () => {
     const ledger = { "x/y": { ...fresh().b } };
     expect(backfillPatch({ ledger, events: [], system: null }, null, { "x/y": "LI" })).toBeNull();
+    const long = "x".repeat(129);
+    const mixed = { "a.b": { ...fresh().b }, "": { ...fresh().c }, [long]: { ...fresh().d }, ok: { ...fresh().e } };
+    const patch = backfillPatch({ ledger: mixed, events: [], system: null }, null, { "a.b": "LI", "": "LD", [long]: "MD", ok: "MC" })!;
+    expect(Object.keys(patch.ledger)).toEqual(["ok"]);
+    expect(backfillUpdates(patch, make).pairs).toEqual([
+      ["ledger|ok|positionsPlayed", { MC: 50 }],
+      ["ledger|ok|positionsEstimated", true],
+      ["system", null],
+    ]);
   });
 });
 
@@ -362,26 +358,67 @@ describe("withPositions / keepStoredPositions (saveMatchSheet's ledger)", () => 
     expect("positionsEstimated" in players.h).toBe(false);
   });
 
-  it("keepStoredPositions copies each player's stored keys, and only those", () => {
+  // what saveMatchSheet passes as the fallback: the estimate by preferred position
+  const estimate = (players: ReturnType<typeof fresh>, events: MatchEvent[] = []) => positionsPlayed(players, events, { board: null, main: MAINS });
+  // a stored row as the match doc would have it: the ledger row (stints, actions…) plus its position keys
+  const storedOf = (players: ReturnType<typeof fresh>, extra: Record<string, Record<string, unknown>>): Record<string, unknown> =>
+    Object.fromEntries(Object.entries(players).map(([pid, p]) => [pid, { ...structuredClone(p), ...extra[pid] }]));
+
+  it("keepStoredPositions keeps a player's stored keys, and only those, when his stints and actions are unchanged", () => {
     const players = fresh();
-    players.c.positionsPlayed = { DFC: 1 }; // anything left over from a retried attempt goes
-    keepStoredPositions(players, {
-      b: { minutes: 99, positionsPlayed: { LI: 50 }, positionsEstimated: true },
-      g: { positionsPlayed: { DC: 20 }, positionEvents: { DC: { ...none, goals: 1 } }, positionsEstimated: false },
-      gone: { positionsPlayed: { MC: 3 } },
+    const stored = storedOf(players, {
+      b: { minutes: 99, positionsPlayed: { DFC: 50 }, positionsEstimated: true },
+      g: { positionsPlayed: { DC: 50 }, positionEvents: { DC: { ...none, goals: 1 } }, positionsEstimated: false },
     });
-    expect(players.b).toMatchObject({ minutes: 50, positionsPlayed: { LI: 50 }, positionsEstimated: true });
+    stored.gone = { positionsPlayed: { MC: 3 } };
+    players.c.positionsPlayed = { DFC: 1 }; // anything left over from a retried attempt goes
+    keepStoredPositions(players, stored, estimate(players));
+    expect(players.b).toMatchObject({ minutes: 50, positionsPlayed: { DFC: 50 }, positionsEstimated: true });
+    expect(players.g.positionsPlayed).toEqual({ DC: 50 });
     expect(players.g.positionEvents).toEqual({ DC: { ...none, goals: 1 } });
     expect("positionsEstimated" in players.g).toBe(false);
+    // c had nothing stored but is unchanged: he keeps that (nothing), not an estimate
     expect("positionsPlayed" in players.c).toBe(false);
     expect("gone" in players).toBe(false);
   });
 
-  it("keepStoredPositions tolerates a missing or odd stored ledger", () => {
+  it("keepStoredPositions: a player whose stints, exchanges or cards changed gets the estimate instead", () => {
+    const stored = storedOf(fresh(), Object.fromEntries(STARTERS.map((pid) => [pid, { positionsPlayed: { [BOARD[pid]]: 50 } }])));
+    // the correction: g now goes off at 20 for h, and b gets a yellow card
+    const events = [sub(20, "g", "h"), ev("yellow_card", 10, "b")];
+    const players = play(events).players;
+    keepStoredPositions(players, stored, estimate(players, events));
+    // g's stints changed, h is new on the pitch, b's cards changed: all three estimated
+    expect(players.g).toMatchObject({ positionsPlayed: { EI: 20 }, positionsEstimated: true });
+    expect(players.h).toMatchObject({ positionsPlayed: { EI: 30 }, positionsEstimated: true });
+    expect(players.b).toMatchObject({ positionsPlayed: { LI: 50 }, positionEvents: { LI: { ...none, yellowCards: 1 } }, positionsEstimated: true });
+    // the rest are unchanged and keep the exact codes they had
+    expect(players.c.positionsPlayed).toEqual({ DFC: 50 });
+    expect("positionsEstimated" in players.c).toBe(false);
+  });
+
+  it("keepStoredPositions: a goal that moved to another player sends both to the estimate; an unchanged assist keeps his", () => {
+    const stored = storedOf(play([ev("goal", 30, "g", { assistPlayerId: "f" })]).players, {
+      g: { positionsPlayed: { DC: 50 }, positionEvents: { DC: { ...none, goals: 1 } } },
+      f: { positionsPlayed: { MD: 50 }, positionEvents: { MD: { ...none, assists: 1 } } },
+      e: { positionsPlayed: { MC: 50 } },
+    });
+    const events = [ev("goal", 30, "e", { assistPlayerId: "f" })];
+    const players = play(events).players;
+    keepStoredPositions(players, stored, estimate(players, events));
+    expect(players.g).toMatchObject({ positionsPlayed: { EI: 50 }, positionsEstimated: true });
+    expect("positionEvents" in players.g).toBe(false);
+    expect(players.e).toMatchObject({ positionsPlayed: { MCO: 50 }, positionEvents: { MCO: { ...none, goals: 1 } }, positionsEstimated: true });
+    expect(players.f).toMatchObject({ positionsPlayed: { MD: 50 }, positionEvents: { MD: { ...none, assists: 1 } } });
+    expect("positionsEstimated" in players.f).toBe(false);
+  });
+
+  it("keepStoredPositions: with a missing or odd stored ledger everyone gets the estimate", () => {
     for (const stored of [undefined, null, 5, "x", { b: 7 }]) {
       const players = fresh();
-      keepStoredPositions(players, stored);
-      expect(Object.values(players).some((p) => "positionsPlayed" in p)).toBe(false);
+      keepStoredPositions(players, stored, estimate(players));
+      expect(players.b).toMatchObject({ positionsPlayed: { LI: 50 }, positionsEstimated: true });
+      expect("positionsPlayed" in players.h).toBe(false);
     }
   });
 });
