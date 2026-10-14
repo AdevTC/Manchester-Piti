@@ -9,7 +9,7 @@ import { normPlaysAs } from "../positions";
 import { isPosCode, POSITIONS, type PosCode } from "../../../lib/positions";
 import { availTxt, type CharlaMatch } from "./charla";
 import { fitWord, hasFitData, logicGrade, slotCode, slotName } from "./encaje";
-import { bajaWords, galonesOf, rtTxt, type FormGame, type Squad } from "./model";
+import { bajaWords, galonesOf, knownMinutes, rtTxt, type FormGame, type Squad } from "./model";
 import { linkMark, togTxt, type Chem } from "./quimica";
 import { formWhy } from "./ratings";
 import { plural } from "./plural";
@@ -35,12 +35,13 @@ export interface FormBar {
 /** The form bars: each match as tall as its minutes (a match he didn't play is a flat mark, and says so). */
 export function formBars(form: readonly FormGame[] | undefined): FormBar[] {
   if (!form?.length) return [];
-  const top = Math.max(1, ...form.map((g) => g.min));
+  const top = Math.max(1, ...form.map((g) => g.min ?? 0));
   return form.map((g) => ({
     j: jornadaLabel(g.j) || "—",
-    h: g.played ? Math.max(12, Math.round((g.min / top) * 100)) : 0,
+    // (a legacy acta does not know his minutes: a half bar, and the words say so)
+    h: g.played ? (g.min === null ? 50 : Math.max(12, Math.round((g.min / top) * 100))) : 0,
     played: g.played,
-    t: (jornadaLabel(g.j) || "Partido") + ": " + (g.played ? fmtMinutes(g.min) + (g.ga ? " y " + plural(g.ga, "gol o asistencia", "goles o asistencias") : "") : "no jugó"),
+    t: (jornadaLabel(g.j) || "Partido") + ": " + (g.played ? (g.min === null ? "jugó, minutos sin registrar" : fmtMinutes(g.min)) + (g.ga ? " y " + plural(g.ga, "gol o asistencia", "goles o asistencias") : "") : "no jugó"),
   }));
 }
 
@@ -76,7 +77,8 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
   const facts: { k: string; v: string }[] = [];
   // the team's minutes: everyone's added up over the seven on the pitch
   const teamMin = sq.list.reduce((s, c) => s + c.stats.minutes, 0) / 7;
-  if (p.stats.minutes > 0 && teamMin > 0) facts.push({ k: "Minutos", v: fmtMinutes(p.stats.minutes) + " · " + Math.min(100, Math.round((p.stats.minutes / teamMin) * 100)) + " % del equipo" });
+  if (knownMinutes(p.stats) === null && p.stats.played > 0) facts.push({ k: "Minutos", v: "Sin registrar" });
+  else if (p.stats.minutes > 0 && teamMin > 0) facts.push({ k: "Minutos", v: fmtMinutes(p.stats.minutes) + " · " + Math.min(100, Math.round((p.stats.minutes / teamMin) * 100)) + " % del equipo" });
   else facts.push({ k: "Minutos", v: "Aún sin minutos" });
   const jugar = normPlaysAs(L.playerPositions[id]);
   // (a code is said with its name: «Juega de pivote (MCD)»; a legacy line as it was: «Juega de MED»)
@@ -128,7 +130,7 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
       { k: "PARTIDOS", v: p.stats.played },
       { k: "GOLES", v: p.stats.goals },
       { k: "ASIST.", v: p.stats.assists },
-      { k: "MINUTOS", v: wholeMinutes(p.stats.minutes) },
+      { k: "MINUTOS", v: knownMinutes(p.stats) === null ? "—" : wholeMinutes(p.stats.minutes) },
       { k: "TITULAR", v: p.stats.starts },
       { k: "MVP", v: p.stats.mvps },
     ],

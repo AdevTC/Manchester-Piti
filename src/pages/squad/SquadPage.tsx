@@ -15,6 +15,8 @@ import { Icon } from "../../components/celeste/icons";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { Percha } from "./Percha";
 import { FichaModal } from "./FichaModal";
+import { useMvpResults } from "../vestuario/live";
+import { mvpOfFrom } from "../../lib/derived/mvpOf";
 import { CaraACara } from "./CaraACara";
 import { RaceAndBirthdays } from "../home/Sections";
 import "../../styles/home.css";
@@ -45,6 +47,9 @@ export function SquadPage() {
   const seasonName = seasons.find((s) => s.id === seasonId)?.name ?? "Temporada";
 
   const games = useMemo(() => chronological(matches.filter((m) => m.seasonId === seasonId)), [matches, seasonId]);
+  // the MVPs for the ficha's ratings by position: the one shared reader (derived/mvpOf)
+  const results = useMvpResults();
+  const mvpOf = useMemo(() => mvpOfFrom(results, games, now), [results, games, now]);
   const { rows, withStats } = useMemo(() => {
     const list = players
       .filter((p) => p.seasons?.includes(seasonId))
@@ -224,6 +229,7 @@ export function SquadPage() {
           onStep={step}
           games={games}
           positions={openPositions}
+          mvpOf={mvpOf}
           onCompare={() => {
             setDuel([open.id, open.id === bId ? aId : bId]);
             closeFicha();

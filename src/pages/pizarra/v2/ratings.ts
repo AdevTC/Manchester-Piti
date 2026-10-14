@@ -4,6 +4,7 @@
 import type { ClubMatch } from "../../../lib/clubData";
 import { FORM_MAX, FORM_MIN, cardPoints, concededOnPitch, durationOf, formRating, stintsOf, type FormInput } from "../../../lib/form";
 import { goalLinks, playerGame } from "../../../lib/clubAnalytics";
+import { minutesOf, presenceMinutes, timedGames, totalMinutes } from "../../../lib/derived/minutesOf";
 import type { Zone } from "../formations";
 import { normZone } from "../positions";
 import { resolvePositions } from "../../../lib/positions";
@@ -55,7 +56,9 @@ interface Recent {
   assists: number;
   mvps: number;
   clean: number;
+  /** His known minutes in them (derived/minutesOf) and in how many of them they are known. */
   minutes: number;
+  timed: number;
 }
 
 /** Why the form is what it is, in a few words, from his part in the team's last RECENT_GAMES matches. */
@@ -66,6 +69,8 @@ export function whyOf(r: Recent, role: Zone | undefined, played: number): string
   if (r.goals || r.assists) return [r.goals ? plural(r.goals, "gol", "goles") : "", r.assists ? plural(r.assists, "asistencia") : ""].filter(Boolean).join(" y ") + " " + last;
   if (r.mvps) return (r.mvps === 1 ? "MVP " : r.mvps + " veces MVP ") + last;
   if ((role === "POR" || role === "DEF") && r.clean) return "Portería a cero " + (r.clean === r.played ? last : "en " + r.clean + " de sus " + r.played + " últimos");
+  // (a legacy acta does not know his minutes: no invented number)
+  if (!r.timed) return "Jugó " + last + ", sin goles";
   return plural(Math.round(r.minutes), "minuto") + " " + last + ", sin goles";
 }
 
@@ -81,8 +86,7 @@ export const FORM_GAMES = 5;
 export function formGames(playerId: string, games: readonly ClubMatch[], jornada: ReadonlyMap<string, number>, n = FORM_GAMES): FormGame[] {
   return games.slice(-n).map((m) => {
     const g = playerGame(playerId, m);
-    const min = g.minutes ?? (g.played ? durationOf(m) : 0);
-    return { j: jornada.get(m.id) ?? null, played: g.played, min, ga: g.ga };
+    return { j: jornada.get(m.id) ?? null, played: g.played, min: minutesOf(m, playerId), ga: g.ga };
   });
 }
 
@@ -124,9 +128,9 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
   const playedBy: Map<string, number>[] = games.map(() => new Map());
   const list: Cromo[] = players.map((p) => {
     const role = normZone(p.naturalPosition);
-    let played = 0, goals = 0, assists = 0, minutes = 0, starts = 0, mv = 0, recentMin = 0, recentGA = 0;
+    let played = 0, goals = 0, assists = 0, starts = 0, mv = 0, recentMin = 0, recentGA = 0;
     const f: FormInput = { role, teamW: 0, playedW: 0, shareW: 0, minW: 0, gaW: 0, concW: 0, mvpW: 0, cardsW: 0, savesW: 0 };
-    const r: Recent = { played: 0, goals: 0, assists: 0, mvps: 0, clean: 0, minutes: 0 };
+    const r: Recent = { played: 0, goals: 0, assists: 0, mvps: 0, clean: 0, minutes: 0, timed: 0 };
     games.forEach((m, gi) => {
       const g = playerGame(p.id, m);
       const row = m.ledger?.[p.id];
@@ -134,11 +138,14 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       const isRecent = gi >= recentFrom;
       const w = isRecent ? 2 : 1;
       const mvp = mvps.get(m.id)?.includes(p.id) ? 1 : 0;
-      const min = g.minutes ?? (g.played ? d : 0);
+      // the form (and the chemistry's pairs) read his presence: the known minutes, or on a legacy acta the
+      // whole match when he played (presenceMinutes, internal: never printed); what the cromo prints is
+      // the one minutes rule (derived/minutesOf), the same number as /stats, /jugadores and the perfil card
+      const known = minutesOf(m, p.id);
+      const min = presenceMinutes(m, p.id, g.played);
       f.teamW += w;
       goals += g.goals;
       assists += g.assists;
-      minutes += min;
       if (row?.started) starts++;
       mv += mvp;
       if (isRecent) {
@@ -162,7 +169,8 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
         r.goals += g.goals;
         r.assists += g.assists;
         r.mvps += mvp;
-        r.minutes += min;
+        r.minutes += known ?? 0;
+        if (known !== null) r.timed++;
         if (conc === 0) r.clean++;
       }
     });
@@ -179,7 +187,7 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       rt: form ?? FORM_MIN,
       ...(form == null ? { unrated: true } : {}),
       why: whyOf(r, role, played),
-      stats: { played, goals, assists, minutes, starts, mvps: mv },
+      stats: { played, goals, assists, minutes: totalMinutes(games, p.id), timed: timedGames(games, p.id), starts, mvps: mv },
       recentMin,
       recentGA,
       baja,

@@ -23,11 +23,13 @@ import { useToast } from "../ui/toastContext";
 import { tickerText } from "./hoy/hoyModel";
 import { phaseOf, type Phase } from "../partidos/workspaceModel";
 import "../partidos/partidos.css";
+import { nameFor } from "../../../lib/derived/names";
 
 function useNames() {
   const data = useAdmin();
   const by = new Map(data.roster.map((p) => [p.id, p]));
-  const nameOf = (id: string) => by.get(id)?.name ?? data.players.find((p) => p.id === id)?.shirtName ?? "Jugador";
+  // the roster's name is nameFor in the admin's season; a player outside it, the same rule
+  const nameOf = (id: string) => by.get(id)?.name ?? nameFor(data.players.find((p) => p.id === id), data.season?.id);
   const numberOf = (id: string) => {
     const n = by.get(id)?.number;
     return n != null ? String(n) : "";

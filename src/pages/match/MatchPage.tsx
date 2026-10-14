@@ -9,7 +9,7 @@ import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // page "Partidos · elegida"; pure logic in lib/ficha.ts and lib/partidos.ts.
 import { useState, type ReactNode } from "react";
 import { getRouteApi, Link } from "@tanstack/react-router";
-import { isCompleted, matchPhase, playerName, useClubData, dateMillis, type ClubMatch } from "../../lib/clubData";
+import { isCompleted, matchPhase, nameFor, useClubData, dateMillis, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
 import { useMatchClock } from "../../hooks/useMatchClock";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -87,7 +87,8 @@ export function MatchPage() {
   const [tab, setTab] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const match = matches.find((m) => m.id === matchId);
-  const nameOf = (id: string) => playerName(players.find((p) => p.id === id));
+  // (the match's own season: a per-season shirt name reads the same here as on the home)
+  const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
 
   const chrome = (children: ReactNode) => (

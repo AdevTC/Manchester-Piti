@@ -86,7 +86,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
                 <span>MVP</span>
               </div>
               <div>
-                <b>{t.minutes}</b>
+                <b>{t.minutes ?? "—"}</b>
                 <span>Minutos</span>
               </div>
               <div>

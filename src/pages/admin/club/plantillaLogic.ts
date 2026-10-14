@@ -4,7 +4,7 @@
 // name 2–12 letters, dorsal 1–99 and unique per season — the same predicate as lib/dorsalValidation), the
 // Firestore payload, and the CSV export. Router-, React- and Firebase-free.
 import { isDorsalTaken } from "../../../lib/dorsalValidation";
-import { playerName } from "../../../lib/clubData";
+import { nameFor } from "../../../lib/derived/names";
 import { LINE_NAMES, isLine, lineOf, parsePosition, resolvePositions, sanitizePositions, type PosCode, type PositionSet } from "../../../lib/positions";
 import { positionsPayload } from "../../../lib/positionsEdit";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
@@ -46,7 +46,7 @@ export function seasonDetailOf(p: Pick<PlayerDoc, "seasonDetails">, seasonId: st
   return { shirtName: typeof r.shirtName === "string" && r.shirtName ? r.shirtName : undefined, number: typeof r.number === "number" ? r.number : undefined };
 }
 /** Name on the shirt for a season (season detail, else the default, else the person's name). */
-export const nameIn = (p: PlayerDoc, seasonId: string | undefined) => (seasonId ? seasonDetailOf(p, seasonId).shirtName : undefined) || playerName(p);
+export const nameIn = (p: PlayerDoc, seasonId: string | undefined) => nameFor(p, seasonId);
 /** Dorsal for a season (season detail, else the default). */
 export const numberIn = (p: PlayerDoc, seasonId: string | undefined): number | null => {
   const n = (seasonId ? seasonDetailOf(p, seasonId).number : undefined) ?? p.number;

@@ -13,7 +13,7 @@ import { wholeMinutes } from "../../lib/derived/minutes";
 import { bestPartner, mvpWinners, mvpWins, vitrina, type MvpResult } from "../../lib/vestuario";
 import { suspensions } from "../pizarra/chemistry";
 import type { Zone } from "../pizarra/formations";
-import type { Cromo, Squad } from "../pizarra/v2/model";
+import { knownMinutes, type Cromo, type Squad } from "../pizarra/v2/model";
 import { buildSquad, type SquadPlayer } from "../pizarra/v2/ratings";
 
 const TZ = "Europe/Madrid";
@@ -182,7 +182,8 @@ export interface CardView {
   tierWhy: string;
   racha: boolean;
   attrs: Attr[];
-  totals: { played: number; goals: number; assists: number; minutes: number; mvps: number };
+  /** minutes: his known minutes (derived/minutesOf); null («—») when no acta of his knows them. */
+  totals: { played: number; goals: number; assists: number; minutes: number | null; mvps: number };
   ticker: Ticker;
   /** «MANCHESTER PITI · T1 · J1–J7» / «SE REVELA EN LA J1». */
   clubLine: string;
@@ -346,7 +347,7 @@ function partnerOf(me: string, games: ClubMatch[], squad: Squad): PartnerView | 
   };
 }
 
-const EMPTY_TOTALS = { played: 0, goals: 0, assists: 0, minutes: 0, mvps: 0 };
+const EMPTY_TOTALS: CardView["totals"] = { played: 0, goals: 0, assists: 0, minutes: 0, mvps: 0 };
 
 export function buildCard(input: CardInput): CardView {
   const { state, playerId, captain, matches, seasonId, mvpResults, now } = input;
@@ -374,19 +375,21 @@ export function buildCard(input: CardInput): CardView {
   const firstMatch = calendar[0];
   const first = firstMatch ? { dateMs: dateMillis(firstMatch.date), rival: firstMatch.rival || "el rival" } : null;
 
-  const totals = shown ? { played: shown.stats.played, goals: shown.stats.goals, assists: shown.stats.assists, minutes: wholeMinutes(shown.stats.minutes), mvps: shown.stats.mvps } : EMPTY_TOTALS;
+  const totals = shown ? { played: shown.stats.played, goals: shown.stats.goals, assists: shown.stats.assists, minutes: knownMinutes(shown.stats) === null ? null : wholeMinutes(shown.stats.minutes), mvps: shown.stats.mvps } : EMPTY_TOTALS;
   const max = (k: "goals" | "assists" | "minutes" | "mvps") => Math.max(0, ...squad.list.map((c) => c.stats[k]));
   const values: Record<AttrKey, [number, number]> = {
     GOL: [totals.goals, ratio(totals.goals, max("goals"))],
     MVP: [totals.mvps, ratio(totals.mvps, max("mvps"))],
     ASI: [totals.assists, ratio(totals.assists, max("assists"))],
     PJ: [totals.played, ratio(totals.played, games.length)],
-    MIN: [totals.minutes, ratio(totals.minutes, max("minutes"))],
+    MIN: [totals.minutes ?? 0, ratio(totals.minutes ?? 0, max("minutes"))],
     FOR: [form ?? 0, ratio(form ?? 0, 99)],
   };
   const attrs: Attr[] = ATTRS.map((a) => {
     const [v, p] = values[a.k];
-    return { ...a, value: showNumbers ? v : null, text: showNumbers ? String(v) : "—", p: showNumbers ? p : 0 };
+    // (minutes no acta of his knows: «—», never an invented number)
+    const shows = showNumbers && !(a.k === "MIN" && totals.minutes === null);
+    return { ...a, value: shows ? v : null, text: shows ? String(v) : "—", p: shows ? p : 0 };
   });
 
   const js = games.flatMap((m) => jornada.get(m.id) ?? []);

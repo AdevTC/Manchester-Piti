@@ -10,11 +10,17 @@ export type Baja = "Lesionado" | "Sancionado" | "Inactivo";
 /** The player's answer to the convocatoria (wired in phase 3; absent = unknown). */
 export type Convocatoria = "voy" | "duda" | "no";
 
+/** The minutes a cromo prints: its known minutes, or null («—») when no acta of his knows them. */
+export const knownMinutes = (s: CromoStats): number | null => (s.timed === 0 ? null : s.minutes);
+
 export interface CromoStats {
   played: number;
   goals: number;
   assists: number;
+  /** His known minutes (derived/minutesOf: the ledgers'; a legacy acta adds nothing). */
   minutes: number;
+  /** Matches whose acta knows his minutes: 0 prints «—» for the minutes (absent in hand-made squads: known). */
+  timed?: number;
   starts: number;
   mvps: number;
 }
@@ -24,8 +30,8 @@ export interface FormGame {
   /** Its jornada (derived/jornada; null = none, no number shown). */
   j: number | null;
   played: boolean;
-  /** Minutes on the pitch (0 when he didn't play). */
-  min: number;
+  /** Minutes on the pitch (derived/minutesOf: null when the acta does not know them, a legacy one). */
+  min: number | null;
   /** Goals + assists. */
   ga: number;
 }

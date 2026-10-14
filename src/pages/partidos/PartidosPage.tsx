@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
-import { dateMillis, isCompleted, matchPhase, nextFixture, playerForSeason, playerName, useClubData, type ClubMatch } from "../../lib/clubData";
+import { dateMillis, isCompleted, matchPhase, nextFixture, playerForSeason, nameFor, useClubData, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
@@ -198,7 +198,9 @@ export function PartidosPage() {
   const seasonId = currentSeasonId(nextFixture(matches, now), matches, seasons);
   const season = seasons.find((s) => s.id === seasonId);
   const view = seasonView(matches, seasonId, now);
-  const nameOf = (id: string) => playerName(players.find((p) => p.id === id));
+  // a name in a match's own season (the board: the current season's; each row: its match's)
+  const nameIn = (sid: string | undefined) => (id: string) => nameFor(players.find((p) => p.id === id), sid);
+  const nameOf = nameIn(seasonId);
 
   // Jornada of every match within its own season (the list can show any season).
   const jornada = jornadaNumbers(matches);
@@ -209,7 +211,7 @@ export function PartidosPage() {
     .filter((p) => p.seasons?.includes(seasonId))
     .map((raw) => {
       const p = playerForSeason(raw, seasonId, seasons);
-      return { id: p.id, name: playerName(p), num: p.number != null ? String(p.number) : "" };
+      return { id: p.id, name: nameFor(p), num: p.number != null ? String(p.number) : "" };
     });
   const scorers = leaders(playerLines(squad, view.played), "goals", 4);
 
@@ -359,7 +361,7 @@ export function PartidosPage() {
             <ol className="pt-list">
               {rows.map((m) => (
                 <li key={m.id}>
-                  <Row m={m} j={jornada.get(m.id)} now={now} nameOf={nameOf} next={m.id === view.next?.id} />
+                  <Row m={m} j={jornada.get(m.id)} now={now} nameOf={nameIn(m.seasonId)} next={m.id === view.next?.id} />
                 </li>
               ))}
             </ol>

@@ -3,6 +3,7 @@ import { dateMillis, isCompleted } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import type { PlayerDoc } from "./schemas";
 import { computeStats } from "./playerStats";
+import { minutesOf, totalMinutes } from "./derived/minutesOf";
 
 export type Medal = "gold" | "silver" | "bronze" | null;
 /** Competition ranking: 1, 2, 2, 4. Zero values never receive a medal. */
@@ -67,13 +68,13 @@ export function chronological(matches: ClubMatch[]) {
 }
 export function playerGame(playerId: string, match: ClubMatch) {
   const stats = computeStats(playerId, [match]);
-  const row = match.ledger?.[playerId];
   return {
     match,
     ...stats,
     played: stats.matchesPlayed > 0,
     ga: stats.goals + stats.assists,
-    minutes: row?.minutes ?? null,
+    // the one minutes rule (derived/minutesOf): the ledger's, null when the acta does not know them
+    minutes: minutesOf(match, playerId),
   };
 }
 export interface Streak {
@@ -119,7 +120,8 @@ export function analysePlayer(player: PlayerDoc, games: ClubMatch[]) {
     series,
     ga: totals.goals + totals.assists,
     tracked: tracked.length,
-    minutes: Math.round(tracked.reduce((s, p) => s + (p.secondsPlayed ?? p.minutes * 60), 0) / 60 * 100) / 100,
+    // every page's minutes (derived/minutesOf): the known ones only, never invented for a legacy acta
+    minutes: totalMinutes(games, player.id),
     starts: tracked.filter((p) => p.started).length,
     bench: tracked.filter((p) => p.benched).length,
     notCalled: tracked.filter((p) => p.notCalled).length,

@@ -3,6 +3,7 @@
 
 import { POSITIONS, positionText, resolvePositions } from "./positions";
 import { wholeMinutes } from "./derived/minutes";
+import { nameFor } from "./derived/names";
 
 const DAY = 86_400_000;
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -95,7 +96,7 @@ export function squadRow(p: SquadPlayer, stats: SquadStats, now: number): SquadR
   if (!weight) missing.push("peso");
   return {
     id: p.id,
-    name: p.shirtName || [p.firstName, p.lastName].filter(Boolean).join(" ") || "Jugador",
+    name: nameFor(p),
     num: p.number != null ? String(p.number) : "",
     full: [p.firstName, p.lastName].filter(Boolean).join(" "),
     position: positionText(p),

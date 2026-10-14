@@ -6,7 +6,8 @@ import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 import { useMemo } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
-import { playerForSeason, playerName, useClubData } from "../../lib/clubData";
+import { playerForSeason, nameFor, useClubData } from "../../lib/clubData";
+import { mvpOfFrom } from "../../lib/derived/mvpOf";
 import { analysePlayer, chronological, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { tickerLines } from "../../lib/statsView";
 import { jornadaNumbers } from "../../lib/derived/jornada";
@@ -37,7 +38,7 @@ const VIEWS = {
   explore: "Explorar",
 } as const;
 type View = keyof typeof VIEWS;
-const nameOf = (p: PlayerAnalysis) => playerName(p);
+const nameOf = (p: PlayerAnalysis) => nameFor(p);
 
 export function StatsPage() {
   const { matches, players, loading, error } = useClubData();
@@ -60,6 +61,8 @@ export function StatsPage() {
     [players, games, selectedSeasonId, seasons],
   );
   const mvps = useMemo(() => new Map(rows.map((p) => [p.id, mvpWins(p.id, games, results, now)]).filter(([, n]) => (n as number) > 0) as [string, number][]), [rows, games, results, now]);
+  // the MVPs for the ratings by position: the one shared reader (derived/mvpOf)
+  const mvpOf = useMemo(() => mvpOfFrom(results, games, now), [results, games, now]);
   const lines = useMemo(() => tickerLines(rows, games), [rows, games]);
   const top = (value: (p: PlayerAnalysis) => number) => [...rows].sort((a, b) => value(b) - value(a) || nameOf(a).localeCompare(nameOf(b))).find((p) => value(p) > 0);
   const leaders = [
@@ -210,7 +213,7 @@ export function StatsPage() {
             {view === "summary" && <Resumen games={games} rows={rows} nameOf={nameOf} mvps={mvps} />}
             {view === "players" && <Jugadores rows={rows} nameOf={nameOf} />}
             {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} jornada={jornada} />}
-            {view === "positions" && <Posiciones games={games} rows={rows} nameOf={nameOf} />}
+            {view === "positions" && <Posiciones games={games} rows={rows} nameOf={nameOf} mvpOf={mvpOf} />}
             {view === "rivals" && <Rivales games={games} rows={rows} />}
             {view === "compare" && <Comparar rows={rows} nameOf={nameOf} games={games.length} />}
             {view === "explore" && <Explorar rows={rows} games={games} section={section} onSection={setSection} nameOf={nameOf} />}

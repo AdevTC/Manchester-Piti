@@ -11,6 +11,7 @@ import { OpponentBadge } from "../../components/club/OpponentBadge";
 import { Bars, Constellation, GoalClock, HeatStrip, Radar, ResultsChart } from "./Charts";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { jornadaLabel } from "../../lib/derived/jornada";
+import { nameFor } from "../../lib/derived/names";
 
 type NameOf = (p: PlayerAnalysis) => string;
 /** A metric as the tables print it: minutes whole with «′» (derived/minutes), «—» when not tracked. */
@@ -363,7 +364,7 @@ export function Minutos({ rows, games, nameOf, jornada }: { rows: PlayerAnalysis
 export function Rivales({ games, rows }: { games: ClubMatch[]; rows: PlayerAnalysis[] }) {
   const table = useMemo(() => rivalTable(games), [games]);
   const [open, setOpen] = useState<string | null>(null);
-  const names = new Map(rows.map((p) => [p.id, p.shirtName || p.firstName || "Jugador"]));
+  const names = new Map(rows.map((p) => [p.id, nameFor(p)]));
   const nameOfId = (id: string) => names.get(id) ?? "Jugador";
   return (
     <div className="st-pane-in">

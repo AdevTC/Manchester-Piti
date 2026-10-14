@@ -44,6 +44,7 @@ import {
 } from "./profileData";
 import type { SquadShirt } from "./rules";
 import { upcomingRows, type UpcomingRow } from "./avisos";
+import { mvpOfFrom } from "../../lib/derived/mvpOf";
 
 export type Role = "superadmin" | "admin" | "user";
 /** A ficha the member can still ask for (the claim picker): this season's, nobody linked to it. */
@@ -207,7 +208,7 @@ export function useProfileData(): ProfileData {
     shirt: { current: me?.shirtName || [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" "), number: me && me.number ? String(me.number) : "", squad: shirtSquad, fullName: [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" ") },
     card,
     positions: positionsInfo(fichaDoc, seasonId),
-    played: info.state === "vinculada" && info.playerId ? playerPositions(info.playerId, calendar) : null,
+    played: info.state === "vinculada" && info.playerId ? playerPositions(info.playerId, calendar, mvpOfFrom(mvpResults, calendar, minute)) : null,
     freeFichas,
     next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: built.jornada.get(next.id) ?? null } : null,
     upcoming: upcomingRows(matches, minute),

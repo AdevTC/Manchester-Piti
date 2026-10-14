@@ -29,6 +29,7 @@ import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
 import { afterLine, finalLine, hoyLead, pegWall, plaque, shortName, tickerText, type WallPlayer } from "./hoy/hoyModel";
+import { nameFor } from "../../../lib/derived/names";
 
 export function Hoy() {
   const data = useAdmin();
@@ -79,7 +80,8 @@ export function Hoy() {
 function useNames() {
   const data = useAdmin();
   const by = new Map(data.roster.map((p) => [p.id, p]));
-  const nameOf = (id: string) => by.get(id)?.name ?? data.players.find((p) => p.id === id)?.shirtName ?? "Jugador";
+  // the roster's name is nameFor in the admin's season; a player outside it, the same rule
+  const nameOf = (id: string) => by.get(id)?.name ?? nameFor(data.players.find((p) => p.id === id), data.season?.id);
   const numberOf = (id: string) => {
     const n = by.get(id)?.number;
     return n != null ? String(n) : "";

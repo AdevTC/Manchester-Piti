@@ -4,7 +4,7 @@
 // inicial» and opens the match. Hidden on that match's own page, which already is the scoreboard.
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { dateMillis, matchPhase, playerName, useClubData } from "../../lib/clubData";
+import { dateMillis, matchPhase, nameFor, useClubData } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
 import { lastEvent, liveMinute, scoreOf } from "../../lib/partidos";
 import { opponentInitials } from "../../lib/clubAnalytics";
@@ -53,7 +53,7 @@ export function LiveIsland() {
   const rival = live.rival ?? "Rival";
   const ini = live.rivalInitials || opponentInitials(rival);
   const minute = liveMinute(live, now);
-  const nameOf = (id: string) => playerName(players.find((p) => p.id === id));
+  const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), live.seasonId);
   const last = lastEvent(live.events, nameOf, rival);
   const pct = `${Math.min(100, ((minute ?? 0) / (live.duration ?? 50)) * 100)}%`;
   const label = `En directo: Manchester Piti ${gf}, ${rival} ${ga}, minuto ${minute ?? 0}`;

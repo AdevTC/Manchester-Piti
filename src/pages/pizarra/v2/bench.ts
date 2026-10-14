@@ -6,7 +6,7 @@ import { fitGrade, POSITIONS, type PosCode } from "../../../lib/positions";
 import type { Lineup, Zone } from "../formations";
 import { slotZone } from "./geometry";
 import { adapted, hasFitData, inPlace, logicGrade } from "./encaje";
-import { bajaChip, bajaWords, formAria, rtTxt, type Cromo, type Squad } from "./model";
+import { bajaChip, bajaWords, formAria, knownMinutes, rtTxt, type Cromo, type Squad } from "./model";
 import { tierDiamonds, type Chem } from "./quimica";
 import { matchShort, type CalMatch } from "./boards";
 import { plural } from "./plural";
@@ -236,7 +236,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
     also: alsoTxt(c.ps?.also ?? []),
     num: c.num,
     name: c.name,
-    line: s.played + " PJ · " + s.goals + " G · " + s.assists + " A · " + fmtMinutes(s.minutes),
+    line: s.played + " PJ · " + s.goals + " G · " + s.assists + " A · " + fmtMinutes(knownMinutes(s)),
     zone: bj ? "x" : "b",
     baja: bj,
     me,
@@ -249,7 +249,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
     aria:
       c.name + ", dorsal " + c.num + ", " + posAria(c) + ", " + formAria(c) + ", " +
       (bj ? (bajaWords(c) || "baja") + ", no disponible" : "convocatoria: " + cv.toLowerCase()) +
-      ", " + plural(wholeMinutes(s.minutes), "minuto") + " esta temporada" + (me ? ", eres tú" : "") +
+      ", " + (knownMinutes(s) === null ? "minutos sin registrar" : plural(wholeMinutes(s.minutes), "minuto")) + " esta temporada" + (me ? ", eres tú" : "") +
       (tgt && h ? (h.kind === "p" ? ". Toca: entra por " + h.name : ". Toca: entra en el hueco") : ""),
   };
 }
@@ -306,7 +306,7 @@ export function reparto(L: Lineup, sq: Squad, called: ReadonlySet<string> | null
     .filter((c) => !c.baja && c.pos !== "POR" && c.cv !== "no" && (!called || called.has(c.id) || onPitch.has(c.id)))
     .sort((a, b) => a.stats.minutes - b.stats.minutes);
   const maxMin = Math.max(1, ...sq.list.map((c) => c.stats.minutes));
-  const rows = avl.slice(0, 6).map((c) => ({ id: c.id, num: c.num, name: c.name, inS: onPitch.has(c.id), m: Math.max(2, Math.round((c.stats.minutes / maxMin) * 100)) + "%", min: fmtMinutes(c.stats.minutes) }));
+  const rows = avl.slice(0, 6).map((c) => ({ id: c.id, num: c.num, name: c.name, inS: onPitch.has(c.id), m: Math.max(2, Math.round((c.stats.minutes / maxMin) * 100)) + "%", min: fmtMinutes(knownMinutes(c.stats)) }));
   const low = avl.find((c) => !onPitch.has(c.id));
   let rot: Reparto["rot"] = null;
   const mins = (id: string) => sq.byId.get(id)?.stats.minutes ?? 0;
@@ -330,6 +330,7 @@ export function reparto(L: Lineup, sq: Squad, called: ReadonlySet<string> | null
     if (cands[0]) rot = { id: low.id, i: cands[0].i, out: cands[0].id };
   }
   const outName = rot ? (sq.byId.get(rot.out)?.name ?? "Jugador") : "";
-  const txt = rot && low ? low.name + " lleva " + fmtMinutes(low.stats.minutes) + "; " + outName + ", " + fmtMinutes(sq.byId.get(rot.out)?.stats.minutes ?? 0) + "." : "El reparto está equilibrado.";
+  const minTxt = (c: Cromo | undefined) => (c ? fmtMinutes(knownMinutes(c.stats), "sin minutos registrados") : fmtMinutes(0));
+  const txt = rot && low ? low.name + " lleva " + minTxt(low) + "; " + outName + ", " + minTxt(sq.byId.get(rot.out)) + "." : "El reparto está equilibrado.";
   return { rows, txt, rot };
 }

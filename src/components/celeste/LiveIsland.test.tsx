@@ -1,12 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { readyClock, transitionClock } from "../../../functions/src/matchClock";
 import type { ClubMatch } from "../../lib/clubData";
+import type { PlayerDoc } from "../../lib/schemas";
 
 const MIN = 60_000;
 const DATE = Date.UTC(2026, 10, 8, 11);
-const state: { matches: ClubMatch[]; now: number; path: string } = { matches: [], now: 0, path: "/" };
+const state: { matches: ClubMatch[]; players: PlayerDoc[]; now: number; path: string } = { matches: [], players: [], now: 0, path: "/" };
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, className, ...rest }: { children?: ReactNode; className?: string; "aria-label"?: string }) => (
@@ -17,13 +18,14 @@ vi.mock("@tanstack/react-router", () => ({
   useRouterState: () => state.path,
 }));
 vi.mock("../../hooks/useClock", () => ({ useClock: () => state.now }));
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: state.matches, players: [] }) }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: state.matches, players: state.players }) }));
 
 const { LiveIsland } = await import("./LiveIsland");
 const match: ClubMatch = { id: "j8", version: 2, status: "scheduled", rival: "MAD SKY", rivalInitials: "MSK", date: DATE, duration: 50, clock: readyClock() };
 
 beforeEach(() => {
   state.matches = [match];
+  state.players = [];
   state.path = "/";
 });
 
@@ -63,4 +65,14 @@ it("the clock starts: the live pill with the score and the minute", () => {
   render(<LiveIsland />);
   expect(screen.getByRole("button", { name: /En directo: Manchester Piti 0, MAD SKY 0, minuto 3/ })).toBeInTheDocument();
   expect(screen.queryByText("Pendiente del pitido inicial")).toBeNull();
+});
+
+it("the last event names the scorer by the match's own season (nameFor with match.seasonId: his shirt name that season)", () => {
+  state.players = [{ id: "pepe", shirtName: "PEPE", firstName: "José", seasons: ["t1", "t2"], seasonDetails: { t2: { shirtName: "PEPITO" } } } as unknown as PlayerDoc];
+  state.matches = [{ ...match, seasonId: "t2", clock: transitionClock(match.clock, "start", DATE + 10 * MIN), events: [{ id: "g1", type: "goal", minute: 2, playerId: "pepe" }] }];
+  state.now = DATE + 13 * MIN;
+  render(<LiveIsland />);
+  fireEvent.click(screen.getByRole("button", { name: /En directo/ }));
+  expect(screen.getByRole("region", { name: /En directo/ })).toHaveTextContent("PEPITO");
+  expect(screen.getByRole("region", { name: /En directo/ })).not.toHaveTextContent("PEPE ·");
 });

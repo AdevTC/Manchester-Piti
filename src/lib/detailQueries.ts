@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { seasonMatchSchema, playerSchema, dropNullFields } from "./schemas";
+import { nameFor } from "./derived/names";
 
 /**
  * One-shot detail reads (NOT realtime). These back the deep-linkable
@@ -40,7 +41,7 @@ export const playerDetailQuery = (playerId: string) =>
     },
   });
 
-/** One-shot players name map (playerId → shirt/first name) for match-event labels. */
+/** One-shot players name map (playerId → nameFor, the one name rule) for match-event labels. */
 export const playersNameMapQuery = queryOptions({
   queryKey: ["players", "nameMap"],
   queryFn: async () => {
@@ -48,7 +49,7 @@ export const playersNameMapQuery = queryOptions({
     const map: Record<string, string> = {};
     for (const d of snap.docs) {
       const r = playerSchema.safeParse({ id: d.id, ...dropNullFields(d.data()) });
-      if (r.success) map[d.id] = r.data.shirtName || r.data.firstName || "—";
+      if (r.success) map[d.id] = nameFor(r.data);
     }
     return map;
   },

@@ -11,6 +11,7 @@ import { POSITIONS, POS_CODES, type PosCode } from "../../lib/positions";
 import { isFormationName, systemDef } from "../../lib/formations";
 import { isCompleted } from "../../../functions/src/matchEngine";
 import { fmtMinutes } from "../../lib/derived/minutes";
+import type { MvpOf } from "../../lib/derived/mvpOf";
 
 type NameOf = (p: PlayerAnalysis) => string;
 const full = (code: PosCode) => `${POSITIONS[code].name} (${code})`;
@@ -72,17 +73,17 @@ function Head({ kick, title, id, children }: { kick: string; title: string; id: 
   );
 }
 
-export function Posiciones({ games, rows, nameOf }: { games: ClubMatch[]; rows: PlayerAnalysis[]; nameOf: NameOf }) {
+export function Posiciones({ games, rows, nameOf, mvpOf }: { games: ClubMatch[]; rows: PlayerAnalysis[]; nameOf: NameOf; /** The shared MVP reader (derived/mvpOf), for the ratings by position. */ mvpOf?: MvpOf }) {
   return (
     <div className="st-pane-in">
-      <PorPosicion games={games} rows={rows} nameOf={nameOf} />
+      <PorPosicion games={games} rows={rows} nameOf={nameOf} mvpOf={mvpOf} />
       <PorSistema games={games} />
     </div>
   );
 }
 
 // ---------- Por posición
-function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: PlayerAnalysis[]; nameOf: NameOf }) {
+function PorPosicion({ games, rows, nameOf, mvpOf }: { games: ClubMatch[]; rows: PlayerAnalysis[]; nameOf: NameOf; mvpOf?: MvpOf }) {
   const names = useMemo(() => new Map(rows.map((p) => [p.id, nameOf(p)])), [rows, nameOf]);
   const firsts = useMemo(() => new Map(rows.map((p) => [p.id, p.firstName?.trim() || nameOf(p)])), [rows, nameOf]);
   const nameOfId = (id: string) => names.get(id) ?? "Jugador";
@@ -92,10 +93,10 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
   const byCode = useMemo(() => {
     const ids = new Set([...rows.map((p) => p.id), ...games.flatMap((m) => Object.keys(m.ledger ?? {}))]);
     const out = new Map<PosCode, { id: string; minutes: number }[]>();
-    for (const id of ids) for (const l of playerPositions(id, games).lines) out.set(l.code, [...(out.get(l.code) ?? []), { id, minutes: l.minutes }]);
+    for (const id of ids) for (const l of playerPositions(id, games, mvpOf).lines) out.set(l.code, [...(out.get(l.code) ?? []), { id, minutes: l.minutes }]);
     for (const list of out.values()) list.sort((a, b) => b.minutes - a.minutes || (names.get(a.id) ?? a.id).localeCompare(names.get(b.id) ?? b.id, "es"));
     return out;
-  }, [rows, games, names]);
+  }, [rows, games, names, mvpOf]);
   const estimated = useMemo(() => games.filter((m) => isCompleted(m) && Object.values(m.ledger ?? {}).some((r) => r?.positionsEstimated === true)).length, [games]);
   // the pick remembers the data it was made on: after a season change, a position without minutes
   // there is no longer picked (no pressed spot for a row the table hides)

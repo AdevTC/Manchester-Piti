@@ -16,6 +16,7 @@ import { useDesk } from "./useDesk";
 import { shareClubPage } from "../../lib/share";
 import { VT_SHIRT } from "./Percha";
 import { wholeMinutes } from "../../lib/derived/minutes";
+import type { MvpOf } from "../../lib/derived/mvpOf";
 
 interface Props {
   row: SquadRow;
@@ -31,6 +32,8 @@ interface Props {
   games?: ClubMatch[];
   /** His positions (preferida + también) for the map. */
   positions?: PositionSet;
+  /** The shared MVP reader (derived/mvpOf), for the ratings by position. */
+  mvpOf?: MvpOf;
 }
 
 const NO_GAMES: ClubMatch[] = [];
@@ -44,13 +47,13 @@ function nameFit(name: string): CSSProperties {
 }
 
 /** The player's ficha over the page: the shirt flies in from the rail and turns into the 3D kit. */
-export function FichaModal({ row, still, seasonName, withStats, kit, theme, onClose, onStep, onCompare, games = NO_GAMES, positions = NO_POSITIONS }: Props) {
+export function FichaModal({ row, still, seasonName, withStats, kit, theme, onClose, onStep, onCompare, games = NO_GAMES, positions = NO_POSITIONS, mvpOf }: Props) {
   const panel = useRef<HTMLDivElement>(null);
   const shirt = useRef<Jersey3DRef>(null);
   const [tab, setTab] = useState<Tab>("ficha");
   const [shared, setShared] = useState(false);
   const desk = useDesk();
-  const pos = useMemo(() => playerPositions(row.id, games), [row.id, games]);
+  const pos = useMemo(() => playerPositions(row.id, games, mvpOf), [row.id, games, mvpOf]);
   const mapOnStage = desk && tab === "posiciones";
   useFocusTrap(panel, onClose);
   // The page behind stays put while the ficha is open.

@@ -2,7 +2,7 @@
 // reads and writes the team's private bits (convocatoria, porra, MVP) only for members.
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { EVENT_LABELS, isCompleted, playerForSeason, playerName, type ClubMatch } from "../../lib/clubData";
+import { EVENT_LABELS, isCompleted, playerForSeason, nameFor, type ClubMatch } from "../../lib/clubData";
 import { useSeason } from "../../context/SeasonContext";
 import { useTeam } from "../../context/TeamContext";
 import { useAuth } from "../../context/AuthContext";
@@ -415,7 +415,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
   const now = useClock(30_000);
   const theme = useDocumentTheme();
   const numOf = useNumOf(players, match.seasonId);
-  const nameOf = (id: string) => playerName(players.find((p) => p.id === id));
+  const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match.seasonId);
   const uid = member ? user?.uid : undefined;
   const kickedOff = phase !== "scheduled" && phase !== "unscheduled";
   const availability = useAvailability(member && !kickedOff ? match.id : undefined);

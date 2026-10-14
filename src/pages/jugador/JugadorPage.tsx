@@ -6,7 +6,7 @@ import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 import { useMemo, useState } from "react";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
-import { formatDate, playerForSeason, playerName, useClubData, type ClubMatch } from "../../lib/clubData";
+import { formatDate, playerForSeason, nameFor, useClubData, type ClubMatch } from "../../lib/clubData";
 import { analysePlayer, chronological, competitionRanks, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { computeStats } from "../../lib/playerStats";
 import { positionText, resolvePositions } from "../../lib/positions";
@@ -27,13 +27,15 @@ import { SusPosiciones } from "./SusPosiciones";
 import { jornadaNumbers } from "../../lib/derived/jornada";
 import { RESULT_LEGEND, resultLetter } from "../../lib/derived/result";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
+import { timedGames, totalMinutes } from "../../lib/derived/minutesOf";
+import { mvpOfFrom } from "../../lib/derived/mvpOf";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
 import "../../styles/jugador.css";
 
 const route = getRouteApi("/jugadores/$playerId");
-const nameOf = (p: PlayerAnalysis) => playerName(p);
+const nameOf = (p: PlayerAnalysis) => nameFor(p);
 const ML = { goals: ["gol", "goles"], assists: ["asistencia", "asistencias"], matchesPlayed: ["partido", "partidos"] } as const;
 const letter = (m: ClubMatch) => resultLetter(m.goalsFor ?? 0, m.goalsAgainst ?? 0);
 
@@ -77,21 +79,14 @@ export function JugadorPage() {
   const raw = players.find((x) => x.id === playerId);
   const p = raw ? playerForSeason(raw, selectedSeasonId, seasons) : undefined;
   const games = useMemo(() => chronological(matches.filter((m) => selectedSeasonId === "all" || m.seasonId === selectedSeasonId)), [matches, selectedSeasonId]);
-  // the MVP of a match, for the form by position (him when he shares the vote)
-  const mvpOf = useMemo(() => {
-    const byId = new Map(games.map((g) => [g.id, g]));
-    return (id: string) => {
-      const m = byId.get(id);
-      const won = m ? mvpWinners(m, results.get(id), now) : [];
-      return won.includes(playerId) ? playerId : (won[0] ?? null);
-    };
-  }, [games, results, now, playerId]);
+  // the MVP of a match, for the form by position (him when he shares the vote): the one shared reader
+  const mvpOf = useMemo(() => mvpOfFrom(results, games, now), [games, results, now]);
   const squad = useMemo(
     () => players.filter((x) => selectedSeasonId === "all" || x.seasons?.includes(selectedSeasonId) || x.id === playerId).map((x) => analysePlayer(playerForSeason(x, selectedSeasonId, seasons), games)),
     [players, games, selectedSeasonId, seasons, playerId],
   );
   const me = squad.find((x) => x.id === playerId);
-  const name = p ? playerName(p) : "";
+  const name = p ? nameFor(p) : "";
   const num = p?.number != null ? String(p.number) : "";
   const stills = useShirtStills(p && !p.photoUrl ? [{ kit: "home", theme, name: name.toUpperCase(), num, yaw: 0 }] : [], { offMainThread: true });
 
@@ -189,8 +184,8 @@ export function JugadorPage() {
   const seasonRow = (id: string) => {
     const sg = chronological(matches.filter((m) => m.seasonId === id));
     const st = computeStats(p.id, sg);
-    const led = sg.filter((m) => m.ledger?.[p.id]);
-    return { st, minutes: led.length ? Math.round(led.reduce((n, m) => n + (m.ledger![p.id].secondsPlayed ?? m.ledger![p.id].minutes * 60), 0) / 60 * 100) / 100 : null, mvps: mvpWins(p.id, sg, results, now) };
+    // (the one minutes rule: derived/minutesOf; «—» when no acta of the season knows his time)
+    return { st, minutes: timedGames(sg, p.id) ? totalMinutes(sg, p.id) : null, mvps: mvpWins(p.id, sg, results, now) };
   };
   const nameById = new Map(squad.map((x) => [x.id, nameOf(x)]));
   const share = () =>

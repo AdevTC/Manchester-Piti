@@ -110,7 +110,7 @@ export interface FichaView {
   pos: string;
   gk: boolean;
   sub: string;
-  st: { k: string; v: number }[];
+  st: { k: string; v: number | string }[];
   /** His last matches (ficha.ts formBars): «FORMA · J4–J8» and a bar per match. */
   form?: { k: string; bars: { j: string; h: number; played: boolean; t: string }[] };
   /** Minutes against the team's, where he plays, galones, the match (ficha.ts). */
