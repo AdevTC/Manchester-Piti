@@ -379,19 +379,22 @@ export function sevenNewsworthy(after: LineupLike | undefined, match: MatchLike 
 
 /**
  * The «Cambio en el siete» notice, from the seven the team was last told about (`baseline`) to the one
- * there is now; null when, all told, nobody comes in or goes out (moved around, or changed back).
+ * there is now; null when, all told, nobody comes in or goes out (moved around, or changed back). A
+ * match's official opens the match's Campo (like «Ya está el siete»: public, the seven there); the
+ * season's opens the board on the pizarra.
  */
 export function sevenChangeNotice(id: string, baseline: readonly string[], now7: readonly string[], after: LineupLike, match: MatchLike | null | undefined, nameOf: (id: string) => string): Notice | null {
   const txt = sevenChangeTxt(sevenDiff(baseline, now7), nameOf);
   if (!txt) return null;
-  const rival = after.matchId ? match?.rival : undefined;
+  const mid = after.matchId ?? null;
+  const rival = mid ? match?.rival : undefined;
   const season = typeof after.seasonId === "string" && after.seasonId ? `&season=${encodeURIComponent(after.seasonId)}` : "";
   return {
     topic: "lineup",
     title: "Cambio en el siete",
-    body: txt.replace(/^./, (c) => c.toUpperCase()) + (rival ? ` · contra ${rival}` : "") + ". Mira el oficial en la pizarra.",
+    body: txt.replace(/^./, (c) => c.toUpperCase()) + (rival ? ` · contra ${rival}` : "") + (mid ? ". Míralo en el partido." : ". Mira el oficial en la pizarra."),
     tag: `seven-${id}`,
-    url: `/pizarra?tablero=${encodeURIComponent(id)}${season}`,
+    url: mid ? `/matches/${encodeURIComponent(mid)}?tab=campo` : `/pizarra?tablero=${encodeURIComponent(id)}${season}`,
   };
 }
 

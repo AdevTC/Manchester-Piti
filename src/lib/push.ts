@@ -18,7 +18,7 @@ export const TOPIC_LABELS: { id: Topic; label: string; hint?: string }[] = [
   { id: "final", label: "Resultado final" },
   { id: "mvp", label: "MVP de la jornada", hint: "Cuando se abre el voto y cuando hay ganador" },
   { id: "dates", label: "Fechas nuevas y cambios", hint: "Partidos nuevos o cambios de hora" },
-  { id: "lineup", label: "Cuando salga el siete oficial", hint: "Con el enlace a la charla de la pizarra" },
+  { id: "lineup", label: "Cuando salga el siete oficial", hint: "Y sus cambios y la convocatoria, con el enlace al partido" },
 ];
 /** The topics that need the member's session (the server refuses or drops them without it). */
 const PERSONAL: readonly Topic[] = ["door", "access", "convocatoria"];

@@ -25,11 +25,20 @@ describe("«Cambio en el siete»", () => {
   });
 
   it("the notice: to the «lineup» topic, one per board on the phone, with the link to the official", () => {
+    // a match's official: the match's Campo (like «Ya está el siete»)
     const n = sevenChangeNotice("b1", ["a", "b"], ["a", "e"], { isOfficial: true, matchId: "m8", seasonId: "t 1" }, { rival: "MAD SKY", status: "scheduled", date: NOW + HOUR }, nameOf);
     expect(n).toEqual({
       topic: "lineup",
       title: "Cambio en el siete",
-      body: "Entra E por B · contra MAD SKY. Mira el oficial en la pizarra.",
+      body: "Entra E por B · contra MAD SKY. Míralo en el partido.",
+      tag: "seven-b1",
+      url: "/matches/m8?tab=campo",
+    });
+    // the season's official: the board on the pizarra, in its season
+    expect(sevenChangeNotice("b1", ["a", "b"], ["a", "e"], { isOfficial: true, matchId: null, seasonId: "t 1" }, null, nameOf)).toEqual({
+      topic: "lineup",
+      title: "Cambio en el siete",
+      body: "Entra E por B. Mira el oficial en la pizarra.",
       tag: "seven-b1",
       url: "/pizarra?tablero=b1&season=t%201",
     });
