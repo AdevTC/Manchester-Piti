@@ -207,7 +207,7 @@ export function RivalSection({ match, dossier, plan }: { match: ClubMatch; dossi
                   ))}
                 </ol>
               ) : (
-                <p className="fc-note">{r.gf ? "Sus goles son de actas antiguas, sin goleador apuntado." : "Todavía no les hemos marcado."}</p>
+                <p className="fc-note">{r.gf ? "Sin goleador apuntado: actas antiguas o autogoles suyos." : "Todavía no les hemos marcado."}</p>
               )}
             </div>
             <div>
