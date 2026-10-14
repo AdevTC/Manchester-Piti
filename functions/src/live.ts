@@ -12,6 +12,7 @@ import { db, idSchema, parse, memberAs } from "./common.js";
 import { requireScorer } from "./liveClock.js";
 import { clockReading, type MatchClock } from "./matchClock.js";
 import { LIVE_TYPES, liveProblem, liveSequenceProblem } from "./liveLogic.js";
+import { allowedAtBreak } from "./liveRules.js";
 
 const input = z.discriminatedUnion("action", [
   z.object({
@@ -69,7 +70,7 @@ export const liveEvent = onCall(async (req) => {
     let next: typeof events;
     if (data.action === "add") {
       if (data.requestId && events.some(e => e.id === `live-${data.requestId}`)) return { events: events.length };
-      const atBreak = reading?.phase === "halftime" && ["substitution", "yellow_card", "double_yellow", "red_card"].includes(data.event.type);
+      const atBreak = reading?.phase === "halftime" && allowedAtBreak(data.event.type);
       if ((m.version === 2 && !m.clock) || (reading && !reading.playing && !atBreak)) throw new HttpsError("failed-precondition", "Inicia la parte antes de registrar jugadas en directo. En el descanso solo se anotan cambios y tarjetas.");
       if (m.clock && data.clockRevision !== m.clock.revision) throw new HttpsError("aborted", "La parte ha cambiado. Revisa el reloj antes de apuntar la jugada.");
       const elapsed = reading && !data.manualTime ? reading.elapsedSeconds : data.event.minute * 60;

@@ -285,7 +285,7 @@ describe("Partidos · the workspace", () => {
     await user.click(within(cam).getByRole("button", { name: "Sale TELLO, dorsal 20" }));
     await user.click(within(cam).getByRole("button", { name: "Entra KEVIN, dorsal 11" }));
     await user.click(within(cam).getByRole("button", { name: "Añadir" }));
-    expect(screen.getByText("Entra KEVIN")).toBeInTheDocument();
+    expect(screen.getByText("Cambio: entra KEVIN")).toBeInTheDocument();
     // remove the card, then take it back
     await user.click(screen.getByRole("button", { name: "Editar: Roja directa a EGUZQUIZA (22′)" }));
     await user.click(within(screen.getByRole("dialog", { name: "Editar · Tarjetas" })).getByRole("button", { name: "Quitar" }));

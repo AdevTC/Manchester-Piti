@@ -90,10 +90,26 @@ describe("Mesa de partido · what the admin's En juego had and the banda lacked"
     render(<Banda match={MATCH} nameOf={nameOf} />);
     fireEvent.click(screen.getByRole("button", { name: "Gol del Piti" }));
     expect(screen.getByRole("button", { name: /Apuntar/ })).toBeDisabled();
-    expect(screen.queryByText("Asistencia (opcional)")).toBeNull();
+    expect(screen.queryByText("¿Quién le dio el pase? (opcional)")).toBeNull();
     tapAll(["Lo completo luego · sin goleador"]);
     expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "goal", minute: 31 }));
     expect(await screen.findByText("Gol del Piti apuntado en el 32′. Falta el goleador: complétalo en el acta.")).toBeInTheDocument();
+  });
+  it("the scorer picked from the assist chips' player clears that assist (never his own assist)", () => {
+    render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Gol del Piti" }));
+    fireEvent.click(screen.getByRole("button", { name: "ERIK" }));
+    expect(screen.getByText("¿Quién le dio el pase? (opcional)")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "ADRIAN" }).at(-1) as HTMLElement); // assist: ADRIAN
+    tapAll([["ADRIAN", 0]]); // then ADRIAN as the scorer
+    expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "goal", minute: 31, playerId: "adrian" }));
+  });
+  it("asks the catalogue's questions", () => {
+    render(<Banda match={MATCH} nameOf={nameOf} />);
+    const asked = (label: string) => (fireEvent.click(screen.getByRole("button", { name: label })), screen.getAllByText(/^¿/)[0].textContent);
+    expect([asked("Amarilla"), asked("Cambio"), asked("Penalti parado"), asked("Al palo"), asked("Ocasión del Piti")]).toEqual(["¿A quién?", "¿Quién sale?", "¿Quién lo paró?", "¿Quién lo tiró?", "¿Qué jugador?"]);
+    fireEvent.click(screen.getByRole("button", { name: "Cambio" }));
+    expect(screen.getByText("¿Quién entra?")).toBeInTheDocument();
   });
   it("choosing a scorer after «Lo completo luego» writes him", () => {
     render(<Banda match={MATCH} nameOf={nameOf} />);

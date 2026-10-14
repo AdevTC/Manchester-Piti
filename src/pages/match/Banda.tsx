@@ -10,14 +10,14 @@ import { liveSides } from "../admin/live/liveModel";
 import { useClock } from "../../hooks/useClock";
 import { liveMinute, shownOffset } from "../../lib/partidos";
 import { Icon } from "../../components/celeste/icons";
-import { LIVE_ACTIONS, buildLiveEvent, liveAction, liveReady, type LiveEventType } from "../../lib/liveActions";
+import { LIVE_ACTIONS, buildLiveEvent, liveAction, liveReady, type LiveActionType } from "../../lib/liveActions";
 
 export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string) => string }) {
   const now = useClock(1000);
   const playing = clockReading(match.clock, now).playing;
   const clock = liveMinute(match, now) ?? 0;
   const [minute, setMinute] = useState<number | null>(null);
-  const [action, setAction] = useState<LiveEventType | null>(null);
+  const [action, setAction] = useState<LiveActionType | null>(null);
   const [player, setPlayer] = useState<string | null>(null);
   const [second, setSecond] = useState<string | null>(null);
   // «Lo completo luego»: a goal written without its scorer (the acta asks «¿Quién marcó?» afterwards)
@@ -117,7 +117,7 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
       )}
       {act && secondList.length > 0 && (act.second !== "assist" || player) && (
         <>
-          <span className="hm-kick">{act.second === "assist" ? "Asistencia (opcional)" : "Entra"}</span>
+          <span className="hm-kick">{act.second === "assist" ? `${act.askSecond} (opcional)` : act.askSecond}</span>
           <div className="fc-pick">
             {secondList.map((id) => (
               <button key={id} type="button" aria-pressed={second === id} onClick={() => setSecond(second === id ? null : id)}>

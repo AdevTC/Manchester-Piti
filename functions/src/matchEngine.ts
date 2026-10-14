@@ -18,7 +18,7 @@ export const EVENT_LABELS = {
   penalty_received: "Penalti recibido",
   penalty_saved: "Penalti parado",
   penalty_missed: "Penalti fallado",
-  woodwork: "Tiro al palo",
+  woodwork: "Al palo",
   chance: "Ocasión del Piti",
   opponent_chance: "Ocasión rival",
   corner: "Córner del Piti",

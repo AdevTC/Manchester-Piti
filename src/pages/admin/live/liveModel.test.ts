@@ -47,7 +47,7 @@ describe("En juego · the picker", () => {
     expect(c.options[1].next).toEqual({ state: { k: "cam", st: 2, out: "tello" } });
     const c2 = pickerView({ k: "cam", st: 2, out: "tello" }, ctx);
     expect(c2.label).toBe("Banquillo");
-    expect(c2.options[0].next).toEqual({ event: { type: "substitution", minute: 31, playerId: "tello", inPlayerId: "kevin" }, caption: "Entra KEVIN, sale TELLO" });
+    expect(c2.options[0].next).toEqual({ event: { type: "substitution", minute: 31, playerId: "tello", inPlayerId: "kevin" }, caption: "Cambio: entra KEVIN, sale TELLO" });
   });
 });
 
@@ -91,9 +91,11 @@ describe("En juego · what the banda had and the wizard lacked", () => {
       ["Penalti fallado", { state: { k: "mas", st: 2, type: "penalty_missed" } }],
     ]);
     const saved = pickerView({ k: "mas", st: 2, type: "penalty_saved" }, ctx);
-    expect([saved.step, saved.question, saved.label, saved.bench]).toEqual(["Penalti parado · 31′ · paso 2 de 2", "¿Quién lo paró?", "En el campo", null]);
+    expect([saved.step, saved.question, saved.label, saved.bench]).toEqual(["Penalti parado · paso 2 de 2", "¿Quién lo paró?", "En el campo", null]);
+    for (const type of ["woodwork", "penalty_missed"] as const) expect(pickerView({ k: "mas", st: 2, type }, ctx).question).toBe("¿Quién lo tiró?");
     expect(saved.options.map((o) => o.id)).toEqual(ctx.field);
-    expect(saved.options[0]).toMatchObject({ aria: "Penalti parado · EVANS", next: { event: { type: "penalty_saved", minute: 31, playerId: "evans" }, caption: "Penalti parado · EVANS · 31′" } });
+    expect(saved.options[0]).toMatchObject({ aria: "Penalti parado por EVANS", next: { event: { type: "penalty_saved", minute: 31, playerId: "evans" }, caption: "Penalti parado por EVANS · 31′" } });
+    expect(pickerView({ k: "mas", st: 2, type: "woodwork" }, ctx).options[2].aria).toBe("Al palo: ERIK");
     for (const type of ["woodwork", "penalty_missed"] as const) {
       const next = pickerView({ k: "mas", st: 2, type }, ctx).options[2].next;
       expect(isEvent(next) && next.event).toStrictEqual({ type, minute: 31, playerId: "erik" });
@@ -118,7 +120,7 @@ describe("En juego · sides and the log", () => {
     expect(rows.map((r) => [r.minute, r.text, r.detail, r.cls])).toEqual([
       ["35", "Gol del Piti", "falta el goleador", ""],
       ["33", "Roja directa a EVANS", "", "rj"],
-      ["30", "Entra KEVIN", "sale TELLO", ""],
+      ["30", "Cambio: entra KEVIN", "sale TELLO", ""],
       ["27", "Amarilla a TELLO", "", "y"],
       ["24", "Gol de MAD SKY", "", "rv"],
       ["12", "Gol de ERIK", "pase de ADRIÁN T.C.", ""],
