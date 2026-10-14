@@ -6,7 +6,7 @@
 import { type DocumentData, type Timestamp } from "firebase-admin/firestore";
 import { db } from "./common.js";
 import { nameFor } from "./names.js";
-import { parseSiete, sevenChangeNotice, sevenDiff, sevenNewsworthy, sevenOf, sevenStep, sieteLog, sieteStep, SEVEN_DEBOUNCE_MS, type LineupLike, type MatchLike, type Notice, type SieteAsk } from "./pushLogic.js";
+import { parseSiete, sevenChangeNotice, sevenDiff, sevenNewsworthy, sevenOf, sevenStep, sieteKey, sieteLog, sieteStep, SEVEN_DEBOUNCE_MS, type LineupLike, type MatchLike, type Notice, type SieteAsk } from "./pushLogic.js";
 
 type Send = (n: Notice) => Promise<void>;
 
@@ -40,6 +40,16 @@ export async function claimSiete(matchId: string, ask: SieteAsk, now = Date.now(
   });
 }
 
+/**
+ * «Cambio en el siete» goes: for a match's official it also tells the team that match's seven, so it takes
+ * the one-siete claim (as «Ya está el siete» does) — a convocatoria «Cambios» right after, calling the same
+ * players with this seven, has nothing new to say.
+ */
+async function sendChange(id: string, board: LineupLike, now7: string[], notice: Notice, send: Send): Promise<void> {
+  if (board.matchId) await claimSiete(board.matchId, { by: "lineup", board: id, seven: sieteKey(now7) });
+  await send(notice);
+}
+
 /** A board has just become the official: what the team was told about is this seven. */
 export async function sevenPublished(id: string, after: LineupLike): Promise<void> {
   await logRef(id).set({ baseline: sevenOf(after.slots), sentAt: Date.now(), pending: false });
@@ -69,7 +79,7 @@ export async function sevenEdited(id: string, before: LineupLike, after: LineupL
   if (!baseline) return;
   const d2 = sevenDiff(baseline, now7);
   const notice = sevenChangeNotice(id, baseline, now7, after, match, await namesOf([...d2.ins, ...d2.outs], match?.seasonId ?? after.seasonId));
-  if (notice) await send(notice);
+  if (notice) await sendChange(id, after, now7, notice, send);
 }
 
 /** The job: the held changes whose window is over go now, grouped (a seven changed back says nothing). */
@@ -94,6 +104,6 @@ export async function flushSevens(now: number, send: Send): Promise<void> {
     if (!baseline || !board) continue;
     const d = sevenDiff(baseline, now7);
     const notice = sevenChangeNotice(id, baseline, now7, board, match, await namesOf([...d.ins, ...d.outs], match?.seasonId ?? board.seasonId));
-    if (notice) await send(notice);
+    if (notice) await sendChange(id, board, now7, notice, send);
   }
 }

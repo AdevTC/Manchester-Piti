@@ -10,9 +10,13 @@ process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
 // (the demo project, whatever the shell's GCP variables say)
 process.env.GCLOUD_PROJECT = "demo-manchester-piti";
 process.env.GOOGLE_CLOUD_PROJECT = "demo-manchester-piti";
-const { initializeApp } = await import("firebase-admin/app");
+// (the job's flushSevens, run here against the emulator: lib/common.js initializes the default app, and
+// with FUNCTIONS_EMULATOR it keeps the gRPC client — its REST one would look for real credentials)
+process.env.FUNCTIONS_EMULATOR = "true";
+const { flushSevens } = await import("../lib/seven.js");
+const { getApps, initializeApp } = await import("firebase-admin/app");
 const { getFirestore, Timestamp, FieldValue } = await import("firebase-admin/firestore");
-initializeApp({ projectId: "demo-manchester-piti" });
+if (!getApps().length) initializeApp({ projectId: "demo-manchester-piti" });
 const db = getFirestore();
 
 const suffix = Date.now().toString(36);
@@ -256,9 +260,59 @@ assert.equal(r10.covered, false);
 assert.equal((await log("siete-" + m10)).by, "conv");
 checked += 3;
 
+// ---------- 9. «Cambio en el siete» of a match's official tells the team that seven too: it takes the
+// claim, and a convocatoria «Cambios» right after with that seven (the same players called) stays quiet.
+// a) sent at once by the trigger (its 10-minute window over)
+const sieteKeyOf = (pids) => [...pids].sort().join(",");
+async function sieteIs(mid, pids, board) {
+  for (let i = 0; i < 80; i++) {
+    const d = await log("siete-" + mid);
+    if (d?.sent === true && d.by === "lineup" && d.board === board && d.seven === sieteKeyOf(pids)) {
+      checked++;
+      return d;
+    }
+    await sleep(250);
+  }
+  assert.fail("pushLog/siete-" + mid + " never took the changed seven: " + JSON.stringify(await log("siete-" + mid)));
+}
+const m11 = await matchOf("once");
+const b11 = await boardOf("once", seven);
+await publish(b11, m11);
+assert.equal((await setConvocatoria(admin, { matchId: m11, starters: seven, bench: [ids[7]], notify: true, fromBoard: b11 })).covered, true);
+await sieteSent(m11, b11);
+await db.doc("pushLog/seven-" + b11).update({ sentAt: Date.now() - 11 * 60_000 });
+await db.doc("lineups/" + b11).update({ slots: slots(otherSeven), updatedAt: FieldValue.serverTimestamp() });
+await sieteIs(m11, otherSeven, b11);
+const quiet11 = await setConvocatoria(admin, { matchId: m11, starters: otherSeven, bench: [ids[6]], notify: true });
+assert.equal(quiet11.notice, null, "«Cambio en el siete» already told this seven");
+assert.equal(quiet11.covered, true);
+checked += 3;
+// b) held (within the window) and sent by the job (flushSevens): same claim, the link to the match's Campo
+const m12 = await matchOf("doce");
+const b12 = await boardOf("doce", seven);
+await publish(b12, m12);
+assert.equal((await setConvocatoria(admin, { matchId: m12, starters: seven, bench: [ids[7]], notify: true, fromBoard: b12 })).covered, true);
+await sieteSent(m12, b12);
+await db.doc("lineups/" + b12).update({ slots: slots(otherSeven), updatedAt: FieldValue.serverTimestamp() });
+for (let i = 0; i < 80 && (await log("seven-" + b12))?.pending !== true; i++) await sleep(250);
+assert.equal((await log("seven-" + b12))?.pending, true, "the change right after the publish waits for the job");
+await db.doc("pushLog/seven-" + b12).update({ sentAt: Date.now() - 11 * 60_000 });
+const flushed = [];
+await flushSevens(Date.now(), async (n) => {
+  flushed.push(n);
+});
+const change12 = flushed.find((n) => n.tag === "seven-" + b12);
+assert.ok(change12, "the job sent «Cambio en el siete»");
+assert.equal(change12.url, "/matches/" + m12 + "?tab=campo");
+await sieteIs(m12, otherSeven, b12);
+const quiet12 = await setConvocatoria(admin, { matchId: m12, starters: otherSeven, bench: [ids[6]], notify: true });
+assert.equal(quiet12.notice, null);
+assert.equal(quiet12.covered, true);
+checked += 6;
+
 // (cleanup)
-const mids = [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10];
-const bids = [b1, b2, b3, b4, b5, b6, b7, b9, b9b, b10];
+const mids = [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12];
+const bids = [b1, b2, b3, b4, b5, b6, b7, b9, b9b, b10, b11, b12];
 for (const mid of mids) {
   await db.doc("matches/" + mid).delete();
   await db.doc(`lineupOfficials/${seasonId}__${mid}`).delete();
