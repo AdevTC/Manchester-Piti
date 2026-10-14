@@ -22,8 +22,8 @@ vi.mock("firebase/firestore", async (importOriginal) => ({
 }));
 vi.mock("../../firebase", () => ({ db: {} }));
 
-import { useAvailability, useLiveDoc, useMatchPrivate, useMatchScorers, useMeetingNote } from "./live";
-import { LISTENER_RETRY_MS, REOPEN_MIN_MS, _resetSnapshotMetaForTesting, getSnapshotMeta } from "../../lib/syncStatus";
+import { useAvailability, useLiveDoc, useMatchPrivate, useMatchScorers, useMeetingNote, useMvpResultsSync, useMvpReveal } from "./live";
+import { LISTENER_RETRY_MS, REOPEN_MIN_MS, _resetSnapshotMetaForTesting, getSnapshotMeta, metaKeyOf, recordSnapshotMeta } from "../../lib/syncStatus";
 
 const meta = (fromCache = false, hasPendingWrites = false) => ({ fromCache, hasPendingWrites });
 const emitDoc = (path: string, data: Record<string, unknown> | undefined, metadata = meta()) =>
@@ -268,5 +268,34 @@ describe("useShared: metadatos aparte y escuchas que se recuperan", () => {
     expect(onSnapshotMock).toHaveBeenCalledTimes(2);
     expect(b.result.current.loading).toBe(true);
     b.unmount();
+  });
+});
+
+describe("el MVP: solo un recuento confirmado por el servidor celebra", () => {
+  const KEY = metaKeyOf(["mvpResults"]);
+  beforeEach(() => _resetSnapshotMetaForTesting());
+
+  it("el desvelado espera a la primera instantánea del servidor y luego se queda", () => {
+    const { result, rerender } = renderHook(({ closed }) => useMvpReveal(closed), { initialProps: { closed: true } });
+    expect(result.current).toBe(false); // nothing yet
+    act(() => recordSnapshotMeta(KEY, { fromCache: true, hasPendingWrites: false }));
+    expect(result.current).toBe(false); // the cache only
+    act(() => recordSnapshotMeta(KEY, { fromCache: false, hasPendingWrites: false }));
+    expect(result.current).toBe(true);
+    act(() => recordSnapshotMeta(KEY, { fromCache: true, hasPendingWrites: false }));
+    expect(result.current).toBe(true); // a later trip through the cache doesn't replay it
+    rerender({ closed: false });
+    expect(result.current).toBe(false);
+  });
+
+  it("el recuento se avisa como desfasado al perder el servidor, no mientras llega el primero", () => {
+    const { result } = renderHook(() => useMvpResultsSync());
+    expect(result.current).toEqual({ confirmed: false, stale: false });
+    act(() => recordSnapshotMeta(KEY, { fromCache: true, hasPendingWrites: false }));
+    expect(result.current).toEqual({ confirmed: false, stale: false });
+    act(() => recordSnapshotMeta(KEY, { fromCache: false, hasPendingWrites: false }));
+    expect(result.current).toEqual({ confirmed: true, stale: false });
+    act(() => recordSnapshotMeta(KEY, { fromCache: true, hasPendingWrites: false }));
+    expect(result.current).toEqual({ confirmed: false, stale: true });
   });
 });

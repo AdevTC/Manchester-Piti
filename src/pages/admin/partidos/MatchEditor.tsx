@@ -38,6 +38,7 @@ import { TabConvocatoria } from "./TabConvocatoria";
 import { TabEncuentro } from "./TabEncuentro";
 import { TabPublicar } from "./TabPublicar";
 import { useEditBuffer } from "./useEditBuffer";
+import { useLiveCatchUp } from "./useLiveCatchUp";
 import { blockedWhy, closesWords, effectiveSheet, footerOf, kickerOf, phaseOf, savedLine, tabMarks, tidyVenue, voteCloses } from "./workspaceModel";
 
 export interface MatchEditorProps {
@@ -63,6 +64,8 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, o
   const whistled = useWhistled();
   const server = useMemo(() => fromMatch(match, note), [match, note]);
   const buf = useEditBuffer(server, "acta", match.id, isSheet, restoreSheet);
+  // jugadas written from the touchline while these edits are unsaved (M4)
+  const catchUp = useLiveCatchUp(buf);
   const [busy, setBusy] = useState<"draft" | "publish" | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [shake, setShake] = useState(0);
@@ -286,6 +289,20 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, o
             </button>
             <button type="button" className="btn sm line" onClick={buf.dismissOffer}>
               Descartar
+            </button>
+          </div>
+        )}
+        {catchUp.count > 0 && (
+          <div className="rec2" role="status">
+            <AdIcon name="whistle" size={18} />
+            <span>
+              <b>
+                {catchUp.count === 1 ? "Ha llegado 1 jugada nueva" : `Han llegado ${catchUp.count} jugadas nuevas`} desde que empezaste a editar
+              </b>
+              <small>Se añaden a tu acta sin tocar tus cambios.</small>
+            </span>
+            <button type="button" className="btn sm sky" onClick={catchUp.incorporate}>
+              {catchUp.count === 1 ? "Incorporarla" : "Incorporarlas"}
             </button>
           </div>
         )}

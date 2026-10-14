@@ -23,6 +23,7 @@ import {
   type ReactionDoc,
 } from "./schemas";
 import { reportDroppedDoc } from "./docTelemetry";
+import type { MvpResult } from "./vestuario";
 
 /** Docs of an archived season (flag set by the setSeasonArchived callable) stay
  *  in Firestore but never reach the app: the shared mappers drop them. */
@@ -88,4 +89,14 @@ export function mapReaction(id: string, data: unknown): ReactionDoc | null {
     return null;
   }
   return r.data;
+}
+
+/** Every match's MVP tally (useMvpResults; public: in the bundle, seeded by the server render, waited for
+ *  by the boot — lib/publicData). Here so the vestuario's live module can share it without importing the boot. */
+export const MVP_RESULTS_KEY = ["mvpResults"] as const;
+/** Canonical `["mvpResults"]` mapper: a match's MVP tally (`mvpResults/{matchId}`, kept by the backend):
+ *  counts per player and the total, never who voted whom. */
+export function mapMvp(id: string, data: unknown): MvpResult {
+  const d = (data ?? {}) as { counts?: Record<string, number>; total?: number };
+  return { id, counts: d.counts ?? {}, total: d.total ?? 0 };
 }

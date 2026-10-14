@@ -73,13 +73,61 @@ export function mvpWinners(match: ClubMatch, result: MvpResult | undefined, now:
 export function mvpWins(playerId: string, matches: ClubMatch[], results: Map<string, MvpResult>, now: number) {
   return matches.filter((m) => mvpWinners(m, results.get(m.id), now).includes(playerId)).length;
 }
-export function podium(result: MvpResult | undefined) {
-  return Object.entries(result?.counts ?? {})
-    .filter(([, n]) => n > 0)
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 3)
-    .map(([playerId, votes]) => ({ playerId, votes }));
+export interface RaceRow {
+  playerId: string;
+  votes: number;
+  /** 1, 2 or 3; players with the same votes share it (1, 1, 3). */
+  rank: number;
+  /** Someone else has the same rank. */
+  shared: boolean;
 }
+export interface MvpRace {
+  /** "open" while the vote runs, "closed" once `voteClosesAt` has passed (the server's clock). */
+  state: "open" | "closed";
+  /** The top 3 by votes (a tie for a place keeps every tied player): counts only, never who voted whom. */
+  rows: RaceRow[];
+  total: number;
+  /** Who goes first now (open) or won (closed): ties share it. Empty without votes. */
+  leaders: string[];
+  /** The winners once closed (mvpWinnerIds, the same rule as the «MVP de la J5» push); empty while open. */
+  winners: string[];
+}
+/**
+ * The MVP vote of a match as the match page and the vestuario show it: while open, the race (the top 3 by
+ * votes, ties sharing their place); once closed, the same podium with its winners.
+ */
+export function mvpRace(voteClosesAt: number | null | undefined, result: MvpResult | undefined, now: number): MvpRace {
+  const sorted = Object.entries(result?.counts ?? {})
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const rankOf = (votes: number) => 1 + sorted.filter(([, n]) => n > votes).length;
+  const rows = sorted
+    .map(([playerId, votes]) => ({ playerId, votes, rank: rankOf(votes), shared: sorted.filter(([, n]) => n === votes).length > 1 }))
+    .filter((r) => r.rank <= 3);
+  const open = !voteClosesAt || now < voteClosesAt;
+  return {
+    state: open ? "open" : "closed",
+    rows,
+    total: result?.total ?? 0,
+    leaders: rows.filter((r) => r.rank === 1).map((r) => r.playerId),
+    winners: mvpWinnerIds(voteClosesAt, result, now),
+  };
+}
+/** «12 h» / «25 min» until the vote closes («1 min» in its last minute). */
+export function voteLeft(closesAt: number, now: number) {
+  const left = Math.max(0, closesAt - now);
+  return left >= 3_600_000 ? `${Math.floor(left / 3_600_000)} h` : `${Math.max(1, Math.ceil(left / 60_000))} min`;
+}
+/** What a screen reader hears when the race changes hands or closes (one polite line per change; a new
+ *  vote that doesn't change who leads says nothing). `names`: the leaders' (open) or winners' (closed). */
+export function mvpAnnouncement(race: Pick<MvpRace, "state">, names: readonly string[]) {
+  if (!names.length) return "";
+  return race.state === "open"
+    ? `${andNames(names)} ${names.length > 1 ? "van empatados en cabeza" : "va primero"} en la carrera del MVP.`
+    : `${names.length > 1 ? "MVP compartido" : "MVP"}: ${andNames(names)}.`;
+}
+/** «ERIK», «ERIK y PABLO», «ERIK, PABLO y RAÚL». */
+export const andNames = (names: readonly string[]) => (names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`);
 
 // ---------- season & career
 const MILESTONES = [5, 10, 25, 50, 100, 150, 200, 300];

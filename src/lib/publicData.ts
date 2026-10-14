@@ -5,7 +5,7 @@
 import { collection, doc, onSnapshot, orderBy, query } from "firebase/firestore";
 import type { QueryClient } from "@tanstack/react-query";
 import { db } from "../firebase";
-import { mapMatch, mapPlayer, mapSeason } from "./firestoreMappers";
+import { mapMatch, mapMvp, mapPlayer, mapSeason, MVP_RESULTS_KEY } from "./firestoreMappers";
 import { subscribeShared } from "./useFirestoreCollection";
 import { DEFAULT_CONTENT, type ClubContent } from "./clubContentDefaults";
 
@@ -13,10 +13,14 @@ export const MATCHES_KEY = ["matches"] as const;
 export const PLAYERS_KEY = ["players"] as const;
 export const SEASONS_KEY = ["seasons"] as const;
 export const CONTENT_KEY = ["clubContent"] as const;
+/** Every match's MVP tally: in the bundle, seeded by the server render and waited for before React
+ *  takes over, so the MVP badges don't pop in after hydration. */
+export { MVP_RESULTS_KEY };
 
 export const matchQuery = query(collection(db, "matches"), orderBy("date", "desc"));
 export const playerQuery = collection(db, "players");
 export const seasonQuery = query(collection(db, "seasons"), orderBy("name", "asc"));
+export const mvpQuery = collection(db, "mvpResults");
 
 export const withDefaults = (data: Partial<ClubContent> | undefined): ClubContent => ({ ...DEFAULT_CONTENT, ...data });
 
@@ -35,11 +39,12 @@ export function subscribeClubContent(qc: Pick<QueryClient, "setQueryData">): () 
  * the shared registry, so the page that mounts next reuses them instead of opening its own.
  */
 export function primePublicData(qc: QueryClient, timeoutMs: number): Promise<void> {
-  const keys = [MATCHES_KEY, PLAYERS_KEY, SEASONS_KEY, CONTENT_KEY];
+  const keys = [MATCHES_KEY, PLAYERS_KEY, SEASONS_KEY, CONTENT_KEY, MVP_RESULTS_KEY];
   const releases = [
     subscribeShared(qc, MATCHES_KEY, matchQuery, mapMatch),
     subscribeShared(qc, PLAYERS_KEY, playerQuery, mapPlayer),
     subscribeShared(qc, SEASONS_KEY, seasonQuery, mapSeason),
+    subscribeShared(qc, MVP_RESULTS_KEY, mvpQuery, mapMvp),
     subscribeClubContent(qc),
   ];
   const ready = () => keys.every((k) => qc.getQueryData(k) !== undefined);

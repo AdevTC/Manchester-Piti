@@ -1,7 +1,7 @@
 // Realtime Firestore subscriptions for team-only vestuario data (onSnapshot, no polling).
 // Listeners are shared by key and kept warm for a minute after the last reader leaves, so
 // coming back to the vestuario paints the last data at once instead of an empty block.
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import {
   collection,
   doc,
@@ -16,9 +16,10 @@ import {
   type SnapshotMetadata,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import { LISTENER_RETRY_MS, markListenerStale, noteListenerFailure, recordSnapshotMeta, reopenDelay } from "../../lib/syncStatus";
+import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, recordSnapshotMeta, reopenDelay, useOnline, useSnapshotMeta } from "../../lib/syncStatus";
+import { mapMvp, MVP_RESULTS_KEY } from "../../lib/firestoreMappers";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
-import type { MvpResult, TrainingSlot } from "../../lib/vestuario";
+import type { TrainingSlot } from "../../lib/vestuario";
 
 interface Live<T> {
   data: T;
@@ -269,14 +270,32 @@ export function useMatchScorers(matchId: string | undefined): Live<string[]> {
 }
 
 // ---------- MVP
-const mapMvp = (id: string, d: unknown): MvpResult => {
-  const data = (d ?? {}) as { counts?: Record<string, number>; total?: number };
-  return { id, counts: data.counts ?? {}, total: data.total ?? 0 };
-};
+// (key and mapper shared with the boot and the server render: lib/publicData)
 const mvpQuery = collection(db, "mvpResults");
 export function useMvpResults() {
-  const q = useFirestoreCollection(["mvpResults"], mvpQuery, mapMvp);
+  const q = useFirestoreCollection(MVP_RESULTS_KEY, mvpQuery, mapMvp);
   return useMemo(() => new Map((q.data ?? []).map((r) => [r.id, r])), [q.data]);
+}
+const MVP_META_KEY = metaKeyOf(MVP_RESULTS_KEY);
+/**
+ * Is the MVP tally on screen live? `confirmed`: the last snapshot came from the server (only then does a
+ * closed vote get its reveal: a cached tally never celebrates). `stale`: offline, or it was in sync and
+ * lost it — the race may be missing votes. (Neither while the first server snapshot is on its way.)
+ */
+export function useMvpResultsSync(): { confirmed: boolean; stale: boolean } {
+  const meta = useSnapshotMeta(MVP_META_KEY);
+  const online = useOnline();
+  return { confirmed: !!meta && !meta.fromCache, stale: !online || (!!meta && meta.fromCache && meta.since !== null) };
+}
+/**
+ * Whether a closed vote's winner gets its reveal: once the server has confirmed the tally (never from a
+ * cached one), and then it stays (a later trip through the cache doesn't replay it).
+ */
+export function useMvpReveal(closed: boolean): boolean {
+  const { confirmed } = useMvpResultsSync();
+  const [shown, setShown] = useState(false);
+  if (closed && confirmed && !shown) setShown(true);
+  return closed && shown;
 }
 export function useMyMvpVote(matchId: string | undefined, uid: string | undefined) {
   return useLiveDoc<string>(matchId && uid ? `matches/${matchId}/votes/${uid}` : null, "playerId", (d) => (d?.playerId as string) ?? "", "");

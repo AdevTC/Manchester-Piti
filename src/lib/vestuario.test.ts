@@ -17,7 +17,10 @@ import {
   kickoffLabel,
   mvpWinners,
   nextMilestone,
-  podium,
+  mvpRace,
+  voteLeft,
+  andNames,
+  mvpAnnouncement,
   porraPosition,
   seasonSummary,
   slotVotes,
@@ -89,7 +92,57 @@ describe("MVP", () => {
     expect(mvpWinners(m, { id: "m", counts: {}, total: 0 }, 200)).toEqual([]);
   });
   it("el podio ordena por votos y descarta ceros", () => {
-    expect(podium({ id: "x", counts: { a: 1, b: 4, c: 0, d: 2 }, total: 7 }).map((p) => p.playerId)).toEqual(["b", "d", "a"]);
+    expect(mvpRace(100, { id: "x", counts: { a: 1, b: 4, c: 0, d: 2 }, total: 7 }, 50).rows.map((p) => p.playerId)).toEqual(["b", "d", "a"]);
+  });
+});
+
+describe("la carrera del MVP", () => {
+  const closes = 1_000;
+  it("abierta: el top 3 con sus votos, sin ganadores todavía", () => {
+    const race = mvpRace(closes, { id: "m", counts: { a: 1, b: 4, c: 0, d: 2, e: 1 }, total: 8 }, 500);
+    expect(race.state).toBe("open");
+    expect(race.rows).toEqual([
+      { playerId: "b", votes: 4, rank: 1, shared: false },
+      { playerId: "d", votes: 2, rank: 2, shared: false },
+      { playerId: "a", votes: 1, rank: 3, shared: true },
+      { playerId: "e", votes: 1, rank: 3, shared: true },
+    ]);
+    expect(race.leaders).toEqual(["b"]);
+    expect(race.winners).toEqual([]);
+    expect(race.total).toBe(8);
+  });
+  it("los empates comparten puesto (1, 1, 3) y el corte del podio", () => {
+    const race = mvpRace(closes, { id: "m", counts: { a: 3, b: 3, c: 1, d: 0 }, total: 7 }, 500);
+    expect(race.rows.map((r) => [r.playerId, r.rank, r.shared])).toEqual([["a", 1, true], ["b", 1, true], ["c", 3, false]]);
+    expect(race.leaders).toEqual(["a", "b"]);
+    const crowded = mvpRace(closes, { id: "m", counts: { a: 5, b: 4, c: 3, d: 2 }, total: 14 }, 500);
+    expect(crowded.rows.map((r) => r.playerId)).toEqual(["a", "b", "c"]);
+  });
+  it("cerrada: los ganadores son los del aviso (mvpWinnerIds), empate compartido", () => {
+    const race = mvpRace(closes, { id: "m", counts: { a: 3, b: 3, c: 1 }, total: 7 }, closes);
+    expect(race.state).toBe("closed");
+    expect(race.winners.sort()).toEqual(["a", "b"]);
+    expect(mvpRace(closes, undefined, closes + 1)).toEqual({ state: "closed", rows: [], total: 0, leaders: [], winners: [] });
+  });
+  it("cierra en horas y, en la última hora, en minutos", () => {
+    expect(voteLeft(12 * 3_600_000 + 59 * 60_000, 0)).toBe("12 h");
+    expect(voteLeft(3_600_000, 0)).toBe("1 h");
+    expect(voteLeft(25 * 60_000 - 1, 0)).toBe("25 min");
+    expect(voteLeft(10, 0)).toBe("1 min");
+    expect(voteLeft(0, 10)).toBe("1 min");
+  });
+  it("anuncia quién manda o quién ganó (nada sin votos)", () => {
+    expect(mvpAnnouncement({ state: "open" }, ["ERIK"])).toBe("ERIK va primero en la carrera del MVP.");
+    expect(mvpAnnouncement({ state: "open" }, ["ERIK", "PABLO"])).toBe("ERIK y PABLO van empatados en cabeza en la carrera del MVP.");
+    expect(mvpAnnouncement({ state: "closed" }, ["ERIK"])).toBe("MVP: ERIK.");
+    expect(mvpAnnouncement({ state: "closed" }, ["ERIK", "PABLO"])).toBe("MVP compartido: ERIK y PABLO.");
+    expect(mvpAnnouncement({ state: "closed" }, [])).toBe("");
+  });
+  it("nombra en castellano", () => {
+    expect(andNames([])).toBe("");
+    expect(andNames(["ERIK"])).toBe("ERIK");
+    expect(andNames(["ERIK", "PABLO"])).toBe("ERIK y PABLO");
+    expect(andNames(["ERIK", "PABLO", "RAÚL"])).toBe("ERIK, PABLO y RAÚL");
   });
 });
 

@@ -54,6 +54,8 @@ describe("parseBundle + inQueryOrder", () => {
     ...doc("players/m", { firstName: { stringValue: "Mar" } }, ["players"]),
     ...doc("seasons/s2", { name: { stringValue: "Temporada 2" } }, ["seasons"]),
     ...doc("seasons/s1", { name: { stringValue: "Temporada 1" } }, ["seasons"]),
+    ...doc("mvpResults/j9", { counts: { mapValue: { fields: { p1: { integerValue: "3" } } } }, total: { integerValue: "3" } }, ["mvpResults"]),
+    ...doc("mvpResults/j2", { counts: { mapValue: {} }, total: { integerValue: "0" } }, ["mvpResults"]),
     ...doc("clubContent/main", { intro: { stringValue: "Hola" } }),
   ]);
 
@@ -71,5 +73,8 @@ describe("parseBundle + inQueryOrder", () => {
     expect(data.players.map((d) => d.id)).toEqual(["m", "z"]);
     expect(data.seasons.map((d) => d.data.name)).toEqual(["Temporada 1", "Temporada 2"]);
     expect(data.content?.data.intro).toBe("Hola");
+    // the MVP tallies (seeded by the server render as ["mvpResults"]): by document id
+    expect(data.mvpResults.map((d) => d.id)).toEqual(["j2", "j9"]);
+    expect(data.mvpResults[1].data).toEqual({ counts: { p1: 3 }, total: 3 });
   });
 });
