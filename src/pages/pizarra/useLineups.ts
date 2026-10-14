@@ -83,23 +83,32 @@ export function saveData(lineup: Lineup, matchId?: string | null): Record<string
 export { officialScopeId };
 
 /**
- * Deleting an official board frees its scope doc too, in one transaction (only while the doc still names
- * it): the match page and the Sala de control link «the pizarra of this match» through that doc, so it
- * must never name a board that is gone. Officials are deleted by admins, the only ones the rules let
- * delete a scope doc. Offline (no transaction) it is skipped: the board is still deleted.
+ * Deletes a board in ONE transaction, with its scope doc when it is an official: read the board (and,
+ * for an official, its scope doc), delete the scope doc only while it still names this board, delete the
+ * board. The match page and the Sala de control link «the pizarra of this match» through that doc, so it
+ * never names a board that is gone, and no half-done delete leaves one without the other. A board that
+ * is not official never touches the scope docs (members may not; only admins delete those, and only
+ * admins delete officials). Offline (a transaction needs the server) the board is still deleted: a
+ * plain delete that waits in the cache, as an official's scope doc could not be checked anyway.
  */
-export async function releaseOfficialLock(id: string): Promise<void> {
+export async function deleteBoard(id: string): Promise<void> {
+  const ref = doc(db, "lineups", id);
   try {
     await runTransaction(db, async (tx) => {
-      const snap = await tx.get(doc(db, "lineups", id));
+      const snap = await tx.get(ref);
       const d = snap.exists() ? snap.data() : undefined;
-      if (!d || d.isOfficial !== true || typeof d.seasonId !== "string") return;
-      const lockRef = doc(db, "lineupOfficials", officialScopeId(d.seasonId, (d.matchId as string | null | undefined) ?? null));
-      const lock = await tx.get(lockRef);
-      if (lock.exists() && lock.data().lineupId === id) tx.delete(lockRef);
+      if (!d) return;
+      if (d.isOfficial === true && typeof d.seasonId === "string") {
+        const lockRef = doc(db, "lineupOfficials", officialScopeId(d.seasonId, (d.matchId as string | null | undefined) ?? null));
+        const lock = await tx.get(lockRef);
+        if (lock.exists() && lock.data().lineupId === id) tx.delete(lockRef);
+      }
+      tx.delete(ref);
     });
   } catch (err) {
-    console.error("No se pudo liberar el oficial del tablero borrado", err);
+    if ((err as { code?: unknown } | null)?.code !== "unavailable") throw err;
+    console.error("Sin conexión: el tablero se borra sin comprobar su oficial", err);
+    await deleteDoc(ref);
   }
 }
 
@@ -285,8 +294,7 @@ export function useLineups(seasonId: string): UseLineups {
       await clearReactions([id]);
       // (Bloque 5: the charla's voice goes first — its rules read the board to allow it)
       await clearVoz(id);
-      await releaseOfficialLock(id);
-      await deleteDoc(doc(db, "lineups", id));
+      await deleteBoard(id);
     };
     const markOfficial: UseLineups["markOfficial"] = async (id, scope) => {
       const unmarked = await publishOfficial(seasonId, id, scope);

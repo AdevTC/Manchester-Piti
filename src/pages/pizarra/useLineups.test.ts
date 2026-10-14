@@ -14,6 +14,11 @@ const fs = vi.hoisted(() => ({
   updates: [] as { path: string; data: Record<string, unknown> }[],
   /** Docs a query does not see (it ran before they were written: the race between two captains). */
   staleQuery: new Set<string>(),
+  /** What each transaction read and wrote (one entry per runTransaction), and the plain deletes. */
+  txs: [] as { gets: string[]; writes: string[] }[],
+  deletes: [] as string[],
+  /** runTransaction fails with this (e.g. offline) instead of running. */
+  txError: null as unknown,
 }));
 
 vi.mock("../../firebase", () => ({ db: {} }));
@@ -56,18 +61,29 @@ vi.mock("firebase/firestore", () => {
       fs.updates.push({ path: r.path, data });
       apply(r, data, true);
     },
-    deleteDoc: async (r: Ref) => void fs.store.delete(r.path),
+    deleteDoc: async (r: Ref) => {
+      fs.deletes.push(r.path);
+      fs.store.delete(r.path);
+    },
     writeBatch: () => {
       const ops: (() => void)[] = [];
       return { delete: (r: Ref) => void ops.push(() => fs.store.delete(r.path)), commit: async () => ops.forEach((f) => f()) };
     },
-    runTransaction: async <T,>(_db: unknown, fn: (tx: unknown) => Promise<T>): Promise<T> =>
-      fn({
-        get: async (r: Ref) => snap(r),
-        update: (r: Ref, d: Record<string, unknown>) => apply(r, d, true),
-        set: (r: Ref, d: Record<string, unknown>) => apply(r, d, false),
-        delete: (r: Ref) => void fs.store.delete(r.path),
-      }),
+    runTransaction: async <T,>(_db: unknown, fn: (tx: unknown) => Promise<T>): Promise<T> => {
+      if (fs.txError) throw fs.txError;
+      // (writes are applied at commit, after the function: all or nothing)
+      const t = { gets: [] as string[], writes: [] as string[] };
+      fs.txs.push(t);
+      const ops: (() => void)[] = [];
+      const out = await fn({
+        get: async (r: Ref) => (t.gets.push(r.path), snap(r)),
+        update: (r: Ref, d: Record<string, unknown>) => (t.writes.push(r.path), void ops.push(() => apply(r, d, true))),
+        set: (r: Ref, d: Record<string, unknown>) => (t.writes.push(r.path), void ops.push(() => apply(r, d, false))),
+        delete: (r: Ref) => (t.writes.push(r.path), void ops.push(() => fs.store.delete(r.path))),
+      });
+      ops.forEach((f) => f());
+      return out;
+    },
   };
 });
 
@@ -81,6 +97,9 @@ beforeEach(() => {
   fs.updates.length = 0;
   fs.offline = false;
   fs.staleQuery.clear();
+  fs.txs.length = 0;
+  fs.deletes.length = 0;
+  fs.txError = null;
 });
 
 describe("useLineups · autosave", () => {
@@ -178,5 +197,59 @@ describe("useLineups · the official", () => {
     await act(() => result.current.remove("a"));
     expect(fs.store.has("lineups/a")).toBe(false);
     expect(fs.store.has("lineupOfficials/" + officialScopeId("t1", "m8"))).toBe(false);
+  });
+
+  it("the official and its scope doc go in ONE transaction (no plain delete after it)", async () => {
+    const lock = "lineupOfficials/" + officialScopeId("t1", "m8");
+    fs.store.set("lineups/a", board({ isOfficial: true, matchId: "m8" }));
+    fs.store.set(lock, { lineupId: "a", seasonId: "t1", matchId: "m8" });
+    const { result } = renderHook(() => useLineups("t1"));
+    await act(() => result.current.remove("a"));
+    expect(fs.txs).toHaveLength(1);
+    expect(fs.txs[0]).toEqual({ gets: ["lineups/a", lock], writes: [lock, "lineups/a"] });
+    expect(fs.deletes).toEqual([]);
+    expect(fs.store.has("lineups/a")).toBe(false);
+    expect(fs.store.has(lock)).toBe(false);
+  });
+
+  it("a scope doc that names another board stays (only this board goes)", async () => {
+    const lock = "lineupOfficials/" + officialScopeId("t1", null);
+    fs.store.set("lineups/a", board({ isOfficial: true, matchId: null }));
+    fs.store.set(lock, { lineupId: "z", seasonId: "t1", matchId: null });
+    const { result } = renderHook(() => useLineups("t1"));
+    await act(() => result.current.remove("a"));
+    expect(fs.store.has("lineups/a")).toBe(false);
+    expect(fs.store.get(lock)).toMatchObject({ lineupId: "z" });
+  });
+
+  it("a member's own board (not official): one transaction that never reads nor writes a scope doc", async () => {
+    const lock = "lineupOfficials/" + officialScopeId("t1", "m8");
+    fs.store.set("lineups/mine", board({ matchId: "m8" }));
+    fs.store.set(lock, { lineupId: "mine", seasonId: "t1", matchId: "m8" });
+    const { result } = renderHook(() => useLineups("t1"));
+    await act(() => result.current.remove("mine"));
+    expect(fs.txs).toEqual([{ gets: ["lineups/mine"], writes: ["lineups/mine"] }]);
+    expect(fs.store.has("lineups/mine")).toBe(false);
+    expect(fs.store.has(lock)).toBe(true);
+  });
+
+  it("offline (the transaction can't run): the board is still deleted, a plain delete for the cache", async () => {
+    fs.store.set("lineups/b", board());
+    fs.txError = Object.assign(new Error("offline"), { code: "unavailable" });
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { result } = renderHook(() => useLineups("t1"));
+    await act(() => result.current.remove("b"));
+    expect(fs.deletes).toEqual(["lineups/b"]);
+    expect(fs.store.has("lineups/b")).toBe(false);
+    quiet.mockRestore();
+  });
+
+  it("refused (the rules said no): it fails and nothing is deleted, so the board comes back on screen", async () => {
+    fs.store.set("lineups/b", board());
+    fs.txError = Object.assign(new Error("no"), { code: "permission-denied" });
+    const { result } = renderHook(() => useLineups("t1"));
+    await expect(result.current.remove("b")).rejects.toMatchObject({ code: "permission-denied" });
+    expect(fs.deletes).toEqual([]);
+    expect(fs.store.has("lineups/b")).toBe(true);
   });
 });
