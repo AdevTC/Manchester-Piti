@@ -325,29 +325,91 @@ describe("Tableros · oficial y partido", () => {
     expect(openMine).toHaveBeenCalledTimes(1);
   });
 
-  it("one source: publishing a match's official that is not its convocatoria's siete asks to update it", async () => {
-    const publish = vi.fn(async () => {});
-    const sync = vi.fn(async () => {});
-    const M8c = m({ conv: { starters: OTHER, bench: ["fer"] } });
-    const { unmount } = render(<Harness initial={L7()} session={{ publish }} props={{ isAdmin: true, calendar: [M8c], nextMatch: M8c, onSyncConvocatoria: sync }} />);
-    go("Tableros");
-    fireEvent.click(screen.getByRole("button", { name: "Oficial" }));
-    fireEvent.click(screen.getByRole("button", { name: "Publicar mi tablero como oficial" }));
-    expect(await screen.findByText("Publicado como oficial · este partido · ¿Actualizar la convocatoria con este siete?")).toBeInTheDocument();
-    expect(sync).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Actualizar la convocatoria de J8 · MAD SKY con este siete" }));
-    const seven = L7().slots.map((x) => x.playerId);
-    expect(sync).toHaveBeenCalledWith("m8", { starters: seven, bench: ["fer", "kevin", "erik"] });
-    expect(await screen.findByText("Convocatoria de J8 · MAD SKY al día: este es su siete", { selector: ".tst span" })).toBeInTheDocument();
-    unmount();
-    // the same siete: nothing to ask
-    const same = m({ conv: { starters: [...SEVEN].reverse(), bench: [] } });
-    render(<Harness initial={L7()} session={{ publish }} props={{ isAdmin: true, calendar: [same], nextMatch: same, onSyncConvocatoria: sync }} />);
-    go("Tableros");
-    fireEvent.click(screen.getByRole("button", { name: "Oficial" }));
-    fireEvent.click(screen.getByRole("button", { name: "Publicar mi tablero como oficial" }));
-    expect(await screen.findByText("Publicado como oficial · este partido")).toBeInTheDocument();
-    expect(sync).toHaveBeenCalledTimes(1);
+  describe("one «siete»: «Usar este siete como convocatoria»", () => {
+    const openOficial = () => {
+      go("Tableros");
+      fireEvent.click(screen.getByRole("button", { name: "Oficial" }));
+    };
+    const convBox = () => screen.getByRole("checkbox", { name: /Usar este siete como convocatoria/ });
+    const pub = () => fireEvent.click(screen.getByRole("button", { name: "Publicar mi tablero como oficial" }));
+
+    it("ticked by default for a match: the convocatoria takes the seven, its notice left to «Ya está el siete»", async () => {
+      const publish = vi.fn(async () => "b1");
+      const sync = vi.fn(async () => ({ covered: true }));
+      const M8c = m({ conv: { starters: OTHER, bench: ["fer"] } });
+      render(<Harness initial={L7()} session={{ publish }} props={{ isAdmin: true, calendar: [M8c], nextMatch: M8c, onSyncConvocatoria: sync }} />);
+      openOficial();
+      expect(convBox()).toBeChecked();
+      expect(screen.getByText(/La convocatoria de J8 · MAD SKY se queda con este siete; quien salga, al banquillo/)).toBeInTheDocument();
+      pub();
+      expect(await screen.findByText("Publicado como oficial · este partido · convocatoria de J8 · MAD SKY con este siete · un solo aviso: «Ya está el siete»", { selector: ".tst span" })).toBeInTheDocument();
+      expect(publish).toHaveBeenCalledWith("m8");
+      // whoever leaves the siete stays called, on the banquillo; nobody «sin convocar» is called
+      expect(sync).toHaveBeenCalledWith("m8", { starters: SEVEN, bench: ["fer", "kevin", "erik"] }, "b1");
+    });
+
+    it("a match with no convocatoria yet takes the board's «Banquillo» (off the pitch, no bajas)", async () => {
+      const sync = vi.fn(async () => ({ covered: true }));
+      const M8e = m({ conv: { starters: [], bench: [] } });
+      render(<Harness initial={L7()} session={{ id: "b1", publish: vi.fn(async () => {}) }} props={{ isAdmin: true, calendar: [M8e], nextMatch: M8e, onSyncConvocatoria: sync }} />);
+      openOficial();
+      pub();
+      await screen.findByText(/convocatoria de J8 · MAD SKY con este siete/, { selector: ".tst span" });
+      // (the session's own id when publish resolves with none)
+      expect(sync).toHaveBeenCalledWith("m8", { starters: SEVEN, bench: ["fer", "erik", "kevin"] }, "b1");
+    });
+
+    it("unticked: only the official", async () => {
+      const sync = vi.fn(async () => ({ covered: true }));
+      const M8c = m({ conv: { starters: OTHER, bench: [] } });
+      render(<Harness initial={L7()} session={{ publish: vi.fn(async () => "b1") }} props={{ isAdmin: true, calendar: [M8c], nextMatch: M8c, onSyncConvocatoria: sync }} />);
+      openOficial();
+      fireEvent.click(convBox());
+      expect(convBox()).not.toBeChecked();
+      pub();
+      expect(await screen.findByText("Publicado como oficial · este partido", { selector: ".tst span" })).toBeInTheDocument();
+      expect(sync).not.toHaveBeenCalled();
+    });
+
+    it("the convocatoria already has this seven: said so, nothing to write", async () => {
+      const sync = vi.fn(async () => ({ covered: true }));
+      const same = m({ conv: { starters: [...SEVEN].reverse(), bench: [] } });
+      render(<Harness initial={L7()} session={{ publish: vi.fn(async () => "b1") }} props={{ isAdmin: true, calendar: [same], nextMatch: same, onSyncConvocatoria: sync }} />);
+      openOficial();
+      expect(screen.getByText("La convocatoria ya tiene este siete.")).toBeInTheDocument();
+      pub();
+      expect(await screen.findByText("Publicado como oficial · este partido · la convocatoria ya tenía este siete", { selector: ".tst span" })).toBeInTheDocument();
+      expect(sync).not.toHaveBeenCalled();
+    });
+
+    it("not offered for the season, nor without a captain who can write it, nor with «todas las temporadas»", () => {
+      const sync = vi.fn(async () => ({ covered: true }));
+      const M8c = m({ conv: { starters: OTHER, bench: [] } });
+      const { unmount } = render(<Harness initial={L7()} props={{ isAdmin: true, calendar: [M8c], nextMatch: M8c, onSyncConvocatoria: sync }} />);
+      openOficial();
+      fireEvent.click(screen.getByRole("button", { name: "La temporada" }));
+      expect(screen.queryByRole("checkbox", { name: /Usar este siete/ })).toBeNull();
+      unmount();
+      const { unmount: u2 } = render(<Harness initial={L7()} props={{ isAdmin: true, calendar: [M8c], nextMatch: M8c }} />);
+      openOficial();
+      expect(screen.queryByRole("checkbox", { name: /Usar este siete/ })).toBeNull();
+      u2();
+      render(<Harness initial={L7()} props={{ isAdmin: true, calendar: [M8c], nextMatch: M8c, onSyncConvocatoria: sync, seasonId: "all" }} />);
+      openOficial();
+      expect(screen.queryByRole("checkbox", { name: /Usar este siete/ })).toBeNull();
+    });
+
+    it("the convocatoria refused: the official stays published and the toast says why", async () => {
+      const sync = vi.fn(async () => {
+        throw new Error("El siete inicial ya está en juego.");
+      });
+      const M8c = m({ conv: { starters: OTHER, bench: [] } });
+      render(<Harness initial={L7()} session={{ publish: vi.fn(async () => "b1") }} props={{ isAdmin: true, calendar: [M8c], nextMatch: M8c, onSyncConvocatoria: sync }} />);
+      openOficial();
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      pub();
+      expect(await screen.findByText(/^Publicado como oficial · este partido · la convocatoria no se ha podido cambiar: /, { selector: ".tst span" })).toBeInTheDocument();
+    });
   });
 
   it("a captain publishes the board for this match or the season, and takes the official down", async () => {

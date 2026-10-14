@@ -28,12 +28,18 @@ export interface SetConvocatoriaInput {
   starters: string[];
   bench: string[];
   notify: boolean;
+  /** The pizarra's official just published for this match, whose seven this is: its «Ya está el siete»
+   *  tells the team, so the convocatoria's own notice stays quiet (one «siete» per match). */
+  fromBoard?: string;
 }
 export interface SetConvocatoriaResult {
   at: number;
   revision: number;
-  /** The notice that went (null = none: not asked, already sent, or the match has started). */
+  /** The notice that went (null = none: not asked, already sent, covered, or the match has started). */
   notice: "first" | "changes" | null;
+  /** «Ya está el siete» told (or is telling) the team this seven: announced without a second notice.
+   *  (Absent from a server older than this field.) */
+  covered?: boolean;
 }
 export const setConvocatoria = httpsCallable<SetConvocatoriaInput, SetConvocatoriaResult>(functions, "setConvocatoria");
 export const saveMatchSheet = httpsCallable<

@@ -11,6 +11,7 @@ import { chem } from "./quimica";
 import type { Convocatoria, Squad } from "./model";
 import { jornadaLabel } from "../../../lib/derived/jornada";
 import { resultLetter, resultTitle } from "../../../lib/derived/result";
+import { convocatoriaWithSeven } from "../officialBoard";
 
 export const NAME_MAX = 40;
 
@@ -172,15 +173,16 @@ export function convCounts(sq: Squad): ConvCounts {
 
 /**
  * Publishing the official for a match whose pitch is not the convocatoria's siete: the convocatoria with
- * this siete (the banquillo keeps its order; whoever leaves the siete stays called, on the banquillo) — or
- * null when it already is that siete (or the convocatoria is not known).
+ * this siete (the banquillo keeps its order; whoever leaves the siete stays called, on the banquillo; a
+ * match with no convocatoria yet takes the board's «Banquillo», `offPitch`) — or null when it already is
+ * that siete (or the convocatoria is not known). The one rule: officialBoard.ts convocatoriaWithSeven.
  */
-export function convocatoriaFromBoard(conv: { starters: readonly string[]; bench: readonly string[] } | undefined, seven: readonly (string | null)[]): { starters: string[]; bench: string[] } | null {
-  if (!conv) return null;
-  const s = seven.filter((id): id is string => !!id);
-  if (s.length === conv.starters.length && s.every((id) => conv.starters.includes(id))) return null;
-  const out = (id: string) => !s.includes(id);
-  return { starters: s, bench: [...conv.bench.filter(out), ...conv.starters.filter((id) => out(id) && !conv.bench.includes(id))] };
+export function convocatoriaFromBoard(
+  conv: { starters: readonly string[]; bench: readonly string[] } | undefined,
+  seven: readonly (string | null)[],
+  offPitch: readonly string[] = [],
+): { starters: string[]; bench: string[] } | null {
+  return convocatoriaWithSeven(conv, seven, offPitch);
 }
 
 /**

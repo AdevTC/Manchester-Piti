@@ -23,6 +23,11 @@
 .vx .fc-note{margin:12px 0 0;font-size:13px;color:var(--muted);line-height:1.5}
 .fc-lock{margin-top:16px;display:flex;align-items:center;gap:12px;padding:16px;border-radius:22px;border:1.5px dashed var(--line);color:var(--muted);font-size:14px}
 .fc-lock svg{flex:0 0 auto;color:var(--accent)}
+/* el siete: the pizarra's official (members, before the acta) — the words say it, the colour only helps */
+.vx .fc-official{margin:10px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-size:13px;line-height:1.45}
+.fc-official-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;border:1.5px solid var(--accent);color:var(--ink);font-weight:700;letter-spacing:.01em}
+.fc-official-badge svg{color:var(--accent)}
+.fc-official-note{color:var(--muted)}
 
 /* crónica: chapters */
 .fc-ch{position:relative;margin-top:48px;display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:12px;align-items:center}

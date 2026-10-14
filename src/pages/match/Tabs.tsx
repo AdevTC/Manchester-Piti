@@ -23,6 +23,7 @@ import type { PlayerDoc } from "../../lib/schemas";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { nameSegments, type NameSegment } from "../../lib/derived/names";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
+import { campoSeven, campoSevenNote } from "./campoSeven";
 
 type NameOf = (id: string) => string;
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -252,16 +253,23 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
   );
 }
 
-export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean }) {
+/**
+ * El siete. `official` (members only: the pizarra's official for this match, useBoardSeven) goes on the
+ * pitch before the acta, with its «Siete oficial de la pizarra» badge and a note when the convocatoria has
+ * another seven; fans (and every match once played or live) see the convocatoria's titulares.
+ */
+export function CampoTab({ match, players, nameOf, live, official = null }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean; official?: readonly string[] | null }) {
   const numOf = useNumOf(players, match.seasonId);
-  const starters = match.starters ?? [];
   const [sel, setSel] = useState<string | null>(null);
   const done = isCompleted(match);
+  const seven = campoSeven(match, done || live ? null : official);
+  const starters = seven.field;
+  const note = campoSevenNote(seven.differs, nameOf);
   const now = useClock(1000);
   const snapshot = matchSnapshot(match, now);
   const ledger = done ? match.ledger : snapshot.players;
   const field = live ? snapshot.field : starters;
-  const bench = live ? [...starters, ...(match.bench ?? [])].filter((id) => !field.includes(id)) : match.bench ?? [];
+  const bench = live ? [...starters, ...(match.bench ?? [])].filter((id) => !field.includes(id)) : seven.bench;
   const pick = sel ?? starters[0];
   const line = pick ? playerLine(pick, ledger, match.events) : null;
   const rows = done || live ? stintRows(ledger, match.events, match.duration ?? 50) : [];
@@ -279,6 +287,15 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
         <h2 className="hm-h2" id="fc-xi">
           {done ? "Quién hizo qué" : live ? "El campo, ahora" : "El siete"}
         </h2>
+        {seven.official && (
+          <p className="fc-official">
+            <span className="fc-official-badge">
+              <Icon name="shirt" size={14} />
+              Siete oficial de la pizarra
+            </span>
+            {note && <span className="fc-official-note">{note}</span>}
+          </p>
+        )}
         <div className="fc-pitch">
           <span className="l mid" />
           <span className="l circ" />

@@ -122,8 +122,10 @@ export function PizarraPage() {
       voz={voz}
       onSyncConvocatoria={
         isAdmin
-          ? async (matchId, l) => {
-              await setConvocatoria({ matchId, starters: l.starters, bench: l.bench, notify: false });
+          ? async (matchId, l, fromBoard) => {
+              // (announced by the official's «Ya está el siete»: the server keeps it to that one notice)
+              const r = await setConvocatoria({ matchId, starters: l.starters, bench: l.bench, notify: true, fromBoard });
+              return { covered: r.data.covered === true };
             }
           : undefined
       }

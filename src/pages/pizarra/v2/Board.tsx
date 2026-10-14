@@ -189,8 +189,10 @@ export interface BoardProps {
   reactions: (ReactionsView & { react: (v: ReactionValue | null) => Promise<void> }) | null;
   /** The convocatoria on the cromos: whose match, and whether it could be read. */
   conv: { match: CalMatch | null; loading: boolean; error: boolean };
-  /** Captains: the match's one convocatoria takes the official's siete (setConvocatoria). */
-  onSyncConvocatoria?: (matchId: string, lineup: { starters: string[]; bench: string[] }) => Promise<void>;
+  /** Captains: the match's one convocatoria takes the official's siete (setConvocatoria) — publishing it
+   *  with «Usar este siete como convocatoria». `fromBoard` = that official: its «Ya está el siete» is the
+   *  one notice. Resolves with whether the convocatoria counts as announced by it (`covered`). */
+  onSyncConvocatoria?: (matchId: string, lineup: { starters: string[]; bench: string[] }, fromBoard: string) => Promise<{ covered: boolean }>;
   /** Bloque 5 · the charla's voice clips of this board (vozStore.ts; none in tests or without Firebase). */
   voz?: VozStore;
   /** «Partido de día»: the app's theme. */
@@ -2285,6 +2287,15 @@ export function Board(props: BoardProps) {
     fail(err);
   };
   const linked = calById(session.matchId);
+  // One «siete» (M6): the convocatoria a match takes from the official's seven (the titular version, the
+  // one published) — its banquillo, or with none yet the board's «Banquillo» (off the pitch, no bajas) —
+  // null when it already has this seven. Offered to captains for a match of a season (not «all»).
+  const convToSet = (m: CalMatch) => {
+    const seven = vr.titular.slots.map((x) => x.playerId);
+    return convocatoriaFromBoard(m.conv, seven, sq.list.filter((c) => !c.baja && !seven.includes(c.id)).map((c) => c.id));
+  };
+  const convMatch = props.onSyncConvocatoria && props.seasonId !== "all" && modo === "tableros" ? (linked ?? props.nextMatch) : null;
+  const convSync = convMatch ? { agrees: !convToSet(convMatch) } : null;
   // («Copiar el siete del último partido», in Tableros)
   const lastM = modo === "tableros" ? lastPlayed(cal) : null;
 
@@ -2810,38 +2821,38 @@ export function Board(props: BoardProps) {
           buzz(10);
           r.react(nextReaction(r.mine, v)).catch(tbFail);
         }}
-        onPublish={(mid) =>
-          pubBlock
-            ? Promise.resolve(say(pubBlock))
-            : session
-                .publish(mid)
-                .then(() => {
-                  buzz([20, 40, 60]);
-                  const done = "Publicado como oficial · " + (mid ? "este partido" : "toda la temporada");
-                  // One source: a match's official that is not its convocatoria's siete asks to update it.
-                  const pm = mid ? calById(mid) : null;
-                  const sync = pm && props.onSyncConvocatoria ? convocatoriaFromBoard(pm.conv, L.slots.map((x) => x.playerId)) : null;
-                  const syncTo = props.onSyncConvocatoria;
-                  if (!pm || !sync || !syncTo) {
-                    say(done);
-                    return;
-                  }
-                  say(
-                    done + " · ¿Actualizar la convocatoria con este siete?",
-                    {
-                      label: "Actualizar",
-                      aria: "Actualizar la convocatoria de " + matchShort(pm) + " con este siete",
-                      run: () => {
-                        syncTo(pm.id, sync)
-                          .then(() => say("Convocatoria de " + matchShort(pm) + " al día: este es su siete"))
-                          .catch(tbFail);
-                      },
-                    },
-                    9000,
-                  );
-                })
-                .catch(tbFail)
-        }
+        convSync={convSync}
+        onPublish={(mid, o) => {
+          if (pubBlock) return Promise.resolve(say(pubBlock));
+          // One «siete» (M6): «Usar este siete como convocatoria» — the convocatoria of the match takes the
+          // official's seven in the same flow (worked out now, from the seven being published).
+          const pm = mid && o?.conv ? calById(mid) : null;
+          const sync = pm ? convToSet(pm) : null;
+          const syncTo = props.onSyncConvocatoria;
+          return session
+            .publish(mid)
+            .then((bid) => {
+              buzz([20, 40, 60]);
+              const done = "Publicado como oficial · " + (mid ? "este partido" : "toda la temporada");
+              const board = bid || session.id;
+              if (!pm || !syncTo || !board) {
+                say(done);
+                return;
+              }
+              if (!sync) {
+                say(done + " · la convocatoria ya tenía este siete");
+                return;
+              }
+              return syncTo(pm.id, sync, board).then(
+                (r) => say(done + " · convocatoria de " + matchShort(pm) + " con este siete" + (r.covered ? " · un solo aviso: «Ya está el siete»" : "")),
+                (err: unknown) => {
+                  console.error("Tableros", err);
+                  say(done + " · la convocatoria no se ha podido cambiar: " + apiError(err));
+                },
+              );
+            })
+            .catch(tbFail);
+        }}
         onUnpublish={(oid) => {
           session
             .unpublish(oid)

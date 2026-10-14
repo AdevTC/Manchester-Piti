@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useViewer } from "../../hooks/useViewer";
 import { useNoIndex } from "../../hooks/useNoIndex";
-import { useMatchBoard } from "../pizarra/useMatchBoard";
+import { useBoardSeven, useMatchBoard } from "../pizarra/useMatchBoard";
 import { useMatchScorers } from "../vestuario/live";
 import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // Ficha de partido (Celeste): the stadium board on top (final score, live score with ¡GOL!, or the
@@ -109,6 +109,10 @@ export function MatchPage() {
   const viewer = useViewer();
   const toPlay = !!match && toBePlayed(match, now);
   const board = useMatchBoard(match?.seasonId, match?.id, toPlay, viewer.member);
+  // One «siete» (M6): before the acta the Campo shows that official's seven to members (its doc, read only
+  // while the Campo is open and can show it: not once the match is live or played).
+  const beforeActa = !!match && !isCompleted(match) && matchPhase(match, now) !== "playing";
+  const officialSeven = useBoardSeven(beforeActa && active === 1 ? board : null);
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
@@ -382,7 +386,7 @@ export function MatchPage() {
       {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
       <div className={`fc-pane${(active === 0 && done) || active === 4 ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} key={active}>
         {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} />)}
-        {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} />}
+        {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialSeven} />}
         {active === 2 && <PulsoTab match={match} live={live} minute={minute} pending={pending} />}
         {active === 4 && <TechnicalStatsPanel matches={[match]} people={players.map(p => ({ id: p.id, name: nameOf(p.id), number: p.number }))} />}
         {active === 3 && <VestuarioTab match={match} players={players} phase={phase} />}

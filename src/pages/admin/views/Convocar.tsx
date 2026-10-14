@@ -15,7 +15,7 @@ import { useMatchAnswers } from "../convocar/live";
 import { useReminders } from "../convocar/reminders";
 import { RemindersToggle } from "../convocar/RemindersToggle";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
-import { place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
+import { joinNames, place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
 import { useConvocatoria } from "../data/useConvocatoria";
 import { Peg, PegRail, ShirtBack } from "../kit";
 import { useMatchShortcuts } from "../palette/matchShortcuts";
@@ -24,7 +24,10 @@ import { searchId } from "../shell/nav";
 import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
+import { ConfirmModal } from "../ui/layers";
 import { pegWall, shortName } from "./hoy/hoyModel";
+import { convocatoriaWithSeven, sevenAgreement, sevenDiffs } from "../../pizarra/officialBoard";
+import { useBoardSeven } from "../../pizarra/useMatchBoard";
 
 export function Convocar() {
   const data = useAdmin();
@@ -93,6 +96,8 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   const rem = useReminders(match.id);
   // the pizarra's official board for this match (its «La pizarra» reader links to it) + ⌘K's shortcuts
   const board = useMatchShortcuts(match);
+  // (and its seven: «La pizarra coincide» / «tiene otro siete»)
+  const boardSeven = useBoardSeven(board);
   const [hung, setHung] = useState<string | null>(null);
   const hid = useId();
   const roster = useMemo(
@@ -143,6 +148,18 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
     setHung(null);
     toast.show({ tag: j, message: `Convocatoria de la ${copy.label} copiada · la pizarra y el acta ya lo ven`, undo: () => conv.set(before) });
   };
+  // «Copiar el de la pizarra»: the official's seven as el siete; whoever leaves it, to the banquillo (with
+  // nobody called yet, the squad that can play off it, as the pizarra's «Banquillo»).
+  const copyBoard = () => {
+    if (!boardSeven) return;
+    const next = convocatoriaWithSeven(lineup, boardSeven, roster.filter((p) => !p.injured).map((p) => p.id));
+    if (!next) return;
+    const before = lineup;
+    conv.set(next);
+    setHung(null);
+    toast.show({ tag: j, message: `El siete de la pizarra, en la convocatoria${status.notified ? " · falta avisar" : ""}`, undo: () => conv.set(before) });
+  };
+  const pizarraCheck = <PizarraCheck seven={boardSeven} starters={lineup.starters} nameOf={nameOf} onCopy={copyBoard} />;
 
   const cta = status.published ? (
     <span className="okk">
@@ -212,6 +229,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
             </p>
           </section>
           {copyBtn}
+          {pizarraCheck}
           <Pool groups={pool} onSet={setSlot} empty={!roster.length} />
           <SourceNote />
           {remindersEl}
@@ -274,6 +292,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
               )}
             </div>
           </div>
+          {pizarraCheck}
           <SourceNote />
           {remindersEl}
           <div className="rdrs">
@@ -309,6 +328,51 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
         </section>
       </div>
     </>
+  );
+}
+
+/**
+ * One «siete» (M6): whether the pizarra's official for this match has the convocatoria's seven — «La
+ * pizarra coincide» / «La pizarra tiene otro siete» (the words say it; the icon only backs them) — with
+ * «Copiar el de la pizarra», asked first. Nothing while there is no official (or it isn't read yet).
+ */
+function PizarraCheck({ seven, starters, nameOf, onCopy }: { seven: string[] | null; starters: string[]; nameOf: (id: string) => string; onCopy: () => void }) {
+  const [ask, setAsk] = useState(false);
+  const agree = sevenAgreement(seven, starters);
+  if (!seven || !agree) return null;
+  const d = sevenDiffs(starters, seven);
+  const names = (ids: string[]) => joinNames(ids.map(nameOf));
+  return (
+    <div className={`pzc ${agree}`}>
+      <AdIcon name={agree === "coincide" ? "check" : "alert"} size={18} />
+      <span>
+        <b>{agree === "coincide" ? "La pizarra coincide" : "La pizarra tiene otro siete"}</b>
+        <span>
+          {agree === "coincide"
+            ? "El siete oficial de la pizarra es este mismo."
+            : d.board.length
+              ? `En la pizarra juega${d.board.length > 1 ? "n" : ""} ${names(d.board)}${d.conv.length ? ` en lugar de ${names(d.conv)}` : ""}.`
+              : `En la pizarra no está${d.conv.length > 1 ? "n" : ""} ${names(d.conv)}.`}
+        </span>
+      </span>
+      {agree === "otro" && (
+        <button type="button" className="btn sm line" onClick={() => setAsk(true)}>
+          <AdIcon name="list" size={16} />
+          Copiar el de la pizarra
+        </button>
+      )}
+      <ConfirmModal
+        open={ask}
+        onClose={() => setAsk(false)}
+        title="¿Copiar el siete de la pizarra?"
+        consequences={[`Al siete: ${names(seven)}`, ...(d.conv.length ? [`Al banquillo: ${names(d.conv)}`] : []), "Se guarda sin avisar: después, «Publicar y avisar»"]}
+        confirmLabel="Copiar el siete"
+        onConfirm={() => {
+          setAsk(false);
+          onCopy();
+        }}
+      />
+    </div>
   );
 }
 

@@ -57,8 +57,9 @@ export interface BoardSession {
   remove: (id: string) => () => void;
   /** Link the board on screen to a match (null unlinks). An official's match is its scope. */
   linkMatch: (matchId: string | null) => Promise<void>;
-  /** Admins: the board on screen becomes the official for a match (or the season, null). */
-  publish: (matchId: string | null) => Promise<void>;
+  /** Admins: the board on screen becomes the official for a match (or the season, null); resolves with
+   *  the board's id (its convocatoria can then be set from it). */
+  publish: (matchId: string | null) => Promise<string | void>;
   /** Admins: a board stops being official. */
   unpublish: (id: string) => Promise<void>;
 }
@@ -512,11 +513,12 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     await lineups.save(bid, L, matchId);
   };
 
-  const publish = async (matchId: string | null): Promise<void> => {
+  const publish = async (matchId: string | null): Promise<string> => {
     if (!isAdmin) throw new Error("Solo los capitanes y los admins publican el oficial.");
     if (!ready || readOnly) throw new Error("Este tablero es de solo lectura");
     const bid = await ensureId();
     await lineups.markOfficial(bid, { matchId });
+    return bid;
   };
 
   const unpublish = async (oid: string): Promise<void> => {

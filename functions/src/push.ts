@@ -13,9 +13,9 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
+import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { nameFor } from "./names.js";
-import { sevenEdited, sevenPublished } from "./seven.js";
+import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
 
 export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
@@ -140,8 +140,18 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   } catch {
     return;
   }
+  // One «siete» per match: quiet when «Ya está el siete» just told the team these titulares.
+  if (!(await claimSiete(event.params.matchId, { by: "conv", seven: sieteKey(after?.starters) }))) {
+    await quiet(conv.tag);
+    return;
+  }
   await sendTo(conv);
 });
+
+/** A claimed notice that stayed quiet: the other «siete» notice told the team (the log says why). */
+async function quiet(tag: string): Promise<void> {
+  await db.doc(`pushLog/${tag}`).set({ quiet: "siete" }, { merge: true });
+}
 
 /** Claims pushLog/<tag> (false = it was already there: the notice already went). */
 async function claimLog(tag: string): Promise<boolean> {
@@ -196,6 +206,11 @@ export const pushOnLineup = onDocumentWritten({ document: "lineups/{lineupId}", 
   try {
     await db.doc(`pushLog/${notice.tag}`).create({ at: FieldValue.serverTimestamp() });
   } catch {
+    return;
+  }
+  // One «siete» per match: quiet when the convocatoria just told the team this same seven (seven.ts).
+  if (mid && !(await claimSiete(mid, { by: "lineup", board: event.params.lineupId, seven: sieteKey(sevenOf(after.slots)) }))) {
+    await quiet(notice.tag);
     return;
   }
   await sendTo(notice);

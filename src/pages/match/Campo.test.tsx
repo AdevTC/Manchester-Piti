@@ -93,3 +93,37 @@ it("the Directo feed reads a live-stamped goal in football's minute (0:07 → 1�
   const rows = [...container.querySelectorAll(".fc-feed li b")].map((b) => b.textContent);
   expect(rows).toEqual(["19′", "1′"]);
 });
+
+// One «siete» (M6): before the acta, members see the pizarra's official seven (the `official` prop, read
+// only for them), badged, with a note when the convocatoria has another seven. Fans: the convocatoria.
+it("before the acta: the pizarra's official seven, its badge and the note when the convocatoria differs", () => {
+  const match: ClubMatch = { id: "m", seasonId: "t1", date: Date.now() + 86_400_000, status: "scheduled", version: 2, starters: ["a"], bench: ["b"], events: [] };
+  const nameOf = (id: string) => id.toUpperCase();
+  // a fan (no official read): the convocatoria's titulares, no badge
+  const { container, rerender } = render(<CampoTab match={match} players={squad} nameOf={nameOf} live={false} />);
+  const pitch = () => container.querySelector(".fc-pitch") as HTMLElement;
+  expect(within(pitch()).getByRole("button", { name: /^A, dorsal/ })).toBeInTheDocument();
+  expect(screen.queryByText("Siete oficial de la pizarra")).toBeNull();
+  // a member: the official's seven on the pitch, the convocatoria's other titular on the bench
+  rerender(<CampoTab match={match} players={squad} nameOf={nameOf} live={false} official={["h", "b"]} />);
+  expect(screen.getByText("Siete oficial de la pizarra")).toBeInTheDocument();
+  expect(within(pitch()).getByRole("button", { name: /^H, dorsal/ })).toBeInTheDocument();
+  expect(within(pitch()).queryByRole("button", { name: /^A, dorsal/ })).toBeNull();
+  expect(within(container.querySelector(".fc-bench") as HTMLElement).getByText("A")).toBeInTheDocument();
+  expect(screen.getByText("La convocatoria tiene otro siete: con A en lugar de H y B.")).toBeInTheDocument();
+  // they agree: the badge, no note
+  rerender(<CampoTab match={{ ...match, starters: ["b", "h"], bench: [] }} players={squad} nameOf={nameOf} live={false} official={["h", "b"]} />);
+  expect(screen.getByText("Siete oficial de la pizarra")).toBeInTheDocument();
+  expect(screen.queryByText(/La convocatoria tiene otro siete/)).toBeNull();
+  // no convocatoria yet: the official still shows (no «se publica con el acta»)
+  rerender(<CampoTab match={{ ...match, starters: [], bench: [] }} players={squad} nameOf={nameOf} live={false} official={["h", "b"]} />);
+  expect(within(pitch()).getByRole("button", { name: /^H, dorsal/ })).toBeInTheDocument();
+  expect(screen.getByText("La convocatoria aún no tiene siete: este es el de la pizarra.")).toBeInTheDocument();
+});
+
+it("once played (or live) the official is never shown: the acta's seven", () => {
+  const match: ClubMatch = { id: "m", seasonId: "t1", date: Date.now() - 3 * 3_600_000, duration: 50, status: "finished", goalsFor: 0, goalsAgainst: 0, starters: ["a"], bench: ["b"], events: [] };
+  const { container } = render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} official={["h"]} />);
+  expect(screen.queryByText("Siete oficial de la pizarra")).toBeNull();
+  expect(within(container.querySelector(".fc-pitch") as HTMLElement).getByRole("button", { name: /^A, dorsal/ })).toBeInTheDocument();
+});

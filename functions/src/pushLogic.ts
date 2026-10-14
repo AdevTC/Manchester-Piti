@@ -388,3 +388,96 @@ export function sevenChangeNotice(id: string, baseline: readonly string[], now7:
 export function sevenStep(lastSentAt: number | null, now: number): "send" | "hold" {
   return lastSentAt == null || now - lastSentAt >= SEVEN_DEBOUNCE_MS ? "send" : "hold";
 }
+
+// ── One «siete» per match: «Ya está el siete» and the convocatoria's notice never both ──
+//
+// Both tell the team the match's seven: the pizarra's official («Ya está el siete», pushOnLineup) and the
+// convocatoria («Ya está la convocatoria» / «Cambios en la convocatoria», setConvocatoria and the legacy
+// trigger). Each one, once its own pushLog is claimed, also goes through `pushLog/siete-<match>`: whoever
+// told the team THIS seven in the last SIETE_WINDOW_MS wins, the other one stays quiet. Publishing the
+// official with «Usar este siete como convocatoria» reserves the claim for the board's «Ya está el siete»
+// (the publish's trigger may run before or after the convocatoria's call): the convocatoria is covered.
+
+/** How long a «siete» notice covers the other one for the same seven. */
+export const SIETE_WINDOW_MS = SEVEN_DEBOUNCE_MS;
+
+/** The claim's pushLog id: one per match. */
+export const sieteLog = (matchId: string): string => `siete-${matchId}`;
+
+/** The seven as the claim compares it: who (order aside), never empty ids. */
+export function sieteKey(seven: readonly unknown[] | null | undefined): string {
+  const ids = (seven ?? []).filter((x): x is string => typeof x === "string" && x.length > 0);
+  return [...new Set(ids)].sort().join(",");
+}
+
+/** `pushLog/siete-<match>` as stored. */
+export interface SieteClaim {
+  /** When it was claimed (ms). */
+  at: number;
+  /** Who told (or is about to tell) the team. */
+  by: "lineup" | "conv";
+  /** The seven told (sieteKey). */
+  seven: string;
+  /** The board, for «Ya está el siete». */
+  board?: string | null;
+  /** false = reserved for that board's «Ya está el siete», which hasn't gone yet. */
+  sent: boolean;
+}
+
+/**
+ * Who asks: «Ya está el siete» of `board` (lineup), a convocatoria notice (conv), or the convocatoria made
+ * from the official just published, which leaves the telling to the board's notice (reserve).
+ */
+export type SieteAsk = { by: "lineup"; board: string; seven: string } | { by: "conv"; seven: string } | { by: "reserve"; board: string; seven: string };
+
+/** The stored claim read back (null when missing or malformed). */
+export function parseSiete(d: unknown): SieteClaim | null {
+  if (!d || typeof d !== "object") return null;
+  const o = d as Record<string, unknown>;
+  if (typeof o.at !== "number" || (o.by !== "lineup" && o.by !== "conv") || typeof o.seven !== "string") return null;
+  return { at: o.at, by: o.by, seven: o.seven, board: typeof o.board === "string" ? o.board : null, sent: o.sent !== false };
+}
+
+/**
+ * The one-siete step: whether the asker's notice goes (`send`) and what the claim becomes (`write`, null =
+ * left as it is). A claim older than SIETE_WINDOW_MS (or from the future: a reset clock) counts as none.
+ *   · lineup: its own reservation → it goes (and marks it sent); the same seven told within the window → quiet.
+ *   · conv: the same seven told (or reserved for the board) within the window → quiet (covered).
+ *   · reserve: never sends; it reserves the claim for the board unless that board already holds it or the
+ *     same seven was already told (then the board's notice stays quiet too).
+ */
+export function sieteStep(prev: SieteClaim | null, ask: SieteAsk, now: number): { send: boolean; write: SieteClaim | null } {
+  const fresh = !!prev && prev.at <= now && now - prev.at < SIETE_WINDOW_MS ? prev : null;
+  if (ask.by === "lineup") {
+    if (fresh && fresh.by === "lineup" && fresh.board === ask.board && !fresh.sent) return { send: true, write: { ...fresh, sent: true } };
+    if (fresh && fresh.sent && fresh.seven === ask.seven) return { send: false, write: null };
+    return { send: true, write: { at: now, by: "lineup", seven: ask.seven, board: ask.board, sent: true } };
+  }
+  if (ask.by === "conv") {
+    if (fresh && fresh.seven === ask.seven) return { send: false, write: null };
+    return { send: true, write: { at: now, by: "conv", seven: ask.seven, sent: true } };
+  }
+  if (fresh && ((fresh.by === "lineup" && fresh.board === ask.board) || (fresh.sent && fresh.seven === ask.seven))) return { send: false, write: null };
+  return { send: false, write: { at: now, by: "lineup", seven: ask.seven, board: ask.board, sent: false } };
+}
+
+/**
+ * Whether a convocatoria made from the official just published is covered by that board's «Ya está el
+ * siete»: the board is the match's official (its scope doc names it, written within the window) and its
+ * notice is still to go or went within the window (an older claim = it won't go again).
+ */
+export function boardCovers(o: {
+  board: { isOfficial?: unknown; matchId?: unknown } | null | undefined;
+  lock: { lineupId?: unknown; at?: number | null } | null | undefined;
+  boardId: string;
+  matchId: string;
+  /** When that board's «Ya está el siete» for the match was claimed (null = not yet). */
+  lineupLoggedAt: number | null;
+  now: number;
+}): boolean {
+  if (o.board?.isOfficial !== true || o.board.matchId !== o.matchId) return false;
+  if (o.lock?.lineupId !== o.boardId) return false;
+  const within = (t: number) => t <= o.now && o.now - t < SIETE_WINDOW_MS;
+  if (typeof o.lock.at !== "number" || !within(o.lock.at)) return false;
+  return o.lineupLoggedAt == null || within(o.lineupLoggedAt);
+}

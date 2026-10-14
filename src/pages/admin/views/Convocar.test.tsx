@@ -18,6 +18,9 @@ vi.mock("../convocar/live", async () => {
 });
 const { setReminders } = vi.hoisted(() => ({ setReminders: vi.fn((_on: boolean) => Promise.resolve()) }));
 vi.mock("../convocar/reminders", () => ({ useReminders: () => ({ auto: true, loading: false, set: setReminders }) }));
+// (the official board's seven, by board id: no Firestore in tests)
+const { boardSevens } = vi.hoisted(() => ({ boardSevens: new Map<string, string[]>() }));
+vi.mock("../../pizarra/useMatchBoard", () => ({ useBoardSeven: (id: string | null) => (id ? (boardSevens.get(id) ?? null) : null) }));
 const setConv = vi.mocked(api.setConvocatoria);
 
 const WIDTH = window.innerWidth;
@@ -137,6 +140,20 @@ describe("Convocar", () => {
     expect(setConv).toHaveBeenCalledWith({ matchId: "m8", starters: SEVEN, bench: ["kevin", "almachi"], notify: true });
   });
 
+  it("«Publicar y avisar» right after «Ya está el siete» of this seven: announced, without a second notice (one «siete»)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const SEVEN = [...SIX, "adrian"];
+    setAdminData(adminFixture({ published: withJ8({ starters: SEVEN, bench: ["kevin", "almachi"] }) }));
+    setConv.mockImplementationOnce(() => Promise.resolve({ data: { at: 2, revision: 2, notice: null, covered: true } } as Awaited<ReturnType<typeof api.setConvocatoria>>));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/convocar", { convocar: Convocar });
+    await user.click(await screen.findByRole("button", { name: "Publicar y avisar" }));
+    await act(async () => {
+      vi.advanceTimersByTime(5300);
+    });
+    await waitFor(() => expect(caption()).toHaveTextContent("Convocatoria al día · el equipo ya tiene «Ya está el siete» con este siete: sin segundo aviso"));
+  });
+
   it("an announced convocatoria reads «Publicada»; changing it asks to announce it again", async () => {
     const SEVEN = [...SIX, "adrian"];
     setAdminData(adminFixture({ published: withJ8({ starters: SEVEN, bench: ["kevin", "almachi"], convocatoriaAt: 5, convocatoriaNotifiedAt: 5 }) }));
@@ -205,5 +222,54 @@ describe("Convocar", () => {
     expect(screen.getByText(/48 h y 24 h antes del partido, un aviso a cada convocado que no ha contestado/)).toBeInTheDocument();
     await userEvent.click(sw);
     expect(setReminders).toHaveBeenCalledWith(false);
+  });
+});
+
+// One «siete» (M6): whether the pizarra's official for the match has the convocatoria's seven, and
+// «Copiar el de la pizarra» (asked first) through setConvocatoria.
+describe("Convocar · «La pizarra coincide» / «tiene otro siete»", () => {
+  afterEach(() => {
+    boardSevens.clear();
+  });
+
+  it("no official board: nothing said", async () => {
+    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
+    await screen.findByRole("heading", { level: 1, name: "Convocar" });
+    expect(screen.queryByText(/La pizarra (coincide|tiene otro siete)/)).toBeNull();
+  });
+
+  it("the same seven (any order): «La pizarra coincide», nothing to copy", async () => {
+    setAdminData(adminFixture({ published: withJ8({ starters: SIX, bench: ["kevin", "almachi"] }), officialLocks: { t1__m8: "b8" } }));
+    boardSevens.set("b8", [...SIX].reverse());
+    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
+    expect(await screen.findByText("La pizarra coincide")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Copiar el de la pizarra/ })).toBeNull();
+  });
+
+  it("another seven: says who, and «Copiar el de la pizarra» asks, then writes it (who leaves, to the banquillo)", async () => {
+    setAdminData(adminFixture({ published: withJ8({ starters: SIX, bench: ["kevin", "almachi"] }), officialLocks: { t1__m8: "b8" } }));
+    const board = [...SIX.slice(0, 5), "kevin", "adrian"];
+    boardSevens.set("b8", board);
+    const user = userEvent.setup();
+    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
+    expect(await screen.findByText("La pizarra tiene otro siete")).toBeInTheDocument();
+    expect(screen.getByText("En la pizarra juegan KEVIN y ADRIÁN T.C. en lugar de ERIK.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Copiar el de la pizarra" }));
+    const ask = screen.getByRole("dialog", { name: "¿Copiar el siete de la pizarra?" });
+    expect(ask).toHaveTextContent("Al banquillo: ERIK");
+    expect(setConv).not.toHaveBeenCalled();
+    await user.click(within(ask).getByRole("button", { name: "Copiar el siete" }));
+    await waitFor(() => expect(setConv).toHaveBeenLastCalledWith({ matchId: "m8", starters: board, bench: ["almachi", "erik"], notify: false }));
+    expect(caption()).toHaveTextContent("El siete de la pizarra, en la convocatoria");
+  });
+
+  it("asked, then cancelled: nothing written", async () => {
+    setAdminData(adminFixture({ published: withJ8({ starters: SIX, bench: [] }), officialLocks: { t1__m8: "b8" } }));
+    boardSevens.set("b8", [...SIX.slice(0, 5), "kevin"]);
+    const user = userEvent.setup();
+    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
+    await user.click(await screen.findByRole("button", { name: "Copiar el de la pizarra" }));
+    await user.click(within(screen.getByRole("dialog", { name: "¿Copiar el siete de la pizarra?" })).getByRole("button", { name: "Cancelar" }));
+    expect(setConv).not.toHaveBeenCalled();
   });
 });

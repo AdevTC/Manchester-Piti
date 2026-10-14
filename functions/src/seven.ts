@@ -6,7 +6,7 @@
 import { type DocumentData, type Timestamp } from "firebase-admin/firestore";
 import { db } from "./common.js";
 import { nameFor } from "./names.js";
-import { sevenChangeNotice, sevenDiff, sevenNewsworthy, sevenOf, sevenStep, SEVEN_DEBOUNCE_MS, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
+import { parseSiete, sevenChangeNotice, sevenDiff, sevenNewsworthy, sevenOf, sevenStep, sieteLog, sieteStep, SEVEN_DEBOUNCE_MS, type LineupLike, type MatchLike, type Notice, type SieteAsk } from "./pushLogic.js";
 
 type Send = (n: Notice) => Promise<void>;
 
@@ -24,6 +24,20 @@ async function namesOf(pids: string[], seasonId: string | undefined): Promise<(i
   const docs = await Promise.all(pids.map((p) => db.doc(`players/${p}`).get()));
   const m = new Map(docs.map((p) => [p.id, nameFor(p.data(), seasonId)]));
   return (id) => m.get(id) ?? "Jugador";
+}
+
+/**
+ * One «siete» per match (pushLogic sieteStep): runs the step on `pushLog/siete-<match>` in a transaction
+ * (the publish's trigger and the convocatoria's call may race) and says whether the asker's notice goes.
+ */
+export async function claimSiete(matchId: string, ask: SieteAsk, now = Date.now()): Promise<boolean> {
+  const ref = db.doc(`pushLog/${sieteLog(matchId)}`);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const step = sieteStep(snap.exists ? parseSiete(snap.data()) : null, ask, now);
+    if (step.write) tx.set(ref, step.write);
+    return step.send;
+  });
 }
 
 /** A board has just become the official: what the team was told about is this seven. */

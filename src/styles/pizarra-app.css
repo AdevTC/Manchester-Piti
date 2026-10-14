@@ -92,6 +92,10 @@
 .pzv .off .cfm{color:#eef4ff}
 /* The official card's notes and its «Quitar el oficial». */
 .pzv .off .b3:not(.gold){justify-self:start}
+/* «Usar este siete como convocatoria» (publishing for a match): ticked by default; a real checkbox, big enough to tap. */
+.pzv .off .chk{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;font-weight:600;cursor:pointer}
+.pzv .off .chk input{flex:0 0 auto;width:20px;height:20px;margin:1px 0 0;accent-color:#FFC659}
+.pzv .off .chk span{display:grid;gap:2px}
 
 /* ── Phase 4: dibujar and jugadas ── */
 /* Dibujar on an editable board: the whole pitch is a canvas (no scrolling or zooming under the finger). */
