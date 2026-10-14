@@ -3,6 +3,7 @@
 // Sin responder) with where each one hangs, the banquillo, and «Copiar la convocatoria de la Jn».
 import { dateMillis, matchPhase } from "../../../../functions/src/matchEngine";
 import { copyLineup, previousLineup } from "../acta/convocatoria";
+import { LINE_NAMES, POSITIONS, isLine, resolvePositions } from "../../../lib/positions";
 import { clockTime, jLabel, shortDate, type AdminMatch } from "../data/adminLogic";
 import { sameLineup, type Lineup, type Rsvp } from "../data/lineup";
 
@@ -34,15 +35,23 @@ export interface PoolPlayer {
   id: string;
   name: string;
   number: number | null;
+  /** The line (POR / DEF / MED / DEL) or "". */
   position: string;
+  /** The player's doc: its exact preferida (`positions.main`, or the legacy text) is what Convocar prints. */
+  doc?: { positions?: unknown; naturalPosition?: unknown };
 }
 export type PoolSlot = "T" | "B" | "";
 export interface PoolRow {
   id: string;
   num: string;
   name: string;
-  /** «POR · en el siete», «MED · sin colocar». */
+  /** «DFC · en el siete», «MED · sin colocar» (the line when the exact position isn't known). */
   line: string;
+  /** «DFC» (or «DEF» when only the line is known) and its long name for screen readers («Central»). */
+  code: string;
+  posName: string;
+  /** «en el siete» · «en el banquillo» · «sin colocar». */
+  place: string;
   slot: PoolSlot;
 }
 export interface PoolGroup {
@@ -57,6 +66,12 @@ const GROUPS: [Rsvp, string][] = [
   ["sin", "Sin responder"],
 ];
 const PLACE: Record<PoolSlot, string> = { T: "en el siete", B: "en el banquillo", "": "sin colocar" };
+/** The exact position a player is read by: «DFC» + «Central»; his line («DEF» + «Defensa») when that is all there is; "" if nothing. */
+export function exactPosition(p: PoolPlayer): { code: string; name: string } {
+  const main = p.doc ? resolvePositions(p.doc).main : null;
+  if (main) return { code: main, name: POSITIONS[main].name };
+  return { code: p.position, name: isLine(p.position) ? LINE_NAMES[p.position].name : "" };
+}
 export const slotOf = (l: Lineup, id: string): PoolSlot => (l.starters.includes(id) ? "T" : l.bench.includes(id) ? "B" : "");
 
 /** The squad by answer (empty groups left out), roster order kept. */
@@ -68,7 +83,8 @@ export function poolGroups(roster: readonly PoolPlayer[], lineup: Lineup, rsvp: 
       .filter((p) => (rsvp.get(p.id) ?? "sin") === key)
       .map((p): PoolRow => {
         const slot = slotOf(lineup, p.id);
-        return { id: p.id, num: p.number != null ? String(p.number) : "", name: p.name, line: [p.position, PLACE[slot]].filter(Boolean).join(" · "), slot };
+        const { code, name } = exactPosition(p);
+        return { id: p.id, num: p.number != null ? String(p.number) : "", name: p.name, line: [code, PLACE[slot]].filter(Boolean).join(" · "), code, posName: name, place: PLACE[slot], slot };
       }),
   })).filter((g) => g.rows.length);
 }

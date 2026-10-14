@@ -56,6 +56,8 @@ export interface PegProps {
   shirtName?: string;
   /** The name under the shirt (`.nm`). */
   label: ReactNode;
+  /** The position code under the name (`.pc`, mono): «DFC», or the line («DEF») when that is all that is known. */
+  code?: ReactNode;
   /** The line under the name (`.rv`): position, «Banquillo», «Duda»… */
   sub?: ReactNode;
   /** `duda` = amber (doubt / no answer: something is missing). */
@@ -73,13 +75,14 @@ export interface PegProps {
   className?: string;
 }
 /** `.peg`: one shirt on its peg — a button when it does something, a plain figure otherwise. */
-export function Peg({ num, shirtName, label, sub, subTone = "", size = 96, big = false, state = "", stickers, fresh = false, onClick, ariaLabel, className = "" }: PegProps) {
+export function Peg({ num, shirtName, label, code, sub, subTone = "", size = 96, big = false, state = "", stickers, fresh = false, onClick, ariaLabel, className = "" }: PegProps) {
   const cls = ["peg", fresh ? "open" : "", className].filter(Boolean).join(" ");
   const body = (
     <>
       <ShirtBack num={num} name={shirtName} size={size} big={big} state={state} />
       {stickers ? <Stickers list={stickers} /> : null}
       <span className="nm">{label}</span>
+      {code != null && code !== "" ? <span className="pc">{code}</span> : null}
       {sub != null && sub !== "" ? <span className={subTone ? `rv ${subTone}` : "rv"}>{sub}</span> : null}
     </>
   );
