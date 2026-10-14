@@ -10,7 +10,7 @@ import { TECH_LABELS, pct, technicalAnalysis } from "../../lib/technicalAnalysis
 import { plural } from "../../lib/vestuario";
 import { emptyTechnical, eventSide, OUTCOME_LABELS, type AnalysisEvent, type TechnicalStats } from "../../../functions/src/matchAnalysis";
 import { PlayerLink } from "./PlayerLink";
-import "../../styles/stats.css";
+import "../../styles/st-base.css";
 import "./technical-stats.css";
 
 type Metric = keyof TechnicalStats;

@@ -1,6 +1,6 @@
 /* El juego en detalle (TechnicalStats.tsx): the game-analysis panel on the match page, the jugador page
    and /stats. Its cards, segmented controls, fields, KPIs, legends and tables are the stats pages' own
-   (st-card, st-seg, st-field, st-kpis, st-legend, st-table, from stats.css, which also gives the panel
+   (st-card, st-seg, st-field, st-kpis, st-legend, st-table, from st-base.css, which also gives the panel
    its --st-* tokens); this sheet only lays out what is particular to it. The panel is its own container:
    it reads the same in a page-wide pane and in the jugador page's grid. Ours is solid, the rival's
    hatched, and every figure carries its words too: never colour alone. */

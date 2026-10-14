@@ -39,6 +39,7 @@ import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import { NewBadge } from "../../components/NewBadge";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
+import "../../styles/st-base.css";
 import "../../styles/stats.css";
 import "../../styles/jugador.css";
 

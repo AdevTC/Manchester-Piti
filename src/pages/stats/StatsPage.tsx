@@ -26,6 +26,7 @@ import { Posiciones } from "./Posiciones";
 import { NewBadge } from "../../components/NewBadge";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
+import "../../styles/st-base.css";
 import "../../styles/stats.css";
 
 const route = getRouteApi("/stats");
