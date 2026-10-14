@@ -50,7 +50,20 @@ export function StatsPage() {
   const results = useMvpResults();
   const view: View = search.view ?? (search.tab === "compare" ? "compare" : "summary");
   const section: ExploreSection = search.section ?? "individual";
-  const setView = (next: View) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: next, tab: undefined }), resetScroll: false });
+  // (Comparar's pair goes with Comparar: any other view's URL is clean to share)
+  const setView = (next: View) =>
+    void navigate({
+      to: ".",
+      search: (prev) => {
+        const rest = { ...prev };
+        if (next !== "compare") {
+          delete rest.a;
+          delete rest.b;
+        }
+        return { ...rest, view: next, tab: undefined };
+      },
+      resetScroll: false,
+    });
   const setSection = (next: ExploreSection) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "explore", section: next }), resetScroll: false });
   // Comparar's pair: replace, so trying player after player doesn't flood the history
   const setPair = (a: string, b: string | undefined) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "compare", tab: undefined, a, b }), replace: true, resetScroll: false });

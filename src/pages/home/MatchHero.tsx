@@ -108,7 +108,7 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
                   <Link className="hm-btn" to="/matches/$matchId" params={{ matchId: pulse.next.id }}>
                     Ver la previa <Icon name="arrow" size={16} stroke={2.2} />
                   </Link>
-                  <AddToCalendar className="hm-mini sky" label="Añadir este partido" event={matchEvent(pulse.next, origin)} />
+                  <AddToCalendar className="hm-mini" label="Añadir este partido" event={matchEvent(pulse.next, origin)} />
                 </>
               )
             )}

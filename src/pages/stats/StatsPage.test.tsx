@@ -110,6 +110,18 @@ describe("StatsPage · Posiciones", () => {
     expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "compare", tab: undefined, a: "lat", b: "dc" });
   });
 
+  it("leaving Comparar drops its pair from the URL; clicking Comparar keeps it", () => {
+    search.value = statsSearchSchema.parse({ view: "compare", a: "dc", b: "lat" });
+    render(<StatsPage />);
+    const nav = within(screen.getByRole("navigation", { name: "Secciones de estadísticas" }));
+    fireEvent.click(nav.getByRole("button", { name: "Minutos" }));
+    let call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
+    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "minutes", tab: undefined });
+    fireEvent.click(nav.getByRole("button", { name: "Comparar" }));
+    call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
+    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "compare", tab: undefined, a: "dc", b: "lat" });
+  });
+
   it("the Resumen constellation places each star by the position he played", () => {
     search.value = { view: "summary" };
     render(<StatsPage />);
