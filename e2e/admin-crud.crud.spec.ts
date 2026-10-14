@@ -9,6 +9,9 @@ test("Google permite votar una vez por cuenta y cambiar el voto", async ({
   const mvp = page.locator("section", { has: page.getByRole("heading", { name: "El MVP" }) });
   const radios = mvp.getByRole("radio");
   await expect(radios.nth(1)).toBeVisible();
+  // A vote from an earlier run arrives after the radios: wait for it (the button says «Voto guardado» once
+  // the saved vote is loaded), so «first» is never the one already saved.
+  await mvp.getByRole("button", { name: "Voto guardado" }).waitFor({ timeout: 4000 }).catch(() => {});
   const [first, second] = (await radios.nth(0).isChecked()) ? [radios.nth(1), radios.nth(0)] : [radios.nth(0), radios.nth(1)];
   await first.check();
   await mvp.getByRole("button", { name: /Votar al MVP|Cambiar mi voto/ }).click();
@@ -41,7 +44,7 @@ async function nuevoPartido(page: Page, o: { rival: string; date: string; time: 
   await modal.getByLabel("Fecha", { exact: true }).fill(o.date);
   await modal.getByLabel("Hora (Madrid)").fill(o.time);
   await modal.getByRole("button", { name: "Crear y abrir" }).click();
-  await expect(page.getByText(new RegExp(`${o.rival} creada`))).toBeVisible();
+  await expect(page.getByText(new RegExp(`Borrador · ${o.rival} creado`))).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/partidos\/[^/?]+\?tab=encuentro/);
   if (o.venue) await page.getByLabel("Nombre del campo").fill(o.venue);
   return new URL(page.url()).pathname.split("/").pop() ?? "";
