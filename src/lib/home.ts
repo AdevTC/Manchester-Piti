@@ -6,10 +6,12 @@ import { computeStats, EMPTY_STATS, type PlayerStats } from "./playerStats";
 import { kickoffLabel, plural } from "./vestuario";
 import type { CalendarEvent } from "./calendarLinks";
 import { scoreOf } from "./partidos";
+import { resultLetter, type ResultLetter } from "./derived/result";
+import { jornadas } from "./derived/jornada";
 
 const DAY = 86_400_000;
 const GOAL = /^goal/;
-export type Result = "G" | "E" | "P";
+export type Result = ResultLetter;
 
 export interface SquadMember {
   id: string;
@@ -22,9 +24,7 @@ export interface PlayerLine extends SquadMember {
 }
 
 export function resultOf(m: { goalsFor?: number; goalsAgainst?: number }): Result {
-  const gf = m.goalsFor ?? 0,
-    ga = m.goalsAgainst ?? 0;
-  return gf > ga ? "G" : gf === ga ? "E" : "P";
+  return resultLetter(m.goalsFor ?? 0, m.goalsAgainst ?? 0);
 }
 const byDate = (a: ClubMatch, b: ClubMatch) => dateMillis(a.date) - dateMillis(b.date);
 
@@ -34,6 +34,8 @@ export function seasonPulse(matches: ClubMatch[], seasonId: string, now: number)
   const played = season.filter((m) => matchPhase(m, now) === "finished").sort(byDate);
   const live = season.filter((m) => matchPhase(m, now) === "playing").sort(byDate)[0];
   const next = season.filter((m) => matchPhase(m, now) === "scheduled").sort(byDate)[0];
+  // played, its acta still to come (a clock nobody started past its window, or one stopped without an acta)
+  const waiting = season.filter((m) => matchPhase(m, now) === "awaiting_result").sort(byDate).at(-1);
   const results = played.map(resultOf);
   const gf = played.reduce((s, m) => s + (m.goalsFor ?? 0), 0);
   const ga = played.reduce((s, m) => s + (m.goalsAgainst ?? 0), 0);
@@ -42,6 +44,10 @@ export function seasonPulse(matches: ClubMatch[], seasonId: string, now: number)
     live,
     next,
     last: played.at(-1),
+    /** The newest match waiting for its acta, when it is newer than the last played one (it is not «next» any more). */
+    awaiting: waiting && (!played.length || byDate(waiting, played[played.length - 1]) > 0) ? waiting : undefined,
+    /** The jornada of the last played match (derived/jornada; null before the first, or without one). */
+    jornada: played.length ? (jornadas(season, seasonId).get(played[played.length - 1].id) ?? null) : null,
     wins: results.filter((r) => r === "G").length,
     draws: results.filter((r) => r === "E").length,
     losses: results.filter((r) => r === "P").length,
@@ -49,7 +55,8 @@ export function seasonPulse(matches: ClubMatch[], seasonId: string, now: number)
     ga,
     /** Most recent first. */
     form: results.slice(-5).reverse(),
-    upcoming: season.filter((m) => ["scheduled", "playing", "unscheduled", "awaiting_result"].includes(matchPhase(m, now))).sort(byDate),
+    /** Still to be played (a match waiting for its acta has been played: it is not here). */
+    upcoming: season.filter((m) => ["scheduled", "playing", "unscheduled"].includes(matchPhase(m, now))).sort(byDate),
   };
 }
 export type Pulse = ReturnType<typeof seasonPulse>;
@@ -89,7 +96,8 @@ export function narrative(p: Pulse, ctx: { seasonName: string; squadSize: number
       em: "El marcador se actualiza solo desde el acta.",
     };
   }
-  const jornada = `jornada ${p.played.length}`;
+  // «Temporada 1 · jornada 3» (the season alone when the last match has no jornada)
+  const kick = p.jornada ? `${seasonName} · jornada ${p.jornada}` : seasonName;
   if (p.last && now - dateMillis(p.last.date) < 4 * DAY) {
     const m = p.last,
       r = resultOf(m),
@@ -97,17 +105,17 @@ export function narrative(p: Pulse, ctx: { seasonName: string; squadSize: number
     const score = `${m.goalsFor ?? 0}–${m.goalsAgainst ?? 0}`;
     const leads = !!top && top.id === scorer?.id;
     const who = top ? (leads ? `${top.name} firmó ${feat(top.n)}: ya suma ${scorer!.stats.goals} y lidera el Pichichi.` : `${top.name} firmó ${feat(top.n)}.`) : "";
-    if (r === "G") return { kick: `${seasonName} · ${jornada}`, head: `¡Victoria! ${score} ante ${m.rival ?? "el rival"}.`, em: leads ? who : `${who} ${leaderLine}`.trim() };
-    if (r === "E") return { kick: `${seasonName} · ${jornada}`, head: `Empate a ${m.goalsFor ?? 0} ante ${m.rival ?? "el rival"}.`, em: who || leaderLine };
-    return { kick: `${seasonName} · ${jornada}`, head: `Tocó perder ante ${m.rival ?? "el rival"}, ${score}.`, em: p.next ? `Revancha: ${kickoffLabel(p.next.date)} ante ${p.next.rival ?? "el rival"}.` : who || "El próximo domingo, revancha." };
+    if (r === "G") return { kick, head: `¡Victoria! ${score} ante ${m.rival ?? "el rival"}.`, em: leads ? who : `${who} ${leaderLine}`.trim() };
+    if (r === "E") return { kick, head: `Empate a ${m.goalsFor ?? 0} ante ${m.rival ?? "el rival"}.`, em: who || leaderLine };
+    return { kick, head: `Tocó perder ante ${m.rival ?? "el rival"}, ${score}.`, em: p.next ? `Revancha: ${kickoffLabel(p.next.date)} ante ${p.next.rival ?? "el rival"}.` : who || "El próximo domingo, revancha." };
   }
   if (!p.played.length) {
     if (p.next)
       return { kick: `${seasonName} · cuenta atrás`, head: "Cuenta atrás para el estreno.", em: `${kickoffLabel(p.next.date)} ante ${p.next.rival ?? "el rival"}. ${squadSize} dorsales listos.` };
     return { kick: `${seasonName} · pretemporada`, head: `La ${seasonName} está a punto de empezar.`, em: `${squadSize} dorsales, cero goles y toda la historia por escribir.` };
   }
-  if (p.next) return { kick: `${seasonName} · ${jornada}`, head: `${kickoffLabel(p.next.date)}: ${p.next.rival ?? "próximo rival"}.`, em: leaderLine };
-  return { kick: `${seasonName} · ${jornada}`, head: `${plural(p.played.length, "partido", "partidos")}, ${plural(p.gf, "gol", "goles")}.`, em: leaderLine };
+  if (p.next) return { kick, head: `${kickoffLabel(p.next.date)}: ${p.next.rival ?? "próximo rival"}.`, em: leaderLine };
+  return { kick, head: `${plural(p.played.length, "partido", "partidos")}, ${plural(p.gf, "gol", "goles")}.`, em: leaderLine };
 }
 
 /** One line about a player, from the most notable thing they have done this season. */

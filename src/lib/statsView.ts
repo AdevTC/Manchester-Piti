@@ -6,6 +6,8 @@ import type { ClubMatch } from "./clubData";
 import type { MatchEvent } from "../../functions/src/matchEngine";
 import { POSITIONS, resolvePositions } from "./positions";
 import { playerPositions } from "./positionStats";
+import { nameFor } from "./derived/names";
+import { totalMinutes } from "./derived/minutesOf";
 import { competitionRanks, milestoneSteps, milestones, opponentInitials, teamAnalysis, type PlayerAnalysis, type StarLink } from "./clubAnalytics";
 // goalLinks lives with the analytics (the pizarra's ratings read it too, without importing this page's module)
 export { goalLinks, type StarLink } from "./clubAnalytics";
@@ -13,7 +15,7 @@ export { goalLinks, type StarLink } from "./clubAnalytics";
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
 const SCORED = new Set(["goal", "goal_penalty", "goal_freekick"]);
-const nameOf = (p: Pick<PlayerAnalysis, "shirtName" | "firstName" | "lastName">) => p.shirtName || [p.firstName, p.lastName].filter(Boolean).join(" ") || "Jugador";
+const nameOf = (p: Pick<PlayerAnalysis, "shirtName" | "firstName" | "lastName">) => nameFor(p);
 
 // ---------- team
 export const points = (games: ClubMatch[]) => {
@@ -190,10 +192,10 @@ export function radarPoints(scores: number[], c: number, r: number) {
 }
 
 // ---------- per player extras
-/** G+A every 50′, over the games with minutes recorded (null when none). */
+/** G+A every 50′, over the games whose acta knows his minutes (derived/minutesOf; null when none). */
 export function per50(p: PlayerAnalysis) {
   const tracked = p.series.filter((g) => g.minutes !== null);
-  const minutes = Math.round(tracked.reduce((s, g) => s + (g.match.ledger?.[p.id]?.secondsPlayed ?? (g.minutes ?? 0) * 60), 0) / 60 * 100) / 100;
+  const minutes = totalMinutes(tracked.map((g) => g.match), p.id);
   return minutes ? Math.round((tracked.reduce((s, g) => s + g.ga, 0) / minutes) * 50 * 100) / 100 : null;
 }
 /** Share of the games he played that the team won (null when he hasn't played). */
@@ -223,7 +225,8 @@ export function minutesHeat(rows: PlayerAnalysis[]) {
     id: p.id,
     cells: p.series.map<HeatCell>((g) => ({
       matchId: g.match.id,
-      minutes: g.minutes,
+      // (a cell without his ledger row says «Jugó» / «No jugó», as always: no «0′» for a legacy acta)
+      minutes: g.match.ledger?.[p.id] ? g.minutes : null,
       played: g.played,
       goals: g.goals,
       level: g.minutes === null ? (g.played ? 0.5 : 0) : Math.min(1, g.minutes / (g.match.duration || 50)),

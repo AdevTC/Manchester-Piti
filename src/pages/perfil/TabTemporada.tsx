@@ -10,6 +10,7 @@ import { DondeHasJugado } from "./DondeHasJugado";
 import { vars } from "./fx";
 import { Ic, type PIcon } from "./icons";
 import { firstMatchText, jornadaRange, longDay, type StuffLine } from "./lines";
+import { RESULT_LEGEND } from "../../lib/derived/result";
 
 /** The goal bars keep a readable width on a phone: the last 10 jornadas at most. */
 export const GB_MAX = 10;
@@ -85,7 +86,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
                 <span>MVP</span>
               </div>
               <div>
-                <b>{t.minutes}</b>
+                <b>{t.minutes ?? "—"}</b>
                 <span>Minutos</span>
               </div>
               <div>
@@ -106,7 +107,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
               <>
                 <div className="gb" role="img" aria-label={"Goles por jornada: " + card.series.map((x) => `${x.label} ${x.goals}`).join(", ")} style={{ gridTemplateColumns: `repeat(${Math.max(1, bars.length)},minmax(0,1fr))` }}>
                   {bars.map((g) => (
-                    <span key={g.j}>
+                    <span key={g.id}>
                       <i style={vars({ "--p": g.p.toFixed(2) })} />
                       <b>{g.goals}</b>
                       <small>{g.label}</small>
@@ -115,7 +116,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
                 </div>
                 <ol className="fm" aria-label="Últimos cinco resultados">
                   {card.last5.map((f) => (
-                    <li key={f.j}>
+                    <li key={f.id}>
                       <span className={"res " + f.r} role="img" aria-label={f.aria}>
                         {f.l}
                       </span>
@@ -123,7 +124,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
                     </li>
                   ))}
                 </ol>
-                <p className="legend">G victoria · E empate · P derrota</p>
+                <p className="legend">{RESULT_LEGEND}</p>
               </>
             ) : (
               <p className="note">

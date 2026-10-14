@@ -7,10 +7,13 @@ import type { ClubMatch } from "../../lib/clubData";
 import { chronological, playerGame } from "../../lib/clubAnalytics";
 import { LINE_NAMES, POSITIONS, type PosCode } from "../../lib/positions";
 import { resultOf } from "../../lib/partidos";
+import { calendarOrder, jornadaLabel, jornadaNumbers } from "../../lib/derived/jornada";
+import { resultTitle, type ResultLetter } from "../../lib/derived/result";
+import { wholeMinutes } from "../../lib/derived/minutes";
 import { bestPartner, mvpWinners, mvpWins, vitrina, type MvpResult } from "../../lib/vestuario";
 import { suspensions } from "../pizarra/chemistry";
 import type { Zone } from "../pizarra/formations";
-import type { Cromo, Squad } from "../pizarra/v2/model";
+import { knownMinutes, type Cromo, type Squad } from "../pizarra/v2/model";
 import { buildSquad, type SquadPlayer } from "../pizarra/v2/ratings";
 
 const TZ = "Europe/Madrid";
@@ -73,7 +76,10 @@ export interface Ticker {
 }
 
 export interface SeriesPoint {
-  j: number;
+  /** The match (the list key: two matches may lack a jornada). */
+  id: string;
+  /** Its jornada; null when it has none (never a made-up 0). */
+  j: number | null;
   label: string;
   goals: number;
   played: boolean;
@@ -81,8 +87,10 @@ export interface SeriesPoint {
   p: number;
 }
 export interface FormResult {
+  /** The match (the list key). */
+  id: string;
   r: "g" | "e" | "p";
-  l: "G" | "E" | "P";
+  l: ResultLetter;
   j: string;
   aria: string;
 }
@@ -179,7 +187,8 @@ export interface CardView {
   tierWhy: string;
   racha: boolean;
   attrs: Attr[];
-  totals: { played: number; goals: number; assists: number; minutes: number; mvps: number };
+  /** minutes: his known minutes (derived/minutesOf); null («—») when no acta of his knows them. */
+  totals: { played: number; goals: number; assists: number; minutes: number | null; mvps: number };
   ticker: Ticker;
   /** «MANCHESTER PITI · T1 · J1–J7» / «SE REVELA EN LA J1». */
   clubLine: string;
@@ -196,19 +205,20 @@ export interface CardView {
   first: { dateMs: number; rival: string } | null;
 }
 
-/** The season's matches in calendar order (as the pizarra numbers its jornadas). */
+/** The season's matches in calendar order (their jornada numbers come from derived/jornada). */
 export function seasonCalendar(matches: ClubMatch[], seasonId: string): ClubMatch[] {
   return matches
     .filter((m) => seasonId === "all" || m.seasonId === seasonId)
     .slice()
-    .sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0) || a.id.localeCompare(b.id));
+    .sort(calendarOrder);
 }
 
 /** The pizarra's squad (cromos) for this season: the same call useBoardData makes. */
 export function seasonSquad(squad: SquadPlayer[], matches: ClubMatch[], seasonId: string, mvpResults: Map<string, MvpResult>, now: number): { squad: Squad; calendar: ClubMatch[]; games: ClubMatch[]; jornada: Map<string, number> } {
   const calendar = seasonCalendar(matches, seasonId);
   const games = calendar.filter((m) => isCompleted(m));
-  const jornada = new Map(calendar.map((m, i) => [m.id, i + 1]));
+  // (the one numbering: each match's jornada in its own season, «all seasons» included)
+  const jornada = jornadaNumbers(calendar);
   const mvps = new Map<string, string[]>();
   games.forEach((m) => mvps.set(m.id, mvpWinners(m, mvpResults.get(m.id), now)));
   // the same bajas as the board: sent off (acta) or sanctioned by hand, newest match first
@@ -342,7 +352,7 @@ function partnerOf(me: string, games: ClubMatch[], squad: Squad): PartnerView | 
   };
 }
 
-const EMPTY_TOTALS = { played: 0, goals: 0, assists: 0, minutes: 0, mvps: 0 };
+const EMPTY_TOTALS: CardView["totals"] = { played: 0, goals: 0, assists: 0, minutes: 0, mvps: 0 };
 
 export function buildCard(input: CardInput): CardView {
   const { state, playerId, captain, matches, seasonId, mvpResults, now } = input;
@@ -370,35 +380,37 @@ export function buildCard(input: CardInput): CardView {
   const firstMatch = calendar[0];
   const first = firstMatch ? { dateMs: dateMillis(firstMatch.date), rival: firstMatch.rival || "el rival" } : null;
 
-  const totals = shown ? { played: shown.stats.played, goals: shown.stats.goals, assists: shown.stats.assists, minutes: shown.stats.minutes, mvps: shown.stats.mvps } : EMPTY_TOTALS;
+  const totals = shown ? { played: shown.stats.played, goals: shown.stats.goals, assists: shown.stats.assists, minutes: knownMinutes(shown.stats) === null ? null : wholeMinutes(shown.stats.minutes), mvps: shown.stats.mvps } : EMPTY_TOTALS;
   const max = (k: "goals" | "assists" | "minutes" | "mvps") => Math.max(0, ...squad.list.map((c) => c.stats[k]));
   const values: Record<AttrKey, [number, number]> = {
     GOL: [totals.goals, ratio(totals.goals, max("goals"))],
     MVP: [totals.mvps, ratio(totals.mvps, max("mvps"))],
     ASI: [totals.assists, ratio(totals.assists, max("assists"))],
     PJ: [totals.played, ratio(totals.played, games.length)],
-    MIN: [totals.minutes, ratio(totals.minutes, max("minutes"))],
+    MIN: [totals.minutes ?? 0, ratio(totals.minutes ?? 0, max("minutes"))],
     FOR: [form ?? 0, ratio(form ?? 0, 99)],
   };
   const attrs: Attr[] = ATTRS.map((a) => {
     const [v, p] = values[a.k];
-    return { ...a, value: showNumbers ? v : null, text: showNumbers ? String(v) : "—", p: showNumbers ? p : 0 };
+    // (minutes no acta of his knows: «—», never an invented number)
+    const shows = showNumbers && !(a.k === "MIN" && totals.minutes === null);
+    return { ...a, value: shows ? v : null, text: shows ? String(v) : "—", p: shows ? p : 0 };
   });
 
-  const js = games.map((m) => jornada.get(m.id) ?? 0);
-  const clubLine = started ? `MANCHESTER PITI · ${seasonShort(input.seasonName)} · ${js.length > 1 ? `J${js[0]}–J${js[js.length - 1]}` : `J${js[0]}`}` : "SE REVELA EN LA J1";
+  const js = games.flatMap((m) => jornada.get(m.id) ?? []);
+  const span = js.length > 1 ? `J${js[0]}–J${js[js.length - 1]}` : js.length ? `J${js[0]}` : "";
+  const clubLine = started ? ["MANCHESTER PITI", seasonShort(input.seasonName), span].filter(Boolean).join(" · ") : "SE REVELA EN LA J1";
   const series: SeriesPoint[] = playerId
     ? games.map((m) => {
         const g = playerGame(playerId, m);
-        const j = jornada.get(m.id) ?? 0;
-        return { j, label: `J${j}`, goals: g.goals, played: g.played, p: g.played ? Math.round(clamp(Math.max(0.06, g.goals / 3), 0, 1) * 100) / 100 : 0.03 };
+        const j = jornada.get(m.id) ?? null;
+        return { id: m.id, j, label: jornadaLabel(j) || "—", goals: g.goals, played: g.played, p: g.played ? Math.round(clamp(Math.max(0.06, g.goals / 3), 0, 1) * 100) / 100 : 0.03 };
       })
     : [];
-  const RES = { G: ["g", "Victoria"], E: ["e", "Empate"], P: ["p", "Derrota"] } as const;
   const last5: FormResult[] = games.slice(-5).map((m) => {
     const l = resultOf(m);
-    const j = `J${jornada.get(m.id) ?? 0}`;
-    return { r: RES[l][0], l, j, aria: `${j}: ${RES[l][1]}` };
+    const j = jornadaLabel(jornada.get(m.id)) || "—";
+    return { id: m.id, r: l === "G" ? "g" : l === "E" ? "e" : "p", l, j, aria: `${j}: ${resultTitle(l)}` };
   });
   const goalRank = shown ? squad.list.filter((c) => c.stats.goals > shown.stats.goals).length + 1 : null;
   const rankText = !showNumbers

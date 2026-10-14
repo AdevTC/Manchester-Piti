@@ -10,18 +10,19 @@ import { z } from "zod";
 
 // Mock SeasonContext so the test drives `useSeason()` directly (the real
 // provider opens a Firestore subscription via useFirestoreCollection). We only
-// need the reactive contract SeasonUrlSync depends on: the four fields it reads
-// and the setSelectedSeasonId spy.
+// need the reactive contract SeasonUrlSync depends on: the fields it reads
+// and the adoptSeasonId spy.
 const seasonState = {
   selectedSeasonId: "all" as string,
   seasons: [] as { id: string; name: string }[],
   loadingSeasons: false,
-  setSelectedSeasonId: vi.fn((id: string) => {
+  adoptSeasonId: vi.fn((id: string) => {
     seasonState.selectedSeasonId = id;
   }),
 };
 vi.mock("../context/SeasonContext", () => ({
   useSeason: () => seasonState,
+  useAdoptSeason: () => seasonState.adoptSeasonId,
 }));
 
 import { SeasonUrlSync } from "./SeasonUrlSync";
@@ -48,7 +49,7 @@ beforeEach(() => {
   seasonState.selectedSeasonId = "all";
   seasonState.seasons = [{ id: "s1", name: "Temp 1" }, { id: "s2", name: "Temp 2" }];
   seasonState.loadingSeasons = false;
-  seasonState.setSelectedSeasonId.mockClear();
+  seasonState.adoptSeasonId.mockClear();
 });
 
 describe("SeasonUrlSync — deep-link (?season=X seeds context)", () => {
@@ -56,7 +57,7 @@ describe("SeasonUrlSync — deep-link (?season=X seeds context)", () => {
     const router = buildRouter(["/?season=s2"]);
     render(<RouterProvider router={router} />);
 
-    await waitFor(() => expect(seasonState.setSelectedSeasonId).toHaveBeenCalledWith("s2"));
+    await waitFor(() => expect(seasonState.adoptSeasonId).toHaveBeenCalledWith("s2"));
     // URL kept as-is (already explicit & known).
     expect(currentSeasonParam(router)).toBe("s2");
   });
@@ -68,7 +69,7 @@ describe("SeasonUrlSync — deep-link (?season=X seeds context)", () => {
 
     // Give the idempotent effect a chance to run.
     await waitFor(() => expect(router.state.status).toBe("idle"));
-    expect(seasonState.setSelectedSeasonId).not.toHaveBeenCalled();
+    expect(seasonState.adoptSeasonId).not.toHaveBeenCalled();
   });
 });
 
@@ -78,7 +79,7 @@ describe("SeasonUrlSync — reset to 'all' for an unknown season", () => {
     const router = buildRouter(["/?season=does-not-exist"]);
     render(<RouterProvider router={router} />);
 
-    await waitFor(() => expect(seasonState.setSelectedSeasonId).toHaveBeenCalledWith("all"));
+    await waitFor(() => expect(seasonState.adoptSeasonId).toHaveBeenCalledWith("all"));
     await waitFor(() => expect(currentSeasonParam(router)).toBe("all"));
   });
 
@@ -90,7 +91,7 @@ describe("SeasonUrlSync — reset to 'all' for an unknown season", () => {
 
     await waitFor(() => expect(router.state.status).toBe("idle"));
     // Still loading → the explicit-season branch is skipped, no reset yet.
-    expect(seasonState.setSelectedSeasonId).not.toHaveBeenCalled();
+    expect(seasonState.adoptSeasonId).not.toHaveBeenCalled();
     expect(currentSeasonParam(router)).toBe("maybe-valid");
   });
 });
@@ -103,7 +104,7 @@ describe("SeasonUrlSync — seed URL from context when absent", () => {
 
     await waitFor(() => expect(currentSeasonParam(router)).toBe("s2"));
     // Seeding the URL does not re-set context (URL was absent, not divergent).
-    expect(seasonState.setSelectedSeasonId).not.toHaveBeenCalled();
+    expect(seasonState.adoptSeasonId).not.toHaveBeenCalled();
   });
 
   it("mantiene la URL limpia cuando la selección es 'all'", async () => {
@@ -113,7 +114,7 @@ describe("SeasonUrlSync — seed URL from context when absent", () => {
 
     await waitFor(() => expect(router.state.status).toBe("idle"));
     expect(currentSeasonParam(router)).toBeUndefined();
-    expect(seasonState.setSelectedSeasonId).not.toHaveBeenCalled();
+    expect(seasonState.adoptSeasonId).not.toHaveBeenCalled();
   });
 });
 
@@ -125,11 +126,11 @@ describe("SeasonUrlSync — back-nav adopts the prior season", () => {
 
     // First the effect confirms s1 (already matches → no set).
     await waitFor(() => expect(router.state.status).toBe("idle"));
-    expect(seasonState.setSelectedSeasonId).not.toHaveBeenCalled();
+    expect(seasonState.adoptSeasonId).not.toHaveBeenCalled();
 
     // Navigate to s2 (simulating a selector/back-nav URL change).
     await router.navigate({ to: "/", search: { season: "s2" } });
 
-    await waitFor(() => expect(seasonState.setSelectedSeasonId).toHaveBeenCalledWith("s2"));
+    await waitFor(() => expect(seasonState.adoptSeasonId).toHaveBeenCalledWith("s2"));
   });
 });

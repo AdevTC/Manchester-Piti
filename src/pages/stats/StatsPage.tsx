@@ -5,9 +5,12 @@ import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 // From the Design canvas "Estadísticas · elegida"; pure logic in lib/clubAnalytics.ts + lib/statsView.ts.
 import { useMemo } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
-import { playerForSeason, playerName, useClubData } from "../../lib/clubData";
+import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
+import { playerForSeason, nameFor, useClubData } from "../../lib/clubData";
+import { mvpOfFrom, votesClosedAt } from "../../lib/derived/mvpOf";
 import { analysePlayer, chronological, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { tickerLines } from "../../lib/statsView";
+import { jornadaNumbers } from "../../lib/derived/jornada";
 import { mvpWins } from "../../lib/vestuario";
 import { useMvpResults } from "../vestuario/live";
 import { useSeason } from "../../context/SeasonContext";
@@ -19,6 +22,7 @@ import { RaceBoard, Ticker } from "./Race";
 import { Comparar, Jugadores, Minutos, Resumen, Rivales } from "./Panes";
 import { Explorar, type ExploreSection } from "./Explorar";
 import { Posiciones } from "./Posiciones";
+import { NewBadge } from "../../components/NewBadge";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
@@ -35,7 +39,7 @@ const VIEWS = {
   explore: "Explorar",
 } as const;
 type View = keyof typeof VIEWS;
-const nameOf = (p: PlayerAnalysis) => playerName(p);
+const nameOf = (p: PlayerAnalysis) => nameFor(p);
 
 export function StatsPage() {
   const { matches, players, loading, error } = useClubData();
@@ -46,16 +50,22 @@ export function StatsPage() {
   const results = useMvpResults();
   const view: View = search.view ?? (search.tab === "compare" ? "compare" : "summary");
   const section: ExploreSection = search.section ?? "individual";
-  const setView = (next: View) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: next, tab: next === "compare" ? "compare" : "general" }), resetScroll: false });
+  const setView = (next: View) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: next, tab: undefined }), resetScroll: false });
   const setSection = (next: ExploreSection) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "explore", section: next }), resetScroll: false });
-  const setSeason = (season: string) => void navigate({ to: ".", search: (prev) => ({ ...prev, season }) });
+  const setSeason = useSetSeason();
 
   const games = useMemo(() => chronological(matches.filter((m) => selectedSeasonId === "all" || m.seasonId === selectedSeasonId)), [matches, selectedSeasonId]);
+  // (each match's jornada in its own season, «all seasons» included: the J of /partidos)
+  const jornada = useMemo(() => jornadaNumbers(matches), [matches]);
   const rows = useMemo(
     () => players.filter((p) => selectedSeasonId === "all" || p.seasons?.includes(selectedSeasonId)).map((p) => analysePlayer(playerForSeason(p, selectedSeasonId, seasons), games)),
     [players, games, selectedSeasonId, seasons],
   );
   const mvps = useMemo(() => new Map(rows.map((p) => [p.id, mvpWins(p.id, games, results, now)]).filter(([, n]) => (n as number) > 0) as [string, number][]), [rows, games, results, now]);
+  // the MVPs for the ratings by position: the one shared reader (derived/mvpOf), keyed on the results and
+  // the last vote closed — not on the minute clock, so «Por posición» isn't re-rated every minute
+  const votesAt = votesClosedAt(games, now);
+  const mvpOf = useMemo(() => mvpOfFrom(results, games, votesAt), [results, games, votesAt]);
   const lines = useMemo(() => tickerLines(rows, games), [rows, games]);
   const top = (value: (p: PlayerAnalysis) => number) => [...rows].sort((a, b) => value(b) - value(a) || nameOf(a).localeCompare(nameOf(b))).find((p) => value(p) > 0);
   const leaders = [
@@ -64,7 +74,7 @@ export function StatsPage() {
     { label: "Más MVP", p: top((p) => mvps.get(p.id) ?? 0), v: (p: PlayerAnalysis) => mvps.get(p.id) ?? 0 },
   ].filter((l) => l.p);
   const tracked = games.filter((m) => m.ledger && Object.keys(m.ledger).length).length;
-  const periodName = selectedSeasonId === "all" ? "Todo el historial" : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
+  const periodName = selectedSeasonId === "all" ? ALL_SEASONS_LABEL : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
   const ready = !loading && !error;
   const empty = ready && !games.length;
 
@@ -106,7 +116,7 @@ export function StatsPage() {
                 <label className="st-field">
                   <span className="st-mono">Temporada</span>
                   <select aria-label="Seleccionar temporada" value={loadingSeasons ? "all" : selectedSeasonId} disabled={loadingSeasons} onChange={(e) => setSeason(e.target.value)}>
-                    <option value="all">Todo el historial</option>
+                    <option value="all">{ALL_SEASONS_LABEL}</option>
                     {[...seasons].reverse().map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
@@ -137,12 +147,12 @@ export function StatsPage() {
             <div className="st-sweep" aria-hidden="true" />
             {ready && games.length > 0 ? (
               <>
-                <RaceBoard rows={rows} nameOf={nameOf} />
+                <RaceBoard rows={rows} nameOf={nameOf} jornada={jornada} />
                 <Ticker lines={lines} />
               </>
             ) : (
               <div className="st-race st-race-pre">
-                <span className="st-new">nuevo</span>
+                <NewBadge feature="statsCarreraPichichi" />
                 <h2 className="st-led">La carrera del Pichichi</h2>
                 <p className="st-mono">{loading ? "Encendiendo el marcador…" : "Arranca con la primera jornada: cada gol moverá la tabla en directo."}</p>
                 <ol className="st-rrows pre" aria-hidden="true">
@@ -205,8 +215,8 @@ export function StatsPage() {
             {view === "game" && <TechnicalStatsPanel matches={games} people={rows.map(p => ({ id: p.id, name: nameOf(p), number: p.number }))} />}
             {view === "summary" && <Resumen games={games} rows={rows} nameOf={nameOf} mvps={mvps} />}
             {view === "players" && <Jugadores rows={rows} nameOf={nameOf} />}
-            {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} />}
-            {view === "positions" && <Posiciones games={games} rows={rows} nameOf={nameOf} />}
+            {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} jornada={jornada} />}
+            {view === "positions" && <Posiciones games={games} rows={rows} nameOf={nameOf} mvpOf={mvpOf} />}
             {view === "rivals" && <Rivales games={games} rows={rows} />}
             {view === "compare" && <Comparar rows={rows} nameOf={nameOf} games={games.length} />}
             {view === "explore" && <Explorar rows={rows} games={games} section={section} onSection={setSection} nameOf={nameOf} />}

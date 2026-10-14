@@ -196,9 +196,9 @@ describe("tableros", () => {
 
   const m = (o: Partial<CalMatch>): CalMatch => ({ id: "m8", j: 8, rival: "MAD SKY", dateMs: Date.UTC(2026, 10, 8, 10), played: false, gf: null, ga: null, home: true, venue: "Campo 3", ...o });
   it("the match band: V / E / D once played, por jugar before", () => {
-    expect(matchBand(m({ played: true, gf: 3, ga: 1 }))).toMatchObject({ r: "g", letter: "V", title: "Victoria · 3–1 · MAD SKY" });
+    expect(matchBand(m({ played: true, gf: 3, ga: 1 }))).toMatchObject({ r: "g", letter: "G", title: "Victoria · 3–1 · MAD SKY" });
     expect(matchBand(m({ played: true, gf: 2, ga: 2 }))).toMatchObject({ r: "e", letter: "E" });
-    expect(matchBand(m({ played: true, gf: 0, ga: 1 }))).toMatchObject({ r: "p", letter: "D", title: "Derrota · 0–1 · MAD SKY" });
+    expect(matchBand(m({ played: true, gf: 0, ga: 1 }))).toMatchObject({ r: "p", letter: "P", title: "Derrota · 0–1 · MAD SKY" });
     const next = matchBand(m({}));
     expect(next).toMatchObject({ r: "f", letter: "·", title: "Por jugar · MAD SKY" });
     expect(next.sub).toMatch(/^J8 · dom 8 nov · 11:00 · En casa · Campo 3$/);

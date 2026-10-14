@@ -33,7 +33,8 @@ const weekday = (ms: number) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ,
 const hour = (ms: number) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(ms);
 
 /** «¿Vas el domingo?» — the reminder to a convocado who hasn't answered. Same tag: the 24 h one replaces
- *  the 48 h one on the phone. */
+ *  the 48 h one on the phone. It opens the match's Vestuario tab, where Voy / Duda / No puedo live
+ *  (and so does the captains' late-change notice below: the answers' bar is there). */
 export function reminderNotice(matchId: string, kind: ReminderKind, match: { rival?: string; date: number }): Notice {
   const rival = match.rival ?? "el rival";
   const day = weekday(match.date);
@@ -42,7 +43,7 @@ export function reminderNotice(matchId: string, kind: ReminderKind, match: { riv
     title: kind === "24" ? `Mañana se juega: ¿vas?` : `¿Vas el ${day}?`,
     body: `Estás convocado contra ${rival} (${day}, ${hour(match.date)}). Contesta en la web: Voy, Duda o No puedo.`,
     tag: `remind-${matchId}`,
-    url: `/matches/${matchId}`,
+    url: `/matches/${matchId}?tab=vestuario`,
   };
 }
 
@@ -64,6 +65,6 @@ export function lateChangeNotice(matchId: string, who: string, before: unknown, 
     title: after === "no" ? `Baja de última hora: ${who}` : `Cambio de última hora: ${who}`,
     body: `${who} ahora dice «${ANSWER_TXT[after]}» (antes «${ANSWER_TXT[before]}») para el partido contra ${rival}.`,
     tag: `late-${matchId}`,
-    url: `/matches/${matchId}`,
+    url: `/matches/${matchId}?tab=vestuario`,
   };
 }

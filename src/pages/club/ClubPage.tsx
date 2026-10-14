@@ -19,6 +19,8 @@ import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Vitrina } from "./Vitrina";
 import { PlantillaPosiciones } from "./PlantillaPosiciones";
+import { NewBadge } from "../../components/NewBadge";
+import type { NewFeature } from "../../lib/derived/isNew";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
@@ -39,11 +41,11 @@ const CHAPTERS = [
 ] as const;
 const ZONE_LABEL = { POR: "Porteros", DEF: "Defensas", MED: "Medios", DEL: "Delanteros" } as const;
 
-function Head({ kick, title, id, isNew, children }: { kick: string; title: string; id: string; isNew?: boolean; children?: React.ReactNode }) {
+function Head({ kick, title, id, nuevo, children }: { kick: string; title: string; id: string; nuevo?: NewFeature; children?: React.ReactNode }) {
   return (
     <div className="cl-hd">
       <span className="hm-kick" style={{ margin: 0 }}>
-        {kick} {isNew && <span className="st-new">nuevo</span>}
+        {kick} {nuevo && <NewBadge feature={nuevo} />}
       </span>
       <h2 className="cl-h2" id={id}>
         {title}
@@ -210,7 +212,7 @@ export function ClubPage() {
               <img src="/crest-128.webp" alt="" width="56" height="56" />
               <div>
                 <h3 id="cl-crest">
-                  La historia del escudo <span className="st-new">nuevo</span>
+                  La historia del escudo <NewBadge feature="clubEscudo" />
                 </h3>
                 <p className="cl-copy sm">{c.crestStory}</p>
               </div>
@@ -219,7 +221,7 @@ export function ClubPage() {
         </section>
 
         <section className="cl-sec" aria-labelledby="cl-trophies">
-          <Head kick={`${season?.name ?? "La temporada"} · ${won} de ${medals.length}`} title="La sala de trofeos" id="cl-trophies" isNew>
+          <Head kick={`${season?.name ?? "La temporada"} · ${won} de ${medals.length}`} title="La sala de trofeos" id="cl-trophies" nuevo="clubTrofeos">
             <p className="st-mono">Se ilumina sola a medida que llegan los primeros goles, victorias y récords.</p>
           </Head>
           <ul className="cl-trophies">
@@ -247,7 +249,7 @@ export function ClubPage() {
             <Jersey3D ref={shirt} className="cl-kit3d" kit={kit} theme={theme} name="PITI" num="1" view="front" zoom={0.95} lift={0.12} label={`${KITS[kit].label} del Manchester Piti. Arrástrala o usa las flechas para girarla.`} />
           </div>
           <div className="cl-kit-copy">
-            <Head kick="El vestidor" title="Las equipaciones" id="cl-kits" isNew />
+            <Head kick="El vestidor" title="Las equipaciones" id="cl-kits" nuevo="clubEquipaciones" />
             <div className="st-seg" role="group" aria-label="Equipación">
               {(["home", "away"] as const).map((k) => (
                 <button key={k} type="button" aria-pressed={kit === k} onClick={() => setKit(k)}>
@@ -313,7 +315,7 @@ export function ClubPage() {
         </section>
 
         <section className="cl-sec" aria-labelledby="cl-nums">
-          <Head kick={season?.name ?? "La plantilla"} title="La plantilla en números" id="cl-nums" isNew />
+          <Head kick={season?.name ?? "La plantilla"} title="La plantilla en números" id="cl-nums" nuevo="clubNumeros" />
           <dl className="cl-nums">
             <div className="big">
               <dt>Jugadores</dt>
@@ -428,7 +430,7 @@ export function ClubPage() {
 
         {faq.length > 0 && (
           <section className="cl-sec" aria-labelledby="cl-faq">
-            <Head kick="Antes de escribirnos" title="Preguntas de vestuario" id="cl-faq" isNew />
+            <Head kick="Antes de escribirnos" title="Preguntas de vestuario" id="cl-faq" nuevo="clubPreguntas" />
             <div className="cl-faq">
               {faq.map((f, i) => (
                 <details key={f.q + i} open={i === 0}>
@@ -499,7 +501,7 @@ export function ClubPage() {
               </li>
             ))}
             <li className="rent">
-              <span className="st-new">nuevo</span>
+              <NewBadge feature="clubHuecoPatrocinio" />
               <b>Este hueco se alquila</b>
               <p>Tu marca en la camiseta, en la web y en el campo.</p>
               {c.email ? <a href={mailto(c.email, "Patrocinio")}>Escríbenos ↗</a> : <span className="st-mono">Correo por publicar</span>}

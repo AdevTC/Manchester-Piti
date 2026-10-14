@@ -61,9 +61,13 @@ describe("las frases de Temporada", () => {
     expect(l[0]).toMatchObject({ text: "Has dicho que vas.", call: false });
   });
   it("rango de jornadas y «hace…»", () => {
+    const pt = (id: string, j: number | null) => ({ id, j, label: j ? "J" + j : "—", goals: 0, played: true, p: 0 });
     expect(jornadaRange([])).toBe("");
-    expect(jornadaRange([{ j: 1, label: "J1", goals: 0, played: true, p: 0 }])).toBe("en la J1");
-    expect(jornadaRange([{ j: 1, label: "J1", goals: 0, played: true, p: 0 }, { j: 7, label: "J7", goals: 0, played: true, p: 0 }])).toBe("de la J1 a la J7");
+    expect(jornadaRange([pt("a", 1)])).toBe("en la J1");
+    expect(jornadaRange([pt("a", 1), pt("b", 7)])).toBe("de la J1 a la J7");
+    // a match without a jornada is skipped, never read as «J0»
+    expect(jornadaRange([pt("x", null), pt("a", 1), pt("b", 7), pt("y", null)])).toBe("de la J1 a la J7");
+    expect(jornadaRange([pt("x", null)])).toBe("");
     expect(ago(1000, 1000 + 30_000)).toBe("ahora");
     expect(ago(0, 5)).toBe("hace poco");
     expect(ago(1, 1 + 3 * 3_600_000)).toBe("hace 3 h");

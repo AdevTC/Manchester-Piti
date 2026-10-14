@@ -51,7 +51,7 @@ describe("la carta: valoración = la del cromo de la pizarra", () => {
     expect(card.rating).toBe(sq.byId.get("adri")!.rt);
     expect(card.ratingText).toBe(String(card.rating));
   });
-  it("un solo partido con gol: la forma de la pizarra (presencia + gol por 90) → 77, plata", () => {
+  it("un solo partido con gol: la forma de la pizarra (presencia + gol por 90) → 77, plata; un acta antigua sin ledger no inventa minutos («—»)", () => {
     const card = buildCard(input({ matches: [match("j1", 10, [played("adri"), goal("adri")])] }));
     expect(card.rating).toBe(77);
     expect(card.tier).toBe("plata");
@@ -59,7 +59,7 @@ describe("la carta: valoración = la del cromo de la pizarra", () => {
     expect(card.tierName).toBe("Plata");
     expect(card.tierWhy).toBe("Valoración de 65 a 79.");
     expect(card.clubLine).toBe("MANCHESTER PITI · T1 · J1");
-    expect(card.totals).toEqual({ played: 1, goals: 1, assists: 0, minutes: 50, mvps: 0 });
+    expect(card.totals).toEqual({ played: 1, goals: 1, assists: 0, minutes: null, mvps: 0 });
   });
   it("los límites de los tipos: 64 bronce, 65 plata, 79 plata, 80 oro", () => {
     expect(tierOf(64)).toBe("bronce");
@@ -145,14 +145,15 @@ describe("el videomarcador", () => {
 
 describe("la carta: números", () => {
   const card = buildCard(input({ matches: SEASON, mvpResults: MVP }));
-  it("los seis atributos en el orden del diseño, con su barra contra el mejor de la plantilla", () => {
+  it("los seis atributos en el orden del diseño, con su barra contra el mejor de la plantilla (MIN «—»: actas antiguas sin ledger, minutos desconocidos)", () => {
     expect(card.attrs.map((a) => a.k)).toEqual(["GOL", "MVP", "ASI", "PJ", "MIN", "FOR"]);
     const at = Object.fromEntries(card.attrs.map((a) => [a.k, a]));
     expect(at.GOL.value).toBe(3);
     expect(at.ASI.value).toBe(2);
     expect(at.MVP.value).toBe(1);
     expect(at.PJ.value).toBe(4);
-    expect(at.MIN.value).toBe(200);
+    expect(at.MIN.value).toBeNull();
+    expect(at.MIN.text).toBe("—");
     expect(at.GOL.p).toBe(1); // the top scorer of the squad
     expect(at.PJ.p).toBe(4 / 5);
     expect(at.MVP.p).toBe(1);
@@ -176,7 +177,7 @@ describe("la carta: números", () => {
       ["J5", 0, true, 0.06],
     ]);
     expect(card.last5.map((r) => r.l).join("")).toBe("GEPGP");
-    expect(card.last5[0]).toEqual({ r: "g", l: "G", j: "J1", aria: "J1: Victoria" });
+    expect(card.last5[0]).toEqual({ id: expect.any(String), r: "g", l: "G", j: "J1", aria: "J1: Victoria" });
     expect(card.clubLine).toBe("MANCHESTER PITI · T1 · J1–J5");
   });
   it("goleadores del equipo", () => {

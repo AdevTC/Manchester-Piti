@@ -76,7 +76,8 @@ describe("calendario", () => {
     ];
     const rows = upcomingRows(ms, at("2026-10-08T12:00:00Z"));
     expect(rows.map((r) => r.id)).toEqual(["b", "c", "d"]);
-    expect(rows[0]).toEqual({ id: "b", j: "J3", rival: "MAD SKY", day: "8", mon: "nov", meta: "dom · 12:00 · fuera" });
+    // (the cancelled «x» takes no jornada: «b» is the J2, as on /partidos)
+    expect(rows[0]).toEqual({ id: "b", j: "J2", rival: "MAD SKY", day: "8", mon: "nov", meta: "dom · 12:00 · fuera" });
     expect(rows[1].meta).toBe("dom · 12:00 · en casa");
   });
   it("sin partidos programados: nada", () => {

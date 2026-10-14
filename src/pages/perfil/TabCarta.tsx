@@ -12,6 +12,7 @@ import { CREST, Ic } from "./icons";
 import { Nombre, type NickField, type ShirtField } from "./Nombre";
 import { Posiciones, type PosicionesField } from "./Posiciones";
 import type { FreeFicha } from "./useProfileData";
+import { NewBadge } from "../../components/NewBadge";
 
 const ZONE: Record<string, string> = Object.fromEntries(LINES.map((l) => [LINE_NAMES[l].name, l]));
 
@@ -240,7 +241,7 @@ function Evoluciones({ card }: { card: CardView }) {
   return (
     <div className="bk" id="pe-evo">
       <h3 className="bk-h">
-        Evoluciones <span className="nv">nuevo</span>
+        Evoluciones <NewBadge feature="perfilEvoluciones" look="nv" />
       </h3>
       <p className="bk-d">Tu carta mejora cuando cumples objetivos, y la mejora se queda para siempre.</p>
       {nx && (

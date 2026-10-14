@@ -7,6 +7,9 @@ import { playerPositions } from "../../lib/positionStats";
 import { MapaPosiciones } from "../../components/posiciones/MapaPosiciones";
 import { MasMinutos, PlayedNote } from "../../components/posiciones/haJugadoDe";
 import { usePlayed } from "../../components/posiciones/usePlayed";
+import { fmtMinutes } from "../../lib/derived/minutes";
+import type { MvpOf } from "../../lib/derived/mvpOf";
+import { NewBadge } from "../../components/NewBadge";
 
 interface Props {
   playerId: string;
@@ -16,7 +19,8 @@ interface Props {
   games: ClubMatch[];
   periodName: string;
   /** The MVP of a match (for the form rating); absent = MVPs don't count. */
-  mvpOf?: (matchId: string) => string | null;
+  /** The shared MVP reader (derived/mvpOf), for the ratings by position (required). */
+  mvpOf: MvpOf;
 }
 
 export function SusPosiciones({ playerId, name, positions, games, periodName, mvpOf }: Props) {
@@ -27,7 +31,7 @@ export function SusPosiciones({ playerId, name, positions, games, periodName, mv
     <section className="st-card jg-wide jg-two" aria-labelledby="jg-pos">
       <div className="st-hd">
         <span className="hm-kick" style={{ margin: 0 }}>
-          Ha jugado de <span className="st-new">nuevo</span>
+          Ha jugado de <NewBadge feature="posicionesJugador" />
         </span>
         <h2 className="st-h2" id="jg-pos">
           Sus posiciones
@@ -66,7 +70,7 @@ export function SusPosiciones({ playerId, name, positions, games, periodName, mv
                         <th scope="row">
                           {POSITIONS[l.code].name} <span className="cd">({l.code})</span>
                         </th>
-                        <td>{Math.round(l.minutes)}′</td>
+                        <td>{fmtMinutes(l.minutes)}</td>
                         <td>{l.matches}</td>
                         <td>{l.goals}</td>
                         <td>{l.assists}</td>

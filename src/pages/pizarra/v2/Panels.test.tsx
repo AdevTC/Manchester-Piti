@@ -106,7 +106,7 @@ describe("«Siete»", () => {
     expect(erikRow).toHaveAttribute("data-zone", "b");
     expect(erikRow.querySelector(".ar-r b")).toHaveTextContent("96");
     expect(erikRow.querySelector(".ar-s b")).toHaveTextContent("9");
-    expect(erikRow.querySelector(".ar-n small")).toHaveTextContent("0 PJ · 0 G · 0 A · 0'");
+    expect(erikRow.querySelector(".ar-n small")).toHaveTextContent("0 PJ · 0 G · 0 A · 0′");
     fireEvent.click(erikRow);
     expect(p.onTapBench).toHaveBeenCalledWith("erik", erikRow);
     // the groups with their counts and empty texts
@@ -132,7 +132,7 @@ describe("«Siete»", () => {
     const a = within(list).getByRole("button", { name: /^A, dorsal 8/ });
     expect(a.querySelector(".ar-r i")).toHaveTextContent("MC");
     expect(a.querySelector(".ar-n .pzp-ar-also")).toHaveTextContent("También MCD · DFC");
-    expect(a.querySelector(".ar-n small")).toHaveTextContent("0 PJ · 0 G · 0 A · 0'");
+    expect(a.querySelector(".ar-n small")).toHaveTextContent("0 PJ · 0 G · 0 A · 0′");
     // no «también», or no exact position: no second line, the line in the badge as before
     const b = within(list).getByRole("button", { name: /^B, dorsal 5/ });
     expect(b.querySelector(".ar-r i")).toHaveTextContent("DFC");

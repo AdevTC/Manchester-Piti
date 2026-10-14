@@ -10,12 +10,12 @@ import { useId, useMemo, useState } from "react";
 import { useSearch } from "@tanstack/react-router";
 import { rosterFor } from "../acta/roster";
 import { LoadError } from "../club/ClubStates";
-import { benchOf, convocables, copyFrom, matchLead, matchTitle, poolGroups, type PoolGroup } from "../convocar/convocarModel";
+import { benchOf, convocables, copyFrom, exactPosition, matchLead, matchTitle, poolGroups, type PoolGroup } from "../convocar/convocarModel";
 import { useMatchAnswers } from "../convocar/live";
 import { useReminders } from "../convocar/reminders";
 import { RemindersToggle } from "../convocar/RemindersToggle";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
-import { place, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
+import { place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
 import { useConvocatoria } from "../data/useConvocatoria";
 import { Peg, PegRail, ShirtBack } from "../kit";
 import { useAdmin, useAdminGo } from "../shell/context";
@@ -162,7 +162,16 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   // «Recordatorios automáticos»: the convocados the 48 h / 24 h reminders would chase now
   const pendingN = [...lineup.starters, ...lineup.bench].filter((id) => (rsvp.get(id) ?? "sin") === "sin").length;
   const remindersEl = <RemindersToggle auto={rem.auto} loading={rem.loading} pending={pendingN} onSet={rem.set} onError={(message) => toast.show({ tag: "!", message })} />;
-  const frontAria = (id: string | null) => (id ? `${nameOf(id)} en el siete: tocar para bajarlo al banquillo` : "Hueco libre en el siete");
+  const posOf = (id: string) => {
+    const p = roster.find((r) => r.id === id);
+    return p ? exactPosition(p) : { code: "", name: "" };
+  };
+  // the button's name carries the long position name too (its code is not read apart from it)
+  const frontAria = (id: string | null) => {
+    if (!id) return "Hueco libre en el siete";
+    const { name } = posOf(id);
+    return `${nameOf(id)} en el siete: tocar para bajarlo al banquillo${name ? ` · ${name}` : ""}`;
+  };
 
   if (!desktop)
     return (
@@ -239,7 +248,8 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
                 num={p.num}
                 shirtName={p.id ? p.name : ""}
                 label={p.id ? p.name : "Libre"}
-                sub={p.id ? p.sub : "toca «Siete»"}
+                code={p.id ? posOf(p.id).code : undefined}
+                sub={p.id ? (rsvp.get(p.id) === "si" ? RSVP_LABEL.si : p.sub) : "toca «Siete»"}
                 subTone={p.duda ? "duda" : ""}
                 size={80}
                 big
@@ -325,7 +335,12 @@ function Pool({ groups, onSet, empty }: { groups: PoolGroup[]; onSet: (id: strin
                 <span className="nb">{r.num}</span>
                 <span>
                   <b>{r.name}</b>
-                  <small>{r.line}</small>
+                  <small>
+                    {r.code}
+                    {r.posName && <span className="sr"> ({r.posName})</span>}
+                    {r.code ? " · " : ""}
+                    {r.place}
+                  </small>
                 </span>
                 <span className="ac">
                   <button type="button" className={`btn sm ${r.slot === "T" ? "sky" : "line"}`} onClick={() => onSet(r.id, "T")} aria-pressed={r.slot === "T"} aria-label={`${r.name} en el siete`}>

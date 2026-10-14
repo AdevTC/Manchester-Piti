@@ -20,6 +20,7 @@ import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import { useFirestoreCollection } from "../../../lib/useFirestoreCollection";
 import { mvpWinners } from "../../../lib/vestuario";
 import { seasonSquad } from "../../perfil/card";
+import { mvpOfFrom, type MvpOf } from "../../../lib/derived/mvpOf";
 import { seasonPlayers } from "../../perfil/profileData";
 import type { Squad } from "../../pizarra/v2/model";
 import { pendingKeys, sectionTitle, storyOf } from "../club/contentModel";
@@ -89,6 +90,10 @@ export interface AdminData {
   roster: RosterPlayer[];
   /** Published matches + drafts merged (draft fields win), oldest first, with jornada numbers. */
   matches: AdminMatch[];
+  /** The published matches only (no drafts): what the public pages read, for the stats by position. */
+  published: ClubMatch[];
+  /** The MVP reader over the published matches (derived/mvpOf), for the ratings by position. */
+  mvpOf: MvpOf;
   /** A match's state for the captains (draft / acta / published / next / scheduled / postponed / cancelled). */
   stateOf: (m: AdminMatch) => AdminMatchState;
   /** The acta review of any match (its season's roster). */
@@ -172,6 +177,7 @@ export function useAdminData(): AdminData {
     return { match: next, conv: convocatoriaState(next, ids, next.published && !next.draft), rsvp: rsvpCounts(avail.data, ids), answers: avail.data, note: note.data };
   }, [next, rosterOf, avail.data, note.data]);
   const hero = useMemo(() => hoyHero(matches, now, whistled), [matches, now, whistled]);
+  const mvpOf = useMemo(() => mvpOfFrom(mvpResults, published, now), [mvpResults, published, now]);
   const built = useMemo(() => seasonSquad(seasonPlayers(club.players, seasonId, seasons, null), published, seasonId, mvpResults, now), [club.players, seasonId, seasons, published, mvpResults, now]);
 
   const claims = useMemo(
@@ -234,6 +240,8 @@ export function useAdminData(): AdminData {
     players: club.players,
     roster,
     matches,
+    published,
+    mvpOf,
     stateOf,
     reviewOf,
     last: lastView,

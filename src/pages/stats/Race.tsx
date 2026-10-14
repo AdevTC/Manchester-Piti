@@ -6,8 +6,10 @@ import { Link } from "@tanstack/react-router";
 import type { PlayerAnalysis } from "../../lib/clubAnalytics";
 import { formatDate } from "../../lib/clubData";
 import { framesInLead, raceFrames, type RaceMetric } from "../../lib/statsView";
+import { jornadaLabel } from "../../lib/derived/jornada";
 import { Flip } from "../../components/celeste/Flip";
 import { Icon } from "../../components/celeste/icons";
+import { NewBadge } from "../../components/NewBadge";
 
 const METRICS: [RaceMetric, string][] = [
   ["goals", "Goles"],
@@ -18,7 +20,7 @@ const VISIBLE = 8;
 const STEP_MS = 1500;
 const reducedMotion = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export function RaceBoard({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: (p: PlayerAnalysis) => string }) {
+export function RaceBoard({ rows, nameOf, jornada }: { rows: PlayerAnalysis[]; nameOf: (p: PlayerAnalysis) => string; /** Each match's jornada (derived/jornada). */ jornada: ReadonlyMap<string, number> }) {
   const [metric, setMetric] = useState<RaceMetric>("goals");
   const frames = useMemo(() => raceFrames(rows, metric), [rows, metric]);
   const last = frames.length - 1;
@@ -62,6 +64,8 @@ export function RaceBoard({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: (p
 
   if (!frames.length) return null;
   const frame = frames[Math.min(j, last)];
+  /** «J5»: the match's jornada in its own season (the J of /partidos). */
+  const jOf = (id: string) => jornadaLabel(jornada.get(id)) || "—";
   // Everyone who appears at any point keeps a row (stable keys, so rows slide instead of remounting).
   const everyone = frames[last].rows.map((r) => r.id);
   for (const f of frames) for (const r of f.rows) if (!everyone.includes(r.id)) everyone.push(r.id);
@@ -79,7 +83,7 @@ export function RaceBoard({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: (p
     <article className="st-race" aria-labelledby="st-race-t">
       <div className="st-race-hd">
         <div className="st-race-title">
-          <span className="st-new">nuevo</span>
+          <NewBadge feature="statsCarreraPichichi" />
           <h2 id="st-race-t" className="st-led">
             La carrera del Pichichi
           </h2>
@@ -103,7 +107,7 @@ export function RaceBoard({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: (p
       </div>
       <div className="st-jor">
         <div className="fl">
-          <Flip value={`J${j + 1}`} className="st-jflip" />
+          <Flip value={jOf(frame.match.id)} className="st-jflip" />
           <small>JORNADA</small>
         </div>
         <div className="cap">
@@ -143,7 +147,7 @@ export function RaceBoard({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: (p
           );
         })}
       </ol>
-      <ol className="hm-sr" aria-label={`${label} tras la jornada ${j + 1}`}>
+      <ol className="hm-sr" aria-label={`${label} tras la ${jOf(frame.match.id)}`}>
         {frame.rows.slice(0, VISIBLE).map((r) => (
           <li key={r.id}>
             {r.rank}. {nameOf(byId.get(r.id)!)}: {r.value}
@@ -158,13 +162,13 @@ export function RaceBoard({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: (p
               type="button"
               className={i < j ? "done" : undefined}
               aria-pressed={i === j}
-              aria-label={`Jornada ${i + 1}, ${f.match.rival ?? "rival"}`}
+              aria-label={`${jOf(f.match.id)}, ${f.match.rival ?? "rival"}`}
               onClick={() => {
                 stop();
                 setJ(i);
               }}
             >
-              J{i + 1}
+              {jOf(f.match.id)}
             </button>
           ))}
         </div>

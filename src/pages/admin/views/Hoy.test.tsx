@@ -143,6 +143,23 @@ describe("Hoy · Antes: the peg wall", () => {
     expect(setConv).toHaveBeenCalledWith({ matchId: "m8", starters: SEVEN, bench: ["kevin", "almachi"], notify: true });
   });
 
+  it("the date has come and nobody has started the clock: «Pendiente del pitido inicial», never «FALTAN 0m»", async () => {
+    const ready = withJ8({ version: 2, clock: { revision: 0, phase: "ready" }, starters: SEVEN, bench: ["kevin", "almachi"] });
+    setAdminData(adminFixture({ now: at(8, 12, 10), published: ready }));
+    mountAdmin("/admin", { hoy: Hoy });
+    const wall = await screen.findByRole("region", { name: "El banquillo de la J3: el siete colgado" });
+    expect(wall.querySelector(".plaque .r")).toHaveTextContent(/^Pendiente del pitido inicial$/);
+    expect(wall).not.toHaveTextContent("FALTAN");
+  });
+
+  it("phones: pending whistle on the short plaque too", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    setAdminData(adminFixture({ now: at(8, 12, 10), published: withJ8({ version: 2, clock: { revision: 0, phase: "ready" } }) }));
+    mountAdmin("/admin", { hoy: Hoy });
+    const wall = await screen.findByRole("region", { name: "El siete de la J3" });
+    expect(wall.querySelector(".mplq .ck")).toHaveTextContent(/^Pendiente del pitido inicial$/);
+  });
+
   it("phones: the plaque, the short rail, the chips and the gold button in one column", async () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
     setAdminData(adminFixture({ now: sat, published: j8 }));
@@ -235,12 +252,25 @@ describe("Hoy · Después", () => {
     const hero = await screen.findByRole("region", { name: "El marcador de la J3: final" });
     expect(within(hero).getByText("FINAL · SIN PUBLICAR")).toHaveClass("gd");
     expect(hero).toHaveTextContent("Pitado el final");
-    expect(within(hero).getByRole("img", { name: "Victoria" })).toHaveTextContent("V");
+    expect(within(hero).getByRole("img", { name: "Victoria" })).toHaveTextContent("G");
     expect(hero).toHaveTextContent("2–1 en el campo de MAD SKY");
     expect(within(hero).getByRole("list", { name: "Lo que pasó" }).children).toHaveLength(4);
     await user.click(within(hero).getByRole("button", { name: "Apunta el resultado" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8"));
     expect(router.state.location.search).toMatchObject({ tab: "acta" });
+  });
+
+  it("a clock nobody started, past its window: «SIN PITIDO · FALTA EL ACTA», no «Pitado el final» nor a result, «Apunta el resultado» stays", async () => {
+    setAdminData(adminFixture({ now: at(8, 15), published: withJ8({ version: 2, clock: { revision: 0, phase: "ready" }, starters: SEVEN, bench: ["kevin"] }) }));
+    const user = userEvent.setup();
+    const router = mountAdmin("/admin", { hoy: Hoy });
+    const hero = await screen.findByRole("region", { name: "El marcador de la J3: final" });
+    expect(within(hero).getByText("SIN PITIDO · FALTA EL ACTA")).toBeInTheDocument();
+    expect(hero).not.toHaveTextContent("Pitado el final");
+    expect(hero).toHaveTextContent("Sin pitido");
+    expect(within(hero).queryByRole("img", { name: /Victoria|Empate|Derrota/ })).toBeNull();
+    await user.click(within(hero).getByRole("button", { name: "Apunta el resultado" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8"));
   });
 
   it("published: FINAL + «Ver la vitrina»", async () => {

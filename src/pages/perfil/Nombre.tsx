@@ -6,6 +6,7 @@ import { Tee } from "./CardFaces";
 import { errorMessage, isOffline, isTaken, OFFLINE } from "./fxRuntime";
 import { Ic } from "./icons";
 import { nicknameCheck, shirtFitLabel, typeNickname, type ShirtCheck } from "./rules";
+import { NewBadge } from "../../components/NewBadge";
 
 export interface ShirtField {
   state: "vinculada" | "pendiente" | "sin-ficha";
@@ -282,7 +283,7 @@ export function Nombre({ shirt, nick }: { shirt: ShirtField; nick: NickField }) 
   return (
     <div className="bk nmb" id="pe-nombre">
       <h3 className="bk-h">
-        Tu nombre <span className="nv">nuevo</span>
+        Tu nombre <NewBadge feature="perfilNombre" look="nv" />
       </h3>
       <p className="bk-d">Dos nombres distintos: el que llevas a la espalda y el que usas en el vestuario.</p>
       <div className="nr" role="group" aria-labelledby="pe-es-t">

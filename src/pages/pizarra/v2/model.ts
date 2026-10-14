@@ -10,22 +10,29 @@ export type Baja = "Lesionado" | "Sancionado" | "Inactivo";
 /** The player's answer to the convocatoria (wired in phase 3; absent = unknown). */
 export type Convocatoria = "voy" | "duda" | "no";
 
+/** The minutes a cromo prints: its known minutes; a player who never played is a known 0; null («—»)
+ *  only when he played and no acta of his knows his minutes (legacy actas). */
+export const knownMinutes = (s: CromoStats): number | null => (s.timed === 0 && s.played > 0 ? null : s.minutes);
+
 export interface CromoStats {
   played: number;
   goals: number;
   assists: number;
+  /** His known minutes (derived/minutesOf: the ledgers'; a legacy acta adds nothing). */
   minutes: number;
+  /** Matches whose acta knows his minutes: 0 prints «—» for the minutes (absent in hand-made squads: known). */
+  timed?: number;
   starts: number;
   mvps: number;
 }
 
 /** One of the season's last matches for a player (the ficha's form bars). */
 export interface FormGame {
-  /** Jornada. */
-  j: number;
+  /** Its jornada (derived/jornada; null = none, no number shown). */
+  j: number | null;
   played: boolean;
-  /** Minutes on the pitch (0 when he didn't play). */
-  min: number;
+  /** Minutes on the pitch (derived/minutesOf: null when the acta does not know them, a legacy one). */
+  min: number | null;
   /** Goals + assists. */
   ga: number;
 }
@@ -47,6 +54,9 @@ export interface Cromo {
   /** Why his form is what it is, in a few words («3 goles en sus 2 últimos»). */
   why?: string;
   stats: CromoStats;
+  /** INTERNAL (scores only, never printed): his season minutes with a legacy acta he played counted as
+   *  the whole match (derived/minutesOf presenceMinutes). Absent: stats.minutes. */
+  presenceMin?: number;
   /** Minutes and goals+assists over the recent window (the «sobre»). */
   recentMin: number;
   recentGA: number;
@@ -75,8 +85,13 @@ export function bajaWords(c: Pick<Cromo, "baja" | "sancion">): string {
 export interface PairStats {
   /** Matches both were on the pitch at the same time. */
   tog: number;
-  /** Minutes both were on the pitch at the same time (the ledger's stints). */
+  /** INTERNAL (the link score, togPoints): minutes both were on the pitch at the same time (the ledger's
+   *  stints; a legacy acta both played counts as the whole match). Never printed. */
   min: number;
+  /** The printable minutes together: only from matches whose actas know both players' minutes. */
+  known?: number;
+  /** Some match together does not know their minutes (a legacy acta): print matches, not minutes. */
+  unk?: boolean;
   /** Goals one assisted to the other (both directions). */
   ast: number;
 }

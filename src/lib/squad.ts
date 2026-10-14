@@ -2,6 +2,8 @@
 // sorting, search, squad figures and the head-to-head comparison.
 
 import { POSITIONS, positionText, resolvePositions } from "./positions";
+import { wholeMinutes } from "./derived/minutes";
+import { nameFor } from "./derived/names";
 
 const DAY = 86_400_000;
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -94,7 +96,7 @@ export function squadRow(p: SquadPlayer, stats: SquadStats, now: number): SquadR
   if (!weight) missing.push("peso");
   return {
     id: p.id,
-    name: p.shirtName || [p.firstName, p.lastName].filter(Boolean).join(" ") || "Jugador",
+    name: nameFor(p),
     num: p.number != null ? String(p.number) : "",
     full: [p.firstName, p.lastName].filter(Boolean).join(" "),
     position: positionText(p),
@@ -167,7 +169,7 @@ export function compareMetric(key: MetricKey, label: string, a: SquadRow, b: Squ
   const lo = FLOOR[key] ?? 0;
   const top = Math.max(lo + 1, ...all.map((x) => value(x, key) ?? 0));
   const pct = (v: number | null) => (v == null ? 0 : Math.max(6, Math.round(((v - lo) / (top - lo)) * 100)));
-  const fmt = (v: number | null) => (v == null ? "—" : key === "height" ? formatHeight(v) : String(v));
+  const fmt = (v: number | null) => (v == null ? "—" : key === "height" ? formatHeight(v) : key === "minutes" ? String(wholeMinutes(v)) : String(v));
   const ranked = key !== "age" && key !== "weight" && l != null && r != null;
   return { key, label, left: fmt(l), right: fmt(r), leftPct: pct(l), rightPct: pct(r), leftWins: ranked && l! > r!, rightWins: ranked && r! > l! };
 }

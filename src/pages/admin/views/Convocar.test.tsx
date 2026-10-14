@@ -47,7 +47,11 @@ describe("Convocar", () => {
     expect(within(pool).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Vienen 8", "En duda 2", "No vienen 1", "Sin responder 1"]);
     expect(within(pool).getByRole("button", { name: "EVANS en el siete" })).toHaveAttribute("aria-pressed", "true");
     expect(within(pool).getByRole("button", { name: "KEVIN en el banquillo" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(pool).getByText("DEL · sin colocar")).toBeInTheDocument();
+    // the exact position (long name for screen readers), or the line when that is all he has
+    const rowOf = (name: string) => within(pool).getByText(name, { selector: "b" }).closest(".pr") as HTMLElement;
+    expect(rowOf("EVANS")).toHaveTextContent("POR (Portero) · en el siete");
+    expect(rowOf("ILLESCAS")).toHaveTextContent("DEF (Defensa) · en el siete");
+    expect(rowOf("ADRIÁN T.C.")).toHaveTextContent("DEL (Delantero) · sin colocar");
     const sv = screen.getByRole("region", { name: "El siete · J3 · MAD SKY" });
     expect(within(sv).getByText("Falta 1 para el siete")).toHaveClass("warn");
     expect(within(sv).getByText("Ganchos delanteros · 6 de 7")).toBeInTheDocument();
@@ -60,6 +64,36 @@ describe("Convocar", () => {
     expect(within(sv).getByRole("button", { name: "Publicar y avisar" })).toBeDisabled();
   });
 
+  it("the exact preferida prints as «DFC · en el siete» in the squad and as the code under the shirt on el siete's pegs", async () => {
+    const base = adminFixture({ published: withJ8({ starters: SIX, bench: ["kevin", "almachi"] }) });
+    const exact: Record<string, { main: "DFC" | "MCD" | "DC"; also: [] }> = { illescas: { main: "DFC", also: [] }, eguzquiza: { main: "MCD", also: [] }, kevin: { main: "DC", also: [] } };
+    setAdminData({ ...base, roster: base.roster.map((p) => (exact[p.id] ? { ...p, doc: { ...p.doc, positions: exact[p.id] } } : p)) });
+    mountAdmin("/admin/convocar", { convocar: Convocar });
+    const pool = await screen.findByRole("group", { name: "Jugadores por respuesta" });
+    const rowOf = (name: string) => within(pool).getByText(name, { selector: "b" }).closest(".pr") as HTMLElement;
+    expect(rowOf("ILLESCAS")).toHaveTextContent("DFC (Central) · en el siete");
+    expect(rowOf("KEVIN")).toHaveTextContent("DC (Punta) · en el banquillo");
+    expect(within(rowOf("ILLESCAS")).getByText("(Central)", { exact: false })).toHaveClass("sr");
+    const sv = screen.getByRole("region", { name: "El siete · J3 · MAD SKY" });
+    const peg = within(sv).getByRole("button", { name: "ILLESCAS en el siete: tocar para bajarlo al banquillo · Central" });
+    expect(peg.querySelector(".pc")).toHaveTextContent("DFC");
+    expect(within(sv).getByRole("button", { name: /^EGUZQUIZA en el siete/ }).querySelector(".pc")).toHaveTextContent("MCD");
+    // a player with only his line shows the line under the shirt
+    expect(within(sv).getByRole("button", { name: /^TELLO en el siete/ }).querySelector(".pc")).toHaveTextContent("DEF");
+  });
+
+  it("a confirmed peg reads «Viene» (RSVP_LABEL.si); a duda or an unanswered one keeps its own label", async () => {
+    setAdminData(adminFixture({ published: withJ8({ starters: ["evans", "illescas", "tello", "eguzquiza", "almachi", "fer", "erik"], bench: [] }) }));
+    mountAdmin("/admin/convocar", { convocar: Convocar });
+    const sv = await screen.findByRole("region", { name: "El siete · J3 · MAD SKY" });
+    const sub = (re: RegExp) => within(sv).getByRole("button", { name: re }).querySelector(".rv");
+    expect(sub(/^EVANS en el siete/)).toHaveTextContent(/^Viene$/);
+    expect(sub(/^ERIK en el siete/)).toHaveTextContent(/^Viene$/);
+    expect(sub(/^ALMACHI en el siete/)).toHaveTextContent(/^Duda$/);
+    expect(sub(/^ALMACHI en el siete/)).toHaveClass("duda");
+    expect(sub(/^FER en el siete/)).toHaveTextContent(/^Sin responder$/);
+  });
+
   it("each tap is written at once: «Siete» hangs him (Deshacer puts it back), «Ya hay siete», a front peg goes down, the banquillo's shirt comes off", async () => {
     const user = userEvent.setup();
     mountAdmin("/admin/convocar", { convocar: Convocar });
@@ -67,7 +101,7 @@ describe("Convocar", () => {
     expect(setConv).toHaveBeenLastCalledWith({ matchId: "m8", starters: [...SIX, "adrian"], bench: ["kevin", "almachi"], notify: false });
     expect(caption()).toHaveTextContent("ADRIÁN T.C. al siete · la pizarra y el acta ya lo ven");
     expect(caption().querySelector(".lt .k")).toHaveTextContent("J3");
-    expect(screen.getByRole("button", { name: "ADRIÁN T.C. en el siete: tocar para bajarlo al banquillo" })).toHaveClass("open");
+    expect(screen.getByRole("button", { name: "ADRIÁN T.C. en el siete: tocar para bajarlo al banquillo · Delantero" })).toHaveClass("open");
     await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(setConv).toHaveBeenLastCalledWith({ matchId: "m8", starters: SIX, bench: ["kevin", "almachi"], notify: false }));
     await user.click(screen.getByRole("button", { name: "ADRIÁN T.C. en el siete" }));
@@ -77,7 +111,7 @@ describe("Convocar", () => {
     await user.click(screen.getByRole("button", { name: "KEVIN en el siete" }));
     expect(caption()).toHaveTextContent("Ya hay siete: baja uno al banquillo antes");
     expect(setConv).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "EVANS en el siete: tocar para bajarlo al banquillo" }));
+    await user.click(screen.getByRole("button", { name: "EVANS en el siete: tocar para bajarlo al banquillo · Portero" }));
     await waitFor(() => expect(setConv).toHaveBeenLastCalledWith({ matchId: "m8", starters: ["illescas", "tello", "eguzquiza", "huberoski", "erik", "adrian"], bench: ["kevin", "almachi", "evans"], notify: false }));
     await user.click(screen.getByRole("button", { name: "Quitar a KEVIN del banquillo" }));
     await waitFor(() => expect(setConv).toHaveBeenLastCalledWith({ matchId: "m8", starters: ["illescas", "tello", "eguzquiza", "huberoski", "erik", "adrian"], bench: ["almachi", "evans"], notify: false }));
@@ -117,7 +151,7 @@ describe("Convocar", () => {
     await user.click(screen.getByRole("button", { name: "ANDIA en el banquillo" }));
     expect(await screen.findByText("Ha cambiado: vuelve a avisar a los 10 convocados")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publicar y avisar" })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: "TELLO en el siete: tocar para bajarlo al banquillo" }));
+    await user.click(screen.getByRole("button", { name: "TELLO en el siete: tocar para bajarlo al banquillo · Defensa" }));
     await user.click(screen.getByRole("button", { name: "KEVIN en el siete" }));
     expect(caption()).toHaveTextContent("KEVIN al siete · la pizarra y el acta ya lo ven · falta avisar");
   });
@@ -156,7 +190,7 @@ describe("Convocar", () => {
     mountAdmin("/admin/convocar", { convocar: Convocar });
     const s7 = await screen.findByRole("region", { name: "El siete de la J3" });
     expect(s7.querySelector(".ch3")).toHaveTextContent("El siete · 6 de 7 Falta 1 para el siete");
-    expect(within(s7).getByRole("button", { name: "EGUZQUIZA en el siete: tocar para bajarlo al banquillo" })).toHaveTextContent("EGUZQ.");
+    expect(within(s7).getByRole("button", { name: "EGUZQUIZA en el siete: tocar para bajarlo al banquillo · Centrocampista" })).toHaveTextContent("EGUZQ.");
     expect(s7.querySelector(".hint")).toHaveTextContent("Banquillo: 11 KEVIN21 ALMACHI");
     expect(document.querySelector(".msticky")).toHaveTextContent("Falta 1 para el siete · ANDIA, ALMACHI en duda");
     expect(within(document.querySelector(".msticky") as HTMLElement).getByRole("button", { name: "Publicar y avisar" })).toBeDisabled();

@@ -287,6 +287,9 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx-vote-list label:has(input:disabled){opacity:.6;cursor:default}
 .vx-vote-foot{margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .vx-vote-foot .vx-muted{font-family:'Geist Mono';font-size:12px;color:var(--muted)}
+/* porra / MVP → the match page's Vestuario tab */
+.vx-tomatch{margin:10px 0 0;text-align:center}
+.vx .vx-tomatch a{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:14px;font-weight:600;color:var(--accent);text-decoration:none}
 .vx-voters{margin-top:12px;font-size:13px;color:var(--soft)}
 .vx-voters summary{cursor:pointer}
 .vx-voters ul{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:4px}
@@ -417,6 +420,14 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx-hint{white-space:nowrap;max-width:calc(100% - 8px)}
 .vx-dock a{flex:0 0 44px}
 .vx .vx-dock a.on{flex:0 1 auto;min-width:0;white-space:nowrap}
+/* six items: on a phone the dock widens and the lit pill tightens, so «Estadísticas» keeps its label
+   at 390 beside five 44px icons (an ellipsis, never an overlap, if a font runs wide) */
+.vx .vx-dock a.on .lbl{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
+@container (max-width:439px){
+.vx-dock{left:12px;right:12px;padding:0 6px}
+.vx .vx-dock a.on{padding:0 10px;gap:6px;font-size:13px}
+.vx-dock a.on img{width:22px;height:22px}
+}
 @container (max-width:380px){
 .vx-vert{display:none}
 .vx-hint{font-size:11px;height:30px;padding:0 10px;gap:6px}

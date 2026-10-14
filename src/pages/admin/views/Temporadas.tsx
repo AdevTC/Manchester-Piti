@@ -1,6 +1,6 @@
 // Temporadas (/admin/temporadas) — the season in course as silverware (the vitrina, gold at its foot): its
 // name with «Renombrar» inline, Activa / Archivar (modal), V-E-D in big numbers, goals for–against, the
-// Pichichi with his shirt, the season's captain (changeable), the shelf of its jornadas (a V/E/D mark per
+// Pichichi with his shirt, the season's captain (changeable), the shelf of its jornadas (a G/E/P mark per
 // published acta, a gap otherwise) and three trophies (mayor victoria, mejor racha, más veces MVP) — all from
 // the PUBLISHED actas only, and the foot says so. Beside it the other seasons: in preparation / finished
 // (Renombrar, Archivar) and archived, hatched with a lock (Desarchivar, Eliminar behind a red modal); then
@@ -329,9 +329,9 @@ export function Temporadas() {
         <div className="rec">
           {(
             [
-              ["V", "Victorias", sc.v],
+              ["G", "Victorias", sc.g],
               ["E", "Empates", sc.e],
-              ["D", "Derrotas", sc.d],
+              ["P", "Derrotas", sc.p],
             ] as const
           ).map(([r, k, n]) => (
             <div key={r}>
@@ -400,7 +400,7 @@ export function Temporadas() {
             </div>
           ))}
         </div>
-        <p className="fot">{countsNote(sc.waiting)}</p>
+        <p className="fot">{countsNote(sc.waiting, sc.waitingDrafts)}</p>
       </section>
     );
   })();
@@ -415,7 +415,7 @@ export function Temporadas() {
       ? h
         ? [plural(h.matches, "jornada", "jornadas"), plural(h.players, "jugador", "jugadores")]
         : ["Contando…"]
-      : [sc && sc.published ? `${sc.v} V · ${sc.e} E · ${sc.d} D` : "Sin partidos publicados", `${s.played} de ${s.total} jornadas`, plural(s.players ?? 0, "jugador", "jugadores")];
+      : [sc && sc.published ? `${sc.g} G · ${sc.e} E · ${sc.p} P` : "Sin partidos publicados", `${s.played} de ${s.total} jornadas`, plural(s.players ?? 0, "jugador", "jugadores")];
     return (
       <article key={s.id} className={`arch ${arch ? "isA" : ""}`.trim()} aria-label={s.name}>
         <div className="top">

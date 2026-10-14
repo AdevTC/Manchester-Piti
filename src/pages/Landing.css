@@ -183,7 +183,7 @@
 .mp-feat-meta .lbl { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #9fb6d6; margin-bottom: 0.2rem; }
 .mp-outcome { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 800; }
 .mp-outcome .dot { width: 10px; height: 10px; border-radius: 2px; }
-.mp-feat-V .dot { background: var(--mp-sky); } .mp-feat-E .dot { background: var(--mp-gold); } .mp-feat-D .dot { background: var(--mp-red); }
+.mp-feat-G .dot { background: var(--mp-sky); } .mp-feat-E .dot { background: var(--mp-gold); } .mp-feat-P .dot { background: var(--mp-red); }
 
 /* Pichichi giant number — drenched navy feature band */
 .mp-pichichi {

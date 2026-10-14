@@ -76,13 +76,13 @@ describe("kit · the LED scoreboard", () => {
 
 describe("kit · result mark, cromo, lower third", () => {
   it("V / E / D: the letter, the word, the defeat's hatch class", () => {
-    expect(resultLetter(3, 1)).toBe("V");
+    expect(resultLetter(3, 1)).toBe("G");
     expect(resultLetter(1, 1)).toBe("E");
-    expect(resultLetter(0, 2)).toBe("D");
-    render(<ResultMark r="D" small />);
+    expect(resultLetter(0, 2)).toBe("P");
+    render(<ResultMark r="P" small />);
     const mark = screen.getByRole("img", { name: "Derrota" });
-    expect(mark).toHaveClass("ved", "D", "sm");
-    expect(mark).toHaveTextContent("D");
+    expect(mark).toHaveClass("ved", "P", "sm");
+    expect(mark).toHaveTextContent("P");
   });
   it("the cromo: rating (— before any match), position, shirt, the season line", () => {
     const cromo = { id: "adrian", num: 10, name: "ADRIÁN T.C.", pos: "DEL" as const, rt: 96, stats: { played: 7, goals: 9, assists: 4, minutes: 300, starts: 7, mvps: 2 }, recentMin: 0, recentGA: 0 };

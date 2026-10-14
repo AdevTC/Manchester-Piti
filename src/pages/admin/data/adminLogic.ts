@@ -5,6 +5,8 @@
 import { calculateLedger, dateMillis, matchPhase, type MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../../lib/clubData";
 import { proposalState } from "../../../lib/positionsEdit";
+import { calendarOrder, jornadaNumbers } from "../../../lib/derived/jornada";
+import { resultLetter, type ResultLetter } from "../../../lib/derived/result";
 import type { AdminTarget, Counter } from "../shell/nav";
 
 const TZ = "Europe/Madrid";
@@ -40,14 +42,16 @@ export interface AdminMatch extends ClubMatch {
   draft: boolean;
   /** The match is in the public calendar (matches). */
   published: boolean;
-  /** 1-based number inside its season, by date (null without season). */
+  /** Its jornada (derived/jornada, the public calendar's number): null for a draft not published yet
+   *  («borrador»), a cancelled match or one without season. */
   jornada: number | null;
   /** When the draft was last saved (ms), if any. */
   draftSavedAt?: number;
 }
 type WithUpdated = ClubMatch & { updatedAt?: unknown };
 
-/** Published matches + drafts, one per id (the draft's fields win), oldest first, numbered per season. */
+/** Published matches + drafts, one per id (the draft's fields win), oldest first, numbered per season
+ *  as the public calendar numbers them (the published fields decide; a draft gets none until published). */
 export function mergeMatches(published: readonly ClubMatch[], drafts: readonly WithUpdated[]): AdminMatch[] {
   const byId = new Map<string, AdminMatch>();
   for (const m of published) byId.set(m.id, { ...m, draft: false, published: true, jornada: null });
@@ -60,14 +64,9 @@ export function mergeMatches(published: readonly ClubMatch[], drafts: readonly W
     const stamp = (k: "convocatoriaAt" | "convocatoriaNotifiedAt") => Math.max(pub?.[k] ?? 0, d[k] ?? 0) || undefined;
     byId.set(d.id, { ...(pub ?? {}), ...rest, ...(pub?.clock ? { clock: pub.clock, liveEndedAt: pub.liveEndedAt, ...(["first", "halftime", "second"].includes(pub.clock.phase) ? { events: pub.events, starters: pub.starters, bench: pub.bench, notCalled: pub.notCalled, revision: pub.revision, status: pub.status } : {}) } : {}), draft: true, published: !!pub, jornada: null, draftSavedAt: Number.isFinite(saved) ? saved : undefined, convocatoriaAt: stamp("convocatoriaAt"), convocatoriaNotifiedAt: stamp("convocatoriaNotifiedAt") });
   }
-  const list = [...byId.values()].sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0));
-  const count = new Map<string, number>();
-  for (const m of list) {
-    if (!m.seasonId) continue;
-    const n = (count.get(m.seasonId) ?? 0) + 1;
-    count.set(m.seasonId, n);
-    m.jornada = n;
-  }
+  const list = [...byId.values()].sort(calendarOrder);
+  const jornada = jornadaNumbers(published);
+  for (const m of list) m.jornada = m.published ? (jornada.get(m.id) ?? null) : null;
   return list;
 }
 
@@ -388,15 +387,14 @@ export function mvpNote(o: {
 
 // ───────────────────────── Hoy: Por hacer (exceptions only), «N hechas» + the counters ─────────────────────────
 export const jLabel = (m: { jornada: number | null; rival?: string }) => (m.jornada ? `J${m.jornada}` : m.rival || "Partido");
-const letter = (gf: number, ga: number): "V" | "E" | "D" => (gf > ga ? "V" : gf === ga ? "E" : "D");
 
 /** A line of «Por hacer»: what is missing, where it is and the button that goes there. */
 export interface PendingItem {
   key: string;
   title: string;
   detail: string;
-  /** The V/E/D mark before the detail (actas). */
-  ved: "V" | "E" | "D" | null;
+  /** The G/E/P mark before the detail (actas). */
+  ved: ResultLetter | null;
   action: { label: string; target: AdminTarget };
 }
 export interface OverviewInput {
@@ -440,7 +438,7 @@ export function buildOverview(o: OverviewInput): Overview {
       key: `acta-${match.id}`,
       title: missing ? `Acta ${j} · falta el goleador del gol ${missing}` : review.cuadra ? `Acta ${j} · lista para publicar` : `Acta ${j} · ${review.reasons[0] ?? "sin terminar"}`,
       detail: `${match.rival ?? "Rival"} · ${review.goalsFor}–${review.goalsAgainst}`,
-      ved: letter(review.goalsFor, review.goalsAgainst),
+      ved: resultLetter(review.goalsFor, review.goalsAgainst),
       action: { label: review.cuadra ? "Publicar" : "Completar", target: { section: "partidos", matchId: match.id, tab: "acta" } },
     });
   }

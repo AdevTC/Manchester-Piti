@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../../lib/clubData";
-import { fichaOf, formBars, formGames } from "./ficha";
+import { fichaOf, formBars, formGames, formHead } from "./ficha";
 import { Ficha } from "./Overlays";
 import { chem } from "./quimica";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
@@ -38,6 +38,15 @@ describe("la ficha", () => {
       { j: "J6", h: 50, played: true, t: "J6: 25′ y 2 goles o asistencias" },
     ]);
     expect(formBars(undefined)).toEqual([]);
+  });
+
+  it("the FORMA header skips the matches without a jornada: no dangling dashes", () => {
+    const g = (j: number | null) => ({ j, played: true, min: 50, ga: 0 });
+    expect(formHead([g(4), g(5), g(6)])).toBe("FORMA · J4–J6");
+    expect(formHead([g(null), g(5), g(6), g(null)])).toBe("FORMA · J5–J6");
+    expect(formHead([g(null), g(5)])).toBe("FORMA · J5");
+    expect(formHead([g(null), g(null)])).toBe("FORMA");
+    expect(formHead(undefined)).toBe("FORMA");
   });
 
   it("minutes against the team's, «Jugar de» and his natural line, his galones and the match", () => {
@@ -117,15 +126,17 @@ describe("la ficha", () => {
     expect(fichaOf(args("huberoski"))!.sub).toMatch(/^MED natural · juega de MI/);
   });
 
-  it("formGames: his last matches from the season's, minutes from the acta (or the match's length)", () => {
+  it("formGames: his last matches from the season's, minutes from the acta; a legacy acta he played does not know them (null, never the match's length)", () => {
     const m = (id: string, row: Record<string, unknown> | null, duration?: number): ClubMatch => ({ id, status: "finished", ledger: row ? { tello: row } : { otro: { played: true } }, ...(duration ? { duration } : {}) }) as unknown as ClubMatch;
-    const games = [m("a", { played: true, minutes: 50 }), m("b", { played: true, minutes: 30, goals: 1, assists: 1 }), m("c", null, 60), m("d", { played: true }, 60)];
+    // d: a legacy acta (no ledger) where he played: unknown minutes (derived/minutesOf)
+    const legacy = { id: "d", status: "finished", duration: 60, events: [{ id: "e1", type: "match_played", playerId: "tello" }] } as unknown as ClubMatch;
+    const games = [m("a", { played: true, minutes: 50 }), m("b", { played: true, minutes: 30, goals: 1, assists: 1 }), m("c", null, 60), legacy];
     const out = formGames("tello", games, new Map([["a", 1], ["b", 2], ["c", 3], ["d", 4]]), 3);
     expect(out).toEqual([
       { j: 2, played: true, min: 30, ga: 2 },
       { j: 3, played: false, min: 0, ga: 0 },
-      // no minutes in the acta: the match's length
-      { j: 4, played: true, min: 60, ga: 0 },
+      // a legacy acta without minutes: unknown, not invented
+      { j: 4, played: true, min: null, ga: 0 },
     ]);
   });
 });

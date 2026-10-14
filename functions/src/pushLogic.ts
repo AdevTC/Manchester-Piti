@@ -1,6 +1,8 @@
 // Pure rules of the push notices (functions/src/push.ts): which change of a match (or of the official
 // seven on the pizarra) deserves a notice, to which topic, and its words. Apart so the app's tests can
 // run them.
+import { resultLetter, resultTitle } from "./result.js";
+
 export const TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"] as const;
 /** Personal notices of the vestuario door: "door" for admins (someone asks to come in), "access" for whoever asked. */
 export const DOOR_TOPICS = ["door", "access"] as const;
@@ -37,6 +39,9 @@ export interface MatchLike {
   starters?: string[];
   /** setConvocatoria's stamp (ms): the convocatoria is managed (and announced) by «Convocar y avisar». */
   convocatoriaAt?: number;
+  /** v2 actas carry a server clock (matchClock.ts); only its start is the kick-off. */
+  version?: number;
+  clock?: { phase?: string };
 }
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -56,8 +61,10 @@ const when = (ms: number) =>
   new Intl.DateTimeFormat("es-ES", { timeZone: TZ, weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(ms).replace(".", "");
 
 /**
- * What changed between two versions of a match, as notices: each goal written while it isn't
- * finished, the final whistle (and the MVP vote opening), and a new match or a new kick-off time.
+ * What changed between two versions of a match, as notices: the clock starting (the kick-off), each
+ * goal written while it isn't finished, the final whistle (and the MVP vote opening), and a new match
+ * or a new kick-off time. The MVP vote opens the match page on its Vestuario tab (`?tab=vestuario`,
+ * the tab ids of src/lib/matchTabs.ts); the rest land on the first tab (crónica / directo / previa).
  */
 export function noticesFor(id: string, before: MatchLike | undefined, after: MatchLike | undefined, nameOf: (playerId: string) => string, now: number): Notice[] {
   if (!after || after.archived) return [];
@@ -66,6 +73,8 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
   const out: Notice[] = [];
   const finishedNow = after.status === "finished" && before?.status !== "finished";
   if (after.status !== "finished" && after.status !== "cancelled") {
+    // The kick-off is the clock going ready → first (an absent clock is a ready one), not the date.
+    if (before && (before.clock?.phase ?? "ready") === "ready" && after.clock?.phase === "first") out.push(kickoffNotice(id, rival));
     const seen = new Set((before?.events ?? []).map((e) => e.id));
     const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && (OURS.has(e.type) || THEIRS.has(e.type)));
     if (fresh.length) {
@@ -85,9 +94,9 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
   }
   if (finishedNow) {
     const gf = after.goalsFor ?? 0, ga = after.goalsAgainst ?? 0;
-    const verdict = gf > ga ? "Victoria" : gf === ga ? "Empate" : "Derrota";
+    const verdict = resultTitle(resultLetter(gf, ga));
     out.push({ topic: "final", title: `Final: Manchester Piti ${gf}–${ga} ${rival}`, body: `${verdict}. La crónica, los minutos y el pulso del partido ya están en la web.`, tag: `final-${id}`, url });
-    if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url });
+    if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url: `${url}?tab=vestuario` });
   }
   const scheduled = after.status === "scheduled" && typeof after.date === "number" && after.date > now;
   if (scheduled && (!before || before.date !== after.date)) {
@@ -96,7 +105,12 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
   return out;
 }
 
-/** The kick-off notice, sent by the 5-minute job. */
+/** Whether the 5-minute job announces this match's kick-off by its date: only legacy matches without
+ *  a clock. A v2 match (with its clock) is announced by pushOnMatch when the clock starts. */
+export const legacyKickoff = (m: MatchLike): boolean => !m.clock && m.version !== 2;
+
+/** The kick-off notice: the clock starting (pushOnMatch), or the 5-minute job for legacy matches.
+ *  Same tag (and pushLog entry) for both, so a match never gets it twice. */
 export const kickoffNotice = (id: string, rival: string): Notice => ({
   topic: "start",
   title: `¡Empieza el partido! Piti vs ${rival}`,

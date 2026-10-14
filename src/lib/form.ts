@@ -68,7 +68,7 @@ export function formRating(f: FormInput): number | null {
 }
 
 /** A match's length in minutes (DEFAULT_DURATION when the acta has none). */
-export const durationOf = (m: ClubMatch): number => (typeof m.duration === "number" && m.duration > 0 ? m.duration : DEFAULT_DURATION);
+export const durationOf = (m: Pick<ClubMatch, "duration">): number => (typeof m.duration === "number" && m.duration > 0 ? m.duration : DEFAULT_DURATION);
 const oppGoals = (m: ClubMatch): MatchEvent[] => (m.events ?? []).filter((e) => e.type === "opponent_goal");
 
 /** When a player was on the pitch in a match: the ledger's stints (null = no stints recorded). */

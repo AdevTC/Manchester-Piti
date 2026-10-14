@@ -136,24 +136,25 @@ export function Partidos() {
       onError: unhide,
     });
   };
-  const onCreated = ({ id, j, rival }: { id: string; j: string; rival: string }) => {
+  // (a new match is a draft: it takes its jornada when it is published)
+  const onCreated = ({ id, rival }: { id: string; rival: string }) => {
     setCreated(id);
     void navigate({ to: "/admin/partidos/$matchId", params: { matchId: id }, search: { tab: "encuentro" } });
     toast.show({
-      tag: j,
-      message: `${j} · ${rival} creada · completa el campo cuando lo sepas`,
+      tag: "Borrador",
+      message: `Borrador · ${rival} creado · completa el campo cuando lo sepas`,
       undo: () => {
         setHidden((s) => new Set(s).add(id));
         void navigate({ to: "/admin/partidos" });
         deleteMatch({ id }).then(
-          () => toast.show({ tag: j, message: `${j} · ${rival} quitada` }),
+          () => toast.show({ tag: "Borrador", message: `Borrador · ${rival} quitado` }),
           (e: unknown) => {
             setHidden((s) => {
               const n = new Set(s);
               n.delete(id);
               return n;
             });
-            toast.show({ tone: "error", message: `No se ha podido quitar la ${j}: ${apiError(e)}` });
+            toast.show({ tone: "error", message: `No se ha podido quitar el borrador de ${rival}: ${apiError(e)}` });
           },
         );
       },
@@ -161,6 +162,9 @@ export function Partidos() {
   };
 
   const hacer = model.counts.hacer;
+  // (the jornadas are the numbered matches — derived/jornada; drafts not published yet are told apart)
+  const jornadas = data.matches.filter((m) => m.jornada != null).length;
+  const drafts = data.matches.filter((m) => !m.published).length;
   const nuevoModal = nuevo && <NuevoPartido matches={data.matches} seasons={data.seasons} season={data.season} now={now} onClose={closeNuevo} onCreated={onCreated} />;
 
   // The publish peak (a played match only).
@@ -243,7 +247,8 @@ export function Partidos() {
         <div>
           <h1 className="ttl">Partidos</h1>
           <p className="ld">
-            {plural(data.matches.length, "jornada", "jornadas")} · {hacer} por hacer · por hacer primero
+            {plural(jornadas, "jornada", "jornadas")}
+            {drafts ? ` · ${plural(drafts, "borrador", "borradores")}` : ""} · {hacer} por hacer · por hacer primero
           </p>
         </div>
         <div className="r">

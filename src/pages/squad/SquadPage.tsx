@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { flushSync } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
-import { nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
+import { nextFixture, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
 import { analysePlayer, chronological } from "../../lib/clubAnalytics";
 import { currentSeasonId } from "../../lib/vestuario";
 import { matchesQuery, sortSquad, squadRow, squadSummary, type SquadRow } from "../../lib/squad";
@@ -15,6 +15,8 @@ import { Icon } from "../../components/celeste/icons";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { Percha } from "./Percha";
 import { FichaModal } from "./FichaModal";
+import { useMvpResults } from "../vestuario/live";
+import { mvpOfFrom } from "../../lib/derived/mvpOf";
 import { CaraACara } from "./CaraACara";
 import { RaceAndBirthdays } from "../home/Sections";
 import "../../styles/home.css";
@@ -32,6 +34,16 @@ function transition(update: () => void) {
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (!document.startViewTransition || reduce) return update();
   document.startViewTransition(() => flushSync(update));
+}
+
+/**
+ * The open ficha with the MVPs for its ratings by position (the one shared reader, derived/mvpOf). Mounted
+ * only while a ficha is open, so the page subscribes to mvpResults only then (stepping between fichas keeps it).
+ */
+function FichaWithMvps({ now, games, ...props }: Omit<ComponentProps<typeof FichaModal>, "mvpOf" | "games"> & { now: number; games: ClubMatch[] }) {
+  const results = useMvpResults();
+  const mvpOf = useMemo(() => mvpOfFrom(results, games, now), [results, games, now]);
+  return <FichaModal {...props} games={games} mvpOf={mvpOf} />;
 }
 
 /** Public squad page: the shirts on the rail (each opens its ficha) and the head-to-head. */
@@ -213,7 +225,8 @@ export function SquadPage() {
       <CelesteDock active="plantilla" />
 
       {open && (
-        <FichaModal
+        <FichaWithMvps
+          now={now}
           row={open}
           still={stillOf(open)}
           seasonName={seasonName}

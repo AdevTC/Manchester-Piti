@@ -8,7 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useSeason } from "../../context/SeasonContext";
 import { useClubData, dateMillis, nextFixture, type ClubMatch } from "../../lib/clubData";
 import { currentSeasonId } from "../../lib/vestuario";
-import { playerPositions, type PlayerPositions } from "../../lib/positionStats";
+import type { PlayerPositions } from "../../lib/positionStats";
 import { useClock } from "../../hooks/useClock";
 import { useLineups } from "../pizarra/useLineups";
 import {
@@ -33,6 +33,7 @@ import {
   fichaInfo,
   porraLine,
   positionsInfo,
+  positionsPlayed,
   seasonPlayers,
   squadShirts,
   type AccessInfo,
@@ -207,9 +208,9 @@ export function useProfileData(): ProfileData {
     shirt: { current: me?.shirtName || [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" "), number: me && me.number ? String(me.number) : "", squad: shirtSquad, fullName: [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" ") },
     card,
     positions: positionsInfo(fichaDoc, seasonId),
-    played: info.state === "vinculada" && info.playerId ? playerPositions(info.playerId, calendar) : null,
+    played: info.state === "vinculada" && info.playerId ? positionsPlayed(info.playerId, calendar, mvpResults, minute) : null,
     freeFichas,
-    next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: calendar.findIndex((m) => m.id === next.id) + 1 || null } : null,
+    next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: built.jornada.get(next.id) ?? null } : null,
     upcoming: upcomingRows(matches, minute),
     stuff: {
       boards: boardsLine(lineups.mine),

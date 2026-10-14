@@ -23,8 +23,8 @@ export interface NuevoPartidoProps {
   season: SeasonDoc | null;
   now: number;
   onClose: () => void;
-  /** Created (a draft): open it. `j` = «J9», `rival` as written. */
-  onCreated: (o: { id: string; j: string; rival: string }) => void;
+  /** Created (a draft, without jornada until it is published): open it. `rival` as written. */
+  onCreated: (o: { id: string; rival: string }) => void;
 }
 
 export function NuevoPartido({ matches, seasons, season, now, onClose, onCreated }: NuevoPartidoProps) {
@@ -72,8 +72,7 @@ export function NuevoPartido({ matches, seasons, season, now, onClose, onCreated
     setBusy(true);
     try {
       await saveMatchSheet({ id: mid, sheet: p.sheet, draft: true });
-      const n = inSeason.filter((m) => dateMillis(m.date) < ms).length + 1;
-      onCreated({ id: mid, j: `J${n}`, rival: rv });
+      onCreated({ id: mid, rival: rv });
     } catch (e) {
       setError(apiError(e));
     } finally {

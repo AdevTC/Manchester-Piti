@@ -6,11 +6,12 @@ import { fitGrade, POSITIONS, type PosCode } from "../../../lib/positions";
 import type { Lineup, Zone } from "../formations";
 import { slotZone } from "./geometry";
 import { adapted, hasFitData, inPlace, logicGrade } from "./encaje";
-import { bajaChip, bajaWords, formAria, rtTxt, type Cromo, type Squad } from "./model";
+import { bajaChip, bajaWords, formAria, knownMinutes, rtTxt, type Cromo, type Squad } from "./model";
 import { tierDiamonds, type Chem } from "./quimica";
 import { matchShort, type CalMatch } from "./boards";
 import { plural } from "./plural";
 import { mediaOf } from "./view";
+import { fmtMinutes, wholeMinutes } from "../../../lib/derived/minutes";
 
 // ── the squad bars ──
 export interface SquadBar {
@@ -235,7 +236,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
     also: alsoTxt(c.ps?.also ?? []),
     num: c.num,
     name: c.name,
-    line: s.played + " PJ · " + s.goals + " G · " + s.assists + " A · " + s.minutes + "'",
+    line: s.played + " PJ · " + s.goals + " G · " + s.assists + " A · " + fmtMinutes(knownMinutes(s)),
     zone: bj ? "x" : "b",
     baja: bj,
     me,
@@ -248,7 +249,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
     aria:
       c.name + ", dorsal " + c.num + ", " + posAria(c) + ", " + formAria(c) + ", " +
       (bj ? (bajaWords(c) || "baja") + ", no disponible" : "convocatoria: " + cv.toLowerCase()) +
-      ", " + plural(s.minutes, "minuto") + " esta temporada" + (me ? ", eres tú" : "") +
+      ", " + (knownMinutes(s) === null ? "minutos sin registrar" : plural(wholeMinutes(s.minutes), "minuto")) + " esta temporada" + (me ? ", eres tú" : "") +
       (tgt && h ? (h.kind === "p" ? ". Toca: entra por " + h.name : ". Toca: entra en el hueco") : ""),
   };
 }
@@ -300,15 +301,27 @@ export interface Reparto {
 
 /** The six outfield players who have played least (and can play), and the change that evens it out. */
 export function reparto(L: Lineup, sq: Squad, called: ReadonlySet<string> | null): Reparto {
+  const known = (c: Cromo) => knownMinutes(c.stats) !== null;
   const onPitch = new Set(L.slots.map((s) => s.playerId).filter((x): x is string => !!x));
   const avl = sq.list
     .filter((c) => !c.baja && c.pos !== "POR" && c.cv !== "no" && (!called || called.has(c.id) || onPitch.has(c.id)))
-    .sort((a, b) => a.stats.minutes - b.stats.minutes);
+    // (who has played least, by the minutes the actas know; a player whose minutes nobody knows is not
+    // «the one who played least»: after them, by matches played, with no bar)
+    .sort((a, b) => Number(!known(a)) - Number(!known(b)) || (known(a) ? a.stats.minutes - b.stats.minutes : a.stats.played - b.stats.played));
   const maxMin = Math.max(1, ...sq.list.map((c) => c.stats.minutes));
-  const rows = avl.slice(0, 6).map((c) => ({ id: c.id, num: c.num, name: c.name, inS: onPitch.has(c.id), m: Math.max(2, Math.round((c.stats.minutes / maxMin) * 100)) + "%", min: c.stats.minutes + "′" }));
-  const low = avl.find((c) => !onPitch.has(c.id));
+  const rows = avl.slice(0, 6).map((c) => ({ id: c.id, num: c.num, name: c.name, inS: onPitch.has(c.id), m: known(c) ? Math.max(2, Math.round((c.stats.minutes / maxMin) * 100)) + "%" : "0%", min: fmtMinutes(knownMinutes(c.stats)) }));
+  const low = avl.find((c) => !onPitch.has(c.id) && known(c));
   let rot: Reparto["rot"] = null;
-  const mins = (id: string) => sq.byId.get(id)?.stats.minutes ?? 0;
+  // who goes out: the one with most minutes; a player whose minutes nobody knows is not «0′» — after
+  // the known ones, by matches played
+  const mostPlayed = (a: string, b: string) => {
+    const ca = sq.byId.get(a);
+    const cb = sq.byId.get(b);
+    const ka = ca ? knownMinutes(ca.stats) : null;
+    const kb = cb ? knownMinutes(cb.stats) : null;
+    if ((ka === null) !== (kb === null)) return ka === null ? 1 : -1;
+    return ka !== null && kb !== null ? kb - ka : (cb?.stats.played ?? 0) - (ca?.stats.played ?? 0);
+  };
   if (low && hasFitData([low.id], sq)) {
     // with his exact position: in for whoever is where he is in place, else where he is adaptado (the
     // one with most minutes of those)
@@ -319,16 +332,19 @@ export function reparto(L: Lineup, sq: Squad, called: ReadonlySet<string> | null
     const cands = L.slots
       .map((s, i) => ({ id: s.playerId, i, r: rank(i) }))
       .filter((x): x is { id: string; i: number; r: number } => !!x.id && x.i > 0 && x.r > 0)
-      .sort((a, b) => b.r - a.r || mins(b.id) - mins(a.id));
+      .sort((a, b) => b.r - a.r || mostPlayed(a.id, b.id));
     if (cands[0]) rot = { id: low.id, i: cands[0].i, out: cands[0].id };
   } else if (low?.pos) {
     const cands = L.slots
       .map((s, i) => ({ id: s.playerId, i }))
       .filter((x): x is { id: string; i: number } => !!x.id && x.i > 0 && slotZone(L, x.i) === low.pos)
-      .sort((a, b) => (sq.byId.get(b.id)?.stats.minutes ?? 0) - (sq.byId.get(a.id)?.stats.minutes ?? 0));
+      .sort((a, b) => mostPlayed(a.id, b.id));
     if (cands[0]) rot = { id: low.id, i: cands[0].i, out: cands[0].id };
   }
   const outName = rot ? (sq.byId.get(rot.out)?.name ?? "Jugador") : "";
-  const txt = rot && low ? low.name + " lleva " + low.stats.minutes + "′; " + outName + ", " + (sq.byId.get(rot.out)?.stats.minutes ?? 0) + "′." : "El reparto está equilibrado.";
+  // (the outgoing player's minutes only when the actas know them: never «Y, —»)
+  const outC = rot ? sq.byId.get(rot.out) : undefined;
+  const outMin = outC ? knownMinutes(outC.stats) : null;
+  const txt = rot && low ? low.name + " lleva " + fmtMinutes(knownMinutes(low.stats)) + "; " + (outMin === null ? "entra por " + outName : outName + ", " + fmtMinutes(outMin)) + "." : "El reparto está equilibrado.";
   return { rows, txt, rot };
 }

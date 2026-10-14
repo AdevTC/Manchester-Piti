@@ -111,16 +111,16 @@ describe("playerDetailQuery", () => {
 });
 
 describe("playersNameMapQuery", () => {
-  it("construye el mapa id→shirtName (cae a firstName y luego a —)", async () => {
+  it("construye el mapa id→nombre con nameFor (dorsal, luego nombre y apellido, luego «Jugador»)", async () => {
     getDocs.mockResolvedValue({
       docs: [
         { id: "p1", data: () => ({ shirtName: "ADRI", firstName: "Adrián", number: 10 }) },
-        { id: "p2", data: () => ({ firstName: "Bruno", number: 7 }) }, // no shirtName → firstName
-        { id: "p3", data: () => ({ number: 3 }) }, // neither → "—"
+        { id: "p2", data: () => ({ firstName: "Bruno", lastName: "Díaz", number: 7 }) }, // no shirtName → first + last
+        { id: "p3", data: () => ({ number: 3 }) }, // neither → «Jugador»
       ],
     });
     const map = await playersNameMapQuery.queryFn!({} as never);
-    expect(map).toEqual({ p1: "ADRI", p2: "Bruno", p3: "—" });
+    expect(map).toEqual({ p1: "ADRI", p2: "Bruno Díaz", p3: "Jugador" });
   });
 
   it("descarta filas inválidas sin romper el mapa", async () => {

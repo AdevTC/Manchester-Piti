@@ -5,6 +5,7 @@
 .pt-flip{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;background:linear-gradient(180deg,var(--flap) 50%,var(--flap2) 50%);color:#eef4ff;font-family:'Anybody';font-weight:900;font-variation-settings:'wdth' 78;line-height:1;font-variant-numeric:tabular-nums;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 14px 30px -14px rgba(0,0,0,.7);overflow:hidden;animation:ptFlip .5s cubic-bezier(.3,1.4,.5,1)}
 .pt-flip::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.6)}
 .pt-flip.ph{color:rgba(238,244,255,.3)}
+.pt-flip.still{animation:none}
 @keyframes ptFlip{from{transform:perspective(300px) rotateX(-80deg);filter:brightness(1.8)}to{transform:none}}
 
 /* live */
@@ -75,6 +76,7 @@
 .pt-tile.E{background:var(--chip);box-shadow:inset 0 0 0 1.5px var(--soft)}
 .pt-tile.P{box-shadow:inset 0 0 0 1.5px var(--line)}.vx .pt-tile.P{color:var(--muted)}
 .pt-tile.future{border:1.5px dashed var(--line)}.vx .pt-tile.future{color:var(--muted)}
+.pt-tile.awaiting{border:1.5px dotted var(--soft)}.vx .pt-tile.awaiting{color:var(--soft)}
 .pt-tile.next{box-shadow:inset 0 0 0 2px #FFC659}.vx .pt-tile.next{color:var(--gold-ink)}
 .pt-tile.live{background:#ff5a4f;animation:ptLivePulse 1.4s ease-in-out infinite}.vx .pt-tile.live{color:#fff}
 @keyframes ptLivePulse{50%{box-shadow:0 0 0 6px rgba(255,90,79,.25)}}
@@ -145,6 +147,8 @@ html[data-isle] .club-main:not(.vx-main-shell){margin-top:58px}
 .pt-isle .s img{width:22px;height:22px}
 .pt-isle .s span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pt-isle .m{display:flex;align-items:center;gap:8px;font-family:'Geist Mono';font-size:12px;color:#ffb3ad;padding-right:8px}
+.pt-isle.wait{text-decoration:none}
+.pt-isle.wait .m{font-size:11px;color:#ffd88a;white-space:nowrap}
 .pt-isle.open{width:min(100%,420px);border-radius:32px;display:grid;gap:12px;padding:16px;cursor:default}
 .pt-act{display:grid;gap:12px}
 .pt-act .row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;text-align:center}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mergeMatches, type AdminMatch } from "../data/adminLogic";
 import { rsvpOf } from "../data/lineup";
-import { benchOf, convocables, copyFrom, matchLead, matchTitle, poolGroups, slotOf } from "./convocarModel";
+import { benchOf, convocables, copyFrom, exactPosition, matchLead, matchTitle, poolGroups, slotOf } from "./convocarModel";
 
 const at = (d: number, h: number) => Date.UTC(2026, 10, d, h - 1, 0); // Madrid = UTC+1
 const NOW = at(2, 10);
@@ -22,6 +22,22 @@ const roster = [
   { id: "c", name: "KEVIN", number: 11, position: "DEL" },
   { id: "d", name: "FER", number: 12, position: "POR" },
 ];
+
+describe("exactPosition", () => {
+  const base = { id: "z", name: "Z", number: 5, position: "DEF" };
+  it("reads the preferida's code and long name; the line when that is all there is; nothing when unknown", () => {
+    expect(exactPosition({ ...base, doc: { positions: { main: "DFC", also: [] } } })).toEqual({ code: "DFC", name: "Central" });
+    expect(exactPosition({ ...base, doc: { naturalPosition: "Pivote" } })).toEqual({ code: "MCD", name: "Pivote" });
+    expect(exactPosition({ ...base, doc: { naturalPosition: "DEF" } })).toEqual({ code: "DEF", name: "Defensa" });
+    expect(exactPosition(base)).toEqual({ code: "DEF", name: "Defensa" });
+    expect(exactPosition({ ...base, position: "" })).toEqual({ code: "", name: "" });
+  });
+  it("a row says «DFC · en el siete» with the exact code, and «sin colocar» alone when nothing is known", () => {
+    const l = { starters: ["z"], bench: [] };
+    const r = poolGroups([{ ...base, doc: { positions: { main: "DFC", also: [] } } }, { id: "y", name: "Y", number: 6, position: "" }], l, rsvpOf([], ["z", "y"]))[0].rows;
+    expect(r.map((x) => x.line)).toEqual(["DFC · en el siete", "sin colocar"]);
+  });
+});
 
 describe("Convocar's model", () => {
   it("offers the next three to play (cancelled and played left out), plus the one asked for", () => {
@@ -54,9 +70,10 @@ describe("Convocar's model", () => {
       ["No vienen", ["FER"]],
       ["Sin responder", ["ILLESCAS"]],
     ]);
-    expect(g[0].rows[0]).toEqual({ id: "a", num: "1", name: "EVANS", line: "POR · en el siete", slot: "T" });
+    expect(g[0].rows[0]).toEqual({ id: "a", num: "1", name: "EVANS", line: "POR · en el siete", code: "POR", posName: "Portero", place: "en el siete", slot: "T" });
     expect(g[1].rows[0].line).toBe("DEL · en el banquillo");
     expect(g[3].rows[0].line).toBe("DEF · sin colocar");
+    expect(g[3].rows[0]).toMatchObject({ code: "DEF", posName: "Defensa", place: "sin colocar" });
     expect(slotOf(l, "b")).toBe("");
     expect(poolGroups(roster, l, rsvpOf([], ["a", "b", "c", "d"])).map((x) => x.title)).toEqual(["Sin responder"]);
   });

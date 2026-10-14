@@ -8,8 +8,9 @@ import type { Lineup, Zone } from "../formations";
 // (`out` is taken: links() keeps its pairs in a local `out`)
 import { adapted, hasFitData, homeName, inPlace, logicGrade, out as fuera, slotCode } from "./encaje";
 import { slotPos, slotZone, planeDist2 } from "./geometry";
-import { pairOf, teamMinutes, type Squad } from "./model";
+import { knownMinutes, pairOf, teamMinutes, type Squad } from "./model";
 import { plural } from "./plural";
+import { fmtMinutes } from "../../../lib/derived/minutes";
 
 export interface Link {
   /** Slot indexes (i < j) and their players. */
@@ -23,8 +24,11 @@ export interface Link {
   t: 1 | 2 | 3;
   ast: number;
   tog: number;
-  /** Minutes on the pitch together this season. */
+  /** INTERNAL (the score): minutes on the pitch together this season, legacy actas estimated. */
   min: number;
+  /** Printable minutes together (known actas only) and whether some match together has unknown minutes. */
+  known: number;
+  unk: boolean;
   /** Both in their place (logicGrade ≥ 2). */
   nat: boolean;
   /** Not both in place only because one is adapted (nobody out, nobody unknown). */
@@ -74,9 +78,9 @@ export function links(L: Lineup, sq: Squad): Link[] {
     const gb = logicGrade(L, sq, b, j);
     const nat = inPlace(ga) && inPlace(gb);
     const ada = !nat && [ga, gb].every((g) => inPlace(g) || adapted(g));
-    const { ast, tog, min } = pairOf(sq, a, b);
+    const { ast, tog, min, known = min, unk = false } = pairOf(sq, a, b);
     const s = (nat ? 1 : 0) + togPoints(min, tm) + Math.min(2, ast);
-    return { i, j, a, b, s, t: linkTier(s), ast, tog, min, nat, ada };
+    return { i, j, a, b, s, t: linkTier(s), ast, tog, min, known, unk, nat, ada };
   });
 }
 
@@ -84,7 +88,10 @@ export interface LineTotals {
   z: Exclude<Zone, "POR">;
   g: number;
   a: number;
+  /** The line's known minutes (derived/minutesOf). */
   min: number;
+  /** It has players and none of their actas knows their minutes: printed «—». */
+  unk: boolean;
 }
 
 /** A placed player not in his place, for the química's words. */
@@ -141,7 +148,7 @@ export function chemOf(L: Lineup, sq: Squad): Chem {
 export function chem(L: Lineup, sq: Squad): Chem {
   const placed = L.slots.map((s, i) => ({ id: s.playerId, i })).filter((x): x is { id: string; i: number } => !!x.id && sq.byId.has(x.id));
   const n = placed.length;
-  const lines: LineTotals[] = (["DEF", "MED", "DEL"] as const).map((z) => ({ z, g: 0, a: 0, min: 0 }));
+  const lines: LineTotals[] = (["DEF", "MED", "DEL"] as const).map((z) => ({ z, g: 0, a: 0, min: 0, unk: false }));
   if (!n) return { v: 0, links: [], n: 0, gk: false, gkNat: false, natN: 0, adaN: 0, exact: false, off: [], unkN: 0, at: 0, de: 0, fo: 0, ex: 0, lines, fresh: [] };
   const ls = links(L, sq);
   const grades = placed.map((p) => logicGrade(L, sq, p.id, p.i));
@@ -163,17 +170,23 @@ export function chem(L: Lineup, sq: Squad): Chem {
   const fa = rated.length ? rated.reduce((a, c) => a + c.rt, 0) / rated.length : 0;
   const v = Math.round((la * 50 + ((natN + 0.5 * adaN) / n) * 28 + (gkNat ? 12 : 0) + (fa / 99) * 10) * (n / 7));
   let defMin = 0;
+  const known = new Map<string, boolean>();
+  const seen = new Set<string>();
   placed.forEach((p, k) => {
     const c = cs[k];
     const z = slotZone(L, p.i);
-    if (p.i === 0 || z === "DEF") defMin += c.stats.minutes;
+    // (the DEF bar is a score: presence minutes, as always; the lines print known minutes only)
+    if (p.i === 0 || z === "DEF") defMin += c.presenceMin ?? c.stats.minutes;
     const line = lines.find((x) => x.z === (z === "POR" ? "DEF" : z));
     if (line) {
       line.g += c.stats.goals;
       line.a += c.stats.assists;
       line.min += c.stats.minutes;
+      known.set(line.z, (known.get(line.z) ?? false) || knownMinutes(c.stats) !== null);
+      seen.add(line.z);
     }
   });
+  for (const line of lines) line.unk = seen.has(line.z) && !known.get(line.z);
   const ga = cs.reduce((a, c) => a + c.stats.goals + c.stats.assists, 0);
   const played = cs.reduce((a, c) => a + c.stats.played, 0);
   // The bars are scaled by the matches the team has played (full = a strong seven's season so far):
@@ -245,8 +258,10 @@ export function chemWhy(ch: Chem): string {
   return txt + ".";
 }
 
-/** «120′ juntos» / «sin minutos juntos». */
-export const togTxt = (min: number): string => (min > 0 ? Math.round(min) + "′ juntos" : "sin minutos juntos");
+/** Time together in words, from what the actas know: «312′ juntos»; with a legacy acta among their
+ *  matches together, the matches («4 partidos juntos», never estimated minutes); «sin minutos juntos». */
+export const togTxt = (p: { tog: number; known: number; unk: boolean }): string =>
+  p.unk ? plural(p.tog, "partido") + " juntos" : p.known > 0 ? fmtMinutes(p.known) + " juntos" : "sin minutos juntos";
 
 /** «9 luces», «1 luz». */
 
@@ -273,7 +288,7 @@ export function lucesOf(ch: Chem, sq: Squad, n: number): Luz[] {
       t: l.t,
       mark: linkMark(l.t),
       who: nm(l.a) + " · " + nm(l.b),
-      why: [l.ast ? plural(l.ast, "gol", "goles") + " juntos" : "", togTxt(l.min), l.nat ? "" : l.ada ? "alguno adaptado" : "alguno fuera de sitio"].filter(Boolean).join(" · "),
+      why: [l.ast ? plural(l.ast, "gol", "goles") + " juntos" : "", togTxt(l), l.nat ? "" : l.ada ? "alguno adaptado" : "alguno fuera de sitio"].filter(Boolean).join(" · "),
     }));
 }
 

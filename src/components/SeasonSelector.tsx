@@ -1,8 +1,8 @@
-import { useNavigate } from "@tanstack/react-router";
+import { ALL_SEASONS_LABEL, useSetSeason } from "../lib/useSetSeason";
 import { useSeason } from "../context/SeasonContext";
 export function SeasonSelector() {
   const { seasons, selectedSeasonId, loadingSeasons } = useSeason();
-  const navigate = useNavigate();
+  const setSeason = useSetSeason();
   // While the seasons arrive the selector keeps its place (disabled), so the page doesn't jump when it appears.
   if (!seasons.length && !loadingSeasons) return null;
   return (
@@ -12,14 +12,9 @@ export function SeasonSelector() {
         aria-label="Seleccionar temporada"
         value={loadingSeasons ? "all" : selectedSeasonId}
         disabled={loadingSeasons}
-        onChange={(e) =>
-          void navigate({
-            to: ".",
-            search: (prev) => ({ ...prev, season: e.target.value }),
-          })
-        }
+        onChange={(e) => setSeason(e.target.value)}
       >
-        <option value="all">Todo el historial</option>
+        <option value="all">{ALL_SEASONS_LABEL}</option>
         {[...seasons].reverse().map((s) => (
           <option value={s.id} key={s.id}>
             {s.name}

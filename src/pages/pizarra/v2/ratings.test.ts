@@ -84,8 +84,8 @@ describe("la química en minutos juntos", () => {
     expect(minutesTogether(SEASON[0], "del", "sub", 40, 10)).toBe(0);
     expect(minutesTogether(SEASON[0], "por", "sub", 50, 10)).toBe(10);
     const sq = squad();
-    expect(sq.pairs.get("med|por")).toEqual({ tog: 4, ast: 0, min: 200 });
-    expect(sq.pairs.get("del|med")).toEqual({ tog: 4, ast: 2, min: 190 });
+    expect(sq.pairs.get("med|por")).toEqual({ tog: 4, ast: 0, min: 200, known: 200 }); // (ledgers: the printable minutes are the same)
+    expect(sq.pairs.get("del|med")).toEqual({ tog: 4, ast: 2, min: 190, known: 190 });
     // never together: no pair at all
     expect(sq.pairs.has("del|sub")).toBe(false);
     expect([...sq.pairs.keys()].some((k) => k.includes("nuevo"))).toBe(false);

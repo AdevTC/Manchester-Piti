@@ -19,9 +19,11 @@ const mapAll = <T,>(docs: BundleDoc[], map: (id: string, data: unknown) => T | n
     return v === null ? [] : [v];
   });
 
-// On the server the router answers a URL without its search defaults (/stats → /stats?tab=general)
-// with a redirect instead of a page. The browser shows that same page at the bare URL, so render the
-// canonical one. (`_serverResult` is where router-core 1.171 leaves that answer: no public field yet.)
+// On the server the router answers a URL whose search it normalises (a search default, a route that
+// rewrites its own search) with a redirect instead of a page. No public route does that today (/stats and
+// /matches/$id keep their search optional, no default), but the browser would show that same page at the
+// bare URL, so if one does, render the canonical one rather than an empty redirect. (`_serverResult` is
+// where router-core 1.171 leaves that answer: no public field yet.)
 type ServerResult = { type?: string; redirect?: { options?: { href?: string } } };
 async function loadRouter(url: string) {
   const router = createAppRouter(createMemoryHistory({ initialEntries: [url] }));

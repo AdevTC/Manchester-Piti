@@ -77,7 +77,18 @@ describe("StatsPage · Posiciones", () => {
     render(<StatsPage />);
     fireEvent.click(within(screen.getByRole("navigation", { name: "Secciones de estadísticas" })).getByRole("button", { name: "Posiciones" }));
     const call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.search({ season: "t1" })).toEqual({ season: "t1", view: "positions", tab: "general" });
+    expect(call.search({ season: "t1" })).toStrictEqual({ season: "t1", view: "positions", tab: undefined });
+  });
+
+  it("an old ?tab=compare link still opens the comparison, and choosing a view drops the legacy tab", () => {
+    expect(statsSearchSchema.parse({}).tab).toBeUndefined();
+    search.value = statsSearchSchema.parse({ tab: "compare" });
+    render(<StatsPage />);
+    const nav = within(screen.getByRole("navigation", { name: "Secciones de estadísticas" }));
+    expect(nav.getByRole("button", { name: "Comparar" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(nav.getByRole("button", { name: "Minutos" }));
+    const call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
+    expect(call.search({ tab: "compare" })).toStrictEqual({ tab: undefined, view: "minutes" });
   });
 
   it("the Resumen constellation places each star by the position he played", () => {

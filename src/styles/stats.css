@@ -159,10 +159,10 @@
 @keyframes stGrow{from{transform:scaleY(0)}to{transform:none}}
 .st-res b{font-family:'Geist Mono';font-size:11px;font-weight:600}
 .st-res .lt{display:grid;place-items:center;width:22px;height:22px;border-radius:7px;font-family:'Anybody';font-weight:900;font-size:12px}
-.st-res .lt.V{background:var(--st-sky);color:#fff}
-[data-theme="dark"] .vx .st-res .lt.V,.vx .st-res .lt.V{color:#0c1733}
+.st-res .lt.G{background:var(--st-sky);color:#fff}
+[data-theme="dark"] .vx .st-res .lt.G,.vx .st-res .lt.G{color:#0c1733}
 .st-res .lt.E{box-shadow:inset 0 0 0 1.5px var(--soft);color:var(--ink)}
-.st-res .lt.D{box-shadow:inset 0 0 0 1.5px var(--line);color:var(--muted)}
+.st-res .lt.P{box-shadow:inset 0 0 0 1.5px var(--line);color:var(--muted)}
 .st-res small{font-family:'Geist Mono';font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 
 /* constellation */

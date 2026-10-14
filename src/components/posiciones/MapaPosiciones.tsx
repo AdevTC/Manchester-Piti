@@ -30,6 +30,7 @@ import {
   type SpotState,
 } from "./mapaNav";
 import "../../styles/posiciones.css";
+import { fmtMinutes } from "../../lib/derived/minutes";
 
 export const REFUSE_MESSAGE = "Máximo 6 posiciones de «también»";
 
@@ -165,7 +166,7 @@ export function MapaPosiciones({ value, onChange, onRefuse, compare, size = "m",
       <>
         <span className="pos-dot" aria-hidden="true">
           <span className="pos-code">{code}</span>
-          {minutes !== undefined && <span className="pos-min">{Math.round(minutes)}′</span>}
+          {minutes !== undefined && <span className="pos-min">{fmtMinutes(minutes)}</span>}
           {state === "también" && <span className="pos-mark">✓</span>}
           {state === "preferida" && <span className="pos-mark pos-mark--pref">★</span>}
           {change && (

@@ -21,9 +21,9 @@ describe("the match list", () => {
       ["Publicados", ["m6"]],
     ]);
     const [[j7], [j8], [j6]] = list.groups.map((g) => g.rows);
-    expect(j7).toMatchObject({ j: "J2", day: "1 nov", rival: "FUSION 7", sub: "Falta 1 goleador", warn: true, score: { gf: 3, ga: 1, r: "V" } });
+    expect(j7).toMatchObject({ j: "J2", day: "1 nov", rival: "FUSION 7", sub: "Falta 1 goleador", warn: true, score: { gf: 3, ga: 1, r: "G" } });
     expect(j8).toMatchObject({ j: "J3", day: "8 nov", rival: "MAD SKY", sub: "Convocatoria 6 de 7", warn: true, score: null, time: "12:00" });
-    expect(j6).toMatchObject({ j: "J1", sub: "en casa", warn: false, score: { gf: 4, ga: 1, r: "V" } });
+    expect(j6).toMatchObject({ j: "J1", sub: "en casa", warn: false, score: { gf: 4, ga: 1, r: "G" } });
     expect(j7.aria).toBe("J2, FUSION 7, Falta 1 goleador, Victoria 3–1");
     expect(j8.aria).toBe("J3, MAD SKY, Convocatoria 6 de 7, 12:00");
   });
@@ -34,7 +34,7 @@ describe("the match list", () => {
     const live: AdminMatch = { ...m("m8"), date: NOW - 20 * 60_000, events: [{ id: "e1", type: "opponent_goal", minute: 4 }] };
     const g = buildMatchList([live], ctx, "todo", "").groups[0];
     expect(g.title).toBe("Por hacer");
-    expect(g.rows[0]).toMatchObject({ sub: "En juego", warn: true, score: { gf: 0, ga: 1, r: "D" } });
+    expect(g.rows[0]).toMatchObject({ sub: "En juego", warn: true, score: { gf: 0, ga: 1, r: "P" } });
     // whistled on this device: the acta is to do
     expect(buildMatchList([live], { ...ctx, whistled: new Set(["m8"]) }, "todo", "").groups[0].rows[0].sub).toBe("Sin publicar");
     const draftOnly: AdminMatch = { ...m("m8"), id: "n1", published: false, draft: true };

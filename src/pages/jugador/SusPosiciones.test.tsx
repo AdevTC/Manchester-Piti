@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import type { PositionSet } from "../../lib/positions";
 import { SusPosiciones } from "./SusPosiciones";
+import { mvpOfFrom } from "../../lib/derived/mvpOf";
+
+// (no MVP results here: the shared reader, empty)
+const NO_MVP = mvpOfFrom(new Map(), [], 0);
 
 // /jugadores/:id › «Sus posiciones»: the history map + the per-position table, for the period the page shows.
 
@@ -58,7 +62,7 @@ describe("SusPosiciones", () => {
   it("follows the games it is given (the page's season selector)", () => {
     const { rerender } = show(t1);
     expect(screen.getByRole("table")).not.toHaveTextContent("Punta");
-    rerender(<SusPosiciones playerId="erik" name="ERIK" positions={set} games={[...t1, ...t2]} periodName="Todo el historial" />);
+    rerender(<SusPosiciones playerId="erik" name="ERIK" positions={set} games={[...t1, ...t2]} periodName="Todo el historial" mvpOf={NO_MVP} />);
     expect(screen.getByRole("table", { name: "Sus posiciones · Todo el historial" })).toHaveTextContent("Punta (DC)50′");
   });
 

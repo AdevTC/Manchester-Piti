@@ -24,11 +24,11 @@ it("replaces the player immediately, puts the outgoing player's stats on the ben
   const bench = container.querySelector(".fc-bench") as HTMLElement;
   expect(within(bench).getByRole("img", { name: "2 goles" })).toBeInTheDocument();
   expect(within(bench).getByRole("img", { name: "1 amarilla" })).toBeInTheDocument();
-  expect(within(bench).getByText(/20 min/)).toBeInTheDocument();
+  expect(within(bench).getByText(/20′/)).toBeInTheDocument();
   expect(within(pitch).getByRole("img", { name: "2 asistencias" })).toBeInTheDocument();
   await userEvent.setup().click(within(bench).getByRole("button"));
   expect(container.querySelector(".fc-pinfo")).toHaveTextContent("1 · A");
   rerender(<CampoTab match={{ ...match, events: [...match.events!, { id: "red", type: "red_card", minute: 24, playerId: "h" }] }} players={players} nameOf={(id) => id.toUpperCase()} live />);
   expect(within(pitch).queryByRole("button", { name: /^H, dorsal/ })).toBeNull();
-  expect(screen.getByText(/Expulsado · 4 min · entró 20′/)).toBeInTheDocument();
+  expect(screen.getByText(/Expulsado · 4′ · entró 20′/)).toBeInTheDocument();
 });

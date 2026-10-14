@@ -8,6 +8,8 @@ import { competitionRanks, individualRecords, teamAnalysis, teamRecords, type Pl
 import { collection } from "../../lib/statsView";
 import { Icon, type IconName } from "../../components/celeste/icons";
 import { Bars } from "./Charts";
+import { wholeMinutes } from "../../lib/derived/minutes";
+import { NewBadge } from "../../components/NewBadge";
 
 export type ExploreSection = "individual" | "streaks" | "team" | "evolution";
 type NameOf = (p: PlayerAnalysis) => string;
@@ -280,7 +282,7 @@ function Streaks({ rows, names, nameOf }: { rows: PlayerAnalysis[]; names: Map<s
       <section className="st-card">
         <div className="st-hd">
           <span className="hm-kick" style={{ margin: 0 }}>
-            Fechas señaladas <span className="st-new">nuevo</span>
+            Fechas señaladas <NewBadge feature="statsFechasSenaladas" />
           </span>
           <h2 className="st-h2">La colección de la temporada</h2>
           <p className="st-mono">
@@ -471,7 +473,7 @@ function Evolution({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games: Clu
         ) : (
           <>
             <div className="st-evo">
-              <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Evolución de ${EVO[metric].toLowerCase()}: ${lines.map((l) => `${nameOf(l.p)} ${l.values[n - 1]}`).join(", ")}`} key={metric + chosen.join()}>
+              <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Evolución de ${EVO[metric].toLowerCase()}: ${lines.map((l) => `${nameOf(l.p)} ${wholeMinutes(l.values[n - 1])}`).join(", ")}`} key={metric + chosen.join()}>
                 {[0, 0.5, 1].map((k) => (
                   <g key={k}>
                     <line x1={PAD} x2={W - PAD} y1={y(max * k)} y2={y(max * k)} className="grid" />
@@ -511,7 +513,7 @@ function Evolution({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games: Clu
                   .map((l) => (
                     <li key={l.p.id} className={`c${l.k}`}>
                       <i />
-                      {nameOf(l.p)} <b>{l.values[cursor]}</b>
+                      {nameOf(l.p)} <b>{wholeMinutes(l.values[cursor])}</b>
                     </li>
                   ))}
               </ul>
@@ -537,7 +539,7 @@ function Evolution({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games: Clu
             <option value="minutes">Minutos</option>
           </select>
         </label>
-        <Bars rows={order === "minutes" ? rows.filter((p) => p.tracked) : rows} value={(p) => p[order]} unit={units[order]} nameOf={nameOf} medals={order === "goals"} />
+        <Bars rows={order === "minutes" ? rows.filter((p) => p.tracked) : rows} value={(p) => (order === "minutes" ? wholeMinutes(p.minutes) : p[order])} unit={units[order]} nameOf={nameOf} medals={order === "goals"} />
         <p className="st-mono">Los puestos se comparten en caso de empate (1, 2, 2, 4); los ceros no reciben medalla.</p>
       </section>
     </>

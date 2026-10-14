@@ -9,11 +9,13 @@ import { normPlaysAs } from "../positions";
 import { isPosCode, POSITIONS, type PosCode } from "../../../lib/positions";
 import { availTxt, type CharlaMatch } from "./charla";
 import { fitWord, hasFitData, logicGrade, slotCode, slotName } from "./encaje";
-import { bajaWords, galonesOf, rtTxt, type FormGame, type Squad } from "./model";
+import { bajaWords, galonesOf, knownMinutes, rtTxt, type FormGame, type Squad } from "./model";
 import { linkMark, togTxt, type Chem } from "./quimica";
 import { formWhy } from "./ratings";
 import { plural } from "./plural";
 import type { FichaView } from "./Overlays";
+import { fmtMinutes, wholeMinutes } from "../../../lib/derived/minutes";
+import { jornadaLabel } from "../../../lib/derived/jornada";
 
 // (his last matches are worked out with the squad, in ratings.ts buildSquad; re-exported for the ficha)
 export { FORM_GAMES, formGames } from "./ratings";
@@ -33,13 +35,23 @@ export interface FormBar {
 /** The form bars: each match as tall as its minutes (a match he didn't play is a flat mark, and says so). */
 export function formBars(form: readonly FormGame[] | undefined): FormBar[] {
   if (!form?.length) return [];
-  const top = Math.max(1, ...form.map((g) => g.min));
+  const top = Math.max(1, ...form.map((g) => g.min ?? 0));
   return form.map((g) => ({
-    j: "J" + g.j,
-    h: g.played ? Math.max(12, Math.round((g.min / top) * 100)) : 0,
+    j: jornadaLabel(g.j) || "—",
+    // (a legacy acta does not know his minutes: a half bar, and the words say so)
+    h: g.played ? (g.min === null ? 50 : Math.max(12, Math.round((g.min / top) * 100))) : 0,
     played: g.played,
-    t: "J" + g.j + ": " + (g.played ? g.min + "′" + (g.ga ? " y " + plural(g.ga, "gol o asistencia", "goles o asistencias") : "") : "no jugó"),
+    t: (jornadaLabel(g.j) || "Partido") + ": " + (g.played ? (g.min === null ? "jugó, minutos sin registrar" : fmtMinutes(g.min)) + (g.ga ? " y " + plural(g.ga, "gol o asistencia", "goles o asistencias") : "") : "no jugó"),
   }));
+}
+
+/** «FORMA · J4–J8» from the matches that have a jornada; just «FORMA» when none has one (never «—–—»). */
+export function formHead(form: readonly FormGame[] | undefined): string {
+  const js = (form ?? []).map((g) => jornadaLabel(g.j)).filter(Boolean);
+  if (!js.length) return "FORMA";
+  const a = js[0];
+  const b = js[js.length - 1];
+  return "FORMA · " + (a === b ? a : a + "–" + b);
 }
 
 export interface FichaArgs {
@@ -65,7 +77,7 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
     .filter((l) => l.a === id || l.b === id)
     .sort((a, b) => b.s - a.s)
     .slice(0, 3)
-    .map((l) => ({ k: "con " + nm(l.a === id ? l.b : l.a) + " · " + togTxt(l.min), v: linkMark(l.t) }));
+    .map((l) => ({ k: "con " + nm(l.a === id ? l.b : l.a) + " · " + togTxt(l), v: linkMark(l.t) }));
   if (fi < 0) ln = [{ k: p.baja ? bajaWords(p).replace(/^./, (x) => x.toLocaleUpperCase("es")) + ": no disponible" : "En el banquillo", v: "" }];
   else if (!ln.length) ln = [{ k: "Sin vecinos cerca en este siete", v: "" }];
   const cv = p.cv === "voy" ? " · Voy" : p.cv === "duda" ? " · Duda" : p.cv === "no" ? " · No va" : "";
@@ -74,7 +86,8 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
   const facts: { k: string; v: string }[] = [];
   // the team's minutes: everyone's added up over the seven on the pitch
   const teamMin = sq.list.reduce((s, c) => s + c.stats.minutes, 0) / 7;
-  if (p.stats.minutes > 0 && teamMin > 0) facts.push({ k: "Minutos", v: p.stats.minutes + "′ · " + Math.min(100, Math.round((p.stats.minutes / teamMin) * 100)) + " % del equipo" });
+  if (knownMinutes(p.stats) === null && p.stats.played > 0) facts.push({ k: "Minutos", v: "Sin registrar" });
+  else if (p.stats.minutes > 0 && teamMin > 0) facts.push({ k: "Minutos", v: fmtMinutes(p.stats.minutes) + " · " + Math.min(100, Math.round((p.stats.minutes / teamMin) * 100)) + " % del equipo" });
   else facts.push({ k: "Minutos", v: "Aún sin minutos" });
   const jugar = normPlaysAs(L.playerPositions[id]);
   // (a code is said with its name: «Juega de pivote (MCD)»; a legacy line as it was: «Juega de MED»)
@@ -126,11 +139,11 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
       { k: "PARTIDOS", v: p.stats.played },
       { k: "GOLES", v: p.stats.goals },
       { k: "ASIST.", v: p.stats.assists },
-      { k: "MINUTOS", v: p.stats.minutes },
+      { k: "MINUTOS", v: knownMinutes(p.stats) === null ? "—" : wholeMinutes(p.stats.minutes) },
       { k: "TITULAR", v: p.stats.starts },
       { k: "MVP", v: p.stats.mvps },
     ],
-    ...(bars.length ? { form: { k: "FORMA · " + bars[0].j + (bars.length > 1 ? "–" + bars[bars.length - 1].j : ""), bars } } : {}),
+    ...(bars.length ? { form: { k: formHead(p.form), bars } } : {}),
     facts,
     ln,
     ox,

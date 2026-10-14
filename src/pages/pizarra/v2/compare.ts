@@ -8,7 +8,8 @@ import type { Lineup } from "../formations";
 import { systemDef } from "../../../lib/formations";
 import { CAMS, proj, slotPos, type CamName } from "./geometry";
 import { matchShort, type CalMatch } from "./boards";
-import { GALONES, type Squad } from "./model";
+import { fmtMinutes } from "../../../lib/derived/minutes";
+import { GALONES, knownMinutes, type Squad } from "./model";
 import { chem } from "./quimica";
 import { boardInPlace } from "./encaje";
 import { startersOn } from "./record";
@@ -32,8 +33,13 @@ export function meanForm(L: Lineup, sq: Squad): number {
   return rts.length ? Math.round(rts.reduce((a, b) => a + b, 0) / rts.length) : 0;
 }
 
-/** The season minutes of the seven on the pitch, added up. */
-export const sevenMinutes = (L: Lineup, sq: Squad): number => placedIds(L).reduce((s, id) => s + (sq.byId.get(id)?.stats.minutes ?? 0), 0);
+/** The season minutes of the seven on the pitch, added up (known minutes only; null when nobody's
+ *  actas know them: printed «—», never «0′»). */
+export function sevenMinutes(L: Lineup, sq: Squad): number | null {
+  const cs = placedIds(L).flatMap((id) => sq.byId.get(id) ?? []);
+  if (cs.length && cs.every((c) => knownMinutes(c.stats) === null)) return null;
+  return cs.reduce((s, c) => s + c.stats.minutes, 0);
+}
 
 /** How many of the seven are in their place (encaje.boardInPlace — the Sistema's and the química's
  *  count: preferida, también or a «Jugar de» there; a player known only by his line, on his line); an
@@ -49,13 +55,19 @@ export const galonesOn = (L: Lineup): number => {
   }).length;
 };
 
+/** «Minutos del siete»: «—» for a side whose minutes nobody knows (and no winner against it). */
+function minutesRow(a: number | null, b: number | null): TapeRow {
+  const both = a !== null && b !== null;
+  return { k: "Minutos del siete", a: fmtMinutes(a), b: fmtMinutes(b), ca: both && a > b ? "w" : "", cb: both && b > a ? "w" : "" };
+}
+
 export function tape(A: Lineup, B: Lineup, sq: Squad): TapeRow[] {
   const num = (k: string, a: number, b: number, show: (n: number) => string | number = (n) => n): TapeRow => ({ k, a: show(a), b: show(b), ca: a > b ? "w" : "", cb: b > a ? "w" : "" });
   return [
     num("Química", chem(A, sq).v, chem(B, sq).v),
     { k: "Sistema", a: A.freeMode ? "Libre" : systemDef(A.formation).label, b: B.freeMode ? "Libre" : systemDef(B.formation).label, ca: "", cb: "" },
     num("Media", meanForm(A, sq), meanForm(B, sq)),
-    num("Minutos del siete", sevenMinutes(A, sq), sevenMinutes(B, sq), (n) => n.toLocaleString("es-ES") + "′"),
+    minutesRow(sevenMinutes(A, sq), sevenMinutes(B, sq)),
     num("En su sitio", naturalCount(A, sq), naturalCount(B, sq), (n) => n + "/7"),
     num("Galones en el campo", galonesOn(A), galonesOn(B), (n) => n + "/" + GALONES.length),
   ];

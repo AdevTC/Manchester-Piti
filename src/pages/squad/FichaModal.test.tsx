@@ -5,6 +5,10 @@ import type { ClubMatch } from "../../lib/clubData";
 import type { PositionSet } from "../../lib/positions";
 import { squadRow, type SquadPlayer } from "../../lib/squad";
 import { FichaModal } from "./FichaModal";
+import { mvpOfFrom } from "../../lib/derived/mvpOf";
+
+// (no MVP results here: the shared reader, empty)
+const NO_MVP = mvpOfFrom(new Map(), [], 0);
 
 // The public ficha (/plantilla): «Posición: Pivote» and, under it, «También mediocentro (MC) · central (DFC)». No WebGL: the 3D kit is a stub.
 
@@ -14,7 +18,7 @@ vi.mock("@tanstack/react-router", () => ({ Link: ({ children }: { children?: Rea
 
 const none = { matchesPlayed: 0, goals: 0, assists: 0, minutes: 0, tracked: 0 };
 const open = (p: SquadPlayer) =>
-  render(<FichaModal row={squadRow(p, none, Date.UTC(2026, 8, 25))} seasonName="Temporada 1" withStats={false} kit="home" theme="dark" onClose={vi.fn()} onStep={vi.fn()} onCompare={vi.fn()} />);
+  render(<FichaModal row={squadRow(p, none, Date.UTC(2026, 8, 25))} seasonName="Temporada 1" withStats={false} kit="home" theme="dark" onClose={vi.fn()} onStep={vi.fn()} onCompare={vi.fn()} mvpOf={NO_MVP} />);
 const posicion = () => screen.getByText("Posición").nextElementSibling as HTMLElement;
 
 describe("FichaModal · Posición", () => {
@@ -35,7 +39,7 @@ const match = (n: number, ledger: ClubMatch["ledger"]): ClubMatch => ({ id: "j" 
 const erik: SquadPlayer = { id: "erik", shirtName: "ERIK", number: 9, positions: { main: "MCD", also: ["MC", "DFC"] } };
 const set: PositionSet = { main: "MCD", also: ["MC", "DFC"] };
 const withGames = (games: ClubMatch[]) =>
-  render(<FichaModal row={squadRow(erik, none, Date.UTC(2026, 8, 25))} seasonName="Temporada 1" withStats kit="home" theme="dark" onClose={vi.fn()} onStep={vi.fn()} onCompare={vi.fn()} games={games} positions={set} />);
+  render(<FichaModal row={squadRow(erik, none, Date.UTC(2026, 8, 25))} seasonName="Temporada 1" withStats kit="home" theme="dark" onClose={vi.fn()} onStep={vi.fn()} onCompare={vi.fn()} games={games} positions={set} mvpOf={NO_MVP} />);
 
 describe("FichaModal · Posiciones", () => {
   const season = [

@@ -88,20 +88,25 @@ describe("seasonShowcase (the vitrina)", () => {
   );
   const sc = seasonShowcase({ seasonId: "t1", matches: ms, stateOf: (m) => matchState(m, NOW), now: NOW, mvpOf: (m) => (m.id === "a" || m.id === "b" ? ["erik"] : []), nameOf: (id) => id.toUpperCase() });
   it("counts only the published actas: record, goals, Pichichi, trophies", () => {
-    expect(sc).toMatchObject({ v: 2, e: 1, d: 0, gf: 7, ga: 2, published: 3, total: 5, streak: 2 });
+    expect(sc).toMatchObject({ g: 2, e: 1, p: 0, gf: 7, ga: 2, published: 3, total: 4, streak: 2 });
     expect(sc.pichichi).toEqual({ id: "erik", goals: 2 });
     expect(sc.biggest).toEqual({ gf: 4, ga: 1, rival: "A", label: "J1" });
     expect(sc.mvp).toEqual({ ids: ["erik"], times: 2 });
   });
   it("puts every jornada on the shelf: a mark when published, a gap otherwise (cancelled ones left out)", () => {
-    expect(sc.shelf.map((s) => `${s.label}:${s.r ?? "-"}`)).toEqual(["J1:V", "J2:V", "J4:E", "J5:-", "J6:-"]);
-    expect(sc.shelf.map((s) => s.aria)).toEqual(["J1 · Victoria 4–1 a A", "J2 · Victoria 2–0 a B", "J4 · Empate 1–1 a C", "J5 · sin publicar", "J6 · por jugar"]);
-    expect(sc.waiting).toEqual(["J5"]);
+    // The public numbering: the cancelled «x» takes no number, and the draft «d» is not a jornada until
+    // it is published — the foot names it by its rival.
+    expect(sc.shelf.map((s) => `${s.label}:${s.r ?? "-"}`)).toEqual(["J1:G", "J2:G", "J3:E", "J4:-"]);
+    expect(sc.shelf.map((s) => s.aria)).toEqual(["J1 · Victoria 4–1 a A", "J2 · Victoria 2–0 a B", "J3 · Empate 1–1 a C", "J4 · por jugar"]);
+    expect(sc.waiting).toEqual([]);
+    expect(sc.waitingDrafts).toEqual(["D"]);
+    expect(countsNote(sc.waiting, sc.waitingDrafts)).toBe("Cuentan las actas publicadas · el borrador contra D entra al publicarlo");
   });
   it("says what counts", () => {
     expect(countsNote([])).toBe("Cuentan las actas publicadas");
     expect(countsNote(["J7"])).toBe("Cuentan las actas publicadas · la J7 entra al publicarla");
     expect(countsNote(["J7", "J8"])).toBe("Cuentan las actas publicadas · la J7 y J8 entran al publicarlas");
+    expect(countsNote(["J7"], ["MAD SKY", "FUSION 7"])).toBe("Cuentan las actas publicadas · la J7 entra al publicarla · los borradores contra MAD SKY y FUSION 7 entran al publicarlos");
   });
   it("tags a season for the lower thirds", () => {
     expect(seasonTag("Temporada 1")).toBe("T1");

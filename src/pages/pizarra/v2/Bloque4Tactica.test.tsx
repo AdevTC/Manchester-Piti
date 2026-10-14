@@ -233,7 +233,7 @@ describe("A6 · lo planeado frente a lo jugado", () => {
     const cal = [played("m1", 1, 3, 1), played("m2", 2, 0, 0, SEVEN.slice(0, 5).concat(["kevin", "erik"]))];
     render(<Harness initial={L7()} session={{ matchId: "m2" }} props={{ calendar: cal }} />);
     const rec = screen.getByRole("group", { name: "Lo planeado frente a lo jugado" });
-    expect(rec).toHaveTextContent("Con este siete: 1V 1E 0D · 3 GF 1 GC");
+    expect(rec).toHaveTextContent("Con este siete: 1G 1E 0P · 3 GF 1 GC");
     expect(rec).toHaveTextContent("Jugaron 5 de los 7 planeados · no salieron ALMACHI, ADRIAN · salieron KEVIN, ERIK");
   });
 

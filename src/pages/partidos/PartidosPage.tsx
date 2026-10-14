@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
-import { dateMillis, isCompleted, matchPhase, nextFixture, playerForSeason, playerName, useClubData, type ClubMatch } from "../../lib/clubData";
+import { dateMillis, isCompleted, matchPhase, nextFixture, playerForSeason, nameFor, useClubData, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
@@ -13,11 +13,16 @@ import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Flip } from "../../components/celeste/Flip";
 import { Avisos } from "../../components/celeste/Avisos";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
+import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { leaders, matchEvent, playerLines, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
+import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { calendarRows, countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf, scorersLine, seasonView, type Filter, type SeasonView } from "../../lib/partidos";
+import { AWAITING_ACTA, kickoffState, kickoffText, PENDING_WHISTLE } from "../../lib/derived/kickoff";
+import { jornadaNumbers } from "../../lib/derived/jornada";
+import { RESULT_LEGEND, RESULT_WORD } from "../../lib/derived/result";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 
@@ -52,6 +57,7 @@ function Countdown({ target }: { target: number }) {
 function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => string }) {
   const now = useClock(15_000);
   const m = view.live ?? view.next;
+  const goalShow = useGoalCelebration(view.live, now);
   if (!m) {
     return (
       <article className="pt-board pt-rise" style={{ animationDelay: ".15s" }} aria-label="Primer partido, por publicar">
@@ -82,12 +88,14 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
   const ini = m.rivalInitials || opponentInitials(rival);
   const d = dateParts(m.date);
   const live = m === view.live;
+  // The date has come and nobody has started the clock: no frozen 00:00 countdown.
+  const pending = !live && kickoffState(m, now) === "pending_whistle";
   const { gf, ga } = scoreOf(m);
   const minute = live ? liveMinute(m, now) : null;
   const last = live ? lastEvent(m.events, nameOf, rival) : null;
   const sideUs = m.home === false ? "Visitante" : "Local";
   return (
-    <article className={`pt-board pt-rise${live ? " live" : ""}`} style={{ animationDelay: ".15s" }} aria-label={live ? `En directo contra ${rival}` : `Próximo partido: ${rival}`}>
+    <article className={`pt-board pt-rise${live ? " live" : ""}`} style={{ animationDelay: ".15s" }} aria-label={live ? `En directo contra ${rival}` : pending ? `${PENDING_WHISTLE} contra ${rival}` : `Próximo partido: ${rival}`}>
       <div className="pt-btop">
         <span>
           {live ? "" : "PRÓXIMO · "}JORNADA {j} · {(where(m) || m.competition || "").toUpperCase()}
@@ -109,9 +117,9 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
         </div>
         {live ? (
           <div className="pt-score" role="status" aria-label={`Marcador: ${gf} a ${ga}`}>
-            <Flip value={gf} />
+            <Flip value={gf} still={!goalShow.flip} />
             <i>–</i>
-            <Flip value={ga} />
+            <Flip value={ga} still={!goalShow.flip} />
           </div>
         ) : (
           <span className="pt-vs">vs</span>
@@ -136,11 +144,18 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
               Seguir en directo <Icon name="arrow" size={16} stroke={2.2} />
             </Link>
           </div>
-          <GoalBurst goals={gf} who={last?.goal ? `${last.who} · ${last.minute}′` : undefined} />
+          <GoalBurst burst={goalShow.burst} who={last?.goal ? `${last.who} · ${last.minute}′` : undefined} />
         </>
       ) : (
         <>
-          <Countdown target={dateMillis(m.date)} />
+          {pending ? (
+            <div className="pt-last" role="status">
+              <b>{d.time}</b>
+              <span>{PENDING_WHISTLE}</span>
+            </div>
+          ) : (
+            <Countdown target={dateMillis(m.date)} />
+          )}
           <p className="pt-meta">
             {d.long.charAt(0).toUpperCase() + d.long.slice(1)} · {d.time}
             {where(m) && ` · ${where(m)}`}
@@ -173,7 +188,9 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
 
 export function PartidosPage() {
   const { matches, players, loading } = useClubData();
-  const { seasons, selectedSeasonId, setSelectedSeasonId } = useSeason();
+  const { seasons, selectedSeasonId } = useSeason();
+  // The season is URL-authoritative (SeasonUrlSync): picking one navigates, it never writes the context.
+  const setSeason = useSetSeason();
   const now = useClock(60_000);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
@@ -181,11 +198,14 @@ export function PartidosPage() {
   const seasonId = currentSeasonId(nextFixture(matches, now), matches, seasons);
   const season = seasons.find((s) => s.id === seasonId);
   const view = seasonView(matches, seasonId, now);
-  const nameOf = (id: string) => playerName(players.find((p) => p.id === id));
+  // the live row's score flips only for a fresh goal, as the board's does (a late old one just changes it)
+  const rowGoal = useGoalCelebration(view.live, now);
+  // a name in a match's own season (the board: the current season's; each row: its match's)
+  const nameIn = (sid: string | undefined) => (id: string) => nameFor(players.find((p) => p.id === id), sid);
+  const nameOf = nameIn(seasonId);
 
   // Jornada of every match within its own season (the list can show any season).
-  const jornada = new Map<string, number>();
-  for (const s of seasons) seasonView(matches, s.id, now).jornada.forEach((n, id) => jornada.set(id, n));
+  const jornada = jornadaNumbers(matches);
   const listMatches = selectedSeasonId === "all" ? matches : matches.filter((m) => m.seasonId === selectedSeasonId);
   const rows = calendarRows(listMatches, filter, search, now);
 
@@ -193,19 +213,20 @@ export function PartidosPage() {
     .filter((p) => p.seasons?.includes(seasonId))
     .map((raw) => {
       const p = playerForSeason(raw, seasonId, seasons);
-      return { id: p.id, name: playerName(p), num: p.number != null ? String(p.number) : "" };
+      return { id: p.id, name: nameFor(p), num: p.number != null ? String(p.number) : "" };
     });
   const scorers = leaders(playerLines(squad, view.played), "goals", 4);
 
   const pj = view.played.length;
   const live = !!view.live;
   const pre = !pj && !view.next && !live;
+  const nextPending = !!view.next && kickoffState(view.next, now) === "pending_whistle";
   const ghost = live ? "EN JUEGO" : view.next ? `J${view.jornada.get(view.next.id)} · ${view.next.rival ?? ""}` : (season?.name ?? "Temporada").toUpperCase();
   const lead = live
     ? "Se está jugando. El marcador se mueve solo, gol a gol, desde el acta."
     : pre
       ? `El calendario de ${season?.name ?? "la temporada"} aún no está publicado. En cuanto lo esté, cada partido llega aquí con su cuenta atrás.`
-      : `${pj ? `${pj} ${pj === 1 ? "jornada" : "jornadas"}, ${view.wins} ${view.wins === 1 ? "victoria" : "victorias"}.` : "Todo por estrenar."} ${view.next ? "La siguiente, en la cuenta atrás." : ""}`;
+      : `${pj ? `${pj} ${pj === 1 ? "jornada" : "jornadas"}, ${view.wins} ${view.wins === 1 ? "victoria" : "victorias"}.` : "Todo por estrenar."} ${view.next ? (nextPending ? `La siguiente, ${PENDING_WHISTLE.toLowerCase()}.` : "La siguiente, en la cuenta atrás.") : ""}`;
 
   return (
     <div className="vx hm pt" aria-busy={loading}>
@@ -268,15 +289,15 @@ export function PartidosPage() {
                     params={{ matchId: t.id }}
                     className={`pt-tile ${t.result ?? t.state}`}
                     style={{ animationDelay: `${(i * 0.035).toFixed(2)}s` }}
-                    aria-label={`Jornada ${t.j}, ${t.rival}: ${t.result ? { G: "victoria", E: "empate", P: "derrota" }[t.result] : t.state === "live" ? "en juego" : "por jugar"}`}
+                    aria-label={`Jornada ${t.j}, ${t.rival}: ${t.result ? RESULT_WORD[t.result] : t.state === "live" ? "en juego" : t.state === "awaiting" ? AWAITING_ACTA.toLowerCase() : "por jugar"}`}
                   >
-                    {t.state === "live" ? "●" : (t.result ?? "·")}
+                    {t.state === "live" ? "●" : t.state === "awaiting" ? "…" : (t.result ?? "·")}
                   </Link>
                 ))}
               </div>
               <div className="pt-legend">
                 <span>J1</span>
-                <span>G victoria · E empate · P derrota</span>
+                <span>{RESULT_LEGEND}</span>
                 <span>J{view.tiles.length}</span>
               </div>
             </>
@@ -328,8 +349,8 @@ export function PartidosPage() {
               <input type="search" placeholder="Buscar rival…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </label>
             {seasons.length > 1 && (
-              <select className="pt-season" aria-label="Temporada" value={selectedSeasonId} onChange={(e) => setSelectedSeasonId(e.target.value)}>
-                <option value="all">Todas las temporadas</option>
+              <select className="pt-season" aria-label="Temporada" value={selectedSeasonId} onChange={(e) => setSeason(e.target.value)}>
+                <option value="all">{ALL_SEASONS_LABEL}</option>
                 {seasons.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -342,7 +363,7 @@ export function PartidosPage() {
             <ol className="pt-list">
               {rows.map((m) => (
                 <li key={m.id}>
-                  <Row m={m} j={jornada.get(m.id)} now={now} nameOf={nameOf} next={m.id === view.next?.id} />
+                  <Row m={m} j={jornada.get(m.id)} now={now} nameOf={nameIn(m.seasonId)} next={m.id === view.next?.id} still={!rowGoal.flip} />
                 </li>
               ))}
             </ol>
@@ -399,11 +420,13 @@ export function PartidosPage() {
   );
 }
 
-function Row({ m, j, now, nameOf, next }: { m: ClubMatch; j?: number; now: number; nameOf: (id: string) => string; next: boolean }) {
+function Row({ m, j, now, nameOf, next, still }: { m: ClubMatch; j?: number; now: number; nameOf: (id: string) => string; next: boolean; still: boolean }) {
   const d = dateParts(m.date);
   const phase = matchPhase(m, now);
   const live = phase === "playing";
   const done = isCompleted(m);
+  // «Pendiente del pitido inicial» / «Pendiente del acta» when the clock never started.
+  const waiting = done ? null : kickoffText(m, now);
   const { gf, ga } = scoreOf(m);
   const r = done ? resultOf(m) : undefined;
   const rival = m.rival ?? "Rival";
@@ -411,8 +434,10 @@ function Row({ m, j, now, nameOf, next }: { m: ClubMatch; j?: number; now: numbe
     ? [scorersLine(m.events, nameOf) || "Sin goles del Piti", where(m)].filter(Boolean).join(" · ")
     : phase === "postponed"
       ? "Aplazado"
-      : [where(m), d.long].filter(Boolean).join(" · ");
-  const aria = `Jornada ${j ?? "?"}, ${rival}, ${d.long}${done ? `: ${gf} a ${ga}` : live ? ": en directo" : ` a las ${d.time}`}`;
+      : waiting
+        ? [waiting, where(m)].filter(Boolean).join(" · ")
+        : [where(m), d.long].filter(Boolean).join(" · ");
+  const aria = `Jornada ${j ?? "?"}, ${rival}, ${d.long}${done ? `: ${gf} a ${ga}` : live ? ": en directo" : ` a las ${d.time}`}${waiting ? `: ${waiting.toLowerCase()}` : ""}`;
   return (
     <Link className={`pt-row${live ? " live" : next ? " next" : ""}`} to="/matches/$matchId" params={{ matchId: m.id }} aria-label={aria}>
       <span className="when">
@@ -425,8 +450,8 @@ function Row({ m, j, now, nameOf, next }: { m: ClubMatch; j?: number; now: numbe
           <span className="tn us">PITI</span>
           {done || live ? (
             <span className="sc">
-              <Flip value={gf} />
-              <Flip value={ga} />
+              <Flip value={gf} still={live && still} />
+              <Flip value={ga} still={live && still} />
             </span>
           ) : (
             <span className="sc">

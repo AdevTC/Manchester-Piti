@@ -141,9 +141,10 @@ export function Plantilla() {
   const editing = curId ? (players.find((p) => p.id === curId) ?? null) : null;
   const editingRow = editing ? board.find((r) => r.id === editing.id) : undefined;
   const editingSusp = editing ? suspended.get(editing.id) : undefined;
-  // «Ha jugado de»: where he really played, every season's actas (the captain's evidence before approving;
-  // a plain derivation the React Compiler memoizes)
-  const editingPlayed = editing ? playerPositions(editing.id, data.matches) : undefined;
+  // «Ha jugado de»: where he really played, every season's published actas (the captain's evidence before
+  // approving; no drafts, and the MVPs as every page: the same rating as /jugadores; a plain derivation
+  // the React Compiler memoizes)
+  const editingPlayed = editing ? playerPositions(editing.id, data.published, data.mvpOf) : undefined;
 
   // The photos of the real kit (rendered once per name and dorsal, then kept on the device).
   const shot = (r: BoardRow) => ({ kit: "home" as const, theme, name: r.name.toLocaleUpperCase("es"), num: r.number != null ? String(r.number) : "" });

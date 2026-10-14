@@ -15,6 +15,7 @@ import type { PlayerDoc, SeasonDoc } from "../lib/schemas";
 import { buildOverview, contentGaps, convocatoriaState, doneLines, lastActaMatch, matchState, mergeMatches, mvpNote, nextMatch, pendingProposals, reviewActa, rsvpCounts, type AdminMatch } from "../pages/admin/data/adminLogic";
 import { hoyHero, matchMoment } from "../pages/admin/data/moments";
 import { seasonSquad } from "../pages/perfil/card";
+import { mvpOfFrom } from "../lib/derived/mvpOf";
 import { seasonPlayers } from "../pages/perfil/profileData";
 import type { Availability } from "../pages/vestuario/live";
 import type { AdminData, RosterPlayer } from "../pages/admin/data/useAdminData";
@@ -148,6 +149,8 @@ export function adminFixture({
     players: fixturePlayers,
     roster,
     matches,
+    published,
+    mvpOf: mvpOfFrom(new Map(), published, now),
     stateOf: (m) => matchState(m, now, next?.id),
     reviewOf,
     last: lastView,

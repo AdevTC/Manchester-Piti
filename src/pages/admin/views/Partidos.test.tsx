@@ -74,10 +74,10 @@ describe("Partidos · the list", () => {
     expect(rows(/^Por hacer/)).toEqual(["J2, FUSION 7, Falta 1 goleador, Victoria 3–1"]);
     expect(rows(/^Por jugar/)).toEqual(["J3, MAD SKY, Convocatoria 6 de 7, 12:00"]);
     expect(rows(/^Publicados/)).toEqual(["J1, Emirates, en casa, Victoria 4–1"]);
-    // the exception in amber, the V/E/D mark on the score
+    // the exception in amber, the G/E/P mark on the score
     const j2 = screen.getByRole("button", { name: /^J2, FUSION 7/ });
     expect(within(j2).getByText("Falta 1 goleador")).toHaveClass("am");
-    expect(within(j2).getByRole("img", { name: "Victoria" })).toHaveTextContent("V");
+    expect(within(j2).getByRole("img", { name: "Victoria" })).toHaveTextContent("G");
     // the desktop opens the first match to do
     expect(j2).toHaveAttribute("aria-current", "true");
     const filters = screen.getByRole("group", { name: "Filtrar partidos" });
@@ -117,7 +117,8 @@ describe("Partidos · the list", () => {
     expect(arg.sheet).toMatchObject({ seasonId: "t1", rival: "Laureles CF", home: false, kit: "away", competition: "Liga", status: "scheduled", date: Date.UTC(2026, 10, 15, 11, 0) });
     await waitFor(() => expect(router.state.location.pathname).toBe(`/admin/partidos/${arg.id}`));
     expect(router.state.location.search).toMatchObject({ tab: "encuentro" });
-    expect(await screen.findByText("J4 · Laureles CF creada · completa el campo cuando lo sepas")).toBeInTheDocument();
+    // (a draft: no jornada until it is published)
+    expect(await screen.findByText("Borrador · Laureles CF creado · completa el campo cuando lo sepas")).toBeInTheDocument();
     // «Deshacer» deletes it again
     await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(del).toHaveBeenCalledWith({ id: arg.id }));
@@ -148,7 +149,7 @@ describe("Partidos · the workspace", () => {
     expect(within(tabs).getByRole("tab", { name: /Acta/ })).toHaveAttribute("aria-selected", "true");
     expect(within(tabs).getByRole("tab", { name: /^Acta\W+pendiente$/ })).toBeInTheDocument();
     expect(within(tabs).getByRole("tab", { name: /^Encuentro\W+hecho$/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("PITI 3–1 FUSION 7 V");
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("PITI 3–1 FUSION 7 G");
     expect(screen.getByText("J2 · Liga · dom 1 nov · 10:00 · en casa")).toBeInTheDocument();
     expect(within(footer()).getByText("No cuadra: falta el goleador de 1 gol")).toHaveClass("warn");
     expect(within(footer()).getByText("Guardado dom 1 nov, 13:04 · hora de Madrid")).toBeInTheDocument();

@@ -1,7 +1,7 @@
 // The publish peak's content (pure, tested in vitrinaModel.test.ts), as on the canvas (stats-gen/ad-v2-full.mjs
 // `publicado`, ad-v2-full-logic.js «Publish peak»): the plaque «V · J8 · MAD SKY 2–1 · 8 nov · fuera», the
 // seven shirts with their stickers (goals, cards), the season's shelf «Vitrina T1» (published actas as
-// V/E/D, unpublished ones as a gap, this one popping in), the cartel's scorers and the MVP line.
+// G/E/P, unpublished ones as a gap, this one popping in), the cartel's scorers and the MVP line.
 import { dateMillis, type MatchEvent } from "../../../../functions/src/matchEngine";
 import { scoreOf } from "../../../lib/partidos";
 import { jLabel, type AdminMatch } from "../data/adminLogic";

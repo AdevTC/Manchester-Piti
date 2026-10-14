@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { kickoffNotice, lineupNotice, noticesFor, TOPICS } from "../../functions/src/pushLogic";
+import { kickoffNotice, legacyKickoff, lineupNotice, noticesFor, TOPICS } from "../../functions/src/pushLogic";
+import { matchSearchSchema } from "./matchTabs";
+import { resultLetter, resultTitle } from "./derived/result";
 
 const NOW = Date.UTC(2026, 10, 8, 11, 20);
 const nameOf = (id: string) => ({ e: "ERIK", a: "ADRIÁN T.C." })[id] ?? "Jugador";
@@ -29,6 +31,17 @@ describe("push notices", () => {
       ["final", "Final: Manchester Piti 3–1 MAD SKY"],
       ["mvp", "Vota al MVP"],
     ]);
+    // the final opens the first tab (the crónica); the vote opens the match's Vestuario tab
+    expect(n.map((x) => x.url)).toEqual(["/matches/j7", "/matches/j7?tab=vestuario"]);
+    const tab = new URL(n[1].url, "https://piti.test").searchParams.get("tab");
+    expect(matchSearchSchema.parse({ tab }).tab).toBe("vestuario");
+  });
+  it("the «Final» push opens with the verdict, the result's own word (resultTitle)", () => {
+    const fin = (gf: number, ga: number) => noticesFor("j7", { ...base, events: [] }, { ...base, status: "finished", goalsFor: gf, goalsAgainst: ga, events: [] }, nameOf, NOW).find((x) => x.topic === "final")!;
+    expect(fin(3, 1).body).toBe("Victoria. La crónica, los minutos y el pulso del partido ya están en la web.");
+    expect(fin(2, 2).body.startsWith("Empate. ")).toBe(true);
+    expect(fin(0, 1).body.startsWith("Derrota. ")).toBe(true);
+    for (const [gf, ga] of [[3, 1], [2, 2], [0, 1]] as const) expect(fin(gf, ga).body.startsWith(resultTitle(resultLetter(gf, ga)) + ". ")).toBe(true);
   });
   it("a new match or a new kick-off time, only when it's in the future", () => {
     const future = { rival: "EL CUARTEL CF", status: "scheduled", date: Date.UTC(2026, 10, 15, 10) };
@@ -40,6 +53,35 @@ describe("push notices", () => {
   it("archived matches never notify; kick-off notice", () => {
     expect(noticesFor("x", undefined, { ...base, date: NOW + 1e9, archived: true }, nameOf, NOW)).toEqual([]);
     expect(kickoffNotice("j8", "MAD SKY")).toMatchObject({ topic: "start", title: "¡Empieza el partido! Piti vs MAD SKY", url: "/matches/j8" });
+  });
+});
+
+describe("«¡Empieza el partido!» follows the real clock", () => {
+  const ready = { ...base, version: 2, clock: { phase: "ready" } };
+  const running = { ...ready, clock: { phase: "first" } };
+  it("ready → first sends the start notice, with the same tag as the legacy job", () => {
+    expect(noticesFor("j8", ready, running, nameOf, NOW)).toEqual([kickoffNotice("j8", "MAD SKY")]);
+    expect(kickoffNotice("j8", "MAD SKY").tag).toBe("start-j8");
+    // a v2 match stored without a clock starts the same way (an absent clock is a ready one)
+    expect(noticesFor("j8", { ...base, version: 2 }, running, nameOf, NOW).map((n) => n.topic)).toEqual(["start"]);
+  });
+  it("no start notice for any other clock move, a plain save, or an archived or finished match", () => {
+    const at = (phase: string) => ({ ...ready, clock: { phase } });
+    expect(noticesFor("j8", ready, ready, nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", running, at("halftime"), nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", at("halftime"), at("second"), nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", at("second"), at("ended"), nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", at("ended"), at("second"), nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", running, ready, nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", undefined, running, nameOf, NOW).filter((n) => n.topic === "start")).toEqual([]);
+    expect(noticesFor("j8", ready, { ...running, archived: true }, nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", ready, { ...running, status: "cancelled" }, nameOf, NOW)).toEqual([]);
+  });
+  it("the scheduled job only notifies legacy matches without a clock", () => {
+    expect(legacyKickoff(base)).toBe(true);
+    expect(legacyKickoff(ready)).toBe(false);
+    expect(legacyKickoff(running)).toBe(false);
+    expect(legacyKickoff({ ...base, version: 2 })).toBe(false);
   });
 });
 

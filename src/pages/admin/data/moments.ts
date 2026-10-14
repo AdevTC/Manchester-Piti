@@ -3,6 +3,7 @@
 // «final» (played, the acta not published yet) and «publicado». Hoy
 // picks its hero from them: the match being played, else the one just played (36 h), else the next one.
 import { dateMillis, matchPhase, liveUntil as publicLiveUntil } from "../../../../functions/src/matchEngine";
+import { kickoffState } from "../../../lib/derived/kickoff";
 
 export type MatchMoment = "antes" | "juego" | "final" | "publicado";
 const MIN = 60_000;
@@ -34,6 +35,16 @@ export const isOff = (m: MomentMatch) => m.status === "cancelled" || m.status ==
 /** The same automatic end as home and the public match page, ms. */
 export function liveUntil(m: Pick<MomentMatch, "date" | "duration">): number {
   return publicLiveUntil(m);
+}
+
+/** «Antes» once the date has come and nobody has started the clock: the plaque says so, no «0m». */
+export const isPendingWhistle = (m: MomentMatch, now: number) => kickoffState(m, now) === "pending_whistle";
+/** A clock nobody started, past its window (date + duration + 2 h): never whistled, the acta is missing. */
+export const isUnwhistled = (m: MomentMatch, now: number) => kickoffState(m, now) === "awaiting_result";
+/** The LED's line on «Después». */
+export function finalSub(m: MomentMatch, moment: MatchMoment, now: number): string {
+  if (moment === "publicado") return "FINAL";
+  return isUnwhistled(m, now) ? "SIN PITIDO · FALTA EL ACTA" : "FINAL · SIN PUBLICAR";
 }
 
 /**

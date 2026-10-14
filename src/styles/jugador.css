@@ -84,9 +84,9 @@
 .jg-adn .bar i{display:block;width:100%;border-radius:6px;background:linear-gradient(180deg,#d4ecfc,var(--st-sky));transform-origin:bottom;animation:stGrow .9s cubic-bezier(.16,1,.3,1) both;animation-delay:inherit}
 .jg-adn .ev{display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--gold-ink)}
 .jg-adn .lt,.jg-last .lt{display:grid;place-items:center;width:22px;height:22px;border-radius:7px;font-family:'Anybody';font-weight:900;font-size:12px}
-.jg-adn .lt.V,.jg-last .lt.V{background:var(--st-sky);color:#0c1733}
+.jg-adn .lt.G,.jg-last .lt.G{background:var(--st-sky);color:#0c1733}
 .jg-adn .lt.E,.jg-last .lt.E{box-shadow:inset 0 0 0 1.5px var(--soft)}
-.jg-adn .lt.D,.jg-last .lt.D{box-shadow:inset 0 0 0 1.5px var(--line);color:var(--muted)}
+.jg-adn .lt.P,.jg-last .lt.P{box-shadow:inset 0 0 0 1.5px var(--line);color:var(--muted)}
 .jg-adn small{font-family:'Geist Mono';font-size:9px;color:var(--muted)}
 .jg-partner{display:grid;gap:4px;padding:14px;border-radius:16px;background:var(--chip)}
 .vx .jg-partner a{font-family:'Anybody';font-weight:800;font-size:20px;text-decoration:none;color:var(--gold-ink)}

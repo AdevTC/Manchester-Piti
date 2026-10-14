@@ -259,7 +259,7 @@ Club sky-blue and gold on a night navy, with a day theme that swaps the roles of
 
 **The Amber-Is-Work Rule.** In the Sala de control, amber marks something waiting for the admin (a count, a gap, a conflict), sky marks the current item, and gold belongs only to the main action and the capitán general's armband. Red is only for errors and destruction.
 
-**The Never-Color-Alone Rule.** Every status carries a second cue: the V/E/D result badges are a filled square, an outlined square and a hatched square, each with its letter; counters are numbers; the injured estado has an icon and a word; an error lower third is tagged «!».
+**The Never-Color-Alone Rule.** Every status carries a second cue: the result badges use one alphabet everywhere, G·E·P (G victoria · E empate · P derrota; `src/lib/derived/result.ts`), as a filled square, an outlined square and a hatched square, each with its letter; counters are numbers; the injured estado has an icon and a word; an error lower third is tagged «!».
 
 ## Typography
 

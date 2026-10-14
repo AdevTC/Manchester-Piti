@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { buzz, copyText, errorMessage, isOffline } from "./fxRuntime";
 import { GLogo, Ic } from "./icons";
 import type { AccessInfo } from "./profileData";
+import { NewBadge } from "../../components/NewBadge";
 
 export interface CuentaProps {
   nick: string;
@@ -193,7 +194,7 @@ export function TabCuenta(p: CuentaProps) {
 
       <div className="bk">
         <h3 className="bk-h">
-          Qué guarda el club de ti <span className="nv">nuevo</span>
+          Qué guarda el club de ti <NewBadge feature="perfilQueGuarda" look="nv" />
         </h3>
         <p className="bk-d">En palabras normales, sin letra pequeña.</p>
         <button type="button" className="disc" aria-expanded={priv} aria-controls="pe-priv" onClick={() => setPriv((v) => !v)}>
@@ -239,7 +240,7 @@ export function TabCuenta(p: CuentaProps) {
 
       <div className="bk">
         <h3 className="bk-h">
-          Darme de baja <span className="nv">nuevo</span>
+          Darme de baja <NewBadge feature="perfilBaja" look="nv" />
         </h3>
         <p className="bk-d">Dejar el equipo tú mismo. Tus goles y partidos siguen en la historia del club.</p>
         <div className="danger">

@@ -347,18 +347,56 @@ export function matchPhase(
       dateMillis(match.date) <= now)
   )
     return "finished";
-  if (match.clock) {
-    if (match.clock.phase === "ended") return "awaiting_result";
-    if (match.clock.phase !== "ready") return "playing";
-    return "scheduled";
+  const clock = clockOf(match);
+  if (clock) {
+    const k = clockKickoff(clock, match, now);
+    // A ready clock long after the planned end stops being «next»: it waits for the acta.
+    return k === "live" || k === "halftime" ? "playing" : k === "ended" || k === "awaiting_result" ? "awaiting_result" : "scheduled";
   }
-  if (match.version === 2 && match.status === "scheduled" && !match.liveEndedAt) return "scheduled";
   const start = dateMillis(match.date);
   if (!Number.isFinite(start)) return "unscheduled";
   if (now < start) return "scheduled";
   if (match.liveEndedAt && match.liveEndedAt <= now) return "awaiting_result";
   if (now < liveUntil(match)) return "playing";
   return "awaiting_result";
+}
+/**
+ * Where a match stands around its kick-off. With a clock (every v2 match) only the clock starts it:
+ * from the date on, a ready clock is `pending_whistle` («Pendiente del pitido inicial»), and once
+ * date + duration + WHISTLE_GRACE_MS have gone by it is `awaiting_result` («Pendiente del acta») and no
+ * longer the next match. Legacy matches without a clock still follow the schedule (`live` until
+ * liveUntil, then `ended`). Finished actas are `ended`; cancelled, postponed or undated ones never wait
+ * for a whistle (`scheduled` — check matchPhase for those).
+ */
+export type KickoffState = "scheduled" | "pending_whistle" | "live" | "halftime" | "ended" | "awaiting_result";
+/** How long after the planned end a clock nobody started keeps waiting for the whistle. */
+export const WHISTLE_GRACE_MS = 2 * 3_600_000;
+type KickoffMatch = Parameters<typeof matchPhase>[0];
+/** The planned end plus the grace: from then on a ready clock is `awaiting_result`. */
+export function whistleDeadline(match: { date?: unknown; duration?: number }): number {
+  return dateMillis(match.date) + (match.duration ?? 50) * 60_000 + WHISTLE_GRACE_MS;
+}
+/** The match's clock; a v2 match stored without one has a ready clock (transitionClock agrees). */
+function clockOf(match: KickoffMatch): MatchClock | undefined {
+  if (match.clock) return match.clock;
+  if (match.version === 2 && match.status === "scheduled" && !match.liveEndedAt) return { revision: 0, phase: "ready" };
+  return undefined;
+}
+function clockKickoff(clock: MatchClock, match: KickoffMatch, now: number): KickoffState {
+  if (clock.phase === "first" || clock.phase === "second") return "live";
+  if (clock.phase === "halftime") return "halftime";
+  if (clock.phase === "ended") return "ended";
+  const start = dateMillis(match.date);
+  if (!Number.isFinite(start) || now < start) return "scheduled";
+  return now < whistleDeadline(match) ? "pending_whistle" : "awaiting_result";
+}
+export function kickoffState(match: KickoffMatch, now: number): KickoffState {
+  const phase = matchPhase(match, now);
+  if (phase === "finished") return "ended";
+  if (phase === "cancelled" || phase === "postponed" || phase === "unscheduled") return "scheduled";
+  const clock = clockOf(match);
+  if (clock) return clockKickoff(clock, match, now);
+  return phase === "playing" ? "live" : phase === "awaiting_result" ? "ended" : "scheduled";
 }
 /** One hour for the usual F7 fixture; longer games use their configured duration. */
 export function liveUntil(match: { date?: unknown; duration?: number }): number {

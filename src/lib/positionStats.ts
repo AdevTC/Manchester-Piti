@@ -7,6 +7,7 @@ import { isCompleted } from "../../functions/src/matchEngine";
 import { SYSTEM_IDS, isFormationName, systemDef } from "./formations";
 import { POS_CODES, isPosCode, lineOf, type PosCode } from "./positions";
 import { cardPoints, concededOnPitch, durationOf, formRating, type FormInput } from "./form";
+import type { MvpOf } from "./derived/mvpOf";
 
 export interface PosLine {
   code: PosCode;
@@ -59,9 +60,9 @@ function eventsAt(pe: unknown, code: PosCode): Ev {
  * matches, shareW = Σ min(1, minutes at the code / match duration), minW = Σ minutes at the code,
  * gaW = Σ goals + assists at the code, concW = Σ concededOnPitch (his whole time on the pitch that
  * match), cardsW = Σ cardPoints of the cards at the code (a second yellow counts once, 2), savesW = 0, mvpW = Σ [mvpOf(match) === pid]
- * (0 without `mvpOf`), role = the code's line. Null with fewer than 2 such matches.
+ * (0 without `mvpOf`; every page passes derived/mvpOf's mvpOfFrom), role = the code's line. Null with fewer than 2 such matches.
  */
-export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: (matchId: string) => string | null): PlayerPositions {
+export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: MvpOf): PlayerPositions {
   const lines = new Map<PosCode, PosLine>();
   const form = new Map<PosCode, FormInput>();
   let minutes = 0;
@@ -101,7 +102,7 @@ export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: (matchI
     // fell at the same code): read it as cardPoints does, once, as the sending-off
     const dy = Math.min(row.doubleYellows ?? 0, e.redCards, Math.floor(e.yellowCards / 2));
     f.cardsW += cardPoints({ yellowCards: e.yellowCards, redCards: e.redCards, doubleYellows: dy });
-    f.mvpW += mvpOf?.(m.id) === pid ? 1 : 0;
+    f.mvpW += mvpOf?.(m.id, pid) === pid ? 1 : 0;
     form.set(code, f);
   }
   const list = [...lines.values()]

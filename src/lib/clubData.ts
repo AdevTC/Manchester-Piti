@@ -7,6 +7,7 @@ import type {
 } from "../../functions/src/matchEngine";
 import { useSeasonsLoading } from "../context/SeasonContext";
 import { MATCHES_KEY, PLAYERS_KEY, matchQuery, playerQuery } from "./publicData";
+import { nameFor, seasonShirtName, type NameSource } from "./derived/names";
 export {
   EVENT_LABELS,
   dateMillis,
@@ -44,16 +45,10 @@ export function useClubData() {
     error: matches.error || players.error,
   };
 }
-export function playerName(p?: {
-  shirtName?: string;
-  firstName?: string;
-  lastName?: string;
-}) {
-  return (
-    p?.shirtName ||
-    [p?.firstName, p?.lastName].filter(Boolean).join(" ") ||
-    "Jugador"
-  );
+export { nameFor } from "./derived/names";
+/** @deprecated The one name API is nameFor(player, seasonId) (derived/names); this is it without a season. */
+export function playerName(p?: NameSource | null): string {
+  return nameFor(p);
 }
 export function formatDate(date: unknown, time = false) {
   const ms =
@@ -90,7 +85,8 @@ export function playerForSeason<
     : undefined;
   return {
     ...player,
-    shirtName: detail?.shirtName || player.shirtName,
+    // (the same season name nameFor reads: a blank or malformed one falls back to the default)
+    shirtName: seasonShirtName(player, seasonId) || player.shirtName,
     number: detail?.number ?? player.number,
   };
 }

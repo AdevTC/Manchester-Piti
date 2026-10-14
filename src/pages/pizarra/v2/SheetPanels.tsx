@@ -13,9 +13,11 @@ import type { RepRow } from "./bench";
 import type { TapeRow } from "./compare";
 import { cartelHead, type Cartel } from "./cartel";
 import type { Squad } from "./model";
+import { wholeMinutes } from "../../../lib/derived/minutes";
 import type { ShowKey, ShowPrefs } from "./prefs";
 import { intro3dWanted, setIntro3dWanted } from "./intro";
 import { TeamDiamonds } from "./TacticaPanel";
+import { ALL_SEASONS_LABEL } from "../../../lib/useSetSeason";
 
 /** A panel's heading: the title speaks first and the old kicker is the line under it (the panels
  *  behind «Más» have «‹ Más» before it). */
@@ -75,7 +77,7 @@ export function ChemLines({ ch }: { ch: Chem }) {
             <strong>{l.a}</strong>asist.
           </span>
           <span>
-            <strong>{l.min}</strong>min
+            <strong>{l.unk ? "—" : wholeMinutes(l.min)}</strong>min
           </span>
         </div>
       ))}
@@ -577,7 +579,7 @@ export function AjustesPanel(p: AjustesProps) {
       <label className="selw full">
         Datos de
         <select value={p.seasonId} onChange={(e) => p.onSeason(e.target.value)} aria-label="Temporada de los datos">
-          {p.seasonId === "all" && <option value="all">Histórico total</option>}
+          {p.seasonId === "all" && <option value="all">{ALL_SEASONS_LABEL}</option>}
           {p.seasons.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}

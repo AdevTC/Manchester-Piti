@@ -3,7 +3,8 @@
 // allowed to edit, the official the team sees (with the reactions to it) and the convocatoria of the
 // board's match on the cromos.
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
+import { ALL_SEASONS_LABEL, useSetSeason } from "../../../lib/useSetSeason";
 import { useAuth } from "../../../context/AuthContext";
 import { useSeason } from "../../../context/SeasonContext";
 import { useClock } from "../../../hooks/useClock";
@@ -50,9 +51,8 @@ function ThemeButton({ dark, onToggle }: { dark: boolean; onToggle: () => void }
 export function PizarraPage() {
   const { user, profile } = useAuth();
   const { seasons, selectedSeasonId } = useSeason();
-  const navigate = useNavigate();
   // The season is URL-authoritative (SeasonUrlSync adopts ?season into context): picking one navigates.
-  const pickSeason = (id: string) => void navigate({ to: ".", search: (prev) => ({ ...prev, season: id }) });
+  const pickSeason = useSetSeason();
   const isAdmin = profile?.role === "admin" || profile?.role === "superadmin";
   // A shared link brings its season (?season=): until SeasonUrlSync has adopted it, the board waits.
   const urlSeason = useSearch({ strict: false, select: (s) => (s as { season?: string }).season });
@@ -91,7 +91,7 @@ export function PizarraPage() {
   const reactions = useReactions(official ? { id: official.id, isOfficial: official.isOfficial } : null);
   // Bloque 5: the voice clips of the charla of the board on screen (read while the charla is open)
   const voz = useVozStore(session.id, user?.uid ?? "preview");
-  const seasonName = selectedSeasonId === "all" ? "Histórico total" : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
+  const seasonName = selectedSeasonId === "all" ? ALL_SEASONS_LABEL : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
   const nick = profile?.nickname ?? "";
   // The board has opened where the link asked: coming back later starts from the board you left.
   useEffect(() => {

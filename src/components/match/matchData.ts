@@ -128,10 +128,11 @@ export function outcomeOf(gf: number, gc: number): Outcome {
   return gf > gc ? "win" : gf === gc ? "draw" : "loss";
 }
 
+/** (the letters are the app's one alphabet, lib/derived/result.ts: G · E · P) */
 export const OUTCOME: Record<Outcome, { word: string; letter: string }> = {
-  win: { word: "Victoria", letter: "V" },
+  win: { word: "Victoria", letter: "G" },
   draw: { word: "Empate", letter: "E" },
-  loss: { word: "Derrota", letter: "D" },
+  loss: { word: "Derrota", letter: "P" },
 };
 
 export function toDate(d: FireDate): Date {

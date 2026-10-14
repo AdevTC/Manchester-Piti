@@ -31,6 +31,23 @@ describe("player of the moment", () => {
   });
 });
 
+describe("a match waiting for its acta", () => {
+  const clocked = (id: string, daysAgo: number): ClubMatch => ({ id, seasonId: "s1", rival: `Rival ${id}`, version: 2, status: "scheduled", date: NOW - daysAgo * DAY, duration: 50, clock: { revision: 0, phase: "ready" } });
+  it("is not in «Lo que viene» nor next: it takes the last match's place while it is the newest", () => {
+    const p = seasonPulse([played("m1", 9, 1, 0), clocked("acta", 3), upcoming("n", 4)], "s1", NOW);
+    expect(p.upcoming.map((m) => m.id)).toEqual(["n"]);
+    expect(p.next?.id).toBe("n");
+    expect(p.awaiting?.id).toBe("acta");
+    expect(p.last?.id).toBe("m1");
+  });
+  it("an older one waiting behind a newer result does not take its place", () => {
+    const p = seasonPulse([clocked("acta", 9), played("m1", 3, 1, 0)], "s1", NOW);
+    expect(p.awaiting).toBeUndefined();
+    expect(p.upcoming).toEqual([]);
+    expect(seasonPulse([clocked("acta", 3)], "s1", NOW).awaiting?.id).toBe("acta");
+  });
+});
+
 describe("home narrative", () => {
   it("pre-season without a date", () => {
     const p = seasonPulse([], "s1", NOW);

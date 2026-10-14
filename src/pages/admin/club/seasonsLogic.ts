@@ -5,6 +5,8 @@ import { dateMillis } from "../../../../functions/src/matchEngine";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import type { AdminMatch, AdminMatchState } from "../data/adminLogic";
 import { nameIn, numberIn } from "./plantillaLogic";
+import { resultLetter, resultTitle, type ResultLetter } from "../../../lib/derived/result";
+import { calendarOrder } from "../../../lib/derived/jornada";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -55,6 +57,8 @@ export function seasonCards(o: {
       return { id: s.id, name: s.name, state: "archived", captainId: s.captainPlayerId ?? "", captain: captainDoc ? captain : s.captainPlayerId ? "—" : "Sin elegir", jornadas: h ? `${h.matches} de ${h.matches}` : "—", players: h ? h.players : null, matches: h ? plural(h.matches, "partido", "partidos") : "—", total: h?.matches ?? 0, played: h?.matches ?? 0 };
     }
     const ms = o.matches.filter((m) => m.seasonId === s.id && m.status !== "cancelled");
+    // (its jornadas: the numbered matches — published, not cancelled; a draft is not one yet)
+    const numbered = ms.filter((m) => m.jornada != null).length;
     const played = ms.filter((m) => o.stateOf(m) === "published").length;
     const upcoming = ms.some((m) => dateMillis(m.date) > o.now);
     const state: SeasonState = s.id === o.activeId ? "active" : ms.length && !upcoming && played === ms.length ? "done" : "prep";
@@ -64,10 +68,10 @@ export function seasonCards(o: {
       state,
       captainId: s.captainPlayerId ?? "",
       captain,
-      jornadas: `${played} de ${ms.length}`,
+      jornadas: `${played} de ${numbered}`,
       players: o.players.filter((p) => (p.seasons ?? []).includes(s.id)).length,
       matches: plural(played, "jugado", "jugados"),
-      total: ms.length,
+      total: numbered,
       played,
     };
   });
@@ -117,29 +121,26 @@ export function copyRosterPlan(players: readonly PlayerDoc[], fromId: string): C
 // ───────────────────────── the vitrina (the active season as silverware) ─────────────────────────
 /** Our goals with a scorer (penalties and free kicks included; own goals and the rival's own goals not). */
 const SCORED = new Set(["goal", "goal_penalty", "goal_freekick"]);
-type Letter = "V" | "E" | "D";
-const letterOf = (gf: number, ga: number): Letter => (gf > ga ? "V" : gf === ga ? "E" : "D");
-const WORD: Record<Letter, string> = { V: "Victoria", E: "Empate", D: "Derrota" };
-
-/** One jornada on the shelf: its V/E/D once its acta is published, a gap otherwise. */
+/** One jornada on the shelf: its G/E/P once its acta is published, a gap otherwise. */
 export interface ShelfSlot {
   id: string;
   /** «J4» (or the rival when the match has no jornada). */
   label: string;
   /** null = a gap (not played yet, or played and not published). */
-  r: Letter | null;
+  r: ResultLetter | null;
   /** «J4 · Victoria 4–1 a Emirates», «J7 · sin publicar», «J9 · por jugar». */
   aria: string;
 }
 export interface Showcase {
-  v: number;
+  /** Ganados · empatados · perdidos (G/E/P). */
+  g: number;
   e: number;
-  d: number;
+  p: number;
   gf: number;
   ga: number;
   /** Matches whose acta is published (the ones that count). */
   published: number;
-  /** The season's matches in the calendar (not cancelled). */
+  /** The season's jornadas: its numbered matches (published, not cancelled). */
   total: number;
   shelf: ShelfSlot[];
   /** The top scorer of the published actas (ties: the first by name). */
@@ -150,8 +151,10 @@ export interface Showcase {
   streak: number;
   /** Who was MVP most often (ties share it). */
   mvp: { ids: string[]; times: number } | null;
-  /** Played matches whose acta is not published yet (they enter the vitrina when it is). */
+  /** Played jornadas whose acta is not published yet (they enter the vitrina when it is): «J5». */
   waiting: string[];
+  /** Played matches still only a draft (no jornada yet): their rivals. */
+  waitingDrafts: string[];
 }
 /**
  * The vitrina of `seasonId`: the record, the goals, the Pichichi, the shelf of jornadas and the trophies —
@@ -165,24 +168,27 @@ export function seasonShowcase(o: {
   mvpOf: (m: AdminMatch) => readonly string[];
   nameOf: (id: string) => string;
 }): Showcase {
-  const ms = o.matches.filter((m) => m.seasonId === o.seasonId && m.status !== "cancelled").sort((a, b) => dateMillis(a.date) - dateMillis(b.date));
-  const label = (m: AdminMatch) => (m.jornada ? `J${m.jornada}` : m.rival || "Partido");
+  // The shelf holds the season's jornadas (derived/jornada: published, not cancelled, in calendar order);
+  // a draft is not a jornada yet — the foot mentions it when it has been played.
+  const inSeason = o.matches.filter((m) => m.seasonId === o.seasonId && m.status !== "cancelled").sort(calendarOrder);
+  const ms = inSeason.filter((m) => m.jornada != null);
+  const label = (m: AdminMatch) => `J${m.jornada}`;
   const counts = (m: AdminMatch) => o.stateOf(m) === "published" && m.status === "finished" && typeof m.goalsFor === "number";
   const pub = ms.filter(counts);
-  const out: Showcase = { v: 0, e: 0, d: 0, gf: 0, ga: 0, published: pub.length, total: ms.length, shelf: [], pichichi: null, biggest: null, streak: 0, mvp: null, waiting: [] };
+  const out: Showcase = { g: 0, e: 0, p: 0, gf: 0, ga: 0, published: pub.length, total: ms.length, shelf: [], pichichi: null, biggest: null, streak: 0, mvp: null, waiting: [], waitingDrafts: [] };
   const goals = new Map<string, number>();
   const mvps = new Map<string, number>();
   let run = 0;
   for (const m of pub) {
     const gf = m.goalsFor ?? 0;
     const ga = m.goalsAgainst ?? 0;
-    const r = letterOf(gf, ga);
-    out[r === "V" ? "v" : r === "E" ? "e" : "d"] += 1;
+    const r = resultLetter(gf, ga);
+    out[r === "G" ? "g" : r === "E" ? "e" : "p"] += 1;
     out.gf += gf;
     out.ga += ga;
-    run = r === "V" ? run + 1 : 0;
+    run = r === "G" ? run + 1 : 0;
     out.streak = Math.max(out.streak, run);
-    if (r === "V" && (!out.biggest || gf - ga > out.biggest.gf - out.biggest.ga)) out.biggest = { gf, ga, rival: m.rival || "Rival", label: label(m) };
+    if (r === "G" && (!out.biggest || gf - ga > out.biggest.gf - out.biggest.ga)) out.biggest = { gf, ga, rival: m.rival || "Rival", label: label(m) };
     for (const e of m.events ?? []) if (SCORED.has(e.type) && e.playerId) goals.set(e.playerId, (goals.get(e.playerId) ?? 0) + 1);
     for (const id of o.mvpOf(m)) mvps.set(id, (mvps.get(id) ?? 0) + 1);
   }
@@ -196,21 +202,26 @@ export function seasonShowcase(o: {
     if (counts(m)) {
       const gf = m.goalsFor ?? 0;
       const ga = m.goalsAgainst ?? 0;
-      const r = letterOf(gf, ga);
-      return { id: m.id, label: l, r, aria: `${l} · ${WORD[r]} ${gf}–${ga} a ${m.rival || "Rival"}` };
+      const r = resultLetter(gf, ga);
+      return { id: m.id, label: l, r, aria: `${l} · ${resultTitle(r)} ${gf}–${ga} a ${m.rival || "Rival"}` };
     }
     const played = dateMillis(m.date) <= o.now && m.status !== "postponed";
     return { id: m.id, label: l, r: null, aria: `${l} · ${m.status === "postponed" ? "aplazado" : played ? "sin publicar" : "por jugar"}` };
   });
-  out.waiting = ms.filter((m) => !counts(m) && m.status !== "postponed" && dateMillis(m.date) <= o.now).map(label);
+  const pending = (m: AdminMatch) => !counts(m) && m.status !== "postponed" && dateMillis(m.date) <= o.now;
+  out.waiting = ms.filter(pending).map(label);
+  out.waitingDrafts = inSeason.filter((m) => m.jornada == null && pending(m)).map((m) => m.rival || "Rival");
   return out;
 }
 
-/** The vitrina's foot: only published actas count — and which played ones are still waiting. */
-export function countsNote(waiting: readonly string[]): string {
-  if (!waiting.length) return "Cuentan las actas publicadas";
-  const list = waiting.length < 2 ? waiting[0] : `${waiting.slice(0, -1).join(", ")} y ${waiting[waiting.length - 1]}`;
-  return `Cuentan las actas publicadas · ${waiting.length === 1 ? `la ${list} entra al publicarla` : `la ${list} entran al publicarlas`}`;
+/** The vitrina's foot: only published actas count — and which played ones are still waiting (the
+ *  jornadas, then the drafts by their rival). */
+export function countsNote(waiting: readonly string[], drafts: readonly string[] = []): string {
+  const and = (xs: readonly string[]) => (xs.length < 2 ? xs[0] : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
+  const parts = ["Cuentan las actas publicadas"];
+  if (waiting.length) parts.push(waiting.length === 1 ? `la ${waiting[0]} entra al publicarla` : `la ${and(waiting)} entran al publicarlas`);
+  if (drafts.length) parts.push(drafts.length === 1 ? `el borrador contra ${drafts[0]} entra al publicarlo` : `los borradores contra ${and(drafts)} entran al publicarlos`);
+  return parts.join(" · ");
 }
 
 /** The lower thirds' tag for a season: «T1» for «Temporada 1», «TEMP» otherwise. */

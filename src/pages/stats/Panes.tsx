@@ -9,16 +9,23 @@ import { scorersLine } from "../../lib/partidos";
 import { Icon } from "../../components/celeste/icons";
 import { OpponentBadge } from "../../components/club/OpponentBadge";
 import { Bars, Constellation, GoalClock, HeatStrip, Radar, ResultsChart } from "./Charts";
+import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
+import { jornadaLabel } from "../../lib/derived/jornada";
+import { nameFor } from "../../lib/derived/names";
+import { NewBadge } from "../../components/NewBadge";
+import type { NewFeature } from "../../lib/derived/isNew";
 
 type NameOf = (p: PlayerAnalysis) => string;
-const show = (p: PlayerAnalysis, k: PlayerMetric) => metricValue(p, k) ?? "—";
+/** A metric as the tables print it: minutes whole with «′» (derived/minutes), «—» when not tracked. */
+const fmtMetric = (k: PlayerMetric, v: number | null) => (v === null ? "—" : k === "minutes" ? fmtMinutes(v) : v);
+const show = (p: PlayerAnalysis, k: PlayerMetric) => fmtMetric(k, metricValue(p, k));
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 
-function Head({ kick, title, children, isNew }: { kick: string; title: string; children?: React.ReactNode; isNew?: boolean }) {
+function Head({ kick, title, children, nuevo }: { kick: string; title: string; children?: React.ReactNode; nuevo?: NewFeature }) {
   return (
     <div className="st-hd">
       <span className="hm-kick" style={{ margin: 0 }}>
-        {kick} {isNew && <span className="st-new">nuevo</span>}
+        {kick} {nuevo && <NewBadge feature={nuevo} />}
       </span>
       <h2 className="st-h2">{title}</h2>
       {children}
@@ -32,7 +39,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
   const links = useMemo(() => goalLinks(games), [games]);
   const names = new Map(rows.map((p) => [p.id, nameOf(p)]));
   const mvpTop = [...mvps.entries()].sort((a, b) => b[1] - a[1])[0];
-  const kpis: { k: string; v: string | number; sub?: string; isNew?: boolean; hl?: boolean; wide?: boolean }[] = [
+  const kpis: { k: string; v: string | number; sub?: string; nuevo?: NewFeature; hl?: boolean; wide?: boolean }[] = [
     { k: "Partidos", v: t.played },
     { k: "Victorias", v: t.wins, hl: true },
     { k: "Empates", v: t.draws },
@@ -41,9 +48,9 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
     { k: "Goles en contra", v: t.ga },
     { k: "Goles por partido", v: (t.played ? t.gf / t.played : 0).toFixed(1).replace(".", ",") },
     { k: "% de victorias", v: `${pct(t.wins, t.played)}%` },
-    { k: "Puntos", v: points(games), sub: `de ${t.played * 3}`, isNew: true },
-    { k: "Porterías a cero", v: t.cleanSheets, isNew: true },
-    ...(mvpTop ? [{ k: "Más MVP", v: mvpTop[1], sub: names.get(mvpTop[0]) ?? "", isNew: true, wide: true }] : []),
+    { k: "Puntos", v: points(games), sub: `de ${t.played * 3}`, nuevo: "statsPuntos" },
+    { k: "Porterías a cero", v: t.cleanSheets, nuevo: "statsPorteriasACero" },
+    ...(mvpTop ? [{ k: "Más MVP", v: mvpTop[1], sub: names.get(mvpTop[0]) ?? "", nuevo: "statsMasMvp" as const, wide: true }] : []),
   ];
   return (
     <div className="st-pane-in">
@@ -55,7 +62,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
           {kpis.map((x, i) => (
             <div key={x.k} className={[x.hl && "hl", x.wide && "wide"].filter(Boolean).join(" ") || undefined} style={{ animationDelay: `${i * 0.04}s` }}>
               <dt>
-                {x.k} {x.isNew && <span className="st-new">nuevo</span>}
+                {x.k} {x.nuevo && <NewBadge feature={x.nuevo} />}
               </dt>
               <dd>
                 {x.v}
@@ -85,7 +92,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
       </section>
       <div className="st-two">
         <section className="st-card" aria-labelledby="st-sky-t">
-          <Head kick="Asistente → goleador" title="La constelación" isNew />
+          <Head kick="Asistente → goleador" title="La constelación" nuevo="statsConstelacion" />
           <span id="st-sky-t" className="hm-sr">
             Conexiones de gol
           </span>
@@ -113,7 +120,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
           )}
         </section>
         <section className="st-card" aria-labelledby="st-clock-t">
-          <Head kick="Minuto a minuto" title="El reloj de goles" isNew />
+          <Head kick="Minuto a minuto" title="El reloj de goles" nuevo="statsRelojDeGoles" />
           <span id="st-clock-t" className="hm-sr">
             El reloj de goles
           </span>
@@ -128,7 +135,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
 function exportCsv(rows: PlayerAnalysis[], nameOf: NameOf) {
   const quote = (value: unknown) => '"' + String(value ?? "").replace(/^[=+@-]/, "'$&").replaceAll('"', '""') + '"';
   const keys = Object.keys(metrics) as PlayerMetric[];
-  const lines = [["Jugador", ...keys.map((k) => metrics[k])], ...rows.map((p) => [nameOf(p), ...keys.map((k) => metricValue(p, k))])];
+  const lines = [["Jugador", ...keys.map((k) => metrics[k])], ...rows.map((p) => [nameOf(p), ...keys.map((k) => { const v = metricValue(p, k); return k === "minutes" && v !== null ? wholeMinutes(v) : v; })])];
   const url = URL.createObjectURL(new Blob(["﻿" + lines.map((line) => line.map(quote).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
   a.href = url;
@@ -194,7 +201,7 @@ export function Jugadores({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: Na
                     </th>
                   ))}
                   <th scope="col" className="hs">
-                    Últimas jornadas <span className="st-new">nuevo</span>
+                    Últimas jornadas <NewBadge feature="statsUltimasJornadas" />
                   </th>
                 </tr>
               </thead>
@@ -246,12 +253,11 @@ export function Jugadores({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: Na
 }
 
 // ---------- Minutos
-export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games: ClubMatch[]; nameOf: NameOf }) {
+export function Minutos({ rows, games, nameOf, jornada }: { rows: PlayerAnalysis[]; games: ClubMatch[]; nameOf: NameOf; /** Each match's jornada (derived/jornada). */ jornada: ReadonlyMap<string, number> }) {
   const tracked = games.filter((m) => m.ledger && Object.keys(m.ledger).length).length;
   const sorted = [...rows].sort((a, b) => (b.tracked ? b.minutes : -1) - (a.tracked ? a.minutes : -1) || nameOf(a).localeCompare(nameOf(b)));
   const heat = minutesHeat(sorted);
   const last = games.slice(-12);
-  const cut = games.length - last.length;
   const cell = (p: PlayerAnalysis, v: number) => (p.tracked ? v : "—");
   return (
     <div className="st-pane-in">
@@ -288,7 +294,7 @@ export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games
                       {nameOf(p)}
                     </Link>
                   </th>
-                  <td className="sel">{p.tracked ? p.minutes : "—"}</td>
+                  <td className="sel">{p.tracked ? wholeMinutes(p.minutes) : "—"}</td>
                   <td>{cell(p, p.starts)}</td>
                   <td>{cell(p, p.bench)}</td>
                   <td>{cell(p, p.subIn)}</td>
@@ -303,7 +309,7 @@ export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games
       </section>
       <div className="st-two">
         <section className="st-card" aria-labelledby="st-heat">
-          <Head kick="Jugador × jornada" title="El mapa de minutos" isNew>
+          <Head kick="Jugador × jornada" title="El mapa de minutos" nuevo="statsMapaDeMinutos">
             <p className="st-mono">Cada casilla, un partido: cuanto más intensa, más minutos.</p>
           </Head>
           <span id="st-heat" className="hm-sr">
@@ -316,10 +322,10 @@ export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games
                   <th scope="col">
                     <span className="hm-sr">Jugador</span>
                   </th>
-                  {last.map((m, i) => (
+                  {last.map((m) => (
                     <th scope="col" key={m.id}>
                       <Link to="/matches/$matchId" params={{ matchId: m.id }} aria-label={`${m.rival ?? "Rival"}, ${formatDate(m.date)}`}>
-                        J{cut + i + 1}
+                        {jornadaLabel(jornada.get(m.id)) || "—"}
                       </Link>
                     </th>
                   ))}
@@ -332,8 +338,8 @@ export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games
                     <tr key={h.id}>
                       <th scope="row">{nameOf(p)}</th>
                       {h.cells.slice(-12).map((c) => (
-                        <td key={c.matchId} className={c.played ? undefined : "no"} style={{ ["--l" as string]: c.level }} title={c.minutes !== null ? `${c.minutes}′` : c.played ? "Jugó" : "No jugó"}>
-                          <span className="hm-sr">{c.minutes !== null ? `${c.minutes} minutos` : c.played ? "jugó" : "no jugó"}</span>
+                        <td key={c.matchId} className={c.played ? undefined : "no"} style={{ ["--l" as string]: c.level }} title={c.minutes !== null ? fmtMinutes(c.minutes) : c.played ? "Jugó" : "No jugó"}>
+                          <span className="hm-sr">{c.minutes !== null ? `${wholeMinutes(c.minutes)} minutos` : c.played ? "jugó" : "no jugó"}</span>
                           {c.goals > 0 && <b aria-hidden="true">{c.goals}</b>}
                         </td>
                       ))}
@@ -349,7 +355,7 @@ export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games
           <span id="st-dist" className="hm-sr">
             Distribución de minutos
           </span>
-          <Bars rows={rows.filter((p) => p.tracked)} value={(p) => p.minutes} unit="min" nameOf={nameOf} />
+          <Bars rows={rows.filter((p) => p.tracked)} value={(p) => wholeMinutes(p.minutes)} unit="min" nameOf={nameOf} />
         </section>
       </div>
     </div>
@@ -360,7 +366,7 @@ export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games
 export function Rivales({ games, rows }: { games: ClubMatch[]; rows: PlayerAnalysis[] }) {
   const table = useMemo(() => rivalTable(games), [games]);
   const [open, setOpen] = useState<string | null>(null);
-  const names = new Map(rows.map((p) => [p.id, p.shirtName || p.firstName || "Jugador"]));
+  const names = new Map(rows.map((p) => [p.id, nameFor(p)]));
   const nameOfId = (id: string) => names.get(id) ?? "Jugador";
   return (
     <div className="st-pane-in">
@@ -417,7 +423,7 @@ export function Rivales({ games, rows }: { games: ClubMatch[]; rows: PlayerAnaly
                 {isOpen && (
                   <ol className="st-rgames">
                     <li className="st-mono">
-                      Detalle <span className="st-new">nuevo</span>
+                      Detalle <NewBadge feature="statsDetalleDeRival" />
                     </li>
                     {r.games.map((m) => {
                       const gm = goalMinutes(m.events);
@@ -520,7 +526,7 @@ export function Comparar({ rows, nameOf, games }: { rows: PlayerAnalysis[]; name
         <div className="st-two st-cmp-top">
           <Radar a={radarScores(lp, rows, games)} b={radarScores(rp, rows, games)} aLabel={nameOf(lp)} bLabel={nameOf(rp)} />
           <p className="st-tally">
-            <span className="st-new">nuevo</span>
+            <NewBadge feature="statsCaraACara" />
             <b>{wins.a === wins.b ? "Empate técnico" : `${nameOf(wins.a > wins.b ? lp : rp)} manda`}</b>
             <span>
               Gana en {Math.max(wins.a, wins.b)} de las {keys.length} métricas
@@ -534,7 +540,7 @@ export function Comparar({ rows, nameOf, games }: { rows: PlayerAnalysis[]; name
             const both = a !== null && b !== null && a + b > 0;
             return (
               <li key={k}>
-                <b className={both && a! > b! ? "win" : undefined}>{a ?? "—"}</b>
+                <b className={both && a! > b! ? "win" : undefined}>{fmtMetric(k, a)}</b>
                 <span className="lb">
                   {metrics[k]}
                   {both && (
@@ -544,7 +550,7 @@ export function Comparar({ rows, nameOf, games }: { rows: PlayerAnalysis[]; name
                     </span>
                   )}
                 </span>
-                <b className={both && b! > a! ? "win" : undefined}>{b ?? "—"}</b>
+                <b className={both && b! > a! ? "win" : undefined}>{fmtMetric(k, b)}</b>
               </li>
             );
           })}

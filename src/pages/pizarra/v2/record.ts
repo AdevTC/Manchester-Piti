@@ -1,5 +1,5 @@
 // La pizarra · Bloque 4 — lo planeado frente a lo jugado: what this seven has done in the season's played
-// matches (the ones that started with at least five of these seven: «Con este siete: 3V 1E 0D · 9 GF 4 GC»),
+// matches (the ones that started with at least five of these seven: «Con este siete: 3G 1E 0P · 9 GF 4 GC»),
 // how the board's seven compares with the seven that played its linked match, and «Copiar el siete del
 // último partido» (the starters of the last played match placed on a system by their positions). Pure.
 import type { FormationName, Lineup } from "../formations";
@@ -21,16 +21,16 @@ const playedWithSeven = (m: CalMatch): boolean => m.played && m.gf != null && m.
 export interface Record7 {
   /** Matches that count. */
   n: number;
-  v: number;
+  g: number;
   e: number;
-  d: number;
+  p: number;
   gf: number;
   gc: number;
 }
 
 /** The record of the matches started by ≥ SAME_MIN of the board's seven (none until the seven has that many). */
 export function recordWith(L: Lineup, calendar: readonly CalMatch[]): Record7 {
-  const r: Record7 = { n: 0, v: 0, e: 0, d: 0, gf: 0, gc: 0 };
+  const r: Record7 = { n: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0 };
   const s = sevenOf(L);
   if (s.length < SAME_MIN) return r;
   calendar.forEach((m) => {
@@ -40,17 +40,17 @@ export function recordWith(L: Lineup, calendar: readonly CalMatch[]): Record7 {
     r.n++;
     r.gf += gf;
     r.gc += ga;
-    if (gf > ga) r.v++;
+    if (gf > ga) r.g++;
     else if (gf === ga) r.e++;
-    else r.d++;
+    else r.p++;
   });
   return r;
 }
 
-/** «Con este siete: 3V 1E 0D · 9 GF 4 GC» (null when no match counts). */
+/** «Con este siete: 3G 1E 0P · 9 GF 4 GC» (null when no match counts). */
 export function recordTxt(r: Record7): string | null {
   if (!r.n) return null;
-  return "Con este siete: " + r.v + "V " + r.e + "E " + r.d + "D · " + r.gf + " GF " + r.gc + " GC";
+  return "Con este siete: " + r.g + "G " + r.e + "E " + r.p + "P · " + r.gf + " GF " + r.gc + " GC";
 }
 
 export interface PlannedVsPlayed {

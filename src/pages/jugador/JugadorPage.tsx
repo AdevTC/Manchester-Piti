@@ -4,8 +4,9 @@ import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 // his constellation with the best partner, the vitrina — plus season by season, last games and
 // substitutions. From the Design canvas "Estadísticas · elegida" (Ficha de jugador).
 import { useMemo, useState } from "react";
-import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
-import { formatDate, playerForSeason, playerName, useClubData, type ClubMatch } from "../../lib/clubData";
+import { Link, getRouteApi } from "@tanstack/react-router";
+import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
+import { formatDate, playerForSeason, nameFor, useClubData, type ClubMatch } from "../../lib/clubData";
 import { analysePlayer, chronological, competitionRanks, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { computeStats } from "../../lib/playerStats";
 import { positionText, resolvePositions } from "../../lib/positions";
@@ -23,15 +24,21 @@ import { Icon } from "../../components/celeste/icons";
 import { Constellation, GoalClock, Radar } from "../stats/Charts";
 import { Cromo, type CromoFace } from "./Cromo";
 import { SusPosiciones } from "./SusPosiciones";
+import { jornadaNumbers } from "../../lib/derived/jornada";
+import { RESULT_LEGEND, resultLetter } from "../../lib/derived/result";
+import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
+import { timedGames, totalMinutes } from "../../lib/derived/minutesOf";
+import { mvpOfFrom } from "../../lib/derived/mvpOf";
+import { NewBadge } from "../../components/NewBadge";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
 import "../../styles/jugador.css";
 
 const route = getRouteApi("/jugadores/$playerId");
-const nameOf = (p: PlayerAnalysis) => playerName(p);
+const nameOf = (p: PlayerAnalysis) => nameFor(p);
 const ML = { goals: ["gol", "goles"], assists: ["asistencia", "asistencias"], matchesPlayed: ["partido", "partidos"] } as const;
-const letter = (m: ClubMatch) => (m.goalsFor! > m.goalsAgainst! ? "V" : m.goalsFor === m.goalsAgainst ? "E" : "D");
+const letter = (m: ClubMatch) => resultLetter(m.goalsFor ?? 0, m.goalsAgainst ?? 0);
 
 function Shell({ children, busy }: { children: React.ReactNode; busy?: boolean }) {
   return (
@@ -62,7 +69,7 @@ export function JugadorPage() {
   const { playerId } = route.useParams();
   const { players, matches, loading, error } = useClubData();
   const { seasons, selectedSeasonId, loadingSeasons } = useSeason();
-  const navigate = useNavigate();
+  const setSeason = useSetSeason();
   const results = useMvpResults();
   const now = useClock(60_000);
   const { theme } = useTheme();
@@ -73,21 +80,14 @@ export function JugadorPage() {
   const raw = players.find((x) => x.id === playerId);
   const p = raw ? playerForSeason(raw, selectedSeasonId, seasons) : undefined;
   const games = useMemo(() => chronological(matches.filter((m) => selectedSeasonId === "all" || m.seasonId === selectedSeasonId)), [matches, selectedSeasonId]);
-  // the MVP of a match, for the form by position (him when he shares the vote)
-  const mvpOf = useMemo(() => {
-    const byId = new Map(games.map((g) => [g.id, g]));
-    return (id: string) => {
-      const m = byId.get(id);
-      const won = m ? mvpWinners(m, results.get(id), now) : [];
-      return won.includes(playerId) ? playerId : (won[0] ?? null);
-    };
-  }, [games, results, now, playerId]);
+  // the MVP of a match, for the form by position (him when he shares the vote): the one shared reader
+  const mvpOf = useMemo(() => mvpOfFrom(results, games, now), [games, results, now]);
   const squad = useMemo(
     () => players.filter((x) => selectedSeasonId === "all" || x.seasons?.includes(selectedSeasonId) || x.id === playerId).map((x) => analysePlayer(playerForSeason(x, selectedSeasonId, seasons), games)),
     [players, games, selectedSeasonId, seasons, playerId],
   );
   const me = squad.find((x) => x.id === playerId);
-  const name = p ? playerName(p) : "";
+  const name = p ? nameFor(p) : "";
   const num = p?.number != null ? String(p.number) : "";
   const stills = useShirtStills(p && !p.photoUrl ? [{ kit: "home", theme, name: name.toUpperCase(), num, yaw: 0 }] : [], { offMainThread: true });
 
@@ -124,14 +124,14 @@ export function JugadorPage() {
       </Shell>
     );
 
-  const periodName = selectedSeasonId === "all" ? "Todo el historial" : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
+  const periodName = selectedSeasonId === "all" ? ALL_SEASONS_LABEL : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
   const tracked = me.tracked > 0;
   const rec = (v: number) => (tracked ? v : "—");
   const tiles: [string, string | number][] = [
     ["Partidos", me.matchesPlayed],
     ["Goles", me.goals],
     ["Asistencias", me.assists],
-    ["Minutos registrados", tracked ? `${me.minutes}′` : "—"],
+    ["Minutos registrados", tracked ? fmtMinutes(me.minutes) : "—"],
     ["Titular", rec(me.starts)],
     ["Suplente inicial", rec(me.bench)],
     ["No convocado", rec(me.notCalled)],
@@ -177,15 +177,16 @@ export function JugadorPage() {
   const medals = vitrina(p.id, games, results, seasons, now);
   const links = goalLinks(games);
   const adn = me.series.slice(-12).map((g) => ({ g, mvp: mvpWinners(g.match, results.get(g.match.id), now).includes(p.id) }));
-  const cut = me.series.length - adn.length;
+  // (each match's jornada in its own season: «all seasons» does not renumber them)
+  const jornada = jornadaNumbers(matches);
   const appearances = me.series.filter((g) => g.played).slice(-10).reverse();
   const exchanges = me.series.flatMap((g) => (g.match.ledger?.[p.id]?.exchanges ?? []).map((e) => ({ ...e, match: g.match })));
   const allSeasons = seasons.filter((s) => p.seasons?.includes(s.id));
   const seasonRow = (id: string) => {
     const sg = chronological(matches.filter((m) => m.seasonId === id));
     const st = computeStats(p.id, sg);
-    const led = sg.filter((m) => m.ledger?.[p.id]);
-    return { st, minutes: led.length ? Math.round(led.reduce((n, m) => n + (m.ledger![p.id].secondsPlayed ?? m.ledger![p.id].minutes * 60), 0) / 60 * 100) / 100 : null, mvps: mvpWins(p.id, sg, results, now) };
+    // (the one minutes rule: derived/minutesOf; «—» when no acta of the season knows his time)
+    return { st, minutes: timedGames(sg, p.id) ? totalMinutes(sg, p.id) : null, mvps: mvpWins(p.id, sg, results, now) };
   };
   const nameById = new Map(squad.map((x) => [x.id, nameOf(x)]));
   const share = () =>
@@ -245,8 +246,8 @@ export function JugadorPage() {
             {(seasons.length > 0 || loadingSeasons) && (
               <label className="st-field jg-season">
                 <span className="st-mono">Temporada</span>
-                <select aria-label="Seleccionar temporada" value={loadingSeasons ? "all" : selectedSeasonId} disabled={loadingSeasons} onChange={(e) => void navigate({ to: ".", search: (prev) => ({ ...prev, season: e.target.value }) })}>
-                  <option value="all">Todo el historial</option>
+                <select aria-label="Seleccionar temporada" value={loadingSeasons ? "all" : selectedSeasonId} disabled={loadingSeasons} onChange={(e) => setSeason(e.target.value)}>
+                  <option value="all">{ALL_SEASONS_LABEL}</option>
                   {[...seasons].reverse().map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -266,7 +267,7 @@ export function JugadorPage() {
           {chips.map((c, i) => (
             <li key={c.k} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
               <small>
-                {c.k} <span className="st-new">nuevo</span>
+                {c.k} <NewBadge feature="jugadorCromo" />
               </small>
               <b>{c.v}</b>
               {c.sub && <span>{c.sub}</span>}
@@ -298,7 +299,7 @@ export function JugadorPage() {
           <section className="st-card" aria-labelledby="jg-radar">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
-                El perfil <span className="st-new">nuevo</span>
+                El perfil <NewBadge feature="jugadorPerfil" />
               </span>
               <h2 className="st-h2" id="jg-radar">
                 Su radar
@@ -329,7 +330,7 @@ export function JugadorPage() {
           <section className="st-card" aria-labelledby="jg-adn">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
-                Jornada a jornada <span className="st-new">nuevo</span>
+                Jornada a jornada <NewBadge feature="jugadorJornadas" />
               </span>
               <h2 className="st-h2" id="jg-adn">
                 Su ADN
@@ -337,32 +338,37 @@ export function JugadorPage() {
               <p className="st-mono">Barra, minutos · balón, gol · flecha, asistencia · estrella, MVP</p>
             </div>
             {adn.length ? (
-              <ol className="jg-adn" style={{ gridTemplateColumns: `repeat(${Math.max(adn.length, 7)}, minmax(0, 1fr))` }}>
-                {adn.map(({ g, mvp }, i) => {
-                  const l = letter(g.match);
-                  const d = g.match.duration || 50;
-                  return (
-                    <li key={g.match.id} style={{ animationDelay: `${i * 0.05}s` }}>
-                      <Link to="/matches/$matchId" params={{ matchId: g.match.id }} aria-label={`Jornada ${cut + i + 1} contra ${g.match.rival ?? "rival"}: ${g.played ? `${g.minutes ?? "?"} minutos, ${g.goals} goles, ${g.assists} asistencias${mvp ? ", MVP" : ""}` : "no jugó"}`}>
-                        <span className="bar">
-                          <i style={{ height: g.played ? `${g.minutes === null ? 50 : Math.max(8, (g.minutes / d) * 100)}%` : "0%" }} />
-                        </span>
-                        <span className="ev" aria-hidden="true">
-                          {mvp && <Icon name="star" size={12} />}
-                          {Array.from({ length: g.goals }, (_, k) => (
-                            <Icon key={"g" + k} name="ball" size={12} />
-                          ))}
-                          {Array.from({ length: g.assists }, (_, k) => (
-                            <Icon key={"a" + k} name="send" size={12} />
-                          ))}
-                        </span>
-                        <span className={`lt ${l}`}>{l}</span>
-                        <small>J{cut + i + 1}</small>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ol>
+              <>
+                <ol className="jg-adn" style={{ gridTemplateColumns: `repeat(${Math.max(adn.length, 7)}, minmax(0, 1fr))` }}>
+                  {adn.map(({ g, mvp }, i) => {
+                    const l = letter(g.match);
+                    const d = g.match.duration || 50;
+                    return (
+                      <li key={g.match.id} style={{ animationDelay: `${i * 0.05}s` }}>
+                        <Link to="/matches/$matchId" params={{ matchId: g.match.id }} aria-label={`${jornada.has(g.match.id) ? `Jornada ${jornada.get(g.match.id)} contra` : "Contra"} ${g.match.rival ?? "rival"}: ${g.played ? `${g.minutes === null ? "?" : wholeMinutes(g.minutes)} minutos, ${g.goals} goles, ${g.assists} asistencias${mvp ? ", MVP" : ""}` : "no jugó"}`}>
+                          <span className="bar">
+                            <i style={{ height: g.played ? `${g.minutes === null ? 50 : Math.max(8, (g.minutes / d) * 100)}%` : "0%" }} />
+                          </span>
+                          <span className="ev" aria-hidden="true">
+                            {mvp && <Icon name="star" size={12} />}
+                            {Array.from({ length: g.goals }, (_, k) => (
+                              <Icon key={"g" + k} name="ball" size={12} />
+                            ))}
+                            {Array.from({ length: g.assists }, (_, k) => (
+                              <Icon key={"a" + k} name="send" size={12} />
+                            ))}
+                          </span>
+                          <span className={`lt ${l}`}>{l}</span>
+                          <small>{jornada.has(g.match.id) ? `J${jornada.get(g.match.id)}` : "—"}</small>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ol>
+                <div className="pt-legend">
+                  <span>{RESULT_LEGEND}</span>
+                </div>
+              </>
             ) : (
               <p className="st-empty">Aún sin partidos en este período.</p>
             )}
@@ -373,7 +379,7 @@ export function JugadorPage() {
           <section className="st-card" aria-labelledby="jg-clock">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
-                Cuándo marca <span className="st-new">nuevo</span>
+                Cuándo marca <NewBadge feature="jugadorCuandoMarca" />
               </span>
               <h2 className="st-h2" id="jg-clock">
                 Su reloj de goles
@@ -385,7 +391,7 @@ export function JugadorPage() {
           <section className="st-card" aria-labelledby="jg-sky">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
-                Con quién se entiende <span className="st-new">nuevo</span>
+                Con quién se entiende <NewBadge feature="jugadorSocios" />
               </span>
               <h2 className="st-h2" id="jg-sky">
                 Su constelación
@@ -409,7 +415,7 @@ export function JugadorPage() {
           <section className="st-card" aria-labelledby="jg-vit">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
-                La vitrina <span className="st-new">nuevo</span>
+                La vitrina <NewBadge feature="jugadorVitrina" />
               </span>
               <h2 className="st-h2" id="jg-vit">
                 Sus medallas
@@ -447,7 +453,7 @@ export function JugadorPage() {
                       <th scope="col">Asistencias</th>
                       <th scope="col">Minutos</th>
                       <th scope="col">
-                        MVP <span className="st-new">nuevo</span>
+                        MVP <NewBadge feature="jugadorMvp" />
                       </th>
                     </tr>
                   </thead>
@@ -460,7 +466,7 @@ export function JugadorPage() {
                           <td>{r.st.matchesPlayed}</td>
                           <td>{r.st.goals}</td>
                           <td>{r.st.assists}</td>
-                          <td>{r.minutes ?? "—"}</td>
+                          <td>{fmtMinutes(r.minutes)}</td>
                           <td>{r.mvps}</td>
                         </tr>
                       );
@@ -496,7 +502,7 @@ export function JugadorPage() {
                         {g.match.goalsFor}–{g.match.goalsAgainst}
                       </span>
                       <span className="mn">
-                        {g.minutes ?? "—"}′
+                        {fmtMinutes(g.minutes)}
                         {g.goals > 0 && <i> · {g.goals} G</i>}
                         {g.assists > 0 && <i> · {g.assists} A</i>}
                       </span>

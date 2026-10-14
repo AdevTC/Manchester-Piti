@@ -43,6 +43,14 @@ describe("seasonView", () => {
     const v = seasonView([], "s1", NOW);
     expect([v.tiles.length, v.live, v.next, v.gf]).toEqual([0, undefined, undefined, 0]);
   });
+  it("a played match waiting for its acta is «awaiting» on the strip, never «por jugar» or next", () => {
+    const clocked = (id: string, date: number): ClubMatch => ({ id, seasonId: "s1", rival: `Rival ${id}`, version: 2, status: "scheduled", date, duration: 50, clock: { revision: 0, phase: "ready" } });
+    const v = seasonView([played("a", 14, 1, 0), clocked("acta", NOW - 3 * DAY), upcoming("n", 4), upcoming("f", 11)], "s1", NOW);
+    expect(v.tiles.map((t) => [t.id, t.state, t.result])).toEqual([["a", "played", "G"], ["acta", "awaiting", undefined], ["n", "next", undefined], ["f", "future", undefined]]);
+    expect(v.next?.id).toBe("n");
+    // a legacy match past its window without a score waits for its acta too
+    expect(seasonView([{ id: "old", seasonId: "s1", rival: "R", status: "scheduled", date: NOW - 2 * DAY }], "s1", NOW).tiles[0].state).toBe("awaiting");
+  });
   it("leaves cancelled matches out of the strip", () => {
     expect(seasonView([{ ...upcoming("c", 3), status: "cancelled" }], "s1", NOW).tiles).toEqual([]);
   });
@@ -57,6 +65,15 @@ describe("calendarRows", () => {
     expect(calendarRows(ms, "next", "", NOW).map((m) => m.id)).toEqual(["soon", "far"]);
     expect(calendarRows(ms, "results", "", NOW).map((m) => m.id)).toEqual(["new", "old"]);
     expect(calendarRows(ms, "all", "mad", NOW).map((m) => m.id)).toEqual(["far"]);
+  });
+  it("a clock nobody started: «next» while it waits for the whistle, «results» once it waits for the acta", () => {
+    const clocked = (id: string, date: number): ClubMatch => ({ id, seasonId: "s1", rival: `Rival ${id}`, version: 2, status: "scheduled", date, duration: 50, clock: { revision: 0, phase: "ready" } });
+    const waiting = clocked("pitido", NOW - 10 * MIN);
+    const unplayed = clocked("acta", NOW - 3 * DAY);
+    const all = [...ms, waiting, unplayed];
+    expect(calendarRows(all, "next", "", NOW).map((m) => m.id)).toEqual(["pitido", "soon", "far"]);
+    expect(calendarRows(all, "results", "", NOW).map((m) => m.id)).toEqual(["acta", "new", "old"]);
+    expect(calendarRows(all, "all", "", NOW).map((m) => m.id)).toEqual(["pitido", "soon", "far", "acta", "new", "old"]);
   });
 });
 

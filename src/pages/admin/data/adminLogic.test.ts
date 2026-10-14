@@ -71,9 +71,9 @@ describe("mergeMatches", () => {
     expect(m7.draftSavedAt).toBe(at(1, 13));
     expect("updatedAt" in m7).toBe(false);
   });
-  it("keeps a draft of a brand-new match as unpublished", () => {
+  it("keeps a draft of a brand-new match as unpublished, without jornada until it is published", () => {
     const list = mergeMatches([], [{ id: "new", seasonId: "t1", rival: "X", date: at(20, 10) }]);
-    expect(list[0]).toMatchObject({ id: "new", draft: true, published: false, jornada: 1 });
+    expect(list[0]).toMatchObject({ id: "new", draft: true, published: false, jornada: null });
   });
 });
 
@@ -216,7 +216,7 @@ describe("buildOverview (Hoy: Por hacer, «N hechas», the rail counters)", () =
   it("lists only what is pending, with its action", () => {
     const o = buildOverview(base);
     expect(o.pending.map((t) => t.title)).toEqual(["Acta J2 · falta el goleador del gol 3", "2 fichas piden paso", "Momentos del club · sin publicar", "Historia del escudo · por completar"]);
-    expect(o.pending[0]).toMatchObject({ detail: "FUSION 7 · 3–1", ved: "V", action: { label: "Completar", target: { section: "partidos", matchId: "m7", tab: "acta" } } });
+    expect(o.pending[0]).toMatchObject({ detail: "FUSION 7 · 3–1", ved: "G", action: { label: "Completar", target: { section: "partidos", matchId: "m7", tab: "acta" } } });
     expect(o.pending[1]).toMatchObject({ detail: "KEVIN y FER quieren su camiseta", ved: null, action: { label: "Revisar", target: { section: "fichas" } } });
     expect(o.pending[2].action).toEqual({ label: "Publicar", target: { section: "contenido", seccion: "momentos" } });
     expect(o.pending[3].action).toEqual({ label: "Completar", target: { section: "contenido", seccion: "escudo" } });
