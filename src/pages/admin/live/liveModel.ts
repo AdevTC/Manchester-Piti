@@ -5,6 +5,7 @@
 // hero and the En juego view.
 import type { MatchEvent } from "../../../../functions/src/matchEngine";
 import { onPitch } from "../../../lib/ficha";
+import { eventMinute } from "../../../lib/partidos";
 
 /** What liveEvent({ action: "add" }) takes. */
 export interface LiveEventInput {
@@ -50,7 +51,10 @@ export interface PickerView {
   extras: { key: string; label: string; next: Step }[];
 }
 export interface PickerContext {
+  /** The minute the events are stamped with (liveMinute). */
   minute: number;
+  /** The minute people read in the captions and the flash (shownMinute); `minute` when absent. */
+  shown?: number;
   rival: string;
   /** On the pitch now (starters + who came in − who left or was sent off). */
   field: readonly string[];
@@ -68,7 +72,7 @@ export function liveSides(starters: readonly string[] | undefined, bench: readon
 }
 
 export function pickerView(s: PickState, c: PickerContext): PickerView {
-  const m = `${c.minute}′`;
+  const m = `${c.shown ?? c.minute}′`;
   const opt = (id: string, aria: string, next: Step): PickOption => ({ id, ...c.player(id), aria, next });
   const name = (id: string) => c.player(id).name;
   if (s.k === "oca" || s.k === "cor") {
@@ -165,7 +169,8 @@ const OTHER: Record<string, string> = { penalty_saved: "Penalti parado", penalty
 export function liveLog(events: readonly MatchEvent[] | undefined, rival: string, nameOf: (id: string) => string): LogRow[] {
   const nm = (id?: string) => (id ? nameOf(id) : "—");
   const rows = (events ?? []).map((e, i): LogRow & { order: number; at: number } => {
-    const base = { id: e.id, minute: typeof e.minute === "number" ? String(e.minute) : "–", order: i, at: typeof e.minute === "number" ? e.minute : -1 };
+    const shown = eventMinute(e);
+    const base = { id: e.id, minute: shown !== null ? String(shown) : "–", order: i, at: typeof e.minute === "number" ? e.minute : -1 };
     if (["chance", "opponent_chance", "corner", "opponent_corner"].includes(e.type)) {
       const them = e.type.startsWith("opponent_");
       const corner = e.type.endsWith("corner");

@@ -30,7 +30,7 @@ import { BackLink } from "../../components/celeste/BackLink";
 import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { matchEvent } from "../../lib/home";
-import { countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf } from "../../lib/partidos";
+import { countdownParts, dateParts, eventMinute, lastEvent, resultOf, scoreOf, shownMinute } from "../../lib/partidos";
 import { jornadaOf } from "../../lib/derived/jornada";
 import { RESULT_WORD, resultLetter, resultTitle } from "../../lib/derived/result";
 import { shareClubPage } from "../../lib/share";
@@ -183,7 +183,7 @@ export function MatchPage() {
   const ini = match.rivalInitials || opponentInitials(rival);
   const { gf, ga } = scoreOf(match);
   const d = dateParts(match.date);
-  const minute = live ? liveMinute(match, now) : null;
+  const minute = live ? shownMinute(match, now) : null;
   const last = live ? lastEvent(match.events, nameOf, rival) : null;
   const jornada = jornadaOf(matches, match.id);
   const kit = match.kit === "away" ? "2ª equipación" : "1ª equipación";
@@ -193,9 +193,10 @@ export function MatchPage() {
       .filter((e) => (ours ? ["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"] : ["opponent_goal", "own_goal"]).includes(e.type))
       .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
       .map((e) => {
+        const shown = eventMinute(e);
         // (ours — the scorer, or ours who put it in his own net — is a link to his page)
         const pid = e.type === "opponent_goal" || e.type === "opponent_own_goal" ? undefined : e.playerId;
-        return { id: e.id, min: e.minute != null ? `${e.minute}′` : "", pid, who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" };
+        return { id: e.id, min: shown != null ? `${shown}′` : "", pid, who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" };
       });
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
 

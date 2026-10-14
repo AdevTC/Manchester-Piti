@@ -12,7 +12,7 @@ import { nameFor, useClubData } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
 import { useViewer } from "../../hooks/useViewer";
 import { useAuth } from "../../context/AuthContext";
-import { lastEvent, liveMinute, scoreOf } from "../../lib/partidos";
+import { lastEvent, scoreOf, shownMinute } from "../../lib/partidos";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import { goalMoment, islandAnnouncement, islandOf, voteMatch, type IslandState } from "../../lib/derived/island";
@@ -184,7 +184,7 @@ function LivePill({ state, open, setOpen, goal, burst, flip, nameOf, now, stale,
   const { gf, ga } = scoreOf(live);
   const rival = live.rival ?? "Rival";
   const ini = live.rivalInitials || opponentInitials(rival);
-  const minute = liveMinute(live, now);
+  const minute = shownMinute(live, now);
   const last = lastEvent(live.events, nameOf, rival);
   const pct = `${Math.min(100, ((minute ?? 0) / (live.duration ?? 50)) * 100)}%`;
   const label = half ? `Descanso: Manchester Piti ${gf}, ${rival} ${ga}` : `En directo: Manchester Piti ${gf}, ${rival} ${ga}, minuto ${minute ?? 0}`;

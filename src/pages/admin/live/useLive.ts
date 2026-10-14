@@ -3,7 +3,7 @@
 // and the En juego view (V1a), with the same LivePicker / LivePads / LiveLog.
 import { useRef, useState } from "react";
 import { apiError, liveEvent } from "../../../lib/clubApi";
-import { liveMinute } from "../../../lib/partidos";
+import { liveMinute, shownMinute } from "../../../lib/partidos";
 import type { AdminMatch } from "../data/adminLogic";
 import { jLabel } from "../data/adminLogic";
 import type { LedFlash } from "../kit/LedBoard";
@@ -43,10 +43,12 @@ export function useLive(match: AdminMatch | null, now: number, nameOf: (id: stri
   const sending = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const minute = match ? (liveMinute(match, now) ?? 0) : 0;
+  // (what people read: football's 1-based minute; `minute` is what the events are stamped with)
+  const shown = match ? (shownMinute(match, now) ?? 0) : 0;
   const rival = match?.rival ?? "el rival";
   const tag = match ? jLabel(match) : "J";
   const sides = liveSides(match?.starters, match?.bench, match?.events);
-  const view = pick && match ? pickerView(pick, { minute, rival, field: sides.field, bench: sides.bench, player: (id) => ({ num: numberOf(id), name: nameOf(id) }) }) : null;
+  const view = pick && match ? pickerView(pick, { minute, shown, rival, field: sides.field, bench: sides.bench, player: (id) => ({ num: numberOf(id), name: nameOf(id) }) }) : null;
 
   const undoEvent = (eventId?: string) => {
     if (!match || !eventId) return;
@@ -88,7 +90,7 @@ export function useLive(match: AdminMatch | null, now: number, nameOf: (id: stri
       if (next.caption) toast.show({ tag, message: next.caption });
     });
   };
-  const rivalGoal = () => send({ type: "opponent_goal", minute }, (eventId) => toast.show({ tag, message: `Gol de ${rival} · ${minute}′`, undo: () => undoEvent(eventId) }));
+  const rivalGoal = () => send({ type: "opponent_goal", minute }, (eventId) => toast.show({ tag, message: `Gol de ${rival} · ${shown}′`, undo: () => undoEvent(eventId) }));
   const finish = (done: () => void) => {
     if (!match || sending.current) return;
     sending.current = true;

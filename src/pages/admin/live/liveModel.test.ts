@@ -75,3 +75,15 @@ describe("En juego · sides and the log", () => {
     ]);
   });
 });
+
+describe("En juego · football's minute on the LED and the log", () => {
+  it("the flash and the captions read the shown minute; the event keeps the stamped one", () => {
+    const v = pickerView({ k: "gol", st: 1 }, { ...ctx, minute: 30, shown: 31 });
+    const [og] = v.extras;
+    expect(og.next).toEqual({ event: { type: "opponent_own_goal", minute: 30 }, flash: "Autogol de MAD SKY · 31′" });
+  });
+  it("a live-stamped event shows football's minute (0:07 → 1′); one typed in the acta, as typed", () => {
+    const rows = liveLog([{ id: "a", type: "opponent_goal", minute: 0, elapsedSeconds: 7 } as MatchEvent, { id: "b", type: "opponent_goal", minute: 19 } as MatchEvent], "MAD SKY", (id) => id);
+    expect(rows.map((r) => [r.id, r.minute])).toEqual([["b", "19"], ["a", "1"]]);
+  });
+});

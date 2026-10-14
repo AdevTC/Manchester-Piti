@@ -3,7 +3,7 @@
 // pendiente» for half an hour after the whistle → «Vota al MVP» for a member while the vote is open.
 // Pure: LiveIsland renders it, the tests drive it with a controlled `now` (the server-time estimate).
 import { dateMillis, matchPhase, type ClubMatch } from "../clubData";
-import { OURS, scoreOf } from "../partidos";
+import { eventMinute, OURS, scoreOf } from "../partidos";
 import { kickoffState } from "./kickoff";
 
 /** How long «FINAL» stays in the island after the whistle. */
@@ -46,7 +46,9 @@ export function islandOf(matches: readonly ClubMatch[], now: number, voteOpen: b
     const phase = matchPhase(m, now);
     if (phase !== "awaiting_result" && phase !== "finished") continue;
     const at = whistleAt(m);
-    if (at === null || now < at || now - at >= FINAL_HOLD_MS) continue;
+    // (a whistle stamped «after» now still counts: the island's clock ticks every 15 s and is only the server
+    // time as this phone estimates it, so the end can arrive looking a few seconds ahead)
+    if (at === null || now - at >= FINAL_HOLD_MS) continue;
     if (!final || at > final.at) final = { match: m, at };
   }
   if (final) return { kind: "final", match: final.match, published: final.match.status === "finished" };
@@ -81,7 +83,7 @@ export function goalMoment(match: Pick<ClubMatch, "events" | "rival" | "status" 
     const rest = `Gol de ${rival} · ${score}`;
     return { ours, head: null, rest, text: rest, said: `Gol de ${rival}. ${board}` };
   }
-  const minute = typeof e.minute === "number" ? e.minute : typeof e.elapsedSeconds === "number" ? Math.floor(e.elapsedSeconds / 60) : null;
+  const minute = eventMinute(e);
   const who = e.type === "opponent_own_goal" ? `autogol de ${rival}` : e.playerId ? nameOf(e.playerId) : "el Piti";
   const rest = `${who.toLocaleUpperCase("es")}${minute !== null ? ` ${minute}′` : ""} · ${score}`;
   return { ours, head: "¡GOL!", rest, text: `¡GOL! ${rest}`, said: `¡Gol del Piti! ${who}${minute !== null ? `, minuto ${minute}` : ""}. ${board}` };

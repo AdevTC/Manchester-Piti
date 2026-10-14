@@ -42,7 +42,8 @@ const half = transitionClock(started, "halftime", KICK + 25 * MIN);
 const second = transitionClock(half, "second", KICK + 35 * MIN);
 const ended = transitionClock(second, "finish", KICK + 60 * MIN);
 const PEPE = { id: "pepe", shirtName: "PEPE", firstName: "José", seasons: ["t1", "t2"], seasonDetails: { t2: { shirtName: "PEPITO" } } } as unknown as PlayerDoc;
-const goal = (id: string, minute: number, type: MatchEvent["type"] = "goal", playerId: string | undefined = "pepe"): MatchEvent => ({ id, type, minute, elapsedSeconds: minute * 60, ...(playerId && type === "goal" ? { playerId } : {}) }) as MatchEvent;
+// stamped by the live clock half-way through football minute `minute` (stored minute = whole minutes elapsed)
+const goal = (id: string, minute: number, type: MatchEvent["type"] = "goal", playerId: string | undefined = "pepe"): MatchEvent => ({ id, type, minute: minute - 1, elapsedSeconds: (minute - 1) * 60 + 30, ...(playerId && type === "goal" ? { playerId } : {}) }) as MatchEvent;
 const at = (clock: MatchClock, events: MatchEvent[] = [], extra: Partial<ClubMatch> = {}): ClubMatch => ({ ...match, seasonId: "t2", clock, events, ...extra });
 const announced = (c: HTMLElement) => c.querySelector(".pt-isle-sr")?.textContent ?? null;
 const synced = (t = state.now) => recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, t);
@@ -115,7 +116,8 @@ describe("the lifecycle", () => {
     state.matches = [at(started)];
     state.now = KICK + 3 * MIN;
     rerender(<LiveIsland />);
-    expect(screen.getByRole("button", { name: /En directo: Manchester Piti 0, MAD SKY 0, minuto 3/ })).toHaveTextContent("3′");
+    // 3:00 of play is football's 4′
+    expect(screen.getByRole("button", { name: /En directo: Manchester Piti 0, MAD SKY 0, minuto 4/ })).toHaveTextContent("4′");
     expect(announced(container)).toBe("Empieza el partido contra MAD SKY.");
 
     state.matches = [at(half, [goal("g1", 12)])];
@@ -134,7 +136,7 @@ describe("the lifecycle", () => {
     state.matches = [at(second, [goal("g1", 12)])];
     state.now = KICK + 36 * MIN;
     rerender(<LiveIsland />);
-    expect(screen.getByRole("button", { name: /minuto 26/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /minuto 27/ })).toBeInTheDocument();
     expect(announced(container)).toBe("Arranca la segunda parte. Manchester Piti 1, MAD SKY 0.");
 
     state.matches = [at(ended, [goal("g1", 12), goal("r1", 40, "opponent_goal"), goal("g3", 48)])];
@@ -184,6 +186,22 @@ describe("«Vota al MVP»", () => {
     expect(link).toHaveAttribute("href", "/matches/j8?tab=vestuario");
     expect(link).toHaveTextContent("Vota al MVP");
     expect(container.querySelector(".pt-isle.vote")).not.toBeNull();
+  });
+
+  it("the whistle with another match's vote open: «FINAL 2–0 · acta pendiente» for the match just finished, then that vote", () => {
+    state.member = true;
+    const other: ClubMatch = { ...match, id: "j7", rival: "RP", rivalInitials: "RP", date: DATE - 7 * 24 * 60 * MIN, clock: undefined, status: "finished", goalsFor: 3, goalsAgainst: 0, voteClosesAt: KICK + 24 * 60 * MIN };
+    state.matches = [other, at(second, [goal("g1", 12), goal("g2", 40)])];
+    state.now = KICK + 59 * MIN + 50_000;
+    const { rerender } = render(<LiveIsland />);
+    expect(screen.getByRole("button", { name: /En directo/ })).toBeInTheDocument();
+    // the whistle arrives; the island's 15 s tick still reads a few seconds before it
+    state.matches = [other, at(ended, [goal("g1", 12), goal("g2", 40)])];
+    rerender(<LiveIsland />);
+    expect(screen.getByRole("link")).toHaveTextContent(/FINAL 2–0\s*· acta pendiente/);
+    state.now = KICK + 60 * MIN + 30 * MIN;
+    rerender(<LiveIsland />);
+    expect(screen.getByRole("link", { name: "Vota al MVP del partido contra RP" })).toHaveAttribute("href", "/matches/j7?tab=vestuario");
   });
 
   it("not for a fan (and a fan's island never reads a vote), not once he has voted, not after the vote closes", () => {

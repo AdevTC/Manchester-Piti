@@ -23,7 +23,7 @@ import { leaders, matchEvent, playerLines, type SquadMember } from "../../lib/ho
 import { currentSeasonId } from "../../lib/vestuario";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { opponentInitials } from "../../lib/clubAnalytics";
-import { calendarRows, countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf, scorersLine, seasonView, type Filter, type SeasonView } from "../../lib/partidos";
+import { calendarRows, countdownParts, dateParts, lastEvent, resultOf, scoreOf, scorersLine, shownMinute, seasonView, type Filter, type SeasonView } from "../../lib/partidos";
 import { AWAITING_ACTA, kickoffState, kickoffText, PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import { jornadaNumbers } from "../../lib/derived/jornada";
 import { RESULT_LEGEND, RESULT_WORD } from "../../lib/derived/result";
@@ -97,7 +97,7 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
   // The date has come and nobody has started the clock: no frozen 00:00 countdown.
   const pending = !live && kickoffState(m, now) === "pending_whistle";
   const { gf, ga } = scoreOf(m);
-  const minute = live ? liveMinute(m, now) : null;
+  const minute = live ? shownMinute(m, now) : null;
   const last = live ? lastEvent(m.events, nameOf, rival) : null;
   const sideUs = m.home === false ? "Visitante" : "Local";
   return (

@@ -110,13 +110,41 @@ export function countdownParts(target: number, now: number) {
   return { d: pad(Math.floor(left / 86400)), h: pad(Math.floor((left % 86400) / 3600)), m: pad(Math.floor((left % 3600) / 60)), s: pad(left % 60), done: left === 0 };
 }
 
-/** The minute being played (1–duration), from the kickoff time; null when not live. */
+/** The minute being played, as the data counts it: a clock's whole minutes elapsed (0 in the first one: the
+ *  minute live events are stamped with), or for a match without a clock the schedule's 1–duration. Null when
+ *  not live. To SHOW a minute to people use shownMinute / eventMinute (football's 1-based convention). */
 export function liveMinute(m: Pick<ClubMatch, "date" | "duration" | "clock">, now: number) {
   if (m.clock) return m.clock.phase === "ready" ? null : Math.floor(clockReading(m.clock, now).elapsedSeconds / 60);
   const start = dateMillis(m.date);
   if (!Number.isFinite(start) || now < start) return null;
   return Math.min(m.duration ?? 50, Math.floor((now - start) / 60_000) + 1);
 }
+
+/** The minute people read for `elapsedSeconds` of play, football's (1-based): 0:07 is the 1′, 19:30 the 20′.
+ *  With the clock stopped (half-time, the end) it is the minute reached: 25:00 is the 25′. */
+export function minuteOfPlay(elapsedSeconds: number, running = true): number {
+  const s = Math.max(0, elapsedSeconds);
+  return running ? Math.floor(s / 60) + 1 : Math.max(1, Math.ceil(s / 60));
+}
+
+/** The live minute to SHOW (the island, the boards, the admin LED): the clock's in football's convention, or for a
+ *  match without a clock the schedule's (already 1-based, capped at its duration). Null when not live. */
+export function shownMinute(m: Pick<ClubMatch, "date" | "duration" | "clock">, now: number): number | null {
+  if (!m.clock) return liveMinute(m, now);
+  if (m.clock.phase === "ready") return null;
+  const r = clockReading(m.clock, now);
+  return minuteOfPlay(r.elapsedSeconds, r.playing);
+}
+
+/** An event's minute to SHOW: a live-stamped one (it has the clock's `elapsedSeconds`) in football's convention,
+ *  one typed in the acta as typed. Stored minutes never change. */
+export function eventMinute(e: Pick<MatchEvent, "minute" | "elapsedSeconds">): number | null {
+  if (typeof e.elapsedSeconds === "number") return minuteOfPlay(e.elapsedSeconds);
+  return typeof e.minute === "number" ? e.minute : null;
+}
+
+/** The offset from a stored live minute (liveMinute's count) to the shown one: +1 on a clock, 0 without one. */
+export const shownOffset = (m: Pick<ClubMatch, "clock">): number => (m.clock ? 1 : 0);
 
 const fmt = (ms: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, ...o }).format(ms);
 /** Date pieces for a calendar row: "DOM", "8", "NOV", "12:00", "domingo, 8 nov". */
@@ -132,11 +160,11 @@ export function dateParts(date: unknown) {
   };
 }
 
-/** The latest thing that happened in the acta (by minute), as one line: "19′ · ERIK · Gol". */
+/** The latest thing that happened in the acta (by minute), as one line: "19′ · ERIK · Gol" (the minute as shown: eventMinute). */
 export function lastEvent(events: MatchEvent[] | undefined, nameOf: (id: string) => string, rival: string) {
   const list = (events ?? []).filter((e) => e.type !== "match_played" && e.type !== "assist" && typeof e.minute === "number");
   const e = list.sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0)).at(-1);
   if (!e) return null;
   const who = e.type.startsWith("opponent_") ? rival : e.type === "substitution" && e.inPlayerId ? nameOf(e.inPlayerId) : e.playerId ? nameOf(e.playerId) : "Manchester Piti";
-  return { minute: e.minute as number, who, label: EVENT_LABELS[e.type] ?? e.type, goal: OURS.has(e.type) };
+  return { minute: eventMinute(e) ?? (e.minute as number), who, label: EVENT_LABELS[e.type] ?? e.type, goal: OURS.has(e.type) };
 }
