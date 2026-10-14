@@ -21,6 +21,8 @@ import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { calendarRows, countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf, scorersLine, seasonView, type Filter, type SeasonView } from "../../lib/partidos";
 import { kickoffState, kickoffText, PENDING_WHISTLE } from "../../lib/derived/kickoff";
+import { jornadaNumbers } from "../../lib/derived/jornada";
+import { RESULT_LEGEND, RESULT_WORD } from "../../lib/derived/result";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 
@@ -199,8 +201,7 @@ export function PartidosPage() {
   const nameOf = (id: string) => playerName(players.find((p) => p.id === id));
 
   // Jornada of every match within its own season (the list can show any season).
-  const jornada = new Map<string, number>();
-  for (const s of seasons) seasonView(matches, s.id, now).jornada.forEach((n, id) => jornada.set(id, n));
+  const jornada = jornadaNumbers(matches);
   const listMatches = selectedSeasonId === "all" ? matches : matches.filter((m) => m.seasonId === selectedSeasonId);
   const rows = calendarRows(listMatches, filter, search, now);
 
@@ -284,7 +285,7 @@ export function PartidosPage() {
                     params={{ matchId: t.id }}
                     className={`pt-tile ${t.result ?? t.state}`}
                     style={{ animationDelay: `${(i * 0.035).toFixed(2)}s` }}
-                    aria-label={`Jornada ${t.j}, ${t.rival}: ${t.result ? { G: "victoria", E: "empate", P: "derrota" }[t.result] : t.state === "live" ? "en juego" : "por jugar"}`}
+                    aria-label={`Jornada ${t.j}, ${t.rival}: ${t.result ? RESULT_WORD[t.result] : t.state === "live" ? "en juego" : "por jugar"}`}
                   >
                     {t.state === "live" ? "●" : (t.result ?? "·")}
                   </Link>
@@ -292,7 +293,7 @@ export function PartidosPage() {
               </div>
               <div className="pt-legend">
                 <span>J1</span>
-                <span>G victoria · E empate · P derrota</span>
+                <span>{RESULT_LEGEND}</span>
                 <span>J{view.tiles.length}</span>
               </div>
             </>

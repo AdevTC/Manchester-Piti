@@ -9,6 +9,7 @@ import { LINE_NAMES, isLine, lineOf, parsePosition, resolvePositions, sanitizePo
 import { positionsPayload } from "../../../lib/positionsEdit";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import type { PlayerPositions, PosLine } from "../../../lib/positionStats";
+import { fmtMinutes } from "../../../lib/derived/minutes";
 
 export const POSITIONS = ["POR", "DEF", "MED", "DEL"] as const;
 export type Position = (typeof POSITIONS)[number];
@@ -439,5 +440,5 @@ export function evidenceLines(pos: PlayerPositions | undefined): PosLine[] {
 export function evidenceText(pos: PlayerPositions | undefined): string {
   const lines = evidenceLines(pos);
   if (!lines.length) return EVIDENCE_EMPTY;
-  return `Ha jugado de: ${lines.map((l) => `${l.code} ${Math.round(l.minutes)}′`).join(" · ")}`;
+  return `Ha jugado de: ${lines.map((l) => `${l.code} ${fmtMinutes(l.minutes)}`).join(" · ")}`;
 }

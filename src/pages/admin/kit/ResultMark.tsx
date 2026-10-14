@@ -1,4 +1,4 @@
-// The V/E/D mark on every result (`.ved`): the letter, its colour and — for a defeat — a hatch, so the
+// The G/E/P mark on every result (`.ved`): the letter, its colour and — for a defeat — a hatch, so the
 // result never depends on colour alone (helpers in result.ts).
 
 import { resultWord, type ResultLetter } from "./result";

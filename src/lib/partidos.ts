@@ -4,8 +4,10 @@ import { clockReading } from "../../functions/src/matchClock";
 // score read from the acta while a match is being played (goals are only stored once it's finished).
 import { dateMillis, EVENT_LABELS, isCompleted, matchPhase, type MatchEvent } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
+import { jornadas } from "./derived/jornada";
+import { resultLetter, type ResultLetter } from "./derived/result";
 
-export type Result = "G" | "E" | "P";
+export type Result = ResultLetter;
 export type Filter = "all" | "next" | "results";
 /** Event types that count as a goal for us / against us (the score is read from them while a match is live). */
 export const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -27,7 +29,7 @@ export function scoreOf(m: Pick<ClubMatch, "goalsFor" | "goalsAgainst" | "events
 
 export function resultOf(m: Pick<ClubMatch, "goalsFor" | "goalsAgainst" | "events">): Result {
   const { gf, ga } = scoreOf(m);
-  return gf > ga ? "G" : gf === ga ? "E" : "P";
+  return resultLetter(gf, ga);
 }
 
 /** Our scorers in a match, most goals first: "ADRIÁN T.C. ×2, HUBEROSKI". */
@@ -51,14 +53,17 @@ export interface Tile {
 
 /** One season as the page tells it. `now` decides what is live, next and played. */
 export function seasonView(matches: ClubMatch[], seasonId: string, now: number) {
-  const season = matches.filter((m) => m.seasonId === seasonId && matchPhase(m, now) !== "cancelled").sort(byDate);
+  // (the one numbering — derived/jornada: published, not cancelled, by date, in its own season — and
+  // the season in that order)
+  const jornada = jornadas(matches, seasonId);
+  const season = matches.filter((m) => jornada.has(m.id)).sort((a, b) => (jornada.get(a.id) ?? 0) - (jornada.get(b.id) ?? 0));
   const live = season.find((m) => matchPhase(m, now) === "playing");
   const next = season.find((m) => matchPhase(m, now) === "scheduled");
   const played = season.filter((m) => isCompleted(m));
   const results = played.map(resultOf);
-  const tiles: Tile[] = season.map((m, i) => ({
+  const tiles: Tile[] = season.map((m) => ({
     id: m.id,
-    j: i + 1,
+    j: jornada.get(m.id) ?? 0,
     rival: m.rival ?? "Rival",
     state: m === live ? "live" : m === next ? "next" : isCompleted(m) ? "played" : "future",
     result: isCompleted(m) ? resultOf(m) : undefined,
@@ -69,8 +74,8 @@ export function seasonView(matches: ClubMatch[], seasonId: string, now: number) 
     next,
     played,
     tiles,
-    /** Jornada number (1-based, by date) of each match in the season. */
-    jornada: new Map(season.map((m, i) => [m.id, i + 1])),
+    /** Jornada number (derived/jornada) of each match in the season. */
+    jornada,
     wins: results.filter((r) => r === "G").length,
     draws: results.filter((r) => r === "E").length,
     losses: results.filter((r) => r === "P").length,

@@ -24,6 +24,9 @@ import { Icon } from "../../components/celeste/icons";
 import { Constellation, GoalClock, Radar } from "../stats/Charts";
 import { Cromo, type CromoFace } from "./Cromo";
 import { SusPosiciones } from "./SusPosiciones";
+import { jornadaNumbers } from "../../lib/derived/jornada";
+import { resultLetter } from "../../lib/derived/result";
+import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
@@ -32,7 +35,7 @@ import "../../styles/jugador.css";
 const route = getRouteApi("/jugadores/$playerId");
 const nameOf = (p: PlayerAnalysis) => playerName(p);
 const ML = { goals: ["gol", "goles"], assists: ["asistencia", "asistencias"], matchesPlayed: ["partido", "partidos"] } as const;
-const letter = (m: ClubMatch) => (m.goalsFor! > m.goalsAgainst! ? "V" : m.goalsFor === m.goalsAgainst ? "E" : "D");
+const letter = (m: ClubMatch) => resultLetter(m.goalsFor ?? 0, m.goalsAgainst ?? 0);
 
 function Shell({ children, busy }: { children: React.ReactNode; busy?: boolean }) {
   return (
@@ -132,7 +135,7 @@ export function JugadorPage() {
     ["Partidos", me.matchesPlayed],
     ["Goles", me.goals],
     ["Asistencias", me.assists],
-    ["Minutos registrados", tracked ? `${me.minutes}′` : "—"],
+    ["Minutos registrados", tracked ? fmtMinutes(me.minutes) : "—"],
     ["Titular", rec(me.starts)],
     ["Suplente inicial", rec(me.bench)],
     ["No convocado", rec(me.notCalled)],
@@ -178,7 +181,8 @@ export function JugadorPage() {
   const medals = vitrina(p.id, games, results, seasons, now);
   const links = goalLinks(games);
   const adn = me.series.slice(-12).map((g) => ({ g, mvp: mvpWinners(g.match, results.get(g.match.id), now).includes(p.id) }));
-  const cut = me.series.length - adn.length;
+  // (each match's jornada in its own season: «all seasons» does not renumber them)
+  const jornada = jornadaNumbers(matches);
   const appearances = me.series.filter((g) => g.played).slice(-10).reverse();
   const exchanges = me.series.flatMap((g) => (g.match.ledger?.[p.id]?.exchanges ?? []).map((e) => ({ ...e, match: g.match })));
   const allSeasons = seasons.filter((s) => p.seasons?.includes(s.id));
@@ -344,7 +348,7 @@ export function JugadorPage() {
                   const d = g.match.duration || 50;
                   return (
                     <li key={g.match.id} style={{ animationDelay: `${i * 0.05}s` }}>
-                      <Link to="/matches/$matchId" params={{ matchId: g.match.id }} aria-label={`Jornada ${cut + i + 1} contra ${g.match.rival ?? "rival"}: ${g.played ? `${g.minutes ?? "?"} minutos, ${g.goals} goles, ${g.assists} asistencias${mvp ? ", MVP" : ""}` : "no jugó"}`}>
+                      <Link to="/matches/$matchId" params={{ matchId: g.match.id }} aria-label={`${jornada.has(g.match.id) ? `Jornada ${jornada.get(g.match.id)} contra` : "Contra"} ${g.match.rival ?? "rival"}: ${g.played ? `${g.minutes === null ? "?" : wholeMinutes(g.minutes)} minutos, ${g.goals} goles, ${g.assists} asistencias${mvp ? ", MVP" : ""}` : "no jugó"}`}>
                         <span className="bar">
                           <i style={{ height: g.played ? `${g.minutes === null ? 50 : Math.max(8, (g.minutes / d) * 100)}%` : "0%" }} />
                         </span>
@@ -358,7 +362,7 @@ export function JugadorPage() {
                           ))}
                         </span>
                         <span className={`lt ${l}`}>{l}</span>
-                        <small>J{cut + i + 1}</small>
+                        <small>{jornada.has(g.match.id) ? `J${jornada.get(g.match.id)}` : "—"}</small>
                       </Link>
                     </li>
                   );
@@ -461,7 +465,7 @@ export function JugadorPage() {
                           <td>{r.st.matchesPlayed}</td>
                           <td>{r.st.goals}</td>
                           <td>{r.st.assists}</td>
-                          <td>{r.minutes ?? "—"}</td>
+                          <td>{fmtMinutes(r.minutes)}</td>
                           <td>{r.mvps}</td>
                         </tr>
                       );
@@ -497,7 +501,7 @@ export function JugadorPage() {
                         {g.match.goalsFor}–{g.match.goalsAgainst}
                       </span>
                       <span className="mn">
-                        {g.minutes ?? "—"}′
+                        {fmtMinutes(g.minutes)}
                         {g.goals > 0 && <i> · {g.goals} G</i>}
                         {g.assists > 0 && <i> · {g.assists} A</i>}
                       </span>

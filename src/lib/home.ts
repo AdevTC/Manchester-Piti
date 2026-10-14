@@ -6,10 +6,12 @@ import { computeStats, EMPTY_STATS, type PlayerStats } from "./playerStats";
 import { kickoffLabel, plural } from "./vestuario";
 import type { CalendarEvent } from "./calendarLinks";
 import { scoreOf } from "./partidos";
+import { resultLetter, type ResultLetter } from "./derived/result";
+import { jornadas } from "./derived/jornada";
 
 const DAY = 86_400_000;
 const GOAL = /^goal/;
-export type Result = "G" | "E" | "P";
+export type Result = ResultLetter;
 
 export interface SquadMember {
   id: string;
@@ -22,9 +24,7 @@ export interface PlayerLine extends SquadMember {
 }
 
 export function resultOf(m: { goalsFor?: number; goalsAgainst?: number }): Result {
-  const gf = m.goalsFor ?? 0,
-    ga = m.goalsAgainst ?? 0;
-  return gf > ga ? "G" : gf === ga ? "E" : "P";
+  return resultLetter(m.goalsFor ?? 0, m.goalsAgainst ?? 0);
 }
 const byDate = (a: ClubMatch, b: ClubMatch) => dateMillis(a.date) - dateMillis(b.date);
 
@@ -42,6 +42,8 @@ export function seasonPulse(matches: ClubMatch[], seasonId: string, now: number)
     live,
     next,
     last: played.at(-1),
+    /** The jornada of the last played match (derived/jornada; 0 before the first). */
+    jornada: played.length ? (jornadas(season, seasonId).get(played[played.length - 1].id) ?? played.length) : 0,
     wins: results.filter((r) => r === "G").length,
     draws: results.filter((r) => r === "E").length,
     losses: results.filter((r) => r === "P").length,
@@ -89,7 +91,7 @@ export function narrative(p: Pulse, ctx: { seasonName: string; squadSize: number
       em: "El marcador se actualiza solo desde el acta.",
     };
   }
-  const jornada = `jornada ${p.played.length}`;
+  const jornada = `jornada ${p.jornada}`;
   if (p.last && now - dateMillis(p.last.date) < 4 * DAY) {
     const m = p.last,
       r = resultOf(m),

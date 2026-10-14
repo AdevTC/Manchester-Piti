@@ -9,6 +9,7 @@ import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { playerForSeason, playerName, useClubData } from "../../lib/clubData";
 import { analysePlayer, chronological, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { tickerLines } from "../../lib/statsView";
+import { jornadaNumbers } from "../../lib/derived/jornada";
 import { mvpWins } from "../../lib/vestuario";
 import { useMvpResults } from "../vestuario/live";
 import { useSeason } from "../../context/SeasonContext";
@@ -52,6 +53,8 @@ export function StatsPage() {
   const setSeason = useSetSeason();
 
   const games = useMemo(() => chronological(matches.filter((m) => selectedSeasonId === "all" || m.seasonId === selectedSeasonId)), [matches, selectedSeasonId]);
+  // (each match's jornada in its own season, «all seasons» included: the J of /partidos)
+  const jornada = useMemo(() => jornadaNumbers(matches), [matches]);
   const rows = useMemo(
     () => players.filter((p) => selectedSeasonId === "all" || p.seasons?.includes(selectedSeasonId)).map((p) => analysePlayer(playerForSeason(p, selectedSeasonId, seasons), games)),
     [players, games, selectedSeasonId, seasons],
@@ -138,7 +141,7 @@ export function StatsPage() {
             <div className="st-sweep" aria-hidden="true" />
             {ready && games.length > 0 ? (
               <>
-                <RaceBoard rows={rows} nameOf={nameOf} />
+                <RaceBoard rows={rows} nameOf={nameOf} jornada={jornada} />
                 <Ticker lines={lines} />
               </>
             ) : (
@@ -206,7 +209,7 @@ export function StatsPage() {
             {view === "game" && <TechnicalStatsPanel matches={games} people={rows.map(p => ({ id: p.id, name: nameOf(p), number: p.number }))} />}
             {view === "summary" && <Resumen games={games} rows={rows} nameOf={nameOf} mvps={mvps} />}
             {view === "players" && <Jugadores rows={rows} nameOf={nameOf} />}
-            {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} />}
+            {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} jornada={jornada} />}
             {view === "positions" && <Posiciones games={games} rows={rows} nameOf={nameOf} />}
             {view === "rivals" && <Rivales games={games} rows={rows} />}
             {view === "compare" && <Comparar rows={rows} nameOf={nameOf} games={games.length} />}

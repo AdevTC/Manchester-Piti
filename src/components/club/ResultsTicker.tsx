@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Pause, Play } from "lucide-react";
 import { useClubData, playerName, formatDate } from "../../lib/clubData";
 import { analysePlayer, chronological } from "../../lib/clubAnalytics";
+import { wholeMinutes } from "../../lib/derived/minutes";
 export function ResultsTicker() {
   const { matches, players, loading, error } = useClubData();
   const [paused, setPaused] = useState(false);
@@ -51,7 +52,7 @@ export function ResultsTicker() {
             " A · " +
             p.matchesPlayed +
             " PJ" +
-            (p.tracked ? " · " + p.minutes + " MIN" : ""),
+            (p.tracked ? " · " + wholeMinutes(p.minutes) + " MIN" : ""),
         });
     }
     return result;

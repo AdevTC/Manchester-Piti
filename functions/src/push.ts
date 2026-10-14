@@ -14,6 +14,7 @@ import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
 import { convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, noticesFor, PERSONAL_TOPICS, TOPICS, type LineupLike, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
 import { sevenEdited, sevenPublished } from "./seven.js";
+import { jornadaOf } from "./jornada.js";
 
 export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
 /** Public half of the key pair (also in the app, src/lib/push.ts). */
@@ -100,7 +101,7 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   }
   // «Ya está la convocatoria»: the first time it is published with titulares — once per match (pushLog).
   if (!convocatoriaNotice(event.params.matchId, before, after, null, Date.now())) return;
-  const jornada = after?.seasonId ? await jornadaOf(after.seasonId, after.date) : null;
+  const jornada = after?.seasonId ? await seasonJornada(after.seasonId, event.params.matchId) : null;
   const conv = convocatoriaNotice(event.params.matchId, before, after, jornada, Date.now());
   if (!conv) return;
   try {
@@ -121,12 +122,14 @@ async function claimLog(tag: string): Promise<boolean> {
   }
 }
 
-/** A match's number in its season, by date (as the admin numbers them: J1, J2…). */
-export async function jornadaOf(seasonId: string, date: number | undefined): Promise<number | null> {
-  if (typeof date !== "number") return null;
+/** A published match's jornada in its season — the one numbering (jornada.ts), the same «J5» the web
+ *  shows (null: not in the calendar, cancelled…). */
+export async function seasonJornada(seasonId: string, matchId: string): Promise<number | null> {
   const all = await db.collection("matches").where("seasonId", "==", seasonId).get();
-  const dates = all.docs.filter((d) => !d.get("archived")).map((d) => (d.get("date") as Timestamp | undefined)?.toMillis?.() ?? NaN);
-  return dates.filter((t) => Number.isFinite(t) && t <= date).length || null;
+  return jornadaOf(
+    all.docs.map((d) => ({ id: d.id, seasonId: d.get("seasonId") as string | undefined, date: d.get("date") as unknown, status: d.get("status") as string | undefined })),
+    matchId,
+  );
 }
 
 // «Ya está el siete»: a board becomes the official one (or the official moves to another match). The

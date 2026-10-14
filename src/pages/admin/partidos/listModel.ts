@@ -3,7 +3,7 @@
 // published) · Por jugar · Publicados (newest first), the filter Todo / Por hacer / Por jugar / Publicados,
 // the search (a rival, or a jornada as «J8» / «8») and each row — J + date, the rival's full name, a
 // subtitle ONLY for exceptions (amber «Falta 1 goleador», «Sin publicar», «Convocatoria 6 de 7», «En
-// juego»; otherwise where it is played) and the score with its V/E/D mark, or the kick-off time.
+// juego»; otherwise where it is played) and the score with its G/E/P mark, or the kick-off time.
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { scoreOf } from "../../../lib/partidos";
 import { normalize } from "../palette/search";
@@ -81,6 +81,8 @@ export function toRow(m: AdminMatch, ctx: ListContext): ListRow {
   const mo = momentOf(m, ctx);
   const rival = m.rival?.trim() || "Rival por confirmar";
   const j = m.jornada ? `J${m.jornada}` : "—";
+  // (a draft takes its jornada when it is published; a cancelled match has none)
+  const jAria = m.jornada ? j : !m.published ? "Borrador" : "Sin jornada";
   let sub = whereOf(m);
   let warn = false;
   if (m.status === "cancelled") sub = "Cancelado";
@@ -115,7 +117,7 @@ export function toRow(m: AdminMatch, ctx: ListContext): ListRow {
     warn,
     score,
     time,
-    aria: [j, rival, sub, score ? `${resultWord(score.r)} ${score.gf}–${score.ga}` : time].join(", "),
+    aria: [jAria, rival, sub, score ? `${resultWord(score.r)} ${score.gf}–${score.ga}` : time].join(", "),
   };
 }
 

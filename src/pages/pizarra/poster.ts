@@ -16,7 +16,7 @@ export interface PosterMatch {
   gf: number;
   gc: number;
   outcomeWord: string; // "Victoria" | "Empate" | "Derrota"
-  outcomeLetter: string; // "V" | "E" | "D"
+  outcomeLetter: string; // "G" | "E" | "P"
 }
 
 export interface PosterData {

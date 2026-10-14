@@ -252,7 +252,7 @@ describe("Hoy · Después", () => {
     const hero = await screen.findByRole("region", { name: "El marcador de la J3: final" });
     expect(within(hero).getByText("FINAL · SIN PUBLICAR")).toHaveClass("gd");
     expect(hero).toHaveTextContent("Pitado el final");
-    expect(within(hero).getByRole("img", { name: "Victoria" })).toHaveTextContent("V");
+    expect(within(hero).getByRole("img", { name: "Victoria" })).toHaveTextContent("G");
     expect(hero).toHaveTextContent("2–1 en el campo de MAD SKY");
     expect(within(hero).getByRole("list", { name: "Lo que pasó" }).children).toHaveLength(4);
     await user.click(within(hero).getByRole("button", { name: "Apunta el resultado" }));

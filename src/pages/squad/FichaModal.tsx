@@ -15,6 +15,7 @@ import { PosMap, PosTable } from "./FichaPosiciones";
 import { useDesk } from "./useDesk";
 import { shareClubPage } from "../../lib/share";
 import { VT_SHIRT } from "./Percha";
+import { wholeMinutes } from "../../lib/derived/minutes";
 
 interface Props {
   row: SquadRow;
@@ -228,7 +229,7 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
                     <span>Asist.</span>
                   </div>
                   <div>
-                    <b>{s.minutes ?? "—"}</b>
+                    <b>{s.minutes == null ? "—" : wholeMinutes(s.minutes)}</b>
                     <span>Minutos</span>
                   </div>
                 </div>

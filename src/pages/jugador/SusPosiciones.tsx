@@ -7,6 +7,7 @@ import { playerPositions } from "../../lib/positionStats";
 import { MapaPosiciones } from "../../components/posiciones/MapaPosiciones";
 import { MasMinutos, PlayedNote } from "../../components/posiciones/haJugadoDe";
 import { usePlayed } from "../../components/posiciones/usePlayed";
+import { fmtMinutes } from "../../lib/derived/minutes";
 
 interface Props {
   playerId: string;
@@ -66,7 +67,7 @@ export function SusPosiciones({ playerId, name, positions, games, periodName, mv
                         <th scope="row">
                           {POSITIONS[l.code].name} <span className="cd">({l.code})</span>
                         </th>
-                        <td>{Math.round(l.minutes)}′</td>
+                        <td>{fmtMinutes(l.minutes)}</td>
                         <td>{l.matches}</td>
                         <td>{l.goals}</td>
                         <td>{l.assists}</td>

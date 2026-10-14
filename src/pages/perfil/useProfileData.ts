@@ -209,7 +209,7 @@ export function useProfileData(): ProfileData {
     positions: positionsInfo(fichaDoc, seasonId),
     played: info.state === "vinculada" && info.playerId ? playerPositions(info.playerId, calendar) : null,
     freeFichas,
-    next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: calendar.findIndex((m) => m.id === next.id) + 1 || null } : null,
+    next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: built.jornada.get(next.id) ?? null } : null,
     upcoming: upcomingRows(matches, minute),
     stuff: {
       boards: boardsLine(lineups.mine),

@@ -10,7 +10,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { admin, db, idSchema, parse } from "./common.js";
 import { convocatoriaNoticeKind, convocatoriaProblem, MAX_STARTERS, notCalledOf, sameLineup, type ConvocatoriaNoticeKind } from "./convocatoriaLogic.js";
-import { jornadaOf, sendTo, vapidPrivate } from "./push.js";
+import { seasonJornada, sendTo, vapidPrivate } from "./push.js";
 import { convocatoriaMessage } from "./pushLogic.js";
 
 const input = z.object({
@@ -85,7 +85,7 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
         notice = null;
       }
       if (notice) {
-        const jornada = await jornadaOf(written.seasonId, written.date);
+        const jornada = await seasonJornada(written.seasonId, data.matchId);
         await sendTo(convocatoriaMessage(data.matchId, notice, { rival: written.rival, date: written.date }, jornada));
       }
     }

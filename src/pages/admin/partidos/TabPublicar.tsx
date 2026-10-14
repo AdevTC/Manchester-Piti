@@ -10,6 +10,7 @@ import { buildResumen } from "../acta/resumen";
 import { okHttps, type MatchSheet } from "../acta/sheetModel";
 import { dayOf } from "./listModel";
 import { cronicaHeadline, cronicaKicker, type Phase } from "./workspaceModel";
+import { fmtMinutes } from "../../../lib/derived/minutes";
 
 const MAX_GALLERY = 20;
 
@@ -180,7 +181,7 @@ export function TabPublicar({
               {table.rows.map((r) => (
                 <span key={r.id} role="listitem" title={r.detail}>
                   {r.name}
-                  <b>{r.minutes}′</b>
+                  <b>{fmtMinutes(r.minutes)}</b>
                 </span>
               ))}
             </div>

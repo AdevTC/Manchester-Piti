@@ -94,7 +94,7 @@ describe("the bench", () => {
     ]);
     expect(g[1].emptyTxt).toBe("Nadie fuera de la convocatoria.");
     const [erik, kevin, tello, fer] = g[0].rows;
-    expect(erik).toMatchObject({ cvCls: "voy", cv: "Voy", icon: "check", zone: "b", line: "0 PJ · 0 G · 0 A · 0'", tg: null });
+    expect(erik).toMatchObject({ cvCls: "voy", cv: "Voy", icon: "check", zone: "b", line: "0 PJ · 0 G · 0 A · 0′", tg: null });
     expect(kevin).toMatchObject({ cvCls: "duda", icon: "doubt", me: true });
     expect(kevin.aria).toBe("KEVIN, dorsal 11, DEL, forma 75, convocatoria: duda, 0 minutos esta temporada, eres tú");
     expect(tello).toMatchObject({ cvCls: "no", cv: "No va", icon: "x" });

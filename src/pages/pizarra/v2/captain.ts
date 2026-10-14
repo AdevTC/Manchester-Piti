@@ -29,7 +29,7 @@ export function armbands(officials: readonly LineupDoc[], calendar: readonly Cal
   byMatch.forEach((d, mid) => {
     const m = calendar.find((x) => x.id === mid);
     const cap = d.roles.captainId;
-    if (m?.played && cap) out.push({ id: cap, j: m.j, matchId: mid });
+    if (m?.played && cap) out.push({ id: cap, j: m.j ?? 0, matchId: mid });
   });
   return out.sort((a, b) => a.j - b.j);
 }

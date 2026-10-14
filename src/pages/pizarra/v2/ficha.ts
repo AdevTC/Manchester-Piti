@@ -14,6 +14,7 @@ import { linkMark, togTxt, type Chem } from "./quimica";
 import { formWhy } from "./ratings";
 import { plural } from "./plural";
 import type { FichaView } from "./Overlays";
+import { fmtMinutes, wholeMinutes } from "../../../lib/derived/minutes";
 
 // (his last matches are worked out with the squad, in ratings.ts buildSquad; re-exported for the ficha)
 export { FORM_GAMES, formGames } from "./ratings";
@@ -38,7 +39,7 @@ export function formBars(form: readonly FormGame[] | undefined): FormBar[] {
     j: "J" + g.j,
     h: g.played ? Math.max(12, Math.round((g.min / top) * 100)) : 0,
     played: g.played,
-    t: "J" + g.j + ": " + (g.played ? g.min + "′" + (g.ga ? " y " + plural(g.ga, "gol o asistencia", "goles o asistencias") : "") : "no jugó"),
+    t: "J" + g.j + ": " + (g.played ? fmtMinutes(g.min) + (g.ga ? " y " + plural(g.ga, "gol o asistencia", "goles o asistencias") : "") : "no jugó"),
   }));
 }
 
@@ -74,7 +75,7 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
   const facts: { k: string; v: string }[] = [];
   // the team's minutes: everyone's added up over the seven on the pitch
   const teamMin = sq.list.reduce((s, c) => s + c.stats.minutes, 0) / 7;
-  if (p.stats.minutes > 0 && teamMin > 0) facts.push({ k: "Minutos", v: p.stats.minutes + "′ · " + Math.min(100, Math.round((p.stats.minutes / teamMin) * 100)) + " % del equipo" });
+  if (p.stats.minutes > 0 && teamMin > 0) facts.push({ k: "Minutos", v: fmtMinutes(p.stats.minutes) + " · " + Math.min(100, Math.round((p.stats.minutes / teamMin) * 100)) + " % del equipo" });
   else facts.push({ k: "Minutos", v: "Aún sin minutos" });
   const jugar = normPlaysAs(L.playerPositions[id]);
   // (a code is said with its name: «Juega de pivote (MCD)»; a legacy line as it was: «Juega de MED»)
@@ -126,7 +127,7 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
       { k: "PARTIDOS", v: p.stats.played },
       { k: "GOLES", v: p.stats.goals },
       { k: "ASIST.", v: p.stats.assists },
-      { k: "MINUTOS", v: p.stats.minutes },
+      { k: "MINUTOS", v: wholeMinutes(p.stats.minutes) },
       { k: "TITULAR", v: p.stats.starts },
       { k: "MVP", v: p.stats.mvps },
     ],

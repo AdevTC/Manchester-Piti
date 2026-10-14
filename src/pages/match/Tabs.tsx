@@ -20,6 +20,7 @@ import { predictScore, setAvailability, useMe, voteMvp } from "../vestuario/writ
 import { apiError } from "../../lib/clubApi";
 import { rsvpSummary } from "../../lib/rsvp";
 import type { PlayerDoc } from "../../lib/schemas";
+import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 
 type NameOf = (id: string) => string;
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -276,7 +277,7 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
                 return <li key={id} className={p?.played ? "in" : ""}>
                   <button type="button" onClick={() => setSel(id)} aria-pressed={pick === id}>
                     <b>{numOf(id)}</b>
-                    <span className="fc-bench-name">{nameOf(id)}<small>{p?.dismissed ? "Expulsado · " : ""}{p ? `${p.minutes} min${entry ? ` · entró ${entry.minute}′` : p.played ? "" : done ? " · no jugó" : " · sin entrar"}` : "Minutos sin registrar"}</small></span>
+                    <span className="fc-bench-name">{nameOf(id)}<small>{p?.dismissed ? "Expulsado · " : ""}{p ? `${fmtMinutes(p.minutes)}${entry ? ` · entró ${entry.minute}′` : p.played ? "" : done ? " · no jugó" : " · sin entrar"}` : "Minutos sin registrar"}</small></span>
                     <MatchBadges {...stats} />
                   </button>
                 </li>;
@@ -291,7 +292,7 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
             </span>
             <div>
               <dt>min</dt>
-              <dd>{ledger?.[pick] ? line.minutes : "–"}</dd>
+              <dd>{ledger?.[pick] ? wholeMinutes(line.minutes) : "–"}</dd>
             </div>
             <div>
               <dt>goles</dt>
@@ -330,7 +331,7 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
                 <span className="nm">
                   {numOf(r.id)} · {nameOf(r.id)}
                 </span>
-                <span className="tr" role="img" aria-label={`${nameOf(r.id)}: ${r.minutes} minutos`}>
+                <span className="tr" role="img" aria-label={`${nameOf(r.id)}: ${wholeMinutes(r.minutes)} minutos`}>
                   {r.spans.map((s, k) => (
                     <i key={k} style={{ left: `${s.left}%`, width: `${s.width}%`, animationDelay: `${(i * 0.06).toFixed(2)}s` }} />
                   ))}
@@ -338,7 +339,7 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
                     <b key={k} style={{ left: `${g}%` }} />
                   ))}
                 </span>
-                <span className="m">{r.minutes}′</span>
+                <span className="m">{fmtMinutes(r.minutes)}</span>
               </div>
             ))}
           </div>

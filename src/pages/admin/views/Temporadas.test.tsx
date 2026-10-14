@@ -47,7 +47,7 @@ describe("Temporadas", () => {
     expect(v).toHaveTextContent("La balda · jornadas 1 de 3");
     const shelf = within(within(v).getByRole("list", { name: "La balda" })).getAllByRole("listitem");
     expect(shelf.map((s) => s.getAttribute("aria-label"))).toEqual(["J1 · Victoria 4–1 a Emirates", "J2 · sin publicar", "J3 · por jugar"]);
-    expect(shelf.map((s) => s.className)).toEqual(["ved V", "ved o", "ved o"]);
+    expect(shelf.map((s) => s.className)).toEqual(["ved G", "ved o", "ved o"]);
     expect(v).toHaveTextContent("Mayor victoria4–1a Emirates · J1");
     expect(v).toHaveTextContent("Mejor racha1 victoria");
     expect(v).toHaveTextContent("Más veces MVPERIK1 jornada");

@@ -9,6 +9,8 @@ import { scorersLine } from "../../lib/partidos";
 import { Icon } from "../../components/celeste/icons";
 import { OpponentBadge } from "../../components/club/OpponentBadge";
 import { Bars, Constellation, GoalClock, HeatStrip, Radar, ResultsChart } from "./Charts";
+import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
+import { jornadaLabel } from "../../lib/derived/jornada";
 
 type NameOf = (p: PlayerAnalysis) => string;
 const show = (p: PlayerAnalysis, k: PlayerMetric) => metricValue(p, k) ?? "—";
@@ -246,12 +248,11 @@ export function Jugadores({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: Na
 }
 
 // ---------- Minutos
-export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games: ClubMatch[]; nameOf: NameOf }) {
+export function Minutos({ rows, games, nameOf, jornada }: { rows: PlayerAnalysis[]; games: ClubMatch[]; nameOf: NameOf; /** Each match's jornada (derived/jornada). */ jornada: ReadonlyMap<string, number> }) {
   const tracked = games.filter((m) => m.ledger && Object.keys(m.ledger).length).length;
   const sorted = [...rows].sort((a, b) => (b.tracked ? b.minutes : -1) - (a.tracked ? a.minutes : -1) || nameOf(a).localeCompare(nameOf(b)));
   const heat = minutesHeat(sorted);
   const last = games.slice(-12);
-  const cut = games.length - last.length;
   const cell = (p: PlayerAnalysis, v: number) => (p.tracked ? v : "—");
   return (
     <div className="st-pane-in">
@@ -288,7 +289,7 @@ export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games
                       {nameOf(p)}
                     </Link>
                   </th>
-                  <td className="sel">{p.tracked ? p.minutes : "—"}</td>
+                  <td className="sel">{p.tracked ? wholeMinutes(p.minutes) : "—"}</td>
                   <td>{cell(p, p.starts)}</td>
                   <td>{cell(p, p.bench)}</td>
                   <td>{cell(p, p.subIn)}</td>
@@ -316,10 +317,10 @@ export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games
                   <th scope="col">
                     <span className="hm-sr">Jugador</span>
                   </th>
-                  {last.map((m, i) => (
+                  {last.map((m) => (
                     <th scope="col" key={m.id}>
                       <Link to="/matches/$matchId" params={{ matchId: m.id }} aria-label={`${m.rival ?? "Rival"}, ${formatDate(m.date)}`}>
-                        J{cut + i + 1}
+                        {jornadaLabel(jornada.get(m.id)) || "—"}
                       </Link>
                     </th>
                   ))}
@@ -332,8 +333,8 @@ export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games
                     <tr key={h.id}>
                       <th scope="row">{nameOf(p)}</th>
                       {h.cells.slice(-12).map((c) => (
-                        <td key={c.matchId} className={c.played ? undefined : "no"} style={{ ["--l" as string]: c.level }} title={c.minutes !== null ? `${c.minutes}′` : c.played ? "Jugó" : "No jugó"}>
-                          <span className="hm-sr">{c.minutes !== null ? `${c.minutes} minutos` : c.played ? "jugó" : "no jugó"}</span>
+                        <td key={c.matchId} className={c.played ? undefined : "no"} style={{ ["--l" as string]: c.level }} title={c.minutes !== null ? fmtMinutes(c.minutes) : c.played ? "Jugó" : "No jugó"}>
+                          <span className="hm-sr">{c.minutes !== null ? `${wholeMinutes(c.minutes)} minutos` : c.played ? "jugó" : "no jugó"}</span>
                           {c.goals > 0 && <b aria-hidden="true">{c.goals}</b>}
                         </td>
                       ))}
@@ -349,7 +350,7 @@ export function Minutos({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games
           <span id="st-dist" className="hm-sr">
             Distribución de minutos
           </span>
-          <Bars rows={rows.filter((p) => p.tracked)} value={(p) => p.minutes} unit="min" nameOf={nameOf} />
+          <Bars rows={rows.filter((p) => p.tracked)} value={(p) => wholeMinutes(p.minutes)} unit="min" nameOf={nameOf} />
         </section>
       </div>
     </div>

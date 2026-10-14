@@ -4,8 +4,8 @@ import { dateMillis, formatDate, isCompleted, type ClubMatch } from "../../lib/c
 import { resultOf, type PlayerLine, type Pulse, type Result } from "../../lib/home";
 import { plural } from "../../lib/vestuario";
 import { kickoffText } from "../../lib/derived/kickoff";
+import { RESULT_WORD, resultTitle } from "../../lib/derived/result";
 
-const RESULT_LABEL: Record<Result, string> = { G: "Victoria", E: "Empate", P: "Derrota" };
 const MONTH = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", month: "short" });
 const DAYN = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric" });
 const HOUR = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
@@ -29,7 +29,7 @@ export function SeasonRow({ pulse, now, nameOf }: { pulse: Pulse; now: number; n
       <div className="hm-season">
         <div className="blk">
           <span className="hm-kick">El último partido</span>
-          <h2 className="hm-h2">{last ? RESULT_LABEL[r!] + (r === "G" ? "" : " ante " + (last.rival ?? "el rival")) : "Todo por estrenar"}</h2>
+          <h2 className="hm-h2">{last ? resultTitle(r!) + (r === "G" ? "" : " ante " + (last.rival ?? "el rival")) : "Todo por estrenar"}</h2>
           {last ? (
             <Link className="hm-last hm-card" to="/matches/$matchId" params={{ matchId: last.id }}>
               <span className="sc">
@@ -81,7 +81,7 @@ export function SeasonRow({ pulse, now, nameOf }: { pulse: Pulse; now: number; n
           <span className="hm-kick" style={{ margin: "6px 0 0" }}>
             Forma · últimos 5
           </span>
-          <div className="hm-form" aria-label={pulse.form.length ? `Últimos partidos: ${pulse.form.map((x) => RESULT_LABEL[x].toLowerCase()).join(", ")}` : "Sin partidos todavía"}>
+          <div className="hm-form" aria-label={pulse.form.length ? `Últimos partidos: ${pulse.form.map((x) => RESULT_WORD[x]).join(", ")}` : "Sin partidos todavía"}>
             {form.map((x, i) => (
               <i key={i} className={x ?? "q"} aria-hidden="true">
                 {x ?? "?"}

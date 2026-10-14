@@ -1,6 +1,6 @@
 // The match list (`.ml`), as on the canvas (stats-gen/ad-v2-full.mjs `master`, `mrow`): the search (rival or
 // «J8»), the filter Todo / Por hacer / Por jugar / Publicados, sticky groups and the rows — J + date, the
-// rival's full name, the exception under it in amber (or where it is played), the score with its V/E/D
+// rival's full name, the exception under it in amber (or where it is played), the score with its G/E/P
 // mark or the kick-off time. Scrolls inside its panel (phones: inside the page's scroller).
 import { useId } from "react";
 import { ResultMark } from "../kit";

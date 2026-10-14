@@ -5,6 +5,7 @@ import { MasMinutos, PlayedNote } from "../../components/posiciones/haJugadoDe";
 import { usePlayed } from "../../components/posiciones/usePlayed";
 import { POSITIONS, type PositionSet } from "../../lib/positions";
 import type { PlayerPositions } from "../../lib/positionStats";
+import { fmtMinutes } from "../../lib/derived/minutes";
 
 export function PosMap({ name, seasonName, positions, pos }: { name: string; seasonName: string; positions: PositionSet; pos: PlayerPositions }) {
   const played = usePlayed(pos);
@@ -40,7 +41,7 @@ export function PosTable({ seasonName, pos }: { seasonName: string; pos: PlayerP
               <th scope="row">
                 {POSITIONS[l.code].name} <span>({l.code})</span>
               </th>
-              <td>{Math.round(l.minutes)}′</td>
+              <td>{fmtMinutes(l.minutes)}</td>
               <td>{l.matches}</td>
               <td>{l.goals}</td>
               <td>{l.assists}</td>

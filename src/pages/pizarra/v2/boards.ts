@@ -9,6 +9,8 @@ import type { LineupDoc } from "../lineupDoc";
 import { ago } from "./view";
 import { chem } from "./quimica";
 import type { Convocatoria, Squad } from "./model";
+import { jornadaLabel } from "../../../lib/derived/jornada";
+import { resultLetter, resultTitle } from "../../../lib/derived/result";
 
 export const NAME_MAX = 40;
 
@@ -61,8 +63,9 @@ export function officialFor(officials: LineupDoc[], matchId: string | null): Lin
 // ── matches ──
 export interface CalMatch {
   id: string;
-  /** Jornada: the match's order in the season calendar. */
-  j: number;
+  /** Its jornada (derived/jornada: the number /partidos shows, in its own season); null when it has none
+   *  (a cancelled match). */
+  j: number | null;
   rival: string;
   dateMs: number;
   played: boolean;
@@ -83,8 +86,9 @@ export interface CalMatch {
 }
 
 /** «J8 · MAD SKY», with the score once played: «J8 · MAD SKY · 3–1». */
-export const matchLabel = (m: CalMatch): string => "J" + m.j + " · " + m.rival + (m.played && m.gf != null && m.ga != null ? " · " + m.gf + "–" + m.ga : "");
-export const matchShort = (m: CalMatch): string => "J" + m.j + " · " + m.rival;
+export const matchLabel = (m: CalMatch): string => matchShort(m) + (m.played && m.gf != null && m.ga != null ? " · " + m.gf + "–" + m.ga : "");
+/** «J8 · MAD SKY» (the rival alone without a jornada). */
+export const matchShort = (m: CalMatch): string => [jornadaLabel(m.j), m.rival].filter(Boolean).join(" · ");
 
 const dayFmt = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "short", day: "numeric", month: "short" });
 const timeFmt = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
@@ -98,9 +102,9 @@ export const matchPlace = (m: CalMatch): string => (m.home == null ? m.venue : (
 
 /** The board's match as the charla, the cartel and the ficha read it: its name, day, time, jornada,
  *  campo and who its convocatoria calls (absent when it calls nobody yet). */
-export function charlaMatch(m: CalMatch): { short: string; date: string; time: string; j: string; place: string; called?: string[] } {
+export function charlaMatch(m: CalMatch): { short: string; date: string; time: string; j?: string; place: string; called?: string[] } {
   const called = m.conv ? [...m.conv.starters, ...m.conv.bench] : [];
-  return { short: matchShort(m), date: matchDay(m.dateMs), time: matchTime(m.dateMs), j: "J" + m.j, place: matchPlace(m), ...(called.length ? { called } : {}) };
+  return { short: matchShort(m), date: matchDay(m.dateMs), time: matchTime(m.dateMs), ...(m.j ? { j: jornadaLabel(m.j) } : {}), place: matchPlace(m), ...(called.length ? { called } : {}) };
 }
 
 export interface Band {
@@ -111,15 +115,15 @@ export interface Band {
   sub: string;
 }
 
-/** The result band of the linked match: V / E / D once played, «·» while it is to be played. */
+/** The result band of the linked match: G / E / P once played, «·» while it is to be played. */
 export function matchBand(m: CalMatch | null): Band {
   if (!m) return { r: "f", letter: "·", title: "Sin partido vinculado", sub: "Elige uno arriba: el tablero lleva su nombre y su convocatoria." };
   const where = matchPlace(m);
-  const sub = ["J" + m.j, matchDay(m.dateMs), m.dateMs ? timeFmt.format(new Date(m.dateMs)) : "", where].filter(Boolean).join(" · ");
+  const sub = [jornadaLabel(m.j), matchDay(m.dateMs), m.dateMs ? timeFmt.format(new Date(m.dateMs)) : "", where].filter(Boolean).join(" · ");
   if (!m.played || m.gf == null || m.ga == null) return { r: "f", letter: "·", title: "Por jugar · " + m.rival, sub };
-  const r = m.gf > m.ga ? "g" : m.gf === m.ga ? "e" : "p";
-  const word = r === "g" ? "Victoria" : r === "e" ? "Empate" : "Derrota";
-  return { r, letter: r === "g" ? "V" : r === "e" ? "E" : "D", title: word + " · " + m.gf + "–" + m.ga + " · " + m.rival, sub };
+  const letter = resultLetter(m.gf, m.ga);
+  const r = letter === "G" ? "g" : letter === "E" ? "e" : "p";
+  return { r, letter, title: resultTitle(letter) + " · " + m.gf + "–" + m.ga + " · " + m.rival, sub };
 }
 
 // ── convocatoria ──

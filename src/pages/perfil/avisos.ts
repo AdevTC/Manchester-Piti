@@ -3,6 +3,7 @@
 // calendar. Pure (the user agent and the data come in), so it is unit-tested.
 import { dateMillis, matchPhase, type ClubMatch } from "../../lib/clubData";
 import type { PushState, Topic } from "../../lib/push";
+import { jornadaLabel, jornadaNumbers } from "../../lib/derived/jornada";
 
 /** The design's four device states (pf-g «avisos» tweak). */
 export type DeviceKind = "listo" | "iphone" | "denegado" | "no-soportado";
@@ -143,22 +144,18 @@ const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("es-ES", 
 const clean = (s: string) => s.replace(/\.$/, "").toLowerCase();
 /** The next matches still to play (scheduled or on now), soonest first, as the calendar list shows them. */
 export function upcomingRows(matches: readonly ClubMatch[], now: number, n = 3): UpcomingRow[] {
-  const bySeason = new Map<string, string[]>();
-  for (const m of [...matches].sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0) || a.id.localeCompare(b.id))) {
-    const k = m.seasonId ?? "";
-    bySeason.set(k, [...(bySeason.get(k) ?? []), m.id]);
-  }
+  const jornada = jornadaNumbers(matches);
   return matches
     .filter((m) => Number.isFinite(dateMillis(m.date)) && ["scheduled", "playing"].includes(matchPhase(m, now)))
     .sort((a, b) => dateMillis(a.date) - dateMillis(b.date))
     .slice(0, n)
     .map((m) => {
       const ms = dateMillis(m.date);
-      const j = (bySeason.get(m.seasonId ?? "") ?? []).indexOf(m.id) + 1;
+      const j = jornada.get(m.id);
       const where = m.home === true ? "en casa" : m.home === false ? "fuera" : "";
       return {
         id: m.id,
-        j: j > 0 ? "J" + j : "",
+        j: jornadaLabel(j),
         rival: m.rival || "Rival",
         day: fmt({ day: "numeric" }).format(ms),
         mon: clean(fmt({ month: "short" }).format(ms)),

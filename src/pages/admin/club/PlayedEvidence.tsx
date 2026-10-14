@@ -6,6 +6,7 @@ import { POSITIONS } from "../../../lib/positions";
 import type { PlayerPositions } from "../../../lib/positionStats";
 import { AdIcon } from "../ui/icons";
 import { EVIDENCE_EMPTY, evidenceLines } from "./plantillaLogic";
+import { fmtMinutes } from "../../../lib/derived/minutes";
 
 export function PlayedEvidence({ pos, className }: { pos: PlayerPositions | undefined; className?: string }) {
   const lines = evidenceLines(pos);
@@ -26,7 +27,7 @@ export function PlayedEvidence({ pos, className }: { pos: PlayerPositions | unde
           <span key={l.code} className="ppe-c">
             {i > 0 && " · "}
             {l.code}
-            <span className="sr"> ({POSITIONS[l.code].name})</span> {Math.round(l.minutes)}′
+            <span className="sr"> ({POSITIONS[l.code].name})</span> {fmtMinutes(l.minutes)}
           </span>
         ))}
         {pos && pos.estimatedMatches > 0 && <small className="ppe-est">{ESTIMATED_TEXT}</small>}

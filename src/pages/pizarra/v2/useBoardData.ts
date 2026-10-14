@@ -9,6 +9,7 @@ import { useClock } from "../../../hooks/useClock";
 import { usePizarraPlayers } from "../usePizarraPlayers";
 import { usePizarraStats } from "../usePizarraStats";
 import { scoreOf } from "../../../lib/partidos";
+import { jornadaNumbers } from "../../../lib/derived/jornada";
 import { buildSquad } from "./ratings";
 import type { Squad } from "./model";
 import type { CalMatch } from "./boards";
@@ -51,46 +52,14 @@ export function useBoardData(seasonId: string): BoardData {
   const mvpResults = useMvpResults();
   const now = useClock(60_000);
 
-  const season = useMemo<ClubMatch[]>(
-    () =>
-      matches
-        .filter((m) => seasonId === "all" || m.seasonId === seasonId)
-        .slice()
-        .sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0) || a.id.localeCompare(b.id)),
-    [matches, seasonId],
-  );
+  const season = useMemo<ClubMatch[]>(() => boardSeason(matches, seasonId), [matches, seasonId]);
 
-  const calendar = useMemo<CalMatch[]>(
-    () =>
-      season.map((m, i) => {
-        const played = isCompleted(m);
-        const s = played ? scoreOf(m) : null;
-        return {
-          id: m.id,
-          j: i + 1,
-          rival: m.rival || "Rival",
-          dateMs: dateMillis(m.date) || 0,
-          played,
-          gf: s ? s.gf : null,
-          ga: s ? s.ga : null,
-          home: typeof m.home === "boolean" ? m.home : null,
-          venue: typeof m.venue === "string" ? m.venue : "",
-          conv: { starters: [...(m.starters ?? [])], bench: [...(m.bench ?? [])] },
-          ...(m.clock ? { clock: m.clock } : {}),
-          ...(m.version ? { version: m.version } : {}),
-          ...(typeof m.duration === "number" ? { duration: m.duration } : {}),
-          ...(typeof m.liveEndedAt === "number" ? { liveEndedAt: m.liveEndedAt } : {}),
-          ...(typeof m.status === "string" ? { status: m.status } : {}),
-          ...(m.events?.length ? { events: m.events } : {}),
-        };
-      }),
-    [season],
-  );
+  const calendar = useMemo<CalMatch[]>(() => boardCalendar(season), [season]);
 
   const games = useMemo(() => season.filter((m) => isCompleted(m)), [season]);
   const mvps = useMvpWinners(games, mvpResults, now);
   const squad = useMemo<Squad>(() => {
-    const jornada = new Map(calendar.map((c) => [c.id, c.j]));
+    const jornada = new Map(calendar.flatMap((c) => (c.j ? [[c.id, c.j] as const] : [])));
     return buildSquad({ players, games, jornada, suspended, mvps });
   }, [games, calendar, players, suspended, mvps]);
 
@@ -102,4 +71,42 @@ export function useBoardData(seasonId: string): BoardData {
   const squadIds = useSameIds(squad.list.map((c) => c.id));
 
   return { squad, squadIds, calendar, next, loading: playersLoading || statsLoading || matchesLoading };
+}
+
+/** The season's matches (every season's with «all»), by date. */
+export function boardSeason(matches: readonly ClubMatch[], seasonId: string): ClubMatch[] {
+  return matches
+    .filter((m) => seasonId === "all" || m.seasonId === seasonId)
+    .slice()
+    .sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0) || a.id.localeCompare(b.id));
+}
+
+/**
+ * The board's calendar: the season's matches (by date) with the jornada /partidos gives each one
+ * (derived/jornada — cancelled ones have none, and with «all seasons» each keeps its own season's number).
+ */
+export function boardCalendar(season: readonly ClubMatch[]): CalMatch[] {
+  const jornada = jornadaNumbers(season);
+  return season.map((m) => {
+    const played = isCompleted(m);
+    const s = played ? scoreOf(m) : null;
+    return {
+      id: m.id,
+      j: jornada.get(m.id) ?? null,
+      rival: m.rival || "Rival",
+      dateMs: dateMillis(m.date) || 0,
+      played,
+      gf: s ? s.gf : null,
+      ga: s ? s.ga : null,
+      home: typeof m.home === "boolean" ? m.home : null,
+      venue: typeof m.venue === "string" ? m.venue : "",
+      conv: { starters: [...(m.starters ?? [])], bench: [...(m.bench ?? [])] },
+      ...(m.clock ? { clock: m.clock } : {}),
+      ...(m.version ? { version: m.version } : {}),
+      ...(typeof m.duration === "number" ? { duration: m.duration } : {}),
+      ...(typeof m.liveEndedAt === "number" ? { liveEndedAt: m.liveEndedAt } : {}),
+      ...(typeof m.status === "string" ? { status: m.status } : {}),
+      ...(m.events?.length ? { events: m.events } : {}),
+    };
+  });
 }

@@ -75,7 +75,7 @@ describe("La pizarra · el tablero", () => {
     expect(commits.at(-1)?.slots[2].playerId).toBe("kevin");
     expect(screen.getByText("KEVIN entra por TELLO")).toBeInTheDocument();
     // TELLO is on the bench now, with his season line
-    expect(benchRow("TELLO").querySelector(".ar-n small")).toHaveTextContent("0 PJ · 0 G · 0 A · 0'");
+    expect(benchRow("TELLO").querySelector(".ar-n small")).toHaveTextContent("0 PJ · 0 G · 0 A · 0′");
   });
 
   it("long-press on a pitch cromo opens the fan; Capitán gives him the armband", () => {

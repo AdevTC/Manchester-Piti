@@ -7,6 +7,7 @@ import { usePlayed } from "../../components/posiciones/usePlayed";
 import type { PosCode, PositionSet } from "../../lib/positions";
 import type { PlayerPositions } from "../../lib/positionStats";
 import { Ic } from "./icons";
+import { fmtMinutes } from "../../lib/derived/minutes";
 
 const NONE: PositionSet = { main: null, also: [] };
 const partidos = (n: number) => `${n} ${n === 1 ? "partido" : "partidos"}`;
@@ -21,7 +22,7 @@ export function DondeHasJugado({ played, positions, seasonName, nudge, onGoPosit
       {any && (
         <p className="dh-led">
           <span>
-            <b>{Math.round(played.minutes)}′</b> con posición
+            <b>{fmtMinutes(played.minutes)}</b> con posición
           </span>
           <span>
             <b>{played.lines.length}</b> {played.lines.length === 1 ? "puesto" : "puestos"}

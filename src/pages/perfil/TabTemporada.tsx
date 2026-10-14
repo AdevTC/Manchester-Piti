@@ -10,6 +10,7 @@ import { DondeHasJugado } from "./DondeHasJugado";
 import { vars } from "./fx";
 import { Ic, type PIcon } from "./icons";
 import { firstMatchText, jornadaRange, longDay, type StuffLine } from "./lines";
+import { RESULT_LEGEND } from "../../lib/derived/result";
 
 /** The goal bars keep a readable width on a phone: the last 10 jornadas at most. */
 export const GB_MAX = 10;
@@ -123,7 +124,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
                     </li>
                   ))}
                 </ol>
-                <p className="legend">G victoria · E empate · P derrota</p>
+                <p className="legend">{RESULT_LEGEND}</p>
               </>
             ) : (
               <p className="note">

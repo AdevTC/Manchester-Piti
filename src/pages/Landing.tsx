@@ -6,6 +6,7 @@ import { useCountUp } from "../hooks/useCountUp";
 import { motion } from "motion/react";
 import { FloodlightCanvas } from "../components/FloodlightCanvas";
 import { Crest as CrestImg } from "../components/Crest";
+import { resultLetter, resultTitle, type ResultLetter } from "../lib/derived/result";
 import "./Landing.css";
 
 interface LandingProps {
@@ -34,7 +35,7 @@ interface PlayerDoc {
   number?: number;
 }
 
-type Outcome = "V" | "E" | "D";
+type Outcome = ResultLetter;
 
 interface Summary {
   played: number;
@@ -136,7 +137,7 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
         const lm = sorted[0];
         const lf = lm.goalsFor ?? 0;
         const la = lm.goalsAgainst ?? 0;
-        const outcome: Outcome = lf > la ? "V" : lf === la ? "E" : "D";
+        const outcome: Outcome = resultLetter(lf, la);
         const dateLabel =
           toDate(lm.date)?.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" }) ?? "";
 
@@ -188,7 +189,7 @@ export const Landing: React.FC<LandingProps> = ({ onEnter }) => {
     );
   }, []);
 
-  const outcomeLabel = (o: Outcome) => (o === "V" ? "Victoria" : o === "E" ? "Empate" : "Derrota");
+  const outcomeLabel = (o: Outcome) => resultTitle(o);
 
   const tickerItems: string[] =
     status === "ready" && summary

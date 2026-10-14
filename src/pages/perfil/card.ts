@@ -7,6 +7,9 @@ import type { ClubMatch } from "../../lib/clubData";
 import { chronological, playerGame } from "../../lib/clubAnalytics";
 import { LINE_NAMES, POSITIONS, type PosCode } from "../../lib/positions";
 import { resultOf } from "../../lib/partidos";
+import { jornadaNumbers } from "../../lib/derived/jornada";
+import { resultTitle, type ResultLetter } from "../../lib/derived/result";
+import { wholeMinutes } from "../../lib/derived/minutes";
 import { bestPartner, mvpWinners, mvpWins, vitrina, type MvpResult } from "../../lib/vestuario";
 import { suspensions } from "../pizarra/chemistry";
 import type { Zone } from "../pizarra/formations";
@@ -82,7 +85,7 @@ export interface SeriesPoint {
 }
 export interface FormResult {
   r: "g" | "e" | "p";
-  l: "G" | "E" | "P";
+  l: ResultLetter;
   j: string;
   aria: string;
 }
@@ -196,7 +199,7 @@ export interface CardView {
   first: { dateMs: number; rival: string } | null;
 }
 
-/** The season's matches in calendar order (as the pizarra numbers its jornadas). */
+/** The season's matches in calendar order (their jornada numbers come from derived/jornada). */
 export function seasonCalendar(matches: ClubMatch[], seasonId: string): ClubMatch[] {
   return matches
     .filter((m) => seasonId === "all" || m.seasonId === seasonId)
@@ -208,7 +211,8 @@ export function seasonCalendar(matches: ClubMatch[], seasonId: string): ClubMatc
 export function seasonSquad(squad: SquadPlayer[], matches: ClubMatch[], seasonId: string, mvpResults: Map<string, MvpResult>, now: number): { squad: Squad; calendar: ClubMatch[]; games: ClubMatch[]; jornada: Map<string, number> } {
   const calendar = seasonCalendar(matches, seasonId);
   const games = calendar.filter((m) => isCompleted(m));
-  const jornada = new Map(calendar.map((m, i) => [m.id, i + 1]));
+  // (the one numbering: each match's jornada in its own season, «all seasons» included)
+  const jornada = jornadaNumbers(calendar);
   const mvps = new Map<string, string[]>();
   games.forEach((m) => mvps.set(m.id, mvpWinners(m, mvpResults.get(m.id), now)));
   // the same bajas as the board: sent off (acta) or sanctioned by hand, newest match first
@@ -370,7 +374,7 @@ export function buildCard(input: CardInput): CardView {
   const firstMatch = calendar[0];
   const first = firstMatch ? { dateMs: dateMillis(firstMatch.date), rival: firstMatch.rival || "el rival" } : null;
 
-  const totals = shown ? { played: shown.stats.played, goals: shown.stats.goals, assists: shown.stats.assists, minutes: shown.stats.minutes, mvps: shown.stats.mvps } : EMPTY_TOTALS;
+  const totals = shown ? { played: shown.stats.played, goals: shown.stats.goals, assists: shown.stats.assists, minutes: wholeMinutes(shown.stats.minutes), mvps: shown.stats.mvps } : EMPTY_TOTALS;
   const max = (k: "goals" | "assists" | "minutes" | "mvps") => Math.max(0, ...squad.list.map((c) => c.stats[k]));
   const values: Record<AttrKey, [number, number]> = {
     GOL: [totals.goals, ratio(totals.goals, max("goals"))],
@@ -394,11 +398,10 @@ export function buildCard(input: CardInput): CardView {
         return { j, label: `J${j}`, goals: g.goals, played: g.played, p: g.played ? Math.round(clamp(Math.max(0.06, g.goals / 3), 0, 1) * 100) / 100 : 0.03 };
       })
     : [];
-  const RES = { G: ["g", "Victoria"], E: ["e", "Empate"], P: ["p", "Derrota"] } as const;
   const last5: FormResult[] = games.slice(-5).map((m) => {
     const l = resultOf(m);
     const j = `J${jornada.get(m.id) ?? 0}`;
-    return { r: RES[l][0], l, j, aria: `${j}: ${RES[l][1]}` };
+    return { r: l === "G" ? "g" : l === "E" ? "e" : "p", l, j, aria: `${j}: ${resultTitle(l)}` };
   });
   const goalRank = shown ? squad.list.filter((c) => c.stats.goals > shown.stats.goals).length + 1 : null;
   const rankText = !showNumbers

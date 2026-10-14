@@ -5,6 +5,7 @@ import { dateMillis } from "../../../../functions/src/matchEngine";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import type { AdminMatch, AdminMatchState } from "../data/adminLogic";
 import { nameIn, numberIn } from "./plantillaLogic";
+import { resultLetter, resultTitle, type ResultLetter } from "../../../lib/derived/result";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -117,24 +118,21 @@ export function copyRosterPlan(players: readonly PlayerDoc[], fromId: string): C
 // ───────────────────────── the vitrina (the active season as silverware) ─────────────────────────
 /** Our goals with a scorer (penalties and free kicks included; own goals and the rival's own goals not). */
 const SCORED = new Set(["goal", "goal_penalty", "goal_freekick"]);
-type Letter = "V" | "E" | "D";
-const letterOf = (gf: number, ga: number): Letter => (gf > ga ? "V" : gf === ga ? "E" : "D");
-const WORD: Record<Letter, string> = { V: "Victoria", E: "Empate", D: "Derrota" };
-
-/** One jornada on the shelf: its V/E/D once its acta is published, a gap otherwise. */
+/** One jornada on the shelf: its G/E/P once its acta is published, a gap otherwise. */
 export interface ShelfSlot {
   id: string;
   /** «J4» (or the rival when the match has no jornada). */
   label: string;
   /** null = a gap (not played yet, or played and not published). */
-  r: Letter | null;
+  r: ResultLetter | null;
   /** «J4 · Victoria 4–1 a Emirates», «J7 · sin publicar», «J9 · por jugar». */
   aria: string;
 }
 export interface Showcase {
-  v: number;
+  /** Ganados · empatados · perdidos (G/E/P). */
+  g: number;
   e: number;
-  d: number;
+  p: number;
   gf: number;
   ga: number;
   /** Matches whose acta is published (the ones that count). */
@@ -169,20 +167,20 @@ export function seasonShowcase(o: {
   const label = (m: AdminMatch) => (m.jornada ? `J${m.jornada}` : m.rival || "Partido");
   const counts = (m: AdminMatch) => o.stateOf(m) === "published" && m.status === "finished" && typeof m.goalsFor === "number";
   const pub = ms.filter(counts);
-  const out: Showcase = { v: 0, e: 0, d: 0, gf: 0, ga: 0, published: pub.length, total: ms.length, shelf: [], pichichi: null, biggest: null, streak: 0, mvp: null, waiting: [] };
+  const out: Showcase = { g: 0, e: 0, p: 0, gf: 0, ga: 0, published: pub.length, total: ms.length, shelf: [], pichichi: null, biggest: null, streak: 0, mvp: null, waiting: [] };
   const goals = new Map<string, number>();
   const mvps = new Map<string, number>();
   let run = 0;
   for (const m of pub) {
     const gf = m.goalsFor ?? 0;
     const ga = m.goalsAgainst ?? 0;
-    const r = letterOf(gf, ga);
-    out[r === "V" ? "v" : r === "E" ? "e" : "d"] += 1;
+    const r = resultLetter(gf, ga);
+    out[r === "G" ? "g" : r === "E" ? "e" : "p"] += 1;
     out.gf += gf;
     out.ga += ga;
-    run = r === "V" ? run + 1 : 0;
+    run = r === "G" ? run + 1 : 0;
     out.streak = Math.max(out.streak, run);
-    if (r === "V" && (!out.biggest || gf - ga > out.biggest.gf - out.biggest.ga)) out.biggest = { gf, ga, rival: m.rival || "Rival", label: label(m) };
+    if (r === "G" && (!out.biggest || gf - ga > out.biggest.gf - out.biggest.ga)) out.biggest = { gf, ga, rival: m.rival || "Rival", label: label(m) };
     for (const e of m.events ?? []) if (SCORED.has(e.type) && e.playerId) goals.set(e.playerId, (goals.get(e.playerId) ?? 0) + 1);
     for (const id of o.mvpOf(m)) mvps.set(id, (mvps.get(id) ?? 0) + 1);
   }
@@ -196,8 +194,8 @@ export function seasonShowcase(o: {
     if (counts(m)) {
       const gf = m.goalsFor ?? 0;
       const ga = m.goalsAgainst ?? 0;
-      const r = letterOf(gf, ga);
-      return { id: m.id, label: l, r, aria: `${l} · ${WORD[r]} ${gf}–${ga} a ${m.rival || "Rival"}` };
+      const r = resultLetter(gf, ga);
+      return { id: m.id, label: l, r, aria: `${l} · ${resultTitle(r)} ${gf}–${ga} a ${m.rival || "Rival"}` };
     }
     const played = dateMillis(m.date) <= o.now && m.status !== "postponed";
     return { id: m.id, label: l, r: null, aria: `${l} · ${m.status === "postponed" ? "aplazado" : played ? "sin publicar" : "por jugar"}` };

@@ -22,7 +22,9 @@ import { useGoalCelebration } from "../../components/celeste/useGoalCelebration"
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { matchEvent } from "../../lib/home";
-import { countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf, seasonView } from "../../lib/partidos";
+import { countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf } from "../../lib/partidos";
+import { jornadaOf } from "../../lib/derived/jornada";
+import { RESULT_WORD, resultLetter, resultTitle } from "../../lib/derived/result";
 import { shareClubPage } from "../../lib/share";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, type KickoffState } from "../../lib/derived/kickoff";
 import { downloadMatchPoster } from "../../lib/matchPoster";
@@ -69,9 +71,9 @@ function headline(m: ClubMatch, phase: string, kick: KickoffState, nameOf: (id: 
   const count = new Map<string, number>();
   for (const e of m.events ?? []) if (GOAL.test(e.type) && e.playerId) count.set(e.playerId, (count.get(e.playerId) ?? 0) + 1);
   const [top] = [...count.entries()].sort((a, b) => b[1] - a[1]);
-  const verdict = gf > ga ? "victoria" : gf === ga ? "empate" : "derrota";
-  if (top && top[1] >= 2) return `${top[1] >= 3 ? "Hat-trick" : "Doblete"} de ${nameOf(top[0])} y ${verdict} ${gf}–${ga}`;
-  return `${verdict.charAt(0).toUpperCase() + verdict.slice(1)} ${gf}–${ga} ante ${rival}`;
+  const r = resultLetter(gf, ga);
+  if (top && top[1] >= 2) return `${top[1] >= 3 ? "Hat-trick" : "Doblete"} de ${nameOf(top[0])} y ${RESULT_WORD[r]} ${gf}–${ga}`;
+  return `${resultTitle(r)} ${gf}–${ga} ante ${rival}`;
 }
 
 export function MatchPage() {
@@ -139,7 +141,7 @@ export function MatchPage() {
   const d = dateParts(match.date);
   const minute = live ? liveMinute(match, now) : null;
   const last = live ? lastEvent(match.events, nameOf, rival) : null;
-  const jornada = match.seasonId ? seasonView(matches, match.seasonId, now).jornada.get(match.id) : undefined;
+  const jornada = jornadaOf(matches, match.id);
   const kit = match.kit === "away" ? "2ª equipación" : "1ª equipación";
   const r = done ? resultOf(match) : undefined;
   const goalsOf = (ours: boolean) =>

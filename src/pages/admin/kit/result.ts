@@ -1,10 +1,6 @@
-// V / E / D (pure).
-export type ResultLetter = "V" | "E" | "D";
-const WORD: Record<ResultLetter, string> = { V: "Victoria", E: "Empate", D: "Derrota" };
+// G / E / P (pure): the admin's door to the one result alphabet (lib/derived/result.ts).
+import { resultTitle, type ResultLetter } from "../../../lib/derived/result";
 
-/** V / E / D from our goals and theirs. */
-export function resultLetter(gf: number, ga: number): ResultLetter {
-  return gf > ga ? "V" : gf === ga ? "E" : "D";
-}
+export { resultLetter, type ResultLetter } from "../../../lib/derived/result";
 /** «Victoria» / «Empate» / «Derrota». */
-export const resultWord = (r: ResultLetter) => WORD[r];
+export const resultWord = (r: ResultLetter): string => resultTitle(r);

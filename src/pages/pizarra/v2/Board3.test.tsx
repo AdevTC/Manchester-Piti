@@ -446,7 +446,7 @@ describe("Tableros · oficial y partido", () => {
     const sel = screen.getByRole("combobox", { name: "Vincular a un partido" });
     expect(sel).toHaveValue("m7");
     expect(within(sel).getAllByRole("option").map((o) => o.textContent)).toEqual(["Sin partido", "J7 · RAYO · 3–1", "J8 · MAD SKY"]);
-    expect(screen.getByText("V")).toHaveClass("res", "g");
+    expect(screen.getByText("G")).toHaveClass("res", "g");
     expect(screen.getByText("Victoria · 3–1 · RAYO")).toBeInTheDocument();
     fireEvent.change(sel, { target: { value: "m8" } });
     expect(linkMatch).toHaveBeenLastCalledWith("m8");

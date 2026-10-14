@@ -10,10 +10,11 @@ import { PLAYED_EMPTY, clubPositions, playerPositions, systemRecord, type ClubPo
 import { POSITIONS, POS_CODES, type PosCode } from "../../lib/positions";
 import { isFormationName, systemDef } from "../../lib/formations";
 import { isCompleted } from "../../../functions/src/matchEngine";
+import { fmtMinutes } from "../../lib/derived/minutes";
 
 type NameOf = (p: PlayerAnalysis) => string;
 const full = (code: PosCode) => `${POSITIONS[code].name} (${code})`;
-const mins = (n: number) => `${Math.round(n)}′`;
+const mins = (n: number) => fmtMinutes(n);
 const comma = (n: number) => n.toFixed(2).replace(".", ",");
 const minutesWord = (n: number) => `${n} ${n === 1 ? "minuto" : "minutos"}`;
 /** Below this card width the detail panel sits under the pitch (stats.css `@container st-pos`). */

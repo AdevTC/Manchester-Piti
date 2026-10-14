@@ -8,6 +8,7 @@ import type { Lineup } from "../formations";
 import { systemDef } from "../../../lib/formations";
 import { CAMS, proj, slotPos, type CamName } from "./geometry";
 import { matchShort, type CalMatch } from "./boards";
+import { fmtMinutes } from "../../../lib/derived/minutes";
 import { GALONES, type Squad } from "./model";
 import { chem } from "./quimica";
 import { boardInPlace } from "./encaje";
@@ -55,7 +56,7 @@ export function tape(A: Lineup, B: Lineup, sq: Squad): TapeRow[] {
     num("Química", chem(A, sq).v, chem(B, sq).v),
     { k: "Sistema", a: A.freeMode ? "Libre" : systemDef(A.formation).label, b: B.freeMode ? "Libre" : systemDef(B.formation).label, ca: "", cb: "" },
     num("Media", meanForm(A, sq), meanForm(B, sq)),
-    num("Minutos del siete", sevenMinutes(A, sq), sevenMinutes(B, sq), (n) => n.toLocaleString("es-ES") + "′"),
+    num("Minutos del siete", sevenMinutes(A, sq), sevenMinutes(B, sq), (n) => fmtMinutes(n)),
     num("En su sitio", naturalCount(A, sq), naturalCount(B, sq), (n) => n + "/7"),
     num("Galones en el campo", galonesOn(A), galonesOn(B), (n) => n + "/" + GALONES.length),
   ];

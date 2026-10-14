@@ -1,6 +1,7 @@
 // The «ha jugado de» texts every view shares. Kept apart from positionStats so the positions map (and
 // what imports it) does not pull the stats and the form rating into its bundle.
 import { POSITIONS, type PosCode } from "./positions";
+import { fmtMinutes } from "./derived/minutes";
 
 /** The explicit empty copy of every «ha jugado de» view. */
 export const PLAYED_EMPTY = "Aún sin minutos con posición";
@@ -11,5 +12,5 @@ export const PLAYED_EMPTY = "Aún sin minutos con posición";
 export function playedSummary(p: { lines: readonly { code: PosCode; minutes: number }[] }, max = 3): string {
   const shown = p.lines.filter((l) => Math.round(l.minutes) > 0).slice(0, max);
   if (!shown.length) return PLAYED_EMPTY;
-  return shown.map((l, i) => (i === 0 ? `${POSITIONS[l.code].name} (${l.code})` : l.code) + ` ${Math.round(l.minutes)}′`).join(" · ");
+  return shown.map((l, i) => (i === 0 ? `${POSITIONS[l.code].name} (${l.code})` : l.code) + ` ${fmtMinutes(l.minutes)}`).join(" · ");
 }
