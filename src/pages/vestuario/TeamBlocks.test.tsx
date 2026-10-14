@@ -19,7 +19,7 @@ vi.mock("./live", () => ({
   useMyPrediction: () => ({ data: undefined }),
   useTrainingVotes: () => ({ data: [] }),
 }));
-// (the porra and the MVP ballot are the shared member controls, components/celeste/member: they write through here)
+// (the porra and the MVP ballot are the shared member controls, pages/vestuario/shared: they write through here)
 const ME = { uid: "u1", name: "YO", playerId: null };
 const writes = vi.hoisted(() => ({ predictScore: vi.fn(async () => undefined), voteMvp: vi.fn(async () => undefined) }));
 vi.mock("./writes", () => ({ useMe: () => ME, deleteBoardMessage: vi.fn(), postBoardMessage: vi.fn(), predictScore: writes.predictScore, voteMvp: writes.voteMvp, voteTraining: vi.fn() }));
@@ -27,7 +27,7 @@ const SQUAD = ["erik", "pablo", "raul", "adri", "hugo"].map((id) => ({ id, shirt
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [], players: SQUAD, loading: false, error: null }) }));
 
 const { MvpBlock, Porra } = await import("./TeamBlocks");
-const { PORRA_RULE } = await import("../../components/celeste/member/PorraCard");
+const { PORRA_RULE } = await import("./shared/PorraCard");
 
 const NOW = Date.UTC(2026, 8, 1);
 const match = (extra: Partial<ClubMatch>): ClubMatch => ({ id: "j8", seasonId: "t1", rival: "Rival", date: NOW, duration: 50, status: "finished", goalsFor: 2, goalsAgainst: 1, events: [], ...extra });

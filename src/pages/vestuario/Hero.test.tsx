@@ -14,7 +14,7 @@ vi.mock("@tanstack/react-router", () => ({
     </a>
   ),
 }));
-// (the RSVP is the shared member control, components/celeste/member/RsvpSwitch: it writes through here)
+// (the RSVP is the shared member control, pages/vestuario/shared/RsvpSwitch: it writes through here)
 const writes = vi.hoisted(() => ({ setAvailability: vi.fn(async () => undefined) }));
 vi.mock("./writes", () => ({ useMe: () => ({ uid: "u1", name: "ADRI", playerId: "adri" }), setAvailability: writes.setAvailability }));
 vi.mock("../../lib/clubApi", () => ({ apiError: () => "", requestPlayerClaim: vi.fn() }));

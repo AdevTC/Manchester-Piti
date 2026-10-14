@@ -17,9 +17,9 @@ import {
 import { Icon } from "../../components/celeste/icons";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
-import { useWrite } from "../../components/celeste/member/useWrite";
-import { PORRA_RULE, PorraCard } from "../../components/celeste/member/PorraCard";
-import { MvpBallot } from "../../components/celeste/member/MvpBallot";
+import { useWrite } from "./shared/useWrite";
+import { PORRA_RULE, PorraCard } from "./shared/PorraCard";
+import { MvpBallot } from "./shared/MvpBallot";
 
 function useAction() {
   const [busy, setBusy] = useState(false);

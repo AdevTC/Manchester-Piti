@@ -16,7 +16,7 @@ vi.mock("firebase/firestore", () => ({
 }));
 vi.mock("../../../firebase", () => ({ db: {} }));
 vi.mock("../../../context/AuthContext", () => ({ useAuth: () => ({ user: { uid: "u1" }, profile: { nickname: "ADRI", playerId: "adri" } }) }));
-vi.mock("../../../pages/vestuario/live", () => ({
+vi.mock("../live", () => ({
   useMyMvpVote: (matchId: string, uid: string) => {
     live.asked = [matchId, uid];
     return { data: live.vote };

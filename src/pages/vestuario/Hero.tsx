@@ -12,7 +12,7 @@ import { matchEvent } from "../../lib/home";
 import type { Availability, Claim } from "./live";
 import { Icon } from "../../components/celeste/icons";
 import { kickoffText } from "../../lib/derived/kickoff";
-import { RsvpSwitch } from "../../components/celeste/member/RsvpSwitch";
+import { RsvpSwitch } from "./shared/RsvpSwitch";
 
 export interface Me {
   uid: string;

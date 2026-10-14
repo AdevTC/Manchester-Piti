@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 
 // «Voy · Duda · No puedo»: the shared convocatoria control. The real write (vestuario/writes.ts) runs on
@@ -57,23 +58,43 @@ it("a tap writes the member's availability: matchPrivate/{match}/availability/{u
   expect(fs.setDoc).toHaveBeenCalledWith({ path: "matchPrivate/j8/availability/u1" }, { response: "no", name: "ADRI", playerId: "adri", at: "SERVER_TIME" });
 });
 
-it("keyboard: the arrows move and choose, Home and End jump to the ends", () => {
+it("keyboard: the arrows and Home / End only move the focus; nothing is written until Enter or Space", async () => {
+  const user = userEvent.setup();
   render(<RsvpSwitch match={MATCH} now={NOW} answer="yes" />);
   const [yes, maybe, no] = radios();
   yes.focus();
-  fireEvent.keyDown(yes, { key: "ArrowRight" });
+  await user.keyboard("{ArrowRight}");
   expect(maybe).toHaveFocus();
-  fireEvent.keyDown(maybe, { key: "End" });
+  await user.keyboard("{End}");
   expect(no).toHaveFocus();
-  fireEvent.keyDown(no, { key: "ArrowDown" });
+  await user.keyboard("{ArrowDown}");
   expect(yes).toHaveFocus();
-  fireEvent.keyDown(yes, { key: "ArrowLeft" });
+  await user.keyboard("{ArrowLeft}");
   expect(no).toHaveFocus();
-  fireEvent.keyDown(no, { key: "Home" });
+  await user.keyboard("{Home}");
   expect(yes).toHaveFocus();
-  expect(fs.setDoc.mock.calls.map((c) => (c[1] as { response: string }).response)).toEqual(["maybe", "no", "yes", "no", "yes"]);
-  fireEvent.keyDown(yes, { key: "Tab" });
-  expect(fs.setDoc).toHaveBeenCalledTimes(5);
+  // (the answer is still «Voy»: a step is not a choice, and not a write)
+  expect(fs.setDoc).not.toHaveBeenCalled();
+  expect(radios().map((r) => r.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
+});
+
+it("keyboard: Enter chooses and writes once; so does Space", async () => {
+  const user = userEvent.setup();
+  render(<RsvpSwitch match={MATCH} now={NOW} answer="yes" />);
+  const [yes, maybe, no] = radios();
+  yes.focus();
+  await user.keyboard("{ArrowRight}");
+  expect(maybe).toHaveFocus();
+  expect(maybe.tabIndex).toBe(0);
+  expect(yes.tabIndex).toBe(-1);
+  await user.keyboard("{Enter}");
+  expect(fs.setDoc).toHaveBeenCalledTimes(1);
+  expect(fs.setDoc).toHaveBeenLastCalledWith({ path: "matchPrivate/j8/availability/u1" }, { response: "maybe", name: "ADRI", playerId: "adri", at: "SERVER_TIME" });
+  await user.keyboard("{ArrowRight}");
+  expect(no).toHaveFocus();
+  await user.keyboard(" ");
+  expect(fs.setDoc).toHaveBeenCalledTimes(2);
+  expect(fs.setDoc).toHaveBeenLastCalledWith({ path: "matchPrivate/j8/availability/u1" }, { response: "no", name: "ADRI", playerId: "adri", at: "SERVER_TIME" });
 });
 
 it("a refused write says why, next to the control", async () => {
@@ -99,4 +120,10 @@ it("closed at the match's date (the rules refuse it from then on), and before it
   rerender(<RsvpSwitch match={{ id: "j9", status: "scheduled" }} now={NOW} answer={undefined} />);
   expect(screen.getByText("La convocatoria se abre cuando el partido tenga fecha.")).toBeInTheDocument();
   expect(fs.setDoc).not.toHaveBeenCalled();
+});
+
+it("a future match that is not scheduled (legacy, without status) does not claim it closed", () => {
+  render(<RsvpSwitch match={{ id: "j9", date: NOW + 86_400_000 }} now={NOW} answer={undefined} />);
+  expect(screen.queryByRole("radiogroup")).toBeNull();
+  expect(screen.getByText("Este partido no admite convocatoria.")).toBeInTheDocument();
 });

@@ -31,9 +31,9 @@ import type { BoardView } from "../pizarra/useMatchBoard";
 import type { RivalSeven } from "../pizarra/v2/rival";
 import { RivalLine, RivalSection } from "./RivalDossier";
 import { rivalDossier } from "../../lib/derived/rival";
-import { RsvpSwitch } from "../../components/celeste/member/RsvpSwitch";
-import { PorraCard } from "../../components/celeste/member/PorraCard";
-import { MvpBallot } from "../../components/celeste/member/MvpBallot";
+import { RsvpSwitch } from "../vestuario/shared/RsvpSwitch";
+import { PorraCard } from "../vestuario/shared/PorraCard";
+import { MvpBallot } from "../vestuario/shared/MvpBallot";
 
 type NameOf = (id: string) => string;
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -592,7 +592,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
             )}
           </section>
           <section className="fc-sec" aria-labelledby="fc-po">
-            <span className="hm-kick">La porra · se cierra al pitido inicial</span>
+            <span className="hm-kick">La porra · se cierra a la hora del partido</span>
             <h2 className="hm-h2" id="fc-po">
               ¿Cómo acaba?
             </h2>

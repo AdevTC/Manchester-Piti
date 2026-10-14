@@ -75,7 +75,7 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 .vx-rsvp-thumb{position:absolute;left:6px;top:6px;width:calc((100% - 12px)/3);height:calc(100% - 12px);border-radius:999px;background:var(--thumb);box-shadow:var(--thumb-shadow)}
 .vx-rsvp button{position:relative;border:0;background:transparent;font-weight:600;font-size:16px;color:var(--rsvp-ink);display:flex;align-items:center;justify-content:center;gap:6px;border-radius:999px}
 .vx-rsvp button[aria-checked=true]{color:var(--thumb-ink)}
-.vx .vx-hero-rsvp{margin-top:20px;--mp-rsvp-max:420px;--mp-rsvp-inline:auto;--mp-rsvp-font:16px}
+.vx .vx-hero-rsvp{margin-top:20px;--ma-rsvp-max:420px;--ma-rsvp-inline:auto;--ma-rsvp-font:16px}
 .vx-hero-actions{margin-top:12px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
 .vx-ghost{display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 18px;border-radius:999px;border:0;background:var(--ghost);color:var(--ghost-ink);font-weight:600;font-size:14px}
 .vx a.vx-ghost{color:var(--ghost-ink);text-decoration:none}
@@ -197,7 +197,7 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 .vx-hero-copy{text-align:left;padding:18px 0 0}
 .vx-epic{margin:0;font-size:26px}
 .vx-rsvp{margin:22px 0 0}
-.vx .vx-hero-rsvp{margin-top:22px;--mp-rsvp-inline:0}
+.vx .vx-hero-rsvp{margin-top:22px;--ma-rsvp-inline:0}
 .vx-hero-actions,.vx-attend{justify-content:flex-start}
 .vx-main{padding:0 40px 140px}
 .vx-you{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:48px}
@@ -285,8 +285,8 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx-propose{margin-top:18px;display:grid;gap:12px}
 .vx-propose-slots{display:grid;gap:10px}
 .vx-train-foot{margin-top:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-/* porra (PorraCard, components/celeste/member): the vestuario's split-flap scoreboard, by its tokens */
-.vx-porra .mp-porra{margin-top:20px;--mp-porra-pad:0;--mp-porra-bg:transparent;--mp-porra-ring:none;--mp-score-w:92px;--mp-score-h:118px;--mp-score-bg:linear-gradient(180deg,var(--flap) 50%,var(--flap2) 50%);--mp-score-shadow:0 20px 40px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.08);--mp-score-split:rgba(0,0,0,.55);--mp-score-size:88px;--mp-score-wdth:70;--mp-score-ink:#f4f8ff;--mp-score-them-ink:#b9cbe8;--mp-dash-size:40px}
+/* porra (PorraCard, pages/vestuario/shared): the vestuario's split-flap scoreboard, by its tokens */
+.vx-porra .ma-porra{margin-top:20px;--ma-porra-pad:0;--ma-porra-bg:transparent;--ma-porra-ring:none;--ma-score-w:92px;--ma-score-h:118px;--ma-score-bg:linear-gradient(180deg,var(--flap) 50%,var(--flap2) 50%);--ma-score-shadow:0 20px 40px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.08);--ma-score-split:rgba(0,0,0,.55);--ma-score-size:88px;--ma-score-wdth:70;--ma-score-ink:#f4f8ff;--ma-score-them-ink:#b9cbe8;--ma-dash-size:40px}
 /* porra / MVP → the match page's Vestuario tab */
 .vx-tomatch{margin:10px 0 0;text-align:center}
 .vx .vx-tomatch a{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:14px;font-weight:600;color:var(--accent);text-decoration:none}

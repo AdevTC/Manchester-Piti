@@ -3,14 +3,19 @@
 // control is never offered when the write would be refused.
 import { dateMillis } from "../../../functions/src/matchEngine";
 
-/** «open» until kick-off; «closed» from its date on; «undated» while the match has no date yet. */
-export type KickoffWindow = "open" | "closed" | "undated";
+/**
+ * «open» until kick-off; «closed» once its date has come (or it is under way / over); «undated» while the
+ * match has no date yet; «unavailable» for a future match that is not scheduled (called off, postponed, or
+ * a legacy one without a status): the rules refuse it, but it did not «close» at any time.
+ */
+export type KickoffWindow = "open" | "closed" | "undated" | "unavailable";
 
 /** The convocatoria and the porra: a scheduled match before its date (rules: upcoming()). */
 export function kickoffWindow(match: { status?: string; date?: unknown }, now: number): KickoffWindow {
   const at = dateMillis(match.date);
   if (!Number.isFinite(at)) return "undated";
-  return match.status === "scheduled" && at > now ? "open" : "closed";
+  if (match.status === "scheduled") return at > now ? "open" : "closed";
+  return at > now && match.status !== "live" && match.status !== "finished" ? "unavailable" : "closed";
 }
 
 /** The MVP vote: a finished match with its 48 h window still running (rules: mvpOpen()). */

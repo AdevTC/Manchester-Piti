@@ -8,9 +8,10 @@ import { apiError } from "../../../lib/clubApi";
  */
 export function useWrite() {
   const [error, setError] = useState("");
-  const write = (fn: () => Promise<unknown>) => {
+  /** `onSaved` runs once the server has accepted the write (never on a refusal). */
+  const write = (fn: () => Promise<unknown>, onSaved?: () => void) => {
     setError("");
-    fn().catch((e: unknown) => setError(apiError(e)));
+    fn().then(onSaved, (e: unknown) => setError(apiError(e)));
   };
   return { error, write };
 }

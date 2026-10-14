@@ -15,12 +15,14 @@ vi.mock("firebase/firestore", () => ({
 }));
 vi.mock("../../../firebase", () => ({ db: {} }));
 vi.mock("../../../context/AuthContext", () => ({ useAuth: () => ({ user: { uid: "u1" }, profile: { nickname: "ADRI", playerId: "adri" } }) }));
-vi.mock("../../../pages/vestuario/live", () => ({
+vi.mock("../live", () => ({
   useMyPrediction: (matchId: string, uid: string) => {
     live.asked = [matchId, uid];
     return { data: live.prediction };
   },
 }));
+// (clubData also opens the whole data layer: the porra only needs its dateMillis)
+vi.mock("../../../lib/clubData", async () => ({ dateMillis: (await import("../../../../functions/src/matchEngine")).dateMillis }));
 vi.mock("../../../lib/clubApi", () => ({ apiError: (e: unknown) => `No se pudo guardar: ${(e as Error).message}` }));
 
 const { PorraCard, PORRA_RULE } = await import("./PorraCard");
@@ -102,4 +104,35 @@ it("a refused write says why", async () => {
   render(<PorraCard match={MATCH} now={NOW} uid="u1" />);
   fireEvent.click(btn("Guardar mi porra"));
   expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo guardar: permission-denied");
+});
+
+it("a refused write keeps the score the member set, under the error", async () => {
+  live.prediction = { goalsFor: 1, goalsAgainst: 0 };
+  fs.setDoc.mockRejectedValueOnce(new Error("permission-denied"));
+  render(<PorraCard match={MATCH} now={NOW} uid="u1" />);
+  fireEvent.click(btn("Un gol más del Piti"));
+  fireEvent.click(btn("Un gol más de MAD SKY"));
+  fireEvent.click(btn("Cambiar mi porra"));
+  expect(await screen.findByRole("alert")).toHaveTextContent("permission-denied");
+  expect(scores()).toEqual(["2", "1"]);
+  expect(btn("Cambiar mi porra")).toBeEnabled();
+});
+
+it("a saved write drops the draft and announces it once; the scores themselves stay silent", async () => {
+  const { rerender } = render(<PorraCard match={MATCH} now={NOW} uid="u1" />);
+  for (const o of document.querySelectorAll("output")) expect(o).toHaveAttribute("aria-live", "off");
+  fireEvent.click(btn("Un gol más del Piti"));
+  fireEvent.click(btn("Un gol más de MAD SKY"));
+  fireEvent.click(btn("Guardar mi porra"));
+  expect(await screen.findByText("Porra guardada: 1 a 1.")).toHaveAttribute("aria-live", "polite");
+  // (the draft is gone: the scores follow what the listener says is saved)
+  live.prediction = { goalsFor: 5, goalsAgainst: 4 };
+  rerender(<PorraCard match={MATCH} now={NOW} uid="u1" />);
+  expect(scores()).toEqual(["5", "4"]);
+});
+
+it("a future match that is not scheduled (legacy, without status) does not claim it closed", () => {
+  render(<PorraCard match={{ id: "j8", rival: "MAD SKY", date: MATCH.date }} now={NOW} uid="u1" />);
+  expect(screen.getByText(`Este partido no admite porra. ${PORRA_RULE}`)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /porra/ })).toBeNull();
 });

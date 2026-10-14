@@ -4,9 +4,9 @@
 import { useId, useState } from "react";
 import type { ClubMatch } from "../../../lib/clubData";
 import { mvpCandidates, mvpVoteOpen } from "../../../lib/derived/memberWindows";
-import { useMyMvpVote } from "../../../pages/vestuario/live";
-import { useMe, voteMvp } from "../../../pages/vestuario/writes";
-import { Icon } from "../icons";
+import { useMyMvpVote } from "../live";
+import { useMe, voteMvp } from "../writes";
+import { Icon } from "../../../components/celeste/icons";
 import { useWrite } from "./useWrite";
 import { WriteError } from "./WriteError";
 import "./member.css";
@@ -41,10 +41,10 @@ export function MvpBallot({ match, now, uid, counts, nameOf, total, className }:
     if (me && pick) write(() => voteMvp(me, match.id, pick));
   };
   return (
-    <div className={`mp-ballot${className ? ` ${className}` : ""}`}>
+    <div className={`ma-ballot${className ? ` ${className}` : ""}`}>
       <fieldset>
         <legend>Tu voto</legend>
-        <div className="mp-ballot-list">
+        <div className="ma-ballot-list">
           {candidates.map((id) => (
             <label key={id}>
               <input type="radio" name={group} value={id} checked={pick === id} onChange={() => setSelection({ id: match.id, pick: id })} />
@@ -54,12 +54,12 @@ export function MvpBallot({ match, now, uid, counts, nameOf, total, className }:
           ))}
         </div>
       </fieldset>
-      <div className="mp-ballot-foot">
-        <button type="button" className="mp-btn" disabled={!pick || pick === voted} onClick={vote}>
+      <div className="ma-ballot-foot">
+        <button type="button" className="ma-btn" disabled={!pick || pick === voted} onClick={vote}>
           {pick && pick === voted ? "Voto guardado" : voted ? "Cambiar mi voto" : "Votar al MVP"}
         </button>
         {total != null && (
-          <span className="mp-count">
+          <span className="ma-count">
             {total} {total === 1 ? "voto del equipo" : "votos del equipo"}
           </span>
         )}

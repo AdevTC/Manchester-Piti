@@ -197,8 +197,8 @@
 .fc-kpis dt{font-family:'Geist Mono';font-size:10px;color:var(--muted)}
 
 /* vestuario */
-/* the member actions (components/celeste/member): the MVP pick in the match's gold, by their tokens */
-.fc-pane{--mp-pick-bg:var(--btn);--mp-pick-ink:var(--btn-ink);--mp-pick-on-bg:#FFC659;--mp-pick-on-ink:#0c1733}
+/* the member actions (pages/vestuario/shared): the MVP pick in the match's gold, by their tokens */
+.fc-pane{--ma-pick-bg:var(--btn);--ma-pick-ink:var(--btn-ink);--ma-pick-on-bg:#FFC659;--ma-pick-on-ink:#0c1733}
 .fc-conv{margin-top:14px;display:grid;gap:8px}
 .fc-conv .bar{display:flex;gap:3px;height:10px;border-radius:999px;overflow:hidden;background:var(--bar)}
 .fc-conv .bar i{display:block;height:100%}

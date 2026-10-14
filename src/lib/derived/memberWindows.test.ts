@@ -15,8 +15,12 @@ describe("kickoffWindow (convocatoria and porra)", () => {
     expect(kickoffWindow({ status: "scheduled", date: NOW }, NOW)).toBe("closed");
     expect(kickoffWindow({ status: "scheduled", date: NOW - 1 }, NOW)).toBe("closed");
   });
-  it("closed for any match that is not scheduled (live, finished, called off, legacy without status)", () => {
-    for (const status of ["live", "finished", "cancelled", "postponed", undefined]) expect(kickoffWindow({ status, date: NOW + 86_400_000 }, NOW)).toBe("closed");
+  it("closed for a live or finished match, and for any match whose date has passed", () => {
+    for (const status of ["live", "finished"]) expect(kickoffWindow({ status, date: NOW + 86_400_000 }, NOW)).toBe("closed");
+    for (const status of ["scheduled", "cancelled", "postponed", undefined]) expect(kickoffWindow({ status, date: NOW - 1 }, NOW)).toBe("closed");
+  });
+  it("unavailable (not closed) for a future match that is not scheduled: called off, postponed, or legacy without status", () => {
+    for (const status of ["cancelled", "postponed", undefined]) expect(kickoffWindow({ status, date: NOW + 86_400_000 }, NOW)).toBe("unavailable");
   });
   it("undated while the match has no date", () => {
     expect(kickoffWindow({ status: "scheduled" }, NOW)).toBe("undated");

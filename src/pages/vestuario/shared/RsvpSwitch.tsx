@@ -1,11 +1,11 @@
 // «Voy · Duda · No puedo»: a member's answer to a match's convocatoria. The same control and the same
 // write (setAvailability) in the vestuario's cartel and in the match page's Vestuario tab; each host
 // keeps its own frame around it and reads the answer from its own availability listener.
-import { useRef, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import type { ClubMatch } from "../../../lib/clubData";
 import { kickoffWindow } from "../../../lib/derived/memberWindows";
-import { setAvailability, useMe } from "../../../pages/vestuario/writes";
-import { Icon } from "../icons";
+import { setAvailability, useMe } from "../writes";
+import { Icon } from "../../../components/celeste/icons";
 import { useWrite } from "./useWrite";
 import { WriteError } from "./WriteError";
 import "./member.css";
@@ -35,33 +35,41 @@ export function RsvpSwitch({ match, now, answer, id, className }: Props) {
   const me = useMe();
   const { error, write } = useWrite();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+  // The roving tab stop: where the arrows last left the focus (until a choice or a new answer).
+  const [cursor, setCursor] = useState<number | null>(null);
   const state = kickoffWindow(match, now);
-  const root = `mp-rsvp${className ? ` ${className}` : ""}`;
+  const root = `ma-rsvp${className ? ` ${className}` : ""}`;
   if (state !== "open")
     return (
-      <p className={`${root} mp-note mp-closed`}>
-        {state === "undated" ? "La convocatoria se abre cuando el partido tenga fecha." : "La convocatoria se cerró a la hora del partido."}
+      <p className={`${root} ma-note ma-closed`}>
+        {state === "undated"
+          ? "La convocatoria se abre cuando el partido tenga fecha."
+          : state === "unavailable"
+            ? "Este partido no admite convocatoria."
+            : "La convocatoria se cerró a la hora del partido."}
       </p>
     );
 
   const index = RSVP_OPTIONS.findIndex((o) => o.value === answer);
   // The local cache updates the answer at once; the rest of the team sees it in realtime.
   const respond = (value: RsvpAnswer) => {
+    setCursor(null);
     if (me) write(() => setAvailability(me, match.id, value));
   };
-  // The ARIA radio pattern: one tab stop, the arrows move and choose (Home / End: first and last).
+  // One tab stop; the arrows (and Home / End) only move the focus. Choosing, and so writing, is Space or
+  // Enter (the button's own click): every write can push the captains, so a step is never a choice.
   const onKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
     const last = RSVP_OPTIONS.length - 1;
     const to = e.key === "Home" ? 0 : e.key === "End" ? last : e.key in STEP ? (i + STEP[e.key] + RSVP_OPTIONS.length) % RSVP_OPTIONS.length : null;
     if (to == null) return;
     e.preventDefault();
+    setCursor(to);
     buttons.current[to]?.focus();
-    respond(RSVP_OPTIONS[to].value);
   };
   return (
     <div className={root}>
-      <div className="mp-rsvp-track" id={id} role="radiogroup" aria-label="Tu respuesta a la convocatoria">
-        {index >= 0 && <span className="mp-rsvp-thumb" style={{ transform: `translateX(${index * 100}%)` }} aria-hidden="true" />}
+      <div className="ma-rsvp-track" id={id} role="radiogroup" aria-label="Tu respuesta a la convocatoria">
+        {index >= 0 && <span className="ma-rsvp-thumb" style={{ transform: `translateX(${index * 100}%)` }} aria-hidden="true" />}
         {RSVP_OPTIONS.map((o, i) => (
           <button
             key={o.value}
@@ -71,7 +79,7 @@ export function RsvpSwitch({ match, now, answer, id, className }: Props) {
             type="button"
             role="radio"
             aria-checked={answer === o.value}
-            tabIndex={i === Math.max(0, index) ? 0 : -1}
+            tabIndex={i === (cursor ?? Math.max(0, index)) ? 0 : -1}
             onClick={() => respond(o.value)}
             onKeyDown={(e) => onKey(e, i)}
           >
