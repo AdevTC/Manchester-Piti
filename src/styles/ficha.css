@@ -10,6 +10,7 @@
 .fc-goals b{font-family:'Geist Mono';color:var(--accent)}
 .fc-acts{position:relative;z-index:3;margin-top:16px;display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .fc-acts>*{flex:0 0 auto}
+@media (min-width:700px){.fc-acts{flex-wrap:wrap;overflow-x:visible}}
 .fc-status{margin:8px 0 0;font-size:13px;color:var(--soft)}
 
 /* tabs */
