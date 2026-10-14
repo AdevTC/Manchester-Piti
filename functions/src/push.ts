@@ -1,6 +1,7 @@
 // Push notices (Web Push with the club's own VAPID keys, no third party): anyone can ask for them
 // on the web, by topic; the server sends them when a match changes (goals written live, final
-// whistle, MVP vote, new dates), at kick-off (a job every 5 minutes) and when the captain publishes
+// whistle, MVP vote, new dates), at kick-off (the clock starting; a job every 5 minutes for legacy
+// matches without a clock) and when the captain publishes
 // the official seven on the pizarra («Ya está el siete»).
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
@@ -11,7 +12,7 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { convocatoriaNotice, DOOR_TOPICS, kickoffNotice, lineupNotice, noticesFor, PERSONAL_TOPICS, TOPICS, type LineupLike, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
+import { convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, noticesFor, PERSONAL_TOPICS, TOPICS, type LineupLike, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
 import { sevenEdited, sevenPublished } from "./seven.js";
 
 export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
@@ -91,7 +92,12 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   const ids = new Set((after?.events ?? []).map((e) => e.playerId).filter(Boolean) as string[]);
   const players = await Promise.all([...ids].map((id) => db.doc(`players/${id}`).get()));
   const names = new Map(players.map((p) => [p.id, (p.get("shirtName") as string) || [p.get("firstName"), p.get("lastName")].filter(Boolean).join(" ") || "Jugador"]));
-  for (const n of noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", Date.now())) await sendTo(n);
+  for (const n of noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", Date.now())) {
+    // «¡Empieza el partido!» once per match (pushLog, shared with pushKickoff): a reset and a second
+    // start, or a trigger retry, never repeat it.
+    if (n.topic === "start" && !(await claimLog(n.tag))) continue;
+    await sendTo(n);
+  }
   // «Ya está la convocatoria»: the first time it is published with titulares — once per match (pushLog).
   if (!convocatoriaNotice(event.params.matchId, before, after, null, Date.now())) return;
   const jornada = after?.seasonId ? await jornadaOf(after.seasonId, after.date) : null;
@@ -104,6 +110,16 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   }
   await sendTo(conv);
 });
+
+/** Claims pushLog/<tag> (false = it was already there: the notice already went). */
+async function claimLog(tag: string): Promise<boolean> {
+  try {
+    await db.doc(`pushLog/${tag}`).create({ at: FieldValue.serverTimestamp() });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** A match's number in its season, by date (as the admin numbers them: J1, J2…). */
 export async function jornadaOf(seasonId: string, date: number | undefined): Promise<number | null> {
@@ -148,13 +164,12 @@ export const pushKickoff = onSchedule({ schedule: "every 5 minutes", timeZone: "
   const due = await db.collection("matches").where("date", ">=", Timestamp.fromMillis(now - 10 * 60_000)).where("date", "<=", Timestamp.fromMillis(now + 60_000)).get();
   for (const m of due.docs) {
     if (m.get("archived") || m.get("status") !== "scheduled") continue;
+    // Matches with a clock kick off when it starts (pushOnMatch), not at their date.
+    if (!legacyKickoff({ version: m.get("version"), clock: m.get("clock") })) continue;
+    const notice = kickoffNotice(m.id, m.get("rival") ?? "el rival");
     // Once per match, whatever the overlaps between runs.
-    try {
-      await db.doc(`pushLog/start-${m.id}`).create({ at: FieldValue.serverTimestamp() });
-    } catch {
-      continue;
-    }
-    await sendTo(kickoffNotice(m.id, m.get("rival") ?? "el rival"));
+    if (!(await claimLog(notice.tag))) continue;
+    await sendTo(notice);
   }
 });
 

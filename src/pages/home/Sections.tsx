@@ -3,6 +3,7 @@ import { Icon } from "../../components/celeste/icons";
 import { dateMillis, formatDate, isCompleted, type ClubMatch } from "../../lib/clubData";
 import { resultOf, type PlayerLine, type Pulse, type Result } from "../../lib/home";
 import { plural } from "../../lib/vestuario";
+import { kickoffText } from "../../lib/derived/kickoff";
 
 const RESULT_LABEL: Record<Result, string> = { G: "Victoria", E: "Empate", P: "Derrota" };
 const MONTH = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", month: "short" });
@@ -110,7 +111,7 @@ export function SeasonRow({ pulse, now, nameOf }: { pulse: Pulse; now: number; n
                       </span>
                       <span>
                         <span className="r">vs {m.rival ?? "Rival por anunciar"}</span>
-                        <span className="s">{[m.home === false ? "Fuera" : "En casa", m.venue].filter(Boolean).join(" · ")}</span>
+                        <span className="s">{[kickoffText(m, now), m.home === false ? "Fuera" : "En casa", m.venue].filter(Boolean).join(" · ")}</span>
                       </span>
                       <span className="t">{at && at > now ? HOUR.format(at) : ""}</span>
                     </Link>

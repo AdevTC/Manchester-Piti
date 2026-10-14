@@ -8,6 +8,7 @@ import { opponentInitials } from "../../lib/clubAnalytics";
 import { countdownParts, matchEvent, type Moment, type Narrative, type Pulse } from "../../lib/home";
 import { kickoffLabel } from "../../lib/vestuario";
 import { scoreOf } from "../../lib/partidos";
+import { kickoffState, PENDING_WHISTLE } from "../../lib/derived/kickoff";
 
 /** A score like 5–3 never breaks across lines (word joiners around the dash). */
 const keepScore = (s: string) => s.replace(/(\d)–(\d)/g, "$1⁠–⁠$2");
@@ -26,7 +27,9 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
   // The server render has no location; the browser fills in the absolute links once it takes over.
   const origin = typeof location === "undefined" ? "" : location.origin;
   const m = pulse.live ?? pulse.next;
-  const cd = pulse.next && !pulse.live ? countdownParts(dateMillis(pulse.next.date), now) : null;
+  // The date has come and nobody has started the clock: no frozen 00:00, the wait has its own words.
+  const pending = !pulse.live && !!pulse.next && kickoffState(pulse.next, now) === "pending_whistle";
+  const cd = pulse.next && !pulse.live && !pending ? countdownParts(dateMillis(pulse.next.date), now) : null;
   const rival = m?.rival;
   const score = m ? scoreOf(m) : { gf: 0, ga: 0 };
   return (
@@ -67,7 +70,7 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
           <div className="when">
             {m ? (
               <>
-                <b>{pulse.live ? (m.clock ? <MatchClockDisplay match={m} /> : "En juego ahora") : (cd && dateMillis(m.date) <= now) ? "Pendiente del pitido inicial" : kickoffLabel(m.date)}</b>
+                <b>{pulse.live ? (m.clock ? <MatchClockDisplay match={m} /> : "En juego ahora") : pending ? PENDING_WHISTLE : kickoffLabel(m.date)}</b>
                 <span>{[m.venue, m.kit ? (m.kit === "home" ? "1ª equipación" : "2ª equipación") : null].filter(Boolean).join(" · ") || "Campo por confirmar"}</span>
               </>
             ) : (
@@ -77,7 +80,7 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
               </>
             )}
           </div>
-          {!pulse.live && (
+          {!pulse.live && !pending && (
             <div className={`cd${cd ? "" : " ph"}`} role="timer" aria-label={cd ? `Faltan ${cd.d} días, ${cd.h} horas y ${cd.m} minutos` : "Cuenta atrás: empieza cuando haya fecha"}>
               <div>
                 <b>{cd ? cd.d : "—"}</b>

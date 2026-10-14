@@ -1,12 +1,14 @@
 // The live island: while a match is being played, a pill at the top of every page with the score and
-// the minute; tap it and it opens into the scoreboard with the last thing that happened. Hidden on that
-// match's own page, which already is the scoreboard.
+// the minute; tap it and it opens into the scoreboard with the last thing that happened. Before that,
+// once the date has come and nobody has started the clock, a quieter pill says «Pendiente del pitido
+// inicial» and opens the match. Hidden on that match's own page, which already is the scoreboard.
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { matchPhase, playerName, useClubData } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
 import { lastEvent, liveMinute, scoreOf } from "../../lib/partidos";
 import { opponentInitials } from "../../lib/clubAnalytics";
+import { kickoffState, PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import { Flip } from "./Flip";
 import { Icon } from "./icons";
 import "../../styles/partidos.css";
@@ -17,7 +19,9 @@ export function LiveIsland() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const live = matches.find((m) => matchPhase(m, now) === "playing");
-  const shown = !!live && pathname !== `/matches/${live.id}`;
+  const waiting = live ? undefined : matches.find((m) => kickoffState(m, now) === "pending_whistle");
+  const shownMatch = live ?? waiting;
+  const shown = !!shownMatch && pathname !== `/matches/${shownMatch.id}`;
   // The heroes make room for the pill while it is on screen (styles: html[data-isle]).
   useEffect(() => {
     if (!shown) return;
@@ -26,7 +30,21 @@ export function LiveIsland() {
       delete document.documentElement.dataset.isle;
     };
   }, [shown]);
-  if (!live || !shown) return null;
+  if (!shownMatch || !shown) return null;
+  if (!live) {
+    const rival = shownMatch.rival ?? "Rival";
+    return (
+      <div className="pt-isle-wrap">
+        <Link className="pt-isle wait" to="/matches/$matchId" params={{ matchId: shownMatch.id }} aria-label={`Manchester Piti contra ${rival}: ${PENDING_WHISTLE.toLowerCase()}. Abrir el partido`}>
+          <span className="s">
+            <img src="/crest-128.webp" alt="" />
+            <span>vs {shownMatch.rivalInitials || opponentInitials(rival)}</span>
+          </span>
+          <span className="m">{PENDING_WHISTLE}</span>
+        </Link>
+      </div>
+    );
+  }
 
   const { gf, ga } = scoreOf(live);
   const rival = live.rival ?? "Rival";

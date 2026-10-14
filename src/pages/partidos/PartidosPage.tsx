@@ -19,6 +19,7 @@ import { currentSeasonId } from "../../lib/vestuario";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { calendarRows, countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf, scorersLine, seasonView, type Filter, type SeasonView } from "../../lib/partidos";
+import { kickoffState, kickoffText, PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 
@@ -83,12 +84,14 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
   const ini = m.rivalInitials || opponentInitials(rival);
   const d = dateParts(m.date);
   const live = m === view.live;
+  // The date has come and nobody has started the clock: no frozen 00:00 countdown.
+  const pending = !live && kickoffState(m, now) === "pending_whistle";
   const { gf, ga } = scoreOf(m);
   const minute = live ? liveMinute(m, now) : null;
   const last = live ? lastEvent(m.events, nameOf, rival) : null;
   const sideUs = m.home === false ? "Visitante" : "Local";
   return (
-    <article className={`pt-board pt-rise${live ? " live" : ""}`} style={{ animationDelay: ".15s" }} aria-label={live ? `En directo contra ${rival}` : `Próximo partido: ${rival}`}>
+    <article className={`pt-board pt-rise${live ? " live" : ""}`} style={{ animationDelay: ".15s" }} aria-label={live ? `En directo contra ${rival}` : pending ? `${PENDING_WHISTLE} contra ${rival}` : `Próximo partido: ${rival}`}>
       <div className="pt-btop">
         <span>
           {live ? "" : "PRÓXIMO · "}JORNADA {j} · {(where(m) || m.competition || "").toUpperCase()}
@@ -99,7 +102,7 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
             EN DIRECTO · {minute}′
           </span>
         ) : (
-          <b>{dateMillis(m.date) - now < 86_400_000 * 7 ? "ESTA SEMANA" : d.long.toUpperCase()}</b>
+          <b>{pending ? PENDING_WHISTLE.toUpperCase() : dateMillis(m.date) - now < 86_400_000 * 7 ? "ESTA SEMANA" : d.long.toUpperCase()}</b>
         )}
       </div>
       <div className="pt-teams">
@@ -141,7 +144,14 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
         </>
       ) : (
         <>
-          <Countdown target={dateMillis(m.date)} />
+          {pending ? (
+            <div className="pt-last" role="status">
+              <b>{d.time}</b>
+              <span>{PENDING_WHISTLE}</span>
+            </div>
+          ) : (
+            <Countdown target={dateMillis(m.date)} />
+          )}
           <p className="pt-meta">
             {d.long.charAt(0).toUpperCase() + d.long.slice(1)} · {d.time}
             {where(m) && ` · ${where(m)}`}
@@ -203,12 +213,13 @@ export function PartidosPage() {
   const pj = view.played.length;
   const live = !!view.live;
   const pre = !pj && !view.next && !live;
+  const nextPending = !!view.next && kickoffState(view.next, now) === "pending_whistle";
   const ghost = live ? "EN JUEGO" : view.next ? `J${view.jornada.get(view.next.id)} · ${view.next.rival ?? ""}` : (season?.name ?? "Temporada").toUpperCase();
   const lead = live
     ? "Se está jugando. El marcador se mueve solo, gol a gol, desde el acta."
     : pre
       ? `El calendario de ${season?.name ?? "la temporada"} aún no está publicado. En cuanto lo esté, cada partido llega aquí con su cuenta atrás.`
-      : `${pj ? `${pj} ${pj === 1 ? "jornada" : "jornadas"}, ${view.wins} ${view.wins === 1 ? "victoria" : "victorias"}.` : "Todo por estrenar."} ${view.next ? "La siguiente, en la cuenta atrás." : ""}`;
+      : `${pj ? `${pj} ${pj === 1 ? "jornada" : "jornadas"}, ${view.wins} ${view.wins === 1 ? "victoria" : "victorias"}.` : "Todo por estrenar."} ${view.next ? (nextPending ? `La siguiente, ${PENDING_WHISTLE.toLowerCase()}.` : "La siguiente, en la cuenta atrás.") : ""}`;
 
   return (
     <div className="vx hm pt" aria-busy={loading}>
@@ -407,6 +418,8 @@ function Row({ m, j, now, nameOf, next }: { m: ClubMatch; j?: number; now: numbe
   const phase = matchPhase(m, now);
   const live = phase === "playing";
   const done = isCompleted(m);
+  // «Pendiente del pitido inicial» / «Pendiente del acta» when the clock never started.
+  const waiting = done ? null : kickoffText(m, now);
   const { gf, ga } = scoreOf(m);
   const r = done ? resultOf(m) : undefined;
   const rival = m.rival ?? "Rival";
@@ -414,8 +427,10 @@ function Row({ m, j, now, nameOf, next }: { m: ClubMatch; j?: number; now: numbe
     ? [scorersLine(m.events, nameOf) || "Sin goles del Piti", where(m)].filter(Boolean).join(" · ")
     : phase === "postponed"
       ? "Aplazado"
-      : [where(m), d.long].filter(Boolean).join(" · ");
-  const aria = `Jornada ${j ?? "?"}, ${rival}, ${d.long}${done ? `: ${gf} a ${ga}` : live ? ": en directo" : ` a las ${d.time}`}`;
+      : waiting
+        ? [waiting, where(m)].filter(Boolean).join(" · ")
+        : [where(m), d.long].filter(Boolean).join(" · ");
+  const aria = `Jornada ${j ?? "?"}, ${rival}, ${d.long}${done ? `: ${gf} a ${ga}` : live ? ": en directo" : ` a las ${d.time}`}${waiting ? `: ${waiting.toLowerCase()}` : ""}`;
   return (
     <Link className={`pt-row${live ? " live" : next ? " next" : ""}`} to="/matches/$matchId" params={{ matchId: m.id }} aria-label={aria}>
       <span className="when">

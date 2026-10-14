@@ -37,6 +37,9 @@ export interface MatchLike {
   starters?: string[];
   /** setConvocatoria's stamp (ms): the convocatoria is managed (and announced) by «Convocar y avisar». */
   convocatoriaAt?: number;
+  /** v2 actas carry a server clock (matchClock.ts); only its start is the kick-off. */
+  version?: number;
+  clock?: { phase?: string };
 }
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -56,8 +59,9 @@ const when = (ms: number) =>
   new Intl.DateTimeFormat("es-ES", { timeZone: TZ, weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(ms).replace(".", "");
 
 /**
- * What changed between two versions of a match, as notices: each goal written while it isn't
- * finished, the final whistle (and the MVP vote opening), and a new match or a new kick-off time.
+ * What changed between two versions of a match, as notices: the clock starting (the kick-off), each
+ * goal written while it isn't finished, the final whistle (and the MVP vote opening), and a new match
+ * or a new kick-off time.
  */
 export function noticesFor(id: string, before: MatchLike | undefined, after: MatchLike | undefined, nameOf: (playerId: string) => string, now: number): Notice[] {
   if (!after || after.archived) return [];
@@ -66,6 +70,8 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
   const out: Notice[] = [];
   const finishedNow = after.status === "finished" && before?.status !== "finished";
   if (after.status !== "finished" && after.status !== "cancelled") {
+    // The kick-off is the clock going ready → first (an absent clock is a ready one), not the date.
+    if (before && (before.clock?.phase ?? "ready") === "ready" && after.clock?.phase === "first") out.push(kickoffNotice(id, rival));
     const seen = new Set((before?.events ?? []).map((e) => e.id));
     const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && (OURS.has(e.type) || THEIRS.has(e.type)));
     if (fresh.length) {
@@ -96,7 +102,12 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
   return out;
 }
 
-/** The kick-off notice, sent by the 5-minute job. */
+/** Whether the 5-minute job announces this match's kick-off by its date: only legacy matches without
+ *  a clock. A v2 match (with its clock) is announced by pushOnMatch when the clock starts. */
+export const legacyKickoff = (m: MatchLike): boolean => !m.clock && m.version !== 2;
+
+/** The kick-off notice: the clock starting (pushOnMatch), or the 5-minute job for legacy matches.
+ *  Same tag (and pushLog entry) for both, so a match never gets it twice. */
 export const kickoffNotice = (id: string, rival: string): Notice => ({
   topic: "start",
   title: `¡Empieza el partido! Piti vs ${rival}`,

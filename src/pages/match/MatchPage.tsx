@@ -23,6 +23,7 @@ import { opponentInitials } from "../../lib/clubAnalytics";
 import { matchEvent } from "../../lib/home";
 import { countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf, seasonView } from "../../lib/partidos";
 import { shareClubPage } from "../../lib/share";
+import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, type KickoffState } from "../../lib/derived/kickoff";
 import { downloadMatchPoster } from "../../lib/matchPoster";
 import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
 import "../../styles/home.css";
@@ -56,9 +57,11 @@ function Countdown({ target }: { target: number }) {
 }
 
 /** The headline of the page, by moment. */
-function headline(m: ClubMatch, phase: string, nameOf: (id: string) => string) {
+function headline(m: ClubMatch, phase: string, kick: KickoffState, nameOf: (id: string) => string) {
   const rival = m.rival ?? "el rival";
   if (phase === "playing") return `Se juega contra ${rival}`;
+  // Nobody started the clock and its window is over: nothing says it was played.
+  if (kick === "awaiting_result") return `${AWAITING_ACTA} ante ${rival}`;
   if (phase === "awaiting_result") return `Terminado ante ${rival} · acta pendiente`;
   if (!isCompleted(m)) return m.home === false ? `Toca ${rival}, a domicilio` : `Toca ${rival}, en casa`;
   const { gf, ga } = scoreOf(m);
@@ -120,9 +123,13 @@ export function MatchPage() {
     );
 
   const phase = matchPhase(match, now);
+  const kick = kickoffState(match, now);
   const live = phase === "playing";
   const done = isCompleted(match);
   const pending = phase === "awaiting_result";
+  // The date has come (or gone) and the clock never started: no countdown, no provisional score.
+  const whistle = kick === "pending_whistle";
+  const unplayed = kick === "awaiting_result";
   const upcoming = phase === "scheduled" || phase === "unscheduled";
   const rival = match.rival ?? "Rival";
   const ini = match.rivalInitials || opponentInitials(rival);
@@ -178,10 +185,10 @@ export function MatchPage() {
               </span>
             </div>
             <h1 className="fc-h1" id="fc-t">
-              {headline(match, phase, nameOf)}
+              {headline(match, phase, kick, nameOf)}
             </h1>
           </div>
-          <article className={`pt-board pt-rise${live ? " live" : ""}`} style={{ animationDelay: ".15s" }} aria-label={done ? `Final: Manchester Piti ${gf}, ${rival} ${ga}` : live ? `En directo contra ${rival}` : `Previa contra ${rival}`}>
+          <article className={`pt-board pt-rise${live ? " live" : ""}`} style={{ animationDelay: ".15s" }} aria-label={done ? `Final: Manchester Piti ${gf}, ${rival} ${ga}` : live ? `En directo contra ${rival}` : whistle ? `${PENDING_WHISTLE} contra ${rival}` : unplayed ? `${AWAITING_ACTA} contra ${rival}` : `Previa contra ${rival}`}>
             <div className="pt-btop">
               <span>
                 {d.long.charAt(0).toUpperCase() + d.long.slice(1)} · {d.time}
@@ -192,7 +199,7 @@ export function MatchPage() {
                   {match.clock ? <MatchClockDisplay match={match} /> : <>EN DIRECTO · {minute}′</>}
                 </span>
               ) : (
-                <b>{done ? "FINAL" : phase === "cancelled" ? "CANCELADO" : phase === "postponed" ? "APLAZADO" : pending ? "MARCADOR PROVISIONAL · ACTA PENDIENTE" : dateMillis(match.date) - now < 7 * 86_400_000 ? "ESTA SEMANA" : "PRÓXIMO"}</b>
+                <b>{done ? "FINAL" : phase === "cancelled" ? "CANCELADO" : phase === "postponed" ? "APLAZADO" : unplayed ? AWAITING_ACTA.toUpperCase() : pending ? "MARCADOR PROVISIONAL · ACTA PENDIENTE" : whistle ? PENDING_WHISTLE.toUpperCase() : dateMillis(match.date) - now < 7 * 86_400_000 ? "ESTA SEMANA" : "PRÓXIMO"}</b>
               )}
             </div>
             <div className="pt-teams">
@@ -201,7 +208,7 @@ export function MatchPage() {
                 <b>MANCHESTER PITI</b>
                 <small>{match.home === false ? "Visitante" : "Local"}</small>
               </div>
-              {done || live || pending ? (
+              {done || live || (pending && !unplayed) ? (
                 <div className="pt-score" role="status" aria-label={`Resultado: ${gf} a ${ga}`}>
                   <Flip value={gf} />
                   <i>–</i>
@@ -246,7 +253,13 @@ export function MatchPage() {
                 <GoalBurst goals={gf} who={last?.goal ? `${last.who} · ${last.minute}′` : undefined} />
               </>
             )}
-            {upcoming && Number.isFinite(dateMillis(match.date)) && phase === "scheduled" && <Countdown target={dateMillis(match.date)} />}
+            {upcoming && Number.isFinite(dateMillis(match.date)) && phase === "scheduled" && !whistle && <Countdown target={dateMillis(match.date)} />}
+            {whistle && (
+              <div className="pt-last" role="status">
+                <b>{d.time}</b>
+                <span>{PENDING_WHISTLE}</span>
+              </div>
+            )}
             <div className="pt-chips">
               <span className="pt-chip">
                 <Icon name="shirt" size={14} /> {kit}
