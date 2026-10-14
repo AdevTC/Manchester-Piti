@@ -23,6 +23,7 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon } from "../../components/celeste/icons";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
+import { BackLink } from "../../components/celeste/BackLink";
 import { Constellation, GoalClock, Radar } from "../stats/Charts";
 import { Cromo, type CromoFace } from "./Cromo";
 import { SusPosiciones } from "./SusPosiciones";
@@ -216,10 +217,7 @@ export function JugadorPage() {
         <div className="st-stars" aria-hidden="true" />
         <div className="jg-hero-in">
           <div className="jg-id">
-            <Link className="jg-back" to="/plantilla">
-              <Icon name="left" size={16} stroke={2.2} />
-              Plantilla
-            </Link>
+            <BackLink className="jg-back" to="/plantilla" label="Plantilla" iconSize={16} />
             <span className="hm-kick" style={{ margin: 0 }}>
               {position} · {p.active === false ? "HISTÓRICO" : "PLANTILLA"}
             </span>

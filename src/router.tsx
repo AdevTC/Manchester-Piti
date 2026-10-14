@@ -12,6 +12,7 @@ import { RootLayout } from "./RootLayout";
 import {
   RoutePending,
   RouteError,
+  RouteNotFound,
   MatchDetailPending,
   PlayerProfilePending,
 } from "./components/route-states";
@@ -97,9 +98,9 @@ export const adminContenidoSearchSchema = z.object({
 const rootRoute = createRootRoute({
   component: RootLayout,
   validateSearch: rootSearchSchema,
-  // Parity with the old hash router, which fell back to "matches" for any
-  // invalid hash. Unknown clean URLs now redirect to "/" instead of blanking.
-  notFoundComponent: () => <Navigate to="/" replace />,
+  // An unknown address is the 404 («Fuera de juego»), with the site chrome and a way back, never a
+  // silent redirect. The catch-all route below answers it; this covers a notFound() thrown anywhere.
+  notFoundComponent: RouteNotFound,
 });
 
 const matchesRoute = createRoute({
@@ -261,6 +262,13 @@ const pizarraRoute = createRoute({
     "PizarraRoute",
   ),
 });
+// Any address no route above takes: the 404 page. Its id ("/$") is how RootLayout knows to give it no
+// legacy chrome.
+const notFoundRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "$",
+  component: RouteNotFound,
+});
 const routeTree = rootRoute.addChildren([
   invitationRoute,
   fixturesRoute,
@@ -285,6 +293,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   matchDetailRoute,
   playerProfileRoute,
+  notFoundRoute,
 ]);
 
 // One router per app instance: the browser has one, the server render makes one per request.

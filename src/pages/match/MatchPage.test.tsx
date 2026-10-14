@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { z } from "zod";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import { matchSearchSchema } from "../../lib/matchTabs";
 
@@ -23,7 +23,9 @@ const UPCOMING: ClubMatch = { id: "j3", seasonId: "t1", rival: "Otro", date: Dat
 // board they name) and every doc path the page asked to read (useLiveDoc; null = no read)
 const who = vi.hoisted(() => ({ viewer: { member: false, admin: false, playerId: null as string | null }, docs: new Map<string, string>(), reads: [] as string[] }));
 
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [MATCH, SCORED, UPCOMING], players: PLAYERS, loading: false, error: null }) }));
+// the club data: these three, unless a test makes the listener fail (error, and the cache emptied)
+const club = vi.hoisted(() => ({ error: null as Error | null }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => (club.error ? { matches: [], players: [], loading: false, error: club.error } : { matches: [MATCH, SCORED, UPCOMING], players: PLAYERS, loading: false, error: null }) }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => who.viewer }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false }) }));
@@ -191,5 +193,36 @@ describe("MatchPage · the scorers lead to their pages", () => {
     expect(within(goals).getAllByRole("link")).toHaveLength(1);
     expect(goals).toHaveTextContent("Jugador");
     expect(goals).toHaveTextContent("Rival");
+  });
+});
+
+describe("MatchPage · an error is not «no encontrado»", () => {
+  afterEach(() => {
+    club.error = null;
+  });
+
+  it("the data did not arrive: the error panel with «Reintentar», never «Partido no encontrado»", async () => {
+    club.error = new Error("permission-denied");
+    open("/matches/j1");
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByRole("heading", { level: 1, name: "El marcador no carga" })).toBeInTheDocument();
+    expect(within(alert).getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+    expect(screen.queryByText(/no encontrado/i)).toBeNull();
+  });
+
+  it("the data arrived and the match is not in it: «Partido no encontrado», with the way to the partidos", async () => {
+    open("/matches/nada");
+    expect(await screen.findByRole("heading", { level: 1, name: "Partido no encontrado" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("link", { name: "Ver los partidos" })).toHaveAttribute("href", "/partidos");
+    expect(screen.getByRole("link", { name: "Ir al inicio" })).toHaveAttribute("href", "/");
+  });
+
+  it("«Volver» on a deep link is «Partidos», to the section", async () => {
+    open("/matches/j1");
+    expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    const back = document.querySelector("a.fc-back");
+    expect(back).toHaveTextContent("Partidos");
+    expect(back).toHaveAttribute("href", "/partidos");
   });
 });

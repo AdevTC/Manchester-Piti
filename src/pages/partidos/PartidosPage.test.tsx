@@ -13,7 +13,7 @@ const MIN = 60_000;
 const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 10, 8, 11);
 const clock = vi.hoisted(() => ({ now: 0 }));
-const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[] }));
+const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[], error: null as Error | null }));
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, className, to, params, search, "aria-label": label }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; search?: { season?: string }; "aria-label"?: string }) => (
@@ -23,7 +23,7 @@ vi.mock("@tanstack/react-router", () => ({
   ),
   useNavigate: () => vi.fn(),
 }));
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: data.matches, players: data.players, loading: false, error: null }) }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: data.matches, players: data.players, loading: false, error: data.error }) }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }], selectedSeasonId: "all", loadingSeasons: false }) }));
 vi.mock("../../hooks/useClock", () => ({ useClock: () => clock.now }));
 vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
@@ -39,6 +39,17 @@ const played: ClubMatch = { id: "m1", seasonId: "t1", rival: "LOS ROJOS", status
 beforeEach(() => {
   clock.now = T0;
   data.players = [];
+  data.error = null;
+});
+
+it("the data did not arrive: the error panel (h1, «Reintentar») instead of an empty calendar", () => {
+  data.matches = [];
+  data.error = new Error("unavailable");
+  render(<PartidosPage />);
+  const alert = screen.getByRole("alert");
+  expect(within(alert).getByRole("heading", { level: 1, name: "El marcador no carga" })).toBeInTheDocument();
+  expect(within(alert).getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+  expect(screen.queryByText("Todo por estrenar")).toBeNull();
 });
 
 it("a played match waiting for its acta: «pendiente del acta» on the strip, never «por jugar»", () => {

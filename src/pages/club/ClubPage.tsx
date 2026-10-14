@@ -16,6 +16,7 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon, type IconName } from "../../components/celeste/icons";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
+import { ClubDataError } from "../../components/celeste/StatePanel";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Vitrina } from "./Vitrina";
@@ -58,7 +59,7 @@ function Head({ kick, title, id, nuevo, children }: { kick: string; title: strin
 
 export function ClubPage() {
   const c = useClubContent();
-  const { matches, players, loading } = useClubData();
+  const { matches, players, loading, error } = useClubData();
   const { seasons } = useSeason();
   const now = useClock(60_000);
   const theme = useDocumentTheme();
@@ -221,28 +222,33 @@ export function ClubPage() {
           )}
         </section>
 
-        <section className="cl-sec" aria-labelledby="cl-trophies">
-          <Head kick={`${season?.name ?? "La temporada"} · ${won} de ${medals.length}`} title="La sala de trofeos" id="cl-trophies" nuevo="clubTrofeos">
-            <p className="st-mono">Se ilumina sola a medida que llegan los primeros goles, victorias y récords.</p>
-          </Head>
-          <ul className="cl-trophies">
-            {medals.map((m, i) => (
-              <li key={m.id} className={`${m.earned ? "on" : "off"} ${m.tone}`} style={{ animationDelay: `${i * 0.08}s` }}>
-                <span className="cup" aria-hidden="true">
-                  <Icon name={MEDAL_ICON[m.id] ?? "trophy"} size={30} />
-                </span>
-                <span className="ped" aria-hidden="true" />
-                <small>{m.kicker}</small>
-                <b>{m.title}</b>
-                <span className="det">{m.detail}</span>
-                <span className={`state${m.earned ? " won" : ""}`}>
-                  <Icon name={m.earned ? "check" : "lock"} size={13} stroke={2.4} />
-                  {m.earned ? "Conseguido" : "Por conseguir"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {/* The data did not arrive: the error, not a trophy room and a squad of zeros pretending to be real. */}
+        {error ? (
+          <ClubDataError compact />
+        ) : (
+          <section className="cl-sec" aria-labelledby="cl-trophies">
+            <Head kick={`${season?.name ?? "La temporada"} · ${won} de ${medals.length}`} title="La sala de trofeos" id="cl-trophies" nuevo="clubTrofeos">
+              <p className="st-mono">Se ilumina sola a medida que llegan los primeros goles, victorias y récords.</p>
+            </Head>
+            <ul className="cl-trophies">
+              {medals.map((m, i) => (
+                <li key={m.id} className={`${m.earned ? "on" : "off"} ${m.tone}`} style={{ animationDelay: `${i * 0.08}s` }}>
+                  <span className="cup" aria-hidden="true">
+                    <Icon name={MEDAL_ICON[m.id] ?? "trophy"} size={30} />
+                  </span>
+                  <span className="ped" aria-hidden="true" />
+                  <small>{m.kicker}</small>
+                  <b>{m.title}</b>
+                  <span className="det">{m.detail}</span>
+                  <span className={`state${m.earned ? " won" : ""}`}>
+                    <Icon name={m.earned ? "check" : "lock"} size={13} stroke={2.4} />
+                    {m.earned ? "Conseguido" : "Por conseguir"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className="cl-sec cl-kits" aria-labelledby="cl-kits">
           <div className="cl-kit-stage">
@@ -315,49 +321,51 @@ export function ClubPage() {
           )}
         </section>
 
-        <section className="cl-sec" aria-labelledby="cl-nums">
-          <Head kick={season?.name ?? "La plantilla"} title="La plantilla en números" id="cl-nums" nuevo="clubNumeros" />
-          <dl className="cl-nums">
-            <div className="big">
-              <dt>Jugadores</dt>
-              <dd>{nums.size}</dd>
-            </div>
-            {(Object.keys(ZONE_LABEL) as (keyof typeof ZONE_LABEL)[]).map((z) => (
-              <div key={z}>
-                <dt>{ZONE_LABEL[z]}</dt>
-                <dd>
-                  {nums.byZone[z]}
-                  <span className="dots" aria-hidden="true">
-                    {Array.from({ length: nums.byZone[z] }, (_, i) => (
-                      <i key={i} style={{ animationDelay: `${i * 0.05}s` }} />
-                    ))}
-                  </span>
+        {!error && (
+          <section className="cl-sec" aria-labelledby="cl-nums">
+            <Head kick={season?.name ?? "La plantilla"} title="La plantilla en números" id="cl-nums" nuevo="clubNumeros" />
+            <dl className="cl-nums">
+              <div className="big">
+                <dt>Jugadores</dt>
+                <dd>{nums.size}</dd>
+              </div>
+              {(Object.keys(ZONE_LABEL) as (keyof typeof ZONE_LABEL)[]).map((z) => (
+                <div key={z}>
+                  <dt>{ZONE_LABEL[z]}</dt>
+                  <dd>
+                    {nums.byZone[z]}
+                    <span className="dots" aria-hidden="true">
+                      {Array.from({ length: nums.byZone[z] }, (_, i) => (
+                        <i key={i} style={{ animationDelay: `${i * 0.05}s` }} />
+                      ))}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+              <div>
+                <dt>Edad media</dt>
+                <dd className={nums.averageAge === null ? "gap" : undefined}>{nums.averageAge === null ? "por publicar" : String(nums.averageAge).replace(".", ",")}</dd>
+              </div>
+              <div>
+                <dt>Capitán</dt>
+                <dd className={captain ? "name" : "gap"}>
+                  {captain && season?.captainPlayerId ? (
+                    <PlayerLink id={season.captainPlayerId} seasonId={seasonId}>
+                      {captain}
+                    </PlayerLink>
+                  ) : (
+                    "por elegir"
+                  )}
                 </dd>
               </div>
-            ))}
-            <div>
-              <dt>Edad media</dt>
-              <dd className={nums.averageAge === null ? "gap" : undefined}>{nums.averageAge === null ? "por publicar" : String(nums.averageAge).replace(".", ",")}</dd>
-            </div>
-            <div>
-              <dt>Capitán</dt>
-              <dd className={captain ? "name" : "gap"}>
-                {captain && season?.captainPlayerId ? (
-                  <PlayerLink id={season.captainPlayerId} seasonId={seasonId}>
-                    {captain}
-                  </PlayerLink>
-                ) : (
-                  "por elegir"
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt>Temporadas</dt>
-              <dd>{seasons.length}</dd>
-            </div>
-          </dl>
-          {nums.other > 0 && <p className="st-mono">{nums.other === 1 ? "1 jugador" : `${nums.other} jugadores`} aún sin posición en su ficha.</p>}
-        </section>
+              <div>
+                <dt>Temporadas</dt>
+                <dd>{seasons.length}</dd>
+              </div>
+            </dl>
+            {nums.other > 0 && <p className="st-mono">{nums.other === 1 ? "1 jugador" : `${nums.other} jugadores`} aún sin posición en su ficha.</p>}
+          </section>
+        )}
 
         <PlantillaPosiciones squad={inSeason} seasonName={season?.name ?? "La plantilla"} />
 

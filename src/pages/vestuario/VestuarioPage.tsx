@@ -26,6 +26,7 @@ import { CaptainStrip } from "./Captain";
 import { BestPartner, FirstSteps, SeasonFeats, SeasonPlaceholder, Vitrina } from "./SeasonBlocks";
 import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+import { ClubDataError } from "../../components/celeste/StatePanel";
 // The door's control room only loads for captains.
 const CaptainDoor = lazy(() => import("../acceso/CaptainDoor").then((m) => ({ default: m.CaptainDoor })));
 
@@ -58,7 +59,7 @@ export function VestuarioPage() {
   const { user, profile, logout } = useAuth();
   const { member } = useTeam();
   const { seasons } = useSeason();
-  const { matches, players } = useClubData();
+  const { matches, players, error } = useClubData();
   const now = useClock(60_000);
   const theme = useDocumentTheme();
   const uid = user?.uid ?? "";
@@ -163,6 +164,9 @@ export function VestuarioPage() {
       />
 
       <main className="vx-main">
+        {/* The club's matches and players did not arrive (the board, the porra and the rest have their own
+            reads and stay): say so, instead of a season of zeros. */}
+        {error && <ClubDataError compact />}
         {summary ? (
           <div className="vx-you">
             <SeasonFeats s={summary} firstName={capitalize(firstName)} seasonName={seasonName} playerName={nameOf} />

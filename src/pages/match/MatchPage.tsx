@@ -23,6 +23,8 @@ import { GoalBurst } from "../../components/celeste/GoalBurst";
 import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
+import { BackLink } from "../../components/celeste/BackLink";
+import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { matchEvent } from "../../lib/home";
 import { countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf } from "../../lib/partidos";
@@ -90,7 +92,7 @@ export function MatchPage() {
   const setTab = (i: number) => {
     if (i !== active) void navigate({ to: ".", search: (prev) => ({ ...prev, tab: matchTabAt(i) }), resetScroll: false });
   };
-  const { matches, players, loading } = useClubData();
+  const { matches, players, loading, error } = useClubData();
   const now = useMatchClock(matches);
   const { user, profile } = useAuth();
   const { member } = useTeam();
@@ -131,17 +133,34 @@ export function MatchPage() {
     </div>
   );
 
+  // The data did not arrive: an error, never «no encontrado» (the match may well exist).
+  if (error && !match)
+    return chrome(
+      <StateStage>
+        <ClubDataError heading="h1" />
+      </StateStage>,
+    );
   if (loading) return chrome(<section className="pt-hero" aria-label="Cargando el partido" style={{ minHeight: "100svh" }} />);
   if (!match)
     return chrome(
-      <section className="pt-hero">
-        <div className="pt-hero-in">
-          <h1 className="pt-h1">Partido no encontrado</h1>
-          <Link className="hm-btn" to="/partidos">
-            Volver a partidos
-          </Link>
-        </div>
-      </section>,
+      <StateStage ghost="404">
+        <StatePanel
+          kind="notfound"
+          heading="h1"
+          title="Partido no encontrado"
+          body="Este partido no está en el calendario: o se borró, o el enlace tiene el marcador mal apuntado."
+          action={
+            <>
+              <Link className="sp-btn" to="/partidos">
+                Ver los partidos
+              </Link>
+              <Link className="sp-btn ghost" to="/">
+                Ir al inicio
+              </Link>
+            </>
+          }
+        />
+      </StateStage>,
     );
 
   const phase = matchPhase(match, now);
@@ -200,10 +219,7 @@ export function MatchPage() {
         </div>
         <div className="pt-hero-in">
           <div className="pt-rise">
-            <Link className="fc-back" to="/partidos">
-              <Icon name="left" size={18} stroke={2.2} />
-              <span>Partidos</span>
-            </Link>
+            <BackLink className="fc-back" to="/partidos" label="Partidos" />
             <div className="pt-tags">
               <span className="hm-kick" style={{ margin: 0 }}>
                 {[match.competition, jornada && `Jornada ${jornada}`].filter(Boolean).join(" · ")}

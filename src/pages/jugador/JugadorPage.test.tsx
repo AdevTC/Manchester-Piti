@@ -19,6 +19,10 @@ vi.mock("@tanstack/react-router", () => ({
     </a>
   ),
   getRouteApi: () => ({ useParams: () => ({ playerId: "erik" }) }),
+  // (BackLink: a first load, index 0, so it falls back to the section)
+  useRouter: () => ({ history: { go: () => {} } }),
+  useRouterState: ({ select }: { select: (s: { location: { pathname: string; state: { __TSR_index?: number } } }) => unknown }) =>
+    select({ location: { pathname: "/jugadores/erik", state: { __TSR_index: 0 } } }),
 }));
 
 type Row = NonNullable<ClubMatch["ledger"]>[string];
@@ -120,4 +124,12 @@ it("«Sus cambios»: the teammate is a link to his page in the season; one no lo
   const back = within(subs).getByText(/^Entró por/).closest("li") as HTMLElement;
   expect(back).toHaveTextContent("Entró por un compañero");
   expect(within(back).queryByRole("link")).toBeNull();
+});
+
+describe("«Volver»", () => {
+  it("on a first load (nothing of ours behind) it is «Plantilla», to the squad", () => {
+    who.viewer = { member: false, admin: false, playerId: null };
+    render(<JugadorPage />);
+    expect(screen.getByRole("link", { name: "Plantilla" })).toHaveAttribute("href", "/plantilla");
+  });
 });
