@@ -47,7 +47,59 @@ describe("En juego · the picker", () => {
     expect(c.options[1].next).toEqual({ state: { k: "cam", st: 2, out: "tello" } });
     const c2 = pickerView({ k: "cam", st: 2, out: "tello" }, ctx);
     expect(c2.label).toBe("Banquillo");
-    expect(c2.options[0].next).toEqual({ event: { type: "substitution", minute: 31, playerId: "tello", inPlayerId: "kevin" }, caption: "Entra KEVIN, sale TELLO" });
+    expect(c2.options[0].next).toEqual({ event: { type: "substitution", minute: 31, playerId: "tello", inPlayerId: "kevin" }, caption: "Cambio: entra KEVIN, sale TELLO" });
+  });
+});
+
+// Characterisation: the exact events the wizard wrote before it read the shared catalogue
+// (src/lib/liveActions.ts). toStrictEqual, so an `undefined` key would show up as a difference.
+describe("En juego · the payload of every pad", () => {
+  const ev = (s: Step) => (isEvent(s) ? s.event : null);
+  it("ocasión / córner", () => {
+    for (const [k, type] of [["oca", "chance"], ["cor", "corner"]] as const) {
+      expect(ev(pickerView({ k, st: 1 }, ctx).extras[1].next)).toStrictEqual({ type: `opponent_${type}`, minute: 31 });
+      expect(ev(pickerView({ k, st: 2 }, ctx).options[2].next)).toStrictEqual({ type, minute: 31, playerId: "erik" });
+      expect(ev(pickerView({ k, st: 2 }, ctx).extras[0].next)).toStrictEqual({ type, minute: 31 });
+    }
+  });
+  it("gol, autogol, lo completo luego", () => {
+    const [og, later] = pickerView({ k: "gol", st: 1 }, ctx).extras;
+    expect(ev(og.next)).toStrictEqual({ type: "opponent_own_goal", minute: 31 });
+    expect(ev(later.next)).toStrictEqual({ type: "goal", minute: 31 });
+    const v2 = pickerView({ k: "gol", st: 2, scorer: "erik" }, ctx);
+    expect(ev(v2.options[2].next)).toStrictEqual({ type: "goal", minute: 31, playerId: "erik", assistPlayerId: "adrian" });
+    expect(ev(v2.extras[0].next)).toStrictEqual({ type: "goal", minute: 31, playerId: "erik" });
+  });
+  it("tarjetas (on the pitch and on the bench) and cambio", () => {
+    for (const card of ["yellow_card", "double_yellow", "red_card"] as const) {
+      const v = pickerView({ k: "tar", st: 2, card }, ctx);
+      expect(ev(v.options[0].next)).toStrictEqual({ type: card, minute: 31, playerId: "evans" });
+      expect(ev((v.bench ?? [])[0].next)).toStrictEqual({ type: card, minute: 31, playerId: "kevin" });
+    }
+    expect(ev(pickerView({ k: "cam", st: 2, out: "tello" }, ctx).options[1].next)).toStrictEqual({ type: "substitution", minute: 31, playerId: "tello", inPlayerId: "almachi" });
+  });
+});
+
+describe("En juego · what the banda had and the wizard lacked", () => {
+  it("Penalti o palo: which play → whom (on the pitch)", () => {
+    const v = pickerView({ k: "mas", st: 1 }, ctx);
+    expect(v.step).toBe("PENALTI O PALO · 31′ · paso 1 de 2");
+    expect(v.question).toBe("¿Qué ha pasado?");
+    expect(v.extras.map((x) => [x.label, x.next])).toEqual([
+      ["Penalti parado", { state: { k: "mas", st: 2, type: "penalty_saved" } }],
+      ["Al palo", { state: { k: "mas", st: 2, type: "woodwork" } }],
+      ["Penalti fallado", { state: { k: "mas", st: 2, type: "penalty_missed" } }],
+    ]);
+    const saved = pickerView({ k: "mas", st: 2, type: "penalty_saved" }, ctx);
+    expect([saved.step, saved.question, saved.label, saved.bench]).toEqual(["Penalti parado · paso 2 de 2", "¿Quién lo paró?", "En el campo", null]);
+    for (const type of ["woodwork", "penalty_missed"] as const) expect(pickerView({ k: "mas", st: 2, type }, ctx).question).toBe("¿Quién lo tiró?");
+    expect(saved.options.map((o) => o.id)).toEqual(ctx.field);
+    expect(saved.options[0]).toMatchObject({ aria: "Penalti parado por EVANS", next: { event: { type: "penalty_saved", minute: 31, playerId: "evans" }, caption: "Penalti parado por EVANS · 31′" } });
+    expect(pickerView({ k: "mas", st: 2, type: "woodwork" }, ctx).options[2].aria).toBe("Al palo: ERIK");
+    for (const type of ["woodwork", "penalty_missed"] as const) {
+      const next = pickerView({ k: "mas", st: 2, type }, ctx).options[2].next;
+      expect(isEvent(next) && next.event).toStrictEqual({ type, minute: 31, playerId: "erik" });
+    }
   });
 });
 
@@ -68,7 +120,7 @@ describe("En juego · sides and the log", () => {
     expect(rows.map((r) => [r.minute, r.text, r.detail, r.cls])).toEqual([
       ["35", "Gol del Piti", "falta el goleador", ""],
       ["33", "Roja directa a EVANS", "", "rj"],
-      ["30", "Entra KEVIN", "sale TELLO", ""],
+      ["30", "Cambio: entra KEVIN", "sale TELLO", ""],
       ["27", "Amarilla a TELLO", "", "y"],
       ["24", "Gol de MAD SKY", "", "rv"],
       ["12", "Gol de ERIK", "pase de ADRIÁN T.C.", ""],

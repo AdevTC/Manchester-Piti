@@ -1,0 +1,51 @@
+/* Member actions (RsvpSwitch, PorraCard, MvpBallot): one look for the vestuario and the match page's
+   Vestuario tab. Neutral by default (tokens from .vx, styles/vestuario.css); each host tunes it with the
+   --ma-* custom properties on its own wrapper, never by restyling the markup. */
+
+.vx{--ma-err:#ff9a8a}
+[data-theme="light"] .vx{--ma-err:#b3261e}
+
+.ma-error{margin:10px 0 0;font-size:14px;color:var(--ma-err)}
+.vx .ma-note{margin:10px 0 0;font-family:'Geist Mono';font-size:12px;line-height:1.5;color:var(--muted);text-align:var(--ma-note-align,center)}
+.ma-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border-radius:999px;border:0;background:var(--ma-btn-bg,var(--btn-on));color:var(--ma-btn-ink,var(--btn-on-ink));font:inherit;font-weight:600;font-size:14px;cursor:pointer}
+.ma-btn[disabled]{opacity:.55;cursor:default}
+
+/* RSVP: a three-way switch, the chosen one under the thumb and with a tick (never colour alone) */
+.ma-rsvp{margin-top:16px}
+.ma-closed{--ma-note-align:start}
+.ma-rsvp-track{position:relative;height:60px;max-width:var(--ma-rsvp-max,none);margin-inline:var(--ma-rsvp-inline,0);border-radius:999px;background:var(--ma-rsvp-bg,var(--rsvp));padding:6px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.ma-rsvp-thumb{position:absolute;left:6px;top:6px;width:calc((100% - 12px)/3);height:calc(100% - 12px);border-radius:999px;background:var(--ma-rsvp-thumb,var(--thumb));box-shadow:var(--thumb-shadow);transition:transform .45s cubic-bezier(.34,1.3,.64,1)}
+.ma-rsvp-track button{position:relative;min-height:44px;border:0;background:transparent;font:inherit;font-weight:600;font-size:var(--ma-rsvp-font,15px);color:var(--rsvp-ink);display:flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;cursor:pointer;transition:color .3s}
+.ma-rsvp-track button[aria-checked="true"]{color:var(--thumb-ink)}
+.ma-rsvp-track button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Porra: two scores and their steppers; the score's look is the host's (a split flap, a plain figure) */
+.ma-porra{margin-top:16px;padding:var(--ma-porra-pad,18px);border-radius:26px;background:var(--ma-porra-bg,var(--chip));box-shadow:var(--ma-porra-ring,inset 0 0 0 1px var(--line));text-align:center}
+.ma-porra-board{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:start}
+.ma-side{display:grid;justify-items:center;gap:10px;min-width:0}
+.ma-side-lbl{max-width:100%;font-family:'Geist Mono';font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.ma-score{position:relative;display:flex;align-items:center;justify-content:center;width:var(--ma-score-w,auto);height:var(--ma-score-h,auto);border-radius:14px;background:var(--ma-score-bg,transparent);box-shadow:var(--ma-score-shadow,none);overflow:hidden;font-family:'Anybody';font-weight:900;font-size:var(--ma-score-size,56px);line-height:1;color:var(--ma-score-ink,var(--ink));font-variation-settings:'wdth' var(--ma-score-wdth,80)}
+.ma-side.them .ma-score{color:var(--ma-score-them-ink,var(--ma-score-ink,var(--ink)))}
+.ma-score::after{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:var(--ma-score-split,transparent)}
+.ma-porra-dash{align-self:center;margin-top:var(--ma-dash-top,0);font-family:'Anybody';font-weight:900;font-size:var(--ma-dash-size,26px);color:var(--muted)}
+.ma-steps{display:flex;gap:8px}
+.ma-step{width:44px;height:44px;border-radius:50%;border:0;background:var(--btn);color:var(--btn-ink);font:inherit;font-size:20px;font-weight:700;cursor:pointer}
+.ma-step.plus{background:var(--ma-plus-bg,var(--btn-on));color:var(--ma-plus-ink,var(--btn-on-ink))}
+.ma-step[disabled]{opacity:.4;cursor:default}
+.ma-porra-save{margin-top:16px;display:flex;justify-content:center}
+
+/* MVP ballot: native radios dressed as pills (arrows move between them) */
+.ma-ballot{margin-top:18px}
+.ma-ballot fieldset{border:0;margin:0;padding:0;min-width:0}
+.ma-ballot legend{padding:0;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--soft)}
+.ma-ballot-list{display:flex;flex-wrap:wrap;gap:8px}
+.ma-ballot-list label{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;background:var(--ma-pick-bg,var(--pill));color:var(--ma-pick-ink,var(--pill-ink));box-shadow:var(--pill-line);font-size:14px;font-weight:600;cursor:pointer}
+.ma-ballot-list input{position:absolute;inset:0;margin:0;opacity:0;cursor:pointer}
+.ma-ballot-list label:has(input:checked){background:var(--ma-pick-on-bg,var(--pill-on));color:var(--ma-pick-on-ink,var(--pill-on-ink));box-shadow:var(--pill-on-shadow)}
+.ma-ballot-list label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:3px}
+.ma-ballot-foot{margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.ma-count{font-family:'Geist Mono';font-size:12px;color:var(--muted)}
+
+@media (prefers-reduced-motion:reduce){
+.ma-rsvp-thumb,.ma-rsvp-track button{transition:none}
+}

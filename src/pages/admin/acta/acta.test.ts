@@ -173,6 +173,10 @@ describe("publishing, in words", () => {
     s = upsertEvent(s, { id: "o", type: "opponent_own_goal", minute: 50 });
     expect(scorerChips(s, nameOf)).toEqual(["ADRIÁN T.C. 9′ (HUBEROSKI)", "ADRIÁN T.C. 31′ (ERIK)", "HUBEROSKI 46′", "ERIK 49′ de penalti", "Autogol de FUSION 7 50′"]);
   });
+  it("a goal the live clock stamped reads in football's minute (18:30 of play → 19′), as on the web", () => {
+    const s = upsertEvent({ ...j7(), events: [] }, { id: "g", type: "goal", minute: 18, elapsedSeconds: 18 * 60 + 30, playerId: "erik" });
+    expect(scorerChips(s, nameOf)).toEqual(["ERIK 19′"]);
+  });
   it("what happens: web, minutes, the MVP window", () => {
     const first = publishConsequences({ finished: true, starters: 7, bench: 5, firstTime: true, now: NOW });
     expect(first.map((c) => c.tone)).toEqual(["o", "o", "g", ""]);

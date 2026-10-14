@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
@@ -19,11 +19,15 @@ vi.mock("./live", () => ({
   useMyPrediction: () => ({ data: undefined }),
   useTrainingVotes: () => ({ data: [] }),
 }));
-vi.mock("./writes", () => ({ useMe: () => null, deleteBoardMessage: vi.fn(), postBoardMessage: vi.fn(), predictScore: vi.fn(), voteMvp: vi.fn(), voteTraining: vi.fn() }));
+// (the porra and the MVP ballot are the shared member controls, pages/vestuario/shared: they write through here)
+const ME = { uid: "u1", name: "YO", playerId: null };
+const writes = vi.hoisted(() => ({ predictScore: vi.fn(async () => undefined), voteMvp: vi.fn(async () => undefined) }));
+vi.mock("./writes", () => ({ useMe: () => ME, deleteBoardMessage: vi.fn(), postBoardMessage: vi.fn(), predictScore: writes.predictScore, voteMvp: writes.voteMvp, voteTraining: vi.fn() }));
 const SQUAD = ["erik", "pablo", "raul", "adri", "hugo"].map((id) => ({ id, shirtName: id.toUpperCase() }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [], players: SQUAD, loading: false, error: null }) }));
 
 const { MvpBlock, Porra } = await import("./TeamBlocks");
+const { PORRA_RULE } = await import("./shared/PorraCard");
 
 const NOW = Date.UTC(2026, 8, 1);
 const match = (extra: Partial<ClubMatch>): ClubMatch => ({ id: "j8", seasonId: "t1", rival: "Rival", date: NOW, duration: 50, status: "finished", goalsFor: 2, goalsAgainst: 1, events: [], ...extra });
@@ -113,4 +117,35 @@ it("a tie of more than three keeps the podium at three steps and names the rest 
   const rest = screen.getByText(/más empatados/);
   expect(rest.textContent).toBe("y 2 más empatados con 1 voto: PABLO y RAUL");
   expect(within(rest).getByRole("link", { name: "RAUL" })).toHaveAttribute("href", "/jugadores/raul?season=t1");
+});
+
+it("the porra is the shared PorraCard: the score, the rule, and its write for the next match", () => {
+  render(<Porra next={match({ id: "j9", status: "scheduled", date: NOW + 86_400_000 })} uid="u1" rows={[]} now={NOW} />);
+  expect(screen.getByRole("heading", { name: "¿Cómo acaba?" })).toBeInTheDocument();
+  expect(screen.getByText(`Cierra en 1 d 0 h 0 min. ${PORRA_RULE}`)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Un gol más del Piti" }));
+  fireEvent.click(screen.getByRole("button", { name: "Guardar mi porra" }));
+  expect(writes.predictScore).toHaveBeenCalledWith(ME, "j9", 1, 0);
+});
+
+it("no next match: the porra waits for it, with the same rule", () => {
+  render(<Porra next={undefined} uid="u1" rows={[]} now={NOW} />);
+  expect(screen.getByText(`Se abre con el próximo partido. ${PORRA_RULE}`)).toBeInTheDocument();
+  expect(screen.queryByRole("button")).toBeNull();
+});
+
+it("while the vote is open a member gets the shared ballot under the race; fans and a closed vote do not", () => {
+  const played = { minutes: 50, played: true };
+  const withLedger = { ...OPEN, ledger: { erik: played, pablo: played } } as unknown as ClubMatch;
+  const { rerender } = render(<MvpBlock match={withLedger} result={{ id: "j8", counts: { pablo: 1 }, total: 1 }} uid="u1" admin={false} member now={NOW} playerName={name} />);
+  const ballot = screen.getByRole("group", { name: "Tu voto" });
+  expect(within(ballot).getAllByRole("radio").map((r) => r.closest("label")?.textContent)).toEqual(["PABLO", "ERIK"]);
+  expect(screen.getByText("1 voto del equipo")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("radio", { name: "ERIK" }));
+  fireEvent.click(screen.getByRole("button", { name: "Votar al MVP" }));
+  expect(writes.voteMvp).toHaveBeenCalledWith(ME, "j8", "erik");
+  rerender(<MvpBlock match={withLedger} result={undefined} uid="u1" admin={false} member={false} now={NOW} playerName={name} />);
+  expect(screen.queryByRole("group", { name: "Tu voto" })).toBeNull();
+  rerender(<MvpBlock match={{ ...withLedger, voteClosesAt: NOW - 1 }} result={undefined} uid="u1" admin={false} member now={NOW} playerName={name} />);
+  expect(screen.queryByRole("group", { name: "Tu voto" })).toBeNull();
 });

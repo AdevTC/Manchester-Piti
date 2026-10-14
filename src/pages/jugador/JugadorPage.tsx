@@ -35,9 +35,11 @@ import { exchangeMinute } from "../../lib/partidos";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { timedGames, totalMinutes } from "../../lib/derived/minutesOf";
 import { mvpOfFrom } from "../../lib/derived/mvpOf";
+import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import { NewBadge } from "../../components/NewBadge";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
+import "../../styles/st-base.css";
 import "../../styles/stats.css";
 import "../../styles/jugador.css";
 
@@ -210,6 +212,7 @@ export function JugadorPage() {
     return { st, minutes: timedGames(sg, p.id) ? totalMinutes(sg, p.id) : null, mvps: mvpWins(p.id, sg, results, now) };
   };
   const nameById = new Map(squad.map((x) => [x.id, nameOf(x)]));
+  const analysed = hasAnalysisActions(games, p.id);
   const share = () =>
     shareClubPage("jugador", p.id, `${name} · Manchester Piti`)
       .then(() => setNotice(typeof navigator.share === "function" ? "" : "Enlace copiado."))
@@ -298,7 +301,6 @@ export function JugadorPage() {
       </section>
 
       <main className="jg-main">
-        <div className="jg-wide"><TechnicalStatsPanel key={playerId} initialPlayer={playerId} matches={games} people={squad.map(p => ({id:p.id,name:nameOf(p),number:p.number}))} /></div>
         <ul className="jg-chips" aria-label="Su temporada en cinco números">
           {chips.map((c, i) => (
             <li key={c.k} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
@@ -331,6 +333,13 @@ export function JugadorPage() {
             </dl>
             <p className="st-mono">Minutos, titularidades y cambios solo se cuentan en actas completas.</p>
           </section>
+
+          {/* his narrated actions, once his numbers are read (none narrated: nothing at all) */}
+          {analysed && (
+            <div className="jg-wide">
+              <TechnicalStatsPanel key={playerId} initialPlayer={playerId} matches={games} people={squad.map((x) => ({ id: x.id, name: nameOf(x), number: x.number }))} seasonId={selectedSeasonId} />
+            </div>
+          )}
 
           <section className="st-card" aria-labelledby="jg-radar">
             <div className="st-hd">

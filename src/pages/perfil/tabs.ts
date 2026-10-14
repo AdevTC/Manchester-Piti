@@ -31,17 +31,8 @@ export function hashOf(id: TabId): string {
   return "#" + (TABS.find((t) => t.id === id)?.hash ?? "carta");
 }
 
-/** ArrowLeft/Right wrap around, Home/End go to the ends; anything else: null. */
-export function tabForKey(key: string, current: TabId, ids: readonly TabId[]): TabId | null {
-  const i = Math.max(0, ids.indexOf(current));
-  const n = ids.length;
-  if (!n) return null;
-  if (key === "ArrowRight") return ids[(i + 1) % n];
-  if (key === "ArrowLeft") return ids[(i - 1 + n) % n];
-  if (key === "Home") return ids[0];
-  if (key === "End") return ids[n - 1];
-  return null;
-}
+/** ArrowLeft/Right wrap around, Home/End go to the ends (the shared tablist keys). */
+export { tabForKey } from "../../lib/tabKeys";
 
 /** «01 / 05». */
 export function counter(i: number, n: number): string {

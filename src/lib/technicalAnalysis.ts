@@ -1,4 +1,4 @@
-import { analyseActions, emptyTechnical, ratio, type TechnicalStats } from "../../functions/src/matchAnalysis";
+import { analyseActions, emptyTechnical, isAnalysisAction, ratio, type TechnicalStats } from "../../functions/src/matchAnalysis";
 import type { ClubMatch } from "./clubData";
 export const TECH_LABELS: Record<keyof TechnicalStats, string> = { passes: "Pases intentados", passesCompleted: "Pases completados", passesFailed: "Pases fallados", passesUnknown: "Pases sin resultado", passesReceived: "Pases recibidos", keyPasses: "Pases clave", longPasses: "Pases largos", longPassesCompleted: "Largos completados", crosses: "Centros", crossesCompleted: "Centros completados", shots: "Remates", shotsOnTarget: "A puerta", shotsOffTarget: "Fuera", shotsBlocked: "Remates bloqueados", shotsWoodwork: "Al palo", shotGoals: "Goles de remate", shotAssists: "Asistencias de gol", chancesCreated: "Ocasiones", turnovers: "Pérdidas", recoveries: "Recuperaciones", interceptions: "Intercepciones", tackles: "Entradas", tacklesWon: "Entradas ganadas", tacklesUnknown: "Entradas sin resultado", clearances: "Despejes", blocks: "Bloqueos", saves: "Paradas", dribbles: "Regates", dribblesWon: "Regates ganados", duels: "Duelos", duelsWon: "Duelos ganados", aerialDuels: "Duelos aéreos", aerialDuelsWon: "Duelos aéreos ganados", fouls: "Faltas cometidas", foulsReceived: "Faltas recibidas", throwIns: "Saques de banda", goalKicks: "Saques de puerta", kickoffs: "Saques de centro", offsides: "Fueras de juego", carries: "Conducciones", touches: "Controles", cornersTaken: "Córners", possessionsSeconds: "Segundos de posesión", recordedActions: "Acciones registradas" };
 export function technicalAnalysis(matches: readonly ClubMatch[]) {
@@ -8,3 +8,14 @@ export function technicalAnalysis(matches: readonly ClubMatch[]) {
 }
 export function technicalForPlayer(id: string, matches: readonly ClubMatch[]) { return technicalAnalysis(matches).players[id] ?? emptyTechnical(); }
 export const pct = (n: number, d: number) => { const v = ratio(n, d); return v == null ? "—" : `${v.toFixed(1).replace(".", ",")}%`; };
+
+/**
+ * Whether the analysis panel has anything to show: some narrated football action (a pass, a shot, a
+ * tackle… — goals, cards and subs alone are the acta, not an analysis). With `playerId`, one of his own:
+ * an action he made or a pass he received.
+ */
+export function hasAnalysisActions(matches: readonly ClubMatch[], playerId?: string): boolean {
+  return matches.some((m) =>
+    (m.events ?? []).some((e) => isAnalysisAction(e.type) && (!playerId || e.playerId === playerId || e.receiverId === playerId)),
+  );
+}

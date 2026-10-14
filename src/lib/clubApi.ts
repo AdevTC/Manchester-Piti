@@ -2,6 +2,7 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
 import type { MatchSheet } from "./clubData";
 import { withServerTime } from "./serverTime";
+import type { LiveEventType } from "./liveActions";
 // ---------- the vestuario door (functions/src/door.ts)
 export interface Who {
   playerId?: string;
@@ -95,11 +96,15 @@ export function apiError(error: unknown) {
 }
 /** Modo banda: an admin adds an event to the match being played (or undoes the last one written live).
  *  Its answer's `serverNow` keeps this phone's live minute on the server's clock (lib/serverTime). */
-export const liveEvent = withServerTime(httpsCallable<
-  | { action: "add"; matchId: string; requestId?: string; clockRevision?: number; manualTime?: boolean; event: { type: string; minute: number; playerId?: string; assistPlayerId?: string; inPlayerId?: string } }
-  | { action: "undo" | "finish" | "reopen"; matchId: string; eventId?: string },
-  { events: number; serverNow?: number }
->(functions, "liveEvent"));
+export type LiveEventRequest =
+  | { action: "add"; matchId: string; requestId?: string; clockRevision?: number; manualTime?: boolean; event: { type: LiveEventType; minute: number; playerId?: string; assistPlayerId?: string; inPlayerId?: string } }
+  | { action: "undo" | "finish" | "reopen"; matchId: string; eventId?: string };
+const liveEventCall = withServerTime(httpsCallable<LiveEventRequest, { events: number; serverNow?: number }>(functions, "liveEvent"));
+/** An object without its `undefined` keys (same type: those keys are optional). */
+const defined = <T extends object>(o: T): T => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
+/** The Firebase SDK sends an `undefined` value as `null`, and the callable's zod `.optional()` refuses `null`
+ *  (e.g. `clockRevision` on a match without a clock): absent keys are dropped here, in the envelope and in `event`. */
+export const liveEvent = (data: LiveEventRequest) => liveEventCall(data.action === "add" ? { ...defined(data), event: defined(data.event) } : defined(data));
 
 export const controlMatchClock = withServerTime(httpsCallable<{ matchId: string; action: import("../../functions/src/matchClock").ClockAction; revision: number }, { clock: import("../../functions/src/matchClock").MatchClock; serverNow?: number }>(functions, "controlMatchClock"));
 export const setMatchScorers = httpsCallable<{ matchId: string; uids: string[] }, { ok: boolean }>(functions, "setMatchScorers");

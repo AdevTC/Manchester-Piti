@@ -4,6 +4,7 @@
 import { useRef, useState } from "react";
 import { apiError, liveEvent } from "../../../lib/clubApi";
 import { liveMinute, shownMinute } from "../../../lib/partidos";
+import { buildLiveEvent } from "../../../lib/liveActions";
 import type { AdminMatch } from "../data/adminLogic";
 import { jLabel } from "../data/adminLogic";
 import type { LedFlash } from "../kit/LedBoard";
@@ -21,7 +22,7 @@ export interface LiveApi {
   /** The open picker (null = closed) and its view. */
   pick: PickState | null;
   view: PickerView | null;
-  /** The pads: GOL / Tarjeta / Cambio open the picker; Gol rival is written at once (with «Deshacer»). */
+  /** The pads: GOL / Tarjeta / Cambio / Ocasión / Córner / Penalti o palo open the picker; Gol rival is written at once (with «Deshacer»). */
   open: (k: PadKind) => void;
   close: () => void;
   choose: (next: Step) => void;
@@ -90,7 +91,7 @@ export function useLive(match: AdminMatch | null, now: number, nameOf: (id: stri
       if (next.caption) toast.show({ tag, message: next.caption });
     });
   };
-  const rivalGoal = () => send({ type: "opponent_goal", minute }, (eventId) => toast.show({ tag, message: `Gol de ${rival} · ${shown}′`, undo: () => undoEvent(eventId) }));
+  const rivalGoal = () => send(buildLiveEvent("opponent_goal", {}, minute), (eventId) => toast.show({ tag, message: `Gol de ${rival} · ${shown}′`, undo: () => undoEvent(eventId) }));
   const finish = (done: () => void) => {
     if (!match || sending.current) return;
     sending.current = true;

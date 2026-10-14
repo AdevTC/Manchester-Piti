@@ -1,6 +1,6 @@
 // The tabs of the match page. Public data comes from the acta (events, ledger); the Vestuario tab
 // reads and writes the team's private bits (convocatoria, porra, MVP) only for members.
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { EVENT_LABELS, isCompleted, playerForSeason, nameFor, type ClubMatch } from "../../lib/clubData";
 import { useSeason } from "../../context/SeasonContext";
@@ -13,18 +13,28 @@ import { Icon } from "../../components/celeste/icons";
 import { MatchBadges } from "../../components/celeste/MatchBadges";
 import { Jersey3D } from "../../components/jersey3d/Jersey3D";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
-import { chapters, F7_SPOTS, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
-import { dateParts, eventMinute, resultOf, scoreOf } from "../../lib/partidos";
-import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMvpResultsSync, useMvpReveal, useMyMvpVote, useMyPrediction } from "../vestuario/live";
+import { chapters, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
+import { dateParts, eventMinute, exchangeMinute, scoreOf } from "../../lib/partidos";
+import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMvpResultsSync, useMvpReveal, useMyPrediction } from "../vestuario/live";
 import { mvpAnnouncement, mvpRace, plural, voteLeft } from "../../lib/vestuario";
-import { predictScore, setAvailability, useMe, voteMvp } from "../vestuario/writes";
-import { apiError } from "../../lib/clubApi";
+import { useMe } from "../vestuario/writes";
 import { rsvpSummary } from "../../lib/rsvp";
 import type { PlayerDoc } from "../../lib/schemas";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { nameSegments, type NameSegment } from "../../lib/derived/names";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { campoSeven, campoSevenNote } from "./campoSeven";
+import { campoLayout, SOURCE_TEXT } from "./campoPositions";
+import { systemMark, systemText } from "../../lib/derived/system";
+import { POSITIONS } from "../../lib/positions";
+import { playedLinesOf, playedSummary } from "../../lib/playedSummary";
+import type { BoardView } from "../pizarra/useMatchBoard";
+import type { RivalSeven } from "../pizarra/v2/rival";
+import { RivalLine, RivalSection } from "./RivalDossier";
+import { rivalDossier } from "../../lib/derived/rival";
+import { RsvpSwitch } from "../vestuario/shared/RsvpSwitch";
+import { PorraCard } from "../vestuario/shared/PorraCard";
+import { MvpBallot } from "../vestuario/shared/MvpBallot";
 
 type NameOf = (id: string) => string;
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -70,38 +80,17 @@ function NameList({ ids, seasonId }: { ids: readonly string[]; seasonId?: string
   );
 }
 
-function HeadToHead({ match, matches }: { match: ClubMatch; matches: ClubMatch[] }) {
-  const past = matches.filter((m) => m.id !== match.id && m.rival === match.rival && isCompleted(m));
-  if (!past.length) return null;
-  return (
-    <section className="fc-sec fc-reveal" aria-labelledby="fc-h2h">
-      <span className="hm-kick">Contra {match.rival}</span>
-      <h2 className="hm-h2" id="fc-h2h">
-        Ya nos hemos visto
-      </h2>
-      <ul className="fc-h2h">
-        {past.slice(0, 6).map((m) => {
-          const { gf, ga } = scoreOf(m);
-          return (
-            <li key={m.id}>
-              <Link className="hm-ghostbtn" to="/matches/$matchId" params={{ matchId: m.id }}>
-                <span className={`pt-res ${resultOf(m)}`}>{resultOf(m)}</span> {gf}–{ga} · {dateParts(m.date).long}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
 export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMatch; matches: ClubMatch[]; players: PlayerDoc[]; nameOf: NameOf }) {
   const numOf = useNumOf(players, match.seasonId);
   const rival = match.rival ?? "Rival";
   const story = chapters(match.events, nameOf, rival, scoreOf(match));
+  // «El rival»: this match is one of the meetings now (rivalDossier counts finished ones); a match that
+  // names no rival has no dossier
+  const dossier = useMemo(() => rivalDossier(matches, match.rival), [matches, match.rival]);
   return (
     <>
       <div>
+        {match.rival && <RivalLine match={match} dossier={dossier} />}
         {match.report && (
           <section className="fc-sec fc-reveal" aria-labelledby="fc-rep">
             <span className="hm-kick">Así lo vivimos</span>
@@ -169,14 +158,18 @@ export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMat
             </div>
           </section>
         )}
-        <HeadToHead match={match} matches={matches} />
+        {match.rival && <RivalSection match={match} dossier={dossier} />}
       </div>
     </>
   );
 }
 
-export function PreviaTab({ match, matches }: { match: ClubMatch; matches: ClubMatch[] }) {
+/** `plan`: the pizarra's notes on the rival (RivalPanel, this match's official board) — members only: the
+ *  match page reads that board only for them and passes nothing to a fan. */
+export function PreviaTab({ match, matches, plan = null }: { match: ClubMatch; matches: ClubMatch[]; plan?: RivalSeven | null }) {
   const theme = useDocumentTheme();
+  // «El rival»: the meetings so far (this one is still to be played: rivalDossier counts finished ones)
+  const dossier = useMemo(() => rivalDossier(matches, match.rival), [matches, match.rival]);
   const d = dateParts(match.date);
   const kit = match.kit === "away" ? "away" : "home";
   return (
@@ -221,7 +214,7 @@ export function PreviaTab({ match, matches }: { match: ClubMatch; matches: ClubM
             </li>
           </ol>
         </section>
-        <HeadToHead match={match} matches={matches} />
+        {match.rival && <RivalSection match={match} dossier={dossier} plan={plan} />}
       </div>
     </div>
   );
@@ -269,11 +262,13 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
 }
 
 /**
- * El siete. `official` (members only: the pizarra's official for this match, useBoardSeven) goes on the
+ * El siete. `official` (members only: the pizarra's official for this match, useBoardView) goes on the
  * pitch before the acta, with its «Siete oficial de la pizarra» badge and a note when the convocatoria has
- * another seven; fans (and every match once played or live) see the convocatoria's titulares.
+ * another seven, at its slots' positions and with its system (`board`); fans (and every match once played
+ * or live) see the convocatoria's titulares. After the acta each one stands where he played
+ * (campoPositions); live, and without position data, the orientative 1-3-2-1.
  */
-export function CampoTab({ match, players, nameOf, live, official = null }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean; official?: readonly string[] | null }) {
+export function CampoTab({ match, players, nameOf, live, official = null, board = null }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean; official?: readonly string[] | null; board?: Pick<BoardView, "system" | "codes"> | null }) {
   const numOf = useNumOf(players, match.seasonId);
   const [sel, setSel] = useState<string | null>(null);
   const done = isCompleted(match);
@@ -285,8 +280,18 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
   const ledger = done ? match.ledger : snapshot.players;
   const field = live ? snapshot.field : starters;
   const bench = live ? [...starters, ...(match.bench ?? [])].filter((id) => !field.includes(id)) : seven.bench;
+  // where they stand: the acta's positions once played; before it, the official board's (members)
+  const preActa = !done && !live;
+  const officialBoard = preActa && seven.official ? board : null;
+  // (before the acta, only over the official board's own drawing: never over the orientative 1-3-2-1)
+  const system = done ? match.system : officialBoard ? officialBoard.system : null;
+  const layout = campoLayout({ field, ledger: done ? match.ledger : null, system, codes: officialBoard?.codes ?? null });
+  const systemChip = systemText(system);
+  const placed = layout.source !== "orientative";
+  const subDots = layout.dots.filter((d) => d.sub);
   const pick = sel ?? starters[0];
   const line = pick ? playerLine(pick, ledger, match.events) : null;
+  const pickPlayed = done && pick ? playedLinesOf(match.ledger?.[pick]?.positionsPlayed) : [];
   const rows = done || live ? stintRows(ledger, match.events, match.duration ?? 50) : [];
   if (!starters.length)
     return (
@@ -302,12 +307,20 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
         <h2 className="hm-h2" id="fc-xi">
           {done ? "Quién hizo qué" : live ? "El campo, ahora" : "El siete"}
         </h2>
-        {seven.official && (
+        {(seven.official || systemChip || placed) && (
           <p className="fc-official">
-            <span className="fc-official-badge">
-              <Icon name="shirt" size={14} />
-              Siete oficial de la pizarra
-            </span>
+            {seven.official && (
+              <span className="fc-official-badge">
+                <Icon name="shirt" size={14} />
+                Siete oficial de la pizarra
+              </span>
+            )}
+            {systemChip && (
+              <span className="fc-sys">
+                <small>Sistema</small> {systemChip}
+              </span>
+            )}
+            {placed && !seven.official && <span className="fc-src">{SOURCE_TEXT[layout.source]}</span>}
             {note && <span className="fc-official-note">{note}</span>}
           </p>
         )}
@@ -316,14 +329,21 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
           <span className="l circ" />
           <span className="l bx1" />
           <span className="l bx2" />
-          {field.slice(0, 7).map((id, i) => {
-            if (!id) return null;
-            const [x, y] = F7_SPOTS[i] ?? [50, 50];
-            const stats = playerLine(id, ledger, match.events);
+          {placed && systemMark(system) && (
+            <span className="fc-pitch-sys" aria-hidden="true">
+              {systemMark(system)}
+            </span>
+          )}
+          {layout.dots.map((d) => {
+            const stats = playerLine(d.id, ledger, match.events);
+            const entry = d.sub ? match.ledger?.[d.id]?.exchanges?.find((x) => x.direction === "in") : undefined;
+            // (the position he played — or, before the acta, his slot on the board — never where the dot was nudged to)
+            const pos = d.code ? POSITIONS[d.code].name.toLocaleLowerCase("es") : "";
+            const where = !d.code ? "" : preActa ? `, en la pizarra: ${pos}` : `, ${d.sub ? `entró${entry ? ` en el ${exchangeMinute(match.events, d.id, entry)}′` : ""} y jugó` : "jugó"} de ${pos}${d.estimated ? " (estimado por su preferida)" : ""}`;
             return (
-              <button key={id} type="button" className="fc-pl" style={{ left: `${x}%`, top: `${y}%` }} aria-pressed={pick === id} onClick={() => setSel(id)} aria-label={`${nameOf(id)}, dorsal ${numOf(id)}, ${stats.goals} goles, ${stats.assists} asistencias, ${stats.yellowCards} amarillas, ${stats.redCards} rojas`}>
-                <span className="fc-number">{numOf(id)}</span>
-                <b>{nameOf(id)}</b>
+              <button key={d.id} type="button" className={`fc-pl${d.sub ? " sub" : ""}`} style={{ left: `${d.x}%`, top: `${d.y}%` }} aria-pressed={pick === d.id} onClick={() => setSel(d.id)} aria-label={`${nameOf(d.id)}, dorsal ${numOf(d.id)}${where}, ${stats.goals} goles, ${stats.assists} asistencias, ${stats.yellowCards} amarillas, ${stats.redCards} rojas`}>
+                <span className="fc-number">{numOf(d.id)}</span>
+                <b>{nameOf(d.id)}</b>
                 <MatchBadges {...stats} />
               </button>
             );
@@ -340,7 +360,7 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
                 return <li key={id} className={p?.played ? "in" : ""}>
                   <button type="button" onClick={() => setSel(id)} aria-pressed={pick === id}>
                     <b>{numOf(id)}</b>
-                    <span className="fc-bench-name">{nameOf(id)}<small>{p?.dismissed ? "Expulsado · " : ""}{p ? `${fmtMinutes(p.minutes)}${entry ? ` · entró ${entry.minute}′` : p.played ? "" : done ? " · no jugó" : " · sin entrar"}` : "Minutos sin registrar"}</small></span>
+                    <span className="fc-bench-name">{nameOf(id)}<small>{p?.dismissed ? "Expulsado · " : ""}{p ? `${fmtMinutes(p.minutes)}${entry ? ` · entró ${exchangeMinute(match.events, id, entry)}′` : p.played ? "" : done ? " · no jugó" : " · sin entrar"}` : "Minutos sin registrar"}</small></span>
                     <MatchBadges {...stats} />
                   </button>
                 </li>;
@@ -353,6 +373,12 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
             <span className="nm">
               {numOf(pick)} · <PlayerLink id={pick} seasonId={match.seasonId} variant="quiet">{nameOf(pick)}</PlayerLink>
             </span>
+            {pickPlayed.length > 0 && (
+              <span className="pos">
+                Jugó de {playedSummary({ lines: pickPlayed })}
+                {match.ledger?.[pick]?.positionsEstimated === true ? " · estimado por su preferida" : ""}
+              </span>
+            )}
             <div>
               <dt>min</dt>
               <dd>{ledger?.[pick] ? wholeMinutes(line.minutes) : "–"}</dd>
@@ -371,7 +397,11 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
             </div>
           </dl>
         )}
-        <p className="fc-note">Posiciones orientativas. {live ? "Los cambios y las expulsiones actualizan el campo. Minutos provisionales hasta publicar el acta." : "Minutos calculados desde el siete inicial y cada entrada y salida."}</p>
+        <p className="fc-note">
+          {placed ? "" : "Posiciones orientativas. "}
+          {live ? "Los cambios y las expulsiones actualizan el campo. Minutos provisionales hasta publicar el acta." : preActa && placed ? "Cada uno, en su casilla de la pizarra." : "Minutos calculados desde el siete inicial y cada entrada y salida."}
+          {subDots.length > 0 && " Con anillo, quien entró desde el banquillo y jugó en otra posición."}
+        </p>
       </section>
       {rows.length > 0 && (
         <section className="fc-sec fc-reveal" aria-labelledby="fc-st">
@@ -465,12 +495,6 @@ export function PulsoTab({ match, live, minute, pending = false }: { match: Club
   );
 }
 
-const RSVP = [
-  ["yes", "Voy"],
-  ["maybe", "Duda"],
-  ["no", "No puedo"],
-] as const;
-
 export function VestuarioTab({ match, players, phase }: { match: ClubMatch; players: PlayerDoc[]; phase: string }) {
   const { member } = useTeam();
   const { user } = useAuth();
@@ -487,11 +511,6 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
   const myPrediction = useMyPrediction(match.id, uid);
   const predictions = useMatchPredictions(match.id, !!member && kickedOff);
   const mvp = useMvpResults().get(match.id);
-  const myVote = useMyMvpVote(match.id, uid);
-  const [pu, setPu] = useState<number | null>(null);
-  const [pt, setPt] = useState<number | null>(null);
-  const [pick, setPick] = useState<string | null>(null);
-  const [error, setError] = useState("");
   const done = isCompleted(match);
   const { gf, ga } = scoreOf(match);
 
@@ -536,22 +555,10 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
       </section>
     );
 
-  const act = (p: Promise<unknown>) => {
-    setError("");
-    p.catch((e: unknown) => setError(apiError(e)));
-  };
   const mine = availability.data.find((a) => a.uid === me.uid)?.response;
   // («Sin responder» counts too: the convocados who haven't said anything yet)
   const counts = rsvpSummary(availability.data, [...(match.starters ?? []), ...(match.bench ?? [])]);
   const total = counts.yes + counts.maybe + counts.no + counts.sin;
-  const rsvpIndex = Math.max(0, RSVP.findIndex(([v]) => v === mine));
-  const shownUs = pu ?? myPrediction.data?.goalsFor ?? 2;
-  const shownThem = pt ?? myPrediction.data?.goalsAgainst ?? 1;
-  const voteOpen = done && (match.voteClosesAt ?? 0) > now;
-  const candidates = Object.entries(match.ledger ?? {})
-    .filter(([, p]) => p.played)
-    .map(([id]) => id)
-    .sort((a, b) => (mvp?.counts[b] ?? 0) - (mvp?.counts[a] ?? 0));
   const exact = predictions.data.filter((p) => p.goalsFor === gf && p.goalsAgainst === ga).length;
   const dist = new Map<string, number>();
   for (const p of predictions.data) dist.set(`${p.goalsFor}–${p.goalsAgainst}`, (dist.get(`${p.goalsFor}–${p.goalsAgainst}`) ?? 0) + 1);
@@ -567,14 +574,8 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
             <h2 className="hm-h2" id="fc-rs">
               ¿Vas?
             </h2>
-            <div className="fc-rsvp" role="radiogroup" aria-label="Tu respuesta">
-              <span className="th" style={{ transform: `translateX(${rsvpIndex * 100}%)`, opacity: mine ? 1 : 0 }} />
-              {RSVP.map(([value, label]) => (
-                <button key={value} type="button" role="radio" aria-checked={mine === value} onClick={() => act(setAvailability(me, match.id, value))}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            {/* (the shared member controls: the same answer, porra and vote — and writes — as the vestuario) */}
+            <RsvpSwitch match={match} now={now} answer={mine} />
             {note.data && (
               <div className="pt-chips" style={{ justifyContent: "flex-start" }}>
                 <span className="pt-chip">{note.data}</span>
@@ -592,42 +593,11 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
             )}
           </section>
           <section className="fc-sec" aria-labelledby="fc-po">
-            <span className="hm-kick">La porra · se cierra al pitido inicial</span>
+            <span className="hm-kick">La porra · se cierra a la hora del partido</span>
             <h2 className="hm-h2" id="fc-po">
               ¿Cómo acaba?
             </h2>
-            <div className="fc-porra">
-              {(
-                [
-                  ["PITI", shownUs, setPu, "del Piti"],
-                  ["–", 0, null, ""],
-                  [match.rival ?? "Rival", shownThem, setPt, `de ${match.rival ?? "el rival"}`],
-                ] as const
-              ).map(([label, value, set, who], i) =>
-                set ? (
-                  <div className="fc-step" key={i}>
-                    <small>{label}</small>
-                    <output aria-live="polite">{value}</output>
-                    <div>
-                      <button type="button" aria-label={`Un gol menos ${who}`} onClick={() => set(Math.max(0, value - 1))}>
-                        −
-                      </button>
-                      <button type="button" aria-label={`Un gol más ${who}`} onClick={() => set(Math.min(30, value + 1))}>
-                        +
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <i key={i}>–</i>
-                ),
-              )}
-            </div>
-            <div className="fc-pick">
-              <button type="button" aria-pressed={!!myPrediction.data && myPrediction.data.goalsFor === shownUs && myPrediction.data.goalsAgainst === shownThem} onClick={() => act(predictScore(me, match.id, shownUs, shownThem))}>
-                {myPrediction.data ? (myPrediction.data.goalsFor === shownUs && myPrediction.data.goalsAgainst === shownThem ? "Porra guardada" : "Cambiar mi porra") : "Guardar mi porra"}
-              </button>
-            </div>
-            <p className="fc-note">3 puntos si clavas el resultado, 1 si aciertas quién gana.</p>
+            <PorraCard match={match} now={now} uid={uid} />
           </section>
         </>
       )}
@@ -689,20 +659,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
                   ))}
                 </ol>
               )}
-              {voteOpen && (
-                <div className="fc-pick" role="group" aria-label="Tu voto">
-                  {candidates.map((id) => (
-                    <button key={id} type="button" aria-pressed={(pick ?? myVote.data) === id} onClick={() => setPick(id)}>
-                      {nameOf(id)}
-                    </button>
-                  ))}
-                  {pick && pick !== myVote.data && (
-                    <button type="button" aria-pressed="true" onClick={() => act(voteMvp(me, match.id, pick).then(() => setPick(null)))}>
-                      {myVote.data ? "Cambiar mi voto" : "Votar"}
-                    </button>
-                  )}
-                </div>
-              )}
+              <MvpBallot match={match} now={now} uid={uid} counts={mvp?.counts} nameOf={nameOf} />
             </section>
           )}
           <section className="fc-sec" aria-labelledby="fc-pr">
@@ -730,11 +687,6 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
             )}
           </section>
         </>
-      )}
-      {error && (
-        <p className="fc-error" role="alert">
-          {error}
-        </p>
       )}
     </div>
   );

@@ -4,13 +4,13 @@ import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useViewer } from "../../hooks/useViewer";
 import { useNoIndex } from "../../hooks/useNoIndex";
-import { useBoardSeven, useMatchBoard } from "../pizarra/useMatchBoard";
+import { useBoardView, useMatchBoard } from "../pizarra/useMatchBoard";
 import { useMatchScorers } from "../vestuario/live";
 import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // Ficha de partido (Celeste): the stadium board on top (final score, live score with ¡GOL!, or the
 // countdown), then tabs — Crónica/Previa/Directo · Campo · Pulso · Vestuario. From the Design canvas
 // page "Partidos · elegida"; pure logic in lib/ficha.ts and lib/partidos.ts.
-import { useState, type ReactNode } from "react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { isCompleted, matchPhase, nameFor, useClubData, dateMillis, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
@@ -37,7 +37,9 @@ import { shareClubPage } from "../../lib/share";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
 import { downloadMatchPoster } from "../../lib/matchPoster";
 import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
-import { matchTabAt, matchTabIndex } from "../../lib/matchTabs";
+import { MATCH_TABS, matchTabAt, matchTabIndex } from "../../lib/matchTabs";
+import { tabForKey } from "../../lib/tabKeys";
+import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/ficha.css";
@@ -95,6 +97,15 @@ export function MatchPage() {
   const setTab = (i: number) => {
     if (i !== active) void navigate({ to: ".", search: (prev) => ({ ...prev, tab: matchTabAt(i) }), resetScroll: false });
   };
+  // The ARIA tabs pattern: ←/→ wrap, Inicio/Fin to the ends; the key selects the tab (it is the URL's
+  // tab) and the focus goes with it (roving tabindex: only the selected tab is in the Tab order).
+  const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const n = tabForKey(e.key, active, MATCH_TABS.map((_, i) => i));
+    if (n === null) return;
+    e.preventDefault();
+    setTab(n);
+    document.getElementById(`fc-tab-${n}`)?.focus();
+  };
   const { matches, players, loading, error } = useClubData();
   const now = useMatchClock(matches);
   const { user, profile } = useAuth();
@@ -109,10 +120,13 @@ export function MatchPage() {
   const viewer = useViewer();
   const toPlay = !!match && toBePlayed(match, now);
   const board = useMatchBoard(match?.seasonId, match?.id, toPlay, viewer.member);
-  // One «siete» (M6): before the acta the Campo shows that official's seven to members (its doc, read only
-  // while the Campo is open and the match is still to be played — its own official first, the season's
-  // only while it has none: useMatchBoard).
-  const officialSeven = useBoardSeven(toPlay && active === 1 ? board : null);
+  // One «siete» (M6): before the acta the Campo shows that official's seven to members, at its slots'
+  // positions and with its system (its doc, read only while the Campo or the previa is open and the match
+  // is still to be played — its own official first, the season's only while it has none: useMatchBoard).
+  const officialBoard = useBoardView(toPlay && active <= 1 ? board : null);
+  // The previa's «El rival»: the RivalPanel's notes of the board drawn for this very match (a season's
+  // board isn't about this rival), members only (a fan has no board: nothing is read).
+  const rivalPlan = viewer.member && match && officialBoard?.matchId === match.id ? officialBoard.rival : null;
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
@@ -203,6 +217,8 @@ export function MatchPage() {
         return { id: e.id, min: shown != null ? `${shown}′` : "", pid, who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" };
       });
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
+  // «Estadísticas» reads the narrated actions (passes, shots, tackles…): without any, a short line.
+  const analysed = hasAnalysisActions([match]);
 
   const share = async () => {
     try {
@@ -375,20 +391,25 @@ export function MatchPage() {
         </div>
       </section>
 
-      <div className="fc-tabs" role="tablist" aria-label="Secciones del partido">
+      <div className="fc-tabs" role="tablist" aria-label="Secciones del partido" onKeyDown={onTabKey}>
         <span className="ind" style={{ transform: `translateX(${active * 100}%)` }} aria-hidden="true" />
         {[firstTab, "Campo", "Pulso", "Vestuario", "Estadísticas"].map((label, i) => (
-          <button key={label} type="button" role="tab" id={`fc-tab-${i}`} aria-selected={active === i} aria-controls={`fc-pane-${i}`} onClick={() => setTab(i)}>
+          <button key={label} type="button" role="tab" id={`fc-tab-${i}`} aria-selected={active === i} aria-controls={`fc-pane-${i}`} tabIndex={active === i ? 0 : -1} onClick={() => setTab(i)}>
             {label}
           </button>
         ))}
       </div>
       {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
-      <div className={`fc-pane${(active === 0 && done) || active === 4 ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} key={active}>
-        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} />)}
-        {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialSeven} />}
+      <div className={`fc-pane${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
+        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} plan={rivalPlan} />)}
+        {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialBoard?.seven ?? null} board={officialBoard} />}
         {active === 2 && <PulsoTab match={match} live={live} minute={minute} pending={pending} />}
-        {active === 4 && <TechnicalStatsPanel matches={[match]} people={players.map(p => ({ id: p.id, name: nameOf(p.id), number: p.number }))} />}
+        {active === 4 &&
+          (analysed ? (
+            <TechnicalStatsPanel matches={[match]} people={players.map((p) => ({ id: p.id, name: nameOf(p.id), number: p.number }))} seasonId={match.seasonId} />
+          ) : (
+            <StatePanel kind="empty" compact title="Sin análisis de este partido" body="Nadie ha narrado sus jugadas: pases, remates, entradas… Cuando el acta las apunte, el juego en detalle saldrá aquí." />
+          ))}
         {active === 3 && <VestuarioTab match={match} players={players} phase={phase} />}
       </div>
     </>,

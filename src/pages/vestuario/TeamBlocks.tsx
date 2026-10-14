@@ -1,15 +1,14 @@
 import { Fragment, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { dateMillis, type ClubMatch } from "../../lib/clubData";
+import type { ClubMatch } from "../../lib/clubData";
 import { apiError, confirmTraining, deleteTraining, proposeTraining } from "../../lib/clubApi";
-import { deleteBoardMessage, postBoardMessage, predictScore, useMe, voteMvp, voteTraining } from "./writes";
-import { countdown, initials, MIN_PLAYERS, mvpAnnouncement, mvpRace, nextWeekday, slotStanding, slotTime, trainingOver, plural, porraPosition, slotParts, voteLeft, type MvpResult } from "../../lib/vestuario";
+import { deleteBoardMessage, postBoardMessage, useMe, voteTraining } from "./writes";
+import { initials, MIN_PLAYERS, mvpAnnouncement, mvpRace, nextWeekday, slotStanding, slotTime, trainingOver, plural, porraPosition, slotParts, voteLeft, type MvpResult } from "../../lib/vestuario";
 import {
   useMvpResultsSync,
   useMvpReveal,
   useMvpVoters,
   useMyMvpVote,
-  useMyPrediction,
   useTrainingVotes,
   type BoardMessage,
   type PorraRow,
@@ -18,6 +17,9 @@ import {
 import { Icon } from "../../components/celeste/icons";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
+import { useWrite } from "./shared/useWrite";
+import { PORRA_RULE, PorraCard } from "./shared/PorraCard";
+import { MvpBallot } from "./shared/MvpBallot";
 
 function useAction() {
   const [busy, setBusy] = useState(false);
@@ -36,19 +38,6 @@ function useAction() {
     }
   };
   return { busy, error, run };
-}
-/**
- * Direct writes land in the local cache at once (the listeners redraw immediately), so
- * nothing waits for the server: the control never locks, and a refusal shows as an error
- * while the SDK rolls the local change back.
- */
-function useWrite() {
-  const [error, setError] = useState("");
-  const write = (fn: () => Promise<unknown>) => {
-    setError("");
-    fn().catch((e: unknown) => setError(apiError(e)));
-  };
-  return { error, write };
 }
 const Err = ({ text }: { text: string }) =>
   text ? (
@@ -351,24 +340,6 @@ function ToMatch({ id, children }: { id: string; children: ReactNode }) {
 
 // ---------- porra
 export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; uid: string; rows: PorraRow[]; now: number }) {
-  const saved = useMyPrediction(next?.id, uid);
-  const [draft, setDraft] = useState<{ id: string; gf: number; ga: number } | null>(null);
-  const act = useWrite();
-  const who = useMe();
-  const open = !!next && next.status === "scheduled" && dateMillis(next.date) > now;
-  const gf = draft?.id === next?.id && draft ? draft.gf : (saved.data?.goalsFor ?? 0);
-  const ga = draft?.id === next?.id && draft ? draft.ga : (saved.data?.goalsAgainst ?? 0);
-  const dirty = !!draft && draft.id === next?.id && (draft.gf !== saved.data?.goalsFor || draft.ga !== saved.data?.goalsAgainst);
-  const set = (side: "gf" | "ga", delta: number) => {
-    if (!next) return;
-    const base = { id: next.id, gf, ga };
-    setDraft({ ...base, [side]: Math.max(0, Math.min(30, base[side] + delta)) });
-  };
-  const save = () => {
-    if (!next || !who) return;
-    act.write(() => predictScore(who, next.id, gf, ga));
-    setDraft(null);
-  };
   const me = porraPosition(rows, uid);
   const leader = rows[0];
   return (
@@ -377,24 +348,8 @@ export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; u
       <h2 className="vx-h2">¿Cómo acaba?</h2>
       {next ? (
         <>
-          <div className="vx-board-score">
-            <Side label="Piti" value={gf} disabled={!open} onChange={(d) => set("gf", d)} them={false} />
-            <span className="vx-vs-dash" aria-hidden="true">
-              –
-            </span>
-            <Side label={next.rival ?? "Rival"} value={ga} disabled={!open} onChange={(d) => set("ga", d)} them />
-          </div>
-          {open ? (
-            <div className="vx-porra-save">
-              <button type="button" className="vx-btn" disabled={!dirty && !!saved.data} onClick={save}>
-                {saved.data && !dirty ? "Porra guardada" : saved.data ? "Cambiar mi porra" : "Guardar mi porra"}
-              </button>
-            </div>
-          ) : (
-            <p className="vx-porra-open">La porra se cerró al empezar el partido.</p>
-          )}
-          {open && <p className="vx-porra-open">Cierra en {countdown(dateMillis(next.date), now)} · exacto 3 pts · acierto 1 pt</p>}
-          <Err text={act.error} />
+          {/* (the shared member control: the same porra and write as the match page's Vestuario tab) */}
+          <PorraCard match={next} now={now} uid={uid} />
           <ToMatch id={next.id}>La porra, en la ficha del partido</ToMatch>
         </>
       ) : (
@@ -414,9 +369,7 @@ export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; u
               </div>
             </div>
           </div>
-          <p className="vx-note">
-            Se abre con el próximo partido · <b>exacto 3 pts</b>, acierto 1.
-          </p>
+          <p className="vx-note">Se abre con el próximo partido. {PORRA_RULE}</p>
         </>
       )}
       {(next || leader) && (
@@ -443,32 +396,10 @@ export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; u
     </section>
   );
 }
-function Side({ label, value, disabled, onChange, them }: { label: string; value: number; disabled: boolean; onChange: (d: number) => void; them: boolean }) {
-  return (
-    <div className="vx-side-score">
-      <span className="lbl">{label}</span>
-      <div className={`vx-flap${them ? " them" : ""}`}>
-        <b aria-live="polite">{value}</b>
-      </div>
-      <div className="vx-steps">
-        <button type="button" className="vx-step" aria-label={`Un gol menos ${them ? "del rival" : "del Piti"}`} disabled={disabled || value === 0} onClick={() => onChange(-1)}>
-          −
-        </button>
-        <button type="button" className="vx-step plus" aria-label={`Un gol más ${them ? "del rival" : "del Piti"}`} disabled={disabled} onClick={() => onChange(1)}>
-          +
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ---------- MVP
 export function MvpBlock({ match, result, uid, admin, member, now, playerName }: { match: ClubMatch | undefined; result: MvpResult | undefined; uid: string; admin: boolean; member: boolean; now: number; playerName: (id: string) => string }) {
   const myVote = useMyMvpVote(match?.id, uid);
   const voters = useMvpVoters(match?.id, admin);
-  const [selection, setSelection] = useState<{ id: string; pick: string } | null>(null);
-  const act = useWrite();
-  const me = useMe();
   // the live race while the vote is open (counts only, never who voted whom), the podium once it closes
   const race = mvpRace(match?.voteClosesAt, result, now);
   const open = race.state === "open";
@@ -501,13 +432,6 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
       </section>
     );
   }
-  const pick = selection?.id === match.id ? selection.pick : myVote.data;
-  const total = result?.total ?? 0;
-  const candidates = Object.entries(match.ledger ?? {})
-    .filter(([, row]) => row.played)
-    .map(([id]) => id)
-    .sort((a, b) => (result?.counts[b] ?? 0) - (result?.counts[a] ?? 0) || playerName(a).localeCompare(playerName(b), "es"));
-  const vote = () => me && act.write(() => voteMvp(me, match.id, pick));
   const { rows } = race;
   // the podium: 2nd · 1st · 3rd, three steps at most (360 px); the rest of a tie goes in a line below
   const steps = rows.slice(0, 3);
@@ -597,28 +521,8 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
           )}
         </>
       )}
-      {open && member && (
-        <div className="vx-vote">
-          <fieldset>
-            <legend>Tu voto</legend>
-            <div className="vx-vote-list">
-              {candidates.map((id) => (
-                <label key={id}>
-                  <input type="radio" name={`mvp-${match.id}`} value={id} checked={pick === id} onChange={() => setSelection({ id: match.id, pick: id })} />
-                  {playerName(id)}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <div className="vx-vote-foot">
-            <button type="button" className="vx-btn" disabled={!pick || pick === myVote.data} onClick={vote}>
-              {pick && pick === myVote.data ? "Voto guardado" : myVote.data ? "Cambiar mi voto" : "Votar al MVP"}
-            </button>
-            <span className="vx-muted">{total} {total === 1 ? "voto del equipo" : "votos del equipo"}</span>
-          </div>
-          <Err text={act.error} />
-        </div>
-      )}
+      {/* (the shared member ballot: the same vote and write as the match page's Vestuario tab) */}
+      {member && <MvpBallot match={match} now={now} uid={uid} counts={result?.counts} total={result?.total ?? 0} nameOf={playerName} />}
       <ToMatch id={match.id}>El MVP, en la ficha del partido</ToMatch>
       {admin && voters.data.length > 0 && (
         <details className="vx-voters">

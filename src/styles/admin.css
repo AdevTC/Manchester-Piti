@@ -175,7 +175,8 @@ position:relative;overflow:hidden;font-size:15px;line-height:1.4;color:var(--ink
 .adm .pads{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
 .vx.adm .pad{height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:10px;font-family:'Anybody';font-weight:900;font-size:19px;letter-spacing:.03em;background:var(--chip);box-shadow:inset 0 0 0 1px var(--pline)}
 .vx.adm .pad.gol{background:var(--cta);color:var(--cta-ink);box-shadow:var(--cta-shadow);font-size:24px}
-.vx.adm .pad.fin{grid-column:1/-1;height:50px;font-family:'Geist';font-weight:600;font-size:15px;letter-spacing:0;background:transparent}
+.vx.adm .pad.mas,.vx.adm .pad.fin{grid-column:1/-1}
+.vx.adm .pad.fin{height:50px;font-family:'Geist';font-weight:600;font-size:15px;letter-spacing:0;background:transparent}
 /* ═══ Partidos ═══ */
 .adm .pt{display:grid;grid-template-columns:350px minmax(0,1fr);gap:20px;flex:1;min-height:0}
 .adm .ml{display:flex;flex-direction:column;gap:10px;min-height:0;border-radius:20px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--pline);padding:12px}

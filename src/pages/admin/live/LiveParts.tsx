@@ -1,7 +1,7 @@
 // En juego's pieces, as on the canvas: the picker (`.lpk` dialog on desktop, `.sheet` on phones: the
 // question, the dorsal grids — on the pitch first, then the banquillo — and the extra buttons), the log
-// «Lo que va pasando» (`.evl`), the pads (`.pads`: GOL in gold, Gol rival, Tarjeta, Cambio, «Pitar el
-// final y repasar el acta») and the running clock.
+// «Lo que va pasando» (`.evl`), the pads (`.pads`: GOL in gold, Gol rival, Tarjeta, Cambio, Ocasión, Córner,
+// «Penalti o palo», «Pitar el final y repasar el acta») and the running clock.
 import { MatchClockDisplay } from "../../../components/celeste/MatchClockControl";
 import type { ClubMatch } from "../../../lib/clubData";
 import { useId, useState } from "react";
@@ -88,7 +88,7 @@ export function LiveLog({ rows, label }: { rows: LogRow[]; label?: string }) {
 }
 
 /** `.pads`: the one-tap buttons. GOL is gold (THE action of the moment). */
-export function LivePads({ onGol, onRival, onTarjeta, onCambio, onOcasion, onCorner, onPitar, paused = false, disabled = false }: { onGol: () => void; onRival: () => void; onTarjeta: () => void; onCambio: () => void; onOcasion?: () => void; onCorner?: () => void; onPitar?: () => void; paused?: boolean; disabled?: boolean }) {
+export function LivePads({ onGol, onRival, onTarjeta, onCambio, onOcasion, onCorner, onMas, onPitar, paused = false, disabled = false }: { onGol: () => void; onRival: () => void; onTarjeta: () => void; onCambio: () => void; onOcasion?: () => void; onCorner?: () => void; onMas?: () => void; onPitar?: () => void; paused?: boolean; disabled?: boolean }) {
   return (
     <div className="pads">
       <button type="button" className="pad gol" onClick={onGol} disabled={disabled || paused}>
@@ -108,6 +108,7 @@ export function LivePads({ onGol, onRival, onTarjeta, onCambio, onOcasion, onCor
       </button>
       {onOcasion && <button type="button" className="pad" onClick={onOcasion} disabled={disabled || paused}><AdIcon name="spark" size={20} />Ocasión</button>}
       {onCorner && <button type="button" className="pad" onClick={onCorner} disabled={disabled || paused}><AdIcon name="flag" size={20} />Córner</button>}
+      {onMas && <button type="button" className="pad mas" onClick={onMas} disabled={disabled || paused}><AdIcon name="glove" size={20} />Penalti o palo</button>}
       {onPitar && <button type="button" className="pad fin" onClick={onPitar} disabled={disabled}>
         <AdIcon name="whistle" size={20} />
         Pitar el final y repasar el acta

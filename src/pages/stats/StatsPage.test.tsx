@@ -129,3 +129,22 @@ describe("StatsPage · Posiciones", () => {
     expect(star.style.left).toBe("86%"); // LD, not his preferida DFC (50)
   });
 });
+
+describe("StatsPage · Análisis del juego", () => {
+  it("no acta of the period narrates its plays (goals only): a short line, not a panel of zeros", () => {
+    search.value = { view: "game" };
+    render(<StatsPage />);
+    expect(screen.getByText(/Ningún partido de este período tiene sus jugadas narradas/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Estadísticas detalladas" })).toBeNull();
+  });
+
+  it("with a narrated action: the panel, its names linked", () => {
+    search.value = { view: "game" };
+    const [first] = data.matches as ClubMatch[];
+    first.events = [...(first.events ?? []), { id: "a1", type: "pass", outcome: "complete", playerId: "dc", receiverId: "lat", minute: 4 }];
+    render(<StatsPage />);
+    const panel = screen.getByRole("region", { name: "Estadísticas detalladas" });
+    expect(within(panel).getByRole("heading", { name: "El Piti y el rival" })).toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: /^Conexiones dirigidas/ })).getAllByRole("link").map((a) => a.textContent)).toEqual(["PUNTA", "LATERAL"]);
+  });
+});

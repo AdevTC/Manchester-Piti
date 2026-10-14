@@ -1,19 +1,14 @@
 /* Estadísticas (Celeste · "elegida"), from the Design canvas page "Estadísticas · elegida".
    Tokens come from .vx (vestuario.css) + home.css; flip digits and floodlights from partidos.css.
    Layout rule of this page: every grid/flex child has min-width:0, long names ellipsize, wide tables
-   scroll inside their own box, decorations sit behind the text with pointer-events:none. */
+   scroll inside their own box, decorations sit behind the text with pointer-events:none.
+   The --st-* tokens, cards, headings, segmented controls, fields, KPIs, legends and tables live in
+   st-base.css (shared with the game-analysis panel), which every page imports before this sheet. */
 
-.st{container-name:st-page;--st-sky:#6CABDD;--st-gold:#FFC659;--st-them:rgba(159,179,211,.55);--st-card:rgba(255,255,255,.045);--st-card-line:rgba(255,255,255,.08);--st-board:linear-gradient(180deg,rgba(13,33,80,.72),rgba(6,16,42,.82));--st-board-line:rgba(159,208,242,.2);--st-led:#FFC659;--st-led-glow:rgba(255,198,89,.55);--st-heat:108,171,221;
-  --c0:#6CABDD;--c1:#FFC659;--c2:#eef4ff;--c3:#ff8a7a;--c4:#9be3b5;--c5:#c7a4ff}
-[data-theme="light"] .vx.st{--st-sky:#2a73ad;--st-gold:#9a6b00;--st-them:rgba(79,93,125,.5);--st-card:rgba(255,255,255,.78);--st-card-line:rgba(12,23,51,.08);--st-board:linear-gradient(180deg,rgba(255,255,255,.92),rgba(234,243,251,.92));--st-board-line:rgba(12,23,51,.12);--st-led:#0c1733;--st-led-glow:rgba(42,115,173,.25);--st-heat:42,115,173;
-  --c0:#2a73ad;--c1:#b07a00;--c2:#0c1733;--c3:#c2410c;--c4:#15803d;--c5:#7c3aed}
 .st *{min-width:0}
 .st .hm-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.st-mono{font-family:'Geist Mono';font-size:12px;line-height:1.5;color:var(--muted)}
-.vx p.st-mono{margin:0}
 .st-new{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(255,198,89,.6);font-family:'Geist Mono';font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--gold-ink);vertical-align:middle;white-space:nowrap}
 [data-theme="light"] .vx .st-new{box-shadow:inset 0 0 0 1px rgba(154,107,0,.5)}
-.st-empty{margin:0;padding:18px;border-radius:16px;background:var(--chip);color:var(--muted);font-size:14px}
 .st-sm{height:44px;padding:0 16px;font-size:14px}
 
 /* ── hero ── */
@@ -27,10 +22,6 @@
 .st-ctx{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end}
 .st-count{margin:0;font-family:'Geist Mono';font-size:12px;color:var(--muted)}
 .st-count b{color:var(--ink);font-weight:600}
-.st-field{display:grid;gap:6px}
-.st-field select{height:48px;max-width:100%;border:0;border-radius:14px;background:var(--input,var(--chip));color:var(--ink);box-shadow:inset 0 0 0 1px var(--line);padding:0 40px 0 14px;font:600 15px 'Geist',system-ui,sans-serif;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 20px) 21px,calc(100% - 15px) 21px;background-size:5px 5px;background-repeat:no-repeat}
-.st-field select option{color:#0c1733;background:#fff}
-.st-field select:disabled{opacity:.6}
 .st-inline{margin:14px 0}
 
 /* leaders under the intro (desktop only: there the board column is taller) */
@@ -51,9 +42,6 @@
 .st-race-hd{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px}
 .st-race-title{display:grid;gap:6px;justify-items:start}
 .st-race-pre{justify-items:start}
-.st-seg{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:var(--pill);box-shadow:var(--pill-line);max-width:100%;overflow-x:auto;scrollbar-width:none}
-.st-seg button{flex:0 0 auto;min-height:40px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--pill-ink);font-weight:600;font-size:13px;transition:background .3s,color .3s}
-.st-seg button[aria-pressed="true"]{background:var(--pill-on);color:var(--pill-on-ink);box-shadow:var(--pill-on-shadow)}
 .st-jor{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center}
 .st-jor .fl{display:grid;justify-items:center;gap:4px}
 .st-jor .st-jflip{min-width:68px;height:66px;padding:0 8px;font-size:40px;color:#FFC659;text-shadow:0 0 18px rgba(255,198,89,.55)}
@@ -121,31 +109,7 @@
 .st-pane{padding-top:24px;animation:stPane .55s cubic-bezier(.16,1,.3,1) both}
 @keyframes stPane{from{opacity:0;transform:translateY(16px);clip-path:inset(0 0 85% 0)}to{opacity:1;transform:none;clip-path:inset(-60px -60px -60px -60px)}}
 .st-pane-in{display:grid;gap:22px}
-.st-card{position:relative;display:grid;gap:14px;align-content:start;padding:18px 16px;border-radius:24px;background:var(--st-card);box-shadow:inset 0 0 0 1px var(--st-card-line)}
-.st-hd{display:grid;gap:6px}
-.st-h2{margin:0;font-family:'Anybody';font-weight:800;font-size:26px;line-height:1.05;letter-spacing:-.02em;font-variation-settings:'wdth' 108;text-wrap:balance}
-.st-h3{margin:0;font-family:'Anybody';font-weight:800;font-size:18px;line-height:1.1;font-variation-settings:'wdth' 104}
 .st-two,.st-three{display:grid;gap:22px}
-.st-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:0;font-family:'Geist Mono';font-size:11px;color:var(--muted)}
-.st-legend span{display:inline-flex;align-items:center;gap:6px}
-.st-legend i{display:inline-block;width:12px;height:12px;border-radius:3px}
-.st-legend i.us{background:var(--st-sky)}
-.st-legend i.them{background:repeating-linear-gradient(45deg,var(--st-them) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--st-them)}
-.st-legend i.half{width:14px;height:0;border-top:2px dashed var(--muted);border-radius:0}
-.st-legend i.rk{width:12px;height:12px;border-radius:50%}
-@supports (animation-timeline:view()){
-.st-card,.st-rec{animation:stReveal linear both;animation-timeline:view();animation-range:entry 0% entry 55%}
-@keyframes stReveal{from{opacity:.2;transform:translateY(26px)}to{opacity:1;transform:none}}
-}
-
-/* KPIs */
-.st-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
-.st-kpis div{display:grid;gap:6px;align-content:space-between;min-height:84px;padding:14px;border-radius:18px;background:var(--st-card);box-shadow:inset 0 0 0 1px var(--st-card-line);animation:stKpi .7s cubic-bezier(.16,1,.3,1) both}
-@keyframes stKpi{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
-.st-kpis div.hl{background:linear-gradient(160deg,rgba(108,171,221,.24),rgba(108,171,221,.06));box-shadow:inset 0 0 0 1px rgba(108,171,221,.35)}
-.st-kpis dt{font-family:'Geist Mono';font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.st-kpis dd{margin:0;font-family:'Anybody';font-weight:900;font-size:34px;line-height:1;font-variation-settings:'wdth' 86;font-variant-numeric:tabular-nums;display:grid;gap:4px}
-.st-kpis dd small{font-family:'Geist Mono';font-weight:400;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* results chart */
 .st-res{display:grid;gap:6px;align-items:end}
@@ -254,24 +218,6 @@
 .st-search{flex:2 1 200px;display:flex;align-items:center;gap:8px;height:48px;padding:0 14px;border-radius:14px;background:var(--input,var(--chip));box-shadow:inset 0 0 0 1px var(--line);color:var(--muted)}
 .st-search input{flex:1;height:100%;border:0;background:transparent;color:var(--ink);font:500 15px 'Geist',system-ui,sans-serif;outline:none}
 .st-search:focus-within{box-shadow:inset 0 0 0 2px var(--accent)}
-.st-tablebox{max-width:100%;overflow-x:auto;border-radius:16px;box-shadow:inset 0 0 0 1px var(--st-card-line);-webkit-overflow-scrolling:touch}
-.st-table{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;font-variant-numeric:tabular-nums}
-.st-table th,.st-table td{padding:10px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
-.st-table thead th{position:sticky;top:0;font-family:'Geist Mono';font-weight:500;font-size:11px;color:var(--muted);background:var(--bg2)}
-.st-table abbr{text-decoration:none}
-.st-table tbody tr{animation:stRow .45s ease both}
-@keyframes stRow{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
-.st-table tbody tr:hover td,.st-table tbody tr:hover th{background:var(--chip)}
-.st-table th[scope="row"],.st-table thead th:first-child{position:sticky;left:0;z-index:1;text-align:left;background:var(--bg2);max-width:46vw}
-.st-table thead th:first-child{z-index:2}
-.st-table th[scope="row"]{display:flex;align-items:center;gap:8px;font-weight:600}
-.vx .st-table th[scope="row"] a{color:var(--ink);text-decoration:none;overflow:hidden;text-overflow:ellipsis}
-.st-table .sel{color:var(--gold-ink);font-weight:700;background:rgba(255,198,89,.07)}
-.st-table thead th.sel{color:var(--gold-ink)}
-.st-table td.live{color:var(--gold-ink);font-weight:700}
-.st-table td.live svg{vertical-align:-2px;margin-right:3px}
-.st-table td.dates{display:flex;gap:10px;justify-content:flex-end}
-.st-table .hs{text-align:left}
 .st-heat{display:inline-flex;gap:3px;vertical-align:middle}
 .st-heat i{position:relative;display:grid;place-items:center;width:14px;height:20px;border-radius:4px;background:rgba(var(--st-heat),calc(.15 + var(--l) * .85))}
 .st-heat i.no{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
@@ -402,10 +348,8 @@
 .st-hero{padding:calc(96px + var(--isle,0px)) 40px 40px}
 .st-main{padding:0 40px 40px}
 .st-tabs{padding:12px 40px}
-.st-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
 .st-two{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
 .st-three{grid-template-columns:repeat(3,minmax(0,1fr))}
-.st-card{padding:24px}
 .st-rival{grid-template-columns:44px minmax(0,1.3fr) minmax(0,1.6fr) minmax(120px,1fr) 28px;grid-template-areas:"b n u l c"}
 .st-cmp-top{grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);align-items:center}
 .st-led{font-size:34px}
@@ -419,8 +363,6 @@
 .st-tabs{padding:14px 64px}
 .st-main{padding:0 64px 56px}
 .st-pane-in{gap:28px}
-.st-kpis{grid-template-columns:repeat(6,minmax(0,1fr))}
-.st-kpis div.wide{grid-column:span 2}
 .st-leaders{display:grid}
 .st-led{font-size:40px}
 .st-rrows{--rh:46px}

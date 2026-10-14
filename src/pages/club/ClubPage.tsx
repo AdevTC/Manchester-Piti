@@ -25,6 +25,7 @@ import { NewBadge } from "../../components/NewBadge";
 import type { NewFeature } from "../../lib/derived/isNew";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
+import "../../styles/st-base.css";
 import "../../styles/stats.css";
 import "../../styles/club-celeste.css";
 

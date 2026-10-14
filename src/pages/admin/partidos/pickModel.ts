@@ -47,7 +47,7 @@ export const KINDS: Record<EventGroup, readonly EventKind[]> = {
     { type: "opponent_chance", label: "Ocasión rival" },
     { type: "corner", label: "Córner del Piti" },
     { type: "opponent_corner", label: "Córner rival" },
-    { type: "woodwork", label: "Tiro al palo" },
+    { type: "woodwork", label: "Al palo" },
     { type: "goal_freekick", label: "Gol de falta" },
     { type: "own_goal", label: "Gol en propia" },
   ],

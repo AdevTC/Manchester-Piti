@@ -1,1 +1,374 @@
-.technical-stats{grid-column:1/-1;width:100%;min-width:0;color:var(--ink);font-family:'Geist',sans-serif}.technical-stats h2{font:850 clamp(30px,5cqi,58px)/1.02 'Anybody',sans-serif;letter-spacing:-.04em;margin:10px 0}.technical-stats h3{font:750 24px/1.15 'Anybody',sans-serif;margin:0 0 12px}.technical-stats p{font-size:13px;line-height:1.6;color:var(--soft);margin:10px 0}.ts-head,.ts-title{display:flex;align-items:end;justify-content:space-between;gap:16px;flex-wrap:wrap}.technical-stats label{display:flex;flex-direction:column;gap:8px;font-size:12px}.technical-stats select{max-width:100%;min-height:44px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg,#0c1733);color:var(--ink);font:13px 'Geist',sans-serif}.ts-coverage{border-left:3px solid var(--accent);padding:12px 18px;margin:24px 0;background:var(--chip);border-radius:0 14px 14px 0}.ts-coverage b,.ts-coverage span{display:block;font:12px/1.7 'Geist Mono',monospace}.ts-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:24px 0}.ts-kpis article{border-bottom:1px solid var(--line);padding:14px 0}.ts-kpis span{font:12px 'Geist Mono',monospace}.ts-kpis b{display:block;font:800 clamp(26px,6cqi,46px)/1.2 'Anybody',sans-serif;color:var(--accent);margin:10px 0}.ts-kpis small{color:var(--muted);font-size:11px;line-height:1.4;display:block}.ts-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;margin:26px 0}.ts-card{padding:22px;border-radius:24px;background:var(--chip);min-width:0;box-shadow:inset 0 0 0 1px var(--line)}.ts-network svg{display:block;max-height:420px;width:100%;color:var(--accent)}.ts-orbit{fill:none;stroke:currentColor;stroke-opacity:.15;stroke-dasharray:3 8}.ts-node{cursor:pointer}.ts-node circle{fill:var(--accent);stroke:var(--bg,#0c1733);stroke-width:3}.ts-node text{fill:var(--bg,#0c1733);font:750 15px 'Anybody',sans-serif}.ts-node.selected circle{stroke:var(--gold,#ffc659);stroke-width:5}.ts-node:focus{outline:none}.ts-node:focus-visible circle{stroke:#ffc659;stroke-width:5}.ts-table-wrap{overflow:auto;max-height:440px;margin-top:18px}.technical-stats table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}.technical-stats caption{text-align:left;color:var(--muted);font-size:11px;padding:8px 0}.technical-stats th,.technical-stats td{padding:13px 12px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}.technical-stats th:first-child,.technical-stats td:first-child{text-align:left}.technical-stats th{font-weight:600}.technical-stats table button{color:inherit;background:none;border:0;font:inherit;min-height:24px;cursor:pointer}.ts-empty{display:grid;place-content:center;min-height:180px;padding:24px;text-align:center;color:var(--muted);font-size:14px;line-height:1.6;border:1px dashed var(--line);border-radius:18px}.ts-pitch{display:block;width:100%;max-height:280px}.ts-pitch rect{fill:rgba(108,171,221,.1);stroke:var(--line)}.ts-pitch path{fill:none;stroke:var(--accent);stroke-opacity:.3}.ts-pitch .shot{fill:var(--accent)}.ts-pitch .goal{fill:#ffc659;stroke:#0c1733;stroke-width:1.5}.ts-zone-bars{display:flex;gap:12px;margin:18px 0}.ts-zone-bars>div{flex:1;background:var(--chip);padding:12px;border-radius:12px}.ts-zone-bars span{font-size:11px}.ts-zone-bars b{display:block;font:800 25px 'Anybody',sans-serif;margin-top:8px}.ts-timeline{display:flex;align-items:flex-end;gap:5px;overflow:auto;min-height:100px}.ts-timeline>div{flex:1;min-width:20px;text-align:center;font:10px 'Geist Mono',monospace}.ts-timeline i{display:block;background:var(--accent);border-radius:4px 4px 0 0;margin:5px 0}.ts-filters{display:flex;gap:8px;overflow:auto;margin:28px 0}.ts-filters button{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;min-height:44px;padding:10px 16px;white-space:nowrap;cursor:pointer}.ts-filters [aria-pressed=true]{background:var(--accent);color:var(--bg,#0c1733)}.ts-compare{margin:16px 0}.ts-compare>div:first-child{display:flex;justify-content:space-between;gap:12px;font-size:12px}.ts-dual{display:flex;gap:4px;margin-top:7px;height:6px}.ts-dual i{background:var(--accent);border-radius:4px}.ts-dual i+ i{background:#b89877}.ts-rank{padding:0;list-style:none}.ts-rank li{margin-bottom:10px}.ts-rank button{display:flex;flex-wrap:wrap;width:100%;gap:8px;justify-content:space-between;background:transparent;color:var(--ink);padding:9px 0;border:0;cursor:pointer;font:13px 'Geist',sans-serif}.ts-rank i{display:block;height:5px;background:var(--accent);margin-right:auto;border-radius:5px}.ts-rank li:first-child i{background:#ffc659}.ts-method{margin:28px 0;color:var(--muted);font-size:13px}.ts-method summary{cursor:pointer;min-height:44px;line-height:44px}.technical-stats :focus-visible{outline:2px solid var(--accent);outline-offset:3px}@container (min-width:800px){.ts-grid{grid-template-columns:1fr 1fr}.ts-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* El juego en detalle (TechnicalStats.tsx): the game-analysis panel on the match page, the jugador page
+   and /stats. Its cards, segmented controls, fields, KPIs, legends and tables are the stats pages' own
+   (st-card, st-seg, st-field, st-kpis, st-legend, st-table, from st-base.css, which also gives the panel
+   its --st-* tokens); this sheet only lays out what is particular to it. The panel is its own container:
+   it reads the same in a page-wide pane and in the jugador page's grid. Ours is solid, the rival's
+   hatched, and every figure carries its words too: never colour alone. */
+
+.technical-stats {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 22px;
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+  color: var(--ink);
+}
+
+.technical-stats * {
+  min-width: 0;
+}
+
+.technical-stats :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ── head: title and the player picker ── */
+.ts-head,
+.ts-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.ts-title .st-h3 {
+  margin: 0;
+}
+
+.ts-player {
+  flex: 0 1 260px;
+}
+
+.ts-player select {
+  width: 100%;
+}
+
+/* (the stats pages' pills are 40 px tall; here every target is at least 44) */
+.technical-stats .st-seg button {
+  min-height: 44px;
+}
+
+/* ── coverage: one line that says what the numbers are ── */
+.ts-coverage {
+  display: grid;
+  gap: 6px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 14px 14px 0;
+  background: var(--st-card);
+}
+
+.ts-coverage p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--soft);
+}
+
+.ts-coverage b {
+  color: var(--ink);
+}
+
+/* ── KPIs: four, two by two on a phone ── */
+.technical-stats .ts-kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.technical-stats .ts-kpis dd small {
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.ts-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+}
+
+/* ── the passing network ── */
+.ts-network {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  color: var(--st-sky);
+}
+
+.ts-orbit {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: 0.15;
+  stroke-dasharray: 3 8;
+}
+
+.ts-node {
+  cursor: pointer;
+}
+
+.ts-node circle {
+  fill: var(--st-sky);
+  stroke: var(--bg);
+  stroke-width: 3;
+}
+
+.ts-node text {
+  fill: var(--bg);
+  font: 750 15px 'Anybody', sans-serif;
+}
+
+/* (the chosen one: a thicker gold ring, not only another colour) */
+.ts-node.selected circle,
+.ts-node:focus-visible circle {
+  stroke: var(--st-gold);
+  stroke-width: 5;
+}
+
+.ts-node:focus {
+  outline: none;
+}
+
+/* the tables scroll inside their own box, their head stays */
+.ts-scroll {
+  max-height: 440px;
+  overflow: auto;
+}
+
+.technical-stats caption {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.technical-stats .st-table th button {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ── shots: the map, the zones and the 5′ timeline ── */
+.ts-pitch {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+}
+
+.ts-pitch rect {
+  fill: rgba(108, 171, 221, 0.1);
+  stroke: var(--line);
+}
+
+.ts-pitch path {
+  fill: none;
+  stroke: var(--st-sky);
+  stroke-opacity: 0.3;
+}
+
+.ts-pitch .shot {
+  fill: var(--st-sky);
+}
+
+.ts-pitch .goal {
+  fill: var(--st-gold);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+}
+
+/* (the legend's marks: a goal is the bigger, ringed dot) */
+.technical-stats .st-legend i.ts-key-shot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--st-sky);
+}
+
+.technical-stats .st-legend i.ts-key-goal {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--st-gold);
+  box-shadow: inset 0 0 0 2px var(--bg);
+}
+
+.ts-zones {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+}
+
+.ts-zones > div {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--chip);
+}
+
+.ts-zones dt {
+  font-family: 'Geist Mono';
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ts-zones dd {
+  margin: 8px 0 0;
+  font: 800 25px 'Anybody', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-h4 {
+  margin: 0;
+  font-family: 'Geist Mono';
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ts-timeline {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  min-height: 100px;
+  overflow-x: auto;
+}
+
+.ts-timeline > div {
+  flex: 1;
+  min-width: 20px;
+  text-align: center;
+  font: 10px 'Geist Mono', monospace;
+}
+
+.ts-timeline i {
+  display: block;
+  margin: 5px 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--st-sky);
+}
+
+/* ── the families of numbers ── */
+.ts-families {
+  justify-self: start;
+}
+
+/* ── El Piti y el rival: ours solid, the rival's hatched ── */
+.ts-compare-nums {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-compare-nums span {
+  color: var(--soft);
+  text-align: center;
+}
+
+.ts-dual {
+  display: flex;
+  gap: 4px;
+  height: 6px;
+  margin-top: 7px;
+}
+
+.ts-dual i {
+  border-radius: 4px;
+}
+
+.ts-dual i.us {
+  background: var(--st-sky);
+}
+
+.ts-dual i.them {
+  background: repeating-linear-gradient(45deg, var(--st-them) 0 2px, transparent 2px 4px);
+  box-shadow: inset 0 0 0 1px var(--st-them);
+}
+
+/* ── Quién destaca ── */
+.ts-rank {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ts-rank button {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 13px 'Geist', sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ts-rank button[aria-pressed="true"] span {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.ts-rank i {
+  display: block;
+  height: 5px;
+  margin-right: auto;
+  border-radius: 5px;
+  background: var(--st-sky);
+}
+
+.ts-rank li:first-child i {
+  background: var(--st-gold);
+}
+
+/* ── the method, folded away ── */
+.ts-method {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.ts-method summary {
+  min-height: 44px;
+  line-height: 44px;
+  cursor: pointer;
+}
+
+.ts-method p {
+  margin: 10px 0;
+  line-height: 1.6;
+}
+
+@container (min-width: 700px) {
+  .technical-stats .ts-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 800px) {
+  .ts-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* (outside the stats pages nothing else stills the cards' reveal and the KPIs' entrance) */
+@media (prefers-reduced-motion: reduce) {
+  .technical-stats *,
+  .technical-stats *::before,
+  .technical-stats *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
