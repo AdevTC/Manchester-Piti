@@ -72,6 +72,21 @@ export function squadByPosition(players: readonly Pick<SquadNumbersInput, "id" |
 }
 /** «MC 3 · +2» (the «+N» of también only when there are some). */
 export const posCountText = (code: PosCode, n: PosCount): string => `${code} ${n.main}${n.also ? ` · +${n.also}` : ""}`;
+/** The legend's key, read from the data: the position with the most players (preferida + también; ties in
+ *  catalogue order), its chip and what its numbers mean, singular/plural right. Nobody placed yet: a
+ *  neutral, symbolic key. `pref`: its chip looks like a preferida one (gold) on the pitch. */
+export function posKey(byCode: Record<PosCode, PosCount>): { chip: string; text: string; pref: boolean } {
+  const code = POS_CODES.reduce<PosCode | null>((best, c) => {
+    const t = byCode[c].main + byCode[c].also;
+    return t > 0 && (!best || t > byCode[best].main + byCode[best].also) ? c : best;
+  }, null);
+  if (!code) return { chip: "POS n · +m", text: "n la tienen de preferida y m más la marcan en «también».", pref: true };
+  const { main, also } = byCode[code];
+  const tienen = main === 1 ? "la tiene" : "la tienen";
+  const marcan = also === 1 ? "la marca" : "la marcan";
+  const text = !main ? `Nadie la tiene de preferida; ${also} ${marcan} en «también».` : also ? `${main} ${tienen} de preferida y ${also} más ${marcan} en «también».` : `${main} ${tienen} de preferida.`;
+  return { chip: posCountText(code, byCode[code]), text, pref: main > 0 };
+}
 
 export interface Ad {
   id: "rival" | "player" | "patron";

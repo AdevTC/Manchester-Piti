@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "./clubData";
-import { classifieds, extraTrophies, historyTrain, mapsUrl, posCountText, squadByPosition, squadNumbers, sponsorWall } from "./club";
+import { classifieds, extraTrophies, historyTrain, mapsUrl, posCountText, posKey, squadByPosition, squadNumbers, sponsorWall } from "./club";
 
 const match = (id: string, day: number, status = "finished"): ClubMatch => ({ id, rival: "Accept", date: Date.UTC(2026, 8, day), status: status as ClubMatch["status"], goalsFor: 3, goalsAgainst: 2, events: [] });
 
@@ -103,5 +103,30 @@ describe("La plantilla por posiciones", () => {
     expect(posCountText("MI", { main: 0, also: 2 })).toBe("MI 0 · +2");
     expect(posCountText("POR", { main: 1, also: 0 })).toBe("POR 1");
     expect(posCountText("DC", { main: 0, also: 0 })).toBe("DC 0");
+  });
+});
+
+describe("La plantilla por posiciones · la clave", () => {
+  const counts = (over: Parameters<typeof squadByPosition>[0]) => squadByPosition(over).byCode;
+  it("usa la posición con más jugadores (preferida + también), con sus números de verdad, en plural", () => {
+    const k = posKey(counts([
+      { id: "a", positions: { main: "MC", also: [] } },
+      { id: "b", positions: { main: "MC", also: [] } },
+      { id: "c", positions: { main: "MC", also: [] } },
+      { id: "d", positions: { main: "DC", also: ["MC"] } },
+      { id: "e", positions: { main: "DC", also: ["MC"] } },
+    ]));
+    expect(k).toMatchObject({ chip: "MC 3 · +2", text: "3 la tienen de preferida y 2 más la marcan en «también»." });
+  });
+  it("en singular", () => {
+    const k = posKey(counts([{ id: "a", positions: { main: "MC", also: [] } }, { id: "b", positions: { main: "MCD", also: ["MC"] } }]));
+    expect(k).toMatchObject({ chip: "MC 1 · +1", text: "1 la tiene de preferida y 1 más la marca en «también»." });
+  });
+  it("empates en el orden del catálogo; sin «también» o sin preferida, la frase lo dice", () => {
+    expect(posKey(counts([{ id: "a", positions: { main: "DC", also: [] } }, { id: "b", positions: { main: "POR", also: [] } }]))).toMatchObject({ chip: "POR 1", text: "1 la tiene de preferida." });
+    expect(posKey(counts([{ id: "a", positions: { main: null, also: ["MI"] } }, { id: "b", positions: { main: null, also: ["MI"] } }]))).toMatchObject({ chip: "MI 0 · +2", text: "Nadie la tiene de preferida; 2 la marcan en «también».", pref: false });
+  });
+  it("nadie con posición: una clave neutra, simbólica", () => {
+    expect(posKey(counts([{ id: "a" }]))).toMatchObject({ chip: "POS n · +m", text: "n la tienen de preferida y m más la marcan en «también»." });
   });
 });

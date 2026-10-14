@@ -2,7 +2,7 @@
 // players of the season have it as their preferida and how many more list it in «también» («MC 3 · +2»),
 // and the ones without any position apart («Sin posición: N»). Read from each ficha (resolvePositions).
 import type { CSSProperties } from "react";
-import { posCountText, squadByPosition } from "../../lib/club";
+import { posCountText, posKey, squadByPosition } from "../../lib/club";
 import { POSITIONS, POS_CODES } from "../../lib/positions";
 import type { PlayerDoc } from "../../lib/schemas";
 
@@ -30,6 +30,7 @@ function Pitch() {
 export function PlantillaPosiciones({ players, seasonId, seasonName }: { players: readonly PlayerDoc[]; seasonId: string; seasonName: string }) {
   const active = players.filter((p) => p.seasons?.includes(seasonId) && p.active !== false);
   const { byCode, none, total } = squadByPosition(active);
+  const key = posKey(byCode);
   const most = Math.max(1, ...POS_CODES.map((c) => byCode[c].main + byCode[c].also));
   return (
     <section className="cl-sec cl-pp" aria-labelledby="cl-pos">
@@ -71,15 +72,14 @@ export function PlantillaPosiciones({ players, seasonId, seasonName }: { players
         </div>
         <div className="cl-pp-side">
           <p className="cl-pp-legend">
-            <span className="cl-pp-key" aria-hidden="true">
-              MC 3 · +2
+            <span className="cl-pp-key" data-also={key.pref ? undefined : ""} aria-hidden="true">
+              {key.chip}
             </span>
-            <span>
-              <b>3</b> la tienen de preferida y <b>2</b> más la marcan en «también».
-            </span>
+            <span>{key.text}</span>
           </p>
           <p className="cl-pp-none">
-            <b>Sin posición: {none}</b>
+            {/* «Sin posición: 0» would read oddly in the big heading: then the card says it the positive way */}
+            <b>{none ? `Sin posición: ${none}` : "Todos con posición"}</b>
             <span>{none ? `${none === 1 ? "Su ficha aún no dice" : "Sus fichas aún no dicen"} dónde juega${none === 1 ? "" : "n"}.` : "Todos tienen su sitio en el campo."}</span>
           </p>
           <p className="st-mono">

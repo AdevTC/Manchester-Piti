@@ -52,7 +52,23 @@ describe("La plantilla por posiciones", () => {
 
   it("the legend says what the numbers mean, in words", () => {
     view();
-    expect(screen.getByText(/la tienen de preferida/)).toBeInTheDocument();
+    // MC is the busiest position (3 + 2): the key reads its real numbers
+    expect(screen.getByText("MC 3 · +2", { selector: ".cl-pp-key" })).toBeInTheDocument();
+    expect(screen.getByText("3 la tienen de preferida y 2 más la marcan en «también».")).toBeInTheDocument();
     expect(screen.getAllByText(/«también»/).length).toBeGreaterThan(0);
+  });
+
+  it("the key follows the data (singular), never the example", () => {
+    render(<PlantillaPosiciones players={[p("a", { positions: { main: "MC", also: [] } }), p("b", { positions: { main: "MCD", also: ["MC"] } })]} seasonId="t1" seasonName="Temporada 1" />);
+    expect(screen.getByText("MC 1 · +1", { selector: ".cl-pp-key" })).toBeInTheDocument();
+    expect(screen.getByText("1 la tiene de preferida y 1 más la marca en «también».")).toBeInTheDocument();
+    expect(screen.queryByText("MC 3 · +2", { selector: ".cl-pp-key" })).not.toBeInTheDocument();
+  });
+
+  it("nobody without a position: the positive line, no big «0»", () => {
+    render(<PlantillaPosiciones players={[p("a", { positions: { main: "MC", also: [] } })]} seasonId="t1" seasonName="Temporada 1" />);
+    expect(screen.queryByText("Sin posición: 0")).not.toBeInTheDocument();
+    expect(screen.getByText("Todos con posición")).toBeInTheDocument();
+    expect(screen.getByText("Todos tienen su sitio en el campo.")).toBeInTheDocument();
   });
 });
