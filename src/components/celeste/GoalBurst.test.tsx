@@ -12,10 +12,10 @@ const clock = transitionClock(readyClock(), "start", T0);
 const goal = (id: string, minute: number, type: MatchEvent["type"] = "goal"): MatchEvent => ({ id, type, minute, elapsedSeconds: minute * 60 }) as MatchEvent;
 
 // The live board in miniature: the score tiles and the burst, driven by the hook as the pages do.
-function Board({ events, now }: { events: MatchEvent[]; now: number }) {
+function Board({ events, now, legacy = false }: { events: MatchEvent[]; now: number; legacy?: boolean }) {
   const gf = events.filter((e) => e.type === "goal").length;
   const ga = events.filter((e) => e.type === "opponent_goal").length;
-  const show = useGoalCelebration({ id: "m1", clock, events }, now);
+  const show = useGoalCelebration({ id: "m1", date: T0, duration: 50, ...(legacy ? {} : { clock }), events }, now);
   return (
     <div>
       <Flip value={gf} still={!show.flip} className="gf" />
@@ -72,4 +72,13 @@ it("the same goals coming back (a re-render, a snapshot repeating them) never ce
   const { container, rerender } = render(<Board events={events} now={T0 + 6 * MIN} />);
   rerender(<Board events={[...events]} now={T0 + 6 * MIN + 15_000} />);
   expect(burst(container)).toBeNull();
+});
+
+it("a match without a clock (legacy): a fresh goal celebrates, an old one arriving late does not", () => {
+  const { container, rerender } = render(<Board legacy events={[goal("g1", 3)]} now={T0 + 20 * MIN} />);
+  expect(burst(container)).toBeNull();
+  rerender(<Board legacy events={[goal("g1", 3), goal("g2", 8)]} now={T0 + 20 * MIN + 5_000} />);
+  expect(burst(container)).toBeNull();
+  rerender(<Board legacy events={[goal("g1", 3), goal("g2", 8), goal("g3", 19)]} now={T0 + 20 * MIN + 10_000} />);
+  expect(screen.getByText("¡GOL!")).toBeInTheDocument();
 });

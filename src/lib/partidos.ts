@@ -7,8 +7,9 @@ import type { ClubMatch } from "./clubData";
 
 export type Result = "G" | "E" | "P";
 export type Filter = "all" | "next" | "results";
-const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
-const THEIRS = new Set(["opponent_goal", "own_goal"]);
+/** Event types that count as a goal for us / against us (the score is read from them while a match is live). */
+export const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
+export const THEIRS = new Set(["opponent_goal", "own_goal"]);
 const TZ = "Europe/Madrid";
 
 const byDate = (a: ClubMatch, b: ClubMatch) => dateMillis(a.date) - dateMillis(b.date);
