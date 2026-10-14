@@ -37,6 +37,20 @@ export interface MatchEvent extends ActionDetails {
   inPlayerId?: string;
   note?: string;
 }
+/** The minute people read for `elapsedSeconds` of play, football's (1-based): 0:07 is the 1′, 19:30 the 20′.
+ *  With the clock stopped (half-time, the end) it is the minute reached: 25:00 is the 25′. */
+export function minuteOfPlay(elapsedSeconds: number, running = true): number {
+  const s = Math.max(0, elapsedSeconds);
+  return running ? Math.floor(s / 60) + 1 : Math.max(1, Math.ceil(s / 60));
+}
+
+/** An event's minute to SHOW: a live-stamped one (it has the clock's `elapsedSeconds`) in football's convention,
+ *  one typed in the acta as typed. Stored minutes never change. The web (src/lib/partidos) and the push
+ *  notices (pushLogic) read it the same way. */
+export function eventMinute(e: { minute?: number; elapsedSeconds?: number }): number | null {
+  if (typeof e.elapsedSeconds === "number") return minuteOfPlay(e.elapsedSeconds);
+  return typeof e.minute === "number" ? e.minute : null;
+}
 export type MatchStatus = "scheduled" | "finished" | "postponed" | "cancelled";
 export interface MatchSheet {
   id?: string;

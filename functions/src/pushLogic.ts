@@ -1,6 +1,7 @@
 // Pure rules of the push notices (functions/src/push.ts): which change of a match (or of the official
 // seven on the pizarra) deserves a notice, to which topic, and its words. Apart so the app's tests can
 // run them.
+import { eventMinute } from "./matchEngine.js";
 import { resultLetter, resultTitle } from "./result.js";
 
 export const TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"] as const;
@@ -47,6 +48,8 @@ interface Ev {
   id: string;
   type: string;
   minute?: number;
+  /** A live-stamped event's clock seconds (its minute is then the clock's 0-based one): shown via eventMinute. */
+  elapsedSeconds?: number;
   playerId?: string;
 }
 export interface MatchLike {
@@ -91,6 +94,12 @@ export function liveScore(events: Ev[] | undefined) {
 const when = (ms: number) =>
   new Intl.DateTimeFormat("es-ES", { timeZone: TZ, weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(ms).replace(".", "");
 
+/** The event's minute as people read it (eventMinute: a live-stamped one in football's 1-based minute), or "". */
+const minuteTxt = (e: Ev, fmt: (n: number) => string): string => {
+  const n = eventMinute(e);
+  return n == null ? "" : fmt(n);
+};
+
 const isGoal = (e: Ev) => OURS.has(e.type) || THEIRS.has(e.type);
 
 /**
@@ -120,7 +129,7 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
       const still = new Set((after.events ?? []).map((e) => e.id));
       for (const e of (before?.events ?? []).filter((x) => isGoal(x) && !still.has(x.id))) {
         const who = e.type === "opponent_own_goal" ? `el autogol de ${rival}` : OURS.has(e.type) ? (e.playerId ? `el gol de ${nameOf(e.playerId)}` : "el gol del Piti") : `el gol de ${rival}`;
-        out.push({ topic: "goals", title: `Gol anulado. ${gf}–${ga}`, body: `Se anula ${who}${e.minute != null ? ` (minuto ${e.minute})` : ""} · ${score}`, tag: `goal-${id}`, url, requires: `goal-${id}-${e.id}`, log: `goal-off-${id}-${e.id}` });
+        out.push({ topic: "goals", title: `Gol anulado. ${gf}–${ga}`, body: `Se anula ${who}${minuteTxt(e, (n) => ` (minuto ${n})`)} · ${score}`, tag: `goal-${id}`, url, requires: `goal-${id}-${e.id}`, log: `goal-off-${id}-${e.id}` });
       }
     }
     const seen = new Set((before?.events ?? []).map((e) => e.id));
@@ -134,7 +143,7 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
       out.push({
         topic: "goals",
         title: ours ? `¡GOL del Piti! ${gf}–${ga}` : `Gol de ${rival}. ${gf}–${ga}`,
-        body: `${who}${last.minute != null ? `, minuto ${last.minute}` : ""} · ${score}`,
+        body: `${who}${minuteTxt(last, (n) => `, minuto ${n}`)} · ${score}`,
         tag: `goal-${id}`,
         url,
         log: `goal-${id}-${last.id}`,

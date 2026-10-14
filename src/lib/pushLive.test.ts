@@ -70,6 +70,16 @@ describe("«Gol anulado»", () => {
     const legacy = { ...base, events: live.events };
     expect(noticesFor("j8", legacy, { ...legacy, events: [] }, nameOf, NOW).map((n) => n.log)).toEqual(["goal-off-j8-r1", "goal-off-j8-e1"]);
   });
+  it("a clock-stamped goal (0-based stored minute + elapsedSeconds) reads in football's minute, as on the web", () => {
+    // stored minute 18 at 18:30 of play = the 19′ (eventMinute); 0:20 of play = the 1′, never «minuto 0»
+    const stamped = { id: "s1", type: "goal", minute: 18, elapsedSeconds: 18 * 60 + 30, playerId: "e" };
+    const early = { id: "s0", type: "opponent_goal", minute: 0, elapsedSeconds: 20 };
+    const before = { ...live, events: [] };
+    expect(noticesFor("j8", before, { ...live, events: [stamped] }, nameOf, NOW)[0].body).toBe("ERIK, minuto 19 · Manchester Piti 1–0 MAD SKY");
+    expect(noticesFor("j8", before, { ...live, events: [early] }, nameOf, NOW)[0].body).toBe("MAD SKY, minuto 1 · Manchester Piti 0–1 MAD SKY");
+    expect(noticesFor("j8", { ...live, events: [stamped] }, before, nameOf, NOW)[0].body).toBe("Se anula el gol de ERIK (minuto 19) · Manchester Piti 0–0 MAD SKY");
+    expect(noticesFor("j8", { ...live, events: [early] }, before, nameOf, NOW)[0].body).toBe("Se anula el gol de MAD SKY (minuto 1) · Manchester Piti 0–0 MAD SKY");
+  });
   it("an edited goal (one gone, another in): the annulment, then the new goal", () => {
     const after = { ...live, events: [live.events[0], g("e2", 19, "a")] };
     expect(noticesFor("j8", live, after, nameOf, NOW).map((n) => [n.title, n.log])).toEqual([

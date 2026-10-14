@@ -2,7 +2,7 @@ import { clockReading } from "../../functions/src/matchClock";
 // Pure logic for the Partidos page (Celeste, "Noche de focos"): the season of one team as the page
 // tells it — the tile strip, the numbers, the next/live match and the calendar rows — plus the live
 // score read from the acta while a match is being played (goals are only stored once it's finished).
-import { dateMillis, EVENT_LABELS, isCompleted, matchPhase, type MatchEvent } from "../../functions/src/matchEngine";
+import { dateMillis, EVENT_LABELS, eventMinute, isCompleted, matchPhase, minuteOfPlay, type MatchEvent } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import { jornadas } from "./derived/jornada";
 import { resultLetter, type ResultLetter } from "./derived/result";
@@ -120,12 +120,8 @@ export function liveMinute(m: Pick<ClubMatch, "date" | "duration" | "clock">, no
   return Math.min(m.duration ?? 50, Math.floor((now - start) / 60_000) + 1);
 }
 
-/** The minute people read for `elapsedSeconds` of play, football's (1-based): 0:07 is the 1′, 19:30 the 20′.
- *  With the clock stopped (half-time, the end) it is the minute reached: 25:00 is the 25′. */
-export function minuteOfPlay(elapsedSeconds: number, running = true): number {
-  const s = Math.max(0, elapsedSeconds);
-  return running ? Math.floor(s / 60) + 1 : Math.max(1, Math.ceil(s / 60));
-}
+/** minuteOfPlay / eventMinute live in functions/src/matchEngine (the push notices read minutes the same way). */
+export { eventMinute, minuteOfPlay };
 
 /** The live minute to SHOW (the island, the boards, the admin LED): the clock's in football's convention, or for a
  *  match without a clock the schedule's (already 1-based, capped at its duration). Null when not live. */
@@ -134,13 +130,6 @@ export function shownMinute(m: Pick<ClubMatch, "date" | "duration" | "clock">, n
   if (m.clock.phase === "ready") return null;
   const r = clockReading(m.clock, now);
   return minuteOfPlay(r.elapsedSeconds, r.playing);
-}
-
-/** An event's minute to SHOW: a live-stamped one (it has the clock's `elapsedSeconds`) in football's convention,
- *  one typed in the acta as typed. Stored minutes never change. */
-export function eventMinute(e: Pick<MatchEvent, "minute" | "elapsedSeconds">): number | null {
-  if (typeof e.elapsedSeconds === "number") return minuteOfPlay(e.elapsedSeconds);
-  return typeof e.minute === "number" ? e.minute : null;
 }
 
 /** A cambio's minute to SHOW, from a ledger exchange (the acta's time: fractional when the clock stamped it):
