@@ -152,3 +152,91 @@ describe("MapaPosiciones · solo ver", () => {
     expect(container.querySelector(".pos-map")).toHaveClass("pos-map--s");
   });
 });
+
+describe("MapaPosiciones · ha jugado de", () => {
+  const played = { MCD: 320, MC: 140, DFC: 20, DC: 0.3 };
+
+  it("is read-only even with onChange: an image whose name says the minutes in words", () => {
+    render(<MapaPosiciones label="Dónde ha jugado Erik" value={set} played={played} onChange={() => {}} />);
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(
+      screen.getByRole("img", {
+        name: "Dónde ha jugado Erik. Ha jugado de Pivote (MCD), 320 minutos; Mediocentro (MC), 140 minutos; Central (DFC), 20 minutos. Preferida: Pivote (MCD). También: Mediocentro (MC), Central (DFC).",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("fills a disc per position played, «320′» under it, sized by √(minutes / max) from 28 to 52 px", () => {
+    const { container } = render(<MapaPosiciones label="Mapa" value={{ main: null, also: [] }} played={{ DC: 400, MCD: 100, LI: 4 }} />);
+    const spot = (c: string) => container.querySelector<HTMLElement>(`[data-code="${c}"]`)!;
+    expect(container.querySelector(".pos-map")).toHaveClass("pos-map--played");
+    expect(spot("DC")).toHaveAttribute("data-played");
+    expect(spot("DC").style.getPropertyValue("--_pos-d")).toBe("52");
+    expect(spot("MCD").style.getPropertyValue("--_pos-d")).toBe("40");
+    expect(spot("DC")).toHaveTextContent("DC400′");
+    expect(spot("MCD")).toHaveTextContent("MCD100′");
+    expect(spot("LI")).toHaveTextContent("LI4′");
+    // the order they pop in: most minutes first
+    expect(spot("DC").style.getPropertyValue("--_pos-i")).toBe("0");
+    expect(spot("LI").style.getPropertyValue("--_pos-i")).toBe("2");
+  });
+
+  it("keeps ★ on the preferida and ✓ on the también, with the minutes; no «PREF» tag", () => {
+    const { container } = render(<MapaPosiciones label="Mapa" value={set} played={played} />);
+    const spot = (c: string) => container.querySelector<HTMLElement>(`[data-code="${c}"]`)!;
+    expect(spot("MCD")).toHaveTextContent("MCD320′★");
+    expect(spot("MCD").querySelector(".pos-mark--pref")).toHaveTextContent("★");
+    expect(spot("MC").querySelector(".pos-mark")).toHaveTextContent("✓");
+    expect(spot("MC").querySelector(".pos-min")).toHaveTextContent("140′");
+    expect(container.querySelector(".pos-tag")).toBeNull();
+  });
+
+  it("leaves the positions he never played (or under 1′) dim: no disc, no minutes", () => {
+    const { container } = render(<MapaPosiciones label="Mapa" value={set} played={played} />);
+    for (const c of ["DC", "POR", "LI"]) {
+      const spot = container.querySelector<HTMLElement>(`[data-code="${c}"]`)!;
+      expect(spot).not.toHaveAttribute("data-played");
+      expect(spot.querySelector(".pos-min")).toBeNull();
+      expect(spot).toHaveTextContent(new RegExp(`^${c}$`));
+    }
+    expect(screen.queryByText("0′")).toBeNull();
+  });
+
+  it("leaves out the centre and penalty spots (they would peek out next to DC and POR)", () => {
+    const { container, rerender } = render(<MapaPosiciones label="Mapa" value={set} />);
+    expect(container.querySelector(".pos-points")).not.toBeNull();
+    rerender(<MapaPosiciones label="Mapa" value={set} played={played} />);
+    expect(container.querySelector(".pos-points")).toBeNull();
+    expect(container.querySelector(".pos-lines rect")).not.toBeNull();
+  });
+
+  it("separates the legend items with space, never a «·» that could start a wrapped line", () => {
+    const { container } = render(<MapaPosiciones label="Mapa" value={set} played={played} />);
+    const legend = container.querySelector(".pos-legend")!;
+    expect(legend.querySelectorAll(".pos-legend-item")).toHaveLength(3);
+    expect(legend.textContent).not.toContain("·");
+  });
+
+  it("summarises with playedSummary and adds a legend line for the disc size", () => {
+    render(<MapaPosiciones label="Mapa" value={set} played={played} />);
+    expect(screen.getByText("Pivote (MCD) 320′ · MC 140′ · DFC 20′")).toBeInTheDocument();
+    expect(screen.getByText(/Más grande, más minutos/)).toBeInTheDocument();
+  });
+
+  it("says «estimado» in words under the pitch, and in the image name", () => {
+    const { rerender } = render(<MapaPosiciones label="Mapa" value={set} played={played} />);
+    expect(screen.queryByText("Algunos minutos estimados por su posición preferida")).toBeNull();
+    rerender(<MapaPosiciones label="Mapa" value={set} played={played} estimated />);
+    expect(screen.getByText("Algunos minutos estimados por su posición preferida")).toBeInTheDocument();
+    expect(screen.getByRole("img").getAttribute("aria-label")).toMatch(/Algunos minutos estimados por su posición preferida\.$/);
+  });
+
+  it("without minutes: every spot dim, the explicit empty copy, no «estimado»", () => {
+    const { container } = render(<MapaPosiciones label="Mapa" value={set} played={{}} estimated />);
+    expect(container.querySelectorAll("[data-played]")).toHaveLength(0);
+    expect(screen.getByText("Aún sin minutos con posición")).toBeInTheDocument();
+    expect(screen.queryByText("Algunos minutos estimados por su posición preferida")).toBeNull();
+    expect(screen.getByRole("img", { name: /^Mapa\. Aún sin minutos con posición\. Preferida: Pivote \(MCD\)\./ })).toBeInTheDocument();
+  });
+});

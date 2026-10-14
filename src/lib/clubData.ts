@@ -24,6 +24,9 @@ export interface ClubMatch extends Omit<
   date?: unknown;
   events?: MatchEvent[];
   ledger?: Record<string, Participation>;
+  /** The official board's system when the acta was saved: a SYSTEM_IDS id, "libre" (free mode), or
+   *  null / absent without an official board. */
+  system?: string | null;
   /** setConvocatoria's stamps (ms): when the convocatoria last changed, when its notice last went. */
   convocatoriaAt?: number;
   convocatoriaNotifiedAt?: number;

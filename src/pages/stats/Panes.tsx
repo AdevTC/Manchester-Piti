@@ -89,7 +89,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
           <span id="st-sky-t" className="hm-sr">
             Conexiones de gol
           </span>
-          <Constellation rows={rows} links={links} nameOf={nameOf} />
+          <Constellation rows={rows} links={links} nameOf={nameOf} games={games} />
           <h3 className="st-h3">Conexiones de gol</h3>
           {links.length ? (
             <ol className="st-duos">

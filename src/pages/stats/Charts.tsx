@@ -38,9 +38,10 @@ export function ResultsChart({ games }: { games: ClubMatch[] }) {
   );
 }
 
-/** The squad as a star map: stars by position and G+A, assist lines drawn in, tap a star to follow it. */
-export function Constellation({ rows, links, nameOf, focus }: { rows: PlayerAnalysis[]; links: StarLink[]; nameOf: (p: PlayerAnalysis) => string; focus?: string }) {
-  const map = useMemo(() => constellation(rows, links), [rows, links]);
+/** The squad as a star map: stars by position and G+A, assist lines drawn in, tap a star to follow it.
+ *  With `games`, each star sits on the exact position he played most (else his preferida, else his line). */
+export function Constellation({ rows, links, nameOf, focus, games }: { rows: PlayerAnalysis[]; links: StarLink[]; nameOf: (p: PlayerAnalysis) => string; focus?: string; games?: ClubMatch[] }) {
+  const map = useMemo(() => constellation(rows, links, games), [rows, links, games]);
   const [picked, setPicked] = useState<string | null>(focus ?? null);
   const [run, setRun] = useState(0);
   if (!map.nodes.length) return <p className="st-empty">Aún no hay goles con asistencia en este período.</p>;

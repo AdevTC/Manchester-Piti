@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileView } from "./ProfileView";
+import type { PlayerPositions } from "../../lib/positionStats";
 import { fakeActions, heroCard, makeData, noIntro, root, setUrl, view } from "./testkit";
 
 // /profile «La carta» as a member drives it: no Firebase (the data and the callables are fakes), no
@@ -428,5 +429,72 @@ describe("Temporada", () => {
     setUrl("#temporada");
     view(makeData({ state: "sin-ficha" }));
     expect(screen.getByText(/Reclama tu ficha y aquí salen tus goles/)).toBeInTheDocument();
+  });
+});
+
+describe("Temporada › Dónde has jugado", () => {
+  const PLAYED: PlayerPositions = {
+    lines: [
+      { code: "MI", minutes: 320, matches: 5, goals: 1, assists: 2, yellowCards: 0, redCards: 0, rating: 70 },
+      { code: "MCD", minutes: 140, matches: 3, goals: 0, assists: 0, yellowCards: 0, redCards: 0, rating: 60 },
+    ],
+    minutes: 460,
+    estimatedMatches: 0,
+    matches: 6,
+    top: "MI",
+  };
+  const MINE = { approved: { main: "MCD" as const, also: ["MC" as const] }, proposal: null, state: "aprobada" as const, inSeason: true };
+  const section = () => screen.getByRole("heading", { name: "Dónde has jugado" }).closest(".bk") as HTMLElement;
+  const nudge = () => within(section()).queryByRole("button", { name: /Has jugado más de/ });
+
+  it("va justo después de «Tus números»: el mapa con sus minutos y la línea de resumen", () => {
+    noIntro();
+    setUrl("#temporada");
+    view(makeData({ played: PLAYED, positions: MINE }));
+    const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(headings.indexOf("Dónde has jugado")).toBe(headings.indexOf("Tus números") + 1);
+    expect(within(section()).getByText("Minutos por posición esta temporada.")).toBeInTheDocument();
+    expect(within(section()).getByRole("img", { name: /^Dónde has jugado en la Temporada 1\. Ha jugado de Interior izquierdo \(MI\)/ })).toBeInTheDocument();
+    expect(within(section()).getByText("Interior izquierdo (MI) 320′ · MCD 140′")).toBeInTheDocument();
+  });
+
+  it("sin minutos con posición: lo dice claro, sin filas «0′» ni empujón", () => {
+    noIntro();
+    setUrl("#temporada");
+    view(makeData({ positions: MINE }));
+    expect(within(section()).getByText("Aún sin minutos con posición")).toBeInTheDocument();
+    expect(section()).not.toHaveTextContent("0′");
+    expect(nudge()).not.toBeInTheDocument();
+  });
+
+  it("solo con la ficha vinculada", () => {
+    noIntro();
+    setUrl("#temporada");
+    const { unmount } = view(makeData({ state: "pendiente" }));
+    expect(screen.queryByRole("heading", { name: "Dónde has jugado" })).not.toBeInTheDocument();
+    unmount();
+    view(makeData({ state: "sin-ficha" }));
+    expect(screen.queryByRole("heading", { name: "Dónde has jugado" })).not.toBeInTheDocument();
+  });
+
+  it("el empujón cuando lo que más juega no es lo que tiene puesto; lleva a «Tus posiciones»", () => {
+    noIntro();
+    setUrl("#temporada");
+    view(makeData({ played: PLAYED, positions: MINE }));
+    const b = nudge();
+    expect(b).toHaveTextContent("Has jugado más de MI que de lo que tienes puesto. ¿Lo añades en Tus posiciones?");
+    fireEvent.click(b!);
+    expect(screen.getByRole("tab", { name: /Tu carta/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "Tus posiciones" })).toBeInTheDocument();
+  });
+
+  it("sin empujón si lo más jugado ya es su preferida o una de «también»", () => {
+    noIntro();
+    setUrl("#temporada");
+    const { unmount } = view(makeData({ played: PLAYED, positions: { ...MINE, approved: { main: "MI", also: [] } } }));
+    expect(nudge()).not.toBeInTheDocument();
+    unmount();
+    view(makeData({ played: PLAYED, positions: { ...MINE, approved: { main: "MCD", also: ["MI"] } } }));
+    expect(nudge()).not.toBeInTheDocument();
   });
 });

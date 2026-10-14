@@ -1,6 +1,7 @@
 import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 // Estadísticas (Celeste · "elegida"): the analyst's room with the stadium board on top — the Pichichi
-// race and the ticker — then six tabs (Resumen, Jugadores, Minutos, Rivales, Comparar, Explorar).
+// race and the ticker — then the tabs (Resumen, Jugadores, Análisis del juego, Minutos, Posiciones, Rivales,
+// Comparar, Explorar).
 // From the Design canvas "Estadísticas · elegida"; pure logic in lib/clubAnalytics.ts + lib/statsView.ts.
 import { useMemo } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
@@ -17,6 +18,7 @@ import { Icon } from "../../components/celeste/icons";
 import { RaceBoard, Ticker } from "./Race";
 import { Comparar, Jugadores, Minutos, Resumen, Rivales } from "./Panes";
 import { Explorar, type ExploreSection } from "./Explorar";
+import { Posiciones } from "./Posiciones";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
@@ -27,6 +29,7 @@ const VIEWS = {
   players: "Jugadores",
   game: "Análisis del juego",
   minutes: "Minutos",
+  positions: "Posiciones",
   rivals: "Rivales",
   compare: "Comparar",
   explore: "Explorar",
@@ -203,6 +206,7 @@ export function StatsPage() {
             {view === "summary" && <Resumen games={games} rows={rows} nameOf={nameOf} mvps={mvps} />}
             {view === "players" && <Jugadores rows={rows} nameOf={nameOf} />}
             {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} />}
+            {view === "positions" && <Posiciones games={games} rows={rows} nameOf={nameOf} />}
             {view === "rivals" && <Rivales games={games} rows={rows} />}
             {view === "compare" && <Comparar rows={rows} nameOf={nameOf} games={games.length} />}
             {view === "explore" && <Explorar rows={rows} games={games} section={section} onSection={setSection} nameOf={nameOf} />}

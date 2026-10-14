@@ -3,7 +3,7 @@
 // trophy room reuses clubMedals (lib/home.ts).
 import { ageOn } from "./clubAnalytics";
 import { dateMillis, isCompleted, type ClubMatch } from "./clubData";
-import { LINES, resolvePositions, type Line } from "./positions";
+import { LINES, LINE_NAMES, POS_CODES, resolvePositions, type Line, type PosCode } from "./positions";
 import type { ClubContent } from "./clubContentDefaults";
 import type { ClubMedal } from "./home";
 
@@ -49,6 +49,58 @@ export function squadNumbers(players: SquadNumbersInput[], today: Date) {
     averageAge: ages.length ? Math.round((ages.reduce((s, a) => s + a, 0) / ages.length) * 10) / 10 : null,
     agesKnown: ages.length,
   };
+}
+
+export interface PosCount {
+  /** Players whose preferida is this position. */
+  main: number;
+  /** Players who list it in «también». */
+  also: number;
+}
+/** The squad by exact position: per code, how many have it as their preferida and how many more list it in
+ *  «también»; `none` = players with no exact position (no preferida, no también), and `lineOnly` the line of
+ *  each of them whose old ficha still says one («Defensa»: resolvePositions gives the line, no code). */
+export function squadByPosition(players: readonly Pick<SquadNumbersInput, "id" | "naturalPosition" | "positions">[]): { byCode: Record<PosCode, PosCount>; none: number; lineOnly: Line[]; total: number } {
+  const byCode = Object.fromEntries(POS_CODES.map((c) => [c, { main: 0, also: 0 }])) as Record<PosCode, PosCount>;
+  let none = 0;
+  const lineOnly: Line[] = [];
+  for (const p of players) {
+    const r = resolvePositions(p);
+    if (r.main) byCode[r.main].main++;
+    for (const c of r.also) byCode[c].also++;
+    if (!r.main && !r.also.length) {
+      none++;
+      if (r.line) lineOnly.push(r.line);
+    }
+  }
+  return { byCode, none, lineOnly, total: players.length };
+}
+/** The «Sin posición exacta» card: its heading and sentence. A ficha that still says only its line is told
+ *  apart («(2 con solo su línea: defensa, medio)»), never as one that doesn't say where he plays. */
+export function noPositionText(none: number, lineOnly: readonly Line[]): { title: string; text: string } {
+  if (!none) return { title: "Todos con posición", text: "Todos tienen su sitio en el campo." };
+  const title = `Sin posición exacta: ${none}`;
+  if (!lineOnly.length) return { title, text: none === 1 ? "Su ficha aún no dice dónde juega." : "Sus fichas aún no dicen dónde juegan." };
+  const lines = LINES.filter((l) => lineOnly.includes(l)).map((l) => LINE_NAMES[l].short.toLocaleLowerCase("es"));
+  const blank = none - lineOnly.length;
+  return { title, text: `(${lineOnly.length} con solo su línea: ${lines.join(", ")})${blank > 0 ? ` · ${blank} aún sin posición en su ficha.` : ""}` };
+}
+/** «MC 3 · +2» (the «+N» of también only when there are some). */
+export const posCountText = (code: PosCode, n: PosCount): string => `${code} ${n.main}${n.also ? ` · +${n.also}` : ""}`;
+/** The legend's key, read from the data: the position with the most players (preferida + también; ties in
+ *  catalogue order), its chip and what its numbers mean, singular/plural right. Nobody placed yet: a
+ *  neutral, symbolic key. `pref`: its chip looks like a preferida one (gold) on the pitch. */
+export function posKey(byCode: Record<PosCode, PosCount>): { chip: string; text: string; pref: boolean } {
+  const code = POS_CODES.reduce<PosCode | null>((best, c) => {
+    const t = byCode[c].main + byCode[c].also;
+    return t > 0 && (!best || t > byCode[best].main + byCode[best].also) ? c : best;
+  }, null);
+  if (!code) return { chip: "POS n · +m", text: "n la tienen de preferida y m más la marcan en «también».", pref: true };
+  const { main, also } = byCode[code];
+  const tienen = main === 1 ? "la tiene" : "la tienen";
+  const marcan = also === 1 ? "la marca" : "la marcan";
+  const text = !main ? `Nadie la tiene de preferida; ${also} ${marcan} en «también».` : also ? `${main} ${tienen} de preferida y ${also} más ${marcan} en «también».` : `${main} ${tienen} de preferida.`;
+  return { chip: posCountText(code, byCode[code]), text, pref: main > 0 };
 }
 
 export interface Ad {

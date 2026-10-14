@@ -8,7 +8,7 @@ import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { formatDate, playerForSeason, playerName, useClubData, type ClubMatch } from "../../lib/clubData";
 import { analysePlayer, chronological, competitionRanks, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { computeStats } from "../../lib/playerStats";
-import { positionText } from "../../lib/positions";
+import { positionText, resolvePositions } from "../../lib/positions";
 import { collection, goalLinks, per50, radarAverage, radarScores, winRateWith } from "../../lib/statsView";
 import { bestPartner, mvpWinners, mvpWins, vitrina } from "../../lib/vestuario";
 import { shareClubPage } from "../../lib/share";
@@ -22,6 +22,7 @@ import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../.
 import { Icon } from "../../components/celeste/icons";
 import { Constellation, GoalClock, Radar } from "../stats/Charts";
 import { Cromo, type CromoFace } from "./Cromo";
+import { SusPosiciones } from "./SusPosiciones";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
@@ -72,6 +73,15 @@ export function JugadorPage() {
   const raw = players.find((x) => x.id === playerId);
   const p = raw ? playerForSeason(raw, selectedSeasonId, seasons) : undefined;
   const games = useMemo(() => chronological(matches.filter((m) => selectedSeasonId === "all" || m.seasonId === selectedSeasonId)), [matches, selectedSeasonId]);
+  // the MVP of a match, for the form by position (him when he shares the vote)
+  const mvpOf = useMemo(() => {
+    const byId = new Map(games.map((g) => [g.id, g]));
+    return (id: string) => {
+      const m = byId.get(id);
+      const won = m ? mvpWinners(m, results.get(id), now) : [];
+      return won.includes(playerId) ? playerId : (won[0] ?? null);
+    };
+  }, [games, results, now, playerId]);
   const squad = useMemo(
     () => players.filter((x) => selectedSeasonId === "all" || x.seasons?.includes(selectedSeasonId) || x.id === playerId).map((x) => analysePlayer(playerForSeason(x, selectedSeasonId, seasons), games)),
     [players, games, selectedSeasonId, seasons, playerId],
@@ -140,6 +150,7 @@ export function JugadorPage() {
   const assistRank = me.assists > 0 ? competitionRanks(squad, (x) => x.assists).get(p.id) : undefined;
   const badges = [goalRank === 1 && "PICHICHI", assistRank === 1 && "MÁX. ASISTENTE", mvps > 0 && `MVP ×${mvps}`].filter(Boolean) as string[];
   const position = positionText(p) ?? "Jugador";
+  const posSet = resolvePositions(p);
   const face: CromoFace = {
     name,
     num,
@@ -357,6 +368,8 @@ export function JugadorPage() {
             )}
           </section>
 
+          <SusPosiciones playerId={p.id} name={name} positions={{ main: posSet.main, also: posSet.also }} games={games} periodName={periodName} mvpOf={mvpOf} />
+
           <section className="st-card" aria-labelledby="jg-clock">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
@@ -378,7 +391,7 @@ export function JugadorPage() {
                 Su constelación
               </h2>
             </div>
-            <Constellation rows={squad} links={links} nameOf={nameOf} focus={links.some((l) => l.from === p.id || l.to === p.id) ? p.id : undefined} />
+            <Constellation rows={squad} links={links} nameOf={nameOf} games={games} focus={links.some((l) => l.from === p.id || l.to === p.id) ? p.id : undefined} />
             {partner && partnerRow && (
               <div className="jg-partner">
                 <span className="st-mono">Mejor socio</span>

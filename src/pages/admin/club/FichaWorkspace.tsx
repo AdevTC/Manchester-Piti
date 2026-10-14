@@ -22,6 +22,8 @@ import { MapaPosiciones } from "../../../components/posiciones/MapaPosiciones";
 import { summaryText } from "../../../components/posiciones/mapaNav";
 import { resolvePositions, sanitizePositions, type PositionSet } from "../../../lib/positions";
 import { proposalKey, proposalState } from "../../../lib/positionsEdit";
+import type { PlayerPositions } from "../../../lib/positionStats";
+import { PlayedEvidence } from "./PlayedEvidence";
 import { asPosition, checkPlayerForm, dorsalLine, formDirty, formFromPlayer, linkState, shirtNameError, type LiveCheck, type PlayerForm } from "./plantillaLogic";
 import { checkSanction, sanctionForm, untilLabel, type SanctionChoice, type SanctionForm } from "./sanctionLogic";
 
@@ -49,6 +51,8 @@ export interface FichaWorkspaceProps {
   phone: boolean;
   /** His positions from the map; `adjusted` = the captain's adjustment of his pending proposal. */
   onPositions: (set: PositionSet, adjusted: boolean) => void;
+  /** Where he really played (every season's actas): the captain's evidence next to his Posiciones. */
+  played?: PlayerPositions;
   /** His pending proposal: approved as it came, or rejected. */
   onReview: (kind: "aprobada" | "rechazada") => void;
   /** A captain is signed in (a review is signed with his uid): without one the review is off. */
@@ -329,6 +333,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
         </span>
       </p>
       <p className="ppn">Ahora: {summaryText(current)}</p>
+      <PlayedEvidence pos={props.played} />
       <div className="ppb">
         <button type="button" className="btn sm gold" onClick={() => review("aprobada")} disabled={off}>
           Aprobar
@@ -382,6 +387,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
         <>
           {adjustBar}
           {editor}
+          <PlayedEvidence pos={props.played} />
         </>
       )}
     </div>

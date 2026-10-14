@@ -11,6 +11,7 @@ import {
   monthYear,
   porraLine,
   positionsInfo,
+  positionsNudge,
   resolveShirt,
   seasonPlayers,
   squadShirts,
@@ -181,5 +182,28 @@ describe("Tus posiciones: lo que dice la ficha vinculada", () => {
   });
   it("«Enviar al capitán»: nunca con la ficha fuera de la temporada (el capitán no la vería)", () => {
     expect(canSendPositions({ main: "DC", also: [] }, { approved: { main: null, also: [] }, proposal: null, state: "ninguna", inSeason: false })).toBe(false);
+  });
+});
+
+describe("Dónde has jugado · el empujón a «Tus posiciones»", () => {
+  const info = (main: "MC" | "MCD" | null, also: ("MC" | "MI" | "DFC")[], extra: { proposal?: { main: "MI" | null; also: ("MI" | "MC")[] }; inSeason?: boolean } = {}) => ({
+    approved: { main, also },
+    proposal: extra.proposal ?? null,
+    state: extra.proposal ? ("pendiente" as const) : ("ninguna" as const),
+    inSeason: extra.inSeason ?? true,
+  });
+  it("solo cuando lo más jugado no es ni su preferida ni una de «también»", () => {
+    expect(positionsNudge({ top: "MI" }, info("MCD", ["MC"]))).toBe("MI");
+    expect(positionsNudge({ top: "MCD" }, info("MCD", ["MC"]))).toBeNull();
+    expect(positionsNudge({ top: "MC" }, info("MCD", ["MC"]))).toBeNull();
+    expect(positionsNudge({ top: "MI" }, info(null, []))).toBe("MI");
+  });
+  it("nada sin minutos, sin ficha, fuera de la temporada o si ya la propone", () => {
+    expect(positionsNudge({ top: null }, info("MCD", []))).toBeNull();
+    expect(positionsNudge(null, info("MCD", []))).toBeNull();
+    expect(positionsNudge({ top: "MI" }, null)).toBeNull();
+    expect(positionsNudge({ top: "MI" }, info("MCD", [], { inSeason: false }))).toBeNull();
+    expect(positionsNudge({ top: "MI" }, info("MCD", [], { proposal: { main: null, also: ["MI"] } }))).toBeNull();
+    expect(positionsNudge({ top: "MI" }, info("MCD", [], { proposal: { main: null, also: ["MC"] } }))).toBe("MI");
   });
 });

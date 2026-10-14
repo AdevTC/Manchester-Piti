@@ -74,6 +74,56 @@ describe("La constelación lee la posición con el resolutor", () => {
   });
 });
 
+describe("La constelación por posición exacta", () => {
+  // the same three matches, now with where each one played
+  const placed = games.map((m, i) => ({
+    ...m,
+    ledger: {
+      ...m.ledger,
+      ana: { ...m.ledger!.ana, positionsPlayed: { DC: 50 } },
+      bea: { ...m.ledger!.bea, positionsPlayed: i === 1 ? { MI: 25 } : { MI: 30, MC: 20 } },
+    },
+  }));
+  const star = (id: string, name: string, extra: object, ga: number) => ({ ...analysePlayer({ id, shirtName: name, ...extra }, placed), ga });
+
+  it("places each star at his most-played code, catalogue y mapped onto the sky", () => {
+    const { nodes } = constellation(rows, goalLinks(placed), placed);
+    const ana = nodes.find((n) => n.id === "ana")!, bea = nodes.find((n) => n.id === "bea")!;
+    // DC (50, 14) → near 18 at the top; MI (18, 46) on the left of the middle
+    expect([ana.x, ana.y]).toEqual([50, 18]);
+    expect(bea.x).toBe(18);
+    expect(bea.y).toBeCloseTo(18 + (32 * 72) / 79, 1);
+  });
+
+  it("without minutes, the preferida; without one, the line as before", () => {
+    const lat = star("lat", "LAT", { positions: { main: "LD", also: [] } }, 2);
+    const por = star("por", "POR", { positions: { main: "POR", also: [] } }, 1);
+    const def = star("def", "DEF", { naturalPosition: "Defensa" }, 1);
+    const { nodes } = constellation([lat, por, def], [], placed);
+    const at = (id: string) => nodes.find((n) => n.id === id)!;
+    expect([at("lat").x, at("lat").y]).toEqual([86, expect.closeTo(18 + (56 * 72) / 79, 1)]);
+    expect([at("por").x, at("por").y]).toEqual([50, 90]);
+    expect([at("def").x, at("def").y]).toEqual([50, 72]);
+  });
+
+  it("nudges stars on the same spot apart, the same way every time", () => {
+    const dcs = ["d1", "d2", "d3"].map((id, i) => star(id, id.toUpperCase(), { positions: { main: "DC", also: [] } }, 3 - i));
+    const a = constellation(dcs, [], placed).nodes;
+    const b = constellation([...dcs].reverse(), [], placed).nodes;
+    expect(a.find((n) => n.id === "d1")).toMatchObject({ x: 50, y: 18 });
+    const spots = new Set(a.map((n) => `${n.x},${n.y}`));
+    expect(spots.size).toBe(3);
+    expect(b.map((n) => [n.id, n.x, n.y]).sort()).toEqual(a.map((n) => [n.id, n.x, n.y]).sort());
+    for (const n of a) for (const o of a) if (n !== o) expect(Math.abs(n.x - o.x) >= 8 || Math.abs(n.y - o.y) >= 5).toBe(true);
+  });
+
+  it("without games it keeps today's rows by line", () => {
+    const { nodes } = constellation(rows, goalLinks(games));
+    expect(nodes.find((n) => n.id === "ana")!.y).toBe(18);
+    expect(nodes.find((n) => n.id === "bea")!.y).toBe(46);
+  });
+});
+
 describe("Radar, ritmo y porcentajes", () => {
   it("scores stay in 0–1 and the polygon has one point per axis", () => {
     const s = radarScores(rows[0], rows, games.length);

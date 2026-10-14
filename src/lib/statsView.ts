@@ -4,8 +4,11 @@
 // the finished matches already loaded (clubAnalytics' PlayerAnalysis rows), no extra reads.
 import type { ClubMatch } from "./clubData";
 import type { MatchEvent } from "../../functions/src/matchEngine";
-import { resolvePositions } from "./positions";
-import { competitionRanks, milestoneSteps, milestones, opponentInitials, teamAnalysis, type PlayerAnalysis } from "./clubAnalytics";
+import { POSITIONS, resolvePositions } from "./positions";
+import { playerPositions } from "./positionStats";
+import { competitionRanks, milestoneSteps, milestones, opponentInitials, teamAnalysis, type PlayerAnalysis, type StarLink } from "./clubAnalytics";
+// goalLinks lives with the analytics (the pizarra's ratings read it too, without importing this page's module)
+export { goalLinks, type StarLink } from "./clubAnalytics";
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
@@ -93,33 +96,44 @@ export interface StarNode {
   y: number;
   r: number;
 }
-export interface StarLink {
-  from: string;
-  to: string;
-  n: number;
-}
 const ZONE_Y: Record<string, number> = { DEL: 18, MED: 46, DEF: 72, POR: 90 };
-/** Assister → scorer pairs from the goal events. */
-export function goalLinks(games: ClubMatch[]): StarLink[] {
-  const count = new Map<string, StarLink>();
-  for (const m of games)
-    for (const e of m.events ?? [])
-      if (SCORED.has(e.type) && e.playerId && e.assistPlayerId) {
-        const k = e.assistPlayerId + ">" + e.playerId;
-        const l = count.get(k) ?? { from: e.assistPlayerId, to: e.playerId, n: 0 };
-        l.n++;
-        count.set(k, l);
-      }
-  return [...count.values()].sort((a, b) => b.n - a.n || a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
-}
-/** Players placed on a pitch-shaped sky by their position, sized by goals + assists. */
-export function constellation(rows: PlayerAnalysis[], links: StarLink[]) {
+/** The catalogue's y (0 = rival goal … 100 = ours) on the sky, the scale of ZONE_Y: DC 14 → 18, POR 93 → 90. */
+const skyY = (v: number) => Math.round((18 + ((v - 14) * 72) / 79) * 100) / 100;
+/** Two stars closer than this (in sky %) would overlap their labels. */
+const GAP_X = 8;
+const GAP_Y = 5;
+/** Where a star that lands on another tries next: rings around its spot, right before left, level first. */
+const NUDGES: [number, number][] = [[0, 0]];
+for (let ring = 1; ring <= 4; ring++)
+  for (const [dx, dy] of [[1, 0], [-1, 0], [1, 1], [-1, 1], [0, 1], [1, -1], [-1, -1], [0, -1]] as const) NUDGES.push([dx * 9 * ring, dy * 6 * ring]);
+const clampTo = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/** Players placed on a pitch-shaped sky by their position, sized by goals + assists. With `games`, each
+ *  star sits at his exact position: his most-played code there (playerPositions' top), else his
+ *  preferida, else his line; stars on the same spot are nudged apart (G+A desc, then name, decide who
+ *  keeps it). Without `games`, by line as always. */
+export function constellation(rows: PlayerAnalysis[], links: StarLink[], games?: ClubMatch[]) {
   const linked = new Set(links.flatMap((l) => [l.from, l.to]));
   const shown = rows.filter((p) => p.ga > 0 || linked.has(p.id));
+  const maxGa = Math.max(1, ...shown.map((p) => p.ga));
+  const size = (p: PlayerAnalysis) => 1.6 + 2.6 * Math.sqrt(p.ga / maxGa);
+  const keep = (nodes: StarNode[]) => ({ nodes, links: links.filter((l) => nodes.some((n) => n.id === l.from) && nodes.some((n) => n.id === l.to)) });
+  if (games) {
+    const nodes: StarNode[] = [];
+    const sorted = [...shown].sort((a, b) => b.ga - a.ga || nameOf(a).localeCompare(nameOf(b)) || a.id.localeCompare(b.id));
+    for (const p of sorted) {
+      const ps = resolvePositions(p);
+      const code = playerPositions(p.id, games).top ?? ps.main;
+      const [x0, y0] = code ? [POSITIONS[code].x, skyY(POSITIONS[code].y)] : [50, ZONE_Y[ps.line ?? "MED"]];
+      const free = (x: number, y: number) => nodes.every((n) => Math.abs(n.x - x) >= GAP_X || Math.abs(n.y - y) >= GAP_Y);
+      const spot = NUDGES.map(([dx, dy]) => [clampTo(x0 + dx, 6, 94), clampTo(y0 + dy, 6, 104)] as const).find(([x, y]) => free(x, y)) ?? [x0, y0];
+      nodes.push({ id: p.id, name: nameOf(p), number: p.number, ga: p.ga, x: spot[0], y: spot[1], r: size(p) });
+    }
+    return keep(nodes);
+  }
   const zone = (p: PlayerAnalysis) => resolvePositions(p).line ?? "MED";
   const byZone = new Map<string, PlayerAnalysis[]>();
   for (const p of shown) byZone.set(zone(p), [...(byZone.get(zone(p)) ?? []), p]);
-  const maxGa = Math.max(1, ...shown.map((p) => p.ga));
   const nodes: StarNode[] = [];
   for (const [z, ps] of byZone) {
     ps.sort((a, b) => b.ga - a.ga || nameOf(a).localeCompare(nameOf(b)));
@@ -134,10 +148,10 @@ export function constellation(rows: PlayerAnalysis[], links: StarLink[]) {
         ga: p.ga,
         x: 50 + (slot / span) * Math.min(38, 12 * span),
         y: ZONE_Y[z] + (Math.abs(slot) % 2 ? 6 : 0),
-        r: 1.6 + 2.6 * Math.sqrt(p.ga / maxGa),
+        r: size(p),
       });
   }
-  return { nodes, links: links.filter((l) => nodes.some((n) => n.id === l.from) && nodes.some((n) => n.id === l.to)) };
+  return keep(nodes);
 }
 
 // ---------- radar

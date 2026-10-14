@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "./clubData";
-import { classifieds, extraTrophies, historyTrain, mapsUrl, squadNumbers, sponsorWall } from "./club";
+import { classifieds, extraTrophies, historyTrain, mapsUrl, noPositionText, posCountText, posKey, squadByPosition, squadNumbers, sponsorWall } from "./club";
 
 const match = (id: string, day: number, status = "finished"): ClubMatch => ({ id, rival: "Accept", date: Date.UTC(2026, 8, day), status: status as ClubMatch["status"], goalsFor: 3, goalsAgainst: 2, events: [] });
 
@@ -75,5 +75,82 @@ describe("squadNumbers reads positions through the resolver", () => {
     const n = squadNumbers([{ id: "a", naturalPosition: "Portero" }, { id: "b", positions: { main: "LD", also: [] } }, { id: "c", naturalPosition: "Mediocentro" }, { id: "d" }], new Date("2026-10-13"));
     expect(n.byZone).toMatchObject({ POR: 1, DEF: 1, MED: 1, DEL: 0 });
     expect(n.other).toBe(1);
+  });
+});
+
+describe("La plantilla por posiciones", () => {
+  it("cuenta, por posición, cuántos la tienen de preferida y cuántos más en «también»", () => {
+    const s = squadByPosition([
+      { id: "a", positions: { main: "MC", also: ["MCD"] } },
+      { id: "b", positions: { main: "MC", also: [] } },
+      { id: "c", positions: { main: "MC", also: ["MI"] } },
+      { id: "d", positions: { main: "MCD", also: ["MC", "MI"] } },
+      { id: "e", positions: { main: null, also: ["MC"] } },
+      { id: "f", naturalPosition: "Portero" },
+      { id: "g" },
+      { id: "h", positions: { main: null, also: [] } },
+    ]);
+    expect(s.byCode.MC).toEqual({ main: 3, also: 2 });
+    expect(s.byCode.MCD).toEqual({ main: 1, also: 1 });
+    expect(s.byCode.MI).toEqual({ main: 0, also: 2 });
+    expect(s.byCode.POR).toEqual({ main: 1, also: 0 });
+    expect(s.byCode.DC).toEqual({ main: 0, also: 0 });
+    expect(s.none).toBe(2);
+    expect(s.lineOnly).toEqual([]);
+    expect(s.total).toBe(8);
+  });
+  it("«MC 3 · +2»: la preferida siempre; los de «también» solo si hay", () => {
+    expect(posCountText("MC", { main: 3, also: 2 })).toBe("MC 3 · +2");
+    expect(posCountText("MI", { main: 0, also: 2 })).toBe("MI 0 · +2");
+    expect(posCountText("POR", { main: 1, also: 0 })).toBe("POR 1");
+    expect(posCountText("DC", { main: 0, also: 0 })).toBe("DC 0");
+  });
+});
+
+describe("La plantilla por posiciones · la clave", () => {
+  const counts = (over: Parameters<typeof squadByPosition>[0]) => squadByPosition(over).byCode;
+  it("usa la posición con más jugadores (preferida + también), con sus números de verdad, en plural", () => {
+    const k = posKey(counts([
+      { id: "a", positions: { main: "MC", also: [] } },
+      { id: "b", positions: { main: "MC", also: [] } },
+      { id: "c", positions: { main: "MC", also: [] } },
+      { id: "d", positions: { main: "DC", also: ["MC"] } },
+      { id: "e", positions: { main: "DC", also: ["MC"] } },
+    ]));
+    expect(k).toMatchObject({ chip: "MC 3 · +2", text: "3 la tienen de preferida y 2 más la marcan en «también»." });
+  });
+  it("en singular", () => {
+    const k = posKey(counts([{ id: "a", positions: { main: "MC", also: [] } }, { id: "b", positions: { main: "MCD", also: ["MC"] } }]));
+    expect(k).toMatchObject({ chip: "MC 1 · +1", text: "1 la tiene de preferida y 1 más la marca en «también»." });
+  });
+  it("empates en el orden del catálogo; sin «también» o sin preferida, la frase lo dice", () => {
+    expect(posKey(counts([{ id: "a", positions: { main: "DC", also: [] } }, { id: "b", positions: { main: "POR", also: [] } }]))).toMatchObject({ chip: "POR 1", text: "1 la tiene de preferida." });
+    expect(posKey(counts([{ id: "a", positions: { main: null, also: ["MI"] } }, { id: "b", positions: { main: null, also: ["MI"] } }]))).toMatchObject({ chip: "MI 0 · +2", text: "Nadie la tiene de preferida; 2 la marcan en «también».", pref: false });
+  });
+  it("nadie con posición: una clave neutra, simbólica", () => {
+    expect(posKey(counts([{ id: "a" }]))).toMatchObject({ chip: "POS n · +m", text: "n la tienen de preferida y m más la marcan en «también»." });
+  });
+});
+
+describe("La plantilla por posiciones · sin posición exacta", () => {
+  it("una ficha antigua con solo su línea cuenta sin posición exacta, con su línea aparte", () => {
+    const s = squadByPosition([{ id: "a", naturalPosition: "Defensa" }, { id: "b", naturalPosition: "Medio" }, { id: "c", naturalPosition: "Defensa" }, { id: "d" }, { id: "e", positions: { main: "MC", also: [] } }]);
+    expect(s.none).toBe(4);
+    expect(s.lineOnly).toEqual(["DEF", "MED", "DEF"]);
+  });
+  it("sin nadie fuera: «Todos con posición»", () => {
+    expect(noPositionText(0, [])).toEqual({ title: "Todos con posición", text: "Todos tienen su sitio en el campo." });
+  });
+  it("sin nada en la ficha: singular y plural", () => {
+    expect(noPositionText(1, [])).toEqual({ title: "Sin posición exacta: 1", text: "Su ficha aún no dice dónde juega." });
+    expect(noPositionText(2, [])).toEqual({ title: "Sin posición exacta: 2", text: "Sus fichas aún no dicen dónde juegan." });
+  });
+  it("con solo su línea: nunca «no dice dónde juega» para ellos", () => {
+    const all = noPositionText(3, ["DEF", "MED", "DEF"]);
+    expect(all).toEqual({ title: "Sin posición exacta: 3", text: "(3 con solo su línea: defensa, medio)" });
+    expect(noPositionText(1, ["DEL"]).text).toBe("(1 con solo su línea: delantero)");
+    const mixed = noPositionText(3, ["POR"]);
+    expect(mixed.text).toBe("(1 con solo su línea: portero) · 2 aún sin posición en su ficha.");
+    expect(noPositionText(2, ["DEF"]).text).toBe("(1 con solo su línea: defensa) · 1 aún sin posición en su ficha.");
   });
 });

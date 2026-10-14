@@ -203,6 +203,32 @@
 .vx .cl-sponsors li.rent p{margin:0;font-size:14px;color:var(--soft)}
 .vx .cl-sponsors li.rent a{font-weight:700;text-decoration:none;color:var(--gold-ink)}
 
+/* «La plantilla por posiciones»: a night pitch (dark navy in both themes, like the positions map) with a chip
+   per position — «MC 3 · +2»: gold when somebody has it as his preferida, sky outline when only «también»,
+   dashed and dim when nobody; a soft halo grows with how many players it has. The numbers say it all in
+   words for screen readers (each chip's .hm-sr). Chips scale with the pitch (container units). */
+.cl-pp-in{display:grid;gap:18px;align-items:center}
+.cl-pp-pitch{position:relative;width:100%;max-width:360px;margin:0 auto;aspect-ratio:4/7;border-radius:22px;background:radial-gradient(90% 70% at 50% 30%,#13275a,#0b1636 60%,#060d24);box-shadow:inset 0 0 0 1px rgba(159,208,242,.22),0 18px 40px -24px rgba(6,13,36,.8);container-type:inline-size;overflow:hidden}
+.cl-pp-lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.cl-pp-lines g{stroke:rgba(214,230,255,.28);stroke-width:1.2}
+.cl-pp-spots{position:absolute;inset:0;margin:0;padding:0;list-style:none}
+/* each spot is a 0 × 0 point (no stacking context of its own), so every chip paints over every halo */
+.cl-pp-spot{position:absolute;width:0;height:0}
+.cl-pp-spot::before{content:"";position:absolute;left:0;top:0;z-index:0;width:22cqw;aspect-ratio:1;border-radius:50%;background:radial-gradient(closest-side,rgba(108,171,221,.38),transparent);transform:translate(-50%,-50%) scale(calc(.35 + var(--w,0) * .9));pointer-events:none}
+.cl-pp-spot[data-pref]::before{background:radial-gradient(closest-side,rgba(255,198,89,.42),transparent)}
+.cl-pp-spot[data-empty]::before{display:none}
+.cl-pp-chip{position:absolute;left:0;top:0;z-index:1;translate:-50% -50%;display:inline-flex;align-items:center;min-height:max(24px,7.4cqw);padding:0 max(7px,2.4cqw);border-radius:999px;background:rgba(11,22,54,.88);box-shadow:inset 0 0 0 1.5px #6CABDD;color:#eef4ff;font-family:'Geist Mono';font-weight:600;font-size:clamp(10.5px,3.6cqw,13px);line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums;animation:clPpPop .5s cubic-bezier(.34,1.56,.64,1) both}
+.cl-pp-spot[data-pref] .cl-pp-chip{background:#FFC659;box-shadow:0 0 14px rgba(255,198,89,.45);color:#0c1733;font-weight:700}
+.cl-pp-spot[data-empty] .cl-pp-chip{background:rgba(11,22,54,.6);box-shadow:none;border:1px dashed rgba(159,179,211,.6);color:#9fb3d3;font-weight:500}
+@keyframes clPpPop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+.cl-pp-side{display:grid;gap:12px;align-content:start}
+.cl-pp-legend{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;margin:0;padding:14px;border-radius:18px;background:var(--st-card);box-shadow:inset 0 0 0 1px var(--st-card-line);font-size:15px;line-height:1.45;color:var(--soft)}
+.cl-pp-legend b{color:var(--ink)}
+.cl-pp-key{display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border-radius:999px;background:#FFC659;color:#0c1733;font-family:'Geist Mono';font-weight:700;font-size:13px;white-space:nowrap}
+.cl-pp-key[data-also]{background:#0b1636;box-shadow:inset 0 0 0 1.5px #6CABDD;color:#eef4ff}
+.cl-pp-none{display:grid;gap:4px;margin:0;padding:14px;border-radius:18px;background:var(--st-card);box-shadow:inset 0 0 0 1px var(--st-card-line);font-size:14px;color:var(--soft)}
+.cl-pp-none b{font-family:'Anybody';font-weight:900;font-size:24px;line-height:1.05;color:var(--ink);font-variant-numeric:tabular-nums}
+
 /* ── tablet ── */
 @container st-page (min-width:700px){
 .cl-hero{padding:calc(104px + var(--isle,0px)) 40px 48px}
@@ -218,6 +244,8 @@
 .cl-ads{grid-template-columns:repeat(3,minmax(0,1fr))}
 .cl-gallery{columns:3 200px}
 .cl-story{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:32px;align-items:start}
+.cl-pp-in{grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:40px}
+.cl-pp-pitch{margin:0}
 .cl-h2{font-size:36px}
 }
 /* ── desktop ── */

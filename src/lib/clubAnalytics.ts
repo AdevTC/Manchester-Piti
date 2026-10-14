@@ -303,3 +303,24 @@ export function ageOn(
     age--;
   return age >= 0 && age < 110 ? age : null;
 }
+
+// ---------- assists (the constellation and the pizarra's química)
+const SCORED = new Set(["goal", "goal_penalty", "goal_freekick"]);
+export interface StarLink {
+  from: string;
+  to: string;
+  n: number;
+}
+/** Assister → scorer pairs from the goal events. */
+export function goalLinks(games: ClubMatch[]): StarLink[] {
+  const count = new Map<string, StarLink>();
+  for (const m of games)
+    for (const e of m.events ?? [])
+      if (SCORED.has(e.type) && e.playerId && e.assistPlayerId) {
+        const k = e.assistPlayerId + ">" + e.playerId;
+        const l = count.get(k) ?? { from: e.assistPlayerId, to: e.playerId, n: 0 };
+        l.n++;
+        count.set(k, l);
+      }
+  return [...count.values()].sort((a, b) => b.n - a.n || a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+}

@@ -2,6 +2,7 @@
 import { render } from "@testing-library/react";
 import { vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
+import type { PlayerPositions } from "../../lib/positionStats";
 import type { DoorRequestRow } from "../vestuario/live";
 import type { SquadPlayer } from "../pizarra/v2/ratings";
 import { buildCard, type FichaState } from "./card";
@@ -22,7 +23,10 @@ export function doorRow(i: number, extra: Partial<DoorRequestRow> = {}): DoorReq
   return { uid: "r" + i, status: "pending", googleName: "Google " + i, email: `r${i}@example.com`, photo: "", playerId: null, playerName: null, name: "Socio " + i, at: 400 * DAY - (i + 1) * 3_600_000, ...extra };
 }
 
-export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?: boolean; started?: boolean; playerId?: string | null; doors?: number | DoorRequestRow[]; positions?: PositionsInfo | null } = {}): ProfileData {
+/** «Dónde has jugado» with nothing yet (a linked player's default). */
+export const NO_PLAYED: PlayerPositions = { lines: [], minutes: 0, estimatedMatches: 0, matches: 0, top: null };
+
+export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?: boolean; started?: boolean; playerId?: string | null; doors?: number | DoorRequestRow[]; positions?: PositionsInfo | null; played?: PlayerPositions | null } = {}): ProfileData {
   const state = o.state ?? "vinculada";
   const playerId = o.playerId !== undefined ? o.playerId : state === "sin-ficha" ? null : state === "pendiente" ? "erik" : "adri";
   const card = buildCard({
@@ -54,6 +58,7 @@ export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?
     shirt: { current: state === "vinculada" ? "ADRI" : "", number: state === "vinculada" ? "10" : "", squad: SQUAD.map((p) => ({ id: p.id, name: p.shirtName, number: p.number })), fullName: "Adrián Tello" },
     card,
     positions: o.positions !== undefined ? o.positions : state === "vinculada" ? { approved: { main: null, also: [] }, proposal: null, state: "ninguna", inSeason: true } : null,
+    played: o.played !== undefined ? o.played : state === "vinculada" ? NO_PLAYED : null,
     freeFichas: [{ id: "illescas", name: "ILLESCAS", number: "4", posLong: "Defensa", rating: 60 }],
     next: null,
     upcoming: [],

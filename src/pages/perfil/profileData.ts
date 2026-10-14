@@ -3,7 +3,7 @@
 import { isCompleted } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../lib/clubData";
 import type { PlayerDoc } from "../../lib/schemas";
-import { resolvePositions, sanitizePositions, type PositionSet } from "../../lib/positions";
+import { resolvePositions, sanitizePositions, type PosCode, type PositionSet } from "../../lib/positions";
 import { proposalDiff, proposalState, type ProposalState } from "../../lib/positionsEdit";
 import { porraPosition } from "../../lib/vestuario";
 import type { SquadPlayer } from "../pizarra/v2/ratings";
@@ -99,6 +99,16 @@ const samePositions = (a: PositionSet, b: PositionSet): boolean => {
   const d = proposalDiff(a, b);
   return !d.added.length && !d.removed.length && !d.mainChange;
 };
+/** «Dónde has jugado»: the position he played most this season when it is neither his preferida nor one
+ *  of his «también» (the nudge to add it in «Tus posiciones»); null otherwise — no minutes yet, no ficha,
+ *  a ficha out of the season (he could not send it) or a pending proposal that already has it. */
+export function positionsNudge(played: { top: PosCode | null } | null, info: PositionsInfo | null): PosCode | null {
+  const top = played?.top ?? null;
+  if (!top || !info || !info.inSeason) return null;
+  if (info.approved.main === top || info.approved.also.includes(top)) return null;
+  if (info.proposal && (info.proposal.main === top || info.proposal.also.includes(top))) return null;
+  return top;
+}
 /** «Enviar al capitán»: a ficha of this season, something marked, and not what the ficha already says nor what is already pending. */
 export function canSendPositions(draft: PositionSet, info: PositionsInfo): boolean {
   if (!info.inSeason || (!draft.main && !draft.also.length)) return false;

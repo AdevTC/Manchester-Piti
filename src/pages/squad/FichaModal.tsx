@@ -1,5 +1,5 @@
 import { pct } from "../../lib/technicalAnalysis";
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
@@ -8,6 +8,11 @@ import { Icon } from "../../components/celeste/icons";
 import { ShirtBack } from "../../components/celeste/ShirtBack";
 import { useFocusTrap } from "../pizarra/useFocusTrap";
 import { formatHeight, missingText, type SquadRow } from "../../lib/squad";
+import type { ClubMatch } from "../../lib/clubData";
+import type { PositionSet } from "../../lib/positions";
+import { playerPositions } from "../../lib/positionStats";
+import { PosMap, PosTable } from "./FichaPosiciones";
+import { useDesk } from "./useDesk";
 import { shareClubPage } from "../../lib/share";
 import { VT_SHIRT } from "./Percha";
 
@@ -21,7 +26,15 @@ interface Props {
   onClose: () => void;
   onStep: (dir: 1 | -1) => void;
   onCompare: () => void;
+  /** The finished and pending matches of the season the ficha shows (for «Posiciones»). */
+  games?: ClubMatch[];
+  /** His positions (preferida + también) for the map. */
+  positions?: PositionSet;
 }
+
+const NO_GAMES: ClubMatch[] = [];
+const NO_POSITIONS: PositionSet = { main: null, also: [] };
+type Tab = "ficha" | "temporada" | "posiciones";
 
 /** Long names shrink with their longest word so they never overflow the column. */
 function nameFit(name: string): CSSProperties {
@@ -30,11 +43,14 @@ function nameFit(name: string): CSSProperties {
 }
 
 /** The player's ficha over the page: the shirt flies in from the rail and turns into the 3D kit. */
-export function FichaModal({ row, still, seasonName, withStats, kit, theme, onClose, onStep, onCompare }: Props) {
+export function FichaModal({ row, still, seasonName, withStats, kit, theme, onClose, onStep, onCompare, games = NO_GAMES, positions = NO_POSITIONS }: Props) {
   const panel = useRef<HTMLDivElement>(null);
   const shirt = useRef<Jersey3DRef>(null);
-  const [tab, setTab] = useState<"ficha" | "temporada">("ficha");
+  const [tab, setTab] = useState<Tab>("ficha");
   const [shared, setShared] = useState(false);
+  const desk = useDesk();
+  const pos = useMemo(() => playerPositions(row.id, games), [row.id, games]);
+  const mapOnStage = desk && tab === "posiciones";
   useFocusTrap(panel, onClose);
   // The page behind stays put while the ficha is open.
   useEffect(() => {
@@ -68,23 +84,30 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
           <div className="still" style={{ viewTransitionName: VT_SHIRT }}>
             {still ? <img src={still} alt="" draggable={false} /> : <ShirtBack name={row.name} num={row.num} />}
           </div>
-          <Jersey3D
-            ref={shirt}
-            className="sq-shirt3d"
-            kit={kit}
-            theme={theme}
-            name={row.name.toUpperCase()}
-            num={row.num}
-            zoom={STILL.zoom}
-            lift={STILL.lift}
-            reveal={false}
-            flip
-            label={`Camiseta de ${row.name}, dorsal ${row.num}. Arrástrala o usa las flechas para girarla.`}
-          />
-          <span className="cap">{kit === "home" ? "1ª" : "2ª"} equipación · arrástrala</span>
-          <button type="button" className="sq-round turn" onClick={() => shirt.current?.turn()} aria-label="Girar la camiseta">
-            <Icon name="turn" size={19} />
-          </button>
+          {/* under the map (desktop «Posiciones») the shirt is out of reach: not focusable, not announced, no arrow keys */}
+          <div className="sq-shirt-slot" inert={mapOnStage}>
+            <Jersey3D
+              ref={shirt}
+              className="sq-shirt3d"
+              kit={kit}
+              theme={theme}
+              name={row.name.toUpperCase()}
+              num={row.num}
+              zoom={STILL.zoom}
+              lift={STILL.lift}
+              reveal={false}
+              flip
+              label={`Camiseta de ${row.name}, dorsal ${row.num}. Arrástrala o usa las flechas para girarla.`}
+            />
+          </div>
+          {!mapOnStage && (
+            <>
+              <span className="cap">{kit === "home" ? "1ª" : "2ª"} equipación · arrástrala</span>
+              <button type="button" className="sq-round turn" onClick={() => shirt.current?.turn()} aria-label="Girar la camiseta">
+                <Icon name="turn" size={19} />
+              </button>
+            </>
+          )}
           <button type="button" className="sq-round nav l" onClick={() => onStep(-1)} aria-label="Jugador anterior">
             <Icon name="left" size={18} stroke={2.2} />
           </button>
@@ -92,6 +115,11 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
             <Icon name="right" size={18} stroke={2.2} />
           </button>
         </div>
+        {mapOnStage && (
+          <div className="sq-pos-stage" key={`pos-${row.id}`}>
+            <PosMap name={row.name} seasonName={seasonName} positions={positions} pos={pos} />
+          </div>
+        )}
         <div className="sq-info" key={row.id}>
           <div className="sq-tag" style={{ "--d": ".05s" } as CSSProperties}>
             <span className="d">{row.num}</span>
@@ -111,8 +139,17 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
             <button type="button" role="tab" id="sq-tab-ficha" aria-selected={tab === "ficha"} aria-controls="sq-panel" onClick={() => setTab("ficha")}>
               Ficha
             </button>
-            <button type="button" role="tab" id="sq-tab-temporada" aria-selected={tab === "temporada"} aria-controls="sq-panel" onClick={() => setTab("temporada")}>
-              {seasonName}
+            <button type="button" role="tab" id="sq-tab-temporada" aria-label={seasonName} aria-selected={tab === "temporada"} aria-controls="sq-panel" onClick={() => setTab("temporada")}>
+              {/* the full name, or «Temporada» where three tabs would truncate it (squad.css) */}
+              <span className="lg" aria-hidden="true">
+                {seasonName}
+              </span>
+              <span className="sh" aria-hidden="true">
+                Temporada
+              </span>
+            </button>
+            <button type="button" role="tab" id="sq-tab-posiciones" aria-selected={tab === "posiciones"} aria-controls="sq-panel" onClick={() => setTab("posiciones")}>
+              Posiciones
             </button>
           </div>
           <div id="sq-panel" role="tabpanel" aria-labelledby={`sq-tab-${tab}`} className="sq-panel" style={{ "--d": ".22s" } as CSSProperties}>
@@ -166,6 +203,15 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
                   </p>
                 )}
               </>
+            ) : tab === "posiciones" ? (
+              <div className="sq-pos">
+                {!desk && (
+                  <div className="sq-pos-pitch">
+                    <PosMap name={row.name} seasonName={seasonName} positions={positions} pos={pos} />
+                  </div>
+                )}
+                <PosTable seasonName={seasonName} pos={pos} />
+              </div>
             ) : (
               <div className={`sq-season${withStats ? "" : " ph"}`}>
                 <div className="row">
