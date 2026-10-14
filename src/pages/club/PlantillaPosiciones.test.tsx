@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { PlayerDoc } from "../../lib/schemas";
 import { PlantillaPosiciones } from "./PlantillaPosiciones";
 
-// /club «La plantilla por posiciones»: per exact position, how many active players of the season have it as
-// their preferida and how many more list it in «también»; the ones without any position apart.
+// /club «La plantilla por posiciones»: per exact position, how many players of the season (the same squad as
+// «La plantilla en números») have it as their preferida and how many more list it in «también»; the ones
+// without an exact position apart (legacy fichas with only a line said as such).
 
 const p = (id: string, extra: Partial<PlayerDoc> = {}): PlayerDoc => ({ id, seasons: ["t1"], ...extra });
 const SQUAD: PlayerDoc[] = [
@@ -15,13 +16,9 @@ const SQUAD: PlayerDoc[] = [
   p("e", { positions: { main: "DFC", also: ["MC"] } }),
   p("f"),
   p("g", { naturalPosition: "" }),
-  // not counted: inactive, or from another season
-  p("x", { active: false, positions: { main: "MC", also: [] } }),
-  p("y", { seasons: ["t0"], positions: { main: "MC", also: [] } }),
-  p("z", { active: false }),
 ];
 
-const view = () => render(<PlantillaPosiciones players={SQUAD} seasonId="t1" seasonName="Temporada 1" />);
+const view = (squad: PlayerDoc[] = SQUAD) => render(<PlantillaPosiciones squad={squad} seasonName="Temporada 1" />);
 
 describe("La plantilla por posiciones", () => {
   it("is a club section with its heading", () => {
@@ -30,7 +27,7 @@ describe("La plantilla por posiciones", () => {
     expect(screen.getByRole("region", { name: "La plantilla por posiciones" })).toBeInTheDocument();
   });
 
-  it("«MC 3 · +2»: preferida and también, active players of the season only", () => {
+  it("«MC 3 · +2»: preferida and también, over the squad it is given", () => {
     view();
     const list = screen.getByRole("list", { name: /Temporada 1/ });
     const items = within(list).getAllByRole("listitem");
@@ -45,9 +42,22 @@ describe("La plantilla por posiciones", () => {
     expect(dc).toHaveAttribute("data-empty");
   });
 
-  it("«Sin posición: N» counts the active players without any position", () => {
+  it("«Sin posición exacta: N» counts the players without an exact position", () => {
     view();
-    expect(screen.getByText("Sin posición: 2")).toBeInTheDocument();
+    expect(screen.getByText("Sin posición exacta: 2")).toBeInTheDocument();
+    expect(screen.getByText("Sus fichas aún no dicen dónde juegan.")).toBeInTheDocument();
+  });
+
+  it("a legacy ficha with only its line: counted apart, never «no dice dónde juega»", () => {
+    view([...SQUAD, p("old", { naturalPosition: "Defensa" })]);
+    expect(screen.getByText("Sin posición exacta: 3")).toBeInTheDocument();
+    expect(screen.getByText("(1 con solo su línea: defensa) · 2 aún sin posición en su ficha.")).toBeInTheDocument();
+    expect(screen.queryByText(/no dicen? dónde juega/)).not.toBeInTheDocument();
+  });
+
+  it("the footer counts the squad of the season", () => {
+    view();
+    expect(screen.getByText(/^7 jugadores de la temporada/)).toBeInTheDocument();
   });
 
   it("the legend says what the numbers mean, in words", () => {
@@ -59,14 +69,14 @@ describe("La plantilla por posiciones", () => {
   });
 
   it("the key follows the data (singular), never the example", () => {
-    render(<PlantillaPosiciones players={[p("a", { positions: { main: "MC", also: [] } }), p("b", { positions: { main: "MCD", also: ["MC"] } })]} seasonId="t1" seasonName="Temporada 1" />);
+    view([p("a", { positions: { main: "MC", also: [] } }), p("b", { positions: { main: "MCD", also: ["MC"] } })]);
     expect(screen.getByText("MC 1 · +1", { selector: ".cl-pp-key" })).toBeInTheDocument();
     expect(screen.getByText("1 la tiene de preferida y 1 más la marca en «también».")).toBeInTheDocument();
     expect(screen.queryByText("MC 3 · +2", { selector: ".cl-pp-key" })).not.toBeInTheDocument();
   });
 
   it("nobody without a position: the positive line, no big «0»", () => {
-    render(<PlantillaPosiciones players={[p("a", { positions: { main: "MC", also: [] } })]} seasonId="t1" seasonName="Temporada 1" />);
+    view([p("a", { positions: { main: "MC", also: [] } })]);
     expect(screen.queryByText("Sin posición: 0")).not.toBeInTheDocument();
     expect(screen.getByText("Todos con posición")).toBeInTheDocument();
     expect(screen.getByText("Todos tienen su sitio en el campo.")).toBeInTheDocument();

@@ -348,7 +348,7 @@ export function ClubPage() {
           {nums.other > 0 && <p className="st-mono">{nums.other === 1 ? "1 jugador" : `${nums.other} jugadores`} aún sin posición en su ficha.</p>}
         </section>
 
-        <PlantillaPosiciones players={players} seasonId={seasonId} seasonName={season?.name ?? "La plantilla"} />
+        <PlantillaPosiciones squad={inSeason} seasonName={season?.name ?? "La plantilla"} />
 
         <section className="cl-sec cl-barrio" aria-labelledby="cl-ground">
           <div className="cl-map" aria-hidden="true">

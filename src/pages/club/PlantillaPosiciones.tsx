@@ -1,10 +1,10 @@
-// /club «La plantilla por posiciones»: a small night pitch with the 13 positions, each with how many active
-// players of the season have it as their preferida and how many more list it in «también» («MC 3 · +2»),
-// and the ones without any position apart («Sin posición: N»). Read from each ficha (resolvePositions).
+// /club «La plantilla por posiciones»: a small night pitch with the 13 positions, each with how many players
+// of the season — the same squad «La plantilla en números» counts — have it as their preferida and how many
+// more list it in «también» («MC 3 · +2»), and the ones without an exact position apart («Sin posición
+// exacta: N», old fichas with only a line said as such). Read from each ficha (resolvePositions).
 import type { CSSProperties } from "react";
-import { posCountText, posKey, squadByPosition } from "../../lib/club";
+import { noPositionText, posCountText, posKey, squadByPosition, type SquadNumbersInput } from "../../lib/club";
 import { POSITIONS, POS_CODES } from "../../lib/positions";
-import type { PlayerDoc } from "../../lib/schemas";
 
 /** Where a chip goes, and `--w` (0–1: how many players it has against the busiest position) for its halo. */
 const spotStyle = (x: number, y: number, w: number): CSSProperties & Record<`--${string}`, string> => ({ left: `${x}%`, top: `${y}%`, "--w": w.toFixed(2) });
@@ -27,9 +27,9 @@ function Pitch() {
   );
 }
 
-export function PlantillaPosiciones({ players, seasonId, seasonName }: { players: readonly PlayerDoc[]; seasonId: string; seasonName: string }) {
-  const active = players.filter((p) => p.seasons?.includes(seasonId) && p.active !== false);
-  const { byCode, none, total } = squadByPosition(active);
+export function PlantillaPosiciones({ squad, seasonName }: { squad: readonly SquadNumbersInput[]; seasonName: string }) {
+  const { byCode, none, lineOnly, total } = squadByPosition(squad);
+  const noPos = noPositionText(none, lineOnly);
   const key = posKey(byCode);
   const most = Math.max(1, ...POS_CODES.map((c) => byCode[c].main + byCode[c].also));
   return (
@@ -78,12 +78,11 @@ export function PlantillaPosiciones({ players, seasonId, seasonName }: { players
             <span>{key.text}</span>
           </p>
           <p className="cl-pp-none">
-            {/* «Sin posición: 0» would read oddly in the big heading: then the card says it the positive way */}
-            <b>{none ? `Sin posición: ${none}` : "Todos con posición"}</b>
-            <span>{none ? `${none === 1 ? "Su ficha aún no dice" : "Sus fichas aún no dicen"} dónde juega${none === 1 ? "" : "n"}.` : "Todos tienen su sitio en el campo."}</span>
+            <b>{noPos.title}</b>
+            <span>{noPos.text}</span>
           </p>
           <p className="st-mono">
-            {jugadores(total)} en activo · cada uno marca su preferida y las demás donde también juega; el capitán lo confirma.
+            {jugadores(total)} de la temporada · cada uno marca su preferida y las demás donde también juega; el capitán lo confirma.
           </p>
         </div>
       </div>

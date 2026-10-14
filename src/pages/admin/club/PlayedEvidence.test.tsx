@@ -14,12 +14,14 @@ describe("Ha jugado de (admin)", () => {
     expect(evidenceText(pos([line("MC", 320.4), line("MCD", 139.6)]))).toBe("Ha jugado de: MC 320′ · MCD 140′");
     render(<PlayedEvidence pos={pos([line("MC", 320), line("MCD", 140)])} />);
     expect(screen.getByText("Ha jugado de:")).toBeInTheDocument();
-    expect(screen.getByText("Ha jugado de:").closest("p")).toHaveTextContent("Ha jugado de: MC 320′ · MCD 140′");
+    // (each code's name is in the text too, visually hidden)
+    expect(screen.getByText("Ha jugado de:").closest("p")).toHaveTextContent("Ha jugado de: MC (Mediocentro) 320′ · MCD (Pivote) 140′");
   });
 
-  it("each code carries its full name for assistive tech and on hover", () => {
-    render(<PlayedEvidence pos={pos([line("MCD", 140)])} />);
-    expect(screen.getByTitle("Pivote")).toHaveTextContent("MCD");
+  it("each code carries its full name for screen readers (visually hidden)", () => {
+    const { container } = render(<PlayedEvidence pos={pos([line("MCD", 140)])} />);
+    expect(screen.getByText("(Pivote)")).toHaveClass("sr");
+    expect(container.querySelector("abbr")).toBeNull();
   });
 
   it("at most four positions", () => {

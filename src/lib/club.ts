@@ -3,7 +3,7 @@
 // trophy room reuses clubMedals (lib/home.ts).
 import { ageOn } from "./clubAnalytics";
 import { dateMillis, isCompleted, type ClubMatch } from "./clubData";
-import { LINES, POS_CODES, resolvePositions, type Line, type PosCode } from "./positions";
+import { LINES, LINE_NAMES, POS_CODES, resolvePositions, type Line, type PosCode } from "./positions";
 import type { ClubContent } from "./clubContentDefaults";
 import type { ClubMedal } from "./home";
 
@@ -58,17 +58,32 @@ export interface PosCount {
   also: number;
 }
 /** The squad by exact position: per code, how many have it as their preferida and how many more list it in
- *  «también»; `none` = players with no position at all (no preferida, no también). */
-export function squadByPosition(players: readonly Pick<SquadNumbersInput, "id" | "naturalPosition" | "positions">[]): { byCode: Record<PosCode, PosCount>; none: number; total: number } {
+ *  «también»; `none` = players with no exact position (no preferida, no también), and `lineOnly` the line of
+ *  each of them whose old ficha still says one («Defensa»: resolvePositions gives the line, no code). */
+export function squadByPosition(players: readonly Pick<SquadNumbersInput, "id" | "naturalPosition" | "positions">[]): { byCode: Record<PosCode, PosCount>; none: number; lineOnly: Line[]; total: number } {
   const byCode = Object.fromEntries(POS_CODES.map((c) => [c, { main: 0, also: 0 }])) as Record<PosCode, PosCount>;
   let none = 0;
+  const lineOnly: Line[] = [];
   for (const p of players) {
     const r = resolvePositions(p);
     if (r.main) byCode[r.main].main++;
     for (const c of r.also) byCode[c].also++;
-    if (!r.main && !r.also.length) none++;
+    if (!r.main && !r.also.length) {
+      none++;
+      if (r.line) lineOnly.push(r.line);
+    }
   }
-  return { byCode, none, total: players.length };
+  return { byCode, none, lineOnly, total: players.length };
+}
+/** The «Sin posición exacta» card: its heading and sentence. A ficha that still says only its line is told
+ *  apart («(2 con solo su línea: defensa, medio)»), never as one that doesn't say where he plays. */
+export function noPositionText(none: number, lineOnly: readonly Line[]): { title: string; text: string } {
+  if (!none) return { title: "Todos con posición", text: "Todos tienen su sitio en el campo." };
+  const title = `Sin posición exacta: ${none}`;
+  if (!lineOnly.length) return { title, text: none === 1 ? "Su ficha aún no dice dónde juega." : "Sus fichas aún no dicen dónde juegan." };
+  const lines = LINES.filter((l) => lineOnly.includes(l)).map((l) => LINE_NAMES[l].short.toLocaleLowerCase("es"));
+  const blank = none - lineOnly.length;
+  return { title, text: `(${lineOnly.length} con solo su línea: ${lines.join(", ")})${blank > 0 ? ` · ${blank} aún sin posición en su ficha.` : ""}` };
 }
 /** «MC 3 · +2» (the «+N» of también only when there are some). */
 export const posCountText = (code: PosCode, n: PosCount): string => `${code} ${n.main}${n.also ? ` · +${n.also}` : ""}`;

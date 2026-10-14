@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "./clubData";
-import { classifieds, extraTrophies, historyTrain, mapsUrl, posCountText, posKey, squadByPosition, squadNumbers, sponsorWall } from "./club";
+import { classifieds, extraTrophies, historyTrain, mapsUrl, noPositionText, posCountText, posKey, squadByPosition, squadNumbers, sponsorWall } from "./club";
 
 const match = (id: string, day: number, status = "finished"): ClubMatch => ({ id, rival: "Accept", date: Date.UTC(2026, 8, day), status: status as ClubMatch["status"], goalsFor: 3, goalsAgainst: 2, events: [] });
 
@@ -96,6 +96,7 @@ describe("La plantilla por posiciones", () => {
     expect(s.byCode.POR).toEqual({ main: 1, also: 0 });
     expect(s.byCode.DC).toEqual({ main: 0, also: 0 });
     expect(s.none).toBe(2);
+    expect(s.lineOnly).toEqual([]);
     expect(s.total).toBe(8);
   });
   it("«MC 3 · +2»: la preferida siempre; los de «también» solo si hay", () => {
@@ -128,5 +129,28 @@ describe("La plantilla por posiciones · la clave", () => {
   });
   it("nadie con posición: una clave neutra, simbólica", () => {
     expect(posKey(counts([{ id: "a" }]))).toMatchObject({ chip: "POS n · +m", text: "n la tienen de preferida y m más la marcan en «también»." });
+  });
+});
+
+describe("La plantilla por posiciones · sin posición exacta", () => {
+  it("una ficha antigua con solo su línea cuenta sin posición exacta, con su línea aparte", () => {
+    const s = squadByPosition([{ id: "a", naturalPosition: "Defensa" }, { id: "b", naturalPosition: "Medio" }, { id: "c", naturalPosition: "Defensa" }, { id: "d" }, { id: "e", positions: { main: "MC", also: [] } }]);
+    expect(s.none).toBe(4);
+    expect(s.lineOnly).toEqual(["DEF", "MED", "DEF"]);
+  });
+  it("sin nadie fuera: «Todos con posición»", () => {
+    expect(noPositionText(0, [])).toEqual({ title: "Todos con posición", text: "Todos tienen su sitio en el campo." });
+  });
+  it("sin nada en la ficha: singular y plural", () => {
+    expect(noPositionText(1, [])).toEqual({ title: "Sin posición exacta: 1", text: "Su ficha aún no dice dónde juega." });
+    expect(noPositionText(2, [])).toEqual({ title: "Sin posición exacta: 2", text: "Sus fichas aún no dicen dónde juegan." });
+  });
+  it("con solo su línea: nunca «no dice dónde juega» para ellos", () => {
+    const all = noPositionText(3, ["DEF", "MED", "DEF"]);
+    expect(all).toEqual({ title: "Sin posición exacta: 3", text: "(3 con solo su línea: defensa, medio)" });
+    expect(noPositionText(1, ["DEL"]).text).toBe("(1 con solo su línea: delantero)");
+    const mixed = noPositionText(3, ["POR"]);
+    expect(mixed.text).toBe("(1 con solo su línea: portero) · 2 aún sin posición en su ficha.");
+    expect(noPositionText(2, ["DEF"]).text).toBe("(1 con solo su línea: defensa) · 1 aún sin posición en su ficha.");
   });
 });
