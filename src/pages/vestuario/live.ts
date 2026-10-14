@@ -287,15 +287,32 @@ export function useMvpResultsSync(): { confirmed: boolean; stale: boolean } {
   const online = useOnline();
   return { confirmed: !!meta && !meta.fromCache, stale: !online || (!!meta && meta.fromCache && meta.since !== null) };
 }
+/** How long after the close a visit still gets the winner's reveal (later visits show it still). */
+export const MVP_REVEAL_MS = 3 * 3_600_000;
+export interface MvpRevealInput {
+  /** The match (a new one decides afresh). */
+  id: string | undefined;
+  open: boolean;
+  /** The closed vote has a winner on screen. */
+  winner: boolean;
+  closesAt: number | null | undefined;
+  now: number;
+}
 /**
- * Whether a closed vote's winner gets its reveal: once the server has confirmed the tally (never from a
- * cached one), and then it stays (a later trip through the cache doesn't replay it).
+ * Whether a closed vote's winner is revealed with its animation. Decided once, the first time this mount
+ * shows the winner, and kept: animated only when this mount saw the vote open and close, or the vote
+ * closed less than MVP_REVEAL_MS ago — and only from a tally the server has confirmed (a cached one never
+ * celebrates). A winner first shown still stays still: the animation never hides a name already on screen
+ * (when the cached snapshot is replaced by the server's).
  */
-export function useMvpReveal(closed: boolean): boolean {
+export function useMvpReveal({ id, open, winner, closesAt, now }: MvpRevealInput): boolean {
   const { confirmed } = useMvpResultsSync();
-  const [shown, setShown] = useState(false);
-  if (closed && confirmed && !shown) setShown(true);
-  return closed && shown;
+  const [s, setS] = useState<{ id: string | undefined; sawOpen: boolean; animate: boolean | null }>({ id, sawOpen: false, animate: null });
+  let cur = s.id === id ? s : { id, sawOpen: false, animate: null };
+  if (open && !cur.sawOpen) cur = { ...cur, sawOpen: true, animate: null };
+  if (!open && winner && cur.animate === null) cur = { ...cur, animate: confirmed && (cur.sawOpen || (!!closesAt && now - closesAt < MVP_REVEAL_MS)) };
+  if (cur !== s) setS(cur);
+  return !open && winner && cur.animate === true;
 }
 export function useMyMvpVote(matchId: string | undefined, uid: string | undefined) {
   return useLiveDoc<string>(matchId && uid ? `matches/${matchId}/votes/${uid}` : null, "playerId", (d) => (d?.playerId as string) ?? "", "");

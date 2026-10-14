@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { dateMillis, type ClubMatch } from "../../lib/clubData";
 import { apiError, confirmTraining, deleteTraining, proposeTraining } from "../../lib/clubApi";
@@ -473,7 +473,7 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
   const race = mvpRace(match?.voteClosesAt, result, now);
   const open = race.state === "open";
   const sync = useMvpResultsSync();
-  const reveal = useMvpReveal(!!match && !open && race.winners.length > 0);
+  const reveal = useMvpReveal({ id: match?.id, open, winner: !!match && race.winners.length > 0, closesAt: match?.voteClosesAt, now });
   if (!match) {
     return (
       <section className="vx-mvp">
@@ -509,8 +509,10 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
     .sort((a, b) => (result?.counts[b] ?? 0) - (result?.counts[a] ?? 0) || playerName(a).localeCompare(playerName(b), "es"));
   const vote = () => me && act.write(() => voteMvp(me, match.id, pick));
   const { rows } = race;
-  // the podium: 2nd · 1st · 3rd (a tie for a place keeps everyone on it, in vote order)
-  const order = rows.length === 3 ? [rows[1], rows[0], rows[2]] : rows.length === 2 ? [rows[1], rows[0]] : rows;
+  // the podium: 2nd · 1st · 3rd, three steps at most (360 px); the rest of a tie goes in a line below
+  const steps = rows.slice(0, 3);
+  const order = steps.length === 3 ? [steps[1], steps[0], steps[2]] : steps.length === 2 ? [steps[1], steps[0]] : steps;
+  const more = rows.slice(3);
   const STEP = [112, 74, 54];
   const FACE = [80, 60, 56];
   return (
@@ -548,37 +550,52 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
           ))}
         </ol>
       ) : (
-        <div className={`vx-podium${reveal ? " reveal" : ""}`} style={order.length > 3 ? { gridTemplateColumns: `repeat(${order.length}, minmax(0, 1fr))` } : undefined}>
-          {order.map((p) => {
-            const first = p.rank === 1;
-            const size = FACE[p.rank - 1];
-            return (
-              <div key={p.playerId} className={`vx-pod${first ? " first" : ""}${p.playerId === myVote.data ? " mine" : ""}`} style={{ animationDelay: `${(3 - p.rank) * 140}ms` }}>
-                {first && (
-                  <svg width="26" height="18" viewBox="0 0 26 18" aria-hidden="true" style={{ marginBottom: 6 }}>
-                    <path d="M1 5l6 5 6-9 6 9 6-5-3 12H4Z" fill="#FFC659" />
-                  </svg>
-                )}
-                <span className={`face ${first ? "g-sky" : p.rank === 2 ? "g-gold" : "g-grey"}`} style={{ width: size, height: size, fontSize: Math.round(size / 4.2) }} aria-hidden="true">
-                  {initials(playerName(p.playerId))}
-                </span>
-                <span className="nm">
-                  <PlayerLink id={p.playerId} seasonId={match.seasonId}>
-                    {playerName(p.playerId)}
+        <>
+          <div className={`vx-podium${reveal ? " reveal" : ""}`}>
+            {order.map((p) => {
+              const first = p.rank === 1;
+              const size = FACE[p.rank - 1];
+              return (
+                <div key={p.playerId} className={`vx-pod${first ? " first" : ""}${p.playerId === myVote.data ? " mine" : ""}`} style={{ animationDelay: `${(3 - p.rank) * 140}ms` }}>
+                  {first && (
+                    <svg width="26" height="18" viewBox="0 0 26 18" aria-hidden="true" style={{ marginBottom: 6 }}>
+                      <path d="M1 5l6 5 6-9 6 9 6-5-3 12H4Z" fill="#FFC659" />
+                    </svg>
+                  )}
+                  <span className={`face ${first ? "g-sky" : p.rank === 2 ? "g-gold" : "g-grey"}`} style={{ width: size, height: size, fontSize: Math.round(size / 4.2) }} aria-hidden="true">
+                    {initials(playerName(p.playerId))}
+                  </span>
+                  <span className="nm">
+                    <PlayerLink id={p.playerId} seasonId={match.seasonId}>
+                      {playerName(p.playerId)}
+                    </PlayerLink>
+                  </span>
+                  <span className="vt">
+                    {plural(p.votes, "voto", "votos")}
+                    {p.shared ? " · empate" : ""}
+                    {p.playerId === myVote.data ? " · tu voto" : ""}
+                  </span>
+                  <span className="step" style={{ height: STEP[p.rank - 1] }}>
+                    {p.rank}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {more.length > 0 && (
+            <p className="vx-note">
+              y {more.length} {more.length === 1 ? "más empatado" : "más empatados"} con {plural(more[0].votes, "voto", "votos")}:{" "}
+              {more.map((r, i) => (
+                <Fragment key={r.playerId}>
+                  {i === 0 ? "" : i === more.length - 1 ? " y " : ", "}
+                  <PlayerLink id={r.playerId} seasonId={match.seasonId}>
+                    {playerName(r.playerId)}
                   </PlayerLink>
-                </span>
-                <span className="vt">
-                  {plural(p.votes, "voto", "votos")}
-                  {p.shared ? " · empate" : ""}
-                  {p.playerId === myVote.data ? " · tu voto" : ""}
-                </span>
-                <span className="step" style={{ height: STEP[p.rank - 1] }}>
-                  {p.rank}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                </Fragment>
+              ))}
+            </p>
+          )}
+        </>
       )}
       {open && member && (
         <div className="vx-vote">

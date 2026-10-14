@@ -13,14 +13,14 @@ vi.mock("@tanstack/react-router", () => ({
 const live = vi.hoisted(() => ({ confirmed: true, stale: false, myVote: undefined as string | undefined }));
 vi.mock("./live", () => ({
   useMvpResultsSync: () => ({ confirmed: live.confirmed, stale: live.stale }),
-  useMvpReveal: (closed: boolean) => closed && live.confirmed,
+  useMvpReveal: (o: { open: boolean; winner: boolean }) => !o.open && o.winner && live.confirmed,
   useMvpVoters: () => ({ data: [] }),
   useMyMvpVote: () => ({ data: live.myVote }),
   useMyPrediction: () => ({ data: undefined }),
   useTrainingVotes: () => ({ data: [] }),
 }));
 vi.mock("./writes", () => ({ useMe: () => null, deleteBoardMessage: vi.fn(), postBoardMessage: vi.fn(), predictScore: vi.fn(), voteMvp: vi.fn(), voteTraining: vi.fn() }));
-const SQUAD = ["erik", "pablo", "raul", "adri"].map((id) => ({ id, shirtName: id.toUpperCase() }));
+const SQUAD = ["erik", "pablo", "raul", "adri", "hugo"].map((id) => ({ id, shirtName: id.toUpperCase() }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [], players: SQUAD, loading: false, error: null }) }));
 
 const { MvpBlock, Porra } = await import("./TeamBlocks");
@@ -105,4 +105,12 @@ it("offline: the race says it may be missing votes", () => {
   live.stale = true;
   render(<MvpBlock match={OPEN} result={{ id: "j8", counts: { erik: 1 }, total: 1 }} uid="u1" admin={false} member now={NOW} playerName={name} />);
   expect(screen.getByText("Sin conexión: puede faltar algún voto en el recuento.")).toBeInTheDocument();
+});
+
+it("a tie of more than three keeps the podium at three steps and names the rest below", () => {
+  const { container } = render(<MvpBlock match={CLOSED} result={{ id: "j8", counts: { erik: 1, pablo: 1, raul: 1, adri: 1, hugo: 1 }, total: 5 }} uid="u1" admin={false} member now={NOW} playerName={name} />);
+  expect(container.querySelectorAll(".vx-pod")).toHaveLength(3);
+  const rest = screen.getByText(/más empatados/);
+  expect(rest.textContent).toBe("y 2 más empatados con 1 voto: PABLO y RAUL");
+  expect(within(rest).getByRole("link", { name: "RAUL" })).toHaveAttribute("href", "/jugadores/raul?season=t1");
 });

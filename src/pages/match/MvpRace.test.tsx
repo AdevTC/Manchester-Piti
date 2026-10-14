@@ -7,7 +7,7 @@ import type { MvpResult } from "../../lib/vestuario";
 // The match page's Vestuario tab, MVP block: the live race (top 3, votes, «Cierra en 12 h») while the
 // vote is open, the winner once it closes; fans get one line. Only counts are ever shown.
 const NOW = Date.UTC(2026, 8, 10, 12);
-const state = vi.hoisted(() => ({ member: true, confirmed: true, stale: false, result: undefined as MvpResult | undefined }));
+const state = vi.hoisted(() => ({ member: true, confirmed: true, stale: false, result: undefined as MvpResult | undefined, now: 0, boundaries: [] as unknown[] }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to, params, search, className }: { children?: ReactNode; to: string; params?: Record<string, string>; search?: { season?: string }; className?: string }) => (
     <a className={className} href={to.replace("$playerId", params?.playerId ?? "").replace("$matchId", params?.matchId ?? "") + (search?.season ? `?season=${search.season}` : "")}>{children}</a>
@@ -16,7 +16,13 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [] }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: state.member }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: { uid: "u1" } }) }));
-vi.mock("../../hooks/useClock", () => ({ useClock: () => NOW }));
+// the server's clock: the test moves it, and sees the boundaries the tab asks it to tick at
+vi.mock("../../hooks/useClock", () => ({
+  useClock: (_step: number, boundaries: unknown[] = []) => {
+    state.boundaries = boundaries;
+    return state.now;
+  },
+}));
 vi.mock("../../hooks/useDocumentTheme", () => ({ useDocumentTheme: () => "dark" }));
 vi.mock("../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 vi.mock("../../components/jersey3d/Jersey3D", () => ({ Jersey3D: () => null }));
@@ -26,7 +32,7 @@ vi.mock("../vestuario/live", () => ({
   useMeetingNote: () => ({ data: "" }),
   useMvpResults: () => new Map(state.result ? [[state.result.id, state.result]] : []),
   useMvpResultsSync: () => ({ confirmed: state.confirmed, stale: state.stale }),
-  useMvpReveal: (closed: boolean) => closed && state.confirmed,
+  useMvpReveal: (o: { open: boolean; winner: boolean }) => !o.open && o.winner && state.confirmed,
   useMyMvpVote: () => ({ data: "" }),
   useMyPrediction: () => ({ data: null }),
 }));
@@ -48,6 +54,7 @@ beforeEach(() => {
   state.confirmed = true;
   state.stale = false;
   state.result = { id: "j5", counts: { erik: 4, pablo: 2, raul: 1, adri: 0 }, total: 7 };
+  state.now = NOW;
 });
 
 it("open: «La carrera del MVP» with the top 3, their votes and the countdown on the server's clock", () => {
@@ -97,8 +104,35 @@ it("fans get one line: who leads while open, who won once closed", () => {
   expect(closed.container.querySelector(".fc-note")?.textContent).toBe("MVP compartido: ERIK7 y PABLO7 con 3 de 7 votos.");
 });
 
-it("offline, the race warns it may be missing votes", () => {
+it("offline, the race warns it may be missing votes; fans get no line from an out-of-date tally", () => {
   state.stale = true;
-  show(OPEN);
+  const { unmount } = show(OPEN);
   expect(screen.getByText("Sin conexión: puede faltar algún voto en el recuento.")).toBeInTheDocument();
+  unmount();
+  state.member = false;
+  const fan = show(CLOSED);
+  expect(fan.container.querySelector(".fc-note")).toBeNull();
+});
+
+it("fans read «voto» for a single vote", () => {
+  state.member = false;
+  state.result = { id: "j5", counts: { erik: 1 }, total: 1 };
+  const { container } = show(CLOSED);
+  expect(container.querySelector(".fc-note")?.textContent).toBe("MVP: ERIK7 con 1 de 1 voto.");
+});
+
+it("the clock ticks at the close: the race turns into the winner right then", () => {
+  const { container, rerender } = show(OPEN);
+  expect(state.boundaries).toEqual([OPEN.voteClosesAt]);
+  expect(screen.getByText("La carrera del MVP · Cierra en 12 h")).toBeInTheDocument();
+  state.now = OPEN.voteClosesAt! - 60_000;
+  rerender(<VestuarioTab match={OPEN} players={SQUAD} phase="finished" />);
+  expect(screen.getByText("La carrera del MVP · Cierra en 1 min")).toBeInTheDocument();
+  state.now = OPEN.voteClosesAt!; // the boundary tick
+  rerender(<VestuarioTab match={OPEN} players={SQUAD} phase="finished" />);
+  expect(screen.getByText("MVP · votación cerrada")).toBeInTheDocument();
+  expect(screen.queryByRole("list", { name: "La carrera del MVP" })).toBeNull();
+  expect(screen.getByRole("list", { name: "El podio del MVP" })).toBeInTheDocument();
+  expect(container.querySelector(".fc-mvp")).toHaveClass("won");
+  expect(screen.getByText("MVP: ERIK7.")).toHaveAttribute("aria-live", "polite");
 });

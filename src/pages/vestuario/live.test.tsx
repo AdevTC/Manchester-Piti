@@ -275,17 +275,42 @@ describe("el MVP: solo un recuento confirmado por el servidor celebra", () => {
   const KEY = metaKeyOf(["mvpResults"]);
   beforeEach(() => _resetSnapshotMetaForTesting());
 
-  it("el desvelado espera a la primera instantánea del servidor y luego se queda", () => {
-    const { result, rerender } = renderHook(({ closed }) => useMvpReveal(closed), { initialProps: { closed: true } });
-    expect(result.current).toBe(false); // nothing yet
-    act(() => recordSnapshotMeta(KEY, { fromCache: true, hasPendingWrites: false }));
-    expect(result.current).toBe(false); // the cache only
-    act(() => recordSnapshotMeta(KEY, { fromCache: false, hasPendingWrites: false }));
-    expect(result.current).toBe(true);
-    act(() => recordSnapshotMeta(KEY, { fromCache: true, hasPendingWrites: false }));
-    expect(result.current).toBe(true); // a later trip through the cache doesn't replay it
-    rerender({ closed: false });
+  const CLOSES = 1_000_000_000;
+  const H = 3_600_000;
+  const server = () => act(() => recordSnapshotMeta(KEY, { fromCache: false, hasPendingWrites: false }));
+  const cache = () => act(() => recordSnapshotMeta(KEY, { fromCache: true, hasPendingWrites: false }));
+  type P = { id: string; open: boolean; winner: boolean; now: number };
+  const reveal = (initialProps: P) => renderHook((p: P) => useMvpReveal({ ...p, closesAt: CLOSES }), { initialProps });
+
+  it("visto abrir y cerrar en esta visita: se desvela (con el recuento del servidor) y no se repite", () => {
+    server();
+    const { result, rerender } = reveal({ id: "j5", open: true, winner: false, now: CLOSES - 60_000 });
     expect(result.current).toBe(false);
+    rerender({ id: "j5", open: false, winner: true, now: CLOSES + 5 * H }); // the close tick (now long ago doesn't matter: it was seen)
+    expect(result.current).toBe(true);
+    cache();
+    server();
+    expect(result.current).toBe(true); // a trip through the cache doesn't replay it
+  });
+
+  it("cerrada hace menos de 3 h: se desvela; hace más: el ganador, quieto", () => {
+    server();
+    expect(reveal({ id: "j5", open: false, winner: true, now: CLOSES + 2 * H }).result.current).toBe(true);
+    expect(reveal({ id: "j5", open: false, winner: true, now: CLOSES + 3 * H }).result.current).toBe(false);
+  });
+
+  it("un recuento de la caché nunca celebra, y el nombre ya pintado no se oculta luego para animarlo", () => {
+    cache();
+    const { result, rerender } = reveal({ id: "j5", open: false, winner: true, now: CLOSES + H });
+    expect(result.current).toBe(false);
+    server(); // the server's snapshot replaces the cached one: the winner stays still
+    rerender({ id: "j5", open: false, winner: true, now: CLOSES + H });
+    expect(result.current).toBe(false);
+    // another match decides afresh; the decision waits for the winner to be on screen
+    rerender({ id: "j6", open: false, winner: false, now: CLOSES + H });
+    expect(result.current).toBe(false);
+    rerender({ id: "j6", open: false, winner: true, now: CLOSES + H });
+    expect(result.current).toBe(true);
   });
 
   it("el recuento se avisa como desfasado al perder el servidor, no mientras llega el primero", () => {

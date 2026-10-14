@@ -500,7 +500,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
   const open = race.state === "open";
   const heads = open ? race.leaders : race.winners;
   const headVotes = heads.length ? (mvp?.counts[heads[0]] ?? 0) : 0;
-  const reveal = useMvpReveal(done && !open && race.winners.length > 0);
+  const reveal = useMvpReveal({ id: match.id, open, winner: done && race.winners.length > 0, closesAt: match.voteClosesAt, now });
   const { stale: mvpStale } = useMvpResultsSync();
   const leader = heads.length === 1 ? heads[0] : undefined;
   const leaderShot = leader ? [{ kit: "home" as const, theme, name: nameOf(leader).toUpperCase(), num: numOf(leader) }] : [];
@@ -513,7 +513,8 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
       <section className="fc-sec">
         <span className="hm-kick">Solo para el equipo</span>
         <h2 className="hm-h2">El vestuario</h2>
-        {done && match.voteClosesAt != null && heads.length > 0 && (
+        {/* (not from a tally that may be out of date: offline, or it lost the server) */}
+        {done && match.voteClosesAt != null && heads.length > 0 && !mvpStale && (
           <p className="fc-note">
             {open ? (
               <>
@@ -521,7 +522,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
               </>
             ) : (
               <>
-                {heads.length > 1 ? "MVP compartido" : "MVP"}: <NameList ids={heads} seasonId={match.seasonId} /> con {headVotes} de {race.total} votos.
+                {heads.length > 1 ? "MVP compartido" : "MVP"}: <NameList ids={heads} seasonId={match.seasonId} /> con {headVotes} de {plural(race.total, "voto", "votos")}.
               </>
             )}
           </p>

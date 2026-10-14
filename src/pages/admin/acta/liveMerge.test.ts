@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeLive, newLiveEvents, removedIds } from "./liveMerge";
+import { liveConflicts, mergeLive, newLiveEvents, removedIds } from "./liveMerge";
 import { defaultSheet, type MatchEvent, type MatchSheet } from "./sheetModel";
 
 // M4: an acta edited while the touchline keeps writing. Live jugadas are append-only with unique
@@ -59,16 +59,46 @@ describe("mergeLive", () => {
     expect(merged.durationSeconds).toBe(3100);
     expect(merged.clock).toEqual({ phase: "second", revision: 4 });
     expect(merged.report).toBe("Mío");
+    // …but the touchline undid the jugada edited here: a conflict, so the edits keep their own revision
+    // and saveMatchSheet refuses them instead of silently bringing B back
+    expect(merged.revision).toBe(3);
 
     const untouched = mergeLive(sheet([A, B], { report: "Mío" }), base, server, new Set());
     expect(untouched.events.map((e) => e.id)).toEqual(["live-a", "live-c"]);
+    expect(untouched.revision).toBe(9);
   });
 
-  it("a field changed on both sides keeps the editor's", () => {
+  it("a field changed on both sides is a conflict: the editor's value, its own revision (the save is refused)", () => {
     const base = sheet([], { venue: "Campo" });
     const merged = mergeLive(sheet([], { venue: "Mío" }), base, sheet([], { venue: "Suyo", revision: 8 }), new Set());
     expect(merged.venue).toBe("Mío");
-    expect(merged.revision).toBe(8);
+    expect(merged.revision).toBe(3);
+    // the same change on both sides is no conflict
+    expect(mergeLive(sheet([], { venue: "Suyo" }), base, sheet([], { venue: "Suyo", revision: 8 }), new Set()).revision).toBe(8);
+  });
+
+  it("an edited jugada the touchline undid: the edit stays, the new ones arrive, the revision doesn't move", () => {
+    const base = sheet([A, B]);
+    const local = sheet([A, { ...B, playerId: "raul" }]);
+    const server = sheet([A, C], { revision: 5 });
+    const merged = mergeLive(local, base, server, new Set());
+    expect(merged.events.map((e) => e.id)).toEqual(["live-a", "live-b", "live-c"]);
+    expect(merged.revision).toBe(3);
+  });
+});
+
+describe("liveConflicts", () => {
+  const base = sheet([A, B], { venue: "Campo" });
+  it("new jugadas and server changes to what the editor didn't touch are no conflict", () => {
+    expect(liveConflicts(sheet([A, B], { venue: "Mío" }), base, sheet([A, B, C], { venue: "Campo" }))).toBe(false);
+    expect(liveConflicts(sheet([A], { venue: "Campo" }), base, sheet([A, C], { venue: "Campo" }))).toBe(false); // both dropped B
+    expect(liveConflicts(sheet([A, B]), base, sheet([A, B], { duration: 55 }))).toBe(false);
+  });
+  it("the same field or jugada changed on both sides is", () => {
+    expect(liveConflicts(sheet([A, B], { venue: "Mío" }), base, sheet([A, B], { venue: "Suyo" }))).toBe(true);
+    expect(liveConflicts(sheet([{ ...A, minute: 6 }, B], { venue: "Campo" }), base, sheet([{ ...A, minute: 7 }, B], { venue: "Campo" }))).toBe(true);
+    expect(liveConflicts(sheet([{ ...A, minute: 6 }, B], { venue: "Campo" }), base, sheet([B], { venue: "Campo" }))).toBe(true); // undone there
+    expect(liveConflicts(sheet([B], { venue: "Campo" }), base, sheet([{ ...A, minute: 7 }, B], { venue: "Campo" }))).toBe(true); // removed here, changed there
   });
 });
 

@@ -39,6 +39,7 @@ import { TabEncuentro } from "./TabEncuentro";
 import { TabPublicar } from "./TabPublicar";
 import { useEditBuffer } from "./useEditBuffer";
 import { useLiveCatchUp } from "./useLiveCatchUp";
+import { LiveCatchUpBar } from "./LiveCatchUpBar";
 import { blockedWhy, closesWords, effectiveSheet, footerOf, kickerOf, phaseOf, savedLine, tabMarks, tidyVenue, voteCloses } from "./workspaceModel";
 
 export interface MatchEditorProps {
@@ -292,20 +293,7 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, o
             </button>
           </div>
         )}
-        {catchUp.count > 0 && (
-          <div className="rec2" role="status">
-            <AdIcon name="whistle" size={18} />
-            <span>
-              <b>
-                {catchUp.count === 1 ? "Ha llegado 1 jugada nueva" : `Han llegado ${catchUp.count} jugadas nuevas`} desde que empezaste a editar
-              </b>
-              <small>Se añaden a tu acta sin tocar tus cambios.</small>
-            </span>
-            <button type="button" className="btn sm sky" onClick={catchUp.incorporate}>
-              {catchUp.count === 1 ? "Incorporarla" : "Incorporarlas"}
-            </button>
-          </div>
-        )}
+        <LiveCatchUpBar count={catchUp.count} conflict={catchUp.conflict} onIncorporate={catchUp.incorporate} />
         {tab === "encuentro" && (
           <TabEncuentro
             sheet={sheet}
