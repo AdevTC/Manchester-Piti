@@ -10,7 +10,8 @@ import { _resetSnapshotMetaForTesting, metaKeyOf, recordSnapshotMeta } from "../
 // and forward step through the tabs) and an unknown tab falls back to the first. Real router (memory
 // history); data, auth and the tabs' contents are stubbed: no Firebase.
 
-const MATCH: ClubMatch = { id: "j1", seasonId: "t1", rival: "Rival", date: Date.UTC(2026, 8, 1, 10), duration: 50, status: "finished", goalsFor: 1, goalsAgainst: 0, events: [] };
+// (one narrated pass: its «Estadísticas» tab has an analysis to show)
+const MATCH: ClubMatch = { id: "j1", seasonId: "t1", rival: "Rival", date: Date.UTC(2026, 8, 1, 10), duration: 50, status: "finished", goalsFor: 1, goalsAgainst: 0, events: [{ id: "a1", type: "pass", outcome: "complete", playerId: "p1", minute: 5 }] };
 // a 2–1 with our scorer, a guest scorer nobody has in the squad, and the rival's goal
 const SCORED: ClubMatch = { ...MATCH, id: "j2", goalsFor: 2, goalsAgainst: 1, events: [
   { id: "g1", type: "goal", minute: 12, playerId: "p1" },
@@ -122,6 +123,15 @@ describe("MatchPage · the tab in the URL", () => {
     const before = router.history.length;
     fireEvent.click(screen.getByRole("tab", { name: "Pulso" }));
     expect(router.history.length).toBe(before);
+  });
+
+  it("«Estadísticas» of a match nobody narrated (goals only): the tab stays, a short line instead of the panel", async () => {
+    open("/matches/j2?tab=estadisticas");
+    const empty = await screen.findByRole("region", { name: "Sin análisis de este partido" });
+    expect(empty).toHaveTextContent(/Nadie ha narrado sus jugadas/);
+    expect(screen.queryByText("pane:estadisticas")).toBeNull();
+    expect(selected()).toBe("Estadísticas");
+    expect(screen.getByRole("tabpanel")).not.toHaveClass("wide");
   });
 });
 

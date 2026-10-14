@@ -38,6 +38,7 @@ import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffS
 import { downloadMatchPoster } from "../../lib/matchPoster";
 import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
 import { matchTabAt, matchTabIndex } from "../../lib/matchTabs";
+import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/ficha.css";
@@ -206,6 +207,8 @@ export function MatchPage() {
         return { id: e.id, min: shown != null ? `${shown}′` : "", pid, who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" };
       });
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
+  // «Estadísticas» reads the narrated actions (passes, shots, tackles…): without any, a short line.
+  const analysed = hasAnalysisActions([match]);
 
   const share = async () => {
     try {
@@ -387,11 +390,16 @@ export function MatchPage() {
         ))}
       </div>
       {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
-      <div className={`fc-pane${(active === 0 && done) || active === 4 ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} key={active}>
+      <div className={`fc-pane${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} key={active}>
         {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} plan={rivalPlan} />)}
         {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialBoard?.seven ?? null} board={officialBoard} />}
         {active === 2 && <PulsoTab match={match} live={live} minute={minute} pending={pending} />}
-        {active === 4 && <TechnicalStatsPanel matches={[match]} people={players.map(p => ({ id: p.id, name: nameOf(p.id), number: p.number }))} />}
+        {active === 4 &&
+          (analysed ? (
+            <TechnicalStatsPanel matches={[match]} people={players.map((p) => ({ id: p.id, name: nameOf(p.id), number: p.number }))} seasonId={match.seasonId} />
+          ) : (
+            <StatePanel kind="empty" compact title="Sin análisis de este partido" body="Nadie ha narrado sus jugadas: pases, remates, entradas… Cuando el acta las apunte, el juego en detalle saldrá aquí." />
+          ))}
         {active === 3 && <VestuarioTab match={match} players={players} phase={phase} />}
       </div>
     </>,

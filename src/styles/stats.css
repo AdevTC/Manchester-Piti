@@ -3,9 +3,10 @@
    Layout rule of this page: every grid/flex child has min-width:0, long names ellipsize, wide tables
    scroll inside their own box, decorations sit behind the text with pointer-events:none. */
 
-.st{container-name:st-page;--st-sky:#6CABDD;--st-gold:#FFC659;--st-them:rgba(159,179,211,.55);--st-card:rgba(255,255,255,.045);--st-card-line:rgba(255,255,255,.08);--st-board:linear-gradient(180deg,rgba(13,33,80,.72),rgba(6,16,42,.82));--st-board-line:rgba(159,208,242,.2);--st-led:#FFC659;--st-led-glow:rgba(255,198,89,.55);--st-heat:108,171,221;
+/* (.technical-stats, the game-analysis panel, carries the same tokens wherever it sits: the match page has no .st) */
+.st,.technical-stats{container-name:st-page;--st-sky:#6CABDD;--st-gold:#FFC659;--st-them:rgba(159,179,211,.55);--st-card:rgba(255,255,255,.045);--st-card-line:rgba(255,255,255,.08);--st-board:linear-gradient(180deg,rgba(13,33,80,.72),rgba(6,16,42,.82));--st-board-line:rgba(159,208,242,.2);--st-led:#FFC659;--st-led-glow:rgba(255,198,89,.55);--st-heat:108,171,221;
   --c0:#6CABDD;--c1:#FFC659;--c2:#eef4ff;--c3:#ff8a7a;--c4:#9be3b5;--c5:#c7a4ff}
-[data-theme="light"] .vx.st{--st-sky:#2a73ad;--st-gold:#9a6b00;--st-them:rgba(79,93,125,.5);--st-card:rgba(255,255,255,.78);--st-card-line:rgba(12,23,51,.08);--st-board:linear-gradient(180deg,rgba(255,255,255,.92),rgba(234,243,251,.92));--st-board-line:rgba(12,23,51,.12);--st-led:#0c1733;--st-led-glow:rgba(42,115,173,.25);--st-heat:42,115,173;
+[data-theme="light"] .vx.st,[data-theme="light"] .vx .technical-stats{--st-sky:#2a73ad;--st-gold:#9a6b00;--st-them:rgba(79,93,125,.5);--st-card:rgba(255,255,255,.78);--st-card-line:rgba(12,23,51,.08);--st-board:linear-gradient(180deg,rgba(255,255,255,.92),rgba(234,243,251,.92));--st-board-line:rgba(12,23,51,.12);--st-led:#0c1733;--st-led-glow:rgba(42,115,173,.25);--st-heat:42,115,173;
   --c0:#2a73ad;--c1:#b07a00;--c2:#0c1733;--c3:#c2410c;--c4:#15803d;--c5:#7c3aed}
 .st *{min-width:0}
 .st .hm-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

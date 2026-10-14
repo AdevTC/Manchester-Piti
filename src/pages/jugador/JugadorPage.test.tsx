@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
@@ -61,7 +61,9 @@ vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "dark" }) }))
 vi.mock("../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
 vi.mock("../../components/NewBadge", () => ({ NewBadge: () => null }));
-vi.mock("../../components/celeste/TechnicalStats", () => ({ TechnicalStatsPanel: () => null }));
+vi.mock("../../components/celeste/TechnicalStats", () => ({
+  TechnicalStatsPanel: ({ initialPlayer, seasonId }: { initialPlayer?: string; seasonId?: string | null }) => <p data-testid="analisis">{`el juego en detalle de ${initialPlayer ?? ""} · ${seasonId ?? ""}`}</p>,
+}));
 vi.mock("../../components/celeste/Chrome", () => ({ CelesteBackdrop: () => null, CelesteDock: () => null, CelesteFooter: () => null, CelesteHeader: () => null }));
 vi.mock("../stats/Charts", () => ({ Constellation: () => null, GoalClock: () => null, Radar: () => null }));
 vi.mock("./Cromo", () => ({ Cromo: () => null }));
@@ -133,6 +135,34 @@ describe("«Volver»", () => {
     who.viewer = { member: false, admin: false, playerId: null };
     render(<JugadorPage />);
     expect(screen.getByRole("link", { name: "Plantilla" })).toHaveAttribute("href", "/plantilla");
+  });
+});
+
+describe("«El juego en detalle»: after «Sus números», only with his narrated actions", () => {
+  const first = () => data.matches[0] as ClubMatch;
+  afterEach(() => {
+    first().events = [];
+  });
+  const panel = () => screen.queryByTestId("analisis");
+
+  it("no narrated action of his — none at all, or only a teammate's — no panel", () => {
+    render(<JugadorPage />);
+    expect(panel()).toBeNull();
+    cleanup();
+    first().events = [{ id: "a1", type: "pass", outcome: "complete", playerId: "pablo", minute: 5 }];
+    render(<JugadorPage />);
+    expect(panel()).toBeNull();
+  });
+
+  it("with one: below the fold — after the chips and «Sus números», before his radar — on him, in the season", () => {
+    first().events = [{ id: "a1", type: "tackle", outcome: "won", playerId: "erik", minute: 5 }];
+    render(<JugadorPage />);
+    const shown = screen.getByTestId("analisis");
+    expect(shown).toHaveTextContent("el juego en detalle de erik · t1");
+    const follows = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(screen.getByRole("list", { name: "Su temporada en cinco números" }), shown)).toBe(true);
+    expect(follows(screen.getByRole("heading", { name: "Sus números" }), shown)).toBe(true);
+    expect(follows(shown, screen.getByRole("heading", { name: "Su radar" }))).toBe(true);
   });
 });
 

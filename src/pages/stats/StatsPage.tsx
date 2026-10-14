@@ -10,6 +10,7 @@ import { playerForSeason, nameFor, useClubData } from "../../lib/clubData";
 import { mvpOfFrom, votesClosedAt } from "../../lib/derived/mvpOf";
 import { analysePlayer, chronological, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { tickerLines } from "../../lib/statsView";
+import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import { jornadaNumbers } from "../../lib/derived/jornada";
 import { mvpWins } from "../../lib/vestuario";
 import { useMvpResults } from "../vestuario/live";
@@ -227,7 +228,20 @@ export function StatsPage() {
         )}
         {ready && games.length > 0 && (
           <div key={view} className="st-pane">
-            {view === "game" && <TechnicalStatsPanel matches={games} people={rows.map(p => ({ id: p.id, name: nameOf(p), number: p.number }))} />}
+            {view === "game" &&
+              (hasAnalysisActions(games) ? (
+                <TechnicalStatsPanel matches={games} people={rows.map((p) => ({ id: p.id, name: nameOf(p), number: p.number }))} seasonId={selectedSeasonId} />
+              ) : (
+                // (no acta of the period narrates its plays: say so, the panel would be all zeros)
+                <div className="st-state">
+                  <p>Ningún partido de este período tiene sus jugadas narradas: pases, remates, entradas… El análisis del juego aparecerá cuando un acta las apunte.</p>
+                  {selectedSeasonId !== "all" && (
+                    <button type="button" className="hm-ghostbtn" onClick={() => setSeason("all")}>
+                      Ver todo el historial
+                    </button>
+                  )}
+                </div>
+              ))}
             {view === "summary" && <Resumen games={games} rows={rows} nameOf={nameOf} mvps={mvps} />}
             {view === "players" && <Jugadores rows={rows} nameOf={nameOf} />}
             {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} jornada={jornada} />}
