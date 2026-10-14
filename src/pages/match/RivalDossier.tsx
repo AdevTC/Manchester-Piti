@@ -10,7 +10,7 @@ import { resultLetter, resultTitle } from "../../lib/derived/result";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { Icon } from "../../components/celeste/icons";
 import { rivalName, type RivalSeven } from "../pizarra/v2/rival";
-import { systemText } from "./campoPositions";
+import { systemText } from "../../lib/derived/system";
 
 /** The section's anchor (the crónica's summary line leads to it). */
 const RIVAL_ANCHOR = "fc-rival";

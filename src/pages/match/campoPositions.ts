@@ -39,20 +39,6 @@ export const SOURCE_TEXT: Record<CampoSource, string> = {
   orientative: "Posiciones orientativas",
 };
 
-/** «2-3-1 · Clásico», «Libre · sin sistema fijo», or null (no official board when the acta was saved). */
-export function systemText(system: unknown): string | null {
-  if (system === "libre") return "Libre · sin sistema fijo";
-  if (!isFormationName(system)) return null;
-  const s = systemDef(system);
-  return `${s.label} · ${s.name}`;
-}
-
-/** The short system for the grass («2-3-1», «Libre»), or null. */
-export function systemMark(system: unknown): string | null {
-  if (system === "libre") return "Libre";
-  return isFormationName(system) ? systemDef(system).label : null;
-}
-
 const round1 = (n: number) => Math.round(n * 10) / 10;
 /** A point in the positions' space (POSITIONS, a system's spots: x 0→100, y 0 = rival goal … 100 = ours)
  *  on the Campo's pitch box: inset so the name and badges under a dot stay on the grass (the keeper at

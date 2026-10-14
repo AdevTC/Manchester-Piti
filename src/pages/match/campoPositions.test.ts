@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { campoLayout, GAP_X, GAP_Y, SOURCE_TEXT, systemMark, systemText, toPitch, type CampoDot } from "./campoPositions";
+import { campoLayout, GAP_X, GAP_Y, SOURCE_TEXT, toPitch, type CampoDot } from "./campoPositions";
 import { F7_SPOTS } from "../../lib/ficha";
 import { playedLinesOf, topPlayedCode } from "../../lib/playedSummary";
 import type { PosCode } from "../../lib/positions";
@@ -44,18 +44,7 @@ describe("playedLinesOf / topPlayedCode", () => {
   });
 });
 
-describe("systemText / systemMark", () => {
-  it("«2-3-1 · Clásico», «Libre · sin sistema fijo», nothing without a known system", () => {
-    expect(systemText("2-3-1")).toBe("2-3-1 · Clásico");
-    expect(systemText("1-3-1-1")).toBe("1-3-1-1 · Escalera");
-    expect(systemText("libre")).toBe("Libre · sin sistema fijo");
-    expect(systemText(null)).toBeNull();
-    expect(systemText(undefined)).toBeNull();
-    expect(systemText("5-5")).toBeNull();
-    expect(systemMark("3-2-1")).toBe("3-2-1");
-    expect(systemMark("libre")).toBe("Libre");
-    expect(systemMark(null)).toBeNull();
-  });
+describe("SOURCE_TEXT", () => {
   it("the copy of each source", () => {
     expect(SOURCE_TEXT.board).toBe("Posiciones de la pizarra oficial");
     expect(SOURCE_TEXT.estimated).toBe("Posiciones estimadas por su preferida");

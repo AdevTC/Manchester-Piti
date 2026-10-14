@@ -9,7 +9,7 @@ import { canvasToBlob, loadImage, roundRect, truncate } from "../pages/pizarra/p
 import { dateMillis, formatDate, isCompleted, type ClubMatch } from "./clubData";
 import { nameFor, type NameSource } from "./derived/names";
 import { RESULT_WORD, resultLetter, type ResultLetter } from "./derived/result";
-import { isFormationName, systemDef } from "./formations";
+import { systemMark, systemText } from "./derived/system";
 import { eventMinute, OURS, scoreOf } from "./partidos";
 import { queryClient } from "./queryClient";
 
@@ -123,18 +123,6 @@ export interface PosterContext {
 
 const OWN_GOAL = "opponent_own_goal";
 
-/** «2-3-1 · Clásico», «Libre · sin sistema fijo», or null (as the Campo's systemText). */
-function systemTextOf(system: unknown): string | null {
-  if (system === "libre") return "Libre · sin sistema fijo";
-  if (!isFormationName(system)) return null;
-  const s = systemDef(system);
-  return `${s.label} · ${s.name}`;
-}
-function systemMarkOf(system: unknown): string | null {
-  if (system === "libre") return "LIBRE";
-  return isFormationName(system) ? systemDef(system).label : null;
-}
-
 /** Everything the poster prints, where it goes is POSTER_SLOTS. Pure. */
 export function posterModel(match: ClubMatch, format: PosterFormat, ctx: PosterContext): MatchPosterModel {
   const { w, h } = POSTER_SIZE[format];
@@ -186,8 +174,8 @@ export function posterModel(match: ClubMatch, format: PosterFormat, ctx: PosterC
     goals,
     more,
     noGoals,
-    system: systemTextOf(match.system),
-    mark: systemMarkOf(match.system),
+    system: systemText(match.system),
+    mark: systemMark(match.system)?.toLocaleUpperCase("es") ?? null,
     file: `piti-${match.id}-${format}.png`,
   };
 }
