@@ -107,7 +107,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
               <>
                 <div className="gb" role="img" aria-label={"Goles por jornada: " + card.series.map((x) => `${x.label} ${x.goals}`).join(", ")} style={{ gridTemplateColumns: `repeat(${Math.max(1, bars.length)},minmax(0,1fr))` }}>
                   {bars.map((g) => (
-                    <span key={g.j}>
+                    <span key={g.id}>
                       <i style={vars({ "--p": g.p.toFixed(2) })} />
                       <b>{g.goals}</b>
                       <small>{g.label}</small>
@@ -116,7 +116,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
                 </div>
                 <ol className="fm" aria-label="Últimos cinco resultados">
                   {card.last5.map((f) => (
-                    <li key={f.j}>
+                    <li key={f.id}>
                       <span className={"res " + f.r} role="img" aria-label={f.aria}>
                         {f.l}
                       </span>

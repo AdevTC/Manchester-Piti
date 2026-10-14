@@ -77,11 +77,12 @@ export function stuffLines(s: { next: NextMatch | null; boards: BoardsLine; porr
   return out;
 }
 
-/** «de la J1 a la J7» / «en la J1» (the season's played jornadas). */
+/** «de la J1 a la J7» / «en la J1» (the season's played jornadas; a match without one is skipped). */
 export function jornadaRange(series: SeriesPoint[]): string {
-  if (!series.length) return "";
-  const a = series[0].j;
-  const b = series[series.length - 1].j;
+  const js = series.flatMap((x) => (x.j == null ? [] : [x.j]));
+  if (!js.length) return "";
+  const a = js[0];
+  const b = js[js.length - 1];
   return a === b ? `en la J${a}` : `de la J${a} a la J${b}`;
 }
 

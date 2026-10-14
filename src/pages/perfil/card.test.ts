@@ -177,7 +177,7 @@ describe("la carta: números", () => {
       ["J5", 0, true, 0.06],
     ]);
     expect(card.last5.map((r) => r.l).join("")).toBe("GEPGP");
-    expect(card.last5[0]).toEqual({ r: "g", l: "G", j: "J1", aria: "J1: Victoria" });
+    expect(card.last5[0]).toEqual({ id: expect.any(String), r: "g", l: "G", j: "J1", aria: "J1: Victoria" });
     expect(card.clubLine).toBe("MANCHESTER PITI · T1 · J1–J5");
   });
   it("goleadores del equipo", () => {

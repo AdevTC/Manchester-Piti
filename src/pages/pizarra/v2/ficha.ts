@@ -45,6 +45,15 @@ export function formBars(form: readonly FormGame[] | undefined): FormBar[] {
   }));
 }
 
+/** «FORMA · J4–J8» from the matches that have a jornada; just «FORMA» when none has one (never «—–—»). */
+export function formHead(form: readonly FormGame[] | undefined): string {
+  const js = (form ?? []).map((g) => jornadaLabel(g.j)).filter(Boolean);
+  if (!js.length) return "FORMA";
+  const a = js[0];
+  const b = js[js.length - 1];
+  return "FORMA · " + (a === b ? a : a + "–" + b);
+}
+
 export interface FichaArgs {
   id: string;
   L: Lineup;
@@ -134,7 +143,7 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
       { k: "TITULAR", v: p.stats.starts },
       { k: "MVP", v: p.stats.mvps },
     ],
-    ...(bars.length ? { form: { k: "FORMA · " + bars[0].j + (bars.length > 1 ? "–" + bars[bars.length - 1].j : ""), bars } } : {}),
+    ...(bars.length ? { form: { k: formHead(p.form), bars } } : {}),
     facts,
     ln,
     ox,

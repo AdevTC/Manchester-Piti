@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../../lib/clubData";
-import { fichaOf, formBars, formGames } from "./ficha";
+import { fichaOf, formBars, formGames, formHead } from "./ficha";
 import { Ficha } from "./Overlays";
 import { chem } from "./quimica";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
@@ -38,6 +38,15 @@ describe("la ficha", () => {
       { j: "J6", h: 50, played: true, t: "J6: 25′ y 2 goles o asistencias" },
     ]);
     expect(formBars(undefined)).toEqual([]);
+  });
+
+  it("the FORMA header skips the matches without a jornada: no dangling dashes", () => {
+    const g = (j: number | null) => ({ j, played: true, min: 50, ga: 0 });
+    expect(formHead([g(4), g(5), g(6)])).toBe("FORMA · J4–J6");
+    expect(formHead([g(null), g(5), g(6), g(null)])).toBe("FORMA · J5–J6");
+    expect(formHead([g(null), g(5)])).toBe("FORMA · J5");
+    expect(formHead([g(null), g(null)])).toBe("FORMA");
+    expect(formHead(undefined)).toBe("FORMA");
   });
 
   it("minutes against the team's, «Jugar de» and his natural line, his galones and the match", () => {

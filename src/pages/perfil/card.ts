@@ -76,7 +76,10 @@ export interface Ticker {
 }
 
 export interface SeriesPoint {
-  j: number;
+  /** The match (the list key: two matches may lack a jornada). */
+  id: string;
+  /** Its jornada; null when it has none (never a made-up 0). */
+  j: number | null;
   label: string;
   goals: number;
   played: boolean;
@@ -84,6 +87,8 @@ export interface SeriesPoint {
   p: number;
 }
 export interface FormResult {
+  /** The match (the list key). */
+  id: string;
   r: "g" | "e" | "p";
   l: ResultLetter;
   j: string;
@@ -398,14 +403,14 @@ export function buildCard(input: CardInput): CardView {
   const series: SeriesPoint[] = playerId
     ? games.map((m) => {
         const g = playerGame(playerId, m);
-        const j = jornada.get(m.id) ?? 0;
-        return { j, label: jornadaLabel(j) || "—", goals: g.goals, played: g.played, p: g.played ? Math.round(clamp(Math.max(0.06, g.goals / 3), 0, 1) * 100) / 100 : 0.03 };
+        const j = jornada.get(m.id) ?? null;
+        return { id: m.id, j, label: jornadaLabel(j) || "—", goals: g.goals, played: g.played, p: g.played ? Math.round(clamp(Math.max(0.06, g.goals / 3), 0, 1) * 100) / 100 : 0.03 };
       })
     : [];
   const last5: FormResult[] = games.slice(-5).map((m) => {
     const l = resultOf(m);
     const j = jornadaLabel(jornada.get(m.id)) || "—";
-    return { r: l === "G" ? "g" : l === "E" ? "e" : "p", l, j, aria: `${j}: ${resultTitle(l)}` };
+    return { id: m.id, r: l === "G" ? "g" : l === "E" ? "e" : "p", l, j, aria: `${j}: ${resultTitle(l)}` };
   });
   const goalRank = shown ? squad.list.filter((c) => c.stats.goals > shown.stats.goals).length + 1 : null;
   const rankText = !showNumbers

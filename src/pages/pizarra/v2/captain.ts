@@ -7,10 +7,10 @@ import type { CalMatch } from "./boards";
 import type { Squad } from "./model";
 import { toggleRole } from "./ops";
 
-/** One brazalete worn: who and in which jornada. */
+/** One brazalete worn: who and in which jornada (null when the match has none: it counts, without a «J…»). */
 export interface Armband {
   id: string;
-  j: number;
+  j: number | null;
   matchId: string;
 }
 
@@ -25,20 +25,21 @@ export function armbands(officials: readonly LineupDoc[], calendar: readonly Cal
     const prev = byMatch.get(d.matchId);
     if (!prev || (d.updatedAt ?? 0) > (prev.updatedAt ?? 0)) byMatch.set(d.matchId, d);
   });
-  const out: Armband[] = [];
+  const out: { band: Armband; at: number }[] = [];
   byMatch.forEach((d, mid) => {
     const m = calendar.find((x) => x.id === mid);
     const cap = d.roles.captainId;
-    if (m?.played && cap) out.push({ id: cap, j: m.j ?? 0, matchId: mid });
+    if (m?.played && cap) out.push({ band: { id: cap, j: m.j ?? null, matchId: mid }, at: m.dateMs });
   });
-  return out.sort((a, b) => a.j - b.j);
+  // (in calendar order: a match without a jornada still has its date)
+  return out.sort((a, b) => a.at - b.at).map((x) => x.band);
 }
 
 export interface CaptainRow {
   id: string;
   /** Brazaletes worn this season. */
   n: number;
-  /** The last jornada he wore it (null = never). */
+  /** The last jornada he wore it (null = never, or only in matches without a jornada). */
   last: number | null;
 }
 
@@ -62,7 +63,8 @@ export function nextCaptain(L: Lineup, sq: Squad, bands: readonly Armband[]): Ca
   });
   const rows: CaptainRow[] = ok.map((id) => {
     const mine = bands.filter((b) => b.id === id);
-    return { id, n: mine.length, last: mine.length ? Math.max(...mine.map((b) => b.j)) : null };
+    const js = mine.flatMap((b) => (b.j == null ? [] : [b.j]));
+    return { id, n: mine.length, last: js.length ? Math.max(...js) : null };
   });
   const rt = (id: string) => sq.byId.get(id)?.rt ?? 0;
   const name = (id: string) => sq.byId.get(id)?.name ?? id;
@@ -71,10 +73,11 @@ export function nextCaptain(L: Lineup, sq: Squad, bands: readonly Armband[]): Ca
   return { id, rows, already: !!id && L.roles.captainId === id, known: bands.length };
 }
 
-/** «Ninguno aún» / «1 brazalete (J5)» / «3 brazaletes (el último, J7)». */
+/** «Ninguno aún» / «1 brazalete (J5)» / «3 brazaletes (el último, J7)»; no «J…» when it isn't known. */
 export function rowTxt(r: CaptainRow): string {
   if (!r.n) return "Ninguno aún";
-  return r.n === 1 ? "1 brazalete (J" + r.last + ")" : r.n + " brazaletes (el último, J" + r.last + ")";
+  const when = r.last == null ? "" : r.n === 1 ? " (J" + r.last + ")" : " (el último, J" + r.last + ")";
+  return (r.n === 1 ? "1 brazalete" : r.n + " brazaletes") + when;
 }
 
 /** Why him, in one line. */

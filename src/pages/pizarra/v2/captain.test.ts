@@ -31,6 +31,23 @@ describe("the brazaletes worn", () => {
   });
 });
 
+describe("a played match without a jornada", () => {
+  it("its brazalete counts, in calendar order, but never reads «J0» or «Jnull»", () => {
+    const nj: CalMatch = { ...m("mx", 9, true), j: null, dateMs: 2500 };
+    const bands = armbands([off("o1", "m1", "adrian"), off("ox", "mx", "adrian"), off("o3", "m3", "evans")], [...cal, nj]);
+    expect(bands).toEqual([
+      { id: "adrian", j: 1, matchId: "m1" },
+      { id: "adrian", j: null, matchId: "mx" },
+      { id: "evans", j: 3, matchId: "m3" },
+    ]);
+    expect(rowTxt({ id: "adrian", n: 2, last: 1 })).toBe("2 brazaletes (el último, J1)");
+    expect(rowTxt({ id: "x", n: 1, last: null })).toBe("1 brazalete");
+    expect(rowTxt({ id: "x", n: 2, last: null })).toBe("2 brazaletes");
+    const p = nextCaptain(lineupOf(SEVEN), sq, [{ id: "adrian", j: null, matchId: "mx" }]);
+    expect(p.rows.find((r) => r.id === "adrian")).toMatchObject({ n: 1, last: null });
+  });
+});
+
 describe("who wears it next", () => {
   it("the fewest brazaletes, then the longest without one, then the best form", () => {
     const bands = [
