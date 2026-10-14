@@ -1,7 +1,8 @@
-// "¡GOL!" over a live scoreboard when our score goes up: a flash, the word and confetti in the club
-// colours for ~2.6 s. Never on the first render (only a goal seen live) and with reduced motion the
-// word just appears (styles/partidos.css turns the animations off).
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+// "¡GOL!" over a live scoreboard when we score: a flash, the word and confetti in the club colours for
+// ~2.6 s. Whether to play it is decided by useGoalCelebration (only a goal that is new since the screen
+// opened and happened right now, never a goal already in the data); with reduced motion the word just
+// appears (styles/partidos.css turns the animations off).
+import type { CSSProperties } from "react";
 
 const PIECES = Array.from({ length: 46 }, (_, i) => ({
   left: `${(i * 37) % 100}%`,
@@ -11,18 +12,8 @@ const PIECES = Array.from({ length: 46 }, (_, i) => ({
   background: ["#6CABDD", "#FFC659", "#eef4ff", "#9fd0f2", "#ffe0a0"][i % 5],
 }));
 
-export function GoalBurst({ goals, who }: { goals: number; who?: string }) {
-  const seen = useRef(goals);
-  const [burst, setBurst] = useState(0);
-  useEffect(() => {
-    if (goals > seen.current) setBurst((n) => n + 1);
-    seen.current = goals;
-  }, [goals]);
-  useEffect(() => {
-    if (!burst) return;
-    const t = window.setTimeout(() => setBurst(0), 2700);
-    return () => window.clearTimeout(t);
-  }, [burst]);
+/** `burst` is the key from useGoalCelebration: 0 shows nothing, each new value plays the show once. */
+export function GoalBurst({ burst, who }: { burst: number; who?: string }) {
   if (!burst) return null;
   return (
     <div className="pt-goal" key={burst} role="status">

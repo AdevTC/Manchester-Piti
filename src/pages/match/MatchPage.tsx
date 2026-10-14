@@ -18,6 +18,7 @@ import { Icon } from "../../components/celeste/icons";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Flip } from "../../components/celeste/Flip";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
+import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { matchEvent } from "../../lib/home";
@@ -85,6 +86,7 @@ export function MatchPage() {
   const [notice, setNotice] = useState("");
   const match = matches.find((m) => m.id === matchId);
   const nameOf = (id: string) => playerName(players.find((p) => p.id === id));
+  const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
 
   const chrome = (children: ReactNode) => (
     <div className="vx hm pt" aria-busy={loading}>
@@ -210,9 +212,9 @@ export function MatchPage() {
               </div>
               {done || live || (pending && !unplayed) ? (
                 <div className="pt-score" role="status" aria-label={`Resultado: ${gf} a ${ga}`}>
-                  <Flip value={gf} />
+                  <Flip value={gf} still={!goalShow.flip} />
                   <i>–</i>
-                  <Flip value={ga} />
+                  <Flip value={ga} still={!goalShow.flip} />
                 </div>
               ) : (
                 <span className="pt-vs">vs</span>
@@ -250,7 +252,7 @@ export function MatchPage() {
                   <b>{last ? `${last.minute}′` : `${minute}′`}</b>
                   <span>{last ? `${last.who} · ${last.label}` : "Arranca el partido"}</span>
                 </div>
-                <GoalBurst goals={gf} who={last?.goal ? `${last.who} · ${last.minute}′` : undefined} />
+                <GoalBurst burst={goalShow.burst} who={last?.goal ? `${last.who} · ${last.minute}′` : undefined} />
               </>
             )}
             {upcoming && Number.isFinite(dateMillis(match.date)) && phase === "scheduled" && !whistle && <Countdown target={dateMillis(match.date)} />}

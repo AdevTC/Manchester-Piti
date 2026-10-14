@@ -10,6 +10,7 @@ import { lastEvent, liveMinute, scoreOf } from "../../lib/partidos";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { kickoffState, PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import { Flip } from "./Flip";
+import { useGoalCelebration } from "./useGoalCelebration";
 import { Icon } from "./icons";
 import "../../styles/partidos.css";
 
@@ -21,6 +22,7 @@ export function LiveIsland() {
   const live = matches.find((m) => matchPhase(m, now) === "playing");
   // (the earliest by date when two wait at once)
   const waiting = live ? undefined : matches.filter((m) => kickoffState(m, now) === "pending_whistle").sort((a, b) => dateMillis(a.date) - dateMillis(b.date))[0];
+  const goalShow = useGoalCelebration(live, now);
   const shownMatch = live ?? waiting;
   const shown = !!shownMatch && pathname !== `/matches/${shownMatch.id}`;
   // The heroes make room for the pill while it is on screen (styles: html[data-isle]).
@@ -67,8 +69,8 @@ export function LiveIsland() {
                 PITI
               </span>
               <span className="sc" aria-hidden="true">
-                <Flip value={gf} />
-                <Flip value={ga} />
+                <Flip value={gf} still={!goalShow.flip} />
+                <Flip value={ga} still={!goalShow.flip} />
               </span>
               <span className="tm">
                 <i>{ini}</i>

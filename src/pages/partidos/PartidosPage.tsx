@@ -13,6 +13,7 @@ import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Flip } from "../../components/celeste/Flip";
 import { Avisos } from "../../components/celeste/Avisos";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
+import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { leaders, matchEvent, playerLines, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
@@ -54,6 +55,7 @@ function Countdown({ target }: { target: number }) {
 function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => string }) {
   const now = useClock(15_000);
   const m = view.live ?? view.next;
+  const goalShow = useGoalCelebration(view.live, now);
   if (!m) {
     return (
       <article className="pt-board pt-rise" style={{ animationDelay: ".15s" }} aria-label="Primer partido, por publicar">
@@ -113,9 +115,9 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
         </div>
         {live ? (
           <div className="pt-score" role="status" aria-label={`Marcador: ${gf} a ${ga}`}>
-            <Flip value={gf} />
+            <Flip value={gf} still={!goalShow.flip} />
             <i>–</i>
-            <Flip value={ga} />
+            <Flip value={ga} still={!goalShow.flip} />
           </div>
         ) : (
           <span className="pt-vs">vs</span>
@@ -140,7 +142,7 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
               Seguir en directo <Icon name="arrow" size={16} stroke={2.2} />
             </Link>
           </div>
-          <GoalBurst goals={gf} who={last?.goal ? `${last.who} · ${last.minute}′` : undefined} />
+          <GoalBurst burst={goalShow.burst} who={last?.goal ? `${last.who} · ${last.minute}′` : undefined} />
         </>
       ) : (
         <>
