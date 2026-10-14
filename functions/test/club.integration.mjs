@@ -731,7 +731,14 @@ await ok("saveMatchSheet", admin, { id: liveMatchId, sheet: liveSheet });
 await db.doc("matches/" + liveMatchId).update({ clock: FieldValue.delete(), version: FieldValue.delete() });
 const liveAdd = (type, minute, playerId, extra = {}) => ({ action: "add", matchId: liveMatchId, event: { type, minute, ...(playerId ? { playerId } : {}), ...extra } });
 await denied("liveEvent", member, liveAdd("chance", 5, liveIds[0]), "PERMISSION_DENIED");
-await ok("liveEvent", admin, liveAdd("chance", 5, liveIds[0]));
+{
+  // Every answer carries the server's clock: phones estimate their offset from it (src/lib/serverTime.ts).
+  const before = Date.now();
+  const first = await ok("liveEvent", admin, liveAdd("chance", 5, liveIds[0]));
+  assert.equal(typeof first.serverNow, "number");
+  assert.ok(Math.abs(first.serverNow - before) < 60_000, JSON.stringify(first));
+  assert.equal(first.events, 1);
+}
 await ok("liveEvent", admin, liveAdd("chance", 6));
 await ok("liveEvent", admin, liveAdd("opponent_chance", 7));
 await ok("liveEvent", admin, liveAdd("corner", 8, liveIds[1]));
@@ -746,11 +753,11 @@ await denied("liveEvent", admin, liveAdd("substitution", 35, liveIds[1], { inPla
 await ok("liveEvent", admin, liveAdd("substitution", 35, liveIds[1], { inPlayerId: liveIds[8] }));
 await ok("liveEvent", admin, liveAdd("substitution", 45, liveIds[8], { inPlayerId: liveIds[1] }));
 await ok("liveEvent", admin, liveAdd("goal", 50));
-await ok("liveEvent", admin, { action: "undo", matchId: liveMatchId });
+assert.equal(typeof (await ok("liveEvent", admin, { action: "undo", matchId: liveMatchId })).serverNow, "number");
 await ok("liveEvent", admin, { action: "finish", matchId: liveMatchId });
 assert.equal(typeof (await db.doc(`matches/${liveMatchId}`).get()).get("liveEndedAt"), "number");
 await denied("liveEvent", admin, liveAdd("corner", 50), "FAILED_PRECONDITION");
-await ok("liveEvent", admin, { action: "reopen", matchId: liveMatchId });
+assert.equal(typeof (await ok("liveEvent", admin, { action: "reopen", matchId: liveMatchId })).serverNow, "number");
 assert.equal((await db.doc(`matches/${liveMatchId}`).get()).get("liveEndedAt"), undefined);
 await ok("liveEvent", admin, { action: "finish", matchId: liveMatchId });
 let liveDoc = (await db.doc(`matches/${liveMatchId}`).get()).data();

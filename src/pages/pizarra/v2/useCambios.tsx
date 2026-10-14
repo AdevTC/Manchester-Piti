@@ -7,6 +7,7 @@ import { useState, type ReactNode } from "react";
 import type { Lineup, Sub, TakerKind } from "../formations";
 import { newId } from "../drawings";
 import { apiError, liveEvent } from "../../../lib/clubApi";
+import { serverNow } from "../../../lib/serverTime";
 import { slotZone } from "./geometry";
 import { natOf, type Squad } from "./model";
 import { toggleRole } from "./ops";
@@ -172,7 +173,7 @@ export function useCambios(c: CambiosCtx): Cambios {
     }
     const m = c.match;
     const todo = lw.pending;
-    const first = todo.map((s) => subProblem(m, live, s, Date.now(), nm)).find(Boolean);
+    const first = todo.map((s) => subProblem(m, live, s, serverNow(), nm)).find(Boolean);
     if (first) {
       c.say(first);
       return;

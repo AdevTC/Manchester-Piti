@@ -41,7 +41,7 @@ export const liveEvent = onCall(async (req) => {
   const data = parse(input, req.data);
   const ref = db.doc(`matches/${data.matchId}`);
   const now = Date.now();
-  return db.runTransaction(async (tx) => {
+  const result = await db.runTransaction(async (tx) => {
     await requireScorer(tx, data.matchId, actor);
     const snap = await tx.get(ref);
     if (!snap.exists) throw new HttpsError("not-found", "Ese partido no existe.");
@@ -87,4 +87,6 @@ export const liveEvent = onCall(async (req) => {
     tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, revision: (m.revision ?? 0) + 1, updatedBy: uid, at: FieldValue.serverTimestamp(), live: data.action, ...(data.action === "add" ? { type: data.event.type, minute: data.event.minute } : {}) });
     return { events: next.length };
   });
+  // The server's clock at the answer: the phone estimates its offset from it (src/lib/serverTime.ts).
+  return { ...result, serverNow: Date.now() };
 });

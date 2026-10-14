@@ -6,32 +6,39 @@
 import { useEffect, useState } from "react";
 import type { CalMatch } from "./boards";
 import { nextClockAt } from "./live";
+import { serverNow, subscribeServerTime } from "../../../lib/serverTime";
 
-/** The time, read again at each of the match's minutes (and on coming back to the page). */
+/** The time on the server's clock (lib/serverTime: every phone reads the same minute), read again at
+ *  each of the match's minutes (and on coming back to the page, or when the offset estimate changes). */
 export function useMatchClock(m: CalMatch | null, fallback: number): number {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(() => serverNow());
   const [tick, setTick] = useState(0);
   useEffect(() => {
-    const at = nextClockAt(m, Date.now());
+    const at = nextClockAt(m, serverNow());
     if (at == null) return;
     const t = window.setTimeout(
       () => {
-        setNow(Date.now());
+        setNow(serverNow());
         setTick((k) => k + 1);
       },
-      Math.max(0, at - Date.now()) + 50,
+      Math.max(0, at - serverNow()) + 50,
     );
     return () => window.clearTimeout(t);
   }, [m, tick]);
   useEffect(() => {
+    const reread = () => {
+      setNow(serverNow());
+      setTick((k) => k + 1);
+    };
     const onVis = () => {
-      if (document.visibilityState === "visible") {
-        setNow(Date.now());
-        setTick((k) => k + 1);
-      }
+      if (document.visibilityState === "visible") reread();
     };
     document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    const unsubscribe = subscribeServerTime(reread);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      unsubscribe();
+    };
   }, []);
   // (the page's own clock moving on — a new minute — counts too)
   return Math.max(now, fallback);
