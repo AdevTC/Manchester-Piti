@@ -94,7 +94,7 @@ async function write(changes: Change[]): Promise<number> {
   const all = changes.map((c) =>
     writer.update(c.ref, c.data).then(
       () => void done++,
-      (e: unknown) => console.warn("renameEverywhere: not rewritten", c.ref.path, e),
+      (e: unknown) => console.error("renameEverywhere: not rewritten", c.ref.path, e),
     ),
   );
   await writer.close();

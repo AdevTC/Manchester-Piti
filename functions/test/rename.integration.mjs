@@ -151,17 +151,24 @@ async function othersUntouched() {
   checked++;
 }
 
-// ---------- a write of the profile that leaves the handle alone: nothing is rewritten
+// ---------- a write of the profile that leaves the handle alone: nothing is rewritten — a copy of mine
+// signed with a wrong name (the decoy) keeps it: only a rename sends the rewrite
+const boardDecoy = "ren-board-decoy-" + suffix;
+await db.doc("board/" + boardDecoy).set({ text: "hola", uid: me.uid, name: "mal_" + suffix, playerId: null, at });
 await db.doc("users/" + me.uid).update({ role: "user", playerId: "p" });
 await sleep(3000);
+assert.equal((await db.doc("board/" + boardDecoy).get()).get("name"), "mal_" + suffix, "a non-rename write rewrote a copy");
 assert.equal((await names())["board/" + boardMine + ".name"], old);
-checked++;
+checked += 2;
 
 // ---------- one rename: every copy follows, nobody else's
 const first = "nuevo_" + suffix;
 await rename(me, first);
 await everywhere(first);
 await othersUntouched();
+// (the decoy is mine too: the rename fixes it with the rest)
+assert.equal((await db.doc("board/" + boardDecoy).get()).get("name"), first);
+checked++;
 
 // ---------- two renames in a row (two triggers racing): the last name wins and stays
 const second = "otro_" + suffix;
