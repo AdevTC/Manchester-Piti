@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useSetSeason } from "../lib/useSetSeason";
 import { AnimatePresence } from "motion/react";
 import { useSeason } from "../context/SeasonContext";
 import { collection, query, orderBy } from "firebase/firestore";
@@ -32,12 +32,10 @@ const matchesQuery = query(collection(db, "matches"), orderBy("date", "desc"));
 
 export const MatchCenter: React.FC = () => {
   const { selectedSeasonId, seasons } = useSeason();
-  const navigate = useNavigate();
   // The season is URL-authoritative (SeasonUrlSync adopts ?season into context),
-  // so this filter must navigate the URL — calling setSelectedSeasonId directly
+  // so this filter must navigate the URL (useSetSeason) — a direct context write
   // would be reverted by SeasonUrlSync on the next render.
-  const pickSeason = (id: string) =>
-    void navigate({ to: ".", search: (prev) => ({ ...prev, season: id }) });
+  const pickSeason = useSetSeason();
   const { data: playersData } = useFirestoreCollection(PLAYERS_KEY, playersQuery, mapPlayer);
   const { data: matchesData, isPending } = useFirestoreCollection(MATCHES_KEY, matchesQuery, mapMatch);
   // seasonDetails is record<string, unknown> in the canonical doc; the board

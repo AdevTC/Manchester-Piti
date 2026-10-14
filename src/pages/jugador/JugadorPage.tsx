@@ -4,7 +4,8 @@ import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 // his constellation with the best partner, the vitrina — plus season by season, last games and
 // substitutions. From the Design canvas "Estadísticas · elegida" (Ficha de jugador).
 import { useMemo, useState } from "react";
-import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
+import { Link, getRouteApi } from "@tanstack/react-router";
+import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { formatDate, playerForSeason, playerName, useClubData, type ClubMatch } from "../../lib/clubData";
 import { analysePlayer, chronological, competitionRanks, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { computeStats } from "../../lib/playerStats";
@@ -62,7 +63,7 @@ export function JugadorPage() {
   const { playerId } = route.useParams();
   const { players, matches, loading, error } = useClubData();
   const { seasons, selectedSeasonId, loadingSeasons } = useSeason();
-  const navigate = useNavigate();
+  const setSeason = useSetSeason();
   const results = useMvpResults();
   const now = useClock(60_000);
   const { theme } = useTheme();
@@ -124,7 +125,7 @@ export function JugadorPage() {
       </Shell>
     );
 
-  const periodName = selectedSeasonId === "all" ? "Todo el historial" : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
+  const periodName = selectedSeasonId === "all" ? ALL_SEASONS_LABEL : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
   const tracked = me.tracked > 0;
   const rec = (v: number) => (tracked ? v : "—");
   const tiles: [string, string | number][] = [
@@ -245,8 +246,8 @@ export function JugadorPage() {
             {(seasons.length > 0 || loadingSeasons) && (
               <label className="st-field jg-season">
                 <span className="st-mono">Temporada</span>
-                <select aria-label="Seleccionar temporada" value={loadingSeasons ? "all" : selectedSeasonId} disabled={loadingSeasons} onChange={(e) => void navigate({ to: ".", search: (prev) => ({ ...prev, season: e.target.value }) })}>
-                  <option value="all">Todo el historial</option>
+                <select aria-label="Seleccionar temporada" value={loadingSeasons ? "all" : selectedSeasonId} disabled={loadingSeasons} onChange={(e) => setSeason(e.target.value)}>
+                  <option value="all">{ALL_SEASONS_LABEL}</option>
                   {[...seasons].reverse().map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}

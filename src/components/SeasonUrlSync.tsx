@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useSeason } from "../context/SeasonContext";
+import { useAdoptSeason, useSeason } from "../context/SeasonContext";
 
 /**
  * Bridges the `season` URL param -> SeasonContext. The URL is the source of
@@ -9,11 +9,13 @@ import { useSeason } from "../context/SeasonContext";
  * effect with full deps — safe under React StrictMode's double-invoked effects
  * (no mount-count/which-changed ref, which a deep-link race would defeat).
  * SeasonProvider is above the router, so this lives inside the router instead.
+ * This is the only writer of the context (`useAdoptSeason`); pages navigate with `useSetSeason()`.
  */
 export const SeasonUrlSync = (): null => {
   const navigate = useNavigate();
   const urlSeason = useSearch({ strict: false, select: (s) => (s as { season?: string }).season });
-  const { selectedSeasonId, seasons, loadingSeasons, setSelectedSeasonId } = useSeason();
+  const { selectedSeasonId, seasons, loadingSeasons } = useSeason();
+  const adoptSeasonId = useAdoptSeason();
 
   useEffect(() => {
     // No season in the URL: seed it from the current selection so the page is
@@ -29,13 +31,13 @@ export const SeasonUrlSync = (): null => {
     const known = urlSeason === "all" || seasons.some((s) => s.id === urlSeason);
     if (!known) {
       // Unknown season in the URL -> fall back to "all".
-      if (selectedSeasonId !== "all") setSelectedSeasonId("all");
+      if (selectedSeasonId !== "all") adoptSeasonId("all");
       void navigate({ to: ".", search: (prev) => ({ ...prev, season: "all" }), replace: true });
       return;
     }
     // Adopt the URL's season (deep-link, back/forward, selector navigation).
-    if (urlSeason !== selectedSeasonId) setSelectedSeasonId(urlSeason);
-  }, [urlSeason, selectedSeasonId, seasons, loadingSeasons, navigate, setSelectedSeasonId]);
+    if (urlSeason !== selectedSeasonId) adoptSeasonId(urlSeason);
+  }, [urlSeason, selectedSeasonId, seasons, loadingSeasons, navigate, adoptSeasonId]);
 
   return null;
 };

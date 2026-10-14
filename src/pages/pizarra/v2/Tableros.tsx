@@ -15,6 +15,7 @@ import { filterByRival, rivalOptions } from "./rival";
 import { countTxt, organize, readSort, recentRows, writeSort, type BoardSort } from "./boardList";
 import { tagsInUse } from "./tags";
 import { BoardOrganizer, CaptainCard, RecentStrip, RowTags, TagEditor, type CaptainView } from "./TablerosOrg";
+import { ALL_SEASONS_LABEL } from "../../../lib/useSetSeason";
 
 export type TbTab = "m" | "o" | "p";
 
@@ -571,7 +572,7 @@ export function TablerosPanel(p: TablerosProps) {
           <label className="selw full">
             Datos de
             <select value={p.seasonId} onChange={(e) => p.onSeason(e.target.value)} aria-label="Temporada de los datos">
-              {p.seasonId === "all" && <option value="all">Histórico total</option>}
+              {p.seasonId === "all" && <option value="all">{ALL_SEASONS_LABEL}</option>}
               {p.seasons.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}

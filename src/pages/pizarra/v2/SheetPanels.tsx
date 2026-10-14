@@ -16,6 +16,7 @@ import type { Squad } from "./model";
 import type { ShowKey, ShowPrefs } from "./prefs";
 import { intro3dWanted, setIntro3dWanted } from "./intro";
 import { TeamDiamonds } from "./TacticaPanel";
+import { ALL_SEASONS_LABEL } from "../../../lib/useSetSeason";
 
 /** A panel's heading: the title speaks first and the old kicker is the line under it (the panels
  *  behind «Más» have «‹ Más» before it). */
@@ -577,7 +578,7 @@ export function AjustesPanel(p: AjustesProps) {
       <label className="selw full">
         Datos de
         <select value={p.seasonId} onChange={(e) => p.onSeason(e.target.value)} aria-label="Temporada de los datos">
-          {p.seasonId === "all" && <option value="all">Histórico total</option>}
+          {p.seasonId === "all" && <option value="all">{ALL_SEASONS_LABEL}</option>}
           {p.seasons.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}

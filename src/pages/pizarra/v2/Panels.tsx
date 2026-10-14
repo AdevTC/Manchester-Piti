@@ -18,6 +18,7 @@ import { vars, type Hud, type Modo } from "./view";
 import { mag } from "./mag";
 import { RAIL } from "./rail";
 import { shownBench, useWide } from "./useWide";
+import { ALL_SEASONS_LABEL } from "../../../lib/useSetSeason";
 
 
 // ── the command bar: the board (name, match, autosave) · the siete's plates (MEDIA, 7/7, QUÍMICA,
@@ -414,7 +415,7 @@ export function BenchTab(p: BenchTabProps) {
               <label className="selw">
                 Temporada
                 <select value={p.seasonId} onChange={(e) => p.onSeason(e.target.value)} aria-label="Temporada">
-                  {p.seasonId === "all" && <option value="all">Histórico total</option>}
+                  {p.seasonId === "all" && <option value="all">{ALL_SEASONS_LABEL}</option>}
                   {p.seasons.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}

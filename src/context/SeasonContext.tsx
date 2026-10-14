@@ -10,14 +10,19 @@ export interface Season {
   captainPlayerId?: string;
 }
 
+/** What pages see. They change the season with `useSetSeason()` (it navigates), never by writing here. */
 interface SeasonContextType {
   seasons: Season[];
   selectedSeasonId: string; // "all" or season ID
-  setSelectedSeasonId: (id: string) => void;
   loadingSeasons: boolean;
 }
 
-const SeasonContext = createContext<SeasonContextType | undefined>(undefined);
+/** The context also carries the writer, reachable only through `useAdoptSeason` (SeasonUrlSync). */
+interface SeasonContextValue extends SeasonContextType {
+  adoptSeasonId: (id: string) => void;
+}
+
+const SeasonContext = createContext<SeasonContextValue | undefined>(undefined);
 
 export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Shared canonical mapper (full validated doc); derive the Season view here so
@@ -36,7 +41,7 @@ export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return localStorage.getItem("selected_season_id") || "all";
   });
 
-  const setSelectedSeasonId = (id: string) => {
+  const adoptSeasonId = (id: string) => {
     setSelectedSeasonIdRaw(id);
     localStorage.setItem("selected_season_id", id);
   };
@@ -50,19 +55,33 @@ export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       : selectedSeasonIdRaw;
 
   return (
-    <SeasonContext.Provider value={{ seasons, selectedSeasonId, setSelectedSeasonId, loadingSeasons }}>
+    <SeasonContext.Provider value={{ seasons, selectedSeasonId, adoptSeasonId, loadingSeasons }}>
       {children}
     </SeasonContext.Provider>
   );
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const useSeason = () => {
+export const useSeason = (): SeasonContextType => {
   const context = useContext(SeasonContext);
   if (context === undefined) {
     throw new Error("useSeason must be used within a SeasonProvider");
   }
   return context;
+};
+
+/**
+ * Writes the season into the context. ONLY SeasonUrlSync may call this: the URL is the source of
+ * truth, and any other writer is reverted by the sync on the next render (the /partidos bug).
+ * Pages change the season with `useSetSeason()`.
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- a hook next to its context, like useSeason
+export const useAdoptSeason = (): ((id: string) => void) => {
+  const context = useContext(SeasonContext);
+  if (context === undefined) {
+    throw new Error("useAdoptSeason must be used within a SeasonProvider");
+  }
+  return context.adoptSeasonId;
 };
 
 /** Whether the seasons are still arriving (false outside the provider, e.g. in isolated tests). */

@@ -16,6 +16,7 @@ import { GoalBurst } from "../../components/celeste/GoalBurst";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { leaders, matchEvent, playerLines, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
+import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { calendarRows, countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf, scorersLine, seasonView, type Filter, type SeasonView } from "../../lib/partidos";
 import "../../styles/home.css";
@@ -173,7 +174,9 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
 
 export function PartidosPage() {
   const { matches, players, loading } = useClubData();
-  const { seasons, selectedSeasonId, setSelectedSeasonId } = useSeason();
+  const { seasons, selectedSeasonId } = useSeason();
+  // The season is URL-authoritative (SeasonUrlSync): picking one navigates, it never writes the context.
+  const setSeason = useSetSeason();
   const now = useClock(60_000);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
@@ -328,8 +331,8 @@ export function PartidosPage() {
               <input type="search" placeholder="Buscar rival…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </label>
             {seasons.length > 1 && (
-              <select className="pt-season" aria-label="Temporada" value={selectedSeasonId} onChange={(e) => setSelectedSeasonId(e.target.value)}>
-                <option value="all">Todas las temporadas</option>
+              <select className="pt-season" aria-label="Temporada" value={selectedSeasonId} onChange={(e) => setSeason(e.target.value)}>
+                <option value="all">{ALL_SEASONS_LABEL}</option>
                 {seasons.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}

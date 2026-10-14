@@ -5,6 +5,7 @@ import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 // From the Design canvas "Estadísticas · elegida"; pure logic in lib/clubAnalytics.ts + lib/statsView.ts.
 import { useMemo } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
+import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { playerForSeason, playerName, useClubData } from "../../lib/clubData";
 import { analysePlayer, chronological, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { tickerLines } from "../../lib/statsView";
@@ -48,7 +49,7 @@ export function StatsPage() {
   const section: ExploreSection = search.section ?? "individual";
   const setView = (next: View) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: next, tab: next === "compare" ? "compare" : "general" }), resetScroll: false });
   const setSection = (next: ExploreSection) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "explore", section: next }), resetScroll: false });
-  const setSeason = (season: string) => void navigate({ to: ".", search: (prev) => ({ ...prev, season }) });
+  const setSeason = useSetSeason();
 
   const games = useMemo(() => chronological(matches.filter((m) => selectedSeasonId === "all" || m.seasonId === selectedSeasonId)), [matches, selectedSeasonId]);
   const rows = useMemo(
@@ -64,7 +65,7 @@ export function StatsPage() {
     { label: "Más MVP", p: top((p) => mvps.get(p.id) ?? 0), v: (p: PlayerAnalysis) => mvps.get(p.id) ?? 0 },
   ].filter((l) => l.p);
   const tracked = games.filter((m) => m.ledger && Object.keys(m.ledger).length).length;
-  const periodName = selectedSeasonId === "all" ? "Todo el historial" : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
+  const periodName = selectedSeasonId === "all" ? ALL_SEASONS_LABEL : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
   const ready = !loading && !error;
   const empty = ready && !games.length;
 
@@ -106,7 +107,7 @@ export function StatsPage() {
                 <label className="st-field">
                   <span className="st-mono">Temporada</span>
                   <select aria-label="Seleccionar temporada" value={loadingSeasons ? "all" : selectedSeasonId} disabled={loadingSeasons} onChange={(e) => setSeason(e.target.value)}>
-                    <option value="all">Todo el historial</option>
+                    <option value="all">{ALL_SEASONS_LABEL}</option>
                     {[...seasons].reverse().map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
