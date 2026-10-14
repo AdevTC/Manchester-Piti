@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { onSnapshot, type Query, type QuerySnapshot } from "firebase/firestore";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, recordSnapshotMeta } from "./syncStatus";
+import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, recordSnapshotMeta, reopenDelay } from "./syncStatus";
 
 export function mapSnapshotDocs<T>(snap: QuerySnapshot, map: (id: string, data: unknown) => T | null): T[] {
   const out: T[] = [];
@@ -43,19 +43,19 @@ export function handleSnapshotError(
  * don't re-render for it.
  *
  * A Firestore listener that errors is dead. The entry then marks the error,
- * keeps the last data, and reopens: at once when a new reader arrives, or once
- * after `LISTENER_RETRY_MS` while readers remain (one automatic retry per
- * failure streak, so a permanent error can't hot-loop).
+ * keeps the last data, and reopens: once after `LISTENER_RETRY_MS` while
+ * readers remain (one automatic retry per failure streak; only a server
+ * snapshot ends a streak), and when a new reader arrives — at once, unless the
+ * streak's retry failed too, then at most every `REOPEN_MIN_MS`. A permanent
+ * error can't hot-loop.
  */
 interface SharedSub {
   count: number;
-  /** The live listener's unsubscribe; null while the listener is dead (after an error). */
+  /** The live listener's unsubscribe; null while the listener is dead (after an error) or waiting to reopen. */
   unsub: (() => void) | null;
   idle: ReturnType<typeof setTimeout> | null;
   retry: ReturnType<typeof setTimeout> | null;
-  /** The automatic retry was already spent since the last good snapshot. */
-  retried: boolean;
-  errored: boolean;
+  /** Opens the listener for a new reader, respecting `reopenDelay`. */
   reopen: () => void;
 }
 const sharedSubs = new Map<string, SharedSub>();
@@ -102,25 +102,30 @@ export function subscribeShared<T>(
     entry.count += 1;
     if (entry.idle) clearTimeout(entry.idle);
     entry.idle = null;
-    // A dead listener: the new reader reopens it now (no need to wait for the retry).
+    // A dead listener: the new reader reopens it (now, or once the key may be retried).
     if (!entry.unsub) entry.reopen();
   } else {
-    const sub: SharedSub = { count: 1, unsub: null, idle: null, retry: null, retried: false, errored: false, reopen: () => {} };
+    const sub: SharedSub = { count: 1, unsub: null, idle: null, retry: null, reopen: () => {} };
+    /** Opens later, unless an open is already scheduled; only if the entry still has readers and no listener. */
+    const openIn = (ms: number) => {
+      if (sub.retry) return;
+      sub.retry = setTimeout(() => {
+        sub.retry = null;
+        if (sharedSubs.get(hash) === sub && sub.count > 0 && !sub.unsub) open();
+      }, ms);
+    };
     const open = () => {
       if (sub.retry) clearTimeout(sub.retry);
       sub.retry = null;
-      // Each listener's first snapshot always writes the data, even an empty list.
+      // Each listener's first snapshot always writes the data, even an empty list, and clears an
+      // error left by an earlier listener of this key (this entry's or a dropped one's).
       let first = true;
       sub.unsub = onSnapshot(
         q,
         { includeMetadataChanges: true },
         (snap) => {
           if (sharedSubs.get(hash) !== sub) return;
-          sub.retried = false;
-          if (sub.errored) {
-            sub.errored = false;
-            qc.setQueryData(errorKey, null);
-          }
+          if (first) qc.setQueryData(errorKey, null);
           if (first || snap.docChanges().length > 0) qc.setQueryData(key, mapSnapshotDocs(snap, map));
           first = false;
           recordSnapshotMeta(hash, snap.metadata);
@@ -128,7 +133,7 @@ export function subscribeShared<T>(
         (err) => {
           if (sharedSubs.get(hash) !== sub) return;
           sub.unsub = null; // Firestore already closed it
-          sub.errored = true;
+          const streak = noteListenerFailure(hash);
           qc.setQueryData(errorKey, err);
           handleSnapshotError(qc, key, err);
           markListenerStale(hash);
@@ -138,19 +143,19 @@ export function subscribeShared<T>(
             sharedSubs.delete(hash);
             return;
           }
-          if (sub.retried) return;
-          sub.retried = true;
-          sub.retry = setTimeout(() => {
-            sub.retry = null;
-            if (sharedSubs.get(hash) === sub && sub.count > 0 && !sub.unsub) open();
-          }, LISTENER_RETRY_MS);
+          // one automatic retry per streak
+          if (streak === 1) openIn(LISTENER_RETRY_MS);
         },
       );
     };
-    sub.reopen = open;
+    sub.reopen = () => {
+      const wait = reopenDelay(hash);
+      if (wait > 0) openIn(wait);
+      else open();
+    };
     sharedSubs.set(hash, sub);
     entry = sub;
-    open();
+    sub.reopen();
   }
 
   const mine = entry;

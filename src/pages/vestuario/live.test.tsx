@@ -23,7 +23,7 @@ vi.mock("firebase/firestore", async (importOriginal) => ({
 vi.mock("../../firebase", () => ({ db: {} }));
 
 import { useAvailability, useLiveDoc, useMatchPrivate, useMatchScorers, useMeetingNote } from "./live";
-import { LISTENER_RETRY_MS, _resetSnapshotMetaForTesting, getSnapshotMeta } from "../../lib/syncStatus";
+import { LISTENER_RETRY_MS, REOPEN_MIN_MS, _resetSnapshotMetaForTesting, getSnapshotMeta } from "../../lib/syncStatus";
 
 const meta = (fromCache = false, hasPendingWrites = false) => ({ fromCache, hasPendingWrites });
 const emitDoc = (path: string, data: Record<string, unknown> | undefined, metadata = meta()) =>
@@ -222,6 +222,37 @@ describe("useShared: metadatos aparte y escuchas que se recuperan", () => {
     expect(again.result.current.data).toEqual(DOC.scorerUids);
     note.unmount();
     again.unmount();
+  });
+
+  it("una instantánea de caché antes de cada fallo no rearma el reintento; luego, como mucho una reapertura cada REOPEN_MIN_MS", () => {
+    const a = renderHook(() => useMeetingNote("r5"));
+    const path = "matchPrivate/r5";
+    emitDoc(path, DOC, meta(true));
+    failAt(path);
+    act(() => {
+      vi.advanceTimersByTime(LISTENER_RETRY_MS);
+    });
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    emitDoc(path, DOC, meta(true));
+    failAt(path);
+    act(() => {
+      vi.advanceTimersByTime(LISTENER_RETRY_MS * 4);
+    });
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    expect(a.result.current).toEqual({ data: DOC.meetingNote, loading: false, error: true });
+    a.unmount();
+
+    // a permanently failing key: a new reader waits (showing the error, not «loading») instead of reopening at once
+    const b = renderHook(() => useMeetingNote("r5"));
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    expect(b.result.current).toEqual({ data: "", loading: false, error: true });
+    act(() => {
+      vi.advanceTimersByTime(REOPEN_MIN_MS);
+    });
+    expect(onSnapshotMock).toHaveBeenCalledTimes(3);
+    emitDoc(path, DOC);
+    expect(b.result.current).toEqual({ data: DOC.meetingNote, loading: false, error: false });
+    b.unmount();
   });
 
   it("si el error llega sin lectores, se suelta la entrada y el siguiente lector se suscribe de nuevo", () => {

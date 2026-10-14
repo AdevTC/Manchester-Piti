@@ -16,6 +16,8 @@ export interface SnapshotMeta {
 
 /** After a listener dies (rules, network, quota), the registry reopens it once after this long if it still has readers. */
 export const LISTENER_RETRY_MS = 5_000;
+/** A key whose automatic retry failed too (a permanent error, e.g. rules) is reopened for new readers at most this often. */
+export const REOPEN_MIN_MS = 30_000;
 
 /** The meta key of a TanStack registry entry: its serialized queryKey (the registry's own hash). */
 export const metaKeyOf = (queryKey: readonly unknown[]): string => JSON.stringify(queryKey);
@@ -25,8 +27,27 @@ const metas = new Map<string, SnapshotMeta>();
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
 
-/** Records the metadata of a snapshot. Same values → no change, no notification. */
+/**
+ * Failure streaks per key, shared by both registries and outliving their entries. Only a snapshot from the
+ * server ends a streak: a cache snapshot arrives before every failure of a key the rules refuse (a fan with
+ * cached docs), so counting it as «good» would retry forever.
+ */
+const failures = new Map<string, { count: number; at: number }>();
+/** Notes a listener failure; returns its position in the streak (1 = first since the last server snapshot). */
+export function noteListenerFailure(key: string, now: number = Date.now()): number {
+  const count = (failures.get(key)?.count ?? 0) + 1;
+  failures.set(key, { count, at: now });
+  return count;
+}
+/** How long a new reader must wait before reopening `key`: 0, unless the streak's automatic retry already failed. */
+export function reopenDelay(key: string, now: number = Date.now()): number {
+  const f = failures.get(key);
+  return !f || f.count < 2 ? 0 : Math.max(0, f.at + REOPEN_MIN_MS - now);
+}
+
+/** Records the metadata of a snapshot (a server one also ends the key's failure streak). Same values → no notification. */
 export function recordSnapshotMeta(key: string, m: { fromCache: boolean; hasPendingWrites: boolean }, now: number = Date.now()): void {
+  if (!m.fromCache) failures.delete(key);
   const prev = metas.get(key);
   const since = m.fromCache ? (prev?.since ?? null) : now;
   if (prev && prev.fromCache === m.fromCache && prev.hasPendingWrites === m.hasPendingWrites && prev.since === since) return;
@@ -60,9 +81,10 @@ export function useSnapshotMeta(key: string): SnapshotMeta | null {
   );
 }
 
-/** Test-only: forget every recorded metadata. */
+/** Test-only: forget every recorded metadata and failure streak. */
 export function _resetSnapshotMetaForTesting(): void {
   metas.clear();
+  failures.clear();
   notify();
 }
 
@@ -88,7 +110,12 @@ export interface SyncStatus {
   since: number | null;
 }
 
-/** Is the score on screen live? Combines `navigator.onLine` with the cache state of the shared ["matches"] listener. */
+/**
+ * Is the score on screen live? Combines `navigator.onLine` with the cache state of the shared ["matches"] listener.
+ * It only reads that listener's metadata, it doesn't open it: `fresh` is meaningful while something reads
+ * ["matches"] (useClubData — the LiveIsland, the match pages, the admin). With no reader the listener closes after
+ * KEEP_WARM_MS and `fresh` turns false.
+ */
 export function useSyncStatus(): SyncStatus {
   const online = useOnline();
   const meta = useSnapshotMeta(MATCHES_META_KEY);

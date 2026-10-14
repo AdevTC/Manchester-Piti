@@ -16,7 +16,7 @@ import {
   type SnapshotMetadata,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import { LISTENER_RETRY_MS, markListenerStale, recordSnapshotMeta } from "../../lib/syncStatus";
+import { LISTENER_RETRY_MS, markListenerStale, noteListenerFailure, recordSnapshotMeta, reopenDelay } from "../../lib/syncStatus";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import type { MvpResult, TrainingSlot } from "../../lib/vestuario";
 
@@ -37,9 +37,8 @@ interface Shared {
   readers: Set<() => void>;
   stop: (() => void) | null;
   idle: ReturnType<typeof setTimeout> | null;
+  /** A scheduled (re)open: the automatic retry, or a new reader's reopen of a permanently failing key. */
   retry: ReturnType<typeof setTimeout> | null;
-  /** The automatic retry was already spent since the last good snapshot. */
-  retried: boolean;
 }
 const shared = new Map<string, Shared>();
 const KEEP_WARM_MS = 60_000;
@@ -48,12 +47,30 @@ const clearTimers = (e: Shared) => {
   if (e.retry) clearTimeout(e.retry);
   e.idle = e.retry = null;
 };
+type Start<T> = (sink: Sink<T>) => () => void;
+/** Opens `entry` after `ms`, unless an open is already scheduled; only if it still has readers and no listener. */
+function openIn<T>(key: string, entry: Shared, start: Start<T>, empty: T, ms: number): void {
+  if (entry.retry) return;
+  entry.retry = setTimeout(() => {
+    entry.retry = null;
+    if (shared.get(key) === entry && entry.readers.size && !entry.stop) open(key, entry, start, empty);
+  }, ms);
+}
+/** A reader needs the listener: open it now, or once the key may be retried (see reopenDelay). */
+function reopen<T>(key: string, entry: Shared, start: Start<T>, empty: T): void {
+  const wait = reopenDelay(key);
+  if (!wait) return open(key, entry, start, empty);
+  // a permanently failing key: show the error (with whatever data is left) instead of loading meanwhile
+  entry.state ??= { data: empty, loading: false, error: true };
+  openIn(key, entry, start, empty, wait);
+}
 /**
  * Opens `start` for `entry`. On an error the entry keeps its last data with `error: true`, closes the dead
- * listener and reopens it: when a new reader subscribes, or once after LISTENER_RETRY_MS while readers remain.
- * With no readers left the entry is dropped, so the next mount starts afresh.
+ * listener and reopens it: once after LISTENER_RETRY_MS while readers remain (one automatic retry per failure
+ * streak; only a server snapshot ends a streak), and when a new reader subscribes (at once, or at most every
+ * REOPEN_MIN_MS once the streak's retry failed too). With no readers left the entry is dropped.
  */
-function open<T>(key: string, entry: Shared, start: (sink: Sink<T>) => () => void, empty: T): void {
+function open<T>(key: string, entry: Shared, start: Start<T>, empty: T): void {
   if (entry.retry) clearTimeout(entry.retry);
   entry.retry = null;
   let dead = false;
@@ -62,7 +79,6 @@ function open<T>(key: string, entry: Shared, start: (sink: Sink<T>) => () => voi
   close = start({
     snapshot: (data, meta, changed) => {
       if (dead) return;
-      entry.retried = false;
       recordSnapshotMeta(key, meta);
       if (!changed && entry.state && !entry.state.error) return;
       entry.state = { data, loading: false, error: false };
@@ -72,6 +88,7 @@ function open<T>(key: string, entry: Shared, start: (sink: Sink<T>) => () => voi
       if (dead) return;
       dead = true;
       entry.stop = null;
+      const streak = noteListenerFailure(key);
       close?.(); // the listener is closed already; this runs the opener's own cleanup
       entry.state = { data: entry.state ? entry.state.data : empty, loading: false, error: true };
       markListenerStale(key);
@@ -81,12 +98,8 @@ function open<T>(key: string, entry: Shared, start: (sink: Sink<T>) => () => voi
         if (shared.get(key) === entry) shared.delete(key);
         return;
       }
-      if (entry.retried) return;
-      entry.retried = true;
-      entry.retry = setTimeout(() => {
-        entry.retry = null;
-        if (shared.get(key) === entry && entry.readers.size && !entry.stop) open(key, entry, start, empty);
-      }, LISTENER_RETRY_MS);
+      // one automatic retry per streak
+      if (streak === 1) openIn(key, entry, start, empty, LISTENER_RETRY_MS);
     },
   });
   const opened = close;
@@ -98,18 +111,18 @@ function open<T>(key: string, entry: Shared, start: (sink: Sink<T>) => () => voi
     };
 }
 /** One onSnapshot per key, whoever reads it; `start` opens it and pushes each snapshot. */
-function useShared<T>(key: string | null, start: (sink: Sink<T>) => () => void, empty: T): Live<T> {
+function useShared<T>(key: string | null, start: Start<T>, empty: T): Live<T> {
   const subscribe = useCallback(
     (notify: () => void) => {
       if (!key) return () => {};
       let e = shared.get(key);
-      if (!e) shared.set(key, (e = { state: null, readers: new Set(), stop: null, idle: null, retry: null, retried: false }));
+      if (!e) shared.set(key, (e = { state: null, readers: new Set(), stop: null, idle: null, retry: null }));
       const entry = e;
       if (entry.idle) clearTimeout(entry.idle);
       entry.idle = null;
       entry.readers.add(notify);
-      // first reader, or the listener died: (re)open it now
-      if (!entry.stop) open(key, entry, start, empty);
+      // first reader, or the listener died: (re)open it
+      if (!entry.stop) reopen(key, entry, start, empty);
       return () => {
         entry.readers.delete(notify);
         if (entry.readers.size) return;

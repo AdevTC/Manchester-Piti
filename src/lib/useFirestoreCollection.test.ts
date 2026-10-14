@@ -4,7 +4,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { QuerySnapshot, Query } from "firebase/firestore";
 import { QueryClient as RealQueryClient, QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { mapSnapshotDocs, handleSnapshotError, subscribeShared, useFirestoreCollection, _resetSharedSubsForTesting, KEEP_WARM_MS } from "./useFirestoreCollection";
-import { LISTENER_RETRY_MS, _resetSnapshotMetaForTesting, getSnapshotMeta, useSyncStatus } from "./syncStatus";
+import { LISTENER_RETRY_MS, REOPEN_MIN_MS, _resetSnapshotMetaForTesting, getSnapshotMeta, useSyncStatus } from "./syncStatus";
 
 // onSnapshot is mocked so subscribeShared can be exercised without a live
 // Firestore: each call returns a distinct unsubscribe spy we can assert on.
@@ -226,6 +226,44 @@ describe("subscribeShared · metadatos y recuperación", () => {
     release();
   });
 
+  it("una instantánea de caché antes de cada fallo no rearma el reintento (sin bucle cada 5 s)", () => {
+    // a fan with cached docs and a key the rules refuse: every listen paints the cache, then fails
+    const release = subscribeShared(qc, ["lineups", "s1"], q, map);
+    const err = new Error("permission-denied");
+    act(() => listenerAt().next(snapOf([docOf("l1", 1)], { fromCache: true })));
+    act(() => listenerAt().fail(err));
+    vi.advanceTimersByTime(LISTENER_RETRY_MS);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    act(() => listenerAt().next(snapOf([docOf("l1", 1)], { fromCache: true })));
+    act(() => listenerAt().fail(err));
+    vi.advanceTimersByTime(LISTENER_RETRY_MS * 20);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    release();
+  });
+
+  it("una clave que falla siempre se reabre para lectores nuevos como mucho cada REOPEN_MIN_MS", () => {
+    const a = subscribeShared(qc, ["lineups", "s2"], q, map);
+    const err = new Error("permission-denied");
+    act(() => listenerAt().fail(err));
+    vi.advanceTimersByTime(LISTENER_RETRY_MS);
+    act(() => listenerAt().fail(err)); // the retry failed too: a permanent error
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    a();
+    // mount/unmount churn doesn't reopen it at once
+    const b = subscribeShared(qc, ["lineups", "s2"], q, map);
+    b();
+    const c = subscribeShared(qc, ["lineups", "s2"], q, map);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(REOPEN_MIN_MS);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(3);
+    // a server snapshot ends the streak: the next failure gets its automatic retry again
+    act(() => listenerAt().next(snapOf([docOf("l1", 1)])));
+    act(() => listenerAt().fail(err));
+    vi.advanceTimersByTime(LISTENER_RETRY_MS);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(4);
+    c();
+  });
+
   it("un lector nuevo reabre al momento una escucha muerta, y una buena instantánea limpia el error", () => {
     const a = subscribeShared(qc, ["matches"], q, map);
     act(() => listenerAt().next(snapOf([docOf("m1", 1)])));
@@ -254,9 +292,14 @@ describe("subscribeShared · metadatos y recuperación", () => {
     expect(onSnapshotMock).toHaveBeenCalledTimes(1); // no retry without readers
     expect(unsub).not.toHaveBeenCalled(); // the dead listener is not closed again
     expect(qc.getQueryData(["players"])).toEqual([{ id: "p1", n: 1 }]);
+    expect(qc.getQueryData(["players", "__error"])).toBeInstanceOf(Error);
 
     const b = subscribeShared(qc, ["players"], q, map);
     expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    // the new entry's first snapshot clears the error the dropped one left behind
+    act(() => listenerAt().next(snapOf([docOf("p1", 2)], { fromCache: true })));
+    expect(qc.getQueryData(["players", "__error"])).toBeNull();
+    expect(qc.getQueryData(["players"])).toEqual([{ id: "p1", n: 2 }]);
     b();
   });
 
