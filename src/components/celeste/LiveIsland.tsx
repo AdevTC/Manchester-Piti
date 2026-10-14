@@ -4,7 +4,7 @@
 // inicial» and opens the match. Hidden on that match's own page, which already is the scoreboard.
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { matchPhase, playerName, useClubData } from "../../lib/clubData";
+import { dateMillis, matchPhase, playerName, useClubData } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
 import { lastEvent, liveMinute, scoreOf } from "../../lib/partidos";
 import { opponentInitials } from "../../lib/clubAnalytics";
@@ -19,7 +19,8 @@ export function LiveIsland() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const live = matches.find((m) => matchPhase(m, now) === "playing");
-  const waiting = live ? undefined : matches.find((m) => kickoffState(m, now) === "pending_whistle");
+  // (the earliest by date when two wait at once)
+  const waiting = live ? undefined : matches.filter((m) => kickoffState(m, now) === "pending_whistle").sort((a, b) => dateMillis(a.date) - dateMillis(b.date))[0];
   const shownMatch = live ?? waiting;
   const shown = !!shownMatch && pathname !== `/matches/${shownMatch.id}`;
   // The heroes make room for the pill while it is on screen (styles: html[data-isle]).

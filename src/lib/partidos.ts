@@ -79,13 +79,16 @@ export function seasonView(matches: ClubMatch[], seasonId: string, now: number) 
 }
 export type SeasonView = ReturnType<typeof seasonView>;
 
-/** Calendar rows: upcoming first (soonest first), then results (latest first), by filter and rival search. */
+/** Calendar rows: upcoming first (soonest first), then results (latest first), by filter and rival search.
+ *  «Resultados» also lists the played ones still waiting for their acta (a clock that never started
+ *  included: «Pendiente del acta»), so no match falls out of both filters. */
 export function calendarRows(matches: ClubMatch[], filter: Filter, search: string, now: number) {
   const q = search.trim().toLocaleLowerCase("es");
   const upcoming = (m: ClubMatch) => ["scheduled", "playing", "postponed", "unscheduled"].includes(matchPhase(m, now));
+  const result = (m: ClubMatch) => isCompleted(m) || matchPhase(m, now) === "awaiting_result";
   return matches
     .filter((m) => !q || (m.rival ?? "").toLocaleLowerCase("es").includes(q))
-    .filter((m) => filter === "all" || (filter === "next" ? upcoming(m) : isCompleted(m)))
+    .filter((m) => filter === "all" || (filter === "next" ? upcoming(m) : result(m)))
     .sort((a, b) => {
       const ua = upcoming(a), ub = upcoming(b);
       if (ua !== ub) return ua ? -1 : 1;

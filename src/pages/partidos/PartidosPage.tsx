@@ -102,7 +102,7 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
             EN DIRECTO · {minute}′
           </span>
         ) : (
-          <b>{pending ? PENDING_WHISTLE.toUpperCase() : dateMillis(m.date) - now < 86_400_000 * 7 ? "ESTA SEMANA" : d.long.toUpperCase()}</b>
+          <b>{dateMillis(m.date) - now < 86_400_000 * 7 ? "ESTA SEMANA" : d.long.toUpperCase()}</b>
         )}
       </div>
       <div className="pt-teams">

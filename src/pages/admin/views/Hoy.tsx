@@ -16,7 +16,8 @@ import { scoreOf } from "../../../lib/partidos";
 import { apiError, liveEvent } from "../../../lib/clubApi";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
 import { joinNames, place, rsvpGroups, rsvpOf, sevenWhy, SEVEN } from "../data/lineup";
-import { countdown, countdownShort, matchAfter, type MatchMoment } from "../data/moments";
+import { countdown, countdownShort, finalSub, isPendingWhistle, isUnwhistled, matchAfter, type MatchMoment } from "../data/moments";
+import { PENDING_WHISTLE } from "../../../lib/derived/kickoff";
 import { useConvocatoria } from "../data/useConvocatoria";
 import { unwhistle } from "../data/whistleStore";
 import { LedBoard, Peg, PegRail, ResultMark, resultLetter, ShirtBack } from "../kit";
@@ -108,6 +109,8 @@ function Antes({ match }: { match: AdminMatch }) {
   const j = jLabel(match);
   const pl = plaque(match, isNext ? (data.next?.note ?? "") : "");
   const kick = dateMillis(match.date);
+  // The date has come and the clock is still ready: no «FALTAN 0m».
+  const pending = isPendingWhistle(match, now);
   const called = conv.lineup.starters.length + conv.lineup.bench.length;
 
   const toBench = (id: string) => {
@@ -171,9 +174,15 @@ function Antes({ match }: { match: AdminMatch }) {
             <small>{pl.short}</small>
           </span>
           <span className="ck">
-            FALTAN
-            <br />
-            {countdownShort(kick, now)}
+            {pending ? (
+              PENDING_WHISTLE
+            ) : (
+              <>
+                FALTAN
+                <br />
+                {countdownShort(kick, now)}
+              </>
+            )}
           </span>
         </div>
         <div className="mrail">
@@ -216,7 +225,13 @@ function Antes({ match }: { match: AdminMatch }) {
           ) : null}
         </small>
         <span className="r">
-          FALTAN<b>{countdown(kick, now)}</b>
+          {pending ? (
+            PENDING_WHISTLE
+          ) : (
+            <>
+              FALTAN<b>{countdown(kick, now)}</b>
+            </>
+          )}
         </span>
       </div>
       {chips}
@@ -322,9 +337,11 @@ function Final({ match, moment }: { match: AdminMatch; moment: MatchMoment }) {
   const { nameOf } = useNames();
   const { gf, ga } = scoreOf(match);
   const pub = moment === "publicado";
+  // Nobody started the clock and its window is over: no whistle and no result to celebrate.
+  const unwhistled = !pub && isUnwhistled(match, data.now);
   const j = jLabel(match);
   const note = data.next?.match.id === match.id ? data.next.note : "";
-  const sub = pub ? "FINAL" : "FINAL · SIN PUBLICAR";
+  const sub = finalSub(match, moment, data.now);
   const apunta = () => go({ section: "partidos", matchId: match.id, tab: "acta" });
   const vitrina = () => go({ section: "partidos", matchId: match.id, vitrina: true });
   if (!desktop)
@@ -349,7 +366,15 @@ function Final({ match, moment }: { match: AdminMatch; moment: MatchMoment }) {
       <LedBoard rival={match.rival ?? "Rival"} rivalLogoUrl={match.rivalLogoUrl} gf={gf} ga={ga} sub={sub} subTone="gd" ticker={tickerText(match, note)} flip={false} />
       <div className="calm" style={{ flex: 1 }}>
         <h3>
-          Pitado el final <ResultMark r={resultLetter(gf, ga)} /> <em>{finalLine(match, gf, ga)}</em>
+          {unwhistled ? (
+            <>
+              Sin pitido <em>El reloj no llegó a arrancar: apunta el resultado en el acta.</em>
+            </>
+          ) : (
+            <>
+              Pitado el final <ResultMark r={resultLetter(gf, ga)} /> <em>{finalLine(match, gf, ga)}</em>
+            </>
+          )}
         </h3>
         <div className="scr" style={{ flex: 1 }}>
           <LiveLog rows={rows} label="Lo que pasó" />

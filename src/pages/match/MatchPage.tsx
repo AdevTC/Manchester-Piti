@@ -199,7 +199,7 @@ export function MatchPage() {
                   {match.clock ? <MatchClockDisplay match={match} /> : <>EN DIRECTO · {minute}′</>}
                 </span>
               ) : (
-                <b>{done ? "FINAL" : phase === "cancelled" ? "CANCELADO" : phase === "postponed" ? "APLAZADO" : unplayed ? AWAITING_ACTA.toUpperCase() : pending ? "MARCADOR PROVISIONAL · ACTA PENDIENTE" : whistle ? PENDING_WHISTLE.toUpperCase() : dateMillis(match.date) - now < 7 * 86_400_000 ? "ESTA SEMANA" : "PRÓXIMO"}</b>
+                <b>{done ? "FINAL" : phase === "cancelled" ? "CANCELADO" : phase === "postponed" ? "APLAZADO" : unplayed ? AWAITING_ACTA.toUpperCase() : pending ? "MARCADOR PROVISIONAL · ACTA PENDIENTE" : dateMillis(match.date) - now < 7 * 86_400_000 ? "ESTA SEMANA" : "PRÓXIMO"}</b>
               )}
             </div>
             <div className="pt-teams">

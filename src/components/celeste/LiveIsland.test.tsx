@@ -46,6 +46,17 @@ it("from the date until someone starts the clock: a quiet pill «Pendiente del p
   expect(container).toBeEmptyDOMElement();
 });
 
+it("two matches waiting at once: the earliest by date, whatever their order in the list", () => {
+  const earlier: ClubMatch = { ...match, id: "j7", rival: "FUSION 7", rivalInitials: "FU7", date: DATE - 30 * MIN };
+  state.matches = [match, earlier];
+  state.now = DATE + 5 * MIN;
+  const { rerender } = render(<LiveIsland />);
+  expect(screen.getByRole("link")).toHaveTextContent("vs FU7");
+  state.matches = [earlier, match];
+  rerender(<LiveIsland />);
+  expect(screen.getByRole("link")).toHaveTextContent("vs FU7");
+});
+
 it("the clock starts: the live pill with the score and the minute", () => {
   state.matches = [{ ...match, clock: transitionClock(match.clock, "start", DATE + 10 * MIN) }];
   state.now = DATE + 13 * MIN;

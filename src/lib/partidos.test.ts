@@ -58,6 +58,15 @@ describe("calendarRows", () => {
     expect(calendarRows(ms, "results", "", NOW).map((m) => m.id)).toEqual(["new", "old"]);
     expect(calendarRows(ms, "all", "mad", NOW).map((m) => m.id)).toEqual(["far"]);
   });
+  it("a clock nobody started: «next» while it waits for the whistle, «results» once it waits for the acta", () => {
+    const clocked = (id: string, date: number): ClubMatch => ({ id, seasonId: "s1", rival: `Rival ${id}`, version: 2, status: "scheduled", date, duration: 50, clock: { revision: 0, phase: "ready" } });
+    const waiting = clocked("pitido", NOW - 10 * MIN);
+    const unplayed = clocked("acta", NOW - 3 * DAY);
+    const all = [...ms, waiting, unplayed];
+    expect(calendarRows(all, "next", "", NOW).map((m) => m.id)).toEqual(["pitido", "soon", "far"]);
+    expect(calendarRows(all, "results", "", NOW).map((m) => m.id)).toEqual(["acta", "new", "old"]);
+    expect(calendarRows(all, "all", "", NOW).map((m) => m.id)).toEqual(["pitido", "soon", "far", "acta", "new", "old"]);
+  });
 });
 
 describe("time helpers", () => {
