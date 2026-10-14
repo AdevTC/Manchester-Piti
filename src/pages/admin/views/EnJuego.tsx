@@ -7,7 +7,7 @@ import { MatchClockControl } from "../../../components/celeste/MatchClockControl
 // acta («Deshacer» takes the whistle back). Before kick-off / after the end it says so and points to Hoy /
 // the acta. Built on the shared live module (live/*: liveEvent add, undo, finish and reopen).
 import type { ReactNode } from "react";
-import { useParams } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { scoreOf } from "../../../lib/partidos";
 import { apiError, liveEvent } from "../../../lib/clubApi";
@@ -16,6 +16,7 @@ import { unwhistle, useWhistled } from "../data/whistleStore";
 import { LedBoard, ShirtBack } from "../kit";
 import { LiveClock, LiveLog, LivePads, LivePicker } from "../live/LiveParts";
 import { useLive } from "../live/useLive";
+import { useMatchShortcuts } from "../palette/matchShortcuts";
 import { useAdmin, useAdminGo } from "../shell/context";
 import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
@@ -37,6 +38,22 @@ function useNames() {
   return { nameOf, numberOf };
 }
 
+/** «Ver en la web»: the match's public page (its directo while it is played), once it is in the
+ *  calendar. Desktop: a button in the header; phones: an icon in the dark top row, beside ←. */
+function WebLink({ match, compact }: { match: AdminMatch; compact: boolean }) {
+  if (!match.published) return null;
+  return compact ? (
+    <Link className="bk" to="/matches/$matchId" params={{ matchId: match.id }} aria-label="Ver en la web">
+      <AdIcon name="ext" size={18} />
+    </Link>
+  ) : (
+    <Link className="btn line fr" to="/matches/$matchId" params={{ matchId: match.id }}>
+      Ver en la web
+      <AdIcon name="ext" size={14} />
+    </Link>
+  );
+}
+
 export function EnJuego() {
   const { matchId } = useParams({ strict: false });
   const data = useAdmin();
@@ -44,6 +61,8 @@ export function EnJuego() {
   const { desktop } = useFrame();
   const whistled = useWhistled();
   const match = data.matches.find((m) => m.id === matchId) ?? null;
+  // ⌘K: «Ver en la web» and «Abrir la pizarra (J8 · MAD SKY)» for this match
+  useMatchShortcuts(match);
   if (!match)
     return (
       <Frame desktop={desktop} title="En juego" lead="El partido" onBack={() => go({ section: "hoy" })} line="">
@@ -64,7 +83,7 @@ export function EnJuego() {
 const metaLine = (m: AdminMatch) => [jLabel(m), (m.competition || "Liga").toLocaleUpperCase("es"), m.home === false ? "FUERA" : "EN CASA"].join(" · ");
 
 /** The view's frame when there is nothing live: the desktop header, or the phone's dark top row with ←. */
-function Frame({ desktop, title, lead, line, onBack, children }: { desktop: boolean; title: string; lead: string; line: string; onBack: () => void; children: ReactNode }) {
+function Frame({ desktop, title, lead, line, onBack, match, children }: { desktop: boolean; title: string; lead: string; line: string; onBack: () => void; match?: AdminMatch; children: ReactNode }) {
   if (desktop)
     return (
       <>
@@ -73,6 +92,11 @@ function Frame({ desktop, title, lead, line, onBack, children }: { desktop: bool
             <h1 className="ttl">{title}</h1>
             <p className="ld">{lead}</p>
           </div>
+          {match && match.published && (
+            <div className="r">
+              <WebLink match={match} compact={false} />
+            </div>
+          )}
         </div>
         {children}
       </>
@@ -85,6 +109,7 @@ function Frame({ desktop, title, lead, line, onBack, children }: { desktop: bool
             <AdIcon name="back" size={20} />
           </button>
           {line ? <span className="ml">{line}</span> : null}
+          {match && <WebLink match={match} compact />}
         </div>
       </div>
       <div className="msc">{children}</div>
@@ -123,7 +148,7 @@ function NotLive({ match, phase }: { match: AdminMatch; phase: Phase }) {
       </div>
     );
   return (
-    <Frame desktop={desktop} title="En juego" lead={`${j} · ${rival}`} line={metaLine(match)} onBack={() => go({ section: "hoy" })}>
+    <Frame desktop={desktop} title="En juego" lead={`${j} · ${rival}`} line={metaLine(match)} onBack={() => go({ section: "hoy" })} match={match}>
       {body}
       <MatchClockControl match={match} />
     </Frame>
@@ -166,6 +191,7 @@ function Live({ match }: { match: AdminMatch }) {
             </button>
             <span className="tally">EN JUEGO</span>
             <span className="ml">{metaLine(match)}</span>
+            <WebLink match={match} compact />
           </div>
           <LedBoard rival={rival} gf={gf} ga={ga} size="mob" flash={live.flash} sub={<LiveClock start={start} match={match} />} />
         </div>
@@ -192,6 +218,7 @@ function Live({ match }: { match: AdminMatch }) {
           </p>
         </div>
         <div className="r">
+          <WebLink match={match} compact={false} />
           <button type="button" className="btn line" onClick={() => go({ section: "partidos", matchId: match.id, tab: "acta" })}>
             Ver el acta
           </button>

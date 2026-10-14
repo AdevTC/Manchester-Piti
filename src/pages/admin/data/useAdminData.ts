@@ -23,6 +23,8 @@ import { seasonSquad } from "../../perfil/card";
 import { mvpOfFrom, type MvpOf } from "../../../lib/derived/mvpOf";
 import { seasonPlayers } from "../../perfil/profileData";
 import type { Squad } from "../../pizarra/v2/model";
+import type { OfficialRef } from "../../pizarra/officialBoard";
+import { useOfficialBoards } from "../../pizarra/seasonLineups";
 import { pendingKeys, sectionTitle, storyOf } from "../club/contentModel";
 import { useContentDrafts } from "../club/contentDraftStore";
 import { hoyHero, matchMoment, type Hero } from "./moments";
@@ -120,6 +122,9 @@ export interface AdminData {
   mvp: string;
   /** Hoy's «Por hacer» (exceptions only), «N hechas» and the rail's counters. */
   overview: Overview;
+  /** The pizarra's official board for a match of the admin's season (the one the pizarra shows for it:
+   *  officialBoard.ts), for «Abrir la pizarra»; null when there is none or the match is of another season. */
+  officialBoardOf: (m: { id: string; seasonId?: string }) => OfficialRef | null;
 }
 
 const NO_PLAYERS: RosterPlayer[] = [];
@@ -166,6 +171,10 @@ export function useAdminData(): AdminData {
 
   const reviewOf = useCallback((m: AdminMatch) => reviewActa(m, rosterOf(m.seasonId).map((p) => p.id), now, m.published && !m.draft), [rosterOf, now]);
   const stateOf = useCallback((m: AdminMatch) => matchState(m, now, next?.id), [now, next?.id]);
+
+  // the season's boards: the same shared read the pizarra opens (lineups; the admin is a member)
+  const boardOf = useOfficialBoards(seasonId, true);
+  const officialBoardOf = useCallback((m: { id: string; seasonId?: string }) => (m.seasonId && m.seasonId === seasonId ? boardOf(m.id) : null), [boardOf, seasonId]);
 
   const avail = useAvailability(next?.id);
   const note = useMeetingNote(next?.id);
@@ -256,5 +265,6 @@ export function useAdminData(): AdminData {
     content: { gaps },
     mvp: mvpView.note,
     overview,
+    officialBoardOf,
   };
 }

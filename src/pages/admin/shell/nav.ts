@@ -95,14 +95,19 @@ export const navLabel = (name: string, c: Counter | undefined) => (c && c.n ? `$
 
 /** Where a «Por hacer» line / button / palette command goes, router-free (useAdminGo navigates). */
 export interface AdminTarget {
-  section: SectionKey | "enjuego";
-  /** partidos / enjuego: the match; convocar: preselect this match (`?j=`). */
+  /** A section, En juego, the pizarra (leaves the sala for a board) or the web (a match's or a player's
+   *  public page). */
+  section: SectionKey | "enjuego" | "pizarra" | "web";
+  /** partidos / enjuego: the match; convocar: preselect this match (`?j=`); web: its public page. */
   matchId?: string;
+  /** pizarra: the board to open (`?tablero=`; absent = the pizarra as you left it) and its season. */
+  tablero?: string;
+  seasonId?: string;
   /** partidos workspace tab. */
   tab?: MatchTab;
   /** partidos workspace: open the publish peak (the vitrina) — V1a renders it. */
   vitrina?: boolean;
-  /** plantilla: open this player's drawer. */
+  /** plantilla: open this player's drawer; web: his public page. */
   playerId?: string;
   /** partidos «Nuevo partido» / plantilla «Alta de jugador». */
   nuevo?: boolean;

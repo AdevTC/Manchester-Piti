@@ -81,6 +81,11 @@ export const adminPlantillaSearchSchema = z.object({
   /** «Alta» starting on this free dorsal (1–99; anything else is dropped). */
   dorsal: z.coerce.number().int().min(1).max(99).optional().catch(undefined),
 });
+// /pizarra?tablero=<id> opens that board (v2/deeplink.ts reads it on the first render). Declared so the
+// match page, the admin and the perfil link to a board through the typed route.
+export const pizarraSearchSchema = z.object({
+  tablero: optionalString,
+});
 export const adminContenidoSearchSchema = z.object({
   /** The content section whose editor drawer is open. */
   seccion: optionalString,
@@ -247,6 +252,7 @@ const invitationRoute = createRoute({
 const pizarraRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/pizarra",
+  validateSearch: pizarraSearchSchema,
   component: lazyRouteComponent(
     () => import("./pages/pizarra/PizarraRoute"),
     "PizarraRoute",

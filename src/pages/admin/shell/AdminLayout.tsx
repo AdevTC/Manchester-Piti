@@ -18,6 +18,7 @@ import { clockTime, jLabel, shortDate } from "../data/adminLogic";
 import { CommandPalette } from "../palette/CommandPalette";
 import { CommandRegistryProvider } from "../palette/CommandRegistryProvider";
 import { useRegisterCommands } from "../palette/registry";
+import { pizarraCommand } from "../palette/matchShortcuts";
 import type { PaletteCommand } from "../palette/search";
 import { FrameContext, frameOf } from "../ui/frame";
 import { GuardProvider } from "../ui/GuardProvider";
@@ -87,6 +88,12 @@ export function AdminLayout() {
   );
 }
 
+/** A search param as a non-empty string (a number-looking id arrives as a number). */
+const searchString = (search: object, key: string): string | undefined => {
+  const v: unknown = (search as Record<string, unknown>)[key];
+  return typeof v === "string" && v ? v : typeof v === "number" ? String(v) : undefined;
+};
+
 const ROLE: Record<string, string> = { superadmin: "Capitán general", admin: "Capitán", user: "Socio" };
 
 function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObject<HTMLDivElement | null>; data: AdminData; desktop: boolean; wide: boolean; pathname: string }) {
@@ -105,6 +112,10 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
   const rail = useRailFold(animate);
   const iconRail = !wide || rail.phase === "closed";
   const { modalOpen } = useLayerStack();
+  // Hoy's match on the pizarra (its official board) and the player whose ficha is open in Plantilla:
+  // the palette's way out to the pizarra and to his public page.
+  const heroBoard = data.hero ? data.officialBoardOf(data.hero.match) : null;
+  const fichaOpen = useRouterState({ select: (s) => (s.location.pathname.replace(/\/+$/, "") === "/admin/plantilla" ? searchString(s.location.search, "jugador") : undefined) });
 
   // ⌘K / Ctrl K opens the palette from anywhere in the admin.
   useEffect(() => {
@@ -144,6 +155,10 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
     const hero = data.hero;
     if (hero && hero.moment === "antes")
       cmds.push({ id: "a:convocar", group: "Acciones", icon: "✓", title: `Convocar la ${jLabel(hero.match)}`, description: hero.match.rival ?? "Rival", hint: "acción", keywords: "convocar titulares siete", run: () => go({ section: "convocar", matchId: hero.match.id }) });
+    if (hero && heroBoard) cmds.push(pizarraCommand(hero.match, heroBoard, go));
+    const ficha = fichaOpen ? data.roster.find((p) => p.id === fichaOpen) : undefined;
+    if (ficha)
+      cmds.push({ id: `web:p:${ficha.id}`, group: "Acciones", icon: "↗", title: "Ver en la web", description: `${ficha.name} · su página pública`, hint: "ir", keywords: "web publica pagina jugador", run: () => go({ section: "web", playerId: ficha.id }) });
     const drafts = data.overview.pending.filter((p) => p.key.startsWith("draft-")).length;
     cmds.push(
       { id: "a:contenido", group: "Acciones", icon: "↑", title: "Publicar contenido", description: drafts ? `${drafts} ${drafts === 1 ? "cambio" : "cambios"} sin publicar` : "al día", hint: "acción", keywords: "publicar editar textos web contenido", run: () => go({ section: "contenido" }) },
@@ -188,7 +203,7 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
         run: () => go({ section: "plantilla", playerId: p.id }),
       });
     return cmds;
-  }, [data, counters, go, theme, toggle]);
+  }, [data, counters, go, theme, toggle, heroBoard, fichaOpen]);
   useRegisterCommands(builtins);
 
   const view = <Outlet />;

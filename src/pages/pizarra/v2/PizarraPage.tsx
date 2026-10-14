@@ -24,6 +24,7 @@ import { readPrefs, writePrefs, type BoardPrefs } from "./prefs";
 import { charlaMatch, matchShort, officialFor, seasonPending, withConvocatoria } from "./boards";
 import { CREST, Icon } from "./icons";
 import { forgetDeepLink } from "./deeplink";
+import { pizarraLinks } from "./links";
 import "../../../styles/pizarra.css";
 import "../../../styles/pizarra-app.css";
 
@@ -93,6 +94,8 @@ export function PizarraPage() {
   const voz = useVozStore(session.id, user?.uid ?? "preview");
   const seasonName = selectedSeasonId === "all" ? ALL_SEASONS_LABEL : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
   const nick = profile?.nickname ?? "";
+  // the ways out: a player's page from his ficha, the linked match's page (and an admin's Convocar)
+  const links = useMemo(() => pizarraLinks(isAdmin), [isAdmin]);
   // The board has opened where the link asked: coming back later starts from the board you left.
   useEffect(() => {
     if (session.ready) forgetDeepLink();
@@ -131,6 +134,7 @@ export function PizarraPage() {
           <img src={CREST} alt="" />
         </Link>
       }
+      links={links}
       header={
         <CelesteHeader
           active="vestuario"

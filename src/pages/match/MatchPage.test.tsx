@@ -17,8 +17,22 @@ const SCORED: ClubMatch = { ...MATCH, id: "j2", goalsFor: 2, goalsAgainst: 1, ev
   { id: "g3", type: "opponent_goal", minute: 40 },
 ] };
 const PLAYERS = [{ id: "p1", shirtName: "PEPE", seasons: ["t1"], seasonDetails: { t1: { shirtName: "PEPITO" } } }];
+// still to be played (the clock is stubbed at 10 Sep 2026)
+const UPCOMING: ClubMatch = { id: "j3", seasonId: "t1", rival: "Otro", date: Date.UTC(2026, 8, 20, 10), duration: 50, status: "scheduled", events: [] };
+// who is looking (useViewer) and the official boards the shared lineups read would give (seasonLineups)
+const who = vi.hoisted(() => ({ viewer: { member: false, admin: false, playerId: null as string | null }, boards: new Map<string, string>(), calls: [] as [string | null | undefined, boolean][] }));
 
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [MATCH, SCORED], players: PLAYERS, loading: false, error: null }) }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [MATCH, SCORED, UPCOMING], players: PLAYERS, loading: false, error: null }) }));
+vi.mock("../../hooks/useViewer", () => ({ useViewer: () => who.viewer }));
+vi.mock("../pizarra/seasonLineups", () => ({
+  useOfficialBoards: (seasonId: string | null | undefined, enabled: boolean) => {
+    who.calls.push([seasonId, enabled]);
+    return (matchId: string) => {
+      const id = enabled ? who.boards.get(matchId) : undefined;
+      return id ? { id, isOfficial: true, matchId, updatedAt: 1 } : null;
+    };
+  },
+}));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false }) }));
 vi.mock("../vestuario/live", () => ({ useMatchScorers: () => ({ data: [] }) }));
@@ -43,7 +57,9 @@ function open(url: string) {
   const root = createRootRoute({ validateSearch: z.object({ season: z.string().optional().catch("all") }), component: Outlet });
   const match = createRoute({ getParentRoute: () => root, path: "/matches/$matchId", validateSearch: matchSearchSchema, component: MatchPage });
   const jugador = createRoute({ getParentRoute: () => root, path: "/jugadores/$playerId", component: () => null });
-  const router = createRouter({ routeTree: root.addChildren([match, jugador]), history: createMemoryHistory({ initialEntries: [url] }) });
+  const pizarra = createRoute({ getParentRoute: () => root, path: "/pizarra", validateSearch: z.object({ tablero: z.string().optional() }), component: () => null });
+  const admin = createRoute({ getParentRoute: () => root, path: "/admin/partidos/$matchId", validateSearch: z.object({ tab: z.string().optional() }), component: () => null });
+  const router = createRouter({ routeTree: root.addChildren([match, jugador, pizarra, admin]), history: createMemoryHistory({ initialEntries: [url] }) });
   render(<RouterProvider router={router} />);
   return router;
 }
@@ -96,6 +112,56 @@ describe("MatchPage · the tab in the URL", () => {
     const before = router.history.length;
     fireEvent.click(screen.getByRole("tab", { name: "Pulso" }));
     expect(router.history.length).toBe(before);
+  });
+});
+
+describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
+  const as = (v: Partial<typeof who.viewer>, boards: [string, string][] = []) => {
+    who.viewer = { member: false, admin: false, playerId: null, ...v };
+    who.boards = new Map(boards);
+    who.calls = [];
+  };
+  const pizarraLink = () => screen.queryByRole("link", { name: /La pizarra de este partido/ });
+  const adminLink = () => screen.queryByRole("link", { name: /Editar acta|Abrir en la Sala de control/ });
+
+  it("a fan sees neither, and no lineups listener is asked for", async () => {
+    as({}, [["j1", "b1"]]);
+    open("/matches/j1");
+    expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(pizarraLink()).toBeNull();
+    expect(adminLink()).toBeNull();
+    expect(who.calls.every(([, enabled]) => enabled === false)).toBe(true);
+  });
+
+  it("a member gets the official board of the match, in its season; never the Sala de control", async () => {
+    as({ member: true }, [["j1", "b1"]]);
+    open("/matches/j1");
+    expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(pizarraLink()).toHaveAttribute("href", "/pizarra?tablero=b1&season=t1");
+    expect(adminLink()).toBeNull();
+    expect(who.calls.at(-1)).toEqual(["t1", true]);
+  });
+
+  it("a member with no official board for the match gets no pizarra link", async () => {
+    as({ member: true });
+    open("/matches/j1");
+    expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(pizarraLink()).toBeNull();
+  });
+
+  it("an admin edits the acta of a played match", async () => {
+    as({ member: true, admin: true });
+    open("/matches/j1");
+    expect(await screen.findByRole("link", { name: /Editar acta/ })).toHaveAttribute("href", "/admin/partidos/j1?tab=acta");
+    expect(screen.queryByRole("link", { name: /Abrir en la Sala de control/ })).toBeNull();
+  });
+
+  it("before the match, an admin opens it in the Sala de control (and a member its board)", async () => {
+    as({ member: true, admin: true }, [["j3", "b3"]]);
+    open("/matches/j3");
+    expect(await screen.findByRole("link", { name: /Abrir en la Sala de control/ })).toHaveAttribute("href", "/admin/partidos/j3");
+    expect(screen.queryByRole("link", { name: /Editar acta/ })).toBeNull();
+    expect(pizarraLink()).toHaveAttribute("href", "/pizarra?tablero=b3&season=t1");
   });
 });
 

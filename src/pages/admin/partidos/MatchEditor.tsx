@@ -10,6 +10,7 @@ import { Scorers } from "./Scorers";
 // of an acta opens the publish peak (onPublished). Guards unsaved changes, mirrors them on this device
 // (recovery) and registers its palette actions.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Link } from "@tanstack/react-router";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { apiError, saveMatchSheet } from "../../../lib/clubApi";
 import { downloadMatchPoster } from "../../../lib/matchPoster";
@@ -236,6 +237,13 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, o
             )}
           </b>
         </div>
+        {/* its public page, once it is in the calendar (a draft has none) */}
+        {match.published && (
+          <Link className={`btn ${desktop ? "sm " : ""}line fr`} to="/matches/$matchId" params={{ matchId: match.id }}>
+            Ver en la web
+            <AdIcon name="ext" size={14} />
+          </Link>
+        )}
         <div className="tabs4" role="tablist" aria-label="Partido" ref={tabsRef} onKeyDown={onTabsKey}>
           {MATCH_TABS.map((k) => {
             const on = tab === k;

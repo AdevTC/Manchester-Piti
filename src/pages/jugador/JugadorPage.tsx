@@ -16,6 +16,7 @@ import { shareClubPage } from "../../lib/share";
 import { useMvpResults } from "../vestuario/live";
 import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
+import { useViewer } from "../../hooks/useViewer";
 import { useTheme } from "../../hooks/useTheme";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -77,6 +78,8 @@ export function JugadorPage() {
   const [run, setRun] = useState(0);
   const [vs, setVs] = useState<"avg" | "partner">("avg");
   const [notice, setNotice] = useState("");
+  // His own page (the member linked to him) edits his carta; an admin edits his ficha in the Sala de control.
+  const viewer = useViewer();
 
   const raw = players.find((x) => x.id === playerId);
   const p = raw ? playerForSeason(raw, selectedSeasonId, seasons) : undefined;
@@ -238,6 +241,18 @@ export function JugadorPage() {
                 <Icon name="turn" size={16} />
                 Repetir presentación
               </button>
+              {viewer.playerId === p.id && (
+                <Link className="hm-ghostbtn st-sm" to="/profile">
+                  Editar tu carta
+                  <Icon name="arrow" size={16} stroke={2.2} />
+                </Link>
+              )}
+              {viewer.admin && (
+                <Link className="hm-ghostbtn st-sm" to="/admin/plantilla" search={{ jugador: p.id }}>
+                  Editar ficha
+                  <Icon name="arrow" size={16} stroke={2.2} />
+                </Link>
+              )}
             </div>
             {notice && (
               <p className="st-mono" role="status">

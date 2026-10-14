@@ -17,17 +17,12 @@ import { db } from "../../firebase";
 import { useAuth } from "../../context/AuthContext";
 import type { Lineup } from "./formations";
 import { boardToData, dataToLineupDoc, lineupToData, type LineupDoc, type LineupMeta } from "./lineupDoc";
-import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
-import { mapLineup } from "../../lib/firestoreMappers";
+import { PREVIEW, useSeasonLineupDocs } from "./seasonLineups";
 import { clearVoz } from "./v2/vozStore";
 
 // `?preview` injects a mock session but no real Firebase auth token, so the
 // `lineups` rules (request.auth != null) would reject reads/writes. In preview
-// we back the store with localStorage; real sessions use Firestore.
-const PREVIEW =
-  import.meta.env.DEV &&
-  typeof window !== "undefined" &&
-  new URLSearchParams(window.location.search).has("preview");
+// we back the store with localStorage (PREVIEW, seasonLineups.ts); real sessions use Firestore.
 
 const LOCAL_KEY = "mp_pizarra_lineups";
 
@@ -167,15 +162,11 @@ export function useLineups(seasonId: string): UseLineups {
   //    validated docs live in the cache; dataToLineupDoc derivation stays here.
   //    `useFirestoreCollection` must run unconditionally (rules of hooks); in
   //    PREVIEW its data is ignored and `localApi` drives the UI. ──
-  const lineupsQuery = useMemo(
-    () => query(collection(db, "lineups"), where("seasonId", "==", seasonId)),
-    [seasonId],
-  );
-  const lineupsKey = useMemo(() => ["lineups", seasonId], [seasonId]);
   // Skip the Firestore subscription entirely in preview (no auth token → the
   // rules would reject the read); the localStorage-backed localApi drives it.
   // Canonical mapLineup stores the raw validated doc; dataToLineupDoc derives.
-  const { data: rawLineups, isPending } = useFirestoreCollection(lineupsKey, lineupsQuery, mapLineup, !PREVIEW);
+  // (seasonLineups.ts: the same key and query the match page and the admin read)
+  const { data: rawLineups, isPending } = useSeasonLineupDocs(seasonId);
   const items = useMemo<LineupDoc[]>(
     () => (rawLineups ?? []).map((r) => dataToLineupDoc(r.id, r)),
     [rawLineups],

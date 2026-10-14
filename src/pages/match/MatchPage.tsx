@@ -2,6 +2,8 @@ import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 import { Banda } from "./Banda";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
+import { useViewer } from "../../hooks/useViewer";
+import { useOfficialBoards } from "../pizarra/seasonLineups";
 import { useMatchScorers } from "../vestuario/live";
 import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // Ficha de partido (Celeste): the stadium board on top (final score, live score with ¡GOL!, or the
@@ -96,6 +98,10 @@ export function MatchPage() {
   const canScore = member && (!!user && scorers.data.includes(user.uid) || profile?.role === "admin" || profile?.role === "superadmin");
   const [notice, setNotice] = useState("");
   const match = matches.find((m) => m.id === matchId);
+  // The shortcuts only some can follow: admins to the Sala de control, members to the pizarra's official
+  // board for this match (lineups are team-only reads: a fan opens no listener).
+  const viewer = useViewer();
+  const board = useOfficialBoards(match?.seasonId, viewer.member)(matchId);
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
@@ -289,6 +295,22 @@ export function MatchPage() {
           <div>
             <div className="fc-acts">
               {upcoming && phase === "scheduled" && <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(match, origin())} />}
+              {/* (right after the main action: the row scrolls sideways on a phone, these must not hide at its end) */}
+              {viewer.member && board && match.seasonId && (
+                <Link className="hm-ghostbtn" to="/pizarra" search={{ tablero: board.id, season: match.seasonId }}>
+                  La pizarra de este partido <Icon name="arrow" size={16} stroke={2.2} />
+                </Link>
+              )}
+              {viewer.admin &&
+                (done || live || pending || unplayed ? (
+                  <Link className="hm-ghostbtn" to="/admin/partidos/$matchId" params={{ matchId: match.id }} search={{ tab: "acta" }}>
+                    Editar acta <Icon name="arrow" size={16} stroke={2.2} />
+                  </Link>
+                ) : (
+                  <Link className="hm-ghostbtn" to="/admin/partidos/$matchId" params={{ matchId: match.id }}>
+                    Abrir en la Sala de control <Icon name="arrow" size={16} stroke={2.2} />
+                  </Link>
+                ))}
               {upcoming && match.venue && (
                 <a className="hm-ghostbtn" href={mapsUrl(match.venue)} target="_blank" rel="noreferrer">
                   Cómo llegar <Icon name="arrow" size={16} stroke={2.2} />

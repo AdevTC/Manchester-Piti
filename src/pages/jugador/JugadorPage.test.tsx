@@ -1,15 +1,20 @@
 import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 
 // /jugadores/$id «Sus cambios»: whoever he came on or went off for leads to that player's page, in the
 // season being looked at; someone no longer in the squad stays text. Router, data, season and the heavy
 // pieces (charts, cromo, 3D stills) are stubbed: no Firebase, no WebGL.
 
+// (the Link stub builds the href the router would: params into the path, the search as a query)
+const hrefOf = (to = "#", params: Record<string, string> = {}, search: Record<string, string | undefined> = {}) => {
+  const q = new URLSearchParams(Object.entries(search).filter((e): e is [string, string] => e[1] !== undefined)).toString();
+  return to.replace(/\$(\w+)/g, (_, k: string) => params[k] ?? "") + (q ? `?${q}` : "");
+};
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, className, to, params, search }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; search?: { season?: string } }) => (
-    <a className={className} href={to === "/jugadores/$playerId" ? `/jugadores/${params?.playerId}${search?.season ? `?season=${search.season}` : ""}` : (to ?? "#")}>
+  Link: ({ children, className, to, params, search }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; search?: Record<string, string | undefined> }) => (
+    <a className={className} href={hrefOf(to, params, search)}>
       {children}
     </a>
   ),
@@ -55,8 +60,44 @@ vi.mock("../../components/celeste/Chrome", () => ({ CelesteBackdrop: () => null,
 vi.mock("../stats/Charts", () => ({ Constellation: () => null, GoalClock: () => null, Radar: () => null }));
 vi.mock("./Cromo", () => ({ Cromo: () => null }));
 vi.mock("./SusPosiciones", () => ({ SusPosiciones: () => null }));
+const who = vi.hoisted(() => ({ viewer: { member: false, admin: false, playerId: null as string | null } }));
+vi.mock("../../hooks/useViewer", () => ({ useViewer: () => who.viewer }));
 
 const { JugadorPage } = await import("./JugadorPage");
+
+describe("his page's shortcuts, by who is looking", () => {
+  const as = (v: Partial<typeof who.viewer>) => (who.viewer = { member: false, admin: false, playerId: null, ...v });
+  const carta = () => screen.queryByRole("link", { name: /Editar tu carta/ });
+  const ficha = () => screen.queryByRole("link", { name: /Editar ficha/ });
+
+  it("a fan sees neither", () => {
+    as({});
+    render(<JugadorPage />);
+    expect(carta()).toBeNull();
+    expect(ficha()).toBeNull();
+  });
+
+  it("his own page (the member linked to him): «Editar tu carta» → /profile; no admin ficha", () => {
+    as({ member: true, playerId: "erik" });
+    render(<JugadorPage />);
+    expect(carta()).toHaveAttribute("href", "/profile");
+    expect(ficha()).toBeNull();
+  });
+
+  it("another member's page: nothing to edit", () => {
+    as({ member: true, playerId: "pablo" });
+    render(<JugadorPage />);
+    expect(carta()).toBeNull();
+    expect(ficha()).toBeNull();
+  });
+
+  it("an admin: «Editar ficha» → his drawer in the Sala de control", () => {
+    as({ member: true, admin: true, playerId: "pablo" });
+    render(<JugadorPage />);
+    expect(ficha()).toHaveAttribute("href", "/admin/plantilla?jugador=erik");
+    expect(carta()).toBeNull();
+  });
+});
 
 it("«Sus cambios»: the teammate is a link to his page in the season; one no longer in the squad is text", () => {
   render(<JugadorPage />);
