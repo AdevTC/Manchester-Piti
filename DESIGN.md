@@ -394,7 +394,7 @@ The admin's confirmations and errors, styled as broadcast straps. A sky key bloc
 - **Do** honour `prefers-reduced-motion` with a static end state, and pause loops offscreen.
 
 ### Don't:
-- **Don't** use Anton, Archivo, Barlow or the `--mp-*` tokens (`src/styles/theme.css`, the shadcn bridge in `src/styles/tailwind.css`) in new work. They are the legacy «Floodlit Clubhouse» layer, kept only for the pages not yet migrated (Landing, Login, MatchDetail, the old Navbar) and for canvas-drawn exports (match posters, jersey prints).
+- **Don't** use Anton, Archivo, Barlow or the `--mp-*` tokens (`src/styles/theme.css`, the shadcn bridge in `src/styles/tailwind.css`) in new work. They are the legacy «Floodlit Clubhouse» layer. Every page is Celeste now; what is left of that layer is the site shell in `src/styles/club.css` (the skip link, the demo banner, and the old navbar and footer, which only show while an invitation link checks the session), the document base in `src/index.css` (reset, body, scrollbar, and the `.btn` base under the admin's and the perfil's buttons), the shadcn pieces still mounted (the route skeleton, the perfil's tabs, tooltips, the toaster) and the canvas-drawn exports (match posters, jersey prints).
 - **Don't** set sky as text on the day theme; use `sky-deep` (`--accent`).
 - **Don't** let anything glow at rest, or add a second LED object to the Sala de control.
 - **Don't** introduce flat grey SaaS cards, equal-weight card grids, or a neutral palette outside the club's navy, sky, gold and their tints.
