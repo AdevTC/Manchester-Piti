@@ -12,6 +12,7 @@ import { buzz, copyText, errorMessage, isOffline } from "./fxRuntime";
 import { CREST, GLogo, Ic, type PIcon } from "./icons";
 import { topicIds } from "./panels";
 import { usePushDevice } from "./usePushDevice";
+import { NewBadge } from "../../components/NewBadge";
 
 const TP_ICON: Record<Topic, PIcon> = { start: "flag", goals: "ball", final: "trophy", mvp: "star", dates: "cal", lineup: "shirt", door: "door", access: "door", convocatoria: "cal" };
 const TP_W: Partial<Record<Topic, number>> = { start: 18 };
@@ -242,7 +243,7 @@ export function TabAvisos({ isCaptain, testName, next, upcoming, feed, say, rm }
             <Ic n="bell" w={17} />
             Probar en este móvil
           </button>
-          <span className="nv">nuevo</span>
+          <NewBadge feature="perfilProbarAviso" look="nv" />
         </div>
         {cantTest && (
           <p className="tp-why" id="pe-test-why">

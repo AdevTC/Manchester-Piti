@@ -9,6 +9,7 @@ import { framesInLead, raceFrames, type RaceMetric } from "../../lib/statsView";
 import { jornadaLabel } from "../../lib/derived/jornada";
 import { Flip } from "../../components/celeste/Flip";
 import { Icon } from "../../components/celeste/icons";
+import { NewBadge } from "../../components/NewBadge";
 
 const METRICS: [RaceMetric, string][] = [
   ["goals", "Goles"],
@@ -82,7 +83,7 @@ export function RaceBoard({ rows, nameOf, jornada }: { rows: PlayerAnalysis[]; n
     <article className="st-race" aria-labelledby="st-race-t">
       <div className="st-race-hd">
         <div className="st-race-title">
-          <span className="st-new">nuevo</span>
+          <NewBadge feature="statsCarreraPichichi" />
           <h2 id="st-race-t" className="st-led">
             La carrera del Pichichi
           </h2>

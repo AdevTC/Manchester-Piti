@@ -5,6 +5,8 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTheme, type ThemePref } from "../../hooks/useTheme";
 import { buzz } from "./fxRuntime";
+import { NewBadge } from "../../components/NewBadge";
+import { isFeatureNew, type NewFeature } from "../../lib/derived/isNew";
 import { Ic } from "./icons";
 import { cycle, type Opt } from "./panels";
 import { readSharedPrefs, writeSharedPrefs, type IntroPref, type ProfilePrefs } from "./prefs";
@@ -44,17 +46,17 @@ function Selector<K extends string>({ label, opts, value, onSet }: { label: stri
   );
 }
 
-function Op({ icon, label, help, nv = false, children }: { icon: ReactNode; label: string; help: string; nv?: boolean; children: ReactNode }) {
+function Op({ icon, label, help, nuevo, children }: { icon: ReactNode; label: string; help: string; nuevo?: NewFeature; children: ReactNode }) {
   return (
     <li className="op">
       <span className="op-ic">{icon}</span>
       <span className="op-t">
         <b>
           {label}
-          {nv && (
+          {nuevo && isFeatureNew(nuevo) && (
             <>
               {" "}
-              <span className="nv">nuevo</span>
+              <NewBadge feature={nuevo} look="nv" />
             </>
           )}
         </b>
@@ -106,7 +108,7 @@ export function TabAjustes({ prefs, onIntro, onTilt, rm }: AjustesProps) {
         <Op icon={<Ic n="sun" w={20} />} label="Tema" help="Cómo se ve la web: de día, de noche o como tu móvil.">
           <Selector label="Tema" opts={THEMES} value={pref} onSet={setPref} />
         </Op>
-        <Op icon={<Ic n="spark" w={20} />} label="Salida de la carta" help="La presentación de tu carta al abrir el perfil." nv>
+        <Op icon={<Ic n="spark" w={20} />} label="Salida de la carta" help="La presentación de tu carta al abrir el perfil." nuevo="perfilAjusteSalida">
           <Selector label="Salida de la carta" opts={INTROS} value={prefs.intro} onSet={onIntro} />
         </Op>
         <Op icon={<Ic n="sound" w={20} />} label="Sonido" help="Silbato y red en la pizarra; los pitidos de tu carta.">
@@ -115,7 +117,7 @@ export function TabAjustes({ prefs, onIntro, onTilt, rm }: AjustesProps) {
         <Op icon={<Ic n="cube" w={20} />} label="Estadio en 3D" help="La pizarra en 3D. Si tu móvil va justo, ponlo en No.">
           <Selector label="Estadio en 3D" opts={SI_NO} value={yn(shared.stadium3d)} onSet={(k) => setShared(writeSharedPrefs({ stadium3d: k === "si" }))} />
         </Op>
-        <Op icon={<Ic n="tilt" w={20} />} label="Brillo al inclinar" help="El brillo de la carta sigue el movimiento del móvil." nv>
+        <Op icon={<Ic n="tilt" w={20} />} label="Brillo al inclinar" help="El brillo de la carta sigue el movimiento del móvil." nuevo="perfilAjusteBrillo">
           <Selector label="Brillo al inclinar" opts={SI_NO} value={yn(prefs.tilt)} onSet={(k) => onTilt(k === "si")} />
         </Op>
         <li className="op">

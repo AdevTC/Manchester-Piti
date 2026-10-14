@@ -12,6 +12,8 @@ import { Bars, Constellation, GoalClock, HeatStrip, Radar, ResultsChart } from "
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { jornadaLabel } from "../../lib/derived/jornada";
 import { nameFor } from "../../lib/derived/names";
+import { NewBadge } from "../../components/NewBadge";
+import type { NewFeature } from "../../lib/derived/isNew";
 
 type NameOf = (p: PlayerAnalysis) => string;
 /** A metric as the tables print it: minutes whole with «′» (derived/minutes), «—» when not tracked. */
@@ -19,11 +21,11 @@ const fmtMetric = (k: PlayerMetric, v: number | null) => (v === null ? "—" : k
 const show = (p: PlayerAnalysis, k: PlayerMetric) => fmtMetric(k, metricValue(p, k));
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 
-function Head({ kick, title, children, isNew }: { kick: string; title: string; children?: React.ReactNode; isNew?: boolean }) {
+function Head({ kick, title, children, nuevo }: { kick: string; title: string; children?: React.ReactNode; nuevo?: NewFeature }) {
   return (
     <div className="st-hd">
       <span className="hm-kick" style={{ margin: 0 }}>
-        {kick} {isNew && <span className="st-new">nuevo</span>}
+        {kick} {nuevo && <NewBadge feature={nuevo} />}
       </span>
       <h2 className="st-h2">{title}</h2>
       {children}
@@ -37,7 +39,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
   const links = useMemo(() => goalLinks(games), [games]);
   const names = new Map(rows.map((p) => [p.id, nameOf(p)]));
   const mvpTop = [...mvps.entries()].sort((a, b) => b[1] - a[1])[0];
-  const kpis: { k: string; v: string | number; sub?: string; isNew?: boolean; hl?: boolean; wide?: boolean }[] = [
+  const kpis: { k: string; v: string | number; sub?: string; nuevo?: NewFeature; hl?: boolean; wide?: boolean }[] = [
     { k: "Partidos", v: t.played },
     { k: "Victorias", v: t.wins, hl: true },
     { k: "Empates", v: t.draws },
@@ -46,9 +48,9 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
     { k: "Goles en contra", v: t.ga },
     { k: "Goles por partido", v: (t.played ? t.gf / t.played : 0).toFixed(1).replace(".", ",") },
     { k: "% de victorias", v: `${pct(t.wins, t.played)}%` },
-    { k: "Puntos", v: points(games), sub: `de ${t.played * 3}`, isNew: true },
-    { k: "Porterías a cero", v: t.cleanSheets, isNew: true },
-    ...(mvpTop ? [{ k: "Más MVP", v: mvpTop[1], sub: names.get(mvpTop[0]) ?? "", isNew: true, wide: true }] : []),
+    { k: "Puntos", v: points(games), sub: `de ${t.played * 3}`, nuevo: "statsPuntos" },
+    { k: "Porterías a cero", v: t.cleanSheets, nuevo: "statsPorteriasACero" },
+    ...(mvpTop ? [{ k: "Más MVP", v: mvpTop[1], sub: names.get(mvpTop[0]) ?? "", nuevo: "statsMasMvp" as const, wide: true }] : []),
   ];
   return (
     <div className="st-pane-in">
@@ -60,7 +62,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
           {kpis.map((x, i) => (
             <div key={x.k} className={[x.hl && "hl", x.wide && "wide"].filter(Boolean).join(" ") || undefined} style={{ animationDelay: `${i * 0.04}s` }}>
               <dt>
-                {x.k} {x.isNew && <span className="st-new">nuevo</span>}
+                {x.k} {x.nuevo && <NewBadge feature={x.nuevo} />}
               </dt>
               <dd>
                 {x.v}
@@ -90,7 +92,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
       </section>
       <div className="st-two">
         <section className="st-card" aria-labelledby="st-sky-t">
-          <Head kick="Asistente → goleador" title="La constelación" isNew />
+          <Head kick="Asistente → goleador" title="La constelación" nuevo="statsConstelacion" />
           <span id="st-sky-t" className="hm-sr">
             Conexiones de gol
           </span>
@@ -118,7 +120,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
           )}
         </section>
         <section className="st-card" aria-labelledby="st-clock-t">
-          <Head kick="Minuto a minuto" title="El reloj de goles" isNew />
+          <Head kick="Minuto a minuto" title="El reloj de goles" nuevo="statsRelojDeGoles" />
           <span id="st-clock-t" className="hm-sr">
             El reloj de goles
           </span>
@@ -199,7 +201,7 @@ export function Jugadores({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: Na
                     </th>
                   ))}
                   <th scope="col" className="hs">
-                    Últimas jornadas <span className="st-new">nuevo</span>
+                    Últimas jornadas <NewBadge feature="statsUltimasJornadas" />
                   </th>
                 </tr>
               </thead>
@@ -307,7 +309,7 @@ export function Minutos({ rows, games, nameOf, jornada }: { rows: PlayerAnalysis
       </section>
       <div className="st-two">
         <section className="st-card" aria-labelledby="st-heat">
-          <Head kick="Jugador × jornada" title="El mapa de minutos" isNew>
+          <Head kick="Jugador × jornada" title="El mapa de minutos" nuevo="statsMapaDeMinutos">
             <p className="st-mono">Cada casilla, un partido: cuanto más intensa, más minutos.</p>
           </Head>
           <span id="st-heat" className="hm-sr">
@@ -421,7 +423,7 @@ export function Rivales({ games, rows }: { games: ClubMatch[]; rows: PlayerAnaly
                 {isOpen && (
                   <ol className="st-rgames">
                     <li className="st-mono">
-                      Detalle <span className="st-new">nuevo</span>
+                      Detalle <NewBadge feature="statsDetalleDeRival" />
                     </li>
                     {r.games.map((m) => {
                       const gm = goalMinutes(m.events);
@@ -524,7 +526,7 @@ export function Comparar({ rows, nameOf, games }: { rows: PlayerAnalysis[]; name
         <div className="st-two st-cmp-top">
           <Radar a={radarScores(lp, rows, games)} b={radarScores(rp, rows, games)} aLabel={nameOf(lp)} bLabel={nameOf(rp)} />
           <p className="st-tally">
-            <span className="st-new">nuevo</span>
+            <NewBadge feature="statsCaraACara" />
             <b>{wins.a === wins.b ? "Empate técnico" : `${nameOf(wins.a > wins.b ? lp : rp)} manda`}</b>
             <span>
               Gana en {Math.max(wins.a, wins.b)} de las {keys.length} métricas

@@ -10,6 +10,7 @@ import { useSeasonSquad } from "./useDoor";
 import { Tunnel } from "./Tunnel";
 import { DIcon, MiniShirt } from "./icons";
 import { Qr } from "./Qr";
+import { NewBadge } from "../../components/NewBadge";
 import "../../styles/acceso.css";
 import "../../styles/acceso-app.css";
 
@@ -217,7 +218,7 @@ export function CaptainDoor() {
           </div>
           <div className="nt-wrap">
             <span className="k">
-              Así te llega al móvil <span className="nv">nuevo</span>
+              Así te llega al móvil <NewBadge feature="capitanAviso" look="nv" />
             </span>
             <div className="nt" role="group" aria-label="Vista previa del aviso">
               <div className="nt-h">
@@ -271,7 +272,7 @@ export function CaptainDoor() {
             <section className={`cp rqp${tab === 0 ? " on" : ""}`} id="cp1" aria-labelledby="cp1-t">
               <h2 id="cp1-t">
                 Llamando <span className="n">{cap.queue.length} {cap.queue.length === 1 ? "PETICIÓN" : "PETICIONES"}</span>
-                <span className="nv">nuevo</span>
+                <NewBadge feature="capitanPeticiones" look="nv" />
               </h2>
               <p id="sw-help">Desliza la tarjeta: a la derecha abres, a la izquierda no. O usa los botones.</p>
               {top ? (
@@ -470,7 +471,7 @@ export function CaptainDoor() {
                       </div>
                       <div>
                         <b>
-                          Cartel para la puerta <span className="nv">nuevo</span>
+                          Cartel para la puerta <NewBadge feature="capitanCartel" look="nv" />
                         </b>
                         <p>Un A4 con el QR para pegar en el vestuario de verdad{made.uses === 1 ? " (mejor con un enlace ilimitado)" : ""}.</p>
                         <button type="button" className="tl-ghost" onClick={() => window.print()}>

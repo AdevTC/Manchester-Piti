@@ -29,6 +29,7 @@ import {
   type ShareNav,
 } from "./share";
 import { shareBlob, type ShareSpec } from "./shareDraw";
+import { NewBadge } from "../../components/NewBadge";
 
 export interface ShareStudioProps {
   hv: HeroView;
@@ -356,7 +357,7 @@ export function ShareStudio({ hv, nick, posLong, season, link, foot, presented, 
               Estudio
             </p>
             <h2 id="pe-sh-t">
-              {copy.title} <span className="nv">nuevo</span>
+              {copy.title} <NewBadge feature="perfilCompartir" look="nv" />
             </h2>
             <p id="pe-sh-d">{copy.lead}</p>
           </div>

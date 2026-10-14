@@ -15,6 +15,7 @@ import { useDoor, type Door } from "./useDoor";
 import { Tunnel, type LedKey, type LedTexts } from "./Tunnel";
 import { DIcon, GoogleLogo, MiniShirt, ShirtBack, type DoorIconName } from "./icons";
 import { Qr } from "./Qr";
+import { NewBadge } from "../../components/NewBadge";
 import "../../styles/acceso.css";
 import "../../styles/acceso-app.css";
 
@@ -307,7 +308,7 @@ function Puerta({ door }: { door: Door }) {
             <span className="live-dot" />
             DESDE DENTRO
           </span>
-          <span className="nv">nuevo</span>
+          <NewBadge feature="accesoDesdeDentro" look="nv" />
         </div>
         <div className="bd-pres">
           {inside.length > 0 && (
@@ -496,7 +497,7 @@ function QuienEres({ door }: { door: Door }) {
           </div>
           <p className="mk-cap" aria-hidden="true">
             <span>{pick && name ? `Grabado en el túnel: ${name}${num ? " · " + num : ""}` : "Tu nombre y dorsal se graban en el túnel"}</span>
-            <span className="nv">nuevo</span>
+            <NewBadge feature="accesoTunel" look="nv" />
           </p>
           <p className="sr" aria-live="polite">
             {pickedTxt}
@@ -669,7 +670,7 @@ function EnLaPuerta({ door, ok }: { door: Door; ok: boolean }) {
         <div className="mw">
           <div className="mw-h">
             <small>EL MURO · TU PERCHA</small>
-            <span className="nv">nuevo</span>
+            <NewBadge feature="accesoMuro" look="nv" />
           </div>
           <div className="mw-row">
             <span className="stack" aria-hidden="true">
@@ -731,7 +732,7 @@ function EnLaPuerta({ door, ok }: { door: Door; ok: boolean }) {
         <div className="steward">
           <span className="live-dot" />
           <p>{ok ? <><b>Bienvenido</b>: el vestuario ya es tuyo.</> : <><b>Los capitanes</b> tienen tu petición en el móvil.</>}</p>
-          <span className="nv">nuevo</span>
+          <NewBadge feature="accesoCapitanes" look="nv" />
         </div>
       </aside>
     </div>
@@ -1069,7 +1070,7 @@ export function AccessGate() {
           </ol>
         </Fold>
         {wall.length > 0 && (
-          <Fold id="wall-t" kicker="El muro · quién tiene acceso" title="Ya están dentro" sub={`${wallIn} de ${wall.length} camisetas con dueño`} icon="wall" extra={<span className="nv">nuevo</span>}>
+          <Fold id="wall-t" kicker="El muro · quién tiene acceso" title="Ya están dentro" sub={`${wallIn} de ${wall.length} camisetas con dueño`} icon="wall" extra={<NewBadge feature="accesoMuro" look="nv" />}>
             <div className="wall">
               {wall.map((w) =>
                 w.in ? (

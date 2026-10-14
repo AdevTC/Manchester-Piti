@@ -9,6 +9,7 @@ import { MasMinutos, PlayedNote } from "../../components/posiciones/haJugadoDe";
 import { usePlayed } from "../../components/posiciones/usePlayed";
 import { fmtMinutes } from "../../lib/derived/minutes";
 import type { MvpOf } from "../../lib/derived/mvpOf";
+import { NewBadge } from "../../components/NewBadge";
 
 interface Props {
   playerId: string;
@@ -30,7 +31,7 @@ export function SusPosiciones({ playerId, name, positions, games, periodName, mv
     <section className="st-card jg-wide jg-two" aria-labelledby="jg-pos">
       <div className="st-hd">
         <span className="hm-kick" style={{ margin: 0 }}>
-          Ha jugado de <span className="st-new">nuevo</span>
+          Ha jugado de <NewBadge feature="posicionesJugador" />
         </span>
         <h2 className="st-h2" id="jg-pos">
           Sus posiciones

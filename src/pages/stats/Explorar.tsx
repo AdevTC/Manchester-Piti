@@ -9,6 +9,7 @@ import { collection } from "../../lib/statsView";
 import { Icon, type IconName } from "../../components/celeste/icons";
 import { Bars } from "./Charts";
 import { wholeMinutes } from "../../lib/derived/minutes";
+import { NewBadge } from "../../components/NewBadge";
 
 export type ExploreSection = "individual" | "streaks" | "team" | "evolution";
 type NameOf = (p: PlayerAnalysis) => string;
@@ -281,7 +282,7 @@ function Streaks({ rows, names, nameOf }: { rows: PlayerAnalysis[]; names: Map<s
       <section className="st-card">
         <div className="st-hd">
           <span className="hm-kick" style={{ margin: 0 }}>
-            Fechas señaladas <span className="st-new">nuevo</span>
+            Fechas señaladas <NewBadge feature="statsFechasSenaladas" />
           </span>
           <h2 className="st-h2">La colección de la temporada</h2>
           <p className="st-mono">

@@ -12,6 +12,7 @@ import { isFormationName, systemDef } from "../../lib/formations";
 import { isCompleted } from "../../../functions/src/matchEngine";
 import { fmtMinutes } from "../../lib/derived/minutes";
 import type { MvpOf } from "../../lib/derived/mvpOf";
+import { NewBadge } from "../../components/NewBadge";
 
 type NameOf = (p: PlayerAnalysis) => string;
 const full = (code: PosCode) => `${POSITIONS[code].name} (${code})`;
@@ -63,7 +64,7 @@ function Head({ kick, title, id, children }: { kick: string; title: string; id: 
   return (
     <div className="st-hd">
       <span className="hm-kick" style={{ margin: 0 }}>
-        {kick} <span className="st-new">nuevo</span>
+        {kick} <NewBadge feature="posicionesStats" />
       </span>
       <h2 className="st-h2" id={id}>
         {title}

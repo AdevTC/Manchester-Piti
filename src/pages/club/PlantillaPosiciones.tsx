@@ -5,6 +5,7 @@
 import type { CSSProperties } from "react";
 import { noPositionText, posCountText, posKey, squadByPosition, type SquadNumbersInput } from "../../lib/club";
 import { POSITIONS, POS_CODES } from "../../lib/positions";
+import { NewBadge } from "../../components/NewBadge";
 
 /** Where a chip goes, and `--w` (0–1: how many players it has against the busiest position) for its halo. */
 const spotStyle = (x: number, y: number, w: number): CSSProperties & Record<`--${string}`, string> => ({ left: `${x}%`, top: `${y}%`, "--w": w.toFixed(2) });
@@ -36,7 +37,7 @@ export function PlantillaPosiciones({ squad, seasonName }: { squad: readonly Squ
     <section className="cl-sec cl-pp" aria-labelledby="cl-pos">
       <div className="cl-hd">
         <span className="hm-kick" style={{ margin: 0 }}>
-          {seasonName} <span className="st-new">nuevo</span>
+          {seasonName} <NewBadge feature="posicionesPlantilla" />
         </span>
         <h2 className="cl-h2" id="cl-pos">
           La plantilla por posiciones

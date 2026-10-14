@@ -22,6 +22,7 @@ import { RaceBoard, Ticker } from "./Race";
 import { Comparar, Jugadores, Minutos, Resumen, Rivales } from "./Panes";
 import { Explorar, type ExploreSection } from "./Explorar";
 import { Posiciones } from "./Posiciones";
+import { NewBadge } from "../../components/NewBadge";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
@@ -149,7 +150,7 @@ export function StatsPage() {
               </>
             ) : (
               <div className="st-race st-race-pre">
-                <span className="st-new">nuevo</span>
+                <NewBadge feature="statsCarreraPichichi" />
                 <h2 className="st-led">La carrera del Pichichi</h2>
                 <p className="st-mono">{loading ? "Encendiendo el marcador…" : "Arranca con la primera jornada: cada gol moverá la tabla en directo."}</p>
                 <ol className="st-rrows pre" aria-hidden="true">

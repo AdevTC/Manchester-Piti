@@ -7,6 +7,7 @@ import { Faces } from "./CardFaces";
 import { BOLTS, EMBERS, SPARKS, STEAM, TICKS, vars } from "./fx";
 import type { HeroView } from "./heroView";
 import { CREST, Ic } from "./icons";
+import { NewBadge } from "../../components/NewBadge";
 
 type Pz = (el: Element | null) => void;
 
@@ -297,7 +298,7 @@ export function Stage({ pz, cardRef, ...p }: StageProps) {
               {p.share.ready && (
                 <button type="button" className="btn gold first" onClick={(e) => (stop(e), p.share.open())}>
                   <Ic n="share" w={17} />
-                  Compartir mi carta <span className="nv">nuevo</span>
+                  Compartir mi carta <NewBadge feature="perfilCompartir" look="nv" />
                 </button>
               )}
               <button type="button" className="btn span2" onClick={(e) => (stop(e), p.onFlip())} aria-pressed={flipped}>

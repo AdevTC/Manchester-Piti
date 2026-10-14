@@ -29,6 +29,7 @@ import { RESULT_LEGEND, resultLetter } from "../../lib/derived/result";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { timedGames, totalMinutes } from "../../lib/derived/minutesOf";
 import { mvpOfFrom } from "../../lib/derived/mvpOf";
+import { NewBadge } from "../../components/NewBadge";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
@@ -266,7 +267,7 @@ export function JugadorPage() {
           {chips.map((c, i) => (
             <li key={c.k} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
               <small>
-                {c.k} <span className="st-new">nuevo</span>
+                {c.k} <NewBadge feature="jugadorCromo" />
               </small>
               <b>{c.v}</b>
               {c.sub && <span>{c.sub}</span>}
@@ -298,7 +299,7 @@ export function JugadorPage() {
           <section className="st-card" aria-labelledby="jg-radar">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
-                El perfil <span className="st-new">nuevo</span>
+                El perfil <NewBadge feature="jugadorPerfil" />
               </span>
               <h2 className="st-h2" id="jg-radar">
                 Su radar
@@ -329,7 +330,7 @@ export function JugadorPage() {
           <section className="st-card" aria-labelledby="jg-adn">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
-                Jornada a jornada <span className="st-new">nuevo</span>
+                Jornada a jornada <NewBadge feature="jugadorJornadas" />
               </span>
               <h2 className="st-h2" id="jg-adn">
                 Su ADN
@@ -378,7 +379,7 @@ export function JugadorPage() {
           <section className="st-card" aria-labelledby="jg-clock">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
-                Cuándo marca <span className="st-new">nuevo</span>
+                Cuándo marca <NewBadge feature="jugadorCuandoMarca" />
               </span>
               <h2 className="st-h2" id="jg-clock">
                 Su reloj de goles
@@ -390,7 +391,7 @@ export function JugadorPage() {
           <section className="st-card" aria-labelledby="jg-sky">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
-                Con quién se entiende <span className="st-new">nuevo</span>
+                Con quién se entiende <NewBadge feature="jugadorSocios" />
               </span>
               <h2 className="st-h2" id="jg-sky">
                 Su constelación
@@ -414,7 +415,7 @@ export function JugadorPage() {
           <section className="st-card" aria-labelledby="jg-vit">
             <div className="st-hd">
               <span className="hm-kick" style={{ margin: 0 }}>
-                La vitrina <span className="st-new">nuevo</span>
+                La vitrina <NewBadge feature="jugadorVitrina" />
               </span>
               <h2 className="st-h2" id="jg-vit">
                 Sus medallas
@@ -452,7 +453,7 @@ export function JugadorPage() {
                       <th scope="col">Asistencias</th>
                       <th scope="col">Minutos</th>
                       <th scope="col">
-                        MVP <span className="st-new">nuevo</span>
+                        MVP <NewBadge feature="jugadorMvp" />
                       </th>
                     </tr>
                   </thead>
