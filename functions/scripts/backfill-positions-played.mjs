@@ -36,13 +36,14 @@ function staleBuild() {
   return null;
 }
 
-const readOrNull = (path) => {
+// A declaration, not a const: main() runs from the top-level await above, before a const here exists.
+function readOrNull(path) {
   try {
     return readFileSync(path, "utf8");
   } catch {
     return null;
   }
-};
+}
 
 async function main() {
   const stale = staleBuild();
