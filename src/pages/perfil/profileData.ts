@@ -5,7 +5,9 @@ import type { ClubMatch } from "../../lib/clubData";
 import type { PlayerDoc } from "../../lib/schemas";
 import { resolvePositions, sanitizePositions, type PosCode, type PositionSet } from "../../lib/positions";
 import { proposalDiff, proposalState, type ProposalState } from "../../lib/positionsEdit";
-import { porraPosition } from "../../lib/vestuario";
+import { porraPosition, type MvpResult } from "../../lib/vestuario";
+import { playerPositions, type PlayerPositions } from "../../lib/positionStats";
+import { mvpOfFrom } from "../../lib/derived/mvpOf";
 import type { SquadPlayer } from "../pizarra/v2/ratings";
 import type { FichaState } from "./card";
 import type { SquadShirt } from "./rules";
@@ -207,4 +209,10 @@ export function convocatoriaLine(answers: Map<string, Answer>, matchIds: string[
     next: nextId ? (answers.get(nextId) ?? null) : null,
     nextId,
   };
+}
+
+/** «Dónde has jugado»: his minutes, events and rating by position over the season's calendar, with the
+ *  MVPs as every page (derived/mvpOf), so the perfil's rating is jugador's. */
+export function positionsPlayed(playerId: string, calendar: ClubMatch[], mvpResults: ReadonlyMap<string, MvpResult>, now: number): PlayerPositions {
+  return playerPositions(playerId, calendar, mvpOfFrom(mvpResults, calendar, now));
 }

@@ -68,7 +68,7 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
     .filter((l) => l.a === id || l.b === id)
     .sort((a, b) => b.s - a.s)
     .slice(0, 3)
-    .map((l) => ({ k: "con " + nm(l.a === id ? l.b : l.a) + " · " + togTxt(l.min), v: linkMark(l.t) }));
+    .map((l) => ({ k: "con " + nm(l.a === id ? l.b : l.a) + " · " + togTxt(l), v: linkMark(l.t) }));
   if (fi < 0) ln = [{ k: p.baja ? bajaWords(p).replace(/^./, (x) => x.toLocaleUpperCase("es")) + ": no disponible" : "En el banquillo", v: "" }];
   else if (!ln.length) ln = [{ k: "Sin vecinos cerca en este siete", v: "" }];
   const cv = p.cv === "voy" ? " · Voy" : p.cv === "duda" ? " · Duda" : p.cv === "no" ? " · No va" : "";

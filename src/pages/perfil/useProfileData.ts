@@ -8,7 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useSeason } from "../../context/SeasonContext";
 import { useClubData, dateMillis, nextFixture, type ClubMatch } from "../../lib/clubData";
 import { currentSeasonId } from "../../lib/vestuario";
-import { playerPositions, type PlayerPositions } from "../../lib/positionStats";
+import type { PlayerPositions } from "../../lib/positionStats";
 import { useClock } from "../../hooks/useClock";
 import { useLineups } from "../pizarra/useLineups";
 import {
@@ -33,6 +33,7 @@ import {
   fichaInfo,
   porraLine,
   positionsInfo,
+  positionsPlayed,
   seasonPlayers,
   squadShirts,
   type AccessInfo,
@@ -44,7 +45,6 @@ import {
 } from "./profileData";
 import type { SquadShirt } from "./rules";
 import { upcomingRows, type UpcomingRow } from "./avisos";
-import { mvpOfFrom } from "../../lib/derived/mvpOf";
 
 export type Role = "superadmin" | "admin" | "user";
 /** A ficha the member can still ask for (the claim picker): this season's, nobody linked to it. */
@@ -208,7 +208,7 @@ export function useProfileData(): ProfileData {
     shirt: { current: me?.shirtName || [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" "), number: me && me.number ? String(me.number) : "", squad: shirtSquad, fullName: [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" ") },
     card,
     positions: positionsInfo(fichaDoc, seasonId),
-    played: info.state === "vinculada" && info.playerId ? playerPositions(info.playerId, calendar, mvpOfFrom(mvpResults, calendar, minute)) : null,
+    played: info.state === "vinculada" && info.playerId ? positionsPlayed(info.playerId, calendar, mvpResults, minute) : null,
     freeFichas,
     next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: built.jornada.get(next.id) ?? null } : null,
     upcoming: upcomingRows(matches, minute),

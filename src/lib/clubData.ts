@@ -7,7 +7,7 @@ import type {
 } from "../../functions/src/matchEngine";
 import { useSeasonsLoading } from "../context/SeasonContext";
 import { MATCHES_KEY, PLAYERS_KEY, matchQuery, playerQuery } from "./publicData";
-import { nameFor, type NameSource } from "./derived/names";
+import { nameFor, seasonShirtName, type NameSource } from "./derived/names";
 export {
   EVENT_LABELS,
   dateMillis,
@@ -85,7 +85,8 @@ export function playerForSeason<
     : undefined;
   return {
     ...player,
-    shirtName: detail?.shirtName || player.shirtName,
+    // (the same season name nameFor reads: a blank or malformed one falls back to the default)
+    shirtName: seasonShirtName(player, seasonId) || player.shirtName,
     number: detail?.number ?? player.number,
   };
 }

@@ -101,7 +101,7 @@ describe("the squad from the season's matches", () => {
     ];
     const sq = buildSquad({ players, games, jornada: new Map([["g1", 4], ["g2", 5]]), suspended: new Set(["a"]), mvps: new Map([["g2", ["a"]]]) });
     // (no stints in these ledgers: the shorter of their minutes, 30′ + 50′)
-    expect(sq.pairs.get("a|b")).toEqual({ tog: 2, ast: 1, min: 80 });
+    expect(sq.pairs.get("a|b")).toEqual({ tog: 2, ast: 1, min: 80, known: 80 }); // (ledgers: the printable minutes are the same)
     expect(sq.byId.get("a")?.stats).toMatchObject({ played: 2, minutes: 100, starts: 2, mvps: 1 });
     expect(sq.byId.get("a")?.baja).toBe("Sancionado");
     expect(sq.byId.get("a")?.sancion).toBeUndefined();

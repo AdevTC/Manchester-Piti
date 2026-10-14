@@ -13,6 +13,7 @@ import type { RepRow } from "./bench";
 import type { TapeRow } from "./compare";
 import { cartelHead, type Cartel } from "./cartel";
 import type { Squad } from "./model";
+import { wholeMinutes } from "../../../lib/derived/minutes";
 import type { ShowKey, ShowPrefs } from "./prefs";
 import { intro3dWanted, setIntro3dWanted } from "./intro";
 import { TeamDiamonds } from "./TacticaPanel";
@@ -76,7 +77,7 @@ export function ChemLines({ ch }: { ch: Chem }) {
             <strong>{l.a}</strong>asist.
           </span>
           <span>
-            <strong>{l.min}</strong>min
+            <strong>{l.unk ? "—" : wholeMinutes(l.min)}</strong>min
           </span>
         </div>
       ))}

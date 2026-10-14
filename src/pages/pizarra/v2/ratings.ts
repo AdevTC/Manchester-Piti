@@ -69,9 +69,10 @@ export function whyOf(r: Recent, role: Zone | undefined, played: number): string
   if (r.goals || r.assists) return [r.goals ? plural(r.goals, "gol", "goles") : "", r.assists ? plural(r.assists, "asistencia") : ""].filter(Boolean).join(" y ") + " " + last;
   if (r.mvps) return (r.mvps === 1 ? "MVP " : r.mvps + " veces MVP ") + last;
   if ((role === "POR" || role === "DEF") && r.clean) return "Portería a cero " + (r.clean === r.played ? last : "en " + r.clean + " de sus " + r.played + " últimos");
-  // (a legacy acta does not know his minutes: no invented number)
+  // (a legacy acta does not know his minutes: no invented number; the known ones say how many they cover)
   if (!r.timed) return "Jugó " + last + ", sin goles";
-  return plural(Math.round(r.minutes), "minuto") + " " + last + ", sin goles";
+  const some = r.timed < r.played ? " (" + r.timed + " con minutos)" : "";
+  return plural(Math.round(r.minutes), "minuto") + " " + last + some + ", sin goles";
 }
 
 /** The «why» of a player's form (the ficha and the cromo's label), «—» if he is not in the squad. */
@@ -124,11 +125,11 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
   const recent = games.slice(-RECENT_GAMES);
   const recentFrom = games.length - recent.length;
   const teamMin = games.reduce((s, m) => s + durationOf(m), 0);
-  // match index → who played and his minutes
-  const playedBy: Map<string, number>[] = games.map(() => new Map());
+  // match index → who played: his presence minutes (internal) and his known ones (null = unknown)
+  const playedBy: Map<string, { est: number; known: number | null }>[] = games.map(() => new Map());
   const list: Cromo[] = players.map((p) => {
     const role = normZone(p.naturalPosition);
-    let played = 0, goals = 0, assists = 0, starts = 0, mv = 0, recentMin = 0, recentGA = 0;
+    let played = 0, goals = 0, assists = 0, starts = 0, mv = 0, recentMin = 0, recentGA = 0, presenceMin = 0;
     const f: FormInput = { role, teamW: 0, playedW: 0, shareW: 0, minW: 0, gaW: 0, concW: 0, mvpW: 0, cardsW: 0, savesW: 0 };
     const r: Recent = { played: 0, goals: 0, assists: 0, mvps: 0, clean: 0, minutes: 0, timed: 0 };
     games.forEach((m, gi) => {
@@ -154,7 +155,8 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       }
       if (!g.played) return;
       played++;
-      playedBy[gi].set(p.id, min);
+      playedBy[gi].set(p.id, { est: min, known });
+      presenceMin += min;
       const conc = concededOnPitch(m, p.id, min);
       f.playedW += w;
       f.shareW += w * Math.min(1, min / d);
@@ -188,6 +190,7 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       ...(form == null ? { unrated: true } : {}),
       why: whyOf(r, role, played),
       stats: { played, goals, assists, minutes: totalMinutes(games, p.id), timed: timedGames(games, p.id), starts, mvps: mv },
+      presenceMin,
       recentMin,
       recentGA,
       baja,
@@ -208,11 +211,16 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
     const ids = [...set.keys()];
     for (let i = 0; i < ids.length; i++)
       for (let j = i + 1; j < ids.length; j++) {
-        const t = minutesTogether(games[gi], ids[i], ids[j], set.get(ids[i]) ?? 0, set.get(ids[j]) ?? 0);
+        const a = set.get(ids[i])!;
+        const b = set.get(ids[j])!;
+        const t = minutesTogether(games[gi], ids[i], ids[j], a.est, b.est);
         if (t <= 0) continue;
         const ps = pair(ids[i], ids[j]);
         ps.tog++;
         ps.min += t;
+        // what may be printed: the minutes the actas know (a legacy acta: matches together only)
+        if (a.known === null || b.known === null) ps.unk = true;
+        else ps.known = (ps.known ?? 0) + minutesTogether(games[gi], ids[i], ids[j], a.known, b.known);
       }
   });
   goalLinks(games).forEach((l) => {

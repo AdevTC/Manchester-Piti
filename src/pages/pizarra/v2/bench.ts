@@ -301,13 +301,16 @@ export interface Reparto {
 
 /** The six outfield players who have played least (and can play), and the change that evens it out. */
 export function reparto(L: Lineup, sq: Squad, called: ReadonlySet<string> | null): Reparto {
+  const known = (c: Cromo) => knownMinutes(c.stats) !== null;
   const onPitch = new Set(L.slots.map((s) => s.playerId).filter((x): x is string => !!x));
   const avl = sq.list
     .filter((c) => !c.baja && c.pos !== "POR" && c.cv !== "no" && (!called || called.has(c.id) || onPitch.has(c.id)))
-    .sort((a, b) => a.stats.minutes - b.stats.minutes);
+    // (who has played least, by the minutes the actas know; a player whose minutes nobody knows is not
+    // «the one who played least»: after them, by matches played, with no bar)
+    .sort((a, b) => Number(!known(a)) - Number(!known(b)) || (known(a) ? a.stats.minutes - b.stats.minutes : a.stats.played - b.stats.played));
   const maxMin = Math.max(1, ...sq.list.map((c) => c.stats.minutes));
-  const rows = avl.slice(0, 6).map((c) => ({ id: c.id, num: c.num, name: c.name, inS: onPitch.has(c.id), m: Math.max(2, Math.round((c.stats.minutes / maxMin) * 100)) + "%", min: fmtMinutes(knownMinutes(c.stats)) }));
-  const low = avl.find((c) => !onPitch.has(c.id));
+  const rows = avl.slice(0, 6).map((c) => ({ id: c.id, num: c.num, name: c.name, inS: onPitch.has(c.id), m: known(c) ? Math.max(2, Math.round((c.stats.minutes / maxMin) * 100)) + "%" : "0%", min: fmtMinutes(knownMinutes(c.stats)) }));
+  const low = avl.find((c) => !onPitch.has(c.id) && known(c));
   let rot: Reparto["rot"] = null;
   const mins = (id: string) => sq.byId.get(id)?.stats.minutes ?? 0;
   if (low && hasFitData([low.id], sq)) {
@@ -330,7 +333,7 @@ export function reparto(L: Lineup, sq: Squad, called: ReadonlySet<string> | null
     if (cands[0]) rot = { id: low.id, i: cands[0].i, out: cands[0].id };
   }
   const outName = rot ? (sq.byId.get(rot.out)?.name ?? "Jugador") : "";
-  const minTxt = (c: Cromo | undefined) => (c ? fmtMinutes(knownMinutes(c.stats), "sin minutos registrados") : fmtMinutes(0));
+  const minTxt = (c: Cromo | undefined) => fmtMinutes(c ? knownMinutes(c.stats) : null);
   const txt = rot && low ? low.name + " lleva " + minTxt(low) + "; " + outName + ", " + minTxt(sq.byId.get(rot.out)) + "." : "El reparto está equilibrado.";
   return { rows, txt, rot };
 }

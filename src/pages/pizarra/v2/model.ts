@@ -53,6 +53,9 @@ export interface Cromo {
   /** Why his form is what it is, in a few words («3 goles en sus 2 últimos»). */
   why?: string;
   stats: CromoStats;
+  /** INTERNAL (scores only, never printed): his season minutes with a legacy acta he played counted as
+   *  the whole match (derived/minutesOf presenceMinutes). Absent: stats.minutes. */
+  presenceMin?: number;
   /** Minutes and goals+assists over the recent window (the «sobre»). */
   recentMin: number;
   recentGA: number;
@@ -81,8 +84,13 @@ export function bajaWords(c: Pick<Cromo, "baja" | "sancion">): string {
 export interface PairStats {
   /** Matches both were on the pitch at the same time. */
   tog: number;
-  /** Minutes both were on the pitch at the same time (the ledger's stints). */
+  /** INTERNAL (the link score, togPoints): minutes both were on the pitch at the same time (the ledger's
+   *  stints; a legacy acta both played counts as the whole match). Never printed. */
   min: number;
+  /** The printable minutes together: only from matches whose actas know both players' minutes. */
+  known?: number;
+  /** Some match together does not know their minutes (a legacy acta): print matches, not minutes. */
+  unk?: boolean;
   /** Goals one assisted to the other (both directions). */
   ast: number;
 }
