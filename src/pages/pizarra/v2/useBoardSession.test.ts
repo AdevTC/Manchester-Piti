@@ -6,6 +6,9 @@ import type { UseLineups } from "../useLineups";
 import { DELETE_MS, RETRY_MS, useBoardSession, type SessionArgs } from "./useBoardSession";
 import { lineupOf } from "./testkit";
 
+// Heavy suite (long fake-timer runs of the autosave and the deletes): under load it crossed the 5 s default.
+vi.setConfig({ testTimeout: 15_000 });
+
 // Which board is on screen, who may edit it, and the autosave — with a fake store.
 
 const SQUAD = ["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "adrian", "kevin"];

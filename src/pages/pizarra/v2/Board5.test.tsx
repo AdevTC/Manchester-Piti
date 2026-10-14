@@ -9,6 +9,9 @@ import { PREFS0 } from "./prefs";
 import { demoSquad, lineupOf } from "./testkit";
 import { BoardHarness as Harness } from "./testkitBoard";
 
+// Heavy suite: it renders the whole board in jsdom (1–2 s per test alone); under load it crossed 5 s.
+vi.setConfig({ testTimeout: 15_000 });
+
 // Phase 5 as a user drives it: la charla (the system, the seven one by one, the plan, the jugada,
 // «¡A por ellos!»; its transport, keys, hidden tab, reduced motion, read-only boards, an incomplete
 // seven, the deep link), the charla filmed in the one 3D stadium, and the opening (the 2D crane or the
