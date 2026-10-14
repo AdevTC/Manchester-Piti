@@ -24,9 +24,8 @@ import { Comparar, Jugadores, Minutos, Resumen, Rivales } from "./Panes";
 import { Explorar, type ExploreSection } from "./Explorar";
 import { Posiciones } from "./Posiciones";
 import { NewBadge } from "../../components/NewBadge";
-import "../../styles/home.css";
+import "../../styles/celeste/page.css";
 import "../../styles/partidos.css";
-import "../../styles/st-base.css";
 import "../../styles/stats.css";
 
 const route = getRouteApi("/stats");

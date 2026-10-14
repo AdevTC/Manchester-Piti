@@ -1,0 +1,13 @@
+/* Celeste base · buttons: the header's top CTA (hm-cta-top, its label .t shows from 700px), the solid
+   pill (hm-btn) and the ghost pill (hm-ghostbtn). Pages make them smaller with their own class after these
+   (stats.css .st-sm / .st-play), so a page sheet always wins a tie. */
+.hm-cta-top{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;min-width:44px;padding:0 14px;border-radius:999px;background:var(--cta);font-weight:700;font-size:14px;text-decoration:none;box-shadow:var(--cta-shadow)}
+.vx .hm-cta-top{color:var(--cta-ink)}
+.hm-cta-top .t{display:none}
+.hm-btn{display:inline-flex;align-items:center;gap:8px;height:52px;padding:0 24px;border-radius:999px;border:0;background:var(--thumb);font-weight:700;font-size:15px;text-decoration:none;box-shadow:var(--thumb-shadow)}
+.vx .hm-btn{color:var(--thumb-ink)}
+.hm-ghostbtn{display:inline-flex;align-items:center;gap:8px;height:52px;padding:0 22px;border-radius:999px;border:0;background:var(--ghost);font-weight:600;font-size:15px;text-decoration:none}
+.vx .hm-ghostbtn{color:var(--ghost-ink)}
+@container (min-width:700px){
+.hm-cta-top{padding:0 18px}.hm-cta-top .t{display:inline}
+}

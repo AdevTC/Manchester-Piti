@@ -29,7 +29,7 @@ import { boardLastLine, goalBurstWho, livePlay, scoreboardOf } from "../../lib/d
 import { AWAITING_ACTA, kickoffState, kickoffText, PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import { jornadaNumbers } from "../../lib/derived/jornada";
 import { RESULT_LEGEND, RESULT_WORD } from "../../lib/derived/result";
-import "../../styles/home.css";
+import "../../styles/celeste/page.css";
 import "../../styles/partidos.css";
 
 const where = (m: ClubMatch) => (m.home === false ? "fuera" : m.home === true ? "en casa" : "");

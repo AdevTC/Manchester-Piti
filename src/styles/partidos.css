@@ -1,5 +1,6 @@
 /* Partidos (Celeste · "Noche de focos"), from the Design canvas page "Partidos · elegida".
-   Tokens come from .vx (vestuario.css) and the shared pieces (hm-kick, hm-h2, hm-btn…) from home.css. */
+   Tokens come from .vx (vestuario.css) and celeste/page.css; the shared pieces (hm-kick, hm-h2, hm-btn,
+   pt-chip, pt-res…) from the Celeste base (src/styles/celeste/, loaded by the site chrome). */
 
 /* flip digits: a new value remounts the element (React key), so the flip plays once per change */
 .pt-flip{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;background:linear-gradient(180deg,var(--flap) 50%,var(--flap2) 50%);color:#eef4ff;font-family:'Anybody';font-weight:900;font-variation-settings:'wdth' 78;line-height:1;font-variant-numeric:tabular-nums;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 14px 30px -14px rgba(0,0,0,.7);overflow:hidden;animation:ptFlip .5s cubic-bezier(.3,1.4,.5,1)}
@@ -59,7 +60,6 @@
 .pt-meta{margin:14px 0 0;text-align:center;font-weight:600;font-size:15px}
 .pt-meta small{display:block;margin-top:4px;font-family:'Geist Mono';font-weight:400;font-size:12px;color:var(--muted)}
 .pt-chips{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
-.pt-chip{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 12px;border-radius:999px;background:var(--chip);font-size:12px;font-weight:600}
 .pt-acts{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .pt-prog{margin-top:14px;height:6px;border-radius:6px;background:var(--bar);overflow:hidden}
 .pt-prog i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#ff5a4f,#FFC659);transition:width .6s ease}
@@ -118,10 +118,6 @@
 .pt-row .meta{font-family:'Geist Mono';font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pt-row .tag{font-family:'Geist Mono';font-size:10px;font-weight:700;color:var(--gold-ink);white-space:nowrap}
 .pt-row .tag.live{color:#ff8f7a}
-.pt-res{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;font-family:'Anybody';font-weight:900;font-size:13px}
-.pt-res.G{background:#6CABDD;color:#0c1733}
-.pt-res.E{background:var(--chip);box-shadow:inset 0 0 0 1.5px var(--soft)}
-.pt-res.P{color:var(--muted);box-shadow:inset 0 0 0 1.5px var(--line)}
 .pt-ghostrow{display:grid;grid-template-columns:50px minmax(0,1fr);gap:12px;align-items:center;padding:16px 14px;border-radius:22px;border:1.5px dashed var(--line);color:var(--muted);font-size:14px}
 .pt-ghostrow b{font-family:'Anybody';font-weight:900;font-size:22px;text-align:center;opacity:.5}
 .pt-more{margin:12px 0 0;font-family:'Geist Mono';font-size:12px;color:var(--muted);text-align:center}

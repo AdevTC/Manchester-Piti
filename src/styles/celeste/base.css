@@ -1,0 +1,12 @@
+/* The Celeste base: the classes several pages share, in one place, imported once by the site chrome
+   (components/celeste/Chrome.tsx), which is part of the entry, so it reaches every page (server-rendered or
+   not) before any page sheet. Page sheets keep only their own layout and load after this, so a page's
+   override wins a tie. Class names are the pages' originals (hm-*, pt-*, st-*). The content pages' .vx
+   shell (tokens, min-height, reduced motion) is celeste/page.css, imported by those pages, not here. */
+@import "./chips.css";
+@import "./type.css";
+@import "./buttons.css";
+@import "./data.css";
+@import "./seg.css";
+@import "./card.css";
+@import "./state.css";

@@ -1,6 +1,6 @@
-/* Ficha de jugador (Celeste · "elegida"). Builds on stats.css (cards, headings, tables, charts) and
-   home/partidos.css (buttons, floodlights). The cromo's tilt is contained in its stage; the
-   presentation overlay never takes clicks. */
+/* Ficha de jugador (Celeste · "elegida"). Builds on the Celeste base (src/styles/celeste/: cards,
+   headings, tables, buttons), stats.css (charts) and partidos.css (floodlights). The cromo's tilt is
+   contained in its stage; the presentation overlay never takes clicks. */
 
 .jg-hero{position:relative;background:var(--hero-bg);padding:calc(88px + var(--isle,0px)) 16px 32px;overflow:hidden}
 .jg-hero-in{position:relative;z-index:2;display:grid;gap:28px;max-width:1312px;margin:0 auto}
@@ -12,7 +12,6 @@
 .vx .jg-bio{margin:0;font-size:15px;line-height:1.5;color:var(--soft);max-width:52ch}
 .jg-quote{margin:0;padding-left:14px;border-left:2px solid var(--st-gold);font-family:'Anybody';font-weight:700;font-size:18px;line-height:1.3;font-variation-settings:'wdth' 96;max-width:40ch}
 .jg-acts{display:flex;flex-wrap:wrap;gap:10px}
-.jg-share{height:48px;padding:0 20px;font-size:14px}
 .jg-season select{min-width:200px}
 
 /* ── the presentation + the cromo ── */
@@ -60,7 +59,6 @@
 @keyframes jgFoil{from{background-position:0% 0%}to{background-position:300% 300%}}
 .jg-cromo:hover .foil{animation-play-state:paused}
 .jg-face .glare{position:absolute;inset:0;z-index:5;pointer-events:none;background:radial-gradient(farthest-corner circle at var(--mx) var(--my),rgba(255,255,255,.55) 0%,rgba(255,255,255,.12) 25%,transparent 55%);mix-blend-mode:overlay;opacity:calc(.25 + var(--hyp) * .6)}
-.jg-turn{height:44px;padding:0 16px;font-size:14px}
 
 /* ── report ── */
 .jg-main{position:relative;z-index:2;max-width:1440px;margin:0 auto;padding:8px 16px 40px;display:grid;gap:22px}

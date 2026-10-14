@@ -41,7 +41,7 @@ import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } f
 import { MATCH_TABS, matchTabAt, matchTabIndex } from "../../lib/matchTabs";
 import { tabForKey } from "../../lib/tabKeys";
 import { hasAnalysisActions } from "../../lib/technicalAnalysis";
-import "../../styles/home.css";
+import "../../styles/celeste/page.css";
 import "../../styles/partidos.css";
 import "../../styles/ficha.css";
 

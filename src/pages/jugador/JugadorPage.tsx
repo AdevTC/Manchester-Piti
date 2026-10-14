@@ -37,9 +37,8 @@ import { timedGames, totalMinutes } from "../../lib/derived/minutesOf";
 import { mvpOfFrom } from "../../lib/derived/mvpOf";
 import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import { NewBadge } from "../../components/NewBadge";
-import "../../styles/home.css";
+import "../../styles/celeste/page.css";
 import "../../styles/partidos.css";
-import "../../styles/st-base.css";
 import "../../styles/stats.css";
 import "../../styles/jugador.css";
 

@@ -3,14 +3,14 @@
 // Análisis del juego. Recorded actions only, never estimates: every number comes from
 // technicalAnalysis (functions/src/matchAnalysis), and the hosts show the panel only when there is some
 // narration to read (hasAnalysisActions). Cards and segmented controls are the stats pages' own
-// (st-card, st-seg, st-table…, from st-base.css); technical-stats.css only lays out what is particular to it.
+// (st-card, st-seg, st-table…, from the Celeste base, src/styles/celeste/); technical-stats.css only lays out
+// what is particular to it.
 import { useId, useMemo, useState } from "react";
 import { EVENT_LABELS, type ClubMatch, type MatchEvent } from "../../lib/clubData";
 import { TECH_LABELS, pct, technicalAnalysis } from "../../lib/technicalAnalysis";
 import { plural } from "../../lib/vestuario";
 import { emptyTechnical, eventSide, OUTCOME_LABELS, type AnalysisEvent, type TechnicalStats } from "../../../functions/src/matchAnalysis";
 import { PlayerLink } from "./PlayerLink";
-import "../../styles/st-base.css";
 import "./technical-stats.css";
 
 type Metric = keyof TechnicalStats;

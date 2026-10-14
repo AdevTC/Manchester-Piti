@@ -1,7 +1,6 @@
-/* The stats pages' base (st-base): the tokens, cards, headings, segmented controls, fields, KPIs,
-   legends and tables that /stats, the jugador and club pages (stats.css) and the game-analysis panel
-   (TechnicalStats.tsx, also on the match page) share. One place, imported before stats.css and before
-   the panel's technical-stats.css, so the match page doesn't ship the whole stats sheet. */
+/* Celeste base · data pieces of the stats family (/stats, El club, the jugador page and the game-analysis
+   panel, TechnicalStats.tsx, also on the match page): the --st-* tokens, the mono line, the select field,
+   legends, KPIs and tables. Was src/styles/st-base.css. */
 
 /* (.technical-stats, the game-analysis panel, carries the same tokens wherever it sits: the match page has no .st) */
 .st,.technical-stats{container-name:st-page;--st-sky:#6CABDD;--st-gold:#FFC659;--st-them:rgba(159,179,211,.55);--st-card:rgba(255,255,255,.045);--st-card-line:rgba(255,255,255,.08);--st-board:linear-gradient(180deg,rgba(13,33,80,.72),rgba(6,16,42,.82));--st-board-line:rgba(159,208,242,.2);--st-led:#FFC659;--st-led-glow:rgba(255,198,89,.55);--st-heat:108,171,221;
@@ -10,20 +9,12 @@
   --c0:#2a73ad;--c1:#b07a00;--c2:#0c1733;--c3:#c2410c;--c4:#15803d;--c5:#7c3aed}
 .st-mono{font-family:'Geist Mono';font-size:12px;line-height:1.5;color:var(--muted)}
 .vx p.st-mono{margin:0}
-.st-empty{margin:0;padding:18px;border-radius:16px;background:var(--chip);color:var(--muted);font-size:14px}
 .st-field{display:grid;gap:6px}
 .st-field select{height:48px;max-width:100%;border:0;border-radius:14px;background:var(--input,var(--chip));color:var(--ink);box-shadow:inset 0 0 0 1px var(--line);padding:0 40px 0 14px;font:600 15px 'Geist',system-ui,sans-serif;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 20px) 21px,calc(100% - 15px) 21px;background-size:5px 5px;background-repeat:no-repeat}
 .st-field select option{color:#0c1733;background:#fff}
 .st-field select:disabled{opacity:.6}
-.st-seg{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:var(--pill);box-shadow:var(--pill-line);max-width:100%;overflow-x:auto;scrollbar-width:none}
-.st-seg button{flex:0 0 auto;min-height:40px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--pill-ink);font-weight:600;font-size:13px;transition:background .3s,color .3s}
-.st-seg button[aria-pressed="true"]{background:var(--pill-on);color:var(--pill-on-ink);box-shadow:var(--pill-on-shadow)}
 
-/* cards, headings, legends */
-.st-card{position:relative;display:grid;gap:14px;align-content:start;padding:18px 16px;border-radius:24px;background:var(--st-card);box-shadow:inset 0 0 0 1px var(--st-card-line)}
-.st-hd{display:grid;gap:6px}
-.st-h2{margin:0;font-family:'Anybody';font-weight:800;font-size:26px;line-height:1.05;letter-spacing:-.02em;font-variation-settings:'wdth' 108;text-wrap:balance}
-.st-h3{margin:0;font-family:'Anybody';font-weight:800;font-size:18px;line-height:1.1;font-variation-settings:'wdth' 104}
+/* legends */
 .st-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:0;font-family:'Geist Mono';font-size:11px;color:var(--muted)}
 .st-legend span{display:inline-flex;align-items:center;gap:6px}
 .st-legend i{display:inline-block;width:12px;height:12px;border-radius:3px}
@@ -31,10 +22,6 @@
 .st-legend i.them{background:repeating-linear-gradient(45deg,var(--st-them) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--st-them)}
 .st-legend i.half{width:14px;height:0;border-top:2px dashed var(--muted);border-radius:0}
 .st-legend i.rk{width:12px;height:12px;border-radius:50%}
-@supports (animation-timeline:view()){
-.st-card,.st-rec{animation:stReveal linear both;animation-timeline:view();animation-range:entry 0% entry 55%}
-@keyframes stReveal{from{opacity:.2;transform:translateY(26px)}to{opacity:1;transform:none}}
-}
 
 /* KPIs */
 .st-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
@@ -68,7 +55,6 @@
 /* ── tablet ── */
 @container st-page (min-width:700px){
 .st-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
-.st-card{padding:24px}
 }
 /* ── desktop ── */
 @container st-page (min-width:1100px){

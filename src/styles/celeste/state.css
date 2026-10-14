@@ -1,0 +1,3 @@
+/* Celeste base · the quiet empty line of a card or list (st-empty). Whole-screen and in-frame states are
+   StatePanel's (components/celeste/state-panel.css). */
+.st-empty{margin:0;padding:18px;border-radius:16px;background:var(--chip);color:var(--muted);font-size:14px}

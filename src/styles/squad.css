@@ -1,5 +1,5 @@
 /* Plantilla (Celeste): the percha of real kit photos, the ficha modal and cara a cara.
-   Tokens come from .vx (vestuario.css) and home.css. */
+   Tokens come from .vx (vestuario.css) and celeste/page.css; titles from the Celeste base. */
 
 .sq{--kit:#8ac8f5;--kit2:#5fa6dc;--kit-ink:#051330;--kit-acc:#CFA862;--slash:0;--hook:#9fb0c8}
 [data-theme="light"] .sq{--hook:#5b6d8c}

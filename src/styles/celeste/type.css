@@ -1,0 +1,17 @@
+/* Celeste base · titles and sections: the mono kicker over a title (hm-kick), the section title (hm-h2),
+   the lede under it (hm-lede), the page section (hm-sec) and the screen-reader-only text (hm-sr).
+   The @container sizes follow the page's own inline-size container. */
+.hm-sec{position:relative;z-index:2;padding:0 20px;margin-top:88px}
+.hm-kick{display:block;font-family:'Geist Mono';font-size:12px;color:var(--muted);margin-bottom:8px}
+.hm-h2{margin:0;font-family:'Anybody';font-weight:800;font-size:34px;line-height:1;letter-spacing:-.02em;font-variation-settings:'wdth' 112;text-wrap:balance}
+.hm-h2 em{font-style:normal;color:var(--accent)}
+.hm-lede{margin:10px 0 0;max-width:56ch;font-size:15px;line-height:1.5;color:var(--soft)}
+.hm-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@container (min-width:700px){
+.hm-sec{padding:0 40px;margin-top:110px}
+.hm-h2{font-size:44px}
+}
+@container (min-width:1100px){
+.hm-sec{padding:0 64px;margin-top:130px}
+.hm-h2{font-size:54px}
+}

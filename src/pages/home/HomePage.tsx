@@ -14,8 +14,11 @@ import { currentSeasonId } from "../../lib/vestuario";
 import { MatchHero } from "./MatchHero";
 import { PonteLaCamiseta } from "./PonteLaCamiseta";
 import { SeasonRow, Sponsors, VestuarioBand } from "./Sections";
-import "../../styles/home.css";
+import "../../styles/celeste/page.css";
+// home-match.css before home.css: the cascade the server-rendered home has always had (home.css was a
+// shared chunk linked after the page's own sheet; now only the home imports it).
 import "../../styles/home-match.css";
+import "../../styles/home.css";
 
 /** Public home, match day: the next game, the player of the moment, the season, and a shirt for the fans. */
 export function HomePage() {
