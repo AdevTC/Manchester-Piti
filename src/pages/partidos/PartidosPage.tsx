@@ -8,6 +8,7 @@ import { dateMillis, isCompleted, matchPhase, nextFixture, playerForSeason, name
 import { useClock } from "../../hooks/useClock";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { Icon } from "../../components/celeste/icons";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Flip } from "../../components/celeste/Flip";
@@ -388,13 +389,15 @@ export function PartidosPage() {
                 Goles de la temporada
               </span>
               <h3>
-                {scorers[0].name} lleva {scorers[0].stats.goals}
+                <PlayerLink id={scorers[0].id} seasonId={seasonId} variant="quiet">{scorers[0].name}</PlayerLink> lleva {scorers[0].stats.goals}
               </h3>
               <ol className="pt-pich">
                 {scorers.map((s, i) => (
                   <li key={s.id}>
                     <i>{i + 1}</i>
-                    <span>{s.name}</span>
+                    <span>
+                      <PlayerLink id={s.id} seasonId={seasonId} variant="quiet">{s.name}</PlayerLink>
+                    </span>
                     <b>{s.stats.goals}</b>
                   </li>
                 ))}

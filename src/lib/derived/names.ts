@@ -23,3 +23,35 @@ export function seasonShirtName(p: NameSource | null | undefined, seasonId: stri
 export function nameFor(p: NameSource | null | undefined, seasonId?: string | null): string {
   return seasonShirtName(p, seasonId) || p?.shirtName || [p?.firstName, p?.lastName].filter(Boolean).join(" ") || "Jugador";
 }
+
+/** A piece of a sentence: plain text, or a player's name (with his id). */
+export interface NameSegment {
+  text: string;
+  id?: string;
+}
+
+/**
+ * A sentence cut around the players it names, so each name can become his link: «PEPE marca, con
+ * asistencia de LUIS» → [PEPE·p1, « marca, con asistencia de », LUIS·p2]. Every occurrence is found;
+ * where two names start at the same place, the longer wins («ANA MARÍA» before «ANA»).
+ */
+export function nameSegments(text: string, people: readonly { id: string; name: string }[]): NameSegment[] {
+  const named = people.filter((p) => p.name).sort((a, b) => b.name.length - a.name.length);
+  const out: NameSegment[] = [];
+  let rest = text;
+  while (rest) {
+    let best: { at: number; id: string; name: string } | null = null;
+    for (const p of named) {
+      const at = rest.indexOf(p.name);
+      if (at >= 0 && (!best || at < best.at)) best = { at, id: p.id, name: p.name };
+    }
+    if (!best) {
+      out.push({ text: rest });
+      break;
+    }
+    if (best.at > 0) out.push({ text: rest.slice(0, best.at) });
+    out.push({ text: best.name, id: best.id });
+    rest = rest.slice(best.at + best.name.length);
+  }
+  return out;
+}

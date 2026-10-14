@@ -196,7 +196,7 @@ export function SquadPage() {
         )}
       </section>
 
-      {rows.length > 0 && <RaceAndBirthdays scorers={race.scorers} assister={race.assister} birthdays={race.birthdays} />}
+      {rows.length > 0 && <RaceAndBirthdays scorers={race.scorers} assister={race.assister} birthdays={race.birthdays} seasonId={seasonId} />}
 
       {a && b && a.id !== b.id && (
         <section className="hm-sec" id="sq-cara" aria-labelledby="sq-cara-t">

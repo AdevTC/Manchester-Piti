@@ -147,7 +147,7 @@ export function StatsPage() {
             <div className="st-sweep" aria-hidden="true" />
             {ready && games.length > 0 ? (
               <>
-                <RaceBoard rows={rows} nameOf={nameOf} jornada={jornada} />
+                <RaceBoard rows={rows} nameOf={nameOf} jornada={jornada} seasonId={selectedSeasonId} />
                 <Ticker lines={lines} />
               </>
             ) : (

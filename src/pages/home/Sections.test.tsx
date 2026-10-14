@@ -1,12 +1,20 @@
 import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { expect, it, vi } from "vitest";
-import { SeasonRow } from "./Sections";
-import { seasonPulse } from "../../lib/home";
+import { RaceAndBirthdays, SeasonRow } from "./Sections";
+import { seasonPulse, type PlayerLine } from "../../lib/home";
 import { readyClock } from "../../../functions/src/matchClock";
 import type { ClubMatch } from "../../lib/clubData";
 
-vi.mock("@tanstack/react-router", () => ({ Link: ({ children, className }: { children?: ReactNode; className?: string }) => <a className={className}>{children}</a> }));
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, className, to, params, search }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; search?: { season?: string } }) => (
+    <a className={className} href={to === "/jugadores/$playerId" ? `/jugadores/${params?.playerId}${search?.season ? `?season=${search.season}` : ""}` : undefined}>
+      {children}
+    </a>
+  ),
+}));
+const squad = vi.hoisted(() => ["p1", "p2", "p3"].map((id) => ({ id, seasons: ["t1"] })));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [], players: squad, loading: false, error: null }) }));
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 10, 12, 12);
@@ -28,4 +36,26 @@ it("without one waiting, the last result as before", () => {
   render(row([played, next]));
   expect(screen.getByRole("heading", { level: 2, name: "Victoria" })).toBeInTheDocument();
   expect(screen.getByText("LOS ROJOS")).toBeInTheDocument();
+});
+
+it("the plantilla's podium, the top assister and the birthdays lead to each player's page, in the season", () => {
+  const line = (id: string, name: string, goals: number, assists = 0) => ({ id, name, num: id.slice(1), stats: { goals, assists } }) as unknown as PlayerLine;
+  render(
+    <RaceAndBirthdays
+      seasonId="t1"
+      scorers={[line("p1", "PEPE", 5), line("p2", "LUIS", 3)]}
+      assister={line("p3", "ANA", 0, 4)}
+      birthdays={[{ id: "p2", name: "LUIS", num: "2", label: "3 de mayo", days: 4 }, { id: "fuera", name: "EX JUGADOR", num: "9", label: "9 de mayo", days: 10 }]}
+    />,
+  );
+  const podium = document.querySelector(".hm-race") as HTMLElement;
+  expect(within(podium).getByRole("link", { name: "PEPE" })).toHaveAttribute("href", "/jugadores/p1?season=t1");
+  expect(within(podium).getByRole("link", { name: "LUIS" })).toHaveAttribute("href", "/jugadores/p2?season=t1");
+  expect(within(podium).getByText("Por decidir").closest("a")).toBeNull();
+  expect(screen.getByRole("link", { name: "ANA" })).toHaveAttribute("href", "/jugadores/p3?season=t1");
+  expect(document.querySelector(".hm-lede")).toHaveTextContent("ANA es quien más goles regala: 4 asistencias.");
+  const bdays = document.querySelector(".hm-bdays") as HTMLElement;
+  expect(within(bdays).getByRole("link", { name: "LUIS" })).toHaveAttribute("href", "/jugadores/p2?season=t1");
+  // (someone no longer in the squad: his name, not a link)
+  expect(within(bdays).getByText("EX JUGADOR").closest("a")).toBeNull();
 });

@@ -21,6 +21,7 @@ import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon } from "../../components/celeste/icons";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { Constellation, GoalClock, Radar } from "../stats/Charts";
 import { Cromo, type CromoFace } from "./Cromo";
 import { SusPosiciones } from "./SusPosiciones";
@@ -531,7 +532,14 @@ export function JugadorPage() {
                     <li key={i}>
                       <b>{e.minute}′</b>
                       <span>
-                        {e.direction === "in" ? "Entró por" : "Salió por"} {nameById.get(e.with) ?? "un compañero"}
+                        {e.direction === "in" ? "Entró por" : "Salió por"}{" "}
+                        {nameById.has(e.with) ? (
+                          <PlayerLink id={e.with} seasonId={selectedSeasonId} variant="quiet">
+                            {nameById.get(e.with)}
+                          </PlayerLink>
+                        ) : (
+                          "un compañero"
+                        )}
                         <small>
                           vs {e.match.rival ?? "Rival"} · {formatDate(e.match.date)}
                         </small>

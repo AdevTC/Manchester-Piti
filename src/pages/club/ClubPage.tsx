@@ -15,6 +15,7 @@ import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon, type IconName } from "../../components/celeste/icons";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Vitrina } from "./Vitrina";
@@ -340,7 +341,15 @@ export function ClubPage() {
             </div>
             <div>
               <dt>Capitán</dt>
-              <dd className={captain ? "name" : "gap"}>{captain ?? "por elegir"}</dd>
+              <dd className={captain ? "name" : "gap"}>
+                {captain && season?.captainPlayerId ? (
+                  <PlayerLink id={season.captainPlayerId} seasonId={seasonId}>
+                    {captain}
+                  </PlayerLink>
+                ) : (
+                  "por elegir"
+                )}
+              </dd>
             </div>
             <div>
               <dt>Temporadas</dt>

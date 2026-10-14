@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { z } from "zod";
 import { describe, expect, it, vi } from "vitest";
@@ -10,8 +10,15 @@ import { matchSearchSchema } from "../../lib/matchTabs";
 // history); data, auth and the tabs' contents are stubbed: no Firebase.
 
 const MATCH: ClubMatch = { id: "j1", seasonId: "t1", rival: "Rival", date: Date.UTC(2026, 8, 1, 10), duration: 50, status: "finished", goalsFor: 1, goalsAgainst: 0, events: [] };
+// a 2–1 with our scorer, a guest scorer nobody has in the squad, and the rival's goal
+const SCORED: ClubMatch = { ...MATCH, id: "j2", goalsFor: 2, goalsAgainst: 1, events: [
+  { id: "g1", type: "goal", minute: 12, playerId: "p1" },
+  { id: "g2", type: "goal", minute: 30, playerId: "invitado" },
+  { id: "g3", type: "opponent_goal", minute: 40 },
+] };
+const PLAYERS = [{ id: "p1", shirtName: "PEPE", seasons: ["t1"], seasonDetails: { t1: { shirtName: "PEPITO" } } }];
 
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [MATCH], players: [], loading: false, error: null }) }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [MATCH, SCORED], players: PLAYERS, loading: false, error: null }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false }) }));
 vi.mock("../vestuario/live", () => ({ useMatchScorers: () => ({ data: [] }) }));
@@ -35,7 +42,8 @@ const { MatchPage } = await import("./MatchPage");
 function open(url: string) {
   const root = createRootRoute({ validateSearch: z.object({ season: z.string().optional().catch("all") }), component: Outlet });
   const match = createRoute({ getParentRoute: () => root, path: "/matches/$matchId", validateSearch: matchSearchSchema, component: MatchPage });
-  const router = createRouter({ routeTree: root.addChildren([match]), history: createMemoryHistory({ initialEntries: [url] }) });
+  const jugador = createRoute({ getParentRoute: () => root, path: "/jugadores/$playerId", component: () => null });
+  const router = createRouter({ routeTree: root.addChildren([match, jugador]), history: createMemoryHistory({ initialEntries: [url] }) });
   render(<RouterProvider router={router} />);
   return router;
 }
@@ -88,5 +96,18 @@ describe("MatchPage · the tab in the URL", () => {
     const before = router.history.length;
     fireEvent.click(screen.getByRole("tab", { name: "Pulso" }));
     expect(router.history.length).toBe(before);
+  });
+});
+
+describe("MatchPage · the scorers lead to their pages", () => {
+  it("our scorer is a link in the match's season; a guest and the rival stay text", async () => {
+    open("/matches/j2");
+    const goals = (await screen.findByText("12′")).closest(".fc-goals") as HTMLElement;
+    const link = within(goals).getByRole("link", { name: "PEPITO" });
+    expect(link).toHaveAttribute("href", "/jugadores/p1?season=t1");
+    expect(link).toHaveClass("pl-link", "quiet");
+    expect(within(goals).getAllByRole("link")).toHaveLength(1);
+    expect(goals).toHaveTextContent("Jugador");
+    expect(goals).toHaveTextContent("Rival");
   });
 });

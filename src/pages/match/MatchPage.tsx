@@ -20,6 +20,7 @@ import { Flip } from "../../components/celeste/Flip";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
 import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { matchEvent } from "../../lib/home";
 import { countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf } from "../../lib/partidos";
@@ -157,7 +158,11 @@ export function MatchPage() {
     (match.events ?? [])
       .filter((e) => (ours ? ["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"] : ["opponent_goal", "own_goal"]).includes(e.type))
       .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
-      .map((e) => ({ id: e.id, min: e.minute != null ? `${e.minute}′` : "", who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" }));
+      .map((e) => {
+        // (ours — the scorer, or ours who put it in his own net — is a link to his page)
+        const pid = e.type === "opponent_goal" || e.type === "opponent_own_goal" ? undefined : e.playerId;
+        return { id: e.id, min: e.minute != null ? `${e.minute}′` : "", pid, who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" };
+      });
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
 
   const share = async () => {
@@ -240,14 +245,14 @@ export function MatchPage() {
                 <ul>
                   {goalsOf(true).map((g) => (
                     <li key={g.id}>
-                      <b>{g.min}</b> {g.who}
+                      <b>{g.min}</b> {g.pid ? <PlayerLink id={g.pid} seasonId={match.seasonId} variant="quiet">{g.who}</PlayerLink> : g.who}
                     </li>
                   ))}
                 </ul>
                 <ul className="r">
                   {goalsOf(false).map((g) => (
                     <li key={g.id}>
-                      <b>{g.min}</b> {g.who}
+                      <b>{g.min}</b> {g.pid ? <PlayerLink id={g.pid} seasonId={match.seasonId} variant="quiet">{g.who}</PlayerLink> : g.who}
                     </li>
                   ))}
                 </ul>

@@ -63,6 +63,8 @@
 .vx .st-jor .cap a{font-family:'Anybody';font-weight:800;font-size:16px;line-height:1.15;color:var(--ink);text-decoration:none;font-variation-settings:'wdth' 96;overflow-wrap:anywhere}
 .st-jor .cap span{font-size:13px;color:var(--soft)}
 .st-jor .cap b{color:var(--gold-ink)}
+/* the leaders' names are links too: they keep the line's face, not the match link's above */
+.vx .st-jor .cap b a.pl-link{font:inherit;color:inherit;font-variation-settings:normal}
 .st-rrows{--rh:44px;position:relative;margin:0;padding:0;list-style:none;overflow:hidden}
 .st-rrows.pre{height:calc(4 * var(--rh))}
 .st-rrows.pre{justify-self:stretch}

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Icon, type IconName } from "./icons";
 import "../../styles/vestuario.css";
+import "./celeste-links.css";
 
 export type CelestePage = "inicio" | "partidos" | "plantilla" | "stats" | "club" | "vestuario";
 const NAV: { key: CelestePage; to: string; label: string }[] = [

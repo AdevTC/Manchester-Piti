@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
@@ -13,17 +13,17 @@ const MIN = 60_000;
 const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 10, 8, 11);
 const clock = vi.hoisted(() => ({ now: 0 }));
-const data = vi.hoisted(() => ({ matches: [] as unknown[] }));
+const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[] }));
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, className, "aria-label": label }: { children?: ReactNode; className?: string; "aria-label"?: string }) => (
-    <a className={className} aria-label={label} href="#">
+  Link: ({ children, className, to, params, search, "aria-label": label }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; search?: { season?: string }; "aria-label"?: string }) => (
+    <a className={className} aria-label={label} href={to === "/jugadores/$playerId" ? `/jugadores/${params?.playerId}${search?.season ? `?season=${search.season}` : ""}` : "#"}>
       {children}
     </a>
   ),
   useNavigate: () => vi.fn(),
 }));
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: data.matches, players: [], loading: false, error: null }) }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: data.matches, players: data.players, loading: false, error: null }) }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }], selectedSeasonId: "all", loadingSeasons: false }) }));
 vi.mock("../../hooks/useClock", () => ({ useClock: () => clock.now }));
 vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
@@ -38,6 +38,7 @@ const played: ClubMatch = { id: "m1", seasonId: "t1", rival: "LOS ROJOS", status
 
 beforeEach(() => {
   clock.now = T0;
+  data.players = [];
 });
 
 it("a played match waiting for its acta: «pendiente del acta» on the strip, never «por jugar»", () => {
@@ -70,4 +71,16 @@ it("the live row's score: a late old goal changes it without the flip, a fresh o
   rerender(<PartidosPage />);
   expect(rowTile()).toHaveTextContent("3");
   expect(rowTile()).not.toHaveClass("still");
+});
+
+it("the season's goals: each scorer leads to his page, in that season", () => {
+  data.players = [{ id: "x", shirtName: "EL NUEVE", seasons: ["t1"] }];
+  data.matches = [{ ...played, events: [goal("g1", 5), goal("g2", 20)] }];
+  render(<PartidosPage />);
+  const card = screen.getByText("Goles de la temporada").closest(".pt-card") as HTMLElement;
+  const links = within(card).getAllByRole("link", { name: "EL NUEVE" });
+  // the headline («EL NUEVE lleva 2») and his row
+  expect(links).toHaveLength(2);
+  for (const a of links) expect(a).toHaveAttribute("href", "/jugadores/x?season=t1");
+  expect(within(card).getByRole("heading", { level: 3 })).toHaveTextContent("EL NUEVE lleva 2");
 });
