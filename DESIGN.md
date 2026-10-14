@@ -323,6 +323,16 @@ The exception is broadcast hardware. The **lower third is 4px**, a TV strap rath
 
 ## Components
 
+### Base Celeste
+The classes several public pages share live in one place, `src/styles/celeste/`, under their original names. `base.css` pulls them in and the site chrome (`components/celeste/Chrome.tsx`, part of the entry) imports it once, so every page gets them before its own sheet, and a page's override wins a tie.
+- `type.css`: `hm-kick` (the mono kicker), `hm-h2` (the section title, 34/44/54px by container width), `hm-lede`, `hm-sec`, `hm-sr` (screen-reader only).
+- `buttons.css`: `hm-btn` (solid pill), `hm-ghostbtn` (ghost pill), `hm-cta-top` (the header's top CTA).
+- `chips.css`: `pt-chip` (info chip), `pt-res` (the G·E·P result square), `st-new` (the «nuevo» pill).
+- `card.css`: `st-card` with `st-hd`, `st-h2` and `st-h3`. `seg.css`: `st-seg`. `state.css`: `st-empty`.
+- `data.css`: the stats family's `--st-*` tokens (on `.st` and `.technical-stats`), `st-mono`, `st-field`, `st-legend`, `st-kpis`, `st-tablebox` and `st-table`.
+
+`celeste/page.css` is the content pages' `.vx` shell (night-sky, card and well tokens, `min-height`, reduced motion). Inicio, Partidos, the match ficha, Estadísticas, El club, the jugador page and Plantilla import it themselves, because on the bare `.vx` it must not reach the vestuario, perfil, acceso or admin. Page sheets (`home.css`, `partidos.css`, `stats.css`…) keep only their own layout. Tab bars have no shared class yet: `st-tabs`, `fc-tabs` and `sq-tabs` each belong to one page.
+
 ### Buttons
 Tactile pills that sit as solids on night and as navy on day.
 - **Shape:** full pill (999px), 46px on the public site, 44px in the admin (40px `sm`, 54px `xl`), never under 44px of touch height.
