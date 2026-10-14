@@ -8,10 +8,11 @@
 // own page, which already is the scoreboard.
 import { useEffect, useState, type CSSProperties } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { nameFor, useClubData } from "../../lib/clubData";
+import { nameFor, useClubData, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
 import { useViewer } from "../../hooks/useViewer";
 import { useAuth } from "../../context/AuthContext";
+import { useTeam } from "../../context/TeamContext";
 import { lastEvent, scoreOf, shownMinute } from "../../lib/partidos";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { PENDING_WHISTLE } from "../../lib/derived/kickoff";
@@ -50,11 +51,12 @@ const CONFETTI = Array.from({ length: 14 }, (_, i) => ({
 }));
 
 export function LiveIsland() {
-  const { matches, players } = useClubData();
+  const { matches, players, loading } = useClubData();
   const now = useClock(15_000);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const viewer = useViewer();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { ready: teamReady } = useTeam();
   const sync = useSyncStatus();
   const [open, setOpen] = useState(false);
   const [voteOff, setVoteOff] = useState(readVoteOff);
@@ -77,11 +79,27 @@ export function LiveIsland() {
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), state?.match.seasonId);
   const goal = live && goalShow.goal ? goalMoment(live, goalShow.goal.id, nameOf) : null;
 
-  // What a screen reader hears: each change of state and each goal, once (none on the first render).
+  // What a screen reader hears: each real change of state and each goal, once. Nothing while what the island
+  // shows is still settling (the data loading or only the cache's word, who is looking, his vote), nor on
+  // the first settled render: arriving at a page is not «Empieza el partido» at minute 30 nor «Ya puedes votar».
+  const settled = !loading && teamReady && !authLoading && !myVote.loading && (sync.since !== null || !sync.online);
   const stateKey = state ? `${state.kind}:${state.match.id}` : "";
-  const [heard, setHeard] = useState({ key: stateKey, kind: state?.kind ?? null, goal: "", text: "" });
-  if (heard.key !== stateKey) setHeard({ key: stateKey, kind: state?.kind ?? null, goal: heard.goal, text: state ? islandAnnouncement(state, heard.kind) : "" });
-  else if (goal && goalShow.goal && goalShow.goal.id !== heard.goal) setHeard({ ...heard, goal: goalShow.goal.id, text: boardHere ? heard.text : goal.said });
+  const kind = state?.kind ?? null;
+  const goalId = goal && goalShow.goal ? goalShow.goal.id : null;
+  // (`from`: the match snapshot the last line was said for — the goal shows one render after the state
+  // change it came with, so a goal of that same snapshot is added to the line, not put in its place)
+  const [heard, setHeard] = useState<{ armed: boolean; key: string; kind: IslandState["kind"] | null; goal: string; text: string; from: ClubMatch | null }>({ armed: false, key: stateKey, kind, goal: goalId ?? "", text: "", from: null });
+  const newState = heard.key !== stateKey;
+  const newGoal = !!goalId && goalId !== heard.goal;
+  if (!settled || !heard.armed) {
+    // seed silently (and arm once settled)
+    if (heard.armed !== settled || newState || newGoal) setHeard({ armed: settled, key: stateKey, kind, goal: goalId ?? heard.goal, text: heard.text, from: null });
+  } else if (newState || newGoal) {
+    // a state change and a fresh goal from the same snapshot: both, the state first
+    const sameSnapshot = !newState && !!state && heard.from === state.match;
+    const lines = [newState && state ? islandAnnouncement(state, heard.kind) : sameSnapshot ? heard.text : "", newGoal && goal && !boardHere ? goal.said : ""].filter(Boolean);
+    setHeard({ armed: true, key: stateKey, kind, goal: goalId ?? heard.goal, text: lines.length ? lines.join(" ") : newState ? "" : heard.text, from: state?.match ?? null });
+  }
 
   // The heroes make room for the pill (and the chip under it) while they are on screen (styles: html[data-isle]).
   const reserve = !shown ? null : chip ? "sync" : "";

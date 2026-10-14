@@ -14,7 +14,7 @@ import { MatchBadges } from "../../components/celeste/MatchBadges";
 import { Jersey3D } from "../../components/jersey3d/Jersey3D";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { chapters, F7_SPOTS, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
-import { dateParts, resultOf, scoreOf } from "../../lib/partidos";
+import { dateParts, eventMinute, resultOf, scoreOf } from "../../lib/partidos";
 import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMyMvpVote, useMyPrediction } from "../vestuario/live";
 import { predictScore, setAvailability, useMe, voteMvp } from "../vestuario/writes";
 import { apiError } from "../../lib/clubApi";
@@ -230,7 +230,7 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
             const who = e.type.startsWith("opponent_") ? rival : whoId ? nameOf(whoId) : "Manchester Piti";
             return (
               <li key={e.id} className={us ? "us" : ""}>
-                <b>{e.minute}′</b>
+                <b>{eventMinute(e) ?? e.minute}′</b>
                 <span className="ic">{/yellow|red/.test(e.type) ? <i className="fc-yc" style={e.type !== "yellow_card" ? { background: "#ff5a4f" } : undefined} /> : <Icon name={/goal/.test(e.type) ? "ball" : e.type === "substitution" ? "swap" : e.type === "assist" ? "boot" : "flag"} size={15} />}</span>
                 <span>
                   <strong>{whoId ? <PlayerLink id={whoId} seasonId={match.seasonId} variant="quiet">{who}</PlayerLink> : who}</strong>

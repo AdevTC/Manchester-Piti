@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import { CampoTab, CronicaTab } from "./Tabs";
+import { CampoTab, CronicaTab, DirectoTab } from "./Tabs";
 import type { ClubMatch } from "../../lib/clubData";
 
 const squad = vi.hoisted(() => ["a", "b", "h"].map((id, i) => ({ id, firstName: id, number: i + 1 })));
@@ -82,4 +82,14 @@ it("two of ours with the same name in one change: «Entra» links who comes on, 
   const sub = container.querySelectorAll<HTMLElement>(".fc-ch")[1];
   expect(within(sub.querySelector("h3")!).getByRole("link", { name: "PEPE" })).toHaveAttribute("href", "/jugadores/h?season=t1");
   expect(within(sub.querySelector("p")!).getByRole("link", { name: "PEPE" })).toHaveAttribute("href", "/jugadores/b?season=t1");
+});
+
+it("the Directo feed reads a live-stamped goal in football's minute (0:07 → 1′); a typed minute as typed", () => {
+  const match: ClubMatch = { id: "m", date: Date.now(), duration: 50, status: "scheduled", events: [
+    { id: "g1", type: "goal", minute: 0, elapsedSeconds: 7, playerId: "a" },
+    { id: "g2", type: "opponent_goal", minute: 19 },
+  ] };
+  const { container } = render(<DirectoTab match={match} nameOf={(id) => id.toUpperCase()} />);
+  const rows = [...container.querySelectorAll(".fc-feed li b")].map((b) => b.textContent);
+  expect(rows).toEqual(["19′", "1′"]);
 });

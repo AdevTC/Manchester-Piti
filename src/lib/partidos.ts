@@ -143,6 +143,19 @@ export function eventMinute(e: Pick<MatchEvent, "minute" | "elapsedSeconds">): n
   return typeof e.minute === "number" ? e.minute : null;
 }
 
+/** A cambio's minute to SHOW, from a ledger exchange (the acta's time: fractional when the clock stamped it):
+ *  its substitution event's eventMinute, so it reads as it did live; without one, the exchange's own. */
+export function exchangeMinute(events: readonly MatchEvent[] | undefined, playerId: string, ex: { minute: number; with: string; direction: "in" | "out" }): number {
+  const sub = events?.find(
+    (e) =>
+      e.type === "substitution" &&
+      (ex.direction === "out" ? e.playerId === playerId && e.inPlayerId === ex.with : e.inPlayerId === playerId && e.playerId === ex.with) &&
+      Math.abs((e.elapsedSeconds ?? (e.minute ?? 0) * 60) / 60 - ex.minute) < 1e-6,
+  );
+  const shown = sub ? eventMinute(sub) : null;
+  return shown ?? (Number.isInteger(ex.minute) ? ex.minute : minuteOfPlay(ex.minute * 60));
+}
+
 /** The offset from a stored live minute (liveMinute's count) to the shown one: +1 on a clock, 0 without one. */
 export const shownOffset = (m: Pick<ClubMatch, "clock">): number => (m.clock ? 1 : 0);
 

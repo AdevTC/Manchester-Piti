@@ -10,7 +10,7 @@ import { _resetSnapshotMetaForTesting, metaKeyOf, recordSnapshotMeta } from "../
 const MIN = 60_000;
 const DATE = Date.UTC(2026, 10, 8, 11);
 const KICK = DATE + 10 * MIN;
-const state: { matches: ClubMatch[]; players: PlayerDoc[]; now: number; path: string; member: boolean; myVote: string } = { matches: [], players: [], now: 0, path: "/", member: false, myVote: "" };
+const state: { matches: ClubMatch[]; players: PlayerDoc[]; now: number; path: string; member: boolean; myVote: string; loading: boolean; voteLoading: boolean; teamReady: boolean } = { matches: [], players: [], now: 0, path: "/", member: false, myVote: "", loading: false, voteLoading: false, teamReady: true };
 const voteReads: (string | undefined)[] = [];
 
 vi.mock("@tanstack/react-router", () => ({
@@ -24,14 +24,15 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("../../hooks/useClock", () => ({ useClock: () => state.now }));
 vi.mock("../../hooks/useServerTimeSync", () => ({ useServerTimeSync: () => undefined }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => ({ member: state.member, admin: false, playerId: null }) }));
-vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: state.member ? { uid: "u1" } : null }) }));
+vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: state.member ? { uid: "u1" } : null, loading: false }) }));
+vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: state.member, ready: state.teamReady }) }));
 vi.mock("../../pages/vestuario/live", () => ({
   useMyMvpVote: (matchId: string | undefined) => {
     voteReads.push(matchId);
-    return { data: matchId ? state.myVote : "", loading: false, error: false };
+    return { data: matchId && !state.voteLoading ? state.myVote : "", loading: !!matchId && state.voteLoading, error: false };
   },
 }));
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: state.matches, players: state.players }) }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: state.loading ? [] : state.matches, players: state.players, loading: state.loading }) }));
 
 const { LiveIsland, GOAL_HOLD_MS } = await import("./LiveIsland");
 
@@ -62,6 +63,9 @@ beforeEach(() => {
   state.path = "/";
   state.member = false;
   state.myVote = "";
+  state.loading = false;
+  state.voteLoading = false;
+  state.teamReady = true;
   voteReads.length = 0;
   localStorage.clear();
   _resetSnapshotMetaForTesting();
@@ -381,5 +385,74 @@ describe("the connection chip", () => {
     state.now = DATE + 9 * MIN;
     rerender(<LiveIsland />);
     expect(chip(container)).toBeNull();
+  });
+});
+
+describe("only real changes are said (never data arriving late)", () => {
+  it("the matches load after the island mounted: the live match at minute 30 is not «Empieza el partido»; the next real change is said", () => {
+    state.loading = true;
+    state.matches = [at(started)];
+    state.now = KICK + 30 * MIN;
+    const { container, rerender } = render(<LiveIsland />);
+    expect(container).toBeEmptyDOMElement();
+    state.loading = false;
+    rerender(<LiveIsland />);
+    expect(screen.getByRole("button", { name: /En directo/ })).toBeInTheDocument();
+    expect(announced(container)).toBe("");
+    state.matches = [at(transitionClock(started, "halftime", KICK + 30 * MIN))];
+    rerender(<LiveIsland />);
+    expect(announced(container)).toBe("Descanso. Manchester Piti 0, MAD SKY 0.");
+  });
+
+  it("only the cache's word so far (no server snapshot yet): the FINAL on opening the app is not said", () => {
+    _resetSnapshotMetaForTesting();
+    act(() => cached(KICK));
+    state.matches = [at(second)];
+    state.now = KICK + 59 * MIN;
+    const { container, rerender } = render(<LiveIsland />);
+    state.matches = [at(ended)];
+    state.now = KICK + 61 * MIN;
+    rerender(<LiveIsland />);
+    act(() => synced(KICK + 61 * MIN));
+    expect(screen.getByRole("link")).toHaveTextContent("FINAL");
+    expect(announced(container)).toBe("");
+  });
+
+  it("a member's vote and the team check resolving late: «Vota al MVP» shows, unsaid", () => {
+    state.member = true;
+    state.teamReady = false;
+    state.voteLoading = true;
+    state.matches = [at(ended, [], { status: "finished", goalsFor: 2, goalsAgainst: 1, voteClosesAt: KICK + 48 * 60 * MIN })];
+    state.now = KICK + 60 * MIN + 31 * MIN;
+    const { container, rerender } = render(<LiveIsland />);
+    expect(container).toBeEmptyDOMElement();
+    state.teamReady = true;
+    rerender(<LiveIsland />);
+    state.voteLoading = false;
+    rerender(<LiveIsland />);
+    expect(screen.getByRole("link", { name: /Vota al MVP/ })).toBeInTheDocument();
+    expect(announced(container)).toBe("");
+  });
+
+  it("a state change and a fresh goal in the same render: both said, the state first", () => {
+    state.matches = [at(half, [goal("g1", 12)])];
+    state.now = KICK + 34 * MIN;
+    const { container, rerender } = render(<LiveIsland />);
+    // the second half starts and a goal lands right away, in one snapshot
+    state.matches = [at(second, [goal("g1", 12), goal("g2", 26)])];
+    state.now = KICK + 35 * MIN + 40_000;
+    rerender(<LiveIsland />);
+    expect(announced(container)).toBe("Arranca la segunda parte. Manchester Piti 2, MAD SKY 0. ¡Gol del Piti! PEPITO, minuto 26. Manchester Piti 2, MAD SKY 0.");
+  });
+
+  it("two matches live at once: the earliest kick-off, whatever the list's order", () => {
+    const early: ClubMatch = { ...at(started), id: "j7", rival: "FUSION 7", rivalInitials: "FU7", date: DATE - 5 * MIN };
+    state.matches = [at(started), early];
+    state.now = KICK + 5 * MIN;
+    const { rerender } = render(<LiveIsland />);
+    expect(screen.getByRole("button")).toHaveTextContent("FU7");
+    state.matches = [early, at(started)];
+    rerender(<LiveIsland />);
+    expect(screen.getByRole("button")).toHaveTextContent("FU7");
   });
 });

@@ -37,7 +37,8 @@ export function voteMatch(matches: readonly ClubMatch[], now: number): ClubMatch
  * `voteOpen` (a member who hasn't voted). Null: no island.
  */
 export function islandOf(matches: readonly ClubMatch[], now: number, voteOpen: boolean): IslandState | null {
-  const live = matches.find((m) => matchPhase(m, now) === "playing");
+  // (two at once: the earliest kick-off, whatever the list's order)
+  const live = matches.filter((m) => matchPhase(m, now) === "playing").sort((a, b) => dateMillis(a.date) - dateMillis(b.date))[0];
   if (live) return { kind: kickoffState(live, now) === "halftime" ? "halftime" : "live", match: live };
   const waiting = matches.filter((m) => kickoffState(m, now) === "pending_whistle").sort((a, b) => dateMillis(a.date) - dateMillis(b.date))[0];
   if (waiting) return { kind: "pending", match: waiting };

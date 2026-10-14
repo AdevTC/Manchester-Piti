@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "./clubData";
 import { readyClock, transitionClock } from "../../functions/src/matchClock";
 import type { MatchEvent } from "../../functions/src/matchEngine";
-import { calendarRows, countdownParts, dateParts, eventMinute, lastEvent, liveMinute, minuteOfPlay, resultOf, scoreOf, scorersLine, seasonView, shownMinute } from "./partidos";
+import { calendarRows, countdownParts, dateParts, eventMinute, exchangeMinute, lastEvent, liveMinute, minuteOfPlay, resultOf, scoreOf, scorersLine, seasonView, shownMinute } from "./partidos";
 
 const MIN = 60_000;
 const DAY = 86_400_000;
@@ -129,5 +129,17 @@ describe("the minute people read (football's, 1-based)", () => {
     expect(eventMinute({ minute: 19 })).toBe(19);
     expect(eventMinute({})).toBeNull();
     expect(lastEvent([stamped], (id) => id.toUpperCase(), "R")).toMatchObject({ minute: 1, who: "M" });
+  });
+});
+
+describe("exchangeMinute (a cambio on the player's page)", () => {
+  const sub = { id: "s", type: "substitution", minute: 18, elapsedSeconds: 18 * 60 + 30, playerId: "out", inPlayerId: "in" } as MatchEvent;
+  it("reads its substitution event's minute (18:30 of play → 19′), from either side", () => {
+    expect(exchangeMinute([sub], "out", { minute: 18.5, with: "in", direction: "out" })).toBe(19);
+    expect(exchangeMinute([sub], "in", { minute: 18.5, with: "out", direction: "in" })).toBe(19);
+  });
+  it("without the event: a typed minute as typed, a clock's fraction in football's minute", () => {
+    expect(exchangeMinute([], "out", { minute: 30, with: "in", direction: "out" })).toBe(30);
+    expect(exchangeMinute(undefined, "out", { minute: 18.5, with: "in", direction: "out" })).toBe(19);
   });
 });

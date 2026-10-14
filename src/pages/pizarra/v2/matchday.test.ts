@@ -6,7 +6,8 @@ import { cartelLayout } from "./cartel";
 import { cambiosPool, cambiosView, previewDiff, suggestSub } from "./cambiosView";
 import { charlaView, lanzadores, STEP_BALON, STEP_PLAN } from "./charla";
 import { applyFan, fanItems } from "./fan";
-import { liveNow, liveWave, nextClockAt, subProblem, subsMade, takersNow, waveLine } from "./live";
+import { liveNow, liveWave, nextClockAt, plateAria, subProblem, subsMade, takersNow, waveLine } from "./live";
+import { readyClock, transitionClock } from "../../../../functions/src/matchClock";
 import { chemOf } from "./quimica";
 import { promptItems, promptKey, type PromptActs, type PromptCtx } from "./prompt";
 import { setTaker, takersOf } from "./takers";
@@ -49,6 +50,14 @@ describe("the live clock", () => {
     expect(liveNow(M({ status: "finished" }), T0 + MIN)).toBeNull();
     expect(liveNow(M({ played: true }), T0 + MIN)).toBeNull();
     expect(liveNow(null, T0)).toBeNull();
+  });
+
+  it("on a clock: the plan counts the minutes elapsed, the plate reads football's minute (0:07 → 1′)", () => {
+    const l = liveNow(M({ clock: transitionClock(readyClock(), "start", T0) }), T0 + 7_000);
+    expect(l).toMatchObject({ minute: 0, shown: 1 });
+    expect(plateAria(l as NonNullable<typeof l>)).toMatch(/^En directo, minuto 1:/);
+    // without a clock both are the schedule's minute
+    expect(liveNow(M(), T0 + 12.5 * MIN)).toMatchObject({ minute: 13, shown: 13 });
   });
 
   it("who is on: the convocatoria and the cambios and cards of the acta", () => {

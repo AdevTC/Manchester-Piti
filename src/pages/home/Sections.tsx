@@ -3,6 +3,7 @@ import { Icon } from "../../components/celeste/icons";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { dateMillis, formatDate, isCompleted, type ClubMatch } from "../../lib/clubData";
 import { resultOf, type PlayerLine, type Pulse, type Result } from "../../lib/home";
+import { eventMinute } from "../../lib/partidos";
 import { plural } from "../../lib/vestuario";
 import { AWAITING_ACTA, kickoffText } from "../../lib/derived/kickoff";
 import { RESULT_WORD, resultTitle } from "../../lib/derived/result";
@@ -15,7 +16,7 @@ function goalsOf(m: ClubMatch, nameOf: (id: string) => string) {
   return (m.events ?? [])
     .filter((e) => /^goal/.test(e.type) && e.playerId)
     .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
-    .map((e) => ({ minute: e.minute, who: nameOf(e.playerId!), assist: e.assistPlayerId ? nameOf(e.assistPlayerId) : null }));
+    .map((e) => ({ minute: eventMinute(e) ?? undefined, who: nameOf(e.playerId!), assist: e.assistPlayerId ? nameOf(e.assistPlayerId) : null }));
 }
 
 // ---------- la temporada: último partido · así va · lo que viene

@@ -2510,7 +2510,7 @@ export function Board(props: BoardProps) {
               ? "Dibuja sobre el césped: " + TOOL_HINT[tool] + "."
               : modo === "editar" && tab === "c" && !sel
                 ? cb.live
-                  ? "En directo, minuto " + cb.live.minute + ": el campo enseña el plan a esta hora."
+                  ? "En directo, minuto " + cb.live.shown + ": el campo enseña el plan a esta hora."
                   : "Arrastra una tanda por la línea del partido; desliza el minuto para ver el campo en ese momento."
               : sel?.k === "p"
                 ? nm(sel.id) + " en la mano: toca otro cromo para cambiarlos, o tócalo otra vez para su ficha."

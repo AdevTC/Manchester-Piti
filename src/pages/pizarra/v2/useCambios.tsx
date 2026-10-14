@@ -155,7 +155,7 @@ export function useCambios(c: CambiosCtx): Cambios {
     }
     const grade = exactGrade(L, sq, [...live.field, ...live.bench]);
     const next = replan({ L, subs, from: live.minute, duration: D, field: live.field, pool: live.bench, played: playedNow(live), unavailable: off, rotateKeeper: rotK, nat, grade, zones, newId: () => newId("s") });
-    propose("Recalcular desde el " + live.minute + "′", next, "Plan recalculado desde el " + live.minute + "′");
+    propose("Recalcular desde el " + live.shown + "′", next, "Plan recalculado desde el " + live.shown + "′");
   };
   const apply = () => {
     if (!prop) return;
@@ -185,7 +185,7 @@ export function useCambios(c: CambiosCtx): Cambios {
     run().then(
       () => {
         setBusy(false);
-        c.say("En el acta, " + live.minute + "′: " + todo.map((s) => "entra " + nm(s.in) + " por " + nm(s.out)).join(", "));
+        c.say("En el acta, " + live.shown + "′: " + todo.map((s) => "entra " + nm(s.in) + " por " + nm(s.out)).join(", "));
       },
       (e: unknown) => {
         setBusy(false);
@@ -249,6 +249,7 @@ export function useCambios(c: CambiosCtx): Cambios {
   const card: LiveCard | null = live
     ? {
         minute: live.minute,
+        shown: live.shown,
         score: "Piti " + live.gf + "–" + live.ga + " " + live.rival,
         line: waveLine(lw),
         due: !!lw?.due,
@@ -301,6 +302,6 @@ export function useCambios(c: CambiosCtx): Cambios {
       onTaker={onTaker}
     />
   ) : null;
-  const plate = live ? <LivePlate minute={live.minute} gf={live.gf} ga={live.ga} next={lw} aria={plateAria(live)} onOpen={c.onOpen} /> : null;
+  const plate = live ? <LivePlate minute={live.shown} gf={live.gf} ga={live.ga} next={lw} aria={plateAria(live)} onOpen={c.onOpen} /> : null;
   return { tab, plate, pitch, preview, live, key, add: () => add(), repartir, hacer, scrubBy };
 }
