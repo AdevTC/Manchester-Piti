@@ -34,6 +34,11 @@ describe("PlayerLink", () => {
     expect(await screen.findByRole("link", { name: "PEPE" })).toHaveAttribute("href", "/jugadores/p1");
   });
 
+  it("«all seasons» is no season in the link", async () => {
+    await view(<PlayerLink id="p1" seasonId="all" />);
+    expect(await screen.findByRole("link", { name: "PEPE" })).toHaveAttribute("href", "/jugadores/p1");
+  });
+
   it("the caller's own text and the quiet look", async () => {
     await view(
       <PlayerLink id="p1" seasonId="t1" variant="quiet">

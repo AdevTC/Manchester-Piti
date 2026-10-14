@@ -5,12 +5,12 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { useClubData } from "../../lib/clubData";
 import { nameFor } from "../../lib/derived/names";
-import "./celeste-links.css";
+// (its CSS, celeste-links.css, comes with the Celeste chrome: Chrome.tsx)
 
 export interface PlayerLinkProps {
   /** The player's id (players/{id}). */
   id: string;
-  /** The season he is named in: his shirt name that season, and ?season= on his page. */
+  /** The season he is named in: his shirt name that season, and ?season= on his page («all» adds none). */
   seasonId?: string | null;
   className?: string;
   /** The text to show instead of nameFor(player, seasonId) (the caller's own wording). */
@@ -31,7 +31,7 @@ export function PlayerLink({ id, seasonId, className, children, variant, tabInde
     <Link
       to="/jugadores/$playerId"
       params={{ playerId: id }}
-      search={seasonId ? { season: seasonId } : undefined}
+      search={seasonId && seasonId !== "all" ? { season: seasonId } : undefined}
       className={["pl-link", variant === "quiet" && "quiet", className].filter(Boolean).join(" ")}
       tabIndex={tabIndex}
     >

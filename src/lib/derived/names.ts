@@ -30,28 +30,53 @@ export interface NameSegment {
   id?: string;
 }
 
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
  * A sentence cut around the players it names, so each name can become his link: «PEPE marca, con
- * asistencia de LUIS» → [PEPE·p1, « marca, con asistencia de », LUIS·p2]. Every occurrence is found;
- * where two names start at the same place, the longer wins («ANA MARÍA» before «ANA»).
+ * asistencia de LUIS» → [PEPE·p1, « marca, con asistencia de », LUIS·p2].
+ * - Whole words only: «MARIO» is not found inside «MARIONETAS FC», nor «Ana» inside «Anabel».
+ * - Where two names start at the same place, the longer wins («ANA MARÍA» before «ANA»).
+ * - A name only one person has: every occurrence is his. A name two people share: its occurrences go to
+ *   them in the order of `people` (the first to the first…); any further occurrence is ambiguous and
+ *   stays text.
  */
 export function nameSegments(text: string, people: readonly { id: string; name: string }[]): NameSegment[] {
-  const named = people.filter((p) => p.name).sort((a, b) => b.name.length - a.name.length);
-  const out: NameSegment[] = [];
-  let rest = text;
-  while (rest) {
-    let best: { at: number; id: string; name: string } | null = null;
-    for (const p of named) {
-      const at = rest.indexOf(p.name);
-      if (at >= 0 && (!best || at < best.at)) best = { at, id: p.id, name: p.name };
-    }
-    if (!best) {
-      out.push({ text: rest });
-      break;
-    }
-    if (best.at > 0) out.push({ text: rest.slice(0, best.at) });
-    out.push({ text: best.name, id: best.id });
-    rest = rest.slice(best.at + best.name.length);
+  // the people behind each name, in order (one entry per id)
+  const byName = new Map<string, string[]>();
+  for (const p of people) {
+    if (!p.name) continue;
+    const ids = byName.get(p.name) ?? [];
+    if (!ids.includes(p.id)) ids.push(p.id);
+    byName.set(p.name, ids);
   }
+  const hits: { at: number; name: string }[] = [];
+  for (const name of byName.keys()) {
+    const re = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(name)}(?![\\p{L}\\p{N}])`, "gu");
+    for (const m of text.matchAll(re)) hits.push({ at: m.index, name });
+  }
+  hits.sort((a, b) => a.at - b.at || b.name.length - a.name.length);
+
+  const out: NameSegment[] = [];
+  const pushText = (t: string) => {
+    if (!t) return;
+    const last = out.at(-1);
+    if (last && !last.id) last.text += t;
+    else out.push({ text: t });
+  };
+  const seen = new Map<string, number>();
+  let pos = 0;
+  for (const h of hits) {
+    if (h.at < pos) continue; // inside a longer name already taken
+    pushText(text.slice(pos, h.at));
+    const ids = byName.get(h.name)!;
+    const n = seen.get(h.name) ?? 0;
+    seen.set(h.name, n + 1);
+    const id = ids.length === 1 ? ids[0] : ids[n];
+    if (id) out.push({ text: h.name, id });
+    else pushText(h.name);
+    pos = h.at + h.name.length;
+  }
+  pushText(text.slice(pos));
   return out;
 }

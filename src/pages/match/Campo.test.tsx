@@ -72,3 +72,14 @@ it("the crónica links every one of ours it names, once per chapter; an unknown 
   expect(within(other).queryByRole("link")).toBeNull();
   expect(other.querySelector("p")).toHaveTextContent("ZZ marca. 2–0.");
 });
+
+it("two of ours with the same name in one change: «Entra» links who comes on, «Sale» who goes off", () => {
+  const match: ClubMatch = { id: "m", seasonId: "t1", rival: "R", date: Date.now() - 86_400_000, duration: 50, status: "finished", goalsFor: 1, goalsAgainst: 0, version: 2, events: [
+    { id: "g1", type: "goal", minute: 5, playerId: "a" },
+    { id: "s1", type: "substitution", minute: 20, playerId: "b", inPlayerId: "h" },
+  ] };
+  const { container } = render(<CronicaTab match={match} matches={[match]} players={squad} nameOf={(id) => (id === "a" ? "A" : "PEPE")} />);
+  const sub = container.querySelectorAll<HTMLElement>(".fc-ch")[1];
+  expect(within(sub.querySelector("h3")!).getByRole("link", { name: "PEPE" })).toHaveAttribute("href", "/jugadores/h?season=t1");
+  expect(within(sub.querySelector("p")!).getByRole("link", { name: "PEPE" })).toHaveAttribute("href", "/jugadores/b?season=t1");
+});
