@@ -178,12 +178,12 @@ describe("subscribeShared · metadatos y recuperación", () => {
     act(() => next(snapOf([docOf("m1", 1)], { fromCache: true })));
     const first = qc.getQueryData(["matches"]);
     expect(first).toEqual([{ id: "m1", n: 1 }]);
-    expect(getSnapshotMeta(MATCHES_META)).toEqual({ fromCache: true, hasPendingWrites: false, since: null });
+    expect(getSnapshotMeta(MATCHES_META)).toEqual({ fromCache: true, hasPendingWrites: false, since: null, staleAt: Date.now() });
 
     // the server confirms the same data: metadata only
     act(() => next(snapOf([docOf("m1", 1)], { changes: 0, fromCache: false })));
     expect(qc.getQueryData(["matches"])).toBe(first);
-    expect(getSnapshotMeta(MATCHES_META)).toEqual({ fromCache: false, hasPendingWrites: false, since: Date.now() });
+    expect(getSnapshotMeta(MATCHES_META)).toEqual({ fromCache: false, hasPendingWrites: false, since: Date.now(), staleAt: null });
 
     // a local write waiting for the server, then its acknowledgement
     act(() => next(snapOf([docOf("m1", 2)], { changes: 1, pending: true })));
@@ -309,7 +309,8 @@ describe("subscribeShared · metadatos y recuperación", () => {
     const since = Date.now();
     a();
     vi.advanceTimersByTime(KEEP_WARM_MS);
-    expect(getSnapshotMeta(MATCHES_META)).toEqual({ fromCache: true, hasPendingWrites: false, since });
+    // (out of sync from the moment it closed: the data was current until then)
+    expect(getSnapshotMeta(MATCHES_META)).toEqual({ fromCache: true, hasPendingWrites: false, since, staleAt: since + KEEP_WARM_MS });
   });
 });
 
@@ -350,18 +351,18 @@ describe("useFirestoreCollection + useSyncStatus", () => {
       { wrapper },
     );
     const status = renderHook(() => useSyncStatus());
-    expect(status.result.current).toEqual({ online: true, fresh: false, since: null });
+    expect(status.result.current).toEqual({ online: true, fresh: false, since: null, staleAt: null });
 
     flush(() => listenerAt().next(snapOf([docOf("m1", 1)], { fromCache: true })));
     expect(data.result.current.data).toEqual([{ id: "m1", n: 1 }]);
-    expect(status.result.current).toEqual({ online: true, fresh: false, since: null });
+    expect(status.result.current).toEqual({ online: true, fresh: false, since: null, staleAt: Date.now() });
     const rendersAfterData = dataRenders;
     const before = data.result.current.data;
 
     flush(() => listenerAt().next(snapOf([docOf("m1", 1)], { changes: 0, fromCache: false })));
     expect(dataRenders).toBe(rendersAfterData);
     expect(data.result.current.data).toBe(before);
-    expect(status.result.current).toEqual({ online: true, fresh: true, since: Date.now() });
+    expect(status.result.current).toEqual({ online: true, fresh: true, since: Date.now(), staleAt: null });
 
     // the connection drops: Firestore says «from cache», the browser says offline
     const syncedAt = Date.now();
@@ -371,7 +372,7 @@ describe("useFirestoreCollection + useSyncStatus", () => {
     act(() => {
       window.dispatchEvent(new Event("offline"));
     });
-    expect(status.result.current).toEqual({ online: false, fresh: false, since: syncedAt });
+    expect(status.result.current).toEqual({ online: false, fresh: false, since: syncedAt, staleAt: syncedAt + 30_000 });
     expect(dataRenders).toBe(rendersAfterData);
 
     onLine.mockReturnValue(true);
@@ -379,7 +380,7 @@ describe("useFirestoreCollection + useSyncStatus", () => {
       window.dispatchEvent(new Event("online"));
     });
     flush(() => listenerAt().next(snapOf([docOf("m1", 1)], { changes: 0, fromCache: false })));
-    expect(status.result.current).toEqual({ online: true, fresh: true, since: Date.now() });
+    expect(status.result.current).toEqual({ online: true, fresh: true, since: Date.now(), staleAt: null });
 
     // an error keeps the data on screen and returns it in `error`
     flush(() => listenerAt().fail(new Error("unavailable")));

@@ -22,6 +22,8 @@ import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Flip } from "../../components/celeste/Flip";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
 import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
+import { SyncChip } from "../../components/celeste/SyncChip";
+import { useSyncChip } from "../../hooks/useSyncChip";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { BackLink } from "../../components/celeste/BackLink";
@@ -110,6 +112,8 @@ export function MatchPage() {
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
+  // «Reconectando…» / «Sin conexión · marcador de hace N min» on the board while it is live or waiting
+  const syncChip = useSyncChip(!!match && matchPhase(match, now) === "playing", now);
   // «Partido no encontrado» comes with a 200 from the SPA shell: not for the index
   useNoIndex(!loading && !error && !match);
 
@@ -283,6 +287,11 @@ export function MatchPage() {
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+            {(live || whistle) && (
+              <div className="pt-sync">
+                <SyncChip chip={syncChip} variant="board" announce />
               </div>
             )}
             {live && (

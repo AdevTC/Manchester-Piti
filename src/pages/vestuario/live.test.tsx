@@ -170,12 +170,12 @@ describe("useShared: metadatos aparte y escuchas que se recuperan", () => {
     emitDoc("matchPrivate/r1", DOC, meta(true));
     const first = note.result.current;
     const rendersAfterData = renders;
-    expect(getSnapshotMeta("doc:matchPrivate/r1#matchPrivate")).toEqual({ fromCache: true, hasPendingWrites: false, since: null });
+    expect(getSnapshotMeta("doc:matchPrivate/r1#matchPrivate")).toEqual({ fromCache: true, hasPendingWrites: false, since: null, staleAt: Date.now() });
 
     emitDoc("matchPrivate/r1", { ...DOC, scorerUids: [...DOC.scorerUids] }, meta(false));
     expect(note.result.current).toBe(first);
     expect(renders).toBe(rendersAfterData);
-    expect(getSnapshotMeta("doc:matchPrivate/r1#matchPrivate")).toEqual({ fromCache: false, hasPendingWrites: false, since: Date.now() });
+    expect(getSnapshotMeta("doc:matchPrivate/r1#matchPrivate")).toEqual({ fromCache: false, hasPendingWrites: false, since: Date.now(), staleAt: null });
 
     emitDoc("matchPrivate/r1", { ...DOC, meetingNote: "A las 10" });
     expect(note.result.current.data.meetingNote).toBe("A las 10");

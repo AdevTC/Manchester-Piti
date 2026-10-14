@@ -579,6 +579,10 @@ position:relative;overflow:hidden;font-size:15px;line-height:1.4;color:var(--ink
 .adm .mbd .tm{font-family:'Anybody';font-weight:900;font-size:16px;letter-spacing:.06em;color:var(--led);text-shadow:0 0 10px rgba(159,208,242,.8);text-align:center}
 .adm .mbd .big{font-size:64px}
 .adm .mbd .sub{grid-column:1/-1;text-align:center;font-family:'Geist Mono';font-size:15px;letter-spacing:.14em;color:var(--led);text-shadow:0 0 8px rgba(159,208,242,.8)}
+.adm .mbd .lst{grid-column:1/-1;position:relative;z-index:2;display:flex;justify-content:center}
+.adm .sb .lst{display:flex;justify-content:center}
+/* (no chip: only its screen-reader line, out of the layout) */
+.adm .lst:not(:has(.mp-sync)){display:contents}
 .adm .mbd .gfx2{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;z-index:2}
 .adm .mbd .gfx2 b{font-family:'Anybody';font-weight:900;font-size:56px;line-height:1;color:#ffd98c;text-shadow:0 0 22px rgba(255,198,89,.95);letter-spacing:.08em}
 .adm .mbd .gfx2 span{font-family:'Geist Mono';font-size:14px;letter-spacing:.1em;color:#ffd98c;text-align:center}

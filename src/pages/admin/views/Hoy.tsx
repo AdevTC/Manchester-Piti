@@ -30,6 +30,8 @@ import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
 import { afterLine, finalLine, hoyLead, pegWall, plaque, shortName, tickerText, type WallPlayer } from "./hoy/hoyModel";
 import { nameFor } from "../../../lib/derived/names";
+import { SyncChip } from "../../../components/celeste/SyncChip";
+import { useSyncChip } from "../../../hooks/useSyncChip";
 
 export function Hoy() {
   const data = useAdmin();
@@ -284,6 +286,9 @@ function Juego({ match }: { match: AdminMatch }) {
   const { desktop } = useFrame();
   const { nameOf, numberOf } = useNames();
   const live = useLive(match, data.now, nameOf, numberOf);
+  // the connection chip on the LED (the score may not be the latest)
+  const syncChip = useSyncChip(true, data.now);
+  const status = <SyncChip chip={syncChip} variant="led" announce />;
   const { gf, ga } = scoreOf(match);
   const j = jLabel(match);
   const note = data.next?.match.id === match.id ? data.next.note : "";
@@ -296,7 +301,7 @@ function Juego({ match }: { match: AdminMatch }) {
   if (!desktop)
     return (
       <>
-        <LedBoard rival={match.rival ?? "Rival"} gf={gf} ga={ga} sub={sub} size="mob" />
+        <LedBoard rival={match.rival ?? "Rival"} gf={gf} ga={ga} sub={sub} size="mob" status={status} />
         <button type="button" className="btn gold xl" onClick={() => go({ section: "enjuego", matchId: match.id })}>
           <AdIcon name="ball" size={20} />
           Entrar en «En juego»
@@ -310,7 +315,7 @@ function Juego({ match }: { match: AdminMatch }) {
   });
   return (
     <section className="hB" aria-label={`El marcador de la ${j} en juego`}>
-      <LedBoard rival={match.rival ?? "Rival"} rivalLogoUrl={match.rivalLogoUrl} gf={gf} ga={ga} sub={sub} ticker={tickerText(match, note)} flash={live.flash} />
+      <LedBoard rival={match.rival ?? "Rival"} rivalLogoUrl={match.rivalLogoUrl} gf={gf} ga={ga} sub={sub} ticker={tickerText(match, note)} flash={live.flash} status={status} />
       <div className="live2">
         <div className="calm">
           <h3>Lo que va pasando</h3>

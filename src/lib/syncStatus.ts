@@ -12,6 +12,10 @@ export interface SnapshotMeta {
   hasPendingWrites: boolean;
   /** Epoch ms of the last snapshot that came from the server; null if none has (yet). */
   since: number | null;
+  /** Epoch ms since which the key has not been in sync with the server (it went to the cache, its listener
+   *  stopped, or it never got past the cache); null while it is in sync. A listener that is in sync gets every
+   *  change, so the data was current up to this moment, which `since` alone (the last change) can't say. */
+  staleAt: number | null;
 }
 
 /** After a listener dies (rules, network, quota), the registry reopens it once after this long if it still has readers. */
@@ -50,16 +54,18 @@ export function recordSnapshotMeta(key: string, m: { fromCache: boolean; hasPend
   if (!m.fromCache) failures.delete(key);
   const prev = metas.get(key);
   const since = m.fromCache ? (prev?.since ?? null) : now;
-  if (prev && prev.fromCache === m.fromCache && prev.hasPendingWrites === m.hasPendingWrites && prev.since === since) return;
-  metas.set(key, { fromCache: m.fromCache, hasPendingWrites: m.hasPendingWrites, since });
+  // (out of sync from the first cache snapshot after being in sync, or from the first snapshot ever)
+  const staleAt = !m.fromCache ? null : prev?.fromCache ? prev.staleAt : now;
+  if (prev && prev.fromCache === m.fromCache && prev.hasPendingWrites === m.hasPendingWrites && prev.since === since && prev.staleAt === staleAt) return;
+  metas.set(key, { fromCache: m.fromCache, hasPendingWrites: m.hasPendingWrites, since, staleAt });
   notify();
 }
 
 /** The listener behind `key` stopped (error or closed): whatever it last said is no longer live. Keeps `since`. */
-export function markListenerStale(key: string): void {
+export function markListenerStale(key: string, now: number = Date.now()): void {
   const prev = metas.get(key);
   if (!prev || prev.fromCache) return;
-  metas.set(key, { ...prev, fromCache: true });
+  metas.set(key, { ...prev, fromCache: true, staleAt: now });
   notify();
 }
 
@@ -108,6 +114,9 @@ export interface SyncStatus {
   fresh: boolean;
   /** Epoch ms of the last ["matches"] snapshot from the server (null: none yet). */
   since: number | null;
+  /** Epoch ms since which ["matches"] has not been in sync with the server (null while fresh, or before any
+   *  snapshot). With `since` set, the score on screen was current up to this moment. */
+  staleAt: number | null;
 }
 
 /**
@@ -119,5 +128,5 @@ export interface SyncStatus {
 export function useSyncStatus(): SyncStatus {
   const online = useOnline();
   const meta = useSnapshotMeta(MATCHES_META_KEY);
-  return useMemo(() => ({ online, fresh: !!meta && !meta.fromCache, since: meta?.since ?? null }), [online, meta]);
+  return useMemo(() => ({ online, fresh: !!meta && !meta.fromCache, since: meta?.since ?? null, staleAt: meta?.staleAt ?? null }), [online, meta]);
 }

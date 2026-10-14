@@ -26,12 +26,14 @@ export interface LedBoardProps {
   size?: "desk" | "mob";
   /** The score digits flip in when they change (`.fl`); off for a board that only reads. */
   flip?: boolean;
+  /** A line over the score, e.g. the connection chip («Reconectando…»); hidden while it flashes. */
+  status?: ReactNode;
 }
 
 const httpsLogo = (url?: string) => (url && /^https:\/\//i.test(url) ? url : "");
 
 /** The scoreboard. The score is its own live region only while it flashes (the log says the rest). */
-export function LedBoard({ rival, rivalLogoUrl, gf, ga, sub, subTone = "", ticker, flash, size = "desk", flip = true }: LedBoardProps) {
+export function LedBoard({ rival, rivalLogoUrl, gf, ga, sub, subTone = "", ticker, flash, size = "desk", flip = true, status }: LedBoardProps) {
   const score = `${gf}-${ga}`;
   const logo = httpsLogo(rivalLogoUrl);
   if (size === "mob")
@@ -45,6 +47,7 @@ export function LedBoard({ rival, rivalLogoUrl, gf, ga, sub, subTone = "", ticke
             </div>
           ) : (
             <>
+              {status ? <span className="lst">{status}</span> : null}
               <span className="tm">PITI</span>
               <span key={score} className={flip ? "led big fl" : "led big"}>
                 {score}
@@ -73,6 +76,7 @@ export function LedBoard({ rival, rivalLogoUrl, gf, ga, sub, subTone = "", ticke
             </>
           ) : (
             <>
+              {status ? <span className="lst">{status}</span> : null}
               <span key={score} className={flip ? "led big fl" : "led big"} aria-label={`PITI ${gf}, ${rival} ${ga}`}>
                 {score}
               </span>

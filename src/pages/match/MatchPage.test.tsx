@@ -4,6 +4,7 @@ import { z } from "zod";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import { matchSearchSchema } from "../../lib/matchTabs";
+import { _resetSnapshotMetaForTesting, metaKeyOf, recordSnapshotMeta } from "../../lib/syncStatus";
 
 // The match page's tab lives in the URL: ?tab= opens it, a click writes it (a history entry, so back
 // and forward step through the tabs) and an unknown tab falls back to the first. Real router (memory
@@ -251,5 +252,45 @@ describe("MatchPage · an error is not «no encontrado»", () => {
     const back = document.querySelector("a.fc-back");
     expect(back).toHaveTextContent("Partidos");
     expect(back).toHaveAttribute("href", "/partidos");
+  });
+});
+
+describe("MatchPage · the board says when the score may not be live", () => {
+  const NOW = Date.UTC(2026, 8, 10);
+  const MATCHES = metaKeyOf(["matches"]);
+  let onLine: { mockRestore: () => void } | null = null;
+  const board = () => document.querySelector("article.pt-board") as HTMLElement;
+  afterEach(() => {
+    onLine?.mockRestore();
+    onLine = null;
+    _resetSnapshotMetaForTesting();
+  });
+
+  it("live and in sync: no chip; offline: «Reconectando…», said once", async () => {
+    recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 5_000);
+    open("/matches/j4");
+    expect(await screen.findByText("pane:directo")).toBeInTheDocument();
+    expect(board().querySelector(".mp-sync")).toBeNull();
+    act(() => {
+      onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+      window.dispatchEvent(new Event("offline"));
+    });
+    expect(within(board()).getByText("Reconectando…")).toBeInTheDocument();
+    expect(board().querySelector(".mp-sync-sr")).toHaveTextContent("Sin conexión: reconectando.");
+  });
+
+  it("live, out of sync for over a minute: «Sin conexión · marcador de hace 2 min»", async () => {
+    recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 20 * 60_000);
+    recordSnapshotMeta(MATCHES, { fromCache: true, hasPendingWrites: false }, NOW - 2 * 60_000 - 5_000);
+    open("/matches/j4");
+    expect(await within(await screen.findByRole("article")).findByText("Sin conexión · marcador de hace 2 min")).toBeInTheDocument();
+  });
+
+  it("a played match never shows it", async () => {
+    recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 20 * 60_000);
+    recordSnapshotMeta(MATCHES, { fromCache: true, hasPendingWrites: false }, NOW - 5 * 60_000);
+    open("/matches/j1");
+    expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(document.querySelector(".mp-sync")).toBeNull();
   });
 });

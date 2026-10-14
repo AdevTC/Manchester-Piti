@@ -16,6 +16,8 @@ import { Flip } from "../../components/celeste/Flip";
 import { Avisos } from "../../components/celeste/Avisos";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
 import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
+import { SyncChip } from "../../components/celeste/SyncChip";
+import { useSyncChip } from "../../hooks/useSyncChip";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { leaders, matchEvent, playerLines, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
@@ -60,6 +62,8 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
   const now = useClock(15_000);
   const m = view.live ?? view.next;
   const goalShow = useGoalCelebration(view.live, now);
+  // (the island on this page says it out loud: the board's chip only shows)
+  const syncChip = useSyncChip(!!view.live, now);
   if (!m) {
     return (
       <article className="pt-board pt-rise" style={{ animationDelay: ".15s" }} aria-label="Primer partido, por publicar">
@@ -132,6 +136,11 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
           <small>{m.home === false ? "Local" : "Visitante"}</small>
         </div>
       </div>
+      {(live || pending) && syncChip && (
+        <div className="pt-sync">
+          <SyncChip chip={syncChip} variant="board" />
+        </div>
+      )}
       {live ? (
         <>
           <div className="pt-prog" aria-hidden="true">
