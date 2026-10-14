@@ -63,15 +63,38 @@ function useShared<T>(key: string | null, start: (emit: (data: T, error?: boolea
   if (!key) return { data: empty, loading: false, error: false };
   return state ? (state as Live<T>) : { data: empty, loading: true, error: false };
 }
-function useLiveDoc<T>(path: string | null, map: (d: DocumentData | undefined) => T, empty: T): Live<T> {
+/** Which projections are currently open per document path (dev guard, see useLiveDoc). */
+const openProjections = new Map<string, Set<string>>();
+/**
+ * One onSnapshot per (path, mapper). The key carries `mapId` because the first reader decides what shape
+ * `emit` pushes to everyone: two readers that map the same doc differently under one key corrupt each other.
+ * Prefer one hook per document that maps the whole doc, with thin selectors over it (see useMatchPrivate).
+ * In dev, opening one path with two different mapIds logs an error, so the pattern can't creep back.
+ */
+export function useLiveDoc<T>(path: string | null, mapId: string, map: (d: DocumentData | undefined) => T, empty: T): Live<T> {
   return useShared<T>(
-    path && `doc:${path}`,
-    (emit) =>
-      onSnapshot(
+    path && `doc:${path}#${mapId}`,
+    (emit) => {
+      if (import.meta.env.DEV) {
+        const open = openProjections.get(path!) ?? new Set<string>();
+        open.add(mapId);
+        openProjections.set(path!, open);
+        if (open.size > 1) console.error(`useLiveDoc: ${path} se lee con varias proyecciones (${[...open].join(", ")}); usa un solo hook que mapee el documento entero.`);
+      }
+      const stop = onSnapshot(
         doc(db, path!),
         (s) => emit(map(s.exists() ? s.data() : undefined)),
         () => emit(empty, true),
-      ),
+      );
+      return () => {
+        stop();
+        if (import.meta.env.DEV) {
+          const open = openProjections.get(path!);
+          open?.delete(mapId);
+          if (open && !open.size) openProjections.delete(path!);
+        }
+      };
+    },
     empty,
   );
 }
@@ -104,8 +127,26 @@ export function useAvailability(matchId: string | undefined) {
     (uid, d) => ({ uid, response: d.response, name: d.name ?? "Miembro", playerId: d.playerId ?? null }),
   );
 }
-export function useMeetingNote(matchId: string | undefined) {
-  return useLiveDoc<string>(matchId ? `matchPrivate/${matchId}` : null, (d) => (d?.meetingNote as string) ?? "", "");
+
+// ---------- matchPrivate/{id}: one listener, two readers (the meeting note and the designated scorers)
+export interface MatchPrivate {
+  meetingNote: string;
+  scorerUids: string[];
+}
+const EMPTY_MATCH_PRIVATE: MatchPrivate = { meetingNote: "", scorerUids: [] };
+const mapMatchPrivate = (d: DocumentData | undefined): MatchPrivate =>
+  d ? { meetingNote: (d.meetingNote as string | undefined) ?? "", scorerUids: (d.scorerUids as string[] | undefined) ?? [] } : EMPTY_MATCH_PRIVATE;
+/** The whole private match doc. Read it through useMeetingNote / useMatchScorers; never map matchPrivate/{id} elsewhere. */
+export function useMatchPrivate(matchId: string | undefined) {
+  return useLiveDoc<MatchPrivate>(matchId ? `matchPrivate/${matchId}` : null, "matchPrivate", mapMatchPrivate, EMPTY_MATCH_PRIVATE);
+}
+export function useMeetingNote(matchId: string | undefined): Live<string> {
+  const q = useMatchPrivate(matchId);
+  return useMemo(() => ({ data: q.data.meetingNote, loading: q.loading, error: q.error }), [q]);
+}
+export function useMatchScorers(matchId: string | undefined): Live<string[]> {
+  const q = useMatchPrivate(matchId);
+  return useMemo(() => ({ data: q.data.scorerUids, loading: q.loading, error: q.error }), [q]);
 }
 
 // ---------- MVP
@@ -119,7 +160,7 @@ export function useMvpResults() {
   return useMemo(() => new Map((q.data ?? []).map((r) => [r.id, r])), [q.data]);
 }
 export function useMyMvpVote(matchId: string | undefined, uid: string | undefined) {
-  return useLiveDoc<string>(matchId && uid ? `matches/${matchId}/votes/${uid}` : null, (d) => (d?.playerId as string) ?? "", "");
+  return useLiveDoc<string>(matchId && uid ? `matches/${matchId}/votes/${uid}` : null, "playerId", (d) => (d?.playerId as string) ?? "", "");
 }
 export function useMvpVoters(matchId: string | undefined, enabled: boolean) {
   return useLiveQuery<{ uid: string; voterName: string; playerId: string }>(
@@ -137,6 +178,7 @@ export interface Prediction {
 export function useMyPrediction(matchId: string | undefined, uid: string | undefined) {
   return useLiveDoc<Prediction | null>(
     matchId && uid ? `matchPrivate/${matchId}/predictions/${uid}` : null,
+    "prediction",
     (d) => (d ? { goalsFor: d.goalsFor, goalsAgainst: d.goalsAgainst } : null),
     null,
   );
@@ -150,7 +192,7 @@ export interface PorraRow {
   played: number;
 }
 export function usePorraStandings(seasonId: string | undefined) {
-  return useLiveDoc<PorraRow[]>(seasonId ? `porraStandings/${seasonId}` : null, (d) => (d?.rows as PorraRow[]) ?? [], []);
+  return useLiveDoc<PorraRow[]>(seasonId ? `porraStandings/${seasonId}` : null, "rows", (d) => (d?.rows as PorraRow[]) ?? [], []);
 }
 
 // ---------- trainings
@@ -231,7 +273,7 @@ const mapClaim = (uid: string, d: DocumentData): Claim => ({
   status: d.status,
 });
 export function useMyClaim(uid: string | undefined) {
-  return useLiveDoc<Claim | null>(uid ? `playerClaims/${uid}` : null, (d) => (d ? mapClaim(uid!, d) : null), null);
+  return useLiveDoc<Claim | null>(uid ? `playerClaims/${uid}` : null, "claim", (d) => (d ? mapClaim(uid!, d) : null), null);
 }
 export function usePendingClaims(enabled: boolean) {
   return useLiveQuery<Claim>(
@@ -332,11 +374,9 @@ export interface Membership {
   by: string;
 }
 export function useMembership(uid: string | undefined) {
-  return useLiveDoc<Membership | null>(uid ? `teamMembers/${uid}` : null, (d) => (d ? { joinedAt: millis(d.joinedAt), via: d.via ?? "", by: d.by ?? "" } : null), null);
+  return useLiveDoc<Membership | null>(uid ? `teamMembers/${uid}` : null, "membership", (d) => (d ? { joinedAt: millis(d.joinedAt), via: d.via ?? "", by: d.by ?? "" } : null), null);
 }
 /** A member's handle (users/{uid}.nickname), e.g. the captain who opened the door for you. */
 export function useNicknameOf(uid: string | undefined) {
-  return useLiveDoc<string>(uid ? `users/${uid}` : null, (d) => (d?.nickname as string | undefined) ?? "", "");
+  return useLiveDoc<string>(uid ? `users/${uid}` : null, "nickname", (d) => (d?.nickname as string | undefined) ?? "", "");
 }
-
-export function useMatchScorers(matchId: string | undefined) { return useLiveDoc<string[]>(matchId ? `matchPrivate/${matchId}` : null, d => (d?.scorerUids as string[] | undefined) ?? [], []); }
