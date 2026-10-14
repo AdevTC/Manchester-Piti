@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { opponentInitials } from "../../lib/clubAnalytics";
-import "../../styles/analytics.css";
+import "./opponent-badge.css";
 export function OpponentBadge({
   name,
   logo,

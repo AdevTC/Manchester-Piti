@@ -1,0 +1,31 @@
+/* The rival's crest (or his initials) in a ring: /stats «Rivales», inside .vx. Night by default and the
+   day theme under html[data-theme="light"], like .vx; the colours are the ones it always had. */
+.club-opponent-badge {
+  --ob-ink: var(--sky, #6CABDD);
+  --ob-face: #101c3c;
+  --ob-line: rgba(130, 160, 210, 0.18);
+  width: var(--badge-size, 48px);
+  height: var(--badge-size, 48px);
+  min-width: var(--badge-size, 48px);
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--ob-line);
+  background: color-mix(in srgb, var(--ob-ink) 12%, var(--ob-face));
+  box-shadow: inset 0 0 0 3px var(--ob-face);
+  color: var(--ob-ink);
+  font: 700 calc(var(--badge-size, 48px) * 0.29) 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -0.03em;
+}
+[data-theme="light"] .club-opponent-badge {
+  --ob-ink: #1C2C5B;
+  --ob-face: #ffffff;
+  --ob-line: rgba(28, 44, 91, 0.14);
+}
+.club-opponent-badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3px;
+}

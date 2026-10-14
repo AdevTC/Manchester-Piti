@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { collection, doc, updateDoc } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useSeason, type Season } from "../../context/SeasonContext";
 import type { Zone } from "./formations";
@@ -50,14 +50,6 @@ export interface PizarraPlayer {
   /** A sanction set by hand in Admin, and when one was last lifted (see chemistry.suspensions). */
   sanction?: Sanction;
   sanctionClearedAt?: number;
-}
-
-/**
- * Persist a player's injury flag. Caller must gate this to admins (the
- * Firestore `players` update rule enforces admin role server-side).
- */
-export async function setInjured(playerId: string, injured: boolean): Promise<void> {
-  await updateDoc(doc(db, "players", playerId), { injured });
 }
 
 // Resolve the shirt name + dorsal for the active season, falling back to the
