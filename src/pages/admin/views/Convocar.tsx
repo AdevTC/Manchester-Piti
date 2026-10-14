@@ -26,7 +26,9 @@ import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
 import { ConfirmModal } from "../ui/layers";
 import { pegWall, shortName } from "./hoy/hoyModel";
-import { convocatoriaWithSeven, sevenAgreement, sevenDiffs } from "../../pizarra/officialBoard";
+import { boardBench, convocatoriaWithSeven, sevenAgreement, sevenDiffs } from "../../pizarra/officialBoard";
+import { bajaOf } from "../../pizarra/chemistry";
+import { seasonSuspensions } from "../club/sanctionLogic";
 import { useBoardSeven } from "../../pizarra/useMatchBoard";
 
 export function Convocar() {
@@ -149,17 +151,27 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
     toast.show({ tag: j, message: `Convocatoria de la ${copy.label} copiada · la pizarra y el acta ya lo ven`, undo: () => conv.set(before) });
   };
   // «Copiar el de la pizarra»: the official's seven as el siete; whoever leaves it, to the banquillo (with
-  // nobody called yet, the squad that can play off it, as the pizarra's «Banquillo»).
+  // nobody called yet, the pizarra's own «Banquillo»: off the seven, no baja of any kind — the same
+  // rule, officialBoard boardBench + chemistry bajaOf over the season's suspensions).
+  const suspended = useMemo(() => seasonSuspensions(data.matches, match.seasonId, data.players), [data.matches, match.seasonId, data.players]);
+  const fromBoard = boardSeven
+    ? convocatoriaWithSeven(
+        { ...lineup, notCalled: match.notCalled ?? [] },
+        boardSeven,
+        boardBench(
+          roster.map((p) => ({ id: p.id, baja: bajaOf({ id: p.id, active: p.doc.active, injured: p.injured }, suspended) })),
+          boardSeven,
+        ),
+      )
+    : null;
   const copyBoard = () => {
-    if (!boardSeven) return;
-    const next = convocatoriaWithSeven(lineup, boardSeven, roster.filter((p) => !p.injured).map((p) => p.id));
-    if (!next) return;
+    if (!fromBoard) return;
     const before = lineup;
-    conv.set(next);
+    conv.set(fromBoard);
     setHung(null);
     toast.show({ tag: j, message: `El siete de la pizarra, en la convocatoria${status.notified ? " · falta avisar" : ""}`, undo: () => conv.set(before) });
   };
-  const pizarraCheck = <PizarraCheck seven={boardSeven} starters={lineup.starters} nameOf={nameOf} onCopy={copyBoard} />;
+  const pizarraCheck = <PizarraCheck seven={boardSeven} starters={lineup.starters} next={fromBoard} nameOf={nameOf} onCopy={copyBoard} />;
 
   const cta = status.published ? (
     <span className="okk">
@@ -336,7 +348,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
  * pizarra coincide» / «La pizarra tiene otro siete» (the words say it; the icon only backs them) — with
  * «Copiar el de la pizarra», asked first. Nothing while there is no official (or it isn't read yet).
  */
-function PizarraCheck({ seven, starters, nameOf, onCopy }: { seven: string[] | null; starters: string[]; nameOf: (id: string) => string; onCopy: () => void }) {
+function PizarraCheck({ seven, starters, next, nameOf, onCopy }: { seven: string[] | null; starters: string[]; next: { starters: string[]; bench: string[] } | null; nameOf: (id: string) => string; onCopy: () => void }) {
   const [ask, setAsk] = useState(false);
   const agree = sevenAgreement(seven, starters);
   if (!seven || !agree) return null;
@@ -365,7 +377,7 @@ function PizarraCheck({ seven, starters, nameOf, onCopy }: { seven: string[] | n
         open={ask}
         onClose={() => setAsk(false)}
         title="¿Copiar el siete de la pizarra?"
-        consequences={[`Al siete: ${names(seven)}`, ...(d.conv.length ? [`Al banquillo: ${names(d.conv)}`] : []), "Se guarda sin avisar: después, «Publicar y avisar»"]}
+        consequences={[`Al siete: ${names(seven)}`, `Banquillo: ${next?.bench.length ? names(next.bench) : "nadie"}`, "Se guarda sin avisar: después, «Publicar y avisar»"]}
         confirmLabel="Copiar el siete"
         onConfirm={() => {
           setAsk(false);

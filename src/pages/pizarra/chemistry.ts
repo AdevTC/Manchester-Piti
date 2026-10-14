@@ -79,6 +79,14 @@ export function manualLeft(s: Sanction, matches: readonly SuspensionMatch[]): nu
 }
 
 /**
+ * Why a player can't play (the pizarra's «Bajas»): inactive, injured, or serving a suspension (the
+ * `suspensions` below) — in that order; undefined = he can. One rule for the pizarra and Convocar.
+ */
+export function bajaOf(p: { id: string; active?: boolean; injured?: boolean }, suspended: { has: (id: string) => boolean }): "Lesionado" | "Sancionado" | "Inactivo" | undefined {
+  return p.active === false ? "Inactivo" : p.injured ? "Lesionado" : suspended.has(p.id) ? "Sancionado" : undefined;
+}
+
+/**
  * Every player still out, with what is left: (a) the acta — sent off in one of the team's last `games`
  * finished matches (most-recent-first), unless an admin lifted it afterwards (`sanctionClearedAt` at or after
  * that match's date) — and (b) a sanction set by hand with matches left (manualLeft). Both count the TEAM's

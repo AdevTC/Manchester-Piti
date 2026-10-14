@@ -359,6 +359,30 @@ describe("Tableros · oficial y partido", () => {
       expect(sync).toHaveBeenCalledWith("m8", { starters: SEVEN, bench: ["fer", "erik", "kevin"] }, "b1");
     });
 
+    it("an announced convocatoria that would call someone new: the hint says «Cambios» goes too", () => {
+      const M8n = m({ conv: { starters: OTHER, bench: [], notified: true } });
+      const { unmount } = render(<Harness initial={L7()} props={{ isAdmin: true, calendar: [M8n], nextMatch: M8n, onSyncConvocatoria: vi.fn(async () => ({ covered: false })) }} />);
+      openOficial();
+      expect(screen.getByText(/Avisa con «Ya está el siete» y «Cambios en la convocatoria»: .+ no estaban convocados\./)).toBeInTheDocument();
+      expect(screen.queryByText(/Un solo aviso/)).toBeNull();
+      unmount();
+      // the same players called (only who starts changes): one notice
+      const M8s = m({ conv: { starters: OTHER, bench: ["almachi", "adrian"], notified: true } });
+      render(<Harness initial={L7()} props={{ isAdmin: true, calendar: [M8s], nextMatch: M8s, onSyncConvocatoria: vi.fn(async () => ({ covered: true })) }} />);
+      openOficial();
+      expect(screen.getByText(/Un solo aviso: «Ya está el siete»\./)).toBeInTheDocument();
+    });
+
+    it("a convocatoria with only «no convocados»: they stay out of the banquillo", async () => {
+      const sync = vi.fn(async () => ({ covered: true }));
+      const M8x = m({ conv: { starters: [], bench: [], notCalled: ["fer"] } });
+      render(<Harness initial={L7()} session={{ publish: vi.fn(async () => "b1") }} props={{ isAdmin: true, calendar: [M8x], nextMatch: M8x, onSyncConvocatoria: sync }} />);
+      openOficial();
+      pub();
+      await screen.findByText(/convocatoria de J8 · MAD SKY con este siete/, { selector: ".tst span" });
+      expect(sync).toHaveBeenCalledWith("m8", { starters: SEVEN, bench: ["erik", "kevin"] }, "b1");
+    });
+
     it("unticked: only the official", async () => {
       const sync = vi.fn(async () => ({ covered: true }));
       const M8c = m({ conv: { starters: OTHER, bench: [] } });

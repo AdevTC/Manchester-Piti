@@ -42,6 +42,7 @@ import { Icon } from "./icons";
 import { planNote, setTactic, tacRows } from "./plan";
 import { changes, cmpMarks, PLAYED_ID, playedOption, playedSeven, tape } from "./compare";
 import { boardLink, boardMeta, convocatoriaFromBoard, matchLabel, matchShort, type CalMatch } from "./boards";
+import { boardBench } from "../officialBoard";
 import { charlaJugada, charlaLast, charlaView, pushIn, STEP_JUGADA, STEP_PLAN, stepKind, type CharlaMatch } from "./charla";
 import { useCharla } from "./useCharla";
 import { CharlaGuion, CharlaOverlay } from "./CharlaOverlay";
@@ -2292,10 +2293,18 @@ export function Board(props: BoardProps) {
   // null when it already has this seven. Offered to captains for a match of a season (not «all»).
   const convToSet = (m: CalMatch) => {
     const seven = vr.titular.slots.map((x) => x.playerId);
-    return convocatoriaFromBoard(m.conv, seven, sq.list.filter((c) => !c.baja && !seven.includes(c.id)).map((c) => c.id));
+    return convocatoriaFromBoard(m.conv, seven, boardBench(sq.list, seven));
   };
   const convMatch = props.onSyncConvocatoria && props.seasonId !== "all" && modo === "tableros" ? (linked ?? props.nextMatch) : null;
-  const convSync = convMatch ? { agrees: !convToSet(convMatch) } : null;
+  const convSync = (() => {
+    if (!convMatch) return null;
+    const next = convToSet(convMatch);
+    if (!next) return { agrees: true, newly: [] };
+    // An announced convocatoria that now calls someone new also sends «Cambios en la convocatoria».
+    const was = new Set([...(convMatch.conv?.starters ?? []), ...(convMatch.conv?.bench ?? [])]);
+    const newly = convMatch.conv?.notified ? [...next.starters, ...next.bench].filter((id) => !was.has(id)).map(nm) : [];
+    return { agrees: false, newly };
+  })();
   // («Copiar el siete del último partido», in Tableros)
   const lastM = modo === "tableros" ? lastPlayed(cal) : null;
 

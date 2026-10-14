@@ -56,7 +56,7 @@ export function sevenDiffs(starters: readonly string[], board: readonly string[]
  * bajas), as the pizarra's «Banquillo» shows it. Null when the convocatoria already has this seven.
  */
 export function convocatoriaWithSeven(
-  conv: { starters: readonly string[]; bench: readonly string[] } | undefined,
+  conv: { starters: readonly string[]; bench: readonly string[]; notCalled?: readonly string[] } | undefined,
   seven: readonly (string | null)[],
   offPitch: readonly string[] = [],
 ): { starters: string[]; bench: string[] } | null {
@@ -64,8 +64,16 @@ export function convocatoriaWithSeven(
   const s = [...new Set(seven.filter((id): id is string => !!id))];
   if (sameSeven(s, conv.starters)) return null;
   const out = (id: string) => !s.includes(id);
-  if (!conv.starters.length && !conv.bench.length) return { starters: s, bench: [...new Set(offPitch)].filter(out) };
+  // (a convocatoria saved with nobody called but some left out: those stay out)
+  const left = new Set(conv.notCalled ?? []);
+  if (!conv.starters.length && !conv.bench.length) return { starters: s, bench: [...new Set(offPitch)].filter((id) => out(id) && !left.has(id)) };
   return { starters: s, bench: [...conv.bench.filter(out), ...conv.starters.filter((id) => out(id) && !conv.bench.includes(id))] };
+}
+
+/** The board's «Banquillo» for a match with no convocatoria yet: the squad off the seven that can play —
+ *  no baja of any kind (lesionado, sancionado, inactivo: chemistry bajaOf). The pizarra and Convocar both. */
+export function boardBench(squad: readonly { id: string; baja?: unknown }[], seven: readonly (string | null)[]): string[] {
+  return squad.filter((p) => !p.baja && !seven.includes(p.id)).map((p) => p.id);
 }
 
 /** A `lineupOfficials` doc as the Sala de control keeps it (null when it names no board). */

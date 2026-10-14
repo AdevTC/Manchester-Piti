@@ -100,7 +100,7 @@ export function boardCalendar(season: readonly ClubMatch[]): CalMatch[] {
       ga: s ? s.ga : null,
       home: typeof m.home === "boolean" ? m.home : null,
       venue: typeof m.venue === "string" ? m.venue : "",
-      conv: { starters: [...(m.starters ?? [])], bench: [...(m.bench ?? [])] },
+      conv: { starters: [...(m.starters ?? [])], bench: [...(m.bench ?? [])], ...(m.notCalled?.length ? { notCalled: [...m.notCalled] } : {}), ...(typeof m.convocatoriaNotifiedAt === "number" ? { notified: true } : {}) },
       ...(m.clock ? { clock: m.clock } : {}),
       ...(m.version ? { version: m.version } : {}),
       ...(typeof m.duration === "number" ? { duration: m.duration } : {}),

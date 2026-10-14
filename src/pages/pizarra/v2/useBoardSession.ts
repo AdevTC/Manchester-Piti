@@ -517,6 +517,23 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     if (!isAdmin) throw new Error("Solo los capitanes y los admins publican el oficial.");
     if (!ready || readOnly) throw new Error("Este tablero es de solo lectura");
     const bid = await ensureId();
+    // The edit still waiting for its autosave is written first: the official (its notice, the
+    // convocatoria taken from it) carries the seven on screen.
+    const cur = latest.current;
+    const pend = cur.id === bid ? cur.pending : null;
+    if (pend) {
+      window.clearTimeout(debounce.current);
+      debounce.current = 0;
+      inFlight.current = pend;
+      setSent({ key: cur.key, sig: storedSig(pend, cur.squadIds) });
+      try {
+        await cur.save(bid, pend);
+      } finally {
+        if (inFlight.current === pend) inFlight.current = null;
+      }
+      setLocal((p) => (p && p.key === cur.key && p.lineup === pend ? { ...p, dirty: false } : p));
+      setSaved({ key: cur.key, status: "saved", at: serverNow() });
+    }
     await lineups.markOfficial(bid, { matchId });
     return bid;
   };

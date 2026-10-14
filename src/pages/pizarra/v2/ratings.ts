@@ -8,7 +8,7 @@ import { minutesOf, presenceMinutes, timedGames, totalMinutes } from "../../../l
 import type { Zone } from "../formations";
 import { normZone } from "../positions";
 import { resolvePositions } from "../../../lib/positions";
-import type { Sanction, Suspension } from "../chemistry";
+import { bajaOf, type Sanction, type Suspension } from "../chemistry";
 import { pairKey, type Baja, type Convocatoria, type Cromo, type FormGame, type PairStats, type Squad } from "./model";
 import { plural } from "./plural";
 
@@ -176,7 +176,7 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
         if (conc === 0) r.clean++;
       }
     });
-    const baja: Baja | undefined = !p.active ? "Inactivo" : p.injured ? "Lesionado" : suspended.has(p.id) ? "Sancionado" : undefined;
+    const baja: Baja | undefined = bajaOf(p, suspended);
     const susp = "get" in suspended ? suspended.get(p.id) : undefined;
     const form = formRating(f);
     return {

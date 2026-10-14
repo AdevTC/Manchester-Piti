@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toBePlayed } from "../../lib/derived/kickoff";
-import { boardForMatch, boardFromLocks, boardSeven, convocatoriaWithSeven, lockedBoard, mapOfficialLock, officialScopeId, sameSeven, sevenAgreement, sevenDiffs } from "./officialBoard";
+import { boardBench, boardForMatch, boardFromLocks, boardSeven, convocatoriaWithSeven, lockedBoard, mapOfficialLock, officialScopeId, sameSeven, sevenAgreement, sevenDiffs } from "./officialBoard";
 
 // A link to «the pizarra of this match» opens the match's own official; the season's official only while
 // the match is still to be played. Read from the official's scope docs (lineupOfficials), never the boards.
@@ -86,5 +86,12 @@ describe("the official's seven and the convocatoria", () => {
   });
   it("with no convocatoria yet: the board's bench (off the pitch, no bajas), without the seven", () => {
     expect(convocatoriaWithSeven({ starters: [], bench: [] }, ["a", "b"], ["c", "a", "d", "c"])).toEqual({ starters: ["a", "b"], bench: ["c", "d"] });
+  });
+  it("a convocatoria with only «no convocados» set keeps them out (unless the board puts one in the seven)", () => {
+    expect(convocatoriaWithSeven({ starters: [], bench: [], notCalled: ["d", "b"] }, ["a", "b"], ["c", "d", "e"])).toEqual({ starters: ["a", "b"], bench: ["c", "e"] });
+  });
+  it("the board's bench: off the seven, no baja of any kind", () => {
+    const squad = [{ id: "a" }, { id: "b", baja: "Lesionado" }, { id: "c", baja: "Sancionado" }, { id: "d", baja: "Inactivo" }, { id: "e" }, { id: "f", baja: undefined }];
+    expect(boardBench(squad, ["a", null])).toEqual(["e", "f"]);
   });
 });

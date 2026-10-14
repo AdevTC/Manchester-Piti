@@ -110,9 +110,9 @@ export function MatchPage() {
   const toPlay = !!match && toBePlayed(match, now);
   const board = useMatchBoard(match?.seasonId, match?.id, toPlay, viewer.member);
   // One «siete» (M6): before the acta the Campo shows that official's seven to members (its doc, read only
-  // while the Campo is open and can show it: not once the match is live or played).
-  const beforeActa = !!match && !isCompleted(match) && matchPhase(match, now) !== "playing";
-  const officialSeven = useBoardSeven(beforeActa && active === 1 ? board : null);
+  // while the Campo is open and the match is still to be played — its own official first, the season's
+  // only while it has none: useMatchBoard).
+  const officialSeven = useBoardSeven(toPlay && active === 1 ? board : null);
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);

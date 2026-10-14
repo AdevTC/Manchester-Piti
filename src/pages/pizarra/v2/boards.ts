@@ -75,8 +75,9 @@ export interface CalMatch {
   ga: number | null;
   home: boolean | null;
   venue: string;
-  /** The match's one convocatoria (the admin's Convocar): el siete and the banquillo. Absent = not read. */
-  conv?: { starters: string[]; bench: string[] };
+  /** The match's one convocatoria (the admin's Convocar): el siete, the banquillo, who it leaves out
+   *  («no convocados») and whether it has been announced. Absent = not read. */
+  conv?: { starters: string[]; bench: string[]; notCalled?: string[]; notified?: boolean };
   /** The match day (live.ts): its length in minutes (absent = 50), its status and the acta's events. */
   duration?: number;
   version?: number;
@@ -178,7 +179,7 @@ export function convCounts(sq: Squad): ConvCounts {
  * that siete (or the convocatoria is not known). The one rule: officialBoard.ts convocatoriaWithSeven.
  */
 export function convocatoriaFromBoard(
-  conv: { starters: readonly string[]; bench: readonly string[] } | undefined,
+  conv: { starters: readonly string[]; bench: readonly string[]; notCalled?: readonly string[] } | undefined,
   seven: readonly (string | null)[],
   offPitch: readonly string[] = [],
 ): { starters: string[]; bench: string[] } | null {

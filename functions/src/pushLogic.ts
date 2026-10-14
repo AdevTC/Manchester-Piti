@@ -284,13 +284,16 @@ export function lineupNotice(id: string, before: LineupLike | undefined, after: 
   if (mid && match && (match.archived || match.status === "finished" || match.status === "cancelled")) return null;
   const rival = mid ? match?.rival : undefined;
   const day = mid && typeof match?.date === "number" ? when(match.date) : "";
+  // A match's official opens the match's Campo (public: members see the official seven there, fans the
+  // convocatoria — one «siete» with the convocatoria's notice); the season's opens the pizarra's charla.
   const body = rival
-    ? `Contra ${rival}${day ? ` (${day})` : ""}: el capitán ya ha publicado el siete. Ábrelo y mira la charla.`
+    ? `Contra ${rival}${day ? ` (${day})` : ""}: el capitán ya ha publicado el siete. Míralo en el partido.`
     : mid
-      ? "El capitán ya ha publicado el siete del partido. Ábrelo y mira la charla."
+      ? "El capitán ya ha publicado el siete del partido. Míralo en el partido."
       : "El capitán ya ha publicado el siete de la temporada. Ábrelo y mira la charla.";
   const season = typeof after.seasonId === "string" && after.seasonId ? `&season=${encodeURIComponent(after.seasonId)}` : "";
-  return { topic: "lineup", title: "Ya está el siete", body, tag: `lineup-${id}-${mid ?? "temporada"}`, url: `/pizarra?tablero=${encodeURIComponent(id)}${season}#charla` };
+  const url = mid ? `/matches/${encodeURIComponent(mid)}?tab=campo` : `/pizarra?tablero=${encodeURIComponent(id)}${season}#charla`;
+  return { topic: "lineup", title: "Ya está el siete", body, tag: `lineup-${id}-${mid ?? "temporada"}`, url };
 }
 
 /**
@@ -438,35 +441,51 @@ export function parseSiete(d: unknown): SieteClaim | null {
   return { at: o.at, by: o.by, seven: o.seven, board: typeof o.board === "string" ? o.board : null, sent: o.sent !== false };
 }
 
-/**
- * The one-siete step: whether the asker's notice goes (`send`) and what the claim becomes (`write`, null =
- * left as it is). A claim older than SIETE_WINDOW_MS (or from the future: a reset clock) counts as none.
- *   · lineup: its own reservation → it goes (and marks it sent); the same seven told within the window → quiet.
- *   · conv: the same seven told (or reserved for the board) within the window → quiet (covered).
- *   · reserve: never sends; it reserves the claim for the board unless that board already holds it or the
- *     same seven was already told (then the board's notice stays quiet too).
- */
-export function sieteStep(prev: SieteClaim | null, ask: SieteAsk, now: number): { send: boolean; write: SieteClaim | null } {
-  const fresh = !!prev && prev.at <= now && now - prev.at < SIETE_WINDOW_MS ? prev : null;
-  if (ask.by === "lineup") {
-    if (fresh && fresh.by === "lineup" && fresh.board === ask.board && !fresh.sent) return { send: true, write: { ...fresh, sent: true } };
-    if (fresh && fresh.sent && fresh.seven === ask.seven) return { send: false, write: null };
-    return { send: true, write: { at: now, by: "lineup", seven: ask.seven, board: ask.board, sent: true } };
-  }
-  if (ask.by === "conv") {
-    if (fresh && fresh.seven === ask.seven) return { send: false, write: null };
-    return { send: true, write: { at: now, by: "conv", seven: ask.seven, sent: true } };
-  }
-  if (fresh && ((fresh.by === "lineup" && fresh.board === ask.board) || (fresh.sent && fresh.seven === ask.seven))) return { send: false, write: null };
-  return { send: false, write: { at: now, by: "lineup", seven: ask.seven, board: ask.board, sent: false } };
+/** What the one-siete step decides: whether the asker's notice goes, what the claim becomes (null = left as
+ *  it is) and, when it stays quiet, whose notice told the team (`coveredBy`). */
+export interface SieteDecision {
+  send: boolean;
+  write: SieteClaim | null;
+  coveredBy: "lineup" | "conv" | null;
 }
 
 /**
- * Whether a convocatoria made from the official just published is covered by that board's «Ya está el
- * siete»: the board is the match's official (its scope doc names it, written within the window) and its
- * notice is still to go or went within the window (an older claim = it won't go again).
+ * The one-siete step. A claim older than SIETE_WINDOW_MS (or from the future: a reset clock) counts as none.
+ *   · lineup: its own reservation → it goes (and marks it sent); the same seven already told (by anyone)
+ *     within the window → quiet.
+ *   · conv: only «Ya está el siete» covers it — a claim by a board (sent, or reserved for it) with the same
+ *     seven within the window → quiet. Another convocatoria notice never covers one.
+ *   · reserve (the convocatoria made from the official just published, whose notice hasn't gone yet): it
+ *     leaves the telling to that board (reserving the claim for it) unless the board already told another
+ *     seven (then the convocatoria tells this one) or a convocatoria notice told this very seven (it goes
+ *     as a convocatoria notice; the board's stays quiet).
  */
-export function boardCovers(o: {
+export function sieteStep(prev: SieteClaim | null, ask: SieteAsk, now: number): SieteDecision {
+  const fresh = !!prev && prev.at <= now && now - prev.at < SIETE_WINDOW_MS ? prev : null;
+  const same = !!fresh && fresh.seven === ask.seven;
+  const quiet = (by: "lineup" | "conv"): SieteDecision => ({ send: false, write: null, coveredBy: by });
+  const asConv: SieteDecision = { send: true, write: { at: now, by: "conv", seven: ask.seven, sent: true }, coveredBy: null };
+  if (ask.by === "lineup") {
+    if (fresh && fresh.by === "lineup" && fresh.board === ask.board && !fresh.sent) return { send: true, write: { ...fresh, sent: true }, coveredBy: null };
+    if (fresh && fresh.sent && same) return quiet(fresh.by);
+    return { send: true, write: { at: now, by: "lineup", seven: ask.seven, board: ask.board, sent: true }, coveredBy: null };
+  }
+  if (ask.by === "conv") return fresh && fresh.by === "lineup" && same ? quiet("lineup") : asConv;
+  if (fresh?.by === "lineup") {
+    if (fresh.board === ask.board) return !fresh.sent || same ? quiet("lineup") : asConv;
+    if (fresh.sent && same) return quiet("lineup");
+  }
+  if (fresh?.by === "conv" && same) return asConv;
+  return { send: false, write: { at: now, by: "lineup", seven: ask.seven, board: ask.board, sent: false }, coveredBy: "lineup" };
+}
+
+/**
+ * Where the board's «Ya está el siete» stands for the convocatoria made from the official just published:
+ * "pending" (its notice is still to go), "sent" (its notice for THIS publish went: claimed at or after the
+ * publish, within the window), or null — not the match's official published just now (its scope doc names
+ * it, written within the window), or its notice was claimed by an earlier publish (it won't go again).
+ */
+export function boardNotice(o: {
   board: { isOfficial?: unknown; matchId?: unknown } | null | undefined;
   lock: { lineupId?: unknown; at?: number | null } | null | undefined;
   boardId: string;
@@ -474,10 +493,27 @@ export function boardCovers(o: {
   /** When that board's «Ya está el siete» for the match was claimed (null = not yet). */
   lineupLoggedAt: number | null;
   now: number;
-}): boolean {
-  if (o.board?.isOfficial !== true || o.board.matchId !== o.matchId) return false;
-  if (o.lock?.lineupId !== o.boardId) return false;
+}): "pending" | "sent" | null {
+  if (o.board?.isOfficial !== true || o.board.matchId !== o.matchId) return null;
+  if (o.lock?.lineupId !== o.boardId) return null;
   const within = (t: number) => t <= o.now && o.now - t < SIETE_WINDOW_MS;
-  if (typeof o.lock.at !== "number" || !within(o.lock.at)) return false;
-  return o.lineupLoggedAt == null || within(o.lineupLoggedAt);
+  const lockAt = o.lock.at;
+  if (typeof lockAt !== "number" || !within(lockAt)) return null;
+  if (o.lineupLoggedAt == null) return "pending";
+  return o.lineupLoggedAt >= lockAt && within(o.lineupLoggedAt) ? "sent" : null;
+}
+
+/** Same players (order aside, empty ids skipped). */
+const sameCalled = (a: readonly unknown[], b: readonly unknown[]) => sieteKey(a) === sieteKey(b);
+
+/**
+ * Whether a convocatoria notice may be covered by «Ya está el siete»: only when the seven is all it would
+ * tell — the first notice (the seven is the news), or «Cambios» that call the same players as the
+ * convocatoria announced (`announced`: its siete + banquillo when it was first announced; unknown = no).
+ * Anyone newly called or left out is news of its own: that notice goes.
+ */
+export function sieteMayCover(kind: "first" | "changes", now: { starters: readonly string[]; bench: readonly string[] }, announced: { starters?: unknown; bench?: unknown } | null | undefined): boolean {
+  if (kind === "first") return true;
+  if (!announced || !Array.isArray(announced.starters) || !Array.isArray(announced.bench)) return false;
+  return sameCalled([...now.starters, ...now.bench], [...announced.starters, ...announced.bench]);
 }

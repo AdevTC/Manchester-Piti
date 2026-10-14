@@ -88,13 +88,13 @@ describe("«¡Empieza el partido!» follows the real clock", () => {
 
 describe("«Ya está el siete» (the official seven on the pizarra)", () => {
   const j8 = { rival: "MAD SKY", status: "scheduled", date: Date.UTC(2026, 10, 8, 11) };
-  it("a board that becomes the official one for a match: the notice with the match, to the charla", () => {
+  it("a board that becomes the official one for a match: the notice with the match, to its Campo", () => {
     expect(lineupNotice("b1", { isOfficial: false, matchId: null }, { isOfficial: true, matchId: "j8" }, j8)).toEqual({
       topic: "lineup",
       title: "Ya está el siete",
-      body: "Contra MAD SKY (domingo, 8 nov, 12:00): el capitán ya ha publicado el siete. Ábrelo y mira la charla.",
+      body: "Contra MAD SKY (domingo, 8 nov, 12:00): el capitán ya ha publicado el siete. Míralo en el partido.",
       tag: "lineup-b1-j8",
-      url: "/pizarra?tablero=b1#charla",
+      url: "/matches/j8?tab=campo",
     });
     expect(TOPICS).toContain("lineup");
   });
@@ -104,10 +104,11 @@ describe("«Ya está el siete» (the official seven on the pizarra)", () => {
       tag: "lineup-b2-temporada",
       url: "/pizarra?tablero=b2#charla",
     });
-    expect(lineupNotice("b2", undefined, { isOfficial: true, matchId: "gone" }, undefined)?.body).toBe("El capitán ya ha publicado el siete del partido. Ábrelo y mira la charla.");
+    expect(lineupNotice("b2", undefined, { isOfficial: true, matchId: "gone" }, undefined)?.body).toBe("El capitán ya ha publicado el siete del partido. Míralo en el partido.");
   });
-  it("the notice opens the board in its own season", () => {
-    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8", seasonId: "t2" }, j8)?.url).toBe("/pizarra?tablero=b1&season=t2#charla");
+  it("the season's official opens the board in its own season; a match's, the match's Campo", () => {
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: null, seasonId: "t2" }, null)?.url).toBe("/pizarra?tablero=b1&season=t2#charla");
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8", seasonId: "t2" }, j8)?.url).toBe("/matches/j8?tab=campo");
   });
   it("its alcance changes: a new notice (with its own tag); edits of an official that stays put: none", () => {
     const off = { isOfficial: true, matchId: "j8" };

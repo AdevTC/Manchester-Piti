@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MatchLike } from "../../lib/playerStats";
 import type { Participation } from "../../../functions/src/matchEngine";
-import { SUSPENSION_MATCHES, manualLeft, suspendedSet, suspensions, type Sanction, type SuspensionMatch } from "./chemistry";
+import { SUSPENSION_MATCHES, bajaOf, manualLeft, suspendedSet, suspensions, type Sanction, type SuspensionMatch } from "./chemistry";
 
 /** A ledger row: played (or not) and how many reds. */
 const row = (o: Partial<Participation> = {}): Participation =>
@@ -107,5 +107,17 @@ describe("suspensions (acta + sanciones a mano)", () => {
     expect(suspensions([], [{ id: "g", sanction: bad }]).size).toBe(0);
     expect(suspensions([], [{ id: "g", sanction: null }]).size).toBe(0);
     expect(manualLeft({ games: 1, from: T0 }, [m("j1", 1, "finished")])).toBe(0);
+  });
+});
+
+describe("bajaOf: why a player can't play (the pizarra and Convocar, one rule)", () => {
+  const susp = new Set(["s"]);
+  it("inactive, injured, suspended — in that order; nobody else", () => {
+    expect(bajaOf({ id: "x", active: false, injured: true }, susp)).toBe("Inactivo");
+    expect(bajaOf({ id: "s", injured: true }, susp)).toBe("Lesionado");
+    expect(bajaOf({ id: "s", active: true }, susp)).toBe("Sancionado");
+    expect(bajaOf({ id: "y", active: true, injured: false }, susp)).toBeUndefined();
+    // (active unknown: an old ficha counts as active)
+    expect(bajaOf({ id: "y" }, new Map())).toBeUndefined();
   });
 });

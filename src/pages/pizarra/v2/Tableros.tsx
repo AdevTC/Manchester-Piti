@@ -8,6 +8,7 @@ import { nuevoOn } from "./rail";
 import { PanelHead } from "./SheetPanels";
 import { useConfirmKeys } from "./useConfirmKeys";
 import { matchBand, matchLabel, matchShort, nameError, NAME_MAX, type CalMatch } from "./boards";
+import { andList } from "./bench";
 import type { ReactionValue } from "../reactions";
 import { apiError } from "../../../lib/clubApi";
 import { RivalFilter } from "./RivalPanel";
@@ -104,8 +105,9 @@ export interface TablerosProps {
   /** `conv`: «Usar este siete como convocatoria» was ticked (only for a match). */
   onPublish: (matchId: string | null, o?: { conv: boolean }) => Promise<void>;
   /** One «siete» (M6): publishing for «este partido» can also set its convocatoria from this seven (null =
-   *  not offered: not a captain who can write it); `agrees` = the convocatoria already has this seven. */
-  convSync?: { agrees: boolean } | null;
+   *  not offered: not a captain who can write it); `agrees` = the convocatoria already has this seven;
+   *  `newly` = who an announced convocatoria would newly call (their «Cambios en la convocatoria» goes too). */
+  convSync?: { agrees: boolean; newly: string[] } | null;
   onUnpublish: (id: string) => void;
   // Partido
   calendar: CalMatch[];
@@ -461,7 +463,12 @@ export function TablerosPanel(p: TablerosProps) {
                     <small>
                       {p.convSync.agrees
                         ? "La convocatoria ya tiene este siete."
-                        : "La convocatoria de " + (p.scopeMatch ? matchShort(p.scopeMatch) : "este partido") + " se queda con este siete; quien salga, al banquillo. Un solo aviso: «Ya está el siete»."}
+                        : "La convocatoria de " +
+                          (p.scopeMatch ? matchShort(p.scopeMatch) : "este partido") +
+                          " se queda con este siete; quien salga, al banquillo. " +
+                          (p.convSync.newly.length
+                            ? "Avisa con «Ya está el siete» y «Cambios en la convocatoria»: " + andList(p.convSync.newly) + (p.convSync.newly.length > 1 ? " no estaban convocados." : " no estaba convocado.")
+                            : "Un solo aviso: «Ya está el siete».")}
                     </small>
                   </span>
                 </label>

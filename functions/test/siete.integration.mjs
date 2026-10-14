@@ -63,11 +63,11 @@ async function claimed(id) {
   }
   assert.fail("pushLog/" + id + " did not appear");
 }
-/** Waits until pushLog/siete-<match> says the board's notice went. */
-async function sieteSent(mid) {
+/** Waits until pushLog/siete-<match> says a board's notice (that `board`'s, when given) went. */
+async function sieteSent(mid, board = null) {
   for (let i = 0; i < 80; i++) {
     const d = await log("siete-" + mid);
-    if (d?.sent === true) {
+    if (d?.sent === true && d.by === "lineup" && (!board || d.board === board)) {
       checked++;
       return d;
     }
@@ -98,10 +98,19 @@ const boardOf = async (tag, pids) => {
   return bid;
 };
 /** The pizarra's publish (useLineups.publishOfficial): the board official for the match + its scope doc, at once. */
-const publish = async (bid, mid) => {
+const publish = async (bid, mid, unmark = null) => {
   const batch = db.batch();
+  // (the official it replaces stops being one in the same write, as publishOfficial does)
+  if (unmark) batch.update(db.doc("lineups/" + unmark), { isOfficial: false, updatedAt: FieldValue.serverTimestamp() });
   batch.update(db.doc("lineups/" + bid), { isOfficial: true, matchId: mid, updatedAt: FieldValue.serverTimestamp() });
   batch.set(db.doc(`lineupOfficials/${seasonId}__${mid}`), { lineupId: bid, seasonId, matchId: mid, at: FieldValue.serverTimestamp() });
+  await batch.commit();
+};
+/** «Quitar el oficial»: the board stops being official and its scope doc goes. */
+const unpublish = async (bid, mid) => {
+  const batch = db.batch();
+  batch.update(db.doc("lineups/" + bid), { isOfficial: false, updatedAt: FieldValue.serverTimestamp() });
+  batch.delete(db.doc(`lineupOfficials/${seasonId}__${mid}`));
   await batch.commit();
 };
 
@@ -198,9 +207,58 @@ assert.equal(r7.notice, "first");
 assert.equal(r7.covered, false);
 checked += 2;
 
+// ---------- 6. A convocatoria notice is never covered by another one: a bench-only change announced
+// right after «Ya está la convocatoria» (same seven, within 10 minutes) — «Cambios» goes.
+const m8 = await matchOf("ocho");
+assert.equal((await setConvocatoria(admin, { matchId: m8, starters: seven, bench: [ids[7]], notify: true })).notice, "first");
+const bench8 = await setConvocatoria(admin, { matchId: m8, starters: seven, bench: [ids[7], ids[8]], notify: true });
+assert.equal(bench8.notice, "changes");
+assert.equal(bench8.covered, false);
+assert.ok(await log("conv-" + m8 + "-cambios"));
+checked += 3;
+
+// ---------- 7. «Cambios» that only change who starts, right after «Ya está el siete» of that seven: quiet,
+// and its once-per-match slot is NOT taken — a later real change (someone newly called) is announced.
+const m9 = await matchOf("nueve");
+const b9 = await boardOf("nueve", seven);
+await publish(b9, m9);
+assert.equal((await setConvocatoria(admin, { matchId: m9, starters: seven, bench: [ids[7]], notify: true, fromBoard: b9 })).covered, true);
+await sieteSent(m9);
+const b9b = await boardOf("nueve-b", otherSeven);
+await publish(b9b, m9, b9);
+const s9 = await sieteSent(m9, b9b);
+assert.equal(s9.seven, [...otherSeven].sort().join(","));
+const quiet9 = await setConvocatoria(admin, { matchId: m9, starters: otherSeven, bench: [ids[6]], notify: true });
+assert.equal(quiet9.notice, null);
+assert.equal(quiet9.covered, true);
+assert.equal(await log("conv-" + m9 + "-cambios"), null, "a quiet «Cambios» keeps its slot");
+checked += 4;
+const real9 = await setConvocatoria(admin, { matchId: m9, starters: otherSeven, bench: [ids[6], ids[8]], notify: true });
+assert.equal(real9.notice, "changes");
+assert.ok(await log("conv-" + m9 + "-cambios"));
+checked += 2;
+
+// ---------- 8. The same board published with S1, unpublished and republished with S2 within 10 minutes:
+// its «Ya está el siete» went for S1 and won't go again — the convocatoria tells the team S2.
+const m10 = await matchOf("diez");
+const b10 = await boardOf("diez", seven);
+await publish(b10, m10);
+assert.equal((await setConvocatoria(admin, { matchId: m10, starters: seven, bench: [ids[7]], notify: true, fromBoard: b10 })).covered, true);
+await sieteSent(m10);
+await unpublish(b10, m10);
+await db.doc("lineups/" + b10).update({ slots: slots(otherSeven) });
+await sleep(1100);
+await publish(b10, m10);
+await sleep(1500);
+const r10 = await setConvocatoria(admin, { matchId: m10, starters: otherSeven, bench: [ids[6]], notify: true, fromBoard: b10 });
+assert.equal(r10.notice, "changes");
+assert.equal(r10.covered, false);
+assert.equal((await log("siete-" + m10)).by, "conv");
+checked += 3;
+
 // (cleanup)
-const mids = [m1, m2, m3, m4, m5, m6, m7];
-const bids = [b1, b2, b3, b4, b5, b6, b7];
+const mids = [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10];
+const bids = [b1, b2, b3, b4, b5, b6, b7, b9, b9b, b10];
 for (const mid of mids) {
   await db.doc("matches/" + mid).delete();
   await db.doc(`lineupOfficials/${seasonId}__${mid}`).delete();

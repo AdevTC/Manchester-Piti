@@ -328,6 +328,37 @@ describe("useBoardSession · tableros", () => {
       ["b1", null],
     ]);
   });
+
+  it("publishing writes the edit still waiting for its autosave first: the official carries the seven on screen", async () => {
+    const s = store([doc("b1")]);
+    const order: string[] = [];
+    vi.mocked(s.save).mockImplementation(async () => {
+      order.push("save");
+    });
+    vi.mocked(s.markOfficial).mockImplementation(async () => {
+      order.push("official");
+    });
+    const { result } = renderHook(() => useBoardSession(args(s, { isAdmin: true })));
+    await act(async () => {
+      result.current.commit(withPlayer(result.current.lineup, 3, "adrian"));
+    });
+    // (the autosave's debounce hasn't run yet)
+    expect(s.save).not.toHaveBeenCalled();
+    let bid: string | void = undefined;
+    await act(async () => {
+      bid = await result.current.publish("m8");
+    });
+    expect(bid).toBe("b1");
+    expect(order).toEqual(["save", "official"]);
+    expect(vi.mocked(s.save).mock.calls[0][0]).toBe("b1");
+    expect(vi.mocked(s.save).mock.calls[0][1].slots[3].playerId).toBe("adrian");
+    expect(result.current.status).toBe("saved");
+    // nothing pending any more: the debounce doesn't write it again
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(s.save).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("useBoardSession · lo que cambia por debajo", () => {

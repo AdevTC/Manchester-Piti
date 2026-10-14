@@ -256,11 +256,27 @@ describe("Convocar · «La pizarra coincide» / «tiene otro siete»", () => {
     expect(screen.getByText("En la pizarra juegan KEVIN y ADRIÁN T.C. en lugar de ERIK.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Copiar el de la pizarra" }));
     const ask = screen.getByRole("dialog", { name: "¿Copiar el siete de la pizarra?" });
-    expect(ask).toHaveTextContent("Al banquillo: ERIK");
+    expect(ask).toHaveTextContent("Banquillo: ALMACHI y ERIK");
     expect(setConv).not.toHaveBeenCalled();
     await user.click(within(ask).getByRole("button", { name: "Copiar el siete" }));
     await waitFor(() => expect(setConv).toHaveBeenLastCalledWith({ matchId: "m8", starters: board, bench: ["almachi", "erik"], notify: false }));
     expect(caption()).toHaveTextContent("El siete de la pizarra, en la convocatoria");
+  });
+
+  it("no convocatoria yet: the banquillo is the pizarra's (off the seven, no baja: lesionado, sancionado, inactivo)", async () => {
+    const base = adminFixture({ published: withJ8({ starters: [], bench: [] }), officialLocks: { t1__m8: "b8" } });
+    // brawan is injured in the fixture; andia inactive; kevin serving a sanction set by hand
+    const players = base.players.map((p) => (p.id === "andia" ? { ...p, active: false } : p.id === "kevin" ? { ...p, sanction: { games: 2, from: base.now } } : p));
+    setAdminData({ ...base, players, roster: base.roster.map((r) => ({ ...r, doc: players.find((p) => p.id === r.id) ?? r.doc })) });
+    const board = ["evans", "illescas", "tello", "eguzquiza", "huberoski", "erik", "adrian"];
+    boardSevens.set("b8", board);
+    const user = userEvent.setup();
+    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
+    await user.click(await screen.findByRole("button", { name: "Copiar el de la pizarra" }));
+    const ask = screen.getByRole("dialog", { name: "¿Copiar el siete de la pizarra?" });
+    expect(ask).toHaveTextContent("Banquillo: FER y ALMACHI");
+    await user.click(within(ask).getByRole("button", { name: "Copiar el siete" }));
+    await waitFor(() => expect(setConv).toHaveBeenLastCalledWith({ matchId: "m8", starters: board, bench: ["fer", "almachi"], notify: false }));
   });
 
   it("asked, then cancelled: nothing written", async () => {
