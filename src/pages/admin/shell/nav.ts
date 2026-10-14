@@ -93,6 +93,10 @@ export const themeLabel = (dark: boolean) => (dark ? "Cambiar a tema de día" : 
 /** «Fichas · 2 por hacer» (the counter in words) or just the name: the rail / bar items' accessible name. */
 export const navLabel = (name: string, c: Counter | undefined) => (c && c.n ? `${name} · ${c.label}` : name);
 
+/** A search param that names something (a match, a player): a non-empty string, or a number-looking id
+ *  the router parsed as a number. Anything else = absent. */
+export const searchId = (v: unknown): string | undefined => (typeof v === "string" && v ? v : typeof v === "number" ? String(v) : undefined);
+
 /** Where a «Por hacer» line / button / palette command goes, router-free (useAdminGo navigates). */
 export interface AdminTarget {
   /** A section, En juego, the pizarra (leaves the sala for a board) or the web (a match's or a player's

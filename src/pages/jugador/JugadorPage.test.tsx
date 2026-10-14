@@ -97,6 +97,13 @@ describe("his page's shortcuts, by who is looking", () => {
     expect(ficha()).toHaveAttribute("href", "/admin/plantilla?jugador=erik");
     expect(carta()).toBeNull();
   });
+
+  it("an admin on his own page: both, his carta and his ficha", () => {
+    as({ member: true, admin: true, playerId: "erik" });
+    render(<JugadorPage />);
+    expect(carta()).toHaveAttribute("href", "/profile");
+    expect(ficha()).toHaveAttribute("href", "/admin/plantilla?jugador=erik");
+  });
 });
 
 it("«Sus cambios»: the teammate is a link to his page in the season; one no longer in the squad is text", () => {

@@ -80,6 +80,7 @@ export function PizarraPage() {
     uid: user?.uid ?? "preview",
     isAdmin,
     draftName,
+    urlSeason,
   });
   // The board's match: the linked one, else the next. Its convocatoria goes on the cromos.
   const linked = data.calendar.find((c) => c.id === session.matchId) ?? null;

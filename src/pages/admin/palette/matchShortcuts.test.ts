@@ -15,7 +15,7 @@ describe("matchShortcuts", () => {
 
   it("«Abrir la pizarra (J8 · MAD SKY)» goes to the board in the match's season", () => {
     const go = vi.fn();
-    const cmd = pizarraCommand(m8, { id: "b8", isOfficial: true, matchId: "m8", updatedAt: 1 }, go);
+    const cmd = pizarraCommand(m8, "b8", go);
     expect(cmd.title).toBe("Abrir la pizarra (J8 · MAD SKY)");
     cmd.run();
     expect(go).toHaveBeenCalledWith({ section: "pizarra", tablero: "b8", seasonId: "t1" });

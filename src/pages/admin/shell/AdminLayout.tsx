@@ -29,7 +29,7 @@ import { LogoutConfirm } from "./CaptainMenu";
 import { AdminHeader, MobileHeader } from "./Chrome";
 import { useChromeMotion } from "./chromeMotion";
 import { AdminDataContext, ShellContext, useAdminGo, type ShellApi } from "./context";
-import { goHint, isEnJuego, isWorkspace, SECTIONS, sectionOf, titleOf, type Captain, type SectionKey } from "./nav";
+import { goHint, isEnJuego, isWorkspace, searchId, SECTIONS, sectionOf, titleOf, type Captain, type SectionKey } from "./nav";
 import { BottomBar, MasSheet } from "./Phone";
 import { Rail } from "./Rail";
 import { ICON_RAIL_BELOW, useRailFold } from "./railPrefs";
@@ -88,12 +88,6 @@ export function AdminLayout() {
   );
 }
 
-/** A search param as a non-empty string (a number-looking id arrives as a number). */
-const searchString = (search: object, key: string): string | undefined => {
-  const v: unknown = (search as Record<string, unknown>)[key];
-  return typeof v === "string" && v ? v : typeof v === "number" ? String(v) : undefined;
-};
-
 const ROLE: Record<string, string> = { superadmin: "Capitán general", admin: "Capitán", user: "Socio" };
 
 function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObject<HTMLDivElement | null>; data: AdminData; desktop: boolean; wide: boolean; pathname: string }) {
@@ -115,7 +109,7 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
   // Hoy's match on the pizarra (its official board) and the player whose ficha is open in Plantilla:
   // the palette's way out to the pizarra and to his public page.
   const heroBoard = data.hero ? data.officialBoardOf(data.hero.match) : null;
-  const fichaOpen = useRouterState({ select: (s) => (s.location.pathname.replace(/\/+$/, "") === "/admin/plantilla" ? searchString(s.location.search, "jugador") : undefined) });
+  const fichaOpen = useRouterState({ select: (s) => (s.location.pathname.replace(/\/+$/, "") === "/admin/plantilla" ? searchId((s.location.search as { jugador?: unknown }).jugador) : undefined) });
 
   // ⌘K / Ctrl K opens the palette from anywhere in the admin.
   useEffect(() => {

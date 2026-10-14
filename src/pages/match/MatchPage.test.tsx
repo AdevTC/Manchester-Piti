@@ -19,23 +19,23 @@ const SCORED: ClubMatch = { ...MATCH, id: "j2", goalsFor: 2, goalsAgainst: 1, ev
 const PLAYERS = [{ id: "p1", shirtName: "PEPE", seasons: ["t1"], seasonDetails: { t1: { shirtName: "PEPITO" } } }];
 // still to be played (the clock is stubbed at 10 Sep 2026)
 const UPCOMING: ClubMatch = { id: "j3", seasonId: "t1", rival: "Otro", date: Date.UTC(2026, 8, 20, 10), duration: 50, status: "scheduled", events: [] };
-// who is looking (useViewer) and the official boards the shared lineups read would give (seasonLineups)
-const who = vi.hoisted(() => ({ viewer: { member: false, admin: false, playerId: null as string | null }, boards: new Map<string, string>(), calls: [] as [string | null | undefined, boolean][] }));
+// who is looking (useViewer), the official scope docs (lineupOfficials/{season}__{match|temporada} → the
+// board they name) and every doc path the page asked to read (useLiveDoc; null = no read)
+const who = vi.hoisted(() => ({ viewer: { member: false, admin: false, playerId: null as string | null }, docs: new Map<string, string>(), reads: [] as string[] }));
 
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [MATCH, SCORED, UPCOMING], players: PLAYERS, loading: false, error: null }) }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => who.viewer }));
-vi.mock("../pizarra/seasonLineups", () => ({
-  useOfficialBoards: (seasonId: string | null | undefined, enabled: boolean) => {
-    who.calls.push([seasonId, enabled]);
-    return (matchId: string) => {
-      const id = enabled ? who.boards.get(matchId) : undefined;
-      return id ? { id, isOfficial: true, matchId, updatedAt: 1 } : null;
-    };
-  },
-}));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false }) }));
-vi.mock("../vestuario/live", () => ({ useMatchScorers: () => ({ data: [] }) }));
+vi.mock("../vestuario/live", () => ({
+  useMatchScorers: () => ({ data: [] }),
+  useLiveDoc: <T,>(path: string | null, _id: string, map: (d: { lineupId?: unknown } | undefined) => T, empty: T) => {
+    if (!path) return { data: empty, loading: false, error: false };
+    who.reads.push(path);
+    const id = who.docs.get(path);
+    return { data: map(id ? { lineupId: id } : undefined), loading: false, error: false };
+  },
+}));
 vi.mock("../../hooks/useMatchClock", () => ({ useMatchClock: () => Date.UTC(2026, 8, 10) }));
 vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
 vi.mock("../../components/celeste/WeatherChip", () => ({ WeatherChip: () => null }));
@@ -116,36 +116,52 @@ describe("MatchPage · the tab in the URL", () => {
 });
 
 describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
-  const as = (v: Partial<typeof who.viewer>, boards: [string, string][] = []) => {
+  /** `docs`: scope doc id ("t1__j1", "t1__temporada") → the board it names. */
+  const as = (v: Partial<typeof who.viewer>, docs: Record<string, string> = {}) => {
     who.viewer = { member: false, admin: false, playerId: null, ...v };
-    who.boards = new Map(boards);
-    who.calls = [];
+    who.docs = new Map(Object.entries(docs).map(([k, id]) => ["lineupOfficials/" + k, id]));
+    who.reads = [];
   };
   const pizarraLink = () => screen.queryByRole("link", { name: /La pizarra de este partido/ });
   const adminLink = () => screen.queryByRole("link", { name: /Editar acta|Abrir en la Sala de control/ });
 
-  it("a fan sees neither, and no lineups listener is asked for", async () => {
-    as({}, [["j1", "b1"]]);
+  it("a fan sees neither, and reads nothing (lineupOfficials are team-only)", async () => {
+    as({}, { t1__j1: "b1", t1__temporada: "s1" });
     open("/matches/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
     expect(pizarraLink()).toBeNull();
     expect(adminLink()).toBeNull();
-    expect(who.calls.every(([, enabled]) => enabled === false)).toBe(true);
+    expect(who.reads).toEqual([]);
   });
 
-  it("a member gets the official board of the match, in its season; never the Sala de control", async () => {
-    as({ member: true }, [["j1", "b1"]]);
+  it("a member: the match's own official board, in its season (one tiny doc read); never the Sala de control", async () => {
+    as({ member: true }, { t1__j1: "b1", t1__temporada: "s1" });
     open("/matches/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
     expect(pizarraLink()).toHaveAttribute("href", "/pizarra?tablero=b1&season=t1");
     expect(adminLink()).toBeNull();
-    expect(who.calls.at(-1)).toEqual(["t1", true]);
+    expect(new Set(who.reads)).toEqual(new Set(["lineupOfficials/t1__j1"]));
   });
 
-  it("a member with no official board for the match gets no pizarra link", async () => {
-    as({ member: true });
+  it("a played match with only the season's official: no pizarra link (its plan wasn't this match's seven)", async () => {
+    as({ member: true }, { t1__temporada: "s1" });
     open("/matches/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(pizarraLink()).toBeNull();
+    expect(who.reads).not.toContain("lineupOfficials/t1__temporada");
+  });
+
+  it("a match still to be played with only the season's official: that board", async () => {
+    as({ member: true }, { t1__temporada: "s1" });
+    open("/matches/j3");
+    expect(await screen.findByText("pane:previa")).toBeInTheDocument();
+    expect(pizarraLink()).toHaveAttribute("href", "/pizarra?tablero=s1&season=t1");
+  });
+
+  it("no official at all: no pizarra link", async () => {
+    as({ member: true });
+    open("/matches/j3");
+    expect(await screen.findByText("pane:previa")).toBeInTheDocument();
     expect(pizarraLink()).toBeNull();
   });
 
@@ -157,7 +173,7 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
   });
 
   it("before the match, an admin opens it in the Sala de control (and a member its board)", async () => {
-    as({ member: true, admin: true }, [["j3", "b3"]]);
+    as({ member: true, admin: true }, { t1__j3: "b3", t1__temporada: "s1" });
     open("/matches/j3");
     expect(await screen.findByRole("link", { name: /Abrir en la Sala de control/ })).toHaveAttribute("href", "/admin/partidos/j3");
     expect(screen.queryByRole("link", { name: /Editar acta/ })).toBeNull();

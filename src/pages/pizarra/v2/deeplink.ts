@@ -1,6 +1,7 @@
 // Deep links into the board: /pizarra?tablero=<id> opens a board, #charla / #comparar / #compartir / …
-// open a panel. The season sync rewrites the URL as soon as the app starts (and drops what it doesn't
-// know), so the first load remembers them here until the board has used them.
+// open a panel. `tablero` is declared in /pizarra's search schema (router.tsx), so it stays in the URL;
+// the hash does not: the season sync's first navigation (it seeds ?season=) drops it. So the first load
+// remembers both here until the board has used them.
 const read = () => {
   if (typeof window === "undefined") return { tablero: null, hash: "" };
   return { tablero: new URLSearchParams(window.location.search).get("tablero"), hash: window.location.hash.replace(/^#/, "").toLowerCase() };

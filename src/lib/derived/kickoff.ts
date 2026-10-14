@@ -1,6 +1,6 @@
 // Where a match stands around its kick-off, and the words every surface uses for it. The rule lives in
 // functions/src/matchEngine.ts (the server's push and phases use it too); this is the web's door to it.
-import { kickoffState } from "../../../functions/src/matchEngine";
+import { kickoffState, matchPhase } from "../../../functions/src/matchEngine";
 
 export { kickoffState, whistleDeadline, WHISTLE_GRACE_MS, type KickoffState } from "../../../functions/src/matchEngine";
 
@@ -13,4 +13,11 @@ export const AWAITING_ACTA = "Pendiente del acta";
 export function kickoffText(match: Parameters<typeof kickoffState>[0], now: number): string | null {
   const k = kickoffState(match, now);
   return k === "pending_whistle" ? PENDING_WHISTLE : k === "awaiting_result" ? AWAITING_ACTA : null;
+}
+
+/** Still to be played: before its date (or without one), and not a past kick-off waiting for its acta.
+ *  (A played, live or called-off match is not: the season's plan, say, was not its seven.) */
+export function toBePlayed(match: Parameters<typeof kickoffState>[0], now: number): boolean {
+  const phase = matchPhase(match, now);
+  return (phase === "scheduled" || phase === "unscheduled") && kickoffState(match, now) !== "awaiting_result";
 }

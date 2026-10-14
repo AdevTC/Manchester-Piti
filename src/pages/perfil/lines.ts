@@ -28,14 +28,19 @@ export function ago(t: number | null, now: number): string {
   return "hace " + Math.floor(s / 86400) + " días";
 }
 
+/** Where a line goes, as a typed route: the vestuario, or the pizarra (on a board, in its season). */
+export type StuffLink = { to: "/vestuario" } | { to: "/pizarra"; search: { tablero?: string; season?: string } };
+
 export interface StuffLine {
   key: "call" | "boards" | "porra" | "conv";
   title: string;
   text: string;
-  href: string;
+  link: StuffLink;
   /** Gold: something is waiting for you (the next convocatoria unanswered). */
   call: boolean;
 }
+
+const VESTUARIO: StuffLink = { to: "/vestuario" };
 
 const ANSWER: Record<"yes" | "no" | "maybe", string> = { yes: "Has dicho que vas.", maybe: "Has dicho que tienes duda.", no: "Has dicho que no vas." };
 
@@ -47,14 +52,14 @@ export function stuffLines(s: { next: NextMatch | null; boards: BoardsLine; porr
     const where = n.home === true ? "en casa" : n.home === false ? "fuera" : "";
     const meta = [n.j ? `J${n.j}` : "", matchDay(n.dateMs), matchTime(n.dateMs), where].filter(Boolean).join(" · ");
     const answer = s.conv.nextId === n.id && s.conv.next ? ANSWER[s.conv.next] : "Aún no has respondido.";
-    out.push({ key: "call", title: `¿Vas a ${n.rival}?`, text: meta ? `${meta}. ${answer}` : answer, href: "/vestuario", call: !(s.conv.nextId === n.id && s.conv.next) });
+    out.push({ key: "call", title: `¿Vas a ${n.rival}?`, text: meta ? `${meta}. ${answer}` : answer, link: VESTUARIO, call: !(s.conv.nextId === n.id && s.conv.next) });
   }
   const b = s.boards;
   out.push({
     key: "boards",
     title: "Tus pizarras",
     text: !b.count || !b.last ? "Aún no tienes tableros: crea el primero" : b.count === 1 ? `1 tablero · «${b.last.name}», ${ago(b.last.at, s.now)}` : `${plural(b.count, "tablero", "tableros")} · el último, «${b.last.name}», ${ago(b.last.at, s.now)}`,
-    href: b.last ? b.last.href : "/pizarra",
+    link: { to: "/pizarra", search: b.last ? { tablero: b.last.id, season: b.last.season ?? undefined } : {} },
     call: false,
   });
   const p = s.porra;
@@ -62,7 +67,7 @@ export function stuffLines(s: { next: NextMatch | null; boards: BoardsLine; porr
     key: "porra",
     title: "Tu porra",
     text: p && p.predictions ? `${plural(p.predictions, "pronóstico", "pronósticos")} · ${plural(p.exact, "exacto", "exactos")} · vas ${p.rank}.º de ${p.of}` : "Aún sin pronósticos esta temporada",
-    href: "/vestuario",
+    link: VESTUARIO,
     call: false,
   });
   const c = s.conv;
@@ -71,7 +76,7 @@ export function stuffLines(s: { next: NextMatch | null; boards: BoardsLine; porr
     key: "conv",
     title: "Convocatorias",
     text: c.total ? [`${c.answered} de ${c.total} respondidas`, ...counts].join(" · ") : "Aún no hay convocatorias esta temporada",
-    href: "/vestuario",
+    link: VESTUARIO,
     call: false,
   });
   return out;

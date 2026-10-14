@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../../lib/clubData";
 import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../../test/adminKit";
-import type { OfficialRef } from "../../pizarra/officialBoard";
 import { resetWhistledForTests } from "../data/whistleStore";
 import { Convocar } from "./Convocar";
 import { EnJuego } from "./EnJuego";
@@ -35,9 +34,6 @@ const WIDTH = window.innerWidth;
 const at = (d: number, h: number, m = 0) => Date.UTC(2026, 10, d, h - 1, m); // Madrid = UTC+1
 const SEVEN = ["evans", "illescas", "tello", "eguzquiza", "huberoski", "erik", "adrian"];
 const withJ8 = (j8: Partial<ClubMatch>): ClubMatch[] => fixturePublished.map((m) => (m.id === "m8" ? { ...m, ...j8 } : m));
-const board = (id: string, matchId: string | null): OfficialRef => ({ id, isOfficial: true, matchId, updatedAt: 1 });
-/** The official boards of the fixture's season, by match. */
-const boards = (byMatch: Record<string, string>) => (m: { id: string }) => (byMatch[m.id] ? board(byMatch[m.id], m.id) : null);
 const palette = async (user: ReturnType<typeof userEvent.setup>, query: string) => {
   await user.keyboard("{Control>}k{/Control}");
   const dialog = screen.getByRole("dialog", { name: "Buscar" });
@@ -109,12 +105,19 @@ describe("En juego · «Ver en la web»", () => {
 
 describe("Convocar · «La pizarra» opens the match's board", () => {
   it("with an official board: that board, in the match's season", async () => {
-    setAdminData(adminFixture({ officialBoardOf: boards({ m8: "b8" }) }));
+    setAdminData(adminFixture({ officialLocks: { t1__m8: "b8", t1__temporada: "s1" } }));
     mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
     await screen.findByRole("heading", { level: 1, name: "Convocar" });
     const link = screen.getByRole("link", { name: /La pizarra/ });
     expect(link).toHaveAttribute("href", "/pizarra?tablero=b8&season=t1");
     expect(link).toHaveTextContent(/El siete oficial · \d de 7/);
+  });
+
+  it("still to be played with only the season's official: that board", async () => {
+    setAdminData(adminFixture({ officialLocks: { t1__temporada: "s1" } }));
+    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
+    await screen.findByRole("heading", { level: 1, name: "Convocar" });
+    expect(screen.getByRole("link", { name: /La pizarra/ })).toHaveAttribute("href", "/pizarra?tablero=s1&season=t1");
   });
 
   it("with none yet: the pizarra itself (to make and publish it)", async () => {
@@ -128,7 +131,7 @@ describe("Convocar · «La pizarra» opens the match's board", () => {
 describe("⌘K · «Abrir la pizarra (J… · rival)»", () => {
   it("from any section: Hoy's match on its official board", async () => {
     const hero = adminFixture().hero!.match;
-    setAdminData(adminFixture({ officialBoardOf: boards({ [hero.id]: "bh" }) }));
+    setAdminData(adminFixture({ officialLocks: { ["t1__" + hero.id]: "bh" } }));
     const user = userEvent.setup();
     const router = mountAdmin("/admin/temporadas");
     await screen.findByRole("banner");
@@ -142,7 +145,7 @@ describe("⌘K · «Abrir la pizarra (J… · rival)»", () => {
   });
 
   it("the match on screen too, once (none when it has no official board)", async () => {
-    setAdminData(adminFixture({ officialBoardOf: boards({ m6: "b6" }) }));
+    setAdminData(adminFixture({ officialLocks: { t1__m6: "b6", t1__temporada: "s1" } }));
     const user = userEvent.setup();
     const router = mountAdmin("/admin/partidos/m6", { partidos: Partidos });
     await screen.findByRole("region", { name: "Partido J1" });
@@ -151,6 +154,15 @@ describe("⌘K · «Abrir la pizarra (J… · rival)»", () => {
     expect(options.map((o) => o.textContent)).toEqual([expect.stringContaining("Abrir la pizarra (J1 · Emirates)")]);
     await user.click(options[0]);
     await waitFor(() => expect(router.state.location.search).toMatchObject({ tablero: "b6", season: "t1" }));
+  });
+
+  it("a played match with only the season's official: no command for it", async () => {
+    setAdminData(adminFixture({ officialLocks: { t1__temporada: "s1" } }));
+    const user = userEvent.setup();
+    mountAdmin("/admin/partidos/m6", { partidos: Partidos });
+    await screen.findByRole("region", { name: "Partido J1" });
+    await palette(user, "pizarra");
+    expect(screen.queryByRole("option", { name: /Abrir la pizarra \(J1 · Emirates\)/ })).toBeNull();
   });
 
   it("no official board anywhere: no pizarra command", async () => {

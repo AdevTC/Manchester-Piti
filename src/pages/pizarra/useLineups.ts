@@ -18,6 +18,7 @@ import { useAuth } from "../../context/AuthContext";
 import type { Lineup } from "./formations";
 import { boardToData, dataToLineupDoc, lineupToData, type LineupDoc, type LineupMeta } from "./lineupDoc";
 import { PREVIEW, useSeasonLineupDocs } from "./seasonLineups";
+import { officialScopeId } from "./officialBoard";
 import { clearVoz } from "./v2/vozStore";
 
 // `?preview` injects a mock session but no real Firebase auth token, so the
@@ -78,8 +79,29 @@ export function saveData(lineup: Lineup, matchId?: string | null): Record<string
   };
 }
 
-/** The doc that holds an official's scope (a match, or the season): one board per scope. */
-export const officialScopeId = (seasonId: string, matchId: string | null): string => `${seasonId}__${matchId ?? "temporada"}`;
+/** The doc that holds an official's scope (a match, or the season): one board per scope (officialBoard.ts). */
+export { officialScopeId };
+
+/**
+ * Deleting an official board frees its scope doc too, in one transaction (only while the doc still names
+ * it): the match page and the Sala de control link «the pizarra of this match» through that doc, so it
+ * must never name a board that is gone. Officials are deleted by admins, the only ones the rules let
+ * delete a scope doc. Offline (no transaction) it is skipped: the board is still deleted.
+ */
+export async function releaseOfficialLock(id: string): Promise<void> {
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(doc(db, "lineups", id));
+      const d = snap.exists() ? snap.data() : undefined;
+      if (!d || d.isOfficial !== true || typeof d.seasonId !== "string") return;
+      const lockRef = doc(db, "lineupOfficials", officialScopeId(d.seasonId, (d.matchId as string | null | undefined) ?? null));
+      const lock = await tx.get(lockRef);
+      if (lock.exists() && lock.data().lineupId === id) tx.delete(lockRef);
+    });
+  } catch (err) {
+    console.error("No se pudo liberar el oficial del tablero borrado", err);
+  }
+}
 
 /**
  * Publishes `id` as the official of `scope` (or unpublishes it, scope null) in ONE transaction: the
@@ -263,6 +285,7 @@ export function useLineups(seasonId: string): UseLineups {
       await clearReactions([id]);
       // (Bloque 5: the charla's voice goes first — its rules read the board to allow it)
       await clearVoz(id);
+      await releaseOfficialLock(id);
       await deleteDoc(doc(db, "lineups", id));
     };
     const markOfficial: UseLineups["markOfficial"] = async (id, scope) => {

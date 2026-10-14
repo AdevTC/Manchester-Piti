@@ -165,4 +165,18 @@ describe("useLineups · the official", () => {
     await act(() => result.current.remove("b"));
     expect([...fs.store.keys()].filter((k) => k.startsWith("lineups/b"))).toEqual([]);
   });
+
+  it("deleting the official frees its scope doc (a link to the match's pizarra never names a gone board)", async () => {
+    fs.store.set("lineups/a", board());
+    fs.store.set("lineups/b", board());
+    const { result } = renderHook(() => useLineups("t1"));
+    await act(() => result.current.markOfficial("a", { matchId: "m8" }));
+    expect(fs.store.get("lineupOfficials/" + officialScopeId("t1", "m8"))).toMatchObject({ lineupId: "a" });
+    // a non-official board leaves the scope doc alone
+    await act(() => result.current.remove("b"));
+    expect(fs.store.has("lineupOfficials/" + officialScopeId("t1", "m8"))).toBe(true);
+    await act(() => result.current.remove("a"));
+    expect(fs.store.has("lineups/a")).toBe(false);
+    expect(fs.store.has("lineupOfficials/" + officialScopeId("t1", "m8"))).toBe(false);
+  });
 });

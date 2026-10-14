@@ -20,12 +20,11 @@ import { useConvocatoria } from "../data/useConvocatoria";
 import { Peg, PegRail, ShirtBack } from "../kit";
 import { useMatchShortcuts } from "../palette/matchShortcuts";
 import { useAdmin, useAdminGo } from "../shell/context";
+import { searchId } from "../shell/nav";
 import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
 import { pegWall, shortName } from "./hoy/hoyModel";
-
-const searchId = (v: unknown) => (typeof v === "string" && v ? v : typeof v === "number" ? String(v) : undefined);
 
 export function Convocar() {
   const data = useAdmin();
@@ -279,7 +278,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
           {remindersEl}
           <div className="rdrs">
             {/* the pizarra's official board for this match (none yet: the pizarra, to make and publish it) */}
-            <Link className="fr" to="/pizarra" search={{ tablero: board?.id, season: match.seasonId }}>
+            <Link className="fr" to="/pizarra" search={{ tablero: board ?? undefined, season: match.seasonId }}>
               <b>
                 <AdIcon name="check" size={14} />
                 La pizarra

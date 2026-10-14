@@ -1,32 +1,30 @@
 // /profile › «Temporada»: Tus números → Dónde has jugado → Gol a gol (+ the last five results) → Tu socio en el campo →
 // Tus cosas en el vestuario (the next convocatoria, your boards, your porra, your answers). Real data,
 // empty states as designed (pf-g.mjs pTemp).
-import { useNavigate } from "@tanstack/react-router";
-import type { MouseEvent, ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import type { PosCode, PositionSet } from "../../lib/positions";
 import type { PlayerPositions } from "../../lib/positionStats";
 import type { CardView } from "./card";
 import { DondeHasJugado } from "./DondeHasJugado";
 import { vars } from "./fx";
 import { Ic, type PIcon } from "./icons";
-import { firstMatchText, jornadaRange, longDay, type StuffLine } from "./lines";
+import { firstMatchText, jornadaRange, longDay, type StuffLine, type StuffLink } from "./lines";
 import { RESULT_LEGEND } from "../../lib/derived/result";
 
 /** The goal bars keep a readable width on a phone: the last 10 jornadas at most. */
 export const GB_MAX = 10;
 
-/** An in-app link to a built href (the board's ?tablero= link): the router navigates, a modified click opens a tab. */
-function HrefLink({ href, className, children }: { href: string; className: string; children: ReactNode }) {
-  const navigate = useNavigate();
-  const go = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    e.preventDefault();
-    void navigate({ href });
-  };
-  return (
-    <a className={className} href={href} onClick={go}>
+/** A line's link through the typed routes (the board's one carries ?tablero= and its season). */
+function StuffLinkTo({ link, className, children }: { link: StuffLink; className: string; children: ReactNode }) {
+  return link.to === "/pizarra" ? (
+    <Link className={className} to="/pizarra" search={link.search}>
       {children}
-    </a>
+    </Link>
+  ) : (
+    <Link className={className} to={link.to}>
+      {children}
+    </Link>
   );
 }
 
@@ -161,7 +159,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
         <ul className="lks" aria-busy={stuffLoading || undefined}>
           {stuff.map((l) => (
             <li key={l.key}>
-              <HrefLink className={"lk" + (l.call ? " call" : "")} href={l.href}>
+              <StuffLinkTo className={"lk" + (l.call ? " call" : "")} link={l.link}>
                 <span className="lk-ic">
                   <Ic n={STUFF_ICON[l.key]} w={20} />
                 </span>
@@ -170,7 +168,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
                   <small>{stuffLoading && l.key !== "call" ? "Cargando…" : l.text}</small>
                 </span>
                 <Ic n="right" />
-              </HrefLink>
+              </StuffLinkTo>
             </li>
           ))}
         </ul>

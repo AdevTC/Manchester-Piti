@@ -3,7 +3,7 @@ import { Banda } from "./Banda";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useViewer } from "../../hooks/useViewer";
-import { useOfficialBoards } from "../pizarra/seasonLineups";
+import { useMatchBoard } from "../pizarra/useMatchBoard";
 import { useMatchScorers } from "../vestuario/live";
 import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // Ficha de partido (Celeste): the stadium board on top (final score, live score with ¡GOL!, or the
@@ -29,7 +29,7 @@ import { countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf } f
 import { jornadaOf } from "../../lib/derived/jornada";
 import { RESULT_WORD, resultLetter, resultTitle } from "../../lib/derived/result";
 import { shareClubPage } from "../../lib/share";
-import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, type KickoffState } from "../../lib/derived/kickoff";
+import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
 import { downloadMatchPoster } from "../../lib/matchPoster";
 import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
 import { matchTabAt, matchTabIndex } from "../../lib/matchTabs";
@@ -99,9 +99,11 @@ export function MatchPage() {
   const [notice, setNotice] = useState("");
   const match = matches.find((m) => m.id === matchId);
   // The shortcuts only some can follow: admins to the Sala de control, members to the pizarra's official
-  // board for this match (lineups are team-only reads: a fan opens no listener).
+  // board for this match — its own, or the season's while it is still to be played (team-only reads: a
+  // fan reads nothing).
   const viewer = useViewer();
-  const board = useOfficialBoards(match?.seasonId, viewer.member)(matchId);
+  const toPlay = !!match && toBePlayed(match, now);
+  const board = useMatchBoard(match?.seasonId, match?.id, toPlay, viewer.member);
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
@@ -297,7 +299,7 @@ export function MatchPage() {
               {upcoming && phase === "scheduled" && <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(match, origin())} />}
               {/* (right after the main action: the row scrolls sideways on a phone, these must not hide at its end) */}
               {viewer.member && board && match.seasonId && (
-                <Link className="hm-ghostbtn" to="/pizarra" search={{ tablero: board.id, season: match.seasonId }}>
+                <Link className="hm-ghostbtn" to="/pizarra" search={{ tablero: board, season: match.seasonId }}>
                   La pizarra de este partido <Icon name="arrow" size={16} stroke={2.2} />
                 </Link>
               )}

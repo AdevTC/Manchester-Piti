@@ -375,6 +375,22 @@ describe("useBoardSession · lo que cambia por debajo", () => {
     expect(r2.result.current.notice?.msg).toBe("Ese tablero ya no existe o no es de esta temporada");
   });
 
+  it("a link to a board of another season waits for its season: no «ya no existe», then that board", () => {
+    // /pizarra?season=t2&tablero=x8 opened while t1 is selected: t1's boards come first
+    window.history.replaceState(null, "", "/pizarra?season=t2&tablero=x8");
+    const t1 = store([doc("b1")]);
+    const { result, rerender } = renderHook((p: SessionArgs) => useBoardSession(p), { initialProps: args(t1, { seasonId: "t1", urlSeason: "t2" }) });
+    expect(result.current.ready).toBe(false);
+    expect(result.current.notice).toBeNull();
+    // the season is adopted, its boards still on their way
+    rerender(args({ ...store(), loading: true }, { seasonId: "t2", urlSeason: "t2" }));
+    expect(result.current.notice).toBeNull();
+    // they arrive: the linked board opens, and nothing is said
+    rerender(args(store([doc("mine2", { seasonId: "t2" })], [doc("x8", { seasonId: "t2", isOfficial: true, ownerUid: "cap" })]), { seasonId: "t2", urlSeason: "t2" }));
+    expect(result.current).toMatchObject({ ready: true, id: "x8" });
+    expect(result.current.notice).toBeNull();
+  });
+
   it("a refused save says why once; without connection the edit waits", async () => {
     const s = store([doc("b1")]);
     vi.mocked(s.save).mockRejectedValue(Object.assign(new Error("denied"), { code: "permission-denied" }));

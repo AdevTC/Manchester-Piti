@@ -40,19 +40,21 @@ describe("las frases de Temporada", () => {
   it("tus cosas, vacías", () => {
     const l = stuffLines({ next: null, boards: { count: 0, last: null }, porra: null, conv, now: 0 });
     expect(l.map((x) => x.text)).toEqual(["Aún no tienes tableros: crea el primero", "Aún sin pronósticos esta temporada", "Aún no hay convocatorias esta temporada"]);
+    // (no board yet: the pizarra itself; the rest, the vestuario — typed routes, not built URLs)
+    expect(l.map((x) => x.link)).toEqual([{ to: "/pizarra", search: {} }, { to: "/vestuario" }, { to: "/vestuario" }]);
   });
   it("tus cosas, con datos (la próxima sin responder va en oro)", () => {
     const DAY = 86_400_000;
     const now = Date.UTC(2026, 10, 1, 10);
     const l = stuffLines({
       next: { id: "m8", rival: "MAD SKY", dateMs: Date.UTC(2026, 10, 8, 11), home: false, j: 8 },
-      boards: { count: 3, last: { id: "b1", name: "2-3-1 contra MAD SKY", at: now - 2 * DAY, href: "/pizarra?tablero=b1" } },
+      boards: { count: 3, last: { id: "b1", name: "2-3-1 contra MAD SKY", at: now - 2 * DAY, season: "t1" } },
       porra: { predictions: 7, exact: 2, points: 10, rank: 3, of: 15 },
       conv: { answered: 7, total: 7, yes: 6, maybe: 1, no: 0, next: null, nextId: "m8" },
       now,
     });
     expect(l[0]).toMatchObject({ title: "¿Vas a MAD SKY?", text: "J8 · dom 8 nov · 12:00 · fuera. Aún no has respondido.", call: true });
-    expect(l[1]).toMatchObject({ text: "3 tableros · el último, «2-3-1 contra MAD SKY», hace 2 días", href: "/pizarra?tablero=b1" });
+    expect(l[1]).toMatchObject({ text: "3 tableros · el último, «2-3-1 contra MAD SKY», hace 2 días", link: { to: "/pizarra", search: { tablero: "b1", season: "t1" } } });
     expect(l[2].text).toBe("7 pronósticos · 2 exactos · vas 3.º de 15");
     expect(l[3].text).toBe("7 de 7 respondidas · Voy ×6 · Duda ×1");
   });

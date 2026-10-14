@@ -5,6 +5,7 @@
 import type { Lineup } from "../formations";
 import { systemDef } from "../../../lib/formations";
 import type { MatchEvent } from "../../../lib/clubData";
+import type { LineupDoc } from "../lineupDoc";
 import { ago } from "./view";
 import { chem } from "./quimica";
 import type { Convocatoria, Squad } from "./model";
@@ -53,8 +54,11 @@ export function boardMeta(L: Lineup, sq: Squad, at: number | null, now: number):
   return (L.freeMode ? "Libre" : systemDef(L.formation).label) + " · " + chem(L, sq).v + " de química · " + ago(at, now);
 }
 
-/** The official for a match (officialBoard.ts: the match page and the admin read it the same way). */
-export { officialFor } from "../officialBoard";
+/** The official for a match: the one published for that match, else the one for the whole season. */
+export function officialFor(officials: LineupDoc[], matchId: string | null): LineupDoc | null {
+  const newest = (ds: LineupDoc[]) => ds.slice().sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0] ?? null;
+  return (matchId ? newest(officials.filter((d) => d.isOfficial && d.matchId === matchId)) : null) ?? newest(officials.filter((d) => d.isOfficial && !d.matchId));
+}
 
 // ── matches ──
 export interface CalMatch {
