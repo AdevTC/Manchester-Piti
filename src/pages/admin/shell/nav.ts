@@ -26,13 +26,15 @@ export interface SectionDef {
   blurb: string;
   /** The second key of its `g` shortcut (g h = Hoy … g o = Contenido). */
   go: string;
+  /** Extra words that find it in the palette (the old name «fichas» for Cuentas; its key and path keep it). */
+  aliases?: string;
 }
 export const SECTIONS: readonly SectionDef[] = [
   { key: "hoy", name: "Hoy", path: "/admin", icon: "home", group: "main", blurb: "El partido de hoy y lo que falta", go: "h" },
   { key: "partidos", name: "Partidos", path: "/admin/partidos", icon: "cal", group: "main", blurb: "Calendario, actas y publicar", go: "p" },
   { key: "convocar", name: "Convocar", path: "/admin/convocar", icon: "shirt", group: "main", blurb: "El siete y el banquillo", go: "c" },
   { key: "plantilla", name: "Plantilla", path: "/admin/plantilla", icon: "team", group: "main", blurb: "La percha: jugadores y dorsales", go: "l" },
-  { key: "fichas", name: "Fichas", path: "/admin/fichas", icon: "inbox", group: "club", blurb: "Socios que piden su camiseta", go: "f" },
+  { key: "fichas", name: "Cuentas", path: "/admin/fichas", icon: "inbox", group: "club", blurb: "Socios que piden su camiseta", go: "f", aliases: "fichas solicitudes socios camiseta aprobar" },
   { key: "temporadas", name: "Temporadas", path: "/admin/temporadas", icon: "flag", group: "club", blurb: "Activa, en preparación o archivada", go: "t" },
   { key: "capitanes", name: "Capitanes", path: "/admin/capitanes", icon: "shield", group: "club", blurb: "Quién lleva el brazalete", go: "k" },
   { key: "contenido", name: "Contenido", path: "/admin/contenido", icon: "doc", group: "club", blurb: "El programa del club", go: "o" },
@@ -90,7 +92,7 @@ export interface Captain {
 /** The theme control's words (header button, «Más» row). */
 export const themeLabel = (dark: boolean) => (dark ? "Cambiar a tema de día" : "Cambiar a tema de noche");
 
-/** «Fichas · 2 por hacer» (the counter in words) or just the name: the rail / bar items' accessible name. */
+/** «Cuentas · 2 por hacer» (the counter in words) or just the name: the rail / bar items' accessible name. */
 export const navLabel = (name: string, c: Counter | undefined) => (c && c.n ? `${name} · ${c.label}` : name);
 
 /** A search param that names something (a match, a player): a non-empty string, or a number-looking id

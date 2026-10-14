@@ -44,6 +44,20 @@ Voice is Spanish, energetic, and fan-fluent ("Centro de Partidos", "Pichichi", "
 4. **Earn the glow.** The dark, luminous aesthetic is the brand, but light and color are rewards for the moments that matter (a leader, a record, a win), not ambient decoration spread evenly across everything.
 5. **Fan-fluent, never corporate.** Copy and chrome speak the language of the terraces. When the choice is between "clean and neutral" and "specific and spirited," choose spirited.
 
+## Glosario
+
+Una palabra, una cosa. Si una pantalla usa otra palabra para lo mismo, se cambia la pantalla, no el glosario.
+
+- **Ficha**: el registro de un jugador (nombre, dorsal, posición, datos y estadísticas). La ficha completa, el modal de la plantilla y la «ficha a ficha» del admin son todas la ficha de un jugador. No es una cuenta ni un partido.
+- **Carta**: la carta del socio, la de quien ha unido su cuenta a una ficha (Perfil, «La carta»). Es suya y de nadie más.
+- **Cromo**: la tarjeta coleccionable de un jugador, la que se ve en la pizarra, en la plantilla y en la página del jugador, y la que se comparte.
+- **Vitrina**: donde se guardan medallas y trofeos (las del jugador, las del club y la plata de cada temporada). Publicar un partido no es una vitrina.
+- **Acta**: el informe de un partido: marcador, goleadores, asistencias, tarjetas y minutos. «Ficha de partido» no se usa; se dice acta.
+- **Convocatoria**: la lista de quien está llamado a un partido (el siete titular y el banquillo) y el aviso que se les envía.
+- **El siete**: los siete titulares de un partido (fútbol 7), lo que en otros clubes sería el once.
+- **Pizarra**: la herramienta táctica de la web (campo, jugadas, charla). **Tablero**: cada pizarra guardada, con su alineación y sus pasos.
+- **Cuenta**: el acceso de un socio al vestuario. En la sala de control, «Cuentas» aprueba quién queda unido a qué ficha. Su ruta sigue siendo `/admin/fichas`, solo cambia el nombre.
+
 ## Accessibility & Inclusion
 
 Target WCAG 2.1 AA. The dark theme must keep body text, and especially muted/secondary text, at >=4.5:1 against its surface (the current `--text-muted` on the darkest backgrounds is a known risk worth verifying). Honor `prefers-reduced-motion` for the glow pulses, hover lifts, and jersey spring animations with a crossfade or static fallback. Spanish-first. Provide non-color status cues so win/loss/card state never depends on cyan/emerald/gold/red alone.

@@ -160,7 +160,7 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
     );
     for (const s of SECTIONS) {
       const c = s.key in counters ? counters[s.key as keyof typeof counters] : undefined;
-      cmds.push({ id: `s:${s.key}`, group: "Secciones", icon: s.name.slice(0, 2).toUpperCase(), title: s.name, description: c && c.n ? c.label : s.blurb, hint: "ir", keys: goHint(s.key), run: () => go({ section: s.key }) });
+      cmds.push({ id: `s:${s.key}`, group: "Secciones", icon: s.name.slice(0, 2).toUpperCase(), title: s.name, description: c && c.n ? c.label : s.blurb, hint: "ir", keys: goHint(s.key), keywords: s.aliases, run: () => go({ section: s.key }) });
     }
     const pinned = new Set([actaMatch?.id, hero?.match.id].filter(Boolean));
     const ordered = [...data.matches].reverse();

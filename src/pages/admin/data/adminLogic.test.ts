@@ -215,7 +215,7 @@ describe("buildOverview (Hoy: Por hacer, «N hechas», the rail counters)", () =
   };
   it("lists only what is pending, with its action", () => {
     const o = buildOverview(base);
-    expect(o.pending.map((t) => t.title)).toEqual(["Acta J2 · falta el goleador del gol 3", "2 fichas piden paso", "Momentos del club · sin publicar", "Historia del escudo · por completar"]);
+    expect(o.pending.map((t) => t.title)).toEqual(["Acta J2 · falta el goleador del gol 3", "2 cuentas piden paso", "Momentos del club · sin publicar", "Historia del escudo · por completar"]);
     expect(o.pending[0]).toMatchObject({ detail: "FUSION 7 · 3–1", ved: "G", action: { label: "Completar", target: { section: "partidos", matchId: "m7", tab: "acta" } } });
     expect(o.pending[1]).toMatchObject({ detail: "KEVIN y FER quieren su camiseta", ved: null, action: { label: "Revisar", target: { section: "fichas" } } });
     expect(o.pending[2].action).toEqual({ label: "Publicar", target: { section: "contenido", seccion: "momentos" } });
@@ -227,7 +227,7 @@ describe("buildOverview (Hoy: Por hacer, «N hechas», the rail counters)", () =
     expect(o.pending.some((t) => t.key === "acta-m7")).toBe(false);
     expect(o.counters.partidos).toEqual({ n: 1, label: "1 por hacer" });
   });
-  it("counts exceptions only: Hoy = pending, Partidos = played unpublished, Fichas, Contenido", () => {
+  it("counts exceptions only: Hoy = pending, Partidos = played unpublished, Cuentas, Contenido", () => {
     const c = buildOverview(base).counters;
     expect(c.hoy).toEqual({ n: 4, label: "4 por hacer" });
     expect(c.fichas).toEqual({ n: 2, label: "2 por hacer" });
@@ -237,7 +237,7 @@ describe("buildOverview (Hoy: Por hacer, «N hechas», the rail counters)", () =
     expect(none.counters.hoy).toEqual({ n: 0, label: "" });
   });
   it("one ficha reads in the singular", () => {
-    expect(buildOverview({ ...base, claims: [{ playerName: "KEVIN" }] }).pending[1]).toMatchObject({ title: "1 ficha pide paso", detail: "KEVIN quiere su camiseta" });
+    expect(buildOverview({ ...base, claims: [{ playerName: "KEVIN" }] }).pending[1]).toMatchObject({ title: "1 cuenta pide paso", detail: "KEVIN quiere su camiseta" });
   });
   it("pending position proposals: one line after the fichas, «Revisar» opens the first player's ficha, counted in Hoy", () => {
     const o = buildOverview({
@@ -251,7 +251,7 @@ describe("buildOverview (Hoy: Por hacer, «N hechas», the rail counters)", () =
     });
     expect(o.pending.map((t) => t.title)).toEqual([
       "Acta J2 · falta el goleador del gol 3",
-      "2 fichas piden paso",
+      "2 cuentas piden paso",
       "Posiciones propuestas · por revisar",
       "Momentos del club · sin publicar",
       "Historia del escudo · por completar",

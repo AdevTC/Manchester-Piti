@@ -142,11 +142,11 @@ describe("Plantilla · ficha a ficha", () => {
     expect(h.writes.savePlayer).not.toHaveBeenCalled();
   });
 
-  it("a claimed ficha points to Fichas", async () => {
+  it("a claimed ficha points to Cuentas", async () => {
     mountAdmin("/admin/plantilla?jugador=kevin", { plantilla: Plantilla });
     const f = await screen.findByRole("region", { name: "Ficha de KEVIN" });
     expect(f).toHaveTextContent("Pide su ficha · nuevo.socio la ha pedido");
-    expect(within(f).getByRole("link", { name: /Revisar en Fichas/ })).toHaveAttribute("href", "/admin/fichas");
+    expect(within(f).getByRole("link", { name: /Revisar en Cuentas/ })).toHaveAttribute("href", "/admin/fichas");
     expect(within(f).getByRole("link", { name: /Escribir su historia/ })).toBeInTheDocument();
   });
 

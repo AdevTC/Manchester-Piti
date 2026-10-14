@@ -1,4 +1,4 @@
-// The rail (≥ 1000 px): Hoy · Partidos · Convocar · Plantilla + «Club» (Fichas, Temporadas, Capitanes,
+// The rail (≥ 1000 px): Hoy · Partidos · Convocar · Plantilla + «Club» (Cuentas, Temporadas, Capitanes,
 // Contenido, La puerta ↗), exception-only counters, and at its foot «Plegar menú» (≥ 1200 px, also `[`)
 // and the captain, who opens his menu. Icon-only below 1200 px or when folded: the names come back as
 // tooltips (name · counter in words · its `g` shortcut) on hover or keyboard focus.

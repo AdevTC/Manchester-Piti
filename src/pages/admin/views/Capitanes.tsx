@@ -51,7 +51,7 @@ export function Capitanes() {
   const self = !!target && target.uid === user?.uid;
   const promote = ask?.to === "admin";
   const consequences = promote
-    ? ["Podrá publicar actas y convocar", "Podrá aprobar fichas y cambiar el contenido", "Se le puede quitar cuando queráis"]
+    ? ["Podrá publicar actas y convocar", "Podrá aprobar cuentas y cambiar el contenido", "Se le puede quitar cuando queráis"]
     : [...(self ? ["Eres tú: dejarás de ver esta página en cuanto se guarde"] : []), "Deja de ver la sala de control", "Sigue siendo socio: su carta y su voto no cambian"];
 
   const confirm = () => {
@@ -176,7 +176,7 @@ export function Capitanes() {
           <div className="vh">
             <div>
               <h1 className="ttl">Capitanes</h1>
-              <p className="ld">Quien lleva el brazalete publica actas, convoca y aprueba fichas</p>
+              <p className="ld">Quien lleva el brazalete publica actas, convoca y aprueba cuentas</p>
             </div>
           </div>
           {body}
