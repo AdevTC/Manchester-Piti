@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { kickoffNotice, legacyKickoff, lineupNotice, noticesFor, TOPICS } from "../../functions/src/pushLogic";
+import { matchSearchSchema } from "./matchTabs";
 
 const NOW = Date.UTC(2026, 10, 8, 11, 20);
 const nameOf = (id: string) => ({ e: "ERIK", a: "ADRIÁN T.C." })[id] ?? "Jugador";
@@ -29,6 +30,10 @@ describe("push notices", () => {
       ["final", "Final: Manchester Piti 3–1 MAD SKY"],
       ["mvp", "Vota al MVP"],
     ]);
+    // the final opens the first tab (the crónica); the vote opens the match's Vestuario tab
+    expect(n.map((x) => x.url)).toEqual(["/matches/j7", "/matches/j7?tab=vestuario"]);
+    const tab = new URL(n[1].url, "https://piti.test").searchParams.get("tab");
+    expect(matchSearchSchema.parse({ tab }).tab).toBe("vestuario");
   });
   it("a new match or a new kick-off time, only when it's in the future", () => {
     const future = { rival: "EL CUARTEL CF", status: "scheduled", date: Date.UTC(2026, 10, 15, 10) };

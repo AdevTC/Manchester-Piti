@@ -20,6 +20,7 @@ const DOCK: { key: CelestePage; to: string; label: string; icon: IconName }[] = 
   { key: "vestuario", to: "/vestuario", label: "Vestuario", icon: "padlock" },
   { key: "stats", to: "/stats", label: "Estadísticas", icon: "stats" },
   { key: "plantilla", to: "/plantilla", label: "Plantilla", icon: "team" },
+  { key: "club", to: "/club", label: "El club", icon: "shield" },
 ];
 
 /** Film grain, once per Celeste page (the faces are self-hosted: styles/fonts.css). */

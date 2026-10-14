@@ -70,7 +70,7 @@ describe("la convocatoria que persigue sola", () => {
     expect(unanswered([], [], new Set())).toEqual([]);
   });
 
-  it("«¿Vas el domingo?»: personal, one per match on the phone, to the match's page", () => {
+  it("«¿Vas el domingo?»: personal, one per match on the phone, to the match's Vestuario tab (Voy / Duda / No puedo)", () => {
     // Sunday 8 Nov 2026, 12:00 in Madrid
     const date = Date.UTC(2026, 10, 8, 11);
     expect(PERSONAL_TOPICS).toContain("convocatoria");
@@ -79,7 +79,7 @@ describe("la convocatoria que persigue sola", () => {
       title: "¿Vas el domingo?",
       body: "Estás convocado contra MAD SKY (domingo, 12:00). Contesta en la web: Voy, Duda o No puedo.",
       tag: "remind-m8",
-      url: "/matches/m8",
+      url: "/matches/m8?tab=vestuario",
     });
     expect(reminderNotice("m8", "24", { date }).title).toBe("Mañana se juega: ¿vas?");
   });
@@ -91,7 +91,7 @@ describe("la convocatoria que persigue sola", () => {
       title: "Baja de última hora: ERIK",
       body: "ERIK ahora dice «No puedo» (antes «Voy») para el partido contra MAD SKY.",
       tag: "late-m8",
-      url: "/matches/m8",
+      url: "/matches/m8?tab=vestuario",
     });
     expect(lateChangeNotice("m8", "ERIK", "no", "maybe", m, NOW)?.title).toBe("Cambio de última hora: ERIK");
     expect(lateChangeNotice("m8", "ERIK", undefined, "no", m, NOW)).toBeNull();

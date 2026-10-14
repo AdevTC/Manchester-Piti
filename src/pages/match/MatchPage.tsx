@@ -8,7 +8,7 @@ import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // countdown), then tabs — Crónica/Previa/Directo · Campo · Pulso · Vestuario. From the Design canvas
 // page "Partidos · elegida"; pure logic in lib/ficha.ts and lib/partidos.ts.
 import { useState, type ReactNode } from "react";
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { isCompleted, matchPhase, nameFor, useClubData, dateMillis, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
 import { useMatchClock } from "../../hooks/useMatchClock";
@@ -29,6 +29,7 @@ import { shareClubPage } from "../../lib/share";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, type KickoffState } from "../../lib/derived/kickoff";
 import { downloadMatchPoster } from "../../lib/matchPoster";
 import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
+import { matchTabAt, matchTabIndex } from "../../lib/matchTabs";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
 import "../../styles/ficha.css";
@@ -36,6 +37,7 @@ import "../../styles/ficha.css";
 const origin = () => (typeof location === "undefined" ? "" : location.origin);
 const mapsUrl = (venue: string) => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(venue);
 const GOAL = /^goal/;
+const route = getRouteApi("/matches/$matchId");
 
 function Countdown({ target }: { target: number }) {
   const now = useClock(1000);
@@ -77,14 +79,20 @@ function headline(m: ClubMatch, phase: string, kick: KickoffState, nameOf: (id: 
 }
 
 export function MatchPage() {
-  const { matchId } = getRouteApi("/matches/$matchId").useParams();
+  const { matchId } = route.useParams();
+  // The tab lives in the URL (?tab=campo…): a push or a shared link opens it, and each tab change is
+  // a history entry, so back and forward step through the tabs. No tab (or an unknown one) = the first.
+  const active = matchTabIndex(route.useSearch().tab);
+  const navigate = useNavigate();
+  const setTab = (i: number) => {
+    if (i !== active) void navigate({ to: ".", search: (prev) => ({ ...prev, tab: matchTabAt(i) }), resetScroll: false });
+  };
   const { matches, players, loading } = useClubData();
   const now = useMatchClock(matches);
   const { user, profile } = useAuth();
   const { member } = useTeam();
   const scorers = useMatchScorers(member ? matchId : undefined);
   const canScore = member && (!!user && scorers.data.includes(user.uid) || profile?.role === "admin" || profile?.role === "superadmin");
-  const [tab, setTab] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const match = matches.find((m) => m.id === matchId);
   // (the match's own season: a per-season shirt name reads the same here as on the home)
@@ -151,7 +159,6 @@ export function MatchPage() {
       .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
       .map((e) => ({ id: e.id, min: e.minute != null ? `${e.minute}′` : "", who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" }));
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
-  const active = tab ?? 0;
 
   const share = async () => {
     try {

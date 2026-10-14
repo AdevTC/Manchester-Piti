@@ -63,7 +63,8 @@ const when = (ms: number) =>
 /**
  * What changed between two versions of a match, as notices: the clock starting (the kick-off), each
  * goal written while it isn't finished, the final whistle (and the MVP vote opening), and a new match
- * or a new kick-off time.
+ * or a new kick-off time. The MVP vote opens the match page on its Vestuario tab (`?tab=vestuario`,
+ * the tab ids of src/lib/matchTabs.ts); the rest land on the first tab (crónica / directo / previa).
  */
 export function noticesFor(id: string, before: MatchLike | undefined, after: MatchLike | undefined, nameOf: (playerId: string) => string, now: number): Notice[] {
   if (!after || after.archived) return [];
@@ -95,7 +96,7 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
     const gf = after.goalsFor ?? 0, ga = after.goalsAgainst ?? 0;
     const verdict = resultTitle(resultLetter(gf, ga));
     out.push({ topic: "final", title: `Final: Manchester Piti ${gf}–${ga} ${rival}`, body: `${verdict}. La crónica, los minutos y el pulso del partido ya están en la web.`, tag: `final-${id}`, url });
-    if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url });
+    if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url: `${url}?tab=vestuario` });
   }
   const scheduled = after.status === "scheduled" && typeof after.date === "number" && after.date > now;
   if (scheduled && (!before || before.date !== after.date)) {

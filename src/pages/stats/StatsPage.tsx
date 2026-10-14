@@ -49,7 +49,7 @@ export function StatsPage() {
   const results = useMvpResults();
   const view: View = search.view ?? (search.tab === "compare" ? "compare" : "summary");
   const section: ExploreSection = search.section ?? "individual";
-  const setView = (next: View) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: next, tab: next === "compare" ? "compare" : "general" }), resetScroll: false });
+  const setView = (next: View) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: next, tab: undefined }), resetScroll: false });
   const setSection = (next: ExploreSection) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "explore", section: next }), resetScroll: false });
   const setSeason = useSetSeason();
 

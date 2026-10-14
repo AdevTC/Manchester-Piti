@@ -15,16 +15,7 @@ import {
   MatchDetailPending,
   PlayerProfilePending,
 } from "./components/route-states";
-
-// Source of truth for the Plantilla route's `validateSearch` (below); exported
-// so it can be reused elsewhere (e.g. Phase 4). Invalid `mode` falls back to
-// "expedientes" (via .catch), preserving the old localStorage-default behavior.
-export const plantillaSearchSchema = z.object({
-  mode: z
-    .enum(["expedientes", "pizarra"])
-    .default("expedientes")
-    .catch("expedientes"),
-});
+import { matchSearchSchema } from "./lib/matchTabs";
 
 // Root-level search schema: `season` is inherited by all child routes so any
 // page can be deep-linked with ?season=<id>. Uses .optional() (not .default)
@@ -35,12 +26,12 @@ export const rootSearchSchema = z.object({
   season: z.string().optional().catch("all"),
 });
 
-// Stats route's `validateSearch`: the active tab is deep-linkable/persistent.
+// Stats route's `validateSearch`: the active view is deep-linkable/persistent.
 // Merges with the inherited root `season`, so reading/writing via the route api
-// preserves `season`. Invalid `tab` falls back to "general" (via .catch),
-// matching the old useState default.
+// preserves `season`. `tab` is only read: old ?tab=compare links still open the
+// comparison (the page writes `view` and never `tab`).
 export const statsSearchSchema = z.object({
-  tab: z.enum(["general", "compare"]).default("general").catch("general"),
+  tab: z.enum(["general", "compare"]).optional().catch(undefined),
   view: z
     .enum(["summary", "players", "minutes", "positions", "rivals", "compare", "explore", "game"])
     .optional()
@@ -119,7 +110,6 @@ const statsRoute = createRoute({
 const plantillaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/plantilla",
-  validateSearch: plantillaSearchSchema,
   component: lazyRouteComponent(() => import("./pages/squad/SquadPage"), "SquadPage"),
 });
 
@@ -207,6 +197,8 @@ const adminContenidoRoute = createRoute({
 const matchDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/matches/$matchId",
+  // The tab is in the URL (?tab=vestuario): pushes, shares and back/forward land on it.
+  validateSearch: matchSearchSchema,
   pendingComponent: MatchDetailPending,
   component: lazyRouteComponent(
     () => import("./pages/match/MatchPage"),

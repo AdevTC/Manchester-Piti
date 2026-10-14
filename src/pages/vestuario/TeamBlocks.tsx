@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { dateMillis, type ClubMatch } from "../../lib/clubData";
 import { apiError, confirmTraining, deleteTraining, proposeTraining } from "../../lib/clubApi";
@@ -334,6 +334,18 @@ function ProposeTraining({ first, onDone, canCancel, now }: { first: number | nu
   );
 }
 
+/** To the match page's Vestuario tab (?tab=vestuario), where the match's porra and MVP vote live too. */
+function ToMatch({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <p className="vx-tomatch">
+      <Link to="/matches/$matchId" params={{ matchId: id }} search={{ tab: "vestuario" }}>
+        {children}
+        <Icon name="arrow" size={14} stroke={2.2} />
+      </Link>
+    </p>
+  );
+}
+
 // ---------- porra
 export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; uid: string; rows: PorraRow[]; now: number }) {
   const saved = useMyPrediction(next?.id, uid);
@@ -380,6 +392,7 @@ export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; u
           )}
           {open && <p className="vx-porra-open">Cierra en {countdown(dateMillis(next.date), now)} · exacto 3 pts · acierto 1 pt</p>}
           <Err text={act.error} />
+          <ToMatch id={next.id}>La porra, en la ficha del partido</ToMatch>
         </>
       ) : (
         <>
@@ -550,6 +563,7 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
           <Err text={act.error} />
         </div>
       )}
+      <ToMatch id={match.id}>El MVP, en la ficha del partido</ToMatch>
       {admin && voters.data.length > 0 && (
         <details className="vx-voters">
           <summary>Ver quién ha votado · Solo administradores</summary>
