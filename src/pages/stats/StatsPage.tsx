@@ -50,8 +50,23 @@ export function StatsPage() {
   const results = useMvpResults();
   const view: View = search.view ?? (search.tab === "compare" ? "compare" : "summary");
   const section: ExploreSection = search.section ?? "individual";
-  const setView = (next: View) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: next, tab: undefined }), resetScroll: false });
+  // (Comparar's pair goes with Comparar: any other view's URL is clean to share)
+  const setView = (next: View) =>
+    void navigate({
+      to: ".",
+      search: (prev) => {
+        const rest = { ...prev };
+        if (next !== "compare") {
+          delete rest.a;
+          delete rest.b;
+        }
+        return { ...rest, view: next, tab: undefined };
+      },
+      resetScroll: false,
+    });
   const setSection = (next: ExploreSection) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "explore", section: next }), resetScroll: false });
+  // Comparar's pair: replace, so trying player after player doesn't flood the history
+  const setPair = (a: string, b: string | undefined) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "compare", tab: undefined, a, b }), replace: true, resetScroll: false });
   const setSeason = useSetSeason();
 
   const games = useMemo(() => chronological(matches.filter((m) => selectedSeasonId === "all" || m.seasonId === selectedSeasonId)), [matches, selectedSeasonId]);
@@ -147,7 +162,7 @@ export function StatsPage() {
             <div className="st-sweep" aria-hidden="true" />
             {ready && games.length > 0 ? (
               <>
-                <RaceBoard rows={rows} nameOf={nameOf} jornada={jornada} />
+                <RaceBoard rows={rows} nameOf={nameOf} jornada={jornada} seasonId={selectedSeasonId} />
                 <Ticker lines={lines} />
               </>
             ) : (
@@ -218,7 +233,7 @@ export function StatsPage() {
             {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} jornada={jornada} />}
             {view === "positions" && <Posiciones games={games} rows={rows} nameOf={nameOf} mvpOf={mvpOf} />}
             {view === "rivals" && <Rivales games={games} rows={rows} />}
-            {view === "compare" && <Comparar rows={rows} nameOf={nameOf} games={games.length} />}
+            {view === "compare" && <Comparar rows={rows} nameOf={nameOf} games={games.length} a={search.a} b={search.b} onPick={setPair} />}
             {view === "explore" && <Explorar rows={rows} games={games} section={section} onSection={setSection} nameOf={nameOf} />}
           </div>
         )}

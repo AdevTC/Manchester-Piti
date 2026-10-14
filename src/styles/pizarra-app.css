@@ -465,3 +465,12 @@
 .pzv .pzp-fan-all .fi[aria-pressed=true]{background:#FFC659;color:#0c1733;box-shadow:none}
 .pzv .pzp-fan-all .fi[aria-pressed=true]::before{content:"✓";font-weight:800}
 .pzv .pzp-fan-all .fi:hover,.pzv .pzp-fan-all .fi:focus-visible{box-shadow:inset 0 0 0 2px #FFC659,0 0 0 2px rgba(255,198,89,.45)}
+/* The pizarra's ways out — «Ver su página» on the ficha, the linked match's page and an
+   admin's «Convocar» under the Partido band. Links dressed as the pizarra's chips: no underline at rest (the
+   chip is the affordance), the sky edge on hover / focus like a pressed chip, the gold ring on focus. */
+.pzv a.b3{text-decoration:none}
+.pzv a.b3:hover,.pzv a.b3:focus-visible{box-shadow:inset 0 0 0 1.5px var(--sky);color:var(--accent)}
+.pzv a.b3:focus-visible{outline:2px solid #FFC659;outline-offset:2px}
+.pzv .fic-a{flex-wrap:wrap}
+.pzv .band-go{margin-top:8px}
+.pzv .band-go .b3{min-height:44px}

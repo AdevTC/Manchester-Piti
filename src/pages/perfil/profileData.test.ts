@@ -97,10 +97,10 @@ describe("tus cosas en el vestuario", () => {
     expect(boardsLine([])).toEqual({ count: 0, last: null });
     const line = boardsLine([
       { id: "a", name: "2-3-1", updatedAt: 5, createdAt: 1 },
-      { id: "b c", name: "Contra MAD SKY", updatedAt: 9, createdAt: 2 },
+      { id: "b c", seasonId: "t1", name: "Contra MAD SKY", updatedAt: 9, createdAt: 2 },
       { id: "d", name: "Nueva", updatedAt: null, createdAt: 7 },
     ]);
-    expect(line).toEqual({ count: 3, last: { id: "b c", name: "Contra MAD SKY", at: 9, href: "/pizarra?tablero=b%20c" } });
+    expect(line).toEqual({ count: 3, last: { id: "b c", name: "Contra MAD SKY", at: 9, season: "t1" } });
   });
   it("tu porra: pronósticos, exactos y puesto", () => {
     const rows = [

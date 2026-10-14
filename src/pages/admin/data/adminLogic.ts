@@ -416,7 +416,7 @@ export type CounterKey = "hoy" | "partidos" | "fichas" | "contenido";
 export interface Overview {
   pending: PendingItem[];
   done: string[];
-  /** The rail's counters (exceptions only): Hoy = pending, Partidos = played unpublished, Fichas, Contenido. */
+  /** The rail's counters (exceptions only): Hoy = pending, Partidos = played unpublished, Cuentas, Contenido. */
   counters: Record<CounterKey, Counter>;
 }
 const counter = (n: number): Counter => ({ n, label: n ? `${n} por hacer` : "" });
@@ -448,7 +448,7 @@ export function buildOverview(o: OverviewInput): Overview {
     const shown = names.length > 3 ? [...names.slice(0, 2), `${names.length - 2} más`] : names;
     pending.push({
       key: "fichas",
-      title: nF === 1 ? "1 ficha pide paso" : `${nF} fichas piden paso`,
+      title: nF === 1 ? "1 cuenta pide paso" : `${nF} cuentas piden paso`,
       detail: `${andList(shown)} ${names.length === 1 ? "quiere su camiseta" : "quieren su camiseta"}`,
       ved: null,
       action: { label: "Revisar", target: { section: "fichas" } },

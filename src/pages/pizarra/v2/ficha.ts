@@ -125,6 +125,7 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
   const bars = formBars(p.form);
   const why = formWhy(sq, id);
   return {
+    id,
     name: p.name,
     num: p.num,
     // the form chip: «—» before his first match

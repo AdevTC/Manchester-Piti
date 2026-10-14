@@ -20,6 +20,8 @@ import { seasonPlayers } from "../pages/perfil/profileData";
 import type { Availability } from "../pages/vestuario/live";
 import type { AdminData, RosterPlayer } from "../pages/admin/data/useAdminData";
 import { AdminLayout } from "../pages/admin/shell/AdminLayout";
+import { boardFromLocks } from "../pages/pizarra/officialBoard";
+import { toBePlayed } from "../lib/derived/kickoff";
 
 /** Monday 2 Nov 2026, 10:00 in Madrid. */
 export const NOW = Date.UTC(2026, 10, 2, 9, 0);
@@ -87,6 +89,7 @@ export function adminFixture({
   whistled = new Set<string>(),
   contentDrafts = [],
   proposing = [],
+  officialLocks = {},
   ...over
 }: Partial<AdminData> & {
   claimsCount?: number;
@@ -96,6 +99,9 @@ export function adminFixture({
   contentDrafts?: { key: string; title: string }[];
   /** Ids of players with a position proposal waiting. */
   proposing?: string[];
+  /** The season's lineupOfficials (scope doc id «t1__m8» / «t1__temporada» → the board it names): what
+   *  officialBoardOf resolves through, with useAdminData's own rule. */
+  officialLocks?: Record<string, string>;
 } = {}): AdminData {
   const now = over.now ?? NOW;
   const matches: AdminMatch[] = mergeMatches(published, fixtureDrafts);
@@ -165,6 +171,7 @@ export function adminFixture({
     content: { gaps },
     mvp: mvpNote({ openUntil: null, actaPending: true, previous: { jornada: 1, names: ["ERIK"], votes: 9 } }),
     overview,
+    officialBoardOf: (m) => boardFromLocks(new Map(Object.entries(officialLocks)), "t1", m, toBePlayed(m, now)),
     ...over,
   };
 }
@@ -201,6 +208,10 @@ export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> =
     ]),
     createRoute({ getParentRoute: () => root, path: "/", component: Marker("la web") }),
     createRoute({ getParentRoute: () => root, path: "/vestuario", component: Marker("el vestuario") }),
+    // the ways out of the sala (Ver en la web, Abrir la pizarra)
+    createRoute({ getParentRoute: () => root, path: "/pizarra", component: Marker("la pizarra") }),
+    createRoute({ getParentRoute: () => root, path: "/matches/$matchId", component: Marker("la ficha del partido") }),
+    createRoute({ getParentRoute: () => root, path: "/jugadores/$playerId", component: Marker("la página del jugador") }),
   ]);
   const router = createRouter({ routeTree: tree, history: createMemoryHistory({ initialEntries: [path] }) });
   render(<RouterProvider router={router} />);

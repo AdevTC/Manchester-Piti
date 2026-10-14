@@ -18,6 +18,7 @@ import { clockTime, jLabel, shortDate } from "../data/adminLogic";
 import { CommandPalette } from "../palette/CommandPalette";
 import { CommandRegistryProvider } from "../palette/CommandRegistryProvider";
 import { useRegisterCommands } from "../palette/registry";
+import { pizarraCommand } from "../palette/matchShortcuts";
 import type { PaletteCommand } from "../palette/search";
 import { FrameContext, frameOf } from "../ui/frame";
 import { GuardProvider } from "../ui/GuardProvider";
@@ -28,7 +29,7 @@ import { LogoutConfirm } from "./CaptainMenu";
 import { AdminHeader, MobileHeader } from "./Chrome";
 import { useChromeMotion } from "./chromeMotion";
 import { AdminDataContext, ShellContext, useAdminGo, type ShellApi } from "./context";
-import { goHint, isEnJuego, isWorkspace, SECTIONS, sectionOf, titleOf, type Captain, type SectionKey } from "./nav";
+import { goHint, isEnJuego, isWorkspace, searchId, SECTIONS, sectionOf, titleOf, type Captain, type SectionKey } from "./nav";
 import { BottomBar, MasSheet } from "./Phone";
 import { Rail } from "./Rail";
 import { ICON_RAIL_BELOW, useRailFold } from "./railPrefs";
@@ -105,6 +106,10 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
   const rail = useRailFold(animate);
   const iconRail = !wide || rail.phase === "closed";
   const { modalOpen } = useLayerStack();
+  // Hoy's match on the pizarra (its official board) and the player whose ficha is open in Plantilla:
+  // the palette's way out to the pizarra and to his public page.
+  const heroBoard = data.hero ? data.officialBoardOf(data.hero.match) : null;
+  const fichaOpen = useRouterState({ select: (s) => (s.location.pathname.replace(/\/+$/, "") === "/admin/plantilla" ? searchId((s.location.search as { jugador?: unknown }).jugador) : undefined) });
 
   // ⌘K / Ctrl K opens the palette from anywhere in the admin.
   useEffect(() => {
@@ -144,6 +149,10 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
     const hero = data.hero;
     if (hero && hero.moment === "antes")
       cmds.push({ id: "a:convocar", group: "Acciones", icon: "✓", title: `Convocar la ${jLabel(hero.match)}`, description: hero.match.rival ?? "Rival", hint: "acción", keywords: "convocar titulares siete", run: () => go({ section: "convocar", matchId: hero.match.id }) });
+    if (hero && heroBoard) cmds.push(pizarraCommand(hero.match, heroBoard, go));
+    const ficha = fichaOpen ? data.roster.find((p) => p.id === fichaOpen) : undefined;
+    if (ficha)
+      cmds.push({ id: `web:p:${ficha.id}`, group: "Acciones", icon: "↗", title: "Ver en la web", description: `${ficha.name} · su página pública`, hint: "ir", keywords: "web publica pagina jugador", run: () => go({ section: "web", playerId: ficha.id }) });
     const drafts = data.overview.pending.filter((p) => p.key.startsWith("draft-")).length;
     cmds.push(
       { id: "a:contenido", group: "Acciones", icon: "↑", title: "Publicar contenido", description: drafts ? `${drafts} ${drafts === 1 ? "cambio" : "cambios"} sin publicar` : "al día", hint: "acción", keywords: "publicar editar textos web contenido", run: () => go({ section: "contenido" }) },
@@ -151,7 +160,7 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
     );
     for (const s of SECTIONS) {
       const c = s.key in counters ? counters[s.key as keyof typeof counters] : undefined;
-      cmds.push({ id: `s:${s.key}`, group: "Secciones", icon: s.name.slice(0, 2).toUpperCase(), title: s.name, description: c && c.n ? c.label : s.blurb, hint: "ir", keys: goHint(s.key), run: () => go({ section: s.key }) });
+      cmds.push({ id: `s:${s.key}`, group: "Secciones", icon: s.name.slice(0, 2).toUpperCase(), title: s.name, description: c && c.n ? c.label : s.blurb, hint: "ir", keys: goHint(s.key), keywords: s.aliases, run: () => go({ section: s.key }) });
     }
     const pinned = new Set([actaMatch?.id, hero?.match.id].filter(Boolean));
     const ordered = [...data.matches].reverse();
@@ -188,7 +197,7 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
         run: () => go({ section: "plantilla", playerId: p.id }),
       });
     return cmds;
-  }, [data, counters, go, theme, toggle]);
+  }, [data, counters, go, theme, toggle, heroBoard, fichaOpen]);
   useRegisterCommands(builtins);
 
   const view = <Outlet />;

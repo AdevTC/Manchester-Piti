@@ -59,7 +59,7 @@ export function CaptainStrip({ hasNext, claims, linked, squad, fichaName }: Prop
         {claims.length > 0 && (
           <div className="vx-captask wide">
             <b>
-              {claims.length} {claims.length === 1 ? "ficha por aprobar" : "fichas por aprobar"}
+              {claims.length} {claims.length === 1 ? "cuenta por aprobar" : "cuentas por aprobar"}
             </b>
             <ul>
               {claims.slice(0, 3).map((c) => (

@@ -37,7 +37,7 @@ describe("AdminLayout · the v2 shell", () => {
     expect(within(nav).getByRole("link", { name: "Partidos · 1 por hacer" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Convocar" })).toHaveAttribute("href", "/admin/convocar");
     expect(within(nav).getByRole("link", { name: "Plantilla" })).toBeInTheDocument();
-    expect(within(nav).getByRole("link", { name: "Fichas · 2 por hacer" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Cuentas · 2 por hacer" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Temporadas" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Capitanes" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Contenido · 2 por hacer" })).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe("AdminLayout · phones", () => {
     const sheet = screen.getByRole("dialog", { name: "Más" });
     expect(mas).toHaveAttribute("aria-expanded", "true");
     expect(within(sheet).getByText("Capitán general")).toBeInTheDocument();
-    expect(within(sheet).getByRole("button", { name: "Fichas · 2 por hacer" })).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Cuentas · 2 por hacer" })).toBeInTheDocument();
     expect(within(sheet).getByRole("link", { name: DOOR_LABEL })).toHaveAttribute("href", "/vestuario#puerta");
     expect(within(sheet).getByRole("button", { name: /Cambiar a tema de/ })).toBeInTheDocument();
     await user.click(within(sheet).getByRole("button", { name: "Temporadas" }));
@@ -157,6 +157,24 @@ describe("command palette", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("finds the accounts section by «Cuentas» and by its old name «fichas»", async () => {
+    const user = userEvent.setup();
+    const router = mountAdmin("/admin");
+    await screen.findByRole("banner");
+    await user.keyboard("{Control>}k{/Control}");
+    const dialog = screen.getByRole("dialog", { name: "Buscar" });
+    const input = within(dialog).getByRole("combobox");
+    const list = within(dialog).getByRole("listbox", { name: "Resultados" });
+    await user.type(input, "cuentas");
+    expect(within(list).getByRole("option", { name: /Cuentas/ })).toBeInTheDocument();
+    await user.clear(input);
+    await user.type(input, "fichas");
+    const hit = within(list).getByRole("option", { name: /Cuentas/ });
+    expect(within(list).queryByRole("option", { name: /^Fichas/ })).toBeNull();
+    await user.click(hit);
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/fichas"));
+  });
+
   it("finds players by name or dorsal and opens their drawer; says when nothing matches", async () => {
     const user = userEvent.setup();
     const router = mountAdmin("/admin");
@@ -214,7 +232,7 @@ describe("the rail · fold, keyboard, captain", () => {
     expect(localStorage.getItem(RAIL_KEY)).toBe("plegado");
     expect(within(nav).getByRole("button", { name: "Desplegar menú" })).toHaveAttribute("aria-expanded", "false");
     // the names are still there for assistive tech
-    expect(within(nav).getByRole("link", { name: "Fichas · 2 por hacer" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Cuentas · 2 por hacer" })).toBeInTheDocument();
     // a fresh visit on this device starts folded
     cleanup();
     mountAdmin("/admin");

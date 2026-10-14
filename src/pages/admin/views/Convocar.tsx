@@ -7,7 +7,7 @@
 // the notice asks to announce it again; «Copiar la convocatoria de la Jn» with «Deshacer».
 // Phones: the switcher, el siete on a small rail, the pool, and a sticky «Publicar y avisar».
 import { useId, useMemo, useState } from "react";
-import { useSearch } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { rosterFor } from "../acta/roster";
 import { LoadError } from "../club/ClubStates";
 import { benchOf, convocables, copyFrom, exactPosition, matchLead, matchTitle, poolGroups, type PoolGroup } from "../convocar/convocarModel";
@@ -18,13 +18,13 @@ import { jLabel, type AdminMatch } from "../data/adminLogic";
 import { place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
 import { useConvocatoria } from "../data/useConvocatoria";
 import { Peg, PegRail, ShirtBack } from "../kit";
+import { useMatchShortcuts } from "../palette/matchShortcuts";
 import { useAdmin, useAdminGo } from "../shell/context";
+import { searchId } from "../shell/nav";
 import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
 import { pegWall, shortName } from "./hoy/hoyModel";
-
-const searchId = (v: unknown) => (typeof v === "string" && v ? v : typeof v === "number" ? String(v) : undefined);
 
 export function Convocar() {
   const data = useAdmin();
@@ -91,6 +91,8 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   const conv = useConvocatoria(match);
   const answers = useMatchAnswers(match.id);
   const rem = useReminders(match.id);
+  // the pizarra's official board for this match (its «La pizarra» reader links to it) + ⌘K's shortcuts
+  const board = useMatchShortcuts(match);
   const [hung, setHung] = useState<string | null>(null);
   const hid = useId();
   const roster = useMemo(
@@ -275,13 +277,15 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
           <SourceNote />
           {remindersEl}
           <div className="rdrs">
-            <div>
+            {/* the pizarra's official board for this match (none yet: the pizarra, to make and publish it) */}
+            <Link className="fr" to="/pizarra" search={{ tablero: board ?? undefined, season: match.seasonId }}>
               <b>
                 <AdIcon name="check" size={14} />
                 La pizarra
+                <AdIcon name="ext" size={14} />
               </b>
               El siete oficial · {n} de 7
-            </div>
+            </Link>
             <div>
               <b>
                 <AdIcon name="check" size={14} />

@@ -6,7 +6,10 @@ import { useAuth } from "./context/AuthContext";
 import { useTeam } from "./context/TeamContext";
 import { Crest } from "./components/Crest";
 import { RoutePending } from "./components/route-states";
+import { StateScreen } from "./components/celeste/StatePanel";
 import { useWelcome } from "./lib/doorWelcome";
+import { useRecordTrail } from "./lib/backTrail";
+import { under } from "./lib/paths";
 import "./styles/club.css";
 // Only private pages (and invitation links) show the door: keep it out of the entry chunk.
 const AccessGate = lazy(() => import("./pages/acceso/AccessGate").then((m) => ({ default: m.AccessGate })));
@@ -16,9 +19,12 @@ export function RootLayout() {
   const { profile, loading } = useAuth();
   const { member, ready } = useTeam();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const privatePage = ["/admin", "/profile", "/pizarra", "/vestuario"].some(
-    (p) => pathname.startsWith(p),
-  );
+  // The 404 (the catch-all route, or a notFound() thrown by a route) brings the Celeste chrome.
+  const lost = useRouterState({ select: (s) => s.matches.some((m) => m.routeId === "/$" || m.status === "notFound") });
+  // Every page the app shows, by history entry: «Volver» knows whether the one behind is ours.
+  useRecordTrail();
+  const privatePage = ["/admin", "/profile", "/pizarra", "/vestuario"].some((p) => under(pathname, p));
+  const adminPath = under(pathname, "/admin");
   const invitation = pathname.startsWith("/invitacion/");
   // The door stays up through the walkout after being let in.
   const welcome = useWelcome();
@@ -30,8 +36,10 @@ export function RootLayout() {
   // The pizarra and the profile are Celeste pages too.
   // The admin is its own app (fixed frame, slim header, own mobile bar): no site chrome around it.
   // While the session is being checked, /admin shows no site chrome either (no flash of the old menu).
-  const adminApp = pathname.startsWith("/admin") && (checking || (!door && admin));
-  const immersive = adminApp || pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname === "/club" || pathname.startsWith("/matches/") || pathname.startsWith("/jugadores/") || ((pathname === "/vestuario" || pathname === "/pizarra" || pathname === "/profile") && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
+  const adminApp = adminPath && (checking || (!door && admin));
+  // A member who is not a captain, on /admin: a Celeste page that sends him back to the vestuario.
+  const adminDoor = adminPath && !checking && !door && !admin;
+  const immersive = adminApp || adminDoor || lost || pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname === "/club" || pathname.startsWith("/matches/") || pathname.startsWith("/jugadores/") || ((pathname === "/vestuario" || pathname === "/pizarra" || pathname === "/profile") && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
@@ -44,7 +52,7 @@ export function RootLayout() {
       </a>
       {!immersive && <Navbar />}
       <SeasonUrlSync />
-      {!pathname.startsWith("/admin") && (
+      {!adminPath && (
         <Suspense fallback={null}>
           <LiveIsland />
         </Suspense>
@@ -56,11 +64,20 @@ export function RootLayout() {
           <Suspense fallback={<RoutePending />}>
             <AccessGate />
           </Suspense>
-        ) : pathname.startsWith("/admin") && !admin ? (
-          <div className="club-empty">
-            <h1>Solo para administradores</h1>
-            <Link to="/vestuario">Volver al vestuario</Link>
-          </div>
+        ) : adminDoor ? (
+          <StateScreen
+            kind="empty"
+            icon="crown"
+            kicker="Sala de control · capitanes"
+            sub="Sala de control"
+            title="Solo para la capitanía"
+            body="Aquí se cuecen las convocatorias y las actas, y el brazalete no es tuyo (de momento). Lo tuyo te espera en el vestuario."
+            action={
+              <Link className="sp-btn" to="/vestuario">
+                Volver al vestuario
+              </Link>
+            }
+          />
         ) : (
           <Outlet />
         )}

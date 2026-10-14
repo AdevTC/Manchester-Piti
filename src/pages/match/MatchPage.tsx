@@ -2,6 +2,9 @@ import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 import { Banda } from "./Banda";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
+import { useViewer } from "../../hooks/useViewer";
+import { useNoIndex } from "../../hooks/useNoIndex";
+import { useMatchBoard } from "../pizarra/useMatchBoard";
 import { useMatchScorers } from "../vestuario/live";
 import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // Ficha de partido (Celeste): the stadium board on top (final score, live score with ¡GOL!, or the
@@ -20,13 +23,16 @@ import { Flip } from "../../components/celeste/Flip";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
 import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
+import { BackLink } from "../../components/celeste/BackLink";
+import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { matchEvent } from "../../lib/home";
 import { countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf } from "../../lib/partidos";
 import { jornadaOf } from "../../lib/derived/jornada";
 import { RESULT_WORD, resultLetter, resultTitle } from "../../lib/derived/result";
 import { shareClubPage } from "../../lib/share";
-import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, type KickoffState } from "../../lib/derived/kickoff";
+import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
 import { downloadMatchPoster } from "../../lib/matchPoster";
 import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
 import { matchTabAt, matchTabIndex } from "../../lib/matchTabs";
@@ -87,7 +93,7 @@ export function MatchPage() {
   const setTab = (i: number) => {
     if (i !== active) void navigate({ to: ".", search: (prev) => ({ ...prev, tab: matchTabAt(i) }), resetScroll: false });
   };
-  const { matches, players, loading } = useClubData();
+  const { matches, players, loading, error } = useClubData();
   const now = useMatchClock(matches);
   const { user, profile } = useAuth();
   const { member } = useTeam();
@@ -95,9 +101,17 @@ export function MatchPage() {
   const canScore = member && (!!user && scorers.data.includes(user.uid) || profile?.role === "admin" || profile?.role === "superadmin");
   const [notice, setNotice] = useState("");
   const match = matches.find((m) => m.id === matchId);
+  // The shortcuts only some can follow: admins to the Sala de control, members to the pizarra's official
+  // board for this match — its own, or the season's while it is still to be played (team-only reads: a
+  // fan reads nothing).
+  const viewer = useViewer();
+  const toPlay = !!match && toBePlayed(match, now);
+  const board = useMatchBoard(match?.seasonId, match?.id, toPlay, viewer.member);
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
+  // «Partido no encontrado» comes with a 200 from the SPA shell: not for the index
+  useNoIndex(!loading && !error && !match);
 
   const chrome = (children: ReactNode) => (
     <div className="vx hm pt" aria-busy={loading}>
@@ -122,17 +136,34 @@ export function MatchPage() {
     </div>
   );
 
+  // The data did not arrive: an error, never «no encontrado» (the match may well exist).
+  if (error && !match)
+    return chrome(
+      <StateStage>
+        <ClubDataError heading="h1" />
+      </StateStage>,
+    );
   if (loading) return chrome(<section className="pt-hero" aria-label="Cargando el partido" style={{ minHeight: "100svh" }} />);
   if (!match)
     return chrome(
-      <section className="pt-hero">
-        <div className="pt-hero-in">
-          <h1 className="pt-h1">Partido no encontrado</h1>
-          <Link className="hm-btn" to="/partidos">
-            Volver a partidos
-          </Link>
-        </div>
-      </section>,
+      <StateStage ghost="404">
+        <StatePanel
+          kind="notfound"
+          heading="h1"
+          title="Partido no encontrado"
+          body="Este partido no está en el calendario: o se borró, o el enlace tiene el marcador mal apuntado."
+          action={
+            <>
+              <Link className="sp-btn" to="/partidos">
+                Ver los partidos
+              </Link>
+              <Link className="sp-btn ghost" to="/">
+                Ir al inicio
+              </Link>
+            </>
+          }
+        />
+      </StateStage>,
     );
 
   const phase = matchPhase(match, now);
@@ -157,7 +188,11 @@ export function MatchPage() {
     (match.events ?? [])
       .filter((e) => (ours ? ["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"] : ["opponent_goal", "own_goal"]).includes(e.type))
       .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
-      .map((e) => ({ id: e.id, min: e.minute != null ? `${e.minute}′` : "", who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" }));
+      .map((e) => {
+        // (ours — the scorer, or ours who put it in his own net — is a link to his page)
+        const pid = e.type === "opponent_goal" || e.type === "opponent_own_goal" ? undefined : e.playerId;
+        return { id: e.id, min: e.minute != null ? `${e.minute}′` : "", pid, who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" };
+      });
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
 
   const share = async () => {
@@ -187,10 +222,7 @@ export function MatchPage() {
         </div>
         <div className="pt-hero-in">
           <div className="pt-rise">
-            <Link className="fc-back" to="/partidos">
-              <Icon name="left" size={18} stroke={2.2} />
-              <span>Partidos</span>
-            </Link>
+            <BackLink className="fc-back" to="/partidos" label="Partidos" />
             <div className="pt-tags">
               <span className="hm-kick" style={{ margin: 0 }}>
                 {[match.competition, jornada && `Jornada ${jornada}`].filter(Boolean).join(" · ")}
@@ -240,14 +272,14 @@ export function MatchPage() {
                 <ul>
                   {goalsOf(true).map((g) => (
                     <li key={g.id}>
-                      <b>{g.min}</b> {g.who}
+                      <b>{g.min}</b> {g.pid ? <PlayerLink id={g.pid} seasonId={match.seasonId} variant="quiet">{g.who}</PlayerLink> : g.who}
                     </li>
                   ))}
                 </ul>
                 <ul className="r">
                   {goalsOf(false).map((g) => (
                     <li key={g.id}>
-                      <b>{g.min}</b> {g.who}
+                      <b>{g.min}</b> {g.pid ? <PlayerLink id={g.pid} seasonId={match.seasonId} variant="quiet">{g.who}</PlayerLink> : g.who}
                     </li>
                   ))}
                 </ul>
@@ -284,6 +316,27 @@ export function MatchPage() {
           <div>
             <div className="fc-acts">
               {upcoming && phase === "scheduled" && <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(match, origin())} />}
+              {/* (right after the main action: the row scrolls sideways on a phone, these must not hide at its end) */}
+              {viewer.member && board && match.seasonId && (
+                <Link className="hm-ghostbtn" to="/pizarra" search={{ tablero: board, season: match.seasonId }}>
+                  La pizarra de este partido <Icon name="arrow" size={16} stroke={2.2} />
+                </Link>
+              )}
+              {/* (an admin's way in, by moment: being played → En juego; played → its acta; before → its workspace) */}
+              {viewer.admin &&
+                (live ? (
+                  <Link className="hm-ghostbtn" to="/admin/en-juego/$matchId" params={{ matchId: match.id }}>
+                    Abrir En juego <Icon name="arrow" size={16} stroke={2.2} />
+                  </Link>
+                ) : done || pending || unplayed ? (
+                  <Link className="hm-ghostbtn" to="/admin/partidos/$matchId" params={{ matchId: match.id }} search={{ tab: "acta" }}>
+                    Editar acta <Icon name="arrow" size={16} stroke={2.2} />
+                  </Link>
+                ) : (
+                  <Link className="hm-ghostbtn" to="/admin/partidos/$matchId" params={{ matchId: match.id }}>
+                    Abrir en la Sala de control <Icon name="arrow" size={16} stroke={2.2} />
+                  </Link>
+                ))}
               {upcoming && match.venue && (
                 <a className="hm-ghostbtn" href={mapsUrl(match.venue)} target="_blank" rel="noreferrer">
                   Cómo llegar <Icon name="arrow" size={16} stroke={2.2} />

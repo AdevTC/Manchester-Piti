@@ -17,17 +17,13 @@ import { db } from "../../firebase";
 import { useAuth } from "../../context/AuthContext";
 import type { Lineup } from "./formations";
 import { boardToData, dataToLineupDoc, lineupToData, type LineupDoc, type LineupMeta } from "./lineupDoc";
-import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
-import { mapLineup } from "../../lib/firestoreMappers";
+import { PREVIEW, useSeasonLineupDocs } from "./seasonLineups";
+import { officialScopeId } from "./officialBoard";
 import { clearVoz } from "./v2/vozStore";
 
 // `?preview` injects a mock session but no real Firebase auth token, so the
 // `lineups` rules (request.auth != null) would reject reads/writes. In preview
-// we back the store with localStorage; real sessions use Firestore.
-const PREVIEW =
-  import.meta.env.DEV &&
-  typeof window !== "undefined" &&
-  new URLSearchParams(window.location.search).has("preview");
+// we back the store with localStorage (PREVIEW, seasonLineups.ts); real sessions use Firestore.
 
 const LOCAL_KEY = "mp_pizarra_lineups";
 
@@ -83,8 +79,38 @@ export function saveData(lineup: Lineup, matchId?: string | null): Record<string
   };
 }
 
-/** The doc that holds an official's scope (a match, or the season): one board per scope. */
-export const officialScopeId = (seasonId: string, matchId: string | null): string => `${seasonId}__${matchId ?? "temporada"}`;
+/** The doc that holds an official's scope (a match, or the season): one board per scope (officialBoard.ts). */
+export { officialScopeId };
+
+/**
+ * Deletes a board in ONE transaction, with its scope doc when it is an official: read the board (and,
+ * for an official, its scope doc), delete the scope doc only while it still names this board, delete the
+ * board. The match page and the Sala de control link «the pizarra of this match» through that doc, so it
+ * never names a board that is gone, and no half-done delete leaves one without the other. A board that
+ * is not official never touches the scope docs (members may not; only admins delete those, and only
+ * admins delete officials). Offline (a transaction needs the server) the board is still deleted: a
+ * plain delete that waits in the cache, as an official's scope doc could not be checked anyway.
+ */
+export async function deleteBoard(id: string): Promise<void> {
+  const ref = doc(db, "lineups", id);
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const d = snap.exists() ? snap.data() : undefined;
+      if (!d) return;
+      if (d.isOfficial === true && typeof d.seasonId === "string") {
+        const lockRef = doc(db, "lineupOfficials", officialScopeId(d.seasonId, (d.matchId as string | null | undefined) ?? null));
+        const lock = await tx.get(lockRef);
+        if (lock.exists() && lock.data().lineupId === id) tx.delete(lockRef);
+      }
+      tx.delete(ref);
+    });
+  } catch (err) {
+    if ((err as { code?: unknown } | null)?.code !== "unavailable") throw err;
+    console.error("Sin conexión: el tablero se borra sin comprobar su oficial", err);
+    await deleteDoc(ref);
+  }
+}
 
 /**
  * Publishes `id` as the official of `scope` (or unpublishes it, scope null) in ONE transaction: the
@@ -167,15 +193,11 @@ export function useLineups(seasonId: string): UseLineups {
   //    validated docs live in the cache; dataToLineupDoc derivation stays here.
   //    `useFirestoreCollection` must run unconditionally (rules of hooks); in
   //    PREVIEW its data is ignored and `localApi` drives the UI. ──
-  const lineupsQuery = useMemo(
-    () => query(collection(db, "lineups"), where("seasonId", "==", seasonId)),
-    [seasonId],
-  );
-  const lineupsKey = useMemo(() => ["lineups", seasonId], [seasonId]);
   // Skip the Firestore subscription entirely in preview (no auth token → the
   // rules would reject the read); the localStorage-backed localApi drives it.
   // Canonical mapLineup stores the raw validated doc; dataToLineupDoc derives.
-  const { data: rawLineups, isPending } = useFirestoreCollection(lineupsKey, lineupsQuery, mapLineup, !PREVIEW);
+  // (seasonLineups.ts: the same key and query the match page and the admin read)
+  const { data: rawLineups, isPending } = useSeasonLineupDocs(seasonId);
   const items = useMemo<LineupDoc[]>(
     () => (rawLineups ?? []).map((r) => dataToLineupDoc(r.id, r)),
     [rawLineups],
@@ -272,7 +294,7 @@ export function useLineups(seasonId: string): UseLineups {
       await clearReactions([id]);
       // (Bloque 5: the charla's voice goes first — its rules read the board to allow it)
       await clearVoz(id);
-      await deleteDoc(doc(db, "lineups", id));
+      await deleteBoard(id);
     };
     const markOfficial: UseLineups["markOfficial"] = async (id, scope) => {
       const unmarked = await publishOfficial(seasonId, id, scope);

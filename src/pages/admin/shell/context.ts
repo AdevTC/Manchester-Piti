@@ -45,6 +45,14 @@ export function useAdminGo(): (target: AdminTarget) => void {
         case "contenido":
           void navigate({ to: "/admin/contenido", search: { seccion: t.seccion } });
           return;
+        case "pizarra":
+          void navigate({ to: "/pizarra", search: { tablero: t.tablero, season: t.seasonId } });
+          return;
+        case "web":
+          if (t.matchId) void navigate({ to: "/matches/$matchId", params: { matchId: t.matchId } });
+          else if (t.playerId) void navigate({ to: "/jugadores/$playerId", params: { playerId: t.playerId } });
+          else void navigate({ to: "/" });
+          return;
         default:
           void navigate({ to: SECTION[t.section].path });
       }

@@ -1,0 +1,52 @@
+/* StatePanel: the Celeste loading / empty / error / not-found states (and the stage and screen around
+   them). Tokens come from .vx (styles/vestuario.css); the error ink is DESIGN.md's error-night / -day. */
+
+.vx{--sp-err:#ff9a8a;--sp-err-bg:rgba(255,154,138,.14)}
+[data-theme="light"] .vx{--sp-err:#b3261e;--sp-err-bg:rgba(179,38,30,.1)}
+
+/* The stage: the hero sky under the (absolute) header, the panel centred in it. */
+.vx .sp-stage{position:relative;z-index:2;display:grid;align-content:center;min-height:min(78svh,720px);padding:calc(96px + var(--isle,0px)) 20px 56px;background:var(--hero-bg);overflow:hidden}
+.vx .sp-ghost{position:absolute;left:-4%;right:-4%;bottom:10px;z-index:0;text-align:center;font-family:'Anybody';font-weight:900;font-size:44cqi;line-height:.8;letter-spacing:-.05em;font-variation-settings:'wdth' 60;color:transparent;-webkit-text-stroke:1.5px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;white-space:nowrap;pointer-events:none;user-select:none}
+
+/* A route error inside the admin app (its own frame): the panel alone (not the 100vh of a .vx page). */
+.vx.sp-inframe{min-height:0;padding:24px 20px;background:transparent}
+
+/* The panel */
+.vx .sp{position:relative;z-index:2;width:100%;max-width:580px;margin:0 auto;display:grid;gap:12px;justify-items:start;padding:26px 22px;border-radius:28px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:var(--ink)}
+.vx .sp-mark{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:var(--chip);color:var(--accent);font-family:'Anybody';font-weight:900;font-size:28px;line-height:1}
+.vx .sp.notfound .sp-mark{background:var(--chip-gold);color:var(--gold-ink)}
+.vx .sp.error .sp-mark{background:var(--sp-err-bg);color:var(--sp-err)}
+.vx .sp-kick{font-family:'Geist Mono';font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+.vx .sp.error .sp-kick{color:var(--sp-err)}
+.vx .sp-title{margin:0;font-family:'Anybody';font-weight:800;font-size:clamp(30px,9cqi,52px);line-height:.95;letter-spacing:-.02em;font-variation-settings:'wdth' 112;text-wrap:balance}
+.vx .sp-body{margin:0;max-width:52ch;font-size:15px;line-height:1.5;color:var(--soft)}
+.vx .sp-acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.vx .sp-detail{font-size:12px;color:var(--muted)}
+.vx .sp-detail summary{cursor:pointer;min-height:32px;display:inline-flex;align-items:center}
+.vx .sp-detail code{display:block;margin-top:4px;font-family:'Geist Mono';overflow-wrap:anywhere}
+
+/* Compact: inline in a page that keeps its other blocks (the vestuario, the club). */
+.vx .sp.compact{max-width:none;margin:18px 0 0;padding:20px;gap:10px;border-radius:24px}
+.vx .sp.compact .sp-mark{width:40px;height:40px;font-size:22px}
+.vx .sp.compact .sp-title{font-size:26px}
+
+/* Its buttons (links or buttons): the pill of the Celeste pages, a ring on focus. */
+.vx .sp-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 24px;border-radius:999px;border:0;background:var(--thumb);color:var(--thumb-ink);box-shadow:var(--thumb-shadow);font:inherit;font-weight:700;font-size:15px;text-decoration:none;cursor:pointer;transition:filter .2s}
+.vx .sp-btn.ghost{background:var(--ghost);color:var(--ghost-ink);box-shadow:inset 0 0 0 1px var(--line);font-weight:600}
+.vx .sp-btn:hover{filter:brightness(1.08)}
+.vx .sp-btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+/* Loading: the ball rolls (still with reduced motion). */
+@keyframes spRoll{to{transform:rotate(360deg)}}
+.vx .sp.loading .sp-mark svg{animation:spRoll 1.4s linear infinite}
+
+@container (min-width:700px){
+.vx .sp-stage{padding:calc(132px + var(--isle,0px)) 40px 72px}
+.vx .sp-ghost{font-size:34cqi}
+.vx .sp{padding:36px 36px 34px;gap:14px}
+.vx .sp.compact{padding:24px 28px}
+}
+@media (prefers-reduced-motion:reduce){
+.vx .sp.loading .sp-mark svg{animation:none}
+.vx .sp-btn{transition:none}
+}

@@ -39,7 +39,7 @@ describe("Fichas", () => {
   it("a claim card per request (who, which shirt, when, how they came in, e-mail); resolved folded; the shirts' percha; three notes", async () => {
     const user = userEvent.setup();
     mountAdmin("/admin/fichas", { fichas: Fichas });
-    expect(await screen.findByRole("heading", { level: 1, name: "Fichas" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Cuentas" })).toBeInTheDocument();
     expect(screen.getByText("Socios que piden su camiseta · al aprobar, su cuenta queda unida a esa ficha")).toBeInTheDocument();
     expect(cards()).toHaveLength(2);
     const kevin = screen.getByRole("article", { name: "@nuevo.socio pide la ficha de KEVIN" });
@@ -51,9 +51,9 @@ describe("Fichas", () => {
     // resolved, folded
     const fold = screen.getByRole("button", { name: "2 resueltas" });
     expect(fold).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("list", { name: "Fichas resueltas" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "Cuentas resueltas" })).toBeNull();
     await user.click(fold);
-    const res = within(screen.getByRole("list", { name: "Fichas resueltas" })).getAllByRole("listitem");
+    const res = within(screen.getByRole("list", { name: "Cuentas resueltas" })).getAllByRole("listitem");
     expect(res[0]).toHaveTextContent("@andia19 → ANDIA · Aprobada por erik9 · 28 oct");
     expect(within(res[0]).queryByRole("button")).toBeNull();
     expect(res[1]).toHaveTextContent("@erik9 → ERIK · Se aprobó sola (es administrador) · 20 oct");
@@ -61,7 +61,7 @@ describe("Fichas", () => {
     expect(screen.queryByRole("button", { name: /Volver a pendiente/ })).toBeNull();
     // the percha: exceptions only
     const owners = screen.getByRole("region", { name: "Camisetas y socios" });
-    expect(within(owners).getByText("La percha de las fichas · 2 de 12 camisetas ya tienen su socio")).toBeInTheDocument();
+    expect(within(owners).getByText("La percha de las cuentas · 2 de 12 camisetas ya tienen su socio")).toBeInTheDocument();
     const sub = (name: string) => [...owners.querySelectorAll(".peg")].find((p) => p.querySelector(".nm")?.textContent === name)?.querySelector(".rv")?.textContent ?? "";
     expect(sub("KEVIN")).toBe("pedida");
     expect(sub("FER")).toBe("pedida");
@@ -78,9 +78,9 @@ describe("Fichas", () => {
     expect(cards()).toHaveLength(1);
     expect(caption()).toHaveTextContent("@nuevo.socio ya es KEVIN · su carta y su voto, activos");
     expect(caption().querySelector(".lt .k")).toHaveTextContent("FICHA");
-    expect(screen.getByText("La percha de las fichas · 3 de 12 camisetas ya tienen su socio")).toBeInTheDocument();
+    expect(screen.getByText("La percha de las cuentas · 3 de 12 camisetas ya tienen su socio")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "3 resueltas" }));
-    expect(within(screen.getByRole("list", { name: "Fichas resueltas" })).getAllByRole("listitem")[0]).toHaveTextContent("@nuevo.socio → KEVIN · Aprobada por adrian_tc · ahora mismo");
+    expect(within(screen.getByRole("list", { name: "Cuentas resueltas" })).getAllByRole("listitem")[0]).toHaveTextContent("@nuevo.socio → KEVIN · Aprobada por adrian_tc · ahora mismo");
     await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
     expect(cards()).toHaveLength(2);
     await act(async () => {
@@ -117,17 +117,17 @@ describe("Fichas", () => {
     await user.click(screen.getByRole("button", { name: "Desvincular a @erik9 de ERIK" }));
     expect(caption()).toHaveTextContent("@erik9 ya no es ERIK · su cuenta sigue en el vestuario");
     expect(screen.queryByRole("button", { name: "Desvincular a @erik9 de ERIK" })).toBeNull();
-    expect(screen.getByText("La percha de las fichas · 1 de 12 camisetas ya tienen su socio")).toBeInTheDocument();
+    expect(screen.getByText("La percha de las cuentas · 1 de 12 camisetas ya tienen su socio")).toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(5300);
     });
     expect(h.writes.resolveClaim).toHaveBeenCalledWith("a2", false);
   });
 
-  it("nothing pending: the dashed shirt «Fichas al día» and the way to invite", async () => {
+  it("nothing pending: the dashed shirt «Cuentas al día» and the way to invite", async () => {
     setAdminData(adminFixture({ claimsCount: 0 }));
     mountAdmin("/admin/fichas", { fichas: Fichas });
-    expect(await screen.findByRole("heading", { level: 3, name: "Fichas al día" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 3, name: "Cuentas al día" })).toBeInTheDocument();
     expect(document.querySelector(".void .sh")).toHaveClass("empty");
     expect(screen.getByRole("link", { name: "Invitar desde La puerta" })).toHaveAttribute("href", "/vestuario#puerta");
     expect(cards()).toHaveLength(0);
@@ -136,6 +136,6 @@ describe("Fichas", () => {
   it("shows the loading state", async () => {
     setAdminData(adminFixture({ loading: true }));
     mountAdmin("/admin/fichas", { fichas: Fichas });
-    expect(await screen.findByRole("status", { name: "Cargando las fichas" })).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: "Cargando las cuentas" })).toBeInTheDocument();
   });
 });

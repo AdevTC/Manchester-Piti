@@ -1,7 +1,7 @@
 // The board's overlays: the long-press radial fan, the ficha (the cromo flies to the centre and flips to
 // its stats), and the stage FX (the «¡Siete listo!» and «¡A por ellos!» flash, the replay's crest wipe and
 // the rewind).
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { CREST, Icon, Shirt } from "./icons";
 import { SPARKS } from "./geometry";
 import type { FanItem } from "./fan";
@@ -103,6 +103,8 @@ export function Fan({ cx, cy, num, title, items, onItem, onClose }: FanProps) {
 }
 
 export interface FichaView {
+  /** The player (his public page: «Ver su página»). */
+  id: string;
   name: string;
   num: number;
   /** The form chip («—» for a player with no match yet). */
@@ -121,7 +123,8 @@ export interface FichaView {
   side: "auto" | "front" | "back";
 }
 
-export function Ficha({ f, rm, onFlip, onClose }: { f: FichaView; rm: boolean; onFlip: () => void; onClose: () => void }) {
+/** `link`: «Ver su página», the router link to his public page (PizarraPage makes it; absent in tests). */
+export function Ficha({ f, rm, onFlip, onClose, link }: { f: FichaView; rm: boolean; onFlip: () => void; onClose: () => void; link?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   useDialog(ref, ".fic-a .b3", onClose);
   const cls = f.side === "auto" ? (rm ? "back" : "auto") : f.side;
@@ -212,6 +215,7 @@ export function Ficha({ f, rm, onFlip, onClose }: { f: FichaView; rm: boolean; o
             <Icon n="rot" />
             {f.side === "front" ? "Ver el dorso" : "Ver el frente"}
           </button>
+          {link}
           <button type="button" className="b3 gold" onClick={onClose}>
             Cerrar
           </button>

@@ -8,9 +8,14 @@ import { fakeActions, heroCard, makeData, noIntro, root, setUrl, view } from "./
 // /profile «La carta» as a member drives it: no Firebase (the data and the callables are fakes), no
 // router (links are plain anchors), no WebGL anywhere (the card is drawn in CSS).
 
+// (the Link stub builds the href the router would: params into the path, the search as a query)
+const hrefOf = (to: string, params: Record<string, string> = {}, search: Record<string, string | undefined> = {}) => {
+  const q = new URLSearchParams(Object.entries(search).filter((e): e is [string, string] => e[1] !== undefined)).toString();
+  return to.replace(/\$(\w+)/g, (_, k: string) => params[k] ?? "") + (q ? `?${q}` : "");
+};
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, to, params, className }: { children?: ReactNode; to: string; params?: Record<string, string>; className?: string }) => (
-    <a className={className} href={params ? to.replace(/\$(\w+)/g, (_, k: string) => params[k] ?? "") : to}>
+  Link: ({ children, to, params, search, className }: { children?: ReactNode; to: string; params?: Record<string, string>; search?: Record<string, string | undefined>; className?: string }) => (
+    <a className={className} href={hrefOf(to, params, search)}>
       {children}
     </a>
   ),
@@ -429,6 +434,22 @@ describe("Temporada", () => {
     setUrl("#temporada");
     view(makeData({ state: "sin-ficha" }));
     expect(screen.getByText(/Reclama tu ficha y aquí salen tus goles/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Ver tus estadísticas/ })).toBeNull();
+  });
+  it("«Ver tus estadísticas» lleva a su página pública, en la temporada; «Dónde has jugado», a las posiciones del equipo", () => {
+    noIntro();
+    setUrl("#temporada");
+    view();
+    const numbers = screen.getByRole("heading", { name: "Tus números" }).closest(".bk") as HTMLElement;
+    expect(within(numbers).getByRole("link", { name: /Ver tus estadísticas/ })).toHaveAttribute("href", "/jugadores/adri?season=t1");
+    const where = screen.getByRole("heading", { name: "Dónde has jugado" }).closest(".bk") as HTMLElement;
+    expect(within(where).getByRole("link", { name: /Ver las posiciones del equipo/ })).toHaveAttribute("href", "/stats?view=positions&season=t1");
+  });
+  it("pendiente: aún sin enlace a sus estadísticas", () => {
+    noIntro();
+    setUrl("#temporada");
+    view(makeData({ state: "pendiente" }));
+    expect(screen.queryByRole("link", { name: /Ver tus estadísticas/ })).toBeNull();
   });
 });
 

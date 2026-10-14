@@ -16,11 +16,16 @@ import { shareClubPage } from "../../lib/share";
 import { useMvpResults } from "../vestuario/live";
 import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
+import { useViewer } from "../../hooks/useViewer";
+import { useNoIndex } from "../../hooks/useNoIndex";
 import { useTheme } from "../../hooks/useTheme";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon } from "../../components/celeste/icons";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
+import { BackLink } from "../../components/celeste/BackLink";
+import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { Constellation, GoalClock, Radar } from "../stats/Charts";
 import { Cromo, type CromoFace } from "./Cromo";
 import { SusPosiciones } from "./SusPosiciones";
@@ -76,6 +81,8 @@ export function JugadorPage() {
   const [run, setRun] = useState(0);
   const [vs, setVs] = useState<"avg" | "partner">("avg");
   const [notice, setNotice] = useState("");
+  // His own page (the member linked to him) edits his carta; an admin edits his ficha in the Sala de control.
+  const viewer = useViewer();
 
   const raw = players.find((x) => x.id === playerId);
   const p = raw ? playerForSeason(raw, selectedSeasonId, seasons) : undefined;
@@ -91,36 +98,49 @@ export function JugadorPage() {
   const num = p?.number != null ? String(p.number) : "";
   const stills = useShirtStills(p && !p.photoUrl ? [{ kit: "home", theme, name: name.toUpperCase(), num, yaw: 0 }] : [], { offMainThread: true });
 
-  if (loading || error)
+  // «Jugador no encontrado» comes with a 200 from the SPA shell: not for the index
+  useNoIndex(!loading && !error && !(p && me));
+
+  if (loading)
     return (
-      <Shell busy={loading}>
+      <Shell busy>
         <main className="jg-main jg-pad">
-          {loading ? (
-            <p className="st-state" role="status">
-              Preparando la ficha…
-            </p>
-          ) : (
-            <div className="st-state" role="alert">
-              <p>No hemos podido cargar los datos del club.</p>
-              <button type="button" className="hm-ghostbtn" onClick={() => window.location.reload()}>
-                Reintentar
-              </button>
-            </div>
-          )}
+          <p className="st-state" role="status">
+            Preparando la ficha…
+          </p>
         </main>
+      </Shell>
+    );
+  // The data did not arrive: an error, never «no encontrado» (the player may well exist).
+  if (error)
+    return (
+      <Shell>
+        <StateStage>
+          <ClubDataError heading="h1" />
+        </StateStage>
       </Shell>
     );
   if (!p || !me)
     return (
       <Shell>
-        <main className="jg-main jg-pad">
-          <div className="st-state">
-            <h1 className="st-h2">Jugador no encontrado</h1>
-            <Link className="hm-ghostbtn" to="/plantilla">
-              Ver plantilla
-            </Link>
-          </div>
-        </main>
+        <StateStage ghost="404">
+          <StatePanel
+            kind="notfound"
+            heading="h1"
+            title="Jugador no encontrado"
+            body="Este jugador no está en la plantilla: o ya no está en el club, o el enlace tiene el dorsal mal apuntado."
+            action={
+              <>
+                <Link className="sp-btn" to="/plantilla">
+                  Ver la plantilla
+                </Link>
+                <Link className="sp-btn ghost" to="/">
+                  Ir al inicio
+                </Link>
+              </>
+            }
+          />
+        </StateStage>
       </Shell>
     );
 
@@ -212,10 +232,7 @@ export function JugadorPage() {
         <div className="st-stars" aria-hidden="true" />
         <div className="jg-hero-in">
           <div className="jg-id">
-            <Link className="jg-back" to="/plantilla">
-              <Icon name="left" size={16} stroke={2.2} />
-              Plantilla
-            </Link>
+            <BackLink className="jg-back" to="/plantilla" label="Plantilla" iconSize={16} />
             <span className="hm-kick" style={{ margin: 0 }}>
               {position} · {p.active === false ? "HISTÓRICO" : "PLANTILLA"}
             </span>
@@ -237,6 +254,24 @@ export function JugadorPage() {
                 <Icon name="turn" size={16} />
                 Repetir presentación
               </button>
+              {squad.length > 1 && (
+                <Link className="hm-ghostbtn st-sm" to="/stats" search={{ view: "compare", a: p.id, ...(selectedSeasonId !== "all" ? { season: selectedSeasonId } : {}) }}>
+                  Comparar con…
+                  <Icon name="arrow" size={16} stroke={2.2} />
+                </Link>
+              )}
+              {viewer.playerId === p.id && (
+                <Link className="hm-ghostbtn st-sm" to="/profile">
+                  Editar tu carta
+                  <Icon name="arrow" size={16} stroke={2.2} />
+                </Link>
+              )}
+              {viewer.admin && (
+                <Link className="hm-ghostbtn st-sm" to="/admin/plantilla" search={{ jugador: p.id }}>
+                  Editar ficha
+                  <Icon name="arrow" size={16} stroke={2.2} />
+                </Link>
+              )}
             </div>
             {notice && (
               <p className="st-mono" role="status">
@@ -531,7 +566,14 @@ export function JugadorPage() {
                     <li key={i}>
                       <b>{e.minute}′</b>
                       <span>
-                        {e.direction === "in" ? "Entró por" : "Salió por"} {nameById.get(e.with) ?? "un compañero"}
+                        {e.direction === "in" ? "Entró por" : "Salió por"}{" "}
+                        {nameById.has(e.with) ? (
+                          <PlayerLink id={e.with} seasonId={selectedSeasonId} variant="quiet">
+                            {nameById.get(e.with)}
+                          </PlayerLink>
+                        ) : (
+                          "un compañero"
+                        )}
                         <small>
                           vs {e.match.rival ?? "Rival"} · {formatDate(e.match.date)}
                         </small>

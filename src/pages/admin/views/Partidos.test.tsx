@@ -10,6 +10,9 @@ import { fromMatch, setMinute, sig } from "../acta/sheetModel";
 import { resetWhistledForTests } from "../data/whistleStore";
 import { Partidos } from "./Partidos";
 
+// Heavy suite: the whole match workspace driven by userEvent (~1.7 s per test alone); under load it crossed 5 s.
+vi.setConfig({ testTimeout: 15_000 });
+
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
 vi.mock("../../../context/AuthContext", async () => ({ useAuth: (await import("../../../test/adminMocks")).fakeAuth }));
 vi.mock("../../../lib/clubApi", () => ({

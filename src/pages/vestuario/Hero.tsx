@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
-import { dateMillis } from "../../lib/clubData";
+import { Link } from "@tanstack/react-router";
+import { dateMillis, matchPhase } from "../../lib/clubData";
 import type { ClubMatch } from "../../lib/clubData";
 import { apiError, requestPlayerClaim } from "../../lib/clubApi";
 import { setAvailability, useMe } from "./writes";
@@ -189,6 +190,13 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
                     Compartir mi cartel
                   </button>
                   <AddToCalendar className="vx-ghost" label="Al calendario" event={matchEvent(next, location.origin)} />
+                  {/* (live, the island over every page already leads to it; no tab: the page opens on its previa) */}
+                  {matchPhase(next, now) !== "playing" && (
+                    <Link className="vx-ghost" to="/matches/$matchId" params={{ matchId: next.id }}>
+                      Ver la previa
+                      <Icon name="arrow" size={17} stroke={2.2} />
+                    </Link>
+                  )}
                 </div>
                 <div className="vx-attend">
                   {going.length > 0 && (

@@ -8,7 +8,7 @@
 // only wires the sources and memoizes.
 import { useCallback, useMemo } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { collection, orderBy, query } from "firebase/firestore";
+import { collection, orderBy, query, where } from "firebase/firestore";
 import { db } from "../../../firebase";
 import { useMatchClock } from "../../../hooks/useMatchClock";
 import { useClubContent } from "../../../lib/clubContent";
@@ -23,6 +23,8 @@ import { seasonSquad } from "../../perfil/card";
 import { mvpOfFrom, type MvpOf } from "../../../lib/derived/mvpOf";
 import { seasonPlayers } from "../../perfil/profileData";
 import type { Squad } from "../../pizarra/v2/model";
+import { boardFromLocks, mapOfficialLock } from "../../pizarra/officialBoard";
+import { toBePlayed } from "../../../lib/derived/kickoff";
 import { pendingKeys, sectionTitle, storyOf } from "../club/contentModel";
 import { useContentDrafts } from "../club/contentDraftStore";
 import { hoyHero, matchMoment, type Hero } from "./moments";
@@ -120,6 +122,10 @@ export interface AdminData {
   mvp: string;
   /** Hoy's «Por hacer» (exceptions only), «N hechas» and the rail's counters. */
   overview: Overview;
+  /** The pizarra's official board (its id) for a match of the admin's season, for «Abrir la pizarra» and
+   *  Convocar's «La pizarra»: its own official, or the season's while it is still to be played
+   *  (officialBoard.ts); null when there is none or the match is of another season. */
+  officialBoardOf: (m: AdminMatch) => string | null;
 }
 
 const NO_PLAYERS: RosterPlayer[] = [];
@@ -166,6 +172,13 @@ export function useAdminData(): AdminData {
 
   const reviewOf = useCallback((m: AdminMatch) => reviewActa(m, rosterOf(m.seasonId).map((p) => p.id), now, m.published && !m.draft), [rosterOf, now]);
   const stateOf = useCallback((m: AdminMatch) => matchState(m, now, next?.id), [now, next?.id]);
+
+  // the season's official scope docs (lineupOfficials: one tiny doc per match with an official, plus the
+  // season's), not its boards: which board a link to «the pizarra of this match» opens
+  const locksQuery = useMemo(() => query(collection(db, "lineupOfficials"), where("seasonId", "==", seasonId)), [seasonId]);
+  const locksQ = useFirestoreCollection(["lineupOfficials", seasonId], locksQuery, mapOfficialLock, !!seasonId);
+  const locks = useMemo(() => new Map((locksQ.data ?? []).map((l) => [l.id, l.lineupId])), [locksQ.data]);
+  const officialBoardOf = useCallback((m: AdminMatch) => boardFromLocks(locks, seasonId, m, toBePlayed(m, now)), [locks, seasonId, now]);
 
   const avail = useAvailability(next?.id);
   const note = useMeetingNote(next?.id);
@@ -256,5 +269,6 @@ export function useAdminData(): AdminData {
     content: { gaps },
     mvp: mvpView.note,
     overview,
+    officialBoardOf,
   };
 }

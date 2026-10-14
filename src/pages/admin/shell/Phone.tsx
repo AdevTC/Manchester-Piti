@@ -24,7 +24,7 @@ function BarFlood({ animate }: { animate: boolean }) {
   return animate ? <motion.span layoutId="ad-bar-flood" className="fl" aria-hidden="true" transition={FLOOD} /> : <span className="fl" aria-hidden="true" />;
 }
 
-/** The phone bar. Badges: Hoy (pending) and Más (Fichas + Contenido). */
+/** The phone bar. Badges: Hoy (pending) and Más (Cuentas + Contenido). */
 export function BottomBar({ current, counters, masOpen, onMas }: { current: SectionKey; counters: Counters; masOpen: boolean; onMas: () => void }) {
   const animate = useChromeMotion();
   const mas = counters.fichas.n + counters.contenido.n;

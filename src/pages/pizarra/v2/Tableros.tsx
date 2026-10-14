@@ -2,12 +2,12 @@
 // confirmation and a few seconds to undo, new, open any), Oficial (what the whole team sees: view it,
 // copy it to edit, agree or doubt; captains publish theirs for this match or the season) and Partido
 // (the match the board is for, with its result band, and the season the data comes from).
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Icon, Nuevo } from "./icons";
 import { nuevoOn } from "./rail";
 import { PanelHead } from "./SheetPanels";
 import { useConfirmKeys } from "./useConfirmKeys";
-import { matchBand, matchLabel, nameError, NAME_MAX, type CalMatch } from "./boards";
+import { matchBand, matchLabel, matchShort, nameError, NAME_MAX, type CalMatch } from "./boards";
 import type { ReactionValue } from "../reactions";
 import { apiError } from "../../../lib/clubApi";
 import { RivalFilter } from "./RivalPanel";
@@ -120,6 +120,8 @@ export interface TablerosProps {
   recent?: string[];
   /** «Capitán rotativo» (Partido). */
   captain?: CaptainView | null;
+  /** The linked match's ways out (its public page; an admin's Convocar): router links PizarraPage makes. */
+  matchLinks?: (matchId: string) => ReactNode;
 }
 
 /** The name of the board on screen, renamed as you type (saved after a pause, on Enter or on leaving). */
@@ -565,6 +567,11 @@ export function TablerosPanel(p: TablerosProps) {
               <small>{band.sub}</small>
             </div>
           </div>
+          {linked && p.matchLinks && (
+            <div className="row band-go" role="group" aria-label={"El " + matchShort(linked) + " fuera de la pizarra"}>
+              {p.matchLinks(linked.id)}
+            </div>
+          )}
           {!p.calendar.length && <p className="empty">Esta temporada aún no tiene partidos en el calendario.</p>}
           {p.onScreenOfficial && <p className="empty">Es el oficial: el partido vinculado es su alcance (sin partido = toda la temporada).</p>}
           {p.captain && <CaptainCard c={p.captain} />}

@@ -13,6 +13,9 @@ import { PREFS0, type BoardPrefs } from "./prefs";
 import { demoSquad, lineupOf } from "./testkit";
 import { BoardHarness as Harness, type HarnessProps } from "./testkitBoard";
 
+// Heavy suite: it renders the whole board in jsdom (1–2 s per test alone); under load it crossed 5 s.
+vi.setConfig({ testTimeout: 15_000 });
+
 // Phase 4 as a user drives it: Dibujar (the telestrator) and Jugadas (the library and your own, the
 // editor, the «REPETICIÓN» replay, «En 3D»). The 3D stadium is never started: support.ts and the
 // <Stadium3D> wrapper are mocked (no WebGL in tests).

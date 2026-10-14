@@ -9,6 +9,7 @@ import { framesInLead, raceFrames, type RaceMetric } from "../../lib/statsView";
 import { jornadaLabel } from "../../lib/derived/jornada";
 import { Flip } from "../../components/celeste/Flip";
 import { Icon } from "../../components/celeste/icons";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { NewBadge } from "../../components/NewBadge";
 
 const METRICS: [RaceMetric, string][] = [
@@ -20,7 +21,7 @@ const VISIBLE = 8;
 const STEP_MS = 1500;
 const reducedMotion = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export function RaceBoard({ rows, nameOf, jornada }: { rows: PlayerAnalysis[]; nameOf: (p: PlayerAnalysis) => string; /** Each match's jornada (derived/jornada). */ jornada: ReadonlyMap<string, number> }) {
+export function RaceBoard({ rows, nameOf, jornada, seasonId }: { rows: PlayerAnalysis[]; nameOf: (p: PlayerAnalysis) => string; /** Each match's jornada (derived/jornada). */ jornada: ReadonlyMap<string, number>; /** The season on the board: his page opens on it. */ seasonId?: string }) {
   const [metric, setMetric] = useState<RaceMetric>("goals");
   const frames = useMemo(() => raceFrames(rows, metric), [rows, metric]);
   const last = frames.length - 1;
@@ -73,7 +74,7 @@ export function RaceBoard({ rows, nameOf, jornada }: { rows: PlayerAnalysis[]; n
   const at = new Map(frame.rows.map((r) => [r.id, r]));
   const max = Math.max(1, ...frame.rows.map((r) => r.value));
   const shown = Math.max(1, Math.min(VISIBLE, frames[last].rows.length));
-  const leaders = frame.rows.filter((r) => r.rank === 1).map((r) => nameOf(byId.get(r.id)!));
+  const leaders = frame.rows.filter((r) => r.rank === 1).map((r) => r.id);
   const m = frame.match;
   const label = METRICS.find(([k]) => k === metric)![1];
   const ended = !playing && j >= last;
@@ -118,7 +119,17 @@ export function RaceBoard({ rows, nameOf, jornada }: { rows: PlayerAnalysis[]; n
           <span>
             {leaders.length ? (
               <>
-                En cabeza: <b>{leaders.join(", ")}</b>
+                En cabeza:{" "}
+                <b>
+                  {leaders.map((id, i) => (
+                    <span key={id}>
+                      {i > 0 && ", "}
+                      <PlayerLink id={id} seasonId={seasonId} variant="quiet">
+                        {nameOf(byId.get(id)!)}
+                      </PlayerLink>
+                    </span>
+                  ))}
+                </b>
               </>
             ) : (
               "Nadie ha marcado aún"
@@ -137,7 +148,12 @@ export function RaceBoard({ rows, nameOf, jornada }: { rows: PlayerAnalysis[]; n
               <span className="rk">{r?.rank ?? ""}</span>
               <span className="sh">{p.number ?? "·"}</span>
               <span className="mid">
-                <span className="nm">{nameOf(p)}</span>
+                <span className="nm">
+                  {/* (the board is a picture for pointers: keyboards and readers get the list below and the leaders above) */}
+                  <PlayerLink id={id} seasonId={seasonId} variant="quiet" tabIndex={-1}>
+                    {nameOf(p)}
+                  </PlayerLink>
+                </span>
                 <span className="tr">
                   <i style={{ width: `${((r?.value ?? 0) / max) * 100}%` }} />
                 </span>
@@ -197,7 +213,13 @@ export function RaceBoard({ rows, nameOf, jornada }: { rows: PlayerAnalysis[]; n
         <span className="st-mono">
           {lead ? (
             <>
-              Más jornadas en cabeza: <b>{nameOf(byId.get(lead[0])!)}</b> ({lead[1]})
+              Más jornadas en cabeza:{" "}
+              <b>
+                <PlayerLink id={lead[0]} seasonId={seasonId} variant="quiet">
+                  {nameOf(byId.get(lead[0])!)}
+                </PlayerLink>
+              </b>{" "}
+              ({lead[1]})
             </>
           ) : (
             "Cada jornada, la tabla se reordena sola"

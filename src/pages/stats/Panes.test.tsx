@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { analysePlayer } from "../../lib/clubAnalytics";
@@ -33,9 +33,51 @@ describe("minutes in the stats tables", () => {
     expect(container.textContent).not.toMatch(/\d\.\d/);
   });
   it("Comparar: both cells whole", () => {
-    const { container } = render(<Comparar rows={rows} nameOf={(p) => playerName(p)} games={1} />);
+    const { container } = render(<Comparar rows={rows} nameOf={(p) => playerName(p)} games={1} onPick={() => {}} />);
     const minutes = [...container.querySelectorAll(".st-cmp li")].find((li) => li.textContent?.includes("Minutos"))!;
     expect([...minutes.querySelectorAll("b")].map((b) => b.textContent)).toEqual(["35′", "30′"]);
     expect(container.textContent).not.toMatch(/34\.67|30\.02/);
+  });
+});
+
+describe("Comparar: the pair lives in the URL (?view=compare&a=&b=)", () => {
+  const three = [...players, { id: "ana", shirtName: "ANA" }].map((p) => analysePlayer(p, games));
+  const cmp = (a?: string, b?: string, onPick = vi.fn()) => {
+    render(<Comparar rows={three} nameOf={(p) => playerName(p)} games={1} a={a} b={b} onPick={onPick} />);
+    return onPick;
+  };
+  const first = () => screen.getByRole("combobox", { name: "Primer jugador" }) as HTMLSelectElement;
+  const second = () => screen.getByRole("combobox", { name: "Segundo jugador" }) as HTMLSelectElement;
+
+  it("absent: the default pair (the first two)", () => {
+    cmp();
+    expect([first().value, second().value]).toEqual(["erik", "pablo"]);
+  });
+  it("reads a and b", () => {
+    cmp("ana", "erik");
+    expect([first().value, second().value]).toEqual(["ana", "erik"]);
+  });
+  it("only a (the jugador page's «Comparar con…»): him first, the default partner second", () => {
+    cmp("pablo");
+    expect([first().value, second().value]).toEqual(["pablo", "erik"]);
+  });
+  it("unknown ids (or the same player twice) are ignored", () => {
+    cmp("nadie", "tampoco");
+    expect([first().value, second().value]).toEqual(["erik", "pablo"]);
+    cleanup();
+    cmp("ana", "ana");
+    expect([first().value, second().value]).toEqual(["ana", "erik"]);
+  });
+  it("each pick writes the pair shown", () => {
+    const onPick = cmp("erik", "pablo");
+    fireEvent.change(second(), { target: { value: "ana" } });
+    expect(onPick).toHaveBeenLastCalledWith("erik", "ana");
+    fireEvent.change(first(), { target: { value: "ana" } });
+    expect(onPick).toHaveBeenLastCalledWith("ana", "pablo");
+    // picking the second one as the first: the second goes back to the default
+    fireEvent.change(first(), { target: { value: "pablo" } });
+    expect(onPick).toHaveBeenLastCalledWith("pablo", undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Intercambiar jugadores" }));
+    expect(onPick).toHaveBeenLastCalledWith("pablo", "erik");
   });
 });

@@ -9,6 +9,9 @@ import { chem } from "./quimica";
 import { DELETE_MS } from "./useBoardSession";
 import { UNPUB_MS } from "./Tableros";
 
+// Heavy suite: it renders the whole board in jsdom (1–2 s per test alone); under load it crossed 5 s.
+vi.setConfig({ testTimeout: 15_000 });
+
 // Phase 3 as a user drives it: the plan on the pitch, the química panel, Tableros (mine, official,
 // partido), Comparar, Compartir, Ajustes and the convocatoria on the cromos — with a fake session.
 

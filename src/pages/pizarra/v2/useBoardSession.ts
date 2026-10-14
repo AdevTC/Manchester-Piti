@@ -78,6 +78,9 @@ export interface SessionArgs {
   isAdmin: boolean;
   /** Name for a board born from the draft (e.g. the next match). */
   draftName: string;
+  /** The season the URL asks for (?season=, a link to a board of another season). Until it is the season
+   *  on screen, nothing is ready and the linked board is not looked for: its boards haven't arrived. */
+  urlSeason?: string;
 }
 
 /** How long a deleted board can still be brought back (ms): ≥ 10 s to reach «Deshacer» (WCAG 2.2.1). */
@@ -146,7 +149,7 @@ interface Watch {
   squad: string[];
 }
 
-export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, isAdmin, draftName }: SessionArgs): BoardSession {
+export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, isAdmin, draftName, urlSeason }: SessionArgs): BoardSession {
   const [deep] = useState(deepTablero);
   const [deepChecked, setDeepChecked] = useState(false);
   const [choice, setChoice] = useState<Choice | null>(null);
@@ -179,7 +182,9 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
   }
   const doc = find(id);
   const key = (choice?.season === seasonId && choice.id === id && choice.keepKey) || `${seasonId}:${id ?? "draft"}`;
-  const ready = squadReady && !lineups.loading;
+  // (a link's season not adopted yet: these are another season's boards, the link's isn't among them)
+  const seasonSettled = urlSeason === undefined || urlSeason === seasonId;
+  const ready = squadReady && !lineups.loading && seasonSettled;
   const readOnly = !!doc && !(isAdmin || (doc.ownerUid === uid && !doc.isOfficial));
   const freshName = choice?.season === seasonId && choice.id === id && id ? choice.name : undefined;
   const name = doc?.name ?? freshName ?? draftName;

@@ -7,6 +7,7 @@ import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon } from "../../components/celeste/icons";
+import { ClubDataError, StateStage } from "../../components/celeste/StatePanel";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { leaders, narrative, playerLines, playerOfTheMoment, seasonPulse, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
@@ -18,7 +19,7 @@ import "../../styles/home-match.css";
 
 /** Public home, match day: the next game, the player of the moment, the season, and a shirt for the fans. */
 export function HomePage() {
-  const { matches, players, loading } = useClubData();
+  const { matches, players, loading, error } = useClubData();
   const { seasons } = useSeason();
   const content = useClubContent();
   const now = useMatchClock(matches);
@@ -63,12 +64,17 @@ export function HomePage() {
       />
       {/* The headline is written from the data: until it arrives the hero keeps its place empty,
           so the text appears once instead of changing (and pushing the page) as each collection lands. */}
-      {loading ? (
+      {/* The data did not arrive: the error in the hero's place (no empty season pretending to be real). */}
+      {error ? (
+        <StateStage>
+          <ClubDataError heading="h1" />
+        </StateStage>
+      ) : loading ? (
         <section className="hm-match hm-wait" aria-label="Cargando el partido" />
       ) : (
         <MatchHero story={story} pulse={pulse} now={now} moment={moment} momentStill={shot[0] && still(shot[0])} />
       )}
-      <SeasonRow pulse={pulse} now={now} nameOf={nameOf} />
+      {!error && <SeasonRow pulse={pulse} now={now} nameOf={nameOf} />}
       <PonteLaCamiseta theme={theme} />
       <div className="hm-bottom">
         <Link className="hm-squad" to="/plantilla">

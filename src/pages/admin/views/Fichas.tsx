@@ -1,10 +1,10 @@
-// Fichas (/admin/fichas) — socios who ask for their shirt: a claim card each («@nuevo.socio · quiere el 11 ·
+// Cuentas (/admin/fichas) — socios who ask for their shirt: a claim card each («@nuevo.socio · quiere el 11 ·
 // KEVIN», with the shirt hanging on its peg, when, how they came into the vestuario, the e-mail) with
 // Aprobar / Rechazar behind a lower third with «Deshacer» (the call waits for it: nothing is faked). «N
 // resueltas» folded below — the backend cannot send a claim back to pending, so an approved one offers
 // «Desvincular» (the honest undo: it unlinks) and nothing else. Then «la percha de las fichas»: the season's
 // shirts, marked only when something is missing («sin socio», «pedida»), and three notes. No claims: the
-// dashed shirt «Fichas al día» + «Invitar desde La puerta ↗».
+// dashed shirt «Cuentas al día» + «Invitar desde La puerta ↗».
 import { useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "../../../context/AuthContext";
@@ -154,16 +154,16 @@ export function Fichas() {
   };
 
   const body = data.error ? (
-    <LoadError what="las fichas" />
+    <LoadError what="las cuentas" />
   ) : data.loading ? (
-    <div className="skel" aria-label="Cargando las fichas" role="status">
+    <div className="skel" aria-label="Cargando las cuentas" role="status">
       <i />
       <i />
     </div>
   ) : (
     <div className="scr" ref={bodyRef} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 18 }}>
       {pending.length ? (
-        <section className="fcg" aria-label="Fichas pendientes">
+        <section className="fcg" aria-label="Cuentas pendientes">
           {pending.map((c) => {
             const l = logOf.get(c.uid);
             const who = handle(c);
@@ -197,7 +197,7 @@ export function Fichas() {
       ) : (
         <div className="void">
           <ShirtBack num="?" size={110} big state="empty" />
-          <h3>Fichas al día</h3>
+          <h3>Cuentas al día</h3>
           <p>Cuando alguien entre por La puerta y pida su camiseta, aparece aquí para aprobarla.</p>
           <Link className="btn line" to="/vestuario" hash="puerta">
             Invitar desde La puerta
@@ -217,7 +217,7 @@ export function Fichas() {
             </span>
           </button>
           {open ? (
-            <ul className="rsl" aria-label="Fichas resueltas">
+            <ul className="rsl" aria-label="Cuentas resueltas">
               {resolved.map((r) => (
                 <li key={r.key}>
                   <span>
@@ -237,7 +237,7 @@ export function Fichas() {
       {owners.length ? (
         <section className="owners" aria-label="Camisetas y socios">
           <p className="lbr">
-            La percha de las fichas · {withOwner} de {owners.length} camisetas ya tienen su socio
+            La percha de las cuentas · {withOwner} de {owners.length} camisetas ya tienen su socio
           </p>
           <div className="rail2">
             <div className="pegs">
@@ -267,7 +267,7 @@ export function Fichas() {
     <>
       <div className="vh">
         <div>
-          <h1 className="ttl">Fichas</h1>
+          <h1 className="ttl">Cuentas</h1>
           <p className="ld">Socios que piden su camiseta · al aprobar, su cuenta queda unida a esa ficha</p>
         </div>
       </div>

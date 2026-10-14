@@ -51,7 +51,7 @@ describe("Capitanes", () => {
     await user.click(await screen.findByRole("button", { name: "Dar el brazalete a @kevin11" }));
     const ask = screen.getByRole("dialog", { name: "¿Dar el brazalete a @kevin11?" });
     expect(ask).toHaveTextContent("Podrá publicar actas y convocar");
-    expect(ask).toHaveTextContent("Podrá aprobar fichas y cambiar el contenido");
+    expect(ask).toHaveTextContent("Podrá aprobar cuentas y cambiar el contenido");
     await user.click(within(ask).getByRole("button", { name: "Dar el brazalete" }));
     expect(screen.getByText("@kevin11 ya lleva el brazalete")).toBeInTheDocument();
     expect(captains()).toHaveLength(3);

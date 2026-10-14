@@ -2,7 +2,7 @@
 // app's data — the season's squad and matches, your boards (useLineups, autosaved), the board you are
 // allowed to edit, the official the team sees (with the reactions to it) and the convocatoria of the
 // board's match on the cromos.
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../../lib/useSetSeason";
 import { useAuth } from "../../../context/AuthContext";
@@ -23,7 +23,8 @@ import { Board } from "./Board";
 import { readPrefs, writePrefs, type BoardPrefs } from "./prefs";
 import { charlaMatch, matchShort, officialFor, seasonPending, withConvocatoria } from "./boards";
 import { CREST, Icon } from "./icons";
-import { forgetDeepLink } from "./deeplink";
+import { useForgetDeepLink } from "./deeplink";
+import { pizarraLinks } from "./links";
 import "../../../styles/pizarra.css";
 import "../../../styles/pizarra-app.css";
 
@@ -79,6 +80,7 @@ export function PizarraPage() {
     uid: user?.uid ?? "preview",
     isAdmin,
     draftName,
+    urlSeason,
   });
   // The board's match: the linked one, else the next. Its convocatoria goes on the cromos.
   const linked = data.calendar.find((c) => c.id === session.matchId) ?? null;
@@ -93,10 +95,10 @@ export function PizarraPage() {
   const voz = useVozStore(session.id, user?.uid ?? "preview");
   const seasonName = selectedSeasonId === "all" ? ALL_SEASONS_LABEL : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
   const nick = profile?.nickname ?? "";
-  // The board has opened where the link asked: coming back later starts from the board you left.
-  useEffect(() => {
-    if (session.ready) forgetDeepLink();
-  }, [session.ready]);
+  // the ways out: a player's page from his ficha, the linked match's page (and an admin's Convocar)
+  const links = useMemo(() => pizarraLinks(isAdmin), [isAdmin]);
+  // The board has opened where the link asked: coming back later (a reload too) starts from the board you left.
+  useForgetDeepLink(session.ready);
 
   return (
     <Board
@@ -131,6 +133,7 @@ export function PizarraPage() {
           <img src={CREST} alt="" />
         </Link>
       }
+      links={links}
       header={
         <CelesteHeader
           active="vestuario"

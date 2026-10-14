@@ -5,6 +5,9 @@ import type { Stroke } from "../drawings";
 import { demoSquad, lineupOf } from "./testkit";
 import { BoardHarness as Harness } from "./testkitBoard";
 
+// Heavy suite: it renders the whole board in jsdom (1–2 s per test alone); under load it crossed 5 s.
+vi.setConfig({ testTimeout: 15_000 });
+
 // Bloque 1 of the audit, as a user meets it: undo that acts on the tool on screen (and never rewinds
 // over another tab's change), the galones that leave with their player, the keys that respect what you
 // are typing, la charla with holes in the seven, Ajustes' camera, and «Buscar en la plantilla».

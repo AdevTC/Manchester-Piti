@@ -8,6 +8,8 @@ import { dateMillis, isCompleted, matchPhase, nextFixture, playerForSeason, name
 import { useClock } from "../../hooks/useClock";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
+import { ClubDataError, StateStage } from "../../components/celeste/StatePanel";
 import { Icon } from "../../components/celeste/icons";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Flip } from "../../components/celeste/Flip";
@@ -174,6 +176,10 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
           )}
           <div className="pt-acts">
             <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(m, origin())} />
+            {/* (no tab: an upcoming match's page opens on its previa) */}
+            <Link className="hm-ghostbtn" to="/matches/$matchId" params={{ matchId: m.id }}>
+              Ver la previa <Icon name="arrow" size={16} stroke={2.2} />
+            </Link>
             {m.venue && (
               <a className="hm-ghostbtn" href={mapsUrl(m.venue)} target="_blank" rel="noreferrer">
                 Cómo llegar <Icon name="arrow" size={16} stroke={2.2} />
@@ -187,7 +193,7 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
 }
 
 export function PartidosPage() {
-  const { matches, players, loading } = useClubData();
+  const { matches, players, loading, error } = useClubData();
   const { seasons, selectedSeasonId } = useSeason();
   // The season is URL-authoritative (SeasonUrlSync): picking one navigates, it never writes the context.
   const setSeason = useSetSeason();
@@ -245,175 +251,187 @@ export function PartidosPage() {
           </>
         }
       />
-      <section className="pt-hero" aria-labelledby="pt-t">
-        <div className="pt-beams" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </div>
-        <div className="pt-ghost" aria-hidden="true">
-          {ghost}
-        </div>
-        <div className="pt-hero-in">
-          <div className="pt-rise">
-            <div className="pt-tags">
-              <span className="hm-kick" style={{ margin: 0 }}>
-                {season?.name ?? "Temporada"}
-                {pre && " · pretemporada"}
-              </span>
+      {/* The data did not arrive: the error instead of an empty calendar pretending to be real. */}
+      {error ? (
+        <StateStage>
+          <ClubDataError heading="h1" />
+        </StateStage>
+      ) : (
+        <>
+          <section className="pt-hero" aria-labelledby="pt-t">
+            <div className="pt-beams" aria-hidden="true">
+              <i />
+              <i />
+              <i />
             </div>
-            <h1 className="pt-h1" id="pt-t">
-              Partidos
-            </h1>
-            <p className="pt-lead">{lead}</p>
-          </div>
-          {!loading && <Board view={view} nameOf={nameOf} />}
-        </div>
-      </section>
-      <main className="pt-main">
-        <section className="pt-sec pt-season-sec" aria-labelledby="pt-s">
-          <span className="hm-kick">
-            {season?.name ?? "Temporada"} · {pj} {pj === 1 ? "jugado" : "jugados"}
-            {view.tiles.length > 0 && ` de ${view.tiles.length}`}
-          </span>
-          <h2 className="hm-h2" id="pt-s">
-            {pj ? `${view.wins} ${view.wins === 1 ? "victoria" : "victorias"} en ${pj}` : "Todo por estrenar"}
-          </h2>
-          {view.tiles.length > 0 && (
-            <>
-              <div className="pt-tira">
-                {view.tiles.map((t, i) => (
-                  <Link
-                    key={t.id}
-                    to="/matches/$matchId"
-                    params={{ matchId: t.id }}
-                    className={`pt-tile ${t.result ?? t.state}`}
-                    style={{ animationDelay: `${(i * 0.035).toFixed(2)}s` }}
-                    aria-label={`Jornada ${t.j}, ${t.rival}: ${t.result ? RESULT_WORD[t.result] : t.state === "live" ? "en juego" : t.state === "awaiting" ? AWAITING_ACTA.toLowerCase() : "por jugar"}`}
-                  >
-                    {t.state === "live" ? "●" : t.state === "awaiting" ? "…" : (t.result ?? "·")}
-                  </Link>
-                ))}
-              </div>
-              <div className="pt-legend">
-                <span>J1</span>
-                <span>{RESULT_LEGEND}</span>
-                <span>J{view.tiles.length}</span>
-              </div>
-            </>
-          )}
-          <dl className={`pt-nums${pj ? "" : " ph"}`}>
-            <div className="hl">
-              <dt>jugados</dt>
-              <dd>{pj}</dd>
+            <div className="pt-ghost" aria-hidden="true">
+              {ghost}
             </div>
-            <div>
-              <dt>G · E · P</dt>
-              <dd>
-                {view.wins}·{view.draws}·{view.losses}
-              </dd>
-            </div>
-            <div className="hl">
-              <dt>a favor</dt>
-              <dd>{view.gf}</dd>
-            </div>
-            <div>
-              <dt>en contra</dt>
-              <dd>{view.ga}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section className="pt-sec" aria-labelledby="pt-c">
-          <span className="hm-kick">Jornada a jornada</span>
-          <h2 className="hm-h2" id="pt-c">
-            El calendario
-          </h2>
-          <div className="pt-tools">
-            <div className="pt-seg" role="group" aria-label="Filtrar partidos">
-              {(
-                [
-                  ["all", "Todos"],
-                  ["next", "Próximos"],
-                  ["results", "Resultados"],
-                ] as const
-              ).map(([id, label]) => (
-                <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            <label className="pt-search">
-              <Icon name="search" size={18} />
-              <span className="hm-sr">Buscar rival</span>
-              <input type="search" placeholder="Buscar rival…" value={search} onChange={(e) => setSearch(e.target.value)} />
-            </label>
-            {seasons.length > 1 && (
-              <select className="pt-season" aria-label="Temporada" value={selectedSeasonId} onChange={(e) => setSeason(e.target.value)}>
-                <option value="all">{ALL_SEASONS_LABEL}</option>
-                {seasons.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          {rows.length > 0 ? (
-            <ol className="pt-list">
-              {rows.map((m) => (
-                <li key={m.id}>
-                  <Row m={m} j={jornada.get(m.id)} now={now} nameOf={nameIn(m.seasonId)} next={m.id === view.next?.id} still={!rowGoal.flip} />
-                </li>
-              ))}
-            </ol>
-          ) : listMatches.length ? (
-            <p className="pt-more">Ningún partido con ese filtro.</p>
-          ) : (
-            <div className="pt-list">
-              {[1, 2, 3].map((n) => (
-                <div className="pt-ghostrow" key={n}>
-                  <b>J{n}</b>
-                  <span>{n === 1 ? "Por confirmar · el capitán publica la fecha" : "Por confirmar"}</span>
+            <div className="pt-hero-in">
+              <div className="pt-rise">
+                <div className="pt-tags">
+                  <span className="hm-kick" style={{ margin: 0 }}>
+                    {season?.name ?? "Temporada"}
+                    {pre && " · pretemporada"}
+                  </span>
                 </div>
-              ))}
+                <h1 className="pt-h1" id="pt-t">
+                  Partidos
+                </h1>
+                <p className="pt-lead">{lead}</p>
+              </div>
+              {!loading && <Board view={view} nameOf={nameOf} />}
             </div>
-          )}
-        </section>
-
-        <aside className="pt-aside" aria-label="Más de la temporada">
-          {scorers.length > 0 && (
-            <div className="pt-card">
-              <span className="hm-kick" style={{ margin: 0 }}>
-                Goles de la temporada
+          </section>
+          <main className="pt-main">
+            <section className="pt-sec pt-season-sec" aria-labelledby="pt-s">
+              <span className="hm-kick">
+                {season?.name ?? "Temporada"} · {pj} {pj === 1 ? "jugado" : "jugados"}
+                {view.tiles.length > 0 && ` de ${view.tiles.length}`}
               </span>
-              <h3>
-                {scorers[0].name} lleva {scorers[0].stats.goals}
-              </h3>
-              <ol className="pt-pich">
-                {scorers.map((s, i) => (
-                  <li key={s.id}>
-                    <i>{i + 1}</i>
-                    <span>{s.name}</span>
-                    <b>{s.stats.goals}</b>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-          <Avisos />
-          <div className="pt-card">
-            <span className="hm-kick" style={{ margin: 0 }}>
-              En tu móvil
-            </span>
-            <h3>Todos los partidos, solos en tu calendario</h3>
-            <p>Fechas, cambios de hora y resultados llegan a Google, Apple u Outlook sin hacer nada.</p>
-            <div className="pt-acts" style={{ justifyContent: "flex-start" }}>
-              <AddToCalendar className="hm-ghostbtn" label="Suscribirme" feed={`${origin()}/calendario.ics`} />
-            </div>
-          </div>
-        </aside>
-      </main>
+              <h2 className="hm-h2" id="pt-s">
+                {pj ? `${view.wins} ${view.wins === 1 ? "victoria" : "victorias"} en ${pj}` : "Todo por estrenar"}
+              </h2>
+              {view.tiles.length > 0 && (
+                <>
+                  <div className="pt-tira">
+                    {view.tiles.map((t, i) => (
+                      <Link
+                        key={t.id}
+                        to="/matches/$matchId"
+                        params={{ matchId: t.id }}
+                        className={`pt-tile ${t.result ?? t.state}`}
+                        style={{ animationDelay: `${(i * 0.035).toFixed(2)}s` }}
+                        aria-label={`Jornada ${t.j}, ${t.rival}: ${t.result ? RESULT_WORD[t.result] : t.state === "live" ? "en juego" : t.state === "awaiting" ? AWAITING_ACTA.toLowerCase() : "por jugar"}`}
+                      >
+                        {t.state === "live" ? "●" : t.state === "awaiting" ? "…" : (t.result ?? "·")}
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="pt-legend">
+                    <span>J1</span>
+                    <span>{RESULT_LEGEND}</span>
+                    <span>J{view.tiles.length}</span>
+                  </div>
+                </>
+              )}
+              <dl className={`pt-nums${pj ? "" : " ph"}`}>
+                <div className="hl">
+                  <dt>jugados</dt>
+                  <dd>{pj}</dd>
+                </div>
+                <div>
+                  <dt>G · E · P</dt>
+                  <dd>
+                    {view.wins}·{view.draws}·{view.losses}
+                  </dd>
+                </div>
+                <div className="hl">
+                  <dt>a favor</dt>
+                  <dd>{view.gf}</dd>
+                </div>
+                <div>
+                  <dt>en contra</dt>
+                  <dd>{view.ga}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="pt-sec" aria-labelledby="pt-c">
+              <span className="hm-kick">Jornada a jornada</span>
+              <h2 className="hm-h2" id="pt-c">
+                El calendario
+              </h2>
+              <div className="pt-tools">
+                <div className="pt-seg" role="group" aria-label="Filtrar partidos">
+                  {(
+                    [
+                      ["all", "Todos"],
+                      ["next", "Próximos"],
+                      ["results", "Resultados"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <label className="pt-search">
+                  <Icon name="search" size={18} />
+                  <span className="hm-sr">Buscar rival</span>
+                  <input type="search" placeholder="Buscar rival…" value={search} onChange={(e) => setSearch(e.target.value)} />
+                </label>
+                {seasons.length > 1 && (
+                  <select className="pt-season" aria-label="Temporada" value={selectedSeasonId} onChange={(e) => setSeason(e.target.value)}>
+                    <option value="all">{ALL_SEASONS_LABEL}</option>
+                    {seasons.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {rows.length > 0 ? (
+                <ol className="pt-list">
+                  {rows.map((m) => (
+                    <li key={m.id}>
+                      <Row m={m} j={jornada.get(m.id)} now={now} nameOf={nameIn(m.seasonId)} next={m.id === view.next?.id} still={!rowGoal.flip} />
+                    </li>
+                  ))}
+                </ol>
+              ) : listMatches.length ? (
+                <p className="pt-more">Ningún partido con ese filtro.</p>
+              ) : (
+                <div className="pt-list">
+                  {[1, 2, 3].map((n) => (
+                    <div className="pt-ghostrow" key={n}>
+                      <b>J{n}</b>
+                      <span>{n === 1 ? "Por confirmar · el capitán publica la fecha" : "Por confirmar"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <aside className="pt-aside" aria-label="Más de la temporada">
+              {scorers.length > 0 && (
+                <div className="pt-card">
+                  <span className="hm-kick" style={{ margin: 0 }}>
+                    Goles de la temporada
+                  </span>
+                  {/* (his name is plain here: his row just below is the one link to his page) */}
+                  <h3>
+                    {scorers[0].name} lleva {scorers[0].stats.goals}
+                  </h3>
+                  <ol className="pt-pich">
+                    {scorers.map((s, i) => (
+                      <li key={s.id}>
+                        <i>{i + 1}</i>
+                        <span>
+                          <PlayerLink id={s.id} seasonId={seasonId} variant="quiet">{s.name}</PlayerLink>
+                        </span>
+                        <b>{s.stats.goals}</b>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              <Avisos />
+              <div className="pt-card">
+                <span className="hm-kick" style={{ margin: 0 }}>
+                  En tu móvil
+                </span>
+                <h3>Todos los partidos, solos en tu calendario</h3>
+                <p>Fechas, cambios de hora y resultados llegan a Google, Apple u Outlook sin hacer nada.</p>
+                <div className="pt-acts" style={{ justifyContent: "flex-start" }}>
+                  <AddToCalendar className="hm-ghostbtn" label="Suscribirme" feed={`${origin()}/calendario.ics`} />
+                </div>
+              </div>
+            </aside>
+          </main>
+        </>
+      )}
       <CelesteFooter />
       <CelesteDock active="partidos" />
     </div>

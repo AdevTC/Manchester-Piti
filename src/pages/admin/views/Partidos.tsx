@@ -13,6 +13,7 @@ import { jLabel, type AdminMatch } from "../data/adminLogic";
 import type { AdminData } from "../data/useAdminData";
 import { useWhistled } from "../data/whistleStore";
 import { ShirtBack } from "../kit";
+import { useMatchShortcuts } from "../palette/matchShortcuts";
 import { useRegisterCommands } from "../palette/registry";
 import type { PaletteCommand } from "../palette/search";
 import { useAdmin } from "../shell/context";
@@ -271,6 +272,8 @@ export function Partidos() {
 function MatchPane({ match, data, tab, onTab, onBack, onDelete, onPublished }: { match: AdminMatch; data: AdminData; tab: MatchTab | undefined; onTab: (t: MatchTab) => void; onBack: () => void; onDelete: (m: AdminMatch) => void; onPublished: () => void }) {
   const whistled = useWhistled();
   const note = useMatchNote(match.id);
+  // ⌘K: «Ver en la web» and «Abrir la pizarra (J8 · MAD SKY)» for the match on screen
+  useMatchShortcuts(match);
   if (note.loading)
     return (
       <section className="det" aria-label="Partido">

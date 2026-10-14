@@ -1,32 +1,30 @@
 // /profile › «Temporada»: Tus números → Dónde has jugado → Gol a gol (+ the last five results) → Tu socio en el campo →
 // Tus cosas en el vestuario (the next convocatoria, your boards, your porra, your answers). Real data,
 // empty states as designed (pf-g.mjs pTemp).
-import { useNavigate } from "@tanstack/react-router";
-import type { MouseEvent, ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import type { PosCode, PositionSet } from "../../lib/positions";
 import type { PlayerPositions } from "../../lib/positionStats";
 import type { CardView } from "./card";
 import { DondeHasJugado } from "./DondeHasJugado";
 import { vars } from "./fx";
 import { Ic, type PIcon } from "./icons";
-import { firstMatchText, jornadaRange, longDay, type StuffLine } from "./lines";
+import { firstMatchText, jornadaRange, longDay, type StuffLine, type StuffLink } from "./lines";
 import { RESULT_LEGEND } from "../../lib/derived/result";
 
 /** The goal bars keep a readable width on a phone: the last 10 jornadas at most. */
 export const GB_MAX = 10;
 
-/** An in-app link to a built href (the board's ?tablero= link): the router navigates, a modified click opens a tab. */
-function HrefLink({ href, className, children }: { href: string; className: string; children: ReactNode }) {
-  const navigate = useNavigate();
-  const go = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    e.preventDefault();
-    void navigate({ href });
-  };
-  return (
-    <a className={className} href={href} onClick={go}>
+/** A line's link through the typed routes (the board's one carries ?tablero= and its season). */
+function StuffLinkTo({ link, className, children }: { link: StuffLink; className: string; children: ReactNode }) {
+  return link.to === "/pizarra" ? (
+    <Link className={className} to="/pizarra" search={link.search}>
       {children}
-    </a>
+    </Link>
+  ) : (
+    <Link className={className} to={link.to}>
+      {children}
+    </Link>
   );
 }
 
@@ -40,8 +38,10 @@ export interface PlayedField {
   onGoPositions: () => void;
 }
 
-export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, played }: { card: CardView; seasonName: string; stuff: StuffLine[]; stuffLoading: boolean; onGoPick: () => void; played: PlayedField | null }) {
+export function TabTemporada({ card, seasonId, seasonName, stuff, stuffLoading, onGoPick, played }: { card: CardView; seasonId: string; seasonName: string; stuff: StuffLine[]; stuffLoading: boolean; onGoPick: () => void; played: PlayedField | null }) {
   const vinc = card.state === "vinculada";
+  // the season on the public pages it links to («all» or none adds no ?season=)
+  const season = seasonId && seasonId !== "all" ? { season: seasonId } : {};
   const t = card.totals;
   const bars = card.series.slice(-GB_MAX);
   const range = jornadaRange(card.series);
@@ -98,8 +98,15 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
               <Ic n="trophy" w={16} />
               <span>{card.started ? card.rankText || "Aún sin minutos esta temporada" : `El marcador se enciende ${firstMatchText(card)}`}</span>
             </p>
+            {/* (his public page: his numbers of the season, as the club sees them) */}
+            {card.playerId && (
+              <Link className="btn sm bk-go" to="/jugadores/$playerId" params={{ playerId: card.playerId }} search={season}>
+                Ver tus estadísticas
+                <Ic n="right" />
+              </Link>
+            )}
           </div>
-          {played && <DondeHasJugado played={played.played} positions={played.positions} seasonName={seasonName} nudge={played.nudge} onGoPositions={played.onGoPositions} />}
+          {played && <DondeHasJugado played={played.played} positions={played.positions} seasonId={seasonId} seasonName={seasonName} nudge={played.nudge} onGoPositions={played.onGoPositions} />}
           <div className="bk">
             <h3 className="bk-h">Gol a gol</h3>
             <p className="bk-d">Tus goles en cada jornada y cómo acabaron los últimos cinco partidos.</p>
@@ -161,7 +168,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
         <ul className="lks" aria-busy={stuffLoading || undefined}>
           {stuff.map((l) => (
             <li key={l.key}>
-              <HrefLink className={"lk" + (l.call ? " call" : "")} href={l.href}>
+              <StuffLinkTo className={"lk" + (l.call ? " call" : "")} link={l.link}>
                 <span className="lk-ic">
                   <Ic n={STUFF_ICON[l.key]} w={20} />
                 </span>
@@ -170,7 +177,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
                   <small>{stuffLoading && l.key !== "call" ? "Cargando…" : l.text}</small>
                 </span>
                 <Ic n="right" />
-              </HrefLink>
+              </StuffLinkTo>
             </li>
           ))}
         </ul>

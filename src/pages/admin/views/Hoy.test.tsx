@@ -64,7 +64,7 @@ describe("Hoy · Antes: the peg wall", () => {
     const side = screen.getByRole("complementary", { name: /Por hacer/ });
     expect(within(side).getAllByRole("listitem").map((li) => li.querySelector("b")?.textContent)).toEqual([
       "Acta J2 · falta el goleador del gol 3",
-      "2 fichas piden paso",
+      "2 cuentas piden paso",
       "Historias de jugadores · por completar",
       "Historia del escudo · por completar",
     ]);
@@ -81,7 +81,7 @@ describe("Hoy · Antes: the peg wall", () => {
     const side = await screen.findByRole("complementary", { name: /Por hacer/ });
     expect(within(side).getAllByRole("listitem").map((li) => li.querySelector("b")?.textContent)).toEqual([
       "Acta J2 · falta el goleador del gol 3",
-      "2 fichas piden paso",
+      "2 cuentas piden paso",
       "Posiciones propuestas · por revisar",
       "Historias de jugadores · por completar",
       "Historia del escudo · por completar",

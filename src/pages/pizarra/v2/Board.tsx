@@ -196,6 +196,10 @@ export interface BoardProps {
   /** «Partido de día»: the app's theme. */
   theme: { day: boolean; toggle: () => void };
   crest: ReactNode;
+  /** The ways out to the rest of the app, as router links (PizarraPage makes them; absent in tests): a
+   *  player's public page («Ver su página» on his ficha) and the linked match's (its page, an admin's
+   *  Convocar). */
+  links?: { player: (id: string) => ReactNode; match: (matchId: string) => ReactNode };
   header?: ReactNode;
   footer?: ReactNode;
 }
@@ -2780,6 +2784,7 @@ export function Board(props: BoardProps) {
         official={offView}
         reactions={props.reactions}
         isCap={props.isAdmin}
+        matchLinks={props.links?.match}
         scopeMatch={linked ?? props.nextMatch}
         onScreenOfficial={session.official ? { matchId: session.matchId } : null}
         canPublish={canEdit}
@@ -3351,6 +3356,7 @@ export function Board(props: BoardProps) {
           <Ficha
             f={ficha}
             rm={rm}
+            link={props.links?.player(ficha.id)}
             onFlip={() => {
               patchUi({ fic: { ...fic, side: fic.side === "front" ? "back" : "front" } });
               snd("flip");

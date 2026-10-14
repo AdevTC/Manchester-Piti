@@ -1,6 +1,8 @@
 // /profile › Temporada › «Dónde has jugado» (vinculada only): the season's minutes by exact position on the
 // night pitch (the shared map in history mode, with its one-line summary), an LED strip with the totals, and
-// a nudge to «Tus posiciones» when what he plays most is not what his ficha says.
+// a nudge to «Tus posiciones» when what he plays most is not what his ficha says, and the way to the
+// whole team's positions (/stats?view=positions, in the season).
+import { Link } from "@tanstack/react-router";
 import { MapaPosiciones } from "../../components/posiciones/MapaPosiciones";
 import { PlayedNote } from "../../components/posiciones/haJugadoDe";
 import { usePlayed } from "../../components/posiciones/usePlayed";
@@ -12,7 +14,7 @@ import { fmtMinutes } from "../../lib/derived/minutes";
 const NONE: PositionSet = { main: null, also: [] };
 const partidos = (n: number) => `${n} ${n === 1 ? "partido" : "partidos"}`;
 
-export function DondeHasJugado({ played, positions, seasonName, nudge, onGoPositions }: { played: PlayerPositions; positions: PositionSet | null; seasonName: string; nudge: PosCode | null; onGoPositions: () => void }) {
+export function DondeHasJugado({ played, positions, seasonId, seasonName, nudge, onGoPositions }: { played: PlayerPositions; positions: PositionSet | null; seasonId: string; seasonName: string; nudge: PosCode | null; onGoPositions: () => void }) {
   const record = usePlayed(played);
   const any = played.lines.length > 0;
   return (
@@ -46,6 +48,10 @@ export function DondeHasJugado({ played, positions, seasonName, nudge, onGoPosit
           <Ic n="right" />
         </button>
       )}
+      <Link className="btn sm bk-go" to="/stats" search={{ view: "positions", ...(seasonId && seasonId !== "all" ? { season: seasonId } : {}) }}>
+        Ver las posiciones del equipo
+        <Ic n="right" />
+      </Link>
     </div>
   );
 }

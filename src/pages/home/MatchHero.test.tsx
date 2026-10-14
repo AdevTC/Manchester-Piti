@@ -6,7 +6,13 @@ import { seasonPulse } from "../../lib/home";
 import { readyClock, transitionClock } from "../../../functions/src/matchClock";
 import type { ClubMatch } from "../../lib/clubData";
 
-vi.mock("@tanstack/react-router", () => ({ Link: ({ children }: { children?: ReactNode }) => <span>{children}</span> }));
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, className, to, params }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string> }) => (
+    <a className={className} href={(to ?? "#").replace(/\$(\w+)/g, (_, k: string) => params?.[k] ?? "")}>
+      {children}
+    </a>
+  ),
+}));
 
 const MIN = 60_000;
 const DATE = Date.UTC(2026, 10, 8, 11);
@@ -33,4 +39,16 @@ it("once the clock starts it is live (no pending text), and after the window it 
   rerender(hero(match, DATE + 50 * MIN + 2 * 60 * MIN));
   expect(screen.queryByText("Pendiente del pitido inicial")).toBeNull();
   expect(screen.getByText("Por confirmar")).toBeInTheDocument();
+});
+
+it("the next match, not live yet: «Ver la previa» → its page (no tab: it opens on the previa); live: only «Seguir en directo»", () => {
+  const { rerender } = render(hero(match, DATE - 90 * MIN));
+  expect(screen.getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/j8");
+  // the date has come, nobody has started the clock: still the previa
+  rerender(hero(match, DATE + 5 * MIN));
+  expect(screen.getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/j8");
+  const started = { ...match, clock: transitionClock(match.clock, "start", DATE + 20 * MIN) };
+  rerender(hero(started, DATE + 21 * MIN));
+  expect(screen.queryByRole("link", { name: /Ver la previa/ })).toBeNull();
+  expect(screen.getByRole("link", { name: /Seguir en directo/ })).toHaveAttribute("href", "/matches/j8");
 });

@@ -1,5 +1,5 @@
 // The Sala de control's keyboard: `g` then a section's key jumps there (g h Hoy, g p Partidos, g c Convocar,
-// g l pLantilla, g f Fichas, g t Temporadas, g k capitanes, g o cOntenido) and `[` folds / unfolds the rail
+// g l pLantilla, g f Cuentas (fichas), g t Temporadas, g k capitanes, g o cOntenido) and `[` folds / unfolds the rail
 // on wide screens. Never while typing (inputs, textareas, selects, contenteditable), never with a modifier,
 // never while a layer is open (the palette, a modal, the Más sheet: they own the keyboard).
 import { useEffect, useRef } from "react";

@@ -12,6 +12,8 @@ import { RootLayout } from "./RootLayout";
 import {
   RoutePending,
   RouteError,
+  RouteNotFound,
+  AdminRouteNotFound,
   MatchDetailPending,
   PlayerProfilePending,
 } from "./components/route-states";
@@ -29,8 +31,12 @@ export const rootSearchSchema = z.object({
 // Stats route's `validateSearch`: the active view is deep-linkable/persistent.
 // Merges with the inherited root `season`, so reading/writing via the route api
 // preserves `season`. `tab` is only read: old ?tab=compare links still open the
-// comparison (the page writes `view` and never `tab`).
+// comparison (the page writes `view` and never `tab`). `a`/`b` are Comparar's two players (ids; the
+// pane ignores one nobody in the period has), so «X vs Y» can be linked from the jugador page.
+const optionalString = z.union([z.string(), z.number()]).transform(String).optional().catch(undefined);
 export const statsSearchSchema = z.object({
+  a: optionalString,
+  b: optionalString,
   tab: z.enum(["general", "compare"]).optional().catch(undefined),
   view: z
     .enum(["summary", "players", "minutes", "positions", "rivals", "compare", "explore", "game"])
@@ -56,7 +62,6 @@ const LEGACY_ADMIN_TAB = {
 } as const;
 // The admin sections' deep-linkable state (drawers, modals and tabs live in the URL).
 const optionalTrue = z.boolean().optional().catch(undefined);
-const optionalString = z.union([z.string(), z.number()]).transform(String).optional().catch(undefined);
 export const adminPartidosSearchSchema = z.object({
   /** Open the «Nuevo partido» modal. */
   nuevo: optionalTrue,
@@ -81,6 +86,11 @@ export const adminPlantillaSearchSchema = z.object({
   /** «Alta» starting on this free dorsal (1–99; anything else is dropped). */
   dorsal: z.coerce.number().int().min(1).max(99).optional().catch(undefined),
 });
+// /pizarra?tablero=<id> opens that board (v2/deeplink.ts reads it on the first render). Declared so the
+// match page, the admin and the perfil link to a board through the typed route.
+export const pizarraSearchSchema = z.object({
+  tablero: optionalString,
+});
 export const adminContenidoSearchSchema = z.object({
   /** The content section whose editor drawer is open. */
   seccion: optionalString,
@@ -89,9 +99,9 @@ export const adminContenidoSearchSchema = z.object({
 const rootRoute = createRootRoute({
   component: RootLayout,
   validateSearch: rootSearchSchema,
-  // Parity with the old hash router, which fell back to "matches" for any
-  // invalid hash. Unknown clean URLs now redirect to "/" instead of blanking.
-  notFoundComponent: () => <Navigate to="/" replace />,
+  // An unknown address is the 404 («Fuera de juego»), with the site chrome and a way back, never a
+  // silent redirect. The catch-all route below answers it; this covers a notFound() thrown anywhere.
+  notFoundComponent: RouteNotFound,
 });
 
 const matchesRoute = createRoute({
@@ -149,6 +159,12 @@ const adminEnJuegoRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "en-juego/$matchId",
   component: lazyRouteComponent(() => import("./pages/admin/views/EnJuego"), "EnJuego"),
+});
+// An address under /admin the Sala de control does not have: the 404 inside its frame (not the public one).
+const adminNotFoundRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "$",
+  component: AdminRouteNotFound,
 });
 const adminConvocarRoute = createRoute({
   getParentRoute: () => adminRoute,
@@ -247,10 +263,33 @@ const invitationRoute = createRoute({
 const pizarraRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/pizarra",
+  validateSearch: pizarraSearchSchema,
   component: lazyRouteComponent(
     () => import("./pages/pizarra/PizarraRoute"),
     "PizarraRoute",
   ),
+});
+// The bare collection paths someone may type or trim a link to: their section, not the 404.
+const matchesIndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/matches",
+  beforeLoad: () => {
+    throw redirect({ to: "/partidos", replace: true });
+  },
+});
+const playersIndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/jugadores",
+  beforeLoad: () => {
+    throw redirect({ to: "/plantilla", replace: true });
+  },
+});
+// Any address no route above takes: the 404 page. Its id ("/$") is how RootLayout knows to give it no
+// legacy chrome.
+const notFoundRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "$",
+  component: RouteNotFound,
 });
 const routeTree = rootRoute.addChildren([
   invitationRoute,
@@ -273,9 +312,13 @@ const routeTree = rootRoute.addChildren([
     adminTemporadasRoute,
     adminCapitanesRoute,
     adminContenidoRoute,
+    adminNotFoundRoute,
   ]),
   matchDetailRoute,
   playerProfileRoute,
+  matchesIndexRoute,
+  playersIndexRoute,
+  notFoundRoute,
 ]);
 
 // One router per app instance: the browser has one, the server render makes one per request.

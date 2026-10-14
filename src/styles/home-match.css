@@ -30,6 +30,8 @@
 .hm-match .cd span{font-family:'Geist Mono';font-size:9px;color:#9fb3d3;text-transform:uppercase}
 .hm-match .cd.ph b{color:#6d80a3}
 .hm-match .acts{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+/* phone: one primary over the calendar pills, a clean centred stack (never two on a row and one alone) */
+@container (max-width:699px){.hm-match .acts{flex-direction:column;align-items:center}}
 .hm-match .moment{display:grid;grid-template-columns:112px minmax(0,1fr);gap:16px;align-items:center;padding:18px}
 .hm-match .moment .pic{aspect-ratio:360/400;filter:drop-shadow(0 18px 16px rgba(0,0,0,.4))}
 .hm-match .moment .pic img,.hm-match .moment .pic .sq-shirt{width:100%;height:100%;display:block;object-fit:contain}

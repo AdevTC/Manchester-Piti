@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Icon } from "../../components/celeste/icons";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { dateMillis, formatDate, isCompleted, type ClubMatch } from "../../lib/clubData";
 import { resultOf, type PlayerLine, type Pulse, type Result } from "../../lib/home";
 import { plural } from "../../lib/vestuario";
@@ -151,7 +152,7 @@ export function SeasonRow({ pulse, now, nameOf }: { pulse: Pulse; now: number; n
 
 // ---------- pichichi + cumpleaños
 const SHIRT = "M8 3 3 6l2 5 2-1v11h10V10l2 1 2-5-5-3a4 4 0 0 1-8 0Z";
-function Pod({ line, rank, stat }: { line?: PlayerLine; rank: 1 | 2 | 3; stat: string }) {
+function Pod({ line, rank, stat, seasonId }: { line?: PlayerLine; rank: 1 | 2 | 3; stat: string; seasonId?: string }) {
   const h = rank === 1 ? 112 : rank === 2 ? 74 : 54;
   return (
     <div className={`hm-pod${rank === 1 ? " first" : ""}${line ? "" : " ghost"}`}>
@@ -161,7 +162,15 @@ function Pod({ line, rank, stat }: { line?: PlayerLine; rank: 1 | 2 | 3; stat: s
         </svg>
         <b>{line?.num ?? "?"}</b>
       </span>
-      <span className="nm">{line?.name ?? "Por decidir"}</span>
+      <span className="nm">
+        {line ? (
+          <PlayerLink id={line.id} seasonId={seasonId} variant="quiet">
+            {line.name}
+          </PlayerLink>
+        ) : (
+          "Por decidir"
+        )}
+      </span>
       <span className="v">{stat}</span>
       <span className="st" style={{ height: h }} aria-label={`Puesto ${rank}`}>
         {rank}
@@ -169,7 +178,7 @@ function Pod({ line, rank, stat }: { line?: PlayerLine; rank: 1 | 2 | 3; stat: s
     </div>
   );
 }
-export function RaceAndBirthdays({ scorers, assister, birthdays }: { scorers: PlayerLine[]; assister?: PlayerLine; birthdays: { id: string; name: string; num: string; label: string; days: number }[] }) {
+export function RaceAndBirthdays({ scorers, assister, birthdays, seasonId }: { scorers: PlayerLine[]; assister?: PlayerLine; birthdays: { id: string; name: string; num: string; label: string; days: number }[]; /** The season the names and links are in. */ seasonId?: string }) {
   const [first, second, third] = scorers;
   const stat = (l?: PlayerLine) => (l ? plural(l.stats.goals, "gol", "goles") : "0 goles");
   return (
@@ -189,14 +198,21 @@ export function RaceAndBirthdays({ scorers, assister, birthdays }: { scorers: Pl
             )}
           </h2>
           <div className="hm-race">
-            <Pod line={second} rank={2} stat={stat(second)} />
-            <Pod line={first} rank={1} stat={stat(first)} />
-            <Pod line={third} rank={3} stat={stat(third)} />
+            <Pod line={second} rank={2} stat={stat(second)} seasonId={seasonId} />
+            <Pod line={first} rank={1} stat={stat(first)} seasonId={seasonId} />
+            <Pod line={third} rank={3} stat={stat(third)} seasonId={seasonId} />
           </div>
           <p className="hm-lede">
-            {assister
-              ? `${assister.name} es quien más goles regala: ${plural(assister.stats.assists, "asistencia", "asistencias")}.`
-              : "La tabla arranca en cero para todos y se actualiza sola con cada gol y cada asistencia del acta."}
+            {assister ? (
+              <>
+                <PlayerLink id={assister.id} seasonId={seasonId} variant="quiet">
+                  {assister.name}
+                </PlayerLink>{" "}
+                es quien más goles regala: {plural(assister.stats.assists, "asistencia", "asistencias")}.
+              </>
+            ) : (
+              "La tabla arranca en cero para todos y se actualiza sola con cada gol y cada asistencia del acta."
+            )}
           </p>
         </div>
         {birthdays.length > 0 && (
@@ -212,7 +228,11 @@ export function RaceAndBirthdays({ scorers, assister, birthdays }: { scorers: Pl
                     {b.num}
                   </span>
                   <span>
-                    <b>{b.name}</b>
+                    <b>
+                      <PlayerLink id={b.id} seasonId={seasonId} variant="quiet">
+                        {b.name}
+                      </PlayerLink>
+                    </b>
                     <span>Cumple el {b.label}</span>
                   </span>
                   <span className="w">{b.days === 0 ? "¡hoy!" : b.days === 1 ? "mañana" : `en ${b.days} días`}</span>

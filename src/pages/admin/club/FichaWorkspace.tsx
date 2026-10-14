@@ -610,7 +610,7 @@ export function FichaWorkspace(props: FichaWorkspaceProps) {
       </p>
       {row.account === "pide" ? (
         <Link className="lnk" to="/admin/fichas">
-          Revisar en Fichas
+          Revisar en Cuentas
           <AdIcon name="right" size={14} />
         </Link>
       ) : null}

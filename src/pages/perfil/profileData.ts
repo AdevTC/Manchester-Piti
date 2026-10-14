@@ -155,19 +155,22 @@ export function accessInfo(m: MembershipLike | null, createdAt: number | null, u
 
 export interface BoardLike {
   id: string;
+  /** Its season (the link opens it there, whatever season is selected). */
+  seasonId?: string;
   name: string;
   updatedAt: number | null;
   createdAt: number | null;
 }
 export interface BoardsLine {
   count: number;
-  last: { id: string; name: string; at: number | null; href: string } | null;
+  /** The last one you touched: its id (`?tablero=`) and season (`?season=`). */
+  last: { id: string; name: string; at: number | null; season: string | null } | null;
 }
 /** «Tus pizarras»: how many boards you have this season and the last one you touched. */
 export function boardsLine(mine: BoardLike[]): BoardsLine {
   const at = (b: BoardLike) => b.updatedAt ?? b.createdAt ?? 0;
   const last = mine.reduce<BoardLike | null>((best, b) => (!best || at(b) > at(best) ? b : best), null);
-  return { count: mine.length, last: last ? { id: last.id, name: last.name, at: last.updatedAt ?? last.createdAt, href: `/pizarra?tablero=${encodeURIComponent(last.id)}` } : null };
+  return { count: mine.length, last: last ? { id: last.id, name: last.name, at: last.updatedAt ?? last.createdAt, season: last.seasonId ?? null } : null };
 }
 
 export interface PorraLine {

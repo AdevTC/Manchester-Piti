@@ -4,6 +4,9 @@ import type { Lineup } from "../formations";
 import { demoSquad, lineupOf } from "./testkit";
 import { BoardHarness as Harness } from "./testkitBoard";
 
+// Heavy suite: it renders the whole board in jsdom (1–2 s per test alone); under load it crossed 5 s.
+vi.setConfig({ testTimeout: 15_000 });
+
 // The board as a user drives it (no Firebase): a harness session keeps the lineup in state, like the
 // real one does between autosaves.
 

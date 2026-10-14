@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Icon, type IconName } from "./icons";
 import "../../styles/vestuario.css";
+import "./celeste-links.css";
+import "./state-panel.css";
 
 export type CelestePage = "inicio" | "partidos" | "plantilla" | "stats" | "club" | "vestuario";
 const NAV: { key: CelestePage; to: string; label: string }[] = [
@@ -30,7 +32,8 @@ export function CelesteBackdrop() {
   );
 }
 
-export function CelesteHeader({ active, sub, actions }: { active: CelestePage; sub: string; actions: ReactNode }) {
+/** `active`: the nav item lit (none on a page outside the nav: a 404, the admin's door). */
+export function CelesteHeader({ active, sub, actions }: { active?: CelestePage; sub: string; actions: ReactNode }) {
   return (
     <header className="vx-top">
       <Link className="vx-brand" to="/">
@@ -52,7 +55,7 @@ export function CelesteHeader({ active, sub, actions }: { active: CelestePage; s
   );
 }
 
-export function CelesteDock({ active }: { active: CelestePage }) {
+export function CelesteDock({ active }: { active?: CelestePage }) {
   return (
     <nav className="vx-dock" aria-label="Navegación móvil">
       {DOCK.map((d) =>

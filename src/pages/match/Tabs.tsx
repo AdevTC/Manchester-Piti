@@ -21,6 +21,8 @@ import { apiError } from "../../lib/clubApi";
 import { rsvpSummary } from "../../lib/rsvp";
 import type { PlayerDoc } from "../../lib/schemas";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
+import { nameSegments, type NameSegment } from "../../lib/derived/names";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
 
 type NameOf = (id: string) => string;
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -33,6 +35,23 @@ function useNumOf(players: PlayerDoc[], seasonId?: string) {
     const n = playerForSeason(p, seasonId ?? "all", seasons).number;
     return n != null ? String(n) : "";
   };
+}
+
+/** A crónica line with each player it names as a quiet link to his page. */
+function Named({ segments, seasonId }: { segments: NameSegment[]; seasonId?: string }) {
+  return (
+    <>
+      {segments.map((s, i) =>
+        s.id ? (
+          <PlayerLink key={i} id={s.id} seasonId={seasonId} variant="quiet">
+            {s.text}
+          </PlayerLink>
+        ) : (
+          s.text
+        ),
+      )}
+    </>
+  );
 }
 
 function HeadToHead({ match, matches }: { match: ClubMatch; matches: ClubMatch[] }) {
@@ -78,33 +97,44 @@ export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMat
         )}
         {match.photoUrl && <img className="fc-photo" src={match.photoUrl} alt={`Manchester Piti contra ${rival}`} />}
         {story.length > 1 ? (
-          story.map((c, i) => (
-            <article key={i} className={`fc-ch ${c.side}`}>
-              {c.minute != null && (
-                <span className="min" aria-hidden="true">
-                  {c.minute}′
-                </span>
-              )}
-              <div className="tx">
-                <span className="hm-kick" style={{ margin: 0 }}>
-                  {c.minute != null ? `Minuto ${c.minute}` : "Pitido final"}
-                </span>
-                <h3>{c.title}</h3>
-                <p>{c.text}</p>
-              </div>
-              {c.side !== "end" && (
-                <div className="sb">
-                  {c.playerId ? (
-                    <ShirtBack name={nameOf(c.playerId).toUpperCase()} num={numOf(c.playerId)} />
-                  ) : (
-                    <span className="ball">
-                      <Icon name="ball" size={34} />
-                    </span>
-                  )}
+          story.map((c, i) => {
+            // each name is linked once: in the sentence, or in the title when the sentence doesn't say it
+            const people = (c.people ?? []).map((id) => ({ id, name: nameOf(id) }));
+            const text = nameSegments(c.text, people);
+            const inText = new Set(text.map((x) => x.id));
+            const title = nameSegments(c.title, people.filter((x) => !inText.has(x.id)));
+            return (
+              <article key={i} className={`fc-ch ${c.side}`}>
+                {c.minute != null && (
+                  <span className="min" aria-hidden="true">
+                    {c.minute}′
+                  </span>
+                )}
+                <div className="tx">
+                  <span className="hm-kick" style={{ margin: 0 }}>
+                    {c.minute != null ? `Minuto ${c.minute}` : "Pitido final"}
+                  </span>
+                  <h3>
+                    <Named segments={title} seasonId={match.seasonId} />
+                  </h3>
+                  <p>
+                    <Named segments={text} seasonId={match.seasonId} />
+                  </p>
                 </div>
-              )}
-            </article>
-          ))
+                {c.side !== "end" && (
+                  <div className="sb">
+                    {c.playerId ? (
+                      <ShirtBack name={nameOf(c.playerId).toUpperCase()} num={numOf(c.playerId)} />
+                    ) : (
+                      <span className="ball">
+                        <Icon name="ball" size={34} />
+                      </span>
+                    )}
+                  </div>
+                )}
+              </article>
+            );
+          })
         ) : (
           <p className="fc-note">{match.version === 2 ? "No se registraron goles ni jugadas destacadas en el acta." : "Este partido pertenece al archivo anterior: su acta no tiene minuto a minuto."}</p>
         )}
@@ -196,17 +226,18 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
         <ol className="fc-feed" aria-live="polite">
           {feed.map((e) => {
             const us = OURS.has(e.type) || e.type === "chance" || e.type === "corner";
-            const who = e.type.startsWith("opponent_") ? rival : e.type === "substitution" && e.inPlayerId ? nameOf(e.inPlayerId) : e.playerId ? nameOf(e.playerId) : "Manchester Piti";
+            const whoId = e.type.startsWith("opponent_") ? undefined : e.type === "substitution" && e.inPlayerId ? e.inPlayerId : e.playerId;
+            const who = e.type.startsWith("opponent_") ? rival : whoId ? nameOf(whoId) : "Manchester Piti";
             return (
               <li key={e.id} className={us ? "us" : ""}>
                 <b>{e.minute}′</b>
                 <span className="ic">{/yellow|red/.test(e.type) ? <i className="fc-yc" style={e.type !== "yellow_card" ? { background: "#ff5a4f" } : undefined} /> : <Icon name={/goal/.test(e.type) ? "ball" : e.type === "substitution" ? "swap" : e.type === "assist" ? "boot" : "flag"} size={15} />}</span>
                 <span>
-                  <strong>{who}</strong>
+                  <strong>{whoId ? <PlayerLink id={whoId} seasonId={match.seasonId} variant="quiet">{who}</PlayerLink> : who}</strong>
                   <small>
                     {EVENT_LABELS[e.type] ?? e.type}
-                    {e.assistPlayerId && <> · <Icon name="boot" size={13} /> asistencia de {nameOf(e.assistPlayerId)}</>}
-                    {e.type === "substitution" && e.playerId ? ` · sale ${nameOf(e.playerId)}` : ""}
+                    {e.assistPlayerId && <> · <Icon name="boot" size={13} /> asistencia de <PlayerLink id={e.assistPlayerId} seasonId={match.seasonId} variant="quiet">{nameOf(e.assistPlayerId)}</PlayerLink></>}
+                    {e.type === "substitution" && e.playerId ? <> · sale <PlayerLink id={e.playerId} seasonId={match.seasonId} variant="quiet">{nameOf(e.playerId)}</PlayerLink></> : ""}
                   </small>
                 </span>
               </li>
@@ -288,7 +319,7 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
         {line && pick && (
           <dl className="fc-pinfo">
             <span className="nm">
-              {numOf(pick)} · {nameOf(pick)}
+              {numOf(pick)} · <PlayerLink id={pick} seasonId={match.seasonId} variant="quiet">{nameOf(pick)}</PlayerLink>
             </span>
             <div>
               <dt>min</dt>
@@ -329,7 +360,7 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
             {rows.map((r, i) => (
               <div className="r" key={r.id}>
                 <span className="nm">
-                  {numOf(r.id)} · {nameOf(r.id)}
+                  {numOf(r.id)} · <PlayerLink id={r.id} seasonId={match.seasonId} variant="quiet">{nameOf(r.id)}</PlayerLink>
                 </span>
                 <span className="tr" role="img" aria-label={`${nameOf(r.id)}: ${wholeMinutes(r.minutes)} minutos`}>
                   {r.spans.map((s, k) => (
@@ -443,7 +474,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
         <h2 className="hm-h2">El vestuario</h2>
         {done && mvp && leader && (
           <p className="fc-note">
-            MVP: {nameOf(leader[0])} con {leader[1]} de {mvp.total} votos.
+            MVP: <PlayerLink id={leader[0]} seasonId={match.seasonId} variant="quiet">{nameOf(leader[0])}</PlayerLink> con {leader[1]} de {mvp.total} votos.
           </p>
         )}
         <div className="fc-lock">
@@ -573,7 +604,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
                     MVP · {voteOpen ? `cierra en ${hours} h` : "votación cerrada"}
                   </span>
                   <h2 className="hm-h2" id="fc-mvp">
-                    {leader ? nameOf(leader[0]) : "Sin votos todavía"}
+                    {leader ? <PlayerLink id={leader[0]} seasonId={match.seasonId} variant="quiet">{nameOf(leader[0])}</PlayerLink> : "Sin votos todavía"}
                   </h2>
                   <p>{mvp ? `${mvp.total} ${mvp.total === 1 ? "voto" : "votos"} del equipo.` : "Nadie ha votado aún."}</p>
                 </div>
@@ -582,7 +613,9 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
                 <ul className="fc-votes">
                   {candidates.slice(0, 6).map((id) => (
                     <li key={id}>
-                      <span>{nameOf(id)}</span>
+                      <span>
+                        <PlayerLink id={id} seasonId={match.seasonId} variant="quiet">{nameOf(id)}</PlayerLink>
+                      </span>
                       <span className="bar">
                         <i style={{ width: `${mvp?.total ? ((mvp.counts[id] ?? 0) / mvp.total) * 100 : 0}%` }} />
                       </span>
