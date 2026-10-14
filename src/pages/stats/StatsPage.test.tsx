@@ -80,12 +80,14 @@ describe("StatsPage · Posiciones", () => {
     expect(call.search({ season: "t1" })).toStrictEqual({ season: "t1", view: "positions" });
   });
 
-  it("the old ?tab= is gone from the schema: a stale link opens on Resumen", () => {
-    expect(statsSearchSchema.parse({ tab: "compare" })).not.toHaveProperty("tab");
+  it("an old ?tab=compare link still opens Comparar (read as view=compare, never written back)", () => {
+    expect(statsSearchSchema.parse({ tab: "compare" })).toStrictEqual({ view: "compare" });
+    expect(statsSearchSchema.parse({ tab: "compare", view: "minutes" })).toStrictEqual({ view: "minutes" });
+    expect(statsSearchSchema.parse({ tab: "general" })).not.toHaveProperty("view");
     search.value = statsSearchSchema.parse({ tab: "compare" });
     render(<StatsPage />);
     const nav = within(screen.getByRole("navigation", { name: "Secciones de estadísticas" }));
-    expect(nav.getByRole("button", { name: "Resumen" })).toHaveAttribute("aria-pressed", "true");
+    expect(nav.getByRole("button", { name: "Comparar" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("?a=&b= are Comparar's pair: strings (a numeric id too), anything else dropped", () => {

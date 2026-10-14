@@ -42,7 +42,9 @@ export const statsSearchSchema = z.object({
     .enum(["individual", "streaks", "team", "evolution"])
     .optional()
     .catch(undefined),
-});
+  // Legacy ?tab=compare (links shared before ?view=): read once, turned into view=compare, never written.
+  tab: z.enum(["general", "compare"]).optional().catch(undefined),
+}).transform(({ tab, ...rest }) => (rest.view || tab !== "compare" ? rest : { ...rest, view: "compare" as const }));
 
 // /admin is the admin app's shell (a layout route; the admin-only guard lives in RootLayout). Hoy's only
 // search param is the legacy `tab` of the old single page: /admin?tab=matches|roster|seasons|admins
