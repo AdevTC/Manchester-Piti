@@ -27,6 +27,7 @@ export { deleteMatch } from "./matches.js";
 export { setConvocatoria } from "./convocatoria.js";
 export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";
 export { setNickname, setShirtName, cancelPlayerClaim, leaveVestuario } from "./profile.js";
+export { renameEverywhere } from "./rename.js";
 export {
   requestPlayerClaim,
   resolvePlayerClaim,
