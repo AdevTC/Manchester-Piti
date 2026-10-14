@@ -73,7 +73,7 @@ function Head({ kick, title, id, children }: { kick: string; title: string; id: 
   );
 }
 
-export function Posiciones({ games, rows, nameOf, mvpOf }: { games: ClubMatch[]; rows: PlayerAnalysis[]; nameOf: NameOf; /** The shared MVP reader (derived/mvpOf), for the ratings by position. */ mvpOf?: MvpOf }) {
+export function Posiciones({ games, rows, nameOf, mvpOf }: { games: ClubMatch[]; rows: PlayerAnalysis[]; nameOf: NameOf; /** The shared MVP reader (derived/mvpOf), for the ratings by position (required). */ mvpOf: MvpOf }) {
   return (
     <div className="st-pane-in">
       <PorPosicion games={games} rows={rows} nameOf={nameOf} mvpOf={mvpOf} />
@@ -83,7 +83,7 @@ export function Posiciones({ games, rows, nameOf, mvpOf }: { games: ClubMatch[];
 }
 
 // ---------- Por posición
-function PorPosicion({ games, rows, nameOf, mvpOf }: { games: ClubMatch[]; rows: PlayerAnalysis[]; nameOf: NameOf; mvpOf?: MvpOf }) {
+function PorPosicion({ games, rows, nameOf, mvpOf }: { games: ClubMatch[]; rows: PlayerAnalysis[]; nameOf: NameOf; mvpOf: MvpOf }) {
   const names = useMemo(() => new Map(rows.map((p) => [p.id, nameOf(p)])), [rows, nameOf]);
   const firsts = useMemo(() => new Map(rows.map((p) => [p.id, p.firstName?.trim() || nameOf(p)])), [rows, nameOf]);
   const nameOfId = (id: string) => names.get(id) ?? "Jugador";

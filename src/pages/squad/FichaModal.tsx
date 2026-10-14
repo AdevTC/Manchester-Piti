@@ -32,8 +32,8 @@ interface Props {
   games?: ClubMatch[];
   /** His positions (preferida + también) for the map. */
   positions?: PositionSet;
-  /** The shared MVP reader (derived/mvpOf), for the ratings by position. */
-  mvpOf?: MvpOf;
+  /** The shared MVP reader (derived/mvpOf), for the ratings by position (required: no rating without MVPs). */
+  mvpOf: MvpOf;
 }
 
 const NO_GAMES: ClubMatch[] = [];

@@ -81,3 +81,32 @@ describe("totals from unknown minutes print «—», never «0′»", () => {
     expect(rp.txt).not.toMatch(/0′/);
   });
 });
+
+describe("a player who never played is a known 0, not unknown", () => {
+  const base = { goals: 0, assists: 0, starts: 0, mvps: 0 };
+  const sq = squadOf([
+    cromo("gk", 1, "POR", { stats: { ...base, played: 3, minutes: 150, timed: 3 } }),
+    cromo("b", 2, "DEF", { stats: { ...base, played: 3, minutes: 120, timed: 3 } }),
+    cromo("u", 3, "DEF", { stats: { ...base, played: 3, minutes: 0, timed: 0 } }),
+    cromo("z", 4, "DEF", { stats: { ...base, played: 0, minutes: 0, timed: 0 } }),
+  ]);
+
+  it("he surfaces in «Darle minutos» as who has played least, for the one with most known minutes", () => {
+    const rp = reparto(lineupOf(["gk", "b", "u"], "2-3-1", sq), sq, null);
+    expect(rp.rows.map((r) => [r.id, r.min])).toEqual([["z", "0′"], ["b", "120′"], ["u", "—"]]);
+    expect(rp.rot).toMatchObject({ id: "z", out: "b" });
+    expect(rp.txt).toBe("Z lleva 0′; B, 120′.");
+  });
+
+  it("an outgoing player whose minutes nobody knows: the words leave his minutes out", () => {
+    const rp = reparto(lineupOf(["gk", "u"], "2-3-1", sq), sq, null);
+    expect(rp.rot).toMatchObject({ id: "z", out: "u" });
+    expect(rp.txt).toBe("Z lleva 0′; entra por U.");
+  });
+
+  it("a seven or a line of never-played players is «0′», not «—»", () => {
+    const L = lineupOf([null, "z"], "2-3-1", sq);
+    expect(sevenMinutes(L, sq)).toBe(0);
+    expect(chem(L, sq).lines.find((l) => l.z === "DEF")).toMatchObject({ min: 0, unk: false });
+  });
+});

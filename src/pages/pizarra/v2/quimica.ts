@@ -258,11 +258,10 @@ export function chemWhy(ch: Chem): string {
   return txt + ".";
 }
 
-/** «120′ juntos» / «sin minutos juntos». */
-/** Time together in words, from what the actas know: «312′ juntos»; with a legacy acta among them, the
- *  matches («4 partidos juntos») — never estimated minutes. */
+/** Time together in words, from what the actas know: «312′ juntos»; with a legacy acta among their
+ *  matches together, the matches («4 partidos juntos», never estimated minutes); «sin minutos juntos». */
 export const togTxt = (p: { tog: number; known: number; unk: boolean }): string =>
-  p.unk ? (p.tog > 0 ? plural(p.tog, "partido") + " juntos" : "minutos sin registrar") : p.known > 0 ? fmtMinutes(p.known) + " juntos" : "sin minutos juntos";
+  p.unk ? plural(p.tog, "partido") + " juntos" : p.known > 0 ? fmtMinutes(p.known) + " juntos" : "sin minutos juntos";
 
 /** «9 luces», «1 luz». */
 

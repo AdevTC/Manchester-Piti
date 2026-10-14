@@ -312,7 +312,16 @@ export function reparto(L: Lineup, sq: Squad, called: ReadonlySet<string> | null
   const rows = avl.slice(0, 6).map((c) => ({ id: c.id, num: c.num, name: c.name, inS: onPitch.has(c.id), m: known(c) ? Math.max(2, Math.round((c.stats.minutes / maxMin) * 100)) + "%" : "0%", min: fmtMinutes(knownMinutes(c.stats)) }));
   const low = avl.find((c) => !onPitch.has(c.id) && known(c));
   let rot: Reparto["rot"] = null;
-  const mins = (id: string) => sq.byId.get(id)?.stats.minutes ?? 0;
+  // who goes out: the one with most minutes; a player whose minutes nobody knows is not «0′» — after
+  // the known ones, by matches played
+  const mostPlayed = (a: string, b: string) => {
+    const ca = sq.byId.get(a);
+    const cb = sq.byId.get(b);
+    const ka = ca ? knownMinutes(ca.stats) : null;
+    const kb = cb ? knownMinutes(cb.stats) : null;
+    if ((ka === null) !== (kb === null)) return ka === null ? 1 : -1;
+    return ka !== null && kb !== null ? kb - ka : (cb?.stats.played ?? 0) - (ca?.stats.played ?? 0);
+  };
   if (low && hasFitData([low.id], sq)) {
     // with his exact position: in for whoever is where he is in place, else where he is adaptado (the
     // one with most minutes of those)
@@ -323,17 +332,19 @@ export function reparto(L: Lineup, sq: Squad, called: ReadonlySet<string> | null
     const cands = L.slots
       .map((s, i) => ({ id: s.playerId, i, r: rank(i) }))
       .filter((x): x is { id: string; i: number; r: number } => !!x.id && x.i > 0 && x.r > 0)
-      .sort((a, b) => b.r - a.r || mins(b.id) - mins(a.id));
+      .sort((a, b) => b.r - a.r || mostPlayed(a.id, b.id));
     if (cands[0]) rot = { id: low.id, i: cands[0].i, out: cands[0].id };
   } else if (low?.pos) {
     const cands = L.slots
       .map((s, i) => ({ id: s.playerId, i }))
       .filter((x): x is { id: string; i: number } => !!x.id && x.i > 0 && slotZone(L, x.i) === low.pos)
-      .sort((a, b) => (sq.byId.get(b.id)?.stats.minutes ?? 0) - (sq.byId.get(a.id)?.stats.minutes ?? 0));
+      .sort((a, b) => mostPlayed(a.id, b.id));
     if (cands[0]) rot = { id: low.id, i: cands[0].i, out: cands[0].id };
   }
   const outName = rot ? (sq.byId.get(rot.out)?.name ?? "Jugador") : "";
-  const minTxt = (c: Cromo | undefined) => fmtMinutes(c ? knownMinutes(c.stats) : null);
-  const txt = rot && low ? low.name + " lleva " + minTxt(low) + "; " + outName + ", " + minTxt(sq.byId.get(rot.out)) + "." : "El reparto está equilibrado.";
+  // (the outgoing player's minutes only when the actas know them: never «Y, —»)
+  const outC = rot ? sq.byId.get(rot.out) : undefined;
+  const outMin = outC ? knownMinutes(outC.stats) : null;
+  const txt = rot && low ? low.name + " lleva " + fmtMinutes(knownMinutes(low.stats)) + "; " + (outMin === null ? "entra por " + outName : outName + ", " + fmtMinutes(outMin)) + "." : "El reparto está equilibrado.";
   return { rows, txt, rot };
 }

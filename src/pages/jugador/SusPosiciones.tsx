@@ -8,6 +8,7 @@ import { MapaPosiciones } from "../../components/posiciones/MapaPosiciones";
 import { MasMinutos, PlayedNote } from "../../components/posiciones/haJugadoDe";
 import { usePlayed } from "../../components/posiciones/usePlayed";
 import { fmtMinutes } from "../../lib/derived/minutes";
+import type { MvpOf } from "../../lib/derived/mvpOf";
 
 interface Props {
   playerId: string;
@@ -17,7 +18,8 @@ interface Props {
   games: ClubMatch[];
   periodName: string;
   /** The MVP of a match (for the form rating); absent = MVPs don't count. */
-  mvpOf?: (matchId: string) => string | null;
+  /** The shared MVP reader (derived/mvpOf), for the ratings by position (required). */
+  mvpOf: MvpOf;
 }
 
 export function SusPosiciones({ playerId, name, positions, games, periodName, mvpOf }: Props) {

@@ -10,8 +10,9 @@ export type Baja = "Lesionado" | "Sancionado" | "Inactivo";
 /** The player's answer to the convocatoria (wired in phase 3; absent = unknown). */
 export type Convocatoria = "voy" | "duda" | "no";
 
-/** The minutes a cromo prints: its known minutes, or null («—») when no acta of his knows them. */
-export const knownMinutes = (s: CromoStats): number | null => (s.timed === 0 ? null : s.minutes);
+/** The minutes a cromo prints: its known minutes; a player who never played is a known 0; null («—»)
+ *  only when he played and no acta of his knows his minutes (legacy actas). */
+export const knownMinutes = (s: CromoStats): number | null => (s.timed === 0 && s.played > 0 ? null : s.minutes);
 
 export interface CromoStats {
   played: number;
