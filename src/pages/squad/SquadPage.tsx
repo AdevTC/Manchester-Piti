@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { flushSync } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
-import { nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
+import { nextFixture, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
 import { analysePlayer, chronological } from "../../lib/clubAnalytics";
 import { currentSeasonId } from "../../lib/vestuario";
 import { matchesQuery, sortSquad, squadRow, squadSummary, type SquadRow } from "../../lib/squad";
@@ -36,6 +36,16 @@ function transition(update: () => void) {
   document.startViewTransition(() => flushSync(update));
 }
 
+/**
+ * The open ficha with the MVPs for its ratings by position (the one shared reader, derived/mvpOf). Mounted
+ * only while a ficha is open, so the page subscribes to mvpResults only then (stepping between fichas keeps it).
+ */
+function FichaWithMvps({ now, games, ...props }: Omit<ComponentProps<typeof FichaModal>, "mvpOf" | "games"> & { now: number; games: ClubMatch[] }) {
+  const results = useMvpResults();
+  const mvpOf = useMemo(() => mvpOfFrom(results, games, now), [results, games, now]);
+  return <FichaModal {...props} games={games} mvpOf={mvpOf} />;
+}
+
 /** Public squad page: the shirts on the rail (each opens its ficha) and the head-to-head. */
 export function SquadPage() {
   const { matches, players, loading, error } = useClubData();
@@ -47,9 +57,6 @@ export function SquadPage() {
   const seasonName = seasons.find((s) => s.id === seasonId)?.name ?? "Temporada";
 
   const games = useMemo(() => chronological(matches.filter((m) => m.seasonId === seasonId)), [matches, seasonId]);
-  // the MVPs for the ficha's ratings by position: the one shared reader (derived/mvpOf)
-  const results = useMvpResults();
-  const mvpOf = useMemo(() => mvpOfFrom(results, games, now), [results, games, now]);
   const { rows, withStats } = useMemo(() => {
     const list = players
       .filter((p) => p.seasons?.includes(seasonId))
@@ -218,7 +225,8 @@ export function SquadPage() {
       <CelesteDock active="plantilla" />
 
       {open && (
-        <FichaModal
+        <FichaWithMvps
+          now={now}
           row={open}
           still={stillOf(open)}
           seasonName={seasonName}
@@ -229,7 +237,6 @@ export function SquadPage() {
           onStep={step}
           games={games}
           positions={openPositions}
-          mvpOf={mvpOf}
           onCompare={() => {
             setDuel([open.id, open.id === bId ? aId : bId]);
             closeFicha();
