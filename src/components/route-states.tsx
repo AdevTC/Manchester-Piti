@@ -1,9 +1,10 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Link, useRouter, useRouterState, type ErrorComponentProps } from "@tanstack/react-router";
 import { Skeleton } from "./ui/skeleton";
 import { StatePanel, StateScreen } from "./celeste/StatePanel";
 import { sectionOf } from "./celeste/sectionOf";
 import { under } from "../lib/paths";
+import { useNoIndex } from "../hooks/useNoIndex";
 
 /**
  * Sober, on-brand route-level pending/error states (issue #5, Phase 4).
@@ -134,27 +135,6 @@ export const RouteError: React.FC<ErrorComponentProps<unknown>> = ({ error, rese
   return <StateScreen {...sectionOf(pathname)} {...panel} />;
 };
 
-/** While mounted, tells crawlers not to index the page (the 404 is served with a 200 by the SPA shell);
- *  the previous robots value, or none, comes back on unmount. */
-function useNoIndex() {
-  useEffect(() => {
-    let meta = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]');
-    const before = meta?.getAttribute("content") ?? null;
-    const created = !meta;
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.name = "robots";
-      document.head.appendChild(meta);
-    }
-    meta.content = "noindex";
-    return () => {
-      if (created) meta.remove();
-      else if (before === null) meta.removeAttribute("content");
-      else meta.content = before;
-    };
-  }, []);
-}
-
 /** An address the app does not have (the catch-all route, and the router's notFoundComponent). */
 export const RouteNotFound: React.FC = () => {
   useNoIndex();
@@ -176,5 +156,27 @@ export const RouteNotFound: React.FC = () => {
         </>
       }
     />
+  );
+};
+
+/** An address under /admin the Sala de control does not have: the 404 inside its own frame (its rail
+ *  and header stay, the way out is its own start, Hoy). Members and fans never get here: RootLayout
+ *  answers /admin/* first (the capitanía panel, the door). */
+export const AdminRouteNotFound: React.FC = () => {
+  useNoIndex();
+  return (
+    <div className="vx sp-inframe">
+      <StatePanel
+        kind="notfound"
+        heading="h1"
+        title="Esta sección no existe"
+        body="En la Sala de control no hay nada en esta dirección: puede que el enlace sea viejo o lleve una errata."
+        action={
+          <Link className="sp-btn" to="/admin">
+            Ir a Hoy
+          </Link>
+        }
+      />
+    </div>
   );
 };

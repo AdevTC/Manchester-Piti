@@ -19,13 +19,15 @@ const SCORED: ClubMatch = { ...MATCH, id: "j2", goalsFor: 2, goalsAgainst: 1, ev
 const PLAYERS = [{ id: "p1", shirtName: "PEPE", seasons: ["t1"], seasonDetails: { t1: { shirtName: "PEPITO" } } }];
 // still to be played (the clock is stubbed at 10 Sep 2026)
 const UPCOMING: ClubMatch = { id: "j3", seasonId: "t1", rival: "Otro", date: Date.UTC(2026, 8, 20, 10), duration: 50, status: "scheduled", events: [] };
+// being played (kicked off ten minutes before the stubbed clock; a legacy match without a clock)
+const LIVE: ClubMatch = { id: "j4", seasonId: "t1", rival: "Vivo", date: Date.UTC(2026, 8, 9, 23, 50), duration: 50, status: "scheduled", events: [] };
 // who is looking (useViewer), the official scope docs (lineupOfficials/{season}__{match|temporada} → the
 // board they name) and every doc path the page asked to read (useLiveDoc; null = no read)
 const who = vi.hoisted(() => ({ viewer: { member: false, admin: false, playerId: null as string | null }, docs: new Map<string, string>(), reads: [] as string[] }));
 
 // the club data: these three, unless a test makes the listener fail (error, and the cache emptied)
 const club = vi.hoisted(() => ({ error: null as Error | null }));
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => (club.error ? { matches: [], players: [], loading: false, error: club.error } : { matches: [MATCH, SCORED, UPCOMING], players: PLAYERS, loading: false, error: null }) }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => (club.error ? { matches: [], players: [], loading: false, error: club.error } : { matches: [MATCH, SCORED, UPCOMING, LIVE], players: PLAYERS, loading: false, error: null }) }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => who.viewer }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false }) }));
@@ -61,7 +63,8 @@ function open(url: string) {
   const jugador = createRoute({ getParentRoute: () => root, path: "/jugadores/$playerId", component: () => null });
   const pizarra = createRoute({ getParentRoute: () => root, path: "/pizarra", validateSearch: z.object({ tablero: z.string().optional() }), component: () => null });
   const admin = createRoute({ getParentRoute: () => root, path: "/admin/partidos/$matchId", validateSearch: z.object({ tab: z.string().optional() }), component: () => null });
-  const router = createRouter({ routeTree: root.addChildren([match, jugador, pizarra, admin]), history: createMemoryHistory({ initialEntries: [url] }) });
+  const enJuego = createRoute({ getParentRoute: () => root, path: "/admin/en-juego/$matchId", component: () => null });
+  const router = createRouter({ routeTree: root.addChildren([match, jugador, pizarra, admin, enJuego]), history: createMemoryHistory({ initialEntries: [url] }) });
   render(<RouterProvider router={router} />);
   return router;
 }
@@ -125,7 +128,7 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
     who.reads = [];
   };
   const pizarraLink = () => screen.queryByRole("link", { name: /La pizarra de este partido/ });
-  const adminLink = () => screen.queryByRole("link", { name: /Editar acta|Abrir en la Sala de control/ });
+  const adminLink = () => screen.queryByRole("link", { name: /Editar acta|Abrir en la Sala de control|Abrir En juego/ });
 
   it("a fan sees neither, and reads nothing (lineupOfficials are team-only)", async () => {
     as({}, { t1__j1: "b1", t1__temporada: "s1" });
@@ -172,6 +175,21 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
     open("/matches/j1");
     expect(await screen.findByRole("link", { name: /Editar acta/ })).toHaveAttribute("href", "/admin/partidos/j1?tab=acta");
     expect(screen.queryByRole("link", { name: /Abrir en la Sala de control/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Abrir En juego/ })).toBeNull();
+  });
+
+  it("while it is being played, an admin opens En juego (not the acta, not the workspace)", async () => {
+    as({ member: true, admin: true });
+    open("/matches/j4");
+    expect(await screen.findByRole("link", { name: /Abrir En juego/ })).toHaveAttribute("href", "/admin/en-juego/j4");
+    expect(screen.getAllByRole("link", { name: /Editar acta|Abrir en la Sala de control|Abrir En juego/ })).toHaveLength(1);
+  });
+
+  it("a member never sees En juego while it is being played", async () => {
+    as({ member: true });
+    open("/matches/j4");
+    expect(await screen.findByRole("tab", { selected: true })).toBeInTheDocument();
+    expect(adminLink()).toBeNull();
   });
 
   it("before the match, an admin opens it in the Sala de control (and a member its board)", async () => {
@@ -208,6 +226,7 @@ describe("MatchPage · an error is not «no encontrado»", () => {
     expect(within(alert).getByRole("heading", { level: 1, name: "El marcador no carga" })).toBeInTheDocument();
     expect(within(alert).getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
     expect(screen.queryByText(/no encontrado/i)).toBeNull();
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content") ?? null).not.toBe("noindex");
   });
 
   it("the data arrived and the match is not in it: «Partido no encontrado», with the way to the partidos", async () => {
@@ -216,6 +235,14 @@ describe("MatchPage · an error is not «no encontrado»", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByRole("link", { name: "Ver los partidos" })).toHaveAttribute("href", "/partidos");
     expect(screen.getByRole("link", { name: "Ir al inicio" })).toHaveAttribute("href", "/");
+    // (served with a 200 by the SPA shell: not for the index)
+    expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute("content", "noindex");
+  });
+
+  it("a match that is there is indexable", async () => {
+    open("/matches/j1");
+    expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content") ?? null).not.toBe("noindex");
   });
 
   it("«Volver» on a deep link is «Partidos», to the section", async () => {

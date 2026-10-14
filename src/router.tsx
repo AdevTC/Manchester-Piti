@@ -13,6 +13,7 @@ import {
   RoutePending,
   RouteError,
   RouteNotFound,
+  AdminRouteNotFound,
   MatchDetailPending,
   PlayerProfilePending,
 } from "./components/route-states";
@@ -158,6 +159,12 @@ const adminEnJuegoRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "en-juego/$matchId",
   component: lazyRouteComponent(() => import("./pages/admin/views/EnJuego"), "EnJuego"),
+});
+// An address under /admin the Sala de control does not have: the 404 inside its frame (not the public one).
+const adminNotFoundRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "$",
+  component: AdminRouteNotFound,
 });
 const adminConvocarRoute = createRoute({
   getParentRoute: () => adminRoute,
@@ -305,6 +312,7 @@ const routeTree = rootRoute.addChildren([
     adminTemporadasRoute,
     adminCapitanesRoute,
     adminContenidoRoute,
+    adminNotFoundRoute,
   ]),
   matchDetailRoute,
   playerProfileRoute,

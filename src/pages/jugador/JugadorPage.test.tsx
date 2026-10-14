@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 
 // /jugadores/$id «Sus cambios»: whoever he came on or went off for leads to that player's page, in the
@@ -12,13 +12,15 @@ const hrefOf = (to = "#", params: Record<string, string> = {}, search: Record<st
   const q = new URLSearchParams(Object.entries(search).filter((e): e is [string, string] => e[1] !== undefined)).toString();
   return to.replace(/\$(\w+)/g, (_, k: string) => params[k] ?? "") + (q ? `?${q}` : "");
 };
+// the player the URL names (erik unless a test says otherwise)
+const url = vi.hoisted(() => ({ playerId: "erik" }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, className, to, params, search }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; search?: Record<string, string | undefined> }) => (
     <a className={className} href={hrefOf(to, params, search)}>
       {children}
     </a>
   ),
-  getRouteApi: () => ({ useParams: () => ({ playerId: "erik" }) }),
+  getRouteApi: () => ({ useParams: () => ({ playerId: url.playerId }) }),
   // (BackLink: a first load, index 0, so it falls back to the section)
   useRouter: () => ({ history: { go: () => {} } }),
   useRouterState: ({ select }: { select: (s: { location: { pathname: string; state: { __TSR_index?: number } } }) => unknown }) =>
@@ -27,7 +29,7 @@ vi.mock("@tanstack/react-router", () => ({
 
 type Row = NonNullable<ClubMatch["ledger"]>[string];
 const row = (minutes: number, exchanges: Row["exchanges"], extra: Partial<Row> = {}): Row => ({ minutes, started: true, benched: false, notCalled: false, played: true, subIn: 0, subOut: 0, dismissed: false, stints: [], exchanges, goals: 0, assists: 0, yellowCards: 0, redCards: 0, doubleYellows: 0, penaltyCommitted: 0, penaltyReceived: 0, penaltySaved: 0, penaltyMissed: 0, goalPenalty: 0, goalFreekick: 0, ownGoals: 0, woodwork: 0, ...extra });
-const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[] }));
+const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[], error: null as Error | null }));
 data.matches = [
   {
     id: "j1",
@@ -50,7 +52,7 @@ data.players = [
   { id: "pablo", shirtName: "PABLO", seasons: ["t1"], seasonDetails: { t1: { shirtName: "PABLITO" } } },
 ];
 
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ ...data, loading: false, error: null }) }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => (data.error ? { matches: [], players: [], loading: false, error: data.error } : { matches: data.matches, players: data.players, loading: false, error: null }) }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }], selectedSeasonId: "t1", loadingSeasons: false }) }));
 vi.mock("../../lib/useSetSeason", () => ({ ALL_SEASONS_LABEL: "Todo el historial", useSetSeason: () => vi.fn() }));
 vi.mock("../vestuario/live", () => ({ useMvpResults: () => new Map() }));
@@ -131,5 +133,39 @@ describe("«Volver»", () => {
     who.viewer = { member: false, admin: false, playerId: null };
     render(<JugadorPage />);
     expect(screen.getByRole("link", { name: "Plantilla" })).toHaveAttribute("href", "/plantilla");
+  });
+});
+
+describe("an error is not «no encontrado»", () => {
+  afterEach(() => {
+    data.error = null;
+    url.playerId = "erik";
+  });
+  const robots = () => document.head.querySelector('meta[name="robots"]')?.getAttribute("content") ?? null;
+
+  it("the data did not arrive: the club's error panel (h1) with «Reintentar», never «Jugador no encontrado»", () => {
+    data.error = new Error("permission-denied");
+    render(<JugadorPage />);
+    const alert = screen.getByRole("alert");
+    expect(within(alert).getByRole("heading", { level: 1, name: "El marcador no carga" })).toBeInTheDocument();
+    expect(within(alert).getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+    expect(screen.queryByText(/no encontrado/i)).toBeNull();
+    expect(robots()).not.toBe("noindex");
+  });
+
+  it("the data arrived and he is not in it: «Jugador no encontrado» (the 404 panel), not for the index", () => {
+    url.playerId = "nadie";
+    render(<JugadorPage />);
+    const panel = screen.getByRole("region", { name: "Jugador no encontrado" });
+    expect(panel).toHaveAttribute("data-kind", "notfound");
+    expect(within(panel).getByRole("heading", { level: 1, name: "Jugador no encontrado" })).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: "Ver la plantilla" })).toHaveAttribute("href", "/plantilla");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(robots()).toBe("noindex");
+  });
+
+  it("his page is indexable", () => {
+    render(<JugadorPage />);
+    expect(robots()).not.toBe("noindex");
   });
 });

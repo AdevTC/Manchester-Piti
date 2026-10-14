@@ -17,6 +17,7 @@ import { useMvpResults } from "../vestuario/live";
 import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
 import { useViewer } from "../../hooks/useViewer";
+import { useNoIndex } from "../../hooks/useNoIndex";
 import { useTheme } from "../../hooks/useTheme";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -24,6 +25,7 @@ import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../.
 import { Icon } from "../../components/celeste/icons";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { BackLink } from "../../components/celeste/BackLink";
+import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { Constellation, GoalClock, Radar } from "../stats/Charts";
 import { Cromo, type CromoFace } from "./Cromo";
 import { SusPosiciones } from "./SusPosiciones";
@@ -96,36 +98,49 @@ export function JugadorPage() {
   const num = p?.number != null ? String(p.number) : "";
   const stills = useShirtStills(p && !p.photoUrl ? [{ kit: "home", theme, name: name.toUpperCase(), num, yaw: 0 }] : [], { offMainThread: true });
 
-  if (loading || error)
+  // «Jugador no encontrado» comes with a 200 from the SPA shell: not for the index
+  useNoIndex(!loading && !error && !(p && me));
+
+  if (loading)
     return (
-      <Shell busy={loading}>
+      <Shell busy>
         <main className="jg-main jg-pad">
-          {loading ? (
-            <p className="st-state" role="status">
-              Preparando la ficha…
-            </p>
-          ) : (
-            <div className="st-state" role="alert">
-              <p>No hemos podido cargar los datos del club.</p>
-              <button type="button" className="hm-ghostbtn" onClick={() => window.location.reload()}>
-                Reintentar
-              </button>
-            </div>
-          )}
+          <p className="st-state" role="status">
+            Preparando la ficha…
+          </p>
         </main>
+      </Shell>
+    );
+  // The data did not arrive: an error, never «no encontrado» (the player may well exist).
+  if (error)
+    return (
+      <Shell>
+        <StateStage>
+          <ClubDataError heading="h1" />
+        </StateStage>
       </Shell>
     );
   if (!p || !me)
     return (
       <Shell>
-        <main className="jg-main jg-pad">
-          <div className="st-state">
-            <h1 className="st-h2">Jugador no encontrado</h1>
-            <Link className="hm-ghostbtn" to="/plantilla">
-              Ver plantilla
-            </Link>
-          </div>
-        </main>
+        <StateStage ghost="404">
+          <StatePanel
+            kind="notfound"
+            heading="h1"
+            title="Jugador no encontrado"
+            body="Este jugador no está en la plantilla: o ya no está en el club, o el enlace tiene el dorsal mal apuntado."
+            action={
+              <>
+                <Link className="sp-btn" to="/plantilla">
+                  Ver la plantilla
+                </Link>
+                <Link className="sp-btn ghost" to="/">
+                  Ir al inicio
+                </Link>
+              </>
+            }
+          />
+        </StateStage>
       </Shell>
     );
 

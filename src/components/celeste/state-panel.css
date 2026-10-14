@@ -8,8 +8,8 @@
 .vx .sp-stage{position:relative;z-index:2;display:grid;align-content:center;min-height:min(78svh,720px);padding:calc(96px + var(--isle,0px)) 20px 56px;background:var(--hero-bg);overflow:hidden}
 .vx .sp-ghost{position:absolute;left:-4%;right:-4%;bottom:10px;z-index:0;text-align:center;font-family:'Anybody';font-weight:900;font-size:44cqi;line-height:.8;letter-spacing:-.05em;font-variation-settings:'wdth' 60;color:transparent;-webkit-text-stroke:1.5px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;white-space:nowrap;pointer-events:none;user-select:none}
 
-/* A route error inside the admin app (its own frame): the panel alone. */
-.vx.sp-inframe{padding:24px 20px;background:transparent}
+/* A route error inside the admin app (its own frame): the panel alone (not the 100vh of a .vx page). */
+.vx.sp-inframe{min-height:0;padding:24px 20px;background:transparent}
 
 /* The panel */
 .vx .sp{position:relative;z-index:2;width:100%;max-width:580px;margin:0 auto;display:grid;gap:12px;justify-items:start;padding:26px 22px;border-radius:28px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:var(--ink)}

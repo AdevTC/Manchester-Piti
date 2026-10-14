@@ -39,7 +39,7 @@ export function webCommand(m: ShortcutMatch, go: (t: AdminTarget) => void): Pale
     group: "Acciones",
     icon: "↗",
     title: "Ver en la web",
-    description: `${matchName(m)} · la ficha pública del partido`,
+    description: `${matchName(m)} · la página pública del partido`,
     hint: "ir",
     keywords: "web publica ficha partido",
     run: () => go({ section: "web", matchId: m.id }),

@@ -3,6 +3,7 @@ import { Banda } from "./Banda";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useViewer } from "../../hooks/useViewer";
+import { useNoIndex } from "../../hooks/useNoIndex";
 import { useMatchBoard } from "../pizarra/useMatchBoard";
 import { useMatchScorers } from "../vestuario/live";
 import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
@@ -109,6 +110,8 @@ export function MatchPage() {
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
+  // «Partido no encontrado» comes with a 200 from the SPA shell: not for the index
+  useNoIndex(!loading && !error && !match);
 
   const chrome = (children: ReactNode) => (
     <div className="vx hm pt" aria-busy={loading}>
@@ -319,8 +322,13 @@ export function MatchPage() {
                   La pizarra de este partido <Icon name="arrow" size={16} stroke={2.2} />
                 </Link>
               )}
+              {/* (an admin's way in, by moment: being played → En juego; played → its acta; before → its workspace) */}
               {viewer.admin &&
-                (done || live || pending || unplayed ? (
+                (live ? (
+                  <Link className="hm-ghostbtn" to="/admin/en-juego/$matchId" params={{ matchId: match.id }}>
+                    Abrir En juego <Icon name="arrow" size={16} stroke={2.2} />
+                  </Link>
+                ) : done || pending || unplayed ? (
                   <Link className="hm-ghostbtn" to="/admin/partidos/$matchId" params={{ matchId: match.id }} search={{ tab: "acta" }}>
                     Editar acta <Icon name="arrow" size={16} stroke={2.2} />
                   </Link>
