@@ -104,7 +104,9 @@ export function useConvocatoria(match: AdminMatch | null): ConvocatoriaApi {
       onDone: (result) => {
         const res = result as { data: SetConvocatoriaResult };
         setPublishing({ matchId, at: res.data.at });
-        if (!res.data.notice) toast.show({ tag, message: "Convocatoria al día · el aviso ya había salido" });
+        // (one «siete» per match: «Ya está el siete» of this same seven has just told the team)
+        if (res.data.covered) toast.show({ tag, message: "Convocatoria al día · el equipo ya tiene «Ya está el siete» con este siete: sin segundo aviso" });
+        else if (!res.data.notice) toast.show({ tag, message: "Convocatoria al día · el aviso ya había salido" });
       },
     });
   };

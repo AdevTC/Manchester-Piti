@@ -27,7 +27,7 @@ export const setMatchScorers = onCall(async req => {
 export const controlMatchClock = onCall(async req => {
   const actor = await memberAs(req);
   const data = parse(z.object({ matchId: idSchema, action: z.enum(CLOCK_ACTIONS), revision: z.number().int().min(0) }), req.data);
-  return db.runTransaction(async tx => {
+  const saved = await db.runTransaction(async tx => {
     await requireScorer(tx, data.matchId, actor);
     const ref = db.doc(`matches/${data.matchId}`);
     const snap = await tx.get(ref);
@@ -44,6 +44,9 @@ export const controlMatchClock = onCall(async req => {
     if (elapsed > 9000 && data.action !== "finish") throw new HttpsError("failed-precondition", "El reloj supera 150 minutos. Revisa el encuentro desde el acta.");
     tx.update(ref, { clock, liveEndedAt: clock.phase === "ended" ? now : FieldValue.delete(), ...(clock.phase === "ended" ? { durationSeconds: Math.max(1, elapsed), duration: Math.max(1, Math.ceil(elapsed / 60)) } : { durationSeconds: FieldValue.delete() }), revision: (snap.get("revision") ?? 0) + 1, updatedAt: FieldValue.serverTimestamp() });
     tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, updatedBy: actor.uid, at: FieldValue.serverTimestamp(), clockAction: data.action, before: old ?? null, after: clock });
-    return { clock, serverNow: now };
+    return clock;
   });
+  // The server's clock at the answer (not the transaction's `now`, which a retry can leave behind):
+  // the phone estimates its offset from it (src/lib/serverTime.ts).
+  return { clock: saved, serverNow: Date.now() };
 });

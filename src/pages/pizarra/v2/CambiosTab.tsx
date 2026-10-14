@@ -13,7 +13,9 @@ import { ORDINAL, TAKER_KINDS, TAKER_LABEL, TAKER_LETTER } from "./takers";
 import { vars } from "./view";
 
 export interface LiveCard {
+  /** The plan's minute (the timeline); `shown` is what people read. */
   minute: number;
+  shown?: number;
   score: string;
   /** «Toca el cambio · 25′» / «Próximo cambio · 25′ (en 2′)» / «Sin más cambios en el plan». */
   line: string;
@@ -220,7 +222,7 @@ export function CambiosTab(p: CambiosTabProps) {
       {live && (
         <section className={"cb-live" + (live.due ? " due" : "")} aria-label="Partido en directo">
           <h3 className="lg-h">
-            En directo · {live.minute}′ <span className="cnt">{live.score}</span>
+            En directo · {live.shown ?? live.minute}′ <span className="cnt">{live.score}</span>
           </h3>
           <p className="cb-nx">
             <Icon n={live.due ? "whistle" : "bell"} w={16} />
@@ -274,7 +276,7 @@ export function CambiosTab(p: CambiosTabProps) {
               </div>
               <button type="button" className="b3" onClick={p.onRecalc}>
                 <Icon n="rot" w={16} />
-                Recalcular desde el {live.minute}′
+                Recalcular desde el {live.shown ?? live.minute}′
               </button>
             </>
           )}

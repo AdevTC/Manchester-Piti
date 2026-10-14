@@ -1,6 +1,7 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
 import type { MatchSheet } from "./clubData";
+import { withServerTime } from "./serverTime";
 // ---------- the vestuario door (functions/src/door.ts)
 export interface Who {
   playerId?: string;
@@ -27,12 +28,18 @@ export interface SetConvocatoriaInput {
   starters: string[];
   bench: string[];
   notify: boolean;
+  /** The pizarra's official just published for this match, whose seven this is: its «Ya está el siete»
+   *  tells the team, so the convocatoria's own notice stays quiet (one «siete» per match). */
+  fromBoard?: string;
 }
 export interface SetConvocatoriaResult {
   at: number;
   revision: number;
-  /** The notice that went (null = none: not asked, already sent, or the match has started). */
+  /** The notice that went (null = none: not asked, already sent, covered, or the match has started). */
   notice: "first" | "changes" | null;
+  /** «Ya está el siete» told (or is telling) the team this seven: announced without a second notice.
+   *  (Absent from a server older than this field.) */
+  covered?: boolean;
 }
 export const setConvocatoria = httpsCallable<SetConvocatoriaInput, SetConvocatoriaResult>(functions, "setConvocatoria");
 export const saveMatchSheet = httpsCallable<
@@ -86,12 +93,13 @@ export function apiError(error: unknown) {
   if (e.code?.startsWith("auth/")) return "No se ha podido entrar con Google. Vuelve a intentarlo.";
   return e.message || "No se ha podido guardar. Vuelve a intentarlo.";
 }
-/** Modo banda: an admin adds an event to the match being played (or undoes the last one written live). */
-export const liveEvent = httpsCallable<
+/** Modo banda: an admin adds an event to the match being played (or undoes the last one written live).
+ *  Its answer's `serverNow` keeps this phone's live minute on the server's clock (lib/serverTime). */
+export const liveEvent = withServerTime(httpsCallable<
   | { action: "add"; matchId: string; requestId?: string; clockRevision?: number; manualTime?: boolean; event: { type: string; minute: number; playerId?: string; assistPlayerId?: string; inPlayerId?: string } }
   | { action: "undo" | "finish" | "reopen"; matchId: string; eventId?: string },
-  { events: number }
->(functions, "liveEvent");
+  { events: number; serverNow?: number }
+>(functions, "liveEvent"));
 
-export const controlMatchClock = httpsCallable<{ matchId: string; action: import("../../functions/src/matchClock").ClockAction; revision: number }, { clock: import("../../functions/src/matchClock").MatchClock; serverNow: number }>(functions, "controlMatchClock");
+export const controlMatchClock = withServerTime(httpsCallable<{ matchId: string; action: import("../../functions/src/matchClock").ClockAction; revision: number }, { clock: import("../../functions/src/matchClock").MatchClock; serverNow?: number }>(functions, "controlMatchClock"));
 export const setMatchScorers = httpsCallable<{ matchId: string; uids: string[] }, { ok: boolean }>(functions, "setMatchScorers");

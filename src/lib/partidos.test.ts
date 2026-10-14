@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "./clubData";
-import { calendarRows, countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf, scorersLine, seasonView } from "./partidos";
+import { readyClock, transitionClock } from "../../functions/src/matchClock";
+import type { MatchEvent } from "../../functions/src/matchEngine";
+import { calendarRows, countdownParts, dateParts, eventMinute, exchangeMinute, lastEvent, liveMinute, minuteOfPlay, resultOf, scoreOf, scorersLine, seasonView, shownMinute } from "./partidos";
 
 const MIN = 60_000;
 const DAY = 86_400_000;
@@ -99,5 +101,45 @@ describe("lastEvent", () => {
     expect(lastEvent([e("goal", 19, "e"), e("opponent_goal", 6)], nameOf, "MAD SKY")).toEqual({ minute: 19, who: "ERIK", label: "Gol", goal: true });
     expect(lastEvent([e("goal", 19, "e"), e("opponent_goal", 31)], nameOf, "MAD SKY")).toMatchObject({ who: "MAD SKY", goal: false });
     expect(lastEvent([], nameOf, "X")).toBeNull();
+  });
+});
+
+describe("the minute people read (football's, 1-based)", () => {
+  const T = Date.UTC(2026, 10, 8, 11);
+  const started = transitionClock(readyClock(), "start", T);
+  it("minuteOfPlay: 0:07 → 1′, 19:30 → 20′; with the clock stopped, the minute reached (25:00 → 25′)", () => {
+    expect(minuteOfPlay(7)).toBe(1);
+    expect(minuteOfPlay(0)).toBe(1);
+    expect(minuteOfPlay(19 * 60 + 30)).toBe(20);
+    expect(minuteOfPlay(25 * 60, false)).toBe(25);
+    expect(minuteOfPlay(25 * 60 + 1, false)).toBe(26);
+  });
+  it("shownMinute: the clock's +1 while it runs; a match without a clock keeps its schedule's (capped)", () => {
+    expect(shownMinute({ date: T, duration: 50, clock: started }, T + 7_000)).toBe(1);
+    expect(liveMinute({ date: T, duration: 50, clock: started }, T + 7_000)).toBe(0);
+    expect(shownMinute({ date: T, duration: 50, clock: transitionClock(started, "halftime", T + 25 * 60_000) }, T + 30 * 60_000)).toBe(25);
+    expect(shownMinute({ date: T, duration: 50, clock: readyClock() }, T)).toBeNull();
+    expect(shownMinute({ date: T, duration: 50 }, T + 7_000)).toBe(1);
+    expect(shownMinute({ date: T, duration: 50 }, T + 90 * 60_000)).toBe(50);
+  });
+  it("eventMinute / lastEvent: live-stamped events in football's minute, typed ones as typed (stored minutes untouched)", () => {
+    const stamped = { id: "g", type: "goal", minute: 0, elapsedSeconds: 7, playerId: "m" } as MatchEvent;
+    expect(eventMinute(stamped)).toBe(1);
+    expect(stamped.minute).toBe(0);
+    expect(eventMinute({ minute: 19 })).toBe(19);
+    expect(eventMinute({})).toBeNull();
+    expect(lastEvent([stamped], (id) => id.toUpperCase(), "R")).toMatchObject({ minute: 1, who: "M" });
+  });
+});
+
+describe("exchangeMinute (a cambio on the player's page)", () => {
+  const sub = { id: "s", type: "substitution", minute: 18, elapsedSeconds: 18 * 60 + 30, playerId: "out", inPlayerId: "in" } as MatchEvent;
+  it("reads its substitution event's minute (18:30 of play → 19′), from either side", () => {
+    expect(exchangeMinute([sub], "out", { minute: 18.5, with: "in", direction: "out" })).toBe(19);
+    expect(exchangeMinute([sub], "in", { minute: 18.5, with: "out", direction: "in" })).toBe(19);
+  });
+  it("without the event: a typed minute as typed, a clock's fraction in football's minute", () => {
+    expect(exchangeMinute([], "out", { minute: 30, with: "in", direction: "out" })).toBe(30);
+    expect(exchangeMinute(undefined, "out", { minute: 18.5, with: "in", direction: "out" })).toBe(19);
   });
 });

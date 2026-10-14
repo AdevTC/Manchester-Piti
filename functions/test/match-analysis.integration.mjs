@@ -38,7 +38,9 @@ await ok("setMatchScorers",admin,{matchId,uids:[scorer.uid]});
 const race=await Promise.all([admin,scorer].map(who=>call("controlMatchClock",who,{matchId,action:"start",revision:0})));
 assert.equal(race.filter(r=>!r.error).length,1);assert.equal(race.find(r=>r.error).error.status,"ABORTED");checks+=2;
 let m=await snap();assert.equal(m.clock.phase,"first");checks++;
-await ok("controlMatchClock",scorer,{matchId,action:"reset",revision:m.clock.revision});
+{const t0=Date.now();const r=await ok("controlMatchClock",scorer,{matchId,action:"reset",revision:m.clock.revision});
+// The answer carries the server's clock (phones estimate their offset from it) and the new clock.
+assert.equal(typeof r.serverNow,"number");assert.ok(Math.abs(r.serverNow-t0)<60_000);assert.equal(r.clock.phase,"ready");checks+=3;}
 m=await snap();assert.equal(m.clock.phase,"ready");checks++;
 await ok("controlMatchClock",admin,{matchId,action:"start",revision:m.clock.revision});
 m=await snap();
@@ -47,7 +49,9 @@ const add=(id,type="corner",extra={})=>({action:"add",matchId,clockRevision:m.cl
 // Concurrent writers append to the same acta without losing either contribution.
 await Promise.all(Array.from({length:12},(_,i)=>ok("liveEvent",i%2?admin:scorer,add(`parallel-${i}`,i%2?"opponent_corner":"corner"))));
 assert.equal((await snap()).events.length,12);checks++;
-await Promise.all([admin,scorer].map(who=>ok("liveEvent",who,add("same-request","chance",{playerId:ids[1]}))));
+const same=await Promise.all([admin,scorer].map(who=>ok("liveEvent",who,add("same-request","chance",{playerId:ids[1]}))));
+// A retried request (already written) answers with the server's clock too.
+assert.ok(same.every(r=>typeof r.serverNow==="number"));checks++;
 assert.equal((await snap()).events.length,13);checks++;
 await denied("controlMatchClock",scorer,{matchId,action:"reset",revision:m.clock.revision},"FAILED_PRECONDITION");
 await ok("liveEvent",scorer,{...add("sub-1","substitution",{playerId:ids[0],inPlayerId:ids[7]}),manualTime:true,event:{type:"substitution",minute:10,playerId:ids[0],inPlayerId:ids[7]}});

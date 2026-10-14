@@ -161,9 +161,21 @@ checked += 2;
 await denied("revokeMember", admin, { uid: admin.uid }, "FAILED_PRECONDITION");
 // The door's public head count: everyone with a profile, minus whoever a captain removed.
 const before = (await ok("doorShirts", null, null)).inside;
+// their devices: one following the club too, one only with personal notices
+await db.doc("pushSubscriptions/revoked-" + suffix).set({ endpoint: "https://example.test/revoked/" + suffix, keys: { p256dh: "x", auth: "y" }, topics: ["goals", "convocatoria"], uid: asker.uid });
+await db.doc("pushSubscriptions/revoked2-" + suffix).set({ endpoint: "https://example.test/revoked2/" + suffix, keys: { p256dh: "x", auth: "y" }, topics: ["convocatoria"], uid: asker.uid });
 await ok("revokeMember", admin, { uid: asker.uid });
 assert.equal((await ok("doorShirts", null, null)).inside, before - 1);
 checked++;
+{
+  // removed by a captain, like leaving: the public topics stay, the personal ones and the uid go
+  const kept = (await db.doc("pushSubscriptions/revoked-" + suffix).get()).data();
+  assert.deepEqual(kept.topics, ["goals"]);
+  assert.equal(kept.uid, undefined);
+  assert.equal((await db.doc("pushSubscriptions/revoked2-" + suffix).get()).exists, false);
+  await db.doc("pushSubscriptions/revoked-" + suffix).delete();
+  checked += 3;
+}
 assert.equal((await db.doc("teamMembers/" + asker.uid).get()).exists, false);
 assert.equal((await ok("requestAccess", asker, { name: "Otra vez" })).status, "pending");
 checked += 2;
@@ -621,6 +633,8 @@ assert.equal((await db.doc("playerClaims/" + lea.uid).get()).get("status"), "app
 checked += 3;
 // Darme de baja: like a captain removing you, plus this account's notices; the ficha link stays.
 await db.doc("pushSubscriptions/perfil-" + suffix).set({ endpoint: "https://example.test/push/" + suffix, keys: { p256dh: "x", auth: "y" }, topics: ["access"], uid: rival.uid });
+// another of his devices also follows the club's public notices: those it keeps
+await db.doc("pushSubscriptions/perfil2-" + suffix).set({ endpoint: "https://example.test/push2/" + suffix, keys: { p256dh: "x", auth: "y" }, topics: ["goals", "convocatoria", "final"], uid: rival.uid });
 await denied("leaveVestuario", rival, {}, "INVALID_ARGUMENT");
 await denied("leaveVestuario", rival, { confirm: false }, "INVALID_ARGUMENT");
 await denied("leaveVestuario", boss, { confirm: true }, "PERMISSION_DENIED");
@@ -633,6 +647,14 @@ const left = (await db.doc("accessRequests/" + rival.uid).get()).data();
 assert.equal(left.status, "left");
 assert.equal(left.resolvedBy, rival.uid);
 assert.equal((await db.doc("pushSubscriptions/perfil-" + suffix).get()).exists, false);
+{
+  // his other device: the public topics stay, the personal ones and the uid go
+  const kept = (await db.doc("pushSubscriptions/perfil2-" + suffix).get()).data();
+  assert.deepEqual(kept.topics, ["goals", "final"]);
+  assert.equal(kept.uid, undefined);
+  await db.doc("pushSubscriptions/perfil2-" + suffix).delete();
+  checked += 2;
+}
 assert.equal((await db.doc("playerLinks/" + pD).get()).get("uid"), rival.uid);
 checked += 6;
 await denied("setNickname", rival, { nickname: "vuelta_" + suffix }, "PERMISSION_DENIED");
@@ -731,7 +753,14 @@ await ok("saveMatchSheet", admin, { id: liveMatchId, sheet: liveSheet });
 await db.doc("matches/" + liveMatchId).update({ clock: FieldValue.delete(), version: FieldValue.delete() });
 const liveAdd = (type, minute, playerId, extra = {}) => ({ action: "add", matchId: liveMatchId, event: { type, minute, ...(playerId ? { playerId } : {}), ...extra } });
 await denied("liveEvent", member, liveAdd("chance", 5, liveIds[0]), "PERMISSION_DENIED");
-await ok("liveEvent", admin, liveAdd("chance", 5, liveIds[0]));
+{
+  // Every answer carries the server's clock: phones estimate their offset from it (src/lib/serverTime.ts).
+  const before = Date.now();
+  const first = await ok("liveEvent", admin, liveAdd("chance", 5, liveIds[0]));
+  assert.equal(typeof first.serverNow, "number");
+  assert.ok(Math.abs(first.serverNow - before) < 60_000, JSON.stringify(first));
+  assert.equal(first.events, 1);
+}
 await ok("liveEvent", admin, liveAdd("chance", 6));
 await ok("liveEvent", admin, liveAdd("opponent_chance", 7));
 await ok("liveEvent", admin, liveAdd("corner", 8, liveIds[1]));
@@ -746,11 +775,11 @@ await denied("liveEvent", admin, liveAdd("substitution", 35, liveIds[1], { inPla
 await ok("liveEvent", admin, liveAdd("substitution", 35, liveIds[1], { inPlayerId: liveIds[8] }));
 await ok("liveEvent", admin, liveAdd("substitution", 45, liveIds[8], { inPlayerId: liveIds[1] }));
 await ok("liveEvent", admin, liveAdd("goal", 50));
-await ok("liveEvent", admin, { action: "undo", matchId: liveMatchId });
+assert.equal(typeof (await ok("liveEvent", admin, { action: "undo", matchId: liveMatchId })).serverNow, "number");
 await ok("liveEvent", admin, { action: "finish", matchId: liveMatchId });
 assert.equal(typeof (await db.doc(`matches/${liveMatchId}`).get()).get("liveEndedAt"), "number");
 await denied("liveEvent", admin, liveAdd("corner", 50), "FAILED_PRECONDITION");
-await ok("liveEvent", admin, { action: "reopen", matchId: liveMatchId });
+assert.equal(typeof (await ok("liveEvent", admin, { action: "reopen", matchId: liveMatchId })).serverNow, "number");
 assert.equal((await db.doc(`matches/${liveMatchId}`).get()).get("liveEndedAt"), undefined);
 await ok("liveEvent", admin, { action: "finish", matchId: liveMatchId });
 let liveDoc = (await db.doc(`matches/${liveMatchId}`).get()).data();

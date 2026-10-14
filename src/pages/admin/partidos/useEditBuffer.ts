@@ -1,6 +1,7 @@
 // The edit buffer of a match form (the acta, a convocatoria): the value being edited, the version it
 // started from (`base`, dirty = they differ), and the live server version, adopted whenever the buffer is
-// clean (another captain's save, or the echo of ours). Every dirty state is mirrored to localStorage
+// clean (another captain's save, or the echo of ours) — or, while dirty, when the editor takes it in
+// (rebase: the acta's «Incorporarlas»). Every dirty state is mirrored to localStorage
 // (local draft recovery); reopening offers the mirror when it started from the current version.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearDraft, draftKey, readDraft, recoverable, writeDraft } from "../acta/localDraft";
@@ -27,6 +28,11 @@ export interface EditBuffer<T> {
   dismissOffer: () => void;
   /** Keep the local mirror even if the form closes dirty (a failed «Guardar borrador y salir»). */
   keepMirror: () => void;
+  /** The live server version (what a clean buffer would show). */
+  server: T;
+  /** Takes the current server version in while dirty: it becomes the base (and the version the buffer
+   *  follows), and the value becomes `merge(value, base, server)` — the edits kept, the server's news in. */
+  rebase: (merge: (value: T, base: T, server: T) => T) => void;
 }
 
 export function useEditBuffer<T>(server: T, kind: "acta" | "conv", matchId: string, isValue: (v: unknown) => v is T, restore: (v: T) => T = (v) => v): EditBuffer<T> {
@@ -79,5 +85,12 @@ export function useEditBuffer<T>(server: T, kind: "acta" | "conv", matchId: stri
   const keepMirror = useCallback(() => {
     keep.current = true;
   }, []);
-  return { value: state.value, base: state.base, dirty, set, commit, reset, offer: offer ? { at: offer.at } : null, recover, dismissOffer, keepMirror };
+  const rebase = useCallback(
+    (merge: (value: T, base: T, server: T) => T) => {
+      setOffer(null);
+      setState((s) => ({ src: serverSig, base: server, value: merge(s.value, s.base, server) }));
+    },
+    [server, serverSig],
+  );
+  return { value: state.value, base: state.base, dirty, set, commit, reset, offer: offer ? { at: offer.at } : null, recover, dismissOffer, keepMirror, server, rebase };
 }

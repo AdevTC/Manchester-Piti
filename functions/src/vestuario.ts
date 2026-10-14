@@ -6,12 +6,11 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { db, idSchema, parse, memberAs, admin } from "./common.js";
 import { predictionPoints, sortPorra, type PorraRow } from "./vestuarioLogic.js";
+import { nameFor } from "./names.js";
 
 const DAY = 24 * 60 * 60_000;
-const playerLabel = (p: FirebaseFirestore.DocumentSnapshot) =>
-  (p.get("shirtName") as string | undefined) ||
-  [p.get("firstName"), p.get("lastName")].filter(Boolean).join(" ") ||
-  "Jugador";
+// (a claim has no match: the ficha's own name, as the jugador page shows it — nameFor without a season)
+const playerLabel = (p: FirebaseFirestore.DocumentSnapshot) => nameFor(p.data());
 
 // ---------- account ↔ player
 export const requestPlayerClaim = onCall(async (req) => {

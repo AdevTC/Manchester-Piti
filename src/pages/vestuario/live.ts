@@ -1,7 +1,7 @@
 // Realtime Firestore subscriptions for team-only vestuario data (onSnapshot, no polling).
 // Listeners are shared by key and kept warm for a minute after the last reader leaves, so
 // coming back to the vestuario paints the last data at once instead of an empty block.
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import {
   collection,
   doc,
@@ -13,45 +13,130 @@ import {
   Timestamp,
   type DocumentData,
   type Query,
+  type SnapshotMetadata,
 } from "firebase/firestore";
 import { db } from "../../firebase";
+import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, recordSnapshotMeta, reopenDelay, useOnline, useSnapshotMeta } from "../../lib/syncStatus";
+import { mapMvp, MVP_RESULTS_KEY } from "../../lib/firestoreMappers";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
-import type { MvpResult, TrainingSlot } from "../../lib/vestuario";
+import type { TrainingSlot } from "../../lib/vestuario";
 
 interface Live<T> {
   data: T;
   loading: boolean;
   error: boolean;
 }
+/** What a listener hands the registry: each snapshot (with whether its data changed) and its death. */
+interface Sink<T> {
+  /** `changed` false = a metadata-only snapshot: readers keep the same data object (no re-render). */
+  snapshot: (data: T, meta: SnapshotMetadata, changed: boolean) => void;
+  /** The listener errored (Firestore has closed it). */
+  fail: () => void;
+}
 interface Shared {
   state: { data: unknown; loading: boolean; error: boolean } | null;
   readers: Set<() => void>;
   stop: (() => void) | null;
   idle: ReturnType<typeof setTimeout> | null;
+  /** A scheduled (re)open: the automatic retry, or a new reader's reopen of a permanently failing key. */
+  retry: ReturnType<typeof setTimeout> | null;
 }
 const shared = new Map<string, Shared>();
 const KEEP_WARM_MS = 60_000;
-/** One onSnapshot per key, whoever reads it; `start` opens it and pushes each new state. */
-function useShared<T>(key: string | null, start: (emit: (data: T, error?: boolean) => void) => () => void, empty: T): Live<T> {
+const clearTimers = (e: Shared) => {
+  if (e.idle) clearTimeout(e.idle);
+  if (e.retry) clearTimeout(e.retry);
+  e.idle = e.retry = null;
+};
+type Start<T> = (sink: Sink<T>) => () => void;
+/** Opens `entry` after `ms`, unless an open is already scheduled; only if it still has readers and no listener. */
+function openIn<T>(key: string, entry: Shared, start: Start<T>, empty: T, ms: number): void {
+  if (entry.retry) return;
+  entry.retry = setTimeout(() => {
+    entry.retry = null;
+    if (shared.get(key) === entry && entry.readers.size && !entry.stop) open(key, entry, start, empty);
+  }, ms);
+}
+/** A reader needs the listener: open it now, or once the key may be retried (see reopenDelay). */
+function reopen<T>(key: string, entry: Shared, start: Start<T>, empty: T): void {
+  const wait = reopenDelay(key);
+  if (!wait) return open(key, entry, start, empty);
+  // a permanently failing key: show the error (with whatever data is left) instead of loading meanwhile
+  entry.state ??= { data: empty, loading: false, error: true };
+  openIn(key, entry, start, empty, wait);
+}
+/**
+ * Opens `start` for `entry`. On an error the entry keeps its last data with `error: true`, closes the dead
+ * listener and reopens it: once after LISTENER_RETRY_MS while readers remain (one automatic retry per failure
+ * streak; only a server snapshot ends a streak), and when a new reader subscribes (at once, or at most every
+ * REOPEN_MIN_MS once the streak's retry failed too). With no readers left the entry is dropped.
+ */
+function open<T>(key: string, entry: Shared, start: Start<T>, empty: T): void {
+  if (entry.retry) clearTimeout(entry.retry);
+  entry.retry = null;
+  let dead = false;
+  let close: (() => void) | null = null;
+  const notify = () => entry.readers.forEach((r) => r());
+  close = start({
+    snapshot: (data, meta, changed) => {
+      if (dead) return;
+      recordSnapshotMeta(key, meta);
+      if (!changed && entry.state && !entry.state.error) return;
+      entry.state = { data, loading: false, error: false };
+      notify();
+    },
+    fail: () => {
+      if (dead) return;
+      dead = true;
+      entry.stop = null;
+      const streak = noteListenerFailure(key);
+      close?.(); // the listener is closed already; this runs the opener's own cleanup
+      entry.state = { data: entry.state ? entry.state.data : empty, loading: false, error: true };
+      markListenerStale(key);
+      notify();
+      if (!entry.readers.size) {
+        clearTimers(entry);
+        if (shared.get(key) === entry) shared.delete(key);
+        return;
+      }
+      // one automatic retry per streak
+      if (streak === 1) openIn(key, entry, start, empty, LISTENER_RETRY_MS);
+    },
+  });
+  const opened = close;
+  if (dead) opened(); // failed before `start` returned: clean up now
+  else
+    entry.stop = () => {
+      dead = true;
+      opened();
+    };
+}
+/** One onSnapshot per key, whoever reads it; `start` opens it and pushes each snapshot. */
+function useShared<T>(key: string | null, start: Start<T>, empty: T): Live<T> {
   const subscribe = useCallback(
     (notify: () => void) => {
       if (!key) return () => {};
       let e = shared.get(key);
-      if (!e) shared.set(key, (e = { state: null, readers: new Set(), stop: null, idle: null }));
+      if (!e) shared.set(key, (e = { state: null, readers: new Set(), stop: null, idle: null, retry: null }));
       const entry = e;
       if (entry.idle) clearTimeout(entry.idle);
       entry.idle = null;
-      entry.stop ??= start((data, error = false) => {
-        entry.state = { data, loading: false, error };
-        entry.readers.forEach((r) => r());
-      });
       entry.readers.add(notify);
+      // first reader, or the listener died: (re)open it
+      if (!entry.stop) reopen(key, entry, start, empty);
       return () => {
         entry.readers.delete(notify);
         if (entry.readers.size) return;
+        if (!entry.stop) {
+          clearTimers(entry);
+          if (shared.get(key) === entry) shared.delete(key);
+          return;
+        }
         entry.idle = setTimeout(() => {
           entry.stop?.();
-          shared.delete(key);
+          clearTimers(entry);
+          if (shared.get(key) === entry) shared.delete(key);
+          markListenerStale(key);
         }, KEEP_WARM_MS);
       };
     },
@@ -62,6 +147,21 @@ function useShared<T>(key: string | null, start: (emit: (data: T, error?: boolea
   const state = useSyncExternalStore(subscribe, () => (key ? shared.get(key)?.state ?? null : null));
   if (!key) return { data: empty, loading: false, error: false };
   return state ? (state as Live<T>) : { data: empty, loading: true, error: false };
+}
+/** Same plain value (primitives, arrays, plain objects)? Anything else counts as different. */
+function samePlain(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((v, i) => samePlain(v, b[i]));
+  const plain = (o: object) => {
+    const p: unknown = Object.getPrototypeOf(o);
+    return p === Object.prototype || p === null;
+  };
+  if (Array.isArray(b) || !plain(a) || !plain(b)) return false;
+  const ra = a as Record<string, unknown>;
+  const rb = b as Record<string, unknown>;
+  const ka = Object.keys(ra);
+  return ka.length === Object.keys(rb).length && ka.every((k) => Object.hasOwn(rb, k) && samePlain(ra[k], rb[k]));
 }
 /** Which projections are currently open per document path (dev guard, see useLiveDoc). */
 const openProjections = new Map<string, Set<string>>();
@@ -74,17 +174,27 @@ const openProjections = new Map<string, Set<string>>();
 export function useLiveDoc<T>(path: string | null, mapId: string, map: (d: DocumentData | undefined) => T, empty: T): Live<T> {
   return useShared<T>(
     path && `doc:${path}#${mapId}`,
-    (emit) => {
+    (sink) => {
       if (import.meta.env.DEV) {
         const open = openProjections.get(path!) ?? new Set<string>();
         open.add(mapId);
         openProjections.set(path!, open);
         if (open.size > 1) console.error(`useLiveDoc: ${path} se lee con varias proyecciones (${[...open].join(", ")}); usa un solo hook que mapee el documento entero.`);
       }
+      // A doc snapshot has no docChanges: a metadata-only one is told apart by its mapped value.
+      let first = true;
+      let last: T = empty;
       const stop = onSnapshot(
         doc(db, path!),
-        (s) => emit(map(s.exists() ? s.data() : undefined)),
-        () => emit(empty, true),
+        { includeMetadataChanges: true },
+        (s) => {
+          const next = map(s.exists() ? s.data() : undefined);
+          const changed = first || !samePlain(last, next);
+          first = false;
+          if (changed) last = next;
+          sink.snapshot(last, s.metadata, changed);
+        },
+        () => sink.fail(),
       );
       return () => {
         stop();
@@ -102,12 +212,22 @@ const NONE: never[] = [];
 function useLiveQuery<T>(key: string | null, build: () => Query, map: (id: string, d: DocumentData) => T): Live<T[]> {
   return useShared<T[]>(
     key && `query:${key}`,
-    (emit) =>
-      onSnapshot(
+    (sink) => {
+      let first = true;
+      let last: T[] = NONE;
+      return onSnapshot(
         build(),
-        (s) => emit(s.docs.map((d) => map(d.id, d.data()))),
-        () => emit(NONE, true),
-      ),
+        { includeMetadataChanges: true },
+        (s) => {
+          // metadata-only snapshots carry no document changes: keep the same array
+          const changed = first || s.docChanges().length > 0;
+          first = false;
+          if (changed) last = s.docs.map((d) => map(d.id, d.data()));
+          sink.snapshot(last, s.metadata, changed);
+        },
+        () => sink.fail(),
+      );
+    },
     NONE,
   );
 }
@@ -150,14 +270,49 @@ export function useMatchScorers(matchId: string | undefined): Live<string[]> {
 }
 
 // ---------- MVP
-const mapMvp = (id: string, d: unknown): MvpResult => {
-  const data = (d ?? {}) as { counts?: Record<string, number>; total?: number };
-  return { id, counts: data.counts ?? {}, total: data.total ?? 0 };
-};
+// (key and mapper shared with the boot and the server render: lib/publicData)
 const mvpQuery = collection(db, "mvpResults");
 export function useMvpResults() {
-  const q = useFirestoreCollection(["mvpResults"], mvpQuery, mapMvp);
+  const q = useFirestoreCollection(MVP_RESULTS_KEY, mvpQuery, mapMvp);
   return useMemo(() => new Map((q.data ?? []).map((r) => [r.id, r])), [q.data]);
+}
+const MVP_META_KEY = metaKeyOf(MVP_RESULTS_KEY);
+/**
+ * Is the MVP tally on screen live? `confirmed`: the last snapshot came from the server (only then does a
+ * closed vote get its reveal: a cached tally never celebrates). `stale`: offline, or it was in sync and
+ * lost it — the race may be missing votes. (Neither while the first server snapshot is on its way.)
+ */
+export function useMvpResultsSync(): { confirmed: boolean; stale: boolean } {
+  const meta = useSnapshotMeta(MVP_META_KEY);
+  const online = useOnline();
+  return { confirmed: !!meta && !meta.fromCache, stale: !online || (!!meta && meta.fromCache && meta.since !== null) };
+}
+/** How long after the close a visit still gets the winner's reveal (later visits show it still). */
+export const MVP_REVEAL_MS = 3 * 3_600_000;
+export interface MvpRevealInput {
+  /** The match (a new one decides afresh). */
+  id: string | undefined;
+  open: boolean;
+  /** The closed vote has a winner on screen. */
+  winner: boolean;
+  closesAt: number | null | undefined;
+  now: number;
+}
+/**
+ * Whether a closed vote's winner is revealed with its animation. Decided once, the first time this mount
+ * shows the winner, and kept: animated only when this mount saw the vote open and close, or the vote
+ * closed less than MVP_REVEAL_MS ago — and only from a tally the server has confirmed (a cached one never
+ * celebrates). A winner first shown still stays still: the animation never hides a name already on screen
+ * (when the cached snapshot is replaced by the server's).
+ */
+export function useMvpReveal({ id, open, winner, closesAt, now }: MvpRevealInput): boolean {
+  const { confirmed } = useMvpResultsSync();
+  const [s, setS] = useState<{ id: string | undefined; sawOpen: boolean; animate: boolean | null }>({ id, sawOpen: false, animate: null });
+  let cur = s.id === id ? s : { id, sawOpen: false, animate: null };
+  if (open && !cur.sawOpen) cur = { ...cur, sawOpen: true, animate: null };
+  if (!open && winner && cur.animate === null) cur = { ...cur, animate: confirmed && (cur.sawOpen || (!!closesAt && now - closesAt < MVP_REVEAL_MS)) };
+  if (cur !== s) setS(cur);
+  return !open && winner && cur.animate === true;
 }
 export function useMyMvpVote(matchId: string | undefined, uid: string | undefined) {
   return useLiveDoc<string>(matchId && uid ? `matches/${matchId}/votes/${uid}` : null, "playerId", (d) => (d?.playerId as string) ?? "", "");

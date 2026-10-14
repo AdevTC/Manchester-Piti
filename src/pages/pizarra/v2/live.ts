@@ -5,7 +5,7 @@
 // Against the board's plan: which cambios are already in the acta, the tanda that is due, the next one
 // and how long until it. Pure.
 import type { Sub, Takers } from "../formations";
-import { liveMinute, scoreOf } from "../../../lib/partidos";
+import { liveMinute, scoreOf, shownMinute } from "../../../lib/partidos";
 import type { MatchEvent } from "../../../lib/clubData";
 import { liveSides } from "../../admin/live/liveModel";
 import { liveProblem } from "../../../../functions/src/liveLogic";
@@ -21,8 +21,10 @@ export const durationOf = (m: Pick<CalMatch, "duration"> | null): number => (m?.
 
 export interface LiveNow {
   matchId: string;
-  /** The minute being played (1–duration). */
+  /** The minute being played, as the plan and the acta count it (liveMinute: what events are stamped with). */
   minute: number;
+  /** The minute people read (shownMinute: football's 1-based minute on a clock). */
+  shown: number;
   duration: number;
   gf: number;
   ga: number;
@@ -50,7 +52,8 @@ export function liveNow(m: CalMatch | null, now: number): LiveNow | null {
   const starters = m.conv?.starters ?? [];
   const sides = liveSides(starters, m.conv?.bench ?? [], events);
   const k = Math.floor((now - start) / MIN) + 1;
-  return { matchId: m.id, minute, duration: D, gf, ga, rival: m.rival, field: sides.field, bench: sides.bench, starters, events, nextTick: start + k * MIN };
+  const shown = shownMinute({ date: start, duration: D, clock: m.clock }, now) ?? minute;
+  return { matchId: m.id, minute, shown, duration: D, gf, ga, rival: m.rival, field: sides.field, bench: sides.bench, starters, events, nextTick: start + k * MIN };
 }
 
 /** When the clock should next look at the time (ms): the next minute while live, the kick-off before
@@ -101,7 +104,7 @@ export function waveLine(w: LiveWave | null): string {
 }
 
 /** The plate's words: «EN DIRECTO · 23′ · PITI 1–0 MAD SKY». */
-export const plateAria = (l: LiveNow): string => "En directo, minuto " + l.minute + ": Piti " + l.gf + ", " + l.rival + " " + l.ga;
+export const plateAria = (l: LiveNow): string => "En directo, minuto " + l.shown + ": Piti " + l.gf + ", " + l.rival + " " + l.ga;
 
 /** Whether a planned cambio can be written in the acta now (the same checks as the admin's «En juego»,
  *  and the pitch as it is). Null = it can. */

@@ -3,6 +3,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { readFileSync } from "node:fs";
 import { REGION, siteUrl } from "./common.js";
 import { positionText } from "./positions.js";
+import { nameFor } from "./names.js";
 import { playerCardSvg } from "./shareCard.js";
 const escape = (s: string) =>
   s.replace(
@@ -51,7 +52,7 @@ export const clubShare = onRequest(
     const name =
       type === "partido"
         ? `Manchester Piti · ${data.rival ?? "Partido"}`
-        : data.shirtName || data.firstName || "Manchester Piti";
+        : nameFor(data);
     const score =
       type === "partido" && typeof data.goalsFor === "number"
         ? `${data.goalsFor} — ${data.goalsAgainst}`

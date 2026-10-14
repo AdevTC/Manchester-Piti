@@ -101,7 +101,7 @@ export function boldParts(s: string): [string, boolean][] {
 
 /** The topics as the design words them (pf-d-data TOPICS); the ids are push.ts's. */
 export const TOPIC_COPY: Record<Topic, { label: string; sub: string; capOnly?: boolean }> = {
-  start: { label: "Empieza el partido", sub: "El pitido inicial, con el once" },
+  start: { label: "Empieza el partido", sub: "El pitido inicial, el descanso y la 2ª parte" },
   goals: { label: "Goles", sub: "Cada gol, nuestro y suyo, al momento" },
   final: { label: "Final", sub: "El resultado en cuanto pita el árbitro" },
   mvp: { label: "MVP de la jornada", sub: "Cuando se abre y se cierra la votación" },
@@ -110,6 +110,12 @@ export const TOPIC_COPY: Record<Topic, { label: string; sub: string; capOnly?: b
   door: { label: "Alguien llama a la puerta", sub: "Peticiones de acceso al vestuario", capOnly: true },
   access: { label: "Te abren la puerta", sub: "Cuando un capitán te deja entrar" },
   convocatoria: { label: "Si no has contestado", sub: "Te recordamos la convocatoria 48 h y 24 h antes; a los capitanes, los cambios de última hora" },
+};
+
+/** The personal notices: no switch (they are about you, to the devices where you sign in). */
+export const PERSONAL_NOTICES = {
+  label: "Tus avisos personales (ficha, posiciones, convocatoria)",
+  sub: "Siempre activos en los móviles donde entras con tu cuenta y tienes avisos activados. Los recordatorios de la convocatoria siguen su interruptor.",
 };
 
 /** «3 de 7 activos en este móvil.» / not ready: why they are off. */

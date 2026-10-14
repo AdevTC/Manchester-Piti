@@ -15,7 +15,7 @@ import { useMatchAnswers } from "../convocar/live";
 import { useReminders } from "../convocar/reminders";
 import { RemindersToggle } from "../convocar/RemindersToggle";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
-import { place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
+import { joinNames, place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
 import { useConvocatoria } from "../data/useConvocatoria";
 import { Peg, PegRail, ShirtBack } from "../kit";
 import { useMatchShortcuts } from "../palette/matchShortcuts";
@@ -24,7 +24,12 @@ import { searchId } from "../shell/nav";
 import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
+import { ConfirmModal } from "../ui/layers";
 import { pegWall, shortName } from "./hoy/hoyModel";
+import { boardBench, convocatoriaWithSeven, sevenAgreement, sevenDiffs } from "../../pizarra/officialBoard";
+import { bajaOf } from "../../pizarra/chemistry";
+import { seasonSuspensions } from "../club/sanctionLogic";
+import { useBoardSeven } from "../../pizarra/useMatchBoard";
 
 export function Convocar() {
   const data = useAdmin();
@@ -93,6 +98,8 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   const rem = useReminders(match.id);
   // the pizarra's official board for this match (its «La pizarra» reader links to it) + ⌘K's shortcuts
   const board = useMatchShortcuts(match);
+  // (and its seven: «La pizarra coincide» / «tiene otro siete»)
+  const boardSeven = useBoardSeven(board);
   const [hung, setHung] = useState<string | null>(null);
   const hid = useId();
   const roster = useMemo(
@@ -143,6 +150,28 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
     setHung(null);
     toast.show({ tag: j, message: `Convocatoria de la ${copy.label} copiada · la pizarra y el acta ya lo ven`, undo: () => conv.set(before) });
   };
+  // «Copiar el de la pizarra»: the official's seven as el siete; whoever leaves it, to the banquillo (with
+  // nobody called yet, the pizarra's own «Banquillo»: off the seven, no baja of any kind — the same
+  // rule, officialBoard boardBench + chemistry bajaOf over the season's suspensions).
+  const suspended = useMemo(() => seasonSuspensions(data.matches, match.seasonId, data.players), [data.matches, match.seasonId, data.players]);
+  const fromBoard = boardSeven
+    ? convocatoriaWithSeven(
+        { ...lineup, notCalled: match.notCalled ?? [] },
+        boardSeven,
+        boardBench(
+          roster.map((p) => ({ id: p.id, baja: bajaOf({ id: p.id, active: p.doc.active, injured: p.injured }, suspended) })),
+          boardSeven,
+        ),
+      )
+    : null;
+  const copyBoard = () => {
+    if (!fromBoard) return;
+    const before = lineup;
+    conv.set(fromBoard);
+    setHung(null);
+    toast.show({ tag: j, message: `El siete de la pizarra, en la convocatoria${status.notified ? " · falta avisar" : ""}`, undo: () => conv.set(before) });
+  };
+  const pizarraCheck = <PizarraCheck seven={boardSeven} starters={lineup.starters} next={fromBoard} nameOf={nameOf} onCopy={copyBoard} />;
 
   const cta = status.published ? (
     <span className="okk">
@@ -212,6 +241,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
             </p>
           </section>
           {copyBtn}
+          {pizarraCheck}
           <Pool groups={pool} onSet={setSlot} empty={!roster.length} />
           <SourceNote />
           {remindersEl}
@@ -274,6 +304,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
               )}
             </div>
           </div>
+          {pizarraCheck}
           <SourceNote />
           {remindersEl}
           <div className="rdrs">
@@ -309,6 +340,51 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
         </section>
       </div>
     </>
+  );
+}
+
+/**
+ * One «siete» (M6): whether the pizarra's official for this match has the convocatoria's seven — «La
+ * pizarra coincide» / «La pizarra tiene otro siete» (the words say it; the icon only backs them) — with
+ * «Copiar el de la pizarra», asked first. Nothing while there is no official (or it isn't read yet).
+ */
+function PizarraCheck({ seven, starters, next, nameOf, onCopy }: { seven: string[] | null; starters: string[]; next: { starters: string[]; bench: string[] } | null; nameOf: (id: string) => string; onCopy: () => void }) {
+  const [ask, setAsk] = useState(false);
+  const agree = sevenAgreement(seven, starters);
+  if (!seven || !agree) return null;
+  const d = sevenDiffs(starters, seven);
+  const names = (ids: string[]) => joinNames(ids.map(nameOf));
+  return (
+    <div className={`pzc ${agree}`}>
+      <AdIcon name={agree === "coincide" ? "check" : "alert"} size={18} />
+      <span>
+        <b>{agree === "coincide" ? "La pizarra coincide" : "La pizarra tiene otro siete"}</b>
+        <span>
+          {agree === "coincide"
+            ? "El siete oficial de la pizarra es este mismo."
+            : d.board.length
+              ? `En la pizarra juega${d.board.length > 1 ? "n" : ""} ${names(d.board)}${d.conv.length ? ` en lugar de ${names(d.conv)}` : ""}.`
+              : `En la pizarra no está${d.conv.length > 1 ? "n" : ""} ${names(d.conv)}.`}
+        </span>
+      </span>
+      {agree === "otro" && (
+        <button type="button" className="btn sm line" onClick={() => setAsk(true)}>
+          <AdIcon name="list" size={16} />
+          Copiar el de la pizarra
+        </button>
+      )}
+      <ConfirmModal
+        open={ask}
+        onClose={() => setAsk(false)}
+        title="¿Copiar el siete de la pizarra?"
+        consequences={[`Al siete: ${names(seven)}`, `Banquillo: ${next?.bench.length ? names(next.bench) : "nadie"}`, "Se guarda sin avisar: después, «Publicar y avisar»"]}
+        confirmLabel="Copiar el siete"
+        onConfirm={() => {
+          setAsk(false);
+          onCopy();
+        }}
+      />
+    </div>
   );
 }
 

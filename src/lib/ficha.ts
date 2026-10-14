@@ -4,6 +4,7 @@ import { clockReading } from "../../functions/src/matchClock";
 // events and the ledger the acta already stores.
 import { calculateLedger, dateMillis, type MatchEvent, type Participation } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
+import { eventMinute } from "./partidos";
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
@@ -21,6 +22,9 @@ export interface Chapter {
 }
 
 /** The match in chapters: every goal (with the score it leaves), saved/missed penalties, red cards, and the final whistle. */
+/** A chapter's minute as people read it (lib/partidos eventMinute: live-stamped events in football's minute). */
+const shownAt = (e: MatchEvent): number => eventMinute(e) ?? (e.minute as number);
+
 export function chapters(events: MatchEvent[] | undefined, nameOf: (id: string) => string, rival: string, final?: { gf: number; ga: number }): Chapter[] {
   let gf = 0, ga = 0;
   const out: Chapter[] = [];
@@ -34,25 +38,25 @@ export function chapters(events: MatchEvent[] | undefined, nameOf: (id: string) 
       const how = e.type === "goal_penalty" ? " de penalti" : e.type === "goal_freekick" ? " de falta" : "";
       const scorer = e.type === "opponent_own_goal" ? `Autogol de ${rival}` : `${who} marca${how}`;
       const assist = e.assistPlayerId ? `, con asistencia de ${nameOf(e.assistPlayerId)}` : "";
-      out.push({ minute: e.minute!, title, text: `${scorer}${assist}. ${gf}–${ga}.`, side: "us", playerId: e.type === "opponent_own_goal" ? undefined : e.playerId, people });
+      out.push({ minute: shownAt(e), title, text: `${scorer}${assist}. ${gf}–${ga}.`, side: "us", playerId: e.type === "opponent_own_goal" ? undefined : e.playerId, people });
     } else if (THEIRS.has(e.type)) {
       const tiedBefore = gf === ga;
       ga++;
       const title = ga === 1 && gf === 0 ? `Golpe de ${rival}` : ga === gf ? `Empata ${rival}` : ga > gf && tiedBefore ? `${rival} se adelanta` : ga > gf ? `${rival} amplía` : `${rival} recorta`;
       const text = e.type === "own_goal" ? `Gol en propia puerta de ${who}. ${gf}–${ga}.` : `Marca ${rival}. ${gf}–${ga}.`;
-      out.push({ minute: e.minute!, title, text, side: "them", people });
+      out.push({ minute: shownAt(e), title, text, side: "them", people });
     } else if (e.type === "penalty_saved") {
-      out.push({ minute: e.minute!, title: `${who} para un penalti`, text: `Penalti para ${rival} y ${who} lo detiene. Sigue el ${gf}–${ga}.`, side: "us", playerId: e.playerId, people });
+      out.push({ minute: shownAt(e), title: `${who} para un penalti`, text: `Penalti para ${rival} y ${who} lo detiene. Sigue el ${gf}–${ga}.`, side: "us", playerId: e.playerId, people });
     } else if (e.type === "penalty_missed") {
-      out.push({ minute: e.minute!, title: "Penalti fallado", text: `${who} no acierta desde los once metros. Sigue el ${gf}–${ga}.`, side: "us", playerId: e.playerId, people });
+      out.push({ minute: shownAt(e), title: "Penalti fallado", text: `${who} no acierta desde los once metros. Sigue el ${gf}–${ga}.`, side: "us", playerId: e.playerId, people });
     } else if (e.type === "red_card" || e.type === "double_yellow") {
-      out.push({ minute: e.minute!, title: `Roja para ${who}`, text: e.type === "double_yellow" ? "Expulsión por segunda amarilla." : "Expulsión por roja directa.", side: "them", playerId: e.playerId, people });
+      out.push({ minute: shownAt(e), title: `Roja para ${who}`, text: e.type === "double_yellow" ? "Expulsión por segunda amarilla." : "Expulsión por roja directa.", side: "them", playerId: e.playerId, people });
     } else if (["chance", "opponent_chance", "corner", "opponent_corner"].includes(e.type)) {
       const theirs = e.type.startsWith("opponent_");
       const corner = e.type.endsWith("corner");
-      out.push({ minute: e.minute!, title: `${corner ? "Córner" : "Ocasión"} ${theirs ? `para ${rival}` : who ? `de ${who}` : "del Piti"}`, text: e.note || `${corner ? "Saque de esquina" : "Ocasión sin gol"}. Sigue el ${gf}–${ga}.`, side: theirs ? "them" : "us", playerId: theirs ? undefined : e.playerId, people });
+      out.push({ minute: shownAt(e), title: `${corner ? "Córner" : "Ocasión"} ${theirs ? `para ${rival}` : who ? `de ${who}` : "del Piti"}`, text: e.note || `${corner ? "Saque de esquina" : "Ocasión sin gol"}. Sigue el ${gf}–${ga}.`, side: theirs ? "them" : "us", playerId: theirs ? undefined : e.playerId, people });
     } else if (e.type === "substitution") {
-      out.push({ minute: e.minute!, title: `Entra ${e.inPlayerId ? nameOf(e.inPlayerId) : "un suplente"}`, text: `Sale ${who}.`, side: "us", playerId: e.inPlayerId, people });
+      out.push({ minute: shownAt(e), title: `Entra ${e.inPlayerId ? nameOf(e.inPlayerId) : "un suplente"}`, text: `Sale ${who}.`, side: "us", playerId: e.inPlayerId, people });
     }
   }
   if (final) {

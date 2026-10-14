@@ -11,6 +11,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { collection, orderBy, query, where } from "firebase/firestore";
 import { db } from "../../../firebase";
 import { useMatchClock } from "../../../hooks/useMatchClock";
+import { liveOrWaiting, useServerTimeSync } from "../../../hooks/useServerTimeSync";
 import { useClubContent } from "../../../lib/clubContent";
 import { dateMillis, playerForSeason, playerName, useClubData, type ClubMatch } from "../../../lib/clubData";
 import { resolvePositions } from "../../../lib/positions";
@@ -149,6 +150,8 @@ export function useAdminData(): AdminData {
   const drafts = useMemo(() => (draftsQ.data ?? []) as (ClubMatch & { updatedAt?: unknown })[], [draftsQ.data]);
   const matches = useMemo(() => mergeMatches(published, drafts), [published, drafts]);
   const now = useMatchClock(matches);
+  // (a captain watching En juego without writing anything still reads the server's minute)
+  useServerTimeSync(liveOrWaiting(matches, now), now);
   const next = useMemo(() => nextMatch(matches, now), [matches, now]);
   const last = useMemo(() => lastActaMatch(matches, now), [matches, now]);
   const visibleSeasons = useMemo(() => seasons.filter((s) => !s.archived), [seasons]);

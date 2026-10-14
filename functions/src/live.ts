@@ -32,6 +32,13 @@ const input = z.discriminatedUnion("action", [
   z.object({ action: z.enum(["finish", "reopen"]), matchId: idSchema }),
 ]);
 
+/** A stored date (a Timestamp, or ms) in ms; NaN when missing or malformed (liveProblem refuses it). */
+const millis = (v: unknown): number => {
+  if (typeof v === "number") return v;
+  const t = v as { toMillis?: () => number } | undefined;
+  return typeof t?.toMillis === "function" ? t.toMillis() : NaN;
+};
+
 /** Unique live ids; undo uses append order, including events recorded in the same millisecond. */
 const liveId = (now: number) => `live-${now.toString(36).padStart(9, "0")}-${randomUUID()}`;
 
@@ -41,19 +48,19 @@ export const liveEvent = onCall(async (req) => {
   const data = parse(input, req.data);
   const ref = db.doc(`matches/${data.matchId}`);
   const now = Date.now();
-  return db.runTransaction(async (tx) => {
+  const result = await db.runTransaction(async (tx) => {
     await requireScorer(tx, data.matchId, actor);
     const snap = await tx.get(ref);
     if (!snap.exists) throw new HttpsError("not-found", "Ese partido no existe.");
-    const m = snap.data() as { version?: number; clock?: MatchClock; status?: string; date?: { toMillis(): number }; duration?: number; starters?: string[]; bench?: string[]; events?: MatchEvent[]; revision?: number; liveEndedAt?: number };
-    const match = { ...m, date: m.date?.toMillis() };
+    const m = snap.data() as { version?: number; clock?: MatchClock; status?: string; date?: unknown; duration?: number; starters?: string[]; bench?: string[]; events?: MatchEvent[]; revision?: number; liveEndedAt?: number };
+    const match = { ...m, date: millis(m.date) };
     const events = m.events ?? [];
     const reading = m.clock ? clockReading(m.clock, now) : null;
     if (data.action === "finish" || data.action === "reopen") {
       if (m.clock) throw new HttpsError("failed-precondition", "Utiliza los controles compartidos de las partes del partido.");
       const problem = liveProblem(match, { type: "opponent_goal", minute: 0 }, now);
       if (problem) throw new HttpsError("failed-precondition", problem);
-      if (now < (match.date ?? Infinity)) throw new HttpsError("failed-precondition", "El partido todavía no ha comenzado.");
+      if (!(now >= match.date)) throw new HttpsError("failed-precondition", "El partido todavía no ha comenzado.");
       tx.update(ref, { liveEndedAt: data.action === "finish" ? now : FieldValue.delete(), revision: (m.revision ?? 0) + 1, updatedAt: FieldValue.serverTimestamp() });
       tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, updatedBy: uid, at: FieldValue.serverTimestamp(), live: data.action });
       return { events: events.length };
@@ -87,4 +94,6 @@ export const liveEvent = onCall(async (req) => {
     tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, revision: (m.revision ?? 0) + 1, updatedBy: uid, at: FieldValue.serverTimestamp(), live: data.action, ...(data.action === "add" ? { type: data.event.type, minute: data.event.minute } : {}) });
     return { events: next.length };
   });
+  // The server's clock at the answer: the phone estimates its offset from it (src/lib/serverTime.ts).
+  return { ...result, serverNow: Date.now() };
 });

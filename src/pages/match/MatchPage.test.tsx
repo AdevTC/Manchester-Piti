@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { z } from "zod";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import { matchSearchSchema } from "../../lib/matchTabs";
+import { _resetSnapshotMetaForTesting, metaKeyOf, recordSnapshotMeta } from "../../lib/syncStatus";
 
 // The match page's tab lives in the URL: ?tab= opens it, a click writes it (a history entry, so back
 // and forward step through the tabs) and an unknown tab falls back to the first. Real router (memory
@@ -251,5 +252,80 @@ describe("MatchPage · an error is not «no encontrado»", () => {
     const back = document.querySelector("a.fc-back");
     expect(back).toHaveTextContent("Partidos");
     expect(back).toHaveAttribute("href", "/partidos");
+  });
+});
+
+describe("MatchPage · the board says when the score may not be live", () => {
+  const NOW = Date.UTC(2026, 8, 10);
+  const MATCHES = metaKeyOf(["matches"]);
+  let onLine: { mockRestore: () => void } | null = null;
+  const board = () => document.querySelector("article.pt-board") as HTMLElement;
+  afterEach(() => {
+    onLine?.mockRestore();
+    onLine = null;
+    _resetSnapshotMetaForTesting();
+  });
+
+  it("live and in sync: no chip; offline: «Reconectando…», said once", async () => {
+    recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 5_000);
+    open("/matches/j4");
+    expect(await screen.findByText("pane:directo")).toBeInTheDocument();
+    expect(board().querySelector(".mp-sync")).toBeNull();
+    act(() => {
+      onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+      window.dispatchEvent(new Event("offline"));
+    });
+    expect(within(board()).getByText("Reconectando…")).toBeInTheDocument();
+    expect(board().querySelector(".mp-sync-sr")).toHaveTextContent("Sin conexión: reconectando.");
+  });
+
+  it("live, out of sync for over a minute: «Sin conexión · marcador de hace 2 min»", async () => {
+    recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 20 * 60_000);
+    recordSnapshotMeta(MATCHES, { fromCache: true, hasPendingWrites: false }, NOW - 2 * 60_000 - 5_000);
+    open("/matches/j4");
+    expect(await within(await screen.findByRole("article")).findByText("Sin conexión · marcador de hace 2 min")).toBeInTheDocument();
+  });
+
+  it("a played match never shows it", async () => {
+    recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 20 * 60_000);
+    recordSnapshotMeta(MATCHES, { fromCache: true, hasPendingWrites: false }, NOW - 5 * 60_000);
+    open("/matches/j1");
+    expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(document.querySelector(".mp-sync")).toBeNull();
+  });
+});
+
+// One «siete» (M6): the Campo reads the official board's seven only for members, only while the match is
+// still to be played, and only with the Campo open — the match's own official first.
+describe("MatchPage · the official seven on the Campo", () => {
+  const as = (v: Partial<typeof who.viewer>, docs: Record<string, string> = {}) => {
+    who.viewer = { member: false, admin: false, playerId: null, ...v };
+    who.docs = new Map(Object.entries(docs).map(([k, id]) => ["lineupOfficials/" + k, id]));
+    who.reads = [];
+  };
+
+  it("a member on the Campo of a match still to be played: its own official's board (not the season's)", async () => {
+    as({ member: true }, { t1__j3: "b3", t1__temporada: "s1" });
+    open("/matches/j3?tab=campo");
+    expect(await screen.findByText("pane:campo")).toBeInTheDocument();
+    expect(who.reads).toContain("lineups/b3");
+    expect(who.reads).not.toContain("lineups/s1");
+  });
+
+  it("not on another tab, not for a fan, not once played", async () => {
+    as({ member: true }, { t1__j3: "b3" });
+    open("/matches/j3");
+    expect(await screen.findByText("pane:previa")).toBeInTheDocument();
+    expect(who.reads.some((p) => p.startsWith("lineups/"))).toBe(false);
+    cleanup();
+    as({}, { t1__j3: "b3" });
+    open("/matches/j3?tab=campo");
+    expect(await screen.findByText("pane:campo")).toBeInTheDocument();
+    expect(who.reads).toEqual([]);
+    cleanup();
+    as({ member: true }, { t1__j1: "b1" });
+    open("/matches/j1?tab=campo");
+    expect(await screen.findByText("pane:campo")).toBeInTheDocument();
+    expect(who.reads).not.toContain("lineups/b1");
   });
 });

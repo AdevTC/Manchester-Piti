@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toBePlayed } from "../../lib/derived/kickoff";
-import { boardForMatch, boardFromLocks, lockedBoard, mapOfficialLock, officialScopeId } from "./officialBoard";
+import { boardBench, boardForMatch, boardFromLocks, boardSeven, convocatoriaWithSeven, lockedBoard, mapOfficialLock, officialScopeId, sameSeven, sevenAgreement, sevenDiffs } from "./officialBoard";
 
 // A link to «the pizarra of this match» opens the match's own official; the season's official only while
 // the match is still to be played. Read from the official's scope docs (lineupOfficials), never the boards.
@@ -50,5 +50,48 @@ describe("toBePlayed", () => {
     expect(toBePlayed({ status: "scheduled", date: at(-0.25), duration: 50 }, now)).toBe(false);
     expect(toBePlayed({ status: "cancelled", date: at(48) }, now)).toBe(false);
     expect(toBePlayed({ status: "postponed", date: at(48) }, now)).toBe(false);
+  });
+});
+
+// One «siete» (M6): the official board's seven against the match's convocatoria.
+describe("the official's seven and the convocatoria", () => {
+  const S = ["a", "b", "c", "d", "e", "f", "g"];
+  it("a board doc's seven: slot order, nobody twice, empty or malformed slots skipped", () => {
+    expect(boardSeven([{ playerId: "a" }, { playerId: null }, { playerId: "b" }, { playerId: "a" }, null, "x"])).toEqual(["a", "b"]);
+    expect(boardSeven(undefined)).toEqual([]);
+  });
+  it("same seven = same players, order aside; agreement with the titulares", () => {
+    expect(sameSeven(S, [...S].reverse())).toBe(true);
+    expect(sameSeven(S, S.slice(0, 6))).toBe(false);
+    expect(sevenAgreement(S, [...S].reverse())).toBe("coincide");
+    expect(sevenAgreement(S, [...S.slice(0, 6), "h"])).toBe("otro");
+    expect(sevenAgreement(S, [])).toBe("otro");
+    // no seven on the board (or not read): nothing to say
+    expect(sevenAgreement([], S)).toBeNull();
+    expect(sevenAgreement(null, S)).toBeNull();
+  });
+  it("who differs, each side", () => {
+    expect(sevenDiffs([...S.slice(0, 6), "h"], S)).toEqual({ conv: ["h"], board: ["g"] });
+  });
+  it("the convocatoria with the board's seven: the banquillo keeps its order, who leaves the siete stays called", () => {
+    expect(convocatoriaWithSeven({ starters: ["a", "b", "x"], bench: ["c", "d"] }, ["a", "c", null, "b"])).toEqual({ starters: ["a", "c", "b"], bench: ["d", "x"] });
+    // already this seven (any order): nothing to write
+    expect(convocatoriaWithSeven({ starters: ["b", "a"], bench: [] }, ["a", "b"])).toBeNull();
+    expect(convocatoriaWithSeven(undefined, ["a"])).toBeNull();
+  });
+  it("nobody «no convocado» is called unless the board puts him in the seven", () => {
+    // n1 is out of the convocatoria (neither siete nor banquillo): stays out; n2 enters the siete
+    const next = convocatoriaWithSeven({ starters: ["a", "b"], bench: ["c"] }, ["a", "n2"], ["n1", "c", "b"]);
+    expect(next).toEqual({ starters: ["a", "n2"], bench: ["c", "b"] });
+  });
+  it("with no convocatoria yet: the board's bench (off the pitch, no bajas), without the seven", () => {
+    expect(convocatoriaWithSeven({ starters: [], bench: [] }, ["a", "b"], ["c", "a", "d", "c"])).toEqual({ starters: ["a", "b"], bench: ["c", "d"] });
+  });
+  it("a convocatoria with only «no convocados» set keeps them out (unless the board puts one in the seven)", () => {
+    expect(convocatoriaWithSeven({ starters: [], bench: [], notCalled: ["d", "b"] }, ["a", "b"], ["c", "d", "e"])).toEqual({ starters: ["a", "b"], bench: ["c", "e"] });
+  });
+  it("the board's bench: off the seven, no baja of any kind", () => {
+    const squad = [{ id: "a" }, { id: "b", baja: "Lesionado" }, { id: "c", baja: "Sancionado" }, { id: "d", baja: "Inactivo" }, { id: "e" }, { id: "f", baja: undefined }];
+    expect(boardBench(squad, ["a", null])).toEqual(["e", "f"]);
   });
 });

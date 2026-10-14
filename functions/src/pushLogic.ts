@@ -1,6 +1,7 @@
 // Pure rules of the push notices (functions/src/push.ts): which change of a match (or of the official
 // seven on the pizarra) deserves a notice, to which topic, and its words. Apart so the app's tests can
 // run them.
+import { eventMinute } from "./matchEngine.js";
 import { resultLetter, resultTitle } from "./result.js";
 
 export const TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"] as const;
@@ -12,17 +13,43 @@ export const PERSONAL_TOPICS = ["convocatoria"] as const;
 export type Topic = (typeof TOPICS)[number] | (typeof DOOR_TOPICS)[number] | (typeof PERSONAL_TOPICS)[number];
 
 export interface Notice {
-  topic: Topic;
+  /** The subscribers' topic; "personal" = news about one member (their ficha, their positions), to that
+   *  member's own devices only (the subscriptions that carry their uid), whatever topics they chose. */
+  topic: Topic | "personal";
   title: string;
   body: string;
   /** Same tag replaces the previous notice of the same kind for that match on the phone. */
   tag: string;
   url: string;
+  /** pushLog id claimed before sending (it already there = the notice already went: never twice). */
+  log?: string;
+  /** pushLog id that must exist for this notice to go (e.g. «Gol anulado» only for a goal that was pushed). */
+  requires?: string;
+  /** pushLog id whose presence cancels this notice (a provisional final once the acta's «Final» went). */
+  skipIf?: string;
 }
+const PUBLIC = new Set<string>(TOPICS);
+/** The club's public topics among `topics` (what a device keeps when its member leaves or signs out). */
+export function publicTopics(topics: unknown): string[] {
+  return Array.isArray(topics) ? [...new Set(topics.filter((t): t is string => typeof t === "string" && PUBLIC.has(t)))] : [];
+}
+
+/**
+ * Who a notice goes to, as the pushSubscriptions query sendTo runs: everyone on its topic, or only
+ * `uid`'s devices on it; a personal notice goes to `uid`'s devices whatever their topics (`topic` null),
+ * and to nobody without a uid (null).
+ */
+export function pushAudience(notice: Pick<Notice, "topic">, uid?: string | null): { topic: Topic | null; uid: string | null } | null {
+  if (notice.topic === "personal") return uid ? { topic: null, uid } : null;
+  return { topic: notice.topic, uid: uid || null };
+}
+
 interface Ev {
   id: string;
   type: string;
   minute?: number;
+  /** A live-stamped event's clock seconds (its minute is then the clock's 0-based one): shown via eventMinute. */
+  elapsedSeconds?: number;
   playerId?: string;
 }
 export interface MatchLike {
@@ -42,7 +69,14 @@ export interface MatchLike {
   /** v2 actas carry a server clock (matchClock.ts); only its start is the kick-off. */
   version?: number;
   clock?: { phase?: string };
+  /** liveEvent «finish» on a legacy match without a clock: its final whistle (ms). */
+  liveEndedAt?: number;
 }
+
+const notDone = (m: MatchLike | undefined) => !!m && m.status !== "finished" && m.status !== "cancelled";
+/** The final whistle went (the clock ended, or a legacy match finished live): what changes after it are
+ *  the acta's corrections, never news. */
+const whistled = (m: MatchLike) => m.clock?.phase === "ended" || typeof m.liveEndedAt === "number";
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
@@ -60,11 +94,22 @@ export function liveScore(events: Ev[] | undefined) {
 const when = (ms: number) =>
   new Intl.DateTimeFormat("es-ES", { timeZone: TZ, weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(ms).replace(".", "");
 
+/** The event's minute as people read it (eventMinute: a live-stamped one in football's 1-based minute), or "". */
+const minuteTxt = (e: Ev, fmt: (n: number) => string): string => {
+  const n = eventMinute(e);
+  return n == null ? "" : fmt(n);
+};
+
+const isGoal = (e: Ev) => OURS.has(e.type) || THEIRS.has(e.type);
+
 /**
- * What changed between two versions of a match, as notices: the clock starting (the kick-off), each
- * goal written while it isn't finished, the final whistle (and the MVP vote opening), and a new match
- * or a new kick-off time. The MVP vote opens the match page on its Vestuario tab (`?tab=vestuario`,
- * the tab ids of src/lib/matchTabs.ts); the rest land on the first tab (crónica / directo / previa).
+ * What changed between two versions of a match, as notices: the clock's whistles (the kick-off, the
+ * descanso, the 2ª parte and the provisional final), each goal written while it isn't finished (and
+ * «Gol anulado» when one that was pushed is undone), the acta's final (and the MVP vote opening), and a
+ * new match or a new kick-off time. The MVP vote opens the match page on its Vestuario tab
+ * (`?tab=vestuario`, the tab ids of src/lib/matchTabs.ts); the rest land on the first tab (crónica /
+ * directo / previa). Each notice that could repeat (a trigger retry, a clock undone and done again)
+ * carries its pushLog id (`log`): push.ts claims it first, so it goes once.
  */
 export function noticesFor(id: string, before: MatchLike | undefined, after: MatchLike | undefined, nameOf: (playerId: string) => string, now: number): Notice[] {
   if (!after || after.archived) return [];
@@ -72,13 +117,25 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
   const rival = after.rival ?? "el rival";
   const out: Notice[] = [];
   const finishedNow = after.status === "finished" && before?.status !== "finished";
-  if (after.status !== "finished" && after.status !== "cancelled") {
+  if (notDone(after)) {
     // The kick-off is the clock going ready → first (an absent clock is a ready one), not the date.
     if (before && (before.clock?.phase ?? "ready") === "ready" && after.clock?.phase === "first") out.push(kickoffNotice(id, rival));
+    const { gf, ga } = liveScore(after.events);
+    const score = `Manchester Piti ${gf}–${ga} ${rival}`;
+    // «Gol anulado»: a goal undone while the match is still being played, only if its «¡GOL!» went
+    // (`requires` its pushLog): never for the corrections of an old acta. Same tag: it replaces it.
+    const ended = whistled(after);
+    if (notDone(before) && !ended) {
+      const still = new Set((after.events ?? []).map((e) => e.id));
+      for (const e of (before?.events ?? []).filter((x) => isGoal(x) && !still.has(x.id))) {
+        const who = e.type === "opponent_own_goal" ? `el autogol de ${rival}` : OURS.has(e.type) ? (e.playerId ? `el gol de ${nameOf(e.playerId)}` : "el gol del Piti") : `el gol de ${rival}`;
+        out.push({ topic: "goals", title: `Gol anulado. ${gf}–${ga}`, body: `Se anula ${who}${minuteTxt(e, (n) => ` (minuto ${n})`)} · ${score}`, tag: `goal-${id}`, url, requires: `goal-${id}-${e.id}`, log: `goal-off-${id}-${e.id}` });
+      }
+    }
     const seen = new Set((before?.events ?? []).map((e) => e.id));
-    const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && (OURS.has(e.type) || THEIRS.has(e.type)));
-    if (fresh.length) {
-      const { gf, ga } = liveScore(after.events);
+    const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && isGoal(e));
+    // (a goal written after the final whistle is a correction of the acta: silent, like its undo)
+    if (fresh.length && !ended) {
       const last = fresh[fresh.length - 1];
       const ours = OURS.has(last.type);
       // a goal written live without its scorer yet («Lo completo luego») is still the Piti's
@@ -86,17 +143,28 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
       out.push({
         topic: "goals",
         title: ours ? `¡GOL del Piti! ${gf}–${ga}` : `Gol de ${rival}. ${gf}–${ga}`,
-        body: `${who}${last.minute != null ? `, minuto ${last.minute}` : ""} · Manchester Piti ${gf}–${ga} ${rival}`,
+        body: `${who}${minuteTxt(last, (n) => `, minuto ${n}`)} · ${score}`,
         tag: `goal-${id}`,
         url,
+        log: `goal-${id}-${last.id}`,
       });
     }
+    // The clock's other whistles, once per match each (an undo and the same whistle again says nothing
+    // new). The descanso and the 2ª parte share the kick-off's tag: the phone keeps the latest.
+    const was = before?.clock?.phase ?? "ready";
+    const phase = after.clock?.phase;
+    if (before && was === "first" && phase === "halftime") out.push({ topic: "start", title: `Descanso · ${gf}–${ga}`, body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `half-${id}` });
+    if (before && was === "halftime" && phase === "second") out.push({ topic: "start", title: "Arranca la 2ª parte", body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `second-${id}` });
+    // The final whistle (clock ended), before the acta: provisional, with the acta's «Final» tag so the
+    // official one replaces it on the phone when the captain publishes — and never after the official
+    // one went (`skipIf`: an acta published, then reopened and ended again, or triggers out of order).
+    if (before && (was === "first" || was === "second") && phase === "ended") out.push({ topic: "final", title: `Final (provisional) · ${gf}–${ga}`, body: `${score}. El resultado oficial llega con el acta del capitán.`, tag: `final-${id}`, url, log: `final-live-${id}`, skipIf: `final-${id}` });
   }
   if (finishedNow) {
     const gf = after.goalsFor ?? 0, ga = after.goalsAgainst ?? 0;
     const verdict = resultTitle(resultLetter(gf, ga));
-    out.push({ topic: "final", title: `Final: Manchester Piti ${gf}–${ga} ${rival}`, body: `${verdict}. La crónica, los minutos y el pulso del partido ya están en la web.`, tag: `final-${id}`, url });
-    if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url: `${url}?tab=vestuario` });
+    out.push({ topic: "final", title: `Final: Manchester Piti ${gf}–${ga} ${rival}`, body: `${verdict}. La crónica, los minutos y el pulso del partido ya están en la web.`, tag: `final-${id}`, url, log: `final-${id}` });
+    if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url: `${url}?tab=vestuario`, log: `mvp-open-${id}` });
   }
   const scheduled = after.status === "scheduled" && typeof after.date === "number" && after.date > now;
   if (scheduled && (!before || before.date !== after.date)) {
@@ -117,7 +185,90 @@ export const kickoffNotice = (id: string, rival: string): Notice => ({
   body: "Sigue el marcador en directo en la web.",
   tag: `start-${id}`,
   url: `/matches/${id}`,
+  log: `start-${id}`,
 });
+
+// ── The MVP's winner, when the vote closes (the 5-minute job, push.ts) ──
+
+/** Who won a match's MVP vote once it has closed (ties share it), from mvpResults/{id} — the one rule
+ *  of the web (src/lib/vestuario.ts mvpWinners) and the notice. Nobody before it closes or without votes. */
+export function mvpWinnerIds(voteClosesAt: number | null | undefined, result: { counts?: Record<string, number>; total?: number } | null | undefined, now: number): string[] {
+  if (!result?.total || !voteClosesAt || now < voteClosesAt) return [];
+  const counts = result.counts ?? {};
+  const top = Math.max(...Object.values(counts));
+  return top > 0 ? Object.keys(counts).filter((id) => counts[id] === top) : [];
+}
+
+/** «MVP de la J5: ERIK» (a tie: «MVP compartido de la J5: ERIK y PABLO»), once per match. Same tag as
+ *  «Vota al MVP»: the winner replaces the call to vote on the phone. Null without a winner. */
+export function mvpWinnerNotice(id: string, match: Pick<MatchLike, "rival">, winners: readonly string[], nameOf: (playerId: string) => string, jornada: number | null): Notice | null {
+  if (!winners.length) return null;
+  const rival = match.rival ?? "el rival";
+  const names = andList(winners.map(nameOf));
+  const of = jornada ? ` de la J${jornada}` : " del partido";
+  const shared = winners.length > 1;
+  return {
+    topic: "mvp",
+    title: `${shared ? "MVP compartido" : "MVP"}${of}: ${names}`,
+    body: shared ? `Empate en la votación ante ${rival}. Mira el recuento en la web.` : `Elegido por el vestuario ante ${rival}. Mira la votación en la web.`,
+    tag: `mvp-${id}`,
+    url: `/matches/${id}?tab=vestuario`,
+    log: `mvp-win-${id}`,
+  };
+}
+
+// ── Personal notices: news about one member, to their own devices ──
+
+const millisOf = (v: unknown): number | null => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  const t = v as { toMillis?: () => number } | null | undefined;
+  return t && typeof t.toMillis === "function" ? t.toMillis() : null;
+};
+
+/** The fields of playerClaims/{uid} the notice looks at. */
+export interface ClaimLike {
+  playerId?: string;
+  status?: string;
+  resolvedBy?: string;
+}
+
+/**
+ * «Tu ficha ya es tuya»: a member's claim of a ficha becomes approved — by a captain (a captain's own
+ * claim links at once: nothing to tell him). Once per member and ficha (pushLog).
+ */
+export function claimNotice(uid: string, before: ClaimLike | undefined, after: ClaimLike | undefined): Notice | null {
+  if (after?.status !== "approved" || before?.status === "approved" || !after.playerId) return null;
+  if (after.resolvedBy === uid) return null;
+  return {
+    topic: "personal",
+    title: "Tu ficha ya es tuya",
+    body: "El capitán ha aprobado tu ficha: tus partidos, tus goles y tu carta ya cuentan contigo.",
+    tag: `claim-${uid}`,
+    url: "/profile",
+    log: `claim-${uid}-${after.playerId}`,
+  };
+}
+
+const REVIEW_BODY: Record<string, string> = {
+  aprobada: "Ha aprobado tus posiciones: tu ficha ya sale así.",
+  ajustada: "Ha ajustado un poco tus posiciones. Mira cómo quedan en tu perfil.",
+  rechazada: "Esta vez tus posiciones se quedan como estaban. Míralo en tu perfil.",
+};
+
+/**
+ * «El capitán revisó tus posiciones»: a new `positionsReview` on a ficha (a new review date), to the
+ * member linked to it (`memberUid`, from playerLinks) unless they reviewed it themselves. Once per
+ * ficha and review (pushLog `positions-<playerId>-<reviewAt>`).
+ */
+export function positionsNotice(playerId: string, before: { positionsReview?: unknown } | undefined, after: { positionsReview?: unknown } | undefined, memberUid: string | null): Notice | null {
+  const r = after?.positionsReview as { status?: unknown; at?: unknown; by?: unknown } | null | undefined;
+  if (!memberUid || !r || typeof r !== "object" || typeof r.status !== "string" || !Object.hasOwn(REVIEW_BODY, r.status)) return null;
+  const at = millisOf(r.at);
+  if (at == null || r.by === memberUid) return null;
+  const was = before?.positionsReview as { at?: unknown } | null | undefined;
+  if (was && typeof was === "object" && millisOf(was.at) === at) return null;
+  return { topic: "personal", title: "El capitán revisó tus posiciones", body: REVIEW_BODY[r.status], tag: `positions-${playerId}`, url: "/profile", log: `positions-${playerId}-${at}` };
+}
 
 /** The fields of a `lineups` board the «Ya está el siete» notice looks at. */
 export interface LineupLike {
@@ -142,13 +293,16 @@ export function lineupNotice(id: string, before: LineupLike | undefined, after: 
   if (mid && match && (match.archived || match.status === "finished" || match.status === "cancelled")) return null;
   const rival = mid ? match?.rival : undefined;
   const day = mid && typeof match?.date === "number" ? when(match.date) : "";
+  // A match's official opens the match's Campo (public: members see the official seven there, fans the
+  // convocatoria — one «siete» with the convocatoria's notice); the season's opens the pizarra's charla.
   const body = rival
-    ? `Contra ${rival}${day ? ` (${day})` : ""}: el capitán ya ha publicado el siete. Ábrelo y mira la charla.`
+    ? `Contra ${rival}${day ? ` (${day})` : ""}: el capitán ya ha publicado el siete. Míralo en el partido.`
     : mid
-      ? "El capitán ya ha publicado el siete del partido. Ábrelo y mira la charla."
+      ? "El capitán ya ha publicado el siete del partido. Míralo en el partido."
       : "El capitán ya ha publicado el siete de la temporada. Ábrelo y mira la charla.";
   const season = typeof after.seasonId === "string" && after.seasonId ? `&season=${encodeURIComponent(after.seasonId)}` : "";
-  return { topic: "lineup", title: "Ya está el siete", body, tag: `lineup-${id}-${mid ?? "temporada"}`, url: `/pizarra?tablero=${encodeURIComponent(id)}${season}#charla` };
+  const url = mid ? `/matches/${encodeURIComponent(mid)}?tab=campo` : `/pizarra?tablero=${encodeURIComponent(id)}${season}#charla`;
+  return { topic: "lineup", title: "Ya está el siete", body, tag: `lineup-${id}-${mid ?? "temporada"}`, url };
 }
 
 /**
@@ -225,19 +379,22 @@ export function sevenNewsworthy(after: LineupLike | undefined, match: MatchLike 
 
 /**
  * The «Cambio en el siete» notice, from the seven the team was last told about (`baseline`) to the one
- * there is now; null when, all told, nobody comes in or goes out (moved around, or changed back).
+ * there is now; null when, all told, nobody comes in or goes out (moved around, or changed back). A
+ * match's official opens the match's Campo (like «Ya está el siete»: public, the seven there); the
+ * season's opens the board on the pizarra.
  */
 export function sevenChangeNotice(id: string, baseline: readonly string[], now7: readonly string[], after: LineupLike, match: MatchLike | null | undefined, nameOf: (id: string) => string): Notice | null {
   const txt = sevenChangeTxt(sevenDiff(baseline, now7), nameOf);
   if (!txt) return null;
-  const rival = after.matchId ? match?.rival : undefined;
+  const mid = after.matchId ?? null;
+  const rival = mid ? match?.rival : undefined;
   const season = typeof after.seasonId === "string" && after.seasonId ? `&season=${encodeURIComponent(after.seasonId)}` : "";
   return {
     topic: "lineup",
     title: "Cambio en el siete",
-    body: txt.replace(/^./, (c) => c.toUpperCase()) + (rival ? ` · contra ${rival}` : "") + ". Mira el oficial en la pizarra.",
+    body: txt.replace(/^./, (c) => c.toUpperCase()) + (rival ? ` · contra ${rival}` : "") + (mid ? ". Míralo en el partido." : ". Mira el oficial en la pizarra."),
     tag: `seven-${id}`,
-    url: `/pizarra?tablero=${encodeURIComponent(id)}${season}`,
+    url: mid ? `/matches/${encodeURIComponent(mid)}?tab=campo` : `/pizarra?tablero=${encodeURIComponent(id)}${season}`,
   };
 }
 
@@ -245,4 +402,130 @@ export function sevenChangeNotice(id: string, baseline: readonly string[], now7:
  *  was none), else hold it for the job (pushReminders) to send, grouped, once the window is over. */
 export function sevenStep(lastSentAt: number | null, now: number): "send" | "hold" {
   return lastSentAt == null || now - lastSentAt >= SEVEN_DEBOUNCE_MS ? "send" : "hold";
+}
+
+// ── One «siete» per match: «Ya está el siete» and the convocatoria's notice never both ──
+//
+// Both tell the team the match's seven: the pizarra's official («Ya está el siete», pushOnLineup) and the
+// convocatoria («Ya está la convocatoria» / «Cambios en la convocatoria», setConvocatoria and the legacy
+// trigger). Each one, once its own pushLog is claimed, also goes through `pushLog/siete-<match>`: whoever
+// told the team THIS seven in the last SIETE_WINDOW_MS wins, the other one stays quiet. Publishing the
+// official with «Usar este siete como convocatoria» reserves the claim for the board's «Ya está el siete»
+// (the publish's trigger may run before or after the convocatoria's call): the convocatoria is covered.
+
+/** How long a «siete» notice covers the other one for the same seven. */
+export const SIETE_WINDOW_MS = SEVEN_DEBOUNCE_MS;
+
+/** The claim's pushLog id: one per match. */
+export const sieteLog = (matchId: string): string => `siete-${matchId}`;
+
+/** The seven as the claim compares it: who (order aside), never empty ids. */
+export function sieteKey(seven: readonly unknown[] | null | undefined): string {
+  const ids = (seven ?? []).filter((x): x is string => typeof x === "string" && x.length > 0);
+  return [...new Set(ids)].sort().join(",");
+}
+
+/** `pushLog/siete-<match>` as stored. */
+export interface SieteClaim {
+  /** When it was claimed (ms). */
+  at: number;
+  /** Who told (or is about to tell) the team. */
+  by: "lineup" | "conv";
+  /** The seven told (sieteKey). */
+  seven: string;
+  /** The board, for «Ya está el siete». */
+  board?: string | null;
+  /** false = reserved for that board's «Ya está el siete», which hasn't gone yet. */
+  sent: boolean;
+}
+
+/**
+ * Who asks: «Ya está el siete» of `board` (lineup), a convocatoria notice (conv), or the convocatoria made
+ * from the official just published, which leaves the telling to the board's notice (reserve).
+ */
+export type SieteAsk = { by: "lineup"; board: string; seven: string } | { by: "conv"; seven: string } | { by: "reserve"; board: string; seven: string };
+
+/** The stored claim read back (null when missing or malformed). */
+export function parseSiete(d: unknown): SieteClaim | null {
+  if (!d || typeof d !== "object") return null;
+  const o = d as Record<string, unknown>;
+  if (typeof o.at !== "number" || (o.by !== "lineup" && o.by !== "conv") || typeof o.seven !== "string") return null;
+  return { at: o.at, by: o.by, seven: o.seven, board: typeof o.board === "string" ? o.board : null, sent: o.sent !== false };
+}
+
+/** What the one-siete step decides: whether the asker's notice goes, what the claim becomes (null = left as
+ *  it is) and, when it stays quiet, whose notice told the team (`coveredBy`). */
+export interface SieteDecision {
+  send: boolean;
+  write: SieteClaim | null;
+  coveredBy: "lineup" | "conv" | null;
+}
+
+/**
+ * The one-siete step. A claim older than SIETE_WINDOW_MS (or from the future: a reset clock) counts as none.
+ *   · lineup: its own reservation → it goes (and marks it sent); the same seven already told (by anyone)
+ *     within the window → quiet.
+ *   · conv: only «Ya está el siete» covers it — a claim by a board (sent, or reserved for it) with the same
+ *     seven within the window → quiet. Another convocatoria notice never covers one.
+ *   · reserve (the convocatoria made from the official just published, whose notice hasn't gone yet): it
+ *     leaves the telling to that board (reserving the claim for it) unless the board already told another
+ *     seven (then the convocatoria tells this one) or a convocatoria notice told this very seven (it goes
+ *     as a convocatoria notice; the board's stays quiet).
+ */
+export function sieteStep(prev: SieteClaim | null, ask: SieteAsk, now: number): SieteDecision {
+  const fresh = !!prev && prev.at <= now && now - prev.at < SIETE_WINDOW_MS ? prev : null;
+  const same = !!fresh && fresh.seven === ask.seven;
+  const quiet = (by: "lineup" | "conv"): SieteDecision => ({ send: false, write: null, coveredBy: by });
+  const asConv: SieteDecision = { send: true, write: { at: now, by: "conv", seven: ask.seven, sent: true }, coveredBy: null };
+  if (ask.by === "lineup") {
+    if (fresh && fresh.by === "lineup" && fresh.board === ask.board && !fresh.sent) return { send: true, write: { ...fresh, sent: true }, coveredBy: null };
+    if (fresh && fresh.sent && same) return quiet(fresh.by);
+    return { send: true, write: { at: now, by: "lineup", seven: ask.seven, board: ask.board, sent: true }, coveredBy: null };
+  }
+  if (ask.by === "conv") return fresh && fresh.by === "lineup" && same ? quiet("lineup") : asConv;
+  if (fresh?.by === "lineup") {
+    if (fresh.board === ask.board) return !fresh.sent || same ? quiet("lineup") : asConv;
+    if (fresh.sent && same) return quiet("lineup");
+  }
+  if (fresh?.by === "conv" && same) return asConv;
+  return { send: false, write: { at: now, by: "lineup", seven: ask.seven, board: ask.board, sent: false }, coveredBy: "lineup" };
+}
+
+/**
+ * Where the board's «Ya está el siete» stands for the convocatoria made from the official just published:
+ * "pending" (its notice is still to go), "sent" (its notice for THIS publish went: claimed at or after the
+ * publish, within the window), or null — not the match's official published just now (its scope doc names
+ * it, written within the window), or its notice was claimed by an earlier publish (it won't go again).
+ */
+export function boardNotice(o: {
+  board: { isOfficial?: unknown; matchId?: unknown } | null | undefined;
+  lock: { lineupId?: unknown; at?: number | null } | null | undefined;
+  boardId: string;
+  matchId: string;
+  /** When that board's «Ya está el siete» for the match was claimed (null = not yet). */
+  lineupLoggedAt: number | null;
+  now: number;
+}): "pending" | "sent" | null {
+  if (o.board?.isOfficial !== true || o.board.matchId !== o.matchId) return null;
+  if (o.lock?.lineupId !== o.boardId) return null;
+  const within = (t: number) => t <= o.now && o.now - t < SIETE_WINDOW_MS;
+  const lockAt = o.lock.at;
+  if (typeof lockAt !== "number" || !within(lockAt)) return null;
+  if (o.lineupLoggedAt == null) return "pending";
+  return o.lineupLoggedAt >= lockAt && within(o.lineupLoggedAt) ? "sent" : null;
+}
+
+/** Same players (order aside, empty ids skipped). */
+const sameCalled = (a: readonly unknown[], b: readonly unknown[]) => sieteKey(a) === sieteKey(b);
+
+/**
+ * Whether a convocatoria notice may be covered by «Ya está el siete»: only when the seven is all it would
+ * tell — the first notice (the seven is the news), or «Cambios» that call the same players as the
+ * convocatoria announced (`announced`: its siete + banquillo when it was first announced; unknown = no).
+ * Anyone newly called or left out is news of its own: that notice goes.
+ */
+export function sieteMayCover(kind: "first" | "changes", now: { starters: readonly string[]; bench: readonly string[] }, announced: { starters?: unknown; bench?: unknown } | null | undefined): boolean {
+  if (kind === "first") return true;
+  if (!announced || !Array.isArray(announced.starters) || !Array.isArray(announced.bench)) return false;
+  return sameCalled([...now.starters, ...now.bench], [...announced.starters, ...announced.bench]);
 }

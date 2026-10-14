@@ -1,10 +1,12 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { dateMillis, type ClubMatch } from "../../lib/clubData";
 import { apiError, confirmTraining, deleteTraining, proposeTraining } from "../../lib/clubApi";
 import { deleteBoardMessage, postBoardMessage, predictScore, useMe, voteMvp, voteTraining } from "./writes";
-import { countdown, initials, MIN_PLAYERS, nextWeekday, slotStanding, slotTime, trainingOver, plural, podium, porraPosition, slotParts, type MvpResult } from "../../lib/vestuario";
+import { countdown, initials, MIN_PLAYERS, mvpAnnouncement, mvpRace, nextWeekday, slotStanding, slotTime, trainingOver, plural, porraPosition, slotParts, voteLeft, type MvpResult } from "../../lib/vestuario";
 import {
+  useMvpResultsSync,
+  useMvpReveal,
   useMvpVoters,
   useMyMvpVote,
   useMyPrediction,
@@ -15,6 +17,7 @@ import {
 } from "./live";
 import { Icon } from "../../components/celeste/icons";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
+import { PlayerLink } from "../../components/celeste/PlayerLink";
 
 function useAction() {
   const [busy, setBusy] = useState(false);
@@ -466,6 +469,11 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
   const [selection, setSelection] = useState<{ id: string; pick: string } | null>(null);
   const act = useWrite();
   const me = useMe();
+  // the live race while the vote is open (counts only, never who voted whom), the podium once it closes
+  const race = mvpRace(match?.voteClosesAt, result, now);
+  const open = race.state === "open";
+  const sync = useMvpResultsSync();
+  const reveal = useMvpReveal({ id: match?.id, open, winner: !!match && race.winners.length > 0, closesAt: match?.voteClosesAt, now });
   if (!match) {
     return (
       <section className="vx-mvp">
@@ -493,53 +501,101 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
       </section>
     );
   }
-  const open = (match.voteClosesAt ?? 0) > now;
   const pick = selection?.id === match.id ? selection.pick : myVote.data;
-  const top = podium(result);
-  const order = top.length === 3 ? [top[1], top[0], top[2]] : top.length === 2 ? [top[1], top[0]] : top;
   const total = result?.total ?? 0;
   const candidates = Object.entries(match.ledger ?? {})
     .filter(([, row]) => row.played)
     .map(([id]) => id)
     .sort((a, b) => (result?.counts[b] ?? 0) - (result?.counts[a] ?? 0) || playerName(a).localeCompare(playerName(b), "es"));
   const vote = () => me && act.write(() => voteMvp(me, match.id, pick));
-  const heights = [74, 112, 54];
+  const { rows } = race;
+  // the podium: 2nd · 1st · 3rd, three steps at most (360 px); the rest of a tie goes in a line below
+  const steps = rows.slice(0, 3);
+  const order = steps.length === 3 ? [steps[1], steps[0], steps[2]] : steps.length === 2 ? [steps[1], steps[0]] : steps;
+  const more = rows.slice(3);
+  const STEP = [112, 74, 54];
+  const FACE = [80, 60, 56];
   return (
     <section className="vx-mvp">
       <span className="vx-kick">
-        Piti {match.goalsFor ?? 0}–{match.goalsAgainst ?? 0} {match.rival} · {open ? `cierra en ${countdown(match.voteClosesAt ?? 0, now)}` : "votación cerrada"}
+        Piti {match.goalsFor ?? 0}–{match.goalsAgainst ?? 0} {match.rival} · {open ? `Cierra en ${voteLeft(match.voteClosesAt ?? 0, now)}` : "votación cerrada"}
       </span>
-      <h2 className="vx-h2">El MVP</h2>
-      {order.length ? (
-        <div className="vx-podium">
-          {order.map((p) => {
-            const rank = top.indexOf(p);
-            const first = rank === 0;
-            const size = first ? 80 : rank === 1 ? 60 : 56;
-            return (
-              <div key={p.playerId} className={`vx-pod${first ? " first" : ""}${p.playerId === myVote.data ? " mine" : ""}`}>
-                {first && (
-                  <svg width="26" height="18" viewBox="0 0 26 18" aria-hidden="true" style={{ marginBottom: 6 }}>
-                    <path d="M1 5l6 5 6-9 6 9 6-5-3 12H4Z" fill="#FFC659" />
-                  </svg>
-                )}
-                <span className={`face ${first ? "g-sky" : rank === 1 ? "g-gold" : "g-grey"}`} style={{ width: size, height: size, fontSize: Math.round(size / 4.2) }}>
-                  {initials(playerName(p.playerId))}
-                </span>
-                <span className="nm">{playerName(p.playerId)}</span>
-                <span className="vt">
-                  {plural(p.votes, "voto", "votos")}
-                  {p.playerId === myVote.data ? " · tu voto" : ""}
-                </span>
-                <span className="step" style={{ height: heights[rank] }}>
-                  {rank + 1}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
+      <h2 className="vx-h2">{open ? "La carrera del MVP" : race.winners.length > 1 ? "MVP compartido" : "El MVP"}</h2>
+      <p className="sr-only" aria-live="polite">
+        {mvpAnnouncement(race, (open ? race.leaders : race.winners).map(playerName))}
+      </p>
+      {sync.stale && <p className="vx-note">Sin conexión: puede faltar algún voto en el recuento.</p>}
+      {!rows.length ? (
         <p className="vx-empty">{open ? "Todavía no ha votado nadie. Abre tú la votación." : "No hubo votos en este partido."}</p>
+      ) : open ? (
+        <ol className="vx-race" aria-label="La carrera del MVP">
+          {rows.map((r) => (
+            <li key={r.playerId} className={`${r.rank === 1 ? "lead" : ""}${r.playerId === myVote.data ? " mine" : ""}`}>
+              <span className="rk">{r.rank}.º</span>
+              <span className="nm">
+                {r.shared && <span className="sr-only">empatado, </span>}
+                <PlayerLink id={r.playerId} seasonId={match.seasonId}>
+                  {playerName(r.playerId)}
+                </PlayerLink>
+                {r.playerId === myVote.data && <small> · tu voto</small>}
+              </span>
+              <b>
+                {r.votes}
+                <span className="sr-only"> {r.votes === 1 ? "voto" : "votos"}</span>
+              </b>
+              <span className="vx-pbar" aria-hidden="true">
+                <i style={{ width: `${(r.votes / rows[0].votes) * 100}%` }} />
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <>
+          <div className={`vx-podium${reveal ? " reveal" : ""}`}>
+            {order.map((p) => {
+              const first = p.rank === 1;
+              const size = FACE[p.rank - 1];
+              return (
+                <div key={p.playerId} className={`vx-pod${first ? " first" : ""}${p.playerId === myVote.data ? " mine" : ""}`} style={{ animationDelay: `${(3 - p.rank) * 140}ms` }}>
+                  {first && (
+                    <svg width="26" height="18" viewBox="0 0 26 18" aria-hidden="true" style={{ marginBottom: 6 }}>
+                      <path d="M1 5l6 5 6-9 6 9 6-5-3 12H4Z" fill="#FFC659" />
+                    </svg>
+                  )}
+                  <span className={`face ${first ? "g-sky" : p.rank === 2 ? "g-gold" : "g-grey"}`} style={{ width: size, height: size, fontSize: Math.round(size / 4.2) }} aria-hidden="true">
+                    {initials(playerName(p.playerId))}
+                  </span>
+                  <span className="nm">
+                    <PlayerLink id={p.playerId} seasonId={match.seasonId}>
+                      {playerName(p.playerId)}
+                    </PlayerLink>
+                  </span>
+                  <span className="vt">
+                    {plural(p.votes, "voto", "votos")}
+                    {p.shared ? " · empate" : ""}
+                    {p.playerId === myVote.data ? " · tu voto" : ""}
+                  </span>
+                  <span className="step" style={{ height: STEP[p.rank - 1] }}>
+                    {p.rank}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {more.length > 0 && (
+            <p className="vx-note">
+              y {more.length} {more.length === 1 ? "más empatado" : "más empatados"} con {plural(more[0].votes, "voto", "votos")}:{" "}
+              {more.map((r, i) => (
+                <Fragment key={r.playerId}>
+                  {i === 0 ? "" : i === more.length - 1 ? " y " : ", "}
+                  <PlayerLink id={r.playerId} seasonId={match.seasonId}>
+                    {playerName(r.playerId)}
+                  </PlayerLink>
+                </Fragment>
+              ))}
+            </p>
+          )}
+        </>
       )}
       {open && member && (
         <div className="vx-vote">

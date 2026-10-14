@@ -15,6 +15,8 @@ import { clockTime, jLabel, shortDate, type AdminMatch } from "../data/adminLogi
 import { unwhistle, useWhistled } from "../data/whistleStore";
 import { LedBoard, ShirtBack } from "../kit";
 import { LiveClock, LiveLog, LivePads, LivePicker } from "../live/LiveParts";
+import { SyncChip } from "../../../components/celeste/SyncChip";
+import { useSyncChip } from "../../../hooks/useSyncChip";
 import { useLive } from "../live/useLive";
 import { useMatchShortcuts } from "../palette/matchShortcuts";
 import { useAdmin, useAdminGo } from "../shell/context";
@@ -162,6 +164,9 @@ function Live({ match }: { match: AdminMatch }) {
   const { desktop } = useFrame();
   const { nameOf, numberOf } = useNames();
   const live = useLive(match, data.now, nameOf, numberOf);
+  // «Reconectando…» / «Sin conexión · marcador de hace N min» on the LED (the score may not be the latest)
+  const syncChip = useSyncChip(true, data.now);
+  const status = <SyncChip chip={syncChip} variant="led" announce />;
   const { gf, ga } = scoreOf(match);
   const j = jLabel(match);
   const rival = match.rival ?? "Rival";
@@ -193,7 +198,7 @@ function Live({ match }: { match: AdminMatch }) {
             <span className="ml">{metaLine(match)}</span>
             <WebLink match={match} compact />
           </div>
-          <LedBoard rival={rival} gf={gf} ga={ga} size="mob" flash={live.flash} sub={<LiveClock start={start} match={match} />} />
+          <LedBoard rival={rival} gf={gf} ga={ga} size="mob" flash={live.flash} sub={<LiveClock start={start} match={match} />} status={status} />
         </div>
         <div className="lvb">
           {control}
@@ -237,6 +242,7 @@ function Live({ match }: { match: AdminMatch }) {
           }
           ticker={tickerText(match, note)}
           flash={live.flash}
+          status={status}
         />
         <div className="live2">
           <div className="calm">

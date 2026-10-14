@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
 import { readyClock, transitionClock } from "../../../functions/src/matchClock";
+import { _resetSnapshotMetaForTesting, metaKeyOf, recordSnapshotMeta } from "../../lib/syncStatus";
 
 // /partidos: the strip says «pendiente del acta» for a played match waiting for it, and the live row's
 // score flips like the board's (a late old goal changes it without the flip). Data, season, clock and
@@ -111,4 +112,21 @@ it("the board's next match: «Ver la previa» → its page; live, the board only
   rerender(<PartidosPage />);
   expect(within(board()).queryByRole("link", { name: /Ver la previa/ })).toBeNull();
   expect(within(board()).getByRole("link", { name: /Seguir en directo/ })).toHaveAttribute("href", "/matches/m2");
+});
+
+it("the live board shows the connection chip (the island, also on this page, is the one that says it out loud)", () => {
+  const MATCHES = metaKeyOf(["matches"]);
+  const liveMatch: ClubMatch = { id: "l", seasonId: "t1", version: 2, status: "scheduled", rival: "MAD SKY", date: T0, duration: 50, clock: transitionClock(readyClock(), "start", T0), events: [] };
+  clock.now = T0 + 30 * MIN;
+  data.matches = [played, liveMatch];
+  _resetSnapshotMetaForTesting();
+  recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, T0);
+  const { rerender } = render(<PartidosPage />);
+  const board = () => document.querySelector("article.pt-board.live") as HTMLElement;
+  expect(board().querySelector(".mp-sync")).toBeNull();
+  recordSnapshotMeta(MATCHES, { fromCache: true, hasPendingWrites: false }, T0 + 25 * MIN);
+  rerender(<PartidosPage />);
+  expect(within(board()).getByText("Sin conexión · marcador de hace 5 min")).toBeInTheDocument();
+  expect(board().querySelector(".mp-sync-sr")).toBeNull();
+  _resetSnapshotMetaForTesting();
 });

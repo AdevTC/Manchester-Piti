@@ -8,6 +8,7 @@ import { nuevoOn } from "./rail";
 import { PanelHead } from "./SheetPanels";
 import { useConfirmKeys } from "./useConfirmKeys";
 import { matchBand, matchLabel, matchShort, nameError, NAME_MAX, type CalMatch } from "./boards";
+import { andList } from "./bench";
 import type { ReactionValue } from "../reactions";
 import { apiError } from "../../../lib/clubApi";
 import { RivalFilter } from "./RivalPanel";
@@ -101,7 +102,12 @@ export interface TablerosProps {
   onViewOfficial: () => void;
   onDupOfficial: () => void;
   onReact: (v: ReactionValue) => void;
-  onPublish: (matchId: string | null) => Promise<void>;
+  /** `conv`: «Usar este siete como convocatoria» was ticked (only for a match). */
+  onPublish: (matchId: string | null, o?: { conv: boolean }) => Promise<void>;
+  /** One «siete» (M6): publishing for «este partido» can also set its convocatoria from this seven (null =
+   *  not offered: not a captain who can write it); `agrees` = the convocatoria already has this seven;
+   *  `newly` = who an announced convocatoria would newly call (their «Cambios en la convocatoria» goes too). */
+  convSync?: { agrees: boolean; newly: string[] } | null;
   onUnpublish: (id: string) => void;
   // Partido
   calendar: CalMatch[];
@@ -202,6 +208,10 @@ export function TablerosPanel(p: TablerosProps) {
   const scopeMatchId = scope === "p" ? (p.scopeMatch?.id ?? null) : null;
   const sameScope = !!p.onScreenOfficial && (p.onScreenOfficial.matchId ?? null) === scopeMatchId;
   const [publishing, setPublishing] = useState(false);
+  // «Usar este siete como convocatoria»: ticked unless the captain unticks it (only for a match)
+  const [useConv, setUseConv] = useState(true);
+  const convOffered = !!p.convSync && scope === "p" && !!p.scopeMatch && !sameScope;
+  const convId = useId();
   // Publishing a seven with warnings asks once more, in the card (undefined = not asking).
   const [askPub, setAskPub] = useState<string | null | undefined>(undefined);
   // «Quitar el oficial» and linking the official to another match (it republishes it and tells the team)
@@ -248,7 +258,7 @@ export function TablerosPanel(p: TablerosProps) {
   const doPublish = (mid: string | null) => {
     setAskPub(undefined);
     setPublishing(true);
-    void p.onPublish(mid).finally(() => setPublishing(false));
+    void p.onPublish(mid, { conv: !!mid && convOffered && useConv }).finally(() => setPublishing(false));
   };
   const linked = p.calendar.find((m) => m.id === p.matchId) ?? null;
   const band = matchBand(linked);
@@ -445,6 +455,24 @@ export function TablerosPanel(p: TablerosProps) {
                 </button>
               </div>
               {!p.scopeMatch && <p>Sin partido por jugar ni vinculado: el oficial será para toda la temporada.</p>}
+              {convOffered && p.convSync && (
+                <label className="chk" htmlFor={convId}>
+                  <input id={convId} type="checkbox" checked={useConv} onChange={(e) => setUseConv(e.target.checked)} />
+                  <span>
+                    Usar este siete como convocatoria
+                    <small>
+                      {p.convSync.agrees
+                        ? "La convocatoria ya tiene este siete."
+                        : "La convocatoria de " +
+                          (p.scopeMatch ? matchShort(p.scopeMatch) : "este partido") +
+                          " se queda con este siete; quien salga, al banquillo. " +
+                          (p.convSync.newly.length
+                            ? "También avisa de los cambios en la convocatoria: " + andList(p.convSync.newly) + (p.convSync.newly.length > 1 ? " no estaban convocados." : " no estaba convocado.")
+                            : "Avisa al equipo con «Ya está el siete».")}
+                    </small>
+                  </span>
+                </label>
+              )}
               <button
                 type="button"
                 className="b3 gold"

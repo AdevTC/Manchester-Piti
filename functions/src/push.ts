@@ -1,8 +1,9 @@
 // Push notices (Web Push with the club's own VAPID keys, no third party): anyone can ask for them
-// on the web, by topic; the server sends them when a match changes (goals written live, final
-// whistle, MVP vote, new dates), at kick-off (the clock starting; a job every 5 minutes for legacy
-// matches without a clock) and when the captain publishes
-// the official seven on the pizarra («Ya está el siete»).
+// on the web, by topic; the server sends them when a match changes (goals written live and undone,
+// the clock's whistles, the final, MVP vote, new dates), at kick-off (the clock starting; a job every
+// 5 minutes for legacy matches without a clock), when the MVP vote closes (the same job), when the
+// captain publishes the official seven on the pizarra («Ya está el siete»), and to a member's own
+// devices when their ficha claim is approved or their positions are reviewed.
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -12,8 +13,9 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, noticesFor, PERSONAL_TOPICS, TOPICS, type LineupLike, type MatchLike, type Notice, type Topic } from "./pushLogic.js";
-import { sevenEdited, sevenPublished } from "./seven.js";
+import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
+import { nameFor } from "./names.js";
+import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
 
 export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
@@ -37,23 +39,48 @@ export const pushSubscribe = onCall(async (req) => {
     if (!me.isAdmin) throw new HttpsError("permission-denied", "Solo los administradores reciben la puerta.");
     uid = me.uid;
   }
-  // The convocatoria's reminders are personal too (to whoever hasn't answered): members only. Anyone
-  // else keeps the rest of their topics, without this one.
-  if (input.topics.includes("convocatoria")) {
+  // A signed-in member's device is theirs: it carries their uid, so their personal notices (the
+  // convocatoria's reminders, «Tu ficha ya es tuya», their positions reviewed) find it whatever topics
+  // they chose. The convocatoria's reminders are for members only: anyone else keeps the rest of
+  // their topics, without this one.
+  if (!input.topics.includes("door")) {
     try {
+      if (!req.auth) throw new Error("anónimo");
       uid = (await memberAs(req)).uid;
     } catch {
       input.topics = input.topics.filter((t) => t !== "convocatoria");
     }
   }
   const ref = db.doc(`pushSubscriptions/${subId(input.subscription.endpoint)}`);
+  // `known`: whether the server still had this device (false after a 404/410 dropped it, see sendTo):
+  // the app then renews its subscription (src/lib/push.ts reassertPush).
+  const known = (await ref.get()).exists;
   if (!input.topics.length) {
     await ref.delete();
-    return { topics: [] };
+    return { topics: [], uid: null, known };
   }
-  await ref.set({ endpoint: input.subscription.endpoint, keys: input.subscription.keys, topics: [...new Set(input.topics)], ...(uid ? { uid } : {}), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  return { topics: input.topics };
+  // The uid is the session's, or none: a member who signed out (or another person now on this device)
+  // must stop getting that member's personal notices here (a merge would keep the old one).
+  await ref.set({ endpoint: input.subscription.endpoint, keys: input.subscription.keys, topics: [...new Set(input.topics)], uid: uid ?? FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  return { topics: input.topics, uid: uid ?? null, known };
 });
+
+/**
+ * A member is out of the vestuario (they left, or a captain removed them): their devices keep the club's
+ * public notices (goals, final…) but lose the personal topics and the uid, so nothing about the
+ * vestuario reaches them any more; a device left with no topics is forgotten.
+ */
+export async function forgetMemberDevices(uid: string): Promise<void> {
+  const subs = await db.collection("pushSubscriptions").where("uid", "==", uid).get();
+  if (subs.empty) return;
+  const batch = db.batch();
+  for (const d of subs.docs) {
+    const keep = publicTopics(d.get("topics"));
+    if (keep.length) batch.update(d.ref, { topics: keep, uid: FieldValue.delete() });
+    else batch.delete(d.ref);
+  }
+  await batch.commit();
+}
 
 export const pushUnsubscribe = onCall(async (req) => {
   const input = parse(z.object({ endpoint: z.url() }), req.data);
@@ -61,10 +88,14 @@ export const pushUnsubscribe = onCall(async (req) => {
   return { ok: true };
 });
 
-/** Sends a notice to everyone subscribed to its topic (or only to `uid`'s devices). */
+/** Sends a notice to everyone subscribed to its topic (or only to `uid`'s devices). A personal notice
+ *  goes to `uid`'s devices only, whatever their topics (and nowhere without a uid). */
 export async function sendTo(notice: Notice, uid?: string) {
-  let q = db.collection("pushSubscriptions").where("topics", "array-contains", notice.topic satisfies Topic);
-  if (uid) q = q.where("uid", "==", uid);
+  const who = pushAudience(notice, uid);
+  if (!who) return;
+  let q: FirebaseFirestore.Query = db.collection("pushSubscriptions");
+  if (who.topic) q = q.where("topics", "array-contains", who.topic);
+  if (who.uid) q = q.where("uid", "==", who.uid);
   const subs = await q.get();
   // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
   if (subs.empty) return;
@@ -90,15 +121,15 @@ const asMatch = (d: DocumentData | undefined): MatchLike | undefined =>
 export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", secrets: [vapidPrivate] }, async (event) => {
   const before = asMatch(event.data?.before.data());
   const after = asMatch(event.data?.after.data());
-  const ids = new Set((after?.events ?? []).map((e) => e.playerId).filter(Boolean) as string[]);
+  // (names only when a notice needs them: most writes of a match say nothing)
+  const now = Date.now();
+  const draft = noticesFor(event.params.matchId, before, after, () => "", now);
+  const named = draft.some((n) => n.topic === "goals");
+  const ids = named ? new Set([...(before?.events ?? []), ...(after?.events ?? [])].filter((e) => typeof e.type === "string" && e.type.includes("goal")).map((e) => e.playerId).filter(Boolean) as string[]) : new Set<string>();
   const players = await Promise.all([...ids].map((id) => db.doc(`players/${id}`).get()));
-  const names = new Map(players.map((p) => [p.id, (p.get("shirtName") as string) || [p.get("firstName"), p.get("lastName")].filter(Boolean).join(" ") || "Jugador"]));
-  for (const n of noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", Date.now())) {
-    // «¡Empieza el partido!» once per match (pushLog, shared with pushKickoff): a reset and a second
-    // start, or a trigger retry, never repeat it.
-    if (n.topic === "start" && !(await claimLog(n.tag))) continue;
-    await sendTo(n);
-  }
+  // the season's shirt names, like the match page (nameFor with the match's season)
+  const names = new Map(players.map((p) => [p.id, nameFor(p.data(), after?.seasonId)]));
+  for (const n of named ? noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", now) : draft) await deliver(n);
   // «Ya está la convocatoria»: the first time it is published with titulares — once per match (pushLog).
   if (!convocatoriaNotice(event.params.matchId, before, after, null, Date.now())) return;
   const jornada = after?.seasonId ? await seasonJornada(after.seasonId, event.params.matchId) : null;
@@ -109,8 +140,18 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   } catch {
     return;
   }
+  // One «siete» per match: quiet when «Ya está el siete» just told the team these titulares.
+  if (!(await claimSiete(event.params.matchId, { by: "conv", seven: sieteKey(after?.starters) }))) {
+    await quiet(conv.tag);
+    return;
+  }
   await sendTo(conv);
 });
+
+/** A claimed notice that stayed quiet: the other «siete» notice told the team (the log says why). */
+async function quiet(tag: string): Promise<void> {
+  await db.doc(`pushLog/${tag}`).set({ quiet: "siete" }, { merge: true });
+}
 
 /** Claims pushLog/<tag> (false = it was already there: the notice already went). */
 async function claimLog(tag: string): Promise<boolean> {
@@ -120,6 +161,15 @@ async function claimLog(tag: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Sends a notice at most once: what it `requires` must be in pushLog, and its `log` is claimed first
+ *  (a trigger retry, an overlapping job run or the same whistle again finds it taken). */
+export async function deliver(n: Notice, uid?: string): Promise<void> {
+  if (n.requires && !(await db.doc(`pushLog/${n.requires}`).get()).exists) return;
+  if (n.skipIf && (await db.doc(`pushLog/${n.skipIf}`).get()).exists) return;
+  if (n.log && !(await claimLog(n.log))) return;
+  await sendTo(n, uid);
 }
 
 /** A published match's jornada in its season — the one numbering (jornada.ts), the same «J5» the web
@@ -158,11 +208,40 @@ export const pushOnLineup = onDocumentWritten({ document: "lineups/{lineupId}", 
   } catch {
     return;
   }
+  // One «siete» per match: quiet when the convocatoria just told the team this same seven (seven.ts).
+  if (mid && !(await claimSiete(mid, { by: "lineup", board: event.params.lineupId, seven: sieteKey(sevenOf(after.slots)) }))) {
+    await quiet(notice.tag);
+    return;
+  }
   await sendTo(notice);
 });
 
+/** How long after its vote closes a match can still get its «MVP de la J5» (a job that was down for a
+ *  while catches up; an older vote is no longer news). */
+export const MVP_NEWS_MS = 24 * 3600_000;
+
+/** The MVP's winner of each match whose vote closed in the last MVP_NEWS_MS — once per match
+ *  (pushLog `mvp-win-<id>`), with the winner counted like the web (mvpWinnerIds over mvpResults). */
+export async function announceMvpWinners(now: number): Promise<void> {
+  // voteClosesAt range only (a number in ms, single-field index); the rest is checked here.
+  const closed = await db.collection("matches").where("voteClosesAt", ">=", now - MVP_NEWS_MS).where("voteClosesAt", "<=", now).get();
+  for (const m of closed.docs) {
+    if (m.get("archived") || m.get("status") !== "finished") continue;
+    if ((await db.doc(`pushLog/mvp-win-${m.id}`).get()).exists) continue;
+    const result = (await db.doc(`mvpResults/${m.id}`).get()).data();
+    const winners = mvpWinnerIds(m.get("voteClosesAt") as number, result as { counts?: Record<string, number>; total?: number } | undefined, now);
+    if (!winners.length) continue;
+    const seasonId = m.get("seasonId") as string | undefined;
+    const players = await Promise.all(winners.map((id) => db.doc(`players/${id}`).get()));
+    const names = new Map(players.map((p) => [p.id, nameFor(p.data(), seasonId)]));
+    const jornada = seasonId ? await seasonJornada(seasonId, m.id) : null;
+    const notice = mvpWinnerNotice(m.id, { rival: m.get("rival") as string | undefined }, winners, (id) => names.get(id) ?? "Jugador", jornada);
+    if (notice) await deliver(notice);
+  }
+}
+
 // Cloud Scheduler has no Madrid location: the job (and this function) live in Belgium; it only reads a
-// handful of matches every 5 minutes.
+// handful of matches every 5 minutes: the legacy kick-offs, and the MVP votes that just closed.
 export const pushKickoff = onSchedule({ schedule: "every 5 minutes", timeZone: "Europe/Madrid", region: "europe-west1", secrets: [vapidPrivate] }, async () => {
   const now = Date.now();
   // Date range only (single-field index); the status is checked here.
@@ -171,10 +250,28 @@ export const pushKickoff = onSchedule({ schedule: "every 5 minutes", timeZone: "
     if (m.get("archived") || m.get("status") !== "scheduled") continue;
     // Matches with a clock kick off when it starts (pushOnMatch), not at their date.
     if (!legacyKickoff({ version: m.get("version"), clock: m.get("clock") })) continue;
-    const notice = kickoffNotice(m.id, m.get("rival") ?? "el rival");
-    // Once per match, whatever the overlaps between runs.
-    if (!(await claimLog(notice.tag))) continue;
-    await sendTo(notice);
+    // Once per match (its pushLog, shared with pushOnMatch), whatever the overlaps between runs.
+    await deliver(kickoffNotice(m.id, m.get("rival") ?? "el rival"));
   }
+  await announceMvpWinners(now);
+});
+
+// «Tu ficha ya es tuya»: a captain approved the member's claim — to that member's devices only.
+export const pushOnClaim = onDocumentWritten({ document: "playerClaims/{uid}", secrets: [vapidPrivate] }, async (event) => {
+  const notice = claimNotice(event.params.uid, event.data?.before.data() as ClaimLike | undefined, event.data?.after.data() as ClaimLike | undefined);
+  if (notice) await deliver(notice, event.params.uid);
+});
+
+// «El capitán revisó tus posiciones»: a new review on a ficha — to the member linked to it (playerLinks).
+// Most writes of a ficha don't touch its review: nothing is read for them.
+export const pushOnPositionsReview = onDocumentWritten({ document: "players/{playerId}", secrets: [vapidPrivate] }, async (event) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+  const { playerId } = event.params;
+  // (a cheap first look, without the member: a review that is new)
+  if (!positionsNotice(playerId, before, after, "?")) return;
+  const uid = (await db.doc(`playerLinks/${playerId}`).get()).get("uid");
+  const notice = typeof uid === "string" && uid ? positionsNotice(playerId, before, after, uid) : null;
+  if (notice) await deliver(notice, uid as string);
 });
 

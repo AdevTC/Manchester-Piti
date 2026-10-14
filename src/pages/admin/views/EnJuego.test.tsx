@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MatchEvent } from "../../../../functions/src/matchEngine";
@@ -6,6 +6,7 @@ import * as api from "../../../lib/clubApi";
 import type { ClubMatch } from "../../../lib/clubData";
 import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../../test/adminKit";
 import { resetWhistledForTests } from "../data/whistleStore";
+import { _resetSnapshotMetaForTesting, metaKeyOf, recordSnapshotMeta } from "../../../lib/syncStatus";
 import { EnJuego } from "./EnJuego";
 
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
@@ -67,6 +68,26 @@ describe("En juego", () => {
     expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "finish", matchId: "m8" }));
     await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
     expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "reopen", matchId: "m8" }));
+  });
+
+  it("the LED says when the score may not be the latest: «Sin conexión · marcador de hace N min» (desktop and phones)", async () => {
+    const now = at(8, 12, 31);
+    _resetSnapshotMetaForTesting();
+    recordSnapshotMeta(metaKeyOf(["matches"]), { fromCache: false, hasPendingWrites: false }, now - 30 * 60_000);
+    recordSnapshotMeta(metaKeyOf(["matches"]), { fromCache: true, hasPendingWrites: false }, now - 4 * 60_000);
+    setAdminData(adminFixture({ now, published: playing }));
+    mountAdmin("/admin/en-juego/m8", { enjuego: EnJuego });
+    const hero = await screen.findByRole("region", { name: "El marcador de la J3 en juego" });
+    expect(within(hero).getByText("Sin conexión · marcador de hace 4 min")).toBeInTheDocument();
+    expect(within(hero).getAllByRole("status").some((s) => s.textContent === "Sin conexión: el marcador puede no estar al día.")).toBe(true);
+    cleanup();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    mountAdmin("/admin/en-juego/m8", { enjuego: EnJuego });
+    expect(await screen.findByText("Sin conexión · marcador de hace 4 min")).toBeInTheDocument();
+    // back in sync: gone
+    act(() => recordSnapshotMeta(metaKeyOf(["matches"]), { fromCache: false, hasPendingWrites: false }, now));
+    expect(screen.queryByText(/Sin conexión · marcador/)).toBeNull();
+    _resetSnapshotMetaForTesting();
   });
 
   it("phones: the tally, the LED, «Deshacer lo último» over the log, the pads; the picker is a sheet", async () => {

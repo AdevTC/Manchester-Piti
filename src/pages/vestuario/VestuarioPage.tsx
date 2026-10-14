@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useSeason } from "../../context/SeasonContext";
 import { dateMillis, useClubData, nextFixture, playerForSeason, playerName } from "../../lib/clubData";
+import { nameFor } from "../../lib/derived/names";
 import { useClock } from "../../hooks/useClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -60,7 +61,9 @@ export function VestuarioPage() {
   const { member } = useTeam();
   const { seasons } = useSeason();
   const { matches, players, error } = useClubData();
-  const now = useClock(60_000);
+  // (the MVP block's vote is the latest one; the clock also ticks the moment it closes: race → podium)
+  const lastMatch = lastVotedMatch(matches);
+  const now = useClock(60_000, lastMatch?.voteClosesAt ? [lastMatch.voteClosesAt] : []);
   const theme = useDocumentTheme();
   const uid = user?.uid ?? "";
   const admin = ["admin", "superadmin"].includes(profile?.role ?? "");
@@ -82,7 +85,6 @@ export function VestuarioPage() {
   const pendingClaims = usePendingClaims(admin);
   const posted = useHasPosted(uid || undefined);
   const [stepsHidden, hideSteps] = useStepsHidden(uid);
-  const lastMatch = lastVotedMatch(matches);
 
   const playerId = profile?.playerId;
   const rawPlayer = players.find((p) => p.id === playerId);
@@ -96,6 +98,8 @@ export function VestuarioPage() {
     playerId,
   };
   const nameOf = (id: string) => playerName(players.find((p) => p.id === id));
+  // (the MVP names its players as that match's season does, like the match page)
+  const mvpName = (id: string) => nameFor(players.find((p) => p.id === id), lastMatch?.seasonId);
   const faceName = (a: Availability) => (a.playerId ? nameOf(a.playerId) : a.name);
   const firstName = player?.firstName || player?.shirtName || nick;
 
@@ -189,7 +193,7 @@ export function VestuarioPage() {
         <div className="vx-team-grid">
           <TrainingPoll trainings={trainings.data} uid={uid} admin={admin} now={now} />
           <Porra next={next} uid={uid} rows={porra.data} now={now} />
-          <MvpBlock match={lastMatch} result={lastMatch ? mvpResults.get(lastMatch.id) : undefined} uid={uid} admin={admin} member={member} now={now} playerName={nameOf} />
+          <MvpBlock match={lastMatch} result={lastMatch ? mvpResults.get(lastMatch.id) : undefined} uid={uid} admin={admin} member={member} now={now} playerName={mvpName} />
           <Board messages={board.data} uid={uid} admin={admin} loading={board.loading} now={now} />
           <Access admin={admin} playerId={playerId} onLogout={() => void signOut()} />
         </div>

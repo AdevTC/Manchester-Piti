@@ -88,5 +88,7 @@ export function inQueryOrder(bundle: PublicBundle) {
   const seasons = [...(bundle.queries.seasons ?? [])].sort(
     (a, b) => compare(String(a.data.name ?? ""), String(b.data.name ?? "")) || byId(a, b),
   );
-  return { matches, players, seasons, content: bundle.docs.get("clubContent/main") };
+  // (mvpResults: a plain collection query, so by document id)
+  const mvpResults = [...(bundle.queries.mvpResults ?? [])].sort(byId);
+  return { matches, players, seasons, mvpResults, content: bundle.docs.get("clubContent/main") };
 }

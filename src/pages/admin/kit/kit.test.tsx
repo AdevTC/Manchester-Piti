@@ -74,6 +74,19 @@ describe("kit · the LED scoreboard", () => {
   });
 });
 
+describe("kit · the LED's status line (the connection chip)", () => {
+  it.each(["desk", "mob"] as const)("%s: the same status node stays mounted through the GOOOL flash", (size) => {
+    const status = <span role="status" className="probe">Sin conexión: reconectando.</span>;
+    const { rerender, container } = render(<LedBoard rival="MAD SKY" gf={1} ga={0} sub="x" size={size} status={status} />);
+    const before = container.querySelector(".probe");
+    expect(before).not.toBeNull();
+    rerender(<LedBoard rival="MAD SKY" gf={1} ga={0} sub="x" size={size} status={status} flash={{ text: "ERIK · 31′" }} />);
+    expect(container.querySelector(".probe")).toBe(before);
+    rerender(<LedBoard rival="MAD SKY" gf={2} ga={0} sub="x" size={size} status={status} />);
+    expect(container.querySelector(".probe")).toBe(before);
+  });
+});
+
 describe("kit · result mark, cromo, lower third", () => {
   it("V / E / D: the letter, the word, the defeat's hatch class", () => {
     expect(resultLetter(3, 1)).toBe("G");

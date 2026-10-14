@@ -1,6 +1,6 @@
 // The tabs of the match page. Public data comes from the acta (events, ledger); the Vestuario tab
 // reads and writes the team's private bits (convocatoria, porra, MVP) only for members.
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { EVENT_LABELS, isCompleted, playerForSeason, nameFor, type ClubMatch } from "../../lib/clubData";
 import { useSeason } from "../../context/SeasonContext";
@@ -14,8 +14,9 @@ import { MatchBadges } from "../../components/celeste/MatchBadges";
 import { Jersey3D } from "../../components/jersey3d/Jersey3D";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { chapters, F7_SPOTS, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
-import { dateParts, resultOf, scoreOf } from "../../lib/partidos";
-import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMyMvpVote, useMyPrediction } from "../vestuario/live";
+import { dateParts, eventMinute, resultOf, scoreOf } from "../../lib/partidos";
+import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMvpResultsSync, useMvpReveal, useMyMvpVote, useMyPrediction } from "../vestuario/live";
+import { mvpAnnouncement, mvpRace, plural, voteLeft } from "../../lib/vestuario";
 import { predictScore, setAvailability, useMe, voteMvp } from "../vestuario/writes";
 import { apiError } from "../../lib/clubApi";
 import { rsvpSummary } from "../../lib/rsvp";
@@ -23,6 +24,7 @@ import type { PlayerDoc } from "../../lib/schemas";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { nameSegments, type NameSegment } from "../../lib/derived/names";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
+import { campoSeven, campoSevenNote } from "./campoSeven";
 
 type NameOf = (id: string) => string;
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -50,6 +52,20 @@ function Named({ segments, seasonId }: { segments: NameSegment[]; seasonId?: str
           s.text
         ),
       )}
+    </>
+  );
+}
+
+/** «ERIK», «ERIK y PABLO»…, each a link to his page in the match's season. */
+function NameList({ ids, seasonId }: { ids: readonly string[]; seasonId?: string }) {
+  return (
+    <>
+      {ids.map((id, i) => (
+        <Fragment key={id}>
+          {i === 0 ? "" : i === ids.length - 1 ? " y " : ", "}
+          <PlayerLink id={id} seasonId={seasonId} variant="quiet" />
+        </Fragment>
+      ))}
     </>
   );
 }
@@ -230,7 +246,7 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
             const who = e.type.startsWith("opponent_") ? rival : whoId ? nameOf(whoId) : "Manchester Piti";
             return (
               <li key={e.id} className={us ? "us" : ""}>
-                <b>{e.minute}′</b>
+                <b>{eventMinute(e) ?? e.minute}′</b>
                 <span className="ic">{/yellow|red/.test(e.type) ? <i className="fc-yc" style={e.type !== "yellow_card" ? { background: "#ff5a4f" } : undefined} /> : <Icon name={/goal/.test(e.type) ? "ball" : e.type === "substitution" ? "swap" : e.type === "assist" ? "boot" : "flag"} size={15} />}</span>
                 <span>
                   <strong>{whoId ? <PlayerLink id={whoId} seasonId={match.seasonId} variant="quiet">{who}</PlayerLink> : who}</strong>
@@ -252,16 +268,23 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
   );
 }
 
-export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean }) {
+/**
+ * El siete. `official` (members only: the pizarra's official for this match, useBoardSeven) goes on the
+ * pitch before the acta, with its «Siete oficial de la pizarra» badge and a note when the convocatoria has
+ * another seven; fans (and every match once played or live) see the convocatoria's titulares.
+ */
+export function CampoTab({ match, players, nameOf, live, official = null }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean; official?: readonly string[] | null }) {
   const numOf = useNumOf(players, match.seasonId);
-  const starters = match.starters ?? [];
   const [sel, setSel] = useState<string | null>(null);
   const done = isCompleted(match);
+  const seven = campoSeven(match, done || live ? null : official);
+  const starters = seven.field;
+  const note = campoSevenNote(seven.differs, nameOf);
   const now = useClock(1000);
   const snapshot = matchSnapshot(match, now);
   const ledger = done ? match.ledger : snapshot.players;
   const field = live ? snapshot.field : starters;
-  const bench = live ? [...starters, ...(match.bench ?? [])].filter((id) => !field.includes(id)) : match.bench ?? [];
+  const bench = live ? [...starters, ...(match.bench ?? [])].filter((id) => !field.includes(id)) : seven.bench;
   const pick = sel ?? starters[0];
   const line = pick ? playerLine(pick, ledger, match.events) : null;
   const rows = done || live ? stintRows(ledger, match.events, match.duration ?? 50) : [];
@@ -279,6 +302,15 @@ export function CampoTab({ match, players, nameOf, live }: { match: ClubMatch; p
         <h2 className="hm-h2" id="fc-xi">
           {done ? "Quién hizo qué" : live ? "El campo, ahora" : "El siete"}
         </h2>
+        {seven.official && (
+          <p className="fc-official">
+            <span className="fc-official-badge">
+              <Icon name="shirt" size={14} />
+              Siete oficial de la pizarra
+            </span>
+            {note && <span className="fc-official-note">{note}</span>}
+          </p>
+        )}
         <div className="fc-pitch">
           <span className="l mid" />
           <span className="l circ" />
@@ -443,7 +475,8 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
   const { member } = useTeam();
   const { user } = useAuth();
   const me = useMe();
-  const now = useClock(30_000);
+  // (the server's clock; it also ticks the moment the MVP vote closes, so the race turns into the reveal then)
+  const now = useClock(30_000, match.voteClosesAt ? [match.voteClosesAt] : []);
   const theme = useDocumentTheme();
   const numOf = useNumOf(players, match.seasonId);
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match.seasonId);
@@ -462,19 +495,36 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
   const done = isCompleted(match);
   const { gf, ga } = scoreOf(match);
 
-  const leader = mvp ? Object.entries(mvp.counts).sort((a, b) => b[1] - a[1])[0] : undefined;
-  const leaderShot = leader ? [{ kit: "home" as const, theme, name: nameOf(leader[0]).toUpperCase(), num: numOf(leader[0]) }] : [];
+  // The MVP: the live race while the vote is open (counts only, never who voted whom), the winners once closed.
+  const race = mvpRace(match.voteClosesAt, mvp, now);
+  const open = race.state === "open";
+  const heads = open ? race.leaders : race.winners;
+  const headVotes = heads.length ? (mvp?.counts[heads[0]] ?? 0) : 0;
+  const reveal = useMvpReveal({ id: match.id, open, winner: done && race.winners.length > 0, closesAt: match.voteClosesAt, now });
+  const { stale: mvpStale } = useMvpResultsSync();
+  const leader = heads.length === 1 ? heads[0] : undefined;
+  const leaderShot = leader ? [{ kit: "home" as const, theme, name: nameOf(leader).toUpperCase(), num: numOf(leader) }] : [];
   const still = useShirtStills(leaderShot, { offMainThread: true });
   const leaderStill = leaderShot[0] && still(leaderShot[0]);
+  const closesIn = match.voteClosesAt ? voteLeft(match.voteClosesAt, now) : "";
 
   if (!member || !me)
     return (
       <section className="fc-sec">
         <span className="hm-kick">Solo para el equipo</span>
         <h2 className="hm-h2">El vestuario</h2>
-        {done && mvp && leader && (
+        {/* (not from a tally that may be out of date: offline, or it lost the server) */}
+        {done && match.voteClosesAt != null && heads.length > 0 && !mvpStale && (
           <p className="fc-note">
-            MVP: <PlayerLink id={leader[0]} seasonId={match.seasonId} variant="quiet">{nameOf(leader[0])}</PlayerLink> con {leader[1]} de {mvp.total} votos.
+            {open ? (
+              <>
+                La carrera del MVP: <NameList ids={heads} seasonId={match.seasonId} /> {heads.length > 1 ? "van empatados" : "va primero"} con {plural(headVotes, "voto", "votos")}. Cierra en {closesIn}.
+              </>
+            ) : (
+              <>
+                {heads.length > 1 ? "MVP compartido" : "MVP"}: <NameList ids={heads} seasonId={match.seasonId} /> con {headVotes} de {plural(race.total, "voto", "votos")}.
+              </>
+            )}
           </p>
         )}
         <div className="fc-lock">
@@ -507,7 +557,6 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
   for (const p of predictions.data) dist.set(`${p.goalsFor}–${p.goalsAgainst}`, (dist.get(`${p.goalsFor}–${p.goalsAgainst}`) ?? 0) + 1);
   const top = [...dist.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
   const topMax = Math.max(1, ...top.map(([, n]) => n));
-  const hours = Math.max(0, Math.round(((match.voteClosesAt ?? 0) - now) / 3_600_000));
 
   return (
     <div className="fc-two">
@@ -597,32 +646,48 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
         <>
           {match.voteClosesAt != null && (
             <section className="fc-sec" aria-labelledby="fc-mvp">
-              <article className="fc-mvp">
-                <div className="sh">{leaderStill ? <img src={leaderStill} alt="" /> : leader ? <ShirtBack name={nameOf(leader[0]).toUpperCase()} num={numOf(leader[0])} /> : <ShirtBack name="MVP" num="?" />}</div>
+              <article className={`fc-mvp${reveal ? " won" : ""}`}>
+                <div className="sh">{leaderStill ? <img src={leaderStill} alt="" /> : leader ? <ShirtBack name={nameOf(leader).toUpperCase()} num={numOf(leader)} /> : <ShirtBack name="MVP" num="?" />}</div>
                 <div>
                   <span className="hm-kick" style={{ margin: 0 }}>
-                    MVP · {voteOpen ? `cierra en ${hours} h` : "votación cerrada"}
+                    {open ? `La carrera del MVP · Cierra en ${closesIn}` : `${race.winners.length > 1 ? "MVP compartido" : "MVP"} · votación cerrada`}
                   </span>
                   <h2 className="hm-h2" id="fc-mvp">
-                    {leader ? <PlayerLink id={leader[0]} seasonId={match.seasonId} variant="quiet">{nameOf(leader[0])}</PlayerLink> : "Sin votos todavía"}
+                    {heads.length ? <NameList ids={heads} seasonId={match.seasonId} /> : open ? "Sin votos todavía" : "Sin MVP"}
                   </h2>
-                  <p>{mvp ? `${mvp.total} ${mvp.total === 1 ? "voto" : "votos"} del equipo.` : "Nadie ha votado aún."}</p>
+                  <p>
+                    {open
+                      ? race.total
+                        ? `${plural(race.total, "voto", "votos")} del equipo${heads.length > 1 ? " · empate en cabeza" : ""}.`
+                        : "Nadie ha votado aún."
+                      : heads.length
+                        ? `${headVotes} de ${plural(race.total, "voto", "votos")}${heads.length > 1 ? " · lo comparten" : ""}.`
+                        : "No hubo votos en este partido."}
+                  </p>
                 </div>
               </article>
-              {candidates.length > 0 && (
-                <ul className="fc-votes">
-                  {candidates.slice(0, 6).map((id) => (
-                    <li key={id}>
+              <p className="sr-only" aria-live="polite">
+                {mvpAnnouncement(race, heads.map(nameOf))}
+              </p>
+              {mvpStale && <p className="fc-note">Sin conexión: puede faltar algún voto en el recuento.</p>}
+              {race.rows.length > 0 && (
+                <ol className={`fc-votes fc-race${open ? " open" : ""}`} aria-label={open ? "La carrera del MVP" : "El podio del MVP"}>
+                  {race.rows.map((r) => (
+                    <li key={r.playerId}>
                       <span>
-                        <PlayerLink id={id} seasonId={match.seasonId} variant="quiet">{nameOf(id)}</PlayerLink>
+                        <span className="rk">{r.rank}.º</span>
+                        {r.shared && <span className="sr-only">, empatado, </span>} <PlayerLink id={r.playerId} seasonId={match.seasonId} variant="quiet" />
                       </span>
-                      <span className="bar">
-                        <i style={{ width: `${mvp?.total ? ((mvp.counts[id] ?? 0) / mvp.total) * 100 : 0}%` }} />
+                      <span className="bar" aria-hidden="true">
+                        <i style={{ width: `${(r.votes / race.rows[0].votes) * 100}%` }} />
                       </span>
-                      <b>{mvp?.counts[id] ?? 0}</b>
+                      <b>
+                        {r.votes}
+                        <span className="sr-only"> {r.votes === 1 ? "voto" : "votos"}</span>
+                      </b>
                     </li>
                   ))}
-                </ul>
+                </ol>
               )}
               {voteOpen && (
                 <div className="fc-pick" role="group" aria-label="Tu voto">

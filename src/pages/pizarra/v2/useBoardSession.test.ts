@@ -328,6 +328,62 @@ describe("useBoardSession · tableros", () => {
       ["b1", null],
     ]);
   });
+
+  it("publishing writes the edit still waiting for its autosave first: the official carries the seven on screen", async () => {
+    const s = store([doc("b1")]);
+    const order: string[] = [];
+    vi.mocked(s.save).mockImplementation(async () => {
+      order.push("save");
+    });
+    vi.mocked(s.markOfficial).mockImplementation(async () => {
+      order.push("official");
+    });
+    const { result } = renderHook(() => useBoardSession(args(s, { isAdmin: true })));
+    await act(async () => {
+      result.current.commit(withPlayer(result.current.lineup, 3, "adrian"));
+    });
+    // (the autosave's debounce hasn't run yet)
+    expect(s.save).not.toHaveBeenCalled();
+    let bid: string | void = undefined;
+    await act(async () => {
+      bid = await result.current.publish("m8");
+    });
+    expect(bid).toBe("b1");
+    expect(order).toEqual(["save", "official"]);
+    expect(vi.mocked(s.save).mock.calls[0][0]).toBe("b1");
+    expect(vi.mocked(s.save).mock.calls[0][1].slots[3].playerId).toBe("adrian");
+    expect(result.current.status).toBe("saved");
+    // nothing pending any more: the debounce doesn't write it again
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(s.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("a forced save that fails while publishing: «Sin guardar», no official, and the usual retry writes it", async () => {
+    const s = store([doc("b1")]);
+    vi.mocked(s.save).mockRejectedValueOnce(Object.assign(new Error("offline"), { code: "unavailable" }));
+    const { result } = renderHook(() => useBoardSession(args(s, { isAdmin: true })));
+    await act(async () => {
+      result.current.commit(withPlayer(result.current.lineup, 3, "adrian"));
+    });
+    let failed: unknown = null;
+    await act(async () => {
+      await result.current.publish("m8").catch((err: unknown) => {
+        failed = err;
+      });
+    });
+    expect(failed).toBeInstanceOf(Error);
+    expect(s.markOfficial).not.toHaveBeenCalled();
+    expect(result.current.status).toBe("error");
+    // the normal retry path (2 s): the edit still pending is written again, and the status says so
+    await act(async () => {
+      vi.advanceTimersByTime(RETRY_MS[0]);
+    });
+    expect(s.save).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(s.save).mock.calls[1][1].slots[3].playerId).toBe("adrian");
+    expect(result.current.status).toBe("saved");
+  });
 });
 
 describe("useBoardSession · lo que cambia por debajo", () => {

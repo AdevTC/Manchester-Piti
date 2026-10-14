@@ -31,6 +31,7 @@ import { Cromo, type CromoFace } from "./Cromo";
 import { SusPosiciones } from "./SusPosiciones";
 import { jornadaNumbers } from "../../lib/derived/jornada";
 import { RESULT_LEGEND, resultLetter } from "../../lib/derived/result";
+import { exchangeMinute } from "../../lib/partidos";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { timedGames, totalMinutes } from "../../lib/derived/minutesOf";
 import { mvpOfFrom } from "../../lib/derived/mvpOf";
@@ -564,7 +565,7 @@ export function JugadorPage() {
                 <ol className="jg-subs">
                   {exchanges.map((e, i) => (
                     <li key={i}>
-                      <b>{e.minute}′</b>
+                      <b>{exchangeMinute(e.match.events, p.id, e)}′</b>
                       <span>
                         {e.direction === "in" ? "Entró por" : "Salió por"}{" "}
                         {nameById.has(e.with) ? (

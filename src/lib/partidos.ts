@@ -2,7 +2,7 @@ import { clockReading } from "../../functions/src/matchClock";
 // Pure logic for the Partidos page (Celeste, "Noche de focos"): the season of one team as the page
 // tells it — the tile strip, the numbers, the next/live match and the calendar rows — plus the live
 // score read from the acta while a match is being played (goals are only stored once it's finished).
-import { dateMillis, EVENT_LABELS, isCompleted, matchPhase, type MatchEvent } from "../../functions/src/matchEngine";
+import { dateMillis, EVENT_LABELS, eventMinute, isCompleted, matchPhase, minuteOfPlay, type MatchEvent } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import { jornadas } from "./derived/jornada";
 import { resultLetter, type ResultLetter } from "./derived/result";
@@ -110,13 +110,43 @@ export function countdownParts(target: number, now: number) {
   return { d: pad(Math.floor(left / 86400)), h: pad(Math.floor((left % 86400) / 3600)), m: pad(Math.floor((left % 3600) / 60)), s: pad(left % 60), done: left === 0 };
 }
 
-/** The minute being played (1–duration), from the kickoff time; null when not live. */
+/** The minute being played, as the data counts it: a clock's whole minutes elapsed (0 in the first one: the
+ *  minute live events are stamped with), or for a match without a clock the schedule's 1–duration. Null when
+ *  not live. To SHOW a minute to people use shownMinute / eventMinute (football's 1-based convention). */
 export function liveMinute(m: Pick<ClubMatch, "date" | "duration" | "clock">, now: number) {
   if (m.clock) return m.clock.phase === "ready" ? null : Math.floor(clockReading(m.clock, now).elapsedSeconds / 60);
   const start = dateMillis(m.date);
   if (!Number.isFinite(start) || now < start) return null;
   return Math.min(m.duration ?? 50, Math.floor((now - start) / 60_000) + 1);
 }
+
+/** minuteOfPlay / eventMinute live in functions/src/matchEngine (the push notices read minutes the same way). */
+export { eventMinute, minuteOfPlay };
+
+/** The live minute to SHOW (the island, the boards, the admin LED): the clock's in football's convention, or for a
+ *  match without a clock the schedule's (already 1-based, capped at its duration). Null when not live. */
+export function shownMinute(m: Pick<ClubMatch, "date" | "duration" | "clock">, now: number): number | null {
+  if (!m.clock) return liveMinute(m, now);
+  if (m.clock.phase === "ready") return null;
+  const r = clockReading(m.clock, now);
+  return minuteOfPlay(r.elapsedSeconds, r.playing);
+}
+
+/** A cambio's minute to SHOW, from a ledger exchange (the acta's time: fractional when the clock stamped it):
+ *  its substitution event's eventMinute, so it reads as it did live; without one, the exchange's own. */
+export function exchangeMinute(events: readonly MatchEvent[] | undefined, playerId: string, ex: { minute: number; with: string; direction: "in" | "out" }): number {
+  const sub = events?.find(
+    (e) =>
+      e.type === "substitution" &&
+      (ex.direction === "out" ? e.playerId === playerId && e.inPlayerId === ex.with : e.inPlayerId === playerId && e.playerId === ex.with) &&
+      Math.abs((e.elapsedSeconds ?? (e.minute ?? 0) * 60) / 60 - ex.minute) < 1e-6,
+  );
+  const shown = sub ? eventMinute(sub) : null;
+  return shown ?? (Number.isInteger(ex.minute) ? ex.minute : minuteOfPlay(ex.minute * 60));
+}
+
+/** The offset from a stored live minute (liveMinute's count) to the shown one: +1 on a clock, 0 without one. */
+export const shownOffset = (m: Pick<ClubMatch, "clock">): number => (m.clock ? 1 : 0);
 
 const fmt = (ms: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, ...o }).format(ms);
 /** Date pieces for a calendar row: "DOM", "8", "NOV", "12:00", "domingo, 8 nov". */
@@ -132,11 +162,11 @@ export function dateParts(date: unknown) {
   };
 }
 
-/** The latest thing that happened in the acta (by minute), as one line: "19′ · ERIK · Gol". */
+/** The latest thing that happened in the acta (by minute), as one line: "19′ · ERIK · Gol" (the minute as shown: eventMinute). */
 export function lastEvent(events: MatchEvent[] | undefined, nameOf: (id: string) => string, rival: string) {
   const list = (events ?? []).filter((e) => e.type !== "match_played" && e.type !== "assist" && typeof e.minute === "number");
   const e = list.sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0)).at(-1);
   if (!e) return null;
   const who = e.type.startsWith("opponent_") ? rival : e.type === "substitution" && e.inPlayerId ? nameOf(e.inPlayerId) : e.playerId ? nameOf(e.playerId) : "Manchester Piti";
-  return { minute: e.minute as number, who, label: EVENT_LABELS[e.type] ?? e.type, goal: OURS.has(e.type) };
+  return { minute: eventMinute(e) ?? (e.minute as number), who, label: EVENT_LABELS[e.type] ?? e.type, goal: OURS.has(e.type) };
 }

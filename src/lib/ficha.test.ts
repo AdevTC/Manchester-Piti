@@ -66,3 +66,12 @@ describe("onPitch", () => {
     expect(onPitch(["a", "t", "i"], ev)).toEqual(["a", "k"]);
   });
 });
+
+describe("the crónica reads a goal's minute as it read live", () => {
+  it("a live-stamped event (elapsedSeconds) in football's minute; a typed one as typed", () => {
+    const stamped = { id: "g", type: "goal", minute: 0, elapsedSeconds: 7, playerId: "a" } as MatchEvent;
+    const [first, second] = chapters([stamped, e("goal", 19, "h")], nameOf, "MAD SKY");
+    expect(first.minute).toBe(1);
+    expect(second.minute).toBe(19);
+  });
+});

@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useViewer } from "../../hooks/useViewer";
 import { useNoIndex } from "../../hooks/useNoIndex";
-import { useMatchBoard } from "../pizarra/useMatchBoard";
+import { useBoardSeven, useMatchBoard } from "../pizarra/useMatchBoard";
 import { useMatchScorers } from "../vestuario/live";
 import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // Ficha de partido (Celeste): the stadium board on top (final score, live score with ¡GOL!, or the
@@ -22,13 +22,15 @@ import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Flip } from "../../components/celeste/Flip";
 import { GoalBurst } from "../../components/celeste/GoalBurst";
 import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
+import { SyncChip } from "../../components/celeste/SyncChip";
+import { useSyncChip } from "../../hooks/useSyncChip";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { BackLink } from "../../components/celeste/BackLink";
 import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { matchEvent } from "../../lib/home";
-import { countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf } from "../../lib/partidos";
+import { countdownParts, dateParts, eventMinute, lastEvent, resultOf, scoreOf, shownMinute } from "../../lib/partidos";
 import { jornadaOf } from "../../lib/derived/jornada";
 import { RESULT_WORD, resultLetter, resultTitle } from "../../lib/derived/result";
 import { shareClubPage } from "../../lib/share";
@@ -107,9 +109,15 @@ export function MatchPage() {
   const viewer = useViewer();
   const toPlay = !!match && toBePlayed(match, now);
   const board = useMatchBoard(match?.seasonId, match?.id, toPlay, viewer.member);
+  // One «siete» (M6): before the acta the Campo shows that official's seven to members (its doc, read only
+  // while the Campo is open and the match is still to be played — its own official first, the season's
+  // only while it has none: useMatchBoard).
+  const officialSeven = useBoardSeven(toPlay && active === 1 ? board : null);
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
+  // «Reconectando…» / «Sin conexión · marcador de hace N min» on the board while it is live or waiting
+  const syncChip = useSyncChip(!!match && matchPhase(match, now) === "playing", now);
   // «Partido no encontrado» comes with a 200 from the SPA shell: not for the index
   useNoIndex(!loading && !error && !match);
 
@@ -179,7 +187,7 @@ export function MatchPage() {
   const ini = match.rivalInitials || opponentInitials(rival);
   const { gf, ga } = scoreOf(match);
   const d = dateParts(match.date);
-  const minute = live ? liveMinute(match, now) : null;
+  const minute = live ? shownMinute(match, now) : null;
   const last = live ? lastEvent(match.events, nameOf, rival) : null;
   const jornada = jornadaOf(matches, match.id);
   const kit = match.kit === "away" ? "2ª equipación" : "1ª equipación";
@@ -189,9 +197,10 @@ export function MatchPage() {
       .filter((e) => (ours ? ["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"] : ["opponent_goal", "own_goal"]).includes(e.type))
       .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
       .map((e) => {
+        const shown = eventMinute(e);
         // (ours — the scorer, or ours who put it in his own net — is a link to his page)
         const pid = e.type === "opponent_goal" || e.type === "opponent_own_goal" ? undefined : e.playerId;
-        return { id: e.id, min: e.minute != null ? `${e.minute}′` : "", pid, who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" };
+        return { id: e.id, min: shown != null ? `${shown}′` : "", pid, who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" };
       });
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
 
@@ -285,6 +294,11 @@ export function MatchPage() {
                 </ul>
               </div>
             )}
+            {(live || whistle) && (
+              <div className="pt-sync">
+                <SyncChip chip={syncChip} variant="board" announce />
+              </div>
+            )}
             {live && (
               <>
                 <div className="pt-prog" aria-hidden="true">
@@ -372,7 +386,7 @@ export function MatchPage() {
       {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
       <div className={`fc-pane${(active === 0 && done) || active === 4 ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} key={active}>
         {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} />)}
-        {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} />}
+        {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialSeven} />}
         {active === 2 && <PulsoTab match={match} live={live} minute={minute} pending={pending} />}
         {active === 4 && <TechnicalStatsPanel matches={[match]} people={players.map(p => ({ id: p.id, name: nameOf(p.id), number: p.number }))} />}
         {active === 3 && <VestuarioTab match={match} players={players} phase={phase} />}

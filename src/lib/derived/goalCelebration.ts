@@ -39,7 +39,9 @@ function readingSeconds(match: GoalMatch, now: number): number | null {
   return minute === null ? null : minute * 60;
 }
 
-/** True when the goal is within FRESH_GOAL_SECONDS of the live clock (a goal «in the future» counts: the clocks are not synchronised). */
+/** True when the goal is within FRESH_GOAL_SECONDS of the live clock. A goal «in the future» counts too:
+ *  `now` is the server's time as this phone estimates it (lib/serverTime), good only to about half a
+ *  round trip, and with no estimate yet it is the phone's own clock. */
 export function isFreshGoal(goal: Pick<LiveGoal, "seconds">, match: GoalMatch, now: number): boolean {
   const reading = readingSeconds(match, now);
   return reading !== null && reading - goal.seconds <= FRESH_GOAL_SECONDS;

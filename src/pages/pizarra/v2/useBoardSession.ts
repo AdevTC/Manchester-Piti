@@ -17,6 +17,7 @@ import { cleanName, copyName, nameError, uniqueName } from "./boards";
 import { takersOf } from "./takers";
 import { normalize, withBench } from "./ops";
 import { deepTablero } from "./deeplink";
+import { serverNow } from "../../../lib/serverTime";
 
 export type SaveStatus = "draft" | "saving" | "saved" | "error" | "offline";
 
@@ -56,8 +57,9 @@ export interface BoardSession {
   remove: (id: string) => () => void;
   /** Link the board on screen to a match (null unlinks). An official's match is its scope. */
   linkMatch: (matchId: string | null) => Promise<void>;
-  /** Admins: the board on screen becomes the official for a match (or the season, null). */
-  publish: (matchId: string | null) => Promise<void>;
+  /** Admins: the board on screen becomes the official for a match (or the season, null); resolves with
+   *  the board's id (its convocatoria can then be set from it). */
+  publish: (matchId: string | null) => Promise<string | void>;
   /** Admins: a board stops being official. */
   unpublish: (id: string) => Promise<void>;
 }
@@ -226,7 +228,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
   }
 
   // Latest values for the timers and the leave-flush (written after render, read in callbacks).
-  const latest = useRef({ save: lineups.save, remove: lineups.remove, id, key, squadIds, pending: null as Lineup | null, send: (() => undefined) as (k: string, id: string, L: Lineup, quiet: boolean) => void });
+  const latest = useRef({ save: lineups.save, remove: lineups.remove, id, key, squadIds, pending: null as Lineup | null, send: (() => Promise.resolve()) as (k: string, id: string, L: Lineup, quiet: boolean) => Promise<void> });
   /** The debounce timer of the autosave, and the retries of a failed one. */
   const debounce = useRef(0);
   const retry = useRef({ n: 0, t: 0 });
@@ -237,8 +239,10 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
    * Writes the board now. A failed write is retried (2 s, 5 s, 15 s, then when the connection comes
    * back) with whatever is pending then; meanwhile the status stays «Sin guardar» (`quiet` retries do
    * not flip it to «Guardando»). Reads only refs and setters: safe from any timer or listener.
+   * Returns the write itself (its failure already handled here: callers may ignore it, or await it
+   * to stop on a failure — the publish does).
    */
-  const send = (k: string, bid: string, snapshot: Lineup, quiet: boolean) => {
+  const send = (k: string, bid: string, snapshot: Lineup, quiet: boolean): Promise<void> => {
     window.clearTimeout(debounce.current);
     window.clearTimeout(retry.current.t);
     debounce.current = 0;
@@ -246,16 +250,16 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     if (!quiet) setSaved({ key: k, status: "saving", at: 0 });
     setSent({ key: k, sig: storedSig(snapshot, latest.current.squadIds) });
     inFlight.current = snapshot;
-    latest.current
-      .save(bid, snapshot)
-      .then(() => {
+    const write = latest.current.save(bid, snapshot);
+    write.then(
+      () => {
         if (inFlight.current === snapshot) inFlight.current = null;
         failing.current = false;
         retry.current.n = 0;
         setLocal((p) => (p && p.key === k && p.lineup === snapshot ? { ...p, dirty: false } : p));
-        setSaved({ key: k, status: "saved", at: Date.now() });
-      })
-      .catch((err: unknown) => {
+        setSaved({ key: k, status: "saved", at: serverNow() });
+      },
+      (err: unknown) => {
         if (inFlight.current === snapshot) inFlight.current = null;
         console.error("No se pudo guardar el tablero", err);
         // said once per run of failures, not on every retry
@@ -268,9 +272,11 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
         retry.current.t = window.setTimeout(() => {
           retry.current.t = 0;
           const cur = latest.current;
-          if (cur.key === k && cur.id === bid && cur.pending && inFlight.current !== cur.pending) cur.send(k, bid, cur.pending, true);
+          if (cur.key === k && cur.id === bid && cur.pending && inFlight.current !== cur.pending) void cur.send(k, bid, cur.pending, true);
         }, RETRY_MS[n]);
-      });
+      },
+    );
+    return write;
   };
 
   useEffect(() => {
@@ -298,7 +304,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     if (!mine?.dirty || !id || readOnly) return;
     const snapshot = mine.lineup;
     if (inFlight.current === snapshot) return;
-    const t = window.setTimeout(() => latest.current.send(key, id, snapshot, false), SAVE_DEBOUNCE_MS);
+    const t = window.setTimeout(() => void latest.current.send(key, id, snapshot, false), SAVE_DEBOUNCE_MS);
     debounce.current = t;
     return () => window.clearTimeout(t);
   }, [mine, id, readOnly, key, online]);
@@ -308,7 +314,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
   useEffect(() => {
     const flush = () => {
       const { id: lid, key: k, pending, send: go } = latest.current;
-      if (lid && pending && inFlight.current !== pending) go(k, lid, pending, false);
+      if (lid && pending && inFlight.current !== pending) void go(k, lid, pending, false);
     };
     const onVisibility = () => {
       if (document.visibilityState === "hidden") flush();
@@ -367,7 +373,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
       const nid = await lineups.create(L, nm);
       setChoice({ season: seasonId, id: nid, fresh: true, keepKey: k0, name: nm });
       setLocal((p) => (p && p.key === k0 ? { ...p, dirty: p.lineup !== L } : p));
-      setSaved({ key: k0, status: "saved", at: Date.now() });
+      setSaved({ key: k0, status: "saved", at: serverNow() });
       return nid;
     } finally {
       creating.current = false;
@@ -389,7 +395,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
       .then((nid) => {
         setChoice({ season: seasonId, id: nid, fresh: true, keepKey: k0, name: nm });
         setLocal((p) => (p && p.key === k0 ? { ...p, dirty: p.lineup !== L } : p));
-        setSaved({ key: k0, status: "saved", at: Date.now() });
+        setSaved({ key: k0, status: "saved", at: serverNow() });
       })
       .catch((err: unknown) => {
         console.error("No se pudo crear el tablero", err);
@@ -468,7 +474,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
       try {
         const nid = await lineups.create(L, nm);
         setChoice({ season: seasonId, id: nid, fresh: true, keepKey: k0, name: nm });
-        setSaved({ key: k0, status: "saved", at: Date.now() });
+        setSaved({ key: k0, status: "saved", at: serverNow() });
       } finally {
         creating.current = false;
       }
@@ -511,11 +517,18 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     await lineups.save(bid, L, matchId);
   };
 
-  const publish = async (matchId: string | null): Promise<void> => {
+  const publish = async (matchId: string | null): Promise<string> => {
     if (!isAdmin) throw new Error("Solo los capitanes y los admins publican el oficial.");
     if (!ready || readOnly) throw new Error("Este tablero es de solo lectura");
     const bid = await ensureId();
+    // The edit still waiting for its autosave is written first: the official (its notice, the
+    // convocatoria taken from it) carries the seven on screen. It goes as any save (send): a failure
+    // shows «Sin guardar» and gets the usual retries — and the official isn't published.
+    const cur = latest.current;
+    const pend = cur.id === bid ? cur.pending : null;
+    if (pend) await cur.send(cur.key, bid, pend, false);
     await lineups.markOfficial(bid, { matchId });
+    return bid;
   };
 
   const unpublish = async (oid: string): Promise<void> => {

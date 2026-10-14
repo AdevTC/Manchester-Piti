@@ -65,6 +65,9 @@
 .pt-prog i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#ff5a4f,#FFC659);transition:width .6s ease}
 .pt-last{margin-top:12px;min-height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:16px;background:var(--chip);font-size:14px}
 .pt-last b{font-family:'Geist Mono';font-weight:600;color:var(--gold-ink)}
+/* the connection chip on the board (live or waiting for the whistle) */
+.pt-sync{display:flex;justify-content:center}
+.pt-sync .mp-sync{margin-top:12px}
 
 /* season */
 .pt-main{position:relative;z-index:2;padding:0 20px 40px}
@@ -138,11 +141,17 @@
 html[data-isle] .vx{--isle:58px}
 /* Pages still on the old chrome (Navbar): their content starts below the pill. */
 html[data-isle] .club-main:not(.vx-main-shell){margin-top:58px}
-.club-app:has(> .club-nav) .pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + 110px)}
-@media (min-width:700px){.club-app:has(> .club-nav) .pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + 120px)}}
-@media (min-width:1100px){.club-app:has(> .club-nav) .pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + 140px)}}
-.pt-isle-wrap{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 76px);z-index:60;display:flex;justify-content:center;padding:0 12px;pointer-events:none}
-.pt-isle{pointer-events:auto;width:min(100%,330px);min-height:46px;border-radius:999px;background:#05070d;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 8px 0 14px;border:0;font:inherit;box-shadow:0 18px 40px -18px rgba(0,0,0,.9);transition:width .6s cubic-bezier(.34,1.3,.64,1),border-radius .6s;cursor:pointer;text-align:left}
+/* …and the connection chip under it when the score may not be live */
+html[data-isle="sync"] .vx{--isle:90px}
+html[data-isle="sync"] .club-main:not(.vx-main-shell){margin-top:90px}
+/* The local-test banner (30px, not fixed) pushes the header down: the pill goes down with it, so it never
+   covers the header's buttons (theme, vestuario: 16–60px under the banner on phones). */
+.club-app:has(> .club-demo-banner){--isle-banner:30px}
+.club-app:has(> .club-nav) .pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + var(--isle-banner,0px) + 110px)}
+@media (min-width:700px){.club-app:has(> .club-nav) .pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + var(--isle-banner,0px) + 120px)}}
+@media (min-width:1100px){.club-app:has(> .club-nav) .pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + var(--isle-banner,0px) + 140px)}}
+.pt-isle-wrap{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + var(--isle-banner,0px) + 76px);z-index:60;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 12px;pointer-events:none}
+.pt-isle{position:relative;pointer-events:auto;width:min(100%,330px);min-height:46px;border-radius:999px;background:#05070d;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 8px 0 14px;border:0;font:inherit;box-shadow:0 18px 40px -18px rgba(0,0,0,.9);transition:width .6s cubic-bezier(.34,1.3,.64,1),border-radius .6s,background-color .35s,color .35s;cursor:pointer;text-align:left}
 .pt-isle .s{display:flex;align-items:center;gap:8px;font-family:'Anybody';font-weight:900;font-size:17px;font-variation-settings:'wdth' 90;min-width:0}
 .pt-isle .s img{width:22px;height:22px}
 .pt-isle .s span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -150,6 +159,40 @@ html[data-isle] .club-main:not(.vx-main-shell){margin-top:58px}
 .pt-isle.wait{text-decoration:none}
 .pt-isle.wait .m{font-size:11px;color:#ffd88a;white-space:nowrap}
 .pt-isle.open{width:min(100%,420px);border-radius:32px;display:grid;gap:12px;padding:16px;cursor:default}
+.pt-isle-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+/* half-time: the clock waits, nothing pulses */
+.pt-isle.half .m{color:#ffd88a}
+/* a score the server hasn't confirmed for a while: the dot stops saying «live» (the chip says why) */
+.pt-isle.stale .pt-dot{background:#9fb3d3}
+.pt-isle.stale .pt-dot::after{animation:none;opacity:0}
+/* the final whistle, for half an hour */
+.pt-isle.fin{text-decoration:none}
+.pt-isle.fin .s span{color:#FFC659;letter-spacing:.01em}
+.pt-isle.fin .m{font-size:11px;color:#c9d8ef;white-space:nowrap}
+/* «Vota al MVP»: dark with a gold ring (it can stay a while: it doesn't shout) */
+.pt-isle.vote{padding:0 5px 0 0;cursor:default;box-shadow:inset 0 0 0 1.5px rgba(255,198,89,.55),0 18px 40px -18px rgba(0,0,0,.9)}
+.pt-isle.vote .go{flex:1;min-width:0;min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-left:14px;color:inherit;text-decoration:none;border-radius:999px}
+.pt-isle.vote .s{color:#FFC659}
+.pt-isle.vote .s span{color:#fff}
+.pt-isle.vote .m{color:#ffd88a;padding-right:2px}
+.pt-isle.vote .x{flex:0 0 auto;width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:50%;background:rgba(255,255,255,.08);color:#c9d8ef;cursor:pointer}
+.pt-isle.vote .go:focus-visible,.pt-isle.vote .x:focus-visible{outline:2px solid #9fd0f2;outline-offset:3px}
+/* ¡GOL! — ours takes the pill in gold and pops; theirs keeps the dark, calmer */
+.pt-isle.goal{background:linear-gradient(110deg,#FFC659,#ffe0a0 55%,#FFC659);color:#0c1733;box-shadow:0 0 0 1px rgba(255,198,89,.6),0 18px 44px -14px rgba(255,198,89,.65);animation:ptIslePop .55s cubic-bezier(.34,1.56,.64,1)}
+.pt-isle.goal.them{background:#05070d;color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.28),0 18px 40px -18px rgba(0,0,0,.9);animation:none}
+.pt-isle .gl{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:9px;padding-right:6px;animation:ptIsleIn .45s cubic-bezier(.16,1,.3,1) both}
+.pt-isle .gl b{flex:0 0 auto;font-family:'Anybody';font-weight:900;font-size:21px;letter-spacing:-.02em;font-variation-settings:'wdth' 125;transform:rotate(-4deg)}
+.pt-isle .gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Anybody';font-weight:800;font-size:15px;font-variation-settings:'wdth' 96}
+.pt-isle.them .gl span{font-weight:700;color:#e3ecf9}
+.pt-isle.open.goal{background:#05070d;color:#fff;box-shadow:0 18px 40px -18px rgba(0,0,0,.9);animation:none}
+.pt-act .ev.gl{color:#FFC659;font-weight:700}
+.pt-isle-burst{position:absolute;inset:0;pointer-events:none;border-radius:inherit}
+.pt-isle-burst .ring{position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 0 2px rgba(255,198,89,.9);animation:ptIsleRing .9s ease-out both}
+.pt-isle-burst i{position:absolute;left:50%;top:50%;width:7px;height:10px;border-radius:2px;opacity:0;animation:ptIsleBit 1.15s cubic-bezier(.2,.7,.3,1) var(--w) both}
+@keyframes ptIslePop{0%{transform:scale(.92)}55%{transform:scale(1.06)}100%{transform:none}}
+@keyframes ptIsleIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes ptIsleRing{from{transform:scale(1);opacity:1}to{transform:scale(1.22,1.9);opacity:0}}
+@keyframes ptIsleBit{0%{opacity:1;transform:translate(-50%,-50%) rotate(0)}100%{opacity:0;transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r))}}
 .pt-act{display:grid;gap:12px}
 .pt-act .row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;text-align:center}
 .pt-act .tm{display:grid;justify-items:center;gap:6px;font-family:'Anybody';font-weight:800;font-size:13px;min-width:0}
@@ -190,10 +233,11 @@ html[data-isle] .club-main:not(.vx-main-shell){margin-top:58px}
 .pt-row .sc .pt-flip{width:34px;height:42px;font-size:26px}
 .pt-row .tn{font-size:18px}
 }
-@media (min-width:1100px){.pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + 104px)}}
+@media (min-width:1100px){.pt-isle-wrap{top:calc(env(safe-area-inset-top,0px) + var(--isle-banner,0px) + 104px)}}
 @media (prefers-reduced-motion:reduce){
-.pt-flip,.pt-beams i,.pt-dot::after,.pt-tile,.pt-rise,.pt-goal *{animation:none!important}
+.pt-flip,.pt-beams i,.pt-dot::after,.pt-tile,.pt-rise,.pt-goal *,.pt-isle,.pt-isle .gl{animation:none!important}
 .pt-isle{transition:none}
+.pt-isle-burst{display:none}
 }
 
 /* push notice switches */

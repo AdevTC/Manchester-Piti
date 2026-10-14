@@ -23,6 +23,11 @@
 .vx .fc-note{margin:12px 0 0;font-size:13px;color:var(--muted);line-height:1.5}
 .fc-lock{margin-top:16px;display:flex;align-items:center;gap:12px;padding:16px;border-radius:22px;border:1.5px dashed var(--line);color:var(--muted);font-size:14px}
 .fc-lock svg{flex:0 0 auto;color:var(--accent)}
+/* el siete: the pizarra's official (members, before the acta) — the words say it, the colour only helps */
+.vx .fc-official{margin:10px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-size:13px;line-height:1.45}
+.fc-official-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;border:1.5px solid var(--accent);color:var(--ink);font-weight:700;letter-spacing:.01em}
+.fc-official-badge svg{color:var(--accent)}
+.fc-official-note{color:var(--muted)}
 
 /* crónica: chapters */
 .fc-ch{position:relative;margin-top:48px;display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:12px;align-items:center}
@@ -156,6 +161,13 @@
 .fc-votes .bar{height:8px;border-radius:8px;background:var(--bar);overflow:hidden}
 .fc-votes .bar i{display:block;height:100%;border-radius:8px;background:#FFC659;transform-origin:left;animation:fcGrowX 1.4s cubic-bezier(.16,1,.3,1) .3s both}
 .fc-votes li b{font-family:'Anybody';font-weight:900;text-align:right}
+/* the MVP race (open: the bars follow the votes) and the winner's reveal (closed, confirmed by the server) */
+.fc-race .rk{font-family:'Geist Mono';font-size:11px;color:var(--muted);margin-right:6px}
+.fc-race.open .bar i{transition:width .6s cubic-bezier(.16,1,.3,1)}
+.fc-mvp.won .sh{animation:fcWinRise .9s cubic-bezier(.16,1,.3,1) both}
+.fc-mvp.won .hm-h2{animation:fcWinName .7s cubic-bezier(.16,1,.3,1) .25s both}
+@keyframes fcWinRise{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes fcWinName{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .fc-pick{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
 .fc-pick button{min-height:44px;padding:0 16px;border-radius:999px;border:0;background:var(--btn);color:var(--btn-ink);font:inherit;font-weight:600;cursor:pointer}
 .fc-pick button[aria-pressed="true"]{background:#FFC659;color:#0c1733}
@@ -171,8 +183,8 @@
 .fc-pane.wide{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:0 64px;align-items:start}
 }
 @media (prefers-reduced-motion:reduce){
-.fc-pane,.fc-feed li,.fc-mom .u,.fc-mom .t,.fc-stints .tr i,.fc-votes .bar i{animation:none!important}
-.fc-tabs .ind,.fc-rsvp .th{transition:none}
+.fc-pane,.fc-feed li,.fc-mom .u,.fc-mom .t,.fc-stints .tr i,.fc-votes .bar i,.fc-mvp.won .sh,.fc-mvp.won .hm-h2{animation:none!important}
+.fc-tabs .ind,.fc-rsvp .th,.fc-race .bar i{transition:none}
 }
 
 /* modo banda (admins, live) */

@@ -7,13 +7,14 @@ import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/
 import { z } from "zod";
 import { admin, db, googleUser, idSchema, parse } from "./common.js";
 import { cleanName, FOREVER_MS, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates } from "./doorLogic.js";
-import { sendTo } from "./push.js";
+import { forgetMemberDevices, sendTo } from "./push.js";
+import { nameFor } from "./names.js";
 
 const SUPERADMIN = "adriantomascv@gmail.com";
 const codeSchema = z.string().regex(inviteCodePattern, "Invitación no válida.");
 const whoSchema = z.object({ playerId: idSchema.optional(), name: z.string().max(60).optional() });
-const playerLabel = (p: FirebaseFirestore.DocumentSnapshot) =>
-  (p.get("shirtName") as string | undefined) || [p.get("firstName"), p.get("lastName")].filter(Boolean).join(" ") || "Jugador";
+// (the door has no match: the ficha's own name, as the jugador page shows it — nameFor without a season)
+const playerLabel = (p: FirebaseFirestore.DocumentSnapshot) => nameFor(p.data());
 const inviteData = (snap: FirebaseFirestore.DocumentSnapshot) =>
   snap.exists ? { expiresAt: (snap.get("expiresAt") as Timestamp).toMillis(), maxUses: snap.get("maxUses") ?? 1, uses: snap.get("uses") ?? 0, revoked: !!snap.get("revoked") } : undefined;
 
@@ -190,6 +191,8 @@ export const revokeMember = onCall(async (req) => {
   await db.doc(`teamMembers/${uid}`).delete();
   await db.doc(`users/${uid}`).set({ removedAt: FieldValue.serverTimestamp() }, { merge: true });
   await db.doc(`accessRequests/${uid}`).set({ status: "removed", resolvedBy: by, resolvedAt: FieldValue.serverTimestamp(), email: user.get("email") ?? "", name: user.get("nickname") ?? "" });
+  // (like leaving: their devices keep the club's public notices, never the vestuario's any more)
+  await forgetMemberDevices(uid);
   return { ok: true };
 });
 

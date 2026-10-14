@@ -8,7 +8,7 @@ import type { ClubMatch } from "../../lib/clubData";
 import { liveEvent, apiError } from "../../lib/clubApi";
 import { liveSides } from "../admin/live/liveModel";
 import { useClock } from "../../hooks/useClock";
-import { liveMinute } from "../../lib/partidos";
+import { liveMinute, shownOffset } from "../../lib/partidos";
 import { Icon } from "../../components/celeste/icons";
 
 type Action = "goal" | "opponent_goal" | "yellow_card" | "double_yellow" | "red_card" | "substitution" | "penalty_saved" | "woodwork" | "penalty_missed" | "chance" | "opponent_chance" | "corner" | "opponent_corner";
@@ -39,6 +39,8 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const shown = minute ?? clock;
+  // (the stepper counts as the events are stamped; people read football's minute: +1 on a clock)
+  const off = shownOffset(match);
   const { field: pitch, bench } = liveSides(match.starters, match.bench, match.events);
   const optionalPlayer = action === "chance" || action === "corner";
   const needsPlayer = action && !action.startsWith("opponent_");
@@ -70,7 +72,7 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
     if (needsPlayer) event.playerId = player ?? undefined;
     if (action === "goal" && second) event.assistPlayerId = second;
     if (action === "substitution") event.inPlayerId = second ?? undefined;
-    void send({ action: "add", matchId: match.id, requestId: crypto.randomUUID(), clockRevision: match.clock?.revision, manualTime: minute != null, event }, `${ACTIONS.find((a) => a.type === action)?.label} apuntado en el ${shown}′.`);
+    void send({ action: "add", matchId: match.id, requestId: crypto.randomUUID(), clockRevision: match.clock?.revision, manualTime: minute != null, event }, `${ACTIONS.find((a) => a.type === action)?.label} apuntado en el ${shown + off}′.`);
   };
   const ready = action && (!needsPlayer || optionalPlayer || player) && (action !== "substitution" || second);
 
@@ -86,13 +88,13 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
         <button type="button" aria-label="Un minuto menos" onClick={() => setMinute(Math.max(0, shown - 1))}>
           −
         </button>
-        <output aria-live="polite">{shown}′</output>
+        <output aria-live="polite">{shown + off}′</output>
         <button type="button" aria-label="Un minuto más" onClick={() => setMinute(shown + 1)}>
           +
         </button>
         {minute != null && (
           <button type="button" className="now" onClick={() => setMinute(null)}>
-            Ahora ({clock}′)
+            Ahora ({clock + off}′)
           </button>
         )}
       </div>

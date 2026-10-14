@@ -4,6 +4,7 @@ import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, googleProvider, db } from "../firebase";
 import { userProfileSchema } from "../lib/schemas";
 import { reportDroppedDoc } from "../lib/docTelemetry";
+import { reassertPush } from "../lib/push";
 
 export interface UserProfile {
   email: string;
@@ -146,6 +147,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       await signOut(auth);
+      // This device stops carrying the member's uid (and the personal topics) on the server at once.
+      void reassertPush();
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {

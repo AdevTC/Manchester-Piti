@@ -26,18 +26,22 @@ export interface LedBoardProps {
   size?: "desk" | "mob";
   /** The score digits flip in when they change (`.fl`); off for a board that only reads. */
   flip?: boolean;
+  /** A line over the score, e.g. the connection chip («Reconectando…»): always mounted, its chip hidden while it flashes. */
+  status?: ReactNode;
 }
 
 const httpsLogo = (url?: string) => (url && /^https:\/\//i.test(url) ? url : "");
 
 /** The scoreboard. The score is its own live region only while it flashes (the log says the rest). */
-export function LedBoard({ rival, rivalLogoUrl, gf, ga, sub, subTone = "", ticker, flash, size = "desk", flip = true }: LedBoardProps) {
+export function LedBoard({ rival, rivalLogoUrl, gf, ga, sub, subTone = "", ticker, flash, size = "desk", flip = true, status }: LedBoardProps) {
   const score = `${gf}-${ga}`;
   const logo = httpsLogo(rivalLogoUrl);
   if (size === "mob")
     return (
       <div className="mbd">
         <div className="pn" aria-label={`PITI ${gf}, ${rival} ${ga}`}>
+          {/* (mounted through the flash too: its screen-reader line must not come and go) */}
+          {status ? <span className="lst">{status}</span> : null}
           {flash ? (
             <div className="gfx2 gfx" role="status">
               <b>GOOOL</b>
@@ -64,6 +68,7 @@ export function LedBoard({ rival, rivalLogoUrl, gf, ga, sub, subTone = "", ticke
           PITI
         </span>
         <div className="mid">
+          {status ? <span className="lst">{status}</span> : null}
           {flash ? (
             <>
               <span className="led gd big gfx" role="status" style={{ fontSize: 100 }}>

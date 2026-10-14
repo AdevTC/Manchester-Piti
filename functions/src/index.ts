@@ -21,12 +21,13 @@ export { clubCalendar } from "./calendar.js";
 export { clubBundle } from "./bundle.js";
 export { liveEvent } from "./live.js";
 export { controlMatchClock, setMatchScorers } from "./liveClock.js";
-export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff } from "./push.js";
+export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview } from "./push.js";
 export { pushReminders, pushOnAnswer } from "./reminders.js";
 export { deleteMatch } from "./matches.js";
 export { setConvocatoria } from "./convocatoria.js";
 export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";
 export { setNickname, setShirtName, cancelPlayerClaim, leaveVestuario } from "./profile.js";
+export { renameEverywhere } from "./rename.js";
 export {
   requestPlayerClaim,
   resolvePlayerClaim,

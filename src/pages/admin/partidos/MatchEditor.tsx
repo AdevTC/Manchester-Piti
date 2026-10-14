@@ -38,6 +38,8 @@ import { TabConvocatoria } from "./TabConvocatoria";
 import { TabEncuentro } from "./TabEncuentro";
 import { TabPublicar } from "./TabPublicar";
 import { useEditBuffer } from "./useEditBuffer";
+import { useLiveCatchUp } from "./useLiveCatchUp";
+import { LiveCatchUpBar } from "./LiveCatchUpBar";
 import { blockedWhy, closesWords, effectiveSheet, footerOf, kickerOf, phaseOf, savedLine, tabMarks, tidyVenue, voteCloses } from "./workspaceModel";
 
 export interface MatchEditorProps {
@@ -63,6 +65,8 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, o
   const whistled = useWhistled();
   const server = useMemo(() => fromMatch(match, note), [match, note]);
   const buf = useEditBuffer(server, "acta", match.id, isSheet, restoreSheet);
+  // jugadas written from the touchline while these edits are unsaved (M4)
+  const catchUp = useLiveCatchUp(buf);
   const [busy, setBusy] = useState<"draft" | "publish" | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [shake, setShake] = useState(0);
@@ -289,6 +293,7 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, o
             </button>
           </div>
         )}
+        <LiveCatchUpBar count={catchUp.count} conflict={catchUp.conflict} onIncorporate={catchUp.incorporate} />
         {tab === "encuentro" && (
           <TabEncuentro
             sheet={sheet}
