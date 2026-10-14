@@ -21,8 +21,8 @@ export interface CromoStats {
 
 /** One of the season's last matches for a player (the ficha's form bars). */
 export interface FormGame {
-  /** Jornada. */
-  j: number;
+  /** Its jornada (derived/jornada; null = none, no number shown). */
+  j: number | null;
   played: boolean;
   /** Minutes on the pitch (0 when he didn't play). */
   min: number;

@@ -7,7 +7,7 @@ import type { ClubMatch } from "../../lib/clubData";
 import { chronological, playerGame } from "../../lib/clubAnalytics";
 import { LINE_NAMES, POSITIONS, type PosCode } from "../../lib/positions";
 import { resultOf } from "../../lib/partidos";
-import { jornadaNumbers } from "../../lib/derived/jornada";
+import { calendarOrder, jornadaLabel, jornadaNumbers } from "../../lib/derived/jornada";
 import { resultTitle, type ResultLetter } from "../../lib/derived/result";
 import { wholeMinutes } from "../../lib/derived/minutes";
 import { bestPartner, mvpWinners, mvpWins, vitrina, type MvpResult } from "../../lib/vestuario";
@@ -204,7 +204,7 @@ export function seasonCalendar(matches: ClubMatch[], seasonId: string): ClubMatc
   return matches
     .filter((m) => seasonId === "all" || m.seasonId === seasonId)
     .slice()
-    .sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0) || a.id.localeCompare(b.id));
+    .sort(calendarOrder);
 }
 
 /** The pizarra's squad (cromos) for this season: the same call useBoardData makes. */
@@ -389,18 +389,19 @@ export function buildCard(input: CardInput): CardView {
     return { ...a, value: showNumbers ? v : null, text: showNumbers ? String(v) : "—", p: showNumbers ? p : 0 };
   });
 
-  const js = games.map((m) => jornada.get(m.id) ?? 0);
-  const clubLine = started ? `MANCHESTER PITI · ${seasonShort(input.seasonName)} · ${js.length > 1 ? `J${js[0]}–J${js[js.length - 1]}` : `J${js[0]}`}` : "SE REVELA EN LA J1";
+  const js = games.flatMap((m) => jornada.get(m.id) ?? []);
+  const span = js.length > 1 ? `J${js[0]}–J${js[js.length - 1]}` : js.length ? `J${js[0]}` : "";
+  const clubLine = started ? ["MANCHESTER PITI", seasonShort(input.seasonName), span].filter(Boolean).join(" · ") : "SE REVELA EN LA J1";
   const series: SeriesPoint[] = playerId
     ? games.map((m) => {
         const g = playerGame(playerId, m);
         const j = jornada.get(m.id) ?? 0;
-        return { j, label: `J${j}`, goals: g.goals, played: g.played, p: g.played ? Math.round(clamp(Math.max(0.06, g.goals / 3), 0, 1) * 100) / 100 : 0.03 };
+        return { j, label: jornadaLabel(j) || "—", goals: g.goals, played: g.played, p: g.played ? Math.round(clamp(Math.max(0.06, g.goals / 3), 0, 1) * 100) / 100 : 0.03 };
       })
     : [];
   const last5: FormResult[] = games.slice(-5).map((m) => {
     const l = resultOf(m);
-    const j = `J${jornada.get(m.id) ?? 0}`;
+    const j = jornadaLabel(jornada.get(m.id)) || "—";
     return { r: l === "G" ? "g" : l === "E" ? "e" : "p", l, j, aria: `${j}: ${resultTitle(l)}` };
   });
   const goalRank = shown ? squad.list.filter((c) => c.stats.goals > shown.stats.goals).length + 1 : null;

@@ -14,14 +14,15 @@ const T0 = Date.UTC(2026, 9, 4, 10); // a Sunday, 12:00 Madrid
 const d = (n: number) => T0 + n * 7 * DAY;
 const NOW = d(4) - DAY;
 
-// One season (t1) as it lives in Firestore: a cancelled match, a postponed one, two played, one to play
-// and — only in matchDrafts — a brand-new match not published yet. Plus an older season (t0) whose
-// numbers must stay its own when «all seasons» is selected.
+// One season (t1) as it lives in Firestore: a cancelled match, a postponed one, two played, one to play,
+// one still without a date and — only in matchDrafts — a brand-new match not published yet. Plus an
+// older season (t0) whose numbers must stay its own when «all seasons» is selected.
 const published: ClubMatch[] = [
   { id: "a", seasonId: "t1", rival: "A", date: d(0), status: "finished", goalsFor: 3, goalsAgainst: 1 },
   { id: "x", seasonId: "t1", rival: "X", date: d(1), status: "cancelled" },
   { id: "p", seasonId: "t1", rival: "P", date: d(1) + DAY, status: "postponed" },
   { id: "b", seasonId: "t1", rival: "B", date: d(2), status: "finished", goalsFor: 1, goalsAgainst: 1 },
+  { id: "u", seasonId: "t1", rival: "U", status: "scheduled" },
   { id: "c", seasonId: "t1", rival: "C", date: d(5), status: "scheduled" },
   { id: "old1", seasonId: "t0", rival: "O1", date: d(-40), status: "finished", goalsFor: 0, goalsAgainst: 2 },
   { id: "old2", seasonId: "t0", rival: "O2", date: d(-39), status: "finished", goalsFor: 2, goalsAgainst: 0 },
@@ -32,6 +33,7 @@ const EXPECTED = new Map([
   ["p", 2],
   ["b", 3],
   ["c", 4],
+  ["u", 5],
   ["old1", 1],
   ["old2", 2],
 ]);
@@ -79,11 +81,15 @@ describe("parity: the same J for the same match on every surface", () => {
     const pub = new Map(view.tiles.map((t) => [t.id, t.j]));
     expect(pub).toEqual(jornadas(published, "t1"));
     expect(view.jornada).toEqual(jornadas(published, "t1"));
-    for (const id of ["a", "p", "b", "c"]) expect(jornadaOf(published, id)).toBe(EXPECTED.get(id));
+    for (const id of ["a", "p", "b", "c", "u"]) expect(jornadaOf(published, id)).toBe(EXPECTED.get(id));
+    expect(view.tiles.map((t) => t.id)).toEqual(["a", "p", "b", "c", "u"]);
 
     // admin: published + drafts merged — the draft «borrador» has no number, the cancelled one neither
-    const admin = new Map(mergeMatches(published, drafts).map((m) => [m.id, m.jornada]));
+    const merged = mergeMatches(published, drafts);
+    const admin = new Map(merged.map((m) => [m.id, m.jornada]));
     for (const [id, j] of EXPECTED) expect(admin.get(id)).toBe(j);
+    // listed in the calendar's order: the undated one last, as it is numbered
+    expect(merged.filter((m) => m.seasonId === "t1").map((m) => m.id)).toEqual(["a", "x", "p", "b", "new", "c", "u"]);
     expect(admin.get("new")).toBeNull();
     expect(admin.get("x")).toBeNull();
 
@@ -91,15 +97,16 @@ describe("parity: the same J for the same match on every surface", () => {
     for (const sel of ["t1", "all"]) {
       const cal = boardCalendar(boardSeason(published, sel));
       for (const c of cal) expect(c.j).toBe(EXPECTED.get(c.id) ?? null);
+      // the match picker reads J1, J2, J3… (the undated one last)
+      if (sel === "t1") expect(cal.flatMap((c) => c.j ?? [])).toEqual([1, 2, 3, 4, 5]);
     }
     const cancelled = boardCalendar(boardSeason(published, "t1")).find((c) => c.id === "x")!;
     expect(matchShort(cancelled)).toBe("X");
 
     // perfil (the carta's series and the pizarra squad built from it), selected season and «all»
-    for (const sel of ["t1", "all"]) {
-      const { jornada } = seasonSquad([], published, sel, new Map(), NOW);
-      for (const [id, j] of jornada) expect(j).toBe(EXPECTED.get(id));
-    }
+    // every numbered match is there, with the same number
+    expect(seasonSquad([], published, "t1", new Map(), NOW).jornada).toEqual(jornadas(published, "t1"));
+    expect(seasonSquad([], published, "all", new Map(), NOW).jornada).toEqual(EXPECTED);
 
     // avisos: the next fixtures carry the same J
     expect(upcomingRows(published, NOW).map((r) => [r.id, r.j])).toEqual([["c", "J4"]]);

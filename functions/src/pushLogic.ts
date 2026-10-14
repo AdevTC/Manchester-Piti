@@ -1,6 +1,8 @@
 // Pure rules of the push notices (functions/src/push.ts): which change of a match (or of the official
 // seven on the pizarra) deserves a notice, to which topic, and its words. Apart so the app's tests can
 // run them.
+import { resultLetter, resultTitle } from "./result.js";
+
 export const TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"] as const;
 /** Personal notices of the vestuario door: "door" for admins (someone asks to come in), "access" for whoever asked. */
 export const DOOR_TOPICS = ["door", "access"] as const;
@@ -91,7 +93,7 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
   }
   if (finishedNow) {
     const gf = after.goalsFor ?? 0, ga = after.goalsAgainst ?? 0;
-    const verdict = gf > ga ? "Victoria" : gf === ga ? "Empate" : "Derrota";
+    const verdict = resultTitle(resultLetter(gf, ga));
     out.push({ topic: "final", title: `Final: Manchester Piti ${gf}–${ga} ${rival}`, body: `${verdict}. La crónica, los minutos y el pulso del partido ya están en la web.`, tag: `final-${id}`, url });
     if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url });
   }

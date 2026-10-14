@@ -162,6 +162,9 @@ export function Partidos() {
   };
 
   const hacer = model.counts.hacer;
+  // (the jornadas are the numbered matches — derived/jornada; drafts not published yet are told apart)
+  const jornadas = data.matches.filter((m) => m.jornada != null).length;
+  const drafts = data.matches.filter((m) => !m.published).length;
   const nuevoModal = nuevo && <NuevoPartido matches={data.matches} seasons={data.seasons} season={data.season} now={now} onClose={closeNuevo} onCreated={onCreated} />;
 
   // The publish peak (a played match only).
@@ -244,7 +247,8 @@ export function Partidos() {
         <div>
           <h1 className="ttl">Partidos</h1>
           <p className="ld">
-            {plural(data.matches.length, "jornada", "jornadas")} · {hacer} por hacer · por hacer primero
+            {plural(jornadas, "jornada", "jornadas")}
+            {drafts ? ` · ${plural(drafts, "borrador", "borradores")}` : ""} · {hacer} por hacer · por hacer primero
           </p>
         </div>
         <div className="r">

@@ -79,10 +79,10 @@ export const FORM_GAMES = 5;
 
 /** A player's last `n` matches of `games` (the season's finished ones, oldest first), oldest first. */
 export function formGames(playerId: string, games: readonly ClubMatch[], jornada: ReadonlyMap<string, number>, n = FORM_GAMES): FormGame[] {
-  return games.slice(-n).map((m, k) => {
+  return games.slice(-n).map((m) => {
     const g = playerGame(playerId, m);
     const min = g.minutes ?? (g.played ? durationOf(m) : 0);
-    return { j: jornada.get(m.id) ?? games.length - Math.min(n, games.length) + k + 1, played: g.played, min, ga: g.ga };
+    return { j: jornada.get(m.id) ?? null, played: g.played, min, ga: g.ga };
   });
 }
 

@@ -5,7 +5,7 @@
 import { calculateLedger, dateMillis, matchPhase, type MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../../lib/clubData";
 import { proposalState } from "../../../lib/positionsEdit";
-import { jornadaNumbers } from "../../../lib/derived/jornada";
+import { calendarOrder, jornadaNumbers } from "../../../lib/derived/jornada";
 import { resultLetter, type ResultLetter } from "../../../lib/derived/result";
 import type { AdminTarget, Counter } from "../shell/nav";
 
@@ -64,7 +64,7 @@ export function mergeMatches(published: readonly ClubMatch[], drafts: readonly W
     const stamp = (k: "convocatoriaAt" | "convocatoriaNotifiedAt") => Math.max(pub?.[k] ?? 0, d[k] ?? 0) || undefined;
     byId.set(d.id, { ...(pub ?? {}), ...rest, ...(pub?.clock ? { clock: pub.clock, liveEndedAt: pub.liveEndedAt, ...(["first", "halftime", "second"].includes(pub.clock.phase) ? { events: pub.events, starters: pub.starters, bench: pub.bench, notCalled: pub.notCalled, revision: pub.revision, status: pub.status } : {}) } : {}), draft: true, published: !!pub, jornada: null, draftSavedAt: Number.isFinite(saved) ? saved : undefined, convocatoriaAt: stamp("convocatoriaAt"), convocatoriaNotifiedAt: stamp("convocatoriaNotifiedAt") });
   }
-  const list = [...byId.values()].sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0));
+  const list = [...byId.values()].sort(calendarOrder);
   const jornada = jornadaNumbers(published);
   for (const m of list) m.jornada = m.published ? (jornada.get(m.id) ?? null) : null;
   return list;

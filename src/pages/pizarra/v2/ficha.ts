@@ -15,6 +15,7 @@ import { formWhy } from "./ratings";
 import { plural } from "./plural";
 import type { FichaView } from "./Overlays";
 import { fmtMinutes, wholeMinutes } from "../../../lib/derived/minutes";
+import { jornadaLabel } from "../../../lib/derived/jornada";
 
 // (his last matches are worked out with the squad, in ratings.ts buildSquad; re-exported for the ficha)
 export { FORM_GAMES, formGames } from "./ratings";
@@ -36,10 +37,10 @@ export function formBars(form: readonly FormGame[] | undefined): FormBar[] {
   if (!form?.length) return [];
   const top = Math.max(1, ...form.map((g) => g.min));
   return form.map((g) => ({
-    j: "J" + g.j,
+    j: jornadaLabel(g.j) || "—",
     h: g.played ? Math.max(12, Math.round((g.min / top) * 100)) : 0,
     played: g.played,
-    t: "J" + g.j + ": " + (g.played ? fmtMinutes(g.min) + (g.ga ? " y " + plural(g.ga, "gol o asistencia", "goles o asistencias") : "") : "no jugó"),
+    t: (jornadaLabel(g.j) || "Partido") + ": " + (g.played ? fmtMinutes(g.min) + (g.ga ? " y " + plural(g.ga, "gol o asistencia", "goles o asistencias") : "") : "no jugó"),
   }));
 }
 

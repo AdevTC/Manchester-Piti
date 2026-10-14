@@ -25,7 +25,7 @@ import { Constellation, GoalClock, Radar } from "../stats/Charts";
 import { Cromo, type CromoFace } from "./Cromo";
 import { SusPosiciones } from "./SusPosiciones";
 import { jornadaNumbers } from "../../lib/derived/jornada";
-import { resultLetter } from "../../lib/derived/result";
+import { RESULT_LEGEND, resultLetter } from "../../lib/derived/result";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
@@ -342,32 +342,37 @@ export function JugadorPage() {
               <p className="st-mono">Barra, minutos · balón, gol · flecha, asistencia · estrella, MVP</p>
             </div>
             {adn.length ? (
-              <ol className="jg-adn" style={{ gridTemplateColumns: `repeat(${Math.max(adn.length, 7)}, minmax(0, 1fr))` }}>
-                {adn.map(({ g, mvp }, i) => {
-                  const l = letter(g.match);
-                  const d = g.match.duration || 50;
-                  return (
-                    <li key={g.match.id} style={{ animationDelay: `${i * 0.05}s` }}>
-                      <Link to="/matches/$matchId" params={{ matchId: g.match.id }} aria-label={`${jornada.has(g.match.id) ? `Jornada ${jornada.get(g.match.id)} contra` : "Contra"} ${g.match.rival ?? "rival"}: ${g.played ? `${g.minutes === null ? "?" : wholeMinutes(g.minutes)} minutos, ${g.goals} goles, ${g.assists} asistencias${mvp ? ", MVP" : ""}` : "no jugó"}`}>
-                        <span className="bar">
-                          <i style={{ height: g.played ? `${g.minutes === null ? 50 : Math.max(8, (g.minutes / d) * 100)}%` : "0%" }} />
-                        </span>
-                        <span className="ev" aria-hidden="true">
-                          {mvp && <Icon name="star" size={12} />}
-                          {Array.from({ length: g.goals }, (_, k) => (
-                            <Icon key={"g" + k} name="ball" size={12} />
-                          ))}
-                          {Array.from({ length: g.assists }, (_, k) => (
-                            <Icon key={"a" + k} name="send" size={12} />
-                          ))}
-                        </span>
-                        <span className={`lt ${l}`}>{l}</span>
-                        <small>{jornada.has(g.match.id) ? `J${jornada.get(g.match.id)}` : "—"}</small>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ol>
+              <>
+                <ol className="jg-adn" style={{ gridTemplateColumns: `repeat(${Math.max(adn.length, 7)}, minmax(0, 1fr))` }}>
+                  {adn.map(({ g, mvp }, i) => {
+                    const l = letter(g.match);
+                    const d = g.match.duration || 50;
+                    return (
+                      <li key={g.match.id} style={{ animationDelay: `${i * 0.05}s` }}>
+                        <Link to="/matches/$matchId" params={{ matchId: g.match.id }} aria-label={`${jornada.has(g.match.id) ? `Jornada ${jornada.get(g.match.id)} contra` : "Contra"} ${g.match.rival ?? "rival"}: ${g.played ? `${g.minutes === null ? "?" : wholeMinutes(g.minutes)} minutos, ${g.goals} goles, ${g.assists} asistencias${mvp ? ", MVP" : ""}` : "no jugó"}`}>
+                          <span className="bar">
+                            <i style={{ height: g.played ? `${g.minutes === null ? 50 : Math.max(8, (g.minutes / d) * 100)}%` : "0%" }} />
+                          </span>
+                          <span className="ev" aria-hidden="true">
+                            {mvp && <Icon name="star" size={12} />}
+                            {Array.from({ length: g.goals }, (_, k) => (
+                              <Icon key={"g" + k} name="ball" size={12} />
+                            ))}
+                            {Array.from({ length: g.assists }, (_, k) => (
+                              <Icon key={"a" + k} name="send" size={12} />
+                            ))}
+                          </span>
+                          <span className={`lt ${l}`}>{l}</span>
+                          <small>{jornada.has(g.match.id) ? `J${jornada.get(g.match.id)}` : "—"}</small>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ol>
+                <div className="pt-legend">
+                  <span>{RESULT_LEGEND}</span>
+                </div>
+              </>
             ) : (
               <p className="st-empty">Aún sin partidos en este período.</p>
             )}

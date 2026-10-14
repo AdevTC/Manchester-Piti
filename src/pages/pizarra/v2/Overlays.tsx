@@ -167,8 +167,8 @@ export function Ficha({ f, rm, onFlip, onClose }: { f: FichaView; rm: boolean; o
                   <span className="fc-k">{f.form.k}</span>
                   {/* minutes per match as bars (a match he missed is a flat dash); the words say it all */}
                   <div className="fc-fm" role="img" aria-label={"Últimos partidos: " + f.form.bars.map((b) => b.t).join(", ")} style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 30 }}>
-                    {f.form.bars.map((b) => (
-                      <span key={b.j} title={b.t} style={{ flex: 1, display: "grid", justifyItems: "center", alignContent: "end", gap: 2, height: "100%" }}>
+                    {f.form.bars.map((b, i) => (
+                      <span key={i} title={b.t} style={{ flex: 1, display: "grid", justifyItems: "center", alignContent: "end", gap: 2, height: "100%" }}>
                         <i
                           style={{
                             display: "block",

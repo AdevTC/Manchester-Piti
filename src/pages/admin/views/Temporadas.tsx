@@ -400,7 +400,7 @@ export function Temporadas() {
             </div>
           ))}
         </div>
-        <p className="fot">{countsNote(sc.waiting)}</p>
+        <p className="fot">{countsNote(sc.waiting, sc.waitingDrafts)}</p>
       </section>
     );
   })();

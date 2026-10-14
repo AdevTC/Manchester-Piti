@@ -10,6 +10,7 @@ import { adapted, hasFitData, homeName, inPlace, logicGrade, out as fuera, slotC
 import { slotPos, slotZone, planeDist2 } from "./geometry";
 import { pairOf, teamMinutes, type Squad } from "./model";
 import { plural } from "./plural";
+import { fmtMinutes } from "../../../lib/derived/minutes";
 
 export interface Link {
   /** Slot indexes (i < j) and their players. */
@@ -246,7 +247,7 @@ export function chemWhy(ch: Chem): string {
 }
 
 /** «120′ juntos» / «sin minutos juntos». */
-export const togTxt = (min: number): string => (min > 0 ? Math.round(min) + "′ juntos" : "sin minutos juntos");
+export const togTxt = (min: number): string => (min > 0 ? fmtMinutes(min) + " juntos" : "sin minutos juntos");
 
 /** «9 luces», «1 luz». */
 

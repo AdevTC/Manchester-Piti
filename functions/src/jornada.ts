@@ -19,11 +19,13 @@ export function hasJornada(m: JornadaMatch): boolean {
   return !!m.seasonId && m.published !== false && m.status !== "cancelled";
 }
 
-const when = (m: JornadaMatch) => {
+const when = (m: Pick<JornadaMatch, "date">) => {
   const t = dateMillis(m.date);
   return Number.isFinite(t) ? t : Infinity;
 };
-const calendarOrder = (a: JornadaMatch, b: JornadaMatch) => {
+/** The calendar's order — by date, undated matches after the dated ones, ties by id: the order the
+ *  numbers follow, so every list that shows them reads J1, J2, J3… */
+export const calendarOrder = (a: Pick<JornadaMatch, "id" | "date">, b: Pick<JornadaMatch, "id" | "date">): number => {
   const ta = when(a);
   const tb = when(b);
   return ta === tb ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : ta < tb ? -1 : 1;

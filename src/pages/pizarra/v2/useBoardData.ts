@@ -9,7 +9,7 @@ import { useClock } from "../../../hooks/useClock";
 import { usePizarraPlayers } from "../usePizarraPlayers";
 import { usePizarraStats } from "../usePizarraStats";
 import { scoreOf } from "../../../lib/partidos";
-import { jornadaNumbers } from "../../../lib/derived/jornada";
+import { calendarOrder, jornadaNumbers } from "../../../lib/derived/jornada";
 import { buildSquad } from "./ratings";
 import type { Squad } from "./model";
 import type { CalMatch } from "./boards";
@@ -73,12 +73,12 @@ export function useBoardData(seasonId: string): BoardData {
   return { squad, squadIds, calendar, next, loading: playersLoading || statsLoading || matchesLoading };
 }
 
-/** The season's matches (every season's with «all»), by date. */
+/** The season's matches (every season's with «all»), in the calendar's order (derived/jornada). */
 export function boardSeason(matches: readonly ClubMatch[], seasonId: string): ClubMatch[] {
   return matches
     .filter((m) => seasonId === "all" || m.seasonId === seasonId)
     .slice()
-    .sort((a, b) => (dateMillis(a.date) || 0) - (dateMillis(b.date) || 0) || a.id.localeCompare(b.id));
+    .sort(calendarOrder);
 }
 
 /**

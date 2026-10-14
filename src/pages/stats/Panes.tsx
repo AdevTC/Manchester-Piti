@@ -13,7 +13,9 @@ import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { jornadaLabel } from "../../lib/derived/jornada";
 
 type NameOf = (p: PlayerAnalysis) => string;
-const show = (p: PlayerAnalysis, k: PlayerMetric) => metricValue(p, k) ?? "—";
+/** A metric as the tables print it: minutes whole with «′» (derived/minutes), «—» when not tracked. */
+const fmtMetric = (k: PlayerMetric, v: number | null) => (v === null ? "—" : k === "minutes" ? fmtMinutes(v) : v);
+const show = (p: PlayerAnalysis, k: PlayerMetric) => fmtMetric(k, metricValue(p, k));
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 
 function Head({ kick, title, children, isNew }: { kick: string; title: string; children?: React.ReactNode; isNew?: boolean }) {
@@ -130,7 +132,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
 function exportCsv(rows: PlayerAnalysis[], nameOf: NameOf) {
   const quote = (value: unknown) => '"' + String(value ?? "").replace(/^[=+@-]/, "'$&").replaceAll('"', '""') + '"';
   const keys = Object.keys(metrics) as PlayerMetric[];
-  const lines = [["Jugador", ...keys.map((k) => metrics[k])], ...rows.map((p) => [nameOf(p), ...keys.map((k) => metricValue(p, k))])];
+  const lines = [["Jugador", ...keys.map((k) => metrics[k])], ...rows.map((p) => [nameOf(p), ...keys.map((k) => { const v = metricValue(p, k); return k === "minutes" && v !== null ? wholeMinutes(v) : v; })])];
   const url = URL.createObjectURL(new Blob(["﻿" + lines.map((line) => line.map(quote).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
   a.href = url;
@@ -535,7 +537,7 @@ export function Comparar({ rows, nameOf, games }: { rows: PlayerAnalysis[]; name
             const both = a !== null && b !== null && a + b > 0;
             return (
               <li key={k}>
-                <b className={both && a! > b! ? "win" : undefined}>{a ?? "—"}</b>
+                <b className={both && a! > b! ? "win" : undefined}>{fmtMetric(k, a)}</b>
                 <span className="lb">
                   {metrics[k]}
                   {both && (
@@ -545,7 +547,7 @@ export function Comparar({ rows, nameOf, games }: { rows: PlayerAnalysis[]; name
                     </span>
                   )}
                 </span>
-                <b className={both && b! > a! ? "win" : undefined}>{b ?? "—"}</b>
+                <b className={both && b! > a! ? "win" : undefined}>{fmtMetric(k, b)}</b>
               </li>
             );
           })}

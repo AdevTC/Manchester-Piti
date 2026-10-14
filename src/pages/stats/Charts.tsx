@@ -6,7 +6,7 @@ import type { ClubMatch } from "../../lib/clubData";
 import { formatDate } from "../../lib/clubData";
 import { competitionRanks, medalFor, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { constellation, goalClock, RADAR_AXES, radarPoints, type HeatCell, type StarLink } from "../../lib/statsView";
-import { RESULT_WORD, resultLetter } from "../../lib/derived/result";
+import { RESULT_LEGEND, RESULT_WORD, resultLetter } from "../../lib/derived/result";
 
 const letter = (m: ClubMatch) => resultLetter(m.goalsFor ?? 0, m.goalsAgainst ?? 0);
 const shortDate = (m: ClubMatch) => formatDate(m.date).replace(/^[^,]*,\s*/, "").replace(/( de)? \d{4}$/, "");
@@ -16,25 +16,31 @@ export function ResultsChart({ games }: { games: ClubMatch[] }) {
   const last = games.slice(-12);
   const max = Math.max(1, ...last.flatMap((m) => [m.goalsFor!, m.goalsAgainst!]));
   return (
-    <div className="st-res" style={{ gridTemplateColumns: `repeat(${Math.max(last.length, 6)}, minmax(0, 1fr))` }}>
-      {last.map((m, i) => {
-        const l = letter(m);
-        return (
-          <Link key={m.id} to="/matches/$matchId" params={{ matchId: m.id }} className="col" style={{ animationDelay: `${i * 0.06}s` }} aria-label={`${m.goalsFor} a ${m.goalsAgainst} contra ${m.rival ?? "rival"}, ${RESULT_WORD[l]}, ${formatDate(m.date)}`}>
-            <span className="up">
-              <b>{m.goalsFor}</b>
-              <i style={{ height: `${(m.goalsFor! / max) * 100}%` }} />
-            </span>
-            <span className="dn">
-              <i style={{ height: `${(m.goalsAgainst! / max) * 100}%` }} />
-              <b>{m.goalsAgainst}</b>
-            </span>
-            <span className={`lt ${l}`}>{l}</span>
-            <small>{shortDate(m)}</small>
-          </Link>
-        );
-      })}
-    </div>
+    <>
+      <div className="st-res" style={{ gridTemplateColumns: `repeat(${Math.max(last.length, 6)}, minmax(0, 1fr))` }}>
+        {last.map((m, i) => {
+          const l = letter(m);
+          return (
+            <Link key={m.id} to="/matches/$matchId" params={{ matchId: m.id }} className="col" style={{ animationDelay: `${i * 0.06}s` }} aria-label={`${m.goalsFor} a ${m.goalsAgainst} contra ${m.rival ?? "rival"}, ${RESULT_WORD[l]}, ${formatDate(m.date)}`}>
+              <span className="up">
+                <b>{m.goalsFor}</b>
+                <i style={{ height: `${(m.goalsFor! / max) * 100}%` }} />
+              </span>
+              <span className="dn">
+                <i style={{ height: `${(m.goalsAgainst! / max) * 100}%` }} />
+                <b>{m.goalsAgainst}</b>
+              </span>
+              <span className={`lt ${l}`}>{l}</span>
+              <small>{shortDate(m)}</small>
+            </Link>
+          );
+        })}
+      </div>
+      {/* the letters never stand alone: the same legend as /partidos */}
+      <div className="pt-legend">
+        <span>{RESULT_LEGEND}</span>
+      </div>
+    </>
   );
 }
 
