@@ -102,7 +102,15 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
                 Seguir en directo <Icon name="arrow" size={16} stroke={2.2} />
               </Link>
             ) : (
-              pulse.next && <AddToCalendar className="hm-mini sky" label="Añadir este partido" event={matchEvent(pulse.next, origin)} />
+              pulse.next && (
+                <>
+                  {/* (no tab: an upcoming match's page opens on its previa) */}
+                  <Link className="hm-btn" to="/matches/$matchId" params={{ matchId: pulse.next.id }}>
+                    Ver la previa <Icon name="arrow" size={16} stroke={2.2} />
+                  </Link>
+                  <AddToCalendar className="hm-mini sky" label="Añadir este partido" event={matchEvent(pulse.next, origin)} />
+                </>
+              )
             )}
             <AddToCalendar className="hm-mini" iconName="cal" label="Suscribirme al calendario" feed={`${origin}/calendario.ics`} />
           </div>

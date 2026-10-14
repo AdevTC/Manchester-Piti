@@ -460,12 +460,14 @@ export function Rivales({ games, rows }: { games: ClubMatch[]; rows: PlayerAnaly
 }
 
 // ---------- Comparar
-export function Comparar({ rows, nameOf, games }: { rows: PlayerAnalysis[]; nameOf: NameOf; games: number }) {
-  const [left, setLeft] = useState("");
-  const [right, setRight] = useState("");
+/** The pair lives in the URL (?view=compare&a=<id>&b=<id>): `a`/`b` are read from it (an id nobody in the
+ *  period has falls back to the default pair) and every pick writes the pair shown back through `onPick`. */
+export function Comparar({ rows, nameOf, games, a, b, onPick }: { rows: PlayerAnalysis[]; nameOf: NameOf; games: number; a?: string; b?: string; onPick: (a: string, b: string | undefined) => void }) {
   if (rows.length < 2) return <p className="st-empty">Se necesitan al menos dos jugadores en este período.</p>;
-  const lp = rows.find((p) => p.id === left) ?? rows[0];
-  const rp = rows.find((p) => p.id === right && p.id !== lp.id) ?? rows.find((p) => p.id !== lp.id)!;
+  const lp = rows.find((p) => p.id === a) ?? rows[0];
+  const rp = rows.find((p) => p.id === b && p.id !== lp.id) ?? rows.find((p) => p.id !== lp.id)!;
+  const setLeft = (id: string) => onPick(id, rp.id !== id ? rp.id : undefined);
+  const setRight = (id: string) => onPick(lp.id, id);
   const keys = Object.keys(metrics) as PlayerMetric[];
   const wins = keys.reduce(
     (acc, k) => {
@@ -505,10 +507,7 @@ export function Comparar({ rows, nameOf, games }: { rows: PlayerAnalysis[]; name
             type="button"
             className="st-swap"
             aria-label="Intercambiar jugadores"
-            onClick={() => {
-              setLeft(rp.id);
-              setRight(lp.id);
-            }}
+            onClick={() => onPick(rp.id, lp.id)}
           >
             <Icon name="swap" size={18} />
           </button>

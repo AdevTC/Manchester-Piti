@@ -17,7 +17,7 @@ const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknow
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, className, to, params, search, "aria-label": label }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; search?: { season?: string }; "aria-label"?: string }) => (
-    <a className={className} aria-label={label} href={to === "/jugadores/$playerId" ? `/jugadores/${params?.playerId}${search?.season ? `?season=${search.season}` : ""}` : "#"}>
+    <a className={className} aria-label={label} href={to === "/jugadores/$playerId" ? `/jugadores/${params?.playerId}${search?.season ? `?season=${search.season}` : ""}` : to === "/matches/$matchId" ? `/matches/${params?.matchId}` : "#"}>
       {children}
     </a>
   ),
@@ -83,4 +83,18 @@ it("the season's goals: each scorer leads to his page, in that season", () => {
   expect(links).toHaveLength(2);
   for (const a of links) expect(a).toHaveAttribute("href", "/jugadores/x?season=t1");
   expect(within(card).getByRole("heading", { level: 3 })).toHaveTextContent("EL NUEVE lleva 2");
+});
+
+it("the board's next match: «Ver la previa» → its page; live, the board only follows it in directo", () => {
+  const next: ClubMatch = { id: "m2", seasonId: "t1", version: 2, status: "scheduled", rival: "MAD SKY", date: T0, duration: 50, clock: readyClock() };
+  clock.now = T0 - DAY;
+  data.matches = [played, next];
+  const { rerender } = render(<PartidosPage />);
+  const board = () => document.querySelector<HTMLElement>(".pt-board")!;
+  expect(within(board()).getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/m2");
+  clock.now = T0 + 20 * MIN;
+  data.matches = [played, { ...next, clock: transitionClock(readyClock(), "start", T0) }];
+  rerender(<PartidosPage />);
+  expect(within(board()).queryByRole("link", { name: /Ver la previa/ })).toBeNull();
+  expect(within(board()).getByRole("link", { name: /Seguir en directo/ })).toHaveAttribute("href", "/matches/m2");
 });

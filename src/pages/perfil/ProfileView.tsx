@@ -466,6 +466,7 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
     ) : tab === "temp" ? (
       <TabTemporada
         card={data.card}
+        seasonId={data.seasonId}
         seasonName={data.seasonName}
         stuff={stuffLines({ next: data.next, boards: data.stuff.boards, porra: data.stuff.porra, conv: data.stuff.convocatorias, now })}
         stuffLoading={data.stuff.loading}

@@ -175,6 +175,10 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
           )}
           <div className="pt-acts">
             <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(m, origin())} />
+            {/* (no tab: an upcoming match's page opens on its previa) */}
+            <Link className="hm-ghostbtn" to="/matches/$matchId" params={{ matchId: m.id }}>
+              Ver la previa <Icon name="arrow" size={16} stroke={2.2} />
+            </Link>
             {m.venue && (
               <a className="hm-ghostbtn" href={mapsUrl(m.venue)} target="_blank" rel="noreferrer">
                 Cómo llegar <Icon name="arrow" size={16} stroke={2.2} />

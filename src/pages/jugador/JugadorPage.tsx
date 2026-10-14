@@ -241,6 +241,12 @@ export function JugadorPage() {
                 <Icon name="turn" size={16} />
                 Repetir presentación
               </button>
+              {squad.length > 1 && (
+                <Link className="hm-ghostbtn st-sm" to="/stats" search={{ view: "compare", a: p.id, ...(selectedSeasonId !== "all" ? { season: selectedSeasonId } : {}) }}>
+                  Comparar con…
+                  <Icon name="arrow" size={16} stroke={2.2} />
+                </Link>
+              )}
               {viewer.playerId === p.id && (
                 <Link className="hm-ghostbtn st-sm" to="/profile">
                   Editar tu carta

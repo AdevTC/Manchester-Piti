@@ -395,6 +395,8 @@
 .pcv .ph p{grid-column:1 / -1;margin:4px 0 0;font-size:14.5px;line-height:1.5;color:var(--soft)}
 .pcv .bk{display:grid;gap:12px;margin-top:26px;min-width:0}
 .pcv .bk:first-of-type{margin-top:6px}
+/* a block's way out to the public pages (Ver tus estadísticas, las posiciones del equipo) */
+.pcv .bk > .bk-go{justify-self:start}
 .pcv .bk-h{display:flex;align-items:center;gap:10px;margin:0;font-family:'Anybody';font-weight:800;font-size:17px;line-height:1.1;text-transform:uppercase;letter-spacing:.02em;font-variation-settings:'wdth' 104}
 .pcv .bk-h::before{content:"";width:5px;height:18px;border-radius:2px;background:var(--gold);box-shadow:0 0 10px rgba(255,198,89,.6);flex:0 0 auto}
 .pcv .bk-h::after{content:"";flex:1;height:1px;min-width:20px;background:linear-gradient(90deg,var(--gp-line),transparent)}

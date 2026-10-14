@@ -29,8 +29,12 @@ export const rootSearchSchema = z.object({
 // Stats route's `validateSearch`: the active view is deep-linkable/persistent.
 // Merges with the inherited root `season`, so reading/writing via the route api
 // preserves `season`. `tab` is only read: old ?tab=compare links still open the
-// comparison (the page writes `view` and never `tab`).
+// comparison (the page writes `view` and never `tab`). `a`/`b` are Comparar's two players (ids; the
+// pane ignores one nobody in the period has), so «X vs Y» can be linked from the jugador page.
+const optionalString = z.union([z.string(), z.number()]).transform(String).optional().catch(undefined);
 export const statsSearchSchema = z.object({
+  a: optionalString,
+  b: optionalString,
   tab: z.enum(["general", "compare"]).optional().catch(undefined),
   view: z
     .enum(["summary", "players", "minutes", "positions", "rivals", "compare", "explore", "game"])
@@ -56,7 +60,6 @@ const LEGACY_ADMIN_TAB = {
 } as const;
 // The admin sections' deep-linkable state (drawers, modals and tabs live in the URL).
 const optionalTrue = z.boolean().optional().catch(undefined);
-const optionalString = z.union([z.string(), z.number()]).transform(String).optional().catch(undefined);
 export const adminPartidosSearchSchema = z.object({
   /** Open the «Nuevo partido» modal. */
   nuevo: optionalTrue,

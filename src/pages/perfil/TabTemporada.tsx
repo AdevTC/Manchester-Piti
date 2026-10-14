@@ -38,8 +38,10 @@ export interface PlayedField {
   onGoPositions: () => void;
 }
 
-export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, played }: { card: CardView; seasonName: string; stuff: StuffLine[]; stuffLoading: boolean; onGoPick: () => void; played: PlayedField | null }) {
+export function TabTemporada({ card, seasonId, seasonName, stuff, stuffLoading, onGoPick, played }: { card: CardView; seasonId: string; seasonName: string; stuff: StuffLine[]; stuffLoading: boolean; onGoPick: () => void; played: PlayedField | null }) {
   const vinc = card.state === "vinculada";
+  // the season on the public pages it links to («all» or none adds no ?season=)
+  const season = seasonId && seasonId !== "all" ? { season: seasonId } : {};
   const t = card.totals;
   const bars = card.series.slice(-GB_MAX);
   const range = jornadaRange(card.series);
@@ -96,8 +98,15 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, 
               <Ic n="trophy" w={16} />
               <span>{card.started ? card.rankText || "Aún sin minutos esta temporada" : `El marcador se enciende ${firstMatchText(card)}`}</span>
             </p>
+            {/* (his public page: his numbers of the season, as the club sees them) */}
+            {card.playerId && (
+              <Link className="btn sm bk-go" to="/jugadores/$playerId" params={{ playerId: card.playerId }} search={season}>
+                Ver tus estadísticas
+                <Ic n="right" />
+              </Link>
+            )}
           </div>
-          {played && <DondeHasJugado played={played.played} positions={played.positions} seasonName={seasonName} nudge={played.nudge} onGoPositions={played.onGoPositions} />}
+          {played && <DondeHasJugado played={played.played} positions={played.positions} seasonId={seasonId} seasonName={seasonName} nudge={played.nudge} onGoPositions={played.onGoPositions} />}
           <div className="bk">
             <h3 className="bk-h">Gol a gol</h3>
             <p className="bk-d">Tus goles en cada jornada y cómo acabaron los últimos cinco partidos.</p>

@@ -106,6 +106,12 @@ describe("his page's shortcuts, by who is looking", () => {
   });
 });
 
+it("«Comparar con…» opens /stats › Comparar with him first, in the season, for anyone", () => {
+  who.viewer = { member: false, admin: false, playerId: null };
+  render(<JugadorPage />);
+  expect(screen.getByRole("link", { name: /Comparar con…/ })).toHaveAttribute("href", "/stats?view=compare&a=erik&season=t1");
+});
+
 it("«Sus cambios»: the teammate is a link to his page in the season; one no longer in the squad is text", () => {
   render(<JugadorPage />);
   const subs = screen.getByRole("heading", { name: "Sus cambios" }).closest("section") as HTMLElement;
