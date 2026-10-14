@@ -33,8 +33,8 @@ describe("con este siete", () => {
 
   it("counts the played matches started by at least five of the seven", () => {
     const r = recordWith(lineupOf(SEVEN, "2-3-1", sq), cal);
-    expect(r).toEqual({ n: 3, v: 1, e: 1, d: 1, gf: 4, gc: 4 });
-    expect(recordTxt(r)).toBe("Con este siete: 1V 1E 1D · 4 GF 4 GC");
+    expect(r).toEqual({ n: 3, g: 1, e: 1, p: 1, gf: 4, gc: 4 });
+    expect(recordTxt(r)).toBe("Con este siete: 1G 1E 1P · 4 GF 4 GC");
   });
 
   it("says nothing with fewer than five in the seven, or no match in common", () => {
