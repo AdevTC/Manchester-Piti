@@ -132,6 +132,20 @@ describe("clubPositions", () => {
     expect(c.find((l) => l.code === "LI")).toMatchObject({ minutes: 1.2, owner: null, players: 0 });
     expect(c.find((l) => l.code === "MC")).toMatchObject({ minutes: 49.6, owner: { id: "ana", minutes: 49.6 }, players: 1 });
   });
+  it("skips a row that did not play, whatever position keys it carries (as playerPositions does)", () => {
+    const stray = [
+      match(1, {
+        ana: row(50, { positionsPlayed: { MC: 50 } }),
+        bea: row(0, { started: false, benched: true, positionsPlayed: { MC: 60 }, positionEvents: { MC: ev(1, 1) }, positionsEstimated: true }),
+        cris: { ...row(30, { positionsPlayed: { DC: 30 } }), played: undefined as unknown as boolean },
+      }),
+    ];
+    const c = clubPositions(stray);
+    expect(c.find((l) => l.code === "MC")).toEqual({ code: "MC", minutes: 50, owner: { id: "ana", minutes: 50 }, players: 1, goals: 0, assists: 0 });
+    expect(c.find((l) => l.code === "DC")).toMatchObject({ minutes: 0, owner: null, players: 0 });
+    expect(playerPositions("bea", stray)).toEqual({ lines: [], minutes: 0, estimatedMatches: 0, matches: 0, top: null });
+    expect(playerPositions("cris", stray).lines).toEqual([]);
+  });
   it("breaks an owner tie by name", () => {
     const tie = [match(1, { zoe: row(25, { positionsPlayed: { POR: 25 } }), bea: row(25, { positionsPlayed: { POR: 25 } }) })];
     expect(clubPositions(tie, (id) => ({ zoe: "Zoe", bea: "Bea" })[id] ?? id).find((l) => l.code === "POR")!.owner).toEqual({ id: "bea", minutes: 25 });

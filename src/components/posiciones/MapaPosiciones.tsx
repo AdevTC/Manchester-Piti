@@ -9,7 +9,7 @@
 import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { POSITIONS, POS_CODES, isPosCode, type PosCode, type PositionSet } from "../../lib/positions";
 import { cyclePosition, proposalDiff } from "../../lib/positionsEdit";
-import { playedSummary } from "../../lib/positionStats";
+import { playedSummary } from "../../lib/playedSummary";
 import {
   DEFAULT_EMPTY,
   ESTIMATED_TEXT,

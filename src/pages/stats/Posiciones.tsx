@@ -280,7 +280,7 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
             )}
             {estimated > 0 && (
               <p className="st-mono">
-                Incluye minutos estimados por la posición preferida en {estimated} {estimated === 1 ? "partido sin pizarra oficial" : "partidos sin pizarra oficial"}.
+                Incluye minutos estimados por la posición preferida en {estimated} {estimated === 1 ? "partido" : "partidos"}.
               </p>
             )}
           </div>

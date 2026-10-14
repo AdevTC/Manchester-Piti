@@ -156,7 +156,7 @@ describe("Posiciones · Por posición", () => {
 
   it("says in words when some minutes are estimated", () => {
     show();
-    expect(screen.getByText(/minutos estimados por la posición preferida en 1 partido sin pizarra oficial/)).toBeInTheDocument();
+    expect(screen.getByText("Incluye minutos estimados por la posición preferida en 1 partido.")).toBeInTheDocument();
   });
 
   it("without minutes by position: the explicit empty copy, no pitch, no table", () => {

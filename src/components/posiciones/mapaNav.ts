@@ -2,7 +2,7 @@
 // (state of a spot, one-line summary, full description for screen readers).
 import { POSITIONS, POS_CODES, type PosCode, type PositionSet } from "../../lib/positions";
 import { proposalDiff } from "../../lib/positionsEdit";
-import { PLAYED_EMPTY } from "../../lib/positionStats";
+import { PLAYED_EMPTY } from "../../lib/playedSummary";
 
 /** Height / width of the drawn pitch (portrait). The CSS aspect-ratio (4 / 7) must match. */
 export const PITCH_ASPECT = 7 / 4;

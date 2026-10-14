@@ -5,8 +5,8 @@
 import type { ClubMatch } from "./clubData";
 import { isCompleted } from "../../functions/src/matchEngine";
 import { SYSTEM_IDS, isFormationName, systemDef } from "./formations";
-import { POS_CODES, POSITIONS, isPosCode, lineOf, type PosCode } from "./positions";
-import { cardPoints, concededOnPitch, durationOf, formRating, type FormInput } from "../pages/pizarra/v2/ratings";
+import { POS_CODES, isPosCode, lineOf, type PosCode } from "./positions";
+import { cardPoints, concededOnPitch, durationOf, formRating, type FormInput } from "./form";
 
 export interface PosLine {
   code: PosCode;
@@ -69,7 +69,8 @@ export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: (matchI
   let estimatedMatches = 0;
   for (const m of counted(games)) {
     const row = m.ledger?.[pid];
-    if (!row) continue;
+    // only a row that played has minutes anywhere: a stray key on a bench row never counts
+    if (!row || row.played !== true) continue;
     const byCode = minutesByCode(row.positionsPlayed);
     if (row.positionsEstimated === true) estimatedMatches++;
     if (!byCode.length) continue;
@@ -114,17 +115,7 @@ export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: (matchI
   return { lines: list, minutes: round2(minutes), estimatedMatches, matches, top: list[0]?.code ?? null };
 }
 
-/** The explicit empty copy of every «ha jugado de» view. */
-export const PLAYED_EMPTY = "Aún sin minutos con posición";
-
-/** «Pivote (MCD) 320′ · MC 140′ · DFC 20′»: the first position in full, then codes; lines that round
- *  to 0′ are left out. Without minutes: «Aún sin minutos con posición». Reads only each line's code and
- *  minutes (a PlayerPositions, or the map's own lines). */
-export function playedSummary(p: { lines: readonly { code: PosCode; minutes: number }[] }, max = 3): string {
-  const shown = p.lines.filter((l) => Math.round(l.minutes) > 0).slice(0, max);
-  if (!shown.length) return PLAYED_EMPTY;
-  return shown.map((l, i) => (i === 0 ? `${POSITIONS[l.code].name} (${l.code})` : l.code) + ` ${Math.round(l.minutes)}′`).join(" · ");
-}
+export { PLAYED_EMPTY, playedSummary } from "./playedSummary";
 
 export interface ClubPosLine {
   code: PosCode;
@@ -140,14 +131,16 @@ export interface ClubPosLine {
 export function clubPositions(games: ClubMatch[], nameOf: (id: string) => string = (id) => id): ClubPosLine[] {
   const per = new Map<PosCode, { mins: Map<string, number>; goals: number; assists: number }>(POS_CODES.map((c) => [c, { mins: new Map(), goals: 0, assists: 0 }]));
   for (const m of counted(games))
-    for (const [pid, row] of Object.entries(m.ledger ?? {}))
-      for (const [code, min] of minutesByCode(row?.positionsPlayed)) {
+    for (const [pid, row] of Object.entries(m.ledger ?? {})) {
+      if (row?.played !== true) continue; // as playerPositions: only a row that played
+      for (const [code, min] of minutesByCode(row.positionsPlayed)) {
         const c = per.get(code)!;
         const e = eventsAt(row.positionEvents, code);
         c.mins.set(pid, (c.mins.get(pid) ?? 0) + min);
         c.goals += e.goals;
         c.assists += e.assists;
       }
+    }
   return POS_CODES.map((code) => {
     const c = per.get(code)!;
     const ranked = [...c.mins.entries()]
