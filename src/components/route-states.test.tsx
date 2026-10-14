@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,8 +9,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("./ThemeToggle", () => ({ ThemeToggle: () => null }));
 const { RouteError } = await import("./route-states");
 
-function Boom(): never {
-  throw new Error("Failed to fetch dynamically imported module");
+// fails while `boom.on`; «Reintentar» after the cause is gone renders the page
+const boom = { on: true };
+function Boom() {
+  if (boom.on) throw new Error("Failed to fetch dynamically imported module");
+  return <h1>de vuelta</h1>;
 }
 
 function open(url: string) {
@@ -18,10 +21,14 @@ function open(url: string) {
   const routes = ["/", "/partidos", "/matches/$matchId", "/admin", "/admin/partidos"].map((path) => createRoute({ getParentRoute: () => root, path, component: Boom }));
   const router = createRouter({ routeTree: root.addChildren(routes), history: createMemoryHistory({ initialEntries: [url] }), defaultErrorComponent: RouteError });
   render(<RouterProvider router={router} />);
+  return router;
 }
 
 describe("RouteError", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    boom.on = true;
+  });
 
   it("a public page: the error in the Celeste chrome, its section lit, «Reintentar» and «Ir al inicio»", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -43,5 +50,17 @@ describe("RouteError", () => {
     const alert = await screen.findByRole("alert");
     expect(within(alert).getByRole("link", { name: "Ir a Hoy" })).toHaveAttribute("href", "/admin");
     expect(screen.queryByRole("navigation", { name: "Navegación principal" })).toBeNull();
+  });
+
+  it("«Reintentar» re-runs the loaders (router.invalidate) and resets the boundary: the page comes back", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const router = open("/partidos");
+    const invalidate = vi.spyOn(router, "invalidate");
+    const retry = await screen.findByRole("button", { name: "Reintentar" });
+    boom.on = false;
+    fireEvent.click(retry);
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("heading", { name: "de vuelta" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

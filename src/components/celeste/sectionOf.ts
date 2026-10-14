@@ -1,5 +1,6 @@
 // The Celeste section a path belongs to (the router's error page lights its nav item).
 import type { CelestePage } from "./Chrome";
+import { under } from "../../lib/paths";
 
 /** Which section a path belongs to: the header's subtitle and the nav item lit (none for a 404). */
 export function sectionOf(pathname: string): { active?: CelestePage; sub: string } {
@@ -8,6 +9,6 @@ export function sectionOf(pathname: string): { active?: CelestePage; sub: string
   if (pathname === "/plantilla" || pathname.startsWith("/jugadores/")) return { active: "plantilla", sub: "Plantilla" };
   if (pathname === "/stats") return { active: "stats", sub: "Estadísticas" };
   if (pathname === "/club") return { active: "club", sub: "El club" };
-  if (["/vestuario", "/profile", "/pizarra"].some((p) => pathname.startsWith(p))) return { active: "vestuario", sub: "Vestuario" };
+  if (["/vestuario", "/profile", "/pizarra"].some((p) => under(pathname, p))) return { active: "vestuario", sub: "Vestuario" };
   return { sub: "Manchester Piti" };
 }

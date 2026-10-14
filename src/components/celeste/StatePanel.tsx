@@ -43,7 +43,8 @@ export function StatePanel({ kind, title, body, action, kicker, icon, heading = 
   return (
     <div
       className={["sp", kind, compact && "compact", className].filter(Boolean).join(" ")}
-      role={kind === "error" ? "alert" : kind === "loading" ? "status" : undefined}
+      // (each kind has a role that may carry its title as a name: a live alert, a live status, a region)
+      role={kind === "error" ? "alert" : kind === "loading" ? "status" : "region"}
       aria-busy={kind === "loading" || undefined}
       aria-labelledby={id}
       data-kind={kind}

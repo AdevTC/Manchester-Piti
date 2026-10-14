@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetTrailForTesting, recordTrail, stepsBack } from "./backTrail";
 
 // The trail notes the page shown at each history index; «Volver» asks how far back the previous page
@@ -52,6 +52,14 @@ describe("backTrail", () => {
     recordTrail(0, "/stats");
     recordTrail(1, "/jugadores/erik");
     expect(JSON.parse(sessionStorage.getItem("mp:trail") ?? "{}")).toEqual({ 0: "/stats", 1: "/jugadores/erik" });
+  });
+
+  it("a reload reads the trail back from sessionStorage (a fresh module, no copy in memory)", async () => {
+    recordTrail(0, "/stats");
+    recordTrail(1, "/matches/j1");
+    vi.resetModules();
+    const fresh = await import("./backTrail");
+    expect(fresh.stepsBack(1, "/matches/j1")).toBe(1);
   });
 
   it("ignores a missing or negative index", () => {

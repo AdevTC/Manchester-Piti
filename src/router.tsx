@@ -262,6 +262,21 @@ const pizarraRoute = createRoute({
     "PizarraRoute",
   ),
 });
+// The bare collection paths someone may type or trim a link to: their section, not the 404.
+const matchesIndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/matches",
+  beforeLoad: () => {
+    throw redirect({ to: "/partidos", replace: true });
+  },
+});
+const playersIndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/jugadores",
+  beforeLoad: () => {
+    throw redirect({ to: "/plantilla", replace: true });
+  },
+});
 // Any address no route above takes: the 404 page. Its id ("/$") is how RootLayout knows to give it no
 // legacy chrome.
 const notFoundRoute = createRoute({
@@ -293,6 +308,8 @@ const routeTree = rootRoute.addChildren([
   ]),
   matchDetailRoute,
   playerProfileRoute,
+  matchesIndexRoute,
+  playersIndexRoute,
   notFoundRoute,
 ]);
 

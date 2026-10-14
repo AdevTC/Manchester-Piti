@@ -28,10 +28,11 @@ describe("StatePanel kinds", () => {
     expect(panel).toHaveAccessibleName("Preparando la ficha");
   });
 
-  it("empty: no live role, its kicker, the body and the action", () => {
+  it("empty: a region named by its title (no live role), its kicker, the body and the action", () => {
     render(<StatePanel kind="empty" title="Nada por aquí" body="Todavía no hay partidos." action={<button type="button">Ver todo</button>} />);
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("region", { name: "Nada por aquí" })).toHaveClass("sp", "empty");
     expect(screen.getByText("Sin jugadas todavía")).toBeInTheDocument();
     expect(screen.getByText("Todavía no hay partidos.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ver todo" })).toBeInTheDocument();
@@ -48,6 +49,7 @@ describe("StatePanel kinds", () => {
 
   it("notfound: «404 · Fuera de juego» and a heading level of choice", () => {
     render(<StatePanel kind="notfound" heading="h1" title="Partido no encontrado" />);
+    expect(screen.getByRole("region", { name: "Partido no encontrado" })).toBeInTheDocument();
     expect(screen.getByText("404 · Fuera de juego")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "Partido no encontrado" })).toBeInTheDocument();
   });

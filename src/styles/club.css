@@ -1,4 +1,6 @@
 /* Manchester Piti — a club publication, with room for the people behind it. */
+/* The app-wide element defaults below sit under :where(.club-app) (no class weight): the Celeste
+   stylesheets (.vx a, .vx :focus-visible…) win whatever order the bundles load in. */
 .club-app {
   --club-ink: var(--mp-ink);
   --club-paper: var(--mp-bg);
@@ -8,26 +10,26 @@
   min-height: 100vh;
   font-family: var(--mp-font-ui);
 }
-.club-app a {
+:where(.club-app) a {
   text-decoration: none;
   color: inherit;
 }
-.club-app button,
-.club-app a,
-.club-app input,
-.club-app select,
-.club-app textarea {
+:where(.club-app) button,
+:where(.club-app) a,
+:where(.club-app) input,
+:where(.club-app) select,
+:where(.club-app) textarea {
   -webkit-tap-highlight-color: transparent;
 }
-.club-app button {
+:where(.club-app) button {
   cursor: pointer;
   font: inherit;
 }
-.club-app button:disabled {
+:where(.club-app) button:disabled {
   cursor: wait;
   opacity: 0.55;
 }
-.club-app :focus-visible {
+:where(.club-app) :focus-visible {
   outline: 3px solid #dba237;
   outline-offset: 4px;
 }
@@ -594,9 +596,9 @@
 .club-toolbar > input {
   max-width: 310px;
 }
-.club-app input,
-.club-app select,
-.club-app textarea {
+:where(.club-app) input,
+:where(.club-app) select,
+:where(.club-app) textarea {
   font-family: var(--mp-font-ui);
 }
 .club-page input:not([type="radio"]):not([type="checkbox"]),
@@ -612,7 +614,7 @@
   min-height: 46px;
   width: 100%;
 }
-.club-app textarea {
+:where(.club-app) textarea {
   resize: vertical;
 }
 .club-page input::placeholder {
@@ -921,7 +923,7 @@
   border-bottom: 1px solid var(--mp-line);
   padding: 10px 0;
 }
-.club-app blockquote {
+:where(.club-app) blockquote {
   border-left: 3px solid #6cabdd;
   padding: 10px 20px;
   margin: 20px 0;
@@ -1626,7 +1628,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .club-app * {
+  :where(.club-app) * {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;

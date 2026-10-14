@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useRouter, useRouterState, type ErrorComponentProps } from "@tanstack/react-router";
 import { Skeleton } from "./ui/skeleton";
 import { StatePanel, StateScreen } from "./celeste/StatePanel";
 import { sectionOf } from "./celeste/sectionOf";
+import { under } from "../lib/paths";
 
 /**
  * Sober, on-brand route-level pending/error states (issue #5, Phase 4).
@@ -92,7 +93,7 @@ export const RouteError: React.FC<ErrorComponentProps<unknown>> = ({ error, rese
   // boundary as `unknown`; String(error) keeps the technical detail useful for debug.
   const message = error instanceof Error ? error.message : String(error);
   // (inside the admin app the way out is its own start, Hoy)
-  const inAdmin = pathname.startsWith("/admin");
+  const inAdmin = under(pathname, "/admin");
   const panel = {
     kind: "error" as const,
     title: "Algo se ha torcido",
@@ -133,23 +134,47 @@ export const RouteError: React.FC<ErrorComponentProps<unknown>> = ({ error, rese
   return <StateScreen {...sectionOf(pathname)} {...panel} />;
 };
 
-/** An address the app does not have (the catch-all route, and the router's notFoundComponent). */
-export const RouteNotFound: React.FC = () => (
-  <StateScreen
-    kind="notfound"
-    sub="Manchester Piti"
-    ghost="404"
-    title="Fuera de juego"
-    body="Esta jugada no existe: el enlace se ha quedado en posición adelantada. Vuelve a ponerte en juego desde el inicio o mira los partidos."
-    action={
-      <>
-        <Link className="sp-btn" to="/">
-          Ir al inicio
-        </Link>
-        <Link className="sp-btn ghost" to="/partidos">
-          Ver los partidos
-        </Link>
-      </>
+/** While mounted, tells crawlers not to index the page (the 404 is served with a 200 by the SPA shell);
+ *  the previous robots value, or none, comes back on unmount. */
+function useNoIndex() {
+  useEffect(() => {
+    let meta = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    const before = meta?.getAttribute("content") ?? null;
+    const created = !meta;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "robots";
+      document.head.appendChild(meta);
     }
-  />
-);
+    meta.content = "noindex";
+    return () => {
+      if (created) meta.remove();
+      else if (before === null) meta.removeAttribute("content");
+      else meta.content = before;
+    };
+  }, []);
+}
+
+/** An address the app does not have (the catch-all route, and the router's notFoundComponent). */
+export const RouteNotFound: React.FC = () => {
+  useNoIndex();
+  return (
+    <StateScreen
+      kind="notfound"
+      sub="Manchester Piti"
+      ghost="404"
+      title="Fuera de juego"
+      body="Esta jugada no existe: el enlace se ha quedado en posición adelantada. Vuelve a ponerte en juego desde el inicio o mira los partidos."
+      action={
+        <>
+          <Link className="sp-btn" to="/">
+            Ir al inicio
+          </Link>
+          <Link className="sp-btn ghost" to="/partidos">
+            Ver los partidos
+          </Link>
+        </>
+      }
+    />
+  );
+};
