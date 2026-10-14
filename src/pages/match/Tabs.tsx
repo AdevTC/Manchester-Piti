@@ -294,7 +294,8 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
   // where they stand: the acta's positions once played; before it, the official board's (members)
   const preActa = !done && !live;
   const officialBoard = preActa && seven.official ? board : null;
-  const system = done ? match.system : preActa ? board?.system : null;
+  // (before the acta, only over the official board's own drawing: never over the orientative 1-3-2-1)
+  const system = done ? match.system : officialBoard ? officialBoard.system : null;
   const layout = campoLayout({ field, ledger: done ? match.ledger : null, system, codes: officialBoard?.codes ?? null });
   const systemChip = systemText(system);
   const placed = layout.source !== "orientative";
@@ -347,7 +348,9 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
           {layout.dots.map((d) => {
             const stats = playerLine(d.id, ledger, match.events);
             const entry = d.sub ? match.ledger?.[d.id]?.exchanges?.find((x) => x.direction === "in") : undefined;
-            const where = d.code ? `, ${d.sub ? `entró${entry ? ` en el ${exchangeMinute(match.events, d.id, entry)}′` : ""} y jugó` : "jugó"} de ${POSITIONS[d.code].name.toLocaleLowerCase("es")}${d.estimated ? " (estimado por su preferida)" : ""}` : "";
+            // (the position he played — or, before the acta, his slot on the board — never where the dot was nudged to)
+            const pos = d.code ? POSITIONS[d.code].name.toLocaleLowerCase("es") : "";
+            const where = !d.code ? "" : preActa ? `, en la pizarra: ${pos}` : `, ${d.sub ? `entró${entry ? ` en el ${exchangeMinute(match.events, d.id, entry)}′` : ""} y jugó` : "jugó"} de ${pos}${d.estimated ? " (estimado por su preferida)" : ""}`;
             return (
               <button key={d.id} type="button" className={`fc-pl${d.sub ? " sub" : ""}`} style={{ left: `${d.x}%`, top: `${d.y}%` }} aria-pressed={pick === d.id} onClick={() => setSel(d.id)} aria-label={`${nameOf(d.id)}, dorsal ${numOf(d.id)}${where}, ${stats.goals} goles, ${stats.assists} asistencias, ${stats.yellowCards} amarillas, ${stats.redCards} rojas`}>
                 <span className="fc-number">{numOf(d.id)}</span>

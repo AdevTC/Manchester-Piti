@@ -214,7 +214,20 @@ it("before the acta, a member sees the official board's system and its slots; a 
   rerender(<CampoTab match={match} players={squad} nameOf={nameOf} live={false} official={["a", "b"]} board={{ system: "3-2-1", codes: { a: "POR", b: "LI" } }} />);
   expect(screen.getByText("Siete oficial de la pizarra")).toBeInTheDocument();
   expect(container.querySelector(".fc-sys")).toHaveTextContent("Sistema 3-2-1 · Línea de 3");
-  const b = dotOf(container, /^B, dorsal 2, jugó de lateral izquierdo,/);
+  // (not played yet: his slot on the board, never «jugó de»)
+  const b = dotOf(container, /^B, dorsal 2, en la pizarra: lateral izquierdo,/);
   expect([b.style.left, b.style.top]).toEqual(["21.8%", "66.9%"]);
   expect(container.querySelector(".fc-note")?.textContent).not.toMatch(/orientativas/);
+  expect(within(pitchOf(container)).queryByRole("button", { name: /jugó/ })).toBeNull();
+  // a member with a board but no official seven drawn: no system chip over the orientative 1-3-2-1
+  rerender(<CampoTab match={match} players={squad} nameOf={nameOf} live={false} official={null} board={{ system: "3-2-1", codes: {} }} />);
+  expect(container.querySelector(".fc-sys")).toBeNull();
+  expect(container.querySelector(".fc-note")).toHaveTextContent(/^Posiciones orientativas\./);
+});
+
+it("after the acta, a starter without a code: «Algunas posiciones, orientativas», never «de la pizarra oficial»", () => {
+  const match = played({ system: "2-3-1" }, { a: ledgerRow({ POR: 50 }), b: ledgerRow(undefined) });
+  render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} />);
+  expect(screen.getByText("Algunas posiciones, orientativas")).toBeInTheDocument();
+  expect(screen.queryByText("Posiciones de la pizarra oficial")).toBeNull();
 });

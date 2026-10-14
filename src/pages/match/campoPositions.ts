@@ -22,8 +22,9 @@ export interface CampoDot {
   estimated: boolean;
 }
 
-/** Where the codes come from: the official board, the preferidas, both, or none (orientative). */
-export type CampoSource = "board" | "estimated" | "mixed" | "orientative";
+/** Where the codes come from: the official board, the preferidas, both, none (orientative), or only some
+ *  starters have one (partial: the others stand on a free spot or their orientative place). */
+export type CampoSource = "board" | "estimated" | "mixed" | "partial" | "orientative";
 
 export interface CampoLayout {
   dots: CampoDot[];
@@ -34,6 +35,7 @@ export const SOURCE_TEXT: Record<CampoSource, string> = {
   board: "Posiciones de la pizarra oficial",
   estimated: "Posiciones estimadas por su preferida",
   mixed: "Posiciones de la pizarra oficial; algunas, estimadas por su preferida",
+  partial: "Algunas posiciones, orientativas",
   orientative: "Posiciones orientativas",
 };
 
@@ -208,6 +210,7 @@ export function campoLayout({ field, ledger, system, codes }: CampoInput): Campo
 
   const coded = placed.filter((d) => d.code);
   const est = coded.filter((d) => d.estimated).length;
-  const source: CampoSource = est === 0 ? "board" : est === coded.length ? "estimated" : "mixed";
+  // («de la pizarra oficial» only when every starter drawn has his code)
+  const source: CampoSource = uncoded.length ? "partial" : est === 0 ? "board" : est === coded.length ? "estimated" : "mixed";
   return { dots: placed, source };
 }

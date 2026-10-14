@@ -133,10 +133,11 @@ describe("campoLayout", () => {
     ]);
   });
 
-  it("a starter without a code takes the spot the system left free", () => {
+  it("a starter without a code takes the spot the system left free; the copy says some are orientative", () => {
     const ledger = { ...clasico(), e: row(undefined) };
     const { dots, source } = campoLayout({ field: SEVEN, ledger, system: "2-3-1" });
-    expect(source).toBe("board");
+    expect(source).toBe("partial");
+    expect(SOURCE_TEXT.partial).toBe("Algunas posiciones, orientativas");
     expect(at(dots, "e").code).toBeNull();
     expect(xy(at(dots, "e"))).toEqual(toPitch(83, 49));
   });
