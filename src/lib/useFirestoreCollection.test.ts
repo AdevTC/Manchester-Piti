@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createElement, type ReactNode } from "react";
+import { act, renderHook } from "@testing-library/react";
 import type { QuerySnapshot, Query } from "firebase/firestore";
-import type { QueryClient } from "@tanstack/react-query";
-import { mapSnapshotDocs, handleSnapshotError, subscribeShared, _resetSharedSubsForTesting, KEEP_WARM_MS } from "./useFirestoreCollection";
+import { QueryClient as RealQueryClient, QueryClientProvider, type QueryClient } from "@tanstack/react-query";
+import { mapSnapshotDocs, handleSnapshotError, subscribeShared, useFirestoreCollection, _resetSharedSubsForTesting, KEEP_WARM_MS } from "./useFirestoreCollection";
+import { LISTENER_RETRY_MS, _resetSnapshotMetaForTesting, getSnapshotMeta, useSyncStatus } from "./syncStatus";
 
 // onSnapshot is mocked so subscribeShared can be exercised without a live
 // Firestore: each call returns a distinct unsubscribe spy we can assert on.
@@ -34,12 +37,25 @@ describe("mapSnapshotDocs", () => {
 });
 
 describe("handleSnapshotError", () => {
-  it("llama a setQueryData con la key y un array vacío", () => {
-    const key = ["seasons"] as const;
-    const fakeQc = { setQueryData: vi.fn() } as unknown as Pick<QueryClient, "setQueryData">;
-    handleSnapshotError(fakeQc, key, new Error("Firestore error"));
-    expect(fakeQc.setQueryData).toHaveBeenCalledOnce();
-    expect(fakeQc.setQueryData).toHaveBeenCalledWith(key, []);
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("sin datos previos deja un array vacío (isPending termina)", () => {
+    const qc = new RealQueryClient();
+    handleSnapshotError(qc, ["seasons"], new Error("Firestore error"));
+    expect(qc.getQueryData(["seasons"])).toEqual([]);
+  });
+
+  it("con datos previos los conserva: un error no se lee como «no hay datos»", () => {
+    const qc = new RealQueryClient();
+    const last = [{ id: "s1" }];
+    qc.setQueryData(["seasons"], last);
+    handleSnapshotError(qc, ["seasons"], new Error("Firestore error"));
+    expect(qc.getQueryData(["seasons"])).toBe(last);
   });
 });
 
@@ -112,5 +128,223 @@ describe("subscribeShared", () => {
     const b = subscribeShared(fakeQc, ["users"], q, map);
     expect(onSnapshotMock).toHaveBeenCalledTimes(2);
     b();
+  });
+});
+
+// ---------- metadata, sync status and recovery (Bloque 3 · L2 / M2)
+type Next = (snap: unknown) => void;
+type Fail = (err: unknown) => void;
+interface FakeDoc { id: string; data: () => unknown }
+/** A query snapshot as the registry reads it: docs, document changes and metadata. */
+const snapOf = (docs: FakeDoc[], opts: { changes?: number; fromCache?: boolean; pending?: boolean } = {}) => ({
+  docs,
+  docChanges: () => Array.from({ length: opts.changes ?? docs.length }),
+  metadata: { fromCache: opts.fromCache ?? false, hasPendingWrites: opts.pending ?? false },
+});
+const docOf = (id: string, n: number): FakeDoc => ({ id, data: () => ({ n }) });
+/** The callbacks of the n-th onSnapshot call (default: the last one). */
+const listenerAt = (i = onSnapshotMock.mock.calls.length - 1) => {
+  const call = onSnapshotMock.mock.calls[i] as [Query, { includeMetadataChanges?: boolean }, Next, Fail];
+  return { options: call[1], next: call[2], fail: call[3] };
+};
+const MATCHES_META = JSON.stringify(["matches"]);
+
+describe("subscribeShared · metadatos y recuperación", () => {
+  const q = {} as Query;
+  const map = (id: string, data: unknown) => ({ id, ...(data as object) });
+  let qc: RealQueryClient;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-14T18:00:00Z"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    _resetSharedSubsForTesting();
+    _resetSnapshotMetaForTesting();
+    onSnapshotMock.mockReset();
+    onSnapshotMock.mockImplementation(() => vi.fn());
+    qc = new RealQueryClient();
+  });
+  afterEach(() => {
+    _resetSharedSubsForTesting();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("pide los cambios de metadatos y los guarda aparte, sin tocar los datos si no cambia ningún documento", () => {
+    const release = subscribeShared(qc, ["matches"], q, map);
+    const { options, next } = listenerAt();
+    expect(options).toEqual({ includeMetadataChanges: true });
+
+    act(() => next(snapOf([docOf("m1", 1)], { fromCache: true })));
+    const first = qc.getQueryData(["matches"]);
+    expect(first).toEqual([{ id: "m1", n: 1 }]);
+    expect(getSnapshotMeta(MATCHES_META)).toEqual({ fromCache: true, hasPendingWrites: false, since: null });
+
+    // the server confirms the same data: metadata only
+    act(() => next(snapOf([docOf("m1", 1)], { changes: 0, fromCache: false })));
+    expect(qc.getQueryData(["matches"])).toBe(first);
+    expect(getSnapshotMeta(MATCHES_META)).toEqual({ fromCache: false, hasPendingWrites: false, since: Date.now() });
+
+    // a local write waiting for the server, then its acknowledgement
+    act(() => next(snapOf([docOf("m1", 2)], { changes: 1, pending: true })));
+    expect(qc.getQueryData(["matches"])).toEqual([{ id: "m1", n: 2 }]);
+    expect(getSnapshotMeta(MATCHES_META)?.hasPendingWrites).toBe(true);
+    const afterWrite = qc.getQueryData(["matches"]);
+    act(() => next(snapOf([docOf("m1", 2)], { changes: 0 })));
+    expect(qc.getQueryData(["matches"])).toBe(afterWrite);
+    expect(getSnapshotMeta(MATCHES_META)?.hasPendingWrites).toBe(false);
+    release();
+  });
+
+  it("la primera instantánea siempre escribe los datos, aunque la colección esté vacía", () => {
+    const release = subscribeShared(qc, ["players"], q, map);
+    act(() => listenerAt().next(snapOf([], { changes: 0 })));
+    expect(qc.getQueryData(["players"])).toEqual([]);
+    release();
+  });
+
+  it("tras un error conserva los últimos datos, expone el error y reintenta una vez si quedan lectores", () => {
+    const release = subscribeShared(qc, ["matches"], q, map);
+    act(() => listenerAt().next(snapOf([docOf("m1", 1)])));
+    const last = qc.getQueryData(["matches"]);
+    const err = new Error("unavailable");
+
+    act(() => listenerAt().fail(err));
+    expect(qc.getQueryData(["matches"])).toBe(last);
+    expect(qc.getQueryData(["matches", "__error"])).toBe(err);
+    expect(getSnapshotMeta(MATCHES_META)?.fromCache).toBe(true);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(LISTENER_RETRY_MS);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+
+    // the retry fails too: no more automatic retries (no hot loop)
+    act(() => listenerAt().fail(err));
+    vi.advanceTimersByTime(LISTENER_RETRY_MS * 10);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    expect(qc.getQueryData(["matches"])).toBe(last);
+    release();
+  });
+
+  it("un lector nuevo reabre al momento una escucha muerta, y una buena instantánea limpia el error", () => {
+    const a = subscribeShared(qc, ["matches"], q, map);
+    act(() => listenerAt().next(snapOf([docOf("m1", 1)])));
+    act(() => listenerAt().fail(new Error("unavailable")));
+    const b = subscribeShared(qc, ["matches"], q, map);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    // the pending retry was absorbed by the reopen
+    vi.advanceTimersByTime(LISTENER_RETRY_MS);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+
+    act(() => listenerAt().next(snapOf([docOf("m1", 3)])));
+    expect(qc.getQueryData(["matches", "__error"])).toBeNull();
+    expect(qc.getQueryData(["matches"])).toEqual([{ id: "m1", n: 3 }]);
+    a();
+    b();
+  });
+
+  it("si nadie lee cuando llega el error, suelta la entrada: el siguiente lector se suscribe de nuevo", () => {
+    const unsub = vi.fn();
+    onSnapshotMock.mockImplementationOnce(() => unsub);
+    const a = subscribeShared(qc, ["players"], q, map);
+    act(() => listenerAt().next(snapOf([docOf("p1", 1)])));
+    a(); // kept warm, nobody reading
+    act(() => listenerAt().fail(new Error("permission-denied")));
+    vi.advanceTimersByTime(KEEP_WARM_MS);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(1); // no retry without readers
+    expect(unsub).not.toHaveBeenCalled(); // the dead listener is not closed again
+    expect(qc.getQueryData(["players"])).toEqual([{ id: "p1", n: 1 }]);
+
+    const b = subscribeShared(qc, ["players"], q, map);
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+    b();
+  });
+
+  it("una escucha que se cierra por inactividad deja de contar como fresca (conserva «since»)", () => {
+    const a = subscribeShared(qc, ["matches"], q, map);
+    act(() => listenerAt().next(snapOf([docOf("m1", 1)])));
+    const since = Date.now();
+    a();
+    vi.advanceTimersByTime(KEEP_WARM_MS);
+    expect(getSnapshotMeta(MATCHES_META)).toEqual({ fromCache: true, hasPendingWrites: false, since });
+  });
+});
+
+describe("useFirestoreCollection + useSyncStatus", () => {
+  const q = {} as Query;
+  const map = (id: string, data: unknown) => ({ id, ...(data as object) });
+  // TanStack batches its notifications on a 0 ms timer (fake here): emit, then let them out.
+  const flush = (fn: () => void) =>
+    act(() => {
+      fn();
+      vi.advanceTimersByTime(0);
+    });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-14T18:00:00Z"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    _resetSharedSubsForTesting();
+    _resetSnapshotMetaForTesting();
+    onSnapshotMock.mockReset();
+    onSnapshotMock.mockImplementation(() => vi.fn());
+  });
+  afterEach(() => {
+    _resetSharedSubsForTesting();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("un cambio solo de metadatos no vuelve a pintar a quien lee los datos, pero sí el estado de sincronía", () => {
+    const qc = new RealQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: qc }, children);
+    let dataRenders = 0;
+    const data = renderHook(
+      () => {
+        dataRenders += 1;
+        return useFirestoreCollection(["matches"], q, map);
+      },
+      { wrapper },
+    );
+    const status = renderHook(() => useSyncStatus());
+    expect(status.result.current).toEqual({ online: true, fresh: false, since: null });
+
+    flush(() => listenerAt().next(snapOf([docOf("m1", 1)], { fromCache: true })));
+    expect(data.result.current.data).toEqual([{ id: "m1", n: 1 }]);
+    expect(status.result.current).toEqual({ online: true, fresh: false, since: null });
+    const rendersAfterData = dataRenders;
+    const before = data.result.current.data;
+
+    flush(() => listenerAt().next(snapOf([docOf("m1", 1)], { changes: 0, fromCache: false })));
+    expect(dataRenders).toBe(rendersAfterData);
+    expect(data.result.current.data).toBe(before);
+    expect(status.result.current).toEqual({ online: true, fresh: true, since: Date.now() });
+
+    // the connection drops: Firestore says «from cache», the browser says offline
+    const syncedAt = Date.now();
+    vi.advanceTimersByTime(30_000);
+    flush(() => listenerAt().next(snapOf([docOf("m1", 1)], { changes: 0, fromCache: true })));
+    const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    act(() => {
+      window.dispatchEvent(new Event("offline"));
+    });
+    expect(status.result.current).toEqual({ online: false, fresh: false, since: syncedAt });
+    expect(dataRenders).toBe(rendersAfterData);
+
+    onLine.mockReturnValue(true);
+    act(() => {
+      window.dispatchEvent(new Event("online"));
+    });
+    flush(() => listenerAt().next(snapOf([docOf("m1", 1)], { changes: 0, fromCache: false })));
+    expect(status.result.current).toEqual({ online: true, fresh: true, since: Date.now() });
+
+    // an error keeps the data on screen and returns it in `error`
+    flush(() => listenerAt().fail(new Error("unavailable")));
+    expect(data.result.current.data).toBe(before);
+    expect(data.result.current.error).toBeInstanceOf(Error);
+    expect(status.result.current.fresh).toBe(false);
+
+    data.unmount();
+    status.unmount();
   });
 });
