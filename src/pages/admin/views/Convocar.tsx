@@ -15,7 +15,7 @@ import { useMatchAnswers } from "../convocar/live";
 import { useReminders } from "../convocar/reminders";
 import { RemindersToggle } from "../convocar/RemindersToggle";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
-import { place, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
+import { place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
 import { useConvocatoria } from "../data/useConvocatoria";
 import { Peg, PegRail, ShirtBack } from "../kit";
 import { useAdmin, useAdminGo } from "../shell/context";
@@ -249,7 +249,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
                 shirtName={p.id ? p.name : ""}
                 label={p.id ? p.name : "Libre"}
                 code={p.id ? posOf(p.id).code : undefined}
-                sub={p.id ? (rsvp.get(p.id) === "si" ? "Viene" : p.sub) : "toca «Siete»"}
+                sub={p.id ? (rsvp.get(p.id) === "si" ? RSVP_LABEL.si : p.sub) : "toca «Siete»"}
                 subTone={p.duda ? "duda" : ""}
                 size={80}
                 big

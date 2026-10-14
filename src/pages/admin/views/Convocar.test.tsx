@@ -82,6 +82,18 @@ describe("Convocar", () => {
     expect(within(sv).getByRole("button", { name: /^TELLO en el siete/ }).querySelector(".pc")).toHaveTextContent("DEF");
   });
 
+  it("a confirmed peg reads «Viene» (RSVP_LABEL.si); a duda or an unanswered one keeps its own label", async () => {
+    setAdminData(adminFixture({ published: withJ8({ starters: ["evans", "illescas", "tello", "eguzquiza", "almachi", "fer", "erik"], bench: [] }) }));
+    mountAdmin("/admin/convocar", { convocar: Convocar });
+    const sv = await screen.findByRole("region", { name: "El siete · J3 · MAD SKY" });
+    const sub = (re: RegExp) => within(sv).getByRole("button", { name: re }).querySelector(".rv");
+    expect(sub(/^EVANS en el siete/)).toHaveTextContent(/^Viene$/);
+    expect(sub(/^ERIK en el siete/)).toHaveTextContent(/^Viene$/);
+    expect(sub(/^ALMACHI en el siete/)).toHaveTextContent(/^Duda$/);
+    expect(sub(/^ALMACHI en el siete/)).toHaveClass("duda");
+    expect(sub(/^FER en el siete/)).toHaveTextContent(/^Sin responder$/);
+  });
+
   it("each tap is written at once: «Siete» hangs him (Deshacer puts it back), «Ya hay siete», a front peg goes down, the banquillo's shirt comes off", async () => {
     const user = userEvent.setup();
     mountAdmin("/admin/convocar", { convocar: Convocar });
