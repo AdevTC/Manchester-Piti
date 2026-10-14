@@ -13,8 +13,7 @@ import { useClock } from "../../hooks/useClock";
 import { useViewer } from "../../hooks/useViewer";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
-import { lastEvent, scoreOf, shownMinute } from "../../lib/partidos";
-import { opponentInitials } from "../../lib/clubAnalytics";
+import { eventLine, livePlay, scoreboardOf } from "../../lib/derived/scoreboard";
 import { PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import { goalMoment, islandAnnouncement, islandOf, voteMatch, type IslandState } from "../../lib/derived/island";
 import { syncChip } from "../../lib/derived/syncChip";
@@ -138,8 +137,7 @@ export function LiveIsland() {
 
 function StillPill({ state, onClose }: { state: Exclude<IslandState, { kind: "live" | "halftime" }>; onClose: () => void }) {
   const m = state.match;
-  const rival = m.rival ?? "Rival";
-  const ini = m.rivalInitials || opponentInitials(rival);
+  const { rival, initials: ini, gf, ga } = scoreboardOf(m);
   if (state.kind === "pending")
     return (
       <Link className="pt-isle wait" to="/matches/$matchId" params={{ matchId: m.id }} aria-label={`Manchester Piti contra ${rival}: ${PENDING_WHISTLE.toLowerCase()}. Abrir el partido`}>
@@ -151,7 +149,6 @@ function StillPill({ state, onClose }: { state: Exclude<IslandState, { kind: "li
       </Link>
     );
   if (state.kind === "final") {
-    const { gf, ga } = scoreOf(m);
     const after = state.published ? "ya está el acta" : "acta pendiente";
     return (
       <Link className="pt-isle fin" to="/matches/$matchId" params={{ matchId: m.id }} aria-label={`Final: Manchester Piti ${gf}, ${rival} ${ga}, ${after}. Abrir el partido`}>
@@ -199,12 +196,9 @@ interface LivePillProps {
 function LivePill({ state, open, setOpen, goal, burst, flip, nameOf, now, stale, goalKey }: LivePillProps) {
   const live = state.match;
   const half = state.kind === "halftime";
-  const { gf, ga } = scoreOf(live);
-  const rival = live.rival ?? "Rival";
-  const ini = live.rivalInitials || opponentInitials(rival);
-  const minute = shownMinute(live, now);
-  const last = lastEvent(live.events, nameOf, rival);
-  const pct = `${Math.min(100, ((minute ?? 0) / (live.duration ?? 50)) * 100)}%`;
+  const { rival, initials: ini, gf, ga } = scoreboardOf(live);
+  const { minute, last, progress } = livePlay(live, now, nameOf);
+  const pct = `${progress}%`;
   const label = half ? `Descanso: Manchester Piti ${gf}, ${rival} ${ga}` : `En directo: Manchester Piti ${gf}, ${rival} ${ga}, minuto ${minute ?? 0}`;
   const cls = ["pt-isle", half && "half", stale && "stale", goal && "goal", goal && !goal.ours && "them"].filter(Boolean).join(" ");
 
@@ -235,12 +229,12 @@ function LivePill({ state, open, setOpen, goal, burst, flip, nameOf, now, stale,
             ) : half ? (
               <>
                 <Icon name="pause" size={13} />
-                Descanso{last ? ` · ${last.who} · ${last.label}` : ""}
+                Descanso{last ? ` · ${eventLine(last)}` : ""}
               </>
             ) : (
               <>
                 <span className="pt-dot" />
-                {minute}′{last ? ` · ${last.who} · ${last.label}` : " · en juego"}
+                {minute}′{last ? ` · ${eventLine(last)}` : " · en juego"}
               </>
             )}
           </span>

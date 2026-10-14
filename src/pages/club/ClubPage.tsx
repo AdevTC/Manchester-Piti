@@ -8,7 +8,8 @@ import { useClubContent } from "../../lib/clubContent";
 import { formatDate, nextFixture, playerForSeason, playerName, useClubData } from "../../lib/clubData";
 import { clubMedals, playerLines, seasonPulse, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
-import { classifieds, extraTrophies, historyTrain, mapsUrl, mailto, sponsorWall, squadNumbers } from "../../lib/club";
+import { classifieds, extraTrophies, historyTrain, mailto, sponsorWall, squadNumbers } from "../../lib/club";
+import { KIT_LABEL, mapsUrl, siteOrigin } from "../../lib/derived/venue";
 import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
@@ -29,10 +30,9 @@ import "../../styles/st-base.css";
 import "../../styles/stats.css";
 import "../../styles/club-celeste.css";
 
-const origin = () => (typeof location === "undefined" ? "" : location.origin);
 const KITS = {
-  home: { label: "1ª equipación", note: "Celeste de la casa, con el oro en el cuello y el bajo.", swatches: [["Celeste", "#8AC8F5"], ["Tinta", "#051330"], ["Oro", "#CFA862"]] },
-  away: { label: "2ª equipación", note: "Negra de fuera, con la franja roja en diagonal.", swatches: [["Noche", "#1D1D22"], ["Tiza", "#F5F5F5"], ["Rojo", "#D6161F"]] },
+  home: { label: KIT_LABEL.home, note: "Celeste de la casa, con el oro en el cuello y el bajo.", swatches: [["Celeste", "#8AC8F5"], ["Tinta", "#051330"], ["Oro", "#CFA862"]] },
+  away: { label: KIT_LABEL.away, note: "Negra de fuera, con la franja roja en diagonal.", swatches: [["Noche", "#1D1D22"], ["Tiza", "#F5F5F5"], ["Rojo", "#D6161F"]] },
 } as const;
 const MEDAL_ICON: Record<string, IconName> = { debut: "shirt", goal: "ball", win: "trophy", pichichi: "crown", assist: "send", record: "flame", hat: "star", clean: "shield" };
 const CHAPTERS = [
@@ -98,7 +98,7 @@ export function ClubPage() {
   }, [photo]);
 
   const share = async () => {
-    const url = `${origin()}/club`;
+    const url = `${siteOrigin()}/club`;
     try {
       if (typeof navigator.share === "function") await navigator.share({ title: "Manchester Piti · El club", url });
       else {
@@ -393,7 +393,7 @@ export function ClubPage() {
                   Cómo llegar ↗
                 </a>
               )}
-              <AddToCalendar className="hm-ghostbtn st-sm" label="Calendario del club" feed={`${origin()}/calendario.ics`} />
+              <AddToCalendar className="hm-ghostbtn st-sm" label="Calendario del club" feed={`${siteOrigin()}/calendario.ics`} />
             </div>
             <div className="cl-next">
               <span className="st-mono">Próximo partido</span>
