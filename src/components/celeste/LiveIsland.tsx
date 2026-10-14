@@ -11,6 +11,7 @@ import { opponentInitials } from "../../lib/clubAnalytics";
 import { kickoffState, PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import { Flip } from "./Flip";
 import { useGoalCelebration } from "./useGoalCelebration";
+import { useServerTimeSync } from "../../hooks/useServerTimeSync";
 import { Icon } from "./icons";
 import "../../styles/partidos.css";
 
@@ -24,6 +25,8 @@ export function LiveIsland() {
   const waiting = live ? undefined : matches.filter((m) => kickoffState(m, now) === "pending_whistle").sort((a, b) => dateMillis(a.date) - dateMillis(b.date))[0];
   const goalShow = useGoalCelebration(live, now);
   const shownMatch = live ?? waiting;
+  // (the island is on every public page: while it has a match, the phone checks the server's clock)
+  useServerTimeSync(!!shownMatch, now);
   const shown = !!shownMatch && pathname !== `/matches/${shownMatch.id}`;
   // The heroes make room for the pill while it is on screen (styles: html[data-isle]).
   useEffect(() => {

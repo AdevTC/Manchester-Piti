@@ -4,6 +4,7 @@ import {
   dateHeaderOffset,
   KEEP,
   pickOffset,
+  MAX_SAMPLE_OFFSET,
   recordDateHeader,
   recordServerTime,
   resetServerTime,
@@ -11,9 +12,11 @@ import {
   serverNow,
   serverOffset,
   subscribeServerTime,
+  SYNC_EVERY,
+  syncServerTime,
   withServerTime,
 } from "./serverTime";
-import { freshTiming } from "./bundle";
+import { freshTiming, noteServerDate } from "./bundle";
 
 vi.mock("../firebase", () => ({ db: {} }));
 vi.mock("firebase/firestore", () => ({ loadBundle: vi.fn() }));
@@ -34,7 +37,21 @@ describe("the offset maths", () => {
     expect(roundTripSample(Number.NaN, 1000, 1400)).toBeNull();
     expect(roundTripSample(5000, 1400, 1000)).toBeNull();
     expect(roundTripSample(5000, 1000, 60_000)).toBeNull();
-    expect(roundTripSample(1000 + 13 * 3_600_000, 1000, 1000)).toBeNull();
+    expect(roundTripSample(1000 + MAX_SAMPLE_OFFSET + 1, 1000, 1000)).toBeNull();
+  });
+
+  it("a round trip measures the server right now: a phone set days wrong is corrected (the header's 12 h clamp is not for it)", () => {
+    expect(roundTripSample(1000 + 3 * 86_400_000, 1000, 1000)).toEqual({ offset: 3 * 86_400_000, rtt: 0 });
+    const sent = Date.parse("2026-10-14T18:00:00.000Z");
+    expect(dateHeaderOffset(new Date(sent + 13 * 3_600_000).toUTCString(), sent, sent)).toBeNull();
+  });
+
+  it("the round trip comes from the monotonic clock when given; the midpoint stays on the wall clock", () => {
+    // the wall clock jumped 5 s during the call: the monotonic round trip (300 ms) is the true one
+    expect(roundTripSample(10_000, 1000, 6000, 300)).toEqual({ offset: 6_500, rtt: 300 });
+    // a broken monotonic reading falls back to the wall clock
+    expect(roundTripSample(10_000, 1000, 1400, Number.NaN)).toEqual({ offset: 8_800, rtt: 400 });
+    expect(roundTripSample(10_000, 1000, 1400, -5)).toEqual({ offset: 8_800, rtt: 400 });
   });
 
   it("the sample with the shortest round trip wins (the newest on a tie); the header only without any", () => {
@@ -133,7 +150,90 @@ describe("the shared offset", () => {
   });
 });
 
+describe("/api/now", () => {
+  const answer = (body: unknown, type = "application/json; charset=utf-8", ok = true) =>
+    ({ ok, headers: new Headers({ "content-type": type }), json: async () => body }) as unknown as Response;
+
+  it("one ask records a sample; the next ones wait SYNC_EVERY (and survive a reload)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const fetchMock = vi.fn(async () => {
+      vi.setSystemTime(1_000_200);
+      return answer({ now: 1_000_100 + 42_000 });
+    });
+    await expect(syncServerTime(fetchMock as unknown as typeof fetch)).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith("/api/now", expect.objectContaining({ cache: "no-store" }));
+    expect(serverOffset()).toBe(42_000);
+    await expect(syncServerTime(fetchMock as unknown as typeof fetch)).resolves.toBe(false);
+    vi.setSystemTime(1_000_000 + SYNC_EVERY - 1_000);
+    vi.resetModules();
+    const reloaded = await import("./serverTime");
+    await expect(reloaded.syncServerTime(fetchMock as unknown as typeof fetch)).resolves.toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(1_000_000 + SYNC_EVERY + 1_000);
+    await expect(syncServerTime(fetchMock as unknown as typeof fetch)).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("never two at once", async () => {
+    let release!: (r: Response) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>((res) => { release = res; }));
+    const first = syncServerTime(fetchMock as unknown as typeof fetch);
+    await expect(syncServerTime(fetchMock as unknown as typeof fetch)).resolves.toBe(false);
+    release(answer({ now: Date.now() }));
+    await expect(first).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("offline, an error, the SPA's HTML (dev server), a body without a number: no sample, and it waits for the next window", async () => {
+    const cases = [
+      vi.fn(async () => Promise.reject(new TypeError("offline"))),
+      vi.fn(async () => answer({ now: 1 }, "application/json", false)),
+      vi.fn(async () => answer("<!doctype html>", "text/html")),
+      vi.fn(async () => answer({ now: "soon" })),
+    ];
+    for (const f of cases) {
+      resetServerTime();
+      await expect(syncServerTime(f as unknown as typeof fetch)).resolves.toBe(false);
+      expect(serverOffset()).toBe(0);
+      await syncServerTime(f as unknown as typeof fetch);
+      expect(f).toHaveBeenCalledTimes(1);
+    }
+  });
+});
+
 describe("the bundle's Date header", () => {
+  const timing = (e: Partial<PerformanceResourceTiming> | null) => {
+    vi.spyOn(performance, "getEntriesByName").mockReturnValue(e ? [{ transferSize: 5_000, workerStart: 0, requestStart: 100, responseStart: 180, ...e } as PerformanceEntry] : []);
+  };
+  const res = (headers: Record<string, string>) => new Response("x", { headers });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("a fresh answer from the network gives the header estimate", () => {
+    timing({});
+    const at = performance.timeOrigin + 140;
+    noteServerDate(res({ date: new Date(at + 60_000).toUTCString() }));
+    // whole seconds: within a second of the true minute ahead
+    expect(Math.abs(serverOffset() - 60_000)).toBeLessThanOrEqual(1_000);
+    expect(serverOffset()).not.toBe(0);
+  });
+
+  it("a CDN copy (Age), a service worker or browser cache copy, or no timing: nothing recorded", () => {
+    const date = new Date(performance.timeOrigin + 600_000).toUTCString();
+    timing({});
+    noteServerDate(res({ date, age: "120" }));
+    expect(serverOffset()).toBe(0);
+    timing({ workerStart: 50 });
+    noteServerDate(res({ date }));
+    expect(serverOffset()).toBe(0);
+    timing({ transferSize: 0 });
+    noteServerDate(res({ date }));
+    expect(serverOffset()).toBe(0);
+    timing(null);
+    noteServerDate(res({ date }));
+    expect(serverOffset()).toBe(0);
+  });
+
   const entry = { transferSize: 5_000, workerStart: 0, requestStart: 100, responseStart: 180 };
   it("only for an answer that came over the network just now", () => {
     expect(freshTiming(entry, 1_000)).toEqual({ sentAt: 1_100, receivedAt: 1_180 });

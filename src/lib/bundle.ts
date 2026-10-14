@@ -18,7 +18,8 @@ export function freshTiming(entry: Pick<PerformanceResourceTiming, "transferSize
   return { sentAt: origin + entry.requestStart, receivedAt: origin + entry.responseStart };
 }
 
-function noteServerDate(r: Response) {
+/** Records the Date header of a bundle answer that came fresh from the network (see freshTiming). */
+export function noteServerDate(r: Response) {
   try {
     if (Number(r.headers.get("age") ?? 0) > 0) return;
     const url = new URL(BUNDLE_URL, window.location.href).href;

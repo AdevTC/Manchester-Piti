@@ -17,6 +17,7 @@ import { cleanName, copyName, nameError, uniqueName } from "./boards";
 import { takersOf } from "./takers";
 import { normalize, withBench } from "./ops";
 import { deepTablero } from "./deeplink";
+import { serverNow } from "../../../lib/serverTime";
 
 export type SaveStatus = "draft" | "saving" | "saved" | "error" | "offline";
 
@@ -253,7 +254,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
         failing.current = false;
         retry.current.n = 0;
         setLocal((p) => (p && p.key === k && p.lineup === snapshot ? { ...p, dirty: false } : p));
-        setSaved({ key: k, status: "saved", at: Date.now() });
+        setSaved({ key: k, status: "saved", at: serverNow() });
       })
       .catch((err: unknown) => {
         if (inFlight.current === snapshot) inFlight.current = null;
@@ -367,7 +368,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
       const nid = await lineups.create(L, nm);
       setChoice({ season: seasonId, id: nid, fresh: true, keepKey: k0, name: nm });
       setLocal((p) => (p && p.key === k0 ? { ...p, dirty: p.lineup !== L } : p));
-      setSaved({ key: k0, status: "saved", at: Date.now() });
+      setSaved({ key: k0, status: "saved", at: serverNow() });
       return nid;
     } finally {
       creating.current = false;
@@ -389,7 +390,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
       .then((nid) => {
         setChoice({ season: seasonId, id: nid, fresh: true, keepKey: k0, name: nm });
         setLocal((p) => (p && p.key === k0 ? { ...p, dirty: p.lineup !== L } : p));
-        setSaved({ key: k0, status: "saved", at: Date.now() });
+        setSaved({ key: k0, status: "saved", at: serverNow() });
       })
       .catch((err: unknown) => {
         console.error("No se pudo crear el tablero", err);
@@ -468,7 +469,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
       try {
         const nid = await lineups.create(L, nm);
         setChoice({ season: seasonId, id: nid, fresh: true, keepKey: k0, name: nm });
-        setSaved({ key: k0, status: "saved", at: Date.now() });
+        setSaved({ key: k0, status: "saved", at: serverNow() });
       } finally {
         creating.current = false;
       }
