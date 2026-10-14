@@ -135,6 +135,68 @@ describe("MatchPage · the tab in the URL", () => {
   });
 });
 
+describe("MatchPage · the tabs with the keyboard (ARIA tabs pattern)", () => {
+  const tabIndexes = () => screen.getAllByRole("tab").map((t) => t.getAttribute("tabindex"));
+  const press = (key: string) => fireEvent.keyDown(screen.getByRole("tablist", { name: "Secciones del partido" }), { key });
+
+  it("roving tabindex: only the selected tab is in the Tab order; the panel is focusable and named by its tab", async () => {
+    open("/matches/j1?tab=pulso");
+    expect(await screen.findByText("pane:pulso")).toBeInTheDocument();
+    expect(tabIndexes()).toEqual(["-1", "-1", "0", "-1", "-1"]);
+    const panel = screen.getByRole("tabpanel", { name: "Pulso" });
+    expect(panel).toHaveAttribute("tabindex", "0");
+  });
+
+  it("→ and ← select the next / previous tab, wrap around, write ?tab= and take the focus along", async () => {
+    const router = open("/matches/j1?season=t1&tab=vestuario");
+    expect(await screen.findByText("pane:vestuario")).toBeInTheDocument();
+
+    press("ArrowRight");
+    expect(await screen.findByText("pane:estadisticas")).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({ season: "t1", tab: "estadisticas" });
+    expect(screen.getByRole("tab", { name: "Estadísticas" })).toHaveFocus();
+    expect(tabIndexes()).toEqual(["-1", "-1", "-1", "-1", "0"]);
+
+    // the last one wraps to the first (its clean URL)
+    press("ArrowRight");
+    expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({ season: "t1" });
+    expect(screen.getByRole("tab", { name: "Crónica" })).toHaveFocus();
+
+    // and back again from the first to the last
+    press("ArrowLeft");
+    expect(await screen.findByText("pane:estadisticas")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Estadísticas" })).toHaveFocus();
+
+    press("ArrowLeft");
+    expect(await screen.findByText("pane:vestuario")).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({ season: "t1", tab: "vestuario" });
+    expect(screen.getByRole("tab", { name: "Vestuario" })).toHaveFocus();
+  });
+
+  it("Inicio and Fin go to the ends; other keys do nothing", async () => {
+    const router = open("/matches/j1?tab=campo");
+    expect(await screen.findByText("pane:campo")).toBeInTheDocument();
+
+    press("End");
+    expect(await screen.findByText("pane:estadisticas")).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({ tab: "estadisticas" });
+    expect(screen.getByRole("tab", { name: "Estadísticas" })).toHaveFocus();
+
+    press("Home");
+    expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({});
+    expect(screen.getByRole("tab", { name: "Crónica" })).toHaveFocus();
+    expect(tabIndexes()).toEqual(["0", "-1", "-1", "-1", "-1"]);
+
+    const before = router.history.length;
+    press("ArrowDown");
+    press("Enter");
+    expect(router.history.length).toBe(before);
+    expect(selected()).toBe("Crónica");
+  });
+});
+
 describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
   /** `docs`: scope doc id ("t1__j1", "t1__temporada") → the board it names. */
   const as = (v: Partial<typeof who.viewer>, docs: Record<string, string> = {}) => {

@@ -10,7 +10,7 @@ import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // Ficha de partido (Celeste): the stadium board on top (final score, live score with ¡GOL!, or the
 // countdown), then tabs — Crónica/Previa/Directo · Campo · Pulso · Vestuario. From the Design canvas
 // page "Partidos · elegida"; pure logic in lib/ficha.ts and lib/partidos.ts.
-import { useState, type ReactNode } from "react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { isCompleted, matchPhase, nameFor, useClubData, dateMillis, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
@@ -37,7 +37,8 @@ import { shareClubPage } from "../../lib/share";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
 import { downloadMatchPoster } from "../../lib/matchPoster";
 import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
-import { matchTabAt, matchTabIndex } from "../../lib/matchTabs";
+import { MATCH_TABS, matchTabAt, matchTabIndex } from "../../lib/matchTabs";
+import { tabForKey } from "../../lib/tabKeys";
 import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import "../../styles/home.css";
 import "../../styles/partidos.css";
@@ -95,6 +96,15 @@ export function MatchPage() {
   const navigate = useNavigate();
   const setTab = (i: number) => {
     if (i !== active) void navigate({ to: ".", search: (prev) => ({ ...prev, tab: matchTabAt(i) }), resetScroll: false });
+  };
+  // The ARIA tabs pattern: ←/→ wrap, Inicio/Fin to the ends; the key selects the tab (it is the URL's
+  // tab) and the focus goes with it (roving tabindex: only the selected tab is in the Tab order).
+  const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const n = tabForKey(e.key, active, MATCH_TABS.map((_, i) => i));
+    if (n === null) return;
+    e.preventDefault();
+    setTab(n);
+    document.getElementById(`fc-tab-${n}`)?.focus();
   };
   const { matches, players, loading, error } = useClubData();
   const now = useMatchClock(matches);
@@ -381,16 +391,16 @@ export function MatchPage() {
         </div>
       </section>
 
-      <div className="fc-tabs" role="tablist" aria-label="Secciones del partido">
+      <div className="fc-tabs" role="tablist" aria-label="Secciones del partido" onKeyDown={onTabKey}>
         <span className="ind" style={{ transform: `translateX(${active * 100}%)` }} aria-hidden="true" />
         {[firstTab, "Campo", "Pulso", "Vestuario", "Estadísticas"].map((label, i) => (
-          <button key={label} type="button" role="tab" id={`fc-tab-${i}`} aria-selected={active === i} aria-controls={`fc-pane-${i}`} onClick={() => setTab(i)}>
+          <button key={label} type="button" role="tab" id={`fc-tab-${i}`} aria-selected={active === i} aria-controls={`fc-pane-${i}`} tabIndex={active === i ? 0 : -1} onClick={() => setTab(i)}>
             {label}
           </button>
         ))}
       </div>
       {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
-      <div className={`fc-pane${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} key={active}>
+      <div className={`fc-pane${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
         {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} plan={rivalPlan} />)}
         {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialBoard?.seven ?? null} board={officialBoard} />}
         {active === 2 && <PulsoTab match={match} live={live} minute={minute} pending={pending} />}
