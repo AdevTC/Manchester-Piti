@@ -11,9 +11,6 @@ position:relative;overflow:hidden;font-size:15px;line-height:1.4;color:var(--ink
 [data-theme="light"] .vx.adm{--red:#c0392b;--amber:#8a5600;--panel:rgba(255,255,255,.72);--panel2:#fff;--pline:rgba(12,23,51,.12);--deep:#0c1733;--glass:rgba(42,115,173,.08);
 --wall:linear-gradient(180deg,#dbe8f5,#cbdcee);--wall-line:rgba(12,23,51,.05);--railbar:linear-gradient(180deg,#8fa9c8,#6a86aa);--pegdot:#4f6a90;--sheet:#f4f8fc;--pop:#ffffff;--scrim:rgba(12,23,51,.35);--stick:#e6eef7;background:#eef4fa}
 .vx.adm h1,.vx.adm h2,.vx.adm h3,.vx.adm p{margin:0}
-/* Headings without a face of their own read in the admin's text face (as «Ganchos delanteros» / «Banquillo» do), not in the web's condensed display
-   face that the club shell hands to every h1–h3 (zero specificity). Display headings (.ttl, .side h2, .fc h3…) set 'Anybody' themselves and win. */
-.adm :where(h2,h3,h4){font-family:inherit;font-weight:700;letter-spacing:0}
 :where(.vx.adm) button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
 .vx.adm input,.vx.adm textarea{font:inherit;color:var(--ink)}
 .vx.adm .ttl{font-family:'Anybody';font-weight:900;font-variation-settings:'wdth' 112;letter-spacing:-.01em;line-height:1}
@@ -31,7 +28,7 @@ position:relative;overflow:hidden;font-size:15px;line-height:1.4;color:var(--ink
 .vx.adm .btn.gold[disabled]{opacity:1;background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1.5px var(--pline)}
 .vx.adm .lnk{color:var(--accent);font-weight:600;display:inline-flex;align-items:center;gap:6px;min-height:40px}
 .adm .ved{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px;font-family:'Anybody';font-weight:900;font-size:13px;flex:0 0 auto;line-height:1}
-.adm .ved.G{background:#6CABDD;color:#0c1733}.adm .ved.E{box-shadow:inset 0 0 0 1.5px var(--soft);color:var(--ink)}.adm .ved.P{box-shadow:inset 0 0 0 1.5px var(--muted);color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 3px,rgba(159,179,211,.18) 3px 5px)}
+.adm .ved.V{background:#6CABDD;color:#0c1733}.adm .ved.E{box-shadow:inset 0 0 0 1.5px var(--soft);color:var(--ink)}.adm .ved.D{box-shadow:inset 0 0 0 1.5px var(--muted);color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 3px,rgba(159,179,211,.18) 3px 5px)}
 .adm .ved.sm{width:20px;height:20px;font-size:12px;border-radius:6px}
 .adm .ved.o{box-shadow:inset 0 0 0 1.5px var(--pline);background:none;color:var(--muted)}
 .adm .warn{display:inline-flex;align-items:center;gap:6px;color:var(--amber);font-weight:600;font-size:14px}
@@ -129,7 +126,6 @@ position:relative;overflow:hidden;font-size:15px;line-height:1.4;color:var(--ink
 .adm .peg{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:10px;width:96px;text-align:center;border-radius:12px}
 .adm .peg::before{content:"";position:absolute;top:-14px;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--pegdot);box-shadow:0 2px 0 rgba(0,0,0,.3)}
 .adm .peg .nm{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.adm .peg .pc{font-family:'Geist Mono';font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--soft)}
 .adm .peg .rv{font-size:13px;color:var(--muted)}
 .adm .peg .rv.duda{color:var(--amber)}
 .adm .peg.sel{box-shadow:0 0 0 2px var(--sky)}
