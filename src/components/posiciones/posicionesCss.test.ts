@@ -69,3 +69,48 @@ describe("posiciones.css theme contract", () => {
     expect(css).toMatch(/button\.pos-spot:focus-visible\s*\{[^}]*outline:\s*2px solid transparent/);
   });
 });
+
+// D4: a host that sets nothing gets the .vx palette (and its day theme), not off-palette colours.
+describe("posiciones.css defaults: the .vx palette", () => {
+  const vestuario = readFileSync("src/styles/vestuario.css", "utf8").replace(/\r\n/g, "\n");
+  const block = (sel: string) => {
+    const at = vestuario.indexOf(`\n${sel}{`);
+    return at < 0 ? "" : vestuario.slice(at + sel.length + 2).split("}")[0];
+  };
+  const night = block(".vx");
+  const day = block('[data-theme="light"] .vx');
+  const tokenIn = (b: string, name: string) => new RegExp(`(?:^|[;\\s])${name}:([^;]+);`).exec(b)?.[1]?.trim().toLowerCase();
+  const fallbackOf = (alias: string) => new RegExp(`^\\s*--_pos-${alias}:\\s*var\\(--pos-${alias},\\s*(.+);\\s*$`, "m").exec(css)?.[1] ?? "";
+
+  it("reads the palette blocks", () => {
+    expect(tokenIn(night, "--sky")).toBe("#6cabdd");
+    expect(tokenIn(night, "--gold")).toBe("#ffc659");
+    expect(tokenIn(day, "--gold")).toBe("#9a6b00");
+  });
+
+  it.each([
+    ["also", "--sky"],
+    ["played", "--sky"],
+    ["pref", "--gold"],
+    ["ink", "--ink"],
+    ["dim", "--muted"],
+    ["bg", "--bg"],
+    ["focus", "--ink"],
+    ["pref-ink", "--pill-on-ink"],
+    ["played-ink", "--thumb-ink"],
+    ["pitch", "--sky"],
+    ["line", "--ink"],
+  ])("--pos-%s defaults to var(%s)", (alias, token) => {
+    expect(fallbackOf(alias)).toContain(`var(${token},`);
+  });
+
+  it("every palette read names a .vx token and falls back to its night value", () => {
+    const reads = [...css.matchAll(/var\((--(?!pos-)[a-z][\w-]*),\s*(#[0-9a-fA-F]{3,8})\)/g)];
+    expect(reads.length).toBeGreaterThan(8);
+    for (const [, name, hex] of reads) expect(tokenIn(night, name), name).toBe(hex.toLowerCase());
+  });
+
+  it("no off-palette sky or yellow left", () => {
+    for (const hex of ["#6cc4ff", "#ffd23f", "#14213d", "#9fb2cc", "#0b1730"]) expect(css.toLowerCase()).not.toContain(hex);
+  });
+});

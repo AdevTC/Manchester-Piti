@@ -1,6 +1,6 @@
 import { Scorers } from "./Scorers";
 // The match workspace, as on the canvas (stats-gen/ad-v2-full.mjs `detail`, shots-adv2f/partidos-acta.png,
-// partidos-encuentro.png, m-acta.png): the header merged with the tabs (kicker + «PITI 3–1 FUSION 7 [V]» |
+// partidos-encuentro.png, m-acta.png): the header merged with the tabs (kicker + «PITI 3–1 FUSION 7 [G]» |
 // Encuentro · Convocatoria · Acta · Publicar with ✓ / !; on phones ← back and the tabs under the title),
 // the scrolling body and the fixed footer — the state with its concrete reason («No cuadra: falta el
 // goleador de 1 gol»), «Guardado 12:04 · hora de Madrid» / «● Cambios sin guardar» and the buttons of the
@@ -14,6 +14,7 @@ import { Link } from "@tanstack/react-router";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { apiError, saveMatchSheet } from "../../../lib/clubApi";
 import { downloadMatchPoster } from "../../../lib/matchPoster";
+import { tabForKey } from "../../../lib/tabKeys";
 import { mvpWinners } from "../../../lib/vestuario";
 import { clockTime, jLabel, shortDate, type AdminMatch } from "../data/adminLogic";
 import type { AdminData } from "../data/useAdminData";
@@ -204,14 +205,12 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, o
       : [];
   useRegisterCommands(commands);
 
-  // ── tabs (arrows move between them) ──
+  // ── tabs (lib/tabKeys: ←/→ wrap around, Inicio/Fin to the ends) ──
   const tabId = (k: MatchTab) => `ad-tab-${match.id}-${k}`;
   const onTabsKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    const i = MATCH_TABS.indexOf(tab);
-    const n = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? MATCH_TABS.length - 1 : -2;
-    if (n === -2) return;
+    const next = tabForKey(e.key, tab, MATCH_TABS);
+    if (next === null) return;
     e.preventDefault();
-    const next = MATCH_TABS[(n + MATCH_TABS.length) % MATCH_TABS.length];
     onTab(next);
     requestAnimationFrame(() => tabsRef.current?.querySelector<HTMLElement>(`[data-tab="${next}"]`)?.focus({ preventScroll: true }));
   };

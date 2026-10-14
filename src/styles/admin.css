@@ -2,9 +2,10 @@
    bar, Hoy (the peg wall, the LED scoreboard), Partidos (master–detail, the match workspace, the acta, the
    publish peak and its vitrina), Convocar, Fichas, Plantilla (peg wall + cromo drawer), Temporadas, Capitanes,
    Contenido, the ⌘K palette, modals, sheets and the lower thirds. Generated from the Design canvas
-   (stats-gen/ad-v2-full-css.mjs) by scratchpad/port-admin-v2-css.mjs: every rule scoped under .adm (root =
-   .vx.adm, its mode = .d desktop / .m phone, set by AdminLayout from the frame width), keyframes prefixed
-   with ad-, tokens from .vx (vestuario.css). App-only rules live in admin-app.css. Do not edit by hand. */
+   (scripts/admin-design/ad-v2-full-css.mjs) by `node scripts/port-admin-css.mjs`: every rule scoped under
+   .adm (root = .vx.adm, its mode = .d desktop / .m phone, set by AdminLayout from the frame width), keyframes
+   prefixed with ad-, the result marks in G · E · P, tokens from .vx (vestuario.css). App-only rules live in
+   admin-app.css. Do not edit by hand. */
 .vx.adm{--red:#ff6b61;--amber:#ffb547;--panel:rgba(255,255,255,.035);--panel2:rgba(255,255,255,.06);--pline:rgba(255,255,255,.09);--deep:#050b1f;--shirt:#a9d6f5;--led:#cfe8ff;--glass:rgba(159,208,242,.08);
 --wall:linear-gradient(180deg,#0d1a3c,#08132f 60%,#060d24);--wall-line:rgba(255,255,255,.07);--railbar:linear-gradient(180deg,#3a5a8c,#1c2f57);--pegdot:#9fb3d3;--sheet:#0a1532;--pop:#0b1634;--scrim:rgba(2,5,14,.62);--stick:#060d24;
 position:relative;overflow:hidden;font-size:15px;line-height:1.4;color:var(--ink);background:radial-gradient(70% 50% at 70% 0%,#0f2350 0%,#050b1f 60%,#030817 100%)}
@@ -28,7 +29,7 @@ position:relative;overflow:hidden;font-size:15px;line-height:1.4;color:var(--ink
 .vx.adm .btn.gold[disabled]{opacity:1;background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1.5px var(--pline)}
 .vx.adm .lnk{color:var(--accent);font-weight:600;display:inline-flex;align-items:center;gap:6px;min-height:40px}
 .adm .ved{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px;font-family:'Anybody';font-weight:900;font-size:13px;flex:0 0 auto;line-height:1}
-.adm .ved.V{background:#6CABDD;color:#0c1733}.adm .ved.E{box-shadow:inset 0 0 0 1.5px var(--soft);color:var(--ink)}.adm .ved.D{box-shadow:inset 0 0 0 1.5px var(--muted);color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 3px,rgba(159,179,211,.18) 3px 5px)}
+.adm .ved.G{background:#6CABDD;color:#0c1733}.adm .ved.E{box-shadow:inset 0 0 0 1.5px var(--soft);color:var(--ink)}.adm .ved.P{box-shadow:inset 0 0 0 1.5px var(--muted);color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 3px,rgba(159,179,211,.18) 3px 5px)}
 .adm .ved.sm{width:20px;height:20px;font-size:12px;border-radius:6px}
 .adm .ved.o{box-shadow:inset 0 0 0 1.5px var(--pline);background:none;color:var(--muted)}
 .adm .warn{display:inline-flex;align-items:center;gap:6px;color:var(--amber);font-weight:600;font-size:14px}

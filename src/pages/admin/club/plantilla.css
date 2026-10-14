@@ -118,7 +118,7 @@
    (kit · name and state · map, the nav under the name), a field of its own on phones. A pending proposal
    takes the map's place as a row under the name: what he proposes, «Ahora: …» and Aprobar · Ajustar ·
    Rechazar first (in view at 1440 × 900), the compared map at their right; on phones it stacks. */
-.adm .pl3f{--pos-bg:var(--sheet);--pos-pitch:color-mix(in srgb,var(--sky) 8%,transparent);--pos-line:color-mix(in srgb,var(--muted) 45%,transparent);--pos-ink:var(--ink);--pos-dim:var(--muted);--pos-also:var(--accent);--pos-pref:var(--gold);--pos-pref-ink:var(--pill-on-ink);--pos-add:#5ee08a;--pos-remove:var(--red);--pos-focus:var(--sky);--pos-width:13rem}
+.adm .pl3f{--pos-bg:var(--sheet);--pos-pitch:color-mix(in srgb,var(--sky) 8%,transparent);--pos-line:color-mix(in srgb,var(--muted) 45%,transparent);--pos-also:var(--accent);--pos-add:#5ee08a;--pos-remove:var(--red);--pos-focus:var(--sky);--pos-width:13rem}
 [data-theme="light"] .adm .pl3f{--pos-add:#1d7a3f;--pos-focus:var(--accent)}
 .adm .pl3f .hero.posh{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"kit hi pos" "kit nav pos";align-items:start}
 .adm .pl3f .hero.posh>.kit{grid-area:kit;align-self:center}

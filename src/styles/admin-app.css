@@ -15,11 +15,6 @@
    (all of them are more specific than this one, which is why it can live here, after admin.css). */
 .adm :where(h2,h3,h4){font-family:inherit;font-weight:700;letter-spacing:0}
 
-/* The result letters are G·E·P (admin.css, generated from the canvas, still names the win and the loss V and D): the same marks. Kept at
-   .adm .ved's weight (:where) so what admin.css lays over a mark later — the shelf's «new» ring — still wins as it did. */
-.adm .ved:where(.G){background:#6CABDD;color:#0c1733}
-.adm .ved:where(.P){box-shadow:inset 0 0 0 1.5px var(--muted);color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 3px,rgba(159,179,211,.18) 3px 5px)}
-
 /* The exact position under a peg's shirt (Convocar's siete): its code in mono. */
 .adm .peg .pc{font-family:'Geist Mono';font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--soft)}
 
