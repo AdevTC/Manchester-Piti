@@ -342,7 +342,7 @@ describe("Tableros · oficial y partido", () => {
       expect(convBox()).toBeChecked();
       expect(screen.getByText(/La convocatoria de J8 · MAD SKY se queda con este siete; quien salga, al banquillo/)).toBeInTheDocument();
       pub();
-      expect(await screen.findByText("Publicado como oficial · este partido · convocatoria de J8 · MAD SKY con este siete · un solo aviso: «Ya está el siete»", { selector: ".tst span" })).toBeInTheDocument();
+      expect(await screen.findByText("Publicado como oficial · este partido · convocatoria de J8 · MAD SKY con este siete · avisa al equipo con «Ya está el siete»", { selector: ".tst span" })).toBeInTheDocument();
       expect(publish).toHaveBeenCalledWith("m8");
       // whoever leaves the siete stays called, on the banquillo; nobody «sin convocar» is called
       expect(sync).toHaveBeenCalledWith("m8", { starters: SEVEN, bench: ["fer", "kevin", "erik"] }, "b1");
@@ -363,14 +363,15 @@ describe("Tableros · oficial y partido", () => {
       const M8n = m({ conv: { starters: OTHER, bench: [], notified: true } });
       const { unmount } = render(<Harness initial={L7()} props={{ isAdmin: true, calendar: [M8n], nextMatch: M8n, onSyncConvocatoria: vi.fn(async () => ({ covered: false })) }} />);
       openOficial();
-      expect(screen.getByText(/Avisa con «Ya está el siete» y «Cambios en la convocatoria»: .+ no estaban convocados\./)).toBeInTheDocument();
-      expect(screen.queryByText(/Un solo aviso/)).toBeNull();
+      expect(screen.getByText(/También avisa de los cambios en la convocatoria: .+ no estaban convocados\./)).toBeInTheDocument();
+      expect(screen.queryByText(/Avisa al equipo con «Ya está el siete»/)).toBeNull();
       unmount();
-      // the same players called (only who starts changes): one notice
+      // the same players called (only who starts changes): «Ya está el siete» tells it
       const M8s = m({ conv: { starters: OTHER, bench: ["almachi", "adrian"], notified: true } });
       render(<Harness initial={L7()} props={{ isAdmin: true, calendar: [M8s], nextMatch: M8s, onSyncConvocatoria: vi.fn(async () => ({ covered: true })) }} />);
       openOficial();
-      expect(screen.getByText(/Un solo aviso: «Ya está el siete»\./)).toBeInTheDocument();
+      expect(screen.getByText(/Avisa al equipo con «Ya está el siete»\./)).toBeInTheDocument();
+      expect(screen.queryByText(/También avisa/)).toBeNull();
     });
 
     it("a convocatoria with only «no convocados»: they stay out of the banquillo", async () => {

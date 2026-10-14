@@ -467,8 +467,8 @@ export function TablerosPanel(p: TablerosProps) {
                           (p.scopeMatch ? matchShort(p.scopeMatch) : "este partido") +
                           " se queda con este siete; quien salga, al banquillo. " +
                           (p.convSync.newly.length
-                            ? "Avisa con «Ya está el siete» y «Cambios en la convocatoria»: " + andList(p.convSync.newly) + (p.convSync.newly.length > 1 ? " no estaban convocados." : " no estaba convocado.")
-                            : "Un solo aviso: «Ya está el siete».")}
+                            ? "También avisa de los cambios en la convocatoria: " + andList(p.convSync.newly) + (p.convSync.newly.length > 1 ? " no estaban convocados." : " no estaba convocado.")
+                            : "Avisa al equipo con «Ya está el siete».")}
                     </small>
                   </span>
                 </label>

@@ -2853,7 +2853,7 @@ export function Board(props: BoardProps) {
                 return;
               }
               return syncTo(pm.id, sync, board).then(
-                (r) => say(done + " · convocatoria de " + matchShort(pm) + " con este siete" + (r.covered ? " · un solo aviso: «Ya está el siete»" : "")),
+                (r) => say(done + " · convocatoria de " + matchShort(pm) + " con este siete" + (r.covered ? " · avisa al equipo con «Ya está el siete»" : "")),
                 (err: unknown) => {
                   console.error("Tableros", err);
                   say(done + " · la convocatoria no se ha podido cambiar: " + apiError(err));
