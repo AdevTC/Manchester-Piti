@@ -42,7 +42,8 @@ export function scorersLine(events: MatchEvent[] | undefined, nameOf: (id: strin
   return parts.join(", ");
 }
 
-export type TileState = "played" | "live" | "next" | "future";
+/** `awaiting`: played, its acta still to come (matchPhase awaiting_result) — never «por jugar». */
+export type TileState = "played" | "live" | "next" | "awaiting" | "future";
 export interface Tile {
   id: string;
   j: number;
@@ -65,7 +66,7 @@ export function seasonView(matches: ClubMatch[], seasonId: string, now: number) 
     id: m.id,
     j: jornada.get(m.id) ?? 0,
     rival: m.rival ?? "Rival",
-    state: m === live ? "live" : m === next ? "next" : isCompleted(m) ? "played" : "future",
+    state: m === live ? "live" : m === next ? "next" : isCompleted(m) ? "played" : matchPhase(m, now) === "awaiting_result" ? "awaiting" : "future",
     result: isCompleted(m) ? resultOf(m) : undefined,
   }));
   return {

@@ -3,7 +3,7 @@ import { Icon } from "../../components/celeste/icons";
 import { dateMillis, formatDate, isCompleted, type ClubMatch } from "../../lib/clubData";
 import { resultOf, type PlayerLine, type Pulse, type Result } from "../../lib/home";
 import { plural } from "../../lib/vestuario";
-import { kickoffText } from "../../lib/derived/kickoff";
+import { AWAITING_ACTA, kickoffText } from "../../lib/derived/kickoff";
 import { RESULT_WORD, resultTitle } from "../../lib/derived/result";
 
 const MONTH = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", month: "short" });
@@ -24,13 +24,29 @@ export function SeasonRow({ pulse, now, nameOf }: { pulse: Pulse; now: number; n
   const form: (Result | null)[] = [...pulse.form, ...Array(5 - pulse.form.length).fill(null)];
   const upcoming = pulse.upcoming.filter((m) => !isCompleted(m) && m.id !== pulse.live?.id).slice(0, 3);
   const r = last ? resultOf(last) : null;
+  // the newest match is played but its acta hasn't come: it takes the last match's place, said as such
+  const waiting = pulse.awaiting;
   return (
     <section className="hm-sec" aria-label="La temporada">
       <div className="hm-season">
         <div className="blk">
           <span className="hm-kick">El último partido</span>
-          <h2 className="hm-h2">{last ? resultTitle(r!) + (r === "G" ? "" : " ante " + (last.rival ?? "el rival")) : "Todo por estrenar"}</h2>
-          {last ? (
+          <h2 className="hm-h2">{waiting ? `${AWAITING_ACTA} ante ${waiting.rival ?? "el rival"}` : last ? resultTitle(r!) + (r === "G" ? "" : " ante " + (last.rival ?? "el rival")) : "Todo por estrenar"}</h2>
+          {waiting ? (
+            <Link className="hm-last hm-card" to="/matches/$matchId" params={{ matchId: waiting.id }}>
+              <span className="sc">
+                <b>PITI</b>
+                <span className="n">–</span>
+                <b>{waiting.rival ?? "Rival"}</b>
+              </span>
+              <span className="d">
+                {formatDate(waiting.date)} · {AWAITING_ACTA}
+              </span>
+              <span className="hm-link">
+                Ver el partido <Icon name="arrow" size={15} stroke={2.2} />
+              </span>
+            </Link>
+          ) : last ? (
             <Link className="hm-last hm-card" to="/matches/$matchId" params={{ matchId: last.id }}>
               <span className="sc">
                 <b>PITI</b>

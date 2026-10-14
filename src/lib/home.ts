@@ -34,6 +34,8 @@ export function seasonPulse(matches: ClubMatch[], seasonId: string, now: number)
   const played = season.filter((m) => matchPhase(m, now) === "finished").sort(byDate);
   const live = season.filter((m) => matchPhase(m, now) === "playing").sort(byDate)[0];
   const next = season.filter((m) => matchPhase(m, now) === "scheduled").sort(byDate)[0];
+  // played, its acta still to come (a clock nobody started past its window, or one stopped without an acta)
+  const waiting = season.filter((m) => matchPhase(m, now) === "awaiting_result").sort(byDate).at(-1);
   const results = played.map(resultOf);
   const gf = played.reduce((s, m) => s + (m.goalsFor ?? 0), 0);
   const ga = played.reduce((s, m) => s + (m.goalsAgainst ?? 0), 0);
@@ -42,6 +44,8 @@ export function seasonPulse(matches: ClubMatch[], seasonId: string, now: number)
     live,
     next,
     last: played.at(-1),
+    /** The newest match waiting for its acta, when it is newer than the last played one (it is not «next» any more). */
+    awaiting: waiting && (!played.length || byDate(waiting, played[played.length - 1]) > 0) ? waiting : undefined,
     /** The jornada of the last played match (derived/jornada; null before the first, or without one). */
     jornada: played.length ? (jornadas(season, seasonId).get(played[played.length - 1].id) ?? null) : null,
     wins: results.filter((r) => r === "G").length,
@@ -51,7 +55,8 @@ export function seasonPulse(matches: ClubMatch[], seasonId: string, now: number)
     ga,
     /** Most recent first. */
     form: results.slice(-5).reverse(),
-    upcoming: season.filter((m) => ["scheduled", "playing", "unscheduled", "awaiting_result"].includes(matchPhase(m, now))).sort(byDate),
+    /** Still to be played (a match waiting for its acta has been played: it is not here). */
+    upcoming: season.filter((m) => ["scheduled", "playing", "unscheduled"].includes(matchPhase(m, now))).sort(byDate),
   };
 }
 export type Pulse = ReturnType<typeof seasonPulse>;

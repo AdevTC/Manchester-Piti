@@ -76,6 +76,7 @@
 .pt-tile.E{background:var(--chip);box-shadow:inset 0 0 0 1.5px var(--soft)}
 .pt-tile.P{box-shadow:inset 0 0 0 1.5px var(--line)}.vx .pt-tile.P{color:var(--muted)}
 .pt-tile.future{border:1.5px dashed var(--line)}.vx .pt-tile.future{color:var(--muted)}
+.pt-tile.awaiting{border:1.5px dotted var(--soft)}.vx .pt-tile.awaiting{color:var(--soft)}
 .pt-tile.next{box-shadow:inset 0 0 0 2px #FFC659}.vx .pt-tile.next{color:var(--gold-ink)}
 .pt-tile.live{background:#ff5a4f;animation:ptLivePulse 1.4s ease-in-out infinite}.vx .pt-tile.live{color:#fff}
 @keyframes ptLivePulse{50%{box-shadow:0 0 0 6px rgba(255,90,79,.25)}}

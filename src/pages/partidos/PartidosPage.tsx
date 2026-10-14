@@ -20,7 +20,7 @@ import { currentSeasonId } from "../../lib/vestuario";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { opponentInitials } from "../../lib/clubAnalytics";
 import { calendarRows, countdownParts, dateParts, lastEvent, liveMinute, resultOf, scoreOf, scorersLine, seasonView, type Filter, type SeasonView } from "../../lib/partidos";
-import { kickoffState, kickoffText, PENDING_WHISTLE } from "../../lib/derived/kickoff";
+import { AWAITING_ACTA, kickoffState, kickoffText, PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import { jornadaNumbers } from "../../lib/derived/jornada";
 import { RESULT_LEGEND, RESULT_WORD } from "../../lib/derived/result";
 import "../../styles/home.css";
@@ -198,6 +198,8 @@ export function PartidosPage() {
   const seasonId = currentSeasonId(nextFixture(matches, now), matches, seasons);
   const season = seasons.find((s) => s.id === seasonId);
   const view = seasonView(matches, seasonId, now);
+  // the live row's score flips only for a fresh goal, as the board's does (a late old one just changes it)
+  const rowGoal = useGoalCelebration(view.live, now);
   // a name in a match's own season (the board: the current season's; each row: its match's)
   const nameIn = (sid: string | undefined) => (id: string) => nameFor(players.find((p) => p.id === id), sid);
   const nameOf = nameIn(seasonId);
@@ -287,9 +289,9 @@ export function PartidosPage() {
                     params={{ matchId: t.id }}
                     className={`pt-tile ${t.result ?? t.state}`}
                     style={{ animationDelay: `${(i * 0.035).toFixed(2)}s` }}
-                    aria-label={`Jornada ${t.j}, ${t.rival}: ${t.result ? RESULT_WORD[t.result] : t.state === "live" ? "en juego" : "por jugar"}`}
+                    aria-label={`Jornada ${t.j}, ${t.rival}: ${t.result ? RESULT_WORD[t.result] : t.state === "live" ? "en juego" : t.state === "awaiting" ? AWAITING_ACTA.toLowerCase() : "por jugar"}`}
                   >
-                    {t.state === "live" ? "●" : (t.result ?? "·")}
+                    {t.state === "live" ? "●" : t.state === "awaiting" ? "…" : (t.result ?? "·")}
                   </Link>
                 ))}
               </div>
@@ -361,7 +363,7 @@ export function PartidosPage() {
             <ol className="pt-list">
               {rows.map((m) => (
                 <li key={m.id}>
-                  <Row m={m} j={jornada.get(m.id)} now={now} nameOf={nameIn(m.seasonId)} next={m.id === view.next?.id} />
+                  <Row m={m} j={jornada.get(m.id)} now={now} nameOf={nameIn(m.seasonId)} next={m.id === view.next?.id} still={!rowGoal.flip} />
                 </li>
               ))}
             </ol>
@@ -418,7 +420,7 @@ export function PartidosPage() {
   );
 }
 
-function Row({ m, j, now, nameOf, next }: { m: ClubMatch; j?: number; now: number; nameOf: (id: string) => string; next: boolean }) {
+function Row({ m, j, now, nameOf, next, still }: { m: ClubMatch; j?: number; now: number; nameOf: (id: string) => string; next: boolean; still: boolean }) {
   const d = dateParts(m.date);
   const phase = matchPhase(m, now);
   const live = phase === "playing";
@@ -448,8 +450,8 @@ function Row({ m, j, now, nameOf, next }: { m: ClubMatch; j?: number; now: numbe
           <span className="tn us">PITI</span>
           {done || live ? (
             <span className="sc">
-              <Flip value={gf} />
-              <Flip value={ga} />
+              <Flip value={gf} still={live && still} />
+              <Flip value={ga} still={live && still} />
             </span>
           ) : (
             <span className="sc">

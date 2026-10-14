@@ -43,6 +43,14 @@ describe("seasonView", () => {
     const v = seasonView([], "s1", NOW);
     expect([v.tiles.length, v.live, v.next, v.gf]).toEqual([0, undefined, undefined, 0]);
   });
+  it("a played match waiting for its acta is «awaiting» on the strip, never «por jugar» or next", () => {
+    const clocked = (id: string, date: number): ClubMatch => ({ id, seasonId: "s1", rival: `Rival ${id}`, version: 2, status: "scheduled", date, duration: 50, clock: { revision: 0, phase: "ready" } });
+    const v = seasonView([played("a", 14, 1, 0), clocked("acta", NOW - 3 * DAY), upcoming("n", 4), upcoming("f", 11)], "s1", NOW);
+    expect(v.tiles.map((t) => [t.id, t.state, t.result])).toEqual([["a", "played", "G"], ["acta", "awaiting", undefined], ["n", "next", undefined], ["f", "future", undefined]]);
+    expect(v.next?.id).toBe("n");
+    // a legacy match past its window without a score waits for its acta too
+    expect(seasonView([{ id: "old", seasonId: "s1", rival: "R", status: "scheduled", date: NOW - 2 * DAY }], "s1", NOW).tiles[0].state).toBe("awaiting");
+  });
   it("leaves cancelled matches out of the strip", () => {
     expect(seasonView([{ ...upcoming("c", 3), status: "cancelled" }], "s1", NOW).tiles).toEqual([]);
   });
