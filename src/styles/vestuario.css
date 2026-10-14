@@ -75,6 +75,7 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 .vx-rsvp-thumb{position:absolute;left:6px;top:6px;width:calc((100% - 12px)/3);height:calc(100% - 12px);border-radius:999px;background:var(--thumb);box-shadow:var(--thumb-shadow)}
 .vx-rsvp button{position:relative;border:0;background:transparent;font-weight:600;font-size:16px;color:var(--rsvp-ink);display:flex;align-items:center;justify-content:center;gap:6px;border-radius:999px}
 .vx-rsvp button[aria-checked=true]{color:var(--thumb-ink)}
+.vx .vx-hero-rsvp{margin-top:20px;--mp-rsvp-max:420px;--mp-rsvp-inline:auto;--mp-rsvp-font:16px}
 .vx-hero-actions{margin-top:12px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
 .vx-ghost{display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 18px;border-radius:999px;border:0;background:var(--ghost);color:var(--ghost-ink);font-weight:600;font-size:14px}
 .vx a.vx-ghost{color:var(--ghost-ink);text-decoration:none}
@@ -136,9 +137,6 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 .vx-flap b{font-family:'Anybody';font-weight:900;font-size:88px;line-height:1;color:#f4f8ff;font-variation-settings:'wdth' 70}
 .vx-flap.them b{color:#b9cbe8}
 .vx-flap::after{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(0,0,0,.55)}
-.vx-steps{display:flex;gap:8px}
-.vx-step{width:44px;height:44px;border-radius:50%;border:0;background:var(--btn);color:var(--btn-ink);font-size:20px}
-.vx-step.plus{background:var(--btn-on);color:var(--btn-on-ink);font-weight:700}
 .vx-vs-dash{margin-top:52px;font-family:'Anybody';font-weight:800;font-size:40px;color:var(--muted)}
 .vx-note{margin:14px 0 0;text-align:center;font-size:15px;color:var(--soft)}
 .vx-note b{color:var(--ink)}.vx-note .g{color:var(--gold)}
@@ -199,6 +197,7 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 .vx-hero-copy{text-align:left;padding:18px 0 0}
 .vx-epic{margin:0;font-size:26px}
 .vx-rsvp{margin:22px 0 0}
+.vx .vx-hero-rsvp{margin-top:22px;--mp-rsvp-inline:0}
 .vx-hero-actions,.vx-attend{justify-content:flex-start}
 .vx-main{padding:0 40px 140px}
 .vx-you{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:48px}
@@ -286,23 +285,8 @@ ul.vx-medals{list-style:none;padding:0;margin-bottom:0}
 .vx-propose{margin-top:18px;display:grid;gap:12px}
 .vx-propose-slots{display:grid;gap:10px}
 .vx-train-foot{margin-top:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-/* porra */
-.vx-step{cursor:pointer}
-.vx-step[disabled]{opacity:.4;cursor:default}
-.vx-porra-save{margin-top:16px;display:flex;justify-content:center}
-.vx-porra-open{margin-top:8px;text-align:center;font-family:'Geist Mono';font-size:12px;color:var(--muted)}
-/* MVP vote */
-.vx-vote{margin-top:18px}
-.vx-vote legend{font-size:13px;font-weight:600;color:var(--soft);margin-bottom:10px;padding:0}
-.vx-vote fieldset{border:0;margin:0;padding:0}
-.vx-vote-list{display:flex;flex-wrap:wrap;gap:8px}
-.vx-vote-list label{position:relative;display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border-radius:999px;background:var(--pill);color:var(--pill-ink);box-shadow:var(--pill-line);font-size:14px;font-weight:600;cursor:pointer}
-.vx-vote-list input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
-.vx-vote-list label:has(input:checked){background:var(--pill-on);color:var(--pill-on-ink);box-shadow:var(--pill-on-shadow)}
-.vx-vote-list label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:3px}
-.vx-vote-list label:has(input:disabled){opacity:.6;cursor:default}
-.vx-vote-foot{margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.vx-vote-foot .vx-muted{font-family:'Geist Mono';font-size:12px;color:var(--muted)}
+/* porra (PorraCard, components/celeste/member): the vestuario's split-flap scoreboard, by its tokens */
+.vx-porra .mp-porra{margin-top:20px;--mp-porra-pad:0;--mp-porra-bg:transparent;--mp-porra-ring:none;--mp-score-w:92px;--mp-score-h:118px;--mp-score-bg:linear-gradient(180deg,var(--flap) 50%,var(--flap2) 50%);--mp-score-shadow:0 20px 40px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.08);--mp-score-split:rgba(0,0,0,.55);--mp-score-size:88px;--mp-score-wdth:70;--mp-score-ink:#f4f8ff;--mp-score-them-ink:#b9cbe8;--mp-dash-size:40px}
 /* porra / MVP → the match page's Vestuario tab */
 .vx-tomatch{margin:10px 0 0;text-align:center}
 .vx .vx-tomatch a{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:14px;font-weight:600;color:var(--accent);text-decoration:none}

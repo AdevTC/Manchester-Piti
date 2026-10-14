@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
@@ -6,6 +6,7 @@ import type { MvpResult } from "../../lib/vestuario";
 
 // The match page's Vestuario tab, MVP block: the live race (top 3, votes, «Cierra en 12 h») while the
 // vote is open, the winner once it closes; fans get one line. Only counts are ever shown.
+// Also the tab as host of the shared member controls (convocatoria, porra, ballot) and their writes.
 const NOW = Date.UTC(2026, 8, 10, 12);
 const state = vi.hoisted(() => ({ member: true, confirmed: true, stale: false, result: undefined as MvpResult | undefined, now: 0, boundaries: [] as unknown[] }));
 vi.mock("@tanstack/react-router", () => ({
@@ -27,7 +28,7 @@ vi.mock("../../hooks/useDocumentTheme", () => ({ useDocumentTheme: () => "dark" 
 vi.mock("../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 vi.mock("../../components/jersey3d/Jersey3D", () => ({ Jersey3D: () => null }));
 vi.mock("../vestuario/live", () => ({
-  useAvailability: () => ({ data: [] }),
+  useAvailability: () => ({ data: state.member ? [{ uid: "u1", response: "maybe", name: "YO", playerId: null }] : [] }),
   useMatchPredictions: () => ({ data: [] }),
   useMeetingNote: () => ({ data: "" }),
   useMvpResults: () => new Map(state.result ? [[state.result.id, state.result]] : []),
@@ -36,7 +37,10 @@ vi.mock("../vestuario/live", () => ({
   useMyMvpVote: () => ({ data: "" }),
   useMyPrediction: () => ({ data: null }),
 }));
-vi.mock("../vestuario/writes", () => ({ useMe: () => (state.member ? { uid: "u1", displayName: "YO", shirtName: "YO", number: "" } : null), predictScore: vi.fn(), setAvailability: vi.fn(), voteMvp: vi.fn() }));
+// (convocatoria, porra and ballot are the shared member controls, components/celeste/member: they write through here)
+const ME = { uid: "u1", name: "YO", playerId: null };
+const writes = vi.hoisted(() => ({ predictScore: vi.fn(async () => undefined), setAvailability: vi.fn(async () => undefined), voteMvp: vi.fn(async () => undefined) }));
+vi.mock("../vestuario/writes", () => ({ useMe: () => (state.member ? ME : null), ...writes }));
 const SQUAD = ["erik", "pablo", "raul", "adri"].map((id) => ({ id, shirtName: id.toUpperCase(), seasons: ["t1"], seasonDetails: { t1: { shirtName: `${id.toUpperCase()}7` } } }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [], players: SQUAD, loading: false, error: null }) }));
 
@@ -135,4 +139,32 @@ it("the clock ticks at the close: the race turns into the winner right then", ()
   expect(screen.getByRole("list", { name: "El podio del MVP" })).toBeInTheDocument();
   expect(container.querySelector(".fc-mvp")).toHaveClass("won");
   expect(screen.getByText("MVP: ERIK7.")).toHaveAttribute("aria-live", "polite");
+});
+
+it("before the match: the shared convocatoria and porra, with my answer, the rule and the same writes", () => {
+  const next = { id: "j6", seasonId: "t1", rival: "MAD SKY", date: NOW + 86_400_000, duration: 50, status: "scheduled" } as unknown as ClubMatch;
+  render(<VestuarioTab match={next} players={SQUAD} phase="scheduled" />);
+  expect(screen.getByRole("radio", { name: "Duda" })).toHaveAttribute("aria-checked", "true");
+  fireEvent.click(screen.getByRole("radio", { name: "Voy" }));
+  expect(writes.setAvailability).toHaveBeenCalledWith(ME, "j6", "yes");
+  expect(screen.getByText("Cierra en 1 d 0 h 0 min. 3 puntos si clavas el resultado, 1 si aciertas quién gana.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Un gol más de MAD SKY" }));
+  fireEvent.click(screen.getByRole("button", { name: "Guardar mi porra" }));
+  expect(writes.predictScore).toHaveBeenCalledWith(ME, "j6", 0, 1);
+});
+
+it("its date has come and nobody started the clock: convocatoria and porra closed, as the rules have them", () => {
+  const pending = { id: "j6", seasonId: "t1", rival: "MAD SKY", date: NOW - 60_000, duration: 50, status: "scheduled" } as unknown as ClubMatch;
+  render(<VestuarioTab match={pending} players={SQUAD} phase="scheduled" />);
+  expect(screen.queryByRole("radiogroup")).toBeNull();
+  expect(screen.getByText("La convocatoria se cerró a la hora del partido.")).toBeInTheDocument();
+  expect(screen.getByText(/^La porra se cerró a la hora del partido\./)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /porra/ })).toBeNull();
+});
+
+it("the open vote: the shared ballot writes my MVP vote", () => {
+  show(OPEN);
+  fireEvent.click(screen.getByRole("radio", { name: "PABLO7" }));
+  fireEvent.click(screen.getByRole("button", { name: "Votar al MVP" }));
+  expect(writes.voteMvp).toHaveBeenCalledWith(ME, "j5", "pablo");
 });

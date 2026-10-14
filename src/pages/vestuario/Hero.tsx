@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { dateMillis, matchPhase } from "../../lib/clubData";
 import type { ClubMatch } from "../../lib/clubData";
 import { apiError, requestPlayerClaim } from "../../lib/clubApi";
-import { setAvailability, useMe } from "./writes";
 import { shareClubPage } from "../../lib/share";
 import { calledUp, countdown, greeting, initials, kickoffLabel, MIN_PLAYERS, slotParts, slotTime } from "../../lib/vestuario";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
@@ -13,6 +12,7 @@ import { matchEvent } from "../../lib/home";
 import type { Availability, Claim } from "./live";
 import { Icon } from "../../components/celeste/icons";
 import { kickoffText } from "../../lib/derived/kickoff";
+import { RsvpSwitch } from "../../components/celeste/member/RsvpSwitch";
 
 export interface Me {
   uid: string;
@@ -46,16 +46,9 @@ export interface Ficha {
   number: string;
 }
 const KIT_LABEL = { home: "1ª equipación", away: "2ª equipación" } as const;
-const RSVP = [
-  { value: "yes", label: "Voy" },
-  { value: "maybe", label: "Duda" },
-  { value: "no", label: "No puedo" },
-] as const;
 
 export function Hero({ me, seasonName, next, meetingNote, availability, now, theme, faceName, claim, claimable, suggestion, admin, captain, training }: Props) {
   const shirt = useRef<Jersey3DRef>(null);
-  const [error, setError] = useState("");
-  const who = useMe();
   // Opens on the next match's kit; the player can try the other one on.
   const [kitPick, setKitPick] = useState<"home" | "away" | null>(null);
   const kit = kitPick ?? next?.kit ?? "home";
@@ -65,14 +58,6 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
   const open = !!next && dateMillis(next.date) > now;
   const stamp = calledUp(next, me.playerId) ? "CONVOCADO" : answer === "yes" && open ? "CONFIRMADO" : null;
   const nameScale = Math.min(1, 6 / Math.max(6, me.displayName.length));
-  const answerIndex = RSVP.findIndex((r) => r.value === answer);
-
-  // The local cache updates the answer at once; the rest of the team sees it in realtime.
-  const respond = (value: "yes" | "no" | "maybe") => {
-    if (!next || !who) return;
-    setError("");
-    setAvailability(who, next.id, value).catch((e: unknown) => setError(apiError(e)));
-  };
   return (
     <section className="vx-hero" aria-label="Tu cartel del partido">
       {captain}
@@ -158,28 +143,8 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
                   · {next.venue || "Campo por confirmar"}
                   {meetingNote ? ` · ${meetingNote}` : ""}
                 </p>
-                {open && (
-                  <div className="vx-rsvp" id="vx-rsvp" role="radiogroup" aria-label="Tu respuesta a la convocatoria">
-                    {answerIndex >= 0 && <span className="vx-rsvp-thumb" style={{ transform: `translateX(${answerIndex * 100}%)` }} />}
-                    {RSVP.map((r) => (
-                      <button
-                        key={r.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={answer === r.value}
-                        onClick={() => respond(r.value)}
-                      >
-                        {answer === r.value && <Icon name="check" size={15} stroke={3} />}
-                        {r.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {error && (
-                  <p className="vx-error" role="alert">
-                    {error}
-                  </p>
-                )}
+                {/* (the shared member control: the same answer and write as the match page's Vestuario tab) */}
+                {open && <RsvpSwitch match={next} now={now} answer={answer} id="vx-rsvp" className="vx-hero-rsvp" />}
                 <div className="vx-hero-actions">
                   <button
                     type="button"

@@ -15,10 +15,9 @@ import { Jersey3D } from "../../components/jersey3d/Jersey3D";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { chapters, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
 import { dateParts, eventMinute, exchangeMinute, scoreOf } from "../../lib/partidos";
-import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMvpResultsSync, useMvpReveal, useMyMvpVote, useMyPrediction } from "../vestuario/live";
+import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMvpResultsSync, useMvpReveal, useMyPrediction } from "../vestuario/live";
 import { mvpAnnouncement, mvpRace, plural, voteLeft } from "../../lib/vestuario";
-import { predictScore, setAvailability, useMe, voteMvp } from "../vestuario/writes";
-import { apiError } from "../../lib/clubApi";
+import { useMe } from "../vestuario/writes";
 import { rsvpSummary } from "../../lib/rsvp";
 import type { PlayerDoc } from "../../lib/schemas";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
@@ -32,6 +31,9 @@ import type { BoardView } from "../pizarra/useMatchBoard";
 import type { RivalSeven } from "../pizarra/v2/rival";
 import { RivalLine, RivalSection } from "./RivalDossier";
 import { rivalDossier } from "../../lib/derived/rival";
+import { RsvpSwitch } from "../../components/celeste/member/RsvpSwitch";
+import { PorraCard } from "../../components/celeste/member/PorraCard";
+import { MvpBallot } from "../../components/celeste/member/MvpBallot";
 
 type NameOf = (id: string) => string;
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -492,12 +494,6 @@ export function PulsoTab({ match, live, minute, pending = false }: { match: Club
   );
 }
 
-const RSVP = [
-  ["yes", "Voy"],
-  ["maybe", "Duda"],
-  ["no", "No puedo"],
-] as const;
-
 export function VestuarioTab({ match, players, phase }: { match: ClubMatch; players: PlayerDoc[]; phase: string }) {
   const { member } = useTeam();
   const { user } = useAuth();
@@ -514,11 +510,6 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
   const myPrediction = useMyPrediction(match.id, uid);
   const predictions = useMatchPredictions(match.id, !!member && kickedOff);
   const mvp = useMvpResults().get(match.id);
-  const myVote = useMyMvpVote(match.id, uid);
-  const [pu, setPu] = useState<number | null>(null);
-  const [pt, setPt] = useState<number | null>(null);
-  const [pick, setPick] = useState<string | null>(null);
-  const [error, setError] = useState("");
   const done = isCompleted(match);
   const { gf, ga } = scoreOf(match);
 
@@ -563,22 +554,10 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
       </section>
     );
 
-  const act = (p: Promise<unknown>) => {
-    setError("");
-    p.catch((e: unknown) => setError(apiError(e)));
-  };
   const mine = availability.data.find((a) => a.uid === me.uid)?.response;
   // («Sin responder» counts too: the convocados who haven't said anything yet)
   const counts = rsvpSummary(availability.data, [...(match.starters ?? []), ...(match.bench ?? [])]);
   const total = counts.yes + counts.maybe + counts.no + counts.sin;
-  const rsvpIndex = Math.max(0, RSVP.findIndex(([v]) => v === mine));
-  const shownUs = pu ?? myPrediction.data?.goalsFor ?? 2;
-  const shownThem = pt ?? myPrediction.data?.goalsAgainst ?? 1;
-  const voteOpen = done && (match.voteClosesAt ?? 0) > now;
-  const candidates = Object.entries(match.ledger ?? {})
-    .filter(([, p]) => p.played)
-    .map(([id]) => id)
-    .sort((a, b) => (mvp?.counts[b] ?? 0) - (mvp?.counts[a] ?? 0));
   const exact = predictions.data.filter((p) => p.goalsFor === gf && p.goalsAgainst === ga).length;
   const dist = new Map<string, number>();
   for (const p of predictions.data) dist.set(`${p.goalsFor}–${p.goalsAgainst}`, (dist.get(`${p.goalsFor}–${p.goalsAgainst}`) ?? 0) + 1);
@@ -594,14 +573,8 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
             <h2 className="hm-h2" id="fc-rs">
               ¿Vas?
             </h2>
-            <div className="fc-rsvp" role="radiogroup" aria-label="Tu respuesta">
-              <span className="th" style={{ transform: `translateX(${rsvpIndex * 100}%)`, opacity: mine ? 1 : 0 }} />
-              {RSVP.map(([value, label]) => (
-                <button key={value} type="button" role="radio" aria-checked={mine === value} onClick={() => act(setAvailability(me, match.id, value))}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            {/* (the shared member controls: the same answer, porra and vote — and writes — as the vestuario) */}
+            <RsvpSwitch match={match} now={now} answer={mine} />
             {note.data && (
               <div className="pt-chips" style={{ justifyContent: "flex-start" }}>
                 <span className="pt-chip">{note.data}</span>
@@ -623,38 +596,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
             <h2 className="hm-h2" id="fc-po">
               ¿Cómo acaba?
             </h2>
-            <div className="fc-porra">
-              {(
-                [
-                  ["PITI", shownUs, setPu, "del Piti"],
-                  ["–", 0, null, ""],
-                  [match.rival ?? "Rival", shownThem, setPt, `de ${match.rival ?? "el rival"}`],
-                ] as const
-              ).map(([label, value, set, who], i) =>
-                set ? (
-                  <div className="fc-step" key={i}>
-                    <small>{label}</small>
-                    <output aria-live="polite">{value}</output>
-                    <div>
-                      <button type="button" aria-label={`Un gol menos ${who}`} onClick={() => set(Math.max(0, value - 1))}>
-                        −
-                      </button>
-                      <button type="button" aria-label={`Un gol más ${who}`} onClick={() => set(Math.min(30, value + 1))}>
-                        +
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <i key={i}>–</i>
-                ),
-              )}
-            </div>
-            <div className="fc-pick">
-              <button type="button" aria-pressed={!!myPrediction.data && myPrediction.data.goalsFor === shownUs && myPrediction.data.goalsAgainst === shownThem} onClick={() => act(predictScore(me, match.id, shownUs, shownThem))}>
-                {myPrediction.data ? (myPrediction.data.goalsFor === shownUs && myPrediction.data.goalsAgainst === shownThem ? "Porra guardada" : "Cambiar mi porra") : "Guardar mi porra"}
-              </button>
-            </div>
-            <p className="fc-note">3 puntos si clavas el resultado, 1 si aciertas quién gana.</p>
+            <PorraCard match={match} now={now} uid={uid} />
           </section>
         </>
       )}
@@ -716,20 +658,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
                   ))}
                 </ol>
               )}
-              {voteOpen && (
-                <div className="fc-pick" role="group" aria-label="Tu voto">
-                  {candidates.map((id) => (
-                    <button key={id} type="button" aria-pressed={(pick ?? myVote.data) === id} onClick={() => setPick(id)}>
-                      {nameOf(id)}
-                    </button>
-                  ))}
-                  {pick && pick !== myVote.data && (
-                    <button type="button" aria-pressed="true" onClick={() => act(voteMvp(me, match.id, pick).then(() => setPick(null)))}>
-                      {myVote.data ? "Cambiar mi voto" : "Votar"}
-                    </button>
-                  )}
-                </div>
-              )}
+              <MvpBallot match={match} now={now} uid={uid} counts={mvp?.counts} nameOf={nameOf} />
             </section>
           )}
           <section className="fc-sec" aria-labelledby="fc-pr">
@@ -757,11 +686,6 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
             )}
           </section>
         </>
-      )}
-      {error && (
-        <p className="fc-error" role="alert">
-          {error}
-        </p>
       )}
     </div>
   );
