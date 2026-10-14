@@ -400,8 +400,9 @@ export function PartidosPage() {
                   <span className="hm-kick" style={{ margin: 0 }}>
                     Goles de la temporada
                   </span>
+                  {/* (his name is plain here: his row just below is the one link to his page) */}
                   <h3>
-                    <PlayerLink id={scorers[0].id} seasonId={seasonId} variant="quiet">{scorers[0].name}</PlayerLink> lleva {scorers[0].stats.goals}
+                    {scorers[0].name} lleva {scorers[0].stats.goals}
                   </h3>
                   <ol className="pt-pich">
                     {scorers.map((s, i) => (

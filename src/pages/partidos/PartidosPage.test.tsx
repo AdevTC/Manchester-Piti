@@ -89,11 +89,14 @@ it("the season's goals: each scorer leads to his page, in that season", () => {
   data.matches = [{ ...played, events: [goal("g1", 5), goal("g2", 20)] }];
   render(<PartidosPage />);
   const card = screen.getByText("Goles de la temporada").closest(".pt-card") as HTMLElement;
+  // one link to his page (his row), not two in a row: the headline («EL NUEVE lleva 2») is plain text
   const links = within(card).getAllByRole("link", { name: "EL NUEVE" });
-  // the headline («EL NUEVE lleva 2») and his row
-  expect(links).toHaveLength(2);
-  for (const a of links) expect(a).toHaveAttribute("href", "/jugadores/x?season=t1");
-  expect(within(card).getByRole("heading", { level: 3 })).toHaveTextContent("EL NUEVE lleva 2");
+  expect(links).toHaveLength(1);
+  expect(links[0]).toHaveAttribute("href", "/jugadores/x?season=t1");
+  expect(links[0].closest("li")).not.toBeNull();
+  const h3 = within(card).getByRole("heading", { level: 3 });
+  expect(h3).toHaveTextContent("EL NUEVE lleva 2");
+  expect(within(h3).queryByRole("link")).toBeNull();
 });
 
 it("the board's next match: «Ver la previa» → its page; live, the board only follows it in directo", () => {
