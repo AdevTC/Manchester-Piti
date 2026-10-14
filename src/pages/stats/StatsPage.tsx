@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { playerForSeason, nameFor, useClubData } from "../../lib/clubData";
-import { mvpOfFrom } from "../../lib/derived/mvpOf";
+import { mvpOfFrom, votesClosedAt } from "../../lib/derived/mvpOf";
 import { analysePlayer, chronological, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { tickerLines } from "../../lib/statsView";
 import { jornadaNumbers } from "../../lib/derived/jornada";
@@ -62,8 +62,10 @@ export function StatsPage() {
     [players, games, selectedSeasonId, seasons],
   );
   const mvps = useMemo(() => new Map(rows.map((p) => [p.id, mvpWins(p.id, games, results, now)]).filter(([, n]) => (n as number) > 0) as [string, number][]), [rows, games, results, now]);
-  // the MVPs for the ratings by position: the one shared reader (derived/mvpOf)
-  const mvpOf = useMemo(() => mvpOfFrom(results, games, now), [results, games, now]);
+  // the MVPs for the ratings by position: the one shared reader (derived/mvpOf), keyed on the results and
+  // the last vote closed — not on the minute clock, so «Por posición» isn't re-rated every minute
+  const votesAt = votesClosedAt(games, now);
+  const mvpOf = useMemo(() => mvpOfFrom(results, games, votesAt), [results, games, votesAt]);
   const lines = useMemo(() => tickerLines(rows, games), [rows, games]);
   const top = (value: (p: PlayerAnalysis) => number) => [...rows].sort((a, b) => value(b) - value(a) || nameOf(a).localeCompare(nameOf(b))).find((p) => value(p) > 0);
   const leaders = [

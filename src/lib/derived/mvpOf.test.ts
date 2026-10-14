@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "../clubData";
 import type { MvpResult } from "../vestuario";
-import { mvpOfFrom } from "./mvpOf";
+import { mvpOfFrom, votesClosedAt } from "./mvpOf";
 
 const NOW = 1_000_000;
 const m = (id: string, voteClosesAt?: number): ClubMatch => ({ id, status: "finished", ...(voteClosesAt ? { voteClosesAt } : {}) });
@@ -30,5 +30,18 @@ describe("mvpOfFrom: the one MVP reader for the ratings by position", () => {
     expect(mvpOf("c", "ana")).toBeNull();
     expect(mvpOf("d", "ana")).toBeNull();
     expect(mvpOf("x", "ana")).toBeNull();
+  });
+  it("votesClosedAt only moves when a vote closes, and reads the same MVPs as the clock", () => {
+    expect(votesClosedAt(games, NOW)).toBe(NOW - 1);
+    // a minute later, nothing closed in between: the same value (the memo keeps its mvpOf)
+    expect(votesClosedAt(games, NOW + 60_000 - 2)).toBe(NOW + 1);
+    expect(votesClosedAt(games, NOW + 1 + 60_000)).toBe(votesClosedAt(games, NOW + 1));
+    expect(votesClosedAt(games, NOW - 2)).toBe(-Infinity);
+    expect(votesClosedAt(games, NOW + 1)).toBe(NOW + 1);
+    for (const t of [NOW - 2, NOW, NOW + 1, NOW + 60_000]) {
+      const a = mvpOfFrom(results, games, t);
+      const b = mvpOfFrom(results, games, votesClosedAt(games, t));
+      for (const id of ["a", "b", "c", "d"]) for (const pid of ["ana", "bea", undefined]) expect(b(id, pid)).toBe(a(id, pid));
+    }
   });
 });
