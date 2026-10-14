@@ -22,6 +22,10 @@ export const TOPIC_LABELS: { id: Topic; label: string; hint?: string }[] = [
 ];
 /** The topics that need the member's session (the server refuses or drops them without it). */
 const PERSONAL: readonly Topic[] = ["door", "access", "convocatoria"];
+/** The ones the server refuses outright to a session that may not have them (instead of dropping them). */
+const RESTRICTED: readonly Topic[] = ["door", "access"];
+/** Whether the server kept a subscription doc at the last registration ("1") or none ("0"). */
+const ACCEPTED_KEY = "piti-push-accepted";
 const KEY = "piti-push-topics";
 /** The endpoint the server last accepted for this device (what the boot check compares with). */
 const ENDPOINT_KEY = "piti-push-endpoint";
@@ -136,12 +140,30 @@ async function workerDirty(): Promise<boolean> {
 
 /** Tells the server this device's subscription and topics (signed out: only the public ones, and no uid)
  *  and remembers what it accepted, with which session. */
-async function register(sub: PushSubscription, topics: Topic[]): Promise<SubscribeAnswer> {
+const code = (e: unknown): string => (e && typeof e === "object" && typeof (e as { code?: unknown }).code === "string" ? (e as { code: string }).code : "");
+
+/**
+ * Tells the server this device's subscription and topics (signed out: only the public ones, and no uid)
+ * and remembers what it accepted, with which session. `fallback` (the silent re-assert): a session the
+ * server refuses some topics to (`door` is for captains, `access` for a Google account) is registered
+ * without them, so the device still moves to that session (its uid replaces the old one) — the choice
+ * saved here stays for when a session that may have them comes back.
+ */
+async function register(sub: PushSubscription, topics: Topic[], fallback = false): Promise<SubscribeAnswer> {
   const who = session();
-  const send = who ? topics : topics.filter((t) => !PERSONAL.includes(t));
-  const { data } = await subscribeCall({ subscription: sub.toJSON(), topics: send });
+  let send = who ? topics : topics.filter((t) => !PERSONAL.includes(t));
+  let data: SubscribeAnswer | undefined;
+  try {
+    data = (await subscribeCall({ subscription: sub.toJSON(), topics: send })).data;
+  } catch (e) {
+    if (!fallback || !RESTRICTED.some((t) => send.includes(t)) || !["functions/permission-denied", "functions/unauthenticated"].includes(code(e))) throw e;
+    send = send.filter((t) => !RESTRICTED.includes(t));
+    data = (await subscribeCall({ subscription: sub.toJSON(), topics: send })).data;
+  }
   write(ENDPOINT_KEY, sub.endpoint);
   write(SESSION_KEY, who);
+  // (what the server holds now: a device it keeps, or none — then a `known: false` later is no news)
+  write(ACCEPTED_KEY, (data?.topics ?? send).length ? "1" : "0");
   await rememberForWorker(topics, sub.endpoint);
   return data ?? { topics: send };
 }
@@ -155,6 +177,7 @@ export async function setTopics(topics: Topic[]): Promise<Topic[]> {
     await sub?.unsubscribe();
     write(ENDPOINT_KEY, null);
     write(SESSION_KEY, null);
+    write(ACCEPTED_KEY, null);
     await rememberForWorker([], null);
   } else {
     if (Notification.permission !== "granted" && (await Notification.requestPermission()) !== "granted") throw new Error("Sin permiso para avisos en este navegador.");
@@ -192,15 +215,18 @@ export interface ReassertInput {
 /**
  * Whether the boot check should re-tell the server about this device. Never without topics or without
  * the browser's permission (it never asks). At once: after the worker re-subscribed by itself, or when
- * the session changed (signed out, or someone else signed in: the server's uid is stale) — once per
- * change. A lost or renewed subscription: at most once a day. All well: once a week anyway, to learn
+ * the session changed (signed out, or someone else signed in: the server's uid is stale) or was never
+ * recorded — the first time for that session; if that fails, daily. A lost or renewed subscription: at
+ * most once a day. All well: once a week anyway, to learn
  * whether the server dropped it (a clock set back counts as due).
  */
 export function reassertDue(o: ReassertInput): boolean {
   if (!o.topics.length || o.permission !== "granted") return false;
   if (o.dirty) return true;
-  if (o.registeredSession !== null && o.session !== o.registeredSession && o.session !== o.triedSession) return true;
   const since = o.lastTry == null || o.now < o.lastTry ? Infinity : o.now - o.lastTry;
+  // A session the server doesn't have for this device (or never recorded, before this check existed):
+  // at once the first time for it, then daily like any other pending fix.
+  if (o.registeredSession === null || o.session !== o.registeredSession) return o.session !== o.triedSession || since >= REASSERT_EVERY_MS;
   if (!o.endpoint || o.endpoint !== o.registered) return since >= REASSERT_EVERY_MS;
   return since >= REVERIFY_EVERY_MS;
 }
@@ -244,14 +270,16 @@ export function reassertPush(now: number = Date.now()): Promise<ReassertResult> 
       write(CHECKED_KEY, String(now));
       write(TRIED_SESSION_KEY, who);
       sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC) });
-      const answer = await register(sub, topics);
+      // (did the server keep a doc for us last time? only then is a «didn't know it» news)
+      const hadDoc = read(ACCEPTED_KEY) === "1";
+      const answer = await register(sub, topics, true);
       // The server had dropped the endpoint it had accepted from us: the push service said it is gone.
-      if (answer.known === false && registered === sub.endpoint) {
+      if (answer.known === false && hadDoc && registered === sub.endpoint) {
         // (the doc this call just re-created for the dead endpoint goes too)
         await subscribeCall({ subscription: sub.toJSON(), topics: [] }).catch(() => undefined);
         await sub.unsubscribe();
         const fresh = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC) });
-        await register(fresh, topics);
+        await register(fresh, topics, true);
         return "renewed";
       }
       return "ok";

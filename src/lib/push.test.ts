@@ -74,6 +74,7 @@ const registered = (endpoint = "https://push.test/a", topics: string[] = ["goals
   localStorage.setItem("piti-push-endpoint", endpoint);
   localStorage.setItem("piti-push-session", session);
   localStorage.setItem("piti-push-checked", String(T0));
+  localStorage.setItem("piti-push-accepted", "1");
 };
 
 describe("reassertDue: when the boot check re-tells the server", () => {
@@ -96,8 +97,13 @@ describe("reassertDue: when the boot check re-tells the server", () => {
   it("at once when the session changed (signed out, another account) — once per change", () => {
     expect(due({ session: "", triedSession: "u1" })).toBe(true);
     expect(due({ session: "u2", triedSession: "u1" })).toBe(true);
-    // tried already for this session (it failed): back to the daily / weekly rhythm
+    // tried already for this session (it failed): daily, not weekly
     expect(due({ session: "", triedSession: "" })).toBe(false);
+    expect(due({ session: "", triedSession: "", lastTry: T0 - DAY })).toBe(true);
+    // a device registered before sessions were recorded: once, then daily
+    expect(due({ registeredSession: null, triedSession: null })).toBe(true);
+    expect(due({ registeredSession: null, triedSession: "u1" })).toBe(false);
+    expect(due({ registeredSession: null, triedSession: "u1", lastTry: T0 - DAY })).toBe(true);
   });
   it("never without topics or without the browser's permission (it never asks)", () => {
     expect(due({ topics: [], dirty: true })).toBe(false);
@@ -165,6 +171,35 @@ describe("reassertPush on app boot", () => {
       ["https://push.test/new-1", ["goals"]],
     ]);
     expect(localStorage.getItem("piti-push-endpoint")).toBe("https://push.test/new-1");
+  });
+  it("a device the server kept no doc for last time (no topics it accepted): «didn't know it» is no news", async () => {
+    registered();
+    localStorage.setItem("piti-push-accepted", "0");
+    h.call.mockResolvedValueOnce({ data: { topics: ["goals"], known: false } });
+    expect(await reassertPush(T0 + WEEK)).toBe("ok");
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(h.call).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("piti-push-accepted")).toBe("1");
+  });
+  it("another account that may not have the door: registered without it, under the new session", async () => {
+    registered("https://push.test/a", ["goals", "door"], "capitan");
+    h.auth.currentUser = { uid: "socio" };
+    h.call.mockRejectedValueOnce(Object.assign(new Error("Solo los administradores reciben la puerta."), { code: "functions/permission-denied" }));
+    expect(await reassertPush(T0 + 60_000)).toBe("ok");
+    expect(sent().map((c) => c.topics)).toEqual([["goals", "door"], ["goals"]]);
+    expect(localStorage.getItem("piti-push-session")).toBe("socio");
+    // the device's choice stays: a captain signing in here gets the door back
+    expect(JSON.parse(localStorage.getItem("piti-push-topics")!)).toEqual(["goals", "door"]);
+  });
+  it("other errors are not retried without topics (and the toggles never retry silently)", async () => {
+    registered("https://push.test/a", ["goals", "door"], "capitan");
+    h.auth.currentUser = { uid: "socio" };
+    h.call.mockRejectedValueOnce(Object.assign(new Error("offline"), { code: "functions/unavailable" }));
+    expect(await reassertPush(T0 + 60_000)).toBe("failed");
+    expect(h.call).toHaveBeenCalledTimes(1);
+    h.call.mockReset().mockRejectedValueOnce(Object.assign(new Error("no"), { code: "functions/permission-denied" }));
+    await expect(setTopics(["goals", "door"])).rejects.toThrow("no");
+    expect(h.call).toHaveBeenCalledTimes(1);
   });
   it("a first registration the server doesn't know yet is not a dropped one", async () => {
     localStorage.setItem("piti-push-topics", JSON.stringify(["goals"]));

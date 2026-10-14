@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, pushAudience, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
+import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { nameFor } from "./names.js";
 import { sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
@@ -64,6 +64,23 @@ export const pushSubscribe = onCall(async (req) => {
   await ref.set({ endpoint: input.subscription.endpoint, keys: input.subscription.keys, topics: [...new Set(input.topics)], uid: uid ?? FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   return { topics: input.topics, uid: uid ?? null, known };
 });
+
+/**
+ * A member is out of the vestuario (they left, or a captain removed them): their devices keep the club's
+ * public notices (goals, final…) but lose the personal topics and the uid, so nothing about the
+ * vestuario reaches them any more; a device left with no topics is forgotten.
+ */
+export async function forgetMemberDevices(uid: string): Promise<void> {
+  const subs = await db.collection("pushSubscriptions").where("uid", "==", uid).get();
+  if (subs.empty) return;
+  const batch = db.batch();
+  for (const d of subs.docs) {
+    const keep = publicTopics(d.get("topics"));
+    if (keep.length) batch.update(d.ref, { topics: keep, uid: FieldValue.delete() });
+    else batch.delete(d.ref);
+  }
+  await batch.commit();
+}
 
 export const pushUnsubscribe = onCall(async (req) => {
   const input = parse(z.object({ endpoint: z.url() }), req.data);

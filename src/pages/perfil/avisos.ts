@@ -115,7 +115,7 @@ export const TOPIC_COPY: Record<Topic, { label: string; sub: string; capOnly?: b
 /** The personal notices: no switch (they are about you, to the devices where you sign in). */
 export const PERSONAL_NOTICES = {
   label: "Tus avisos personales (ficha, posiciones, convocatoria)",
-  sub: "Siempre activos en los móviles donde entras con tu cuenta. Los recordatorios de la convocatoria siguen su interruptor.",
+  sub: "Siempre activos en los móviles donde entras con tu cuenta y tienes avisos activados. Los recordatorios de la convocatoria siguen su interruptor.",
 };
 
 /** «3 de 7 activos en este móvil.» / not ready: why they are off. */

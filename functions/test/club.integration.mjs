@@ -161,9 +161,21 @@ checked += 2;
 await denied("revokeMember", admin, { uid: admin.uid }, "FAILED_PRECONDITION");
 // The door's public head count: everyone with a profile, minus whoever a captain removed.
 const before = (await ok("doorShirts", null, null)).inside;
+// their devices: one following the club too, one only with personal notices
+await db.doc("pushSubscriptions/revoked-" + suffix).set({ endpoint: "https://example.test/revoked/" + suffix, keys: { p256dh: "x", auth: "y" }, topics: ["goals", "convocatoria"], uid: asker.uid });
+await db.doc("pushSubscriptions/revoked2-" + suffix).set({ endpoint: "https://example.test/revoked2/" + suffix, keys: { p256dh: "x", auth: "y" }, topics: ["convocatoria"], uid: asker.uid });
 await ok("revokeMember", admin, { uid: asker.uid });
 assert.equal((await ok("doorShirts", null, null)).inside, before - 1);
 checked++;
+{
+  // removed by a captain, like leaving: the public topics stay, the personal ones and the uid go
+  const kept = (await db.doc("pushSubscriptions/revoked-" + suffix).get()).data();
+  assert.deepEqual(kept.topics, ["goals"]);
+  assert.equal(kept.uid, undefined);
+  assert.equal((await db.doc("pushSubscriptions/revoked2-" + suffix).get()).exists, false);
+  await db.doc("pushSubscriptions/revoked-" + suffix).delete();
+  checked += 3;
+}
 assert.equal((await db.doc("teamMembers/" + asker.uid).get()).exists, false);
 assert.equal((await ok("requestAccess", asker, { name: "Otra vez" })).status, "pending");
 checked += 2;

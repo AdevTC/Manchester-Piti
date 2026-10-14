@@ -6,7 +6,7 @@ import { FieldPath, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { db, memberAs, parse } from "./common.js";
-import { publicTopics } from "./pushLogic.js";
+import { forgetMemberDevices } from "./push.js";
 import { fold, NICK_COPY, nicknameProblem, normalizeShirtName, SHIRT_COPY, SHIRT_UNDO_MS, shirtNameProblem, shirtTakenMessage, type ShirtOwner } from "./profileLogic.js";
 
 /** The handle a member is known by in convocatorias, porra and the pizarra. */
@@ -133,7 +133,6 @@ export const leaveVestuario = onCall(async (req) => {
   const { uid, profile } = await memberAs(req);
   parse(z.object({ confirm: z.literal(true, { error: "Marca que entiendes que dejas el vestuario." }) }), req.data);
   if (profile.get("role") === "superadmin") throw new HttpsError("permission-denied", "El superadministrador no puede darse de baja");
-  const subs = await db.collection("pushSubscriptions").where("uid", "==", uid).get();
   const batch = db.batch();
   batch.delete(db.doc(`teamMembers/${uid}`));
   batch.set(db.doc(`users/${uid}`), { removedAt: FieldValue.serverTimestamp() }, { merge: true });
@@ -144,11 +143,7 @@ export const leaveVestuario = onCall(async (req) => {
     email: profile.get("email") ?? "",
     name: profile.get("nickname") ?? "",
   });
-  for (const d of subs.docs) {
-    const keep = publicTopics(d.get("topics"));
-    if (keep.length) batch.update(d.ref, { topics: keep, uid: FieldValue.delete() });
-    else batch.delete(d.ref);
-  }
   await batch.commit();
+  await forgetMemberDevices(uid);
   return { ok: true };
 });
