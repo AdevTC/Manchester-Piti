@@ -114,7 +114,9 @@ export function stintRows(ledger: Record<string, Participation> | undefined, eve
     .sort((a, b) => b.minutes - a.minutes || (a.spans[0]?.left ?? 0) - (b.spans[0]?.left ?? 0));
 }
 
-/** Orientative F7 positions (1-3-2-1) for the starters in their listed order; % of the pitch, attacking up. */
+/** Orientative F7 positions (1-3-2-1) for the starters in their listed order; % of the pitch, attacking up.
+ *  The Campo's fallback when nobody has a position (live, old actas, fans before the acta): see
+ *  pages/match/campoPositions. */
 export const F7_SPOTS: [number, number][] = [
   [50, 89], [20, 68], [50, 72], [80, 68], [32, 43], [68, 43], [50, 17],
 ];

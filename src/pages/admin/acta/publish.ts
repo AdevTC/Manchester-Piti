@@ -3,6 +3,7 @@
 // acta is published, closes 48 h later on the server, and has a winner once closed).
 import { clockTime, shortDate } from "../data/adminLogic";
 import { goalRows, type MatchSheet } from "./sheetModel";
+import { eventMinute } from "../../../lib/partidos";
 
 export const MVP_WINDOW_MS = 48 * 3600_000;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -10,13 +11,16 @@ const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, 
 /** «mar 3 nov, 12:06». */
 export const dayTime = (ms: number) => `${shortDate(ms)}, ${clockTime(ms)}`;
 
-/** «ADRIÁN T.C. 9′ (HUBEROSKI)», «Autogol de FUSION 7 46′», «Gol 3 sin goleador». */
+/** «ADRIÁN T.C. 9′ (HUBEROSKI)», «Autogol de FUSION 7 46′», «Gol 3 sin goleador». The minute as the web
+ *  shows it (eventMinute: a live-stamped goal in football's minute, a typed one as typed). */
 export function scorerChips(sheet: MatchSheet, nameOf: (id: string) => string): string[] {
   const rival = sheet.rival.trim() || "el rival";
   return goalRows(sheet).map((g) => {
     const who = g.kind === "og" ? `Autogol de ${rival}` : g.scorer ? nameOf(g.scorer) : `Gol ${g.n} sin goleador`;
     const kind = g.kind === "goal_penalty" ? " de penalti" : g.kind === "goal_freekick" ? " de falta" : "";
-    return `${who}${g.minute !== undefined ? ` ${g.minute}′` : ""}${kind}${g.assist ? ` (${nameOf(g.assist)})` : ""}`;
+    const e = sheet.events.find((x) => x.id === g.id);
+    const shown = e ? eventMinute(e) : (g.minute ?? null);
+    return `${who}${shown != null ? ` ${shown}′` : ""}${kind}${g.assist ? ` (${nameOf(g.assist)})` : ""}`;
   });
 }
 

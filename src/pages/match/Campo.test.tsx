@@ -127,3 +127,94 @@ it("once played (or live) the official is never shown: the acta's seven", () => 
   expect(screen.queryByText("Siete oficial de la pizarra")).toBeNull();
   expect(within(container.querySelector(".fc-pitch") as HTMLElement).getByRole("button", { name: /^A, dorsal/ })).toBeInTheDocument();
 });
+
+// C3: after the acta the pitch draws where each one played (ledger positionsPlayed) and the system played
+// (match.system); without position data, the orientative 1-3-2-1 of always.
+type Pp = Partial<Record<string, number>>;
+const ledgerRow = (pp: Pp | undefined, o: { minutes?: number; started?: boolean; estimated?: boolean; inFor?: string; at?: number } = {}) => ({
+  minutes: o.minutes ?? 50, played: true, started: o.started ?? true, benched: !(o.started ?? true), notCalled: false, subIn: o.inFor ? 1 : 0, subOut: 0, dismissed: false,
+  stints: [{ from: o.inFor ? (o.at ?? 25) : 0, to: 50 }], exchanges: o.inFor ? [{ minute: o.at ?? 25, with: o.inFor, direction: "in" }] : [],
+  goals: 0, assists: 0, yellowCards: 0, redCards: 0, doubleYellows: 0, penaltyCommitted: 0, penaltyReceived: 0, penaltySaved: 0, penaltyMissed: 0, goalPenalty: 0, goalFreekick: 0, ownGoals: 0, woodwork: 0,
+  ...(pp ? { positionsPlayed: pp } : {}),
+  ...(o.estimated ? { positionsEstimated: true } : {}),
+});
+const played = (extra: Partial<ClubMatch>, ledger: Record<string, unknown>): ClubMatch =>
+  ({ id: "m", seasonId: "t1", date: Date.now() - 3 * 3_600_000, duration: 50, status: "finished", goalsFor: 0, goalsAgainst: 0, version: 2, starters: ["a", "b"], bench: ["h"], events: [], ledger, ...extra }) as unknown as ClubMatch;
+const pitchOf = (c: HTMLElement) => c.querySelector(".fc-pitch") as HTMLElement;
+const dotOf = (c: HTMLElement, name: RegExp) => within(pitchOf(c)).getByRole("button", { name });
+
+it("after the acta: each one at the code he played, the system's chip and «Posiciones de la pizarra oficial»", () => {
+  const match = played({ system: "2-3-1" }, { a: ledgerRow({ POR: 50 }), b: ledgerRow({ MC: 10, DC: 40 }) });
+  const { container } = render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} />);
+  expect(container.querySelector(".fc-sys")).toHaveTextContent("Sistema 2-3-1 · Clásico");
+  expect(screen.getByText("Posiciones de la pizarra oficial")).toBeInTheDocument();
+  // b played most as punta: the 2-3-1's DC spot (50, 22) on the pitch box, not the orientative 2nd slot
+  const b = dotOf(container, /^B, dorsal 2, jugó de punta,/);
+  expect(b.style.left).toBe("50%");
+  expect(b.style.top).toBe("23.9%");
+  expect(dotOf(container, /^A, dorsal 1, jugó de portero,/).style.top).toBe("86.7%");
+  expect(container.querySelector(".fc-pitch-sys")).toHaveTextContent("2-3-1");
+  expect(container.querySelector(".fc-note")?.textContent).not.toMatch(/orientativas/);
+  // the card says where he played
+  expect(container.querySelector(".fc-pinfo .pos")).toHaveTextContent("Jugó de Portero (POR) 50′");
+});
+
+it("estimated by the preferida (no official board): no system chip, «Posiciones estimadas por su preferida»", () => {
+  const match = played({ system: null }, { a: ledgerRow({ POR: 50 }, { estimated: true }), b: ledgerRow({ DFC: 50 }, { estimated: true }) });
+  const { container } = render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} />);
+  expect(screen.getByText("Posiciones estimadas por su preferida")).toBeInTheDocument();
+  expect(container.querySelector(".fc-sys")).toBeNull();
+  expect(dotOf(container, /^B, dorsal 2, jugó de central \(estimado por su preferida\),/)).toBeInTheDocument();
+  expect(container.querySelector(".fc-pinfo .pos")).toHaveTextContent("Jugó de Portero (POR) 50′ · estimado por su preferida");
+});
+
+it("a free-mode board reads «Libre · sin sistema fijo»", () => {
+  const match = played({ system: "libre" }, { a: ledgerRow({ POR: 50 }), b: ledgerRow({ MC: 50 }) });
+  const { container } = render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} />);
+  expect(container.querySelector(".fc-sys")).toHaveTextContent("Libre · sin sistema fijo");
+});
+
+it("an old acta without positions keeps the orientative 1-3-2-1 and its copy", () => {
+  const match = played({}, { a: ledgerRow(undefined), b: ledgerRow(undefined) });
+  const { container } = render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} />);
+  expect(container.querySelector(".fc-sys")).toBeNull();
+  expect(screen.queryByText(/Posiciones de la pizarra oficial|estimadas por su preferida/)).toBeNull();
+  expect(container.querySelector(".fc-note")).toHaveTextContent(/^Posiciones orientativas\. Minutos calculados desde el siete inicial y cada entrada y salida\.$/);
+  const b = dotOf(container, /^B, dorsal 2, 0 goles/);
+  expect([b.style.left, b.style.top]).toEqual(["20%", "68%"]);
+});
+
+it("a substitute who played elsewhere than his slot is a ring on the pitch; the bench reads the shown minute", () => {
+  const match = played(
+    { system: "2-3-1", events: [{ id: "s", type: "substitution", minute: 18, elapsedSeconds: 18 * 60 + 30, playerId: "b", inPlayerId: "h" }] },
+    { a: ledgerRow({ POR: 50 }), b: ledgerRow({ DC: 18.5 }, { minutes: 18.5 }), h: ledgerRow({ EI: 31.5 }, { started: false, minutes: 31.5, inFor: "b", at: 18.5 }) },
+  );
+  const { container } = render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} />);
+  const h = dotOf(container, /^H, dorsal 3, entró en el 19′ y jugó de extremo izquierdo,/);
+  expect(h).toHaveClass("sub");
+  expect(container.querySelector(".fc-note")).toHaveTextContent("Con anillo, quien entró desde el banquillo y jugó en otra posición.");
+  // the bench chip: the 19′ the web showed live (eventMinute), not the stored 18.5
+  expect(within(container.querySelector(".fc-bench") as HTMLElement).getByText(/entró 19′/)).toBeInTheDocument();
+});
+
+it("a substitute at the slot he took stays on the bench list only", () => {
+  const match = played({ system: "2-3-1" }, { a: ledgerRow({ POR: 50 }), b: ledgerRow({ DC: 25 }, { minutes: 25 }), h: ledgerRow({ DC: 25 }, { started: false, minutes: 25, inFor: "b", at: 25 }) });
+  const { container } = render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} />);
+  expect(within(pitchOf(container)).queryByRole("button", { name: /^H, dorsal/ })).toBeNull();
+  expect(within(container.querySelector(".fc-bench") as HTMLElement).getByText(/entró 25′/)).toBeInTheDocument();
+  expect(container.querySelector(".fc-note")?.textContent).not.toMatch(/anillo/);
+});
+
+it("before the acta, a member sees the official board's system and its slots; a fan sees neither", () => {
+  const match: ClubMatch = { id: "m", seasonId: "t1", date: Date.now() + 86_400_000, status: "scheduled", version: 2, starters: ["a", "b"], bench: [], events: [] };
+  const nameOf = (id: string) => id.toUpperCase();
+  const { container, rerender } = render(<CampoTab match={match} players={squad} nameOf={nameOf} live={false} />);
+  expect(container.querySelector(".fc-sys")).toBeNull();
+  expect(container.querySelector(".fc-note")).toHaveTextContent(/^Posiciones orientativas\./);
+  rerender(<CampoTab match={match} players={squad} nameOf={nameOf} live={false} official={["a", "b"]} board={{ system: "3-2-1", codes: { a: "POR", b: "LI" } }} />);
+  expect(screen.getByText("Siete oficial de la pizarra")).toBeInTheDocument();
+  expect(container.querySelector(".fc-sys")).toHaveTextContent("Sistema 3-2-1 · Línea de 3");
+  const b = dotOf(container, /^B, dorsal 2, jugó de lateral izquierdo,/);
+  expect([b.style.left, b.style.top]).toEqual(["21.8%", "66.9%"]);
+  expect(container.querySelector(".fc-note")?.textContent).not.toMatch(/orientativas/);
+});

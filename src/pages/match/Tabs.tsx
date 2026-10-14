@@ -13,8 +13,8 @@ import { Icon } from "../../components/celeste/icons";
 import { MatchBadges } from "../../components/celeste/MatchBadges";
 import { Jersey3D } from "../../components/jersey3d/Jersey3D";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
-import { chapters, F7_SPOTS, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
-import { dateParts, eventMinute, resultOf, scoreOf } from "../../lib/partidos";
+import { chapters, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
+import { dateParts, eventMinute, exchangeMinute, resultOf, scoreOf } from "../../lib/partidos";
 import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMvpResultsSync, useMvpReveal, useMyMvpVote, useMyPrediction } from "../vestuario/live";
 import { mvpAnnouncement, mvpRace, plural, voteLeft } from "../../lib/vestuario";
 import { predictScore, setAvailability, useMe, voteMvp } from "../vestuario/writes";
@@ -25,6 +25,10 @@ import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { nameSegments, type NameSegment } from "../../lib/derived/names";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { campoSeven, campoSevenNote } from "./campoSeven";
+import { campoLayout, SOURCE_TEXT, systemMark, systemText } from "./campoPositions";
+import { POSITIONS } from "../../lib/positions";
+import { playedLinesOf, playedSummary } from "../../lib/playedSummary";
+import type { BoardView } from "../pizarra/useMatchBoard";
 
 type NameOf = (id: string) => string;
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -269,11 +273,13 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
 }
 
 /**
- * El siete. `official` (members only: the pizarra's official for this match, useBoardSeven) goes on the
+ * El siete. `official` (members only: the pizarra's official for this match, useBoardView) goes on the
  * pitch before the acta, with its «Siete oficial de la pizarra» badge and a note when the convocatoria has
- * another seven; fans (and every match once played or live) see the convocatoria's titulares.
+ * another seven, at its slots' positions and with its system (`board`); fans (and every match once played
+ * or live) see the convocatoria's titulares. After the acta each one stands where he played
+ * (campoPositions); live, and without position data, the orientative 1-3-2-1.
  */
-export function CampoTab({ match, players, nameOf, live, official = null }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean; official?: readonly string[] | null }) {
+export function CampoTab({ match, players, nameOf, live, official = null, board = null }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean; official?: readonly string[] | null; board?: Pick<BoardView, "system" | "codes"> | null }) {
   const numOf = useNumOf(players, match.seasonId);
   const [sel, setSel] = useState<string | null>(null);
   const done = isCompleted(match);
@@ -285,8 +291,17 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
   const ledger = done ? match.ledger : snapshot.players;
   const field = live ? snapshot.field : starters;
   const bench = live ? [...starters, ...(match.bench ?? [])].filter((id) => !field.includes(id)) : seven.bench;
+  // where they stand: the acta's positions once played; before it, the official board's (members)
+  const preActa = !done && !live;
+  const officialBoard = preActa && seven.official ? board : null;
+  const system = done ? match.system : preActa ? board?.system : null;
+  const layout = campoLayout({ field, ledger: done ? match.ledger : null, system, codes: officialBoard?.codes ?? null });
+  const systemChip = systemText(system);
+  const placed = layout.source !== "orientative";
+  const subDots = layout.dots.filter((d) => d.sub);
   const pick = sel ?? starters[0];
   const line = pick ? playerLine(pick, ledger, match.events) : null;
+  const pickPlayed = done && pick ? playedLinesOf(match.ledger?.[pick]?.positionsPlayed) : [];
   const rows = done || live ? stintRows(ledger, match.events, match.duration ?? 50) : [];
   if (!starters.length)
     return (
@@ -302,12 +317,20 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
         <h2 className="hm-h2" id="fc-xi">
           {done ? "Quién hizo qué" : live ? "El campo, ahora" : "El siete"}
         </h2>
-        {seven.official && (
+        {(seven.official || systemChip || placed) && (
           <p className="fc-official">
-            <span className="fc-official-badge">
-              <Icon name="shirt" size={14} />
-              Siete oficial de la pizarra
-            </span>
+            {seven.official && (
+              <span className="fc-official-badge">
+                <Icon name="shirt" size={14} />
+                Siete oficial de la pizarra
+              </span>
+            )}
+            {systemChip && (
+              <span className="fc-sys">
+                <small>Sistema</small> {systemChip}
+              </span>
+            )}
+            {placed && !seven.official && <span className="fc-src">{SOURCE_TEXT[layout.source]}</span>}
             {note && <span className="fc-official-note">{note}</span>}
           </p>
         )}
@@ -316,14 +339,19 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
           <span className="l circ" />
           <span className="l bx1" />
           <span className="l bx2" />
-          {field.slice(0, 7).map((id, i) => {
-            if (!id) return null;
-            const [x, y] = F7_SPOTS[i] ?? [50, 50];
-            const stats = playerLine(id, ledger, match.events);
+          {placed && systemMark(system) && (
+            <span className="fc-pitch-sys" aria-hidden="true">
+              {systemMark(system)}
+            </span>
+          )}
+          {layout.dots.map((d) => {
+            const stats = playerLine(d.id, ledger, match.events);
+            const entry = d.sub ? match.ledger?.[d.id]?.exchanges?.find((x) => x.direction === "in") : undefined;
+            const where = d.code ? `, ${d.sub ? `entró${entry ? ` en el ${exchangeMinute(match.events, d.id, entry)}′` : ""} y jugó` : "jugó"} de ${POSITIONS[d.code].name.toLocaleLowerCase("es")}${d.estimated ? " (estimado por su preferida)" : ""}` : "";
             return (
-              <button key={id} type="button" className="fc-pl" style={{ left: `${x}%`, top: `${y}%` }} aria-pressed={pick === id} onClick={() => setSel(id)} aria-label={`${nameOf(id)}, dorsal ${numOf(id)}, ${stats.goals} goles, ${stats.assists} asistencias, ${stats.yellowCards} amarillas, ${stats.redCards} rojas`}>
-                <span className="fc-number">{numOf(id)}</span>
-                <b>{nameOf(id)}</b>
+              <button key={d.id} type="button" className={`fc-pl${d.sub ? " sub" : ""}`} style={{ left: `${d.x}%`, top: `${d.y}%` }} aria-pressed={pick === d.id} onClick={() => setSel(d.id)} aria-label={`${nameOf(d.id)}, dorsal ${numOf(d.id)}${where}, ${stats.goals} goles, ${stats.assists} asistencias, ${stats.yellowCards} amarillas, ${stats.redCards} rojas`}>
+                <span className="fc-number">{numOf(d.id)}</span>
+                <b>{nameOf(d.id)}</b>
                 <MatchBadges {...stats} />
               </button>
             );
@@ -340,7 +368,7 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
                 return <li key={id} className={p?.played ? "in" : ""}>
                   <button type="button" onClick={() => setSel(id)} aria-pressed={pick === id}>
                     <b>{numOf(id)}</b>
-                    <span className="fc-bench-name">{nameOf(id)}<small>{p?.dismissed ? "Expulsado · " : ""}{p ? `${fmtMinutes(p.minutes)}${entry ? ` · entró ${entry.minute}′` : p.played ? "" : done ? " · no jugó" : " · sin entrar"}` : "Minutos sin registrar"}</small></span>
+                    <span className="fc-bench-name">{nameOf(id)}<small>{p?.dismissed ? "Expulsado · " : ""}{p ? `${fmtMinutes(p.minutes)}${entry ? ` · entró ${exchangeMinute(match.events, id, entry)}′` : p.played ? "" : done ? " · no jugó" : " · sin entrar"}` : "Minutos sin registrar"}</small></span>
                     <MatchBadges {...stats} />
                   </button>
                 </li>;
@@ -353,6 +381,12 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
             <span className="nm">
               {numOf(pick)} · <PlayerLink id={pick} seasonId={match.seasonId} variant="quiet">{nameOf(pick)}</PlayerLink>
             </span>
+            {pickPlayed.length > 0 && (
+              <span className="pos">
+                Jugó de {playedSummary({ lines: pickPlayed })}
+                {match.ledger?.[pick]?.positionsEstimated === true ? " · estimado por su preferida" : ""}
+              </span>
+            )}
             <div>
               <dt>min</dt>
               <dd>{ledger?.[pick] ? wholeMinutes(line.minutes) : "–"}</dd>
@@ -371,7 +405,11 @@ export function CampoTab({ match, players, nameOf, live, official = null }: { ma
             </div>
           </dl>
         )}
-        <p className="fc-note">Posiciones orientativas. {live ? "Los cambios y las expulsiones actualizan el campo. Minutos provisionales hasta publicar el acta." : "Minutos calculados desde el siete inicial y cada entrada y salida."}</p>
+        <p className="fc-note">
+          {placed ? "" : "Posiciones orientativas. "}
+          {live ? "Los cambios y las expulsiones actualizan el campo. Minutos provisionales hasta publicar el acta." : preActa && placed ? "Cada uno, en su casilla de la pizarra." : "Minutos calculados desde el siete inicial y cada entrada y salida."}
+          {subDots.length > 0 && " Con anillo, quien entró desde el banquillo y jugó en otra posición."}
+        </p>
       </section>
       {rows.length > 0 && (
         <section className="fc-sec fc-reveal" aria-labelledby="fc-st">
