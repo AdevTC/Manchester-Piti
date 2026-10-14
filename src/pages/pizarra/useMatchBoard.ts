@@ -7,22 +7,32 @@ import { useLiveDoc } from "../vestuario/live";
 import { boardCodeByPlayer, boardSystem } from "../../../functions/src/boardCodes";
 import type { PosCode } from "../../lib/positions";
 import { boardForMatch, boardSeven, lockedBoard, officialScopeId } from "./officialBoard";
+import { parseRival, type RivalSeven } from "./v2/rival";
 
 const lock = (d: { lineupId?: unknown } | undefined) => lockedBoard(d);
 
-/** What the match page reads of the official board: its seven, its system («libre» or a SYSTEM_IDS id)
- *  and each player's slot code. */
+/** What the match page reads of the official board: its seven, its system («libre» or a SYSTEM_IDS id),
+ *  each player's slot code, the match it was drawn for (null: the season's) and its rival seven with the
+ *  notes the RivalPanel keeps on each of them (null when the board has none). */
 export interface BoardView {
   seven: string[];
   system: string;
   codes: Record<string, PosCode>;
+  matchId: string | null;
+  rival: RivalSeven | null;
 }
 
 /** One projection of the whole `lineups/{id}` doc (useLiveDoc: one mapping per path). */
 export function boardViewOfDoc(d: DocumentData | undefined): BoardView | null {
   if (!d) return null;
   const board = { formation: d.formation, freeMode: d.freeMode, slots: Array.isArray(d.slots) ? d.slots : [] };
-  return { seven: boardSeven(d.slots), system: boardSystem(board), codes: boardCodeByPlayer(board) };
+  return {
+    seven: boardSeven(d.slots),
+    system: boardSystem(board),
+    codes: boardCodeByPlayer(board),
+    matchId: typeof d.matchId === "string" && d.matchId ? d.matchId : null,
+    rival: parseRival(d.rival) ?? null,
+  };
 }
 
 /**

@@ -1,6 +1,6 @@
 // The tabs of the match page. Public data comes from the acta (events, ledger); the Vestuario tab
 // reads and writes the team's private bits (convocatoria, porra, MVP) only for members.
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { EVENT_LABELS, isCompleted, playerForSeason, nameFor, type ClubMatch } from "../../lib/clubData";
 import { useSeason } from "../../context/SeasonContext";
@@ -14,7 +14,7 @@ import { MatchBadges } from "../../components/celeste/MatchBadges";
 import { Jersey3D } from "../../components/jersey3d/Jersey3D";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { chapters, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
-import { dateParts, eventMinute, exchangeMinute, resultOf, scoreOf } from "../../lib/partidos";
+import { dateParts, eventMinute, exchangeMinute, scoreOf } from "../../lib/partidos";
 import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMvpResultsSync, useMvpReveal, useMyMvpVote, useMyPrediction } from "../vestuario/live";
 import { mvpAnnouncement, mvpRace, plural, voteLeft } from "../../lib/vestuario";
 import { predictScore, setAvailability, useMe, voteMvp } from "../vestuario/writes";
@@ -29,6 +29,9 @@ import { campoLayout, SOURCE_TEXT, systemMark, systemText } from "./campoPositio
 import { POSITIONS } from "../../lib/positions";
 import { playedLinesOf, playedSummary } from "../../lib/playedSummary";
 import type { BoardView } from "../pizarra/useMatchBoard";
+import type { RivalSeven } from "../pizarra/v2/rival";
+import { RivalLine, RivalSection } from "./RivalDossier";
+import { rivalDossier } from "../../lib/derived/rival";
 
 type NameOf = (id: string) => string;
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
@@ -74,38 +77,17 @@ function NameList({ ids, seasonId }: { ids: readonly string[]; seasonId?: string
   );
 }
 
-function HeadToHead({ match, matches }: { match: ClubMatch; matches: ClubMatch[] }) {
-  const past = matches.filter((m) => m.id !== match.id && m.rival === match.rival && isCompleted(m));
-  if (!past.length) return null;
-  return (
-    <section className="fc-sec fc-reveal" aria-labelledby="fc-h2h">
-      <span className="hm-kick">Contra {match.rival}</span>
-      <h2 className="hm-h2" id="fc-h2h">
-        Ya nos hemos visto
-      </h2>
-      <ul className="fc-h2h">
-        {past.slice(0, 6).map((m) => {
-          const { gf, ga } = scoreOf(m);
-          return (
-            <li key={m.id}>
-              <Link className="hm-ghostbtn" to="/matches/$matchId" params={{ matchId: m.id }}>
-                <span className={`pt-res ${resultOf(m)}`}>{resultOf(m)}</span> {gf}–{ga} · {dateParts(m.date).long}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
 export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMatch; matches: ClubMatch[]; players: PlayerDoc[]; nameOf: NameOf }) {
   const numOf = useNumOf(players, match.seasonId);
   const rival = match.rival ?? "Rival";
   const story = chapters(match.events, nameOf, rival, scoreOf(match));
+  // «El rival»: this match is one of the meetings now (rivalDossier counts finished ones); a match that
+  // names no rival has no dossier
+  const dossier = useMemo(() => rivalDossier(matches, match.rival), [matches, match.rival]);
   return (
     <>
       <div>
+        {match.rival && <RivalLine match={match} dossier={dossier} />}
         {match.report && (
           <section className="fc-sec fc-reveal" aria-labelledby="fc-rep">
             <span className="hm-kick">Así lo vivimos</span>
@@ -173,14 +155,18 @@ export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMat
             </div>
           </section>
         )}
-        <HeadToHead match={match} matches={matches} />
+        {match.rival && <RivalSection match={match} dossier={dossier} />}
       </div>
     </>
   );
 }
 
-export function PreviaTab({ match, matches }: { match: ClubMatch; matches: ClubMatch[] }) {
+/** `plan`: the pizarra's notes on the rival (RivalPanel, this match's official board) — members only: the
+ *  match page reads that board only for them and passes nothing to a fan. */
+export function PreviaTab({ match, matches, plan = null }: { match: ClubMatch; matches: ClubMatch[]; plan?: RivalSeven | null }) {
   const theme = useDocumentTheme();
+  // «El rival»: the meetings so far (this one is still to be played: rivalDossier counts finished ones)
+  const dossier = useMemo(() => rivalDossier(matches, match.rival), [matches, match.rival]);
   const d = dateParts(match.date);
   const kit = match.kit === "away" ? "away" : "home";
   return (
@@ -225,7 +211,7 @@ export function PreviaTab({ match, matches }: { match: ClubMatch; matches: ClubM
             </li>
           </ol>
         </section>
-        <HeadToHead match={match} matches={matches} />
+        {match.rival && <RivalSection match={match} dossier={dossier} plan={plan} />}
       </div>
     </div>
   );

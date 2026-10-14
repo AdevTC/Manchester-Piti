@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analysePlayer } from "./clubAnalytics";
+import { analysePlayer, chronological, opponentInitials, teamAnalysis } from "./clubAnalytics";
 import type { ClubMatch } from "./clubData";
 import { collection, constellation, framesInLead, goalClock, goalLinks, minutesHeat, per50, percentile, points, radarAverage, radarPoints, radarScores, raceFrames, rivalTable, tickerLines, winRateWith } from "./statsView";
 
@@ -163,5 +163,49 @@ describe("Minutos, rivales, colección y rótulo", () => {
     const lines = tickerLines(rows, games);
     expect(lines).toContain("Pichichi: ANA con 3");
     expect(lines.some((l) => l.includes("Mayor victoria: 2–0"))).toBe(true);
+  });
+});
+
+// The Rivales pane now reads rivalDossier (derived/rival), the match page's «El rival» too: its table must
+// stay exactly what it was. This is the table as it was computed before, kept here as the reference.
+function legacyRivalTable(games: ClubMatch[]) {
+  const key = (name: string) => name.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
+  const groups = new Map<string, ClubMatch[]>();
+  for (const m of games) groups.set(key(m.rival || "Rival"), [...(groups.get(key(m.rival || "Rival")) ?? []), m]);
+  return [...groups.entries()]
+    .map(([k, g]) => ({
+      key: k,
+      name: g[0].rival || "Rival",
+      logo: g.find((m) => m.rivalLogoUrl)?.rivalLogoUrl,
+      initials: g.find((m) => m.rivalInitials)?.rivalInitials ?? opponentInitials(g[0].rival || "Rival"),
+      games: [...g].reverse(),
+      ...teamAnalysis(g),
+    }))
+    .sort((a, b) => b.played - a.played || a.name.localeCompare(b.name));
+}
+
+describe("Rivales · the same table through rivalDossier", () => {
+  it("identical to the table before, for the fixture's games", () => {
+    expect(rivalTable(games)).toEqual(legacyRivalTable(games));
+  });
+  it("identical with accents, case, spaces, logos, initials, no rival, ties on played and streaks", () => {
+    const g = (id: string, day: number, rival: string | undefined, gf: number, ga: number, extra: Partial<ClubMatch> = {}): ClubMatch => ({ id, rival, date: Date.UTC(2026, 1, day), duration: 50, status: "finished", goalsFor: gf, goalsAgainst: ga, events: [], ...extra });
+    const period = chronological([
+      g("m1", 1, "Atlético Pínfano", 2, 0),
+      g("m2", 2, "ATLETICO PINFANO ", 3, 1, { rivalLogoUrl: "https://x/logo.png" }),
+      g("m3", 3, "Bravos", 0, 0, { rivalInitials: "BRV" }),
+      g("m4", 4, undefined, 1, 4),
+      g("m5", 5, "atlético  pínfano", 1, 1),
+      g("m6", 6, "Bravos", 2, 3),
+      g("m7", 7, "Zeta", 5, 0),
+      g("m8", 8, "Ácrata", 1, 0),
+      g("m9", 8, "Ácrata", 2, 0),
+      g("m10", 9, "Rival", 0, 1),
+    ]);
+    const now = rivalTable(period);
+    expect(now).toEqual(legacyRivalTable(period));
+    // (and the order of the rows and of each row's games, which toEqual on arrays already checks)
+    expect(now.map((r) => r.name)).toEqual(["Atlético Pínfano", "Ácrata", "Bravos", "Rival", "Zeta"]);
+    expect(now[0].games.map((m) => m.id)).toEqual(["m5", "m2", "m1"]);
   });
 });

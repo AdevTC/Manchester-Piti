@@ -110,9 +110,12 @@ export function MatchPage() {
   const toPlay = !!match && toBePlayed(match, now);
   const board = useMatchBoard(match?.seasonId, match?.id, toPlay, viewer.member);
   // One «siete» (M6): before the acta the Campo shows that official's seven to members, at its slots'
-  // positions and with its system (its doc, read only while the Campo is open and the match is still to be
-  // played — its own official first, the season's only while it has none: useMatchBoard).
-  const officialBoard = useBoardView(toPlay && active === 1 ? board : null);
+  // positions and with its system (its doc, read only while the Campo or the previa is open and the match
+  // is still to be played — its own official first, the season's only while it has none: useMatchBoard).
+  const officialBoard = useBoardView(toPlay && active <= 1 ? board : null);
+  // The previa's «El rival»: the RivalPanel's notes of the board drawn for this very match (a season's
+  // board isn't about this rival), members only (a fan has no board: nothing is read).
+  const rivalPlan = viewer.member && match && officialBoard?.matchId === match.id ? officialBoard.rival : null;
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
@@ -385,7 +388,7 @@ export function MatchPage() {
       </div>
       {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
       <div className={`fc-pane${(active === 0 && done) || active === 4 ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} key={active}>
-        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} />)}
+        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} plan={rivalPlan} />)}
         {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialBoard?.seven ?? null} board={officialBoard} />}
         {active === 2 && <PulsoTab match={match} live={live} minute={minute} pending={pending} />}
         {active === 4 && <TechnicalStatsPanel matches={[match]} people={players.map(p => ({ id: p.id, name: nameOf(p.id), number: p.number }))} />}

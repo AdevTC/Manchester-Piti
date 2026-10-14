@@ -24,7 +24,8 @@ const UPCOMING: ClubMatch = { id: "j3", seasonId: "t1", rival: "Otro", date: Dat
 const LIVE: ClubMatch = { id: "j4", seasonId: "t1", rival: "Vivo", date: Date.UTC(2026, 8, 9, 23, 50), duration: 50, status: "scheduled", events: [] };
 // who is looking (useViewer), the official scope docs (lineupOfficials/{season}__{match|temporada} → the
 // board they name) and every doc path the page asked to read (useLiveDoc; null = no read)
-const who = vi.hoisted(() => ({ viewer: { member: false, admin: false, playerId: null as string | null }, docs: new Map<string, string>(), reads: [] as string[] }));
+// and the board docs themselves (lineups/{id} → its stored fields)
+const who = vi.hoisted(() => ({ viewer: { member: false, admin: false, playerId: null as string | null }, docs: new Map<string, string>(), boards: new Map<string, Record<string, unknown>>(), reads: [] as string[] }));
 
 // the club data: these three, unless a test makes the listener fail (error, and the cache emptied)
 const club = vi.hoisted(() => ({ error: null as Error | null }));
@@ -34,9 +35,11 @@ vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, prof
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false }) }));
 vi.mock("../vestuario/live", () => ({
   useMatchScorers: () => ({ data: [] }),
-  useLiveDoc: <T,>(path: string | null, _id: string, map: (d: { lineupId?: unknown } | undefined) => T, empty: T) => {
+  useLiveDoc: <T,>(path: string | null, _id: string, map: (d: Record<string, unknown> | undefined) => T, empty: T) => {
     if (!path) return { data: empty, loading: false, error: false };
     who.reads.push(path);
+    const board = who.boards.get(path);
+    if (board) return { data: map(board), loading: false, error: false };
     const id = who.docs.get(path);
     return { data: map(id ? { lineupId: id } : undefined), loading: false, error: false };
   },
@@ -50,7 +53,8 @@ vi.mock("../../components/celeste/TechnicalStats", () => ({ TechnicalStatsPanel:
 vi.mock("./Tabs", () => ({
   CronicaTab: () => <p>pane:cronica</p>,
   DirectoTab: () => <p>pane:directo</p>,
-  PreviaTab: () => <p>pane:previa</p>,
+  // (the pizarra's notes on the rival it was handed: members only, the board drawn for this match)
+  PreviaTab: ({ plan }: { plan?: { players: { note?: string }[] } | null }) => <p data-plan={plan ? plan.players.map((p) => p.note ?? "").join("|") : "none"}>pane:previa</p>,
   CampoTab: () => <p>pane:campo</p>,
   PulsoTab: () => <p>pane:pulso</p>,
   VestuarioTab: () => <p>pane:vestuario</p>,
@@ -314,8 +318,8 @@ describe("MatchPage · the official seven on the Campo", () => {
 
   it("not on another tab, not for a fan, not once played", async () => {
     as({ member: true }, { t1__j3: "b3" });
-    open("/matches/j3");
-    expect(await screen.findByText("pane:previa")).toBeInTheDocument();
+    open("/matches/j3?tab=pulso");
+    expect(await screen.findByText("pane:pulso")).toBeInTheDocument();
     expect(who.reads.some((p) => p.startsWith("lineups/"))).toBe(false);
     cleanup();
     as({}, { t1__j3: "b3" });
@@ -327,5 +331,39 @@ describe("MatchPage · the official seven on the Campo", () => {
     open("/matches/j1?tab=campo");
     expect(await screen.findByText("pane:campo")).toBeInTheDocument();
     expect(who.reads).not.toContain("lineups/b1");
+  });
+});
+
+// «El rival» (idea 12): the previa gets the RivalPanel's notes of the board drawn for this very match — a
+// member's read of its doc; a fan reads nothing and gets none; the season's board isn't about this rival.
+describe("MatchPage · the rival's notes in the previa", () => {
+  const as = (v: Partial<typeof who.viewer>, docs: Record<string, string> = {}, boards: Record<string, Record<string, unknown>> = {}) => {
+    who.viewer = { member: false, admin: false, playerId: null, ...v };
+    who.docs = new Map(Object.entries(docs).map(([k, id]) => ["lineupOfficials/" + k, id]));
+    who.boards = new Map(Object.entries(boards).map(([k, d]) => ["lineups/" + k, d]));
+    who.reads = [];
+  };
+  const rival = { formation: "2-3-1", players: [{ note: "Saca rápido" }, {}, {}, {}, {}, {}, { num: 9, note: "Presionar al 9" }] };
+  const previa = async () => (await screen.findByText("pane:previa")).getAttribute("data-plan");
+  afterEach(() => who.boards.clear());
+
+  it("a member: the notes of the match's own official board", async () => {
+    as({ member: true }, { t1__j3: "b3" }, { b3: { formation: "2-3-1", slots: [], matchId: "j3", rival } });
+    open("/matches/j3");
+    expect(await previa()).toBe("Saca rápido||||||Presionar al 9");
+    expect(who.reads).toContain("lineups/b3");
+  });
+
+  it("a fan: no read of any board, no notes", async () => {
+    as({}, { t1__j3: "b3" }, { b3: { formation: "2-3-1", slots: [], matchId: "j3", rival } });
+    open("/matches/j3");
+    expect(await previa()).toBe("none");
+    expect(who.reads).toEqual([]);
+  });
+
+  it("a member with only the season's board: no notes (it wasn't drawn for this rival)", async () => {
+    as({ member: true }, { t1__temporada: "s1" }, { s1: { formation: "2-3-1", slots: [], matchId: null, rival } });
+    open("/matches/j3");
+    expect(await previa()).toBe("none");
   });
 });

@@ -62,7 +62,58 @@
 .fc-plan b{font-family:'Geist Mono';font-weight:600;font-size:15px}
 .fc-plan span{display:grid;font-weight:600}
 .fc-plan small{font-weight:400;font-size:13px;color:var(--muted)}
-.fc-h2h{margin:16px 0 0;padding:0;list-style:none;display:flex;gap:8px;flex-wrap:wrap}
+/* el rival (previa and crónica): the record, the last meetings, our scorers against them, the biggest win;
+   members, the pizarra's notes on their seven. Letters and words carry every result, the colour only helps */
+.fc-riv{scroll-margin-top:84px;outline:none}
+.vx .fc-riv-first{margin:12px 0 0;font-size:15px;line-height:1.55;color:var(--soft);max-width:44ch}
+.fc-rec{margin:18px 0 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.fc-rec div{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;padding:12px 4px 10px;border-radius:18px;background:var(--chip);text-align:center}
+.fc-rec dd{margin:0;order:-1;font-family:'Anybody';font-weight:900;font-size:30px;line-height:1;font-variation-settings:'wdth' 90}
+.fc-rec dt{display:inline-flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px;font-family:'Geist Mono';font-size:10px;color:var(--muted)}
+.fc-rec .pt-res{width:18px;height:18px;border-radius:5px;font-size:10px}
+.fc-rec div.G{box-shadow:inset 0 0 0 1.5px rgba(108,171,221,.5)}
+.fc-goalbar{margin-top:8px;padding:12px 14px;border-radius:18px;background:var(--chip)}
+.vx .fc-goalbar p{margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;color:var(--soft)}
+.fc-goalbar b{font-family:'Anybody';font-weight:900;font-size:18px;color:var(--ink)}
+.fc-goalbar .mono{font-family:'Geist Mono';font-size:12px;color:var(--muted)}
+.fc-goalbar .bar{margin-top:8px;display:flex;gap:3px;height:8px;border-radius:999px;overflow:hidden}
+.fc-goalbar .bar i{display:block;height:100%;min-width:3px}
+.fc-goalbar .bar .us{background:var(--gf)}
+.fc-goalbar .bar .them{background:var(--ga)}
+.fc-riv-h3{margin:24px 0 0;font-family:'Anybody';font-weight:800;font-size:20px;line-height:1.05;font-variation-settings:'wdth' 108}
+.fc-riv-last{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:6px}
+.vx .fc-riv-m{display:grid;grid-template-columns:28px auto minmax(0,1fr) auto 16px;align-items:center;gap:10px;min-height:52px;padding:8px 12px;border-radius:16px;background:var(--chip);color:var(--ink);text-decoration:none;transition:box-shadow .2s}
+.fc-riv-m b{font-family:'Anybody';font-weight:900;font-size:18px;font-variation-settings:'wdth' 90}
+.fc-riv-m .dt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600}
+.fc-riv-m small{font-family:'Geist Mono';font-size:10px;color:var(--muted)}
+.fc-riv-m svg{color:var(--muted)}
+.vx span.fc-riv-m{grid-template-columns:28px auto minmax(0,1fr) auto;box-shadow:inset 0 0 0 1.5px var(--accent)}
+.vx a.fc-riv-m:hover{box-shadow:inset 0 0 0 1.5px var(--line)}
+.fc-riv-two{display:grid;gap:0 16px}
+.fc-riv-sc{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:6px;counter-reset:sc}
+.fc-riv-sc li{display:flex;align-items:center;gap:10px;min-height:48px;padding:2px 12px;border-radius:14px;background:var(--chip);font-weight:700;font-size:14px;counter-increment:sc}
+.fc-riv-sc li::before{content:counter(sc);font-family:'Geist Mono';font-size:11px;font-weight:400;color:var(--muted)}
+.fc-riv-sc li>a{display:inline-flex;align-items:center;min-height:44px;min-width:0;overflow-wrap:anywhere}
+.fc-riv-sc li>span{margin-left:auto;white-space:nowrap;font-size:12px;font-weight:600;color:var(--muted)}
+.fc-riv-sc li>span b{font-family:'Anybody';font-weight:900;font-size:18px;color:var(--accent)}
+.vx .fc-riv-big{margin:10px 0 0;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;min-height:72px;padding:12px 16px;border-radius:20px;background:linear-gradient(140deg,rgba(108,171,221,.3),rgba(108,171,221,.05));box-shadow:inset 0 0 0 1px rgba(108,171,221,.45);color:var(--ink);text-decoration:none}
+.fc-riv-big b{font-family:'Anybody';font-weight:900;font-size:48px;line-height:1;font-variation-settings:'wdth' 80;color:var(--accent)}
+.fc-riv-big span{font-family:'Geist Mono';font-size:11px;color:var(--muted)}
+.vx .fc-riv-since{margin:16px 0 0;font-family:'Geist Mono';font-size:11px;color:var(--muted)}
+.fc-riv-plan{margin-top:24px;padding:16px;border-radius:22px;border:1.5px dashed var(--line)}
+.fc-riv-plan .hm-kick{display:flex;align-items:center;gap:6px}
+.fc-riv-plan .hm-kick svg{color:var(--accent)}
+.fc-riv-plan h3{margin:0;font-family:'Anybody';font-weight:800;font-size:20px;line-height:1.1}
+.fc-riv-plan ol{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.fc-riv-plan li{display:grid;grid-template-columns:minmax(0,96px) minmax(0,1fr);gap:10px;align-items:baseline;font-size:14px;line-height:1.45}
+.fc-riv-plan li b{font-family:'Geist Mono';font-size:12px;color:var(--accent)}
+.fc-riv-plan li span{color:var(--soft);overflow-wrap:anywhere}
+.vx .fc-riv-line{margin:14px 0 0}
+.vx .fc-riv-line a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:6px 16px;border-radius:999px;background:var(--chip);color:var(--ink);font-weight:600;font-size:14px;text-decoration:none}
+.fc-riv-line b{font-family:'Geist Mono';font-weight:600;letter-spacing:.02em;color:var(--accent)}
+.fc-riv-line svg{color:var(--muted)}
+.vx a.fc-riv-m:focus-visible,.vx a.fc-riv-big:focus-visible,.vx .fc-riv-line a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@container (min-width:520px){.fc-riv-two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 
 /* directo */
 .fc-feed{margin:18px 0 0;padding:0;list-style:none;display:grid;gap:8px}
@@ -194,7 +245,7 @@
 }
 @media (prefers-reduced-motion:reduce){
 .fc-pane,.fc-feed li,.fc-mom .u,.fc-mom .t,.fc-stints .tr i,.fc-votes .bar i,.fc-mvp.won .sh,.fc-mvp.won .hm-h2{animation:none!important}
-.fc-tabs .ind,.fc-rsvp .th,.fc-race .bar i{transition:none}
+.fc-tabs .ind,.fc-rsvp .th,.fc-race .bar i,.fc-riv-m{transition:none}
 }
 
 /* modo banda (admins, live) */

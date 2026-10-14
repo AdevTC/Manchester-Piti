@@ -8,7 +8,8 @@ import { POSITIONS, resolvePositions } from "./positions";
 import { playerPositions } from "./positionStats";
 import { nameFor } from "./derived/names";
 import { totalMinutes } from "./derived/minutesOf";
-import { competitionRanks, milestoneSteps, milestones, opponentInitials, teamAnalysis, type PlayerAnalysis, type StarLink } from "./clubAnalytics";
+import { rivalDossier, rivalKey } from "./derived/rival";
+import { competitionRanks, milestoneSteps, milestones, teamAnalysis, type PlayerAnalysis, type StarLink } from "./clubAnalytics";
 // goalLinks lives with the analytics (the pizarra's ratings read it too, without importing this page's module)
 export { goalLinks, type StarLink } from "./clubAnalytics";
 
@@ -235,26 +236,20 @@ export function minutesHeat(rows: PlayerAnalysis[]) {
 }
 
 // ---------- rivals
-const rivalKey = (name: string) =>
-  name
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-/** One row per rival (names normalised), with its games newest first. */
+/** One row per rival (names normalised: derived/rival rivalKey), with its games newest first — each row
+ *  the record of rivalDossier, the same one the match page's «El rival» shows. `games` are the period's
+ *  finished matches, oldest first (chronological). */
 export function rivalTable(games: ClubMatch[]) {
-  const groups = new Map<string, ClubMatch[]>();
-  for (const m of games) groups.set(rivalKey(m.rival || "Rival"), [...(groups.get(rivalKey(m.rival || "Rival")) ?? []), m]);
-  return [...groups.entries()]
-    .map(([key, g]) => ({
-      key,
-      name: g[0].rival || "Rival",
-      logo: g.find((m) => m.rivalLogoUrl)?.rivalLogoUrl,
-      initials: g.find((m) => m.rivalInitials)?.rivalInitials ?? opponentInitials(g[0].rival || "Rival"),
-      games: [...g].reverse(),
-      ...teamAnalysis(g),
-    }))
+  const names = new Map<string, string>();
+  for (const m of games) {
+    const k = rivalKey(m.rival || "Rival");
+    if (!names.has(k)) names.set(k, m.rival || "Rival");
+  }
+  return [...names.values()]
+    .map((n) => {
+      const d = rivalDossier(games, n);
+      return { key: d.key, name: d.name, logo: d.logo, initials: d.initials, games: d.games, ...d.record };
+    })
     .sort((a, b) => b.played - a.played || a.name.localeCompare(b.name));
 }
 /** Minutes of the goals of one match: ours and theirs, for the drill-down timeline. */
