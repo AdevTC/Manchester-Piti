@@ -11,6 +11,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { db } from "./common.js";
 import { sendTo, vapidPrivate } from "./push.js";
 import { flushSevens } from "./seven.js";
+import { nameFor } from "./names.js";
 import { HOUR, LATE_DEBOUNCE_MS, lateChangeNotice, REMINDER_MIN_LEAD, reminderDue, reminderNotice, unanswered } from "./remindersLogic.js";
 
 const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x) : []);
@@ -72,7 +73,8 @@ export const pushOnAnswer = onDocumentWritten({ document: "matchPrivate/{matchId
   if (!match.exists || match.get("archived") || match.get("status") !== "scheduled") return;
   const pid = typeof after.playerId === "string" ? after.playerId : null;
   const player = pid ? await db.doc(`players/${pid}`).get() : null;
-  const who = (player?.get("shirtName") as string | undefined) || (typeof after.name === "string" && after.name ? "@" + after.name : "Alguien");
+  // (the player by his shirt name in the match's season, like the web; without a ficha, the member's @apodo)
+  const who = player?.exists ? nameFor(player.data(), match.get("seasonId") as string | undefined) : typeof after.name === "string" && after.name ? "@" + after.name : "Alguien";
   const now = Date.now();
   const notice = lateChangeNotice(matchId, who, before.response, after.response, { rival: match.get("rival") ?? "el rival", date: millis(match.get("date")) ?? undefined }, now);
   if (!notice) return;

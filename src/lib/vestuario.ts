@@ -1,5 +1,6 @@
 // Pure vestuario domain logic: everything the page shows is derived from real match data.
 import { dateMillis, isCompleted } from "../../functions/src/matchEngine";
+import { mvpWinnerIds } from "../../functions/src/pushLogic";
 import type { ClubMatch } from "./clubData";
 import { chronological, playerGame } from "./clubAnalytics";
 
@@ -64,11 +65,10 @@ export interface MvpResult {
   counts: Record<string, number>;
   total: number;
 }
-/** Winners of a match's MVP vote once it has closed (ties share it). */
+/** Winners of a match's MVP vote once it has closed (ties share it): the same rule as the «MVP de la J5»
+ *  push (functions/src/pushLogic.ts mvpWinnerIds). */
 export function mvpWinners(match: ClubMatch, result: MvpResult | undefined, now: number) {
-  if (!result?.total || !match.voteClosesAt || now < match.voteClosesAt) return [];
-  const top = Math.max(...Object.values(result.counts));
-  return top > 0 ? Object.keys(result.counts).filter((id) => result.counts[id] === top) : [];
+  return mvpWinnerIds(match.voteClosesAt, result, now);
 }
 export function mvpWins(playerId: string, matches: ClubMatch[], results: Map<string, MvpResult>, now: number) {
   return matches.filter((m) => mvpWinners(m, results.get(m.id), now).includes(playerId)).length;

@@ -4,10 +4,19 @@ import { TeamProvider } from "./context/TeamContext";
 import { SeasonProvider } from "./context/SeasonContext";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
+import { usePushKeepAlive } from "./hooks/usePushKeepAlive";
 import type { createAppRouter } from "./router";
+
+/** Keeps this device's push subscription alive (lost or renewed ones are re-asserted on boot). */
+function PushKeepAlive() {
+  usePushKeepAlive();
+  return null;
+}
+
 export default function App({ router }: { router: ReturnType<typeof createAppRouter> }) {
   return (
     <AuthProvider>
+      <PushKeepAlive />
       <TeamProvider>
         <SeasonProvider>
           <TooltipProvider delayDuration={300}>

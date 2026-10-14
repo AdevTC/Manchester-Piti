@@ -31,7 +31,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const functions = getFunctions(app, "europe-southwest1");
+/** Where the callables live (src/lib/push.ts also builds their plain URLs for the service worker). */
+export const FUNCTIONS_REGION = "europe-southwest1";
+export const functions = getFunctions(app, FUNCTIONS_REGION);
 if (USE_EMULATOR) connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 
 // No popup/redirect resolver at start-up: getAuth() would load Google's gapi + the

@@ -13,7 +13,7 @@ describe("push notices", () => {
     const before = { ...base, events: [g("r6", 6, undefined, "opponent_goal")] };
     const after = { ...base, events: [...before.events, g("live-1", 19, "e")] };
     expect(noticesFor("j8", before, after, nameOf, NOW)).toEqual([
-      { topic: "goals", title: "¡GOL del Piti! 1–1", body: "ERIK, minuto 19 · Manchester Piti 1–1 MAD SKY", tag: "goal-j8", url: "/matches/j8" },
+      { topic: "goals", title: "¡GOL del Piti! 1–1", body: "ERIK, minuto 19 · Manchester Piti 1–1 MAD SKY", tag: "goal-j8", url: "/matches/j8", log: "goal-j8-live-1" },
     ]);
     const rival = noticesFor("j8", after, { ...after, events: [...after.events, g("live-2", 30, undefined, "opponent_goal")] }, nameOf, NOW);
     expect(rival[0].title).toBe("Gol de MAD SKY. 1–2");
@@ -67,10 +67,11 @@ describe("«¡Empieza el partido!» follows the real clock", () => {
   });
   it("no start notice for any other clock move, a plain save, or an archived or finished match", () => {
     const at = (phase: string) => ({ ...ready, clock: { phase } });
+    const kickoffs = (b: object, a: object) => noticesFor("j8", b, a, nameOf, NOW).filter((n) => n.log === "start-j8");
     expect(noticesFor("j8", ready, ready, nameOf, NOW)).toEqual([]);
-    expect(noticesFor("j8", running, at("halftime"), nameOf, NOW)).toEqual([]);
-    expect(noticesFor("j8", at("halftime"), at("second"), nameOf, NOW)).toEqual([]);
-    expect(noticesFor("j8", at("second"), at("ended"), nameOf, NOW)).toEqual([]);
+    expect(kickoffs(running, at("halftime"))).toEqual([]);
+    expect(kickoffs(at("halftime"), at("second"))).toEqual([]);
+    expect(kickoffs(at("second"), at("ended"))).toEqual([]);
     expect(noticesFor("j8", at("ended"), at("second"), nameOf, NOW)).toEqual([]);
     expect(noticesFor("j8", running, ready, nameOf, NOW)).toEqual([]);
     expect(noticesFor("j8", undefined, running, nameOf, NOW).filter((n) => n.topic === "start")).toEqual([]);

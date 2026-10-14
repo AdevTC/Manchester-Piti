@@ -21,7 +21,7 @@ export { clubCalendar } from "./calendar.js";
 export { clubBundle } from "./bundle.js";
 export { liveEvent } from "./live.js";
 export { controlMatchClock, setMatchScorers } from "./liveClock.js";
-export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff } from "./push.js";
+export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview } from "./push.js";
 export { pushReminders, pushOnAnswer } from "./reminders.js";
 export { deleteMatch } from "./matches.js";
 export { setConvocatoria } from "./convocatoria.js";

@@ -12,12 +12,18 @@ export const PERSONAL_TOPICS = ["convocatoria"] as const;
 export type Topic = (typeof TOPICS)[number] | (typeof DOOR_TOPICS)[number] | (typeof PERSONAL_TOPICS)[number];
 
 export interface Notice {
-  topic: Topic;
+  /** The subscribers' topic; "personal" = news about one member (their ficha, their positions), to that
+   *  member's own devices only (the subscriptions that carry their uid), whatever topics they chose. */
+  topic: Topic | "personal";
   title: string;
   body: string;
   /** Same tag replaces the previous notice of the same kind for that match on the phone. */
   tag: string;
   url: string;
+  /** pushLog id claimed before sending (it already there = the notice already went: never twice). */
+  log?: string;
+  /** pushLog id that must exist for this notice to go (e.g. «Gol anulado» only for a goal that was pushed). */
+  requires?: string;
 }
 interface Ev {
   id: string;
@@ -44,6 +50,8 @@ export interface MatchLike {
   clock?: { phase?: string };
 }
 
+const notDone = (m: MatchLike | undefined) => !!m && m.status !== "finished" && m.status !== "cancelled";
+
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
 const TZ = "Europe/Madrid";
@@ -60,11 +68,16 @@ export function liveScore(events: Ev[] | undefined) {
 const when = (ms: number) =>
   new Intl.DateTimeFormat("es-ES", { timeZone: TZ, weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(ms).replace(".", "");
 
+const isGoal = (e: Ev) => OURS.has(e.type) || THEIRS.has(e.type);
+
 /**
- * What changed between two versions of a match, as notices: the clock starting (the kick-off), each
- * goal written while it isn't finished, the final whistle (and the MVP vote opening), and a new match
- * or a new kick-off time. The MVP vote opens the match page on its Vestuario tab (`?tab=vestuario`,
- * the tab ids of src/lib/matchTabs.ts); the rest land on the first tab (crónica / directo / previa).
+ * What changed between two versions of a match, as notices: the clock's whistles (the kick-off, the
+ * descanso, the 2ª parte and the provisional final), each goal written while it isn't finished (and
+ * «Gol anulado» when one that was pushed is undone), the acta's final (and the MVP vote opening), and a
+ * new match or a new kick-off time. The MVP vote opens the match page on its Vestuario tab
+ * (`?tab=vestuario`, the tab ids of src/lib/matchTabs.ts); the rest land on the first tab (crónica /
+ * directo / previa). Each notice that could repeat (a trigger retry, a clock undone and done again)
+ * carries its pushLog id (`log`): push.ts claims it first, so it goes once.
  */
 export function noticesFor(id: string, before: MatchLike | undefined, after: MatchLike | undefined, nameOf: (playerId: string) => string, now: number): Notice[] {
   if (!after || after.archived) return [];
@@ -72,13 +85,23 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
   const rival = after.rival ?? "el rival";
   const out: Notice[] = [];
   const finishedNow = after.status === "finished" && before?.status !== "finished";
-  if (after.status !== "finished" && after.status !== "cancelled") {
+  if (notDone(after)) {
     // The kick-off is the clock going ready → first (an absent clock is a ready one), not the date.
     if (before && (before.clock?.phase ?? "ready") === "ready" && after.clock?.phase === "first") out.push(kickoffNotice(id, rival));
+    const { gf, ga } = liveScore(after.events);
+    const score = `Manchester Piti ${gf}–${ga} ${rival}`;
+    // «Gol anulado»: a goal undone while the match is still being played, only if its «¡GOL!» went
+    // (`requires` its pushLog): never for the corrections of an old acta. Same tag: it replaces it.
+    if (notDone(before) && after.clock?.phase !== "ended") {
+      const still = new Set((after.events ?? []).map((e) => e.id));
+      for (const e of (before?.events ?? []).filter((x) => isGoal(x) && !still.has(x.id))) {
+        const who = e.type === "opponent_own_goal" ? `el autogol de ${rival}` : OURS.has(e.type) ? (e.playerId ? `el gol de ${nameOf(e.playerId)}` : "el gol del Piti") : `el gol de ${rival}`;
+        out.push({ topic: "goals", title: `Gol anulado. ${gf}–${ga}`, body: `Se anula ${who}${e.minute != null ? ` (minuto ${e.minute})` : ""} · ${score}`, tag: `goal-${id}`, url, requires: `goal-${id}-${e.id}`, log: `goal-off-${id}-${e.id}` });
+      }
+    }
     const seen = new Set((before?.events ?? []).map((e) => e.id));
-    const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && (OURS.has(e.type) || THEIRS.has(e.type)));
+    const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && isGoal(e));
     if (fresh.length) {
-      const { gf, ga } = liveScore(after.events);
       const last = fresh[fresh.length - 1];
       const ours = OURS.has(last.type);
       // a goal written live without its scorer yet («Lo completo luego») is still the Piti's
@@ -86,17 +109,27 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
       out.push({
         topic: "goals",
         title: ours ? `¡GOL del Piti! ${gf}–${ga}` : `Gol de ${rival}. ${gf}–${ga}`,
-        body: `${who}${last.minute != null ? `, minuto ${last.minute}` : ""} · Manchester Piti ${gf}–${ga} ${rival}`,
+        body: `${who}${last.minute != null ? `, minuto ${last.minute}` : ""} · ${score}`,
         tag: `goal-${id}`,
         url,
+        log: `goal-${id}-${last.id}`,
       });
     }
+    // The clock's other whistles, once per match each (an undo and the same whistle again says nothing
+    // new). The descanso and the 2ª parte share the kick-off's tag: the phone keeps the latest.
+    const was = before?.clock?.phase ?? "ready";
+    const phase = after.clock?.phase;
+    if (before && was === "first" && phase === "halftime") out.push({ topic: "start", title: `Descanso · ${gf}–${ga}`, body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `half-${id}` });
+    if (before && was === "halftime" && phase === "second") out.push({ topic: "start", title: "Arranca la 2ª parte", body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `second-${id}` });
+    // The final whistle (clock ended), before the acta: provisional, with the acta's «Final» tag so the
+    // official one replaces it on the phone when the captain publishes.
+    if (before && (was === "first" || was === "second") && phase === "ended") out.push({ topic: "final", title: `Final (provisional) · ${gf}–${ga}`, body: `${score}. El resultado oficial llega con el acta del capitán.`, tag: `final-${id}`, url, log: `final-live-${id}` });
   }
   if (finishedNow) {
     const gf = after.goalsFor ?? 0, ga = after.goalsAgainst ?? 0;
     const verdict = resultTitle(resultLetter(gf, ga));
-    out.push({ topic: "final", title: `Final: Manchester Piti ${gf}–${ga} ${rival}`, body: `${verdict}. La crónica, los minutos y el pulso del partido ya están en la web.`, tag: `final-${id}`, url });
-    if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url: `${url}?tab=vestuario` });
+    out.push({ topic: "final", title: `Final: Manchester Piti ${gf}–${ga} ${rival}`, body: `${verdict}. La crónica, los minutos y el pulso del partido ya están en la web.`, tag: `final-${id}`, url, log: `final-${id}` });
+    if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url: `${url}?tab=vestuario`, log: `mvp-open-${id}` });
   }
   const scheduled = after.status === "scheduled" && typeof after.date === "number" && after.date > now;
   if (scheduled && (!before || before.date !== after.date)) {
@@ -117,7 +150,90 @@ export const kickoffNotice = (id: string, rival: string): Notice => ({
   body: "Sigue el marcador en directo en la web.",
   tag: `start-${id}`,
   url: `/matches/${id}`,
+  log: `start-${id}`,
 });
+
+// ── The MVP's winner, when the vote closes (the 5-minute job, push.ts) ──
+
+/** Who won a match's MVP vote once it has closed (ties share it), from mvpResults/{id} — the one rule
+ *  of the web (src/lib/vestuario.ts mvpWinners) and the notice. Nobody before it closes or without votes. */
+export function mvpWinnerIds(voteClosesAt: number | null | undefined, result: { counts?: Record<string, number>; total?: number } | null | undefined, now: number): string[] {
+  if (!result?.total || !voteClosesAt || now < voteClosesAt) return [];
+  const counts = result.counts ?? {};
+  const top = Math.max(...Object.values(counts));
+  return top > 0 ? Object.keys(counts).filter((id) => counts[id] === top) : [];
+}
+
+/** «MVP de la J5: ERIK» (a tie: «MVP compartido de la J5: ERIK y PABLO»), once per match. Same tag as
+ *  «Vota al MVP»: the winner replaces the call to vote on the phone. Null without a winner. */
+export function mvpWinnerNotice(id: string, match: Pick<MatchLike, "rival">, winners: readonly string[], nameOf: (playerId: string) => string, jornada: number | null): Notice | null {
+  if (!winners.length) return null;
+  const rival = match.rival ?? "el rival";
+  const names = andList(winners.map(nameOf));
+  const of = jornada ? ` de la J${jornada}` : " del partido";
+  const shared = winners.length > 1;
+  return {
+    topic: "mvp",
+    title: `${shared ? "MVP compartido" : "MVP"}${of}: ${names}`,
+    body: shared ? `Empate en la votación ante ${rival}. Mira el recuento en la web.` : `Elegido por el vestuario ante ${rival}. Mira la votación en la web.`,
+    tag: `mvp-${id}`,
+    url: `/matches/${id}?tab=vestuario`,
+    log: `mvp-win-${id}`,
+  };
+}
+
+// ── Personal notices: news about one member, to their own devices ──
+
+const millisOf = (v: unknown): number | null => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  const t = v as { toMillis?: () => number } | null | undefined;
+  return t && typeof t.toMillis === "function" ? t.toMillis() : null;
+};
+
+/** The fields of playerClaims/{uid} the notice looks at. */
+export interface ClaimLike {
+  playerId?: string;
+  status?: string;
+  resolvedBy?: string;
+}
+
+/**
+ * «Tu ficha ya es tuya»: a member's claim of a ficha becomes approved — by a captain (a captain's own
+ * claim links at once: nothing to tell him). Once per member and ficha (pushLog).
+ */
+export function claimNotice(uid: string, before: ClaimLike | undefined, after: ClaimLike | undefined): Notice | null {
+  if (after?.status !== "approved" || before?.status === "approved" || !after.playerId) return null;
+  if (after.resolvedBy === uid) return null;
+  return {
+    topic: "personal",
+    title: "Tu ficha ya es tuya",
+    body: "El capitán ha aprobado tu ficha: tus partidos, tus goles y tu carta ya cuentan contigo.",
+    tag: `claim-${uid}`,
+    url: "/profile",
+    log: `claim-${uid}-${after.playerId}`,
+  };
+}
+
+const REVIEW_BODY: Record<string, string> = {
+  aprobada: "Ha aprobado tus posiciones: tu ficha ya sale así.",
+  ajustada: "Ha ajustado un poco tus posiciones. Mira cómo quedan en tu perfil.",
+  rechazada: "Esta vez tus posiciones se quedan como estaban. Míralo en tu perfil.",
+};
+
+/**
+ * «El capitán revisó tus posiciones»: a new `positionsReview` on a ficha (a new review date), to the
+ * member linked to it (`memberUid`, from playerLinks) unless they reviewed it themselves. Once per
+ * ficha and review (pushLog `positions-<playerId>-<reviewAt>`).
+ */
+export function positionsNotice(playerId: string, before: { positionsReview?: unknown } | undefined, after: { positionsReview?: unknown } | undefined, memberUid: string | null): Notice | null {
+  const r = after?.positionsReview as { status?: unknown; at?: unknown; by?: unknown } | null | undefined;
+  if (!memberUid || !r || typeof r !== "object" || typeof r.status !== "string" || !Object.hasOwn(REVIEW_BODY, r.status)) return null;
+  const at = millisOf(r.at);
+  if (at == null || r.by === memberUid) return null;
+  const was = before?.positionsReview as { at?: unknown } | null | undefined;
+  if (was && typeof was === "object" && millisOf(was.at) === at) return null;
+  return { topic: "personal", title: "El capitán revisó tus posiciones", body: REVIEW_BODY[r.status], tag: `positions-${playerId}`, url: "/profile", log: `positions-${playerId}-${at}` };
+}
 
 /** The fields of a `lineups` board the «Ya está el siete» notice looks at. */
 export interface LineupLike {
