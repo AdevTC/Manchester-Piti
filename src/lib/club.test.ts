@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "./clubData";
-import { classifieds, extraTrophies, historyTrain, mapsUrl, squadNumbers, sponsorWall } from "./club";
+import { classifieds, extraTrophies, historyTrain, mapsUrl, posCountText, squadByPosition, squadNumbers, sponsorWall } from "./club";
 
 const match = (id: string, day: number, status = "finished"): ClubMatch => ({ id, rival: "Accept", date: Date.UTC(2026, 8, day), status: status as ClubMatch["status"], goalsFor: 3, goalsAgainst: 2, events: [] });
 
@@ -75,5 +75,33 @@ describe("squadNumbers reads positions through the resolver", () => {
     const n = squadNumbers([{ id: "a", naturalPosition: "Portero" }, { id: "b", positions: { main: "LD", also: [] } }, { id: "c", naturalPosition: "Mediocentro" }, { id: "d" }], new Date("2026-10-13"));
     expect(n.byZone).toMatchObject({ POR: 1, DEF: 1, MED: 1, DEL: 0 });
     expect(n.other).toBe(1);
+  });
+});
+
+describe("La plantilla por posiciones", () => {
+  it("cuenta, por posición, cuántos la tienen de preferida y cuántos más en «también»", () => {
+    const s = squadByPosition([
+      { id: "a", positions: { main: "MC", also: ["MCD"] } },
+      { id: "b", positions: { main: "MC", also: [] } },
+      { id: "c", positions: { main: "MC", also: ["MI"] } },
+      { id: "d", positions: { main: "MCD", also: ["MC", "MI"] } },
+      { id: "e", positions: { main: null, also: ["MC"] } },
+      { id: "f", naturalPosition: "Portero" },
+      { id: "g" },
+      { id: "h", positions: { main: null, also: [] } },
+    ]);
+    expect(s.byCode.MC).toEqual({ main: 3, also: 2 });
+    expect(s.byCode.MCD).toEqual({ main: 1, also: 1 });
+    expect(s.byCode.MI).toEqual({ main: 0, also: 2 });
+    expect(s.byCode.POR).toEqual({ main: 1, also: 0 });
+    expect(s.byCode.DC).toEqual({ main: 0, also: 0 });
+    expect(s.none).toBe(2);
+    expect(s.total).toBe(8);
+  });
+  it("«MC 3 · +2»: la preferida siempre; los de «también» solo si hay", () => {
+    expect(posCountText("MC", { main: 3, also: 2 })).toBe("MC 3 · +2");
+    expect(posCountText("MI", { main: 0, also: 2 })).toBe("MI 0 · +2");
+    expect(posCountText("POR", { main: 1, also: 0 })).toBe("POR 1");
+    expect(posCountText("DC", { main: 0, also: 0 })).toBe("DC 0");
   });
 });

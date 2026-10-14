@@ -11,7 +11,7 @@ import { Ic } from "./icons";
 import { stuffLines } from "./lines";
 import { Menu } from "./Menu";
 import { seasonShort } from "./card";
-import { monthYear } from "./profileData";
+import { monthYear, positionsNudge } from "./profileData";
 import { pageText, shareLink } from "./share";
 import { ShareStudio } from "./ShareStudio";
 import { introSeen, markIntroSeen, readProfilePrefs, readSharedPrefs, shouldPlayIntro, writeProfilePrefs, type ProfilePrefs } from "./prefs";
@@ -464,7 +464,14 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
         posiciones={vinc && data.positions ? { info: data.positions, save: actions.proposePositions, say } : null}
       />
     ) : tab === "temp" ? (
-      <TabTemporada card={data.card} seasonName={data.seasonName} stuff={stuffLines({ next: data.next, boards: data.stuff.boards, porra: data.stuff.porra, conv: data.stuff.convocatorias, now })} stuffLoading={data.stuff.loading} onGoPick={goPick} />
+      <TabTemporada
+        card={data.card}
+        seasonName={data.seasonName}
+        stuff={stuffLines({ next: data.next, boards: data.stuff.boards, porra: data.stuff.porra, conv: data.stuff.convocatorias, now })}
+        stuffLoading={data.stuff.loading}
+        onGoPick={goPick}
+        played={vinc && data.played ? { played: data.played, positions: data.positions?.approved ?? null, nudge: positionsNudge(data.played, data.positions), onGoPositions: () => goTab("carta", "pe-posiciones") } : null}
+      />
     ) : tab === "avisos" ? (
       <TabAvisos isCaptain={isCaptain} testName={vinc ? shirt : upper(nick)} next={data.next ? { rival: data.next.rival, j: data.next.j } : null} upcoming={data.upcoming} feed={origin + "/calendario.ics"} say={say} rm={rm} />
     ) : tab === "ajustes" ? (

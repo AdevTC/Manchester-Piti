@@ -8,6 +8,7 @@ import { playerName } from "../../../lib/clubData";
 import { LINE_NAMES, isLine, lineOf, parsePosition, resolvePositions, sanitizePositions, type PosCode, type PositionSet } from "../../../lib/positions";
 import { positionsPayload } from "../../../lib/positionsEdit";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
+import type { PlayerPositions, PosLine } from "../../../lib/positionStats";
 
 export const POSITIONS = ["POR", "DEF", "MED", "DEL"] as const;
 export type Position = (typeof POSITIONS)[number];
@@ -424,4 +425,19 @@ export function dorsalLine(check: FormCheck, form: PlayerForm, start: PlayerForm
 /** «Dar de baja»: his shirt leaves the season's percha — the doc, his actas, goals and carta stay. */
 export function bajaPayload(p: Pick<PlayerDoc, "seasons">, seasonId: string): { seasons: string[] } {
   return { seasons: (p.seasons ?? []).filter((s) => s !== seasonId) };
+}
+
+// ── «Ha jugado de» (the captain's evidence next to his Posiciones, every season's actas) ──
+/** The admin's empty state (no line that would read «0′»). */
+export const EVIDENCE_EMPTY = "Sin minutos con posición";
+const EVIDENCE_MAX = 4;
+/** The positions the evidence line shows: those that read ≥ 1′, by minutes, four at most. */
+export function evidenceLines(pos: PlayerPositions | undefined): PosLine[] {
+  return (pos?.lines ?? []).filter((l) => Math.round(l.minutes) > 0).slice(0, EVIDENCE_MAX);
+}
+/** The line as plain text: «Ha jugado de: MC 320′ · MCD 140′», or «Sin minutos con posición». */
+export function evidenceText(pos: PlayerPositions | undefined): string {
+  const lines = evidenceLines(pos);
+  if (!lines.length) return EVIDENCE_EMPTY;
+  return `Ha jugado de: ${lines.map((l) => `${l.code} ${Math.round(l.minutes)}′`).join(" · ")}`;
 }

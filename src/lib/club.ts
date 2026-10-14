@@ -3,7 +3,7 @@
 // trophy room reuses clubMedals (lib/home.ts).
 import { ageOn } from "./clubAnalytics";
 import { dateMillis, isCompleted, type ClubMatch } from "./clubData";
-import { LINES, resolvePositions, type Line } from "./positions";
+import { LINES, POS_CODES, resolvePositions, type Line, type PosCode } from "./positions";
 import type { ClubContent } from "./clubContentDefaults";
 import type { ClubMedal } from "./home";
 
@@ -50,6 +50,28 @@ export function squadNumbers(players: SquadNumbersInput[], today: Date) {
     agesKnown: ages.length,
   };
 }
+
+export interface PosCount {
+  /** Players whose preferida is this position. */
+  main: number;
+  /** Players who list it in «también». */
+  also: number;
+}
+/** The squad by exact position: per code, how many have it as their preferida and how many more list it in
+ *  «también»; `none` = players with no position at all (no preferida, no también). */
+export function squadByPosition(players: readonly Pick<SquadNumbersInput, "id" | "naturalPosition" | "positions">[]): { byCode: Record<PosCode, PosCount>; none: number; total: number } {
+  const byCode = Object.fromEntries(POS_CODES.map((c) => [c, { main: 0, also: 0 }])) as Record<PosCode, PosCount>;
+  let none = 0;
+  for (const p of players) {
+    const r = resolvePositions(p);
+    if (r.main) byCode[r.main].main++;
+    for (const c of r.also) byCode[c].also++;
+    if (!r.main && !r.also.length) none++;
+  }
+  return { byCode, none, total: players.length };
+}
+/** «MC 3 · +2» (the «+N» of también only when there are some). */
+export const posCountText = (code: PosCode, n: PosCount): string => `${code} ${n.main}${n.also ? ` · +${n.also}` : ""}`;
 
 export interface Ad {
   id: "rival" | "player" | "patron";

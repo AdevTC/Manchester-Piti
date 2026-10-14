@@ -1,9 +1,12 @@
-// /profile › «Temporada»: Tus números → Gol a gol (+ the last five results) → Tu socio en el campo →
+// /profile › «Temporada»: Tus números → Dónde has jugado → Gol a gol (+ the last five results) → Tu socio en el campo →
 // Tus cosas en el vestuario (the next convocatoria, your boards, your porra, your answers). Real data,
 // empty states as designed (pf-g.mjs pTemp).
 import { useNavigate } from "@tanstack/react-router";
 import type { MouseEvent, ReactNode } from "react";
+import type { PosCode, PositionSet } from "../../lib/positions";
+import type { PlayerPositions } from "../../lib/positionStats";
 import type { CardView } from "./card";
+import { DondeHasJugado } from "./DondeHasJugado";
 import { vars } from "./fx";
 import { Ic, type PIcon } from "./icons";
 import { firstMatchText, jornadaRange, longDay, type StuffLine } from "./lines";
@@ -28,7 +31,15 @@ function HrefLink({ href, className, children }: { href: string; className: stri
 
 const STUFF_ICON: Record<StuffLine["key"], PIcon> = { call: "cal", boards: "board", porra: "target", conv: "vote" };
 
-export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick }: { card: CardView; seasonName: string; stuff: StuffLine[]; stuffLoading: boolean; onGoPick: () => void }) {
+/** «Dónde has jugado»: his minutes by position this season, what his ficha says, and the nudge (or null). */
+export interface PlayedField {
+  played: PlayerPositions;
+  positions: PositionSet | null;
+  nudge: PosCode | null;
+  onGoPositions: () => void;
+}
+
+export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick, played }: { card: CardView; seasonName: string; stuff: StuffLine[]; stuffLoading: boolean; onGoPick: () => void; played: PlayedField | null }) {
   const vinc = card.state === "vinculada";
   const t = card.totals;
   const bars = card.series.slice(-GB_MAX);
@@ -87,6 +98,7 @@ export function TabTemporada({ card, seasonName, stuff, stuffLoading, onGoPick }
               <span>{card.started ? card.rankText || "Aún sin minutos esta temporada" : `El marcador se enciende ${firstMatchText(card)}`}</span>
             </p>
           </div>
+          {played && <DondeHasJugado played={played.played} positions={played.positions} seasonName={seasonName} nudge={played.nudge} onGoPositions={played.onGoPositions} />}
           <div className="bk">
             <h3 className="bk-h">Gol a gol</h3>
             <p className="bk-d">Tus goles en cada jornada y cómo acabaron los últimos cinco partidos.</p>

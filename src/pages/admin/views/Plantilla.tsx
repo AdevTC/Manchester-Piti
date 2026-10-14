@@ -20,6 +20,7 @@ import { summaryText } from "../../../components/posiciones/mapaNav";
 import { useDocumentTheme } from "../../../hooks/useDocumentTheme";
 import { resolvePositions, sanitizePositions, type PositionSet } from "../../../lib/positions";
 import { editPositionsPayload, reviewPayload } from "../../../lib/positionsEdit";
+import { playerPositions } from "../../../lib/positionStats";
 import type { PlayerDoc } from "../../../lib/schemas";
 import { AltaWorkspace } from "../club/AltaWorkspace";
 import { LoadError } from "../club/ClubStates";
@@ -140,6 +141,9 @@ export function Plantilla() {
   const editing = curId ? (players.find((p) => p.id === curId) ?? null) : null;
   const editingRow = editing ? board.find((r) => r.id === editing.id) : undefined;
   const editingSusp = editing ? suspended.get(editing.id) : undefined;
+  // «Ha jugado de»: where he really played, every season's actas (the captain's evidence before approving;
+  // a plain derivation the React Compiler memoizes)
+  const editingPlayed = editing ? playerPositions(editing.id, data.matches) : undefined;
 
   // The photos of the real kit (rendered once per name and dorsal, then kept on the device).
   const shot = (r: BoardRow) => ({ kit: "home" as const, theme, name: r.name.toLocaleUpperCase("es"), num: r.number != null ? String(r.number) : "" });
@@ -548,6 +552,7 @@ export function Plantilla() {
         story={!!(editing.bio?.trim() || editing.quote?.trim())}
         phone={phone}
         onPositions={(set, adjusted) => setPositions(editingRow, set, adjusted)}
+        played={editingPlayed}
         onReview={(kind) => reviewProposal(editingRow, kind)}
         canReview={!!reviewer}
         onInjured={(v) => setInjured(editingRow, v)}

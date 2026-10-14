@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useSeason } from "../../context/SeasonContext";
 import { useClubData, dateMillis, nextFixture, type ClubMatch } from "../../lib/clubData";
 import { currentSeasonId } from "../../lib/vestuario";
+import { playerPositions, type PlayerPositions } from "../../lib/positionStats";
 import { useClock } from "../../hooks/useClock";
 import { useLineups } from "../pizarra/useLineups";
 import {
@@ -83,6 +84,8 @@ export interface ProfileData {
   card: CardView;
   /** «Tus posiciones» (vinculada only, live: the captain's answer shows as it lands). */
   positions: PositionsInfo | null;
+  /** «Dónde has jugado» (vinculada only): his minutes by exact position in this season's actas. */
+  played: PlayerPositions | null;
   freeFichas: FreeFicha[];
   next: NextMatch | null;
   /** Avisos › Calendario: the next three matches to play. */
@@ -204,6 +207,7 @@ export function useProfileData(): ProfileData {
     shirt: { current: me?.shirtName || [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" "), number: me && me.number ? String(me.number) : "", squad: shirtSquad, fullName: [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" ") },
     card,
     positions: positionsInfo(fichaDoc, seasonId),
+    played: info.state === "vinculada" && info.playerId ? playerPositions(info.playerId, calendar) : null,
     freeFichas,
     next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: calendar.findIndex((m) => m.id === next.id) + 1 || null } : null,
     upcoming: upcomingRows(matches, minute),
