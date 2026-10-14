@@ -24,6 +24,9 @@ export default defineConfig((env) =>
         setupFiles: ["./src/test/setup.ts"],
         css: false,
         include: ["src/**/*.test.{ts,tsx}"],
+        // The pizarra Board suites render the whole board in jsdom (1–2 s alone); under a loaded
+        // machine they crossed the 5 s default and failed for time, not behaviour.
+        testTimeout: 15_000,
       },
     }),
   ),
