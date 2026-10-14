@@ -1,15 +1,17 @@
 // This device's push subscription kept alive (src/lib/push.ts): the boot check re-asserts a lost or
-// renewed subscription at most once a day, silently; setTopics remembers what the server accepted and
-// leaves the service worker what it needs to re-subscribe by itself.
+// renewed subscription at most once a day, a stale session (signed out, another account) at once, the
+// service worker's own re-subscription at once, and all-well once a week (to learn whether the server
+// dropped it); setTopics remembers what the server accepted and leaves the service worker what it needs.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({ call: vi.fn() }));
+const h = vi.hoisted(() => ({ call: vi.fn(), auth: { currentUser: null as { uid: string } | null } }));
 vi.mock("firebase/functions", () => ({ httpsCallable: () => h.call }));
-vi.mock("../firebase", () => ({ functions: {}, FUNCTIONS_REGION: "europe-southwest1" }));
+vi.mock("../firebase", () => ({ functions: {}, auth: h.auth, FUNCTIONS_REGION: "europe-southwest1" }));
 
-import { REASSERT_EVERY_MS, reassertDue, reassertPush, setTopics } from "./push";
+import { REASSERT_EVERY_MS, reassertDue, reassertPush, REVERIFY_EVERY_MS, setTopics, type ReassertInput } from "./push";
 
 const DAY = REASSERT_EVERY_MS;
+const WEEK = REVERIFY_EVERY_MS;
 const T0 = Date.UTC(2026, 9, 14, 9);
 
 interface FakeSub {
@@ -17,20 +19,34 @@ interface FakeSub {
   toJSON: () => { endpoint: string; keys: { p256dh: string; auth: string } };
   unsubscribe: () => Promise<boolean>;
 }
-const fakeSub = (endpoint: string): FakeSub => ({ endpoint, toJSON: () => ({ endpoint, keys: { p256dh: "k", auth: "a" } }), unsubscribe: async () => true });
+let n = 0;
+const fakeSub = (endpoint: string): FakeSub => ({
+  endpoint,
+  toJSON: () => ({ endpoint, keys: { p256dh: "k", auth: "a" } }),
+  unsubscribe: async () => {
+    current = null;
+    return true;
+  },
+});
 
 let current: FakeSub | null;
 let permission: NotificationPermission;
-const subscribe = vi.fn(async () => (current = fakeSub("https://push.test/new")));
+const subscribe = vi.fn(async () => (current = fakeSub(`https://push.test/new-${++n}`)));
 const requestPermission = vi.fn(async () => permission);
-const cachePut = vi.fn(async (_key: string, _res: Response) => undefined);
-const cacheDelete = vi.fn(async (_key: string) => true);
+const store = new Map<string, Response>();
+const cachePut = vi.fn(async (key: string, res: Response) => void store.set(key, res));
+const cacheDelete = vi.fn(async (key: string) => store.delete(key));
+const cacheMatch = vi.fn(async (key: string) => store.get(key));
+const sent = () => h.call.mock.calls.map((c) => c[0] as { subscription: { endpoint: string }; topics: string[] });
 
 beforeEach(() => {
   localStorage.clear();
+  store.clear();
+  n = 0;
   current = null;
   permission = "granted";
-  h.call.mockReset().mockResolvedValue({ data: { topics: [] } });
+  h.auth.currentUser = { uid: "socio" };
+  h.call.mockReset().mockResolvedValue({ data: { topics: [], known: true } });
   subscribe.mockClear();
   requestPermission.mockClear();
   cachePut.mockClear();
@@ -44,55 +60,117 @@ beforeEach(() => {
     },
     requestPermission,
   });
-  vi.stubGlobal("caches", { open: async () => ({ put: cachePut, delete: cacheDelete }) });
+  vi.stubGlobal("caches", { open: async () => ({ put: cachePut, delete: cacheDelete, match: cacheMatch }) });
 });
 afterEach(() => {
   vi.unstubAllGlobals();
   Reflect.deleteProperty(navigator, "serviceWorker");
 });
 
+/** A device the server accepted at T0, signed in as «socio». */
+const registered = (endpoint = "https://push.test/a", topics: string[] = ["goals"], session = "socio") => {
+  current = fakeSub(endpoint);
+  localStorage.setItem("piti-push-topics", JSON.stringify(topics));
+  localStorage.setItem("piti-push-endpoint", endpoint);
+  localStorage.setItem("piti-push-session", session);
+  localStorage.setItem("piti-push-checked", String(T0));
+};
+
 describe("reassertDue: when the boot check re-tells the server", () => {
-  const due = (o: Partial<Parameters<typeof reassertDue>[0]>) => reassertDue({ topics: ["goals"], permission: "granted", endpoint: null, registered: "https://push.test/a", lastTry: null, now: T0, ...o });
-  it("a lost subscription, or one the server never accepted (renewed by the browser)", () => {
-    expect(due({ endpoint: null })).toBe(true);
-    expect(due({ endpoint: "https://push.test/b" })).toBe(true);
+  const due = (o: Partial<ReassertInput>) =>
+    reassertDue({ topics: ["goals"], permission: "granted", endpoint: "https://push.test/a", registered: "https://push.test/a", session: "u1", registeredSession: "u1", triedSession: "u1", dirty: false, lastTry: T0, now: T0 + 60_000, ...o });
+  it("a lost subscription, or one the server never accepted: at most once a day", () => {
+    expect(due({ endpoint: null })).toBe(false);
+    expect(due({ endpoint: null, lastTry: T0 - DAY })).toBe(true);
+    expect(due({ endpoint: "https://push.test/b", lastTry: null })).toBe(true);
     // an old device that never recorded what the server accepted: once
-    expect(due({ endpoint: "https://push.test/a", registered: null })).toBe(true);
+    expect(due({ registered: null, registeredSession: null, lastTry: null })).toBe(true);
   });
-  it("not when all is well, without topics, or without the browser's permission (it never asks)", () => {
-    expect(due({ endpoint: "https://push.test/a" })).toBe(false);
-    expect(due({ topics: [] })).toBe(false);
-    expect(due({ permission: "default" })).toBe(false);
-    expect(due({ permission: "denied" })).toBe(false);
+  it("all well: once a week anyway (the server may have dropped it on a 410)", () => {
+    expect(due({ lastTry: T0 - 6 * DAY })).toBe(false);
+    expect(due({ lastTry: T0 - WEEK + 60_000 })).toBe(true);
   });
-  it("at most once a day (a clock set back counts as due)", () => {
-    expect(due({ lastTry: T0 - DAY + 1 })).toBe(false);
-    expect(due({ lastTry: T0 - DAY })).toBe(true);
-    expect(due({ lastTry: T0 + 60_000 })).toBe(true);
+  it("at once (whatever the daily limit) after the worker re-subscribed by itself", () => {
+    expect(due({ dirty: true })).toBe(true);
+  });
+  it("at once when the session changed (signed out, another account) — once per change", () => {
+    expect(due({ session: "", triedSession: "u1" })).toBe(true);
+    expect(due({ session: "u2", triedSession: "u1" })).toBe(true);
+    // tried already for this session (it failed): back to the daily / weekly rhythm
+    expect(due({ session: "", triedSession: "" })).toBe(false);
+  });
+  it("never without topics or without the browser's permission (it never asks)", () => {
+    expect(due({ topics: [], dirty: true })).toBe(false);
+    expect(due({ permission: "default", dirty: true })).toBe(false);
+    expect(due({ permission: "denied", endpoint: null, lastTry: null })).toBe(false);
+  });
+  it("a clock set back counts as due", () => {
+    expect(due({ now: T0 - 60_000 })).toBe(true);
   });
 });
 
 describe("reassertPush on app boot", () => {
   it("a lost subscription: subscribes again silently and sends the saved topics, then rests", async () => {
-    localStorage.setItem("piti-push-topics", JSON.stringify(["goals", "convocatoria"]));
-    localStorage.setItem("piti-push-endpoint", "https://push.test/old");
-    expect(await reassertPush(T0)).toBe("ok");
+    registered("https://push.test/old", ["goals", "convocatoria"]);
+    current = null;
+    expect(await reassertPush(T0 + DAY)).toBe("ok");
     expect(requestPermission).not.toHaveBeenCalled();
     expect(subscribe).toHaveBeenCalledTimes(1);
-    expect(h.call).toHaveBeenCalledWith({ subscription: fakeSub("https://push.test/new").toJSON(), topics: ["goals", "convocatoria"] });
-    expect(localStorage.getItem("piti-push-endpoint")).toBe("https://push.test/new");
-    // the server has it now: nothing more, today or tomorrow
-    expect(await reassertPush(T0 + 60_000)).toBe("skip");
+    expect(sent()).toEqual([{ subscription: fakeSub("https://push.test/new-1").toJSON(), topics: ["goals", "convocatoria"] }]);
+    expect(localStorage.getItem("piti-push-endpoint")).toBe("https://push.test/new-1");
+    // the server has it now: nothing more until the weekly check
     expect(await reassertPush(T0 + 2 * DAY)).toBe("skip");
     expect(h.call).toHaveBeenCalledTimes(1);
   });
-  it("a subscription the server doesn't know (renewed by the worker): re-sent without subscribing again", async () => {
-    localStorage.setItem("piti-push-topics", JSON.stringify(["start"]));
-    localStorage.setItem("piti-push-endpoint", "https://push.test/old");
+  it("a subscription the server doesn't know yet (renewed by the browser): re-sent, not re-subscribed", async () => {
+    registered("https://push.test/old", ["start"]);
     current = fakeSub("https://push.test/renewed");
-    expect(await reassertPush(T0)).toBe("ok");
+    expect(await reassertPush(T0 + DAY)).toBe("ok");
     expect(subscribe).not.toHaveBeenCalled();
-    expect(h.call).toHaveBeenCalledWith({ subscription: current.toJSON(), topics: ["start"] });
+    expect(sent()[0]).toEqual({ subscription: current.toJSON(), topics: ["start"] });
+  });
+  it("signed out: at once, without the personal topics (so the server drops the uid and them)", async () => {
+    registered("https://push.test/a", ["goals", "convocatoria", "door"]);
+    h.auth.currentUser = null;
+    expect(await reassertPush(T0 + 60_000)).toBe("ok");
+    expect(sent()).toEqual([{ subscription: current!.toJSON(), topics: ["goals"] }]);
+    expect(localStorage.getItem("piti-push-session")).toBe("");
+    // the saved choice stays: signing in again sends it whole, at once
+    h.auth.currentUser = { uid: "socio" };
+    expect(await reassertPush(T0 + 120_000)).toBe("ok");
+    expect(sent()[1].topics).toEqual(["goals", "convocatoria", "door"]);
+    expect(await reassertPush(T0 + 180_000)).toBe("skip");
+  });
+  it("another account on this device: at once, under the new session", async () => {
+    registered();
+    h.auth.currentUser = { uid: "otro" };
+    expect(await reassertPush(T0 + 60_000)).toBe("ok");
+    expect(localStorage.getItem("piti-push-session")).toBe("otro");
+  });
+  it("the worker re-subscribed by itself (its «dirty» mark): the full set at once, and the mark goes", async () => {
+    registered("https://push.test/a", ["goals", "convocatoria"]);
+    store.set("/__piti-push-dirty", new Response("1"));
+    expect(await reassertPush(T0 + 60_000)).toBe("ok");
+    expect(sent()[0].topics).toEqual(["goals", "convocatoria"]);
+    expect(store.has("/__piti-push-dirty")).toBe(false);
+  });
+  it("the weekly check finds the server dropped this endpoint (410): renews the subscription", async () => {
+    registered();
+    h.call.mockResolvedValueOnce({ data: { topics: ["goals"], known: false } });
+    expect(await reassertPush(T0 + WEEK)).toBe("renewed");
+    // the dead one's doc goes again, then the fresh subscription is registered
+    expect(sent().map((c) => [c.subscription.endpoint, c.topics])).toEqual([
+      ["https://push.test/a", ["goals"]],
+      ["https://push.test/a", []],
+      ["https://push.test/new-1", ["goals"]],
+    ]);
+    expect(localStorage.getItem("piti-push-endpoint")).toBe("https://push.test/new-1");
+  });
+  it("a first registration the server doesn't know yet is not a dropped one", async () => {
+    localStorage.setItem("piti-push-topics", JSON.stringify(["goals"]));
+    h.call.mockResolvedValueOnce({ data: { topics: ["goals"], known: false } });
+    expect(await reassertPush(T0)).toBe("ok");
+    expect(subscribe).toHaveBeenCalledTimes(1);
   });
   it("a failed attempt waits a day before trying again", async () => {
     localStorage.setItem("piti-push-topics", JSON.stringify(["goals"]));
@@ -103,16 +181,14 @@ describe("reassertPush on app boot", () => {
     expect(await reassertPush(T0 + DAY)).toBe("ok");
     expect(h.call).toHaveBeenCalledTimes(2);
   });
-  it("nothing without saved topics, without permission, or with the subscription the server accepted", async () => {
+  it("nothing without saved topics, without permission, or with all well this week", async () => {
     expect(await reassertPush(T0)).toBe("skip");
-    localStorage.setItem("piti-push-topics", JSON.stringify(["goals"]));
+    registered();
     permission = "default";
-    expect(await reassertPush(T0)).toBe("skip");
+    expect(await reassertPush(T0 + WEEK)).toBe("skip");
     expect(requestPermission).not.toHaveBeenCalled();
     permission = "granted";
-    current = fakeSub("https://push.test/a");
-    localStorage.setItem("piti-push-endpoint", "https://push.test/a");
-    expect(await reassertPush(T0)).toBe("skip");
+    expect(await reassertPush(T0 + 6 * DAY)).toBe("skip");
     expect(subscribe).not.toHaveBeenCalled();
     expect(h.call).not.toHaveBeenCalled();
   });
@@ -125,21 +201,21 @@ describe("reassertPush on app boot", () => {
 });
 
 describe("setTopics remembers what the server accepted", () => {
-  it("stores the endpoint and leaves the worker the topics and the callables' URLs", async () => {
+  it("stores the endpoint and session, and leaves the worker the topics, the endpoint and the callables", async () => {
     await setTopics(["goals", "door"]);
-    expect(localStorage.getItem("piti-push-endpoint")).toBe("https://push.test/new");
-    expect(cachePut).toHaveBeenCalledTimes(1);
-    const [key, res] = cachePut.mock.calls[0];
-    expect(key).toBe("/__piti-push-state");
-    const state = (await res.json()) as { topics: string[]; subscribe: string; unsubscribe: string };
+    expect(localStorage.getItem("piti-push-endpoint")).toBe("https://push.test/new-1");
+    expect(localStorage.getItem("piti-push-session")).toBe("socio");
+    const state = (await store.get("/__piti-push-state")!.json()) as { topics: string[]; endpoint: string; subscribe: string; unsubscribe: string };
     expect(state.topics).toEqual(["goals", "door"]);
+    expect(state.endpoint).toBe("https://push.test/new-1");
     expect(state.subscribe).toMatch(/europe-southwest1.*pushSubscribe$/);
     expect(state.unsubscribe).toMatch(/pushUnsubscribe$/);
   });
-  it("no topics: forgets both, so the worker keeps nothing alive", async () => {
+  it("no topics: forgets it all, so the worker keeps nothing alive", async () => {
     await setTopics(["goals"]);
     await setTopics([]);
     expect(localStorage.getItem("piti-push-endpoint")).toBeNull();
-    expect(cacheDelete).toHaveBeenCalledWith("/__piti-push-state");
+    expect(localStorage.getItem("piti-push-session")).toBeNull();
+    expect(store.has("/__piti-push-state")).toBe(false);
   });
 });

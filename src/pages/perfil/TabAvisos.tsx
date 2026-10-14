@@ -6,7 +6,7 @@
 import { useState, type ReactNode } from "react";
 import { googleSubscribeUrl, webcalUrl } from "../../lib/calendarLinks";
 import type { Topic } from "../../lib/push";
-import { boldParts, deviceView, testNotice, TOPIC_COPY, topicsLead, unblockSteps, type UpcomingRow } from "./avisos";
+import { boldParts, deviceView, PERSONAL_NOTICES, testNotice, TOPIC_COPY, topicsLead, unblockSteps, type UpcomingRow } from "./avisos";
 import { isStandalone, notificationPermission, showTestNotice, userAgent } from "./device";
 import { buzz, copyText, errorMessage, isOffline } from "./fxRuntime";
 import { CREST, GLogo, Ic, type PIcon } from "./icons";
@@ -232,6 +232,12 @@ export function TabAvisos({ isCaptain, testName, next, upcoming, feed, say, rm }
             );
           })}
         </ul>
+        <p className="note" id="pe-tp-personal">
+          <Ic n="bell" />
+          <span>
+            <b>{PERSONAL_NOTICES.label}</b> {PERSONAL_NOTICES.sub}
+          </span>
+        </p>
         {err && (
           <p className="note bad" role="alert">
             <Ic n="alert" />

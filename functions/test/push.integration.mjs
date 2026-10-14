@@ -80,6 +80,13 @@ await ref.update({ clock: clock("ended", 8) });
 await sleep(3000);
 assert.equal((await db.doc(`pushLog/final-live-${id}`).get()).get("at").toMillis(), provisional);
 checked++;
+// after the final whistle a goal written (and undone) is a correction of the acta: silent both ways
+await ref.update({ events: [goal("g3", 40, scorer), goal("g4", 49)] });
+await notClaimed(`goal-${id}-g4`);
+// (g3 was pushed live: undoing it now is still a correction, not «Gol anulado»)
+await ref.update({ events: [goal("g4", 49)] });
+await notClaimed(`goal-off-${id}-g3`, 2000);
+await ref.update({ events: [goal("g3", 40, scorer)] });
 // the acta published: the official «Final» (its own pushLog, the provisional's tag) and the MVP vote
 await ref.update({ status: "finished", goalsFor: 1, goalsAgainst: 0, voteClosesAt: Date.now() + 48 * 3600_000 });
 await claimed(`final-${id}`);
@@ -87,6 +94,15 @@ await claimed(`mvp-open-${id}`);
 // a correction of that acta that removes the goal: never «Gol anulado»
 await ref.update({ events: [], goalsFor: 0 });
 await notClaimed(`goal-off-${id}-g3`);
+
+// the acta's «Final» already went (an acta published, then un-published and its clock ended again, or
+// triggers out of order): no provisional final after it
+const late = "push-late-" + suffix;
+await db.doc("matches/" + late).set({ version: 2, seasonId, rival: "Rival Tarde", status: "scheduled", date: Timestamp.fromMillis(Date.now() - 3600_000), clock: clock("second", 3), events: [] });
+await db.doc(`pushLog/final-${late}`).set({ at: Timestamp.now() });
+await sleep(1000);
+await db.doc("matches/" + late).update({ clock: clock("ended", 4) });
+await notClaimed(`final-live-${late}`);
 
 // ---------- «MVP de la J5»: the job's step, once the vote has closed
 const now = Date.now();
@@ -168,7 +184,19 @@ const docs = await db.collection("pushSubscriptions").where("endpoint", "in", [s
 const byEndpoint = new Map(docs.docs.map((d) => [d.get("endpoint"), d]));
 assert.equal(byEndpoint.get(sub("socio").endpoint)?.get("uid"), socio.uid);
 assert.equal(byEndpoint.get(sub("fan").endpoint)?.get("uid"), undefined);
-checked += 3;
+// a first registration: the server didn't know it
+assert.equal(mine.result?.known, false);
+assert.equal(mine.result?.uid, socio.uid);
+checked += 5;
+// the member signs out on that device: re-registered anonymously, the doc loses the uid (and the
+// personal topics); the server knew it
+const out = await call("pushSubscribe", null, { subscription: sub("socio"), topics: ["goals", "convocatoria"] });
+assert.equal(out.result?.known, true);
+assert.equal(out.result?.uid, null);
+const after = (await db.collection("pushSubscriptions").where("endpoint", "==", sub("socio").endpoint).get()).docs[0];
+assert.equal(after.get("uid"), undefined);
+assert.deepEqual(after.get("topics"), ["goals"]);
+checked += 4;
 // (cleanup: nobody stays subscribed in the emulator)
 for (const n of ["socio", "fan"]) assert.ok(!(await call("pushSubscribe", n === "socio" ? socio : null, { subscription: sub(n), topics: [] })).error);
 assert.equal((await db.collection("pushSubscriptions").where("endpoint", "in", [sub("socio").endpoint, sub("fan").endpoint]).get()).size, 0);

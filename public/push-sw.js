@@ -23,8 +23,9 @@ self.addEventListener("push", (event) => {
 // one): subscribe again with the same key and tell the server, so the notices keep coming without
 // opening the web. The worker has no sign-in, so it re-sends only the public topics, read from what the
 // page left in the cache (src/lib/push.ts rememberForWorker); the personal ones (door, access,
-// convocatoria) need the member's session: the app re-asserts them on its next open (reassertPush sees
-// a subscription the server hasn't accepted yet). Anything failing here is left to that boot check.
+// convocatoria) need the member's session: the worker leaves a «dirty» mark in the same cache and the
+// app re-asserts the full set on its next open (reassertPush). The same endpoint the app registered:
+// nothing to do. Anything failing here is left to that boot check.
 const PUSH_KEY = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
 const PUBLIC_TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"];
 const pushKeyBytes = (base64) => {
@@ -45,6 +46,10 @@ self.addEventListener("pushsubscriptionchange", (event) => {
       const old = event.oldSubscription;
       const key = (old && old.options && old.options.applicationServerKey) || pushKeyBytes(PUSH_KEY);
       const sub = event.newSubscription || (await self.registration.pushManager.getSubscription()) || (await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }));
+      // (the endpoint the app registered, unchanged: the server already has it with all its topics)
+      if (sub.endpoint === saved.endpoint) return;
+      // The app owes the server the full set (personal topics, uid): it re-asserts on its next open.
+      await cache.put("/__piti-push-dirty", new Response(String(Date.now())));
       if (old && old.endpoint && old.endpoint !== sub.endpoint && saved.unsubscribe) await callFn(saved.unsubscribe, { endpoint: old.endpoint }).catch(() => undefined);
       const topics = saved.topics.filter((t) => PUBLIC_TOPICS.includes(t));
       if (topics.length && saved.subscribe) await callFn(saved.subscribe, { subscription: sub.toJSON(), topics });

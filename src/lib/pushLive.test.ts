@@ -1,7 +1,7 @@
 // The push notices of the whole match (functions/src/pushLogic.ts): the clock's whistles, «Gol anulado»,
 // the MVP's winner, the personal notices, and the pushLog ids that keep each one to a single send.
 import { describe, expect, it } from "vitest";
-import { claimNotice, kickoffNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, positionsNotice } from "../../functions/src/pushLogic";
+import { claimNotice, kickoffNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, positionsNotice, publicTopics, pushAudience } from "../../functions/src/pushLogic";
 import { mvpWinners } from "./vestuario";
 import type { ClubMatch } from "./clubData";
 
@@ -26,7 +26,7 @@ describe("the clock's whistles: descanso, 2ª parte and the provisional final", 
   it("→ ended: «Final (provisional) · 2–1», with the acta's «Final» tag so the official one replaces it", () => {
     const provisional = noticesFor("j8", at("second"), at("ended"), nameOf, NOW);
     expect(provisional).toEqual([
-      { topic: "final", title: "Final (provisional) · 2–1", body: "Manchester Piti 2–1 MAD SKY. El resultado oficial llega con el acta del capitán.", tag: "final-j8", url: "/matches/j8", log: "final-live-j8" },
+      { topic: "final", title: "Final (provisional) · 2–1", body: "Manchester Piti 2–1 MAD SKY. El resultado oficial llega con el acta del capitán.", tag: "final-j8", url: "/matches/j8", log: "final-live-j8", skipIf: "final-j8" },
     ]);
     // ended straight from the 1ª parte too (a match cut short)
     expect(noticesFor("j8", at("first"), at("ended"), nameOf, NOW).map((n) => n.log)).toEqual(["final-live-j8"]);
@@ -94,6 +94,51 @@ describe("dedup ids of the notices that could repeat", () => {
     expect(kickoffNotice("j8", "MAD SKY").log).toBe("start-j8");
     const after = { ...base, status: "finished", goalsFor: 1, goalsAgainst: 0, voteClosesAt: NOW + 1, events: [] };
     expect(noticesFor("j8", { ...base, events: [] }, after, nameOf, NOW).map((n) => n.log)).toEqual(["final-j8", "mvp-open-j8"]);
+  });
+  it("the provisional final is cancelled once the acta's «Final» went (whatever order the triggers run)", () => {
+    const at = (phase: string) => ({ ...base, version: 2, events: [], clock: { phase } });
+    const provisional = noticesFor("j8", at("second"), at("ended"), nameOf, NOW)[0];
+    const acta = noticesFor("j8", at("ended"), { ...at("ended"), status: "finished", goalsFor: 0, goalsAgainst: 0 }, nameOf, NOW).find((n) => n.topic === "final");
+    // push.ts skips a notice whose `skipIf` is in pushLog: the acta's claim is exactly that id
+    expect(provisional.skipIf).toBe(acta?.log);
+  });
+});
+
+describe("after the final whistle, goals added and undone are both silent (acta corrections)", () => {
+  const live = { ...base, version: 2, events: [g("e1", 19, "e")] };
+  const ended = { ...live, clock: { phase: "ended" } };
+  it("a clock that ended: no «¡GOL!» and no «Gol anulado»", () => {
+    expect(noticesFor("j8", ended, { ...ended, events: [...live.events, g("e2", 50, "a")] }, nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", ended, { ...ended, events: [] }, nameOf, NOW)).toEqual([]);
+  });
+  it("a legacy match finished live (liveEndedAt): the same; reopened, it is news again", () => {
+    const done = { ...base, events: live.events, liveEndedAt: NOW };
+    expect(noticesFor("j8", done, { ...done, events: [...done.events, g("e2", 50, "a")] }, nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", done, { ...done, events: [] }, nameOf, NOW)).toEqual([]);
+    const reopened = { ...base, events: live.events };
+    expect(noticesFor("j8", reopened, { ...reopened, events: [...live.events, g("e2", 50, "a")] }, nameOf, NOW).map((n) => n.log)).toEqual(["goal-j8-e2"]);
+  });
+  it("the same goal while the clock runs is news", () => {
+    const running = { ...live, clock: { phase: "second" } };
+    expect(noticesFor("j8", running, { ...running, events: [...live.events, g("e2", 50, "a")] }, nameOf, NOW).map((n) => n.log)).toEqual(["goal-j8-e2"]);
+  });
+});
+
+describe("who a notice goes to (sendTo's query)", () => {
+  it("a topic notice: everyone on the topic, or only a uid's devices on it", () => {
+    expect(pushAudience({ topic: "goals" })).toEqual({ topic: "goals", uid: null });
+    expect(pushAudience({ topic: "convocatoria" }, "u1")).toEqual({ topic: "convocatoria", uid: "u1" });
+  });
+  it("a personal notice: the member's devices whatever their topics; nobody without a uid", () => {
+    expect(pushAudience({ topic: "personal" }, "u1")).toEqual({ topic: null, uid: "u1" });
+    expect(pushAudience({ topic: "personal" })).toBeNull();
+    expect(pushAudience({ topic: "personal" }, "")).toBeNull();
+  });
+  it("what a device keeps when its member leaves: the public topics only", () => {
+    expect(publicTopics(["goals", "convocatoria", "door", "access", "final", "goals"])).toEqual(["goals", "final"]);
+    expect(publicTopics(["convocatoria"])).toEqual([]);
+    expect(publicTopics(undefined)).toEqual([]);
+    expect(publicTopics([1, "mvp"])).toEqual(["mvp"]);
   });
 });
 

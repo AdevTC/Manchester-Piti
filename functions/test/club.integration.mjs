@@ -621,6 +621,8 @@ assert.equal((await db.doc("playerClaims/" + lea.uid).get()).get("status"), "app
 checked += 3;
 // Darme de baja: like a captain removing you, plus this account's notices; the ficha link stays.
 await db.doc("pushSubscriptions/perfil-" + suffix).set({ endpoint: "https://example.test/push/" + suffix, keys: { p256dh: "x", auth: "y" }, topics: ["access"], uid: rival.uid });
+// another of his devices also follows the club's public notices: those it keeps
+await db.doc("pushSubscriptions/perfil2-" + suffix).set({ endpoint: "https://example.test/push2/" + suffix, keys: { p256dh: "x", auth: "y" }, topics: ["goals", "convocatoria", "final"], uid: rival.uid });
 await denied("leaveVestuario", rival, {}, "INVALID_ARGUMENT");
 await denied("leaveVestuario", rival, { confirm: false }, "INVALID_ARGUMENT");
 await denied("leaveVestuario", boss, { confirm: true }, "PERMISSION_DENIED");
@@ -633,6 +635,14 @@ const left = (await db.doc("accessRequests/" + rival.uid).get()).data();
 assert.equal(left.status, "left");
 assert.equal(left.resolvedBy, rival.uid);
 assert.equal((await db.doc("pushSubscriptions/perfil-" + suffix).get()).exists, false);
+{
+  // his other device: the public topics stay, the personal ones and the uid go
+  const kept = (await db.doc("pushSubscriptions/perfil2-" + suffix).get()).data();
+  assert.deepEqual(kept.topics, ["goals", "final"]);
+  assert.equal(kept.uid, undefined);
+  await db.doc("pushSubscriptions/perfil2-" + suffix).delete();
+  checked += 2;
+}
 assert.equal((await db.doc("playerLinks/" + pD).get()).get("uid"), rival.uid);
 checked += 6;
 await denied("setNickname", rival, { nickname: "vuelta_" + suffix }, "PERMISSION_DENIED");

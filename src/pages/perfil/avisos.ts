@@ -112,6 +112,12 @@ export const TOPIC_COPY: Record<Topic, { label: string; sub: string; capOnly?: b
   convocatoria: { label: "Si no has contestado", sub: "Te recordamos la convocatoria 48 h y 24 h antes; a los capitanes, los cambios de última hora" },
 };
 
+/** The personal notices: no switch (they are about you, to the devices where you sign in). */
+export const PERSONAL_NOTICES = {
+  label: "Tus avisos personales (ficha, posiciones, convocatoria)",
+  sub: "Siempre activos en los móviles donde entras con tu cuenta. Los recordatorios de la convocatoria siguen su interruptor.",
+};
+
 /** «3 de 7 activos en este móvil.» / not ready: why they are off. */
 export function topicsLead(ready: boolean, on: number, total: number): string {
   return ready ? `${on} de ${total} activos en este móvil.` : "Se activan cuando este móvil esté listo.";

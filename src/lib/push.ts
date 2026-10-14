@@ -1,10 +1,12 @@
 // Push notices on this device (Web Push, the club's own VAPID keys; functions/src/push.ts sends them).
-// The topics chosen are kept on the device and on the server, by subscription. A subscription can die
-// without anyone noticing (the browser renews its keys, the push service forgets it): the service worker
-// subscribes again by itself (public/push-sw.js, `pushsubscriptionchange`) and the app re-asserts it on
-// boot, at most once a day (reassertPush).
+// The topics chosen are kept on the device and on the server, by subscription; a signed-in member's
+// subscription also carries their uid (their personal notices find it). A subscription can die without
+// anyone noticing (the browser renews its keys, the push service forgets it and the server drops it):
+// the service worker subscribes again by itself (public/push-sw.js, `pushsubscriptionchange`) and the
+// app re-asserts it on boot (reassertPush) — also when the session changes, so a signed-out device stops
+// carrying the member's uid.
 import { httpsCallable } from "firebase/functions";
-import { functions, FUNCTIONS_REGION } from "../firebase";
+import { auth, functions, FUNCTIONS_REGION } from "../firebase";
 
 export const VAPID_PUBLIC = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
 export type Topic = "start" | "goals" | "final" | "mvp" | "dates" | "lineup" | DoorTopic | "convocatoria";
@@ -18,17 +20,34 @@ export const TOPIC_LABELS: { id: Topic; label: string; hint?: string }[] = [
   { id: "dates", label: "Fechas nuevas y cambios", hint: "Partidos nuevos o cambios de hora" },
   { id: "lineup", label: "Cuando salga el siete oficial", hint: "Con el enlace a la charla de la pizarra" },
 ];
+/** The topics that need the member's session (the server refuses or drops them without it). */
+const PERSONAL: readonly Topic[] = ["door", "access", "convocatoria"];
 const KEY = "piti-push-topics";
 /** The endpoint the server last accepted for this device (what the boot check compares with). */
 const ENDPOINT_KEY = "piti-push-endpoint";
-/** When the boot check last re-told the server (ms): at most once every REASSERT_EVERY_MS. */
+/** The session (uid, "" signed out) of that registration: another session means the server's uid is stale. */
+const SESSION_KEY = "piti-push-session";
+/** The session the boot check last tried for (a session change skips the daily limit once, not every boot). */
+const TRIED_SESSION_KEY = "piti-push-session-tried";
+/** When the boot check last re-told the server (ms). */
 const CHECKED_KEY = "piti-push-checked";
+/** A lost or renewed subscription: re-told at most once a day. */
 export const REASSERT_EVERY_MS = 24 * 3600_000;
+/** All well on this side: re-told once a week anyway, to learn whether the server dropped it (404/410). */
+export const REVERIFY_EVERY_MS = 7 * 24 * 3600_000;
 /** What the service worker needs to subscribe again on its own (Cache API: it can't read localStorage). */
 const SW_CACHE = "piti-push";
 const SW_STATE = "/__piti-push-state";
+/** Left by the service worker when it re-subscribed by itself (with the public topics only). */
+const SW_DIRTY = "/__piti-push-dirty";
 
-const subscribeCall = httpsCallable<{ subscription: PushSubscriptionJSON; topics: Topic[] }, { topics: Topic[] }>(functions, "pushSubscribe");
+interface SubscribeAnswer {
+  topics: Topic[];
+  uid?: string | null;
+  /** Whether the server still had this device before this call. */
+  known?: boolean;
+}
+const subscribeCall = httpsCallable<{ subscription: PushSubscriptionJSON; topics: Topic[] }, SubscribeAnswer>(functions, "pushSubscribe");
 
 /** A callable's plain HTTPS address (the service worker calls it with fetch, without the SDK). */
 export function callableUrl(name: string): string {
@@ -78,27 +97,53 @@ const keyBytes = (base64: string) => {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 };
 
-/** Leaves the service worker what it needs to re-subscribe by itself (or nothing, with no topics). */
-async function rememberForWorker(topics: readonly Topic[]): Promise<void> {
+/** This browser's session: the signed-in uid, "" signed out. */
+const session = (): string => auth.currentUser?.uid ?? "";
+
+async function swCache(): Promise<Cache | null> {
   try {
-    if (typeof caches === "undefined") return;
-    const cache = await caches.open(SW_CACHE);
-    if (!topics.length) {
+    return typeof caches === "undefined" ? null : await caches.open(SW_CACHE);
+  } catch {
+    return null;
+  }
+}
+
+/** Leaves the service worker what it needs to re-subscribe by itself (or nothing, with no topics), and
+ *  clears its «re-subscribed by myself» mark: the app has just told the server everything. */
+async function rememberForWorker(topics: readonly Topic[], endpoint: string | null): Promise<void> {
+  try {
+    const cache = await swCache();
+    if (!cache) return;
+    await cache.delete(SW_DIRTY);
+    if (!topics.length || !endpoint) {
       await cache.delete(SW_STATE);
       return;
     }
-    const state = { topics, subscribe: callableUrl("pushSubscribe"), unsubscribe: callableUrl("pushUnsubscribe") };
+    const state = { topics, endpoint, subscribe: callableUrl("pushSubscribe"), unsubscribe: callableUrl("pushUnsubscribe") };
     await cache.put(SW_STATE, new Response(JSON.stringify(state), { headers: { "content-type": "application/json" } }));
   } catch {
     /* no Cache API here: the boot check still re-asserts it */
   }
 }
 
-/** Tells the server this device's subscription and topics, and remembers what it accepted. */
-async function register(sub: PushSubscription, topics: Topic[]): Promise<void> {
-  await subscribeCall({ subscription: sub.toJSON(), topics });
+async function workerDirty(): Promise<boolean> {
+  try {
+    return !!(await (await swCache())?.match(SW_DIRTY));
+  } catch {
+    return false;
+  }
+}
+
+/** Tells the server this device's subscription and topics (signed out: only the public ones, and no uid)
+ *  and remembers what it accepted, with which session. */
+async function register(sub: PushSubscription, topics: Topic[]): Promise<SubscribeAnswer> {
+  const who = session();
+  const send = who ? topics : topics.filter((t) => !PERSONAL.includes(t));
+  const { data } = await subscribeCall({ subscription: sub.toJSON(), topics: send });
   write(ENDPOINT_KEY, sub.endpoint);
-  await rememberForWorker(topics);
+  write(SESSION_KEY, who);
+  await rememberForWorker(topics, sub.endpoint);
+  return data ?? { topics: send };
 }
 
 /** Subscribes this device to `topics` (asks for permission the first time); an empty list stops all notices. */
@@ -109,7 +154,8 @@ export async function setTopics(topics: Topic[]): Promise<Topic[]> {
     if (sub) await subscribeCall({ subscription: sub.toJSON(), topics: [] }).catch(() => undefined);
     await sub?.unsubscribe();
     write(ENDPOINT_KEY, null);
-    await rememberForWorker([]);
+    write(SESSION_KEY, null);
+    await rememberForWorker([], null);
   } else {
     if (Notification.permission !== "granted" && (await Notification.requestPermission()) !== "granted") throw new Error("Sin permiso para avisos en este navegador.");
     sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC) });
@@ -125,24 +171,48 @@ export const toggleTopic = (topic: Topic, on: boolean) => {
   return setTopics(on ? [...rest, topic] : rest);
 };
 
+export interface ReassertInput {
+  topics: readonly string[];
+  permission: string;
+  /** The browser's subscription now (null: none). */
+  endpoint: string | null;
+  /** The endpoint the server last accepted (null: never recorded). */
+  registered: string | null;
+  /** The session now ("" signed out) and the one of that registration (null: never recorded). */
+  session: string;
+  registeredSession: string | null;
+  /** The session the last attempt was for (a change bypasses the daily limit only once). */
+  triedSession: string | null;
+  /** The service worker re-subscribed by itself (public topics only): the full set is owed. */
+  dirty: boolean;
+  lastTry: number | null;
+  now: number;
+}
+
 /**
- * Whether the boot check should re-tell the server about this device: it chose topics, the browser
- * already allows notices (never asks from here), and the subscription is gone or isn't the one the
- * server last accepted — at most once every REASSERT_EVERY_MS (a clock set back counts as due).
+ * Whether the boot check should re-tell the server about this device. Never without topics or without
+ * the browser's permission (it never asks). At once: after the worker re-subscribed by itself, or when
+ * the session changed (signed out, or someone else signed in: the server's uid is stale) — once per
+ * change. A lost or renewed subscription: at most once a day. All well: once a week anyway, to learn
+ * whether the server dropped it (a clock set back counts as due).
  */
-export function reassertDue(o: { topics: readonly string[]; permission: string; endpoint: string | null; registered: string | null; lastTry: number | null; now: number }): boolean {
+export function reassertDue(o: ReassertInput): boolean {
   if (!o.topics.length || o.permission !== "granted") return false;
-  if (o.endpoint && o.endpoint === o.registered) return false;
-  return o.lastTry == null || o.now < o.lastTry || o.now - o.lastTry >= REASSERT_EVERY_MS;
+  if (o.dirty) return true;
+  if (o.registeredSession !== null && o.session !== o.registeredSession && o.session !== o.triedSession) return true;
+  const since = o.lastTry == null || o.now < o.lastTry ? Infinity : o.now - o.lastTry;
+  if (!o.endpoint || o.endpoint !== o.registered) return since >= REASSERT_EVERY_MS;
+  return since >= REVERIFY_EVERY_MS;
 }
 
 let inFlight: Promise<ReassertResult> | null = null;
-export type ReassertResult = "skip" | "ok" | "failed";
+export type ReassertResult = "skip" | "ok" | "renewed" | "failed";
 
 /**
- * On app boot (once the session is known: the personal topics need it): when this device chose topics
- * but its subscription was lost or renewed, subscribe again silently (the permission is already there)
- * and send the saved topics again. At most once a day; never asks, never throws.
+ * On app boot and on every session change (once the session is known: the personal topics need it):
+ * when reassertDue says so, subscribe again silently if the subscription is gone (the permission is
+ * already there) and send the saved topics again. If the server says it had dropped this very endpoint
+ * (404/410), the subscription is dead: renew it and register the new one. Never asks, never throws.
  */
 export function reassertPush(now: number = Date.now()): Promise<ReassertResult> {
   // (one at a time: StrictMode, or a session that settles twice, never sends it twice)
@@ -156,11 +226,34 @@ export function reassertPush(now: number = Date.now()): Promise<ReassertResult> 
       if (!reg) return "skip";
       let sub = await reg.pushManager.getSubscription();
       const last = Number(read(CHECKED_KEY));
-      const due = reassertDue({ topics, permission: Notification.permission, endpoint: sub?.endpoint ?? null, registered: read(ENDPOINT_KEY), lastTry: Number.isFinite(last) && last > 0 ? last : null, now });
+      const registered = read(ENDPOINT_KEY);
+      const who = session();
+      const due = reassertDue({
+        topics,
+        permission: Notification.permission,
+        endpoint: sub?.endpoint ?? null,
+        registered,
+        session: who,
+        registeredSession: read(SESSION_KEY),
+        triedSession: read(TRIED_SESSION_KEY),
+        dirty: await workerDirty(),
+        lastTry: Number.isFinite(last) && last > 0 ? last : null,
+        now,
+      });
       if (!due) return "skip";
       write(CHECKED_KEY, String(now));
+      write(TRIED_SESSION_KEY, who);
       sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC) });
-      await register(sub, topics);
+      const answer = await register(sub, topics);
+      // The server had dropped the endpoint it had accepted from us: the push service said it is gone.
+      if (answer.known === false && registered === sub.endpoint) {
+        // (the doc this call just re-created for the dead endpoint goes too)
+        await subscribeCall({ subscription: sub.toJSON(), topics: [] }).catch(() => undefined);
+        await sub.unsubscribe();
+        const fresh = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC) });
+        await register(fresh, topics);
+        return "renewed";
+      }
       return "ok";
     } catch {
       return "failed";

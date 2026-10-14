@@ -24,7 +24,25 @@ export interface Notice {
   log?: string;
   /** pushLog id that must exist for this notice to go (e.g. «Gol anulado» only for a goal that was pushed). */
   requires?: string;
+  /** pushLog id whose presence cancels this notice (a provisional final once the acta's «Final» went). */
+  skipIf?: string;
 }
+const PUBLIC = new Set<string>(TOPICS);
+/** The club's public topics among `topics` (what a device keeps when its member leaves or signs out). */
+export function publicTopics(topics: unknown): string[] {
+  return Array.isArray(topics) ? [...new Set(topics.filter((t): t is string => typeof t === "string" && PUBLIC.has(t)))] : [];
+}
+
+/**
+ * Who a notice goes to, as the pushSubscriptions query sendTo runs: everyone on its topic, or only
+ * `uid`'s devices on it; a personal notice goes to `uid`'s devices whatever their topics (`topic` null),
+ * and to nobody without a uid (null).
+ */
+export function pushAudience(notice: Pick<Notice, "topic">, uid?: string | null): { topic: Topic | null; uid: string | null } | null {
+  if (notice.topic === "personal") return uid ? { topic: null, uid } : null;
+  return { topic: notice.topic, uid: uid || null };
+}
+
 interface Ev {
   id: string;
   type: string;
@@ -48,9 +66,14 @@ export interface MatchLike {
   /** v2 actas carry a server clock (matchClock.ts); only its start is the kick-off. */
   version?: number;
   clock?: { phase?: string };
+  /** liveEvent «finish» on a legacy match without a clock: its final whistle (ms). */
+  liveEndedAt?: number;
 }
 
 const notDone = (m: MatchLike | undefined) => !!m && m.status !== "finished" && m.status !== "cancelled";
+/** The final whistle went (the clock ended, or a legacy match finished live): what changes after it are
+ *  the acta's corrections, never news. */
+const whistled = (m: MatchLike) => m.clock?.phase === "ended" || typeof m.liveEndedAt === "number";
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
@@ -92,7 +115,8 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
     const score = `Manchester Piti ${gf}–${ga} ${rival}`;
     // «Gol anulado»: a goal undone while the match is still being played, only if its «¡GOL!» went
     // (`requires` its pushLog): never for the corrections of an old acta. Same tag: it replaces it.
-    if (notDone(before) && after.clock?.phase !== "ended") {
+    const ended = whistled(after);
+    if (notDone(before) && !ended) {
       const still = new Set((after.events ?? []).map((e) => e.id));
       for (const e of (before?.events ?? []).filter((x) => isGoal(x) && !still.has(x.id))) {
         const who = e.type === "opponent_own_goal" ? `el autogol de ${rival}` : OURS.has(e.type) ? (e.playerId ? `el gol de ${nameOf(e.playerId)}` : "el gol del Piti") : `el gol de ${rival}`;
@@ -101,7 +125,8 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
     }
     const seen = new Set((before?.events ?? []).map((e) => e.id));
     const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && isGoal(e));
-    if (fresh.length) {
+    // (a goal written after the final whistle is a correction of the acta: silent, like its undo)
+    if (fresh.length && !ended) {
       const last = fresh[fresh.length - 1];
       const ours = OURS.has(last.type);
       // a goal written live without its scorer yet («Lo completo luego») is still the Piti's
@@ -122,8 +147,9 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
     if (before && was === "first" && phase === "halftime") out.push({ topic: "start", title: `Descanso · ${gf}–${ga}`, body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `half-${id}` });
     if (before && was === "halftime" && phase === "second") out.push({ topic: "start", title: "Arranca la 2ª parte", body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `second-${id}` });
     // The final whistle (clock ended), before the acta: provisional, with the acta's «Final» tag so the
-    // official one replaces it on the phone when the captain publishes.
-    if (before && (was === "first" || was === "second") && phase === "ended") out.push({ topic: "final", title: `Final (provisional) · ${gf}–${ga}`, body: `${score}. El resultado oficial llega con el acta del capitán.`, tag: `final-${id}`, url, log: `final-live-${id}` });
+    // official one replaces it on the phone when the captain publishes — and never after the official
+    // one went (`skipIf`: an acta published, then reopened and ended again, or triggers out of order).
+    if (before && (was === "first" || was === "second") && phase === "ended") out.push({ topic: "final", title: `Final (provisional) · ${gf}–${ga}`, body: `${score}. El resultado oficial llega con el acta del capitán.`, tag: `final-${id}`, url, log: `final-live-${id}`, skipIf: `final-${id}` });
   }
   if (finishedNow) {
     const gf = after.goalsFor ?? 0, ga = after.goalsAgainst ?? 0;

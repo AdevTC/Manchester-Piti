@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
+import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, pushAudience, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { nameFor } from "./names.js";
 import { sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
@@ -52,12 +52,17 @@ export const pushSubscribe = onCall(async (req) => {
     }
   }
   const ref = db.doc(`pushSubscriptions/${subId(input.subscription.endpoint)}`);
+  // `known`: whether the server still had this device (false after a 404/410 dropped it, see sendTo):
+  // the app then renews its subscription (src/lib/push.ts reassertPush).
+  const known = (await ref.get()).exists;
   if (!input.topics.length) {
     await ref.delete();
-    return { topics: [] };
+    return { topics: [], uid: null, known };
   }
-  await ref.set({ endpoint: input.subscription.endpoint, keys: input.subscription.keys, topics: [...new Set(input.topics)], ...(uid ? { uid } : {}), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  return { topics: input.topics };
+  // The uid is the session's, or none: a member who signed out (or another person now on this device)
+  // must stop getting that member's personal notices here (a merge would keep the old one).
+  await ref.set({ endpoint: input.subscription.endpoint, keys: input.subscription.keys, topics: [...new Set(input.topics)], uid: uid ?? FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  return { topics: input.topics, uid: uid ?? null, known };
 });
 
 export const pushUnsubscribe = onCall(async (req) => {
@@ -69,10 +74,11 @@ export const pushUnsubscribe = onCall(async (req) => {
 /** Sends a notice to everyone subscribed to its topic (or only to `uid`'s devices). A personal notice
  *  goes to `uid`'s devices only, whatever their topics (and nowhere without a uid). */
 export async function sendTo(notice: Notice, uid?: string) {
-  if (notice.topic === "personal" && !uid) return;
+  const who = pushAudience(notice, uid);
+  if (!who) return;
   let q: FirebaseFirestore.Query = db.collection("pushSubscriptions");
-  if (notice.topic !== "personal") q = q.where("topics", "array-contains", notice.topic);
-  if (uid) q = q.where("uid", "==", uid);
+  if (who.topic) q = q.where("topics", "array-contains", who.topic);
+  if (who.uid) q = q.where("uid", "==", who.uid);
   const subs = await q.get();
   // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
   if (subs.empty) return;
@@ -134,6 +140,7 @@ async function claimLog(tag: string): Promise<boolean> {
  *  (a trigger retry, an overlapping job run or the same whistle again finds it taken). */
 export async function deliver(n: Notice, uid?: string): Promise<void> {
   if (n.requires && !(await db.doc(`pushLog/${n.requires}`).get()).exists) return;
+  if (n.skipIf && (await db.doc(`pushLog/${n.skipIf}`).get()).exists) return;
   if (n.log && !(await claimLog(n.log))) return;
   await sendTo(n, uid);
 }

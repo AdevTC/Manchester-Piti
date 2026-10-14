@@ -908,6 +908,19 @@ describe("Pizarra · el día de partido (variantes y recordatorios)", () => {
     await seed("pushLog/seven-x", { at: 1 });
     await assertFails(getDoc(doc(db("admin"), "pushLog", "seven-x")));
     await assertFails(setDoc(doc(db("admin"), "pushLog", "seven-y"), { at: 1 }));
+    await assertFails(getDocs(collection(db("member"), "pushLog")));
+    await assertFails(deleteDoc(doc(db("admin"), "pushLog", "seven-x")));
+  });
+  it("las suscripciones de avisos (pushSubscriptions) son solo del servidor: nadie las lee ni las escribe", async () => {
+    const sub = { endpoint: "https://push.example.test/x", keys: { p256dh: "p", auth: "a" }, topics: ["goals"], uid: "member" };
+    await seed("pushSubscriptions/x", sub);
+    for (const who of [undefined, "outsider", "member", "admin"]) {
+      await assertFails(getDoc(doc(db(who), "pushSubscriptions", "x")));
+      await assertFails(getDocs(collection(db(who), "pushSubscriptions")));
+      await assertFails(setDoc(doc(db(who), "pushSubscriptions", "y"), { ...sub, uid: who ?? "anon" }));
+      await assertFails(updateDoc(doc(db(who), "pushSubscriptions", "x"), { topics: [] }));
+      await assertFails(deleteDoc(doc(db(who), "pushSubscriptions", "x")));
+    }
   });
 });
 

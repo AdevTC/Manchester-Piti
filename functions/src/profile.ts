@@ -6,6 +6,7 @@ import { FieldPath, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { db, memberAs, parse } from "./common.js";
+import { publicTopics } from "./pushLogic.js";
 import { fold, NICK_COPY, nicknameProblem, normalizeShirtName, SHIRT_COPY, SHIRT_UNDO_MS, shirtNameProblem, shirtTakenMessage, type ShirtOwner } from "./profileLogic.js";
 
 /** The handle a member is known by in convocatorias, porra and the pizarra. */
@@ -124,7 +125,8 @@ export const cancelPlayerClaim = onCall(async (req) => {
 
 /**
  * Leave the vestuario yourself: the same as a captain removing you (back only if a captain opens the
- * door again), plus this account's notice subscriptions. The ficha link stays: the goals are the
+ * door again). Its devices keep the club's public notices (goals, final…) but lose the personal ones and
+ * the uid: nothing about the vestuario reaches them any more. The ficha link stays: the goals are the
  * club's history.
  */
 export const leaveVestuario = onCall(async (req) => {
@@ -142,7 +144,11 @@ export const leaveVestuario = onCall(async (req) => {
     email: profile.get("email") ?? "",
     name: profile.get("nickname") ?? "",
   });
-  subs.docs.forEach((d) => batch.delete(d.ref));
+  for (const d of subs.docs) {
+    const keep = publicTopics(d.get("topics"));
+    if (keep.length) batch.update(d.ref, { topics: keep, uid: FieldValue.delete() });
+    else batch.delete(d.ref);
+  }
   await batch.commit();
   return { ok: true };
 });

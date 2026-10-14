@@ -121,6 +121,14 @@ describe("Avisos · este móvil", () => {
     expect(sw(/^Goles/)).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("los avisos personales: una línea siempre activa, sin interruptor", () => {
+    open("#avisos");
+    const line = document.getElementById("pe-tp-personal")!;
+    expect(within(line).getByText("Tus avisos personales (ficha, posiciones, convocatoria)")).toBeInTheDocument();
+    expect(line).toHaveTextContent(/Siempre activos/);
+    expect(screen.queryByRole("button", { name: /Tus avisos personales/ })).not.toBeInTheDocument();
+  });
+
   it("guardados sin suscripción viva: apagados", async () => {
     m.savedTopics.mockReturnValue(["start", "goals"]);
     m.subscribed.mockResolvedValue(false);
