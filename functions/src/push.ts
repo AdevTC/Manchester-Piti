@@ -123,11 +123,13 @@ async function claimLog(tag: string): Promise<boolean> {
 }
 
 /** A published match's jornada in its season — the one numbering (jornada.ts), the same «J5» the web
- *  shows (null: not in the calendar, cancelled…). */
+ *  shows (null: not in the calendar, cancelled…). Archived matches are left out, as the web's mappers do. */
 export async function seasonJornada(seasonId: string, matchId: string): Promise<number | null> {
   const all = await db.collection("matches").where("seasonId", "==", seasonId).get();
   return jornadaOf(
-    all.docs.map((d) => ({ id: d.id, seasonId: d.get("seasonId") as string | undefined, date: d.get("date") as unknown, status: d.get("status") as string | undefined })),
+    all.docs
+      .filter((d) => d.get("archived") !== true)
+      .map((d) => ({ id: d.id, seasonId: d.get("seasonId") as string | undefined, date: d.get("date") as unknown, status: d.get("status") as string | undefined })),
     matchId,
   );
 }
