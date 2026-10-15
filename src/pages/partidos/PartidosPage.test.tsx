@@ -100,6 +100,19 @@ it("the season's goals: each scorer leads to his page, in that season", () => {
   expect(within(h3).queryByRole("link")).toBeNull();
 });
 
+it("la tabla de goleadores conserva empatados y salta el puesto siguiente", () => {
+  data.players = ["a","b","c","d"].map(id => ({id,shirtName:id.toUpperCase(),seasons:["t1"]}));
+  const events = ["a","a","b","b","c","d"].map((playerId, i) => ({...goal(`tie-${i}`,i+1),playerId}));
+  data.matches = [{...played,goalsFor:6,events}];
+  render(<PartidosPage />);
+  const card = screen.getByText("Goles de la temporada").closest(".pt-card") as HTMLElement;
+  expect(within(card).getByRole("heading")).toHaveTextContent("Pichichi compartido");
+  expect([...card.querySelectorAll('li')].map(li => li.value)).toEqual([1,1,3,3]);
+  expect(card.querySelectorAll('i.gold')).toHaveLength(2);
+  expect(card.querySelectorAll('i.silver')).toHaveLength(0);
+  expect(card.querySelectorAll('i.bronze')).toHaveLength(2);
+});
+
 it("the board's next match: «Ver la previa» → its page; live, the board only follows it in directo", () => {
   const next: ClubMatch = { id: "m2", seasonId: "t1", version: 2, status: "scheduled", rival: "MAD SKY", date: T0, duration: 50, clock: readyClock() };
   clock.now = T0 - DAY;

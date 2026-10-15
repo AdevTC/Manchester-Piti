@@ -8,10 +8,8 @@ import { opponentInitials } from "../../lib/clubAnalytics";
 import { countdownParts, matchEvent, type Moment, type Narrative, type Pulse } from "../../lib/home";
 import { kickoffLabel } from "../../lib/vestuario";
 import { scoreOf } from "../../lib/partidos";
-import { kickoffState, PENDING_WHISTLE } from "../../lib/derived/kickoff";
-
-/** A score like 5–3 never breaks across lines (word joiners around the dash). */
-const keepScore = (s: string) => s.replace(/(\d)–(\d)/g, "$1⁠–⁠$2");
+import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE } from "../../lib/derived/kickoff";
+import { resultLetter, resultTitle } from "../../lib/derived/result";
 
 interface Props {
   story: Narrative;
@@ -26,32 +24,38 @@ interface Props {
 export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
   // The server render has no location; the browser fills in the absolute links once it takes over.
   const origin = typeof location === "undefined" ? "" : location.origin;
-  const m = pulse.live ?? pulse.next;
+  // A result's story must never headline a different (future) fixture. Each hero state
+  // describes exactly the match whose teams, score and clock are shown below it.
+  const m = pulse.live ?? pulse.next ?? pulse.awaiting ?? pulse.last;
+  const lastResult = !pulse.live && !pulse.next && !pulse.awaiting && !!pulse.last;
+  const awaiting = !pulse.live && !pulse.next && !!pulse.awaiting;
   // The date has come and nobody has started the clock: no frozen 00:00, the wait has its own words.
   const pending = !pulse.live && !!pulse.next && kickoffState(pulse.next, now) === "pending_whistle";
   const cd = pulse.next && !pulse.live && !pending ? countdownParts(dateMillis(pulse.next.date), now) : null;
   const rival = m?.rival;
   const score = m ? scoreOf(m) : { gf: 0, ga: 0 };
+  const heading = pulse.live ? "Partido en directo" : pulse.next ? "Próximo partido" : awaiting ? AWAITING_ACTA : lastResult ? resultTitle(resultLetter(score.gf, score.ga)) : "Próximo partido por confirmar";
+  const description = pulse.live ? "El marcador y las jugadas se actualizan desde el acta." : pulse.next ? (pending ? "El directo comenzará cuando el anotador marque el inicio." : "") : awaiting ? "Esperamos la confirmación del resultado y las jugadas." : lastResult ? story.em : "Publicaremos aquí el rival, el horario y el campo en cuanto estén confirmados.";
   return (
     <section className="hm-match" aria-labelledby="hm-title">
       <div className="in">
         <div className="match">
           <span className={`hm-chip-live${pulse.live ? " on" : ""}`}>
             <i />
-            {story.kick}
+            {pulse.live ? "En directo" : pulse.next ? "Próximo encuentro" : awaiting ? "Último partido" : lastResult ? "Último resultado" : "Calendario"}
           </span>
-          <h1 id="hm-title">{keepScore(story.head)}</h1>
-          <p className="em">{story.em}</p>
-          <div className="vs">
+          <h1 id="hm-title">{heading}</h1>
+          {description && <p className="em">{description}</p>}
+          {m && <div className="vs">
             <div className="team">
               <span className="cr">
                 <img src="/crest-256.webp" alt="" width={108} height={108} />
               </span>
               <b>MANCHESTER PITI</b>
-              <small>{m ? (m.home === false ? "Visitante" : "Local") : "Local"}</small>
+              <small>{m.home === false ? "Visitante" : "Local"}</small>
             </div>
-            {pulse.live ? (
-              <span className="score" role="status" aria-label={`Marcador: ${score.gf} a ${score.ga}`}>
+            {pulse.live || lastResult ? (
+              <span className="score" role="status" aria-label={`${lastResult ? "Resultado" : "Marcador"}: ${score.gf} a ${score.ga}`}>
                 {score.gf}–{score.ga}
               </span>
             ) : (
@@ -64,38 +68,30 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
                 {m?.rivalLogoUrl ? <img src={m.rivalLogoUrl} alt="" /> : rival ? (m?.rivalInitials ?? opponentInitials(rival)) : "?"}
               </span>
               <b>{rival ?? "Por confirmar"}</b>
-              <small>{m ? m.competition || "Liga" : "Rival de la jornada 1"}</small>
+              <small>{m.competition || "Liga"}</small>
             </div>
-          </div>
-          <div className="when">
-            {m ? (
-              <>
+          </div>}
+          {m && <div className="when">
                 <b>{pulse.live ? (m.clock ? <MatchClockDisplay match={m} /> : "En juego ahora") : pending ? PENDING_WHISTLE : kickoffLabel(m.date)}</b>
                 <span>{[m.venue, m.kit ? (m.kit === "home" ? "1ª equipación" : "2ª equipación") : null].filter(Boolean).join(" · ") || "Campo por confirmar"}</span>
-              </>
-            ) : (
-              <>
-                <b>Fecha por confirmar</b>
-                <span>En cuanto se publique el calendario, la cuenta atrás arranca sola.</span>
-              </>
-            )}
-          </div>
-          {!pulse.live && !pending && (
-            <div className={`cd${cd ? "" : " ph"}`} role="timer" aria-label={cd ? `Faltan ${cd.d} días, ${cd.h} horas y ${cd.m} minutos` : "Cuenta atrás: empieza cuando haya fecha"}>
+          </div>}
+          {cd && (
+            <div className="cd" role="timer" aria-label={`Faltan ${cd.d} días, ${cd.h} horas y ${cd.m} minutos`}>
               <div>
-                <b>{cd ? cd.d : "—"}</b>
+                <b>{cd.d}</b>
                 <span>días</span>
               </div>
               <div>
-                <b>{cd ? cd.h : "—"}</b>
+                <b>{cd.h}</b>
                 <span>horas</span>
               </div>
               <div>
-                <b>{cd ? cd.m : "—"}</b>
+                <b>{cd.m}</b>
                 <span>min</span>
               </div>
             </div>
           )}
+          {!pulse.live && !pulse.next && m && <p className="hm-calendar-note">Próximo partido por confirmar. La cuenta atrás aparecerá cuando haya fecha.</p>}
           <div className="acts">
             {pulse.live ? (
               <Link className="hm-btn" to="/matches/$matchId" params={{ matchId: pulse.live.id }}>
@@ -112,6 +108,8 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
                 </>
               )
             )}
+            {!pulse.live && !pulse.next && m && <Link className="hm-btn" to="/matches/$matchId" params={{ matchId: m.id }}>{lastResult ? "Ver crónica y acta" : "Ver el partido"} <Icon name="arrow" size={16} stroke={2.2} /></Link>}
+            {!m && <Link className="hm-btn" to="/partidos">Ver el calendario <Icon name="arrow" size={16} stroke={2.2} /></Link>}
             <AddToCalendar className="hm-mini" iconName="cal" label="Suscribirme al calendario" feed={`${origin}/calendario.ics`} />
           </div>
         </div>

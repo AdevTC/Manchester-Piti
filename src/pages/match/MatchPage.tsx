@@ -118,16 +118,7 @@ export function MatchPage() {
       <CelesteHeader
         active="partidos"
         sub="Partido"
-        actions={
-          <>
-            <ThemeToggle />
-            <Link className="hm-cta-top" to="/vestuario">
-              <Icon name="padlock" size={16} stroke={2.2} />
-              <span className="t">Vestuario</span>
-              <span className="hm-sr">Entrar al vestuario</span>
-            </Link>
-          </>
-        }
+        actions={<ThemeToggle />}
       />
       {children}
       <CelesteFooter />

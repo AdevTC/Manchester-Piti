@@ -2,7 +2,7 @@
 // (buildSquad / formRating over the same season), so the card and the cromo always show the same
 // number. Also the six attributes, the tier, the LED videoboard text, the season series, the last five
 // results, the partner and the evoluciones (design: stats-gen/pf-g.mjs + pf-e-data.mjs). Pure.
-import { dateMillis, isCompleted } from "../../../functions/src/matchEngine";
+import { dateMillis, isCompleted, isVisibleMatch } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../lib/clubData";
 import { chronological, playerGame } from "../../lib/clubAnalytics";
 import { LINE_NAMES, POSITIONS, type PosCode } from "../../lib/positions";
@@ -208,7 +208,7 @@ export interface CardView {
 /** The season's matches in calendar order (their jornada numbers come from derived/jornada). */
 export function seasonCalendar(matches: ClubMatch[], seasonId: string): ClubMatch[] {
   return matches
-    .filter((m) => seasonId === "all" || m.seasonId === seasonId)
+    .filter((m) => isVisibleMatch(m) && (seasonId === "all" || m.seasonId === seasonId))
     .slice()
     .sort(calendarOrder);
 }

@@ -16,7 +16,6 @@ const NAV: { key: CelestePage; to: string; label: string }[] = [
   { key: "plantilla", to: "/plantilla", label: "Plantilla" },
   { key: "stats", to: "/stats", label: "Estadísticas" },
   { key: "club", to: "/club", label: "El club" },
-  { key: "vestuario", to: "/vestuario", label: "Vestuario" },
 ];
 const DOCK: { key: CelestePage; to: string; label: string; icon: IconName }[] = [
   { key: "inicio", to: "/", label: "Inicio", icon: "home" },
@@ -52,7 +51,13 @@ export function CelesteHeader({ active, sub, actions }: { active?: CelestePage; 
           ))}
         </div>
       </nav>
-      <div className="vx-actions">{actions}</div>
+      <div className="vx-actions">
+        {actions}
+        <Link className={`hm-cta-top${active === "vestuario" ? " on" : ""}`} to="/vestuario" aria-label="Entrar al vestuario" aria-current={active === "vestuario" ? "page" : undefined}>
+          <Icon name="padlock" size={16} stroke={2.2} />
+          <span className="t">Vestuario</span>
+        </Link>
+      </div>
     </header>
   );
 }

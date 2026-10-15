@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
-import { seasonMatchSchema, playerSchema, dropNullFields } from "./schemas";
+import { mapMatch, mapPlayer } from "./firestoreMappers";
 import { nameFor } from "./derived/names";
 
 /**
@@ -24,8 +24,7 @@ export const matchDetailQuery = (matchId: string) =>
     queryFn: async () => {
       const snap = await getDoc(doc(db, "matches", matchId));
       if (!snap.exists()) return null;
-      const r = seasonMatchSchema.safeParse({ id: snap.id, ...dropNullFields(snap.data()) });
-      return r.success ? r.data : null;
+      return mapMatch(snap.id, snap.data());
     },
   });
 
@@ -36,8 +35,7 @@ export const playerDetailQuery = (playerId: string) =>
     queryFn: async () => {
       const snap = await getDoc(doc(db, "players", playerId));
       if (!snap.exists()) return null;
-      const r = playerSchema.safeParse({ id: snap.id, ...dropNullFields(snap.data()) });
-      return r.success ? r.data : null;
+      return mapPlayer(snap.id, snap.data());
     },
   });
 
@@ -48,8 +46,8 @@ export const playersNameMapQuery = queryOptions({
     const snap = await getDocs(collection(db, "players"));
     const map: Record<string, string> = {};
     for (const d of snap.docs) {
-      const r = playerSchema.safeParse({ id: d.id, ...dropNullFields(d.data()) });
-      if (r.success) map[d.id] = nameFor(r.data);
+      const player = mapPlayer(d.id, d.data());
+      if (player) map[d.id] = nameFor(player);
     }
     return map;
   },

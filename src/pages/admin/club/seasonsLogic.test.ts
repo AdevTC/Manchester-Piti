@@ -89,9 +89,20 @@ describe("seasonShowcase (the vitrina)", () => {
   const sc = seasonShowcase({ seasonId: "t1", matches: ms, stateOf: (m) => matchState(m, NOW), now: NOW, mvpOf: (m) => (m.id === "a" || m.id === "b" ? ["erik"] : []), nameOf: (id) => id.toUpperCase() });
   it("counts only the published actas: record, goals, Pichichi, trophies", () => {
     expect(sc).toMatchObject({ g: 2, e: 1, p: 0, gf: 7, ga: 2, published: 3, total: 4, streak: 2 });
-    expect(sc.pichichi).toEqual({ id: "erik", goals: 2 });
+    expect(sc.pichichi).toEqual({ ids: ["erik"], goals: 2 });
     expect(sc.biggest).toEqual({ gf: 4, ga: 1, rival: "A", label: "J1" });
     expect(sc.mvp).toEqual({ ids: ["erik"], times: 2 });
+  });
+  it("keeps every tied Pichichi and MVP, without awarding anything for zero goals", () => {
+    const tied = ms.map(m => m.id === "c" ? { ...m, events: [
+      { id: "5", type: "goal" as const, playerId: "adrian" },
+      { id: "6", type: "goal" as const, playerId: "kevin" },
+      { id: "7", type: "goal_freekick" as const, playerId: "kevin" },
+    ] } : m);
+    const showcase = seasonShowcase({ seasonId: "t1", matches: tied, stateOf, now: NOW, mvpOf: () => ["kevin", "erik", "adrian"], nameOf: (id) => id.toUpperCase() });
+    expect(showcase.pichichi).toEqual({ ids: ["adrian", "erik", "kevin"], goals: 2 });
+    expect(showcase.mvp).toEqual({ ids: ["adrian", "erik", "kevin"], times: 3 });
+    expect(seasonShowcase({ seasonId: "empty", matches: tied, stateOf, now: NOW, mvpOf: () => [], nameOf: (id) => id }).pichichi).toBeNull();
   });
   it("puts every jornada on the shelf: a mark when published, a gap otherwise (cancelled ones left out)", () => {
     // The public numbering: the cancelled «x» takes no number, and the draft «d» is not a jornada until

@@ -4,6 +4,7 @@ import {
   analysePlayer,
   chronological,
   competitionRanks,
+  rankedLeaders,
   individualRecords,
   medalFor,
   metricValue,
@@ -32,6 +33,18 @@ function game(id: string, goals: number, against = 0): ClubMatch {
   };
 }
 describe("Clasificación compartida y medallas", () => {
+  it("el podio incluye todos los empatados en el corte, sin ceros ni valores desconocidos", () => {
+    const rows = [10, 8, 7, 7, 7, 6, 0, NaN].map((goals, i) => ({ id: String(i), goals }));
+    expect(rankedLeaders(rows, p => p.goals).map(p => [p.item.id, p.rank, p.shared])).toEqual([
+      ["0", 1, false], ["1", 2, false], ["2", 3, true], ["3", 3, true], ["4", 3, true],
+    ]);
+    expect(rankedLeaders([{id:"a", goals:0}], p => p.goals)).toEqual([]);
+    expect(rows).toHaveLength(8);
+  });
+  it("cuatro primeros comparten oro; no se inventa segundo ni tercero", () => {
+    const rows = [4, 4, 4, 4, 3].map((goals, i) => ({id:String(i), goals}));
+    expect(rankedLeaders(rows, p => p.goals).map(p => p.rank)).toEqual([1,1,1,1]);
+  });
   it.each([
     [
       [10, 8, 8, 7],

@@ -1,0 +1,94 @@
+import { describe, expect, it } from "vitest";
+import { isCompleted, isVisibleMatch, nextFixture, calculateLedger } from "../../functions/src/matchEngine";
+import type { ClubMatch } from "./clubData";
+import { mapMatch } from "./firestoreMappers";
+import { visibleMatchLinks } from "./matchVisibility";
+import { seasonPulse } from "./home";
+import { calendarRows, seasonView } from "./partidos";
+import { islandOf, voteMatch } from "./derived/island";
+import { jornadaNumbers } from "./derived/jornada";
+import { minutesOf, totalMinutes, timedGames } from "./derived/minutesOf";
+import { analysePlayer, chronological, goalLinks, teamAnalysis, teamRecords } from "./clubAnalytics";
+import { technicalAnalysis, analysisCoverage } from "./technicalAnalysis";
+import { technicalEvidence } from "./technicalEvidence";
+import { computeStats } from "./playerStats";
+import { mvpWins } from "./vestuario";
+import { mvpOfFrom } from "./derived/mvpOf";
+import { porraHistory } from "./postMatch";
+import { playerPositions } from "./positionStats";
+import { seasonCalendar, seasonSquad } from "../pages/perfil/card";
+import { buildSquad } from "../pages/pizarra/v2/ratings";
+import { boardSeason } from "../pages/pizarra/v2/useBoardData";
+import { suspensions } from "../pages/pizarra/chemistry";
+import { goalClock, rivalTable, tickerLines } from "./statsView";
+import { defaultSheet } from "../pages/admin/acta/sheetModel";
+
+const NOW = Date.UTC(2026, 9, 16, 12);
+const base = defaultSheet("s", { rival: "Rival", starters: ["a", "b", "c", "d", "e", "f", "g"], date: NOW - 86400000, status: "finished", events: [{ id: "g", type: "goal", minute: 5, playerId: "a", assistPlayerId: "b" }, { id: "p", type: "pass", minute: 3, playerId: "a", receiverId: "b", outcome: "complete" }] });
+const ledger = calculateLedger(base).players;
+const first: ClubMatch = { ...base, id: "first", goalsFor: 1, goalsAgainst: 0, ledger, voteClosesAt: NOW - 2000, analysisCoverage: "complete" };
+const last: ClubMatch = { ...first, id: "last", date: NOW - 3000 };
+const hidden: ClubMatch = { ...first, id: "hidden", date: NOW - 5000, archived: true, individuallyArchived: true, goalsFor: 0, goalsAgainst: 9 };
+const games = [first, last];
+const mixed = [first, hidden, last];
+const player = { id: "a", firstName: "Ana", shirtName: "ANA", number: 9, seasons: ["s"], naturalPosition: "DEL", active: true, injured: false };
+const results = new Map(mixed.map(m => [m.id, { id: m.id, counts: { a: 3 }, total: 3 }]));
+
+describe("archived matches contribute nowhere", () => {
+  it("filters the entry boundary, public calendars and jornada numbering; restore returns the same source", () => {
+    expect(mapMatch(hidden.id, hidden)).toBeNull();
+    expect(isVisibleMatch(hidden)).toBe(false);
+    expect(isCompleted(hidden)).toBe(false);
+    expect(calendarRows(mixed, "all", "", NOW).map(m => m.id)).toEqual(["last", "first"]);
+    expect(seasonPulse(mixed, "s", NOW)).toEqual(seasonPulse(games, "s", NOW));
+    expect(seasonView(mixed, "s", NOW)).toEqual(seasonView(games, "s", NOW));
+    expect(jornadaNumbers(mixed)).toEqual(new Map([["first", 1], ["last", 2]]));
+    expect(seasonCalendar(mixed, "s")).toEqual(games);
+    expect(boardSeason(mixed, "s")).toEqual(games);
+    expect(mapMatch(hidden.id, { ...hidden, archived: false, individuallyArchived: false })?.events).toEqual(hidden.events);
+  });
+  it("cannot become next, live, a final announcement or the MVP prompt", () => {
+    const upcoming = { ...hidden, status: "scheduled" as const, date: NOW + 1000 };
+    const live = { ...upcoming, clock: { revision: 1, phase: "first" as const, firstStartedAt: NOW - 1000 } };
+    const final = { ...hidden, clock: { revision: 4, phase: "ended" as const, endedAt: NOW - 500 }, voteClosesAt: NOW + 1000 };
+    expect(nextFixture([upcoming, live], NOW)).toBeUndefined();
+    expect(islandOf([live, final], NOW, true)).toBeNull();
+    expect(voteMatch([final], NOW)).toBeUndefined();
+  });
+  it("leaves totals, minutes, starts, streaks, records, passes and assists unchanged", () => {
+    expect(chronological(mixed)).toEqual(games);
+    expect(computeStats("a", mixed)).toEqual(computeStats("a", games));
+    expect(analysePlayer(player, mixed)).toEqual(analysePlayer(player, games));
+    expect(teamAnalysis(mixed)).toEqual(teamAnalysis(games));
+    expect(teamRecords(mixed, "conceded")).toEqual(teamRecords(games, "conceded"));
+    expect(goalLinks(mixed)).toEqual(goalLinks(games));
+    expect(goalClock(mixed)).toEqual(goalClock(games));
+    expect(rivalTable(mixed)).toEqual(rivalTable(games));
+    const rows = [analysePlayer(player, games)];
+    expect(tickerLines(rows, mixed)).toEqual(tickerLines(rows, games));
+    expect(totalMinutes(mixed, "a")).toBe(totalMinutes(games, "a"));
+    expect(minutesOf(hidden, "a")).toBe(0);
+    expect(timedGames(mixed, "a")).toBe(2);
+    expect(technicalAnalysis(mixed)).toEqual(technicalAnalysis(games));
+    expect(analysisCoverage(mixed)).toEqual(analysisCoverage(games));
+    expect(technicalEvidence(mixed, { metric: "passes" })).toEqual(technicalEvidence(games, { metric: "passes" }));
+  });
+  it("cannot affect MVP, porra, positional ratings, profile, cromos or suspensions", () => {
+    expect(mvpWins("a", mixed, results, NOW)).toBe(2);
+    expect(mvpOfFrom(results, mixed, NOW)("hidden", "a")).toBeNull();
+    const picks = mixed.map(m => ({ matchId: m.id, uid: "me", name: "Ana", goalsFor: 1, goalsAgainst: 0 }));
+    expect(porraHistory(mixed, picks, "me")).toEqual(porraHistory(games, picks, "me"));
+    expect(playerPositions("a", mixed)).toEqual(playerPositions("a", games));
+    expect(seasonSquad([player], mixed, "s", results, NOW)).toEqual(seasonSquad([player], games, "s", results, NOW));
+    const squad = (matches: ClubMatch[]) => buildSquad({ players: [player], games: matches, jornada: jornadaNumbers(matches), suspended: new Set(), mvps: new Map(mixed.map(m => [m.id, ["a"]])) });
+    expect(squad(mixed)).toEqual(squad(games));
+    expect(suspensions([{ ...hidden, events: [{ type: "red_card", playerId: "a" }] }])).toEqual(new Map());
+  });
+  it("orphan MVP tallies and boards disappear immediately when the parent is removed, while seasonal boards remain", () => {
+    const tallies = [...results.values()];
+    expect(visibleMatchLinks(tallies, mixed, r => r.id).map(r => r.id)).toEqual(["first", "last"]);
+    expect(visibleMatchLinks(tallies, [first], r => r.id).map(r => r.id)).toEqual(["first"]);
+    const boards = [{ id: "a", matchId: "first" }, { id: "h", matchId: "hidden" }, { id: "gone", matchId: "deleted" }, { id: "season", matchId: null }];
+    expect(visibleMatchLinks(boards, mixed, b => b.matchId, true).map(b => b.id)).toEqual(["a", "season"]);
+  });
+});

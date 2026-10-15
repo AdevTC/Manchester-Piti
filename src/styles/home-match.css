@@ -12,6 +12,7 @@
 @keyframes hmPulse{50%{opacity:.35}}
 .hm-match h1{margin:0;font-family:'Anybody';font-weight:900;font-size:calc((100cqi - 40px) / 8.2);line-height:.9;letter-spacing:-.03em;font-variation-settings:'wdth' 100;text-wrap:balance}
 .vx .hm-match .em{margin:-6px 0 0;font-size:15px;line-height:1.5;color:var(--soft);max-width:52ch}
+.vx .hm-match .hm-calendar-note{padding:14px 16px;border-radius:16px;background:var(--chip);font-size:13px;line-height:1.5;color:var(--soft)}
 .hm-match .vs{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;text-align:center}
 .hm-match .team{display:grid;justify-items:center;gap:10px;min-width:0}
 .hm-match .cr{width:92px;height:92px;border-radius:50%;background:radial-gradient(circle,rgba(159,208,242,.25),transparent 70%);display:flex;align-items:center;justify-content:center;overflow:hidden}

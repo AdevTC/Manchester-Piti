@@ -2,7 +2,7 @@ import { clockReading } from "../../functions/src/matchClock";
 // Pure logic for the Partidos page (Celeste, "Noche de focos"): the season of one team as the page
 // tells it — the tile strip, the numbers, the next/live match and the calendar rows — plus the live
 // score read from the acta while a match is being played (goals are only stored once it's finished).
-import { dateMillis, EVENT_LABELS, eventMinute, isCompleted, matchPhase, minuteOfPlay, type MatchEvent } from "../../functions/src/matchEngine";
+import { dateMillis, EVENT_LABELS, eventMinute, isCompleted, isVisibleMatch, matchPhase, minuteOfPlay, type MatchEvent } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import { jornadas } from "./derived/jornada";
 import { resultLetter, type ResultLetter } from "./derived/result";
@@ -94,6 +94,7 @@ export function calendarRows(matches: ClubMatch[], filter: Filter, search: strin
   const upcoming = (m: ClubMatch) => ["scheduled", "playing", "postponed", "unscheduled"].includes(matchPhase(m, now));
   const result = (m: ClubMatch) => isCompleted(m) || matchPhase(m, now) === "awaiting_result";
   return matches
+    .filter(isVisibleMatch)
     .filter((m) => !q || (m.rival ?? "").toLocaleLowerCase("es").includes(q))
     .filter((m) => filter === "all" || (filter === "next" ? upcoming(m) : result(m)))
     .sort((a, b) => {

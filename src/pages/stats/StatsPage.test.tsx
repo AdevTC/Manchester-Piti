@@ -25,7 +25,7 @@ vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import(".
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }], selectedSeasonId: "all", loadingSeasons: false }) }));
 vi.mock("../vestuario/live", () => ({ useMvpResults: () => new Map() }));
 vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
-vi.mock("./Race", () => ({ RaceBoard: () => null, Ticker: () => null }));
+vi.mock("./Race", () => ({ RaceBoard: () => <section aria-label="Carrera del Pichichi" />, Ticker: () => null }));
 
 const { StatsPage } = await import("./StatsPage");
 
@@ -145,5 +145,30 @@ describe("StatsPage · Análisis del juego", () => {
     const panel = screen.getByRole("region", { name: "Estadísticas detalladas" });
     expect(within(panel).getByRole("heading", { name: "El Piti y el rival" })).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: /^Conexiones dirigidas/ })).getAllByRole("link").map((a) => a.textContent)).toEqual(["PUNTA", "LATERAL"]);
+  });
+});
+
+describe("StatsPage · navigation before the board", () => {
+  it("puts navigation before the race in document order, and skips the race in focused views", () => {
+    search.value = { view: "summary" };
+    const { rerender } = render(<StatsPage />);
+    const nav = screen.getByRole("navigation", { name: "Secciones de estadísticas" });
+    const race = screen.getByRole("region", { name: "Carrera del Pichichi" });
+    expect(nav.compareDocumentPosition(race) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    search.value = { view: "minutes" };
+    rerender(<StatsPage />);
+    expect(screen.queryByRole("region", { name: "Carrera del Pichichi" })).not.toBeInTheDocument();
+  });
+  it("credits every tied leader in the header", () => {
+    const [match] = data.matches as ClubMatch[];
+    match.events = [...(match.events ?? []), goal(20, "dc", "lat")];
+    match.goalsFor = 2;
+    match.ledger = { lat: row(50, { goals: 1, assists: 1 }), dc: row(50, { goals: 1, assists: 1 }) };
+    search.value = { view: "summary" };
+    render(<StatsPage />);
+    const leaders = screen.getByRole("list", { name: "Líderes del período" });
+    const pichichi = within(leaders).getByText("Pichichi").closest("li")!;
+    expect(within(pichichi).getAllByRole("link").map(a => a.textContent)).toEqual(["LATERAL", "PUNTA"]);
+    expect(pichichi).toHaveTextContent("Liderato compartido");
   });
 });

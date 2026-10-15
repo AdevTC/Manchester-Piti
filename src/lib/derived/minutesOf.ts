@@ -8,10 +8,11 @@
 import type { ClubMatch } from "../clubData";
 import { durationOf } from "../form";
 import { computeStats } from "../playerStats";
+import { isVisibleMatch } from "../../../functions/src/matchEngine";
 
-type MinutesMatch = Pick<ClubMatch, "ledger" | "status" | "duration" | "events">;
+type MinutesMatch = Pick<ClubMatch, "ledger" | "status" | "duration" | "events" | "archived" | "individuallyArchived">;
 
-const counts = (m: MinutesMatch) => !m.status || m.status === "finished";
+const counts = (m: MinutesMatch) => isVisibleMatch(m) && (!m.status || m.status === "finished");
 const rowOf = (m: MinutesMatch, pid: string) => (counts(m) ? m.ledger?.[pid] : undefined);
 
 /** Did he play (computeStats' participation: the ledger row's `played`, else his events)? */

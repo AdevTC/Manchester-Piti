@@ -26,14 +26,33 @@ El horario se interpreta siempre en **Europe/Madrid**, incluido el cambio entre 
 
 ## Qué ocurre automáticamente
 
-- Antes del inicio: cuenta atrás hacia el encuentro más próximo.
-- Desde el saque inicial hasta una hora después: **JUGANDO**.
-- Al cumplirse la hora: ese encuentro queda pendiente de acta y el contador pasa al siguiente programado.
+- La portada prioriza el encuentro en directo; si no hay ninguno, presenta el próximo partido. El último resultado tiene su propio bloque y nunca sirve de titular a un encuentro futuro.
+- Antes del horario previsto: cuenta atrás hacia el encuentro más próximo. Si se alcanza la hora sin iniciar el reloj, aparece **Pendiente del pitido inicial**.
+- Un administrador o anotador designado inicia la primera parte, marca el descanso, inicia la segunda y señala el final. El reloj compartido sigue esos momentos reales; las partes orientativas de 25 minutos no se cierran solas.
+- Al finalizar, el resultado queda pendiente de revisión del acta y la portada puede presentar el siguiente encuentro.
 - Si no hay más partidos: se muestra un estado de calendario pendiente.
 - Un partido aplazado o cancelado no ocupa el contador.
-- El marcador y las estadísticas deportivas solo se publican al finalizar el acta. Nunca se interpreta un futuro encuentro como empate a cero.
+- El marcador y las jugadas en directo se sincronizan entre dispositivos. Los acumulados definitivos se recalculan al publicar el acta. Nunca se interpreta un futuro encuentro como empate a cero.
 
-«JUGANDO» describe la franja prevista de juego; no es un marcador en directo. No necesita un cron ni abrir el panel de administración. La duración del acta es configurable (60 minutos por defecto); la franja pública pedida sigue siendo de una hora.
+Los partidos antiguos sin reloj conservan su compatibilidad con la franja de juego estimada. Para los nuevos se utiliza el reloj manual compartido.
+
+### Recuperar una jugada del banquillo
+
+La selección y la operación pendiente se conservan en este navegador, separadas por cuenta y partido. Tras recargar, revisa el jugador y el minuto antes de recuperar la selección o reenviar la jugada. **Pendiente**, **enviada** y **confirmada en el partido** son estados distintos: la confirmación requiere que los datos sincronizados muestren la operación.
+
+No se reenvía nada automáticamente al volver la conexión. El reintento conserva la referencia de la jugada para evitar duplicados. Si el primer envío nunca llegó al servidor, se recupera el minuto original con precisión de minuto, sin los segundos. Un cambio de parte, un partido cerrado o un conflicto de jugadores requiere revisar el acta; los datos pendientes se pueden copiar desde el panel. Los borradores locales caducan a las 24 horas y el reenvío directo deja de estar disponible tras dos horas.
+
+### Rankings y detalle de estadísticas
+
+Los puestos siguen la clasificación por competición: **1, 1, 3** o **1, 2, 2, 4**. Todos los empatados reciben la misma medalla; un corte del podio no elimina a quien comparte puesto y los ceros no conceden medallas. Los titulares y los líderes de goles y asistencias también reconocen los empates.
+
+Las secciones de Estadísticas están antes de la carrera del Pichichi; la carrera pertenece al Resumen. En Análisis del juego, las cifras interactivas abren las acciones que las justifican, con partido, jugador, momento y referencia de origen cuando existe. El detalle respeta la temporada y la cobertura seleccionadas: una narración parcial no equivale a haber registrado todo el encuentro.
+
+### Revisar una narración
+
+En el acta, copia el contexto del partido y úsalo al preparar el análisis narrado. Importa el archivo de acciones y pulsa **Revisar importación**: verás las acciones nuevas, las correcciones con valores **Antes / Ahora**, las que no cambian y los fragmentos de origen aportados.
+
+Puedes filtrar por jugador y corregir una acción dentro de la importación. Las dudas deben resolverse explícitamente; escribir una explicación no modifica por sí solo las jugadas. **Incorporar al borrador** conserva las acciones ajenas a la importación y no publica el acta. Si el borrador cambia durante la revisión, hay que revisar de nuevo antes de incorporarla. Los identificadores estables evitan duplicar acciones al reimportar.
 
 ## Cerrar el acta después del partido
 
@@ -75,6 +94,18 @@ Mientras no haya fotos propias se ven espacios gráficos preparados para ellas. 
 
 ## Historial anterior
 
+### Archivar, reactivar y eliminar partidos
+
+Solo los administradores pueden gestionar estas acciones desde **Administración → Partidos**. En la ficha del encuentro están **Archivar partido** y **Borrar partido**, también para partidos terminados. Ambas acciones muestran el rival, la fecha y sus consecuencias antes de confirmar.
+
+- **Archivar** conserva el acta, los eventos, los votos, las porras y el resto de datos vinculados. El encuentro sale del calendario público, de los avisos y de todas las estadísticas, récords y clasificaciones. Se consulta en modo de solo lectura desde **Archivados**.
+- **Reactivar** devuelve el partido y sus aportaciones a las estadísticas. Un borrador se recupera como borrador. Si su temporada está archivada, hay que reactivar primero la temporada; hacerlo no reactiva automáticamente los partidos archivados individualmente.
+- **Borrar** elimina definitivamente el encuentro y sus datos vinculados, incluidos borradores, convocatoria, votos, pronósticos y pizarras. Se recalculan los acumulados y la porra sin ese partido. No hay opción de deshacer.
+
+Un reloj iniciado debe finalizarse o reiniciarse antes de archivar el encuentro, para que el tiempo que pase archivado no se contabilice como tiempo jugado. Las pestañas antiguas no pueden seguir editando un encuentro archivado ni recrear uno eliminado. El servidor conserva únicamente una marca interna del identificador eliminado, sin contenido del partido ni datos personales, para impedir esa recreación.
+
+La retirada de las estadísticas se confirma junto al borrado del partido. La limpieza de sus datos vinculados tiene además un proceso de recuperación en el servidor, por si la operación se interrumpe después de retirar el encuentro.
+
 Los resultados y eventos existentes siguen disponibles. Las estadísticas antiguas usan sus datos originales. Los minutos y situaciones iniciales que nunca se registraron se muestran como desconocidos, sin estimarlos.
 
 Para convertir un encuentro antiguo a acta completa hay que proporcionar siete iniciales, convocatoria, minutos y goles de ambos equipos. No es necesario convertir todo el historial para empezar la próxima temporada.
@@ -94,7 +125,7 @@ npm run dev -- --host 127.0.0.1 --port 3001
 
 La instalación reproducible del frontend usa `npx pnpm install --frozen-lockfile`. La configuración pública de Firebase está en el archivo local ignorado `.env`; `.env.example` sirve de plantilla.
 
-El servidor 3001 utiliza la configuración habitual de Firebase. Hasta desplegar las nuevas funciones y reglas, las funciones nuevas del vestuario no estarán disponibles contra ese proyecto real.
+El servidor 3001 utiliza la configuración habitual de Firebase. Las funciones y reglas del vestuario, incluida la gestión de partidos archivados, están desplegadas en ese proyecto real; usa los emuladores para las pruebas que escriban datos.
 
 ### Pruebas aisladas
 
@@ -141,6 +172,10 @@ Validación acumulada: 165 pruebas de aplicación y 60 comprobaciones del backen
 
 ## Estado del despliegue y publicación
 
+El 16 de octubre de 2026 se desplegó el backend `club` completo (42 funciones) y las reglas de Firestore en `futbolmanagement-dc6cb`. La entrega incorpora `setMatchArchived` y `cleanupMatchTombstone`, actualiza el borrado completo y protege los datos frente a escrituras de pestañas antiguas. La limpieza puede repetirse con seguridad y reintenta automáticamente si se interrumpe.
+
+La web pública utiliza Vercel (`manchester-piti.vercel.app`); el push a `main` debe comprobarse también en su despliegue. GitHub Actions valida el código pero no publica Firebase. El HTML dinámico y el bundle público no se almacenan en caché para evitar que reaparezcan partidos archivados o eliminados. La comprobación SSR `node --test scripts/test-ssr-lifecycle.mjs`, después del build, verifica archivo, borrado y reactivación sin conectarse a Firebase.
+
 Los dos párrafos siguientes son el registro del 24 de septiembre de 2026. Desde octubre el acceso al vestuario va por invitaciones: la clave del equipo y sus funciones ya no existen, y el secreto `TEAM_PASSWORD` no hace falta.
 
 El 24 de septiembre de 2026 se desplegaron las siete Cloud Functions y las reglas de Firestore en `futbolmanagement-dc6cb`, después de activar Blaze. `TEAM_PASSWORD` está configurado en Secret Manager y `PUBLIC_SITE_URL` en el entorno local ignorado de Functions. Las peticiones previas desde `http://localhost:3001` devuelven 204 con CORS correcto; las peticiones sin sesión devuelven `UNAUTHENTICATED`, como corresponde. Se añadió `127.0.0.1` a los dominios autorizados de Google, conservando `localhost` y todos los dominios existentes. El repositorio de imágenes de compilación tiene una limpieza a siete días.
@@ -152,8 +187,9 @@ La interfaz rediseñada se sirve en local; Firebase Hosting todavía no se ha ac
 3. Si se utiliza un dominio propio, establecer `PUBLIC_SITE_URL` en la configuración de Functions. El valor por defecto es el dominio Firebase del proyecto. Sirve para las tarjetas sociales y sus enlaces.
 4. Comprobar Google como proveedor de Auth y los dominios autorizados.
 5. Ejecutar los builds con la configuración real, sin `VITE_USE_FIREBASE_EMULATOR`.
-6. Desplegar Functions, las reglas de Firestore y Hosting como una misma entrega:
-   `firebase deploy --only functions,firestore:rules,hosting --project futbolmanagement-dc6cb`.
+6. Desplegar primero el backend y las reglas:
+   `firebase deploy --only functions:club,firestore:rules --project futbolmanagement-dc6cb`.
+   Después subir el frontend a `main` y verificar el despliegue de Vercel. Firebase Hosting solo se publica si se quiere actualizar también ese alojamiento alternativo.
 7. Verificar con un administrador real: Google, una invitación, nuevo partido, edición, votación y enlace social.
 
 Las nuevas reglas exigen que las actas y votos pasen por Functions. No debe desplegarse solo el frontend esperando que esas funciones existan ya.

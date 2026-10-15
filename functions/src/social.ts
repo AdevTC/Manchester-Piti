@@ -5,6 +5,7 @@ import { REGION, siteUrl } from "./common.js";
 import { positionText } from "./positions.js";
 import { nameFor } from "./names.js";
 import { playerCardSvg } from "./shareCard.js";
+import { matchActive } from './matchAccess.js';
 const escape = (s: string) =>
   s.replace(
     /[&<>"']/g,
@@ -43,7 +44,7 @@ export const clubShare = onRequest(
       .doc(`${type === "partido" ? "matches" : "players"}/${id}`)
       .get();
     // Archived seasons never resurface through old share links.
-    if (!snap.exists || snap.get("archived") === true) {
+    if (!snap.exists || snap.get("archived") === true || (type === 'partido' && !(await matchActive(id)))) {
       res.status(404).send("No encontrado");
       return;
     }
@@ -65,7 +66,7 @@ export const clubShare = onRequest(
         ? data.competition || "Fútbol 7"
         : posText;
     const canonical = `${base}/${type === "partido" ? "matches" : "jugadores"}/${id}`;
-    res.set("Cache-Control", "public, max-age=300, s-maxage=300");
+    res.set("Cache-Control", type === 'partido' ? 'no-store' : 'public, max-age=300, s-maxage=300');
     if (kind === "social") {
       const crest = readFileSync(
         new URL("../assets/crest.png", import.meta.url),

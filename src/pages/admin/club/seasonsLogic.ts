@@ -143,8 +143,8 @@ export interface Showcase {
   /** The season's jornadas: its numbered matches (published, not cancelled). */
   total: number;
   shelf: ShelfSlot[];
-  /** The top scorer of the published actas (ties: the first by name). */
-  pichichi: { id: string; goals: number } | null;
+  /** The top scorers of the published actas: every tied winner, with goals per player. */
+  pichichi: { ids: string[]; goals: number } | null;
   /** The widest win. */
   biggest: { gf: number; ga: number; rival: string; label: string } | null;
   /** The longest run of wins in a row. */
@@ -193,8 +193,8 @@ export function seasonShowcase(o: {
     for (const id of o.mvpOf(m)) mvps.set(id, (mvps.get(id) ?? 0) + 1);
   }
   const byName = (a: string, b: string) => o.nameOf(a).localeCompare(o.nameOf(b), "es");
-  const top = [...goals.entries()].sort((a, b) => b[1] - a[1] || byName(a[0], b[0]))[0];
-  if (top) out.pichichi = { id: top[0], goals: top[1] };
+  const mostGoals = Math.max(0, ...goals.values());
+  if (mostGoals) out.pichichi = { ids: [...goals.keys()].filter((id) => goals.get(id) === mostGoals).sort(byName), goals: mostGoals };
   const most = Math.max(0, ...mvps.values());
   if (most) out.mvp = { ids: [...mvps.keys()].filter((id) => mvps.get(id) === most).sort(byName), times: most };
   out.shelf = ms.map((m) => {

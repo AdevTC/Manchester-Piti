@@ -1,6 +1,6 @@
 // Pure logic for the public home ("El vestidor"): everything shown is derived from real
 // match and player data, and every text is a template chosen by the season's moment.
-import { dateMillis, matchPhase } from "../../functions/src/matchEngine";
+import { dateMillis, isVisibleMatch, matchPhase } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import { computeStats, EMPTY_STATS, type PlayerStats } from "./playerStats";
 import { kickoffLabel, plural } from "./vestuario";
@@ -8,6 +8,7 @@ import type { CalendarEvent } from "./calendarLinks";
 import { scoreOf } from "./partidos";
 import { resultLetter, type ResultLetter } from "./derived/result";
 import { jornadas } from "./derived/jornada";
+import { rankedLeaders } from "./clubAnalytics";
 
 const DAY = 86_400_000;
 const GOAL = /^goal/;
@@ -30,7 +31,7 @@ const byDate = (a: ClubMatch, b: ClubMatch) => dateMillis(a.date) - dateMillis(b
 
 /** The season as the home tells it: played games (oldest first), the live one, the next one. */
 export function seasonPulse(matches: ClubMatch[], seasonId: string, now: number) {
-  const season = matches.filter((m) => m.seasonId === seasonId);
+  const season = matches.filter((m) => isVisibleMatch(m) && m.seasonId === seasonId);
   const played = season.filter((m) => matchPhase(m, now) === "finished").sort(byDate);
   const live = season.filter((m) => matchPhase(m, now) === "playing").sort(byDate)[0];
   const next = season.filter((m) => matchPhase(m, now) === "scheduled").sort(byDate)[0];
@@ -64,13 +65,11 @@ export type Pulse = ReturnType<typeof seasonPulse>;
 export function playerLines(squad: SquadMember[], played: ClubMatch[]): PlayerLine[] {
   return squad.map((p) => ({ ...p, stats: played.length ? computeStats(p.id, played) : EMPTY_STATS }));
 }
-/** Top `n` by a stat, ties by name; players at 0 are left out. */
+/** Top `n` places by a stat, including everyone tied at the cut. Zero earns no place. */
 export function leaders(lines: PlayerLine[], key: "goals" | "assists", n = 3) {
-  return lines
-    .filter((l) => l.stats[key] > 0)
-    .sort((a, b) => b.stats[key] - a.stats[key] || a.name.localeCompare(b.name, "es"))
-    .slice(0, n);
+  return rankedLeaders([...lines].sort((a, b) => a.name.localeCompare(b.name, "es")), (l) => l.stats[key], n).map(({ item }) => item);
 }
+export const listNames = (lines: Pick<PlayerLine, "name">[]) => new Intl.ListFormat("es", { style: "long", type: "conjunction" }).format(lines.map((l) => l.name));
 
 function scorersOf(m: ClubMatch, nameOf: (id: string) => string) {
   const count = new Map<string, number>();
@@ -85,9 +84,12 @@ export interface Narrative {
   em: string;
 }
 /** The home's headline, by moment: live, just played (4 days), countdown, pre-season or mid-season. */
-export function narrative(p: Pulse, ctx: { seasonName: string; squadSize: number; now: number; nameOf: (id: string) => string; scorer?: PlayerLine }): Narrative {
+export function narrative(p: Pulse, ctx: { seasonName: string; squadSize: number; now: number; nameOf: (id: string) => string; scorer?: PlayerLine; scorers?: PlayerLine[] }): Narrative {
   const { seasonName, squadSize, now, nameOf, scorer } = ctx;
-  const leaderLine = scorer ? `${scorer.name} lidera el Pichichi con ${plural(scorer.stats.goals, "gol", "goles")}.` : "El Pichichi sigue sin dueño.";
+  const topScorers = ctx.scorers ?? (scorer ? [scorer] : []);
+  const first = topScorers[0];
+  const shared = topScorers.length > 1;
+  const leaderLine = first ? `${listNames(topScorers)} ${shared ? "comparten" : "lidera"} el Pichichi con ${plural(first.stats.goals, "gol", "goles")}${shared ? " cada uno" : ""}.` : "El Pichichi sigue sin dueño.";
   if (p.live) {
     const { gf, ga } = scoreOf(p.live);
     return {
@@ -103,8 +105,8 @@ export function narrative(p: Pulse, ctx: { seasonName: string; squadSize: number
       r = resultOf(m),
       top = scorersOf(m, nameOf)[0];
     const score = `${m.goalsFor ?? 0}–${m.goalsAgainst ?? 0}`;
-    const leads = !!top && top.id === scorer?.id;
-    const who = top ? (leads ? `${top.name} firmó ${feat(top.n)}: ya suma ${scorer!.stats.goals} y lidera el Pichichi.` : `${top.name} firmó ${feat(top.n)}.`) : "";
+    const leads = !shared && !!top && top.id === first?.id;
+    const who = top ? (leads ? `${top.name} firmó ${feat(top.n)}: ya suma ${first!.stats.goals} y lidera el Pichichi.` : `${top.name} firmó ${feat(top.n)}.`) : "";
     if (r === "G") return { kick, head: `¡Victoria! ${score} ante ${m.rival ?? "el rival"}.`, em: leads ? who : `${who} ${leaderLine}`.trim() };
     if (r === "E") return { kick, head: `Empate a ${m.goalsFor ?? 0} ante ${m.rival ?? "el rival"}.`, em: who || leaderLine };
     return { kick, head: `Tocó perder ante ${m.rival ?? "el rival"}, ${score}.`, em: p.next ? `Revancha: ${kickoffLabel(p.next.date)} ante ${p.next.rival ?? "el rival"}.` : who || "El próximo domingo, revancha." };
@@ -140,18 +142,19 @@ export interface Moment {
 export function playerOfTheMoment(lines: PlayerLine[], p: Pulse, now: number): Moment | null {
   if (!lines.length) return null;
   const byId = (id: string) => lines.find((l) => l.id === id);
-  const [pichichi] = leaders(lines, "goals", 1);
+  const topScorers = leaders(lines, "goals", 1);
+  const [pichichi] = topScorers;
   if (p.last && now - dateMillis(p.last.date) < 10 * DAY) {
     const top = scorersOf(p.last, (id) => byId(id)?.name ?? "").find((s) => byId(s.id));
     if (top) {
-      const lead = pichichi?.id === top.id ? ` Ya suma ${plural(pichichi.stats.goals, "gol", "goles")} y lidera el Pichichi.` : "";
+      const lead = topScorers.some((p) => p.id === top.id) ? ` Ya suma ${plural(pichichi!.stats.goals, "gol", "goles")} y ${topScorers.length > 1 ? "comparte" : "lidera"} el Pichichi.` : "";
       return { line: byId(top.id)!, kick: "Goleador del último partido", text: `Firmó ${feat(top.n)} ante ${p.last.rival ?? "el rival"}.${lead}` };
     }
   }
   if (pichichi) {
     const { goals, matchesPlayed } = pichichi.stats;
     const games = matchesPlayed ? ` en ${plural(matchesPlayed, "partido", "partidos")}` : "";
-    return { line: pichichi, kick: "Pichichi", text: `${plural(goals, "gol", "goles")}${games}: nadie en la plantilla ha marcado más.` };
+    return { line: pichichi, kick: topScorers.length > 1 ? "Pichichi compartido" : "Pichichi", text: `${plural(goals, "gol", "goles")}${games}${topScorers.length > 1 ? `; comparte el primer puesto con ${listNames(topScorers.slice(1))}.` : ": nadie en la plantilla ha marcado más."}` };
   }
   const [bday] = upcomingBirthdays(lines, now, 1);
   if (bday) {
@@ -175,15 +178,15 @@ export function clubMedals(p: Pulse, lines: PlayerLine[], nameOf: (id: string) =
   const firstGoal = p.played.find((m) => (m.events ?? []).some((e) => GOAL.test(e.type) && e.playerId));
   const firstGoalBy = firstGoal ? scorersOf(firstGoal, nameOf).map((s) => s.name) : [];
   const firstWin = p.played.find((m) => resultOf(m) === "G");
-  const [pichichi] = leaders(lines, "goals", 1);
-  const [assister] = leaders(lines, "assists", 1);
+  const topScorers = leaders(lines, "goals", 1), topAssisters = leaders(lines, "assists", 1);
+  const [pichichi] = topScorers, [assister] = topAssisters;
   const record = [...p.played].sort((a, b) => (b.goalsFor ?? 0) - (a.goalsFor ?? 0))[0];
   return [
     { id: "debut", kicker: "Primer partido", title: first ? dateLabel(first.date) : "Jornada 1", detail: first ? `${first.goalsFor ?? 0}–${first.goalsAgainst ?? 0} ante ${first.rival ?? "el rival"}` : "fecha por confirmar", earned: !!first, tone: "gold" },
     { id: "goal", kicker: "Primer gol", title: firstGoalBy[0] ?? "Por marcar", detail: firstGoal ? `ante ${firstGoal.rival ?? "el rival"}` : "¿quién lo hará?", earned: !!firstGoal, tone: "sky" },
     { id: "win", kicker: "Primera victoria", title: firstWin ? `${firstWin.goalsFor}–${firstWin.goalsAgainst}` : "Por ganar", detail: firstWin ? `ante ${firstWin.rival ?? "el rival"}` : "se celebrará aquí", earned: !!firstWin, tone: "gold" },
-    { id: "pichichi", kicker: "Pichichi", title: pichichi?.name ?? "Por decidir", detail: pichichi ? plural(pichichi.stats.goals, "gol", "goles") : "todos a cero", earned: !!pichichi, tone: "gold" },
-    { id: "assist", kicker: "Rey de la asistencia", title: assister?.name ?? "Por decidir", detail: assister ? plural(assister.stats.assists, "asistencia", "asistencias") : "0 asistencias", earned: !!assister, tone: "sky" },
+    { id: "pichichi", kicker: topScorers.length > 1 ? "Pichichi compartido" : "Pichichi", title: pichichi ? listNames(topScorers) : "Por decidir", detail: pichichi ? `${plural(pichichi.stats.goals, "gol", "goles")}${topScorers.length > 1 ? " cada uno" : ""}` : "todos a cero", earned: !!pichichi, tone: "gold" },
+    { id: "assist", kicker: topAssisters.length > 1 ? "Líderes de asistencias" : "Rey de la asistencia", title: assister ? listNames(topAssisters) : "Por decidir", detail: assister ? `${plural(assister.stats.assists, "asistencia", "asistencias")}${topAssisters.length > 1 ? " cada uno" : ""}` : "0 asistencias", earned: !!assister, tone: "sky" },
     { id: "record", kicker: "Tarde de récord", title: record && (record.goalsFor ?? 0) > 0 ? plural(record.goalsFor ?? 0, "gol", "goles") : "Por batir", detail: record && (record.goalsFor ?? 0) > 0 ? `ante ${record.rival ?? "el rival"}` : "el listón está en cero", earned: !!record && (record.goalsFor ?? 0) > 0, tone: "gold" },
   ];
 }

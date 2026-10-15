@@ -57,6 +57,10 @@ export type MatchStatus = "scheduled" | "finished" | "postponed" | "cancelled";
 export interface MatchSheet {
   id?: string;
   version: 2;
+  /** Effective archive state, inherited from its season or set for this match. */
+  archived?: boolean;
+  /** Preserves a match's own archive choice when its season is restored. */
+  individuallyArchived?: boolean;
   revision?: number;
   seasonId: string;
   rival: string;
@@ -426,20 +430,31 @@ export function nextFixture<
   T extends { date?: unknown; status?: string; goalsFor?: number; duration?: number; liveEndedAt?: number },
 >(matches: T[], now: number): T | undefined {
   return matches
-    .filter((m) => ["scheduled", "playing"].includes(matchPhase(m, now)))
+    .filter((m) => isVisibleMatch(m) && ["scheduled", "playing"].includes(matchPhase(m, now)))
     .sort((a, b) => dateMillis(a.date) - dateMillis(b.date))[0];
+}
+/** Public totals, calendars and history share one visibility rule. A missing flag is legacy-visible.
+ * `deleting` is understood defensively for older tombstone implementations; current deletion removes
+ * the parent document atomically instead of exposing an intermediate match. */
+export function isVisibleMatch(match: unknown): boolean {
+  if (!match || typeof match !== "object") return false;
+  const m = match as { archived?: unknown; individuallyArchived?: unknown; deleting?: unknown };
+  return m.archived !== true && m.individuallyArchived !== true && m.deleting !== true;
 }
 export function isCompleted(match: {
   status?: string;
   date?: unknown;
   goalsFor?: number;
   goalsAgainst?: number;
+  archived?: boolean;
+  individuallyArchived?: boolean;
+  deleting?: boolean;
 }): boolean {
   return (
-    match.status === "finished" ||
+    isVisibleMatch(match) && (match.status === "finished" ||
     (!match.status &&
       typeof match.goalsFor === "number" &&
       typeof match.goalsAgainst === "number" &&
-      dateMillis(match.date) <= Date.now())
+      dateMillis(match.date) <= Date.now()))
   );
 }

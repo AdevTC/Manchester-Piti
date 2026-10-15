@@ -1,14 +1,13 @@
 import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
-// Estadísticas (Celeste · "elegida"): the analyst's room with the stadium board on top — the Pichichi
-// race and the ticker — then the tabs (Resumen, Jugadores, Análisis del juego, Minutos, Posiciones, Rivales,
-// Comparar, Explorar).
+// Estadísticas: its navigation precedes the Pichichi race (Resumen only), so focused views open on
+// their content. The selected season and tied leaders stay visible in the shared introduction.
 // From the Design canvas "Estadísticas · elegida"; pure logic in lib/clubAnalytics.ts + lib/statsView.ts.
 import { useMemo } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { playerForSeason, nameFor, useClubData } from "../../lib/clubData";
 import { mvpOfFrom, votesClosedAt } from "../../lib/derived/mvpOf";
-import { analysePlayer, chronological, type PlayerAnalysis } from "../../lib/clubAnalytics";
+import { analysePlayer, chronological, rankedLeaders, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { tickerLines } from "../../lib/statsView";
 import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import { jornadaNumbers } from "../../lib/derived/jornada";
@@ -18,7 +17,6 @@ import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
-import { Icon } from "../../components/celeste/icons";
 import { RaceBoard, Ticker } from "./Race";
 import { Comparar, Jugadores, Minutos, Resumen, Rivales } from "./Panes";
 import { Explorar, type ExploreSection } from "./Explorar";
@@ -84,12 +82,11 @@ export function StatsPage() {
   const votesAt = votesClosedAt(games, now);
   const mvpOf = useMemo(() => mvpOfFrom(results, games, votesAt), [results, games, votesAt]);
   const lines = useMemo(() => tickerLines(rows, games), [rows, games]);
-  const top = (value: (p: PlayerAnalysis) => number) => [...rows].sort((a, b) => value(b) - value(a) || nameOf(a).localeCompare(nameOf(b))).find((p) => value(p) > 0);
   const leaders = [
-    { label: "Pichichi", p: top((p) => p.goals), v: (p: PlayerAnalysis) => p.goals },
-    { label: "Asistente", p: top((p) => p.assists), v: (p: PlayerAnalysis) => p.assists },
-    { label: "Más MVP", p: top((p) => mvps.get(p.id) ?? 0), v: (p: PlayerAnalysis) => mvps.get(p.id) ?? 0 },
-  ].filter((l) => l.p);
+    { label: "Pichichi", v: (p: PlayerAnalysis) => p.goals },
+    { label: "Asistencias", v: (p: PlayerAnalysis) => p.assists },
+    { label: "Más MVP", v: (p: PlayerAnalysis) => mvps.get(p.id) ?? 0 },
+  ].map(l => ({ ...l, players: rankedLeaders([...rows].sort((a, b) => nameOf(a).localeCompare(nameOf(b), "es")), l.v, 1) })).filter(l => l.players.length > 0);
   const tracked = games.filter((m) => m.ledger && Object.keys(m.ledger).length).length;
   const periodName = selectedSeasonId === "all" ? ALL_SEASONS_LABEL : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
   const ready = !loading && !error;
@@ -104,11 +101,6 @@ export function StatsPage() {
         actions={
           <>
             <ThemeToggle />
-            <Link className="hm-cta-top" to="/vestuario">
-              <Icon name="padlock" size={16} stroke={2.2} />
-              <span className="t">Vestuario</span>
-              <span className="hm-sr">Entrar al vestuario</span>
-            </Link>
           </>
         }
       />
@@ -143,7 +135,7 @@ export function StatsPage() {
                 </label>
               )}
               <p className="st-count">
-                <b>{games.length}</b> {games.length === 1 ? "partido" : "partidos"} · <b>{rows.length}</b> jugadores · <b>{tracked}</b> actas con minutos
+                <b>{games.length}</b> {games.length === 1 ? "partido" : "partidos"} · <b>{rows.length}</b> {rows.length === 1 ? "jugador" : "jugadores"} · <b>{tracked}</b> {tracked === 1 ? "acta" : "actas"} con minutos
               </p>
             </div>
             {leaders.length > 0 && (
@@ -151,15 +143,29 @@ export function StatsPage() {
                 {leaders.map((l, i) => (
                   <li key={l.label} style={{ animationDelay: `${0.3 + i * 0.08}s` }}>
                     <small>{l.label}</small>
-                    <b>{l.v(l.p!)}</b>
-                    <Link to="/jugadores/$playerId" params={{ playerId: l.p!.id }}>
-                      {nameOf(l.p!)}
-                    </Link>
+                    <b>{l.v(l.players[0].item)}</b>
+                    {l.players.length > 1 && <small>Liderato compartido</small>}
+                    {l.players.map(({ item }) => <Link key={item.id} to="/jugadores/$playerId" params={{ playerId: item.id }}>{nameOf(item)}</Link>)}
                   </li>
                 ))}
               </ul>
             )}
           </div>
+        </div>
+      </section>
+
+      <nav className="st-tabs" aria-label="Secciones de estadísticas">
+        <div className="st-tabs-in">
+          {(Object.entries(VIEWS) as [View, string][]).map(([k, l]) => (
+            <button key={k} type="button" aria-pressed={view === k} onClick={() => setView(k)}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      <main className="st-main">
+        {view === "summary" && (
           <div className="st-board pt-rise" style={{ animationDelay: ".12s" }}>
             <div className="st-sweep" aria-hidden="true" />
             {ready && games.length > 0 ? (
@@ -190,20 +196,7 @@ export function StatsPage() {
               </div>
             )}
           </div>
-        </div>
-      </section>
-
-      <nav className="st-tabs" aria-label="Secciones de estadísticas">
-        <div className="st-tabs-in">
-          {(Object.entries(VIEWS) as [View, string][]).map(([k, l]) => (
-            <button key={k} type="button" aria-pressed={view === k} onClick={() => setView(k)}>
-              {l}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      <main className="st-main">
+        )}
         {loading && (
           <p className="st-state" role="status">
             Preparando el terreno de juego…

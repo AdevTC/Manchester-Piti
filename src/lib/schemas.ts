@@ -134,6 +134,8 @@ const positionsReviewSchema = z.object({
 
 export const playerSchema = z.object({
   id: z.string(),
+  /** Retained by the private admin mapper; public mapPlayer excludes archived records. */
+  archived: z.boolean().optional().catch(undefined),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   shirtName: z.string().optional(),

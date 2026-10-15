@@ -19,6 +19,7 @@ vi.mock("../../../lib/clubApi", () => ({
   apiError: (e: unknown) => (e instanceof Error ? e.message : String(e)),
   saveMatchSheet: vi.fn(() => Promise.resolve({ data: { id: "x" } })),
   deleteMatch: vi.fn(() => Promise.resolve({ data: { ok: true } })),
+  setMatchArchived: vi.fn(() => Promise.resolve({ data: { ok: true } })),
 }));
 vi.mock("../../../lib/matchPoster", () => ({ downloadMatchPoster: vi.fn(() => Promise.resolve()) }));
 vi.mock("../partidos/live", () => ({
@@ -28,6 +29,7 @@ vi.mock("../partidos/live", () => ({
 }));
 const save = vi.mocked(api.saveMatchSheet);
 const del = vi.mocked(api.deleteMatch);
+const archive = vi.mocked(api.setMatchArchived);
 /** The first saveMatchSheet payload. */
 const call = () => {
   const a = save.mock.calls[0]?.[0];
@@ -59,7 +61,8 @@ beforeEach(() => {
   localStorage.clear();
   resetWhistledForTests();
   save.mockClear();
-  del.mockClear();
+  del.mockReset().mockResolvedValue({ data: { ok: true } });
+  archive.mockReset().mockResolvedValue({ data: { ok: true } });
   setAdminData(adminFixture());
 });
 afterEach(() => {
@@ -98,7 +101,8 @@ describe("Partidos · the list", () => {
   it("«Nuevo partido»: the rival is required, the return match is named with the first leg, it creates a draft and opens it", async () => {
     const user = userEvent.setup();
     const router = mountAdmin("/admin/partidos", { partidos: Partidos });
-    await user.click(await screen.findByRole("button", { name: "Nuevo partido" }));
+    await user.click(await screen.findByRole("button", { name: "Archivados" }));
+    await user.click(screen.getAllByRole("button", { name: "Nuevo partido" })[0]);
     const modal = await screen.findByRole("dialog", { name: "Nuevo partido" });
     expect(modal).toHaveClass("md");
     expect(within(modal).getByLabelText("Rival")).toHaveFocus();
@@ -120,6 +124,7 @@ describe("Partidos · the list", () => {
     expect(arg.sheet).toMatchObject({ seasonId: "t1", rival: "Laureles CF", home: false, kit: "away", competition: "Liga", status: "scheduled", date: Date.UTC(2026, 10, 15, 11, 0) });
     await waitFor(() => expect(router.state.location.pathname).toBe(`/admin/partidos/${arg.id}`));
     expect(router.state.location.search).toMatchObject({ tab: "encuentro" });
+    expect(screen.getByRole("button", { name: "Activos" })).toHaveAttribute("aria-pressed", "true");
     // (a draft: no jornada until it is published)
     expect(await screen.findByText("Borrador · Laureles CF creado · completa el campo cuando lo sepas")).toBeInTheDocument();
     // «Deshacer» deletes it again
@@ -427,7 +432,7 @@ describe("Partidos · the workspace", () => {
 });
 
 describe("Partidos · a match to play, a published one", () => {
-  it("to play: the acta waits for the match; Encuentro in three groups; «Borrar partido» hides it behind «Deshacer»", async () => {
+  it("to play: the acta waits for the match; Encuentro in three groups; deletion is confirmed and permanent", async () => {
     setAdminData(adminFixture({ published: cleanJ3() }));
     const user = userEvent.setup();
     const router = mountAdmin("/admin/partidos/m8", { partidos: Partidos });
@@ -453,21 +458,20 @@ describe("Partidos · a match to play, a published one", () => {
     // the acta waits for the match
     await user.click(screen.getByRole("tab", { name: /Acta/ }));
     expect(screen.getByRole("heading", { name: "El acta se escribe en el partido" })).toBeInTheDocument();
-    // «Borrar partido»: the red modal, then gone at once, deleted after the «Deshacer» window
+    // The backend must confirm deletion before the UI reports success. No misleading undo afterwards.
     await user.click(screen.getByRole("tab", { name: /Encuentro/ }));
     await user.click(screen.getByRole("button", { name: "Borrar partido" }));
-    const modal = screen.getByRole("alertdialog", { name: "¿Borrar la J3 · MAD SKY?" });
+    const modal = screen.getByRole("alertdialog", { name: "¿Borrar el partido contra MAD SKY?" });
     expect(modal).toHaveClass("dz");
-    expect(within(modal).getByText("Durante unos segundos se puede deshacer")).toBeInTheDocument();
+    expect(modal).toHaveTextContent("8 de noviembre de 2026");
+    expect(modal).toHaveTextContent("No se puede deshacer");
+    expect(modal).toHaveTextContent("votos, porras");
     await user.click(within(modal).getByRole("button", { name: "Borrar partido" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos"));
     expect(screen.queryByRole("button", { name: /^J3, MAD SKY/ })).toBeNull();
-    expect(caption()).toHaveTextContent("J3 borrada del calendario");
-    expect(del).not.toHaveBeenCalled();
-    await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8"));
-    expect(screen.getByRole("button", { name: /^J3, MAD SKY/ })).toBeInTheDocument();
-    expect(del).not.toHaveBeenCalled();
+    expect(caption()).toHaveTextContent("MAD SKY · partido eliminado definitivamente");
+    expect(del).toHaveBeenCalledExactlyOnceWith({ id: "m8" });
+    expect(within(caption()).queryByRole("button", { name: "Deshacer" })).toBeNull();
   });
 
   it("the Convocatoria tab only reads: el siete in shirts (a free peg), the banquillo, «Cambiarla en Convocar»", async () => {
@@ -498,7 +502,7 @@ describe("Partidos · a match to play, a published one", () => {
     expect(await screen.findByText("J3 · MAD SKY publicado · ya sale en el calendario")).toBeInTheDocument();
   });
 
-  it("published: «Publicada · la web ya lo cuenta», «Guardar cambios», no delete; ?vitrina shows the peak and «Corregir el acta» goes back", async () => {
+  it("published: allows archive and delete; ?vitrina shows the peak and «Corregir el acta» goes back", async () => {
     setAdminData(adminFixture({ published: fullJ1() }));
     const user = userEvent.setup();
     const router = mountAdmin("/admin/partidos/m6", { partidos: Partidos });
@@ -507,8 +511,8 @@ describe("Partidos · a match to play, a published one", () => {
     expect(within(footer()).getByRole("button", { name: "Guardar cambios" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("tab", { name: /^Publicar\W+hecho$/ })).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: /Encuentro/ }));
-    expect(screen.getByText("Un partido jugado no se borra")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Borrar partido" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Archivar partido" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Borrar partido" })).toBeEnabled();
     act(() => void router.navigate({ to: "/admin/partidos/$matchId", params: { matchId: "m6" }, search: { vitrina: true } }));
     const peak = await screen.findByRole("region", { name: "Acta publicada" });
     expect(within(peak).getByText("MVP cerrado")).toBeInTheDocument();
@@ -534,5 +538,125 @@ describe("Partidos · a match to play, a published one", () => {
     await user.click(screen.getByRole("button", { name: "Volver a la lista" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos"));
     expect(screen.getByRole("navigation", { name: "Sala de control" })).toBeInTheDocument();
+  });
+});
+
+describe("Partidos · archiving and irreversible deletion", () => {
+  const archiveFixture = (seasonId = "t1", draftOnly = false) => {
+    const data = adminFixture({ published: fullJ1() });
+    const m = { ...data.matches.find((x) => x.id === "m6")!, seasonId, archived: true as const, individuallyArchived: true, jornada: null, draft: draftOnly, published: !draftOnly };
+    return { ...data, matches: data.matches.filter((x) => x.id !== m.id), archivedMatches: [m] };
+  };
+
+  it("archives a finished match, keeps it in a separate read-only list and restores it", async () => {
+    const user = userEvent.setup();
+    const data = adminFixture({ published: fullJ1() });
+    setAdminData(data);
+    const router = mountAdmin("/admin/partidos/m6?tab=encuentro", { partidos: Partidos });
+    await user.click(await screen.findByRole("button", { name: "Archivar partido" }));
+    const dialog = screen.getByRole("dialog", { name: "¿Archivar el partido contra Emirates?" });
+    expect(dialog).toHaveTextContent("Conserva el acta, los eventos, las porras y los votos");
+    archive.mockImplementationOnce(async () => { setAdminData(archiveFixture()); return { data: { ok: true } }; });
+    await user.click(within(dialog).getByRole("button", { name: "Archivar partido" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos"));
+    expect(archive).toHaveBeenCalledExactlyOnceWith({ id: "m6", archived: true });
+    const pane = await screen.findByRole("region", { name: "Partido archivado" });
+    expect(pane).toHaveTextContent("Acta archivada · solo lectura");
+    expect(within(pane).getByRole("region", { name: "Eventos del acta archivada" })).toHaveTextContent("ERIK");
+    expect(within(pane).queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Guardar cambios" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Archivados · 1" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(pane).getByRole("button", { name: "Reactivar partido" }));
+    archive.mockImplementationOnce(async () => { setAdminData(data); return { data: { ok: true } }; });
+    await user.click(within(screen.getByRole("dialog", { name: "¿Reactivar el partido contra Emirates?" })).getByRole("button", { name: "Reactivar partido" }));
+    await waitFor(() => expect(archive).toHaveBeenLastCalledWith({ id: "m6", archived: false }));
+    expect(await screen.findByRole("button", { name: /^J1, Emirates/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Activos" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("cancellation and backend errors preserve unsaved edits; deletion succeeds only after the server responds", async () => {
+    const user = userEvent.setup();
+    const router = mountAdmin("/admin/partidos/m8?tab=encuentro", { partidos: Partidos });
+    const venue = await screen.findByLabelText("Nombre del campo");
+    await user.type(venue, "Mi campo pendiente");
+    await user.click(screen.getByRole("button", { name: "Borrar partido" }));
+    let dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveTextContent("Los cambios sin guardar");
+    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    expect(del).not.toHaveBeenCalled();
+    expect(venue).toHaveValue("Mi campo pendiente");
+    del.mockRejectedValueOnce(new Error("No se pudo completar; inténtalo de nuevo."));
+    await user.click(screen.getByRole("button", { name: "Borrar partido" }));
+    dialog = screen.getByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Borrar partido" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("No se pudo completar");
+    expect(router.state.location.pathname).toBe("/admin/partidos/m8");
+    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    expect(venue).toHaveValue("Mi campo pendiente");
+    let complete!: (value: { data: { ok: boolean } }) => void;
+    del.mockImplementationOnce(() => new Promise((resolve) => { complete = resolve; }));
+    await user.click(screen.getByRole("button", { name: "Borrar partido" }));
+    dialog = screen.getByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Borrar partido" }));
+    expect(within(dialog).getByRole("button", { name: "Un momento…" })).toHaveAttribute("aria-disabled", "true");
+    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    expect(dialog).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/admin/partidos/m8");
+    await act(async () => complete({ data: { ok: true } }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos"));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(caption()).toHaveTextContent("eliminado definitivamente");
+    expect(within(caption()).queryByRole("button", { name: "Deshacer" })).toBeNull();
+  });
+
+  it("archived season prevents restoring its match, but allows permanent deletion of a played match", async () => {
+    const data = archiveFixture("t0");
+    setAdminData({ ...data, players: [], archivedPlayers: data.players });
+    const user = userEvent.setup();
+    const router = mountAdmin("/admin/partidos/m6", { partidos: Partidos });
+    const restore = await screen.findByRole("button", { name: "Reactivar partido" });
+    expect(restore).toBeDisabled();
+    expect(screen.getByRole("region", { name: "Eventos del acta archivada" })).toHaveTextContent("ERIK");
+    expect(screen.getByText(/Reactiva primero Temporada 0/)).toBeInTheDocument();
+    await user.click(restore);
+    expect(archive).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Borrar partido" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveTextContent("25 de octubre de 2026");
+    await user.click(within(dialog).getByRole("button", { name: "Borrar partido" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos"));
+    expect(del).toHaveBeenCalledExactlyOnceWith({ id: "m6" });
+  });
+
+  it("mobile archive list searches and opens unpublished drafts without enabling editing", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    setAdminData(archiveFixture("t1", true));
+    const user = userEvent.setup();
+    mountAdmin("/admin/partidos", { partidos: Partidos });
+    await user.click(await screen.findByRole("button", { name: "Archivados · 1" }));
+    expect(screen.queryByRole("region", { name: "Partido archivado" })).toBeNull();
+    const search = screen.getByRole("searchbox", { name: "Buscar partido archivado" });
+    await user.type(search, "Inexistente");
+    expect(screen.getByText(/Ningún partido archivado con/)).toBeInTheDocument();
+    await user.clear(search);
+    const row = screen.getByRole("button", { name: /^Archivado, Manchester Piti · Emirates/ });
+    expect(row).toHaveTextContent("Borrador");
+    await user.click(row);
+    const pane = await screen.findByRole("region", { name: "Partido archivado" });
+    expect(within(pane).queryByRole("textbox")).toBeNull();
+    await user.click(within(pane).getByRole("button", { name: "Reactivar partido" }));
+    const modal = screen.getByRole("dialog");
+    expect(modal).toHaveTextContent("Se recupera como borrador");
+    await user.click(within(modal).getByRole("button", { name: "Cancelar" }));
+    await user.click(screen.getByRole("button", { name: "Volver a la lista" }));
+    expect(await screen.findByRole("button", { name: "Archivados · 1" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("an active whistle blocks archive without blocking the explicit delete option", async () => {
+    setAdminData(adminFixture({ published: withMatch("m8", { clock: { revision: 2, phase: "halftime" } }) }));
+    mountAdmin("/admin/partidos/m8?tab=encuentro", { partidos: Partidos });
+    expect(await screen.findByRole("button", { name: "Archivar partido" })).toBeDisabled();
+    expect(screen.getByText("Finaliza o reinicia el reloj del partido antes de archivarlo.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Borrar partido" })).toBeEnabled();
   });
 });

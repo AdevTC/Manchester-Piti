@@ -212,3 +212,35 @@ describe("TechnicalStatsPanel · in the house style", () => {
     expect(within(screen.getByRole("group", { name: "Familias de estadísticas" })).getByRole("button", { name: "Pases y creación" })).toHaveAttribute("aria-pressed", "true");
   });
 });
+
+describe("TechnicalStatsPanel · source actions", () => {
+  it("uses the same football minute as the acta and labels the exact playing time separately", async () => {
+    await view({ matches: [{ ...MATCH, events: [{ id: "timed-pass", type: "pass", minute: 9, elapsedSeconds: 590, playerId: "p1", receiverId: "p2", outcome: "complete" }] }] });
+    fireEvent.click(screen.getByRole("button", { name: "Ver 1 pases de PEPE a JUAN" }));
+    const detail = screen.getByRole("region", { name: "Pases completados · PEPE" });
+    expect(detail).toHaveTextContent("10′");
+    expect(detail).toHaveTextContent("9:50 de juego");
+  });
+  it("opens receptions from the number, shows contributing senders and restores keyboard focus", async () => {
+    await view();
+    const table = screen.getByRole("table", { name: /^Ordenados por/ });
+    const trigger = within(table).getByRole("button", { name: "Ver jugadas: Pases recibidos de JUAN" });
+    fireEvent.click(trigger);
+    const detail = screen.getByRole("region", { name: "Pases recibidos · JUAN" });
+    expect(within(detail).getByText(/3 registradas · 3 jugadas · 1 partido/)).toBeInTheDocument();
+    expect(within(detail).getAllByRole("listitem")).toHaveLength(3);
+    expect(detail).toHaveTextContent("PEPE → JUAN");
+    expect(detail).toHaveTextContent("LUIS → JUAN");
+    expect(within(detail).getAllByRole("link")[0]).toHaveAttribute("href", "/matches/m1?tab=estadisticas");
+    fireEvent.keyDown(detail, { key: "Escape" });
+    expect(screen.queryByRole("region", { name: "Pases recibidos · JUAN" })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+  it("a directed network link opens only those completed deliveries", async () => {
+    await view();
+    fireEvent.click(screen.getByRole("button", { name: "Ver 2 pases de PEPE a JUAN" }));
+    const detail = screen.getByRole("region", { name: "Pases completados · PEPE" });
+    expect(within(detail).getAllByRole("listitem")).toHaveLength(2);
+    expect(detail).toHaveTextContent("hacia JUAN");
+  });
+});

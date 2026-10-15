@@ -20,7 +20,8 @@ import { SyncChip } from "../../components/celeste/SyncChip";
 import { useSyncChip } from "../../hooks/useSyncChip";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { leaders, matchEvent, playerLines, type SquadMember } from "../../lib/home";
-import { currentSeasonId } from "../../lib/vestuario";
+import { rankedLeaders, medalFor } from "../../lib/clubAnalytics";
+import { currentSeasonId, plural } from "../../lib/vestuario";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
 import { calendarRows, dateParts, resultOf, scoreOf, scorersLine, seasonView, type Filter, type SeasonView } from "../../lib/partidos";
 import { Countdown } from "../../components/celeste/Countdown";
@@ -227,11 +228,6 @@ export function PartidosPage() {
         actions={
           <>
             <ThemeToggle />
-            <Link className="hm-cta-top" to="/vestuario">
-              <Icon name="padlock" size={16} stroke={2.2} />
-              <span className="t">Vestuario</span>
-              <span className="hm-sr">Entrar al vestuario</span>
-            </Link>
           </>
         }
       />
@@ -386,14 +382,15 @@ export function PartidosPage() {
                   </span>
                   {/* (his name is plain here: his row just below is the one link to his page) */}
                   <h3>
-                    {scorers[0].name} lleva {scorers[0].stats.goals}
+                    {scorers.filter((s) => s.stats.goals === scorers[0].stats.goals).length > 1 ? `Pichichi compartido · ${plural(scorers[0].stats.goals, "gol", "goles")}` : `${scorers[0].name} lleva ${scorers[0].stats.goals}`}
                   </h3>
                   <ol className="pt-pich">
-                    {scorers.map((s, i) => (
-                      <li key={s.id}>
-                        <i>{i + 1}</i>
+                    {rankedLeaders(scorers, (s) => s.stats.goals, 4).map(({ item: s, rank, shared }) => (
+                      <li key={s.id} value={rank}>
+                        <i className={medalFor(rank, s.stats.goals) ?? undefined} aria-label={`Puesto ${rank}${shared ? ", compartido" : ""}`}>{rank}</i>
                         <span>
                           <PlayerLink id={s.id} seasonId={seasonId} variant="quiet">{s.name}</PlayerLink>
+                          {shared && <small className="pt-shared">Empatado</small>}
                         </span>
                         <b>{s.stats.goals}</b>
                       </li>

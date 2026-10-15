@@ -1,5 +1,5 @@
 import { technicalForPlayer } from "./technicalAnalysis";
-import { dateMillis, isCompleted } from "../../functions/src/matchEngine";
+import { dateMillis, isCompleted, isVisibleMatch } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import type { PlayerDoc } from "./schemas";
 import { computeStats } from "./playerStats";
@@ -21,6 +21,14 @@ export function competitionRanks<T extends { id: string }>(
     ranks.set(row.id, rank);
   });
   return ranks;
+}
+/** A podium is a range of places, never a fixed number of people. Preserve every tie at the cut. */
+export function rankedLeaders<T extends { id: string }>(rows: T[], value: (row: T) => number, maxRank = 3) {
+  const sorted = rows.filter((row) => Number.isFinite(value(row)) && value(row) > 0).sort((a, b) => value(b) - value(a));
+  const ranks = competitionRanks(sorted, value);
+  const counts = new Map<number, number>();
+  for (const row of sorted) counts.set(value(row), (counts.get(value(row)) ?? 0) + 1);
+  return sorted.map((item) => ({ item, rank: ranks.get(item.id)!, shared: counts.get(value(item))! > 1 })).filter((row) => row.rank <= maxRank);
 }
 export function medalFor(rank: number | undefined, goals: number): Medal {
   return goals > 0
@@ -91,6 +99,7 @@ export function streaks<T extends { match: ClubMatch }>(
   let best: Streak = run;
   const all: Streak[] = [];
   for (const game of games) {
+    if (!isVisibleMatch(game.match)) continue;
     if (qualifies(game)) {
       run = {
         count: run.count + 1,
@@ -108,6 +117,7 @@ export function streaks<T extends { match: ClubMatch }>(
   return { best, current: run, runs: all.sort((a, b) => b.count - a.count) };
 }
 export function analysePlayer(player: PlayerDoc, games: ClubMatch[]) {
+  games = games.filter(isVisibleMatch);
   const series = games.map((match) => playerGame(player.id, match));
   const totals = computeStats(player.id, games);
   const tracked = games.flatMap((m) =>
@@ -180,6 +190,7 @@ export function metricValue(p: PlayerAnalysis, metric: PlayerMetric) {
   return advancedMetrics.has(metric) && !p.tracked ? null : p[metric];
 }
 export function teamAnalysis(games: ClubMatch[]) {
+  games = games.filter(isVisibleMatch);
   const wins = games.filter((m) => m.goalsFor! > m.goalsAgainst!).length;
   const draws = games.filter((m) => m.goalsFor === m.goalsAgainst).length;
   const rows = games.map((match) => ({ match }));
@@ -213,7 +224,7 @@ export function individualRecords(
   return rows
     .flatMap((p) =>
       p.series
-        .filter((g) => g[key] > 0)
+        .filter((g) => isVisibleMatch(g.match) && g[key] > 0)
         .map((g) => ({
           id: p.id + ":" + g.match.id,
           playerId: p.id,
@@ -233,6 +244,7 @@ export function teamRecords(
   key: "win" | "scored" | "total" | "conceded",
 ) {
   return games
+    .filter(isVisibleMatch)
     .map((m) => ({
       id: m.id,
       match: m,
@@ -265,6 +277,7 @@ export function milestones(rows: PlayerAnalysis[]) {
     for (const metric of ["goals", "assists", "matchesPlayed"] as const) {
       let total = 0;
       for (const g of p.series) {
+        if (!isVisibleMatch(g.match)) continue;
         const previous = total;
         total += g[metric];
         for (const value of milestoneSteps)
@@ -316,7 +329,7 @@ export interface StarLink {
 /** Assister → scorer pairs from the goal events. */
 export function goalLinks(games: ClubMatch[]): StarLink[] {
   const count = new Map<string, StarLink>();
-  for (const m of games)
+  for (const m of games.filter(isVisibleMatch))
     for (const e of m.events ?? [])
       if (SCORED.has(e.type) && e.playerId && e.assistPlayerId) {
         const k = e.assistPlayerId + ">" + e.playerId;

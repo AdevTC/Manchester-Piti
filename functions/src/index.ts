@@ -15,6 +15,7 @@ import { boardCodeByPlayer, boardSystem } from "./boardCodes.js";
 import { findOfficialBoard } from "./officialBoard.js";
 import { resolvePositions, type PosCode } from "./positions.js";
 import { keepStoredPositions, positionsPlayed, withPositions } from "./positionsPlayed.js";
+import { assertMatchNotDeleted, matchActiveTx, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 export { clubShare } from "./social.js";
 export { setSeasonArchived } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
@@ -24,7 +25,7 @@ export { savePrediction } from "./savePrediction.js";
 export { controlMatchClock, setMatchScorers } from "./liveClock.js";
 export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview } from "./push.js";
 export { pushReminders, pushOnAnswer } from "./reminders.js";
-export { deleteMatch } from "./matches.js";
+export { cleanupMatchTombstone, deleteMatch, setMatchArchived } from "./matches.js";
 export { setConvocatoria } from "./convocatoria.js";
 export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";
 export { setNickname, setShirtName, cancelPlayerClaim, leaveVestuario } from "./profile.js";
@@ -155,8 +156,11 @@ export const saveMatchSheet = onCall(async (req) => {
       }
   }
   const ref = db.doc(`matches/${input.id}`);
-  await db.runTransaction(async (tx) => {
-    const old = await tx.get(ref);
+  const affectedSeasons = await runMatchTransaction(input.id, async (tx, { match: old, draft: oldDraft }) => {
+    const currentSeason = await tx.get(db.doc(`seasons/${sheet.seasonId}`));
+    await assertMatchNotDeleted(tx, input.id);
+    if (old.exists || oldDraft.exists) await requireActiveMatch(tx, input.id, old.exists ? old : oldDraft);
+    if (!currentSeason.exists || currentSeason.get('archived') === true) throw new HttpsError('failed-precondition', 'La temporada no está disponible para guardar partidos.');
     if ((old.get("revision") ?? 0) !== (sheet.revision ?? 0))
       throw new HttpsError(
         "aborted",
@@ -171,7 +175,7 @@ export const saveMatchSheet = onCall(async (req) => {
         updatedBy: uid,
         updatedAt: FieldValue.serverTimestamp(),
       });
-      return;
+      return [] as string[];
     }
     const { meetingNote, ...publicSheet } = sheet;
     const finished = sheet.status === "finished";
@@ -279,9 +283,10 @@ export const saveMatchSheet = onCall(async (req) => {
       updatedBy: uid,
       at: FieldValue.serverTimestamp(),
     });
-  });
-  // The porra table follows the official result: recompute the season this edit touched.
-  if (!input.draft) await recomputePorra(sheet.seasonId);
+    return [...new Set([sheet.seasonId, old.get('seasonId')].filter((id): id is string => typeof id === 'string' && !!id))].sort();
+  }, { seasons: [sheet.seasonId] });
+  // A move removes the old season's contribution as well as adding the new one.
+  for (const seasonId of affectedSeasons) await recomputePorra(seasonId);
   return { id: input.id, draft: input.draft, ledger };
 });
 /**
@@ -290,9 +295,10 @@ export const saveMatchSheet = onCall(async (req) => {
  * the exact count of valid votes, whatever the order or retries of the events.
  */
 export const tallyMvp = onDocumentWritten("matches/{matchId}/votes/{uid}", async (event) => {
-  const matchRef = db.doc(`matches/${event.params.matchId}`);
-  await db.runTransaction(async (tx) => {
-    const [match, votes] = await Promise.all([tx.get(matchRef), tx.get(matchRef.collection("votes"))]);
+  await runMatchTransaction(event.params.matchId, async (tx, { match }) => {
+    const votes = await tx.get(match.ref.collection('votes'));
+    if (!match.exists) { tx.delete(db.doc(`mvpResults/${event.params.matchId}`)); return; }
+    if (!(await matchActiveTx(tx, event.params.matchId, match))) return;
     const ledger = (match.get("ledger") ?? {}) as Record<string, { played?: boolean }>;
     const counts: Record<string, number> = {};
     let total = 0;

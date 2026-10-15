@@ -38,6 +38,12 @@ beforeEach(() => {
 });
 
 describe("matchDetailQuery", () => {
+  it("an archived or individually archived match cannot be reopened through a deep link", async () => {
+    for (const hidden of [{ archived: true }, { individuallyArchived: true }, { deleting: true }]) {
+      getDoc.mockResolvedValue(docSnap({ id: "hidden", exists: true, data: { rival: "Rival", ...hidden } }));
+      expect(await matchDetailQuery("hidden").queryFn!({} as never)).toBeNull();
+    }
+  });
   it("devuelve null cuando el doc no existe (not-found)", async () => {
     getDoc.mockResolvedValue(docSnap({ id: "m1", exists: false }));
     const result = await matchDetailQuery("m1").queryFn!({} as never);

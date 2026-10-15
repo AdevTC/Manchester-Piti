@@ -39,9 +39,9 @@ export function HomePage() {
     .sort((a, b) => Number(a.num || 999) - Number(b.num || 999) || a.name.localeCompare(b.name, "es"));
   const pulse = seasonPulse(matches, seasonId, now);
   const lines = playerLines(squad, pulse.played);
-  const [scorer] = leaders(lines, "goals", 1);
+  const scorers = leaders(lines, "goals", 1);
   const nameOf = (id: string) => lines.find((l) => l.id === id)?.name ?? playerName(players.find((p) => p.id === id));
-  const story = narrative(pulse, { seasonName, squadSize: squad.length, now, nameOf, scorer });
+  const story = narrative(pulse, { seasonName, squadSize: squad.length, now, nameOf, scorers });
   const moment = playerOfTheMoment(lines, pulse, now);
   const shot = moment ? [{ kit: "home" as const, theme, name: moment.line.name.toUpperCase(), num: moment.line.num }] : [];
   // Off the main thread: on a first visit this photo is made while the page is still loading, and on
@@ -57,11 +57,6 @@ export function HomePage() {
         actions={
           <>
             <ThemeToggle />
-            <Link className="hm-cta-top" to="/vestuario">
-              <Icon name="padlock" size={16} stroke={2.2} />
-              <span className="t">Vestuario</span>
-              <span className="hm-sr">Entrar al vestuario</span>
-            </Link>
           </>
         }
       />

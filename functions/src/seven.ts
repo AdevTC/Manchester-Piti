@@ -6,6 +6,7 @@
 import { type DocumentData, type Timestamp } from "firebase-admin/firestore";
 import { db } from "./common.js";
 import { nameFor } from "./names.js";
+import { matchActive, matchActiveTx, runMatchTransaction, runOptionalMatchTransaction } from './matchAccess.js';
 import { parseSiete, sevenChangeNotice, sevenDiff, sevenNewsworthy, sevenOf, sevenStep, sieteKey, sieteLog, sieteStep, SEVEN_DEBOUNCE_MS, type LineupLike, type MatchLike, type Notice, type SieteAsk } from "./pushLogic.js";
 
 type Send = (n: Notice) => Promise<void>;
@@ -32,10 +33,11 @@ async function namesOf(pids: string[], seasonId: string | undefined): Promise<(i
  */
 export async function claimSiete(matchId: string, ask: SieteAsk, now = Date.now()): Promise<boolean> {
   const ref = db.doc(`pushLog/${sieteLog(matchId)}`);
-  return db.runTransaction(async (tx) => {
+  return runMatchTransaction(matchId, async (tx) => {
     const snap = await tx.get(ref);
+    if (!(await matchActiveTx(tx, matchId))) return false;
     const step = sieteStep(snap.exists ? parseSiete(snap.data()) : null, ask, now);
-    if (step.write) tx.set(ref, step.write);
+    if (step.write) tx.set(ref, { ...step.write, matchId });
     return step.send;
   });
 }
@@ -46,13 +48,19 @@ export async function claimSiete(matchId: string, ask: SieteAsk, now = Date.now(
  * players with this seven, has nothing new to say.
  */
 async function sendChange(id: string, board: LineupLike, now7: string[], notice: Notice, send: Send): Promise<void> {
+  if (board.matchId && !(await matchActive(board.matchId))) return;
   if (board.matchId) await claimSiete(board.matchId, { by: "lineup", board: id, seven: sieteKey(now7) });
   await send(notice);
 }
 
 /** A board has just become the official: what the team was told about is this seven. */
 export async function sevenPublished(id: string, after: LineupLike): Promise<void> {
-  await logRef(id).set({ baseline: sevenOf(after.slots), sentAt: Date.now(), pending: false });
+  await runOptionalMatchTransaction(after.matchId, async tx => {
+    const current = await tx.get(db.doc(`lineups/${id}`));
+    if (!current.exists || current.get('isOfficial') !== true || (current.get('matchId') ?? null) !== (after.matchId ?? null)) return;
+    if (after.matchId && !(await matchActiveTx(tx, after.matchId))) return;
+    tx.set(logRef(id), { baseline: sevenOf(after.slots), sentAt: Date.now(), pending: false, ...(after.matchId ? { matchId: after.matchId } : {}) });
+  });
 }
 
 /** An official that stays official was saved: if its seven changed, tell the team (or hold it). */
@@ -63,17 +71,20 @@ export async function sevenEdited(id: string, before: LineupLike, after: LineupL
   if (!d.ins.length && !d.outs.length) return;
   const match = await matchOf(after.matchId);
   if (!sevenNewsworthy(after, match, Date.now())) return;
-  const baseline = await db.runTransaction(async (tx) => {
+  const baseline = await runOptionalMatchTransaction(after.matchId, async (tx) => {
+    const current = await tx.get(db.doc(`lineups/${id}`));
+    if (!current.exists || current.get('isOfficial') !== true || (current.get('matchId') ?? null) !== (after.matchId ?? null)) return null;
+    if (after.matchId && !(await matchActiveTx(tx, after.matchId))) return null;
     const snap = await tx.get(logRef(id));
     const now = Date.now();
     // (an official published before these notices: what the team saw is the seven before this save)
     const base = (snap.exists ? ids(snap.get("baseline")) : null) ?? was;
     const last = snap.exists ? num(snap.get("sentAt")) : null;
     if (sevenStep(last, now) === "hold") {
-      tx.set(logRef(id), { baseline: base, sentAt: last, pending: true });
+      tx.set(logRef(id), { baseline: base, sentAt: last, pending: true, ...(after.matchId ? { matchId: after.matchId } : {}) });
       return null;
     }
-    tx.set(logRef(id), { baseline: now7, sentAt: now, pending: false });
+    tx.set(logRef(id), { baseline: now7, sentAt: now, pending: false, ...(after.matchId ? { matchId: after.matchId } : {}) });
     return base;
   });
   if (!baseline) return;
@@ -94,11 +105,17 @@ export async function flushSevens(now: number, send: Send): Promise<void> {
     const live = !!board && sevenNewsworthy(board, match, now);
     const now7 = board ? sevenOf(board.slots) : [];
     // claim it (another run may be at it too)
-    const baseline = await db.runTransaction(async (tx) => {
+    const baseline = await runOptionalMatchTransaction(board?.matchId, async (tx) => {
+      const current = await tx.get(db.doc(`lineups/${id}`));
+      const mid = current.get('matchId') as string | null | undefined;
+      // A moved board is handled by its own trigger; don't acquire a different season out of order.
+      if ((mid ?? null) !== (board?.matchId ?? null)) return null;
+      const active = current.exists && (!mid || await matchActiveTx(tx, mid));
       const snap = await tx.get(h.ref);
       if (snap.get("pending") !== true) return null;
+      if (!active) { tx.update(h.ref, { pending: false }); return null; }
       const base = ids(snap.get("baseline")) ?? [];
-      tx.set(h.ref, { baseline: live ? now7 : base, sentAt: live ? now : last, pending: false });
+      tx.set(h.ref, { baseline: live ? now7 : base, sentAt: live ? now : last, pending: false, ...(mid ? { matchId: mid } : {}) });
       return live ? base : null;
     });
     if (!baseline || !board) continue;

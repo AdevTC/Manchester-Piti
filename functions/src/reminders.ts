@@ -9,6 +9,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { db } from "./common.js";
+import { matchActiveTx, runMatchTransaction } from './matchAccess.js';
 import { sendTo, vapidPrivate } from "./push.js";
 import { flushSevens } from "./seven.js";
 import { nameFor } from "./names.js";
@@ -22,13 +23,14 @@ const millis = (v: unknown): number | null => {
 };
 
 /** Claims a pushLog entry (false = it was already there: someone else did it). */
-async function once(id: string, data: Record<string, unknown> = {}): Promise<boolean> {
-  try {
-    await db.doc(`pushLog/${id}`).create({ at: FieldValue.serverTimestamp(), ...data });
+async function once(id: string, matchId: string, data: Record<string, unknown> = {}): Promise<boolean> {
+  return runMatchTransaction(matchId, async tx => {
+    const ref = db.doc(`pushLog/${id}`);
+    const old = await tx.get(ref);
+    if (old.exists || !(await matchActiveTx(tx, matchId))) return false;
+    tx.create(ref, { at: FieldValue.serverTimestamp(), matchId, ...data });
     return true;
-  } catch {
-    return false;
-  }
+  });
 }
 
 export async function remindConvocados(now: number): Promise<void> {
@@ -44,14 +46,14 @@ export async function remindConvocados(now: number): Promise<void> {
     // (no convocatoria yet: nobody to chase, and the window stays open for when there is one)
     if (!starters.length && !bench.length) continue;
     if ((await db.doc(`convocatoriaReminders/${m.id}`).get()).get("auto") === false) continue;
-    if (!(await once(`remind-${kind}-${m.id}`))) continue;
+    if (!(await once(`remind-${kind}-${m.id}`, m.id))) continue;
     const answers = await db.collection(`matchPrivate/${m.id}/availability`).get();
     const answered = new Set(answers.docs.map((a) => a.get("playerId")).filter((x): x is string => typeof x === "string"));
     const notice = reminderNotice(m.id, kind, { rival: m.get("rival") ?? "el rival", date });
     for (const pid of unanswered(starters, bench, answered)) {
       const uid = (await db.doc(`playerLinks/${pid}`).get()).get("uid");
       if (typeof uid !== "string" || !uid) continue;
-      if (!(await once(`remind-${kind}-${m.id}-${pid}`, { uid }))) continue;
+      if (!(await once(`remind-${kind}-${m.id}-${pid}`, m.id, { uid }))) continue;
       await sendTo(notice, uid);
     }
   }
@@ -80,11 +82,12 @@ export const pushOnAnswer = onDocumentWritten({ document: "matchPrivate/{matchId
   if (!notice) return;
   // (one every 10 minutes per player and match: a flip-flop doesn't spam the captains)
   const ref = db.doc(`pushLog/late-${matchId}-${uid}`);
-  const go = await db.runTransaction(async (tx) => {
+  const go = await runMatchTransaction(matchId, async (tx) => {
     const s = await tx.get(ref);
+    if (!(await matchActiveTx(tx, matchId))) return false;
     const last = s.exists ? millis(s.get("sentAt")) : null;
     if (last != null && now - last < LATE_DEBOUNCE_MS) return false;
-    tx.set(ref, { sentAt: now });
+    tx.set(ref, { sentAt: now, matchId });
     return true;
   });
   if (!go) return;

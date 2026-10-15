@@ -2,6 +2,7 @@
 // cromos (players + their matches + MVPs + bajas) and the season calendar (jornada numbers, the next
 // match) for the board's name and the LED boards.
 import { useMemo } from "react";
+import { isVisibleMatch } from "../../../../functions/src/matchEngine";
 import { useClubData, dateMillis, isCompleted, nextFixture, type ClubMatch } from "../../../lib/clubData";
 import { mvpWinners, type MvpResult } from "../../../lib/vestuario";
 import { useMvpResults } from "../../vestuario/live";
@@ -76,7 +77,7 @@ export function useBoardData(seasonId: string): BoardData {
 /** The season's matches (every season's with «all»), in the calendar's order (derived/jornada). */
 export function boardSeason(matches: readonly ClubMatch[], seasonId: string): ClubMatch[] {
   return matches
-    .filter((m) => seasonId === "all" || m.seasonId === seasonId)
+    .filter((m) => isVisibleMatch(m) && (seasonId === "all" || m.seasonId === seasonId))
     .slice()
     .sort(calendarOrder);
 }
@@ -86,6 +87,7 @@ export function boardSeason(matches: readonly ClubMatch[], seasonId: string): Cl
  * (derived/jornada — cancelled ones have none, and with «all seasons» each keeps its own season's number).
  */
 export function boardCalendar(season: readonly ClubMatch[]): CalMatch[] {
+  season = season.filter(isVisibleMatch);
   const jornada = jornadaNumbers(season);
   return season.map((m) => {
     const played = isCompleted(m);

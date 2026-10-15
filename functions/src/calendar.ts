@@ -2,7 +2,7 @@
 // Phones refresh it on their own, so a new fixture shows up in everyone's calendar.
 import { onRequest } from "firebase-functions/v2/https";
 import { db, siteUrl } from "./common.js";
-import { dateMillis } from "./matchEngine.js";
+import { dateMillis, isVisibleMatch } from "./matchEngine.js";
 
 const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 const esc = (s: string) => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\r?\n/g, "\\n");
@@ -18,7 +18,7 @@ export const clubCalendar = onRequest(async (_req, res) => {
   const archived = new Set(seasons.docs.filter((s) => s.get("archived") === true).map((s) => s.id));
   const site = siteUrl.value().replace(/\/$/, "");
   const events = matches.docs
-    .filter((m) => m.get("archived") !== true && !archived.has(m.get("seasonId")) && m.get("status") !== "cancelled")
+    .filter((m) => isVisibleMatch(m.data()) && !archived.has(m.get("seasonId")) && m.get("status") !== "cancelled")
     .map((m) => ({ id: m.id, data: m.data(), start: dateMillis(m.get("date")) }))
     .filter((m) => Number.isFinite(m.start))
     .sort((a, b) => a.start - b.start)
@@ -60,7 +60,7 @@ export const clubCalendar = onRequest(async (_req, res) => {
   });
   events.push(...practice);
   res.set("Content-Type", "text/calendar; charset=utf-8");
-  res.set("Cache-Control", "public, max-age=900");
+  res.set("Cache-Control", "no-store");
   res.send(
     ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Manchester Piti//Calendario//ES", "CALSCALE:GREGORIAN", "X-WR-CALNAME:Manchester Piti", "X-WR-TIMEZONE:Europe/Madrid", "REFRESH-INTERVAL;VALUE=DURATION:PT6H", ...events, "END:VCALENDAR"].join("\r\n"),
   );

@@ -39,10 +39,12 @@ async function loadRouter(url: string) {
 export async function renderPage(url: string, bundle: Uint8Array): Promise<string> {
   const data = inQueryOrder(parseBundle(bundle));
   const qc = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
-  qc.setQueryData(MATCHES_KEY, mapAll(data.matches, mapMatch));
+  const matches = mapAll(data.matches, mapMatch);
+  const visibleIds = new Set(matches.map(m => m.id));
+  qc.setQueryData(MATCHES_KEY, matches);
   qc.setQueryData(PLAYERS_KEY, mapAll(data.players, mapPlayer));
   qc.setQueryData(SEASONS_KEY, mapAll(data.seasons, mapSeason));
-  qc.setQueryData(MVP_RESULTS_KEY, mapAll(data.mvpResults, mapMvp));
+  qc.setQueryData(MVP_RESULTS_KEY, mapAll(data.mvpResults.filter(d => visibleIds.has(d.id)), mapMvp));
   qc.setQueryData(CONTENT_KEY, withDefaults(data.content?.data as Partial<ClubContent> | undefined));
 
   const router = await loadRouter(url);

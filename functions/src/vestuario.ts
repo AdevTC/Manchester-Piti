@@ -1,4 +1,4 @@
-import { scorePrediction } from "./predictions.js";
+import { prepareSeasonMetrics } from "./seasonMetrics.js";
 // Vestuario features: account ↔ player link (claim + admin approval), training date
 // polls, the season porra and the team board. Everyday member writes (training votes,
 // board messages) go straight to Firestore under the rules; porra writes use savePrediction.
@@ -6,7 +6,7 @@ import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { db, idSchema, parse, memberAs, admin } from "./common.js";
-import { predictionPoints, sortPorra, type PorraRow } from "./vestuarioLogic.js";
+
 import { nameFor } from "./names.js";
 
 const DAY = 24 * 60 * 60_000;
@@ -173,35 +173,9 @@ export const deleteTraining = onCall(async (req) => {
 // ---------- porra (predictions are written by each member; the table is rebuilt here)
 /** Rebuild a season's porra table from every finished match and its predictions. */
 export async function recomputePorra(seasonId: string) {
-  const finished = await db
-    .collection("matches")
-    .where("seasonId", "==", seasonId)
-    .where("status", "==", "finished")
-    .get();
-  const rows = new Map<string, PorraRow>();
-  const allPredictions = await Promise.all(finished.docs.map((m) => db.collection(`matchPrivate/${m.id}/predictions`).get()));
-  for (const [i, match] of finished.docs.entries()) {
-    const result = { goalsFor: match.get("goalsFor") ?? 0, goalsAgainst: match.get("goalsAgainst") ?? 0 };
-    const predictions = allPredictions[i];
-    for (const p of predictions.docs) {
-      const row = rows.get(p.id) ?? { uid: p.id, name: p.get("name") ?? "Miembro", playerId: p.get("playerId") ?? null, points: 0, exact: 0, hits: 0, played: 0 };
-      const prediction = { goalsFor: p.get("goalsFor"), goalsAgainst: p.get("goalsAgainst"), goals: p.get("goals") };
-      const pts = predictionPoints(prediction, result);
-      row.points += scorePrediction(prediction, result, match.get("events") ?? []).total;
-      row.exact += pts === 3 ? 1 : 0;
-      row.hits += pts > 0 ? 1 : 0;
-      row.played += 1;
-      row.name = p.get("name") ?? row.name;
-      row.playerId = p.get("playerId") ?? row.playerId;
-      rows.set(p.id, row);
-    }
-  }
-  await db.doc(`porraStandings/${seasonId}`).set({
-    seasonId,
-    rows: sortPorra([...rows.values()]),
-    matches: finished.size,
-    updatedAt: FieldValue.serverTimestamp(),
+  await db.runTransaction(async tx => {
+    const metrics = await prepareSeasonMetrics(tx, seasonId);
+    metrics.write();
   });
 }
-
 // ---------- board: members post and delete directly (firestore.rules, boardRate/{uid}).

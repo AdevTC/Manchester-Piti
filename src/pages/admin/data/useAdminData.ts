@@ -15,7 +15,7 @@ import { liveOrWaiting, useServerTimeSync } from "../../../hooks/useServerTimeSy
 import { useClubContent } from "../../../lib/clubContent";
 import { dateMillis, playerForSeason, playerName, useClubData, type ClubMatch } from "../../../lib/clubData";
 import { resolvePositions } from "../../../lib/positions";
-import { mapMatch, mapSeason } from "../../../lib/firestoreMappers";
+import { mapMatch, mapSeason, mapRawPlayer } from "../../../lib/firestoreMappers";
 import { SEASONS_KEY, seasonQuery } from "../../../lib/publicData";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import { useFirestoreCollection } from "../../../lib/useFirestoreCollection";
@@ -29,6 +29,7 @@ import { toBePlayed } from "../../../lib/derived/kickoff";
 import { pendingKeys, sectionTitle, storyOf } from "../club/contentModel";
 import { useContentDrafts } from "../club/contentDraftStore";
 import { hoyHero, matchMoment, type Hero } from "./moments";
+import { mapArchivedMatch, mergeArchivedMatches, type ArchivedMatch } from "./archivedMatches";
 import { useWhistled } from "./whistleStore";
 import {
   type Availability,
@@ -65,6 +66,13 @@ import {
 
 export const DRAFTS_KEY = ["matchDrafts"] as const;
 const draftsQuery = query(collection(db, "matchDrafts"), orderBy("updatedAt", "desc"));
+// Never share these private keys with public/active readers: their mapper excludes archived docs.
+export const ARCHIVED_MATCHES_KEY = ["admin", "archivedMatches"] as const;
+export const ARCHIVED_DRAFTS_KEY = ["admin", "archivedMatchDrafts"] as const;
+export const ARCHIVED_PLAYERS_KEY = ["admin", "archivedPlayers"] as const;
+const archivedQuery = query(collection(db, "matches"), where("archived", "==", true));
+const archivedDraftsQuery = query(collection(db, "matchDrafts"), where("archived", "==", true));
+const archivedPlayersQuery = query(collection(db, "players"), where("archived", "==", true));
 
 /** A player as the admin shows it in the current season (season shirt name + dorsal). */
 export interface RosterPlayer {
@@ -93,6 +101,12 @@ export interface AdminData {
   roster: RosterPlayer[];
   /** Published matches + drafts merged (draft fields win), oldest first, with jornada numbers. */
   matches: AdminMatch[];
+  /** Archived published matches and drafts, kept out of all active metrics. */
+  archivedMatches: ArchivedMatch[];
+  /** Names for historical archived actas; never part of the active squad or its statistics. */
+  archivedPlayers: PlayerDoc[];
+  archivesLoading: boolean;
+  archivesError: boolean;
   /** The published matches only (no drafts): what the public pages read, for the stats by position. */
   published: ClubMatch[];
   /** The MVP reader over the published matches (derived/mvpOf), for the ratings by position. */
@@ -133,12 +147,16 @@ const NO_PLAYERS: RosterPlayer[] = [];
 const isAdminRole = (r: string) => r === "admin" || r === "superadmin";
 
 export function useAdminData(): AdminData {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const canReadArchives = !!user && isAdminRole(profile?.role ?? "");
   const whistled = useWhistled();
   const mvpResults = useMvpResults();
   const club = useClubData();
   const seasonsQ = useFirestoreCollection(SEASONS_KEY, seasonQuery, mapSeason);
   const draftsQ = useFirestoreCollection(DRAFTS_KEY, draftsQuery, mapMatch);
+  const archivesQ = useFirestoreCollection(ARCHIVED_MATCHES_KEY, archivedQuery, mapArchivedMatch, canReadArchives);
+  const archiveDraftsQ = useFirestoreCollection(ARCHIVED_DRAFTS_KEY, archivedDraftsQuery, mapArchivedMatch, canReadArchives);
+  const archivePlayersQ = useFirestoreCollection(ARCHIVED_PLAYERS_KEY, archivedPlayersQuery, mapRawPlayer, canReadArchives);
   const claimsQ = usePendingClaims(true);
   const peopleQ = useClubPeople(true);
   const doorQ = useDoorRequests(true);
@@ -149,6 +167,7 @@ export function useAdminData(): AdminData {
   const published = club.matches;
   const drafts = useMemo(() => (draftsQ.data ?? []) as (ClubMatch & { updatedAt?: unknown })[], [draftsQ.data]);
   const matches = useMemo(() => mergeMatches(published, drafts), [published, drafts]);
+  const archivedMatches = useMemo(() => canReadArchives ? mergeArchivedMatches((archivesQ.data ?? []) as ClubMatch[], (archiveDraftsQ.data ?? []) as ClubMatch[]) : [], [canReadArchives, archivesQ.data, archiveDraftsQ.data]);
   const now = useMatchClock(matches);
   // (a captain watching En juego without writing anything still reads the server's minute)
   useServerTimeSync(liveOrWaiting(matches, now), now);
@@ -256,6 +275,10 @@ export function useAdminData(): AdminData {
     players: club.players,
     roster,
     matches,
+    archivedMatches,
+    archivedPlayers: canReadArchives ? archivePlayersQ.data ?? [] : [],
+    archivesLoading: canReadArchives && (archivesQ.isPending || archiveDraftsQ.isPending || archivePlayersQ.isPending),
+    archivesError: canReadArchives && !!(archivesQ.error || archiveDraftsQ.error || archivePlayersQ.error),
     published,
     mvpOf,
     stateOf,

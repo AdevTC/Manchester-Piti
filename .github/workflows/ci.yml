@@ -24,6 +24,7 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm lint --max-warnings 0
       - run: pnpm build
+      - run: node --test scripts/test-ssr-lifecycle.mjs
   unit:
     name: Unit ${{ matrix.shard }}/3
     runs-on: ubuntu-latest

@@ -2,7 +2,7 @@
 // Expedientes so La Pizarra's chemistry can reuse the exact same logic (one
 // source of truth). No React, no Firestore — unit-testable.
 
-import type { Participation } from '../../functions/src/matchEngine';
+import { isVisibleMatch, type Participation } from '../../functions/src/matchEngine';
 export interface StatEvent {
   type: string;
   playerId?: string;
@@ -11,6 +11,8 @@ export interface StatEvent {
 export interface MatchLike {
   events?: StatEvent[];
   status?: string;
+  archived?: boolean;
+  individuallyArchived?: boolean;
   ledger?: Record<string, Participation>;
 }
 export interface PlayerStats {
@@ -40,6 +42,7 @@ export function computeStats(playerId: string, matches: MatchLike[]): PlayerStat
     penaltySaved: 0, goalPenalty: 0, goalFreekick: 0, penaltyMissed: 0, ownGoals: 0, matchesPlayed: 0,
   };
   matches.forEach((match) => {
+    if (!isVisibleMatch(match)) return;
     if (match.status && match.status !== 'finished') return;
     if (match.ledger?.[playerId]) {
       const row = match.ledger[playerId];

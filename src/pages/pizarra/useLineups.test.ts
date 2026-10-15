@@ -45,6 +45,7 @@ vi.mock("firebase/firestore", () => {
     doc: (base: { path?: string }, ...segs: string[]) =>
       segs.length ? ref([base.path, ...segs].filter(Boolean).join("/")) : ref(`${base.path}/auto${++fs.auto}`),
     where: (field: string, _op: string, value: unknown) => ({ field, value }),
+    orderBy: () => ({}),
     query: (c: { path: string }, ...wheres: { field: string; value: unknown }[]) => ({ path: c.path, wheres }),
     getDocs: async (q: { path: string; wheres?: { field: string; value: unknown }[] }) => ({
       docs: children(q.path)

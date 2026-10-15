@@ -3,6 +3,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { db, idSchema, memberAs, parse } from "./common.js";
 import { predictionOpen } from "./predictions.js";
+import { requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 
 const schema = z.object({
   matchId: idSchema,
@@ -17,10 +18,10 @@ const schema = z.object({
 export const savePrediction = onCall(async (req) => {
   const { uid, who } = await memberAs(req);
   const { matchId, ...prediction } = parse(schema, req.data);
-  await db.runTransaction(async (tx) => {
+  await runMatchTransaction(matchId, async (tx, { match }) => {
     // Reading the same match document as the clock makes a concurrent kick-off close the bet atomically.
-    const match = await tx.get(db.doc(`matches/${matchId}`));
     if (!match.exists || !predictionOpen(match.data()!)) throw new HttpsError("failed-precondition", "La porra está cerrada: el partido ya ha empezado o no está disponible.");
+    await requireActiveMatch(tx, matchId, match);
     const ids = [...new Set(prediction.goals.flatMap((g) => [g.playerId, ...(g.assistPlayerId ? [g.assistPlayerId] : [])]))];
     const players = ids.length ? await tx.getAll(...ids.map((id) => db.doc(`players/${id}`))) : [];
     if (players.some((p) => !p.exists || p.get("active") === false || !(p.get("seasons") ?? []).includes(match.get("seasonId"))))

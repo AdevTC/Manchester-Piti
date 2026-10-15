@@ -1,7 +1,7 @@
 // When a member may answer the convocatoria, fill in the porra and vote the MVP: the same windows
 // firestore.rules enforces (upcoming() for availability and predictions, mvpOpen() for votes), so a
 // control is never offered when the write would be refused.
-import { dateMillis } from "../../../functions/src/matchEngine";
+import { dateMillis, isVisibleMatch } from "../../../functions/src/matchEngine";
 
 /**
  * «open» until kick-off; «closed» once its date has come (or it is under way / over); «undated» while the
@@ -12,6 +12,7 @@ export type KickoffWindow = "open" | "closed" | "undated" | "unavailable";
 
 /** The convocatoria and the porra: a scheduled match before its date (rules: upcoming()). */
 export function kickoffWindow(match: { status?: string; date?: unknown }, now: number): KickoffWindow {
+  if (!isVisibleMatch(match)) return "unavailable";
   const at = dateMillis(match.date);
   if (!Number.isFinite(at)) return "undated";
   if (match.status === "scheduled") return at > now ? "open" : "closed";
@@ -20,7 +21,7 @@ export function kickoffWindow(match: { status?: string; date?: unknown }, now: n
 
 /** The MVP vote: a finished match with its 48 h window still running (rules: mvpOpen()). */
 export function mvpVoteOpen(match: { status?: string; voteClosesAt?: number | null }, now: number): boolean {
-  return match.status === "finished" && typeof match.voteClosesAt === "number" && now < match.voteClosesAt;
+  return isVisibleMatch(match) && match.status === "finished" && typeof match.voteClosesAt === "number" && now < match.voteClosesAt;
 }
 
 /** Who can be voted: everyone who played (rules: ledger.played), most voted first, then by name. */

@@ -4,13 +4,15 @@
 // groups) and the selected match's workspace (MatchEditor). Desktop shows a match even without one in the
 // URL (the first to do). Phones: the list alone (with the shell's header and bar), then the match full
 // screen (the bar hides) with ←. `?vitrina` on a played match = the publish peak. «Nuevo partido» is a modal
-// (?nuevo; the N key opens it too); «Borrar partido» hides the match at once and deletes it behind
-// «Deshacer».
+// (?nuevo; the N key opens it too). Archiving is reversible; deletion is permanent and only reported
+// after backend confirmation. Archived documents live in a separate, read-only collection view.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { flushSync } from "react-dom";
 import { apiError, deleteMatch } from "../../../lib/clubApi";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
 import type { AdminData } from "../data/useAdminData";
+import type { MatchLifecycleRequest } from "../data/archivedMatches";
 import { useWhistled } from "../data/whistleStore";
 import { ShirtBack } from "../kit";
 import { useMatchShortcuts } from "../palette/matchShortcuts";
@@ -26,6 +28,8 @@ import { buildMatchList, defaultMatch, groupOf, type ListFilter } from "../parti
 import { useMatchNote } from "../partidos/live";
 import { MatchEditor } from "../partidos/MatchEditor";
 import { MatchList } from "../partidos/MatchList";
+import { ArchivedMatchList, ArchivedMatchPane } from "../partidos/ArchivedMatches";
+import { MatchLifecycleDialog } from "../partidos/MatchLifecycleDialog";
 import { NuevoPartido } from "../partidos/NuevoPartido";
 import { phaseOf } from "../partidos/workspaceModel";
 import { Publicado } from "../publicado/Publicado";
@@ -58,19 +62,24 @@ export function Partidos() {
   const nuevo = isOn(search.nuevo);
   const [filter, setFilter] = useState<ListFilter>("todo");
   const [query, setQuery] = useState("");
-  // Deleted here, waiting behind «Deshacer»: out of the list already.
+  const [archiveMode, setArchiveMode] = useState(false);
+  const [lifecycle, setLifecycle] = useState<MatchLifecycleRequest | null>(null);
+  // A confirmed deletion stays hidden while realtime snapshots catch up.
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   // Just created: its workspace waits for the first snapshot instead of saying «no está».
   const [created, setCreated] = useState<string | null>(null);
 
   const { reviewOf, now } = data;
   const matches = useMemo(() => data.matches.filter((m) => !hidden.has(m.id)), [data.matches, hidden]);
+  const archivedMatches = useMemo(() => data.archivedMatches.filter((m) => !hidden.has(m.id)), [data.archivedMatches, hidden]);
+  const showingArchives = archiveMode || !!(matchId && archivedMatches.some((m) => m.id === matchId));
   const nextId = data.next?.match.id ?? null;
   const ctx = useMemo(() => ({ now, whistled, nextId, reviewOf }), [now, whistled, nextId, reviewOf]);
   const model = useMemo(() => buildMatchList(matches, ctx, filter, query), [matches, ctx, filter, query]);
   const fallback = useMemo(() => defaultMatch(matches, ctx)?.id ?? null, [matches, ctx]);
-  const selectedId = matchId ?? (desktop ? fallback : null);
+  const selectedId = matchId ?? (desktop ? showingArchives ? archivedMatches[0]?.id ?? null : fallback : null);
   const selected = matchId && hidden.has(matchId) ? null : (matches.find((m) => m.id === selectedId) ?? null);
+  const selectedArchive = archivedMatches.find((m) => m.id === selectedId) ?? null;
 
   const open = useCallback((id: string, tab?: MatchTab) => void navigate({ to: "/admin/partidos/$matchId", params: { matchId: id }, search: { tab } }), [navigate]);
   const setTab = (tab: MatchTab) => selectedId && void navigate({ to: "/admin/partidos/$matchId", params: { matchId: selectedId }, search: { tab }, replace: true });
@@ -115,30 +124,21 @@ export function Partidos() {
   );
   useRegisterCommands(commands);
 
-  const remove = (m: AdminMatch) => {
-    const j = jLabel(m);
-    const unhide = () =>
-      setHidden((s) => {
-        const n = new Set(s);
-        n.delete(m.id);
-        return n;
-      });
-    setHidden((s) => new Set(s).add(m.id));
-    void navigate({ to: "/admin/partidos" });
-    toast.defer({
-      tag: j,
-      message: `${j} borrada del calendario`,
-      commit: () => deleteMatch({ id: m.id }),
-      errorMessage: `No se ha podido borrar la ${j}`,
-      onUndo: () => {
-        unhide();
-        open(m.id, "encuentro");
-      },
-      onError: unhide,
+  const lifecycleComplete = (request: MatchLifecycleRequest) => {
+    // Commit the clean editor state before navigation so the unsaved guard does not ask twice.
+    flushSync(() => {
+      request.onDone?.();
+      if (request.action === "delete") setHidden((s) => new Set(s).add(request.match.id));
+      else setArchiveMode(request.action === "archive");
+      setLifecycle(null);
+      setQuery("");
     });
+    void navigate({ to: "/admin/partidos" });
+    toast.show({ message: `${request.match.rival || "Partido"} · ${request.action === "delete" ? "partido eliminado definitivamente" : request.action === "archive" ? "partido archivado" : "partido reactivado"}` });
   };
   // (a new match is a draft: it takes its jornada when it is published)
   const onCreated = ({ id, rival }: { id: string; rival: string }) => {
+    setArchiveMode(false);
     setCreated(id);
     void navigate({ to: "/admin/partidos/$matchId", params: { matchId: id }, search: { tab: "encuentro" } });
     toast.show({
@@ -167,11 +167,12 @@ export function Partidos() {
   const jornadas = data.matches.filter((m) => m.jornada != null).length;
   const drafts = data.matches.filter((m) => !m.published).length;
   const nuevoModal = nuevo && <NuevoPartido matches={data.matches} seasons={data.seasons} season={data.season} now={now} onClose={closeNuevo} onCreated={onCreated} />;
+  const lifecycleModal = lifecycle && <MatchLifecycleDialog key={`${lifecycle.match.id}:${lifecycle.action}`} request={lifecycle} data={data} onClose={() => setLifecycle(null)} onComplete={lifecycleComplete} />;
 
   // The publish peak (a played match only).
   if (isOn(search.vitrina) && selected && phaseOf(selected, now, whistled.has(selected.id)) === "jugado") return <Publicado match={selected} />;
 
-  const detail = data.loading ? (
+  const detail = data.loading || (data.archivesLoading && (showingArchives || (!selected && !!matchId))) ? (
     <section className="det" aria-label="Partido">
       <div className="db">
         <div className="skel" role="status" aria-label="Cargando el partido">
@@ -181,8 +182,10 @@ export function Partidos() {
         </div>
       </div>
     </section>
+  ) : selectedArchive ? (
+    <ArchivedMatchPane match={selectedArchive} data={data} onBack={() => { setArchiveMode(true); back(); }} onLifecycle={setLifecycle} />
   ) : selected ? (
-    <MatchPane key={selected.id} match={selected} data={data} tab={tabParam} onTab={setTab} onBack={back} onDelete={remove} onPublished={() => void navigate({ to: "/admin/partidos/$matchId", params: { matchId: selected.id }, search: { vitrina: true } })} />
+    <MatchPane key={selected.id} match={selected} data={data} tab={tabParam} onTab={setTab} onBack={back} onLifecycle={setLifecycle} onPublished={() => void navigate({ to: "/admin/partidos/$matchId", params: { matchId: selected.id }, search: { vitrina: true } })} />
   ) : matchId && matchId === created && !hidden.has(matchId) ? (
     <section className="det" aria-label="Partido">
       <div className="db">
@@ -208,8 +211,8 @@ export function Partidos() {
             </>
           ) : (
             <>
-              <h3>Todavía no hay partidos</h3>
-              <p>Crea el primero: rival, fecha y hora. El resto, cuando lo sepas.</p>
+              <h3>{showingArchives ? "No hay partidos archivados" : "Todavía no hay partidos"}</h3>
+              <p>{showingArchives ? "Los partidos que archives aparecerán aquí para consultarlos o reactivarlos." : "Crea el primero: rival, fecha y hora. El resto, cuando lo sepas."}</p>
               <button type="button" className="btn gold" onClick={openNuevo}>
                 <AdIcon name="plus" size={18} />
                 Nuevo partido
@@ -221,9 +224,10 @@ export function Partidos() {
     </section>
   ) : null;
 
-  const list = (
-    <MatchList model={model} filter={filter} query={query} selectedId={desktop ? selectedId : null} loading={data.loading} error={data.error && !data.matches.length} onFilter={setFilter} onQuery={setQuery} onOpen={(id) => open(id)} />
-  );
+  const list = <div className="match-list-stack"><div className="seg2" role="group" aria-label="Calendario y archivo">
+    <button type="button" aria-pressed={!showingArchives} onClick={() => { setArchiveMode(false); setQuery(""); back(); }}>Activos</button>
+    <button type="button" aria-pressed={showingArchives} onClick={() => { setArchiveMode(true); setQuery(""); back(); }}>Archivados{archivedMatches.length ? ` · ${archivedMatches.length}` : ""}</button>
+  </div>{showingArchives ? <ArchivedMatchList matches={archivedMatches} query={query} selectedId={desktop ? selectedId : null} loading={data.archivesLoading} error={data.archivesError} onQuery={setQuery} onOpen={(id) => open(id)} /> : <MatchList model={model} filter={filter} query={query} selectedId={desktop ? selectedId : null} loading={data.loading} error={data.error && !data.matches.length} onFilter={setFilter} onQuery={setQuery} onOpen={(id) => open(id)} />}</div>;
 
   if (!desktop)
     return (
@@ -240,6 +244,7 @@ export function Partidos() {
           </div>
         )}
         {nuevoModal}
+        {lifecycleModal}
       </>
     );
   return (
@@ -264,12 +269,13 @@ export function Partidos() {
         {detail}
       </div>
       {nuevoModal}
+      {lifecycleModal}
     </>
   );
 }
 
 /** The selected match: its private note (loaded first), then the workspace. */
-function MatchPane({ match, data, tab, onTab, onBack, onDelete, onPublished }: { match: AdminMatch; data: AdminData; tab: MatchTab | undefined; onTab: (t: MatchTab) => void; onBack: () => void; onDelete: (m: AdminMatch) => void; onPublished: () => void }) {
+function MatchPane({ match, data, tab, onTab, onBack, onLifecycle, onPublished }: { match: AdminMatch; data: AdminData; tab: MatchTab | undefined; onTab: (t: MatchTab) => void; onBack: () => void; onLifecycle: (request: MatchLifecycleRequest) => void; onPublished: () => void }) {
   const whistled = useWhistled();
   const note = useMatchNote(match.id);
   // ⌘K: «Ver en la web» and «Abrir la pizarra (J8 · MAD SKY)» for the match on screen
@@ -288,7 +294,7 @@ function MatchPane({ match, data, tab, onTab, onBack, onDelete, onPublished }: {
     );
   const phase = phaseOf(match, data.now, whistled.has(match.id));
   const current: MatchTab = tab ?? (phase === "jugado" || phase === "juego" ? "acta" : "encuentro");
-  return <MatchEditor match={match} data={data} note={note.data} tab={current} onTab={onTab} onBack={onBack} onDelete={onDelete} onPublished={onPublished} />;
+  return <MatchEditor match={match} data={data} note={note.data} tab={current} onTab={onTab} onBack={onBack} onLifecycle={onLifecycle} onPublished={onPublished} />;
 }
 
 /** /admin/partidos/$matchId — the Partidos view renders the selected match itself (master–detail). */

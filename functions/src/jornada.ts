@@ -3,7 +3,7 @@
 // cancelled; the numbers go by date inside each season (undated matches after the dated ones, ties by
 // id), so «J5» is the same match on /partidos, the admin, the pizarra and the push, whatever season is
 // selected — with «all seasons» a match keeps the number it has in its own season.
-import { dateMillis } from "./matchEngine.js";
+import { dateMillis, isVisibleMatch } from "./matchEngine.js";
 
 export interface JornadaMatch {
   id: string;
@@ -12,11 +12,13 @@ export interface JornadaMatch {
   status?: string;
   /** false = an admin draft that is not in the public calendar yet (absent = published). */
   published?: boolean;
+  archived?: boolean;
+  individuallyArchived?: boolean;
 }
 
 /** Does this match take a jornada number: in a season, published, not cancelled. */
 export function hasJornada(m: JornadaMatch): boolean {
-  return !!m.seasonId && m.published !== false && m.status !== "cancelled";
+  return isVisibleMatch(m) && !!m.seasonId && m.published !== false && m.status !== "cancelled";
 }
 
 const when = (m: Pick<JornadaMatch, "date">) => {

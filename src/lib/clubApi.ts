@@ -20,8 +20,10 @@ export const revokeInvite = httpsCallable<{ code: string }, { ok: boolean }>(fun
 export const resolveAccess = httpsCallable<{ uid: string; approve: boolean; playerId?: string }, { ok: boolean }>(functions, "resolveAccess");
 export const revokeMember = httpsCallable<{ uid: string }, { ok: boolean }>(functions, "revokeMember");
 export const doorShirts = httpsCallable<void, { taken: string[]; inside: number }>(functions, "doorShirts");
-/** «Borrar partido»: only a match nobody has played yet (the server refuses a finished one). */
+/** Permanently removes a match, its drafts, events and associated participation/votes. Admin only. */
 export const deleteMatch = httpsCallable<{ id: string }, { ok: boolean }>(functions, "deleteMatch");
+/** Reversible exclusion from the calendar and statistics. Admin only. */
+export const setMatchArchived = httpsCallable<{ id: string; archived: boolean }, { ok: boolean }>(functions, "setMatchArchived");
 export const savePrediction = httpsCallable<{ matchId: string; goalsFor: number; goalsAgainst: number; goals: import("../../functions/src/predictions").GoalPick[] }, { ok: boolean }>(functions, "savePrediction");
 /** The one convocatoria (functions/src/convocatoria.ts): el siete + banquillo of a match; `notify` sends its push
  *  («Ya está la convocatoria» / once «Cambios en la convocatoria»). `at` = the `convocatoriaAt` it stamped. */

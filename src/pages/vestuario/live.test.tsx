@@ -18,6 +18,7 @@ vi.mock("firebase/firestore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("firebase/firestore")>()),
   doc: (_db: unknown, path: string) => ({ path }),
   collection: (_db: unknown, ...path: string[]) => ({ path: path.join("/") }),
+  query: (ref: unknown) => ref,
   onSnapshot: (ref: { path: string }, options: unknown, next: SnapCb, fail: (e: unknown) => void) => onSnapshotMock(ref, options, next, fail),
 }));
 vi.mock("../../firebase", () => ({ db: {} }));
