@@ -20,6 +20,7 @@ import { mvpOfFrom } from "../../lib/derived/mvpOf";
 import { CaraACara } from "./CaraACara";
 import { RaceAndBirthdays } from "../home/Sections";
 import "../../styles/celeste/page.css";
+import "../../styles/home.css"; // RaceAndBirthdays (the pichichi podium) is home's section
 import "../../styles/squad.css";
 
 /** The duel angles each shirt towards the middle. */

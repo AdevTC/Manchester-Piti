@@ -25,6 +25,7 @@ import { PlantillaPosiciones } from "./PlantillaPosiciones";
 import { NewBadge } from "../../components/NewBadge";
 import type { NewFeature } from "../../lib/derived/isNew";
 import "../../styles/celeste/page.css";
+import "../../styles/celeste/data.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
 import "../../styles/club-celeste.css";

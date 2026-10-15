@@ -2,11 +2,11 @@
    (components/celeste/Chrome.tsx), which is part of the entry, so it reaches every page (server-rendered or
    not) before any page sheet. Page sheets keep only their own layout and load after this, so a page's
    override wins a tie. Class names are the pages' originals (hm-*, pt-*, st-*). The content pages' .vx
-   shell (tokens, min-height, reduced motion) is celeste/page.css, imported by those pages, not here. */
+   shell (tokens, min-height, reduced motion) is celeste/page.css and the stats tables/KPIs are
+   celeste/data.css, imported by the pages that use them, not here. */
 @import "./chips.css";
 @import "./type.css";
 @import "./buttons.css";
-@import "./data.css";
 @import "./seg.css";
 @import "./card.css";
 @import "./state.css";

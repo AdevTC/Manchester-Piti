@@ -25,6 +25,7 @@ import { Explorar, type ExploreSection } from "./Explorar";
 import { Posiciones } from "./Posiciones";
 import { NewBadge } from "../../components/NewBadge";
 import "../../styles/celeste/page.css";
+import "../../styles/celeste/data.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
 
