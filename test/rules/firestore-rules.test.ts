@@ -21,6 +21,7 @@ import {
 import { beforeAll, beforeEach, afterAll, describe, it } from "vitest";
 import type { PosCode, PositionSet } from "../../src/lib/positions";
 import { editPositionsPayload, positionsPayload, proposalPayload, reviewPayload } from "../../src/lib/positionsEdit";
+import { cajaMovFields, cajaSettingsFields, type NewCajaMov } from "../../src/lib/derived/caja";
 let env: RulesTestEnvironment;
 const db = (uid?: string) =>
   uid
@@ -965,5 +966,89 @@ describe("Pizarra · Bloque 5 (la voz de la charla, el vídeo de la jugada)", ()
     const play = { id: "j", name: "Córner", kind: "propia", frames: [], video: { url: "https://youtu.be/abc", at: 75 } };
     await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, plays: [play] }));
     await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { plays: Array.from({ length: 13 }, () => play) }));
+  });
+});
+
+describe("La caja (caja, cajaMovs)", () => {
+  const settings = (over: object = {}) => ({ ...cajaSettingsFields({ cuota: 3000, cuotaPeriod: "temporada", howToPay: "Bizum al 600 000 000" }), updatedAt: serverTimestamp(), ...over });
+  const movement = (by: string, over: Partial<NewCajaMov> = {}, extra: object = {}) => ({
+    ...cajaMovFields("t1", { kind: "cargo", playerId: "ana", amount: 643, concept: "Campo y árbitro · J5 vs Rival", date: "2026-10-15", matchId: "m5", ...over }, by),
+    createdAt: serverTimestamp(),
+    ...extra,
+  });
+  const seeded = { seasonId: "t1", kind: "pago", playerId: "ana", amount: 1250, concept: "Bizum", date: "2026-10-15", matchId: null, by: "admin", createdAt: Timestamp.fromMillis(0), void: false };
+
+  it("los socios leen los ajustes y los movimientos; fuera del equipo, nadie", async () => {
+    await seed("caja/t1", { cuota: 3000, cuotaPeriod: "temporada", howToPay: "Bizum", updatedAt: Timestamp.fromMillis(0) });
+    await seed("cajaMovs/x", seeded);
+    await assertSucceeds(getDoc(doc(db("member"), "caja", "t1")));
+    await assertSucceeds(getDoc(doc(db("member"), "cajaMovs", "x")));
+    await assertSucceeds(getDocs(collection(db("other"), "cajaMovs")));
+    await assertFails(getDoc(doc(db("outsider"), "caja", "t1")));
+    await assertFails(getDocs(collection(db("outsider"), "cajaMovs")));
+    await assertFails(getDoc(doc(db(), "cajaMovs", "x")));
+  });
+
+  it("solo los capitanes guardan los ajustes, con su forma; nadie los borra", async () => {
+    await assertSucceeds(setDoc(doc(db("admin"), "caja", "t1"), settings()));
+    await assertSucceeds(setDoc(doc(db("admin"), "caja", "t1"), settings({ cuota: 0, cuotaPeriod: "mensual", howToPay: "" })));
+    await assertFails(setDoc(doc(db("member"), "caja", "t1"), settings()));
+    await assertFails(setDoc(doc(db("admin"), "caja", "t2"), settings({ cuota: 12.5 })));
+    await assertFails(setDoc(doc(db("admin"), "caja", "t2"), settings({ cuota: -1 })));
+    await assertFails(setDoc(doc(db("admin"), "caja", "t2"), settings({ cuotaPeriod: "semanal" })));
+    await assertFails(setDoc(doc(db("admin"), "caja", "t2"), settings({ howToPay: "x".repeat(501) })));
+    await assertFails(setDoc(doc(db("admin"), "caja", "t2"), settings({ updatedAt: Timestamp.fromMillis(0) })));
+    await assertFails(setDoc(doc(db("admin"), "caja", "t2"), settings({ multas: true })));
+    await assertFails(deleteDoc(doc(db("admin"), "caja", "t1")));
+  });
+
+  it("solo los capitanes apuntan movimientos, en un lote, firmados por ellos", async () => {
+    const cap = db("admin");
+    const batch = writeBatch(cap);
+    batch.set(doc(collection(cap, "cajaMovs")), movement("admin"));
+    batch.set(doc(collection(cap, "cajaMovs")), movement("admin", { playerId: "bea", amount: 642 }));
+    batch.set(doc(collection(cap, "cajaMovs")), movement("admin", { kind: "gasto", playerId: null, amount: 4500, concept: "Campo", matchId: null }));
+    batch.set(doc(collection(cap, "cajaMovs")), movement("admin", { kind: "ingreso", playerId: null, amount: 10000, concept: "Patrocinio", matchId: null }));
+    await assertSucceeds(batch.commit());
+    await assertSucceeds(setDoc(doc(db("super"), "cajaMovs", "p"), movement("super", { kind: "pago", matchId: null })));
+    await assertFails(setDoc(doc(db("member"), "cajaMovs", "y"), movement("member", { kind: "pago" })));
+    await assertFails(setDoc(doc(db("outsider"), "cajaMovs", "y"), movement("outsider")));
+    await assertFails(setDoc(doc(db("admin"), "cajaMovs", "y"), movement("other")));
+  });
+
+  it("la forma de un movimiento: tipo conocido, céntimos enteros y positivos, jugador solo en cargos y pagos", async () => {
+    const bad = [
+      movement("admin", {}, { kind: "multa" }),
+      movement("admin", { amount: 0 }),
+      movement("admin", { amount: -100 }),
+      movement("admin", { amount: 6.43 }),
+      movement("admin", { amount: 10000001 }),
+      movement("admin", { playerId: null }),
+      movement("admin", { kind: "gasto", playerId: "ana", matchId: null }, { playerId: "ana" }),
+      movement("admin", { concept: "" }),
+      movement("admin", {}, { concept: "   " }),
+      movement("admin", {}, { concept: "x".repeat(81) }),
+      movement("admin", { date: "15/10/2026" }),
+      movement("admin", {}, { matchId: 5 }),
+      movement("admin", {}, { void: true }),
+      movement("admin", {}, { createdAt: Timestamp.fromMillis(0) }),
+      movement("admin", {}, { extra: 1 }),
+    ];
+    for (const [i, d] of bad.entries()) await assertFails(setDoc(doc(db("admin"), "cajaMovs", `bad${i}`), d));
+    const { matchId: _m, ...noMatch } = movement("admin", { kind: "pago" });
+    void _m;
+    await assertSucceeds(setDoc(doc(db("admin"), "cajaMovs", "nomatch"), noMatch));
+  });
+
+  it("append-only: anular solo pasa void de false a true; nada más cambia y nadie borra", async () => {
+    await seed("cajaMovs/x", seeded);
+    await assertFails(updateDoc(doc(db("member"), "cajaMovs", "x"), { void: true }));
+    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { amount: 1 }));
+    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: true, concept: "Otro" }));
+    await assertFails(deleteDoc(doc(db("admin"), "cajaMovs", "x")));
+    await assertFails(deleteDoc(doc(db("super"), "cajaMovs", "x")));
+    await assertSucceeds(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: true }));
+    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: false }));
+    await assertFails(setDoc(doc(db("admin"), "cajaMovs", "x"), movement("admin")));
   });
 });

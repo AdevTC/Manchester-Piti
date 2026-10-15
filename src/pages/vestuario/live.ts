@@ -23,6 +23,7 @@ import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, r
 import { mapMvp, MVP_RESULTS_KEY } from "../../lib/firestoreMappers";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import type { TrainingSlot } from "../../lib/vestuario";
+import { EMPTY_CAJA_SETTINGS, parseCajaMov, parseCajaSettings, type CajaMov, type CajaSettings } from "../../lib/derived/caja";
 
 interface Live<T> {
   data: T;
@@ -549,4 +550,35 @@ export function useMembership(uid: string | undefined) {
 /** A member's handle (users/{uid}.nickname), e.g. the captain who opened the door for you. */
 export function useNicknameOf(uid: string | undefined) {
   return useLiveDoc<string>(uid ? `users/${uid}` : null, "nickname", (d) => (d?.nickname as string | undefined) ?? "", "");
+}
+
+// ---------- la caja (members read everything; the captains write from the admin's Caja section)
+export interface Caja {
+  /** caja/{seasonId} (the empty settings until a captain saves them). */
+  settings: CajaSettings;
+  /** The season's movements (void ones included: derived/caja leaves them out of every sum), as stored;
+   *  sort them with sortMovs. */
+  movs: CajaMov[];
+  loading: boolean;
+  error: boolean;
+}
+const NO_MOVS: CajaMov[] = [];
+/** A season's caja: its settings and its movements, one shared listener each (vestuario and admin alike).
+ *  `enabled` false (a fan, no season) opens nothing. */
+export function useCaja(seasonId: string | undefined, enabled = true): Caja {
+  const sid = enabled && seasonId ? seasonId : null;
+  const settings = useLiveDoc<CajaSettings>(sid && `caja/${sid}`, "caja", parseCajaSettings, EMPTY_CAJA_SETTINGS);
+  const movs = useLiveQuery<CajaMov | null>(
+    sid && `cajaMovs/${sid}`,
+    () => query(collection(db, "cajaMovs"), where("seasonId", "==", sid)),
+    parseCajaMov,
+  );
+  const list = useMemo(() => {
+    const ok = movs.data.filter((m): m is CajaMov => m !== null);
+    return ok.length ? ok : NO_MOVS;
+  }, [movs.data]);
+  return useMemo(
+    () => ({ settings: settings.data, movs: list, loading: settings.loading || movs.loading, error: settings.error || movs.error }),
+    [settings.data, settings.loading, settings.error, list, movs.loading, movs.error],
+  );
 }

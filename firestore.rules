@@ -415,5 +415,46 @@ service cloud.firestore {
         && request.resource.data.at == request.time;
       allow delete: if false;
     }
+    // ---- La caja: the team's money as a shared ledger (no real payments, no fines). Every member sees
+    // everything; the captains write. The season's settings: the cuota (cents), its period and «Cómo pagar».
+    match /caja/{seasonId} {
+      allow read: if teamMember();
+      allow create, update: if admin()
+        && request.resource.data.keys().hasOnly(['cuota','cuotaPeriod','howToPay','updatedAt'])
+        && request.resource.data.keys().hasAll(['cuota','cuotaPeriod','howToPay','updatedAt'])
+        && request.resource.data.cuota is int
+        && request.resource.data.cuota >= 0 && request.resource.data.cuota <= 10000000
+        && request.resource.data.cuotaPeriod in ['temporada','mensual']
+        && request.resource.data.howToPay is string && request.resource.data.howToPay.size() <= 500
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    // Append-only movements (cents > 0): cargo / pago belong to a player, gasto / ingreso to nobody. A
+    // correction never edits or deletes: it flips `void` false → true, and nothing else.
+    function cajaMovOk(d) {
+      return d.keys().hasOnly(['seasonId','kind','playerId','amount','concept','date','matchId','by','createdAt','void'])
+        && d.keys().hasAll(['seasonId','kind','playerId','amount','concept','date','by','createdAt','void'])
+        && d.seasonId is string && d.seasonId.size() >= 1 && d.seasonId.size() <= 128
+        && d.kind in ['cargo','pago','gasto','ingreso']
+        && (d.kind in ['cargo','pago']
+          ? (d.playerId is string && d.playerId.size() >= 1 && d.playerId.size() <= 128)
+          : d.playerId == null)
+        && d.amount is int && d.amount > 0 && d.amount <= 10000000
+        && d.concept is string && d.concept.trim().size() >= 1 && d.concept.size() <= 80
+        && d.date is string && d.date.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && (d.get('matchId', null) == null || (d.matchId is string && d.matchId.size() >= 1 && d.matchId.size() <= 128))
+        && d.by == request.auth.uid
+        && d.createdAt == request.time
+        && d.void == false;
+    }
+    match /cajaMovs/{id} {
+      allow read: if teamMember();
+      allow create: if admin() && cajaMovOk(request.resource.data);
+      allow update: if admin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['void'])
+        && resource.data.void == false
+        && request.resource.data.void == true;
+      allow delete: if false;
+    }
   }
 }
