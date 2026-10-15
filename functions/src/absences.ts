@@ -10,7 +10,7 @@ import { db } from "./common.js";
 import { sendTo, vapidPrivate } from "./push.js";
 import { absenceNotice } from "./pushLogic.js";
 import { nameFor } from "./names.js";
-import { matchesInRange, parseAbsence, type Absence } from "./absencesLogic.js";
+import { absenceNoticeDue, matchesInRange, parseAbsence, type Absence } from "./absencesLogic.js";
 import { applyMemberAbsences, upcomingMatches, type SeasonSlot } from "./absenceAnswers.js";
 
 /** Claims pushLog/<id> (false = it was already there: the notice already went). */
@@ -44,8 +44,9 @@ export const onAbsenceWritten = onDocumentWritten({ document: "absences/{absence
   const matches = await upcomingMatches(now);
   // (created: it overwrites the hand answers in its range; deleted: only its own answers go)
   const created = !!after && !event.data?.before.exists;
-  await applyMemberAbsences(uid, created ? absenceId : null, now, matches);
+  const applied = await applyMemberAbsences(uid, created ? absenceId : null, now, matches);
   // (the rules allow no edits; an absence moved to another member by hand: the first one's answers too)
   if (before && after && before.uid !== after.uid) await applyMemberAbsences(before.uid, null, now, matches);
-  if (created) await tellCaptains(after, matchesInRange(matches, after, now));
+  // (one notice, only for an absence still there when its answers were written, and not all in the past)
+  if (created && absenceNoticeDue(after, applied.freshSeen, now)) await tellCaptains(after, matchesInRange(matches, after, now));
 });

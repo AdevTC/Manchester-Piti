@@ -5,6 +5,7 @@ import {
   absenceAvailabilityPlan,
   absenceDays,
   absenceFields,
+  absenceNoticeDue,
   absenceOn,
   absenceRangeProblem,
   absenceRangeText,
@@ -82,6 +83,20 @@ describe("absenceAvailabilityPlan", () => {
     expect(plan.writes).toEqual([no("m13"), no("m14")]);
     expect(plan.deletes).toEqual([]);
   });
+  it("a hand answer given before the fresh absence (or with no time) is overwritten", () => {
+    const a = abs({ createdAt: 5_000 });
+    const plan = absenceAvailabilityPlan({ absences: [a], matches: ms, existing: [answer("m13", "u1", { response: "yes", at: { toMillis: () => 4_000 } }), answer("m14", "u1", { response: "maybe" })], fresh: "a1", now: NOW });
+    expect(plan.writes).toEqual([no("m13"), no("m14")]);
+  });
+  it("a hand answer given after the fresh absence stays: a late or repeated create event never undoes a «Voy»", () => {
+    const a = abs({ createdAt: 5_000 });
+    const plan = absenceAvailabilityPlan({ absences: [a], matches: ms, existing: [answer("m13", "u1", { response: "yes", at: { toMillis: () => 6_000 } }), answer("m14", "u1", { response: "maybe", at: 5_000 })], fresh: "a1", now: NOW });
+    expect(plan).toEqual({ writes: [], deletes: [] });
+  });
+  it("a fresh absence without a known createdAt (still pending) never overwrites a hand answer, only fills the blanks", () => {
+    const plan = absenceAvailabilityPlan({ absences: [abs({ createdAt: 0 })], matches: ms, existing: [answer("m13", "u1", { response: "yes" })], fresh: "a1", now: NOW });
+    expect(plan.writes).toEqual([no("m14")]);
+  });
   it("is idempotent: the answers it wrote stay as they are", () => {
     const plan = absenceAvailabilityPlan({ absences: [abs()], matches: ms, existing: [answer("m13", "u1", fromAbsence()), answer("m14", "u1", fromAbsence())], fresh: "a1", now: NOW });
     expect(plan).toEqual({ writes: [], deletes: [] });
@@ -115,6 +130,18 @@ describe("absenceAvailabilityPlan", () => {
     const now = d(14) + 60_000;
     const plan = absenceAvailabilityPlan({ absences: [], matches: [match("m13", d(13)), match("off15", d(15), "cancelled")], existing: [answer("m13", "u1", fromAbsence()), answer("off15", "u1", fromAbsence())], now });
     expect(plan).toEqual({ writes: [], deletes: [] });
+  });
+});
+
+describe("the captains' notice", () => {
+  const now = madrid("2026-10-15T12:00", 2);
+  it("goes for an absence the trigger still saw, ending today or later", () => {
+    expect(absenceNoticeDue(abs({ to: "2026-10-19" }), true, now)).toBe(true);
+    expect(absenceNoticeDue(abs({ to: "2026-10-15" }), true, now)).toBe(true);
+  });
+  it("not for one deleted before the trigger ran, nor one entirely past", () => {
+    expect(absenceNoticeDue(abs({ to: "2026-10-19" }), false, now)).toBe(false);
+    expect(absenceNoticeDue(abs({ to: "2026-10-14" }), true, now)).toBe(false);
   });
 });
 

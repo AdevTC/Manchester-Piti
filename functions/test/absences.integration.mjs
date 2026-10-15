@@ -14,6 +14,8 @@ process.env.GOOGLE_CLOUD_PROJECT = "demo-manchester-piti";
 process.env.FUNCTIONS_EMULATOR = "true";
 const { db } = await import("../lib/common.js");
 const { madridDate } = await import("../lib/absencesLogic.js");
+// (what onAbsenceWritten runs, called directly to replay a create event: Firestore delivers at least once)
+const { applyMemberAbsences } = await import("../lib/absenceAnswers.js");
 const { Timestamp } = await import("firebase-admin/firestore");
 
 const suffix = Date.now().toString(36);
@@ -77,6 +79,9 @@ const to = madridDate(now + 10 * DAY);
 const aRef = await db.collection("absences").add({ uid, playerId: ficha, name: nick, from, to, note: "Boda", createdAt: Timestamp.now() });
 const A = aRef.id;
 await until("in2 answered by the absence", async () => isAbsence(await read("in2"), A));
+// (in2 alone can be pushOnMatch's late run for its own publication — a cold worker — filling a blank: the
+// notice's claim is written after onAbsenceWritten's transaction, so once it is there the absence's run is done)
+await until("pushLog/absence-A claimed", async () => (await db.doc(`pushLog/absence-${A}`).get()).exists);
 const in2 = await read("in2");
 assert.equal(in2.name, nick);
 assert.equal(in2.playerId, ficha);
@@ -89,7 +94,6 @@ assert.ok(isHand(await read("past"), "yes"), "kicked off: untouched");
 assert.ok(isHand(await read("in2", other), "yes"), "another member: untouched");
 checked += 7;
 // one notice to the captains, claimed once…
-await until("pushLog/absence-A claimed", async () => (await db.doc(`pushLog/absence-${A}`).get()).exists);
 const claimedAt = (await db.doc(`pushLog/absence-${A}`).get()).get("at").toMillis();
 // …and no «Baja de última hora» for the «No puedo» it wrote within 24 h of kick-off
 await sleep(3000);
@@ -104,6 +108,14 @@ checked += 2;
 
 // ---------- the member changes one by hand: from then on it is theirs
 await hand("in1", "maybe");
+// …even if the create event comes again after it (a retry, a late worker): the trigger's own step, replayed
+// with the absence as `fresh`, keeps a hand answer newer than the absence
+const replay = await applyMemberAbsences(uid, A, Date.now());
+assert.ok(isHand(await read("in1"), "maybe"), "a hand answer given after the absence survives a repeated create event");
+assert.ok(isAbsence(await read("in2"), A), "the absence's own answers stay");
+assert.equal(replay.freshSeen, true);
+assert.deepEqual(replay.writes, []);
+checked += 4;
 
 // ---------- matches published into the range: «No puedo» only for who hasn't answered
 await hand("newAns", "yes");

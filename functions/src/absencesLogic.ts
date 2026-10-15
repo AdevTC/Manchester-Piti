@@ -5,7 +5,8 @@
 // Madrid date falls in it gets `matchPrivate/{match}/availability/{uid}` = «No puedo», marked as the
 // absence's (`source: "absence"`, `absenceId`). A hand answer is written by the web without them, so it
 // replaces the absence's and is never touched again:
-//   · an absence just created overwrites the answers in its range (it is the newer intent);
+//   · an absence just created overwrites the answers in its range given before it (it is the newer
+//     intent); one given after it stays, however late or often the create event arrives;
 //   · a match published, or moved, into a range gets «No puedo» only if the member hasn't answered;
 //   · an absence deleted (or a match moved out of its range) takes back only the answers it wrote that
 //     are still its own — or hands them to another absence of the member that still covers the match.
@@ -97,6 +98,10 @@ export function parseAbsence(id: string, d: unknown): Absence | null {
   };
 }
 
+/** The captains' one notice goes only for an absence the trigger's transaction still saw (`seen`: not
+ *  deleted before the trigger ran) that is not entirely past (its `to` is today or later, Madrid). */
+export const absenceNoticeDue = (a: Pick<Absence, "to">, seen: boolean, now: number): boolean => seen && a.to >= madridDate(now);
+
 /** Does the absence cover this Madrid day? */
 export const covers = (a: Pick<Absence, "from" | "to">, day: string): boolean => a.from <= day && day <= a.to;
 
@@ -119,6 +124,8 @@ export interface AvailabilityLike {
   response?: unknown;
   source?: unknown;
   absenceId?: unknown;
+  /** When it was answered (a Timestamp or ms; none: an old answer). */
+  at?: unknown;
 }
 /** Was this answer written by an absence (not by the member's hand)? */
 export const byAbsence = (a: AvailabilityLike | null | undefined): boolean => a?.source === ABSENCE_SOURCE;
@@ -151,16 +158,27 @@ export interface PlanInput {
   matches: readonly MatchSlot[];
   /** The answers stored now for those matches (and members). */
   existing: readonly ExistingAnswer[];
-  /** An absence just created: it overwrites the hand answers in its range. Otherwise only unanswered
-   *  matches get «No puedo». */
+  /** An absence just created: it overwrites the hand answers in its range given before it (their `at`
+   *  older than its `createdAt`; an answer without `at` counts as older). A hand answer given after it
+   *  stays, so a late or repeated create event never undoes a «Voy» said over the absence. Otherwise only
+   *  unanswered matches get «No puedo». */
   fresh?: string | null;
   now: number;
 }
 
+/** Was this hand answer given before the absence was written? (No `at`: an old answer, so yes. An absence
+ *  whose `createdAt` is unknown — the server's time still pending, never so in a trigger — can't show it is
+ *  the newer intent: no.) */
+export function answeredBefore(doc: AvailabilityLike, a: Pick<Absence, "createdAt">): boolean {
+  if (!(a.createdAt > 0)) return false;
+  return millisOf(doc.at) < a.createdAt;
+}
+
 /**
  * What to write and delete so the answers follow the absences (idempotent: run it twice, the second time
- * there is nothing to do). Only answerable matches are touched: once a match has kicked off (or was called
- * off), its answers stay as they are.
+ * there is nothing to do — and a hand answer given in between, being newer than the fresh absence, stays).
+ * Only answerable matches are touched: once a match has kicked off (or was called off), its answers stay
+ * as they are.
  */
 export function absenceAvailabilityPlan({ absences, matches, existing, fresh = null, now }: PlanInput): AbsencePlan {
   const writes: AvailabilityWrite[] = [];
@@ -195,9 +213,10 @@ export function absenceAvailabilityPlan({ absences, matches, existing, fresh = n
         if (cover.length) write(m.id, cover[0]);
         else deletes.push({ matchId: m.id, uid });
       } else if (doc) {
-        // the member's own answer: only an absence just created (the newer intent) replaces it
+        // the member's own answer: only an absence just created replaces it, and only if it was given
+        // before the absence (the absence is then the newer intent; one given after it is)
         const newer = fresh ? cover.find((a) => a.id === fresh) : undefined;
-        if (newer) write(m.id, newer);
+        if (newer && answeredBefore(doc, newer)) write(m.id, newer);
       } else if (cover.length) write(m.id, cover[0]);
     }
   }

@@ -44,11 +44,21 @@ function apply(tx: Transaction, plan: AbsencePlan): void {
   for (const d of plan.deletes) tx.delete(db.doc(`matchPrivate/${d.matchId}/availability/${d.uid}`));
 }
 
+/** What applyMemberAbsences did, and whether the absence just created was still there when it did it. */
+export interface MemberAbsencesResult extends AbsencePlan {
+  /** `fresh` was among the member's absences the transaction read (false without `fresh`, or once it is
+   *  deleted: then no notice goes either). */
+  freshSeen: boolean;
+}
+
 /** Brings one member's answers in line with their absences, on every match still to play. `fresh`: the
- *  absence just created (it overwrites the hand answers in its range). */
-export async function applyMemberAbsences(uid: string, fresh: string | null, now: number, matches?: readonly SeasonSlot[]): Promise<AbsencePlan> {
+ *  absence just created (it overwrites the hand answers in its range given before it). */
+export async function applyMemberAbsences(uid: string, fresh: string | null, now: number, matches?: readonly SeasonSlot[]): Promise<MemberAbsencesResult> {
   const list = matches ?? (await upcomingMatches(now));
-  if (!list.length) return { writes: [], deletes: [] };
+  if (!list.length) {
+    const freshSeen = !!fresh && parseAbsence(fresh, (await db.doc(`absences/${fresh}`).get()).data())?.uid === uid;
+    return { writes: [], deletes: [], freshSeen };
+  }
   return db.runTransaction(async (tx) => {
     const [mine, answers] = await Promise.all([
       tx.get(db.collection("absences").where("uid", "==", uid)),
@@ -58,7 +68,7 @@ export async function applyMemberAbsences(uid: string, fresh: string | null, now
     const existing: ExistingAnswer[] = answers.filter((a) => a.exists).map((a) => ({ matchId: a.ref.parent.parent!.id, uid, doc: a.data() ?? {} }));
     const plan = absenceAvailabilityPlan({ absences, matches: list, existing, fresh, now });
     apply(tx, plan);
-    return plan;
+    return { ...plan, freshSeen: !!fresh && absences.some((a) => a.id === fresh) };
   });
 }
 
