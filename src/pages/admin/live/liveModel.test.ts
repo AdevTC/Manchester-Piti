@@ -29,8 +29,8 @@ describe("En juego · the picker", () => {
     const v2 = pickerView({ k: "gol", st: 2, scorer: "erik" }, ctx);
     expect(v2.step).toBe("GOL de ERIK · paso 2 de 2");
     expect(v2.options.map((o) => o.name)).not.toContain("ERIK");
-    expect(v2.options[2].next).toEqual({ event: { type: "goal", minute: 31, playerId: "erik", assistPlayerId: "adrian" }, flash: "ERIK · 31′ · pase de ADRIÁN T.C." });
-    expect(v2.extras[0]).toMatchObject({ label: "Sin asistencia", next: { event: { type: "goal", minute: 31, playerId: "erik" }, flash: "ERIK · 31′" } });
+    expect(v2.options[2].next).toEqual({ event: { type: "goal", assistReviewed: true, minute: 31, playerId: "erik", assistPlayerId: "adrian" }, flash: "ERIK · 31′ · pase de ADRIÁN T.C." });
+    expect(v2.extras[0]).toMatchObject({ label: "Sin asistencia", next: { event: { type: "goal", assistReviewed: true, minute: 31, playerId: "erik" }, flash: "ERIK · 31′" } });
   });
   it("autogol and «Lo completo luego» write at once", () => {
     const [og, later] = pickerView({ k: "gol", st: 1 }, ctx).extras;
@@ -67,8 +67,8 @@ describe("En juego · the payload of every pad", () => {
     expect(ev(og.next)).toStrictEqual({ type: "opponent_own_goal", minute: 31 });
     expect(ev(later.next)).toStrictEqual({ type: "goal", minute: 31 });
     const v2 = pickerView({ k: "gol", st: 2, scorer: "erik" }, ctx);
-    expect(ev(v2.options[2].next)).toStrictEqual({ type: "goal", minute: 31, playerId: "erik", assistPlayerId: "adrian" });
-    expect(ev(v2.extras[0].next)).toStrictEqual({ type: "goal", minute: 31, playerId: "erik" });
+    expect(ev(v2.options[2].next)).toStrictEqual({ type: "goal", minute: 31, assistReviewed: true, playerId: "erik", assistPlayerId: "adrian" });
+    expect(ev(v2.extras[0].next)).toStrictEqual({ type: "goal", minute: 31, assistReviewed: true, playerId: "erik" });
   });
   it("tarjetas (on the pitch and on the bench) and cambio", () => {
     for (const card of ["yellow_card", "double_yellow", "red_card"] as const) {

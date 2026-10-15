@@ -233,7 +233,7 @@ export function reviewActa(sheet: SheetLike, roster: readonly string[], now: num
   const ledgerErrors = ledger.errors.filter((e) => e !== "Selecciona exactamente 7 titulares.");
   if (ledgerErrors.length) items.push({ key: "eventos", tone: "warn", title: "Revisa los eventos", detail: ledgerErrors[0] });
   if (finished) {
-    items.push({ key: "asistencias", tone: "info", title: `${assisted} de ${ourGoals.length} goles con asistencia`, detail: "Opcional: no impide publicar." });
+    items.push({ key: "asistencias", tone: "info", title: `${assisted} de ${ourGoals.length} goles con asistencia`, detail: ourGoals.some(e=>e.assistReviewed===false) ? "Revisa las asistencias pendientes de los goles rápidos antes de publicar." : "Confirma en Publicar los goles sin asistencia que queden por revisar." });
     if (convOk && !ledgerErrors.length) items.push({ key: "minutos", tone: "ok", title: "Minutos calculados", detail: "Salen de la convocatoria y los cambios." });
   }
 

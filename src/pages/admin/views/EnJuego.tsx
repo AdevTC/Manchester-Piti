@@ -1,3 +1,4 @@
+import { QuickMatchEntry } from "../../../components/celeste/QuickMatchEntry";
 import { MatchClockControl } from "../../../components/celeste/MatchClockControl";
 // En juego (/admin/en-juego/$matchId), as on the canvas (stats-gen/ad-v2-full.mjs `mJuego`, `heroJuego`;
 // shots-adv2f/m-enjuego.png, hoy-juego.png). Phones (primary; the bar hides): back to Hoy, the «EN JUEGO»
@@ -6,7 +7,7 @@ import { MatchClockControl } from "../../../components/celeste/MatchClockControl
 // log and the pads, the picker as a dialog. «Pitar el final» saves the shared end and opens the
 // acta («Deshacer» takes the whistle back). Before kick-off / after the end it says so and points to Hoy /
 // the acta. Built on the shared live module (live/*: liveEvent add, undo, finish and reopen).
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { scoreOf } from "../../../lib/partidos";
@@ -158,6 +159,7 @@ function NotLive({ match, phase }: { match: AdminMatch; phase: Phase }) {
 }
 
 function Live({ match }: { match: AdminMatch }) {
+  const [quick,setQuick] = useState(!!match.clock);
   const data = useAdmin();
   const go = useAdminGo();
   const toast = useToast();
@@ -178,6 +180,7 @@ function Live({ match }: { match: AdminMatch }) {
     toast.show({ tag: "FINAL", message: `Final pitado · ${gf}–${ga} · repasa el acta y publícala`, undo: () => { void liveEvent({ action: "reopen", matchId: match.id }).then(() => unwhistle(match.id), (e: unknown) => toast.show({ tone: "error", message: apiError(e) })); } });
   });
   const control = <MatchClockControl match={match} onFinish={() => go({ section: "partidos", matchId: match.id, tab: "acta" })} />;
+  const mode = <div className="qm-mode" role="group" aria-label="Modo de anotación"><button type="button" aria-pressed={quick} onClick={()=>{live.close();setQuick(true);}}>Banquillo rápido</button><button type="button" aria-pressed={!quick} onClick={()=>{live.close();setQuick(false);}}>Con detalle</button></div>;
   const pads = <LivePads onGol={() => live.open("gol")} onRival={live.rivalGoal} onTarjeta={() => live.open("tar")} onCambio={() => live.open("cam")} onOcasion={() => live.open("oca")} onCorner={() => live.open("cor")} onMas={() => live.open("mas")} onPitar={match.clock ? undefined : pitar} disabled={live.busy} paused={match.clock?.phase === "halftime"} />;
   const undo = live.log.length ? (
     <button type="button" className="btn sm line" onClick={live.undo} disabled={live.busy} style={{ marginLeft: "auto" }}>
@@ -202,13 +205,15 @@ function Live({ match }: { match: AdminMatch }) {
         </div>
         <div className="lvb">
           {control}
+          {mode}
+          <div hidden={!quick}><QuickMatchEntry key={match.id} match={match} nameOf={nameOf}/></div>
           <div className="lvh">
             <h3>Lo que va pasando</h3>
-            {undo}
+            {!quick && undo}
           </div>
           <LiveLog rows={live.log} label="Lo que va pasando" />
         </div>
-        <div className="mpads">{pads}</div>
+        {!quick && <div className="mpads">{pads}</div>}
         <LivePicker view={live.view} onChoose={live.choose} onClose={live.close} mobile disabled={live.busy} />
       </>
     );
@@ -248,7 +253,7 @@ function Live({ match }: { match: AdminMatch }) {
           <div className="calm">
             <h3>
               Lo que va pasando
-              {undo}
+              {!quick && undo}
             </h3>
             <div className="scr">
               <LiveLog rows={live.log} label="Lo que va pasando" />
@@ -259,7 +264,9 @@ function Live({ match }: { match: AdminMatch }) {
               Apunta a un toque <em>minuto del reloj</em>
             </h3>
             {control}
-            {pads}
+            {mode}
+            <div hidden={!quick}><QuickMatchEntry key={match.id} match={match} nameOf={nameOf}/></div>
+            {!quick && pads}
           </div>
         </div>
         <LivePicker view={live.view} onChoose={live.choose} onClose={live.close} mobile={false} disabled={live.busy} />

@@ -414,8 +414,27 @@ const answer = await db.doc("matchPrivate/" + nextId + "/availability/" + fan.ui
 assert.equal(answer.get("playerId"), ids[2]);
 assert.equal(answer.get("name"), "x" + suffix);
 checked += 2;
-await wrote(admin, [`matchPrivate/${nextId}/predictions/${admin.uid}`, { goalsFor: 1, goalsAgainst: 0, name: adminName, playerId: null, at: null }]);
-await wrote(fan, [`matchPrivate/${nextId}/predictions/${fan.uid}`, { goalsFor: 2, goalsAgainst: 0, name: "x" + suffix, playerId: ids[2], at: null }]);
+await ok("savePrediction", admin, { matchId: nextId, goalsFor: 1, goalsAgainst: 0, goals: [{ playerId: ids[9] }] });
+await ok("savePrediction", fan, { matchId: nextId, goalsFor: 2, goalsAgainst: 0, goals: [{ playerId: ids[9] }, { playerId: ids[9] }] });
+// Each goal is validated on the server; a real start, not the scheduled date, closes it.
+const bettor = await google("bettor");
+await db.doc("teamMembers/" + bettor.uid).set({ expiresAt: Timestamp.fromMillis(Date.now() + 86400000) });
+await db.doc("users/" + bettor.uid).set({ nickname: "Pronosticador", role: "user" });
+const guess = { matchId: nextId, goalsFor: 1, goalsAgainst: 0, goals: [{ playerId: ids[7], assistPlayerId: ids[1] }] };
+await denied("savePrediction", null, guess, "UNAUTHENTICATED");
+await denied("savePrediction", fan, { ...guess, goals: [] }, "INVALID_ARGUMENT");
+await denied("savePrediction", fan, { ...guess, goalsFor: 31 }, "INVALID_ARGUMENT");
+await denied("savePrediction", fan, { ...guess, goals: [{ playerId: ids[1], assistPlayerId: ids[1] }] }, "INVALID_ARGUMENT");
+await denied("savePrediction", fan, { ...guess, goals: [{ playerId: "no-player" }] }, "INVALID_ARGUMENT");
+await denied("savePrediction", fan, { ...guess, points: 999 }, "INVALID_ARGUMENT");
+await db.doc("matches/" + nextId).update({ date: Timestamp.fromMillis(Date.now() - 60000) });
+await ok("savePrediction", bettor, guess);
+assert.equal((await db.doc(`matchPrivate/${nextId}/predictions/${bettor.uid}`).get()).get("name"), "Pronosticador");
+await db.doc("matches/" + nextId).update({ clock: { phase: "first" } });
+await denied("savePrediction", bettor, guess, "FAILED_PRECONDITION");
+await db.doc("matches/" + nextId).update({ clock: FieldValue.delete() });
+await ok("savePrediction", bettor, { ...guess, goals: [{ playerId: ids[7], assistPlayerId: null }] });
+await ok("savePrediction", bettor, guess);
 await refused(fan, [`matchPrivate/${nextId}/predictions/${fan.uid}`, { goalsFor: -1, goalsAgainst: 0, name: "x" + suffix, playerId: ids[2], at: null }]);
 await refused(fan, [`matchPrivate/${id}/predictions/${fan.uid}`, { goalsFor: 1, goalsAgainst: 0, name: "x" + suffix, playerId: ids[2], at: null }]);
 await ok("saveMatchSheet", admin, {
@@ -425,9 +444,16 @@ await ok("saveMatchSheet", admin, {
   draft: false,
 });
 const porra = (await db.doc("porraStandings/" + season).get()).get("rows");
-assert.equal(porra[0].uid, admin.uid);
-assert.equal(porra[0].points, 3);
-assert.equal(porra[1].points, 1);
+assert.equal(porra[0].uid, bettor.uid);
+assert.equal(porra[0].points, 9); // 3 exact + 2 scorer + 1 assist + 3 same action.
+assert.equal(porra[0].exact, 1); // bonus points must not break the exact-score tie breaker.
+assert.equal(porra.find((r) => r.uid === admin.uid).points, 3);
+assert.equal(porra.find((r) => r.uid === fan.uid).points, 1);
+await denied("savePrediction", bettor, guess, "FAILED_PRECONDITION");
+// Correcting the assist rebuilds the season total instead of awarding the same goal twice.
+await ok("saveMatchSheet", admin, { id: nextId, sheet: { ...finished, revision: 2, events: finished.events.map((e) => e.type === "goal" ? { ...e, assistPlayerId: ids[2] } : e) }, draft: false });
+const correctedPorra = (await db.doc("porraStandings/" + season).get()).get("rows");
+assert.equal(correctedPorra.find((r) => r.uid === bettor.uid).points, 5);
 checked += 3;
 await refused(admin, [`matchPrivate/${nextId}/predictions/${admin.uid}`, { goalsFor: 3, goalsAgainst: 0, name: adminName, playerId: null, at: null }]);
 
@@ -784,6 +810,7 @@ assert.equal((await db.doc(`matches/${liveMatchId}`).get()).get("liveEndedAt"), 
 await ok("liveEvent", admin, { action: "finish", matchId: liveMatchId });
 let liveDoc = (await db.doc(`matches/${liveMatchId}`).get()).data();
 const finalLiveSheet = { ...liveSheet, status: "finished", revision: liveDoc.revision, events: liveDoc.events, goalsFor: 1, goalsAgainst: 0 };
+await denied("saveMatchSheet", admin, { id: liveMatchId, sheet: { ...finalLiveSheet, events: finalLiveSheet.events.map(e => e.type === "goal" ? { ...e, assistReviewed: false } : e) } }, "INVALID_ARGUMENT");
 await ok("saveMatchSheet", admin, { id: liveMatchId, sheet: finalLiveSheet });
 liveDoc = (await db.doc(`matches/${liveMatchId}`).get()).data();
 assert.equal(typeof liveDoc.liveEndedAt, "number");

@@ -173,6 +173,7 @@ export interface GoalRow {
   /** Our scorer (null: still to choose, or a rival own goal). */
   scorer: string | null;
   assist: string | null;
+  assistReviewed?: boolean;
   /** No scorer yet: «¿Quién marcó?». */
   open: boolean;
 }
@@ -187,6 +188,7 @@ export function goalRows(sheet: Pick<MatchSheet, "events">): GoalRow[] {
       kind: og ? "og" : (e.type as GoalKind),
       scorer: og ? null : (e.playerId ?? null),
       assist: og ? null : (e.assistPlayerId ?? null),
+      ...(e.assistReviewed !== undefined ? { assistReviewed: e.assistReviewed } : {}),
       open: !og && !e.playerId,
     };
   });
@@ -254,12 +256,12 @@ export function setScorer(sheet: MatchSheet, id: string, scorer: string | "og"):
   return patch(sheet, id, (e) =>
     scorer === "og"
       ? { id: e.id, type: "opponent_own_goal", minute: e.minute, note: e.note }
-      : { ...e, type: e.type === "opponent_own_goal" ? "goal" : e.type, playerId: scorer, assistPlayerId: undefined },
+      : { ...e, type: e.type === "opponent_own_goal" ? "goal" : e.type, playerId: scorer, assistPlayerId: undefined, assistReviewed: false },
   );
 }
 /** Step 2: the assist (null = «Sin asistencia»). */
 export function setAssist(sheet: MatchSheet, id: string, assist: string | null): MatchSheet {
-  return patch(sheet, id, (e) => ({ ...e, assistPlayerId: assist && assist !== e.playerId ? assist : undefined }));
+  return patch(sheet, id, (e) => ({ ...e, assistPlayerId: assist && assist !== e.playerId ? assist : undefined, assistReviewed: true }));
 }
 /** Adds or replaces (by id) an event written in the «Otros eventos» form. */
 export function upsertEvent(sheet: MatchSheet, event: MatchEvent): MatchSheet {

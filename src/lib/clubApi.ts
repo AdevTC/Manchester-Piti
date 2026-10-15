@@ -22,6 +22,7 @@ export const revokeMember = httpsCallable<{ uid: string }, { ok: boolean }>(func
 export const doorShirts = httpsCallable<void, { taken: string[]; inside: number }>(functions, "doorShirts");
 /** «Borrar partido»: only a match nobody has played yet (the server refuses a finished one). */
 export const deleteMatch = httpsCallable<{ id: string }, { ok: boolean }>(functions, "deleteMatch");
+export const savePrediction = httpsCallable<{ matchId: string; goalsFor: number; goalsAgainst: number; goals: import("../../functions/src/predictions").GoalPick[] }, { ok: boolean }>(functions, "savePrediction");
 /** The one convocatoria (functions/src/convocatoria.ts): el siete + banquillo of a match; `notify` sends its push
  *  («Ya está la convocatoria» / once «Cambios en la convocatoria»). `at` = the `convocatoriaAt` it stamped. */
 export interface SetConvocatoriaInput {
@@ -97,7 +98,7 @@ export function apiError(error: unknown) {
 /** Modo banda: an admin adds an event to the match being played (or undoes the last one written live).
  *  Its answer's `serverNow` keeps this phone's live minute on the server's clock (lib/serverTime). */
 export type LiveEventRequest =
-  | { action: "add"; matchId: string; requestId?: string; clockRevision?: number; manualTime?: boolean; event: { type: LiveEventType; minute: number; playerId?: string; assistPlayerId?: string; inPlayerId?: string } }
+  | { action: "add"; matchId: string; requestId?: string; clockRevision?: number; manualTime?: boolean; event: { type: LiveEventType; minute: number; playerId?: string; assistPlayerId?: string; assistReviewed?: boolean; inPlayerId?: string } }
   | { action: "undo" | "finish" | "reopen"; matchId: string; eventId?: string };
 const liveEventCall = withServerTime(httpsCallable<LiveEventRequest, { events: number; serverNow?: number }>(functions, "liveEvent"));
 /** An object without its `undefined` keys (same type: those keys are optional). */

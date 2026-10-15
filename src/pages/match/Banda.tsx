@@ -1,9 +1,10 @@
+import { QuickMatchEntry } from "../../components/celeste/QuickMatchEntry";
 import { MatchClockControl } from "../../components/celeste/MatchClockControl";
 import { clockReading } from "../../../functions/src/matchClock";
 // Mesa de partido: the admin writes the acta live from the touchline — big buttons, the minute from the
 // clock, the players on the pitch one tap away. Each tap goes to the liveEvent callable; every visitor
 // sees the score move (and the ¡GOL!) through the match's realtime listener.
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ClubMatch } from "../../lib/clubData";
 import { liveEvent, apiError } from "../../lib/clubApi";
 import { liveSides } from "../admin/live/liveModel";
@@ -13,6 +14,10 @@ import { Icon } from "../../components/celeste/icons";
 import { LIVE_ACTIONS, buildLiveEvent, liveAction, liveReady, type LiveActionType } from "../../lib/liveActions";
 
 export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string) => string }) {
+  const [quick,setQuick] = useState(true);
+  const sending = useRef(false);
+  const [retry, setRetry] = useState<{payload: NonNullable<Parameters<typeof liveEvent>[0]>; label: string} | null>(null);
+  const [ownId,setOwnId] = useState<string | null>(null);
   const now = useClock(1000);
   const playing = clockReading(match.clock, now).playing;
   const clock = liveMinute(match, now) ?? 0;
@@ -40,22 +45,29 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
     setLater(false);
     setMinute(null);
   };
-  const send = async (payload: Parameters<typeof liveEvent>[0], done: string) => {
+  const send = async (payload: NonNullable<Parameters<typeof liveEvent>[0]>, done: string) => {
+    if (sending.current) return;
+    sending.current = true;
     setBusy(true);
     setMsg("");
     try {
+      setRetry({payload,label:done});
       await liveEvent(payload);
+      setOwnId(payload.action === "add" ? `live-${payload.requestId}` : null);
+      setRetry(null);
       setMsg(done);
       reset();
     } catch (e) {
       setMsg(apiError(e));
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   };
   const submit = () => {
     if (!act) return;
     const event = buildLiveEvent(act, { playerId: player, assistPlayerId: second, inPlayerId: second }, shown);
+    if (act.type === "goal") event.assistReviewed = !!player;
     const missing = act.player === "later" && !event.playerId ? " Falta el goleador: complétalo en el acta." : "";
     void send({ action: "add", matchId: match.id, requestId: crypto.randomUUID(), clockRevision: match.clock?.revision, manualTime: minute != null, event }, `${act.label} apuntado en el ${shown + off}′.${missing}`);
   };
@@ -74,7 +86,10 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
         Mesa de partido
       </h2>
       <MatchClockControl match={match} />
-      <fieldset disabled={(!playing && match.clock?.phase !== "halftime") || busy} style={{ border: 0, padding: 0, margin: 0 }}>
+      <div className="qm-mode" role="group" aria-label="Modo de anotación"><button type="button" aria-pressed={quick} onClick={()=>setQuick(true)}>Banquillo rápido</button><button type="button" aria-pressed={!quick} onClick={()=>setQuick(false)}>Con detalle</button></div>
+      <div hidden={!quick}><QuickMatchEntry key={match.id} match={match} nameOf={nameOf}/></div>
+      <div hidden={quick}>
+      <fieldset disabled={(!playing && match.clock?.phase !== "halftime") || busy || !!retry} style={{ border: 0, padding: 0, margin: 0 }}>
       <div className="fc-banda-min">
         <button type="button" aria-label="Un minuto menos" onClick={() => setMinute(Math.max(0, shown - 1))}>
           −
@@ -131,16 +146,18 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
         <button type="button" className="hm-btn" disabled={!ready || busy || (!playing && !act?.atBreak)} onClick={submit}>
           {busy ? "Apuntando…" : "Apuntar"} <Icon name="check" size={16} stroke={2.4} />
         </button>
-        <button type="button" className="hm-ghostbtn" disabled={busy} onClick={() => void send({ action: "undo", matchId: match.id, eventId: match.events?.filter(e => e.id.startsWith("live-")).at(-1)?.id }, "Deshecho lo último apuntado.")}>
-          <Icon name="turn" size={16} /> Deshacer lo último
+        <button type="button" className="hm-ghostbtn" disabled={busy || !ownId || !match.events?.some(e=>e.id===ownId)} onClick={() => void send({ action: "undo", matchId: match.id, eventId: ownId ?? undefined }, "Deshecho lo último apuntado.")}>
+          <Icon name="turn" size={16} /> Deshacer mi última jugada
         </button>
       </div>
       </fieldset>
+      {retry && !busy && <div className="fc-acts"><button type="button" className="hm-btn" onClick={()=>void send(retry.payload,retry.label)}>Reintentar la misma jugada</button><button type="button" className="hm-ghostbtn" onClick={()=>{setRetry(null);reset();setMsg("Revisa las jugadas sincronizadas antes de volver a anotarla.");}}>Revisar la jugada antes de continuar</button></div>}
       {msg && (
         <p className="fc-status" role="status">
           {msg}
         </p>
       )}
+      </div>
     </section>
   );
 }

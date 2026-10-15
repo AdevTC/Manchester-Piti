@@ -15,6 +15,7 @@ import {
   type Training,
 } from "./live";
 import { Icon } from "../../components/celeste/icons";
+import type { PlayerDoc } from "../../lib/schemas";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { useWrite } from "./shared/useWrite";
@@ -339,7 +340,7 @@ function ToMatch({ id, children }: { id: string; children: ReactNode }) {
 }
 
 // ---------- porra
-export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; uid: string; rows: PorraRow[]; now: number }) {
+export function Porra({ next, uid, rows, players = [] }: { next: ClubMatch | undefined; uid: string; rows: PorraRow[]; now: number; players?: PlayerDoc[] }) {
   const me = porraPosition(rows, uid);
   const leader = rows[0];
   return (
@@ -349,7 +350,7 @@ export function Porra({ next, uid, rows, now }: { next: ClubMatch | undefined; u
       {next ? (
         <>
           {/* (the shared member control: the same porra and write as the match page's Vestuario tab) */}
-          <PorraCard match={next} now={now} uid={uid} />
+          <PorraCard match={next} players={players} uid={uid} />
           <ToMatch id={next.id}>La porra, en la ficha del partido</ToMatch>
         </>
       ) : (

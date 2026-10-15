@@ -136,14 +136,14 @@ describe("the acta's sheet model", () => {
     expect(r.firstMissingGoal).toBe(3);
     expect(r.ledgerErrors).toEqual([]);
     expect(r.reasons).toEqual(["falta el goleador del gol 3"]);
-    const done = setScorer(setMinute(j7(), "open-g0", "46"), "open-g0", "huberoski");
+    const done = setAssist(setScorer(setMinute(j7(), "open-g0", "46"), "open-g0", "huberoski"), "open-g0", null);
     const ok = review(done);
     expect(ok.cuadra).toBe(true);
     expect(ok.items.find((i) => i.key === "goles")?.title).toBe("Goles: 3 en el marcador, 3 con nombre");
   });
 
   it("a named goal without minute, or a rival goal without minute, doesn't square", () => {
-    const noMin = setScorer(j7(), "open-g0", "huberoski");
+    const noMin = setAssist(setScorer(j7(), "open-g0", "huberoski"), "open-g0", null);
     expect(review(noMin).ledgerErrors).toEqual(["Indica un minuto válido para cada evento."]);
     const rival = addRivalGoal(setScorer(setMinute(j7(), "open-g0", "46"), "open-g0", "huberoski"), "r2").sheet;
     const r = review(rival);
@@ -152,7 +152,7 @@ describe("the acta's sheet model", () => {
   });
 
   it("a suplente who never came on can't score (the ledger says so)", () => {
-    const s = setScorer(setMinute(j7(), "open-g0", "46"), "open-g0", "kevin");
+    const s = setAssist(setScorer(setMinute(j7(), "open-g0", "46"), "open-g0", "kevin"), "open-g0", null);
     expect(review(s).ledgerErrors).toEqual(["Minuto 46: el jugador no está disponible en el campo."]);
     const subbed = upsertEvent(s, { id: "c1", type: "substitution", minute: 30, playerId: "tello", inPlayerId: "kevin" });
     expect(review(subbed).cuadra).toBe(true);

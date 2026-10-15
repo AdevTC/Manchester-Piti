@@ -13,13 +13,17 @@ test("el cartel responde a la convocatoria y guarda porra, entreno y tablón en 
   await expect(page.getByText(/Contigo, \d+\./)).toBeVisible();
 
   await page.getByRole("button", { name: "Un gol más del Piti" }).click();
+  for (const select of await page.getByRole("combobox", { name: /Goleador del gol/ }).all()) await select.selectOption({ index: 1 });
   await page.getByRole("button", { name: /Guardar mi porra|Cambiar mi porra/ }).click();
   await expect(page.getByRole("button", { name: "Porra guardada" })).toBeVisible();
 
   // A confirmed training left by an earlier run: reopen its vote first.
   const reopen = page.getByRole("button", { name: "Reabrir votación" });
-  if (await reopen.isVisible()) await reopen.click();
   const slots = page.getByRole("group", { name: "Huecos propuestos" });
+  if (await reopen.isVisible()) {
+    await reopen.click();
+    await expect(slots).toBeVisible();
+  }
   if (!(await slots.isVisible())) {
     const when = new Date(Date.now() + 3 * 86_400_000);
     const day = new Date(when.getTime() - when.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
@@ -29,7 +33,8 @@ test("el cartel responde a la convocatoria y guarda porra, entreno y tablón en 
     await page.getByLabel("Hueco 1 · hasta").fill("21:30");
     await page.getByRole("button", { name: "Proponer entreno" }).click();
   }
-  await slots.getByRole("button").first().click();
+  const firstSlot = slots.getByRole("button").first();
+  if (await firstSlot.getAttribute("aria-pressed") !== "true") await firstSlot.click();
   await expect(page.getByText(/tú ya votaste/)).toBeVisible();
   // As admin, confirm the slot: the card closes the vote and announces it; then reopen it.
   await page.getByRole("group", { name: "Confirmar el entreno" }).getByRole("button").first().click();

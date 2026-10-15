@@ -59,6 +59,7 @@ export interface LiveEventInput {
   minute: number;
   playerId?: string;
   assistPlayerId?: string;
+  assistReviewed?: boolean;
   inPlayerId?: string;
 }
 

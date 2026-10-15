@@ -130,6 +130,11 @@ service cloud.firestore {
     match /nicknames/{name} { allow read: if teamMember(); allow write: if false; }
     match /matchDrafts/{id} { allow read: if admin(); allow write: if false; }
     match /matchAudit/{id} { allow read: if admin(); allow write: if false; }
+    function porraRevealed(id) {
+      let m = get(/databases/$(database)/documents/matches/$(id)).data;
+      return m.status == 'finished' || m.get('liveEndedAt', 0) > 0
+        || (m.get('clock', {}).get('phase', 'ready') != 'ready');
+    }
     match /matchPrivate/{id} {
       allow read: if teamMember(); allow write: if false;
       match /availability/{uid} {
@@ -143,14 +148,9 @@ service cloud.firestore {
       // Porra: your own prediction always; everyone's once the match has kicked off.
       match /predictions/{uid} {
         allow read: if teamMember() && (request.auth.uid == uid
-          || get(/databases/$(database)/documents/matches/$(id)).data.date <= request.time);
-        // Until kick-off; the table itself (porraStandings) is rebuilt by the backend.
-        allow create, update: if teamMember() && request.auth.uid == uid
-          && request.resource.data.keys().hasOnly(['goalsFor','goalsAgainst','name','playerId','at'])
-          && request.resource.data.goalsFor is int && request.resource.data.goalsFor >= 0 && request.resource.data.goalsFor <= 30
-          && request.resource.data.goalsAgainst is int && request.resource.data.goalsAgainst >= 0 && request.resource.data.goalsAgainst <= 30
-          && signedAsMe(request.resource.data) && upcoming(id);
-        allow delete: if false;
+          || porraRevealed(id));
+        // savePrediction validates every goal and serializes saves against the actual kick-off.
+        allow write: if false;
       }
     }
     match /porraStandings/{seasonId} { allow read: if teamMember(); allow write: if false; }

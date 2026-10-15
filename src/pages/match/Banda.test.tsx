@@ -36,8 +36,8 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("Mesa de partido · the payload of every action", () => {
   const cases: [string, Tap[], Record<string, unknown>][] = [
-    ["goal with an assist", ["Gol del Piti", "ERIK", ["ADRIAN", -1]], { type: "goal", minute: 31, playerId: "erik", assistPlayerId: "adrian" }],
-    ["goal without an assist", ["Gol del Piti", "ERIK"], { type: "goal", minute: 31, playerId: "erik" }],
+    ["goal with an assist", ["Gol del Piti", "ERIK", ["ADRIAN", -1]], { type: "goal", minute: 31, assistReviewed: true, playerId: "erik", assistPlayerId: "adrian" }],
+    ["goal without an assist", ["Gol del Piti", "ERIK"], { type: "goal", minute: 31, assistReviewed: true, playerId: "erik" }],
     ["opponent goal", ["Gol rival"], { type: "opponent_goal", minute: 31 }],
     ["yellow card (bench too)", ["Amarilla", "KEVIN"], { type: "yellow_card", minute: 31, playerId: "kevin" }],
     ["second yellow", ["Segunda amarilla", "TELLO"], { type: "double_yellow", minute: 31, playerId: "tello" }],
@@ -53,6 +53,7 @@ describe("Mesa de partido · the payload of every action", () => {
   ];
   it.each(cases)("%s", (_, taps, event) => {
     render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     tapAll(taps);
     expect(api.live).toHaveBeenCalledTimes(1);
     expect(api.live.mock.calls[0][0]).toStrictEqual(envelope(event));
@@ -63,12 +64,14 @@ describe("Mesa de partido · the payload of every action", () => {
   // is left out, as the admin's «Apuntar al equipo, sin jugador» always sent it.
   it.each([["Ocasión del Piti", "chance"], ["Córner del Piti", "corner"]])("%s for the team, without a player", (label, type) => {
     render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     tapAll([label]);
     expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type, minute: 31 }));
   });
 
   it("a minute set by hand travels as manualTime", () => {
     render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     fireEvent.click(screen.getByRole("button", { name: "Un minuto menos" }));
     tapAll(["Gol rival"]);
     expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "opponent_goal", minute: 30 }, true));
@@ -78,34 +81,39 @@ describe("Mesa de partido · the payload of every action", () => {
 describe("Mesa de partido · what the admin's En juego had and the banda lacked", () => {
   it("parity: the buttons are the catalogue, in its order", () => {
     render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     const group = screen.getByRole("group", { name: "Qué ha pasado" });
     expect([...group.querySelectorAll("button")].map((b) => b.textContent)).toEqual(LIVE_ACTIONS.map((x) => x.label));
   });
   it("autogol del rival: one tap, no player", () => {
     render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     tapAll(["Autogol del rival"]);
     expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "opponent_own_goal", minute: 31 }));
   });
   it("a goal without its scorer only after «Lo completo luego», and it says what is missing", async () => {
     render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     fireEvent.click(screen.getByRole("button", { name: "Gol del Piti" }));
     expect(screen.getByRole("button", { name: /Apuntar/ })).toBeDisabled();
     expect(screen.queryByText("¿Quién le dio el pase? (opcional)")).toBeNull();
     tapAll(["Lo completo luego · sin goleador"]);
-    expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "goal", minute: 31 }));
+    expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "goal", minute: 31, assistReviewed: false }));
     expect(await screen.findByText("Gol del Piti apuntado en el 32′. Falta el goleador: complétalo en el acta.")).toBeInTheDocument();
   });
   it("the scorer picked from the assist chips' player clears that assist (never his own assist)", () => {
     render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     fireEvent.click(screen.getByRole("button", { name: "Gol del Piti" }));
     fireEvent.click(screen.getByRole("button", { name: "ERIK" }));
     expect(screen.getByText("¿Quién le dio el pase? (opcional)")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "ADRIAN" }).at(-1) as HTMLElement); // assist: ADRIAN
     tapAll([["ADRIAN", 0]]); // then ADRIAN as the scorer
-    expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "goal", minute: 31, playerId: "adrian" }));
+    expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "goal", minute: 31, assistReviewed: true, playerId: "adrian" }));
   });
   it("asks the catalogue's questions", () => {
     render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     const asked = (label: string) => (fireEvent.click(screen.getByRole("button", { name: label })), screen.getAllByText(/^¿/)[0].textContent);
     expect([asked("Amarilla"), asked("Cambio"), asked("Penalti parado"), asked("Al palo"), asked("Ocasión del Piti")]).toEqual(["¿A quién?", "¿Quién sale?", "¿Quién lo paró?", "¿Quién lo tiró?", "¿Qué jugador?"]);
     fireEvent.click(screen.getByRole("button", { name: "Cambio" }));
@@ -113,12 +121,14 @@ describe("Mesa de partido · what the admin's En juego had and the banda lacked"
   });
   it("choosing a scorer after «Lo completo luego» writes him", () => {
     render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     tapAll(["Gol del Piti", "Lo completo luego · sin goleador", "ERIK"]);
-    expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "goal", minute: 31, playerId: "erik" }));
+    expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "goal", minute: 31, assistReviewed: true, playerId: "erik" }));
   });
   it("at the break only cards and changes can be written", () => {
     const halftime = { ...MATCH, clock: { phase: "halftime", revision: 3, firstStartedAt: T0, firstEndedAt: T0 + 25 * 60_000 } } as unknown as ClubMatch;
     render(<Banda match={halftime} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     for (const name of ["Gol del Piti", "Gol rival", "Autogol del rival", "Al palo", "Ocasión del Piti"]) expect(screen.getByRole("button", { name })).toBeDisabled();
     for (const name of ["Amarilla", "Segunda amarilla", "Roja", "Cambio"]) expect(screen.getByRole("button", { name })).toBeEnabled();
   });

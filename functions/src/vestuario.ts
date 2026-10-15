@@ -1,6 +1,7 @@
+import { scorePrediction } from "./predictions.js";
 // Vestuario features: account ↔ player link (claim + admin approval), training date
 // polls, the season porra and the team board. Everyday member writes (training votes,
-// porra, board messages) go straight to Firestore under the rules; the rest lives here.
+// board messages) go straight to Firestore under the rules; porra writes use savePrediction.
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
@@ -184,8 +185,9 @@ export async function recomputePorra(seasonId: string) {
     const predictions = allPredictions[i];
     for (const p of predictions.docs) {
       const row = rows.get(p.id) ?? { uid: p.id, name: p.get("name") ?? "Miembro", playerId: p.get("playerId") ?? null, points: 0, exact: 0, hits: 0, played: 0 };
-      const pts = predictionPoints({ goalsFor: p.get("goalsFor"), goalsAgainst: p.get("goalsAgainst") }, result);
-      row.points += pts;
+      const prediction = { goalsFor: p.get("goalsFor"), goalsAgainst: p.get("goalsAgainst"), goals: p.get("goals") };
+      const pts = predictionPoints(prediction, result);
+      row.points += scorePrediction(prediction, result, match.get("events") ?? []).total;
       row.exact += pts === 3 ? 1 : 0;
       row.hits += pts > 0 ? 1 : 0;
       row.played += 1;

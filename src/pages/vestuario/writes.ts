@@ -1,10 +1,13 @@
 // Direct Firestore writes for the vestuario's everyday actions (votes, "voy / no puedo",
-// porra, board). The security rules validate them (firestore.rules), so there is no
+// board). The porra uses a callable to validate goals and serialize with kick-off.
+// The security rules validate the other actions (firestore.rules), so there is no
 // Cloud Function round trip: the SDK applies each write to the local cache first, every
 // open listener (this device) updates at once and the rest of the team gets it in realtime.
 import { collection, deleteDoc, doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useAuth } from "../../context/AuthContext";
+import { savePrediction } from "../../lib/clubApi";
+import type { GoalPick } from "../../../functions/src/predictions";
 
 /** How a member is shown to the team; the rules check it against users/{uid}. */
 export interface Me {
@@ -24,8 +27,8 @@ export const voteMvp = (me: Me, matchId: string, playerId: string) =>
 export const setAvailability = (me: Me, matchId: string, response: "yes" | "no" | "maybe") =>
   setDoc(doc(db, "matchPrivate", matchId, "availability", me.uid), { response, name: me.name, playerId: me.playerId, at: serverTimestamp() });
 
-export const predictScore = (me: Me, matchId: string, goalsFor: number, goalsAgainst: number) =>
-  setDoc(doc(db, "matchPrivate", matchId, "predictions", me.uid), { goalsFor, goalsAgainst, name: me.name, playerId: me.playerId, at: serverTimestamp() });
+export const predictScore = (_me: Me, matchId: string, goalsFor: number, goalsAgainst: number, goals: GoalPick[]) =>
+  savePrediction({ matchId, goalsFor, goalsAgainst, goals });
 
 export const voteTraining = (me: Me, trainingId: string, slotIds: string[]) => {
   const ref = doc(db, "trainings", trainingId, "votes", me.uid);

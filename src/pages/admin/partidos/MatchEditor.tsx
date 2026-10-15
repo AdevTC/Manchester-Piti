@@ -313,6 +313,8 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, o
         {tab === "acta" && <TabActa matchId={match.id} phase={phase} sheet={sheet} update={update} review={review} rival={rival} j={j} info={info} onOpenLive={openLive} onGoConvocar={() => go({ section: "convocar", matchId: match.id })} />}
         {tab === "publicar" && (
           <TabPublicar
+            review={review}
+            onReview={() => go({ section: "partidos", matchId: match.id, tab: "acta" })}
             phase={phase}
             sheet={sheet}
             update={update}

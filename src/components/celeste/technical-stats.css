@@ -372,3 +372,5 @@
     transition: none !important;
   }
 }
+
+.technical-stats .ts-coverage progress{width:min(100%,400px);height:8px;accent-color:var(--accent);display:block;margin:12px 0}.technical-stats .ts-complete-filter{display:flex;align-items:center;gap:12px;min-height:46px;color:var(--ink)}.technical-stats .ts-complete-filter input{width:20px;height:20px;accent-color:var(--accent)}.technical-stats .ts-coverage summary{min-height:44px;padding:12px 0;cursor:pointer}.technical-stats .ts-coverage ul{list-style:none;padding:0;margin:0}.technical-stats .ts-coverage li{display:flex;justify-content:space-between;gap:16px;border-top:1px solid var(--line);padding:14px 0;font-size:13px;flex-wrap:wrap}.technical-stats .ts-coverage a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}

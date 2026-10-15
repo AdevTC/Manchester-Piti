@@ -462,8 +462,8 @@ describe("Vestuario: porra, entrenos, tablón y fichas", () => {
     await assertFails(getDoc(doc(db("member"), "boardRate", "member")));
   });
   it("la porra ajena queda oculta hasta el inicio del partido", async () => {
-    await seed("matches/future", { date: Timestamp.fromMillis(Date.now() + 3600000) });
-    await seed("matches/past", { date: Timestamp.fromMillis(Date.now() - 3600000) });
+    await seed("matches/future", { status: "scheduled", date: Timestamp.fromMillis(Date.now() - 3600000), clock: { phase: "ready" } });
+    await seed("matches/past", { status: "scheduled", date: Timestamp.fromMillis(Date.now() + 3600000), clock: { phase: "first" } });
     for (const m of ["future", "past"]) {
       await seed(`matchPrivate/${m}/predictions/member`, { goalsFor: 2, goalsAgainst: 1 });
       await seed(`matchPrivate/${m}/predictions/other`, { goalsFor: 0, goalsAgainst: 0 });
@@ -805,10 +805,10 @@ describe("Escrituras directas del vestuario", () => {
     await assertFails(answer("member", "started", signed("member", { response: "yes" })));
     await assertFails(answer("outsider", "next", signed("outsider", { response: "yes" })));
   });
-  it("Porra: marcador entre 0 y 30 hasta el inicio", async () => {
+  it("Porra: ninguna escritura directa puede saltarse la validación del servidor", async () => {
     const guess = (match: string, goalsFor: number, goalsAgainst = 1) =>
       setDoc(doc(db("member"), "matchPrivate", match, "predictions", "member"), signed("member", { goalsFor, goalsAgainst }));
-    await assertSucceeds(guess("next", 3));
+    await assertFails(guess("next", 3));
     await assertFails(guess("next", 31));
     await assertFails(guess("next", 1.5));
     await assertFails(guess("started", 2));

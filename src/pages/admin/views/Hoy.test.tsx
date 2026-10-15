@@ -192,7 +192,7 @@ describe("Hoy · En juego: the LED and the pads", () => {
     await user.click(within(pick).getByRole("button", { name: "Marcó ERIK" }));
     const pase = screen.getByRole("dialog", { name: "¿Quién le dio el pase?" });
     await user.click(within(pase).getByRole("button", { name: "Pase de ADRIÁN T.C." }));
-    expect(live).toHaveBeenCalledWith(expect.objectContaining({ action: "add", matchId: "m8", event: { type: "goal", minute: 32, playerId: "erik", assistPlayerId: "adrian" } }));
+    expect(live).toHaveBeenCalledWith(expect.objectContaining({ action: "add", matchId: "m8", event: { type: "goal", assistReviewed: true, minute: 32, playerId: "erik", assistPlayerId: "adrian" } }));
     expect(await screen.findByText("GOOOL")).toBeInTheDocument();
     expect(screen.getByText("ERIK · 32′ · pase de ADRIÁN T.C.")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).toBeNull();

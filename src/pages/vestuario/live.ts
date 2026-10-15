@@ -1,3 +1,6 @@
+import type { Prediction } from "../../../functions/src/predictions";
+import type { HistoricalPrediction } from "../../lib/postMatch";
+export type { Prediction } from "../../../functions/src/predictions";
 // Realtime Firestore subscriptions for team-only vestuario data (onSnapshot, no polling).
 // Listeners are shared by key and kept warm for a minute after the last reader leaves, so
 // coming back to the vestuario paints the last data at once instead of an empty block.
@@ -326,15 +329,11 @@ export function useMvpVoters(matchId: string | undefined, enabled: boolean) {
 }
 
 // ---------- porra
-export interface Prediction {
-  goalsFor: number;
-  goalsAgainst: number;
-}
 export function useMyPrediction(matchId: string | undefined, uid: string | undefined) {
   return useLiveDoc<Prediction | null>(
     matchId && uid ? `matchPrivate/${matchId}/predictions/${uid}` : null,
     "prediction",
-    (d) => (d ? { goalsFor: d.goalsFor, goalsAgainst: d.goalsAgainst } : null),
+    (d) => (d ? { goalsFor: d.goalsFor, goalsAgainst: d.goalsAgainst, goals: d.goals, scoringVersion: d.scoringVersion } : null),
     null,
   );
 }
@@ -348,6 +347,22 @@ export interface PorraRow {
 }
 export function usePorraStandings(seasonId: string | undefined) {
   return useLiveDoc<PorraRow[]>(seasonId ? `porraStandings/${seasonId}` : null, "rows", (d) => (d?.rows as PorraRow[]) ?? [], []);
+}
+
+/** Finished matches only, subscribed lazily when history opens; no future picks leak. */
+export function usePorraHistory(matchIds: string[], enabled: boolean) {
+  const ids = [...matchIds].sort();
+  return useShared<HistoricalPrediction[]>(enabled && ids.length ? `porra-history:${ids.join(',')}` : null, sink => {
+    const snapshots = new Map<string, { rows: HistoricalPrediction[]; meta: SnapshotMetadata }>();
+    const stops = ids.map(matchId => onSnapshot(collection(db, 'matchPrivate', matchId, 'predictions'), { includeMetadataChanges: true }, s => {
+      snapshots.set(matchId, { rows: s.docs.map(d=>({ matchId, uid:d.id, name:d.get('name') ?? 'Miembro', goalsFor:d.get('goalsFor'), goalsAgainst:d.get('goalsAgainst'), goals:d.get('goals') })), meta:s.metadata });
+      if (snapshots.size !== ids.length) return;
+      const all = [...snapshots.values()];
+      const meta: SnapshotMetadata = { fromCache: all.some(x=>x.meta.fromCache), hasPendingWrites: all.some(x=>x.meta.hasPendingWrites), isEqual(other) { return this.fromCache === other.fromCache && this.hasPendingWrites === other.hasPendingWrites; } };
+      sink.snapshot(all.flatMap(x=>x.rows), meta, true);
+    }, () => sink.fail()));
+    return () => stops.forEach(stop=>stop());
+  }, []);
 }
 
 // ---------- trainings
@@ -456,10 +471,10 @@ export function useHasPosted(uid: string | undefined) {
 
 /** Everyone's porra for a match: members can read them once the match has kicked off (rules). */
 export function useMatchPredictions(matchId: string | undefined, enabled: boolean) {
-  return useLiveQuery<{ uid: string; name: string; goalsFor: number; goalsAgainst: number }>(
+  return useLiveQuery<Prediction & { uid: string; name: string }>(
     matchId && enabled ? `predictions/${matchId}` : null,
     () => collection(db, "matchPrivate", matchId!, "predictions"),
-    (uid, d) => ({ uid, name: d.name ?? "Miembro", goalsFor: d.goalsFor, goalsAgainst: d.goalsAgainst }),
+    (uid, d) => ({ uid, name: d.name ?? "Miembro", goalsFor: d.goalsFor, goalsAgainst: d.goalsAgainst, goals: d.goals, scoringVersion: d.scoringVersion }),
   );
 }
 

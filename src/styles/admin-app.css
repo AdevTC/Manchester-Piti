@@ -393,3 +393,4 @@
 /* Touchline header: the short metadata line must not inherit the match-list container. */
 .adm .lv .r1 .ml{container-type:normal;display:block;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;letter-spacing:.04em}
 .adm .lv .r1 .bk,.adm .lv .r1 .tally{flex-shrink:0}
+.vx.adm .acta-preflight{grid-column:1/-1}.vx.adm .acta-preflight ul{padding-left:20px;line-height:1.6}.vx.adm .acta-preflight li{margin-bottom:12px;font-size:14px}.vx.adm .acta-preflight li p{margin:4px 0;color:var(--soft)}.vx.adm .acta-preflight summary{cursor:pointer;min-height:44px;padding:12px 0}.vx.adm .preflight-assists{display:grid;gap:14px;margin-top:16px}.vx.adm .preflight-assists label{display:grid;gap:9px;font-size:14px}.vx.adm .preflight-assists select{width:100%;min-height:46px;white-space:normal}

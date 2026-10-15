@@ -1,9 +1,11 @@
+import { PersonalMatchSummary } from "../../components/celeste/PersonalMatchSummary";
+import { PorraHistory } from "../../components/celeste/PorraHistory";
 import { useMemo, useState, lazy, Suspense } from "react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useSeason } from "../../context/SeasonContext";
-import { dateMillis, useClubData, nextFixture, playerForSeason, playerName } from "../../lib/clubData";
+import { dateMillis, isCompleted, useClubData, nextFixture, playerForSeason, playerName } from "../../lib/clubData";
 import { nameFor } from "../../lib/derived/names";
 import { useClock } from "../../hooks/useClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
@@ -87,6 +89,7 @@ export function VestuarioPage() {
   const [stepsHidden, hideSteps] = useStepsHidden(uid);
 
   const playerId = profile?.playerId;
+  const latestFinished = matches.filter(m => isCompleted(m) && m.seasonId === seasonId).sort((a,b)=>dateMillis(b.date)-dateMillis(a.date))[0];
   const rawPlayer = players.find((p) => p.id === playerId);
   const player = rawPlayer ? playerForSeason(rawPlayer, seasonId, seasons) : undefined;
   const nick = profile?.nickname ?? "";
@@ -190,9 +193,11 @@ export function VestuarioPage() {
           </div>
         )}
 
+        {latestFinished && <PersonalMatchSummary match={latestFinished} matches={matches} playerId={playerId} uid={uid} />}
+        <PorraHistory matches={matches} seasonId={seasonId} uid={uid} />
         <div className="vx-team-grid">
           <TrainingPoll trainings={trainings.data} uid={uid} admin={admin} now={now} />
-          <Porra next={next} uid={uid} rows={porra.data} now={now} />
+          <Porra next={next} players={players} uid={uid} rows={porra.data} now={now} />
           <MvpBlock match={lastMatch} result={lastMatch ? mvpResults.get(lastMatch.id) : undefined} uid={uid} admin={admin} member={member} now={now} playerName={mvpName} />
           <Board messages={board.data} uid={uid} admin={admin} loading={board.loading} now={now} />
           <Access admin={admin} playerId={playerId} onLogout={() => void signOut()} />

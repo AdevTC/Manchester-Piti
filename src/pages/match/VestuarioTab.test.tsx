@@ -37,7 +37,7 @@ const SQUAD = ["erik", "pablo"].map((id) => ({ id, shirtName: id.toUpperCase(), 
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [], players: SQUAD, loading: false, error: null }) }));
 
 const { VestuarioTab } = await import("./Tabs");
-const { PORRA_RULE } = await import("../vestuario/shared/PorraCard");
+
 
 const upcoming = (date: number, status = "scheduled") => ({ id: "j6", seasonId: "t1", rival: "MAD SKY", date, duration: 50, status }) as unknown as ClubMatch;
 const finished = { id: "j5", seasonId: "t1", rival: "Rival", date: NOW - 86_400_000, duration: 50, status: "finished", goalsFor: 2, goalsAgainst: 1, events: [], voteClosesAt: NOW + 3_600_000, ledger: { erik: { played: true }, pablo: { played: true } } } as unknown as ClubMatch;
@@ -51,23 +51,23 @@ it("before the match: the shared convocatoria and porra, with my answer and the 
   expect(screen.getByRole("radiogroup", { name: "Tu respuesta a la convocatoria" })).toBeInTheDocument();
   expect(screen.getByRole("radio", { name: "Duda" })).toHaveAttribute("aria-checked", "true");
   expect(screen.getByRole("group", { name: "Tu porra: Piti contra MAD SKY" })).toBeInTheDocument();
-  expect(screen.getByText(`Cierra en 1 d 0 h 0 min. ${PORRA_RULE}`)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Cómo se puntúa/ })).toBeInTheDocument();
   // (the kicker says the same as the card: it closes at the match's time)
-  expect(screen.getByText("La porra · se cierra a la hora del partido")).toBeInTheDocument();
+  expect(screen.getByText("Tu porra · hasta el pitido inicial")).toBeInTheDocument();
 });
 
-it("its date has come and nobody started the clock: both controls say they closed", () => {
+it("the scheduled date has passed: the porra remains editable until actual kickoff", () => {
   render(<VestuarioTab match={upcoming(NOW - 60_000)} players={SQUAD} phase="scheduled" />);
   expect(screen.queryByRole("radiogroup")).toBeNull();
   expect(screen.getByText("La convocatoria se cerró a la hora del partido.")).toBeInTheDocument();
-  expect(screen.getByText(/^La porra se cerró a la hora del partido\./)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Guardar mi porra" })).toBeEnabled();
 });
 
 it("a legacy future match without status: closed, without claiming it closed at any time", () => {
   render(<VestuarioTab match={{ ...upcoming(NOW + 86_400_000), status: undefined }} players={SQUAD} phase="scheduled" />);
   expect(screen.queryByRole("radiogroup")).toBeNull();
   expect(screen.getByText("Este partido no admite convocatoria.")).toBeInTheDocument();
-  expect(screen.getByText(/^Este partido no admite porra\./)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Guardar mi porra" })).toBeNull();
   expect(screen.queryByText(/se cerró/)).toBeNull();
 });
 

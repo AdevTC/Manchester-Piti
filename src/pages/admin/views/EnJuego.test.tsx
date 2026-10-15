@@ -54,7 +54,7 @@ describe("En juego", () => {
     expect(pick).toHaveClass("lpk");
     await user.click(within(pick).getByRole("button", { name: "Marcó ERIK" }));
     await user.click(within(screen.getByRole("dialog", { name: "¿Quién le dio el pase?" })).getByRole("button", { name: "Sin asistencia" }));
-    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "add", matchId: "m8", event: { type: "goal", minute: 32, playerId: "erik" } }));
+    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "add", matchId: "m8", event: { type: "goal", assistReviewed: true, minute: 32, playerId: "erik" } }));
   });
 
   it("«Pitar el final» saves the whistle and opens the acta («Deshacer» reopens it on the server)", async () => {

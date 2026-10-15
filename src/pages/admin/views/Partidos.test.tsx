@@ -323,7 +323,7 @@ describe("Partidos · the workspace", () => {
       { id: "g1", type: "goal", minute: 9, playerId: "adrian", assistPlayerId: "huberoski" },
       { id: "g2", type: "goal", minute: 31, playerId: "adrian", assistPlayerId: "erik" },
       { id: "r1", type: "opponent_goal", minute: 18 },
-      { id: "open-g0", type: "goal", minute: 46, playerId: "huberoski" },
+      { id: "open-g0", type: "goal", minute: 46, playerId: "huberoski", assistReviewed: true },
     ]);
     await waitFor(() => expect(router.state.location.search).toMatchObject({ vitrina: true }));
     const peak = await screen.findByRole("region", { name: "Acta publicada" });

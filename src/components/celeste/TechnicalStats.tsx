@@ -5,8 +5,8 @@
 // narration to read (hasAnalysisActions). Cards and segmented controls are the stats pages' own
 // (st-card, st-seg, st-table…, from st-base.css); technical-stats.css only lays out what is particular to it.
 import { useId, useMemo, useState } from "react";
-import { EVENT_LABELS, type ClubMatch, type MatchEvent } from "../../lib/clubData";
-import { TECH_LABELS, pct, technicalAnalysis } from "../../lib/technicalAnalysis";
+import { formatDate, EVENT_LABELS, type ClubMatch, type MatchEvent } from "../../lib/clubData";
+import { TECH_LABELS, pct, technicalAnalysis, analysisCoverage, recordedValue } from "../../lib/technicalAnalysis";
 import { plural } from "../../lib/vestuario";
 import { emptyTechnical, eventSide, OUTCOME_LABELS, type AnalysisEvent, type TechnicalStats } from "../../../functions/src/matchAnalysis";
 import { PlayerLink } from "./PlayerLink";
@@ -82,14 +82,20 @@ export interface TechnicalStatsPanelProps {
 /** The same view consumes a single match, a season, all seasons or one player. */
 export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seasonId }: TechnicalStatsPanelProps) {
   const uid = useId();
-  const data = useMemo(() => technicalAnalysis(matches), [matches]);
+  const [completeOnly, setCompleteOnly] = useState(false);
+  const coverage = useMemo(() => analysisCoverage(matches), [matches]);
+  const included = useMemo(() => completeOnly ? matches.filter(m=>m.analysisCoverage === "complete") : matches, [matches, completeOnly]);
+  const data = useMemo(() => technicalAnalysis(included), [included]);
+  const includedCoverage = useMemo(() => analysisCoverage(included), [included]);
+  const zeroKnown = includedCoverage.zeroKnown;
+  const show = (n: number, metric: Metric, individual = false) => recordedValue(n, zeroKnown && !includedCoverage.uncertain.has(metric) && (!individual || includedCoverage.unassigned === 0));
   const [selected, setSelected] = useState(initialPlayer);
   const [category, setCategory] = useState<Category>("Pases y creación");
   const [metric, setMetric] = useState<Metric>("passesCompleted");
   const [side, setSide] = useState<Side>("us");
   const [network, setNetwork] = useState<Network>("passes");
 
-  const involved = involvedIds(matches);
+  const involved = involvedIds(included);
   const roster = people.filter((p) => involved.has(p.id));
   const names = new Map(people.map((p) => [p.id, p]));
   const person = (id: string): Person => names.get(id) ?? { id, name: "Jugador", number: "—" };
@@ -146,7 +152,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
   const shots = data.shots.filter((e) => eventSide(e) === side && (side === "opponent" || !selected || e.playerId === selected));
   const mapped = shots.filter((e) => e.x != null && e.y != null);
   const untimed = shots.filter((e) => e.minute == null).length;
-  const binCount = Math.floor(Math.max(50, ...matches.map((m) => m.duration ?? 50), ...shots.map((e) => e.minute ?? 0)) / 5) + 1;
+  const binCount = Math.floor(Math.max(50, ...included.map((m) => m.duration ?? 50), ...shots.map((e) => e.minute ?? 0)) / 5) + 1;
   const bins = Array.from({ length: binCount }, (_, i) => ({
     minute: i * 5,
     shots: shots.filter((e) => e.minute != null && Math.floor(e.minute / 5) === i).length,
@@ -181,6 +187,12 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
       </header>
 
       <div className="ts-coverage">
+        <p><b>Cobertura de los datos</b> · {coverage.complete} completas · {coverage.partial} parciales · {coverage.none} sin narración</p>
+        <progress value={coverage.complete} max={Math.max(1, matches.length)} aria-label="Actas con narración completa" />
+        <label className="ts-complete-filter"><input type="checkbox" checked={completeOnly} onChange={e=>setCompleteOnly(e.target.checked)}/>Comparar solo actas completas</label>
+        <p className="st-mono">«—» significa que falta información para afirmar un cero. Los valores positivos cuentan lo registrado; los porcentajes usan solo resultados conocidos.</p>
+        {includedCoverage.unassigned > 0 && <p className="st-mono">{includedCoverage.unassigned} acciones del Piti sin jugador identificado: los totales individuales pueden estar incompletos.</p>}
+        <details><summary>Ver cobertura por partido</summary><ul>{coverage.rows.map(({match, state, recorded})=><li key={match.id}><a href={`/matches/${match.id}?tab=estadisticas`}>{formatDate(match.date)} · {match.rival ?? "Rival"}</a><span>{state === "complete" ? "Completa" : state === "partial" ? "Parcial" : "Sin narración"} · {recorded} acciones</span></li>)}</ul></details>
         <p>
           <b>{complete ? "Análisis completo" : "Cobertura parcial"}</b>
           {complete ? " · Cada jugada está apuntada." : " · No todas las jugadas están apuntadas: las cifras cuentan solo lo apuntado."}
@@ -333,7 +345,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
             {ZONES.map(([z, label]) => (
               <div key={z}>
                 <dt>{label}</dt>
-                <dd>{shots.filter((e) => e.zone === z).length}</dd>
+                <dd>{recordedValue(shots.filter((e) => e.zone === z).length, zeroKnown && shots.every(e=>!!e.zone))}</dd>
               </div>
             ))}
           </dl>
@@ -388,17 +400,17 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
                 <div className="ts-compare-nums">
                   <b>
                     <span className="hm-sr">{usName}: </span>
-                    {a}
+                    {show(a, k, !!selected)}
                   </b>
                   <span>{TECH_LABELS[k]}</span>
                   <b>
                     <span className="hm-sr">El rival: </span>
-                    {b}
+                    {show(b, k)}
                   </b>
                 </div>
                 <div className="ts-dual" aria-hidden="true">
-                  <i className="us" style={{ width: `${a + b ? (a / (a + b)) * 100 : 50}%` }} />
-                  <i className="them" style={{ width: `${a + b ? (b / (a + b)) * 100 : 50}%` }} />
+                  <i className="us" style={{ width: `${a + b ? (a / (a + b)) * 100 : 0}%` }} />
+                  <i className="them" style={{ width: `${a + b ? (b / (a + b)) * 100 : 0}%` }} />
                 </div>
               </div>
             );
@@ -432,9 +444,9 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
               <li key={r.id}>
                 <button type="button" aria-pressed={selected === r.id} onClick={() => setSelected(r.id)}>
                   <span>
-                    {placeOf(r.stats[metric])}. {r.name}
+                    {show(r.stats[metric], metric, true) === "—" ? "—" : `${placeOf(r.stats[metric])}.`} {r.name}
                   </span>
-                  <b>{r.stats[metric]}</b>
+                  <b>{show(r.stats[metric], metric, true)}</b>
                   <i style={{ width: `${(r.stats[metric] / maxRank) * 100}%` }} />
                 </button>
               </li>
@@ -472,7 +484,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
                     {nameLink(r.id)}
                   </th>
                   {compare.map((k) => (
-                    <td key={k}>{r.stats[k]}</td>
+                    <td key={k}>{show(r.stats[k], k, true)}</td>
                   ))}
                   {category === "Pases y creación" && <td>{pct(r.stats.passesCompleted, r.stats.passesCompleted + r.stats.passesFailed)}</td>}
                 </tr>

@@ -122,7 +122,7 @@ export function pickerView(s: PickState, c: PickerContext): PickerView {
     const act = liveAction("goal");
     const scorer = name(s.scorer);
     const goal = (assist?: string): Step => ({
-      event: buildLiveEvent(act, { playerId: s.scorer, assistPlayerId: assist }, c.minute),
+      event: { ...buildLiveEvent(act, { playerId: s.scorer, assistPlayerId: assist }, c.minute), assistReviewed: true },
       flash: `${scorer} · ${m}${assist ? ` · pase de ${name(assist)}` : ""}`,
     });
     return {

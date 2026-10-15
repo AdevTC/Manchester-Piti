@@ -1,3 +1,5 @@
+import { PorraHistory } from "../../components/celeste/PorraHistory";
+import { PersonalMatchSummary } from "../../components/celeste/PersonalMatchSummary";
 // The tabs of the match page. Public data comes from the acta (events, ledger); the Vestuario tab
 // reads and writes the team's private bits (convocatoria, porra, MVP) only for members.
 import { Fragment, useMemo, useState } from "react";
@@ -10,6 +12,8 @@ import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { useClock } from "../../hooks/useClock";
 import { ShirtBack } from "../../components/celeste/ShirtBack";
 import { Icon } from "../../components/celeste/icons";
+import { PredictionResult } from "../../components/celeste/PredictionForm";
+import { predictionOpen, predictionsRevealed, scorePrediction } from "../../../functions/src/predictions";
 import { MatchBadges } from "../../components/celeste/MatchBadges";
 import { Jersey3D } from "../../components/jersey3d/Jersey3D";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
@@ -495,7 +499,7 @@ export function PulsoTab({ match, live, minute, pending = false }: { match: Club
   );
 }
 
-export function VestuarioTab({ match, players, phase }: { match: ClubMatch; players: PlayerDoc[]; phase: string }) {
+export function VestuarioTab({ match, matches = [match], players, phase }: { match: ClubMatch; matches?: ClubMatch[]; players: PlayerDoc[]; phase: string }) {
   const { member } = useTeam();
   const { user } = useAuth();
   const me = useMe();
@@ -509,7 +513,7 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
   const availability = useAvailability(member && !kickedOff ? match.id : undefined);
   const note = useMeetingNote(member ? match.id : undefined);
   const myPrediction = useMyPrediction(match.id, uid);
-  const predictions = useMatchPredictions(match.id, !!member && kickedOff);
+  const predictions = useMatchPredictions(match.id, !!member && predictionsRevealed(match));
   const mvp = useMvpResults().get(match.id);
   const done = isCompleted(match);
   const { gf, ga } = scoreOf(match);
@@ -564,9 +568,12 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
   for (const p of predictions.data) dist.set(`${p.goalsFor}–${p.goalsAgainst}`, (dist.get(`${p.goalsFor}–${p.goalsAgainst}`) ?? 0) + 1);
   const top = [...dist.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
   const topMax = Math.max(1, ...top.map(([, n]) => n));
+  const porraTable = predictions.data.map((p) => ({ ...p, points: scorePrediction(p, { goalsFor: gf, goalsAgainst: ga }, match.events ?? []).total })).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name, "es"));
 
   return (
     <div className="fc-two">
+      {done && <PersonalMatchSummary match={match} matches={matches} playerId={me.playerId} uid={me.uid} />}
+      {done && match.seasonId && <PorraHistory matches={matches} seasonId={match.seasonId} uid={me.uid}/>}
       {!kickedOff && (
         <>
           <section className="fc-sec" aria-labelledby="fc-rs">
@@ -592,26 +599,18 @@ export function VestuarioTab({ match, players, phase }: { match: ClubMatch; play
               </div>
             )}
           </section>
-          <section className="fc-sec" aria-labelledby="fc-po">
-            <span className="hm-kick">La porra · se cierra a la hora del partido</span>
-            <h2 className="hm-h2" id="fc-po">
-              ¿Cómo acaba?
-            </h2>
-            <PorraCard match={match} now={now} uid={uid} />
-          </section>
         </>
       )}
-      {phase === "playing" && (
-        <section className="fc-sec" aria-labelledby="fc-pl">
-          <span className="hm-kick">La porra en vivo</span>
-          <h2 className="hm-h2" id="fc-pl">
-            Si acaba {gf}–{ga}…
-          </h2>
-          <p className="fc-note">
-            …la clavarían {exact} de {predictions.data.length}.{myPrediction.data ? ` Tú dijiste ${myPrediction.data.goalsFor}–${myPrediction.data.goalsAgainst}.` : ""}
-          </p>
-        </section>
-      )}
+      <section className="fc-sec" aria-labelledby="fc-po">
+        <span className="hm-kick">Tu porra · {predictionOpen(match) ? "hasta el pitido inicial" : "cerrada"}</span>
+        <h2 className="hm-h2" id="fc-po">{predictionOpen(match) ? "¿Cómo acaba?" : "Tu pronóstico"}</h2>
+        {predictionOpen(match) ? <PorraCard match={match} players={players} uid={me.uid} /> : myPrediction.data && predictionsRevealed(match) ? <PredictionResult prediction={myPrediction.data} match={match} players={players} provisional={!done} /> : <p className="fc-note">{myPrediction.data ? "La porra no está disponible para este partido. No se asignan puntos mientras esté aplazado o cancelado." : "No guardaste una porra para este partido."}</p>}
+      </section>
+      {predictionsRevealed(match) && porraTable.length > 0 && <section className="fc-sec" aria-labelledby="fc-points">
+        <span className="hm-kick">{done ? "Puntos de la jornada" : "Clasificación provisional"}</span><h2 className="hm-h2" id="fc-points">La porra del equipo</h2>
+        <ol className="pr-ranking">{porraTable.map((p) => <li key={p.uid} className={p.uid === me.uid ? "mine" : undefined}><span>{p.name}{p.uid === me.uid ? " · tú" : ""}<small>{p.goalsFor}–{p.goalsAgainst}</small></span><strong>{p.points} <small>pts</small></strong></li>)}</ol>
+        {!done && <p className="fc-note">Según las jugadas anotadas hasta ahora. El acta publicada confirma los puntos.</p>}
+      </section>}
       {done && (
         <>
           {match.voteClosesAt != null && (

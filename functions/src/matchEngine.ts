@@ -34,6 +34,8 @@ export interface MatchEvent extends ActionDetails {
   minute?: number;
   playerId?: string;
   assistPlayerId?: string;
+  /** false: quick goal awaiting review; true: assist or explicitly unassisted confirmed. */
+  assistReviewed?: boolean;
   inPlayerId?: string;
   note?: string;
 }
@@ -175,6 +177,10 @@ export function calculateLedger(
     field: [...match.starters],
   };
   const fail = (text: string) => result.errors.push(text);
+  if (strict) for (const e of match.events) {
+    if (["goal", "goal_penalty", "goal_freekick"].includes(e.type) && e.assistReviewed === false)
+      fail(`Revisa la asistencia del gol de ${e.playerId ?? "jugador pendiente"} (${e.minute ?? "?"}′): elige asistente o confirma sin asistencia.`);
+  }
   const duration = match.durationSeconds != null ? match.durationSeconds / 60 : match.duration;
   const until = Math.max(0, Math.min(duration, options.until ?? duration));
   if (!Number.isFinite(duration) || duration <= 0 || duration > 150)

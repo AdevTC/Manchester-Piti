@@ -6,7 +6,7 @@ import { minutesTable } from "./minutes";
 import { mvpStatus, publishConsequences, scorerChips } from "./publish";
 import { buildResumen } from "./resumen";
 import { reviewMatch } from "./review";
-import { fromMatch, setMinute, setScorer, sig, upsertEvent, type MatchSheet } from "./sheetModel";
+import { fromMatch, setAssist, setMinute, setScorer, sig, upsertEvent, type MatchSheet } from "./sheetModel";
 
 const SEVEN = ["evans", "illescas", "tello", "eguzquiza", "huberoski", "erik", "adrian"];
 const BENCH = ["kevin", "almachi", "andia", "fer", "brawan"];
@@ -41,7 +41,7 @@ function j7(): MatchSheet {
     ],
   });
   s = setScorer(setMinute(s, "open-g0", "46"), "open-g0", "huberoski");
-  return s;
+  return setAssist(s, "open-g0", null);
 }
 
 describe("convocatoria rules", () => {

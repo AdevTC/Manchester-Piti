@@ -56,7 +56,7 @@ const kpi = (label: string) => screen.getByText(label).parentElement?.textConten
 /** The comparison card (title «… y el rival»). */
 const compareCard = () => screen.getByRole("heading", { name: /y el rival$/ }).closest("section") as HTMLElement;
 /** A comparison row's two numbers: ours, the rival's. */
-const compared = (label: string) => within(compareCard()).getByText(label).parentElement?.textContent?.match(/\d+/g);
+const compared = (label: string) => within(compareCard()).getByText(label).parentElement?.textContent?.match(/\d+|—/g);
 const rankCard = () => screen.getByRole("heading", { name: "Quién destaca" }).closest("section") as HTMLElement;
 const ranking = () => within(within(rankCard()).getByRole("list")).getAllByRole("listitem").map((li) => li.textContent);
 const rowsOf = (table: HTMLElement) => within(table).getAllByRole("row").slice(1).map((r) => [...r.querySelectorAll("th, td")].map((c) => c.textContent));
@@ -88,25 +88,25 @@ describe("TechnicalStatsPanel · the numbers (characterisation)", () => {
     expect(screen.getByText("Conexiones dirigidas · 3 parejas")).toBeInTheDocument();
 
     expect(screen.getByText("2 de 4 remates con coordenadas. Ataque hacia arriba.")).toBeInTheDocument();
-    expect([zone("Izquierda"), zone("Centro"), zone("Derecha")]).toEqual(["Izquierda1", "Centro2", "Derecha0"]);
+    expect([zone("Izquierda"), zone("Centro"), zone("Derecha")]).toEqual(["Izquierda1", "Centro2", "Derecha—"]);
     expect(timeline()).toEqual([0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0]);
     expect(screen.getByText("1 remate sin minuto queda fuera de esta gráfica.")).toBeInTheDocument();
 
     expect(compared("Pases intentados")).toEqual(["6", "1"]);
     expect(compared("Pases completados")).toEqual(["4", "1"]);
-    expect(compared("Pases fallados")).toEqual(["1", "0"]);
-    expect(compared("Pases recibidos")).toEqual(["4", "0"]);
-    expect(compared("Pases clave")).toEqual(["1", "0"]);
-    expect(compared("Pases largos")).toEqual(["1", "0"]);
-    expect(compared("Centros")).toEqual(["1", "0"]);
-    expect(compared("Centros completados")).toEqual(["1", "0"]);
+    expect(compared("Pases fallados")).toEqual(["1", "—"]);
+    expect(compared("Pases recibidos")).toEqual(["4", "—"]);
+    expect(compared("Pases clave")).toEqual(["1", "—"]);
+    expect(compared("Pases largos")).toEqual(["1", "—"]);
+    expect(compared("Centros")).toEqual(["1", "—"]);
+    expect(compared("Centros completados")).toEqual(["1", "—"]);
     expect(screen.getByText(/Posesión cronometrada: El Piti 60,0% · 30 s \/ el rival 20 s/)).toBeInTheDocument();
 
     expect(ranking()).toEqual(["1. PEPE2", "2. JUAN1", "2. LUIS1"]);
     expect(allPlayers()).toEqual([
-      ["1 · PEPE", "2", "2", "0", "0", "0", "0", "0", "0", "100,0%"],
-      ["7 · JUAN", "2", "1", "1", "3", "0", "1", "0", "0", "50,0%"],
-      ["9 · LUIS", "2", "1", "0", "1", "1", "0", "1", "1", "100,0%"],
+      ["1 · PEPE", "2", "2", "—", "—", "—", "—", "—", "—", "100,0%"],
+      ["7 · JUAN", "2", "1", "1", "3", "—", "1", "—", "—", "50,0%"],
+      ["9 · LUIS", "2", "1", "—", "1", "1", "—", "1", "1", "100,0%"],
     ]);
   });
 
@@ -118,23 +118,23 @@ describe("TechnicalStatsPanel · the numbers (characterisation)", () => {
 
     expect(connections()).toEqual([["LUIS", "JUAN", "1"]]);
     expect(screen.getByText("1 de 2 remates con coordenadas. Ataque hacia arriba.")).toBeInTheDocument();
-    expect([zone("Izquierda"), zone("Centro"), zone("Derecha")]).toEqual(["Izquierda0", "Centro0", "Derecha1"]);
+    expect([zone("Izquierda"), zone("Centro"), zone("Derecha")]).toEqual(["Izquierda—", "Centro—", "Derecha1"]);
     expect(timeline()).toEqual([0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0]);
     expect(screen.queryByText(/sin minuto quedan? fuera/)).toBeNull();
 
     expect(compared("Remates")).toEqual(["4", "2"]);
     expect(compared("A puerta")).toEqual(["2", "1"]);
-    expect(compared("Fuera")).toEqual(["2", "0"]);
-    expect(compared("Remates bloqueados")).toEqual(["0", "1"]);
-    expect(compared("Al palo")).toEqual(["0", "0"]);
+    expect(compared("Fuera")).toEqual(["2", "—"]);
+    expect(compared("Remates bloqueados")).toEqual(["—", "1"]);
+    expect(compared("Al palo")).toEqual(["—", "—"]);
     expect(compared("Goles de remate")).toEqual(["1", "1"]);
-    expect(compared("Ocasiones")).toEqual(["0", "0"]);
+    expect(compared("Ocasiones")).toEqual(["—", "—"]);
 
     expect(ranking()).toEqual(["1. JUAN2", "2. LUIS1", "2. PEPE1"]);
     expect(allPlayers()).toEqual([
-      ["7 · JUAN", "2", "2", "0", "0", "0", "1", "0"],
-      ["9 · LUIS", "1", "0", "1", "0", "0", "0", "0"],
-      ["1 · PEPE", "1", "0", "1", "0", "0", "0", "0"],
+      ["7 · JUAN", "2", "2", "—", "—", "—", "1", "—"],
+      ["9 · LUIS", "1", "—", "1", "—", "—", "—", "—"],
+      ["1 · PEPE", "1", "—", "1", "—", "—", "—", "—"],
     ]);
   });
 
@@ -146,7 +146,7 @@ describe("TechnicalStatsPanel · the numbers (characterisation)", () => {
     expect(kpi("Entradas ganadas")).toBe("Entradas ganadas—0 / 0 con resultado conocido · 0 sin resultado");
     expect(screen.getByRole("heading", { name: "JUAN y el rival" })).toBeInTheDocument();
     expect(compared("Pases intentados")).toEqual(["2", "1"]);
-    expect(compared("Pases recibidos")).toEqual(["3", "0"]);
+    expect(compared("Pases recibidos")).toEqual(["3", "—"]);
     expect(connections()).toEqual([
       ["PEPE", "JUAN", "2"],
       ["JUAN", "LUIS", "1"],

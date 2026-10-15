@@ -122,10 +122,10 @@ it("a tie of more than three keeps the podium at three steps and names the rest 
 it("the porra is the shared PorraCard: the score, the rule, and its write for the next match", () => {
   render(<Porra next={match({ id: "j9", status: "scheduled", date: NOW + 86_400_000 })} uid="u1" rows={[]} now={NOW} />);
   expect(screen.getByRole("heading", { name: "¿Cómo acaba?" })).toBeInTheDocument();
-  expect(screen.getByText(`Cierra en 1 d 0 h 0 min. ${PORRA_RULE}`)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Un gol más del Piti" }));
+  expect(screen.getByRole("button", { name: /Cómo se puntúa/ })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Un gol más del rival" }));
   fireEvent.click(screen.getByRole("button", { name: "Guardar mi porra" }));
-  expect(writes.predictScore).toHaveBeenCalledWith(ME, "j9", 1, 0);
+  expect(writes.predictScore).toHaveBeenCalledWith(ME, "j9", 0, 1, []);
 });
 
 it("no next match: the porra waits for it, with the same rule", () => {

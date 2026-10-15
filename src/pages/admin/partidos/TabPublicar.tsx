@@ -1,3 +1,5 @@
+import { ActaPreflight } from "./ActaPreflight";
+import type { ActaReview } from "../data/adminLogic";
 // The «Publicar» tab, as on the canvas (stats-gen/ad-v2-full.mjs `pubT`): the crónica in a light card (its
 // headline from the acta, the text editable) + «Preparar resumen con el acta», the match photo with its
 // HTTPS check (and the gallery), the minutes computed from the convocatoria and the changes, and the MVP
@@ -40,6 +42,8 @@ export function TabPublicar({
   nameOf,
   mvp,
   onPoster,
+  review,
+  onReview,
 }: {
   phase: Phase;
   sheet: MatchSheet;
@@ -51,6 +55,8 @@ export function TabPublicar({
   nameOf: (id: string) => string;
   mvp: { title: string; detail: string };
   onPoster: () => void;
+  review: ActaReview;
+  onReview: () => void;
 }) {
   const id = useId();
   const [newUrl, setNewUrl] = useState("");
@@ -72,6 +78,7 @@ export function TabPublicar({
   };
   return (
     <div className="pubg">
+      <ActaPreflight sheet={sheet} review={review} update={update} nameOf={nameOf} onReview={onReview}/>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="cron">
           <span className="k">{cronicaKicker(j, sheet.date, dayOf)}</span>

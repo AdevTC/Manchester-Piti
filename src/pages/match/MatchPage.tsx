@@ -410,7 +410,7 @@ export function MatchPage() {
           ) : (
             <StatePanel kind="empty" compact title="Sin análisis de este partido" body="Nadie ha narrado sus jugadas: pases, remates, entradas… Cuando el acta las apunte, el juego en detalle saldrá aquí." />
           ))}
-        {active === 3 && <VestuarioTab match={match} players={players} phase={phase} />}
+        {active === 3 && <VestuarioTab match={match} matches={matches} players={players} phase={phase} />}
       </div>
     </>,
   );

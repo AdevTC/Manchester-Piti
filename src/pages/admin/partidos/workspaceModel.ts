@@ -109,6 +109,7 @@ export function goalWho(g: GoalRow, rival: string, nameOf: (id: string) => strin
 }
 /** «Gol 1 · pase de HUBEROSKI», «Gol 3 · falta quién marcó», «Gol 2 de penalti · sin asistencia». */
 export function goalSub(g: GoalRow, nameOf: (id: string) => string): string {
+  if (g.assistReviewed === false) return "Asistencia pendiente de revisar";
   const kind = g.kind === "goal_penalty" ? " de penalti" : g.kind === "goal_freekick" ? " de falta" : "";
   const base = `Gol ${g.n}${kind}`;
   if (g.open) return `${base} · falta quién marcó`;

@@ -26,6 +26,7 @@ const input = z.discriminatedUnion("action", [
       minute: z.number().int().min(0).max(150),
       playerId: idSchema.optional(),
       assistPlayerId: idSchema.optional(),
+      assistReviewed: z.boolean().optional(),
       inPlayerId: idSchema.optional(),
     }),
   }),
@@ -75,7 +76,7 @@ export const liveEvent = onCall(async (req) => {
       if (m.clock && data.clockRevision !== m.clock.revision) throw new HttpsError("aborted", "La parte ha cambiado. Revisa el reloj antes de apuntar la jugada.");
       const elapsed = reading && !data.manualTime ? reading.elapsedSeconds : data.event.minute * 60;
       if (reading && elapsed > reading.elapsedSeconds) throw new HttpsError("invalid-argument", "La jugada no puede estar en el futuro.");
-      const stamped = { ...data.event, ...(reading ? { minute: Math.floor(elapsed / 60), elapsedSeconds: elapsed, period: reading.period, source: "live" as const } : {}) };
+      const stamped = { ...data.event, ...(["goal", "goal_penalty", "goal_freekick"].includes(data.event.type) ? { assistReviewed: data.event.assistReviewed ?? !!data.event.assistPlayerId } : {}), ...(reading ? { minute: Math.floor(elapsed / 60), elapsedSeconds: elapsed, period: reading.period, source: "live" as const } : {}) };
       const problem = liveProblem(reading ? { ...match, date: now, duration: 150 } : match, stamped, now);
       if (problem) throw new HttpsError("failed-precondition", problem);
       const event = Object.fromEntries(Object.entries({ id: data.requestId ? `live-${data.requestId}` : liveId(now), ...stamped }).filter(([, v]) => v !== undefined));
