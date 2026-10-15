@@ -171,7 +171,7 @@ export function VestuarioPage() {
         suggestion={fichas.suggestion}
         admin={admin}
         training={confirmedTraining}
-        today={today ? <HoyCard matches={matches} players={players} now={now} rsvpId="vx-rsvp" className="vx-hoy" /> : undefined}
+        today={today ? <HoyCard matches={matches} players={players} now={now} rsvpId="vx-rsvp" className="vx-hoy" mvpBlock={{ id: "vx-mvp", matchId: lastMatch?.id }} /> : undefined}
         captain={
           admin ? (
             <CaptainStrip hasNext={!!next} claims={pendingClaims.data} linked={fichas.linked} squad={fichas.squad} fichaName={fichaName} />

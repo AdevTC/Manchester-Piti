@@ -21,7 +21,7 @@ export function HomeHoy({ matches, players, now }: { matches: readonly ClubMatch
   if (!hydrated || !hoyModel(matches, viewer, now)) return null;
   return (
     <Suspense fallback={null}>
-      <HoyCard matches={matches} players={players} now={now} className="hm-hoy" />
+      <HoyCard matches={matches} players={players} now={now} className="hm-hoy" variant="wide" />
     </Suspense>
   );
 }

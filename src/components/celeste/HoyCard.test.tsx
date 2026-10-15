@@ -23,6 +23,7 @@ const state = vi.hoisted(() => ({
   absences: [] as { id: string; uid: string; playerId: string | null; name: string; from: string; to: string; note: string; createdAt: number }[],
   prediction: null as { goalsFor: number; goalsAgainst: number } | null,
   mvp: new Map<string, { id: string; counts: Record<string, number>; total: number }>(),
+  myVote: "",
   reads: [] as string[],
   writes: { setAvailability: vi.fn(async () => undefined), voteMvp: vi.fn(async () => undefined) },
 }));
@@ -34,7 +35,7 @@ vi.mock("../../pages/vestuario/live", () => {
     useMeetingNote: (id?: string) => (id && state.reads.push(`matchPrivate/${id}`), live(id ? state.note : "")),
     useMvpResults: () => state.mvp,
     useMyPrediction: (id?: string, uid?: string) => (id && uid && state.reads.push(`predictions/${id}/${uid}`), live(id && uid ? state.prediction : null)),
-    useMyMvpVote: () => live(""),
+    useMyMvpVote: (id?: string, uid?: string) => live(id && uid ? state.myVote : ""),
     useAbsences: (today: string, enabled?: boolean) => (enabled && state.reads.push(`absences/${today}`), live(enabled ? state.absences : [])),
   };
 });
@@ -60,6 +61,16 @@ const players = [
 const started = transitionClock(readyClock(), "start", DATE + 2 * MIN);
 const ended = transitionClock(transitionClock(transitionClock(started, "halftime", DATE + 27 * MIN), "second", DATE + 32 * MIN), "finish", DATE + 58 * MIN);
 const card = (m: ClubMatch, now: number) => <HoyCard matches={[m]} players={players} now={now} rsvpId="vx-rsvp" />;
+/** The acta out, the vote open, two players in the ledger: someone to vote. */
+const voting: ClubMatch = {
+  ...base,
+  clock: ended,
+  status: "finished",
+  goalsFor: 2,
+  goalsAgainst: 1,
+  voteClosesAt: DATE + 48 * HOUR,
+  ledger: { adri: { played: true }, b: { played: true } } as unknown as ClubMatch["ledger"],
+};
 
 beforeEach(() => {
   state.viewer = { member: true, admin: false, playerId: "adri" };
@@ -69,6 +80,7 @@ beforeEach(() => {
   state.absences = [];
   state.prediction = null;
   state.mvp = new Map();
+  state.myVote = "";
   state.reads = [];
 });
 
@@ -179,6 +191,15 @@ describe("HoyCard", () => {
     expect(screen.queryByRole("button", { name: "Cambiar mi respuesta" })).toBeNull();
   });
 
+  it("away, waiting for the whistle, but «Voy» by hand over the absence: no absence line, and «Sales de titular»", () => {
+    state.absences = [{ id: "a1", uid: "u1", playerId: "adri", name: "ADRI", from: "2026-11-08", to: "2026-11-08", note: "", createdAt: 1 }];
+    state.availability = [{ uid: "u1", response: "yes", name: "ADRI", playerId: "adri" }];
+    render(card(base, DATE + 5 * MIN));
+    expect(state.reads).toContain("availability/j8");
+    expect(screen.queryByText("Hoy no juegas: estás ausente")).toBeNull();
+    expect(screen.getByText("Sales de titular · MC")).toBeInTheDocument();
+  });
+
   it("an absence on another day, or once the ball rolls: no line (and no absences read while live)", () => {
     state.absences = [{ id: "a1", uid: "u1", playerId: "adri", name: "ADRI", from: "2026-11-09", to: "2026-11-12", note: "", createdAt: 1 }];
     const { unmount } = render(card(base, DATE - 2 * HOUR));
@@ -188,6 +209,70 @@ describe("HoyCard", () => {
     render(card({ ...base, clock: started }, DATE + 15 * MIN));
     expect(screen.queryByText("Hoy no juegas: estás ausente")).toBeNull();
     expect(state.reads.filter((r) => r.startsWith("absences"))).toEqual([]);
+  });
+
+  it("the vestuario (its MVP block about this match): no second ballot, «Vota al MVP ↓» down to the block", () => {
+    const block = document.createElement("section");
+    block.id = "vx-mvp";
+    block.tabIndex = -1;
+    block.scrollIntoView = vi.fn();
+    document.body.append(block);
+    try {
+      render(<HoyCard matches={[voting]} players={players} now={DATE + 3 * HOUR} mvpBlock={{ id: "vx-mvp", matchId: "j8" }} />);
+      expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Manchester Piti 2, MAD SKY 1");
+      expect(screen.queryByRole("group", { name: "Tu voto" })).toBeNull();
+      const go = screen.getByRole("link", { name: "Vota al MVP" });
+      expect(go).toHaveTextContent("Vota al MVP ↓");
+      expect(go).toHaveAttribute("href", "#vx-mvp");
+      fireEvent.click(go);
+      expect(block.scrollIntoView).toHaveBeenCalled();
+      expect(block).toHaveFocus();
+    } finally {
+      block.remove();
+    }
+  });
+
+  it("the vestuario, once he has voted: «Ya has votado · ver la carrera ↓»", () => {
+    state.myVote = "b";
+    render(<HoyCard matches={[voting]} players={players} now={DATE + 3 * HOUR} mvpBlock={{ id: "vx-mvp", matchId: "j8" }} />);
+    const go = screen.getByRole("link", { name: "Ya has votado · ver la carrera" });
+    expect(go).toHaveTextContent("Ya has votado · ver la carrera ↓");
+    expect(go).toHaveAttribute("href", "#vx-mvp");
+    expect(screen.queryByRole("group", { name: "Tu voto" })).toBeNull();
+  });
+
+  it("the vestuario's MVP block about another match: the card keeps its ballot", () => {
+    render(<HoyCard matches={[voting]} players={players} now={DATE + 3 * HOUR} mvpBlock={{ id: "vx-mvp", matchId: "j7" }} />);
+    expect(screen.getByRole("group", { name: "Tu voto" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Vota al MVP" })).toBeNull();
+  });
+
+  it("the home (wide): the ballot in the card, beside the score", () => {
+    const { container } = render(<HoyCard matches={[voting]} players={players} now={DATE + 3 * HOUR} variant="wide" className="hm-hoy" />);
+    const hoy = container.querySelector<HTMLElement>("section.hoy")!;
+    expect(hoy).toHaveClass("hoy-wide", "hoy-two", "hm-hoy");
+    expect(within(hoy.querySelector<HTMLElement>(".hoy-side")!).getByRole("group", { name: "Tu voto" })).toBeInTheDocument();
+    expect(within(hoy.querySelector<HTMLElement>(".hoy-main")!).getByRole("link", { name: /La carrera del MVP/ })).toBeInTheDocument();
+  });
+
+  it("the home (wide) before kick-off: the member's part in one column, the match's in the other", () => {
+    state.note = "Quedamos 11:15 en la puerta";
+    const { container } = render(<HoyCard matches={[base]} players={players} now={DATE - 2 * HOUR} variant="wide" />);
+    const hoy = container.querySelector<HTMLElement>("section.hoy")!;
+    expect(hoy).toHaveClass("hoy-wide", "hoy-two");
+    const main = within(hoy.querySelector<HTMLElement>(".hoy-main")!);
+    const side = within(hoy.querySelector<HTMLElement>(".hoy-side")!);
+    expect(main.getByRole("radiogroup", { name: "Tu respuesta a la convocatoria" })).toBeInTheDocument();
+    expect(main.getByText("Quedamos 11:15 en la puerta")).toBeInTheDocument();
+    expect(main.getByText("Titulares de la convocatoria")).toBeInTheDocument();
+    expect(side.getByRole("timer")).toBeInTheDocument();
+    expect(side.getByText("2ª equipación")).toBeInTheDocument();
+    expect(side.getByRole("link", { name: /Cómo llegar/ })).toBeInTheDocument();
+  });
+
+  it("the vestuario's card stays the compact one (no wide layout)", () => {
+    const { container } = render(card(base, DATE - 2 * HOUR));
+    expect(container.querySelector("section.hoy")).not.toHaveClass("hoy-wide");
   });
 
   it("a fan: nothing rendered, nothing read", () => {

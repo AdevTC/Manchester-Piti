@@ -1,11 +1,25 @@
 /* «Hoy» (HoyCard): the match-day card on the home and in the vestuario. Tokens from .vx (styles/vestuario.css);
    the shared pieces keep their own sheets (hm-kick, hm-btn, hm-ghostbtn and pt-chip in the Celeste base,
    the countdown's flip tiles and the live bar in partidos.css, the switch and the ballot in member.css).
-   Phone first; the hosts place it (pages/home: .hm-hoy, vestuario: .vx-hoy). */
+   Phone first; the hosts place it (pages/home: .hm-hoy, vestuario: .vx-hoy). The home's card is .hoy-wide:
+   from 900 px of page it spans the content in two columns; the vestuario's stays the one compact column. */
 
 .hoy{position:relative;z-index:var(--z-raise);display:grid;gap:14px;align-content:start;padding:18px 16px 20px;border-radius:24px;background:var(--hoy-bg,rgba(8,19,47,.72));box-shadow:inset 0 0 0 1px var(--hoy-line,rgba(159,208,242,.22)),0 24px 50px -30px rgba(0,0,0,.7);text-align:left;color:var(--ink)}
 [data-theme="light"] .vx .hoy{--hoy-bg:rgba(255,255,255,.88);--hoy-line:rgba(12,23,51,.1)}
 .hoy .hoy-kick{display:flex;align-items:center;gap:8px;margin:0}
+
+/* the two groups (.hoy-main, .hoy-side) only exist for the wide card: in one column they step aside and
+   each piece keeps the phone's reading order */
+.hoy-col{display:contents}
+.hoy-starter,.hoy-porra{order:1}
+.hoy-absent,.hoy-ballot{order:2}
+.hoy .pt-cd,.hoy-wait{order:3}
+.hoy-rsvp{order:4}
+.hoy-facts{order:5}
+.hoy-facts.hoy-kit{order:6;margin-top:-6px}
+.hoy-chips{order:7}
+.hoy-seven{order:8}
+.hoy-acts{order:9}
 .hoy-t{margin:0;font-family:'Anybody';font-weight:800;font-size:26px;line-height:1.05;letter-spacing:-.02em;font-variation-settings:'wdth' 108;text-wrap:balance;overflow-wrap:anywhere}
 .hoy-vs{font-family:'Geist Mono';font-weight:500;font-size:.55em;color:var(--muted);vertical-align:middle}
 .hoy-score b{font-variant-numeric:tabular-nums;color:var(--accent)}
@@ -67,6 +81,20 @@
 .hoy-t{font-size:32px}
 .hoy.hm-hoy{margin:calc(100px + var(--isle,0px)) 40px 0;max-width:760px}
 .hoy.hm-hoy + .hm-match{padding-top:36px}
+}
+@container (min-width:900px){
+/* the home: the content's width, in two columns — before kick-off the member's part (answer, quedada,
+   siete) left and the match's (countdown, kit, weather, the way there) right; after it the score left and
+   the ballot right */
+.hoy.hoy-wide{max-width:none}
+.hoy-wide.hoy-two{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);column-gap:40px}
+.hoy-wide.hoy-two > .hoy-kick,.hoy-wide.hoy-two > .hoy-t{grid-column:1 / -1}
+.hoy-wide.hoy-two > .hoy-col{display:grid;gap:14px;align-content:start}
+.hoy-wide.hoy-two .hoy-facts.hoy-kit{margin-top:0}
+.hoy-wide.hoy-two[data-stage="after"]{grid-template-rows:auto auto auto 1fr}
+.hoy-wide.hoy-two[data-stage="after"] > .hoy-kick,.hoy-wide.hoy-two[data-stage="after"] > .hoy-t{grid-column:1}
+.hoy-wide.hoy-two[data-stage="after"] > .hoy-main{grid-column:1}
+.hoy-wide.hoy-two[data-stage="after"] > .hoy-side{grid-column:2;grid-row:1 / -1}
 }
 @container (min-width:1100px){
 .hoy.hm-hoy{margin-inline:64px}

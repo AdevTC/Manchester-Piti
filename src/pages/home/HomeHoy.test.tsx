@@ -11,7 +11,11 @@ const state = vi.hoisted(() => ({ viewer: { member: true, admin: false, playerId
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => state.viewer }));
 vi.mock("../../components/celeste/HoyCard", () => {
   state.loaded++;
-  return { HoyCard: ({ matches, className }: { matches: ClubMatch[]; className?: string }) => <section aria-label="Hoy" className={className} data-matches={matches.length} /> };
+  return {
+    HoyCard: ({ matches, className, variant, mvpBlock }: { matches: ClubMatch[]; className?: string; variant?: string; mvpBlock?: unknown }) => (
+      <section aria-label="Hoy" className={className} data-matches={matches.length} data-variant={variant} data-mvp-block={mvpBlock ? "yes" : "no"} />
+    ),
+  };
 });
 
 const { HomeHoy } = await import("./HomeHoy");
@@ -42,9 +46,11 @@ it("a member the day before: nothing", () => {
   expect(container).toBeEmptyDOMElement();
 });
 
-it("a member on match day: the card, above the hero (.hm-hoy)", async () => {
+it("a member on match day: the card, above the hero (.hm-hoy), wide, with its own ballot (no MVP block to send to)", async () => {
   render(host(MIDNIGHT));
   const card = await screen.findByRole("region", { name: "Hoy" });
   expect(card).toHaveClass("hm-hoy");
+  expect(card).toHaveAttribute("data-variant", "wide");
+  expect(card).toHaveAttribute("data-mvp-block", "no");
   expect(state.loaded).toBe(1);
 });
