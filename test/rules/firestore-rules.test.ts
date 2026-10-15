@@ -22,6 +22,7 @@ import { beforeAll, beforeEach, afterAll, describe, it } from "vitest";
 import type { PosCode, PositionSet } from "../../src/lib/positions";
 import { editPositionsPayload, positionsPayload, proposalPayload, reviewPayload } from "../../src/lib/positionsEdit";
 import { cajaMovFields, cajaSettingsFields, cajaVoidFields, type NewCajaMov } from "../../src/lib/derived/caja";
+import { absenceFields } from "../../src/lib/derived/absences";
 let env: RulesTestEnvironment;
 const db = (uid?: string) =>
   uid
@@ -966,6 +967,69 @@ describe("Pizarra · Bloque 5 (la voz de la charla, el vídeo de la jugada)", ()
     const play = { id: "j", name: "Córner", kind: "propia", frames: [], video: { url: "https://youtu.be/abc", at: 75 } };
     await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, plays: [play] }));
     await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { plays: Array.from({ length: 13 }, () => play) }));
+  });
+});
+
+describe("Ausencias (absences)", () => {
+  const absence = (who: string, from = "2026-10-12", to = "2026-10-19", note = "", extra: object = {}) => ({
+    ...absenceFields({ uid: who, name: who, playerId: null }, from, to, note),
+    createdAt: serverTimestamp(),
+    ...extra,
+  });
+  const seeded = (uid: string) => ({ uid, playerId: null, name: uid, from: "2026-10-12", to: "2026-10-19", createdAt: Timestamp.fromMillis(0) });
+
+  it("los socios leen las de todos; fuera del equipo, nadie", async () => {
+    await seed("absences/x", seeded("other"));
+    await assertSucceeds(getDoc(doc(db("member"), "absences", "x")));
+    await assertSucceeds(getDocs(collection(db("member"), "absences")));
+    await assertFails(getDoc(doc(db("outsider"), "absences", "x")));
+    await assertFails(getDoc(doc(db(), "absences", "x")));
+  });
+
+  it("cada socio escribe las suyas, firmadas y con fechas de verdad, de 1 a 120 días", async () => {
+    const add = (who: string, data: object) => setDoc(doc(collection(db(who), "absences")), data);
+    await assertSucceeds(add("member", absence("member")));
+    await assertSucceeds(add("member", absence("member", "2026-10-12", "2026-10-12", "Boda en Cuenca")));
+    await assertSucceeds(add("member", absence("member", "2026-10-01", "2027-01-28"))); // 120 días justos
+    await assertSucceeds(add("member", absence("member", "2026-10-20", "2026-10-30"))); // cruza el cambio de hora
+    const bad = [
+      absence("other"), // a nombre de otro
+      absence("member", undefined, undefined, "", { name: "other" }),
+      absence("member", undefined, undefined, "", { playerId: "p1" }),
+      absence("member", "2026-10-19", "2026-10-12"),
+      absence("member", "2026-10-01", "2027-01-29"), // 121 días
+      absence("member", "12/10/2026", "19/10/2026"),
+      absence("member", "2026-02-30", "2026-03-02"),
+      absence("member", "2026-13-01", "2026-13-02"),
+      absence("member", undefined, undefined, "", { note: "x".repeat(141) }),
+      absence("member", undefined, undefined, "", { note: 5 }),
+      absence("member", undefined, undefined, "", { createdAt: Timestamp.fromMillis(0) }),
+      absence("member", undefined, undefined, "", { response: "no" }),
+    ];
+    for (const d of bad) await assertFails(add("member", d));
+    const { to: _to, ...noEnd } = absence("member");
+    void _to;
+    await assertFails(add("member", noEnd));
+    await assertFails(add("outsider", absence("outsider")));
+  });
+
+  it("sin ediciones: se quita y se pone otra; los capitanes quitan cualquiera", async () => {
+    await seed("absences/mine", seeded("member"));
+    await seed("absences/theirs", seeded("other"));
+    await assertFails(updateDoc(doc(db("member"), "absences", "mine"), { to: "2026-10-20" }));
+    await assertFails(updateDoc(doc(db("admin"), "absences", "theirs"), { to: "2026-10-20" }));
+    await assertFails(deleteDoc(doc(db("member"), "absences", "theirs")));
+    await assertFails(deleteDoc(doc(db("outsider"), "absences", "theirs")));
+    await assertSucceeds(deleteDoc(doc(db("member"), "absences", "mine")));
+    await assertSucceeds(deleteDoc(doc(db("admin"), "absences", "theirs")));
+  });
+
+  it("la respuesta a mano sustituye a la de la ausencia (sin source); el navegador nunca escribe source", async () => {
+    await seed("matches/next", { status: "scheduled", date: Timestamp.fromMillis(Date.now() + 24 * 3600000) });
+    await seed("matchPrivate/next/availability/member", { response: "no", name: "member", playerId: null, at: Timestamp.now(), source: "absence", absenceId: "x" });
+    const ref = doc(db("member"), "matchPrivate", "next", "availability", "member");
+    await assertFails(setDoc(ref, { response: "no", name: "member", playerId: null, at: serverTimestamp(), source: "absence", absenceId: "x" }));
+    await assertSucceeds(setDoc(ref, { response: "yes", name: "member", playerId: null, at: serverTimestamp() }));
   });
 });
 

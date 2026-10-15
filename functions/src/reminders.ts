@@ -3,7 +3,8 @@
 // turned off «Recordatorios automáticos» for that match (convocatoriaReminders/{matchId}.auto == false).
 // To the member's own devices (personal topic «convocatoria»: playerLinks gives the member of a player).
 // The same 5-minute job sends the «Cambio en el siete» held by its 10-minute window (seven.ts).
-// And when someone changes their answer in the last 24 h, the captains get a notice (debounced per player).
+// And when someone changes their answer in the last 24 h, the captains get a notice (debounced per player)
+// — never for the «No puedo» an absence writes (its one notice is absences.ts's).
 // Cloud Scheduler has no Madrid location: the job lives in Belgium, like pushKickoff.
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
@@ -12,6 +13,7 @@ import { db } from "./common.js";
 import { sendTo, vapidPrivate } from "./push.js";
 import { flushSevens } from "./seven.js";
 import { nameFor } from "./names.js";
+import { byAbsence } from "./absencesLogic.js";
 import { HOUR, LATE_DEBOUNCE_MS, lateChangeNotice, REMINDER_MIN_LEAD, reminderDue, reminderNotice, unanswered } from "./remindersLogic.js";
 
 const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x) : []);
@@ -68,6 +70,8 @@ export const pushOnAnswer = onDocumentWritten({ document: "matchPrivate/{matchId
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!before || !after || before.response === after.response) return;
+  // (an absence's «No puedo» is not a change of mind: the captains get its own one notice, absences.ts)
+  if (byAbsence(after)) return;
   const { matchId, uid } = event.params;
   const match = await db.doc(`matches/${matchId}`).get();
   if (!match.exists || match.get("archived") || match.get("status") !== "scheduled") return;

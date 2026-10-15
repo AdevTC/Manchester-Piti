@@ -3,6 +3,7 @@
 // run them.
 import { eventMinute } from "./matchEngine.js";
 import { resultLetter, resultTitle } from "./result.js";
+import { absenceRangeText } from "./absencesLogic.js";
 
 export const TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"] as const;
 /** Personal notices of the vestuario door: "door" for admins (someone asks to come in), "access" for whoever asked. */
@@ -331,6 +332,28 @@ export function convocatoriaMessage(id: string, kind: "first" | "changes", match
   return kind === "first"
     ? { topic: "lineup", title: `Ya está la convocatoria${of}`, body: `${rival}${day}. Mira si te toca en la web.`, tag: `conv-${id}`, url: `/matches/${id}` }
     : { topic: "lineup", title: `Cambios en la convocatoria${of}`, body: `${rival}${day}. Mira cómo queda en la web.`, tag: `conv-${id}`, url: `/matches/${id}` };
+}
+
+// ── Ausencias: one notice to the captains per absence (never one «Baja» per match) ──
+
+/**
+ * «NOMBRE no puede del 12 al 19 oct (2 partidos)»: a member's absence, to the captains (their personal
+ * «convocatoria» topic, like the late changes), once per absence (pushLog `absence-<id>`). `matches` are
+ * the answerable matches it answered «No puedo», soonest first: the link opens the first one's Vestuario
+ * tab (the convocatoria's answers), or the vestuario when there is none yet.
+ */
+export function absenceNotice(absence: { id: string; from: string; to: string; note?: string }, who: string, matches: readonly { id: string }[]): Notice {
+  const n = matches.length;
+  const count = n === 1 ? " (1 partido)" : n > 1 ? ` (${n} partidos)` : "";
+  const note = absence.note?.trim();
+  return {
+    topic: "convocatoria",
+    title: `${who} no puede ${absenceRangeText(absence.from, absence.to)}${count}`,
+    body: (note ? `«${note}». ` : "") + (n ? "Ya sale como «No puedo» en la convocatoria." : "Saldrá como «No puedo» en los partidos de esas fechas."),
+    tag: `absence-${absence.id}`,
+    url: n ? `/matches/${encodeURIComponent(matches[0].id)}?tab=vestuario` : "/vestuario",
+    log: `absence-${absence.id}`,
+  };
 }
 
 // ── «Cambio en el siete»: the official's seven changed after it was published ──

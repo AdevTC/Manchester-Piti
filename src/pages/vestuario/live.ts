@@ -24,6 +24,7 @@ import { mapMvp, MVP_RESULTS_KEY } from "../../lib/firestoreMappers";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import type { TrainingSlot } from "../../lib/vestuario";
 import { EMPTY_CAJA_SETTINGS, parseCajaMov, parseCajaSettings, type CajaMov, type CajaSettings } from "../../lib/derived/caja";
+import { currentAbsences, parseAbsence, type Absence } from "../../lib/derived/absences";
 
 interface Live<T> {
   data: T;
@@ -581,4 +582,24 @@ export function useCaja(seasonId: string | undefined, enabled = true): Caja {
     () => ({ settings: settings.data, movs: list, loading: settings.loading || movs.loading, error: settings.error || movs.error }),
     [settings.data, settings.loading, settings.error, list, movs.loading, movs.error],
   );
+}
+
+// ---------- ausencias («no puedo del 12 al 19»: members read everyone's; derived/absences for the rest)
+const NO_ABSENCES: Absence[] = [];
+/**
+ * The team's absences that end on `today` (Madrid `YYYY-MM-DD`, derived/absences madridDate) or later —
+ * yours and everyone's, soonest first (one shared listener; a new day opens a new one). `enabled` false
+ * (a fan) opens nothing. Filter yours with `uid`, a player's badge with absenceOn.
+ */
+export function useAbsences(today: string, enabled = true): Live<Absence[]> {
+  const q = useLiveQuery<Absence | null>(
+    enabled && today ? `absences/${today}` : null,
+    () => query(collection(db, "absences"), where("to", ">=", today)),
+    parseAbsence,
+  );
+  const list = useMemo(() => {
+    const ok = currentAbsences(q.data.filter((a): a is Absence => a !== null), today);
+    return ok.length ? ok : NO_ABSENCES;
+  }, [q.data, today]);
+  return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
 }

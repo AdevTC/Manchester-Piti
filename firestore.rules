@@ -415,6 +415,34 @@ service cloud.firestore {
         && request.resource.data.at == request.time;
       allow delete: if false;
     }
+    // ---- Ausencias («no puedo del 12 al 19»): a member's own range of Madrid calendar days, inclusive, at
+    // most 120 days (functions/src/absencesLogic.ts ABSENCE_MAX_DAYS), signed as themselves, with an
+    // optional note (≤ 140) the team sees. No edits: delete it and write another. The captains delete any.
+    // The backend (onAbsenceWritten) answers «No puedo» on the matches in those dates.
+    function absenceDay(s) {
+      return s is string && s.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    }
+    function dayStamp(s) {
+      let p = s.split('-');
+      return timestamp.date(int(p[0]), int(p[1]), int(p[2]));
+    }
+    function absenceOk(d) {
+      return d.keys().hasOnly(['uid','playerId','name','from','to','note','createdAt'])
+        && d.keys().hasAll(['uid','playerId','name','from','to','createdAt'])
+        && d.uid == request.auth.uid
+        && d.name == me().nickname && d.playerId == me().get('playerId', null)
+        && absenceDay(d.from) && absenceDay(d.to)
+        && dayStamp(d.from) <= dayStamp(d.to)
+        && dayStamp(d.to) <= dayStamp(d.from) + duration.value(119, 'd')
+        && (!('note' in d) || (d.note is string && d.note.size() <= 140))
+        && d.createdAt == request.time;
+    }
+    match /absences/{id} {
+      allow read: if teamMember();
+      allow create: if teamMember() && absenceOk(request.resource.data);
+      allow update: if false;
+      allow delete: if teamMember() && (resource.data.uid == request.auth.uid || admin());
+    }
     // ---- La caja: the team's money as a shared ledger (no real payments, no fines). Every member sees
     // everything; the captains write. The season's settings: the cuota (cents), its period and «Cómo pagar».
     match /caja/{seasonId} {
