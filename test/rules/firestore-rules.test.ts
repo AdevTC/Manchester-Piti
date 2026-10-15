@@ -21,7 +21,7 @@ import {
 import { beforeAll, beforeEach, afterAll, describe, it } from "vitest";
 import type { PosCode, PositionSet } from "../../src/lib/positions";
 import { editPositionsPayload, positionsPayload, proposalPayload, reviewPayload } from "../../src/lib/positionsEdit";
-import { cajaMovFields, cajaSettingsFields, type NewCajaMov } from "../../src/lib/derived/caja";
+import { cajaMovFields, cajaSettingsFields, cajaVoidFields, type NewCajaMov } from "../../src/lib/derived/caja";
 let env: RulesTestEnvironment;
 const db = (uid?: string) =>
   uid
@@ -1040,15 +1040,29 @@ describe("La caja (caja, cajaMovs)", () => {
     await assertSucceeds(setDoc(doc(db("admin"), "cajaMovs", "nomatch"), noMatch));
   });
 
-  it("append-only: anular solo pasa void de false a true; nada más cambia y nadie borra", async () => {
+  it("append-only: anular solo pasa void de false a true, con quién y cuándo; nada más cambia y nadie borra", async () => {
     await seed("cajaMovs/x", seeded);
-    await assertFails(updateDoc(doc(db("member"), "cajaMovs", "x"), { void: true }));
+    const voiding = (by: string, extra: object = {}) => ({ ...cajaVoidFields(by), voidedAt: serverTimestamp(), ...extra });
+    await assertFails(updateDoc(doc(db("member"), "cajaMovs", "x"), voiding("member")));
     await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { amount: 1 }));
-    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: true, concept: "Otro" }));
+    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), voiding("admin", { concept: "Otro" })));
+    // without who and when, or signed by someone else, or with another time: refused
+    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: true }));
+    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: true, voidedBy: "admin" }));
+    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: true, voidedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), voiding("super")));
+    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), voiding("admin", { voidedAt: Timestamp.fromMillis(0) })));
+    // (and the trail is never written without voiding)
+    await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { voidedBy: "admin", voidedAt: serverTimestamp() }));
     await assertFails(deleteDoc(doc(db("admin"), "cajaMovs", "x")));
     await assertFails(deleteDoc(doc(db("super"), "cajaMovs", "x")));
-    await assertSucceeds(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: true }));
+    await assertSucceeds(updateDoc(doc(db("admin"), "cajaMovs", "x"), voiding("admin")));
+    const voided = (await getDoc(doc(db("member"), "cajaMovs", "x"))).data();
+    const at: unknown = voided?.voidedAt;
+    if (voided?.voidedBy !== "admin" || typeof (at as { toMillis?: unknown } | undefined)?.toMillis !== "function") throw new Error("anular no dejó quién y cuándo");
+    // voided once: never again (nor un-voided, nor re-signed by another captain)
     await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: false }));
+    await assertFails(updateDoc(doc(db("super"), "cajaMovs", "x"), voiding("super")));
     await assertFails(setDoc(doc(db("admin"), "cajaMovs", "x"), movement("admin")));
   });
 });

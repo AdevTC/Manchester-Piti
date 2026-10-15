@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { collection, doc, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "../../../firebase";
 import { useAuth } from "../../../context/AuthContext";
-import { cajaMovFields, cajaSettingsFields, type CajaSettings, type NewCajaMov } from "../../../lib/derived/caja";
+import { cajaMovFields, cajaSettingsFields, cajaVoidFields, type CajaSettings, type NewCajaMov } from "../../../lib/derived/caja";
 
 export { useCaja, type Caja } from "../../vestuario/live";
 
@@ -35,7 +35,9 @@ export function useCajaWrites(): CajaWrites {
         }
       },
       voidMov: async (id) => {
-        await updateDoc(doc(db, "cajaMovs", id), { void: true });
+        if (!uid) throw new Error("Sin sesión de capitán");
+        // (who and when: the rules require both, so a voided movement always says who undid it)
+        await updateDoc(doc(db, "cajaMovs", id), { ...cajaVoidFields(uid), voidedAt: serverTimestamp() });
       },
       saveSettings: async (seasonId, s) => {
         await setDoc(doc(db, "caja", seasonId), { ...cajaSettingsFields(s), updatedAt: serverTimestamp() });

@@ -7,6 +7,7 @@ import {
   balanceText,
   cajaMovFields,
   cajaSettingsFields,
+  cajaVoidFields,
   centsInput,
   chargedAlready,
   cuotaCargos,
@@ -206,6 +207,13 @@ describe("reading and writing the docs", () => {
     expect(parseCajaMov("x", { ...d, kind: "gasto" })).toBeNull();
     expect(parseCajaMov("x", { ...d, kind: "gasto", playerId: null })?.kind).toBe("gasto");
     expect(parseCajaMov("x", null)).toBeNull();
+  });
+  it("a void movement says who voided it and when (an older one without the trail: nobody, 0)", () => {
+    const d = { seasonId: "t1", kind: "pago", playerId: "ana", amount: 1250, concept: "Bizum", date: "2026-10-15", matchId: null, by: "cap", createdAt: 42, void: true };
+    expect(parseCajaMov("x", { ...d, voidedBy: "cap2", voidedAt: { toMillis: () => 99 } })).toMatchObject({ void: true, voidedBy: "cap2", voidedAt: 99 });
+    expect(parseCajaMov("x", d)).toMatchObject({ void: true, voidedBy: null, voidedAt: 0 });
+    expect(parseCajaMov("x", { ...d, void: false })).not.toHaveProperty("voidedBy");
+    expect(cajaVoidFields("cap")).toEqual({ void: true, voidedBy: "cap" });
   });
   it("parses the settings with defaults", () => {
     expect(parseCajaSettings(undefined)).toEqual({ cuota: 0, cuotaPeriod: "temporada", howToPay: "", updatedAt: 0 });

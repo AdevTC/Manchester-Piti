@@ -430,7 +430,8 @@ service cloud.firestore {
       allow delete: if false;
     }
     // Append-only movements (cents > 0): cargo / pago belong to a player, gasto / ingreso to nobody. A
-    // correction never edits or deletes: it flips `void` false → true, and nothing else.
+    // correction never edits or deletes: it flips `void` false → true, signed with who voided it and
+    // when (`voidedBy`, `voidedAt`), and nothing else.
     function cajaMovOk(d) {
       return d.keys().hasOnly(['seasonId','kind','playerId','amount','concept','date','matchId','by','createdAt','void'])
         && d.keys().hasAll(['seasonId','kind','playerId','amount','concept','date','by','createdAt','void'])
@@ -451,9 +452,12 @@ service cloud.firestore {
       allow read: if teamMember();
       allow create: if admin() && cajaMovOk(request.resource.data);
       allow update: if admin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['void'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['void','voidedBy','voidedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasAll(['void','voidedBy','voidedAt'])
         && resource.data.void == false
-        && request.resource.data.void == true;
+        && request.resource.data.void == true
+        && request.resource.data.voidedBy == request.auth.uid
+        && request.resource.data.voidedAt == request.time;
       allow delete: if false;
     }
   }

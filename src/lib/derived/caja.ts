@@ -45,6 +45,10 @@ export interface CajaMov {
   /** ms (0 while the server time is pending). */
   createdAt: number;
   void: boolean;
+  /** Who voided it (the captain's uid), only on a void movement (null on an older one without it). */
+  voidedBy?: string | null;
+  /** When it was voided (ms; 0 while the server time is pending or unknown), only on a void movement. */
+  voidedAt?: number;
 }
 
 // ───────────────────────── reading the docs ─────────────────────────
@@ -82,6 +86,7 @@ export function parseCajaMov(id: string, d: unknown): CajaMov | null {
     by: typeof d.by === "string" ? d.by : "",
     createdAt: millisOf(d.createdAt),
     void: d.void === true,
+    ...(d.void === true ? { voidedBy: typeof d.voidedBy === "string" && d.voidedBy ? d.voidedBy : null, voidedAt: millisOf(d.voidedAt) } : {}),
   };
 }
 
@@ -310,6 +315,9 @@ export function cajaMovFields(seasonId: string, m: NewCajaMov, by: string) {
     void: false,
   };
 }
+/** «Anular»: the update the rules allow (all but voidedAt, the server's time, added by the writer): `void`
+ *  false → true, signed by the captain who voids it. Nothing else changes. */
+export const cajaVoidFields = (by: string) => ({ void: true as const, voidedBy: by });
 /** The caja/{seasonId} fields (all but updatedAt). */
 export function cajaSettingsFields(s: Pick<CajaSettings, "cuota" | "cuotaPeriod" | "howToPay">) {
   return { cuota: s.cuota, cuotaPeriod: s.cuotaPeriod, howToPay: s.howToPay.trim().slice(0, CAJA_LIMITS.howToPay) };
