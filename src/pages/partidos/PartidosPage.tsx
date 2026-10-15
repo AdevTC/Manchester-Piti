@@ -22,41 +22,17 @@ import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { leaders, matchEvent, playerLines, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
-import { opponentInitials } from "../../lib/clubAnalytics";
-import { calendarRows, countdownParts, dateParts, lastEvent, resultOf, scoreOf, scorersLine, shownMinute, seasonView, type Filter, type SeasonView } from "../../lib/partidos";
+import { calendarRows, dateParts, resultOf, scoreOf, scorersLine, seasonView, type Filter, type SeasonView } from "../../lib/partidos";
+import { Countdown } from "../../components/celeste/Countdown";
+import { kitLabel, mapsUrl, siteOrigin } from "../../lib/derived/venue";
+import { boardLastLine, goalBurstWho, livePlay, scoreboardOf } from "../../lib/derived/scoreboard";
 import { AWAITING_ACTA, kickoffState, kickoffText, PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import { jornadaNumbers } from "../../lib/derived/jornada";
 import { RESULT_LEGEND, RESULT_WORD } from "../../lib/derived/result";
-import "../../styles/home.css";
+import "../../styles/celeste/page.css";
 import "../../styles/partidos.css";
 
-const origin = () => (typeof location === "undefined" ? "" : location.origin);
 const where = (m: ClubMatch) => (m.home === false ? "fuera" : m.home === true ? "en casa" : "");
-const kitLabel = (m: ClubMatch) => (m.kit === "away" ? "2ª equipación" : m.kit === "home" ? "1ª equipación" : "");
-const mapsUrl = (venue: string) => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(venue);
-
-function Countdown({ target }: { target: number }) {
-  const now = useClock(1000);
-  const c = countdownParts(target, now);
-  const label = `Faltan ${Number(c.d)} días, ${Number(c.h)} horas y ${Number(c.m)} minutos`;
-  return (
-    <div className="pt-cd" role="timer" aria-label={label}>
-      {(
-        [
-          [c.d, "DÍAS"],
-          [c.h, "HORAS"],
-          [c.m, "MIN"],
-          [c.s, "SEG"],
-        ] as const
-      ).map(([v, l]) => (
-        <div key={l}>
-          <Flip value={v} />
-          <small>{l}</small>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => string }) {
   const now = useClock(15_000);
@@ -84,22 +60,21 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
           <small>La cuenta atrás arranca sola cuando se publique la próxima jornada</small>
         </p>
         <div className="pt-acts">
-          <AddToCalendar className="hm-btn" label="Suscribirme al calendario" feed={`${origin()}/calendario.ics`} />
+          <AddToCalendar className="hm-btn" label="Suscribirme al calendario" feed={`${siteOrigin()}/calendario.ics`} />
         </div>
       </article>
     );
   }
   const j = view.jornada.get(m.id);
-  const rival = m.rival ?? "Rival";
-  const ini = m.rivalInitials || opponentInitials(rival);
+  const { rival, initials: ini, gf, ga, usSide, rivalSide } = scoreboardOf(m);
   const d = dateParts(m.date);
   const live = m === view.live;
   // The date has come and nobody has started the clock: no frozen 00:00 countdown.
   const pending = !live && kickoffState(m, now) === "pending_whistle";
-  const { gf, ga } = scoreOf(m);
-  const minute = live ? shownMinute(m, now) : null;
-  const last = live ? lastEvent(m.events, nameOf, rival) : null;
-  const sideUs = m.home === false ? "Visitante" : "Local";
+  const play = live ? livePlay(m, now, nameOf) : null;
+  const minute = play ? play.minute : null;
+  const last = play ? play.last : null;
+  const line = play ? boardLastLine(play) : null;
   return (
     <article className={`pt-board pt-rise${live ? " live" : ""}`} style={{ animationDelay: ".15s" }} aria-label={live ? `En directo contra ${rival}` : pending ? `${PENDING_WHISTLE} contra ${rival}` : `Próximo partido: ${rival}`}>
       <div className="pt-btop">
@@ -119,7 +94,7 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
         <div className="pt-team">
           <img src="/crest-128.webp" alt="" />
           <b>MANCHESTER PITI</b>
-          <small>{sideUs}</small>
+          <small>{usSide}</small>
         </div>
         {live ? (
           <div className="pt-score" role="status" aria-label={`Marcador: ${gf} a ${ga}`}>
@@ -133,7 +108,7 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
         <div className="pt-team">
           {m.rivalLogoUrl ? <img src={m.rivalLogoUrl} alt="" /> : <span className="ini">{ini}</span>}
           <b>{rival}</b>
-          <small>{m.home === false ? "Local" : "Visitante"}</small>
+          <small>{rivalSide}</small>
         </div>
       </div>
       {(live || pending) && syncChip && (
@@ -144,18 +119,18 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
       {live ? (
         <>
           <div className="pt-prog" aria-hidden="true">
-            <i style={{ width: `${Math.min(100, ((minute ?? 0) / (m.duration ?? 50)) * 100)}%` }} />
+            <i style={{ width: `${play?.progress ?? 0}%` }} />
           </div>
           <div className="pt-last" aria-live="polite">
-            <b>{last ? `${last.minute}′` : `${minute}′`}</b>
-            <span>{last ? `${last.who} · ${last.label}` : "Arranca el partido"}</span>
+            <b>{line?.at}</b>
+            <span>{line?.text}</span>
           </div>
           <div className="pt-acts">
             <Link className="hm-btn" to="/matches/$matchId" params={{ matchId: m.id }}>
               Seguir en directo <Icon name="arrow" size={16} stroke={2.2} />
             </Link>
           </div>
-          <GoalBurst burst={goalShow.burst} who={last?.goal ? `${last.who} · ${last.minute}′` : undefined} />
+          <GoalBurst burst={goalShow.burst} who={goalBurstWho(last)} />
         </>
       ) : (
         <>
@@ -184,7 +159,7 @@ function Board({ view, nameOf }: { view: SeasonView; nameOf: (id: string) => str
             </div>
           )}
           <div className="pt-acts">
-            <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(m, origin())} />
+            <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(m, siteOrigin())} />
             {/* (no tab: an upcoming match's page opens on its previa) */}
             <Link className="hm-ghostbtn" to="/matches/$matchId" params={{ matchId: m.id }}>
               Ver la previa <Icon name="arrow" size={16} stroke={2.2} />
@@ -434,7 +409,7 @@ export function PartidosPage() {
                 <h3>Todos los partidos, solos en tu calendario</h3>
                 <p>Fechas, cambios de hora y resultados llegan a Google, Apple u Outlook sin hacer nada.</p>
                 <div className="pt-acts" style={{ justifyContent: "flex-start" }}>
-                  <AddToCalendar className="hm-ghostbtn" label="Suscribirme" feed={`${origin()}/calendario.ics`} />
+                  <AddToCalendar className="hm-ghostbtn" label="Suscribirme" feed={`${siteOrigin()}/calendario.ics`} />
                 </div>
               </div>
             </aside>

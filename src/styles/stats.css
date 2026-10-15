@@ -1,14 +1,13 @@
 /* Estadísticas (Celeste · "elegida"), from the Design canvas page "Estadísticas · elegida".
-   Tokens come from .vx (vestuario.css) + home.css; flip digits and floodlights from partidos.css.
+   Tokens come from .vx (vestuario.css) + celeste/page.css; flip digits and floodlights from partidos.css.
    Layout rule of this page: every grid/flex child has min-width:0, long names ellipsize, wide tables
    scroll inside their own box, decorations sit behind the text with pointer-events:none.
-   The --st-* tokens, cards, headings, segmented controls, fields, KPIs, legends and tables live in
-   st-base.css (shared with the game-analysis panel), which every page imports before this sheet. */
+   Cards, headings, segmented controls, empty lines and the «nuevo» pill live in the Celeste base
+   (src/styles/celeste/, loaded by the site chrome before any page sheet); the --st-* tokens, fields, KPIs,
+   legends and tables are celeste/data.css, imported by the stats-family pages and the game-analysis panel. */
 
 .st *{min-width:0}
 .st .hm-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.st-new{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(255,198,89,.6);font-family:'Geist Mono';font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--gold-ink);vertical-align:middle;white-space:nowrap}
-[data-theme="light"] .vx .st-new{box-shadow:inset 0 0 0 1px rgba(154,107,0,.5)}
 .st-sm{height:44px;padding:0 16px;font-size:14px}
 
 /* ── hero ── */

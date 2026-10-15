@@ -1,20 +1,6 @@
-/* Home "El vestidor" (Celeste). Ported from the Design canvas (Inicio · B v2); tokens come from .vx (vestuario.css). */
+/* Home "El vestidor" (Celeste). Ported from the Design canvas (Inicio · B v2). Tokens come from .vx (vestuario.css)
+   and celeste/page.css; the shared titles, buttons and chips from the Celeste base (src/styles/celeste/). */
 
-.vx{min-height:100%}
-[data-theme="light"] .vx{--star:rgba(12,23,51,.55);--sky-a:#bfe2fb;--sky-b:#e9f4fd;--beam:rgba(255,255,255,.55);--card:rgba(255,255,255,.72);--card-line:rgba(12,23,51,.08);--well:rgba(255,255,255,.75);--ghost-line:rgba(12,23,51,.2);--gf:#2a73ad;--ga:rgba(12,23,51,.2)}
-.vx{--star:rgba(214,236,255,.85);--sky-a:#10275c;--sky-b:#030817;--beam:rgba(159,208,242,.16);--card:rgba(255,255,255,.05);--card-line:rgba(255,255,255,.08);--well:rgba(3,8,23,.45);--ghost-line:rgba(159,208,242,.3);--gf:#9fd0f2;--ga:rgba(159,179,211,.28)}
-.hm-cta-top{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;min-width:44px;padding:0 14px;border-radius:999px;background:var(--cta);font-weight:700;font-size:14px;text-decoration:none;box-shadow:var(--cta-shadow)}
-.vx .hm-cta-top{color:var(--cta-ink)}
-.hm-cta-top .t{display:none}
-.hm-sec{position:relative;z-index:2;padding:0 20px;margin-top:88px}
-.hm-kick{display:block;font-family:'Geist Mono';font-size:12px;color:var(--muted);margin-bottom:8px}
-.hm-h2{margin:0;font-family:'Anybody';font-weight:800;font-size:34px;line-height:1;letter-spacing:-.02em;font-variation-settings:'wdth' 112;text-wrap:balance}
-.hm-h2 em{font-style:normal;color:var(--accent)}
-.hm-lede{margin:10px 0 0;max-width:56ch;font-size:15px;line-height:1.5;color:var(--soft)}
-.hm-btn{display:inline-flex;align-items:center;gap:8px;height:52px;padding:0 24px;border-radius:999px;border:0;background:var(--thumb);font-weight:700;font-size:15px;text-decoration:none;box-shadow:var(--thumb-shadow)}
-.vx .hm-btn{color:var(--thumb-ink)}
-.hm-ghostbtn{display:inline-flex;align-items:center;gap:8px;height:52px;padding:0 22px;border-radius:999px;border:0;background:var(--ghost);font-weight:600;font-size:15px;text-decoration:none}
-.vx .hm-ghostbtn{color:var(--ghost-ink)}
 .hm-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .hm-link{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:14px;font-weight:600;text-decoration:none}
 .hm-card{border-radius:30px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
@@ -34,19 +20,13 @@
 .hm-vest img{display:block;width:78%;max-width:340px;margin:6px auto 0;filter:drop-shadow(0 30px 40px rgba(0,0,0,.5))}
 /* footer */
 @container (min-width:700px){
-.hm-cta-top{padding:0 18px}.hm-cta-top .t{display:inline}
-.hm-sec{padding:0 40px;margin-top:110px}
-.hm-h2{font-size:44px}
 .hm-vest{margin:120px 40px 0;grid-template-columns:1.1fr .9fr;align-items:center;padding:44px 0 0 44px}
 .hm-vest img{width:100%;margin:0}
 }
 @container (min-width:1100px){
-.hm-sec{padding:0 64px;margin-top:130px}
-.hm-h2{font-size:54px}
 .hm-vest{margin:140px 64px 0;padding:56px 0 0 64px}
 .hm-vest h2{font-size:48px}
 }
-@media (prefers-reduced-motion:reduce){.vx *{animation:none!important;transition:none!important}}
 /* vitrina del club */
 /* fixtures scroller */
 /* duo */
@@ -54,10 +34,7 @@
 
 /* ===== season zero: everything waits for the first match ===== */
 .vx-flap.q b{color:rgba(244,248,255,.28)}
-.hm-next{margin-top:18px;padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 14px;align-items:center;border-radius:26px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-line)}
-.hm-next .k{font-family:'Geist Mono';font-size:11px;color:var(--muted)}
 .hm-next b{display:block;margin-top:2px;font-family:'Anybody';font-weight:800;font-size:18px;line-height:1.1;font-variation-settings:'wdth' 104}
-.hm-next .acts{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
 .hm-mini{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:999px;border:0;background:var(--ghost);color:var(--ghost-ink);font-size:13px;font-weight:700}
 .hm-mini[aria-pressed=true]{background:#FFC659;color:#0c1733}
 .hm-mini.sky{background:var(--btn-on);color:var(--btn-on-ink)}
@@ -99,7 +76,6 @@
 .hm-sponsors{margin:22px 0 0;display:flex;flex-wrap:wrap;gap:12px}
 .vx .hm-sponsors a{display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 18px;border-radius:999px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-line);color:var(--ink);text-decoration:none;font-weight:700}
 .hm-sponsors img{height:28px;width:auto}
-.hm-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 /* The intro column (next match + calendar menu) paints above the 3D poster. */
 

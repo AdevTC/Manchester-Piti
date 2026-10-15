@@ -323,6 +323,16 @@ The exception is broadcast hardware. The **lower third is 4px**, a TV strap rath
 
 ## Components
 
+### Base Celeste
+The classes several public pages share live in one place, `src/styles/celeste/`, under their original names. `base.css` pulls them in and the site chrome (`components/celeste/Chrome.tsx`, part of the entry) imports it once, so every page gets them before its own sheet, and a page's override wins a tie.
+- `type.css`: `hm-kick` (the mono kicker), `hm-h2` (the section title, 34/44/54px by container width), `hm-lede`, `hm-sec`, `hm-sr` (screen-reader only).
+- `buttons.css`: `hm-btn` (solid pill), `hm-ghostbtn` (ghost pill), `hm-cta-top` (the header's top CTA).
+- `chips.css`: `pt-chip` (info chip), `pt-res` (the G·E·P result square), `st-new` (the «nuevo» pill).
+- `card.css`: `st-card` with `st-hd`, `st-h2` and `st-h3`. `seg.css`: `st-seg`. `state.css`: `st-empty`.
+- `data.css` (not in `base.css`: imported by Estadísticas, El club, the jugador page and the analysis panel, the pages that use it): the stats family's `--st-*` tokens (on `.st` and `.technical-stats`), `st-mono`, `st-field`, `st-legend`, `st-kpis`, `st-tablebox` and `st-table`.
+
+`celeste/page.css` is the content pages' `.vx` shell (night-sky, card and well tokens, `min-height`, reduced motion). Inicio, Partidos, the match ficha, Estadísticas, El club, the jugador page and Plantilla import it themselves, because on the bare `.vx` it must not reach the vestuario, perfil, acceso or admin. Page sheets (`home.css`, `partidos.css`, `stats.css`…) keep only their own layout. Tab bars have no shared class yet: `st-tabs`, `fc-tabs` and `sq-tabs` each belong to one page.
+
 ### Buttons
 Tactile pills that sit as solids on night and as navy on day.
 - **Shape:** full pill (999px), 46px on the public site, 44px in the admin (40px `sm`, 54px `xl`), never under 44px of touch height.
@@ -394,7 +404,7 @@ The admin's confirmations and errors, styled as broadcast straps. A sky key bloc
 - **Do** honour `prefers-reduced-motion` with a static end state, and pause loops offscreen.
 
 ### Don't:
-- **Don't** use Anton, Archivo, Barlow or the `--mp-*` tokens (`src/styles/theme.css`, the shadcn bridge in `src/styles/tailwind.css`) in new work. They are the legacy «Floodlit Clubhouse» layer, kept only for the pages not yet migrated (Landing, Login, MatchDetail, the old Navbar) and for canvas-drawn exports (match posters, jersey prints).
+- **Don't** use Anton, Archivo, Barlow or the `--mp-*` tokens (`src/styles/theme.css`, the shadcn bridge in `src/styles/tailwind.css`) in new work. They are the legacy «Floodlit Clubhouse» layer. Every page is Celeste now; what is left of that layer is the site shell in `src/styles/club.css` (the skip link, the demo banner, and the old navbar and footer, which only show while an invitation link checks the session), the document base in `src/index.css` (reset, body, scrollbar, and the `.btn` base under the admin's and the perfil's buttons), the shadcn pieces still mounted (the route skeleton, the perfil's tabs, tooltips, the toaster) and the canvas-drawn exports (match posters, jersey prints).
 - **Don't** set sky as text on the day theme; use `sky-deep` (`--accent`).
 - **Don't** let anything glow at rest, or add a second LED object to the Sala de control.
 - **Don't** introduce flat grey SaaS cards, equal-weight card grids, or a neutral palette outside the club's navy, sky, gold and their tints.

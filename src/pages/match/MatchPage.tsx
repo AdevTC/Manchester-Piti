@@ -13,7 +13,6 @@ import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { isCompleted, matchPhase, nameFor, useClubData, dateMillis, type ClubMatch } from "../../lib/clubData";
-import { useClock } from "../../hooks/useClock";
 import { useMatchClock } from "../../hooks/useMatchClock";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
@@ -28,9 +27,11 @@ import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { BackLink } from "../../components/celeste/BackLink";
 import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
-import { opponentInitials } from "../../lib/clubAnalytics";
+import { Countdown } from "../../components/celeste/Countdown";
 import { matchEvent } from "../../lib/home";
-import { countdownParts, dateParts, eventMinute, lastEvent, resultOf, scoreOf, shownMinute } from "../../lib/partidos";
+import { dateParts, eventMinute, resultOf, scoreOf } from "../../lib/partidos";
+import { KIT_LABEL, kitLabel, mapsUrl, siteOrigin } from "../../lib/derived/venue";
+import { boardLastLine, goalBurstWho, livePlay, scoreboardOf } from "../../lib/derived/scoreboard";
 import { jornadaOf } from "../../lib/derived/jornada";
 import { RESULT_WORD, resultLetter, resultTitle } from "../../lib/derived/result";
 import { shareClubPage } from "../../lib/share";
@@ -40,36 +41,12 @@ import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } f
 import { MATCH_TABS, matchTabAt, matchTabIndex } from "../../lib/matchTabs";
 import { tabForKey } from "../../lib/tabKeys";
 import { hasAnalysisActions } from "../../lib/technicalAnalysis";
-import "../../styles/home.css";
+import "../../styles/celeste/page.css";
 import "../../styles/partidos.css";
 import "../../styles/ficha.css";
 
-const origin = () => (typeof location === "undefined" ? "" : location.origin);
-const mapsUrl = (venue: string) => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(venue);
 const GOAL = /^goal/;
 const route = getRouteApi("/matches/$matchId");
-
-function Countdown({ target }: { target: number }) {
-  const now = useClock(1000);
-  const c = countdownParts(target, now);
-  return (
-    <div className="pt-cd" role="timer" aria-label={`Faltan ${Number(c.d)} días, ${Number(c.h)} horas y ${Number(c.m)} minutos`}>
-      {(
-        [
-          [c.d, "DÍAS"],
-          [c.h, "HORAS"],
-          [c.m, "MIN"],
-          [c.s, "SEG"],
-        ] as const
-      ).map(([v, l]) => (
-        <div key={l}>
-          <Flip value={v} />
-          <small>{l}</small>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 /** The headline of the page, by moment. */
 function headline(m: ClubMatch, phase: string, kick: KickoffState, nameOf: (id: string) => string) {
@@ -197,14 +174,14 @@ export function MatchPage() {
   const whistle = kick === "pending_whistle";
   const unplayed = kick === "awaiting_result";
   const upcoming = phase === "scheduled" || phase === "unscheduled";
-  const rival = match.rival ?? "Rival";
-  const ini = match.rivalInitials || opponentInitials(rival);
-  const { gf, ga } = scoreOf(match);
+  const { rival, initials: ini, gf, ga, usSide, rivalSide } = scoreboardOf(match);
   const d = dateParts(match.date);
-  const minute = live ? shownMinute(match, now) : null;
-  const last = live ? lastEvent(match.events, nameOf, rival) : null;
+  const play = live ? livePlay(match, now, nameOf) : null;
+  const minute = play ? play.minute : null;
+  const last = play ? play.last : null;
+  const line = play ? boardLastLine(play) : null;
   const jornada = jornadaOf(matches, match.id);
-  const kit = match.kit === "away" ? "2ª equipación" : "1ª equipación";
+  const kit = kitLabel(match, KIT_LABEL.home);
   const r = done ? resultOf(match) : undefined;
   const goalsOf = (ours: boolean) =>
     (match.events ?? [])
@@ -275,7 +252,7 @@ export function MatchPage() {
               <div className="pt-team">
                 <img src="/crest-128.webp" alt="" />
                 <b>MANCHESTER PITI</b>
-                <small>{match.home === false ? "Visitante" : "Local"}</small>
+                <small>{usSide}</small>
               </div>
               {done || live || (pending && !unplayed) ? (
                 <div className="pt-score" role="status" aria-label={`Resultado: ${gf} a ${ga}`}>
@@ -289,7 +266,7 @@ export function MatchPage() {
               <div className="pt-team">
                 {match.rivalLogoUrl ? <img src={match.rivalLogoUrl} alt="" /> : <span className="ini">{ini}</span>}
                 <b>{rival}</b>
-                <small>{match.home === false ? "Local" : "Visitante"}</small>
+                <small>{rivalSide}</small>
               </div>
             </div>
             {(done || live || pending) && (goalsOf(true).length > 0 || goalsOf(false).length > 0) && (
@@ -318,13 +295,13 @@ export function MatchPage() {
             {live && (
               <>
                 <div className="pt-prog" aria-hidden="true">
-                  <i style={{ width: `${Math.min(100, ((minute ?? 0) / (match.duration ?? 50)) * 100)}%` }} />
+                  <i style={{ width: `${play?.progress ?? 0}%` }} />
                 </div>
                 <div className="pt-last" aria-live="polite">
-                  <b>{last ? `${last.minute}′` : `${minute}′`}</b>
-                  <span>{last ? `${last.who} · ${last.label}` : "Arranca el partido"}</span>
+                  <b>{line?.at}</b>
+                  <span>{line?.text}</span>
                 </div>
-                <GoalBurst burst={goalShow.burst} who={last?.goal ? `${last.who} · ${last.minute}′` : undefined} />
+                <GoalBurst burst={goalShow.burst} who={goalBurstWho(last)} />
               </>
             )}
             {upcoming && Number.isFinite(dateMillis(match.date)) && phase === "scheduled" && !whistle && <Countdown target={dateMillis(match.date)} />}
@@ -345,7 +322,7 @@ export function MatchPage() {
           </article>
           <div>
             <div className="fc-acts">
-              {upcoming && phase === "scheduled" && <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(match, origin())} />}
+              {upcoming && phase === "scheduled" && <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(match, siteOrigin())} />}
               {/* (right after the main action: the row scrolls sideways on a phone, these must not hide at its end) */}
               {viewer.member && board && match.seasonId && (
                 <Link className="hm-ghostbtn" to="/pizarra" search={{ tablero: board, season: match.seasonId }}>

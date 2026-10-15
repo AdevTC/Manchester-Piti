@@ -19,7 +19,8 @@ import { useMvpResults } from "../vestuario/live";
 import { mvpOfFrom } from "../../lib/derived/mvpOf";
 import { CaraACara } from "./CaraACara";
 import { RaceAndBirthdays } from "../home/Sections";
-import "../../styles/home.css";
+import "../../styles/celeste/page.css";
+import "../../styles/home.css"; // RaceAndBirthdays (the pichichi podium) is home's section
 import "../../styles/squad.css";
 
 /** The duel angles each shirt towards the middle. */

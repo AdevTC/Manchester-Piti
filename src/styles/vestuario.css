@@ -18,6 +18,11 @@
 --cta:linear-gradient(120deg,#FFC659,#ffe0a0);--cta-ink:#0c1733;--cta-shadow:0 26px 50px -18px rgba(255,198,89,.55);--cta-dot:#0c1733;--cta-dot-ink:#FFC659;
 --nav:rgba(16,28,62,.72);--nav-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 20px 40px rgba(0,0,0,.45);--nav-ink:#a9bddc;--nav-on:#eef4ff;--nav-on-ink:#0c1733;
 --grain:.08;
+/* layers and motion, the same in both themes: new rules use these instead of a bare number (no sweep yet).
+   z: raise (over the grain) · over (a sibling) · chrome (top bar, dock) · menu (popovers) · layer (sheets,
+   dialogs) · toast. dur: quick (a state change) · base · slow · reveal (an entrance). */
+--z-raise:1;--z-over:2;--z-chrome:6;--z-menu:30;--z-layer:40;--z-toast:60;
+--dur-quick:.15s;--dur-base:.3s;--dur-slow:.6s;--dur-reveal:.9s;
 position:relative;overflow:hidden;container-type:inline-size;background:var(--bg);color:var(--ink);font-family:'Geist',system-ui,sans-serif}
 [data-theme="light"] .vx{
 --bg:#eef4fa;--bg2:#e2ecf7;--ink:#0c1733;--soft:#2c3a5c;--muted:#4f5d7d;--accent:#2a73ad;--gold:#9a6b00;--gold-ink:#6b4a00;

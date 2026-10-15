@@ -1,0 +1,13 @@
+/* Celeste base · the card (st-card) with its header (st-hd) and titles (st-h2, st-h3). The card rises in
+   on scroll where the browser has scroll-driven animations; it gets roomier inside a wide stats page. */
+.st-card{position:relative;display:grid;gap:14px;align-content:start;padding:18px 16px;border-radius:24px;background:var(--st-card);box-shadow:inset 0 0 0 1px var(--st-card-line)}
+.st-hd{display:grid;gap:6px}
+.st-h2{margin:0;font-family:'Anybody';font-weight:800;font-size:26px;line-height:1.05;letter-spacing:-.02em;font-variation-settings:'wdth' 108;text-wrap:balance}
+.st-h3{margin:0;font-family:'Anybody';font-weight:800;font-size:18px;line-height:1.1;font-variation-settings:'wdth' 104}
+@supports (animation-timeline:view()){
+.st-card,.st-rec{animation:stReveal linear both;animation-timeline:view();animation-range:entry 0% entry 55%}
+@keyframes stReveal{from{opacity:.2;transform:translateY(26px)}to{opacity:1;transform:none}}
+}
+@container st-page (min-width:700px){
+.st-card{padding:24px}
+}

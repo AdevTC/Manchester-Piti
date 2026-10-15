@@ -24,9 +24,9 @@ import { Comparar, Jugadores, Minutos, Resumen, Rivales } from "./Panes";
 import { Explorar, type ExploreSection } from "./Explorar";
 import { Posiciones } from "./Posiciones";
 import { NewBadge } from "../../components/NewBadge";
-import "../../styles/home.css";
+import "../../styles/celeste/page.css";
+import "../../styles/celeste/data.css";
 import "../../styles/partidos.css";
-import "../../styles/st-base.css";
 import "../../styles/stats.css";
 
 const route = getRouteApi("/stats");
@@ -50,7 +50,7 @@ export function StatsPage() {
   const navigate = useNavigate();
   const now = useClock(60_000);
   const results = useMvpResults();
-  const view: View = search.view ?? (search.tab === "compare" ? "compare" : "summary");
+  const view: View = search.view ?? "summary";
   const section: ExploreSection = search.section ?? "individual";
   // (Comparar's pair goes with Comparar: any other view's URL is clean to share)
   const setView = (next: View) =>
@@ -62,13 +62,13 @@ export function StatsPage() {
           delete rest.a;
           delete rest.b;
         }
-        return { ...rest, view: next, tab: undefined };
+        return { ...rest, view: next };
       },
       resetScroll: false,
     });
   const setSection = (next: ExploreSection) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "explore", section: next }), resetScroll: false });
   // Comparar's pair: replace, so trying player after player doesn't flood the history
-  const setPair = (a: string, b: string | undefined) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "compare", tab: undefined, a, b }), replace: true, resetScroll: false });
+  const setPair = (a: string, b: string | undefined) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "compare", a, b }), replace: true, resetScroll: false });
   const setSeason = useSetSeason();
 
   const games = useMemo(() => chronological(matches.filter((m) => selectedSeasonId === "all" || m.seasonId === selectedSeasonId)), [matches, selectedSeasonId]);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "./clubData";
-import { classifieds, extraTrophies, historyTrain, mapsUrl, noPositionText, posCountText, posKey, squadByPosition, squadNumbers, sponsorWall } from "./club";
+import { classifieds, extraTrophies, historyTrain, noPositionText, posCountText, posKey, squadByPosition, squadNumbers, sponsorWall } from "./club";
 
 const match = (id: string, day: number, status = "finished"): ClubMatch => ({ id, rival: "Accept", date: Date.UTC(2026, 8, day), status: status as ClubMatch["status"], goalsFor: 3, goalsAgainst: 2, events: [] });
 
@@ -52,9 +52,6 @@ describe("Clasificados, mecenas y campo", () => {
         { name: "", url: "https://y", logo: "" },
       ]),
     ).toEqual([{ name: "Bar Paco", url: "https://bar.example", logo: undefined }]);
-  });
-  it("maps link searches the venue", () => {
-    expect(mapsUrl("Campo de La Elipa, Madrid")).toBe("https://www.google.com/maps/search/?api=1&query=Campo%20de%20La%20Elipa%2C%20Madrid");
   });
 });
 

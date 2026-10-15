@@ -7,7 +7,7 @@
 - Estadísticas legibles, comparador, minutos, récords, sociedades y balance ante rivales. El explorador anterior sigue accesible desde «Explorar más».
 - El club: historia, hitos, campo, contacto, patrocinadores y galería, editables desde «Contenido y fotos».
 - Espacios gráficos identificados para las fotos pendientes. No se presentan fotografías ajenas como fotos del equipo.
-- Vestuario privado: Google → clave del equipo → nombre de miembro, si es la primera visita.
+- Vestuario privado, sin clave compartida: se entra con Google y un enlace de invitación, o pidiendo acceso para que un capitán lo apruebe. En la primera visita, «¿Quién eres?» te deja elegir tu ficha.
 - Disponibilidad para el próximo partido y aviso privado de quedada/material.
 - MVP con una papeleta por cuenta, posibilidad de cambiar el voto y detalle de votantes visible para administradores.
 - Editor de actas de fútbol 7 en cuatro pasos, borradores privados, validación, revisiones y acumulados en el servidor.
@@ -15,7 +15,7 @@
 
 ## Preparar una temporada
 
-1. Entra al vestuario con tu Google y la clave compartida.
+1. Entra al vestuario con tu Google (con una invitación o con tu acceso ya aprobado).
 2. Un administrador abre **Administrar el club → Temporadas** y crea la temporada.
 3. En **Jugadores**, asigna a esa temporada todos los integrantes. Ajusta sus dorsales y nombres de camiseta por temporada.
 4. En **Nuevo partido**, elige temporada, rival, competición, fecha/hora de Madrid, campo y condición local/visitante.
@@ -61,7 +61,7 @@ Corregir una acta reemplaza su contribución anterior a los acumulados. No la su
 
 La votación se abre al publicar la primera acta final y dura 48 horas. Editarla no prolonga ese plazo. Solo se puede votar a jugadores que participaron. Cada UID de Google tiene una papeleta por partido.
 
-La clave se verifica exclusivamente en una Cloud Function contra Secret Manager; no se incluye en HTML, JavaScript, reglas o Git. Hay cinco intentos por cuenta cada quince minutos. El acceso dura doce horas y se vuelve a validar con reglas de Firestore y backend. Se recuerda en la pestaña al recargar sin guardar la contraseña. Cerrar sesión en el vestuario revoca ese acceso.
+Ya no hay clave del equipo. Un capitán crea un enlace de invitación (`/invitacion/<código>`, válido de 1 a 30 días, 7 por defecto, de un solo uso o sin límite de usos y, si quiere, una ficha reservada) y puede revocarlo. Quien no tiene invitación pide acceso desde la puerta y un capitán lo aprueba o lo rechaza. Las invitaciones, las solicitudes y la pertenencia se comprueban en Cloud Functions y en las reglas de Firestore. La pertenencia va con la cuenta de Google y dura hasta que un administrador la retira.
 
 Los perfiles y nombres únicos se registran mediante transacción. Los roles administrativos existentes se conservan. La cuenta propietaria verificada conserva el mecanismo de superadministrador del proyecto.
 
@@ -98,8 +98,6 @@ El servidor 3001 utiliza la configuración habitual de Firebase. Hasta desplegar
 
 ### Pruebas aisladas
 
-Crea `functions/.secret.local` con una línea `TEAM_PASSWORD=una-clave-solo-para-pruebas`. Ese archivo está ignorado por Git y por el despliegue de Functions. Para probar la clave solicitada se ha configurado localmente el valor indicado por el equipo.
-
 ```text
 npm --prefix functions run build
 npm run emulators
@@ -113,7 +111,7 @@ npx vitest run --config vitest.rules.config.ts
 npm --prefix functions run seed:preview
 ```
 
-El proyecto de pruebas es `demo-manchester-piti`. Los scripts usan exclusivamente endpoints de loopback y no escriben en producción. La semilla crea una temporada y diez jugadores ficticios, un encuentro futuro y un acta 2–1. El botón **Google de prueba · Solo emulador** únicamente aparece en desarrollo con emuladores; la comprobación de la clave sigue pasando por el backend.
+El proyecto de pruebas es `demo-manchester-piti`. Los scripts usan exclusivamente endpoints de loopback y no escriben en producción. La semilla crea una temporada y diez jugadores ficticios, un encuentro futuro y un acta 2–1. El botón **Google de prueba · Solo emulador** únicamente aparece en desarrollo con emuladores; la invitación y la pertenencia se siguen comprobando en el backend.
 
 Para levantar la interfaz de prueba en PowerShell:
 
@@ -137,24 +135,26 @@ npm run build
 npm --prefix functions run build
 ```
 
-La integración continua instala ambos proyectos, ejecuta tests de aplicación, reglas y funciones en emuladores, y la suite Playwright de los flujos nuevos. Para ejecutar Playwright manualmente con los emuladores abiertos: `npm run test:e2e`. Para arrancarlos y pararlos automáticamente: `npm run test:e2e:ci` (prepara antes Functions y el secreto local).
+La integración continua instala ambos proyectos, ejecuta tests de aplicación, reglas y funciones en emuladores, y la suite Playwright de los flujos nuevos. Para ejecutar Playwright manualmente con los emuladores abiertos: `npm run test:e2e`. Para arrancarlos y pararlos automáticamente: `npm run test:e2e:ci` (prepara antes Functions).
 
 Validación acumulada: 165 pruebas de aplicación y 60 comprobaciones del backend ejecutadas; las 35 pruebas de reglas pasaron en la entrega inicial. Revisión manual en escritorio/móvil, temas claro/oscuro, navegación, fichas, medallas, escudos, filtros y gráficas. Los specs Playwright están actualizados; la suite completa queda preparada para CI.
 
 ## Estado del despliegue y publicación
+
+Los dos párrafos siguientes son el registro del 24 de septiembre de 2026. Desde octubre el acceso al vestuario va por invitaciones: la clave del equipo y sus funciones ya no existen, y el secreto `TEAM_PASSWORD` no hace falta.
 
 El 24 de septiembre de 2026 se desplegaron las siete Cloud Functions y las reglas de Firestore en `futbolmanagement-dc6cb`, después de activar Blaze. `TEAM_PASSWORD` está configurado en Secret Manager y `PUBLIC_SITE_URL` en el entorno local ignorado de Functions. Las peticiones previas desde `http://localhost:3001` devuelven 204 con CORS correcto; las peticiones sin sesión devuelven `UNAUTHENTICATED`, como corresponde. Se añadió `127.0.0.1` a los dominios autorizados de Google, conservando `localhost` y todos los dominios existentes. El repositorio de imágenes de compilación tiene una limpieza a siete días.
 
 La interfaz rediseñada se sirve en local; Firebase Hosting todavía no se ha actualizado. El acceso real con Google y la clave se verificó en `127.0.0.1:3001`: el vestuario se abrió con el perfil real y sus opciones de administración. También se han probado la lógica de acceso, clave y permisos con los emuladores.
 
 1. Usar la cuenta autorizada del proyecto Firebase y confirmar los requisitos de Cloud Functions del proyecto.
-2. Configurar el secreto **TEAM_PASSWORD** en Secret Manager con la clave del equipo, mediante el prompt seguro de `firebase functions:secrets:set TEAM_PASSWORD --project futbolmanagement-dc6cb`. No ponerla en una variable `VITE_*`.
+2. Comprobar que al menos un capitán puede entrar al vestuario: es quien crea las invitaciones y aprueba las solicitudes de acceso.
 3. Si se utiliza un dominio propio, establecer `PUBLIC_SITE_URL` en la configuración de Functions. El valor por defecto es el dominio Firebase del proyecto. Sirve para las tarjetas sociales y sus enlaces.
 4. Comprobar Google como proveedor de Auth y los dominios autorizados.
 5. Ejecutar los builds con la configuración real, sin `VITE_USE_FIREBASE_EMULATOR`.
 6. Desplegar Functions, las reglas de Firestore y Hosting como una misma entrega:
    `firebase deploy --only functions,firestore:rules,hosting --project futbolmanagement-dc6cb`.
-7. Verificar con un administrador real: Google, clave, nuevo partido, edición, votación y enlace social.
+7. Verificar con un administrador real: Google, una invitación, nuevo partido, edición, votación y enlace social.
 
 Las nuevas reglas exigen que las actas y votos pasen por Functions. No debe desplegarse solo el frontend esperando que esas funciones existan ya.
 
@@ -164,11 +164,11 @@ Referencias: [Secretos y configuración de Functions](https://firebase.google.co
 
 ## Plantilla y estadísticas (revisión de septiembre)
 
-- Carrusel infinito en portada con todos los resultados finalizados y estadísticas de jugadores. Se actualiza desde Firestore, tiene pausa manual, pausa al interactuar y desplazamiento manual cuando el dispositivo pide movimiento reducido.
+- La portada: el próximo partido (o el que se está jugando) con su cuenta atrás y el jugador del momento; luego el último resultado, cómo va la temporada y el calendario que viene; «Ponte la del Piti» (tu nombre y dorsal en la camiseta, para guardarla como imagen), el acceso a la plantilla, la banda del vestuario y los patrocinadores. Los textos cambian solos según el momento de la temporada y todo se actualiza desde Firestore.
 - Fichas con nombre, apellidos, alias, camiseta, edad, altura, peso, minigráfica y estadísticas. El podio usa clasificación por competición: `1, 2, 2, 4` y `1, 1, 3`; los valores cero no reciben medallas. Buscar o esconder jugadores históricos no altera sus puestos.
 - Los minutos, titularidades, suplencias y cambios solo se muestran si existe un acta con seguimiento. Un `—` significa dato no registrado; no se infieren minutos del historial anterior.
 - Rivales sin escudo o con imagen fallida reciben una insignia circular automática. Ejemplos: Superbebientes → SB, FUSION 7 → F7. El acta permite configurar una URL HTTPS y corregir hasta tres iniciales.
 - Estadísticas: Resumen (balance y resultados), Jugadores (tabla ordenable y CSV), Minutos (convocatorias y reparto), Rivales y Comparar. Explorar contiene exclusivamente Récords individuales, Rachas e hitos, Récords del equipo y Evolución y rankings.
-- Las secciones se conservan en la URL mediante `view` y `section`, además de la temporada. El comparador antiguo `tab=compare` sigue funcionando.
+- Las secciones se conservan en la URL mediante `view` y `section`, además de la temporada. El comparador se enlaza con `view=compare` (y `a`/`b` para la pareja); los enlaces antiguos con `tab=compare` siguen abriendo Comparar (se leen como `view=compare`).
 - Los récords muestran todos sus titulares empatados y una clasificación desplegable. Las rachas cuentan partidos consecutivos del equipo dentro del período elegido; una ausencia rompe la racha. Los hitos registran la fecha en que se alcanza o cruza un umbral, desde el inicio del período.
 - Las gráficas de evolución permiten elegir métrica, hasta seis jugadores y partido consultado con el ratón o teclado. El ranking visual y los datos tabulares utilizan el mismo cálculo.

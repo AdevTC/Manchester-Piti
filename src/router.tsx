@@ -14,8 +14,6 @@ import {
   RouteError,
   RouteNotFound,
   AdminRouteNotFound,
-  MatchDetailPending,
-  PlayerProfilePending,
 } from "./components/route-states";
 import { matchSearchSchema } from "./lib/matchTabs";
 
@@ -30,14 +28,12 @@ export const rootSearchSchema = z.object({
 
 // Stats route's `validateSearch`: the active view is deep-linkable/persistent.
 // Merges with the inherited root `season`, so reading/writing via the route api
-// preserves `season`. `tab` is only read: old ?tab=compare links still open the
-// comparison (the page writes `view` and never `tab`). `a`/`b` are Comparar's two players (ids; the
-// pane ignores one nobody in the period has), so «X vs Y» can be linked from the jugador page.
+// preserves `season`. `a`/`b` are Comparar's two players (ids; the pane ignores one nobody in the
+// period has), so «X vs Y» can be linked from the jugador page.
 const optionalString = z.union([z.string(), z.number()]).transform(String).optional().catch(undefined);
 export const statsSearchSchema = z.object({
   a: optionalString,
   b: optionalString,
-  tab: z.enum(["general", "compare"]).optional().catch(undefined),
   view: z
     .enum(["summary", "players", "minutes", "positions", "rivals", "compare", "explore", "game"])
     .optional()
@@ -46,7 +42,9 @@ export const statsSearchSchema = z.object({
     .enum(["individual", "streaks", "team", "evolution"])
     .optional()
     .catch(undefined),
-});
+  // Legacy ?tab=compare (links shared before ?view=): read once, turned into view=compare, never written.
+  tab: z.enum(["general", "compare"]).optional().catch(undefined),
+}).transform(({ tab, ...rest }) => (rest.view || tab !== "compare" ? rest : { ...rest, view: "compare" as const }));
 
 // /admin is the admin app's shell (a layout route; the admin-only guard lives in RootLayout). Hoy's only
 // search param is the legacy `tab` of the old single page: /admin?tab=matches|roster|seasons|admins
@@ -215,7 +213,6 @@ const matchDetailRoute = createRoute({
   path: "/matches/$matchId",
   // The tab is in the URL (?tab=vestuario): pushes, shares and back/forward land on it.
   validateSearch: matchSearchSchema,
-  pendingComponent: MatchDetailPending,
   component: lazyRouteComponent(
     () => import("./pages/match/MatchPage"),
     "MatchPage",
@@ -225,7 +222,6 @@ const matchDetailRoute = createRoute({
 const playerProfileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/jugadores/$playerId",
-  pendingComponent: PlayerProfilePending,
   component: lazyRouteComponent(
     () => import("./pages/jugador/JugadorPage"),
     "JugadorPage",
@@ -328,11 +324,11 @@ export const createAppRouter = (history?: RouterHistory) =>
     history,
     defaultPreload: "intent",
     scrollRestoration: true,
-    // Per-route boundaries (Phase 4). defaultPendingComponent only fires for routes
-    // WITH a loader (the detail routes; list routes are realtime, so they handle
-    // their own component-level loading) and only after defaultPendingMs (1000ms)
-    // for at least defaultPendingMinMs (500ms). defaultErrorComponent gives every
-    // route an error boundary so a loader/render failure never blanks the screen.
+    // Per-route boundaries (Phase 4). No route has a loader (the pages are realtime and
+    // handle their own loading), so defaultPendingComponent only shows when a page's
+    // code takes longer than defaultPendingMs (1000ms) to arrive, for at least
+    // defaultPendingMinMs (500ms). defaultErrorComponent gives every route an error
+    // boundary so a render failure never blanks the screen.
     defaultPendingComponent: RoutePending,
     defaultErrorComponent: RouteError,
   });

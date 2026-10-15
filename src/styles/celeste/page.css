@@ -1,0 +1,10 @@
+/* Celeste content-page shell: what home.css used to give every page built on the home's language (Inicio,
+   Partidos, the match ficha, Estadísticas, El club, the jugador page, Plantilla). Each of those pages imports
+   it; Chrome.tsx does not, because these rules sit on the bare .vx and must not reach the vestuario, perfil,
+   acceso, admin or state screens (vestuario.css gives .vx min-height:100vh, which this would override).
+   Tokens on top of .vx (vestuario.css): the night sky, glass cards, wells, ghost lines and the formation's
+   for/against marks; and, for reduced motion, no animation or transition anywhere on the page. */
+.vx{min-height:100%}
+[data-theme="light"] .vx{--star:rgba(12,23,51,.55);--sky-a:#bfe2fb;--sky-b:#e9f4fd;--beam:rgba(255,255,255,.55);--card:rgba(255,255,255,.72);--card-line:rgba(12,23,51,.08);--well:rgba(255,255,255,.75);--ghost-line:rgba(12,23,51,.2);--gf:#2a73ad;--ga:rgba(12,23,51,.2)}
+.vx{--star:rgba(214,236,255,.85);--sky-a:#10275c;--sky-b:#030817;--beam:rgba(159,208,242,.16);--card:rgba(255,255,255,.05);--card-line:rgba(255,255,255,.08);--well:rgba(3,8,23,.45);--ghost-line:rgba(159,208,242,.3);--gf:#9fd0f2;--ga:rgba(159,179,211,.28)}
+@media (prefers-reduced-motion:reduce){.vx *{animation:none!important;transition:none!important}}

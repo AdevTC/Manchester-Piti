@@ -77,18 +77,17 @@ describe("StatsPage · Posiciones", () => {
     render(<StatsPage />);
     fireEvent.click(within(screen.getByRole("navigation", { name: "Secciones de estadísticas" })).getByRole("button", { name: "Posiciones" }));
     const call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.search({ season: "t1" })).toStrictEqual({ season: "t1", view: "positions", tab: undefined });
+    expect(call.search({ season: "t1" })).toStrictEqual({ season: "t1", view: "positions" });
   });
 
-  it("an old ?tab=compare link still opens the comparison, and choosing a view drops the legacy tab", () => {
-    expect(statsSearchSchema.parse({}).tab).toBeUndefined();
+  it("an old ?tab=compare link still opens Comparar (read as view=compare, never written back)", () => {
+    expect(statsSearchSchema.parse({ tab: "compare" })).toStrictEqual({ view: "compare" });
+    expect(statsSearchSchema.parse({ tab: "compare", view: "minutes" })).toStrictEqual({ view: "minutes" });
+    expect(statsSearchSchema.parse({ tab: "general" })).not.toHaveProperty("view");
     search.value = statsSearchSchema.parse({ tab: "compare" });
     render(<StatsPage />);
     const nav = within(screen.getByRole("navigation", { name: "Secciones de estadísticas" }));
     expect(nav.getByRole("button", { name: "Comparar" })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(nav.getByRole("button", { name: "Minutos" }));
-    const call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.search({ tab: "compare" })).toStrictEqual({ tab: undefined, view: "minutes" });
   });
 
   it("?a=&b= are Comparar's pair: strings (a numeric id too), anything else dropped", () => {
@@ -107,7 +106,7 @@ describe("StatsPage · Posiciones", () => {
     fireEvent.click(screen.getByRole("button", { name: "Intercambiar jugadores" }));
     const call = navigate.mock.lastCall?.[0] as { replace?: boolean; search: (prev: Record<string, unknown>) => Record<string, unknown> };
     expect(call.replace).toBe(true);
-    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "compare", tab: undefined, a: "lat", b: "dc" });
+    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "compare", a: "lat", b: "dc" });
   });
 
   it("leaving Comparar drops its pair from the URL; clicking Comparar keeps it", () => {
@@ -116,10 +115,10 @@ describe("StatsPage · Posiciones", () => {
     const nav = within(screen.getByRole("navigation", { name: "Secciones de estadísticas" }));
     fireEvent.click(nav.getByRole("button", { name: "Minutos" }));
     let call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "minutes", tab: undefined });
+    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "minutes" });
     fireEvent.click(nav.getByRole("button", { name: "Comparar" }));
     call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "compare", tab: undefined, a: "dc", b: "lat" });
+    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "compare", a: "dc", b: "lat" });
   });
 
   it("the Resumen constellation places each star by the position he played", () => {

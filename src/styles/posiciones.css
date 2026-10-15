@@ -1,8 +1,11 @@
 /* «Mapa de posiciones» (src/components/posiciones/MapaPosiciones.tsx).
    Theme contract: hosts set the public --pos-* tokens on ANY ancestor (a wrapper, [data-theme], :root) or
-   on the map itself via className. This file never declares a public token: it reads each one, with the
-   dark-navy default as fallback, into a private --_pos-* alias that the children use
-   (enforced by src/components/posiciones/posicionesCss.test.ts).
+   on the map itself via className. This file never declares a public token: it reads each one into a
+   private --_pos-* alias that the children use (enforced by src/components/posiciones/posicionesCss.test.ts).
+   Defaults: the .vx palette (vestuario.css: --sky, --gold, --ink, --muted…), so a host that sets nothing
+   gets Celeste and follows the day theme; each palette read keeps its night value as the last fallback.
+   No palette green or red: «añadida» / «quitada» keep their own. A host remaps only what it does
+   differently (the night pitch of the fichas stays navy in both themes).
    Tokens: --pos-bg (dot/badge backing ≈ host surface), --pos-pitch, --pos-line, --pos-ink, --pos-dim,
    --pos-also, --pos-pref, --pos-pref-ink, --pos-add, --pos-remove, --pos-focus, --pos-played, --pos-played-ink,
    --pos-width (fonts are inherited from the host).
@@ -11,19 +14,19 @@
    .pos-map from GEOMETRY in mapaNav.ts (--_pos-badge*, --_pos-pill-*, --_pos-ring, --_pos-disc-*), the same
    numbers the history layout checks for overlaps; --_pos-d / --_pos-i / --_pos-shift come inline per spot. */
 .pos-map {
-  --_pos-bg: var(--pos-bg, #0b1730);
-  --_pos-pitch: var(--pos-pitch, rgba(108, 196, 255, 0.06));
-  --_pos-line: var(--pos-line, rgba(214, 230, 255, 0.32));
-  --_pos-ink: var(--pos-ink, #eef4ff);
-  --_pos-dim: var(--pos-dim, #9fb2cc);
-  --_pos-also: var(--pos-also, #6cc4ff);
-  --_pos-pref: var(--pos-pref, #ffd23f);
-  --_pos-pref-ink: var(--pos-pref-ink, #14213d);
+  --_pos-bg: var(--pos-bg, var(--bg, #030817));
+  --_pos-pitch: var(--pos-pitch, color-mix(in srgb, var(--sky, #6cabdd) 7%, transparent));
+  --_pos-line: var(--pos-line, color-mix(in srgb, var(--ink, #eef4ff) 30%, transparent));
+  --_pos-ink: var(--pos-ink, var(--ink, #eef4ff));
+  --_pos-dim: var(--pos-dim, var(--muted, #9fb3d3));
+  --_pos-also: var(--pos-also, var(--sky, #6cabdd));
+  --_pos-pref: var(--pos-pref, var(--gold, #ffc659));
+  --_pos-pref-ink: var(--pos-pref-ink, var(--pill-on-ink, #0c1733));
   --_pos-add: var(--pos-add, #5ee08a);
   --_pos-remove: var(--pos-remove, #ff8f8f);
-  --_pos-focus: var(--pos-focus, #ffffff);
-  --_pos-played: var(--pos-played, #6cc4ff);
-  --_pos-played-ink: var(--pos-played-ink, #0b1730);
+  --_pos-focus: var(--pos-focus, var(--ink, #eef4ff));
+  --_pos-played: var(--pos-played, var(--sky, #6cabdd));
+  --_pos-played-ink: var(--pos-played-ink, var(--thumb-ink, #0c1733));
   --_pos-width: var(--pos-width, 20rem);
   /* size m: 3rem wide hit areas around a 36 px dot */
   --_pos-dot: 2.25rem;

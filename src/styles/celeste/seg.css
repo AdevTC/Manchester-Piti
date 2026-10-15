@@ -1,0 +1,4 @@
+/* Celeste base · the segmented control (st-seg): a pill row of buttons, the pressed one lit. */
+.st-seg{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:var(--pill);box-shadow:var(--pill-line);max-width:100%;overflow-x:auto;scrollbar-width:none}
+.st-seg button{flex:0 0 auto;min-height:40px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--pill-ink);font-weight:600;font-size:13px;transition:background .3s,color .3s}
+.st-seg button[aria-pressed="true"]{background:var(--pill-on);color:var(--pill-on-ink);box-shadow:var(--pill-on-shadow)}

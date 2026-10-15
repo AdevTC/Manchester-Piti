@@ -1,5 +1,6 @@
-/* El club (Celeste · "elegida"), from the Design canvas page "El club · elegida". Builds on stats.css
-   (tokens --st-*, .st-seg, .st-new, .st-empty, .st-stars, container st-page), home.css and partidos.css.
+/* El club (Celeste · "elegida"), from the Design canvas page "El club · elegida". Builds on the Celeste
+   base (src/styles/celeste/: tokens --st-*, .st-seg, .st-new, .st-empty, container st-page, titles and buttons),
+   celeste/page.css, stats.css (.st-stars, .st-sm) and partidos.css.
    Layout rule: every child min-width:0 (from .st *), decorations pointer-events:none behind text. */
 
 .cl{--cl-gold:#FFC659;--cl-glass:rgba(159,208,242,.14);--cl-glass-edge:rgba(214,236,255,.55);--cl-room:radial-gradient(70% 60% at 50% 0%,rgba(29,63,132,.55),transparent 70%);--cl-ad:#f3efe4;--cl-ad-ink:#0c1733}

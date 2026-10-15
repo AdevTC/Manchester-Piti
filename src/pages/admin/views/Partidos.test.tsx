@@ -166,6 +166,30 @@ describe("Partidos · the workspace", () => {
     expect(screen.getByText(/Una sola convocatoria\./)).toBeInTheDocument();
   });
 
+  it("the tab keys (lib/tabKeys): ←/→ wrap around, Inicio/Fin go to the ends, the focus follows; other keys do nothing", async () => {
+    const user = userEvent.setup();
+    const router = mountAdmin("/admin/partidos/m7?tab=encuentro", { partidos: Partidos });
+    const tabs = await screen.findByRole("tablist", { name: "Partido" });
+    const tab = (name: RegExp) => within(tabs).getByRole("tab", { name });
+    const at = async (k: string, name: RegExp) => {
+      await waitFor(() => expect(router.state.location.search).toMatchObject({ tab: k }));
+      await waitFor(() => expect(tab(name)).toHaveFocus());
+      expect(tab(name)).toHaveAttribute("aria-selected", "true");
+    };
+    act(() => tab(/Encuentro/).focus());
+    await user.keyboard("{ArrowLeft}");
+    await at("publicar", /Publicar/);
+    await user.keyboard("{ArrowRight}");
+    await at("encuentro", /Encuentro/);
+    await user.keyboard("{End}");
+    await at("publicar", /Publicar/);
+    await user.keyboard("{Home}");
+    await at("encuentro", /Encuentro/);
+    await user.keyboard("{ArrowDown}");
+    expect(router.state.location.search).toMatchObject({ tab: "encuentro" });
+    expect(tab(/Encuentro/)).toHaveFocus();
+  });
+
   it("«¿Quién marcó?» opens under its row: scorer (on the pitch first, then the banquillo), then the pass; the minute makes it square", async () => {
     const user = userEvent.setup();
     acta();

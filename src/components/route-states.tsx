@@ -9,16 +9,16 @@ import { useNoIndex } from "../hooks/useNoIndex";
 /**
  * Sober, on-brand route-level pending/error states (issue #5, Phase 4).
  *
- * - Skeletons render while a route's `loader` is pending (after the router's
- *   `defaultPendingMs`, for at least `defaultPendingMinMs`). Only the detail
- *   routes have loaders, so only they actually trigger a route pendingComponent;
- *   the list routes are realtime and handle their own component-level loading.
+ * - The skeleton renders while a route is pending (after the router's
+ *   `defaultPendingMs`, for at least `defaultPendingMinMs`): no route has a loader,
+ *   so that is a page's code arriving late; RootLayout also shows it while a private
+ *   page checks the session. The pages are realtime and handle their own loading.
  * - The error boundary catches loader/render errors per route so a failure shows
  *   a recoverable Celeste panel (with the site chrome) instead of a blank screen.
  *   `router.invalidate()` re-runs the loader and resets the boundary (the canonical
  *   TanStack retry pattern). RouteNotFound is the 404 («Fuera de juego»).
  *
- * The skeletons use the shadcn semantic tokens (bg-muted/border/etc.) which are
+ * The skeleton uses the shadcn semantic tokens (bg-muted/border/etc.) which are
  * bridged to the brand --mp-* palette, so they follow the [data-theme] toggle.
  */
 
@@ -32,48 +32,6 @@ export const RoutePending: React.FC = () => (
       <Skeleton className="h-12 w-full rounded-lg" />
       <Skeleton className="h-12 w-full rounded-lg" />
       <Skeleton className="h-12 w-full rounded-lg" />
-    </div>
-  </div>
-);
-
-/** Ficha skeleton for /matches/$matchId — mirrors the MatchDetail header + list. */
-export const MatchDetailPending: React.FC = () => (
-  <div className="mx-auto w-full max-w-[760px] px-4 pb-12 pt-6" role="status" aria-busy="true">
-    <span className="sr-only">Cargando partido…</span>
-    <Skeleton className="h-4 w-36" />
-    {/* Structure mirrors MatchDetail's header + events list — keep in sync if its layout changes */}
-    <Skeleton className="mt-4 h-48 w-full rounded-[14px]" />
-    <div className="mt-6 space-y-3">
-      <Skeleton className="h-14 w-full rounded-lg" />
-      <Skeleton className="h-14 w-full rounded-lg" />
-      <Skeleton className="h-14 w-full rounded-lg" />
-    </div>
-  </div>
-);
-
-/** Ficha skeleton for /jugadores/$playerId — mirrors the PlayerProfile card. */
-export const PlayerProfilePending: React.FC = () => (
-  <div className="mx-auto w-full max-w-[620px] px-4 pb-12 pt-6" role="status" aria-busy="true">
-    <span className="sr-only">Cargando jugador…</span>
-    <Skeleton className="h-4 w-40" />
-    {/* Structure mirrors PlayerProfile's main card — keep in sync if its layout changes */}
-    <div className="mt-4 overflow-hidden rounded-[14px] border border-border bg-card">
-      <div className="flex items-center gap-5 border-b border-border p-6">
-        <Skeleton className="h-20 w-16 rounded-xl" />
-        <div className="min-w-0 flex-1 space-y-2">
-          <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-28" />
-          <div className="flex gap-2 pt-1">
-            <Skeleton className="h-5 w-16 rounded-full" />
-            <Skeleton className="h-5 w-12 rounded-full" />
-          </div>
-        </div>
-      </div>
-      <div className="space-y-3 px-6 py-5">
-        <Skeleton className="h-5 w-full" />
-        <Skeleton className="h-5 w-full" />
-        <Skeleton className="h-5 w-full" />
-      </div>
     </div>
   </div>
 );

@@ -1,5 +1,5 @@
 // Pure logic of the Celeste "El club" page (Design canvas "El club · elegida"): the history train,
-// the squad in numbers, the classified ads (contact), the sponsors' wall and the map link. The
+// the squad in numbers, the classified ads (contact) and the sponsors' wall (the map link: derived/venue). The
 // trophy room reuses clubMedals (lib/home.ts).
 import { ageOn } from "./clubAnalytics";
 import { dateMillis, isCompleted, type ClubMatch } from "./clubData";
@@ -7,7 +7,6 @@ import { LINES, LINE_NAMES, POS_CODES, resolvePositions, type Line, type PosCode
 import type { ClubContent } from "./clubContentDefaults";
 import type { ClubMedal } from "./home";
 
-export const mapsUrl = (venue: string) => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(venue);
 export const mailto = (email: string, subject: string) => `mailto:${email}?subject=${encodeURIComponent(subject)}`;
 
 export interface TrainStop {
