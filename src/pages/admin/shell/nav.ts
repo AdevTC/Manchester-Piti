@@ -3,7 +3,7 @@
 import type { CounterKey } from "../data/adminLogic";
 import type { AdIconName } from "../ui/icons";
 
-export type SectionKey = "hoy" | "partidos" | "convocar" | "plantilla" | "fichas" | "temporadas" | "capitanes" | "contenido";
+export type SectionKey = "hoy" | "partidos" | "convocar" | "plantilla" | "fichas" | "temporadas" | "capitanes" | "contenido" | "caja";
 export type AdminPath =
   | "/admin"
   | "/admin/partidos"
@@ -12,7 +12,8 @@ export type AdminPath =
   | "/admin/fichas"
   | "/admin/temporadas"
   | "/admin/capitanes"
-  | "/admin/contenido";
+  | "/admin/contenido"
+  | "/admin/caja";
 
 export interface SectionDef {
   key: SectionKey;
@@ -38,6 +39,7 @@ export const SECTIONS: readonly SectionDef[] = [
   { key: "temporadas", name: "Temporadas", path: "/admin/temporadas", icon: "flag", group: "club", blurb: "Activa, en preparación o archivada", go: "t" },
   { key: "capitanes", name: "Capitanes", path: "/admin/capitanes", icon: "shield", group: "club", blurb: "Quién lleva el brazalete", go: "k" },
   { key: "contenido", name: "Contenido", path: "/admin/contenido", icon: "doc", group: "club", blurb: "El programa del club", go: "o" },
+  { key: "caja", name: "Caja", path: "/admin/caja", icon: "coin", group: "club", blurb: "Cuotas, campo y árbitro, y el bote", go: "a", aliases: "dinero cuotas pagos bote" },
 ];
 export const SECTION: Record<SectionKey, SectionDef> = Object.fromEntries(SECTIONS.map((s) => [s.key, s])) as Record<SectionKey, SectionDef>;
 /** The section a `g` + key shortcut goes to (case-insensitive), if any. */
@@ -104,7 +106,7 @@ export interface AdminTarget {
   /** A section, En juego, the pizarra (leaves the sala for a board) or the web (a match's or a player's
    *  public page). */
   section: SectionKey | "enjuego" | "pizarra" | "web";
-  /** partidos / enjuego: the match; convocar: preselect this match (`?j=`); web: its public page. */
+  /** partidos / enjuego: the match; convocar: preselect this match (`?j=`); caja: open its «Coste del partido» (`?coste=`); web: its public page. */
   matchId?: string;
   /** pizarra: the board to open (`?tablero=`; absent = the pizarra as you left it) and its season. */
   tablero?: string;
@@ -122,7 +124,7 @@ export interface AdminTarget {
 }
 
 /** The sections in the phone's «Más» sheet (the rail's «Club» group). */
-export const MAS_SECTIONS: readonly SectionKey[] = ["fichas", "temporadas", "capitanes", "contenido"];
+export const MAS_SECTIONS: readonly SectionKey[] = ["fichas", "temporadas", "capitanes", "contenido", "caja"];
 
 /** «La puerta» lives in the vestuario (CaptainDoor): the rail links there. */
 export const DOOR_HREF = "/vestuario#puerta";

@@ -48,12 +48,14 @@ const P: Record<string, { d: ReactNode; sw: number }> = {
   whistle: { d: (<><circle cx="9" cy="14" r="5" /><path d="M12 10h9v4h-5M5 9 3 6" /></>), sw: 1.9 },
   share: { d: (<><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" /></>), sw: 1.9 },
   down: { d: <path d="m6 9 6 6 6-6" />, sw: 2.4 },
+  // (La caja: a coin with the euro sign)
+  coin: { d: (<><circle cx="12" cy="12" r="9" /><path d="M15.5 8.6a4 4 0 1 0 0 6.8M7.5 11h6M7.5 13.5h6" /></>), sw: 1.8 },
 };
 export type AdIconName =
   | "check" | "alert" | "info" | "clock" | "pencil" | "x" | "plus" | "minus" | "back" | "right" | "ext" | "door"
   | "inbox" | "flag" | "shield" | "doc" | "lock" | "swap" | "glove" | "spark" | "home" | "list" | "dots" | "side"
   | "image" | "link" | "bolt" | "trash" | "arch" | "undo" | "enter" | "updown" | "cal" | "team" | "search" | "sun"
-  | "moon" | "star" | "ball" | "bell" | "shirt" | "card" | "whistle" | "share" | "down";
+  | "moon" | "star" | "ball" | "bell" | "shirt" | "card" | "whistle" | "share" | "down" | "coin";
 
 /** One of the admin's icons (decorative: aria-hidden). `size` defaults to the canvas' usual 18. */
 export function AdIcon({ name, size = 18 }: { name: AdIconName; size?: number }) {

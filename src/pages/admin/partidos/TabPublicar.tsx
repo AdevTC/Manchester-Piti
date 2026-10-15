@@ -44,6 +44,7 @@ export function TabPublicar({
   onPoster,
   review,
   onReview,
+  onCoste,
 }: {
   phase: Phase;
   sheet: MatchSheet;
@@ -57,6 +58,8 @@ export function TabPublicar({
   onPoster: () => void;
   review: ActaReview;
   onReview: () => void;
+  /** Once the acta is published: «Coste del partido» in La caja (campo y árbitro among who played). */
+  onCoste?: () => void;
 }) {
   const id = useId();
   const [newUrl, setNewUrl] = useState("");
@@ -206,6 +209,12 @@ export function TabPublicar({
           <AdIcon name="image" size={16} />
           Descargar el cartel
         </button>
+        {onCoste && (
+          <button type="button" className="btn sm line" onClick={onCoste} style={{ alignSelf: "flex-start", minHeight: 44 }}>
+            <AdIcon name="coin" size={16} />
+            Coste del partido
+          </button>
+        )}
       </div>
     </div>
   );

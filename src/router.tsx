@@ -93,6 +93,10 @@ export const adminContenidoSearchSchema = z.object({
   /** The content section whose editor drawer is open. */
   seccion: optionalString,
 });
+export const adminCajaSearchSchema = z.object({
+  /** «Coste del partido» open for this match (match id): the match workspace's shortcut. */
+  coste: optionalString,
+});
 
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -199,6 +203,12 @@ const adminCapitanesRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "capitanes",
   component: lazyRouteComponent(() => import("./pages/admin/views/Capitanes"), "Capitanes"),
+});
+const adminCajaRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "caja",
+  validateSearch: adminCajaSearchSchema,
+  component: lazyRouteComponent(() => import("./pages/admin/views/Caja"), "Caja"),
 });
 const adminContenidoRoute = createRoute({
   getParentRoute: () => adminRoute,
@@ -308,6 +318,7 @@ const routeTree = rootRoute.addChildren([
     adminTemporadasRoute,
     adminCapitanesRoute,
     adminContenidoRoute,
+    adminCajaRoute,
     adminNotFoundRoute,
   ]),
   matchDetailRoute,
