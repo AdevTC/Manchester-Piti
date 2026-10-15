@@ -2,9 +2,9 @@
    Tokens come from .vx (vestuario.css) + celeste/page.css; flip digits and floodlights from partidos.css.
    Layout rule of this page: every grid/flex child has min-width:0, long names ellipsize, wide tables
    scroll inside their own box, decorations sit behind the text with pointer-events:none.
-   The --st-* tokens, cards, headings, segmented controls, fields, KPIs, legends, tables, empty lines and
-   the «nuevo» pill live in the Celeste base (src/styles/celeste/, loaded by the site chrome before any page
-   sheet), shared with the game-analysis panel. */
+   Cards, headings, segmented controls, empty lines and the «nuevo» pill live in the Celeste base
+   (src/styles/celeste/, loaded by the site chrome before any page sheet); the --st-* tokens, fields, KPIs,
+   legends and tables are celeste/data.css, imported by the stats-family pages and the game-analysis panel. */
 
 .st *{min-width:0}
 .st .hm-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

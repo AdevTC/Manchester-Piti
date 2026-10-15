@@ -16,7 +16,8 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const require = createRequire(path.join(ROOT, "package.json"));
+// postcss through vite (a direct dependency that depends on it): pnpm does not hoist it to the root.
+const require = createRequire(createRequire(path.join(ROOT, "package.json")).resolve("vite/package.json"));
 const postcss = require("postcss");
 
 const srcArg = process.argv[2] || process.env.PZ_DESIGN_SRC;

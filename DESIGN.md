@@ -329,7 +329,7 @@ The classes several public pages share live in one place, `src/styles/celeste/`,
 - `buttons.css`: `hm-btn` (solid pill), `hm-ghostbtn` (ghost pill), `hm-cta-top` (the header's top CTA).
 - `chips.css`: `pt-chip` (info chip), `pt-res` (the G·E·P result square), `st-new` (the «nuevo» pill).
 - `card.css`: `st-card` with `st-hd`, `st-h2` and `st-h3`. `seg.css`: `st-seg`. `state.css`: `st-empty`.
-- `data.css`: the stats family's `--st-*` tokens (on `.st` and `.technical-stats`), `st-mono`, `st-field`, `st-legend`, `st-kpis`, `st-tablebox` and `st-table`.
+- `data.css` (not in `base.css`: imported by Estadísticas, El club, the jugador page and the analysis panel, the pages that use it): the stats family's `--st-*` tokens (on `.st` and `.technical-stats`), `st-mono`, `st-field`, `st-legend`, `st-kpis`, `st-tablebox` and `st-table`.
 
 `celeste/page.css` is the content pages' `.vx` shell (night-sky, card and well tokens, `min-height`, reduced motion). Inicio, Partidos, the match ficha, Estadísticas, El club, the jugador page and Plantilla import it themselves, because on the bare `.vx` it must not reach the vestuario, perfil, acceso or admin. Page sheets (`home.css`, `partidos.css`, `stats.css`…) keep only their own layout. Tab bars have no shared class yet: `st-tabs`, `fc-tabs` and `sq-tabs` each belong to one page.
 

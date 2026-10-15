@@ -1,6 +1,6 @@
 // Shared "Celeste" chrome: the header, mobile dock and footer of the redesigned pages
 // (home and vestuario), so both read as the same web. It also loads the Celeste base
-// (styles/celeste/base.css: the titles, buttons, chips, cards and data pieces the pages share) once for all.
+// (styles/celeste/base.css: the titles, buttons, chips, cards, segments and empty lines the pages share) once for all.
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Icon, type IconName } from "./icons";

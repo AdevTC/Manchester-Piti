@@ -61,7 +61,7 @@ Corregir una acta reemplaza su contribución anterior a los acumulados. No la su
 
 La votación se abre al publicar la primera acta final y dura 48 horas. Editarla no prolonga ese plazo. Solo se puede votar a jugadores que participaron. Cada UID de Google tiene una papeleta por partido.
 
-Ya no hay clave del equipo. Un capitán crea un enlace de invitación (`/invitacion/<código>`, válido de 1 a 30 días, 7 por defecto, con un número de usos opcional y, si quiere, una ficha reservada) y puede revocarlo. Quien no tiene invitación pide acceso desde la puerta y un capitán lo aprueba o lo rechaza. Las invitaciones, las solicitudes y la pertenencia se comprueban en Cloud Functions y en las reglas de Firestore. La pertenencia va con la cuenta de Google y dura hasta que un administrador la retira.
+Ya no hay clave del equipo. Un capitán crea un enlace de invitación (`/invitacion/<código>`, válido de 1 a 30 días, 7 por defecto, de un solo uso o sin límite de usos y, si quiere, una ficha reservada) y puede revocarlo. Quien no tiene invitación pide acceso desde la puerta y un capitán lo aprueba o lo rechaza. Las invitaciones, las solicitudes y la pertenencia se comprueban en Cloud Functions y en las reglas de Firestore. La pertenencia va con la cuenta de Google y dura hasta que un administrador la retira.
 
 Los perfiles y nombres únicos se registran mediante transacción. Los roles administrativos existentes se conservan. La cuenta propietaria verificada conserva el mecanismo de superadministrador del proyecto.
 
@@ -169,6 +169,6 @@ Referencias: [Secretos y configuración de Functions](https://firebase.google.co
 - Los minutos, titularidades, suplencias y cambios solo se muestran si existe un acta con seguimiento. Un `—` significa dato no registrado; no se infieren minutos del historial anterior.
 - Rivales sin escudo o con imagen fallida reciben una insignia circular automática. Ejemplos: Superbebientes → SB, FUSION 7 → F7. El acta permite configurar una URL HTTPS y corregir hasta tres iniciales.
 - Estadísticas: Resumen (balance y resultados), Jugadores (tabla ordenable y CSV), Minutos (convocatorias y reparto), Rivales y Comparar. Explorar contiene exclusivamente Récords individuales, Rachas e hitos, Récords del equipo y Evolución y rankings.
-- Las secciones se conservan en la URL mediante `view` y `section`, además de la temporada. El comparador se enlaza con `view=compare` (y `a`/`b` para la pareja); el antiguo `tab=compare` ya no se lee.
+- Las secciones se conservan en la URL mediante `view` y `section`, además de la temporada. El comparador se enlaza con `view=compare` (y `a`/`b` para la pareja); los enlaces antiguos con `tab=compare` siguen abriendo Comparar (se leen como `view=compare`).
 - Los récords muestran todos sus titulares empatados y una clasificación desplegable. Las rachas cuentan partidos consecutivos del equipo dentro del período elegido; una ausencia rompe la racha. Los hitos registran la fecha en que se alcanza o cruza un umbral, desde el inicio del período.
 - Las gráficas de evolución permiten elegir métrica, hasta seis jugadores y partido consultado con el ratón o teclado. El ranking visual y los datos tabulares utilizan el mismo cálculo.

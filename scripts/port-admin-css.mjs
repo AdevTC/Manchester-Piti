@@ -23,7 +23,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { RESULT_WORD } from "../functions/src/result.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const require = createRequire(path.join(ROOT, "package.json"));
+// postcss through vite (a direct dependency that depends on it): pnpm does not hoist it to the root.
+const require = createRequire(createRequire(path.join(ROOT, "package.json")).resolve("vite/package.json"));
 const postcss = require("postcss");
 const OUT = path.join(ROOT, "src/styles/admin.css");
 
