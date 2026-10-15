@@ -30,6 +30,9 @@ import { BestPartner, FirstSteps, SeasonFeats, SeasonPlaceholder, Vitrina } from
 import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { ClubDataError } from "../../components/celeste/StatePanel";
+import { HoyCard } from "../../components/celeste/HoyCard";
+import { useViewer } from "../../hooks/useViewer";
+import { hoyModel } from "../../lib/derived/hoy";
 // The door's control room only loads for captains.
 const CaptainDoor = lazy(() => import("../acceso/CaptainDoor").then((m) => ({ default: m.CaptainDoor })));
 
@@ -74,6 +77,9 @@ export function VestuarioPage() {
   const season = seasons.find((s) => s.id === seasonId);
   const seasonName = season?.name ?? "Temporada";
   const matchOpen = !!next && dateMillis(next.date) > now;
+  // Match day: «Hoy» takes the place of the cartel's next-match lines (spec §1).
+  const viewer = useViewer();
+  const today = hoyModel(matches, viewer, now);
 
   const availability = useAvailability(next?.id);
   const meetingNote = useMeetingNote(next?.id);
@@ -163,6 +169,7 @@ export function VestuarioPage() {
         suggestion={fichas.suggestion}
         admin={admin}
         training={confirmedTraining}
+        today={today ? <HoyCard matches={matches} players={players} now={now} rsvpId="vx-rsvp" className="vx-hoy" /> : undefined}
         captain={
           admin ? (
             <CaptainStrip hasNext={!!next} claims={pendingClaims.data} linked={fichas.linked} squad={fichas.squad} fichaName={fichaName} />
