@@ -41,6 +41,9 @@ interface Props {
   /** Match day (members): «Hoy», in place of the next-match lines — the cartel, the name, the training
    *  chip and the ficha stay. */
   today?: ReactNode;
+  /** «Hoy» is about a match already whistled (the MVP vote is open) and another one comes next: the card goes on
+   *  top and the next match keeps its lines below (its RSVP above all). */
+  todayKeepsNext?: boolean;
 }
 export interface Ficha {
   id: string;
@@ -50,7 +53,7 @@ export interface Ficha {
 }
 const KIT_LABEL = { home: "1ª equipación", away: "2ª equipación" } as const;
 
-export function Hero({ me, seasonName, next, meetingNote, availability, now, theme, faceName, claim, claimable, suggestion, admin, captain, training, today }: Props) {
+export function Hero({ me, seasonName, next, meetingNote, availability, now, theme, faceName, claim, claimable, suggestion, admin, captain, training, today, todayKeepsNext }: Props) {
   const shirt = useRef<Jersey3DRef>(null);
   // Opens on the next match's kit; the player can try the other one on.
   const [kitPick, setKitPick] = useState<"home" | "away" | null>(null);
@@ -122,10 +125,11 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
             {me.displayName}
           </h1>
           <div className="vx-hero-copy">
-            {today ? (
+            {today && !todayKeepsNext ? (
               today
             ) : next ? (
               <>
+                {today}
                 <p className="vx-epic">
                   {kickoffLabel(next.date)}. {next.rival}.{" "}
                   <em>

@@ -71,3 +71,11 @@ it("match day: «Hoy» takes the next-match lines' place; the cartel and the nam
   expect(screen.queryByRole("radiogroup")).toBeNull();
   expect(screen.queryByText(/Quedamos 11:15/)).toBeNull();
 });
+
+it("the day after a match, while its MVP vote is open: «Hoy» goes on top and the next match keeps its RSVP", () => {
+  const today = <section aria-label="Hoy" />;
+  render(<Hero me={me} seasonName="Temporada 1" next={next} meetingNote="Quedamos 11:15" availability={[]} now={DATE - 3_600_000} theme="dark" faceName={() => ""} claim={null} claimable={[]} suggestion={null} admin={false} today={today} todayKeepsNext />);
+  expect(screen.getByRole("region", { name: "Hoy" })).toBeInTheDocument();
+  expect(screen.getByRole("radiogroup", { name: "Tu respuesta a la convocatoria" })).toBeInTheDocument();
+  expect(screen.getByText(/Quedamos 11:15/)).toBeInTheDocument();
+});
