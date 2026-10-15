@@ -19,7 +19,8 @@ const state = vi.hoisted(() => ({
   viewer: { member: true, admin: false, playerId: "adri" as string | null },
   board: null as { seven: string[]; codes: Record<string, string> } | null,
   note: "",
-  availability: [] as { uid: string; response: "yes" | "no" | "maybe"; name: string; playerId: string | null }[],
+  availability: [] as { uid: string; response: "yes" | "no" | "maybe"; name: string; playerId: string | null; absenceId?: string }[],
+  absences: [] as { id: string; uid: string; playerId: string | null; name: string; from: string; to: string; note: string; createdAt: number }[],
   prediction: null as { goalsFor: number; goalsAgainst: number } | null,
   mvp: new Map<string, { id: string; counts: Record<string, number>; total: number }>(),
   reads: [] as string[],
@@ -34,6 +35,7 @@ vi.mock("../../pages/vestuario/live", () => {
     useMvpResults: () => state.mvp,
     useMyPrediction: (id?: string, uid?: string) => (id && uid && state.reads.push(`predictions/${id}/${uid}`), live(id && uid ? state.prediction : null)),
     useMyMvpVote: () => live(""),
+    useAbsences: (today: string, enabled?: boolean) => (enabled && state.reads.push(`absences/${today}`), live(enabled ? state.absences : [])),
   };
 });
 vi.mock("../../pages/vestuario/writes", () => ({ useMe: () => ({ uid: "u1", name: "ADRI", playerId: "adri" }), ...state.writes }));
@@ -64,6 +66,7 @@ beforeEach(() => {
   state.board = null;
   state.note = "";
   state.availability = [];
+  state.absences = [];
   state.prediction = null;
   state.mvp = new Map();
   state.reads = [];
@@ -145,6 +148,46 @@ describe("HoyCard", () => {
     render(card({ ...base, clock: ended }, DATE + 70 * MIN));
     expect(screen.getByText(/Final · acta pendiente/)).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Tu voto" })).toBeNull();
+  });
+
+  it("away on the match day: «Hoy no juegas: estás ausente», no «Sales de titular», and the way to the switch", () => {
+    // (8 Nov: an absence of mine from the 6th to the 9th; the backend's «No puedo» is the answer)
+    state.absences = [{ id: "a1", uid: "u1", playerId: "adri", name: "ADRI", from: "2026-11-06", to: "2026-11-09", note: "", createdAt: 1 }];
+    state.availability = [{ uid: "u1", response: "no", name: "ADRI", playerId: "adri", absenceId: "a1" }];
+    render(card(base, DATE - 2 * HOUR));
+    expect(state.reads).toContain("absences/2026-11-08");
+    expect(screen.getByText("Hoy no juegas: estás ausente")).toBeInTheDocument();
+    expect(screen.queryByText(/Sales de titular/)).toBeNull();
+    const go = screen.getByRole("button", { name: "Cambiar mi respuesta" });
+    fireEvent.click(go);
+    // the focus lands on my answer in the switch
+    expect(screen.getByRole("radio", { name: "No puedo" })).toHaveFocus();
+  });
+
+  it("away but «Voy» by hand over the absence: no absence line", () => {
+    state.absences = [{ id: "a1", uid: "u1", playerId: "adri", name: "ADRI", from: "2026-11-06", to: "2026-11-09", note: "", createdAt: 1 }];
+    state.availability = [{ uid: "u1", response: "yes", name: "ADRI", playerId: "adri" }];
+    render(card(base, DATE - 2 * HOUR));
+    expect(screen.queryByText("Hoy no juegas: estás ausente")).toBeNull();
+    expect(screen.getByText("Sales de titular · MC")).toBeInTheDocument();
+  });
+
+  it("away while waiting for the whistle: the line, no way to change (the convocatoria closed)", () => {
+    state.absences = [{ id: "a1", uid: "u1", playerId: "adri", name: "ADRI", from: "2026-11-08", to: "2026-11-08", note: "", createdAt: 1 }];
+    render(card(base, DATE + 5 * MIN));
+    expect(screen.getByText("Hoy no juegas: estás ausente")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cambiar mi respuesta" })).toBeNull();
+  });
+
+  it("an absence on another day, or once the ball rolls: no line (and no absences read while live)", () => {
+    state.absences = [{ id: "a1", uid: "u1", playerId: "adri", name: "ADRI", from: "2026-11-09", to: "2026-11-12", note: "", createdAt: 1 }];
+    const { unmount } = render(card(base, DATE - 2 * HOUR));
+    expect(screen.queryByText("Hoy no juegas: estás ausente")).toBeNull();
+    unmount();
+    state.reads = [];
+    render(card({ ...base, clock: started }, DATE + 15 * MIN));
+    expect(screen.queryByText("Hoy no juegas: estás ausente")).toBeNull();
+    expect(state.reads.filter((r) => r.startsWith("absences"))).toEqual([]);
   });
 
   it("a fan: nothing rendered, nothing read", () => {

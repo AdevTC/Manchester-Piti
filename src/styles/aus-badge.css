@@ -1,0 +1,8 @@
+/* «Ausente · hasta 19 oct» in the match page's Vestuario tab (pages/match/Tabs.tsx, the convocatoria): who
+   said «No puedo» through an absence. The words and the calendar say it; the chip only frames them.
+   Celeste tokens (--chip, --ink, --muted). */
+.aus-away{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:6px}
+.aus-away li{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;min-width:0}
+.aus-away .nm{min-width:0;font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.aus-badge{display:inline-flex;align-items:center;gap:5px;min-height:26px;padding:0 10px;border-radius:999px;background:var(--chip);color:var(--ink);font-size:12px;font-weight:600;white-space:nowrap}
+.aus-badge svg{flex:none;color:var(--muted)}

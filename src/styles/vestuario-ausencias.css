@@ -1,0 +1,46 @@
+/* «Mis ausencias» in the vestuario (pages/vestuario/Ausencias.tsx): the add form and your list. Tokens from
+   .vx (styles/vestuario.css); every rule sits under .vx-aus. Phone 390 first: the two dates side by side,
+   the note under them, the list's «Quitar» never squeezed off the row. Targets ≥ 44 px; the words say
+   everything (the tint never does it alone). */
+
+.vx-aus{min-width:0}
+.vx-aus .aus-cols{margin-top:20px;display:grid;gap:28px;min-width:0}
+
+/* the form */
+.vx-aus .aus-form{display:grid;gap:12px;align-content:start;min-width:0;padding:18px;border-radius:24px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--line)}
+.vx-aus .aus-dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vx-aus .vx-field input{min-width:0;width:100%;min-height:46px}
+.vx-aus .vx-field input[type="date"]{padding:0 10px}
+.vx-aus .vx-field input[aria-invalid="true"]{box-shadow:inset 0 0 0 1.5px currentColor}
+.vx-aus .aus-hint{margin:-4px 0 0;font-family:'Geist Mono';font-size:12px;color:var(--muted)}
+.vx-aus .aus-err{margin-top:0}
+.vx-aus .aus-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.vx-aus .aus-foot .vx-btn{min-height:48px}
+.vx-aus .aus-saved{display:flex;align-items:flex-start;gap:8px;margin:0;font-size:14px;line-height:1.45;color:var(--soft)}
+.vx-aus .aus-saved:empty{display:none}
+.vx-aus .aus-saved svg{flex:none;margin-top:2px;color:var(--accent)}
+
+/* your list */
+.vx-aus .aus-list-wrap{min-width:0}
+.vx-aus .aus-h3{margin:0;font-family:'Anybody';font-weight:800;font-size:22px;line-height:1.1;font-variation-settings:'wdth' 108}
+.vx-aus .aus-list{margin:10px 0 0;padding:0;list-style:none}
+.vx-aus .aus-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.vx-aus .aus-what{display:grid;gap:3px;min-width:0}
+.vx-aus .aus-what b{font-size:16px;font-weight:700;overflow-wrap:anywhere}
+.vx-aus .aus-now{font-weight:400;font-family:'Geist Mono';font-size:12px;color:var(--accent)}
+.vx-aus .aus-what small{font-size:13px;color:var(--muted)}
+.vx-aus .aus-note{font-size:14px;line-height:1.4;color:var(--soft);overflow-wrap:anywhere}
+.vx-aus .aus-quitar{min-height:44px;height:44px;padding:0 16px}
+.vx-aus .aus-ask{grid-column:1/-1;display:grid;gap:10px;padding:14px;border-radius:20px;background:var(--chip-gold)}
+.vx-aus .aus-ask p{margin:0;font-size:14px;line-height:1.45;color:var(--gold-ink)}
+.vx-aus .aus-ask-b{display:flex;flex-wrap:wrap;gap:8px}
+.vx-aus .aus-ask-b .vx-btn{min-height:44px;height:44px}
+.vx-aus .aus-row > .vx-error{grid-column:1/-1;margin-top:0}
+
+@container (max-width:360px){
+.vx-aus .aus-dates{grid-template-columns:minmax(0,1fr)}
+}
+@container (min-width:1100px){
+.vx-aus{grid-column:1/-1}
+.vx-aus .aus-cols{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:56px;align-items:start}
+}

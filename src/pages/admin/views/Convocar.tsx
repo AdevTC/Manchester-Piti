@@ -11,7 +11,10 @@ import { Link, useSearch } from "@tanstack/react-router";
 import { rosterFor } from "../acta/roster";
 import { LoadError } from "../club/ClubStates";
 import { benchOf, convocables, copyFrom, exactPosition, matchLead, matchTitle, poolGroups, type PoolGroup } from "../convocar/convocarModel";
-import { useMatchAnswers } from "../convocar/live";
+import { useMatchAnswers, useTeamAbsences } from "../convocar/live";
+import { absentBadge, madridDate, matchDay } from "../../../lib/derived/absences";
+import { dateMillis } from "../../../../functions/src/matchEngine";
+import "../convocar/ausente.css";
 import { useReminders } from "../convocar/reminders";
 import { RemindersToggle } from "../convocar/RemindersToggle";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
@@ -95,6 +98,8 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   const { desktop } = useFrame();
   const conv = useConvocatoria(match);
   const answers = useMatchAnswers(match.id);
+  // «Ausente · hasta 19 oct» on a «No puedo» an absence wrote (or that an absence covers that day)
+  const absences = useTeamAbsences(madridDate(data.now));
   const rem = useReminders(match.id);
   // the pizarra's official board for this match (its «La pizarra» reader links to it) + ⌘K's shortcuts
   const board = useMatchShortcuts(match);
@@ -108,6 +113,8 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   );
   const ids = roster.map((p) => p.id);
   const rsvp = rsvpOf(answers.data, ids);
+  const day = matchDay(dateMillis(match.date));
+  const absentOf = (id: string) => absentBadge(answers.data.find((a) => a.playerId === id), absences, day);
   const groups = rsvpGroups(ids, rsvp);
   const nameOf = (id: string) => roster.find((p) => p.id === id)?.name ?? "Jugador";
   const lineup = conv.lineup;
@@ -242,7 +249,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
           </section>
           {copyBtn}
           {pizarraCheck}
-          <Pool groups={pool} onSet={setSlot} empty={!roster.length} />
+          <Pool groups={pool} onSet={setSlot} empty={!roster.length} absentOf={absentOf} />
           <SourceNote />
           {remindersEl}
         </div>
@@ -265,7 +272,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
         </div>
       </div>
       <div className="cvv">
-        <Pool groups={pool} onSet={setSlot} empty={!roster.length} />
+        <Pool groups={pool} onSet={setSlot} empty={!roster.length} absentOf={absentOf} />
         <section className="sv" aria-labelledby={hid}>
           <div className="cta-row">
             <h2 className="ttl" id={hid}>
@@ -399,7 +406,7 @@ function SourceNote() {
   );
 }
 
-function Pool({ groups, onSet, empty }: { groups: PoolGroup[]; onSet: (id: string, slot: Slot) => void; empty: boolean }) {
+function Pool({ groups, onSet, empty, absentOf }: { groups: PoolGroup[]; onSet: (id: string, slot: Slot) => void; empty: boolean; absentOf: (id: string) => string | null }) {
   const base = useId();
   return (
     <div className="pool scr" role="group" aria-label="Jugadores por respuesta">
@@ -410,28 +417,37 @@ function Pool({ groups, onSet, empty }: { groups: PoolGroup[]; onSet: (id: strin
             {g.title} <em>{g.rows.length}</em>
           </h3>
           <div className="gw">
-            {g.rows.map((r) => (
-              <div key={r.id} className={g.key === "no" ? "pr no" : "pr"}>
-                <span className="nb">{r.num}</span>
-                <span>
-                  <b>{r.name}</b>
-                  <small>
-                    {r.code}
-                    {r.posName && <span className="sr"> ({r.posName})</span>}
-                    {r.code ? " · " : ""}
-                    {r.place}
-                  </small>
-                </span>
-                <span className="ac">
-                  <button type="button" className={`btn sm ${r.slot === "T" ? "sky" : "line"}`} onClick={() => onSet(r.id, "T")} aria-pressed={r.slot === "T"} aria-label={`${r.name} en el siete`}>
-                    Siete
-                  </button>
-                  <button type="button" className={`btn sm ${r.slot === "B" ? "sky" : "line"}`} onClick={() => onSet(r.id, "B")} aria-pressed={r.slot === "B"} aria-label={`${r.name} en el banquillo`}>
-                    Banq.
-                  </button>
-                </span>
-              </div>
-            ))}
+            {g.rows.map((r) => {
+              const away = g.key === "no" ? absentOf(r.id) : null;
+              return (
+                <div key={r.id} className={g.key === "no" ? "pr no" : "pr"}>
+                  <span className="nb">{r.num}</span>
+                  <span>
+                    <b>{r.name}</b>
+                    <small>
+                      {r.code}
+                      {r.posName && <span className="sr"> ({r.posName})</span>}
+                      {r.code ? " · " : ""}
+                      {r.place}
+                    </small>
+                    {away && (
+                      <span className="aus-badge">
+                        <AdIcon name="cal" size={13} />
+                        {away}
+                      </span>
+                    )}
+                  </span>
+                  <span className="ac">
+                    <button type="button" className={`btn sm ${r.slot === "T" ? "sky" : "line"}`} onClick={() => onSet(r.id, "T")} aria-pressed={r.slot === "T"} aria-label={`${r.name} en el siete`}>
+                      Siete
+                    </button>
+                    <button type="button" className={`btn sm ${r.slot === "B" ? "sky" : "line"}`} onClick={() => onSet(r.id, "B")} aria-pressed={r.slot === "B"} aria-label={`${r.name} en el banquillo`}>
+                      Banq.
+                    </button>
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </section>
       ))}

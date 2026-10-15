@@ -55,6 +55,9 @@ export interface HoyContext {
   board?: { seven: readonly string[]; codes?: Readonly<Record<string, PosCode>> } | null;
   /** The viewer's player file, for the preferred position when the board has no code for him. */
   player?: { positions?: unknown; naturalPosition?: unknown } | null;
+  /** The viewer is away on the match's Madrid day (an absence of his covers it) and has not answered
+   *  «Voy» or «Duda» by hand over it: «Hoy no juegas: estás ausente». */
+  absentToday?: boolean;
 }
 
 export interface HoyModel {
@@ -67,8 +70,10 @@ export interface HoyModel {
   /** The seven the card lists before kick-off: the pizarra's official (`official`) or the convocatoria's
    *  titulares; an empty `field` = no siete yet. */
   seven: { field: string[]; official: boolean };
-  /** «Sales de titular · DFC» when the viewer is in that seven (before kick-off only); null otherwise. */
+  /** «Sales de titular · DFC» when the viewer is in that seven (before kick-off only, and not away); null otherwise. */
   starter: string | null;
+  /** «Hoy no juegas: estás ausente» (before kick-off only): ctx.absentToday. */
+  absent: boolean;
   /** The acta is out (the result is the published one). */
   published: boolean;
   /** The MVP vote is open (rules mvpOpen()). */
@@ -91,8 +96,10 @@ export function hoyModel(
   const phase = kickoffState(match, now);
   const stage = stageOf(phase);
   const { field, official } = campoSeven(match, stage === "before" ? (ctx.board?.seven ?? null) : null);
+  // (away today: the card says so, and no «Sales de titular» next to it)
+  const absent = stage === "before" && !!ctx.absentToday;
   let starter: string | null = null;
-  if (stage === "before" && viewer.playerId && field.includes(viewer.playerId)) {
+  if (stage === "before" && !absent && viewer.playerId && field.includes(viewer.playerId)) {
     // the exact slot for this match when the official board has it, else his preferred position
     const code = (official ? ctx.board?.codes?.[viewer.playerId] : undefined) ?? (ctx.player ? resolvePositions(ctx.player).main : null);
     starter = code ? `Sales de titular · ${code}` : "Sales de titular";
@@ -104,6 +111,7 @@ export function hoyModel(
     rsvpOpen: kickoffWindow(match, now) === "open",
     seven: { field, official },
     starter,
+    absent,
     published: match.status === "finished",
     voteOpen: mvpVoteOpen(match, now),
   };

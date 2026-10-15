@@ -18,7 +18,8 @@ import { eventLine, livePlay, scoreboardOf } from "../../lib/derived/scoreboard"
 import { KIT_LABEL, kitLabel, mapsUrl } from "../../lib/derived/venue";
 import { dateParts } from "../../lib/partidos";
 import { predictionsRevealed, scorePrediction } from "../../../functions/src/predictions";
-import { useAvailability, useMeetingNote, useMvpResults, useMyPrediction } from "../../pages/vestuario/live";
+import { useAbsences, useAvailability, useMeetingNote, useMvpResults, useMyPrediction } from "../../pages/vestuario/live";
+import { absenceOn, madridDate, matchDay } from "../../lib/derived/absences";
 import { useMe } from "../../pages/vestuario/writes";
 import { useBoardView, useMatchBoard } from "../../pages/pizarra/useMatchBoard";
 import { RsvpSwitch } from "../../pages/vestuario/shared/RsvpSwitch";
@@ -70,17 +71,23 @@ export function HoyCard({ matches, players, now, rsvpId, className }: Props) {
   const note = useMeetingNote(before ? match?.id : undefined);
   const mvp = useMvpResults().get(match?.id ?? "");
   const prediction = useMyPrediction(after ? match?.id : undefined, uid);
+  // (the member's absences, before kick-off only: «Hoy no juegas: estás ausente»)
+  const absences = useAbsences(madridDate(now), viewer.member && before);
   const titleId = useId();
   if (!first || !match) return null;
 
   const player = players.find((p) => p.id === viewer.playerId) ?? null;
-  const model = hoyModel(matches, viewer, now, { board, player }) ?? first;
+  const answer = availability.data.find((a) => a.uid === uid)?.response;
+  // away on the match's day, unless he has said «Voy» or «Duda» by hand over the absence
+  const away = before && !!absenceOn(absences.data, { uid, playerId: viewer.playerId }, matchDay(dateMillis(match.date)));
+  const absentToday = away && answer !== "yes" && answer !== "maybe";
+  const model = hoyModel(matches, viewer, now, { board, player, absentToday }) ?? first;
+  const switchId = rsvpId ?? `${titleId}-rsvp`;
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match.seasonId);
   const d = dateParts(match.date);
   const sb = scoreboardOf(match);
   const kit = kitLabel(match, KIT_LABEL.home);
   const jornada = jornadaOf(matches, match.id);
-  const answer = availability.data.find((a) => a.uid === uid)?.response;
   // (a clock nobody started, past its window: nothing says it was played — no 0–0)
   const unplayed = model.phase === "awaiting_result" && !model.published && whistleAt(match) === null;
   // (the shared ballot when there is someone to vote; it takes only this member's vote)
@@ -121,6 +128,19 @@ export function HoyCard({ matches, players, now, rsvpId, className }: Props) {
               {model.starter}
             </p>
           )}
+          {model.absent && (
+            <div className="hoy-absent">
+              <p>
+                <Icon name="cal" size={16} stroke={2.2} />
+                <b>Hoy no juegas: estás ausente</b>
+              </p>
+              {model.rsvpOpen && (
+                <button type="button" className="hoy-absent-go" onClick={() => toSwitch(switchId)}>
+                  Cambiar mi respuesta
+                </button>
+              )}
+            </div>
+          )}
           {model.phase === "pending_whistle" ? (
             <p className="hoy-wait" role="status">
               <b>{d.time}</b> {PENDING_WHISTLE}
@@ -128,7 +148,7 @@ export function HoyCard({ matches, players, now, rsvpId, className }: Props) {
           ) : (
             <Countdown target={dateMillis(match.date)} />
           )}
-          {model.rsvpOpen && <RsvpSwitch match={match} now={now} answer={answer} id={rsvpId} className="hoy-rsvp" />}
+          {model.rsvpOpen && <RsvpSwitch match={match} now={now} answer={answer} id={switchId} className="hoy-rsvp" />}
           <dl className="hoy-facts">
             <div>
               <dt>Saque</dt>
@@ -211,6 +231,15 @@ export function HoyCard({ matches, players, now, rsvpId, className }: Props) {
       )}
     </section>
   );
+}
+
+/** «Cambiar mi respuesta»: to the convocatoria switch, its focus on the current answer (no slide under reduced motion). */
+function toSwitch(id: string) {
+  const group = document.getElementById(id);
+  if (!group) return;
+  const smooth = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  group.scrollIntoView?.({ behavior: smooth ? "smooth" : "auto", block: "center" });
+  group.querySelector<HTMLElement>('[tabindex="0"]')?.focus({ preventScroll: true });
 }
 
 /** Live: the minute (the shared clock when there is one), the bar, the last event and the way to the match. */

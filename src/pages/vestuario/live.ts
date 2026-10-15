@@ -24,7 +24,7 @@ import { mapMvp, MVP_RESULTS_KEY } from "../../lib/firestoreMappers";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import type { TrainingSlot } from "../../lib/vestuario";
 import { EMPTY_CAJA_SETTINGS, parseCajaMov, parseCajaSettings, type CajaMov, type CajaSettings } from "../../lib/derived/caja";
-import { currentAbsences, parseAbsence, type Absence } from "../../lib/derived/absences";
+import { byAbsence, currentAbsences, parseAbsence, type Absence } from "../../lib/derived/absences";
 
 interface Live<T> {
   data: T;
@@ -244,12 +244,21 @@ export interface Availability {
   response: "yes" | "no" | "maybe";
   name: string;
   playerId: string | null;
+  /** Only on a «No puedo» an absence wrote (`source: "absence"`): its id ("" if missing). A hand answer
+   *  has none — the «Ausente · hasta 19 oct» badges (derived/absences absentBadge) read it. */
+  absenceId?: string;
 }
 export function useAvailability(matchId: string | undefined) {
   return useLiveQuery<Availability>(
     matchId ? `availability/${matchId}` : null,
     () => collection(db, "matchPrivate", matchId!, "availability"),
-    (uid, d) => ({ uid, response: d.response, name: d.name ?? "Miembro", playerId: d.playerId ?? null }),
+    (uid, d) => ({
+      uid,
+      response: d.response,
+      name: d.name ?? "Miembro",
+      playerId: d.playerId ?? null,
+      ...(byAbsence(d) ? { absenceId: typeof d.absenceId === "string" ? d.absenceId : "" } : {}),
+    }),
   );
 }
 

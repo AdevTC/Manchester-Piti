@@ -29,6 +29,7 @@ import { CaptainStrip } from "./Captain";
 import { BestPartner, FirstSteps, SeasonFeats, SeasonPlaceholder, Vitrina } from "./SeasonBlocks";
 import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
 import { Caja } from "./Caja";
+import { Ausencias } from "./Ausencias";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { ClubDataError } from "../../components/celeste/StatePanel";
 import { HoyCard } from "../../components/celeste/HoyCard";
@@ -207,6 +208,8 @@ export function VestuarioPage() {
           <TrainingPoll trainings={trainings.data} uid={uid} admin={admin} now={now} />
           <Porra next={next} players={players} uid={uid} rows={porra.data} now={now} />
           <MvpBlock match={lastMatch} result={lastMatch ? mvpResults.get(lastMatch.id) : undefined} uid={uid} admin={admin} member={member} now={now} playerName={mvpName} />
+          {/* «no puedo del 12 al 19»: members only (a fan never opens its reader) */}
+          <Ausencias member={viewer.member} matches={matches} now={now} />
           {/* the team's money: members only (a fan never opens its reader) */}
           <Caja member={viewer.member} admin={admin} seasonId={seasonId} playerId={playerId} players={players} />
           <Board messages={board.data} uid={uid} admin={admin} loading={board.loading} now={now} />

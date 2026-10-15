@@ -35,6 +35,7 @@ vi.mock("../vestuario/live", () => ({
   useMvpReveal: (o: { open: boolean; winner: boolean }) => !o.open && o.winner && state.confirmed,
   useMyMvpVote: () => ({ data: "" }),
   useMyPrediction: () => ({ data: null }),
+  useAbsences: () => ({ data: [] }),
 }));
 vi.mock("../vestuario/writes", () => ({ useMe: () => (state.member ? { uid: "u1", displayName: "YO", shirtName: "YO", number: "" } : null), predictScore: vi.fn(), setAvailability: vi.fn(), voteMvp: vi.fn() }));
 const SQUAD = ["erik", "pablo", "raul", "adri"].map((id) => ({ id, shirtName: id.toUpperCase(), seasons: ["t1"], seasonDetails: { t1: { shirtName: `${id.toUpperCase()}7` } } }));

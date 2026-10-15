@@ -171,3 +171,36 @@ describe("«Sales de titular»", () => {
     expect(hoyModel([{ ...conv, clock: started }], member, DATE + 10 * MIN)?.starter).toBeNull();
   });
 });
+
+describe("«Hoy no juegas: estás ausente»", () => {
+  const conv: ClubMatch = { ...base, starters: ["adri", "b", "c"], bench: ["d"] };
+
+  it("away before kick-off: the line, and no «Sales de titular» next to it", () => {
+    const m = hoyModel([conv], member, DATE - HOUR, { absentToday: true, player: { positions: { main: "MC", also: [] } } });
+    expect(m?.absent).toBe(true);
+    expect(m?.starter).toBeNull();
+    // (the convocatoria is still open: the card can lead to the switch)
+    expect(m?.rsvpOpen).toBe(true);
+  });
+
+  it("from 00:00 Madrid, and still while waiting for the whistle", () => {
+    expect(hoyModel([conv], member, MIDNIGHT, { absentToday: true })?.absent).toBe(true);
+    const waiting = hoyModel([conv], member, DATE + 3 * MIN, { absentToday: true });
+    expect(waiting?.absent).toBe(true);
+    expect(waiting?.rsvpOpen).toBe(false);
+  });
+
+  it("not away (or not said): no line, the starter as before", () => {
+    expect(hoyModel([conv], member, DATE - HOUR)?.absent).toBe(false);
+    expect(hoyModel([conv], member, DATE - HOUR, { absentToday: false })?.starter).toBe("Sales de titular");
+  });
+
+  it("once the ball rolls, and after the whistle: no line", () => {
+    expect(hoyModel([{ ...conv, clock: started }], member, DATE + 10 * MIN, { absentToday: true })?.absent).toBe(false);
+    expect(hoyModel([published], member, WHISTLE + HOUR, { absentToday: true })?.absent).toBe(false);
+  });
+
+  it("a fan: still null", () => {
+    expect(hoyModel([conv], fan, DATE - HOUR, { absentToday: true })).toBeNull();
+  });
+});

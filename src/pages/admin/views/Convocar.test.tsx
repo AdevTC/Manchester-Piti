@@ -12,9 +12,14 @@ vi.mock("../../../lib/clubApi", () => ({
   apiError: (e: unknown) => String(e),
   setConvocatoria: vi.fn(() => Promise.resolve({ data: { at: 1, revision: 1, notice: "first" } })),
 }));
+// (the team's absences, for the «Ausente · hasta …» badges)
+const { absences } = vi.hoisted(() => ({ absences: { list: [] as unknown[], days: [] as string[] } }));
 vi.mock("../convocar/live", async () => {
   const kit = await import("../../../test/adminKit");
-  return { useMatchAnswers: (id: string | undefined) => ({ data: id === "m8" ? kit.fixtureAnswers : [], loading: false }) };
+  return {
+    useMatchAnswers: (id: string | undefined) => ({ data: id === "m8" ? kit.fixtureAnswers : [], loading: false }),
+    useTeamAbsences: (today: string) => (absences.days.push(today), absences.list),
+  };
 });
 const { setReminders } = vi.hoisted(() => ({ setReminders: vi.fn((_on: boolean) => Promise.resolve()) }));
 vi.mock("../convocar/reminders", () => ({ useReminders: () => ({ auto: true, loading: false, set: setReminders }) }));
@@ -29,6 +34,8 @@ const withJ8 = (j8: Partial<ClubMatch>): ClubMatch[] => fixturePublished.map((m)
 const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("adm-toasts"))!;
 
 beforeEach(() => {
+  absences.list = [];
+  absences.days = [];
   localStorage.clear();
   setConv.mockClear();
   setAdminData(adminFixture({ published: withJ8({ starters: SIX, bench: ["kevin", "almachi"] }) }));
@@ -39,6 +46,26 @@ afterEach(() => {
 });
 
 describe("Convocar", () => {
+  it("«Ausente · hasta 12 nov» on a «No puedo» an absence covers that day (words and an icon); nobody else", async () => {
+    absences.list = [{ id: "a1", uid: "u-brawan", playerId: "brawan", name: "brawan", from: "2026-11-06", to: "2026-11-12", note: "", createdAt: 1 }];
+    mountAdmin("/admin/convocar", { convocar: Convocar });
+    const pool = await screen.findByRole("group", { name: "Jugadores por respuesta" });
+    const rowOf = (name: string) => within(pool).getByText(name, { selector: "b" }).closest(".pr") as HTMLElement;
+    const badge = within(rowOf("BRAWAN")).getByText("Ausente · hasta 12 nov");
+    expect(badge).toHaveClass("aus-badge");
+    expect(badge.querySelector("svg")).not.toBeNull();
+    expect(within(pool).getAllByText(/^Ausente/)).toHaveLength(1);
+    // (the reader asks for the absences still to end, from the admin's «today»)
+    expect(absences.days.at(-1)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("an absence that doesn't cover the match's day: no badge", async () => {
+    absences.list = [{ id: "a1", uid: "u-brawan", playerId: "brawan", name: "brawan", from: "2026-11-09", to: "2026-11-12", note: "", createdAt: 1 }];
+    mountAdmin("/admin/convocar", { convocar: Convocar });
+    const pool = await screen.findByRole("group", { name: "Jugadores por respuesta" });
+    expect(within(pool).queryByText(/^Ausente/)).toBeNull();
+  });
+
   it("the switcher, the squad by answer, el siete on the pegs, the banquillo, the one source and its readers", async () => {
     expect(fixtureAnswers).toHaveLength(11);
     mountAdmin("/admin/convocar", { convocar: Convocar });
