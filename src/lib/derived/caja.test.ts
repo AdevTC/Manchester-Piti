@@ -16,7 +16,6 @@ import {
   filterMovs,
   fmtEuros,
   jarBalance,
-  madridDay,
   madridMonth,
   matchCostConcept,
   matchCostPlayers,
@@ -28,6 +27,7 @@ import {
   splitCost,
   type CajaMov,
 } from "./caja";
+import { madridDate } from "./madrid";
 
 const NB = " ";
 let n = 0;
@@ -168,9 +168,9 @@ describe("money in words", () => {
 
 describe("dates (Madrid)", () => {
   it("the Madrid calendar day, also after 22:00 UTC and across the DST change", () => {
-    expect(madridDay(Date.UTC(2026, 9, 15, 22, 30))).toBe("2026-10-16");
-    expect(madridDay(Date.UTC(2026, 9, 24, 22, 30))).toBe("2026-10-25");
-    expect(madridDay(Date.UTC(2026, 9, 25, 22, 30))).toBe("2026-10-25");
+    expect(madridDate(Date.UTC(2026, 9, 15, 22, 30))).toBe("2026-10-16");
+    expect(madridDate(Date.UTC(2026, 9, 24, 22, 30))).toBe("2026-10-25");
+    expect(madridDate(Date.UTC(2026, 9, 25, 22, 30))).toBe("2026-10-25");
     expect(madridMonth(Date.UTC(2026, 9, 31, 23, 30))).toBe(10);
     expect(dayLabel("2026-10-05")).toBe("5 oct");
     expect(dayLabel("")).toBe("—");

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readyClock, transitionClock } from "../../../functions/src/matchClock";
 import type { ClubMatch } from "../clubData";
-import { hoyMatch, hoyModel, inHoyWindow, madridDay } from "./hoy";
+import { hoyMatch, hoyModel, inHoyWindow } from "./hoy";
+import { madridDate } from "./madrid";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -19,10 +20,10 @@ const ended = transitionClock(second, "finish", DATE + 65 * MIN);
 const WHISTLE = DATE + 65 * MIN;
 const published: ClubMatch = { ...base, clock: ended, status: "finished", goalsFor: 2, goalsAgainst: 1, voteClosesAt: WHISTLE + 48 * HOUR };
 
-describe("madridDay", () => {
+describe("madridDate", () => {
   it("the Madrid calendar date, not the UTC one", () => {
-    expect(madridDay(MIDNIGHT)).toBe("2026-11-08");
-    expect(madridDay(MIDNIGHT - 1)).toBe("2026-11-07");
+    expect(madridDate(MIDNIGHT)).toBe("2026-11-08");
+    expect(madridDate(MIDNIGHT - 1)).toBe("2026-11-07");
   });
 });
 
@@ -121,7 +122,7 @@ describe("a kick-off at 23:30 Madrid", () => {
   it("live past midnight, and after the whistle until the end of the day it ended", () => {
     expect(hoyModel([{ ...late, clock: lStart }], member, LATE + 40 * MIN)).toMatchObject({ stage: "live" });
     const fin = { ...late, clock: lEnd };
-    expect(madridDay(LATE + 58 * MIN)).toBe("2026-11-09");
+    expect(madridDate(LATE + 58 * MIN)).toBe("2026-11-09");
     expect(hoyModel([fin], member, Date.UTC(2026, 10, 9, 12))?.stage).toBe("after");
     expect(hoyModel([fin], member, Date.UTC(2026, 10, 9, 23))).toBeNull(); // 00:00 Madrid on the 10th
   });

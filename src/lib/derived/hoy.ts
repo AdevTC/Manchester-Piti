@@ -14,11 +14,7 @@ import { campoSeven } from "../../pages/match/campoSeven";
 import { kickoffState, type KickoffState } from "./kickoff";
 import { kickoffWindow, mvpVoteOpen } from "./memberWindows";
 import { whistleAt } from "./island";
-
-const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" });
-
-/** The Madrid calendar date of `ms`, «YYYY-MM-DD» (compares as a string). */
-export const madridDay = (ms: number): string => DAY.format(ms);
+import { madridDate } from "./madrid";
 
 /** The card's three moments: before kick-off (scheduled / pending whistle), live (live / half-time), after. */
 export type HoyStage = "before" | "live" | "after";
@@ -31,13 +27,13 @@ export function inHoyWindow(m: ClubMatch, now: number): boolean {
   if (!Number.isFinite(at)) return false;
   const phase = matchPhase(m, now);
   if (phase === "cancelled" || phase === "postponed") return false;
-  const today = madridDay(now);
-  if (today < madridDay(at)) return false;
+  const today = madridDate(now);
+  if (today < madridDate(at)) return false;
   if (stageOf(kickoffState(m, now)) !== "after") return true;
   // After the whistle: until the vote closes; without a vote, the end of the day the match was played
   // (the day of its whistle, for a late kick-off that ended after midnight).
   if (m.status === "finished" && typeof m.voteClosesAt === "number") return now < m.voteClosesAt;
-  return today <= madridDay(Math.max(at, whistleAt(m) ?? at));
+  return today <= madridDate(Math.max(at, whistleAt(m) ?? at));
 }
 
 /** The match «Hoy» is about: the earliest one in its window not yet ended (two the same day: the next

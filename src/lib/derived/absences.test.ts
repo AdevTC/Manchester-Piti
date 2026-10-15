@@ -46,8 +46,8 @@ describe("Madrid calendar days", () => {
   it("an absence is one to 120 days of real dates", () => {
     expect(absenceRangeProblem("2026-10-01", "2027-01-28")).toBeNull();
     expect(absenceDays("2026-10-01", "2027-01-28")).toBe(ABSENCE_MAX_DAYS);
-    expect(absenceRangeProblem("2026-10-01", "2027-01-29")).toBe("Como mucho 120 días seguidos.");
-    expect(absenceRangeProblem("2026-10-19", "2026-10-12")).toBe("La vuelta no puede ser antes de la salida.");
+    expect(absenceRangeProblem("2026-10-01", "2027-01-29")).toBe("Como mucho 120 días.");
+    expect(absenceRangeProblem("2026-10-19", "2026-10-12")).toBe("La fecha final va después de la inicial.");
     expect(absenceRangeProblem("", "2026-10-12")).toBe("Elige las dos fechas.");
     expect(absenceRangeProblem("2026-13-01", "2026-13-02")).toBe("Elige las dos fechas.");
   });

@@ -19,7 +19,6 @@ import {
   fmtEuros,
   jarBalance,
   KIND_LABEL,
-  madridDay,
   movSign,
   owedTotal,
   sortMovs,
@@ -27,6 +26,7 @@ import {
   type CajaKind,
   type CajaMov,
 } from "../../../lib/derived/caja";
+import { madridDate } from "../../../lib/derived/madrid";
 import { dayOf } from "../partidos/listModel";
 import { AjustesModal, CosteModal, CuotaModal, MovModal, type CostOption, type FreeKind } from "../caja/CajaModals";
 import { LoadError } from "../club/ClubStates";
@@ -112,7 +112,7 @@ export function Caja() {
         .map((m) => {
           const t = dateMillis(m.date);
           const jornada = jornadaOf(data.published, m.id);
-          return { ...m, jornada, at: t, day: Number.isFinite(t) ? madridDay(t) : madridDay(data.now), label: `${jornada ? `J${jornada} · ` : ""}${m.rival || "Rival"} · ${dayOf(t)}` };
+          return { ...m, jornada, at: t, day: Number.isFinite(t) ? madridDate(t) : madridDate(data.now), label: `${jornada ? `J${jornada} · ` : ""}${m.rival || "Rival"} · ${dayOf(t)}` };
         })
         .reverse(),
     [data.matches, data.published, seasonId, data.now],

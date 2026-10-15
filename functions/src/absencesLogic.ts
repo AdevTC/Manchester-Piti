@@ -11,6 +11,11 @@
 //   · an absence deleted (or a match moved out of its range) takes back only the answers it wrote that
 //     are still its own — or hands them to another absence of the member that still covers the match.
 
+import { madridDate, MONTHS_SHORT } from "./madrid.js";
+
+/** (re-exported: the absences' callers already take the Madrid day from here) */
+export { madridDate };
+
 /** The longest absence, in days (both ends counted): «del 1 al 120» is the most one can say at once. */
 export const ABSENCE_MAX_DAYS = 120;
 /** The optional note's cap (the members see it). */
@@ -18,13 +23,8 @@ export const ABSENCE_NOTE_MAX = 140;
 /** What the backend writes on the answers it makes (`source`). */
 export const ABSENCE_SOURCE = "absence";
 
-const TZ = "Europe/Madrid";
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 86_400_000;
-const DAY_FMT = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
-
-/** The Madrid calendar date of an instant, `YYYY-MM-DD` (a match at 23:30 is still that day; DST-proof). */
-export const madridDate = (ms: number): string => DAY_FMT.format(ms);
 
 /** A real calendar day `YYYY-MM-DD` → its index (days since 1970-01-01); NaN when it isn't one. */
 function dayIndex(day: unknown): number {
@@ -46,12 +46,13 @@ export function absenceDays(from: string, to: string): number {
   return dayIndex(to) - dayIndex(from) + 1;
 }
 
-/** Why a range can't be an absence (null = it can), as the rules check it. */
+/** Why a range can't be an absence (null = it can), as the rules check it, in the words the member reads
+ *  (the vestuario's form adds «Esa fecha ya pasó»: absenceFormProblem). */
 export function absenceRangeProblem(from: string, to: string): string | null {
   if (!isDay(from) || !isDay(to)) return "Elige las dos fechas.";
   const days = absenceDays(from, to);
-  if (days < 1) return "La vuelta no puede ser antes de la salida.";
-  if (days > ABSENCE_MAX_DAYS) return `Como mucho ${ABSENCE_MAX_DAYS} días seguidos.`;
+  if (days < 1) return "La fecha final va después de la inicial.";
+  if (days > ABSENCE_MAX_DAYS) return `Como mucho ${ABSENCE_MAX_DAYS} días.`;
   return null;
 }
 
@@ -225,8 +226,7 @@ export function absenceAvailabilityPlan({ absences, matches, existing, fresh = n
 
 // ── In words ──
 
-const SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"];
-const dayTxt = (day: string, year: boolean) => `${Number(day.slice(8, 10))} ${SHORT[Number(day.slice(5, 7)) - 1]}${year ? ` ${day.slice(0, 4)}` : ""}`;
+const dayTxt = (day: string, year: boolean) => `${Number(day.slice(8, 10))} ${MONTHS_SHORT[Number(day.slice(5, 7)) - 1]}${year ? ` ${day.slice(0, 4)}` : ""}`;
 
 /** «el 12 oct», «del 12 al 19 oct», «del 28 oct al 3 nov», «del 28 dic 2026 al 3 ene 2027». */
 export function absenceRangeText(from: string, to: string): string {

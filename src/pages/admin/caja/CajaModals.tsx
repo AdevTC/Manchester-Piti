@@ -12,7 +12,6 @@ import {
   cuotaConcept,
   fmtEuros,
   isPlayerKind,
-  madridDay,
   madridMonth,
   matchCostConcept,
   matchCostPlayers,
@@ -27,6 +26,7 @@ import {
   type CuotaPeriod,
   type NewCajaMov,
 } from "../../../lib/derived/caja";
+import { madridDate } from "../../../lib/derived/madrid";
 import { AdIcon } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
 
@@ -116,7 +116,7 @@ export function CuotaModal({
   const dup = chargedAlready(movs, concept);
   const ok = !!cargos.length && !dup && (cents ?? 0) <= CAJA_LIMITS.amount;
   const { busy, error, submit } = useSubmit(async () => {
-    const date = madridDay(now);
+    const date = madridDate(now);
     await addMovs(seasonId, cargos.map((c) => ({ kind: "cargo", playerId: c.playerId, amount: c.amount, concept, date, matchId: null })));
     return `${concept} cobrada · ${plural(cargos.length, "cargo", "cargos")} de ${fmtEuros(cents ?? 0)}`;
   }, onDone);
@@ -305,7 +305,7 @@ export function MovModal({
   const [playerId, setPlayerId] = useState(initialPlayer);
   const [amount, setAmount] = useState("");
   const [concept, setConcept] = useState(DEFAULT_CONCEPT[kind]);
-  const [date, setDate] = useState(madridDay(now));
+  const [date, setDate] = useState(madridDate(now));
   const cents = parseEuros(amount);
   const needsPlayer = isPlayerKind(kind);
   const player = squad.find((p) => p.id === playerId);

@@ -6,6 +6,7 @@
 // gastos. The admin's Caja section and the vestuario's «La caja» both read these, so they add up the same.
 import type { ClubMatch } from "../clubData";
 import { minutesOf } from "./minutesOf";
+import { madridDate, MONTHS_SHORT } from "./madrid";
 
 export type CajaKind = "cargo" | "pago" | "gasto" | "ingreso";
 export const CAJA_KINDS: readonly CajaKind[] = ["cargo", "pago", "gasto", "ingreso"];
@@ -195,19 +196,15 @@ export function parseEuros(input: string): number | null {
 export const centsInput = (cents: number): string => (cents % 100 ? (cents / 100).toFixed(2).replace(".", ",") : String(cents / 100));
 
 // ───────────────────────── dates ─────────────────────────
-const DAY_FMT = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" });
-/** The Madrid calendar date of an instant, `YYYY-MM-DD`. */
-export const madridDay = (ms: number): string => DAY_FMT.format(ms);
 const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-const SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"];
 /** «octubre» for a month index 0–11. */
 export const monthName = (i: number): string => MONTHS[((i % 12) + 12) % 12];
 /** The Madrid month (0–11) of an instant. */
-export const madridMonth = (ms: number): number => Number(madridDay(ms).slice(5, 7)) - 1;
+export const madridMonth = (ms: number): number => Number(madridDate(ms).slice(5, 7)) - 1;
 /** «15 oct» from `YYYY-MM-DD` («—» when there is none). */
 export function dayLabel(day: string): string {
   if (!DAY_RE.test(day)) return "—";
-  return `${Number(day.slice(8, 10))} ${SHORT[Number(day.slice(5, 7)) - 1]}`;
+  return `${Number(day.slice(8, 10))} ${MONTHS_SHORT[Number(day.slice(5, 7)) - 1]}`;
 }
 
 // ───────────────────────── the captain's actions ─────────────────────────

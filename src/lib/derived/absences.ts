@@ -28,12 +28,10 @@ export {
   type MatchSlot,
 } from "../../../functions/src/absencesLogic";
 import {
-  ABSENCE_MAX_DAYS,
   ABSENCE_NOTE_MAX,
-  absenceDays,
+  absenceRangeProblem,
   absenceUntilText,
   covers,
-  isDay,
   madridDate,
   matchesInRange,
   type Absence,
@@ -77,9 +75,9 @@ export function absenceOn(absences: readonly Absence[], who: { uid?: string | nu
  * refused here (the rules can't know the Madrid «today»). One already under way is fine.
  */
 export function absenceFormProblem(from: string, to: string, today: string): string | null {
-  if (!isDay(from) || !isDay(to)) return "Elige las dos fechas.";
-  if (to < from) return "La fecha final va después de la inicial.";
-  if (absenceDays(from, to) > ABSENCE_MAX_DAYS) return `Como mucho ${ABSENCE_MAX_DAYS} días.`;
+  // (the range's own problems in the one wording, absenceRangeProblem's; then the form's «today»)
+  const range = absenceRangeProblem(from, to);
+  if (range) return range;
   if (to < today) return "Esa fecha ya pasó.";
   return null;
 }
