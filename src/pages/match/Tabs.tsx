@@ -44,8 +44,12 @@ import { rivalDossier } from "../../lib/derived/rival";
 import { RsvpSwitch } from "../vestuario/shared/RsvpSwitch";
 import { PorraCard } from "../vestuario/shared/PorraCard";
 import { MvpBallot } from "../vestuario/shared/MvpBallot";
+import { NotaCard, NotaLine, ReactionBar } from "./TrasElPartido";
+import { MOMENT_ID_RE, ratingWindow, type RatingDoc, type ReactionDoc } from "../../lib/derived/trasElPartido";
+import type { Me } from "../vestuario/writes";
 
 type NameOf = (id: string) => string;
+const NO_RATINGS: readonly RatingDoc[] = [];
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 
 function useNumOf(players: PlayerDoc[], seasonId?: string) {
@@ -89,7 +93,15 @@ function NameList({ ids, seasonId, nameOf }: { ids: readonly string[]; seasonId?
   );
 }
 
-export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMatch; matches: ClubMatch[]; players: PlayerDoc[]; nameOf: NameOf }) {
+/** Tras el partido (the match page passes it once the acta is published): the members' reactions and notas,
+ *  and who is reading (`me`: a member; null for a fan, who only sees them). */
+export interface AfterMatch {
+  reactions: readonly ReactionDoc[];
+  ratings: readonly RatingDoc[];
+  me: Me | null;
+}
+
+export function CronicaTab({ match, matches, players, nameOf, after }: { match: ClubMatch; matches: ClubMatch[]; players: PlayerDoc[]; nameOf: NameOf; after?: AfterMatch }) {
   const numOf = useNumOf(players, match.seasonId);
   const rival = match.rival ?? "Rival";
   const story = chapters(match.events, nameOf, rival, scoreOf(match), match.guests);
@@ -100,6 +112,7 @@ export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMat
     <>
       <div>
         {match.rival && <RivalLine match={match} dossier={dossier} />}
+        {after && <NotaLine ratings={after.ratings} />}
         {match.report && (
           <section className="fc-sec fc-reveal" aria-labelledby="fc-rep">
             <span className="hm-kick">Así lo vivimos</span>
@@ -135,6 +148,7 @@ export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMat
                     <Named segments={text} seasonId={match.seasonId} />
                   </p>
                 </div>
+                {after && MOMENT_ID_RE.test(c.id) && <ReactionBar matchId={match.id} momentId={c.id} label={`${c.minute != null ? `Minuto ${c.minute}` : "Pitido final"}, ${c.title}`} docs={after.reactions} me={after.me} />}
                 {c.side !== "end" && (
                   <div className="sb">
                     {c.playerId ? (
@@ -507,7 +521,8 @@ export function PulsoTab({ match, live, minute, pending = false }: { match: Club
   );
 }
 
-export function VestuarioTab({ match, matches = [match], players, phase }: { match: ClubMatch; matches?: ClubMatch[]; players: PlayerDoc[]; phase: string }) {
+/** `ratings`: the match's notas (the match page's listener, while the acta is published). */
+export function VestuarioTab({ match, matches = [match], players, phase, ratings = NO_RATINGS }: { match: ClubMatch; matches?: ClubMatch[]; players: PlayerDoc[]; phase: string; ratings?: readonly RatingDoc[] }) {
   const { member } = useTeam();
   const { user } = useAuth();
   const me = useMe();
@@ -589,6 +604,7 @@ export function VestuarioTab({ match, matches = [match], players, phase }: { mat
     <div className="fc-two">
       {done && <PersonalMatchSummary match={match} matches={matches} playerId={me.playerId} uid={me.uid} />}
       {done && match.seasonId && <PorraHistory matches={matches} seasonId={match.seasonId} uid={me.uid}/>}
+      <NotaCard matchId={match.id} ratings={ratings} me={me} slot={ratingWindow(match, now)} />
       {!kickedOff && (
         <>
           <section className="fc-sec" aria-labelledby="fc-rs">
