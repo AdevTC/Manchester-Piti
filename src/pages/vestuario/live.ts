@@ -29,6 +29,7 @@ import type { TrainingSlot } from "../../lib/vestuario";
 import { EMPTY_CAJA_SETTINGS, parseCajaMov, parseCajaSettings, type CajaMov, type CajaSettings } from "../../lib/derived/caja";
 import { byAbsence, currentAbsences, parseAbsence, type Absence } from "../../lib/derived/absences";
 import { parsePoll, parsePollVote, type Poll, type PollVote } from "../../lib/derived/polls";
+import { parseRatingDoc, parseReactionDoc, type RatingDoc, type ReactionDoc } from "../../lib/derived/trasElPartido";
 
 interface Live<T> {
   data: T;
@@ -264,6 +265,19 @@ export function useAvailability(matchId: string | undefined) {
       ...(byAbsence(d) ? { absenceId: typeof d.absenceId === "string" ? d.absenceId : "" } : {}),
     }),
   );
+}
+
+// ---------- tras el partido: public, so fans read them too. One listener per subcollection and match,
+// whoever reads it (the match page opens them while its acta is published; lib/derived/trasElPartido).
+const NO_REACTIONS: ReactionDoc[] = [];
+const NO_RATINGS: RatingDoc[] = [];
+export function useMatchReactions(matchId: string | undefined): Live<ReactionDoc[]> {
+  const q = useLiveQuery<ReactionDoc | null>(matchId ? `reactions/${matchId}` : null, () => collection(db, "matches", matchId!, "reactions"), (uid, d) => parseReactionDoc(uid, d));
+  return useMemo(() => ({ ...q, data: q.data.length ? q.data.filter((d): d is ReactionDoc => d !== null) : NO_REACTIONS }), [q]);
+}
+export function useMatchRatings(matchId: string | undefined): Live<RatingDoc[]> {
+  const q = useLiveQuery<RatingDoc | null>(matchId ? `ratings/${matchId}` : null, () => collection(db, "matches", matchId!, "ratings"), (uid, d) => parseRatingDoc(uid, d));
+  return useMemo(() => ({ ...q, data: q.data.length ? q.data.filter((d): d is RatingDoc => d !== null) : NO_RATINGS }), [q]);
 }
 
 // ---------- matchPrivate/{id}: one listener, two readers (the meeting note and the designated scorers)

@@ -46,6 +46,15 @@ export const statsSearchSchema = z.object({
   tab: z.enum(["general", "compare"]).optional().catch(undefined),
 }).transform(({ tab, ...rest }) => (rest.view || tab !== "compare" ? rest : { ...rest, view: "compare" as const }));
 
+// /vestuario?rsvp=yes|no&m=<matchId>&n=<nonce>: a notice's «Voy» / «No puedo» button (public/push-sw.js,
+// `n` its one-time ticket). The vestuario writes the answer once with a valid ticket (only asks without
+// one) and clears them all (useRsvpFromNotice). Anything else is dropped.
+export const vestuarioSearchSchema = z.object({
+  rsvp: z.enum(["yes", "no"]).optional().catch(undefined),
+  m: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional().catch(undefined),
+  n: z.string().regex(/^[A-Za-z0-9-]{8,64}$/).optional().catch(undefined),
+});
+
 // /partidos?view=tabla: the league table instead of the season and the calendar (linked from the
 // «Vamos 3.º de 12» strip on the home and on /partidos). Anything else = the calendar.
 export const partidosSearchSchema = z.object({
@@ -271,6 +280,7 @@ const clubRoute = createRoute({
 const vestuarioRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/vestuario",
+  validateSearch: vestuarioSearchSchema,
   component: lazyRouteComponent(
     () => import("./pages/vestuario/VestuarioPage"),
     "VestuarioPage",

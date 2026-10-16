@@ -1,7 +1,7 @@
 import { PersonalMatchSummary } from "../../components/celeste/PersonalMatchSummary";
 import { PorraHistory } from "../../components/celeste/PorraHistory";
 import { useMemo, useState, lazy, Suspense } from "react";
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useSeason } from "../../context/SeasonContext";
@@ -39,6 +39,9 @@ import { ClubDataError } from "../../components/celeste/StatePanel";
 import { HoyCard } from "../../components/celeste/HoyCard";
 import { useViewer } from "../../hooks/useViewer";
 import { hoyModel } from "../../lib/derived/hoy";
+import { useMe } from "./writes";
+import { useRsvpFromNotice } from "./useRsvpFromNotice";
+const route = getRouteApi("/vestuario");
 // The door's control room only loads for captains.
 const CaptainDoor = lazy(() => import("../acceso/CaptainDoor").then((m) => ({ default: m.CaptainDoor })));
 
@@ -71,7 +74,7 @@ export function VestuarioPage() {
   const { user, profile, logout } = useAuth();
   const { member } = useTeam();
   const { seasons } = useSeason();
-  const { matches, players, error } = useClubData();
+  const { matches, players, error, loading: clubLoading } = useClubData();
   // (the MVP block's vote is the latest one; the clock also ticks the moment it closes: race → podium)
   const lastMatch = lastVotedMatch(matches);
   const now = useClock(60_000, lastMatch?.voteClosesAt ? [lastMatch.voteClosesAt] : []);
@@ -99,6 +102,26 @@ export function VestuarioPage() {
   const pendingClaims = usePendingClaims(admin);
   const posted = useHasPosted(uid || undefined);
   const [stepsHidden, hideSteps] = useStepsHidden(uid);
+
+  // «Voy» / «No puedo» tapped on a notice (?rsvp=&m=&n=): written once with the worker's ticket (asked
+  // without it), then the params leave the URL.
+  const search = route.useSearch();
+  const navigate = useNavigate();
+  const writer = useMe();
+  const noticeRsvp = !!search.rsvp && !!search.m && viewer.member;
+  const noticeAnswers = useAvailability(noticeRsvp ? search.m : undefined);
+  useRsvpFromNotice({
+    rsvp: search.rsvp,
+    m: search.m,
+    n: search.n,
+    member: viewer.member,
+    me: writer,
+    matches,
+    matchesLoading: clubLoading,
+    previous: { loading: noticeAnswers.loading, answer: noticeAnswers.data.find((a) => a.uid === uid)?.response },
+    now,
+    clear: () => void navigate({ to: ".", search: (prev) => ({ ...prev, rsvp: undefined, m: undefined, n: undefined }), replace: true }),
+  });
 
   const playerId = profile?.playerId;
   const latestFinished = matches.filter(m => isCompleted(m) && m.seasonId === seasonId).sort((a,b)=>dateMillis(b.date)-dateMillis(a.date))[0];
