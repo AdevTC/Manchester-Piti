@@ -64,6 +64,15 @@ function EncuestasBlock({ admin, now }: EncuestasProps) {
   const id = useId();
   const newBtn = useRef<HTMLButtonElement>(null);
   const full = openMine >= POLL_OPEN_PER_AUTHOR;
+  // The push «Nueva encuesta» opens /vestuario#encuestas: the block only exists once the polls are in, so
+  // the browser's own jump to the hash has already missed it — go there once, when they arrive.
+  const jumped = useRef(false);
+  useEffect(() => {
+    if (jumped.current || polls.loading || typeof window === "undefined" || window.location.hash !== "#encuestas") return;
+    jumped.current = true;
+    const smooth = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById("encuestas")?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  }, [polls.loading]);
 
   const openForm = () => {
     setCreated(false);
