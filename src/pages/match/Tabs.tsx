@@ -92,7 +92,7 @@ function NameList({ ids, seasonId, nameOf }: { ids: readonly string[]; seasonId?
 export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMatch; matches: ClubMatch[]; players: PlayerDoc[]; nameOf: NameOf }) {
   const numOf = useNumOf(players, match.seasonId);
   const rival = match.rival ?? "Rival";
-  const story = chapters(match.events, nameOf, rival, scoreOf(match));
+  const story = chapters(match.events, nameOf, rival, scoreOf(match), match.guests);
   // «El rival»: this match is one of the meetings now (rivalDossier counts finished ones); a match that
   // names no rival has no dossier
   const dossier = useMemo(() => rivalDossier(matches, match.rival), [matches, match.rival]);

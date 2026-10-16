@@ -164,6 +164,8 @@ export interface SheetLike {
   bench?: string[];
   notCalled?: string[];
   events?: MatchEvent[];
+  /** Invitados (guests.ts): their `guest:` refs in the lineup and the events are valid. */
+  guests?: ClubMatch["guests"];
   goalsFor?: number;
   goalsAgainst?: number;
 }
@@ -187,7 +189,7 @@ export function reviewActa(sheet: SheetLike, roster: readonly string[], now: num
   const events = sheet.events ?? [];
   const assigned = new Set([...starters, ...bench, ...notCalled]);
   const unassigned = roster.filter((id) => !assigned.has(id)).length;
-  const ledger = calculateLedger({ starters, bench, notCalled, events, duration: sheet.duration ?? 50, durationSeconds: sheet.durationSeconds }, finished);
+  const ledger = calculateLedger({ starters, bench, notCalled, events, duration: sheet.duration ?? 50, durationSeconds: sheet.durationSeconds, guests: sheet.guests }, finished);
   const gf = sheet.goalsFor ?? 0;
   const ga = sheet.goalsAgainst ?? 0;
   const named = ledger.goalsFor;
