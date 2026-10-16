@@ -165,6 +165,37 @@ describe("temporada, vitrina y química", () => {
     expect(byId.assist).toMatchObject({ earned: false, detail: "1 / 3" });
     expect(byId.ten).toMatchObject({ earned: false, detail: "3 / 10" });
   });
+  it("la vitrina se pinta igual que antes de «Logros»: ids, etiquetas, detalles y tonos", () => {
+    expect(vitrina("me", closed, results, [{ id: "old", name: "Temporada 1" }], 10)).toEqual([
+      { id: "debut", label: "Debut", detail: "Temporada 1", earned: true, tone: "gold" },
+      { id: "goal", label: "Primer gol", detail: "vs Rival a1", earned: true, tone: "sky" },
+      { id: "assist", label: "Asistente", detail: "1 / 3", earned: false, tone: "sky" },
+      { id: "mvp", label: "MVP", detail: "votado 1 vez", earned: true, tone: "gold" },
+      { id: "ten", label: "10 partidos", detail: "3 / 10", earned: false, tone: "gold" },
+      { id: "hat", label: "Hat-trick", detail: "vs Rival a1", earned: true, tone: "gold" },
+    ]);
+    expect(vitrina("", [], new Map(), [], 0)).toEqual([
+      { id: "debut", label: "Debut", detail: "por debutar", earned: false, tone: "gold" },
+      { id: "goal", label: "Primer gol", detail: "por marcar", earned: false, tone: "sky" },
+      { id: "assist", label: "Asistente", detail: "0 / 3", earned: false, tone: "sky" },
+      { id: "mvp", label: "MVP", detail: "por ganar", earned: false, tone: "gold" },
+      { id: "ten", label: "10 partidos", detail: "0 / 10", earned: false, tone: "gold" },
+      { id: "hat", label: "Hat-trick", detail: "por conseguir", earned: false, tone: "gold" },
+    ]);
+    // a veteran of a season the list doesn't know: «Hecho», the totals in words, a match without a rival
+    const many = Array.from({ length: 12 }, (_, i) =>
+      match(`v${i}`, "gone", 20 + i, [played("me"), goal("pal", "me"), ...(i === 4 ? [goal("me"), goal("me"), goal("me")] : [])], 4, 0, { rival: undefined, voteClosesAt: i < 2 ? 1 : undefined }),
+    );
+    const votes = new Map<string, MvpResult>([["v0", { id: "v0", counts: { me: 1 }, total: 1 }], ["v1", { id: "v1", counts: { me: 2, pal: 2 }, total: 4 }]]);
+    expect(vitrina("me", many, votes, [], 10)).toEqual([
+      { id: "debut", label: "Debut", detail: "Hecho", earned: true, tone: "gold" },
+      { id: "goal", label: "Primer gol", detail: "vs rival", earned: true, tone: "sky" },
+      { id: "assist", label: "Asistente", detail: "12 pases de gol", earned: true, tone: "sky" },
+      { id: "mvp", label: "MVP", detail: "votado 2 veces", earned: true, tone: "gold" },
+      { id: "ten", label: "10 partidos", detail: "12 partidos", earned: true, tone: "gold" },
+      { id: "hat", label: "Hat-trick", detail: "vs rival", earned: true, tone: "gold" },
+    ]);
+  });
   it("el mejor socio es con quien más partidos has jugado", () => {
     expect(bestPartner("me", matches, ["me", "pal", "x"])).toEqual({ playerId: "pal", together: 3, wins: 2, theirGoalsFromYou: 1, yourGoalsFromThem: 1 });
     expect(bestPartner("nobody", matches, ["me"])).toBeNull();

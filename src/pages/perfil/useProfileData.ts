@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useSeason } from "../../context/SeasonContext";
 import { useClubData, dateMillis, nextFixture, type ClubMatch } from "../../lib/clubData";
 import { currentSeasonId } from "../../lib/vestuario";
+import { achievements, nextToChase, type Achievement } from "../../lib/derived/achievements";
 import type { PlayerPositions } from "../../lib/positionStats";
 import { useClock } from "../../hooks/useClock";
 import { useLineups } from "../pizarra/useLineups";
@@ -94,6 +95,8 @@ export interface ProfileData {
   upcoming: UpcomingRow[];
   stuff: { boards: BoardsLine; porra: PorraLine | null; convocatorias: ConvocatoriaLine; loading: boolean };
   captain: { doorRequests: DoorRequestRow[]; pendingClaims: Claim[] } | null;
+  /** «Tus logros» (vinculada only): the medals of the whole career and the three to chase next. */
+  logros: { list: Achievement[]; next: Achievement[] } | null;
   /** «Tu temporada en 10 cromos» (vinculada only): the season's recap once it can be opened. */
   recap: RecapOffer | null;
 }
@@ -203,6 +206,7 @@ export function useProfileData(): ProfileData {
   const createdAt = toMillis(profile?.createdAt);
   const porraBySeason = closedId ? { [seasonId]: porra.data, [closedId]: prevPorra.data } : { [seasonId]: porra.data };
   const recap = recapPlayer ? recapOffer(recapBase, porraBySeason, recapPlayer, seasonId) : null;
+  const medals = recapPlayer ? achievements(recapPlayer, matches, { mvpResults, seasons, now: minute }) : null;
   return {
     loading: authLoading || clubLoading || loadingSeasons || claim.loading || membership.loading,
     error: !!clubError || claim.error || membership.error,
@@ -230,6 +234,7 @@ export function useProfileData(): ProfileData {
       loading: lineups.loading || porra.loading || answersQ.isLoading,
     },
     captain: isCaptain ? { doorRequests: doorRequests.data, pendingClaims: pendingClaims.data } : null,
+    logros: medals ? { list: medals, next: nextToChase(medals, 3) } : null,
     recap,
   };
 }

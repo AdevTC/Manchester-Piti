@@ -91,14 +91,6 @@
 .jg-partner{display:grid;gap:4px;padding:14px;border-radius:16px;background:var(--chip)}
 .vx .jg-partner a{font-family:'Anybody';font-weight:800;font-size:20px;text-decoration:none;color:var(--gold-ink)}
 .vx .jg-partner p{margin:0;font-size:14px;color:var(--soft)}
-.jg-vitrina{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(130px,46%),1fr));gap:10px;margin:0;padding:0;list-style:none}
-.jg-vitrina li{display:grid;gap:4px;align-content:start;justify-items:start;min-height:110px;padding:14px 12px;border-radius:16px;border:1.5px dashed var(--line);color:var(--muted);font-size:12px}
-.jg-vitrina li b{font-family:'Anybody';font-weight:800;font-size:16px;color:var(--soft)}
-.jg-vitrina li.on{border:0;background:linear-gradient(150deg,rgba(108,171,221,.3),rgba(255,198,89,.16));box-shadow:0 10px 24px -14px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.18);color:var(--soft);transform:rotate(-1deg);animation:stPeel .7s cubic-bezier(.34,1.56,.64,1) both}
-.jg-vitrina li.on.gold{background:linear-gradient(150deg,rgba(255,198,89,.36),rgba(255,198,89,.08))}
-.jg-vitrina li.on:nth-child(even){transform:rotate(1deg)}
-.jg-vitrina li.on b{color:var(--ink)}
-.jg-vitrina li.on svg{color:var(--gold-ink)}
 .jg-last{display:grid;gap:6px;margin:0;padding:0;list-style:none}
 .vx .jg-last a{display:grid;grid-template-columns:22px minmax(0,1fr) auto auto;gap:10px;align-items:center;min-height:52px;padding:8px 12px;border-radius:14px;background:var(--chip);text-decoration:none;color:var(--ink)}
 .jg-last .mid{display:grid}

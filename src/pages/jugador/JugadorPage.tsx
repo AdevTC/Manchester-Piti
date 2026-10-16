@@ -11,7 +11,9 @@ import { analysePlayer, chronological, competitionRanks, type PlayerAnalysis } f
 import { computeStats } from "../../lib/playerStats";
 import { positionText, resolvePositions } from "../../lib/positions";
 import { collection, goalLinks, per50, radarAverage, radarScores, winRateWith } from "../../lib/statsView";
-import { bestPartner, mvpWinners, mvpWins, vitrina } from "../../lib/vestuario";
+import { bestPartner, mvpWinners, mvpWins } from "../../lib/vestuario";
+import { achievements, nextToChase } from "../../lib/derived/achievements";
+import { Logros } from "../../components/celeste/Logros";
 import { shareClubPage } from "../../lib/share";
 import { useMvpResults } from "../vestuario/live";
 import { useSeason } from "../../context/SeasonContext";
@@ -188,7 +190,9 @@ export function JugadorPage() {
   const next = collection([me]).next[0];
   const partner = bestPartner(p.id, games, squad.map((x) => x.id));
   const partnerRow = partner ? squad.find((x) => x.id === partner.playerId) : undefined;
-  const medals = vitrina(p.id, games, results, seasons, now);
+  // (his medals over the whole career, whatever season is being looked at: a milestone is won once)
+  const medals = achievements(p.id, matches, { mvpResults: results, seasons, now });
+  const chase = nextToChase(medals, 3);
   const links = goalLinks(games);
   const adn = me.series.slice(-12).map((g) => ({ g, mvp: mvpWinners(g.match, results.get(g.match.id), now).includes(p.id) }));
   // (each match's jornada in its own season: «all seasons» does not renumber them)
@@ -457,16 +461,7 @@ export function JugadorPage() {
                 Sus medallas
               </h2>
             </div>
-            <ul className="jg-vitrina">
-              {medals.map((m, i) => (
-                <li key={m.id} className={`${m.earned ? "on" : ""} ${m.tone}`} style={{ animationDelay: `${i * 0.06}s` }}>
-                  <Icon name={m.id === "mvp" ? "star" : m.id === "goal" || m.id === "hat" ? "ball" : m.id === "assist" ? "send" : m.id === "debut" ? "shirt" : "trophy"} size={20} />
-                  <b>{m.label}</b>
-                  <small>{m.detail}</small>
-                  {!m.earned && <span className="hm-sr">(por conseguir)</span>}
-                </li>
-              ))}
-            </ul>
+            <Logros list={medals} next={chase} now={now} />
           </section>
 
           <section className="st-card jg-two" aria-labelledby="jg-seasons">
