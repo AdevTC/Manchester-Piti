@@ -1,4 +1,14 @@
 import { test, expect } from "@playwright/test";
+import { callFunction, emulatorAdminToken, seasonMatches } from "./helpers";
+
+// The tie is the seed's: Mario and Hugo, one goal each in «preview-finished». Other specs publish their own
+// actas in the preview season (admin-crud's goal by Mario breaks the tie): remove those played matches first.
+const SEEDED = new Set(["preview-next", "preview-finished"]);
+test.beforeAll(async () => {
+  const token = await emulatorAdminToken();
+  for (const match of await seasonMatches("preview-season"))
+    if (!SEEDED.has(match.id) && match.status === "finished") await callFunction(token, "deleteMatch", { id: match.id });
+});
 
 test("los goleadores empatados conservan puesto y medalla entre partidos, plantilla y estadísticas", async ({ page }) => {
   await page.goto("/partidos?season=preview-season");

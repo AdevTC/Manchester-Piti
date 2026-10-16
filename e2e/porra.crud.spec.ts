@@ -1,10 +1,18 @@
+import { execFileSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
 import { enterVestuario } from "./helpers";
+
+// The porra is for the seeded next match («preview-next», open until kick-off). Other specs play, re-date or
+// add matches: the preview seed (idempotent) puts that fixture back as the next one, scheduled and open.
+test.beforeAll(() => execFileSync(process.execPath, ["functions/test/seed-preview.mjs"], { stdio: "inherit" }));
 
 test("la porra conserva goleadores y asistencias entre vestuario y partido, también en móvil", async ({ page }) => {
   await enterVestuario(page);
   const form = page.locator(".pr-form");
+  // The form is the seeded fixture's, and editable (its saved porra loaded) before the score is reset.
+  await expect(form.getByRole("group", { name: "Tu porra: Piti contra Atlético Demo" })).toBeVisible();
   await expect(form.getByText("Cargando tu porra…")).not.toBeVisible();
+  await expect(form.getByRole("button", { name: "Un gol más del Piti" })).toBeEnabled();
   const minus = form.getByRole("button", { name: "Un gol menos del Piti" });
   while (await minus.isEnabled()) await minus.click();
   await form.getByRole("button", { name: "Un gol más del Piti" }).click();
@@ -15,6 +23,9 @@ test("la porra conserva goleadores y asistencias entre vestuario y partido, tamb
   await form.getByRole("button", { name: /Guardar mi porra|Cambiar mi porra/ }).click();
   await expect(form.getByRole("button", { name: "Porra guardada" })).toBeVisible();
   await page.getByRole("link", { name: "La porra, en la ficha del partido" }).click();
+  // Client-side navigation: the vestuario's form must not answer for the ficha's.
+  await expect(page).toHaveURL(/\/matches\/preview-next(\?|$)/);
+  await expect(page.getByRole("heading", { name: "Mesa de partido" })).toBeVisible();
   await expect(form.getByLabel("Goleador del gol 1")).toHaveValue(scorer);
   await expect(form.getByLabel("Asistencia del gol 1")).toHaveValue("none");
   await form.getByRole("button", { name: "Un gol más del Piti" }).click();
