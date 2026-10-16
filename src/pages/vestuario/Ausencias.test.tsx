@@ -8,6 +8,7 @@ import type { Absence } from "../../lib/derived/absences";
 const state = vi.hoisted(() => ({
   absences: [] as unknown[],
   loading: false,
+  error: false,
   calls: [] as [string, boolean | undefined][],
   addAbsence: vi.fn(async () => undefined),
   deleteAbsence: vi.fn(async () => undefined),
@@ -15,7 +16,7 @@ const state = vi.hoisted(() => ({
 vi.mock("./live", () => ({
   useAbsences: (today: string, enabled?: boolean) => {
     state.calls.push([today, enabled]);
-    return { data: state.absences, loading: state.loading, error: false };
+    return { data: state.absences, loading: state.loading, error: state.error };
   },
 }));
 vi.mock("./writes", () => ({
@@ -43,6 +44,7 @@ const pick = (from: string, to: string) => {
 beforeEach(() => {
   state.absences = [];
   state.loading = false;
+  state.error = false;
   state.calls = [];
   state.addAbsence.mockClear();
   state.deleteAbsence.mockClear();
@@ -64,15 +66,34 @@ it("the form says what is wrong, and saves nothing then", () => {
   renderIt();
   expect(dates()[0].value).toBe("2026-10-15");
   fireEvent.click(screen.getByRole("button", { name: /Añadir/ }));
-  expect(screen.getByRole("alert")).toHaveTextContent("Elige las dos fechas.");
+  // the error is tied to the dates and «Añadir» takes the focus to the first one to fix (no alert: it
+  // changes as the dates do, a live region would repeat itself)
+  const [from, to] = dates();
+  expect(to).toHaveFocus();
+  expect(to).toHaveAttribute("aria-invalid", "true");
+  expect(to).toHaveAccessibleDescription("Elige las dos fechas.");
+  expect(from).toHaveAccessibleDescription("Elige las dos fechas.");
+  expect(screen.queryByRole("alert")).toBeNull();
   pick("2026-10-20", "2026-10-18");
-  expect(screen.getByRole("alert")).toHaveTextContent("La fecha final va después de la inicial");
+  expect(to).toHaveAccessibleDescription(/La fecha final va después de la inicial/);
   pick("2026-10-20", "2027-02-17");
-  expect(screen.getByRole("alert")).toHaveTextContent("Como mucho 120 días");
+  expect(to).toHaveAccessibleDescription(/Como mucho 120 días/);
   pick("2026-10-01", "2026-10-14");
-  expect(screen.getByRole("alert")).toHaveTextContent("Esa fecha ya pasó");
+  expect(to).toHaveAccessibleDescription(/Esa fecha ya pasó/);
   fireEvent.click(screen.getByRole("button", { name: /Añadir/ }));
   expect(state.addAbsence).not.toHaveBeenCalled();
+  // no start date: the focus goes there first
+  fireEvent.change(from, { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: /Añadir/ }));
+  expect(from).toHaveFocus();
+});
+
+it("a valid range: no error tied to the dates", () => {
+  renderIt();
+  pick("2026-10-16", "2026-10-19");
+  const [from, to] = dates();
+  expect(from).toHaveAttribute("aria-invalid", "false");
+  expect(to).not.toHaveAttribute("aria-describedby");
 });
 
 it("«Añadir» writes the range and the note, then says how many matches got «No puedo»", async () => {
@@ -127,6 +148,26 @@ it("your list only (not the team's), and «Quitar» asks first", async () => {
     fireEvent.click(within(rows[0]).getByRole("button", { name: "Sí, quitarla" }));
   });
   expect(state.deleteAbsence).toHaveBeenCalledWith("a1");
+  // the row is about to go: the focus goes back to the list's title, not to the page's top
+  expect(screen.getByRole("heading", { name: "Apuntadas" })).toHaveFocus();
+});
+
+it("Escape cancels «Quitar» and gives the focus back", () => {
+  state.absences = [abs({})];
+  renderIt();
+  const row = within(screen.getByRole("list", { name: "Apuntadas" })).getByRole("listitem");
+  fireEvent.click(within(row).getByRole("button", { name: /Quitar la ausencia/ }));
+  fireEvent.keyDown(within(row).getByRole("button", { name: "Sí, quitarla" }), { key: "Escape" });
+  expect(within(row).queryByRole("group")).toBeNull();
+  expect(within(row).getByRole("button", { name: /Quitar la ausencia/ })).toHaveFocus();
+  expect(state.deleteAbsence).not.toHaveBeenCalled();
+});
+
+it("a failed read is an error, never an empty list", () => {
+  state.error = true;
+  renderIt();
+  expect(screen.getByRole("alert")).toHaveTextContent("No se pudieron leer tus ausencias.");
+  expect(screen.queryByText("No tienes ausencias apuntadas.")).toBeNull();
 });
 
 it("while the absences arrive: a short line, not an empty list", () => {

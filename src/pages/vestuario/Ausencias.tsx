@@ -54,6 +54,9 @@ function AusenciasBlock({ matches, now }: AusenciasProps) {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
   const id = useId();
+  const fromRef = useRef<HTMLInputElement>(null);
+  const toRef = useRef<HTMLInputElement>(null);
+  const listH = useRef<HTMLHeadingElement>(null);
 
   const problem = absenceFormProblem(from, to, today);
   // (said once both dates are there, or on «Añadir»: never while the member is still picking the first)
@@ -64,7 +67,12 @@ function AusenciasBlock({ matches, now }: AusenciasProps) {
     setTried(true);
     setSaved("");
     setError("");
-    if (problem || !me || busy) return;
+    if (problem) {
+      // (the first field to fix takes the focus; it reads the error through aria-describedby)
+      (from ? toRef : fromRef).current?.focus();
+      return;
+    }
+    if (!me || busy) return;
     setBusy(true);
     try {
       await addAbsence(me, from, to, note);
@@ -88,15 +96,15 @@ function AusenciasBlock({ matches, now }: AusenciasProps) {
       </h2>
       <p className="vx-sub">¿Te vas unos días? Dilo una vez y contestamos «No puedo» en los partidos de esas fechas. Luego puedes cambiar cualquiera a mano.</p>
       <div className="aus-cols">
-        <form className="aus-form" onSubmit={(e) => void submit(e)} noValidate aria-describedby={shown ? `${id}-err` : undefined}>
+        <form className="aus-form" onSubmit={(e) => void submit(e)} noValidate aria-label="Añadir una ausencia">
           <div className="aus-dates">
             <label className="vx-field">
               Desde
-              <input type="date" value={from} aria-invalid={!!shown} onChange={(e) => setFrom(e.target.value)} />
+              <input ref={fromRef} type="date" value={from} aria-invalid={!!shown} aria-describedby={shown ? `${id}-err` : undefined} onChange={(e) => setFrom(e.target.value)} />
             </label>
             <label className="vx-field">
               Hasta
-              <input type="date" value={to} min={from || today} aria-invalid={!!shown} onChange={(e) => setTo(e.target.value)} />
+              <input ref={toRef} type="date" value={to} min={from || today} aria-invalid={!!shown} aria-describedby={shown ? `${id}-err` : undefined} onChange={(e) => setTo(e.target.value)} />
             </label>
           </div>
           <label className="vx-field">
@@ -106,8 +114,9 @@ function AusenciasBlock({ matches, now }: AusenciasProps) {
           <p className="aus-hint" id={`${id}-note`}>
             La ve todo el equipo · {note.length}/{ABSENCE_NOTE_MAX}
           </p>
+          {/* (no live region: it changes as the dates do; «Añadir» moves the focus to the field, which reads it) */}
           {shown && (
-            <p className="vx-error aus-err" id={`${id}-err`} role="alert">
+            <p className="vx-error aus-err" id={`${id}-err`}>
               {shown}
             </p>
           )}
@@ -117,7 +126,7 @@ function AusenciasBlock({ matches, now }: AusenciasProps) {
             </p>
           )}
           <div className="aus-foot">
-            <button className="vx-btn" disabled={busy}>
+            <button type="submit" className="vx-btn" disabled={busy}>
               <Icon name="plus" size={16} stroke={2.4} />
               {busy ? "Guardando…" : "Añadir"}
             </button>
@@ -132,7 +141,7 @@ function AusenciasBlock({ matches, now }: AusenciasProps) {
           </p>
         </form>
         <div className="aus-list-wrap">
-          <h3 className="aus-h3" id={`${id}-list`}>
+          <h3 className="aus-h3" id={`${id}-list`} ref={listH} tabIndex={-1}>
             Apuntadas
           </h3>
           {absences.loading && !mine.length ? (
@@ -146,7 +155,7 @@ function AusenciasBlock({ matches, now }: AusenciasProps) {
           ) : mine.length ? (
             <ul className="aus-list" aria-labelledby={`${id}-list`}>
               {mine.map((a) => (
-                <AbsenceRow key={a.id} absence={a} today={today} count={absenceMatchCount(slots, a, now)} />
+                <AbsenceRow key={a.id} absence={a} today={today} count={absenceMatchCount(slots, a, now)} onRemoved={() => listH.current?.focus()} />
               ))}
             </ul>
           ) : (
@@ -158,7 +167,7 @@ function AusenciasBlock({ matches, now }: AusenciasProps) {
   );
 }
 
-function AbsenceRow({ absence: a, today, count }: { absence: Absence; today: string; count: number }) {
+function AbsenceRow({ absence: a, today, count, onRemoved }: { absence: Absence; today: string; count: number; onRemoved: () => void }) {
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -177,6 +186,8 @@ function AbsenceRow({ absence: a, today, count }: { absence: Absence; today: str
     setError("");
     try {
       await deleteAbsence(a.id);
+      // (the row goes: the focus goes back to the list's title, never to the page's top)
+      onRemoved();
     } catch (err) {
       setError(apiError(err));
       setBusy(false);
@@ -193,7 +204,14 @@ function AbsenceRow({ absence: a, today, count }: { absence: Absence; today: str
         {a.note && <q className="aus-note">{a.note}</q>}
       </div>
       {asking ? (
-        <div className="aus-ask" role="group" aria-label={`Quitar la ausencia ${absenceRangeText(a.from, a.to)}`}>
+        <div
+          className="aus-ask"
+          role="group"
+          aria-label={`Quitar la ausencia ${absenceRangeText(a.from, a.to)}`}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && !busy) setAsking(false);
+          }}
+        >
           <p>Borramos el «No puedo» de los partidos que no cambiaste a mano.</p>
           <div className="aus-ask-b">
             <button ref={yes} type="button" className="vx-btn" disabled={busy} onClick={() => void remove()}>

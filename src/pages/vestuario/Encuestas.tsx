@@ -63,6 +63,7 @@ function EncuestasBlock({ admin, now }: EncuestasProps) {
   const [created, setCreated] = useState(false);
   const id = useId();
   const newBtn = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   const full = openMine >= POLL_OPEN_PER_AUTHOR;
   // The push «Nueva encuesta» opens /vestuario#encuestas: the block only exists once the polls are in, so
   // the browser's own jump to the hash has already missed it — go there once, when they arrive.
@@ -88,7 +89,7 @@ function EncuestasBlock({ admin, now }: EncuestasProps) {
   return (
     <section className="vx-encuestas" id="encuestas" aria-labelledby={`${id}-h`}>
       <span className="vx-kick">El equipo · encuestas</span>
-      <h2 className="vx-h2" id={`${id}-h`}>
+      <h2 className="vx-h2" id={`${id}-h`} ref={heading} tabIndex={-1}>
         Encuestas
       </h2>
       <p className="vx-sub">Pregunta algo al equipo y vota. Todos ven quién votó qué.</p>
@@ -128,7 +129,7 @@ function EncuestasBlock({ admin, now }: EncuestasProps) {
       ) : list.length ? (
         <ul className="en-list" aria-label="Encuestas del vestuario">
           {list.map((p) => (
-            <PollCard key={p.id} poll={p} uid={uid} admin={admin} now={now} />
+            <PollCard key={p.id} poll={p} uid={uid} admin={admin} now={now} onDeleted={() => heading.current?.focus()} />
           ))}
         </ul>
       ) : (
@@ -138,7 +139,7 @@ function EncuestasBlock({ admin, now }: EncuestasProps) {
   );
 }
 
-function PollCard({ poll, uid, admin, now }: { poll: Poll; uid: string; admin: boolean; now: number }) {
+function PollCard({ poll, uid, admin, now, onDeleted }: { poll: Poll; uid: string; admin: boolean; now: number; onDeleted: () => void }) {
   const me = useMe();
   const votes = usePollVotes(poll.id);
   const open = isPollOpen(poll, now);
@@ -194,6 +195,20 @@ function PollCard({ poll, uid, admin, now }: { poll: Poll; uid: string; admin: b
   const voters = [...votes.data].sort((a, b) => a.name.localeCompare(b.name, "es"));
   const shownVoters = allVoters ? voters : voters.slice(0, VOTERS_SHOWN);
   const you = myChoiceText(poll, myVote);
+  // (a failed read never passes for «nobody voted»)
+  const mineLine = votes.error
+    ? "No se pudieron leer los votos. Prueba a recargar dentro de un rato."
+    : votes.loading && !votes.data.length
+      ? "Contando los votos…"
+      : you || (open ? "Aún no has votado." : "No votaste.");
+  // «Cerrar ya» goes once the poll closes: the focus moves to «Borrar», the control that stays
+  const close = async () => {
+    if (await run(() => closePoll(poll.id))) requestAnimationFrame(() => borrar.current?.focus());
+  };
+  // the card goes with the poll: the focus moves to the block's title
+  const remove = async () => {
+    if (await run(() => deletePoll(poll.id))) onDeleted();
+  };
 
   return (
     <li className={`en-poll${open ? "" : " closed"}`} aria-labelledby={`${id}-q`}>
@@ -254,9 +269,9 @@ function PollCard({ poll, uid, admin, now }: { poll: Poll; uid: string; admin: b
         </fieldset>
 
         <div className="en-you">
-          <p className="en-mine">{you || (open ? "Aún no has votado." : "No votaste.")}</p>
+          <p className={`en-mine${votes.error ? " vx-error" : ""}`}>{mineLine}</p>
           {open && (
-            <button className="vx-btn" disabled={!me || busy || !choice.length || same}>
+            <button type="submit" className="vx-btn" disabled={!me || busy || !choice.length || same}>
               {busy ? "Guardando…" : mine.length ? "Cambiar mi voto" : "Votar"}
             </button>
           )}
@@ -283,10 +298,17 @@ function PollCard({ poll, uid, admin, now }: { poll: Poll; uid: string; admin: b
 
       {manage &&
         (asking ? (
-          <div className="en-ask" role="group" aria-label={`Borrar la encuesta «${poll.question}»`}>
+          <div
+            className="en-ask"
+            role="group"
+            aria-label={`Borrar la encuesta «${poll.question}»`}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && !busy) setAsking(false);
+            }}
+          >
             <p>¿Borrar la encuesta? Se va para todo el equipo, con sus votos.</p>
             <div className="en-ask-b">
-              <button ref={yes} type="button" className="vx-btn" disabled={busy} onClick={() => void run(() => deletePoll(poll.id))}>
+              <button ref={yes} type="button" className="vx-btn" disabled={busy} onClick={() => void remove()}>
                 {busy ? "Borrando…" : "Sí, borrarla"}
               </button>
               <button type="button" className="vx-btn ghost" disabled={busy} onClick={() => setAsking(false)}>
@@ -297,7 +319,7 @@ function PollCard({ poll, uid, admin, now }: { poll: Poll; uid: string; admin: b
         ) : (
           <div className="en-manage" role="group" aria-label={admin && poll.authorUid !== uid ? "Capitán" : "Tu encuesta"}>
             {open && (
-              <button type="button" className="vx-btn ghost" disabled={busy} onClick={() => void run(() => closePoll(poll.id))}>
+              <button type="button" className="vx-btn ghost" disabled={busy} onClick={() => void close()}>
                 <Icon name="lock" size={15} stroke={2.4} />
                 Cerrar ya
               </button>
@@ -343,12 +365,24 @@ function NewPoll({ openMine, onDone }: { openMine: number; onDone: (saved: boole
   const form = { question, options, multi, duration };
   const problem = pollFormProblem(form, openMine);
   const shown = tried ? problem : null;
+  // Which field the problem is about: with two good options in place, only the question's own is left
+  // (and the open-polls limit belongs to no field).
+  const questionProblem = pollFormProblem({ ...form, options: ["1", "2"] }, 0) !== null;
+  const field = problem && openMine < POLL_OPEN_PER_AUTHOR ? (questionProblem ? "question" : "options") : null;
+  const shownField = shown ? field : null;
+  const errId = `${id}-err`;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setTried(true);
     setError("");
-    if (problem || !me || busy) return;
+    if (problem) {
+      // (the first field to fix takes the focus; it reads the error through aria-describedby)
+      if (field === "question") first.current?.focus();
+      else if (field === "options") (optRefs.current[options.findIndex((o) => !o.trim())] ?? optRefs.current[0])?.focus();
+      return;
+    }
+    if (!me || busy) return;
     setBusy(true);
     try {
       await createPoll(me, form, serverNow());
@@ -369,13 +403,13 @@ function NewPoll({ openMine, onDone }: { openMine: number; onDone: (saved: boole
   };
 
   return (
-    <form className="en-form" onSubmit={(e) => void submit(e)} noValidate aria-labelledby={`${id}-h`} aria-describedby={shown ? `${id}-err` : undefined}>
+    <form className="en-form" onSubmit={(e) => void submit(e)} noValidate aria-labelledby={`${id}-h`} aria-describedby={shown && !shownField ? errId : undefined}>
       <h3 className="en-form-h" id={`${id}-h`}>
         Nueva encuesta
       </h3>
       <label className="vx-field">
         Pregunta
-        <input ref={first} type="text" value={question} maxLength={POLL_QUESTION_MAX} placeholder="¿Cena el viernes?" aria-describedby={`${id}-qn`} onChange={(e) => setQuestion(e.target.value)} />
+        <input ref={first} type="text" value={question} maxLength={POLL_QUESTION_MAX} placeholder="¿Cena el viernes?" aria-invalid={shownField === "question"} aria-describedby={shownField === "question" ? `${errId} ${id}-qn` : `${id}-qn`} onChange={(e) => setQuestion(e.target.value)} />
       </label>
       <p className="en-hint" id={`${id}-qn`}>
         {question.length}/{POLL_QUESTION_MAX}
@@ -396,6 +430,8 @@ function NewPoll({ openMine, onDone }: { openMine: number; onDone: (saved: boole
                 value={o}
                 maxLength={POLL_OPTION_MAX}
                 aria-label={`Opción ${i + 1}`}
+                aria-invalid={shownField === "options"}
+                aria-describedby={shownField === "options" ? errId : undefined}
                 placeholder={i === 0 ? "Sí" : i === 1 ? "No" : `Opción ${i + 1}`}
                 onChange={(e) => setOption(i, e.target.value)}
               />
@@ -436,8 +472,9 @@ function NewPoll({ openMine, onDone }: { openMine: number; onDone: (saved: boole
         </span>
       </label>
 
+      {/* (no live region: it changes as the member types; «Publicar» moves the focus to the field, which reads it) */}
       {shown && (
-        <p className="vx-error" id={`${id}-err`} role="alert">
+        <p className="vx-error" id={errId}>
           {shown}
         </p>
       )}
@@ -447,7 +484,7 @@ function NewPoll({ openMine, onDone }: { openMine: number; onDone: (saved: boole
         </p>
       )}
       <div className="en-form-foot">
-        <button className="vx-btn" disabled={busy}>
+        <button type="submit" className="vx-btn" disabled={busy}>
           {busy ? "Publicando…" : "Publicar encuesta"}
         </button>
         <button type="button" className="vx-btn ghost" disabled={busy} onClick={() => onDone(false)}>

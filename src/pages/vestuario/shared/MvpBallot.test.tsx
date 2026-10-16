@@ -49,7 +49,11 @@ it("open: one radio per player who played, most voted first, then by name", () =
   const group = screen.getByRole("group", { name: "Tu voto" });
   expect(within(group).getAllByRole("radio").map((r) => r.closest("label")?.textContent)).toEqual(["ADRI", "RAUL", "ERIK"]);
   expect(screen.queryByRole("radio", { name: "HUGO" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Votar al MVP" })).toBeDisabled();
+  // nothing picked: the button says so (aria-disabled) and writes nothing
+  const btn = screen.getByRole("button", { name: "Votar al MVP" });
+  expect(btn).toHaveAttribute("aria-disabled", "true");
+  fireEvent.click(btn);
+  expect(fs.setDoc).not.toHaveBeenCalled();
 });
 
 it("pick and vote: writes matches/{match}/votes/{uid}", () => {
@@ -65,7 +69,14 @@ it("my vote is checked and saved; another pick offers «Cambiar mi voto»", () =
   live.vote = "erik";
   render(ballot());
   expect(screen.getByRole("radio", { name: "ERIK" })).toBeChecked();
-  expect(screen.getByRole("button", { name: "Voto guardado" })).toBeDisabled();
+  // saved: aria-disabled (not disabled), so a keyboard user's focus stays on it after voting
+  const saved = screen.getByRole("button", { name: "Voto guardado" });
+  expect(saved).toHaveAttribute("aria-disabled", "true");
+  expect(saved).toBeEnabled();
+  saved.focus();
+  fireEvent.click(saved);
+  expect(fs.setDoc).not.toHaveBeenCalled();
+  expect(saved).toHaveFocus();
   fireEvent.click(screen.getByRole("radio", { name: "ADRI" }));
   fireEvent.click(screen.getByRole("button", { name: "Cambiar mi voto" }));
   expect(fs.setDoc).toHaveBeenCalledWith({ path: "matches/j5/votes/u1" }, { playerId: "adri", voterName: "ADRI", at: "SERVER_TIME" });
