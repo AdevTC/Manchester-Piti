@@ -18,7 +18,7 @@ import { tabForKey } from "../../../lib/tabKeys";
 import { mvpWinners } from "../../../lib/vestuario";
 import { clockTime, jLabel, shortDate, type AdminMatch } from "../data/adminLogic";
 import type { AdminData } from "../data/useAdminData";
-import { archiveBlockedReason, type MatchLifecycleRequest } from "../data/archivedMatches";
+import type { MatchLifecycleRequest } from "../data/archivedMatches";
 import { useWhistled } from "../data/whistleStore";
 import { ResultMark, resultLetter } from "../kit";
 import { useRegisterCommands } from "../palette/registry";
@@ -39,6 +39,7 @@ import { TabActa, type PlayerInfo } from "./TabActa";
 import { TabConvocatoria } from "./TabConvocatoria";
 import { TabEncuentro } from "./TabEncuentro";
 import { TabPublicar } from "./TabPublicar";
+import { MatchLifecycleActions } from "./MatchLifecycleActions";
 import { useEditBuffer } from "./useEditBuffer";
 import { useLiveCatchUp } from "./useLiveCatchUp";
 import { LiveCatchUpBar } from "./LiveCatchUpBar";
@@ -273,6 +274,11 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
           })}
         </div>
       </div>
+      <MatchLifecycleActions
+        disabled={!!busy}
+        onDelete={() => onLifecycle({ action: "delete", match, dirty: buf.dirty, onDone: buf.reset })}
+        onArchive={() => onLifecycle({ action: "archive", match, dirty: buf.dirty, onDone: buf.reset })}
+      />
       <div className="db" role="tabpanel" id={`${tabId(tab)}-p`} aria-labelledby={tabId(tab)}>
         {buf.offer && !buf.dirty && (
           <div className="rec2" role="status">
@@ -298,9 +304,6 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
             sheet={sheet}
             update={update}
             seasons={data.seasons}
-            archiveBlocked={archiveBlockedReason(match)}
-            onDelete={() => onLifecycle({ action: "delete", match, dirty: buf.dirty, onDone: buf.reset })}
-            onArchive={() => onLifecycle({ action: "archive", match, dirty: buf.dirty, onDone: buf.reset })}
           />
         )}
         {tab === "encuentro" && match.published && <Scorers matchId={match.id} />}

@@ -170,7 +170,7 @@ export function Partidos() {
   const lifecycleModal = lifecycle && <MatchLifecycleDialog key={`${lifecycle.match.id}:${lifecycle.action}`} request={lifecycle} data={data} onClose={() => setLifecycle(null)} onComplete={lifecycleComplete} />;
 
   // The publish peak (a played match only).
-  if (isOn(search.vitrina) && selected && phaseOf(selected, now, whistled.has(selected.id)) === "jugado") return <Publicado match={selected} />;
+  if (isOn(search.vitrina) && selected && phaseOf(selected, now, whistled.has(selected.id)) === "jugado") return <><Publicado match={selected} onLifecycle={setLifecycle} />{lifecycleModal}</>;
 
   const detail = data.loading || (data.archivesLoading && (showingArchives || (!selected && !!matchId))) ? (
     <section className="det" aria-label="Partido">

@@ -5,6 +5,7 @@ process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
 const { initializeApp } = await import("firebase-admin/app");
 const { getFirestore, Timestamp } = await import("firebase-admin/firestore");
+const { clockReading } = await import("../lib/matchClock.js");
 initializeApp({ projectId: "demo-manchester-piti" });
 const db = getFirestore();
 const suffix = `lifecycle-${Date.now().toString(36)}`;
@@ -42,6 +43,13 @@ async function eventually(check) {
   for (let i = 0; i < 180; i++) { try { await check(); return; } catch (error) { last = error; await new Promise(resolve => setTimeout(resolve, 250)); } }
   throw last;
 }
+async function obsoleteStats(label) {
+  // Commit/transaction counts have had no 500-write ceiling since March 2023. These compact
+  // obsolete rows exercise the former application-only 490-write blocker without large payloads.
+  const batch = db.batch();
+  for (let i = 0; i < 510; i++) batch.set(db.doc(`playerSeasonStats/${suffix}-${label}-${i}`), { seasonId, playerId: `obsolete-${i}`, totals: { goals: 1 } });
+  await batch.commit();
+}
 const admin = await google("admin"), member = await google("scorer");
 for (const [who, role] of [[admin, "admin"], [member, "user"]]) {
   await db.doc(`users/${who.uid}`).set({ role, nickname: role });
@@ -75,12 +83,14 @@ for (const name of ["setMatchArchived", "deleteMatch"]) {
   await denied(name, null, { id: matchId, archived: true }, "UNAUTHENTICATED");
   await denied(name, member, { id: matchId, archived: true }, "PERMISSION_DENIED");
 }
+await obsoleteStats("archive");
 await Promise.all([ok("setMatchArchived", admin, { id: matchId, archived: true }), ok("setMatchArchived", admin, { id: matchId, archived: true })]);
 const archived = (await db.doc(`matches/${matchId}`).get()).data();
 assert.equal(archived.archived, true); assert.equal(archived.individuallyArchived, true);
 assert.deepEqual(archived.events, original.events); assert.deepEqual(archived.ledger, original.ledger); assert.equal(archived.report, original.report);
 assert.equal((await totals()).goals, 2); assert.equal((await totals()).played, 1);
 assert.equal((await porra()).matches, 1); assert.equal((await porra()).rows[0].points, 3);
+assert.equal((await db.collection("playerSeasonStats").where("seasonId", "==", seasonId).get()).size, 8);
 assert.ok((await db.doc(`matches/${matchId}/votes/${member.uid}`).get()).exists);
 assert.ok((await db.doc(`matchPrivate/${matchId}/predictions/${member.uid}`).get()).exists);
 // Simulate a vote accepted just before archive whose aggregate trigger had not finished.
@@ -104,10 +114,27 @@ await eventually(async () => assert.equal((await db.doc(`mvpResults/${matchId}`)
 // Associated data and nested collections disappear with a finished match, beyond one write batch.
 await db.doc(`players/${playerIds[7]}`).update({ sanction: { games: 2, from: Date.now() - 86400000, untilMatchId: matchId, reason: "Sanción manual" } });
 const boardId = `${suffix}-board`;
+const orphanBoardId = `${suffix}-orphan-board`, keepBoardId = `${suffix}-keep-board`, movedBoardId = `${suffix}-moved-board`;
 await db.doc(`lineups/${boardId}`).set({ matchId, seasonId, ownerUid: admin.uid, name: "Siete guardado", isOfficial: true });
 await db.doc(`lineups/${boardId}/voz/v0`).set({ data: "audio" });
 await db.doc(`lineups/${boardId}/reactions/${member.uid}`).set({ value: "ok" });
-await db.doc(`lineupOfficials/${seasonId}__${matchId}`).set({ matchId, seasonId, lineupId: boardId });
+await db.doc(`lineupOfficials/${seasonId}__${matchId}`).set({ seasonId, lineupId: boardId }); // Legacy lock without matchId.
+await db.doc(`lineups/${orphanBoardId}/voz/v0`).set({ data: "orphan audio" });
+await db.doc(`lineupOfficials/${suffix}-orphan-lock`).set({ matchId, lineupId: orphanBoardId });
+await db.doc(`lineups/${keepBoardId}`).set({ matchId: otherId, seasonId, ownerUid: admin.uid });
+await db.doc(`lineupOfficials/${suffix}-stale-lock`).set({ matchId, lineupId: keepBoardId });
+await db.doc(`pushLog/seven-${keepBoardId}`).set({ at: 1 });
+// A relocated board has no old lock left, but its old match notice is still linked business data.
+await db.doc(`lineups/${movedBoardId}`).set({ matchId: otherId, seasonId, ownerUid: admin.uid });
+await db.doc(`pushLog/lineup-${movedBoardId}-${matchId}`).set({ at: 1 });
+await db.doc(`pushLog/lineup-${movedBoardId}-${otherId}`).set({ at: 1 });
+await db.doc(`pushLog/seven-${movedBoardId}`).set({ at: 1 });
+const suffixCollision = `long-${matchId}`;
+await db.doc(`matches/${suffixCollision}`).set({ status: "scheduled" });
+await db.doc(`pushLog/lineup-${movedBoardId}-${suffixCollision}`).set({ at: 1 });
+const lockCollision = `long__${matchId}`;
+await db.doc(`matches/${lockCollision}`).set({ status: "scheduled" });
+await db.doc(`lineupOfficials/${seasonId}__${lockCollision}`).set({ seasonId, lineupId: movedBoardId });
 await db.doc(`convocatoriaReminders/${matchId}`).set({ auto: false });
 await db.doc(`matchPrivate/${matchId}/availability/${member.uid}`).set({ response: "yes" });
 await db.doc(`matchPrivate/${matchId}/nested/chunk/more/item`).set({ detail: "nested" });
@@ -118,11 +145,18 @@ for (let i = 0; i < 450; i += 300) {
   for (let j = i; j < Math.min(i + 300, 450); j++) batch.set(db.doc(`matchAudit/${suffix}-${j}`), { matchId, revision: j });
   await batch.commit();
 }
+await obsoleteStats("delete");
 await ok("deleteMatch", admin, { id: matchId });
 await eventually(async () => {
   for (const path of [`matches/${matchId}`, `matches/${matchId}/votes/${member.uid}`, `matchPrivate/${matchId}`, `matchPrivate/${matchId}/predictions/${member.uid}`, `matchPrivate/${matchId}/nested/chunk/more/item`, `matchDrafts/${matchId}`, `mvpResults/${matchId}`, `lineups/${boardId}`, `lineups/${boardId}/voz/v0`, `lineups/${boardId}/reactions/${member.uid}`, `lineupOfficials/${seasonId}__${matchId}`, `convocatoriaReminders/${matchId}`, `pushLog/siete-${matchId}`, `pushLog/seven-${boardId}`, `pushLog/final-${matchId}`, `pushLog/goal-${matchId}-goal0`]) assert.equal((await db.doc(path).get()).exists, false, path);
   assert.equal((await db.collection("matchAudit").where("matchId", "==", matchId).get()).size, 0);
+  for (const path of [`lineups/${orphanBoardId}/voz/v0`, `lineupOfficials/${suffix}-orphan-lock`, `lineupOfficials/${suffix}-stale-lock`]) assert.equal((await db.doc(path).get()).exists, false, path);
+  assert.equal((await db.doc(`pushLog/lineup-${movedBoardId}-${matchId}`).get()).exists, false);
 });
+assert.equal((await db.doc(`lineups/${keepBoardId}`).get()).get("matchId"), otherId);
+assert.equal((await db.doc(`pushLog/seven-${keepBoardId}`).get()).exists, true);
+for (const path of [`lineups/${movedBoardId}`, `pushLog/seven-${movedBoardId}`, `pushLog/lineup-${movedBoardId}-${otherId}`, `pushLog/lineup-${movedBoardId}-${suffixCollision}`]) assert.equal((await db.doc(path).get()).exists, true, path);
+assert.equal((await db.doc(`lineupOfficials/${seasonId}__${lockCollision}`).get()).exists, true);
 assert.equal((await totals()).goals, 2); assert.equal((await porra()).matches, 1); assert.equal((await porra()).rows[0].points, 3);
 const sanction = (await db.doc(`players/${playerIds[7]}`).get()).get("sanction");
 assert.equal(sanction.untilMatchId, undefined); assert.equal(sanction.games, 2);
@@ -145,7 +179,33 @@ await ok("setMatchArchived", admin, { id: draftId, archived: false });
 await ok("deleteMatch", admin, { id: draftId });
 await ok("saveMatchSheet", admin, { id: liveId, sheet: { ...sheet(0), status: "scheduled", date: Date.now() } });
 await ok("controlMatchClock", admin, { matchId: liveId, action: "start", revision: 0 });
-await denied("setMatchArchived", admin, { id: liveId, archived: true });
+const kickoff = (await db.doc(`matches/${liveId}`).get()).get("clock.firstStartedAt");
+for (const phase of ["first", "halftime", "second"]) {
+  await ok("setMatchArchived", admin, { id: liveId, archived: true });
+  const paused = (await db.doc(`matches/${liveId}`).get()).get("clock");
+  assert.equal(paused.phase, phase); assert.equal(typeof paused.pausedAt, "number");
+  assert.deepEqual(clockReading(paused, paused.pausedAt), clockReading(paused, paused.pausedAt + 86400000));
+  await denied("controlMatchClock", admin, { matchId: liveId, action: "finish", revision: paused.revision });
+  await denied("liveEvent", admin, { matchId: liveId, action: "add", requestId: `stale-${phase}`, clockRevision: paused.revision, event: { type: "corner", minute: 1 } });
+  await ok("setMatchArchived", admin, { id: liveId, archived: true });
+  assert.deepEqual((await db.doc(`matches/${liveId}`).get()).get("clock"), paused);
+  // Season round-trips retain the independent freeze; reactivation is an explicit match action.
+  await ok("setSeasonArchived", admin, { seasonId, archived: true });
+  await ok("setSeasonArchived", admin, { seasonId, archived: false });
+  assert.deepEqual((await db.doc(`matches/${liveId}`).get()).get("clock"), paused);
+  await ok("setMatchArchived", admin, { id: liveId, archived: false });
+  const restored = (await db.doc(`matches/${liveId}`).get()).get("clock");
+  assert.equal(restored.firstStartedAt, kickoff); assert.equal(restored.pausedAt, undefined);
+  assert.equal(restored.pauses.at(-1).from, paused.pausedAt);
+  assert.deepEqual(clockReading(restored, restored.pauses.at(-1).to), { ...clockReading(paused, paused.pausedAt), playing: phase !== "halftime" });
+  if (phase !== "second") await ok("controlMatchClock", admin, { matchId: liveId, action: phase === "first" ? "halftime" : "second", revision: restored.revision });
+}
+// A season archive freezes active matches too, and its restore resumes only non-individual ones.
+await ok("setSeasonArchived", admin, { seasonId, archived: true });
+assert.equal(typeof (await db.doc(`matches/${liveId}`).get()).get("clock.pausedAt"), "number");
+await ok("setSeasonArchived", admin, { seasonId, archived: false });
+assert.equal((await db.doc(`matches/${liveId}`).get()).get("clock.pausedAt"), undefined);
+await ok("setMatchArchived", admin, { id: liveId, archived: true });
 await ok("deleteMatch", admin, { id: liveId });
 await ok("setMatchArchived", admin, { id: otherId, archived: true });
 await ok("deleteMatch", admin, { id: otherId });
@@ -159,6 +219,24 @@ await ok("setMatchArchived", admin, { id: legacyId, archived: true });
 await ok("setMatchArchived", admin, { id: legacyId, archived: false });
 assert.deepEqual((await db.doc(`mvpResults/${legacyId}`).get()).data(), legacyMvp);
 await ok("deleteMatch", admin, { id: legacyId });
+// Missing/invalid season metadata must never prevent the lifecycle of old published results.
+for (const [label, season] of [["missing", undefined], ["null", null], ["invalid-path", "old/season"], ["deleted-season", `${suffix}-gone-season`]]) {
+  const id = `${suffix}-${label}`;
+  const historical = { rival: "Histórico publicado", goalsFor: 2, goalsAgainst: 1, date: Timestamp.fromMillis(Date.now() - 86400000), report: "Original", ...(season === undefined ? {} : { seasonId: season }) };
+  await db.doc(`matches/${id}`).set(historical);
+  await db.doc(`mvpResults/${id}`).set(legacyMvp);
+  await db.doc(`matchPrivate/${id}/predictions/${member.uid}`).set({ goalsFor: 2, goalsAgainst: 1, name: "scorer" });
+  await ok("setMatchArchived", admin, { id, archived: true });
+  await ok("setMatchArchived", admin, { id, archived: false });
+  const restored = (await db.doc(`matches/${id}`).get()).data();
+  for (const [field, value] of Object.entries(historical)) assert.deepEqual(restored[field], value);
+  assert.deepEqual((await db.doc(`mvpResults/${id}`).get()).data(), legacyMvp);
+  if (label === "deleted-season") assert.equal((await db.doc(`porraStandings/${season}`).get()).get("rows")[0].points, 3);
+  await ok("deleteMatch", admin, { id });
+  assert.equal((await db.doc(`matchPrivate/${id}/predictions/${member.uid}`).get()).exists, false);
+  assert.equal((await db.doc(`mvpResults/${id}`).get()).exists, false);
+}
+assert.equal((await db.doc("porraStandings/undefined").get()).exists, false);
 // Different matches in one season can be managed at once without deadlock or lost totals.
 const raceA = `${suffix}-race-a`, raceB = `${suffix}-race-b`;
 await ok("saveMatchSheet", admin, { id: raceA, sheet: sheet(1) });

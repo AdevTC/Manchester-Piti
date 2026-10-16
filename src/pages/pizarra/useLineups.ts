@@ -164,7 +164,7 @@ export async function publishOfficial(seasonId: string, id: string, scope: Offic
 }
 
 /** Deletes the reactions to boards that are no longer official (or are being deleted), in batches. */
-export async function clearReactions(ids: string[]): Promise<void> {
+export async function clearReactions(ids: string[], options: { strict?: boolean } = {}): Promise<void> {
   for (const lid of ids) {
     try {
       const snap = await getDocs(collection(db, "lineups", lid, "reactions"));
@@ -174,6 +174,9 @@ export async function clearReactions(ids: string[]): Promise<void> {
         await batch.commit();
       }
     } catch (err) {
+      // Deleting a board must keep its parent/scope while children could remain. When only
+      // unpublishing, the change already committed and stale reactions are hidden instead.
+      if (options.strict) throw err;
       // the board change already happened: stale reactions are only shown on an official again
       console.error("No se pudieron limpiar las reacciones del tablero", err);
     }
@@ -292,9 +295,9 @@ export function useLineups(seasonId: string): UseLineups {
       await updateDoc(doc(db, "lineups", id), { name, updatedAt: serverTimestamp() });
     };
     const remove: UseLineups["remove"] = async (id) => {
-      await clearReactions([id]);
+      await clearReactions([id], { strict: true });
       // (Bloque 5: the charla's voice goes first — its rules read the board to allow it)
-      await clearVoz(id);
+      await clearVoz(id, { strict: true });
       await deleteBoard(id);
     };
     const markOfficial: UseLineups["markOfficial"] = async (id, scope) => {

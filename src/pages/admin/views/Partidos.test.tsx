@@ -510,12 +510,20 @@ describe("Partidos · a match to play, a published one", () => {
     expect(within(footer()).getByText("Publicada · la web ya lo cuenta")).toHaveClass("okk");
     expect(within(footer()).getByRole("button", { name: "Guardar cambios" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("tab", { name: /^Publicar\W+hecho$/ })).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: /Encuentro/ }));
-    expect(screen.getByRole("button", { name: "Archivar partido" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Borrar partido" })).toBeEnabled();
+    // A played match opens in Acta: management must be visible without finding Encuentro first.
+    expect(screen.getByRole("tab", { name: /^Acta/ })).toHaveAttribute("aria-selected", "true");
+    for (const name of [/^Acta/, /^Encuentro/, /^Convocatoria/, /^Publicar/]) {
+      await user.click(screen.getByRole("tab", { name }));
+      const manage = screen.getByRole("group", { name: "Gestionar partido" });
+      expect(within(manage).getByRole("button", { name: "Archivar partido" })).toBeEnabled();
+      expect(within(manage).getByRole("button", { name: "Borrar partido" })).toBeEnabled();
+      expect(within(screen.getByRole("tabpanel")).queryByRole("button", { name: "Archivar partido" })).toBeNull();
+    }
     act(() => void router.navigate({ to: "/admin/partidos/$matchId", params: { matchId: "m6" }, search: { vitrina: true } }));
     const peak = await screen.findByRole("region", { name: "Acta publicada" });
     expect(within(peak).getByText("MVP cerrado")).toBeInTheDocument();
+    expect(within(peak).getByRole("button", { name: "Archivar partido" })).toBeEnabled();
+    expect(within(peak).getByRole("button", { name: "Borrar partido" })).toBeEnabled();
     await user.click(within(peak).getByRole("button", { name: "Corregir el acta" }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ tab: "acta" }));
     expect(screen.queryByRole("region", { name: "Acta publicada" })).toBeNull();
@@ -652,11 +660,46 @@ describe("Partidos · archiving and irreversible deletion", () => {
     expect(await screen.findByRole("button", { name: "Archivados · 1" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("an active whistle blocks archive without blocking the explicit delete option", async () => {
-    setAdminData(adminFixture({ published: withMatch("m8", { clock: { revision: 2, phase: "halftime" } }) }));
-    mountAdmin("/admin/partidos/m8?tab=encuentro", { partidos: Partidos });
-    expect(await screen.findByRole("button", { name: "Archivar partido" })).toBeDisabled();
-    expect(screen.getByText("Finaliza o reinicia el reloj del partido antes de archivarlo.")).toBeInTheDocument();
+  it.each(["first", "halftime", "second"] as const)("can archive an active %s clock directly from Acta after confirmation", async phase => {
+    setAdminData(adminFixture({ published: withMatch("m8", { clock: { revision: 2, phase } }) }));
+    const user = userEvent.setup();
+    const router = mountAdmin("/admin/partidos/m8?tab=acta", { partidos: Partidos });
+    const trigger = await screen.findByRole("button", { name: "Archivar partido" });
+    expect(trigger).toBeEnabled();
     expect(screen.getByRole("button", { name: "Borrar partido" })).toBeEnabled();
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "¿Archivar el partido contra MAD SKY?" });
+    expect(within(dialog).getByRole("button", { name: "Archivar partido" })).toBeEnabled();
+    expect(archive).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Archivar partido" }));
+    await waitFor(() => expect(archive).toHaveBeenCalledExactlyOnceWith({ id: "m8", archived: true }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos"));
+  });
+
+  it.each([
+    ["Archivar partido", 1280], ["Borrar partido", 1280], ["Archivar partido", 390], ["Borrar partido", 390],
+  ] as const)("%s works from the published acta at %ipx, including its confirmation dialog", async (action, width) => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+    setAdminData(adminFixture({ published: fullJ1() }));
+    const user = userEvent.setup();
+    const router = mountAdmin("/admin/partidos/m6?vitrina=true", { partidos: Partidos });
+    const peak = await screen.findByRole("region", { name: "Acta publicada" });
+    await user.click(within(peak).getByRole("button", { name: action }));
+    const role = action === "Borrar partido" ? "alertdialog" : "dialog";
+    let dialog = screen.getByRole(role);
+    expect(dialog).toHaveTextContent("Emirates");
+    expect(archive).not.toHaveBeenCalled();
+    expect(del).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByRole("region", { name: "Acta publicada" })).toBeInTheDocument();
+    expect(within(peak).getByRole("button", { name: action })).toHaveFocus();
+    await user.click(within(peak).getByRole("button", { name: action }));
+    dialog = screen.getByRole(role);
+    if (action === "Archivar partido") archive.mockImplementationOnce(async () => { setAdminData(archiveFixture()); return { data: { ok: true } }; });
+    await user.click(within(dialog).getByRole("button", { name: action }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos"));
+    expect(screen.queryByRole("region", { name: "Acta publicada" })).toBeNull();
+    if (action === "Archivar partido") expect(archive).toHaveBeenCalledExactlyOnceWith({ id: "m6", archived: true });
+    else expect(del).toHaveBeenCalledExactlyOnceWith({ id: "m6" });
   });
 });

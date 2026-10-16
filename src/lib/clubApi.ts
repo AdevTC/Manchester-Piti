@@ -20,10 +20,12 @@ export const revokeInvite = httpsCallable<{ code: string }, { ok: boolean }>(fun
 export const resolveAccess = httpsCallable<{ uid: string; approve: boolean; playerId?: string }, { ok: boolean }>(functions, "resolveAccess");
 export const revokeMember = httpsCallable<{ uid: string }, { ok: boolean }>(functions, "revokeMember");
 export const doorShirts = httpsCallable<void, { taken: string[]; inside: number }>(functions, "doorShirts");
+// Match/season cascades may use the backend's full nine-minute execution window.
+const lifecycleOptions = { timeout: 540_000 };
 /** Permanently removes a match, its drafts, events and associated participation/votes. Admin only. */
-export const deleteMatch = httpsCallable<{ id: string }, { ok: boolean }>(functions, "deleteMatch");
+export const deleteMatch = httpsCallable<{ id: string }, { ok: boolean }>(functions, "deleteMatch", lifecycleOptions);
 /** Reversible exclusion from the calendar and statistics. Admin only. */
-export const setMatchArchived = httpsCallable<{ id: string; archived: boolean }, { ok: boolean }>(functions, "setMatchArchived");
+export const setMatchArchived = httpsCallable<{ id: string; archived: boolean }, { ok: boolean }>(functions, "setMatchArchived", lifecycleOptions);
 export const savePrediction = httpsCallable<{ matchId: string; goalsFor: number; goalsAgainst: number; goals: import("../../functions/src/predictions").GoalPick[] }, { ok: boolean }>(functions, "savePrediction");
 /** The one convocatoria (functions/src/convocatoria.ts): el siete + banquillo of a match; `notify` sends its push
  *  («Ya está la convocatoria» / once «Cambios en la convocatoria»). `at` = the `convocatoriaAt` it stamped. */
@@ -57,7 +59,7 @@ export const requestPlayerClaim = httpsCallable<{ playerId: string }, { ok: bool
 export const setSeasonArchived = httpsCallable<
   { seasonId: string; archived: boolean },
   { matches: number; players: number }
->(functions, "setSeasonArchived");
+>(functions, "setSeasonArchived", lifecycleOptions);
 export const resolvePlayerClaim = httpsCallable<{
   uid: string;
   approve: boolean;

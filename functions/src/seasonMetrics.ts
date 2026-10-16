@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './common.js';
 import { archivedMatch } from './matchAccess.js';
+import { isCompleted } from './matchEngine.js';
 import { predictionPoints, sortPorra, type PorraRow } from './vestuarioLogic.js';
 import { scorePrediction } from './predictions.js';
 
@@ -39,7 +40,7 @@ export async function prepareSeasonMetrics(tx: FirebaseFirestore.Transaction, se
   const matches = await tx.get(db.collection('matches').where('seasonId', '==', seasonId));
   const active = !(seasonArchived ?? season.get('archived') === true);
   const finished = matches.docs.map(m => ({ id: m.id, data: overrides.has(m.id) ? overrides.get(m.id) : m.data() }))
-    .filter((m): m is { id: string; data: FirebaseFirestore.DocumentData } => !!m.data && active && !archivedMatch(m.data) && m.data.status === 'finished');
+    .filter((m): m is { id: string; data: FirebaseFirestore.DocumentData } => !!m.data && active && !archivedMatch(m.data) && isCompleted(m.data));
   const predictions = await Promise.all(finished.map(m => tx.get(db.collection(`matchPrivate/${m.id}/predictions`))));
   const oldStats = await tx.get(db.collection('playerSeasonStats').where('seasonId', '==', seasonId));
   const totals = new Map<string, Record<string, number>>();

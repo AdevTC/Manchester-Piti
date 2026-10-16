@@ -33,7 +33,7 @@ export interface VozStore {
 }
 
 /** Deletes every clip of a board (before the board itself goes: the rules read the board to allow it). */
-export async function clearVoz(lineupId: string): Promise<void> {
+export async function clearVoz(lineupId: string, options: { strict?: boolean } = {}): Promise<void> {
   try {
     const snap = await getDocs(collection(db, "lineups", lineupId, "voz"));
     if (snap.empty) return;
@@ -41,6 +41,8 @@ export async function clearVoz(lineupId: string): Promise<void> {
     snap.docs.forEach((d) => batch.delete(d.ref));
     await batch.commit();
   } catch (err) {
+    // A board deletion must stop here so its match link survives for a later retry/cascade.
+    if (options.strict) throw err;
     console.error("No se pudo borrar la voz de la charla", err);
   }
 }

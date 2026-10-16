@@ -96,13 +96,13 @@ Mientras no haya fotos propias se ven espacios gráficos preparados para ellas. 
 
 ### Archivar, reactivar y eliminar partidos
 
-Solo los administradores pueden gestionar estas acciones desde **Administración → Partidos**. En la ficha del encuentro están **Archivar partido** y **Borrar partido**, también para partidos terminados. Ambas acciones muestran el rival, la fecha y sus consecuencias antes de confirmar.
+Solo los administradores pueden gestionar estas acciones desde **Administración → Partidos**. **Archivar partido** y **Borrar partido** están siempre visibles en las cuatro pestañas del editor y en la pantalla que aparece después de publicar, también para partidos terminados. Ambas acciones muestran el rival, la fecha y sus consecuencias antes de confirmar.
 
 - **Archivar** conserva el acta, los eventos, los votos, las porras y el resto de datos vinculados. El encuentro sale del calendario público, de los avisos y de todas las estadísticas, récords y clasificaciones. Se consulta en modo de solo lectura desde **Archivados**.
 - **Reactivar** devuelve el partido y sus aportaciones a las estadísticas. Un borrador se recupera como borrador. Si su temporada está archivada, hay que reactivar primero la temporada; hacerlo no reactiva automáticamente los partidos archivados individualmente.
 - **Borrar** elimina definitivamente el encuentro y sus datos vinculados, incluidos borradores, convocatoria, votos, pronósticos y pizarras. Se recalculan los acumulados y la porra sin ese partido. No hay opción de deshacer.
 
-Un reloj iniciado debe finalizarse o reiniciarse antes de archivar el encuentro, para que el tiempo que pase archivado no se contabilice como tiempo jugado. Las pestañas antiguas no pueden seguir editando un encuentro archivado ni recrear uno eliminado. El servidor conserva únicamente una marca interna del identificador eliminado, sin contenido del partido ni datos personales, para impedir esa recreación.
+Se puede archivar cualquier partido aunque tenga el reloj iniciado: se pausa automáticamente mientras permanece archivado y, al reactivarlo, continúa en la misma parte o descanso. Ese intervalo no suma minutos de juego ni de descanso y se conservan las horas originales. Las pestañas antiguas no pueden seguir editando un encuentro archivado ni recrear uno eliminado. El servidor conserva únicamente una marca interna del identificador eliminado, sin contenido del partido ni datos personales, para impedir esa recreación.
 
 La retirada de las estadísticas se confirma junto al borrado del partido. La limpieza de sus datos vinculados tiene además un proceso de recuperación en el servidor, por si la operación se interrumpe después de retirar el encuentro.
 

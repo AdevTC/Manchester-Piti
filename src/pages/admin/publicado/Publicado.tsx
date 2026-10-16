@@ -10,6 +10,7 @@ import { dateMillis } from "../../../../functions/src/matchEngine";
 import { shareClubPage } from "../../../lib/share";
 import { mvpWinners } from "../../../lib/vestuario";
 import { type AdminMatch } from "../data/adminLogic";
+import type { MatchLifecycleRequest } from "../data/archivedMatches";
 import { useWhistled } from "../data/whistleStore";
 import { ResultMark, ShirtBack, Stickers } from "../kit";
 import { useAdmin, useAdminGo } from "../shell/context";
@@ -18,11 +19,12 @@ import { useToast } from "../ui/toastContext";
 import { mvpStatus } from "../acta/publish";
 import { namesFor, rosterFor } from "../acta/roster";
 import { useMatchMvp } from "../partidos/live";
+import { MatchLifecycleActions } from "../partidos/MatchLifecycleActions";
 import { vitrinaOf } from "./vitrinaModel";
 
 const isAbort = (e: unknown) => !!e && typeof e === "object" && (e as { name?: unknown }).name === "AbortError";
 
-export function Publicado({ match }: { match: AdminMatch }) {
+export function Publicado({ match, onLifecycle }: { match: AdminMatch; onLifecycle: (request: MatchLifecycleRequest) => void }) {
   const data = useAdmin();
   const go = useAdminGo();
   const toast = useToast();
@@ -71,6 +73,7 @@ export function Publicado({ match }: { match: AdminMatch }) {
   return (
     <section className="pubv" aria-label="Acta publicada">
       <div className="flash" aria-hidden="true" />
+      <MatchLifecycleActions onArchive={() => onLifecycle({ action: "archive", match })} onDelete={() => onLifecycle({ action: "delete", match })} />
       <span className="wh">
         <AdIcon name="whistle" size={20} />
         Final del partido · {v.j} · el acta sale a la web

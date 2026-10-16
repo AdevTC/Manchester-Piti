@@ -2,19 +2,32 @@
 // `.optional()` refuses (functions/src/live.ts), so absent keys must not travel at all.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const fx = vi.hoisted(() => ({ calls: [] as { name: string; data: unknown }[] }));
+const fx = vi.hoisted(() => ({ calls: [] as { name: string; data: unknown }[], timeouts: new Map<string, number | undefined>() }));
 vi.mock("../firebase", () => ({ db: {}, functions: {} }));
 vi.mock("firebase/functions", () => ({
-  httpsCallable: (_f: unknown, name: string) => async (data: unknown) => {
-    fx.calls.push({ name, data });
-    return { data: { events: 1 } };
+  httpsCallable: (_f: unknown, name: string, options?: { timeout?: number }) => {
+    fx.timeouts.set(name, options?.timeout);
+    return async (data: unknown) => {
+      fx.calls.push({ name, data });
+      return { data: { events: 1 } };
+    };
   },
 }));
 
-import { liveEvent } from "./clubApi";
+import { deleteMatch, liveEvent, setMatchArchived, setSeasonArchived } from "./clubApi";
 
 beforeEach(() => {
   fx.calls = [];
+});
+
+it("allows lifecycle calls the full backend cleanup window without extending live actions", async () => {
+  await deleteMatch({ id: "m1" });
+  await setMatchArchived({ id: "m1", archived: true });
+  await setSeasonArchived({ seasonId: "s1", archived: false });
+  expect(fx.calls.map(({ name }) => [name, fx.timeouts.get(name)])).toEqual([
+    ["deleteMatch", 540_000], ["setMatchArchived", 540_000], ["setSeasonArchived", 540_000],
+  ]);
+  expect(fx.timeouts.get("liveEvent")).toBeUndefined();
 });
 
 describe("liveEvent drops undefined keys before the callable", () => {

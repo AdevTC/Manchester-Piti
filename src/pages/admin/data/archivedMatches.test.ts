@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { archiveBlockedReason, mapArchivedMatch, matchIdentity, mergeArchivedMatches } from "./archivedMatches";
+import { archivedScore, mapArchivedMatch, matchIdentity, mergeArchivedMatches } from "./archivedMatches";
 import { mergeMatches } from "./adminLogic";
 
 describe("private archive data", () => {
+  it("retains legacy scorelines without mistaking unfinished or incomplete records for a result", () => {
+    const match = mergeArchivedMatches([{ id: "legacy", date: 1, goalsFor: 2, goalsAgainst: 0 }], [])[0];
+    expect(archivedScore(match)).toBe("2–0");
+    expect(archivedScore({ ...match, individuallyArchived: true })).toBe("2–0");
+    expect(archivedScore({ ...match, status: "finished" })).toBe("2–0");
+    for (const status of ["scheduled", "cancelled", "postponed"] as const) expect(archivedScore({ ...match, status })).toBeNull();
+    expect(archivedScore({ ...match, date: Date.now() + 86_400_000 })).toBeNull();
+    expect(archivedScore({ ...match, goalsAgainst: undefined })).toBeNull();
+    expect(archivedScore({ ...match, date: undefined })).toBeNull();
+    expect(match.archived).toBe(true);
+  });
   it("accepts only archived documents, keeping the archive flags and draft-only matches", () => {
     const base = { seasonId: "s", rival: "Rival", status: "finished" as const, date: 1, archived: true, individuallyArchived: true };
     expect(mapArchivedMatch("m", base)).toMatchObject({ id: "m", archived: true, individuallyArchived: true });
@@ -13,12 +24,6 @@ describe("private archive data", () => {
     expect(rows.map((r) => r.id)).toEqual(["draft-only", "published"]);
     expect(rows[0]).toMatchObject({ draft: true, published: false, archived: true, jornada: null });
     expect(rows[1]).toMatchObject({ draft: true, published: true, report: "Corrección guardada", jornada: null });
-  });
-  it("only blocks archiving while the server clock is active, including the break", () => {
-    const match = mergeMatches([{ id: "m", status: "finished" }], [])[0];
-    expect(archiveBlockedReason(match)).toBeNull();
-    for (const phase of ["first", "halftime", "second"] as const) expect(archiveBlockedReason({ ...match, clock: { phase, revision: 1 } })).toContain("Finaliza o reinicia");
-    expect(archiveBlockedReason({ ...match, clock: { phase: "ended", revision: 1 } })).toBeNull();
   });
   it.each([
     { date: Date.UTC(2026, 10, 8, 11), day: "8 de noviembre de 2026", time: "12:00" },

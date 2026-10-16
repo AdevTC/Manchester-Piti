@@ -3,7 +3,7 @@ import { eventMinute } from "../../../../functions/src/matchEngine";
 import { EVENT_LABELS, dateMillis } from "../../../lib/clubData";
 import { namesFor } from "../acta/roster";
 import { clockTime, shortDate } from "../data/adminLogic";
-import { matchIdentity, type ArchivedMatch, type MatchLifecycleRequest } from "../data/archivedMatches";
+import { archivedScore, matchIdentity, type ArchivedMatch, type MatchLifecycleRequest } from "../data/archivedMatches";
 import type { AdminData } from "../data/useAdminData";
 import { AdIcon } from "../ui/icons";
 
@@ -20,7 +20,7 @@ export function ArchivedMatchList({ matches, query, onQuery, onOpen, selectedId,
         {rows.map((m) => <button className="mr" key={m.id} type="button" onClick={() => onOpen(m.id)} aria-current={m.id === selectedId ? "true" : undefined} aria-label={`Archivado, ${matchIdentity(m)}`}>
           <span className="j"><b>{m.published ? "Acta" : "Borrador"}</b><small>{shortDate(dateMillis(m.date))}</small></span>
           <span className="w"><b>{m.rival || "Rival pendiente"}</b><small>{m.individuallyArchived ? "Archivado individualmente" : "Temporada archivada"}{m.draft && m.published ? " · con borrador" : ""}</small></span>
-          <span className="s t">{m.status === "finished" && m.goalsFor != null && m.goalsAgainst != null ? `${m.goalsFor}–${m.goalsAgainst}` : clockTime(dateMillis(m.date))}</span>
+          <span className="s t">{archivedScore(m) ?? clockTime(dateMillis(m.date))}</span>
         </button>)}
         {!rows.length && <p className="hint">{query.trim() ? `Ningún partido archivado con «${query.trim()}».` : "No hay partidos archivados."}</p>}
       </div>}
@@ -38,7 +38,7 @@ export function ArchivedMatchPane({ match, data, onBack, onLifecycle }: { match:
   return <section className="det" aria-label="Partido archivado">
     <div className="dh">
       <button type="button" className="ib2" onClick={onBack} aria-label="Volver a la lista"><AdIcon name="back" /></button>
-      <div className="tt"><small>Archivado · {season?.name ?? "Sin temporada"}</small><b role="heading" aria-level={2}>PITI {match.status === "finished" && match.goalsFor != null && match.goalsAgainst != null ? `${match.goalsFor}–${match.goalsAgainst}` : "–"} {match.rival || "Rival pendiente"}</b></div>
+      <div className="tt"><small>Archivado · {season?.name ?? "Sin temporada"}</small><b role="heading" aria-level={2}>PITI {archivedScore(match) ?? "–"} {match.rival || "Rival pendiente"}</b></div>
     </div>
     <div className="db archive-detail">
       <div className="rec2"><span><b>Acta archivada · solo lectura</b>No aparece en el calendario ni suma a las estadísticas. Conserva sus eventos, votos y porras{match.draft ? " y su borrador" : ""}.</span></div>

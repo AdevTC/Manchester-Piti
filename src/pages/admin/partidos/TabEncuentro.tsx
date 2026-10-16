@@ -1,8 +1,7 @@
 // The «Encuentro» tab, as on the canvas (stats-gen/ad-v2-full.mjs `encT`, shots-adv2f/partidos-encuentro.png):
 // three groups — 1 Rival y fecha (rival, initials, time and date in Madrid, competition, season) · 2 Campo
 // (name, address, condition) · 3 Detalles (kit, state, duration, the rival's crest with its HTTPS check,
-// the internal note). Any match can be archived or permanently deleted after a concrete confirmation;
-// an active shared clock must be stopped before archiving.
+// the internal note). Match management lives above the tabs so every workspace keeps it available.
 import { useId, useState } from "react";
 import { opponentInitials } from "../../../lib/clubAnalytics";
 import type { SeasonDoc } from "../../../lib/schemas";
@@ -42,17 +41,11 @@ export function TabEncuentro({
   sheet,
   update,
   seasons,
-  onDelete,
-  onArchive,
-  archiveBlocked,
 }: {
   /** The sheet as reviewed (a played match reads «Finalizado»). */
   sheet: MatchSheet;
   update: (f: (s: MatchSheet) => MatchSheet) => void;
   seasons: readonly SeasonDoc[];
-  onDelete: () => void;
-  onArchive: () => void;
-  archiveBlocked: string | null;
 }) {
   const id = useId();
   const [askSeason, setAskSeason] = useState<string | null>(null);
@@ -192,8 +185,6 @@ export function TabEncuentro({
         </section>
       </div>
 
-      <div className="archive-action"><p id={`${id}-archive`}><b>Archivar partido</b>{archiveBlocked ?? "Oculta el partido y lo excluye de las estadísticas, conservando todos sus datos. Podrás reactivarlo desde Archivados."}</p><button type="button" className="btn sm line" onClick={onArchive} disabled={!!archiveBlocked} aria-describedby={`${id}-archive`} aria-haspopup="dialog">Archivar partido</button></div>
-      <div className="danger"><p><b>Eliminar definitivamente</b>Se borra el partido con su acta, votos y porras. Esta acción no se puede deshacer.</p><button type="button" className="btn sm red" onClick={onDelete} aria-haspopup="dialog"><AdIcon name="trash" size={16} />Borrar partido</button></div>
       <ConfirmModal
         open={!!askSeason}
         onClose={() => setAskSeason(null)}

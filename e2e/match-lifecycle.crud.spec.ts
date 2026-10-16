@@ -35,9 +35,15 @@ for (const mobile of [false, true]) test(`un partido terminado se archiva, consu
   } });
   try {
     await enterVestuario(page);
-    await page.goto(`/admin/partidos/${id}?tab=encuentro`);
-    await expect(page.getByLabel("Rival", { exact: true })).toHaveValue(rival);
-    await page.getByRole("button", { name: "Archivar partido", exact: true }).click();
+    // Finished and published matches open directly in Acta; management must not require Encuentro.
+    await page.goto(`/admin/partidos/${id}`);
+    await expect(page.getByRole("tab", { name: /^Acta/ })).toHaveAttribute("aria-selected", "true");
+    const management = page.getByRole("group", { name: "Gestionar partido" });
+    await expect(management.getByRole("button", { name: "Archivar partido", exact: true })).toBeInViewport();
+    await expect(management.getByRole("button", { name: "Borrar partido", exact: true })).toBeInViewport();
+    await expect(page.locator("body")).toHaveJSProperty("scrollWidth", await page.locator("body").evaluate((el) => el.clientWidth));
+    await page.screenshot({ path: `.emulator-data/management-acta-${mobile ? "mobile" : "desktop"}.png`, fullPage: true, animations: "disabled" });
+    await management.getByRole("button", { name: "Archivar partido", exact: true }).click();
     const archive = page.getByRole("dialog", { name: `¿Archivar el partido contra ${rival}?` });
     await expect(archive).toContainText("Conserva el acta");
     await archive.getByRole("button", { name: "Archivar partido", exact: true }).click();
@@ -57,8 +63,13 @@ for (const mobile of [false, true]) test(`un partido terminado se archiva, consu
     await expect(page.getByText(`${rival} · partido reactivado`, { exact: true })).toBeVisible();
     await page.getByRole("searchbox", { name: "Buscar partido", exact: true }).fill(rival);
     await page.getByRole("button", { name: new RegExp(`^J\\d+, ${rival}`) }).click();
-    await page.getByRole("tab", { name: /^Encuentro/ }).click();
-    await page.getByRole("button", { name: "Borrar partido", exact: true }).click();
+    await expect(page.getByRole("tab", { name: /^Acta/ })).toHaveAttribute("aria-selected", "true");
+    await page.goto(`/admin/partidos/${id}?vitrina=true`);
+    const published = page.getByRole("region", { name: "Acta publicada", exact: true });
+    await expect(published.getByRole("button", { name: "Archivar partido", exact: true })).toBeInViewport();
+    await expect(published.getByRole("button", { name: "Borrar partido", exact: true })).toBeInViewport();
+    await page.screenshot({ path: `.emulator-data/management-published-${mobile ? "mobile" : "desktop"}.png`, fullPage: true, animations: "disabled" });
+    await published.getByRole("button", { name: "Borrar partido", exact: true }).click();
     const remove = page.getByRole("alertdialog", { name: `¿Borrar el partido contra ${rival}?` });
     await expect(remove).toContainText("No se puede deshacer");
     await expect(remove).toContainText("votos, porras");

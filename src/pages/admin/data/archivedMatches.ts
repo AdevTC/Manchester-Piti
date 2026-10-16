@@ -1,6 +1,7 @@
 import { dateMillis, type ClubMatch } from "../../../lib/clubData";
 import { mapRawMatch } from "../../../lib/firestoreMappers";
 import { mergeMatches, type AdminMatch } from "./adminLogic";
+import { isCompleted } from "../../../../functions/src/matchEngine";
 
 export interface ArchivedMatch extends AdminMatch {
   archived: true;
@@ -19,10 +20,10 @@ export function mergeArchivedMatches(published: readonly ClubMatch[], drafts: re
     .sort((a, b) => dateMillis(b.date) - dateMillis(a.date));
 }
 
-export function archiveBlockedReason(match: AdminMatch): string | null {
-  return match.clock && ["first", "halftime", "second"].includes(match.clock.phase)
-    ? "Finaliza o reinicia el reloj del partido antes de archivarlo."
-    : null;
+/** Historical result for the private archive only; never reintroduces the match into metrics. */
+export function archivedScore(match: ArchivedMatch): string | null {
+  const completed = isCompleted({ ...match, archived: false, individuallyArchived: false, deleting: false });
+  return completed && match.goalsFor != null && match.goalsAgainst != null ? `${match.goalsFor}–${match.goalsAgainst}` : null;
 }
 
 export function matchIdentity(match: AdminMatch): string {

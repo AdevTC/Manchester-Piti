@@ -8,9 +8,13 @@
 .adm .archive-list-note{padding:0 8px;margin:0 0 10px}
 .adm .archive-list .mr .j b{font-family:Geist,system-ui,sans-serif;font-size:10px;line-height:1.4}
 .adm.m .match-list-stack{flex:1}
-.adm .archive-action{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:20px 0;border-top:1px solid var(--pline)}
-.adm .archive-action p{flex:1 1 240px;color:var(--muted);font-size:14px;margin:0}
-.adm .archive-action b{display:block;color:var(--ink);margin-bottom:6px}
+.adm .match-management{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;flex:0 0 auto;gap:8px;padding:8px 16px;border-bottom:1px solid var(--pline)}
+.adm .match-management-label{margin-right:auto;color:var(--muted);font-size:12px;font-weight:600}
+.adm .pubv{overflow-y:auto;--red:#ff9a8a}
+.adm .pubv>.match-management{width:min(760px,100%);padding:0 0 12px}
+.adm.m .match-management{padding:8px 12px}
+.adm.m .match-management-label{display:none}
+.adm.m .match-management .btn{flex:1;min-height:44px;padding-inline:8px;white-space:nowrap}
 .adm .archive-detail .archive-facts{display:grid;gap:16px;margin:24px 0}
 .adm .archive-facts dt{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
 .adm .archive-facts dd{margin:0;color:var(--ink);overflow-wrap:anywhere}

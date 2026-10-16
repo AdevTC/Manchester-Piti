@@ -19,6 +19,8 @@ const fs = vi.hoisted(() => ({
   deletes: [] as string[],
   /** runTransaction fails with this (e.g. offline) instead of running. */
   txError: null as unknown,
+  failedQuery: null as string | null,
+  failedDelete: null as string | null,
 }));
 
 vi.mock("../../firebase", () => ({ db: {} }));
@@ -47,11 +49,13 @@ vi.mock("firebase/firestore", () => {
     where: (field: string, _op: string, value: unknown) => ({ field, value }),
     orderBy: () => ({}),
     query: (c: { path: string }, ...wheres: { field: string; value: unknown }[]) => ({ path: c.path, wheres }),
-    getDocs: async (q: { path: string; wheres?: { field: string; value: unknown }[] }) => ({
-      docs: children(q.path)
+    getDocs: async (q: { path: string; wheres?: { field: string; value: unknown }[] }) => {
+      if (q.path === fs.failedQuery) throw new Error("No se pudo leer la colección");
+      const docs = children(q.path)
         .filter((p) => !fs.staleQuery.has(p) && (q.wheres ?? []).every((w) => fs.store.get(p)?.[w.field] === w.value))
-        .map((p) => snap(ref(p))),
-    }),
+        .map((p) => snap(ref(p)));
+      return { docs, empty: docs.length === 0 };
+    },
     serverTimestamp: () => "__ts__",
     deleteField: () => "__delete__",
     setDoc: (r: Ref, data: Record<string, unknown>) => {
@@ -67,8 +71,11 @@ vi.mock("firebase/firestore", () => {
       fs.store.delete(r.path);
     },
     writeBatch: () => {
-      const ops: (() => void)[] = [];
-      return { delete: (r: Ref) => void ops.push(() => fs.store.delete(r.path)), commit: async () => ops.forEach((f) => f()) };
+      const paths: string[] = [];
+      return { delete: (r: Ref) => void paths.push(r.path), commit: async () => {
+        if (paths.includes(fs.failedDelete ?? "")) throw new Error("No se pudo borrar el contenido");
+        paths.forEach((path) => fs.store.delete(path));
+      } };
     },
     runTransaction: async <T,>(_db: unknown, fn: (tx: unknown) => Promise<T>): Promise<T> => {
       if (fs.txError) throw fs.txError;
@@ -101,6 +108,8 @@ beforeEach(() => {
   fs.txs.length = 0;
   fs.deletes.length = 0;
   fs.txError = null;
+  fs.failedQuery = null;
+  fs.failedDelete = null;
 });
 
 describe("useLineups · autosave", () => {
@@ -198,6 +207,50 @@ describe("useLineups · the official", () => {
     await act(() => result.current.remove("a"));
     expect(fs.store.has("lineups/a")).toBe(false);
     expect(fs.store.has("lineupOfficials/" + officialScopeId("t1", "m8"))).toBe(false);
+  });
+
+  it.each([
+    ["reactions", "read"], ["reactions", "delete"], ["voz", "read"], ["voz", "delete"],
+  ] as const)("keeps the board and match scope when %s cleanup fails to %s, then retries safely", async (collection, failure) => {
+    const lock = "lineupOfficials/" + officialScopeId("t1", "m8");
+    fs.store.set("lineups/a", board({ isOfficial: true, matchId: "m8" }));
+    fs.store.set(lock, { lineupId: "a", seasonId: "t1", matchId: "m8" });
+    fs.store.set("lineups/a/reactions/u1", { value: "ok" });
+    fs.store.set("lineups/a/voz/v0", { data: "audio" });
+    const child = `lineups/a/${collection}/${collection === "voz" ? "v0" : "u1"}`;
+    if (failure === "read") fs.failedQuery = `lineups/a/${collection}`;
+    else fs.failedDelete = child;
+    const { result } = renderHook(() => useLineups("t1"));
+
+    await expect(result.current.remove("a")).rejects.toThrow("No se pudo");
+    expect(fs.store.get("lineups/a")).toMatchObject({ matchId: "m8", isOfficial: true });
+    expect(fs.store.get(lock)).toMatchObject({ lineupId: "a" });
+    expect(fs.store.has(child)).toBe(true);
+    expect(fs.txs).toHaveLength(0);
+    expect(fs.deletes).toEqual([]);
+
+    fs.failedQuery = null;
+    fs.failedDelete = null;
+    await act(() => result.current.remove("a"));
+    expect([...fs.store.keys()].filter((path) => path === lock || path.startsWith("lineups/a"))).toEqual([]);
+  });
+
+  it("still reports an already committed unpublish as successful when reactions cleanup fails", async () => {
+    const lock = "lineupOfficials/" + officialScopeId("t1", "m8");
+    fs.store.set("lineups/a", board({ isOfficial: true, matchId: "m8" }));
+    fs.store.set(lock, { lineupId: "a", seasonId: "t1", matchId: "m8" });
+    fs.store.set("lineups/a/reactions/u1", { value: "ok" });
+    fs.failedDelete = "lineups/a/reactions/u1";
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { result } = renderHook(() => useLineups("t1"));
+      await act(() => result.current.markOfficial("a", null));
+      expect(fs.store.get("lineups/a")).toMatchObject({ isOfficial: false });
+      expect(fs.store.has(lock)).toBe(false);
+      expect(fs.store.has("lineups/a/reactions/u1")).toBe(true);
+    } finally {
+      quiet.mockRestore();
+    }
   });
 
   it("the official and its scope doc go in ONE transaction (no plain delete after it)", async () => {
