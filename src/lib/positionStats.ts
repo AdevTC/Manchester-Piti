@@ -8,6 +8,7 @@ import { SYSTEM_IDS, isFormationName, systemDef } from "./formations";
 import { POS_CODES, isPosCode, lineOf, type PosCode } from "./positions";
 import { cardPoints, concededOnPitch, durationOf, formRating, type FormInput } from "./form";
 import type { MvpOf } from "./derived/mvpOf";
+import { isGuestId } from "./derived/guests";
 
 export interface PosLine {
   code: PosCode;
@@ -69,7 +70,7 @@ export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: MvpOf):
   let matches = 0;
   let estimatedMatches = 0;
   for (const m of counted(games)) {
-    const row = m.ledger?.[pid];
+    const row = isGuestId(pid) ? undefined : m.ledger?.[pid];
     // only a row that played has minutes anywhere: a stray key on a bench row never counts
     if (!row || row.played !== true) continue;
     const byCode = minutesByCode(row.positionsPlayed);
@@ -133,7 +134,7 @@ export function clubPositions(games: ClubMatch[], nameOf: (id: string) => string
   const per = new Map<PosCode, { mins: Map<string, number>; goals: number; assists: number }>(POS_CODES.map((c) => [c, { mins: new Map(), goals: 0, assists: 0 }]));
   for (const m of counted(games))
     for (const [pid, row] of Object.entries(m.ledger ?? {})) {
-      if (row?.played !== true) continue; // as playerPositions: only a row that played
+      if (row?.played !== true || isGuestId(pid)) continue; // as playerPositions: only a member's row that played
       for (const [code, min] of minutesByCode(row.positionsPlayed)) {
         const c = per.get(code)!;
         const e = eventsAt(row.positionEvents, code);

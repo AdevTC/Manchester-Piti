@@ -12,6 +12,7 @@ import { RESULT_WORD, resultLetter, type ResultLetter } from "./derived/result";
 import { systemMark, systemText } from "./derived/system";
 import { eventMinute, OURS, scoreOf } from "./partidos";
 import { queryClient } from "./queryClient";
+import { withGuestNames } from "./derived/guests";
 
 export type PosterFormat = "square" | "story";
 
@@ -492,7 +493,7 @@ function cached(key: "players" | "seasons"): unknown[] {
 }
 
 /** The poster's context for a match: names by nameFor with the match's own season. */
-export function posterContext(match: Pick<ClubMatch, "seasonId">, opts: PosterOptions = {}): PosterContext {
+export function posterContext(match: Pick<ClubMatch, "seasonId" | "guests">, opts: PosterOptions = {}): PosterContext {
   const players = opts.players ?? cached("players").filter(isPlayer);
   const byId = new Map(players.map((p) => [p.id, p]));
   const seasonId = match.seasonId ?? null;
@@ -501,7 +502,8 @@ export function posterContext(match: Pick<ClubMatch, "seasonId">, opts: PosterOp
     const season = seasonId ? cached("seasons").find((s) => isRecord(s) && s.id === seasonId) : undefined;
     seasonName = isRecord(season) && typeof season.name === "string" ? season.name : null;
   }
-  return { nameOf: (id) => nameFor(byId.get(id), seasonId), seasonName };
+  // (a guest of the acta: «Rafa (invitado)»)
+  return { nameOf: withGuestNames(match, (id) => nameFor(byId.get(id), seasonId)), seasonName };
 }
 
 /** Draws the match's poster and downloads it as a PNG. */

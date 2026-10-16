@@ -9,6 +9,8 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import type { MatchEvent } from "./matchEngine.js";
 import { db, idSchema, parse, memberAs } from "./common.js";
+import { playerRefSchema } from "./eventSchema.js";
+import type { MatchGuest } from "./guests.js";
 import { requireScorer } from "./liveClock.js";
 import { clockReading, type MatchClock } from "./matchClock.js";
 import { LIVE_TYPES, liveProblem, liveSequenceProblem } from "./liveLogic.js";
@@ -25,10 +27,10 @@ const input = z.discriminatedUnion("action", [
     event: z.object({
       type: z.enum(LIVE_TYPES),
       minute: z.number().int().min(0).max(150),
-      playerId: idSchema.optional(),
-      assistPlayerId: idSchema.optional(),
+      playerId: playerRefSchema.optional(),
+      assistPlayerId: playerRefSchema.optional(),
       assistReviewed: z.boolean().optional(),
-      inPlayerId: idSchema.optional(),
+      inPlayerId: playerRefSchema.optional(),
     }),
   }),
   z.object({ action: z.literal("undo"), matchId: idSchema, eventId: idSchema.optional() }),
@@ -55,7 +57,7 @@ export const liveEvent = onCall(async (req) => {
     await requireScorer(tx, data.matchId, actor);
     if (!snap.exists) throw new HttpsError("not-found", "Ese partido no existe.");
     await requireActiveMatch(tx, data.matchId, snap);
-    const m = snap.data() as { version?: number; clock?: MatchClock; status?: string; date?: unknown; duration?: number; starters?: string[]; bench?: string[]; events?: MatchEvent[]; revision?: number; liveEndedAt?: number };
+    const m = snap.data() as { version?: number; clock?: MatchClock; status?: string; date?: unknown; duration?: number; starters?: string[]; bench?: string[]; guests?: MatchGuest[]; events?: MatchEvent[]; revision?: number; liveEndedAt?: number };
     const match = { ...m, date: millis(m.date) };
     const events = m.events ?? [];
     const reading = m.clock ? clockReading(m.clock, now) : null;

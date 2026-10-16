@@ -6,6 +6,7 @@
 import type { ClubMatch } from "../clubData";
 import { dateMillis, isCompleted } from "../../../functions/src/matchEngine";
 import { opponentInitials, teamAnalysis } from "../clubAnalytics";
+import { isGuestId } from "./guests";
 
 /** The one spelling of a rival's name the meetings are grouped by. */
 export const rivalKey = (name: string): string =>
@@ -82,7 +83,7 @@ export function rivalDossier(matches: readonly ClubMatch[], rivalName: string | 
   const tally = new Map<string, { goals: number; at: number; seasonId?: string }>();
   chrono.forEach((m, at) => {
     for (const e of m.events ?? []) {
-      if (!SCORED.has(e.type) || !e.playerId) continue;
+      if (!SCORED.has(e.type) || !e.playerId || isGuestId(e.playerId)) continue;
       const t = tally.get(e.playerId);
       tally.set(e.playerId, { goals: (t?.goals ?? 0) + 1, at, seasonId: m.seasonId });
     }

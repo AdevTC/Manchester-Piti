@@ -13,6 +13,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { admin, db, idSchema, parse } from "./common.js";
+import { guestsSchema, playerRefSchema } from "./eventSchema.js";
+import type { MatchGuest } from "./guests.js";
 import { convocatoriaNoticeKind, convocatoriaProblem, MAX_STARTERS, notCalledOf, sameLineup, type ConvocatoriaNoticeKind } from "./convocatoriaLogic.js";
 import { seasonJornada, sendTo, vapidPrivate } from "./push.js";
 import { boardNotice, convocatoriaMessage, parseSiete, sevenOf, sieteKey, sieteLog, sieteMayCover, sieteStep, type SieteAsk } from "./pushLogic.js";
@@ -20,8 +22,10 @@ import { matchActiveTx, requireActiveMatch, runMatchTransaction } from './matchA
 
 const input = z.object({
   matchId: idSchema,
-  starters: z.array(idSchema).max(MAX_STARTERS),
-  bench: z.array(idSchema).max(30),
+  starters: z.array(playerRefSchema).max(MAX_STARTERS),
+  bench: z.array(playerRefSchema).max(30),
+  /** Invitados en el acta: the match's guest list (replaces it); absent keeps the stored one. */
+  guests: guestsSchema.optional(),
   notify: z.boolean().default(false),
   /** The pizarra's official just published for this match, whose seven this is («Usar este siete como
    *  convocatoria»): its «Ya está el siete» tells the team, the convocatoria's notice stays quiet. */
@@ -60,13 +64,14 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
     // — played but unpublished — can complete its convocatoria. Cancelled: closed either way.
     const status = pub.exists ? (pub.get("status") as string | undefined) : shown.get("status") === "cancelled" ? "cancelled" : undefined;
     if (pub.get("clock") && pub.get("clock.phase") !== "ready") throw new HttpsError("failed-precondition", "El siete inicial ya está en juego. Registra las sustituciones desde la mesa del partido.");
-    const problem = convocatoriaProblem(lineup, { roster, status });
+    const guests = data.guests ?? (Array.isArray(shown.get("guests")) ? (shown.get("guests") as MatchGuest[]) : []);
+    const problem = convocatoriaProblem(lineup, { roster, status, guests });
     if (problem) throw new HttpsError(problem.startsWith("Ese partido") ? "failed-precondition" : "invalid-argument", problem);
 
     const now = Date.now();
     const before = { starters: ids(shown.get("starters")), bench: ids(shown.get("bench")) };
     const stamps = { convocatoriaAt: now, ...(data.notify ? { convocatoriaNotifiedAt: now } : {}) };
-    const fields = { starters: data.starters, bench: data.bench, notCalled: notCalledOf(roster, lineup), ...stamps };
+    const fields = { starters: data.starters, bench: data.bench, notCalled: notCalledOf(roster, lineup), ...(data.guests ? { guests: data.guests } : {}), ...stamps };
     const revision = num((pub.exists ? pub : draft).get("revision")) + 1;
     // Changed since the last notice: a quiet change after it, or this very call.
     const changed = !sameLineup(before, lineup) || num(pub.get("convocatoriaAt")) > num(pub.get("convocatoriaNotifiedAt"));

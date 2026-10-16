@@ -8,6 +8,11 @@ export {
   guestLabel,
   guestOf,
   guestRef,
+  guestsProblem,
   isGuestId,
+  isUnknownGuest,
+  memberIds,
+  withGuestNames,
+  withoutGuests,
   type MatchGuest,
 } from "../../../functions/src/guests";

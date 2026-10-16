@@ -5,6 +5,7 @@ import { archivedMatch } from './matchAccess.js';
 import { isCompleted } from './matchEngine.js';
 import { predictionPoints, sortPorra, type PorraRow } from './vestuarioLogic.js';
 import { scorePrediction } from './predictions.js';
+import { isGuestId } from './guests.js';
 
 export const playerStatsId = (seasonId: string, playerId: string) => createHash('sha256').update(`${seasonId}/${playerId}`).digest('hex');
 
@@ -47,7 +48,7 @@ export async function prepareSeasonMetrics(tx: FirebaseFirestore.Transaction, se
   const rows = new Map<string, PorraRow>();
   for (const [i, match] of finished.entries()) {
     for (const [playerId, raw] of Object.entries(match.data.ledger ?? {})) {
-      if (!raw || typeof raw !== 'object') continue;
+      if (!raw || typeof raw !== 'object' || isGuestId(playerId)) continue;
       const total = totals.get(playerId) ?? {};
       const row = raw as Record<string, unknown>;
       for (const [key, value] of Object.entries(row)) if (typeof value === 'number' && Number.isFinite(value)) total[key] = (total[key] ?? 0) + value;

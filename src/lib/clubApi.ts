@@ -2,6 +2,7 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
 import type { MatchSheet } from "./clubData";
 import { withServerTime } from "./serverTime";
+import type { MatchGuest } from "./derived/guests";
 import type { LiveEventType } from "./liveActions";
 // ---------- the vestuario door (functions/src/door.ts)
 export interface Who {
@@ -37,6 +38,8 @@ export interface SetConvocatoriaInput {
   /** The pizarra's official just published for this match, whose seven this is: its «Ya está el siete»
    *  tells the team, so the convocatoria's own notice stays quiet (one «siete» per match). */
   fromBoard?: string;
+  /** Invitados en el acta: the match's guest list (replaces it); absent keeps the stored one. */
+  guests?: MatchGuest[];
 }
 export interface SetConvocatoriaResult {
   at: number;

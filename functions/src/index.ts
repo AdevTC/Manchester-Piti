@@ -8,7 +8,8 @@ import {
   type MatchSheet,
 } from "./matchEngine.js";
 import { db, idSchema, parse, admin } from "./common.js";
-import { eventSchema } from "./eventSchema.js";
+import { eventSchema, guestsSchema, playerRefSchema } from "./eventSchema.js";
+import { memberIds, withoutGuests } from "./guests.js";
 import { readyClock } from "./matchClock.js";
 import { recomputePorra } from "./vestuario.js";
 import { boardCodeByPlayer, boardSystem } from "./boardCodes.js";
@@ -65,9 +66,10 @@ export const sheetSchema = z.object({
   venue: z.string().max(200),
   home: z.boolean(),
   status: z.enum(["scheduled", "finished", "cancelled", "postponed"]),
-  starters: z.array(idSchema).max(7),
-  bench: z.array(idSchema).max(30),
+  starters: z.array(playerRefSchema).max(7),
+  bench: z.array(playerRefSchema).max(30),
   notCalled: z.array(idSchema).max(100),
+  guests: guestsSchema.optional(),
   events: z.array(eventSchema).max(2500),
   goalsFor: z.number().int().min(0).max(100).optional(),
   goalsAgainst: z.number().int().min(0).max(100).optional(),
@@ -89,7 +91,8 @@ export const saveMatchSheet = onCall(async (req) => {
   );
   const sheet = input.sheet as MatchSheet;
   if (Buffer.byteLength(JSON.stringify(sheet), "utf8") > 650_000) throw new HttpsError("invalid-argument", "El acta es demasiado grande. Reduce las notas de las jugadas.");
-  const participants = [...sheet.starters, ...sheet.bench, ...sheet.notCalled];
+  // Members only: a guest («guest:g1») has no ficha, no season and no stats (guests.ts).
+  const participants = memberIds([...sheet.starters, ...sheet.bench, ...sheet.notCalled]);
   const season = await db.doc(`seasons/${sheet.seasonId}`).get();
   if (!season.exists)
     throw new HttpsError("invalid-argument", "La temporada no existe.");
@@ -113,7 +116,10 @@ export const saveMatchSheet = onCall(async (req) => {
         "Hay jugadores que no pertenecen a esta temporada.",
       );
   }
-  const ledger = calculateLedger(sheet, sheet.status === "finished");
+  const fullLedger = calculateLedger(sheet, sheet.status === "finished");
+  // The guests' goals count for the team (goalsFor); their rows never reach a member's numbers: the
+  // stored ledger, the season stats, the MVP candidates and the porra read members only.
+  const ledger = { ...fullLedger, players: withoutGuests(fullLedger.players) };
   if (!input.draft && ledger.errors.length)
     throw new HttpsError("invalid-argument", ledger.errors.join(" "));
   if (!input.draft && sheet.status === "finished") {
@@ -181,16 +187,17 @@ export const saveMatchSheet = onCall(async (req) => {
     }
     const { meetingNote, ...publicSheet } = sheet;
     const finished = sheet.status === "finished";
-    // «Ha jugado de». With the board unreadable, a published acta keeps its stored positions and system
+    // «Ha jugado de», over the full ledger (a member who comes on for a guest takes the guest's place); the
+    // member rows in `ledger.players` are the same objects, so they get their positions too. With the board unreadable, a published acta keeps its stored positions and system
     // for each player whose stints and actions did not change, and estimates the rest; a first
     // publication has nothing stored, so it estimates.
     let system: string | null = null;
     if (finished) {
       if (boardFailed && old.get("status") === "finished") {
-        keepStoredPositions(ledger.players, old.get("ledger"), positionsPlayed(ledger.players, sheet.events, { board: null, main }));
+        keepStoredPositions(fullLedger.players, old.get("ledger"), positionsPlayed(fullLedger.players, sheet.events, { board: null, main }));
         system = typeof old.get("system") === "string" ? (old.get("system") as string) : null;
       } else {
-        withPositions(ledger.players, positionsPlayed(ledger.players, sheet.events, { board: board?.codes ?? null, main }));
+        withPositions(fullLedger.players, positionsPlayed(fullLedger.players, sheet.events, { board: board?.codes ?? null, main }));
         system = board?.system ?? null;
       }
     }

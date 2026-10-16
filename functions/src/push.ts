@@ -15,6 +15,7 @@ import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
 import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { nameFor } from "./names.js";
+import { isGuestId } from "./guests.js";
 import { noticeRecord } from "./noticesLogic.js";
 import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
@@ -156,7 +157,7 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   const now = Date.now();
   const draft = noticesFor(event.params.matchId, before, after, () => "", now);
   const named = draft.some((n) => n.topic === "goals");
-  const ids = named ? new Set([...(before?.events ?? []), ...(after?.events ?? [])].filter((e) => typeof e.type === "string" && e.type.includes("goal")).map((e) => e.playerId).filter(Boolean) as string[]) : new Set<string>();
+  const ids = named ? new Set([...(before?.events ?? []), ...(after?.events ?? [])].filter((e) => typeof e.type === "string" && e.type.includes("goal")).map((e) => e.playerId).filter((pid): pid is string => !!pid && !isGuestId(pid))) : new Set<string>();
   const players = await Promise.all([...ids].map((id) => db.doc(`players/${id}`).get()));
   // the season's shirt names, like the match page (nameFor with the match's season)
   const names = new Map(players.map((p) => [p.id, nameFor(p.data(), after?.seasonId)]));

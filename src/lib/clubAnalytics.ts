@@ -4,6 +4,7 @@ import type { ClubMatch } from "./clubData";
 import type { PlayerDoc } from "./schemas";
 import { computeStats } from "./playerStats";
 import { minutesOf, totalMinutes } from "./derived/minutesOf";
+import { isGuestId } from "./derived/guests";
 
 export type Medal = "gold" | "silver" | "bronze" | null;
 /** Competition ranking: 1, 2, 2, 4. Zero values never receive a medal. */
@@ -331,7 +332,8 @@ export function goalLinks(games: ClubMatch[]): StarLink[] {
   const count = new Map<string, StarLink>();
   for (const m of games.filter(isVisibleMatch))
     for (const e of m.events ?? [])
-      if (SCORED.has(e.type) && e.playerId && e.assistPlayerId) {
+      // members only: a guest («guest:g1») is never one end of a link
+      if (SCORED.has(e.type) && e.playerId && e.assistPlayerId && !isGuestId(e.playerId) && !isGuestId(e.assistPlayerId)) {
         const k = e.assistPlayerId + ">" + e.playerId;
         const l = count.get(k) ?? { from: e.assistPlayerId, to: e.playerId, n: 0 };
         l.n++;

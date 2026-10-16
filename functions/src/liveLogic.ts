@@ -1,6 +1,7 @@
 // Pure rules of the "modo banda" (functions/src/live.ts), apart so the app's tests can run them.
 import { calculateLedger, type MatchEvent } from "./matchEngine.js";
 import { eventSeconds } from "./matchAnalysis.js";
+import { isUnknownGuest, type MatchGuest } from "./guests.js";
 export const LIVE_TYPES = [
   "goal", "goal_penalty", "goal_freekick", "opponent_goal", "opponent_own_goal", "own_goal",
   "yellow_card", "double_yellow", "red_card", "penalty_saved", "penalty_missed", "woodwork", "substitution",
@@ -13,7 +14,7 @@ const MIN = 60_000;
 
 /** Pure checks, exported for the tests: the window, the players and the event's shape. */
 export function liveProblem(
-  match: { status?: string; date?: number; duration?: number; starters?: string[]; bench?: string[]; events?: MatchEvent[] },
+  match: { status?: string; date?: number; duration?: number; starters?: string[]; bench?: string[]; guests?: MatchGuest[]; events?: MatchEvent[] },
   event: { type: string; minute: number; playerId?: string; assistPlayerId?: string; inPlayerId?: string },
   now: number,
 ): string | null {
@@ -27,6 +28,7 @@ export function liveProblem(
     return "El modo banda solo funciona desde media hora antes del partido hasta hora y media después.";
   if (event.minute > duration + 15) return `El minuto ${event.minute} no cabe en un partido de ${duration}.`;
   const called = new Set([...(match.starters ?? []), ...(match.bench ?? [])]);
+  if ([event.playerId, event.assistPlayerId, event.inPlayerId].some((id) => isUnknownGuest(match, id))) return "Ese invitado no está en la lista del partido.";
   const later = SCORER_LATER.has(event.type) && !event.playerId && !event.assistPlayerId;
   if (NEEDS_PLAYER.has(event.type) && !later && (!event.playerId || !called.has(event.playerId))) return "Elige un jugador convocado.";
   if (event.playerId && !called.has(event.playerId)) return "Elige un jugador convocado.";
@@ -37,8 +39,8 @@ export function liveProblem(
 }
 
 /** Validate the complete sequence in the transaction, including backdated entries and undo. */
-export function liveSequenceProblem(match: { duration?: number; starters?: string[]; bench?: string[] }, events: MatchEvent[]): string | null {
+export function liveSequenceProblem(match: { duration?: number; starters?: string[]; bench?: string[]; guests?: MatchGuest[] }, events: MatchEvent[]): string | null {
   const duration = Math.max(match.duration ?? 50, ...events.map((e) => Math.ceil(eventSeconds(e) / 60)));
-  return calculateLedger({ starters: match.starters ?? [], bench: match.bench ?? [], notCalled: [], events, duration }, false, { allowUnattributedGoals: true }).errors[0] ?? null;
+  return calculateLedger({ starters: match.starters ?? [], bench: match.bench ?? [], notCalled: [], guests: match.guests, events, duration }, false, { allowUnattributedGoals: true }).errors[0] ?? null;
 }
 
