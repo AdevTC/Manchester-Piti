@@ -91,7 +91,17 @@ export function useRsvpFromNotice({ rsvp, m, n, member, me, matches, matchesLoad
                 );
               },
             }
-          : undefined;
+          : {
+                // (no earlier answer to put back — the rules keep an answer once given — so a mis-tap
+                // can at least step back to «Duda»)
+                label: "Mejor «Duda»",
+                onClick: () => {
+                  setAvailability(me, match.id, "maybe").then(
+                    () => toast(`Apuntado como «${WORD.maybe}»`),
+                    () => toast.error("No se ha podido cambiar."),
+                  );
+                },
+              };
       toast.success(rsvpToastText(rsvp, match, jornada), { duration: RSVP_TOAST_MS, ...(undo ? { action: undo } : {}) });
     };
     // Only the notice's own ticket answers at once; anything else asks first.

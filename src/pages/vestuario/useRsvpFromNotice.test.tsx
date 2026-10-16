@@ -109,12 +109,15 @@ describe("answering from a notice, with the worker's ticket", () => {
     expect(state.toast).toHaveBeenCalledWith("Vuelves a «Voy»");
   });
 
-  it("nothing to undo without a different previous answer (the rules never delete an answer)", async () => {
+  it("no earlier answer to put back (the rules never delete one): a mis-tap can step back to «Duda»", async () => {
     ticket(N, { rsvp: "yes", m: "j3", exp: Date.now() + RSVP_TICKET_MS });
     renderHook(() => useRsvpFromNotice(base({ previous: { loading: false, answer: undefined } })));
     await waitFor(() => expect(state.toast.success).toHaveBeenCalled());
     expect(state.setAvailability).toHaveBeenCalledTimes(1);
-    expect(lastSuccess()![1].action).toBeUndefined();
+    const action = lastSuccess()![1].action as { label: string; onClick: () => void };
+    expect(action.label).toBe("Mejor «Duda»");
+    action.onClick();
+    expect(state.setAvailability).toHaveBeenLastCalledWith(expect.anything(), "j3", "maybe");
   });
 
   it("waits for the previous answer and the matches before anything", async () => {

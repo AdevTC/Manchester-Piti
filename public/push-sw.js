@@ -39,14 +39,17 @@ const RSVP_TICKET_MS = 10 * 60_000;
 const rsvpTicket = async (rsvp, m) => {
   const nonce = self.crypto.randomUUID();
   const cache = await caches.open(RSVP_CACHE);
-  // (tickets never used: dropped once expired)
+  await cache.put("/rsvp/" + nonce, new Response(JSON.stringify({ rsvp, m, exp: Date.now() + RSVP_TICKET_MS }), { headers: { "content-type": "application/json" } }));
+  return nonce;
+};
+// Tickets never used, dropped once expired: after the window opens (the click's permission to open one is short).
+const sweepRsvpTickets = async () => {
+  const cache = await caches.open(RSVP_CACHE);
   for (const req of await cache.keys()) {
     const old = await cache.match(req);
     const t = old ? await old.json().catch(() => null) : null;
     if (!t || !(t.exp > Date.now())) await cache.delete(req);
   }
-  await cache.put("/rsvp/" + nonce, new Response(JSON.stringify({ rsvp, m, exp: Date.now() + RSVP_TICKET_MS }), { headers: { "content-type": "application/json" } }));
-  return nonce;
 };
 
 // The browser renewed this device's subscription (its keys rotated, or the push service dropped the old
@@ -104,10 +107,14 @@ self.addEventListener("notificationclick", (event) => {
       for (const w of windows) {
         if ("focus" in w) {
           if ("navigate" in w) w.navigate(url);
-          return w.focus();
+          const focused = await w.focus();
+          await sweepRsvpTickets().catch(() => {});
+          return focused;
         }
       }
-      return self.clients.openWindow(url);
+      const opened = await self.clients.openWindow(url);
+      await sweepRsvpTickets().catch(() => {});
+      return opened;
     })(),
   );
 });
