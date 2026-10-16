@@ -4,11 +4,14 @@
 // it by hand: one row per team, add / remove / reorder, «Somos nosotros». Consistency hints (G + E + P ≠ PJ,
 // Pts ≠ 3·G + E, our row against the web's own results) never block the save; only what the rules refuse
 // does (2–24 teams, exactly one «nosotros», names). Each save keeps the previous table for the arrows.
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { seasonView } from "../../../lib/partidos";
 import {
+  norm,
   NUM_KEYS,
+  ordinal,
   parseLeagueTable,
+  pasteJornada,
   standingsErrors,
   standingsHints,
   STANDINGS_LIMITS,
@@ -32,7 +35,10 @@ import "../clasificacion/clasificacion.css";
 const NUM_LABEL: Record<NumKey, string> = { pj: "PJ", g: "G", e: "E", p: "P", gf: "GF", gc: "GC", pts: "Pts" };
 const NUM_TITLE: Record<NumKey, string> = { pj: "Partidos jugados", g: "Ganados", e: "Empatados", p: "Perdidos", gf: "Goles a favor", gc: "Goles en contra", pts: "Puntos" };
 const blankRow = (): StandingRow => ({ team: "", pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, isUs: false });
-const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("es").trim();
+/** An editor row: the team plus a key of its own, so React keeps each row (and its focus) when the order changes. */
+type EdRow = StandingRow & { key: number };
+let nextKey = 0;
+const keyed = (r: StandingRow): EdRow => ({ ...r, key: ++nextKey });
 const toInt = (v: string) => {
   const n = Number.parseInt(v, 10);
   return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -101,7 +107,22 @@ function Editor({ seasonId, seasonName, standings, seasonSelect }: { seasonId: s
   const [started, setStarted] = useState(!!standings);
   const [competition, setCompetition] = useState(standings?.competition ?? "");
   const [jornada, setJornada] = useState(standings?.jornada != null ? String(standings.jornada) : "");
-  const [rows, setRows] = useState<StandingRow[]>(() => standings?.rows.map((r) => ({ ...r })) ?? []);
+  // (a jornada the captain typed here wins over the one a paste brings)
+  const [jornadaTyped, setJornadaTyped] = useState(false);
+  const [rows, setRows] = useState<EdRow[]>(() => standings?.rows.map(keyed) ?? []);
+  // «Subir» / «Bajar»: focus follows the moved team (to its other button at the top or the bottom) and a
+  // polite live region says where it is now.
+  const [moved, setMoved] = useState("");
+  const moveButtons = useRef(new Map<string, HTMLButtonElement>());
+  const focusAfterMove = useRef<{ key: number; dir: "up" | "down" } | null>(null);
+  useEffect(() => {
+    const f = focusAfterMove.current;
+    if (!f) return;
+    focusAfterMove.current = null;
+    const same = moveButtons.current.get(`${f.key}:${f.dir}`);
+    const other = moveButtons.current.get(`${f.key}:${f.dir === "up" ? "down" : "up"}`);
+    (same && !same.disabled ? same : other)?.focus();
+  }, [rows]);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [preview, setPreview] = useState<ParsedTable | null>(null);
@@ -125,22 +146,24 @@ function Editor({ seasonId, seasonName, standings, seasonSelect }: { seasonId: s
 
   const setRow = (i: number, patch: Partial<StandingRow>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const setUs = (i: number) => setRows((rs) => rs.map((r, j) => ({ ...r, isUs: j === i })));
-  const move = (i: number, by: -1 | 1) =>
-    setRows((rs) => {
-      const j = i + by;
-      if (j < 0 || j >= rs.length) return rs;
-      const next = [...rs];
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
+  const move = (i: number, by: -1 | 1) => {
+    const j = i + by;
+    if (j < 0 || j >= rows.length) return;
+    const next = [...rows];
+    [next[i], next[j]] = [next[j], next[i]];
+    focusAfterMove.current = { key: rows[i].key, dir: by < 0 ? "up" : "down" };
+    setRows(next);
+    setMoved(`${rows[i].team.trim() || "Equipo sin nombre"}, ahora ${ordinal(j + 1)}`);
+  };
   const remove = (i: number) => setRows((rs) => rs.filter((_, j) => j !== i));
-  const add = () => setRows((rs) => (rs.length >= STANDINGS_LIMITS.maxRows ? rs : [...rs, blankRow()]));
+  const add = () => setRows((rs) => (rs.length >= STANDINGS_LIMITS.maxRows ? rs : [...rs, keyed(blankRow())]));
 
   const read = () => setPreview(parseLeagueTable(pasteText, usTeam));
+  const previewJornada = preview && !jornadaTyped ? pasteJornada(preview) : null;
   const usePreview = () => {
     if (!preview) return;
-    setRows(preview.rows.map((r) => ({ ...r })));
-    if (preview.jornada !== null) setJornada(String(preview.jornada));
+    setRows(preview.rows.map(keyed));
+    if (previewJornada !== null) setJornada(String(previewJornada));
     setStarted(true);
     setPasteOpen(false);
     setPreview(null);
@@ -184,10 +207,23 @@ function Editor({ seasonId, seasonName, standings, seasonSelect }: { seasonId: s
             <>
               <p className="hint">
                 {preview.rows.length} {preview.rows.length === 1 ? "equipo leído" : "equipos leídos"}
-                {preview.jornada !== null ? ` · jornada ${preview.jornada}` : ""}
-                {preview.skipped.length ? ` · ${preview.skipped.length} ${preview.skipped.length === 1 ? "línea saltada" : "líneas saltadas"}` : ""}
+                {previewJornada !== null ? ` · jornada ${previewJornada}` : ""}
                 {preview.rows.some((r) => r.isUs) ? "" : " · marca luego cuál somos nosotros"}
               </p>
+              {preview.skipped.length > 0 && (
+                <div className="cl-hints cl-skip" role="note" aria-label="Líneas sin leer">
+                  <b>
+                    <AdIcon name="alert" size={15} />
+                    {preview.skipped.length === 1 ? "Esta línea no se ha leído:" : "Estas líneas no se han leído:"}
+                  </b>
+                  <ul>
+                    {preview.skipped.map((line, i) => (
+                      <li key={i}>{line.replace(/\t+/g, " · ")}</li>
+                    ))}
+                  </ul>
+                  <p className="hint">Si falta un equipo, estaba ahí: añádelo a mano en el editor.</p>
+                </div>
+              )}
               <ol className="cl-prev-list">
                 {preview.rows.map((r, i) => (
                   <li key={i} className={r.isUs ? "us" : undefined}>
@@ -230,7 +266,7 @@ function Editor({ seasonId, seasonName, standings, seasonSelect }: { seasonId: s
             <AdIcon name="doc" size={17} />
             Pegar desde la liga
           </button>
-          <button type="button" className="btn line" onClick={() => (setStarted(true), setRows([blankRow(), blankRow()]))}>
+          <button type="button" className="btn line" onClick={() => (setStarted(true), setRows([keyed(blankRow()), keyed(blankRow())]))}>
             <AdIcon name="pencil" size={17} />
             Escribirla a mano
           </button>
@@ -270,14 +306,14 @@ function Editor({ seasonId, seasonName, standings, seasonSelect }: { seasonId: s
             </label>
             <label className="fld">
               <span className="lbl">Jornada</span>
-              <input className="inp" inputMode="numeric" value={jornada} onChange={(e) => setJornada(e.target.value.replace(/\D/g, "").slice(0, 2))} placeholder="8" />
+              <input className="inp" inputMode="numeric" value={jornada} onChange={(e) => (setJornada(e.target.value.replace(/\D/g, "").slice(0, 2)), setJornadaTyped(true))} placeholder="8" />
             </label>
           </div>
           <ol className="cl-rows">
             {rows.map((r, i) => {
               const name = r.team.trim() || `fila ${i + 1}`;
               return (
-                <li key={i} className={`cl-row${r.isUs ? " us" : ""}`}>
+                <li key={r.key} className={`cl-row${r.isUs ? " us" : ""}`}>
                   <span className="pos" aria-hidden="true">
                     {i + 1}
                   </span>
@@ -295,10 +331,10 @@ function Editor({ seasonId, seasonName, standings, seasonSelect }: { seasonId: s
                     <span>Somos nosotros</span>
                   </label>
                   <div className="row-acts" role="group" aria-label={`Mover o quitar ${name}`}>
-                    <button type="button" className="btn sm line" onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Subir ${name}`}>
+                    <button type="button" className="btn sm line" ref={(el) => void (el ? moveButtons.current.set(`${r.key}:up`, el) : moveButtons.current.delete(`${r.key}:up`))} onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Subir ${name}`}>
                       <span aria-hidden="true">↑</span>
                     </button>
-                    <button type="button" className="btn sm line" onClick={() => move(i, 1)} disabled={i === rows.length - 1} aria-label={`Bajar ${name}`}>
+                    <button type="button" className="btn sm line" ref={(el) => void (el ? moveButtons.current.set(`${r.key}:down`, el) : moveButtons.current.delete(`${r.key}:down`))} onClick={() => move(i, 1)} disabled={i === rows.length - 1} aria-label={`Bajar ${name}`}>
                       <span aria-hidden="true">↓</span>
                     </button>
                     <button type="button" className="btn sm line" onClick={() => remove(i)} aria-label={`Quitar ${name}`}>
@@ -309,6 +345,9 @@ function Editor({ seasonId, seasonName, standings, seasonSelect }: { seasonId: s
               );
             })}
           </ol>
+          <p className="sr" role="status" aria-live="polite">
+            {moved}
+          </p>
           <div className="cl-acts">
             <button type="button" className="btn line" onClick={add} disabled={rows.length >= STANDINGS_LIMITS.maxRows}>
               <AdIcon name="plus" size={17} />

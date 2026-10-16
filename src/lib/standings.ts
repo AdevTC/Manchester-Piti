@@ -65,7 +65,8 @@ export function mapStandings(id: string, data: unknown): Standings | null {
 // ───────────────────────── «Pegar desde la liga» ─────────────────────────
 export interface ParsedTable {
   rows: StandingRow[];
-  /** The lines that were not a team's row (headers, titles, junk), as they came. */
+  /** The lines that were not read (titles, junk, a row the parser could not make out), as they came; the
+   *  header and the «Jornada 8» line were read, so they are not here. */
   skipped: string[];
   /** A «Jornada 8» line, if the paste had one. */
   jornada: number | null;
@@ -80,42 +81,88 @@ const HEADER_WORDS: Record<string, Col> = {
 const TEAM_WORDS = new Set(["equipo", "equipos", "club", "team", "nombre"]);
 const POS_WORDS = new Set(["pos", "pos.", "#", "puesto", "nº", "n.º"]);
 const NUM = /^[+-]?\d+$/;
+/** A cell of numbers split by single spaces («8 6 1 1 25 8 19»). */
+const NUMS = /^[+-]?\d+(?:\s+[+-]?\d+)*$/;
 const POSITION = /^\d{1,2}\s*(?:\.|º|°|ª|\.º)?$/;
 const LEADING_POSITION = /^\d{1,2}(?:\s*(?:\.º|\.|º|°|ª))?\s+(?=\p{L})/u;
-const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("es").replace(/\s+/g, " ").trim();
-const cellsOf = (line: string) => line.split(/\t|\s{2,}/).map((c) => c.trim()).filter(Boolean);
+const LETTER = /\p{L}/u;
+const MIN_NUMS = NUM_KEYS.length;
+/** Lower case, no accents, single spaces: how team names, competitions and header words are compared. */
+export const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("es").replace(/\s+/g, " ").trim();
+// (cells: tabs, two or more spaces, or a CSV's semicolons; a CSV's quotes around a cell are not part of it)
+const cellsOf = (line: string) =>
+  line
+    .split(/\t|;|\s{2,}/)
+    .map((c) => c.trim().replace(/^"(.*)"$/, "$1").trim())
+    .filter(Boolean);
+const headerCol = (w: string): Col | null => (Object.hasOwn(HEADER_WORDS, w) ? HEADER_WORDS[w] : null);
 
-/** A header line's columns after the team («Pos Equipo PJ G E P GF GC Pts» → pj g e p gf gc pts), if it is one. */
+/**
+ * A header line's columns after the team («Pos Equipo PJ G E P GF GC Pts» → pj g e p gf gc pts), if it is one.
+ * An unknown column after the first known one («San», «Últimos 5») is kept as one to skip.
+ */
 function headerCols(cells: string[]): Col[] | null {
-  const words = cells.map((c) => norm(c));
+  const words = cells.flatMap((c) => norm(c).split(" "));
   const teamAt = words.findIndex((w) => TEAM_WORDS.has(w));
   const after = teamAt >= 0 ? words.slice(teamAt + 1) : words.filter((w) => !POS_WORDS.has(w));
-  if (after.length < 7 || !after.every((w) => w in HEADER_WORDS)) return null;
-  const cols = after.map((w) => HEADER_WORDS[w]);
+  const first = after.findIndex((w) => headerCol(w) !== null);
+  if (first < 0 || after.length - first < MIN_NUMS) return null;
+  const cols = after.slice(first).map((w) => headerCol(w) ?? "skip");
   return NUM_KEYS.every((k) => cols.includes(k)) ? cols : null;
 }
 
 // The orders a league web uses when there is no header: Pts last (with or without DG) or Pts first.
-const LAYOUTS: Record<number, Col[][]> = {
-  7: [["pj", "g", "e", "p", "gf", "gc", "pts"], ["pts", "pj", "g", "e", "p", "gf", "gc"]],
-  8: [["pj", "g", "e", "p", "gf", "gc", "dg", "pts"], ["pts", "pj", "g", "e", "p", "gf", "gc", "dg"]],
-};
-const fits = (r: Record<Col, number>, cols: Col[]) => r.g + r.e + r.p === r.pj && (!cols.includes("dg") || r.dg === r.gf - r.gc);
-function rowFrom(team: string, nums: number[], cols: Col[]): Record<Col, number> & { team: string } {
-  const r = { team, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, dg: 0, skip: 0 };
+const LAYOUTS: Col[][] = [
+  ["pj", "g", "e", "p", "gf", "gc", "dg", "pts"],
+  ["pts", "pj", "g", "e", "p", "gf", "gc", "dg"],
+  ["pj", "g", "e", "p", "gf", "gc", "pts"],
+  ["pts", "pj", "g", "e", "p", "gf", "gc"],
+];
+type Parsed = Record<Col, number>;
+const fits = (r: Parsed, cols: Col[]) => r.g + r.e + r.p === r.pj && (!cols.includes("dg") || r.dg === r.gf - r.gc);
+function rowFrom(nums: number[], cols: Col[]): Parsed {
+  const r: Parsed = { pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, dg: 0, skip: 0 };
   cols.forEach((c, i) => (r[c] = nums[i] ?? 0));
   return r;
+}
+/** `layout` at `offset` among `n` numbers (the others skipped). */
+const placed = (layout: Col[], offset: number, n: number): Col[] => [...Array<Col>(offset).fill("skip"), ...layout, ...Array<Col>(n - offset - layout.length).fill("skip")];
+
+/**
+ * The columns of a row's numbers: the header's when it has as many; otherwise the first of the usual orders
+ * (in any run of the numbers, so an extra column — a «San» after Pts — is left out) whose arithmetic holds
+ * (G + E + P = PJ, DG = GF − GC). `fit` says whether it held; when nothing does, the last seven numbers as
+ * PJ G E P GF GC Pts (the last eight with DG when there are eight).
+ */
+function pickCols(nums: number[], header: Col[] | null): { r: Parsed; fit: boolean } | null {
+  const n = nums.length;
+  if (n < MIN_NUMS) return null;
+  if (header) {
+    const known = header.filter((c) => c !== "skip");
+    const cols = header.length === n ? header : known.length === n ? known : null;
+    if (cols) return { r: rowFrom(nums, cols), fit: true };
+  }
+  for (const layout of LAYOUTS) {
+    for (let offset = 0; offset + layout.length <= n; offset++) {
+      const cols = placed(layout, offset, n);
+      const r = rowFrom(nums, cols);
+      if (fits(r, cols)) return { r, fit: true };
+    }
+  }
+  const fallback = n === 8 ? LAYOUTS[0] : LAYOUTS[2];
+  return { r: rowFrom(nums, placed(fallback, n - fallback.length, n)), fit: false };
 }
 
 /** Is this our team's name? (the club is «Manchester Piti»; the league may write «MANCHESTER PITI CF»). */
 export const looksLikeUs = (team: string) => /\bpiti\b/.test(norm(team));
 
 /**
- * A table copied from a web page or a spreadsheet (cells split by tabs or by two or more spaces) into rows.
- * Header lines name the columns when they can («Pts» first or last, a «DG» column); without one the
- * numbers' own arithmetic picks the order (G + E + P = PJ). A position in the first column is dropped;
- * titles, blank and junk lines are skipped and listed. Our row is the one called like us, or the one
- * `usTeam` names (the last save's).
+ * A table copied from a web page, a spreadsheet or a CSV (cells split by tabs, two or more spaces or
+ * semicolons) into rows. Header lines name the columns when they can («Pts» first or last, a «DG» column,
+ * an extra one to leave out); without one the numbers' own arithmetic picks the order (G + E + P = PJ).
+ * Numbers split by single spaces, even glued to the name, are read too. A position in the first column is
+ * dropped; titles, blank and junk lines are skipped and listed. Our row is the one called like us, or the
+ * one `usTeam` names (the last save's).
  */
 export function parseLeagueTable(text: string, usTeam?: string): ParsedTable {
   const out: ParsedTable = { rows: [], skipped: [], jornada: null };
@@ -123,28 +170,40 @@ export function parseLeagueTable(text: string, usTeam?: string): ParsedTable {
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.replace(/ /g, " ").trim();
     if (!line) continue;
-    const j = /jornada\s*(\d{1,2})\b/i.exec(line);
     let cells = cellsOf(line);
     const h = headerCols(cells);
     if (h) {
       header = h;
-      out.skipped.push(line);
       continue;
     }
     // (the position: its own cell, or glued to the name «1. Rayo»)
-    if (cells.length > 1 && POSITION.test(cells[0]) && !NUM.test(cells[1])) cells = cells.slice(1);
-    const teamAt = cells.findIndex((c) => !NUM.test(c));
+    if (cells.length > 1 && POSITION.test(cells[0]) && !NUMS.test(cells[1])) cells = cells.slice(1);
+    const teamAt = cells.findIndex((c) => !NUMS.test(c));
     // (a text cell after the name — a «form» column — is not a number: left out)
-    const nums = teamAt >= 0 ? cells.slice(teamAt + 1).filter((c) => NUM.test(c)).map(Number) : [];
-    const team = teamAt >= 0 ? cells[teamAt].replace(LEADING_POSITION, "").trim().slice(0, STANDINGS_LIMITS.team) : "";
-    const layouts = header && header.length === nums.length ? [header] : (LAYOUTS[nums.length] ?? []);
-    if (!team || !layouts.length) {
+    const nums = teamAt >= 0 ? cells.slice(teamAt + 1).flatMap((c) => (NUMS.test(c) ? c.split(/\s+/).map(Number) : [])) : [];
+    const words = teamAt >= 0 ? cells[teamAt].split(" ") : [];
+    let pick = pickCols(nums, header);
+    // (numbers glued to the name by single spaces: peeled off its end, one at a time, until a row fits)
+    if (!pick?.fit) {
+      const peeled = [...words];
+      const more = [...nums];
+      while (peeled.length > 1 && NUM.test(peeled[peeled.length - 1])) {
+        more.unshift(Number(peeled.pop()));
+        const p = pickCols(more, header);
+        if (p && (p.fit || !pick)) {
+          pick = p;
+          words.splice(peeled.length);
+          if (p.fit) break;
+        }
+      }
+    }
+    const team = words.join(" ").replace(LEADING_POSITION, "").trim().slice(0, STANDINGS_LIMITS.team);
+    if (!pick || !LETTER.test(team)) {
+      const j = /jornada\s*(\d{1,2})\b/i.exec(line);
       if (j && out.jornada === null) out.jornada = Number(j[1]);
-      out.skipped.push(line);
+      else out.skipped.push(line);
       continue;
     }
-    const tries = layouts.map((cols) => ({ cols, r: rowFrom(team, nums, cols) }));
-    const pick = tries.find((t) => fits(t.r, t.cols)) ?? tries[0];
     const r = pick.r;
     out.rows.push({ team, pj: Math.max(0, r.pj), g: Math.max(0, r.g), e: Math.max(0, r.e), p: Math.max(0, r.p), gf: Math.max(0, r.gf), gc: Math.max(0, r.gc), pts: Math.max(0, r.pts), isUs: false });
   }
@@ -153,6 +212,14 @@ export function parseLeagueTable(text: string, usTeam?: string): ParsedTable {
   const us = named >= 0 ? named : out.rows.findIndex((r) => looksLikeUs(r.team));
   if (us >= 0) out.rows[us].isUs = true;
   return out;
+}
+
+/** The jornada a paste brings: its «Jornada 8» line, or else the most matches any team has played (null
+ *  without either). A value the captain typed wins over it (the editor decides). */
+export function pasteJornada(t: Pick<ParsedTable, "rows" | "jornada">): number | null {
+  if (t.jornada !== null) return t.jornada;
+  const most = Math.max(0, ...t.rows.map((r) => r.pj));
+  return most > 0 ? Math.min(most, STANDINGS_LIMITS.jornada) : null;
 }
 
 // ───────────────────────── saving ─────────────────────────

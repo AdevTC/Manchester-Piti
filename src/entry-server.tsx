@@ -36,7 +36,7 @@ async function loadRouter(url: string) {
   return again;
 }
 
-/** The markup of `url` (path only) with the bundle's data, for the inside of `<div id="root">`. */
+/** The markup of `url` (a path, with the search the server forwards: «/partidos?view=tabla») with the bundle's data, for the inside of `<div id="root">`. */
 export async function renderPage(url: string, bundle: Uint8Array): Promise<string> {
   const data = inQueryOrder(parseBundle(bundle));
   const qc = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });

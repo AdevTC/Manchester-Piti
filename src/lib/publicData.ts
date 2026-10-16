@@ -40,7 +40,9 @@ export function subscribeClubContent(qc: Pick<QueryClient, "setQueryData">): () 
 /**
  * Opens the public listeners and resolves once each has delivered its first snapshot (from the
  * data bundle already in the local cache, normally) or after `timeoutMs`. The listeners stay with
- * the shared registry, so the page that mounts next reuses them instead of opening its own.
+ * the shared registry, so the page that mounts next reuses them instead of opening its own. A listener
+ * that fails settles its key too (the registry's `handleSnapshotError`: its last data, or `[]`; club
+ * content: the defaults), so an error never holds the page for the whole timeout.
  */
 export function primePublicData(qc: QueryClient, timeoutMs: number): Promise<void> {
   const keys = [MATCHES_KEY, PLAYERS_KEY, SEASONS_KEY, CONTENT_KEY, MVP_RESULTS_KEY, STANDINGS_KEY];

@@ -3,7 +3,7 @@ import { Timestamp } from "firebase/firestore";
 import type { StandingRow } from "./standings";
 
 vi.mock("./docTelemetry", () => ({ reportDroppedDoc: vi.fn() }));
-const { mapStandings, movesOf, moveText, parseLeagueTable, standingsErrors, standingsFields, standingsHints, stripText, updatedText } = await import("./standings");
+const { mapStandings, movesOf, moveText, parseLeagueTable, pasteJornada, standingsErrors, standingsFields, standingsHints, stripText, updatedText } = await import("./standings");
 
 const row = (team: string, n: Partial<StandingRow> = {}): StandingRow => ({ team, pj: 8, g: 5, e: 2, p: 1, gf: 20, gc: 9, pts: 17, isUs: false, ...n });
 
@@ -16,7 +16,8 @@ describe("parseLeagueTable", () => {
       { team: "Manchester Piti", pj: 8, g: 5, e: 3, p: 0, gf: 20, gc: 9, pts: 18, isUs: true },
       { team: "Los Rojos", pj: 8, g: 2, e: 2, p: 4, gf: 10, gc: 15, pts: 8, isUs: false },
     ]);
-    expect(t.skipped).toEqual(["Pos\tEquipo\tPJ\tG\tE\tP\tGF\tGC\tPts"]);
+    // (the header was read: it is not a line left unread)
+    expect(t.skipped).toEqual([]);
   });
 
   it("several spaces between cells, names with single spaces, «1.º» positions, a DG column and junk lines", () => {
@@ -35,8 +36,7 @@ Publicidad
       ["Los Rojos", 8, 8, false],
     ]);
     expect(t.jornada).toBe(8);
-    expect(t.skipped).toContain("Publicidad");
-    expect(t.skipped).toContain("Última actualización: hoy");
+    expect(t.skipped).toEqual(["Clasificación · Liga F7 Otoño", "Publicidad", "Última actualización: hoy"]);
   });
 
   it("«Pts» first (the federation's order) is told apart by its arithmetic, and a header can say it too", () => {
@@ -47,11 +47,49 @@ Publicidad
     expect(withHeader.rows[1].isUs).toBe(true);
   });
 
-  it("a position glued to the name, a row too short to be a team's, and the last save's name for «nosotros»", () => {
+  it("a position glued to the name, numbers split by single spaces, a row too short to be a team's, and the last save's name for «nosotros»", () => {
     const t = parseLeagueTable("1. Rayo  8 6 1 1 25 8 19\n2. El Equipo B  8  5  3  0  20  9  18\n3. Rojos  8  2\n4. Azules  8  2  2  4  10  15  8", "El Equipo B");
-    expect(t.rows.map((r) => r.team)).toEqual(["El Equipo B", "Azules"]);
-    expect(t.rows[0].isUs).toBe(true);
-    expect(t.skipped).toHaveLength(2);
+    expect(t.rows.map((r) => r.team)).toEqual(["Rayo", "El Equipo B", "Azules"]);
+    expect(t.rows[0]).toMatchObject({ pj: 8, g: 6, e: 1, p: 1, gf: 25, gc: 8, pts: 19 });
+    expect(t.rows[1].isUs).toBe(true);
+    expect(t.skipped).toEqual(["3. Rojos  8  2"]);
+  });
+
+  it("fixed width with a single space before PJ, or everything split by single spaces: the numbers are peeled off the name", () => {
+    const t = parseLeagueTable(["1   Rayo Norte 8   6   1   1   25   8   19", "2 Atlético 2010 8 5 3 0 20 9 18", "3 Manchester Piti 8 2 2 4 10 15 8"].join("\n"));
+    expect(t.rows.map((r) => [r.team, r.pj, r.g, r.e, r.p, r.gf, r.gc, r.pts, r.isUs])).toEqual([
+      ["Rayo Norte", 8, 6, 1, 1, 25, 8, 19, false],
+      ["Atlético 2010", 8, 5, 3, 0, 20, 9, 18, false],
+      ["Manchester Piti", 8, 2, 2, 4, 10, 15, 8, true],
+    ]);
+    expect(t.skipped).toEqual([]);
+  });
+
+  it("an extra «San» column after Pts: by the header when there is one, by the arithmetic when not", () => {
+    const withHeader = parseLeagueTable("Pos\tEquipo\tPJ\tG\tE\tP\tGF\tGC\tPts\tSan\n1\tRayo Norte\t8\t6\t1\t1\t25\t8\t19\t2\n2\tManchester Piti\t8\t5\t3\t0\t20\t9\t18\t0");
+    expect(withHeader.rows.map((r) => [r.team, r.pj, r.gc, r.pts])).toEqual([
+      ["Rayo Norte", 8, 8, 19],
+      ["Manchester Piti", 8, 9, 18],
+    ]);
+    expect(withHeader.skipped).toEqual([]);
+    const noHeader = parseLeagueTable("1\tRayo Norte\t8\t6\t1\t1\t25\t8\t19\t2");
+    expect(noHeader.rows[0]).toMatchObject({ team: "Rayo Norte", pj: 8, g: 6, e: 1, p: 1, gf: 25, gc: 8, pts: 19 });
+  });
+
+  it("a semicolon CSV (quotes around the cells too)", () => {
+    const t = parseLeagueTable('Pos;Equipo;PJ;G;E;P;GF;GC;Pts\n1;"Rayo Norte";8;6;1;1;25;8;19\n2;Manchester Piti;8;5;3;0;20;9;18');
+    expect(t.rows.map((r) => [r.team, r.pj, r.gf, r.pts, r.isUs])).toEqual([
+      ["Rayo Norte", 8, 25, 19, false],
+      ["Manchester Piti", 8, 20, 18, true],
+    ]);
+    expect(t.skipped).toEqual([]);
+  });
+
+  it("the jornada: the paste's «Jornada N» line, else the most matches played", () => {
+    expect(pasteJornada(parseLeagueTable("Jornada 9\nRayo\t8\t6\t1\t1\t25\t8\t19"))).toBe(9);
+    expect(pasteJornada(parseLeagueTable("Rayo\t8\t6\t1\t1\t25\t8\t19\nPiti\t7\t5\t2\t0\t20\t9\t17"))).toBe(8);
+    expect(pasteJornada(parseLeagueTable("Rayo\t0\t0\t0\t0\t0\t0\t0"))).toBeNull();
+    expect(pasteJornada({ rows: [], jornada: null })).toBeNull();
   });
 
   it("nothing usable: no rows, everything skipped", () => {

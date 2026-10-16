@@ -26,6 +26,9 @@
 .adm .cl-prev-list em,.adm .cl-row .us-pick input:checked + span{font-style:normal;font-weight:700;color:var(--accent)}
 .adm .cl-warn{display:flex;align-items:flex-start;gap:8px;color:var(--amber)}
 .adm .cl-warn svg{flex:0 0 auto;margin-top:2px}
+.adm .cl-skip b{color:var(--amber)}
+.adm .cl-skip li{overflow-wrap:anywhere}
+.adm .cl-skip .hint{margin:0}
 
 /* ── the editor ── */
 .adm .cl-ed{display:flex;flex-direction:column;gap:14px}
