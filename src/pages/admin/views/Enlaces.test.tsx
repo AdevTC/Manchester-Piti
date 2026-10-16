@@ -27,7 +27,7 @@ vi.mock("../partidos/live", () => ({
   useMatchRsvp: () => ({ data: [], loading: false }),
   useMatchMvp: () => undefined,
 }));
-vi.mock("../convocar/live", () => ({ useMatchAnswers: () => ({ data: [], loading: false }) }));
+vi.mock("../convocar/live", () => ({ useMatchAnswers: () => ({ data: [], loading: false }), useTeamAbsences: () => [] }));
 vi.mock("../convocar/reminders", () => ({ useReminders: () => ({ auto: true, loading: false, set: () => Promise.resolve() }) }));
 
 const WIDTH = window.innerWidth;

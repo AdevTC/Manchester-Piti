@@ -28,8 +28,13 @@ import { Hero, type Ficha, type Me } from "./Hero";
 import { CaptainStrip } from "./Captain";
 import { BestPartner, FirstSteps, SeasonFeats, SeasonPlaceholder, Vitrina } from "./SeasonBlocks";
 import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
+import { Caja } from "./Caja";
+import { Ausencias } from "./Ausencias";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { ClubDataError } from "../../components/celeste/StatePanel";
+import { HoyCard } from "../../components/celeste/HoyCard";
+import { useViewer } from "../../hooks/useViewer";
+import { hoyModel } from "../../lib/derived/hoy";
 // The door's control room only loads for captains.
 const CaptainDoor = lazy(() => import("../acceso/CaptainDoor").then((m) => ({ default: m.CaptainDoor })));
 
@@ -74,6 +79,9 @@ export function VestuarioPage() {
   const season = seasons.find((s) => s.id === seasonId);
   const seasonName = season?.name ?? "Temporada";
   const matchOpen = !!next && dateMillis(next.date) > now;
+  // Match day: «Hoy» takes the place of the cartel's next-match lines (spec §1).
+  const viewer = useViewer();
+  const today = hoyModel(matches, viewer, now);
 
   const availability = useAvailability(next?.id);
   const meetingNote = useMeetingNote(next?.id);
@@ -163,6 +171,8 @@ export function VestuarioPage() {
         suggestion={fichas.suggestion}
         admin={admin}
         training={confirmedTraining}
+        todayKeepsNext={!!today && today.stage === "after" && !!next && next.id !== today.match.id}
+        today={today ? <HoyCard matches={matches} players={players} now={now} rsvpId="vx-rsvp" className="vx-hoy" mvpBlock={{ id: "vx-mvp", matchId: lastMatch?.id }} /> : undefined}
         captain={
           admin ? (
             <CaptainStrip hasNext={!!next} claims={pendingClaims.data} linked={fichas.linked} squad={fichas.squad} fichaName={fichaName} />
@@ -199,6 +209,10 @@ export function VestuarioPage() {
           <TrainingPoll trainings={trainings.data} uid={uid} admin={admin} now={now} />
           <Porra next={next} players={players} uid={uid} rows={porra.data} now={now} />
           <MvpBlock match={lastMatch} result={lastMatch ? mvpResults.get(lastMatch.id) : undefined} uid={uid} admin={admin} member={member} now={now} playerName={mvpName} />
+          {/* «no puedo del 12 al 19»: members only (a fan never opens its reader) */}
+          <Ausencias member={viewer.member} matches={matches} now={now} />
+          {/* the team's money: members only (a fan never opens its reader) */}
+          <Caja member={viewer.member} admin={admin} seasonId={seasonId} playerId={playerId} players={players} />
           <Board messages={board.data} uid={uid} admin={admin} loading={board.loading} now={now} />
           <Access admin={admin} playerId={playerId} onLogout={() => void signOut()} />
         </div>

@@ -1,0 +1,5 @@
+/* Convocar's «Ausente · hasta 19 oct» (views/Convocar.tsx, the pool's «No vienen» rows): the words and the
+   calendar say it, the chip only frames them. Admin tokens only (--chip, --ink, --soft). The «No vienen» row
+   is dimmed as a whole; the badge stays readable inside it. */
+.adm .pr .aus-badge{display:inline-flex;align-items:center;gap:5px;margin-top:4px;padding:2px 9px;border-radius:999px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--pline);color:var(--ink);font-size:12px;font-weight:600;line-height:1.5;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.adm .pr .aus-badge svg{flex:none;color:var(--soft)}

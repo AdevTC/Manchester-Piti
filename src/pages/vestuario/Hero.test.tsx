@@ -59,3 +59,23 @@ it("the convocatoria: the shared «Voy · Duda · No puedo» with my answer, whe
   rerender(hero(next, DATE + 5 * MIN, [{ uid: "u1", response: "yes", name: "ADRI", playerId: "adri" }]));
   expect(screen.queryByRole("radiogroup")).toBeNull();
 });
+
+it("match day: «Hoy» takes the next-match lines' place; the cartel and the name stay", () => {
+  const today = <section aria-label="Hoy" />;
+  render(<Hero me={me} seasonName="Temporada 1" next={next} meetingNote="Quedamos 11:15" availability={[]} now={DATE - 3_600_000} theme="dark" faceName={() => ""} claim={null} claimable={[]} suggestion={null} admin={false} today={today} />);
+  expect(screen.getByRole("region", { name: "Hoy" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 1, name: "ADRI" })).toBeInTheDocument();
+  expect(screen.getByRole("group", { name: "Equipación" })).toBeInTheDocument();
+  // (the card has its own switch, quedada and previa: the cartel's are gone, not doubled)
+  expect(screen.queryByRole("link", { name: /Ver la previa/ })).toBeNull();
+  expect(screen.queryByRole("radiogroup")).toBeNull();
+  expect(screen.queryByText(/Quedamos 11:15/)).toBeNull();
+});
+
+it("the day after a match, while its MVP vote is open: «Hoy» goes on top and the next match keeps its RSVP", () => {
+  const today = <section aria-label="Hoy" />;
+  render(<Hero me={me} seasonName="Temporada 1" next={next} meetingNote="Quedamos 11:15" availability={[]} now={DATE - 3_600_000} theme="dark" faceName={() => ""} claim={null} claimable={[]} suggestion={null} admin={false} today={today} todayKeepsNext />);
+  expect(screen.getByRole("region", { name: "Hoy" })).toBeInTheDocument();
+  expect(screen.getByRole("radiogroup", { name: "Tu respuesta a la convocatoria" })).toBeInTheDocument();
+  expect(screen.getByText(/Quedamos 11:15/)).toBeInTheDocument();
+});

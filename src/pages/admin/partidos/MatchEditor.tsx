@@ -313,6 +313,7 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
           <TabPublicar
             review={review}
             onReview={() => go({ section: "partidos", matchId: match.id, tab: "acta" })}
+            onCoste={publishedFinal ? () => go({ section: "caja", matchId: match.id }) : undefined}
             phase={phase}
             sheet={sheet}
             update={update}

@@ -441,7 +441,8 @@ export function MvpBlock({ match, result, uid, admin, member, now, playerName }:
   const STEP = [112, 74, 54];
   const FACE = [80, 60, 56];
   return (
-    <section className="vx-mvp">
+    // (#vx-mvp: «Hoy»'s «Vota al MVP ↓» brings the member here, the focus with him)
+    <section className="vx-mvp" id="vx-mvp" tabIndex={-1}>
       <span className="vx-kick">
         Piti {match.goalsFor ?? 0}–{match.goalsAgainst ?? 0} {match.rival} · {open ? `Cierra en ${voteLeft(match.voteClosesAt ?? 0, now)}` : "votación cerrada"}
       </span>

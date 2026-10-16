@@ -25,6 +25,8 @@ import { MATCHES_KEY, matchQuery } from "../../lib/publicData";
 import { visibleMatchLinks } from "../../lib/matchVisibility";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import type { TrainingSlot } from "../../lib/vestuario";
+import { EMPTY_CAJA_SETTINGS, parseCajaMov, parseCajaSettings, type CajaMov, type CajaSettings } from "../../lib/derived/caja";
+import { byAbsence, currentAbsences, parseAbsence, type Absence } from "../../lib/derived/absences";
 
 interface Live<T> {
   data: T;
@@ -244,12 +246,21 @@ export interface Availability {
   response: "yes" | "no" | "maybe";
   name: string;
   playerId: string | null;
+  /** Only on a «No puedo» an absence wrote (`source: "absence"`): its id ("" if missing). A hand answer
+   *  has none — the «Ausente · hasta 19 oct» badges (derived/absences absentBadge) read it. */
+  absenceId?: string;
 }
 export function useAvailability(matchId: string | undefined) {
   return useLiveQuery<Availability>(
     matchId ? `availability/${matchId}` : null,
     () => collection(db, "matchPrivate", matchId!, "availability"),
-    (uid, d) => ({ uid, response: d.response, name: d.name ?? "Miembro", playerId: d.playerId ?? null }),
+    (uid, d) => ({
+      uid,
+      response: d.response,
+      name: d.name ?? "Miembro",
+      playerId: d.playerId ?? null,
+      ...(byAbsence(d) ? { absenceId: typeof d.absenceId === "string" ? d.absenceId : "" } : {}),
+    }),
   );
 }
 
@@ -552,4 +563,55 @@ export function useMembership(uid: string | undefined) {
 /** A member's handle (users/{uid}.nickname), e.g. the captain who opened the door for you. */
 export function useNicknameOf(uid: string | undefined) {
   return useLiveDoc<string>(uid ? `users/${uid}` : null, "nickname", (d) => (d?.nickname as string | undefined) ?? "", "");
+}
+
+// ---------- la caja (members read everything; the captains write from the admin's Caja section)
+export interface Caja {
+  /** caja/{seasonId} (the empty settings until a captain saves them). */
+  settings: CajaSettings;
+  /** The season's movements (void ones included: derived/caja leaves them out of every sum), as stored;
+   *  sort them with sortMovs. */
+  movs: CajaMov[];
+  loading: boolean;
+  error: boolean;
+}
+const NO_MOVS: CajaMov[] = [];
+/** A season's caja: its settings and its movements, one shared listener each (vestuario and admin alike).
+ *  `enabled` false (a fan, no season) opens nothing. */
+export function useCaja(seasonId: string | undefined, enabled = true): Caja {
+  const sid = enabled && seasonId ? seasonId : null;
+  const settings = useLiveDoc<CajaSettings>(sid && `caja/${sid}`, "caja", parseCajaSettings, EMPTY_CAJA_SETTINGS);
+  const movs = useLiveQuery<CajaMov | null>(
+    sid && `cajaMovs/${sid}`,
+    () => query(collection(db, "cajaMovs"), where("seasonId", "==", sid)),
+    parseCajaMov,
+  );
+  const list = useMemo(() => {
+    const ok = movs.data.filter((m): m is CajaMov => m !== null);
+    return ok.length ? ok : NO_MOVS;
+  }, [movs.data]);
+  return useMemo(
+    () => ({ settings: settings.data, movs: list, loading: settings.loading || movs.loading, error: settings.error || movs.error }),
+    [settings.data, settings.loading, settings.error, list, movs.loading, movs.error],
+  );
+}
+
+// ---------- ausencias («no puedo del 12 al 19»: members read everyone's; derived/absences for the rest)
+const NO_ABSENCES: Absence[] = [];
+/**
+ * The team's absences that end on `today` (Madrid `YYYY-MM-DD`, derived/absences madridDate) or later —
+ * yours and everyone's, soonest first (one shared listener; a new day opens a new one). `enabled` false
+ * (a fan) opens nothing. Filter yours with `uid`, a player's badge with absenceOn.
+ */
+export function useAbsences(today: string, enabled = true): Live<Absence[]> {
+  const q = useLiveQuery<Absence | null>(
+    enabled && today ? `absences/${today}` : null,
+    () => query(collection(db, "absences"), where("to", ">=", today)),
+    parseAbsence,
+  );
+  const list = useMemo(() => {
+    const ok = currentAbsences(q.data.filter((a): a is Absence => a !== null), today);
+    return ok.length ? ok : NO_ABSENCES;
+  }, [q.data, today]);
+  return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
 }

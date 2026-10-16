@@ -196,6 +196,21 @@ describe("useShared: metadatos aparte y escuchas que se recuperan", () => {
     rsvp.unmount();
   });
 
+  it("la convocatoria marca el «No puedo» que escribió una ausencia (absenceId); el de mano no lo lleva", () => {
+    const rsvp = renderHook(() => useAvailability("r9"));
+    const docs = [
+      { id: "u1", data: () => ({ response: "no", name: "Erik", playerId: "erik", source: "absence", absenceId: "a1" }) },
+      { id: "u2", data: () => ({ response: "no", name: "Adri", playerId: "adri" }) },
+    ];
+    act(() => listeners.get("matchPrivate/r9/availability")?.forEach((l) => l.next({ docs, docChanges: () => [{}], metadata: meta() })));
+    expect(rsvp.result.current.data).toEqual([
+      { uid: "u1", response: "no", name: "Erik", playerId: "erik", absenceId: "a1" },
+      { uid: "u2", response: "no", name: "Adri", playerId: "adri" },
+    ]);
+    expect(Object.hasOwn(rsvp.result.current.data[1], "absenceId")).toBe(false);
+    rsvp.unmount();
+  });
+
   it("tras un error conserva los últimos datos con error y reintenta una sola vez", () => {
     const note = renderHook(() => useMeetingNote("r3"));
     emitDoc("matchPrivate/r3", DOC);

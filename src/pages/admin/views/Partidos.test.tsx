@@ -529,6 +529,18 @@ describe("Partidos · a match to play, a published one", () => {
     expect(screen.queryByRole("region", { name: "Acta publicada" })).toBeNull();
   });
 
+  it("a published acta: Publicar has «Coste del partido», which opens it in La caja; an unpublished one has none", async () => {
+    setAdminData(adminFixture({ published: fullJ1() }));
+    const user = userEvent.setup();
+    const router = mountAdmin("/admin/partidos/m6?tab=publicar", { partidos: Partidos });
+    await user.click(await screen.findByRole("button", { name: "Coste del partido" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/caja"));
+    expect(router.state.location.search).toMatchObject({ coste: "m6" });
+    act(() => void router.navigate({ to: "/admin/partidos/$matchId", params: { matchId: "m7" }, search: { tab: "publicar" } }));
+    expect(await screen.findByText("El Piti gana 3–1 en casa ante FUSION 7")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Coste del partido" })).toBeNull();
+  });
+
   it("on a phone: the list alone, then the match full screen with ← and the picker as a bottom sheet", async () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
     const user = userEvent.setup();

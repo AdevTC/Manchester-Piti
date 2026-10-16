@@ -191,7 +191,7 @@ const Marker = (name: string): View => {
  * The real AdminLayout on a memory router at `path`. Views are markers («vista partidos»…) unless
  * given (`views.hoy`, `views.partidos`…).
  */
-type ViewKey = "hoy" | "partidos" | "detalle" | "enjuego" | "convocar" | "fichas" | "plantilla" | "temporadas" | "capitanes" | "contenido";
+type ViewKey = "hoy" | "partidos" | "detalle" | "enjuego" | "convocar" | "fichas" | "plantilla" | "temporadas" | "capitanes" | "contenido" | "caja";
 export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> = {}) {
   const root = createRootRoute({ component: () => <Outlet /> });
   const admin = createRoute({ getParentRoute: () => root, path: "/admin", component: AdminLayout });
@@ -209,6 +209,7 @@ export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> =
       child("temporadas", "temporadas"),
       child("capitanes", "capitanes"),
       child("contenido", "contenido"),
+      child("caja", "caja"),
     ]),
     createRoute({ getParentRoute: () => root, path: "/", component: Marker("la web") }),
     createRoute({ getParentRoute: () => root, path: "/vestuario", component: Marker("el vestuario") }),

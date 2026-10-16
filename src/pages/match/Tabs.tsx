@@ -4,7 +4,7 @@ import { PersonalMatchSummary } from "../../components/celeste/PersonalMatchSumm
 // reads and writes the team's private bits (convocatoria, porra, MVP) only for members.
 import { Fragment, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { EVENT_LABELS, isCompleted, playerForSeason, nameFor, type ClubMatch } from "../../lib/clubData";
+import { EVENT_LABELS, dateMillis, isCompleted, playerForSeason, nameFor, type ClubMatch } from "../../lib/clubData";
 import { useSeason } from "../../context/SeasonContext";
 import { useTeam } from "../../context/TeamContext";
 import { useAuth } from "../../context/AuthContext";
@@ -19,7 +19,9 @@ import { Jersey3D } from "../../components/jersey3d/Jersey3D";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { chapters, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
 import { dateParts, eventMinute, exchangeMinute, scoreOf } from "../../lib/partidos";
-import { useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMvpResultsSync, useMvpReveal, useMyPrediction } from "../vestuario/live";
+import { useAbsences, useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMvpResultsSync, useMvpReveal, useMyPrediction } from "../vestuario/live";
+import { absentBadge, madridDate, matchDay } from "../../lib/derived/absences";
+import "../../styles/aus-badge.css";
 import { mvpAnnouncement, mvpRace, plural, voteLeft } from "../../lib/vestuario";
 import { useMe } from "../vestuario/writes";
 import { rsvpSummary } from "../../lib/rsvp";
@@ -511,6 +513,8 @@ export function VestuarioTab({ match, matches = [match], players, phase }: { mat
   const uid = member ? user?.uid : undefined;
   const kickedOff = phase !== "scheduled" && phase !== "unscheduled";
   const availability = useAvailability(member && !kickedOff ? match.id : undefined);
+  // (the team's absences, while the convocatoria shows: «Ausente · hasta 19 oct» on those «No puedo»)
+  const absences = useAbsences(madridDate(now), !!member && !kickedOff);
   const note = useMeetingNote(member ? match.id : undefined);
   const myPrediction = useMyPrediction(match.id, uid);
   const predictions = useMatchPredictions(match.id, !!member && predictionsRevealed(match));
@@ -563,6 +567,11 @@ export function VestuarioTab({ match, matches = [match], players, phase }: { mat
   // («Sin responder» counts too: the convocados who haven't said anything yet)
   const counts = rsvpSummary(availability.data, [...(match.starters ?? []), ...(match.bench ?? [])]);
   const total = counts.yes + counts.maybe + counts.no + counts.sin;
+  const day = matchDay(dateMillis(match.date));
+  const away = availability.data.flatMap((a) => {
+    const badge = absentBadge(a, absences.data, day);
+    return badge ? [{ a, badge }] : [];
+  });
   const exact = predictions.data.filter((p) => p.goalsFor === gf && p.goalsAgainst === ga).length;
   const dist = new Map<string, number>();
   for (const p of predictions.data) dist.set(`${p.goalsFor}–${p.goalsAgainst}`, (dist.get(`${p.goalsFor}–${p.goalsAgainst}`) ?? 0) + 1);
@@ -597,6 +606,19 @@ export function VestuarioTab({ match, matches = [match], players, phase }: { mat
                 </div>
                 <small>{counts.txt}</small>
               </div>
+            )}
+            {away.length > 0 && (
+              <ul className="aus-away" aria-label="Ausentes">
+                {away.map(({ a, badge }) => (
+                  <li key={a.uid}>
+                    <span className="nm">{a.playerId ? nameOf(a.playerId) : a.name}</span>
+                    <span className="aus-badge">
+                      <Icon name="cal" size={13} stroke={2.2} />
+                      {badge}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             )}
           </section>
         </>

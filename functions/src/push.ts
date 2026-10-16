@@ -17,6 +17,7 @@ import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKick
 import { nameFor } from "./names.js";
 import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
+import { absencesOnMatch } from "./absenceAnswers.js";
 import { matchActive, matchActiveTx, noticeMatchId, runOptionalMatchTransaction } from './matchAccess.js';
 
 export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
@@ -125,6 +126,14 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   if (!(await matchActive(event.params.matchId))) return;
   const before = asMatch(event.data?.before.data());
   const after = asMatch(event.data?.after.data());
+  // Ausencias: a match published, moved or rescheduled gets «No puedo» from the absences covering its
+  // day, for who hasn't answered (absenceAnswers.ts; nothing is read for any other write). Never in the
+  // way of the notices below.
+  try {
+    await absencesOnMatch(event.params.matchId, before, after);
+  } catch (e) {
+    console.error("absencesOnMatch", event.params.matchId, e);
+  }
   // (names only when a notice needs them: most writes of a match say nothing)
   const now = Date.now();
   const draft = noticesFor(event.params.matchId, before, after, () => "", now);

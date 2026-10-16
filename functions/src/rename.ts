@@ -8,6 +8,7 @@
 // - trainings/{t}/votes/{uid}.name, trainings.proposedByName / confirmed.byName (who.name);
 // - board where uid == uid; lineups where ownerUid == uid (ownerNickname); invites where by == uid
 //   (byName = displayName || nickname, as createInvite writes it); playerClaims/{uid}.nickname;
+// - absences where uid == uid (name: the vestuario lists them and the captains' notice signs with it);
 // - porraStandings/{season}.rows[] (uid → name), after the predictions, in a transaction per season.
 // Idempotent (docs already right are skipped), capped (RENAME_CAP writes), and it always writes the
 // handle the profile has *now*: renames in a row (or events out of order) end with the last name.
@@ -40,13 +41,14 @@ async function getAll(refs: DocumentReference[]): Promise<DocumentSnapshot[]> {
 
 /** Each copy of `uid`'s handle that is not `nick` yet (porraStandings apart: see renamePorra). */
 async function staleCopies(uid: string, nick: string, inviteName: string): Promise<Change[]> {
-  const [matches, trainings, board, lineups, invites, claim] = await Promise.all([
+  const [matches, trainings, board, lineups, invites, claim, absences] = await Promise.all([
     db.collection("matches").select().get(),
     db.collection("trainings").get(),
     db.collection("board").where("uid", "==", uid).get(),
     db.collection("lineups").where("ownerUid", "==", uid).get(),
     db.collection("invites").where("by", "==", uid).get(),
     db.doc(`playerClaims/${uid}`).get(),
+    db.collection("absences").where("uid", "==", uid).get(),
   ]);
   const changes: Change[] = [];
   const field = (snap: DocumentSnapshot, key: string, value: string) => {
@@ -71,6 +73,7 @@ async function staleCopies(uid: string, nick: string, inviteName: string): Promi
   for (const l of lineups.docs) field(l, "ownerNickname", nick);
   for (const i of invites.docs) field(i, "byName", inviteName);
   field(claim, "nickname", nick);
+  for (const a of absences.docs) field(a, "name", nick);
   return changes;
 }
 

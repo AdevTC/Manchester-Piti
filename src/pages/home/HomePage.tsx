@@ -11,6 +11,7 @@ import { ClubDataError, StateStage } from "../../components/celeste/StatePanel";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { leaders, narrative, playerLines, playerOfTheMoment, seasonPulse, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
+import { HomeHoy } from "./HomeHoy";
 import { MatchHero } from "./MatchHero";
 import { PonteLaCamiseta } from "./PonteLaCamiseta";
 import { SeasonRow, Sponsors, VestuarioBand } from "./Sections";
@@ -51,15 +52,21 @@ export function HomePage() {
   return (
     <div className="vx hm" aria-busy={loading}>
       <CelesteBackdrop />
-      <CelesteHeader
-        active="inicio"
-        sub="Manchester Piti"
-        actions={
-          <>
-            <ThemeToggle />
-          </>
-        }
-      />
+      {/* «Hoy» shares the header's slot (a fragment) instead of taking one of its own: the page's children
+          keep their count and places, so the useId values below (AddToCalendar's aria-controls) — and with
+          them the server-rendered HTML — stay byte for byte the fan's. It renders nothing on the server. */}
+      <>
+        <CelesteHeader
+          active="inicio"
+          sub="Manchester Piti"
+          actions={
+            <>
+              <ThemeToggle />
+            </>
+          }
+        />
+        <HomeHoy matches={matches} players={players} now={now} />
+      </>
       {/* The headline is written from the data: until it arrives the hero keeps its place empty,
           so the text appears once instead of changing (and pushing the page) as each collection lands. */}
       {/* The data did not arrive: the error in the hero's place (no empty season pretending to be real). */}

@@ -68,6 +68,8 @@ const boardOther = "ren-board-other-" + suffix;
 const boardClub = "ren-board-club-" + suffix;
 const lineupMine = "ren-lineup-" + suffix;
 const lineupOther = "ren-lineup-other-" + suffix;
+const absenceMine = "ren-absence-" + suffix;
+const absenceOther = "ren-absence-other-" + suffix;
 const at = Timestamp.now();
 await db.doc("seasons/" + seasonId).set({ name: "Apodos · pruebas" });
 await db.doc("matches/" + matchId).set({ version: 2, seasonId, rival: "Rival Apodos", status: "scheduled", date: Timestamp.fromMillis(Date.now() + 7 * 86400_000), events: [] });
@@ -91,6 +93,9 @@ await db.doc("board/" + boardClub).set({ text: "Entreno confirmado", uid: "vestu
 await db.doc("lineups/" + lineupMine).set({ ownerUid: me.uid, ownerNickname: old, seasonId, name: "Mi siete", isOfficial: false, matchId: null });
 await db.doc("lineups/" + lineupOther).set({ ownerUid: other.uid, ownerNickname: otherNick, seasonId, name: "Su siete", isOfficial: false, matchId: null });
 await db.doc("invites/" + invite).set({ by: me.uid, byName: old, expiresAt: Timestamp.fromMillis(Date.now() + 86400_000), maxUses: 1, uses: 0 });
+// (absences far ahead: no match falls in them, so their trigger answers nothing here)
+await db.doc("absences/" + absenceMine).set({ uid: me.uid, playerId: null, name: old, from: "2199-03-01", to: "2199-03-05", note: "boda", createdAt: at });
+await db.doc("absences/" + absenceOther).set({ uid: other.uid, playerId: null, name: otherNick, from: "2199-03-01", to: "2199-03-05", createdAt: at });
 await db.doc("playerClaims/" + me.uid).set({ playerId: "p", playerName: "P", nickname: old, email: "", status: "rejected", at });
 await db.doc("porraStandings/" + seasonId).set({
   seasonId,
@@ -113,6 +118,7 @@ const mine = [
   [`lineups/${lineupMine}`, "ownerNickname"],
   [`invites/${invite}`, "byName"],
   [`playerClaims/${me.uid}`, "nickname"],
+  [`absences/${absenceMine}`, "name"],
 ];
 const porraName = async (uid) => (await db.doc("porraStandings/" + seasonId).get()).get("rows").find((r) => r.uid === uid)?.name;
 async function names() {
@@ -141,6 +147,7 @@ async function othersUntouched() {
   assert.equal((await db.doc("board/" + boardOther).get()).get("name"), otherNick);
   assert.equal((await db.doc("board/" + boardClub).get()).get("name"), "Vestuario");
   assert.equal((await db.doc("lineups/" + lineupOther).get()).get("ownerNickname"), otherNick);
+  assert.equal((await db.doc("absences/" + absenceOther).get()).get("name"), otherNick);
   assert.equal(await porraName(other.uid), otherNick);
   // (the rest of a rewritten doc stays as it was)
   const porra = (await db.doc("porraStandings/" + seasonId).get()).get("rows");
@@ -148,6 +155,8 @@ async function othersUntouched() {
   assert.equal(porra[1].points, 1);
   assert.equal((await db.doc(`matchPrivate/${matchId}/availability/${me.uid}`).get()).get("response"), "yes");
   assert.equal((await db.doc("lineups/" + lineupMine).get()).get("name"), "Mi siete");
+  const absence = (await db.doc("absences/" + absenceMine).get()).data();
+  assert.deepEqual([absence.from, absence.to, absence.note, absence.uid], ["2199-03-01", "2199-03-05", "boda", me.uid]);
   checked++;
 }
 
@@ -179,5 +188,9 @@ await everywhere(third);
 await sleep(4000);
 await everywhere(third);
 await othersUntouched();
+
+// (the test's absences go: their trigger has nothing to take back)
+await db.doc("absences/" + absenceMine).delete();
+await db.doc("absences/" + absenceOther).delete();
 
 console.log(`${checked} comprobaciones de apodos correctas: cada copia lleva el nuevo, nadie más cambia y el último gana.`);

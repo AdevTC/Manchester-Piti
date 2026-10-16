@@ -1,0 +1,64 @@
+/* La caja (views/Caja.tsx, caja/CajaModals.tsx). Admin tokens only (--panel, --panel2, --pline, --chip, --sky,
+   --accent, --amber, --red, --ink, --soft, --muted, --wall). Every state is said in words with an icon (the
+   colour only repeats it); every control is at least 44 px. Phone first: one column; from 720 px the tiles go
+   in a row, and from 1000 px the balances sit beside the log. */
+.adm .cj-scroll{flex:1;margin-top:18px}
+.adm .cj{display:flex;flex-direction:column;gap:16px;min-width:0}
+.adm .cj-season{display:block;min-width:0}
+.adm .cj-season .inp{min-width:200px}
+.adm.m .cj-season .inp{min-width:0}
+
+/* ── the tiles: the jar, what is owed, the cuota ── */
+.adm .cj-sum{display:grid;grid-template-columns:1fr;gap:10px}
+.adm .cj-tile{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:16px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--pline);min-width:0}
+.adm .cj-tile .k{font-size:13px;font-weight:600;color:var(--muted)}
+.adm .cj-tile b{font-family:'Anybody';font-weight:900;font-variation-settings:'wdth' 112;font-size:30px;line-height:1.05;font-variant-numeric:tabular-nums}
+.adm .cj-tile small{font-size:13px;color:var(--soft);overflow-wrap:anywhere}
+.adm .cj-tile .btn{align-self:flex-start;margin-top:6px}
+.adm .cj-jar{background:var(--wall)}
+@media (min-width:720px){.adm .cj-sum{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* ── the actions ── */
+.adm .cj-acts{display:flex;flex-wrap:wrap;gap:8px}
+.adm.m .cj-acts .btn{flex:1 1 calc(50% - 8px)}
+.adm.m .cj-acts .btn.gold{flex-basis:100%}
+.vx.adm .cj .btn.sm,.vx.adm .cj-sgf button{min-height:44px}
+
+/* ── balances and the log ── */
+.adm .cj-cols{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+.adm.d .cj-cols{grid-template-columns:minmax(260px,340px) minmax(0,1fr)}
+.adm .cj-rows,.adm .cj-movs,.adm .cj-who{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.adm .cj-row{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:44px;padding:6px 12px;border-radius:12px;background:var(--panel2)}
+.adm .cj-row .n{font-family:'Geist Mono';font-size:13px;color:var(--muted);text-align:right}
+.adm .cj-row b{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adm .cj-row .st{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--soft);white-space:nowrap;font-variant-numeric:tabular-nums}
+.adm .cj-row.debe .st{color:var(--amber)}
+.adm .cj-row.debe{box-shadow:inset 3px 0 0 var(--amber)}
+.adm .cj-row.a-favor .st{color:var(--accent)}
+
+.adm .cj-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.adm .cj-mov{display:grid;grid-template-columns:52px minmax(0,1fr) auto auto;gap:10px;align-items:center;min-height:56px;padding:6px 8px 6px 12px;border-radius:12px;background:var(--panel2)}
+.adm .cj-mov .d{font-family:'Geist Mono';font-size:13px;color:var(--muted)}
+.adm .cj-mov .w{min-width:0}
+.adm .cj-mov .w b{display:block;font-size:15px;overflow-wrap:anywhere}
+.adm .cj-mov .w small{display:block;font-size:13px;color:var(--muted)}
+.adm .cj-mov .amt{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.adm .cj-mov.pago .amt,.adm .cj-mov.ingreso .amt{color:var(--accent)}
+.adm .cj-mov.void{background:transparent;box-shadow:inset 0 0 0 1px var(--pline);grid-template-columns:52px minmax(0,1fr) auto}
+.adm .cj-mov.void .w b,.adm .cj-mov.void .amt{color:var(--muted)}
+.adm .cj-mov .anul{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
+.adm.m .cj-mov{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"w amt" "d bt"}
+.adm.m .cj-mov.void{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"w amt" "d d"}
+.adm.m .cj-mov .w{grid-area:w}.adm.m .cj-mov .amt{grid-area:amt}.adm.m .cj-mov .d{grid-area:d}.adm.m .cj-mov .btn{grid-area:bt}
+
+/* ── the forms ── */
+.adm .cj-amt{display:flex;align-items:center;gap:8px}
+.adm .cj-amt span{font-weight:700;color:var(--muted)}
+.adm .cj-amt .inp{max-width:180px;font-variant-numeric:tabular-nums}
+.adm .cj-ta{height:auto;min-height:88px;padding:10px 12px;resize:vertical}
+.adm .cj-warn{display:flex;align-items:flex-start;gap:8px}
+.adm .cj-warn svg{flex:0 0 auto;margin-top:2px}
+.adm .cj-split{font-weight:600}
+.adm .cj-who{max-height:220px;overflow:auto;gap:4px}
+.adm .cj-who li{display:flex;justify-content:space-between;gap:10px;padding:6px 10px;border-radius:10px;background:var(--panel2);font-size:14px}
+.adm .cj-who b{font-variant-numeric:tabular-nums}

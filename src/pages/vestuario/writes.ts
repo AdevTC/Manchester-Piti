@@ -3,8 +3,9 @@
 // The security rules validate the other actions (firestore.rules), so there is no
 // Cloud Function round trip: the SDK applies each write to the local cache first, every
 // open listener (this device) updates at once and the rest of the team gets it in realtime.
-import { collection, deleteDoc, doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "../../firebase";
+import { absenceFields } from "../../lib/derived/absences";
 import { useAuth } from "../../context/AuthContext";
 import { savePrediction } from "../../lib/clubApi";
 import type { GoalPick } from "../../../functions/src/predictions";
@@ -57,3 +58,10 @@ export function postBoardMessage(me: Me, text: string) {
   });
 }
 export const deleteBoardMessage = (id: string) => deleteDoc(doc(db, "board", id));
+
+/** «No puedo del 12 al 19»: absences/{auto-id}, as firestore.rules absenceOk() checks it (the backend then
+ *  answers «No puedo» on the matches in those dates). */
+export const addAbsence = (me: Me, from: string, to: string, note: string) =>
+  addDoc(collection(db, "absences"), { ...absenceFields(me, from, to, note), createdAt: serverTimestamp() });
+/** «Quitar»: the backend takes back the «No puedo» it wrote (not the answers changed by hand). */
+export const deleteAbsence = (id: string) => deleteDoc(doc(db, "absences", id));

@@ -7,7 +7,9 @@ import type { ClubMatch } from "../../lib/clubData";
 // to render each one, in its window. What each does and writes is pinned once, in the components' own tests;
 // the MVP race (the tab's own block) is in MvpRace.test.tsx.
 const NOW = Date.UTC(2026, 8, 10, 12);
-const state = vi.hoisted(() => ({ member: true }));
+type Answer = { uid: string; response: "yes" | "no" | "maybe"; name: string; playerId: string | null; absenceId?: string };
+const MINE: Answer = { uid: "u1", response: "maybe", name: "YO", playerId: null };
+const state = vi.hoisted(() => ({ member: true, answers: [] as Answer[], absences: [] as unknown[], absencesRead: [] as boolean[] }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to, className }: { children?: ReactNode; to: string; className?: string }) => (
     <a className={className} href={to}>
@@ -23,7 +25,8 @@ vi.mock("../../hooks/useDocumentTheme", () => ({ useDocumentTheme: () => "dark" 
 vi.mock("../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 vi.mock("../../components/jersey3d/Jersey3D", () => ({ Jersey3D: () => null }));
 vi.mock("../vestuario/live", () => ({
-  useAvailability: () => ({ data: state.member ? [{ uid: "u1", response: "maybe", name: "YO", playerId: null }] : [] }),
+  useAvailability: () => ({ data: state.member ? state.answers : [] }),
+  useAbsences: (_today: string, enabled?: boolean) => (state.absencesRead.push(!!enabled), { data: enabled ? state.absences : [] }),
   useMatchPredictions: () => ({ data: [] }),
   useMeetingNote: () => ({ data: "" }),
   useMvpResults: () => new Map([["j5", { id: "j5", counts: { erik: 2 }, total: 2 }]]),
@@ -44,6 +47,29 @@ const finished = { id: "j5", seasonId: "t1", rival: "Rival", date: NOW - 86_400_
 
 beforeEach(() => {
   state.member = true;
+  state.answers = [MINE];
+  state.absences = [];
+  state.absencesRead = [];
+});
+
+it("the convocatoria lists who is away: «Ausente · hasta …» on a «No puedo» an absence wrote or covers (never colour alone)", () => {
+  // the match: 11 Sep 2026; erik's «No puedo» is his absence's, pablo's is by hand on a day his absence covers
+  state.answers = [
+    MINE,
+    { uid: "u-erik", response: "no", name: "erik", playerId: "erik", absenceId: "a1" },
+    { uid: "u-pablo", response: "no", name: "pablo", playerId: "pablo" },
+    { uid: "u-raul", response: "no", name: "raul", playerId: null },
+  ];
+  state.absences = [
+    { id: "a1", uid: "u-erik", playerId: "erik", name: "erik", from: "2026-09-10", to: "2026-09-19", note: "", createdAt: 1 },
+    { id: "a2", uid: "u-pablo", playerId: "pablo", name: "pablo", from: "2026-09-11", to: "2026-10-02", note: "", createdAt: 1 },
+  ];
+  render(<VestuarioTab match={upcoming(NOW + 86_400_000)} players={SQUAD} phase="scheduled" />);
+  const away = screen.getByRole("list", { name: "Ausentes" });
+  const rows = Array.from(away.querySelectorAll("li"));
+  expect(rows.map((r) => r.textContent)).toEqual(["ERIK7Ausente · hasta 19 sept", "PABLO7Ausente · hasta 2 oct"]);
+  expect(rows.every((r) => r.querySelector(".aus-badge svg"))).toBe(true);
+  expect(state.absencesRead.at(-1)).toBe(true);
 });
 
 it("before the match: the shared convocatoria and porra, with my answer and the porra's rule", () => {
@@ -78,9 +104,12 @@ it("while the vote is open: the shared MVP ballot", () => {
 });
 
 it("fans get none of them, only the invitation to the vestuario", () => {
+  state.absencesRead = [];
   state.member = false;
   render(<VestuarioTab match={upcoming(NOW + 86_400_000)} players={SQUAD} phase="scheduled" />);
   expect(screen.queryByRole("radiogroup")).toBeNull();
   expect(screen.queryByRole("group", { name: /Tu porra/ })).toBeNull();
   expect(screen.getByRole("link", { name: "Entrar al vestuario" })).toBeInTheDocument();
+  // (a fan never opens the absences reader)
+  expect(state.absencesRead.every((on) => !on)).toBe(true);
 });
