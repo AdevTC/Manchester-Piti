@@ -1,13 +1,16 @@
 // Convocar's «Turnos» panel: this match's turns (lib/derived/rota turnsFor, the same the web and the «Te
-// toca…» notice read), and the captain's overrides — «Cambiar» before the match, «Lo hizo otro» after it
-// (both rotaTurns/{matchId}[jobId] = { playerId, swappedFrom }), «Volver al turno» to drop one. An override
-// changes only this match: the rota goes on as computed.
+// toca…» notice read), and the captain's overrides: «Cambiar» before the match, «Lo hizo otro» after it
+// (both rotaTurns/{matchId}[jobId] = { playerId, swappedFrom }), «Volver al turno» to drop one. Once the
+// match is played its turns are frozen (the history): «Volver al turno» then gives it back to who the rota
+// had, and the turn stays in the history.
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { ClubMatch } from "../../../lib/clubData";
-import type { Turn } from "../../../lib/derived/rota";
+import { rotaMatch, rotaPlayed, type Turn } from "../../../lib/derived/rota";
 import { useMatchTurns } from "../../../lib/useRotaTurns";
+import { useClock } from "../../../hooks/useClock";
 import { RotaIcon } from "../../../components/celeste/Turnos";
+import { LoadError } from "../club/ClubStates";
 import { useTurnosWrites } from "../data/useTurnos";
 import { useAdmin } from "../shell/context";
 import { AdIcon } from "../ui/icons";
@@ -17,8 +20,11 @@ import "../turnos/turnos.css";
 export function TurnosPanel({ match, roster, nameOf }: { match: ClubMatch; roster: readonly { id: string; name: string }[]; nameOf: (id: string) => string }) {
   const data = useAdmin();
   const published = data.published.find((m) => m.id === match.id) ?? match;
-  const { turns, rota, loading } = useMatchTurns(published, data.published, true);
-  const played = published.status === "finished";
+  const { turns, rota, loading, error } = useMatchTurns(published, data.published, true);
+  const now = useClock(60_000);
+  const played = rotaPlayed(rotaMatch(published), now);
+  const seasonId = published.seasonId ?? "";
+  if (error) return <LoadError what="los turnos" />;
   if (loading) return null;
   return (
     <section className="calm tu-panel" aria-labelledby={`tu-p-${match.id}`}>
@@ -32,7 +38,7 @@ export function TurnosPanel({ match, roster, nameOf }: { match: ClubMatch; roste
       ) : (
         <ul className="tu-turns">
           {turns.map((t) => (
-            <TurnRow key={t.job.id} matchId={match.id} turn={t} played={played} roster={roster} nameOf={nameOf} />
+            <TurnRow key={t.job.id} matchId={match.id} seasonId={seasonId} turn={t} played={played || t.frozen} roster={roster} nameOf={nameOf} />
           ))}
         </ul>
       )}
@@ -40,7 +46,7 @@ export function TurnosPanel({ match, roster, nameOf }: { match: ClubMatch; roste
   );
 }
 
-function TurnRow({ matchId, turn: t, played, roster, nameOf }: { matchId: string; turn: Turn; played: boolean; roster: readonly { id: string; name: string }[]; nameOf: (id: string) => string }) {
+function TurnRow({ matchId, seasonId, turn: t, played, roster, nameOf }: { matchId: string; seasonId: string; turn: Turn; played: boolean; roster: readonly { id: string; name: string }[]; nameOf: (id: string) => string }) {
   const writes = useTurnosWrites();
   const toast = useToast();
   const [pick, setPick] = useState("");
@@ -58,7 +64,9 @@ function TurnRow({ matchId, turn: t, played, roster, nameOf }: { matchId: string
       setBusy(false);
     }
   };
-  const swap = () => pick && void run(() => writes.pin(matchId, t.job.id, pick, t.computed), `${label}: ${nameOf(pick)}`);
+  const swap = () => pick && void run(() => writes.pin(matchId, seasonId, t.job.id, pick, t.computed), `${label}: ${nameOf(pick)}`);
+  // (a frozen turn keeps its place in the history: back to who the rota had, never deleted)
+  const back = () => (t.frozen && t.swappedFrom ? writes.pin(matchId, seasonId, t.job.id, t.swappedFrom, null) : writes.unpin(matchId, seasonId, t.job.id));
   return (
     <li className="tu-turn">
       <RotaIcon icon={t.job.icon} size={18} />
@@ -80,12 +88,12 @@ function TurnRow({ matchId, turn: t, played, roster, nameOf }: { matchId: string
               </option>
             ))}
         </select>
-        <button type="button" className="btn sm line" onClick={swap} disabled={!pick || busy}>
+        <button type="button" className="btn sm line" onClick={swap} disabled={!pick || busy || !seasonId}>
           <AdIcon name="swap" size={15} />
           {played ? "Lo hizo otro" : "Cambiar"}
         </button>
         {t.pinned && (
-          <button type="button" className="btn sm line" disabled={busy} onClick={() => void run(() => writes.unpin(matchId, t.job.id), `${label}: vuelve al turno`)}>
+          <button type="button" className="btn sm line" disabled={busy || !seasonId} onClick={() => void run(back, `${label}: vuelve al turno`)}>
             <AdIcon name="undo" size={15} />
             Volver al turno
           </button>

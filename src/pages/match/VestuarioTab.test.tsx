@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
@@ -132,6 +132,10 @@ it("Turnos del equipo: each job and who does it, a captain's change said in word
     expect(sec).toHaveTextContent(/ERIK7/);
     expect(sec).toHaveTextContent("Cambio del capitán (le tocaba a PABLO7)");
     expect(sec).toHaveTextContent("Nadie disponible");
+    cleanup();
+    // a cancelled or postponed match has no turns
+    render(<VestuarioTab match={upcoming(NOW + 86_400_000, "cancelled")} players={SQUAD} phase="scheduled" />);
+    expect(screen.queryByRole("region", { name: "¿A quién le toca?" })).toBeNull();
   } finally {
     rota.turns = [];
   }

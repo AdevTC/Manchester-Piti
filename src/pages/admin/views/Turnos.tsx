@@ -1,7 +1,7 @@
 // Turnos (/admin/turnos) — the season's jobs (lavar la equipación, balones y petos, coche a los partidos
-// fuera…) and the order of the members for each one. The turn of each match is computed from this order
-// (lib/derived/rota turnsFor): one member per completed match, skipping a «No puedo» or an absence, the car
-// only away. Reorder with «Subir» / «Bajar» (focus follows the moved member, a polite live region says where
+// fuera…) and the order of the members for each one. The turn of each match (lib/derived/rota turnsFor):
+// whoever has gone longest without it (the order breaks ties), skipping a «No puedo» or an absence, nobody
+// twice in a match if anyone else can, the car only away. Reorder with «Subir» / «Bajar» (focus follows the moved member, a polite live region says where
 // he is now: the same pattern as Clasificación). Overrides for one match live in Convocar's «Turnos» panel.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { nameFor } from "../../../lib/clubData";
@@ -53,7 +53,7 @@ export function Turnos() {
         <p>Los turnos van por temporadas: crea una en Temporadas y vuelve.</p>
       </div>
     ) : (
-      <Editor key={`${seasonId}:${JSON.stringify(rota.data)}`} seasonId={seasonId} rota={rota.data} seasonSelect={desktop ? null : seasonSelect} />
+      <Editor key={seasonId} seasonId={seasonId} rota={rota.data} seasonSelect={desktop ? null : seasonSelect} />
     );
 
   return desktop ? (
@@ -72,6 +72,9 @@ export function Turnos() {
   );
 }
 
+/** The jobs as saved (names trimmed): two versions are the same rota when these match. */
+const norm = (js: readonly RotaJob[]) => JSON.stringify(js.map((j) => ({ id: j.id, name: j.name.trim(), icon: j.icon, awayOnly: j.awayOnly, order: j.order })));
+
 function Editor({ seasonId, rota, seasonSelect }: { seasonId: string; rota: Rota | null; seasonSelect: ReactNode }) {
   const data = useAdmin();
   const toast = useToast();
@@ -80,6 +83,32 @@ function Editor({ seasonId, rota, seasonSelect }: { seasonId: string; rota: Rota
   const nameOf = (id: string) => nameFor(data.players.find((p) => p.id === id), seasonId);
   const [jobs, setJobs] = useState<RotaJob[]>(() => rota?.jobs ?? []);
   const [started, setStarted] = useState(!!rota);
+  // Another captain's save never remounts the editor: the live rota is adopted while there are no local
+  // edits; with edits, «Otro capitán ha cambiado los turnos · Recargar». (`base`: the saved version the
+  // edits start from; `seen`: the last live version accounted for; `ours`: what our own save writes.)
+  const remote = rota ? norm(rota.jobs) : null;
+  const [base, setBase] = useState<string | null>(remote);
+  const [seen, setSeen] = useState<string | null>(remote);
+  const [ours, setOurs] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+  if (remote !== seen) {
+    setSeen(remote);
+    const clean = base === null ? !started : norm(jobs) === base;
+    if (remote !== null && remote === ours) setBase(remote);
+    else if (rota && clean) {
+      setJobs(rota.jobs);
+      setBase(remote);
+      setStarted(true);
+      setStale(false);
+    } else if (remote !== base) setStale(true);
+  }
+  const reload = () => {
+    setJobs(rota?.jobs ?? []);
+    setBase(remote);
+    setStarted(!!rota);
+    setStale(false);
+  };
+  const [adding, setAdding] = useState<Readonly<Record<string, string>>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [moved, setMoved] = useState("");
@@ -110,7 +139,11 @@ function Editor({ seasonId, rota, seasonSelect }: { seasonId: string; rota: Rota
     setMoved(`${nameOf(order[at])}, ahora el ${to + 1}.º en «${jobs[i].name.trim() || "el turno"}»`);
   };
   const removeMember = (i: number, at: number) => setJob(i, { order: jobs[i].order.filter((_, k) => k !== at) });
-  const addMember = (i: number, id: string) => id && setJob(i, { order: [...jobs[i].order, id].slice(0, ROTA_LIMITS.order) });
+  const addMember = (i: number, id: string) => {
+    if (!id) return;
+    setJob(i, { order: [...jobs[i].order, id].slice(0, ROTA_LIMITS.order) });
+    setAdding((a) => ({ ...a, [jobs[i].id]: "" }));
+  };
   const startDefaults = () => {
     const order = roster.map((p) => p.id).slice(0, ROTA_LIMITS.order);
     setJobs(DEFAULT_JOBS.map((j) => ({ ...j, order: [...order] })));
@@ -121,10 +154,15 @@ function Editor({ seasonId, rota, seasonSelect }: { seasonId: string; rota: Rota
     if (errors.length || saving) return;
     setSaving(true);
     setSaveError("");
+    const mine = norm(jobs);
+    setOurs(mine);
     try {
       await writes.saveRota(seasonId, jobs);
+      setBase(mine);
+      setStale(false);
       toast.show({ tag: "TURNOS", message: "Turnos guardados" });
     } catch (e) {
+      setOurs(null);
       setSaveError(`No se han podido guardar: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSaving(false);
@@ -151,7 +189,16 @@ function Editor({ seasonId, rota, seasonSelect }: { seasonId: string; rota: Rota
   return (
     <div className="tu-adm">
       {seasonSelect}
-      <p className="hint">Cada partido jugado pasa el turno al siguiente de la lista. Se salta a quien dijo «No puedo» o está ausente; el coche, solo fuera de casa.</p>
+      {stale && (
+        <p className="tu-stale" role="status">
+          <AdIcon name="alert" size={15} />
+          <span>Otro capitán ha cambiado los turnos</span>
+          <button type="button" className="btn sm line" onClick={reload}>
+            Recargar
+          </button>
+        </p>
+      )}
+      <p className="hint">Le toca a quien más tiempo lleva sin hacerlo, por el orden de la lista si empatan. Se salta a quien dijo «No puedo» o está ausente, y nadie hace dos turnos en el mismo partido si hay otro; el coche, solo fuera de casa.</p>
       {jobs.map((job, i) => {
         const label = job.name.trim() || `Turno ${i + 1}`;
         const free = roster.filter((p) => !job.order.includes(p.id));
@@ -215,17 +262,23 @@ function Editor({ seasonId, rota, seasonSelect }: { seasonId: string; rota: Rota
               <p className="hint">Nadie en la lista: añade a quien entra en el turno.</p>
             )}
             {free.length > 0 && job.order.length < ROTA_LIMITS.order && (
-              <label className="fld tu-add">
-                <span className="lbl">Añadir a la lista</span>
-                <select className="inp" value="" onChange={(e) => addMember(i, e.target.value)}>
-                  <option value="">Elige un jugador…</option>
-                  {free.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {nameOf(p.id)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="tu-add">
+                <label className="fld">
+                  <span className="lbl">Añadir a la lista</span>
+                  <select className="inp" value={adding[job.id] ?? ""} onChange={(e) => setAdding((a) => ({ ...a, [job.id]: e.target.value }))}>
+                    <option value="">Elige un jugador…</option>
+                    {free.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {nameOf(p.id)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button type="button" className="btn sm line" onClick={() => addMember(i, adding[job.id] ?? "")} disabled={!adding[job.id]} aria-label={`Añadir a la lista de ${label}`}>
+                  <AdIcon name="plus" size={15} />
+                  Añadir
+                </button>
+              </div>
             )}
           </section>
         );

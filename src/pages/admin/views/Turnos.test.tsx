@@ -56,6 +56,46 @@ describe("Turnos (admin)", () => {
     expect(screen.getByRole("status")).toHaveTextContent(`${name}, ahora el 1.º en «Lavar la equipación»`);
   });
 
+  it("«Añadir a la lista»: choosing a player adds nothing until «Añadir»", async () => {
+    const [a, b] = roster;
+    h.rota = { jobs: [{ id: "lavar", name: "Lavar la equipación", icon: "shirt", awayOnly: false, order: [a] }] };
+    const user = userEvent.setup();
+    render(<Turnos />);
+    const list = () => within(screen.getByRole("list", { name: "Orden de Lavar la equipación" })).getAllByRole("listitem");
+    expect(list()).toHaveLength(1);
+    const add = screen.getByRole("button", { name: "Añadir a la lista de Lavar la equipación" });
+    expect(add).toBeDisabled();
+    await user.selectOptions(screen.getByRole("combobox", { name: "Añadir a la lista" }), b);
+    expect(list()).toHaveLength(1);
+    await user.click(add);
+    expect(list()).toHaveLength(2);
+  });
+
+  it("another captain's save: adopted when nothing is being edited; with edits, «Otro capitán ha cambiado los turnos · Recargar»", async () => {
+    const [a, b, c] = roster;
+    const job = (order: string[], name = "Lavar la equipación") => ({ jobs: [{ id: "lavar", name, icon: "shirt" as const, awayOnly: false, order }] });
+    h.rota = job([a, b]);
+    const user = userEvent.setup();
+    const { rerender } = render(<Turnos />);
+    // nothing edited: the new rota just shows
+    h.rota = job([a, b], "Lavar los petos");
+    rerender(<Turnos />);
+    expect(screen.getByRole("heading", { name: "Lavar los petos" })).toBeInTheDocument();
+    expect(screen.queryByText("Otro capitán ha cambiado los turnos")).not.toBeInTheDocument();
+    // edited here, then changed there: the edits stay, and the captain is told
+    const name = screen.getByRole("textbox", { name: "Nombre" });
+    await user.clear(name);
+    await user.type(name, "Mi cambio");
+    h.rota = job([b, a, c], "Lavar los petos");
+    rerender(<Turnos />);
+    expect(screen.getByRole("textbox", { name: "Nombre" })).toHaveValue("Mi cambio");
+    expect(screen.getByText("Otro capitán ha cambiado los turnos")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Recargar" }));
+    expect(screen.getByRole("textbox", { name: "Nombre" })).toHaveValue("Lavar los petos");
+    expect(within(screen.getByRole("list", { name: "Orden de Lavar los petos" })).getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.queryByText("Otro capitán ha cambiado los turnos")).not.toBeInTheDocument();
+  });
+
   it("what the rules refuse is said before saving: a job without a name", async () => {
     h.rota = { jobs: [{ id: "lavar", name: "", icon: "shirt", awayOnly: false, order: [] }] };
     const user = userEvent.setup();

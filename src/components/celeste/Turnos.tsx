@@ -67,8 +67,10 @@ export function MatchTurnsLine({ match, matches, nameOf, me, enabled, className 
 
 /** The match page's Vestuario tab: every job of the match, who does it, and whether a captain changed it. */
 export function TurnsList({ match, matches, nameOf, me, enabled }: { match: ClubMatch; matches: readonly ClubMatch[]; nameOf: (id: string) => string; me: string | null | undefined; enabled: boolean }) {
-  const { turns, rota } = useMatchTurns(match, matches, enabled);
-  if (!rota?.jobs.length || !turns.length) return null;
+  // (a cancelled or postponed match has no turns: nothing is read for it)
+  const off = match.status === "cancelled" || match.status === "postponed";
+  const { turns, rota } = useMatchTurns(match, matches, enabled && !off);
+  if (off || !rota?.jobs.length || !turns.length) return null;
   return (
     <section className="fc-sec tn-list" aria-labelledby={`tn-${match.id}`}>
       <span className="hm-kick">Turnos del equipo</span>

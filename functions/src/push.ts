@@ -21,7 +21,7 @@ import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
 import { absencesOnMatch } from "./absenceAnswers.js";
 import { matchActive, matchActiveTx, noticeMatchId, runOptionalMatchTransaction } from './matchAccess.js';
-import { notifyRota } from "./rota.js";
+import { freezeOnMatch, notifyRota, notifyRotaChange } from "./rota.js";
 
 export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
 /** Public half of the key pair (also in the app, src/lib/push.ts). */
@@ -154,6 +154,10 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   } catch (e) {
     console.error("absencesOnMatch", event.params.matchId, e);
   }
+  // Turnos del equipo: a match that just finished (the acta) or whose clock just ended is history: its
+  // turns are frozen (rota.ts; never in the way of the notices, it logs its own errors).
+  const ended = (m: MatchLike | undefined) => !!m && (m.status === "finished" || m.clock?.phase === "ended" || typeof m.liveEndedAt === "number");
+  if (ended(after) && !ended(before)) await freezeOnMatch(event.params.matchId);
   // (names only when a notice needs them: most writes of a match say nothing)
   const now = Date.now();
   const draft = noticesFor(event.params.matchId, before, after, () => "", now);
@@ -175,6 +179,15 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   } else await sendTo(conv);
   // Turnos del equipo: the convocatoria is out — «Te toca…» to whoever's turn it is (once per match and job).
   await notifyRota(event.params.matchId);
+});
+
+/** Turnos del equipo: a captain's pin or swap tells the newly assigned member «Te toca…» (rota.ts). */
+export const rotaTurnsOnWrite = onDocumentWritten({ document: "rotaTurns/{matchId}", secrets: [vapidPrivate] }, async (event) => {
+  try {
+    await notifyRotaChange(event.params.matchId, event.data?.before.data(), event.data?.after.data());
+  } catch (e) {
+    console.error("rotaTurnsOnWrite", event.params.matchId, e);
+  }
 });
 
 /** A claimed notice that stayed quiet: the other «siete» notice told the team (the log says why). */

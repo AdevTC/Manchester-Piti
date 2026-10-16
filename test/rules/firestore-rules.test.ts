@@ -1528,6 +1528,13 @@ describe("Turnos del equipo (rotas, rotaTurns)", () => {
       { jobs: [job({ order: Array.from({ length: 41 }, (_, k) => `p${k}`) })] },
       { jobs: [job({ order: "p1" })] },
       { jobs: [job({ id: "Con Espacios" })] },
+      { jobs: [job({ id: "frozen" })] },
+      { jobs: [job({ order: ["p1", 3] })] },
+      { jobs: [job({ order: [true] })] },
+      { jobs: [job({ order: ["p1", ""] })] },
+      { jobs: [job({ order: [{ id: "p1" }] })] },
+      { jobs: [job({ order: ["p1", null] })] },
+      { jobs: [job({ order: [1.5] })] },
       { jobs: [job({ extra: 1 })] },
       { jobs: [{ id: "a", name: "A", icon: "shirt", awayOnly: false }] },
       { jobs: ["lavar"] },
@@ -1552,10 +1559,39 @@ describe("Turnos del equipo (rotas, rotaTurns)", () => {
       { lavar: turn({ extra: 1 }) },
       { lavar: "p1" },
       Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`j${i}`, turn()])),
+      { "Con Espacios": turn() },
+      { LAVAR: turn() },
+      { ["x".repeat(41)]: turn() },
+      { lavar: turn(), seasonId: 3 },
+      { lavar: turn(), seasonId: "" },
+      { lavar: turn(), frozen: "yes" },
     ];
     for (const d of bad) await assertFails(setDoc(doc(db("admin"), "rotaTurns", "bad"), d));
+    // the season's id goes with a captain's pin (the season's query reads it); six jobs and it fit
+    await assertSucceeds(setDoc(doc(db("admin"), "rotaTurns", "six"), { seasonId: "s1", ...Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`j${i}`, turn()])) }));
     await assertFails(deleteDoc(ref("member")));
     await assertSucceeds(deleteDoc(ref("admin")));
+  });
+  it("the freeze is the backend's: captains never set or clear it; they can still edit a frozen turn, never drop one", async () => {
+    const frozen = { seasonId: "s1", frozen: true, lavar: { playerId: "p1", at: Timestamp.fromMillis(0) }, coche: { playerId: "p2", at: Timestamp.fromMillis(0) } };
+    // nobody creates a frozen doc from the web
+    await assertFails(setDoc(doc(db("admin"), "rotaTurns", "f0"), { seasonId: "s1", frozen: true, lavar: turn() }));
+    await seed("rotaTurns/f1", frozen);
+    const ref = (uid: string) => doc(db(uid), "rotaTurns", "f1");
+    // «Lo hizo otro»: the turn changes, the freeze stays
+    await assertSucceeds(setDoc(ref("admin"), { seasonId: "s1", lavar: turn({ playerId: "p3", swappedFrom: "p1" }) }, { mergeFields: ["seasonId", "lavar"] }));
+    await assertFails(setDoc(ref("member"), { lavar: turn({ playerId: "p4" }) }, { merge: true }));
+    // the flag can't be cleared, nor a turn dropped, nor the doc deleted, nor its season changed
+    await assertFails(setDoc(ref("admin"), { frozen: false }, { merge: true }));
+    await assertFails(updateDoc(ref("admin"), { frozen: deleteField() }));
+    await assertFails(updateDoc(ref("admin"), { coche: deleteField() }));
+    await assertFails(setDoc(ref("admin"), { seasonId: "s1", lavar: turn() }));
+    await assertFails(setDoc(ref("admin"), { seasonId: "s2" }, { merge: true }));
+    await assertFails(deleteDoc(ref("admin")));
+    // an unfrozen doc can't be frozen from the web either
+    await seed("rotaTurns/u1", { seasonId: "s1", lavar: { playerId: "p1", at: Timestamp.fromMillis(0) } });
+    await assertFails(setDoc(doc(db("admin"), "rotaTurns", "u1"), { frozen: true }, { merge: true }));
+    await assertSucceeds(updateDoc(doc(db("admin"), "rotaTurns", "u1"), { lavar: deleteField() }));
   });
 });
 describe("Tras el partido: reacciones y nota (matches/{id}/reactions, matches/{id}/ratings)", () => {
