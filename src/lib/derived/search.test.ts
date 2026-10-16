@@ -98,6 +98,14 @@ describe("searchEntries", () => {
     const boosted: SearchEntry[] = [entry({ id: "old", kind: "partido", title: "Rayo" }), entry({ id: "next", kind: "partido", title: "Rayo", boost: 5 })];
     expect(flattenGroups(searchEntries(boosted, "rayo")).map((e) => e.id)).toEqual(["next", "old"]);
   });
+  it("letters in order only when no word matches", () => {
+    const riv: SearchEntry[] = [
+      entry({ id: "ensayo", kind: "rival", title: "Deportivo Ensayo" }),
+      entry({ id: "rayo", kind: "rival", title: "Rayo Pruebas" }),
+    ];
+    expect(flattenGroups(searchEntries(riv, "rayo")).map((e) => e.id)).toEqual(["rayo"]);
+    expect(flattenGroups(searchEntries(riv, "dpte")).map((e) => e.id)).toEqual(["ensayo"]);
+  });
   it("never more than 8 results", () => {
     const many = Array.from({ length: 30 }, (_, i) => entry({ id: `x${i}`, kind: (["jugador", "partido", "rival", "temporada", "seccion"] as const)[i % 5], title: `Alfa ${i}` }));
     expect(flattenGroups(searchEntries(many, "alfa"))).toHaveLength(SEARCH_LIMIT);

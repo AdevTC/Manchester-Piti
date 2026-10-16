@@ -83,6 +83,9 @@ export function matchScore(item: ScoredSearchable, query: string): number {
   return 10 + Math.round(20 * (compact.length / span));
 }
 
+/** Scores below this are fuzzy-lite (10–30); every word match scores at least this. */
+const FUZZY_CEILING = 50;
+
 // ---------- the public search: what it finds, and how the results are ranked and grouped
 
 export type SearchKind = "jugador" | "partido" | "rival" | "temporada" | "seccion";
@@ -140,12 +143,16 @@ const KIND_LIMIT: Record<SearchKind, number> = { jugador: 5, partido: 5, rival: 
 /** The results for `query`: ranked by score (ties: players, matches, rivals, seasons, sections, then the
  *  entries' own order), capped, then grouped by kind — the group with the best hit first. */
 export function searchEntries(entries: readonly SearchEntry[], query: string): SearchGroup[] {
-  const ranked = entries
+  const scored = entries
     .map((e, i) => {
-      const s = matchScore(e, query);
-      return { e, i, s: s ? s + (e.boost ?? 0) : 0 };
+      const base = matchScore(e, query);
+      return { e, i, base, s: base ? base + (e.boost ?? 0) : 0 };
     })
-    .filter((r) => r.s > 0)
+    .filter((r) => r.s > 0);
+  // (letters in order are a fallback: once a word matches, «rayo» no longer finds «Deportivo Ensayo»)
+  const real = scored.some((r) => r.base >= FUZZY_CEILING);
+  const ranked = scored
+    .filter((r) => !real || r.base >= FUZZY_CEILING)
     .sort((a, b) => b.s - a.s || KIND_ORDER.indexOf(a.e.kind) - KIND_ORDER.indexOf(b.e.kind) || a.i - b.i);
   const perKind = new Map<SearchKind, number>();
   const kept: SearchEntry[] = [];
