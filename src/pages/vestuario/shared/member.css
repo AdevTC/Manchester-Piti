@@ -8,7 +8,8 @@
 .ma-error{margin:10px 0 0;font-size:14px;color:var(--ma-err)}
 .vx .ma-note{margin:10px 0 0;font-family:'Geist Mono';font-size:12px;line-height:1.5;color:var(--muted);text-align:var(--ma-note-align,center)}
 .ma-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border-radius:999px;border:0;background:var(--ma-btn-bg,var(--btn-on));color:var(--ma-btn-ink,var(--btn-on-ink));font:inherit;font-weight:600;font-size:14px;cursor:pointer}
-.ma-btn[disabled]{opacity:.55;cursor:default}
+.ma-btn[disabled],.ma-btn[aria-disabled="true"]{opacity:.55;cursor:default}
+.ma-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* RSVP: a three-way switch, the chosen one under the thumb and with a tick (never colour alone) */
 .ma-rsvp{margin-top:16px}

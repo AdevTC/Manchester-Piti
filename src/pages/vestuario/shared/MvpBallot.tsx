@@ -37,8 +37,9 @@ export function MvpBallot({ match, now, uid, counts, nameOf, total, className }:
   if (!candidates.length) return null;
   const voted = myVote.data || undefined;
   const pick = selection?.id === match.id ? selection.pick : voted;
+  const idle = !pick || pick === voted;
   const vote = () => {
-    if (me && pick) write(() => voteMvp(me, match.id, pick));
+    if (me && pick && !idle) write(() => voteMvp(me, match.id, pick));
   };
   return (
     <div className={`ma-ballot${className ? ` ${className}` : ""}`}>
@@ -55,7 +56,9 @@ export function MvpBallot({ match, now, uid, counts, nameOf, total, className }:
         </div>
       </fieldset>
       <div className="ma-ballot-foot">
-        <button type="button" className="ma-btn" disabled={!pick || pick === voted} onClick={vote}>
+        {/* aria-disabled, not disabled: once the vote lands («Voto guardado») the focus stays on the button
+            instead of falling to the page's top */}
+        <button type="button" className="ma-btn" aria-disabled={idle} onClick={vote}>
           {pick && pick === voted ? "Voto guardado" : voted ? "Cambiar mi voto" : "Votar al MVP"}
         </button>
         {total != null && (
