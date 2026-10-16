@@ -72,9 +72,9 @@ describe("achievements: the catalogue", () => {
 
   it("dates the medal and names the rival: «vs Rival m4 · 22 oct»", () => {
     expect(A.comodin.at).toEqual({ matchId: "m4", date: at(3), rival: "Rival m4" });
-    expect(A.comodin.detail).toBe("vs Rival m4 · 22 oct");
-    expect(A.hat.detail).toBe("vs Rival m1 · 1 oct");
-    expect(A.invicto.detail).toBe("vs Rival m9 · 26 nov");
+    expect(A.comodin.detail).toBe("vs Rival m4 · 22 oct 2026");
+    expect(A.hat.detail).toBe("vs Rival m1 · 1 oct 2026");
+    expect(A.invicto.detail).toBe("vs Rival m9 · 26 nov 2026");
   });
 
   it("shows the progress of what is still to come: «9 / 10»", () => {
@@ -137,6 +137,18 @@ describe("achievements: the rules", () => {
     const games = chronological(MATCHES);
     const viaMvpOf = achievements("me", MATCHES, { ...CTX, mvpOf: mvpOfFrom(MVP, games, NOW) });
     expect(viaMvpOf).toEqual(list);
+  });
+
+  it("a closed MVP vote counts even when its winner is marked as not played", () => {
+    const games = [
+      match("v1", 0, 1, 0, { voteClosesAt: at(0) + DAY, ledger: { me: row(0, { played: false, started: false, benched: true }) } }),
+      match("v2", 1, 1, 0, { ledger: { me: row(50) } }),
+    ];
+    const votes = new Map<string, MvpResult>([["v1", { id: "v1", counts: { me: 2 }, total: 2 }]]);
+    const r = byId(achievements("me", games, { ...CTX, mvpResults: votes }));
+    expect(r.mvp).toMatchObject({ earned: true, at: { matchId: "v1" }, progress: { now: 1, goal: 1 } });
+    expect(r["mvp-3"].progress).toEqual({ now: 1, goal: 3 });
+    expect(r.debut.at?.matchId).toBe("v2");
   });
 
   it("a player with nothing: every medal unearned, «0 / n»", () => {

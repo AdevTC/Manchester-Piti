@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Achievement } from "../../lib/derived/achievements";
 import { Logros } from "./Logros";
-import { groupLogros, medalDay, progressText } from "./logrosView";
+import { groupLogros, medalDay, progressText, progressWords } from "./logrosView";
 
 // «Logros»: the earned crests with their tier in words and the match they were won in, «Lo próximo» with
 // «7 / 10», the rest folded; and a pure render (the host's `now`, Madrid dates) the SSR can hydrate.
@@ -57,6 +57,10 @@ describe("textos", () => {
   it("el progreso en palabras, sin pasarse de la meta", () => {
     expect(progressText({ now: 7, goal: 10 })).toBe("7 / 10");
     expect(progressText({ now: 14, goal: 10 })).toBe("10 / 10");
+    // minutes with seconds: whole ones, and 999.6 never reads 1000
+    expect(progressText({ now: 523.45, goal: 1000 })).toBe("523 / 1000");
+    expect(progressText({ now: 999.6, goal: 1000 })).toBe("999 / 1000");
+    expect(progressWords({ now: 999.6, goal: 1000 })).toBe("999 de 1000");
   });
 });
 
@@ -85,6 +89,16 @@ describe("Logros", () => {
     expect(rows[2]).toHaveTextContent("Oro");
     expect(rows[2]).toHaveTextContent("1 / 5");
     expect(rows[0].querySelector(".lg-bar i")).toHaveStyle({ width: "70%" });
+  });
+
+  it("lo próximo se lee en palabras sin repetir el detalle, y su título sigue al del bloque", () => {
+    const { rerender } = render(<Logros list={LIST} next={NEXT} now={NOW} />);
+    const next = screen.getByRole("region", { name: "Lo próximo" });
+    expect(next).toHaveTextContent("7 de 10");
+    expect(next).not.toHaveTextContent("Marca 10 goles");
+    expect(within(next).getByRole("heading", { level: 3, name: "Lo próximo" })).toBeInTheDocument();
+    rerender(<Logros list={LIST} next={NEXT} now={NOW} headingLevel={4} />);
+    expect(within(screen.getByRole("region", { name: "Lo próximo" })).getByRole("heading", { level: 4, name: "Lo próximo" })).toBeInTheDocument();
   });
 
   it("el resto, plegado en «Todos los logros»", () => {

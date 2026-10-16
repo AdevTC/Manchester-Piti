@@ -5,7 +5,7 @@
 // server-rendered jugador page and the client draw the same markup.
 import { Link } from "@tanstack/react-router";
 import type { Achievement, AchievementFamily } from "../../lib/derived/achievements";
-import { groupLogros, medalDay, progressText, TIER_WORD } from "./logrosView";
+import { groupLogros, medalDay, progressText, progressWords, TIER_WORD } from "./logrosView";
 import { Icon, type IconName } from "./icons";
 import "./logros.css";
 
@@ -61,14 +61,16 @@ function Progress({ a }: { a: Achievement }) {
         <i style={{ width: `${pct}%` }} />
       </span>
       <small className="lg-num">
-        {progressText(a.progress)}
-        <span className="hm-sr"> ({a.detail})</span>
+        <span aria-hidden="true">{progressText(a.progress)}</span>
+        <span className="hm-sr">{progressWords(a.progress)}</span>
       </small>
     </span>
   );
 }
 
-export function Logros({ list, next, now, self = false }: { list: Achievement[]; next: Achievement[]; now: number; self?: boolean }) {
+/** `headingLevel`: the level of «Lo próximo», one below the title of the block that holds the list (3 on the jugador page, 4 in the perfil). */
+export function Logros({ list, next, now, self = false, headingLevel = 3 }: { list: Achievement[]; next: Achievement[]; now: number; self?: boolean; headingLevel?: 3 | 4 }) {
+  const Heading = `h${headingLevel}` as const;
   const g = groupLogros(list, next);
   return (
     <div className="lg">
@@ -100,7 +102,7 @@ export function Logros({ list, next, now, self = false }: { list: Achievement[];
 
       {g.next.length > 0 && (
         <section className="lg-next" aria-label="Lo próximo">
-          <h3 className="lg-h">Lo próximo</h3>
+          <Heading className="lg-h">Lo próximo</Heading>
           <ul>
             {g.next.map((a) => (
               <li key={a.id}>

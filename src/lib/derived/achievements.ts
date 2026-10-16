@@ -27,6 +27,7 @@ import { playerPositions } from "../positionStats";
 import { lineOf } from "../positions";
 import { mvpWinners, type MvpResult } from "../vestuario";
 import type { MvpOf } from "./mvpOf";
+import { medalDay } from "./medalDay";
 import { totalMinutes } from "./minutesOf";
 import { resultLetter } from "./result";
 
@@ -40,7 +41,7 @@ export interface Achievement {
   tier: 0 | 1 | 2 | 3;
   /** «10 goles». */
   label: string;
-  /** «vs Rayo · 12 oct» when earned, «7 / 10» when not. */
+  /** «vs Rayo · 12 oct» (plus the year when it isn't this one) when earned, «7 / 10» when not. */
   detail: string;
   earned: boolean;
   /** The match where the threshold was crossed (earned only). */
@@ -59,10 +60,6 @@ export interface AchievementsCtx {
   seasons?: readonly { id: string; name: string }[];
   now: number;
 }
-
-/** «12 oct» in club time. */
-const shortDate = (ms: number) =>
-  new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short" }).format(ms).replace(".", "");
 
 interface Def {
   id: string;
@@ -136,13 +133,17 @@ export function achievements(playerId: string, matches: ClubMatch[], ctx: Achiev
     scoring = g.goals > 0 ? scoring + 1 : 0;
     bestScoring = Math.max(bestScoring, scoring);
     mark("racha", scoring, 3, m);
+    // a closed MVP vote counts whether or not he is marked as played (as everywhere else on the site)
+    if (won(m)) {
+      totals.mvp++;
+      for (const d of CATALOGUE) if (d.family === "mvp") mark(d.id, totals.mvp, d.goal, m);
+    }
     if (!g.played) continue;
     const { gf, ga } = scoreOf(m);
     const result = resultLetter(gf, ga);
     totals.partidos++;
     totals.goles += g.goals;
     totals.asistencias += g.assists;
-    if (won(m)) totals.mvp++;
     bestGoals = Math.max(bestGoals, g.goals);
     // invicto: his own matches in a row without a defeat (a match he misses neither counts nor breaks it)
     unbeaten = result === "P" ? 0 : unbeaten + 1;
@@ -157,7 +158,6 @@ export function achievements(playerId: string, matches: ClubMatch[], ctx: Achiev
       if (d.family === "partidos") mark(d.id, totals.partidos, d.goal, m);
       else if (d.family === "goles") mark(d.id, totals.goles, d.goal, m);
       else if (d.family === "asistencias") mark(d.id, totals.asistencias, d.goal, m);
-      else if (d.family === "mvp") mark(d.id, totals.mvp, d.goal, m);
     }
     mark("hat", g.goals, 3, m);
     mark("doblete", g.goals, 2, m);
@@ -201,7 +201,7 @@ export function achievements(playerId: string, matches: ClubMatch[], ctx: Achiev
     if (!m) return { ...base, earned: false, detail: `${Math.floor(now)} / ${d.goal}` };
     const date = dateMillis(m.date);
     const rival = m.rival ?? "rival";
-    return { ...base, earned: true, detail: `vs ${rival} · ${shortDate(date)}`, at: { matchId: m.id, date, rival } };
+    return { ...base, earned: true, detail: `vs ${rival} · ${medalDay(date, ctx.now)}`, at: { matchId: m.id, date, rival } };
   });
 }
 

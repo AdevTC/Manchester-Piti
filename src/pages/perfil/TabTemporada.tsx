@@ -168,7 +168,7 @@ export function TabTemporada({ card, seasonId, seasonName, stuff, stuffLoading, 
             <div className="bk" id="pe-logros">
               <h3 className="bk-h">Tus logros</h3>
               <p className="bk-d">Tus medallas de siempre, el partido en que ganaste cada una y lo que tienes más cerca.</p>
-              <Logros list={logros.list} next={logros.next} now={logros.now} self />
+              <Logros list={logros.list} next={logros.next} now={logros.now} self headingLevel={4} />
             </div>
           )}
           <div className="bk">
