@@ -5,7 +5,7 @@ import { seasonPulse } from "../home";
 import { mergeMatches } from "../../pages/admin/data/adminLogic";
 import { boardCalendar, boardSeason } from "../../pages/pizarra/v2/useBoardData";
 import { matchShort } from "../../pages/pizarra/v2/boards";
-import { seasonSquad } from "../../pages/perfil/card";
+import { seasonSquad } from "./card";
 import { upcomingRows } from "../../pages/perfil/avisos";
 import { hasJornada, jornadaLabel, jornadaNumbers, jornadaOf, jornadas } from "./jornada";
 

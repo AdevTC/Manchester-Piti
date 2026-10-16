@@ -40,8 +40,8 @@ import { useAdmin } from "../shell/context";
 import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
+import { plural } from "../../../lib/derived/words";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
 const clip = (s: string, n = 60) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 const MONTH = new Intl.DateTimeFormat("es-ES", { month: "long", timeZone: "Europe/Madrid" });

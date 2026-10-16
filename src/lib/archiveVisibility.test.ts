@@ -16,7 +16,7 @@ import { mvpWins } from "./vestuario";
 import { mvpOfFrom } from "./derived/mvpOf";
 import { porraHistory } from "./postMatch";
 import { playerPositions } from "./positionStats";
-import { seasonCalendar, seasonSquad } from "../pages/perfil/card";
+import { seasonCalendar, seasonSquad } from "./derived/card";
 import { buildSquad } from "../pages/pizarra/v2/ratings";
 import { boardSeason } from "../pages/pizarra/v2/useBoardData";
 import { suspensions } from "../pages/pizarra/chemistry";

@@ -5,12 +5,12 @@ import type { ClubMatch } from "../../lib/clubData";
 import type { PlayerDoc } from "../../lib/schemas";
 import { resolvePositions, sanitizePositions, type PosCode, type PositionSet } from "../../lib/positions";
 import { proposalDiff, proposalState, type ProposalState } from "../../lib/positionsEdit";
-import { porraPosition, type MvpResult } from "../../lib/vestuario";
-import { playerPositions, type PlayerPositions } from "../../lib/positionStats";
-import { mvpOfFrom } from "../../lib/derived/mvpOf";
-import type { SquadPlayer } from "../pizarra/v2/ratings";
+import { resolveShirt } from "../../lib/derived/seasonPlayers";
 import type { FichaState } from "./card";
 import type { SquadShirt } from "./rules";
+
+// (the squad, porra and positions pieces moved to lib/derived/seasonPlayers; re-exported for the perfil)
+export { porraLine, positionsPlayed, resolveShirt, seasonPlayers, type PorraLine } from "../../lib/derived/seasonPlayers";
 
 const TZ = "Europe/Madrid";
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -30,44 +30,6 @@ export function fichaInfo(linkedId: string | undefined | null, claim: ClaimLike 
   if (linkedId) return { state: "vinculada", playerId: linkedId, rejectedPlayerId: null };
   if (claim?.status === "pending") return { state: "pendiente", playerId: claim.playerId, rejectedPlayerId: null };
   return { state: "sin-ficha", playerId: null, rejectedPlayerId: claim?.status === "rejected" ? claim.playerId : null };
-}
-
-type Detail = { shirtName?: unknown; number?: unknown };
-const detailOf = (p: PlayerDoc, sid: string): Detail | null => {
-  const d = p.seasonDetails?.[sid];
-  return d && typeof d === "object" ? (d as Detail) : null;
-};
-/** The shirt name and dorsal of a season, as the pizarra and the plantilla print them. */
-export function resolveShirt(p: PlayerDoc, seasonId: string, seasons: { id: string }[]): { shirtName: string; number: number } {
-  const sid = seasonId !== "all" && detailOf(p, seasonId) ? seasonId : [...seasons].reverse().find((s) => p.seasons?.includes(s.id) && detailOf(p, s.id))?.id;
-  const d = sid ? detailOf(p, sid) : null;
-  return {
-    shirtName: (typeof d?.shirtName === "string" && d.shirtName) || p.shirtName || "",
-    number: typeof d?.number === "number" ? d.number : (p.number ?? 0),
-  };
-}
-
-/** The season's squad for the cromos (and the card): its players, plus `me` if he isn't in it. */
-export function seasonPlayers(players: PlayerDoc[], seasonId: string, seasons: { id: string }[], me: string | null): SquadPlayer[] {
-  return players
-    .filter((p) => seasonId === "all" || p.seasons?.includes(seasonId) || p.id === me)
-    .map((p) => {
-      const { shirtName, number } = resolveShirt(p, seasonId, seasons);
-      const pos = resolvePositions(p);
-      return {
-        id: p.id,
-        shirtName,
-        firstName: p.firstName ?? "",
-        number,
-        naturalPosition: pos.line ?? undefined,
-        positions: { main: pos.main, also: pos.also },
-        injured: p.injured === true,
-        active: p.active !== false,
-        ...(p.sanction ? { sanction: p.sanction } : {}),
-        ...(typeof p.sanctionClearedAt === "number" ? { sanctionClearedAt: p.sanctionClearedAt } : {}),
-      };
-    })
-    .sort((a, b) => a.number - b.number);
 }
 
 /** Every shirt of the club (for «Ya la lleva el 9 (ERIK)»): the name each player wears this season. */
@@ -173,19 +135,6 @@ export function boardsLine(mine: BoardLike[]): BoardsLine {
   return { count: mine.length, last: last ? { id: last.id, name: last.name, at: last.updatedAt ?? last.createdAt, season: last.seasonId ?? null } : null };
 }
 
-export interface PorraLine {
-  /** Predictions on finished matches this season. */
-  predictions: number;
-  exact: number;
-  points: number;
-  rank: number;
-  of: number;
-}
-export function porraLine(rows: { uid: string; points: number; exact: number; played: number }[], uid: string): PorraLine | null {
-  const pos = porraPosition(rows, uid);
-  return pos ? { predictions: pos.row.played, exact: pos.row.exact, points: pos.row.points, rank: pos.position, of: rows.length } : null;
-}
-
 export type Answer = "yes" | "no" | "maybe";
 /** The matches whose convocatoria counts this season: the played ones and the next one (not cancelled or postponed). */
 export function convocatoriaMatches(calendar: ClubMatch[], nextId: string | null): ClubMatch[] {
@@ -212,10 +161,4 @@ export function convocatoriaLine(answers: Map<string, Answer>, matchIds: string[
     next: nextId ? (answers.get(nextId) ?? null) : null,
     nextId,
   };
-}
-
-/** «Dónde has jugado»: his minutes, events and rating by position over the season's calendar, with the
- *  MVPs as every page (derived/mvpOf), so the perfil's rating is jugador's. */
-export function positionsPlayed(playerId: string, calendar: ClubMatch[], mvpResults: ReadonlyMap<string, MvpResult>, now: number): PlayerPositions {
-  return playerPositions(playerId, calendar, mvpOfFrom(mvpResults, calendar, now));
 }

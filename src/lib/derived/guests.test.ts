@@ -24,7 +24,7 @@ import { MAX_GUESTS, guestLabel, guestOf, guestRef, guestsProblem, isGuestId, wi
 import { guestRefsProblem, guestRemovalProblem } from "../../../functions/src/guests";
 import { analyseActions } from "../../../functions/src/matchAnalysis";
 import { shooterName, technicalAnalysis } from "../technicalAnalysis";
-import { evoluciones } from "../../pages/perfil/card";
+import { evoluciones } from "./card";
 
 const GUESTS: MatchGuest[] = [{ id: "g1", name: "Rafa" }];
 const RAFA = guestRef("g1");

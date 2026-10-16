@@ -7,6 +7,7 @@ import type { ClubMatch } from "./clubData";
 import { jornadas } from "./derived/jornada";
 import { withGuestNames, type MatchGuest } from "./derived/guests";
 import { resultLetter, type ResultLetter } from "./derived/result";
+import { capital } from "./derived/words";
 
 export type Result = ResultLetter;
 export type Filter = "all" | "next" | "results";
@@ -153,16 +154,18 @@ export function exchangeMinute(events: readonly MatchEvent[] | undefined, player
 export const shownOffset = (m: Pick<ClubMatch, "clock">): number => (m.clock ? 1 : 0);
 
 const fmt = (ms: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, ...o }).format(ms);
-/** Date pieces for a calendar row: "DOM", "8", "NOV", "12:00", "domingo, 8 nov". */
+/** Date pieces for a calendar row: "DOM", "8", "NOV", "12:00", "domingo, 8 nov" (and "Domingo, 8 nov" to open a line). */
 export function dateParts(date: unknown) {
   const ms = dateMillis(date);
-  if (!Number.isFinite(ms)) return { wd: "—", day: "?", mon: "", time: "—", long: "Fecha por confirmar" };
+  if (!Number.isFinite(ms)) return { wd: "—", day: "?", mon: "", time: "—", long: "Fecha por confirmar", longCap: "Fecha por confirmar" };
+  const long = fmt(ms, { weekday: "long", day: "numeric", month: "short" }).replace(".", "");
   return {
     wd: fmt(ms, { weekday: "short" }).replace(".", "").toUpperCase(),
     day: fmt(ms, { day: "numeric" }),
     mon: fmt(ms, { month: "short" }).replace(".", "").toUpperCase(),
     time: fmt(ms, { hour: "2-digit", minute: "2-digit" }),
-    long: fmt(ms, { weekday: "long", day: "numeric", month: "short" }).replace(".", ""),
+    long,
+    longCap: capital(long),
   };
 }
 

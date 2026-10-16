@@ -229,6 +229,7 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
               {match.venue && (
                 <a className="hm-ghostbtn" href={mapsUrl(match.venue)} target="_blank" rel="noreferrer">
                   Cómo llegar <Icon name="arrow" size={16} stroke={2.2} />
+                  <span className="hm-sr"> (se abre en otra pestaña)</span>
                 </a>
               )}
             </div>
@@ -303,13 +304,33 @@ function toTarget(id: string, focus?: string) {
   (focus ? el.querySelector<HTMLElement>(focus) : el)?.focus({ preventScroll: true });
 }
 
+/** «37′» on screen, «minuto 37» for a screen reader (the prime alone reads as a stray mark); before the
+ *  clock runs (no minute yet) it reads 0. */
+function Minute({ m: given }: { m: number | null }) {
+  const m = given ?? 0;
+  return (
+    <>
+      <span aria-hidden="true">{m}′</span>
+      <span className="hm-sr">minuto {m}</span>
+    </>
+  );
+}
+
 /** Live: the minute (the shared clock when there is one), the bar, the last event and the way to the match. */
 function Live({ match, now, halftime, nameOf }: { match: ClubMatch; now: number; halftime: boolean; nameOf: (id: string) => string }) {
   const play = livePlay(match, now, nameOf);
   return (
     <>
       <p className="hoy-minute">
-        {halftime ? <b>Descanso</b> : match.clock ? <MatchClockDisplay match={match} /> : <b>{play.minute}′</b>}
+        {halftime ? (
+          <b>Descanso</b>
+        ) : match.clock ? (
+          <MatchClockDisplay match={match} />
+        ) : (
+          <b>
+            <Minute m={play.minute} />
+          </b>
+        )}
       </p>
       <div className="pt-prog hoy-prog" aria-hidden="true">
         <i style={{ width: `${play.progress}%` }} />
@@ -317,7 +338,10 @@ function Live({ match, now, halftime, nameOf }: { match: ClubMatch; now: number;
       <p className="hoy-last" aria-live="polite">
         {play.last ? (
           <>
-            <b>{play.last.minute}′</b> {eventLine(play.last)}
+            <b>
+              <Minute m={play.last.minute} />
+            </b>{" "}
+            {eventLine(play.last)}
           </>
         ) : (
           "Arranca el partido"

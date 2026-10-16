@@ -10,6 +10,8 @@ import { normalize } from "../palette/search";
 import { clockTime, type ActaReview, type AdminMatch } from "../data/adminLogic";
 import { matchMoment, type MatchMoment } from "../data/moments";
 import { resultLetter, resultWord, type ResultLetter } from "../kit/result";
+import { plural } from "../../../lib/derived/words";
+import { madridDay } from "../../../lib/derived/madrid";
 
 export type ListGroupKey = "hacer" | "jugar" | "publicados";
 export type ListFilter = "todo" | ListGroupKey;
@@ -54,12 +56,9 @@ export interface ListContext {
   reviewOf: (m: AdminMatch) => ActaReview;
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 /** «1 nov» (Madrid). */
 export function dayOf(ms: number): string {
-  if (!Number.isFinite(ms)) return "sin fecha";
-  const p = Object.fromEntries(new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short" }).formatToParts(ms).map((x) => [x.type, x.value]));
-  return `${p.day} ${String(p.month).replace(".", "")}`;
+  return Number.isFinite(ms) ? madridDay(ms) : "sin fecha";
 }
 /** «en casa» / «fuera». */
 export const whereOf = (m: { home?: boolean }) => (m.home === false ? "fuera" : "en casa");

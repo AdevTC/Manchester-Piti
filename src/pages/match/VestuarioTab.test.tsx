@@ -9,7 +9,7 @@ import type { ClubMatch } from "../../lib/clubData";
 const NOW = Date.UTC(2026, 8, 10, 12);
 type Answer = { uid: string; response: "yes" | "no" | "maybe"; name: string; playerId: string | null; absenceId?: string };
 const MINE: Answer = { uid: "u1", response: "maybe", name: "YO", playerId: null };
-const state = vi.hoisted(() => ({ member: true, answers: [] as Answer[], absences: [] as unknown[], absencesRead: [] as boolean[] }));
+const state = vi.hoisted(() => ({ member: true, answers: [] as Answer[], absences: [] as unknown[], absencesRead: [] as boolean[], predictions: { data: [] as unknown[], loading: false, error: false }, mine: { data: null as unknown, loading: false, error: false } }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to, className }: { children?: ReactNode; to: string; className?: string }) => (
     <a className={className} href={to}>
@@ -19,9 +19,9 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [] }) }));
 // (the tab's «Turnos del equipo»: driven by `rota` below)
-const rota = vi.hoisted(() => ({ turns: [] as unknown[] }));
+const rota = vi.hoisted(() => ({ turns: [] as unknown[], error: false }));
 vi.mock("../../lib/useRotaTurns", () => ({
-  useMatchTurns: () => ({ turns: rota.turns, rota: rota.turns.length ? { jobs: [{}] } : null, pins: {}, loading: false, error: false }),
+  useMatchTurns: () => ({ turns: rota.turns, rota: rota.turns.length ? { jobs: [{}] } : null, pins: {}, loading: false, error: rota.error }),
 }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: state.member }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: { uid: "u1" } }) }));
@@ -32,13 +32,13 @@ vi.mock("../../components/jersey3d/Jersey3D", () => ({ Jersey3D: () => null }));
 vi.mock("../vestuario/live", () => ({
   useAvailability: () => ({ data: state.member ? state.answers : [] }),
   useAbsences: (_today: string, enabled?: boolean) => (state.absencesRead.push(!!enabled), { data: enabled ? state.absences : [] }),
-  useMatchPredictions: () => ({ data: [] }),
+  useMatchPredictions: () => state.predictions,
   useMeetingNote: () => ({ data: "" }),
   useMvpResults: () => new Map([["j5", { id: "j5", counts: { erik: 2 }, total: 2 }]]),
   useMvpResultsSync: () => ({ confirmed: true, stale: false }),
   useMvpReveal: () => false,
   useMyMvpVote: () => ({ data: "" }),
-  useMyPrediction: () => ({ data: null }),
+  useMyPrediction: () => state.mine,
 }));
 vi.mock("../vestuario/writes", () => ({ useMe: () => (state.member ? { uid: "u1", name: "YO", playerId: null } : null), predictScore: vi.fn(), setAvailability: vi.fn(), voteMvp: vi.fn() }));
 const SQUAD = ["erik", "pablo"].map((id) => ({ id, shirtName: id.toUpperCase(), seasons: ["t1"], seasonDetails: { t1: { shirtName: `${id.toUpperCase()}7` } } }));
@@ -55,6 +55,8 @@ beforeEach(() => {
   state.answers = [MINE];
   state.absences = [];
   state.absencesRead = [];
+  state.predictions = { data: [], loading: false, error: false };
+  state.mine = { data: null, loading: false, error: false };
 });
 
 it("the convocatoria lists who is away: «Ausente · hasta …» on a «No puedo» an absence wrote or covers (never colour alone)", () => {
@@ -119,6 +121,28 @@ it("fans get none of them, only the invitation to the vestuario", () => {
   expect(state.absencesRead.every((on) => !on)).toBe(true);
 });
 
+it("the porra of the jornada: the final score in words as well as in gold, each count with its unit", () => {
+  const p = (uid: string, goalsFor: number, goalsAgainst: number) => ({ uid, name: uid, goalsFor, goalsAgainst, goals: [] });
+  state.predictions = { data: [p("a", 2, 1), p("b", 2, 1), p("c", 1, 1)], loading: false, error: false };
+  render(<VestuarioTab match={finished} players={SQUAD} phase="finished" />);
+  const list = screen.getByRole("list", { name: "Los resultados más repetidos" });
+  const rows = [...list.querySelectorAll("li")];
+  expect(rows[0]).toHaveTextContent("2–1 · el resultado2 porras");
+  expect(rows[1]).toHaveTextContent("1–11 porra");
+  expect(rows[1]).not.toHaveTextContent("el resultado");
+  expect(rows[0].querySelector(".bar")).toHaveAttribute("aria-hidden", "true");
+});
+
+it("porras that did not load: an error, never «Nadie hizo porra» nor «No guardaste una porra»", () => {
+  state.predictions = { data: [], loading: false, error: true };
+  state.mine = { data: null, loading: false, error: true };
+  render(<VestuarioTab match={finished} players={SQUAD} phase="finished" />);
+  expect(screen.getByRole("heading", { name: "Las porras no cargan" })).toBeInTheDocument();
+  expect(screen.queryByText("Nadie hizo porra")).toBeNull();
+  expect(screen.getByText("No se ha podido cargar tu porra. Prueba a recargar la página.")).toBeInTheDocument();
+  expect(screen.queryByText(/No guardaste una porra/)).toBeNull();
+});
+
 it("Turnos del equipo: each job and who does it, a captain's change said in words", () => {
   const job = (id: string, name: string, icon: string) => ({ id, name, icon, awayOnly: false, order: [] });
   rota.turns = [
@@ -138,6 +162,18 @@ it("Turnos del equipo: each job and who does it, a captain's change said in word
     expect(screen.queryByRole("region", { name: "¿A quién le toca?" })).toBeNull();
   } finally {
     rota.turns = [];
+  }
+});
+
+it("turns that did not load: the section says so, never an empty list", () => {
+  rota.error = true;
+  try {
+    render(<VestuarioTab match={upcoming(NOW + 86_400_000)} players={SQUAD} phase="scheduled" />);
+    const sec = screen.getByRole("region", { name: "¿A quién le toca?" });
+    expect(sec).toHaveTextContent("No se han podido cargar los turnos.");
+    expect(sec.querySelector("ul")).toBeNull();
+  } finally {
+    rota.error = false;
   }
 });
 

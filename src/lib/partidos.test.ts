@@ -96,7 +96,7 @@ describe("time helpers", () => {
     expect(liveMinute({ date: NOW + MIN }, NOW)).toBeNull();
   });
   it("date pieces in Madrid time", () => {
-    expect(dateParts(Date.UTC(2026, 10, 8, 11))).toEqual({ wd: "DOM", day: "8", mon: "NOV", time: "12:00", long: "domingo, 8 nov" });
+    expect(dateParts(Date.UTC(2026, 10, 8, 11))).toEqual({ wd: "DOM", day: "8", mon: "NOV", time: "12:00", long: "domingo, 8 nov", longCap: "Domingo, 8 nov" });
     expect(dateParts(undefined).long).toBe("Fecha por confirmar");
   });
 });

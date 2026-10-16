@@ -69,14 +69,18 @@ export function MatchTurnsLine({ match, matches, nameOf, me, enabled, className 
 export function TurnsList({ match, matches, nameOf, me, enabled }: { match: ClubMatch; matches: readonly ClubMatch[]; nameOf: (id: string) => string; me: string | null | undefined; enabled: boolean }) {
   // (a cancelled or postponed match has no turns: nothing is read for it)
   const off = match.status === "cancelled" || match.status === "postponed";
-  const { turns, rota } = useMatchTurns(match, matches, enabled && !off);
-  if (off || !rota?.jobs.length || !turns.length) return null;
+  const { turns, rota, error } = useMatchTurns(match, matches, enabled && !off);
+  // (a failed read is said: never just a missing list, which would read as «no turns»)
+  if (off || (!error && (!rota?.jobs.length || !turns.length))) return null;
   return (
     <section className="fc-sec tn-list" aria-labelledby={`tn-${match.id}`}>
       <span className="hm-kick">Turnos del equipo</span>
       <h2 className="hm-h2" id={`tn-${match.id}`}>
         ¿A quién le toca?
       </h2>
+      {error && !turns.length ? (
+        <p className="fc-note">No se han podido cargar los turnos. Prueba a recargar la página.</p>
+      ) : (
       <ul>
         {turns.map((t) => (
           <li key={t.job.id} className={t.playerId && t.playerId === me ? "mine" : undefined}>
@@ -90,6 +94,7 @@ export function TurnsList({ match, matches, nameOf, me, enabled }: { match: Club
           </li>
         ))}
       </ul>
+      )}
     </section>
   );
 }

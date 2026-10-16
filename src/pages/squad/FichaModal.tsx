@@ -17,6 +17,7 @@ import { shareClubPage } from "../../lib/share";
 import { VT_SHIRT } from "./Percha";
 import { wholeMinutes } from "../../lib/derived/minutes";
 import type { MvpOf } from "../../lib/derived/mvpOf";
+import { kitLabel } from "../../lib/derived/venue";
 
 interface Props {
   row: SquadRow;
@@ -106,7 +107,7 @@ export function FichaModal({ row, still, seasonName, withStats, kit, theme, onCl
           </div>
           {!mapOnStage && (
             <>
-              <span className="cap">{kit === "home" ? "1ª" : "2ª"} equipación · arrástrala</span>
+              <span className="cap">{kitLabel({ kit })} · arrástrala</span>
               <button type="button" className="sq-round turn" onClick={() => shirt.current?.turn()} aria-label="Girar la camiseta">
                 <Icon name="turn" size={19} />
               </button>

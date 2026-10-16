@@ -10,7 +10,7 @@ import { dateMillis, matchPhase, type ClubMatch } from "../clubData";
 import { resolvePositions, type PosCode } from "../positions";
 // (the one «siete» rule of the Campo tab: the pizarra's official seven when there is one, else the
 // convocatoria's titulares — pure, shared with the match page rather than written again here)
-import { campoSeven } from "../../pages/match/campoSeven";
+import { campoSeven } from "./campoSeven";
 import { kickoffState, type KickoffState } from "./kickoff";
 import { kickoffWindow, mvpVoteOpen } from "./memberWindows";
 import { whistleAt } from "./island";

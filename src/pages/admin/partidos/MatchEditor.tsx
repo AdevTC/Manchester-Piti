@@ -35,6 +35,7 @@ import { reviewMatch } from "../acta/review";
 import { namesFor, rosterFor } from "../acta/roster";
 import { lineupWithGuests } from "../acta/guests";
 import { guestLabel, isGuestId } from "../../../lib/derived/guests";
+import { capital } from "../../../lib/derived/words";
 import { fromMatch, isSheet, restoreSheet, rivalInitialsOf, score, toPayload, type MatchSheet } from "../acta/sheetModel";
 import { useMatchMvp } from "./live";
 import { TabActa, type PlayerInfo } from "./TabActa";
@@ -123,7 +124,7 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
     ? { title: "MVP: se abre solo al publicar", detail: "Votan los socios 48 h · no se toca a mano" }
     : closes > data.now
       ? { title: "MVP abierto · cierra en 48 h", detail: `Votan los socios hasta ${closesWords(closes)}` }
-      : { title: "MVP cerrado", detail: closedText.charAt(0).toUpperCase() + closedText.slice(1) };
+      : { title: "MVP cerrado", detail: capital(closedText) };
 
   // ── saving ──
   const write = async (draft: boolean, fromGuard = false): Promise<boolean> => {

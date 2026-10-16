@@ -4,7 +4,8 @@
 // To the member's own devices (personal topic «convocatoria»: playerLinks gives the member of a player).
 // The same 5-minute job sends the «Cambio en el siete» held by its 10-minute window (seven.ts).
 // And when someone changes their answer in the last 24 h, the captains get a notice (debounced per player)
-// — never for the «No puedo» an absence writes (its one notice is absences.ts's).
+// — never for the «No puedo» an absence writes (its one notice is absences.ts's). Any «No puedo» (by hand
+// or an absence's) of a member whose turn it was passes the turn on, and the next one is told (rota.ts).
 // Cloud Scheduler has no Madrid location: the job lives in Belgium, like pushKickoff.
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
@@ -13,6 +14,7 @@ import { db } from "./common.js";
 import { matchActiveTx, runMatchTransaction } from './matchAccess.js';
 import { sendTo, vapidPrivate } from "./push.js";
 import { flushSevens } from "./seven.js";
+import { notifyRotaHandover } from "./rota.js";
 import { nameFor } from "./names.js";
 import { byAbsence } from "./absencesLogic.js";
 import { HOUR, LATE_DEBOUNCE_MS, lateChangeNotice, REMINDER_MIN_LEAD, reminderDue, reminderNotice, unanswered } from "./remindersLogic.js";
@@ -72,6 +74,9 @@ export const pushReminders = onSchedule({ schedule: "every 5 minutes", timeZone:
 export const pushOnAnswer = onDocumentWritten({ document: "matchPrivate/{matchId}/availability/{uid}", secrets: [vapidPrivate] }, async (event) => {
   const before = event.data?.before.data();
   const after = event.data?.after.data();
+  // Turnos: whoever had a turn of this match can't make it (by hand or by an absence, a new answer or a
+  // changed one): the next member is told, once the convocatoria is out (rota.ts).
+  if (after?.response === "no" && before?.response !== "no" && typeof after.playerId === "string" && after.playerId) await notifyRotaHandover(event.params.matchId, after.playerId);
   if (!before || !after || before.response === after.response) return;
   // (an absence's «No puedo» is not a change of mind: the captains get its own one notice, absences.ts)
   if (byAbsence(after)) return;

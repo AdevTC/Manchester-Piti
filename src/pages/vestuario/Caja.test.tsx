@@ -93,6 +93,20 @@ it("loading says so instead of the empty line", () => {
   expect(screen.queryByText(/aún no está abierta/)).toBeNull();
 });
 
+it("a failed read says so: before it opens, instead of the closed line", () => {
+  set(EMPTY_CAJA_SETTINGS, [], { error: new Error("permission-denied") });
+  renderCaja();
+  expect(screen.getByRole("alert")).toHaveTextContent("No se pudo leer la caja.");
+  expect(screen.queryByText(/aún no está abierta/)).toBeNull();
+});
+
+it("a failed read once open: the numbers stay, with a warning that some may be missing", () => {
+  set(SETTINGS, [], { error: new Error("permission-denied") });
+  renderCaja();
+  expect(screen.getByRole("alert")).toHaveTextContent("No se pudo leer toda la caja: puede que falten movimientos.");
+  expect(screen.getByText("Tu saldo")).toBeInTheDocument();
+});
+
 it("your balance big, the jar, the cuota and «Cómo pagar» as plain text with its line breaks", () => {
   set(SETTINGS, [mov({ amount: 3000 }), mov({ kind: "pago", amount: 1750 }), mov({ kind: "gasto", playerId: null, amount: 500 }), mov({ kind: "ingreso", playerId: null, amount: 1000 })]);
   const { container } = renderCaja();

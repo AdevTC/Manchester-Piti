@@ -8,6 +8,7 @@
 // («Revisar»), and nothing with a broken link (not HTTPS) or an incomplete item gets published.
 import type { ClubContent } from "../../../lib/clubContent";
 import { linkState } from "./plantillaLogic";
+import { capital } from "../../../lib/derived/words";
 
 export type ContentKey = "frase" | "historia" | "contacto" | "momentos" | "historias" | "preguntas" | "colaboradores" | "galeria";
 export type ClubKey = Exclude<ContentKey, "historias">;
@@ -73,7 +74,7 @@ export function monthLabel(ms: number): string {
   const parts = new Intl.DateTimeFormat("es-ES", { month: "short", year: "numeric", timeZone: "Europe/Madrid" }).formatToParts(ms);
   const month = (parts.find((p) => p.type === "month")?.value ?? "").replace(".", "");
   const year = parts.find((p) => p.type === "year")?.value ?? "";
-  return `${month.charAt(0).toLocaleUpperCase("es")}${month.slice(1)} ${year}`.trim();
+  return `${capital(month)} ${year}`.trim();
 }
 
 /** Rules' limits (firestore.rules · clubContent). */

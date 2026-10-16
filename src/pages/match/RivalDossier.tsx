@@ -65,6 +65,8 @@ function Meeting({ m, current }: { m: ClubMatch; current: boolean }) {
       <span className={`pt-res ${l}`} aria-hidden="true">
         {l}
       </span>
+      {/* (the letter in words: the screen reader never gets just a colour or a «G») */}
+      <span className="hm-sr">{resultTitle(l)} </span>
       <b>{score(m)}</b>
       <span className="dt">{current ? "Este partido" : formatDate(m.date)}</span>
       <small>{m.home === false ? "fuera" : "en casa"}</small>
@@ -74,7 +76,8 @@ function Meeting({ m, current }: { m: ClubMatch; current: boolean }) {
   return (
     <li>
       {current ? (
-        <span className="fc-riv-m" aria-label={label} aria-current="page">
+        // (a plain span: an aria-label on it is not read; its words, with the result's, are)
+        <span className="fc-riv-m" aria-current="page">
           {body}
         </span>
       ) : (
@@ -92,7 +95,7 @@ function RivalPlan({ plan }: { plan: RivalSeven }) {
   const notes = plan.players.map((p, i) => ({ i, note: p.note })).filter((x): x is { i: number; note: string } => !!x.note);
   const sys = systemText(plan.formation);
   return (
-    <div className="fc-riv-plan" aria-labelledby="fc-riv-plan-h">
+    <section className="fc-riv-plan" aria-labelledby="fc-riv-plan-h">
       <span className="hm-kick">
         <Icon name="padlock" size={14} /> Solo el vestuario · de la pizarra oficial
       </span>
@@ -109,7 +112,7 @@ function RivalPlan({ plan }: { plan: RivalSeven }) {
       ) : (
         <p className="fc-note">La pizarra tiene su siete, todavía sin notas sobre ninguno.</p>
       )}
-    </div>
+    </section>
   );
 }
 

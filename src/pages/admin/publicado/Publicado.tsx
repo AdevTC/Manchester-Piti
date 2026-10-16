@@ -23,6 +23,7 @@ import { MatchLifecycleActions } from "../partidos/MatchLifecycleActions";
 import { vitrinaOf } from "./vitrinaModel";
 import { withGuestNames } from "../../../lib/liveActions";
 import { isGuestId } from "../../../lib/derived/guests";
+import { capital } from "../../../lib/derived/words";
 
 const isAbort = (e: unknown) => !!e && typeof e === "object" && (e as { name?: unknown }).name === "AbortError";
 
@@ -57,7 +58,7 @@ export function Publicado({ match, onLifecycle }: { match: AdminMatch; onLifecyc
     whistled,
     nameOf,
     numberOf,
-    closedMvp: closed.charAt(0).toUpperCase() + closed.slice(1),
+    closedMvp: capital(closed),
   });
 
   const share = async () => {

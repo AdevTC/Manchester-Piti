@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  handoverTurns,
   jobIdFor,
   jobShort,
   jobTask,
@@ -270,5 +271,41 @@ describe("parse and validate", () => {
   it("rotaMatch reads a club match", () => {
     expect(rotaMatch({ id: "a", date: sat(0), home: false, status: "scheduled", seasonId: "s1" })).toEqual({ id: "a", date: sat(0), home: false, status: "scheduled", seasonId: "s1" });
     expect(rotaMatch({ id: "a", date: undefined }).date).toBeNull();
+  });
+});
+
+describe("handoverTurns: the one whose turn it was can't", () => {
+  const Y = m("y", 10, { home: false });
+  const no = (playerId: string): RotaAnswer => ({ playerId, response: "no" });
+  const handover = (playerId: string, o: { answers?: RotaAnswer[]; absences?: RotaAbsence[]; doc?: RotaTurnsDoc } = {}) =>
+    handoverTurns(Y, ROTA, [], o.answers ?? [no(playerId)], o.absences ?? [], o.doc, playerId).map((t) => [t.job.id, t.playerId]);
+
+  it("passes his turn to the next one, and any turn whose member moved up to cover it", () => {
+    // with everyone in: Lava Hugo, Coche Dani. Hugo can't: Dani washes, so Leo drives.
+    expect(handover("hugo")).toEqual([
+      ["lavar", "dani"],
+      ["coche", "leo"],
+    ]);
+    expect(handover("dani")).toEqual([["coche", "leo"]]);
+  });
+
+  it("an absence that covers the day counts like his «No puedo»", () => {
+    expect(handover("hugo", { answers: [], absences: [{ playerId: "hugo", from: "2026-01-01", to: "2026-12-31" }] })).toEqual([
+      ["lavar", "dani"],
+      ["coche", "leo"],
+    ]);
+  });
+
+  it("nothing when he held no turn, or he is in after all (back to «Voy»)", () => {
+    expect(handover("leo")).toEqual([]);
+    expect(handover("hugo", { answers: [{ playerId: "hugo", response: "yes" }] })).toEqual([]);
+  });
+
+  it("never a pinned job, nor a frozen match", () => {
+    const pinned = (turns: RotaTurnsDoc["turns"]): RotaTurnsDoc => ({ frozen: false, turns });
+    expect(handover("hugo", { doc: pinned({ lavar: { playerId: "hugo" } }) })).toEqual([]);
+    // the car is the captain's (Leo's): only the wash moves
+    expect(handover("hugo", { doc: pinned({ coche: { playerId: "leo" } }) })).toEqual([["lavar", "dani"]]);
+    expect(handover("hugo", { doc: frozen({ lavar: "hugo", coche: "dani" }) })).toEqual([]);
   });
 });

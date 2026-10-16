@@ -24,8 +24,8 @@ import type { PlayerDoc } from "../schemas";
 import { currentSeasonId, type MvpResult } from "../vestuario";
 import { achievements } from "./achievements";
 import { jornadaLabel } from "./jornada";
-import { buildCard, seasonSquad } from "../../pages/perfil/card";
-import { porraLine, positionsPlayed, seasonPlayers } from "../../pages/perfil/profileData";
+import { buildCard, seasonSquad } from "./card";
+import { porraLine, positionsPlayed, seasonPlayers } from "./seasonPlayers";
 
 export type RecapCard =
   | { kind: "portada"; name: string; number: string; season: string }

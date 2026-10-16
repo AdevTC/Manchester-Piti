@@ -25,6 +25,8 @@ const POPOVER_FROM = 1100;
 
 const FOCUSABLE = 'a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])';
 const EMPTY = "Aquí verás los avisos del equipo: convocatorias, el siete, el MVP…";
+const LOADING = "Cargando los avisos…";
+const FAILED = "No se han podido cargar los avisos. Comprueba la conexión y vuelve a abrirlos.";
 
 export function NoticesBell() {
   const { user, profile } = useAuth();
@@ -131,6 +133,7 @@ export function NoticesBell() {
       titleId={titleId}
       list={list}
       loading={notices.loading}
+      failed={!!notices.error}
       seenBefore={seenBefore}
       now={now}
       onKeyDown={onKeyDown}
@@ -163,13 +166,15 @@ interface PanelProps {
   titleId: string;
   list: readonly Notice[];
   loading: boolean;
+  /** A listener failed: said in words instead of the empty line (the list keeps whatever did arrive). */
+  failed: boolean;
   seenBefore: number | null;
   now: number;
   onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
   onClose: (refocus?: boolean) => void;
 }
 
-function NoticesPanel({ anchor, ref, titleId, list, loading, seenBefore, now, onKeyDown, onClose }: PanelProps) {
+function NoticesPanel({ anchor, ref, titleId, list, loading, failed, seenBefore, now, onKeyDown, onClose }: PanelProps) {
   const router = useRouter();
   const groups = groupNotices(list, now);
   const follow = (e: MouseEvent<HTMLAnchorElement>, url: string) => {
@@ -204,7 +209,10 @@ function NoticesPanel({ anchor, ref, titleId, list, loading, seenBefore, now, on
           </button>
         </div>
         {groups.length === 0 ? (
-          <p className="nt-none">{loading ? "Cargando los avisos…" : EMPTY}</p>
+          // (one polite region: «Cargando…» turning into the list, the empty line or the error is said once)
+          <p className="nt-none" role="status">
+            {loading ? LOADING : failed ? FAILED : EMPTY}
+          </p>
         ) : (
           <div className="nt-list">
             {groups.map((g) => (

@@ -2,13 +2,7 @@
 // time, how a member came into the vestuario («entró con la invitación de erik9», «llamó a la puerta y le
 // abrió adrian_tc»), and who resolved a claim.
 
-const TZ = "Europe/Madrid";
-const dayKey = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(ms);
-const hm = (ms: number) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(ms);
-const dm = (ms: number) => {
-  const p = Object.fromEntries(new Intl.DateTimeFormat("es-ES", { timeZone: TZ, day: "numeric", month: "short" }).formatToParts(ms).map((x) => [x.type, x.value]));
-  return `${p.day} ${String(p.month).replace(".", "")}`;
-};
+import { madridDate as dayKey, madridDay as dm, madridTime as hm } from "../../../lib/derived/madrid";
 
 /** When something happened, the way the captains say it (Madrid time): «ahora mismo», «hace 5 min»,
  *  «hace 2 h» (today), «ayer, 21:40», «28 oct». */

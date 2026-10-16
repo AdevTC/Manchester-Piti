@@ -4,9 +4,9 @@
 import { clockTime, shortDate } from "../data/adminLogic";
 import { goalRows, type MatchSheet } from "./sheetModel";
 import { eventMinute } from "../../../lib/partidos";
+import { plural } from "../../../lib/derived/words";
 
 export const MVP_WINDOW_MS = 48 * 3600_000;
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
 /** «mar 3 nov, 12:06». */
 export const dayTime = (ms: number) => `${shortDate(ms)}, ${clockTime(ms)}`;
