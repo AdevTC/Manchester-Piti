@@ -3,9 +3,10 @@
 // The security rules validate the other actions (firestore.rules), so there is no
 // Cloud Function round trip: the SDK applies each write to the local cache first, every
 // open listener (this device) updates at once and the rest of the team gets it in realtime.
-import { addDoc, collection, deleteDoc, doc, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "../../firebase";
 import { absenceFields } from "../../lib/derived/absences";
+import { pollFields, voteFields, type Poll, type PollForm } from "../../lib/derived/polls";
 import { useAuth } from "../../context/AuthContext";
 import { savePrediction } from "../../lib/clubApi";
 import type { GoalPick } from "../../../functions/src/predictions";
@@ -69,3 +70,17 @@ export const addAbsence = (me: Me, from: string, to: string, note: string) =>
   addDoc(collection(db, "absences"), { ...absenceFields(me, from, to, note), createdAt: serverTimestamp() });
 /** «Quitar»: the backend takes back the «No puedo» it wrote (not the answers changed by hand). */
 export const deleteAbsence = (id: string) => deleteDoc(doc(db, "absences", id));
+
+/** «Nueva encuesta»: polls/{auto-id} with the shape firestore.rules checks (`createdAt` the server's time,
+ *  `closesAt` a Timestamp `now` + the chosen time). `now` is the server's clock (lib/serverTime). */
+export const createPoll = (me: Me, form: PollForm, now: number) => {
+  const { closesAt, ...fields } = pollFields(me, form, now);
+  return addDoc(collection(db, "polls"), { ...fields, createdAt: serverTimestamp(), closesAt: Timestamp.fromMillis(closesAt) });
+};
+/** A member's vote (and a changed vote: the same doc, overwritten), signed like the availability. */
+export const votePoll = (me: Me, poll: Pick<Poll, "id" | "options" | "multi">, optionIds: readonly string[]) =>
+  setDoc(doc(db, "polls", poll.id, "votes", me.uid), { ...voteFields(me, poll, optionIds), at: serverTimestamp() });
+/** «Cerrar ya» (the author or a captain): only `closedAt`, the server's time. */
+export const closePoll = (id: string) => updateDoc(doc(db, "polls", id), { closedAt: serverTimestamp() });
+/** «Borrar» (the author or a captain). */
+export const deletePoll = (id: string) => deleteDoc(doc(db, "polls", id));
