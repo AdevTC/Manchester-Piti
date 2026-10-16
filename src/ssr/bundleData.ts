@@ -11,7 +11,7 @@ export interface BundleDoc {
   data: Record<string, unknown>;
 }
 export interface PublicBundle {
-  /** Documents of each named query (matches, players, seasons, mvpResults). */
+  /** Documents of each named query (matches, players, seasons, mvpResults, standings). */
   queries: Record<string, BundleDoc[]>;
   /** Every document in the bundle by its path (e.g. "clubContent/main"). */
   docs: Map<string, BundleDoc>;
@@ -90,5 +90,7 @@ export function inQueryOrder(bundle: PublicBundle) {
   );
   // (mvpResults: a plain collection query, so by document id)
   const mvpResults = [...(bundle.queries.mvpResults ?? [])].sort(byId);
-  return { matches, players, seasons, mvpResults, content: bundle.docs.get("clubContent/main") };
+  // (standings: the league tables, a plain collection query too)
+  const standings = [...(bundle.queries.standings ?? [])].sort(byId);
+  return { matches, players, seasons, mvpResults, standings, content: bundle.docs.get("clubContent/main") };
 }

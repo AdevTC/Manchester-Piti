@@ -7,6 +7,15 @@
 // The bundle function directly (Madrid, next to Firestore).
 const BUNDLE_URL = "https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net/clubBundle";
 const PAGES = new Set(["/", "/partidos", "/stats", "/club", "/plantilla"]);
+// The search params a page renders differently with (the rewrite keeps the visitor's query next to
+// `p`): only the known values pass, so the server never renders a URL the browser would not.
+const VIEWS = { "/partidos": new Set(["tabla"]) };
+/** The URL the server renders: the page's path, plus its `view` when it is one the page knows. */
+export function pageUrl(searchParams) {
+  const path = searchParams.get("p") || "/";
+  const view = searchParams.get("view");
+  return { path, url: view && VIEWS[path]?.has(view) ? `${path}?view=${view}` : path };
+}
 async function bundle() {
   const response = await fetch(BUNDLE_URL, { cache: "no-store" });
   if (!response.ok) throw new Error(`bundle ${response.status}`);
@@ -23,7 +32,7 @@ const html = (body) =>
   });
 
 export async function GET(request) {
-  const path = new URL(request.url).searchParams.get("p") || "/";
+  const { path, url } = pageUrl(new URL(request.url).searchParams);
   try {
     if (!PAGES.has(path)) throw new Error(`not a server-rendered page: ${path}`);
     const [{ renderPage }, { template, routes }, bytes] = await Promise.all([
@@ -31,7 +40,7 @@ export async function GET(request) {
       import("../dist-ssr/shell.js"),
       bundle(),
     ]);
-    const markup = await renderPage(path, bytes);
+    const markup = await renderPage(url, bytes);
     const css = (routes.find(([re]) => new RegExp(re).test(path))?.[1] ?? []).filter((f) => f.endsWith(".css"));
     const head = css.map((href) => `<link rel="stylesheet" crossorigin href="${href}">`).join("");
     // Function replacers: `$` in the markup must not be read as a replacement pattern.

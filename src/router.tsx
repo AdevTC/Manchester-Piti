@@ -55,6 +55,12 @@ export const vestuarioSearchSchema = z.object({
   n: z.string().regex(/^[A-Za-z0-9-]{8,64}$/).optional().catch(undefined),
 });
 
+// /partidos?view=tabla: the league table instead of the season and the calendar (linked from the
+// «Vamos 3.º de 12» strip on the home and on /partidos). Anything else = the calendar.
+export const partidosSearchSchema = z.object({
+  view: z.enum(["tabla"]).optional().catch(undefined),
+});
+
 // /admin is the admin app's shell (a layout route; the admin-only guard lives in RootLayout). Hoy's only
 // search param is the legacy `tab` of the old single page: /admin?tab=matches|roster|seasons|admins
 // redirects to the new section (old links and bookmarks keep working), like /admin/convocatorias → convocar.
@@ -219,6 +225,11 @@ const adminCajaRoute = createRoute({
   validateSearch: adminCajaSearchSchema,
   component: lazyRouteComponent(() => import("./pages/admin/views/Caja"), "Caja"),
 });
+const adminClasificacionRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "clasificacion",
+  component: lazyRouteComponent(() => import("./pages/admin/views/Clasificacion"), "Clasificacion"),
+});
 const adminContenidoRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "contenido",
@@ -250,6 +261,7 @@ const playerProfileRoute = createRoute({
 const fixturesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/partidos",
+  validateSearch: partidosSearchSchema,
   component: lazyRouteComponent(
     () => import("./pages/partidos/PartidosPage"),
     "PartidosPage",
@@ -329,6 +341,7 @@ const routeTree = rootRoute.addChildren([
     adminCapitanesRoute,
     adminContenidoRoute,
     adminCajaRoute,
+    adminClasificacionRoute,
     adminNotFoundRoute,
   ]),
   matchDetailRoute,

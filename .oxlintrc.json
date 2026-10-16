@@ -27,7 +27,8 @@
     "test-results",
     "functions/lib",
     "dev-dist",
-    "dist-ssr"
+    "dist-ssr",
+    ".claude"
   ],
   "rules": {
     "constructor-super": "error",

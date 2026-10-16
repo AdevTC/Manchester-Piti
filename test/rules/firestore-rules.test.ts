@@ -22,11 +22,12 @@ import {
   orderBy,
   limit,
 } from "firebase/firestore";
-import { beforeAll, beforeEach, afterAll, describe, it } from "vitest";
+import { beforeAll, beforeEach, afterAll, describe, expect, it } from "vitest";
 import type { PosCode, PositionSet } from "../../src/lib/positions";
 import { editPositionsPayload, positionsPayload, proposalPayload, reviewPayload } from "../../src/lib/positionsEdit";
 import { cajaMovFields, cajaSettingsFields, cajaVoidFields, type NewCajaMov } from "../../src/lib/derived/caja";
 import { absenceFields } from "../../src/lib/derived/absences";
+import { standingsFields, type StandingRow } from "../../src/lib/standings";
 let env: RulesTestEnvironment;
 const db = (uid?: string) =>
   uid
@@ -1199,6 +1200,71 @@ describe("La caja (caja, cajaMovs)", () => {
     await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: false }));
     await assertFails(updateDoc(doc(db("super"), "cajaMovs", "x"), voiding("super")));
     await assertFails(setDoc(doc(db("admin"), "cajaMovs", "x"), movement("admin")));
+  });
+});
+
+describe("La clasificación de la liga (standings)", () => {
+  const r = (team: string, over: Partial<StandingRow> = {}): StandingRow => ({ team, pj: 8, g: 5, e: 2, p: 1, gf: 20, gc: 9, pts: 17, isUs: false, ...over });
+  const rows = [r("Rayo Norte"), r("Manchester Piti", { isUs: true }), r("Los Rojos")];
+  const table = (by: string, over: object = {}, prev?: { jornada: number | null; rows: StandingRow[]; rowsPrev?: StandingRow[] }) => ({
+    ...standingsFields({ competition: "Liga F7", jornada: 8, rows }, by, prev),
+    updatedAt: serverTimestamp(),
+    ...over,
+  });
+  it("everyone reads it, fans included", async () => {
+    await seed("standings/t1", { competition: "Liga", jornada: 8, updatedAt: Timestamp.fromMillis(0), updatedBy: "admin", rows });
+    await assertSucceeds(getDoc(doc(db(), "standings", "t1")));
+    await assertSucceeds(getDocs(collection(db(), "standings")));
+    await assertSucceeds(getDoc(doc(db("outsider"), "standings", "t1")));
+  });
+  it("only captains write it, signed and stamped by the server, and nobody deletes it", async () => {
+    await assertSucceeds(setDoc(doc(db("admin"), "standings", "t1"), table("admin")));
+    await assertSucceeds(setDoc(doc(db("super"), "standings", "t2"), table("super", { jornada: null, competition: "" })));
+    await assertFails(setDoc(doc(db("member"), "standings", "t3"), table("member")));
+    await assertFails(setDoc(doc(db("outsider"), "standings", "t3"), table("outsider")));
+    await assertFails(setDoc(doc(db(), "standings", "t3"), table("x")));
+    await assertFails(setDoc(doc(db("admin"), "standings", "t3"), table("super")));
+    await assertFails(setDoc(doc(db("admin"), "standings", "t3"), table("admin", { updatedAt: Timestamp.fromMillis(0) })));
+    await assertFails(deleteDoc(doc(db("admin"), "standings", "t1")));
+    await assertFails(deleteDoc(doc(db("super"), "standings", "t1")));
+  });
+  // (per row the rules can only afford the name and «nosotros»: whole numbers ≥ 0 are the app's, lib/standings)
+  it("the shape: 2–24 rows, exactly one ours, names ≤ 40, nothing else", async () => {
+    const ref = (id: string) => doc(db("admin"), "standings", id);
+    const many = (n: number) => Array.from({ length: n }, (_, i) => r(`Equipo ${i + 1}`, { isUs: i === n - 1 }));
+    await assertSucceeds(setDoc(ref("min"), table("admin", { rows: many(2) })));
+    await assertSucceeds(setDoc(ref("max"), table("admin", { rows: many(24) })));
+    const bad: object[] = [
+      { rows: many(1) },
+      { rows: many(25) },
+      { rows: [r("A"), r("B")] },
+      { rows: [r("A", { isUs: true }), r("B", { isUs: true })] },
+      { rows: [r("A", { isUs: true }), r("x".repeat(41))] },
+      { rows: [r("A", { isUs: true }), { team: "B", pj: 1 }] },
+      { rows: [r("A", { isUs: true }), "B"] },
+      { rows: [...many(23), r("Z", { isUs: true })] },
+      { jornada: -1 },
+      { jornada: "8" },
+      { competition: "x".repeat(81) },
+      { multas: true },
+      { rowsPrev: rows },
+    ];
+    for (const [i, over] of bad.entries()) await assertFails(setDoc(ref(`bad${i}`), table("admin", over)));
+    const { updatedBy: _by, ...unsigned } = table("admin");
+    await assertFails(setDoc(ref("unsigned"), unsigned));
+  });
+  it("rowsPrev: only the table this save replaces, or the one already kept", async () => {
+    const before = [r("Manchester Piti", { isUs: true }), r("Rayo Norte"), r("Los Rojos")];
+    const older = [r("Los Rojos"), r("Rayo Norte"), r("Manchester Piti", { isUs: true })];
+    await seed("standings/t1", { competition: "Liga F7", jornada: 7, updatedAt: Timestamp.fromMillis(0), updatedBy: "admin", rows: before, rowsPrev: older });
+    const ref = doc(db("admin"), "standings", "t1");
+    await assertFails(setDoc(ref, table("admin", { rowsPrev: [r("Otro", { isUs: true }), r("Más")] })));
+    await assertSucceeds(setDoc(ref, table("admin", {}, { jornada: 7, rows: before, rowsPrev: older })));
+    // (now rows = the new table, rowsPrev = before: a correction within jornada 8 keeps `before`)
+    await assertSucceeds(setDoc(ref, table("admin", { rows: [...rows].reverse() }, { jornada: 8, rows, rowsPrev: before })));
+    const saved = (await getDoc(doc(db(), "standings", "t1"))).data();
+    expect(saved?.rowsPrev).toEqual(before);
+    await assertSucceeds(setDoc(ref, table("admin")));
   });
 });
 

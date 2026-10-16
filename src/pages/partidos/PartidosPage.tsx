@@ -2,7 +2,9 @@
 // strip of tiles and four numbers, and the calendar with filters. From the Design canvas
 // "Partidos · elegida"; pure logic in lib/partidos.ts.
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
+import { StandingsStrip, StandingsTable } from "../../components/celeste/Clasificacion";
+import { useStandings } from "../../lib/useStandings";
 import { useSeason } from "../../context/SeasonContext";
 import { dateMillis, isCompleted, matchPhase, nextFixture, playerForSeason, nameFor, useClubData, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
@@ -188,6 +190,10 @@ export function PartidosPage() {
 
   const seasonId = currentSeasonId(nextFixture(matches, now), matches, seasons);
   const season = seasons.find((s) => s.id === seasonId);
+  // ?view=tabla: the league table instead of the season and the calendar (only when there is one)
+  const urlSearch: { view?: unknown } = useSearch({ strict: false });
+  const { standings } = useStandings(seasonId);
+  const tabla = urlSearch.view === "tabla" && standings ? standings : null;
   const view = seasonView(matches, seasonId, now);
   // the live row's score flips only for a fresh goal, as the board's does (a late old one just changes it)
   const rowGoal = useGoalCelebration(view.live, now);
@@ -264,6 +270,19 @@ export function PartidosPage() {
             </div>
           </section>
           <main className="pt-main">
+            {tabla ? (
+              <section className="pt-sec cl-sec" aria-labelledby="pt-cl">
+                <span className="hm-kick">{season?.name ?? "Temporada"} · la liga</span>
+                <h2 className="hm-h2" id="pt-cl">
+                  Clasificación
+                </h2>
+                <Link className="cl-back" to="/partidos" search={{}}>
+                  <span aria-hidden="true">←</span> Volver al calendario
+                </Link>
+                <StandingsTable standings={tabla} />
+              </section>
+            ) : (
+              <>
             <section className="pt-sec pt-season-sec" aria-labelledby="pt-s">
               <span className="hm-kick">
                 {season?.name ?? "Temporada"} · {pj} {pj === 1 ? "jugado" : "jugados"}
@@ -272,6 +291,7 @@ export function PartidosPage() {
               <h2 className="hm-h2" id="pt-s">
                 {pj ? `${view.wins} ${view.wins === 1 ? "victoria" : "victorias"} en ${pj}` : "Todo por estrenar"}
               </h2>
+              <StandingsStrip standings={standings} />
               {view.tiles.length > 0 && (
                 <>
                   <div className="pt-tira">
@@ -373,6 +393,8 @@ export function PartidosPage() {
                 </div>
               )}
             </section>
+              </>
+            )}
 
             <aside className="pt-aside" aria-label="Más de la temporada">
               {scorers.length > 0 && (

@@ -528,6 +528,44 @@ service cloud.firestore {
         && request.resource.data.voidedAt == request.time;
       allow delete: if false;
     }
+    // ---- La clasificación de la liga (docs/superpowers/specs/2026-10-16-clasificacion-design.md): the
+    // captains keep the league table of each season (`standings/{seasonId}`); everyone reads it (public, in
+    // the data bundle). A row: the team (≤ 40), seven whole numbers ≥ 0 and `isUs`; 2–24 rows, exactly one
+    // ours. `rowsPrev` (the arrows) can only be the table this save replaces, or the one it already kept
+    // (a correction within the same jornada); a first save has none. Never deleted from a client.
+    // Exactly one row is ours: a row's score is 1 if it is, 0 if not, and the 24 slots (no loops in the
+    // rules) add up to 1; a name longer than 40 scores 100. That is all the rules can afford per row: every
+    // check counts against their 1000-expression budget, and a full per-row check (keys, seven whole numbers
+    // ≥ 0) passes it at about 12 rows. The rest of a row's shape is the app's (lib/standings: standingsErrors
+    // before the save, the zod mapper on every read drops a table that is not valid, so no page shows one).
+    function rowScore(rs, i) {
+      return i >= rs.size() ? 0 : (rs[i].team.size() <= 40 ? (rs[i].isUs == true ? 1 : 0) : 100);
+    }
+    function standingRowsOk(rs) {
+      return rs is list && rs.size() >= 2 && rs.size() <= 24
+        && rowScore(rs, 0) + rowScore(rs, 1) + rowScore(rs, 2) + rowScore(rs, 3) + rowScore(rs, 4) + rowScore(rs, 5)
+        + rowScore(rs, 6) + rowScore(rs, 7) + rowScore(rs, 8) + rowScore(rs, 9) + rowScore(rs, 10) + rowScore(rs, 11)
+        + rowScore(rs, 12) + rowScore(rs, 13) + rowScore(rs, 14) + rowScore(rs, 15) + rowScore(rs, 16) + rowScore(rs, 17)
+        + rowScore(rs, 18) + rowScore(rs, 19) + rowScore(rs, 20) + rowScore(rs, 21) + rowScore(rs, 22) + rowScore(rs, 23) == 1;
+    }
+    function standingsOk(d) {
+      return d.keys().hasOnly(['competition','jornada','updatedAt','updatedBy','rows','rowsPrev'])
+        && d.keys().hasAll(['competition','jornada','updatedAt','updatedBy','rows'])
+        && d.competition is string && d.competition.size() <= 80
+        && (d.jornada == null || (d.jornada is int && d.jornada >= 0 && d.jornada <= 99))
+        && d.updatedAt == request.time
+        && d.updatedBy == request.auth.uid
+        && standingRowsOk(d.rows);
+    }
+    match /standings/{seasonId} {
+      allow read: if true;
+      allow create: if admin() && standingsOk(request.resource.data) && !('rowsPrev' in request.resource.data);
+      allow update: if admin() && standingsOk(request.resource.data)
+        && (!('rowsPrev' in request.resource.data)
+          || request.resource.data.rowsPrev == resource.data.rows
+          || request.resource.data.rowsPrev == resource.data.get('rowsPrev', null));
+      allow delete: if false;
+    }
     // ---- Encuestas del vestuario (docs/superpowers/specs/2026-10-16-encuestas-design.md): any member asks
     // the team a quick question (2–6 options, one or several answers) that closes 1 h … 14 d after it is
     // created; members vote their own doc while it is open and can change it; votes are public to the
