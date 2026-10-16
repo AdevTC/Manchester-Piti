@@ -4,7 +4,8 @@
 import { useRef, useState } from "react";
 import { apiError, liveEvent } from "../../../lib/clubApi";
 import { liveMinute, shownMinute } from "../../../lib/partidos";
-import { buildLiveEvent } from "../../../lib/liveActions";
+import { buildLiveEvent, withGuestNames } from "../../../lib/liveActions";
+import { isGuestId } from "../../../lib/derived/guests";
 import type { AdminMatch } from "../data/adminLogic";
 import { jLabel } from "../data/adminLogic";
 import type { LedFlash } from "../kit/LedBoard";
@@ -36,7 +37,10 @@ export interface LiveApi {
 }
 
 /** `now` = the admin's minute clock (useAdmin().now, ticking on each minute). */
-export function useLive(match: AdminMatch | null, now: number, nameOf: (id: string) => string, numberOf: (id: string) => string): LiveApi {
+export function useLive(match: AdminMatch | null, now: number, memberName: (id: string) => string, memberNumber: (id: string) => string): LiveApi {
+  // the guests («Invitados en el acta»): «Rafa (invitado)», with «INV» where a dorsal goes
+  const nameOf = withGuestNames(match, memberName);
+  const numberOf = (id: string) => (isGuestId(id) ? "INV" : memberNumber(id));
   const toast = useToast();
   const [pick, setPick] = useState<PickState | null>(null);
   const [flash, setFlash] = useState<LedFlash | null>(null);

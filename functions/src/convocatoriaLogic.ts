@@ -1,6 +1,7 @@
 // Pure rules of the one convocatoria (functions/src/convocatoria.ts: setConvocatoria), apart so the app's
 // tests can run them: what a valid siete + banquillo is, who is left «no convocado», whether the lineup
 // changed, and which notice (if any) «Convocar y avisar» sends.
+import { isGuestId, isUnknownGuest, type MatchGuest } from "./guests.js";
 
 export interface Lineup {
   starters: readonly string[];
@@ -11,6 +12,8 @@ export interface ConvocatoriaContext {
   roster: readonly string[];
   /** The match's status (draft fields win over the published ones). */
   status?: string;
+  /** Invitados en el acta: the guests a `guest:g1` in the lineup may name. */
+  guests?: readonly MatchGuest[];
 }
 export const MAX_STARTERS = 7;
 
@@ -22,7 +25,9 @@ export function convocatoriaProblem(lineup: Lineup, ctx: ConvocatoriaContext): s
   const all = [...lineup.starters, ...lineup.bench];
   if (new Set(all).size !== all.length) return "Cada jugador va una sola vez: en el siete o en el banquillo.";
   const roster = new Set(ctx.roster);
-  if (all.some((id) => !roster.has(id))) return "Hay jugadores que no son de la temporada de este partido.";
+  const match = { guests: ctx.guests ? [...ctx.guests] : undefined };
+  if (all.some((id) => isUnknownGuest(match, id))) return "Hay un invitado que no está en la lista de invitados del partido.";
+  if (all.some((id) => !isGuestId(id) && !roster.has(id))) return "Hay jugadores que no son de la temporada de este partido.";
   return null;
 }
 

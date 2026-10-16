@@ -29,6 +29,9 @@ import type { PlayerDoc } from "../../lib/schemas";
 import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { nameSegments, type NameSegment } from "../../lib/derived/names";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
+import { guestOf, isGuestId } from "../../lib/derived/guests";
+import { Who } from "./Who";
+import "./guests.css";
 import { campoSeven, campoSevenNote } from "./campoSeven";
 import { campoLayout, SOURCE_TEXT } from "./campoPositions";
 import { systemMark, systemText } from "../../lib/derived/system";
@@ -61,9 +64,9 @@ function Named({ segments, seasonId }: { segments: NameSegment[]; seasonId?: str
     <>
       {segments.map((s, i) =>
         s.id ? (
-          <PlayerLink key={i} id={s.id} seasonId={seasonId} variant="quiet">
+          <Who key={i} id={s.id} seasonId={seasonId}>
             {s.text}
-          </PlayerLink>
+          </Who>
         ) : (
           s.text
         ),
@@ -73,13 +76,13 @@ function Named({ segments, seasonId }: { segments: NameSegment[]; seasonId?: str
 }
 
 /** «ERIK», «ERIK y PABLO»…, each a link to his page in the match's season. */
-function NameList({ ids, seasonId }: { ids: readonly string[]; seasonId?: string }) {
+function NameList({ ids, seasonId, nameOf }: { ids: readonly string[]; seasonId?: string; nameOf?: NameOf }) {
   return (
     <>
       {ids.map((id, i) => (
         <Fragment key={id}>
           {i === 0 ? "" : i === ids.length - 1 ? " y " : ", "}
-          <PlayerLink id={id} seasonId={seasonId} variant="quiet" />
+          {isGuestId(id) ? (nameOf?.(id) ?? "Invitado") : <PlayerLink id={id} seasonId={seasonId} variant="quiet" />}
         </Fragment>
       ))}
     </>
@@ -89,7 +92,7 @@ function NameList({ ids, seasonId }: { ids: readonly string[]; seasonId?: string
 export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMatch; matches: ClubMatch[]; players: PlayerDoc[]; nameOf: NameOf }) {
   const numOf = useNumOf(players, match.seasonId);
   const rival = match.rival ?? "Rival";
-  const story = chapters(match.events, nameOf, rival, scoreOf(match));
+  const story = chapters(match.events, nameOf, rival, scoreOf(match), match.guests);
   // «El rival»: this match is one of the meetings now (rivalDossier counts finished ones); a match that
   // names no rival has no dossier
   const dossier = useMemo(() => rivalDossier(matches, match.rival), [matches, match.rival]);
@@ -135,7 +138,7 @@ export function CronicaTab({ match, matches, players, nameOf }: { match: ClubMat
                 {c.side !== "end" && (
                   <div className="sb">
                     {c.playerId ? (
-                      <ShirtBack name={nameOf(c.playerId).toUpperCase()} num={numOf(c.playerId)} />
+                      <ShirtBack name={(guestOf(match, c.playerId)?.name ?? nameOf(c.playerId)).toUpperCase()} num={isGuestId(c.playerId) ? "INV" : numOf(c.playerId)} />
                     ) : (
                       <span className="ball">
                         <Icon name="ball" size={34} />
@@ -248,11 +251,11 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
                 <b>{eventMinute(e) ?? e.minute}′</b>
                 <span className="ic">{/yellow|red/.test(e.type) ? <i className="fc-yc" style={e.type !== "yellow_card" ? { background: "#ff5a4f" } : undefined} /> : <Icon name={/goal/.test(e.type) ? "ball" : e.type === "substitution" ? "swap" : e.type === "assist" ? "boot" : "flag"} size={15} />}</span>
                 <span>
-                  <strong>{whoId ? <PlayerLink id={whoId} seasonId={match.seasonId} variant="quiet">{who}</PlayerLink> : who}</strong>
+                  <strong>{whoId ? <Who id={whoId} seasonId={match.seasonId}>{who}</Who> : who}</strong>
                   <small>
                     {EVENT_LABELS[e.type] ?? e.type}
-                    {e.assistPlayerId && <> · <Icon name="boot" size={13} /> asistencia de <PlayerLink id={e.assistPlayerId} seasonId={match.seasonId} variant="quiet">{nameOf(e.assistPlayerId)}</PlayerLink></>}
-                    {e.type === "substitution" && e.playerId ? <> · sale <PlayerLink id={e.playerId} seasonId={match.seasonId} variant="quiet">{nameOf(e.playerId)}</PlayerLink></> : ""}
+                    {e.assistPlayerId && <> · <Icon name="boot" size={13} /> asistencia de <Who id={e.assistPlayerId} seasonId={match.seasonId}>{nameOf(e.assistPlayerId)}</Who></>}
+                    {e.type === "substitution" && e.playerId ? <> · sale <Who id={e.playerId} seasonId={match.seasonId}>{nameOf(e.playerId)}</Who></> : ""}
                   </small>
                 </span>
               </li>
@@ -346,10 +349,13 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
             // (the position he played — or, before the acta, his slot on the board — never where the dot was nudged to)
             const pos = d.code ? POSITIONS[d.code].name.toLocaleLowerCase("es") : "";
             const where = !d.code ? "" : preActa ? `, en la pizarra: ${pos}` : `, ${d.sub ? `entró${entry ? ` en el ${exchangeMinute(match.events, d.id, entry)}′` : ""} y jugó` : "jugó"} de ${pos}${d.estimated ? " (estimado por su preferida)" : ""}`;
+            // a guest: his name and «Inv.» where the dorsal goes, with the dashed ring (guests.css)
+            const guest = guestOf(match, d.id);
+            const isGuest = isGuestId(d.id);
             return (
-              <button key={d.id} type="button" className={`fc-pl${d.sub ? " sub" : ""}`} style={{ left: `${d.x}%`, top: `${d.y}%` }} aria-pressed={pick === d.id} onClick={() => setSel(d.id)} aria-label={`${nameOf(d.id)}, dorsal ${numOf(d.id)}${where}, ${stats.goals} goles, ${stats.assists} asistencias, ${stats.yellowCards} amarillas, ${stats.redCards} rojas`}>
-                <span className="fc-number">{numOf(d.id)}</span>
-                <b>{nameOf(d.id)}</b>
+              <button key={d.id} type="button" className={`fc-pl${d.sub ? " sub" : ""}${isGuest ? " guest" : ""}`} style={{ left: `${d.x}%`, top: `${d.y}%` }} aria-pressed={pick === d.id} onClick={() => setSel(d.id)} aria-label={`${nameOf(d.id)}, ${isGuest ? "invitado" : `dorsal ${numOf(d.id)}`}${where}, ${stats.goals} goles, ${stats.assists} asistencias, ${stats.yellowCards} amarillas, ${stats.redCards} rojas`}>
+                <span className="fc-number">{isGuest ? "Inv." : numOf(d.id)}</span>
+                <b>{isGuest ? (guest?.name ?? "Invitado") : nameOf(d.id)}</b>
                 <MatchBadges {...stats} />
               </button>
             );
@@ -363,9 +369,9 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
                 const p = ledger?.[id];
                 const stats = playerLine(id, ledger, match.events);
                 const entry = p?.exchanges?.find((x) => x.direction === "in");
-                return <li key={id} className={p?.played ? "in" : ""}>
+                return <li key={id} className={[p?.played ? "in" : "", isGuestId(id) ? "guest" : ""].filter(Boolean).join(" ") || undefined}>
                   <button type="button" onClick={() => setSel(id)} aria-pressed={pick === id}>
-                    <b>{numOf(id)}</b>
+                    <b>{isGuestId(id) ? "Inv." : numOf(id)}</b>
                     <span className="fc-bench-name">{nameOf(id)}<small>{p?.dismissed ? "Expulsado · " : ""}{p ? `${fmtMinutes(p.minutes)}${entry ? ` · entró ${exchangeMinute(match.events, id, entry)}′` : p.played ? "" : done ? " · no jugó" : " · sin entrar"}` : "Minutos sin registrar"}</small></span>
                     <MatchBadges {...stats} />
                   </button>
@@ -377,7 +383,7 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
         {line && pick && (
           <dl className="fc-pinfo">
             <span className="nm">
-              {numOf(pick)} · <PlayerLink id={pick} seasonId={match.seasonId} variant="quiet">{nameOf(pick)}</PlayerLink>
+              {isGuestId(pick) ? "Inv." : numOf(pick)} · <Who id={pick} seasonId={match.seasonId}>{nameOf(pick)}</Who>
             </span>
             {pickPlayed.length > 0 && (
               <span className="pos">
@@ -428,7 +434,7 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
             {rows.map((r, i) => (
               <div className="r" key={r.id}>
                 <span className="nm">
-                  {numOf(r.id)} · <PlayerLink id={r.id} seasonId={match.seasonId} variant="quiet">{nameOf(r.id)}</PlayerLink>
+                  {isGuestId(r.id) ? "Inv." : numOf(r.id)} · <Who id={r.id} seasonId={match.seasonId}>{nameOf(r.id)}</Who>
                 </span>
                 <span className="tr" role="img" aria-label={`${nameOf(r.id)}: ${wholeMinutes(r.minutes)} minutos`}>
                   {r.spans.map((s, k) => (

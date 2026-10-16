@@ -21,6 +21,8 @@ import { namesFor, rosterFor } from "../acta/roster";
 import { useMatchMvp } from "../partidos/live";
 import { MatchLifecycleActions } from "../partidos/MatchLifecycleActions";
 import { vitrinaOf } from "./vitrinaModel";
+import { withGuestNames } from "../../../lib/liveActions";
+import { isGuestId } from "../../../lib/derived/guests";
 
 const isAbort = (e: unknown) => !!e && typeof e === "object" && (e as { name?: unknown }).name === "AbortError";
 
@@ -32,8 +34,10 @@ export function Publicado({ match, onLifecycle }: { match: AdminMatch; onLifecyc
   const [sharing, setSharing] = useState(false);
   const roster = rosterFor(data.players, data.seasons, match.seasonId);
   const names = namesFor(data.players, data.seasons, match.seasonId);
-  const nameOf = (id: string) => names(id);
+  // (a guest: «Rafa (invitado)», «INV» on his shirt)
+  const nameOf = withGuestNames(match, (id) => names(id));
   const numberOf = (id: string) => {
+    if (isGuestId(id)) return "INV";
     const n = roster.find((p) => p.id === id)?.number;
     return n != null ? String(n) : "";
   };

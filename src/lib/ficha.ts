@@ -5,6 +5,7 @@ import { clockReading } from "../../functions/src/matchClock";
 import { calculateLedger, dateMillis, type MatchEvent, type Participation } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import { eventMinute } from "./partidos";
+import { withGuestNames, type MatchGuest } from "./derived/guests";
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
@@ -25,7 +26,9 @@ export interface Chapter {
 /** A chapter's minute as people read it (lib/partidos eventMinute: live-stamped events in football's minute). */
 const shownAt = (e: MatchEvent): number => eventMinute(e) ?? (e.minute as number);
 
-export function chapters(events: MatchEvent[] | undefined, nameOf: (id: string) => string, rival: string, final?: { gf: number; ga: number }): Chapter[] {
+/** `guests`: the match's invitados, named «Rafa (invitado)» (never a raw `guest:g1` nor «Jugador»). */
+export function chapters(events: MatchEvent[] | undefined, memberName: (id: string) => string, rival: string, final?: { gf: number; ga: number }, guests?: MatchGuest[]): Chapter[] {
+  const nameOf = guests ? withGuestNames({ guests }, memberName) : memberName;
   let gf = 0, ga = 0;
   const out: Chapter[] = [];
   for (const e of [...(events ?? [])].filter((x) => typeof x.minute === "number").sort(byMinute)) {

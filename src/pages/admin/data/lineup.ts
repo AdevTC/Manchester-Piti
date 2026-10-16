@@ -1,15 +1,23 @@
 // The one convocatoria, client side (pure, tested in lineup.test.ts): el siete + banquillo of a match as
 // Hoy (the peg wall) and Convocar show and change it, the members' answers (RSVP) per player, and whether
 // the convocatoria has been announced. Writes go through useConvocatoria (setConvocatoria callable).
+import type { MatchGuest } from "../../../lib/derived/guests";
 import type { ClubMatch } from "../../../lib/clubData";
 
 export interface Lineup {
   starters: string[];
   bench: string[];
+  /** Invitados en el acta (acta/guests.ts): absent = the match's own, unchanged. */
+  guests?: MatchGuest[];
 }
 export const SEVEN = 7;
-export const lineupOf = (m: Pick<ClubMatch, "starters" | "bench"> | null | undefined): Lineup => ({ starters: [...(m?.starters ?? [])], bench: [...(m?.bench ?? [])] });
-export const sameLineup = (a: Lineup, b: Lineup) => a.starters.join() === b.starters.join() && a.bench.join() === b.bench.join();
+export const lineupOf = (m: Pick<ClubMatch, "starters" | "bench" | "guests"> | null | undefined): Lineup => ({
+  starters: [...(m?.starters ?? [])],
+  bench: [...(m?.bench ?? [])],
+  ...(m?.guests?.length ? { guests: m.guests.map((g) => ({ ...g })) } : {}),
+});
+const guestKey = (l: Lineup) => (l.guests ?? []).map((g) => `${g.id}=${g.name}`).join();
+export const sameLineup = (a: Lineup, b: Lineup) => a.starters.join() === b.starters.join() && a.bench.join() === b.bench.join() && guestKey(a) === guestKey(b);
 
 export type Slot = "T" | "B";
 export type PlaceResult = { ok: true; lineup: Lineup } | { ok: false; reason: "full" };

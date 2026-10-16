@@ -24,7 +24,6 @@ import { useGoalCelebration } from "../../components/celeste/useGoalCelebration"
 import { SyncChip } from "../../components/celeste/SyncChip";
 import { useSyncChip } from "../../hooks/useSyncChip";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
-import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { BackLink } from "../../components/celeste/BackLink";
 import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { Countdown } from "../../components/celeste/Countdown";
@@ -38,6 +37,8 @@ import { shareClubPage } from "../../lib/share";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
 import { downloadMatchPoster } from "../../lib/matchPoster";
 import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
+import { Who } from "./Who";
+import { withGuestNames } from "../../lib/liveActions";
 import { MATCH_TABS, matchTabAt, matchTabIndex } from "../../lib/matchTabs";
 import { tabForKey } from "../../lib/tabKeys";
 import { hasAnalysisActions } from "../../lib/technicalAnalysis";
@@ -105,7 +106,8 @@ export function MatchPage() {
   // board isn't about this rival), members only (a fan has no board: nothing is read).
   const rivalPlan = viewer.member && match && officialBoard?.matchId === match.id ? officialBoard.rival : null;
   // (the match's own season: a per-season shirt name reads the same here as on the home)
-  const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
+  // (a guest of the acta: «Rafa (invitado)»)
+  const nameOf = withGuestNames(match, (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId));
   const goalShow = useGoalCelebration(match && matchPhase(match, now) === "playing" ? match : undefined, now);
   // «Reconectando…» / «Sin conexión · marcador de hace N min» on the board while it is live or waiting
   const syncChip = useSyncChip(!!match && matchPhase(match, now) === "playing", now);
@@ -265,14 +267,14 @@ export function MatchPage() {
                 <ul>
                   {goalsOf(true).map((g) => (
                     <li key={g.id}>
-                      <b>{g.min}</b> {g.pid ? <PlayerLink id={g.pid} seasonId={match.seasonId} variant="quiet">{g.who}</PlayerLink> : g.who}
+                      <b>{g.min}</b> {g.pid ? <Who id={g.pid} seasonId={match.seasonId}>{g.who}</Who> : g.who}
                     </li>
                   ))}
                 </ul>
                 <ul className="r">
                   {goalsOf(false).map((g) => (
                     <li key={g.id}>
-                      <b>{g.min}</b> {g.pid ? <PlayerLink id={g.pid} seasonId={match.seasonId} variant="quiet">{g.who}</PlayerLink> : g.who}
+                      <b>{g.min}</b> {g.pid ? <Who id={g.pid} seasonId={match.seasonId}>{g.who}</Who> : g.who}
                     </li>
                   ))}
                 </ul>

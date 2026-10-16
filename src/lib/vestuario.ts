@@ -4,6 +4,7 @@ import { mvpWinnerIds } from "../../functions/src/pushLogic";
 import type { ClubMatch } from "./clubData";
 import { chronological, playerGame } from "./clubAnalytics";
 import { achievements } from "./derived/achievements";
+import { isGuestId } from "./derived/guests";
 
 const TZ = "Europe/Madrid";
 const GOAL_TYPES = new Set(["goal", "goal_penalty", "goal_freekick"]);
@@ -189,7 +190,7 @@ export function seasonSummary(
   const scorers = new Map<string, number>();
   for (const m of season)
     for (const e of m.events ?? [])
-      if (GOAL_TYPES.has(e.type) && e.assistPlayerId === playerId && e.playerId)
+      if (GOAL_TYPES.has(e.type) && e.assistPlayerId === playerId && e.playerId && !isGuestId(e.playerId))
         scorers.set(e.playerId, (scorers.get(e.playerId) ?? 0) + 1);
   const target = [...scorers.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
   return {

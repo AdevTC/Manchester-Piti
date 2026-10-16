@@ -2,6 +2,7 @@
 // firestore.rules enforces (upcoming() for availability and predictions, mvpOpen() for votes), so a
 // control is never offered when the write would be refused.
 import { dateMillis, isVisibleMatch } from "../../../functions/src/matchEngine";
+import { isGuestId } from "./guests";
 
 /**
  * «open» until kick-off; «closed» once its date has come (or it is under way / over); «undated» while the
@@ -31,7 +32,7 @@ export function mvpCandidates(
   nameOf: (id: string) => string,
 ): string[] {
   return Object.entries(ledger ?? {})
-    .filter(([, row]) => row.played)
+    .filter(([id, row]) => row.played && !isGuestId(id)) // a guest can't be voted
     .map(([id]) => id)
     .sort((a, b) => (counts?.[b] ?? 0) - (counts?.[a] ?? 0) || nameOf(a).localeCompare(nameOf(b), "es"));
 }

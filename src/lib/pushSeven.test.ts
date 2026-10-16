@@ -77,6 +77,8 @@ describe("la convocatoria que persigue sola", () => {
   it("who it chases: the convocados (siete then banquillo, once each) without an answer", () => {
     expect(unanswered(["a", "b", "c"], ["d", "a", ""], new Set(["b"]))).toEqual(["a", "c", "d"]);
     expect(unanswered([], [], new Set())).toEqual([]);
+    // a guest has no playerLinks and nothing to answer: never chased
+    expect(unanswered(["a", "guest:g1"], ["guest:g2", "d"], new Set())).toEqual(["a", "d"]);
   });
 
   it("«¿Vas el domingo?»: personal, one per match on the phone, to the match's Vestuario tab (Voy / Duda / No puedo)", () => {

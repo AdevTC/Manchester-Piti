@@ -9,11 +9,12 @@ import type { ClubMatch } from "../clubData";
 import { durationOf } from "../form";
 import { computeStats } from "../playerStats";
 import { isVisibleMatch } from "../../../functions/src/matchEngine";
+import { isGuestId } from "./guests";
 
 type MinutesMatch = Pick<ClubMatch, "ledger" | "status" | "duration" | "events" | "archived" | "individuallyArchived">;
 
 const counts = (m: MinutesMatch) => isVisibleMatch(m) && (!m.status || m.status === "finished");
-const rowOf = (m: MinutesMatch, pid: string) => (counts(m) ? m.ledger?.[pid] : undefined);
+const rowOf = (m: MinutesMatch, pid: string) => (counts(m) && !isGuestId(pid) ? m.ledger?.[pid] : undefined);
 
 /** Did he play (computeStats' participation: the ledger row's `played`, else his events)? */
 const playedIn = (m: MinutesMatch, pid: string) => computeStats(pid, [m]).matchesPlayed > 0;
@@ -21,7 +22,8 @@ const playedIn = (m: MinutesMatch, pid: string) => computeStats(pid, [m]).matche
 /** His minutes in a match: the ledger row's (two decimals); 0 when he did not play; null when he played
  *  and the acta does not know them. */
 export function minutesOf(m: MinutesMatch, pid: string): number | null {
-  if (!counts(m)) return 0;
+  // a guest («guest:g1») has no minutes of his own anywhere
+  if (!counts(m) || isGuestId(pid)) return 0;
   const row = rowOf(m, pid);
   if (row && typeof row.minutes === "number" && Number.isFinite(row.minutes)) return row.minutes;
   return playedIn(m, pid) ? null : 0;

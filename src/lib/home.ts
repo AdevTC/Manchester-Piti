@@ -9,6 +9,7 @@ import { scoreOf } from "./partidos";
 import { resultLetter, type ResultLetter } from "./derived/result";
 import { jornadas } from "./derived/jornada";
 import { rankedLeaders } from "./clubAnalytics";
+import { withGuestNames } from "./derived/guests";
 
 const DAY = 86_400_000;
 const GOAL = /^goal/;
@@ -74,7 +75,8 @@ export const listNames = (lines: Pick<PlayerLine, "name">[]) => new Intl.ListFor
 function scorersOf(m: ClubMatch, nameOf: (id: string) => string) {
   const count = new Map<string, number>();
   for (const e of m.events ?? []) if (GOAL.test(e.type) && e.playerId) count.set(e.playerId, (count.get(e.playerId) ?? 0) + 1);
-  return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ id, name: nameOf(id), n }));
+  const named = withGuestNames(m, nameOf);
+  return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ id, name: named(id), n }));
 }
 const feat = (n: number) => (n >= 3 ? "un hat-trick" : n === 2 ? "un doblete" : "un gol");
 

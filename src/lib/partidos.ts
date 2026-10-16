@@ -5,6 +5,7 @@ import { clockReading } from "../../functions/src/matchClock";
 import { dateMillis, EVENT_LABELS, eventMinute, isCompleted, isVisibleMatch, matchPhase, minuteOfPlay, type MatchEvent } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import { jornadas } from "./derived/jornada";
+import { withGuestNames, type MatchGuest } from "./derived/guests";
 import { resultLetter, type ResultLetter } from "./derived/result";
 
 export type Result = ResultLetter;
@@ -32,8 +33,10 @@ export function resultOf(m: Pick<ClubMatch, "goalsFor" | "goalsAgainst" | "event
   return resultLetter(gf, ga);
 }
 
-/** Our scorers in a match, most goals first: "ADRIÁN T.C. ×2, HUBEROSKI". */
-export function scorersLine(events: MatchEvent[] | undefined, nameOf: (id: string) => string) {
+/** Our scorers in a match, most goals first: "ADRIÁN T.C. ×2, HUBEROSKI" — a guest of that match
+ *  (`guests`) as «Rafa (invitado)». */
+export function scorersLine(events: MatchEvent[] | undefined, memberName: (id: string) => string, match?: { guests?: MatchGuest[] } | null) {
+  const nameOf = withGuestNames(match, memberName);
   const count = new Map<string, number>();
   for (const e of events ?? []) if (OURS.has(e.type) && e.type !== "opponent_own_goal" && e.playerId) count.set(e.playerId, (count.get(e.playerId) ?? 0) + 1);
   const own = (events ?? []).filter((e) => e.type === "opponent_own_goal").length;
