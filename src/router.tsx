@@ -46,11 +46,13 @@ export const statsSearchSchema = z.object({
   tab: z.enum(["general", "compare"]).optional().catch(undefined),
 }).transform(({ tab, ...rest }) => (rest.view || tab !== "compare" ? rest : { ...rest, view: "compare" as const }));
 
-// /vestuario?rsvp=yes|no&m=<matchId>: a notice's «Voy» / «No puedo» button (public/push-sw.js). The
-// vestuario writes the answer once and clears both (useRsvpFromNotice). Anything else is dropped.
+// /vestuario?rsvp=yes|no&m=<matchId>&n=<nonce>: a notice's «Voy» / «No puedo» button (public/push-sw.js,
+// `n` its one-time ticket). The vestuario writes the answer once with a valid ticket (only asks without
+// one) and clears them all (useRsvpFromNotice). Anything else is dropped.
 export const vestuarioSearchSchema = z.object({
   rsvp: z.enum(["yes", "no"]).optional().catch(undefined),
   m: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional().catch(undefined),
+  n: z.string().regex(/^[A-Za-z0-9-]{8,64}$/).optional().catch(undefined),
 });
 
 // /admin is the admin app's shell (a layout route; the admin-only guard lives in RootLayout). Hoy's only

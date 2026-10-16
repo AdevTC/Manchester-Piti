@@ -18,6 +18,14 @@ describe("the vestuario's search params", () => {
     expect(vestuarioSearchSchema.parse({ rsvp: "yes", m: "m8", evil: "1" })).toEqual({ rsvp: "yes", m: "m8" });
   });
 
+  it("keeps the worker's ticket (n), drops a malformed one", () => {
+    const n = "3f2b8c1e-9a4d-4e2f-8b1a-0c9d7e6f5a4b";
+    expect(vestuarioSearchSchema.parse({ rsvp: "no", m: "m8", n })).toEqual({ rsvp: "no", m: "m8", n });
+    expect(vestuarioSearchSchema.parse({ rsvp: "no", m: "m8", n: "short" }).n).toBeUndefined();
+    expect(vestuarioSearchSchema.parse({ rsvp: "no", m: "m8", n: "../rsvp/x-y-z-w" }).n).toBeUndefined();
+    expect(vestuarioSearchSchema.parse({ rsvp: "no", m: "m8", n: "a".repeat(65) }).n).toBeUndefined();
+  });
+
   it("a plain /vestuario has none", () => {
     expect(vestuarioSearchSchema.parse({})).toEqual({});
   });

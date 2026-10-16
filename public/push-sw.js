@@ -24,13 +24,30 @@ self.addEventListener("push", (event) => {
 
 // Where a tap leads: the same function as src/lib/pushRoute.ts (pushRoute.test.ts runs both copies).
 // <pushRoute>
-const pushClickUrl = (data, action) => {
+const pushClickUrl = (data, action, nonce) => {
   const d = data || {};
   const matchId = typeof d.matchId === "string" ? d.matchId : "";
-  if ((action === "yes" || action === "no") && matchId) return `/vestuario?rsvp=${action}&m=${encodeURIComponent(matchId)}`;
+  if ((action === "yes" || action === "no") && matchId) return `/vestuario?rsvp=${action}&m=${encodeURIComponent(matchId)}${typeof nonce === "string" && nonce ? `&n=${encodeURIComponent(nonce)}` : ""}`;
   return typeof d.url === "string" && d.url ? d.url : "/";
 };
 // </pushRoute>
+
+// The one-time ticket of a «Voy» / «No puedo» tap (src/lib/rsvpTicket.ts reads and spends it): only
+// this worker can leave it, so a crafted link alone never answers for a member (the page only asks).
+const RSVP_CACHE = "mp-rsvp";
+const RSVP_TICKET_MS = 10 * 60_000;
+const rsvpTicket = async (rsvp, m) => {
+  const nonce = self.crypto.randomUUID();
+  const cache = await caches.open(RSVP_CACHE);
+  // (tickets never used: dropped once expired)
+  for (const req of await cache.keys()) {
+    const old = await cache.match(req);
+    const t = old ? await old.json().catch(() => null) : null;
+    if (!t || !(t.exp > Date.now())) await cache.delete(req);
+  }
+  await cache.put("/rsvp/" + nonce, new Response(JSON.stringify({ rsvp, m, exp: Date.now() + RSVP_TICKET_MS }), { headers: { "content-type": "application/json" } }));
+  return nonce;
+};
 
 // The browser renewed this device's subscription (its keys rotated, or the push service dropped the old
 // one): subscribe again with the same key and tell the server, so the notices keep coming without
@@ -72,11 +89,18 @@ self.addEventListener("pushsubscriptionchange", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  // A button («Voy» / «No puedo») opens the vestuario with the answer; the signed-in app writes it (the
-  // worker has no session and never writes). A plain tap opens the notice's link.
-  const url = new URL(pushClickUrl(event.notification.data, event.action), self.location.origin).href;
+  // A button («Voy» / «No puedo») opens the vestuario with the answer and its one-time ticket; the
+  // signed-in app writes it (the worker has no session and never writes). A plain tap opens the
+  // notice's link. Without a ticket (no Cache API, no randomUUID) the vestuario only asks.
+  const data = event.notification.data;
+  const action = event.action;
+  const matchId = data && typeof data.matchId === "string" ? data.matchId : "";
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+    (async () => {
+      let nonce = "";
+      if ((action === "yes" || action === "no") && matchId) nonce = await rsvpTicket(action, matchId).catch(() => "");
+      const url = new URL(pushClickUrl(data, action, nonce), self.location.origin).href;
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const w of windows) {
         if ("focus" in w) {
           if ("navigate" in w) w.navigate(url);
@@ -84,6 +108,6 @@ self.addEventListener("notificationclick", (event) => {
         }
       }
       return self.clients.openWindow(url);
-    }),
+    })(),
   );
 });

@@ -102,7 +102,8 @@ export function VestuarioPage() {
   const posted = useHasPosted(uid || undefined);
   const [stepsHidden, hideSteps] = useStepsHidden(uid);
 
-  // «Voy» / «No puedo» tapped on a notice (?rsvp=&m=): written once, then the params leave the URL.
+  // «Voy» / «No puedo» tapped on a notice (?rsvp=&m=&n=): written once with the worker's ticket (asked
+  // without it), then the params leave the URL.
   const search = route.useSearch();
   const navigate = useNavigate();
   const writer = useMe();
@@ -111,13 +112,14 @@ export function VestuarioPage() {
   useRsvpFromNotice({
     rsvp: search.rsvp,
     m: search.m,
+    n: search.n,
     member: viewer.member,
     me: writer,
     matches,
     matchesLoading: clubLoading,
     previous: { loading: noticeAnswers.loading, answer: noticeAnswers.data.find((a) => a.uid === uid)?.response },
     now,
-    clear: () => void navigate({ to: ".", search: (prev) => ({ ...prev, rsvp: undefined, m: undefined }), replace: true }),
+    clear: () => void navigate({ to: ".", search: (prev) => ({ ...prev, rsvp: undefined, m: undefined, n: undefined }), replace: true }),
   });
 
   const playerId = profile?.playerId;
