@@ -94,6 +94,7 @@ describe("Publicación y cálculo del backend", () => {
     "playerSeasonStats",
     "matchDrafts",
     "matchAudit",
+    "matchTombstones",
     "accessAttempts",
     "teamMembers",
   ]) {
@@ -153,6 +154,7 @@ describe("Sanciones a mano (players)", () => {
   };
   beforeEach(async () => {
     await seed("players/erik", { shirtName: "ERIK", injured: false });
+    await seed("matches/m8", { status: "scheduled" });
   });
   it("un admin sanciona por el camino de siempre (merge) y null la levanta; un jugador no puede", async () => {
     await assertSucceeds(setDoc(ref("admin"), { sanction: sanction() }, { merge: true }));
@@ -188,7 +190,16 @@ describe("Sanciones a mano (players)", () => {
     await assertFails(setDoc(ref("admin"), { sanction: { games: 2, from: 1, untilMatchId: null, reason: null } }, { merge: true }));
     await assertFails(setDoc(ref("admin"), { sanction: "dos partidos" }, { merge: true }));
     await assertFails(setDoc(ref("admin"), { sanctionClearedAt: "ayer" }, { merge: true }));
+    await seed(`matches/${"m".repeat(128)}`, { status: "scheduled" });
     await assertSucceeds(setDoc(ref("admin"), { sanction: sanction({ games: 10, reason: "x".repeat(80), untilMatchId: "m".repeat(128) }) }, { merge: true }));
+  });
+  it("una pestaña antigua no puede volver a vincular una sanción a un partido eliminado", async () => {
+    await assertFails(setDoc(ref("admin"), { sanction: sanction({ untilMatchId: "missing" }) }, { merge: true }));
+    await seed("matches/m8", { status: "finished", archived: true });
+    await assertSucceeds(setDoc(ref("admin"), { sanction: sanction({ untilMatchId: "m8" }) }, { merge: true }));
+    await seed("matchTombstones/m8", { deletedAt: Timestamp.now() });
+    await assertFails(setDoc(ref("admin"), { sanction: sanction({ untilMatchId: "m8", games: 3 }) }, { merge: true }));
+    await assertSucceeds(setDoc(ref("admin"), { sanction: sanction({ untilMatchId: null }) }, { merge: true }));
   });
   it("otro admin edita la ficha sin tocar la sanción que firmó el primero", async () => {
     await seed("players/erik", { shirtName: "ERIK", sanction: sanction(), sanctionClearedAt: 5 });
@@ -696,6 +707,7 @@ describe("Pizarra", () => {
   });
   describe("el oficial de cada alcance", () => {
     const scope = (matchId: string | null) => ({ lineupId: "x", seasonId: "season", matchId, at: serverTimestamp() });
+    beforeEach(async () => { await seed("matches/m8", { status: "scheduled" }); });
     it("solo los capitanes lo escriben, con el id de su alcance; los miembros lo leen", async () => {
       await seed("lineups/x", board);
       await assertFails(setDoc(doc(db("member"), "lineupOfficials", "season__m8"), scope("m8")));
@@ -896,6 +908,8 @@ describe("Pizarra · el día de partido (variantes y recordatorios)", () => {
     await assertSucceeds(updateDoc(doc(db("admin"), "lineups", "off"), { variants: [variant("vb")] }));
   });
   it("«Recordatorios automáticos»: los capitanes los encienden o apagan; el equipo los ve", async () => {
+    await seed("matches/m1", { status: "scheduled" });
+    await seed("matches/m2", { status: "scheduled" });
     const off = { auto: false, by: "admin", at: serverTimestamp() };
     await assertSucceeds(setDoc(doc(db("admin"), "convocatoriaReminders", "m1"), off));
     await assertSucceeds(getDoc(doc(db("member"), "convocatoriaReminders", "m1")));
@@ -923,6 +937,59 @@ describe("Pizarra · el día de partido (variantes y recordatorios)", () => {
       await assertFails(updateDoc(doc(db(who), "pushSubscriptions", "x"), { topics: [] }));
       await assertFails(deleteDoc(doc(db(who), "pushSubscriptions", "x")));
     }
+  });
+});
+
+describe("Partidos archivados y eliminados", () => {
+  const upcomingMatch = () => ({ status: "scheduled", date: Timestamp.fromMillis(Date.now() + 3600000) });
+  const linkedBoard = { ownerUid: "member", ownerNickname: "member", seasonId: "season", matchId: "sleep", name: "Siete", isOfficial: true };
+  it("solo el backend puede archivar, reactivar o eliminar, incluso con sesión admin", async () => {
+    await seed("matches/sleep", { ...upcomingMatch(), archived: true });
+    for (const uid of ["admin", "member", "other"]) {
+      await assertFails(updateDoc(doc(db(uid), "matches/sleep"), { archived: false }));
+      await assertFails(deleteDoc(doc(db(uid), "matches/sleep")));
+    }
+    await seed("matchTombstones/sleep", { deletedAt: Timestamp.now() });
+    await assertFails(getDoc(doc(db("admin"), "matchTombstones/sleep")));
+    await assertFails(deleteDoc(doc(db("admin"), "matchTombstones/sleep")));
+  });
+  for (const state of ["archived", "missing", "tombstone"] as const) {
+    it(`bloquea escrituras tardías del partido ${state}`, async () => {
+      if (state !== "missing") await seed("matches/sleep", { ...upcomingMatch(), ...(state === "archived" ? { archived: true } : {}) });
+      if (state === "tombstone") await seed("matchTombstones/sleep", { deletedAt: Timestamp.now() });
+      await seed("lineups/sleep", linkedBoard);
+      await seed("lineupOfficials/season__sleep", { lineupId: "sleep", seasonId: "season", matchId: "sleep" });
+      await assertFails(setDoc(doc(db("member"), "matchPrivate/sleep/availability/member"), { response: "yes", name: "member", playerId: null, at: serverTimestamp() }));
+      await assertFails(setDoc(doc(db("admin"), "lineups/new"), { ...linkedBoard, ownerUid: "admin", ownerNickname: "admin" }));
+      await assertFails(updateDoc(doc(db("admin"), "lineups/sleep"), { name: "Cambio tardío" }));
+      await assertFails(updateDoc(doc(db("admin"), "lineups/sleep"), { matchId: null }));
+      await assertFails(deleteDoc(doc(db("admin"), "lineups/sleep")));
+      await assertFails(setDoc(doc(db("member"), "lineups/sleep/reactions/member"), { value: "ok", at: serverTimestamp() }));
+      await assertFails(setDoc(doc(db("admin"), "lineups/sleep/voz/v0"), { step: "sistema", mime: "audio/webm", ms: 1000, data: "abc", by: "admin", at: serverTimestamp() }));
+      await assertFails(setDoc(doc(db("admin"), "lineupOfficials/season__sleep"), { lineupId: "sleep", seasonId: "season", matchId: "sleep", at: serverTimestamp() }));
+      await assertFails(setDoc(doc(db("admin"), "convocatoriaReminders/sleep"), { auto: false, by: "admin", at: serverTimestamp() }));
+    });
+  }
+  it("congela el MVP archivado y lo admite de nuevo al reactivar dentro del plazo", async () => {
+    const match = { status: "finished", voteClosesAt: Date.now() + 3600000, ledger: { p1: { played: true } } };
+    const vote = () => setDoc(doc(db("member"), "matches/sleep/votes/member"), { playerId: "p1", voterName: "member", at: serverTimestamp() });
+    await seed("matches/sleep", { ...match, archived: true });
+    await assertFails(vote());
+    await seed("matches/sleep", match);
+    await assertSucceeds(vote());
+    await seed("matchTombstones/sleep", { deletedAt: Timestamp.now() });
+    await assertFails(vote());
+  });
+  it("el admin puede preparar pizarras para un borrador activo, nunca archivado ni eliminado", async () => {
+    const board = { ...linkedBoard, ownerUid: "admin", ownerNickname: "admin" };
+    await seed("matchDrafts/sleep", upcomingMatch());
+    await assertSucceeds(setDoc(doc(db("admin"), "lineups/draft"), board));
+    await assertFails(setDoc(doc(db("member"), "lineups/member-draft"), { ...linkedBoard, isOfficial: false }));
+    await seed("matchDrafts/sleep", { ...upcomingMatch(), archived: true });
+    await assertFails(updateDoc(doc(db("admin"), "lineups/draft"), { name: "Dormido" }));
+    await seed("matchDrafts/sleep", upcomingMatch());
+    await seed("matchTombstones/sleep", { deletedAt: Timestamp.now() });
+    await assertFails(updateDoc(doc(db("admin"), "lineups/draft"), { name: "Borrado" }));
   });
 });
 

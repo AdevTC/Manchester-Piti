@@ -1,6 +1,5 @@
 import { useMemo, useState, type ComponentProps } from "react";
 import { flushSync } from "react-dom";
-import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
 import { nextFixture, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
 import { analysePlayer, chronological } from "../../lib/clubAnalytics";
@@ -72,7 +71,7 @@ export function SquadPage() {
   const race = useMemo(() => {
     const members: SquadMember[] = rows.map((r) => ({ id: r.id, name: r.name, num: r.num, birthDate: players.find((p) => p.id === r.id)?.birthDate }));
     const lines = playerLines(members, seasonPulse(matches, seasonId, now).played);
-    return { scorers: leaders(lines, "goals"), assister: leaders(lines, "assists", 1)[0], birthdays: upcomingBirthdays(members, now) };
+    return { scorers: leaders(lines, "goals"), assisters: leaders(lines, "assists", 1), birthdays: upcomingBirthdays(members, now) };
   }, [rows, players, matches, seasonId, now]);
 
   const [query, setQuery] = useState("");
@@ -127,11 +126,6 @@ export function SquadPage() {
         actions={
           <>
             <ThemeToggle />
-            <Link className="hm-cta-top" to="/vestuario">
-              <Icon name="padlock" size={16} stroke={2.2} />
-              <span className="t">Vestuario</span>
-              <span className="hm-sr">Entrar al vestuario</span>
-            </Link>
           </>
         }
       />
@@ -197,7 +191,7 @@ export function SquadPage() {
         )}
       </section>
 
-      {rows.length > 0 && <RaceAndBirthdays scorers={race.scorers} assister={race.assister} birthdays={race.birthdays} seasonId={seasonId} />}
+      {rows.length > 0 && <RaceAndBirthdays scorers={race.scorers} assisters={race.assisters} birthdays={race.birthdays} seasonId={seasonId} />}
 
       {a && b && a.id !== b.id && (
         <section className="hm-sec" id="sq-cara" aria-labelledby="sq-cara-t">

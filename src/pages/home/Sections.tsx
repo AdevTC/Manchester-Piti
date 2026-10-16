@@ -7,6 +7,7 @@ import { eventMinute } from "../../lib/partidos";
 import { plural } from "../../lib/vestuario";
 import { AWAITING_ACTA, kickoffText } from "../../lib/derived/kickoff";
 import { RESULT_WORD, resultTitle } from "../../lib/derived/result";
+import { rankedLeaders, medalFor } from "../../lib/clubAnalytics";
 
 const MONTH = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", month: "short" });
 const DAYN = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric" });
@@ -153,10 +154,10 @@ export function SeasonRow({ pulse, now, nameOf }: { pulse: Pulse; now: number; n
 
 // ---------- pichichi + cumpleaños
 const SHIRT = "M8 3 3 6l2 5 2-1v11h10V10l2 1 2-5-5-3a4 4 0 0 1-8 0Z";
-function Pod({ line, rank, stat, seasonId }: { line?: PlayerLine; rank: 1 | 2 | 3; stat: string; seasonId?: string }) {
+function Pod({ line, rank, stat, shared, seasonId }: { line?: PlayerLine; rank: number; stat: string; shared?: boolean; seasonId?: string }) {
   const h = rank === 1 ? 112 : rank === 2 ? 74 : 54;
   return (
-    <div className={`hm-pod${rank === 1 ? " first" : ""}${line ? "" : " ghost"}`}>
+    <div className={`hm-pod ${medalFor(rank, line?.stats.goals ?? 0) ?? ""}${rank === 1 ? " first" : ""}${line ? "" : " ghost"}`}>
       <span className="j">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d={SHIRT} fill="currentColor" />
@@ -173,14 +174,21 @@ function Pod({ line, rank, stat, seasonId }: { line?: PlayerLine; rank: 1 | 2 | 
         )}
       </span>
       <span className="v">{stat}</span>
-      <span className="st" style={{ height: h }} aria-label={`Puesto ${rank}`}>
+      <span className="st" style={{ height: h }} aria-label={`Puesto ${rank}${shared ? ", compartido" : ""}`}>
         {rank}
+        {shared && <small>Compartido</small>}
       </span>
     </div>
   );
 }
-export function RaceAndBirthdays({ scorers, assister, birthdays, seasonId }: { scorers: PlayerLine[]; assister?: PlayerLine; birthdays: { id: string; name: string; num: string; label: string; days: number }[]; /** The season the names and links are in. */ seasonId?: string }) {
-  const [first, second, third] = scorers;
+export function RaceAndBirthdays({ scorers, assisters = [], birthdays, seasonId }: { scorers: PlayerLine[]; assisters?: PlayerLine[]; birthdays: { id: string; name: string; num: string; label: string; days: number }[]; /** The season the names and links are in. */ seasonId?: string }) {
+  const ranked = rankedLeaders(scorers, (p) => p.stats.goals);
+  const podium: { item?: PlayerLine; rank: number; shared: boolean }[] = [...ranked];
+  for (let rank = ranked.length + 1; rank <= 3; rank++) podium.push({ rank, shared: false });
+  // Traditional steps when the three places are distinct; shared places stay together.
+  const ordered = podium.length === 3 && podium.every((p, i) => p.rank === i + 1) ? [podium[1], podium[0], podium[2]] : podium;
+  const first = ranked[0]?.item;
+  const tiedFirst = ranked.filter((p) => p.rank === 1).length > 1;
   const stat = (l?: PlayerLine) => (l ? plural(l.stats.goals, "gol", "goles") : "0 goles");
   return (
     <section className="hm-sec" aria-labelledby="hm-race">
@@ -190,7 +198,7 @@ export function RaceAndBirthdays({ scorers, assister, birthdays, seasonId }: { s
           <h2 className="hm-h2" id="hm-race">
             {first ? (
               <>
-                El {first.num} manda: <em>{plural(first.stats.goals, "gol", "goles")}.</em>
+                {tiedFirst ? "Pichichi compartido:" : `${first.name}, Pichichi:`} <em>{plural(first.stats.goals, "gol", "goles")}.</em>
               </>
             ) : (
               <>
@@ -199,17 +207,13 @@ export function RaceAndBirthdays({ scorers, assister, birthdays, seasonId }: { s
             )}
           </h2>
           <div className="hm-race">
-            <Pod line={second} rank={2} stat={stat(second)} seasonId={seasonId} />
-            <Pod line={first} rank={1} stat={stat(first)} seasonId={seasonId} />
-            <Pod line={third} rank={3} stat={stat(third)} seasonId={seasonId} />
+            {ordered.map(({item, rank, shared}) => <Pod key={item?.id ?? `empty-${rank}`} line={item} rank={rank} stat={stat(item)} shared={shared} seasonId={seasonId} />)}
           </div>
           <p className="hm-lede">
-            {assister ? (
+            {assisters.length ? (
               <>
-                <PlayerLink id={assister.id} seasonId={seasonId} variant="quiet">
-                  {assister.name}
-                </PlayerLink>{" "}
-                es quien más goles regala: {plural(assister.stats.assists, "asistencia", "asistencias")}.
+                {assisters.map((p, i) => <span key={p.id}>{i > 0 ? i === assisters.length - 1 ? " y " : ", " : ""}<PlayerLink id={p.id} seasonId={seasonId} variant="quiet">{p.name}</PlayerLink></span>)}{" "}
+                {assisters.length > 1 ? "comparten el liderato:" : "es quien más goles regala:"} {plural(assisters[0].stats.assists, "asistencia", "asistencias")}{assisters.length > 1 ? " cada uno" : ""}.
               </>
             ) : (
               "La tabla arranca en cero para todos y se actualiza sola con cada gol y cada asistencia del acta."

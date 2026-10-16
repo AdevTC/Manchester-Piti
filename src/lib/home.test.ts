@@ -13,7 +13,7 @@ const nameOf = (id: string) => squad.find((p) => p.id === id)?.name ?? "—";
 const goal = (playerId: string, assistPlayerId?: string) => ({ id: Math.random().toString(), type: "goal" as const, playerId, assistPlayerId });
 const played = (id: string, daysAgo: number, gf: number, ga: number, events: ClubMatch["events"] = []): ClubMatch => ({ id, seasonId: "s1", rival: `Rival ${id}`, status: "finished", date: NOW - daysAgo * DAY, goalsFor: gf, goalsAgainst: ga, events });
 const upcoming = (id: string, inDays: number): ClubMatch => ({ id, seasonId: "s1", rival: `Rival ${id}`, status: "scheduled", date: NOW + inDays * DAY });
-const ctx = (p: ReturnType<typeof seasonPulse>, lines = playerLines(squad, p.played)) => ({ seasonName: "Temporada 1", squadSize: squad.length, now: NOW, nameOf, scorer: leaders(lines, "goals", 1)[0] });
+const ctx = (p: ReturnType<typeof seasonPulse>, lines = playerLines(squad, p.played)) => ({ seasonName: "Temporada 1", squadSize: squad.length, now: NOW, nameOf, scorers: leaders(lines, "goals", 1) });
 
 describe("player of the moment", () => {
   it("last match's top scorer first, telling if they lead the Pichichi", () => {
@@ -49,6 +49,14 @@ describe("a match waiting for its acta", () => {
 });
 
 describe("home narrative", () => {
+  it("nombra a todos los pichichis empatados en el titular, el jugador destacado y la vitrina", () => {
+    const p = seasonPulse([played("m1", 1, 2, 0, [goal("a"), goal("e")])], "s1", NOW);
+    const lines = playerLines(squad, p.played);
+    expect(leaders(lines, "goals", 1).map(p => p.id)).toEqual(["a", "e"]);
+    expect(narrative(p, ctx(p)).em).toContain("ADRIÁN T.C. y ERIK comparten el Pichichi con 1 gol cada uno");
+    expect(playerOfTheMoment(lines, p, NOW)?.text).toContain("comparte el Pichichi");
+    expect(clubMedals(p, lines, nameOf, () => "").find(m => m.id === "pichichi")).toMatchObject({kicker:"Pichichi compartido",title:"ADRIÁN T.C. y ERIK",detail:"1 gol cada uno"});
+  });
   it("pre-season without a date", () => {
     const p = seasonPulse([], "s1", NOW);
     expect(narrative(p, ctx(p))).toMatchObject({ head: "La Temporada 1 está a punto de empezar.", em: "3 dorsales, cero goles y toda la historia por escribir." });

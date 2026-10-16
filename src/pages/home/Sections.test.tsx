@@ -23,6 +23,26 @@ const acta: ClubMatch = { id: "m2", seasonId: "t1", version: 2, status: "schedul
 const next: ClubMatch = { id: "m3", seasonId: "t1", status: "scheduled", rival: "EL NUEVO", date: NOW + 4 * DAY };
 const row = (ms: ClubMatch[]) => <SeasonRow pulse={seasonPulse(ms, "t1", NOW)} now={NOW} nameOf={(id) => id} />;
 
+it.each([[10, 8, 8, 7], [10, 10, 8, 7], [10, 8, 7, 7, 7]])("el podio respeta los puestos compartidos y no recorta un empate: %j", (...goals: number[]) => {
+  const scorers = goals.map((goals, i) => ({id:`p${i+1}`, name:`Jugador ${i+1}`, num:String(i+1), stats:{goals,assists:0}})) as PlayerLine[];
+  render(<RaceAndBirthdays scorers={scorers} birthdays={[]} />);
+  const expected = goals.map(n => goals.filter(v => v > n).length + 1).filter(n => n <= 3);
+  const shown = [...document.querySelectorAll('.hm-pod:not(.ghost) .st')];
+  expect(shown.map(el => Number(el.childNodes[0].textContent)).sort()).toEqual(expected.sort());
+  for (const el of shown) {
+    const rank = Number(el.childNodes[0].textContent);
+    expect(el.closest('.hm-pod')).toHaveClass(rank === 1 ? 'gold' : rank === 2 ? 'silver' : 'bronze');
+  }
+  if (goals[0] === goals[1]) expect(screen.getByRole('heading', {name:/Pichichi compartido/})).toBeInTheDocument();
+});
+
+it("sin goles no concede medallas y los asistentes empatados aparecen todos", () => {
+  const assisters = ["PEPE", "LUIS"].map((name,i) => ({id:`p${i+1}`,name,num:String(i+1),stats:{goals:0,assists:2}})) as PlayerLine[];
+  render(<RaceAndBirthdays scorers={assisters} assisters={assisters} birthdays={[]} />);
+  expect(document.querySelectorAll('.hm-pod.gold,.hm-pod.silver,.hm-pod.bronze')).toHaveLength(0);
+  expect(document.querySelector('.hm-lede')).toHaveTextContent('PEPE y LUIS comparten el liderato: 2 asistencias cada uno.');
+});
+
 it("a played match waiting for its acta is not in «Lo que viene»: it takes the last match's place, «Pendiente del acta»", () => {
   render(row([played, acta, next]));
   const comes = screen.getByRole("heading", { name: "Lo que viene" }).parentElement!;
@@ -44,7 +64,7 @@ it("the plantilla's podium, the top assister and the birthdays lead to each play
     <RaceAndBirthdays
       seasonId="t1"
       scorers={[line("p1", "PEPE", 5), line("p2", "LUIS", 3)]}
-      assister={line("p3", "ANA", 0, 4)}
+      assisters={[line("p3", "ANA", 0, 4)]}
       birthdays={[{ id: "p2", name: "LUIS", num: "2", label: "3 de mayo", days: 4 }, { id: "fuera", name: "EX JUGADOR", num: "9", label: "9 de mayo", days: 10 }]}
     />,
   );

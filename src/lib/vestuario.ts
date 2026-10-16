@@ -1,5 +1,5 @@
 // Pure vestuario domain logic: everything the page shows is derived from real match data.
-import { dateMillis, isCompleted } from "../../functions/src/matchEngine";
+import { dateMillis, isCompleted, isVisibleMatch } from "../../functions/src/matchEngine";
 import { mvpWinnerIds } from "../../functions/src/pushLogic";
 import type { ClubMatch } from "./clubData";
 import { chronological, playerGame } from "./clubAnalytics";
@@ -14,9 +14,9 @@ export function currentSeasonId(
   seasons: { id: string }[],
 ) {
   return (
-    next?.seasonId ||
-    matches.find((m) => m.status === "finished")?.seasonId ||
-    matches[0]?.seasonId ||
+    (isVisibleMatch(next) ? next?.seasonId : undefined) ||
+    matches.find((m) => isCompleted(m))?.seasonId ||
+    matches.find(isVisibleMatch)?.seasonId ||
     seasons.at(-1)?.id ||
     ""
   );
@@ -68,7 +68,7 @@ export interface MvpResult {
 /** Winners of a match's MVP vote once it has closed (ties share it): the same rule as the «MVP de la J5»
  *  push (functions/src/pushLogic.ts mvpWinnerIds). */
 export function mvpWinners(match: ClubMatch, result: MvpResult | undefined, now: number) {
-  return mvpWinnerIds(match.voteClosesAt, result, now);
+  return isVisibleMatch(match) ? mvpWinnerIds(match.voteClosesAt, result, now) : [];
 }
 export function mvpWins(playerId: string, matches: ClubMatch[], results: Map<string, MvpResult>, now: number) {
   return matches.filter((m) => mvpWinners(m, results.get(m.id), now).includes(playerId)).length;
@@ -279,7 +279,7 @@ export function lastVotedMatch(matches: ClubMatch[]) {
   return matches.filter((m) => m.status === "finished" && isCompleted(m) && m.voteClosesAt).sort((a, b) => dateMillis(b.date) - dateMillis(a.date))[0];
 }
 export function calledUp(match: ClubMatch | undefined, playerId: string | undefined) {
-  return !!playerId && !!match && [...(match.starters ?? []), ...(match.bench ?? [])].includes(playerId);
+  return !!playerId && !!match && isVisibleMatch(match) && [...(match.starters ?? []), ...(match.bench ?? [])].includes(playerId);
 }
 export const MIN_PLAYERS = 7;
 

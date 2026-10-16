@@ -78,7 +78,9 @@ export function RaceBoard({ rows, nameOf, jornada, seasonId }: { rows: PlayerAna
   const m = frame.match;
   const label = METRICS.find(([k]) => k === metric)![1];
   const ended = !playing && j >= last;
-  const lead = [...framesInLead(frames.slice(0, j + 1)).entries()].sort((a, b) => b[1] - a[1])[0];
+  const timeInLead = [...framesInLead(frames.slice(0, j + 1)).entries()];
+  const mostInLead = Math.max(0, ...timeInLead.map(([, n]) => n));
+  const lead = timeInLead.filter(([, n]) => n === mostInLead && n > 0).sort(([a], [b]) => nameOf(byId.get(a)!).localeCompare(nameOf(byId.get(b)!), "es"));
 
   return (
     <article className="st-race" aria-labelledby="st-race-t">
@@ -211,15 +213,13 @@ export function RaceBoard({ rows, nameOf, jornada, seasonId }: { rows: PlayerAna
           {playing ? "Pausa" : ended ? "Repetir" : "Seguir"}
         </button>
         <span className="st-mono">
-          {lead ? (
+          {lead.length > 0 ? (
             <>
               Más jornadas en cabeza:{" "}
               <b>
-                <PlayerLink id={lead[0]} seasonId={seasonId} variant="quiet">
-                  {nameOf(byId.get(lead[0])!)}
-                </PlayerLink>
+                {lead.map(([id], index) => <span key={id}>{index > 0 && ", "}<PlayerLink id={id} seasonId={seasonId} variant="quiet">{nameOf(byId.get(id)!)}</PlayerLink></span>)}
               </b>{" "}
-              ({lead[1]})
+              ({mostInLead}{lead.length > 1 ? " · compartido" : ""})
             </>
           ) : (
             "Cada jornada, la tabla se reordena sola"

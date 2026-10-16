@@ -117,16 +117,7 @@ export function ClubPage() {
       <CelesteHeader
         active="club"
         sub="El club"
-        actions={
-          <>
-            <ThemeToggle />
-            <Link className="hm-cta-top" to="/vestuario">
-              <Icon name="padlock" size={16} stroke={2.2} />
-              <span className="t">Vestuario</span>
-              <span className="hm-sr">Entrar al vestuario</span>
-            </Link>
-          </>
-        }
+        actions={<ThemeToggle />}
       />
 
       <section className="cl-hero" aria-labelledby="cl-t">

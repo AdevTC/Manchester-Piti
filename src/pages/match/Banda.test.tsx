@@ -9,6 +9,10 @@ import { Banda } from "./Banda";
 const api = vi.hoisted(() => ({ live: vi.fn<(payload: unknown) => Promise<{ data: { events: number } }>>(async () => ({ data: { events: 1 } })) }));
 vi.mock("../../lib/clubApi", () => ({ liveEvent: api.live, apiError: (e: Error) => e.message }));
 vi.mock("../../components/celeste/MatchClockControl", () => ({ MatchClockControl: () => null }));
+// Banda mounts quick entry before switching to the detailed editor. Give that entry a
+// signed-in scorer and an isolated, current snapshot without starting Firebase listeners.
+vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: { uid: "banda-scorer" } }) }));
+vi.mock("../../lib/syncStatus", () => ({ useSyncStatus: () => ({ online: true, fresh: true }) }));
 const T0 = Date.UTC(2026, 9, 14, 10, 0);
 const NOW = { t: T0 + 31 * 60_000 + 10_000 };
 vi.mock("../../hooks/useClock", () => ({ useClock: () => NOW.t }));
@@ -30,6 +34,7 @@ function tapAll(taps: Tap[]) {
 
 beforeEach(() => {
   api.live.mockClear();
+  localStorage.clear();
   vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("req-1" as `${string}-${string}-${string}-${string}-${string}`);
 });
 afterEach(() => vi.restoreAllMocks());

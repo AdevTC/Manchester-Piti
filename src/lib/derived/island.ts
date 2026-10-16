@@ -5,6 +5,7 @@
 import { dateMillis, matchPhase, type ClubMatch } from "../clubData";
 import { eventMinute, OURS, scoreOf } from "../partidos";
 import { kickoffState } from "./kickoff";
+import { isVisibleMatch } from "../../../functions/src/matchEngine";
 
 /** How long «FINAL» stays in the island after the whistle. */
 export const FINAL_HOLD_MS = 30 * 60_000;
@@ -27,6 +28,7 @@ export function whistleAt(m: Pick<ClubMatch, "clock" | "liveEndedAt">): number |
 /** The match whose MVP vote is open (the latest by date), for a member; undefined otherwise. */
 export function voteMatch(matches: readonly ClubMatch[], now: number): ClubMatch | undefined {
   return matches
+    .filter(isVisibleMatch)
     .filter((m) => m.status === "finished" && typeof m.voteClosesAt === "number" && m.voteClosesAt > now)
     .sort((a, b) => dateMillis(b.date) - dateMillis(a.date))[0];
 }
@@ -37,6 +39,7 @@ export function voteMatch(matches: readonly ClubMatch[], now: number): ClubMatch
  * `voteOpen` (a member who hasn't voted). Null: no island.
  */
 export function islandOf(matches: readonly ClubMatch[], now: number, voteOpen: boolean): IslandState | null {
+  matches = matches.filter(isVisibleMatch);
   // (two at once: the earliest kick-off, whatever the list's order)
   const live = matches.filter((m) => matchPhase(m, now) === "playing").sort((a, b) => dateMillis(a.date) - dateMillis(b.date))[0];
   if (live) return { kind: kickoffState(live, now) === "halftime" ? "halftime" : "live", match: live };
@@ -72,6 +75,7 @@ export interface GoalMoment {
 /** The island's line for goal `goalId` of `match` (the score is the match's now, PITI first); null when the
  *  goal is gone (undone) or isn't a goal. `nameOf` names a player in the match's season (nameFor). */
 export function goalMoment(match: Pick<ClubMatch, "events" | "rival" | "status" | "goalsFor" | "goalsAgainst">, goalId: string, nameOf: (id: string) => string): GoalMoment | null {
+  if (!isVisibleMatch(match)) return null;
   const e = match.events?.find((x) => x.id === goalId);
   if (!e) return null;
   const ours = OURS.has(e.type);

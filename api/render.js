@@ -1,36 +1,24 @@
 // Server render of the public pages (vercel.json routes them here). Renders the page with the public
 // data bundle and the same React code as the browser (dist-ssr, built by `pnpm build`), so the first
-// paint has the real content without waiting for the JavaScript. Vercel's CDN keeps each page a
-// minute and serves the previous copy while it refreshes, like the data bundle itself.
+// paint has the real content without waiting for the JavaScript. Read fresh public data on every
+// request so archived or deleted matches cannot reappear in a cached page.
 // Any failure answers with the plain app shell: the page then boots exactly as without this.
 
-// The bundle function directly (Madrid, next to Firestore); it memoizes its build for 30 s.
+// The bundle function directly (Madrid, next to Firestore).
 const BUNDLE_URL = "https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net/clubBundle";
 const PAGES = new Set(["/", "/partidos", "/stats", "/club", "/plantilla"]);
-const MEMO_MS = 30_000;
-
-let memo = null;
-function bundle() {
-  if (!memo || Date.now() - memo.at > MEMO_MS) {
-    const bytes = fetch(BUNDLE_URL).then(async (r) => {
-      if (!r.ok) throw new Error(`bundle ${r.status}`);
-      return new Uint8Array(await r.arrayBuffer());
-    });
-    memo = { at: Date.now(), bytes };
-    bytes.catch(() => {
-      if (memo?.bytes === bytes) memo = null;
-    });
-  }
-  return memo.bytes;
+async function bundle() {
+  const response = await fetch(BUNDLE_URL, { cache: "no-store" });
+  if (!response.ok) throw new Error(`bundle ${response.status}`);
+  return new Uint8Array(await response.arrayBuffer());
 }
 
-const html = (body, cdn) =>
+const html = (body) =>
   new Response(body, {
     headers: {
       "content-type": "text/html; charset=utf-8",
-      // Browsers always ask again (the CDN answers); the CDN serves a stale copy while it re-renders.
-      "cache-control": "public, max-age=0, must-revalidate",
-      "cdn-cache-control": cdn,
+      "cache-control": "no-store",
+      "cdn-cache-control": "no-store",
     },
   });
 
@@ -48,15 +36,15 @@ export async function GET(request) {
     const head = css.map((href) => `<link rel="stylesheet" crossorigin href="${href}">`).join("");
     // Function replacers: `$` in the markup must not be read as a replacement pattern.
     const page = template.replace("<!--ssr-head-->", () => head).replace("<!--ssr-root-->", () => markup);
-    return html(page, "max-age=60, stale-while-revalidate=86400");
+    return html(page);
   } catch (error) {
     console.error("render", path, error);
     try {
       const { shell } = await import("../dist-ssr/shell.js");
-      return html(shell, "max-age=10");
+      return html(shell);
     } catch {
       const shell = await fetch(new URL("/shell.html", request.url)).then((r) => r.text());
-      return html(shell, "max-age=10");
+      return html(shell);
     }
   }
 }

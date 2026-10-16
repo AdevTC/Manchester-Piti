@@ -2,8 +2,12 @@ import { test, expect } from "@playwright/test";
 
 test("la portada es el día de partido: titular, jugador del momento, temporada y tu camiseta", async ({ page }) => {
   await page.goto("/");
-  // The seed's finished match (2–1, two hours ago) drives the headline.
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^¡Victoria! 2⁠?–⁠?1 ante Atlético Demo\.$/);
+  // The scheduled fixture owns the hero; the recent victory has its own season block.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Próximo partido");
+  const hero = page.getByRole("region", { name: "Próximo partido", exact: true });
+  await expect(hero.getByRole("timer")).toBeVisible();
+  await expect(hero.getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/preview-next");
+  await expect(hero).not.toContainText("Victoria");
   // Its first scorer is the player of the moment, with a link to the ficha.
   const moment = page.getByRole("article", { name: "Mario" });
   await expect(moment).toContainText("Goleador del último partido");
@@ -11,6 +15,7 @@ test("la portada es el día de partido: titular, jugador del momento, temporada 
 
   // The season row: last result and what comes next.
   await expect(page.getByRole("link", { name: /PITI.*2–1.*Atlético Demo/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "La temporada" }).getByRole("heading", { name: "Victoria", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Lo que viene" })).toBeVisible();
 
   // «Ponte la del Piti»: the fan's name goes on the shirt.

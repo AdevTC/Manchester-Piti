@@ -4,7 +4,7 @@ test("web pública, navegación y detalle sin iniciar sesión", async ({
 }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "Victoria",
+    "Próximo partido",
   );
   const nav = page.getByRole("navigation", { name: "Navegación principal" });
   await nav.getByRole("link", { name: "Partidos", exact: true }).click();
@@ -14,6 +14,26 @@ test("web pública, navegación y detalle sin iniciar sesión", async ({
   await expect(
     page.getByRole("button", { name: "Cartel cuadrado" }),
   ).toBeVisible();
+});
+
+test("cabecera sin accesos duplicados ni etiquetas partidas en escritorio compacto y ambas paletas", async ({ page }) => {
+  await page.goto("/");
+  for (const theme of ["dark", "light"]) {
+    await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
+    for (const width of [1100, 1220, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      const header = page.locator(".vx-top");
+      await expect(header.getByRole("link", { name: "Entrar al vestuario" })).toHaveCount(1);
+      const nav = header.getByRole("navigation", { name: "Navegación principal" });
+      await expect(nav).toBeVisible();
+      await expect(nav.getByRole("link", { name: "El club", exact: true })).toBeVisible();
+      expect(await header.evaluate((element) => {
+        const children = [...element.children].map((child) => child.getBoundingClientRect());
+        const links = [...element.querySelectorAll(".vx-nav a")];
+        return children.every((box) => box.left >= 0 && box.right <= innerWidth) && children.every((box, i) => !i || box.left >= children[i - 1].right) && links.every((link) => getComputedStyle(link).whiteSpace === "nowrap");
+      })).toBe(true);
+    }
+  }
 });
 test("jugador, datos de temporada y reparto real de minutos", async ({
   page,
@@ -51,15 +71,15 @@ test("la puerta no pide clave y admin está protegido", async ({
   );
 });
 test("navegación móvil sin desbordamiento", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
-  const nav = page.getByRole("navigation", { name: "Navegación móvil" });
-  await expect(nav).toBeVisible();
-  await nav.getByRole("link", { name: "Plantilla" }).click();
-  await expect(page.getByLabel("Buscar jugador")).toBeVisible();
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    const nav = page.getByRole("navigation", { name: "Navegación móvil" });
+    await expect(nav).toBeVisible();
+    await expect(page.locator(".vx-top").getByRole("link", { name: "Entrar al vestuario" })).toBeVisible();
+    await nav.getByRole("link", { name: "Plantilla" }).click();
+    await expect(page.getByLabel("Buscar jugador")).toBeVisible();
+    expect(await page.locator(".vx-top").evaluate((element) => [...element.children].every((child) => child.getBoundingClientRect().right <= innerWidth))).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
 });

@@ -55,16 +55,7 @@ function Shell({ children, busy }: { children: React.ReactNode; busy?: boolean }
       <CelesteHeader
         active="plantilla"
         sub="Plantilla"
-        actions={
-          <>
-            <ThemeToggle />
-            <Link className="hm-cta-top" to="/vestuario">
-              <Icon name="padlock" size={16} stroke={2.2} />
-              <span className="t">Vestuario</span>
-              <span className="hm-sr">Entrar al vestuario</span>
-            </Link>
-          </>
-        }
+        actions={<ThemeToggle />}
       />
       {children}
       <CelesteFooter />

@@ -47,3 +47,12 @@ it("«all seasons» on the board: the links carry no season", () => {
   render(<RaceBoard rows={rows} nameOf={(p) => nameFor(p)} jornada={new Map([["j1", 1], ["j2", 2]])} seasonId="all" />);
   for (const a of document.querySelectorAll("a.pl-link")) expect(a).toHaveAttribute("href", "/jugadores/erik");
 });
+
+it("shows everyone tied for most jornadas in the lead", () => {
+  vi.stubGlobal("matchMedia", () => ({ matches: true }));
+  const tied = { ...game("j1", 6, "erik"), goalsFor: 2, events: [{ id: "a", type: "goal" as const, minute: 10, playerId: "erik" }, { id: "b", type: "goal" as const, minute: 20, playerId: "pablo" }] };
+  render(<RaceBoard rows={squad.map(p => analysePlayer(p, [tied]))} nameOf={nameFor} jornada={new Map([["j1", 1]])} seasonId="t1" />);
+  const most = screen.getByText(/^Más jornadas en cabeza/);
+  expect(within(most).getAllByRole("link").map(a => a.textContent)).toEqual(["ERIK", "PABLO"]);
+  expect(most).toHaveTextContent("1 · compartido");
+});

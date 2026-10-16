@@ -50,13 +50,13 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 [data-theme="light"] .vx-grain{display:none}
 /* top */
 .vx-top{position:absolute;left:0;right:0;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:16px 20px}
-.vx-brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex:1}
+.vx-brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex:1;min-width:0}
 .vx .vx-brand{color:var(--ink)}
 .vx-brand img{width:38px;height:38px}
 .vx-brand-name{display:none;font-family:'Anybody';font-weight:800;font-size:19px;font-variation-settings:'wdth' 120}
 .vx-brand-sub{font-weight:600;font-size:16px}
 .vx-nav{display:none}
-.vx-actions{display:flex;gap:10px}
+.vx-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .vx-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#b8e0fb,#3f86bd);color:#0c1733;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
 /* HERO POSTER */
 .vx-hero{position:relative;background:var(--hero-bg);padding:calc(80px + var(--isle,0px)) 20px 0;overflow:hidden}
@@ -215,12 +215,12 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 /* DESKTOP */
 @container (min-width:1100px){
 .vx-top{padding:22px 64px}
-.vx-brand{flex:0 0 280px}.vx-brand-name{display:inline}.vx-brand-sub{display:none}
-.vx-nav{display:flex;flex:1;justify-content:center}
+.vx-brand{flex:1 1 auto}.vx-brand-name{display:none;white-space:nowrap}.vx-brand-sub{display:none}
+.vx-nav{display:flex;flex:0 0 auto;justify-content:center}
 .vx-nav-in{display:flex;gap:2px;padding:5px;border-radius:999px;background:var(--nav);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:var(--nav-shadow)}
-.vx .vx-nav-in a{padding:10px 18px;border-radius:999px;text-decoration:none;font-size:14px;font-weight:500;color:var(--soft)}
+.vx .vx-nav-in a{display:inline-flex;align-items:center;min-height:44px;padding:10px clamp(11px,1.25cqi,18px);border-radius:999px;text-decoration:none;font-size:14px;font-weight:500;color:var(--soft);white-space:nowrap;flex-shrink:0}
 .vx .vx-nav-in a.on{background:var(--nav-on);color:var(--nav-on-ink);font-weight:600}
-.vx-actions{flex:0 0 280px;justify-content:flex-end}
+.vx-actions{flex:1 0 auto;justify-content:flex-end}
 .vx-hero{padding:calc(100px + var(--isle,0px)) 64px 0}
 .vx-hero-in{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:24px}
 .vx-hero-text{padding-bottom:80px}
@@ -237,6 +237,10 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 .vx-h2{font-size:36px}
 .vx-medals{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+/* Let the public links keep their full labels before the full wordmark returns. */
+@container (min-width:1280px){.vx-brand-name{display:inline}}
+@container (max-width:380px){.vx-brand-sub{display:none}}
+.vx .hm-cta-top[aria-current=page]{outline:2px solid var(--cta-ink);outline-offset:-5px}
 @keyframes vxNumIn{from{opacity:0;transform:scale(1.25)}to{opacity:1;transform:none}}
 @keyframes vxBustIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
 @keyframes vxNameIn{from{opacity:0;letter-spacing:.25em}to{opacity:1;letter-spacing:-.03em}}

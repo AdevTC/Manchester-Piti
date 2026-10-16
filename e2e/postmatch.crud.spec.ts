@@ -32,12 +32,62 @@ test('resumen personal, historial mensual y cobertura sin confundir ceros con au
   await page.screenshot({path:'.emulator-data/coverage-mobile.png'});
 });
 
-test('banquillo sincronizado, deshacer propio y revisión obligatoria de la asistencia rápida',async({page,context})=>{
-  test.setTimeout(60000);
+test('banquillo recuperable, sincronizado, deshacer propio y revisión obligatoria de la asistencia rápida',async({page,context})=>{
+  test.setTimeout(90000);
   await enterVestuario(page);
   await page.goto('/admin/en-juego/preview-bench');
   const panel=page.getByRole('region',{name:'Modo banquillo rápido'});
+  await expect(panel.getByRole('button',{name:'Ocasión rival',exact:true})).toBeEnabled();
+  const requests: { action: string; requestId?: string; manualTime?: boolean; event?: { minute: number } }[] = [];
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/liveEvent')) requests.push(request.postDataJSON().data);
+  });
+  await context.setOffline(true);
+  await expect(panel.getByText(/Sin conexión. Puedes preparar una jugada/)).toBeVisible();
+  await panel.getByRole('button',{name:'Ocasión rival',exact:true}).click();
+  await expect(panel.getByText('Pendiente de envío',{exact:true})).toBeVisible();
+  const pending = await page.evaluate(() => {
+    const key = Object.keys(localStorage).find(key => key.startsWith('mp:quick-match:v1:demo-manchester-piti:') && key.endsWith(':preview-bench'));
+    return JSON.parse(localStorage.getItem(key!)!).attempt.payload as { requestId: string; event: { minute: number } };
+  });
+  expect(requests).toHaveLength(0);
+  await context.setOffline(false);
+  await page.reload();
+  const retry=panel.getByRole('button',{name:'Reintentar la misma jugada'});
+  await expect(retry).toBeEnabled();
+  expect(requests).toHaveLength(0);
+  await page.setViewportSize({width:390,height:844});
+  // EnJuego swaps its desktop and mobile trees: wait for the new scoped instance to restore
+  // the pending receipt before scrolling it, instead of holding the detached desktop node.
+  await expect(page.locator('.adm.m')).toBeVisible();
+  await expect(async()=>{
+    const pendingStatus=page.getByRole('region',{name:'Modo banquillo rápido'}).getByText('Pendiente de envío',{exact:true});
+    await expect(pendingStatus).toBeVisible();
+    await pendingStatus.scrollIntoViewIfNeeded();
+    await expect(pendingStatus).toBeInViewport();
+  }).toPass({timeout:5000});
+  await expect(retry).toBeEnabled();
+  expect(requests).toHaveLength(0);
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'.emulator-data/bench-recovery-mobile.png'});
+  await retry.click();
+  await expect(panel.getByText('✓ Confirmada en el partido',{exact:true})).toBeVisible();
+  expect(requests).toHaveLength(1);
+  expect(requests[0]).toMatchObject({action:'add',requestId:pending.requestId,manualTime:true,event:{minute:pending.event.minute}});
+  const stored=await page.request.get('http://127.0.0.1:8080/v1/projects/demo-manchester-piti/databases/(default)/documents/matches/preview-bench');
+  expect(stored.ok()).toBe(true);
+  const events=(await stored.json()).fields.events.arrayValue.values as {mapValue:{fields:{id:{stringValue:string}}}}[];
+  expect(events.filter(event=>event.mapValue.fields.id.stringValue===`live-${pending.requestId}`)).toHaveLength(1);
+  await page.reload();
+  await expect(panel.getByText('✓ Confirmada en el partido',{exact:true})).toBeVisible();
+  expect(requests).toHaveLength(1);
+  await panel.getByRole('button',{name:/Deshacer mi última jugada/}).click();
+  await expect(panel.getByText('Tu última jugada se ha deshecho.')).toBeVisible();
+  await page.setViewportSize({width:1280,height:950});
   await panel.getByRole('button',{name:'Gol del Piti',exact:true}).click();
+  await page.reload();
+  await expect(panel.getByRole('heading',{name:'Selección pendiente de recuperar'})).toBeVisible();
+  await panel.getByRole('button',{name:'Recuperar selección',exact:true}).click();
   await panel.getByRole('button',{name:'Mario',exact:true}).click();
   await expect(panel.getByText(/Asistencia pendiente de revisar en el acta/)).toBeVisible();
 

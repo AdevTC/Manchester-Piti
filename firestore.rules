@@ -16,9 +16,22 @@ service cloud.firestore {
     function signedAsMe(d) {
       return d.name == me().nickname && d.playerId == me().get('playerId', null) && d.at == request.time;
     }
+    // A closed lifecycle cannot be changed from an old tab. Draft-only boards are admin-only.
+    function activeMatch(matchId) {
+      return !exists(/databases/$(database)/documents/matchTombstones/$(matchId))
+        && exists(/databases/$(database)/documents/matches/$(matchId))
+        && !get(/databases/$(database)/documents/matches/$(matchId)).data.get('archived', false);
+    }
+    function boardMatchActive(matchId) {
+      return matchId == null || activeMatch(matchId)
+        || (admin() && !exists(/databases/$(database)/documents/matchTombstones/$(matchId))
+          && !exists(/databases/$(database)/documents/matches/$(matchId))
+          && exists(/databases/$(database)/documents/matchDrafts/$(matchId))
+          && !get(/databases/$(database)/documents/matchDrafts/$(matchId)).data.get('archived', false));
+    }
     function upcoming(matchId) {
       let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
-      return m.status == 'scheduled' && m.date > request.time;
+      return activeMatch(matchId) && m.status == 'scheduled' && m.date > request.time;
     }
     function superadminEmail() {
       return signedIn() && request.auth.token.email == 'adriantomascv@gmail.com' && request.auth.token.email_verified == true;
@@ -33,7 +46,9 @@ service cloud.firestore {
         && s.games is int && s.games >= 1 && s.games <= 10
         && s.from is int
         && s.by == request.auth.uid
-        && (s.get('untilMatchId', null) == null || (s.untilMatchId is string && s.untilMatchId.size() >= 1 && s.untilMatchId.size() <= 128))
+        && (s.get('untilMatchId', null) == null || (s.untilMatchId is string && s.untilMatchId.size() >= 1 && s.untilMatchId.size() <= 128
+          && exists(/databases/$(database)/documents/matches/$(s.untilMatchId))
+          && !exists(/databases/$(database)/documents/matchTombstones/$(s.untilMatchId))))
         && (s.get('reason', null) == null || (s.reason is string && s.reason.size() <= 80)));
     }
     // Only when they change (another admin editing the ficha keeps someone else's sanction as it is).
@@ -92,7 +107,7 @@ service cloud.firestore {
     }
     function mvpOpen(matchId, playerId) {
       let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
-      return m.status == 'finished' && m.get('voteClosesAt', 0) is number
+      return activeMatch(matchId) && m.status == 'finished' && m.get('voteClosesAt', 0) is number
         && request.time.toMillis() < m.voteClosesAt
         && m.get('ledger', {}).get(playerId, {}).get('played', false) == true;
     }
@@ -130,6 +145,7 @@ service cloud.firestore {
     match /nicknames/{name} { allow read: if teamMember(); allow write: if false; }
     match /matchDrafts/{id} { allow read: if admin(); allow write: if false; }
     match /matchAudit/{id} { allow read: if admin(); allow write: if false; }
+    match /matchTombstones/{id} { allow read, write: if false; }
     function porraRevealed(id) {
       let m = get(/databases/$(database)/documents/matches/$(id)).data;
       return m.status == 'finished' || m.get('liveEndedAt', 0) > 0
@@ -340,6 +356,7 @@ service cloud.firestore {
         && request.resource.data.get('name', null) is string && request.resource.data.name.size() > 0
         && request.resource.data.get('ownerNickname', null) == me().nickname
         && (!request.resource.data.get('isOfficial',false) || admin())
+        && boardMatchActive(request.resource.data.get('matchId', null))
         && boardOk(request.resource.data);
       // The owner and the season never change; the nickname only to the owner's own current one.
       allow update: if teamMember()
@@ -349,8 +366,11 @@ service cloud.firestore {
           || (resource.data.ownerUid == request.auth.uid && request.resource.data.get('ownerNickname', null) == me().nickname))
         && (admin() || (resource.data.ownerUid == request.auth.uid
           && !resource.data.get('isOfficial',false) && !request.resource.data.get('isOfficial',false)))
+        && boardMatchActive(resource.data.get('matchId', null))
+        && boardMatchActive(request.resource.data.get('matchId', null))
         && boardOk(request.resource.data);
-      allow delete: if teamMember() && (admin() || (resource.data.ownerUid == request.auth.uid && !resource.data.get('isOfficial',false)));
+      allow delete: if teamMember() && boardMatchActive(resource.data.get('matchId', null))
+        && (admin() || (resource.data.ownerUid == request.auth.uid && !resource.data.get('isOfficial',false)));
       // What each member thinks of the official seven: their own doc, «ok» or «dudas», only while
       // the board is official. Everyone inside sees the counts. When the board stops being official
       // or is deleted, the captains (or its owner, once it is not official) clear them.
@@ -360,8 +380,11 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['value','at'])
           && request.resource.data.value in ['ok','dudas']
           && request.resource.data.at == request.time
+          && boardMatchActive(get(/databases/$(database)/documents/lineups/$(id)).data.get('matchId', null))
           && get(/databases/$(database)/documents/lineups/$(id)).data.get('isOfficial', false) == true;
-        allow delete: if teamMember() && (request.auth.uid == uid || admin()
+        allow delete: if teamMember()
+          && boardMatchActive(get(/databases/$(database)/documents/lineups/$(id)).data.get('matchId', null))
+          && (request.auth.uid == uid || admin()
           || (get(/databases/$(database)/documents/lineups/$(id)).data.ownerUid == request.auth.uid
             && !get(/databases/$(database)/documents/lineups/$(id)).data.get('isOfficial', false)));
       }
@@ -388,7 +411,8 @@ service cloud.firestore {
     }
     function vozEditor(lineupId) {
       let b = get(/databases/$(database)/documents/lineups/$(lineupId)).data;
-      return admin() || (b.ownerUid == request.auth.uid && !b.get('isOfficial', false));
+      return boardMatchActive(b.get('matchId', null))
+        && (admin() || (b.ownerUid == request.auth.uid && !b.get('isOfficial', false)));
     }
     // One official per scope (a match, or the season: «<season>__<match|temporada>»): the doc names
     // the board, so publishing is a transaction on it (useLineups.publishOfficial). Captains only.
@@ -399,16 +423,18 @@ service cloud.firestore {
         && request.resource.data.lineupId is string && request.resource.data.lineupId.size() <= 128
         && request.resource.data.seasonId is string
         && (request.resource.data.matchId == null || request.resource.data.matchId is string)
+        && boardMatchActive(request.resource.data.matchId)
         && scope == request.resource.data.seasonId + '__'
           + (request.resource.data.matchId == null ? 'temporada' : request.resource.data.matchId)
         && request.resource.data.at == request.time;
-      allow delete: if admin();
+      allow delete: if admin() && boardMatchActive(resource.data.get('matchId', null));
     }
     // «Recordatorios automáticos» of a match's convocatoria (the 48 h / 24 h push to who hasn't
     // answered, functions/src/reminders.ts): on unless a captain turns them off. Captains write it.
     match /convocatoriaReminders/{matchId} {
       allow read: if teamMember();
       allow create, update: if admin()
+        && activeMatch(matchId)
         && request.resource.data.keys().hasOnly(['auto','by','at'])
         && request.resource.data.auto is bool
         && request.resource.data.by == request.auth.uid

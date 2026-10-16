@@ -30,6 +30,12 @@ const players = [
 ];
 const rows = players.map((p) => analysePlayer(p, games));
 
+it("el rótulo no elige un ganador arbitrario entre líderes empatados", () => {
+  const tied = rows.map(p => ({...p, goals:3, assists:2}));
+  expect(tickerLines(tied, games)).toContain("Pichichi compartido: ANA, BEA y CRIS con 3 cada uno");
+  expect(tickerLines(tied, games)).toContain("Más asistencias: ANA, BEA y CRIS con 2 cada uno");
+});
+
 describe("La carrera del Pichichi", () => {
   it("replays the cumulative standing jornada by jornada, ties sharing the rank", () => {
     const frames = raceFrames(rows, "goals");

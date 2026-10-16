@@ -1,1 +1,24 @@
 .analysis-editor{margin:24px 0;padding:20px;background:var(--panel);border-radius:20px;box-shadow:inset 0 0 0 1px var(--pline);min-width:0}.ae-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.ae-heading h3{font:800 25px 'Anybody',sans-serif;margin:5px 0}.analysis-editor p{font-size:13px;line-height:1.6;color:var(--soft)}.analysis-editor label{display:flex;flex-direction:column;gap:6px;font-size:12px;margin:12px 0;min-width:0}.analysis-editor input:not([type=checkbox]),.analysis-editor select,.analysis-editor textarea{width:100%;min-width:0;min-height:44px;padding:10px;border:1px solid var(--pline);border-radius:12px;background:var(--sheet);color:var(--ink);font:14px 'Geist',sans-serif;box-sizing:border-box}.analysis-editor textarea{min-height:95px;resize:vertical}.analysis-editor summary{cursor:pointer;min-height:44px;line-height:44px;font-weight:650}.ae-form{padding:16px;margin:18px 0;box-shadow:inset 0 0 0 1px var(--sky);border-radius:16px}.ae-form label:has(input[type=checkbox]){flex-direction:row;align-items:center;min-height:44px}.ae-form input[type=checkbox]{width:20px;height:20px}.ae-buttons{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.ae-events{list-style:none;padding:0}.ae-events li{display:flex;border-bottom:1px solid var(--pline);gap:8px}.ae-events button{background:none;color:inherit;border:0;min-height:48px;padding:10px;cursor:pointer;text-align:left}.ae-events button:first-child{display:flex;gap:12px;flex:1}.ae-events b{font:13px 'Geist Mono',monospace;min-width:36px}.ae-events small{display:block;color:var(--muted);margin-top:4px}.ae-message{white-space:pre-line}.analysis-editor :focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+/* The import is a reviewable proposal, separate from the acta until accepted. */
+.ae-review{margin-top:20px;padding:16px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--sky);background:var(--panel)}
+.ae-review-summary{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;line-height:1.6;color:var(--soft)}
+.ae-review-summary b{color:var(--ink)}
+.ae-review-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:0 16px}
+.ae-review-events{list-style:none;padding:0;margin:12px 0;display:grid;gap:14px}
+.ae-review-events>li,.ae-question{padding:16px;background:var(--sheet);border-radius:14px;box-shadow:inset 0 0 0 1px var(--pline);min-width:0}
+.ae-review-event-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;font-size:14px}
+.ae-review-event-head .btn{margin-left:auto}
+.ae-change{padding:5px 9px;background:var(--panel);border-radius:999px;font-size:11px;font-weight:700;box-shadow:inset 0 0 0 1px var(--pline)}
+.ae-change.added{color:var(--sky)}
+.ae-change.updated{color:var(--amber)}
+.ae-review blockquote{margin:12px 0;padding:10px 14px;border-left:2px solid var(--sky);color:var(--soft);background:var(--panel);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.ae-review blockquote small{display:block;margin-bottom:4px;font-size:11px;font-weight:650}
+.ae-review-diff{display:grid;gap:0;margin:0;font-size:13px}
+.ae-review-diff>div{padding:12px 0;border-top:1px solid var(--pline)}
+.ae-review-diff dt{font-weight:700;color:var(--ink);margin-bottom:8px}
+.ae-review-diff dd{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:14px;color:var(--soft);overflow-wrap:anywhere}
+.ae-review-diff small{display:block;font:11px 'Geist Mono',monospace;color:var(--muted);margin-bottom:4px}
+.ae-review-questions{display:grid;gap:12px;margin:18px 0}
+.ae-review-questions>h4,.ae-review-questions>p{margin:0}
+.ae-review-muted{color:var(--muted)}
+.ae-question textarea{min-height:72px}

@@ -1,49 +1,39 @@
-// Season archive: an archived season (and its matches and the players who only
-// played it) stays in Firestore untouched, but every public reader drops it.
-// The flag is denormalised onto each match/player so the client mappers can
-// filter without knowing which seasons are archived.
-import { FieldValue } from "firebase-admin/firestore";
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { z } from "zod";
-import { db, idSchema, parse, admin } from "./common.js";
+// Archive a season atomically, retaining an individual match archive when the season returns.
+import { FieldValue } from 'firebase-admin/firestore';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { z } from 'zod';
+import { db, idSchema, parse, admin } from './common.js';
+import { prepareMvpTallies, prepareSeasonMetrics } from './seasonMetrics.js';
 
-const BATCH = 400;
-
-export const setSeasonArchived = onCall(async (req) => {
+export const setSeasonArchived = onCall(async req => {
   await admin(req);
-  const { seasonId, archived } = parse(
-    z.object({ seasonId: idSchema, archived: z.boolean() }),
-    req.data,
-  );
-  const season = await db.doc(`seasons/${seasonId}`).get();
-  if (!season.exists) throw new HttpsError("not-found", "La temporada no existe.");
-  const [seasons, matches, players] = await Promise.all([
-    db.collection("seasons").get(),
-    db.collection("matches").where("seasonId", "==", seasonId).get(),
-    db.collection("players").where("seasons", "array-contains", seasonId).get(),
-  ]);
-  const archivedIds = new Set(
-    seasons.docs
-      .filter((s) => (s.id === seasonId ? archived : s.get("archived") === true))
-      .map((s) => s.id),
-  );
-  const flag = (on: boolean) => (on ? true : FieldValue.delete());
-  const writes: [FirebaseFirestore.DocumentReference, boolean][] = [
-    [season.ref, archived],
-    ...matches.docs.map((m) => [m.ref, archived] as [FirebaseFirestore.DocumentReference, boolean]),
-    // A player disappears only when every season they belong to is archived.
-    ...players.docs.map((p) => {
-      const theirs = (p.get("seasons") ?? []) as string[];
-      return [p.ref, theirs.length > 0 && theirs.every((id) => archivedIds.has(id))] as [FirebaseFirestore.DocumentReference, boolean];
-    }),
-  ];
-  for (let i = 0; i < writes.length; i += BATCH) {
-    const batch = db.batch();
-    for (const [ref, on] of writes.slice(i, i + BATCH)) batch.update(ref, { archived: flag(on) });
-    await batch.commit();
-  }
-  return {
-    matches: matches.size,
-    players: writes.slice(1 + matches.size).filter(([, on]) => on).length,
-  };
+  const { seasonId, archived } = parse(z.object({ seasonId: idSchema, archived: z.boolean() }), req.data);
+  return db.runTransaction(async tx => {
+    // Seasons first, then matches and their dependants: same order as match-level transactions.
+    const seasons = await tx.get(db.collection('seasons'));
+    const season = seasons.docs.find(s => s.id === seasonId);
+    if (!season) throw new HttpsError('not-found', 'La temporada no existe.');
+    const matches = await tx.get(db.collection('matches').where('seasonId', '==', seasonId));
+    const drafts = await tx.get(db.collection('matchDrafts').where('seasonId', '==', seasonId));
+    const players = await tx.get(db.collection('players').where('seasons', 'array-contains', seasonId));
+    if (archived && matches.docs.some(m => ['first', 'halftime', 'second'].includes(m.get('clock.phase')))) throw new HttpsError('failed-precondition', 'Finaliza o reinicia los relojes en marcha antes de archivar la temporada.');
+    const archivedIds = new Set(seasons.docs.filter(s => s.id === seasonId ? archived : s.get('archived') === true).map(s => s.id));
+    const overrides = new Map(matches.docs.map(m => [m.id, { ...m.data(), archived: archived || m.get('individuallyArchived') === true }]));
+    const mvp = await prepareMvpTallies(tx, archived ? [] : matches.docs.filter(m => m.get('individuallyArchived') !== true));
+    const metrics = await prepareSeasonMetrics(tx, seasonId, overrides, archived);
+    if (1 + matches.size + drafts.size + players.size + metrics.writes + mvp.writes > 490) throw new HttpsError('resource-exhausted', 'La temporada es demasiado grande para archivarla de forma atómica. No se ha cambiado ningún dato.');
+    const flag = (on: boolean) => on ? true : FieldValue.delete();
+    tx.update(season.ref, { archived: flag(archived) });
+    for (const m of [...matches.docs, ...drafts.docs]) tx.update(m.ref, { archived: flag(archived || m.get('individuallyArchived') === true), revision: (m.get('revision') ?? 0) + 1 });
+    let archivedPlayers = 0;
+    for (const p of players.docs) {
+      const theirs = (p.get('seasons') ?? []) as string[];
+      const on = theirs.length > 0 && theirs.every(id => archivedIds.has(id));
+      if (on) archivedPlayers++;
+      tx.update(p.ref, { archived: flag(on) });
+    }
+    metrics.write();
+    mvp.write();
+    return { matches: matches.size, players: archivedPlayers };
+  });
 });

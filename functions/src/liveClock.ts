@@ -4,6 +4,7 @@ import { z } from "zod";
 import { admin, db, idSchema, memberAs, parse } from "./common.js";
 import { CLOCK_ACTIONS, clockReading, transitionClock, type MatchClock } from "./matchClock.js";
 import type { MatchEvent } from "./matchEngine.js";
+import { requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 
 export async function requireScorer(tx: FirebaseFirestore.Transaction, matchId: string, actor: Awaited<ReturnType<typeof memberAs>>) {
   if (actor.isAdmin) return;
@@ -14,9 +15,9 @@ export const setMatchScorers = onCall(async req => {
   const uid = await admin(req);
   const data = parse(z.object({ matchId: idSchema, uids: z.array(idSchema).max(12) }), req.data);
   const ids = [...new Set(data.uids)];
-  await db.runTransaction(async tx => {
-    const match = await tx.get(db.doc(`matches/${data.matchId}`));
+  await runMatchTransaction(data.matchId, async (tx, { match }) => {
     if (!match.exists) throw new HttpsError("not-found", "Publica primero el encuentro.");
+    await requireActiveMatch(tx, data.matchId, match);
     const members = ids.length ? await tx.getAll(...ids.map(id => db.doc(`teamMembers/${id}`))) : [];
     if (members.some(m => !m.exists || (m.get("expiresAt")?.toMillis() ?? 0) <= Date.now())) throw new HttpsError("invalid-argument", "Todos los anotadores deben tener acceso vigente al vestuario.");
     tx.set(db.doc(`matchPrivate/${data.matchId}`), { scorerUids: ids }, { merge: true });
@@ -27,11 +28,11 @@ export const setMatchScorers = onCall(async req => {
 export const controlMatchClock = onCall(async req => {
   const actor = await memberAs(req);
   const data = parse(z.object({ matchId: idSchema, action: z.enum(CLOCK_ACTIONS), revision: z.number().int().min(0) }), req.data);
-  const saved = await db.runTransaction(async tx => {
+  const saved = await runMatchTransaction(data.matchId, async (tx, { match: snap }) => {
     await requireScorer(tx, data.matchId, actor);
     const ref = db.doc(`matches/${data.matchId}`);
-    const snap = await tx.get(ref);
     if (!snap.exists) throw new HttpsError("not-found", "El partido no existe.");
+    await requireActiveMatch(tx, data.matchId, snap);
     if (["finished", "cancelled", "postponed"].includes(snap.get("status"))) throw new HttpsError("failed-precondition", "El reloj solo se controla en un partido pendiente de publicar.");
     const old = snap.get("clock") as MatchClock | undefined;
     if ((old?.revision ?? 0) !== data.revision) throw new HttpsError("aborted", "Otra persona ha cambiado el reloj. Ya se está sincronizando; revisa el estado antes de continuar.");

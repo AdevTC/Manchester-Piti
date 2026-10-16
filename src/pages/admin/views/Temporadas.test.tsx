@@ -5,6 +5,7 @@ import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../
 import { Temporadas } from "./Temporadas";
 
 const h = vi.hoisted(() => ({
+  tally: new Map<string, { id: string; counts: Record<string, number>; total: number }>(),
   writes: {
     saveSeason: vi.fn((id: string, data: Record<string, unknown>) => Promise.resolve(void [id, data])),
     deleteSeason: vi.fn((id: string) => Promise.resolve(void id)),
@@ -19,7 +20,7 @@ vi.mock("../club/useClubWrites", () => ({ useClubWrites: () => h.writes }));
 vi.mock("../club/clubLive", () => ({
   useArchivedCounts: () => ({ t0: { matches: 18, players: 9 } }),
   // The J1 (Emirates, 4–1): ERIK was the MVP.
-  useMvpTally: () => new Map([["m6", { id: "m6", counts: { erik: 5, adrian: 2 }, total: 7 }]]),
+  useMvpTally: () => h.tally,
 }));
 
 const vitrina = () => screen.getByRole("region", { name: /^Temporada/ });
@@ -29,6 +30,7 @@ describe("Temporadas", () => {
   beforeEach(() => {
     localStorage.clear();
     Object.values(h.writes).forEach((f) => f.mockClear());
+    h.tally = new Map([["m6", { id: "m6", counts: { erik: 5, adrian: 2 }, total: 7 }]]);
     setAdminData(adminFixture());
   });
   afterEach(() => vi.useRealTimers());
@@ -84,6 +86,16 @@ describe("Temporadas", () => {
     const v = await screen.findByRole("region", { name: "Temporada 1" });
     expect(v).toHaveTextContent("PichichiERIK2 goles");
     expect(v.querySelector(".pich .sh b")).toHaveTextContent("9");
+  });
+
+  it("names every shared Pichichi and MVP with each player's total", async () => {
+    const published = fixturePublished.map(m => m.id === "m6" ? { ...m, events: ["erik", "kevin", "adrian"].map((playerId, i) => ({ id: `tied-${i}`, type: "goal" as const, minute: i + 1, playerId })) } : m);
+    h.tally = new Map([["m6", { id: "m6", counts: { erik: 5, kevin: 5, adrian: 5 }, total: 15 }]]);
+    setAdminData(adminFixture({ published }));
+    mountAdmin("/admin/temporadas", { temporadas: Temporadas });
+    const v = await screen.findByRole("region", { name: "Temporada 1" });
+    expect(v.querySelector(".pich")).toHaveTextContent("Pichichi compartidoADRIÁN T.C., ERIK y KEVIN1 gol cada uno");
+    expect(v.querySelector(".troph")).toHaveTextContent("Más veces MVPADRIÁN T.C., ERIK y KEVIN1 jornada cada uno · compartido");
   });
 
   it("renames inline (checked live) behind a lower third with «Deshacer»", async () => {

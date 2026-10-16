@@ -1,8 +1,8 @@
 // The «Encuentro» tab, as on the canvas (stats-gen/ad-v2-full.mjs `encT`, shots-adv2f/partidos-encuentro.png):
 // three groups — 1 Rival y fecha (rival, initials, time and date in Madrid, competition, season) · 2 Campo
 // (name, address, condition) · 3 Detalles (kit, state, duration, the rival's crest with its HTTPS check,
-// the internal note) — and «Borrar partido» only while nobody has played it (the red modal; a played one
-// «se corrige o se cancela»).
+// the internal note). Any match can be archived or permanently deleted after a concrete confirmation;
+// an active shared clock must be stopped before archiving.
 import { useId, useState } from "react";
 import { opponentInitials } from "../../../lib/clubAnalytics";
 import type { SeasonDoc } from "../../../lib/schemas";
@@ -10,7 +10,7 @@ import { AdIcon } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
 import { joinDate, splitDate } from "../acta/dates";
 import { changeSeason, okHttps, score, type MatchSheet } from "../acta/sheetModel";
-import { joinVenue, splitVenue, type Phase } from "./workspaceModel";
+import { joinVenue, splitVenue } from "./workspaceModel";
 
 const STATUS: { value: MatchSheet["status"]; label: string }[] = [
   { value: "scheduled", label: "Programado" },
@@ -42,22 +42,20 @@ export function TabEncuentro({
   sheet,
   update,
   seasons,
-  phase,
-  label,
   onDelete,
+  onArchive,
+  archiveBlocked,
 }: {
   /** The sheet as reviewed (a played match reads «Finalizado»). */
   sheet: MatchSheet;
   update: (f: (s: MatchSheet) => MatchSheet) => void;
   seasons: readonly SeasonDoc[];
-  phase: Phase;
-  /** «J8 · MAD SKY» (the delete modal's title). */
-  label: string;
   onDelete: () => void;
+  onArchive: () => void;
+  archiveBlocked: string | null;
 }) {
   const id = useId();
   const [askSeason, setAskSeason] = useState<string | null>(null);
-  const [askDelete, setAskDelete] = useState(false);
   const set = <K extends keyof MatchSheet>(k: K, v: MatchSheet[K]) => update((s) => ({ ...s, [k]: v }));
   const when = splitDate(sheet.date);
   const venue = splitVenue(sheet.venue);
@@ -71,7 +69,6 @@ export function TabEncuentro({
     else update((s) => changeSeason(s, v));
   };
   const target = seasons.find((s) => s.id === askSeason);
-  const canDelete = phase === "antes" || phase === "off";
   return (
     <>
       <div className="fgs">
@@ -195,38 +192,8 @@ export function TabEncuentro({
         </section>
       </div>
 
-      {canDelete ? (
-        <div className="danger">
-          <p>
-            <b>Borrar partido</b>
-            Se puede porque aún no se ha jugado: sale del calendario y de Convocar.
-          </p>
-          <button type="button" className="btn sm red" onClick={() => setAskDelete(true)} aria-haspopup="dialog">
-            <AdIcon name="trash" size={16} />
-            Borrar partido
-          </button>
-        </div>
-      ) : (
-        <div className="danger">
-          <p>
-            <b>Un partido jugado no se borra</b>
-            Se corrige el acta o se marca «Cancelado» en Estado.
-          </p>
-        </div>
-      )}
-
-      <ConfirmModal
-        open={askDelete}
-        onClose={() => setAskDelete(false)}
-        title={`¿Borrar la ${label}?`}
-        consequences={["Sale del calendario y de Convocar", "Se cancelan sus avisos de RSVP", "Durante unos segundos se puede deshacer"]}
-        confirmLabel="Borrar partido"
-        confirmTone="redf"
-        onConfirm={() => {
-          setAskDelete(false);
-          onDelete();
-        }}
-      />
+      <div className="archive-action"><p id={`${id}-archive`}><b>Archivar partido</b>{archiveBlocked ?? "Oculta el partido y lo excluye de las estadísticas, conservando todos sus datos. Podrás reactivarlo desde Archivados."}</p><button type="button" className="btn sm line" onClick={onArchive} disabled={!!archiveBlocked} aria-describedby={`${id}-archive`} aria-haspopup="dialog">Archivar partido</button></div>
+      <div className="danger"><p><b>Eliminar definitivamente</b>Se borra el partido con su acta, votos y porras. Esta acción no se puede deshacer.</p><button type="button" className="btn sm red" onClick={onDelete} aria-haspopup="dialog"><AdIcon name="trash" size={16} />Borrar partido</button></div>
       <ConfirmModal
         open={!!askSeason}
         onClose={() => setAskSeason(null)}

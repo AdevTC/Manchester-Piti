@@ -3,13 +3,13 @@
 // heatmap, rivals with their games, the season collection and the ticker. Everything is computed from
 // the finished matches already loaded (clubAnalytics' PlayerAnalysis rows), no extra reads.
 import type { ClubMatch } from "./clubData";
-import type { MatchEvent } from "../../functions/src/matchEngine";
+import { isVisibleMatch, type MatchEvent } from "../../functions/src/matchEngine";
 import { POSITIONS, resolvePositions } from "./positions";
 import { playerPositions } from "./positionStats";
 import { nameFor } from "./derived/names";
 import { totalMinutes } from "./derived/minutesOf";
 import { rivalDossier, rivalKey } from "./derived/rival";
-import { competitionRanks, milestoneSteps, milestones, teamAnalysis, type PlayerAnalysis, type StarLink } from "./clubAnalytics";
+import { competitionRanks, rankedLeaders, milestoneSteps, milestones, teamAnalysis, type PlayerAnalysis, type StarLink } from "./clubAnalytics";
 // goalLinks lives with the analytics (the pizarra's ratings read it too, without importing this page's module)
 export { goalLinks, type StarLink } from "./clubAnalytics";
 
@@ -41,6 +41,7 @@ export interface RaceFrame {
 }
 /** Cumulative standings after each game; only players with something to show. */
 export function raceFrames(rows: PlayerAnalysis[], metric: RaceMetric): RaceFrame[] {
+  rows = rows.map(row => ({ ...row, series: row.series.filter(game => isVisibleMatch(game.match)) }));
   const n = rows[0]?.series.length ?? 0;
   const names = new Map(rows.map((p) => [p.id, nameOf(p)]));
   return Array.from({ length: n }, (_, i) => {
@@ -55,7 +56,7 @@ export function raceFrames(rows: PlayerAnalysis[], metric: RaceMetric): RaceFram
 /** Jornadas each player spent top of the race (ties share it). */
 export function framesInLead(frames: RaceFrame[]) {
   const lead = new Map<string, number>();
-  for (const f of frames) for (const r of f.rows) if (r.rank === 1) lead.set(r.id, (lead.get(r.id) ?? 0) + 1);
+  for (const f of frames.filter(frame => isVisibleMatch(frame.match))) for (const r of f.rows) if (r.rank === 1) lead.set(r.id, (lead.get(r.id) ?? 0) + 1);
   return lead;
 }
 
@@ -68,6 +69,7 @@ export interface ClockSlice {
 }
 /** Goals for/against by 5′ slice of the match (the longest duration among the games, 50′ by default). */
 export function goalClock(games: ClubMatch[], playerId?: string) {
+  games = games.filter(isVisibleMatch);
   const duration = Math.max(50, ...games.map((m) => m.duration ?? 0));
   const slices: ClockSlice[] = Array.from({ length: Math.ceil(duration / 5) }, (_, i) => ({ from: i * 5, to: i * 5 + 5, us: 0, them: 0 }));
   let unknown = 0;
@@ -195,13 +197,13 @@ export function radarPoints(scores: number[], c: number, r: number) {
 // ---------- per player extras
 /** G+A every 50′, over the games whose acta knows his minutes (derived/minutesOf; null when none). */
 export function per50(p: PlayerAnalysis) {
-  const tracked = p.series.filter((g) => g.minutes !== null);
+  const tracked = p.series.filter((g) => isVisibleMatch(g.match) && g.minutes !== null);
   const minutes = totalMinutes(tracked.map((g) => g.match), p.id);
   return minutes ? Math.round((tracked.reduce((s, g) => s + g.ga, 0) / minutes) * 50 * 100) / 100 : null;
 }
 /** Share of the games he played that the team won (null when he hasn't played). */
 export function winRateWith(p: PlayerAnalysis) {
-  const played = p.series.filter((g) => g.played);
+  const played = p.series.filter((g) => isVisibleMatch(g.match) && g.played);
   return played.length ? Math.round((played.filter((g) => (g.match.goalsFor ?? 0) > (g.match.goalsAgainst ?? 0)).length / played.length) * 100) : null;
 }
 /** Share of the other players who played that he beats on `value` (0–100). */
@@ -224,7 +226,7 @@ export interface HeatCell {
 export function minutesHeat(rows: PlayerAnalysis[]) {
   return rows.map((p) => ({
     id: p.id,
-    cells: p.series.map<HeatCell>((g) => ({
+    cells: p.series.filter(g => isVisibleMatch(g.match)).map<HeatCell>((g) => ({
       matchId: g.match.id,
       // (a cell without his ledger row says «Jugó» / «No jugó», as always: no «0′» for a legacy acta)
       minutes: g.match.ledger?.[p.id] ? g.minutes : null,
@@ -240,6 +242,7 @@ export function minutesHeat(rows: PlayerAnalysis[]) {
  *  the record of rivalDossier, the same one the match page's «El rival» shows. `games` are the period's
  *  finished matches, oldest first (chronological). */
 export function rivalTable(games: ClubMatch[]) {
+  games = games.filter(isVisibleMatch);
   const names = new Map<string, string>();
   for (const m of games) {
     const k = rivalKey(m.rival || "Rival");
@@ -287,15 +290,18 @@ export function collection(rows: PlayerAnalysis[]) {
 // ---------- the ticker
 /** Short headline lines from the period: streaks alive, leaders, records. */
 export function tickerLines(rows: PlayerAnalysis[], games: ClubMatch[]) {
+  games = games.filter(isVisibleMatch);
   const t = teamAnalysis(games);
   const lines: string[] = [];
   if (t.winStreak.current.count >= 2) lines.push(`${t.winStreak.current.count} victorias seguidas`);
   else if (t.unbeatenStreak.current.count >= 3) lines.push(`${t.unbeatenStreak.current.count} partidos sin perder`);
-  const top = (k: "goals" | "assists") => [...rows].sort((a, b) => b[k] - a[k])[0];
-  const scorer = top("goals");
-  if (scorer?.goals) lines.push(`Pichichi: ${nameOf(scorer)} con ${scorer.goals}`);
-  const assister = top("assists");
-  if (assister?.assists) lines.push(`Más asistencias: ${nameOf(assister)} con ${assister.assists}`);
+  const top = (k: "goals" | "assists") => rankedLeaders([...rows].sort((a, b) => nameOf(a).localeCompare(nameOf(b), "es")), (p) => p[k], 1).map(({ item }) => item);
+  for (const key of ["goals", "assists"] as const) {
+    const winners = top(key);
+    if (!winners.length) continue;
+    const names = new Intl.ListFormat("es", { type: "conjunction" }).format(winners.map(nameOf));
+    lines.push(`${key === "goals" ? winners.length > 1 ? "Pichichi compartido" : "Pichichi" : "Más asistencias"}: ${names} con ${winners[0][key]}${winners.length > 1 ? " cada uno" : ""}`);
+  }
   for (const p of rows) if (p.goalStreak.current.count >= 2) lines.push(`${nameOf(p)} marca en ${p.goalStreak.current.count} seguidos`);
   const big = [...games].sort((a, b) => b.goalsFor! - b.goalsAgainst! - (a.goalsFor! - a.goalsAgainst!))[0];
   if (big && big.goalsFor! > big.goalsAgainst!) lines.push(`Mayor victoria: ${big.goalsFor}–${big.goalsAgainst} a ${big.rival ?? "rival"}`);

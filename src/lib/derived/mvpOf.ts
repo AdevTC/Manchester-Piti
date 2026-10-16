@@ -3,6 +3,7 @@
 // at the same position gets the same «Valoración» everywhere. A shared vote counts for each winner.
 import type { ClubMatch } from "../clubData";
 import { mvpWinners, type MvpResult } from "../vestuario";
+import { isVisibleMatch } from "../../../functions/src/matchEngine";
 
 /** The MVP of a match for `pid`'s form: him when he won or shared the vote, else the (first) winner, else null. */
 export type MvpOf = (matchId: string, pid?: string) => string | null;
@@ -14,7 +15,7 @@ export type MvpOf = (matchId: string, pid?: string) => string | null;
  */
 export function votesClosedAt(games: readonly ClubMatch[], now: number): number {
   let at = -Infinity;
-  for (const m of games) if (m.voteClosesAt && m.voteClosesAt <= now && m.voteClosesAt > at) at = m.voteClosesAt;
+  for (const m of games) if (isVisibleMatch(m) && m.voteClosesAt && m.voteClosesAt <= now && m.voteClosesAt > at) at = m.voteClosesAt;
   return at;
 }
 

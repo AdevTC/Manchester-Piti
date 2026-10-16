@@ -16,6 +16,7 @@ import { admin, db, idSchema, parse } from "./common.js";
 import { convocatoriaNoticeKind, convocatoriaProblem, MAX_STARTERS, notCalledOf, sameLineup, type ConvocatoriaNoticeKind } from "./convocatoriaLogic.js";
 import { seasonJornada, sendTo, vapidPrivate } from "./push.js";
 import { boardNotice, convocatoriaMessage, parseSiete, sevenOf, sieteKey, sieteLog, sieteMayCover, sieteStep, type SieteAsk } from "./pushLogic.js";
+import { matchActiveTx, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 
 const input = z.object({
   matchId: idSchema,
@@ -41,11 +42,11 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
   const pubRef = db.doc(`matches/${data.matchId}`);
   const draftRef = db.doc(`matchDrafts/${data.matchId}`);
   const lineup = { starters: data.starters, bench: data.bench };
-  const written = await db.runTransaction(async (tx) => {
-    const [pub, draft] = await Promise.all([tx.get(pubRef), tx.get(draftRef)]);
+  const written = await runMatchTransaction(data.matchId, async (tx, { match: pub, draft }) => {
     if (!pub.exists && !draft.exists) throw new HttpsError("not-found", "Ese partido no existe.");
     // The admin shows the draft's fields over the published ones: read them the same way.
     const shown = draft.exists ? draft : pub;
+    await requireActiveMatch(tx, data.matchId, pub.exists ? pub : draft);
     if (data.notify && !pub.exists) throw new HttpsError("failed-precondition", "El partido aún no está en el calendario: publícalo antes de avisar.");
     if (pub.get("archived") === true) throw new HttpsError("failed-precondition", "Ese partido está archivado.");
     const seasonId = shown.get("seasonId") as string | undefined;
@@ -98,15 +99,16 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
       const seven = sieteKey(data.starters);
       const ask: SieteAsk = data.fromBoard && board?.state === "pending" ? { by: "reserve", board: data.fromBoard, seven: board.seven } : { by: "conv", seven };
       const lineupNow = { starters: data.starters, bench: data.bench };
-      const outcome = await db.runTransaction(async (tx) => {
+      const outcome = await runMatchTransaction(data.matchId, async (tx) => {
         const [own, first, siete] = await tx.getAll(logRef, firstRef, sieteRef);
+        if (!(await matchActiveTx(tx, data.matchId))) return 'taken' as const;
         if (own.exists) return "taken" as const;
         const now = Date.now();
         const step = sieteMayCover(kind, lineupNow, kind === "first" ? null : (first.get("announced") as { starters?: unknown; bench?: unknown } | undefined))
           ? sieteStep(parseSiete(siete.data()), ask, now)
           : { send: true, write: { at: now, by: "conv" as const, seven, sent: true }, coveredBy: null };
-        if (step.write) tx.set(sieteRef, step.write);
-        const stamp = { at: FieldValue.serverTimestamp(), by: uid, ...(kind === "first" ? { announced: lineupNow } : {}) };
+        if (step.write) tx.set(sieteRef, { ...step.write, matchId: data.matchId });
+        const stamp = { at: FieldValue.serverTimestamp(), matchId: data.matchId, by: uid, ...(kind === "first" ? { announced: lineupNow } : {}) };
         if (step.send) {
           tx.create(logRef, stamp);
           return "send" as const;

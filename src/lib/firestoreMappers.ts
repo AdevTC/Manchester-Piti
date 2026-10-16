@@ -24,6 +24,7 @@ import {
 } from "./schemas";
 import { reportDroppedDoc } from "./docTelemetry";
 import type { MvpResult } from "./vestuario";
+import { isVisibleMatch } from "../../functions/src/matchEngine";
 
 /** Docs of an archived season (flag set by the setSeasonArchived callable) stay
  *  in Firestore but never reach the app: the shared mappers drop them. */
@@ -47,6 +48,11 @@ export function mapSeason(id: string, data: unknown): SeasonDoc | null {
 /** Canonical `["players"]` mapper — full validated player doc. */
 export function mapPlayer(id: string, data: unknown): PlayerDoc | null {
   if (isArchived(data)) return null;
+  return mapRawPlayer(id, data);
+}
+
+/** Admin's archive reads retain player names without contaminating the public PLAYERS_KEY. */
+export function mapRawPlayer(id: string, data: unknown): PlayerDoc | null {
   const r = playerSchema.safeParse({ id, ...dropNullFields(data as Record<string, unknown>) });
   if (!r.success) {
     reportDroppedDoc("players", id, r.error.issues);
@@ -58,7 +64,12 @@ export function mapPlayer(id: string, data: unknown): PlayerDoc | null {
 /** Canonical `["matches"]` mapper — full validated match doc. seasonMatchSchema
  *  is a looseObject, so events/competition/date pass through for every consumer. */
 export function mapMatch(id: string, data: unknown): SeasonMatchDoc | null {
-  if (isArchived(data)) return null;
+  if (!isVisibleMatch(data)) return null;
+  return mapRawMatch(id, data);
+}
+
+/** Admin's own cache may inspect archived records; never use this mapper with MATCHES_KEY. */
+export function mapRawMatch(id: string, data: unknown): SeasonMatchDoc | null {
   const r = seasonMatchSchema.safeParse({ id, ...dropNullFields(data as Record<string, unknown>) });
   if (!r.success) {
     reportDroppedDoc("matches", id, r.error.issues);

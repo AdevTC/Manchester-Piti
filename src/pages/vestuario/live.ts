@@ -20,7 +20,9 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, recordSnapshotMeta, reopenDelay, useOnline, useSnapshotMeta } from "../../lib/syncStatus";
-import { mapMvp, MVP_RESULTS_KEY } from "../../lib/firestoreMappers";
+import { mapMatch, mapMvp, MVP_RESULTS_KEY } from "../../lib/firestoreMappers";
+import { MATCHES_KEY, matchQuery } from "../../lib/publicData";
+import { visibleMatchLinks } from "../../lib/matchVisibility";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import type { TrainingSlot } from "../../lib/vestuario";
 import { EMPTY_CAJA_SETTINGS, parseCajaMov, parseCajaSettings, type CajaMov, type CajaSettings } from "../../lib/derived/caja";
@@ -288,7 +290,8 @@ export function useMatchScorers(matchId: string | undefined): Live<string[]> {
 const mvpQuery = collection(db, "mvpResults");
 export function useMvpResults() {
   const q = useFirestoreCollection(MVP_RESULTS_KEY, mvpQuery, mapMvp);
-  return useMemo(() => new Map((q.data ?? []).map((r) => [r.id, r])), [q.data]);
+  const matches = useFirestoreCollection(MATCHES_KEY, matchQuery, mapMatch);
+  return useMemo(() => new Map(visibleMatchLinks(q.data ?? [], matches.data ?? [], r => r.id).map((r) => [r.id, r])), [q.data, matches.data]);
 }
 const MVP_META_KEY = metaKeyOf(MVP_RESULTS_KEY);
 /**

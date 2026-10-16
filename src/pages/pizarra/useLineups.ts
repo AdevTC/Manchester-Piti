@@ -197,7 +197,8 @@ export function useLineups(seasonId: string): UseLineups {
   // rules would reject the read); the localStorage-backed localApi drives it.
   // Canonical mapLineup stores the raw validated doc; dataToLineupDoc derives.
   // (seasonLineups.ts: the same key and query the match page and the admin read)
-  const { data: rawLineups, isPending } = useSeasonLineupDocs(seasonId);
+  const adminUid = profile?.role === "admin" || profile?.role === "superadmin" ? user?.uid ?? null : null;
+  const { data: rawLineups, isPending } = useSeasonLineupDocs(seasonId, true, adminUid);
   const items = useMemo<LineupDoc[]>(
     () => (rawLineups ?? []).map((r) => dataToLineupDoc(r.id, r)),
     [rawLineups],

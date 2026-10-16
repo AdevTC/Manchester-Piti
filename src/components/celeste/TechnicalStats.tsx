@@ -5,12 +5,14 @@
 // narration to read (hasAnalysisActions). Cards and segmented controls are the stats pages' own
 // (st-card, st-seg, st-table…, from the Celeste base, src/styles/celeste/); technical-stats.css only lays out
 // what is particular to it.
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { formatDate, EVENT_LABELS, type ClubMatch, type MatchEvent } from "../../lib/clubData";
 import { TECH_LABELS, pct, technicalAnalysis, analysisCoverage, recordedValue } from "../../lib/technicalAnalysis";
 import { plural } from "../../lib/vestuario";
 import { emptyTechnical, eventSide, OUTCOME_LABELS, type AnalysisEvent, type TechnicalStats } from "../../../functions/src/matchAnalysis";
 import { PlayerLink } from "./PlayerLink";
+import { TechnicalEvidence } from "./TechnicalEvidence";
+import type { EvidenceSelection } from "../../lib/technicalEvidence";
 import "../../styles/celeste/data.css";
 import "./technical-stats.css";
 
@@ -95,6 +97,10 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
   const [metric, setMetric] = useState<Metric>("passesCompleted");
   const [side, setSide] = useState<Side>("us");
   const [network, setNetwork] = useState<Network>("passes");
+  const [evidence, setEvidence] = useState<EvidenceSelection | null>(null);
+  const evidenceTrigger = useRef<HTMLElement | null>(null);
+  const inspect = (selection: EvidenceSelection, trigger: HTMLElement) => { evidenceTrigger.current = trigger; setEvidence(selection); };
+  const closeEvidence = () => { setEvidence(null); evidenceTrigger.current?.focus(); };
 
   const involved = involvedIds(included);
   const roster = people.filter((p) => involved.has(p.id));
@@ -292,7 +298,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
                   <tr key={`${l.from}>${l.to}`}>
                     <td>{nameLink(l.from)}</td>
                     <td>{nameLink(l.to)}</td>
-                    <td>{l.n}</td>
+                    <td><button type="button" className="ts-value" aria-label={`Ver ${l.n} ${delivery} de ${person(l.from).name} a ${person(l.to).name}`} onClick={e => inspect({ metric: network === "crosses" ? "crossesCompleted" : "passesCompleted", playerId: l.from, receiverId: l.to }, e.currentTarget)}>{l.n}</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -399,15 +405,15 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
             return (
               <div className="ts-compare" key={k}>
                 <div className="ts-compare-nums">
-                  <b>
+                  <button type="button" className="ts-value" aria-label={`Ver jugadas: ${TECH_LABELS[k]} de ${usName}`} onClick={e => inspect({ metric: k, playerId: selected || undefined }, e.currentTarget)}>
                     <span className="hm-sr">{usName}: </span>
                     {show(a, k, !!selected)}
-                  </b>
+                  </button>
                   <span>{TECH_LABELS[k]}</span>
-                  <b>
+                  <button type="button" className="ts-value" aria-label={`Ver jugadas: ${TECH_LABELS[k]} del rival`} onClick={e => inspect({ metric: k, side: "opponent" }, e.currentTarget)}>
                     <span className="hm-sr">El rival: </span>
                     {show(b, k)}
-                  </b>
+                  </button>
                 </div>
                 <div className="ts-dual" aria-hidden="true">
                   <i className="us" style={{ width: `${a + b ? (a / (a + b)) * 100 : 0}%` }} />
@@ -442,7 +448,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
           </div>
           <ol className="ts-rank">
             {rankings.slice(0, 12).map((r) => (
-              <li key={r.id}>
+              <li key={r.id} className={r.stats[metric] > 0 && placeOf(r.stats[metric]) === 1 ? "ts-rank-lead" : undefined}>
                 <button type="button" aria-pressed={selected === r.id} onClick={() => setSelected(r.id)}>
                   <span>
                     {show(r.stats[metric], metric, true) === "—" ? "—" : `${placeOf(r.stats[metric])}.`} {r.name}
@@ -462,7 +468,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
         </h3>
         <div className="st-tablebox ts-scroll">
           <table className="st-table">
-            <caption>Ordenados por {TECH_LABELS[metric].toLocaleLowerCase("es")}. Desliza para ver todas las columnas.</caption>
+            <caption>Ordenados por {TECH_LABELS[metric].toLocaleLowerCase("es")}. Toca una cifra para ver sus jugadas. Desliza para ver todas las columnas.</caption>
             <thead>
               <tr>
                 <th scope="col">Jugador</th>
@@ -485,7 +491,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
                     {nameLink(r.id)}
                   </th>
                   {compare.map((k) => (
-                    <td key={k}>{show(r.stats[k], k, true)}</td>
+                    <td key={k}><button type="button" className="ts-value" aria-label={`Ver jugadas: ${TECH_LABELS[k]} de ${r.name}`} onClick={e => inspect({ metric: k, playerId: r.id }, e.currentTarget)}>{show(r.stats[k], k, true)}</button></td>
                   ))}
                   {category === "Pases y creación" && <td>{pct(r.stats.passesCompleted, r.stats.passesCompleted + r.stats.passesFailed)}</td>}
                 </tr>
@@ -494,6 +500,8 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
           </table>
         </div>
       </section>
+
+      {evidence && <TechnicalEvidence key={`${evidence.metric}/${evidence.playerId}/${evidence.receiverId}/${evidence.side}/${completeOnly}`} matches={included} people={people} selection={evidence} onClose={closeEvidence} />}
 
       <details className="ts-method">
         <summary>Cómo se cuentan las acciones</summary>

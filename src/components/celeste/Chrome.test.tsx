@@ -11,7 +11,23 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 
-const { CelesteDock } = await import("./Chrome");
+const { CelesteDock, CelesteHeader } = await import("./Chrome");
+
+it("the header has a single Vestuario access, separate from the five public pages", () => {
+  render(<CelesteHeader active="inicio" sub="Manchester Piti" actions={<button>Tema</button>} />);
+  const header = within(screen.getByRole("banner"));
+  expect(header.getAllByRole("link", { name: /vestuario/i })).toHaveLength(1);
+  expect(header.getByRole("link", { name: "Entrar al vestuario" })).toHaveAttribute("href", "/vestuario");
+  const nav = within(header.getByRole("navigation", { name: "Navegación principal" }));
+  expect(nav.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/", "/partidos", "/plantilla", "/stats", "/club"]);
+  expect(nav.getByRole("link", { name: "Inicio" })).toHaveAttribute("aria-current", "page");
+});
+
+it("private pages highlight the same Vestuario access while retaining their profile action", () => {
+  render(<CelesteHeader active="vestuario" sub="Tu perfil" actions={<a href="/profile">Tu cuenta</a>} />);
+  expect(screen.getByRole("link", { name: "Entrar al vestuario" })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("link", { name: "Tu cuenta" })).toHaveAttribute("href", "/profile");
+});
 
 it("the dock has six items and El club lights on /club", () => {
   render(<CelesteDock active="club" />);

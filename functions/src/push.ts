@@ -18,6 +18,7 @@ import { nameFor } from "./names.js";
 import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
 import { absencesOnMatch } from "./absenceAnswers.js";
+import { matchActive, matchActiveTx, noticeMatchId, runOptionalMatchTransaction } from './matchAccess.js';
 
 export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
 /** Public half of the key pair (also in the app, src/lib/push.ts). */
@@ -92,6 +93,8 @@ export const pushUnsubscribe = onCall(async (req) => {
 /** Sends a notice to everyone subscribed to its topic (or only to `uid`'s devices). A personal notice
  *  goes to `uid`'s devices only, whatever their topics (and nowhere without a uid). */
 export async function sendTo(notice: Notice, uid?: string) {
+  const matchId = noticeMatchId(notice.url);
+  if (matchId && !(await matchActive(matchId))) return;
   const who = pushAudience(notice, uid);
   if (!who) return;
   let q: FirebaseFirestore.Query = db.collection("pushSubscriptions");
@@ -120,6 +123,7 @@ const asMatch = (d: DocumentData | undefined): MatchLike | undefined =>
   d && { ...d, date: (d.date as Timestamp | undefined)?.toMillis?.(), voteClosesAt: typeof d.voteClosesAt === "number" ? d.voteClosesAt : (d.voteClosesAt as Timestamp | undefined)?.toMillis?.() };
 
 export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", secrets: [vapidPrivate] }, async (event) => {
+  if (!(await matchActive(event.params.matchId))) return;
   const before = asMatch(event.data?.before.data());
   const after = asMatch(event.data?.after.data());
   // Ausencias: a match published, moved or rescheduled gets «No puedo» from the absences covering its
@@ -144,11 +148,7 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   const jornada = after?.seasonId ? await seasonJornada(after.seasonId, event.params.matchId) : null;
   const conv = convocatoriaNotice(event.params.matchId, before, after, jornada, Date.now());
   if (!conv) return;
-  try {
-    await db.doc(`pushLog/${conv.tag}`).create({ at: FieldValue.serverTimestamp() });
-  } catch {
-    return;
-  }
+  if (!(await claimLog(conv.tag, event.params.matchId))) return;
   // One «siete» per match: quiet when «Ya está el siete» just told the team these titulares.
   if (!(await claimSiete(event.params.matchId, { by: "conv", seven: sieteKey(after?.starters) }))) {
     await quiet(conv.tag);
@@ -159,17 +159,21 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
 
 /** A claimed notice that stayed quiet: the other «siete» notice told the team (the log says why). */
 async function quiet(tag: string): Promise<void> {
-  await db.doc(`pushLog/${tag}`).set({ quiet: "siete" }, { merge: true });
+  await db.runTransaction(async tx => {
+    const ref = db.doc(`pushLog/${tag}`);
+    if ((await tx.get(ref)).exists) tx.update(ref, { quiet: 'siete' });
+  });
 }
 
 /** Claims pushLog/<tag> (false = it was already there: the notice already went). */
-async function claimLog(tag: string): Promise<boolean> {
-  try {
-    await db.doc(`pushLog/${tag}`).create({ at: FieldValue.serverTimestamp() });
+async function claimLog(tag: string, matchId?: string): Promise<boolean> {
+  return runOptionalMatchTransaction(matchId, async tx => {
+    const ref = db.doc(`pushLog/${tag}`);
+    const old = await tx.get(ref);
+    if (old.exists || (matchId && !(await matchActiveTx(tx, matchId)))) return false;
+    tx.create(ref, { at: FieldValue.serverTimestamp(), ...(matchId ? { matchId } : {}) });
     return true;
-  } catch {
-    return false;
-  }
+  });
 }
 
 /** Sends a notice at most once: what it `requires` must be in pushLog, and its `log` is claimed first
@@ -177,7 +181,7 @@ async function claimLog(tag: string): Promise<boolean> {
 export async function deliver(n: Notice, uid?: string): Promise<void> {
   if (n.requires && !(await db.doc(`pushLog/${n.requires}`).get()).exists) return;
   if (n.skipIf && (await db.doc(`pushLog/${n.skipIf}`).get()).exists) return;
-  if (n.log && !(await claimLog(n.log))) return;
+  if (n.log && !(await claimLog(n.log, noticeMatchId(n.url) ?? undefined))) return;
   await sendTo(n, uid);
 }
 
@@ -201,6 +205,9 @@ export const pushOnLineup = onDocumentWritten({ document: "lineups/{lineupId}", 
   const after = event.data?.after.data() as LineupLike | undefined;
   // (most writes are autosaves of boards that are not official: nothing to read for them)
   if (!after?.isOfficial) return;
+  const current = await db.doc(`lineups/${event.params.lineupId}`).get();
+  if (!current.exists || current.get('isOfficial') !== true || (current.get('matchId') ?? null) !== (after.matchId ?? null)) return;
+  if (after.matchId && !(await matchActive(after.matchId))) return;
   // An official that stays official: «Cambio en el siete» when its seven changed (seven.ts).
   if (before?.isOfficial && (before.matchId ?? null) === (after.matchId ?? null)) {
     await sevenEdited(event.params.lineupId, before, after, (n) => sendTo(n));
@@ -212,11 +219,7 @@ export const pushOnLineup = onDocumentWritten({ document: "lineups/{lineupId}", 
   const match = mid ? asMatch((await db.doc(`matches/${mid}`).get()).data()) : null;
   const notice = lineupNotice(event.params.lineupId, before, after, match);
   if (!notice) return;
-  try {
-    await db.doc(`pushLog/${notice.tag}`).create({ at: FieldValue.serverTimestamp() });
-  } catch {
-    return;
-  }
+  if (!(await claimLog(notice.tag, mid ?? undefined))) return;
   // One «siete» per match: quiet when the convocatoria just told the team this same seven (seven.ts).
   if (mid && !(await claimSiete(mid, { by: "lineup", board: event.params.lineupId, seven: sieteKey(sevenOf(after.slots)) }))) {
     await quiet(notice.tag);

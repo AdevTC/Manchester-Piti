@@ -2,6 +2,7 @@
 // pair stats the química reads (minutes on the pitch together, goals assisted to each other). Everything
 // is derived from the season's finished matches already loaded by the app (no extra reads). Pure.
 import type { ClubMatch } from "../../../lib/clubData";
+import { isVisibleMatch } from "../../../../functions/src/matchEngine";
 import { FORM_MAX, FORM_MIN, cardPoints, concededOnPitch, durationOf, formRating, stintsOf, type FormInput } from "../../../lib/form";
 import { goalLinks, playerGame } from "../../../lib/clubAnalytics";
 import { minutesOf, presenceMinutes, timedGames, totalMinutes } from "../../../lib/derived/minutesOf";
@@ -85,7 +86,7 @@ export const FORM_GAMES = 5;
 
 /** A player's last `n` matches of `games` (the season's finished ones, oldest first), oldest first. */
 export function formGames(playerId: string, games: readonly ClubMatch[], jornada: ReadonlyMap<string, number>, n = FORM_GAMES): FormGame[] {
-  return games.slice(-n).map((m) => {
+  return games.filter(isVisibleMatch).slice(-n).map((m) => {
     const g = playerGame(playerId, m);
     return { j: jornada.get(m.id) ?? null, played: g.played, min: minutesOf(m, playerId), ga: g.ga };
   });
@@ -122,6 +123,7 @@ export interface SquadInput {
 }
 
 export function buildSquad({ players, games, jornada, suspended, mvps, convocatoria }: SquadInput): Squad {
+  games = games.filter(isVisibleMatch);
   const recent = games.slice(-RECENT_GAMES);
   const recentFrom = games.length - recent.length;
   const teamMin = games.reduce((s, m) => s + durationOf(m), 0);

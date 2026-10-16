@@ -284,12 +284,12 @@ export function Temporadas() {
     const s = vitrinaCard;
     const arch = s.state === "archived";
     const sc = showcaseOf(s.id);
-    const pich = sc.pichichi ? { ...shirtOf(sc.pichichi.id, s.id), goals: sc.pichichi.goals } : null;
-    const mvpNames = sc.mvp ? both(sc.mvp.ids.slice(0, 2).map((id) => shirtOf(id, s.id).name)) : "";
+    const pich = sc.pichichi ? { ...shirtOf(sc.pichichi.ids[0], s.id), goals: sc.pichichi.goals, shared: sc.pichichi.ids.length > 1, names: both(sc.pichichi.ids.map((id) => shirtOf(id, s.id).name)) } : null;
+    const mvpNames = sc.mvp ? both(sc.mvp.ids.map((id) => shirtOf(id, s.id).name)) : "";
     const trophies = [
       { k: "Mayor victoria", v: sc.biggest ? `${sc.biggest.gf}–${sc.biggest.ga}` : "—", d: sc.biggest ? `a ${sc.biggest.rival} · ${sc.biggest.label}` : "Todavía sin victorias" },
       { k: "Mejor racha", v: sc.streak ? plural(sc.streak, "victoria", "victorias") : "—", d: sc.streak > 1 ? "seguidas" : sc.streak ? "sin racha todavía" : "Todavía sin victorias" },
-      { k: "Más veces MVP", v: sc.mvp ? mvpNames : "—", d: sc.mvp ? plural(sc.mvp.times, "jornada", "jornadas") : "Sin votaciones cerradas" },
+      { k: "Más veces MVP", v: sc.mvp ? mvpNames : "—", d: sc.mvp ? `${plural(sc.mvp.times, "jornada", "jornadas")}${sc.mvp.ids.length > 1 ? " cada uno · compartido" : ""}` : "Sin votaciones cerradas" },
     ];
     return (
       <section className="cab" aria-label={s.name}>
@@ -355,12 +355,12 @@ export function Temporadas() {
             </span>
           </div>
         </div>
-        <div className="pich">
+        <div className="pich" style={{ flexWrap: "wrap" }}>
           <ShirtBack num={pich?.num ?? ""} name={pich?.name} size={70} big state={pich ? "" : "empty"} />
-          <span>
-            <small>Pichichi</small>
-            <b>{pich?.name ?? "—"}</b>
-            <small>{pich ? plural(pich.goals, "gol", "goles") : "Todavía sin goles"}</small>
+          <span style={{ flex: "1 1 180px", minWidth: 0 }}>
+            <small>{pich?.shared ? "Pichichi compartido" : "Pichichi"}</small>
+            <b>{pich?.names ?? "—"}</b>
+            <small>{pich ? `${plural(pich.goals, "gol", "goles")}${pich.shared ? " cada uno" : ""}` : "Todavía sin goles"}</small>
           </span>
           <button
             type="button"

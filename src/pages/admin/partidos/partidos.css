@@ -3,6 +3,25 @@
    editable text inside its light card, and the «Deshacer lo último» row over the live log. */
 
 .adm .ml .mg{display:flex;flex-direction:column;gap:6px}
+.adm .match-list-stack{display:flex;flex-direction:column;min-height:0;min-width:0;gap:12px}
+.adm .match-list-stack>.ml{flex:1;min-height:0}
+.adm .archive-list-note{padding:0 8px;margin:0 0 10px}
+.adm .archive-list .mr .j b{font-family:Geist,system-ui,sans-serif;font-size:10px;line-height:1.4}
+.adm.m .match-list-stack{flex:1}
+.adm .archive-action{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:20px 0;border-top:1px solid var(--pline)}
+.adm .archive-action p{flex:1 1 240px;color:var(--muted);font-size:14px;margin:0}
+.adm .archive-action b{display:block;color:var(--ink);margin-bottom:6px}
+.adm .archive-detail .archive-facts{display:grid;gap:16px;margin:24px 0}
+.adm .archive-facts dt{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
+.adm .archive-facts dd{margin:0;color:var(--ink);overflow-wrap:anywhere}
+.adm .archive-events{padding:0;list-style:none;margin:12px 0 24px}
+.adm .archive-events li{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--pline);color:var(--soft)}
+.adm .archive-events li>b{flex:0 0 38px;color:var(--sky)}
+.adm .archive-events small{display:block;color:var(--muted);margin-top:4px}
+.adm .archive-events span{min-width:0;overflow-wrap:anywhere}
+.adm .archive-report{white-space:pre-wrap;color:var(--soft)}
+.adm .archive-detail+.df{flex-wrap:wrap}
+.adm .archive-detail+.df p{flex:1 1 200px;margin:0}
 
 /* «Hay cambios sin guardar en este dispositivo» (local draft recovery), at the top of the workspace body. */
 .adm .rec2{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;border-radius:14px;background:var(--glass);box-shadow:inset 0 0 0 1.5px var(--amber);color:var(--soft);font-size:14px}

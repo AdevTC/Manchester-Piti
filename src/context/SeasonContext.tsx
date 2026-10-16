@@ -37,8 +37,12 @@ export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [selectedSeasonIdRaw, setSelectedSeasonIdRaw] = useState<string>(() => {
     // Server render: no saved choice there (the client mounts with its own).
-    if (typeof localStorage === "undefined") return "all";
-    return localStorage.getItem("selected_season_id") || "all";
+    if (typeof window === "undefined") return "all";
+    try {
+      return window.localStorage.getItem("selected_season_id") || "all";
+    } catch {
+      return "all";
+    }
   });
 
   const adoptSeasonId = (id: string) => {

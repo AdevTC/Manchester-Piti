@@ -247,3 +247,8 @@ html[data-isle="sync"] .club-main:not(.vx-main-shell){margin-top:90px}
 .pt-switches input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pt-switches input:disabled{opacity:.5}
 .vx .pt-swmsg{margin:10px 0 0;font-size:13px;color:var(--muted)}
+/* Places are shared when the goals are equal; the label also conveys the tie without colour. */
+.pt-pich i.gold{background:linear-gradient(180deg,#ffe0a0,#FFC659);color:#0c1733}
+.pt-pich i.silver{background:linear-gradient(180deg,#f3f6fb,#b9c4d6);color:#0c1733}
+.pt-pich i.bronze{background:linear-gradient(180deg,#f2c79a,#c98a4b);color:#0c1733}
+.pt-shared{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:2px}

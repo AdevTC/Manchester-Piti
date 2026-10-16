@@ -1,12 +1,12 @@
 // Who is out of the next match for a sending-off or a sanction set by hand. Pure (no React).
-import { dateMillis } from "../../../functions/src/matchEngine";
+import { dateMillis, isVisibleMatch } from "../../../functions/src/matchEngine";
 import type { MatchLike } from "../../lib/playerStats";
 
 /** Team matches a red card (or a second yellow) keeps a player out of. */
 export const SUSPENSION_MATCHES = 1;
 
 /** A match that counts: finished (legacy docs without a status were all finished ones). */
-const played = (m: MatchLike): boolean => !m.status || m.status === "finished";
+const played = (m: MatchLike): boolean => isVisibleMatch(m) && (!m.status || m.status === "finished");
 
 /** The players sent off in a match: its ledger (the computed acta) and its events. */
 function sentOff(m: MatchLike): Set<string> {
@@ -64,6 +64,7 @@ const text = (v: unknown): string | undefined => (typeof v === "string" && v.tri
  * that is not there (another season, deleted) or was cancelled falls back to the count.
  */
 export function manualLeft(s: Sanction, matches: readonly SuspensionMatch[]): number {
+  matches = matches.filter(isVisibleMatch);
   const from = num(s.from);
   const games = num(s.games);
   if (from == null || games == null) return 0;

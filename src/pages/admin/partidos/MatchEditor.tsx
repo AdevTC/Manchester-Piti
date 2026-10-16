@@ -18,6 +18,7 @@ import { tabForKey } from "../../../lib/tabKeys";
 import { mvpWinners } from "../../../lib/vestuario";
 import { clockTime, jLabel, shortDate, type AdminMatch } from "../data/adminLogic";
 import type { AdminData } from "../data/useAdminData";
+import { archiveBlockedReason, type MatchLifecycleRequest } from "../data/archivedMatches";
 import { useWhistled } from "../data/whistleStore";
 import { ResultMark, resultLetter } from "../kit";
 import { useRegisterCommands } from "../palette/registry";
@@ -51,15 +52,14 @@ export interface MatchEditorProps {
   tab: MatchTab;
   onTab: (tab: MatchTab) => void;
   onBack: () => void;
-  /** «Borrar partido» confirmed (the view hides it and deletes it behind «Deshacer»). */
-  onDelete: (match: AdminMatch) => void;
+  onLifecycle: (request: MatchLifecycleRequest) => void;
   /** The acta was published for the first time: the publish peak. */
   onPublished: () => void;
 }
 
 const TAB_LABEL: Record<MatchTab, [string, string]> = { encuentro: ["Encuentro", "Encuentro"], convocatoria: ["Convocatoria", "Convoc."], acta: ["Acta", "Acta"], publicar: ["Publicar", "Publicar"] };
 
-export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, onPublished }: MatchEditorProps) {
+export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle, onPublished }: MatchEditorProps) {
   const toast = useToast();
   const go = useAdminGo();
   const { desktop } = useFrame();
@@ -298,13 +298,9 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onDelete, o
             sheet={sheet}
             update={update}
             seasons={data.seasons}
-            phase={phase}
-            label={`${j} · ${rival}`}
-            onDelete={() => {
-              buf.reset();
-              // (after the reset has rendered, so leaving isn't asked as «sin guardar»)
-              setTimeout(() => onDelete(match), 0);
-            }}
+            archiveBlocked={archiveBlockedReason(match)}
+            onDelete={() => onLifecycle({ action: "delete", match, dirty: buf.dirty, onDone: buf.reset })}
+            onArchive={() => onLifecycle({ action: "archive", match, dirty: buf.dirty, onDone: buf.reset })}
           />
         )}
         {tab === "encuentro" && match.published && <Scorers matchId={match.id} />}

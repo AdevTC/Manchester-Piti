@@ -13,6 +13,7 @@ import { requireScorer } from "./liveClock.js";
 import { clockReading, type MatchClock } from "./matchClock.js";
 import { LIVE_TYPES, liveProblem, liveSequenceProblem } from "./liveLogic.js";
 import { allowedAtBreak } from "./liveRules.js";
+import { requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 
 const input = z.discriminatedUnion("action", [
   z.object({
@@ -50,10 +51,10 @@ export const liveEvent = onCall(async (req) => {
   const data = parse(input, req.data);
   const ref = db.doc(`matches/${data.matchId}`);
   const now = Date.now();
-  const result = await db.runTransaction(async (tx) => {
+  const result = await runMatchTransaction(data.matchId, async (tx, { match: snap }) => {
     await requireScorer(tx, data.matchId, actor);
-    const snap = await tx.get(ref);
     if (!snap.exists) throw new HttpsError("not-found", "Ese partido no existe.");
+    await requireActiveMatch(tx, data.matchId, snap);
     const m = snap.data() as { version?: number; clock?: MatchClock; status?: string; date?: unknown; duration?: number; starters?: string[]; bench?: string[]; events?: MatchEvent[]; revision?: number; liveEndedAt?: number };
     const match = { ...m, date: millis(m.date) };
     const events = m.events ?? [];
