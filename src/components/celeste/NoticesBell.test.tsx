@@ -7,6 +7,8 @@ const state = vi.hoisted(() => ({
   viewer: { member: true, admin: false, playerId: "adri" as string | null },
   seenAt: null as unknown,
   notices: [] as Notice[],
+  loading: false,
+  error: false as unknown,
   reads: [] as [string | undefined, boolean][],
   markNoticesSeen: vi.fn(async (_uid: string) => undefined),
   navigate: vi.fn(async (_o: { href: string }) => undefined),
@@ -17,7 +19,7 @@ vi.mock("../../context/AuthContext", () => ({
   useAuth: () => ({ user: { uid: "u1" }, profile: { nickname: "adri", role: "user", noticesSeenAt: state.seenAt } }),
 }));
 vi.mock("../../pages/vestuario/live", () => ({
-  useNotices: (uid: string | undefined, admin: boolean) => (state.reads.push([uid, admin]), { data: state.notices, loading: false, error: false }),
+  useNotices: (uid: string | undefined, admin: boolean) => (state.reads.push([uid, admin]), { data: state.notices, loading: state.loading, error: state.error }),
 }));
 vi.mock("../../pages/vestuario/writes", () => ({ markNoticesSeen: state.markNoticesSeen }));
 
@@ -42,6 +44,8 @@ beforeEach(() => {
   state.viewer = { member: true, admin: false, playerId: "adri" };
   state.seenAt = null;
   state.notices = [];
+  state.loading = false;
+  state.error = false;
   state.reads = [];
   state.markNoticesSeen.mockClear();
   state.navigate.mockClear();
@@ -183,5 +187,26 @@ describe("NoticesBell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Avisos" }));
     expect(screen.getByText("Aquí verás los avisos del equipo: convocatorias, el siete, el MVP…")).toBeInTheDocument();
     expect(state.markNoticesSeen).not.toHaveBeenCalled();
+  });
+
+  it("the empty line is a polite status: «Cargando…» while the reads arrive, then what will come", () => {
+    state.seenAt = { toMillis: () => now };
+    state.loading = true;
+    const { rerender } = render(<NoticesBell />);
+    fireEvent.click(screen.getByRole("button", { name: "Avisos" }));
+    const status = within(screen.getByRole("dialog")).getByRole("status");
+    expect(status).toHaveTextContent("Cargando los avisos…");
+    state.loading = false;
+    rerender(<NoticesBell />);
+    expect(within(screen.getByRole("dialog")).getByRole("status")).toHaveTextContent("Aquí verás los avisos del equipo");
+  });
+
+  it("a failed read says so in words, not as an empty list", () => {
+    state.seenAt = { toMillis: () => now };
+    state.error = new Error("permission-denied");
+    render(<NoticesBell />);
+    fireEvent.click(screen.getByRole("button", { name: "Avisos" }));
+    expect(within(screen.getByRole("dialog")).getByRole("status")).toHaveTextContent("No se han podido cargar los avisos. Comprueba la conexión y vuelve a abrirlos.");
+    expect(screen.queryByText(/Aquí verás los avisos/)).toBeNull();
   });
 });
