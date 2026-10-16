@@ -53,7 +53,7 @@ const find = <K extends RecapCard["kind"]>(cards: RecapCard[], k: K) => cards.fi
 describe("seasonRecap: a closed season", () => {
   const r = seasonRecap(input(), "ana", "t1")!;
 
-  it("is closed (nothing left to play, last acta published) and tells all ten cards", () => {
+  it("is closed (a later season is the current one) and tells all ten cards", () => {
     expect(recapAvailable(input(), "ana", "t1", NOW)).toBe("closed");
     expect(r.partial).toBe(false);
     expect(r.seasonName).toBe("Temporada 1");
@@ -132,6 +132,25 @@ describe("seasonRecap: the current season, «hasta ahora»", () => {
   it("before the 10th: not yet", () => {
     const i = input({ matches: [...T2.filter((m) => m.id !== "b10"), ...T1] });
     expect(recapAvailable(i, "ana", "t2", NOW)).toBeNull();
+  });
+
+  it("a gap between fixtures never closes the current season: every acta published, nothing scheduled", () => {
+    const gap = T2.filter((m) => m.id !== "b11");
+    expect(recapAvailable(input({ matches: [...gap, ...T1] }), "ana", "t2", NOW)).toBe("partial");
+    expect(seasonRecap(input({ matches: [...gap, ...T1] }), "ana", "t2")!.partial).toBe(true);
+    // under ten matches and between fixtures: still nothing
+    const early = gap.slice(0, 5);
+    expect(recapAvailable(input({ matches: [...early, ...T1] }), "ana", "t2", NOW)).toBeNull();
+    // and T1, in the very same gap, is a past season: closed
+    expect(recapAvailable(input({ matches: [...early, ...T1] }), "ana", "t1", NOW)).toBe("closed");
+  });
+
+  it("a past season is closed only once a later season is the current one", () => {
+    // T2 exists but has no matches yet: T1 is still the current season («hasta ahora» needs 10, it has 4)
+    expect(recapAvailable(input({ matches: T1 }), "ana", "t1", NOW)).toBeNull();
+    // T2's first fixture is on the calendar: T2 takes over, T1 is closed
+    const first = match("b1", "t2", 400, { status: "scheduled", goalsFor: undefined, goalsAgainst: undefined });
+    expect(recapAvailable(input({ matches: [first, ...T1] }), "ana", "t1", NOW)).toBe("closed");
   });
 
   it("an archived season is closed whatever its calendar says", () => {

@@ -11,12 +11,13 @@
 // RecapInput is what useProfileData already reads (no new data):
 //   matches        useClubData().matches
 //   players        useClubData().players
-//   seasons        useSeason().seasons (`archived` when the caller knows it)
+//   seasons        useSeason().seasons, in its order (oldest first: the seasons query sorts by name),
+//                  which says which season is «later»; `archived` when the caller knows it
 //   mvpResults     useMvpResults()
 //   porraStandings usePorraStandings(seasonId).data (the recap's season)
 //   uid            the member's uid (his porra row)
 //   now            the perfil's minute clock (MVP votes count once closed)
-import { dateMillis, isCompleted } from "../../../functions/src/matchEngine";
+import { dateMillis } from "../../../functions/src/matchEngine";
 import { nextFixture, type ClubMatch } from "../clubData";
 import { chronological, playerGame } from "../clubAnalytics";
 import { scoreOf, resultOf } from "../partidos";
@@ -75,22 +76,27 @@ function seasonGames(input: RecapInput, seasonId: string) {
 }
 
 /**
- * When the recap can be opened: «closed» once the season is archived, or has no match left to play and its
- * last acta is published; «partial» for the current season from its 10th played match; else null. Only
- * for a player with at least one match in the season.
+ * When the recap can be opened. Only for a player with at least one match in the season.
+ * - «closed»: the season is archived, or a later season is the club's current one (currentSeasonId: the
+ *   next match's season, else the latest played, else the newest — what the vestuario, the home, the
+ *   perfil and the admin's «Activa» all use). A gap between fixtures never closes a season: until the
+ *   next season takes over, the season is still the current one.
+ * - «partial»: the current season, from its 10th played match («hasta ahora»).
+ * - null otherwise (the current season under 10 matches, or a season after the current one).
  */
 export function recapAvailable(input: RecapInput, playerId: string, seasonId: string, now: number): "closed" | "partial" | null {
   const season = input.seasons.find((s) => s.id === seasonId);
   if (!season || !playerId) return null;
-  const { calendar, games } = seasonGames(input, seasonId);
+  const { games } = seasonGames(input, seasonId);
   if (!games.some((m) => playerGame(playerId, m).played)) return null;
   if (season.archived) return "closed";
-  // (a cancelled match is not to be played; a postponed one still is)
-  const left = calendar.filter((m) => !isCompleted(m) && m.status !== "cancelled");
-  const last = calendar.filter((m) => m.status !== "cancelled").at(-1);
-  if (!left.length && last && isCompleted(last)) return "closed";
-  const current = currentSeasonId(nextFixture(input.matches, now), input.matches, input.seasons);
-  return current === seasonId && games.length >= PARTIAL_FROM ? "partial" : null;
+  // (the app never sees archived seasons: they are left out of the «current» question, as SeasonContext does)
+  const live = input.seasons.filter((s) => !s.archived);
+  const current = currentSeasonId(nextFixture(input.matches, now), input.matches, live);
+  if (current === seasonId) return games.length >= PARTIAL_FROM ? "partial" : null;
+  const at = live.findIndex((s) => s.id === seasonId);
+  const cur = live.findIndex((s) => s.id === current);
+  return at >= 0 && cur > at ? "closed" : null;
 }
 
 const byDate = (a: ClubMatch, b: ClubMatch) => dateMillis(a.date) - dateMillis(b.date);
