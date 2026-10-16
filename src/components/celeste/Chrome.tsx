@@ -4,6 +4,7 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Icon, type IconName } from "./icons";
+import { NoticesGate } from "./NoticesGate";
 import "../../styles/vestuario.css";
 import "./celeste-links.css";
 import "./state-panel.css";
@@ -53,10 +54,16 @@ export function CelesteHeader({ active, sub, actions }: { active?: CelestePage; 
       </nav>
       <div className="vx-actions">
         {actions}
-        <Link className={`hm-cta-top${active === "vestuario" ? " on" : ""}`} to="/vestuario" aria-label="Entrar al vestuario" aria-current={active === "vestuario" ? "page" : undefined}>
-          <Icon name="padlock" size={16} stroke={2.2} />
-          <span className="t">Vestuario</span>
-        </Link>
+        {/* The bell (members only, nothing on the server) shares the Vestuario link's slot instead of taking one
+            of its own: the actions keep their count and places, so React's ids (the pages' useId) and with them
+            the server-rendered HTML stay byte for byte the fan's. */}
+        <>
+          <NoticesGate />
+          <Link className={`hm-cta-top${active === "vestuario" ? " on" : ""}`} to="/vestuario" aria-label="Entrar al vestuario" aria-current={active === "vestuario" ? "page" : undefined}>
+            <Icon name="padlock" size={16} stroke={2.2} />
+            <span className="t">Vestuario</span>
+          </Link>
+        </>
       </div>
     </header>
   );

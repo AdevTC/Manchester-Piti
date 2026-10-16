@@ -15,6 +15,7 @@ import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
 import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { nameFor } from "./names.js";
+import { noticeRecord } from "./noticesLogic.js";
 import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
 import { absencesOnMatch } from "./absenceAnswers.js";
@@ -97,6 +98,8 @@ export async function sendTo(notice: Notice, uid?: string) {
   if (matchId && !(await matchActive(matchId))) return;
   const who = pushAudience(notice, uid);
   if (!who) return;
+  // The centro de avisos keeps it too, whoever has push on (even nobody).
+  await keepNotice(notice, uid);
   let q: FirebaseFirestore.Query = db.collection("pushSubscriptions");
   if (who.topic) q = q.where("topics", "array-contains", who.topic);
   if (who.uid) q = q.where("uid", "==", who.uid);
@@ -117,6 +120,21 @@ export async function sendTo(notice: Notice, uid?: string) {
       }
     }),
   );
+}
+
+/** Stores a notice in `notices/{id}` for the centro de avisos (noticesLogic.ts: whether, for whom, its id).
+ *  `create`: a retried trigger finds its doc taken and stores nothing. Never in the way of the push. */
+async function keepNotice(notice: Notice, uid?: string): Promise<void> {
+  try {
+    const rec = noticeRecord(notice, uid, Date.now());
+    if (!rec) return;
+    await db.doc(`notices/${rec.id}`).create({ ...rec.doc, at: Timestamp.fromMillis(rec.doc.at), expireAt: Timestamp.fromMillis(rec.doc.expireAt) });
+  } catch (e) {
+    // (ALREADY_EXISTS: the same notice was already kept)
+    const code = (e as { code?: unknown }).code;
+    if (code === 6 || code === "already-exists") return;
+    console.error("notices", notice.topic, notice.tag, e);
+  }
 }
 
 const asMatch = (d: DocumentData | undefined): MatchLike | undefined =>

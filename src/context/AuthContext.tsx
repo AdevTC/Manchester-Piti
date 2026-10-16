@@ -13,6 +13,8 @@ export interface UserProfile {
   createdAt: Date | import("firebase/firestore").Timestamp;
   /** Linked player file (set by an admin approving the claim). */
   playerId?: string;
+  /** Last look at the centro de avisos (a Timestamp; null while the write is pending). */
+  noticesSeenAt?: unknown;
 }
 
 interface AuthContextType {

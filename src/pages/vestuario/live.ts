@@ -20,7 +20,8 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, recordSnapshotMeta, reopenDelay, useOnline, useSnapshotMeta } from "../../lib/syncStatus";
-import { mapMatch, mapMvp, MVP_RESULTS_KEY } from "../../lib/firestoreMappers";
+import { mapMatch, mapMvp, mapNotice, MVP_RESULTS_KEY } from "../../lib/firestoreMappers";
+import { mergeNotices, type Notice, type NoticeAudience } from "../../lib/derived/notices";
 import { MATCHES_KEY, matchQuery } from "../../lib/publicData";
 import { visibleMatchLinks } from "../../lib/matchVisibility";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
@@ -614,4 +615,30 @@ export function useAbsences(today: string, enabled = true): Live<Absence[]> {
     return ok.length ? ok : NO_ABSENCES;
   }, [q.data, today]);
   return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
+}
+
+// ---------- centro de avisos
+const NOTICES_LIMIT = 30;
+const noticesOf = (audience: NoticeAudience, uid?: string) => () =>
+  uid
+    ? query(collection(db, "notices"), where("audience", "==", audience), where("uid", "==", uid), orderBy("at", "desc"), limit(NOTICES_LIMIT))
+    : query(collection(db, "notices"), where("audience", "==", audience), orderBy("at", "desc"), limit(NOTICES_LIMIT));
+const NO_NOTICES: Notice[] = [];
+/**
+ * The bell's notices, newest first: the team's, the captains' (only for an `admin`) and `uid`'s own. Three
+ * shared listeners, each filtered by audience so the rules can prove the read (firestore.rules), each opened
+ * only when it applies; no `uid` (a fan) opens none.
+ */
+export function useNotices(uid: string | undefined, admin: boolean): Live<Notice[]> {
+  const team = useLiveQuery<Notice | null>(uid ? "notices/team" : null, noticesOf("team"), mapNotice);
+  const captains = useLiveQuery<Notice | null>(uid && admin ? "notices/captains" : null, noticesOf("captains"), mapNotice);
+  const mine = useLiveQuery<Notice | null>(uid ? `notices/personal/${uid}` : null, noticesOf("personal", uid), mapNotice);
+  const ok = (l: (Notice | null)[]) => l.filter((n): n is Notice => n !== null);
+  const list = useMemo(() => {
+    const all = mergeNotices(ok(team.data), ok(captains.data), ok(mine.data));
+    return all.length ? all : NO_NOTICES;
+  }, [team.data, captains.data, mine.data]);
+  const loading = team.loading || captains.loading || mine.loading;
+  const error = team.error || captains.error || mine.error;
+  return useMemo(() => ({ data: list, loading, error }), [list, loading, error]);
 }

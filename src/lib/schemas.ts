@@ -445,8 +445,23 @@ export const userProfileSchema = z.object({
   playerId: z.string().optional(),
   /** Name to show for members who aren't in the squad (chosen at the door). */
   displayName: z.string().optional(),
+  /** When the member last opened the bell's panel (centro de avisos). Null while its serverTimestamp is
+   *  pending; anything malformed reads as never, so it can never block the session. */
+  noticesSeenAt: firestoreDate.nullish().catch(undefined),
 });
 export type UserProfileParsed = z.infer<typeof userProfileSchema>;
+
+/** A kept notice of the centro de avisos (`notices/{id}`, written only by functions/src/push.ts). */
+export const noticeSchema = z.object({
+  id: z.string(),
+  topic: z.string(),
+  title: z.string(),
+  body: z.string(),
+  url: z.string(),
+  at: firestoreDate,
+  audience: z.enum(["team", "captains", "personal"]),
+  uid: z.string().optional(),
+});
 
 /** Forma de un resultado de partido editado en Admin. */
 export const matchResultSchema = z.object({

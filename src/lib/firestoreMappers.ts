@@ -15,6 +15,7 @@ import {
   playerSchema,
   seasonMatchSchema,
   lineupSchema,
+  noticeSchema,
   reactionSchema,
   dropNullFields,
   type SeasonDoc,
@@ -25,6 +26,7 @@ import {
 import { reportDroppedDoc } from "./docTelemetry";
 import type { MvpResult } from "./vestuario";
 import { isVisibleMatch } from "../../functions/src/matchEngine";
+import { toMillis, type Notice } from "./derived/notices";
 
 /** Docs of an archived season (flag set by the setSeasonArchived callable) stay
  *  in Firestore but never reach the app: the shared mappers drop them. */
@@ -110,4 +112,16 @@ export const MVP_RESULTS_KEY = ["mvpResults"] as const;
 export function mapMvp(id: string, data: unknown): MvpResult {
   const d = (data ?? {}) as { counts?: Record<string, number>; total?: number };
   return { id, counts: d.counts ?? {}, total: d.total ?? 0 };
+}
+
+/** A kept notice of the centro de avisos (`notices/{id}`), with `at` in ms; invalid docs dropped and reported. */
+export function mapNotice(id: string, data: unknown): Notice | null {
+  const r = noticeSchema.safeParse({ id, ...dropNullFields((data ?? {}) as Record<string, unknown>) });
+  const at = r.success ? toMillis(r.data.at) : null;
+  if (!r.success || at === null) {
+    reportDroppedDoc("notices", id, r.success ? [] : r.error.issues);
+    return null;
+  }
+  const { uid, ...rest } = r.data;
+  return { ...rest, at, ...(uid ? { uid } : {}) };
 }
