@@ -11,6 +11,8 @@ import { ClubDataError, StateStage } from "../../components/celeste/StatePanel";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { leaders, narrative, playerLines, playerOfTheMoment, seasonPulse, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
+import { useStandings } from "../../lib/useStandings";
+import { StandingsStrip } from "../../components/celeste/Clasificacion";
 import { HomeHoy } from "./HomeHoy";
 import { MatchHero } from "./MatchHero";
 import { PonteLaCamiseta } from "./PonteLaCamiseta";
@@ -30,6 +32,7 @@ export function HomePage() {
   const theme = useDocumentTheme();
   const seasonId = currentSeasonId(nextFixture(matches, now), matches, seasons);
   const seasonName = seasons.find((s) => s.id === seasonId)?.name ?? "Temporada";
+  const { standings } = useStandings(seasonId);
 
   const squad: SquadMember[] = players
     .filter((p) => p.seasons?.includes(seasonId))
@@ -79,7 +82,7 @@ export function HomePage() {
       ) : (
         <MatchHero story={story} pulse={pulse} now={now} moment={moment} momentStill={shot[0] && still(shot[0])} />
       )}
-      {!error && <SeasonRow pulse={pulse} now={now} nameOf={nameOf} />}
+      {!error && <SeasonRow pulse={pulse} now={now} nameOf={nameOf} strip={<StandingsStrip standings={standings} />} />}
       <PonteLaCamiseta theme={theme} />
       <div className="hm-bottom">
         <Link className="hm-squad" to="/plantilla">

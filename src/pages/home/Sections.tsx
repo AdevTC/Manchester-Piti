@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Icon } from "../../components/celeste/icons";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
@@ -21,7 +22,7 @@ function goalsOf(m: ClubMatch, nameOf: (id: string) => string) {
 }
 
 // ---------- la temporada: último partido · así va · lo que viene
-export function SeasonRow({ pulse, now, nameOf }: { pulse: Pulse; now: number; nameOf: (id: string) => string }) {
+export function SeasonRow({ pulse, now, nameOf, strip }: { pulse: Pulse; now: number; nameOf: (id: string) => string; /** The league position (StandingsStrip), above the season, when there is a table. */ strip?: ReactNode }) {
   const last = pulse.last;
   const played = pulse.played.length;
   const form: (Result | null)[] = [...pulse.form, ...Array(5 - pulse.form.length).fill(null)];
@@ -31,6 +32,7 @@ export function SeasonRow({ pulse, now, nameOf }: { pulse: Pulse; now: number; n
   const waiting = pulse.awaiting;
   return (
     <section className="hm-sec" aria-label="La temporada">
+      {strip}
       <div className="hm-season">
         <div className="blk">
           <span className="hm-kick">El último partido</span>

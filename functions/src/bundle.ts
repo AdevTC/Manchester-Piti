@@ -6,13 +6,14 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { db } from "./common.js";
 
-/** Same queries the app listens to (clubData, SeasonContext, live.ts), so the cache serves them at once. */
+/** Same queries the app listens to (clubData, SeasonContext, live.ts, useStandings), so the cache serves them at once. */
 async function build() {
-  const [matches, players, seasons, mvpResults, content] = await Promise.all([
+  const [matches, players, seasons, mvpResults, standings, content] = await Promise.all([
     db.collection("matches").orderBy("date", "desc").get(),
     db.collection("players").get(),
     db.collection("seasons").orderBy("name", "asc").get(),
     db.collection("mvpResults").get(),
+    db.collection("standings").get(),
     db.doc("clubContent/main").get(),
   ]);
   const bundle = db
@@ -20,7 +21,8 @@ async function build() {
     .add("matches", matches)
     .add("players", players)
     .add("seasons", seasons)
-    .add("mvpResults", mvpResults);
+    .add("mvpResults", mvpResults)
+    .add("standings", standings);
   if (content.exists) bundle.add(content);
   return bundle.build();
 }

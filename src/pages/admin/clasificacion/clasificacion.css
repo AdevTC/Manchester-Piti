@@ -1,0 +1,56 @@
+/* La clasificación (views/Clasificacion.tsx). Admin tokens only (--panel, --panel2, --pline, --sky, --accent,
+   --amber, --red, --ink, --soft, --muted, --wall), like caja/caja.css. Every control is at least 44 px; our row
+   says «Somos nosotros» in words and carries a left rule; hints and errors are words with an icon. Phone first:
+   a row is a small card (name, then the seven numbers in a grid, then «Somos nosotros» and its buttons); from
+   1000 px a row is one line. */
+.adm .cl-scroll{flex:1;margin-top:18px}
+.adm .cl-adm{display:flex;flex-direction:column;gap:16px;min-width:0}
+.adm .cl-season{display:block;min-width:0}
+.adm .cl-season .inp{min-width:200px}
+.adm.m .cl-season .inp{min-width:0;width:100%}
+.adm .cl-acts{display:flex;flex-wrap:wrap;gap:8px}
+.adm.m .cl-acts .btn{flex:1 1 calc(50% - 8px)}
+.vx.adm .cl-adm .btn.sm{min-height:44px;min-width:44px;padding:0 12px}
+.adm .cl-now{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;color:var(--soft);overflow-wrap:anywhere}
+.adm .cl-now svg{flex:0 0 auto}
+
+/* ── paste ── */
+.adm .cl-paste{display:flex;flex-direction:column;gap:12px}
+.adm .cl-ta{height:auto;min-height:160px;padding:10px 12px;resize:vertical;font-family:'Geist Mono';font-size:13px;white-space:pre;overflow-x:auto}
+.adm .cl-prev{display:flex;flex-direction:column;gap:10px}
+.adm .cl-prev-list{margin:0;padding:0 0 0 28px;display:flex;flex-direction:column;gap:4px;font-variant-numeric:tabular-nums}
+.adm .cl-prev-list li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;min-height:32px;padding:4px 8px;border-radius:10px}
+.adm .cl-prev-list li b{font-size:15px}
+.adm .cl-prev-list li span{font-size:13px;color:var(--soft)}
+.adm .cl-prev-list li.us{background:var(--panel2);box-shadow:inset 3px 0 0 var(--accent)}
+.adm .cl-prev-list em,.adm .cl-row .us-pick input:checked + span{font-style:normal;font-weight:700;color:var(--accent)}
+.adm .cl-warn{display:flex;align-items:flex-start;gap:8px;color:var(--amber)}
+.adm .cl-warn svg{flex:0 0 auto;margin-top:2px}
+
+/* ── the editor ── */
+.adm .cl-ed{display:flex;flex-direction:column;gap:14px}
+.adm .cl-meta{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:10px}
+.adm .cl-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.adm .cl-row{display:grid;grid-template-columns:28px minmax(0,1fr);grid-template-areas:"pos team" "nums nums" "us acts";gap:8px 10px;align-items:center;padding:10px 12px;border-radius:14px;background:var(--panel2)}
+.adm .cl-row.us{box-shadow:inset 4px 0 0 var(--accent)}
+.adm .cl-row .pos{grid-area:pos;font-family:'Geist Mono';font-size:14px;color:var(--muted);text-align:right}
+.adm .cl-row .team{grid-area:team;min-width:0}
+.adm .cl-row .nums{grid-area:nums;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.adm .cl-row .num{display:flex;flex-direction:column;gap:2px;min-width:0}
+.adm .cl-row .num span{font-family:'Geist Mono';font-size:11px;color:var(--muted);text-align:center}
+.adm .cl-row .num .inp{min-width:0;padding:0 4px;text-align:center;font-variant-numeric:tabular-nums}
+.adm .cl-row .us-pick{grid-area:us;display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:14px;font-weight:600;color:var(--soft);cursor:pointer}
+.adm .cl-row .us-pick input{width:20px;height:20px;accent-color:var(--accent)}
+.adm .cl-row .row-acts{grid-area:acts;display:flex;justify-content:flex-end;gap:6px}
+.adm.d .cl-row{grid-template-columns:28px minmax(160px,1fr) minmax(0,420px) auto auto;grid-template-areas:"pos team nums us acts"}
+.adm.d .cl-row .num span{display:none}
+
+/* ── hints, errors, save ── */
+.adm .cl-hints{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:14px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--pline)}
+.adm .cl-hints b{display:inline-flex;align-items:center;gap:6px;font-size:14px}
+.adm .cl-hints ul{margin:0;padding:0 0 0 20px;display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--soft)}
+.adm .cl-errs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600;color:var(--amber)}
+.adm .cl-errs li{display:flex;align-items:center;gap:6px}
+.adm .cl-save{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px}
+.adm .cl-strip-prev{font-size:14px;color:var(--soft)}
+.adm.m .cl-save .btn{flex:1 1 100%}

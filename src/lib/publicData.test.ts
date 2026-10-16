@@ -18,7 +18,7 @@ vi.mock("firebase/firestore", () => ({
   },
 }));
 
-const { CONTENT_KEY, MVP_RESULTS_KEY, primePublicData } = await import("./publicData");
+const { CONTENT_KEY, MVP_RESULTS_KEY, STANDINGS_KEY, primePublicData } = await import("./publicData");
 
 const docs = (rows: { id: string; data: object }[]) => ({
   docs: rows.map((r) => ({ id: r.id, data: () => r.data })),
@@ -32,11 +32,12 @@ it("waits for the MVP tallies too, and caches them with the shared mapper", asyn
   const qc = new QueryClient();
   let ready = false;
   const prime = primePublicData(qc, 60_000).then(() => (ready = true));
-  expect([...listeners.keys()].sort()).toEqual(["clubContent/main", "matches", "mvpResults", "players", "seasons"]);
+  expect([...listeners.keys()].sort()).toEqual(["clubContent/main", "matches", "mvpResults", "players", "seasons", "standings"]);
   listeners.get("matches")!(docs([]));
   listeners.get("players")!(docs([]));
   listeners.get("seasons")!(docs([]));
   listeners.get("clubContent/main")!({ exists: () => false });
+  listeners.get("standings")!(docs([]));
   await Promise.resolve();
   expect(ready).toBe(false);
   expect(qc.getQueryData(CONTENT_KEY)).toBeDefined();
@@ -48,4 +49,25 @@ it("waits for the MVP tallies too, and caches them with the shared mapper", asyn
     { id: "j5", counts: { erik: 2 }, total: 2 },
     { id: "j6", counts: {}, total: 0 },
   ]);
+  expect(qc.getQueryData(STANDINGS_KEY)).toEqual([]);
+});
+
+it("waits for the league tables too (the position paints with the page)", async () => {
+  const { _resetSharedSubsForTesting } = await import("./useFirestoreCollection");
+  _resetSharedSubsForTesting();
+  const qc = new QueryClient();
+  let ready = false;
+  const prime = primePublicData(qc, 60_000).then(() => (ready = true));
+  for (const k of ["matches", "players", "seasons", "mvpResults"]) listeners.get(k)!(docs([]));
+  listeners.get("clubContent/main")!({ exists: () => false });
+  await Promise.resolve();
+  expect(ready).toBe(false);
+  const rows = [
+    { team: "Rayo", pj: 1, g: 1, e: 0, p: 0, gf: 2, gc: 0, pts: 3, isUs: false },
+    { team: "Piti", pj: 1, g: 0, e: 0, p: 1, gf: 0, gc: 2, pts: 0, isUs: true },
+  ];
+  listeners.get("standings")!(docs([{ id: "t1", data: { competition: "Liga", jornada: 1, updatedAt: null, updatedBy: "u", rows } }]));
+  await prime;
+  expect(ready).toBe(true);
+  expect(qc.getQueryData(STANDINGS_KEY)).toEqual([{ id: "t1", competition: "Liga", jornada: 1, updatedAt: 0, updatedBy: "u", rows }]);
 });
