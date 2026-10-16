@@ -80,8 +80,10 @@ export function StandingsTable({ standings }: { standings: Standings }) {
                   <th scope="row">
                     <span className="cl-pos">{i + 1}</span>
                     <MoveMark move={moves[i]} />
-                    <span className="cl-team">{r.team}</span>
-                    {r.isUs && <span className="cl-us">Nosotros</span>}
+                    <span className="cl-tw">
+                      <span className="cl-team">{r.team}</span>
+                      {r.isUs && <span className="cl-us">Nosotros</span>}
+                    </span>
                   </th>
                   {COLS.map(([k]) => (
                     <td key={k}>{r[k]}</td>

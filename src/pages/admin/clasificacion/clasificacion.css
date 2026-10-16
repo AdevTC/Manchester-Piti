@@ -54,3 +54,6 @@
 .adm .cl-save{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px}
 .adm .cl-strip-prev{font-size:14px;color:var(--soft)}
 .adm.m .cl-save .btn{flex:1 1 100%}
+/* The empty state outside a list (.scr): title, line and icon stacked, as in the other sections' empty cards. */
+.cl-adm .empty{display:grid;gap:6px;justify-items:start;max-width:560px;margin:8px 0 16px}
+.cl-adm .empty small{font-size:14px;color:var(--soft)}
