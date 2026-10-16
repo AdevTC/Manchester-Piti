@@ -433,9 +433,9 @@ export function RecapStory({ recap, ctx, rm, onClose, returnFocusId }: RecapStor
             <Ic n="share" w={18} />
             {busy === "share" ? "Preparando…" : "Compartir"}
           </button>
-          <button type="button" className="rc-b" onClick={() => void downloadAll()} disabled={busy !== null} aria-busy={busy === "all" || undefined}>
+          <button type="button" className="rc-b" onClick={() => void downloadAll()} disabled={busy !== null} aria-busy={busy === "all" || undefined} aria-label={busy === "all" ? undefined : "Descargar todas"}>
             <Ic n="download" w={18} />
-            {busy === "all" ? `Guardando ${allAt} de ${total}…` : "Descargar todas"}
+            {busy === "all" ? `${allAt} de ${total}…` : <><span className="rc-wide">Descargar todas</span><span className="rc-narrow" aria-hidden="true">Todas</span></>}
           </button>
           <button type="button" className="rc-b rc-nav" onClick={next} disabled={at === total - 1} aria-label="Cromo siguiente">
             <Ic n="next" w={20} />
