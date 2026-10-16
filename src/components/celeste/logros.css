@@ -1,0 +1,71 @@
+/* «Logros» (components/celeste/Logros.tsx): the crests, the tiers and the progress. Inside .vx (its tokens:
+   --ink --soft --muted --line --chip --gold-ink), on the jugador page's st-card and the perfil's .bk. */
+.lg{display:grid;gap:16px;min-width:0;
+  --lg-bronce:#c98a4e;--lg-plata:#c3cfdd;--lg-oro:#FFC659;--lg-uno:#8cc6ef;--lg-crest-ink:#0c1733;--lg-bar:var(--sky,#6CABDD)}
+.vx .lg-sum{margin:0;font-family:'Geist Mono';font-size:12px;color:var(--muted)}
+.lg-sum b{font-family:'Anybody';font-weight:900;font-size:18px;color:var(--ink)}
+.vx .lg-empty{margin:0;font-size:14px;color:var(--soft)}
+.lg ul{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+
+/* the crest: a metal shield, the family's mark, one pip per tier */
+.lg-crest{position:relative;display:grid;place-items:center;width:40px;height:46px;flex:0 0 auto}
+.lg-crest svg{position:absolute;inset:0}
+.lg-shield{fill:transparent;stroke:var(--line);stroke-width:1.5;stroke-dasharray:3 3}
+.lg-band{stroke:transparent;stroke-width:1.5}
+.lg-ic{position:relative;display:grid;place-items:center;margin-top:-6px;color:var(--muted)}
+.lg-pips{position:absolute;left:50%;bottom:7px;display:flex;gap:2px;transform:translateX(-50%)}
+.lg-pips i{width:4px;height:4px;border-radius:50%;background:var(--muted)}
+.lg-crest.on .lg-shield{stroke:rgba(0,0,0,.18);stroke-dasharray:none;fill:var(--lg-metal)}
+.lg-crest.on .lg-band{stroke:rgba(12,23,51,.22)}
+.lg-crest.on .lg-ic{color:var(--lg-crest-ink)}
+.lg-crest.on .lg-pips i{background:var(--lg-crest-ink)}
+.lg-crest.on{filter:drop-shadow(0 6px 10px rgba(0,0,0,.28))}
+.lg-crest.uno{--lg-metal:var(--lg-uno)}
+.lg-crest.bronce{--lg-metal:var(--lg-bronce)}
+.lg-crest.plata{--lg-metal:var(--lg-plata)}
+.lg-crest.oro{--lg-metal:var(--lg-oro)}
+
+.lg-t{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;min-width:0}
+.lg-t b{font-family:'Anybody';font-weight:800;font-size:15px;line-height:1.15;color:var(--ink)}
+.lg-tier{font-family:'Geist Mono';font-size:11px;color:var(--muted)}
+.lg-tier.oro{color:var(--gold-ink)}
+.lg-detail{font-size:12px;color:var(--muted)}
+
+/* earned: a compact grid of crest + name + where it was won */
+.lg .lg-won{grid-template-columns:repeat(auto-fill,minmax(min(150px,100%),1fr))}
+.lg-won li{display:grid;grid-template-columns:40px minmax(0,1fr);grid-template-areas:"c t" "c a";column-gap:10px;align-items:center;padding:10px 10px 4px;border-radius:16px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--line)}
+.lg-won .lg-crest{grid-area:c;align-self:start}
+.lg-won .lg-t{grid-area:t}
+.lg-won .lg-at,.lg-won .lg-detail{grid-area:a}
+.vx .lg-at{display:flex;align-items:center;min-height:44px;font-family:'Geist Mono';font-size:12px;color:var(--soft);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.vx .lg-at:hover{color:var(--ink);text-decoration-color:currentColor}
+.vx .lg-at:focus-visible{outline:2px solid var(--accent,#9fd0f2);outline-offset:2px;border-radius:6px}
+.lg-won .lg-detail{min-height:44px;display:flex;align-items:center}
+
+/* «Lo próximo» and the rest: crest, name, a bar and the count in words */
+.vx .lg-h{margin:0 0 8px;font-family:'Geist Mono';font-weight:500;font-size:12px;color:var(--muted)}
+.lg-next li,.lg-all li{display:grid;grid-template-columns:40px minmax(0,1fr);grid-template-areas:"c t" "c p";column-gap:10px;row-gap:4px;align-items:center;padding:6px 0}
+.lg-next .lg-crest,.lg-all .lg-crest{grid-area:c}
+.lg-next .lg-t,.lg-all .lg-t{grid-area:t}
+.lg-prog,.lg-next .lg-detail,.lg-all .lg-detail{grid-area:p}
+.lg-prog{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+.lg-bar{position:relative;height:6px;border-radius:3px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
+.lg-bar i{position:absolute;inset:0 auto 0 0;border-radius:3px;background:var(--lg-bar);transition:width .6s cubic-bezier(.16,1,.3,1)}
+.lg-num{font-family:'Geist Mono';font-size:12px;color:var(--soft);white-space:nowrap}
+
+/* «Todos los logros»: folded */
+.lg-all{border-top:1px solid var(--line)}
+.lg-all summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;list-style:none;font-weight:700;font-size:14px;color:var(--ink)}
+.lg-all summary::-webkit-details-marker{display:none}
+.lg-all summary::after{content:"";width:8px;height:8px;margin-left:auto;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);transition:transform .2s ease}
+.lg-all[open] summary::after{transform:rotate(-135deg) translateY(-2px)}
+.lg-all summary:focus-visible{outline:2px solid var(--accent,#9fd0f2);outline-offset:2px;border-radius:8px}
+.lg-count{font-family:'Geist Mono';font-weight:400;font-size:12px;color:var(--muted)}
+.lg-all ul{padding-bottom:4px}
+
+[data-theme="light"] .lg{--lg-bronce:#d39a62;--lg-plata:#cfd8e4}
+[data-theme="light"] .lg-crest.on{filter:drop-shadow(0 4px 8px rgba(12,23,51,.18))}
+
+@media (prefers-reduced-motion:reduce){
+.lg-bar i,.lg-all summary::after{transition:none}
+}

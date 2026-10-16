@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileView } from "./ProfileView";
 import type { PlayerPositions } from "../../lib/positionStats";
-import { fakeActions, heroCard, makeData, noIntro, root, setUrl, view } from "./testkit";
+import type { Achievement } from "../../lib/derived/achievements";
+import { DAY, fakeActions, heroCard, makeData, noIntro, root, setUrl, view } from "./testkit";
 
 // /profile «La carta» as a member drives it: no Firebase (the data and the callables are fakes), no
 // router (links are plain anchors), no WebGL anywhere (the card is drawn in CSS).
@@ -450,6 +451,32 @@ describe("Temporada", () => {
     setUrl("#temporada");
     view(makeData({ state: "pendiente" }));
     expect(screen.queryByRole("link", { name: /Ver tus estadísticas/ })).toBeNull();
+  });
+});
+
+describe("Temporada › Tus logros", () => {
+  const won: Achievement = { id: "debut", family: "debut", tier: 0, label: "Debut", detail: "Tu primer partido", earned: true, at: { matchId: "j1", date: 10 * DAY + 18 * 3_600_000, rival: "Rival j1" } };
+  const goals: Achievement = { id: "goles-1", family: "goles", tier: 1, label: "10 goles", detail: "Marca 10 goles", earned: false, progress: { now: 7, goal: 10 } };
+  const zero: Achievement = { id: "cero", family: "cero", tier: 0, label: "Portería a cero", detail: "Gana sin encajar", earned: false };
+  const logros = { list: [won, goals, zero], next: [goals] };
+
+  it("va tras «Dónde has jugado»: lo ganado con su partido, lo próximo con «7 / 10» y el resto plegado", () => {
+    noIntro();
+    setUrl("#temporada");
+    view(makeData({ logros }));
+    const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(headings.indexOf("Tus logros")).toBe(headings.indexOf("Dónde has jugado") + 1);
+    const box = screen.getByRole("heading", { name: "Tus logros" }).closest(".bk") as HTMLElement;
+    expect(within(within(box).getByRole("list", { name: "Tus logros" })).getByRole("link", { name: "11 ene 1970 · vs Rival j1" })).toHaveAttribute("href", "/matches/j1");
+    expect(within(box).getByRole("region", { name: "Lo próximo" })).toHaveTextContent("7 / 10");
+    expect(within(box).getByRole("region", { name: "Lo próximo" })).toHaveTextContent("Bronce");
+    expect(box.querySelector("details.lg-all")).toHaveTextContent("Portería a cero");
+  });
+  it("sin ficha vinculada no sale", () => {
+    noIntro();
+    setUrl("#temporada");
+    view(makeData({ state: "pendiente", logros }));
+    expect(screen.queryByRole("heading", { name: "Tus logros" })).toBeNull();
   });
 });
 

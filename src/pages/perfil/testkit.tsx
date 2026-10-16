@@ -27,7 +27,7 @@ export function doorRow(i: number, extra: Partial<DoorRequestRow> = {}): DoorReq
 /** «Dónde has jugado» with nothing yet (a linked player's default). */
 export const NO_PLAYED: PlayerPositions = { lines: [], minutes: 0, estimatedMatches: 0, matches: 0, top: null };
 
-export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?: boolean; started?: boolean; playerId?: string | null; doors?: number | DoorRequestRow[]; positions?: PositionsInfo | null; played?: PlayerPositions | null; recap?: RecapOffer | null } = {}): ProfileData {
+export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?: boolean; started?: boolean; playerId?: string | null; doors?: number | DoorRequestRow[]; positions?: PositionsInfo | null; played?: PlayerPositions | null; recap?: RecapOffer | null; logros?: ProfileData["logros"] } = {}): ProfileData {
   const state = o.state ?? "vinculada";
   const playerId = o.playerId !== undefined ? o.playerId : state === "sin-ficha" ? null : state === "pendiente" ? "erik" : "adri";
   const card = buildCard({
@@ -65,6 +65,7 @@ export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?
     upcoming: [],
     stuff: { boards: { count: 0, last: null }, porra: null, convocatorias: { answered: 0, total: 0, yes: 0, maybe: 0, no: 0, next: null, nextId: null }, loading: false },
     captain: o.captain ? { doorRequests: Array.isArray(o.doors) ? o.doors : Array.from({ length: o.doors ?? 0 }, (_, i) => doorRow(i)), pendingClaims: [] } : null,
+    logros: o.logros ?? null,
     recap: o.recap ?? null,
   };
 }

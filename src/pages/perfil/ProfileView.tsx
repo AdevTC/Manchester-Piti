@@ -501,6 +501,7 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
         stuffLoading={data.stuff.loading}
         onGoPick={goPick}
         played={vinc && data.played ? { played: data.played, positions: data.positions?.approved ?? null, nudge: positionsNudge(data.played, data.positions), onGoPositions: () => goTab("carta", "pe-posiciones") } : null}
+        logros={vinc && data.logros ? { ...data.logros, now } : null}
         cromos={
           vinc && data.recap
             ? { offer: data.recap, ctx: { theme, shirt: recapShirt(data.recap.recap) }, open: storyWanted, rm, onOpen: openStory, onClose: closeStory }

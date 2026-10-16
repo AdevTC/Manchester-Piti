@@ -1,4 +1,4 @@
-// /profile › «Temporada»: Tus números → Dónde has jugado → Gol a gol (+ the last five results) → Tu socio en el campo →
+// /profile › «Temporada»: Tus números → Dónde has jugado → Tus logros → Gol a gol (+ the last five results) → Tu socio en el campo →
 // Tus cosas en el vestuario (the next convocatoria, your boards, your porra, your answers). Real data,
 // empty states as designed (pf-g.mjs pTemp).
 import { Link } from "@tanstack/react-router";
@@ -13,6 +13,8 @@ import { firstMatchText, jornadaRange, longDay, type StuffLine, type StuffLink }
 import { RESULT_LEGEND } from "../../lib/derived/result";
 import { CREST } from "./icons";
 import { RecapStory } from "./RecapStory";
+import { Logros } from "../../components/celeste/Logros";
+import type { Achievement } from "../../lib/derived/achievements";
 import type { RecapCtx, RecapOffer } from "./recapView";
 
 /** The goal bars keep a readable width on a phone: the last 10 jornadas at most. */
@@ -85,7 +87,14 @@ function Cromos({ c }: { c: CromosField }) {
   );
 }
 
-export function TabTemporada({ card, seasonId, seasonName, stuff, stuffLoading, onGoPick, played, cromos = null }: { card: CardView; seasonId: string; seasonName: string; stuff: StuffLine[]; stuffLoading: boolean; onGoPick: () => void; played: PlayedField | null; cromos?: CromosField | null }) {
+/** «Tus logros»: the career's medals, the three to chase and the clock the dates are read against. */
+export interface LogrosField {
+  list: Achievement[];
+  next: Achievement[];
+  now: number;
+}
+
+export function TabTemporada({ card, seasonId, seasonName, stuff, stuffLoading, onGoPick, played, cromos = null, logros = null }: { card: CardView; seasonId: string; seasonName: string; stuff: StuffLine[]; stuffLoading: boolean; onGoPick: () => void; played: PlayedField | null; cromos?: CromosField | null; logros?: LogrosField | null }) {
   const vinc = card.state === "vinculada";
   // the season on the public pages it links to («all» or none adds no ?season=)
   const season = seasonId && seasonId !== "all" ? { season: seasonId } : {};
@@ -155,6 +164,13 @@ export function TabTemporada({ card, seasonId, seasonName, stuff, stuffLoading, 
             )}
           </div>
           {played && <DondeHasJugado played={played.played} positions={played.positions} seasonId={seasonId} seasonName={seasonName} nudge={played.nudge} onGoPositions={played.onGoPositions} />}
+          {logros && (
+            <div className="bk" id="pe-logros">
+              <h3 className="bk-h">Tus logros</h3>
+              <p className="bk-d">Tus medallas de siempre, el partido en que ganaste cada una y lo que tienes más cerca.</p>
+              <Logros list={logros.list} next={logros.next} now={logros.now} self />
+            </div>
+          )}
           <div className="bk">
             <h3 className="bk-h">Gol a gol</h3>
             <p className="bk-d">Tus goles en cada jornada y cómo acabaron los últimos cinco partidos.</p>

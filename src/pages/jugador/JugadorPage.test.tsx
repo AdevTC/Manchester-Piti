@@ -199,3 +199,18 @@ describe("an error is not «no encontrado»", () => {
     expect(robots()).not.toBe("noindex");
   });
 });
+
+describe("«Sus medallas»", () => {
+  it("are his logros: the debut won, with the date and the rival linking to the match, and what comes next", () => {
+    who.viewer = { member: false, admin: false, playerId: null };
+    url.playerId = "erik";
+    data.error = null;
+    render(<JugadorPage />);
+    const box = screen.getByRole("heading", { name: "Sus medallas" }).closest("section") as HTMLElement;
+    const won = within(box).getByRole("list", { name: "Sus logros" });
+    const debut = within(won).getByText("Debut").closest("li") as HTMLElement;
+    expect(within(debut).getByRole("link", { name: "6 sept · vs MAD SKY" })).toHaveAttribute("href", "/matches/j1");
+    expect(within(box).getByRole("region", { name: "Lo próximo" })).toHaveTextContent(/\d+ \/ \d+/);
+    expect(box.querySelector("details.lg-all")).not.toBeNull();
+  });
+});
