@@ -16,7 +16,7 @@ import { FieldValue, type DocumentData } from "firebase-admin/firestore";
 import { db } from "./common.js";
 import { madridDate } from "./madrid.js";
 import { deliver } from "./push.js";
-import { parseRota, parseRotaTurns, playedEntry, rotaNotice, rotaPast, rotaPlayed, turnsFor, type PlayedTurns, type Rota, type RotaAbsence, type RotaAnswer, type RotaMatch, type RotaTurnsDoc } from "./rotaLogic.js";
+import { handoverTurns, parseRota, parseRotaTurns, playedEntry, rotaNotice, rotaPast, rotaPlayed, turnsFor, type PlayedTurns, type Rota, type RotaAbsence, type RotaAnswer, type RotaMatch, type RotaTurnsDoc } from "./rotaLogic.js";
 
 const millis = (v: unknown): number | null => {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -126,6 +126,36 @@ export async function notifyRota(matchId: string, now = Date.now()): Promise<voi
     }
   } catch (e) {
     console.error("notifyRota", matchId, e);
+  }
+}
+
+/**
+ * The member whose turn it was can't make an upcoming match (his «No puedo», or an absence's: pushOnAnswer,
+ * reminders.ts, on the answer either writes): once its convocatoria is out, whoever has the turn now is
+ * told «Te toca…» (handoverTurns: never a pinned job, a frozen or a past match). Once per match, job and
+ * member, like every «Te toca…»: a retry sends nothing twice. If he changes back to «Voy», nothing more
+ * goes: the turn is his again, he was told already (his own log entry), and the one told meanwhile keeps
+ * that notice (the web shows the turn as it is).
+ */
+export async function notifyRotaHandover(matchId: string, playerId: string, now = Date.now()): Promise<void> {
+  try {
+    if (!(await db.doc(`pushLog/conv-${matchId}`).get()).exists) return;
+    const snap = await db.doc(`matches/${matchId}`).get();
+    if (!snap.exists || snap.get("archived") === true || snap.get("status") !== "scheduled") return;
+    const match = asRotaMatch(matchId, snap.data());
+    if (!match.seasonId || match.date === null || match.date <= now) return;
+    const season = await freezeRota(match, now, false);
+    if (!season.rota?.jobs.length) return;
+    const [outs, own] = await Promise.all([outsOf(match), db.doc(`rotaTurns/${matchId}`).get()]);
+    const turns = handoverTurns(match, season.rota, season.history, outs.answers, outs.absences, parseRotaTurns(own.data()), playerId);
+    const rival = typeof snap.get("rival") === "string" ? (snap.get("rival") as string) : undefined;
+    for (const t of turns) {
+      const uid = (await db.doc(`playerLinks/${t.playerId as string}`).get()).get("uid");
+      if (typeof uid !== "string" || !uid) continue;
+      await deliver(rotaNotice(matchId, t.job, t.playerId as string, { date: match.date, rival }, now), uid);
+    }
+  } catch (e) {
+    console.error("notifyRotaHandover", matchId, e);
   }
 }
 

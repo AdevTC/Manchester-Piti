@@ -3,6 +3,7 @@
 export {
   DEFAULT_JOBS,
   NO_ROTA_TURNS,
+  handoverTurns,
   ROTA_ICONS,
   ROTA_ICON_LABEL,
   ROTA_LIMITS,

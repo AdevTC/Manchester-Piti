@@ -234,6 +234,37 @@ export function turnsFor(
   return out;
 }
 
+/**
+ * `playerId` just went out of an upcoming match (his «No puedo», or an absence that covers its day): the
+ * turns that pass to someone else because of it, with who has them now — the jobs he held, and any job
+ * whose member moved up to cover one of his (no double jobs). Never a pinned job (the captain's word
+ * stands: he sorts it out). Empty when the match is frozen, when he held no computed turn, or when he isn't out after all
+ * (he changed back to «Voy»). `answers` and `absences`: the match's as they are now (his own included).
+ */
+export function handoverTurns(
+  match: RotaMatch,
+  rota: Rota | null | undefined,
+  history: readonly PlayedTurns[],
+  answers: readonly RotaAnswer[],
+  absences: readonly RotaAbsence[],
+  doc: RotaTurnsDoc | null | undefined,
+  playerId: string,
+): Turn[] {
+  if (!rota || doc?.frozen || !outOf(playerId, match, answers, absences)) return [];
+  // (the turns as they were with him in)
+  const before = turnsFor(
+    match,
+    rota,
+    history,
+    answers.filter((a) => a.playerId !== playerId),
+    absences.filter((a) => a.playerId !== playerId),
+    doc,
+  );
+  if (!before.some((t) => t.playerId === playerId && !t.pinned)) return [];
+  const was = new Map(before.map((t) => [t.job.id, t.playerId]));
+  return turnsFor(match, rota, history, answers, absences, doc).filter((t) => !t.pinned && t.playerId !== null && t.playerId !== was.get(t.job.id));
+}
+
 // ── Words ──
 
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);

@@ -3,7 +3,8 @@
 // published, moved or rescheduled: pushOnMatch, push.ts). Each plan is read and applied in one transaction
 // with the answers it looks at, so a hand answer written meanwhile is never overwritten or deleted by a
 // stale plan (the transaction reruns on it). Apart from absences.ts so push.ts can call it without an
-// import cycle (absences.ts sends its notice through push.ts).
+// import cycle (absences.ts sends its notice through push.ts). The «No puedo» written here also passes a
+// turn of that match on (Turnos): pushOnAnswer sees the write and tells the next member (rota.ts).
 import { FieldValue, Timestamp, type DocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { db } from "./common.js";
 import { absenceAvailabilityPlan, answerable, covers, madridDate, parseAbsence, type Absence, type AbsencePlan, type ExistingAnswer, type MatchSlot } from "./absencesLogic.js";

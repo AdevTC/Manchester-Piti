@@ -4,14 +4,15 @@
 // match's convocatoria, even without its acta); the convocatoria's notifyRota tells the member whose turn
 // it is «Te toca lavar la equipación…», skipping a «No puedo», the car only away, once per match, job and
 // member (pushLog rota-<match>-<job>-<player>); a captain's swap tells the new member (notifyRotaChange, what
-// rotaTurnsOnWrite runs). Kept in each centro de avisos (nobody is subscribed, so nothing is signed or sent).
+// rotaTurnsOnWrite runs); when the one whose turn it is says «No puedo», the next one is told once, never
+// for a pinned job (notifyRotaHandover, what pushOnAnswer runs). Kept in each centro de avisos (nobody is subscribed, so nothing is signed or sent).
 import assert from "node:assert/strict";
 process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 process.env.GCLOUD_PROJECT = "demo-manchester-piti";
 process.env.GOOGLE_CLOUD_PROJECT = "demo-manchester-piti";
 process.env.FUNCTIONS_EMULATOR = "true";
 const { db } = await import("../lib/common.js");
-const { freezeOnMatch, notifyRota, notifyRotaChange } = await import("../lib/rota.js");
+const { freezeOnMatch, notifyRota, notifyRotaChange, notifyRotaHandover } = await import("../lib/rota.js");
 const { Timestamp } = await import("firebase-admin/firestore");
 
 const suffix = Date.now().toString(36);
@@ -100,6 +101,42 @@ assert.equal(await logged("home", "coche", "leo"), false);
 assert.ok(await logged("home", "lavar", "leo"), "home: Leo, who has never washed");
 await notifyRota(p("m2"));
 for (const k of ["hugo", "dani", "leo"]) assert.equal(await logged("m2", "lavar", k), false);
+
+// The one whose turn it is can't (notifyRotaHandover, what pushOnAnswer runs on his «No puedo»): the next
+// one is told, once. History before «later»: m1 (Lava Hugo), m2 (Lava Dani, Coche Leo) → Lava Leo, Coche Dani.
+const conv = (k) => db.doc(`pushLog/conv-${p(k)}`).set({ at: Timestamp.now(), matchId: p(k) });
+const sayNo = (m, k) => db.doc(`matchPrivate/${p(m)}/availability/uid-${p(k)}`).set({ response: "no", name: k, playerId: p(k), at: Timestamp.now() });
+const noticesFor = async (m, k) => (await noticesOf(k)).filter((n) => n.url === `/matches/${p(m)}?tab=vestuario`);
+await match("later", now + 20 * DAY, "scheduled", false);
+await conv("later");
+await notifyRota(p("later"));
+assert.ok(await logged("later", "lavar", "leo"));
+assert.ok(await logged("later", "coche", "dani"));
+await sayNo("later", "leo");
+await notifyRotaHandover(p("later"), p("leo"));
+await notifyRotaHandover(p("later"), p("leo")); // a retry: nothing twice
+// Lava → Hugo (longer without than Dani); the car stays Dani's
+const hugoLater = await noticesFor("later", "hugo");
+assert.equal(hugoLater.length, 1, "Hugo, next in line, gets exactly one notice");
+assert.match(hugoLater[0].title, /^Te toca lavar la equipación tras el partido del /);
+assert.equal((await noticesFor("later", "dani")).length, 1, "Dani: only the car's, from the convocatoria");
+assert.equal((await noticesFor("later", "leo")).length, 1, "Leo: only his first one");
+// back to «Voy»: nothing more for anyone
+await db.doc(`matchPrivate/${p("later")}/availability/uid-${p("leo")}`).set({ response: "yes", name: "leo", playerId: p("leo"), at: Timestamp.now() });
+await notifyRotaHandover(p("later"), p("leo"));
+for (const k of ["hugo", "dani", "leo"]) assert.equal((await noticesFor("later", k)).length, 1);
+
+// A captain pinned the wash to Leo: his «No puedo» passes nothing on (the captain sorts it out).
+await match("pinned", now + 27 * DAY, "scheduled", false);
+await db.doc(`rotaTurns/${p("pinned")}`).set({ seasonId, lavar: { playerId: p("leo"), at: Timestamp.now() } });
+await conv("pinned");
+await notifyRota(p("pinned"));
+assert.ok(await logged("pinned", "lavar", "leo"));
+await sayNo("pinned", "leo");
+await notifyRotaHandover(p("pinned"), p("leo"));
+assert.equal(await logged("pinned", "lavar", "hugo"), false, "a pinned job: nobody else is told");
+assert.equal(await logged("pinned", "lavar", "dani"), false);
+for (const k of ["hugo", "leo"]) assert.equal((await noticesFor("pinned", k)).length, k === "leo" ? 1 : 0);
 
 console.log("rota.integration: ok");
 process.exit(0);
