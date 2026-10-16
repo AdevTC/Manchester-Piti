@@ -30,6 +30,8 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
   const [later, setLater] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  // (a failed write is an alert; a written play, a quiet status)
+  const [failed, setFailed] = useState(false);
   const shown = minute ?? clock;
   // (the stepper counts as the events are stamped; people read football's minute: +1 on a clock)
   const off = shownOffset(match);
@@ -52,6 +54,7 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
     sending.current = true;
     setBusy(true);
     setMsg("");
+    setFailed(false);
     try {
       setRetry({payload,label:done});
       await liveEvent(payload);
@@ -60,6 +63,7 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
       setMsg(done);
       reset();
     } catch (e) {
+      setFailed(true);
       setMsg(apiError(e));
     } finally {
       sending.current = false;
@@ -91,12 +95,16 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
       <div className="qm-mode" role="group" aria-label="Modo de anotación"><button type="button" aria-pressed={quick} onClick={()=>setQuick(true)}>Banquillo rápido</button><button type="button" aria-pressed={!quick} onClick={()=>setQuick(false)}>Con detalle</button></div>
       <div hidden={!quick}><QuickMatchEntry key={match.id} match={match} nameOf={nameOf}/></div>
       <div hidden={quick}>
+      {!playing && match.clock?.phase !== "halftime" && <p className="fc-note">Pon en marcha el reloj del partido para apuntar jugadas.</p>}
       <fieldset disabled={(!playing && match.clock?.phase !== "halftime") || busy || !!retry} style={{ border: 0, padding: 0, margin: 0 }}>
       <div className="fc-banda-min">
         <button type="button" aria-label="Un minuto menos" onClick={() => setMinute(Math.max(0, shown - 1))}>
           −
         </button>
-        <output aria-live="polite">{shown + off}′</output>
+        {/* (said when the scorer moves it, not on every minute the clock ticks) */}
+        <output aria-live={minute != null ? "polite" : "off"} aria-label={`Minuto ${shown + off}`}>
+          {shown + off}′
+        </output>
         <button type="button" aria-label="Un minuto más" onClick={() => setMinute(shown + 1)}>
           +
         </button>
@@ -155,7 +163,7 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
       </fieldset>
       {retry && !busy && <div className="fc-acts"><button type="button" className="hm-btn" onClick={()=>void send(retry.payload,retry.label)}>Reintentar la misma jugada</button><button type="button" className="hm-ghostbtn" onClick={()=>{setRetry(null);reset();setMsg("Revisa las jugadas sincronizadas antes de volver a anotarla.");}}>Revisar la jugada antes de continuar</button></div>}
       {msg && (
-        <p className="fc-status" role="status">
+        <p className="fc-status" role={failed ? "alert" : "status"}>
           {msg}
         </p>
       )}

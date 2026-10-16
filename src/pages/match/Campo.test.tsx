@@ -94,6 +94,23 @@ it("the Directo feed reads a live-stamped goal in football's minute (0:07 → 1�
   expect(rows).toEqual(["19′", "1′"]);
 });
 
+it("the Directo feed is no second live region (the board says each play once) and never prints a raw event type", () => {
+  const match = { id: "m", date: Date.now(), duration: 50, status: "scheduled", events: [{ id: "x1", type: "nueva_jugada", minute: 3 }] } as unknown as ClubMatch;
+  const { container } = render(<DirectoTab match={match} nameOf={(id) => id.toUpperCase()} />);
+  const feed = container.querySelector(".fc-feed") as HTMLElement;
+  expect(feed).not.toHaveAttribute("aria-live");
+  expect(feed).toHaveTextContent("Jugada");
+  expect(feed).not.toHaveTextContent("nueva_jugada");
+});
+
+it("a dot on the pitch says its numbers in proper Spanish: «1 gol», and «sin dorsal» when he has none", () => {
+  const match = { id: "m", seasonId: "t1", date: Date.now() - 3 * 3_600_000, duration: 50, status: "finished", goalsFor: 1, goalsAgainst: 0, starters: ["a", "z"], bench: [], events: [{ id: "g1", type: "goal", minute: 5, playerId: "a" }] } as unknown as ClubMatch;
+  const { container } = render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} />);
+  const pitch = container.querySelector(".fc-pitch") as HTMLElement;
+  expect(within(pitch).getByRole("button", { name: /^A, dorsal 1, .*1 gol, 0 asistencias, 0 amarillas, 0 rojas$/ })).toBeInTheDocument();
+  expect(within(pitch).getByRole("button", { name: /^Z, sin dorsal, / })).toBeInTheDocument();
+});
+
 // One «siete» (M6): before the acta, members see the pizarra's official seven (the `official` prop, read
 // only for them), badged, with a note when the convocatoria has another seven. Fans: the convocatoria.
 it("before the acta: the pizarra's official seven, its badge and the note when the convocatoria differs", () => {
