@@ -9,7 +9,7 @@ import type { ClubMatch } from "../../lib/clubData";
 const NOW = Date.UTC(2026, 8, 10, 12);
 type Answer = { uid: string; response: "yes" | "no" | "maybe"; name: string; playerId: string | null; absenceId?: string };
 const MINE: Answer = { uid: "u1", response: "maybe", name: "YO", playerId: null };
-const state = vi.hoisted(() => ({ member: true, answers: [] as Answer[], absences: [] as unknown[], absencesRead: [] as boolean[] }));
+const state = vi.hoisted(() => ({ member: true, answers: [] as Answer[], absences: [] as unknown[], absencesRead: [] as boolean[], predictions: { data: [] as unknown[], loading: false, error: false }, mine: { data: null as unknown, loading: false, error: false } }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to, className }: { children?: ReactNode; to: string; className?: string }) => (
     <a className={className} href={to}>
@@ -27,13 +27,13 @@ vi.mock("../../components/jersey3d/Jersey3D", () => ({ Jersey3D: () => null }));
 vi.mock("../vestuario/live", () => ({
   useAvailability: () => ({ data: state.member ? state.answers : [] }),
   useAbsences: (_today: string, enabled?: boolean) => (state.absencesRead.push(!!enabled), { data: enabled ? state.absences : [] }),
-  useMatchPredictions: () => ({ data: [] }),
+  useMatchPredictions: () => state.predictions,
   useMeetingNote: () => ({ data: "" }),
   useMvpResults: () => new Map([["j5", { id: "j5", counts: { erik: 2 }, total: 2 }]]),
   useMvpResultsSync: () => ({ confirmed: true, stale: false }),
   useMvpReveal: () => false,
   useMyMvpVote: () => ({ data: "" }),
-  useMyPrediction: () => ({ data: null }),
+  useMyPrediction: () => state.mine,
 }));
 vi.mock("../vestuario/writes", () => ({ useMe: () => (state.member ? { uid: "u1", name: "YO", playerId: null } : null), predictScore: vi.fn(), setAvailability: vi.fn(), voteMvp: vi.fn() }));
 const SQUAD = ["erik", "pablo"].map((id) => ({ id, shirtName: id.toUpperCase(), seasons: ["t1"], seasonDetails: { t1: { shirtName: `${id.toUpperCase()}7` } } }));
@@ -50,6 +50,8 @@ beforeEach(() => {
   state.answers = [MINE];
   state.absences = [];
   state.absencesRead = [];
+  state.predictions = { data: [], loading: false, error: false };
+  state.mine = { data: null, loading: false, error: false };
 });
 
 it("the convocatoria lists who is away: «Ausente · hasta …» on a «No puedo» an absence wrote or covers (never colour alone)", () => {
@@ -112,6 +114,28 @@ it("fans get none of them, only the invitation to the vestuario", () => {
   expect(screen.getByRole("link", { name: "Entrar al vestuario" })).toBeInTheDocument();
   // (a fan never opens the absences reader)
   expect(state.absencesRead.every((on) => !on)).toBe(true);
+});
+
+it("the porra of the jornada: the final score in words as well as in gold, each count with its unit", () => {
+  const p = (uid: string, goalsFor: number, goalsAgainst: number) => ({ uid, name: uid, goalsFor, goalsAgainst, goals: [] });
+  state.predictions = { data: [p("a", 2, 1), p("b", 2, 1), p("c", 1, 1)], loading: false, error: false };
+  render(<VestuarioTab match={finished} players={SQUAD} phase="finished" />);
+  const list = screen.getByRole("list", { name: "Los resultados más repetidos" });
+  const rows = [...list.querySelectorAll("li")];
+  expect(rows[0]).toHaveTextContent("2–1 · el resultado2 porras");
+  expect(rows[1]).toHaveTextContent("1–11 porra");
+  expect(rows[1]).not.toHaveTextContent("el resultado");
+  expect(rows[0].querySelector(".bar")).toHaveAttribute("aria-hidden", "true");
+});
+
+it("porras that did not load: an error, never «Nadie hizo porra» nor «No guardaste una porra»", () => {
+  state.predictions = { data: [], loading: false, error: true };
+  state.mine = { data: null, loading: false, error: true };
+  render(<VestuarioTab match={finished} players={SQUAD} phase="finished" />);
+  expect(screen.getByRole("heading", { name: "Las porras no cargan" })).toBeInTheDocument();
+  expect(screen.queryByText("Nadie hizo porra")).toBeNull();
+  expect(screen.getByText("No se ha podido cargar tu porra. Prueba a recargar la página.")).toBeInTheDocument();
+  expect(screen.queryByText(/No guardaste una porra/)).toBeNull();
 });
 
 it("tras el partido: the member's 1–5 nota while it is open, frozen after 7 days; a fan gets no control", () => {

@@ -143,7 +143,14 @@ export function MatchPage() {
         <ClubDataError heading="h1" />
       </StateStage>,
     );
-  if (loading) return chrome(<section className="pt-hero" aria-label="Cargando el partido" style={{ minHeight: "100svh" }} />);
+  if (loading)
+    return chrome(
+      <section className="pt-hero" aria-label="Cargando el partido" style={{ minHeight: "100svh" }}>
+        <p className="sr-only" role="status">
+          Cargando el partido…
+        </p>
+      </section>,
+    );
   if (!match)
     return chrome(
       <StateStage ghost="404">
@@ -379,7 +386,7 @@ export function MatchPage() {
       </div>
       {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
       <div className={`fc-pane${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
-        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} after={published ? { reactions: reactions.data, ratings: ratings.data, me: member ? me : null } : undefined} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} plan={rivalPlan} />)}
+        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} after={published ? { reactions: reactions.data, ratings: ratings.data, me: member ? me : null, error: reactions.error || ratings.error } : undefined} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} plan={rivalPlan} />)}
         {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialBoard?.seven ?? null} board={officialBoard} />}
         {active === 2 && <PulsoTab match={match} live={live} minute={minute} pending={pending} />}
         {active === 4 &&
@@ -388,7 +395,7 @@ export function MatchPage() {
           ) : (
             <StatePanel kind="empty" compact title="Sin análisis de este partido" body="Nadie ha narrado sus jugadas: pases, remates, entradas… Cuando el acta las apunte, el juego en detalle saldrá aquí." />
           ))}
-        {active === 3 && <VestuarioTab match={match} matches={matches} players={players} phase={phase} ratings={ratings.data} />}
+        {active === 3 && <VestuarioTab match={match} matches={matches} players={players} phase={phase} ratings={ratings.data} ratingsError={ratings.error} />}
       </div>
     </>,
   );

@@ -70,6 +70,8 @@ it("a fan sees no pizarra notes; a member sees the RivalPanel's notes for their 
   const box = container.querySelector(".fc-riv-plan") as HTMLElement;
   expect(box).toHaveTextContent("Solo el vestuario · de la pizarra oficial");
   expect(within(box).getByRole("heading")).toHaveTextContent(/^Su sistema: 3-2-1 · /);
+  // a named region (its aria-labelledby works on a section, not on a bare div)
+  expect(screen.getByRole("region", { name: /^Su sistema: 3-2-1/ })).toBe(box);
   expect([...box.querySelectorAll("li")].map((li) => li.textContent)).toEqual(["Su PORSaca rápido con la mano", "El 9 (DC)Presionar al 9 por su izquierda"]);
   // a board with their seven but no notes yet
   rerender(<PreviaTab match={next} matches={[...history, next]} plan={newRival()} />);
@@ -97,8 +99,20 @@ it("the crónica: «Contra X: 3G 1E 0P» at the top leads to «El rival», where
   const rows = [...sec.querySelectorAll(".fc-riv-last li")];
   expect(rows[0].querySelector("a")).toBeNull();
   expect(rows[0].querySelector("[aria-current]")).toHaveTextContent("Este partido");
+  // (no aria-label on a plain span: the result is said in words inside it)
+  expect(rows[0].querySelector("[aria-current]")).not.toHaveAttribute("aria-label");
+  expect(rows[0].querySelector("[aria-current]")).toHaveTextContent(/Victoria 3–0/);
   // the crónica has no pizarra notes
   expect(sec.querySelector(".fc-riv-plan")).toBeNull();
+  // no written crónica: its moments (h3) still sit under an h2 for the outline
+  expect(screen.getByRole("heading", { level: 2, name: "La crónica" })).toHaveClass("sr-only");
+  expect(screen.getAllByRole("heading", { level: 3 }).length).toBeGreaterThan(0);
+});
+
+it("the crónica's reactions that did not load: said so, never an empty bar", () => {
+  const done = played("now", 9, "Mad Sky", 3, 0, [goal("8", "bea")]);
+  render(<CronicaTab match={done} matches={[...history, done]} players={[]} nameOf={(id) => id} after={{ reactions: [], ratings: [], me: null, error: true }} />);
+  expect(screen.getByText(/No se han podido cargar las reacciones/)).toBeInTheDocument();
 });
 
 it("the crónica of the first meeting: «Primera vez contra X»", () => {

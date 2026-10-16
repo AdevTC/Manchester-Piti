@@ -106,6 +106,27 @@ describe("Mesa de partido · what the admin's En juego had and the banda lacked"
     expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "goal", minute: 31, assistReviewed: false }));
     expect(await screen.findByText("Gol del Piti apuntado en el 32′. Falta el goleador: complétalo en el acta.")).toBeInTheDocument();
   });
+  it("the minute is announced only when the scorer moves it, never on each tick of the clock", () => {
+    render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
+    const out = screen.getByRole("status", { name: "Minuto 32" });
+    expect(out).toHaveAttribute("aria-live", "off");
+    fireEvent.click(screen.getByRole("button", { name: "Un minuto menos" }));
+    expect(screen.getByRole("status", { name: "Minuto 31" })).toHaveAttribute("aria-live", "polite");
+  });
+  it("a write that fails is an alert, in words", async () => {
+    api.live.mockRejectedValueOnce(new Error("Sin conexión con el servidor."));
+    render(<Banda match={MATCH} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
+    tapAll(["Gol rival"]);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sin conexión con el servidor.");
+  });
+  it("with the clock stopped it says why nothing can be written", () => {
+    const stopped = { ...MATCH, clock: undefined } as unknown as ClubMatch;
+    render(<Banda match={stopped} nameOf={nameOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
+    expect(screen.getByText("Pon en marcha el reloj del partido para apuntar jugadas.")).toBeInTheDocument();
+  });
   it("the scorer picked from the assist chips' player clears that assist (never his own assist)", () => {
     render(<Banda match={MATCH} nameOf={nameOf} />);
     fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));

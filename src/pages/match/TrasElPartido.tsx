@@ -2,7 +2,7 @@
 // and the 1–5 nota in the Vestuario tab. Counts and the average are public; only a member (`me`) writes.
 // Pure logic and windows: lib/derived/trasElPartido; the docs come from one listener per subcollection,
 // opened by the match page (vestuario/live useMatchReactions / useMatchRatings).
-import { useState } from "react";
+import { useId, useState } from "react";
 import { formatNota, momentsFull, momentTally, nextMoments, notaLine, ratingSummary, votesText, whoReacted, type RatingDoc, type RatingWindow, type ReactionDoc, type ReactionId } from "../../lib/derived/trasElPartido";
 import { rateMatch, setReactions, unrateMatch, type Me } from "../vestuario/writes";
 import "./trasElPartido.css";
@@ -14,6 +14,7 @@ export function ReactionBar({ matchId, momentId, label, docs, me }: { matchId: s
   const [shown, setShown] = useState<ReactionId | null>(null);
   const [error, setError] = useState("");
   const [all, setAll] = useState(false);
+  const listId = `tp-who-${useId()}`;
   const tally = momentTally(docs, momentId, me?.uid);
   const mineAll = (me && docs.find((d) => d.uid === me.uid)?.moments) || EMPTY;
   const full = !!me && momentsFull(mineAll, momentId);
@@ -70,12 +71,12 @@ export function ReactionBar({ matchId, momentId, label, docs, me }: { matchId: s
         {who && !all ? `${who.emoji} ${whoReacted(who.names)}` : ""}
       </p>
       {total > 0 && (
-        <button type="button" className="tp-all" aria-expanded={all} onClick={() => setAll((v) => !v)}>
+        <button type="button" className="tp-all" aria-expanded={all} aria-controls={listId} aria-label={`${all ? "Ocultar" : "Ver"} quién ha reaccionado · ${label}`} onClick={() => setAll((v) => !v)}>
           {all ? "Ocultar" : "Ver quién"}
         </button>
       )}
       {all && (
-        <ul className="tp-list">
+        <ul className="tp-list" id={listId}>
           {tally
             .filter((t) => t.count > 0)
             .map((t) => (
@@ -105,19 +106,23 @@ const DAY = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", 
 const TIME = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 
 /** The member's nota (Vestuario tab): a 1–5 radio group while it is open, the frozen average afterwards. */
-export function NotaCard({ matchId, ratings, me, slot }: { matchId: string; ratings: readonly RatingDoc[]; me: Me; slot: RatingWindow }) {
+export function NotaCard({ matchId, ratings, me, slot, failed = false }: { matchId: string; ratings: readonly RatingDoc[]; me: Me; slot: RatingWindow; failed?: boolean }) {
   const [error, setError] = useState("");
+  // (said once, after the member's own change: not every time someone else's nota moves the average)
+  const [said, setSaid] = useState("");
   if (slot.state === "none") return null;
   const summary = ratingSummary(ratings);
   const mine = ratings.find((r) => r.uid === me.uid)?.score ?? null;
+  const unread = "No se han podido cargar las notas del vestuario. Prueba a recargar la página.";
   if (slot.state === "closed")
     return (
       <section className="fc-sec" aria-labelledby="tp-nota-h">
         <span className="hm-kick">La nota del partido · cerrada</span>
         <h2 className="hm-h2" id="tp-nota-h">
-          {summary.average === null ? "Nadie le puso nota" : `La nota quedó en ${formatNota(summary.average)}`}
+          {failed ? "La nota no carga" : summary.average === null ? "Nadie le puso nota" : `La nota quedó en ${formatNota(summary.average)}`}
         </h2>
-        {summary.average !== null && (
+        {failed && <p className="fc-note">{unread}</p>}
+        {!failed && summary.average !== null && (
           <p className="fc-note">
             {votesText(summary.count)} del vestuario{mine !== null ? ` · tú le pusiste un ${mine}` : ""}.
           </p>
@@ -126,11 +131,19 @@ export function NotaCard({ matchId, ratings, me, slot }: { matchId: string; rati
     );
   const save = (score: number) => {
     setError("");
-    rateMatch(me, matchId, score).catch(() => setError("No se ha guardado tu nota. Inténtalo otra vez."));
+    setSaid("");
+    rateMatch(me, matchId, score).then(
+      () => setSaid(`Nota guardada: ${score} de 5.`),
+      () => setError("No se ha guardado tu nota. Inténtalo otra vez."),
+    );
   };
   const remove = () => {
     setError("");
-    unrateMatch(me, matchId).catch(() => setError("No se ha quitado tu nota. Inténtalo otra vez."));
+    setSaid("");
+    unrateMatch(me, matchId).then(
+      () => setSaid("Has quitado tu nota."),
+      () => setError("No se ha quitado tu nota. Inténtalo otra vez."),
+    );
   };
   return (
     <section className="fc-sec" aria-labelledby="tp-nota-h">
@@ -151,9 +164,12 @@ export function NotaCard({ matchId, ratings, me, slot }: { matchId: string; rati
           </label>
         ))}
       </div>
-      <p className="fc-note" aria-live="polite">
-        {summary.average === null ? "Aún nadie ha puesto nota." : notaLine(summary) + "."}
+      <p className="fc-note">
+        {failed ? unread : summary.average === null ? "Aún nadie ha puesto nota." : notaLine(summary) + "."}
         {mine !== null && ` Tu nota: ${mine}.`}
+      </p>
+      <p className="sr-only" role="status">
+        {said}
       </p>
       {mine !== null && (
         <button type="button" className="tp-undo" onClick={remove}>

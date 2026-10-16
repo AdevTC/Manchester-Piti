@@ -112,6 +112,37 @@ it("after 7 days the nota freezes: «La nota quedó en 4,2», no control", () =>
   expect(screen.queryByRole("radiogroup")).toBeNull();
 });
 
+it("«Ver quién» names its moment and controls the list it opens", () => {
+  render(<ReactionBar matchId="j5" momentId="g1" label="Minuto 12" docs={DOCS} me={ME} />);
+  const toggle = screen.getByRole("button", { name: "Ver quién ha reaccionado · Minuto 12" });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(toggle);
+  const list = screen.getByRole("list");
+  expect(toggle).toHaveAttribute("aria-controls", list.id);
+  expect(toggle).toHaveAccessibleName("Ocultar quién ha reaccionado · Minuto 12");
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+});
+
+it("the member's own nota is announced once, after it is saved (not every vote of the rest)", async () => {
+  render(<NotaCard matchId="j5" ratings={[rating("u2", 5)]} me={ME} slot={{ state: "open", closesAt: CLOSES }} />);
+  const status = screen.getByRole("status");
+  expect(status).toBeEmptyDOMElement();
+  fireEvent.click(screen.getAllByRole("radio")[2]);
+  expect(await screen.findByText("Nota guardada: 3 de 5.")).toBe(status);
+  // the summary line itself is no live region
+  expect(screen.getByText(/^Nota del vestuario/)).not.toHaveAttribute("aria-live");
+});
+
+it("notas that did not load: an error, never «nadie le puso nota»", () => {
+  const { unmount } = render(<NotaCard matchId="j5" ratings={[]} me={ME} slot={{ state: "closed", closedAt: CLOSES }} failed />);
+  expect(screen.getByRole("heading", { name: "La nota no carga" })).toBeInTheDocument();
+  expect(screen.queryByText(/Nadie le puso nota/)).toBeNull();
+  unmount();
+  render(<NotaCard matchId="j5" ratings={[]} me={ME} slot={{ state: "open", closesAt: CLOSES }} failed />);
+  expect(screen.getByText(/No se han podido cargar las notas del vestuario/)).toBeInTheDocument();
+  expect(screen.queryByText(/Aún nadie ha puesto nota/)).toBeNull();
+});
+
 it("before the acta: no nota at all", () => {
   const { container } = render(<NotaCard matchId="j5" ratings={[]} me={ME} slot={{ state: "none" }} />);
   expect(container).toBeEmptyDOMElement();

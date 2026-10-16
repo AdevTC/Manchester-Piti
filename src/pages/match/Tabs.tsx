@@ -99,6 +99,8 @@ export interface AfterMatch {
   reactions: readonly ReactionDoc[];
   ratings: readonly RatingDoc[];
   me: Me | null;
+  /** Either listener failed: say so, never an empty bar that reads as «nobody reacted». */
+  error?: boolean;
 }
 
 export function CronicaTab({ match, matches, players, nameOf, after }: { match: ClubMatch; matches: ClubMatch[]; players: PlayerDoc[]; nameOf: NameOf; after?: AfterMatch }) {
@@ -123,6 +125,17 @@ export function CronicaTab({ match, matches, players, nameOf, after }: { match: 
           </section>
         )}
         {match.photoUrl && <img className="fc-photo" src={match.photoUrl} alt={`Manchester Piti contra ${rival}`} />}
+        {/* (the moments are h3s: without the written crónica above, their h2 for the outline) */}
+        {story.length > 1 && !match.report && (
+          <h2 className="sr-only" id="fc-rep">
+            La crónica
+          </h2>
+        )}
+        {after?.error && (
+          <p className="fc-note" role="status">
+            No se han podido cargar las reacciones ni la nota del vestuario. Prueba a recargar la página.
+          </p>
+        )}
         {story.length > 1 ? (
           story.map((c, i) => {
             // each name is linked once: in the sentence, or in the title when the sentence doesn't say it
@@ -247,15 +260,14 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
   const rival = match.rival ?? "Rival";
   const feed = [...(match.events ?? [])].filter((e) => typeof e.minute === "number" && e.type !== "match_played").sort((a, b) => (b.minute ?? 0) - (a.minute ?? 0));
   return (
-    <>
-
     <section className="fc-sec" aria-labelledby="fc-live">
       <span className="hm-kick">{live ? "Desde el acta · se actualiza solo" : "Registro provisional · pendiente de revisión del administrador"}</span>
       <h2 className="hm-h2" id="fc-live">
         Lo que va pasando
       </h2>
       {feed.length ? (
-        <ol className="fc-feed" aria-live="polite">
+        // (no live region: the board's last line already says each new play, once)
+        <ol className="fc-feed">
           {feed.map((e) => {
             const us = OURS.has(e.type) || e.type === "chance" || e.type === "corner";
             const whoId = e.type.startsWith("opponent_") ? undefined : e.type === "substitution" && e.inPlayerId ? e.inPlayerId : e.playerId;
@@ -267,7 +279,7 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
                 <span>
                   <strong>{whoId ? <Who id={whoId} seasonId={match.seasonId}>{who}</Who> : who}</strong>
                   <small>
-                    {EVENT_LABELS[e.type] ?? e.type}
+                    {EVENT_LABELS[e.type] ?? "Jugada"}
                     {e.assistPlayerId && <> · <Icon name="boot" size={13} /> asistencia de <Who id={e.assistPlayerId} seasonId={match.seasonId}>{nameOf(e.assistPlayerId)}</Who></>}
                     {e.type === "substitution" && e.playerId ? <> · sale <Who id={e.playerId} seasonId={match.seasonId}>{nameOf(e.playerId)}</Who></> : ""}
                   </small>
@@ -280,7 +292,6 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
         <p className="fc-note">Aún no hay nada en el acta. Cada gol, tarjeta o cambio aparece aquí en cuanto se apunta.</p>
       )}
     </section>
-    </>
   );
 }
 
@@ -367,7 +378,7 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
             const guest = guestOf(match, d.id);
             const isGuest = isGuestId(d.id);
             return (
-              <button key={d.id} type="button" className={`fc-pl${d.sub ? " sub" : ""}${isGuest ? " guest" : ""}`} style={{ left: `${d.x}%`, top: `${d.y}%` }} aria-pressed={pick === d.id} onClick={() => setSel(d.id)} aria-label={`${nameOf(d.id)}, ${isGuest ? "invitado" : `dorsal ${numOf(d.id)}`}${where}, ${stats.goals} goles, ${stats.assists} asistencias, ${stats.yellowCards} amarillas, ${stats.redCards} rojas`}>
+              <button key={d.id} type="button" className={`fc-pl${d.sub ? " sub" : ""}${isGuest ? " guest" : ""}`} style={{ left: `${d.x}%`, top: `${d.y}%` }} aria-pressed={pick === d.id} onClick={() => setSel(d.id)} aria-label={`${nameOf(d.id)}, ${isGuest ? "invitado" : numOf(d.id) ? `dorsal ${numOf(d.id)}` : "sin dorsal"}${where}, ${plural(stats.goals, "gol", "goles")}, ${plural(stats.assists, "asistencia", "asistencias")}, ${plural(stats.yellowCards, "amarilla", "amarillas")}, ${plural(stats.redCards, "roja", "rojas")}`}>
                 <span className="fc-number">{isGuest ? "Inv." : numOf(d.id)}</span>
                 <b>{isGuest ? (guest?.name ?? "Invitado") : nameOf(d.id)}</b>
                 <MatchBadges {...stats} />
@@ -512,8 +523,9 @@ export function PulsoTab({ match, live, minute, pending = false }: { match: Club
         </div>
       </dl>
       <dl className="fc-attacks" aria-label="Ocasiones y córners registrados">
-        <div><dd>{started ? k.chances : "–"}</dd><dt>Ocasiones</dt><dd>{started ? k.opponentChances : "–"}</dd></div>
-        <div><dd>{started ? k.corners : "–"}</dd><dt>Córners</dt><dd>{started ? k.opponentCorners : "–"}</dd></div>
+        {/* (whose number each is, in words: the side alone says it only to who sees it) */}
+        <div><dd><span className="sr-only">Piti: </span>{started ? k.chances : "–"}</dd><dt>Ocasiones</dt><dd><span className="sr-only">{match.rival ?? "Rival"}: </span>{started ? k.opponentChances : "–"}</dd></div>
+        <div><dd><span className="sr-only">Piti: </span>{started ? k.corners : "–"}</dd><dt>Córners</dt><dd><span className="sr-only">{match.rival ?? "Rival"}: </span>{started ? k.opponentCorners : "–"}</dd></div>
       </dl>
       <p className="fc-note">Piti a la izquierda · {match.rival ?? "rival"} a la derecha. Solo se cuentan las ocasiones y los córners registrados; un cero puede significar que aún no se han apuntado.</p>
       <p className="fc-note">Cada barra es un minuto: arriba el Piti, abajo {match.rival ?? "el rival"}. Es un indicador de actividad a partir de goles, ocasiones, córners, palos, penaltis y tarjetas; no mide la posesión{live ? " y se actualiza durante el partido" : ""}.</p>
@@ -521,8 +533,9 @@ export function PulsoTab({ match, live, minute, pending = false }: { match: Club
   );
 }
 
-/** `ratings`: the match's notas (the match page's listener, while the acta is published). */
-export function VestuarioTab({ match, matches = [match], players, phase, ratings = NO_RATINGS }: { match: ClubMatch; matches?: ClubMatch[]; players: PlayerDoc[]; phase: string; ratings?: readonly RatingDoc[] }) {
+/** `ratings`: the match's notas (the match page's listener, while the acta is published); `ratingsError`: that
+ *  listener failed (the nota says so instead of «nadie»). */
+export function VestuarioTab({ match, matches = [match], players, phase, ratings = NO_RATINGS, ratingsError = false }: { match: ClubMatch; matches?: ClubMatch[]; players: PlayerDoc[]; phase: string; ratings?: readonly RatingDoc[]; ratingsError?: boolean }) {
   const { member } = useTeam();
   const { user } = useAuth();
   const me = useMe();
@@ -604,7 +617,7 @@ export function VestuarioTab({ match, matches = [match], players, phase, ratings
     <div className="fc-two">
       {done && <PersonalMatchSummary match={match} matches={matches} playerId={me.playerId} uid={me.uid} />}
       {done && match.seasonId && <PorraHistory matches={matches} seasonId={match.seasonId} uid={me.uid}/>}
-      <NotaCard matchId={match.id} ratings={ratings} me={me} slot={ratingWindow(match, now)} />
+      <NotaCard matchId={match.id} ratings={ratings} me={me} slot={ratingWindow(match, now)} failed={ratingsError} />
       {!kickedOff && (
         <>
           <section className="fc-sec" aria-labelledby="fc-rs">
@@ -614,6 +627,7 @@ export function VestuarioTab({ match, matches = [match], players, phase, ratings
             </h2>
             {/* (the shared member controls: the same answer, porra and vote — and writes — as the vestuario) */}
             <RsvpSwitch match={match} now={now} answer={mine} />
+            {availability.error && <p className="fc-note" role="status">No se han podido cargar las respuestas del equipo. Prueba a recargar la página.</p>}
             {note.data && (
               <div className="pt-chips" style={{ justifyContent: "flex-start" }}>
                 <span className="pt-chip">{note.data}</span>
@@ -648,7 +662,7 @@ export function VestuarioTab({ match, matches = [match], players, phase, ratings
       <section className="fc-sec" aria-labelledby="fc-po">
         <span className="hm-kick">Tu porra · {predictionOpen(match) ? "hasta el pitido inicial" : "cerrada"}</span>
         <h2 className="hm-h2" id="fc-po">{predictionOpen(match) ? "¿Cómo acaba?" : "Tu pronóstico"}</h2>
-        {predictionOpen(match) ? <PorraCard match={match} players={players} uid={me.uid} /> : myPrediction.data && predictionsRevealed(match) ? <PredictionResult prediction={myPrediction.data} match={match} players={players} provisional={!done} /> : <p className="fc-note">{myPrediction.data ? "La porra no está disponible para este partido. No se asignan puntos mientras esté aplazado o cancelado." : "No guardaste una porra para este partido."}</p>}
+        {predictionOpen(match) ? <PorraCard match={match} players={players} uid={me.uid} /> : myPrediction.data && predictionsRevealed(match) ? <PredictionResult prediction={myPrediction.data} match={match} players={players} provisional={!done} /> : <p className="fc-note">{myPrediction.error ? "No se ha podido cargar tu porra. Prueba a recargar la página." : myPrediction.loading ? "Cargando tu porra…" : myPrediction.data ? "La porra no está disponible para este partido. No se asignan puntos mientras esté aplazado o cancelado." : "No guardaste una porra para este partido."}</p>}
       </section>
       {predictionsRevealed(match) && porraTable.length > 0 && <section className="fc-sec" aria-labelledby="fc-points">
         <span className="hm-kick">{done ? "Puntos de la jornada" : "Clasificación provisional"}</span><h2 className="hm-h2" id="fc-points">La porra del equipo</h2>
@@ -708,19 +722,30 @@ export function VestuarioTab({ match, matches = [match], players, phase, ratings
           <section className="fc-sec" aria-labelledby="fc-pr">
             <span className="hm-kick">La porra de la jornada</span>
             <h2 className="hm-h2" id="fc-pr">
-              {predictions.data.length ? `${exact} de ${predictions.data.length} clavaron el ${gf}–${ga}` : "Nadie hizo porra"}
+              {predictions.error ? "Las porras no cargan" : predictions.loading && !predictions.data.length ? "Cargando las porras…" : predictions.data.length ? `${exact} de ${predictions.data.length} clavaron el ${gf}–${ga}` : "Nadie hizo porra"}
             </h2>
+            {predictions.error && <p className="fc-note">No se han podido cargar las porras del equipo. Prueba a recargar la página.</p>}
             {top.length > 0 && (
-              <ul className="fc-votes">
-                {top.map(([res, n]) => (
-                  <li key={res}>
-                    <span>{res}</span>
-                    <span className="bar">
-                      <i style={{ width: `${(n / topMax) * 100}%`, background: res === `${gf}–${ga}` ? "#FFC659" : "var(--accent)" }} />
-                    </span>
-                    <b>{n}</b>
-                  </li>
-                ))}
+              <ul className="fc-votes" aria-label="Los resultados más repetidos">
+                {top.map(([res, n]) => {
+                  // the final score: in gold and in words (never colour alone)
+                  const hit = res === `${gf}–${ga}`;
+                  return (
+                    <li key={res}>
+                      <span>
+                        {res}
+                        {hit && <small> · el resultado</small>}
+                      </span>
+                      <span className="bar" aria-hidden="true">
+                        <i style={{ width: `${(n / topMax) * 100}%`, background: hit ? "#FFC659" : "var(--accent)" }} />
+                      </span>
+                      <b>
+                        {n}
+                        <span className="sr-only"> {n === 1 ? "porra" : "porras"}</span>
+                      </b>
+                    </li>
+                  );
+                })}
               </ul>
             )}
             {myPrediction.data && (
