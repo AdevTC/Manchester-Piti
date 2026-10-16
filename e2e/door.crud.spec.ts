@@ -1,5 +1,10 @@
+import { execFileSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
 import { enterVestuario } from "./helpers";
+
+// The fan must start outside the door: no membership, request, profile or shirt left by an earlier run or
+// spec. The preview seed (idempotent) puts «Fichaje de prueba» back there.
+test.beforeAll(() => execFileSync(process.execPath, ["functions/test/seed-preview.mjs"], { stdio: "inherit" }));
 
 test("la puerta: un fichaje elige camiseta, pide acceso y el capitán le abre", async ({ browser }) => {
   // Two browsers, the captain's undo window and the walkout: more than the default 30 s on a busy CI runner.
