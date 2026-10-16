@@ -118,6 +118,8 @@ export function fromMatch(m: MatchLike, note = ""): MatchSheet {
     starters: [...(m.starters ?? [])],
     bench: [...(m.bench ?? [])],
     notCalled: [...(m.notCalled ?? [])],
+    // Invitados en el acta (acta/guests.ts)
+    ...(m.guests?.length ? { guests: m.guests.map((g) => ({ ...g })) } : {}),
     events,
     report: m.report ?? "",
     photoUrl: m.photoUrl ?? "",
@@ -355,6 +357,7 @@ export function toPayload(sheet: MatchSheet, draft: boolean, nameOf: NameOf, riv
     starters: sheet.starters,
     bench: sheet.bench,
     notCalled: sheet.notCalled,
+    ...(sheet.guests?.length ? { guests: sheet.guests } : {}),
     events,
     goalsFor: gf,
     goalsAgainst: ga,

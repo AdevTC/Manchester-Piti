@@ -64,7 +64,7 @@ export function useConvocatoria(match: AdminMatch | null): ConvocatoriaApi {
       return;
     }
     q.running = true;
-    setConvocatoria({ matchId, starters: l.starters, bench: l.bench, notify: false }).then(
+    setConvocatoria({ matchId, starters: l.starters, bench: l.bench, ...(l.guests ? { guests: l.guests } : {}), notify: false }).then(
       (res) => {
         q.running = false;
         const more = q.next;
@@ -81,8 +81,10 @@ export function useConvocatoria(match: AdminMatch | null): ConvocatoriaApi {
     );
   };
 
-  const set = (next: Lineup) => {
+  const set = (change: Lineup) => {
     if (!match) return;
+    // (a change of seats keeps the guests as they are: only «Añadir invitado» / «Quitar» bring a list)
+    const next: Lineup = change.guests || !lineup.guests ? change : { ...change, guests: lineup.guests };
     setOverlay({ matchId: match.id, lineup: next, at: null });
     // a change after «Convocar y avisar» asks to announce it again
     setPublishing(null);
@@ -98,7 +100,7 @@ export function useConvocatoria(match: AdminMatch | null): ConvocatoriaApi {
       message,
       tag,
       errorMessage: "No se ha podido avisar",
-      commit: () => setConvocatoria({ matchId, starters: l.starters, bench: l.bench, notify: true }),
+      commit: () => setConvocatoria({ matchId, starters: l.starters, bench: l.bench, ...(l.guests ? { guests: l.guests } : {}), notify: true }),
       onUndo: () => setPublishing(null),
       onError: () => setPublishing(null),
       onDone: (result) => {

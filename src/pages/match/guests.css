@@ -1,0 +1,22 @@
+/* Invitados en el acta, on the match page: a guest is told by his words («Inv.», «(invitado)») and by a
+   dashed ring instead of the members' solid disc — never by colour alone. */
+.fc-pl.guest .fc-number {
+  background: rgba(12, 23, 51, 0.55);
+  color: #eef4ff;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 16px -6px rgba(0, 0, 0, 0.6);
+  outline: 2px dashed #d4ecfc;
+  outline-offset: -3px;
+}
+.fc-pl.guest[aria-pressed="true"] .fc-number {
+  box-shadow: 0 0 0 3px #ffc659;
+}
+.fc-bench li.guest > button {
+  outline: 1px dashed currentColor;
+  outline-offset: -4px;
+}
+.fc-pick button.guest {
+  outline: 2px dashed currentColor;
+  outline-offset: -5px;
+}

@@ -139,3 +139,38 @@ describe("En juego · football's minute on the LED and the log", () => {
     expect(rows.map((r) => [r.id, r.minute])).toEqual([["b", "19"], ["a", "1"]]);
   });
 });
+
+describe("En juego · invitados", () => {
+  const guestCtx: PickerContext = {
+    ...ctx,
+    field: liveSides(["guest:g1", "evans", "erik"], ["guest:g2", "kevin"], []).field,
+    bench: liveSides(["guest:g1", "evans", "erik"], ["guest:g2", "kevin"], []).bench,
+    player: (id) => (id.startsWith("guest:") ? { num: "INV", name: id === "guest:g1" ? "Rafa (invitado)" : "Invitado" } : { num: NAMES[id][0], name: NAMES[id][1] }),
+  };
+
+  it("liveSides puts the guests after the members, on the pitch and on the bench", () => {
+    expect(liveSides(["guest:g1", "evans", "erik"], ["guest:g2", "kevin"], [])).toEqual({ field: ["evans", "erik", "guest:g1"], bench: ["kevin", "guest:g2"] });
+  });
+
+  it("the GOL picker offers the guest after the members, and his goal carries his guest: reference", () => {
+    const view = pickerView({ k: "gol", st: 1 }, guestCtx);
+    expect(view.options.map((o) => `${o.num} ${o.name}`)).toEqual(["1 EVANS", "9 ERIK", "INV Rafa (invitado)"]);
+    const rafa = view.options.find((o) => o.id === "guest:g1");
+    expect(rafa?.aria).toBe("Marcó Rafa (invitado)");
+    const assist = pickerView({ k: "gol", st: 2, scorer: "guest:g1" }, guestCtx);
+    expect(assist.step).toBe("GOL de Rafa (invitado) · paso 2 de 2");
+    const step = assist.options.find((o) => o.id === "evans")?.next;
+    expect(step && isEvent(step) ? step.event : null).toStrictEqual({ type: "goal", minute: 31, playerId: "guest:g1", assistPlayerId: "evans", assistReviewed: true });
+  });
+
+  it("the cards reach the guests on the bench too, after the members", () => {
+    const view = pickerView({ k: "tar", st: 2, card: "yellow_card" }, guestCtx);
+    expect(view.bench?.map((o) => o.id)).toEqual(["kevin", "guest:g2"]);
+  });
+
+  it("the log names the guest", () => {
+    const rows = liveLog([{ id: "a", type: "goal", minute: 5, playerId: "guest:g1", assistPlayerId: "erik" }], "MAD SKY", (id) => (id === "guest:g1" ? "Rafa (invitado)" : id.toUpperCase()));
+    expect(rows[0].text).toBe("Gol de Rafa (invitado)");
+    expect(rows[0].detail).toBe("pase de ERIK");
+  });
+});

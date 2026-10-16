@@ -1,0 +1,99 @@
+/* Invitados en el acta, in the Sala de control (admin.css is generated: this sheet sits beside it).
+   A guest is told by the word «Invitado» / «INV» and by a dashed shirt outline, never by colour alone. */
+
+/* the pickers' dorsal buttons (acta, En juego) */
+.pp.guest {
+  box-shadow: none;
+  outline: 2px dashed var(--pline);
+  outline-offset: -3px;
+}
+.pp.guest b {
+  font-size: 16px;
+  letter-spacing: 0.04em;
+}
+.pp.guest.on {
+  outline-color: currentColor;
+}
+
+/* «Invitados · n de 4» */
+.gst {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+.gst-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gst-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--chip);
+}
+.gst-shirt {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px 10px 12px 12px;
+  border: 2px dashed currentColor;
+  font-family: "Anybody", sans-serif;
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.gst-nm {
+  display: grid;
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.gst-nm b {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.gst-nm small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.gst .btn.sm {
+  min-height: 44px;
+}
+.gst-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+.gst-add label {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 180px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.gst-add .inp {
+  min-height: 44px;
+  height: 44px;
+}
+.gst-err {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* a guest's peg (Convocar): «INV» on the shirt, «Invitado» under it, the shirt drawn with a dashed outline */
+.peg.guest .sh .sf {
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-dasharray: 7 5;
+}

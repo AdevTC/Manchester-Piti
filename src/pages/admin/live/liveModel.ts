@@ -8,7 +8,7 @@
 import type { MatchEvent } from "../../../../functions/src/matchEngine";
 import { onPitch } from "../../../lib/ficha";
 import { eventMinute } from "../../../lib/partidos";
-import { buildLiveEvent, isLiveActionType, liveAction, liveLine, liveTypesOn, type LiveAction, type LiveEventInput, type LiveTypesOn } from "../../../lib/liveActions";
+import { buildLiveEvent, guestsLast, isLiveActionType, liveAction, liveLine, liveTypesOn, type LiveAction, type LiveEventInput, type LiveTypesOn } from "../../../lib/liveActions";
 
 export type { LiveEventInput };
 /** Behind the «Tarjeta» pad. */
@@ -65,12 +65,13 @@ export interface PickerContext {
   player: (id: string) => { num: string; name: string };
 }
 
-/** Who is on the pitch and who can still come in, from the convocatoria and the live events. */
+/** Who is on the pitch and who can still come in, from the convocatoria and the live events; the guests last. */
 export function liveSides(starters: readonly string[] | undefined, bench: readonly string[] | undefined, events: readonly MatchEvent[] | undefined): { field: string[]; bench: string[] } {
   const field = onPitch([...(starters ?? [])], [...(events ?? [])]);
   const off = new Set((events ?? []).filter((e) => (e.type === "red_card" || e.type === "double_yellow") && e.playerId).map((e) => e.playerId as string));
   const called = [...(starters ?? []), ...(bench ?? [])];
-  return { field, bench: called.filter((id) => !field.includes(id) && !off.has(id)) };
+  // (the guests after the members, in both lists)
+  return { field: guestsLast(field), bench: guestsLast(called.filter((id) => !field.includes(id) && !off.has(id))) };
 }
 
 export function pickerView(s: PickState, c: PickerContext): PickerView {
