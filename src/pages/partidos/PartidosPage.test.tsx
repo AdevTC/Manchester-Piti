@@ -23,7 +23,11 @@ vi.mock("@tanstack/react-router", () => ({
     </a>
   ),
   useNavigate: () => vi.fn(),
+  useSearch: () => route.search,
 }));
+const route = vi.hoisted(() => ({ search: {} as { view?: string } }));
+const league = vi.hoisted(() => ({ standings: null as unknown }));
+vi.mock("../../lib/useStandings", () => ({ useStandings: () => ({ standings: league.standings, loading: false }) }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: data.matches, players: data.players, loading: false, error: data.error }) }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }], selectedSeasonId: "all", loadingSeasons: false }) }));
 vi.mock("../../hooks/useClock", () => ({ useClock: () => clock.now }));
@@ -41,6 +45,8 @@ beforeEach(() => {
   clock.now = T0;
   data.players = [];
   data.error = null;
+  route.search = {};
+  league.standings = null;
 });
 
 it("the data did not arrive: the error panel (h1, «Reintentar») instead of an empty calendar", () => {
@@ -142,4 +148,41 @@ it("the live board shows the connection chip (the island, also on this page, is 
   expect(within(board()).getByText("Sin conexión · marcador de hace 5 min")).toBeInTheDocument();
   expect(board().querySelector(".mp-sync-sr")).toBeNull();
   _resetSnapshotMetaForTesting();
+});
+
+const leagueTable = {
+  id: "t1",
+  competition: "Liga F7",
+  jornada: 8,
+  updatedAt: Date.UTC(2026, 9, 12, 10),
+  updatedBy: "u",
+  rows: [
+    { team: "Rayo Norte", pj: 8, g: 6, e: 1, p: 1, gf: 25, gc: 8, pts: 19, isUs: false },
+    { team: "Manchester Piti", pj: 8, g: 5, e: 3, p: 0, gf: 20, gc: 9, pts: 18, isUs: true },
+  ],
+};
+
+it("the league: the strip on the season; ?view=tabla puts the table in place of the calendar", () => {
+  data.matches = [played];
+  const { rerender } = render(<PartidosPage />);
+  expect(screen.queryByRole("link", { name: /Vamos/ })).toBeNull();
+  league.standings = leagueTable;
+  rerender(<PartidosPage />);
+  expect(screen.getByRole("link", { name: /^Vamos 2\.º de 2 · 18 pts · J8/ })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 2, name: "El calendario" })).toBeInTheDocument();
+  route.search = { view: "tabla" };
+  rerender(<PartidosPage />);
+  expect(screen.getByRole("heading", { level: 2, name: "Clasificación" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { level: 2, name: "El calendario" })).toBeNull();
+  expect(screen.getByRole("region", { name: "Tabla de la clasificación" })).toBeInTheDocument();
+  expect(screen.getByText("Nosotros")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /Volver al calendario/ })).toBeInTheDocument();
+});
+
+it("?view=tabla without a table: the calendar, nothing about the league", () => {
+  data.matches = [played];
+  route.search = { view: "tabla" };
+  render(<PartidosPage />);
+  expect(screen.getByRole("heading", { level: 2, name: "El calendario" })).toBeInTheDocument();
+  expect(screen.queryByText(/Clasificación|Vamos/)).toBeNull();
 });

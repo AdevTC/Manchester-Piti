@@ -5,6 +5,7 @@ import { QueryClient } from "@tanstack/react-query";
 // (L3: without them the MVP badges popped in after hydration). Firestore is stubbed: each onSnapshot
 // call is kept by the path it listens to, and the test delivers the first snapshots by hand.
 const listeners = vi.hoisted(() => new Map<string, (snap: unknown) => void>());
+const failures = vi.hoisted(() => new Map<string, (err: unknown) => void>());
 vi.mock("../firebase", () => ({ db: {} }));
 vi.mock("firebase/firestore", () => ({
   collection: (_db: unknown, path: string) => ({ path }),
@@ -12,13 +13,14 @@ vi.mock("firebase/firestore", () => ({
   query: (q: { path: string }) => q,
   orderBy: () => ({}),
   onSnapshot: (ref: { path: string }, ...rest: unknown[]) => {
-    const next = rest.find((r) => typeof r === "function") as (snap: unknown) => void;
+    const [next, error] = rest.filter((r) => typeof r === "function") as [(snap: unknown) => void, (err: unknown) => void];
     listeners.set(ref.path, next);
+    failures.set(ref.path, error);
     return () => listeners.delete(ref.path);
   },
 }));
 
-const { CONTENT_KEY, MVP_RESULTS_KEY, primePublicData } = await import("./publicData");
+const { CONTENT_KEY, MVP_RESULTS_KEY, STANDINGS_KEY, primePublicData } = await import("./publicData");
 
 const docs = (rows: { id: string; data: object }[]) => ({
   docs: rows.map((r) => ({ id: r.id, data: () => r.data })),
@@ -26,17 +28,21 @@ const docs = (rows: { id: string; data: object }[]) => ({
   metadata: { fromCache: true, hasPendingWrites: false },
 });
 
-afterEach(() => listeners.clear());
+afterEach(() => {
+  listeners.clear();
+  failures.clear();
+});
 
 it("waits for the MVP tallies too, and caches them with the shared mapper", async () => {
   const qc = new QueryClient();
   let ready = false;
   const prime = primePublicData(qc, 60_000).then(() => (ready = true));
-  expect([...listeners.keys()].sort()).toEqual(["clubContent/main", "matches", "mvpResults", "players", "seasons"]);
+  expect([...listeners.keys()].sort()).toEqual(["clubContent/main", "matches", "mvpResults", "players", "seasons", "standings"]);
   listeners.get("matches")!(docs([]));
   listeners.get("players")!(docs([]));
   listeners.get("seasons")!(docs([]));
   listeners.get("clubContent/main")!({ exists: () => false });
+  listeners.get("standings")!(docs([]));
   await Promise.resolve();
   expect(ready).toBe(false);
   expect(qc.getQueryData(CONTENT_KEY)).toBeDefined();
@@ -48,4 +54,44 @@ it("waits for the MVP tallies too, and caches them with the shared mapper", asyn
     { id: "j5", counts: { erik: 2 }, total: 2 },
     { id: "j6", counts: {}, total: 0 },
   ]);
+  expect(qc.getQueryData(STANDINGS_KEY)).toEqual([]);
+});
+
+it("waits for the league tables too (the position paints with the page)", async () => {
+  const { _resetSharedSubsForTesting } = await import("./useFirestoreCollection");
+  _resetSharedSubsForTesting();
+  const qc = new QueryClient();
+  let ready = false;
+  const prime = primePublicData(qc, 60_000).then(() => (ready = true));
+  for (const k of ["matches", "players", "seasons", "mvpResults"]) listeners.get(k)!(docs([]));
+  listeners.get("clubContent/main")!({ exists: () => false });
+  await Promise.resolve();
+  expect(ready).toBe(false);
+  const rows = [
+    { team: "Rayo", pj: 1, g: 1, e: 0, p: 0, gf: 2, gc: 0, pts: 3, isUs: false },
+    { team: "Piti", pj: 1, g: 0, e: 0, p: 1, gf: 0, gc: 2, pts: 0, isUs: true },
+  ];
+  listeners.get("standings")!(docs([{ id: "t1", data: { competition: "Liga", jornada: 1, updatedAt: null, updatedBy: "u", rows } }]));
+  await prime;
+  expect(ready).toBe(true);
+  expect(qc.getQueryData(STANDINGS_KEY)).toEqual([{ id: "t1", competition: "Liga", jornada: 1, updatedAt: 0, updatedBy: "u", rows }]);
+});
+
+it("a league-table listener that fails doesn't hold the page: the table reads as none and the boot goes on", async () => {
+  const { _resetSharedSubsForTesting } = await import("./useFirestoreCollection");
+  _resetSharedSubsForTesting();
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+  const qc = new QueryClient();
+  let ready = false;
+  // (a long timeout: only the error can end the wait in time)
+  const prime = primePublicData(qc, 60_000).then(() => (ready = true));
+  for (const k of ["matches", "players", "seasons", "mvpResults"]) listeners.get(k)!(docs([]));
+  listeners.get("clubContent/main")!({ exists: () => false });
+  await Promise.resolve();
+  expect(ready).toBe(false);
+  failures.get("standings")!(Object.assign(new Error("permission-denied"), { code: "permission-denied" }));
+  await prime;
+  expect(ready).toBe(true);
+  expect(qc.getQueryData(STANDINGS_KEY)).toEqual([]);
+  quiet.mockRestore();
 });

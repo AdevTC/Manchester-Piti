@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/ssr-shell.mjs",
-    "lint": "oxlint",
+    "lint": "oxlint --disable-nested-config",
     "test": "vitest run",
     "preview": "vite preview",
     "test:e2e": "playwright test",
