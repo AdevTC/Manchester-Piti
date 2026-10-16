@@ -1,37 +1,36 @@
-/* El centro de avisos (NoticesBell): the bell in the header (desktop) and in the phone dock, and its panel — a
-   popover under the header's bell, a bottom sheet from the dock. Tokens from .vx (styles/vestuario.css); the
-   kicker is the Celeste hm-kick. Its own nt- names (the door's .tl .nt-wrap/.nt-h/.nt-b/.nt-acts/.nt-empty and
-   the profile's .nt-h are other things: none of those names is used here). Phone first. */
+/* El centro de avisos (NoticesBell): the bell in the header (every width) and its panel, portalled to the page's
+   body so nothing in the header's stacking context (nor the «Vota al MVP» island) can cover it — a fixed popover
+   under the bell from 1100px, a bottom sheet with scrim below. Out of .vx the panel has no Celeste tokens, so
+   .nt-portal carries the few it reads (same values as styles/vestuario.css, both themes). The kicker is the Celeste
+   hm-kick. Its own nt- names (the door's .tl .nt-wrap/.nt-h/.nt-b/.nt-acts/.nt-empty and the profile's .nt-h are
+   other things: none of those names is used here). Phone first. */
 
 .nt{position:relative;display:flex}
+.nt-portal{display:contents;--bg:#030817;--ink:#eef4ff;--soft:#c9d8ef;--muted:#9fb3d3;--accent:#9fd0f2;--gold:#FFC659;--chip:rgba(255,255,255,.07);--z-toast:60;--dur-quick:.15s;--dur-base:.3s;font-family:'Geist',system-ui,sans-serif}
+[data-theme="light"] .nt-portal{--bg:#eef4fa;--ink:#0c1733;--soft:#2c3a5c;--muted:#4f5d7d;--accent:#2a73ad;--gold:#9a6b00;--chip:rgba(255,255,255,.85)}
+.nt-portal *{box-sizing:border-box}
+.nt-portal button{font-family:inherit;cursor:pointer}
 .nt-panel{--nt-bg:rgba(8,19,47,.97);--nt-line:rgba(159,208,242,.22);--nt-row-on:rgba(255,255,255,.06)}
-[data-theme="light"] .vx .nt-panel{--nt-bg:rgba(255,255,255,.97);--nt-line:rgba(12,23,51,.1);--nt-row-on:rgba(12,23,51,.05)}
+[data-theme="light"] .nt-panel{--nt-bg:rgba(255,255,255,.97);--nt-line:rgba(12,23,51,.1);--nt-row-on:rgba(12,23,51,.05)}
 
-/* the bell: the header's round chip (like the theme switch), a plain icon in the dock */
+/* the bell: the header's round chip (like the theme switch) */
 .vx .nt-bell{position:relative;width:44px;height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:50%;background:var(--chip);color:var(--ink);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.vx .nt-dock .nt-bell{width:48px;height:48px;flex-basis:48px;background:transparent;color:var(--nav-ink);backdrop-filter:none;-webkit-backdrop-filter:none}
 .vx .nt-bell[aria-expanded="true"]{box-shadow:inset 0 0 0 2px var(--accent)}
 /* the unread dot: a shape on the bell, and the bell's name says it in words («Avisos, 3 sin leer») */
 .nt-dot{position:absolute;top:9px;right:10px;width:10px;height:10px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 2px var(--bg)}
-.nt-dock .nt-dot{top:10px;right:11px;box-shadow:0 0 0 2px var(--nav-on-ink)}
-[data-theme="light"] .vx .nt-dock .nt-dot{box-shadow:0 0 0 2px #fff}
-.nt-dock{flex:0 0 48px}
-
-/* one bell per screen: the header's from the desktop layout (where the dock goes away), the dock's below it */
-.vx-top .nt-top{display:none}
-@container (min-width:1100px){.vx-top .nt-top{display:flex}}
 
 /* the panel: a dialog card in the site's card language (the «Hoy» card's surface, line and shadow) */
-.nt-panel{z-index:var(--z-layer,40);display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--nt-bg);box-shadow:inset 0 0 0 1px var(--nt-line),0 24px 50px -30px rgba(0,0,0,.7);color:var(--ink);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);text-align:left;outline:none}
-.nt-panel-top{position:absolute;top:calc(100% + 10px);right:0;width:min(400px,calc(100vw - 32px));max-height:min(72vh,600px);border-radius:24px}
-.nt-panel-dock{position:fixed;left:0;right:0;bottom:0;max-height:82svh;border-radius:24px 24px 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}
-.nt-scrim{position:fixed;inset:0;z-index:var(--z-layer,40);background:rgba(3,8,23,.55)}
-[data-theme="light"] .vx .nt-scrim{background:rgba(12,23,51,.3)}
+.nt-panel{z-index:calc(var(--z-toast,60) + 1);display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--nt-bg);box-shadow:inset 0 0 0 1px var(--nt-line),0 24px 50px -30px rgba(0,0,0,.7);color:var(--ink);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);text-align:left;outline:none}
+/* the popover: fixed, its top/right/max-height set inline from the bell's rect (NoticesBell) */
+.nt-panel-pop{position:fixed;width:min(400px,calc(100vw - 32px));border-radius:24px}
+.nt-panel-sheet{position:fixed;left:0;right:0;bottom:0;max-height:82svh;border-radius:24px 24px 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}
+.nt-scrim{position:fixed;inset:0;z-index:calc(var(--z-toast,60) + 1);background:rgba(3,8,23,.55)}
+[data-theme="light"] .nt-scrim{background:rgba(12,23,51,.3)}
 
 .nt-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 16px 10px 18px}
 .nt-head .hm-kick{margin-bottom:4px}
 .nt-title{margin:0;font-family:'Anybody';font-weight:800;font-size:24px;line-height:1.05;letter-spacing:-.02em;font-variation-settings:'wdth' 108}
-.vx .nt-close{width:44px;height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:50%;background:var(--chip);color:var(--ink)}
+.nt-close{width:44px;height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:50%;background:var(--chip);color:var(--ink)}
 
 .nt-list{overflow-y:auto;overscroll-behavior:contain;padding:0 8px 14px}
 .nt-group + .nt-group{margin-top:8px}
@@ -39,8 +38,8 @@
 .nt-group ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
 
 /* a row: the whole notice is the link (≥44 px); unread ones carry «Nuevo» and a left rule */
-.vx .nt-row{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:start;min-height:44px;padding:12px 12px 12px 14px;border-radius:16px;color:var(--ink);text-decoration:none}
-.vx .nt-row:hover{background:var(--nt-row-on)}
+.nt-row{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:start;min-height:44px;padding:12px 12px 12px 14px;border-radius:16px;color:var(--ink);text-decoration:none}
+.nt-row:hover{background:var(--nt-row-on)}
 .nt-row.is-new::before{content:"";position:absolute;left:3px;top:12px;bottom:12px;width:3px;border-radius:2px;background:var(--accent)}
 .nt-ico{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--nt-line);color:var(--accent)}
 .nt-txt{display:grid;gap:3px;min-width:0}
@@ -52,8 +51,8 @@
 .nt-none{margin:0;padding:6px 18px 22px;max-width:40ch;font-size:15px;line-height:1.5;color:var(--soft)}
 
 @media (prefers-reduced-motion:no-preference){
-.nt-panel-top{animation:ntDrop var(--dur-quick,.15s) ease-out both}
-.nt-panel-dock{animation:ntRise var(--dur-base,.3s) cubic-bezier(.16,1,.3,1) both}
+.nt-panel-pop{animation:ntDrop var(--dur-quick,.15s) ease-out both}
+.nt-panel-sheet{animation:ntRise var(--dur-base,.3s) cubic-bezier(.16,1,.3,1) both}
 .nt-scrim{animation:ntFade var(--dur-base,.3s) ease-out both}
 }
 @keyframes ntDrop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}

@@ -58,7 +58,7 @@ export function CelesteHeader({ active, sub, actions }: { active?: CelestePage; 
             of its own: the actions keep their count and places, so React's ids (the pages' useId) and with them
             the server-rendered HTML stay byte for byte the fan's. */}
         <>
-          <NoticesGate place="top" />
+          <NoticesGate />
           <Link className={`hm-cta-top${active === "vestuario" ? " on" : ""}`} to="/vestuario" aria-label="Entrar al vestuario" aria-current={active === "vestuario" ? "page" : undefined}>
             <Icon name="padlock" size={16} stroke={2.2} />
             <span className="t">Vestuario</span>
@@ -72,7 +72,6 @@ export function CelesteHeader({ active, sub, actions }: { active?: CelestePage; 
 export function CelesteDock({ active }: { active?: CelestePage }) {
   return (
     <nav className="vx-dock" aria-label="Navegación móvil">
-      {/* The bell, last (members only, nothing on the server); nothing under the dock's links reads a React id. */}
       {DOCK.map((d) =>
         d.key === active ? (
           <Link key={d.key} to={d.to} className="on" aria-current="page">
@@ -85,7 +84,6 @@ export function CelesteDock({ active }: { active?: CelestePage }) {
           </Link>
         ),
       )}
-      <NoticesGate place="dock" />
     </nav>
   );
 }

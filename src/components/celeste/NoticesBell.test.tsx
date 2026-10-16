@@ -49,7 +49,7 @@ beforeEach(() => {
 
 describe("NoticesGate", () => {
   it("shows the bell to a member", async () => {
-    render(<NoticesGate place="top" />);
+    render(<NoticesGate />);
     expect(screen.queryByRole("button")).toBeNull();
     act(() => publishViewer(state.viewer));
     expect(await screen.findByRole("button", { name: "Avisos" })).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("NoticesGate", () => {
   it("renders nothing for a fan and opens no read", async () => {
     state.viewer = { member: false, admin: false, playerId: null };
     publishViewer(state.viewer);
-    const { container } = render(<NoticesGate place="dock" />);
+    const { container } = render(<NoticesGate />);
     await act(async () => {});
     expect(container).toBeEmptyDOMElement();
     expect(state.reads).toEqual([]);
@@ -68,29 +68,29 @@ describe("NoticesBell", () => {
   it("names the unread in words and shows the dot; without unread, plain «Avisos» and no dot", () => {
     state.seenAt = { toMillis: () => now - 2 * HOUR };
     state.notices = [notice("a", now - HOUR), notice("b", now - 3 * HOUR)];
-    const { container, unmount } = render(<NoticesBell place="top" />);
+    const { container, unmount } = render(<NoticesBell />);
     expect(screen.getByRole("button", { name: "Avisos, 1 sin leer" })).toBeInTheDocument();
     expect(container.querySelector(".nt-dot")).not.toBeNull();
     unmount();
 
     state.seenAt = { toMillis: () => now };
-    const again = render(<NoticesBell place="top" />);
+    const again = render(<NoticesBell />);
     expect(screen.getByRole("button", { name: "Avisos" })).toBeInTheDocument();
     expect(again.container.querySelector(".nt-dot")).toBeNull();
   });
 
   it("opens only the reads that apply: the captains' for an admin", () => {
-    render(<NoticesBell place="top" />);
+    render(<NoticesBell />);
     expect(state.reads.at(-1)).toEqual(["u1", false]);
     state.viewer = { member: true, admin: true, playerId: null };
-    render(<NoticesBell place="dock" />);
+    render(<NoticesBell />);
     expect(state.reads.at(-1)).toEqual(["u1", true]);
   });
 
   it("opening the panel writes the look once, marks the new rows and clears the dot", () => {
     state.seenAt = { toMillis: () => now - 2 * HOUR };
     state.notices = [notice("a", now - HOUR), notice("b", now - 3 * HOUR)];
-    render(<NoticesBell place="top" />);
+    render(<NoticesBell />);
     fireEvent.click(screen.getByRole("button", { name: "Avisos, 1 sin leer" }));
     expect(state.markNoticesSeen).toHaveBeenCalledTimes(1);
     expect(state.markNoticesSeen).toHaveBeenCalledWith("u1");
@@ -108,9 +108,39 @@ describe("NoticesBell", () => {
     expect(state.markNoticesSeen).toHaveBeenCalledTimes(1);
   });
 
+  it("the panel is portalled to the body, outside the bell's wrapper (and so the header's stacking context)", () => {
+    state.notices = [notice("a", now - HOUR)];
+    const { container } = render(<NoticesBell />);
+    fireEvent.click(screen.getByRole("button", { name: /^Avisos/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(container.contains(dialog)).toBe(false);
+    expect(dialog.closest(".nt-portal")?.parentElement).toBe(document.body);
+    // narrow page: the bottom sheet, with its scrim
+    expect(dialog).toHaveClass("nt-panel-sheet");
+    expect(document.querySelector(".nt-scrim")).not.toBeNull();
+  });
+
+  it("from 1100px of page width it is a fixed popover under the bell, without a scrim", () => {
+    state.notices = [notice("a", now - HOUR)];
+    const page = document.createElement("div");
+    page.className = "vx";
+    Object.defineProperty(page, "clientWidth", { value: 1280 });
+    document.body.appendChild(page);
+    render(<NoticesBell />, { container: page });
+    const bell = screen.getByRole("button", { name: /^Avisos/ });
+    vi.spyOn(bell, "getBoundingClientRect").mockReturnValue({ top: 20, bottom: 64, left: 1100, right: 1144, width: 44, height: 44, x: 1100, y: 20, toJSON: () => ({}) });
+    fireEvent.click(bell);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveClass("nt-panel-pop");
+    expect(dialog.style.top).toBe("74px");
+    expect(dialog.style.maxHeight).toMatch(/^calc\(.*100vh.*74px.*24px|^calc\(.*100vh.*24px.*74px/);
+    expect(document.querySelector(".nt-scrim")).toBeNull();
+    page.remove();
+  });
+
   it("Esc closes the panel and gives focus back to the bell", () => {
     state.notices = [notice("a", now - HOUR)];
-    render(<NoticesBell place="top" />);
+    render(<NoticesBell />);
     const bell = screen.getByRole("button", { name: /^Avisos/ });
     fireEvent.click(bell);
     const dialog = screen.getByRole("dialog");
@@ -122,7 +152,7 @@ describe("NoticesBell", () => {
 
   it("a click outside closes it; a row's link closes it and goes through the router", () => {
     state.notices = [notice("a", now - HOUR)];
-    render(<NoticesBell place="dock" />);
+    render(<NoticesBell />);
     fireEvent.click(screen.getByRole("button", { name: /^Avisos/ }));
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -135,7 +165,7 @@ describe("NoticesBell", () => {
 
   it("Tab stays inside the panel", () => {
     state.notices = [notice("a", now - HOUR)];
-    render(<NoticesBell place="top" />);
+    render(<NoticesBell />);
     fireEvent.click(screen.getByRole("button", { name: /^Avisos/ }));
     const dialog = screen.getByRole("dialog");
     const close = within(dialog).getByRole("button", { name: "Cerrar los avisos" });
@@ -149,7 +179,7 @@ describe("NoticesBell", () => {
 
   it("the empty panel says what will come", () => {
     state.seenAt = { toMillis: () => now };
-    render(<NoticesBell place="top" />);
+    render(<NoticesBell />);
     fireEvent.click(screen.getByRole("button", { name: "Avisos" }));
     expect(screen.getByText("Aquí verás los avisos del equipo: convocatorias, el siete, el MVP…")).toBeInTheDocument();
     expect(state.markNoticesSeen).not.toHaveBeenCalled();

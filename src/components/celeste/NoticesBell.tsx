@@ -1,9 +1,10 @@
-// El centro de avisos: the bell (header on desktop, phone dock) and its panel, for members only (the chrome's
+// El centro de avisos: the bell (in the header at every width) and its panel, for members only (the chrome's
 // NoticesGate mounts it once a member is known, never on the server). The panel lists the team's notices,
 // yours and, for a captain, the captains' (useNotices: three listeners merged), grouped Hoy / Esta semana /
 // Antes. The dot says something is newer than your last look (users/{uid}.noticesSeenAt); opening the panel
 // writes that look once, so the dot clears on all your devices.
-// On a desktop the panel is a popover under the bell; from the dock, a bottom sheet. Either way it is a
+// The panel is portalled to the body (the header's stacking context, and the live island, would cover it): from
+// 1100px of page width a fixed popover under the bell, below it a bottom sheet with a scrim. Either way it is a
 // dialog: focus moves in and stays there, Esc and a click outside close it and focus goes back to the bell.
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent, type Ref } from "react";
 import { createPortal } from "react-dom";
@@ -16,12 +17,16 @@ import { bellLabel, groupNotices, isUnread, noticeIcon, relativeTime, toMillis, 
 import { Icon } from "./icons";
 import "./notices.css";
 
-export type NoticesPlace = "top" | "dock";
+/** Where the panel goes: a popover under the bell (its fixed top and right edge), or the bottom sheet. */
+type Anchor = { mode: "pop"; top: number; right: number } | { mode: "sheet" };
+
+/** The page width (the Celeste container) from which the panel is a popover instead of a sheet. */
+const POPOVER_FROM = 1100;
 
 const FOCUSABLE = 'a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])';
 const EMPTY = "Aquí verás los avisos del equipo: convocatorias, el siete, el MVP…";
 
-export function NoticesBell({ place }: { place: NoticesPlace }) {
+export function NoticesBell() {
   const { user, profile } = useAuth();
   const { admin } = useViewer();
   const uid = user?.uid;
@@ -33,8 +38,8 @@ export function NoticesBell({ place }: { place: NoticesPlace }) {
   /** The look before this opening: what the rows mark «Nuevo» while the panel stays open. */
   const [seenBefore, setSeenBefore] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  /** Where the dock's sheet goes: the page (the dock's blur would hold a fixed child), so it keeps the Celeste tokens. */
-  const [sheetHost, setSheetHost] = useState<Element | null>(null);
+  /** Popover or sheet, measured on opening and on every resize while open. */
+  const [anchor, setAnchor] = useState<Anchor>({ mode: "sheet" });
   const bell = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -49,12 +54,20 @@ export function NoticesBell({ place }: { place: NoticesPlace }) {
     if (refocus) bell.current?.focus();
   }, []);
 
+  const measure = useCallback((): Anchor => {
+    const el = bell.current;
+    const width = el?.closest(".vx")?.clientWidth ?? window.innerWidth;
+    if (!el || width < POPOVER_FROM) return { mode: "sheet" };
+    const r = el.getBoundingClientRect();
+    return { mode: "pop", top: Math.round(r.bottom + 10), right: Math.max(16, Math.round(document.documentElement.clientWidth - r.right)) };
+  }, []);
+
   const toggle = () => {
     if (open) return close();
     const t = Date.now();
     setNow(t);
     setSeenBefore(seenAt);
-    if (place === "dock") setSheetHost(bell.current?.closest(".vx") ?? document.body);
+    setAnchor(measure());
     setOpen(true);
     if (uid && (unread > 0 || serverSeen === null)) {
       setPending({ local: t, over: serverSeen });
@@ -69,6 +82,14 @@ export function NoticesBell({ place }: { place: NoticesPlace }) {
     const tick = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(tick);
   }, [open]);
+
+  // The popover follows the bell when the window changes size (and turns into the sheet below 1100px).
+  useEffect(() => {
+    if (!open) return;
+    const onResize = () => setAnchor(measure());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [open, measure]);
 
   // A click (or touch) outside the panel and the bell closes it.
   useEffect(() => {
@@ -105,7 +126,7 @@ export function NoticesBell({ place }: { place: NoticesPlace }) {
 
   const dialog = open ? (
     <NoticesPanel
-      place={place}
+      anchor={anchor}
       ref={panel}
       titleId={titleId}
       list={list}
@@ -116,10 +137,9 @@ export function NoticesBell({ place }: { place: NoticesPlace }) {
       onClose={close}
     />
   ) : null;
-  const host = place === "dock" ? sheetHost : null;
 
   return (
-    <div className={`nt nt-${place}`}>
+    <div className="nt">
       <button
         ref={bell}
         type="button"
@@ -129,16 +149,16 @@ export function NoticesBell({ place }: { place: NoticesPlace }) {
         aria-expanded={open}
         onClick={toggle}
       >
-        <Icon name="bell" size={place === "dock" ? 21 : 19} stroke={place === "dock" ? 1.8 : 2} />
+        <Icon name="bell" size={19} stroke={2} />
         {unread > 0 && <span className="nt-dot" aria-hidden="true" />}
       </button>
-      {host ? createPortal(dialog, host) : dialog}
+      {dialog && createPortal(<div className="nt-portal">{dialog}</div>, document.body)}
     </div>
   );
 }
 
 interface PanelProps {
-  place: NoticesPlace;
+  anchor: Anchor;
   ref: Ref<HTMLDivElement>;
   titleId: string;
   list: readonly Notice[];
@@ -149,7 +169,7 @@ interface PanelProps {
   onClose: (refocus?: boolean) => void;
 }
 
-function NoticesPanel({ place, ref, titleId, list, loading, seenBefore, now, onKeyDown, onClose }: PanelProps) {
+function NoticesPanel({ anchor, ref, titleId, list, loading, seenBefore, now, onKeyDown, onClose }: PanelProps) {
   const router = useRouter();
   const groups = groupNotices(list, now);
   const follow = (e: MouseEvent<HTMLAnchorElement>, url: string) => {
@@ -161,8 +181,17 @@ function NoticesPanel({ place, ref, titleId, list, loading, seenBefore, now, onK
   };
   return (
     <>
-      {place === "dock" && <div className="nt-scrim" aria-hidden="true" />}
-      <div ref={ref} className={`nt-panel nt-panel-${place}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={onKeyDown}>
+      {anchor.mode === "sheet" && <div className="nt-scrim" aria-hidden="true" />}
+      <div
+        ref={ref}
+        className={`nt-panel ${anchor.mode === "pop" ? "nt-panel-pop" : "nt-panel-sheet"}`}
+        style={anchor.mode === "pop" ? { top: anchor.top, right: anchor.right, maxHeight: `calc(100vh - ${anchor.top}px - 24px)` } : undefined}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onKeyDown={onKeyDown}
+      >
         <div className="nt-head">
           <div>
             <span className="hm-kick">Centro de avisos</span>

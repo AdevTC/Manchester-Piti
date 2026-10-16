@@ -5,15 +5,14 @@
 // header places it in a slot it already had, so no sibling moves and React's ids stay the server's (Chrome.tsx).
 import { lazy, Suspense } from "react";
 import { usePublishedViewer } from "../../hooks/viewerSignal";
-import type { NoticesPlace } from "./NoticesBell";
 
 const NoticesBell = lazy(() => import("./NoticesBell").then((m) => ({ default: m.NoticesBell })));
 
-export function NoticesGate({ place }: { place: NoticesPlace }) {
+export function NoticesGate() {
   if (!usePublishedViewer().member) return null;
   return (
     <Suspense fallback={null}>
-      <NoticesBell place={place} />
+      <NoticesBell />
     </Suspense>
   );
 }
