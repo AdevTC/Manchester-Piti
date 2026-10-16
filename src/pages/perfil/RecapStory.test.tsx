@@ -1,7 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState, type ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SeasonRecap } from "../../lib/derived/seasonRecap";
+import { RecapStory as LazyRecapStory } from "./lazy";
+
+// The perfil loads the story as its own chunk (./lazy): in first, so it opens at once like on a warm page.
+beforeAll(() => LazyRecapStory.preload());
 
 // «Tu temporada en 10 cromos»: the story viewer (keys, Escape, focus, sharing, reduced motion) and the
 // Perfil › Temporada block. The canvas renderer is a mock (no canvas in jsdom); so is the download.

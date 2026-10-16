@@ -3,7 +3,9 @@
 // profile's callables. Members only: the layout shows the door to everybody else.
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { useEffect } from "react";
 import { useClock } from "../../hooks/useClock";
+import { preloadOverlays } from "./lazy";
 import { useAuth } from "../../context/AuthContext";
 import { leaveDoorNotice } from "../../lib/doorNotice";
 import { savedTopics, setTopics } from "../../lib/push";
@@ -14,6 +16,8 @@ import "../../styles/perfil.css";
 import "../../styles/perfil-app.css";
 
 export function ProfilePage() {
+  // The cromos story and the share studio: their chunks once the page is up, before anyone taps.
+  useEffect(preloadOverlays, []);
   const data = useProfileData();
   const { logout } = useAuth();
   const now = useClock(60_000);

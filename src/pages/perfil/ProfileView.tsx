@@ -13,7 +13,7 @@ import { Menu } from "./Menu";
 import { seasonShort } from "./card";
 import { monthYear, positionsNudge } from "./profileData";
 import { pageText, shareLink } from "./share";
-import { ShareStudio } from "./ShareStudio";
+import { ShareStudio } from "./lazy";
 import { introSeen, markIntroSeen, readProfilePrefs, readSharedPrefs, shouldPlayIntro, writeProfilePrefs, type ProfilePrefs } from "./prefs";
 import { normalizeShirtName, shirtNameCheck, typeShirtName } from "./rules";
 import { TabCarta } from "./TabCarta";

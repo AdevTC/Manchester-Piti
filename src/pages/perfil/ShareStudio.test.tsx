@@ -1,7 +1,11 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeData, noIntro, setUrl, view } from "./testkit";
+import { ShareStudio as LazyShareStudio } from "./lazy";
+
+// The perfil loads the studio as its own chunk (./lazy): in first, so it opens at once like on a warm page.
+beforeAll(() => LazyShareStudio.preload());
 
 // The share studio as a member uses it: opened from the hero's CTA, a sheet over the page (focus in and
 // back, Escape / backdrop / ×, no page scroll), its three choices, the preview, «Descargar imagen»,

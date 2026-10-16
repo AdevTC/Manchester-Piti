@@ -6,7 +6,6 @@ import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useSeason } from "../../context/SeasonContext";
 import { dateMillis, isCompleted, useClubData, nextFixture, playerForSeason, playerName } from "../../lib/clubData";
-import { MatchTurnsLine } from "../../components/celeste/Turnos";
 import { nameFor } from "../../lib/derived/names";
 import { useClock } from "../../hooks/useClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
@@ -29,14 +28,10 @@ import { Hero, type Ficha, type Me } from "./Hero";
 import { CaptainStrip } from "./Captain";
 import { BestPartner, FirstSteps, SeasonFeats, SeasonPlaceholder, Vitrina } from "./SeasonBlocks";
 import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
-import { Caja } from "./Caja";
-import { Ausencias } from "./Ausencias";
-import { Encuestas } from "./Encuestas";
-import { RecapBanner } from "./RecapBanner";
-import { recapBannerSeason } from "../perfil/recapView";
+// La caja, Ausencias, Encuestas, «Hoy», turnos and the cromos banner: member-only chunks, all in before the first paint.
+import { Ausencias, Caja, Encuestas, HoyCard, MatchTurnsLine, RecapBanner, recapBanner as recapBannerSeason, useMemberBlocks } from "./memberBlocks";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { ClubDataError } from "../../components/celeste/StatePanel";
-import { HoyCard } from "../../components/celeste/HoyCard";
 import { useViewer } from "../../hooks/useViewer";
 import { hoyModel } from "../../lib/derived/hoy";
 import { useMe } from "./writes";
@@ -71,6 +66,8 @@ function useStepsHidden(uid: string) {
 }
 
 export function VestuarioPage() {
+  // Only members get here (RootLayout shows the door otherwise): their blocks' chunks, before the first paint.
+  useMemberBlocks();
   const { user, profile, logout } = useAuth();
   const { member } = useTeam();
   const { seasons } = useSeason();

@@ -1,5 +1,5 @@
 import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
-import { Banda } from "./Banda";
+import { Banda, downloadMatchPoster } from "./lazy";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useViewer } from "../../hooks/useViewer";
@@ -37,7 +37,6 @@ import { jornadaOf } from "../../lib/derived/jornada";
 import { RESULT_WORD, resultLetter, resultTitle } from "../../lib/derived/result";
 import { shareClubPage } from "../../lib/share";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
-import { downloadMatchPoster } from "../../lib/matchPoster";
 import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
 import { Who } from "./Who";
 import { withGuestNames } from "../../lib/liveActions";

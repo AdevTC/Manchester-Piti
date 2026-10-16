@@ -12,7 +12,7 @@ import { Ic, type PIcon } from "./icons";
 import { firstMatchText, jornadaRange, longDay, type StuffLine, type StuffLink } from "./lines";
 import { RESULT_LEGEND } from "../../lib/derived/result";
 import { CREST } from "./icons";
-import { RecapStory } from "./RecapStory";
+import { RecapStory } from "./lazy";
 import { Logros } from "../../components/celeste/Logros";
 import type { Achievement } from "../../lib/derived/achievements";
 import type { RecapCtx, RecapOffer } from "./recapView";
