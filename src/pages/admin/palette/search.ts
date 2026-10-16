@@ -1,5 +1,6 @@
 // The command palette's model (pure): what a command is, and how a query becomes the grouped results.
 // Groups come in the designed order (Acciones, Partidos, Jugadores, Secciones, then anything a view adds).
+import { normalize, textMatches } from "../../../lib/derived/search";
 
 export type PaletteGroup = "Acciones" | "Secciones" | "Partidos" | "Jugadores" | (string & {});
 export interface PaletteCommand {
@@ -33,27 +34,12 @@ const GROUP_ORDER = ["Acciones", "Partidos", "Jugadores", "Secciones"];
 /** Partidos / Jugadores list at most this many (the design's 6). */
 export const GROUP_LIMIT: Record<string, number> = { Partidos: 6, Jugadores: 6 };
 
-/** Lower-case, no accents, collapsed spaces ("ADRIÁN  T.C." → "adrian t.c."). */
-export function normalize(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
+// The matching itself is the club's one model (lib/derived/search): the public «Buscar» reads text the same way.
+export { normalize };
 
 export function commandMatches(cmd: PaletteCommand, query: string): boolean {
-  const q = normalize(query);
-  if (!q) return cmd.whenEmpty !== false;
-  const compact = q.replace(/\s/g, "");
-  if (cmd.exact?.some((t) => normalize(t).replace(/\s/g, "") === compact)) return true;
-  // «J1» is a jornada: it must not find J10–J19 (commands that carry a jornada token match it exactly).
-  if (/^j\d+$/.test(compact) && cmd.exact?.some((t) => /^j\d+$/.test(normalize(t)))) return false;
-  const hay = normalize([cmd.title, cmd.description ?? "", cmd.keywords ?? ""].join(" "));
-  // «J 8» finds «J8»; every word of the query must appear.
-  if (hay.replace(/\s/g, "").includes(compact)) return true;
-  return q.split(" ").every((w) => hay.includes(w));
+  if (!normalize(query)) return cmd.whenEmpty !== false;
+  return textMatches({ text: [cmd.title, cmd.description ?? "", cmd.keywords ?? ""].join(" "), exact: cmd.exact }, query);
 }
 
 /** The palette's result groups for `query` (empty groups dropped). */
