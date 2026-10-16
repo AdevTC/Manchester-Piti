@@ -3,7 +3,7 @@
 // The security rules validate the other actions (firestore.rules), so there is no
 // Cloud Function round trip: the SDK applies each write to the local cache first, every
 // open listener (this device) updates at once and the rest of the team gets it in realtime.
-import { addDoc, collection, deleteDoc, doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "../../firebase";
 import { absenceFields } from "../../lib/derived/absences";
 import { useAuth } from "../../context/AuthContext";
@@ -21,6 +21,10 @@ export function useMe(): Me | null {
   if (!user || !profile) return null;
   return { uid: user.uid, name: profile.nickname, playerId: profile.playerId ?? null };
 }
+
+/** The member opened the bell's panel: everything up to now is read, on all their devices (only this
+ *  field; the rules let the owner touch nothing else of users/{uid} here). */
+export const markNoticesSeen = (uid: string) => updateDoc(doc(db, "users", uid), { noticesSeenAt: serverTimestamp() });
 
 export const voteMvp = (me: Me, matchId: string, playerId: string) =>
   setDoc(doc(db, "matches", matchId, "votes", me.uid), { playerId, voterName: me.name, at: serverTimestamp() });

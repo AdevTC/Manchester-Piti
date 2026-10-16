@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Outlet, Link, useRouterState } from "@tanstack/react-router";
 import { Navbar } from "./components/Navbar";
 import { SeasonUrlSync } from "./components/SeasonUrlSync";
@@ -10,6 +10,8 @@ import { StateScreen } from "./components/celeste/StatePanel";
 import { useWelcome } from "./lib/doorWelcome";
 import { useRecordTrail } from "./lib/backTrail";
 import { under } from "./lib/paths";
+import { viewerOf } from "./hooks/useViewer";
+import { publishViewer } from "./hooks/viewerSignal";
 import "./styles/club.css";
 // Only private pages (and invitation links) show the door: keep it out of the entry chunk.
 const AccessGate = lazy(() => import("./pages/acceso/AccessGate").then((m) => ({ default: m.AccessGate })));
@@ -18,6 +20,9 @@ const LiveIsland = lazy(() => import("./components/celeste/LiveIsland").then((m)
 export function RootLayout() {
   const { profile, loading } = useAuth();
   const { member, ready } = useTeam();
+  // The chrome's bell (NoticesGate) learns who is looking from here, after the first paint.
+  const { member: inside, admin: captain, playerId } = viewerOf(member, profile);
+  useEffect(() => publishViewer({ member: inside, admin: captain, playerId }), [inside, captain, playerId]);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // The 404 (the catch-all route, or a notFound() thrown by a route) brings the Celeste chrome.
   const lost = useRouterState({ select: (s) => s.matches.some((m) => m.routeId === "/$" || m.status === "notFound") });
