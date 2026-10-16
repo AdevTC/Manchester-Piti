@@ -566,7 +566,8 @@ service cloud.firestore {
         && pollOptionsOk(d.options)
         && d.multi is bool
         && d.authorUid == request.auth.uid
-        && d.authorName is string && d.authorName.size() >= 1 && d.authorName.size() <= 60
+        // (signed like signedAsMe's `name`: the push tells the team this name, so it can't be anyone else's)
+        && d.authorName == me().nickname
         && d.createdAt == request.time
         && d.closesAt is timestamp
         && d.closesAt >= request.time + duration.value(55, 'm')

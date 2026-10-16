@@ -2,7 +2,8 @@
 // Encuestas del vestuario, against the Firestore + Functions emulators: a poll created in polls/{id} gets
 // one «Nueva encuesta» for the team (onPollCreated): one pushLog/poll-<id> and one notice kept in the
 // centro de avisos (nobody is subscribed, so nothing is signed or sent). The trigger again on the same
-// poll (a retry: Firestore delivers at least once) sends and stores nothing new.
+// poll (a retry: Firestore delivers at least once) sends and stores nothing new. Deleting the poll clears
+// its votes (onPollDeleted), and clearing again is a no-op.
 import assert from "node:assert/strict";
 process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
@@ -14,6 +15,7 @@ process.env.FUNCTIONS_EMULATOR = "true";
 const { db } = await import("../lib/common.js");
 const { deliver } = await import("../lib/push.js");
 const { pollNotice, POLL_URL } = await import("../lib/pollsLogic.js");
+const { deletePollVotes } = await import("../lib/polls.js");
 const { Timestamp } = await import("firebase-admin/firestore");
 
 const suffix = Date.now().toString(36);
@@ -68,10 +70,20 @@ assert.equal((await logRef.get()).get("at").toMillis(), claimedAt, "the claim st
 assert.equal((await kept()).length, 1, "a retry stores no second notice");
 checked++;
 
+// ---------- deleted with 2 votes: onPollDeleted takes the votes with it
+const vote = (who, optionIds) => ref.collection("votes").doc(who).set({ optionIds, name: who, playerId: null, at: Timestamp.now() });
+await vote("encuesta-a-" + suffix, ["o1"]);
+await vote("encuesta-b-" + suffix, ["o2"]);
+assert.equal((await ref.collection("votes").get()).size, 2);
+await ref.delete();
+await until("the deleted poll's votes are gone", async () => (await ref.collection("votes").get()).empty);
+// (idempotent: the cleanup again finds nothing to delete)
+assert.equal(await deletePollVotes(id), 0);
+checked++;
+
 // ---------- clean up
 for (const d of await kept()) await d.ref.delete();
 await logRef.delete();
-await ref.delete();
 
-console.log(checked + " comprobaciones de encuestas correctas: una encuesta nueva, un solo aviso al equipo y sin copias al reintentar.");
+console.log(checked + " comprobaciones de encuestas correctas: una encuesta nueva, un solo aviso al equipo, sin copias al reintentar y borrarla limpia sus votos.");
 await db.terminate();

@@ -1335,6 +1335,8 @@ describe("Encuestas del vestuario (polls, polls/{id}/votes)", () => {
       poll("member", { options: ["Sí", "No"] }),
       poll("member", { multi: "no" }),
       poll("member", { authorName: "" }),
+      poll("member", { authorName: "other" }), // firma con el nombre de otro (el aviso lo enseña)
+      poll("member", { authorName: "admin" }),
       poll("member", { createdAt: Timestamp.now() }), // no es la hora del servidor
       poll("member", { closedAt: serverTimestamp() }), // nace abierta
       poll("member", { extra: true }),
