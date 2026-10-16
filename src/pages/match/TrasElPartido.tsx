@@ -13,6 +13,7 @@ const EMPTY: Record<string, ReactionId> = {};
 export function ReactionBar({ matchId, momentId, label, docs, me }: { matchId: string; momentId: string; label: string; docs: readonly ReactionDoc[]; me: Me | null }) {
   const [shown, setShown] = useState<ReactionId | null>(null);
   const [error, setError] = useState("");
+  const [all, setAll] = useState(false);
   const tally = momentTally(docs, momentId, me?.uid);
   const mineAll = (me && docs.find((d) => d.uid === me.uid)?.moments) || EMPTY;
   const full = !!me && momentsFull(mineAll, momentId);
@@ -30,6 +31,7 @@ export function ReactionBar({ matchId, momentId, label, docs, me }: { matchId: s
     setReactions(me, matchId, nextMoments(mineAll, momentId, id)).catch(() => setError("No se ha guardado tu reacción. Inténtalo otra vez."));
   };
   const who = tally.find((r) => r.id === shown && r.count > 0);
+  // On a phone a tap reacts: «Ver quién» lists everyone without touching your own reaction.
   return (
     <div className="tp-bar">
       <div className="tp-rs" role="group" aria-label={`Reacciones · ${label}`} onMouseLeave={() => setShown(null)}>
@@ -65,8 +67,24 @@ export function ReactionBar({ matchId, momentId, label, docs, me }: { matchId: s
       </div>
       {/* (hover, focus or tap: who reacted so) */}
       <p className="tp-who" aria-hidden="true">
-        {who ? `${who.emoji} ${whoReacted(who.names)}` : ""}
+        {who && !all ? `${who.emoji} ${whoReacted(who.names)}` : ""}
       </p>
+      {total > 0 && (
+        <button type="button" className="tp-all" aria-expanded={all} onClick={() => setAll((v) => !v)}>
+          {all ? "Ocultar" : "Ver quién"}
+        </button>
+      )}
+      {all && (
+        <ul className="tp-list">
+          {tally
+            .filter((t) => t.count > 0)
+            .map((t) => (
+              <li key={t.id}>
+                <span aria-hidden="true">{t.emoji}</span> <b>{t.word}</b>: {whoReacted(t.names)}
+              </li>
+            ))}
+        </ul>
+      )}
       {error && (
         <p className="tp-err" role="alert">
           {error}

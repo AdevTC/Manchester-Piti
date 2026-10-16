@@ -34,3 +34,7 @@
 @media (prefers-reduced-motion:reduce){
   .tp-r,.tp-star{transition:none}
 }
+/* «Ver quién»: everyone who reacted, without changing your own reaction (a tap reacts on a phone). */
+.tp-all{min-height:44px;padding:0 12px;border:0;border-radius:12px;background:transparent;color:var(--accent);font:600 13px/1 inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.tp-list{margin:4px 0 0;padding:0;list-style:none;display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.tp-list b{color:var(--ink);font-weight:600}
