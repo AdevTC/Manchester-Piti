@@ -245,8 +245,22 @@ service cloud.firestore {
           && request.resource.data.role in ['admin','user'])
         || (superadminEmail() && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
-          && request.resource.data.role == 'superadmin');
+          && request.resource.data.role == 'superadmin')
+        // The centro de avisos: the member marks their notices seen (serverTimestamp), and nothing else.
+        || (signedIn() && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['noticesSeenAt'])
+          && request.resource.data.noticesSeenAt == request.time);
       allow delete: if false;
+    }
+    // ---- El centro de avisos: every push notice kept (functions/src/push.ts sendTo, noticesLogic.ts), read
+    // by audience: the team's by members, the captains' by admins, a personal one only by its member. Every
+    // read filters by audience (the client's three queries). Only the backend writes; a TTL policy on
+    // expireAt deletes them after 60 days.
+    match /notices/{id} {
+      allow read: if (resource.data.audience == 'team' && teamMember())
+        || (resource.data.audience == 'captains' && admin())
+        || (resource.data.audience == 'personal' && signedIn() && resource.data.uid == request.auth.uid && teamMember());
+      allow write: if false;
     }
     // Drawings and jugadas of a board: lists of bounded size (their content is validated on read).
     function boardExtrasOk(d) {

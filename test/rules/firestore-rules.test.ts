@@ -17,6 +17,10 @@ import {
   serverTimestamp,
   writeBatch,
   Timestamp,
+  query,
+  where,
+  orderBy,
+  limit,
 } from "firebase/firestore";
 import { beforeAll, beforeEach, afterAll, describe, it } from "vitest";
 import type { PosCode, PositionSet } from "../../src/lib/positions";
@@ -1195,5 +1199,74 @@ describe("La caja (caja, cajaMovs)", () => {
     await assertFails(updateDoc(doc(db("admin"), "cajaMovs", "x"), { void: false }));
     await assertFails(updateDoc(doc(db("super"), "cajaMovs", "x"), voiding("super")));
     await assertFails(setDoc(doc(db("admin"), "cajaMovs", "x"), movement("admin")));
+  });
+});
+
+describe("Centro de avisos (notices) y users.noticesSeenAt", () => {
+  const notice = (audience: string, extra: object = {}) => ({
+    topic: "lineup",
+    title: "Ya está la convocatoria",
+    body: "Rival FC.",
+    url: "/matches/m1",
+    at: Timestamp.now(),
+    audience,
+    expireAt: Timestamp.fromMillis(Date.now() + 60 * 86400000),
+    ...extra,
+  });
+  const latest = (who: string | undefined, audience: string) =>
+    getDocs(query(collection(db(who), "notices"), where("audience", "==", audience), orderBy("at", "desc"), limit(30)));
+  const mine = (who: string, uid: string) =>
+    getDocs(query(collection(db(who), "notices"), where("audience", "==", "personal"), where("uid", "==", uid), orderBy("at", "desc"), limit(30)));
+  beforeEach(async () => {
+    await seed("notices/team", notice("team"));
+    await seed("notices/captains", notice("captains", { topic: "convocatoria" }));
+    await seed("notices/personal-member", notice("personal", { topic: "personal", uid: "member" }));
+    await seed("notices/personal-other", notice("personal", { topic: "personal", uid: "other" }));
+  });
+
+  it("los socios leen los del equipo; un aficionado o un anónimo, no", async () => {
+    await assertSucceeds(latest("member", "team"));
+    await assertSucceeds(getDoc(doc(db("member"), "notices", "team")));
+    await assertFails(latest("outsider", "team"));
+    await assertFails(getDoc(doc(db("outsider"), "notices", "team")));
+    await assertFails(latest(undefined, "team"));
+  });
+
+  it("los de los capitanes, solo los capitanes", async () => {
+    await assertSucceeds(latest("admin", "captains"));
+    await assertSucceeds(latest("super", "captains"));
+    await assertFails(latest("member", "captains"));
+    await assertFails(getDoc(doc(db("member"), "notices", "captains")));
+  });
+
+  it("los personales, solo su socio; nunca los de otro ni sin filtrar por audiencia", async () => {
+    await assertSucceeds(mine("member", "member"));
+    await assertSucceeds(getDoc(doc(db("member"), "notices", "personal-member")));
+    await assertFails(mine("member", "other"));
+    await assertFails(getDoc(doc(db("member"), "notices", "personal-other")));
+    await assertFails(getDoc(doc(db("admin"), "notices", "personal-other")));
+    await assertFails(latest("member", "personal"));
+    await assertFails(getDocs(collection(db("member"), "notices")));
+  });
+
+  it("nadie escribe avisos desde el navegador, ni un capitán", async () => {
+    await assertFails(setDoc(doc(db("admin"), "notices", "nuevo"), notice("team")));
+    await assertFails(setDoc(doc(db("member"), "notices", "nuevo"), notice("personal", { uid: "member" })));
+    await assertFails(updateDoc(doc(db("admin"), "notices", "team"), { title: "Otro" }));
+    await assertFails(deleteDoc(doc(db("admin"), "notices", "team")));
+  });
+
+  it("cada socio marca sus avisos vistos (solo noticesSeenAt, con la hora del servidor) y nada más", async () => {
+    await assertSucceeds(updateDoc(doc(db("member"), "users", "member"), { noticesSeenAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(db("member"), "users", "member"), { noticesSeenAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db("member"), "users", "member"), { noticesSeenAt: Timestamp.fromMillis(Date.now() + 86400000) }));
+    await assertFails(updateDoc(doc(db("member"), "users", "member"), { noticesSeenAt: serverTimestamp(), nickname: "otro-nombre" }));
+    await assertFails(updateDoc(doc(db("member"), "users", "member"), { role: "admin" }));
+    await assertFails(updateDoc(doc(db("member"), "users", "member"), { nickname: "otro-nombre" }));
+    await assertFails(updateDoc(doc(db("member"), "users", "other"), { noticesSeenAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db("admin"), "users", "other"), { noticesSeenAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db(), "users", "member"), { noticesSeenAt: serverTimestamp() }));
+    // (the captains' role rule is untouched)
+    await assertSucceeds(updateDoc(doc(db("admin"), "users", "other"), { role: "admin" }));
   });
 });
