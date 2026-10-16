@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
+import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, pushPayload,sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { nameFor } from "./names.js";
 import { isGuestId } from "./guests.js";
 import { noticeRecord } from "./noticesLogic.js";
@@ -108,7 +108,7 @@ export async function sendTo(notice: Notice, uid?: string) {
   // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
   if (subs.empty) return;
   webpush.setVapidDetails(SITE, VAPID_PUBLIC, vapidPrivate.value());
-  const payload = JSON.stringify({ title: notice.title, body: notice.body, tag: notice.tag, url: notice.url });
+  const payload = JSON.stringify(pushPayload(notice));
   await Promise.all(
     subs.docs.map(async (d) => {
       try {
