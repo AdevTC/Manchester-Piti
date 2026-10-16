@@ -566,6 +566,54 @@ service cloud.firestore {
           || request.resource.data.rowsPrev == resource.data.get('rowsPrev', null));
       allow delete: if false;
     }
+    // ---- Turnos del equipo (docs/superpowers/specs/2026-10-16-turnos-design.md): the captains keep each
+    // season's jobs and their order (`rotas/{seasonId}`); the turn of each match is computed by the app
+    // (rotaLogic). A captain can pin or swap one match's turns (`rotaTurns/{matchId}`). Members read both.
+    // A job: id (1–40, [a-z0-9-]), name (1–30), a known icon, awayOnly, order (≤ 40 player ids); ≤ 6 jobs
+    // (no loops in the rules: one check per slot).
+    function rotaJobOk(js, i) {
+      return i >= js.size() || (js[i] is map
+        && js[i].keys().hasOnly(['id','name','icon','awayOnly','order'])
+        && js[i].keys().hasAll(['id','name','icon','awayOnly','order'])
+        && js[i].id is string && js[i].id.matches('^[a-z0-9-]{1,40}$')
+        && js[i].name is string && js[i].name.size() >= 1 && js[i].name.size() <= 30
+        && js[i].icon in ['shirt','ball','car','bottle','bag','key']
+        && js[i].awayOnly is bool
+        && js[i].order is list && js[i].order.size() <= 40);
+    }
+    function rotaOk(d) {
+      return d.keys().hasOnly(['jobs','updatedAt','updatedBy'])
+        && d.keys().hasAll(['jobs','updatedAt','updatedBy'])
+        && d.updatedAt == request.time
+        && d.updatedBy == request.auth.uid
+        && d.jobs is list && d.jobs.size() <= 6
+        && rotaJobOk(d.jobs, 0) && rotaJobOk(d.jobs, 1) && rotaJobOk(d.jobs, 2)
+        && rotaJobOk(d.jobs, 3) && rotaJobOk(d.jobs, 4) && rotaJobOk(d.jobs, 5);
+    }
+    match /rotas/{seasonId} {
+      allow read: if teamMember();
+      allow create, update: if admin() && rotaOk(request.resource.data);
+      allow delete: if false;
+    }
+    // One match's overrides: { [jobId]: { playerId, swappedFrom?, at } }, ≤ 6 jobs.
+    function rotaTurnOk(vs, i) {
+      return i >= vs.size() || (vs[i] is map
+        && vs[i].keys().hasOnly(['playerId','swappedFrom','at'])
+        && vs[i].keys().hasAll(['playerId','at'])
+        && vs[i].playerId is string && vs[i].playerId.size() >= 1 && vs[i].playerId.size() <= 128
+        && (!('swappedFrom' in vs[i]) || (vs[i].swappedFrom is string && vs[i].swappedFrom.size() >= 1 && vs[i].swappedFrom.size() <= 128))
+        && vs[i].at is timestamp);
+    }
+    function rotaTurnsOk(d) {
+      return d.keys().size() <= 6
+        && rotaTurnOk(d.values(), 0) && rotaTurnOk(d.values(), 1) && rotaTurnOk(d.values(), 2)
+        && rotaTurnOk(d.values(), 3) && rotaTurnOk(d.values(), 4) && rotaTurnOk(d.values(), 5);
+    }
+    match /rotaTurns/{matchId} {
+      allow read: if teamMember();
+      allow create, update: if admin() && rotaTurnsOk(request.resource.data);
+      allow delete: if admin();
+    }
     // ---- Encuestas del vestuario (docs/superpowers/specs/2026-10-16-encuestas-design.md): any member asks
     // the team a quick question (2–6 options, one or several answers) that closes 1 h … 14 d after it is
     // created; members vote their own doc while it is open and can change it; votes are public to the

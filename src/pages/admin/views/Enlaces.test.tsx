@@ -13,6 +13,8 @@ import { Partidos } from "./Partidos";
 // ⌘K's «Abrir la pizarra (J… · rival)». Real AdminLayout on a memory router; data from the fixture.
 
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
+// (Convocar's Turnos panel has its own reads: none here)
+vi.mock("../../../lib/useRotaTurns", () => ({ useMatchTurns: () => ({ turns: [], rota: null, pins: {}, loading: false, error: false }) }));
 vi.mock("../../../context/AuthContext", async () => ({ useAuth: (await import("../../../test/adminMocks")).fakeAuth }));
 vi.mock("../../../lib/clubApi", () => ({
   apiError: (e: unknown) => String(e),

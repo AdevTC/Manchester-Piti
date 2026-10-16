@@ -14,6 +14,8 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [] }) }));
+// (the tab's «Turnos del equipo» has its own reads: none here)
+vi.mock("../../lib/useRotaTurns", () => ({ useMatchTurns: () => ({ turns: [], rota: null, pins: {}, loading: false, error: false }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: state.member }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: { uid: "u1" } }) }));
 // the server's clock: the test moves it, and sees the boundaries the tab asks it to tick at

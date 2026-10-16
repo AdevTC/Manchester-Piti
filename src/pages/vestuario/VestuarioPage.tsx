@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useSeason } from "../../context/SeasonContext";
 import { dateMillis, isCompleted, useClubData, nextFixture, playerForSeason, playerName } from "../../lib/clubData";
+import { MatchTurnsLine } from "../../components/celeste/Turnos";
 import { nameFor } from "../../lib/derived/names";
 import { useClock } from "../../hooks/useClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
@@ -181,6 +182,7 @@ export function VestuarioPage() {
         admin={admin}
         training={confirmedTraining}
         todayKeepsNext={!!today && today.stage === "after" && !!next && next.id !== today.match.id}
+        turns={<MatchTurnsLine match={next} matches={matches} nameOf={(id) => nameFor(players.find((p) => p.id === id), next?.seasonId)} me={me.playerId} enabled={viewer.member} className="vx-turns" />}
         today={today ? <HoyCard matches={matches} players={players} now={now} rsvpId="vx-rsvp" className="vx-hoy" mvpBlock={{ id: "vx-mvp", matchId: lastMatch?.id }} /> : undefined}
         captain={
           admin ? (

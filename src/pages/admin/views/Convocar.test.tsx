@@ -7,6 +7,8 @@ import { adminFixture, fixtureAnswers, fixturePublished, mountAdmin, setAdminDat
 import { Convocar } from "./Convocar";
 
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
+// (the Turnos panel has its own reads: none here)
+vi.mock("../../../lib/useRotaTurns", () => ({ useMatchTurns: () => ({ turns: [], rota: null, pins: {}, loading: false, error: false }) }));
 vi.mock("../../../context/AuthContext", async () => ({ useAuth: (await import("../../../test/adminMocks")).fakeAuth }));
 vi.mock("../../../lib/clubApi", () => ({
   apiError: (e: unknown) => String(e),

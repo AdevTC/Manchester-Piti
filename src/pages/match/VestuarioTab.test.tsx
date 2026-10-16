@@ -18,6 +18,11 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [] }) }));
+// (the tab's «Turnos del equipo»: driven by `rota` below)
+const rota = vi.hoisted(() => ({ turns: [] as unknown[] }));
+vi.mock("../../lib/useRotaTurns", () => ({
+  useMatchTurns: () => ({ turns: rota.turns, rota: rota.turns.length ? { jobs: [{}] } : null, pins: {}, loading: false, error: false }),
+}));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: state.member }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: { uid: "u1" } }) }));
 vi.mock("../../hooks/useClock", () => ({ useClock: () => NOW }));
@@ -112,4 +117,22 @@ it("fans get none of them, only the invitation to the vestuario", () => {
   expect(screen.getByRole("link", { name: "Entrar al vestuario" })).toBeInTheDocument();
   // (a fan never opens the absences reader)
   expect(state.absencesRead.every((on) => !on)).toBe(true);
+});
+
+it("Turnos del equipo: each job and who does it, a captain's change said in words", () => {
+  const job = (id: string, name: string, icon: string) => ({ id, name, icon, awayOnly: false, order: [] });
+  rota.turns = [
+    { job: job("lavar", "Lavar la equipación", "shirt"), playerId: "erik", computed: "pablo", pinned: true, swappedFrom: "pablo", skipped: [] },
+    { job: job("balones", "Balones y petos", "ball"), playerId: null, computed: null, pinned: false, swappedFrom: null, skipped: ["erik"] },
+  ];
+  try {
+    render(<VestuarioTab match={upcoming(NOW + 86_400_000)} players={SQUAD} phase="scheduled" />);
+    const sec = screen.getByRole("region", { name: "¿A quién le toca?" });
+    expect(sec).toHaveTextContent("Lavar la equipación");
+    expect(sec).toHaveTextContent(/ERIK7/);
+    expect(sec).toHaveTextContent("Cambio del capitán (le tocaba a PABLO7)");
+    expect(sec).toHaveTextContent("Nadie disponible");
+  } finally {
+    rota.turns = [];
+  }
 });

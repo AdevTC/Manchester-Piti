@@ -1,0 +1,42 @@
+/* Turnos (views/Turnos.tsx) and Convocar's «Turnos» panel (convocar/TurnosPanel.tsx). Admin tokens only
+   (--panel, --panel2, --pline, --accent, --amber, --ink, --soft, --muted), like clasificacion.css. Every control
+   is at least 44 px; whose turn it is, a swap and «Lo hizo otro» are said in words, never by colour alone. */
+.adm .tu-scroll{flex:1;margin-top:18px}
+.adm .tu-adm{display:flex;flex-direction:column;gap:16px;min-width:0}
+.adm .tu-season{display:block;min-width:0}
+.adm .tu-season .inp{min-width:200px}
+.adm.m .tu-season .inp{min-width:0;width:100%}
+.adm .tu-acts{display:flex;flex-wrap:wrap;gap:8px}
+.adm .tu-adm .btn.sm,.adm .tu-panel .btn.sm{min-height:44px;min-width:44px;padding:0 12px}
+.adm .tu-adm .hint{margin:0}
+
+/* ── a job ── */
+.adm .tu-job{display:flex;flex-direction:column;gap:12px}
+.adm .tu-job h3{display:flex;align-items:center;gap:8px;margin:0}
+.adm .tu-meta{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:end}
+.adm.d .tu-meta{grid-template-columns:minmax(0,1fr) 160px auto auto}
+.adm .tu-check{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:14px;font-weight:600;color:var(--soft);cursor:pointer}
+.adm .tu-check input{width:20px;height:20px;accent-color:var(--accent)}
+.adm .tu-order{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.adm .tu-order li{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px 10px;min-height:44px;padding:4px 8px 4px 12px;border-radius:14px;background:var(--panel2)}
+.adm .tu-order .pos{font-family:'Geist Mono';font-size:14px;color:var(--muted);text-align:right}
+.adm .tu-order .nm{min-width:0;overflow-wrap:anywhere;font-weight:600}
+.adm .tu-order .row-acts{display:flex;gap:6px}
+.adm .tu-add{max-width:320px}
+
+/* ── errors, save ── */
+.adm .tu-errs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600;color:var(--amber)}
+.adm .tu-errs li{display:flex;align-items:center;gap:6px}
+.adm .tu-save{display:flex;justify-content:flex-end}
+.adm.m .tu-save .btn{flex:1 1 100%}
+
+/* ── Convocar's panel ── */
+.adm .tu-panel{display:flex;flex-direction:column;gap:10px}
+.adm .tu-panel h3{margin:0}
+.adm .tu-turns{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.adm .tu-turn{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 10px;align-items:center;padding:10px 12px;border-radius:14px;background:var(--panel2)}
+.adm .tu-turn .job{font-size:13px;color:var(--soft)}
+.adm .tu-turn .who{grid-column:2;font-weight:700;color:var(--ink)}
+.adm .tu-turn .note{grid-column:2;font-size:13px;color:var(--muted)}
+.adm .tu-turn .ctl{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.adm .tu-turn .ctl .inp{flex:1 1 180px;min-width:0}

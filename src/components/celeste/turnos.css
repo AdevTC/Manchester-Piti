@@ -1,0 +1,10 @@
+/* Turnos del equipo (Turnos.tsx): the «Te toca…» chip of «Hoy» and the vestuario, the match tab's list. */
+.tn-line{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:36px;margin:0;padding:4px 14px;border-radius:999px;background:var(--chip);box-shadow:inset 0 0 0 1px var(--hoy-line,rgba(159,208,242,.22));color:var(--ink);font-size:14px;line-height:1.35}
+.tn-line.mine{background:var(--chip-gold);box-shadow:none;color:var(--gold-ink);font-weight:700}
+.tn-list ul{margin-top:12px}
+.tn-list ul{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.tn-list li{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 10px;min-height:44px;padding:8px 12px;border-radius:14px;background:var(--chip);color:var(--ink);font-size:14px}
+.tn-list li.mine{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.tn-list .tn-who{text-align:right}
+.tn-list .tn-who small{font-weight:500;color:var(--muted)}
+.tn-list .tn-note{grid-column:2 / -1;color:var(--muted);font-size:12px}

@@ -44,6 +44,8 @@ interface Props {
   /** «Hoy» is about a match already whistled (the MVP vote is open) and another one comes next: the card goes on
    *  top and the next match keeps its lines below (its RSVP above all). */
   todayKeepsNext?: boolean;
+  /** Turnos del equipo for the next match («Te toca: lavar la equipación»), under its lines. */
+  turns?: ReactNode;
 }
 export interface Ficha {
   id: string;
@@ -53,7 +55,7 @@ export interface Ficha {
 }
 const KIT_LABEL = { home: "1ª equipación", away: "2ª equipación" } as const;
 
-export function Hero({ me, seasonName, next, meetingNote, availability, now, theme, faceName, claim, claimable, suggestion, admin, captain, training, today, todayKeepsNext }: Props) {
+export function Hero({ me, seasonName, next, meetingNote, availability, now, theme, faceName, claim, claimable, suggestion, admin, captain, training, today, todayKeepsNext, turns }: Props) {
   const shirt = useRef<Jersey3DRef>(null);
   // Opens on the next match's kit; the player can try the other one on.
   const [kitPick, setKitPick] = useState<"home" | "away" | null>(null);
@@ -152,6 +154,7 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
                   · {next.venue || "Campo por confirmar"}
                   {meetingNote ? ` · ${meetingNote}` : ""}
                 </p>
+                {turns}
                 {/* (the shared member control: the same answer and write as the match page's Vestuario tab) */}
                 {open && <RsvpSwitch match={next} now={now} answer={answer} id="vx-rsvp" className="vx-hero-rsvp" />}
                 <div className="vx-hero-actions">

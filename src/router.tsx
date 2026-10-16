@@ -221,6 +221,11 @@ const adminClasificacionRoute = createRoute({
   path: "clasificacion",
   component: lazyRouteComponent(() => import("./pages/admin/views/Clasificacion"), "Clasificacion"),
 });
+const adminTurnosRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "turnos",
+  component: lazyRouteComponent(() => import("./pages/admin/views/Turnos"), "Turnos"),
+});
 const adminContenidoRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "contenido",
@@ -332,6 +337,7 @@ const routeTree = rootRoute.addChildren([
     adminContenidoRoute,
     adminCajaRoute,
     adminClasificacionRoute,
+    adminTurnosRoute,
     adminNotFoundRoute,
   ]),
   matchDetailRoute,

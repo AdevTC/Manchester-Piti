@@ -21,6 +21,7 @@ import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
 import { absencesOnMatch } from "./absenceAnswers.js";
 import { matchActive, matchActiveTx, noticeMatchId, runOptionalMatchTransaction } from './matchAccess.js';
+import { notifyRota } from "./rota.js";
 
 export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
 /** Public half of the key pair (also in the app, src/lib/push.ts). */
@@ -171,9 +172,9 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   // One «siete» per match: quiet when «Ya está el siete» just told the team these titulares.
   if (!(await claimSiete(event.params.matchId, { by: "conv", seven: sieteKey(after?.starters) }))) {
     await quiet(conv.tag);
-    return;
-  }
-  await sendTo(conv);
+  } else await sendTo(conv);
+  // Turnos del equipo: the convocatoria is out — «Te toca…» to whoever's turn it is (once per match and job).
+  await notifyRota(event.params.matchId);
 });
 
 /** A claimed notice that stayed quiet: the other «siete» notice told the team (the log says why). */

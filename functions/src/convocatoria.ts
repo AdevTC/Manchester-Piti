@@ -19,6 +19,7 @@ import { convocatoriaNoticeKind, convocatoriaProblem, MAX_STARTERS, notCalledOf,
 import { seasonJornada, sendTo, vapidPrivate } from "./push.js";
 import { boardNotice, convocatoriaMessage, parseSiete, sevenOf, sieteKey, sieteLog, sieteMayCover, sieteStep, type SieteAsk } from "./pushLogic.js";
 import { matchActiveTx, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
+import { notifyRota } from "./rota.js";
 
 const input = z.object({
   matchId: idSchema,
@@ -137,6 +138,8 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
         await sendTo(convocatoriaMessage(data.matchId, notice, { rival: written.rival, date: written.date }, jornada));
       }
     }
+    // Turnos del equipo: «Te toca lavar la equipación…» to whoever's turn it is (once per match and job).
+    if (kind) await notifyRota(data.matchId);
   }
   return { at: written.now, revision: written.revision, notice, covered };
 });
