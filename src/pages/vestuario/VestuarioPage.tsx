@@ -30,6 +30,7 @@ import { BestPartner, FirstSteps, SeasonFeats, SeasonPlaceholder, Vitrina } from
 import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
 import { Caja } from "./Caja";
 import { Ausencias } from "./Ausencias";
+import { Encuestas } from "./Encuestas";
 import { RecapBanner } from "./RecapBanner";
 import { recapBannerSeason } from "../perfil/recapView";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
@@ -222,6 +223,8 @@ export function VestuarioPage() {
           <Ausencias member={viewer.member} matches={matches} now={now} />
           {/* the team's money: members only (a fan never opens its reader) */}
           <Caja member={viewer.member} admin={admin} seasonId={seasonId} playerId={playerId} players={players} />
+          {/* «¿Cena el viernes?»: members only (a fan never opens its readers); the push links to #encuestas */}
+          <Encuestas member={viewer.member} admin={admin} now={now} />
           <Board messages={board.data} uid={uid} admin={admin} loading={board.loading} now={now} />
           <Access admin={admin} playerId={playerId} onLogout={() => void signOut()} />
         </div>

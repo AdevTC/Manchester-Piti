@@ -26,6 +26,7 @@ export { controlMatchClock, setMatchScorers } from "./liveClock.js";
 export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview } from "./push.js";
 export { pushReminders, pushOnAnswer } from "./reminders.js";
 export { onAbsenceWritten } from "./absences.js";
+export { onPollCreated, onPollDeleted } from "./polls.js";
 export { cleanupMatchTombstone, deleteMatch, setMatchArchived } from "./matches.js";
 export { setConvocatoria } from "./convocatoria.js";
 export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";

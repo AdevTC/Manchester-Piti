@@ -1270,3 +1270,160 @@ describe("Centro de avisos (notices) y users.noticesSeenAt", () => {
     await assertSucceeds(updateDoc(doc(db("admin"), "users", "other"), { role: "admin" }));
   });
 });
+
+describe("Encuestas del vestuario (polls, polls/{id}/votes)", () => {
+  const HOUR = 3_600_000;
+  const DAY = 24 * HOUR;
+  const opts = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `o${i + 1}`, label: `Opción ${i + 1}` }));
+  /** What the app writes on create: createdAt by the server, closesAt `ms` from now. */
+  const poll = (who: string, extra: object = {}, ms = 3 * DAY) => ({
+    question: "¿Cena el viernes?",
+    options: opts(2),
+    multi: false,
+    authorUid: who,
+    authorName: who,
+    createdAt: serverTimestamp(),
+    closesAt: Timestamp.fromMillis(Date.now() + ms),
+    ...extra,
+  });
+  const seeded = (authorUid: string, extra: object = {}) => ({
+    question: "¿Cena el viernes?",
+    options: opts(3),
+    multi: false,
+    authorUid,
+    authorName: authorUid,
+    createdAt: Timestamp.fromMillis(Date.now() - HOUR),
+    closesAt: Timestamp.fromMillis(Date.now() + DAY),
+    ...extra,
+  });
+  const vote = (who: string, optionIds: string[], extra: object = {}) => ({ optionIds, name: who, playerId: null, at: serverTimestamp(), ...extra });
+  const voteRef = (who: string, pollId: string, uid = who) => doc(db(who), "polls", pollId, "votes", uid);
+
+  it("los socios leen encuestas y votos; un aficionado o un anónimo, nada", async () => {
+    await seed("polls/p", seeded("other"));
+    await seed("polls/p/votes/other", { optionIds: ["o1"], name: "other", playerId: null, at: Timestamp.now() });
+    await assertSucceeds(getDoc(doc(db("member"), "polls", "p")));
+    await assertSucceeds(getDocs(collection(db("member"), "polls")));
+    await assertSucceeds(getDoc(doc(db("member"), "polls", "p", "votes", "other")));
+    await assertSucceeds(getDocs(collection(db("member"), "polls", "p", "votes")));
+    for (const who of ["outsider", undefined]) {
+      await assertFails(getDoc(doc(db(who), "polls", "p")));
+      await assertFails(getDocs(collection(db(who), "polls")));
+      await assertFails(getDoc(doc(db(who), "polls", "p", "votes", "other")));
+      await assertFails(getDocs(collection(db(who), "polls", "p", "votes")));
+    }
+  });
+
+  it("cualquier socio crea una, a su nombre, con 2–6 opciones y cierre de 1 h a 14 días", async () => {
+    const add = (who: string, data: object) => setDoc(doc(collection(db(who), "polls")), data);
+    await assertSucceeds(add("member", poll("member")));
+    await assertSucceeds(add("member", poll("member", { options: opts(6), multi: true })));
+    await assertSucceeds(add("member", poll("member", { question: "x".repeat(120), options: [{ id: "a", label: "y".repeat(40) }, { id: "b", label: "No" }] })));
+    await assertSucceeds(add("member", poll("member", {}, HOUR + 60_000))); // 1 h (+ el minuto de margen de la app)
+    await assertSucceeds(add("member", poll("member", {}, 14 * DAY - 60_000))); // casi 14 días
+    await assertSucceeds(add("admin", poll("admin")));
+    const bad = [
+      poll("other"), // a nombre de otro
+      poll("member", { question: "x".repeat(121) }),
+      poll("member", { question: "   " }),
+      poll("member", { options: opts(1) }),
+      poll("member", { options: opts(7) }),
+      poll("member", { options: [{ id: "a", label: "y".repeat(41) }, { id: "b", label: "No" }] }),
+      poll("member", { options: [{ id: "a", label: "" }, { id: "b", label: "No" }] }),
+      poll("member", { options: [{ id: "a", label: "Sí" }, { id: "a", label: "No" }] }), // ids repetidos
+      poll("member", { options: [{ id: "a", label: "Sí", extra: 1 }, { id: "b", label: "No" }] }),
+      poll("member", { options: ["Sí", "No"] }),
+      poll("member", { multi: "no" }),
+      poll("member", { authorName: "" }),
+      poll("member", { authorName: "other" }), // firma con el nombre de otro (el aviso lo enseña)
+      poll("member", { authorName: "admin" }),
+      poll("member", { createdAt: Timestamp.now() }), // no es la hora del servidor
+      poll("member", { closedAt: serverTimestamp() }), // nace abierta
+      poll("member", { extra: true }),
+      poll("member", {}, 30 * 60_000), // cierra antes de 1 h
+      poll("member", {}, 14 * DAY + HOUR), // más de 14 días
+      poll("member", { closesAt: Date.now() + DAY }), // no es un Timestamp
+    ];
+    for (const data of bad) await assertFails(add("member", data));
+    const noQuestion = Object.fromEntries(Object.entries(poll("member")).filter(([k]) => k !== "question"));
+    await assertFails(add("member", noQuestion));
+    await assertFails(add("outsider", poll("outsider")));
+    await assertFails(add("outsider", poll("member")));
+  });
+
+  it("el autor o un capitán la cierran (solo closedAt, una vez); nadie más, ni otra cosa", async () => {
+    await seed("polls/mine", seeded("member"));
+    await seed("polls/theirs", seeded("other"));
+    await assertFails(updateDoc(doc(db("other"), "polls", "mine"), { closedAt: serverTimestamp() })); // no es el autor
+    await assertFails(updateDoc(doc(db("outsider"), "polls", "mine"), { closedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db("member"), "polls", "mine"), { closedAt: Timestamp.now() }));
+    await assertFails(updateDoc(doc(db("member"), "polls", "mine"), { closedAt: serverTimestamp(), question: "¿Otra?" }));
+    await assertFails(updateDoc(doc(db("member"), "polls", "mine"), { question: "¿Otra?" }));
+    await assertFails(updateDoc(doc(db("member"), "polls", "mine"), { closesAt: Timestamp.fromMillis(Date.now() + 2 * DAY) }));
+    await assertSucceeds(updateDoc(doc(db("member"), "polls", "mine"), { closedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db("member"), "polls", "mine"), { closedAt: serverTimestamp() })); // ya cerrada
+    await assertFails(updateDoc(doc(db("member"), "polls", "mine"), { closedAt: deleteField() })); // ni se reabre
+    await assertSucceeds(updateDoc(doc(db("admin"), "polls", "theirs"), { closedAt: serverTimestamp() }));
+  });
+
+  it("el autor o un capitán la borran; nadie más", async () => {
+    await seed("polls/mine", seeded("member"));
+    await seed("polls/theirs", seeded("other"));
+    await assertFails(deleteDoc(doc(db("member"), "polls", "theirs")));
+    await assertFails(deleteDoc(doc(db("outsider"), "polls", "theirs")));
+    await assertSucceeds(deleteDoc(doc(db("member"), "polls", "mine")));
+    await assertSucceeds(deleteDoc(doc(db("admin"), "polls", "theirs")));
+  });
+
+  it("cada socio vota la suya mientras está abierta, firmado, y puede cambiarla", async () => {
+    await seed("polls/one", seeded("other"));
+    await seed("polls/many", seeded("other", { multi: true }));
+    await assertSucceeds(setDoc(voteRef("member", "one"), vote("member", ["o2"])));
+    await assertSucceeds(setDoc(voteRef("member", "one"), vote("member", ["o3"]))); // cambia el voto
+    await assertSucceeds(setDoc(voteRef("member", "many"), vote("member", ["o1"])));
+    await assertSucceeds(setDoc(voteRef("member", "many"), vote("member", ["o1", "o2", "o3"])));
+    await assertSucceeds(setDoc(voteRef("admin", "one"), vote("admin", ["o1"])));
+  });
+
+  it("votos rechazados: de otro, fuera de la encuesta, de más, sin firma o con la encuesta cerrada", async () => {
+    await seed("polls/one", seeded("other"));
+    await seed("polls/many", seeded("other", { multi: true }));
+    await seed("polls/late", seeded("other", { closesAt: Timestamp.fromMillis(Date.now() - 60_000) }));
+    await seed("polls/closed", seeded("other", { closedAt: Timestamp.fromMillis(Date.now() - 60_000) }));
+    await assertFails(setDoc(voteRef("member", "one", "other"), vote("other", ["o1"]))); // el voto de otro
+    await assertFails(setDoc(voteRef("member", "one", "other"), vote("member", ["o1"])));
+    await assertFails(setDoc(voteRef("member", "one"), vote("member", ["o9"]))); // no es de la encuesta
+    await assertFails(setDoc(voteRef("member", "one"), vote("member", ["o1", "o2"]))); // 2 en una de una sola
+    await assertFails(setDoc(voteRef("member", "one"), vote("member", [])));
+    await assertFails(setDoc(voteRef("member", "many"), vote("member", ["o1", "o1"])));
+    await assertFails(setDoc(voteRef("member", "many"), vote("member", ["o1", "o9"])));
+    await assertFails(setDoc(voteRef("member", "many"), vote("member", [])));
+    await assertFails(setDoc(voteRef("member", "one"), vote("member", ["o1"], { name: "other" })));
+    await assertFails(setDoc(voteRef("member", "one"), vote("member", ["o1"], { playerId: "p1" })));
+    await assertFails(setDoc(voteRef("member", "one"), vote("member", ["o1"], { at: Timestamp.now() })));
+    await assertFails(setDoc(voteRef("member", "one"), vote("member", ["o1"], { extra: 1 })));
+    await assertFails(setDoc(voteRef("member", "one"), { optionIds: ["o1"], name: "member", playerId: null }));
+    await assertFails(setDoc(voteRef("member", "late"), vote("member", ["o1"]))); // pasó su hora
+    await assertFails(setDoc(voteRef("member", "closed"), vote("member", ["o1"]))); // cerrada antes
+    await assertFails(setDoc(voteRef("member", "missing"), vote("member", ["o1"]))); // no existe
+    await assertFails(setDoc(voteRef("outsider", "one"), vote("outsider", ["o1"])));
+    // (a vote already there can't be changed once the poll closed)
+    await seed("polls/closed/votes/member", { optionIds: ["o1"], name: "member", playerId: null, at: Timestamp.now() });
+    await assertFails(setDoc(voteRef("member", "closed"), vote("member", ["o2"])));
+  });
+
+  it("cada socio quita su propio voto mientras está abierta; nunca el de otro", async () => {
+    await seed("polls/one", seeded("other"));
+    await seed("polls/closed", seeded("other", { closedAt: Timestamp.fromMillis(Date.now() - 60_000) }));
+    const v = { optionIds: ["o1"], name: "x", playerId: null, at: Timestamp.now() };
+    await seed("polls/one/votes/member", v);
+    await seed("polls/one/votes/other", v);
+    await seed("polls/closed/votes/member", v);
+    await seed("polls/gone/votes/member", v);
+    await assertFails(deleteDoc(voteRef("member", "one", "other")));
+    await assertFails(deleteDoc(voteRef("admin", "one", "other")));
+    await assertFails(deleteDoc(voteRef("member", "closed")));
+    await assertSucceeds(deleteDoc(voteRef("member", "one")));
+    await assertSucceeds(deleteDoc(voteRef("member", "gone"))); // la encuesta ya no está
+  });
+});

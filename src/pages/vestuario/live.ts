@@ -28,6 +28,7 @@ import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import type { TrainingSlot } from "../../lib/vestuario";
 import { EMPTY_CAJA_SETTINGS, parseCajaMov, parseCajaSettings, type CajaMov, type CajaSettings } from "../../lib/derived/caja";
 import { byAbsence, currentAbsences, parseAbsence, type Absence } from "../../lib/derived/absences";
+import { parsePoll, parsePollVote, type Poll, type PollVote } from "../../lib/derived/polls";
 
 interface Live<T> {
   data: T;
@@ -614,6 +615,36 @@ export function useAbsences(today: string, enabled = true): Live<Absence[]> {
     const ok = currentAbsences(q.data.filter((a): a is Absence => a !== null), today);
     return ok.length ? ok : NO_ABSENCES;
   }, [q.data, today]);
+  return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
+}
+
+// ---------- encuestas (members only; derived/polls for the rest)
+const POLLS_LIMIT = 20;
+const NO_POLLS: Poll[] = [];
+/**
+ * The latest polls, newest first (one shared listener). Open and closed alike: filter the vestuario's list
+ * with visiblePolls (open, or closed within 7 days). `enabled` false (a fan) opens nothing.
+ */
+export function usePolls(enabled = true): Live<Poll[]> {
+  const q = useLiveQuery<Poll | null>(
+    enabled ? `polls/${POLLS_LIMIT}` : null,
+    () => query(collection(db, "polls"), orderBy("createdAt", "desc"), limit(POLLS_LIMIT)),
+    (id, d) => parsePoll(id, d, Date.now()),
+  );
+  const list = useMemo(() => {
+    const ok = q.data.filter((p): p is Poll => p !== null);
+    return ok.length ? ok : NO_POLLS;
+  }, [q.data]);
+  return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
+}
+const NO_POLL_VOTES: PollVote[] = [];
+/** A poll's votes (public to the team): one shared listener per poll. */
+export function usePollVotes(pollId: string | undefined): Live<PollVote[]> {
+  const q = useLiveQuery<PollVote | null>(pollId ? `pollVotes/${pollId}` : null, () => collection(db, "polls", pollId!, "votes"), parsePollVote);
+  const list = useMemo(() => {
+    const ok = q.data.filter((v): v is PollVote => v !== null);
+    return ok.length ? ok : NO_POLL_VOTES;
+  }, [q.data]);
   return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
 }
 
