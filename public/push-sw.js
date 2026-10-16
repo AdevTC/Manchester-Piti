@@ -1,5 +1,7 @@
 // Push notices for the club's service worker (imported by the Workbox-generated sw.js).
-// The server sends { title, body, tag, url } (functions/src/push.ts).
+// The server sends { title, body, tag, url } and, on the notices that ask for an answer, the buttons
+// «Voy» / «No puedo» (`actions`) with their `matchId` (functions/src/pushLogic.ts pushPayload).
+// Browsers without notice buttons (iOS) just leave them out.
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -7,17 +9,48 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { title: "Manchester Piti", body: event.data ? event.data.text() : "" };
   }
-  event.waitUntil(
-    self.registration.showNotification(data.title || "Manchester Piti", {
-      body: data.body || "",
-      icon: "/crest-icon.png",
-      badge: "/crest-icon.png",
-      tag: data.tag,
-      renotify: !!data.tag,
-      data: { url: data.url || "/" },
-    }),
-  );
+  const actions = Array.isArray(data.actions) ? data.actions.filter((a) => a && typeof a.action === "string" && typeof a.title === "string") : [];
+  const options = {
+    body: data.body || "",
+    icon: "/crest-icon.png",
+    badge: "/crest-icon.png",
+    tag: data.tag,
+    renotify: !!data.tag,
+    data: { url: data.url || "/", matchId: typeof data.matchId === "string" ? data.matchId : undefined },
+  };
+  if (actions.length && options.data.matchId) options.actions = actions;
+  event.waitUntil(self.registration.showNotification(data.title || "Manchester Piti", options));
 });
+
+// Where a tap leads: the same function as src/lib/pushRoute.ts (pushRoute.test.ts runs both copies).
+// <pushRoute>
+const pushClickUrl = (data, action, nonce) => {
+  const d = data || {};
+  const matchId = typeof d.matchId === "string" ? d.matchId : "";
+  if ((action === "yes" || action === "no") && matchId) return `/vestuario?rsvp=${action}&m=${encodeURIComponent(matchId)}${typeof nonce === "string" && nonce ? `&n=${encodeURIComponent(nonce)}` : ""}`;
+  return typeof d.url === "string" && d.url ? d.url : "/";
+};
+// </pushRoute>
+
+// The one-time ticket of a «Voy» / «No puedo» tap (src/lib/rsvpTicket.ts reads and spends it): only
+// this worker can leave it, so a crafted link alone never answers for a member (the page only asks).
+const RSVP_CACHE = "mp-rsvp";
+const RSVP_TICKET_MS = 10 * 60_000;
+const rsvpTicket = async (rsvp, m) => {
+  const nonce = self.crypto.randomUUID();
+  const cache = await caches.open(RSVP_CACHE);
+  await cache.put("/rsvp/" + nonce, new Response(JSON.stringify({ rsvp, m, exp: Date.now() + RSVP_TICKET_MS }), { headers: { "content-type": "application/json" } }));
+  return nonce;
+};
+// Tickets never used, dropped once expired: after the window opens (the click's permission to open one is short).
+const sweepRsvpTickets = async () => {
+  const cache = await caches.open(RSVP_CACHE);
+  for (const req of await cache.keys()) {
+    const old = await cache.match(req);
+    const t = old ? await old.json().catch(() => null) : null;
+    if (!t || !(t.exp > Date.now())) await cache.delete(req);
+  }
+};
 
 // The browser renewed this device's subscription (its keys rotated, or the push service dropped the old
 // one): subscribe again with the same key and tell the server, so the notices keep coming without
@@ -59,16 +92,29 @@ self.addEventListener("pushsubscriptionchange", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = new URL((event.notification.data && event.notification.data.url) || "/", self.location.origin).href;
+  // A button («Voy» / «No puedo») opens the vestuario with the answer and its one-time ticket; the
+  // signed-in app writes it (the worker has no session and never writes). A plain tap opens the
+  // notice's link. Without a ticket (no Cache API, no randomUUID) the vestuario only asks.
+  const data = event.notification.data;
+  const action = event.action;
+  const matchId = data && typeof data.matchId === "string" ? data.matchId : "";
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+    (async () => {
+      let nonce = "";
+      if ((action === "yes" || action === "no") && matchId) nonce = await rsvpTicket(action, matchId).catch(() => "");
+      const url = new URL(pushClickUrl(data, action, nonce), self.location.origin).href;
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const w of windows) {
         if ("focus" in w) {
           if ("navigate" in w) w.navigate(url);
-          return w.focus();
+          const focused = await w.focus();
+          await sweepRsvpTickets().catch(() => {});
+          return focused;
         }
       }
-      return self.clients.openWindow(url);
-    }),
+      const opened = await self.clients.openWindow(url);
+      await sweepRsvpTickets().catch(() => {});
+      return opened;
+    })(),
   );
 });

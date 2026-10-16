@@ -3,7 +3,7 @@
 Date: 2026-10-16. This is idea 14 of the web audit (`docs/auditoria/2026-10-14-integracion-y-huecos.md` §3). The defaults were chosen by Claude for continuous progress, and each one is easy to change.
 
 ## Purpose
-The convocatoria notice («Ya está la convocatoria», «¿Vas al partido?» reminders) gets two buttons, «Voy» and «No puedo». One tap answers without hunting for the RSVP.
+The RSVP reminders («¿Vas al partido?», which go only to members who haven't answered) get two buttons; «Ya está la convocatoria» goes on the public topic, so it carries none, «Voy» and «No puedo». One tap answers without hunting for the RSVP.
 
 ## How
 - **Push payload.** The notices that ask for an answer (the convocatoria published and the RSVP reminders to members who haven't answered) carry an `actions` list `[{ action: "yes", title: "Voy" }, { action: "no", title: "No puedo" }]` and the match id. The pure builders in `functions/src/pushLogic.ts` add them. «Cambios» notices and notices to captains don't carry them.
@@ -28,4 +28,4 @@ The convocatoria notice («Ya está la convocatoria», «¿Vas al partido?» rem
 Answering «Duda» from the notice (two buttons is the common platform limit), answering without opening the app, and actions on iOS.
 
 ## Success criteria
-On Android, tapping «No puedo» in the convocatoria notice opens the vestuario with «No puedo» saved, and the captains see it at once.
+On Android, tapping «No puedo» in an RSVP reminder opens the vestuario with «No puedo» saved, and the captains see it at once.
