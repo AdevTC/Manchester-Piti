@@ -2,6 +2,7 @@
 // the acta — minutes, entries / exits and stints per player called up — as the Publicar tab lists it.
 import { calculateLedger, type MatchSheet } from "../../../../functions/src/matchEngine";
 import { reviewSheet } from "./sheetModel";
+import { plural } from "../../../lib/derived/words";
 
 export interface MinutesRow {
   id: string;
@@ -18,7 +19,6 @@ export interface MinutesTable {
   errors: string[];
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export function minutesTable(sheet: MatchSheet, nameOf: (id: string) => string): MinutesTable {
   const s = reviewSheet(sheet);

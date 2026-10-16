@@ -7,8 +7,8 @@ import type { AdminMatch, AdminMatchState } from "../data/adminLogic";
 import { nameIn, numberIn } from "./plantillaLogic";
 import { resultLetter, resultTitle, type ResultLetter } from "../../../lib/derived/result";
 import { calendarOrder } from "../../../lib/derived/jornada";
+import { plural } from "../../../lib/derived/words";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export type SeasonState = "active" | "archived" | "prep" | "done";
 export const STATE_LABEL: Record<SeasonState, string> = { active: "Activa", archived: "Archivada", prep: "En preparación", done: "Terminada" };

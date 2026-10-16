@@ -38,6 +38,7 @@ import { AdIcon, type AdIconName } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
 import { useToast } from "../ui/toastContext";
 import "../caja/caja.css";
+import { plural } from "../../../lib/derived/words";
 
 type Ask = { k: "cuota" } | { k: "coste"; matchId: string } | { k: "mov"; kind: FreeKind } | { k: "ajustes" } | { k: "anular"; id: string } | null;
 const STATE_ICON: Record<"debe" | "al-dia" | "a-favor", AdIconName> = { debe: "alert", "al-dia": "check", "a-favor": "plus" };
@@ -48,7 +49,6 @@ const KIND_OPTIONS: { value: CajaKind | ""; label: string }[] = [
   { value: "gasto", label: "Gastos" },
   { value: "ingreso", label: "Ingresos" },
 ];
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const signed = (m: CajaMov) => `${movSign(m.kind) > 0 ? "+" : "−"}${fmtEuros(m.amount)}`;
 
 export function Caja() {

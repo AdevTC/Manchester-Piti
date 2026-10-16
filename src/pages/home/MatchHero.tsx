@@ -10,6 +10,7 @@ import { kickoffLabel } from "../../lib/vestuario";
 import { scoreOf } from "../../lib/partidos";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE } from "../../lib/derived/kickoff";
 import { resultLetter, resultTitle } from "../../lib/derived/result";
+import { kitLabel, siteOrigin } from "../../lib/derived/venue";
 
 interface Props {
   story: Narrative;
@@ -23,7 +24,7 @@ interface Props {
 /** The home is match day: the next (or live) game on the left, the one player of the moment on the right. */
 export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
   // The server render has no location; the browser fills in the absolute links once it takes over.
-  const origin = typeof location === "undefined" ? "" : location.origin;
+  const origin = siteOrigin();
   // A result's story must never headline a different (future) fixture. Each hero state
   // describes exactly the match whose teams, score and clock are shown below it.
   const m = pulse.live ?? pulse.next ?? pulse.awaiting ?? pulse.last;
@@ -73,7 +74,7 @@ export function MatchHero({ story, pulse, now, moment, momentStill }: Props) {
           </div>}
           {m && <div className="when">
                 <b>{pulse.live ? (m.clock ? <MatchClockDisplay match={m} /> : "En juego ahora") : pending ? PENDING_WHISTLE : kickoffLabel(m.date)}</b>
-                <span>{[m.venue, m.kit ? (m.kit === "home" ? "1ª equipación" : "2ª equipación") : null].filter(Boolean).join(" · ") || "Campo por confirmar"}</span>
+                <span>{[m.venue, kitLabel(m)].filter(Boolean).join(" · ") || "Campo por confirmar"}</span>
           </div>}
           {cd && (
             <div className="cd" role="timer" aria-label={`Faltan ${cd.d} días, ${cd.h} horas y ${cd.m} minutos`}>

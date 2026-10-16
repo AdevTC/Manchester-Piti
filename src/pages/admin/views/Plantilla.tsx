@@ -59,8 +59,8 @@ import { useLayerStack } from "../ui/layerCore";
 import { useToast } from "../ui/toastContext";
 import { canTransition, viewTransition, vtName } from "../ui/viewTransition";
 import "../club/plantilla.css";
+import { plural } from "../../../lib/derived/words";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const truthy = (v: unknown) => v === true || v === 1 || v === "1" || v === "true";
 /** «pasa a la defensa» / «pasa al medio». */
 const LINE_TO: Record<Position, string> = { POR: "a la portería", DEF: "a la defensa", MED: "al medio", DEL: "a la delantera" };

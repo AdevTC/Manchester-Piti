@@ -29,8 +29,8 @@ import {
 import { madridDate } from "../../../lib/derived/madrid";
 import { AdIcon } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
+import { plural } from "../../../lib/derived/words";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** The modal's write: busy while it runs, the failure shown in the modal. */
