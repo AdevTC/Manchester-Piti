@@ -5,6 +5,7 @@ import { dateMillis } from "../../../../../functions/src/matchEngine";
 import { clockTime, jLabel, longDay, shortDate, type AdminMatch } from "../../data/adminLogic";
 import type { MatchMoment } from "../../data/moments";
 import { RSVP_LABEL, SEVEN, type Lineup, type Rsvp } from "../../data/lineup";
+import { guestOf, isGuestId } from "../../../../lib/derived/guests";
 
 const TZ = "Europe/Madrid";
 const dayKey = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(ms);
@@ -82,7 +83,7 @@ export interface BackPeg {
 }
 const doubt = (r: Rsvp) => r === "duda" || r === "sin";
 
-/** The peg wall: seven front pegs (el siete, then «Libre») and the back rail (the banquillo and whoever can come, dorsal order). */
+/** The peg wall: seven front pegs (el siete — a guest as «INV» —, then «Libre») and the back rail (the banquillo and whoever can come, dorsal order). */
 export function pegWall(l: Lineup, roster: readonly WallPlayer[], rsvp: ReadonlyMap<string, Rsvp>): { front: FrontPeg[]; back: BackPeg[] } {
   const by = new Map(roster.map((p) => [p.id, p]));
   const num = (id: string) => (by.get(id)?.number != null ? String(by.get(id)?.number) : "");
@@ -92,6 +93,11 @@ export function pegWall(l: Lineup, roster: readonly WallPlayer[], rsvp: Readonly
     const id = l.starters[i];
     if (!id) {
       front.push({ id: null, num: "", name: "", sub: "toca una de atrás", duda: false });
+      continue;
+    }
+    // a guest (Invitados en el acta): «INV» on the shirt, his name, «Invitado» under it — he answers no RSVP
+    if (isGuestId(id)) {
+      front.push({ id, num: "INV", name: guestOf(l, id)?.name ?? "Invitado", sub: "Invitado", duda: false });
       continue;
     }
     const r = rsvp.get(id) ?? "sin";

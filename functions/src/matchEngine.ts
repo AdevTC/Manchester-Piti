@@ -3,6 +3,7 @@ import { ACTION_LABELS, actionProblem, analyseActions, eventSeconds, isAnalysisA
 import { type MatchClock } from "./matchClock.js";
 import type { PosCode } from "./positions.js";
 import type { PositionEvents } from "./positionsPlayed.js";
+import { guestRefsProblem, type MatchGuest } from "./guests.js";
 export const EVENT_LABELS = {
   ...ACTION_LABELS,
   goal: "Gol",
@@ -81,6 +82,8 @@ export interface MatchSheet {
   starters: string[];
   bench: string[];
   notCalled: string[];
+  /** Invitados en el acta (0–4): referenced as `guest:g1` in starters, bench and the events (guests.ts). */
+  guests?: MatchGuest[];
   events: MatchEvent[];
   goalsFor?: number;
   goalsAgainst?: number;
@@ -169,7 +172,7 @@ export function calculateLedger(
   match: Pick<
     MatchSheet,
     "starters" | "bench" | "notCalled" | "events" | "duration" | "durationSeconds"
-  >,
+  > & Pick<Partial<MatchSheet>, "guests">,
   strict = true,
   options: { until?: number; allowUnattributedGoals?: boolean } = {},
 ): Ledger {
@@ -194,6 +197,9 @@ export function calculateLedger(
     fail("Un jugador solo puede tener una situación inicial.");
   if (match.starters.length > 7 || (strict && match.starters.length !== 7))
     fail("Selecciona exactamente 7 titulares.");
+  // Invitados: a `guest:` id must be one of this match's guests, and a guest is called (never «no convocado»).
+  const guestError = guestRefsProblem(match);
+  if (guestError) fail(guestError);
   for (const id of assignments) result.players[id] = emptyParticipation();
   const onPitch = new Map<string, number>();
   for (const id of match.starters) {

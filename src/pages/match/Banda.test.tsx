@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
-import { LIVE_ACTIONS } from "../../lib/liveActions";
+import { LIVE_ACTIONS, withGuestNames } from "../../lib/liveActions";
 import { Banda } from "./Banda";
 
 // Characterisation of the Mesa de partido: what each tap sends to the liveEvent callable. These payloads
@@ -136,5 +136,26 @@ describe("Mesa de partido · what the admin's En juego had and the banda lacked"
     fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
     for (const name of ["Gol del Piti", "Gol rival", "Autogol del rival", "Al palo", "Ocasión del Piti"]) expect(screen.getByRole("button", { name })).toBeDisabled();
     for (const name of ["Amarilla", "Segunda amarilla", "Roja", "Cambio"]) expect(screen.getByRole("button", { name })).toBeEnabled();
+  });
+});
+
+describe("Mesa de partido · invitados", () => {
+  const GUEST = { ...MATCH, guests: [{ id: "g1", name: "Rafa" }], starters: ["evans", "guest:g1", "tello"], bench: ["guest:g2", "kevin"] } as unknown as ClubMatch;
+  const named = withGuestNames(GUEST, nameOf);
+
+  it("lists the guests after the members, with their words", () => {
+    render(<Banda match={GUEST} nameOf={named} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
+    fireEvent.click(screen.getByRole("button", { name: /Amarilla$/ }));
+    const names = Array.from(document.querySelectorAll(".fc-pick button")).map((b) => b.textContent);
+    expect(names).toEqual(["EVANS", "TELLO", "KEVIN", "Rafa (invitado)", "Invitado"]);
+    expect(screen.getByRole("button", { name: "Rafa (invitado)" })).toHaveClass("guest");
+  });
+
+  it("a guest's goal travels with his guest: reference", () => {
+    render(<Banda match={GUEST} nameOf={named} />);
+    fireEvent.click(screen.getByRole("button", { name: "Con detalle" }));
+    tapAll(["Gol del Piti", "Rafa (invitado)", ["EVANS", -1]]);
+    expect(api.live.mock.calls[0][0]).toStrictEqual(envelope({ type: "goal", minute: 31, assistReviewed: true, playerId: "guest:g1", assistPlayerId: "evans" }));
   });
 });

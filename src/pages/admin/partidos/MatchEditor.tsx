@@ -33,6 +33,8 @@ import { instant } from "../acta/dates";
 import { mvpStatus } from "../acta/publish";
 import { reviewMatch } from "../acta/review";
 import { namesFor, rosterFor } from "../acta/roster";
+import { lineupWithGuests } from "../acta/guests";
+import { guestLabel, isGuestId } from "../../../lib/derived/guests";
 import { fromMatch, isSheet, restoreSheet, rivalInitialsOf, score, toPayload, type MatchSheet } from "../acta/sheetModel";
 import { useMatchMvp } from "./live";
 import { TabActa, type PlayerInfo } from "./TabActa";
@@ -80,13 +82,17 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
   const sheet: MatchSheet = useMemo(() => {
     const v = buf.value;
     const lineup = v.seasonId === (match.seasonId ?? "") ? { starters: starters ?? [], bench: bench ?? [], notCalled: notCalled ?? [] } : { starters: v.starters, bench: v.bench, notCalled: v.notCalled };
-    return effectiveSheet({ ...v, ...lineup }, phase);
+    // (the acta's guests: on the banquillo until Convocar places them; gone from it once removed)
+    return effectiveSheet({ ...v, ...lineupWithGuests(lineup, v) }, phase);
   }, [buf.value, match.seasonId, starters, bench, notCalled, phase]);
 
   const roster = useMemo(() => rosterFor(data.players, data.seasons, sheet.seasonId), [data.players, data.seasons, sheet.seasonId]);
   const names = useMemo(() => namesFor(data.players, data.seasons, sheet.seasonId), [data.players, data.seasons, sheet.seasonId]);
-  const nameOf = (id: string) => names(id);
+  // (a guest: «Rafa (invitado)»)
+  const guestNames = (id: string | undefined) => (id && isGuestId(id) ? guestLabel(sheet, id) : names(id));
+  const nameOf = (id: string) => guestNames(id);
   const info = (id: string): PlayerInfo & { position: string } => {
+    if (isGuestId(id)) return { name: guestLabel(sheet, id), number: null, position: "" };
     const r = roster.find((p) => p.id === id);
     return r ? { name: r.name, number: r.number, position: r.position } : { name: names(id), number: null, position: "" };
   };
@@ -102,7 +108,7 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
     roster.map((p) => p.id),
     data.now,
     publishedClean,
-    names,
+    guestNames,
   );
   const foot = footerOf({ phase, inCalendar: match.published, draft: match.draft, status: match.status ?? "scheduled", date: sheet.date, review });
   const marks = tabMarks({ phase, review, starters: sheet.starters.length, published: publishedFinal && !buf.dirty });
@@ -121,7 +127,7 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
 
   // ── saving ──
   const write = async (draft: boolean, fromGuard = false): Promise<boolean> => {
-    const p = toPayload({ ...sheet, venue: tidyVenue(sheet.venue) }, draft, names, rival);
+    const p = toPayload({ ...sheet, venue: tidyVenue(sheet.venue) }, draft, guestNames, rival);
     if (!p.ok) {
       toast.show({ tone: "error", message: `${draft ? "No se puede guardar el borrador" : "No se puede publicar"}: ${p.error}` });
       return false;

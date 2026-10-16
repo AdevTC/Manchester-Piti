@@ -2,6 +2,8 @@
 // question, the dorsal grids — on the pitch first, then the banquillo — and the extra buttons), the log
 // «Lo que va pasando» (`.evl`), the pads (`.pads`: GOL in gold, Gol rival, Tarjeta, Cambio, Ocasión, Córner,
 // «Penalti o palo», «Pitar el final y repasar el acta») and the running clock.
+import { isGuestId } from "../../../lib/derived/guests";
+import "../kit/guests.css";
 import { MatchClockDisplay } from "../../../components/celeste/MatchClockControl";
 import type { ClubMatch } from "../../../lib/clubData";
 import { useId, useState } from "react";
@@ -15,7 +17,7 @@ function Grid({ list, bench, onChoose, disabled }: { list: PickOption[]; bench?:
   return (
     <div className="pg">
       {list.map((o) => (
-        <button key={o.id} type="button" className={bench ? "pp bench" : "pp"} onClick={() => onChoose(o.next)} aria-label={o.aria} disabled={disabled}>
+        <button key={o.id} type="button" className={["pp", bench ? "bench" : "", isGuestId(o.id) ? "guest" : ""].filter(Boolean).join(" ")} onClick={() => onChoose(o.next)} aria-label={o.aria} disabled={disabled}>
           <b>{o.num}</b>
           <small>{o.name}</small>
         </button>

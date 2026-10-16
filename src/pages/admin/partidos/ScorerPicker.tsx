@@ -4,6 +4,8 @@
 // dorsal — on the pitch first («titulares primero»), then the banquillo — or «Autogol de RIVAL» /
 // «Lo completo luego» / «Quitar este gol»; step 2: the pass, optional («Sin asistencia», «← Cambiar
 // goleador»). Esc / a press outside close it; typing a dorsal picks that player.
+import { isGuestId } from "../../../lib/derived/guests";
+import "../kit/guests.css";
 import { useEffect, useRef, type RefObject } from "react";
 import { Popover } from "../ui/layers";
 import type { PickOption } from "./pickModel";
@@ -78,7 +80,7 @@ export function ScorerPicker(p: ScorerPickerProps) {
       key={o.id}
       ref={!isBench && i === 0 ? first : undefined}
       type="button"
-      className={["pp", isBench ? "bench" : "", current === o.id ? "on" : ""].filter(Boolean).join(" ")}
+      className={["pp", isBench ? "bench" : "", isGuestId(o.id) ? "guest" : "", current === o.id ? "on" : ""].filter(Boolean).join(" ")}
       aria-pressed={current === o.id}
       aria-label={step === "s" ? `${o.name} marcó el gol ${goal.n}` : `Pase de ${o.name}`}
       onClick={() => (step === "s" ? p.onScorer(o.id) : p.onAssist(o.id))}

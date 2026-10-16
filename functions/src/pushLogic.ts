@@ -4,6 +4,7 @@
 import { eventMinute } from "./matchEngine.js";
 import { resultLetter, resultTitle } from "./result.js";
 import { absenceRangeText } from "./absencesLogic.js";
+import { guestLabel, isGuestId, type MatchGuest } from "./guests.js";
 
 export const TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"] as const;
 /** Personal notices of the vestuario door: "door" for admins (someone asks to come in), "access" for whoever asked. */
@@ -55,6 +56,8 @@ interface Ev {
 }
 export interface MatchLike {
   rival?: string;
+  /** Invitados en el acta: a goal by `guest:g1` is told as «Rafa (invitado)» (guests.ts). */
+  guests?: MatchGuest[];
   status?: string;
   date?: number;
   events?: Ev[];
@@ -112,8 +115,10 @@ const isGoal = (e: Ev) => OURS.has(e.type) || THEIRS.has(e.type);
  * directo / previa). Each notice that could repeat (a trigger retry, a clock undone and done again)
  * carries its pushLog id (`log`): push.ts claims it first, so it goes once.
  */
-export function noticesFor(id: string, before: MatchLike | undefined, after: MatchLike | undefined, nameOf: (playerId: string) => string, now: number): Notice[] {
+export function noticesFor(id: string, before: MatchLike | undefined, after: MatchLike | undefined, memberName: (playerId: string) => string, now: number): Notice[] {
   if (!after || after.archived) return [];
+  // A guest's goal names the guest («Rafa (invitado)»), from the match that has him (an undone goal: before).
+  const nameOf = (playerId: string) => (isGuestId(playerId) ? guestLabel({ guests: after.guests ?? before?.guests }, playerId) : memberName(playerId));
   const url = `/matches/${id}`;
   const rival = after.rival ?? "el rival";
   const out: Notice[] = [];

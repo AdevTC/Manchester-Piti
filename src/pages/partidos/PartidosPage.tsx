@@ -452,7 +452,7 @@ function Row({ m, j, now, nameOf, next, still }: { m: ClubMatch; j?: number; now
   const r = done ? resultOf(m) : undefined;
   const rival = m.rival ?? "Rival";
   const meta = done
-    ? [scorersLine(m.events, nameOf) || "Sin goles del Piti", where(m)].filter(Boolean).join(" · ")
+    ? [scorersLine(m.events, nameOf, m) || "Sin goles del Piti", where(m)].filter(Boolean).join(" · ")
     : phase === "postponed"
       ? "Aplazado"
       : waiting

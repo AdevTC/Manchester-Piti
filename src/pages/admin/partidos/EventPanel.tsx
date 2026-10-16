@@ -2,6 +2,8 @@
 // as the goals (the v2 Popover in place under its group; a bottom sheet on phones): the kind (when the
 // group has several), the minute, the player by dorsal — a change asks who leaves and who comes on —, and
 // Añadir / Guardar · Cancelar · Quitar.
+import { isGuestId } from "../../../lib/derived/guests";
+import "../kit/guests.css";
 import { useId, useRef, useState, type RefObject } from "react";
 import type { EventType, MatchEvent } from "../../../../functions/src/matchEngine";
 import { Popover } from "../ui/layers";
@@ -49,7 +51,7 @@ export function EventPanel(p: EventPanelProps) {
       {list
         .filter((o) => o.id !== skip)
         .map((o) => (
-          <button key={o.id} type="button" className={["pp", isBench ? "bench" : "", value === o.id ? "on" : ""].filter(Boolean).join(" ")} aria-pressed={value === o.id} aria-label={`${verb} ${o.name}, dorsal ${o.num}`} onClick={() => set(o.id)}>
+          <button key={o.id} type="button" className={["pp", isBench ? "bench" : "", isGuestId(o.id) ? "guest" : "", value === o.id ? "on" : ""].filter(Boolean).join(" ")} aria-pressed={value === o.id} aria-label={`${verb} ${o.name}, dorsal ${o.num}`} onClick={() => set(o.id)}>
             <b>{o.num}</b>
             <small>{o.name}</small>
           </button>

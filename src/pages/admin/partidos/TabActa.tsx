@@ -14,6 +14,8 @@ import { AdIcon } from "../ui/icons";
 import { useToast } from "../ui/toastContext";
 import { addOurGoal, addRivalGoal, goalRows, newId, otherEvents, removeEvent, rivalRows, setAssist, setMinute, setScorer, upsertEvent, type MatchSheet } from "../acta/sheetModel";
 import { EventPanel } from "./EventPanel";
+import { GuestPanel } from "../kit/GuestPanel";
+import { addGuest, guestInUse, removeGuest } from "../acta/guests";
 import { GROUPS, groupOfEvent, kindLabel, pickOptions, type EventGroup } from "./pickModel";
 import { ScorerPicker } from "./ScorerPicker";
 import { cuentaOf, goalSub, goalWho, type Phase } from "./workspaceModel";
@@ -161,10 +163,34 @@ function ActaEditor({ matchId, sheet, update, review, rival, j, info, onGoConvoc
 
   const cuenta = cuentaOf(rows);
 
+  // ── the guests («Añadir invitado»: on the banquillo, in every picker at once) ──
+  const addGuestNamed = (name: string) => {
+    const r = addGuest(sheet, name);
+    if (!r.ok) return r.error;
+    update((s) => {
+      const next = addGuest(s, name);
+      return next.ok ? next.value : s;
+    });
+    toast.show({ tag: j, message: `${r.guest.name} (invitado), en el banquillo · ya sale en los selectores` });
+    return "";
+  };
+  const removeGuestId = (id: string) => {
+    const r = removeGuest(sheet, id);
+    if (!r.ok) {
+      toast.show({ tone: "error", message: r.error });
+      return;
+    }
+    update((s) => {
+      const next = removeGuest(s, id);
+      return next.ok ? next.value : s;
+    });
+  };
+
   return (
     <div className="acta">
       <div className="acol" ref={mainRef}>
         {matchId && <AnalysisEditor matchId={matchId} sheet={sheet} update={update} info={info} />}
+        <GuestPanel guests={sheet.guests ?? []} inUse={(id) => guestInUse(sheet.events, id)} onAdd={addGuestNamed} onRemove={removeGuestId} />
         <section aria-labelledby="ad-h-gp">
           <div className="ah">
             <h3 id="ad-h-gp">Goles del Piti</h3>

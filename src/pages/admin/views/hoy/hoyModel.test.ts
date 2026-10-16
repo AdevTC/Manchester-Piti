@@ -50,4 +50,9 @@ describe("Hoy · the peg wall", () => {
       ["FER", "Sin responder", true, false],
     ]);
   });
+  it("a guest in el siete: «INV», his name and «Invitado», never «Jugador» nor «Sin responder»", () => {
+    const w = pegWall({ starters: ["evans", "guest:g1"], bench: [], guests: [{ id: "g1", name: "Rafa" }] }, roster, rsvp);
+    expect(w.front[1]).toEqual({ id: "guest:g1", num: "INV", name: "Rafa", sub: "Invitado", duda: false });
+    expect(w.back.some((p) => p.id.startsWith("guest:"))).toBe(false);
+  });
 });

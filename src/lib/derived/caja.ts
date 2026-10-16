@@ -7,6 +7,7 @@
 import type { ClubMatch } from "../clubData";
 import { minutesOf } from "./minutesOf";
 import { madridDate, MONTHS_SHORT } from "./madrid";
+import { isGuestId } from "./guests";
 
 export type CajaKind = "cargo" | "pago" | "gasto" | "ingreso";
 export const CAJA_KINDS: readonly CajaKind[] = ["cargo", "pago", "gasto", "ingreso"];
@@ -256,11 +257,11 @@ export interface CostPlayers {
  */
 export function matchCostPlayers(m: CostMatch, order: (playerId: string) => number): CostPlayers {
   const starters = m.starters ?? [];
-  const convocados = unique([...starters, ...(m.bench ?? [])]);
+  const convocados = unique([...starters, ...(m.bench ?? [])]).filter((pid) => !isGuestId(pid)); // a guest pays nothing here
   const sort = (ids: string[]) => [...ids].sort((a, b) => order(a) - order(b) || (a < b ? -1 : a > b ? 1 : 0));
   if (m.status === "finished") {
     const legacy = !m.ledger || !Object.keys(m.ledger).length;
-    const named = unique([...convocados, ...Object.keys(m.ledger ?? {}), ...(m.events ?? []).flatMap((e) => [e.playerId ?? "", e.assistPlayerId ?? ""])]);
+    const named = unique([...convocados, ...Object.keys(m.ledger ?? {}), ...(m.events ?? []).flatMap((e) => [e.playerId ?? "", e.assistPlayerId ?? ""])]).filter((pid) => !isGuestId(pid));
     const played = named.filter((pid) => {
       const min = minutesOf(m, pid);
       return min === null || min > 0 || (legacy && starters.includes(pid));

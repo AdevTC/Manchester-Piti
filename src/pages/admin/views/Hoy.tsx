@@ -23,6 +23,7 @@ import { unwhistle } from "../data/whistleStore";
 import { LedBoard, Peg, PegRail, ResultMark, resultLetter, ShirtBack } from "../kit";
 import { LiveClock, LiveLog, LivePads, LivePicker } from "../live/LiveParts";
 import { liveLog } from "../live/liveModel";
+import { withGuestNames } from "../../../lib/liveActions";
 import { useLive } from "../live/useLive";
 import { useAdmin, useAdminGo } from "../shell/context";
 import { useFrame } from "../ui/frame";
@@ -367,7 +368,7 @@ function Final({ match, moment }: { match: AdminMatch; moment: MatchMoment }) {
         )}
       </>
     );
-  const rows = liveLog(match.events, match.rival ?? "el rival", nameOf);
+  const rows = liveLog(match.events, match.rival ?? "el rival", withGuestNames(match, nameOf));
   return (
     <section className="hB" aria-label={`El marcador de la ${j}: final`}>
       <LedBoard rival={match.rival ?? "Rival"} rivalLogoUrl={match.rivalLogoUrl} gf={gf} ga={ga} sub={sub} subTone="gd" ticker={tickerText(match, note)} flip={false} />

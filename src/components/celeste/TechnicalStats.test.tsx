@@ -244,3 +244,22 @@ describe("TechnicalStatsPanel · source actions", () => {
     expect(detail).toHaveTextContent("hacia JUAN");
   });
 });
+
+describe("invitados: fuera de las cifras por jugador", () => {
+  const GUEST_EVENTS: MatchEvent[] = [
+    { id: "g1", type: "pass", outcome: "complete", playerId: "p1", receiverId: "guest:g1", minute: 2 },
+    { id: "g2", type: "pass", outcome: "complete", playerId: "guest:g1", receiverId: "p2", minute: 3 },
+    { id: "g3", type: "shot", outcome: "on_target", playerId: "guest:g1", minute: 9, x: 50, y: 20, zone: "center" },
+  ];
+  const GUEST_MATCH: ClubMatch = { ...MATCH, id: "m2", guests: [{ id: "g1", name: "Rafa" }], bench: ["guest:g1"], events: GUEST_EVENTS };
+
+  it("a guest has no row nor link, the team keeps his actions, his shot says «Rafa (invitado)»", async () => {
+    const panel = await view({ matches: [GUEST_MATCH] });
+    expect(panel.querySelector('a[href*="guest"]')).toBeNull();
+    const rows = [...panel.querySelectorAll("tbody th[scope=row]")].map((th) => th.textContent ?? "");
+    expect(rows.some((r) => /Jugador|Rafa|guest/.test(r))).toBe(false);
+    expect([...within(rankCard()).getAllByRole("button")].map((b) => b.textContent ?? "").some((t) => /Jugador|Rafa/.test(t))).toBe(false);
+    expect([...panel.querySelectorAll("svg title")].map((t) => t.textContent).join(" ")).toMatch(/Rafa \(invitado\) · 9′/);
+    expect(kpi("Remates a puerta")).toMatch(/1 \/ 1/);
+  });
+});

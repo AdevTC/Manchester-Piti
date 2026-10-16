@@ -1,4 +1,6 @@
 /** Recorded actions, not estimates. Shared by publication, season totals and all charts. */
+import { isGuestId } from "./guests.js";
+
 export const ACTION_LABELS = {
   pass: "Pase", shot: "Remate", cross: "Centro", dribble: "Regate", tackle: "Entrada",
   interception: "Intercepción", recovery: "Recuperación", possession_lost: "Pérdida",
@@ -54,14 +56,17 @@ export function analyseActions(events: readonly AnalysisEvent[]) {
   const players: Record<string, TechnicalStats> = {};
   const links = new Map<string, { from: string; to: string; count: number; crosses: number }>();
   const shots: AnalysisEvent[] = [];
-  const player = (id: string) => players[id] ??= emptyTechnical();
+  // A guest («guest:g1», guests.ts) plays for the team: his actions count in the team's totals, never in
+  // a per-player row, a passing link or a member's shot-assist.
+  const scratch = emptyTechnical();
+  const player = (id: string) => (isGuestId(id) ? scratch : (players[id] ??= emptyTechnical()));
   const seen = new Set<string>();
   for (const e of events) {
     if (seen.has(e.id)) continue;
     seen.add(e.id);
     const side = eventSide(e);
     const team = teams[side];
-    const row = side === "us" && e.playerId ? player(e.playerId) : undefined;
+    const row = side === "us" && e.playerId && !isGuestId(e.playerId) ? player(e.playerId) : undefined;
     const add = (k: keyof TechnicalStats, n = 1) => { team[k] += n; if (row) row[k] += n; };
     const goal = ["goal", "goal_penalty", "goal_freekick", "opponent_goal"].includes(e.type);
     const pass = e.type === "pass" || e.type === "cross";
@@ -75,7 +80,7 @@ export function analyseActions(events: readonly AnalysisEvent[]) {
       if (e.keyPass) add("keyPasses");
       if (side === "us" && e.outcome === "complete" && e.receiverId) {
         player(e.receiverId).passesReceived++; team.passesReceived++;
-        if (e.playerId) { const key = `${e.playerId}>${e.receiverId}`; const edge = links.get(key) ?? { from: e.playerId, to: e.receiverId, count: 0, crosses: 0 }; edge.count++; if (cross) edge.crosses++; links.set(key, edge); }
+        if (e.playerId && !isGuestId(e.playerId) && !isGuestId(e.receiverId)) { const key = `${e.playerId}>${e.receiverId}`; const edge = links.get(key) ?? { from: e.playerId, to: e.receiverId, count: 0, crosses: 0 }; edge.count++; if (cross) edge.crosses++; links.set(key, edge); }
       }
     }
     if (e.type === "shot" || goal || ["woodwork", "penalty_missed"].includes(e.type)) {

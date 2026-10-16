@@ -20,6 +20,10 @@ import { RemindersToggle } from "../convocar/RemindersToggle";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
 import { joinNames, place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
 import { useConvocatoria } from "../data/useConvocatoria";
+import { GuestPanel } from "../kit/GuestPanel";
+import { addGuest, guestInUse, guestSlot, removeGuest } from "../acta/guests";
+import { guestRef, isGuestId } from "../../../lib/derived/guests";
+import { withGuestNames } from "../../../lib/liveActions";
 import { Peg, PegRail, ShirtBack } from "../kit";
 import { useMatchShortcuts } from "../palette/matchShortcuts";
 import { useAdmin, useAdminGo } from "../shell/context";
@@ -116,14 +120,18 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   const day = matchDay(dateMillis(match.date));
   const absentOf = (id: string) => absentBadge(answers.data.find((a) => a.playerId === id), absences, day);
   const groups = rsvpGroups(ids, rsvp);
-  const nameOf = (id: string) => roster.find((p) => p.id === id)?.name ?? "Jugador";
   const lineup = conv.lineup;
+  // (a guest: «Rafa (invitado)»)
+  const nameOf = withGuestNames(lineup, (id: string) => roster.find((p) => p.id === id)?.name ?? "Jugador");
   const status = conv.status;
   const n = lineup.starters.length;
   const full = n >= SEVEN;
   const called = n + lineup.bench.length;
   const j = jLabel(match);
+  // (the guests on the front pegs: «INV» on the shirt, his name, «Invitado» under it — pegWall)
   const front = pegWall(lineup, roster, rsvp).front;
+  const guests = lineup.guests ?? [];
+  const guestBench = guests.filter((g) => lineup.bench.includes(guestRef(g.id)));
   const pool = poolGroups(roster, lineup, rsvp);
   const bench = benchOf(roster, lineup);
   const copy = copyFrom(data.matches, match, lineup, ids);
@@ -142,6 +150,27 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
     setHung(hangs ? id : null);
     if (hangs) toast.show({ tag: j, message: `${nameOf(id)} al siete · la pizarra y el acta ya lo ven${status.notified ? " · falta avisar" : ""}`, undo: () => conv.set(before) });
   };
+  // «Añadir invitado» (to the banquillo) / «Quitar» (while no event names him)
+  const addGuestNamed = (name: string) => {
+    const r = addGuest({ ...lineup, guests }, name);
+    if (!r.ok) return r.error;
+    conv.set({ starters: r.value.starters, bench: r.value.bench, guests: r.value.guests });
+    toast.show({ tag: j, message: `${r.guest.name} (invitado), al banquillo · el acta y En juego ya lo ven${status.notified ? " · falta avisar" : ""}` });
+    return "";
+  };
+  const removeGuestId = (id: string) => {
+    const r = removeGuest({ ...lineup, guests, events: match.events }, id);
+    if (!r.ok) {
+      toast.show({ tone: "error", message: r.error });
+      return;
+    }
+    const before = lineup;
+    conv.set({ starters: r.value.starters, bench: r.value.bench, guests: r.value.guests });
+    toast.show({ tag: j, message: "Invitado quitado de la convocatoria", undo: () => conv.set(before) });
+  };
+  const guestPanel = (
+    <GuestPanel guests={guests} inUse={(id) => guestInUse(match.events, id)} slotOf={(id) => guestSlot(lineup, id)} onPlace={(id, slot) => setSlot(guestRef(id), slot)} onAdd={addGuestNamed} onRemove={removeGuestId} />
+  );
   const free = () => toast.show({ tag: j, message: "Toca «Siete» en un jugador de la lista para colgarlo aquí" });
   const publish = () => {
     if (!full) {
@@ -230,6 +259,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
                     size={44}
                     state={p.id ? "" : "empty"}
                     fresh={!!p.id && p.id === hung}
+                    className={p.id && isGuestId(p.id) ? "guest" : ""}
                     onClick={p.id ? () => setSlot(p.id as string, "B") : free}
                     ariaLabel={frontAria(p.id)}
                   />
@@ -244,12 +274,18 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
                       {p.number ?? ""} {p.name}
                     </span>
                   ))
-                : "nadie todavía"}
+                : guestBench.length ? "" : "nadie todavía"}
+              {guestBench.map((g) => (
+                <span key={g.id} className="bqi">
+                  INV {g.name} (invitado)
+                </span>
+              ))}
             </p>
           </section>
           {copyBtn}
           {pizarraCheck}
           <Pool groups={pool} onSet={setSlot} empty={!roster.length} absentOf={absentOf} />
+          {guestPanel}
           <SourceNote />
           {remindersEl}
         </div>
@@ -294,6 +330,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
                 big
                 state={p.id ? "" : "empty"}
                 fresh={!!p.id && p.id === hung}
+                className={p.id && isGuestId(p.id) ? "guest" : ""}
                 onClick={p.id ? () => setSlot(p.id as string, "B") : free}
                 ariaLabel={frontAria(p.id)}
               />
@@ -301,16 +338,20 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
           </PegRail>
           <div>
             <p className="ch3" style={{ marginBottom: 8 }}>
-              Banquillo <em>{bench.length}</em>
+              Banquillo <em>{bench.length + guestBench.length}</em>
             </p>
             <div className="bq">
-              {bench.length ? (
-                bench.map((p) => <Peg key={p.id} num={p.number} label={p.name} size={52} className="nop" onClick={() => setSlot(p.id, "B")} ariaLabel={`Quitar a ${p.name} del banquillo`} />)
+              {bench.length || guestBench.length ? (
+                <>
+                  {bench.map((p) => <Peg key={p.id} num={p.number} label={p.name} size={52} className="nop" onClick={() => setSlot(p.id, "B")} ariaLabel={`Quitar a ${p.name} del banquillo`} />)}
+                  {guestBench.map((g) => <Peg key={g.id} num="INV" label={g.name} sub="Invitado" size={52} className="nop guest" onClick={() => setSlot(guestRef(g.id), "B")} ariaLabel={`Quitar a ${g.name}, invitado, del banquillo`} />)}
+                </>
               ) : (
                 <p className="hint">Nadie en el banquillo todavía.</p>
               )}
             </div>
           </div>
+          {guestPanel}
           {pizarraCheck}
           <SourceNote />
           {remindersEl}

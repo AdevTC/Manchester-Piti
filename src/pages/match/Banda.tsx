@@ -11,7 +11,8 @@ import { liveSides } from "../admin/live/liveModel";
 import { useClock } from "../../hooks/useClock";
 import { liveMinute, shownOffset } from "../../lib/partidos";
 import { Icon } from "../../components/celeste/icons";
-import { LIVE_ACTIONS, buildLiveEvent, liveAction, liveReady, type LiveActionType } from "../../lib/liveActions";
+import { LIVE_ACTIONS, buildLiveEvent, guestsLast, liveAction, liveReady, type LiveActionType } from "../../lib/liveActions";
+import { isGuestId } from "../../lib/derived/guests";
 
 export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string) => string }) {
   const [quick,setQuick] = useState(true);
@@ -35,7 +36,8 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
   const { field: pitch, bench } = liveSides(match.starters, match.bench, match.events);
   const act = action ? liveAction(action) : null;
   const needsPlayer = !!act && act.player !== "none";
-  const options = act?.pool === "squad" ? [...pitch, ...bench] : pitch;
+  // (the guests after the members: liveSides orders each side, and the convocatoria as a whole here)
+  const options = act?.pool === "squad" ? guestsLast([...pitch, ...bench]) : pitch;
   const secondList = act?.second === "assist" ? pitch.filter((id) => id !== player) : act?.second === "in" ? bench : [];
 
   const reset = () => {
@@ -123,7 +125,7 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
               </button>
             )}
             {options.map((id) => (
-              <button key={id} type="button" aria-pressed={player === id} onClick={() => pickPlayer(id)}>
+              <button key={id} type="button" className={isGuestId(id) ? "guest" : undefined} aria-pressed={player === id} onClick={() => pickPlayer(id)}>
                 {nameOf(id)}
               </button>
             ))}
@@ -135,7 +137,7 @@ export function Banda({ match, nameOf }: { match: ClubMatch; nameOf: (id: string
           <span className="hm-kick">{act.second === "assist" ? `${act.askSecond} (opcional)` : act.askSecond}</span>
           <div className="fc-pick">
             {secondList.map((id) => (
-              <button key={id} type="button" aria-pressed={second === id} onClick={() => setSecond(second === id ? null : id)}>
+              <button key={id} type="button" className={isGuestId(id) ? "guest" : undefined} aria-pressed={second === id} onClick={() => setSecond(second === id ? null : id)}>
                 {nameOf(id)}
               </button>
             ))}

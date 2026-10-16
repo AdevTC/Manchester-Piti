@@ -1,4 +1,5 @@
 import { QuickMatchEntry } from "../../../components/celeste/QuickMatchEntry";
+import { withGuestNames } from "../../../lib/liveActions";
 import { MatchClockControl } from "../../../components/celeste/MatchClockControl";
 // En juego (/admin/en-juego/$matchId), as on the canvas (stats-gen/ad-v2-full.mjs `mJuego`, `heroJuego`;
 // shots-adv2f/m-enjuego.png, hoy-juego.png). Phones (primary; the bar hides): back to Hoy, the «EN JUEGO»
@@ -206,7 +207,7 @@ function Live({ match }: { match: AdminMatch }) {
         <div className="lvb">
           {control}
           {mode}
-          <div hidden={!quick}><QuickMatchEntry key={match.id} match={match} nameOf={nameOf}/></div>
+          <div hidden={!quick}><QuickMatchEntry key={match.id} match={match} nameOf={withGuestNames(match, nameOf)}/></div>
           <div className="lvh">
             <h3>Lo que va pasando</h3>
             {!quick && undo}
@@ -265,7 +266,7 @@ function Live({ match }: { match: AdminMatch }) {
             </h3>
             {control}
             {mode}
-            <div hidden={!quick}><QuickMatchEntry key={match.id} match={match} nameOf={nameOf}/></div>
+            <div hidden={!quick}><QuickMatchEntry key={match.id} match={match} nameOf={withGuestNames(match, nameOf)}/></div>
             {!quick && pads}
           </div>
         </div>

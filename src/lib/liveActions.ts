@@ -8,6 +8,7 @@
 import type { LIVE_TYPES } from "../../functions/src/liveLogic";
 import { allowedAtBreak } from "../../functions/src/liveRules";
 import type { IconName } from "../components/celeste/icons";
+import { isGuestId, withGuestNames } from "./derived/guests";
 
 /** The event types the liveEvent callable accepts (functions/src/liveLogic.ts). */
 export type LiveEventType = (typeof LIVE_TYPES)[number];
@@ -134,3 +135,12 @@ export function liveReady(act: LiveAction, choices: LiveChoices & { later?: bool
   if (act.second === "in" && !choices.inPlayerId) return false;
   return true;
 }
+
+/** The pickers' order: the members first, then the guests («Invitados en el acta»), each group as it came. */
+export function guestsLast(ids: readonly string[]): string[] {
+  return [...ids.filter((id) => !isGuestId(id)), ...ids.filter((id) => isGuestId(id))];
+}
+
+/** A `nameOf` that says a guest's reference as «Rafa (invitado)» and leaves the members to `nameOf` — the one
+ *  of functions/src/guests.ts, re-exported for the live screens. */
+export { withGuestNames };

@@ -2,17 +2,19 @@
 // «Lo demás» — its four groups (Tarjetas · Cambios · Penaltis · Otros), the kinds each «+» offers and the
 // checks of a new or edited event.
 import type { EventType, MatchEvent } from "../../../../functions/src/matchEngine";
+import { isGuestId } from "../../../lib/derived/guests";
+import { guestsLast } from "../../../lib/liveActions";
 
 export interface PickOption {
   id: string;
   num: string;
   name: string;
 }
-/** Dorsal buttons for a list of player ids. */
+/** Dorsal buttons for a list of player ids: the members, then the guests («INV» where the dorsal goes). */
 export function pickOptions(ids: readonly string[], info: (id: string) => { name: string; number: number | null }): PickOption[] {
-  return ids.map((id) => {
+  return guestsLast(ids).map((id) => {
     const p = info(id);
-    return { id, num: p.number != null ? String(p.number) : "—", name: p.name };
+    return { id, num: isGuestId(id) ? "INV" : p.number != null ? String(p.number) : "—", name: p.name };
   });
 }
 

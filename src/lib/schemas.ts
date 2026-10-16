@@ -2,6 +2,7 @@ import { z } from "zod";
 import { reportDroppedDoc } from "./docTelemetry";
 import { SYSTEM_IDS } from "./formations";
 import { POS_CODES } from "./positions";
+import { GUEST_ID_RE, GUEST_NAME_MAX, MAX_GUESTS } from "./derived/guests";
 
 /**
  * Firestore Timestamp-ish (tiene toMillis) o Date o número epoch.
@@ -71,6 +72,12 @@ export const seasonMatchSchema = z.looseObject({
   date: firestoreDate.optional(),
   // Ver nota arriba: array-o-ausente, nunca descarta el doc (.catch).
   events: z.array(z.unknown()).optional().catch(undefined),
+  // Invitados en el acta (derived/guests): 0–4 named guests; a malformed list is dropped, never the match.
+  guests: z
+    .array(z.object({ id: z.string().regex(GUEST_ID_RE), name: z.string().min(1).max(GUEST_NAME_MAX) }))
+    .max(MAX_GUESTS)
+    .optional()
+    .catch(undefined),
 });
 export type SeasonMatchDoc = z.infer<typeof seasonMatchSchema>;
 

@@ -10,6 +10,7 @@ import { resultOf } from "../../lib/partidos";
 import { calendarOrder, jornadaLabel, jornadaNumbers } from "../../lib/derived/jornada";
 import { resultTitle, type ResultLetter } from "../../lib/derived/result";
 import { wholeMinutes } from "../../lib/derived/minutes";
+import { isGuestId } from "../../lib/derived/guests";
 import { bestPartner, mvpWinners, mvpWins, vitrina, type MvpResult } from "../../lib/vestuario";
 import { suspensions } from "../pizarra/chemistry";
 import type { Zone } from "../pizarra/formations";
@@ -304,7 +305,8 @@ export function evoluciones(playerId: string | null, matches: ClubMatch[], resul
     for (const e of m.events ?? []) {
       if (!GOAL_TYPES.has(e.type) || !e.playerId || !e.assistPlayerId || e.playerId === e.assistPlayerId) continue;
       const other = e.playerId === id ? e.assistPlayerId : e.assistPlayerId === id ? e.playerId : null;
-      if (other) pairs.set(other, (pairs.get(other) ?? 0) + 1);
+      // (a guest is no «socio»: the Dúo counts members only)
+      if (other && !isGuestId(other)) pairs.set(other, (pairs.get(other) ?? 0) + 1);
     }
   const combos = Math.max(0, ...pairs.values());
   const duoWith = [...pairs.entries()].find(([, n]) => n === combos && n > 0)?.[0];

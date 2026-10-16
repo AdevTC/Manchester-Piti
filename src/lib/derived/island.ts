@@ -6,6 +6,7 @@ import { dateMillis, matchPhase, type ClubMatch } from "../clubData";
 import { eventMinute, OURS, scoreOf } from "../partidos";
 import { kickoffState } from "./kickoff";
 import { isVisibleMatch } from "../../../functions/src/matchEngine";
+import { withGuestNames } from "./guests";
 
 /** How long «FINAL» stays in the island after the whistle. */
 export const FINAL_HOLD_MS = 30 * 60_000;
@@ -74,7 +75,7 @@ export interface GoalMoment {
 
 /** The island's line for goal `goalId` of `match` (the score is the match's now, PITI first); null when the
  *  goal is gone (undone) or isn't a goal. `nameOf` names a player in the match's season (nameFor). */
-export function goalMoment(match: Pick<ClubMatch, "events" | "rival" | "status" | "goalsFor" | "goalsAgainst">, goalId: string, nameOf: (id: string) => string): GoalMoment | null {
+export function goalMoment(match: Pick<ClubMatch, "events" | "rival" | "status" | "goalsFor" | "goalsAgainst" | "guests">, goalId: string, nameOf: (id: string) => string): GoalMoment | null {
   if (!isVisibleMatch(match)) return null;
   const e = match.events?.find((x) => x.id === goalId);
   if (!e) return null;
@@ -89,7 +90,7 @@ export function goalMoment(match: Pick<ClubMatch, "events" | "rival" | "status" 
     return { ours, head: null, rest, text: rest, said: `Gol de ${rival}. ${board}` };
   }
   const minute = eventMinute(e);
-  const who = e.type === "opponent_own_goal" ? `autogol de ${rival}` : e.playerId ? nameOf(e.playerId) : "el Piti";
+  const who = e.type === "opponent_own_goal" ? `autogol de ${rival}` : e.playerId ? withGuestNames(match, nameOf)(e.playerId) : "el Piti";
   const rest = `${who.toLocaleUpperCase("es")}${minute !== null ? ` ${minute}′` : ""} · ${score}`;
   return { ours, head: "¡GOL!", rest, text: `¡GOL! ${rest}`, said: `¡Gol del Piti! ${who}${minute !== null ? `, minuto ${minute}` : ""}. ${board}` };
 }
