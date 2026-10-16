@@ -10,9 +10,9 @@ When a season ends, each member gets their season as a story of 10 cards. They s
 ## Where and when
 - **Perfil › Temporada:** a «Tu temporada en 10 cromos» block, for linked members with at least one match played in that season.
 - **Available:**
-  - when the season is closed (archived, or no matches left to play with its last acta published);
+  - when the season is closed: archived, or a later season is already the club's current one (its last match is offered for 30 days);
   - for the current season from its 10th played match, labelled «hasta ahora».
-- **Vestuario:** a single banner during the 14 days after the season closes: «Ya está tu temporada en cromos».
+- **Vestuario:** a single banner while the season is closed and within 30 days of its last match: «Ya está tu temporada en cromos».
 - Members only. The public jugador page doesn't get it (out of scope).
 
 ## The 10 cards

@@ -22,7 +22,9 @@ import { TabAvisos } from "./TabAvisos";
 import { TabCapitania } from "./TabCapitania";
 import { TabCuenta } from "./TabCuenta";
 import { TabTemporada } from "./TabTemporada";
-import { deepHash, forgetDeepHash, hashOf, slideDir, tabFromHash, tabsFor, type TabId } from "./tabs";
+import { recapShirt } from "./recapView";
+import { CROMOS_HASH, deepHash, forgetDeepHash, hashOf, slideDir, tabFromHash, tabsFor, wantsCromos, type TabId } from "./tabs";
+import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { prefersReducedMotion, usePauseHidden, usePauseOffscreen, useReducedMotion, useTilt } from "./useMotion";
 import type { SetShirtNameResult } from "./api";
 import type { PositionSet } from "../../lib/positions";
@@ -166,13 +168,20 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
   const isCaptain = data.isCaptain;
   const tabs = tabsFor(isCaptain);
   const ids = tabs.map((t) => t.id);
-  const [tabWanted, setTab] = useState<TabId>(() => tabFromHash(deepHash(), true) ?? "carta");
+  const [tabWanted, setTab] = useState<TabId>(() => tabFromHash(deepHash(), true) ?? (wantsCromos(deepHash()) ? "temp" : "carta"));
   const [dir, setDir] = useState<"l" | "r" | null>(null);
   const tab: TabId = ids.includes(tabWanted) ? tabWanted : "carta";
-  const deep = useRef(!!tabFromHash(deepHash(), true));
+  const deep = useRef(!!tabFromHash(deepHash(), true) || wantsCromos(deepHash()));
+  // «Tu temporada en cromos»: open over Temporada, in the URL as #cromos (the vestuario's banner links there)
+  const [storyWanted, setStory] = useState(() => wantsCromos(deepHash()));
   useEffect(() => forgetDeepHash(), []);
   useEffect(() => {
     const onHash = () => {
+      if (wantsCromos(window.location.hash)) {
+        setTab("temp");
+        setStory(true);
+        return;
+      }
       const t = tabFromHash(window.location.hash, isCaptain);
       if (t) setTab(t);
     };
@@ -186,9 +195,27 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
     const t = window.setTimeout(() => document.getElementById("pe-menu")?.scrollIntoView?.({ behavior: "auto", block: "start" }), 120);
     return () => window.clearTimeout(t);
   }, [ready]);
+  const setHash = (h: string) => {
+    try {
+      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + h);
+    } catch {
+      /* sandboxed: the story still opens */
+    }
+  };
+  const openStory = () => {
+    buzz(12);
+    setStory(true);
+    setHash("#" + CROMOS_HASH);
+  };
+  const closeStory = useCallback(() => {
+    setStory(false);
+    setHash(hashOf("temp"));
+  }, []);
+  const theme = useDocumentTheme();
   const goTab = (id: TabId, then?: string, focus?: string) => {
     setDir(slideDir(tab, id, ids));
     setTab(id);
+    setStory(false);
     try {
       window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + hashOf(id));
     } catch {
@@ -226,6 +253,8 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
   const nick = nickPin ?? data.nickname;
   const state = data.ficha.state;
   const vinc = state === "vinculada";
+  // A #cromos link with nothing on offer: forget it once the data is in (or it opens later on its own).
+  if (ready && storyWanted && !(vinc && data.recap)) setStory(false);
 
   // ── the reveal: the captain says yes while you are here → the walkout plays again + toast
   const [seenState, setSeenState] = useState(ready ? state : null);
@@ -472,6 +501,11 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
         stuffLoading={data.stuff.loading}
         onGoPick={goPick}
         played={vinc && data.played ? { played: data.played, positions: data.positions?.approved ?? null, nudge: positionsNudge(data.played, data.positions), onGoPositions: () => goTab("carta", "pe-posiciones") } : null}
+        cromos={
+          vinc && data.recap
+            ? { offer: data.recap, ctx: { theme, shirt: recapShirt(data.recap.recap) }, open: storyWanted, rm, onOpen: openStory, onClose: closeStory }
+            : null
+        }
       />
     ) : tab === "avisos" ? (
       <TabAvisos isCaptain={isCaptain} testName={vinc ? shirt : upper(nick)} next={data.next ? { rival: data.next.rival, j: data.next.j } : null} upcoming={data.upcoming} feed={origin + "/calendario.ics"} say={say} rm={rm} />

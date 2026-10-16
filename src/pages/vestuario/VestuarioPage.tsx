@@ -30,6 +30,8 @@ import { BestPartner, FirstSteps, SeasonFeats, SeasonPlaceholder, Vitrina } from
 import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
 import { Caja } from "./Caja";
 import { Ausencias } from "./Ausencias";
+import { RecapBanner } from "./RecapBanner";
+import { recapBannerSeason } from "../perfil/recapView";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { ClubDataError } from "../../components/celeste/StatePanel";
 import { HoyCard } from "../../components/celeste/HoyCard";
@@ -125,6 +127,12 @@ export function VestuarioPage() {
     () => (playerId ? vitrina(playerId, matches, mvpResults, seasons, minute * 60_000) : []),
     [playerId, matches, mvpResults, seasons, minute],
   );
+  // «Ya está tu temporada en cromos»: the previous season's recap, closed, up to 30 days after its last
+  // match (members with a ficha). Only the cheap window and the season's name: no recap, no porra.
+  const recapBanner = useMemo(
+    () => (viewer.member && playerId ? recapBannerSeason({ matches, players, seasons, mvpResults, uid, now: minute * 60_000 }, playerId, seasonId) : null),
+    [viewer.member, playerId, matches, players, seasons, mvpResults, uid, minute, seasonId],
+  );
   const partner = useMemo(() => (playerId ? bestPartner(playerId, matches, players.map((p) => p.id)) : null), [playerId, matches, players]);
   const steps = firstSteps({
     linked: !!playerId,
@@ -184,6 +192,7 @@ export function VestuarioPage() {
         {/* The club's matches and players did not arrive (the board, the porra and the rest have their own
             reads and stay): say so, instead of a season of zeros. */}
         {error && <ClubDataError compact />}
+        {recapBanner && <RecapBanner seasonName={recapBanner} />}
         {summary ? (
           <div className="vx-you">
             <SeasonFeats s={summary} firstName={capitalize(firstName)} seasonName={seasonName} playerName={nameOf} />

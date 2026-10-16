@@ -11,6 +11,9 @@ import { vars } from "./fx";
 import { Ic, type PIcon } from "./icons";
 import { firstMatchText, jornadaRange, longDay, type StuffLine, type StuffLink } from "./lines";
 import { RESULT_LEGEND } from "../../lib/derived/result";
+import { CREST } from "./icons";
+import { RecapStory } from "./RecapStory";
+import type { RecapCtx, RecapOffer } from "./recapView";
 
 /** The goal bars keep a readable width on a phone: the last 10 jornadas at most. */
 export const GB_MAX = 10;
@@ -38,7 +41,51 @@ export interface PlayedField {
   onGoPositions: () => void;
 }
 
-export function TabTemporada({ card, seasonId, seasonName, stuff, stuffLoading, onGoPick, played }: { card: CardView; seasonId: string; seasonName: string; stuff: StuffLine[]; stuffLoading: boolean; onGoPick: () => void; played: PlayedField | null }) {
+/** «Tu temporada en 10 cromos»: the recap on offer (linked members, when recapAvailable says so) and its story. */
+export interface CromosField {
+  offer: RecapOffer;
+  ctx: RecapCtx;
+  open: boolean;
+  rm: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}
+
+function Cromos({ c }: { c: CromosField }) {
+  const partial = c.offer.status === "partial";
+  const r = c.offer.recap;
+  const count = r.cards.length;
+  return (
+    <div className="bk" id="pe-cromos">
+      <h3 className="bk-h">Tu temporada en 10 cromos</h3>
+      <div className="rc-peek">
+        <span className="rc-stack" aria-hidden="true">
+          <i />
+          <i />
+          <i>
+            <img src={CREST} alt="" />
+          </i>
+        </span>
+        <span className="rc-peek-t">
+          {partial && <span className="rc-tag">Hasta ahora</span>}
+          <b>{r.seasonName}</b>
+          <span>
+            {partial
+              ? `Tu temporada hasta ahora en ${count} cromos: se completa cuando acabe.`
+              : `Tu temporada en ${count} cromos. Pásalos y comparte el que quieras.`}
+          </span>
+        </span>
+      </div>
+      <button type="button" id="rc-open" className="rc-open" onClick={c.onOpen} aria-haspopup="dialog">
+        <Ic n="spark" w={18} />
+        Ver mis cromos
+      </button>
+      {c.open && <RecapStory recap={r} ctx={c.ctx} rm={c.rm} onClose={c.onClose} returnFocusId="rc-open" />}
+    </div>
+  );
+}
+
+export function TabTemporada({ card, seasonId, seasonName, stuff, stuffLoading, onGoPick, played, cromos = null }: { card: CardView; seasonId: string; seasonName: string; stuff: StuffLine[]; stuffLoading: boolean; onGoPick: () => void; played: PlayedField | null; cromos?: CromosField | null }) {
   const vinc = card.state === "vinculada";
   // the season on the public pages it links to («all» or none adds no ?season=)
   const season = seasonId && seasonId !== "all" ? { season: seasonId } : {};
@@ -69,6 +116,7 @@ export function TabTemporada({ card, seasonId, seasonName, stuff, stuffLoading, 
       )}
       {vinc && (
         <>
+          {cromos && <Cromos c={cromos} />}
           <div className="bk">
             <h3 className="bk-h">Tus números</h3>
             <p className="bk-d">{card.started ? `${seasonName}, ${range}: lo mismo que ve el vestuario en tu cartel.` : `La ${seasonName} aún no ha empezado: todo a cero.`}</p>

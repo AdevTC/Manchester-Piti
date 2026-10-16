@@ -1,0 +1,106 @@
+/* «Tu temporada en 10 cromos»: the story viewer (a full-screen night frame on a phone, a centred 9:16
+   frame on a desktop), the perfil block's opener and the vestuario banner. The cromo is always the night
+   stadium of the share studio (.pv), in both themes; the page around it follows the theme. */
+
+/* ── the viewer */
+.vx.pcv.rc-m{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;min-height:0;overflow:hidden;background:transparent}
+.pcv .rc-bg{position:absolute;inset:0;background:rgba(3,8,23,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+[data-theme="light"] .pcv .rc-bg{background:rgba(12,23,51,.6)}
+.pcv .rc{position:relative;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto auto;gap:12px;width:100%;height:100svh;padding:calc(10px + env(safe-area-inset-top,0px)) 16px calc(12px + env(safe-area-inset-bottom,0px));overflow:hidden;isolation:isolate;color:#eef4ff;background:radial-gradient(90% 55% at 50% 38%,#1b3c80,#0a1a42 55%,#02050f)}
+.pcv .rc::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 28px);-webkit-mask:linear-gradient(transparent 55%,#000);mask:linear-gradient(transparent 55%,#000)}
+@media (min-width:768px){
+  .vx.pcv.rc-m{padding:24px}
+  .pcv .rc{width:auto;height:min(calc(100svh - 48px),900px);aspect-ratio:9/16;padding:14px 20px 16px;border-radius:24px;box-shadow:0 30px 70px -24px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.12)}
+}
+
+.pcv .rc-prog{display:grid;gap:4px}
+.pcv .rc-prog i{display:block;height:4px;border-radius:2px;background:rgba(255,255,255,.2)}
+.pcv .rc-prog i.done{background:rgba(238,244,255,.75)}
+.pcv .rc-prog i.on{background:#FFC659;box-shadow:0 0 10px rgba(255,198,89,.55)}
+
+.pcv .rc-top{display:flex;align-items:center;gap:10px;min-width:0}
+.pcv .rc-top img{flex:0 0 auto;border-radius:50%}
+.pcv .rc-club{display:grid;flex:1;min-width:0;font-family:'Geist Mono';font-size:11px;font-weight:600;letter-spacing:.16em;color:#eef4ff}
+.pcv .rc-club small{font-size:11px;font-weight:500;letter-spacing:.04em;color:#9fb3d3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcv .rc-x{display:inline-grid;place-items:center;width:44px;height:44px;flex:0 0 auto;border:0;border-radius:12px;background:rgba(255,255,255,.08);color:#eef4ff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);cursor:pointer}
+
+.pcv .rc-stage{position:relative;min-height:0;touch-action:pan-y}
+.pcv .rc-card{container-type:inline-size}
+.pcv .rc-card{display:flex;flex-direction:column;justify-content:center;gap:16px;height:100%;padding:8px 6px;overflow:hidden;overflow-wrap:anywhere}
+.pcv .rc-anim{animation:rc-in .32s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rc-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.pcv .rc-tap{position:absolute;top:0;bottom:0;z-index:1;padding:0;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pcv .rc-tap.l{left:0;width:34%}
+.pcv .rc-tap.r{right:0;width:66%}
+
+.pcv .rc-kk{display:flex;align-items:center;gap:10px;margin:0;font-family:'Geist Mono';font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#9fd0f2}
+.pcv .rc-kk::before{content:"";width:5px;height:18px;border-radius:2px;background:#FFC659;box-shadow:0 0 10px rgba(255,198,89,.6);flex:0 0 auto}
+.pcv .rc-big{margin:0;font-family:'Anybody';font-weight:800;font-size:clamp(72px,24cqi,132px);line-height:.88;letter-spacing:-.03em;font-variation-settings:'wdth' 112;color:#ffffff}
+.pcv .rc-big span{display:block;margin-top:10px;font-size:clamp(22px,6.4cqi,30px);line-height:1;letter-spacing:0;color:#c9d8ef;font-variation-settings:'wdth' 104;text-transform:uppercase}
+.pcv .rc-name{font-size:clamp(40px,13cqi,72px);line-height:.95;text-transform:uppercase}
+.pcv .rc-words{font-size:clamp(40px,12cqi,64px);line-height:.98;text-transform:uppercase}
+.pcv .rc-num{margin:0;font-family:'Anybody';font-weight:800;font-size:clamp(96px,32cqi,168px);line-height:.85;color:#FFC659;font-variation-settings:'wdth' 112;text-shadow:0 0 30px rgba(255,198,89,.35)}
+.pcv .rc-sub{margin:0;font-family:'Geist Mono';font-size:13px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#9fb3d3}
+.pcv .rc-pair{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;margin:0;padding-top:14px;border-top:1px solid rgba(255,255,255,.14)}
+.pcv .rc-pair b{font-family:'Anybody';font-weight:800;font-size:44px;line-height:1;color:#FFC659;font-variation-settings:'wdth' 108}
+.pcv .rc-pair span{font-size:15px;color:#c9d8ef}
+.pcv .rc-note{display:grid;gap:4px;margin:0;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.pcv .rc-note span{font-size:13px;color:#9fb3d3}
+.pcv .rc-note span:first-child{font-family:'Geist Mono';font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.pcv .rc-note b{font-size:18px;color:#eef4ff}
+
+.pcv .rc-pos,.pcv .rc-med,.pcv .rc-gep{list-style:none;margin:0;padding:0}
+.pcv .rc-pos{display:grid;gap:12px}
+.pcv .rc-pos li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:baseline}
+.pcv .rc-pos-t{font-size:15px;color:#c9d8ef}
+.pcv .rc-pos-t b{display:inline-block;min-width:44px;font-family:'Geist Mono';font-size:13px;color:#eef4ff}
+.pcv .rc-pos-m{font-family:'Geist Mono';font-size:13px;font-weight:600;color:#eef4ff}
+.pcv .rc-pos i{grid-column:1/-1;display:block;height:6px;border-radius:3px;background:#6CABDD;box-shadow:0 0 12px rgba(108,171,221,.45)}
+.pcv .rc-med{display:grid;gap:8px}
+.pcv .rc-med li{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 14px;border-radius:12px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);font-weight:600;color:#eef4ff}
+.pcv .rc-med li svg{color:#FFC659}
+.pcv .rc-gep{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pcv .rc-gep li{display:grid;justify-items:center;gap:6px;padding:14px 4px;border-radius:14px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.pcv .rc-gep b{font-family:'Anybody';font-weight:800;font-size:56px;line-height:.9;color:#ffffff;font-variation-settings:'wdth' 112}
+.pcv .rc-gep span{font-family:'Geist Mono';font-size:14px;font-weight:700;letter-spacing:.12em;color:#9fd0f2}
+.pcv .rc-crest{width:96px;height:96px;filter:drop-shadow(0 10px 24px rgba(0,0,0,.55))}
+
+.pcv .rc-act{display:grid;grid-template-columns:48px minmax(0,1fr) minmax(0,1fr) 48px;gap:8px}
+.pcv .rc-b{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:44px;min-height:48px;padding:0 10px;border:0;border-radius:12px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:#eef4ff;font:600 14px/1.1 inherit;white-space:nowrap;cursor:pointer}
+.pcv .rc-b.rc-main{background:#FFC659;box-shadow:none;color:#0c1733}
+.pcv .rc-b[disabled]{opacity:.4;cursor:default}
+.pcv .rc-b[aria-busy=true]{opacity:.8;cursor:progress}
+.pcv .rc-count{margin:0;text-align:center;font-family:'Geist Mono';font-size:12px;letter-spacing:.08em;color:#9fb3d3}
+.pcv .rc button:focus-visible{outline:3px solid #FFC659;outline-offset:2px}
+.pcv.rc-m .pf-toast-rail{position:absolute;bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+
+.pcv.rc-rm .rc-anim{animation:none}
+@media (prefers-reduced-motion:reduce){.pcv .rc-anim{animation:none}}
+
+/* ── the perfil block (Perfil › Temporada) */
+.pcv .rc-peek{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
+.pcv .rc-stack{position:relative;width:64px;height:104px}
+.pcv .rc-stack i{position:absolute;inset:0;border-radius:10px;background:radial-gradient(90% 55% at 50% 38%,#1b3c80,#0a1a42 60%,#02050f);box-shadow:0 0 0 1px rgba(255,255,255,.16),0 10px 20px -10px rgba(0,0,0,.7)}
+.pcv .rc-stack i:nth-child(1){transform:rotate(-8deg) translateX(-6px)}
+.pcv .rc-stack i:nth-child(2){transform:rotate(5deg) translateX(6px)}
+.pcv .rc-stack i:nth-child(3){display:grid;place-items:center}
+.pcv .rc-stack img{width:30px;height:30px}
+.pcv .rc-peek-t{display:grid;gap:4px;min-width:0}
+.pcv .rc-peek-t b{font-family:'Anybody';font-weight:800;font-size:22px;line-height:1.05;text-transform:uppercase;font-variation-settings:'wdth' 104}
+.pcv .rc-peek-t span{font-size:13.5px;line-height:1.45;color:var(--muted)}
+.pcv .rc-tag{justify-self:start;display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:6px;background:var(--chip-gold);color:var(--gold-ink);font-family:'Geist Mono';font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.pcv .rc-open{display:inline-flex;align-items:center;justify-content:center;gap:8px;justify-self:start;min-height:48px;padding:0 18px;border:0;border-radius:12px;background:#FFC659;color:#0c1733;font-weight:700;font-size:14px;cursor:pointer}
+[data-theme="light"] .pcv .rc-open{background:#0c1733;color:#ffffff}
+
+/* ── the vestuario banner (14 days after the season closes) */
+.rc-ban{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center;margin-top:40px;padding:18px;border-radius:18px;background:var(--bg2);box-shadow:inset 0 0 0 1px rgba(159,179,211,.28)}
+.rc-ban-st{display:grid;place-items:center;width:56px;height:92px;border-radius:10px;background:radial-gradient(90% 55% at 50% 38%,#1b3c80,#0a1a42 60%,#02050f);box-shadow:0 0 0 1px rgba(255,255,255,.16),8px 6px 0 -2px rgba(108,171,221,.35)}
+.rc-ban-st img{width:28px;height:28px}
+.rc-ban-t{display:grid;gap:6px;min-width:0}
+.rc-ban-t h2{margin:0;font-family:'Anybody';font-weight:800;font-size:24px;line-height:1.05;letter-spacing:-.01em;font-variation-settings:'wdth' 108;color:var(--ink)}
+.rc-ban-t p{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
+.rc-ban-go{display:inline-flex;align-items:center;justify-self:start;gap:8px;min-height:48px;margin-top:4px;padding:0 18px;border-radius:12px;background:#FFC659;color:#0c1733;font-weight:700;font-size:14px;text-decoration:none}
+[data-theme="light"] .rc-ban-go{background:#0c1733;color:#ffffff}
+.rc-ban-go:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.pcv .rc-narrow{display:none}
+@media (max-width:420px){.pcv .rc-wide{display:none}.pcv .rc-narrow{display:inline}}

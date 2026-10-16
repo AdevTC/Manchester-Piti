@@ -27,6 +27,11 @@ export function tabFromHash(hash: string, captain: boolean): TabId | null {
   const h = hash.replace(/^#/, "").toLowerCase();
   return tabsFor(captain).find((t) => t.hash === h)?.id ?? null;
 }
+/** «Tu temporada en cromos» open over Temporada: /profile#cromos (the vestuario's banner links here). */
+export const CROMOS_HASH = "cromos";
+export function wantsCromos(hash: string): boolean {
+  return hash.replace(/^#/, "").toLowerCase() === CROMOS_HASH;
+}
 export function hashOf(id: TabId): string {
   return "#" + (TABS.find((t) => t.id === id)?.hash ?? "carta");
 }
