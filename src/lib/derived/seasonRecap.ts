@@ -4,7 +4,7 @@
 // - partidos, minutos, goles, asistencias, MVP and the socio come from the perfil card (buildCard: the
 //   pizarra cromo over the season, with derived/minutesOf for minutes — a legacy acta stays unknown, «—»);
 // - «Dónde jugaste» is the perfil's «Dónde has jugado» (positionsPlayed: playerPositions + mvpOfFrom);
-// - la porra is the perfil's line (porraLine), las medallas the vitrina's, el equipo G·E·P via resultOf
+// - la porra is the perfil's line (porraLine), las medallas the «Logros» won in it (derived/achievements), el equipo G·E·P via resultOf
 //   (derived/result's resultLetter) and the jornadas via derived/jornada.
 // A card with nothing to say is left out, so a story has 5 to 10 cards.
 //
@@ -17,12 +17,12 @@
 //   porraStandings usePorraStandings(seasonId).data (the recap's season)
 //   uid            the member's uid (his porra row)
 //   now            the perfil's minute clock (MVP votes count once closed)
-import { dateMillis } from "../../../functions/src/matchEngine";
 import { nextFixture, type ClubMatch } from "../clubData";
-import { chronological, playerGame } from "../clubAnalytics";
+import { playerGame } from "../clubAnalytics";
 import { scoreOf, resultOf } from "../partidos";
 import type { PlayerDoc } from "../schemas";
-import { currentSeasonId, vitrina, type MvpResult } from "../vestuario";
+import { currentSeasonId, type MvpResult } from "../vestuario";
+import { achievements } from "./achievements";
 import { jornadaLabel } from "./jornada";
 import { buildCard, seasonSquad } from "../../pages/perfil/card";
 import { porraLine, positionsPlayed, seasonPlayers } from "../../pages/perfil/profileData";
@@ -99,18 +99,13 @@ export function recapAvailable(input: RecapInput, playerId: string, seasonId: st
   return at >= 0 && cur > at ? "closed" : null;
 }
 
-const byDate = (a: ClubMatch, b: ClubMatch) => dateMillis(a.date) - dateMillis(b.date);
-
-/** The vitrina's medals earned with this season's matches (earned by its end, not before its start). */
+/** The «Logros» won in this season: the medals whose `at` (the match where the threshold was crossed) is
+ *  one of the season's matches, in catalogue order. */
 function seasonMedals(input: RecapInput, playerId: string, games: ClubMatch[]): { id: string; label: string }[] {
-  const sorted = [...games].sort(byDate);
-  const from = dateMillis(sorted[0].date);
-  const to = dateMillis(sorted[sorted.length - 1].date);
-  const all = chronological(input.matches);
-  const before = new Set(vitrina(playerId, all.filter((m) => dateMillis(m.date) < from), input.mvpResults, input.seasons, input.now).filter((m) => m.earned).map((m) => m.id));
-  return vitrina(playerId, all.filter((m) => dateMillis(m.date) <= to), input.mvpResults, input.seasons, input.now)
-    .filter((m) => m.earned && !before.has(m.id))
-    .map((m) => ({ id: m.id, label: m.label }));
+  const ids = new Set(games.map((m) => m.id));
+  return achievements(playerId, input.matches, { mvpResults: input.mvpResults, seasons: input.seasons, now: input.now })
+    .filter((a) => a.earned && a.at && ids.has(a.at.matchId))
+    .map((a) => ({ id: a.id, label: a.label }));
 }
 
 /** The member's season as cards (null without the season or without a match of his in it). */

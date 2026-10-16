@@ -3,6 +3,7 @@ import { dateMillis, isCompleted, isVisibleMatch } from "../../functions/src/mat
 import { mvpWinnerIds } from "../../functions/src/pushLogic";
 import type { ClubMatch } from "./clubData";
 import { chronological, playerGame } from "./clubAnalytics";
+import { achievements } from "./derived/achievements";
 
 const TZ = "Europe/Madrid";
 const GOAL_TYPES = new Set(["goal", "goal_penalty", "goal_freekick"]);
@@ -219,6 +220,10 @@ export interface MedalView {
   earned: boolean;
   tone: "gold" | "sky";
 }
+/**
+ * The six medals of the vestuario, jugador «Sus medallas» and the perfil card, read from the «Logros»
+ * catalogue (derived/achievements) with their original copy: same ids, labels, details and tones.
+ */
 export function vitrina(
   playerId: string,
   matches: ClubMatch[],
@@ -226,20 +231,22 @@ export function vitrina(
   seasons: { id: string; name: string }[],
   now: number,
 ): MedalView[] {
-  const games = chronological(matches);
-  const { series, played, assists } = totalsFor(playerId, games);
-  const debut = series.find((g) => g.played);
-  const firstGoal = series.find((g) => g.goals > 0);
-  const hat = series.find((g) => g.goals >= 3);
-  const mvps = mvpWins(playerId, games, results, now);
+  const list = achievements(playerId, matches, { mvpResults: results, seasons, now });
+  const get = (id: string) => list.find((a) => a.id === id);
+  const count = (id: string) => get(id)?.progress?.now ?? 0;
+  const earned = (id: string) => get(id)?.earned === true;
+  const vs = (id: string) => `vs ${get(id)?.at?.rival ?? "rival"}`;
   const seasonName = (id?: string) => seasons.find((s) => s.id === id)?.name ?? "";
+  const debutAt = get("debut")?.at;
+  const debut = debutAt ? matches.find((m) => m.id === debutAt.matchId) : undefined;
+  const played = count("ten"), assists = count("assist"), mvps = count("mvp");
   return [
-    { id: "debut", label: "Debut", detail: debut ? seasonName(debut.match.seasonId) || "Hecho" : "por debutar", earned: !!debut, tone: "gold" },
-    { id: "goal", label: "Primer gol", detail: firstGoal ? `vs ${firstGoal.match.rival ?? "rival"}` : "por marcar", earned: !!firstGoal, tone: "sky" },
+    { id: "debut", label: "Debut", detail: debutAt ? seasonName(debut?.seasonId) || "Hecho" : "por debutar", earned: !!debutAt, tone: "gold" },
+    { id: "goal", label: "Primer gol", detail: earned("goal") ? vs("goal") : "por marcar", earned: earned("goal"), tone: "sky" },
     { id: "assist", label: "Asistente", detail: assists >= 3 ? plural(assists, "pase de gol", "pases de gol") : `${assists} / 3`, earned: assists >= 3, tone: "sky" },
     { id: "mvp", label: "MVP", detail: mvps ? `votado ${plural(mvps, "vez", "veces")}` : "por ganar", earned: mvps > 0, tone: "gold" },
     { id: "ten", label: "10 partidos", detail: played >= 10 ? plural(played, "partido", "partidos") : `${played} / 10`, earned: played >= 10, tone: "gold" },
-    { id: "hat", label: "Hat-trick", detail: hat ? `vs ${hat.match.rival ?? "rival"}` : "por conseguir", earned: !!hat, tone: "gold" },
+    { id: "hat", label: "Hat-trick", detail: earned("hat") ? vs("hat") : "por conseguir", earned: earned("hat"), tone: "gold" },
   ];
 }
 

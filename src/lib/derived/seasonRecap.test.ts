@@ -125,8 +125,12 @@ describe("seasonRecap: the current season, «hasta ahora»", () => {
     expect(r.partial).toBe(true);
     expect(kinds(r.cards)).toEqual(["portada", "partidos", "goles", "posiciones", "medallas", "equipo", "cierre"]);
     expect(find(r.cards, "partidos")).toEqual({ kind: "partidos", played: 10, minutes: 500 });
-    // only what this season unlocked: «10 partidos» (debut, first goal and MVP were T1's)
-    expect(find(r.cards, "medallas")!.medals.map((m) => m.id)).toEqual(["ten"]);
+    // only what this season unlocked: «10 partidos» (b6, her 10th) and «Invicto» (a4 + b1–b4); debut, first
+    // goal and MVP were T1's
+    expect(find(r.cards, "medallas")!.medals).toEqual([
+      { id: "ten", label: "10 partidos" },
+      { id: "invicto", label: "Invicto" },
+    ]);
   });
 
   it("before the 10th: not yet", () => {
