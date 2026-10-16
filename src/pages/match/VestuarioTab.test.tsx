@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
@@ -18,6 +18,11 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [] }) }));
+// (the tab's «Turnos del equipo»: driven by `rota` below)
+const rota = vi.hoisted(() => ({ turns: [] as unknown[], error: false }));
+vi.mock("../../lib/useRotaTurns", () => ({
+  useMatchTurns: () => ({ turns: rota.turns, rota: rota.turns.length ? { jobs: [{}] } : null, pins: {}, loading: false, error: rota.error }),
+}));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: state.member }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: { uid: "u1" } }) }));
 vi.mock("../../hooks/useClock", () => ({ useClock: () => NOW }));
@@ -136,6 +141,40 @@ it("porras that did not load: an error, never «Nadie hizo porra» nor «No guar
   expect(screen.queryByText("Nadie hizo porra")).toBeNull();
   expect(screen.getByText("No se ha podido cargar tu porra. Prueba a recargar la página.")).toBeInTheDocument();
   expect(screen.queryByText(/No guardaste una porra/)).toBeNull();
+});
+
+it("Turnos del equipo: each job and who does it, a captain's change said in words", () => {
+  const job = (id: string, name: string, icon: string) => ({ id, name, icon, awayOnly: false, order: [] });
+  rota.turns = [
+    { job: job("lavar", "Lavar la equipación", "shirt"), playerId: "erik", computed: "pablo", pinned: true, swappedFrom: "pablo", skipped: [] },
+    { job: job("balones", "Balones y petos", "ball"), playerId: null, computed: null, pinned: false, swappedFrom: null, skipped: ["erik"] },
+  ];
+  try {
+    render(<VestuarioTab match={upcoming(NOW + 86_400_000)} players={SQUAD} phase="scheduled" />);
+    const sec = screen.getByRole("region", { name: "¿A quién le toca?" });
+    expect(sec).toHaveTextContent("Lavar la equipación");
+    expect(sec).toHaveTextContent(/ERIK7/);
+    expect(sec).toHaveTextContent("Cambio del capitán (le tocaba a PABLO7)");
+    expect(sec).toHaveTextContent("Nadie disponible");
+    cleanup();
+    // a cancelled or postponed match has no turns
+    render(<VestuarioTab match={upcoming(NOW + 86_400_000, "cancelled")} players={SQUAD} phase="scheduled" />);
+    expect(screen.queryByRole("region", { name: "¿A quién le toca?" })).toBeNull();
+  } finally {
+    rota.turns = [];
+  }
+});
+
+it("turns that did not load: the section says so, never an empty list", () => {
+  rota.error = true;
+  try {
+    render(<VestuarioTab match={upcoming(NOW + 86_400_000)} players={SQUAD} phase="scheduled" />);
+    const sec = screen.getByRole("region", { name: "¿A quién le toca?" });
+    expect(sec).toHaveTextContent("No se han podido cargar los turnos.");
+    expect(sec.querySelector("ul")).toBeNull();
+  } finally {
+    rota.error = false;
+  }
 });
 
 it("tras el partido: the member's 1–5 nota while it is open, frozen after 7 days; a fan gets no control", () => {

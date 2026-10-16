@@ -614,6 +614,79 @@ service cloud.firestore {
           || request.resource.data.rowsPrev == resource.data.get('rowsPrev', null));
       allow delete: if false;
     }
+    // ---- Turnos del equipo (docs/superpowers/specs/2026-10-16-turnos-design.md): the captains keep each
+    // season's jobs and their order (`rotas/{seasonId}`); the turn of each match is computed by the app
+    // (rotaLogic). A captain can pin or swap one match's turns (`rotaTurns/{matchId}`). Members read both.
+    // A job: id (1–40, [a-z0-9-], never "frozen"), name (1–30), a known icon, awayOnly, order (≤ 40 player
+    // ids, non-empty strings); ≤ 6 jobs (no loops in the rules: one check per slot). The strings without a
+    // loop: `join` turns a number or a bool into text, so splitting it back no longer equals the list (and
+    // a map or a null fails to join); one job read once (`rotaJobShapeOk`) keeps 6 × 40 within the budget.
+    function rotaJobOk(js, i) {
+      return i >= js.size() || rotaJobShapeOk(js[i]);
+    }
+    function rotaJobShapeOk(j) {
+      return j is map
+        && j.keys().hasOnly(['id','name','icon','awayOnly','order'])
+        && j.keys().hasAll(['id','name','icon','awayOnly','order'])
+        && j.id is string && j.id.matches('^[a-z0-9-]{1,40}$') && j.id != 'frozen'
+        && j.name is string && j.name.size() >= 1 && j.name.size() <= 30
+        && j.icon in ['shirt','ball','car','bottle','bag','key']
+        && j.awayOnly is bool
+        && j.order is list && j.order.size() <= 40
+        && (j.order.size() == 0 || j.order.join('|').split('[|]') == j.order)
+        && !j.order.hasAny(['']);
+    }
+    function rotaOk(d) {
+      return d.keys().hasOnly(['jobs','updatedAt','updatedBy'])
+        && d.keys().hasAll(['jobs','updatedAt','updatedBy'])
+        && d.updatedAt == request.time
+        && d.updatedBy == request.auth.uid
+        && d.jobs is list && d.jobs.size() <= 6
+        && rotaJobOk(d.jobs, 0) && rotaJobOk(d.jobs, 1) && rotaJobOk(d.jobs, 2)
+        && rotaJobOk(d.jobs, 3) && rotaJobOk(d.jobs, 4) && rotaJobOk(d.jobs, 5);
+    }
+    match /rotas/{seasonId} {
+      allow read: if teamMember();
+      allow create, update: if admin() && rotaOk(request.resource.data);
+      allow delete: if false;
+    }
+    // One match's turns: { seasonId?, frozen?, [jobId]: { playerId, swappedFrom?, at } }, ≤ 6 jobs, each key
+    // a job id. `frozen: true` (doc-level) is the backend's freeze of a played match (functions rota.ts): a
+    // captain never sets or clears it, nor deletes a frozen doc or one of its turns, but he can still edit
+    // a frozen turn («Lo hizo otro»). `seasonId` (the season's query) never changes once written.
+    function rotaTurnOk(v) {
+      return v is map
+        && v.keys().hasOnly(['playerId','swappedFrom','at'])
+        && v.keys().hasAll(['playerId','at'])
+        && v.playerId is string && v.playerId.size() >= 1 && v.playerId.size() <= 128
+        && (!('swappedFrom' in v) || (v.swappedFrom is string && v.swappedFrom.size() >= 1 && v.swappedFrom.size() <= 128))
+        && v.at is timestamp;
+    }
+    function rotaTurnKeyOk(d, ks, i) {
+      return i >= ks.size()
+        || (ks[i] == 'seasonId' && d.seasonId is string && d.seasonId.size() >= 1 && d.seasonId.size() <= 128)
+        || (ks[i] == 'frozen' && d.frozen == true)
+        || (ks[i] != 'frozen' && ks[i].matches('^[a-z0-9-]{1,40}$') && rotaTurnOk(d[ks[i]]));
+    }
+    function rotaTurnsOk(d) {
+      let ks = d.keys();
+      return ks.size() <= 8
+        && d.keys().removeAll(['seasonId','frozen']).size() <= 6
+        && rotaTurnKeyOk(d, ks, 0) && rotaTurnKeyOk(d, ks, 1) && rotaTurnKeyOk(d, ks, 2) && rotaTurnKeyOk(d, ks, 3)
+        && rotaTurnKeyOk(d, ks, 4) && rotaTurnKeyOk(d, ks, 5) && rotaTurnKeyOk(d, ks, 6) && rotaTurnKeyOk(d, ks, 7);
+    }
+    function rotaFrozen(d) {
+      return d.get('frozen', false) == true;
+    }
+    match /rotaTurns/{matchId} {
+      allow read: if teamMember();
+      allow create: if admin() && rotaTurnsOk(request.resource.data) && !('frozen' in request.resource.data);
+      allow update: if admin() && rotaTurnsOk(request.resource.data)
+        && request.resource.data.get('frozen', false) == resource.data.get('frozen', false)
+        && (!('seasonId' in resource.data) || request.resource.data.get('seasonId', null) == resource.data.seasonId)
+        && (!rotaFrozen(resource.data) || request.resource.data.keys().hasAll(resource.data.keys()));
+      allow delete: if admin() && !rotaFrozen(resource.data);
+    }
     // ---- Encuestas del vestuario (docs/superpowers/specs/2026-10-16-encuestas-design.md): any member asks
     // the team a quick question (2–6 options, one or several answers) that closes 1 h … 14 d after it is
     // created; members vote their own doc while it is open and can change it; votes are public to the

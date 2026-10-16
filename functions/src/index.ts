@@ -24,7 +24,7 @@ export { clubBundle } from "./bundle.js";
 export { liveEvent } from "./live.js";
 export { savePrediction } from "./savePrediction.js";
 export { controlMatchClock, setMatchScorers } from "./liveClock.js";
-export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview } from "./push.js";
+export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview, rotaTurnsOnWrite } from "./push.js";
 export { pushReminders, pushOnAnswer } from "./reminders.js";
 export { onAbsenceWritten } from "./absences.js";
 export { onPollCreated, onPollDeleted } from "./polls.js";

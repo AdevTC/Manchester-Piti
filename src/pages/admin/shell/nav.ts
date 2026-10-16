@@ -3,7 +3,7 @@
 import type { CounterKey } from "../data/adminLogic";
 import type { AdIconName } from "../ui/icons";
 
-export type SectionKey = "hoy" | "partidos" | "convocar" | "plantilla" | "fichas" | "temporadas" | "capitanes" | "contenido" | "caja" | "clasificacion";
+export type SectionKey = "hoy" | "partidos" | "convocar" | "plantilla" | "fichas" | "temporadas" | "capitanes" | "contenido" | "caja" | "clasificacion" | "turnos";
 export type AdminPath =
   | "/admin"
   | "/admin/partidos"
@@ -14,7 +14,8 @@ export type AdminPath =
   | "/admin/capitanes"
   | "/admin/contenido"
   | "/admin/caja"
-  | "/admin/clasificacion";
+  | "/admin/clasificacion"
+  | "/admin/turnos";
 
 export interface SectionDef {
   key: SectionKey;
@@ -42,6 +43,7 @@ export const SECTIONS: readonly SectionDef[] = [
   { key: "contenido", name: "Contenido", path: "/admin/contenido", icon: "doc", group: "club", blurb: "El programa del club", go: "o" },
   { key: "caja", name: "Caja", path: "/admin/caja", icon: "coin", group: "club", blurb: "Cuotas, campo y árbitro, y el bote", go: "a", aliases: "dinero cuotas pagos bote" },
   { key: "clasificacion", name: "Clasificación", path: "/admin/clasificacion", icon: "list", group: "club", blurb: "La tabla de la liga, pegada o a mano", go: "r", aliases: "clasificacion tabla liga puntos puesto ranking" },
+  { key: "turnos", name: "Turnos", path: "/admin/turnos", icon: "swap", group: "club", blurb: "Quién lava, balones y coche", go: "u", aliases: "turnos lavar equipacion balones petos coche rota" },
 ];
 export const SECTION: Record<SectionKey, SectionDef> = Object.fromEntries(SECTIONS.map((s) => [s.key, s])) as Record<SectionKey, SectionDef>;
 /** The section a `g` + key shortcut goes to (case-insensitive), if any. */
@@ -126,7 +128,7 @@ export interface AdminTarget {
 }
 
 /** The sections in the phone's «Más» sheet (the rail's «Club» group). */
-export const MAS_SECTIONS: readonly SectionKey[] = ["fichas", "temporadas", "capitanes", "contenido", "caja", "clasificacion"];
+export const MAS_SECTIONS: readonly SectionKey[] = ["fichas", "temporadas", "capitanes", "contenido", "caja", "clasificacion", "turnos"];
 
 /** «La puerta» lives in the vestuario (CaptainDoor): the rail links there. */
 export const DOOR_HREF = "/vestuario#puerta";

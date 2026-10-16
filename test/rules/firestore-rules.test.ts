@@ -1493,6 +1493,107 @@ describe("Encuestas del vestuario (polls, polls/{id}/votes)", () => {
     await assertSucceeds(deleteDoc(voteRef("member", "gone"))); // la encuesta ya no está
   });
 });
+
+describe("Turnos del equipo (rotas, rotaTurns)", () => {
+  const job = (over: object = {}) => ({ id: "lavar", name: "Lavar la equipación", icon: "shirt", awayOnly: false, order: ["p1", "p2"], ...over });
+  const rota = (by: string, over: object = {}) => ({ jobs: [job(), job({ id: "coche", name: "Coche a los partidos fuera", icon: "car", awayOnly: true })], updatedAt: serverTimestamp(), updatedBy: by, ...over });
+  const turn = (over: object = {}) => ({ playerId: "p2", swappedFrom: "p1", at: serverTimestamp(), ...over });
+  it("members read them; fans and outsiders don't", async () => {
+    await seed("rotas/s1", { jobs: [], updatedAt: Timestamp.fromMillis(0), updatedBy: "admin" });
+    await seed("rotaTurns/m1", { lavar: { playerId: "p1", at: Timestamp.fromMillis(0) } });
+    await assertSucceeds(getDoc(doc(db("member"), "rotas", "s1")));
+    await assertSucceeds(getDoc(doc(db("member"), "rotaTurns", "m1")));
+    await assertFails(getDoc(doc(db(), "rotas", "s1")));
+    await assertFails(getDoc(doc(db("outsider"), "rotaTurns", "m1")));
+  });
+  it("only captains write the jobs, signed and stamped by the server; nobody deletes them", async () => {
+    await assertSucceeds(setDoc(doc(db("admin"), "rotas", "s1"), rota("admin")));
+    await assertSucceeds(setDoc(doc(db("super"), "rotas", "s2"), rota("super", { jobs: [] })));
+    await assertFails(setDoc(doc(db("member"), "rotas", "s3"), rota("member")));
+    await assertFails(setDoc(doc(db(), "rotas", "s3"), rota("x")));
+    await assertFails(setDoc(doc(db("admin"), "rotas", "s3"), rota("super")));
+    await assertFails(setDoc(doc(db("admin"), "rotas", "s3"), rota("admin", { updatedAt: Timestamp.fromMillis(0) })));
+    await assertFails(deleteDoc(doc(db("admin"), "rotas", "s1")));
+  });
+  it("the jobs' shape: ≤ 6, name 1–30, a known icon, awayOnly bool, order ≤ 40, nothing else", async () => {
+    const ref = (id: string) => doc(db("admin"), "rotas", id);
+    const six = Array.from({ length: 6 }, (_, i) => job({ id: `j${i}`, order: Array.from({ length: 40 }, (_, k) => `p${k}`) }));
+    await assertSucceeds(setDoc(ref("max"), rota("admin", { jobs: six })));
+    const bad: object[] = [
+      { jobs: [...six, job({ id: "j7" })] },
+      { jobs: [job({ name: "" })] },
+      { jobs: [job({ name: "x".repeat(31) })] },
+      { jobs: [job({ icon: "rocket" })] },
+      { jobs: [job({ awayOnly: "no" })] },
+      { jobs: [job({ order: Array.from({ length: 41 }, (_, k) => `p${k}`) })] },
+      { jobs: [job({ order: "p1" })] },
+      { jobs: [job({ id: "Con Espacios" })] },
+      { jobs: [job({ id: "frozen" })] },
+      { jobs: [job({ order: ["p1", 3] })] },
+      { jobs: [job({ order: [true] })] },
+      { jobs: [job({ order: ["p1", ""] })] },
+      { jobs: [job({ order: [{ id: "p1" }] })] },
+      { jobs: [job({ order: ["p1", null] })] },
+      { jobs: [job({ order: [1.5] })] },
+      { jobs: [job({ extra: 1 })] },
+      { jobs: [{ id: "a", name: "A", icon: "shirt", awayOnly: false }] },
+      { jobs: ["lavar"] },
+      { jobs: "lavar" },
+      { extra: true },
+    ];
+    for (const over of bad) await assertFails(setDoc(ref("bad"), rota("admin", over)));
+  });
+  it("only captains pin or swap a match's turns, with the shape; they can unpin", async () => {
+    const ref = (uid: string) => doc(db(uid), "rotaTurns", "m1");
+    await assertSucceeds(setDoc(ref("admin"), { lavar: turn() }));
+    await assertSucceeds(setDoc(ref("admin"), { lavar: { playerId: "p3", at: serverTimestamp() } }));
+    await assertSucceeds(setDoc(ref("super"), { coche: turn({ playerId: "p9" }) }, { merge: true }));
+    await assertFails(setDoc(ref("member"), { lavar: turn() }));
+    await assertFails(setDoc(doc(db(), "rotaTurns", "m2"), { lavar: turn() }));
+    const bad: object[] = [
+      { lavar: turn({ playerId: "" }) },
+      { lavar: turn({ playerId: 3 }) },
+      { lavar: turn({ swappedFrom: "" }) },
+      { lavar: turn({ at: "ayer" }) },
+      { lavar: { playerId: "p1" } },
+      { lavar: turn({ extra: 1 }) },
+      { lavar: "p1" },
+      Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`j${i}`, turn()])),
+      { "Con Espacios": turn() },
+      { LAVAR: turn() },
+      { ["x".repeat(41)]: turn() },
+      { lavar: turn(), seasonId: 3 },
+      { lavar: turn(), seasonId: "" },
+      { lavar: turn(), frozen: "yes" },
+    ];
+    for (const d of bad) await assertFails(setDoc(doc(db("admin"), "rotaTurns", "bad"), d));
+    // the season's id goes with a captain's pin (the season's query reads it); six jobs and it fit
+    await assertSucceeds(setDoc(doc(db("admin"), "rotaTurns", "six"), { seasonId: "s1", ...Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`j${i}`, turn()])) }));
+    await assertFails(deleteDoc(ref("member")));
+    await assertSucceeds(deleteDoc(ref("admin")));
+  });
+  it("the freeze is the backend's: captains never set or clear it; they can still edit a frozen turn, never drop one", async () => {
+    const frozen = { seasonId: "s1", frozen: true, lavar: { playerId: "p1", at: Timestamp.fromMillis(0) }, coche: { playerId: "p2", at: Timestamp.fromMillis(0) } };
+    // nobody creates a frozen doc from the web
+    await assertFails(setDoc(doc(db("admin"), "rotaTurns", "f0"), { seasonId: "s1", frozen: true, lavar: turn() }));
+    await seed("rotaTurns/f1", frozen);
+    const ref = (uid: string) => doc(db(uid), "rotaTurns", "f1");
+    // «Lo hizo otro»: the turn changes, the freeze stays
+    await assertSucceeds(setDoc(ref("admin"), { seasonId: "s1", lavar: turn({ playerId: "p3", swappedFrom: "p1" }) }, { mergeFields: ["seasonId", "lavar"] }));
+    await assertFails(setDoc(ref("member"), { lavar: turn({ playerId: "p4" }) }, { merge: true }));
+    // the flag can't be cleared, nor a turn dropped, nor the doc deleted, nor its season changed
+    await assertFails(setDoc(ref("admin"), { frozen: false }, { merge: true }));
+    await assertFails(updateDoc(ref("admin"), { frozen: deleteField() }));
+    await assertFails(updateDoc(ref("admin"), { coche: deleteField() }));
+    await assertFails(setDoc(ref("admin"), { seasonId: "s1", lavar: turn() }));
+    await assertFails(setDoc(ref("admin"), { seasonId: "s2" }, { merge: true }));
+    await assertFails(deleteDoc(ref("admin")));
+    // an unfrozen doc can't be frozen from the web either
+    await seed("rotaTurns/u1", { seasonId: "s1", lavar: { playerId: "p1", at: Timestamp.fromMillis(0) } });
+    await assertFails(setDoc(doc(db("admin"), "rotaTurns", "u1"), { frozen: true }, { merge: true }));
+    await assertSucceeds(updateDoc(doc(db("admin"), "rotaTurns", "u1"), { lavar: deleteField() }));
+  });
+});
 describe("Tras el partido: reacciones y nota (matches/{id}/reactions, matches/{id}/ratings)", () => {
   const HOUR = 3_600_000;
   const DAY = 24 * HOUR;

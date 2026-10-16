@@ -15,6 +15,7 @@ import { kickoffState, type KickoffState } from "./kickoff";
 import { kickoffWindow, mvpVoteOpen } from "./memberWindows";
 import { whistleAt } from "./island";
 import { madridDate } from "./madrid";
+import { turnsLine, type RotaIconId, type Turn } from "./rota";
 
 /** The card's three moments: before kick-off (scheduled / pending whistle), live (live / half-time), after. */
 export type HoyStage = "before" | "live" | "after";
@@ -54,6 +55,8 @@ export interface HoyContext {
   /** The viewer is away on the match's Madrid day (an absence of his covers it) and has not answered
    *  «Voy» or «Duda» by hand over it: «Hoy no juegas: estás ausente». */
   absentToday?: boolean;
+  /** Turnos del equipo: the match's turns (lib/useRotaTurns) and the viewer's names for them. */
+  turns?: { list: readonly Turn[]; nameOf: (playerId: string) => string } | null;
 }
 
 export interface HoyModel {
@@ -74,6 +77,8 @@ export interface HoyModel {
   published: boolean;
   /** The MVP vote is open (rules mvpOpen()). */
   voteOpen: boolean;
+  /** «Te toca: lavar la equipación» (`mine`) or «Lava: Hugo · Balones: Dani» (not live); null: no turns. */
+  turns: { mine: boolean; text: string; icon: RotaIconId } | null;
 }
 
 /**
@@ -100,7 +105,11 @@ export function hoyModel(
     const code = (official ? ctx.board?.codes?.[viewer.playerId] : undefined) ?? (ctx.player ? resolvePositions(ctx.player).main : null);
     starter = code ? `Sales de titular · ${code}` : "Sales de titular";
   }
+  // (the turns: before kick-off and after the whistle — the kit is washed after it; not while it is live)
+  const line = stage !== "live" && ctx.turns ? turnsLine(ctx.turns.list, ctx.turns.nameOf, viewer.playerId) : null;
+  const lineTurn = line ? (line.mine ? ctx.turns?.list.find((t) => t.playerId === viewer.playerId) : ctx.turns?.list.find((t) => t.playerId)) : undefined;
   return {
+    turns: line ? { ...line, icon: lineTurn?.job.icon ?? "shirt" } : null,
     match,
     phase,
     stage,

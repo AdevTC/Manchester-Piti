@@ -28,6 +28,7 @@ import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import type { TrainingSlot } from "../../lib/vestuario";
 import { EMPTY_CAJA_SETTINGS, parseCajaMov, parseCajaSettings, type CajaMov, type CajaSettings } from "../../lib/derived/caja";
 import { byAbsence, currentAbsences, parseAbsence, type Absence } from "../../lib/derived/absences";
+import { parseRotaTurns, type RotaTurnsDoc } from "../../lib/derived/rota";
 import { parsePoll, parsePollVote, type Poll, type PollVote } from "../../lib/derived/polls";
 import { parseRatingDoc, parseReactionDoc, type RatingDoc, type ReactionDoc } from "../../lib/derived/trasElPartido";
 
@@ -630,6 +631,16 @@ export function useAbsences(today: string, enabled = true): Live<Absence[]> {
     return ok.length ? ok : NO_ABSENCES;
   }, [q.data, today]);
   return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
+}
+
+// ---------- turnos del equipo: the season's rotaTurns (one small doc per match at most: the frozen history
+// and the captains' pins). Members only: `enabled` false (a fan) opens nothing.
+export interface SeasonRotaTurns {
+  id: string;
+  doc: RotaTurnsDoc;
+}
+export function useSeasonRotaTurns(seasonId: string | undefined, enabled = true): Live<SeasonRotaTurns[]> {
+  return useLiveQuery<SeasonRotaTurns>(enabled && seasonId ? `rotaTurns/${seasonId}` : null, () => query(collection(db, "rotaTurns"), where("seasonId", "==", seasonId)), (id, d) => ({ id, doc: parseRotaTurns(d) }));
 }
 
 // ---------- encuestas (members only; derived/polls for the rest)

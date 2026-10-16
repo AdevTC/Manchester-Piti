@@ -17,6 +17,8 @@ import { dateMillis } from "../../../../functions/src/matchEngine";
 import "../convocar/ausente.css";
 import { useReminders } from "../convocar/reminders";
 import { RemindersToggle } from "../convocar/RemindersToggle";
+import { TurnosPanel } from "../convocar/TurnosPanel";
+import type { ClubMatch } from "../../../lib/clubData";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
 import { joinNames, place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
 import { useConvocatoria } from "../data/useConvocatoria";
@@ -228,6 +230,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   ) : null;
   // «Recordatorios automáticos»: the convocados the 48 h / 24 h reminders would chase now
   const pendingN = [...lineup.starters, ...lineup.bench].filter((id) => (rsvp.get(id) ?? "sin") === "sin").length;
+  const turnosPanel = <TurnosPanel match={match as ClubMatch} roster={roster.map((p) => ({ id: p.id, name: p.name }))} nameOf={nameOf} />;
   const remindersEl = <RemindersToggle auto={rem.auto} loading={rem.loading} pending={pendingN} onSet={rem.set} onError={(message) => toast.show({ tag: "!", message })} />;
   const posOf = (id: string) => {
     const p = roster.find((r) => r.id === id);
@@ -288,6 +291,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
           {guestPanel}
           <SourceNote />
           {remindersEl}
+          {turnosPanel}
         </div>
         <div className="msticky">
           <span className="why">{why}</span>
@@ -355,6 +359,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
           {pizarraCheck}
           <SourceNote />
           {remindersEl}
+          {turnosPanel}
           <div className="rdrs">
             {/* the pizarra's official board for this match (none yet: the pizarra, to make and publish it) */}
             <Link className="fr" to="/pizarra" search={{ tablero: board ?? undefined, season: match.seasonId }}>

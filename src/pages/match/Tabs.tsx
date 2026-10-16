@@ -12,6 +12,7 @@ import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { useClock } from "../../hooks/useClock";
 import { ShirtBack } from "../../components/celeste/ShirtBack";
 import { Icon } from "../../components/celeste/icons";
+import { TurnsList } from "../../components/celeste/Turnos";
 import { PredictionResult } from "../../components/celeste/PredictionForm";
 import { predictionOpen, predictionsRevealed, scorePrediction } from "../../../functions/src/predictions";
 import { MatchBadges } from "../../components/celeste/MatchBadges";
@@ -659,6 +660,7 @@ export function VestuarioTab({ match, matches = [match], players, phase, ratings
           </section>
         </>
       )}
+      <TurnsList match={match} matches={matches} nameOf={nameOf} me={me.playerId} enabled={!!member} />
       <section className="fc-sec" aria-labelledby="fc-po">
         <span className="hm-kick">Tu porra · {predictionOpen(match) ? "hasta el pitido inicial" : "cerrada"}</span>
         <h2 className="hm-h2" id="fc-po">{predictionOpen(match) ? "¿Cómo acaba?" : "Tu pronóstico"}</h2>

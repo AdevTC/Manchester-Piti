@@ -33,6 +33,8 @@ import { Countdown } from "./Countdown";
 import { WeatherChip } from "./WeatherChip";
 import { MatchClockDisplay } from "./MatchClockControl";
 import { Icon } from "./icons";
+import { RotaIcon } from "./Turnos";
+import { useMatchTurns } from "../../lib/useRotaTurns";
 // (the countdown's flip tiles and the scoreboard's pieces: the live island loads this sheet on every page too)
 import "../../styles/partidos.css";
 import "./hoy.css";
@@ -89,6 +91,8 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
   const myVote = useMyMvpVote(toBlock ? match?.id : undefined, uid);
   // (the member's absences, before kick-off only: «Hoy no juegas: estás ausente»)
   const absences = useAbsences(madridDate(now), viewer.member && before);
+  // (Turnos del equipo: whose turn it is in this match — members only, not while it is live)
+  const rota = useMatchTurns(match, matches, viewer.member && !!first && first.stage !== "live");
   const titleId = useId();
   if (!first || !match) return null;
 
@@ -97,9 +101,15 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
   // away on the match's day, unless he has said «Voy» or «Duda» by hand over the absence
   const away = before && !!absenceOn(absences.data, { uid, playerId: viewer.playerId }, matchDay(dateMillis(match.date)));
   const absentToday = away && answer !== "yes" && answer !== "maybe";
-  const model = hoyModel(matches, viewer, now, { board, player, absentToday }) ?? first;
-  const switchId = rsvpId ?? `${titleId}-rsvp`;
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match.seasonId);
+  const model = hoyModel(matches, viewer, now, { board, player, absentToday, turns: { list: rota.turns, nameOf } }) ?? first;
+  const switchId = rsvpId ?? `${titleId}-rsvp`;
+  const turnsChip = model.turns && (
+    <p className={`tn-line${model.turns.mine ? " mine" : ""}`}>
+      <RotaIcon icon={model.turns.icon} />
+      <span>{model.turns.text}</span>
+    </p>
+  );
   const d = dateParts(match.date);
   const sb = scoreboardOf(match);
   const kit = kitLabel(match, KIT_LABEL.home);
@@ -150,6 +160,7 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
                 {model.starter}
               </p>
             )}
+            {turnsChip}
             {model.absent && (
               <div className="hoy-absent">
                 <p>
@@ -230,6 +241,7 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
       {model.stage === "after" && (
         <>
           <div className="hoy-col hoy-main">
+            {turnsChip}
             {prediction.data && predictionsRevealed(match) && (
               <p className="hoy-porra">
                 <Icon name="ball" size={16} />

@@ -45,6 +45,11 @@ vi.mock("../../pages/pizarra/useMatchBoard", () => ({
   useBoardView: (id: string | null) => (id ? state.board : null),
 }));
 vi.mock("../../lib/weather", () => ({ useMatchWeather: () => null }));
+// (Turnos del equipo: the match's turns, driven by `rota.turns`)
+const rota = vi.hoisted(() => ({ turns: [] as unknown[], enabled: [] as boolean[] }));
+vi.mock("../../lib/useRotaTurns", () => ({
+  useMatchTurns: (_m: unknown, _all: unknown, enabled: boolean) => (rota.enabled.push(enabled), { turns: enabled ? rota.turns : [], rota: null, pins: {}, loading: false, error: false }),
+}));
 vi.mock("../../lib/clubApi", () => ({ apiError: () => "" }));
 
 const { HoyCard } = await import("./HoyCard");
@@ -104,6 +109,27 @@ describe("HoyCard", () => {
     expect(within(hoy).getByText("· tú")).toBeInTheDocument();
     expect(within(hoy).getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/j8");
     expect(within(hoy).getByRole("link", { name: /Cómo llegar/ })).toHaveAttribute("href", expect.stringContaining("Campo%20X"));
+  });
+
+  it("Turnos del equipo: «Te toca: lavar la equipación» when it's mine, «Lava: … · Balones: …» otherwise; not while live", () => {
+    const job = (id: string, name: string, icon: string) => ({ id, name, icon, awayOnly: false, order: [] });
+    const turn = (j: ReturnType<typeof job>, playerId: string) => ({ job: j, playerId, computed: playerId, pinned: false, swappedFrom: null, skipped: [] });
+    rota.turns = [turn(job("lavar", "Lavar la equipación", "shirt"), "adri"), turn(job("balones", "Balones y petos", "ball"), "b")];
+    try {
+      const { unmount } = render(card(base, DATE - 2 * HOUR));
+      expect(screen.getByText("Te toca: lavar la equipación")).toBeInTheDocument();
+      unmount();
+      rota.turns = [turn(job("lavar", "Lavar la equipación", "shirt"), "c"), turn(job("balones", "Balones y petos", "ball"), "b")];
+      const after = render(card(base, DATE - 2 * HOUR));
+      expect(screen.getByText(/^Lava: .+ · Balones: .+$/)).toBeInTheDocument();
+      after.unmount();
+      rota.enabled = [];
+      render(card({ ...base, clock: started }, DATE + 10 * MIN));
+      expect(screen.queryByText(/Lava:|Te toca/)).toBeNull();
+      expect(rota.enabled.every((on) => !on)).toBe(true);
+    } finally {
+      rota.turns = [];
+    }
   });
 
   it("no official board: the convocatoria's titulares and the preferred position", () => {

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "node test/club.integration.mjs && node test/match-analysis.integration.mjs && node test/push.integration.mjs && node test/rename.integration.mjs && node test/siete.integration.mjs && node test/absences.integration.mjs && node test/notices.integration.mjs && node test/match-lifecycle.integration.mjs && node test/polls.integration.mjs && node test/guests.integration.mjs",
+    "test": "node test/club.integration.mjs && node test/match-analysis.integration.mjs && node test/push.integration.mjs && node test/rename.integration.mjs && node test/siete.integration.mjs && node test/absences.integration.mjs && node test/notices.integration.mjs && node test/match-lifecycle.integration.mjs && node test/polls.integration.mjs && node test/guests.integration.mjs && node test/rota.integration.mjs",
     "seed:preview": "node test/seed-preview.mjs"
   },
   "dependencies": {
