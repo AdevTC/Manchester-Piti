@@ -8,10 +8,11 @@ import { proposalState } from "../../../lib/positionsEdit";
 import { calendarOrder, jornadaNumbers } from "../../../lib/derived/jornada";
 import { resultLetter, type ResultLetter } from "../../../lib/derived/result";
 import type { AdminTarget, Counter } from "../shell/nav";
+import { capital, plural } from "../../../lib/derived/words";
+import { madridTime } from "../../../lib/derived/madrid";
 
 const TZ = "Europe/Madrid";
 const GOAL_TYPES = new Set(["goal", "goal_penalty", "goal_freekick"]);
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 // ───────────────────────── dates (club time) ─────────────────────────
 function parts(ms: number, o: Intl.DateTimeFormatOptions) {
@@ -25,15 +26,13 @@ export function shortDate(ms: number): string {
 }
 /** «12:00» (Madrid). */
 export function clockTime(ms: number): string {
-  if (!Number.isFinite(ms)) return "--:--";
-  const p = parts(ms, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-  return `${p.hour}:${p.minute}`;
+  return Number.isFinite(ms) ? madridTime(ms) : "--:--";
 }
 /** «Lunes 2 nov» (Madrid). */
 export function longDay(ms: number): string {
   const p = parts(ms, { weekday: "long", day: "numeric", month: "short" });
   const wd = String(p.weekday);
-  return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} ${p.day} ${String(p.month).replace(".", "")}`;
+  return `${capital(wd)} ${p.day} ${String(p.month).replace(".", "")}`;
 }
 
 // ───────────────────────── matches ─────────────────────────

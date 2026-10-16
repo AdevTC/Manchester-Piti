@@ -17,6 +17,7 @@ import { Peg, ShirtBack } from "../kit";
 import { useAdmin } from "../shell/context";
 import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
+import { capital } from "../../../lib/derived/words";
 import { useToast } from "../ui/toastContext";
 
 interface Decision {
@@ -35,7 +36,6 @@ interface ResolvedRow {
   unlink: { who: string; player: string } | null;
 }
 
-const capital = (s: string) => s.charAt(0).toLocaleUpperCase("es") + s.slice(1);
 
 export function Fichas() {
   const data = useAdmin();

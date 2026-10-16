@@ -7,8 +7,8 @@ import type { PlayerDoc } from "../../../lib/schemas";
 import { resolvePositions } from "../../../lib/positions";
 import { proposalState } from "../../../lib/positionsEdit";
 import { POSITIONS, POS_LABEL, type PlantillaRow, type Position } from "./plantillaLogic";
+import { plural } from "../../../lib/derived/words";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** A piece of the ficha that can be missing (the row's slots, in this order). */
 export type GapKey = "pos" | "foto" | "nac" | "alt" | "peso";

@@ -5,6 +5,7 @@ import type { ClubMatch } from "./clubData";
 import { chronological, playerGame } from "./clubAnalytics";
 import { achievements } from "./derived/achievements";
 import { isGuestId } from "./derived/guests";
+import { capital, plural } from "./derived/words";
 
 const TZ = "Europe/Madrid";
 const GOAL_TYPES = new Set(["goal", "goal_penalty", "goal_freekick"]);
@@ -33,7 +34,6 @@ export function greeting(now: number) {
   const h = madridHour(now);
   return h >= 6 && h < 14 ? "Buenos días" : h >= 14 && h < 21 ? "Buenas tardes" : "Buenas noches";
 }
-const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /** "Sábado, 16:00" in club time. */
 export function kickoffLabel(date: unknown) {
   const ms = dateMillis(date);
@@ -59,7 +59,7 @@ export function initials(name = "") {
   if (!parts.length) return "?";
   return (parts.length > 1 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2)).toUpperCase();
 }
-export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+export { plural } from "./derived/words";
 
 // ---------- MVP
 export interface MvpResult {

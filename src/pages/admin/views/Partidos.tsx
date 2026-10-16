@@ -34,6 +34,7 @@ import { NuevoPartido } from "../partidos/NuevoPartido";
 import { phaseOf } from "../partidos/workspaceModel";
 import { Publicado } from "../publicado/Publicado";
 import "../partidos/partidos.css";
+import { plural } from "../../../lib/derived/words";
 
 interface PartidosSearch {
   tab?: string;
@@ -46,7 +47,6 @@ const isTyping = (t: EventTarget | null) => {
   const el = t as HTMLElement | null;
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
 };
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export function Partidos() {
   const data = useAdmin();

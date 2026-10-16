@@ -6,8 +6,8 @@ import { dateMillis } from "../../../../functions/src/matchEngine";
 import { SANCTION_LIMITS, type PlayerDoc } from "../../../lib/schemas";
 import { suspensions, type Suspension } from "../../pizarra/chemistry";
 import { jLabel, shortDate, type AdminMatch } from "../data/adminLogic";
+import { plural } from "../../../lib/derived/words";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** The season's suspensions as the pizarra reads them (published matches, newest first). */
 export function seasonSuspensions(matches: readonly AdminMatch[], seasonId: string | undefined, players: readonly PlayerDoc[]): Map<string, Suspension> {

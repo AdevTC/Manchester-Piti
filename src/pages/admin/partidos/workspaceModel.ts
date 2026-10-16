@@ -8,6 +8,7 @@ import { clockTime, shortDate, type ActaReview } from "../data/adminLogic";
 import { matchMoment, type MomentMatch } from "../data/moments";
 import type { MatchTab } from "../shell/nav";
 import type { GoalRow, MatchSheet } from "../acta/sheetModel";
+import { plural } from "../../../lib/derived/words";
 
 /** antes = to play · juego = being played · jugado = played (acta to write or published) · off = cancelled / postponed. */
 export type Phase = "antes" | "juego" | "jugado" | "off";
@@ -25,7 +26,6 @@ export function effectiveSheet(sheet: MatchSheet, phase: Phase): MatchSheet {
   return phase === "jugado" && sheet.status === "scheduled" ? { ...sheet, status: "finished" } : sheet;
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 export const whereWord = (home: boolean) => (home ? "en casa" : "fuera");
 
 /** «J7 · Liga · dom 1 nov · 10:00 · en casa». */

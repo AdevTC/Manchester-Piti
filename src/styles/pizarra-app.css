@@ -32,7 +32,7 @@
 .pzv .bname small i.ro,.pzv .pm-sv i.ro{background:var(--gold);box-shadow:none}
 
 /* Bajas: «Inactivo» next to Lesionado / Sancionado. */
-.pzv .ac-bj.ina,.pzv .ac-cv.ina{color:var(--muted);background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl)}
+.pzv .ac-cv.ina{color:var(--muted);background:var(--chip);box-shadow:inset 0 0 0 1px var(--pl)}
 
 /* Touch targets of at least 44px without changing what is drawn: invisible hit areas around the
    controls drawn smaller (icon buttons, pills, galones, the selected player's actions, the handle). */
@@ -318,12 +318,6 @@
 /* Over the pitch: the versions of the seven (Titular · 2ª parte · Plan B) and «El oficial ha cambiado», in
    one column where the read-only strip sits (under it when it is there). FUT: angled slabs, the one on
    screen in the slab gradient. */
-.pzv .pz-top{position:absolute;z-index:9;left:12px;right:12px;top:96px;display:grid;justify-items:center;gap:6px;pointer-events:none}
-.pzv .pz-top.low{top:150px}
-.pzv .pz-top > *{pointer-events:auto}
-@container (min-width:700px){.pzv .pz-top{left:50%;right:auto;width:min(620px,calc(100% - 28px));transform:translateX(-50%);top:74px}.pzv .pz-top.low{top:126px}}
-@container (min-width:1100px){.pzv .pz-top{left:calc(var(--cl) + (100% - var(--cl) - var(--cr)) / 2);top:var(--top)}.pzv .pz-top.low{top:calc(var(--top) + 52px)}}
-.pzv.i3 .app .pz-top{opacity:0;visibility:hidden}
 .pzv .vpills{display:grid;justify-items:center;gap:6px;max-width:100%}
 .pzv .vp-row{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;padding:3px;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);clip-path:var(--ang)}
 .pzv .vp{position:relative;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 12px;border:0;background:transparent;color:var(--soft);font-family:'Anybody';font-weight:800;font-variation-settings:'wdth' 92;font-size:12px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;clip-path:var(--ang)}

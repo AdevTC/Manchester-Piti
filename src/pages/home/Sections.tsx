@@ -5,15 +5,13 @@ import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { dateMillis, formatDate, isCompleted, type ClubMatch } from "../../lib/clubData";
 import { resultOf, type PlayerLine, type Pulse, type Result } from "../../lib/home";
 import { eventMinute } from "../../lib/partidos";
-import { plural } from "../../lib/vestuario";
+import { plural } from "../../lib/derived/words";
+import { madridDayParts, madridTime } from "../../lib/derived/madrid";
 import { AWAITING_ACTA, kickoffText } from "../../lib/derived/kickoff";
 import { RESULT_WORD, resultTitle } from "../../lib/derived/result";
 import { rankedLeaders, medalFor } from "../../lib/clubAnalytics";
 import { withGuestNames } from "../../lib/derived/guests";
 
-const MONTH = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", month: "short" });
-const DAYN = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric" });
-const HOUR = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
 function goalsOf(m: ClubMatch, memberName: (id: string) => string) {
   // a guest's goal or assist: «Rafa (invitado)», never the members' fallback
@@ -126,8 +124,8 @@ export function SeasonRow({ pulse, now, nameOf, strip }: { pulse: Pulse; now: nu
                       <span className="d">
                         {at ? (
                           <>
-                            <b>{DAYN.format(at)}</b>
-                            <small>{MONTH.format(at).replace(".", "")}</small>
+                            <b>{madridDayParts(at).day}</b>
+                            <small>{madridDayParts(at).month}</small>
                           </>
                         ) : (
                           <b>?</b>
@@ -137,7 +135,7 @@ export function SeasonRow({ pulse, now, nameOf, strip }: { pulse: Pulse; now: nu
                         <span className="r">vs {m.rival ?? "Rival por anunciar"}</span>
                         <span className="s">{[kickoffText(m, now), m.home === false ? "Fuera" : "En casa", m.venue].filter(Boolean).join(" · ")}</span>
                       </span>
-                      <span className="t">{at && at > now ? HOUR.format(at) : ""}</span>
+                      <span className="t">{at && at > now ? madridTime(at) : ""}</span>
                     </Link>
                   </li>
                 );

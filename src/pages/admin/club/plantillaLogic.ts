@@ -10,6 +10,7 @@ import { positionsPayload } from "../../../lib/positionsEdit";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import type { PlayerPositions, PosLine } from "../../../lib/positionStats";
 import { fmtMinutes } from "../../../lib/derived/minutes";
+import { plural } from "../../../lib/derived/words";
 
 export const POSITIONS = ["POR", "DEF", "MED", "DEL"] as const;
 export type Position = (typeof POSITIONS)[number];
@@ -23,7 +24,6 @@ export function linePickPayload(doc: Pick<PlayerDoc, "positions">, line: Positio
   return set?.main && lineOf(set.main) !== line ? { naturalPosition: line, positions: { main: null, also: set.also } } : { naturalPosition: line };
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
 /** Lower-case, without accents (ADRIÁN ⇢ adrian), for the search. */
 export const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();

@@ -20,8 +20,8 @@ import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
 import { useToast } from "../ui/toastContext";
+import { plural } from "../../../lib/derived/words";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const both = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
 type ModalState = { k: "arch" | "unarch" | "del" | "cap"; id: string } | { k: "new" } | null;
 

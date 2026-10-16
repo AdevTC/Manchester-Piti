@@ -10,6 +10,7 @@ import { ConfirmModal } from "../ui/layers";
 import { joinDate, splitDate } from "../acta/dates";
 import { changeSeason, okHttps, score, type MatchSheet } from "../acta/sheetModel";
 import { joinVenue, splitVenue } from "./workspaceModel";
+import { plural } from "../../../lib/derived/words";
 
 const STATUS: { value: MatchSheet["status"]; label: string }[] = [
   { value: "scheduled", label: "Programado" },
@@ -17,7 +18,6 @@ const STATUS: { value: MatchSheet["status"]; label: string }[] = [
   { value: "postponed", label: "Aplazado" },
   { value: "cancelled", label: "Cancelado" },
 ];
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 function Seg<V extends string>({ label, value, options, onChange }: { label: string; value: V; options: { value: V; label: string }[]; onChange: (v: V) => void }) {
   const id = useId();

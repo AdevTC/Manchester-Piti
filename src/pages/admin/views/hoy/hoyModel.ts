@@ -6,9 +6,8 @@ import { clockTime, jLabel, longDay, shortDate, type AdminMatch } from "../../da
 import type { MatchMoment } from "../../data/moments";
 import { RSVP_LABEL, SEVEN, type Lineup, type Rsvp } from "../../data/lineup";
 import { guestOf, isGuestId } from "../../../../lib/derived/guests";
-
-const TZ = "Europe/Madrid";
-const dayKey = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(ms);
+import { madridDate as dayKey } from "../../../../lib/derived/madrid";
+import { kitLabel } from "../../../../lib/derived/venue";
 const where = (m: Pick<AdminMatch, "home" | "rival">) => (m.home === false ? `en el campo de ${m.rival ?? "el rival"}` : "en casa");
 
 /** The line under «Hoy»: what day it is and what is going on. */
@@ -25,13 +24,12 @@ export function hoyLead(now: number, hero: { match: AdminMatch; moment: MatchMom
   return `${today} · ${when} juega el Piti ${where(match)}`;
 }
 
-const kitOf = (m: Pick<AdminMatch, "kit">) => (m.kit === "away" ? "2ª equipación" : m.kit === "home" ? "1ª equipación" : "");
 const homeAway = (m: Pick<AdminMatch, "home">) => (m.home === false ? "fuera" : "en casa");
 
 /** The plaque: «J8 · MAD SKY», «dom 8 nov · 12:00 · fuera · 2ª equipación» and the meeting note. */
 export function plaque(m: AdminMatch, note: string): { title: string; line: string; short: string; note: string } {
   const t = dateMillis(m.date);
-  const kit = kitOf(m);
+  const kit = kitLabel(m);
   return {
     title: `${jLabel(m)} · ${m.rival ?? "Rival"}`,
     line: [shortDate(t), clockTime(t), homeAway(m), kit].filter(Boolean).join(" · "),
@@ -46,7 +44,7 @@ export function tickerText(m: AdminMatch, note: string): string {
   const rival = m.rival ?? "Rival";
   const day = Number.isFinite(t) ? `${longDay(t)} ${clockTime(t)}` : "";
   const place = m.venue?.trim() || (m.home === false ? `Campo de ${rival}` : "En casa");
-  return `${[jLabel(m), m.competition || "Liga", rival, day, place, kitOf(m), note.trim()].filter(Boolean).join(" · ")} · `.toLocaleUpperCase("es");
+  return `${[jLabel(m), m.competition || "Liga", rival, day, place, kitLabel(m), note.trim()].filter(Boolean).join(" · ")} · `.toLocaleUpperCase("es");
 }
 
 /** «J9 · EL CUARTEL CF · dom 15 nov · 11:00 · en casa». */
