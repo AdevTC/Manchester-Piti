@@ -528,5 +528,84 @@ service cloud.firestore {
         && request.resource.data.voidedAt == request.time;
       allow delete: if false;
     }
+    // ---- Encuestas del vestuario (docs/superpowers/specs/2026-10-16-encuestas-design.md): any member asks
+    // the team a quick question (2–6 options, one or several answers) that closes 1 h … 14 d after it is
+    // created; members vote their own doc while it is open and can change it; votes are public to the
+    // team. The author or a captain closes it early (only `closedAt`, once) or deletes it. Fans read
+    // nothing. The «3 abiertas por autor» limit is the UI's (the rules can't count). The backend
+    // (onPollCreated) sends the team one «Nueva encuesta» notice.
+    function pollOptionOk(o) {
+      return o is map
+        && o.keys().hasOnly(['id','label']) && o.keys().hasAll(['id','label'])
+        && o.id is string && o.id.size() >= 1 && o.id.size() <= 32
+        && o.label is string && o.label.trim().size() >= 1 && o.label.size() <= 40;
+    }
+    // (no loops in the rules: each of the at most 6 slots, and the ids listed by hand)
+    function pollOptionsOk(opts) {
+      return opts is list && opts.size() >= 2 && opts.size() <= 6
+        && pollOptionOk(opts[0]) && pollOptionOk(opts[1])
+        && (opts.size() <= 2 || pollOptionOk(opts[2]))
+        && (opts.size() <= 3 || pollOptionOk(opts[3]))
+        && (opts.size() <= 4 || pollOptionOk(opts[4]))
+        && (opts.size() <= 5 || pollOptionOk(opts[5]))
+        && pollOptionIds(opts).toSet().size() == opts.size();
+    }
+    function pollOptionIds(opts) {
+      return opts.size() == 2 ? [opts[0].id, opts[1].id]
+        : opts.size() == 3 ? [opts[0].id, opts[1].id, opts[2].id]
+        : opts.size() == 4 ? [opts[0].id, opts[1].id, opts[2].id, opts[3].id]
+        : opts.size() == 5 ? [opts[0].id, opts[1].id, opts[2].id, opts[3].id, opts[4].id]
+        : [opts[0].id, opts[1].id, opts[2].id, opts[3].id, opts[4].id, opts[5].id];
+    }
+    // `closesAt`: 1 h … 14 d after the server's time (5 min of slack under the hour for a phone's clock
+    // running behind; the app adds a minute of margin on its side too, src/lib/derived/polls.ts).
+    function pollOk(d) {
+      return d.keys().hasOnly(['question','options','multi','authorUid','authorName','createdAt','closesAt'])
+        && d.keys().hasAll(['question','options','multi','authorUid','authorName','createdAt','closesAt'])
+        && d.question is string && d.question.trim().size() >= 1 && d.question.size() <= 120
+        && pollOptionsOk(d.options)
+        && d.multi is bool
+        && d.authorUid == request.auth.uid
+        && d.authorName is string && d.authorName.size() >= 1 && d.authorName.size() <= 60
+        && d.createdAt == request.time
+        && d.closesAt is timestamp
+        && d.closesAt >= request.time + duration.value(55, 'm')
+        && d.closesAt <= request.time + duration.value(14, 'd');
+    }
+    function pollOpen(p) {
+      return request.time < p.closesAt && !('closedAt' in p);
+    }
+    // A vote: ids of this poll's options, no repeats, exactly one unless `multi` (then 1…all of them).
+    function pollAccepts(pollId, optionIds) {
+      let p = get(/databases/$(database)/documents/polls/$(pollId)).data;
+      return pollOpen(p)
+        && optionIds.hasOnly(pollOptionIds(p.options))
+        && optionIds.toSet().size() == optionIds.size()
+        && (p.multi ? optionIds.size() >= 1 && optionIds.size() <= p.options.size() : optionIds.size() == 1);
+    }
+    match /polls/{id} {
+      allow read: if teamMember();
+      allow create: if teamMember() && pollOk(request.resource.data);
+      allow update: if teamMember()
+        && (resource.data.authorUid == request.auth.uid || admin())
+        && !('closedAt' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closedAt'])
+        && request.resource.data.closedAt == request.time;
+      allow delete: if teamMember() && (resource.data.authorUid == request.auth.uid || admin());
+      match /votes/{uid} {
+        allow read: if teamMember();
+        allow create, update: if teamMember() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['optionIds','name','playerId','at'])
+          && request.resource.data.keys().hasAll(['optionIds','name','playerId','at'])
+          && request.resource.data.optionIds is list
+          && request.resource.data.optionIds.size() >= 1 && request.resource.data.optionIds.size() <= 6
+          && pollAccepts(id, request.resource.data.optionIds)
+          && signedAsMe(request.resource.data);
+        // Your own vote, taken back while the poll is open (or once the poll itself is gone: cleanup).
+        allow delete: if teamMember() && request.auth.uid == uid
+          && (!exists(/databases/$(database)/documents/polls/$(id))
+            || pollOpen(get(/databases/$(database)/documents/polls/$(id)).data));
+      }
+    }
   }
 }
