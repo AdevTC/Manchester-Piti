@@ -1,5 +1,7 @@
 // Push notices for the club's service worker (imported by the Workbox-generated sw.js).
-// The server sends { title, body, tag, url } (functions/src/push.ts).
+// The server sends { title, body, tag, url } and, on the notices that ask for an answer, the buttons
+// «Voy» / «No puedo» (`actions`) with their `matchId` (functions/src/pushLogic.ts pushPayload).
+// Browsers without notice buttons (iOS) just leave them out.
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -7,17 +9,28 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { title: "Manchester Piti", body: event.data ? event.data.text() : "" };
   }
-  event.waitUntil(
-    self.registration.showNotification(data.title || "Manchester Piti", {
-      body: data.body || "",
-      icon: "/crest-icon.png",
-      badge: "/crest-icon.png",
-      tag: data.tag,
-      renotify: !!data.tag,
-      data: { url: data.url || "/" },
-    }),
-  );
+  const actions = Array.isArray(data.actions) ? data.actions.filter((a) => a && typeof a.action === "string" && typeof a.title === "string") : [];
+  const options = {
+    body: data.body || "",
+    icon: "/crest-icon.png",
+    badge: "/crest-icon.png",
+    tag: data.tag,
+    renotify: !!data.tag,
+    data: { url: data.url || "/", matchId: typeof data.matchId === "string" ? data.matchId : undefined },
+  };
+  if (actions.length && options.data.matchId) options.actions = actions;
+  event.waitUntil(self.registration.showNotification(data.title || "Manchester Piti", options));
 });
+
+// Where a tap leads: the same function as src/lib/pushRoute.ts (pushRoute.test.ts runs both copies).
+// <pushRoute>
+const pushClickUrl = (data, action) => {
+  const d = data || {};
+  const matchId = typeof d.matchId === "string" ? d.matchId : "";
+  if ((action === "yes" || action === "no") && matchId) return `/vestuario?rsvp=${action}&m=${encodeURIComponent(matchId)}`;
+  return typeof d.url === "string" && d.url ? d.url : "/";
+};
+// </pushRoute>
 
 // The browser renewed this device's subscription (its keys rotated, or the push service dropped the old
 // one): subscribe again with the same key and tell the server, so the notices keep coming without
@@ -59,7 +72,9 @@ self.addEventListener("pushsubscriptionchange", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = new URL((event.notification.data && event.notification.data.url) || "/", self.location.origin).href;
+  // A button («Voy» / «No puedo») opens the vestuario with the answer; the signed-in app writes it (the
+  // worker has no session and never writes). A plain tap opens the notice's link.
+  const url = new URL(pushClickUrl(event.notification.data, event.action), self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
       for (const w of windows) {

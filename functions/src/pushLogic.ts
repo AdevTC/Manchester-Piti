@@ -29,6 +29,35 @@ export interface Notice {
   requires?: string;
   /** pushLog id whose presence cancels this notice (a provisional final once the acta's «Final» went). */
   skipIf?: string;
+  /** «Voy» / «No puedo» on the phone: only the notices that ask a member for an answer (RSVP_ACTIONS). */
+  actions?: readonly NoticeAction[];
+  /** The match those actions answer (the service worker opens /vestuario?rsvp=<action>&m=<matchId>). */
+  matchId?: string;
+}
+
+/** A button of a notice (the Notification API's `actions`): its id, which the service worker reads on
+ *  `notificationclick`, and its words. */
+export interface NoticeAction {
+  action: "yes" | "no";
+  title: string;
+}
+/** «Voy» and «No puedo» (two buttons: the common platform limit; «Duda» stays in the web). */
+export const RSVP_ACTIONS: readonly NoticeAction[] = [
+  { action: "yes", title: "Voy" },
+  { action: "no", title: "No puedo" },
+];
+/** The fields a notice asking for an answer carries on top of its words. */
+export const rsvpFields = (matchId: string): Pick<Notice, "actions" | "matchId"> => ({ actions: RSVP_ACTIONS, matchId });
+
+/** What goes to the phone (public/push-sw.js reads it): the words, the tag and the link, plus the
+ *  buttons and their match on the notices that carry them. */
+export function pushPayload(n: Pick<Notice, "title" | "body" | "tag" | "url" | "actions" | "matchId">): Record<string, unknown> {
+  const out: Record<string, unknown> = { title: n.title, body: n.body, tag: n.tag, url: n.url };
+  if (n.actions?.length && n.matchId) {
+    out.actions = n.actions.map((a) => ({ action: a.action, title: a.title }));
+    out.matchId = n.matchId;
+  }
+  return out;
 }
 const PUBLIC = new Set<string>(TOPICS);
 /** The club's public topics among `topics` (what a device keeps when its member leaves or signs out). */
@@ -328,14 +357,15 @@ export function convocatoriaNotice(id: string, before: MatchLike | undefined, af
 
 /**
  * The convocatoria's notices: «Ya está la convocatoria de la J8» (first) and «Cambios en la convocatoria
- * de la J8» (an already-notified one changed). Same tag: the phone keeps only the latest.
+ * de la J8» (an already-notified one changed). Same tag: the phone keeps only the latest. Only the first
+ * one asks for an answer («Voy» / «No puedo» on the phone, rsvpFields): «Cambios» just tells.
  */
 export function convocatoriaMessage(id: string, kind: "first" | "changes", match: Pick<MatchLike, "rival" | "date">, jornada: number | null): Notice {
   const rival = match.rival ?? "el rival";
   const day = typeof match.date === "number" ? ` · ${when(match.date).replace(/^./, (c) => c.toUpperCase())}` : "";
   const of = jornada ? ` de la J${jornada}` : "";
   return kind === "first"
-    ? { topic: "lineup", title: `Ya está la convocatoria${of}`, body: `${rival}${day}. Mira si te toca en la web.`, tag: `conv-${id}`, url: `/matches/${id}` }
+    ? { topic: "lineup", title: `Ya está la convocatoria${of}`, body: `${rival}${day}. Mira si te toca en la web.`, tag: `conv-${id}`, url: `/matches/${id}`, ...rsvpFields(id) }
     : { topic: "lineup", title: `Cambios en la convocatoria${of}`, body: `${rival}${day}. Mira cómo queda en la web.`, tag: `conv-${id}`, url: `/matches/${id}` };
 }
 

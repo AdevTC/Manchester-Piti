@@ -1,7 +1,7 @@
 // Pure rules of «la convocatoria que persigue sola» (functions/src/reminders.ts): when a match is 48 h and
 // 24 h away, who of its convocados hasn't answered yet and what the reminder says; and the captains'
 // notice when someone changes their answer in the last 24 h. Apart so the app's tests can run them.
-import type { Notice } from "./pushLogic.js";
+import { rsvpFields, type Notice } from "./pushLogic.js";
 import { memberIds } from "./guests.js";
 
 export const HOUR = 3_600_000;
@@ -36,7 +36,8 @@ const hour = (ms: number) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, ho
 
 /** «¿Vas el domingo?» — the reminder to a convocado who hasn't answered. Same tag: the 24 h one replaces
  *  the 48 h one on the phone. It opens the match's Vestuario tab, where Voy / Duda / No puedo live
- *  (and so does the captains' late-change notice below: the answers' bar is there). */
+ *  (and so does the captains' late-change notice below: the answers' bar is there). It asks for an
+ *  answer: «Voy» / «No puedo» on the phone (rsvpFields); the captains' notice doesn't. */
 export function reminderNotice(matchId: string, kind: ReminderKind, match: { rival?: string; date: number }): Notice {
   const rival = match.rival ?? "el rival";
   const day = weekday(match.date);
@@ -46,6 +47,7 @@ export function reminderNotice(matchId: string, kind: ReminderKind, match: { riv
     body: `Estás convocado contra ${rival} (${day}, ${hour(match.date)}). Contesta en la web: Voy, Duda o No puedo.`,
     tag: `remind-${matchId}`,
     url: `/matches/${matchId}?tab=vestuario`,
+    ...rsvpFields(matchId),
   };
 }
 

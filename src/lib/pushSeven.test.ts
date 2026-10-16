@@ -91,6 +91,11 @@ describe("la convocatoria que persigue sola", () => {
       body: "Estás convocado contra MAD SKY (domingo, 12:00). Contesta en la web: Voy, Duda o No puedo.",
       tag: "remind-m8",
       url: "/matches/m8?tab=vestuario",
+      actions: [
+        { action: "yes", title: "Voy" },
+        { action: "no", title: "No puedo" },
+      ],
+      matchId: "m8",
     });
     expect(reminderNotice("m8", "24", { date }).title).toBe("Mañana se juega: ¿vas?");
   });

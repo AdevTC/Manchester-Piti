@@ -12,6 +12,11 @@ describe("«Ya está la convocatoria»", () => {
       body: "MAD SKY · Domingo, 8 nov, 12:00. Mira si te toca en la web.",
       tag: "conv-m8",
       url: "/matches/m8",
+      actions: [
+        { action: "yes", title: "Voy" },
+        { action: "no", title: "No puedo" },
+      ],
+      matchId: "m8",
     });
     // a brand-new match published already with its convocatoria
     expect(convocatoriaNotice("m8", undefined, { ...base, starters: ["a"] }, null, NOW)?.title).toBe("Ya está la convocatoria");

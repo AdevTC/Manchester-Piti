@@ -202,5 +202,15 @@ for (const n of ["socio", "fan"]) assert.ok(!(await call("pushSubscribe", n === 
 assert.equal((await db.collection("pushSubscriptions").where("endpoint", "in", [sub("socio").endpoint, sub("fan").endpoint]).get()).size, 0);
 checked++;
 
-console.log(checked + " comprobaciones de avisos correctas: pitidos, gol anulado, final provisional, MVP, tu ficha, tus posiciones y suscripciones.");
+// ---------- «Responder desde el aviso»: what the phone gets for «Ya está la convocatoria» carries the
+// buttons «Voy» / «No puedo» and its match (the built payload sendTo signs: lib/pushLogic.js pushPayload)
+const { convocatoriaMessage, pushPayload } = await import("../lib/pushLogic.js");
+const convId = "push-conv-" + suffix;
+const convPayload = JSON.parse(JSON.stringify(pushPayload(convocatoriaMessage(convId, "first", { rival: "Rival Avisos", date: Date.now() + 48 * 3600_000 }, 5))));
+assert.deepEqual(convPayload.actions, [{ action: "yes", title: "Voy" }, { action: "no", title: "No puedo" }]);
+assert.equal(convPayload.matchId, convId);
+assert.equal(pushPayload(convocatoriaMessage(convId, "changes", { rival: "Rival Avisos" }, 5)).actions, undefined);
+checked++;
+
+console.log(checked + " comprobaciones de avisos correctas: pitidos, gol anulado, final provisional, MVP, tu ficha, tus posiciones, suscripciones y botones de la convocatoria.");
 await db.terminate();
