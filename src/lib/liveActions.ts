@@ -8,7 +8,7 @@
 import type { LIVE_TYPES } from "../../functions/src/liveLogic";
 import { allowedAtBreak } from "../../functions/src/liveRules";
 import type { IconName } from "../components/celeste/icons";
-import { guestLabel, isGuestId, type MatchGuest } from "./derived/guests";
+import { isGuestId, withGuestNames } from "./derived/guests";
 
 /** The event types the liveEvent callable accepts (functions/src/liveLogic.ts). */
 export type LiveEventType = (typeof LIVE_TYPES)[number];
@@ -141,7 +141,6 @@ export function guestsLast(ids: readonly string[]): string[] {
   return [...ids.filter((id) => !isGuestId(id)), ...ids.filter((id) => isGuestId(id))];
 }
 
-/** A `nameOf` that says a guest's reference as «Rafa (invitado)» and leaves the members to `nameOf`. */
-export function withGuestNames(match: { guests?: MatchGuest[] } | null | undefined, nameOf: (id: string) => string): (id: string) => string {
-  return (id) => (isGuestId(id) ? guestLabel(match ?? {}, id) : nameOf(id));
-}
+/** A `nameOf` that says a guest's reference as «Rafa (invitado)» and leaves the members to `nameOf` — the one
+ *  of functions/src/guests.ts, re-exported for the live screens. */
+export { withGuestNames };

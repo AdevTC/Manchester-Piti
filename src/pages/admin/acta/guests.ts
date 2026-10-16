@@ -20,9 +20,13 @@ export type GuestRemove<T> = { ok: true; value: T } | { ok: false; error: string
 /** The guests of anything that may have them. */
 export const guestsOf = (x: { guests?: MatchGuest[] } | null | undefined): MatchGuest[] => x?.guests ?? [];
 
-/** The first free id, «g1»…«g4» (null: there are already four). */
-export function nextGuestId(guests: readonly MatchGuest[]): string | null {
-  for (let i = 1; i <= MAX_GUESTS; i++) if (!guests.some((g) => g.id === `g${i}`)) return `g${i}`;
+/** The first free id, «g1»…«g4» (null: there are already four) — never one an event still names
+ *  (`events`): his plays would pass to the new guest. */
+export function nextGuestId(guests: readonly MatchGuest[], events?: readonly MatchEvent[]): string | null {
+  for (let i = 1; i <= MAX_GUESTS; i++) {
+    const id = `g${i}`;
+    if (!guests.some((g) => g.id === id) && !guestInUse(events, id)) return id;
+  }
   return null;
 }
 
@@ -36,9 +40,9 @@ export function guestNameProblem(guests: readonly MatchGuest[], raw: string): st
 }
 
 /** «Añadir invitado»: a new guest, on the banquillo. Up to four per match. */
-export function addGuest<T extends WithGuests>(x: T, raw: string): GuestAdd<T> {
+export function addGuest<T extends WithGuests & { events?: MatchEvent[] }>(x: T, raw: string): GuestAdd<T> {
   const guests = guestsOf(x);
-  const id = nextGuestId(guests);
+  const id = nextGuestId(guests, x.events);
   if (!id) return { ok: false, error: `Ya hay ${MAX_GUESTS} invitados: es el máximo por partido.` };
   const problem = guestNameProblem(guests, raw);
   if (problem) return { ok: false, error: problem };
@@ -46,10 +50,10 @@ export function addGuest<T extends WithGuests>(x: T, raw: string): GuestAdd<T> {
   return { ok: true, guest, value: { ...x, guests: [...guests, guest], bench: [...x.bench, guestRef(id)] } };
 }
 
-/** Whether any event names this guest (scorer, assist, who comes in, a card…). */
+/** Whether any event names this guest (scorer, assist, who comes in, who receives a pass, a card…). */
 export function guestInUse(events: readonly MatchEvent[] | undefined, id: string): boolean {
   const ref = guestRef(id);
-  return (events ?? []).some((e) => e.playerId === ref || e.assistPlayerId === ref || e.inPlayerId === ref);
+  return (events ?? []).some((e) => e.playerId === ref || e.assistPlayerId === ref || e.inPlayerId === ref || e.receiverId === ref);
 }
 
 /** Takes a guest away (and out of the convocatoria), unless an event still names him. */

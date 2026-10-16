@@ -76,6 +76,34 @@ await ok("setConvocatoria",admin,{matchId:liveId,starters:ids.slice(0,7),bench:[
 live=(await ref.get()).data();
 assert.deepEqual(live.guests,guests);assert.deepEqual(live.bench,[RAFA,ids[7]]);checks+=2;
 
+// ---- a draft names only guests on its list too (saveMatchSheet checks drafts as well)
+const draftId=`guests-draft-${suffix}`;
+await denied("saveMatchSheet",admin,{id:draftId,draft:true,sheet:{...acta,status:"scheduled",guests:[]}},"INVALID_ARGUMENT");
+await denied("saveMatchSheet",admin,{id:draftId,draft:true,sheet:{...acta,status:"scheduled",events:[...events,{id:"p9",type:"pass",minute:41,outcome:"complete",playerId:ids[0],receiverId:"guest:g3"}]}},"INVALID_ARGUMENT");
+assert.equal((await db.doc(`matchDrafts/${draftId}`).get()).exists,false);checks++;
+
+// ---- convocar can't take away a guest the acta names: published events, then a draft's
+const keepId=`guests-keep-${suffix}`;
+const upcomingSheet={...acta,status:"scheduled",date:Date.now()+3600_000,events:[],goalsFor:undefined,goalsAgainst:undefined};
+await ok("saveMatchSheet",admin,{id:keepId,sheet:{...upcomingSheet,events:[{id:"s1",type:"substitution",minute:2,playerId:ids[6],inPlayerId:RAFA}]}});
+let r=await call("setConvocatoria",admin,{matchId:keepId,starters:ids.slice(0,7),bench:[ids[7]],guests:[]});
+assert.equal(r.error?.status,"FAILED_PRECONDITION",JSON.stringify(r));assert.match(r.error.message,/Rafa sale en el acta/);checks+=2;
+// nor hand his id to someone else
+r=await call("setConvocatoria",admin,{matchId:keepId,starters:ids.slice(0,7),bench:[ids[7]],guests:[{id:"g2",name:"Iván"}]});
+assert.equal(r.error?.status,"FAILED_PRECONDITION",JSON.stringify(r));checks++;
+assert.deepEqual((await db.doc(`matches/${keepId}`).get()).get("guests"),guests);checks++;
+// the published acta without Rafa's play, but its draft still names him: still refused
+const pubKeep=(await db.doc(`matches/${keepId}`).get()).data();
+await ok("saveMatchSheet",admin,{id:keepId,sheet:{...upcomingSheet,revision:pubKeep.revision??0,events:[]}});
+await ok("saveMatchSheet",admin,{id:keepId,draft:true,sheet:{...upcomingSheet,revision:(await db.doc(`matches/${keepId}`).get()).get("revision")??0,events:[{id:"g9",type:"goal",minute:5,playerId:RAFA,assistReviewed:true}]}});
+r=await call("setConvocatoria",admin,{matchId:keepId,starters:ids.slice(0,7),bench:[ids[7]],guests:[]});
+assert.equal(r.error?.status,"FAILED_PRECONDITION",JSON.stringify(r));checks++;
+// a guest no event names can go
+const freeId=`guests-free-${suffix}`;
+await ok("saveMatchSheet",admin,{id:freeId,sheet:upcomingSheet});
+await ok("setConvocatoria",admin,{matchId:freeId,starters:ids.slice(0,7),bench:[ids[7]],guests:[]});
+assert.deepEqual((await db.doc(`matches/${freeId}`).get()).get("guests"),[]);checks++;
+
 // ---- liveEvent: Rafa comes on and scores; a guest off the list is refused
 await ok("controlMatchClock",admin,{matchId:liveId,action:"start",revision:live.clock?.revision??0});
 live=(await ref.get()).data();
@@ -88,5 +116,5 @@ live=(await ref.get()).data();
 assert.ok(live.events.some(e=>e.id==="live-goal"&&e.playerId===RAFA&&e.assistPlayerId===ids[1]));checks++;
 assert.equal(live.events.length,2);checks++;
 
-console.log(`${checks} comprobaciones: el invitado marca y asiste en el acta y en directo, sin cifras de socio; invitados fuera de lista o de más, rechazados.`);
+console.log(`${checks} comprobaciones: el invitado marca y asiste en el acta y en directo, sin cifras de socio; invitados fuera de lista o de más, rechazados (también en borrador); un invitado con jugadas no sale de la lista.`);
 await db.terminate();

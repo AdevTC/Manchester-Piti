@@ -29,6 +29,12 @@ describe("scorersLine", () => {
     expect(scorersLine([ev("goal", "h"), ev("goal", "a"), ev("goal_freekick", "a"), ev("opponent_own_goal"), ev("opponent_goal")], nameOf)).toBe("ADRIÁN T.C. ×2, HUBEROSKI, autogol rival");
     expect(scorersLine([], nameOf)).toBe("");
   });
+  it("names a guest of the match «Rafa (invitado)», never «Jugador» (Partidos, Estadísticas)", () => {
+    const member = (id: string) => (id === "h" ? "HUBEROSKI" : "Jugador");
+    const events = [ev("goal", "guest:g1"), ev("goal", "guest:g1"), ev("goal", "h")];
+    expect(scorersLine(events, member, { guests: [{ id: "g1", name: "Rafa" }] })).toBe("Rafa (invitado) ×2, HUBEROSKI");
+    expect(scorersLine(events, member)).toBe("Invitado ×2, HUBEROSKI");
+  });
 });
 
 describe("seasonView", () => {

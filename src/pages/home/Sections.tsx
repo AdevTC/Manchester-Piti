@@ -8,12 +8,15 @@ import { plural } from "../../lib/vestuario";
 import { AWAITING_ACTA, kickoffText } from "../../lib/derived/kickoff";
 import { RESULT_WORD, resultTitle } from "../../lib/derived/result";
 import { rankedLeaders, medalFor } from "../../lib/clubAnalytics";
+import { withGuestNames } from "../../lib/derived/guests";
 
 const MONTH = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", month: "short" });
 const DAYN = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric" });
 const HOUR = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
-function goalsOf(m: ClubMatch, nameOf: (id: string) => string) {
+function goalsOf(m: ClubMatch, memberName: (id: string) => string) {
+  // a guest's goal or assist: «Rafa (invitado)», never the members' fallback
+  const nameOf = withGuestNames(m, memberName);
   return (m.events ?? [])
     .filter((e) => /^goal/.test(e.type) && e.playerId)
     .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))

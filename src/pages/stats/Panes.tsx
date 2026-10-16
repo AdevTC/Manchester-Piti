@@ -435,7 +435,7 @@ export function Rivales({ games, rows }: { games: ClubMatch[]; rows: PlayerAnaly
                               {m.goalsFor}–{m.goalsAgainst}
                             </b>
                             <span>{formatDate(m.date)}</span>
-                            <small>{scorersLine(m.events, nameOfId) || "Sin goles del Piti"}</small>
+                            <small>{scorersLine(m.events, nameOfId, m) || "Sin goles del Piti"}</small>
                             <span className="tl" aria-hidden="true">
                               {gm.us.map((x, i) => (
                                 <i key={"u" + i} className="us" style={{ left: `${(x / d) * 100}%` }} />

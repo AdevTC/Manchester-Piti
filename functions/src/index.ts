@@ -9,7 +9,7 @@ import {
 } from "./matchEngine.js";
 import { db, idSchema, parse, admin } from "./common.js";
 import { eventSchema, guestsSchema, playerRefSchema } from "./eventSchema.js";
-import { memberIds, withoutGuests } from "./guests.js";
+import { guestRefsProblem, memberIds, withoutGuests } from "./guests.js";
 import { readyClock } from "./matchClock.js";
 import { recomputePorra } from "./vestuario.js";
 import { boardCodeByPlayer, boardSystem } from "./boardCodes.js";
@@ -116,6 +116,9 @@ export const saveMatchSheet = onCall(async (req) => {
         "Hay jugadores que no pertenecen a esta temporada.",
       );
   }
+  // Every `guest:` reference names a guest on the list — a draft too (the acta and Convocar read it).
+  const guestProblem = guestRefsProblem(sheet);
+  if (guestProblem) throw new HttpsError("invalid-argument", guestProblem);
   const fullLedger = calculateLedger(sheet, sheet.status === "finished");
   // The guests' goals count for the team (goalsFor); their rows never reach a member's numbers: the
   // stored ledger, the season stats, the MVP candidates and the porra read members only.

@@ -3,7 +3,7 @@ import { ACTION_LABELS, actionProblem, analyseActions, eventSeconds, isAnalysisA
 import { type MatchClock } from "./matchClock.js";
 import type { PosCode } from "./positions.js";
 import type { PositionEvents } from "./positionsPlayed.js";
-import { guestsProblem, isGuestId, isUnknownGuest, type MatchGuest } from "./guests.js";
+import { guestRefsProblem, type MatchGuest } from "./guests.js";
 export const EVENT_LABELS = {
   ...ACTION_LABELS,
   goal: "Gol",
@@ -198,11 +198,8 @@ export function calculateLedger(
   if (match.starters.length > 7 || (strict && match.starters.length !== 7))
     fail("Selecciona exactamente 7 titulares.");
   // Invitados: a `guest:` id must be one of this match's guests, and a guest is called (never «no convocado»).
-  const guestError = guestsProblem(match.guests);
+  const guestError = guestRefsProblem(match);
   if (guestError) fail(guestError);
-  const refs = [...assignments, ...match.events.flatMap((e) => [e.playerId, e.assistPlayerId, e.inPlayerId, e.receiverId])];
-  if (refs.some((id) => isUnknownGuest(match, id))) fail("Hay un invitado que no está en la lista de invitados del partido.");
-  if (match.notCalled.some(isGuestId)) fail("Un invitado va de titular o en el banquillo.");
   for (const id of assignments) result.players[id] = emptyParticipation();
   const onPitch = new Map<string, number>();
   for (const id of match.starters) {

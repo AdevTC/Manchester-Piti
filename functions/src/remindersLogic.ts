@@ -2,6 +2,7 @@
 // 24 h away, who of its convocados hasn't answered yet and what the reminder says; and the captains'
 // notice when someone changes their answer in the last 24 h. Apart so the app's tests can run them.
 import type { Notice } from "./pushLogic.js";
+import { memberIds } from "./guests.js";
 
 export const HOUR = 3_600_000;
 /** No reminder this close to kick-off (the convocatoria is closed by then, in practice). */
@@ -21,10 +22,11 @@ export function reminderDue(kickoff: number, now: number): ReminderKind | null {
   return null;
 }
 
-/** The convocados (titulares + banquillo, once each, in that order) who haven't answered. */
+/** The convocados (titulares + banquillo, once each, in that order) who haven't answered — members only:
+ *  a guest («guest:g1») has no ficha, no devices and nothing to answer. */
 export function unanswered(starters: readonly string[], bench: readonly string[], answered: ReadonlySet<string>): string[] {
   const out: string[] = [];
-  for (const id of [...starters, ...bench]) if (id && !answered.has(id) && !out.includes(id)) out.push(id);
+  for (const id of memberIds([...starters, ...bench])) if (id && !answered.has(id) && !out.includes(id)) out.push(id);
   return out;
 }
 

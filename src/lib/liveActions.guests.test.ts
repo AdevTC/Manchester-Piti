@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildLiveEvent, guestsLast, liveLine, withGuestNames } from "./liveActions";
+import { withGuestNames as sharedWithGuestNames } from "./derived/guests";
 
 // Invitados en el acta: the live pickers' order, the names and what a guest's play sends to liveEvent.
 const MATCH = { guests: [{ id: "g1", name: "Rafa" }] };
@@ -14,6 +15,12 @@ describe("liveActions · invitados", () => {
     expect(nameOf("guest:g1")).toBe("Rafa (invitado)");
     expect(nameOf("erik")).toBe("ERIK");
     expect(liveLine("goal", nameOf("guest:g1"))).toBe("Gol de Rafa (invitado)");
+  });
+
+  it("is the one shared withGuestNames, and with no match a guest is «Invitado»", () => {
+    expect(withGuestNames).toBe(sharedWithGuestNames);
+    expect(withGuestNames(null, (id) => id)("guest:g1")).toBe("Invitado");
+    expect(withGuestNames(undefined, (id) => id)("erik")).toBe("erik");
   });
 
   it("a guest scorer, a guest assist and a guest coming in travel as guest: references", () => {

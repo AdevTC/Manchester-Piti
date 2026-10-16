@@ -52,6 +52,7 @@ export async function remindConvocados(now: number): Promise<void> {
     const answers = await db.collection(`matchPrivate/${m.id}/availability`).get();
     const answered = new Set(answers.docs.map((a) => a.get("playerId")).filter((x): x is string => typeof x === "string"));
     const notice = reminderNotice(m.id, kind, { rival: m.get("rival") ?? "el rival", date });
+    // (members only: unanswered leaves out the guests, who have no playerLinks to read)
     for (const pid of unanswered(starters, bench, answered)) {
       const uid = (await db.doc(`playerLinks/${pid}`).get()).get("uid");
       if (typeof uid !== "string" || !uid) continue;

@@ -22,7 +22,7 @@ import { joinNames, place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type
 import { useConvocatoria } from "../data/useConvocatoria";
 import { GuestPanel } from "../kit/GuestPanel";
 import { addGuest, guestInUse, guestSlot, removeGuest } from "../acta/guests";
-import { guestOf, guestRef, isGuestId } from "../../../lib/derived/guests";
+import { guestRef, isGuestId } from "../../../lib/derived/guests";
 import { withGuestNames } from "../../../lib/liveActions";
 import { Peg, PegRail, ShirtBack } from "../kit";
 import { useMatchShortcuts } from "../palette/matchShortcuts";
@@ -128,8 +128,8 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   const full = n >= SEVEN;
   const called = n + lineup.bench.length;
   const j = jLabel(match);
-  // the guests on the front pegs: «INV» on the shirt, his name, «Invitado» under it
-  const front = pegWall(lineup, roster, rsvp).front.map((p) => (p.id && isGuestId(p.id) ? { ...p, num: "INV", name: guestOf(lineup, p.id)?.name ?? "Invitado", sub: "Invitado", duda: false } : p));
+  // (the guests on the front pegs: «INV» on the shirt, his name, «Invitado» under it — pegWall)
+  const front = pegWall(lineup, roster, rsvp).front;
   const guests = lineup.guests ?? [];
   const guestBench = guests.filter((g) => lineup.bench.includes(guestRef(g.id)));
   const pool = poolGroups(roster, lineup, rsvp);

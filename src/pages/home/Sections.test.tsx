@@ -79,3 +79,18 @@ it("the plantilla's podium, the top assister and the birthdays lead to each play
   // (someone no longer in the squad: his name, not a link)
   expect(within(bdays).getByText("EX JUGADOR").closest("a")).toBeNull();
 });
+
+it("the last match's goals name a guest «Rafa (invitado)», never «Jugador»", () => {
+  const withGuest: ClubMatch = {
+    ...played,
+    guests: [{ id: "g1", name: "Rafa" }],
+    events: [
+      { id: "a", type: "goal", minute: 10, playerId: "guest:g1", assistPlayerId: "p1" },
+      { id: "b", type: "goal", minute: 20, playerId: "p2", assistPlayerId: "guest:g1" },
+    ],
+  };
+  render(<SeasonRow pulse={seasonPulse([withGuest, next], "t1", NOW)} now={NOW} nameOf={(id) => (id.startsWith("guest:") ? "Jugador" : id.toUpperCase())} />);
+  expect(document.body).toHaveTextContent("10′Rafa (invitado) · asistencia de P1");
+  expect(document.body).toHaveTextContent("asistencia de Rafa (invitado)");
+  expect(document.body).not.toHaveTextContent("Jugador");
+});

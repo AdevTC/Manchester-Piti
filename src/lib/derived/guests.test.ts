@@ -21,6 +21,10 @@ import { goalMoment } from "./island";
 import { chapters } from "../ficha";
 import { posterContext } from "../matchPoster";
 import { MAX_GUESTS, guestLabel, guestOf, guestRef, guestsProblem, isGuestId, withoutGuests, type MatchGuest } from "./guests";
+import { guestRefsProblem, guestRemovalProblem } from "../../../functions/src/guests";
+import { analyseActions } from "../../../functions/src/matchAnalysis";
+import { shooterName, technicalAnalysis } from "../technicalAnalysis";
+import { evoluciones } from "../../pages/perfil/card";
 
 const GUESTS: MatchGuest[] = [{ id: "g1", name: "Rafa" }];
 const RAFA = guestRef("g1");
@@ -123,6 +127,12 @@ describe("invitados: el gol cuenta para el equipo y ninguna cifra de un socio ca
       expect(totalMinutes(A, id), id).toBe(totalMinutes(B, id));
       expect(numbers(playerPositions(id, A)), id).toEqual(numbers(playerPositions(id, B)));
       expect(numbers(achievements(id, A, { mvpResults: new Map(), now: NOW })), id).toEqual(numbers(achievements(id, B, { mvpResults: new Map(), now: NOW })));
+      expect(numbers(achievements(id, [A[1]], { mvpResults: new Map(), now: NOW })), id).toEqual(numbers(achievements(id, [B[1]], { mvpResults: new Map(), now: NOW })));
+      // the evoluciones (the Dúo above all: a guest is nobody's «socio»), over the career and the one acta
+      expect(evoluciones(id, A, new Map(), [{ id: "t1", name: "T1" }], NOW), id).toEqual(evoluciones(id, B, new Map(), [{ id: "t1", name: "T1" }], NOW));
+      expect(evoluciones(id, [A[1]], new Map(), [{ id: "t1", name: "T1" }], NOW), id).toEqual(evoluciones(id, [B[1]], new Map(), [{ id: "t1", name: "T1" }], NOW));
+      // the technical analysis: each member's row is the same (Bea's shot-assist to Rafa's goal aside)
+      expect(numbers(technicalAnalysis(A).players[id] ?? null), id).toEqual(numbers(technicalAnalysis(B).players[id] ?? null));
       expect(bestPartner(id, A, ALL), id).toEqual(bestPartner(id, B, ALL));
       expect(numbers(seasonSummary(id, "t1", A, new Map(), NOW)), id).toEqual(numbers(seasonSummary(id, "t1", B, new Map(), NOW)));
     }
@@ -191,5 +201,49 @@ describe("las frases nombran al invitado", () => {
     const m = { ...WITH_GUEST, events: WITH_GUEST.events };
     expect(goalMoment(m, "a", member)?.said).toMatch(/Rafa \(invitado\)/);
     expect(posterContext(m, { players: [], seasonName: null }).nameOf(RAFA)).toBe("Rafa (invitado)");
+  });
+});
+
+describe("invitados: el análisis técnico solo los cuenta para el equipo", () => {
+  const events = [
+    { id: "p1", type: "pass", outcome: "complete" as const, playerId: "ana", receiverId: RAFA },
+    { id: "p2", type: "pass", outcome: "complete" as const, playerId: RAFA, receiverId: "bea" },
+    { id: "s1", type: "shot", outcome: "on_target" as const, playerId: RAFA },
+    { id: "g1", type: "goal", playerId: "ana", assistPlayerId: RAFA },
+  ];
+  it("no per-player row, link or shot-assist for a guest; the team totals keep his actions", () => {
+    const a = analyseActions(events);
+    expect(Object.keys(a.players).some(isGuestId)).toBe(false);
+    expect(a.links.some((l) => isGuestId(l.from) || isGuestId(l.to))).toBe(false);
+    expect(a.teams.us.passes).toBe(2);
+    expect(a.teams.us.passesReceived).toBe(2);
+    expect(a.teams.us.shots).toBe(2);
+    expect(a.teams.us.shotAssists).toBe(1);
+    expect(a.players.ana.passes).toBe(1);
+    expect(a.players.bea.passesReceived).toBe(1);
+    expect(technicalAnalysis(A).players[RAFA]).toBeUndefined();
+  });
+  it("the shot map names a guest's shot «Rafa (invitado)» from its match", () => {
+    const match = { id: "j1", guests: GUESTS } as ClubMatch;
+    const shot = { id: "j1__s1", type: "shot", playerId: RAFA };
+    expect(shooterName(shot, (id) => (id === "j1__s1" ? match : undefined), () => "Jugador")).toBe("Rafa (invitado)");
+    expect(shooterName(shot, () => undefined, () => "Jugador")).toBe("Invitado");
+    expect(shooterName({ id: "x", type: "shot", playerId: "ana" }, () => undefined, (id) => id.toUpperCase())).toBe("ANA");
+  });
+});
+
+describe("invitados en el servidor: la lista y sus referencias", () => {
+  it("a guest the acta names can't leave the list (published or draft events); one it doesn't name can", () => {
+    const named = [{ id: "e", type: "goal", playerId: "ana", assistPlayerId: RAFA }];
+    expect(guestRemovalProblem(GUESTS, [], named)).toBe("Rafa sale en el acta: quita antes sus jugadas.");
+    expect(guestRemovalProblem(GUESTS, [], [], [{ receiverId: RAFA }])).toMatch(/sale en el acta/);
+    expect(guestRemovalProblem(GUESTS, [{ id: "g1", name: "Rafael" }], named)).toBeNull();
+    expect(guestRemovalProblem(GUESTS, [], [{ playerId: "ana" }], undefined)).toBeNull();
+  });
+  it("every guest reference on the list, a draft's too", () => {
+    expect(guestRefsProblem({ guests: GUESTS, starters: [RAFA], events: [{ playerId: RAFA }] })).toBeNull();
+    expect(guestRefsProblem({ guests: GUESTS, bench: ["guest:g2"] })).toMatch(/invitado/);
+    expect(guestRefsProblem({ guests: GUESTS, events: [{ receiverId: "guest:g3" }] })).toMatch(/invitado/);
+    expect(guestRefsProblem({ guests: GUESTS, notCalled: [RAFA] })).toMatch(/invitado/);
   });
 });

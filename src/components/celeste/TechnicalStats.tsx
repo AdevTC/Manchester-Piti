@@ -7,9 +7,10 @@
 // what is particular to it.
 import { useId, useMemo, useRef, useState } from "react";
 import { formatDate, EVENT_LABELS, type ClubMatch, type MatchEvent } from "../../lib/clubData";
-import { TECH_LABELS, pct, technicalAnalysis, analysisCoverage, recordedValue } from "../../lib/technicalAnalysis";
+import { TECH_LABELS, pct, technicalAnalysis, analysisCoverage, recordedValue, shooterName } from "../../lib/technicalAnalysis";
 import { plural } from "../../lib/vestuario";
 import { emptyTechnical, eventSide, OUTCOME_LABELS, type AnalysisEvent, type TechnicalStats } from "../../../functions/src/matchAnalysis";
+import { memberIds } from "../../lib/derived/guests";
 import { PlayerLink } from "./PlayerLink";
 import { TechnicalEvidence } from "./TechnicalEvidence";
 import type { EvidenceSelection } from "../../lib/technicalEvidence";
@@ -60,16 +61,18 @@ function shotWord(e: AnalysisEvent): string {
   return EVENT_LABELS[e.type as MatchEvent["type"]] ?? e.type;
 }
 
-/** Everyone the matches name: called up, on the acta, or in one of its events. */
+/** Every member the matches name: called up, on the acta, or in one of its events (never a guest). */
 function involvedIds(matches: readonly ClubMatch[]): Set<string> {
   return new Set(
-    matches.flatMap((m) => [
-      ...(m.starters ?? []),
-      ...(m.bench ?? []),
-      ...(m.notCalled ?? []),
-      ...Object.keys(m.ledger ?? {}),
-      ...(m.events ?? []).flatMap((e) => [e.playerId, e.receiverId, e.assistPlayerId, e.inPlayerId].filter((id): id is string => !!id)),
-    ]),
+    memberIds(
+      matches.flatMap((m) => [
+        ...(m.starters ?? []),
+        ...(m.bench ?? []),
+        ...(m.notCalled ?? []),
+        ...Object.keys(m.ledger ?? {}),
+        ...(m.events ?? []).flatMap((e) => [e.playerId, e.receiverId, e.assistPlayerId, e.inPlayerId].filter((id): id is string => !!id)),
+      ]),
+    ),
   );
 }
 
@@ -126,7 +129,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
   ];
 
   // Quién destaca / Todos los jugadores: everyone involved plus anyone with an action, best first.
-  const rankings = [...new Set([...roster.map((p) => p.id), ...Object.keys(data.players)])]
+  const rankings = [...new Set([...roster.map((p) => p.id), ...memberIds(Object.keys(data.players))])]
     .map((id) => ({ ...person(id), stats: data.players[id] ?? emptyTechnical() }))
     .sort((a, b) => b.stats[metric] - a.stats[metric] || a.name.localeCompare(b.name));
   const maxRank = Math.max(1, ...rankings.map((r) => r.stats[metric]));
@@ -156,6 +159,8 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
   const delivery = network === "passes" ? "pases" : "centros";
 
   // Remates: ours (his, with a player chosen) or the rival's; the map only with coordinates.
+  // (technicalAnalysis names each event «match__event»: the shot map finds a guest's match by it)
+  const shotMatch = new Map(included.flatMap((m) => (m.events ?? []).map((e): [string, ClubMatch] => [`${m.id}__${e.id}`, m])));
   const shots = data.shots.filter((e) => eventSide(e) === side && (side === "opponent" || !selected || e.playerId === selected));
   const mapped = shots.filter((e) => e.x != null && e.y != null);
   const untimed = shots.filter((e) => e.minute == null).length;
@@ -331,7 +336,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
                   <g key={e.id}>
                     <circle cx={10 + (e.x ?? 0) * 2.8} cy={10 + (e.y ?? 0) * 2} r={GOALS.has(e.type) ? 7 : 4} className={GOALS.has(e.type) ? "goal" : "shot"} />
                     <title>
-                      {e.playerId ? person(e.playerId).name : side === "opponent" ? "El rival" : "El Piti"} · {e.minute == null ? "Sin minuto" : `${e.minute}′`} · {shotWord(e)}
+                      {shooterName(e, (id) => shotMatch.get(id), (id) => person(id).name)} · {e.minute == null ? "Sin minuto" : `${e.minute}′`} · {shotWord(e)}
                     </title>
                   </g>
                 ))}

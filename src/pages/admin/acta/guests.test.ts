@@ -26,6 +26,13 @@ describe("Invitados en el acta · añadir y quitar", () => {
     expect(nextGuestId([{ id: "g1", name: "A" }, { id: "g3", name: "C" }])).toBe("g2");
   });
 
+  it("never reuses an id an event still names: his plays would pass to the new guest", () => {
+    const events = [{ id: "p", type: "pass" as const, minute: 3, playerId: "evans", receiverId: "guest:g1", outcome: "complete" as const }];
+    expect(nextGuestId([], events)).toBe("g2");
+    const r = addGuest({ starters: [], bench: [], guests: [], events }, "Iván");
+    expect(r.ok && r.guest).toEqual({ id: "g2", name: "Iván" });
+  });
+
   it("removes a guest no event names, and takes him out of the convocatoria", () => {
     const x = { starters: ["evans", "guest:g1"], bench: ["guest:g2"], notCalled: [], guests: [{ id: "g1", name: "Rafa" }, { id: "g2", name: "Iván" }], events: [] };
     const r = removeGuest(x, "g1");
@@ -33,8 +40,8 @@ describe("Invitados en el acta · añadir y quitar", () => {
     expect(r.ok && r.value.starters).toEqual(["evans"]);
   });
 
-  it("keeps a guest an event names (scorer, assist or who comes in)", () => {
-    for (const e of [{ playerId: "guest:g1" }, { assistPlayerId: "guest:g1" }, { inPlayerId: "guest:g1" }]) {
+  it("keeps a guest an event names (scorer, assist, who comes in or who receives the pass)", () => {
+    for (const e of [{ playerId: "guest:g1" }, { assistPlayerId: "guest:g1" }, { inPlayerId: "guest:g1" }, { receiverId: "guest:g1" }]) {
       const events = [{ id: "e", type: "goal" as const, minute: 3, ...e }];
       expect(guestInUse(events, "g1")).toBe(true);
       expect(removeGuest({ ...base, guests: [{ id: "g1", name: "Rafa" }], events }, "g1")).toEqual({ ok: false, error: "Rafa sale en el acta: quita antes sus jugadas." });

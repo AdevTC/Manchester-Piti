@@ -14,7 +14,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { admin, db, idSchema, parse } from "./common.js";
 import { guestsSchema, playerRefSchema } from "./eventSchema.js";
-import type { MatchGuest } from "./guests.js";
+import { guestRemovalProblem, type GuestRefEvent, type MatchGuest } from "./guests.js";
 import { convocatoriaNoticeKind, convocatoriaProblem, MAX_STARTERS, notCalledOf, sameLineup, type ConvocatoriaNoticeKind } from "./convocatoriaLogic.js";
 import { seasonJornada, sendTo, vapidPrivate } from "./push.js";
 import { boardNotice, convocatoriaMessage, parseSiete, sevenOf, sieteKey, sieteLog, sieteMayCover, sieteStep, type SieteAsk } from "./pushLogic.js";
@@ -64,7 +64,15 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
     // — played but unpublished — can complete its convocatoria. Cancelled: closed either way.
     const status = pub.exists ? (pub.get("status") as string | undefined) : shown.get("status") === "cancelled" ? "cancelled" : undefined;
     if (pub.get("clock") && pub.get("clock.phase") !== "ready") throw new HttpsError("failed-precondition", "El siete inicial ya está en juego. Registra las sustituciones desde la mesa del partido.");
-    const guests = data.guests ?? (Array.isArray(shown.get("guests")) ? (shown.get("guests") as MatchGuest[]) : []);
+    const storedGuests = (snap: typeof pub): MatchGuest[] => (snap.exists && Array.isArray(snap.get("guests")) ? (snap.get("guests") as MatchGuest[]) : []);
+    const guests = data.guests ?? storedGuests(shown);
+    // A new guest list never drops a guest whose plays are in the acta (published or in draft): his id
+    // would be left pointing at nobody, or at the next guest given it.
+    if (data.guests) {
+      const eventsOf = (snap: typeof pub): GuestRefEvent[] => (snap.exists && Array.isArray(snap.get("events")) ? (snap.get("events") as GuestRefEvent[]) : []);
+      const removal = guestRemovalProblem([...storedGuests(draft), ...storedGuests(pub)], data.guests, eventsOf(pub), eventsOf(draft));
+      if (removal) throw new HttpsError("failed-precondition", removal);
+    }
     const problem = convocatoriaProblem(lineup, { roster, status, guests });
     if (problem) throw new HttpsError(problem.startsWith("Ese partido") ? "failed-precondition" : "invalid-argument", problem);
 
