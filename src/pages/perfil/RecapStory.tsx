@@ -132,7 +132,7 @@ function CardBody({ card }: { card: RecapCard }) {
         <>
           <p className="rc-kk">La porra</p>
           <p className="rc-big">
-            {card.rank}º <span>de {card.of}</span>
+            {card.rank}.º <span>de {card.of}</span>
           </p>
           <p className="rc-pair">
             <b>{card.points}</b> <span>{n(card.points, "punto", "puntos")}</span>
@@ -438,19 +438,22 @@ export function RecapStory({ recap, ctx, rm, onClose, returnFocusId }: RecapStor
         <p id="rc-live" className="vx-sr" aria-live="polite" aria-atomic="true">
           {label}
         </p>
+        {/* (aria-disabled, not disabled: a button that goes dead under the finger or the keyboard keeps the
+            focus — «Cromo anterior» at the first cromo, «Compartir» while it prepares — instead of dropping it
+            to the page behind; go(), share() and downloadAll() already do nothing then) */}
         <div className="rc-act">
-          <button type="button" className="rc-b rc-nav" onClick={prev} disabled={at === 0} aria-label="Cromo anterior">
+          <button type="button" className="rc-b rc-nav" onClick={prev} aria-disabled={at === 0} aria-label="Cromo anterior">
             <Ic n="prev" w={20} />
           </button>
-          <button type="button" className="rc-b rc-main" onClick={() => void share()} disabled={busy !== null} aria-busy={busy === "share" || undefined}>
+          <button type="button" className="rc-b rc-main" onClick={() => void share()} aria-disabled={busy !== null} aria-busy={busy === "share" || undefined}>
             <Ic n="share" w={18} />
             {busy === "share" ? "Preparando…" : "Compartir"}
           </button>
-          <button type="button" className="rc-b" onClick={() => void downloadAll()} disabled={busy !== null} aria-busy={busy === "all" || undefined} aria-label={busy === "all" ? undefined : "Descargar todas"}>
+          <button type="button" className="rc-b" onClick={() => void downloadAll()} aria-disabled={busy !== null} aria-busy={busy === "all" || undefined} aria-label={busy === "all" ? undefined : "Descargar todas"}>
             <Ic n="download" w={18} />
             {busy === "all" ? `${allAt} de ${total}…` : <><span className="rc-wide">Descargar todas</span><span className="rc-narrow" aria-hidden="true">Todas</span></>}
           </button>
-          <button type="button" className="rc-b rc-nav" onClick={next} disabled={at === total - 1} aria-label="Cromo siguiente">
+          <button type="button" className="rc-b rc-nav" onClick={next} aria-disabled={at === total - 1} aria-label="Cromo siguiente">
             <Ic n="next" w={20} />
           </button>
         </div>

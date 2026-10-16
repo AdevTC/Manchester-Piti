@@ -27,6 +27,8 @@ export function SearchLauncher() {
   const [open, setOpen] = useState(false);
   /** The dialog, once its chunk is here (it stays for the next openings). */
   const [Dialog, setDialog] = useState<DialogComponent | null>(null);
+  /** The dialog's chunk failed to arrive (offline, a new deploy): said once, in words, instead of nothing. */
+  const [failed, setFailed] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
 
@@ -37,7 +39,9 @@ export function SearchLauncher() {
       .then((c) => live && setDialog(() => c))
       .catch((e: unknown) => {
         console.error("No se pudo cargar el buscador:", e);
-        if (live) setOpen(false);
+        if (!live) return;
+        setOpen(false);
+        setFailed(true);
       });
     return () => {
       live = false;
@@ -47,6 +51,7 @@ export function SearchLauncher() {
   const show = useCallback(() => {
     const at = document.activeElement;
     returnTo.current = at instanceof HTMLElement && at !== document.body ? at : button.current;
+    setFailed(false);
     setOpen(true);
   }, []);
 
@@ -71,7 +76,7 @@ export function SearchLauncher() {
   const mac = isMac();
 
   return (
-    <>
+    <div className="sr-wrap">
       <button
         ref={button}
         type="button"
@@ -92,7 +97,11 @@ export function SearchLauncher() {
           {mac ? "⌘K" : "Ctrl K"}
         </kbd>
       </button>
+      {/* (one polite region, there from the start: a failed opening is announced once, and shown under the button) */}
+      <span className={failed ? "sr-fail" : "sr-hide"} role="status">
+        {failed ? "No se ha podido abrir el buscador. Comprueba la conexión y vuelve a intentarlo." : ""}
+      </span>
       {open && Dialog && <Dialog onClose={close} />}
-    </>
+    </div>
   );
 }

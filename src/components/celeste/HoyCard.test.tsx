@@ -109,6 +109,8 @@ describe("HoyCard", () => {
     expect(within(hoy).getByText("· tú")).toBeInTheDocument();
     expect(within(hoy).getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/j8");
     expect(within(hoy).getByRole("link", { name: /Cómo llegar/ })).toHaveAttribute("href", expect.stringContaining("Campo%20X"));
+    // (it opens a new tab: said in words, not left to surprise)
+    expect(within(hoy).getByRole("link", { name: "Cómo llegar (se abre en otra pestaña)" })).toHaveAttribute("target", "_blank");
   });
 
   it("Turnos del equipo: «Te toca: lavar la equipación» when it's mine, «Lava: … · Balones: …» otherwise; not while live", () => {
@@ -150,6 +152,11 @@ describe("HoyCard", () => {
     render(card(live, DATE + 15 * MIN));
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Manchester Piti 1, MAD SKY 0");
     expect(screen.getByText(/BRUNO · Gol/)).toBeInTheDocument();
+    // the last event's minute: «10′» on screen (its shown minute), «minuto 10» for a screen reader (one polite region)
+    const last = document.querySelector(".hoy-last");
+    expect(last).toHaveAttribute("aria-live", "polite");
+    expect(last?.querySelector("[aria-hidden='true']")).toHaveTextContent("10′");
+    expect(last?.querySelector(".hm-sr")).toHaveTextContent("minuto 10");
     expect(screen.getByRole("link", { name: /Seguir el partido/ })).toHaveAttribute("href", "/matches/j8");
     expect(state.reads.filter((r) => r.startsWith("matchPrivate") || r.startsWith("board") || r.startsWith("availability"))).toEqual([]);
   });

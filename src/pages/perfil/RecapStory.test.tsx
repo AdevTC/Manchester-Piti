@@ -83,7 +83,29 @@ describe("RecapStory", () => {
     expect(live()).toBe("Cromo 2 de 3: Goles y asistencias");
     fireEvent.click(screen.getByRole("button", { name: "Cromo anterior" }));
     expect(live()).toBe("Cromo 1 de 3: Portada");
-    expect((screen.getByRole("button", { name: "Cromo anterior" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Cromo anterior" })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("a nav button that goes dead under the focus keeps it (aria-disabled, never dropped to the page)", () => {
+    openStory();
+    const next = screen.getByRole("button", { name: "Cromo siguiente" });
+    next.focus();
+    fireEvent.click(next);
+    fireEvent.click(next);
+    expect(live()).toBe("Cromo 3 de 3: Cierre");
+    expect(next).toHaveAttribute("aria-disabled", "true");
+    expect(next).not.toBeDisabled();
+    expect(document.activeElement).toBe(next);
+    // a press on the dead button does nothing
+    fireEvent.click(next);
+    expect(live()).toBe("Cromo 3 de 3: Cierre");
+  });
+
+  it("the porra's place is a Spanish ordinal, as on the PNG: «3.º»", () => {
+    const porra: SeasonRecap = { ...RECAP, cards: [{ kind: "porra", rank: 3, of: 12, points: 1 }] };
+    render(<RecapStory recap={porra} ctx={CTX} rm={false} onClose={() => {}} />);
+    expect(screen.getByText(/^3\.º/)).toBeTruthy();
+    expect(screen.getByText("punto")).toBeTruthy();
   });
 
   it("traps focus inside, closes on Escape and gives focus back to the opener", () => {
@@ -123,7 +145,7 @@ describe("RecapStory", () => {
     share.mockRejectedValueOnce(Object.assign(new Error("cancel"), { name: "AbortError" }));
     fireEvent.click(screen.getByRole("button", { name: "Compartir" }));
     await waitFor(() => expect(share).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect((screen.getByRole("button", { name: "Compartir" }) as HTMLButtonElement).disabled).toBe(false));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Compartir" })).toHaveAttribute("aria-disabled", "false"));
     expect(fx.saveBlob).not.toHaveBeenCalled();
   });
 
@@ -147,7 +169,7 @@ describe("RecapStory", () => {
     const { rerender } = render(<RecapStory recap={RECAP} ctx={CTX} rm={false} onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Compartir" }));
     await waitFor(() => expect(fx.saveBlob).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect((screen.getByRole("button", { name: "Compartir" }) as HTMLButtonElement).disabled).toBe(false));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Compartir" })).toHaveAttribute("aria-disabled", "false"));
     const later: SeasonRecap = { ...RECAP, cards: [{ kind: "portada", name: "ADRI", number: "7", season: "Temporada 1" }, ...RECAP.cards.slice(1)] };
     rerender(<RecapStory recap={later} ctx={CTX} rm={false} onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Compartir" }));

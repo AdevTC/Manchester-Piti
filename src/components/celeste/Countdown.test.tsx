@@ -19,9 +19,16 @@ it("days, hours, minutes and seconds as flip tiles under one timer label", () =>
     ["05", "SEG"],
   ]);
   expect(container.querySelectorAll(".pt-flip[aria-hidden='true']")).toHaveLength(4);
+  // (the captions too: the timer's label says it all, no stray «DÍAS HORAS MIN SEG»)
+  expect(container.querySelectorAll(".pt-cd > div[aria-hidden='true']")).toHaveLength(4);
 });
 
 it("past the target it holds at zero", () => {
   render(<Countdown target={NOW - 1000} />);
   expect(screen.getByRole("timer")).toHaveAttribute("aria-label", "Faltan 0 días, 0 horas y 0 minutos");
+});
+
+it("the label agrees in number: «Falta 1 día, 1 hora y 1 minuto»", () => {
+  render(<Countdown target={NOW + 86_400_000 + 3_600_000 + 60_000} />);
+  expect(screen.getByRole("timer")).toHaveAttribute("aria-label", "Falta 1 día, 1 hora y 1 minuto");
 });
