@@ -29,7 +29,7 @@ export interface Notice {
   requires?: string;
   /** pushLog id whose presence cancels this notice (a provisional final once the acta's «Final» went). */
   skipIf?: string;
-  /** «Voy» / «No puedo» on the phone: only the notices that ask a member for an answer (RSVP_ACTIONS). */
+  /** «Voy» / «No puedo» on the phone: only the RSVP reminders, which go to members only (RSVP_ACTIONS). */
   actions?: readonly NoticeAction[];
   /** The match those actions answer (the service worker opens /vestuario?rsvp=<action>&m=<matchId>). */
   matchId?: string;
@@ -357,15 +357,16 @@ export function convocatoriaNotice(id: string, before: MatchLike | undefined, af
 
 /**
  * The convocatoria's notices: «Ya está la convocatoria de la J8» (first) and «Cambios en la convocatoria
- * de la J8» (an already-notified one changed). Same tag: the phone keeps only the latest. Only the first
- * one asks for an answer («Voy» / «No puedo» on the phone, rsvpFields): «Cambios» just tells.
+ * de la J8» (an already-notified one changed). Same tag: the phone keeps only the latest. Neither carries
+ * the «Voy» / «No puedo» buttons: they go on the public `lineup` topic and a fan must never see them;
+ * the members' reminders (remindersLogic.ts reminderNotice) carry them.
  */
 export function convocatoriaMessage(id: string, kind: "first" | "changes", match: Pick<MatchLike, "rival" | "date">, jornada: number | null): Notice {
   const rival = match.rival ?? "el rival";
   const day = typeof match.date === "number" ? ` · ${when(match.date).replace(/^./, (c) => c.toUpperCase())}` : "";
   const of = jornada ? ` de la J${jornada}` : "";
   return kind === "first"
-    ? { topic: "lineup", title: `Ya está la convocatoria${of}`, body: `${rival}${day}. Mira si te toca en la web.`, tag: `conv-${id}`, url: `/matches/${id}`, ...rsvpFields(id) }
+    ? { topic: "lineup", title: `Ya está la convocatoria${of}`, body: `${rival}${day}. Mira si te toca en la web.`, tag: `conv-${id}`, url: `/matches/${id}` }
     : { topic: "lineup", title: `Cambios en la convocatoria${of}`, body: `${rival}${day}. Mira cómo queda en la web.`, tag: `conv-${id}`, url: `/matches/${id}` };
 }
 

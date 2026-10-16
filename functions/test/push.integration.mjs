@@ -202,15 +202,22 @@ for (const n of ["socio", "fan"]) assert.ok(!(await call("pushSubscribe", n === 
 assert.equal((await db.collection("pushSubscriptions").where("endpoint", "in", [sub("socio").endpoint, sub("fan").endpoint]).get()).size, 0);
 checked++;
 
-// ---------- «Responder desde el aviso»: what the phone gets for «Ya está la convocatoria» carries the
-// buttons «Voy» / «No puedo» and its match (the built payload sendTo signs: lib/pushLogic.js pushPayload)
+// ---------- «Responder desde el aviso»: what the phone gets for the members' RSVP reminder carries the
+// buttons «Voy» / «No puedo» and its match; «Ya está la convocatoria» (public: fans get it) carries none
+// (the built payload sendTo signs: lib/pushLogic.js pushPayload)
 const { convocatoriaMessage, pushPayload } = await import("../lib/pushLogic.js");
+const { reminderNotice } = await import("../lib/remindersLogic.js");
 const convId = "push-conv-" + suffix;
-const convPayload = JSON.parse(JSON.stringify(pushPayload(convocatoriaMessage(convId, "first", { rival: "Rival Avisos", date: Date.now() + 48 * 3600_000 }, 5))));
-assert.deepEqual(convPayload.actions, [{ action: "yes", title: "Voy" }, { action: "no", title: "No puedo" }]);
-assert.equal(convPayload.matchId, convId);
-assert.equal(pushPayload(convocatoriaMessage(convId, "changes", { rival: "Rival Avisos" }, 5)).actions, undefined);
+const convDate = Date.now() + 48 * 3600_000;
+const remindPayload = JSON.parse(JSON.stringify(pushPayload(reminderNotice(convId, "48", { rival: "Rival Avisos", date: convDate }))));
+assert.deepEqual(remindPayload.actions, [{ action: "yes", title: "Voy" }, { action: "no", title: "No puedo" }]);
+assert.equal(remindPayload.matchId, convId);
+for (const kind of ["first", "changes"]) {
+  const p = pushPayload(convocatoriaMessage(convId, kind, { rival: "Rival Avisos", date: convDate }, 5));
+  assert.equal(p.actions, undefined);
+  assert.equal(p.matchId, undefined);
+}
 checked++;
 
-console.log(checked + " comprobaciones de avisos correctas: pitidos, gol anulado, final provisional, MVP, tu ficha, tus posiciones, suscripciones y botones de la convocatoria.");
+console.log(checked + " comprobaciones de avisos correctas: pitidos, gol anulado, final provisional, MVP, tu ficha, tus posiciones, suscripciones y botones del recordatorio.");
 await db.terminate();
