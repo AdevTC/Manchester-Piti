@@ -22,6 +22,7 @@ import { TabAvisos } from "./TabAvisos";
 import { TabCapitania } from "./TabCapitania";
 import { TabCuenta } from "./TabCuenta";
 import { TabTemporada } from "./TabTemporada";
+import { recapShirt } from "./recapView";
 import { CROMOS_HASH, deepHash, forgetDeepHash, hashOf, slideDir, tabFromHash, tabsFor, wantsCromos, type TabId } from "./tabs";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { prefersReducedMotion, usePauseHidden, usePauseOffscreen, useReducedMotion, useTilt } from "./useMotion";
@@ -252,6 +253,8 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
   const nick = nickPin ?? data.nickname;
   const state = data.ficha.state;
   const vinc = state === "vinculada";
+  // A #cromos link with nothing on offer: forget it once the data is in (or it opens later on its own).
+  if (ready && storyWanted && !(vinc && data.recap)) setStory(false);
 
   // ── the reveal: the captain says yes while you are here → the walkout plays again + toast
   const [seenState, setSeenState] = useState(ready ? state : null);
@@ -500,7 +503,7 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
         played={vinc && data.played ? { played: data.played, positions: data.positions?.approved ?? null, nudge: positionsNudge(data.played, data.positions), onGoPositions: () => goTab("carta", "pe-posiciones") } : null}
         cromos={
           vinc && data.recap
-            ? { offer: data.recap, ctx: { theme, shirt: { name: shirt, number: data.card.number } }, open: storyWanted, rm, onOpen: openStory, onClose: closeStory }
+            ? { offer: data.recap, ctx: { theme, shirt: recapShirt(data.recap.recap) }, open: storyWanted, rm, onOpen: openStory, onClose: closeStory }
             : null
         }
       />

@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import type { PlayerDoc } from "../../lib/schemas";
-import { previousSeasonId, recapBannerOn, recapClosedAt, recapOffer } from "../perfil/recapView";
+import { closedRecapSeason, previousSeasonId, recapBannerSeason, recapOffer, seasonLastMatchAt } from "../perfil/recapView";
 
 // The vestuario's «Ya está tu temporada en cromos»: the previous season's recap once a later season has
-// taken over, until 14 days after the new one kicks off, linking to /profile#cromos. Real seasonRecap over
+// taken over, until 30 days after its last match, linking to /profile#cromos. Real seasonRecap over
 // a two-season fixture.
 
 vi.mock("@tanstack/react-router", () => ({
@@ -35,38 +35,42 @@ const T2 = [game("b1", "t2", KICKOFF_T2, { status: "scheduled", goalsFor: undefi
 const base = (matches: ClubMatch[], now: number) => ({ matches, players: [ADRI], seasons: SEASONS, mvpResults: new Map(), uid: "u1", now });
 
 describe("the recap on offer", () => {
-  it("is the previous season's, closed, once a later season is the current one", () => {
+  it("is the previous season's, closed, once a later season is the current one (within its 30 days)", () => {
     expect(previousSeasonId(SEASONS, "t2")).toBe("t1");
     const offer = recapOffer(base([...T1, ...T2], LAST_T1 + 30 * DAY), {}, "adri", "t2");
     expect(offer?.status).toBe("closed");
     expect(offer?.recap.seasonId).toBe("t1");
     expect(offer?.recap.cards[0]).toMatchObject({ kind: "portada" });
+    expect(recapOffer(base([...T1, ...T2], LAST_T1 + 30 * DAY + 1), {}, "adri", "t2")).toBeNull();
   });
   it("is none while the only season has under 10 matches, or for a member without a ficha", () => {
     expect(recapOffer(base(T1, LAST_T1 + DAY), {}, "adri", "t1")).toBeNull();
     expect(recapOffer(base([...T1, ...T2], LAST_T1 + 30 * DAY), {}, null, "t2")).toBeNull();
   });
+  it("keeps the closed one for its 30 days even when the new season already has its «hasta ahora»", () => {
+    // ten played matches of the new season inside the old one's 30 days, and one more to come
+    const t2 = [...Array.from({ length: 10 }, (_, k) => game(`c${k}`, "t2", LAST_T1 + (1 + 2 * k) * DAY)), game("c10", "t2", LAST_T1 + 90 * DAY, { status: "scheduled", goalsFor: undefined, goalsAgainst: undefined, events: [] })];
+    const inside = recapOffer(base([...T1, ...t2], LAST_T1 + 30 * DAY), {}, "adri", "t2");
+    expect(inside).toMatchObject({ status: "closed", recap: { seasonId: "t1" } });
+    const after = recapOffer(base([...T1, ...t2], LAST_T1 + 30 * DAY + 1), {}, "adri", "t2");
+    expect(after).toMatchObject({ status: "partial", recap: { seasonId: "t2" } });
+  });
 });
 
-describe("the banner's 14 days", () => {
-  const offer = recapOffer(base([...T1, ...T2], LAST_T1 + 30 * DAY), {}, "adri", "t2");
-  const closedAt = recapClosedAt([...T1, ...T2], "t1", "t2");
-
-  it("closes when the new season kicks off (never before the old one's last match)", () => {
-    expect(closedAt).toBe(KICKOFF_T2);
-    expect(recapClosedAt(T1, "t1", "t2")).toBeNull();
-    expect(recapClosedAt([...T1, game("b0", "t2", T0, { status: "scheduled" })], "t1", "t2")).toBe(LAST_T1);
+describe("the closed recap's 30 days (perfil offer and vestuario banner)", () => {
+  it("runs from the close until 30 days after the season's last match", () => {
+    expect(seasonLastMatchAt([...T1, ...T2], "t1")).toBe(LAST_T1);
+    expect(closedRecapSeason(base([...T1, ...T2], LAST_T1 + DAY), "adri", "t2")).toBe("t1");
+    expect(closedRecapSeason(base([...T1, ...T2], LAST_T1 + 30 * DAY), "adri", "t2")).toBe("t1");
+    expect(closedRecapSeason(base([...T1, ...T2], LAST_T1 + 30 * DAY + 1), "adri", "t2")).toBeNull();
+    expect(recapBannerSeason(base([...T1, ...T2], LAST_T1 + 30 * DAY), "adri", "t2")).toBe("Temporada 1");
+    expect(recapBannerSeason(base([...T1, ...T2], LAST_T1 + 30 * DAY + 1), "adri", "t2")).toBeNull();
   });
-  it("is on from the close until 14 days after it", () => {
-    expect(recapBannerOn(offer, closedAt, LAST_T1 + 30 * DAY)).toBe(true);
-    expect(recapBannerOn(offer, closedAt, KICKOFF_T2)).toBe(true);
-    expect(recapBannerOn(offer, closedAt, KICKOFF_T2 + 14 * DAY - 1)).toBe(true);
-    expect(recapBannerOn(offer, closedAt, KICKOFF_T2 + 14 * DAY)).toBe(false);
-  });
-  it("needs a closed recap and a close date", () => {
-    expect(recapBannerOn(offer ? { ...offer, status: "partial" } : null, closedAt, KICKOFF_T2)).toBe(false);
-    expect(recapBannerOn(null, closedAt, KICKOFF_T2)).toBe(false);
-    expect(recapBannerOn(offer, null, KICKOFF_T2)).toBe(false);
+  it("needs the season closed, a previous season and a member with a ficha", () => {
+    // no later season has taken over: Temporada 1 is still the current one
+    expect(recapBannerSeason(base(T1, LAST_T1 + DAY), "adri", "t2")).toBeNull();
+    expect(recapBannerSeason(base([...T1, ...T2], LAST_T1 + DAY), "adri", "t1")).toBeNull();
+    expect(recapBannerSeason(base([...T1, ...T2], LAST_T1 + DAY), null, "t2")).toBeNull();
   });
 });
 

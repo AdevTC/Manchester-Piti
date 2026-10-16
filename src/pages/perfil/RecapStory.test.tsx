@@ -143,6 +143,37 @@ describe("RecapStory", () => {
     expect(await screen.findByText("Guardados los 3 cromos")).toBeTruthy();
   });
 
+  it("draws the cromo again when the recap changes while open (no stale image under the new name)", async () => {
+    const { rerender } = render(<RecapStory recap={RECAP} ctx={CTX} rm={false} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Compartir" }));
+    await waitFor(() => expect(fx.saveBlob).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect((screen.getByRole("button", { name: "Compartir" }) as HTMLButtonElement).disabled).toBe(false));
+    const later: SeasonRecap = { ...RECAP, cards: [{ kind: "portada", name: "ADRI", number: "7", season: "Temporada 1" }, ...RECAP.cards.slice(1)] };
+    rerender(<RecapStory recap={later} ctx={CTX} rm={false} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Compartir" }));
+    await waitFor(() => expect(fx.saveBlob).toHaveBeenCalledTimes(2));
+    expect(draw.recapCardBlob).toHaveBeenLastCalledWith(later.cards[0], CTX);
+  });
+
+  it("«Descargar todas» stops when the story closes", async () => {
+    openStory();
+    fireEvent.click(screen.getByRole("button", { name: "Descargar todas" }));
+    key("Escape");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await new Promise((r) => window.setTimeout(r, 900));
+    expect(fx.saveBlob).not.toHaveBeenCalled();
+  });
+
+  it("keeps its toast inside the dialog, one polite region", async () => {
+    openStory();
+    fireEvent.click(screen.getByRole("button", { name: "Compartir" }));
+    const toast = await screen.findByText("Cromo descargado · temporada-1-01-portada.png");
+    const dlg = screen.getByRole("dialog");
+    expect(dlg.contains(toast)).toBe(true);
+    expect(dlg.querySelectorAll('[role="status"]').length).toBe(1);
+    expect(toast.closest("[aria-live]")).toBeNull();
+  });
+
   it("with reduced motion nothing slides and nothing advances on its own", () => {
     vi.useFakeTimers();
     openStory(true);

@@ -31,7 +31,7 @@ import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
 import { Caja } from "./Caja";
 import { Ausencias } from "./Ausencias";
 import { RecapBanner } from "./RecapBanner";
-import { previousSeasonId, recapBannerOn, recapClosedAt, recapOffer } from "../perfil/recapView";
+import { recapBannerSeason } from "../perfil/recapView";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { ClubDataError } from "../../components/celeste/StatePanel";
 import { HoyCard } from "../../components/celeste/HoyCard";
@@ -89,8 +89,6 @@ export function VestuarioPage() {
   const meetingNote = useMeetingNote(next?.id);
   const mvpResults = useMvpResults();
   const porra = usePorraStandings(seasonId || undefined);
-  const prevSeasonId = previousSeasonId(seasons, seasonId);
-  const prevPorra = usePorraStandings(prevSeasonId ?? undefined);
   const trainings = useOpenTrainings(now);
   const confirmedTraining = trainings.data.find((t) => t.confirmed && !trainingOver(t, now))?.confirmed;
   const board = useBoard(8);
@@ -129,14 +127,12 @@ export function VestuarioPage() {
     () => (playerId ? vitrina(playerId, matches, mvpResults, seasons, minute * 60_000) : []),
     [playerId, matches, mvpResults, seasons, minute],
   );
-  // «Ya está tu temporada en cromos»: the previous season's recap, closed, until 14 days after the new one
-  // kicks off (members with a ficha)
-  const recapBanner = useMemo(() => {
-    if (!viewer.member || !playerId || !prevSeasonId) return null;
-    const offer = recapOffer({ matches, players, seasons, mvpResults, uid, now: minute * 60_000 }, { [seasonId]: porra.data, [prevSeasonId]: prevPorra.data }, playerId, seasonId);
-    if (!offer || offer.recap.seasonId !== prevSeasonId) return null;
-    return recapBannerOn(offer, recapClosedAt(matches, prevSeasonId, seasonId), minute * 60_000) ? offer.recap.seasonName : null;
-  }, [viewer.member, playerId, prevSeasonId, matches, players, seasons, mvpResults, uid, minute, seasonId, porra.data, prevPorra.data]);
+  // «Ya está tu temporada en cromos»: the previous season's recap, closed, up to 30 days after its last
+  // match (members with a ficha). Only the cheap window and the season's name: no recap, no porra.
+  const recapBanner = useMemo(
+    () => (viewer.member && playerId ? recapBannerSeason({ matches, players, seasons, mvpResults, uid, now: minute * 60_000 }, playerId, seasonId) : null),
+    [viewer.member, playerId, matches, players, seasons, mvpResults, uid, minute, seasonId],
+  );
   const partner = useMemo(() => (playerId ? bestPartner(playerId, matches, players.map((p) => p.id)) : null), [playerId, matches, players]);
   const steps = firstSteps({
     linked: !!playerId,

@@ -45,7 +45,7 @@ import {
 } from "./profileData";
 import type { SquadShirt } from "./rules";
 import { upcomingRows, type UpcomingRow } from "./avisos";
-import { previousSeasonId, recapOffer, type RecapOffer } from "./recapView";
+import { closedRecapSeason, recapOffer, type RecapOffer } from "./recapView";
 
 export type Role = "superadmin" | "admin" | "user";
 /** A ficha the member can still ask for (the claim picker): this season's, nobody linked to it. */
@@ -151,9 +151,12 @@ export function useProfileData(): ProfileData {
   const links = usePlayerLinks(!linkedId || isCaptain);
   const lineups = useLineups(seasonId || "all");
   const porra = usePorraStandings(seasonId || undefined);
-  // (the cromos may be the previous season's, closed: its porra too)
-  const prevSeasonId = previousSeasonId(seasons, seasonId);
-  const prevPorra = usePorraStandings(prevSeasonId ?? undefined);
+  // (the cromos may be the previous season's, closed: its porra too, only for a linked member and only
+  // while that recap is the one on offer)
+  const recapPlayer = info.state === "vinculada" ? info.playerId : null;
+  const recapBase = { matches, players, seasons, mvpResults, uid, now: minute };
+  const closedId = closedRecapSeason(recapBase, recapPlayer, seasonId);
+  const prevPorra = usePorraStandings(closedId ?? undefined);
   const nextAvailability = useAvailability(next?.id);
   const doorRequests = useDoorRequests(isCaptain);
   const pendingClaims = usePendingClaims(isCaptain);
@@ -198,8 +201,8 @@ export function useProfileData(): ProfileData {
   // (the linked ficha's own doc, not the season squad's: a ficha of another season still has positions)
   const fichaDoc = info.state === "vinculada" ? players.find((p) => p.id === info.playerId) : undefined;
   const createdAt = toMillis(profile?.createdAt);
-  const porraBySeason = prevSeasonId ? { [seasonId]: porra.data, [prevSeasonId]: prevPorra.data } : { [seasonId]: porra.data };
-  const recap = info.state === "vinculada" ? recapOffer({ matches, players, seasons, mvpResults, uid, now: minute }, porraBySeason, info.playerId, seasonId) : null;
+  const porraBySeason = closedId ? { [seasonId]: porra.data, [closedId]: prevPorra.data } : { [seasonId]: porra.data };
+  const recap = recapPlayer ? recapOffer(recapBase, porraBySeason, recapPlayer, seasonId) : null;
   return {
     loading: authLoading || clubLoading || loadingSeasons || claim.loading || membership.loading,
     error: !!clubError || claim.error || membership.error,

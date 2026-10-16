@@ -7,6 +7,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import type { RecapCard, SeasonRecap } from "../../lib/derived/seasonRecap";
+import { fmtMinutes, wholeMinutes } from "../../lib/derived/minutes";
 import { POSITIONS } from "../../lib/positions";
 import { buzz, saveBlob } from "./fxRuntime";
 import { CREST, Ic } from "./icons";
@@ -55,7 +56,7 @@ function CardBody({ card }: { card: RecapCard }) {
             {card.played} <span>{n(card.played, "partido", "partidos")}</span>
           </p>
           <p className="rc-pair">
-            <b>{card.minutes ?? "—"}</b> <span>{card.minutes === null ? "minutos (sin acta con minutos)" : n(card.minutes, "minuto", "minutos")}</span>
+            <b>{card.minutes === null ? "—" : wholeMinutes(card.minutes)}</b> <span>{card.minutes === null ? "minutos (sin acta con minutos)" : n(wholeMinutes(card.minutes), "minuto", "minutos")}</span>
           </p>
         </>
       );
@@ -118,7 +119,7 @@ function CardBody({ card }: { card: RecapCard }) {
                 <span className="rc-pos-t">
                   <b>{c.code}</b> {posName(c.code)}
                 </span>
-                <span className="rc-pos-m">{c.minutes} min</span>
+                <span className="rc-pos-m">{fmtMinutes(c.minutes)}</span>
                 <i aria-hidden="true" style={{ inlineSize: `${Math.round((c.minutes / max) * 100)}%` }} />
               </li>
             ))}
@@ -231,11 +232,13 @@ export function RecapStory({ recap, ctx, rm, onClose, returnFocusId }: RecapStor
   const prev = () => go(at - 1);
   const next = () => go(at + 1);
 
-  // ── the PNGs: recapDraw loads on demand; one blob per cromo, drawn once
+  // ── the PNGs: recapDraw loads on demand; one blob per cromo, drawn once. Keyed by what the cromo says
+  // too: the recap can rebuild while open (the porra arriving late, an acta or an MVP changing).
   const ctxKey = JSON.stringify(ctx);
+  const cardKey = card ? JSON.stringify(card) : "";
   const cache = useRef(new Map<string, Promise<Blob | null>>());
   const blobFor = (k: number): Promise<Blob | null> => {
-    const key = k + "|" + ctxKey;
+    const key = k + "|" + JSON.stringify(cards[k]) + "|" + ctxKey;
     let p = cache.current.get(key);
     if (!p) {
       p = import("./recapDraw").then((m) => m.recapCardBlob(cards[k], ctx)).catch(() => null);
@@ -247,7 +250,7 @@ export function RecapStory({ recap, ctx, rm, onClose, returnFocusId }: RecapStor
   useEffect(() => {
     const t = window.setTimeout(warm, 250);
     return () => window.clearTimeout(t);
-  }, [at, ctxKey]);
+  }, [at, ctxKey, cardKey]);
 
   // ── a dialog: focus in (and back on closing), Tab stays inside, Escape closes, ← → move, no page scroll
   const dlg = useRef<HTMLElement>(null);
@@ -363,7 +366,15 @@ export function RecapStory({ recap, ctx, rm, onClose, returnFocusId }: RecapStor
     }
   };
 
-  // ── «Descargar todas»: one PNG after another (no zip), a beat apart so the browser takes each one
+  // ── «Descargar todas»: one PNG after another (no zip), a beat apart so the browser takes each one; it
+  // stops when the story closes
+  const gone = useRef(false);
+  useEffect(() => {
+    gone.current = false;
+    return () => {
+      gone.current = true;
+    };
+  }, []);
   const downloadAll = async () => {
     if (running.current) return;
     running.current = true;
@@ -373,10 +384,12 @@ export function RecapStory({ recap, ctx, rm, onClose, returnFocusId }: RecapStor
       for (let k = 0; k < total; k++) {
         setAllAt(k + 1);
         const blob = await blobFor(k);
+        if (gone.current) return;
         if (!blob) continue;
         saveBlob(blob, recapFileName(recap.seasonName, k, cards[k]));
         saved++;
         if (k < total - 1) await new Promise<void>((r) => window.setTimeout(r, 350));
+        if (gone.current) return;
       }
       if (saved === total) say(`Guardados los ${total} cromos`);
       else say(saved ? `Guardados ${saved} de ${total} cromos: alguno no se ha podido preparar` : "No se ha podido preparar ninguna imagen en este navegador.", saved === 0);
@@ -444,13 +457,14 @@ export function RecapStory({ recap, ctx, rm, onClose, returnFocusId }: RecapStor
         <p className="rc-count" aria-hidden="true">
           {at + 1} de {total}
         </p>
-      </section>
-      <div className="pf-toast-rail" aria-live="polite">
-        <div className={"pf-toast" + (toast.msg ? " on" : "") + (toast.bad ? " bad" : "")} role="status">
-          {toast.bad ? <Ic n="alert" w={18} /> : <Ic n="check" w={18} />}
-          <span>{toast.msg}</span>
+        {/* inside the dialog (aria-modal hides what is outside it); role=status is its one polite region */}
+        <div className="pf-toast-rail">
+          <div className={"pf-toast" + (toast.msg ? " on" : "") + (toast.bad ? " bad" : "")} role="status">
+            {toast.bad ? <Ic n="alert" w={18} /> : <Ic n="check" w={18} />}
+            <span>{toast.msg}</span>
+          </div>
         </div>
-      </div>
+      </section>
     </div>,
     document.body,
   );

@@ -1,6 +1,6 @@
-// The vestuario's «Ya está tu temporada en cromos»: one banner from the moment a season closes (a later one
-// takes over) until 14 days after the new one kicks off, for a linked member whose recap is ready
-// (perfil/recapView: recapOffer, recapClosedAt, recapBannerOn). It opens Perfil › Temporada with the
+// The vestuario's «Ya está tu temporada en cromos»: one banner while the previous season is closed (a later
+// one takes over) and at most 30 days have passed since its last match, for a linked member who played in
+// it (perfil/recapView: recapBannerSeason). It opens Perfil › Temporada with the
 // story already up (/profile#cromos).
 import { Link } from "@tanstack/react-router";
 import { CREST } from "../perfil/icons";

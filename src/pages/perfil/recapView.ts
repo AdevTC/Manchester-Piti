@@ -1,8 +1,9 @@
 // «Tu temporada en 10 cromos» around the viewer: which recap the perfil offers (and the vestuario
 // announces), the cromos' titles and the PNGs' file names. Pure.
 //
-// recapAvailable says «closed» once a later season is the club's current one, so the recap on offer is
-// the current season's («hasta ahora», from its 10th match) or else the one just before it (closed).
+// recapAvailable says «closed» once a later season is the club's current one. The recap on offer is the
+// previous season's (closed) for 30 days after its last match, else the current one's («hasta ahora», from
+// its 10th match).
 import { recapAvailable, seasonRecap, type RecapCard, type RecapInput, type RecapPorraRow, type SeasonRecap } from "../../lib/derived/seasonRecap";
 import { dateMillis, type ClubMatch } from "../../lib/clubData";
 import { slugOf } from "./share";
@@ -23,40 +24,58 @@ export function previousSeasonId(seasons: RecapInput["seasons"], currentId: stri
   return at > 0 ? live[at - 1].id : null;
 }
 
+const DAY = 86_400_000;
+/** How long the previous season's closed recap stays on offer (and the vestuario's banner on). */
+export const RECAP_WINDOW_DAYS = 30;
+
+/** The season's last match (null without a dated match). */
+export function seasonLastMatchAt(matches: ClubMatch[], seasonId: string): number | null {
+  const at = matches.filter((m) => m.seasonId === seasonId).map((m) => dateMillis(m.date)).filter((t) => t > 0);
+  return at.length ? Math.max(...at) : null;
+}
+
 /**
- * The recap on offer: the current season's while it is «hasta ahora», else the previous season's once it
- * is closed. `porra` holds each season's porra rows (the recap's season decides which).
+ * The previous season while its closed recap is on offer: it is «closed» for the player and `now` is at
+ * most 30 days past its last match. Cheap (no recap is built): the vestuario's banner and the perfil's
+ * porra listener ask it first.
+ */
+export function closedRecapSeason(base: Omit<RecapInput, "porraStandings">, playerId: string | null | undefined, currentId: string): string | null {
+  if (!playerId || !currentId) return null;
+  const prev = previousSeasonId(base.seasons, currentId);
+  if (!prev) return null;
+  const last = seasonLastMatchAt(base.matches, prev);
+  if (last === null || base.now > last + RECAP_WINDOW_DAYS * DAY) return null;
+  return recapAvailable({ ...base, porraStandings: [] }, playerId, prev, base.now) === "closed" ? prev : null;
+}
+
+/**
+ * The recap on offer: the previous season's, closed, within its 30 days (closedRecapSeason); otherwise
+ * the current season's «hasta ahora» from its 10th match. `porra` holds each season's porra rows.
  */
 export function recapOffer(base: Omit<RecapInput, "porraStandings">, porra: Record<string, RecapPorraRow[]>, playerId: string | null | undefined, currentId: string): RecapOffer | null {
   if (!playerId || !currentId) return null;
-  const prev = previousSeasonId(base.seasons, currentId);
-  for (const id of prev ? [currentId, prev] : [currentId]) {
-    const input: RecapInput = { ...base, porraStandings: porra[id] ?? [] };
-    const status = recapAvailable(input, playerId, id, base.now);
-    if (!status) continue;
-    const recap = seasonRecap(input, playerId, id);
-    if (recap) return { status, recap };
+  const closed = closedRecapSeason(base, playerId, currentId);
+  if (closed) {
+    const recap = seasonRecap({ ...base, porraStandings: porra[closed] ?? [] }, playerId, closed);
+    if (recap) return { status: "closed", recap };
   }
-  return null;
+  const input: RecapInput = { ...base, porraStandings: porra[currentId] ?? [] };
+  const status = recapAvailable(input, playerId, currentId, base.now);
+  if (!status) return null;
+  const recap = seasonRecap(input, playerId, currentId);
+  return recap ? { status, recap } : null;
 }
 
-const DAY = 86_400_000;
-export const RECAP_BANNER_DAYS = 14;
-
-/**
- * When the recap's season closed for the vestuario's banner: the day the season after it kicks off (its
- * first match), never before the recap's own last match. Null when that season has no match yet.
- */
-export function recapClosedAt(matches: ClubMatch[], recapSeasonId: string, nextSeasonId: string): number | null {
-  const first = matches.filter((m) => m.seasonId === nextSeasonId).map((m) => dateMillis(m.date)).filter((t) => t > 0);
-  if (!first.length) return null;
-  const last = matches.filter((m) => m.seasonId === recapSeasonId).map((m) => dateMillis(m.date));
-  return Math.max(Math.min(...first), ...last);
+/** The vestuario's banner: the closed season's name while its recap is on offer (no recap built). */
+export function recapBannerSeason(base: Omit<RecapInput, "porraStandings">, playerId: string | null | undefined, currentId: string): string | null {
+  const id = closedRecapSeason(base, playerId, currentId);
+  return id ? (base.seasons.find((s) => s.id === id)?.name ?? null) : null;
 }
 
-/** The banner: a closed recap, from its close until 14 days after it. */
-export function recapBannerOn(offer: RecapOffer | null, closedAt: number | null, now: number): boolean {
-  return offer?.status === "closed" && closedAt !== null && now < closedAt + RECAP_BANNER_DAYS * DAY;
+/** The shirt the PNGs print: the recap's own portada (that season's name and number), not today's. */
+export function recapShirt(recap: SeasonRecap): { name: string; number: string } {
+  for (const c of recap.cards) if (c.kind === "portada") return { name: c.name, number: c.number };
+  return { name: "", number: "" };
 }
 
 const TITLE: Record<RecapCard["kind"], string> = {
