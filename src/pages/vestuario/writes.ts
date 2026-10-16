@@ -7,6 +7,7 @@ import { addDoc, collection, deleteDoc, doc, serverTimestamp, setDoc, Timestamp,
 import { db } from "../../firebase";
 import { absenceFields } from "../../lib/derived/absences";
 import { pollFields, voteFields, type Poll, type PollForm } from "../../lib/derived/polls";
+import { ratingFields, reactionFields, type ReactionId } from "../../lib/derived/trasElPartido";
 import { useAuth } from "../../context/AuthContext";
 import { savePrediction } from "../../lib/clubApi";
 import type { GoalPick } from "../../../functions/src/predictions";
@@ -32,6 +33,17 @@ export const voteMvp = (me: Me, matchId: string, playerId: string) =>
 
 export const setAvailability = (me: Me, matchId: string, response: "yes" | "no" | "maybe") =>
   setDoc(doc(db, "matchPrivate", matchId, "availability", me.uid), { response, name: me.name, playerId: me.playerId, at: serverTimestamp() });
+
+/** Tras el partido: all of a member's reactions to this match's moments, in their one doc (none left: the
+ *  doc goes). Signed like the availability; the rules check the moments and that the acta is published. */
+export const setReactions = (me: Me, matchId: string, moments: Record<string, ReactionId>) => {
+  const ref = doc(db, "matches", matchId, "reactions", me.uid);
+  return Object.keys(moments).length ? setDoc(ref, { ...reactionFields(me, moments), at: serverTimestamp() }) : deleteDoc(ref);
+};
+/** The member's 1–5 nota of the match (changeable, or taken back, for 7 days from the acta). */
+export const rateMatch = (me: Me, matchId: string, score: number) =>
+  setDoc(doc(db, "matches", matchId, "ratings", me.uid), { ...ratingFields(me, score), at: serverTimestamp() });
+export const unrateMatch = (me: Me, matchId: string) => deleteDoc(doc(db, "matches", matchId, "ratings", me.uid));
 
 export const predictScore = (_me: Me, matchId: string, goalsFor: number, goalsAgainst: number, goals: GoalPick[]) =>
   savePrediction({ matchId, goalsFor, goalsAgainst, goals });

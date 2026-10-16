@@ -5,7 +5,9 @@ import { useTeam } from "../../context/TeamContext";
 import { useViewer } from "../../hooks/useViewer";
 import { useNoIndex } from "../../hooks/useNoIndex";
 import { useBoardView, useMatchBoard } from "../pizarra/useMatchBoard";
-import { useMatchScorers } from "../vestuario/live";
+import { useMatchRatings, useMatchReactions, useMatchScorers } from "../vestuario/live";
+import { useMe } from "../vestuario/writes";
+import { reactionsOpen } from "../../lib/derived/trasElPartido";
 import { MatchClockDisplay } from "../../components/celeste/MatchClockControl";
 // Ficha de partido (Celeste): the stadium board on top (final score, live score with ¡GOL!, or the
 // countdown), then tabs — Crónica/Previa/Directo · Campo · Pulso · Vestuario. From the Design canvas
@@ -89,9 +91,15 @@ export function MatchPage() {
   const { user, profile } = useAuth();
   const { member } = useTeam();
   const scorers = useMatchScorers(member ? matchId : undefined);
+  const me = useMe();
   const canScore = member && (!!user && scorers.data.includes(user.uid) || profile?.role === "admin" || profile?.role === "superadmin");
   const [notice, setNotice] = useState("");
   const match = matches.find((m) => m.id === matchId);
+  // Tras el partido: the reactions and the notas, public, one listener each while the page is open and the
+  // acta is published (fans read them too; only a member writes).
+  const published = !!match && reactionsOpen(match);
+  const reactions = useMatchReactions(published ? matchId : undefined);
+  const ratings = useMatchRatings(published ? matchId : undefined);
   // The shortcuts only some can follow: admins to the Sala de control, members to the pizarra's official
   // board for this match — its own, or the season's while it is still to be played (team-only reads: a
   // fan reads nothing).
@@ -371,7 +379,7 @@ export function MatchPage() {
       </div>
       {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
       <div className={`fc-pane${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
-        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} plan={rivalPlan} />)}
+        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} after={published ? { reactions: reactions.data, ratings: ratings.data, me: member ? me : null } : undefined} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} plan={rivalPlan} />)}
         {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialBoard?.seven ?? null} board={officialBoard} />}
         {active === 2 && <PulsoTab match={match} live={live} minute={minute} pending={pending} />}
         {active === 4 &&
@@ -380,7 +388,7 @@ export function MatchPage() {
           ) : (
             <StatePanel kind="empty" compact title="Sin análisis de este partido" body="Nadie ha narrado sus jugadas: pases, remates, entradas… Cuando el acta las apunte, el juego en detalle saldrá aquí." />
           ))}
-        {active === 3 && <VestuarioTab match={match} matches={matches} players={players} phase={phase} />}
+        {active === 3 && <VestuarioTab match={match} matches={matches} players={players} phase={phase} ratings={ratings.data} />}
       </div>
     </>,
   );

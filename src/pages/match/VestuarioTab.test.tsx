@@ -113,3 +113,20 @@ it("fans get none of them, only the invitation to the vestuario", () => {
   // (a fan never opens the absences reader)
   expect(state.absencesRead.every((on) => !on)).toBe(true);
 });
+
+it("tras el partido: the member's 1–5 nota while it is open, frozen after 7 days; a fan gets no control", () => {
+  const ratings = [{ uid: "u1", name: "YO", playerId: null, score: 4 }];
+  const { unmount } = render(<VestuarioTab match={finished} players={SQUAD} phase="finished" ratings={ratings} />);
+  expect(screen.getByRole("radiogroup", { name: "¿Qué nota le pones al partido?" })).toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: "4 de 5" })).toBeChecked();
+  unmount();
+  // published 8 days ago (voteClosesAt = publication + 48 h)
+  const old = { ...finished, voteClosesAt: NOW - 6 * 86_400_000 } as ClubMatch;
+  const frozen = render(<VestuarioTab match={old} players={SQUAD} phase="finished" ratings={ratings} />);
+  expect(screen.getByRole("heading", { name: "La nota quedó en 4,0" })).toBeInTheDocument();
+  expect(screen.queryByRole("radiogroup", { name: /nota/ })).toBeNull();
+  frozen.unmount();
+  state.member = false;
+  render(<VestuarioTab match={finished} players={SQUAD} phase="finished" ratings={ratings} />);
+  expect(screen.queryByRole("radiogroup", { name: /nota/ })).toBeNull();
+});

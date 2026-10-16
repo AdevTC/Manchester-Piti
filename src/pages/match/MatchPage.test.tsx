@@ -34,8 +34,11 @@ vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import(".
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => who.viewer }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false }) }));
+vi.mock("../vestuario/writes", () => ({ useMe: () => null }));
 vi.mock("../vestuario/live", () => ({
   useMatchScorers: () => ({ data: [] }),
+  useMatchReactions: () => ({ data: [], loading: false, error: false }),
+  useMatchRatings: () => ({ data: [], loading: false, error: false }),
   useLiveDoc: <T,>(path: string | null, _id: string, map: (d: Record<string, unknown> | undefined) => T, empty: T) => {
     if (!path) return { data: empty, loading: false, error: false };
     who.reads.push(path);

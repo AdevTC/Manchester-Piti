@@ -1493,3 +1493,118 @@ describe("Encuestas del vestuario (polls, polls/{id}/votes)", () => {
     await assertSucceeds(deleteDoc(voteRef("member", "gone"))); // la encuesta ya no está
   });
 });
+describe("Tras el partido: reacciones y nota (matches/{id}/reactions, matches/{id}/ratings)", () => {
+  const HOUR = 3_600_000;
+  const DAY = 24 * HOUR;
+  /** A published acta: saveMatchSheet stamps voteClosesAt = first publication + 48 h. */
+  const publishedAgo = (ms: number, extra: object = {}) => ({ status: "finished", voteClosesAt: Date.now() - ms + 48 * HOUR, ...extra });
+  const reaction = (who: string, moments: object, extra: object = {}) => ({ moments, name: who, playerId: null, at: serverTimestamp(), ...extra });
+  const rating = (who: string, score: unknown, extra: object = {}) => ({ score, name: who, playerId: null, at: serverTimestamp(), ...extra });
+  const reactionRef = (who: string | undefined, match: string, uid = who ?? "member") => doc(db(who), "matches", match, "reactions", uid);
+  const ratingRef = (who: string | undefined, match: string, uid = who ?? "member") => doc(db(who), "matches", match, "ratings", uid);
+  beforeEach(async () => {
+    await seed("matches/pub", publishedAgo(HOUR)); // published an hour ago
+    await seed("matches/late", publishedAgo(7 * DAY - HOUR)); // the nota's last hour
+    await seed("matches/old", publishedAgo(7 * DAY + HOUR)); // the nota froze an hour ago
+    await seed("matches/next", { status: "scheduled", date: Timestamp.fromMillis(Date.now() + DAY), voteClosesAt: null });
+    await seed("matches/legacy", { status: "finished" }); // an old acta without the MVP window
+    await seed("matches/sleep", publishedAgo(HOUR, { archived: true }));
+    await seed("matches/gone", publishedAgo(HOUR));
+    await seed("matchTombstones/gone", { at: Timestamp.now() });
+  });
+
+  it("anyone reads them, a fan and an anonymous visitor too (the counts and the average are public)", async () => {
+    await seed("matches/pub/reactions/other", { moments: { g1: "fuego" }, name: "other", playerId: null, at: Timestamp.now() });
+    await seed("matches/pub/ratings/other", { score: 4, name: "other", playerId: null, at: Timestamp.now() });
+    for (const who of ["member", "outsider", undefined]) {
+      await assertSucceeds(getDoc(reactionRef(who, "pub", "other")));
+      await assertSucceeds(getDocs(collection(db(who), "matches", "pub", "reactions")));
+      await assertSucceeds(getDoc(ratingRef(who, "pub", "other")));
+      await assertSucceeds(getDocs(collection(db(who), "matches", "pub", "ratings")));
+    }
+  });
+
+  it("reactions: a member writes, changes and deletes his own once the acta is published, at any time after", async () => {
+    await assertSucceeds(setDoc(reactionRef("member", "pub"), reaction("member", { g1: "fuego", "live-abc_1": "aplauso", final: "uy" })));
+    await assertSucceeds(setDoc(reactionRef("member", "pub"), reaction("member", { g1: "risa" })));
+    await assertSucceeds(setDoc(reactionRef("member", "pub"), reaction("member", {})));
+    await assertSucceeds(setDoc(reactionRef("member", "old"), reaction("member", { g1: "fuego" }))); // no window
+    const thirty = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`e${i}`, "fuego"]));
+    await assertSucceeds(setDoc(reactionRef("admin", "pub"), reaction("admin", thirty)));
+    await assertSucceeds(deleteDoc(reactionRef("member", "pub")));
+    await assertSucceeds(deleteDoc(reactionRef("member", "old")));
+  });
+
+  it("reactions: refused before the acta, on an archived or deleted match, and with bad values", async () => {
+    for (const match of ["next", "legacy", "sleep", "gone", "nope"]) await assertFails(setDoc(reactionRef("member", match), reaction("member", { g1: "fuego" })));
+    const thirtyOne = Object.fromEntries(Array.from({ length: 31 }, (_, i) => [`e${i}`, "fuego"]));
+    const bad = [
+      reaction("member", { g1: "corazón" }), // not one of the four
+      reaction("member", { g1: 1 }),
+      reaction("member", { g1: null }),
+      reaction("member", thirtyOne),
+      reaction("member", { "mal id": "fuego" }), // not an event id
+      reaction("member", { "g1.x": "fuego" }),
+      reaction("member", { ["x".repeat(129)]: "fuego" }),
+      reaction("member", { e0: "fuego", e1: "fuego", e2: "fuego", e3: "fuego", e4: "fuego", e5: "fuego", e6: "fuego", e7: "fuego", e8: "fuego", e9: "fuego", e10: "fuego", e11: "fuego", e12: "fuego", e13: "fuego", e14: "fuego", e15: "fuego", e16: "fuego", e17: "fuego", e18: "fuego", e19: "fuego", e20: "fuego", e21: "fuego", e22: "fuego", e23: "fuego", e24: "fuego", e25: "fuego", e26: "fuego", e27: "fuego", e28: "fuego", "e 29": "fuego" }), // the 30th key is checked too
+      reaction("member", ["fuego"] as unknown as object),
+      reaction("member", { g1: "fuego" }, { extra: true }),
+      reaction("member", { g1: "fuego" }, { name: "other" }), // signed as someone else
+      reaction("member", { g1: "fuego" }, { playerId: "erik" }), // not his ficha
+      reaction("member", { g1: "fuego" }, { at: Timestamp.now() }), // not the server's time
+    ];
+    for (const data of bad) await assertFails(setDoc(reactionRef("member", "pub"), data));
+    const noMoments = Object.fromEntries(Object.entries(reaction("member", {})).filter(([k]) => k !== "moments"));
+    await assertFails(setDoc(reactionRef("member", "pub"), noMoments));
+  });
+
+  it("reactions: nobody writes or deletes another's; a fan or an anonymous visitor writes nothing", async () => {
+    await seed("matches/pub/reactions/other", { moments: { g1: "fuego" }, name: "other", playerId: null, at: Timestamp.now() });
+    await assertFails(setDoc(reactionRef("member", "pub", "other"), reaction("member", { g1: "uy" })));
+    await assertFails(setDoc(reactionRef("member", "pub", "other"), reaction("other", { g1: "uy" })));
+    await assertFails(deleteDoc(reactionRef("member", "pub", "other")));
+    await assertFails(deleteDoc(reactionRef("admin", "pub", "other")));
+    await assertFails(setDoc(reactionRef("outsider", "pub"), reaction("outsider", { g1: "fuego" })));
+    await assertFails(setDoc(reactionRef(undefined, "pub", "anon"), reaction("anon", { g1: "fuego" })));
+    await seed("matches/pub/reactions/outsider", { moments: {}, name: "outsider", playerId: null, at: Timestamp.now() });
+    await assertFails(deleteDoc(reactionRef("outsider", "pub")));
+  });
+
+  it("the nota: a member rates 1–5, changes and takes it back for 7 days from the publication", async () => {
+    await assertSucceeds(setDoc(ratingRef("member", "pub"), rating("member", 1)));
+    await assertSucceeds(setDoc(ratingRef("member", "pub"), rating("member", 5)));
+    await assertSucceeds(deleteDoc(ratingRef("member", "pub")));
+    await assertSucceeds(setDoc(ratingRef("member", "late"), rating("member", 3)));
+    await assertSucceeds(deleteDoc(ratingRef("member", "late")));
+  });
+
+  it("the nota: closed after 7 days (no rating, change or removal), before the acta, and on an archived or deleted match", async () => {
+    await seed("matches/old/ratings/member", { score: 4, name: "member", playerId: null, at: Timestamp.now() });
+    await assertFails(setDoc(ratingRef("member", "old"), rating("member", 5)));
+    await assertFails(setDoc(ratingRef("other", "old"), rating("other", 5)));
+    await assertFails(deleteDoc(ratingRef("member", "old")));
+    for (const match of ["next", "legacy", "sleep", "gone", "nope"]) await assertFails(setDoc(ratingRef("member", match), rating("member", 4)));
+  });
+
+  it("the nota: a whole 1–5, signed by the member himself, nothing else", async () => {
+    for (const score of [0, 6, -1, 3.5, "4", null]) await assertFails(setDoc(ratingRef("member", "pub"), rating("member", score)));
+    await assertFails(setDoc(ratingRef("member", "pub"), rating("member", 4, { extra: true })));
+    await assertFails(setDoc(ratingRef("member", "pub"), rating("member", 4, { name: "other" })));
+    await assertFails(setDoc(ratingRef("member", "pub"), rating("member", 4, { playerId: "erik" })));
+    await assertFails(setDoc(ratingRef("member", "pub"), rating("member", 4, { at: Timestamp.now() })));
+    const noScore = Object.fromEntries(Object.entries(rating("member", 4)).filter(([k]) => k !== "score"));
+    await assertFails(setDoc(ratingRef("member", "pub"), noScore));
+  });
+
+  it("the nota: nobody rates or removes another's; a fan or an anonymous visitor writes nothing", async () => {
+    await seed("matches/pub/ratings/other", { score: 2, name: "other", playerId: null, at: Timestamp.now() });
+    await assertFails(setDoc(ratingRef("member", "pub", "other"), rating("member", 5)));
+    await assertFails(setDoc(ratingRef("member", "pub", "other"), rating("other", 5)));
+    await assertFails(deleteDoc(ratingRef("member", "pub", "other")));
+    await assertFails(deleteDoc(ratingRef("admin", "pub", "other")));
+    await assertFails(setDoc(ratingRef("outsider", "pub"), rating("outsider", 5)));
+    await assertFails(setDoc(ratingRef(undefined, "pub", "anon"), rating("anon", 5)));
+    await seed("matches/pub/ratings/outsider", { score: 3, name: "outsider", playerId: null, at: Timestamp.now() });
+    await assertFails(deleteDoc(ratingRef("outsider", "pub")));
+  });
+});

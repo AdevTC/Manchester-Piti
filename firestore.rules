@@ -127,6 +127,54 @@ service cloud.firestore {
           && mvpOpen(id, request.resource.data.playerId);
         allow delete: if false;
       }
+      // Tras el partido (public read, like the acta): each member's reactions to the crónica's moments
+      // ({ eventId: reaction }, one per moment) and their 1–5 rating of the match, signed as themselves.
+      match /reactions/{uid} {
+        allow read: if true;
+        allow create, update: if teamMember() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['moments','name','playerId','at'])
+          && momentsOk(request.resource.data.moments)
+          && signedAsMe(request.resource.data) && actaPublished(id);
+        allow delete: if teamMember() && request.auth.uid == uid;
+      }
+      // Rated (and un-rated) only for 7 days from the acta's publication: then the nota stays as it is.
+      match /ratings/{uid} {
+        allow read: if true;
+        allow create, update: if teamMember() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['score','name','playerId','at'])
+          && request.resource.data.score is int
+          && request.resource.data.score >= 1 && request.resource.data.score <= 5
+          && signedAsMe(request.resource.data) && ratingOpen(id);
+        allow delete: if teamMember() && request.auth.uid == uid && ratingOpen(id);
+      }
+    }
+    // The acta is published: a finished match in `matches` (drafts live in matchDrafts) with its MVP window,
+    // which saveMatchSheet stamps once, on the first publication, as that moment + 48 h and keeps on every
+    // later save (functions/src/index.ts). So the publication time is voteClosesAt − 48 h.
+    function actaPublished(matchId) {
+      let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
+      return activeMatch(matchId) && m.get('status', null) == 'finished' && m.get('voteClosesAt', null) is number;
+    }
+    // 7 days from the publication = voteClosesAt (publication + 48 h) + 5 days.
+    function ratingOpen(matchId) {
+      return actaPublished(matchId)
+        && request.time.toMillis() < get(/databases/$(database)/documents/matches/$(matchId)).data.voteClosesAt + 432000000;
+    }
+    // A moment is an event id of the acta (its format: lib event ids, eventSchema's `ref`) or «final». At most
+    // 30 per member; no loops in the rules, so each of the 30 slots is checked on its own.
+    function momentKeyOk(ks, i) {
+      return i >= ks.size() || ks[i].matches('^[a-zA-Z0-9_-]{1,128}$');
+    }
+    function momentsOk(m) {
+      let ks = m.keys();
+      return m is map && ks.size() <= 30
+        && m.values().toSet().difference(['fuego','aplauso','risa','uy'].toSet()).size() == 0
+        && momentKeyOk(ks, 0) && momentKeyOk(ks, 1) && momentKeyOk(ks, 2) && momentKeyOk(ks, 3) && momentKeyOk(ks, 4)
+        && momentKeyOk(ks, 5) && momentKeyOk(ks, 6) && momentKeyOk(ks, 7) && momentKeyOk(ks, 8) && momentKeyOk(ks, 9)
+        && momentKeyOk(ks, 10) && momentKeyOk(ks, 11) && momentKeyOk(ks, 12) && momentKeyOk(ks, 13) && momentKeyOk(ks, 14)
+        && momentKeyOk(ks, 15) && momentKeyOk(ks, 16) && momentKeyOk(ks, 17) && momentKeyOk(ks, 18) && momentKeyOk(ks, 19)
+        && momentKeyOk(ks, 20) && momentKeyOk(ks, 21) && momentKeyOk(ks, 22) && momentKeyOk(ks, 23) && momentKeyOk(ks, 24)
+        && momentKeyOk(ks, 25) && momentKeyOk(ks, 26) && momentKeyOk(ks, 27) && momentKeyOk(ks, 28) && momentKeyOk(ks, 29);
     }
     // Membership lasts until an admin removes it (backend only). Admins see who has access.
     match /teamMembers/{uid} {
