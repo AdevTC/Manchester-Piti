@@ -28,7 +28,7 @@ export interface MesaClock {
   added: number;
   /** The minute people read now (football's, 1-based). */
   minute: number;
-  /** «18:42», the half's own clock as the LED shows it. */
+  /** «18:42», the match clock (seconds of play) as the LED shows it. */
   text: string;
   revision: number;
 }

@@ -116,6 +116,35 @@ const defined = <T extends object>(o: T): T => Object.fromEntries(Object.entries
  *  (e.g. `clockRevision` on a match without a clock): absent keys are dropped here, in the envelope and in `event`. */
 export const liveEvent = (data: LiveEventRequest) => liveEventCall(data.action === "add" ? { ...defined(data), event: defined(data.event) } : defined(data));
 
+/** La mesa's own envelope for the same liveEvent callable: the whole mesa catalogue (MESA_TYPES, which the
+ *  server's LIVE_TYPES becomes), the tapped time of a queued play, edits and deletes of any play. */
+type MesaType = import("../../functions/src/liveRules").MesaType;
+export interface MesaEventFields {
+  type: MesaType;
+  minute: number;
+  playerId?: string;
+  assistPlayerId?: string;
+  assistReviewed?: boolean;
+  inPlayerId?: string;
+}
+export interface MesaEventPatch {
+  type?: MesaType;
+  playerId?: string;
+  assistPlayerId?: string;
+  inPlayerId?: string;
+  elapsedSeconds?: number;
+  dupOk?: boolean;
+}
+export type MesaEventRequest =
+  | { action: "add"; matchId: string; requestId: string; clockRevision?: number; tappedElapsed?: number; period?: 1 | 2; event: MesaEventFields }
+  | { action: "edit"; matchId: string; eventId: string; patch: MesaEventPatch }
+  | { action: "delete"; matchId: string; eventId: string }
+  | { action: "undo"; matchId: string; eventId: string };
+const mesaEventCall = withServerTime(httpsCallable<MesaEventRequest, { events: number; serverNow?: number }>(functions, "liveEvent"));
+/** La mesa → liveEvent, with the undefined keys dropped (in the envelope, `event` and `patch`). */
+export const mesaEvent = (data: MesaEventRequest) =>
+  mesaEventCall(data.action === "add" ? { ...defined(data), event: defined(data.event) } : data.action === "edit" ? { ...data, patch: defined(data.patch) } : data);
+
 /** La mesa: an admin or one of the match's scorers publishes the acta from the live record (assists answered inline). */
 export const publishLive = httpsCallable<{ matchId: string; assists?: Record<string, string> }, { ok: boolean }>(functions, "publishLive");
 export const controlMatchClock = withServerTime(httpsCallable<{ matchId: string; action: import("../../functions/src/matchClock").ClockAction; revision: number; value?: number },{ clock: import("../../functions/src/matchClock").MatchClock; serverNow?: number }>(functions, "controlMatchClock"));

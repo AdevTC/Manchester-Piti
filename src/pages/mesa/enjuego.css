@@ -1,0 +1,29 @@
+/* La mesa · En juego and its offline state: what the screen adds to the shared objects of tokens.css. */
+.mesa .enj{position:relative;padding-top:env(safe-area-inset-top,0px)}
+.mesa .enj .shirtw{position:relative;display:block}
+.mesa .enj .tok .shirtw{width:48px;height:44px}
+.mesa .enj .bt .shirtw{width:34px;height:31px}
+.mesa .enj .key.end.due{box-shadow:inset 0 0 0 1.5px rgba(255,198,89,.7);color:#ffd98c}
+.mesa .enj .who > span:last-child:not(.ok){white-space:nowrap}
+.mesa .enj .toca{position:relative;z-index:1;display:flex;align-items:center;gap:8px;width:calc(100% - 12px);min-height:44px;margin:0 6px 6px;padding:0 12px;box-sizing:border-box;border-radius:12px;background:rgba(159,208,242,.1);box-shadow:inset 0 0 0 1.5px rgba(159,208,242,.45);color:#d4ecfc;font-weight:600;font-size:13.5px;text-align:left}
+.mesa .enj .toca svg{color:var(--ice);flex:none}
+.mesa .enj .none{position:relative;z-index:1;padding:14px 8px;font-size:13px;color:var(--muted)}
+.mesa .enj .note{margin:0 0 6px;padding:10px 12px;border-radius:12px;background:rgba(255,138,122,.12);box-shadow:inset 0 0 0 1px rgba(255,138,122,.4);color:#ffd0c8;font-size:13.5px;line-height:1.35}
+.mesa .enj .peek .loc{color:#ffc677;font-weight:600}
+.mesa .enj .cta:disabled{opacity:.45}
+/* «Por revisar» */
+.mesa .rv{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.mesa .rv li{padding:12px;border-radius:16px;background:rgba(255,181,71,.08);box-shadow:inset 0 0 0 1px rgba(255,181,71,.35)}
+.mesa .rv b{display:block;font-size:15px;font-weight:600}
+.mesa .rv small{display:block;margin-top:3px;font-size:13px;color:#ffd08a;line-height:1.35}
+.mesa .rv-fix{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.mesa .rv-fix select{height:44px;min-width:150px;padding:0 10px;border-radius:12px;border:0;background:#121e40;color:var(--text);font:inherit;font-size:14px;box-shadow:inset 0 0 0 1px rgba(159,208,242,.3)}
+.mesa .rv .gh .rv-go{background:linear-gradient(180deg,#d4ecfc,#6CABDD);color:var(--navy)}
+/* the gate and the waiting line (Mesa.tsx) */
+.mesa .gate{display:grid;place-items:center;min-height:100dvh;padding:24px 16px;box-sizing:border-box}
+.mesa .gate-card{max-width:360px;padding:24px;border-radius:24px;background:linear-gradient(180deg,#16244a,#0a1430);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.mesa .gate-card h1{margin:0 0 8px;font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 104;font-size:26px;line-height:1.05}
+.mesa .gate-card p{margin:0 0 18px;color:var(--soft);font-size:15px;line-height:1.45}
+.mesa .gate-back{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:linear-gradient(180deg,#d4ecfc,#6CABDD);color:var(--navy);font-weight:700;text-decoration:none}
+.mesa .gate-wait{color:var(--soft);font-size:15px}
+.mesa .mesa-placeholder{padding:24px 16px;color:var(--soft)}
