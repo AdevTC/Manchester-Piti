@@ -50,9 +50,14 @@ export interface MesaMatch {
   competition: string;
   /** The jornada of the match in its season (derived/jornada), null when it has none. */
   round: number | null;
-  /** Where the seven comes from: the official pizarra board (with its system, «2-3-1 · Clásico», when
-   *  known) or the convocatoria. */
-  lineup: { fromBoard: boolean; system: string | null };
+  /** Where the seven comes from: the match's lineup (`fromMatch`: matches/{id}.lineup, sent from the
+   *  pizarra) or the official pizarra board (with its system, «2-3-1 · Clásico», when known), else the
+   *  convocatoria. */
+  lineup: { fromBoard: boolean; system: string | null; fromMatch?: boolean };
+  /** «¿Quién ha venido?» (matches/{id}.present), null while nobody has called the roll. */
+  present?: string[] | null;
+  /** The match's official pizarra board (useMatchBoard), null when it has none (or not read yet). */
+  officialBoard?: string | null;
   /** The season has a league table (standings/{seasonId}): Final's «+3 en la tabla». */
   hasStandings: boolean;
   home: boolean;
@@ -242,8 +247,9 @@ export interface MesaNav {
   exit(): void;
   /** The published acta on the web (`/matches/$matchId`): Final's «Ver el acta en la web». */
   acta(): void;
-  /** The pizarra of this match («Preparar el siete de la 2ª»). */
-  pizarra(): void;
+  /** The pizarra «desde la mesa» for this match (`/pizarra?desde=mesa&partido=…`), on its official board
+   *  (`&tablero=…`) when la mesa knows it. */
+  pizarra(boardId?: string | null): void;
 }
 
 export interface MesaView {

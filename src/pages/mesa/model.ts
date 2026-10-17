@@ -4,6 +4,8 @@
 import { EVENT_LABELS, minuteOfPlay, type MatchEvent } from "../../../functions/src/matchEngine";
 import { clockReading, type MatchClock } from "../../../functions/src/matchClock";
 import { POSITIONS, isPosCode, type PosCode } from "../../../functions/src/positions";
+import { lineupField } from "../../lib/derived/lineupField";
+import type { MatchLineup } from "../../lib/matchLineup";
 import type { MesaClock, MesaEvent, MesaPhase, MesaPlayer, MesaScreen, MesaStint, MesaType } from "./types";
 
 // ---------- the screen
@@ -190,6 +192,28 @@ export function fieldSpots(field: readonly string[], starters: readonly string[]
   return { spots, keeper };
 }
 
+/** Where each one on the pitch stands with the match's lineup: his slot's spot now (lineupField: one who
+ *  came on takes the slot of the one he replaced), and the keeper is whoever holds the POR slot. Anyone
+ *  on the pitch the lineup doesn't place (it shouldn't happen) falls back to fieldSpots. */
+export function lineupSpots(field: readonly string[], starters: readonly string[], events: readonly MatchEvent[], lineup: Pick<MatchLineup, "slots">): { spots: Map<string, Spot>; keeper: string | null } {
+  const now = lineupField(lineup, events);
+  const spots = new Map<string, Spot>();
+  for (const s of now.spots) if (field.includes(s.id)) spots.set(s.id, { x: s.x, y: s.y });
+  const rest = field.filter((id) => !spots.has(id));
+  if (rest.length) {
+    const fb = fieldSpots(rest, starters, events, null);
+    for (const id of rest) spots.set(id, fb.spots.get(id) ?? { x: 50, y: 50 });
+  }
+  return { spots, keeper: now.keeper && field.includes(now.keeper) ? now.keeper : null };
+}
+
+/** The mesa's link to the pizarra: «desde la mesa» for this match, on its official board when known. */
+export function pizarraHref(matchId: string, boardId?: string | null): string {
+  const q = new URLSearchParams({ desde: "mesa", partido: matchId });
+  if (boardId) q.set("tablero", boardId);
+  return "/pizarra?" + q.toString();
+}
+
 /** The pizarra's frame (y 14 = the striker … 93 = the keeper) to the pitch card's top % (the canvas: 5 % … 71 %). */
 export const pitchTop = (y: number): number => Math.max(2, Math.min(72, 5 + ((y - 14) * 66) / 79));
 /** Kept inside the card so a name tag never clips. */
@@ -355,13 +379,14 @@ export function mesaPlayers(
   info: (id: string) => PlayerInfo,
   codes: Readonly<Record<string, string>> | null,
   pendingBy: Readonly<Record<string, number>>,
+  lineup: Pick<MatchLineup, "slots"> | null = null,
 ): { field: MesaPlayer[]; bench: MesaPlayer[] } {
   const stints = stintsOf(starters, events);
   const live = events.filter(counted);
   const sentOff = new Set(live.filter((e) => DISMISS.has(e.type) && e.playerId).map((e) => e.playerId as string));
   const called = [...new Set([...starters, ...benchIds])];
   const onPitch = called.filter((id) => stints.get(id)?.some((s) => s.to === null));
-  const { spots, keeper } = fieldSpots(onPitch, starters, live, codes);
+  const { spots, keeper } = lineup ? lineupSpots(onPitch, starters, live, lineup) : fieldSpots(onPitch, starters, live, codes);
   const stickers = (id: string) => {
     const mine = live.filter((e) => e.playerId === id);
     const yellows = mine.filter((e) => e.type === "yellow_card").length;
@@ -399,6 +424,16 @@ export function mesaPlayers(
   return { field, bench };
 }
 
+/** The planned subs of a board doc (`lineups/{id}.subs`), malformed entries dropped. */
+export function plannedSubsOf(raw: unknown): { min?: number; out: string; in: string }[] {
+  return Array.isArray(raw)
+    ? raw.flatMap((x: unknown) => {
+        if (!x || typeof x !== "object") return [];
+        const o = x as { min?: unknown; out?: unknown; in?: unknown };
+        return typeof o.out === "string" && typeof o.in === "string" ? [{ out: o.out, in: o.in, ...(typeof o.min === "number" ? { min: o.min } : {}) }] : [];
+      })
+    : [];
+}
 /** The pizarra's next planned sub that can still be made: its out is on the pitch and its in on the bench. */
 export function nextPlannedSub(subs: readonly { min?: number; out: string; in: string }[], field: readonly string[], bench: readonly string[], sentOff: ReadonlySet<string> = new Set()): { inId: string; outId: string } | null {
   const on = new Set(field);

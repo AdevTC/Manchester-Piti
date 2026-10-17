@@ -35,7 +35,8 @@ import { useNumOf } from "./useNumOf";
 import { DirectoFeed, LiveCampo, PulsoLive } from "./LivePanes";
 import "./guests.css";
 import { campoSeven, campoSevenNote } from "./campoSeven";
-import { campoLayout, SOURCE_TEXT } from "./campoPositions";
+import { campoLayout, lineupLayout, SOURCE_TEXT } from "./campoPositions";
+import { lineupSeven, parseMatchLineup } from "../../lib/matchLineup";
 import { systemMark, systemText } from "../../lib/derived/system";
 import { POSITIONS } from "../../lib/positions";
 import { playedLinesOf, playedSummary } from "../../lib/playedSummary";
@@ -265,7 +266,10 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
   const numOf = useNumOf(players, match.seasonId);
   const [sel, setSel] = useState<string | null>(null);
   const done = isCompleted(match);
-  const seven = campoSeven(match, done || live ? null : official);
+  // before kick-off, the match's lineup (sent from the pizarra: the official seven, for everyone) wins
+  // over the official board and the convocatoria; live it is drawn by LiveCampo
+  const lineup = done ? null : parseMatchLineup((match as ClubMatch & { lineup?: unknown }).lineup);
+  const seven = lineup && !live ? { field: lineupSeven(lineup), bench: [...(match.bench ?? []), ...(match.starters ?? [])].filter((id, i, a) => !lineupSeven(lineup).includes(id) && a.indexOf(id) === i), official: true, differs: null } : campoSeven(match, done || live ? null : official);
   const starters = seven.field;
   const note = campoSevenNote(seven.differs, nameOf);
   const now = useClock(1000);
@@ -277,8 +281,8 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
   const preActa = !done && !live;
   const officialBoard = preActa && seven.official ? board : null;
   // (before the acta, only over the official board's own drawing: never over the orientative 1-3-2-1)
-  const system = done ? match.system : officialBoard ? officialBoard.system : null;
-  const layout = campoLayout({ field, ledger: done ? match.ledger : null, system, codes: officialBoard?.codes ?? null });
+  const system = done ? match.system : lineup ? lineup.system : officialBoard ? officialBoard.system : null;
+  const layout = preActa && lineup ? lineupLayout(lineup, []) : campoLayout({ field, ledger: done ? match.ledger : null, system, codes: officialBoard?.codes ?? null });
   const systemChip = systemText(system);
   const placed = layout.source !== "orientative";
   const subDots = layout.dots.filter((d) => d.sub);

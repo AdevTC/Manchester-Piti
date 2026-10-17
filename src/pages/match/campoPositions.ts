@@ -8,6 +8,8 @@ import { isFormationName, systemDef } from "../../lib/formations";
 import { POSITIONS, type PosCode } from "../../lib/positions";
 import { topPlayedCode } from "../../lib/playedSummary";
 import type { Participation } from "../../lib/clubData";
+import { lineupField } from "../../lib/derived/lineupField";
+import type { LineupEvent, MatchLineup } from "../../lib/matchLineup";
 
 export interface CampoDot {
   id: string;
@@ -199,4 +201,20 @@ export function campoLayout({ field, ledger, system, codes }: CampoInput): Campo
   // («de la pizarra oficial» only when every starter drawn has his code)
   const source: CampoSource = uncoded.length ? "partial" : est === 0 ? "board" : est === coded.length ? "estimated" : "mixed";
   return { dots: placed, source };
+}
+
+/** The match's lineup on the Campo (live, and before kick-off once the pizarra sent it): who is on the
+ *  pitch now (lineupField: a sub takes his man's slot, a red empties it), each at his slot's spot and code,
+ *  and who keeps goal (the POR slot). The same drawing as la mesa's. */
+export function lineupLayout(lineup: Pick<MatchLineup, "slots">, events: readonly LineupEvent[]): CampoLayout & { keeper: string | null } {
+  const now = lineupField(lineup, events);
+  const placed: CampoDot[] = [];
+  for (const s of now.spots) {
+    const [x, y] = toPitch(s.x, s.y);
+    const d: CampoDot = { id: s.id, x, y, code: s.code, sub: false, estimated: false };
+    // (free mode may stack two shirts: nudged apart like any other dot)
+    settle(d, placed);
+    placed.push(d);
+  }
+  return { dots: placed, source: "board", keeper: now.keeper };
 }

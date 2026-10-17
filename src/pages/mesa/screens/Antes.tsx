@@ -1,13 +1,18 @@
 // La mesa · antes del pitido (AntesV2): the LED counting down to kick-off, the seven on the floodlit pitch
 // with the bench below, the raised checklist (the seven, the bench, who scores, the screen stays on with
 // «Probar aviso») and the gold «Pitar el inicio». After the whistle a lower third offers «Deshacer».
-import { useState } from "react";
+// With the match's lineup the pitch is its seven at their slots and the seven's row offers «Cambiar» (the
+// pizarra «desde la mesa»); without one, «Pasar lista» opens «¿Quién ha venido?» (Llegada).
+import { lazy, Suspense, useState } from "react";
 import { systemDef } from "../../../lib/formations";
 import type { MesaPlayer, MesaScreenProps } from "../types";
 import { beep, buzz, canVibrate, useFlash, useNow } from "./hooks";
 import { avatars, fixtureTitle, fmtClock, hhmm, initial, listNames, matchLine } from "./model";
 import { BackButton, Check, Screws, Shirt, ShirtDefs, Whistle } from "./parts";
 import "./screens.css";
+
+// (the roll call loads the pizarra's cromos: only when it is opened)
+const Llegada = lazy(() => import("./Llegada").then((m) => ({ default: m.Llegada })));
 
 const WORDS = ["Nadie", "Uno", "Dos", "Tres", "Cuatro", "Cinco", "Seis", "Siete", "Ocho", "Nueve", "Diez"];
 const FALLBACK = systemDef("2-3-1").spots;
@@ -31,6 +36,7 @@ export function Antes({ view }: MesaScreenProps) {
   const now = useNow(1000);
   const [tested, setTested] = useState(false);
   const [kickedAt, setKickedAt] = useState<number | null>(null);
+  const [rollCall, setRollCall] = useState(false);
   const live = match.clock.phase !== "ready";
   const digitRef = useFlash<HTMLSpanElement>(live, "fa");
   const digitRef2 = useFlash<HTMLSpanElement>(live, "fa");
@@ -70,6 +76,18 @@ export function Antes({ view }: MesaScreenProps) {
 
   const pct = live ? Math.min(100, Math.round((match.clock.periodSeconds / match.clock.halfSeconds) * 1000) / 10) : 0;
   const benchNames = bench.map((p) => p.name);
+  const fromMatch = match.lineup.fromMatch === true;
+  const present = match.present ?? null;
+  const sevenSub = fromMatch
+    ? [field.length === 7 ? "Siete de siete titulares" : `${field.length} de siete titulares`, present?.length ? `han venido ${present.length}` : ""]
+    : [match.lineup.fromBoard ? match.lineup.system : "Convocatoria", field.length === 7 ? "Siete de siete titulares" : `${field.length} de siete titulares`, present?.length ? `han venido ${present.length}` : ""];
+
+  if (rollCall && !live)
+    return (
+      <Suspense fallback={<div className="col gate"><p className="gate-wait" role="status">Abriendo la lista…</p></div>}>
+        <Llegada view={view} onBack={() => setRollCall(false)} />
+      </Suspense>
+    );
 
   return (
     <div className="col antes">
@@ -162,10 +180,14 @@ export function Antes({ view }: MesaScreenProps) {
           <div className="it">
             <Lamp ok={items[0]} />
             <span className="tx">
-              <b>{match.lineup.fromBoard ? "El siete de la pizarra" : "El siete de la convocatoria"}</b>
-              <small>{[match.lineup.fromBoard ? match.lineup.system : "Convocatoria", field.length === 7 ? "Siete de siete titulares" : `${field.length} de siete titulares`].filter(Boolean).join(" · ")}</small>
+              <b>{fromMatch ? ["El siete de la pizarra", match.lineup.system?.split(" · ")[0]].filter(Boolean).join(" · ") : match.lineup.fromBoard ? "El siete de la pizarra" : "El siete de la convocatoria"}</b>
+              <small>{sevenSub.filter(Boolean).join(" · ")}</small>
             </span>
-            {!live && <button type="button" className="key" onClick={nav.pizarra}>Cambiar</button>}
+            {!live && (fromMatch ? (
+              <button type="button" className="key" onClick={() => nav.pizarra(match.officialBoard ?? null)}>Cambiar</button>
+            ) : (
+              <button type="button" className="key" onClick={() => setRollCall(true)}>Pasar lista</button>
+            ))}
           </div>
           <div className="it">
             <Lamp ok />

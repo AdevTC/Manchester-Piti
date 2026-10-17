@@ -7,7 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useNoIndex } from "../../hooks/useNoIndex";
 import { useMesa } from "./useMesa";
-import { pickScreen } from "./model";
+import { pickScreen, pizarraHref } from "./model";
 import { EnJuego } from "./EnJuego";
 import { Antes } from "./screens/Antes";
 import { Cronica } from "./screens/Cronica";
@@ -68,7 +68,8 @@ export function Mesa() {
       mesa: () => void navigate({ to: "/matches/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: undefined }) }),
       exit: () => void navigate({ to: "/matches/$matchId", params: { matchId } }),
       acta: () => void navigate({ to: "/matches/$matchId", params: { matchId } }),
-      pizarra: () => void navigate({ to: "/pizarra" }),
+      // (by href: the pizarra reads «desde=mesa&partido» itself; its route declares only «tablero»)
+      pizarra: (boardId?: string | null) => void navigate({ href: pizarraHref(matchId, boardId) }),
     }),
     [navigate, matchId],
   );

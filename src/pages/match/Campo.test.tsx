@@ -267,3 +267,20 @@ it("after the acta, a starter without a code: «Algunas posiciones, orientativas
   expect(screen.getByText("Algunas posiciones, orientativas")).toBeInTheDocument();
   expect(screen.queryByText("Posiciones de la pizarra oficial")).toBeNull();
 });
+
+// La alineación del partido (matches/{id}.lineup) before kick-off: everyone sees the seven sent from the
+// pizarra at its slots, with its system and the badge; the bench is the match's.
+it("before kick-off with the match's lineup: its seven at their slots, its system, the bench from the match", () => {
+  const lineup = {
+    system: "2-3-1", boardId: "b1", setBy: "u", setAt: 1,
+    slots: ["h", "b", "c", "d", "e", "f", "g"].map((playerId, i) => ({ playerId, code: (["POR", "DFC", "DFC", "MI", "MC", "MD", "DC"] as const)[i], x: [50, 30, 70, 17, 50, 83, 50][i], y: [95, 74, 74, 49, 50, 49, 22][i] })),
+  };
+  const match = { id: "m", seasonId: "t1", date: Date.now() + 3_600_000, duration: 50, status: "scheduled", starters: ["a", "b"], bench: ["a"], lineup } as unknown as ClubMatch;
+  const { container } = render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} />);
+  const pitch = container.querySelector(".fc-pitch") as HTMLElement;
+  expect(within(pitch).getAllByRole("button")).toHaveLength(7);
+  expect(within(pitch).getByRole("button", { name: /^H, dorsal 3, en la pizarra: portero/ })).toBeInTheDocument();
+  expect(screen.getByText("Siete oficial de la pizarra")).toBeInTheDocument();
+  expect(screen.getByText(/2-3-1 · Clásico/)).toBeInTheDocument();
+  expect(within(container.querySelector(".fc-bench") as HTMLElement).getByText("A")).toBeInTheDocument();
+});

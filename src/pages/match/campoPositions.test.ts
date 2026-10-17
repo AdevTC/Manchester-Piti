@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { campoLayout, GAP_X, GAP_Y, SOURCE_TEXT, toPitch, type CampoDot } from "./campoPositions";
+import { campoLayout, GAP_X, GAP_Y, SOURCE_TEXT, toPitch, type CampoDot, lineupLayout } from "./campoPositions";
 import { F7_SPOTS } from "../../lib/ficha";
 import { playedLinesOf, topPlayedCode } from "../../lib/playedSummary";
 import type { PosCode } from "../../lib/positions";
@@ -190,5 +190,33 @@ describe("campoLayout", () => {
     expect(xy(at(dots, "d"))).toEqual(toPitch(25, 46));
     expect(xy(at(dots, "e"))).toEqual(toPitch(75, 46));
     expect(dots.some((d) => d.estimated || d.sub)).toBe(false);
+  });
+});
+
+describe("lineupLayout (la alineación del partido)", () => {
+  const slots = [
+    { playerId: "a", code: "POR" as const, x: 50, y: 95 },
+    { playerId: "b", code: "DFC" as const, x: 30, y: 74 },
+    { playerId: "c", code: "DFC" as const, x: 70, y: 74 },
+    { playerId: "d", code: "MI" as const, x: 17, y: 49 },
+    { playerId: "e", code: "MC" as const, x: 50, y: 50 },
+    { playerId: "f", code: "MD" as const, x: 83, y: 49 },
+    { playerId: "g", code: "DC" as const, x: 50, y: 22 },
+  ];
+  it("puts each one at his slot on the Campo's box, with the POR slot's keeper", () => {
+    const l = lineupLayout({ slots }, []);
+    expect(l.keeper).toBe("a");
+    expect(l.source).toBe("board");
+    expect(l.dots.find((d) => d.id === "a")).toMatchObject({ x: toPitch(50, 95)[0], y: toPitch(50, 95)[1], code: "POR" });
+  });
+  it("a sub takes the slot of who went off; a red empties it", () => {
+    const l = lineupLayout({ slots }, [{ type: "substitution", playerId: "g", inPlayerId: "x", minute: 10 }, { type: "red_card", playerId: "b", minute: 20 }]);
+    expect(l.dots.find((d) => d.id === "x")?.code).toBe("DC");
+    expect(l.dots.map((d) => d.id)).not.toContain("b");
+  });
+  it("two shirts on one spot (free mode) are set apart", () => {
+    const l = lineupLayout({ slots: slots.map((s, i) => (i === 2 ? { ...s, x: 30, y: 74 } : s)) }, []);
+    const [b, c] = ["b", "c"].map((id) => l.dots.find((d) => d.id === id)!);
+    expect(b.x !== c.x || b.y !== c.y).toBe(true);
   });
 });
