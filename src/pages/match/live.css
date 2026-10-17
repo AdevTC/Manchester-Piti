@@ -17,7 +17,7 @@
 .ml-pb i{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#1d2c57,#0c1733);box-shadow:inset 0 1px 0 rgba(255,255,255,.15);color:#d4ecfc;display:grid;place-items:center}
 .ml-pb:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 /* phone: the key sits in the card; desktop: in the buttons row */
-.fc-acts .ml-pb{display:none}
+.vx .fc-acts a.ml-pb{display:none}
 
 /* the card: a lit object with a sky lamp at its top edge */
 .ml-card{position:relative;overflow:hidden;border-radius:32px;padding:18px 16px 20px;color:var(--ml-text);background:radial-gradient(90% 70% at 50% -12%,rgba(159,208,242,.3),rgba(159,208,242,0) 62%),linear-gradient(180deg,#183063,#0e1c42 55%,#0a1532);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 0 0 1px rgba(184,226,255,.14),inset 0 -2px 0 rgba(0,0,0,.4),0 30px 50px -26px rgba(0,0,0,.95);transition:box-shadow .9s var(--ml-ease)}
@@ -85,8 +85,8 @@
 @keyframes mlSweep{0%{opacity:1;transform:translateX(0) skewX(-12deg)}85%{opacity:1}100%{opacity:0;transform:translateX(300%) skewX(-12deg)}}
 
 /* the live panes: the tab on the left, the side column on the right (desktop) */
-.ml-body{display:grid;gap:40px}
-.ml-body>section,.ml-body>aside{min-width:0}
+.ml-body{display:grid;grid-template-columns:minmax(0,1fr);gap:40px}
+.ml-body>*{min-width:0}
 .ml-side{display:none;flex-direction:column;gap:16px}
 .ml-sub{display:block;font-size:13.5px;font-weight:600;color:var(--accent)}
 .ml-h2{margin:4px 0 0}
@@ -154,7 +154,7 @@
 .ml-gi.accion{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12h12M12 6v12'/%3E%3C/svg%3E")}
 
 /* campo: floodlit turf */
-.ml-pitch{position:relative;margin-top:18px;height:340px;border-radius:24px 24px 0 0;overflow:hidden;color:var(--ml-text);background:repeating-linear-gradient(180deg,var(--ml-turf1) 0 44px,var(--ml-turf2) 44px 88px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.ml-pitch{position:relative;margin-top:18px;height:372px;border-radius:24px 24px 0 0;overflow:hidden;color:var(--ml-text);background:repeating-linear-gradient(180deg,var(--ml-turf1) 0 44px,var(--ml-turf2) 44px 88px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
 .ml-pitch:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(50% 45% at 0% 0%,rgba(190,225,255,.12),transparent 70%),radial-gradient(50% 45% at 100% 0%,rgba(190,225,255,.12),transparent 70%),radial-gradient(60% 40% at 50% 115%,rgba(190,225,255,.08),transparent 70%),radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(2,5,14,.55) 100%)}
 .ml-cl{position:absolute;border:1.5px solid var(--ml-chalk)}
 .ml-cl.box{left:14px;right:14px;top:14px;bottom:-2px;border-bottom:0;border-radius:4px 4px 0 0}
@@ -162,7 +162,7 @@
 .ml-cl.area{left:50%;bottom:-2px;width:240px;max-width:62%;height:72px;transform:translateX(-50%);border-bottom:0}
 .ml-spot{position:absolute;left:50%;bottom:52px;margin-left:-2.5px;width:5px;height:5px;border-radius:50%;background:var(--ml-chalk)}
 .ml-net{position:absolute;left:50%;bottom:-1px;width:90px;height:11px;margin-left:-45px;border:1.5px solid rgba(233,243,255,.5);border-bottom:0;border-radius:3px 3px 0 0;background:repeating-linear-gradient(90deg,rgba(233,243,255,.2) 0 1px,transparent 1px 6px),repeating-linear-gradient(0deg,rgba(233,243,255,.2) 0 1px,transparent 1px 4px)}
-.ml-tok{position:absolute;width:80px;margin-left:-40px;display:flex;flex-direction:column;align-items:center;gap:4px;transform:translateY(-50%)}
+.ml-tok{position:absolute;width:80px;margin-left:-40px;display:flex;flex-direction:column;align-items:center;gap:4px}
 .ml-shirt{position:relative;width:52px;height:48px}
 .ml-shirt svg{position:absolute;inset:0;overflow:visible}
 .ml-shadow{position:absolute;left:6px;right:6px;bottom:-5px;height:9px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(3px)}
@@ -270,9 +270,9 @@
 .ml-hero>.pt-rise{grid-area:t;align-self:end}
 .ml-hero>.ml-card{grid-area:c}
 .ml-hero>.ml-acts{grid-area:a;align-self:start}
-.ml-ct .ml-key{display:none}
+.vx .ml-ct a.ml-key{display:none}
 .ml-ct .ml-jor.dk{display:inline}
-.fc-acts .ml-pb{display:inline-flex}
+.vx .fc-acts a.ml-pb{display:inline-flex}
 .ml-body{grid-template-columns:minmax(0,8fr) minmax(0,5fr);gap:48px;align-items:start}
 .ml-side{display:flex;margin-top:40px}
 .ml-pulso-numbers{display:none}

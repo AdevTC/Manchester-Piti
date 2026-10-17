@@ -4,7 +4,7 @@ import type { ClubMatch } from "../../lib/clubData";
 import { LiveSide, PulsoLive } from "./LivePanes";
 import { LiveCard } from "./LiveBoard";
 import { lastEvent } from "../../lib/partidos";
-import { agoText, halvesOf, feedOf, pulseTrack, stickerWords, sumLine } from "./directoModel";
+import { agoText, halvesOf, feedOf, pulseTrack, stickerWords, sumLine, tokenTops } from "./directoModel";
 import { liveCounts } from "../../lib/ficha";
 
 const squad = vi.hoisted(() => ["a", "b", "h", "k"].map((id, i) => ({ id, firstName: id, number: i + 1 })));
@@ -90,4 +90,15 @@ it("the model: halves by period, «hace N s», stickers and the sum line", () =>
   expect(stickerWords(liveCounts("k", MATCH.events))).toBe("2 paradas");
   expect(sumLine("b", MATCH.events)).toBe("1 asistencia, 1 palo y 1 falta hecha");
   expect(pulseTrack(items, 50).labels).toEqual([0, 10, 20, 30, 40, 50]);
+  expect(pulseTrack(items, 25).labels).toEqual([0, 5, 10, 15, 20, 25]);
+});
+
+it("the pitch's rows never let a name cover a shirt: lines spread evenly, the deeper man a little lower", () => {
+  // the orientative 1-3-2-1 (campoPositions): striker, two mids, three defenders, keeper
+  const tops = tokenTops([19.6, 42, 42, 63.5, 67, 63.5, 81.5]);
+  expect(tops[0]).toBe(8);
+  expect(tops[1]).toBe(tops[2]);
+  expect(tops[4]).toBeGreaterThan(tops[3]);
+  expect(tops[6] - tops[4]).toBeGreaterThanOrEqual(80);
+  expect(Math.max(...tops) + 84).toBeLessThanOrEqual(372);
 });

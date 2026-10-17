@@ -8,7 +8,7 @@ import { jornadas } from "./derived/jornada";
 import { withGuestNames, type MatchGuest } from "./derived/guests";
 import { resultLetter, type ResultLetter } from "./derived/result";
 import { capital } from "./derived/words";
-import { eventMetaOf, eventSentence, isMesaType, settled } from "./eventMeta";
+import { eventMetaOf, eventSentence, goalOrdinal, isMesaType, settled } from "./eventMeta";
 import { eventSeconds } from "../../functions/src/matchAnalysis";
 
 export type Result = ResultLetter;
@@ -187,5 +187,5 @@ export function lastEvent(events: MatchEvent[] | undefined, nameOf: (id: string)
   const said = eventSentence(e, { nameOf, rival });
   const who = meta.side === "them" ? rival : e.type === "substitution" && e.inPlayerId ? nameOf(e.inPlayerId) : e.playerId ? nameOf(e.playerId) : "Manchester Piti";
   const tone = meta.goal === "for" ? ("gold" as const) : meta.side === "them" || meta.goal === "against" ? ("coral" as const) : ("sky" as const);
-  return { id: e.id, minute: eventMinute(e) ?? (e.minute as number), who, label: EVENT_LABELS[e.type] ?? e.type, goal: OURS.has(e.type), title: said.title, sub: said.sub, tag: meta.tag, tone };
+  return { id: e.id, minute: eventMinute(e) ?? (e.minute as number), who, label: EVENT_LABELS[e.type] ?? e.type, goal: OURS.has(e.type), title: said.title, sub: said.sub || goalOrdinal(events, e), tag: meta.tag, tone };
 }

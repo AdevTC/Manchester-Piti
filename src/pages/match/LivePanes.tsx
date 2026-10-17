@@ -13,7 +13,7 @@ import { nameSegments } from "../../lib/derived/names";
 import { wholeMinutes } from "../../lib/derived/minutes";
 import { isGuestId } from "../../lib/derived/guests";
 import { campoLayout } from "./campoPositions";
-import { currentHalf, feedOf, filterCounts, halvesOf, pulseTrack, rivalTag, stickerWords, sumLine, type FeedItem } from "./directoModel";
+import { currentHalf, feedOf, filterCounts, halvesOf, pulseTrack, rivalTag, stickerWords, sumLine, tokenTops, type FeedItem } from "./directoModel";
 import { GloveIcon, PlayNode, Shirt, ShirtDefs, StickerKey, Stickers } from "./livePieces";
 import { useNumOf } from "./useNumOf";
 import { Who } from "./Who";
@@ -218,6 +218,7 @@ export function LiveCampo({ match, players, nameOf, now, freshScorer = null }: {
   const field = snap.field.filter((id): id is string => !!id);
   const keeper = snap.field[0] ?? null;
   const layout = campoLayout({ field, ledger: null, system: null, codes: null });
+  const tops = tokenTops(layout.dots.map((d) => d.y));
   const bench = [...(match.starters ?? []), ...(match.bench ?? [])].filter((id) => !field.includes(id));
   const unused = bench.filter((id) => !snap.players[id]?.played).length;
   const minuteNow = match.clock ? Math.floor(clockReading(match.clock, now).elapsedSeconds / 60) + 1 : null;
@@ -241,13 +242,13 @@ export function LiveCampo({ match, players, nameOf, now, freshScorer = null }: {
         <span className="ml-spot" />
         <span className="ml-net" />
         <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-          {layout.dots.map((d) => {
+          {layout.dots.map((d, i) => {
             const c = liveCounts(d.id, match.events);
             const mins = wholeMinutes(snap.players[d.id]?.minutes ?? 0);
             const words = stickerWords(c);
             const n = isGuestId(d.id) ? "Inv" : numOf(d.id);
             return (
-              <li key={d.id} className="ml-tok" style={{ left: `${d.x}%`, top: `${d.y}%` }} aria-label={`${nameOf(d.id)}${n ? `, dorsal ${n}` : ""}${d.id === keeper ? ", portero" : ""}, ${mins} minutos${words ? `, ${words}` : ""}`}>
+              <li key={d.id} className="ml-tok" style={{ left: `${d.x}%`, top: `${tops[i]}px` }} aria-label={`${nameOf(d.id)}${n ? `, dorsal ${n}` : ""}${d.id === keeper ? ", portero" : ""}, ${mins} minutos${words ? `, ${words}` : ""}`}>
                 <Shirt n={n} keeper={d.id === keeper}>
                   <span className="ml-stk">
                     <Stickers c={c} pop={freshScorer === d.id} />
@@ -301,7 +302,9 @@ export function LiveCampo({ match, players, nameOf, now, freshScorer = null }: {
  *  down the rival, a ball on each goal — and «Quién suma». */
 export function PulsoLive({ match, players, nameOf, live, now }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean; now: number }) {
   const numOf = useNumOf(players, match.seasonId);
-  const duration = match.duration ?? 50;
+  // (the first half being played: the track spans that half, as the canvas draws it; then the whole match)
+  const full = match.duration ?? 50;
+  const duration = live && currentHalf(match, now) === 1 ? full / 2 : full;
   const items = feedOf(match, nameOf);
   const { ticks, labels } = pulseTrack(items, duration);
   const rival = match.rival ?? "Rival";

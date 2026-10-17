@@ -209,7 +209,8 @@ export function MatchPage() {
   const mesaOpen = !!canScore && !done && !["cancelled", "postponed"].includes(phase);
   const lastAt = last ? match.events?.find((e) => e.id === last.id) : undefined;
   const freshGoal = goalShow.goal ? match.events?.find((e) => e.id === goalShow.goal?.id) : undefined;
-  const kickLine = [live ? "En directo" : "Acta pendiente", jornada ? `jornada ${jornada}${match.competition ? ` de ${match.competition.toLocaleLowerCase("es")}` : ""}` : match.competition?.toLocaleLowerCase("es"), match.venue ? `en ${match.venue}` : ""].filter(Boolean).join(", ");
+  // «En directo, jornada 7 de liga en el Campo de pruebas»
+  const kickLine = [live ? "En directo" : "Acta pendiente", jornada ? `jornada ${jornada}${match.competition ? ` de ${match.competition.toLocaleLowerCase("es")}` : ""}` : match.competition?.toLocaleLowerCase("es")].filter(Boolean).join(", ") + (match.venue ? ` en ${match.venue}` : "");
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
   // «Estadísticas» reads the narrated actions (passes, shots, tackles…): without any, a short line.
   const analysed = hasAnalysisActions([match]);

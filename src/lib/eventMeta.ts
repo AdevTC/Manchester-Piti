@@ -253,6 +253,17 @@ export function eventSentence(e: Pick<MatchEvent, "type" | "playerId" | "assistP
   }
 }
 
+const ORDINAL = ["", "El primero suyo hoy", "El segundo suyo hoy", "¡Hat-trick!"];
+/** For a goal of ours with a scorer and nothing else to say: which of his it is today, «El segundo suyo
+ *  hoy» (counting the plays that stand, by time of play); "" otherwise. */
+export function goalOrdinal(events: readonly MatchEvent[] | undefined, e: MatchEvent): string {
+  if (!e.playerId || eventMeta(e.type).goal !== "for" || e.type === "opponent_own_goal") return "";
+  const secs = (x: MatchEvent) => x.elapsedSeconds ?? (x.minute ?? 0) * 60;
+  const mine = settled(events).filter((x) => x.playerId === e.playerId && eventMeta(x.type).goal === "for" && x.type !== "opponent_own_goal");
+  const n = mine.filter((x) => secs(x) < secs(e) || x.id === e.id).length;
+  return ORDINAL[n] ?? `Su ${n}.º gol hoy`;
+}
+
 /** A play's minute to show, «19′», or "" when it has none. */
 export function minuteText(e: Pick<MatchEvent, "minute" | "elapsedSeconds">): string {
   const m = eventMinute(e);

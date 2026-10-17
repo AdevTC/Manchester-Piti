@@ -4,7 +4,7 @@
 import { clockReading } from "../../../functions/src/matchClock";
 import { eventSeconds } from "../../../functions/src/matchAnalysis";
 import type { ClubMatch } from "../../lib/clubData";
-import { EVENT_FILTERS, eventMetaOf, eventSentence, isMesaType, minuteText, rivalCode, settled, type EventFilter, type EventMeta } from "../../lib/eventMeta";
+import { EVENT_FILTERS, eventMetaOf, eventSentence, goalOrdinal, isMesaType, minuteText, rivalCode, settled, type EventFilter, type EventMeta } from "../../lib/eventMeta";
 import { liveCounts, type LiveCounts } from "../../lib/ficha";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
 
@@ -39,7 +39,7 @@ export function feedOf(m: FeedMatch, nameOf: (id: string) => string): FeedItem[]
       const meta = eventMetaOf(e);
       const said = eventSentence(e, { nameOf, rival });
       const tone = meta.goal === "for" ? "gol" : meta.side === "them" || meta.goal === "against" ? "them" : "";
-      return { id: e.id, minute: minuteText(e), seconds: eventSeconds(e), half: halfOf(e, m), title: said.title, sub: said.sub, people: said.people, meta, tone } as FeedItem;
+      return { id: e.id, minute: minuteText(e), seconds: eventSeconds(e), half: halfOf(e, m), title: said.title, sub: said.sub || goalOrdinal(m.events, e), people: said.people, meta, tone } as FeedItem;
     });
 }
 
@@ -122,6 +122,28 @@ export function pulseTrack(items: readonly FeedItem[], duration: number) {
   for (let m = 0; m <= duration; m += step) labels.push(m);
   if (labels.at(-1) !== duration) labels.push(duration);
   return { ticks, labels };
+}
+
+/** The floodlit pitch's rows (px from its top, the pitch 372 px and a token 84 px tall): the dots' heights
+ *  (% of the pitch) grouped into lines, the lines spread evenly so no name ever covers a shirt, and inside a
+ *  line a slight drop for who stands deeper (the mock's middle man). */
+export function tokenTops(ys: readonly number[], height = 372, token = 84): number[] {
+  const order = [...ys].map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y);
+  const rows: number[] = [];
+  const rowOf = new Map<number, number>();
+  let start = -Infinity;
+  for (const { y, i } of order) {
+    if (y - start > 8) {
+      start = y;
+      rows.push(y);
+    }
+    rowOf.set(i, rows.length - 1);
+  }
+  const step = rows.length > 1 ? (height - 8 - token - 12) / (rows.length - 1) : 0;
+  return ys.map((y, i) => {
+    const r = rowOf.get(i) ?? 0;
+    return Math.round(8 + r * step + Math.min(12, (y - rows[r]) * 2));
+  });
 }
 
 /** «2 goles, 1 asistencia y 1 palo»: what one of ours has added so far (empty when nothing). */
