@@ -54,20 +54,17 @@ export const goHint = (k: SectionKey) => `G ${SECTION[k].go.toUpperCase()}`;
 export const goKeys = (k: SectionKey) => `g ${SECTION[k].go}`;
 
 const seg = (pathname: string, i: number) => pathname.replace(/\/+$/, "").split("/")[i] ?? "";
-/** The section a pathname belongs to (/admin/partidos/abc → partidos; En juego is Hoy's). */
+/** The section a pathname belongs to (/admin/partidos/abc → partidos). */
 export function sectionOf(pathname: string): SectionKey {
   const s = seg(pathname, 2);
-  if (s === "en-juego") return "hoy";
   return SECTIONS.find((x) => x.path === `/admin/${s}`)?.key ?? "hoy";
 }
-/** The match workspace (/admin/partidos/$matchId) or En juego (/admin/en-juego/$matchId): no phone bar. */
+/** The match workspace (/admin/partidos/$matchId): no phone bar. (/admin/en-juego/$matchId redirects to la mesa.) */
 export function isWorkspace(pathname: string): boolean {
-  const s = seg(pathname, 2);
-  return (s === "partidos" || s === "en-juego") && !!seg(pathname, 3);
+  return seg(pathname, 2) === "partidos" && !!seg(pathname, 3);
 }
-export const isEnJuego = (pathname: string) => seg(pathname, 2) === "en-juego" && !!seg(pathname, 3);
-/** The header's «Sala de control · {sección}» (En juego says so). */
-export const titleOf = (pathname: string) => (isEnJuego(pathname) ? "En juego" : SECTION[sectionOf(pathname)].name);
+/** The header's «Sala de control · {sección}». */
+export const titleOf = (pathname: string) => SECTION[sectionOf(pathname)].name;
 
 /** The match workspace's tabs (`/admin/partidos/$matchId?tab=`). */
 export type MatchTab = "encuentro" | "convocatoria" | "acta" | "publicar";
@@ -107,8 +104,8 @@ export const searchId = (v: unknown): string | undefined => (typeof v === "strin
 
 /** Where a «Por hacer» line / button / palette command goes, router-free (useAdminGo navigates). */
 export interface AdminTarget {
-  /** A section, En juego, the pizarra (leaves the sala for a board) or the web (a match's or a player's
-   *  public page). */
+  /** A section, la mesa of a match (`enjuego`: leaves the sala for /matches/$matchId/mesa), the pizarra
+   *  (leaves the sala for a board) or the web (a match's or a player's public page). */
   section: SectionKey | "enjuego" | "pizarra" | "web";
   /** partidos / enjuego: the match; convocar: preselect this match (`?j=`); caja: open its «Coste del partido» (`?coste=`); web: its public page. */
   matchId?: string;

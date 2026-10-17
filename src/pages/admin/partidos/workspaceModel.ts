@@ -50,7 +50,7 @@ export function tabMarks(o: { phase: Phase; review: ActaReview; starters: number
 
 /**
  * Which footer: `calendario` (to play, in the calendar: «Guardar»), `borrador` (to play, only a draft:
- * «Guardar borrador» + «Publicar en el calendario»), `juego` («Abrir En juego»), `acta` (played, not
+ * «Guardar borrador» + «Publicar en el calendario»), `juego` («Abrir la mesa»), `acta` (played, not
  * published: «Guardar borrador» + «Publicar acta») or `publicada` («Guardar cambios»).
  */
 export type FooterMode = "calendario" | "borrador" | "juego" | "acta" | "publicada";
@@ -79,7 +79,7 @@ export function blockedWhy(r: ActaReview): string {
   return r.missingScorers ? `Para publicar falta el goleador de ${plural(r.missingScorers, "gol", "goles")}` : `Para publicar: ${r.reasons[0] ?? "revisa el acta"}`;
 }
 export function footerOf(o: FooterInput): FooterView {
-  if (o.phase === "juego") return { mode: "juego", tone: "neu", why: "En juego · apunta desde «En juego»: llega aquí solo" };
+  if (o.phase === "juego") return { mode: "juego", tone: "neu", why: "En juego · apunta en la mesa: llega aquí solo" };
   if (o.phase === "jugado") {
     const published = o.inCalendar && !o.draft && o.status === "finished";
     if (!o.review.cuadra) return { mode: published ? "publicada" : "acta", tone: "warn", why: notSquareWhy(o.review) };

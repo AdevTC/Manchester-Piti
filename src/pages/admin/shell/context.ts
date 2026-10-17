@@ -33,7 +33,7 @@ export function useAdminGo(): (target: AdminTarget) => void {
           else void navigate({ to: "/admin/partidos", search: { nuevo: t.nuevo || undefined } });
           return;
         case "enjuego":
-          if (t.matchId) void navigate({ to: "/admin/en-juego/$matchId", params: { matchId: t.matchId } });
+          if (t.matchId) void navigate({ to: "/matches/$matchId/mesa", params: { matchId: t.matchId } });
           else void navigate({ to: "/admin" });
           return;
         case "convocar":

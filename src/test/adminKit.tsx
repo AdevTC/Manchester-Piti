@@ -191,7 +191,7 @@ const Marker = (name: string): View => {
  * The real AdminLayout on a memory router at `path`. Views are markers («vista partidos»…) unless
  * given (`views.hoy`, `views.partidos`…).
  */
-type ViewKey = "hoy" | "partidos" | "detalle" | "enjuego" | "convocar" | "fichas" | "plantilla" | "temporadas" | "capitanes" | "contenido" | "caja";
+type ViewKey = "hoy" | "partidos" | "detalle" | "convocar" | "fichas" | "plantilla" | "temporadas" | "capitanes" | "contenido" | "caja";
 export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> = {}) {
   const root = createRootRoute({ component: () => <Outlet /> });
   const admin = createRoute({ getParentRoute: () => root, path: "/admin", component: AdminLayout });
@@ -202,7 +202,6 @@ export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> =
     admin.addChildren([
       child("/", "hoy"),
       partidos.addChildren([detail]),
-      child("en-juego/$matchId", "enjuego"),
       child("convocar", "convocar"),
       child("fichas", "fichas"),
       child("plantilla", "plantilla"),
@@ -213,9 +212,10 @@ export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> =
     ]),
     createRoute({ getParentRoute: () => root, path: "/", component: Marker("la web") }),
     createRoute({ getParentRoute: () => root, path: "/vestuario", component: Marker("el vestuario") }),
-    // the ways out of the sala (Ver en la web, Abrir la pizarra)
+    // the ways out of the sala (Ver en la web, Abrir la pizarra, Abrir la mesa)
     createRoute({ getParentRoute: () => root, path: "/pizarra", component: Marker("la pizarra") }),
     createRoute({ getParentRoute: () => root, path: "/matches/$matchId", component: Marker("la ficha del partido") }),
+    createRoute({ getParentRoute: () => root, path: "/matches/$matchId/mesa", component: Marker("la mesa") }),
     createRoute({ getParentRoute: () => root, path: "/jugadores/$playerId", component: Marker("la página del jugador") }),
   ]);
   const router = createRouter({ routeTree: tree, history: createMemoryHistory({ initialEntries: [path] }) });

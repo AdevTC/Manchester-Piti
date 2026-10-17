@@ -10,8 +10,8 @@ import { liveCounts } from "../../lib/ficha";
 const squad = vi.hoisted(() => ["a", "b", "h", "k"].map((id, i) => ({ id, firstName: id, number: i + 1 })));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [] }) }));
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, to, params, className }: { children: React.ReactNode; to: string; params?: Record<string, string>; className?: string }) => (
-    <a className={className} href={to.replace("$playerId", params?.playerId ?? "")}>
+  Link: ({ children, to, params, ...rest }: { children: React.ReactNode; to: string; params?: Record<string, string>; className?: string; "aria-label"?: string }) => (
+    <a {...rest} href={Object.entries(params ?? {}).reduce((href, [k, v]) => href.replace(`$${k}`, v), to)}>
       {children}
     </a>
   ),

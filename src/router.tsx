@@ -172,10 +172,13 @@ const adminPartidoRoute = createRoute({
   validateSearch: adminPartidoSearchSchema,
   component: lazyRouteComponent(() => import("./pages/admin/views/Partidos"), "PartidoDetail"),
 });
+// The old «En juego» of the Sala de control: la mesa replaced it, the address (bookmarks, old links) opens it.
 const adminEnJuegoRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "en-juego/$matchId",
-  component: lazyRouteComponent(() => import("./pages/admin/views/EnJuego"), "EnJuego"),
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/matches/$matchId/mesa", params: { matchId: params.matchId }, replace: true });
+  },
 });
 // An address under /admin the Sala de control does not have: the 404 inside its frame (not the public one).
 const adminNotFoundRoute = createRoute({

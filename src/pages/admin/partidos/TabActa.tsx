@@ -4,7 +4,7 @@ import { AnalysisEditor } from "./AnalysisEditor";
 // «¿Quién marcó?» + «Elegir») with the dorsal picker opening right UNDER its row; «Goles de RIVAL» (minute,
 // remove with «Deshacer», «Portería a cero»); «Lo demás» grouped Tarjetas · Cambios · Penaltis · Otros
 // (each with its «+», a row opens it for editing); and on the right «La cuenta» (dots) and «¿Cuadra?».
-// A match still to play: «El acta se escribe en el partido»; being played: «Abrir En juego».
+// A match still to play: «El acta se escribe en el partido»; being played: «Abrir la mesa».
 import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import type { MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ActaReview } from "../data/adminLogic";
@@ -60,7 +60,7 @@ export function TabActa(props: TabActaProps) {
             ? "No tiene acta: un partido cancelado no cuenta para las estadísticas."
             : props.sheet.status === "postponed"
               ? "Pon la nueva fecha en «Encuentro»: el acta se escribe el día que se juegue."
-              : "El día del partido, cada gol, tarjeta y cambio se apunta a un toque desde «En juego» en Hoy. Al pitar el final llega aquí para repasarla y publicarla."}
+              : "El día del partido, cada gol, tarjeta y cambio se apunta a un toque en la mesa del partido. Al pitar el final llega aquí para repasarla y publicarla."}
         </p>
       </div>
     );
@@ -69,10 +69,10 @@ export function TabActa(props: TabActaProps) {
       <div className="void">
         <ShirtBack size={90} big />
         <h3>Se está jugando ahora</h3>
-        <p>Apunta los goles desde «En juego»: llegan aquí solos.</p>
+        <p>Apunta los goles en la mesa: llegan aquí solos.</p>
         <button type="button" className="btn gold" onClick={props.onOpenLive}>
           <AdIcon name="ball" size={18} />
-          Abrir En juego
+          Abrir la mesa
         </button>
       </div>
     );
