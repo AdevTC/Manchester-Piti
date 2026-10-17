@@ -650,7 +650,8 @@ export function EnJuego({ view }: MesaScreenProps) {
               )}
             </div>
           </div>
-        ) : (
+        ) : queue.pending > 0 || queue.review.length > 0 ? null : (
+          // (the queue line takes the last play's place, as in the canvas's «Sin cobertura»)
           <div className="peek">
             <span className="m">{last?.minute ? `${last.minute}′` : ""}</span>
             <span className="t">
@@ -748,7 +749,8 @@ export function EnJuego({ view }: MesaScreenProps) {
       {mode.k === "gol" && (
         <Sheet label="¿Quién marcó?" kicker={`Gol del Piti, minuto ${clock.minute}`} title="¿Quién marcó?" onClose={close}>
           <div className="pg">
-            {field.map((p, i) => (
+            {/* (from the front to the back: who scores most comes first, the keeper last) */}
+            {[...field].reverse().map((p, i) => (
               <button key={p.id} type="button" className="pk" style={{ "--d": `${i * 30}ms` } as CSSProperties} onClick={() => add("goal", { playerId: p.id })}>
                 <Shirt kind={p.keeper ? "keeper" : "field"} number={p.number} size={40} />
                 <span>{p.name}</span>
