@@ -22,7 +22,8 @@ describe("la alineación del partido en la mesa", () => {
   it("draws each one at his slot and the keeper is the POR slot's", () => {
     const { field } = mesaPlayers(seven, ["x"], [], 0, info, null, {}, { slots });
     expect(field[0]).toMatchObject({ id: "a", keeper: true, spot: { x: 50, y: 95 } });
-    expect(field.find((p) => p.id === "g")?.spot).toEqual({ x: 50, y: 22 });
+    // (the front line is stretched up to the mesa's top, 22 → 14; the keeper stays at his spot)
+    expect(field.find((p) => p.id === "g")?.spot).toEqual({ x: 50, y: 14 });
     expect(field.filter((p) => p.keeper)).toHaveLength(1);
   });
 

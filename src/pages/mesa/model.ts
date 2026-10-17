@@ -198,7 +198,11 @@ export function fieldSpots(field: readonly string[], starters: readonly string[]
 export function lineupSpots(field: readonly string[], starters: readonly string[], events: readonly MatchEvent[], lineup: Pick<MatchLineup, "slots">): { spots: Map<string, Spot>; keeper: string | null } {
   const now = lineupField(lineup, events);
   const spots = new Map<string, Spot>();
-  for (const s of now.spots) if (field.includes(s.id)) spots.set(s.id, { x: s.x, y: s.y });
+  // The pizarra puts its front line lower (y ≈ 20) than the mesa draws it (14): the outfield is stretched
+  // up to the mesa's top so the lines keep their distance on its shorter card (the back line stays put).
+  const top = Math.min(...now.spots.filter((s) => !s.keeper).map((s) => s.y));
+  const stretch = (y: number) => (Number.isFinite(top) && top > 14 && top < 74 && y <= 74 ? 14 + ((y - top) * 60) / (74 - top) : y);
+  for (const s of now.spots) if (field.includes(s.id)) spots.set(s.id, { x: s.x, y: s.keeper ? s.y : stretch(s.y) });
   const rest = field.filter((id) => !spots.has(id));
   if (rest.length) {
     const fb = fieldSpots(rest, starters, events, null);
