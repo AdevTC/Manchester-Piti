@@ -24,24 +24,34 @@ const eventIdSchema = z.string().min(1).max(200).regex(/^[a-zA-Z0-9_-]+$/);
 /** A player field in a fix: a player, or "" to clear it. */
 const patchRef = z.union([playerRefSchema, z.literal("")]);
 const seconds = z.number().int().min(0).max(9000);
+const eventFields = z.object({
+  type: z.enum(LIVE_TYPES),
+  minute: z.number().int().min(0).max(150),
+  playerId: playerRefSchema.optional(),
+  assistPlayerId: playerRefSchema.optional(),
+  assistReviewed: z.boolean().optional(),
+  inPlayerId: playerRefSchema.optional(),
+});
+/** What one play carries (add, and each of addMany's items). */
+const addFields = {
+  clockRevision: z.number().int().min(0).optional(),
+  manualTime: z.boolean().optional(),
+  /** A play tapped without signal: the seconds of play at the tap, and its half. */
+  tappedElapsed: seconds.optional(),
+  period: z.union([z.literal(1), z.literal(2)]).optional(),
+  event: eventFields,
+};
+/** The most changes made at once (a whole seven). */
+export const MAX_MANY = 7;
 const input = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("add"), matchId: idSchema, requestId: idSchema.optional(), ...addFields }),
+  /** A wave of changes (Descanso's «Arrancar con N cambios», the pizarra's «Hacer el cambio»): all or none,
+   *  one sequence check, idempotent by requestId (ids `live-<requestId>-<i>`). */
   z.object({
-    action: z.literal("add"),
+    action: z.literal("addMany"),
     matchId: idSchema,
-    requestId: idSchema.optional(),
-    clockRevision: z.number().int().min(0).optional(),
-    manualTime: z.boolean().optional(),
-    /** A play tapped without signal: the seconds of play at the tap, and its half. */
-    tappedElapsed: seconds.optional(),
-    period: z.union([z.literal(1), z.literal(2)]).optional(),
-    event: z.object({
-      type: z.enum(LIVE_TYPES),
-      minute: z.number().int().min(0).max(150),
-      playerId: playerRefSchema.optional(),
-      assistPlayerId: playerRefSchema.optional(),
-      assistReviewed: z.boolean().optional(),
-      inPlayerId: playerRefSchema.optional(),
-    }),
+    requestId: idSchema,
+    items: z.array(z.object({ ...addFields, event: eventFields.extend({ type: z.literal("substitution") }) })).min(1).max(MAX_MANY),
   }),
   z.object({
     action: z.literal("edit"),
@@ -60,6 +70,9 @@ const input = z.discriminatedUnion("action", [
   z.object({ action: z.literal("undo"), matchId: idSchema, eventId: eventIdSchema.optional() }),
   z.object({ action: z.enum(["finish", "reopen"]), matchId: idSchema }),
 ]);
+
+/** One play of add / addMany, as the callable takes it. */
+type AddItem = { clockRevision?: number; manualTime?: boolean; tappedElapsed?: number; period?: 1 | 2; event: z.infer<typeof eventFields> };
 
 /** A stored date (a Timestamp, or ms) in ms; NaN when missing or malformed (liveProblem refuses it). */
 const millis = (v: unknown): number => {
@@ -126,6 +139,43 @@ export const liveEvent = onCall(async (req) => {
     const match = { ...m, date: millis(m.date) };
     const events = m.events ?? [];
     const reading = m.clock ? clockReading(m.clock, now) : null;
+    /** One play to add: its time (tapped without signal, or the clock's now) and who wrote it, checked. */
+    const stampPlay = (item: AddItem): Omit<MatchEvent, "id"> => {
+      // A play tapped without signal keeps the time it was tapped: it is checked against that half's
+      // window, not against the clock now (a pause or a whistle since then doesn't invalidate it).
+      const queued = item.tappedElapsed != null && !!m.clock;
+      let elapsed: number | undefined;
+      let period: 1 | 2 | undefined;
+      if (queued) {
+        const fit = queuedElapsed(m.clock!, now, item.tappedElapsed!, item.period);
+        if (typeof fit === "string") throw new HttpsError("failed-precondition", fit);
+        ({ elapsed, period } = fit);
+      } else {
+        if (m.liveEndedAt) throw new HttpsError("failed-precondition", "Ya se ha pitado el final. Repasa las jugadas desde el acta.");
+        // At the break and during a pause only changes, cards and knocks.
+        const atBreak = (reading?.phase === "halftime" || !!reading?.held) && allowedAtBreak(item.event.type);
+        if ((m.version === 2 && !m.clock) || (reading && !reading.playing && !atBreak)) throw new HttpsError("failed-precondition", reading?.held ? "El partido está en pausa: solo se anotan cambios, tarjetas y tocados. Pulsa «Seguir» para apuntar el resto." : "Inicia la parte antes de registrar jugadas en directo. En el descanso solo se anotan cambios y tarjetas.");
+        if (m.clock && item.clockRevision !== m.clock.revision) throw new HttpsError("aborted", "La parte ha cambiado. Revisa el reloj antes de apuntar la jugada.");
+        if (reading) {
+          elapsed = !item.manualTime ? reading.elapsedSeconds : item.event.minute * 60;
+          if (elapsed > reading.elapsedSeconds) throw new HttpsError("invalid-argument", "La jugada no puede estar en el futuro.");
+          period = reading.period;
+        }
+      }
+      const type = item.event.type;
+      const stamped = compact({
+        ...item.event,
+        ...(GOALS.has(type) ? { assistReviewed: item.event.assistReviewed ?? !!item.event.assistPlayerId } : {}),
+        // A save's outcome isn't asked live.
+        ...(type === "save" ? { outcome: "unknown" as const } : {}),
+        ...(elapsed != null ? { minute: Math.floor(elapsed / 60), elapsedSeconds: elapsed, period, source: "live" as const } : {}),
+        byUid: uid,
+        ...(queued ? { queued: true } : {}),
+      });
+      const problem = liveProblem(reading ? { ...match, date: now, duration: 150 } : match, stamped, now);
+      if (problem) throw new HttpsError("failed-precondition", problem);
+      return stamped;
+    };
     if (data.action === "finish" || data.action === "reopen") {
       if (m.clock) throw new HttpsError("failed-precondition", "Utiliza los controles compartidos de las partes del partido.");
       const problem = liveProblem(match, { type: "opponent_goal", minute: 0 }, now);
@@ -139,49 +189,32 @@ export const liveEvent = onCall(async (req) => {
       throw new HttpsError("failed-precondition", m.status === "finished" ? "El acta ya está publicada: ya no se cambian jugadas desde la mesa." : "Este partido no se está jugando.");
     let next: MatchEvent[];
     let audit: Record<string, unknown>;
-    let answer: { eventId?: string; dupOf?: string } = {};
-    if (data.action === "add") {
-      if (data.requestId && events.some(e => e.id === `live-${data.requestId}`)) return { events: events.length, eventId: `live-${data.requestId}` };
-      // A play tapped without signal keeps the time it was tapped: it is checked against that half's
-      // window, not against the clock now (a pause or a whistle since then doesn't invalidate it).
-      const queued = data.tappedElapsed != null && !!m.clock;
-      let elapsed: number | undefined;
-      let period: 1 | 2 | undefined;
-      if (queued) {
-        const fit = queuedElapsed(m.clock!, now, data.tappedElapsed!, data.period);
-        if (typeof fit === "string") throw new HttpsError("failed-precondition", fit);
-        ({ elapsed, period } = fit);
-      } else {
-        if (m.liveEndedAt) throw new HttpsError("failed-precondition", "Ya se ha pitado el final. Repasa las jugadas desde el acta.");
-        // At the break and during a pause only changes, cards and knocks.
-        const atBreak = (reading?.phase === "halftime" || !!reading?.held) && allowedAtBreak(data.event.type);
-        if ((m.version === 2 && !m.clock) || (reading && !reading.playing && !atBreak)) throw new HttpsError("failed-precondition", reading?.held ? "El partido está en pausa: solo se anotan cambios, tarjetas y tocados. Pulsa «Seguir» para apuntar el resto." : "Inicia la parte antes de registrar jugadas en directo. En el descanso solo se anotan cambios y tarjetas.");
-        if (m.clock && data.clockRevision !== m.clock.revision) throw new HttpsError("aborted", "La parte ha cambiado. Revisa el reloj antes de apuntar la jugada.");
-        if (reading) {
-          elapsed = !data.manualTime ? reading.elapsedSeconds : data.event.minute * 60;
-          if (elapsed > reading.elapsedSeconds) throw new HttpsError("invalid-argument", "La jugada no puede estar en el futuro.");
-          period = reading.period;
-        }
-      }
-      const type = data.event.type;
-      const stamped = compact({
-        ...data.event,
-        ...(GOALS.has(type) ? { assistReviewed: data.event.assistReviewed ?? !!data.event.assistPlayerId } : {}),
-        // A save's outcome isn't asked live.
-        ...(type === "save" ? { outcome: "unknown" as const } : {}),
-        ...(elapsed != null ? { minute: Math.floor(elapsed / 60), elapsedSeconds: elapsed, period, source: "live" as const } : {}),
-        byUid: uid,
-        ...(queued ? { queued: true } : {}),
+    let answer: { eventId?: string; dupOf?: string; eventIds?: string[] } = {};
+    if (data.action === "add" || data.action === "addMany") {
+      const many = data.action === "addMany";
+      const items: AddItem[] = many ? data.items : [data];
+      const ids = many ? data.items.map((_, i) => `live-${data.requestId}-${i}`) : [data.requestId ? `live-${data.requestId}` : liveId(now)];
+      // (the same request again: it already landed, all of it, since a wave is written in one go)
+      if ((many || data.requestId) && events.some((e) => ids.includes(e.id))) return many ? { events: events.length, eventIds: ids } : { events: events.length, eventId: ids[0] };
+      if (events.length + items.length > 2500) throw new HttpsError("failed-precondition", "El acta ya tiene 2500 eventos. Repásala desde el editor.");
+      next = [...events];
+      const added: MatchEvent[] = [];
+      items.forEach((item, i) => {
+        const event = { id: ids[i], ...stampPlay(item) } as MatchEvent;
+        const dupOf = duplicateOf(next, event, uid);
+        if (dupOf) event.dupOf = dupOf;
+        next.push(event);
+        added.push(event);
       });
-      const problem = liveProblem(reading ? { ...match, date: now, duration: 150 } : match, stamped, now);
-      if (problem) throw new HttpsError("failed-precondition", problem);
-      const id = data.requestId ? `live-${data.requestId}` : liveId(now);
-      const dupOf = duplicateOf(events, stamped, uid);
-      const event = { id, ...stamped, ...(dupOf ? { dupOf } : {}) } as MatchEvent;
-      if (events.length >= 2500) throw new HttpsError("failed-precondition", "El acta ya tiene 2500 eventos. Repásala desde el editor.");
-      next = [...events, event];
-      answer = { eventId: id, ...(dupOf ? { dupOf } : {}) };
-      audit = { type, minute: event.minute ?? null, eventId: id, ...(queued ? { queued: true } : {}), ...(dupOf ? { dupOf } : {}) };
+      const queued = added.some((e) => e.queued);
+      if (many) {
+        answer = { eventIds: ids };
+        audit = { type: "substitution", count: added.length, minute: added[0].minute ?? null, eventIds: ids, ...(queued ? { queued: true } : {}) };
+      } else {
+        const [event] = added;
+        answer = { eventId: event.id, ...(event.dupOf ? { dupOf: event.dupOf } : {}) };
+        audit = { type: event.type, minute: event.minute ?? null, eventId: event.id, ...(queued ? { queued: true } : {}), ...(event.dupOf ? { dupOf: event.dupOf } : {}) };
+      }
     } else if (data.action === "edit") {
       const at = events.findIndex((e) => e.id === data.eventId);
       if (at < 0) throw new HttpsError("aborted", "Esa jugada ya no está: alguien la ha borrado.");

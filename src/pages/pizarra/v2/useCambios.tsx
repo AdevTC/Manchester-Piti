@@ -1,12 +1,13 @@
 // The board's «día de partido» (Siete → Cambios and the live plate), wired: the plan's state (the scrub,
 // «Rotar portero», the proposal of «Repartir minutos» / «Recalcular», who can't go on), what the pitch
 // shows at the scrubbed minute, the live match (its clock from the match's date, the wake lock, «Hacer el
-// cambio» through the admins' liveEvent), the keys of the tab and the galones in order. The board passes
+// cambio» through the admins' liveEvent addMany, the tanda in one go), the keys of the tab and the galones in order. The board passes
 // its commit and its one announcer; everything here is said through them.
 import { useState, type ReactNode } from "react";
 import type { Lineup, Sub, TakerKind } from "../formations";
 import { newId } from "../drawings";
-import { apiError, liveEvent } from "../../../lib/clubApi";
+import { apiError } from "../../../lib/clubApi";
+import { addSubs } from "../../mesa/api";
 import { serverNow } from "../../../lib/serverTime";
 import { slotZone } from "./geometry";
 import { natOf, type Squad } from "./model";
@@ -179,8 +180,9 @@ export function useCambios(c: CambiosCtx): Cambios {
       return;
     }
     setBusy(true);
+    // (the whole tanda in one operation, as la mesa's Descanso: all its changes or none)
     const run = async () => {
-      for (const s of todo) await liveEvent({ action: "add", matchId: m.id, requestId: crypto.randomUUID(), clockRevision: m.clock?.revision, event: { type: "substitution", minute: live.minute, playerId: s.out, inPlayerId: s.in } });
+      await addSubs(m.id, crypto.randomUUID(), todo.map((s) => ({ playerId: s.out, inPlayerId: s.in, minute: live.minute, clockRevision: m.clock?.revision })));
     };
     run().then(
       () => {
@@ -256,7 +258,7 @@ export function useCambios(c: CambiosCtx): Cambios {
         pending: (lw?.pending ?? []).map((s) => ({ id: s.id, txt: "Sale " + nm(s.out) + " → entra " + nm(s.in) })),
         canWrite: c.isAdmin,
         busy,
-        actaHref: c.isAdmin && c.match ? "/admin/en-juego/" + encodeURIComponent(c.match.id) : null,
+        actaHref: c.isAdmin && c.match ? "/matches/" + encodeURIComponent(c.match.id) + "/mesa" : null,
         people: [...live.field, ...live.bench].map((id) => ({ id, label: nm(id), field: live.field.includes(id), off: off.has(id) })),
         takers: takersNow(t, live.field, nm),
       }
