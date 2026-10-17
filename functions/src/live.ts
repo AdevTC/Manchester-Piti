@@ -109,6 +109,9 @@ export function queuedElapsed(clock: MatchClock, now: number, tapped: number, as
   return { elapsed: Math.min(Math.max(tapped, lo), hi), period };
 }
 
+/** A scorer corrects and deletes the live record only; plays written in the acta editor stay the admins'. */
+const LIVE_ONLY = "Esa jugada se escribió en el editor del acta: solo un administrador puede cambiarla.";
+
 export const liveEvent = onCall(async (req) => {
   const actor = await memberAs(req);
   const uid = actor.uid;
@@ -183,6 +186,7 @@ export const liveEvent = onCall(async (req) => {
       const at = events.findIndex((e) => e.id === data.eventId);
       if (at < 0) throw new HttpsError("aborted", "Esa jugada ya no está: alguien la ha borrado.");
       const old = events[at];
+      if (!actor.isAdmin && !old.id.startsWith("live-")) throw new HttpsError("permission-denied", LIVE_ONLY);
       const p = data.patch;
       const edited: MatchEvent = { ...old, ...(p.type ? { type: p.type } : {}) };
       for (const k of ["playerId", "assistPlayerId", "inPlayerId"] as const) {
@@ -219,6 +223,7 @@ export const liveEvent = onCall(async (req) => {
     } else if (data.action === "delete") {
       const gone = events.find((e) => e.id === data.eventId);
       if (!gone) throw new HttpsError("aborted", "Esa jugada ya se ha borrado. No se ha borrado ninguna otra.");
+      if (!actor.isAdmin && !gone.id.startsWith("live-")) throw new HttpsError("permission-denied", LIVE_ONLY);
       next = withoutTwin(events, gone.id);
       audit = { eventId: gone.id, before: gone };
     } else {
