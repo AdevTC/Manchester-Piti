@@ -205,6 +205,16 @@ describe("toPayload (what saveMatchSheet receives)", () => {
     expect(p.sheet).not.toHaveProperty("voteClosesAt");
     expect(p.sheet).toMatchObject({ rival: "FUSION 7", venue: "Campo", rivalInitials: "FU7", goalsFor: 3, goalsAgainst: 1, version: 2 });
   });
+
+  it("the scoreboard code (rivalShort): kept through a save, 2–4 letters, empty = derived", () => {
+    const named = setScorer(setMinute(j7(), "open-g0", "46"), "open-g0", "huberoski");
+    expect(fromMatch({ ...named, date: KICKOFF, rivalShort: " fsn " }).rivalShort).toBe("fsn");
+    const p = toPayload({ ...named, rivalShort: "fsn" }, false, nameOf);
+    expect(p.ok && p.sheet.rivalShort).toBe("FSN");
+    const none = toPayload(named, false, nameOf);
+    expect(none.ok && "rivalShort" in none.sheet).toBe(false);
+    expect(toPayload({ ...named, rivalShort: "F" }, false, nameOf)).toMatchObject({ ok: false, error: "El código del marcador son de 2 a 4 letras o números." });
+  });
 });
 
 describe("helpers", () => {
