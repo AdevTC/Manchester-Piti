@@ -27,6 +27,13 @@ export const EVENT_LABELS = {
   substitution: "Cambio",
   assist: "Asistencia (histórico)",
   match_played: "Participación (histórico)",
+  opponent_foul: "Falta del rival",
+  opponent_woodwork: "Al palo, rival",
+  opponent_offside: "Fuera de juego del rival",
+  opponent_yellow: "Amarilla al rival",
+  opponent_red: "Roja al rival",
+  opponent_penalty_missed: "Penalti fallado por el rival",
+  injury: "Tocado",
 } as const;
 export type EventType = keyof typeof EVENT_LABELS;
 export interface MatchEvent extends ActionDetails {
@@ -39,6 +46,16 @@ export interface MatchEvent extends ActionDetails {
   assistReviewed?: boolean;
   inPlayerId?: string;
   note?: string;
+  /** La mesa: who wrote it, who last changed it and when (ms). */
+  byUid?: string;
+  editedByUid?: string;
+  editedAt?: number;
+  /** A possible duplicate of the earlier event `dupOf` (another scorer, same play, within 30 s): counted once until resolved. */
+  dupOf?: string;
+  /** «Son dos»: both plays stand and nobody is asked again. */
+  dupOk?: boolean;
+  /** Tapped without signal and uploaded later from the phone's queue. */
+  queued?: boolean;
 }
 /** The minute people read for `elapsedSeconds` of play, football's (1-based): 0:07 is the 1′, 19:30 the 20′.
  *  With the clock stopped (half-time, the end) it is the minute reached: 25:00 is the 25′. */

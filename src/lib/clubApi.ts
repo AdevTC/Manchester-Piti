@@ -105,7 +105,9 @@ export function apiError(error: unknown) {
 /** Modo banda: an admin adds an event to the match being played (or undoes the last one written live).
  *  Its answer's `serverNow` keeps this phone's live minute on the server's clock (lib/serverTime). */
 export type LiveEventRequest =
-  | { action: "add"; matchId: string; requestId?: string; clockRevision?: number; manualTime?: boolean; event: { type: LiveEventType; minute: number; playerId?: string; assistPlayerId?: string; assistReviewed?: boolean; inPlayerId?: string } }
+  | { action: "add"; matchId: string; requestId?: string; clockRevision?: number; manualTime?: boolean; tappedElapsed?: number; period?: 1 | 2; event: { type: LiveEventType; minute: number; playerId?: string; assistPlayerId?: string; assistReviewed?: boolean; inPlayerId?: string } }
+  | { action: "edit"; matchId: string; eventId: string; patch: { type?: LiveEventType; playerId?: string; assistPlayerId?: string; inPlayerId?: string; elapsedSeconds?: number; dupOk?: boolean } }
+  | { action: "delete"; matchId: string; eventId: string }
   | { action: "undo" | "finish" | "reopen"; matchId: string; eventId?: string };
 const liveEventCall = withServerTime(httpsCallable<LiveEventRequest, { events: number; serverNow?: number }>(functions, "liveEvent"));
 /** An object without its `undefined` keys (same type: those keys are optional). */
@@ -114,5 +116,7 @@ const defined = <T extends object>(o: T): T => Object.fromEntries(Object.entries
  *  (e.g. `clockRevision` on a match without a clock): absent keys are dropped here, in the envelope and in `event`. */
 export const liveEvent = (data: LiveEventRequest) => liveEventCall(data.action === "add" ? { ...defined(data), event: defined(data.event) } : defined(data));
 
-export const controlMatchClock = withServerTime(httpsCallable<{ matchId: string; action: import("../../functions/src/matchClock").ClockAction; revision: number }, { clock: import("../../functions/src/matchClock").MatchClock; serverNow?: number }>(functions, "controlMatchClock"));
+/** La mesa: an admin or one of the match's scorers publishes the acta from the live record (assists answered inline). */
+export const publishLive = httpsCallable<{ matchId: string; assists?: Record<string, string> }, { ok: boolean }>(functions, "publishLive");
+export const controlMatchClock = withServerTime(httpsCallable<{ matchId: string; action: import("../../functions/src/matchClock").ClockAction; revision: number; value?: number },{ clock: import("../../functions/src/matchClock").MatchClock; serverNow?: number }>(functions, "controlMatchClock"));
 export const setMatchScorers = httpsCallable<{ matchId: string; uids: string[] }, { ok: boolean }>(functions, "setMatchScorers");

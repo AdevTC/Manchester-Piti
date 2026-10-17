@@ -9,8 +9,12 @@ export interface MatchClock {
   /** Archiving pauses time without rewriting the actual kickoff/period timestamps. */
   pausedAt?: number;
   pauses?: { from: number; to: number }[];
+  /** La mesa's pause inside a half (not the archive's `pausedAt`): closed into `pauses` on resume. */
+  heldAt?: number;
+  /** Stoppage time per half, a label only: it never moves the clock. */
+  added?: { 1?: number; 2?: number };
 }
-export const CLOCK_ACTIONS = ["start", "reset", "halftime", "second", "resume_first", "undo_second", "finish", "reopen"] as const;
+export const CLOCK_ACTIONS = ["start", "reset", "halftime", "second", "resume_first", "undo_second", "finish", "reopen", "pause", "resume", "added"] as const;
 export type ClockAction = typeof CLOCK_ACTIONS[number];
 export const readyClock = (): MatchClock => ({ revision: 0, phase: "ready" });
 function seconds(from: number | undefined, to: number | undefined, pauses: NonNullable<MatchClock["pauses"]>) {
