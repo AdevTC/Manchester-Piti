@@ -254,6 +254,18 @@ const matchDetailRoute = createRoute({
   ),
 });
 
+// La mesa: the full-screen scoring screen of a match (admins and its anotadores; the page checks).
+// ?vista=cronica opens «Lo que va pasando».
+export const mesaSearchSchema = z.object({
+  vista: z.enum(["cronica"]).optional().catch(undefined),
+});
+const mesaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/matches/$matchId/mesa",
+  validateSearch: mesaSearchSchema,
+  component: lazyRouteComponent(() => import("./pages/mesa/Mesa"), "Mesa"),
+});
+
 const playerProfileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/jugadores/$playerId",
@@ -351,6 +363,7 @@ const routeTree = rootRoute.addChildren([
     adminNotFoundRoute,
   ]),
   matchDetailRoute,
+  mesaRoute,
   playerProfileRoute,
   matchesIndexRoute,
   playersIndexRoute,
