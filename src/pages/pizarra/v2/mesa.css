@@ -1,0 +1,77 @@
+/* La pizarra ⇄ la mesa: the strip at the head of the panel (the oficial's slab, sticky), the «Mandar a la mesa» dialog
+   (the «Mover a…» panel: .mva) and «En el campo ahora» (the oficial's slab at the head of the sheet). */
+
+/* ── the strip: the head of the panel (sticky while it scrolls), never over the pitch ── */
+.pzv .mzs{position:sticky;top:-12px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-4px 0 10px;padding:6px 6px 6px 12px;background:rgba(40,28,6,.94);box-shadow:inset 0 0 0 1.5px rgba(255,198,89,.6),0 10px 20px -14px rgba(0,0,0,.6);color:#fff3cf;clip-path:var(--angr);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+[data-theme="light"] .pzv .mzs{background:rgba(255,243,207,.98);color:#3d2a00}
+.pzv .mzs-p{display:inline-flex;align-items:center;gap:8px;min-width:0;color:var(--gold-ink)}
+.pzv .mzs-p svg,.pzv .mzs-p .mz-live{flex:0 0 auto}
+.pzv .mzs-p span{display:grid;font-family:'Anybody';font-weight:900;font-size:17px;line-height:1.05;font-variation-settings:'wdth' 92;color:inherit;white-space:nowrap}
+.pzv .mzs-p small{font-family:'Geist Mono';font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+.pzv .mzs-a{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-left:auto;min-width:0}
+.pzv .mzs .b3,.pzv .mzf .b3{min-height:44px;padding:0 12px;font-size:13px}
+.pzv .mzs .mzs-go{font-family:'Anybody';font-weight:900;font-size:15px;font-variation-settings:'wdth' 96;letter-spacing:.01em}
+.pzv .mzs-bk{gap:4px}
+.pzv .mzs-n{display:none}
+/* (a narrow panel — a phone, the desktop's side panel: «Mandar» and «‹ Mesa»; the full words stay in their names) */
+.pzv .mzs{container:mzs / inline-size}
+@container mzs (max-width:519px){.pzv .mzs .mzs-w{display:none}.pzv .mzs .mzs-n{display:inline}.pzv .mzs .b3{padding:0 11px}}
+/* «Mesa al día»: the calm navy slab with its check; «otro siete» / «sin siete» keep the gold of attention */
+.pzv .mzs.mz-al-dia{background:rgba(6,20,52,.94);box-shadow:inset 0 0 0 1.5px rgba(127,224,168,.55),0 10px 20px -14px rgba(0,0,0,.6);color:#e6f6ee}
+[data-theme="light"] .pzv .mzs.mz-al-dia{background:rgba(232,248,239,.98);color:#0d3b24}
+.pzv .mzs.mz-vivo,.pzv .mzs.mz-fin{background:rgba(6,13,34,.94);box-shadow:inset 0 0 0 1.5px rgba(255,138,126,.5),0 10px 20px -14px rgba(0,0,0,.6);color:#eef4ff}
+[data-theme="light"] .pzv .mzs.mz-vivo,[data-theme="light"] .pzv .mzs.mz-fin{background:rgba(255,255,255,.98);color:#0c1733}
+.pzv .mzs.mz-al-dia .mzs-p,.pzv .mzs.mz-vivo .mzs-p,.pzv .mzs.mz-fin .mzs-p{color:inherit}
+.pzv .mzs.mz-al-dia .mzs-p svg{color:var(--ok)}
+.pzv .mz-live{display:inline-block;width:8px;height:8px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 2px rgba(229,72,77,.35);animation:pz-lvp 1.6s ease-in-out infinite;flex:0 0 auto}
+@media (prefers-reduced-motion:reduce){.pzv .mz-live{animation:none}}
+
+/* ── the dialog ── */
+.pzv .mzd{z-index:60}
+.pzv .mzd-p{width:min(460px,100%);gap:12px;padding:18px 18px 16px}
+.pzv .mzd-p .lg-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0;font-family:'Anybody';font-weight:900;font-size:26px;line-height:1.05;font-variation-settings:'wdth' 92;letter-spacing:.005em;text-transform:none}
+.pzv .mzd-p .lg-h:focus{outline:none}
+.pzv .mzd-p .lg-h small{font-family:'Geist Mono';font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold-ink)}
+.pzv .mzd-s{margin:0;font-size:14px;line-height:1.4;color:var(--ink);opacity:.9}
+.pzv .mzd-p .mzd-r{display:grid;gap:0;margin:0;padding:4px 12px;list-style:none;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px var(--pl);border-radius:14px}
+[data-theme="light"] .pzv .mzd-r{background:rgba(12,23,51,.04)}
+.pzv .mzr{display:grid;grid-template-columns:84px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:52px;padding:8px 0}
+.pzv .mzr + .mzr{border-top:1px solid var(--pl)}
+.pzv .mzr-k{font-size:13px;font-weight:600;opacity:.8}
+.pzv .mzr-v{display:grid;gap:2px;min-width:0;font-size:15px;line-height:1.25}
+.pzv .mzr-v > b{font-family:'Anybody';font-weight:800;font-size:16px}
+.pzv .mzr-v small{font-family:'Geist Mono';font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.75}
+.pzv .mzr-o s{text-decoration-thickness:1.5px;opacity:.75}
+.pzv .mzr-i b{color:var(--gold-ink);font-weight:800}
+.pzv .mzr-v em{font-style:normal;font-size:12.5px;opacity:.75}
+.pzv .mzr-t{display:inline-flex;align-items:center;gap:4px;min-height:26px;padding:0 9px;border-radius:8px;font-family:'Geist Mono';font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:lowercase;white-space:nowrap}
+.pzv .mzr-t.igual{background:rgba(127,224,168,.12);color:var(--ok);box-shadow:inset 0 0 0 1px rgba(127,224,168,.35)}
+.pzv .mzr-t.cambia{background:rgba(255,198,89,.14);color:var(--gold-ink);box-shadow:inset 0 0 0 1px rgba(255,198,89,.55)}
+.pzv .mzd-e{display:flex;align-items:flex-start;gap:8px;margin:0;padding:8px 10px;border-radius:10px;background:rgba(255,138,126,.12);box-shadow:inset 0 0 0 1px rgba(255,138,126,.45);color:var(--ink);font-size:13px;line-height:1.35}
+.pzv .mzd-e svg{flex:0 0 auto;margin-top:1px;color:var(--red)}
+.pzv .chb.mzd-go{display:flex;justify-content:space-between;width:100%;height:58px;padding:0 8px 0 22px;border-radius:999px;font-size:21px;font-variation-settings:'wdth' 92}
+.pzv .chb.mzd-go span{display:inline}
+.pzv .chb.mzd-go i{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:#0c1733;color:#FFC659}
+.pzv .chb.mzd-go[disabled]{filter:saturate(.2) brightness(.75);box-shadow:none;cursor:not-allowed}
+.pzv .chb.mzd-go[disabled]::before{animation:none}
+.pzv .mzd-f{margin:-4px 0 0;font-size:12.5px;line-height:1.35;text-align:center;opacity:.75}
+.pzv .mzd .mzd-p > .b3.mzd-x{justify-self:center;min-height:44px}
+.pzv .mzd-ok{display:grid;justify-items:center;gap:10px;padding:6px 0 2px;text-align:center}
+.pzv .mzd-ok-i{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:linear-gradient(120deg,#FFC659,#ffe0a0);color:#0c1733;box-shadow:0 14px 30px -14px rgba(255,198,89,.75)}
+.pzv .mzd-ok p{margin:0;font-size:14px;line-height:1.4;opacity:.9}
+.pzv .mzd-ok .lg-h{justify-content:center}
+.pzv .mzd-a{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:100%;margin-top:4px}
+.pzv .mzd-a > *{flex:1 1 160px;min-height:48px}
+@media (prefers-reduced-motion:no-preference){.pzv .mzd-ok-i{animation:mz-pop .5s var(--spring) both}}
+@keyframes mz-pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+@container (max-width:439px){.pzv .mzd{place-items:end center;padding:10px}.pzv .mzd-p{padding:16px 14px 14px}.pzv .mzr{grid-template-columns:72px minmax(0,1fr) auto;gap:8px}.pzv .mzd-p .lg-h{font-size:24px}}
+
+/* ── en el campo ahora (the head of the sheet, the oficial's slab) ── */
+.pzv .mzf{display:grid;gap:6px;margin:0 0 10px;padding:10px 12px;background:rgba(6,13,34,.88);box-shadow:inset 0 0 0 1.5px rgba(255,138,126,.5);color:#eef4ff;clip-path:var(--angr)}
+[data-theme="light"] .pzv .mzf{background:rgba(255,255,255,.96);color:#0c1733}
+.pzv .mzf-h{display:flex;align-items:center;gap:8px;margin:0;font-family:'Anybody';font-weight:900;font-size:17px;font-variation-settings:'wdth' 92}
+.pzv .mzf-b{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.pzv .mzf-b > *{flex:1 1 140px}
+.pzv .mzf-l{display:grid;gap:2px;margin:0;padding:0;list-style:none;font-size:13.5px;line-height:1.35}
+.pzv .mzf-l0{margin:0;font-size:13px;opacity:.8}
+.pzv .mzf-7{margin:0;font-family:'Geist Mono';font-size:11px;letter-spacing:.02em;line-height:1.5;opacity:.75}

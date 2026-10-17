@@ -39,7 +39,8 @@ export interface UseLineups {
   all: LineupDoc[];
   loading: boolean;
   /** Create a new owned board from the current lineup; returns the new id. */
-  create: (lineup: Lineup, name: string) => Promise<string>;
+  /** A new board of yours (bound to `matchId` when given: a copy for a match, «desde la mesa»). */
+  create: (lineup: Lineup, name: string, matchId?: string | null) => Promise<string>;
   /** Overwrite an existing owned board (autosave / explicit). Pass `matchId` to
    *  (re)link a match; omit it to keep the stored value. */
   save: (id: string, lineup: Lineup, matchId?: string | null) => Promise<void>;
@@ -211,9 +212,9 @@ export function useLineups(seasonId: string): UseLineups {
     if (!PREVIEW) return null;
     const items = localRecords.map((r) => dataToLineupDoc(r.id, r)).filter((d) => d.seasonId === seasonId);
 
-    const create: UseLineups["create"] = async (lineup, name) => {
+    const create: UseLineups["create"] = async (lineup, name, matchId) => {
       const id = localId();
-      const meta: LineupMeta = { ownerUid: uid, ownerNickname: nickname, seasonId, name, isOfficial: false, matchId: null };
+      const meta: LineupMeta = { ownerUid: uid, ownerNickname: nickname, seasonId, name, isOfficial: false, matchId: matchId ?? null };
       const now = Date.now();
       const rec: LocalRecord = { id, ...lineupToData(lineup, meta), createdAt: now, updatedAt: now };
       setLocalRecords((prev) => persistLocal([...prev, rec]));
@@ -278,8 +279,8 @@ export function useLineups(seasonId: string): UseLineups {
   const firestoreApi = useMemo<UseLineups>(() => {
     // The id is made here and the write goes to the local cache at once: the new board is there (and
     // opens) even offline; the server ack comes when it comes. A refused write shows up as a failed save.
-    const create: UseLineups["create"] = async (lineup, name) => {
-      const meta: LineupMeta = { ownerUid: uid, ownerNickname: nickname, seasonId, name, isOfficial: false, matchId: null };
+    const create: UseLineups["create"] = async (lineup, name, matchId) => {
+      const meta: LineupMeta = { ownerUid: uid, ownerNickname: nickname, seasonId, name, isOfficial: false, matchId: matchId ?? null };
       const ref = doc(collection(db, "lineups"));
       setDoc(ref, { ...lineupToData(lineup, meta), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }).catch((err: unknown) =>
         console.error("No se pudo crear el tablero", err),

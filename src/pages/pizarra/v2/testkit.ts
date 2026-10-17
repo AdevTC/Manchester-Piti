@@ -84,6 +84,8 @@ export function fakeSession(lineup: Lineup, over: Partial<BoardSession> = {}): B
     linkMatch: async () => {},
     publish: async () => {},
     unpublish: async () => {},
+    newFor: async () => "b2",
+    flush: async () => "b1",
     ...over,
   };
 }
