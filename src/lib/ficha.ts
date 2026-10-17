@@ -6,6 +6,7 @@ import { calculateLedger, dateMillis, type MatchEvent, type Participation } from
 import type { ClubMatch } from "./clubData";
 import { eventMinute } from "./partidos";
 import { withGuestNames, type MatchGuest } from "./derived/guests";
+import { settled } from "./eventMeta";
 
 const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
@@ -33,7 +34,7 @@ export function chapters(events: MatchEvent[] | undefined, memberName: (id: stri
   const nameOf = guests ? withGuestNames({ guests }, memberName) : memberName;
   let gf = 0, ga = 0;
   const out: Chapter[] = [];
-  for (const e of [...(events ?? [])].filter((x) => typeof x.minute === "number").sort(byMinute)) {
+  for (const e of settled(events).filter((x) => typeof x.minute === "number").sort(byMinute)) {
     const who = e.playerId ? nameOf(e.playerId) : "";
     const people = [...new Set([e.playerId, e.assistPlayerId, e.inPlayerId].filter((id): id is string => !!id))];
     if (OURS.has(e.type)) {
@@ -77,6 +78,11 @@ const WEIGHTS: Record<string, ["us" | "them", number]> = {
   opponent_goal: ["them", 3], own_goal: ["them", 3], penalty_committed: ["them", 2],
   yellow_card: ["them", 1], double_yellow: ["them", 2], red_card: ["them", 2],
   chance: ["us", 2], opponent_chance: ["them", 2], corner: ["us", 1], opponent_corner: ["them", 1],
+  // la mesa's plays: their woodwork and missed penalties push for them, a save means they shot, fouls
+  // weigh a little on the side that suffers them, cards on the side that gets the advantage
+  opponent_woodwork: ["them", 2], opponent_penalty_missed: ["them", 1], save: ["them", 1],
+  foul_received: ["us", 0.5], opponent_foul: ["us", 0.5], foul: ["them", 0.5],
+  opponent_yellow: ["us", 1], opponent_red: ["us", 2], opponent_offside: ["them", 0.5],
 };
 
 /**
@@ -85,7 +91,7 @@ const WEIGHTS: Record<string, ["us" | "them", number]> = {
  */
 export function pulse(events: MatchEvent[] | undefined, duration: number, upTo = duration) {
   const raw = Array.from({ length: duration }, () => ({ us: 0.35, them: 0.35 }));
-  for (const e of events ?? []) {
+  for (const e of settled(events)) {
     const w = WEIGHTS[e.type];
     if (!w || typeof e.minute !== "number") continue;
     for (let m = 0; m < duration; m++) {
@@ -138,7 +144,7 @@ export interface PlayerLine {
 export function playerLine(id: string, ledger: Record<string, Participation> | undefined, events: MatchEvent[] | undefined): PlayerLine {
   const p = ledger?.[id];
   if (p) return { minutes: p.minutes, goals: p.goals, assists: p.assists, cards: p.yellowCards + p.redCards, yellowCards: p.yellowCards, redCards: p.redCards };
-  const ev = events ?? [];
+  const ev = settled(events);
   const yellowCards = ev.filter((e) => e.playerId === id && ["yellow_card", "double_yellow"].includes(e.type)).length;
   const redCards = ev.filter((e) => e.playerId === id && ["red_card", "double_yellow"].includes(e.type)).length;
   return {
@@ -153,7 +159,7 @@ export function playerLine(id: string, ledger: Record<string, Participation> | u
 
 /** The numbers under the score: saves, woodwork and cards of the Piti in this match. */
 export function keyNumbers(events: MatchEvent[] | undefined) {
-  const ev = events ?? [];
+  const ev = settled(events);
   const n = (types: string[]) => ev.filter((e) => types.includes(e.type)).length;
   return { saves: n(["penalty_saved"]), woodwork: n(["woodwork"]), cards: n(["yellow_card", "red_card"]) + 2 * n(["double_yellow"]), chances: n(["chance"]), opponentChances: n(["opponent_chance"]), corners: n(["corner"]), opponentCorners: n(["opponent_corner"]) };
 }
@@ -171,4 +177,58 @@ export function matchSnapshot(match: Pick<ClubMatch, "starters" | "bench" | "not
   const start = dateMillis(match.date);
   const elapsed = match.clock ? clockReading(match.clock, now).elapsedSeconds / 60 : Number.isFinite(start) ? Math.max(0, Math.floor(((match.liveEndedAt ?? now) - start) / 60_000)) : 0;
   return calculateLedger({ starters: match.starters ?? [], bench: match.bench ?? [], notCalled: match.notCalled ?? [], events: match.events ?? [], duration: Math.max(duration, Math.ceil(elapsed)) }, false, { until: match.clock ? elapsed : Math.min(duration, Math.max(elapsed, lastMinute)), allowUnattributedGoals: true });
+}
+
+export interface NumberRow {
+  label: string;
+  us: number;
+  them: number;
+}
+/** «El partido en números»: the mirrored rows (Piti | rival) from the plays la mesa records, the goals as
+ *  the score counts them (`score`), plus each of ours who made saves (paradas and penalties stopped). */
+export function matchNumbers(events: MatchEvent[] | undefined, score: { gf: number; ga: number }) {
+  const ev = settled(events);
+  const n = (types: readonly string[]) => ev.filter((e) => types.includes(e.type)).length;
+  const rows: NumberRow[] = [
+    { label: "Goles", us: score.gf, them: score.ga },
+    { label: "Ocasiones", us: n(["chance"]), them: n(["opponent_chance"]) },
+    { label: "Al palo", us: n(["woodwork"]), them: n(["opponent_woodwork"]) },
+    { label: "Faltas hechas", us: n(["foul"]), them: n(["opponent_foul", "foul_received"]) },
+    { label: "Tarjetas", us: n(["yellow_card", "double_yellow", "red_card"]), them: n(["opponent_yellow", "opponent_red"]) },
+    { label: "Córners", us: n(["corner"]), them: n(["opponent_corner"]) },
+  ];
+  const saves = new Map<string, number>();
+  for (const e of ev) if ((e.type === "save" || e.type === "penalty_saved") && e.playerId) saves.set(e.playerId, (saves.get(e.playerId) ?? 0) + 1);
+  return { rows, saves: [...saves.entries()].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count) };
+}
+
+/** What one of ours has done so far in this match, from the plays that stand: the Campo's stickers and
+ *  «Quién suma». */
+export interface LiveCounts {
+  goals: number;
+  assists: number;
+  chances: number;
+  woodwork: number;
+  saves: number;
+  fouls: number;
+  foulsReceived: number;
+  yellow: number;
+  red: number;
+  injured: boolean;
+}
+export function liveCounts(id: string, events: MatchEvent[] | undefined): LiveCounts {
+  const ev = settled(events);
+  const n = (types: readonly string[]) => ev.filter((e) => e.playerId === id && types.includes(e.type)).length;
+  return {
+    goals: n(["goal", "goal_penalty", "goal_freekick"]),
+    assists: ev.filter((e) => /^goal/.test(e.type) && e.assistPlayerId === id).length,
+    chances: n(["chance"]),
+    woodwork: n(["woodwork"]),
+    saves: n(["save", "penalty_saved"]),
+    fouls: n(["foul"]),
+    foulsReceived: n(["foul_received"]),
+    yellow: n(["yellow_card"]),
+    red: n(["red_card", "double_yellow"]),
+    injured: n(["injury"]) > 0,
+  };
 }

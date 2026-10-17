@@ -6,6 +6,7 @@ import { clockReading } from "../../../functions/src/matchClock";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../clubData";
 import { liveMinute, OURS, THEIRS } from "../partidos";
+import { settled } from "../eventMeta";
 
 /** A goal counts as «live» while its time is within this many seconds of the clock reading. */
 export const FRESH_GOAL_SECONDS = 120;
@@ -22,7 +23,7 @@ export type GoalMatch = Pick<ClubMatch, "date" | "duration" | "clock"> & { event
 /** Every goal in the acta, ours and theirs, with the time it was stamped at. Goals with no time are left out. */
 export function goalsOf(events: readonly MatchEvent[] | undefined): LiveGoal[] {
   const goals: LiveGoal[] = [];
-  for (const e of events ?? []) {
+  for (const e of settled(events)) {
     const ours = OURS.has(e.type);
     if (!ours && !THEIRS.has(e.type)) continue;
     const seconds = typeof e.elapsedSeconds === "number" ? e.elapsedSeconds : typeof e.minute === "number" ? e.minute * 60 : undefined;

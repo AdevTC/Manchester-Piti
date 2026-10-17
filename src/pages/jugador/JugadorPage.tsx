@@ -155,6 +155,12 @@ export function JugadorPage() {
     ["Salidas", rec(me.subOut)],
     ["Amarillas", me.yellowCards],
     ["Expulsiones", me.redCards],
+    // la mesa's plays (playerStats: the ledger's counts, or the events of an acta without one)
+    ["Ocasiones", me.chances],
+    ["Al palo", me.woodwork],
+    ["Paradas", me.saves],
+    ["Faltas hechas", me.fouls],
+    ["Faltas recibidas", me.foulsReceived],
     ["Penaltis parados", me.penaltySaved],
     ["Goles de penalti", me.goalPenalty],
     ["Goles de falta", me.goalFreekick],

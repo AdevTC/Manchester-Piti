@@ -248,7 +248,73 @@ export function Jugadores({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: Na
           <span>Jornadas: más intenso, más minutos · número, goles</span>
         </p>
       </section>
+      <MesaCounts rows={rows} nameOf={nameOf} />
     </div>
+  );
+}
+
+/** La mesa's plays per player (playerStats: the published ledger, or the events of an older acta). */
+const MESA_COLS = [
+  ["chances", "Ocasiones"],
+  ["woodwork", "Al palo"],
+  ["saves", "Paradas"],
+  ["fouls", "Faltas hechas"],
+  ["foulsReceived", "Faltas recibidas"],
+] as const;
+
+/** «Ocasiones, palos, paradas y faltas»: what la mesa wrote down for each one, the busiest first. */
+export function MesaCounts({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: NameOf }) {
+  const total = (p: PlayerAnalysis) => MESA_COLS.reduce((s, [k]) => s + (p[k] ?? 0), 0);
+  const listed = rows.filter((p) => total(p) > 0).sort((a, b) => total(b) - total(a) || nameOf(a).localeCompare(nameOf(b)));
+  const best = new Map(MESA_COLS.map(([k]) => [k, Math.max(0, ...listed.map((p) => p[k] ?? 0))]));
+  return (
+    <section className="st-card" aria-labelledby="st-mesa">
+      <Head kick="Desde la mesa" title="Ocasiones, palos, paradas y faltas">
+        <p className="st-mono">Lo que apuntan los anotadores durante el partido; las actas anteriores no lo tienen</p>
+      </Head>
+      <span id="st-mesa" className="hm-sr">
+        Ocasiones, palos, paradas y faltas
+      </span>
+      {listed.length ? (
+        <div className="st-tablebox">
+          <table className="st-table" aria-label="Ocasiones, palos, paradas y faltas por jugador">
+            <thead>
+              <tr>
+                <th scope="col">Jugador</th>
+                {MESA_COLS.map(([k, label]) => (
+                  <th scope="col" key={k}>
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {listed.map((p, i) => (
+                <tr key={p.id} style={{ animationDelay: `${Math.min(i, 14) * 0.03}s` }}>
+                  <th scope="row">
+                    <Link to="/jugadores/$playerId" params={{ playerId: p.id }}>
+                      {nameOf(p)}
+                    </Link>
+                  </th>
+                  {MESA_COLS.map(([k]) => {
+                    const v = p[k] ?? 0;
+                    const top = v > 0 && v === best.get(k);
+                    return (
+                      <td key={k} className={top ? "sel" : undefined}>
+                        {v}
+                        {top && <span className="hm-sr"> (el que más)</span>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="st-empty">Aún no hay ocasiones, palos, paradas ni faltas apuntadas en este período.</p>
+      )}
+    </section>
   );
 }
 

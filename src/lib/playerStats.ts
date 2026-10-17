@@ -3,10 +3,15 @@
 // source of truth). No React, no Firestore — unit-testable.
 
 import { isVisibleMatch, type Participation } from '../../functions/src/matchEngine';
+import type { TechnicalStats } from '../../functions/src/matchAnalysis';
+import { isPendingDup } from './eventMeta';
 export interface StatEvent {
   type: string;
   playerId?: string;
   assistPlayerId?: string;
+  /** La mesa: a possible duplicate still unresolved counts nothing (eventMeta isPendingDup). */
+  dupOf?: string;
+  dupOk?: boolean;
 }
 export interface MatchLike {
   events?: StatEvent[];
@@ -28,30 +33,41 @@ export interface PlayerStats {
   penaltyMissed: number;
   ownGoals: number;
   matchesPlayed: number;
+  /** La mesa's plays: chances, saves (not the penalties stopped: those are penaltySaved), fouls made and
+   *  suffered. Older actas without them count 0. */
+  chances: number;
+  saves: number;
+  fouls: number;
+  foulsReceived: number;
 }
 
 /** A zeroed stat line — the honest fallback for a player with no record. */
 export const EMPTY_STATS: PlayerStats = {
   goals: 0, assists: 0, yellowCards: 0, redCards: 0, doubleYellows: 0, woodwork: 0,
   penaltySaved: 0, goalPenalty: 0, goalFreekick: 0, penaltyMissed: 0, ownGoals: 0, matchesPlayed: 0,
+  chances: 0, saves: 0, fouls: 0, foulsReceived: 0,
 };
 
 export function computeStats(playerId: string, matches: MatchLike[]): PlayerStats {
-  const s: PlayerStats = {
-    goals: 0, assists: 0, yellowCards: 0, redCards: 0, doubleYellows: 0, woodwork: 0,
-    penaltySaved: 0, goalPenalty: 0, goalFreekick: 0, penaltyMissed: 0, ownGoals: 0, matchesPlayed: 0,
-  };
+  const s: PlayerStats = { ...EMPTY_STATS };
   matches.forEach((match) => {
     if (!isVisibleMatch(match)) return;
     if (match.status && match.status !== 'finished') return;
     if (match.ledger?.[playerId]) {
       const row = match.ledger[playerId];
       for (const key of ['goals', 'assists', 'yellowCards', 'redCards', 'doubleYellows', 'woodwork', 'penaltySaved', 'goalPenalty', 'goalFreekick', 'penaltyMissed', 'ownGoals'] as const) s[key] += row[key] ?? 0;
+      // the ledger carries the technical counts of the acta (matchEngine: Object.assign of analyseActions'
+      // row), where «saves» also counts the penalties stopped
+      const tech = row as Participation & Partial<TechnicalStats>;
+      s.chances += row.chances ?? 0;
+      s.saves += Math.max(0, (tech.saves ?? 0) - (row.penaltySaved ?? 0));
+      s.fouls += tech.fouls ?? 0;
+      s.foulsReceived += tech.foulsReceived ?? 0;
       if (row.played) s.matchesPlayed++;
       return;
     }
     let played = false;
-    (match.events || []).forEach((ev) => {
+    (match.events || []).filter((ev) => !isPendingDup(ev)).forEach((ev) => {
       const { type, playerId: epId, assistPlayerId } = ev;
       if (epId === playerId) {
         played = true;
@@ -66,6 +82,10 @@ export function computeStats(playerId: string, matches: MatchLike[]): PlayerStat
         else if (type === "penalty_saved") s.penaltySaved += 1;
         else if (type === "penalty_missed") s.penaltyMissed += 1;
         else if (type === "woodwork") s.woodwork += 1;
+        else if (type === "chance") s.chances += 1;
+        else if (type === "save") s.saves += 1;
+        else if (type === "foul") s.fouls += 1;
+        else if (type === "foul_received") s.foulsReceived += 1;
       }
       if (["goal", "goal_penalty", "goal_freekick"].includes(type) && assistPlayerId === playerId) { played = true; s.assists += 1; }
     });

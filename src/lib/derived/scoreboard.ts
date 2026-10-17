@@ -47,8 +47,8 @@ export function livePlay(m: Pick<ClubMatch, "date" | "duration" | "clock" | "eve
   return { minute, progress: progressPct(minute, m.duration), last: lastEvent(m.events, nameOf, m.rival ?? "Rival") };
 }
 
-/** «Erik · Gol». */
-export const eventLine = (last: LastEvent): string => `${last.who} · ${last.label}`;
+/** The play as one line (eventMeta's sentence): «Gol de Erik», «Falta de Atlético», «Entra Hugo, sale Pablo». */
+export const eventLine = (last: Pick<LastEvent, "title">): string => last.title;
 
 /** The big board's last line (Partidos and the match page): the event's minute and line, or the minute being
  *  played and «Arranca el partido» before anything happened. */

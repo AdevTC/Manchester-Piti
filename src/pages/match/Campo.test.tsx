@@ -17,29 +17,28 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [], players: squad, loading: false, error: null }) }));
 afterEach(() => vi.useRealTimers());
 
-it("replaces the player immediately, puts the outgoing player's stats on the bench and permits inspecting them", async () => {
+it("live: the floodlit pitch replaces the player at once, the bench says who played, and the stickers say themselves", () => {
   const start = Date.now() - 25 * 60_000;
   const players = squad;
   const match: ClubMatch = { id: "m", date: start, duration: 60, status: "scheduled", starters: ["a", "b"], bench: ["h"], events: [
     { id: "g1", type: "goal", minute: 5, playerId: "a", assistPlayerId: "b" },
     { id: "g2", type: "goal", minute: 8, playerId: "a", assistPlayerId: "b" },
     { id: "y", type: "yellow_card", minute: 10, playerId: "a" },
+    { id: "sv", type: "save", minute: 11, playerId: "b" },
     { id: "s", type: "substitution", minute: 20, playerId: "a", inPlayerId: "h" },
   ] };
   const { container, rerender } = render(<CampoTab match={match} players={players} nameOf={(id) => id.toUpperCase()} live />);
-  const pitch = container.querySelector(".fc-pitch") as HTMLElement;
-  expect(within(pitch).getByRole("button", { name: /^H, dorsal/ })).toBeInTheDocument();
-  expect(within(pitch).queryByRole("button", { name: /^A, dorsal/ })).toBeNull();
-  const bench = container.querySelector(".fc-bench") as HTMLElement;
-  expect(within(bench).getByRole("img", { name: "2 goles" })).toBeInTheDocument();
-  expect(within(bench).getByRole("img", { name: "1 amarilla" })).toBeInTheDocument();
-  expect(within(bench).getByText(/20′/)).toBeInTheDocument();
-  expect(within(pitch).getByRole("img", { name: "2 asistencias" })).toBeInTheDocument();
-  await userEvent.setup().click(within(bench).getByRole("button"));
-  expect(container.querySelector(".fc-pinfo")).toHaveTextContent("1 · A");
+  const pitch = container.querySelector(".ml-pitch") as HTMLElement;
+  expect(within(pitch).getByRole("listitem", { name: /^H, dorsal 3/ })).toBeInTheDocument();
+  expect(within(pitch).queryByRole("listitem", { name: /^A, dorsal/ })).toBeNull();
+  // (the keeper's slot — the first — passes to who came on for him; a save is said in words)
+  expect(within(pitch).getByRole("listitem", { name: /^H, dorsal 3, portero, / })).toBeInTheDocument();
+  expect(within(pitch).getByRole("listitem", { name: /^B, dorsal 2, \d+ minutos, 1 parada$/ })).toBeInTheDocument();
+  const bench = container.querySelector(".ml-dug") as HTMLElement;
+  expect(within(bench).getByRole("listitem", { name: "A, jugó 20′" })).toBeInTheDocument();
   rerender(<CampoTab match={{ ...match, events: [...match.events!, { id: "red", type: "red_card", minute: 24, playerId: "h" }] }} players={players} nameOf={(id) => id.toUpperCase()} live />);
-  expect(within(pitch).queryByRole("button", { name: /^H, dorsal/ })).toBeNull();
-  expect(screen.getByText(/Expulsado · 4′ · entró 20′/)).toBeInTheDocument();
+  expect(within(container.querySelector(".ml-pitch") as HTMLElement).queryByRole("listitem", { name: /^H, dorsal/ })).toBeNull();
+  expect(within(container.querySelector(".ml-dug") as HTMLElement).getByRole("listitem", { name: "H, expulsado" })).toBeInTheDocument();
 });
 
 it("the player card and the minutes chart name each one as a link to his page, in the match's season", async () => {
@@ -90,17 +89,37 @@ it("the Directo feed reads a live-stamped goal in football's minute (0:07 → 1�
     { id: "g2", type: "opponent_goal", minute: 19 },
   ] };
   const { container } = render(<DirectoTab match={match} nameOf={(id) => id.toUpperCase()} />);
-  const rows = [...container.querySelectorAll(".fc-feed li b")].map((b) => b.textContent);
+  const rows = [...container.querySelectorAll(".ml-ev .m")].map((b) => b.textContent);
   expect(rows).toEqual(["19′", "1′"]);
 });
 
-it("the Directo feed is no second live region (the board says each play once) and never prints a raw event type", () => {
-  const match = { id: "m", date: Date.now(), duration: 50, status: "scheduled", events: [{ id: "x1", type: "nueva_jugada", minute: 3 }] } as unknown as ClubMatch;
+it("the Directo feed is no second live region (the card says each play once) and never prints a raw event type", () => {
+  const match = { id: "m", date: Date.now(), duration: 50, status: "scheduled", events: [{ id: "x1", type: "nueva_jugada", minute: 3 }, { id: "f1", type: "opponent_foul", minute: 4 }] } as unknown as ClubMatch;
   const { container } = render(<DirectoTab match={match} nameOf={(id) => id.toUpperCase()} />);
-  const feed = container.querySelector(".fc-feed") as HTMLElement;
+  const feed = container.querySelector(".ml-list") as HTMLElement;
   expect(feed).not.toHaveAttribute("aria-live");
-  expect(feed).toHaveTextContent("Jugada");
-  expect(feed).not.toHaveTextContent("nueva_jugada");
+  expect(feed).toHaveTextContent("Falta de");
+  expect(container).not.toHaveTextContent("nueva_jugada");
+});
+
+it("the Directo: filters with their counts, the halves, and a pending duplicate shown once", async () => {
+  const match = { id: "m", rival: "Atlético Demo", date: Date.now(), duration: 50, status: "scheduled", events: [
+    { id: "g1", type: "goal", minute: 3, playerId: "a", period: 1 },
+    { id: "g1b", type: "goal", minute: 3, playerId: "a", period: 1, dupOf: "g1" },
+    { id: "w1", type: "woodwork", minute: 9, playerId: "b", period: 1 },
+    { id: "c1", type: "opponent_yellow", minute: 12, period: 1 },
+    { id: "s1", type: "substitution", minute: 27, playerId: "a", inPlayerId: "h", period: 2 },
+    { id: "o1", type: "opponent_offside", minute: 30, period: 2 },
+  ] } as unknown as ClubMatch;
+  const { container } = render(<DirectoTab match={match} nameOf={(id) => id.toUpperCase()} />);
+  const counts = Object.fromEntries([...container.querySelectorAll(".ml-sg")].map((b) => [b.firstChild?.textContent, b.querySelector(".n")?.textContent?.replace(": ", "")]));
+  expect(counts).toEqual({ Todo: "5", Goles: "1", "Ocasiones y palos": "1", "Faltas y tarjetas": "1", Cambios: "1" });
+  expect([...container.querySelectorAll(".ml-half b")].map((b) => b.textContent)).toEqual(["2ª parte", "1ª parte"]);
+  expect(screen.getByText("Amarilla a Atlético")).toBeInTheDocument();
+  expect(container.querySelector(".ml-rt")).toHaveTextContent("ATL");
+  await userEvent.setup().click(screen.getByRole("button", { name: /Faltas y tarjetas/ }));
+  expect(screen.getByRole("button", { name: /Faltas y tarjetas/ })).toHaveAttribute("aria-pressed", "true");
+  expect([...container.querySelectorAll(".ml-ev .tx b")].map((b) => b.textContent)).toEqual(["Amarilla a Atlético"]);
 });
 
 it("a dot on the pitch says its numbers in proper Spanish: «1 gol», and «sin dorsal» when he has none", () => {
