@@ -2,7 +2,7 @@ import { render, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
-import { withGuestNames } from "../../lib/liveActions";
+import { withGuestNames } from "../../lib/derived/guests";
 import { CampoTab, CronicaTab, DirectoTab } from "./Tabs";
 
 // Invitados en el acta on the match page: «Rafa (invitado)» wherever a member's name would be, a dot with

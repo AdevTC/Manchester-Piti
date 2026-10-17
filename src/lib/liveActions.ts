@@ -1,14 +1,10 @@
-// One catalogue of the live actions, read by the match page's «Mesa de partido» (Banda, quick taps), the
-// admin's «En juego» wizard (pads → picker) and its log «Lo que va pasando». Each entry says what liveEvent
-// writes (`type`, one of the callable's LIVE_TYPES), how it is named and said (`label`, `name`, `liveLine`),
-// its icon, the admin pad it sits behind, and what it asks for: a player (required, optional, or «lo
-// completo luego»), from where (on the pitch, or the whole convocatoria for cards), and a second player (the
-// assist, or who comes in). `buildLiveEvent` turns the choices into the event, the same shape both UIs sent
-// before they shared it: absent fields are left out, never sent as `undefined`.
+// The catalogue of the older live actions, kept for how the admin's log «Lo que va pasando» (Hoy, the
+// acta) says the plays: each entry's `type` (one of the callable's LIVE_TYPES), its names (`label`, `name`,
+// `liveLine`), icon, side and what player it is about. Scoring itself is la mesa's (src/pages/mesa), with
+// its own catalogue.
 import type { LIVE_TYPES } from "../../functions/src/liveLogic";
 import { allowedAtBreak } from "../../functions/src/liveRules";
 import type { IconName } from "../components/celeste/icons";
-import { isGuestId, withGuestNames } from "./derived/guests";
 
 /** The event types the liveEvent callable accepts (functions/src/liveLogic.ts). */
 export type LiveEventType = (typeof LIVE_TYPES)[number];
@@ -51,19 +47,6 @@ const DEFS = {
 
 /** The types in the catalogue: the only ones the UIs write. */
 export type LiveActionType = keyof typeof DEFS;
-/** The catalogue's types behind one admin pad (e.g. the cards behind «Tarjeta»). */
-export type LiveTypesOn<P extends LivePad> = { [T in LiveActionType]: (typeof DEFS)[T]["pad"] extends P ? T : never }[LiveActionType];
-
-/** What liveEvent({ action: "add" }) takes as `event`. */
-export interface LiveEventInput {
-  type: LiveActionType;
-  minute: number;
-  playerId?: string;
-  assistPlayerId?: string;
-  assistReviewed?: boolean;
-  inPlayerId?: string;
-}
-
 export interface LiveAction<T extends LiveActionType = LiveActionType> extends Required<Omit<Def, "second">> {
   type: T;
   second: "assist" | "in" | null;
@@ -96,51 +79,9 @@ export const isLiveActionType = (type: string): type is LiveActionType => BY_TYP
 export function liveAction<T extends LiveActionType>(type: T): LiveAction<T> {
   return BY_TYPE.get(type) as LiveAction<T>; // (BY_TYPE holds every key of DEFS, each under its own type)
 }
-/** The types behind an admin pad, in the catalogue's order. */
-export function liveTypesOn<P extends LivePad>(pad: P): LiveTypesOn<P>[] {
-  return LIVE_ACTIONS.filter((x) => x.pad === pad).map((x) => x.type as LiveTypesOn<P>); // (filtered by that same pad)
-}
-
 /** How a play is said, in the toasts and in the log: «Amarilla a EVANS», «Gol de MAD SKY», «Al palo: ERIK»,
  *  «Cambio: entra KEVIN». Without anyone, the button's own words: «Gol del Piti», «Ocasión del Piti». */
 export function liveLine(action: LiveAction | LiveActionType, who?: string): string {
   const act = typeof action === "string" ? liveAction(action) : action;
   return who ? `${act.name}${act.by}${who}` : act.label;
 }
-
-/** The choices made in either UI; null / undefined / "" = not chosen. */
-export interface LiveChoices {
-  playerId?: string | null;
-  assistPlayerId?: string | null;
-  inPlayerId?: string | null;
-}
-
-/** The event for liveEvent: type and minute, then only the players the action takes and that were chosen
- *  (an assist only with its scorer). Key order as the UIs always sent it: playerId, assistPlayerId, inPlayerId. */
-export function buildLiveEvent(action: LiveAction | LiveActionType, choices: LiveChoices, minute: number): LiveEventInput {
-  const act = typeof action === "string" ? liveAction(action) : action;
-  const event: LiveEventInput = { type: act.type, minute };
-  const player = act.player !== "none" && choices.playerId ? choices.playerId : null;
-  if (player) event.playerId = player;
-  if (act.second === "assist" && player && choices.assistPlayerId) event.assistPlayerId = choices.assistPlayerId;
-  if (act.second === "in" && choices.inPlayerId) event.inPlayerId = choices.inPlayerId;
-  return event;
-}
-
-/** Whether the choices are enough to write the action (Banda's «Apuntar»). `later` = «Lo completo luego». */
-export function liveReady(act: LiveAction, choices: LiveChoices & { later?: boolean }): boolean {
-  const hasPlayer = !!choices.playerId;
-  if (act.player === "required" && !hasPlayer) return false;
-  if (act.player === "later" && !hasPlayer && !choices.later) return false;
-  if (act.second === "in" && !choices.inPlayerId) return false;
-  return true;
-}
-
-/** The pickers' order: the members first, then the guests («Invitados en el acta»), each group as it came. */
-export function guestsLast(ids: readonly string[]): string[] {
-  return [...ids.filter((id) => !isGuestId(id)), ...ids.filter((id) => isGuestId(id))];
-}
-
-/** A `nameOf` that says a guest's reference as «Rafa (invitado)» and leaves the members to `nameOf` — the one
- *  of functions/src/guests.ts, re-exported for the live screens. */
-export { withGuestNames };

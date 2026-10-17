@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildLiveEvent, guestsLast, liveLine, withGuestNames } from "./liveActions";
-import { withGuestNames as sharedWithGuestNames } from "./derived/guests";
+import { liveLine } from "./liveActions";
+import { guestsLast, withGuestNames } from "./derived/guests";
 
-// Invitados en el acta: the live pickers' order, the names and what a guest's play sends to liveEvent.
+// Invitados en el acta: the pickers' order and how the log names them.
 const MATCH = { guests: [{ id: "g1", name: "Rafa" }] };
 
 describe("liveActions · invitados", () => {
@@ -17,15 +17,8 @@ describe("liveActions · invitados", () => {
     expect(liveLine("goal", nameOf("guest:g1"))).toBe("Gol de Rafa (invitado)");
   });
 
-  it("is the one shared withGuestNames, and with no match a guest is «Invitado»", () => {
-    expect(withGuestNames).toBe(sharedWithGuestNames);
+  it("with no match a guest is «Invitado»", () => {
     expect(withGuestNames(null, (id) => id)("guest:g1")).toBe("Invitado");
     expect(withGuestNames(undefined, (id) => id)("erik")).toBe("erik");
-  });
-
-  it("a guest scorer, a guest assist and a guest coming in travel as guest: references", () => {
-    expect(buildLiveEvent("goal", { playerId: "guest:g1", assistPlayerId: "erik" }, 31)).toStrictEqual({ type: "goal", minute: 31, playerId: "guest:g1", assistPlayerId: "erik" });
-    expect(buildLiveEvent("goal", { playerId: "erik", assistPlayerId: "guest:g1" }, 12)).toStrictEqual({ type: "goal", minute: 12, playerId: "erik", assistPlayerId: "guest:g1" });
-    expect(buildLiveEvent("substitution", { playerId: "tello", inPlayerId: "guest:g1" }, 20)).toStrictEqual({ type: "substitution", minute: 20, playerId: "tello", inPlayerId: "guest:g1" });
   });
 });

@@ -32,8 +32,9 @@ const who = vi.hoisted(() => ({ viewer: { member: false, admin: false, playerId:
 const club = vi.hoisted(() => ({ error: null as Error | null }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => (club.error ? { matches: [], players: [], loading: false, error: club.error } : { matches: [MATCH, SCORED, UPCOMING, LIVE], players: PLAYERS, loading: false, error: null }) }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => who.viewer }));
-vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null }) }));
-vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false }) }));
+// (an admin viewer is an admin profile in the team: who may open la mesa)
+vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: who.viewer.admin ? { role: "admin" } : null }) }));
+vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: who.viewer.admin }) }));
 vi.mock("../vestuario/writes", () => ({ useMe: () => null }));
 vi.mock("../vestuario/live", () => ({
   useMatchScorers: () => ({ data: [] }),
@@ -52,7 +53,6 @@ vi.mock("../../hooks/useMatchClock", () => ({ useMatchClock: () => Date.UTC(2026
 vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
 vi.mock("../../components/celeste/WeatherChip", () => ({ WeatherChip: () => null }));
 vi.mock("../../lib/matchPoster", () => ({ downloadMatchPoster: vi.fn() }));
-vi.mock("./Banda", () => ({ Banda: () => null }));
 vi.mock("../../components/celeste/TechnicalStats", () => ({ TechnicalStatsPanel: () => <p>pane:estadisticas</p> }));
 vi.mock("./Tabs", () => ({
   CronicaTab: () => <p>pane:cronica</p>,
@@ -75,8 +75,8 @@ function open(url: string) {
   const jugador = createRoute({ getParentRoute: () => root, path: "/jugadores/$playerId", component: () => null });
   const pizarra = createRoute({ getParentRoute: () => root, path: "/pizarra", validateSearch: z.object({ tablero: z.string().optional() }), component: () => null });
   const admin = createRoute({ getParentRoute: () => root, path: "/admin/partidos/$matchId", validateSearch: z.object({ tab: z.string().optional() }), component: () => null });
-  const enJuego = createRoute({ getParentRoute: () => root, path: "/admin/en-juego/$matchId", component: () => null });
-  const router = createRouter({ routeTree: root.addChildren([match, jugador, pizarra, admin, enJuego]), history: createMemoryHistory({ initialEntries: [url] }) });
+  const mesa = createRoute({ getParentRoute: () => root, path: "/matches/$matchId/mesa", component: () => null });
+  const router = createRouter({ routeTree: root.addChildren([match, jugador, pizarra, admin, mesa]), history: createMemoryHistory({ initialEntries: [url] }) });
   render(<RouterProvider router={router} />);
   return router;
 }
@@ -211,7 +211,7 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
     who.reads = [];
   };
   const pizarraLink = () => screen.queryByRole("link", { name: /La pizarra de este partido/ });
-  const adminLink = () => screen.queryByRole("link", { name: /Editar acta|Abrir en la Sala de control|Abrir En juego/ });
+  const adminLink = () => screen.queryByRole("link", { name: /Editar acta|Abrir en la Sala de control|Abrir la mesa/ });
 
   it("a fan sees neither, and reads nothing (lineupOfficials are team-only)", async () => {
     as({}, { t1__j1: "b1", t1__temporada: "s1" });
@@ -258,17 +258,19 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
     open("/matches/j1");
     expect(await screen.findByRole("link", { name: /Editar acta/ })).toHaveAttribute("href", "/admin/partidos/j1?tab=acta");
     expect(screen.queryByRole("link", { name: /Abrir en la Sala de control/ })).toBeNull();
-    expect(screen.queryByRole("link", { name: /Abrir En juego/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Abrir la mesa/ })).toBeNull();
   });
 
-  it("while it is being played, an admin opens En juego (not the acta, not the workspace)", async () => {
+  it("while it is being played, an admin opens la mesa (not the acta, not the workspace)", async () => {
     as({ member: true, admin: true });
     open("/matches/j4");
-    expect(await screen.findByRole("link", { name: /Abrir En juego/ })).toHaveAttribute("href", "/admin/en-juego/j4");
-    expect(screen.getAllByRole("link", { name: /Editar acta|Abrir en la Sala de control|Abrir En juego/ })).toHaveLength(1);
+    // (the card's key on a phone and the wide one beside the title on a desktop: CSS shows one)
+    const keys = await screen.findAllByRole("link", { name: /Abrir la mesa/ });
+    for (const k of keys) expect(k).toHaveAttribute("href", "/matches/j4/mesa");
+    expect(screen.queryByRole("link", { name: /Editar acta|Abrir en la Sala de control/ })).toBeNull();
   });
 
-  it("a member never sees En juego while it is being played", async () => {
+  it("a member never sees la mesa while it is being played", async () => {
     as({ member: true });
     open("/matches/j4");
     expect(await screen.findByRole("tab", { selected: true })).toBeInTheDocument();

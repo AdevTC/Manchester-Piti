@@ -1,7 +1,7 @@
 /* Invitados en el acta, in the Sala de control (admin.css is generated: this sheet sits beside it).
    A guest is told by the word «Invitado» / «INV» and by a dashed shirt outline, never by colour alone. */
 
-/* the pickers' dorsal buttons (acta, En juego) */
+/* the pickers' dorsal buttons (acta) */
 .pp.guest {
   box-shadow: none;
   outline: 2px dashed var(--pline);

@@ -16,3 +16,9 @@ export {
   withoutGuests,
   type MatchGuest,
 } from "../../../functions/src/guests";
+import { isGuestId } from "../../../functions/src/guests";
+
+/** The pickers' order: the members first, then the guests («Invitados en el acta»), each group as it came. */
+export function guestsLast(ids: readonly string[]): string[] {
+  return [...ids.filter((id) => !isGuestId(id)), ...ids.filter((id) => isGuestId(id))];
+}

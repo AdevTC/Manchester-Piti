@@ -1,5 +1,5 @@
 import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
-import { Banda, downloadMatchPoster } from "./lazy";
+import { downloadMatchPoster } from "./lazy";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useViewer } from "../../hooks/useViewer";
@@ -41,7 +41,7 @@ import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } f
 import { Who } from "./Who";
 import { LiveCard, MesaKey } from "./LiveBoard";
 import { LiveSide, ShirtDefs } from "./LivePanes";
-import { withGuestNames } from "../../lib/liveActions";
+import { withGuestNames } from "../../lib/derived/guests";
 import { MATCH_TABS, matchTabAt, matchTabIndex } from "../../lib/matchTabs";
 import { tabForKey } from "../../lib/tabKeys";
 import { hasAnalysisActions } from "../../lib/technicalAnalysis";
@@ -376,13 +376,11 @@ export function MatchPage() {
                   La pizarra de este partido <Icon name="arrow" size={16} stroke={2.2} />
                 </Link>
               )}
-              {/* (an admin's way in, by moment: being played → En juego; played → its acta; before → its workspace) */}
+              {/* (an admin's way in, by moment: being played → la mesa, «Abrir la mesa» above; played → its
+                   acta; before → its workspace) */}
               {viewer.admin &&
-                (live ? (
-                  <Link className="hm-ghostbtn" to="/admin/en-juego/$matchId" params={{ matchId: match.id }}>
-                    Abrir En juego <Icon name="arrow" size={16} stroke={2.2} />
-                  </Link>
-                ) : done || pending || unplayed ? (
+                !live &&
+                (done || pending || unplayed ? (
                   <Link className="hm-ghostbtn" to="/admin/partidos/$matchId" params={{ matchId: match.id }} search={{ tab: "acta" }}>
                     Editar acta <Icon name="arrow" size={16} stroke={2.2} />
                   </Link>
@@ -423,7 +421,6 @@ export function MatchPage() {
           </button>
         ))}
       </div>
-      {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
       <div className={`fc-pane${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
         {cardMode && active <= 2 ? (
           <div className="ml-body">
