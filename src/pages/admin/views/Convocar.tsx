@@ -24,8 +24,7 @@ import { joinNames, place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type
 import { useConvocatoria } from "../data/useConvocatoria";
 import { GuestPanel } from "../kit/GuestPanel";
 import { addGuest, guestInUse, guestSlot, removeGuest } from "../acta/guests";
-import { guestRef, isGuestId } from "../../../lib/derived/guests";
-import { withGuestNames } from "../../../lib/liveActions";
+import { guestRef, isGuestId, withGuestNames } from "../../../lib/derived/guests";
 import { Peg, PegRail, ShirtBack } from "../kit";
 import { useMatchShortcuts } from "../palette/matchShortcuts";
 import { useAdmin, useAdminGo } from "../shell/context";
@@ -157,7 +156,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
     const r = addGuest({ ...lineup, guests }, name);
     if (!r.ok) return r.error;
     conv.set({ starters: r.value.starters, bench: r.value.bench, guests: r.value.guests });
-    toast.show({ tag: j, message: `${r.guest.name} (invitado), al banquillo · el acta y En juego ya lo ven${status.notified ? " · falta avisar" : ""}` });
+    toast.show({ tag: j, message: `${r.guest.name} (invitado), al banquillo · el acta y la mesa ya lo ven${status.notified ? " · falta avisar" : ""}` });
     return "";
   };
   const removeGuestId = (id: string) => {

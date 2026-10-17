@@ -106,19 +106,12 @@ describe("AdminLayout · phones", () => {
     expect(within(screen.getByRole("navigation", { name: "Sala de control" })).getByRole("button", { name: /^Más/ })).toHaveAttribute("aria-current", "page");
   });
 
-  it("hides the header and the bar inside the match workspace and En juego", async () => {
+  it("hides the header and the bar inside the match workspace", async () => {
     mountAdmin("/admin/partidos/m7");
     expect(await screen.findByTestId("view")).toHaveTextContent("vista partidos");
     expect(screen.queryByRole("navigation", { name: "Sala de control" })).toBeNull();
     expect(screen.queryByRole("banner")).toBeNull();
     expect(root().style.getPropertyValue("--ltb")).toBe("150px");
-  });
-
-  it("En juego: no bar, the lower thirds over the pads", async () => {
-    mountAdmin("/admin/en-juego/m8");
-    expect(await screen.findByTestId("view")).toHaveTextContent("vista enjuego");
-    expect(screen.queryByRole("navigation", { name: "Sala de control" })).toBeNull();
-    expect(root().style.getPropertyValue("--ltb")).toBe("262px");
   });
 });
 

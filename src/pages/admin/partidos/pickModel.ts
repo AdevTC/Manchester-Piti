@@ -2,8 +2,7 @@
 // «Lo demás» — its four groups (Tarjetas · Cambios · Penaltis · Otros), the kinds each «+» offers and the
 // checks of a new or edited event.
 import type { EventType, MatchEvent } from "../../../../functions/src/matchEngine";
-import { isGuestId } from "../../../lib/derived/guests";
-import { guestsLast } from "../../../lib/liveActions";
+import { guestsLast, isGuestId } from "../../../lib/derived/guests";
 
 export interface PickOption {
   id: string;

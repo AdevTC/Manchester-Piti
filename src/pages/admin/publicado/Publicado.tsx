@@ -21,8 +21,7 @@ import { namesFor, rosterFor } from "../acta/roster";
 import { useMatchMvp } from "../partidos/live";
 import { MatchLifecycleActions } from "../partidos/MatchLifecycleActions";
 import { vitrinaOf } from "./vitrinaModel";
-import { withGuestNames } from "../../../lib/liveActions";
-import { isGuestId } from "../../../lib/derived/guests";
+import { isGuestId, withGuestNames } from "../../../lib/derived/guests";
 import { capital } from "../../../lib/derived/words";
 
 const isAbort = (e: unknown) => !!e && typeof e === "object" && (e as { name?: unknown }).name === "AbortError";

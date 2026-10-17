@@ -25,7 +25,7 @@ test("la porra conserva goleadores y asistencias entre vestuario y partido, tamb
   await page.getByRole("link", { name: "La porra, en la ficha del partido" }).click();
   // Client-side navigation: the vestuario's form must not answer for the ficha's.
   await expect(page).toHaveURL(/\/matches\/preview-next(\?|$)/);
-  await expect(page.getByRole("heading", { name: "Mesa de partido" })).toBeVisible();
+  await expect(form.getByRole("group", { name: "Tu porra: Piti contra Atlético Demo" })).toBeVisible();
   await expect(form.getByLabel("Goleador del gol 1")).toHaveValue(scorer);
   await expect(form.getByLabel("Asistencia del gol 1")).toHaveValue("none");
   await form.getByRole("button", { name: "Un gol más del Piti" }).click();

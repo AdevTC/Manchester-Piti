@@ -3,6 +3,7 @@
 // A goal of ours arriving live flips its tile, rings it in gold and sweeps the card (useGoalCelebration
 // decides when); reduced motion leaves the end state.
 import { useState, type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 import { clockLabel, clockReading, timeText } from "../../../functions/src/matchClock";
 import type { ClubMatch } from "../../lib/clubData";
 import type { LastEvent } from "../../lib/derived/scoreboard";
@@ -52,14 +53,13 @@ function LivePill({ match, minute }: { match: Pick<ClubMatch, "clock">; minute: 
 
 /** «Abrir la mesa»: la mesa of this match, for its scorers and the admins. */
 export function MesaKey({ matchId, className = "", wide = false }: { matchId: string; className?: string; wide?: boolean }) {
-  // (a plain link until the mesa's route is in the router tree: the cut-over makes it a typed <Link>)
   return (
-    <a className={`ml-pb ${className}`.trim()} href={`/matches/${encodeURIComponent(matchId)}/mesa`} aria-label="Abrir la mesa, para anotadores">
+    <Link className={`ml-pb ${className}`.trim()} to="/matches/$matchId/mesa" params={{ matchId }} aria-label="Abrir la mesa, para anotadores">
       Abrir la mesa{wide && <small aria-hidden="true">para anotadores</small>}
       <i aria-hidden="true">
         <Icon name="arrow" size={16} stroke={2.4} />
       </i>
-    </a>
+    </Link>
   );
 }
 

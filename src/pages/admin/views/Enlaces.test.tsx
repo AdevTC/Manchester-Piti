@@ -1,15 +1,13 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ClubMatch } from "../../../lib/clubData";
 import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../../test/adminKit";
 import { resetWhistledForTests } from "../data/whistleStore";
 import { Convocar } from "./Convocar";
-import { EnJuego } from "./EnJuego";
 import { Partidos } from "./Partidos";
 
 // The Sala de control's ways out to the rest of the app for the same match or player: «Ver en la web»
-// (the match workspace, En juego, ⌘K), Convocar's «La pizarra» reader → the match's official board, and
+// (the match workspace, ⌘K), Convocar's «La pizarra» reader → the match's official board, and
 // ⌘K's «Abrir la pizarra (J… · rival)». Real AdminLayout on a memory router; data from the fixture.
 
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
@@ -33,9 +31,6 @@ vi.mock("../convocar/live", () => ({ useMatchAnswers: () => ({ data: [], loading
 vi.mock("../convocar/reminders", () => ({ useReminders: () => ({ auto: true, loading: false, set: () => Promise.resolve() }) }));
 
 const WIDTH = window.innerWidth;
-const at = (d: number, h: number, m = 0) => Date.UTC(2026, 10, d, h - 1, m); // Madrid = UTC+1
-const SEVEN = ["evans", "illescas", "tello", "eguzquiza", "huberoski", "erik", "adrian"];
-const withJ8 = (j8: Partial<ClubMatch>): ClubMatch[] => fixturePublished.map((m) => (m.id === "m8" ? { ...m, ...j8 } : m));
 const palette = async (user: ReturnType<typeof userEvent.setup>, query: string) => {
   await user.keyboard("{Control>}k{/Control}");
   const dialog = screen.getByRole("dialog", { name: "Buscar" });
@@ -75,33 +70,6 @@ describe("the match workspace · «Ver en la web»", () => {
     const list = await palette(user, "ver en la web");
     await user.click(within(list).getByRole("option", { name: /Ver en la web/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/matches/m6"));
-  });
-});
-
-describe("En juego · «Ver en la web»", () => {
-  const playing = () => adminFixture({ now: at(8, 12, 31), published: withJ8({ starters: SEVEN, bench: ["kevin"], events: [] }) });
-
-  it("desktop: a button in the header, to the match's page (its directo)", async () => {
-    setAdminData(playing());
-    mountAdmin("/admin/en-juego/m8", { enjuego: EnJuego });
-    await screen.findByRole("heading", { level: 1, name: "En juego" });
-    expect(screen.getByRole("link", { name: /Ver en la web/ })).toHaveAttribute("href", "/matches/m8");
-  });
-
-  it("phones: an icon beside ← in the dark top row", async () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
-    setAdminData(playing());
-    mountAdmin("/admin/en-juego/m8", { enjuego: EnJuego });
-    const link = await screen.findByRole("link", { name: "Ver en la web" });
-    expect(link).toHaveAttribute("href", "/matches/m8");
-    expect(link).toHaveClass("bk");
-  });
-
-  it("before kick-off too (the previa)", async () => {
-    setAdminData(adminFixture());
-    mountAdmin("/admin/en-juego/m8", { enjuego: EnJuego });
-    await screen.findByText("Todavía no ha empezado");
-    expect(screen.getByRole("link", { name: /Ver en la web/ })).toHaveAttribute("href", "/matches/m8");
   });
 });
 

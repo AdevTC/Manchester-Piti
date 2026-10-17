@@ -5,7 +5,7 @@ import { Scorers } from "./Scorers";
 // the scrolling body and the fixed footer — the state with its concrete reason («No cuadra: falta el
 // goleador de 1 gol»), «Guardado 12:04 · hora de Madrid» / «● Cambios sin guardar» and the buttons of the
 // moment: Guardar (a match to play, in the calendar) · Guardar borrador + Publicar en el calendario (only a
-// draft) · Abrir En juego · Guardar borrador + Publicar acta (pressing it when it doesn't square shakes the
+// draft) · Abrir la mesa · Guardar borrador + Publicar acta (pressing it when it doesn't square shakes the
 // reason and says why) · Guardar cambios (published). Saves through saveMatchSheet; the first publication
 // of an acta opens the publish peak (onPublished). Guards unsaved changes, mirrors them on this device
 // (recovery) and registers its palette actions.
@@ -377,7 +377,7 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
         {foot.mode === "juego" && (
           <button type="button" className="btn gold" onClick={openLive}>
             <AdIcon name="ball" size={18} />
-            Abrir En juego
+            Abrir la mesa
           </button>
         )}
       </div>

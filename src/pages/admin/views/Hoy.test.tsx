@@ -6,7 +6,6 @@ import * as api from "../../../lib/clubApi";
 import type { ClubMatch } from "../../../lib/clubData";
 import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../../test/adminKit";
 import { resetWhistledForTests } from "../data/whistleStore";
-import { EnJuego } from "./EnJuego";
 import { Hoy } from "./Hoy";
 
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
@@ -172,75 +171,32 @@ describe("Hoy · Antes: the peg wall", () => {
   });
 });
 
-describe("Hoy · En juego: the LED and the pads", () => {
+describe("Hoy · En juego: the LED, the log and «Abrir la mesa»", () => {
   const sun = at(8, 12, 31);
   const j8 = withJ8({ starters: SEVEN, bench: ["kevin", "almachi"], events: J8_EVENTS });
 
-  it("the live score, the log, GOL → ¿Quién marcó? → pase → liveEvent and the «GOOOL» flash", async () => {
+  it("the live score and the log; no pads (scoring is la mesa's): «Abrir la mesa» opens it", async () => {
     setAdminData(adminFixture({ now: sun, published: j8 }));
     const user = userEvent.setup();
-    mountAdmin("/admin", { hoy: Hoy });
+    const router = mountAdmin("/admin", { hoy: Hoy });
     const hero = await screen.findByRole("region", { name: "El marcador de la J3 en juego" });
     expect(within(hero).getByLabelText("PITI 1, MAD SKY 1")).toHaveTextContent("1-1");
     expect(hero).toHaveTextContent("EN JUEGO");
     expect(within(hero).getByRole("list", { name: "Lo que va pasando" }).textContent).toContain("Amarilla a TELLO");
-    await user.click(within(hero).getByRole("button", { name: "GOL" }));
-    const pick = screen.getByRole("dialog", { name: "¿Quién marcó?" });
-    expect(pick).toHaveClass("lpk");
-    expect(pick).toHaveTextContent("En el campo");
-    expect(within(pick).queryByRole("button", { name: "Marcó KEVIN" })).toBeNull();
-    await user.click(within(pick).getByRole("button", { name: "Marcó ERIK" }));
-    const pase = screen.getByRole("dialog", { name: "¿Quién le dio el pase?" });
-    await user.click(within(pase).getByRole("button", { name: "Pase de ADRIÁN T.C." }));
-    expect(live).toHaveBeenCalledWith(expect.objectContaining({ action: "add", matchId: "m8", event: { type: "goal", assistReviewed: true, minute: 32, playerId: "erik", assistPlayerId: "adrian" } }));
-    expect(await screen.findByText("GOOOL")).toBeInTheDocument();
-    expect(screen.getByText("ERIK · 32′ · pase de ADRIÁN T.C.")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(within(hero).queryByRole("button", { name: "GOL" })).toBeNull();
+    expect(within(hero).queryByRole("button", { name: "Pitar el final y repasar el acta" })).toBeNull();
+    await user.click(within(hero).getByRole("button", { name: "Abrir la mesa" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/matches/m8/mesa"));
+    expect(live).not.toHaveBeenCalled();
   });
 
-  it("Gol rival goes at once (with «Deshacer» = undo the last live event); Tarjeta and Cambio ask first", async () => {
-    setAdminData(adminFixture({ now: sun, published: j8 }));
-    const user = userEvent.setup();
-    mountAdmin("/admin", { hoy: Hoy });
-    await user.click(await screen.findByRole("button", { name: "Gol rival" }));
-    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "add", matchId: "m8", event: { type: "opponent_goal", minute: 32 } }));
-    await user.click(await screen.findByRole("button", { name: "Deshacer" }));
-    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "undo", matchId: "m8" }));
-    await user.click(screen.getByRole("button", { name: "Tarjeta" }));
-    await user.click(within(screen.getByRole("dialog", { name: "¿Qué tarjeta?" })).getByRole("button", { name: "Amarilla" }));
-    await user.click(within(screen.getByRole("dialog", { name: "¿A quién?" })).getByRole("button", { name: "Amarilla a EVANS" }));
-    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "add", matchId: "m8", event: { type: "yellow_card", minute: 32, playerId: "evans" } }));
-    expect(await screen.findByText("Amarilla a EVANS · 32′")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Cambio" }));
-    await user.click(within(screen.getByRole("dialog", { name: "¿Quién sale?" })).getByRole("button", { name: "Sale TELLO" }));
-    await user.click(within(screen.getByRole("dialog", { name: "¿Quién entra?" })).getByRole("button", { name: "Entra KEVIN" }));
-    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "add", matchId: "m8", event: { type: "substitution", minute: 32, playerId: "tello", inPlayerId: "kevin" } }));
-  });
-
-  it("«Pitar el final» and «Deshacer» are shared server actions", async () => {
-    setAdminData(adminFixture({ now: sun, published: j8 }));
-    const user = userEvent.setup();
-    mountAdmin("/admin", { hoy: Hoy });
-    await user.click(await screen.findByRole("button", { name: "Pitar el final y repasar el acta" }));
-    expect(screen.getByText("Final pitado · 1–1 · repasa el acta y publícala")).toBeInTheDocument();
-    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "finish", matchId: "m8" }));
-    await user.click(screen.getByRole("button", { name: "Deshacer" }));
-    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "reopen", matchId: "m8" }));
-  });
-
-  it("phones: the LED and «Entrar en «En juego»» → the En juego view (pads + sheet picker)", async () => {
+  it("phones: the LED and «Abrir la mesa»", async () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
     setAdminData(adminFixture({ now: sun, published: j8 }));
     const user = userEvent.setup();
-    const router = mountAdmin("/admin", { hoy: Hoy, enjuego: EnJuego });
-    await user.click(await screen.findByRole("button", { name: "Entrar en «En juego»" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/en-juego/m8"));
-    expect(await screen.findByText("EN JUEGO")).toHaveClass("tally");
-    await user.click(screen.getByRole("button", { name: "GOL" }));
-    const sheet = screen.getByRole("dialog", { name: "¿Quién marcó?" });
-    expect(sheet).toHaveClass("sheet");
-    await user.click(within(sheet).getByRole("button", { name: "Lo completo luego" }));
-    expect(live).toHaveBeenLastCalledWith(expect.objectContaining({ action: "add", matchId: "m8", event: { type: "goal", minute: 32 } }));
+    const router = mountAdmin("/admin", { hoy: Hoy });
+    await user.click(await screen.findByRole("button", { name: "Abrir la mesa" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/matches/m8/mesa"));
   });
 });
 

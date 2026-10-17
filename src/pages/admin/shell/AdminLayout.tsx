@@ -1,7 +1,7 @@
 // /admin — the admin v2 «Sala de control»: a fixed 100dvh frame (the page never scrolls; each list scrolls
 // inside its panel). ≥ 1000 px (`.d`): the 60 px header, the 224 px rail and the workspace (the routed
 // view). Phones (`.m`): the header, the view and the bar Hoy · Partidos · Convocar · Plantilla · Más — both
-// hidden inside the match workspace and En juego. It owns the providers every view uses: layers (Esc,
+// hidden inside the match workspace. It owns the providers every view uses: layers (Esc,
 // focus trap, inert), the lower thirds, the unsaved-changes guard, the command palette (⌘K / Ctrl K) and
 // its registry, the frame width, and the one useAdminData(). Motion follows the device's reduced-motion
 // setting (<MotionConfig reducedMotion="user">; the CSS honours it too).
@@ -29,7 +29,7 @@ import { LogoutConfirm } from "./CaptainMenu";
 import { AdminHeader, MobileHeader } from "./Chrome";
 import { useChromeMotion } from "./chromeMotion";
 import { AdminDataContext, ShellContext, useAdminGo, type ShellApi } from "./context";
-import { goHint, isEnJuego, isWorkspace, searchId, SECTIONS, sectionOf, titleOf, type Captain, type SectionKey } from "./nav";
+import { goHint, isWorkspace, searchId, SECTIONS, sectionOf, titleOf, type Captain, type SectionKey } from "./nav";
 import { BottomBar, MasSheet } from "./Phone";
 import { Rail } from "./Rail";
 import { ICON_RAIL_BELOW, useRailFold } from "./railPrefs";
@@ -65,8 +65,8 @@ export function AdminLayout() {
   const frame = useMemo(() => frameOf(width), [width]);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const bare = isWorkspace(pathname);
-  // Phones: where the lower thirds sit — above the bar, the pads (En juego) or the workspace footer.
-  const style = frame.desktop ? undefined : ({ "--ltb": !bare ? "80px" : isEnJuego(pathname) ? "262px" : "150px" } as CSSProperties);
+  // Phones: where the lower thirds sit — above the bar or the workspace footer.
+  const style = frame.desktop ? undefined : ({ "--ltb": !bare ? "80px" : "150px" } as CSSProperties);
   return (
     <MotionConfig reducedMotion="user">
       <FrameContext.Provider value={frame}>

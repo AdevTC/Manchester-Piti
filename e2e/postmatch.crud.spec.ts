@@ -32,89 +32,30 @@ test('resumen personal, historial mensual y cobertura sin confundir ceros con au
   await page.screenshot({path:'.emulator-data/coverage-mobile.png'});
 });
 
-test('banquillo recuperable, sincronizado, deshacer propio y revisión obligatoria de la asistencia rápida',async({page,context})=>{
-  test.setTimeout(90000);
+test('la mesa: «Gol del Piti» con su goleador llega una sola vez al partido (live-<requestId>)',async({page})=>{
+  test.setTimeout(60000);
   await enterVestuario(page);
-  await page.goto('/admin/en-juego/preview-bench');
-  const panel=page.getByRole('region',{name:'Modo banquillo rápido'});
-  await expect(panel.getByRole('button',{name:'Ocasión rival',exact:true})).toBeEnabled();
-  const requests: { action: string; requestId?: string; manualTime?: boolean; event?: { minute: number } }[] = [];
+  const requests: { action: string; requestId?: string; event?: { type: string; playerId?: string } }[] = [];
   page.on('request', request => {
     if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/liveEvent')) requests.push(request.postDataJSON().data);
   });
-  await context.setOffline(true);
-  await expect(panel.getByText(/Sin conexión. Puedes preparar una jugada/)).toBeVisible();
-  await panel.getByRole('button',{name:'Ocasión rival',exact:true}).click();
-  await expect(panel.getByText('Pendiente de envío',{exact:true})).toBeVisible();
-  const pending = await page.evaluate(() => {
-    const key = Object.keys(localStorage).find(key => key.startsWith('mp:quick-match:v1:demo-manchester-piti:') && key.endsWith(':preview-bench'));
-    return JSON.parse(localStorage.getItem(key!)!).attempt.payload as { requestId: string; event: { minute: number } };
-  });
-  expect(requests).toHaveLength(0);
-  await context.setOffline(false);
+  await page.goto('/matches/preview-bench/mesa');
+  await page.getByRole('button',{name:'Gol del Piti',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'¿Quién marcó?'});
+  await sheet.getByRole('button',{name:/Mario/}).click();
+  await expect.poll(()=>requests.filter(r=>r.action==='add').length).toBeGreaterThan(0);
+  const add=requests.find(r=>r.action==='add')!;
+  expect(add).toMatchObject({action:'add',event:{type:'goal',playerId:'improvement-player-6'}});
+  expect(add.requestId).toBeTruthy();
+  const goals=async()=>{
+    const stored=await page.request.get('http://127.0.0.1:8080/v1/projects/demo-manchester-piti/databases/(default)/documents/matches/preview-bench');
+    expect(stored.ok()).toBe(true);
+    const events=((await stored.json()).fields.events.arrayValue.values ?? []) as {mapValue:{fields:{id:{stringValue:string}}}}[];
+    return events.filter(event=>event.mapValue.fields.id.stringValue===`live-${add.requestId}`).length;
+  };
+  await expect.poll(goals).toBe(1);
+  // (a retry of the same play keeps its requestId: still once after the queue settles and a reload)
   await page.reload();
-  const retry=panel.getByRole('button',{name:'Reintentar la misma jugada'});
-  await expect(retry).toBeEnabled();
-  expect(requests).toHaveLength(0);
-  await page.setViewportSize({width:390,height:844});
-  // EnJuego swaps its desktop and mobile trees: wait for the new scoped instance to restore
-  // the pending receipt before scrolling it, instead of holding the detached desktop node.
-  await expect(page.locator('.adm.m')).toBeVisible();
-  await expect(async()=>{
-    const pendingStatus=page.getByRole('region',{name:'Modo banquillo rápido'}).getByText('Pendiente de envío',{exact:true});
-    await expect(pendingStatus).toBeVisible();
-    await pendingStatus.scrollIntoViewIfNeeded();
-    await expect(pendingStatus).toBeInViewport();
-  }).toPass({timeout:5000});
-  await expect(retry).toBeEnabled();
-  expect(requests).toHaveLength(0);
-  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
-  await page.screenshot({path:'.emulator-data/bench-recovery-mobile.png'});
-  await retry.click();
-  await expect(panel.getByText('✓ Confirmada en el partido',{exact:true})).toBeVisible();
-  expect(requests).toHaveLength(1);
-  expect(requests[0]).toMatchObject({action:'add',requestId:pending.requestId,manualTime:true,event:{minute:pending.event.minute}});
-  const stored=await page.request.get('http://127.0.0.1:8080/v1/projects/demo-manchester-piti/databases/(default)/documents/matches/preview-bench');
-  expect(stored.ok()).toBe(true);
-  const events=(await stored.json()).fields.events.arrayValue.values as {mapValue:{fields:{id:{stringValue:string}}}}[];
-  expect(events.filter(event=>event.mapValue.fields.id.stringValue===`live-${pending.requestId}`)).toHaveLength(1);
-  await page.reload();
-  await expect(panel.getByText('✓ Confirmada en el partido',{exact:true})).toBeVisible();
-  expect(requests).toHaveLength(1);
-  await panel.getByRole('button',{name:/Deshacer mi última jugada/}).click();
-  await expect(panel.getByText('Tu última jugada se ha deshecho.')).toBeVisible();
-  await page.setViewportSize({width:1280,height:950});
-  await panel.getByRole('button',{name:'Gol del Piti',exact:true}).click();
-  await page.reload();
-  await expect(panel.getByRole('heading',{name:'Selección pendiente de recuperar'})).toBeVisible();
-  await panel.getByRole('button',{name:'Recuperar selección',exact:true}).click();
-  await panel.getByRole('button',{name:'Mario',exact:true}).click();
-  await expect(panel.getByText(/Asistencia pendiente de revisar en el acta/)).toBeVisible();
-
-  const other=await context.newPage();await other.goto('/admin/en-juego/preview-bench');
-  const otherPanel=other.getByRole('region',{name:'Modo banquillo rápido'});
-  await otherPanel.getByRole('button',{name:'Ocasión rival',exact:true}).click();
-  await expect(otherPanel.getByText(/Jugada guardada: Ocasión rival/)).toBeVisible();
-  await panel.getByRole('button',{name:/Deshacer mi última jugada/}).click();
-  await expect(panel.getByText('Tu última jugada se ha deshecho.')).toBeVisible();
-  await expect(page.getByRole('list',{name:'Lo que va pasando'}).getByText(/Ocasión/)).toBeVisible();
-  await panel.getByRole('button',{name:'Gol del Piti',exact:true}).click();await panel.getByRole('button',{name:'Mario',exact:true}).click();
-  await expect(panel.getByText(/Asistencia pendiente/)).toBeVisible();
-  await page.setViewportSize({width:390,height:844});
-  await expect(async()=>{await panel.scrollIntoViewIfNeeded();await expect(panel).toBeInViewport();}).toPass({timeout:5000});await page.screenshot({path:'.emulator-data/bench-mobile.png'});
-  await page.setViewportSize({width:1280,height:950});
-  const clock=page.getByRole('region',{name:'Reloj compartido del partido'});
-  await clock.getByRole('button',{name:'Terminar 1ª parte',exact:true}).click();
-  await expect(otherPanel.getByRole('button',{name:'Gol del Piti',exact:true})).toBeDisabled();
-  await clock.getByRole('button',{name:'Iniciar 2ª parte',exact:true}).click();
-  await clock.getByRole('button',{name:'Pitar el final',exact:true}).click();
-  await clock.getByRole('group',{name:'Confirmar cambio del reloj'}).getByRole('button',{name:'Confirmar',exact:true}).click();
-  await page.getByRole('tab',{name:/Publicar/}).click();
-  const review=page.getByRole('region',{name:'Revisión antes de publicar'});
-  await expect(page.locator('.df').getByRole('button',{name:'Publicar acta',exact:true})).toHaveAttribute('aria-disabled','true');
-  await review.getByLabel('Confirmar asistencia del gol 1').selectOption('none');
-  await expect(review.getByText('✓ Asistencias revisadas')).toBeVisible();
-  await page.locator('.df').getByRole('button',{name:'Publicar acta',exact:true}).click();
-  await expect(page.getByRole('region',{name:'Acta publicada'})).toBeVisible();
-  await other.close();
+  await expect(page.getByRole('button',{name:'Gol del Piti',exact:true})).toBeVisible();
+  expect(await goals()).toBe(1);
 });

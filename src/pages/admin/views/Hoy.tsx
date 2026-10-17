@@ -1,30 +1,26 @@
-import { MatchClockControl } from "../../../components/celeste/MatchClockControl";
 // Hoy (/admin) — the hero changes with the moment of the match that matters now (data.hero):
 //   · Antes: the peg wall — the J8 plaque with its countdown, who comes (RSVP with names), el siete on the
 //     front pegs («Libre» gaps), the banquillo and whoever can come on the back rail. Tap back → it hangs
 //     in el siete; tap front → down to the banquillo (each change is written at once: the one convocatoria);
 //     «Convocar y avisar» (gold with seven) announces it behind a «Deshacer» lower third.
-//   · En juego: the LED scoreboard (live score, running clock, ticker), «Lo que va pasando» and the pads
-//     (GOL / Gol rival / Tarjeta / Cambio / «Pitar el final y repasar el acta») → the live picker.
+//   · En juego: the LED scoreboard (live score, running clock, ticker), «Lo que va pasando» and «Abrir la
+//     mesa» (/matches/$matchId/mesa: the clock, the plays and the final are written there).
 //   · Después: the LED on FINAL · SIN PUBLICAR, the whole log and «Apunta el resultado» (→ the acta);
 //     published: FINAL + «Ver la vitrina».
 // Beside: «Por hacer» (pending only), «N hechas» folded, «Después: J9». No match at all: the empty shirt.
-// Phones: the same moments in one column (En juego opens its own view, the bar hides there).
+// Phones: the same moments in one column.
 import { useId, useState } from "react";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { scoreOf } from "../../../lib/partidos";
-import { apiError, liveEvent } from "../../../lib/clubApi";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
 import { joinNames, place, rsvpGroups, rsvpOf, sevenWhy, SEVEN } from "../data/lineup";
 import { countdown, countdownShort, finalSub, isPendingWhistle, isUnwhistled, matchAfter, type MatchMoment } from "../data/moments";
 import { PENDING_WHISTLE } from "../../../lib/derived/kickoff";
 import { useConvocatoria } from "../data/useConvocatoria";
-import { unwhistle } from "../data/whistleStore";
 import { LedBoard, Peg, PegRail, ResultMark, resultLetter, ShirtBack } from "../kit";
-import { LiveClock, LiveLog, LivePads, LivePicker } from "../live/LiveParts";
+import { LiveClock, LiveLog } from "../live/LiveParts";
 import { liveLog } from "../live/liveModel";
-import { withGuestNames } from "../../../lib/liveActions";
-import { useLive } from "../live/useLive";
+import { withGuestNames } from "../../../lib/derived/guests";
 import { useAdmin, useAdminGo } from "../shell/context";
 import { useFrame } from "../ui/frame";
 import { AdIcon } from "../ui/icons";
@@ -166,7 +162,7 @@ function Antes({ match }: { match: AdminMatch }) {
       Convocar y avisar
     </button>
   );
-  const cta = <>{convocatoriaCta}<button type="button" className="btn sky" onClick={() => go({ section: "enjuego", matchId: match.id })}>Abrir mesa de partido</button></>;
+  const cta = <>{convocatoriaCta}<button type="button" className="btn sky" onClick={() => go({ section: "enjuego", matchId: match.id })}>Abrir la mesa</button></>;
   const openConvocar = () => go({ section: "convocar", matchId: match.id });
 
   if (!desktop)
@@ -279,14 +275,12 @@ function Antes({ match }: { match: AdminMatch }) {
   );
 }
 
-// ───────────────────────── En juego: the LED + the pads ─────────────────────────
+// ───────────────────────── En juego: the LED + the log; scoring is la mesa's ─────────────────────────
 function Juego({ match }: { match: AdminMatch }) {
   const data = useAdmin();
   const go = useAdminGo();
-  const toast = useToast();
   const { desktop } = useFrame();
-  const { nameOf, numberOf } = useNames();
-  const live = useLive(match, data.now, nameOf, numberOf);
+  const { nameOf } = useNames();
   // the connection chip on the LED (the score may not be the latest)
   const syncChip = useSyncChip(true, data.now);
   const status = <SyncChip chip={syncChip} variant="led" announce />;
@@ -299,40 +293,32 @@ function Juego({ match }: { match: AdminMatch }) {
       <LiveClock start={start} match={match} /> · EN JUEGO
     </>
   );
+  const mesa = (cls: string) => (
+    <button type="button" className={cls} onClick={() => go({ section: "enjuego", matchId: match.id })}>
+      <AdIcon name="ball" size={20} />
+      Abrir la mesa
+    </button>
+  );
   if (!desktop)
     return (
       <>
         <LedBoard rival={match.rival ?? "Rival"} gf={gf} ga={ga} sub={sub} size="mob" status={status} />
-        <button type="button" className="btn gold xl" onClick={() => go({ section: "enjuego", matchId: match.id })}>
-          <AdIcon name="ball" size={20} />
-          Entrar en «En juego»
-        </button>
+        {mesa("btn gold xl")}
       </>
     );
-  const pitar = () => live.finish(() => {
-    unwhistle(match.id); // discard an older, device-only whistle; Firestore owns the final now
-    live.close();
-    toast.show({ tag: "FINAL", message: `Final pitado · ${gf}–${ga} · repasa el acta y publícala`, undo: () => { void liveEvent({ action: "reopen", matchId: match.id }).then(() => unwhistle(match.id), (e: unknown) => toast.show({ tone: "error", message: apiError(e) })); } });
-  });
+  const rows = liveLog(match.events, match.rival ?? "el rival", withGuestNames(match, nameOf));
   return (
     <section className="hB" aria-label={`El marcador de la ${j} en juego`}>
-      <LedBoard rival={match.rival ?? "Rival"} rivalLogoUrl={match.rivalLogoUrl} gf={gf} ga={ga} sub={sub} ticker={tickerText(match, note)} flash={live.flash} status={status} />
-      <div className="live2">
-        <div className="calm">
-          <h3>Lo que va pasando</h3>
-          <div className="scr">
-            <LiveLog rows={live.log} label="Lo que va pasando" />
-          </div>
+      <LedBoard rival={match.rival ?? "Rival"} rivalLogoUrl={match.rivalLogoUrl} gf={gf} ga={ga} sub={sub} ticker={tickerText(match, note)} status={status} />
+      <div className="calm" style={{ flex: 1 }}>
+        <h3>
+          Lo que va pasando <em>Se apunta en la mesa: el reloj, las jugadas y el final.</em>
+        </h3>
+        <div className="scr" style={{ flex: 1 }}>
+          <LiveLog rows={rows} label="Lo que va pasando" />
         </div>
-        <div className="calm">
-          <h3>
-            Apunta a un toque <em>minuto del reloj</em>
-          </h3>
-          <MatchClockControl match={match} />
-          <LivePads onGol={() => live.open("gol")} onRival={live.rivalGoal} onTarjeta={() => live.open("tar")} onCambio={() => live.open("cam")} onOcasion={() => live.open("oca")} onCorner={() => live.open("cor")} onMas={() => live.open("mas")} onPitar={match.clock ? undefined : pitar} disabled={live.busy} paused={match.clock?.phase === "halftime"} />
-        </div>
+        <div className="cta-row end">{mesa("btn gold")}</div>
       </div>
-      <LivePicker view={live.view} onChoose={live.choose} onClose={live.close} mobile={false} disabled={live.busy} />
     </section>
   );
 }

@@ -1,6 +1,6 @@
 // The way out of the Sala de control for the match on screen: «Ver en la web» (its public page, once it
 // is in the calendar) and «Abrir la pizarra (J8 · MAD SKY)» (the official board the pizarra shows for
-// it). The workspace, En juego and Convocar register them for their match; the shell registers the
+// it). The workspace and Convocar register them for their match; the shell registers the
 // pizarra one for Hoy's match, so it is there from any section (and only once). The board comes from
 // useAdmin().officialBoardOf (the season's official scope docs: the match's own official, or the
 // season's while it is still to be played).
