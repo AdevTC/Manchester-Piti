@@ -74,10 +74,22 @@ describe("Antes del pitido", () => {
     expect(live.nav.mesa).toHaveBeenCalled();
   });
 
+  it("says where the seven comes from: the official board with its system, or the convocatoria", () => {
+    const { unmount } = mount(makeView({ match: { lineup: { fromBoard: true, system: "2-3-1 · Clásico" }, round: 7 } }));
+    expect(screen.getByText("El siete de la pizarra")).toBeInTheDocument();
+    expect(screen.getByText("2-3-1 · Clásico · Siete de siete titulares")).toBeInTheDocument();
+    expect(screen.getByText("Jornada 7, liga")).toBeInTheDocument();
+    unmount();
+    mount(makeView());
+    expect(screen.getByText("El siete de la convocatoria")).toBeInTheDocument();
+    expect(screen.getByText("Convocatoria · Siete de siete titulares")).toBeInTheDocument();
+    expect(screen.getByText("Liga")).toBeInTheDocument();
+  });
+
   it("an incomplete seven is flagged without colour alone", () => {
     const base = makeView();
     mount(makeView({ field: base.field.slice(0, 6) }));
-    expect(screen.getByText("6 de siete titulares")).toBeInTheDocument();
+    expect(screen.getByText("Convocatoria · 6 de siete titulares")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Casi listo para pitar");
   });
 });

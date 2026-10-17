@@ -56,14 +56,17 @@ export function Descanso({ view }: MesaScreenProps) {
   const nIn = sel.filter((id) => !onPitch.includes(id)).length;
   const why = sel.length !== 7 ? `${sel.length} de 7` : !hasKeeper ? "falta portero" : "";
   const label = why ? "Elige el siete" : nIn ? `Arrancar con ${nIn} ${nIn === 1 ? "cambio" : "cambios"}` : "Arrancar la 2ª parte";
-  const stop = Math.max(0, Math.floor((now - since) / 1000));
+  // (the break's real length from the clock; until it is read, since this screen opened)
+  const stop = match.clock.phase === "halftime" && match.clock.breakSeconds > 0 ? match.clock.breakSeconds : Math.max(0, Math.floor((now - since) / 1000));
 
   const go = async () => {
     if (!valid || busy) return;
     buzz([20, 40, 60]);
     setBusy(true);
     try {
-      for (const s of subsTo(all, onPitch, sel)) actions.add("substitution", { playerId: s.outId, inPlayerId: s.inId });
+      // (the whole wave in one operation: all the changes or none)
+      const subs = subsTo(all, onPitch, sel);
+      if (subs.length) actions.addMany(subs.map((s) => ({ playerId: s.outId, inPlayerId: s.inId })));
       await actions.clock("second");
     } catch {
       setBusy(false);

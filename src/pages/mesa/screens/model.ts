@@ -87,6 +87,15 @@ export const onPitchAt = (stints: readonly MesaStint[], sec: number) => stints.s
 /** «Manchester Piti – Atlético Demo», home side first. */
 export const fixtureTitle = (m: Pick<MesaMatch, "home" | "rival">) => (m.home ? `Manchester Piti – ${m.rival}` : `${m.rival} – Manchester Piti`);
 
+/** «Jornada 7, liga» when the match has a round, else the competition («Liga»; "" when none). */
+export const matchLine = (m: Pick<MesaMatch, "round" | "competition">) =>
+  m.round ? [`Jornada ${m.round}`, m.competition.toLocaleLowerCase("es")].filter(Boolean).join(", ") : m.competition;
+/** «Jornada 7, contra Atlético Demo», «Liga, contra …», «Contra …». */
+export const againstLine = (m: Pick<MesaMatch, "round" | "competition" | "rival">) => {
+  const head = m.round ? `Jornada ${m.round}` : m.competition;
+  return head ? `${head}, contra ${m.rival}` : `Contra ${m.rival}`;
+};
+
 /** Scorer chip colours: me in sky, the next in gold, then the rest (stable by uid order). */
 const AV = ["#a9d6f5", "#FFC659", "#b7e4c7", "#f4b6c2"];
 export function avatars(presence: readonly MesaPresence[]) {

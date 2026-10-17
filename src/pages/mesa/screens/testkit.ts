@@ -35,14 +35,14 @@ export function ev(id: string, type: MesaEvent["type"], minute: number, extra: P
   return {
     id, type, side: them ? "them" : "us", minute, elapsedSeconds: (minute - 1) * 60 + 10, period: 1,
     playerId: null, playerName: null, assistId: null, assistName: null, inPlayerId: null, inName: null,
-    text: id, tag: "", goal: goal as MesaEvent["goal"], pendingScorer: false,
+    text: id, tag: "", goal: goal as MesaEvent["goal"], pendingScorer: false, assistReviewed: false,
     byUid: "u-pablo", byName: "Pablo", editedByUid: null, editedByName: null, editedAt: null,
     dupOf: null, queued: false, local: false, mine: true, ...extra,
   };
 }
 
 export function clock(extra: Partial<MesaClock> = {}): MesaClock {
-  return { phase: "ready", playing: false, held: false, elapsedSeconds: 0, periodSeconds: 0, period: 1, halfSeconds: 1500, added: 0, minute: 1, text: "00:00", revision: 1, ...extra };
+  return { phase: "ready", playing: false, held: false, elapsedSeconds: 0, periodSeconds: 0, period: 1, halfSeconds: 1500, added: 0, minute: 1, text: "00:00", revision: 1, breakSeconds: 0, kickoffAt: null, secondAt: null, ...extra };
 }
 
 export function makeView(over: Partial<Omit<MesaView, "match">> & { clock?: Partial<MesaClock>; match?: Partial<Omit<MesaView["match"], "clock">> } = {}): MesaView {
@@ -51,7 +51,7 @@ export function makeView(over: Partial<Omit<MesaView, "match">> & { clock?: Part
   const players = [...(rest.field ?? field), ...(rest.bench ?? bench)];
   return {
     match: {
-      id: "m7", seasonId: "s1", rival: "Atlético Demo", rivalShort: "ATL", rivalInitials: "AD", competition: "Liga", home: true,
+      id: "m7", seasonId: "s1", rival: "Atlético Demo", rivalShort: "ATL", rivalInitials: "AD", competition: "Liga", round: null, lineup: { fromBoard: false, system: null }, hasStandings: false, home: true,
       date: T0, score: { us: 0, them: 0 }, queuedGoals: { us: 0, them: 0 }, clock: clock(c), published: false, pendingDuplicates: 0, ...m,
     },
     field, bench, events: [],
@@ -66,6 +66,7 @@ export function makeView(over: Partial<Omit<MesaView, "match">> & { clock?: Part
     notice: "",
     actions: {
       add: vi.fn(() => "live-x"),
+      addMany: vi.fn((subs: readonly unknown[]) => subs.map((_, i) => `live-w-${i}`)),
       edit: vi.fn(async () => {}),
       remove: vi.fn(async () => {}),
       undo: vi.fn(async () => {}),
@@ -76,7 +77,7 @@ export function makeView(over: Partial<Omit<MesaView, "match">> & { clock?: Part
       discard: vi.fn(),
       retryNow: vi.fn(),
     },
-    nav: { cronica: vi.fn(), mesa: vi.fn(), exit: vi.fn(), pizarra: vi.fn() },
+    nav: { cronica: vi.fn(), mesa: vi.fn(), exit: vi.fn(), acta: vi.fn(), pizarra: vi.fn() },
     ...rest,
   };
 }

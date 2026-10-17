@@ -31,6 +31,12 @@ export interface MesaClock {
   /** «18:42», the match clock (seconds of play) as the LED shows it. */
   text: string;
   revision: number;
+  /** Seconds of the break so far (from the end of the 1ª; Descanso's «parados»), 0 before it. */
+  breakSeconds: number;
+  /** When the 1ª started (ms, server time), null before kick-off. */
+  kickoffAt: number | null;
+  /** When the 2ª started (ms, server time), null before it. */
+  secondAt: number | null;
 }
 
 export interface MesaMatch {
@@ -42,6 +48,13 @@ export interface MesaMatch {
   /** The rival crest's letters («AD»). */
   rivalInitials: string;
   competition: string;
+  /** The jornada of the match in its season (derived/jornada), null when it has none. */
+  round: number | null;
+  /** Where the seven comes from: the official pizarra board (with its system, «2-3-1 · Clásico», when
+   *  known) or the convocatoria. */
+  lineup: { fromBoard: boolean; system: string | null };
+  /** The season has a league table (standings/{seasonId}): Final's «+3 en la tabla». */
+  hasStandings: boolean;
   home: boolean;
   /** Kick-off (ms), as scheduled. */
   date: number;
@@ -115,6 +128,8 @@ export interface MesaEvent {
   goal: "us" | "them" | null;
   /** «Lo apunto luego»: a goal of ours without its scorer yet. */
   pendingScorer: boolean;
+  /** A goal whose assist was already answered (none included): Final doesn't ask it again. */
+  assistReviewed: boolean;
   byUid: string | null;
   byName: string | null;
   editedByUid: string | null;
@@ -146,6 +161,8 @@ export interface MesaQueueItem {
   text: string;
   playerId: string | null;
   minute: number;
+  /** The changes of a wave in one operation (1 for a single play). */
+  count: number;
   createdAt: number;
   status: "pending" | "sending";
 }
@@ -157,6 +174,8 @@ export interface MesaReviewItem {
   text: string;
   playerId: string | null;
   minute: number;
+  /** The changes of a wave (1 for a single play): a wave is fixed by its minute only. */
+  count: number;
   /** The server's reason, in Spanish. */
   reason: string;
 }
@@ -192,6 +211,9 @@ export interface MesaEditPatch {
 export interface MesaActions {
   /** Enters a play now (offline-safe: through the queue). Returns its event id (`live-${requestId}`). */
   add(type: MesaType, opts?: MesaAddOpts): string;
+  /** A wave of changes (up to 7) in one operation, all or none (one queue item; liveEvent addMany).
+   *  Returns their event ids (`live-${requestId}-${i}`). */
+  addMany(subs: readonly { playerId: string; inPlayerId: string }[]): string[];
   /** Fixes any play (player, assist, who came in, type, minute; «Son dos» = { dupOk: true }). */
   edit(id: string, patch: MesaEditPatch): Promise<void>;
   /** Deletes any play («Borrar», «Es el mismo»). A play still in the queue is just dropped. */
@@ -218,6 +240,8 @@ export interface MesaNav {
   mesa(): void;
   /** Leave la mesa for the match page. */
   exit(): void;
+  /** The published acta on the web (`/matches/$matchId`): Final's «Ver el acta en la web». */
+  acta(): void;
   /** The pizarra of this match («Preparar el siete de la 2ª»). */
   pizarra(): void;
 }

@@ -49,6 +49,9 @@ export function mesaClock(clock: MatchClock | undefined, now: number, duration?:
     minute: minuteOfPlay(r.elapsedSeconds, playing),
     text: clockText(r.elapsedSeconds),
     revision: clock?.revision ?? 0,
+    breakSeconds: Number.isFinite(r.breakSeconds) ? Math.max(0, r.breakSeconds) : 0,
+    kickoffAt: typeof clock?.firstStartedAt === "number" ? clock.firstStartedAt : null,
+    secondAt: typeof clock?.secondStartedAt === "number" ? clock.secondStartedAt : null,
   };
 }
 
@@ -258,6 +261,9 @@ export function buzzOf(type: string): number[] {
 /** A play still on this phone, as the record shows it until the realtime doc has it. */
 export interface LocalPlay {
   requestId: string;
+  /** Its event id when it isn't `live-<requestId>` (a change of a wave: `live-<requestId>-<i>`). */
+  id?: string;
+  assistReviewed?: boolean;
   type: MesaType;
   playerId?: string;
   assistPlayerId?: string;
@@ -302,6 +308,7 @@ export function mesaEvents(server: readonly MatchEvent[] | undefined, local: rea
       tag: eventTag(e.type, ctx.rivalShort),
       goal: g,
       pendingScorer: g === "us" && e.type === "goal" && !e.playerId,
+      assistReviewed: e.assistReviewed === true || !!e.assistPlayerId,
       byUid: e.byUid ?? null,
       byName: who(e.byUid),
       editedByUid: e.editedByUid ?? null,
@@ -315,9 +322,9 @@ export function mesaEvents(server: readonly MatchEvent[] | undefined, local: rea
   };
   const out = list.map((e) => one(e, false));
   for (const q of local) {
-    const id = liveId(q.requestId);
+    const id = q.id ?? liveId(q.requestId);
     if (ids.has(id)) continue;
-    out.push(one({ id, type: q.type, playerId: q.playerId, assistPlayerId: q.assistPlayerId, inPlayerId: q.inPlayerId, elapsedSeconds: q.tappedElapsed, period: q.period, byUid: ctx.uid }, true));
+    out.push(one({ id, type: q.type, playerId: q.playerId, assistPlayerId: q.assistPlayerId, inPlayerId: q.inPlayerId, elapsedSeconds: q.tappedElapsed, period: q.period, byUid: ctx.uid, ...(q.assistReviewed ? { assistReviewed: true } : {}) }, true));
   }
   return out;
 }
@@ -327,7 +334,7 @@ export function withLocal(server: readonly MatchEvent[] | undefined, local: read
   const list = [...(server ?? [])];
   const ids = new Set(list.map((e) => e.id));
   for (const q of local) {
-    const id = liveId(q.requestId);
+    const id = q.id ?? liveId(q.requestId);
     if (!ids.has(id)) list.push({ id, type: q.type, playerId: q.playerId, assistPlayerId: q.assistPlayerId, inPlayerId: q.inPlayerId, elapsedSeconds: q.tappedElapsed, period: q.period, byUid: uid, queued: true });
   }
   return list;

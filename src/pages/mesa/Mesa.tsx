@@ -67,6 +67,7 @@ export function Mesa() {
       cronica: () => void navigate({ to: "/matches/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: "cronica" as const }) }),
       mesa: () => void navigate({ to: "/matches/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: undefined }) }),
       exit: () => void navigate({ to: "/matches/$matchId", params: { matchId } }),
+      acta: () => void navigate({ to: "/matches/$matchId", params: { matchId } }),
       pizarra: () => void navigate({ to: "/pizarra" }),
     }),
     [navigate, matchId],

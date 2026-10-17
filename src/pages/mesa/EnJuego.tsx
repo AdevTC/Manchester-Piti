@@ -7,6 +7,10 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { allowedAtBreak } from "../../../functions/src/liveRules";
 import { Shirt, ShirtDefs } from "./Shirt";
 import { pitchLeft, pitchTop } from "./model";
+import { hhmm, matchLine } from "./screens/model";
+
+/** How long after kick-off (seconds of play) the «INICIO» lower third offers to take the whistle back. */
+const KICK_STRAP_SECONDS = 15;
 import type { MesaEvent, MesaPlayer, MesaScreenProps, MesaType, MesaView } from "./types";
 
 // ---------- icons (the canvas's symbols)
@@ -246,6 +250,8 @@ export function EnJuego({ view }: MesaScreenProps) {
   const [pop, setPop] = useState<string | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** The kick-off's «Deshacer» was used (or the strap dismissed): it doesn't come back. */
+  const [kickGone, setKickGone] = useState(false);
   const close = () => setMode(NONE);
 
   // the goal: digit flip with the gold ribbon (red on theirs), floodlight flare
@@ -361,7 +367,10 @@ export function EnJuego({ view }: MesaScreenProps) {
   const outName = mode.k === "outFrom" ? view.nameOf(mode.outId) : "";
 
   // the lower third
-  let strap: { tag: string; msg: string; sub: string; tone: "" | "g" | "r"; undo: boolean; cancel: boolean } | null = null;
+  let strap: { tag: string; msg: string; sub: string; tone: "" | "g" | "r"; undo: boolean; cancel: boolean; reset?: boolean } | null = null;
+  // (right after kick-off, while nothing has been written, «Deshacer» takes the whistle back: Antes hands
+  //  over to this screen at once)
+  const justKicked = clock.phase === "first" && clock.elapsedSeconds < KICK_STRAP_SECONDS && view.events.length === 0 && !kickGone;
   if (mode.k === "assist") strap = { tag: "GOL", msg: `Gol de ${scorerName}${goalEv?.minute ? `, minuto ${goalEv.minute}` : ""}`, sub: "¿Quién dio el pase? Toca su camiseta", tone: "g", undo: false, cancel: false };
   else if (mode.k === "out") strap = { tag: "CAMBIO", msg: `Entra ${inName}`, sub: "¿Por quién? Toca quién sale", tone: "", undo: false, cancel: true };
   else if (mode.k === "outFrom") strap = { tag: "CAMBIO", msg: `Sale ${outName}`, sub: "¿Quién entra? Toca en el banquillo", tone: "", undo: false, cancel: true };
@@ -369,6 +378,8 @@ export function EnJuego({ view }: MesaScreenProps) {
     const goal = lastStrap.goal;
     const where = lastStrap.local ? (queue.online ? "subiendo" : "en el móvil, se sube sola") : goal ? "ya en la web" : "";
     strap = { tag: lastStrap.tag, msg: lastStrap.text, sub: [`Minuto ${lastStrap.minute ?? clock.minute}, apuntado por ti`, where].filter(Boolean).join(". "), tone: goal === "us" ? "g" : goal === "them" ? "r" : "", undo: true, cancel: false };
+  } else if (justKicked) {
+    strap = { tag: "INICIO", msg: clock.kickoffAt != null ? `Pitido inicial a las ${hhmm(clock.kickoffAt)}` : "Pitido inicial", sub: "El reloj ya corre", tone: "", undo: false, cancel: false, reset: true };
   }
   const last = view.events[view.events.length - 1];
   const unplayed = bench.filter((p) => !p.played && !p.sentOff).length;
@@ -400,7 +411,7 @@ export function EnJuego({ view }: MesaScreenProps) {
               <i />
               {liveWord(view)}
             </span>
-            {match.competition}
+            {matchLine(match)}
           </span>
         </div>
         <Presence view={view} />
@@ -638,6 +649,22 @@ export function EnJuego({ view }: MesaScreenProps) {
                   onClick={() => {
                     setStrapId(null);
                     void actions.undo().catch(() => undefined);
+                  }}
+                >
+                  Deshacer
+                </button>
+              )}
+              {strap.reset && (
+                <button
+                  type="button"
+                  className="ud"
+                  disabled={busy}
+                  onClick={() => {
+                    setKickGone(true);
+                    void run(() => actions.clock("reset").catch((e: unknown) => {
+                      setKickGone(false);
+                      throw e;
+                    }));
                   }}
                 >
                   Deshacer

@@ -12,6 +12,7 @@ const player = (id: string, name: string, number: string, more: Partial<MesaPlay
 function makeView(over: Partial<MesaView> = {}): MesaView {
   const actions = {
     add: vi.fn(() => "live-r1"),
+    addMany: vi.fn(() => ["live-w-0"]),
     edit: vi.fn(async () => undefined),
     remove: vi.fn(async () => undefined),
     undo: vi.fn(async () => undefined),
@@ -24,9 +25,9 @@ function makeView(over: Partial<MesaView> = {}): MesaView {
   };
   return {
     match: {
-      id: "m1", seasonId: "s1", rival: "Atlético Demo", rivalShort: "ATL", rivalInitials: "AD", competition: "Liga", home: true, date: 0,
+      id: "m1", seasonId: "s1", rival: "Atlético Demo", rivalShort: "ATL", rivalInitials: "AD", competition: "Liga", round: null, lineup: { fromBoard: false, system: null }, hasStandings: false, home: true, date: 0,
       score: { us: 2, them: 1 }, queuedGoals: { us: 0, them: 0 }, published: false, pendingDuplicates: 0,
-      clock: { phase: "first", playing: true, held: false, elapsedSeconds: 1122, periodSeconds: 1122, period: 1, halfSeconds: 1500, added: 0, minute: 19, text: "18:42", revision: 3 },
+      clock: { phase: "first", playing: true, held: false, elapsedSeconds: 1122, periodSeconds: 1122, period: 1, halfSeconds: 1500, added: 0, minute: 19, text: "18:42", revision: 3, breakSeconds: 0, kickoffAt: null, secondAt: null },
     },
     field: [player("k", "Álex", "1", { keeper: true, spot: { x: 50, y: 93 } }), player("m", "Mario", "7", { spot: { x: 50, y: 14 }, stickers: { goals: 2, assists: 0, yellow: false, red: false, injured: false } }), player("p", "Pablo", "4", { spot: { x: 16, y: 46 } })],
     bench: [player("h", "Hugo", "8", { played: false, minutes: 0, stints: [], spot: null })],
@@ -39,7 +40,7 @@ function makeView(over: Partial<MesaView> = {}): MesaView {
     nameOf: (id: string) => ({ k: "Álex", m: "Mario", p: "Pablo", h: "Hugo" })[id] ?? id,
     notice: "",
     actions,
-    nav: { cronica: vi.fn(), mesa: vi.fn(), exit: vi.fn(), pizarra: vi.fn() },
+    nav: { cronica: vi.fn(), mesa: vi.fn(), exit: vi.fn(), acta: vi.fn(), pizarra: vi.fn() },
     ...over,
   };
 }
@@ -53,6 +54,20 @@ describe("La mesa · En juego", () => {
     expect(screen.getByRole("button", { name: /^Mario, dorsal 7, 19′, 2 goles/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Hugo, sin jugar/ })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Tú y David anotando, al día" })).toBeInTheDocument();
+  });
+
+  it("justo tras el pitido, sin jugadas, el rótulo «INICIO» deshace el inicio (reset del reloj)", async () => {
+    const base = makeView();
+    const kicked = new Date(2026, 9, 18, 10, 31).getTime();
+    const view = makeView({ match: { ...base.match, round: 7, clock: { ...base.match.clock, elapsedSeconds: 4, periodSeconds: 4, minute: 1, text: "00:04", kickoffAt: kicked } } });
+    const { rerender } = render(<EnJuego view={view} />);
+    expect(screen.getByText("Jornada 7, liga")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Pitido inicial a las 10:31");
+    fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Deshacer" }));
+    expect(view.actions.clock).toHaveBeenCalledWith("reset");
+    // with a play written, the whistle stays
+    rerender(<EnJuego view={{ ...makeView({ match: view.match }), events: [{ id: "e1", type: "foul", side: "us", minute: 1, elapsedSeconds: 3, period: 1, playerId: "p", playerName: "Pablo", assistId: null, assistName: null, inPlayerId: null, inName: null, text: "Falta de Pablo", tag: "FALTA", goal: null, pendingScorer: false, assistReviewed: false, byUid: "u2", byName: "David", editedByUid: null, editedByName: null, editedAt: null, dupOf: null, queued: false, local: false, mine: false }] }} />);
+    expect(screen.queryByText(/Pitido inicial/)).toBeNull();
   });
 
   it("«Gol del Piti» pregunta quién marcó; luego el campo pide el pase y se manda como corrección", () => {
@@ -146,7 +161,7 @@ describe("La mesa · En juego", () => {
 
   it("«Por revisar»: corregir el minuto y reenviar, o descartar", () => {
     const base = makeView();
-    const view = makeView({ queue: { ...base.queue, review: [{ requestId: "r9", type: "foul", text: "Falta de Pablo", playerId: "p", minute: 12, reason: "Ese jugador ya no está en el campo." }] } });
+    const view = makeView({ queue: { ...base.queue, review: [{ requestId: "r9", type: "foul", text: "Falta de Pablo", playerId: "p", minute: 12, count: 1, reason: "Ese jugador ya no está en el campo." }] } });
     render(<EnJuego view={view} />);
     fireEvent.click(screen.getByRole("button", { name: /1 jugada por revisar/ }));
     expect(screen.getByText("Ese jugador ya no está en el campo.")).toBeInTheDocument();
@@ -159,7 +174,7 @@ describe("La mesa · En juego", () => {
 
   it("la última jugada lleva a lo que va pasando y el cambio previsto se hace de un toque", () => {
     const view = makeView({
-      events: [{ id: "e1", type: "foul", side: "us", minute: 18, elapsedSeconds: 1060, period: 1, playerId: "p", playerName: "Pablo", assistId: null, assistName: null, inPlayerId: null, inName: null, text: "Falta de Pablo", tag: "FALTA", goal: null, pendingScorer: false, byUid: "u2", byName: "David", editedByUid: null, editedByName: null, editedAt: null, dupOf: null, queued: false, local: false, mine: false }],
+      events: [{ id: "e1", type: "foul", side: "us", minute: 18, elapsedSeconds: 1060, period: 1, playerId: "p", playerName: "Pablo", assistId: null, assistName: null, inPlayerId: null, inName: null, text: "Falta de Pablo", tag: "FALTA", goal: null, pendingScorer: false, assistReviewed: false, byUid: "u2", byName: "David", editedByUid: null, editedByName: null, editedAt: null, dupOf: null, queued: false, local: false, mine: false }],
       nextSub: { inId: "h", outId: "p", inName: "Hugo", outName: "Pablo" },
     });
     render(<EnJuego view={view} />);

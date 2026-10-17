@@ -124,7 +124,30 @@ describe("Final", () => {
     expect(screen.queryByRole("button", { name: /Reabrir/ })).toBeNull();
     expect(screen.queryByText("¿Le dio el pase alguien?")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Ver el acta en la web/ }));
-    expect(v.nav.exit).toHaveBeenCalled();
+    expect(v.nav.acta).toHaveBeenCalled();
+  });
+
+  it("«+3 en la tabla» only when the season has a table; a draw is +1, a defeat nothing", () => {
+    const { unmount } = mount(ended());
+    expect(screen.queryByText(/en la tabla/)).toBeNull();
+    unmount();
+    const { unmount: u2 } = mount(ended({ hasStandings: true }));
+    expect(screen.getByText("+3 en la tabla")).toBeInTheDocument();
+    u2();
+    const { unmount: u3 } = mount(ended({ hasStandings: true, score: { us: 2, them: 2 } }));
+    expect(screen.getByText("+1 en la tabla")).toBeInTheDocument();
+    u3();
+    mount(ended({ hasStandings: true, score: { us: 1, them: 2 } }));
+    expect(screen.queryByText(/en la tabla/)).toBeNull();
+  });
+
+  it("a goal confirmed «sin asistencia» live isn't asked again", () => {
+    const v = ended();
+    v.events = v.events.map((e) => (e.id === "g2" ? { ...e, assistReviewed: true } : e));
+    mount(v);
+    expect(screen.getAllByText("¿Le dio el pase alguien?")).toHaveLength(1);
+    expect(screen.queryByRole("group", { name: "¿Quién le dio el pase a Mario en el 19′?" })).toBeNull();
+    expect(screen.getByText("sin asistencia")).toBeInTheDocument();
   });
 
   it("«Reabrir el partido» asks for a second tap", () => {

@@ -2,7 +2,7 @@
 // «¿Le dio el pase alguien?» answered inline, «Antes de publicar» (what blocks it and what it updates),
 // and «Publicar el acta» held for a second; then the acta is sealed and the effects light up.
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { RESULT_WORD, resultLetter, resultTitle } from "../../../lib/derived/result";
+import { RESULT_WORD, resultLetter, resultTitle, type ResultLetter } from "../../../lib/derived/result";
 import type { MesaEvent, MesaScreenProps } from "../types";
 import { buzz } from "./hooks";
 import { fixtureTitle, hhmm, onPitchAt } from "./model";
@@ -10,6 +10,8 @@ import { BackButton, Check, Screws } from "./parts";
 import "./screens.css";
 
 export const HOLD_MS = 1000;
+/** The league's points for the result (G·E·P). */
+const POINTS: Record<ResultLetter, number> = { G: 3, E: 1, P: 0 };
 const isPlayerGoal = (e: MesaEvent) => e.type === "goal" || e.type === "goal_penalty" || e.type === "goal_freekick";
 
 const TILES = [
@@ -42,7 +44,8 @@ export function Final({ view }: MesaScreenProps) {
 
   const plays = events.filter((e) => !e.local).length;
   const goals = events.filter((e) => e.goal === "us" && !e.dupOf);
-  const asked = goals.filter((g) => isPlayerGoal(g) && !g.pendingScorer && !g.assistId);
+  // (a goal confirmed «sin asistencia» live isn't asked again)
+  const asked = goals.filter((g) => isPlayerGoal(g) && !g.pendingScorer && !g.assistId && !g.assistReviewed);
   const open = asked.filter((g) => answers[g.id] === undefined).length;
   const players = [...field, ...bench];
   const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? view.nameOf(id);
@@ -161,7 +164,10 @@ export function Final({ view }: MesaScreenProps) {
       <div className="res">
         <span className={`pt-res ${r}`} role="img" aria-label={`${r}, ${RESULT_WORD[r]}`}>{r}</span>
         <div className="rt">
-          <h1>{resultTitle(r)}</h1>
+          <div className="r1">
+            <h1>{resultTitle(r)}</h1>
+            {match.hasStandings && POINTS[r] > 0 && <span className="stamp">+{POINTS[r]} en la tabla</span>}
+          </div>
           <p>Manchester Piti {match.score.us}–{match.score.them} {match.rival}</p>
         </div>
       </div>
@@ -271,7 +277,7 @@ export function Final({ view }: MesaScreenProps) {
         )}
         <div className="fpair">
           {published ? (
-            <button type="button" className="web" onClick={nav.exit}>
+            <button type="button" className="web" onClick={nav.acta}>
               Ver el acta en la web
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
             </button>
