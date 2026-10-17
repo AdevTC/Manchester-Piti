@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { enterVestuario } from "./helpers";
+import { callFunction, emulatorAdminToken, enterVestuario } from "./helpers";
 test("Google permite votar una vez por cuenta y cambiar el voto", async ({
   page,
 }) => {
@@ -109,13 +109,15 @@ test("el acta: convocatoria en Convocar, gol con «¿Quién marcó?» y publicar
   await expect.poll(() => inFlight, { timeout: 10_000 }).toBe(0);
   await page.waitForTimeout(400); // a queued write starts right after the previous one ends
   await expect.poll(() => inFlight, { timeout: 10_000 }).toBe(0);
-  // Played on the shared clock («En juego»): a match is «jugado» once it is whistled — the final sends to the acta.
-  await page.goto(`/admin/en-juego/${id}`);
-  const clock = page.getByRole("region", { name: "Reloj compartido del partido" });
-  for (const step of ["Iniciar partido · 1ª parte", "Terminar 1ª parte", "Iniciar 2ª parte", "Pitar el final"])
-    await clock.getByRole("button", { name: step }).click();
-  await clock.getByRole("group", { name: "Confirmar cambio del reloj" }).getByRole("button", { name: "Confirmar" }).click();
-  await expect(page).toHaveURL(new RegExp(`/admin/partidos/${id}\\?tab=acta`));
+  // Played on the shared clock: a match is «jugado» once it is whistled. La mesa drives the clock (its own
+  // spec covers it); here the callable is driven directly, then the acta.
+  const token = await emulatorAdminToken();
+  let revision = 0;
+  for (const action of ["start", "halftime", "second", "finish"]) {
+    const done = (await callFunction(token, "controlMatchClock", { matchId: id, action, revision })) as { clock: { revision: number } };
+    revision = done.clock.revision;
+  }
+  await page.goto(`/admin/partidos/${id}?tab=acta`);
   // Its acta says it was played yesterday (so the home's seeded last result stays the latest).
   await page.getByRole("tab", { name: /Encuentro/ }).click();
   await page.getByLabel("Fecha", { exact: true }).fill(madridDay(-1));
