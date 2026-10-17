@@ -1,0 +1,222 @@
+/* La mesa · «Noche de banda»: night ink, floodlit turf, chalk, ice for us, coral for them, gold only for the goal.
+   The tokens and the shared broadcast objects of every mesa screen, ported class for class from the canvas
+   artboards (MainV2.dc.html). Everything is scoped under `.mesa` (the screens' root): nothing leaks out. */
+.mesa{--ink:#050b1f;--deep:#02050e;--turf1:#0d2b33;--turf2:#10313a;--chalk:rgba(233,243,255,.34);--ice:#9fd0f2;--sky:#6CABDD;--gold:#FFC659;--coral:#ff8a7a;--amber:#ffb547;--text:#eef4ff;--soft:#c9d8ef;--muted:#9fb3d3;--navy:#0c1733;
+  --dock-h:140px;
+  position:relative;min-height:100vh;min-height:100dvh;background:radial-gradient(120% 50% at 50% 0%,#0b1a3d 0%,var(--ink) 60%) var(--ink);background-color:var(--ink);color:var(--text);font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+/* the phone column (on desktop la mesa sits in a centred phone-width column) */
+.mesa .col{position:relative;max-width:480px;margin:0 auto;padding-bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px))}
+:where(.mesa) button{font-family:inherit;border:0;cursor:pointer;background:none;padding:0;color:inherit;-webkit-tap-highlight-color:transparent}
+.mesa button:focus-visible,.mesa a:focus-visible{outline:2px solid var(--ice);outline-offset:3px}
+.mesa button:disabled{opacity:.35;cursor:default}
+.mesa .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* header */
+.mesa .top{display:flex;align-items:center;gap:10px;height:52px;padding:0 12px}
+.mesa .back{width:44px;height:44px;border-radius:999px;display:grid;place-items:center;flex:none;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);color:var(--text)}
+.mesa .ttl{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.mesa .ttl b{font-family:Anybody,sans-serif;font-weight:800;font-variation-settings:'wdth' 96;font-size:16px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mesa .ttl > span{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:500;color:var(--soft);white-space:nowrap;overflow:hidden}
+.mesa .live{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:#ff9a8a}
+.mesa .live i{width:7px;height:7px;border-radius:50%;background:#ff6b61;box-shadow:0 0 0 3px rgba(255,107,97,.18);animation:mesa-beat 1.6s ease-in-out infinite}
+@keyframes mesa-beat{50%{opacity:.35}}
+.mesa .who{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 6px;border-radius:999px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font-size:12.5px;font-weight:600;color:var(--soft);flex:none}
+.mesa .av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-family:Anybody,sans-serif;font-weight:800;font-size:11px;color:var(--navy);box-shadow:0 0 0 2px var(--ink)}
+.mesa .av + .av{margin-left:-7px}
+.mesa .ok{width:7px;height:7px;border-radius:50%;background:#7ee0a6}
+
+/* LED housing */
+.mesa .box{position:relative;margin:2px 12px 0;border-radius:24px;padding:6px;background:linear-gradient(180deg,#16244a,#0a1430 60%,#081027);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 -2px 0 rgba(0,0,0,.4),0 18px 34px -18px rgba(0,0,0,.9)}
+.mesa .screw{position:absolute;width:5px;height:5px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#5c6f96,#1b2747);box-shadow:inset 0 0 0 .5px rgba(0,0,0,.6)}
+.mesa .glass{position:relative;border-radius:16px;background:var(--deep);overflow:hidden;padding:10px 12px 9px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.9),inset 0 10px 24px rgba(0,0,0,.65)}
+.mesa .glass:before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(159,208,242,.075) 1px,transparent 1.35px);background-size:4px 4px;pointer-events:none}
+.mesa .glass:after{content:"";position:absolute;left:-10%;right:-10%;top:-60%;height:90%;background:radial-gradient(60% 60% at 50% 100%,rgba(255,255,255,.06),transparent 70%);pointer-events:none}
+.mesa .sc{position:relative;display:grid;grid-template-columns:72px minmax(0,1fr) 72px;align-items:center}
+.mesa .side{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.mesa .crest{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-family:Anybody,sans-serif;font-weight:900;font-size:11.5px;background:radial-gradient(circle at 35% 30%,#1d3770,#0c1733);box-shadow:inset 0 0 0 2px #a9d6f5,0 0 14px rgba(108,171,221,.35);color:#cfe8ff}
+.mesa .crest.r{background:radial-gradient(circle at 35% 30%,#2a1a24,#120a10);box-shadow:inset 0 0 0 2px rgba(255,138,122,.65);color:#ffc4bb}
+.mesa .code{font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 92;font-size:14px;letter-spacing:.08em;color:#cfe8ff}
+.mesa .code.r{color:#ffd0c8}
+.mesa .dg{justify-self:center;display:flex;gap:6px;align-items:center;perspective:320px}
+.mesa .dg s{text-decoration:none;font-family:Anybody,sans-serif;font-weight:900;font-size:34px;color:rgba(232,244,255,.5);margin:0 2px}
+.mesa .d{position:relative;display:inline-grid;place-items:center;min-width:54px;height:66px;border-radius:10px;font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 64;font-size:72px;line-height:.8;color:#eaf5ff;text-shadow:0 0 20px rgba(159,208,242,.9),0 0 2px #fff;font-feature-settings:'tnum'}
+.mesa .d.flip{animation:mesa-flip .75s cubic-bezier(.3,1.4,.5,1) both;color:#fff1cf;text-shadow:0 0 24px rgba(255,198,89,1),0 0 3px #fff;box-shadow:0 0 0 2px rgba(255,198,89,.85),0 0 34px rgba(255,198,89,.45)}
+.mesa .d.flipr{animation:mesa-flip .75s cubic-bezier(.16,1,.3,1) both;color:#ffd6cf;text-shadow:0 0 20px rgba(255,107,97,.9);box-shadow:0 0 0 2px rgba(255,138,122,.8)}
+@keyframes mesa-flip{0%{transform:rotateX(-100deg)}100%{transform:none}}
+.mesa .ln{position:relative;margin-top:8px;height:24px;display:flex;align-items:center;justify-content:center;gap:10px}
+.mesa .half{font-family:Anybody,sans-serif;font-weight:800;font-variation-settings:'wdth' 90;font-size:12.5px;letter-spacing:.14em;color:var(--ice)}
+.mesa .clk{font-family:'Geist Mono',monospace;font-size:17px;font-weight:500;letter-spacing:.06em;color:#eaf5ff;text-shadow:0 0 10px rgba(159,208,242,.7);font-feature-settings:'tnum'}
+.mesa .clk.p{color:#ffd98c;text-shadow:none;animation:mesa-beat 1.2s ease-in-out infinite}
+.mesa .add{font-family:'Geist Mono',monospace;font-size:13px;font-weight:600;color:#ffd98c}
+.mesa .rib{position:absolute;inset:0;display:flex;align-items:center;overflow:hidden;border-radius:6px;background:#1a1405;box-shadow:inset 0 0 0 1px rgba(255,198,89,.55)}
+.mesa .rib.r{background:#1d0a0a;box-shadow:inset 0 0 0 1px rgba(255,138,122,.5)}
+.mesa .rib span{white-space:nowrap;padding-left:100%;font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 112;font-size:14px;letter-spacing:.14em;color:#ffd98c;text-shadow:0 0 12px rgba(255,198,89,.9);animation:mesa-marq 2.6s linear both}
+.mesa .rib.r span{color:#ffc4bb;text-shadow:0 0 10px rgba(255,107,97,.8)}
+@keyframes mesa-marq{to{transform:translateX(-100%)}}
+.mesa .prog{position:relative;margin:8px 2px 0;height:3px;border-radius:3px;background:rgba(159,208,242,.12);overflow:hidden}
+.mesa .prog i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,#3f86c4,#9fd0f2);box-shadow:0 0 8px rgba(159,208,242,.8);transition:width .6s cubic-bezier(.16,1,.3,1)}
+.mesa .shine{position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 35%,rgba(255,198,89,.32) 50%,transparent 65%);transform:translateX(-100%);animation:mesa-shine 1.1s cubic-bezier(.16,1,.3,1) .1s both}
+@keyframes mesa-shine{to{transform:translateX(100%)}}
+
+/* keys */
+.mesa .keys{display:flex;gap:6px;margin-top:6px}
+.mesa .key{height:44px;padding:0 13px;border-radius:12px;background:linear-gradient(180deg,#1c2b55,#121e40);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 2px 0 #060c1f;font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:transform .1s,box-shadow .1s}
+.mesa .key:active{transform:translateY(2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 0 #060c1f}
+.mesa .key.on{background:linear-gradient(180deg,#d4ecfc,#6CABDD);color:var(--navy)}
+.mesa .key svg{flex:none}
+.mesa .stp{display:inline-flex;align-items:center;border-radius:12px;background:linear-gradient(180deg,#1c2b55,#121e40);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 2px 0 #060c1f}
+.mesa .stp button{width:44px;height:44px;font-size:19px}
+.mesa .stp span{min-width:52px;text-align:center;font-size:13px;font-weight:600;white-space:nowrap}
+.mesa .stp span.g{font-family:'Geist Mono',monospace;color:#ffd98c}
+.mesa .key.end{margin-left:auto;background:none;box-shadow:inset 0 0 0 1.5px rgba(159,208,242,.3);color:#d4ecfc}
+
+/* floodlit pitch */
+.mesa .pitch{position:relative;margin:8px 12px 0;height:280px;border-radius:22px 22px 0 0;overflow:hidden;background:repeating-linear-gradient(180deg,var(--turf1) 0 40px,var(--turf2) 40px 80px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.mesa .pitch:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(60% 45% at 0% 0%,rgba(190,225,255,.12),transparent 70%),radial-gradient(60% 45% at 100% 0%,rgba(190,225,255,.12),transparent 70%),radial-gradient(70% 40% at 50% 115%,rgba(190,225,255,.08),transparent 70%),radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(2,5,14,.55) 100%);transition:opacity .3s}
+.mesa .pitch.flare:before{animation:mesa-flare 1.4s cubic-bezier(.16,1,.3,1) both}
+@keyframes mesa-flare{0%{opacity:1;filter:brightness(1)}20%{filter:brightness(2.4)}100%{filter:none}}
+.mesa .pitch .cl{position:absolute;border:1.5px solid var(--chalk)}
+.mesa .spot{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--chalk)}
+.mesa .net{position:absolute;left:50%;bottom:-1px;width:72px;height:10px;margin-left:-36px;border:1.5px solid rgba(233,243,255,.5);border-bottom:0;border-radius:3px 3px 0 0;background:repeating-linear-gradient(90deg,rgba(233,243,255,.2) 0 1px,transparent 1px 6px),repeating-linear-gradient(0deg,rgba(233,243,255,.2) 0 1px,transparent 1px 4px)}
+
+/* shirts and tags */
+.mesa .tok{position:absolute;width:80px;margin-left:-40px;display:flex;flex-direction:column;align-items:center;gap:3px;transition:transform .18s cubic-bezier(.16,1,.3,1),opacity .25s}
+.mesa .tok:active{transform:scale(.93)}
+.mesa .tok .ring{position:absolute;left:50%;top:-8px;width:60px;height:54px;margin-left:-30px;border-radius:50%;border:2px dashed transparent;pointer-events:none}
+.mesa .tok.ask .tag,.mesa .tok.in .tag{background:rgba(12,40,80,.92);box-shadow:inset 0 0 0 1.5px var(--ice)}
+.mesa .tok.ask .ring{border-color:var(--ice);background:rgba(159,208,242,.1);animation:mesa-breathe 1.4s ease-in-out infinite}
+.mesa .tok.in .ring{border:2px solid var(--ice);background:rgba(159,208,242,.14)}
+.mesa .tok.dim{opacity:.38}
+@keyframes mesa-breathe{50%{transform:scale(1.05)}}
+.mesa .shirt{position:relative;width:48px;height:44px}
+.mesa .shirt svg{position:absolute;inset:0;overflow:visible}
+.mesa .shadow{position:absolute;left:6px;right:6px;bottom:-5px;height:8px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(3px)}
+.mesa .dor{position:absolute;left:0;right:0;top:13px;text-align:center;font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 72;font-size:19px;line-height:1}
+.mesa .tag{position:relative;z-index:1;display:flex;align-items:baseline;gap:5px;max-width:100%;padding:3px 7px 3px;border-radius:6px;background:rgba(2,5,14,.72);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.mesa .nm{font-family:Anybody,sans-serif;font-weight:700;font-variation-settings:'wdth' 88;font-size:13.5px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mesa .mn{font-family:'Geist Mono',monospace;font-size:12px;color:var(--muted);font-feature-settings:'tnum';white-space:nowrap}
+.mesa .stk{position:absolute;top:-6px;right:-14px;display:flex;gap:3px;align-items:flex-start}
+.mesa .ball{height:19px;min-width:19px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#f3f8ff;color:var(--navy);display:inline-flex;align-items:center;justify-content:center;gap:2px;font-family:Anybody,sans-serif;font-weight:800;font-size:11px;box-shadow:0 3px 8px rgba(0,0,0,.5)}
+.mesa .ck{width:13px;height:17px;border-radius:2px;display:grid;place-items:center;font-family:Anybody,sans-serif;font-weight:900;font-size:9.5px;color:var(--navy);transform:rotate(8deg);box-shadow:0 0 0 1.5px var(--navy),0 3px 8px rgba(0,0,0,.45)}
+.mesa .ck.y{background:#FFC659}
+.mesa .ck.r{background:#ff6b61}
+.mesa .ck.t{background:#f3f8ff}
+.mesa .tok.pop .shirt,.mesa .tok.pop .stk{animation:mesa-pop .5s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes mesa-pop{0%{transform:scale(.5)}100%{transform:none}}
+
+/* dugout */
+.mesa .dug{position:relative;margin:0 12px;padding:9px 6px 6px;border-radius:0 0 22px 22px;background:linear-gradient(180deg,rgba(190,225,255,.07),rgba(190,225,255,0) 40px),linear-gradient(180deg,#0b1531,#08112a);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.mesa .dug:before{content:"";position:absolute;left:10px;right:10px;top:0;height:2px;background:var(--chalk)}
+.mesa .roof{position:absolute;left:14px;right:14px;top:8px;height:30px;border-radius:12px 12px 4px 4px;background:linear-gradient(180deg,rgba(190,225,255,.1),rgba(190,225,255,.02));box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.mesa .dhead{position:relative;display:flex;align-items:baseline;gap:8px;padding:0 8px 4px}
+.mesa .dhead b{font-family:Anybody,sans-serif;font-weight:800;font-variation-settings:'wdth' 96;font-size:13.5px}
+.mesa .dhead span{font-size:12px;color:var(--muted)}
+.mesa .dhead em{margin-left:auto;font-style:normal;font-size:12px;font-weight:600;color:#ffc677}
+.mesa .row{position:relative;display:flex;justify-content:space-between;overflow-x:auto;scrollbar-width:none}
+.mesa .row::-webkit-scrollbar{display:none}
+.mesa .row:after{content:"";position:absolute;left:8px;right:8px;top:29px;height:5px;border-radius:3px;background:linear-gradient(180deg,#1e2c52,#131d3b);box-shadow:0 2px 0 rgba(0,0,0,.4);z-index:0}
+.mesa .bt{position:relative;z-index:1;flex:0 0 20%;min-width:66px;display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 0 2px;border-radius:14px;transition:transform .15s,background .15s}
+.mesa .bt:active{transform:scale(.95)}
+.mesa .bt.in{background:rgba(159,208,242,.14);box-shadow:inset 0 0 0 2px var(--ice)}
+.mesa .bt.ask{box-shadow:inset 0 0 0 2px rgba(159,208,242,.6);animation:mesa-breathe 1.4s ease-in-out infinite}
+.mesa .bt .shirt{width:34px;height:31px}
+.mesa .bt .dor{top:8px;font-size:14px;color:#dbeeff}
+.mesa .bt .nm{font-size:12.5px;margin-top:4px;max-width:64px}
+.mesa .bt .mn{font-size:12px;color:var(--muted)}
+.mesa .bt .mn.z{color:#ffc677}
+
+/* rival bar */
+.mesa .riv{margin:8px 12px 0;height:48px;display:flex;align-items:stretch;border-radius:14px;overflow:hidden;background:#0d1124;box-shadow:inset 0 0 0 1px rgba(255,138,122,.22)}
+.mesa .riv .k{display:flex;align-items:center;gap:6px;padding:0 10px 0 8px;background:linear-gradient(180deg,#2a1520,#1a0d16);box-shadow:inset -1px 0 0 rgba(255,138,122,.25);font-family:Anybody,sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.06em;color:#ffd0c8;flex:none}
+.mesa .riv .k i{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1.5px rgba(255,138,122,.6);display:grid;place-items:center;font-style:normal;font-size:8.5px}
+.mesa .rb{flex:1 1 auto;min-width:0;font-weight:600;font-size:13.5px;color:#dfe8f7;box-shadow:inset -1px 0 0 rgba(255,255,255,.06);transition:background .12s}
+.mesa .rb:active{background:rgba(255,138,122,.14)}
+.mesa .rb.bad{color:#ffb3aa;font-weight:700}
+.mesa .rb.more{flex:0 0 46px;display:grid;place-items:center;box-shadow:none}
+
+/* dock (fixed to the bottom of the phone column) */
+.mesa .dock{position:fixed;left:0;right:0;bottom:0;z-index:5;max-width:480px;margin:0 auto;box-sizing:border-box;padding:8px 12px calc(14px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(5,11,31,0),var(--ink) 16px)}
+.mesa .peek{display:flex;align-items:center;gap:10px;height:46px;margin-bottom:6px;padding:0 4px}
+.mesa .peek .m{font-family:'Geist Mono',monospace;font-size:13px;color:var(--ice);flex:none}
+.mesa .peek .t{flex:1;min-width:0;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mesa .peek a,.mesa .peek .go{height:44px;display:inline-flex;align-items:center;gap:3px;font-size:13.5px;font-weight:600;color:var(--ice);text-decoration:none;flex:none}
+
+/* lower third (4 px strap) */
+.mesa .l3{display:flex;height:48px;margin-bottom:6px;border-radius:4px;overflow:hidden;box-shadow:0 18px 36px rgba(0,0,0,.55)}
+.mesa .l3.a{animation:mesa-l3a .45s cubic-bezier(.16,1,.3,1) both}
+.mesa .l3.b{animation:mesa-l3b .45s cubic-bezier(.16,1,.3,1) both}
+@keyframes mesa-l3a{from{transform:translateX(-24px);opacity:0}to{transform:none;opacity:1}}
+@keyframes mesa-l3b{from{transform:translateX(-24px);opacity:0}to{transform:none;opacity:1}}
+.mesa .l3 .kk{width:72px;flex:none;display:grid;place-items:center;background:var(--sky);color:var(--navy);font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 88;font-size:13.5px;text-align:center;line-height:1.05}
+.mesa .l3 .kk.g{background:var(--gold)}
+.mesa .l3 .kk.r{background:var(--coral)}
+.mesa .l3 .bar{flex:1;min-width:0;display:flex;align-items:center;gap:6px;padding:0 4px 0 12px;background:var(--deep);box-shadow:inset 0 -3px 0 var(--sky),inset 0 0 0 1px rgba(255,255,255,.07)}
+.mesa .l3 .bar.g{box-shadow:inset 0 -3px 0 var(--gold),inset 0 0 0 1px rgba(255,255,255,.07)}
+.mesa .l3 .bar.r{box-shadow:inset 0 -3px 0 var(--coral),inset 0 0 0 1px rgba(255,255,255,.07)}
+.mesa .l3 .msg{flex:1;min-width:0}
+.mesa .l3 .msg b{display:block;font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mesa .l3 .msg small{display:block;font-size:12px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mesa .l3 .ud{height:44px;padding:0 10px;font-weight:700;font-size:14px;color:var(--ice);flex:none}
+
+/* gold CTA (navy text: 3:1 and beyond on gold) */
+.mesa .cta{position:relative;width:100%;height:66px;border-radius:999px;display:flex;align-items:center;justify-content:space-between;padding:0 7px 0 26px;box-sizing:border-box;color:var(--navy);background:linear-gradient(180deg,#ffe2a6,#FFC659 55%,#f2ae3a);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -3px 0 rgba(150,90,0,.35),0 22px 40px -16px rgba(255,190,70,.7);transition:transform .12s}
+.mesa .cta:active{transform:scale(.97)}
+.mesa .cta span{font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 106;font-size:23px;letter-spacing:-.01em}
+.mesa .cta i{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,#1d2c57,#0c1733);box-shadow:inset 0 1px 0 rgba(255,255,255,.15)}
+.mesa .pair{display:flex;gap:8px;height:66px}
+.mesa .pair button{flex:1;border-radius:999px;background:linear-gradient(180deg,#16244a,#0f1a38);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),inset 0 0 0 1px rgba(255,255,255,.06);font-weight:600;font-size:15px}
+.mesa .pair .warn{color:#ffb3aa;box-shadow:inset 0 0 0 1.5px rgba(255,138,122,.45)}
+
+/* the action ring (a flying hub and its actions) */
+.mesa .scrim{position:fixed;inset:0;z-index:8;width:100%;background:radial-gradient(60% 40% at 50% 52%,rgba(12,23,51,.55),rgba(2,5,14,.86));-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);animation:mesa-fade .25s ease both}
+@keyframes mesa-fade{from{opacity:0}to{opacity:1}}
+.mesa .ringc{position:fixed;left:50%;top:52%;z-index:9;width:0;height:0}
+.mesa .hub{position:absolute;left:0;top:0;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 35%,#1d3e73,#0c1733 72%);box-shadow:0 0 0 2px rgba(159,208,242,.55),0 0 0 10px rgba(159,208,242,.07),0 0 60px rgba(108,171,221,.45);animation:mesa-hubin .45s cubic-bezier(.16,1,.3,1) both}
+@keyframes mesa-hubin{from{transform:translate(var(--fx,0),var(--fy,0)) scale(.45)}to{transform:none}}
+.mesa .hub .shirt{width:56px;height:52px}
+.mesa .hub .dor{top:16px;font-size:22px}
+.mesa .hub b{font-family:Anybody,sans-serif;font-weight:800;font-variation-settings:'wdth' 92;font-size:15px;margin-top:3px;max-width:104px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mesa .hub small{font-family:'Geist Mono',monospace;font-size:12px;color:var(--soft)}
+.mesa .act{position:absolute;left:0;top:0;height:50px;padding:0 15px 0 12px;box-sizing:border-box;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;font-weight:700;font-size:14px;color:var(--text);background:linear-gradient(180deg,#16274e,#0c1735);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 0 0 1px rgba(159,208,242,.28),0 14px 28px rgba(0,0,0,.5);transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy)));animation:mesa-bloom .5s cubic-bezier(.3,1.35,.5,1) both;animation-delay:var(--d)}
+.mesa .act svg{color:var(--ice);flex:none}
+.mesa .act.gold{height:58px;padding:0 22px;font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 104;font-size:20px;color:var(--navy);background:linear-gradient(180deg,#ffe2a6,#FFC659 55%,#f2ae3a);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 18px 34px -12px rgba(255,190,70,.8)}
+.mesa .act.gold svg{color:var(--navy)}
+.mesa .act .sw{width:12px;height:16px;border-radius:2px;display:grid;place-items:center;font-family:Anybody,sans-serif;font-weight:900;font-size:9px;color:var(--navy);box-shadow:0 0 0 1.5px var(--navy)}
+@keyframes mesa-bloom{from{transform:translate(-50%,-50%) scale(.3);opacity:0}to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1);opacity:1}}
+
+/* sheets */
+.mesa .sheet{position:fixed;left:0;right:0;bottom:0;z-index:9;max-width:480px;margin:0 auto;box-sizing:border-box;max-height:88dvh;overflow-y:auto;border-radius:24px 24px 0 0;padding:8px 16px calc(22px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,#0f1c40,#0a1532 40%);box-shadow:0 -24px 48px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.1);animation:mesa-up .4s cubic-bezier(.16,1,.3,1) both}
+@keyframes mesa-up{from{transform:translateY(100%)}to{transform:none}}
+.mesa .grab{width:38px;height:4px;border-radius:4px;background:rgba(255,255,255,.22);margin:0 auto 12px}
+.mesa .sh{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px}
+.mesa .sh .kk{font-size:12.5px;font-weight:600;color:var(--gold)}
+.mesa .sh h2{margin:2px 0 0;font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 104;font-size:26px;letter-spacing:-.02em;line-height:1.05}
+.mesa .sh .back{margin-left:auto}
+.mesa .pg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mesa .pk{height:88px;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.03));box-shadow:inset 0 1px 0 rgba(255,255,255,.1),inset 0 0 0 1px rgba(255,255,255,.06);opacity:0;animation:mesa-rise .35s cubic-bezier(.16,1,.3,1) both;animation-delay:var(--d);transition:transform .12s,background .15s}
+.mesa .pk:active{transform:scale(.95);background:rgba(255,198,89,.18)}
+@keyframes mesa-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.mesa .pk .shirt{width:40px;height:37px}
+.mesa .pk .dor{top:10px;font-size:16px}
+.mesa .pk > span:last-child{font-family:Anybody,sans-serif;font-weight:700;font-variation-settings:'wdth' 90;font-size:13.5px;max-width:100%;padding:0 4px;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mesa .gh{display:flex;gap:8px;margin-top:10px}
+.mesa .gh button{flex:1;height:50px;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);font-weight:600;font-size:14px}
+.mesa .ag{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mesa .ac{min-height:64px;border-radius:16px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font-weight:600;font-size:13.5px;padding:0 6px}
+
+/* offline («Sin cobertura»): amber housing, the «Sin red» chip, the queue badges and strip */
+.mesa .box.off{box-shadow:inset 0 1px 0 rgba(255,214,150,.3),inset 0 0 0 1.5px rgba(255,181,71,.6),0 0 30px -8px rgba(255,181,71,.45),0 18px 34px -18px rgba(0,0,0,.9)}
+.mesa .sig{display:inline-flex;align-items:center;gap:7px;height:44px;padding:0 14px;border-radius:999px;background:linear-gradient(180deg,rgba(255,181,71,.22),rgba(255,181,71,.12));box-shadow:inset 0 1px 0 rgba(255,230,180,.25),inset 0 0 0 1px rgba(255,181,71,.5);font-size:13px;font-weight:700;color:#ffd08a;flex:none}
+.mesa .sig.ok{background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);color:var(--soft)}
+.mesa .qb{position:absolute;left:-12px;top:-6px;z-index:2;height:19px;padding:0 6px;border-radius:999px;background:linear-gradient(180deg,#ffc56a,#ffb547);color:#2a1a00;display:inline-flex;align-items:center;gap:3px;font-family:'Geist Mono',monospace;font-size:11px;font-weight:700;box-shadow:0 0 0 1.5px var(--turf1),0 3px 8px rgba(0,0,0,.45)}
+.mesa .d .qcl{position:absolute;right:-6px;bottom:-2px;width:20px;height:20px;border-radius:50%;background:linear-gradient(180deg,#ffc56a,#ffb547);color:#2a1a00;display:grid;place-items:center;box-shadow:0 0 0 2px var(--deep),0 0 10px rgba(255,181,71,.6)}
+.mesa .qs{display:flex;align-items:center;gap:10px;min-height:46px;margin-bottom:6px;padding:0 12px 0 8px;border-radius:14px;box-sizing:border-box;background:linear-gradient(180deg,rgba(255,181,71,.14),rgba(255,181,71,.07));box-shadow:inset 0 1px 0 rgba(255,230,180,.15),inset 0 0 0 1px rgba(255,181,71,.38);color:#ffe2b0;width:100%;text-align:left}
+.mesa .qs.ok{background:rgba(159,208,242,.08);box-shadow:inset 0 0 0 1px rgba(159,208,242,.35);color:#d4ecfc}
+.mesa .qi{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;background:rgba(255,181,71,.18);color:#ffc677}
+.mesa .qs.ok .qi{background:rgba(159,208,242,.16);color:var(--ice)}
+.mesa .qt{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.2}
+.mesa .qt b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mesa .qt small{font-size:12px;color:#ffc677;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mesa .qs.ok .qt small{color:var(--ice)}
+
+@media (prefers-reduced-motion:reduce){.mesa *,.mesa *:before,.mesa *:after{animation:none!important;transition:none!important}.mesa .pk{opacity:1}.mesa .rib span{padding-left:0}}
