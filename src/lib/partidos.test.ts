@@ -104,7 +104,7 @@ describe("time helpers", () => {
 describe("lastEvent", () => {
   it("the latest event by minute, named; rival goals carry the rival's name", () => {
     const e = (type: string, minute: number, playerId?: string) => ({ id: String(minute), type, minute, playerId }) as NonNullable<ClubMatch["events"]>[number];
-    expect(lastEvent([e("goal", 19, "e"), e("opponent_goal", 6)], nameOf, "MAD SKY")).toEqual({ minute: 19, who: "ERIK", label: "Gol", goal: true });
+    expect(lastEvent([e("goal", 19, "e"), e("opponent_goal", 6)], nameOf, "MAD SKY")).toMatchObject({ minute: 19, who: "ERIK", label: "Gol", goal: true, title: "Gol de ERIK", tone: "gold" });
     expect(lastEvent([e("goal", 19, "e"), e("opponent_goal", 31)], nameOf, "MAD SKY")).toMatchObject({ who: "MAD SKY", goal: false });
     expect(lastEvent([], nameOf, "X")).toBeNull();
   });

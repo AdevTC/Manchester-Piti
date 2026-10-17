@@ -151,7 +151,7 @@ describe("HoyCard", () => {
     const live: ClubMatch = { ...base, clock: started, events: [{ id: "g1", type: "goal", minute: 9, elapsedSeconds: 570, playerId: "b" }] as ClubMatch["events"] };
     render(card(live, DATE + 15 * MIN));
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Manchester Piti 1, MAD SKY 0");
-    expect(screen.getByText(/BRUNO · Gol/)).toBeInTheDocument();
+    expect(screen.getByText(/Gol de BRUNO/)).toBeInTheDocument();
     // the last event's minute: «10′» on screen (its shown minute), «minuto 10» for a screen reader (one polite region)
     const last = document.querySelector(".hoy-last");
     expect(last).toHaveAttribute("aria-live", "polite");

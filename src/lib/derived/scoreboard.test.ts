@@ -49,7 +49,7 @@ describe("progressPct", () => {
 describe("livePlay", () => {
   it("a match without a clock: the schedule's minute, its bar and the last event", () => {
     const m = { ...base, events: [ev("a", "goal", 3, "p1"), ev("b", "yellow_card", 11, "p2"), ev("x", "assist", 15, "p2")] };
-    expect(livePlay(m, T0 + 19 * MIN + 30_000, nameOf)).toEqual({ minute: 20, progress: 40, last: { minute: 11, who: "Rodri", label: "Amarilla", goal: false } });
+    expect(livePlay(m, T0 + 19 * MIN + 30_000, nameOf)).toMatchObject({ minute: 20, progress: 40, last: { minute: 11, who: "Rodri", label: "Amarilla", goal: false, title: "Amarilla a Rodri" } });
   });
   it("a match with a clock: the clock's minute of play", () => {
     const clock = transitionClock(readyClock(), "start", T0 + 5 * MIN);
@@ -62,18 +62,18 @@ describe("livePlay", () => {
   });
   it("the rival's events are the rival's", () => {
     const m = { ...base, events: [ev("b", "opponent_goal", 9)] };
-    expect(livePlay(m, T0 + 10 * MIN, nameOf).last).toEqual({ minute: 9, who: "MAD SKY", label: "Gol rival", goal: false });
+    expect(livePlay(m, T0 + 10 * MIN, nameOf).last).toMatchObject({ minute: 9, who: "MAD SKY", label: "Gol rival", goal: false, title: "Gol de MAD SKY", tag: "GOL", tone: "coral" });
   });
 });
 
 describe("the last-event line", () => {
-  const goal: LastEvent = { minute: 19, who: "Erik", label: "Gol", goal: true };
-  const card: LastEvent = { minute: 11, who: "Rodri", label: "Amarilla", goal: false };
-  it("who and what", () => {
-    expect(eventLine(goal)).toBe("Erik · Gol");
+  const goal: LastEvent = { id: "g", minute: 19, who: "Erik", label: "Gol", goal: true, title: "Gol de Erik", sub: "", tag: "GOL", tone: "gold" };
+  const card: LastEvent = { id: "c", minute: 11, who: "Rodri", label: "Amarilla", goal: false, title: "Amarilla a Rodri", sub: "", tag: "AMARILLA", tone: "sky" };
+  it("the play's sentence (eventMeta)", () => {
+    expect(eventLine(goal)).toBe("Gol de Erik");
   });
   it("the board's line: the event's minute and line, or the minute and «Arranca el partido»", () => {
-    expect(boardLastLine({ minute: 20, last: card })).toEqual({ at: "11′", text: "Rodri · Amarilla" });
+    expect(boardLastLine({ minute: 20, last: card })).toEqual({ at: "11′", text: "Amarilla a Rodri" });
     expect(boardLastLine({ minute: 2, last: null })).toEqual({ at: "2′", text: "Arranca el partido" });
     // (as the boards always printed it: a live board has a minute, so this never shows)
     expect(boardLastLine({ minute: null, last: null })).toEqual({ at: "null′", text: "Arranca el partido" });

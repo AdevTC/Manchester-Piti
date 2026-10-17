@@ -8,6 +8,8 @@ import { jornadas } from "./derived/jornada";
 import { withGuestNames, type MatchGuest } from "./derived/guests";
 import { resultLetter, type ResultLetter } from "./derived/result";
 import { capital } from "./derived/words";
+import { eventMetaOf, eventSentence, isMesaType, settled } from "./eventMeta";
+import { eventSeconds } from "../../functions/src/matchAnalysis";
 
 export type Result = ResultLetter;
 export type Filter = "all" | "next" | "results";
@@ -18,11 +20,12 @@ const TZ = "Europe/Madrid";
 
 const byDate = (a: ClubMatch, b: ClubMatch) => dateMillis(a.date) - dateMillis(b.date);
 
-/** Goals for/against: the stored score once finished, otherwise counted from the acta's events. */
+/** Goals for/against: the stored score once finished, otherwise counted from the acta's events. A possible
+ *  duplicate still unresolved (`dupOf` without `dupOk`, eventMeta isPendingDup) counts once, as the server does. */
 export function scoreOf(m: Pick<ClubMatch, "goalsFor" | "goalsAgainst" | "events" | "status">) {
   if ((!m.status || m.status === "finished") && typeof m.goalsFor === "number" && typeof m.goalsAgainst === "number") return { gf: m.goalsFor, ga: m.goalsAgainst };
   let gf = 0, ga = 0;
-  for (const e of m.events ?? []) {
+  for (const e of settled(m.events)) {
     if (OURS.has(e.type)) gf++;
     else if (THEIRS.has(e.type)) ga++;
   }
@@ -39,8 +42,9 @@ export function resultOf(m: Pick<ClubMatch, "goalsFor" | "goalsAgainst" | "event
 export function scorersLine(events: MatchEvent[] | undefined, memberName: (id: string) => string, match?: { guests?: MatchGuest[] } | null) {
   const nameOf = withGuestNames(match, memberName);
   const count = new Map<string, number>();
-  for (const e of events ?? []) if (OURS.has(e.type) && e.type !== "opponent_own_goal" && e.playerId) count.set(e.playerId, (count.get(e.playerId) ?? 0) + 1);
-  const own = (events ?? []).filter((e) => e.type === "opponent_own_goal").length;
+  const standing = settled(events);
+  for (const e of standing) if (OURS.has(e.type) && e.type !== "opponent_own_goal" && e.playerId) count.set(e.playerId, (count.get(e.playerId) ?? 0) + 1);
+  const own = standing.filter((e) => e.type === "opponent_own_goal").length;
   const parts = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => (n > 1 ? `${nameOf(id)} ×${n}` : nameOf(id)));
   if (own) parts.push(own > 1 ? `autogol rival ×${own}` : "autogol rival");
   return parts.join(", ");
@@ -169,11 +173,19 @@ export function dateParts(date: unknown) {
   };
 }
 
-/** The latest thing that happened in the acta (by minute), as one line: "19′ · ERIK · Gol" (the minute as shown: eventMinute). */
+/** The latest play in the acta (by time of play; a tie, the later written), as la mesa records them
+ *  (eventMeta isMesaType: never a narrated pass) and without a pending duplicate. `title` / `sub` tell it
+ *  (eventMeta eventSentence: «Gol de Erik», «Falta de Atlético»); `who` / `label` are its parts; `tag` the
+ *  strap's word; `tone` gold for our goal, coral for theirs; the minute as shown (eventMinute). */
 export function lastEvent(events: MatchEvent[] | undefined, nameOf: (id: string) => string, rival: string) {
-  const list = (events ?? []).filter((e) => e.type !== "match_played" && e.type !== "assist" && typeof e.minute === "number");
-  const e = list.sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0)).at(-1);
+  const list = settled(events)
+    .map((e, order) => ({ e, order }))
+    .filter(({ e }) => isMesaType(e.type) && (typeof e.minute === "number" || typeof e.elapsedSeconds === "number"));
+  const e = list.sort((a, b) => eventSeconds(a.e) - eventSeconds(b.e) || a.order - b.order).at(-1)?.e;
   if (!e) return null;
-  const who = e.type.startsWith("opponent_") ? rival : e.type === "substitution" && e.inPlayerId ? nameOf(e.inPlayerId) : e.playerId ? nameOf(e.playerId) : "Manchester Piti";
-  return { minute: eventMinute(e) ?? (e.minute as number), who, label: EVENT_LABELS[e.type] ?? e.type, goal: OURS.has(e.type) };
+  const meta = eventMetaOf(e);
+  const said = eventSentence(e, { nameOf, rival });
+  const who = meta.side === "them" ? rival : e.type === "substitution" && e.inPlayerId ? nameOf(e.inPlayerId) : e.playerId ? nameOf(e.playerId) : "Manchester Piti";
+  const tone = meta.goal === "for" ? ("gold" as const) : meta.side === "them" || meta.goal === "against" ? ("coral" as const) : ("sky" as const);
+  return { id: e.id, minute: eventMinute(e) ?? (e.minute as number), who, label: EVENT_LABELS[e.type] ?? e.type, goal: OURS.has(e.type), title: said.title, sub: said.sub, tag: meta.tag, tone };
 }
