@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { MesaView } from "../types";
 import { Descanso } from "./Descanso";
 import { ev, makeView, player, squad } from "./testkit";
@@ -68,9 +68,26 @@ describe("Descanso", () => {
     fireEvent.click(row("Marcos"));
     fireEvent.click(row("Iván"));
     fireEvent.click(cta());
-    expect(v.actions.add).toHaveBeenCalledWith("substitution", { playerId: "marcos", inPlayerId: "ivan" });
+    expect(v.actions.addMany).toHaveBeenCalledWith([{ playerId: "marcos", inPlayerId: "ivan" }]);
+    expect(v.actions.add).not.toHaveBeenCalled();
     await Promise.resolve();
     expect(v.actions.clock).toHaveBeenCalledWith("second");
+  });
+
+  it("no changes: just the 2ª, nothing written", async () => {
+    const v = halftime();
+    mount(v);
+    fireEvent.click(cta());
+    expect(v.actions.addMany).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(v.actions.clock).toHaveBeenCalledWith("second");
+  });
+
+  it("«parados» counts the break from the clock", () => {
+    const v = halftime();
+    v.match = { ...v.match, clock: { ...v.match.clock, breakSeconds: 185 } };
+    mount(v);
+    expect(screen.getByRole("timer", { name: "Parados desde hace 3 minutos" })).toHaveTextContent("3:05");
   });
 
   it("«Igualar minutos» picks the keeper and the six with fewest minutes", async () => {
@@ -86,7 +103,8 @@ describe("Descanso", () => {
     expect(cta()).toHaveTextContent("Arrancar con 3 cambios");
     expect(screen.getByText(/Jugadores de campo/)).toHaveTextContent("Jugadores de campo: de 25′ a 51′");
     fireEvent.click(cta());
-    expect(v.actions.add).toHaveBeenCalledTimes(3);
+    expect(v.actions.addMany).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(v.actions.addMany).mock.calls[0][0]).toHaveLength(3);
     await Promise.resolve();
     expect(v.actions.clock).toHaveBeenCalledWith("second");
   });

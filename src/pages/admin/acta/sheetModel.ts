@@ -104,6 +104,8 @@ export function fromMatch(m: MatchLike, note = ""): MatchSheet {
     rival: m.rival ?? "",
     rivalLogoUrl: m.rivalLogoUrl ?? "",
     rivalInitials: m.rivalInitials ?? "",
+    // (la mesa's LED code: kept through every save, "" = the code derived from the name)
+    ...(m.rivalShort?.trim() ? { rivalShort: m.rivalShort.trim() } : {}),
     competition: m.competition ?? "Liga",
     date: dateMillis(m.date),
     duration: m.duration ?? 60,
@@ -312,6 +314,8 @@ export function toPayload(sheet: MatchSheet, draft: boolean, nameOf: NameOf, riv
   if ((sheet.gallery ?? []).some((u) => !okHttps(u) || !u.trim())) return { ok: false, error: "Hay fotos en la galería que no son https://: quítalas o corrígelas." };
   if ((sheet.gallery ?? []).length > 20) return { ok: false, error: "La galería admite hasta 20 fotos." };
   if (!/^[A-Za-z0-9]{0,3}$/.test((sheet.rivalInitials ?? "").trim())) return { ok: false, error: "Las iniciales son hasta 3 letras o números." };
+  const short = (sheet.rivalShort ?? "").trim().toLocaleUpperCase("es");
+  if (short && !/^[\p{L}\p{N}]{2,4}$/u.test(short)) return { ok: false, error: "El código del marcador son de 2 a 4 letras o números." };
 
   const ours = goalRows(sheet);
   const theirs = rivalRows(sheet);
@@ -344,6 +348,7 @@ export function toPayload(sheet: MatchSheet, draft: boolean, nameOf: NameOf, riv
     rival: sheet.rival.trim(),
     rivalLogoUrl: (sheet.rivalLogoUrl ?? "").trim(),
     rivalInitials: (sheet.rivalInitials ?? "").trim().toUpperCase(),
+    ...(short ? { rivalShort: short } : {}),
     competition: sheet.competition.trim(),
     date: sheet.date,
     duration: sheet.duration,

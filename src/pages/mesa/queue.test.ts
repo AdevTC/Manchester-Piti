@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MesaQueue, isRejection, parseQueue, pendingByPlayer, queueKey, serializeQueue, type QueueItem } from "./queue";
+import { MesaQueue, isRejection, itemPlays, parseQueue, pendingByPlayer, queueKey, serializeQueue, type QueueItem } from "./queue";
 
 const memory = () => {
   const m = new Map<string, string>();
@@ -146,6 +146,48 @@ describe("la cola de la mesa", () => {
     expect(parseQueue("{not json")).toEqual([]);
     expect(parseQueue(JSON.stringify({ version: 2, items: [] }))).toEqual([]);
     expect(queueKey("uid 1", "m/1", "proj")).toBe("mp:mesa-queue:v1:proj:uid%201:m%2F1");
+  });
+
+  it("una tanda de cambios es una sola operación: sube una vez, se confirma entera y se quita cambio a cambio", async () => {
+    const sent: QueueItem[] = [];
+    const sub = (out: string, inn: string) => ({ type: "substitution" as const, minute: 25, tappedElapsed: 1500, period: 1 as const, playerId: out, inPlayerId: inn });
+    const batch = [sub("a", "x"), sub("b", "y"), sub("c", "z")];
+    const wave = { requestId: "w", matchId: "m1", createdAt: 1, text: "Tres cambios", payload: batch[0], batch };
+    expect(itemPlays(wave).map((p) => p.id)).toEqual(["live-w-0", "live-w-1", "live-w-2"]);
+    // offline: it waits, and one change can be taken out before it goes up
+    const q = new MesaQueue({ key: "k", storage: memory(), channel: null, isOnline: () => true, send: async () => Promise.reject(offline()) });
+    q.enqueue(wave);
+    await flushed();
+    expect(pendingByPlayer(q.getSnapshot().items)).toEqual({ a: 1, x: 1, b: 1, y: 1, c: 1, z: 1 });
+    expect(q.drop("w", 1)).toBe(true);
+    expect(q.getSnapshot().items[0].batch?.map((p) => p.playerId)).toEqual(["a", "c"]);
+    expect(q.amend("w", { inPlayerId: "zz" }, 1)).toBe(true);
+    expect(q.getSnapshot().items[0].batch?.[1].inPlayerId).toBe("zz");
+    q.close();
+    // online: one upload for the whole wave; any of its changes on the server confirms it
+    const q2 = new MesaQueue({ key: "k2", storage: memory(), channel: null, isOnline: () => true, send: async (x) => void sent.push(x) });
+    q2.enqueue(wave);
+    await flushed();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].batch).toHaveLength(3);
+    q2.confirm(new Set(["live-w-2"]));
+    expect(q2.getSnapshot().items).toEqual([]);
+    q2.close();
+  });
+
+  it("una tanda rechazada se reenvía con otro minuto para todos sus cambios", async () => {
+    const sub = (out: string, inn: string) => ({ type: "substitution" as const, minute: 25, tappedElapsed: 1500, period: 1 as const, playerId: out, inPlayerId: inn });
+    const batch = [sub("a", "x"), sub("b", "y")];
+    const q = new MesaQueue({ key: "k", storage: memory(), channel: null, isOnline: () => true, send: async (x) => { if (x.requestId === "w") throw rejected("Ese jugador ya no está en el campo."); } });
+    q.enqueue({ requestId: "w", matchId: "m1", createdAt: 1, text: "Dos cambios", payload: batch[0], batch });
+    await flushed();
+    expect(q.getSnapshot().items[0].status).toBe("review");
+    q.resend("w", { minute: 20, playerId: "nope" }, "w2");
+    await flushed();
+    const it = q.getSnapshot().items[0];
+    expect(it.requestId).toBe("w2");
+    expect(it.batch?.map((p) => [p.playerId, p.minute, p.tappedElapsed])).toEqual([["a", 19, 1170], ["b", 19, 1170]]);
+    q.close();
   });
 
   it("solo los códigos de rechazo van a revisar; la red se reintenta", () => {

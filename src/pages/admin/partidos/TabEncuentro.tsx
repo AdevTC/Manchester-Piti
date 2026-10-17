@@ -4,6 +4,7 @@
 // the internal note). Match management lives above the tabs so every workspace keeps it available.
 import { useId, useState } from "react";
 import { opponentInitials } from "../../../lib/clubAnalytics";
+import { rivalCode } from "../../../lib/eventMeta";
 import type { SeasonDoc } from "../../../lib/schemas";
 import { AdIcon } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
@@ -89,6 +90,20 @@ export function TabEncuentro({
               <label htmlFor={`${id}-h`}>Hora (Madrid)</label>
               <input id={`${id}-h`} className="inp" type="time" value={when.time} onChange={(e) => set("date", e.target.value ? joinDate(when.date, e.target.value) : NaN)} />
             </div>
+          </div>
+          <div className="fld">
+            <label htmlFor={`${id}-rs`}>Código en el marcador</label>
+            <input
+              id={`${id}-rs`}
+              className="inp"
+              value={sheet.rivalShort ?? ""}
+              maxLength={4}
+              autoCapitalize="characters"
+              aria-describedby={`${id}-rs-h`}
+              placeholder={rivalCode(sheet.rival || "Rival")}
+              onChange={(e) => set("rivalShort", e.target.value.replace(/[^\p{L}\p{N}]/gu, "").toLocaleUpperCase("es"))}
+            />
+            <p id={`${id}-rs-h`} className="hint">De 2 a 4 letras, para la mesa y el directo. Vacío: {rivalCode(sheet.rival || "Rival")}.</p>
           </div>
           <div className="fld">
             <label htmlFor={`${id}-f`}>Fecha</label>

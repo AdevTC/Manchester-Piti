@@ -4,7 +4,7 @@
 // as soon as there is signal. A play that fails for lack of signal never holds back the next one; a play
 // the server refuses (the match closed, the player already off…) goes to «Por revisar» with the reason,
 // to be fixed and resent, or discarded: never dropped, never forced in. A play leaves the queue when the
-// realtime match document has it (`live-${requestId}`). Ideas from lib/quickMatchRecovery.
+// realtime match document has it (`live-${requestId}`; a wave of changes, `live-${requestId}-${i}`).
 import { z } from "zod";
 import { MESA_TYPES, type MesaType } from "../../../functions/src/liveRules";
 
@@ -26,6 +26,8 @@ const itemSchema = z.object({
   createdAt: z.number().finite(),
   text: z.string().max(300),
   payload: payloadSchema,
+  /** A wave of changes in one operation (liveEvent addMany): every change, `payload` being the first. */
+  batch: z.array(payloadSchema).min(1).max(7).optional(),
   /** pending: waiting to go up · sent: the server took it, waiting for the realtime doc · review: refused */
   status: z.enum(["pending", "sent", "review"]),
   reason: z.string().max(500).optional(),
@@ -34,6 +36,12 @@ const itemSchema = z.object({
 const recordSchema = z.object({ version: z.literal(1), items: z.array(z.unknown()).max(500) });
 export type QueuePayload = z.infer<typeof payloadSchema>;
 export type QueueItem = z.infer<typeof itemSchema>;
+
+/** The plays an item writes, each with the event id the server gives it: one play is `live-<requestId>`,
+ *  a wave's changes `live-<requestId>-<i>`. */
+export function itemPlays(item: Pick<QueueItem, "requestId" | "payload" | "batch">): { id: string; payload: QueuePayload; index: number }[] {
+  return item.batch ? item.batch.map((payload, index) => ({ id: `live-${item.requestId}-${index}`, payload, index })) : [{ id: `live-${item.requestId}`, payload: item.payload, index: 0 }];
+}
 
 /** Only play data and identifiers: never tokens or profile details. */
 export const queueKey = (uid: string, matchId: string, project: string = import.meta.env.VITE_FIREBASE_PROJECT_ID ?? "club") =>
@@ -179,44 +187,62 @@ export class MesaQueue {
     this.set([...this.items, { ...item, status: "pending" }]);
     this.flush();
   }
-  /** The realtime doc now has these events: their plays leave the queue. */
+  /** The realtime doc now has these events: their plays leave the queue (a wave lands whole, so any of
+   *  its changes confirms it). */
   confirm(eventIds: ReadonlySet<string>) {
-    const left = this.items.filter((x) => !eventIds.has(`live-${x.requestId}`));
+    const left = this.items.filter((x) => !itemPlays(x).some((p) => eventIds.has(p.id)));
     if (left.length !== this.items.length) this.set(left);
   }
-  /** Drops a play (Deshacer of a queued play, «Descartar» in «Por revisar»). False if it is uploading now. */
-  drop(requestId: string): boolean {
+  /** Drops a play (Deshacer of a queued play, «Descartar» in «Por revisar»). False if it is uploading now.
+   *  With `index`, only that change of a wave goes (the wave goes when it was its last one). */
+  drop(requestId: string, index?: number): boolean {
     if (this.sending === requestId) return false;
-    const left = this.items.filter((x) => x.requestId !== requestId);
-    if (left.length === this.items.length) return false;
-    this.set(left);
+    const it = this.items.find((x) => x.requestId === requestId);
+    if (!it) return false;
+    if (index !== undefined && it.batch && it.batch.length > 1) {
+      if (it.status !== "pending" && it.status !== "review") return false;
+      const batch = it.batch.filter((_, i) => i !== index);
+      this.set(this.items.map((x) => (x === it ? { ...x, batch, payload: batch[0] } : x)));
+      return true;
+    }
+    this.set(this.items.filter((x) => x !== it));
     return true;
   }
-  /** Changes a play still waiting to go up (the assist of a goal tapped without signal). False when it
-   *  is not pending here any more (uploading or already up: then it is edited on the server). */
-  amend(requestId: string, patch: Partial<Pick<QueuePayload, "type" | "playerId" | "assistPlayerId" | "inPlayerId" | "assistReviewed">>): boolean {
+  /** Changes a play still waiting to go up (the assist of a goal tapped without signal; with `index`, one
+   *  change of a wave). False when it is not pending here any more (uploading or already up: then it is
+   *  edited on the server). */
+  amend(requestId: string, patch: Partial<Pick<QueuePayload, "type" | "playerId" | "assistPlayerId" | "inPlayerId" | "assistReviewed">>, index = 0): boolean {
     const it = this.items.find((x) => x.requestId === requestId);
     if (!it || it.status !== "pending" || this.sending === requestId) return false;
-    const payload: QueuePayload = { ...it.payload };
+    const plays = itemPlays(it);
+    if (!plays[index]) return false;
+    const payload: QueuePayload = { ...plays[index].payload };
     for (const [k, v] of Object.entries(patch) as [keyof typeof patch, string | boolean | undefined][]) {
       if (v === undefined || v === "") delete payload[k];
       else Object.assign(payload, { [k]: v });
     }
-    this.set(this.items.map((x) => (x.requestId === requestId ? { ...x, payload } : x)));
+    const batch = it.batch?.map((p, i) => (i === index ? payload : p));
+    this.set(this.items.map((x) => (x.requestId === requestId ? { ...x, payload: batch ? batch[0] : payload, ...(batch ? { batch } : {}) } : x)));
     return true;
   }
-  /** «Por revisar» → fixed and sent again, under a new requestId (the refused one is spent). */
+  /** «Por revisar» → fixed and sent again, under a new requestId (the refused one is spent). A wave takes
+   *  the new minute for all its changes (who goes off is picked again from la mesa, not here). */
   resend(requestId: string, fix: { playerId?: string; minute?: number }, newId: string) {
     const it = this.items.find((x) => x.requestId === requestId && x.status === "review");
     if (!it) return;
-    const payload: QueuePayload = { ...it.payload };
-    if (fix.playerId) payload.playerId = fix.playerId;
-    if (typeof fix.minute === "number" && Number.isFinite(fix.minute)) {
-      const m = Math.max(1, Math.round(fix.minute));
-      payload.minute = m - 1;
-      payload.tappedElapsed = (m - 1) * 60 + 30;
-    }
-    const next: QueueItem = { ...it, requestId: newId, payload, status: "pending", reason: undefined, sentAt: undefined };
+    const fixOne = (p: QueuePayload): QueuePayload => {
+      const payload: QueuePayload = { ...p };
+      if (fix.playerId && !it.batch) payload.playerId = fix.playerId;
+      if (typeof fix.minute === "number" && Number.isFinite(fix.minute)) {
+        const m = Math.max(1, Math.round(fix.minute));
+        payload.minute = m - 1;
+        payload.tappedElapsed = (m - 1) * 60 + 30;
+      }
+      return payload;
+    };
+    const batch = it.batch?.map(fixOne);
+    const payload = batch ? batch[0] : fixOne(it.payload);
+    const next: QueueItem = { ...it, requestId: newId, payload, ...(batch ? { batch } : {}), status: "pending", reason: undefined, sentAt: undefined };
     this.set(this.items.map((x) => (x.requestId === requestId ? next : x)));
     this.flush();
   }
@@ -304,7 +330,7 @@ export function pendingByPlayer(items: readonly QueueItem[]): Record<string, num
   const out: Record<string, number> = {};
   for (const x of items) {
     if (x.status === "review") continue;
-    for (const p of [x.payload.playerId, x.payload.inPlayerId]) if (p) out[p] = (out[p] ?? 0) + 1;
+    for (const { payload } of itemPlays(x)) for (const p of [payload.playerId, payload.inPlayerId]) if (p) out[p] = (out[p] ?? 0) + 1;
   }
   return out;
 }

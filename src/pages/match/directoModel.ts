@@ -91,7 +91,7 @@ export function agoText(m: Pick<ClubMatch, "clock">, e: Pick<MatchEvent, "elapse
 }
 
 /** The rival's three letters on its rows. */
-export const rivalTag = (m: Pick<ClubMatch, "rival">) => rivalCode(m.rival ?? "Rival");
+export const rivalTag = (m: Pick<ClubMatch, "rival" | "rivalShort">) => rivalCode(m.rival ?? "Rival", m.rivalShort);
 
 const TICK: Partial<Record<string, number>> = {
   goal: 46, goal_penalty: 46, goal_freekick: 46, opponent_goal: 46, opponent_own_goal: 46, own_goal: 46,

@@ -96,12 +96,14 @@ describe("Lo que va pasando", () => {
 
   it("splits the record by half and goes back to the mesa", () => {
     const v = view({ events: [...EVENTS, ev("s1", "corner", 30, { text: "Córner de Mario", period: 2 })] });
-    v.match.clock = { ...v.match.clock, period: 2, phase: "second" };
+    v.match.clock = { ...v.match.clock, period: 2, phase: "second", kickoffAt: new Date(2026, 9, 18, 10, 32).getTime(), secondAt: new Date(2026, 9, 18, 11, 3).getTime() };
+    v.match.round = 7;
     mount(v);
+    expect(screen.getByText("Jornada 7, contra Atlético Demo")).toBeInTheDocument();
     const items = within(screen.getByRole("list", { name: /Jugadas del partido/ })).getAllByRole("listitem").map((li) => li.textContent ?? "");
     expect(items[0]).toContain("Córner de Mario");
-    expect(items[1]).toContain("Empieza la 2ª parte");
-    expect(items[items.length - 1]).toContain("Pitido inicial");
+    expect(items[1]).toContain("Empieza la 2ª parte a las 11:03");
+    expect(items[items.length - 1]).toContain("Pitido inicial a las 10:32");
     fireEvent.click(screen.getByRole("button", { name: "Volver a la mesa" }));
     expect(v.nav.mesa).toHaveBeenCalled();
   });

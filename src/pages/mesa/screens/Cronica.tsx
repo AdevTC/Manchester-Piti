@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { MesaEvent, MesaPlayer, MesaScreenProps } from "../types";
 import { buzz, useFlash, useNow } from "./hooks";
-import { avatars, categoryOf, fmtClock, iconOf, initial, listNames, type Category } from "./model";
+import { againstLine, avatars, categoryOf, fmtClock, hhmm, iconOf, initial, listNames, type Category } from "./model";
 import { BackButton, Icon, Screws } from "./parts";
 import { EditSheet } from "./EditSheet";
 import "./screens.css";
@@ -191,7 +191,7 @@ export function Cronica({ view }: MesaScreenProps) {
     <div className="col cronica">
       <div className="top">
         <BackButton label="Volver a la mesa" onClick={nav.mesa} />
-        <div className="ttl"><b>Lo que va pasando</b><span>{match.competition ? `${match.competition}, contra ${match.rival}` : `Contra ${match.rival}`}</span></div>
+        <div className="ttl"><b>Lo que va pasando</b><span>{againstLine(match)}</span></div>
       </div>
 
       <div className="box">
@@ -268,7 +268,7 @@ export function Cronica({ view }: MesaScreenProps) {
           <div className="half" role="listitem">
             <span className="m">2ª</span>
             <span className="nd"><Icon id="falta" size={16} /></span>
-            <span><b>Empieza la 2ª parte</b></span>
+            <span><b>Empieza la 2ª parte{match.clock.secondAt != null ? ` a las ${hhmm(match.clock.secondAt)}` : ""}</b></span>
           </div>
         )}
         {rowsOf(firstHalf, !secondStarted && second.length === 0)}
@@ -276,7 +276,7 @@ export function Cronica({ view }: MesaScreenProps) {
         <div className="half" role="listitem">
           <span className="m">0′</span>
           <span className="nd"><Icon id="falta" size={16} /></span>
-          <span><b>Pitido inicial</b></span>
+          <span><b>Pitido inicial{match.clock.kickoffAt != null ? ` a las ${hhmm(match.clock.kickoffAt)}` : ""}</b></span>
         </div>
       </div>
 

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { systemDef } from "../../../lib/formations";
 import type { MesaPlayer, MesaScreenProps } from "../types";
 import { beep, buzz, canVibrate, useFlash, useNow } from "./hooks";
-import { avatars, fixtureTitle, fmtClock, hhmm, initial, listNames } from "./model";
+import { avatars, fixtureTitle, fmtClock, hhmm, initial, listNames, matchLine } from "./model";
 import { BackButton, Check, Screws, Shirt, ShirtDefs, Whistle } from "./parts";
 import "./screens.css";
 
@@ -84,7 +84,7 @@ export function Antes({ view }: MesaScreenProps) {
             ) : (
               <span className="pre">Previa</span>
             )}
-            {match.competition}
+            {matchLine(match)}
           </span>
         </div>
         <span className="who" role="img" aria-label={`${listNames(scorers.map((p) => p.name))} ${scorers.length > 1 ? "anotan" : "anota"}, ${view.queue.online ? "conectados" : "sin red"}`}>
@@ -162,8 +162,8 @@ export function Antes({ view }: MesaScreenProps) {
           <div className="it">
             <Lamp ok={items[0]} />
             <span className="tx">
-              <b>El siete de la pizarra</b>
-              <small>{field.length === 7 ? "Siete de siete titulares" : `${field.length} de siete titulares`}</small>
+              <b>{match.lineup.fromBoard ? "El siete de la pizarra" : "El siete de la convocatoria"}</b>
+              <small>{[match.lineup.fromBoard ? match.lineup.system : "Convocatoria", field.length === 7 ? "Siete de siete titulares" : `${field.length} de siete titulares`].filter(Boolean).join(" · ")}</small>
             </span>
             {!live && <button type="button" className="key" onClick={nav.pizarra}>Cambiar</button>}
           </div>

@@ -8,6 +8,7 @@ import {
   individualRecords,
   medalFor,
   metricValue,
+  metrics,
   milestones,
   opponentInitials,
   teamAnalysis,
@@ -130,6 +131,20 @@ describe("Historial, récords y rachas", () => {
     expect(p.goalStreak.current.count).toBe(1);
     expect(p.braces).toBe(1);
     expect(p.hatTricks).toBe(0);
+  });
+  it("las jugadas de la mesa (ocasiones, paradas, faltas) son métricas del selector y del CSV", () => {
+    const m = game("1", 0);
+    m.events = [
+      { id: "c1", type: "chance", minute: 2, playerId: "a" },
+      { id: "c2", type: "chance", minute: 5, playerId: "a" },
+      { id: "s1", type: "save", minute: 7, playerId: "a" },
+      { id: "f1", type: "foul", minute: 9, playerId: "a" },
+      { id: "r1", type: "foul_received", minute: 11, playerId: "a" },
+      { id: "r2", type: "foul_received", minute: 12, playerId: "a" },
+    ];
+    const p = analysePlayer({ id: "a" }, [m]);
+    expect([metricValue(p, "chances"), metricValue(p, "saves"), metricValue(p, "fouls"), metricValue(p, "foulsReceived")]).toEqual([2, 1, 1, 2]);
+    expect([metrics.chances, metrics.saves, metrics.fouls, metrics.foulsReceived]).toEqual(["Ocasiones", "Paradas", "Faltas cometidas", "Faltas recibidas"]);
   });
   it("no inventa minutos a partir de goles o participaciones antiguas", () => {
     const p = analysePlayer({ id: "a" }, [game("1", 2)]);

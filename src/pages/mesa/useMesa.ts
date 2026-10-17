@@ -11,7 +11,11 @@ import { useClock } from "../../hooks/useClock";
 import { useMatchScorers } from "../vestuario/live";
 import { useBoardView, useMatchBoard } from "../pizarra/useMatchBoard";
 import { useWakeLock } from "../pizarra/v2/useMatchDay";
-import { MesaQueue, pendingByPlayer, queueKey, type QueueItem } from "./queue";
+import { jornadaOf } from "../../lib/derived/jornada";
+import { systemText } from "../../lib/derived/system";
+import { useStandings } from "../../lib/useStandings";
+import { addSubs, MAX_WAVE } from "./api";
+import { MesaQueue, itemPlays, pendingByPlayer, queueKey, type QueueItem, type QueuePayload } from "./queue";
 import {
   buzzOf, counted, eventText, goalSide, liveId, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub,
   rivalInitialsOf, rivalShortOf, withLocal, type LocalPlay, type PlayerInfo,
@@ -116,6 +120,11 @@ function useQueue(uid: string | undefined, matchId: string | undefined): MesaQue
       storage,
       channel,
       send: async (item: QueueItem) => {
+        if (item.batch) {
+          // a wave of changes: one operation, all or none
+          await addSubs(item.matchId, item.requestId, item.batch.map((b) => ({ playerId: b.playerId ?? "", inPlayerId: b.inPlayerId ?? "", minute: b.minute, clockRevision: b.clockRevision, tappedElapsed: b.tappedElapsed, period: b.period })));
+          return;
+        }
         const p = item.payload;
         await mesaEvent({
           action: "add",
@@ -187,6 +196,8 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
   const boardId = useMatchBoard(match?.seasonId, matchId, upcoming, canScore);
   const board = useBoardView(boardId);
   const plannedSubs = usePlannedSubs(boardId);
+  const { standings } = useStandings(match?.seasonId);
+  const hasStandings = !!standings && standings.rows.length > 0;
   const queue = useQueue(canScore ? me?.uid : undefined, matchId);
   const snap = useSyncExternalStore(queue?.subscribe ?? noop, queue?.getSnapshot ?? (() => EMPTY_SNAP), () => EMPTY_SNAP);
   const [lastId, setLastId] = useState<string | null>(null);
@@ -214,13 +225,39 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
   }, []);
 
   const actions = useMemo<MesaActions>(() => {
-    const local = (id: string) => (id.startsWith("live-") ? snapItems().find((x) => liveId(x.requestId) === id) : undefined);
+    /** The queued item that writes event `id`, and which of its plays it is (a wave has several). */
+    const local = (id: string): { item: QueueItem; index: number } | undefined => {
+      if (!id.startsWith("live-")) return undefined;
+      for (const item of snapItems()) {
+        const play = itemPlays(item).find((p) => p.id === id);
+        if (play) return { item, index: play.index };
+      }
+      return undefined;
+    };
     function snapItems(): readonly QueueItem[] {
       return queue?.getSnapshot().items ?? [];
     }
+    /** A play as the queue keeps it: the time of play now, the clock it was tapped on. */
+    const payloadNow = (type: MesaType, opts: MesaAddOpts): QueuePayload => {
+      const m = matchRef.current;
+      const reading = mesaClock(m?.clock, nowRef.current, m?.duration);
+      return {
+        type,
+        minute: Math.floor(reading.elapsedSeconds / 60),
+        tappedElapsed: reading.elapsedSeconds,
+        period: reading.period,
+        ...(m?.clock ? { clockRevision: m.clock.revision } : {}),
+        ...(opts.playerId ? { playerId: opts.playerId } : {}),
+        ...(opts.assistPlayerId ? { assistPlayerId: opts.assistPlayerId } : {}),
+        ...(opts.inPlayerId ? { inPlayerId: opts.inPlayerId } : {}),
+        ...(goalSide(type) === "us" && type === "goal" && opts.playerId ? { assistReviewed: !!opts.assistPlayerId } : {}),
+      };
+    };
+    const textOf = (type: MesaType, opts: MesaAddOpts) =>
+      eventText({ type, playerId: opts.playerId, assistPlayerId: opts.assistPlayerId, inPlayerId: opts.inPlayerId }, (id) => playerInfo(matchRef.current, players).nameOf(id), matchRef.current?.rival ?? "el rival");
     const remove = async (id: string) => {
       const q = local(id);
-      if (q && q.status !== "sent" && queue?.drop(q.requestId)) return;
+      if (q && q.item.status !== "sent" && queue?.drop(q.item.requestId, q.index)) return;
       try {
         await mesaEvent({ action: "delete", matchId, eventId: id });
       } catch (e) {
@@ -238,32 +275,29 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     };
     return {
       add(type: MesaType, opts: MesaAddOpts = {}) {
-        const m = matchRef.current;
-        const reading = mesaClock(m?.clock, nowRef.current, m?.duration);
         const requestId = crypto.randomUUID();
-        const g = goalSide(type);
-        const payload = {
-          type,
-          minute: Math.floor(reading.elapsedSeconds / 60),
-          tappedElapsed: reading.elapsedSeconds,
-          period: reading.period,
-          ...(m?.clock ? { clockRevision: m.clock.revision } : {}),
-          ...(opts.playerId ? { playerId: opts.playerId } : {}),
-          ...(opts.assistPlayerId ? { assistPlayerId: opts.assistPlayerId } : {}),
-          ...(opts.inPlayerId ? { inPlayerId: opts.inPlayerId } : {}),
-          ...(g === "us" && type === "goal" && opts.playerId ? { assistReviewed: !!opts.assistPlayerId } : {}),
-        };
-        const text = eventText({ type, playerId: opts.playerId, assistPlayerId: opts.assistPlayerId, inPlayerId: opts.inPlayerId }, (id) => playerInfo(matchRef.current, players).nameOf(id), m?.rival ?? "el rival");
-        queue?.enqueue({ requestId, matchId, createdAt: Date.now(), text, payload });
+        queue?.enqueue({ requestId, matchId, createdAt: Date.now(), text: textOf(type, opts), payload: payloadNow(type, opts) });
         const id = liveId(requestId);
         setLastId(id);
         setNotice("");
         vibrate(buzzOf(type));
         return id;
       },
+      addMany(subs: readonly { playerId: string; inPlayerId: string }[]) {
+        const wave = subs.slice(0, MAX_WAVE);
+        if (!wave.length) return [];
+        const requestId = crypto.randomUUID();
+        const batch = wave.map((s) => payloadNow("substitution", s));
+        queue?.enqueue({ requestId, matchId, createdAt: Date.now(), text: wave.map((s) => textOf("substitution", s)).join(" · "), payload: batch[0], batch });
+        // (no lower third for a wave: «Deshacer» would only take back its last change)
+        setLastId(null);
+        setNotice("");
+        vibrate(buzzOf("substitution"));
+        return itemPlays({ requestId, payload: batch[0], batch }).map((p) => p.id);
+      },
       async edit(id: string, patch: MesaEditPatch) {
         const q = local(id);
-        if (q && queue?.amend(q.requestId, { type: patch.type, playerId: patch.playerId, assistPlayerId: patch.assistPlayerId, inPlayerId: patch.inPlayerId, ...(patch.assistPlayerId !== undefined ? { assistReviewed: true } : {}) })) return;
+        if (q && queue?.amend(q.item.requestId, { type: patch.type, playerId: patch.playerId, assistPlayerId: patch.assistPlayerId, inPlayerId: patch.inPlayerId, ...(patch.assistPlayerId !== undefined ? { assistReviewed: true } : {}) }, q.index)) return;
         try {
           await mesaEvent({ action: "edit", matchId, eventId: id, patch });
         } catch (e) {
@@ -304,10 +338,15 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     if (!match || !me) return null;
     const { nameOf, info } = playerInfo(match, players);
     const reading = mesaClock(match.clock, now, match.duration);
-    const localPlays: LocalPlay[] = snap.items.filter((x) => x.status !== "review").map((x) => ({ requestId: x.requestId, type: x.payload.type, playerId: x.payload.playerId, assistPlayerId: x.payload.assistPlayerId, inPlayerId: x.payload.inPlayerId, tappedElapsed: x.payload.tappedElapsed, period: x.payload.period }));
+    const localPlays: LocalPlay[] = snap.items
+      .filter((x) => x.status !== "review")
+      .flatMap((x) => itemPlays(x).map(({ id, payload: p }) => ({ requestId: x.requestId, id, type: p.type, playerId: p.playerId, assistPlayerId: p.assistPlayerId, inPlayerId: p.inPlayerId, tappedElapsed: p.tappedElapsed, period: p.period, ...(p.assistReviewed ? { assistReviewed: true } : {}) })));
     const all = withLocal(match.events, localPlays, me.uid);
     const pendingBy = pendingByPlayer(snap.items);
     const codes = board?.seven.length ? board.codes : null;
+    // (the seven is the official board's when the convocatoria's starters are its seven)
+    const starters = match.starters ?? [];
+    const fromBoard = !!board && board.seven.length > 0 && board.seven.length === starters.length && board.seven.every((id) => starters.includes(id));
     const { field, bench } = mesaPlayers(match.starters ?? [], match.bench ?? [], all, reading.elapsedSeconds, info, codes, pendingBy);
     const fresh = presenceRows.map<MesaPresence>((p) => ({ uid: p.uid, name: p.name, at: p.at, fresh: p.at > 0 && now - p.at < FRESH_MS, me: p.uid === me.uid }));
     const people = new Map(fresh.map((p) => [p.uid, p.name] as const));
@@ -320,8 +359,8 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
       online: !snap.offline,
       pending: snap.items.filter((x) => x.status !== "review").length,
       byPlayer: pendingBy,
-      items: snap.items.filter((x) => x.status !== "review").map((x) => ({ requestId: x.requestId, type: x.payload.type, text: x.text, playerId: x.payload.playerId ?? null, minute: x.payload.minute + 1, createdAt: x.createdAt, status: x.requestId === snap.sending || x.status === "sent" ? "sending" : "pending" })),
-      review: snap.items.filter((x) => x.status === "review").map((x) => ({ requestId: x.requestId, type: x.payload.type, text: x.text, playerId: x.payload.playerId ?? null, minute: x.payload.minute + 1, reason: x.reason ?? "" })),
+      items: snap.items.filter((x) => x.status !== "review").map((x) => ({ requestId: x.requestId, type: x.payload.type, text: x.text, playerId: x.batch ? null : x.payload.playerId ?? null, minute: x.payload.minute + 1, count: x.batch?.length ?? 1, createdAt: x.createdAt, status: x.requestId === snap.sending || x.status === "sent" ? "sending" : "pending" })),
+      review: snap.items.filter((x) => x.status === "review").map((x) => ({ requestId: x.requestId, type: x.payload.type, text: x.text, playerId: x.batch ? null : x.payload.playerId ?? null, minute: x.payload.minute + 1, count: x.batch?.length ?? 1, reason: x.reason ?? "" })),
       lastTryAt: snap.lastTryAt,
     };
     const sentOff = new Set(bench.filter((p) => p.sentOff).map((p) => p.id));
@@ -334,6 +373,9 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
         rivalShort,
         rivalInitials: rivalInitialsOf(rival, match.rivalInitials),
         competition: match.competition ?? "",
+        round: jornadaOf(matches, match.id),
+        lineup: fromBoard ? { fromBoard: true, system: systemText(board?.system) } : { fromBoard: false, system: null },
+        hasStandings,
         home: match.home !== false,
         date: dateMillis(match.date),
         score: mesaScore(match.events),
@@ -355,7 +397,7 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
       actions,
       nav,
     };
-  }, [match, me, players, now, snap, board, presenceRows, plannedSubs, lastId, notice, actions, nav]);
+  }, [match, matches, me, players, now, snap, board, hasStandings, presenceRows, plannedSubs, lastId, notice, actions, nav]);
 
   return { view, state: loading ? "loading" : match ? "ready" : "missing", canScore, scorersLoading: scorers.loading };
 }

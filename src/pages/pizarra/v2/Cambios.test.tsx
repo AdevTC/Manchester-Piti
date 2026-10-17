@@ -8,16 +8,16 @@ import { BoardHarness as Harness } from "./testkitBoard";
 // Siete → Cambios as a user drives it: the tab (Q / E), a cambio added and edited, «Repartir minutos»
 // with its preview, the minute scrubbed onto the pitch, the keys, a read-only board; and the live match:
 // the plate with the clock from the match's date (fake clock), the countdown to the next tanda, «Hacer el
-// cambio» through liveEvent for a captain only, the wake lock.
+// cambio» (the whole tanda in one liveEvent addMany) for a captain only, the wake lock.
 
 vi.mock("../../../components/pitch3d/support", () => ({ unsupportedReason: () => "webdriver", supported: () => false }));
 const api = vi.hoisted(() => ({ calls: [] as unknown[] }));
-vi.mock("../../../lib/clubApi", async (orig) => {
-  const m = await orig<typeof import("../../../lib/clubApi")>();
+vi.mock("../../mesa/api", async (orig) => {
+  const m = await orig<typeof import("../../mesa/api")>();
   return {
     ...m,
-    liveEvent: vi.fn(async (d: unknown) => {
-      api.calls.push(d);
+    addSubs: vi.fn(async (matchId: string, requestId: string, subs: Parameters<typeof m.addManyRequest>[2]) => {
+      api.calls.push(m.addManyRequest(matchId, requestId, subs));
       return { data: { events: 2 } };
     }),
   };
@@ -247,7 +247,7 @@ describe("the live match", () => {
     expect(screen.queryByRole("button", { name: /^En directo/ })).toBeNull();
   });
 
-  it("a captain: the plate opens the live view, «Hacer el cambio» writes it in the acta with liveEvent", async () => {
+  it("a captain: the plate opens the live view, «Hacer el cambio» writes the tanda in the acta in one liveEvent addMany", async () => {
     vi.useFakeTimers({ now: T0 + 24.5 * MIN, toFake: ["setTimeout", "clearTimeout", "Date"] });
     const { container } = live({ admin: true });
     fireEvent.click(screen.getByRole("button", { name: /^En directo/ }));
@@ -255,12 +255,12 @@ describe("the live match", () => {
     expect(card).toHaveTextContent("En directo · 25′");
     expect(card).toHaveTextContent("Toca el cambio · 25′");
     expect(card).toHaveTextContent("Sale ADRIAN → entra KEVIN");
-    expect(within(card).getByRole("link", { name: "Anotar en el acta" })).toHaveAttribute("href", "/admin/en-juego/m8");
+    expect(within(card).getByRole("link", { name: "Anotar en el acta" })).toHaveAttribute("href", "/matches/m8/mesa");
     expect(card).toHaveTextContent("Lanzadores ahora:");
     await act(async () => {
       fireEvent.click(within(card).getByRole("button", { name: /^Hacer el cambio/ }));
     });
-    expect(api.calls).toMatchObject([{ action: "add", matchId: "m8", event: { type: "substitution", minute: 25, playerId: "adrian", inPlayerId: "kevin" } }]);
+    expect(api.calls).toMatchObject([{ action: "addMany", matchId: "m8", items: [{ event: { type: "substitution", minute: 25, playerId: "adrian", inPlayerId: "kevin" } }] }]);
     expect(sr(container)).toBe("En el acta, 25′: entra KEVIN por ADRIAN");
   });
 

@@ -163,6 +163,29 @@ await denied("liveEvent", david, add("q-early2", "chance", { playerId: ids[1] },
 // a player already off can't have a play after he left: the real conflict, in words
 await denied("liveEvent", david, add("q-off", "foul", { playerId: ids[6] }, { tappedElapsed: heldElapsed + 5, period: 1 }), "FAILED_PRECONDITION", /campo/);
 
+// ---- a wave of changes at the break («Arrancar con N cambios»): one operation, all or none, idempotent
+{
+  m = await snap();
+  const before = m.events.length;
+  const many = (requestId, pairs, extra = {}) => ({ action: "addMany", matchId, requestId, items: pairs.map(([out, inn]) => ({ clockRevision: m.clock.revision, event: { type: "substitution", minute: 0, playerId: out, inPlayerId: inn }, ...extra })) });
+  // the second change brings in who the first one already brought in: refused, and neither is written
+  await denied("liveEvent", david, many("w-bad", [[ids[4], ids[8]], [ids[3], ids[8]]]), "FAILED_PRECONDITION", /cambio/);
+  assert.equal((await snap()).events.length, before); checks++;
+  // only changes, and at most seven
+  await denied("liveEvent", david, { action: "addMany", matchId, requestId: "w-goal", items: [{ clockRevision: m.clock.revision, event: { type: "goal", minute: 0, playerId: ids[1] } }] }, "INVALID_ARGUMENT");
+  await denied("liveEvent", david, many("w-eight", Array.from({ length: 8 }, () => [ids[4], ids[8]])), "INVALID_ARGUMENT");
+  // tapped at the break and uploaded from the queue, like la mesa does
+  const wave = await ok("liveEvent", pablo, many("w1", [[ids[4], ids[8]], [ids[3], ids[6]]], { tappedElapsed: first, period: 1 }));
+  assert.deepEqual(wave.eventIds, ["live-w1-0", "live-w1-1"]); checks++;
+  { const e = await byId("live-w1-1"); assert.equal(e.type, "substitution"); assert.equal(e.playerId, ids[3]); assert.equal(e.inPlayerId, ids[6]); assert.equal(e.byUid, pablo.uid); assert.equal(e.elapsedSeconds, first); assert.equal(e.queued, true); checks += 6; }
+  // the same request again (a retry after a lost answer): nothing doubles
+  assert.deepEqual((await ok("liveEvent", pablo, many("w1", [[ids[4], ids[8]], [ids[3], ids[6]]], { tappedElapsed: first, period: 1 }))).eventIds, ["live-w1-0", "live-w1-1"]); checks++;
+  assert.equal((await snap()).events.length, before + 2); checks++;
+  // one audit entry for the whole wave
+  const audits = await db.collection("matchAudit").where("matchId", "==", matchId).where("live", "==", "addMany").get();
+  assert.equal(audits.size, 1); assert.equal(audits.docs[0].get("count"), 2); checks += 2;
+}
+
 // ---- the 2nd half: a queued play inside its window
 await ok("controlMatchClock", david, { matchId, action: "second", revision: m.clock.revision });
 await ref.update({ "clock.secondStartedAt": Date.now() - 180_000 });
