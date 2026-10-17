@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
-import { LiveSide, PulsoLive } from "./LivePanes";
+import { LiveCampo, LiveSide, PulsoLive } from "./LivePanes";
 import { LiveCard } from "./LiveBoard";
 import { lastEvent } from "../../lib/partidos";
 import { agoText, halvesOf, feedOf, pulseTrack, stickerWords, sumLine, tokenTops } from "./directoModel";
@@ -101,4 +101,29 @@ it("the pitch's rows never let a name cover a shirt: lines spread evenly, the de
   expect(tops[4]).toBeGreaterThan(tops[3]);
   expect(tops[6] - tops[4]).toBeGreaterThanOrEqual(80);
   expect(Math.max(...tops) + 84).toBeLessThanOrEqual(372);
+});
+
+it("el Campo en directo con la alineación del partido: cada uno en su casilla, el portero el de la casilla POR, un cambio hereda la casilla", () => {
+  const lineup = {
+    system: "2-3-1",
+    boardId: "b1",
+    setBy: "u",
+    setAt: 1,
+    slots: [
+      { playerId: "a", code: "POR", x: 50, y: 95 },
+      { playerId: "b", code: "DFC", x: 30, y: 74 },
+      { playerId: "c", code: "DFC", x: 70, y: 74 },
+      { playerId: "d", code: "MI", x: 17, y: 49 },
+      { playerId: "e", code: "MC", x: 50, y: 50 },
+      { playerId: "f", code: "MD", x: 83, y: 49 },
+      { playerId: "g", code: "DC", x: 50, y: 22 },
+    ],
+  };
+  const match = { ...MATCH, starters: ["a", "b", "c", "d", "e", "f", "g"], bench: ["h"], lineup, events: [{ id: "s", type: "substitution", minute: 5, elapsedSeconds: 300, period: 1, playerId: "a", inPlayerId: "h" }] } as ClubMatch;
+  render(<LiveCampo match={match} players={squad} nameOf={nameOf} now={Date.now()} />);
+  expect(screen.getByRole("listitem", { name: /^H, dorsal 3, portero/ })).toBeInTheDocument();
+  expect(screen.queryByRole("listitem", { name: /^A, .*portero/ })).toBeNull();
+  expect(screen.getByRole("listitem", { name: /^A, jugó/ })).toBeInTheDocument();
+  expect(screen.getByText(/Cada uno, en su casilla de la pizarra \(2-3-1 · Clásico\)/)).toBeInTheDocument();
+  expect(screen.getByText(/· 2-3-1$/)).toBeInTheDocument();
 });

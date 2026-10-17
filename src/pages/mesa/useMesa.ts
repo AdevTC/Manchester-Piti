@@ -2,7 +2,7 @@
 // matchPrivate/{id}/presence/{uid}), the offline queue every play goes through, the screen kept awake, a
 // vibration per play, and the server-time clock. It hands the screens one MesaView (./types).
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { collection, doc, getDoc, onSnapshot, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useClubData, nameFor, dateMillis, type ClubMatch } from "../../lib/clubData";
 import { apiError, controlMatchClock, mesaEvent, publishLive } from "../../lib/clubApi";
@@ -14,11 +14,12 @@ import { useWakeLock } from "../pizarra/v2/useMatchDay";
 import { jornadaOf } from "../../lib/derived/jornada";
 import { systemText } from "../../lib/derived/system";
 import { useStandings } from "../../lib/useStandings";
+import { lineupSeven, parseMatchLineup, parsePresent } from "../../lib/matchLineup";
 import { addSubs, MAX_WAVE } from "./api";
 import { MesaQueue, itemPlays, pendingByPlayer, queueKey, type QueueItem, type QueuePayload } from "./queue";
 import {
   buzzOf, counted, eventText, goalSide, liveId, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub,
-  rivalInitialsOf, rivalShortOf, withLocal, type LocalPlay, type PlayerInfo,
+  plannedSubsOf, rivalInitialsOf, rivalShortOf, withLocal, type LocalPlay, type PlayerInfo,
 } from "./model";
 import type { ClockAction, MesaActions, MesaAddOpts, MesaEditPatch, MesaNav, MesaPresence, MesaQueueState, MesaType, MesaView } from "./types";
 
@@ -71,7 +72,8 @@ function usePresence(matchId: string | undefined, me: { uid: string; name: strin
   return rows;
 }
 
-// ---------- the pizarra's planned subs (one read of the official board; the board itself is read by useBoardView)
+// ---------- the pizarra's planned subs (a listener on the official board: a sub planned or changed in the
+// pizarra during the match reaches «El siguiente cambio» at once; the board's view is useBoardView's)
 interface PlannedSub {
   min?: number;
   out: string;
@@ -81,23 +83,12 @@ function usePlannedSubs(boardId: string | null): PlannedSub[] {
   const [got, setGot] = useState<{ id: string; subs: PlannedSub[] } | null>(null);
   useEffect(() => {
     if (!boardId) return;
-    let live = true;
-    getDoc(doc(db, "lineups", boardId))
-      .then((s) => {
-        const raw: unknown = s.exists() ? s.data().subs : undefined;
-        const list = Array.isArray(raw)
-          ? raw.flatMap((x: unknown) => {
-              if (!x || typeof x !== "object") return [];
-              const o = x as { min?: unknown; out?: unknown; in?: unknown };
-              return typeof o.out === "string" && typeof o.in === "string" ? [{ out: o.out, in: o.in, ...(typeof o.min === "number" ? { min: o.min } : {}) }] : [];
-            })
-          : [];
-        if (live) setGot({ id: boardId, subs: list });
-      })
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
+    // (its own listener: useLiveDoc keeps one projection per doc, and useBoardView already maps this one)
+    return onSnapshot(
+      doc(db, "lineups", boardId),
+      (s) => setGot({ id: boardId, subs: plannedSubsOf(s.exists() ? s.data().subs : undefined) }),
+      () => setGot({ id: boardId, subs: NO_SUBS }),
+    );
   }, [boardId]);
   return got && got.id === boardId ? got.subs : NO_SUBS;
 }
@@ -348,10 +339,15 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     const all = withLocal(match.events, localPlays, me.uid);
     const pendingBy = pendingByPlayer(snap.items);
     const codes = board?.seven.length ? board.codes : null;
-    // (the seven is the official board's when the convocatoria's starters are its seven)
-    const starters = match.starters ?? [];
-    const fromBoard = !!board && board.seven.length > 0 && board.seven.length === starters.length && board.seven.every((id) => starters.includes(id));
-    const { field, bench } = mesaPlayers(match.starters ?? [], match.bench ?? [], all, reading.elapsedSeconds, info, codes, pendingBy);
+    // the match's lineup (sent from the pizarra) is the seven and where each one plays; without one, the
+    // seven is the official board's when the convocatoria's starters are its seven
+    const extra = match as ClubMatch & { lineup?: unknown; present?: unknown };
+    const lineup = parseMatchLineup(extra.lineup);
+    const starters = lineup ? lineupSeven(lineup) : (match.starters ?? []);
+    const fromBoard = !!lineup || (!!board && board.seven.length > 0 && board.seven.length === starters.length && board.seven.every((id) => starters.includes(id)));
+    // (with a lineup, an old titular the server hasn't moved to the bench yet still sits on it)
+    const benchIds = lineup ? [...(match.bench ?? []), ...(match.starters ?? [])].filter((id) => !starters.includes(id)) : (match.bench ?? []);
+    const { field, bench } = mesaPlayers(starters, benchIds, all, reading.elapsedSeconds, info, codes, pendingBy, lineup);
     const fresh = presenceRows.map<MesaPresence>((p) => ({ uid: p.uid, name: p.name, at: p.at, fresh: p.at > 0 && now - p.at < FRESH_MS, me: p.uid === me.uid }));
     const people = new Map(fresh.map((p) => [p.uid, p.name] as const));
     const rival = match.rival ?? "Rival";
@@ -378,7 +374,9 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
         rivalInitials: rivalInitialsOf(rival, match.rivalInitials),
         competition: match.competition ?? "",
         round: jornadaOf(matches, match.id),
-        lineup: fromBoard ? { fromBoard: true, system: systemText(board?.system) } : { fromBoard: false, system: null },
+        lineup: lineup ? { fromBoard: true, system: systemText(lineup.system), fromMatch: true } : fromBoard ? { fromBoard: true, system: systemText(board?.system) } : { fromBoard: false, system: null },
+        present: parsePresent(extra.present),
+        officialBoard: boardId,
         hasStandings,
         home: match.home !== false,
         date: dateMillis(match.date),
@@ -401,7 +399,7 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
       actions,
       nav,
     };
-  }, [match, matches, me, players, now, snap, board, hasStandings, presenceRows, plannedSubs, lastId, notice, actions, nav]);
+  }, [match, matches, me, players, now, snap, board, boardId, hasStandings, presenceRows, plannedSubs, lastId, notice, actions, nav]);
 
   return { view, state: loading ? "loading" : match ? "ready" : "missing", canScore, scorersLoading: scorers.loading };
 }

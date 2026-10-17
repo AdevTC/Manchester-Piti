@@ -34,15 +34,24 @@ describe("Antes del pitido", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/listo para pitar/);
   });
 
-  it("«Cambiar» opens the pizarra and «Probar aviso» vibrates and latches", () => {
-    const v = makeView();
+  it("with the match's lineup, «Cambiar» opens the pizarra on the official board; «Probar aviso» vibrates and latches", () => {
+    const v = makeView({ match: { lineup: { fromBoard: true, system: "2-3-1 · Clásico", fromMatch: true }, officialBoard: "b1", present: ["alex", "mario"] } });
     mount(v);
+    expect(screen.getByText("El siete de la pizarra · 2-3-1")).toBeInTheDocument();
+    expect(screen.getByText("Siete de siete titulares · han venido 2")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pasar lista" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Cambiar" }));
-    expect(v.nav.pizarra).toHaveBeenCalled();
+    expect(v.nav.pizarra).toHaveBeenCalledWith("b1");
     fireEvent.click(screen.getByRole("button", { name: /Probar aviso/ }));
     expect(navigator.vibrate).toHaveBeenCalledWith([40, 60, 40]);
     expect(screen.getByRole("status")).toHaveTextContent("Probado");
     expect(screen.queryByRole("button", { name: /Probar aviso/ })).toBeNull();
+  });
+
+  it("without a lineup, the seven's row offers «Pasar lista» instead of «Cambiar»", () => {
+    mount(makeView());
+    expect(screen.getByRole("button", { name: "Pasar lista" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cambiar" })).toBeNull();
   });
 
   it("«Pitar el inicio» starts the clock; «Deshacer» resets it", () => {

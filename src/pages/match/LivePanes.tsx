@@ -12,7 +12,9 @@ import { scoreOf } from "../../lib/partidos";
 import { nameSegments } from "../../lib/derived/names";
 import { wholeMinutes } from "../../lib/derived/minutes";
 import { isGuestId } from "../../lib/derived/guests";
-import { campoLayout } from "./campoPositions";
+import { campoLayout, lineupLayout } from "./campoPositions";
+import { parseMatchLineup } from "../../lib/matchLineup";
+import { systemMark, systemText } from "../../lib/derived/system";
 import { currentHalf, feedOf, filterCounts, halvesOf, pulseTrack, rivalTag, stickerWords, sumLine, tokenTops, type FeedItem } from "./directoModel";
 import { GloveIcon, PlayNode, Shirt, ShirtDefs, StickerKey, Stickers } from "./livePieces";
 import { useNumOf } from "./useNumOf";
@@ -215,11 +217,16 @@ export function LiveSide({ match, players, nameOf, now }: { match: ClubMatch; pl
 export function LiveCampo({ match, players, nameOf, now, freshScorer = null }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; now: number; freshScorer?: string | null }) {
   const numOf = useNumOf(players, match.seasonId);
   const snap = matchSnapshot(match, now);
-  const field = snap.field.filter((id): id is string => !!id);
-  const keeper = snap.field[0] ?? null;
-  const layout = campoLayout({ field, ledger: null, system: null, codes: null });
+  // the match's lineup (sent from the pizarra): its seven now, at their slots, the keeper in the POR slot;
+  // without one, the convocatoria's seven at the orientative 1-3-2-1
+  const lineup = parseMatchLineup((match as ClubMatch & { lineup?: unknown }).lineup);
+  const fromLineup = lineup ? lineupLayout(lineup, match.events ?? []) : null;
+  const field = fromLineup ? fromLineup.dots.map((d) => d.id) : snap.field.filter((id): id is string => !!id);
+  const keeper = fromLineup ? fromLineup.keeper : (snap.field[0] ?? null);
+  const layout = fromLineup ?? campoLayout({ field, ledger: null, system: null, codes: null });
   const tops = tokenTops(layout.dots.map((d) => d.y));
-  const bench = [...(match.starters ?? []), ...(match.bench ?? [])].filter((id) => !field.includes(id));
+  const bench = [...(lineup ? lineup.slots.map((s) => s.playerId) : []), ...(match.starters ?? []), ...(match.bench ?? [])].filter((id, i, a) => !field.includes(id) && a.indexOf(id) === i);
+  const sys = lineup ? systemText(lineup.system) : null;
   const unused = bench.filter((id) => !snap.players[id]?.played).length;
   const minuteNow = match.clock ? Math.floor(clockReading(match.clock, now).elapsedSeconds / 60) + 1 : null;
   if (!field.length)
@@ -231,7 +238,7 @@ export function LiveCampo({ match, players, nameOf, now, freshScorer = null }: {
     );
   return (
     <section className="fc-sec" aria-labelledby="fc-xi">
-      <span className="ml-sub">{minuteNow ? `Ahora mismo, minuto ${minuteNow}` : "Ahora mismo"}</span>
+      <span className="ml-sub">{minuteNow ? `Ahora mismo, minuto ${minuteNow}` : "Ahora mismo"}{lineup && systemMark(lineup.system) ? ` · ${systemMark(lineup.system)}` : ""}</span>
       <h2 className="hm-h2 ml-h2" id="fc-xi">
         Así están en el campo
       </h2>
@@ -293,7 +300,7 @@ export function LiveCampo({ match, players, nameOf, now, freshScorer = null }: {
         )}
       </div>
       <StickerKey />
-      <p className="fc-note">Posiciones orientativas. Los cambios y las expulsiones actualizan el campo; los minutos son provisionales hasta publicar el acta.</p>
+      <p className="fc-note">{lineup ? `Cada uno, en su casilla de la pizarra${sys ? ` (${sys})` : ""}. ` : "Posiciones orientativas. "}Los cambios y las expulsiones actualizan el campo; los minutos son provisionales hasta publicar el acta.</p>
     </section>
   );
 }
