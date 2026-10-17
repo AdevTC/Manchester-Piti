@@ -29,7 +29,7 @@ export function Shirt({ n, keeper = false, bench = false, w = 40, h = 37 }: { n:
     );
   return (
     <span className="shirt">
-      <span className="shadow" />
+      <span className="shade" />
       <svg width={w} height={h} viewBox="0 0 48 44" aria-hidden="true">
         <path d={SHIRT} fill={keeper ? "url(#msGk)" : "url(#msSky)"} stroke={keeper ? "#FFC659" : "rgba(255,255,255,.55)"} strokeWidth="1.4" strokeLinejoin="round" />
         <path d="M20 1.8 Q24 7.5 28 1.8" fill="none" stroke={keeper ? "#FFC659" : "#2a73ad"} strokeWidth="1.6" />

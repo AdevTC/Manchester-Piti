@@ -30,6 +30,8 @@ export function RootLayout() {
   useRecordTrail();
   const privatePage = ["/admin", "/profile", "/pizarra", "/vestuario"].some((p) => under(pathname, p));
   const adminPath = under(pathname, "/admin");
+  // La mesa is the live match itself: the island would sit on its scoreboard.
+  const mesaPath = /^\/matches\/[^/]+\/mesa\/?$/.test(pathname);
   const invitation = pathname.startsWith("/invitacion/");
   // The door stays up through the walkout after being let in.
   const welcome = useWelcome();
@@ -57,7 +59,7 @@ export function RootLayout() {
       </a>
       {!immersive && <Navbar />}
       <SeasonUrlSync />
-      {!adminPath && (
+      {!adminPath && !mesaPath && (
         <Suspense fallback={null}>
           <LiveIsland />
         </Suspense>

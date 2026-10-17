@@ -27,7 +27,7 @@ export function Shirt({ kind, number, size = 48, shadow = false }: { kind: Shirt
   const L = shirtLook(kind);
   return (
     <span className="shirt">
-      {shadow && <span className="shadow" />}
+      {shadow && <span className="shade" />}
       <svg width={size} height={Math.round((size * 44) / 48)} viewBox="0 0 48 44" aria-hidden="true">
         <path d={PATH} fill={L.fill} stroke={L.stroke} strokeWidth={kind === "bench" ? 2 : 1.4} strokeLinejoin="round" />
         {kind !== "bench" && <path d="M20 1.8 Q24 7.5 28 1.8" fill="none" stroke={L.collar} strokeWidth="1.6" />}

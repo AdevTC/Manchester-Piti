@@ -125,6 +125,17 @@ describe("la cola de la mesa", () => {
     q.close();
   });
 
+  it("un campo sin valor no toca la jugada; solo el texto vacío lo borra", () => {
+    const q = new MesaQueue({ key: "k", storage: memory(), channel: null, isOnline: () => false, send: () => new Promise(() => undefined) });
+    q.enqueue(item("a"));
+    q.enqueue(item("g", { type: "goal", playerId: "p1", assistPlayerId: "p2" }));
+    expect(q.amend("g", { type: undefined, playerId: undefined, assistPlayerId: "" })).toBe(true);
+    const payload = q.getSnapshot().items[1].payload;
+    expect(payload).toMatchObject({ type: "goal", playerId: "p1" });
+    expect(payload).not.toHaveProperty("assistPlayerId");
+    q.close();
+  });
+
   it("avisa a las otras pestañas y relee cuando ellas cambian la cola", () => {
     const store = memory();
     const posts: unknown[] = [];

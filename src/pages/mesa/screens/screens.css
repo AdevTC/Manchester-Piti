@@ -23,7 +23,7 @@
 .mesa .antes .tok{width:84px;margin-left:-42px}
 .mesa .antes .tok:active{transform:none}
 .mesa .antes .tok .shirt{width:40px;height:37px}
-.mesa .antes .tok .shadow{left:5px;right:5px;height:7px}
+.mesa .antes .tok .shade{left:5px;right:5px;height:7px}
 .mesa .antes .tok .dor{top:11px;font-size:16px}
 .mesa .antes .tok .nm{font-size:13px}
 .mesa .antes .dug{display:flex;align-items:center;gap:6px;padding:9px 8px 6px 14px}

@@ -218,7 +218,9 @@ export class MesaQueue {
     if (!plays[index]) return false;
     const payload: QueuePayload = { ...plays[index].payload };
     for (const [k, v] of Object.entries(patch) as [keyof typeof patch, string | boolean | undefined][]) {
-      if (v === undefined || v === "") delete payload[k];
+      // (a key present but undefined means «unchanged»: only "" clears a field; the type is never cleared)
+      if (v === undefined || (v === "" && k === "type")) continue;
+      if (v === "") delete payload[k];
       else Object.assign(payload, { [k]: v });
     }
     const batch = it.batch?.map((p, i) => (i === index ? payload : p));

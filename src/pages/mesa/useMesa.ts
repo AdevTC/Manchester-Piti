@@ -105,8 +105,11 @@ const NO_SUBS: PlannedSub[] = [];
 
 // ---------- the queue
 function useQueue(uid: string | undefined, matchId: string | undefined): MesaQueue | null {
-  const queue = useMemo(() => {
-    if (!uid || !matchId || typeof window === "undefined") return null;
+  // Built and closed by the same effect: a memoized queue closed by an effect's cleanup stays closed when
+  // React runs the effect again (StrictMode, remounts) and never uploads anything.
+  const [queue, setQueue] = useState<MesaQueue | null>(null);
+  useEffect(() => {
+    if (!uid || !matchId || typeof window === "undefined") return;
     const key = queueKey(uid, matchId);
     let storage: Storage | null = null;
     try {
@@ -115,7 +118,7 @@ function useQueue(uid: string | undefined, matchId: string | undefined): MesaQue
       storage = null;
     }
     const channel = typeof BroadcastChannel === "function" ? new BroadcastChannel(key) : null;
-    return new MesaQueue({
+    const queue = new MesaQueue({
       key,
       storage,
       channel,
@@ -137,13 +140,13 @@ function useQueue(uid: string | undefined, matchId: string | undefined): MesaQue
         });
       },
     });
-  }, [uid, matchId]);
-  useEffect(() => {
-    if (!queue) return;
+    // The queue owns a BroadcastChannel and timers, so this effect must build it; React then has to hear of it.
+    // oxlint-disable-next-line react/set-state-in-effect
+    setQueue(queue);
     const on = () => queue.setOnline(true);
     const off = () => queue.setOnline(false);
     const onStorage = (e: StorageEvent) => {
-      if (e.key === queueKey(uid!, matchId!)) queue.reload();
+      if (e.key === key) queue.reload();
     };
     window.addEventListener("online", on);
     window.addEventListener("offline", off);
@@ -154,9 +157,10 @@ function useQueue(uid: string | undefined, matchId: string | undefined): MesaQue
       window.removeEventListener("offline", off);
       window.removeEventListener("storage", onStorage);
       queue.close();
+      setQueue((q) => (q === queue ? null : q));
     };
-  }, [queue]); // eslint-disable-line react-hooks/exhaustive-deps -- (uid and matchId are the queue's own key)
-  return queue;
+  }, [uid, matchId]);
+  return uid && matchId ? queue : null;
 }
 const EMPTY_SNAP = { items: [] as readonly QueueItem[], sending: null, offline: false, lastTryAt: null };
 const noop = () => () => undefined;

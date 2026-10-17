@@ -377,7 +377,7 @@ export function EnJuego({ view }: MesaScreenProps) {
   else if (lastStrap) {
     const goal = lastStrap.goal;
     const where = lastStrap.local ? (queue.online ? "subiendo" : "en el móvil, se sube sola") : goal ? "ya en la web" : "";
-    strap = { tag: lastStrap.tag, msg: lastStrap.text, sub: [`Minuto ${lastStrap.minute ?? clock.minute}, apuntado por ti`, where].filter(Boolean).join(". "), tone: goal === "us" ? "g" : goal === "them" ? "r" : "", undo: true, cancel: false };
+    strap = { tag: lastStrap.tag, msg: lastStrap.text, sub: [`Minuto ${lastStrap.minute ?? clock.minute}, apuntado por ti`, where].filter(Boolean).join(" · "), tone: goal === "us" ? "g" : goal === "them" ? "r" : "", undo: true, cancel: false };
   } else if (justKicked) {
     strap = { tag: "INICIO", msg: clock.kickoffAt != null ? `Pitido inicial a las ${hhmm(clock.kickoffAt)}` : "Pitido inicial", sub: "El reloj ya corre", tone: "", undo: false, cancel: false, reset: true };
   }
@@ -522,7 +522,7 @@ export function EnJuego({ view }: MesaScreenProps) {
           const spot = p.spot ?? { x: 50, y: 50 };
           return (
             <button key={p.id} type="button" className={cls} style={{ left: `${pitchLeft(spot.x)}%`, top: `${pitchTop(spot.y)}%` }} aria-label={aria} onClick={(e) => tapField(p, e)}>
-              <span className="ring" />
+              <span className="halo" />
               <span className="shirtw">
                 <Shirt kind={p.keeper ? "keeper" : "field"} number={p.number} shadow />
                 <Stickers p={p} />

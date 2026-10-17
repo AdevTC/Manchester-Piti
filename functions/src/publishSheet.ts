@@ -5,7 +5,7 @@ import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { calculateLedger, isPendingDup, type MatchSheet } from "./matchEngine.js";
+import { calculateLedger, dateMillis, isPendingDup, type MatchSheet } from "./matchEngine.js";
 import { db, idSchema } from "./common.js";
 import { eventSchema, guestsSchema, playerRefSchema } from "./eventSchema.js";
 import { guestRefsProblem, memberIds, withoutGuests } from "./guests.js";
@@ -16,6 +16,12 @@ import { findOfficialBoard } from "./officialBoard.js";
 import { resolvePositions, type PosCode } from "./positions.js";
 import { keepStoredPositions, positionsPlayed, withPositions } from "./positionsPlayed.js";
 import { assertMatchNotDeleted, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
+
+/** A stored match date in ms: a Timestamp to the exact ms, or a plain number (older and seeded matches). */
+const exactMillis = (v: unknown): number => {
+  const t = v as { toMillis?: () => number } | undefined;
+  return typeof t?.toMillis === "function" ? t.toMillis() : dateMillis(v);
+};
 
 const url = z.union([
   z.literal(""),
@@ -263,7 +269,7 @@ export async function publishSheet(input: PublishRequest) {
       ...publicSheet,
       ...stamps,
       clock: old.get("clock") ?? readyClock(),
-      ...(typeof old.get("liveEndedAt") === "number" && old.get("date")?.toMillis() === sheet.date ? { liveEndedAt: old.get("liveEndedAt") } : {}),
+      ...(typeof old.get("liveEndedAt") === "number" && exactMillis(old.get("date")) === sheet.date ? { liveEndedAt: old.get("liveEndedAt") } : {}),
       date: Timestamp.fromMillis(sheet.date),
       revision: (sheet.revision ?? 0) + 1,
       goalsFor: finished ? sheet.goalsFor : null,
