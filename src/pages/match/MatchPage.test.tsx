@@ -64,6 +64,9 @@ vi.mock("./Tabs", () => ({
   VestuarioTab: () => <p>pane:vestuario</p>,
 }));
 
+// (the live side column: its own tests in LivePanes.test)
+vi.mock("./LivePanes", () => ({ LiveSide: () => <p>side:numeros</p>, ShirtDefs: () => null }));
+
 const { MatchPage } = await import("./MatchPage");
 
 function open(url: string) {
@@ -338,7 +341,8 @@ describe("MatchPage · the board says when the score may not be live", () => {
   const NOW = Date.UTC(2026, 8, 10);
   const MATCHES = metaKeyOf(["matches"]);
   let onLine: { mockRestore: () => void } | null = null;
-  const board = () => document.querySelector("article.pt-board") as HTMLElement;
+  // (live: the lit card, LiveBoard; played: the stadium board)
+  const board = () => document.querySelector("section.ml-card, article.pt-board") as HTMLElement;
   afterEach(() => {
     onLine?.mockRestore();
     onLine = null;
@@ -362,7 +366,7 @@ describe("MatchPage · the board says when the score may not be live", () => {
     recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 20 * 60_000);
     recordSnapshotMeta(MATCHES, { fromCache: true, hasPendingWrites: false }, NOW - 2 * 60_000 - 5_000);
     open("/matches/j4");
-    expect(await within(await screen.findByRole("article")).findByText("Sin conexión · marcador de hace 2 min")).toBeInTheDocument();
+    expect(await within(await screen.findByRole("region", { name: /Marcador en directo/ })).findByText("Sin conexión · marcador de hace 2 min")).toBeInTheDocument();
   });
 
   it("a played match never shows it", async () => {

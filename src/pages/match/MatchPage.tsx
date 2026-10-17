@@ -30,7 +30,7 @@ import { BackLink } from "../../components/celeste/BackLink";
 import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { Countdown } from "../../components/celeste/Countdown";
 import { matchEvent } from "../../lib/home";
-import { dateParts, eventMinute, resultOf, scoreOf } from "../../lib/partidos";
+import { dateParts, eventMinute, lastEvent, resultOf, scoreOf } from "../../lib/partidos";
 import { KIT_LABEL, kitLabel, mapsUrl, siteOrigin } from "../../lib/derived/venue";
 import { boardLastLine, goalBurstWho, livePlay, scoreboardOf } from "../../lib/derived/scoreboard";
 import { jornadaOf } from "../../lib/derived/jornada";
@@ -39,6 +39,8 @@ import { shareClubPage } from "../../lib/share";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
 import { CampoTab, CronicaTab, DirectoTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
 import { Who } from "./Who";
+import { LiveCard, MesaKey } from "./LiveBoard";
+import { LiveSide, ShirtDefs } from "./LivePanes";
 import { withGuestNames } from "../../lib/liveActions";
 import { MATCH_TABS, matchTabAt, matchTabIndex } from "../../lib/matchTabs";
 import { tabForKey } from "../../lib/tabKeys";
@@ -46,6 +48,7 @@ import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import "../../styles/celeste/page.css";
 import "../../styles/partidos.css";
 import "../../styles/ficha.css";
+import "./live.css";
 
 const GOAL = /^goal/;
 const route = getRouteApi("/matches/$matchId");
@@ -200,6 +203,13 @@ export function MatchPage() {
         const pid = e.type === "opponent_goal" || e.type === "opponent_own_goal" ? undefined : e.playerId;
         return { id: e.id, min: shown != null ? `${shown}′` : "", pid, who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" };
       });
+  // Live, or played with its acta still to come: the lit card (LiveBoard), the title, chips and buttons beside
+  // it on a desktop, and the side column next to Directo · Campo · Pulso.
+  const cardMode = live || (pending && !unplayed);
+  const mesaOpen = !!canScore && !done && !["cancelled", "postponed"].includes(phase);
+  const lastAt = last ? match.events?.find((e) => e.id === last.id) : undefined;
+  const freshGoal = goalShow.goal ? match.events?.find((e) => e.id === goalShow.goal?.id) : undefined;
+  const kickLine = [live ? "En directo" : "Acta pendiente", jornada ? `jornada ${jornada}${match.competition ? ` de ${match.competition.toLocaleLowerCase("es")}` : ""}` : match.competition?.toLocaleLowerCase("es"), match.venue ? `en ${match.venue}` : ""].filter(Boolean).join(", ");
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
   // «Estadísticas» reads the narrated actions (passes, shots, tackles…): without any, a short line.
   const analysed = hasAnalysisActions([match]);
@@ -229,18 +239,35 @@ export function MatchPage() {
           <i />
           <i />
         </div>
-        <div className="pt-hero-in">
+        <div className={`pt-hero-in${cardMode ? " ml-hero" : ""}`}>
           <div className="pt-rise">
             <BackLink className="fc-back" to="/partidos" label="Partidos" />
-            <div className="pt-tags">
-              <span className="hm-kick" style={{ margin: 0 }}>
-                {[match.competition, jornada && `Jornada ${jornada}`].filter(Boolean).join(" · ")}
-              </span>
-            </div>
+            {cardMode ? (
+              <p className="ml-kick" style={{ margin: 0 }}>
+                {live && <i aria-hidden="true" />}
+                {kickLine}
+              </p>
+            ) : (
+              <div className="pt-tags">
+                <span className="hm-kick" style={{ margin: 0 }}>
+                  {[match.competition, jornada && `Jornada ${jornada}`].filter(Boolean).join(" · ")}
+                </span>
+              </div>
+            )}
             <h1 className="fc-h1" id="fc-t">
               {headline(match, phase, kick, nameOf)}
             </h1>
           </div>
+          {cardMode ? (
+            <LiveCard match={match} rival={rival} initials={ini} gf={gf} ga={ga} minute={minute} last={pending ? lastEvent(match.events, nameOf, rival) : last} lastAt={lastAt} jornada={jornada ? `Jornada ${jornada}` : ""} goal={goalShow.goal} mesa={mesaOpen} pending={!live}>
+              {live && (
+                <div className="pt-sync">
+                  <SyncChip chip={syncChip} variant="board" announce />
+                </div>
+              )}
+              {live && <GoalBurst burst={goalShow.burst} who={goalBurstWho(last)} />}
+            </LiveCard>
+          ) : (
           <article className={`pt-board pt-rise${live ? " live" : ""}`} style={{ animationDelay: ".15s" }} aria-label={done ? `Final: Manchester Piti ${gf}, ${rival} ${ga}` : live ? `En directo contra ${rival}` : whistle ? `${PENDING_WHISTLE} contra ${rival}` : unplayed ? `${AWAITING_ACTA} contra ${rival}` : `Previa contra ${rival}`}>
             <div className="pt-btop">
               <span>
@@ -327,8 +354,20 @@ export function MatchPage() {
               {r && <span className={`pt-res ${r}`}>{r}</span>}
             </div>
           </article>
-          <div>
+          )}
+          <div className={cardMode ? "ml-acts" : undefined}>
+            {cardMode && (
+              <div className="ml-chips">
+                <span className="ml-chip0">
+                  {d.longCap} · {d.time}
+                </span>
+                <span className="ml-chip0">
+                  <Icon name="shirt" size={14} /> {kit}
+                </span>
+              </div>
+            )}
             <div className="fc-acts">
+              {mesaOpen && cardMode && <MesaKey matchId={match.id} wide />}
               {upcoming && phase === "scheduled" && <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(match, siteOrigin())} />}
               {/* (right after the main action: the row scrolls sideways on a phone, these must not hide at its end) */}
               {viewer.member && board && match.seasonId && (
@@ -385,9 +424,20 @@ export function MatchPage() {
       </div>
       {canScore && !done && !["cancelled", "postponed"].includes(phase) && <div className="fc-pane"><Banda match={match} nameOf={nameOf} /></div>}
       <div className={`fc-pane${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
-        {active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} after={published ? { reactions: reactions.data, ratings: ratings.data, me: member ? me : null, error: reactions.error || ratings.error } : undefined} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} plan={rivalPlan} />)}
-        {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialBoard?.seven ?? null} board={officialBoard} />}
-        {active === 2 && <PulsoTab match={match} live={live} minute={minute} pending={pending} />}
+        {cardMode && active <= 2 ? (
+          <div className="ml-body">
+            <ShirtDefs />
+            <div>
+              {active === 0 && <DirectoTab match={match} nameOf={nameOf} live={live} freshId={goalShow.goal?.id ?? null} />}
+              {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={null} board={null} freshScorer={goalShow.goal?.ours ? (freshGoal?.playerId ?? null) : null} />}
+              {active === 2 && <PulsoTab match={match} players={players} nameOf={nameOf} live={live} pending={pending} />}
+            </div>
+            <LiveSide match={match} players={players} nameOf={nameOf} now={now} />
+          </div>
+        ) : null}
+        {!(cardMode && active <= 2) && active === 0 && (done ? <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} after={published ? { reactions: reactions.data, ratings: ratings.data, me: member ? me : null, error: reactions.error || ratings.error } : undefined} /> : live || pending ? <DirectoTab match={match} nameOf={nameOf} live={live} /> : <PreviaTab match={match} matches={matches} plan={rivalPlan} />)}
+        {!cardMode && active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={officialBoard?.seven ?? null} board={officialBoard} />}
+        {!cardMode && active === 2 && <PulsoTab match={match} players={players} nameOf={nameOf} live={live} pending={pending} />}
         {active === 4 &&
           (analysed ? (
             <TechnicalStatsPanel matches={[match]} people={players.map((p) => ({ id: p.id, name: nameOf(p.id), number: p.number }))} seasonId={match.seasonId} />

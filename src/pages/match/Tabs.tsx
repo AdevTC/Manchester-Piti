@@ -4,8 +4,7 @@ import { PersonalMatchSummary } from "../../components/celeste/PersonalMatchSumm
 // reads and writes the team's private bits (convocatoria, porra, MVP) only for members.
 import { Fragment, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { EVENT_LABELS, dateMillis, isCompleted, playerForSeason, nameFor, type ClubMatch } from "../../lib/clubData";
-import { useSeason } from "../../context/SeasonContext";
+import { dateMillis, isCompleted, nameFor, type ClubMatch } from "../../lib/clubData";
 import { useTeam } from "../../context/TeamContext";
 import { useAuth } from "../../context/AuthContext";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
@@ -18,8 +17,8 @@ import { predictionOpen, predictionsRevealed, scorePrediction } from "../../../f
 import { MatchBadges } from "../../components/celeste/MatchBadges";
 import { Jersey3D } from "../../components/jersey3d/Jersey3D";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
-import { chapters, keyNumbers, matchSnapshot, playerLine, pulse, stintRows } from "../../lib/ficha";
-import { dateParts, eventMinute, exchangeMinute, scoreOf } from "../../lib/partidos";
+import { chapters, matchSnapshot, playerLine, stintRows } from "../../lib/ficha";
+import { dateParts, exchangeMinute, scoreOf } from "../../lib/partidos";
 import { useAbsences, useAvailability, useMatchPredictions, useMeetingNote, useMvpResults, useMvpResultsSync, useMvpReveal, useMyPrediction } from "../vestuario/live";
 import { absentBadge, madridDate, matchDay } from "../../lib/derived/absences";
 import "../../styles/aus-badge.css";
@@ -32,6 +31,8 @@ import { nameSegments, type NameSegment } from "../../lib/derived/names";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { guestOf, isGuestId } from "../../lib/derived/guests";
 import { Who } from "./Who";
+import { useNumOf } from "./useNumOf";
+import { DirectoFeed, LiveCampo, PulsoLive } from "./LivePanes";
 import "./guests.css";
 import { campoSeven, campoSevenNote } from "./campoSeven";
 import { campoLayout, SOURCE_TEXT } from "./campoPositions";
@@ -51,17 +52,6 @@ import type { Me } from "../vestuario/writes";
 
 type NameOf = (id: string) => string;
 const NO_RATINGS: readonly RatingDoc[] = [];
-const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
-
-function useNumOf(players: PlayerDoc[], seasonId?: string) {
-  const { seasons } = useSeason();
-  return (id: string) => {
-    const p = players.find((x) => x.id === id);
-    if (!p) return "";
-    const n = playerForSeason(p, seasonId ?? "all", seasons).number;
-    return n != null ? String(n) : "";
-  };
-}
 
 /** A crónica line with each player it names as a quiet link to his page. */
 function Named({ segments, seasonId }: { segments: NameSegment[]; seasonId?: string }) {
@@ -257,43 +247,11 @@ export function PreviaTab({ match, matches, plan = null }: { match: ClubMatch; m
   );
 }
 
-export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; nameOf: NameOf; live?: boolean }) {
-  const rival = match.rival ?? "Rival";
-  const feed = [...(match.events ?? [])].filter((e) => typeof e.minute === "number" && e.type !== "match_played").sort((a, b) => (b.minute ?? 0) - (a.minute ?? 0));
-  return (
-    <section className="fc-sec" aria-labelledby="fc-live">
-      <span className="hm-kick">{live ? "Desde el acta · se actualiza solo" : "Registro provisional · pendiente de revisión del administrador"}</span>
-      <h2 className="hm-h2" id="fc-live">
-        Lo que va pasando
-      </h2>
-      {feed.length ? (
-        // (no live region: the board's last line already says each new play, once)
-        <ol className="fc-feed">
-          {feed.map((e) => {
-            const us = OURS.has(e.type) || e.type === "chance" || e.type === "corner";
-            const whoId = e.type.startsWith("opponent_") ? undefined : e.type === "substitution" && e.inPlayerId ? e.inPlayerId : e.playerId;
-            const who = e.type.startsWith("opponent_") ? rival : whoId ? nameOf(whoId) : "Manchester Piti";
-            return (
-              <li key={e.id} className={us ? "us" : ""}>
-                <b>{eventMinute(e) ?? e.minute}′</b>
-                <span className="ic">{/yellow|red/.test(e.type) ? <i className="fc-yc" style={e.type !== "yellow_card" ? { background: "#ff5a4f" } : undefined} /> : <Icon name={/goal/.test(e.type) ? "ball" : e.type === "substitution" ? "swap" : e.type === "assist" ? "boot" : "flag"} size={15} />}</span>
-                <span>
-                  <strong>{whoId ? <Who id={whoId} seasonId={match.seasonId}>{who}</Who> : who}</strong>
-                  <small>
-                    {EVENT_LABELS[e.type] ?? "Jugada"}
-                    {e.assistPlayerId && <> · <Icon name="boot" size={13} /> asistencia de <Who id={e.assistPlayerId} seasonId={match.seasonId}>{nameOf(e.assistPlayerId)}</Who></>}
-                    {e.type === "substitution" && e.playerId ? <> · sale <Who id={e.playerId} seasonId={match.seasonId}>{nameOf(e.playerId)}</Who></> : ""}
-                  </small>
-                </span>
-              </li>
-            );
-          })}
-        </ol>
-      ) : (
-        <p className="fc-note">Aún no hay nada en el acta. Cada gol, tarjeta o cambio aparece aquí en cuanto se apunta.</p>
-      )}
-    </section>
-  );
+/** Directo: la mesa's plays as a rail, filtered and split by half (LivePanes DirectoFeed). `freshId`: the
+ *  goal being celebrated right now, which slides in. */
+export function DirectoTab({ match, nameOf, live = true, freshId = null }: { match: ClubMatch; nameOf: NameOf; live?: boolean; freshId?: string | null }) {
+  const now = useClock(5000);
+  return <DirectoFeed match={match} nameOf={nameOf} live={live} now={now} freshId={freshId} />;
 }
 
 /**
@@ -303,7 +261,7 @@ export function DirectoTab({ match, nameOf, live = true }: { match: ClubMatch; n
  * or live) see the convocatoria's titulares. After the acta each one stands where he played
  * (campoPositions); live, and without position data, the orientative 1-3-2-1.
  */
-export function CampoTab({ match, players, nameOf, live, official = null, board = null }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean; official?: readonly string[] | null; board?: Pick<BoardView, "system" | "codes"> | null }) {
+export function CampoTab({ match, players, nameOf, live, official = null, board = null, freshScorer = null }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean; official?: readonly string[] | null; board?: Pick<BoardView, "system" | "codes"> | null; freshScorer?: string | null }) {
   const numOf = useNumOf(players, match.seasonId);
   const [sel, setSel] = useState<string | null>(null);
   const done = isCompleted(match);
@@ -328,6 +286,7 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
   const line = pick ? playerLine(pick, ledger, match.events) : null;
   const pickPlayed = done && pick ? playedLinesOf(match.ledger?.[pick]?.positionsPlayed) : [];
   const rows = done || live ? stintRows(ledger, match.events, match.duration ?? 50) : [];
+  if (live) return <LiveCampo match={match} players={players} nameOf={nameOf} now={now} freshScorer={freshScorer} />;
   if (!starters.length)
     return (
       <section className="fc-sec">
@@ -480,56 +439,19 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
   );
 }
 
-export function PulsoTab({ match, live, minute, pending = false }: { match: ClubMatch; live: boolean; minute: number | null; pending?: boolean }) {
-  const duration = match.duration ?? 50;
+/** Pulso: once the match has started, the numbers, the pulse track and «Quién suma» (LivePanes PulsoLive);
+ *  before, what it will show. */
+export function PulsoTab({ match, players, nameOf, live, pending = false }: { match: ClubMatch; players: PlayerDoc[]; nameOf: NameOf; live: boolean; pending?: boolean }) {
+  const now = useClock(5000);
   const started = live || isCompleted(match) || pending;
-  const bars = pulse(match.events, duration, live ? (minute ?? 0) : started ? duration : 0);
-  const k = keyNumbers(match.events);
-  const { gf, ga } = scoreOf(match);
+  if (started) return <PulsoLive match={match} players={players} nameOf={nameOf} live={live} now={now} />;
   return (
     <section className="fc-sec" aria-labelledby="fc-pu">
-      <span className="hm-kick">Minuto a minuto, desde el acta</span>
+      <span className="hm-kick">Minuto a minuto, desde la mesa</span>
       <h2 className="hm-h2" id="fc-pu">
-        {started ? "El pulso del partido" : "Se llena durante el partido"}
+        Se llena durante el partido
       </h2>
-      <div className="fc-mom" role="img" aria-label={`Pulso del partido minuto a minuto: arriba el Piti, abajo ${match.rival ?? "el rival"}`}>
-        {bars.map((b, i) => (
-          <span key={b.minute} className={`c${b.played ? "" : " off"}`}>
-            <span className="u" style={{ height: `${Math.round(b.us * 0.88)}px`, animationDelay: `${(i * 0.012).toFixed(3)}s` }} />
-            <span className="t" style={{ height: `${Math.round(b.them * 0.88)}px`, animationDelay: `${(i * 0.012).toFixed(3)}s` }} />
-          </span>
-        ))}
-      </div>
-      <div className="fc-axis" aria-hidden="true">
-        <span>0′</span>
-        <span>{Math.round(duration / 2)}′</span>
-        <span>{duration}′</span>
-      </div>
-      <dl className="fc-kpis">
-        <div>
-          <dt>marcador</dt>
-          <dd>{started ? `${gf}–${ga}` : "–"}</dd>
-        </div>
-        <div>
-          <dt>penaltis parados</dt>
-          <dd>{started ? k.saves : "–"}</dd>
-        </div>
-        <div>
-          <dt>palos</dt>
-          <dd>{started ? k.woodwork : "–"}</dd>
-        </div>
-        <div>
-          <dt>tarjetas</dt>
-          <dd>{started ? k.cards : "–"}</dd>
-        </div>
-      </dl>
-      <dl className="fc-attacks" aria-label="Ocasiones y córners registrados">
-        {/* (whose number each is, in words: the side alone says it only to who sees it) */}
-        <div><dd><span className="sr-only">Piti: </span>{started ? k.chances : "–"}</dd><dt>Ocasiones</dt><dd><span className="sr-only">{match.rival ?? "Rival"}: </span>{started ? k.opponentChances : "–"}</dd></div>
-        <div><dd><span className="sr-only">Piti: </span>{started ? k.corners : "–"}</dd><dt>Córners</dt><dd><span className="sr-only">{match.rival ?? "Rival"}: </span>{started ? k.opponentCorners : "–"}</dd></div>
-      </dl>
-      <p className="fc-note">Piti a la izquierda · {match.rival ?? "rival"} a la derecha. Solo se cuentan las ocasiones y los córners registrados; un cero puede significar que aún no se han apuntado.</p>
-      <p className="fc-note">Cada barra es un minuto: arriba el Piti, abajo {match.rival ?? "el rival"}. Es un indicador de actividad a partir de goles, ocasiones, córners, palos, penaltis y tarjetas; no mide la posesión{live ? " y se actualiza durante el partido" : ""}.</p>
+      <p className="fc-note">Cuando ruede el balón, aquí salen los números del partido (goles, ocasiones, palos, faltas, tarjetas y córners), el pulso minuto a minuto y quién suma.</p>
     </section>
   );
 }

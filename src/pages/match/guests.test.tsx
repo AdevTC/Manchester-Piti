@@ -44,7 +44,7 @@ describe("the match page · invitados", () => {
   it("the live feed says «Gol» by «Rafa (invitado)», with no link", () => {
     const match = { ...finished([{ id: "e1", type: "goal", minute: 5, playerId: "guest:g1", assistPlayerId: "a" }]), status: "scheduled" } as ClubMatch;
     const { container } = render(<DirectoTab match={match} nameOf={nameOf(match)} />);
-    const row = container.querySelector(".fc-feed li") as HTMLElement;
+    const row = container.querySelector(".ml-ev") as HTMLElement;
     expect(row).toHaveTextContent("Rafa (invitado)");
     expect(row).toHaveTextContent(/Gol/);
     expect(within(row).queryByRole("link", { name: /Rafa/ })).toBeNull();
