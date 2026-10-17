@@ -189,9 +189,10 @@ export interface BenchRow {
 }
 
 export interface BenchGroup {
-  k: "b" | "s" | "x";
+  /** b banquillo · s sin convocar · x bajas · n «No ha venido» (la mesa ha pasado lista). */
+  k: "b" | "s" | "x" | "n";
   t: string;
-  cls: "g-b" | "g-s" | "g-x";
+  cls: "g-b" | "g-s" | "g-x" | "g-n";
   rows: BenchRow[];
   /** What an empty group says. */
   emptyTxt: string;
@@ -218,14 +219,17 @@ function isBest(c: Cromo, h: BenchHand): boolean {
   return c.pos === h.zone;
 }
 
-function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId: string | null; meId: string | null }): BenchRow {
+function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId: string | null; meId: string | null; roll?: ReadonlySet<string> | null }): BenchRow {
   const bj = grp === "x";
-  const sin = grp === "s";
-  const cvCls: BenchRow["cvCls"] = bj ? BAJA_CLS[c.baja ?? "Inactivo"] : sin ? "sin" : (c.cv ?? "sin");
-  const cv = bj ? bajaChip(c) || "Baja" : sin ? "Sin convocar" : c.cv ? CV_TXT[c.cv] : "Sin respuesta";
-  const icon: BenchRow["icon"] = bj || c.cv === "no" ? "x" : sin ? null : c.cv === "voy" ? "check" : c.cv === "duda" ? "doubt" : null;
+  // (who didn't come, once la mesa has called the roll, sits apart like who isn't called)
+  const gone = grp === "n";
+  const came = !!o.roll && grp === "b";
+  const sin = grp === "s" || gone;
+  const cvCls: BenchRow["cvCls"] = bj ? BAJA_CLS[c.baja ?? "Inactivo"] : sin ? "sin" : came ? "voy" : (c.cv ?? "sin");
+  const cv = bj ? bajaChip(c) || "Baja" : gone ? "No ha venido" : sin ? "Sin convocar" : came ? "Ha venido" : c.cv ? CV_TXT[c.cv] : "Sin respuesta";
+  const icon: BenchRow["icon"] = bj || gone || (!came && c.cv === "no") ? "x" : sin ? null : came || c.cv === "voy" ? "check" : c.cv === "duda" ? "doubt" : null;
   const h = o.hand;
-  const tgt = !!h && !bj && !sin && c.cv !== "no";
+  const tgt = !!h && !bj && !sin && (came || c.cv !== "no");
   const best = tgt && isBest(c, h);
   const me = o.meId === c.id;
   const s = c.stats;
@@ -245,7 +249,7 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
     cv,
     icon,
     tg: tgt && h ? (h.kind === "p" ? "Entra por él" : "Entra aquí") : null,
-    cls: [c.pos === "POR" ? "gk" : "", c.cv === "no" && !bj ? "no-va" : "", sin ? "sin" : "", bj ? "baja" : "", tgt ? "tgt" : "", best ? "best" : "", me ? "me" : ""].filter(Boolean).join(" "),
+    cls: [c.pos === "POR" ? "gk" : "", c.cv === "no" && !bj && !came && !gone ? "no-va" : "", sin ? "sin" : "", bj ? "baja" : "", tgt ? "tgt" : "", best ? "best" : "", me ? "me" : ""].filter(Boolean).join(" "),
     aria:
       c.name + ", dorsal " + c.num + ", " + posAria(c) + ", " + formAria(c) + ", " +
       (bj ? (bajaWords(c) || "baja") + ", no disponible" : "convocatoria: " + cv.toLowerCase()) +
@@ -256,11 +260,20 @@ function row(c: Cromo, grp: BenchGroup["k"], o: { hand: BenchHand | null; selId:
 
 /** The bench (everyone off the pitch) in its three groups, filtered by «Buscar en la plantilla». */
 
-export function benchGroups(o: { bench: Cromo[]; called: ReadonlySet<string> | null; filter: BenchFilter; hand: BenchHand | null; selId: string | null; meId: string | null }): BenchGroup[] {
+export function benchGroups(o: {
+  bench: Cromo[];
+  called: ReadonlySet<string> | null;
+  filter: BenchFilter;
+  hand: BenchHand | null;
+  selId: string | null;
+  meId: string | null;
+  /** «¿Quién ha venido?» (la mesa's roll call): who came is the banquillo, the rest «No ha venido». */
+  roll?: ReadonlySet<string> | null;
+}): BenchGroup[] {
   const f = o.filter;
   const filtering = isFiltering(f);
   const keep = (c: Cromo) => !f.on || matches(c, f);
-  const grpOf = (c: Cromo): BenchGroup["k"] => (c.baja ? "x" : o.called && !o.called.has(c.id) ? "s" : "b");
+  const grpOf = (c: Cromo): BenchGroup["k"] => (c.baja ? "x" : o.roll ? (o.roll.has(c.id) ? "b" : "n") : o.called && !o.called.has(c.id) ? "s" : "b");
   const of = (k: BenchGroup["k"]) => o.bench.filter((c) => grpOf(c) === k && keep(c));
   const rank = (c: Cromo) => (c.cv ? CV_ORDER[c.cv] : 3);
   const b = of("b")
@@ -274,6 +287,13 @@ export function benchGroups(o: { bench: Cromo[]; called: ReadonlySet<string> | n
     rows: list.map((c) => row(c, k, o)),
     emptyTxt: filtering ? "Nadie con ese filtro." : empty,
   });
+  if (o.roll)
+    return [
+      g("b", "Han venido", "g-b", b, "Todos los que han venido están en el campo."),
+      // (the convocados who didn't come first: they are the news)
+      g("n", "No ha venido", "g-n", of("n").sort((x, y) => Number(!o.called?.has(x.id)) - Number(!o.called?.has(y.id))), "Han venido todos."),
+      g("x", "Bajas", "g-x", of("x"), "Sin bajas para este partido."),
+    ];
   return [
     g("b", "Banquillo", "g-b", b, "Todos los convocados están en el campo."),
     g("s", "Sin convocar", "g-s", of("s"), "Nadie fuera de la convocatoria."),

@@ -108,6 +108,8 @@ export interface TablerosProps {
    *  not offered: not a captain who can write it); `agrees` = the convocatoria already has this seven;
    *  `newly` = who an announced convocatoria would newly call (their «Cambios en la convocatoria» goes too). */
   convSync?: { agrees: boolean; newly: string[] } | null;
+  /** «Mandar a la mesa» for the board's match (admins and its scorers, until kick-off): its button, or null. */
+  mesaSend?: ReactNode;
   onUnpublish: (id: string) => void;
   // Partido
   calendar: CalMatch[];
@@ -536,6 +538,14 @@ export function TablerosPanel(p: TablerosProps) {
             </>
           ) : (
             <p>Solo los capitanes y los admins publican el oficial.</p>
+          )}
+          {p.mesaSend && (
+            <div className="cfm" role="group" aria-label="La mesa del partido">
+              <span>
+                <b>La mesa del partido</b> coge el siete de este tablero hasta el pitido: sistema, siete, banquillo y portero.
+              </span>
+              {p.mesaSend}
+            </div>
           )}
         </div>
       )}

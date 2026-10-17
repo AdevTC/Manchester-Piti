@@ -24,6 +24,7 @@ import { readPrefs, writePrefs, type BoardPrefs } from "./prefs";
 import { charlaMatch, matchShort, officialFor, seasonPending, withConvocatoria } from "./boards";
 import { CREST, Icon } from "./icons";
 import { useForgetDeepLink } from "./deeplink";
+import { useMesaLink } from "./useMesaLink";
 import { pizarraLinks } from "./links";
 import "../../../styles/pizarra.css";
 import "../../../styles/pizarra-app.css";
@@ -99,6 +100,8 @@ export function PizarraPage() {
   const links = useMemo(() => pizarraLinks(isAdmin), [isAdmin]);
   // The board has opened where the link asked: coming back later (a reload too) starts from the board you left.
   useForgetDeepLink(session.ready);
+  // La alineación del partido: desde la mesa, «Mandar a la mesa», en el campo ahora
+  const mesa = useMesaLink({ session, uid: user?.uid ?? "preview", isAdmin, squad, calendar: data.calendar, now, seasonId: selectedSeasonId, onSeason: pickSeason });
 
   return (
     <Board
@@ -136,6 +139,7 @@ export function PizarraPage() {
         </Link>
       }
       links={links}
+      mesa={mesa}
       header={
         <CelesteHeader
           active="vestuario"

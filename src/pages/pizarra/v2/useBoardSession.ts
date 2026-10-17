@@ -62,6 +62,12 @@ export interface BoardSession {
   publish: (matchId: string | null) => Promise<string | void>;
   /** Admins: a board stops being official. */
   unpublish: (id: string) => Promise<void>;
+  /** A new board of yours bound to a match, opened: a copy of board `from`, else `lineup` (else empty);
+   *  named `name` (made unique among yours). Resolves with its id. («Desde la mesa»: the scorer's copy.) */
+  newFor: (o: { matchId: string; name: string; from?: string; lineup?: Lineup }) => Promise<string>;
+  /** The board on screen stored with its last edit (the draft becomes a board; a write on its way is
+   *  waited for): resolves with its id. Before a server reads it («Mandar a la mesa»). */
+  flush: () => Promise<string>;
 }
 
 /** What a new board starts with besides an empty seven: a system, its seven by slot, and a name. */
@@ -234,6 +240,8 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
   const retry = useRef({ n: 0, t: 0 });
   /** The lineup whose write is on its way (not sent again until it fails). */
   const inFlight = useRef<Lineup | null>(null);
+  /** The last write sent (flush waits for it). */
+  const lastWrite = useRef<Promise<void>>(Promise.resolve());
 
   /**
    * Writes the board now. A failed write is retried (2 s, 5 s, 15 s, then when the connection comes
@@ -251,6 +259,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     setSent({ key: k, sig: storedSig(snapshot, latest.current.squadIds) });
     inFlight.current = snapshot;
     const write = latest.current.save(bid, snapshot);
+    lastWrite.current = write;
     write.then(
       () => {
         if (inFlight.current === snapshot) inFlight.current = null;
@@ -536,6 +545,28 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     await lineups.markOfficial(oid, null);
   };
 
+  const newFor = (o: { matchId: string; name: string; from?: string; lineup?: Lineup }): Promise<string> =>
+    once(async () => {
+      const src = o.from ? find(o.from) : undefined;
+      if (o.from && !src) throw new Error("Ese tablero ya no existe");
+      const L = src ? normalize(extractLineup(src), squadIds) : (o.lineup ?? seedLineup(lineup.formation, []));
+      const stored = withBench(L, squadIds);
+      const nm = uniqueName(o.name, taken());
+      const nid = await lineups.create(stored, nm, o.matchId);
+      openFresh(nid, stored, nm);
+      return nid;
+    });
+
+  const flush = async (): Promise<string> => {
+    if (!ready || readOnly) throw new Error("Este tablero es de solo lectura");
+    const bid = await ensureId();
+    const cur = latest.current;
+    const pend = cur.id === bid ? cur.pending : null;
+    if (pend && inFlight.current !== pend) await cur.send(cur.key, bid, pend, false);
+    else await lastWrite.current;
+    return bid;
+  };
+
   const sv = saved && saved.key === key ? saved : null;
   const pending = !!mine?.dirty || sv?.status === "saving";
   const status: SaveStatus = !id
@@ -580,5 +611,7 @@ export function useBoardSession({ seasonId, lineups, squadIds, squadReady, uid, 
     linkMatch,
     publish,
     unpublish,
+    newFor,
+    flush,
   };
 }

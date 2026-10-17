@@ -118,6 +118,19 @@ describe("the bench", () => {
     expect(r.aria).toMatch(/sancionado 1 partido más, no disponible/);
   });
 
+  it("once la mesa calls the roll, who came is the banquillo and the rest «No ha venido» (convocados first)", () => {
+    const g = benchGroups({ bench: off(L, conv), called: new Set([...SEVEN, "kevin", "fer"]), filter: OFF, hand: { kind: "slot", zone: "MED", code: "MC" }, selId: null, meId: null, roll: new Set([...SEVEN, "erik", "fer"]) });
+    expect(g.map((x) => [x.k, x.t, x.rows.map((r) => r.id).sort()])).toEqual([
+      ["b", "Han venido", ["erik", "fer", "tello"]],
+      ["n", "No ha venido", ["kevin"]],
+      ["x", "Bajas", ["andia", "brawan"]],
+    ]);
+    // who came reads «Ha venido» (even a «No va» who turned up) and can come in; who didn't, can't
+    expect(new Set(g[0].rows.map((r) => [r.cv, r.cvCls, r.icon, !!r.tg].join()))).toEqual(new Set(["Ha venido,voy,check,true"]));
+    expect(g[1].rows[0]).toMatchObject({ cv: "No ha venido", cvCls: "sin", icon: "x", tg: null });
+    expect(g[1].rows[0].cls).toContain("sin");
+  });
+
   it("the captain's convocatoria leaves the others «Sin convocar»", () => {
     const g = benchGroups({ bench: off(L, conv), called: new Set([...SEVEN, "erik"]), filter: OFF, hand: null, selId: "erik", meId: null });
     expect(g[0].rows.map((r) => r.id)).toEqual(["erik", "tello"]);

@@ -135,6 +135,11 @@ import { famCodeCount, famCount, famLine, familiarity, famSlot } from "./familia
 import type { CardView } from "./view";
 import { MoverA } from "./MoverA";
 import { OficialBanner } from "./OficialBanner";
+// La alineación del partido: la pizarra ⇄ la mesa (desde la mesa, Mandar a la mesa, En el campo ahora)
+import { CampoAhora } from "./MesaLink";
+import { availableOf, bringField, fieldOnBoard, ownThatCame, rollSquad } from "./mesaLogic";
+import type { BoardMesa } from "./useMesaLink";
+import { lineupFromBoard } from "../../../lib/matchLineup";
 import { useOficialBanner } from "./useOficialBanner";
 import { moveOptions } from "./moveTo";
 import { useTactica } from "./useTactica";
@@ -203,6 +208,9 @@ export interface BoardProps {
    *  player's public page («Ver su página» on his ficha) and the linked match's (its page, an admin's
    *  Convocar). */
   links?: { player: (id: string) => ReactNode; match: (matchId: string) => ReactNode };
+  /** The board's match at la mesa (useMesaLink): the roll call, the strip, «Mandar a la mesa», the pitch
+   *  now. Absent in tests and without a match. */
+  mesa?: BoardMesa | null;
   header?: ReactNode;
   footer?: ReactNode;
 }
@@ -1800,8 +1808,11 @@ export function Board(props: BoardProps) {
     if (!canEdit) return;
     // The board's match (linked, else the next): its convocatoria's siete comes first in the pack.
     const cm = props.calendar.find((c) => c.id === session.matchId) ?? props.nextMatch;
-    const own = cm?.conv?.starters ?? [];
-    const next = suggestSeven(L, sq, own, calledOf(cm), (id, z, code) => (code ? famCodeCount(fam, id, code) : famCount(fam, id, z)));
+    // (once la mesa has called the roll, only who came: the convocatoria's siete that came goes first)
+    const own = ownThatCame(cm?.conv?.starters ?? [], roll);
+    const pool = availableOf(calledOf(cm), roll);
+    const sqR = rollSquad(sq, roll);
+    const next = suggestSeven(L, sqR, own, pool, (id, z, code) => (code ? famCodeCount(fam, id, code) : famCount(fam, id, z)));
     if (!next.slots.some((s) => s.playerId)) {
       say("No hay nadie disponible para el sobre");
       return;
@@ -1809,20 +1820,26 @@ export function Board(props: BoardProps) {
     commit(next, { ui: { sel: null, pick: null, kb: null }, fx: { spin: !rm } });
     buzz([10, 40, 10, 40, 10, 40, 60]);
     // (with exact positions the pack deals by encaje first, form only between equals)
-    const best = sevenByEncajeOn(L, sq, own, calledOf(cm)) ? "los siete que mejor encajan, por forma" : "los siete en mejor forma";
+    const best = sevenByEncajeOn(L, sqR, own, pool) ? "los siete que mejor encajan, por forma" : "los siete en mejor forma";
+    if (roll) {
+      say("Sobre abierto: " + best + ", entre los que han venido");
+      return;
+    }
     say(own.length && cm ? "Sobre abierto: el siete de la convocatoria de " + matchShort(cm) : "Sobre abierto: " + best + (sq.recentLabel ? " (" + sq.recentLabel + ")" : ""));
   };
   const doAuto = () => {
     if (!canEdit) return;
-    const next = autoPlace(L, sq, called);
-    const exact = autoByEncajeOn(L, sq, called);
+    const pool = availableOf(called, roll);
+    const sqR = rollSquad(sq, roll);
+    const next = autoPlace(L, sqR, pool);
+    const exact = autoByEncajeOn(L, sqR, pool);
     if (next.slots.every((s, i) => s.playerId === L.slots[i]?.playerId)) {
       say(next.slots.some((s) => s.playerId) ? (exact ? "Ya está cada cromo donde mejor encaja" : "Ya está cada cromo en su sitio") : "No hay nadie disponible para colocar");
       return;
     }
     commit(next, { ui: { sel: null, pick: null, kb: null } });
     buzz([10, 30, 10, 30, 10]);
-    say((exact ? "Cada cromo donde mejor encaja" : "Cada cromo a su sitio natural") + " · bajas y «no voy» fuera");
+    say((exact ? "Cada cromo donde mejor encaja" : "Cada cromo a su sitio natural") + (roll ? " · solo los que han venido" : " · bajas y «no voy» fuera"));
   };
   const toSystem = (next: Lineup) => {
     commit(next, { ui: { pick: null } });
@@ -2126,6 +2143,8 @@ export function Board(props: BoardProps) {
   const sInfo = squadInfo(L, sq, ch);
   const cm = props.conv.match;
   const called = calledOf(cm);
+  // «¿Quién ha venido?» (la mesa's roll call for the board's match): the bench is who came
+  const roll = props.mesa?.roll ?? null;
   const conv = convHead({ sq, match: cm, loading: props.conv.loading, error: props.conv.error });
   // «Solo los que van» = those who said «Voy» (it needs answers to the convocatoria).
   const ocOn = oc && conv.answered;
@@ -2142,6 +2161,7 @@ export function Board(props: BoardProps) {
         hand: benchHand,
         selId: sel?.k === "b" ? sel.id : null,
         meId: props.meId,
+        roll,
       })
     : NO_GROUPS;
   // «Buscar en la plantilla» finds the ones on the pitch too: tapping one marks him there
@@ -2831,6 +2851,7 @@ export function Board(props: BoardProps) {
           r.react(nextReaction(r.mine, v)).catch(tbFail);
         }}
         convSync={convSync}
+        mesaSend={props.mesa?.tableros ?? null}
         onPublish={(mid, o) => {
           if (pubBlock) return Promise.resolve(say(pubBlock));
           // One «siete» (M6): «Usar este siete como convocatoria» — the convocatoria of the match takes the
@@ -3186,6 +3207,25 @@ export function Board(props: BoardProps) {
     hacer: cb.hacer,
   };
 
+  // «En el campo ahora · 34′»: the pitch as the mesa has it now; «Traer aquí» puts it on this board
+  const mf = props.mesa?.field ?? null;
+  const mesaField = mf ? (
+    <CampoAhora
+      minute={mf.minute}
+      lines={mf.lines}
+      seven={mf.seven}
+      same={fieldOnBoard(lineupFromBoard(L), mf.lineup, mf.now)}
+      ro={!canEdit}
+      back={props.mesa?.back ?? null}
+      onBring={() => {
+        if (!canEdit) return;
+        commit(bringField(L, mf.lineup, mf.now), { ui: { sel: null, pick: null, kb: null } });
+        buzz(12);
+        say("El siete del campo, en el tablero (" + mf.minute + ")");
+      }}
+    />
+  ) : null;
+
   return (
     <div
       ref={rootRef}
@@ -3306,6 +3346,10 @@ export function Board(props: BoardProps) {
           {/* «El oficial ha cambiado» and the versions of the seven head the panel: over the pitch they covered
               the LED board and the far cromos */}
           {ready && modo !== "charla" && ofb.msg && <OficialBanner msg={ofb.msg} onView={offOther ? () => { ofb.dismiss(); session.open(offOther); } : null} onOk={ofb.dismiss} />}
+          {/* La mesa heads the panel, never over the pitch (it covered the striker's cromo): its state and
+              «Mandar a la mesa» before kick-off; in play, the pitch now (with its own way back) */}
+          {ready && modo !== "charla" && !ro && !(modo === "editar" && mesaField) && props.mesa?.strip}
+          {ready && modo === "editar" && mesaField}
           {ready && modo === "editar" && variantPills}
           {shown}
         </Sheet>
@@ -3360,6 +3404,7 @@ export function Board(props: BoardProps) {
             onClose={() => patchUi({ fan: null })}
           />
         )}
+        {props.mesa?.dialog}
         {moverOn && (
           <MoverA
             name={nm(moverOn)}
