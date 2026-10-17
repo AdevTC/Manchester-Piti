@@ -169,6 +169,11 @@ export const metrics = {
   redCards: "Expulsiones",
   doubleYellows: "Dobles amarillas",
   woodwork: "Tiros al palo",
+  // la mesa's plays (playerStats: from the ledger or the events)
+  chances: "Ocasiones",
+  saves: "Paradas",
+  fouls: "Faltas cometidas",
+  foulsReceived: "Faltas recibidas",
   penaltySaved: "Penaltis parados",
   goalPenalty: "Goles de penalti",
   goalFreekick: "Goles de falta",
