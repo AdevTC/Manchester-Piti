@@ -82,6 +82,15 @@ describe("La mesa · En juego", () => {
     expect(view.actions.edit).toHaveBeenCalledWith("live-r1", { assistPlayerId: "p" });
   });
 
+  it("«Sin asistencia» deja el gol revisado sin pase: el acta no vuelve a preguntar", () => {
+    const view = makeView();
+    render(<EnJuego view={view} />);
+    fireEvent.click(screen.getByRole("button", { name: /Gol del Piti/ }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "¿Quién marcó?" })).getByRole("button", { name: /Mario/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sin asistencia" }));
+    expect(view.actions.edit).toHaveBeenCalledWith("live-r1", { assistPlayerId: "" });
+  });
+
   it("«Lo apunto luego» y «Autogol suyo» van sin goleador", () => {
     const view = makeView();
     render(<EnJuego view={view} />);
@@ -138,7 +147,7 @@ describe("La mesa · En juego", () => {
     render(<EnJuego view={view} />);
     fireEvent.click(screen.getByRole("button", { name: "Fin de la 1ª" }));
     expect(view.actions.clock).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "¿Seguro? Toca" }));
+    fireEvent.click(screen.getByRole("button", { name: "¿Seguro?" }));
     expect(view.actions.clock).toHaveBeenCalledWith("halftime");
   });
 

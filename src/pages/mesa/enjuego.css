@@ -1,6 +1,8 @@
 /* La mesa · En juego and its offline state: what the screen adds to the shared objects of tokens.css. */
 .mesa .enj{position:relative;padding-top:env(safe-area-inset-top,0px)}
 .mesa .enj .shirtw{position:relative;display:block}
+/* the pitch gives way on shorter phones (812 px and under) so the rival bar stays above the dock */
+.mesa .enj .pitch{height:clamp(230px,calc(100dvh - 564px),280px)}
 .mesa .enj .tok .shirtw{width:48px;height:44px}
 .mesa .enj .bt .shirtw{width:34px;height:31px}
 .mesa .enj .key.end.due{box-shadow:inset 0 0 0 1.5px rgba(255,198,89,.7);color:#ffd98c}

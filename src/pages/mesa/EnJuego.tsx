@@ -495,7 +495,7 @@ export function EnJuego({ view }: MesaScreenProps) {
               void run(() => actions.clock(endAction));
             }}
           >
-            {confirmEnd ? "¿Seguro? Toca" : endLabel}
+            {confirmEnd ? "¿Seguro?" : endLabel}
           </button>
         </div>
       </section>
@@ -700,6 +700,8 @@ export function EnJuego({ view }: MesaScreenProps) {
               onClick={() => {
                 setStrapId(mode.goalId);
                 setMode(NONE);
+                // answered: nobody gave the pass (the acta won't ask again)
+                void actions.edit(mode.goalId, { assistPlayerId: "" }).catch(() => undefined);
               }}
             >
               Sin asistencia
