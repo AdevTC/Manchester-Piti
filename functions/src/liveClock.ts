@@ -27,7 +27,7 @@ export const setMatchScorers = onCall(async req => {
 });
 export const controlMatchClock = onCall(async req => {
   const actor = await memberAs(req);
-  const data = parse(z.object({ matchId: idSchema, action: z.enum(CLOCK_ACTIONS), revision: z.number().int().min(0) }), req.data);
+  const data = parse(z.object({ matchId: idSchema, action: z.enum(CLOCK_ACTIONS), revision: z.number().int().min(0), value: z.number().int("El añadido va de 0 a 15 minutos.").min(0, "El añadido va de 0 a 15 minutos.").max(15, "El añadido va de 0 a 15 minutos.").optional() }), req.data);
   const saved = await runMatchTransaction(data.matchId, async (tx, { match: snap }) => {
     await requireScorer(tx, data.matchId, actor);
     const ref = db.doc(`matches/${data.matchId}`);
@@ -35,11 +35,12 @@ export const controlMatchClock = onCall(async req => {
     await requireActiveMatch(tx, data.matchId, snap);
     if (["finished", "cancelled", "postponed"].includes(snap.get("status"))) throw new HttpsError("failed-precondition", "El reloj solo se controla en un partido pendiente de publicar.");
     const old = snap.get("clock") as MatchClock | undefined;
-    if ((old?.revision ?? 0) !== data.revision) throw new HttpsError("aborted", "Otra persona ha cambiado el reloj. Ya se está sincronizando; revisa el estado antes de continuar.");
+    // The stoppage time is an absolute value (a label): the last one set wins, whatever the revision.
+    if (data.action !== "added" && (old?.revision ?? 0) !== data.revision) throw new HttpsError("aborted", "Otra persona ha cambiado el reloj. Ya se está sincronizando; revisa el estado antes de continuar.");
     if (data.action === "start" && (snap.get("starters") ?? []).length !== 7) throw new HttpsError("failed-precondition", "Confirma los siete titulares antes de iniciar.");
     let clock: MatchClock;
     const now = Date.now();
-    try { clock = transitionClock(old, data.action, now, (snap.get("events") ?? []) as MatchEvent[]); }
+    try { clock = transitionClock(old, data.action, now, (snap.get("events") ?? []) as MatchEvent[], data.value); }
     catch (error) { throw new HttpsError("failed-precondition", (error as Error).message); }
     const elapsed = clockReading(clock, now).elapsedSeconds;
     if (elapsed > 9000 && data.action !== "finish") throw new HttpsError("failed-precondition", "El reloj supera 150 minutos. Revisa el encuentro desde el acta.");

@@ -2,12 +2,14 @@
 import { calculateLedger, type MatchEvent } from "./matchEngine.js";
 import { eventSeconds } from "./matchAnalysis.js";
 import { isUnknownGuest, type MatchGuest } from "./guests.js";
-export const LIVE_TYPES = [
-  "goal", "goal_penalty", "goal_freekick", "opponent_goal", "opponent_own_goal", "own_goal",
-  "yellow_card", "double_yellow", "red_card", "penalty_saved", "penalty_missed", "woodwork", "substitution",
-  "chance", "opponent_chance", "corner", "opponent_corner",
-] as const;
-const NEEDS_PLAYER = new Set<string>(LIVE_TYPES.filter((t) => !["opponent_goal", "opponent_own_goal", "chance", "corner", "opponent_chance", "opponent_corner"].includes(t)));
+import { MESA_TYPES } from "./liveRules.js";
+/** La mesa's catalogue (liveRules.ts MESA_TYPES) is the callable's. */
+export const LIVE_TYPES = MESA_TYPES;
+/** Rival plays («opponent_*»): never carry a Piti player. */
+export const isRivalType = (type: string): boolean => type.startsWith("opponent_");
+/** Ours, with an optional player: a chance or corner by the team, a penalty for or against us (who was fouled, who fouled). */
+const OPTIONAL_PLAYER = new Set<string>(["chance", "corner", "penalty_received", "penalty_committed"]);
+const NEEDS_PLAYER = new Set<string>(LIVE_TYPES.filter((t) => !isRivalType(t) && !OPTIONAL_PLAYER.has(t)));
 /** A plain goal can go without its scorer («Lo completo luego»): the acta asks «¿Quién marcó?» later. */
 const SCORER_LATER = new Set<string>(["goal"]);
 const MIN = 60_000;
@@ -29,6 +31,7 @@ export function liveProblem(
   if (event.minute > duration + 15) return `El minuto ${event.minute} no cabe en un partido de ${duration}.`;
   const called = new Set([...(match.starters ?? []), ...(match.bench ?? [])]);
   if ([event.playerId, event.assistPlayerId, event.inPlayerId].some((id) => isUnknownGuest(match, id))) return "Ese invitado no está en la lista del partido.";
+  if (isRivalType(event.type) && (event.playerId || event.assistPlayerId || event.inPlayerId)) return "Una jugada del rival no lleva jugador del Piti.";
   const later = SCORER_LATER.has(event.type) && !event.playerId && !event.assistPlayerId;
   if (NEEDS_PLAYER.has(event.type) && !later && (!event.playerId || !called.has(event.playerId))) return "Elige un jugador convocado.";
   if (event.playerId && !called.has(event.playerId)) return "Elige un jugador convocado.";

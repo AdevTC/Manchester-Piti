@@ -25,4 +25,7 @@ export const eventSchema = z.object({
   x: coordinate, y: coordinate, endX: coordinate, endY: coordinate,
   possessionSeconds: z.number().int().min(1).max(9000).optional(),
   note: z.string().max(300).optional(), source: z.enum(["live", "narration", "manual"]).optional(), sourceRef: z.string().max(160).optional(),
+  // La mesa's trail (matchEngine MatchEvent): kept through the editor and the publication.
+  byUid: ref.optional(), editedByUid: ref.optional(), editedAt: z.number().int().min(0).optional(),
+  dupOf: ref.optional(), dupOk: z.boolean().optional(), queued: z.boolean().optional(),
 }).refine(e => e.elapsedSeconds == null || Math.floor(e.elapsedSeconds / 60) === e.minute, { message: "El minuto debe coincidir con los segundos de juego." });

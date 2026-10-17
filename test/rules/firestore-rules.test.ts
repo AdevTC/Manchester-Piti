@@ -449,6 +449,46 @@ describe("Votos y convocatorias", () => {
     );
   });
 });
+describe("La mesa: presencia de los anotadores", () => {
+  const presence = (who: string, uid = who) => doc(db(who), "matchPrivate", "m", "presence", uid);
+  const beat = (name = "David") => ({ name, at: serverTimestamp() });
+  beforeEach(async () => {
+    await seed("matchPrivate/m", { scorerUids: ["member"] });
+  });
+  it("el anotador del partido y el admin marcan su propia presencia; el equipo la lee", async () => {
+    await assertSucceeds(setDoc(presence("member"), beat()));
+    await assertSucceeds(setDoc(presence("member"), beat("David R.")));
+    await assertSucceeds(setDoc(presence("admin"), beat("Pablo")));
+    await assertSucceeds(getDoc(doc(db("other"), "matchPrivate", "m", "presence", "member")));
+    await assertSucceeds(getDocs(collection(db("other"), "matchPrivate", "m", "presence")));
+    await assertFails(getDoc(doc(db("outsider"), "matchPrivate", "m", "presence", "member")));
+    await assertFails(getDoc(doc(db(), "matchPrivate", "m", "presence", "member")));
+  });
+  it("nadie más escribe: ni otro miembro, ni por otro, ni en un partido sin anotadores", async () => {
+    await assertFails(setDoc(presence("other"), beat()));
+    await assertFails(setDoc(presence("member", "admin"), beat()));
+    await assertFails(setDoc(presence("admin", "member"), beat()));
+    await assertFails(setDoc(presence("outsider"), beat()));
+    await assertFails(setDoc(doc(db("member"), "matchPrivate", "sin-acta", "presence", "member"), beat()));
+    await assertSucceeds(setDoc(doc(db("admin"), "matchPrivate", "sin-acta", "presence", "admin"), beat()));
+  });
+  it("solo {name, at}: el nombre de 1 a 40 caracteres y la hora del servidor", async () => {
+    await assertFails(setDoc(presence("member"), { name: "David" }));
+    await assertFails(setDoc(presence("member"), { name: "David", at: Timestamp.fromMillis(Date.now() - 60_000) }));
+    await assertFails(setDoc(presence("member"), { ...beat(), extra: true }));
+    await assertFails(setDoc(presence("member"), beat("")));
+    await assertFails(setDoc(presence("member"), beat("x".repeat(41))));
+    await assertFails(setDoc(presence("member"), { name: 7, at: serverTimestamp() }));
+    await assertSucceeds(setDoc(presence("member"), beat("x".repeat(40))));
+  });
+  it("cada uno borra la suya y solo la suya", async () => {
+    await seed("matchPrivate/m/presence/member", { name: "David", at: Timestamp.now() });
+    await seed("matchPrivate/m/presence/admin", { name: "Pablo", at: Timestamp.now() });
+    await assertFails(deleteDoc(presence("admin", "member")));
+    await assertFails(deleteDoc(presence("other", "admin")));
+    await assertSucceeds(deleteDoc(presence("member")));
+  });
+});
 describe("Vestuario: porra, entrenos, tablón y fichas", () => {
   for (const path of [
     "trainings/t",
