@@ -16,6 +16,7 @@ import { findOfficialBoard } from "./officialBoard.js";
 import { resolvePositions, type PosCode } from "./positions.js";
 import { keepStoredPositions, positionsPlayed, withPositions } from "./positionsPlayed.js";
 import { assertMatchNotDeleted, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
+import { lineupCodeByPlayer, lineupSeven, parseMatchLineup, parsePresent, sameSeven } from "./matchLineup.js";
 
 /** A stored match date in ms: a Timestamp to the exact ms, or a plain number (older and seeded matches). */
 const exactMillis = (v: unknown): number => {
@@ -192,8 +193,17 @@ export async function publishSheet(input: PublishRequest) {
     // for each player whose stints and actions did not change, and estimates the rest; a first
     // publication has nothing stored, so it estimates.
     let system: string | null = null;
+    // La alineación del partido (matchLineup.ts) wins over the board: its system, and each slot's code for
+    // the seven (whoever comes on takes the code of whoever goes off). Only while it is the seven of these
+    // titulares: an acta that changed them keeps no lineup, and falls back to the board.
+    const storedLineup = parseMatchLineup(old.get("lineup"));
+    const lineup = storedLineup && sameSeven(lineupSeven(storedLineup), sheet.starters) ? storedLineup : null;
+    const present = parsePresent(old.get("present"));
     if (finished) {
-      if (boardFailed && old.get("status") === "finished") {
+      if (lineup) {
+        withPositions(fullLedger.players, positionsPlayed(fullLedger.players, sheet.events, { board: lineupCodeByPlayer(lineup), main }));
+        system = lineup.system;
+      } else if (boardFailed && old.get("status") === "finished") {
         keepStoredPositions(fullLedger.players, old.get("ledger"), positionsPlayed(fullLedger.players, sheet.events, { board: null, main }));
         system = typeof old.get("system") === "string" ? (old.get("system") as string) : null;
       } else {
@@ -268,6 +278,9 @@ export async function publishSheet(input: PublishRequest) {
     tx.set(ref, {
       ...publicSheet,
       ...stamps,
+      // (the lineup and the roll call live outside the sheet: a save keeps them)
+      ...(lineup ? { lineup } : {}),
+      ...(present ? { present } : {}),
       clock: old.get("clock") ?? readyClock(),
       ...(typeof old.get("liveEndedAt") === "number" && exactMillis(old.get("date")) === sheet.date ? { liveEndedAt: old.get("liveEndedAt") } : {}),
       date: Timestamp.fromMillis(sheet.date),

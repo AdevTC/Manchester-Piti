@@ -20,6 +20,7 @@ import { seasonJornada, sendTo, vapidPrivate } from "./push.js";
 import { boardNotice, convocatoriaMessage, parseSiete, sevenOf, sieteKey, sieteLog, sieteMayCover, sieteStep, type SieteAsk } from "./pushLogic.js";
 import { matchActiveTx, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 import { notifyRota } from "./rota.js";
+import { lineupSeven, parseMatchLineup, sameSeven } from "./matchLineup.js";
 
 const input = z.object({
   matchId: idSchema,
@@ -84,7 +85,11 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
     const revision = num((pub.exists ? pub : draft).get("revision")) + 1;
     // Changed since the last notice: a quiet change after it, or this very call.
     const changed = !sameLineup(before, lineup) || num(pub.get("convocatoriaAt")) > num(pub.get("convocatoriaNotifiedAt"));
-    if (pub.exists) tx.update(pubRef, { ...fields, revision, updatedAt: FieldValue.serverTimestamp() });
+    // La alineación del partido (matchLineup.ts) is the seven of these titulares or nothing: another seven
+    // drops it (the mesa and the Campo go back to the convocatoria until the pizarra sends one again).
+    const stored = parseMatchLineup(pub.get("lineup"));
+    const staleLineup = !!stored && !sameSeven(lineupSeven(stored), data.starters);
+    if (pub.exists) tx.update(pubRef, { ...fields, ...(staleLineup ? { lineup: FieldValue.delete() } : {}), revision, updatedAt: FieldValue.serverTimestamp() });
     // The draft keeps its own revision (the acta editor's base): only the lineup follows.
     if (draft.exists) tx.update(draftRef, fields);
     tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, revision, updatedBy: uid, at: FieldValue.serverTimestamp(), convocatoria: data.notify ? "notify" : "save" });

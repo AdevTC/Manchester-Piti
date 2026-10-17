@@ -19,6 +19,7 @@ export { onAbsenceWritten } from "./absences.js";
 export { onPollCreated, onPollDeleted } from "./polls.js";
 export { cleanupMatchTombstone, deleteMatch, setMatchArchived } from "./matches.js";
 export { setConvocatoria } from "./convocatoria.js";
+export { setMatchLineup, setMatchPresent } from "./matchLineupCallables.js";
 export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";
 export { setNickname, setShirtName, cancelPlayerClaim, leaveVestuario } from "./profile.js";
 export { renameEverywhere } from "./rename.js";

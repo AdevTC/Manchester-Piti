@@ -66,6 +66,17 @@ export function sameLineup(a: BoardLineup | null | undefined, b: BoardLineup | n
   return a.slots.every((s, i) => s.playerId === b.slots[i].playerId && s.code === b.slots[i].code);
 }
 
+/** playerId → the code of his slot in the lineup (the acta's «Ha jugado de» for the seven; whoever comes
+ *  on inherits the code of whoever goes off: positionsPlayed follows the ledger's exchanges). */
+export function lineupCodeByPlayer(l: Pick<MatchLineup, "slots">): Record<string, PosCode> {
+  return Object.fromEntries(l.slots.map((s) => [s.playerId, s.code]));
+}
+
+/** The same players, order aside (a convocatoria's titulares against the lineup's seven). */
+export function sameSeven(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && new Set([...a, ...b]).size === a.length && new Set(a).size === a.length;
+}
+
 /** What a live event needs for lineupNow (a MatchEvent is one). */
 export interface LineupEvent {
   type: string;
