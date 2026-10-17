@@ -43,7 +43,9 @@ describe("the live-action catalogue", () => {
     for (const t of types) expect(LIVE_TYPES).toContain(t);
   });
   it("atBreak is the callable's own rule (functions/src/liveRules.ts)", () => {
-    expect(LIVE_ACTIONS.filter((x) => x.atBreak).map((x) => x.type).sort()).toEqual([...LIVE_AT_BREAK].sort());
+    // This older catalogue holds part of la mesa's plays: its break flags must match the callable's rule for those.
+    const types = new Set<string>(LIVE_ACTIONS.map((x) => x.type));
+    expect(LIVE_ACTIONS.filter((x) => x.atBreak).map((x) => x.type).sort()).toEqual(LIVE_AT_BREAK.filter((t) => types.has(t)).sort());
   });
   it("parity: each admin pad writes exactly the catalogue's types behind it", () => {
     for (const pad of ["rival", ...PADS] as LivePad[]) expect([pad, [...new Set(padEvents(pad).map((e) => e.type))].sort()]).toEqual([pad, [...liveTypesOn(pad)].sort()]);
