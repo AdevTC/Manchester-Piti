@@ -104,8 +104,8 @@ export function rollNote(count: number, keeperHere: boolean): RollNote {
     const k = 7 - count;
     return { a: `Faltan ${k} para el siete`, b: "", enough: false, cta: `Faltan ${k}` };
   }
-  if (!keeperHere) return { a: "Ojo: ", b: "no ha venido ningún portero", enough: true, cta: "Elegir el siete en la pizarra" };
-  return { a: `${count} para elegir · `, b: count === 7 ? "nadie al banquillo" : `${count - 7} al banquillo`, enough: true, cta: "Elegir el siete en la pizarra" };
+  if (!keeperHere) return { a: "Ojo: ", b: "no ha venido ningún portero", enough: true, cta: "Elegir el siete" };
+  return { a: `${count} para elegir · `, b: count === 7 ? "nadie al banquillo" : `${count - 7} al banquillo`, enough: true, cta: "Elegir el siete" };
 }
 
 /** `present` with `id` switched, in convocatoria order (ids not called any more are dropped). */

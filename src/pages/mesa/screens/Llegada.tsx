@@ -84,7 +84,7 @@ export function LlegadaView({ view, data, onBack }: LlegadaViewProps) {
       <div className="roll" role="group" aria-label="Convocados: toca a quien haya venido" aria-busy={data.loading || undefined}>
         <div className="well">
           {main.map((r) => <Row key={r.id} r={r} onToggle={toggle} />)}
-          {rest.length > 0 && <div className="sep">Dijeron que no o no contestaron</div>}
+          {main.length > 0 && rest.length > 0 && <div className="sep">Dijeron que no o no contestaron</div>}
           {rest.map((r) => <Row key={r.id} r={r} onToggle={toggle} />)}
           {!called.length && <p className="sep">La convocatoria aún no tiene a nadie.</p>}
         </div>
@@ -102,7 +102,7 @@ export function LlegadaView({ view, data, onBack }: LlegadaViewProps) {
             {status && <span className="sv">{data.save === "saved" && <Check size={12} />}{status}</span>}
           </div>
         )}
-        <button type="button" className="cta" disabled={!note.enough} onClick={() => nav.pizarra(match.officialBoard ?? null)}>
+        <button type="button" className="cta" aria-label={note.enough ? `${note.cta} en la pizarra` : undefined} disabled={!note.enough} onClick={() => nav.pizarra(match.officialBoard ?? null)}>
           <span>{note.cta}</span>
           <i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFC659" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></i>
         </button>

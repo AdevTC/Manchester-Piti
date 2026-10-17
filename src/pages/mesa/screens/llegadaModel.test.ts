@@ -50,7 +50,7 @@ describe("las filas", () => {
 
   it("says how many are left, the bench and a missing keeper", () => {
     expect(rollNote(5, true)).toMatchObject({ a: "Faltan 2 para el siete", enough: false, cta: "Faltan 2" });
-    expect(rollNote(8, true)).toMatchObject({ a: "8 para elegir · ", b: "1 al banquillo", enough: true, cta: "Elegir el siete en la pizarra" });
+    expect(rollNote(8, true)).toMatchObject({ a: "8 para elegir · ", b: "1 al banquillo", enough: true, cta: "Elegir el siete" });
     expect(rollNote(7, true).b).toBe("nadie al banquillo");
     expect(rollNote(9, false)).toMatchObject({ a: "Ojo: ", b: "no ha venido ningún portero", enough: true });
   });
