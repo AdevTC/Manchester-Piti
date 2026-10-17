@@ -1,0 +1,294 @@
+// The acta's publication pipeline, shared by saveMatchSheet (the editor, admins) and publishLive (la
+// mesa, admins and the match's scorers): validation, ledger, «Ha jugado de», season totals, MVP votes
+// and the porra, in one transaction.
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import { HttpsError } from "firebase-functions/v2/https";
+import { createHash } from "node:crypto";
+import { z } from "zod";
+import { calculateLedger, isPendingDup, type MatchSheet } from "./matchEngine.js";
+import { db, idSchema } from "./common.js";
+import { eventSchema, guestsSchema, playerRefSchema } from "./eventSchema.js";
+import { guestRefsProblem, memberIds, withoutGuests } from "./guests.js";
+import { readyClock } from "./matchClock.js";
+import { recomputePorra } from "./vestuario.js";
+import { boardCodeByPlayer, boardSystem } from "./boardCodes.js";
+import { findOfficialBoard } from "./officialBoard.js";
+import { resolvePositions, type PosCode } from "./positions.js";
+import { keepStoredPositions, positionsPlayed, withPositions } from "./positionsPlayed.js";
+import { assertMatchNotDeleted, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
+
+const url = z.union([
+  z.literal(""),
+  z.url().refine((v) => v.startsWith("https://"), "Usa una URL HTTPS."),
+]);
+export const sheetSchema = z.object({
+  version: z.literal(2),
+  revision: z.number().int().min(0).optional(),
+  seasonId: idSchema,
+  rival: z.string().trim().min(1).max(100),
+  rivalLogoUrl: url.optional(),
+  rivalInitials: z
+    .string()
+    .trim()
+    .max(3)
+    .regex(/^[A-Za-z0-9]*$/)
+    .optional(),
+  /** La mesa's LED code for the rival («ATL»); empty or absent: the first letters of its name. */
+  rivalShort: z
+    .string()
+    .trim()
+    .max(4, "El código del rival tiene como mucho 4 letras.")
+    .regex(/^[\p{L}\p{N}]*$/u, "El código del rival solo lleva letras y números.")
+    .optional(),
+  competition: z.string().trim().min(1).max(80),
+  date: z.number().finite().min(0),
+  duration: z.number().int().min(1).max(150),
+  durationSeconds: z.number().int().min(1).max(9000).optional(),
+  analysisCoverage: z.enum(["partial", "complete"]).optional(),
+  analysisNotes: z.string().max(2000).optional(),
+  venue: z.string().max(200),
+  home: z.boolean(),
+  status: z.enum(["scheduled", "finished", "cancelled", "postponed"]),
+  starters: z.array(playerRefSchema).max(7),
+  bench: z.array(playerRefSchema).max(30),
+  notCalled: z.array(idSchema).max(100),
+  guests: guestsSchema.optional(),
+  events: z.array(eventSchema).max(2500),
+  goalsFor: z.number().int().min(0).max(100).optional(),
+  goalsAgainst: z.number().int().min(0).max(100).optional(),
+  report: z.string().max(10000),
+  photoUrl: url.optional(),
+  gallery: z.array(url).max(20).optional(),
+  meetingNote: z.string().max(500).optional(),
+  kit: z.enum(["home", "away"]).optional(),
+});
+export interface PublishRequest {
+  id: string;
+  sheet: MatchSheet;
+  draft: boolean;
+  /** Who publishes (the audit, matchPrivate.updatedBy). */
+  uid: string;
+  /** Extra checks inside the transaction, before any write (publishLive: the scorer, the whistle). */
+  guard?: (tx: FirebaseFirestore.Transaction, old: FirebaseFirestore.DocumentSnapshot) => Promise<void>;
+  /** What a stale revision says. */
+  staleMessage?: string;
+}
+/** Saves a draft or publishes the acta: exactly saveMatchSheet's pipeline. */
+export async function publishSheet(input: PublishRequest) {
+  const uid = input.uid;
+  const sheet = input.sheet as MatchSheet;
+  if (Buffer.byteLength(JSON.stringify(sheet), "utf8") > 650_000) throw new HttpsError("invalid-argument", "El acta es demasiado grande. Reduce las notas de las jugadas.");
+  // Members only: a guest («guest:g1») has no ficha, no season and no stats (guests.ts).
+  const participants = memberIds([...sheet.starters, ...sheet.bench, ...sheet.notCalled]);
+  const season = await db.doc(`seasons/${sheet.seasonId}`).get();
+  if (!season.exists)
+    throw new HttpsError("invalid-argument", "La temporada no existe.");
+  if (season.get("archived") === true)
+    throw new HttpsError("failed-precondition", "Esa temporada está archivada. Restáurala para editar sus partidos.");
+  // «Ha jugado de»: each one's preferred position as the web reads it (resolvePositions: `positions`,
+  // else the old free-text position), from the fichas read here anyway.
+  const main: Record<string, PosCode | null> = {};
+  if (participants.length) {
+    const players = await db.getAll(
+      ...participants.map((id) => db.doc(`players/${id}`)),
+    );
+    for (const p of players) main[p.id] = resolvePositions(p.data() ?? {}).main;
+    if (
+      players.some(
+        (p) => !p.exists || !(p.get("seasons") ?? []).includes(sheet.seasonId),
+      )
+    )
+      throw new HttpsError(
+        "invalid-argument",
+        "Hay jugadores que no pertenecen a esta temporada.",
+      );
+  }
+  // Every `guest:` reference names a guest on the list — a draft too (the acta and Convocar read it).
+  const guestProblem = guestRefsProblem(sheet);
+  if (guestProblem) throw new HttpsError("invalid-argument", guestProblem);
+  const fullLedger = calculateLedger(sheet, sheet.status === "finished");
+  // The guests' goals count for the team (goalsFor); their rows never reach a member's numbers: the
+  // stored ledger, the season stats, the MVP candidates and the porra read members only.
+  const ledger = { ...fullLedger, players: withoutGuests(fullLedger.players) };
+  if (!input.draft && ledger.errors.length)
+    throw new HttpsError("invalid-argument", ledger.errors.join(" "));
+  // La mesa's «¿Es la misma jugada?» must be answered first: a pending duplicate counts once until then.
+  if (!input.draft && sheet.status === "finished" && sheet.events.some(isPendingDup))
+    throw new HttpsError("failed-precondition", "Hay jugadas repetidas sin resolver («¿Es la misma jugada?»). Respóndelas antes de publicar el acta.");
+  if (!input.draft && sheet.status === "finished") {
+    const roster = await db
+      .collection("players")
+      .where("seasons", "array-contains", sheet.seasonId)
+      .get();
+    if (roster.docs.some((p) => !participants.includes(p.id)))
+      throw new HttpsError(
+        "invalid-argument",
+        "Asigna una situación inicial a todos los jugadores de la temporada.",
+      );
+    if (
+      sheet.goalsFor !== ledger.goalsFor ||
+      sheet.goalsAgainst !== ledger.goalsAgainst
+    )
+      throw new HttpsError(
+        "invalid-argument",
+        "Registra todos los goles de ambos equipos: el acta debe coincidir con el marcador.",
+      );
+  }
+  // The match's official board (never the season's) says who played where. Reading or decoding it must
+  // never block publishing. A board that can't be read leaves the correction to the transaction (keep
+  // what is stored where nothing changed); one that is read but can't be decoded counts as no board.
+  let board: { codes: Record<string, PosCode>; system: string } | null = null;
+  let boardFailed = false;
+  if (!input.draft && sheet.status === "finished") {
+    let found: Awaited<ReturnType<typeof findOfficialBoard>> = null;
+    try {
+      found = await findOfficialBoard(db, sheet.seasonId, input.id, {
+        onInvalidId: (what, id) => console.warn("saveMatchSheet: id no válido", what, id),
+      });
+    } catch (error) {
+      boardFailed = true;
+      console.error("saveMatchSheet: official board unreadable, keeping the stored positions where nothing changed", input.id, error);
+    }
+    if (found)
+      try {
+        board = { codes: boardCodeByPlayer(found.board), system: boardSystem(found.board) };
+      } catch (error) {
+        console.error("saveMatchSheet: official board malformed, estimating by preferred position", input.id, found.id, error);
+      }
+  }
+  const ref = db.doc(`matches/${input.id}`);
+  const affectedSeasons = await runMatchTransaction(input.id, async (tx, { match: old, draft: oldDraft }) => {
+    const currentSeason = await tx.get(db.doc(`seasons/${sheet.seasonId}`));
+    await assertMatchNotDeleted(tx, input.id);
+    if (old.exists || oldDraft.exists) await requireActiveMatch(tx, input.id, old.exists ? old : oldDraft);
+    if (!currentSeason.exists || currentSeason.get('archived') === true) throw new HttpsError('failed-precondition', 'La temporada no está disponible para guardar partidos.');
+    if ((old.get("revision") ?? 0) !== (sheet.revision ?? 0))
+      throw new HttpsError(
+        "aborted",
+        input.staleMessage ?? "Otro administrador ha actualizado este partido. Recarga antes de guardar.",
+      );
+    if (input.guard) await input.guard(tx, old);
+    const activeClock = old.get("clock");
+    if (!input.draft && sheet.status === "finished" && sheet.date > Date.now() && activeClock?.phase !== "ended") throw new HttpsError("invalid-argument", "El partido todavía no ha comenzado.");
+    if (!input.draft && activeClock && ["first", "halftime", "second"].includes(activeClock.phase)) throw new HttpsError("failed-precondition", "El partido sigue en marcha. Pita el final antes de publicar o modificar el acta.");
+    if (input.draft) {
+      tx.set(db.doc(`matchDrafts/${input.id}`), {
+        ...sheet,
+        updatedBy: uid,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return [] as string[];
+    }
+    const { meetingNote, ...publicSheet } = sheet;
+    const finished = sheet.status === "finished";
+    // «Ha jugado de», over the full ledger (a member who comes on for a guest takes the guest's place); the
+    // member rows in `ledger.players` are the same objects, so they get their positions too. With the board unreadable, a published acta keeps its stored positions and system
+    // for each player whose stints and actions did not change, and estimates the rest; a first
+    // publication has nothing stored, so it estimates.
+    let system: string | null = null;
+    if (finished) {
+      if (boardFailed && old.get("status") === "finished") {
+        keepStoredPositions(fullLedger.players, old.get("ledger"), positionsPlayed(fullLedger.players, sheet.events, { board: null, main }));
+        system = typeof old.get("system") === "string" ? (old.get("system") as string) : null;
+      } else {
+        withPositions(fullLedger.players, positionsPlayed(fullLedger.players, sheet.events, { board: board?.codes ?? null, main }));
+        system = board?.system ?? null;
+      }
+    }
+    const votes = await tx.get(ref.collection("votes"));
+    // Replace this match's contribution atomically: corrections never double count.
+    const deltas = new Map<
+      string,
+      { playerId: string; seasonId: string; totals: Record<string, number> }
+    >();
+    const contribute = (
+      seasonId: string,
+      rows: Record<
+        string,
+        ReturnType<typeof calculateLedger>["players"][string]
+      >,
+      sign: number,
+    ) => {
+      for (const [playerId, row] of Object.entries(rows)) {
+        const key = createHash("sha256")
+          .update(`${seasonId}/${playerId}`)
+          .digest("hex");
+        const entry = deltas.get(key) ?? { playerId, seasonId, totals: {} };
+        for (const [k, v] of Object.entries(row))
+          if (typeof v === "number")
+            entry.totals[k] = (entry.totals[k] ?? 0) + sign * v;
+        for (const k of [
+          "started",
+          "benched",
+          "notCalled",
+          "played",
+          "dismissed",
+        ] as const)
+          entry.totals[k] = (entry.totals[k] ?? 0) + sign * (row[k] ? 1 : 0);
+        deltas.set(key, entry);
+      }
+    };
+    if (old.get("status") === "finished" && old.get("seasonId"))
+      contribute(old.get("seasonId"), old.get("ledger") ?? {}, -1);
+    if (finished) contribute(sheet.seasonId, ledger.players, 1);
+    const totalsBefore = new Map<string, Record<string, number>>();
+    const keys = [...deltas.keys()];
+    const stats = keys.length ? await tx.getAll(...keys.map((key) => db.doc(`playerSeasonStats/${key}`))) : [];
+    stats.forEach((snap, i) => totalsBefore.set(keys[i], snap.get("totals") ?? {}));
+    // An amended lineup may remove a previously eligible MVP candidate.
+    const counts: Record<string, number> = {};
+    let total = 0;
+    for (const vote of votes.docs) {
+      const playerId = vote.get("playerId");
+      if (finished && ledger.players[playerId]?.played) {
+        counts[playerId] = (counts[playerId] ?? 0) + 1;
+        total++;
+      } else tx.delete(vote.ref);
+    }
+    tx.set(db.doc(`mvpResults/${input.id}`), { counts, total });
+    for (const [key, entry] of deltas) {
+      const totals = totalsBefore.get(key)!;
+      for (const [stat, change] of Object.entries(entry.totals))
+        totals[stat] = (totals[stat] ?? 0) + change;
+      tx.set(db.doc(`playerSeasonStats/${key}`), {
+        playerId: entry.playerId,
+        seasonId: entry.seasonId,
+        totals,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    // setConvocatoria's stamps live outside the sheet: a save keeps them (the trigger and Hoy read them).
+    const stamps = Object.fromEntries((["convocatoriaAt", "convocatoriaNotifiedAt"] as const).flatMap((k) => (typeof old.get(k) === "number" ? [[k, old.get(k) as number]] : [])));
+    tx.set(ref, {
+      ...publicSheet,
+      ...stamps,
+      clock: old.get("clock") ?? readyClock(),
+      ...(typeof old.get("liveEndedAt") === "number" && old.get("date")?.toMillis() === sheet.date ? { liveEndedAt: old.get("liveEndedAt") } : {}),
+      date: Timestamp.fromMillis(sheet.date),
+      revision: (sheet.revision ?? 0) + 1,
+      goalsFor: finished ? sheet.goalsFor : null,
+      goalsAgainst: finished ? sheet.goalsAgainst : null,
+      ledger: finished ? ledger.players : {},
+      system,
+      voteClosesAt: finished
+        ? (old.get("voteClosesAt") ?? Date.now() + 48 * 60 * 60_000)
+        : null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    tx.set(db.doc(`matchPrivate/${input.id}`), {
+      meetingNote: meetingNote ?? "",
+      updatedBy: uid,
+    }, { merge: true });
+    tx.delete(db.doc(`matchDrafts/${input.id}`));
+    tx.set(db.collection("matchAudit").doc(), {
+      matchId: input.id,
+      revision: (sheet.revision ?? 0) + 1,
+      updatedBy: uid,
+      at: FieldValue.serverTimestamp(),
+    });
+    return [...new Set([sheet.seasonId, old.get('seasonId')].filter((id): id is string => typeof id === 'string' && !!id))].sort();
+  }, { seasons: [sheet.seasonId] });
+  // A move removes the old season's contribution as well as adding the new one.
+  for (const seasonId of affectedSeasons) await recomputePorra(seasonId);
+  return { id: input.id, draft: input.draft, ledger };
+}
