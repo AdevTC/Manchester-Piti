@@ -1,7 +1,7 @@
 // Pure rules of the push notices (functions/src/push.ts): which change of a match (or of the official
 // seven on the pizarra) deserves a notice, to which topic, and its words. Apart so the app's tests can
 // run them.
-import { eventMinute } from "./matchEngine.js";
+import { eventMinute, isPendingDup } from "./matchEngine.js";
 import { resultLetter, resultTitle } from "./result.js";
 import { absenceRangeText } from "./absencesLogic.js";
 import { guestLabel, isGuestId, type MatchGuest } from "./guests.js";
@@ -82,6 +82,9 @@ interface Ev {
   /** A live-stamped event's clock seconds (its minute is then the clock's 0-based one): shown via eventMinute. */
   elapsedSeconds?: number;
   playerId?: string;
+  /** La mesa's possible duplicate (matchEngine isPendingDup): not scored until someone says «Son dos». */
+  dupOf?: string;
+  dupOk?: boolean;
 }
 export interface MatchLike {
   rival?: string;
@@ -118,6 +121,7 @@ const TZ = "Europe/Madrid";
 export function liveScore(events: Ev[] | undefined) {
   let gf = 0, ga = 0;
   for (const e of events ?? []) {
+    if (isPendingDup(e)) continue;
     if (OURS.has(e.type)) gf++;
     else if (THEIRS.has(e.type)) ga++;
   }
@@ -134,6 +138,8 @@ const minuteTxt = (e: Ev, fmt: (n: number) => string): string => {
 };
 
 const isGoal = (e: Ev) => OURS.has(e.type) || THEIRS.has(e.type);
+/** A goal that counts on the scoreboard: a pending duplicate doesn't (it is pushed if «Son dos» makes it count). */
+const scored = (e: Ev) => isGoal(e) && !isPendingDup(e);
 
 /**
  * What changed between two versions of a match, as notices: the clock's whistles (the kick-off, the
@@ -161,14 +167,15 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
     // (`requires` its pushLog): never for the corrections of an old acta. Same tag: it replaces it.
     const ended = whistled(after);
     if (notDone(before) && !ended) {
-      const still = new Set((after.events ?? []).map((e) => e.id));
-      for (const e of (before?.events ?? []).filter((x) => isGoal(x) && !still.has(x.id))) {
+      const still = new Set((after.events ?? []).filter(scored).map((e) => e.id));
+      for (const e of (before?.events ?? []).filter((x) => scored(x) && !still.has(x.id))) {
         const who = e.type === "opponent_own_goal" ? `el autogol de ${rival}` : OURS.has(e.type) ? (e.playerId ? `el gol de ${nameOf(e.playerId)}` : "el gol del Piti") : `el gol de ${rival}`;
         out.push({ topic: "goals", title: `Gol anulado. ${gf}–${ga}`, body: `Se anula ${who}${minuteTxt(e, (n) => ` (minuto ${n})`)} · ${score}`, tag: `goal-${id}`, url, requires: `goal-${id}-${e.id}`, log: `goal-off-${id}-${e.id}` });
       }
     }
-    const seen = new Set((before?.events ?? []).map((e) => e.id));
-    const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && isGoal(e));
+    // Fresh: a goal that counts now and didn't before (new, or a duplicate someone declared «Son dos»).
+    const seen = new Set((before?.events ?? []).filter(scored).map((e) => e.id));
+    const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && scored(e));
     // (a goal written after the final whistle is a correction of the acta: silent, like its undo)
     if (fresh.length && !ended) {
       const last = fresh[fresh.length - 1];

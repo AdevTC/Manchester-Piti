@@ -31,7 +31,7 @@ export interface ActionDetails {
   source?: "live" | "narration" | "manual";
   sourceRef?: string;
 }
-export interface AnalysisEvent extends ActionDetails { id: string; type: string; minute?: number; playerId?: string; assistPlayerId?: string; note?: string }
+export interface AnalysisEvent extends ActionDetails { id: string; type: string; minute?: number; playerId?: string; assistPlayerId?: string; note?: string; dupOf?: string; dupOk?: boolean }
 export const TECH_KEYS = ["passes", "passesCompleted", "passesFailed", "passesUnknown", "passesReceived", "keyPasses", "longPasses", "longPassesCompleted", "crosses", "crossesCompleted", "shots", "shotsOnTarget", "shotsOffTarget", "shotsBlocked", "shotsWoodwork", "shotGoals", "shotAssists", "chancesCreated", "turnovers", "recoveries", "interceptions", "tackles", "tacklesWon", "tacklesUnknown", "clearances", "blocks", "saves", "dribbles", "dribblesWon", "duels", "duelsWon", "aerialDuels", "aerialDuelsWon", "fouls", "foulsReceived", "throwIns", "goalKicks", "kickoffs", "offsides", "carries", "touches", "cornersTaken", "possessionsSeconds", "recordedActions"] as const;
 export type TechnicalStats = Record<typeof TECH_KEYS[number], number>;
 export const emptyTechnical = (): TechnicalStats => Object.fromEntries(TECH_KEYS.map(k => [k, 0])) as TechnicalStats;
@@ -64,13 +64,15 @@ export function analyseActions(events: readonly AnalysisEvent[]) {
   for (const e of events) {
     if (seen.has(e.id)) continue;
     seen.add(e.id);
+    // A pending duplicate (la mesa's «¿Es la misma jugada?», matchEngine isPendingDup) counts once: its earlier twin counts.
+    if (typeof e.dupOf === "string" && e.dupOf !== "" && e.dupOk !== true) continue;
     const side = eventSide(e);
     const team = teams[side];
     const row = side === "us" && e.playerId && !isGuestId(e.playerId) ? player(e.playerId) : undefined;
     const add = (k: keyof TechnicalStats, n = 1) => { team[k] += n; if (row) row[k] += n; };
     const goal = ["goal", "goal_penalty", "goal_freekick", "opponent_goal"].includes(e.type);
     const pass = e.type === "pass" || e.type === "cross";
-    if (isAnalysisAction(e.type) || goal || ["chance", "opponent_chance", "corner", "opponent_corner", "woodwork", "penalty_saved", "penalty_missed"].includes(e.type)) add("recordedActions");
+    if (isAnalysisAction(e.type) || goal || ["chance", "opponent_chance", "corner", "opponent_corner", "woodwork", "penalty_saved", "penalty_missed", "opponent_foul", "opponent_woodwork", "opponent_offside", "opponent_penalty_missed"].includes(e.type)) add("recordedActions");
     if (pass) {
       add("passes"); add(e.outcome === "complete" ? "passesCompleted" : e.outcome === "incomplete" ? "passesFailed" : "passesUnknown");
       if (e.outcome === "incomplete") add("turnovers");
@@ -83,16 +85,16 @@ export function analyseActions(events: readonly AnalysisEvent[]) {
         if (e.playerId && !isGuestId(e.playerId) && !isGuestId(e.receiverId)) { const key = `${e.playerId}>${e.receiverId}`; const edge = links.get(key) ?? { from: e.playerId, to: e.receiverId, count: 0, crosses: 0 }; edge.count++; if (cross) edge.crosses++; links.set(key, edge); }
       }
     }
-    if (e.type === "shot" || goal || ["woodwork", "penalty_missed"].includes(e.type)) {
+    if (e.type === "shot" || goal || ["woodwork", "penalty_missed", "opponent_woodwork", "opponent_penalty_missed"].includes(e.type)) {
       add("shots"); shots.push(e);
       if (goal) { add("shotGoals"); add("shotsOnTarget"); }
-      else if (e.type === "woodwork" || e.outcome === "woodwork") add("shotsWoodwork");
+      else if (e.type === "woodwork" || e.type === "opponent_woodwork" || e.outcome === "woodwork") add("shotsWoodwork");
       else if (e.outcome === "on_target") add("shotsOnTarget");
       else if (e.outcome === "off_target") add("shotsOffTarget");
       else if (e.outcome === "blocked") add("shotsBlocked");
       if (e.assistPlayerId && side === "us") { player(e.assistPlayerId).shotAssists++; team.shotAssists++; }
     }
-    const singles: Record<string, keyof TechnicalStats> = { chance: "chancesCreated", opponent_chance: "chancesCreated", possession_lost: "turnovers", recovery: "recoveries", interception: "interceptions", clearance: "clearances", block: "blocks", save: "saves", penalty_saved: "saves", foul: "fouls", foul_received: "foulsReceived", throw_in: "throwIns", goal_kick: "goalKicks", kickoff: "kickoffs", offside: "offsides", carry: "carries", touch: "touches", corner: "cornersTaken", opponent_corner: "cornersTaken" };
+    const singles: Record<string, keyof TechnicalStats> = { chance: "chancesCreated", opponent_chance: "chancesCreated", possession_lost: "turnovers", recovery: "recoveries", interception: "interceptions", clearance: "clearances", block: "blocks", save: "saves", penalty_saved: "saves", foul: "fouls", opponent_foul: "fouls", foul_received: "foulsReceived", opponent_offside: "offsides", throw_in: "throwIns", goal_kick: "goalKicks", kickoff: "kickoffs", offside: "offsides", carry: "carries", touch: "touches", corner: "cornersTaken", opponent_corner: "cornersTaken" };
     if (singles[e.type]) add(singles[e.type]);
     if (e.type === "interception") add("recoveries");
     if (e.type === "tackle" && e.outcome !== "won" && e.outcome !== "lost") add("tacklesUnknown");

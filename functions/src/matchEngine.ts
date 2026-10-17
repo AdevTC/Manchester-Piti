@@ -57,6 +57,9 @@ export interface MatchEvent extends ActionDetails {
   /** Tapped without signal and uploaded later from the phone's queue. */
   queued?: boolean;
 }
+/** A possible duplicate nobody has resolved yet («¿Es la misma jugada?»): shown, but counted once (its
+ *  earlier twin counts). Every score and the ledger skip it; publishing waits until it is resolved. */
+export const isPendingDup = (e: { dupOf?: string; dupOk?: boolean }): boolean => typeof e.dupOf === "string" && e.dupOf !== "" && e.dupOk !== true;
 /** The minute people read for `elapsedSeconds` of play, football's (1-based): 0:07 is the 1′, 19:30 the 20′.
  *  With the clock stopped (half-time, the end) it is the minute reached: 25:00 is the 25′. */
 export function minuteOfPlay(elapsedSeconds: number, running = true): number {
@@ -84,6 +87,8 @@ export interface MatchSheet {
   rival: string;
   rivalLogoUrl?: string;
   rivalInitials?: string;
+  /** La mesa's LED code for the rival («ATL»): by default the first 3 letters of its main word. */
+  rivalShort?: string;
   competition: string;
   date: number;
   duration: number;
@@ -201,7 +206,9 @@ export function calculateLedger(
     field: [...match.starters],
   };
   const fail = (text: string) => result.errors.push(text);
-  if (strict) for (const e of match.events) {
+  // A pending duplicate is counted once: its earlier twin stands for both until someone resolves it.
+  const counted = match.events.filter((e) => !isPendingDup(e));
+  if (strict) for (const e of counted) {
     if (["goal", "goal_penalty", "goal_freekick"].includes(e.type) && e.assistReviewed === false)
       fail(`Revisa la asistencia del gol de ${e.playerId ?? "jugador pendiente"} (${e.minute ?? "?"}′): elige asistente o confirma sin asistencia.`);
   }
@@ -235,7 +242,7 @@ export function calculateLedger(
     }
   };
   const ids = new Set<string>();
-  const events = match.events
+  const events = counted
     .map((e, order) => ({ ...e, order }))
     .sort((a, b) => eventSeconds(a) - eventSeconds(b) || a.order - b.order);
   for (const e of events) {
@@ -273,8 +280,10 @@ export function calculateLedger(
       else result.goalsFor++;
       continue;
     }
-    if (e.type === "opponent_chance" || e.type === "opponent_corner") continue;
-    if ((e.type === "chance" || e.type === "corner") && !e.playerId) continue;
+    // The rest of the rival's plays (chance, corner, foul, woodwork, offside, cards, missed penalty) name no Piti player.
+    if (e.type.startsWith("opponent_")) continue;
+    // The team's chance or corner, a penalty for or against us: the player is optional.
+    if (["chance", "corner", "penalty_received", "penalty_committed"].includes(e.type) && !e.playerId) continue;
     if (e.type === "goal" && !e.playerId && !e.assistPlayerId && options.allowUnattributedGoals) {
       result.goalsFor++;
       continue;
@@ -285,6 +294,8 @@ export function calculateLedger(
       continue;
     }
     const id = e.playerId!;
+    // «Tocado»: a note on a called player (on the pitch or not); it never takes him off.
+    if (e.type === "injury") continue;
     if (e.type === "substitution") {
       const incoming = e.inPlayerId ? result.players[e.inPlayerId] : undefined;
       if (
@@ -357,7 +368,7 @@ export function calculateLedger(
     else if (e.type === "assist") p.assists++;
   }
   for (const id of [...onPitch.keys()]) close(id, until);
-  const technical = analyseActions(match.events.filter(e => eventSeconds(e) <= until * 60));
+  const technical = analyseActions(counted.filter(e => eventSeconds(e) <= until * 60));
   for (const [id, row] of Object.entries(result.players)) {
     row.secondsPlayed = Math.round(row.minutes * 60);
     row.minutes = Math.round(row.secondsPlayed / 60 * 100) / 100;
