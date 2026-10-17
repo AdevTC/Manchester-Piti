@@ -149,3 +149,7 @@ export const mesaEvent = (data: MesaEventRequest) =>
 export const publishLive = httpsCallable<{ matchId: string; assists?: Record<string, string> }, { ok: boolean }>(functions, "publishLive");
 export const controlMatchClock = withServerTime(httpsCallable<{ matchId: string; action: import("../../functions/src/matchClock").ClockAction; revision: number; value?: number },{ clock: import("../../functions/src/matchClock").MatchClock; serverNow?: number }>(functions, "controlMatchClock"));
 export const setMatchScorers = httpsCallable<{ matchId: string; uids: string[] }, { ok: boolean }>(functions, "setMatchScorers");
+/** La alineación del partido: the pizarra sends a board's seven to the match (admin or scorer, until kick-off). */
+export const setMatchLineup = httpsCallable<import("../../functions/src/matchLineup").SetMatchLineupInput, import("../../functions/src/matchLineup").SetMatchLineupResult>(functions, "setMatchLineup");
+/** La mesa's «¿Quién ha venido?» (admin or scorer, until kick-off). */
+export const setMatchPresent = httpsCallable<import("../../functions/src/matchLineup").SetMatchPresentInput, { ok: boolean }>(functions, "setMatchPresent");
