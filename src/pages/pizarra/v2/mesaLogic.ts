@@ -7,7 +7,7 @@ import type { Lineup } from "../formations";
 import type { LineupDoc } from "../lineupDoc";
 import {
   convocatoriaOf,
-  lineupNow,
+  lineupWalk,
   lineupSeven,
   sameLineup,
   type BoardLineup,
@@ -189,33 +189,17 @@ export interface FieldChange {
   minute: number | null;
 }
 
-const SENT_OFF = new Set(["red_card", "double_yellow"]);
-const counts = (e: LineupEvent): boolean => !(e.dupOf && e.dupOk !== true);
-const when = (e: LineupEvent): number => (e.period === 2 ? 1e6 : 0) + (typeof e.elapsedSeconds === "number" ? e.elapsedSeconds : (e.minute ?? 0) * 60);
 const minuteOf = (e: LineupEvent): number | null =>
   eventMinute({ ...(typeof e.minute === "number" ? { minute: e.minute } : {}), ...(typeof e.elapsedSeconds === "number" ? { elapsedSeconds: e.elapsedSeconds } : {}) });
 
 /**
  * The pitch now (lineupNow: the contract) and the story of how it got there, in play order: each cambio
- * with the slot it happened in, each red. The same walk as lineupNow, so the lines and the pitch agree.
+ * with the slot it happened in (a sub for a player sent off fills the slot his red emptied), each red.
+ * lineupNow's own walk (lineupWalk), so the lines and the pitch agree.
  */
 export function fieldStory(lineup: Pick<MatchLineup, "slots">, events: readonly LineupEvent[]): { now: LineupSlot[]; changes: FieldChange[] } {
-  const on: (LineupSlot | null)[] = lineup.slots.map((s) => ({ ...s }));
-  const changes: FieldChange[] = [];
-  const ordered = events.filter(counts).map((e, i) => ({ e, i })).sort((a, b) => when(a.e) - when(b.e) || a.i - b.i);
-  for (const { e } of ordered) {
-    const at = on.findIndex((s) => s?.playerId === e.playerId);
-    if (at < 0 || !e.playerId) continue;
-    const slot = on[at]!;
-    if (e.type === "substitution" && e.inPlayerId && !on.some((s) => s?.playerId === e.inPlayerId)) {
-      changes.push({ k: "sub", inId: e.inPlayerId, outId: e.playerId, code: slot.code, minute: minuteOf(e) });
-      on[at] = { ...slot, playerId: e.inPlayerId };
-    } else if (SENT_OFF.has(e.type)) {
-      changes.push({ k: "red", inId: null, outId: e.playerId, code: slot.code, minute: minuteOf(e) });
-      on[at] = null;
-    }
-  }
-  return { now: lineupNow(lineup, events), changes };
+  const { now, steps } = lineupWalk(lineup, events);
+  return { now, changes: steps.map((st) => ({ k: st.k, inId: st.inId, outId: st.outId, code: st.code, minute: minuteOf(st.event) })) };
 }
 
 /** «Hugo entró por Sergio (MC) en el 30′» / «Roja a Dani (DFC) en el 12′». */

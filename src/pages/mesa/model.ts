@@ -5,7 +5,7 @@ import { EVENT_LABELS, minuteOfPlay, type MatchEvent } from "../../../functions/
 import { clockReading, type MatchClock } from "../../../functions/src/matchClock";
 import { POSITIONS, isPosCode, type PosCode } from "../../../functions/src/positions";
 import { lineupField } from "../../lib/derived/lineupField";
-import type { MatchLineup } from "../../lib/matchLineup";
+import { lineupWalk, type MatchLineup } from "../../lib/matchLineup";
 import type { MesaClock, MesaEvent, MesaPhase, MesaPlayer, MesaScreen, MesaStint, MesaType } from "./types";
 
 // ---------- the screen
@@ -195,12 +195,13 @@ export function fieldSpots(field: readonly string[], starters: readonly string[]
 /** Where each one on the pitch stands with the match's lineup: his slot's spot now (lineupField: one who
  *  came on takes the slot of the one he replaced), and the keeper is whoever holds the POR slot. Anyone
  *  on the pitch the lineup doesn't place (it shouldn't happen) falls back to fieldSpots. */
-export function lineupSpots(field: readonly string[], starters: readonly string[], events: readonly MatchEvent[], lineup: Pick<MatchLineup, "slots">): { spots: Map<string, Spot>; keeper: string | null } {
+export function lineupSpots(field: readonly string[], starters: readonly string[], events: readonly MatchEvent[], lineup: Pick<MatchLineup, "slots">): { spots: Map<string, Spot>; keeper: string | null; fitY: (y: number) => number } {
   const now = lineupField(lineup, events);
   const spots = new Map<string, Spot>();
   // The pizarra puts its front line lower (y ≈ 20) than the mesa draws it (14): the outfield is stretched
   // up to the mesa's top so the lines keep their distance on its shorter card (the back line stays put).
-  const top = Math.min(...now.spots.filter((s) => !s.keeper).map((s) => s.y));
+  // (measured on the system's slots, not who is left: a red up front must not move everyone else)
+  const top = Math.min(...lineup.slots.filter((s) => s.code !== "POR").map((s) => s.y));
   const stretch = (y: number) => (Number.isFinite(top) && top > 14 && top < 74 && y <= 74 ? 14 + ((y - top) * 60) / (74 - top) : y);
   for (const s of now.spots) if (field.includes(s.id)) spots.set(s.id, { x: s.x, y: s.keeper ? s.y : stretch(s.y) });
   const rest = field.filter((id) => !spots.has(id));
@@ -208,7 +209,7 @@ export function lineupSpots(field: readonly string[], starters: readonly string[
     const fb = fieldSpots(rest, starters, events, null);
     for (const id of rest) spots.set(id, fb.spots.get(id) ?? { x: 50, y: 50 });
   }
-  return { spots, keeper: now.keeper && field.includes(now.keeper) ? now.keeper : null };
+  return { spots, keeper: now.keeper && field.includes(now.keeper) ? now.keeper : null, fitY: stretch };
 }
 
 /** The mesa's link to the pizarra: «desde la mesa» for this match, on its official board when known. */
@@ -390,7 +391,16 @@ export function mesaPlayers(
   const sentOff = new Set(live.filter((e) => DISMISS.has(e.type) && e.playerId).map((e) => e.playerId as string));
   const called = [...new Set([...starters, ...benchIds])];
   const onPitch = called.filter((id) => stints.get(id)?.some((s) => s.to === null));
-  const { spots, keeper } = lineup ? lineupSpots(onPitch, starters, live, lineup) : fieldSpots(onPitch, starters, live, codes);
+  // a red empties his slot until someone comes on «por» him (a substitution after the red)
+  const redAt = (id: string) => Math.min(...live.filter((e) => DISMISS.has(e.type) && e.playerId === id).map(secondsOf));
+  const refilled = (id: string) => live.some((e) => e.type === "substitution" && e.playerId === id && e.inPlayerId && secondsOf(e) >= redAt(id));
+  const emptied = lineup ? lineupWalk(lineup, live).vacant : [];
+  const vacancyOf = (id: string): MesaPlayer["vacancy"] => {
+    if (!sentOff.has(id) || refilled(id) || onPitch.length >= 7) return null;
+    const v = emptied.find((x) => x.outId === id);
+    return { spot: v ? { x: v.slot.x, y: v.slot.code === "POR" ? v.slot.y : fitY(v.slot.y) } : null, code: v ? v.slot.code : null };
+  };
+  const { spots, keeper, fitY } = lineup ? lineupSpots(onPitch, starters, live, lineup) : { ...fieldSpots(onPitch, starters, live, codes), fitY: (y: number) => y };
   const stickers = (id: string) => {
     const mine = live.filter((e) => e.playerId === id);
     const yellows = mine.filter((e) => e.type === "yellow_card").length;
@@ -418,6 +428,7 @@ export function mesaPlayers(
       played: st.length > 0,
       offAt: !onField && last && last.to !== null ? minuteOfPlay(last.to, false) : null,
       sentOff: sentOff.has(id),
+      vacancy: onField ? null : vacancyOf(id),
       stints: st.map((s) => ({ ...s })),
       spot: onField ? spots.get(id) ?? null : null,
     };

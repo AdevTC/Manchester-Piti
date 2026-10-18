@@ -232,6 +232,14 @@ export function calculateLedger(
     onPitch.set(id, 0);
   }
   for (const id of match.bench) result.players[id].benched = true;
+  // A red leaves his shirt slot empty; the league lets someone from the bench take it (once per red).
+  const vacated = new Map<string, number>();
+  const dismiss = (id: string, minute: number) => {
+    const slot = result.field.indexOf(id);
+    if (slot >= 0) vacated.set(id, slot);
+    close(id, minute);
+    result.field = result.field.map((who) => who === id ? null : who);
+  };
   for (const id of match.notCalled) result.players[id].notCalled = true;
   const close = (id: string, minute: number) => {
     const from = onPitch.get(id);
@@ -298,6 +306,18 @@ export function calculateLedger(
     if (e.type === "injury") continue;
     if (e.type === "substitution") {
       const incoming = e.inPlayerId ? result.players[e.inPlayerId] : undefined;
+      // Someone comes on in place of a player sent off: the slot the red left empty is his.
+      const slot = vacated.get(id);
+      if (!onPitch.has(id) && slot !== undefined && incoming && !incoming.notCalled && !incoming.dismissed && !onPitch.has(e.inPlayerId!)) {
+        vacated.delete(id);
+        p.exchanges.push({ minute: t, with: e.inPlayerId!, direction: "out" });
+        incoming.subIn++;
+        incoming.played = true;
+        incoming.exchanges.push({ minute: t, with: id, direction: "in" });
+        onPitch.set(e.inPlayerId!, t);
+        result.field[slot] = e.inPlayerId!;
+        continue;
+      }
       if (
         !onPitch.has(id) ||
         !incoming ||
@@ -348,13 +368,11 @@ export function calculateLedger(
       p.doubleYellows++;
       p.redCards++;
       p.dismissed = true;
-      close(id, t);
-      result.field = result.field.map((who) => who === id ? null : who);
+      dismiss(id, t);
     } else if (e.type === "red_card") {
       p.redCards++;
       p.dismissed = true;
-      close(id, t);
-      result.field = result.field.map((who) => who === id ? null : who);
+      dismiss(id, t);
     } else if (e.type === "own_goal") {
       p.ownGoals++;
       result.goalsAgainst++;

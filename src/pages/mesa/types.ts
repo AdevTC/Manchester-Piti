@@ -106,6 +106,9 @@ export interface MesaPlayer {
   offAt: number | null;
   /** Sent off: on the bench list but cannot come back. */
   sentOff: boolean;
+  /** Sent off and nobody has come on for him yet: his slot is empty and a sub «por» him fills it (the
+   *  league allows it). `spot`: where the empty slot is drawn on the pitch (null without a lineup). */
+  vacancy: { spot: { x: number; y: number } | null; code: string | null } | null;
   stints: MesaStint[];
   /** Field only: where his shirt stands, in % of the pitch (x 0 → 100 left → right, y 0 = their goal → 100 = ours). */
   spot: { x: number; y: number } | null;

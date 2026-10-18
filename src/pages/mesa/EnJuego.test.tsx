@@ -4,7 +4,7 @@ import { EnJuego } from "./EnJuego";
 import type { MesaPlayer, MesaView } from "./types";
 
 const player = (id: string, name: string, number: string, more: Partial<MesaPlayer> = {}): MesaPlayer => ({
-  id, name, number, guest: false, keeper: false, minutes: 19, pending: 0, played: true, offAt: null, sentOff: false, stints: [{ from: 0, to: null }], spot: { x: 50, y: 50 },
+  id, name, number, guest: false, keeper: false, minutes: 19, pending: 0, played: true, offAt: null, sentOff: false, vacancy: null, stints: [{ from: 0, to: null }], spot: { x: 50, y: 50 },
   stickers: { goals: 0, assists: 0, yellow: false, red: false, injured: false },
   ...more,
 });
@@ -80,6 +80,41 @@ describe("La mesa · En juego", () => {
     rerender(<EnJuego view={{ ...view, match: { ...view.match, score: { us: 3, them: 1 } } }} />);
     fireEvent.click(screen.getByRole("button", { name: "Asistencia de Pablo" }));
     expect(view.actions.edit).toHaveBeenCalledWith("live-r1", { assistPlayerId: "p" });
+  });
+
+  it("mientras pide el pase, tocar al goleador abre su anillo: otro gol suyo sube el marcador", () => {
+    const view = makeView();
+    render(<EnJuego view={view} />);
+    fireEvent.click(screen.getByRole("button", { name: /Gol del Piti/ }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "¿Quién marcó?" })).getByRole("button", { name: /Mario/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Mario, ha marcado. Toca para apuntarle otra jugada" }));
+    const ring = screen.getByRole("dialog", { name: "Acciones de Mario" });
+    fireEvent.click(within(ring).getByRole("button", { name: /^Gol/ }));
+    expect(view.actions.add).toHaveBeenCalledTimes(2);
+    expect(view.actions.add).toHaveBeenLastCalledWith("goal", { playerId: "m" });
+    expect(view.actions.edit).not.toHaveBeenCalled();
+  });
+
+  it("tras una roja, el hueco del expulsado se llena con alguien del banquillo (en los dos órdenes)", () => {
+    const dani = player("d", "Dani", "2", { played: true, sentOff: true, stints: [{ from: 0, to: 600 }], spot: null, vacancy: { spot: { x: 30, y: 74 }, code: "DFC" } });
+    const view = makeView({ bench: [player("h", "Hugo", "8", { played: false, minutes: 0, stints: [], spot: null }), dani] });
+    render(<EnJuego view={view} />);
+    expect(screen.getByRole("button", { name: /^Dani, expulsado. Que entre/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Hueco de Dani, expulsado, DFC. Toca para que entre alguien" }));
+    fireEvent.click(screen.getByRole("button", { name: "Entra Hugo" }));
+    expect(view.actions.add).toHaveBeenLastCalledWith("substitution", { playerId: "d", inPlayerId: "h" });
+    fireEvent.click(screen.getByRole("button", { name: /Hugo, sin jugar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Entra Hugo por Dani, expulsado" }));
+    expect(view.actions.add).toHaveBeenCalledTimes(2);
+  });
+
+  it("sin alineación, el hueco del expulsado sale como botón sobre el banquillo", () => {
+    const dani = player("d", "Dani", "2", { played: true, sentOff: true, stints: [{ from: 0, to: 600 }], spot: null, vacancy: { spot: null, code: null } });
+    const view = makeView({ bench: [player("h", "Hugo", "8", { played: false, minutes: 0, stints: [], spot: null }), dani] });
+    render(<EnJuego view={view} />);
+    fireEvent.click(screen.getByRole("button", { name: /Hugo, sin jugar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Entra Hugo por Dani (expulsado)" }));
+    expect(view.actions.add).toHaveBeenLastCalledWith("substitution", { playerId: "d", inPlayerId: "h" });
   });
 
   it("«Sin asistencia» deja el gol revisado sin pase: el acta no vuelve a preguntar", () => {

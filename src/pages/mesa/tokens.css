@@ -88,6 +88,10 @@
 .mesa .tok.ask .halo{border-color:var(--ice);background:rgba(159,208,242,.1);animation:mesa-breathe 1.4s ease-in-out infinite}
 .mesa .tok.in .halo{border:2px solid var(--ice);background:rgba(159,208,242,.14)}
 .mesa .tok.dim{opacity:.38}
+/* the slot a red left empty: a dashed outline, «+» = someone can come on «por» the player sent off */
+.mesa .tok.hueco .hole{display:grid;place-items:center;width:44px;height:40px;margin:2px auto 0;border-radius:12px;border:2px dashed rgba(233,243,255,.55);color:#e9f3ff;font-family:Anybody,sans-serif;font-weight:800;font-size:22px;line-height:1}
+.mesa .tok.hueco .tag{background:rgba(2,5,14,.55)}
+.mesa .tok.hueco:disabled{opacity:.5}
 @keyframes mesa-breathe{50%{transform:scale(1.05)}}
 .mesa .shirt{position:relative;display:block;width:48px;height:44px}
 .mesa .shirt svg{position:absolute;inset:0;overflow:visible}
