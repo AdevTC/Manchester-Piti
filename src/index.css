@@ -18,10 +18,15 @@
   --text-primary: #0f1830;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* In the base layer (with Tailwind's preflight), never unlayered: an unlayered reset beats every layered
+   utility, and the spacing classes (mx-auto, px-4, mt-6…) silently became 0. The pages' own CSS is
+   unlayered and still wins over it. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 body {
