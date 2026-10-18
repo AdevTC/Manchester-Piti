@@ -173,7 +173,7 @@ export function withAnswer(row: FrontRow, answer: Answer | null): FrontRow {
 /** Every seat of the row, drawn for this mode and viewer. */
 function seatsOf(input: ViewInput, voteOpen: boolean): SeatView[] {
   const { row, day, vote, status } = input;
-  const answers = row.counts !== null && status !== "loading";
+  const answers = row.counts !== null;
   const member = input.viewer !== "aficionado" && status !== "loading";
   const anyCalled = row.seats.some((s) => s.state === "convocado");
   const aplazado = day.phase === "aplazado";
@@ -336,8 +336,8 @@ export function filaView(input: ViewInput): FilaView {
   const hasKickoff = Number.isFinite(kickoff);
   const loading = status === "loading";
   const member = viewer !== "aficionado" && !loading;
-  /** The convocatoria's answers are here (members only, by the data). */
-  const answers = row.counts !== null && !loading;
+  /** The convocatoria's answers are here (members only, by the data: a fan's row has none). */
+  const answers = row.counts !== null;
   const mine = row.seats.find((s) => s.mine) ?? null;
   const name = mine?.name ?? input.memberName ?? "";
   const voteOpen = row.mode === "jugaron" && row.seats.some((s) => s.mvpCandidate !== undefined);
@@ -345,7 +345,7 @@ export function filaView(input: ViewInput): FilaView {
   const view: FilaView = {
     title: "La primera fila",
     lead: "",
-    counts: answers && row.mode === "convocatoria" ? countsOf(row) : null,
+    counts: answers && !loading && row.mode === "convocatoria" ? countsOf(row) : null,
     seats,
     marksOn: row.mode === "banquillo" || row.mode === "jugaron" || seats.some((s) => s.marks.length > 0),
     tape: day.phase === "aplazado" && row.mode === "convocatoria",

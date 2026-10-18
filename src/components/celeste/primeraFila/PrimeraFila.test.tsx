@@ -249,6 +249,12 @@ describe("states and motion", () => {
     expect(screen.queryByRole("list", { name: "Respuestas de la plantilla" })).toBeNull();
   });
 
+  it("first paint with the public row: the convocados, no note or link yet", () => {
+    render(<PrimeraFila {...scene("antes", { viewer: "aficionado", status: "loading" })} />);
+    expect(seatLabel("Evans")).toBe("Evans, dorsal 1: convocado, en el siete");
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
   it("error: «Reintentar» calls back", () => {
     const onRetry = vi.fn();
     render(<PrimeraFila {...scene("antes", { status: "error" })} onRetry={onRetry} />);
