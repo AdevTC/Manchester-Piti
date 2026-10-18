@@ -45,6 +45,9 @@ export interface BoardMesa {
   back: ReactNode;
   /** In play: the pitch now (lineupNow) and its story, for «En el campo ahora» and «Traer aquí». */
   field: { minute: string; lines: string[]; seven: string; lineup: MatchLineup; now: LineupSlot[] } | null;
+  /** «Desde la mesa» before kick-off with the roll called, on a board this user edits: a board short of
+   *  seven opens «Sugerir siete» by itself (only who came), so the mesa is two taps from its seven. */
+  autoSuggest: boolean;
 }
 
 const PLAYING = new Set(["first", "halftime", "second"]);
@@ -218,5 +221,5 @@ export function useMesaLink(o: {
       now: story.now,
     };
   }
-  return { roll, strip, dialog, tableros, field, back };
+  return { roll, strip, dialog, tableros, field, back, autoSuggest: desde.on && !live && !!roll && editable };
 }

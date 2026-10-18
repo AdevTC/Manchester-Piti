@@ -27,8 +27,11 @@
 .mesa .antes .tok .dor{top:11px;font-size:16px}
 .mesa .antes .tok .nm{font-size:13px}
 .mesa .antes .dug{display:flex;align-items:center;gap:6px;padding:9px 8px 6px 14px}
-.mesa .antes .dhead{flex:1;min-width:0;flex-direction:column;align-items:flex-start;gap:2px;padding:0}
-.mesa .antes .row{gap:2px;justify-content:flex-end;min-width:0}
+.mesa .antes .dhead{flex:0 1 auto;min-width:72px;max-width:120px;flex-direction:column;align-items:flex-start;gap:2px;padding:0}
+/* a long bench (nobody in the seven yet) scrolls sideways instead of climbing over the heading; the auto
+   margin keeps a short one to the right without clipping a long one's start */
+.mesa .antes .row{flex:1 1 0;gap:2px;justify-content:flex-start;min-width:0}
+.mesa .antes .row>.bt:first-child{margin-left:auto}
 .mesa .antes .row:after{left:6px;right:6px;top:25px}
 .mesa .antes .bt{flex:0 0 60px;min-width:60px;width:60px;padding:2px 0}
 .mesa .antes .bt:active{transform:none}

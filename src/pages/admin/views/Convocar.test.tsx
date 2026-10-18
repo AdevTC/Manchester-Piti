@@ -85,15 +85,15 @@ describe("Convocar", () => {
     expect(rowOf("ILLESCAS")).toHaveTextContent("DEF (Defensa) · en el siete");
     expect(rowOf("ADRIÁN T.C.")).toHaveTextContent("DEL (Delantero) · sin colocar");
     const sv = screen.getByRole("region", { name: "El siete · J3 · MAD SKY" });
-    expect(within(sv).getByText("Falta 1 para el siete")).toHaveClass("warn");
+    expect(within(sv).getByText("el resto, en la mesa")).toHaveClass("opt");
     expect(within(sv).getByText("Ganchos delanteros · 6 de 7")).toBeInTheDocument();
     expect(within(sv).getByRole("button", { name: "Hueco libre en el siete" })).toHaveTextContent("Libre");
     expect(within(sv).getByRole("button", { name: "Quitar a KEVIN del banquillo" })).toBeInTheDocument();
     expect(within(sv).getByText(/Una sola convocatoria\./)).toBeInTheDocument();
     expect(sv.querySelector(".rdrs")).toHaveTextContent("La pizarraEl siete oficial · 6 de 7El actaTitulares y suplentesLos avisosPush a los convocados al publicar");
-    expect(within(sv).getByText("Falta 1 para el siete · ANDIA, ALMACHI en duda")).toHaveClass("why");
-    // gold only with seven
-    expect(within(sv).getByRole("button", { name: "Publicar y avisar" })).toBeDisabled();
+    expect(within(sv).getByText("Listo: avisa por push a los 8 convocados · el siete se decide en la mesa")).toHaveClass("why");
+    // seven called is enough: the seven itself is optional (decided in la mesa)
+    expect(within(sv).getByRole("button", { name: "Publicar y avisar" })).toBeEnabled();
   });
 
   it("the exact preferida prints as «DFC · en el siete» in the squad and as the code under the shirt on el siete's pegs", async () => {
@@ -235,11 +235,11 @@ describe("Convocar", () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
     mountAdmin("/admin/convocar", { convocar: Convocar });
     const s7 = await screen.findByRole("region", { name: "El siete de la J3" });
-    expect(s7.querySelector(".ch3")).toHaveTextContent("El siete · 6 de 7 Falta 1 para el siete");
+    expect(s7.querySelector(".ch3")).toHaveTextContent("El siete · 6 de 7 el resto, en la mesa");
     expect(within(s7).getByRole("button", { name: "EGUZQUIZA en el siete: tocar para bajarlo al banquillo · Centrocampista" })).toHaveTextContent("EGUZQ.");
     expect(s7.querySelector(".hint")).toHaveTextContent("Banquillo: 11 KEVIN21 ALMACHI");
-    expect(document.querySelector(".msticky")).toHaveTextContent("Falta 1 para el siete · ANDIA, ALMACHI en duda");
-    expect(within(document.querySelector(".msticky") as HTMLElement).getByRole("button", { name: "Publicar y avisar" })).toBeDisabled();
+    expect(document.querySelector(".msticky")).toHaveTextContent("Listo: avisa por push a los 8 convocados · el siete se decide en la mesa");
+    expect(within(document.querySelector(".msticky") as HTMLElement).getByRole("button", { name: "Publicar y avisar" })).toBeEnabled();
     expect(screen.getByRole("group", { name: "Jugadores por respuesta" })).toBeInTheDocument();
   });
 

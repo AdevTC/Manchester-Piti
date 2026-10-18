@@ -2286,6 +2286,17 @@ export function Board(props: BoardProps) {
         ...(lm ? { matchMs: lm.dateMs, matchTxt: matchShort(lm) } : {}),
       };
     });
+  // «Desde la mesa» with the roll called: a board short of seven deals «Sugerir siete» once by itself
+  // (only who came), so choosing the seven at the ground is «revisar y Mandar».
+  const autoDealt = useRef<string | null>(null);
+  const autoSuggest = !!props.mesa?.autoSuggest && ready && canEdit && !!session.id;
+  const filled = L.slots.filter((s) => s.playerId).length;
+  useEffect(() => {
+    if (!autoSuggest || autoDealt.current === session.id) return;
+    autoDealt.current = session.id;
+    if (filled < 7) doSuggest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per board (doSuggest reads the latest board itself)
+  }, [autoSuggest, session.id]);
   // The boards opened on this device («Recientes» in Tableros): this one, once it is stored.
   useEffect(() => {
     if (ready && session.id) noteOpened(props.seasonId, session.id);

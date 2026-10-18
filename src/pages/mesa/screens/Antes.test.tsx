@@ -95,10 +95,16 @@ describe("Antes del pitido", () => {
     expect(screen.getByText("Liga")).toBeInTheDocument();
   });
 
-  it("an incomplete seven is flagged without colour alone", () => {
+  it("no seven yet (the convocatoria leaves it to the ground): «El siete, por decidir» and the gold action chooses it, not the whistle", () => {
     const base = makeView();
-    mount(makeView({ field: base.field.slice(0, 6) }));
-    expect(screen.getByText("Convocatoria · 6 de siete titulares")).toBeInTheDocument();
+    const view = makeView({ field: base.field.slice(0, 6) });
+    mount(view);
+    expect(screen.getByText("El siete, por decidir")).toBeInTheDocument();
+    expect(screen.getByText("Pasa lista y elígelo en la pizarra")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Casi listo para pitar");
+    expect(screen.queryByRole("button", { name: /Pitar el inicio/ })).toBeNull();
+    // (nobody marked yet: the roll call first)
+    fireEvent.click(screen.getByRole("button", { name: "Elegir el siete" }));
+    expect(view.nav.pizarra).not.toHaveBeenCalled();
   });
 });

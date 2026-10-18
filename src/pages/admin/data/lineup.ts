@@ -76,11 +76,14 @@ const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, 
  * «Listo: avisa por push a los 9 convocados», «Publicada · los 9 convocados tienen el aviso».
  */
 export function sevenWhy(l: Lineup, status: ConvocatoriaStatus, dudaNames: string[]): string {
-  const missing = SEVEN - l.starters.length;
   const called = l.starters.length + l.bench.length;
-  if (missing > 0) return `Falta ${missing} para el siete${dudaNames.length ? ` · ${dudaNames.join(", ")} en duda` : ""}`;
-  if (status.published) return `Publicada · los ${called} convocados tienen el aviso`;
+  // (the seven is optional: it is often decided at the ground, in la mesa; what a match needs is seven called)
+  const inMesa = l.starters.length < SEVEN ? " · el siete se decide en la mesa" : "";
+  if (called < SEVEN) return `Faltan ${SEVEN - called} convocados para jugar${dudaNames.length ? ` · ${dudaNames.join(", ")} en duda` : ""}`;
+  if (status.published) return `Publicada · los ${called} convocados tienen el aviso${inMesa}`;
   if (status.changed) return `Ha cambiado: vuelve a avisar a los ${called} convocados`;
-  return `Listo: avisa por push a los ${called} convocados`;
+  return `Listo: avisa por push a los ${called} convocados${inMesa}`;
 }
+/** Enough to publish the convocatoria: seven called (titulares or suplentes); the seven itself is optional. */
+export const enoughCalled = (l: Pick<Lineup, "starters" | "bench">): boolean => l.starters.length + l.bench.length >= SEVEN;
 export { andList as joinNames };

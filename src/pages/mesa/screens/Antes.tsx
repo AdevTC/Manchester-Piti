@@ -55,6 +55,10 @@ export function Antes({ view }: MesaScreenProps) {
   const wake = typeof navigator !== "undefined" && "wakeLock" in navigator;
 
   const items = [field.length === 7, true, true, wake];
+  // No seven yet (the convocatoria leaves it to the ground): the gold action is choosing it, not the whistle
+  // (the server refuses a kick-off without seven) — the roll call first, then the pizarra.
+  const noSeven = !live && field.length < 7;
+  const chooseSeven = () => (match.present?.length ? nav.pizarra(match.officialBoard ?? null) : setRollCall(true));
   const ready = items.filter(Boolean).length;
   const heading = live ? "Ya se juega" : ready === items.length ? "Todo listo para pitar" : "Casi listo para pitar";
 
@@ -180,8 +184,8 @@ export function Antes({ view }: MesaScreenProps) {
           <div className="it">
             <Lamp ok={items[0]} />
             <span className="tx">
-              <b>{fromMatch ? ["El siete de la pizarra", match.lineup.system?.split(" · ")[0]].filter(Boolean).join(" · ") : match.lineup.fromBoard ? "El siete de la pizarra" : "El siete de la convocatoria"}</b>
-              <small>{sevenSub.filter(Boolean).join(" · ")}</small>
+              <b>{noSeven ? "El siete, por decidir" : fromMatch ? ["El siete de la pizarra", match.lineup.system?.split(" · ")[0]].filter(Boolean).join(" · ") : match.lineup.fromBoard ? "El siete de la pizarra" : "El siete de la convocatoria"}</b>
+              <small>{noSeven ? (match.present?.length ? `Han venido ${match.present.length}: elígelo en la pizarra` : "Pasa lista y elígelo en la pizarra") : sevenSub.filter(Boolean).join(" · ")}</small>
             </span>
             {!live && (fromMatch ? (
               <button type="button" className="key" onClick={() => nav.pizarra(match.officialBoard ?? null)}>Cambiar</button>
@@ -231,6 +235,11 @@ export function Antes({ view }: MesaScreenProps) {
         {live ? (
           <button type="button" className="cta blow" onClick={nav.mesa}>
             <span>Ir a la mesa</span>
+            <i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFC659" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></i>
+          </button>
+        ) : noSeven ? (
+          <button type="button" className="cta" onClick={chooseSeven}>
+            <span>Elegir el siete</span>
             <i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFC659" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></i>
           </button>
         ) : (

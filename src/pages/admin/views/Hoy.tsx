@@ -13,7 +13,7 @@ import { useId, useState } from "react";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 import { scoreOf } from "../../../lib/partidos";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
-import { joinNames, place, rsvpGroups, rsvpOf, sevenWhy, SEVEN } from "../data/lineup";
+import { enoughCalled, joinNames, place, rsvpGroups, rsvpOf, sevenWhy, SEVEN } from "../data/lineup";
 import { countdown, countdownShort, finalSub, isPendingWhistle, isUnwhistled, matchAfter, type MatchMoment } from "../data/moments";
 import { PENDING_WHISTLE } from "../../../lib/derived/kickoff";
 import { useConvocatoria } from "../data/useConvocatoria";
@@ -105,7 +105,8 @@ function Antes({ match }: { match: AdminMatch }) {
   const names = (list: string[]) => list.map((id) => roster.find((p) => p.id === id)?.name ?? "").filter(Boolean);
   const wall = pegWall(conv.lineup, roster, rsvp);
   const status = conv.status;
-  const full = conv.lineup.starters.length >= SEVEN;
+  // (seven called is enough to publish: the seven itself is optional, often decided in la mesa)
+  const full = enoughCalled(conv.lineup);
   const why = sevenWhy(conv.lineup, status, names(groups.duda));
   const j = jLabel(match);
   const pl = plaque(match, isNext ? (data.next?.note ?? "") : "");
@@ -132,10 +133,10 @@ function Antes({ match }: { match: AdminMatch }) {
   const free = () => toast.show({ tag: j, message: "Toca una camiseta del banquillo para colgarla aquí" });
   const publish = () => {
     if (!full) {
-      toast.show({ tag: "!", message: "Faltan jugadores para el siete" });
+      toast.show({ tag: "!", message: "Faltan convocados: hacen falta siete para jugar" });
       return;
     }
-    conv.publish({ tag: j, message: `Convocatoria ${j} publicada · avisamos a los ${called} convocados` });
+    conv.publish({ tag: j, message: `Convocatoria ${j} publicada · avisamos a los ${called} convocados${conv.lineup.starters.length < SEVEN ? " · el siete, en la mesa" : ""}` });
   };
   const chips = (
     <div className="rs">

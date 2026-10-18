@@ -30,7 +30,9 @@ describe("the one convocatoria, client side", () => {
     expect(convocatoriaStatus({ convocatoriaAt: 5, convocatoriaNotifiedAt: 5 })).toEqual({ notified: true, published: true, changed: false });
     expect(convocatoriaStatus({ convocatoriaAt: 9, convocatoriaNotifiedAt: 5 })).toEqual({ notified: true, published: false, changed: true });
     const none = { notified: false, published: false, changed: false };
-    expect(sevenWhy(six, none, ["ALMACHI", "ANDIA"])).toBe("Falta 1 para el siete · ALMACHI, ANDIA en duda");
+    // (the seven is optional: seven called is enough, the rest is decided in la mesa)
+    expect(sevenWhy(six, none, ["ALMACHI", "ANDIA"])).toBe("Listo: avisa por push a los 7 convocados · el siete se decide en la mesa");
+    expect(sevenWhy({ starters: [], bench: ["a", "b", "c", "d", "e"] }, none, ["ANDIA"])).toBe("Faltan 2 convocados para jugar · ANDIA en duda");
     const seven = { starters: ["a", "b", "c", "d", "e", "f", "g"], bench: ["h", "i"] };
     expect(sevenWhy(seven, none, [])).toBe("Listo: avisa por push a los 9 convocados");
     expect(sevenWhy(seven, { notified: true, published: true, changed: false }, [])).toBe("Publicada · los 9 convocados tienen el aviso");

@@ -20,7 +20,7 @@ import { RemindersToggle } from "../convocar/RemindersToggle";
 import { TurnosPanel } from "../convocar/TurnosPanel";
 import type { ClubMatch } from "../../../lib/clubData";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
-import { joinNames, place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
+import { enoughCalled, joinNames, place, RSVP_LABEL, rsvpGroups, rsvpOf, sevenWhy, SEVEN, type Slot } from "../data/lineup";
 import { useConvocatoria } from "../data/useConvocatoria";
 import { GuestPanel } from "../kit/GuestPanel";
 import { addGuest, guestInUse, guestSlot, removeGuest } from "../acta/guests";
@@ -126,7 +126,8 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   const nameOf = withGuestNames(lineup, (id: string) => roster.find((p) => p.id === id)?.name ?? "Jugador");
   const status = conv.status;
   const n = lineup.starters.length;
-  const full = n >= SEVEN;
+  // (publishable with seven called: the seven is optional, often decided at the ground in la mesa)
+  const full = enoughCalled(lineup);
   const called = n + lineup.bench.length;
   const j = jLabel(match);
   // (the guests on the front pegs: «INV» on the shirt, his name, «Invitado» under it — pegWall)
@@ -137,7 +138,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   const bench = benchOf(roster, lineup);
   const copy = copyFrom(data.matches, match, lineup, ids);
   const why = full && !match.published ? "El partido aún no está en el calendario: publícalo en Partidos para avisar" : sevenWhy(lineup, status, groups.duda.map(nameOf));
-  const warn = full ? "" : `Falta ${SEVEN - n} para el siete`;
+  const warn = n >= SEVEN ? "" : n ? "el resto, en la mesa" : "opcional: se decide en la mesa";
 
   const setSlot = (id: string, slot: Slot) => {
     const before = lineup;
@@ -175,10 +176,10 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
   const free = () => toast.show({ tag: j, message: "Toca «Siete» en un jugador de la lista para colgarlo aquí" });
   const publish = () => {
     if (!full) {
-      toast.show({ tag: "!", message: "Faltan jugadores para el siete" });
+      toast.show({ tag: "!", message: "Faltan convocados: hacen falta siete para jugar" });
       return;
     }
-    conv.publish({ tag: j, message: `Convocatoria ${j} publicada · avisamos a los ${called} convocados` });
+    conv.publish({ tag: j, message: `Convocatoria ${j} publicada · avisamos a los ${called} convocados${n < SEVEN ? " · el siete, en la mesa" : ""}` });
   };
   const copyIt = () => {
     if (!copy) return;
@@ -249,7 +250,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
           <Switcher list={list} match={match} onPick={onPick} mobile />
           <section className="mdug" aria-label={`El siete de la ${j}`}>
             <p className="ch3">
-              El siete · {n} de 7 {warn && <span className="warn">{warn}</span>}
+              El siete · {n} de 7 {warn && <span className="opt">{warn}</span>}
             </p>
             <div className="mrail">
               <div className="pegs">
@@ -317,7 +318,7 @@ function ConvocarMatch({ match, list, onPick }: { match: AdminMatch; list: Admin
             <h2 className="ttl" id={hid}>
               El siete · {matchTitle(match)}
             </h2>
-            {warn && <span className="warn">{warn}</span>}
+            {warn && <span className="opt">{warn}</span>}
           </div>
           <PegRail label={`Ganchos delanteros · ${n} de 7`}>
             {front.map((p, i) => (

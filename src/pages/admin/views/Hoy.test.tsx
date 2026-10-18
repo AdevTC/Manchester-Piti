@@ -54,12 +54,12 @@ describe("Hoy · Antes: the peg wall", () => {
     expect(within(wall).getByText("13h 32m")).toBeInTheDocument();
     expect(wall.querySelector(".rs")).toHaveTextContent("Vienen 8Duda 2 ANDIA y ALMACHINo 1 BRAWANSin responder 1 FER");
     expect(within(wall).getByText(/El siete · 6 de 7/)).toBeInTheDocument();
-    expect(within(wall).getByText("Falta 1 para el siete · ANDIA, ALMACHI en duda")).toHaveClass("warn");
+    expect(within(wall).getByText(/el siete se decide en la mesa$/)).toHaveClass("okk");
     expect(within(wall).getByRole("button", { name: "Hueco libre en el siete" })).toHaveTextContent("Libre");
     expect(within(wall).getByRole("button", { name: "Colgar a KEVIN en el siete" })).toHaveTextContent("Banquillo");
     expect(within(wall).queryByRole("button", { name: "Colgar a BRAWAN en el siete" })).toBeNull();
-    // gold at seven only: disabled (outline) with six
-    expect(within(wall).getByRole("button", { name: "Convocar y avisar" })).toBeDisabled();
+    // seven called is enough (the seven is optional, decided in la mesa): six titulares and two suplentes can be announced
+    expect(within(wall).getByRole("button", { name: "Convocar y avisar" })).toBeEnabled();
     const side = screen.getByRole("complementary", { name: /Por hacer/ });
     expect(within(side).getAllByRole("listitem").map((li) => li.querySelector("b")?.textContent)).toEqual([
       "Acta J2 · falta el goleador del gol 3",
