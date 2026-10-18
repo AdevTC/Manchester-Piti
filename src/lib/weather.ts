@@ -36,6 +36,8 @@ export function kickoffHour(ms: number) {
 export interface MatchWeather {
   temp: number;
   rain: number | null;
+  /** Cloud cover at kick-off, 0–100 % (Open-Meteo's hourly cloud_cover); null when the forecast lacks it. */
+  cloud: number | null;
   label: string;
   sky: Sky;
   place: string;
@@ -45,12 +47,20 @@ export interface MatchWeather {
 
 /** Reads the forecast response for the kick-off hour. Exported for the tests. */
 export function readForecast(json: unknown, place: string, approx: boolean): MatchWeather | null {
-  const h = (json as { hourly?: { temperature_2m?: number[]; precipitation_probability?: (number | null)[]; weather_code?: number[] } })?.hourly;
+  const h = (json as { hourly?: { temperature_2m?: number[]; precipitation_probability?: (number | null)[]; weather_code?: number[]; cloud_cover?: (number | null)[] } })?.hourly;
   const temp = h?.temperature_2m?.[0];
   const code = h?.weather_code?.[0];
   if (typeof temp !== "number" || typeof code !== "number") return null;
   const rain = h?.precipitation_probability?.[0];
-  return { temp: Math.round(temp), rain: typeof rain === "number" ? rain : null, ...wmo(code), place, approx };
+  const cloud = h?.cloud_cover?.[0];
+  return {
+    temp: Math.round(temp),
+    rain: typeof rain === "number" ? rain : null,
+    cloud: typeof cloud === "number" && Number.isFinite(cloud) ? Math.min(100, Math.max(0, Math.round(cloud))) : null,
+    ...wmo(code),
+    place,
+    approx,
+  };
 }
 
 async function locate(venue: string | undefined) {
@@ -68,7 +78,7 @@ async function locate(venue: string | undefined) {
 export async function fetchMatchWeather(venue: string | undefined, kickoff: number): Promise<MatchWeather | null> {
   const at = await locate(venue);
   const hour = kickoffHour(kickoff);
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${at.latitude}&longitude=${at.longitude}&hourly=temperature_2m,precipitation_probability,weather_code&timezone=${encodeURIComponent(TZ)}&start_hour=${hour}&end_hour=${hour}`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${at.latitude}&longitude=${at.longitude}&hourly=temperature_2m,precipitation_probability,weather_code,cloud_cover&timezone=${encodeURIComponent(TZ)}&start_hour=${hour}&end_hour=${hour}`;
   const r = await fetch(url);
   if (!r.ok) return null;
   return readForecast(await r.json(), at.name, at.approx);
