@@ -155,7 +155,8 @@ function useShared<T>(key: string | null, start: Start<T>, empty: T): Live<T> {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [key],
   );
-  const state = useSyncExternalStore(subscribe, () => (key ? shared.get(key)?.state ?? null : null));
+  // (the server render has no listeners: the public pages paint from the data bundle, the live data comes on the client)
+  const state = useSyncExternalStore(subscribe, () => (key ? shared.get(key)?.state ?? null : null), () => null);
   if (!key) return { data: empty, loading: false, error: false };
   return state ? (state as Live<T>) : { data: empty, loading: true, error: false };
 }

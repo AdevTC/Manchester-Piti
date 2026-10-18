@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readyClock, transitionClock, type MatchClock } from "../../../functions/src/matchClock";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
@@ -100,6 +101,13 @@ afterEach(() => {
 });
 
 describe("the lifecycle", () => {
+  it("never in the server render: the public pages paint on the server, the island arrives with the browser", () => {
+    state.now = DATE - 28 * MIN;
+    expect(renderToString(<LiveIsland />)).toBe("");
+    const { container } = render(<LiveIsland />);
+    expect(container).not.toBeEmptyDOMElement();
+  });
+
   it("nothing until two hours before kick-off; «Antes del partido» then; nothing once the window for the whistle is over", () => {
     state.now = DATE - 3 * 60 * MIN;
     const { container, rerender } = render(<LiveIsland />);

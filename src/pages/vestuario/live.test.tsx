@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 
 // One fake Firestore: `doc(db, path)` yields the path, `onSnapshot` registers a listener we can
 // feed (or fail). Every distinct onSnapshot call is recorded so tests can count real listeners.
@@ -338,5 +339,18 @@ describe("el MVP: solo un recuento confirmado por el servidor celebra", () => {
     expect(result.current).toEqual({ confirmed: true, stale: false });
     act(() => recordSnapshotMeta(KEY, { fromCache: true, hasPendingWrites: false }));
     expect(result.current).toEqual({ confirmed: false, stale: true });
+  });
+});
+
+describe("en el render del servidor (Inicio y Partidos se pintan en el servidor)", () => {
+  it("un hook en vivo pinta su estado vacío y no abre ningún listener, sin romper la página", () => {
+    onSnapshotMock.mockClear();
+    function Probe() {
+      const scorers = useMatchScorers("m1");
+      const none = useMatchScorers(undefined);
+      return <p>{`${scorers.loading}/${scorers.data.length}/${none.loading}`}</p>;
+    }
+    expect(renderToString(<Probe />)).toContain("true/0/false");
+    expect(onSnapshotMock).not.toHaveBeenCalled();
   });
 });

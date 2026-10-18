@@ -7,7 +7,7 @@
 // (components/celeste/isla). Screen readers hear each change once (a polite live region), never the ticking
 // minute. Hidden on the shown match's own page (it lands there: «Ver el partido» is a View Transition into its
 // scoreboard) and while a page's hero shows the match (useIslaHero).
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Link as RouterLink, useRouterState } from "@tanstack/react-router";
 import { nameFor, useClubData, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
@@ -64,7 +64,13 @@ function IslaLink({ to, matchId, className, children }: IslaLinkProps) {
   );
 }
 
+const subscribeNothing = () => () => {};
+/** False in the server render: the island is a fixed overlay of the live day, it only exists in the browser (its
+ *  stylesheet comes with its lazy chunk, so server markup would paint unstyled above the page). */
+const useHydrated = (): boolean => useSyncExternalStore(subscribeNothing, () => true, () => false);
+
 export function LiveIsland() {
+  const hydrated = useHydrated();
   const { matches, players, loading } = useClubData();
   const now = useClock(15_000);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -165,7 +171,7 @@ export function LiveIsland() {
     writePipPrefs(p);
   }, []);
 
-  if (!state || !shown) return null;
+  if (!hydrated || !state || !shown) return null;
   const matchId = state.match.id;
   const vista = islaVista({
     state,
