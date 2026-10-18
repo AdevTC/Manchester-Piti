@@ -255,7 +255,7 @@ background:#eef3f9}
 /* ───────── tablet */
 @container (min-width:700px){
 .ei-hero{height:640px}
-.ei-sub{display:block}
+.ei-sub{display:block;margin-top:14px}
 .ei-subm{display:none}
 .ei-type{left:32px;right:auto;width:430px;top:calc(132px + var(--isle,0px))}
 .ei-h1{font-size:46px;max-width:none}
@@ -278,7 +278,7 @@ background:#eef3f9}
 .ei-hero{height:720px}
 .ei-type{left:64px;width:700px;top:calc(156px + var(--isle,0px))}
 .ei-h1{font-size:68px;margin-top:12px}
-.ei-sub{font-size:17px;margin-top:16px}
+.ei-sub{font-size:17px;margin-top:20px}
 .ei-sb{right:52px;top:calc(104px + var(--isle,0px));width:250px}
 .ei-sb-n{min-width:44px;height:56px;font-size:54px}
 .ei-sb-tm{font-size:15px}

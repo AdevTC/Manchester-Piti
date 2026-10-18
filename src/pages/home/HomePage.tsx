@@ -22,6 +22,7 @@ import { useStandings } from "../../lib/useStandings";
 import { useMatchWeather } from "../../lib/weather";
 import { useSyncStatus } from "../../lib/syncStatus";
 import { syncChip } from "../../lib/derived/syncChip";
+import { serverOffset } from "../../lib/serverTime";
 import { matchdayOf, viewerRoleOf } from "../../lib/derived/matchday";
 import { lightOf, sunPosition } from "../../lib/derived/sun";
 import { frontRowOf } from "../../lib/derived/frontRow";
@@ -34,7 +35,7 @@ import { lineupSeven, parseMatchLineup } from "../../lib/matchLineup";
 import { useAbsences, useAvailability, useMatchRatings, useMatchReactions, useMatchScorers, useMvpResults, useMyMvpVote } from "../vestuario/live";
 import { useMe } from "../vestuario/writes";
 import { InicioHero, type HeroPlay } from "./InicioHero";
-import { BoardsStrip, EnElClub, FanInvite, LoQueViene, PhaseBlock, playRow, Temporada, YoSkeleton } from "./InicioSections";
+import { BoardsStrip, EnElClub, FanInvite, LoQueViene, PhaseBlock, Temporada, YoSkeleton } from "./InicioSections";
 import { PrimeraFila } from "../../components/celeste/primeraFila/PrimeraFila";
 import { PonteLaCamiseta } from "./PonteLaCamiseta";
 import {
@@ -46,6 +47,7 @@ import {
   heroCopy,
   isLive,
   niceName,
+  playRow,
   matchViewAt,
   projectStandings,
   scrubbable,
@@ -133,7 +135,8 @@ export function HomePage() {
   const watched = m && MATCH_PHASES.has(day.phase) ? m : undefined;
   const moment = useMatchMoment(watched, now, { celebrate: sync.fresh && sync.online });
   const goalScorer = moment?.kind === "gol" ? (m?.events?.find((e) => e.id === moment.id)?.playerId ?? null) : null;
-  const stale = !!syncChip(sync, Date.now(), isLive(day.phase)) && isLive(day.phase);
+  // (the phone's own clock, as the island reads it: the sync stamps are local)
+  const stale = !!syncChip(sync, now - serverOffset(), isLive(day.phase)) && isLive(day.phase);
 
   // ── the words
   const estreno = !!m && (pulse.played.length === 0 || pulse.played[0]?.id === m.id);

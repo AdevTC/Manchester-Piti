@@ -12,6 +12,7 @@ import { madridDate, madridTime } from "../../lib/derived/madrid";
 import { eventMetaOf, eventSentence, rivalCode, settled } from "../../lib/eventMeta";
 import { withGuestNames } from "../../lib/derived/guests";
 import type { MatchWeather } from "../../lib/weather";
+import { momentTally, type ReactionDoc } from "../../lib/derived/trasElPartido";
 import type { PalomerasFigure, PalomerasState } from "../../components/palomeras3d";
 import { madridMinutes, SCRUB0, SCRUB1 } from "../../components/palomeras3d";
 
@@ -612,4 +613,32 @@ export function skyChipOf(at: number, sky: { top: string; mid: string; hor: stri
     lights,
     words: el < -4 ? "de noche, con focos" : lights ? "con focos al final" : `sol a ${Math.round(el)}°`,
   };
+}
+
+// ───────────────────────── the plays as rows, and the most celebrated one ─────────────────────────
+
+export interface PlayRow {
+  id: string;
+  minute: string;
+  k: string;
+  tone: "g" | "r" | "y" | "c" | "";
+  text: string;
+}
+/** A play as a row: «21′ · G · Gol de Adrián T.C., pase de Jordi». */
+export function playRow(match: ClubMatch, e: NonNullable<ClubMatch["events"]>[number], nameOf: (id: string) => string): PlayRow {
+  const meta = eventMetaOf(e);
+  const s = eventSentence(e, { nameOf: withGuestNames(match, nameOf), rival: match.rival?.trim() || "el rival" });
+  const tone = meta.goal === "for" ? "g" : meta.goal === "against" ? "r" : meta.card === "a" ? "y" : meta.card === "r" ? "r" : e.type === "substitution" ? "c" : "";
+  const k = meta.goal === "for" ? "G" : meta.goal === "against" ? (match.rivalShort ?? match.rivalInitials ?? "R").slice(0, 2).toUpperCase() : meta.card === "a" ? "A" : meta.card === "r" ? "R" : e.type === "substitution" ? "⇄" : "·";
+  return { id: e.id, minute: `${Math.max(1, Math.ceil(eventSeconds(e) / 60))}′`, k, tone, text: s.sub && meta.goal ? `${s.title}, ${s.sub.charAt(0).toLocaleLowerCase("es")}${s.sub.slice(1)}` : s.title };
+}
+
+/** The most-celebrated play of the acta, from the public reactions: the moment with the most of them. */
+export function mostCelebrated(match: ClubMatch, docs: readonly ReactionDoc[], nameOf: (id: string) => string) {
+  const counts = new Map<string, number>();
+  for (const d of docs) for (const id of Object.keys(d.moments)) counts.set(id, (counts.get(id) ?? 0) + 1);
+  const [top] = [...counts.entries()].filter(([id]) => (match.events ?? []).some((e) => e.id === id)).sort((a, b) => b[1] - a[1]);
+  if (!top) return null;
+  const e = match.events!.find((x) => x.id === top[0])!;
+  return { row: playRow(match, e, nameOf), tally: momentTally(docs, top[0]).filter((t) => t.count > 0) };
 }

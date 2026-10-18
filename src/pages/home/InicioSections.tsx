@@ -11,14 +11,12 @@ import type { MatchdayModel } from "../../lib/derived/matchday";
 import { madridTime, madridDay } from "../../lib/derived/madrid";
 import { sunTimes } from "../../lib/derived/sun";
 import { kitLabel, KIT_LABEL, mapsUrl, siteOrigin } from "../../lib/derived/venue";
-import { eventMetaOf, eventSentence } from "../../lib/eventMeta";
-import { withGuestNames } from "../../lib/derived/guests";
+import { eventMetaOf } from "../../lib/eventMeta";
 import { RESULT_WORD, type ResultLetter } from "../../lib/derived/result";
 import { matchEvent, type ClubMedal, type PlayerLine } from "../../lib/home";
-import { momentTally, notaLine, ratingSummary, type RatingDoc, type ReactionDoc } from "../../lib/derived/trasElPartido";
+import { notaLine, ratingSummary, type RatingDoc, type ReactionDoc } from "../../lib/derived/trasElPartido";
 import type { MatchWeather } from "../../lib/weather";
-import { eventSeconds } from "../../../functions/src/matchAnalysis";
-import { andList, dayWord, isLive, niceName, skyChipOf, type MatchView, type TableRow } from "./inicioModel";
+import { andList, dayWord, isLive, mostCelebrated, niceName, playRow, skyChipOf, type MatchView, type PlayRow, type TableRow } from "./inicioModel";
 
 const cap = (s: string) => s.charAt(0).toLocaleUpperCase("es") + s.slice(1);
 
@@ -56,21 +54,6 @@ function Fact({ ic, b, s, action }: { ic: string; b: string; s?: string; action?
   );
 }
 
-export interface PlayRow {
-  id: string;
-  minute: string;
-  k: string;
-  tone: "g" | "r" | "y" | "c" | "";
-  text: string;
-}
-/** A play as a row: «21′ · G · Gol de Adrián T.C., pase de Jordi». */
-export function playRow(match: ClubMatch, e: NonNullable<ClubMatch["events"]>[number], nameOf: (id: string) => string): PlayRow {
-  const meta = eventMetaOf(e);
-  const s = eventSentence(e, { nameOf: withGuestNames(match, nameOf), rival: match.rival?.trim() || "el rival" });
-  const tone = meta.goal === "for" ? "g" : meta.goal === "against" ? "r" : meta.card === "a" ? "y" : meta.card === "r" ? "r" : e.type === "substitution" ? "c" : "";
-  const k = meta.goal === "for" ? "G" : meta.goal === "against" ? (match.rivalShort ?? match.rivalInitials ?? "R").slice(0, 2).toUpperCase() : meta.card === "a" ? "A" : meta.card === "r" ? "R" : e.type === "substitution" ? "⇄" : "·";
-  return { id: e.id, minute: `${Math.max(1, Math.ceil(eventSeconds(e) / 60))}′`, k, tone, text: s.sub && meta.goal ? `${s.title}, ${s.sub.charAt(0).toLocaleLowerCase("es")}${s.sub.slice(1)}` : s.title };
-}
 function Plays({ rows }: { rows: readonly PlayRow[] }) {
   return (
     <ol className="ei-plist">
@@ -99,16 +82,6 @@ interface PhaseProps {
   reactions: readonly ReactionDoc[];
   ratings: readonly RatingDoc[];
   mvp: { name: string } | null;
-}
-
-/** The most-celebrated play of the acta, from the public reactions: the moment with the most of them. */
-export function mostCelebrated(match: ClubMatch, docs: readonly ReactionDoc[], nameOf: (id: string) => string) {
-  const counts = new Map<string, number>();
-  for (const d of docs) for (const id of Object.keys(d.moments)) counts.set(id, (counts.get(id) ?? 0) + 1);
-  const [top] = [...counts.entries()].filter(([id]) => (match.events ?? []).some((e) => e.id === id)).sort((a, b) => b[1] - a[1]);
-  if (!top) return null;
-  const e = match.events!.find((x) => x.id === top[0])!;
-  return { row: playRow(match, e, nameOf), tally: momentTally(docs, top[0]).filter((t) => t.count > 0) };
 }
 
 export function PhaseBlock({ day, view, now, member, weather, nameOf, squadSize, reactions, ratings, mvp }: PhaseProps) {
@@ -324,7 +297,6 @@ export function Temporada({ form, table, tableTitle, tableNote, scorers, assiste
                 <td className="n">{r.team}</td>
                 <td className="v">
                   {r.pts}
-                  {r.projected && <span className="hm-sr"> (si acaba así)</span>}
                 </td>
               </tr>
             ))}
