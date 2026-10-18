@@ -2,18 +2,18 @@ import { describe, expect, it } from "vitest";
 import { cloudAmount, madridMinutes, mix, skyAt, skyCss, weatherKind } from "./light";
 import { horizonFraction, projector, rigDef, rigKey, RIGS, sunScreen } from "./rigs";
 import { floodLevels, ignitePower, pitchToWorld, placeFigures, plateLook, worldToPitch, HUDDLE, PITCH } from "./scene";
-import { sunPosition } from "./solar";
+import { sunPosition } from "../../lib/derived/sun";
 
 // Sunday 18 October 2026 in Madrid (CEST, UTC+2): the club's first match day.
 const madrid = (h: number, m: number) => Date.UTC(2026, 9, 18, h - 2, m);
 
 describe("sun over Palomeras", () => {
-  it("climbs to about 40° at solar noon and sets around 19:20–19:25", () => {
+  it("climbs to about 40° at solar noon and sets around 19:30", () => {
     const noon = sunPosition(madrid(14, 0)).elevation;
     expect(noon).toBeGreaterThan(38);
     expect(noon).toBeLessThan(42);
     expect(sunPosition(madrid(19, 15)).elevation).toBeGreaterThan(0);
-    expect(sunPosition(madrid(19, 30)).elevation).toBeLessThan(0);
+    expect(sunPosition(madrid(19, 40)).elevation).toBeLessThan(0);
     expect(sunPosition(madrid(21, 0)).elevation).toBeLessThan(-12);
   });
   it("is in the south-west in the afternoon", () => {

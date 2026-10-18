@@ -1,6 +1,6 @@
 // The light over Palomeras: sky colours by the sun's elevation (celeste by day, gold at golden hour, navy
 // at night), the weather on top, and the CSS sky of the first paint. Pure, no three.js.
-import { sunPosition } from "./solar";
+import { sunPosition } from "../../lib/derived/sun";
 import type { PalomerasState, WeatherKind } from "./types";
 
 /** [elevation, top, mid, horizon, sun colour] */
