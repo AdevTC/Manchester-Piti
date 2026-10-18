@@ -100,18 +100,6 @@ background:#eef3f9}
 .ei-board-msg.rival{background:#170c12;color:#ffd0c8}
 @keyframes eiMsg{from{clip-path:inset(0 50% 0 50%)}to{clip-path:inset(0 0 0 0)}}
 
-/* ───────── «La primera fila» (slot: W6's component drops in here) */
-.ei-fila{position:relative;z-index:2;min-height:300px;padding:20px 16px 22px;color:var(--e-text);background:linear-gradient(180deg,#0d1834,#09122b);box-shadow:inset 0 1px 0 rgba(159,208,242,.14),inset 0 -1px 0 rgba(159,208,242,.08)}
-[data-theme="light"] .ei-fila{background:linear-gradient(180deg,#d6e3f1,#e4edf7);box-shadow:inset 0 1px 0 rgba(12,23,51,.08)}
-.ei-fila-in{max-width:1312px;margin:0 auto}
-.ei-seats{margin:14px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
-.ei-seats li{display:grid;justify-items:center;gap:2px;min-height:76px;padding:8px 6px;border-radius:12px 12px 6px 6px;text-align:center;background:var(--e-well);box-shadow:var(--e-well-line)}
-.ei-seats li.st{box-shadow:var(--e-well-line),inset 0 0 0 2px #FFC659}
-.ei-seats li.me{background:var(--e-ic)}
-.ei-seats b{font-family:'Anybody',sans-serif;font-weight:900;font-size:20px;line-height:1;color:var(--e-ic-ink)}
-.ei-seats span{font-size:13px;font-weight:600;overflow-wrap:anywhere}
-.ei-seats small{font-size:12px;color:var(--e-muted)}
-
 /* ───────── the page below */
 .ei-main{position:relative;z-index:2;display:flex;flex-direction:column;gap:14px;padding:16px 14px 8px;color:var(--e-text);background:var(--e-body)}
 .ei-main:before{content:"";position:absolute;left:0;right:0;top:0;height:260px;background:radial-gradient(70% 100% at 50% 0%,var(--s-spill,#1a2b5c),transparent 70%);opacity:.3;pointer-events:none}
@@ -132,7 +120,7 @@ background:#eef3f9}
 .ei .ei-btn.ghost{color:var(--e-ghost-ink);background:none;box-shadow:var(--e-ghost-line)}
 .ei .ei-btn.wide{width:100%;margin-top:12px}
 .ei .ei-btn:active{transform:translateY(1px)}
-.ei-main :focus-visible,.ei-fila :focus-visible{outline:2px solid var(--e-ice);outline-offset:3px}
+.ei-main :focus-visible{outline:2px solid var(--e-ice);outline-offset:3px}
 
 /* tu partido */
 .ei-yo .who{display:flex;align-items:center;gap:12px;margin-bottom:6px}
@@ -281,7 +269,6 @@ background:#eef3f9}
 .ei-hero:not(:has(.ei-plays)) .ei-scrub{width:440px}
 .ei-hint{left:32px;right:auto;max-width:300px;bottom:26px}
 .ei-board-msg{font-size:20px}
-.ei-fila{padding:24px 24px 26px}
 .ei-main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:22px 24px 8px}
 .ei .hm-fan{padding:34px 40px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:center}
 .hm-fan h2{font-size:52px}
@@ -289,8 +276,8 @@ background:#eef3f9}
 /* ───────── desktop */
 @container (min-width:1100px){
 .ei-hero{height:720px}
-.ei-type{left:64px;width:620px;top:calc(168px + var(--isle,0px))}
-.ei-h1{font-size:76px;margin-top:12px}
+.ei-type{left:64px;width:700px;top:calc(156px + var(--isle,0px))}
+.ei-h1{font-size:68px;margin-top:12px}
 .ei-sub{font-size:17px;margin-top:16px}
 .ei-sb{right:52px;top:calc(104px + var(--isle,0px));width:250px}
 .ei-sb-n{min-width:44px;height:56px;font-size:54px}
@@ -299,13 +286,12 @@ background:#eef3f9}
 .ei-plays{right:52px;bottom:28px;width:380px}
 .ei-scrub{left:64px;bottom:28px;width:460px}
 .ei-hint{left:64px;bottom:30px}
-.ei-fila{padding:28px 64px 30px}
 .ei-main{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;padding:28px 64px 40px;align-items:start}
 .ei .hm-fan{padding:44px 64px}
 .hm-fan h2{font-size:64px}
 }
 @container (min-width:1600px){
-.ei-main,.ei-fila-in{max-width:1440px;margin-inline:auto}
+.ei-main{padding-inline:max(64px,calc((100cqi - 1312px) / 2))}
 }
 
 @media (prefers-reduced-motion:reduce){

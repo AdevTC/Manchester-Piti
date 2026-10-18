@@ -23,6 +23,7 @@ import { useMatchWeather } from "../../lib/weather";
 import { useSyncStatus } from "../../lib/syncStatus";
 import { syncChip } from "../../lib/derived/syncChip";
 import { matchdayOf, viewerRoleOf } from "../../lib/derived/matchday";
+import { lightOf, sunPosition } from "../../lib/derived/sun";
 import { frontRowOf } from "../../lib/derived/frontRow";
 import { campoSeven } from "../../lib/derived/campoSeven";
 import { mvpVoteOpen } from "../../lib/derived/memberWindows";
@@ -30,11 +31,11 @@ import { absenceOn, madridDate, matchDay } from "../../lib/derived/absences";
 import { jornadaOf } from "../../lib/derived/jornada";
 import { formatDate } from "../../lib/clubData";
 import { lineupSeven, parseMatchLineup } from "../../lib/matchLineup";
-import { useAbsences, useMatchRatings, useMatchReactions, useMatchScorers, useMvpResults } from "../vestuario/live";
+import { useAbsences, useAvailability, useMatchRatings, useMatchReactions, useMatchScorers, useMvpResults, useMyMvpVote } from "../vestuario/live";
 import { useMe } from "../vestuario/writes";
 import { InicioHero, type HeroPlay } from "./InicioHero";
 import { BoardsStrip, EnElClub, FanInvite, LoQueViene, PhaseBlock, playRow, Temporada, YoSkeleton } from "./InicioSections";
-import { PrimeraFilaSlot } from "./PrimeraFilaSlot";
+import { PrimeraFila } from "../../components/celeste/primeraFila/PrimeraFila";
 import { PonteLaCamiseta } from "./PonteLaCamiseta";
 import {
   boardFace,
@@ -179,15 +180,21 @@ export function HomePage() {
             : `final, ${view.gf}–${view.ga}`;
 
   // ── below the hero
+  // «La primera fila»: the fans' row on the server and until the viewer is known; a member's answers after
+  const avail = useAvailability(member ? m?.id : undefined);
+  const myAnswer = (uid && avail.data.find((a) => a.uid === uid)?.response) || null;
+  const myVote = useMyMvpVote(member && day.phase === "acta" ? m?.id : undefined, uid).data;
+  const matchDayStr = Number.isFinite(kickoff) ? matchDay(kickoff) : madridDate(now);
+  const absentIds = member ? squad.filter((s) => absenceOn(absences.data, { playerId: s.id }, matchDayStr)).map((s) => s.id) : [];
   const row = frontRowOf({
     match: m,
     phase: day.phase,
     squad: squad.map((s) => ({ id: s.id, name: s.name, dorsal: s.num, position: null })),
     seven,
-    answers: null,
-    absentIds: [],
+    answers: member ? avail.data.map((a) => ({ playerId: a.playerId, response: a.response })) : null,
+    absentIds,
     viewerPlayerId: member ? viewer.playerId : null,
-    scorerIds: [],
+    scorerIds: role === "anotador" && viewer.playerId ? [viewer.playerId] : [],
     mvpVoteOpen: !!m && mvpVoteOpen(m, now),
     now,
     history: matches,
@@ -251,7 +258,21 @@ export function HomePage() {
       />
       <BoardsStrip sponsors={sponsorNames} message={message} />
       {copy.sub && <p className="ei-subm">{copy.sub}</p>}
-      {!loading && !error && <PrimeraFilaSlot row={row} phase={day.phase} viewer={role} />}
+      {!error && (
+        <PrimeraFila
+          row={row}
+          day={day}
+          viewer={role}
+          light={lightOf(sunPosition(view.at).elevation)}
+          me={member ? me : null}
+          myAnswer={myAnswer}
+          myVote={myVote}
+          now={now}
+          status={!hydrated || loading ? "loading" : !sync.online ? "offline" : avail.error ? "error" : "ok"}
+          staleSince={stale ? sync.staleAt : null}
+          reduced={reduced}
+        />
+      )}
       <main className="ei-main" id="contenido">
         {yo}
         {!error && (

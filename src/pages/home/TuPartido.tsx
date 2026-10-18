@@ -16,7 +16,7 @@ import { formatNota, notaLine, ratingSummary, ratingWindow } from "../../lib/der
 import { scorePrediction } from "../../../functions/src/predictions";
 import { parseMatchLineup } from "../../lib/matchLineup";
 import { madridTime } from "../../lib/derived/madrid";
-import { dayWord, weekday, type MatchView } from "./inicioModel";
+import { dayWord, niceName, weekday, type MatchView } from "./inicioModel";
 
 const POS: Record<string, string> = {
   POR: "portero",
@@ -76,7 +76,7 @@ export function TuPartido({ day, view, role, now, matches, players, playerId, ca
 
   const player = players.find((x) => x.id === playerId) ?? null;
   const nameOf = (id: string) => nameFor(players.find((x) => x.id === id), m?.seasonId);
-  const myName = player ? nameFor(player, m?.seasonId) : (me?.name ?? "Tú");
+  const myName = player ? niceName(nameFor(player, m?.seasonId)) : (me?.name ?? "Tú");
   const dorsal = player?.number != null ? String(player.number) : "";
   const meta = dorsal ? `${myName}, dorsal ${dorsal}` : myName;
   const ko = day.kickoff;
