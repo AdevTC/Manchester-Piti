@@ -258,6 +258,22 @@
 .mesa .descanso .pr:not(.on) .tr i:not(.p){opacity:.72}
 .mesa .descanso .tr i.p{background:repeating-linear-gradient(90deg,rgba(159,208,242,.75) 0 5px,rgba(159,208,242,.12) 5px 8px);box-shadow:inset 0 0 0 1.5px rgba(212,236,252,.75);transform-origin:left;animation:ms-grow .55s cubic-bezier(.16,1,.3,1) both}
 .mesa .descanso .tr.zero{background:repeating-linear-gradient(90deg,rgba(255,181,71,.38) 0 4px,rgba(2,5,14,.7) 4px 8px)}
+/* «Los cambios»: each one coming on, the position he takes and por quién (a radio row of the places to fill) */
+.mesa .descanso .chg{margin:8px 12px 0;padding:8px 10px 4px;border-radius:20px;background:linear-gradient(180deg,#0c1735,#08112a 60%);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),inset 0 0 0 1px rgba(255,255,255,.06)}
+.mesa .descanso .chh{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.mesa .descanso .chh b{font-family:Anybody,sans-serif;font-weight:800;font-variation-settings:'wdth' 92;font-size:13.5px}
+.mesa .descanso .chh span{font-size:12px;color:var(--muted)}
+.mesa .descanso .cr{padding:6px 0 8px;box-shadow:inset 0 -1px 0 rgba(255,255,255,.05)}
+.mesa .descanso .cr:last-child{box-shadow:none}
+.mesa .descanso .cw{display:flex;align-items:baseline;gap:6px;min-width:0}
+.mesa .descanso .cw .in{display:flex;align-items:baseline;gap:4px;min-width:0;font-family:Anybody,sans-serif;font-weight:700;font-variation-settings:'wdth' 86;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mesa .descanso .cw .in em{font-style:normal;font-weight:900;font-variation-settings:'wdth' 72;font-size:13px;color:var(--ice)}
+.mesa .descanso .cw .to{font-size:12.5px;color:var(--muted);flex:none}
+.mesa .descanso .cw .pos{font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 90;font-size:15px;letter-spacing:.04em;color:#d4ecfc;flex:none}
+.mesa .descanso .opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.mesa .descanso .op{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:12px;background:rgba(2,5,14,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:var(--soft);font-weight:600;font-size:13.5px}
+.mesa .descanso .op b{font-family:Anybody,sans-serif;font-weight:900;font-variation-settings:'wdth' 90;font-size:12.5px;letter-spacing:.04em;color:var(--ice)}
+.mesa .descanso .op.on{background:rgba(108,171,221,.16);box-shadow:inset 0 0 0 2px var(--ice);color:var(--text)}
 .mesa .descanso .tr.zero.on2{background:linear-gradient(90deg,transparent 50%,rgba(2,5,14,.7) 50%),repeating-linear-gradient(90deg,rgba(255,181,71,.38) 0 4px,rgba(2,5,14,.7) 4px 8px)}
 .mesa .descanso .mk{position:absolute;top:50%;z-index:1;transform:translate(-50%,-50%);display:grid;place-items:center}
 .mesa .descanso .mk.ball{width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffffff,#d9e6f5);box-shadow:0 0 0 2px #0a1430,0 2px 4px rgba(0,0,0,.5)}

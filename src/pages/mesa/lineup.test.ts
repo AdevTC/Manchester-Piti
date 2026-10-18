@@ -34,6 +34,17 @@ describe("la alineación del partido en la mesa", () => {
     expect(bench.map((p) => p.id)).toEqual(["a"]);
   });
 
+  it("a red leaves a hueco at his slot until someone comes on «por» him, who then stands there", () => {
+    const red = [ev("r", "red_card", 300, { playerId: "g" })];
+    const before = mesaPlayers(seven, ["x"], red, 400, info, null, {}, { slots });
+    expect(before.field).toHaveLength(6);
+    expect(before.bench.find((p) => p.id === "g")).toMatchObject({ sentOff: true, vacancy: { code: "DC", spot: { x: 50, y: 14 } } });
+    expect(before.bench.find((p) => p.id === "x")?.vacancy).toBeNull();
+    const after = mesaPlayers(seven, ["x"], [...red, ev("s", "substitution", 420, { playerId: "g", inPlayerId: "x" })], 500, info, null, {}, { slots });
+    expect(after.field.find((p) => p.id === "x")).toMatchObject({ spot: { x: 50, y: 14 }, minutes: 1 });
+    expect(after.bench.find((p) => p.id === "g")).toMatchObject({ sentOff: true, vacancy: null });
+  });
+
   it("lineupSpots falls back to the 2-3-1 for anyone the lineup doesn't place", () => {
     const { spots, keeper } = lineupSpots(["a", "zz"], ["a"], [], { slots });
     expect(keeper).toBe("a");

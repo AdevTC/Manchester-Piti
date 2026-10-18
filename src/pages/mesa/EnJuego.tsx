@@ -341,7 +341,8 @@ export function EnJuego({ view }: MesaScreenProps) {
   };
   const tapField = (p: MesaPlayer, e: MouseEvent<HTMLButtonElement>) => {
     if (mode.k === "assist") {
-      if (p.id === mode.scorer) return;
+      // the scorer again: another play of his (a second goal…); the pass stays unasked (the acta asks)
+      if (p.id === mode.scorer) return openRing(p, e);
       void actions.edit(mode.goalId, { assistPlayerId: p.id }).catch(() => undefined);
       setPop(p.id);
       setStrapId(mode.goalId);
@@ -351,6 +352,12 @@ export function EnJuego({ view }: MesaScreenProps) {
     if (mode.k === "out") return swap(p.id, mode.inId);
     if (mode.k === "outFrom") return close();
     openRing(p, e);
+  };
+  // the slot a red left empty: someone from the bench comes on «por» the player sent off
+  const tapVacancy = (v: MesaPlayer) => {
+    if (mode.k === "out") return swap(v.id, mode.inId);
+    setStrapId(null);
+    setMode(mode.k === "outFrom" && mode.outId === v.id ? NONE : { k: "outFrom", outId: v.id });
   };
   const tapBench = (p: MesaPlayer) => {
     if (p.sentOff) return;
@@ -365,6 +372,8 @@ export function EnJuego({ view }: MesaScreenProps) {
   const scorerName = mode.k === "assist" ? view.nameOf(mode.scorer) : "";
   const inName = mode.k === "out" ? view.nameOf(mode.inId) : "";
   const outName = mode.k === "outFrom" ? view.nameOf(mode.outId) : "";
+  const outGone = mode.k === "outFrom" && bench.some((p) => p.id === mode.outId && p.vacancy);
+  const vacant = bench.filter((p) => p.vacancy);
 
   // the lower third
   let strap: { tag: string; msg: string; sub: string; tone: "" | "g" | "r"; undo: boolean; cancel: boolean; reset?: boolean } | null = null;
@@ -373,7 +382,7 @@ export function EnJuego({ view }: MesaScreenProps) {
   const justKicked = clock.phase === "first" && clock.elapsedSeconds < KICK_STRAP_SECONDS && view.events.length === 0 && !kickGone;
   if (mode.k === "assist") strap = { tag: "GOL", msg: `Gol de ${scorerName}${goalEv?.minute ? `, minuto ${goalEv.minute}` : ""}`, sub: "¿Quién dio el pase? Toca su camiseta", tone: "g", undo: false, cancel: false };
   else if (mode.k === "out") strap = { tag: "CAMBIO", msg: `Entra ${inName}`, sub: "¿Por quién? Toca quién sale", tone: "", undo: false, cancel: true };
-  else if (mode.k === "outFrom") strap = { tag: "CAMBIO", msg: `Sale ${outName}`, sub: "¿Quién entra? Toca en el banquillo", tone: "", undo: false, cancel: true };
+  else if (mode.k === "outFrom") strap = { tag: "CAMBIO", msg: outGone ? `Por ${outName}, expulsado` : `Sale ${outName}`, sub: "¿Quién entra? Toca en el banquillo", tone: "", undo: false, cancel: true };
   else if (lastStrap) {
     const goal = lastStrap.goal;
     const where = lastStrap.local ? (queue.online ? "subiendo" : "en el móvil, se sube sola") : goal ? "ya en la web" : "";
@@ -510,8 +519,8 @@ export function EnJuego({ view }: MesaScreenProps) {
           let cls = "tok";
           let aria = playerAria(p);
           if (mode.k === "assist") {
-            cls += p.id === mode.scorer ? " dim" : " ask";
-            aria = p.id === mode.scorer ? `${p.name}, ha marcado` : `Asistencia de ${p.name}`;
+            if (p.id !== mode.scorer) cls += " ask";
+            aria = p.id === mode.scorer ? `${p.name}, ha marcado. Toca para apuntarle otra jugada` : `Asistencia de ${p.name}`;
           }
           if (mode.k === "out") {
             cls += " ask";
@@ -540,6 +549,22 @@ export function EnJuego({ view }: MesaScreenProps) {
             </button>
           );
         })}
+        {vacant.map((v) => {
+          if (!v.vacancy?.spot) return null;
+          const spot = v.vacancy.spot;
+          const cls = "tok hueco" + (mode.k === "out" ? " ask" : mode.k === "outFrom" ? (mode.outId === v.id ? " in" : " dim") : "");
+          const aria = mode.k === "out" ? `Entra ${inName} por ${v.name}, expulsado` : `Hueco de ${v.name}, expulsado${v.vacancy.code ? `, ${v.vacancy.code}` : ""}. Toca para que entre alguien`;
+          return (
+            <button key={"hueco-" + v.id} type="button" className={cls} style={{ left: `${pitchLeft(spot.x)}%`, top: `${pitchTop(spot.y)}%` }} aria-label={aria} disabled={!can("substitution")} onClick={() => tapVacancy(v)}>
+              <span className="halo" />
+              <span className="shirtw"><span className="hole" aria-hidden="true">+</span></span>
+              <span className="tag">
+                <span className="nm">Hueco</span>
+                <span className="mn">{v.vacancy.code ?? "roja"}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
       <div className="dug">
         <div className="roof" />
@@ -554,6 +579,12 @@ export function EnJuego({ view }: MesaScreenProps) {
             Toca: entra {view.nextSub.inName} por {view.nextSub.outName}
           </button>
         )}
+        {mode.k !== "outFrom" && vacant.filter((v) => !v.vacancy?.spot).map((v) => (
+          <button key={"hueco-" + v.id} type="button" className="toca" onClick={() => tapVacancy(v)} disabled={!can("substitution")}>
+            <Ico d={ICON.cambio} size={16} />
+            {mode.k === "out" ? `Entra ${inName} por ${v.name} (expulsado)` : `Hueco de ${v.name} (expulsado): toca para que entre alguien`}
+          </button>
+        ))}
         <div className="row" role="group" aria-label="Banquillo">
           {bench.map((p) => {
             let cls = "bt";

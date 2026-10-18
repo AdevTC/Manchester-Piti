@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { convocatoriaOf, lineupFromBoard, lineupNow, lineupSeven, parseMatchLineup, parsePresent, sameLineup } from "./matchLineup";
+import { convocatoriaOf, lineupFromBoard, lineupNow, lineupSeven, lineupWalk, parseMatchLineup, parsePresent, sameLineup } from "./matchLineup";
 import { systemDef } from "./formations";
 
 const seven = ["k", "d1", "d2", "mi", "mc", "md", "dc"];
@@ -35,6 +35,20 @@ describe("lineupNow", () => {
     expect(now.find((s) => s.playerId === "b1")?.code).toBe("MC");
     expect(now.some((s) => s.playerId === "d1")).toBe(false);
     expect(now).toHaveLength(6);
+  });
+  it("un cambio por el expulsado llena la casilla que vació su roja, una sola vez", () => {
+    const events = [
+      { type: "red_card", playerId: "d1", period: 1, elapsedSeconds: 300 },
+      { type: "substitution", playerId: "d1", inPlayerId: "b1", period: 1, elapsedSeconds: 420 },
+      { type: "substitution", playerId: "d1", inPlayerId: "b2", period: 1, elapsedSeconds: 480 },
+    ];
+    const now = lineupNow(l, events);
+    expect(now).toHaveLength(7);
+    expect(now.find((s) => s.playerId === "b1")?.code).toBe(l.slots[1].code);
+    expect(now.some((s) => s.playerId === "b2")).toBe(false);
+    const walk = lineupWalk(l, events.slice(0, 1));
+    expect(walk.vacant).toEqual([{ outId: "d1", slot: l.slots[1] }]);
+    expect(lineupWalk(l, events).vacant).toEqual([]);
   });
   it("va en orden de juego (un cambio de la 2ª no pisa uno de la 1ª) e ignora duplicados pendientes", () => {
     const now = lineupNow(l, [

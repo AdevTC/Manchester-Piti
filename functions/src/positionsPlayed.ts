@@ -33,7 +33,7 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
  * cards that fell in each. A starter on the board takes his slot's code; one off the board, or every
  * starter without a board, takes his main (estimated); a starter without a main gets no code. A stint
  * that starts later (a substitute, or a player coming back) takes the code of the stint that the
- * player he came in for ends at that minute, «estimado» included; when that one has no code, his own
+ * player he came in for ends at that minute (or, for a player sent off earlier, his last), «estimado» included; when that one has no code, his own
  * main (estimated). An event counts at the stint that contains its minute (from ≤ t < to) or, when
  * none does, at the one that ends right then (his last minute: a red card, the minute he is
  * substituted, the final whistle); elsewhere (a card on the bench) it is not attributed. At a
@@ -79,7 +79,8 @@ export function positionsPlayed(
       const theirs = ex ? stintsOf(ex.with) : [];
       let j = -1;
       for (let n = theirs.length - 1; n >= 0; n--)
-        if (theirs[n].to === s.from && !(ex?.with === pid && n === i)) {
+        // (the one he came in for left right then; or earlier, sent off: his slot waited for him)
+        if (theirs[n].to <= s.from && !(ex?.with === pid && n === i)) {
           j = n;
           break;
         }

@@ -120,9 +120,39 @@ export function fairSeven(players: readonly MesaPlayer[], onPitch: readonly stri
 }
 
 /** The subs from the seven on the pitch to `seven`, keeper paired with keeper. */
-export function subsTo(players: readonly MesaPlayer[], onPitch: readonly string[], seven: readonly string[]) {
+export function subsTo(players: readonly MesaPlayer[], onPitch: readonly string[], seven: readonly string[], chosen: Readonly<Record<string, string>> = {}) {
   const gk = (id: string) => (players.find((p) => p.id === id)?.keeper ? 0 : 1);
-  const outs = onPitch.filter((id) => !seven.includes(id)).sort((a, b) => gk(a) - gk(b));
+  // the places to fill: who goes off (the keeper's first), then the slots a red left empty
+  const outs = [...onPitch.filter((id) => !seven.includes(id)).sort((a, b) => gk(a) - gk(b)), ...players.filter((p) => p.vacancy).map((p) => p.id)];
   const ins = seven.filter((id) => !onPitch.includes(id)).sort((a, b) => gk(a) - gk(b));
-  return outs.slice(0, ins.length).map((outId, i) => ({ outId, inId: ins[i] }));
+  // «por quién» picked by hand first, then each one left takes the first place still free
+  const taken = new Set<string>();
+  const pick: Record<string, string> = {};
+  for (const inId of ins) {
+    const want = chosen[inId];
+    if (want && outs.includes(want) && !taken.has(want)) {
+      pick[inId] = want;
+      taken.add(want);
+    }
+  }
+  for (const inId of ins) {
+    if (pick[inId]) continue;
+    const free = outs.find((o) => !taken.has(o));
+    if (!free) continue;
+    pick[inId] = free;
+    taken.add(free);
+  }
+  return ins.filter((inId) => pick[inId]).map((inId) => ({ outId: pick[inId], inId }));
+}
+/** The places a 2nd-half change can take: each one going off (his position) and each slot a red emptied. */
+export function placesToFill(players: readonly MesaPlayer[], onPitch: readonly string[], seven: readonly string[]) {
+  const gk = (id: string) => (players.find((p) => p.id === id)?.keeper ? 0 : 1);
+  const leaving = onPitch.filter((id) => !seven.includes(id)).sort((a, b) => gk(a) - gk(b));
+  return [
+    ...leaving.flatMap((id) => {
+      const p = players.find((x) => x.id === id);
+      return p ? [{ outId: id, name: p.name, code: p.pos ?? (p.keeper ? "POR" : null), gone: false }] : [];
+    }),
+    ...players.filter((p) => p.vacancy).map((p) => ({ outId: p.id, name: p.name, code: p.vacancy?.code ?? null, gone: true })),
+  ];
 }

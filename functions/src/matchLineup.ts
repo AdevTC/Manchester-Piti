@@ -95,21 +95,57 @@ const when = (e: LineupEvent): number => (e.period === 2 ? 1e6 : 0) + (typeof e.
 /**
  * Who is on the pitch now and where: the lineup's slots, each substitution putting the one who comes on
  * in the slot of the one who goes off (rolling: he can come back to any slot that frees), each red
- * emptying its slot. Events in play order; a pending duplicate counts for nothing. Empty slots are left
- * out, so the result has 7 or fewer.
+ * emptying its slot until a substitution «por» the player sent off fills it (the league allows it).
+ * Events in play order; a pending duplicate counts for nothing. Empty slots are left out, so the result
+ * has 7 or fewer.
  */
 export function lineupNow(lineup: Pick<MatchLineup, "slots">, events: readonly LineupEvent[]): LineupSlot[] {
-  const slots: (LineupSlot | null)[] = lineup.slots.map((s) => ({ ...s }));
-  const ordered = events.filter(counts).map((e, i) => ({ e, i })).sort((a, b) => when(a.e) - when(b.e) || a.i - b.i);
-  for (const { e } of ordered) {
-    const at = slots.findIndex((s) => s?.playerId === e.playerId);
-    if (at < 0) continue;
-    if (e.type === "substitution" && e.inPlayerId && !slots.some((s) => s?.playerId === e.inPlayerId)) slots[at] = { ...slots[at]!, playerId: e.inPlayerId };
-    else if (SENT_OFF.has(e.type)) slots[at] = null;
-  }
-  return slots.filter((s): s is LineupSlot => s !== null);
+  return lineupWalk(lineup, events).now;
 }
 
+/** One step of the walk lineupNow takes: a cambio (in a slot, or into the slot a red emptied) or a red. */
+export interface LineupStep {
+  k: "sub" | "red";
+  event: LineupEvent;
+  inId: string | null;
+  outId: string;
+  code: PosCode;
+}
+
+/** lineupNow's walk, with each step it took (the pizarra's story of the pitch reads the same walk) and
+ *  the slots a red has left empty so far, each with the player sent off from it. */
+export function lineupWalk(lineup: Pick<MatchLineup, "slots">, events: readonly LineupEvent[]): { now: LineupSlot[]; steps: LineupStep[]; vacant: { outId: string; slot: LineupSlot }[] } {
+  const slots: (LineupSlot | null)[] = lineup.slots.map((s) => ({ ...s }));
+  // who a red took out of each emptied slot (the one a sub «por» him can take)
+  const gone: (string | null)[] = lineup.slots.map(() => null);
+  const steps: LineupStep[] = [];
+  const ordered = events.filter(counts).map((e, i) => ({ e, i })).sort((a, b) => when(a.e) - when(b.e) || a.i - b.i);
+  for (const { e } of ordered) {
+    if (!e.playerId) continue;
+    const at = slots.findIndex((s) => s?.playerId === e.playerId);
+    const isSub = e.type === "substitution" && !!e.inPlayerId && !slots.some((s) => s?.playerId === e.inPlayerId);
+    if (at < 0) {
+      const empty = isSub ? gone.indexOf(e.playerId) : -1;
+      if (empty >= 0 && slots[empty] === null) {
+        slots[empty] = { ...lineup.slots[empty], playerId: e.inPlayerId! };
+        gone[empty] = null;
+        steps.push({ k: "sub", event: e, inId: e.inPlayerId!, outId: e.playerId, code: lineup.slots[empty].code });
+      }
+      continue;
+    }
+    const code = slots[at]!.code;
+    if (isSub) {
+      slots[at] = { ...slots[at]!, playerId: e.inPlayerId! };
+      steps.push({ k: "sub", event: e, inId: e.inPlayerId!, outId: e.playerId, code });
+    } else if (SENT_OFF.has(e.type)) {
+      slots[at] = null;
+      gone[at] = e.playerId;
+      steps.push({ k: "red", event: e, inId: null, outId: e.playerId, code });
+    }
+  }
+  const vacant = gone.flatMap((outId, i) => (outId && slots[i] === null ? [{ outId, slot: { ...lineup.slots[i] } }] : []));
+  return { now: slots.filter((s): s is LineupSlot => s !== null), steps, vacant };
+}
 /**
  * The convocatoria a lineup leaves: titulares = the seven; banquillo = who came (`present`) and isn't in
  * the seven, in the old banquillo's order first; whoever didn't come goes to «no convocado». With no

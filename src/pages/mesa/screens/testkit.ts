@@ -8,7 +8,7 @@ export function player(id: string, name: string, number: string, extra: Partial<
   return {
     id, name, number, guest: false, keeper: false, minutes: 0,
     stickers: { goals: 0, assists: 0, yellow: false, red: false, injured: false },
-    pending: 0, played: false, offAt: null, sentOff: false, stints: [], spot: null, ...extra,
+    pending: 0, played: false, offAt: null, sentOff: false, vacancy: null, pos: null, stints: [], spot: null, ...extra,
   };
 }
 

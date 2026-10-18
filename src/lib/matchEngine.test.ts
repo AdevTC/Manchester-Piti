@@ -84,6 +84,29 @@ describe("Acta de fútbol 7", () => {
     expect(r.players.a.minutes).toBe(30);
     expect(r.errors).toHaveLength(1);
   });
+  it("tras una roja entra alguien del banquillo por el expulsado y ocupa su hueco", () => {
+    const m = base();
+    m.events = [event("red_card", 20, "b"), event("substitution", 25, "b", { inPlayerId: "h" })];
+    const r = calculateLedger(m);
+    expect(r.errors).toEqual([]);
+    expect(r.players.b).toMatchObject({ minutes: 20, subOut: 0, dismissed: true });
+    expect(r.players.h).toMatchObject({ minutes: 35, subIn: 1, played: true });
+    expect(r.players.h.exchanges).toEqual([{ minute: 25, with: "b", direction: "in" }]);
+    expect(r.field[team.indexOf("b")]).toBe("h");
+  });
+  it("por cada roja entra uno solo, y la doble amarilla también deja hueco", () => {
+    const m = base();
+    m.events = [
+      event("yellow_card", 5, "c"),
+      event("double_yellow", 10, "c"),
+      event("substitution", 12, "c", { inPlayerId: "h" }),
+      event("substitution", 14, "c", { inPlayerId: "i" }),
+    ];
+    const r = calculateLedger(m);
+    expect(r.players.h.subIn).toBe(1);
+    expect(r.errors).toHaveLength(1);
+    expect(r.players.i.played).toBe(false);
+  });
   it("la segunda amarilla no cuenta como tres amarillas", () => {
     const m = base();
     m.events = [event("yellow_card", 10, "a"), event("double_yellow", 32, "a")];
