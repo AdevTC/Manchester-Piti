@@ -111,7 +111,7 @@ background:#eef3f9}
 .ei-under{margin:4px 0 6px}
 .ei-gap{margin-top:10px}
 .ei-lead{margin:8px 0 0;font-size:14.5px;line-height:1.45;color:var(--e-soft)}
-.ei-report{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.ei-report{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;max-height:calc(1.45em * 5);margin-bottom:6px}
 .ei-err{margin:10px 0 0;font-size:13.5px;color:#ffb4a8}
 [data-theme="light"] .ei-err{color:#9b2f22}
 .ei-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
@@ -269,7 +269,7 @@ background:#eef3f9}
 .ei-hero:not(:has(.ei-plays)) .ei-scrub{width:440px}
 .ei-hint{left:32px;right:auto;max-width:300px;bottom:26px}
 .ei-board-msg{font-size:20px}
-.ei-main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:22px 24px 8px}
+.ei-main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:22px 24px 8px;align-items:start}
 .ei .hm-fan{padding:34px 40px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:center}
 .hm-fan h2{font-size:52px}
 }

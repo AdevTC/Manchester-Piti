@@ -512,8 +512,9 @@ export function figuresOf(ctx: FigureCtx): PalomerasFigure[] {
       .map(([id]) => id)
       .filter((id) => !id.startsWith("guest:"));
     return played.map((id, i) => {
-      const a = Math.PI * (0.12 + (0.76 * i) / Math.max(1, played.length - 1));
-      return fig(id, 50 - Math.cos(a) * 36, 30 + Math.sin(a) * 12, { plate: "mini", gk: i === 0 && (m.starters ?? [])[0] === id });
+      // (an arc around the centre circle, open towards the main stand: the design's «los nueve» line-up)
+      const a = Math.PI * (1.08 + (0.84 * i) / Math.max(1, played.length - 1));
+      return fig(id, 48.6 - Math.sin(a) * 21, 50 + Math.cos(a) * 38, { plate: "mini", gk: i === 0 && (m.starters ?? [])[0] === id });
     });
   }
   if (p === "antes" && !seven.length) return [];
