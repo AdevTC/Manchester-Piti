@@ -7,7 +7,7 @@
 // (components/celeste/isla). Screen readers hear each change once (a polite live region), never the ticking
 // minute. Hidden on the shown match's own page (it lands there: «Ver el partido» is a View Transition into its
 // scoreboard) and while a page's hero shows the match (useIslaHero).
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link as RouterLink, useRouterState } from "@tanstack/react-router";
 import { nameFor, useClubData, type ClubMatch } from "../../lib/clubData";
 import { useClock } from "../../hooks/useClock";
@@ -44,26 +44,24 @@ const readVoteOff = (): string | null => {
 };
 
 /** The links of the island, on the router: «Ver el partido» flies into the match page's scoreboard. */
-function islaLink(matchId: string) {
-  return function IslaLink({ to, className, children }: IslaLinkProps) {
-    if (to === "mesa")
-      return (
-        <RouterLink className={className} to="/matches/$matchId/mesa" params={{ matchId }}>
-          {children}
-        </RouterLink>
-      );
-    if (to === "votar")
-      return (
-        <RouterLink className={className} to="/matches/$matchId" params={{ matchId }} search={{ tab: "vestuario" }}>
-          {children}
-        </RouterLink>
-      );
+function IslaLink({ to, matchId, className, children }: IslaLinkProps) {
+  if (to === "mesa")
     return (
-      <RouterLink className={className} to="/matches/$matchId" params={{ matchId }} viewTransition={to === "partido"}>
+      <RouterLink className={className} to="/matches/$matchId/mesa" params={{ matchId }}>
         {children}
       </RouterLink>
     );
-  };
+  if (to === "votar")
+    return (
+      <RouterLink className={className} to="/matches/$matchId" params={{ matchId }} search={{ tab: "vestuario" }}>
+        {children}
+      </RouterLink>
+    );
+  return (
+    <RouterLink className={className} to="/matches/$matchId" params={{ matchId }} viewTransition={to === "partido"}>
+      {children}
+    </RouterLink>
+  );
 }
 
 export function LiveIsland() {
@@ -79,7 +77,8 @@ export function LiveIsland() {
   const reduced = useReducedMotion();
   const heroShown = useIslaHeroShown();
   const [open, setOpen] = useState(false);
-  const [hidden, setHidden] = useState(false);
+  // Taken away (the last goal it saw, per match): the next goal brings it back by itself.
+  const [hiddenAt, setHiddenAt] = useState<string | null>(null);
   const [voteOff, setVoteOff] = useState(readVoteOff);
   const [pip, setPip] = useState<PipPrefs>(readPipPrefs);
   // «¿Vas hoy?» answered from the island: it stays (showing the answer) for that match until the page changes
@@ -147,11 +146,9 @@ export function LiveIsland() {
     return () => window.clearTimeout(t);
   }, [enteredOn]);
 
-  // A goal brings back an island taken away; a new match starts shown.
-  const goalKey = moment && (moment.kind === "gol" || moment.kind === "golrival") ? moment.id : null;
-  useEffect(() => {
-    if (goalKey) setHidden(false);
-  }, [goalKey]);
+  const lastGoal = moments.findLast((x) => x.moment.kind === "gol" || x.moment.kind === "golrival")?.moment.id ?? "";
+  const goalMark = `${state?.match.id ?? ""}:${lastGoal}`;
+  const hidden = hiddenAt === goalMark;
 
   // The heroes make room for the phone's row (and the chip under it) while it shows (styles: html[data-isle]).
   const reserve = !shown || device !== "movil" ? null : chip ? "sync" : "";
@@ -163,8 +160,6 @@ export function LiveIsland() {
     };
   }, [reserve]);
 
-  const linkMatch = state?.match.id ?? "";
-  const Link = useMemo(() => islaLink(linkMatch), [linkMatch]);
   const onPip = useCallback((p: PipPrefs) => {
     setPip(p);
     writePipPrefs(p);
@@ -214,17 +209,17 @@ export function LiveIsland() {
           voting
             ? closeVote
             : () => {
-                setHidden(true);
+                setHiddenAt(goalMark);
                 setOpen(false);
               }
         }
-        onShow={() => setHidden(false)}
+        onShow={() => setHiddenAt(null)}
         hideLabel={voting ? "Ocultar el aviso de votar al MVP" : undefined}
         pip={pip}
         onPip={onPip}
         mine={mine}
         onAnswer={answer}
-        Link={Link}
+        Link={IslaLink}
         chip={<SyncChip chip={chip} variant="isle" announce />}
       />
     </>

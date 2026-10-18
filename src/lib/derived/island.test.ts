@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readyClock, transitionClock } from "../../../functions/src/matchClock";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../clubData";
-import { FINAL_HOLD_MS, goalMoment, islandAnnouncement, islandOf, voteMatch, whistleAt } from "./island";
+import { FINAL_HOLD_MS, goalMoment, islandOf, voteMatch, whistleAt } from "./island";
 // (the match of today, the announcements and the view of every state: island.vista.test.ts)
 
 const MIN = 60_000;

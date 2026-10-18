@@ -12,6 +12,7 @@ export type IslaDevice = "movil" | "tablet" | "escritorio";
 export type IslaLinkTo = "partido" | "resumen" | "votar" | "mesa";
 export interface IslaLinkProps {
   to: IslaLinkTo;
+  matchId: string;
   className?: string;
   children: ReactNode;
 }
@@ -173,11 +174,11 @@ function Panel({ v, Link, mine, onAnswer, still }: { v: IslaVista; Link: IslaPro
       )}
       <div className="is-acts">
         {v.act && (
-          <Link to={v.act.kind} className="is-btn pri">
+          <Link to={v.act.kind} matchId={v.matchId} className="is-btn pri">
             {v.act.label}
           </Link>
         )}
-        <Link to="partido" className="is-btn">
+        <Link to="partido" matchId={v.matchId} className="is-btn">
           Ver el partido <Svg size={16}>{IC.arrow}</Svg>
         </Link>
       </div>
