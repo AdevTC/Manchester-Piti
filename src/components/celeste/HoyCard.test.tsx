@@ -24,6 +24,7 @@ const state = vi.hoisted(() => ({
   prediction: null as { goalsFor: number; goalsAgainst: number } | null,
   mvp: new Map<string, { id: string; counts: Record<string, number>; total: number }>(),
   myVote: "",
+  scorers: [] as string[],
   reads: [] as string[],
   writes: { setAvailability: vi.fn(async () => undefined), voteMvp: vi.fn(async () => undefined) },
 }));
@@ -36,6 +37,8 @@ vi.mock("../../pages/vestuario/live", () => {
     useMvpResults: () => state.mvp,
     useMyPrediction: (id?: string, uid?: string) => (id && uid && state.reads.push(`predictions/${id}/${uid}`), live(id && uid ? state.prediction : null)),
     useMyMvpVote: (id?: string, uid?: string) => live(id && uid ? state.myVote : ""),
+    // (the scorers live in matchPrivate too: logged apart, they are la mesa's way in, not the previa)
+    useMatchScorers: (id?: string) => (id && state.reads.push(`scorers/${id}`), live(id ? state.scorers : [])),
     useAbsences: (today: string, enabled?: boolean) => (enabled && state.reads.push(`absences/${today}`), live(enabled ? state.absences : [])),
   };
 });
@@ -86,10 +89,31 @@ beforeEach(() => {
   state.prediction = null;
   state.mvp = new Map();
   state.myVote = "";
+  state.scorers = [];
   state.reads = [];
 });
 
 describe("HoyCard", () => {
+  it("today's scorer: «Hoy anotas tú» and «Abrir la mesa» from before kick-off until the acta is out", () => {
+    state.scorers = ["u1"];
+    const { unmount } = render(card(base, DATE - 2 * HOUR));
+    expect(screen.getByText("Hoy anotas tú")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Abrir la mesa/ })).toHaveAttribute("href", "/matches/j8/mesa");
+    unmount();
+    const live = render(card({ ...base, clock: started }, DATE + 10 * MIN));
+    expect(screen.getByText("Cada jugada, desde la mesa")).toBeInTheDocument();
+    live.unmount();
+    render(card(voting, DATE + 70 * MIN));
+    expect(screen.queryByText("Hoy anotas tú")).toBeNull();
+  });
+
+  it("a member who doesn't score today: no way into la mesa", () => {
+    state.scorers = ["someone-else"];
+    render(card(base, DATE - 2 * HOUR));
+    expect(screen.queryByText("Hoy anotas tú")).toBeNull();
+    expect(screen.queryByRole("link", { name: /Abrir la mesa/ })).toBeNull();
+  });
+
   it("before kick-off: «Sales de titular» with the official board's code, the switch, the quedada, the kit, the siete and the way there", () => {
     state.board = { seven: ["adri", "b"], codes: { adri: "DFC" } };
     state.note = "Quedamos 11:15 en la puerta";

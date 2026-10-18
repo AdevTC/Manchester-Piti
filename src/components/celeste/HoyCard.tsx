@@ -23,7 +23,7 @@ import { eventLine, livePlay, scoreboardOf } from "../../lib/derived/scoreboard"
 import { KIT_LABEL, kitLabel, mapsUrl } from "../../lib/derived/venue";
 import { dateParts } from "../../lib/partidos";
 import { predictionsRevealed, scorePrediction } from "../../../functions/src/predictions";
-import { useAbsences, useAvailability, useMeetingNote, useMvpResults, useMyMvpVote, useMyPrediction } from "../../pages/vestuario/live";
+import { useAbsences, useAvailability, useMatchScorers, useMeetingNote, useMvpResults, useMyMvpVote, useMyPrediction } from "../../pages/vestuario/live";
 import { absenceOn, madridDate, matchDay } from "../../lib/derived/absences";
 import { useMe } from "../../pages/vestuario/writes";
 import { useBoardView, useMatchBoard } from "../../pages/pizarra/useMatchBoard";
@@ -93,6 +93,9 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
   const absences = useAbsences(madridDate(now), viewer.member && before);
   // (Turnos del equipo: whose turn it is in this match — members only, not while it is live)
   const rota = useMatchTurns(match, matches, viewer.member && !!first && first.stage !== "live");
+  // (one of today's scorers: la mesa is his, from the roll call to the acta)
+  const scoring = !!first && (first.stage !== "after" || !first.published);
+  const scorers = useMatchScorers(viewer.member && scoring ? match?.id : undefined);
   const titleId = useId();
   if (!first || !match) return null;
 
@@ -149,6 +152,18 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
             {sb.rival}
           </span>
         </h2>
+      )}
+
+      {scoring && !!uid && scorers.data.includes(uid) && (
+        <p className="hoy-mesa">
+          <span>
+            <b>Hoy anotas tú</b>
+            {model.stage === "before" ? "Pasa lista, manda el siete y pita desde la mesa" : model.stage === "live" ? "Cada jugada, desde la mesa" : "Falta publicar el acta"}
+          </span>
+          <Link className="hm-btn" to="/matches/$matchId/mesa" params={{ matchId: match.id }}>
+            Abrir la mesa <Icon name="arrow" size={16} stroke={2.2} />
+          </Link>
+        </p>
       )}
 
       {model.stage === "before" && (

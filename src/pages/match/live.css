@@ -18,6 +18,8 @@
 .ml-pb:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 /* phone: the key sits in the card; desktop: in the buttons row */
 .vx .fc-acts a.ml-pb{display:none}
+/* before kick-off there is no card: the key always shows in the row */
+.vx .fc-acts a.ml-pb.pre{display:inline-flex}
 
 /* the card: a lit object with a sky lamp at its top edge */
 .ml-card{position:relative;overflow:hidden;border-radius:32px;padding:18px 16px 20px;color:var(--ml-text);background:radial-gradient(90% 70% at 50% -12%,rgba(159,208,242,.3),rgba(159,208,242,0) 62%),linear-gradient(180deg,#183063,#0e1c42 55%,#0a1532);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 0 0 1px rgba(184,226,255,.14),inset 0 -2px 0 rgba(0,0,0,.4),0 30px 50px -26px rgba(0,0,0,.95);transition:box-shadow .9s var(--ml-ease)}

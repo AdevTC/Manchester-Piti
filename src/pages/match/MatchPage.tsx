@@ -368,7 +368,8 @@ export function MatchPage() {
               </div>
             )}
             <div className="fc-acts">
-              {mesaOpen && cardMode && <MesaKey matchId={match.id} wide />}
+              {/* (before kick-off too: the scorer calls the roll, sends the seven and blows the whistle from la mesa) */}
+              {mesaOpen && <MesaKey matchId={match.id} wide className={cardMode ? "" : "pre"} />}
               {upcoming && phase === "scheduled" && <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(match, siteOrigin())} />}
               {/* (right after the main action: the row scrolls sideways on a phone, these must not hide at its end) */}
               {viewer.member && board && match.seasonId && (

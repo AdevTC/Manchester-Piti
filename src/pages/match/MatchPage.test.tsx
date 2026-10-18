@@ -33,11 +33,13 @@ const club = vi.hoisted(() => ({ error: null as Error | null }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => (club.error ? { matches: [], players: [], loading: false, error: club.error } : { matches: [MATCH, SCORED, UPCOMING, LIVE], players: PLAYERS, loading: false, error: null }) }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => who.viewer }));
 // (an admin viewer is an admin profile in the team: who may open la mesa)
-vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: who.viewer.admin ? { role: "admin" } : null }) }));
-vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: who.viewer.admin }) }));
+// (a scorer: a plain member whose uid is in the match's scorers)
+const scoring = vi.hoisted(() => ({ on: false }));
+vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: scoring.on ? { uid: "u-scorer" } : null, profile: who.viewer.admin ? { role: "admin" } : null }) }));
+vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: who.viewer.admin || scoring.on }) }));
 vi.mock("../vestuario/writes", () => ({ useMe: () => null }));
 vi.mock("../vestuario/live", () => ({
-  useMatchScorers: () => ({ data: [] }),
+  useMatchScorers: () => ({ data: scoring.on ? ["u-scorer"] : [] }),
   useMatchReactions: () => ({ data: [], loading: false, error: false }),
   useMatchRatings: () => ({ data: [], loading: false, error: false }),
   useLiveDoc: <T,>(path: string | null, _id: string, map: (d: Record<string, unknown> | undefined) => T, empty: T) => {
@@ -283,6 +285,26 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
     expect(await screen.findByRole("link", { name: /Abrir en la Sala de control/ })).toHaveAttribute("href", "/admin/partidos/j3");
     expect(screen.queryByRole("link", { name: /Editar acta/ })).toBeNull();
     expect(pizarraLink()).toHaveAttribute("href", "/pizarra?tablero=b3&season=t1");
+  });
+
+  it("before the match, its scorer (not an admin) opens la mesa: the roll call and the whistle are there", async () => {
+    as({ member: true });
+    scoring.on = true;
+    try {
+      open("/matches/j3");
+      const key = await screen.findByRole("link", { name: /Abrir la mesa/ });
+      expect(key).toHaveAttribute("href", "/matches/j3/mesa");
+      expect(key).toHaveClass("pre");
+    } finally {
+      scoring.on = false;
+    }
+  });
+
+  it("before the match, a member who doesn't score sees no mesa", async () => {
+    as({ member: true });
+    open("/matches/j3");
+    expect(await screen.findByText("pane:previa")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Abrir la mesa/ })).toBeNull();
   });
 });
 
