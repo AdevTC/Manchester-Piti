@@ -1,22 +1,20 @@
 import { test, expect } from "@playwright/test";
 
-test("la portada es el día de partido: titular, jugador del momento, temporada y tu camiseta", async ({ page }) => {
+test("la portada es la luz del partido: el titular, el marcador del campo, la jornada, la temporada y tu camiseta", async ({ page }) => {
   await page.goto("/");
-  // The scheduled fixture owns the hero; the recent victory has its own season block.
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Próximo partido");
-  const hero = page.getByRole("region", { name: "Próximo partido", exact: true });
-  await expect(hero.getByRole("timer")).toBeVisible();
-  await expect(hero.getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/preview-next");
-  await expect(hero).not.toContainText("Victoria");
-  // Its first scorer is the player of the moment, with a link to the ficha.
-  const moment = page.getByRole("article", { name: "Mario" });
-  await expect(moment).toContainText("Goleador del último partido");
-  await expect(moment.getByRole("link", { name: /Ver su ficha/ })).toHaveAttribute("href", /\/jugadores\//);
+  // The scheduled fixture owns the hero: its headline, the club scoreboard and «Arrastra el sol» or the light now.
+  await expect(page.getByRole("heading", { level: 1 })).not.toBeEmpty();
+  await expect(page.getByRole("img", { name: /^Marcador del campo/ })).toBeVisible();
 
-  // The season row: last result and what comes next.
-  await expect(page.getByRole("link", { name: /PITI.*2–1.*Atlético Demo/ })).toBeVisible();
-  await expect(page.getByRole("region", { name: "La temporada" }).getByRole("heading", { name: "Victoria", exact: true })).toBeVisible();
+  // The phase block leads to the match (the previa before it, the match itself once it is on).
+  await expect(page.getByRole("region", { name: /Lo que hay que saber|A punto de empezar|Hasta el|Así va|Así fue|Ya está el acta|La crónica|Así quedó|Qué pasa ahora/ }).getByRole("link", { name: /Ver la previa|Seguir el partido|Ver el partido|Leer el acta|Leer la crónica/ })).toHaveAttribute("href", /^\/matches\//);
+
+  // The season: form, table, pichichi; what comes next, each kick-off with its light.
+  await expect(page.getByRole("heading", { name: "La temporada" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Lo que viene" })).toBeVisible();
+
+  // A fan's «Tu partido» is the vestuario's invitation, never an empty member slot.
+  await expect(page.getByRole("heading", { name: "Pide entrar al vestuario" })).toBeVisible();
 
   // «Ponte la del Piti»: the fan's name goes on the shirt.
   await page.getByLabel("Tu nombre", { exact: true }).fill("afición");
@@ -30,8 +28,9 @@ test("la portada es el día de partido: titular, jugador del momento, temporada 
   await page.keyboard.press("Escape");
   await expect(page.getByRole("link", { name: /iPhone o Mac/ })).toHaveCount(0);
 
-  await page.getByRole("link", { name: /Conoce a los/ }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.getByRole("link", { name: /Conoce a los .* en Plantilla/ }).click();
   await expect(page).toHaveURL(/\/plantilla(\?|$)/);
   await expect(page.getByRole("heading", { name: /Pichichi|el primer Pichichi|manda/ }).first()).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
