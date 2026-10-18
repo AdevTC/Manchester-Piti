@@ -70,7 +70,7 @@ describe("islaVista: every state's words", () => {
 
   it("before kick-off: «vs», the time, and what each one asks", () => {
     const previa = view({ kind: "previa", match: base }, DATE - 28 * MIN);
-    expect(previa).toMatchObject({ estado: "previa", pre: true, clock: "12:00", live: false, kicker: "Hoy a las 12:00, faltan 28 min", act: null, seg: false, hasPulse: false, unfold: false, aria: "Manchester Piti contra MAD SKY, hoy a las 12:00", say: "Hoy a las 12:00, Manchester Piti contra MAD SKY." });
+    expect(previa).toMatchObject({ estado: "previa", pre: true, clock: "12:00", live: false, kicker: "Hoy a las 12:00, faltan 28 min", act: null, seg: false, hasPulse: false, unfold: false, aria: "Manchester Piti contra MAD SKY, hoy a las 12:00, faltan 28 min", say: "Hoy a las 12:00, Manchester Piti contra MAD SKY." });
     expect(previa.rotulo).toEqual({ m: "12:00", t: "HOY · PITI – MAD SKY", s: "En directo desde CDM Palomeras", tone: "" });
     expect(view({ kind: "previa", match: base }, DATE - 90 * MIN).kicker).toBe("Hoy a las 12:00, faltan 1 h 30 min");
     const rsvp = view({ kind: "rsvp", match: base }, DATE - 5 * 60 * MIN, { rsvp: { name: "Jordi", vienen: 3, duda: 1 } });
@@ -80,7 +80,7 @@ describe("islaVista: every state's words", () => {
     expect(anot).toMatchObject({ estado: "anotador", act: { label: "Abrir la mesa", kind: "mesa" }, unfold: true, say: "Hoy anotas tú: la mesa del partido contra MAD SKY se abre desde aquí." });
     expect(anot.rotulo.t).toBe("HOY ANOTAS TÚ");
     const pend = view({ kind: "pending", match: base }, DATE + 2 * MIN);
-    expect(pend).toMatchObject({ estado: "pendiente", clock: "12:00", kicker: "Pendiente del pitido inicial", say: "Manchester Piti contra MAD SKY: pendiente del pitido inicial." });
+    expect(pend).toMatchObject({ estado: "pendiente", clock: "12:00", kicker: "Pendiente del pitido inicial", aria: "Manchester Piti contra MAD SKY, pendiente del pitido inicial", say: "Manchester Piti contra MAD SKY: pendiente del pitido inicial." });
     expect(pend.rotulo).toMatchObject({ m: "12:02", t: "PENDIENTE DEL PITIDO" });
   });
 

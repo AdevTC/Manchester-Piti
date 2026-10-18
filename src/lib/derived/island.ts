@@ -404,7 +404,8 @@ export function islaVista({ state, now, moment = null, moments = [], staleMinute
   }
 
   const clock = pre ? time : estado === "descanso" ? "Descanso" : fin ? "Final" : minuteText;
-  const aria = pre ? `Manchester Piti contra ${rival}, hoy a las ${time}` : `Manchester Piti ${gf}, ${rival} ${ga}, ${kicker.charAt(0).toLowerCase()}${kicker.slice(1)}`;
+  const said = `${kicker.charAt(0).toLowerCase()}${kicker.slice(1)}`;
+  const aria = pre ? `Manchester Piti contra ${rival}, ${said}` : `Manchester Piti ${gf}, ${rival} ${ga}, ${said}`;
   // (the strip paints the sky of now: before kick-off and while it's played, the real minute over the ground)
   return {
     estado,
