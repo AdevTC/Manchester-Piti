@@ -269,7 +269,7 @@ export function MatchPage() {
               {live && <GoalBurst burst={goalShow.burst} who={goalBurstWho(last)} />}
             </LiveCard>
           ) : (
-          <article className={`pt-board pt-rise${live ? " live" : ""}`} style={{ animationDelay: ".15s" }} aria-label={done ? `Final: Manchester Piti ${gf}, ${rival} ${ga}` : live ? `En directo contra ${rival}` : whistle ? `${PENDING_WHISTLE} contra ${rival}` : unplayed ? `${AWAITING_ACTA} contra ${rival}` : `Previa contra ${rival}`}>
+          <article className={`pt-board pt-rise isla-destino${live ? " live" : ""}`} style={{ animationDelay: ".15s" }} aria-label={done ? `Final: Manchester Piti ${gf}, ${rival} ${ga}` : live ? `En directo contra ${rival}` : whistle ? `${PENDING_WHISTLE} contra ${rival}` : unplayed ? `${AWAITING_ACTA} contra ${rival}` : `Previa contra ${rival}`}>
             <div className="pt-btop">
               <span>
                 {d.long.charAt(0).toUpperCase() + d.long.slice(1)} · {d.time}
