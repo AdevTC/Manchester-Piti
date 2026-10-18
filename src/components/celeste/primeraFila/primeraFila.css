@@ -113,8 +113,8 @@
 
 /* markers: goals, cards, subs, knocks, the pitch, logros, «de baja», «anota» */
 .pf-mks{display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-end;gap:3px;width:calc(100% + 2px);height:var(--mkz,42px);padding-bottom:3px}
-.pf-mk{display:inline-flex;align-items:center;gap:2px;height:19px;padding:0 3px;border-radius:5px;font-style:normal;font-family:'Anybody',sans-serif;font-weight:800;font-variation-settings:'wdth' 82;font-size:11.5px;line-height:1;white-space:nowrap;background:rgba(5,11,31,.82);color:#eef4ff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
-:root[data-theme="light"] .pf-mk{background:#0c1733}
+.pf-mk{display:inline-flex;align-items:center;gap:2px;height:19px;padding:0 3px;border-radius:5px;font-style:normal;font-family:'Anybody',sans-serif;font-weight:800;font-variation-settings:'wdth' 82;font-size:11.5px;line-height:1;white-space:nowrap;background:var(--mkbg,rgba(5,11,31,.82));color:#eef4ff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+:root[data-theme="light"] .pf-root{--mkbg:#0c1733}
 .pf-mk.g{background:#FFC659;color:#0c1733;box-shadow:none}
 .pf-mk.y{background:#f2d03b;color:#0c1733;box-shadow:none}
 .pf-mk.r{background:#e2493f;color:#fff;box-shadow:none}
