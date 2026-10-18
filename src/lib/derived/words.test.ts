@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capital, plural, pluralWord } from "./words";
+import { capital, endSentence, plural, pluralWord } from "./words";
 import { madridDay, madridDayParts, madridTime } from "./madrid";
 
 describe("words", () => {
@@ -14,6 +14,12 @@ describe("words", () => {
     expect(capital("domingo, 8 nov")).toBe("Domingo, 8 nov");
     expect(capital("ñu")).toBe("Ñu");
     expect(capital("")).toBe("");
+  });
+  it("ends a sentence with one full stop, even after «T.C.» or «F.C.»", () => {
+    expect(endSentence("Marcaron Alcides y Adrián T.C.")).toBe("Marcaron Alcides y Adrián T.C.");
+    expect(endSentence("Contra Entrepibas F.C.")).toBe("Contra Entrepibas F.C.");
+    expect(endSentence("Contra Pitutis")).toBe("Contra Pitutis.");
+    expect(endSentence("¿Vas hoy?")).toBe("¿Vas hoy?");
   });
 });
 

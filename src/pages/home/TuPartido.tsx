@@ -16,6 +16,7 @@ import { formatNota, notaLine, ratingSummary, ratingWindow } from "../../lib/der
 import { scorePrediction } from "../../../functions/src/predictions";
 import { parseMatchLineup } from "../../lib/matchLineup";
 import { madridTime } from "../../lib/derived/madrid";
+import { endSentence } from "../../lib/derived/words";
 import { dayWord, niceName, weekday, type MatchView } from "./inicioModel";
 
 const POS: Record<string, string> = {
@@ -139,7 +140,7 @@ export function TuPartido({ day, view, role, now, matches, players, playerId, ca
       acts = [{ label: "Ver cómo es la mesa", to: "mesa", pri: false }];
     } else if (p === "antes") {
       h = "Hoy anotas tú";
-      lead = `La mesa ya tiene el partido: el siete, el banquillo y ${m?.rival ?? "el rival"}. Ábrela antes de las ${ko ? madridTime(ko) : "el pitido"}.`;
+      lead = `${endSentence(`La mesa ya tiene el partido: el siete, el banquillo y ${m?.rival ?? "el rival"}`)} Ábrela antes de las ${ko ? madridTime(ko) : "el pitido"}.`;
       acts = [{ label: "Abrir la mesa", to: "mesa", pri: true }];
       urgent = true;
     } else if (p === "pitido") {

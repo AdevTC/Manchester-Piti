@@ -9,6 +9,7 @@ import type { ClubMatch } from "../../../lib/clubData";
 import type { FrontRow } from "../../../lib/derived/frontRow";
 import type { MatchdayModel, ViewerRole } from "../../../lib/derived/matchday";
 import type { LightKey } from "../../../lib/derived/sun";
+import { endSentence } from "../../../lib/derived/words";
 import { setAvailability, voteMvp, type Me } from "../../../pages/vestuario/writes";
 import { buzz, playClac, primeClac, readClacPref, writeClacPref } from "./clac";
 import { filaView, withAnswer, type Answer, type FilaStatus, type SeatView } from "./view";
@@ -112,7 +113,7 @@ export function PrimeraFila(props: PrimeraFilaProps) {
     buzz(12);
     setError("");
     setPendingVote(s.seat.playerId);
-    say(`Tu voto, para ${s.seat.name}.`);
+    say(endSentence(`Tu voto, para ${s.seat.name}`));
     voteMvp(me, match.id, s.seat.playerId).then(
       () => setPendingVote((p) => (p === s.seat.playerId ? null : p)),
       () => {

@@ -24,6 +24,7 @@ import { kitLabel, mapsUrl, siteOrigin } from "../../lib/derived/venue";
 import { jornadaNumbers, jornadas } from "../../lib/derived/jornada";
 import { matchdayOf, type MatchdayModel } from "../../lib/derived/matchday";
 import { RESULT_WORD } from "../../lib/derived/result";
+import { endSentence } from "../../lib/derived/words";
 import { sunPosition } from "../../lib/derived/sun";
 import { useMatchWeather, type MatchWeather } from "../../lib/weather";
 import type { StandingRow } from "../../lib/standings";
@@ -71,12 +72,12 @@ function introOf(md: MatchdayModel, season: string, pj: number, wins: number, no
     case "pretemporada":
       return `${season}. La liga aún no ha publicado el calendario.`;
     case "antes":
-      return `${season}. ${record}: hoy se juega contra ${rival}.`;
+      return endSentence(`${season}. ${record}: hoy se juega contra ${rival}`);
     case "pitido":
       return `${season}. Contra ${rival}, a punto de empezar.`;
     case "directo1":
     case "directo2":
-      return `${season}. Se está jugando ahora mismo contra ${rival}.`;
+      return endSentence(`${season}. Se está jugando ahora mismo contra ${rival}`);
     case "descanso":
       return `${season}. Descanso contra ${rival}, de momento ${md.score?.gf ?? 0}–${md.score?.ga ?? 0}.`;
     case "final":
@@ -89,7 +90,7 @@ function introOf(md: MatchdayModel, season: string, pj: number, wins: number, no
       const next = md.phase === "despues" ? md.next : m;
       const at = next ? dateMillis(next.date) : NaN;
       const w = Number.isFinite(at) ? whenWord(at, now) : "";
-      return next ? `${season}. ${record}; la siguiente${w ? `, ${w}` : ""}, ${rivalLine(next).charAt(0).toLowerCase()}${rivalLine(next).slice(1)}.` : `${season}. ${record}.`;
+      return next ? endSentence(`${season}. ${record}; la siguiente${w ? `, ${w}` : ""}, ${rivalLine(next).charAt(0).toLowerCase()}${rivalLine(next).slice(1)}`) : `${season}. ${record}.`;
     }
   }
 }
@@ -177,9 +178,10 @@ function LeaderList({ title, list, none, nameOf }: { title: string; list: Leader
 }
 
 const topNames = (list: Leader[], nameOf: (id: string) => string) => {
-  if (!list.length) return { n: "0", names: "por estrenar" };
+  if (!list.length) return { n: "0", names: "por estrenar", shared: false };
   const top = list.filter((l) => l.n === list[0].n).map((l) => nameOf(l.id));
-  return { n: String(list[0].n), names: new Intl.ListFormat("es", { style: "long", type: "conjunction" }).format(top.slice(0, 3)) + (top.length > 3 ? " y más" : "") };
+  // (a tie at the top is said in words, as Plantilla says it: «Pichichi compartido»)
+  return { n: String(list[0].n), names: new Intl.ListFormat("es", { style: "long", type: "conjunction" }).format(top.slice(0, 3)) + (top.length > 3 ? " y más" : ""), shared: top.length > 1 };
 };
 
 function CompactTable({ rows, provisional }: { rows: StandingRow[]; provisional: boolean }) {
@@ -565,7 +567,7 @@ export function PartidosPage() {
                 </p>
               </div>
               <div className="pl-card">
-                <p className="pl-k">Pichichi</p>
+                <p className="pl-k">{pich.shared ? "Pichichi compartido" : "Pichichi"}</p>
                 <p className="pl-big">
                   {pich.n}
                   <small>{pich.names}</small>

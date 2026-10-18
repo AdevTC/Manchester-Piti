@@ -11,6 +11,7 @@ import { kickoffState, PENDING_WHISTLE } from "./kickoff";
 import { dateMillis, isVisibleMatch, matchPhase } from "../../../functions/src/matchEngine";
 import { withGuestNames } from "./guests";
 import { madridDate, madridTime } from "./madrid";
+import { endSentence } from "./words";
 import { boardSaid, WIPE_OF, type MatchMoment, type MomentKind, type TimedMoment } from "./moments";
 import { rivalCode } from "../eventMeta";
 
@@ -132,12 +133,12 @@ export function goalMoment(match: Pick<ClubMatch, "events" | "rival" | "status" 
   const board = `Manchester Piti ${gf}, ${rival} ${ga}.`;
   if (!ours) {
     const rest = `Gol de ${rival} · ${score}`;
-    return { ours, head: null, rest, text: rest, said: `Gol de ${rival}. ${board}` };
+    return { ours, head: null, rest, text: rest, said: `${endSentence(`Gol de ${rival}`)} ${board}` };
   }
   const minute = eventMinute(e);
   const who = e.type === "opponent_own_goal" ? `autogol de ${rival}` : e.playerId ? withGuestNames(match, nameOf)(e.playerId) : "el Piti";
   const rest = `${who.toLocaleUpperCase("es")}${minute !== null ? ` ${minute}′` : ""} · ${score}`;
-  return { ours, head: "¡GOL!", rest, text: `¡GOL! ${rest}`, said: `¡Gol del Piti! ${who}${minute !== null ? `, minuto ${minute}` : ""}. ${board}` };
+  return { ours, head: "¡GOL!", rest, text: `¡GOL! ${rest}`, said: `¡Gol del Piti! ${endSentence(`${who}${minute !== null ? `, minuto ${minute}` : ""}`)} ${board}` };
 }
 
 /** The line a screen reader hears once when the island changes state (never on every minute). */
@@ -149,7 +150,7 @@ export function islandAnnouncement(state: IslandState, previous: IslandState["ki
   const time = madridTime(dateMillis(m.date));
   switch (state.kind) {
     case "previa":
-      return `Hoy a las ${time}, Manchester Piti contra ${rival}.`;
+      return endSentence(`Hoy a las ${time}, Manchester Piti contra ${rival}`);
     case "rsvp":
       return "¿Vas hoy? Responde desde aquí.";
     case "anotador":
@@ -157,13 +158,13 @@ export function islandAnnouncement(state: IslandState, previous: IslandState["ki
     case "pending":
       return `Manchester Piti contra ${rival}: pendiente del pitido inicial.`;
     case "live":
-      return previous === "halftime" ? `Arranca la segunda parte. ${board}.` : `Empieza el partido contra ${rival}.`;
+      return previous === "halftime" ? `Arranca la segunda parte. ${board}.` : endSentence(`Empieza el partido contra ${rival}`);
     case "halftime":
       return `Descanso. ${board}.`;
     case "final":
       return state.published ? (previous === "final" ? "Acta publicada." : `Final. ${board}. Acta publicada.`) : `Final. ${board}. Acta pendiente.`;
     case "vote":
-      return `Ya puedes votar al mejor del partido contra ${rival}.`;
+      return endSentence(`Ya puedes votar al mejor del partido contra ${rival}`);
   }
 }
 

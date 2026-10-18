@@ -9,3 +9,6 @@ export const plural = (n: number, one: string, many = one + "s"): string => `${n
 
 /** The text with its first letter in capitals: «domingo, 8 nov» → «Domingo, 8 nov». */
 export const capital = (s: string): string => s.charAt(0).toLocaleUpperCase("es") + s.slice(1);
+
+/** A sentence's end: a full stop, unless the text already ends in one («Adrián T.C.», «Entrepibas F.C.»). */
+export const endSentence = (s: string): string => (/[.!?…]$/.test(s) ? s : `${s}.`);

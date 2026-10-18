@@ -56,6 +56,13 @@ describe("the headline, phase by phase (data-driven)", () => {
     expect(c).toMatchObject({ kick: "En juego, 1ª parte, minuto 23", live: true });
     expect(c.sub).toBe("21′, gol de Adrián T.C., asistencia de Jordi.");
   });
+
+  it("a name that ends in its own full stop gets no second one («Adrián T.C.», never «T.C..»)", () => {
+    expect(heroCopy(scene("descanso").ctx).sub).toBe("Marcaron Alcides y Adrián T.C. La segunda parte, en unos minutos.");
+    const final = heroCopy(scene("final", { nameOf: (x) => (x === "kevin" ? "Rafa J." : nice(x)) }).ctx).sub;
+    expect(final).toMatch(/^Goles de Alcides, Adrián T\.C\. y Rafa J\. El acta llega/);
+    expect(heroCopy(scene("despues").ctx).sub).not.toMatch(/\.\./);
+  });
 });
 
 describe("the club scoreboard", () => {

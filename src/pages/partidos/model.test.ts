@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import type { StandingRow } from "../../lib/standings";
 import { readyClock, transitionClock } from "../../../functions/src/matchClock";
-import { dayLine, lightLabel, placeLabel, provisionalTable, rowTag, sliceLight, sliceMatches, venueName } from "./model";
+import { matchdayOf } from "../../lib/derived/matchday";
+import { boardOf, dayLine, lightLabel, placeLabel, provisionalTable, rowTag, sliceLight, sliceMatches, venueName } from "./model";
 
 const madrid = (iso: string) => Date.parse(iso); // with an explicit offset
 const m = (id: string, over: Partial<ClubMatch> = {}): ClubMatch => ({ id, seasonId: "t1", rival: id.toUpperCase(), status: "scheduled", date: 0, ...over }) as ClubMatch;
@@ -76,5 +77,15 @@ describe("the table if the match ended now", () => {
       ["ORDUNA FC", 0, 1],
     ]);
     expect(provisionalTable([row("A", 0)], null)).toBeNull();
+  });
+});
+
+describe("the club scoreboard over the featured jornada", () => {
+  it("before the kick-off it counts down in words a once-a-minute clock can't misread («13 min», never «0:13»)", () => {
+    const ko = madrid("2026-10-18T19:00:00+02:00");
+    const j1 = m("j1", { date: ko });
+    const at = (now: number) => boardOf(matchdayOf([j1], "t1", now), j1, now);
+    expect(at(ko - 13 * 60_000)).toMatchObject({ k: "Faltan", c: "13 min", plate: "Hoy 19:00" });
+    expect(at(ko - 125 * 60_000)).toMatchObject({ k: "Faltan", c: "2:05 h" });
   });
 });

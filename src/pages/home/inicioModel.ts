@@ -11,6 +11,7 @@ import { floodlightsOn, sunPosition, sunTimes } from "../../lib/derived/sun";
 import { madridDate, madridTime } from "../../lib/derived/madrid";
 import { eventMetaOf, eventSentence, rivalCode, settled } from "../../lib/eventMeta";
 import { withGuestNames } from "../../lib/derived/guests";
+import { endSentence } from "../../lib/derived/words";
 import type { MatchWeather } from "../../lib/weather";
 import { momentTally, type ReactionDoc } from "../../lib/derived/trasElPartido";
 import type { PalomerasFigure, PalomerasState } from "../../components/palomeras3d";
@@ -273,13 +274,13 @@ export function heroCopy(ctx: CopyCtx): HeroCopy {
         else h1 = `${g.playerId ? withGuestNames(m, nameOf)(g.playerId) : "El Piti"} pone el ${view.gf}${J}${view.ga}`;
       }
       const last = view.events.at(-1);
-      const lastLine = last && m ? `${cap(playLine(m, last, nameOf))}.` : `La mesa arrancó el reloj${m?.clock?.firstStartedAt ? ` a las ${madridTime(m.clock.firstStartedAt)}` : ""}.`;
+      const lastLine = last && m ? endSentence(cap(playLine(m, last, nameOf))) : `La mesa arrancó el reloj${m?.clock?.firstStartedAt ? ` a las ${madridTime(m.clock.firstStartedAt)}` : ""}.`;
       const sub = view.added ? `Se juega el añadido: ${numberWord(view.added)} ${view.added === 1 ? "minuto" : "minutos"} más. ${lastLine}` : lastLine;
       return { kick: `En juego, ${half}, minuto ${view.minute ?? 0}${added}`, h1, sub, live: true };
     }
     case "descanso": {
       const names = m ? scorersOf(m, view.events, nameOf) : [];
-      const sub = names.length ? `Marcaron ${andList(names)}. La segunda parte, en unos minutos.` : "Sin goles por ahora. La segunda parte, en unos minutos.";
+      const sub = names.length ? `${endSentence(`Marcaron ${andList(names)}`)} La segunda parte, en unos minutos.` : "Sin goles por ahora. La segunda parte, en unos minutos.";
       return { kick: "Descanso", h1: `Descanso con ${view.gf}${J}${view.ga}`, sub, live: true };
     }
     case "final":
@@ -313,7 +314,7 @@ function afterCopy(ctx: CopyCtx, phase: "final" | "acta" | "despues"): HeroCopy 
   const of = ctx.estreno ? "del estreno" : day.jornada ? `de la jornada ${day.jornada}` : "del partido";
   if (phase === "final") {
     const names = m ? scorersOf(m, view.events, nameOf) : [];
-    const goals = names.length ? `${names.length === 1 ? "Gol" : "Goles"} de ${andList(names)}. ` : "";
+    const goals = names.length ? `${endSentence(`${names.length === 1 ? "Gol" : "Goles"} de ${andList(names)}`)} ` : "";
     return { kick: `Final, ${day.jornada ? `jornada ${day.jornada}` : `ante ${rival}`}`, h1: resultWords(view.gf, view.ga, ctx.estreno), sub: `${goals}El acta llega en unos minutos: la está cerrando la mesa.`, live: false };
   }
   if (phase === "acta") {
@@ -332,7 +333,7 @@ function afterCopy(ctx: CopyCtx, phase: "final" | "acta" | "despues"): HeroCopy 
         const at = dateMillis(next.date);
         const when = Number.isFinite(at) ? `${cap(dayWord(at, now))}, ` : "";
         const where = next.home === false ? `a ${next.venue?.trim() || `casa de ${next.rival ?? "el rival"}`}` : "en Palomeras";
-        return ` ${when}${where}: ${next.rival ?? "rival por confirmar"}${Number.isFinite(at) ? ` a las ${madridTime(at)}` : ""}.`;
+        return ` ${endSentence(`${when}${where}: ${next.rival ?? "rival por confirmar"}${Number.isFinite(at) ? ` a las ${madridTime(at)}` : ""}`)}`;
       })()
     : "";
   if (ctx.mvp) {

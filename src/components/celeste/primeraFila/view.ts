@@ -6,6 +6,7 @@ import type { MatchdayModel, ViewerRole } from "../../../lib/derived/matchday";
 import type { LightKey } from "../../../lib/derived/sun";
 import { kickoffWindow } from "../../../lib/derived/memberWindows";
 import { madridDate, madridTime } from "../../../lib/derived/madrid";
+import { endSentence } from "../../../lib/derived/words";
 import { isPosCode, POSITIONS } from "../../../lib/positions";
 import { dateMillis } from "../../../../functions/src/matchEngine";
 
@@ -383,19 +384,19 @@ export function filaView(input: ViewInput): FilaView {
     const today = when === "hoy";
     if (!today) {
       view.title = hasKickoff ? `La primera fila del ${WEEKDAY.format(kickoff)}` : "La primera fila";
-      const head = `Contra ${rival}${when ? `, ${when}` : ""}.`;
+      const head = endSentence(`Contra ${rival}${when ? `, ${when}` : ""}`);
       view.lead = answers
         ? `${head} Ve contestando: el capitán hace la convocatoria con vuestras respuestas.`
         : called
           ? `${head} Ya ha salido la convocatoria: ${word(called)} convocados.`
           : `${head} Cuando salga la convocatoria, se bajan los asientos.`;
     } else if (answers) {
-      view.lead = `Hoy${time ? ` a las ${time}` : ""} contra ${rival}. ${row.sevenPublished ? "Borde dorado: los siete que salen." : "El siete aún no está: lo publica el capitán desde la pizarra."}`;
+      view.lead = `${endSentence(`Hoy${time ? ` a las ${time}` : ""} contra ${rival}`)} ${row.sevenPublished ? "Borde dorado: los siete que salen." : "El siete aún no está: lo publica el capitán desde la pizarra."}`;
     } else {
       view.title = "Los convocados de hoy";
       const bench = called - starters;
       view.lead = !called
-        ? `Hoy${time ? ` a las ${time}` : ""} contra ${rival}. La convocatoria aún no ha salido.`
+        ? `${endSentence(`Hoy${time ? ` a las ${time}` : ""} contra ${rival}`)} La convocatoria aún no ha salido.`
         : row.sevenPublished
           ? `${cap(word(called))} convocados: los ${word(starters)} del borde dorado salen${bench > 0 ? `; ${word(bench)} ${bench === 1 ? "espera" : "esperan"} en el banquillo` : ""}.`
           : `${cap(word(called))} convocados. El siete aún no está.`;
@@ -450,7 +451,7 @@ export function filaView(input: ViewInput): FilaView {
     const story = reds[0]
       ? `Roja a ${reds[0].s.name}: su asiento se queda vacío.`
       : entered.length
-        ? `${entered.length === 1 ? "Ha entrado" : "Han entrado"} ${list(entered)}.`
+        ? endSentence(`${entered.length === 1 ? "Ha entrado" : "Han entrado"} ${list(entered)}`)
         : `${cap(word(onPitch))} en el campo y ${word(benchNow.length)} esperando su turno.`;
     if (day.phase === "pitido") {
       view.title = "El banquillo, listo";
@@ -464,7 +465,7 @@ export function filaView(input: ViewInput): FilaView {
       view.lead = `${[clock, score].filter(Boolean).join(", ")}${clock || score ? ". " : ""}${story}`;
     }
     view.plays = benchPlays(row.seats);
-    view.liveNote = benchNow.length ? `En el banquillo: ${list(benchNow.map((s) => s.name))}.` : "";
+    view.liveNote = benchNow.length ? endSentence(`En el banquillo: ${list(benchNow.map((s) => s.name))}`) : "";
     if (member && mine) {
       const entra = mine.markers.find((m) => m.kind === "entra");
       const sale = mine.markers.find((m) => m.kind === "sale");
@@ -498,13 +499,13 @@ export function filaView(input: ViewInput): FilaView {
     view.endNote = "Los logros y la votación del mejor llegan con el acta.";
   } else if (day.phase === "acta" || voteOpen) {
     view.lead = `Acta publicada${score ? `, ${score}` : ""}: ${word(played.length)} jugaron.${voteOpen ? " Ya se vota al mejor del partido." : ""}`;
-    view.endNote = member ? (logros ? `Con el acta: ${logros}.` : "") : `La votación del mejor es de los socios${closes ? `; ${closes} sale el resultado` : ""}.`;
+    view.endNote = member ? (logros ? endSentence(`Con el acta: ${logros}`) : "") : `La votación del mejor es de los socios${closes ? `; ${closes} sale el resultado` : ""}.`;
   } else {
     const next = day.next;
     const nextAt = next ? dateMillis(next.date) : NaN;
-    const nextText = next && Number.isFinite(nextAt) ? ` Siguiente: ${whenOf(nextAt, now)}, contra ${next.rival || "el rival"}${next.home === false ? ", fuera" : next.home ? ", en casa" : ""}.` : "";
+    const nextText = next && Number.isFinite(nextAt) ? ` ${endSentence(`Siguiente: ${whenOf(nextAt, now)}, contra ${next.rival || "el rival"}${next.home === false ? ", fuera" : next.home ? ", en casa" : ""}`)}` : "";
     view.lead = `${mvp ? `${mvp.name}, mejor del partido.` : `Partido cerrado${score ? `, ${score}` : ""}.`}${nextText}`;
-    view.endNote = logros ? `Logros de la noche: ${logros}.` : "";
+    view.endNote = logros ? endSentence(`Logros de la noche: ${logros}`) : "";
   }
   if (voteOpen && member) {
     const voted = vote ? row.seats.find((s) => s.playerId === vote) : undefined;

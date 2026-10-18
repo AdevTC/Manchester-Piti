@@ -10,6 +10,7 @@ import type { ClubMatch } from "../clubData";
 import { eventMetaOf, eventSentence, isMesaType, settled } from "../eventMeta";
 import { liveMinute } from "../partidos";
 import { withGuestNames } from "./guests";
+import { endSentence } from "./words";
 
 export type MomentKind =
   | "gol"
@@ -52,8 +53,6 @@ export const WIPE_OF: Partial<Record<MomentKind, "g" | "rv">> = { gol: "g", golr
 type MomentMatch = Pick<ClubMatch, "id" | "rival" | "events" | "guests" | "clock" | "date" | "duration" | "status" | "goalsFor" | "goalsAgainst">;
 
 const up = (s: string) => s.toLocaleUpperCase("es");
-/** A sentence's end: «Adrián T.C.» already has its full stop. */
-const endSentence = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`);
 const rivalOf = (m: Pick<ClubMatch, "rival">) => m.rival?.trim() || "Rival";
 /** «Piti 2, Orduña 1»: the board as the island says it. */
 export const boardSaid = (rival: string, gf: number, ga: number) => `Piti ${gf}, ${rival} ${ga}`;

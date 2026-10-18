@@ -4,6 +4,7 @@
 // the polite live region.
 import type { FrontRow, FrontRowMode, SeatState } from "../../../lib/derived/frontRow";
 import { list } from "./view";
+import { endSentence } from "../../../lib/derived/words";
 
 export type Anim = "pop" | "walk" | "sit" | "shine" | "flash";
 export interface Snap {
@@ -75,7 +76,7 @@ export function changesOf(prev: Snap, row: FrontRow): Change {
         if (s.state === "lesionado" && was.state !== "lesionado") said.push(`${s.name}, tocado.`);
       }
     }
-    if (ins.length) said.unshift(outs.length ? `Entra ${list(ins)} por ${list(outs)}.` : `Entra ${list(ins)}.`);
+    if (ins.length) said.unshift(endSentence(outs.length ? `Entra ${list(ins)} por ${list(outs)}` : `Entra ${list(ins)}`));
   } else if (row.mode === "jugaron") {
     for (const s of row.seats) {
       const was = prev.seats[s.playerId];

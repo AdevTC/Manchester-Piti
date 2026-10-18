@@ -8,6 +8,7 @@ import { dateParts, lastEvent, OURS, scoreOf, THEIRS } from "../../lib/partidos"
 import { settled } from "../../lib/eventMeta";
 import { lightOf, sunPosition, sunTimes, floodlightsOn } from "../../lib/derived/sun";
 import { madridDate, madridTime } from "../../lib/derived/madrid";
+import { endSentence } from "../../lib/derived/words";
 import { kickoffState } from "../../lib/derived/kickoff";
 import { resultLetter, RESULT_WORD, type ResultLetter } from "../../lib/derived/result";
 import type { MatchdayModel, MatchdayPhase } from "../../lib/derived/matchday";
@@ -187,7 +188,7 @@ export function plinthOf(md: MatchdayModel, now: number, nameOf: (id: string) =>
       return {
         kicker: k,
         tone: "",
-        text: `${rivalLine(m)} ${Number.isFinite(at) ? `el ${dateParts(at).long} a las ${ko}` : ""}${venue}.${light} ${sevenOut ? "El siete ya está publicado." : "El siete aún no está."}${last}`.replace(/\s+/g, " ").trim(),
+        text: `${endSentence(`${rivalLine(m)} ${Number.isFinite(at) ? `el ${dateParts(at).long} a las ${ko}` : ""}${venue}`.trim())}${light} ${sevenOut ? "El siete ya está publicado." : "El siete aún no está."}${last}`.replace(/\s+/g, " ").trim(),
         ctas: md.phase === "despues" && md.last ? [previa, { label: "Leer el acta", kind: "ghost", to: "match", matchId: md.last.id }] : [previa, cal, maps],
       };
     }
@@ -218,7 +219,7 @@ export function plinthOf(md: MatchdayModel, now: number, nameOf: (id: string) =>
         md.phase === "descanso"
           ? `Al descanso con ${s.gf}–${s.ga}.${ev ? ` Lo último: ${ev.title.charAt(0).toLowerCase()}${ev.title.slice(1)}, en el ${ev.minute}′.` : ""}`
           : ev
-            ? `${ev.minute}′, ${ev.title.charAt(0).toLowerCase()}${ev.title.slice(1)}${ev.sub ? `, ${ev.sub.charAt(0).toLowerCase()}${ev.sub.slice(1)}` : ""}.${minute}`
+            ? `${endSentence(`${ev.minute}′, ${ev.title.charAt(0).toLowerCase()}${ev.title.slice(1)}${ev.sub ? `, ${ev.sub.charAt(0).toLowerCase()}${ev.sub.slice(1)}` : ""}`)}${minute}`
             : `Sin goles de momento.${minute}`;
       return { kicker, tone: md.phase === "descanso" ? "pending" : "live", text, ctas: [follow] };
     }
@@ -228,7 +229,7 @@ export function plinthOf(md: MatchdayModel, now: number, nameOf: (id: string) =>
       return {
         kicker: "Final",
         tone: "",
-        text: `${verb} ${s.gf}–${s.ga} contra ${rival}. El acta llega en unos minutos: hasta entonces, el resultado es provisional.`,
+        text: `${endSentence(`${verb} ${s.gf}–${s.ga} contra ${rival}`)} El acta llega en unos minutos: hasta entonces, el resultado es provisional.`,
         ctas: [{ label: "Ver el partido", kind: "pri", to: "match", matchId: id }],
       };
     }
@@ -238,7 +239,7 @@ export function plinthOf(md: MatchdayModel, now: number, nameOf: (id: string) =>
       return {
         kicker: "Acta publicada",
         tone: "",
-        text: `${RESULT_WORD[r].charAt(0).toUpperCase()}${RESULT_WORD[r].slice(1)} ${s.gf}–${s.ga} contra ${rival}.${closes}`,
+        text: `${endSentence(`${RESULT_WORD[r].charAt(0).toUpperCase()}${RESULT_WORD[r].slice(1)} ${s.gf}–${s.ga} contra ${rival}`)}${closes}`,
         ctas: [{ label: "Leer el acta", kind: "pri", to: "match", matchId: id }],
       };
     }
@@ -290,8 +291,10 @@ export function boardOf(md: MatchdayModel, m: ClubMatch, now: number): Board {
   const left = Number.isFinite(at) ? at - now : NaN;
   switch (md.phase) {
     case "antes": {
+      // (this page ticks once a minute: «13 min», «2:05 h»; a bare «0:13» on a scoreboard reads as seconds)
       const min = Math.max(0, Math.round(left / 60_000));
-      return { gf: "–", ga: "–", k: "Faltan", c: `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}`, plate: `Hoy ${ko}`, tone: "" };
+      const c = min < 60 ? `${min} min` : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")} h`;
+      return { gf: "–", ga: "–", k: "Faltan", c, plate: `Hoy ${ko}`, tone: "" };
     }
     case "pitido":
       return { gf: "0", ga: "0", k: "Pendiente", c: ko, plate: "Pendiente del pitido", tone: "pending" };
