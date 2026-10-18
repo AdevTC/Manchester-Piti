@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { onSnapshot, type Query, type QuerySnapshot } from "firebase/firestore";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { afterBundle } from "./bundleGate";
 import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, recordSnapshotMeta, reopenDelay } from "./syncStatus";
 
 export function mapSnapshotDocs<T>(snap: QuerySnapshot, map: (id: string, data: unknown) => T | null): T[] {
@@ -120,7 +121,8 @@ export function subscribeShared<T>(
       // Each listener's first snapshot always writes the data, even an empty list, and clears an
       // error left by an earlier listener of this key (this entry's or a dropped one's).
       let first = true;
-      sub.unsub = onSnapshot(
+      // (after the data bundle: see bundleGate)
+      sub.unsub = afterBundle(() => onSnapshot(
         q,
         { includeMetadataChanges: true },
         (snap) => {
@@ -146,7 +148,7 @@ export function subscribeShared<T>(
           // one automatic retry per streak
           if (streak === 1) openIn(LISTENER_RETRY_MS);
         },
-      );
+      ));
     };
     sub.reopen = () => {
       const wait = reopenDelay(hash);
