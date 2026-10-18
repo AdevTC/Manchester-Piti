@@ -9,6 +9,9 @@ test("web pública, navegación y detalle sin iniciar sesión", async ({
   const nav = page.getByRole("navigation", { name: "Navegación principal" });
   await nav.getByRole("link", { name: "Partidos", exact: true }).click();
   await expect(page).toHaveURL(/\/partidos/);
+  await expect(page.getByRole("heading", { level: 1, name: "Partidos" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Temporada" })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Buscar rival" })).toBeVisible();
   await page.goto("/matches/preview-finished");
   await expect(page.getByRole("status", { name: "Resultado: 2 a 1" })).toBeVisible();
   await expect(
