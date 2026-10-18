@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readyClock, transitionClock } from "../../../functions/src/matchClock";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
 import type { ClubMatch } from "../clubData";
-import { FINAL_HOLD_MS, goalMoment, islandAnnouncement, islandOf, voteMatch, whistleAt } from "./island";
+import { FINAL_HOLD_MS, goalMoment, islandOf, voteMatch, whistleAt } from "./island";
+// (the match of today, the announcements and the view of every state: island.vista.test.ts)
 
 const MIN = 60_000;
 const DATE = Date.UTC(2026, 10, 8, 11);
@@ -13,8 +14,9 @@ const ended = transitionClock(transitionClock(transitionClock(started, "halftime
 const ev = (id: string, type: MatchEvent["type"], minute: number, playerId?: string): MatchEvent => ({ id, type, minute: minute - 1, elapsedSeconds: (minute - 1) * 60 + 30, ...(playerId ? { playerId } : {}) }) as MatchEvent;
 
 describe("islandOf", () => {
-  it("nothing before the date; pending at the date; live once the clock runs; half-time apart", () => {
-    expect(islandOf([base], DATE - 1, false)).toBeNull();
+  it("«previa» just before the date (nothing earlier); pending at the date; live once the clock runs; half-time apart", () => {
+    expect(islandOf([base], DATE - 1, false)?.kind).toBe("previa");
+    expect(islandOf([base], DATE - 3 * 60 * MIN, false)).toBeNull();
     expect(islandOf([base], DATE, false)?.kind).toBe("pending");
     expect(islandOf([{ ...base, clock: started }], DATE + 10 * MIN, false)?.kind).toBe("live");
     expect(islandOf([{ ...base, clock: transitionClock(started, "halftime", DATE + 30 * MIN) }], DATE + 31 * MIN, false)?.kind).toBe("halftime");
@@ -111,15 +113,3 @@ describe("goalMoment", () => {
   });
 });
 
-describe("islandAnnouncement", () => {
-  const m: ClubMatch = { ...base, clock: started, events: [ev("g1", "goal", 3, "erik")] };
-  it("one line per state, the second half told apart from the kick-off", () => {
-    expect(islandAnnouncement({ kind: "pending", match: base }, null)).toBe("Manchester Piti contra MAD SKY: pendiente del pitido inicial.");
-    expect(islandAnnouncement({ kind: "live", match: m }, "pending")).toBe("Empieza el partido contra MAD SKY.");
-    expect(islandAnnouncement({ kind: "live", match: m }, "halftime")).toBe("Arranca la segunda parte. Manchester Piti 1, MAD SKY 0.");
-    expect(islandAnnouncement({ kind: "halftime", match: m }, "live")).toBe("Descanso. Manchester Piti 1, MAD SKY 0.");
-    expect(islandAnnouncement({ kind: "final", match: m, published: false }, "live")).toBe("Final. Manchester Piti 1, MAD SKY 0. Acta pendiente.");
-    expect(islandAnnouncement({ kind: "final", match: m, published: true }, "live")).toBe("Final. Manchester Piti 1, MAD SKY 0.");
-    expect(islandAnnouncement({ kind: "vote", match: m }, "final")).toBe("Ya puedes votar al MVP del partido contra MAD SKY.");
-  });
-});
