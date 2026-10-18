@@ -11,7 +11,9 @@
 .pf-in{--pad:16px;--bx:80px;--cw:34px;--chh:42px;--sp:30px;--plf:14px;--plw:28px;--plh:21px;--nmf:12.5px;--h2:24px;--stag:22px;
   position:relative;padding:22px var(--pad)}
 @container pf (min-width:700px){.pf-in{--pad:24px;--bx:82px;--cw:36px;--chh:44px;--sp:32px;--h2:26px}}
-@container pf (min-width:1200px){.pf-in{--pad:64px;--bx:116px;--cw:56px;--chh:66px;--sp:52px;--plf:17px;--plw:40px;--plh:27px;--nmf:14px;--h2:30px;--stag:0px}}
+@container pf (min-width:1200px){.pf-in{--pad:64px;--bx:116px;--cw:56px;--chh:66px;--sp:52px;--plf:17px;--plw:40px;--plh:27px;--nmf:14px;--h2:30px;--stag:22px}}
+/* the names in one line only once the longest neighbours fit side by side («ALMACHI» next to «EGUZQUIZA» at 14 px) */
+@container pf (min-width:1400px){.pf-in{--stag:0px}}
 .pf-mkon .pf-in{--mkz:42px}
 .pf-root :where(.pf-btn,.pf-seg-b,.pf-vote,.pf-tg){font-family:inherit;border:0;cursor:pointer;background:none;padding:0;color:inherit;-webkit-tap-highlight-color:transparent}
 .pf-root :where(.pf-btn,.pf-seg-b,.pf-vote,.pf-tg,.pf-a):focus-visible{outline:2px solid var(--link);outline-offset:3px}
@@ -34,7 +36,7 @@
 .pf-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px;margin-bottom:14px}
 .pf-ht{min-width:0;flex:1 1 300px}
 .pf-h2{margin:0;font-family:'Anybody',sans-serif;font-weight:900;font-variation-settings:'wdth' 104;font-size:var(--h2);letter-spacing:-.02em;line-height:1.05;color:var(--ink);text-wrap:balance}
-.pf-lead{margin:5px 0 0;font-size:14.5px;line-height:1.45;color:var(--soft);max-width:60ch}
+.pf-root .pf-lead{margin:5px 0 0;font-size:14.5px;line-height:1.45;color:var(--soft);max-width:60ch}
 .pf-counts{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
 .pf-cnt{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 5px;border-radius:9px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px var(--line);font-size:13px;color:var(--soft);white-space:nowrap}
 :root[data-theme="light"] .pf-cnt{background:rgba(255,255,255,.7)}
