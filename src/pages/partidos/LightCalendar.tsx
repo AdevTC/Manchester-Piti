@@ -33,13 +33,15 @@ const SPOTS: readonly [number, number][] = [
   [50, 8], [18, 30], [50, 26], [82, 30], [34, 54], [66, 54], [50, 80],
 ];
 
+// (a slice is a postcard of the light: number-only plates, or the seven's names pile up at that size; the
+// plinth and the scoreboard already say who scored)
 function figuresOf(m: ClubMatch, live: boolean, nameOf: (id: string) => string, numOf: (id: string) => string): PalomerasFigure[] {
   const lineup = parseMatchLineup((m as ClubMatch & { lineup?: unknown }).lineup);
   if (lineup) {
     const field = live ? lineupField(lineup, settled(m.events)) : lineupField(lineup, []);
-    return field.spots.map((s) => ({ id: s.id, num: numOf(s.id), name: nameOf(s.id), x: s.x, y: 100 - s.y, gk: s.keeper }));
+    return field.spots.map((s) => ({ id: s.id, num: numOf(s.id), name: nameOf(s.id), x: s.x, y: 100 - s.y, gk: s.keeper, plate: "mini" as const }));
   }
-  return (m.starters ?? []).slice(0, 7).map((id, i) => ({ id, num: numOf(id), name: nameOf(id), x: SPOTS[i][0], y: SPOTS[i][1], gk: i === 0 }));
+  return (m.starters ?? []).slice(0, 7).map((id, i) => ({ id, num: numOf(id), name: nameOf(id), x: SPOTS[i][0], y: SPOTS[i][1], gk: i === 0, plate: "mini" as const }));
 }
 
 interface Props {
