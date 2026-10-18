@@ -89,7 +89,7 @@ function introOf(md: MatchdayModel, season: string, pj: number, wins: number, no
       const next = md.phase === "despues" ? md.next : m;
       const at = next ? dateMillis(next.date) : NaN;
       const w = Number.isFinite(at) ? whenWord(at, now) : "";
-      return next ? `${season}. ${record}; la siguiente${w ? `, ${w}` : ""}, ${rivalLine(next).toLowerCase()}.` : `${season}. ${record}.`;
+      return next ? `${season}. ${record}; la siguiente${w ? `, ${w}` : ""}, ${rivalLine(next).charAt(0).toLowerCase()}${rivalLine(next).slice(1)}.` : `${season}. ${record}.`;
     }
   }
 }

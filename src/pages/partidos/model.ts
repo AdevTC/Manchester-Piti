@@ -176,7 +176,7 @@ export function plinthOf(md: MatchdayModel, now: number, nameOf: (id: string) =>
   const maps: Cta = { label: "Cómo llegar", kind: "ghost", to: "maps", matchId: id };
   const cal: Cta = { label: "Al calendario", kind: "ghost", to: "calendar", matchId: id };
   const follow: Cta = { label: "Seguir el partido", kind: "pri", to: "match", matchId: id };
-  const venue = m.home === false ? `en casa de ${rival}` : m.venue ? "en Palomeras" : "en casa";
+  const venue = m.home === false ? "" : `, ${/palomeras/i.test(m.venue ?? "") || !m.venue ? "en Palomeras" : `en ${venueName(m.venue)}`}`;
   switch (md.phase) {
     case "semana":
     case "despues": {
@@ -187,7 +187,7 @@ export function plinthOf(md: MatchdayModel, now: number, nameOf: (id: string) =>
       return {
         kicker: k,
         tone: "",
-        text: `${rivalLine(m)} ${Number.isFinite(at) ? `el ${dateParts(at).long} a las ${ko}` : ""}, ${venue}.${light} ${sevenOut ? "El siete ya está publicado." : "El siete aún no está."}${last}`.replace(/\s+/g, " ").trim(),
+        text: `${rivalLine(m)} ${Number.isFinite(at) ? `el ${dateParts(at).long} a las ${ko}` : ""}${venue}.${light} ${sevenOut ? "El siete ya está publicado." : "El siete aún no está."}${last}`.replace(/\s+/g, " ").trim(),
         ctas: md.phase === "despues" && md.last ? [previa, { label: "Leer el acta", kind: "ghost", to: "match", matchId: md.last.id }] : [previa, cal, maps],
       };
     }
