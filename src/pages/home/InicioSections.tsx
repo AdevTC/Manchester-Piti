@@ -190,6 +190,14 @@ export function PhaseBlock({ day, view, now, member, weather, nameOf, squadSize,
       </>
     );
     cta = toMatch(m.report?.trim() ? "Leer la crónica" : "Ver el partido");
+  } else if (p === "pendiente" && m) {
+    // (nobody started la mesa's clock: no «Así fue el 0–0», the acta will tell what happened; the hero already
+    // says «Pendiente del acta», so the card names what is missing and the two regions differ)
+    const ko = dateMillis(m.date);
+    h = "Sin marcador en directo";
+    meta = `${Number.isFinite(ko) ? cap(`${dayWord(ko, now)}, ${madridDay(ko)}`) + ", ante" : "Ante"} ${m.rival ?? "el rival"}`;
+    body = <p className="ei-lead">Esta vez el partido no pasó por la mesa. En cuanto se publique el acta, su ficha tendrá el resultado al momento.</p>;
+    cta = toMatch("Ver el partido", false);
   } else if (p === "aplazado" && m) {
     h = "Qué pasa ahora";
     meta = `${cap(m.status === "cancelled" ? "suspendido" : "aplazado")}: ${m.rival ?? "el rival"}`;

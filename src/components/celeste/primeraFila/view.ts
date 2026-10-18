@@ -346,7 +346,7 @@ export function filaView(input: ViewInput): FilaView {
   const view: FilaView = {
     title: "La primera fila",
     lead: "",
-    counts: answers && !loading && row.mode === "convocatoria" ? countsOf(row) : null,
+    counts: answers && !loading && row.mode === "convocatoria" && day.phase !== "pendiente" ? countsOf(row) : null,
     seats,
     marksOn: row.mode === "banquillo" || row.mode === "jugaron" || seats.some((s) => s.marks.length > 0),
     tape: day.phase === "aplazado" && row.mode === "convocatoria",
@@ -379,6 +379,12 @@ export function filaView(input: ViewInput): FilaView {
       view.title = "Aplazado";
       view.lead = `El partido contra ${rival} se ha aplazado. ${answers ? "Tus respuestas se guardan para la nueva fecha." : "La nueva fecha, cuando la confirme la liga."}`;
       if (!loading) view.note = answers ? "Si cambias de planes para la nueva fecha, podrás contestar otra vez cuando se confirme." : "Los asientos se quedan como estaban hasta la nueva fecha.";
+      return view;
+    }
+    if (day.phase === "pendiente") {
+      // (the hero above already says why: the row says what it shows until the acta)
+      view.title = "Los convocados";
+      view.lead = `${endSentence(`Contra ${rival}${when ? `, ${when}` : ""}`)} Quién jugó y cuántos minutos llega con el acta; hasta entonces, la fila es la convocatoria.`;
       return view;
     }
     const today = when === "hoy";

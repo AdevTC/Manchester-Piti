@@ -8,6 +8,7 @@ import { PalomerasSlices, type PalomerasFigure, type PalomerasRig, type Palomera
 import { useIslaHero } from "../../components/celeste/isla/heroSignal";
 import type { ClubMatch } from "../../lib/clubData";
 import { dateMillis, isCompleted, matchPhase } from "../../../functions/src/matchEngine";
+import { AWAITING_ACTA, kickoffState } from "../../lib/derived/kickoff";
 import { scoreOf } from "../../lib/partidos";
 import { settled } from "../../lib/eventMeta";
 import { parseMatchLineup } from "../../lib/matchLineup";
@@ -99,7 +100,9 @@ export function LightCalendar({ md, slices, now, jornada, nameOf, numOf, weather
             ? "Pendiente del pitido inicial"
             : md.phase === "aplazado"
               ? "Partido aplazado"
-              : undefined;
+              : md.phase === "pendiente"
+                ? AWAITING_ACTA
+                : undefined;
     const state: PalomerasState = {
       at: light.at,
       floodlights: light.floodlights,
@@ -132,7 +135,9 @@ function SliceOverlay({ m, feat, md, now, j, weather, featRef, plinth }: { m: Cl
   const at = dateMillis(m.date);
   const phase = matchPhase(m, now);
   const off = phase === "postponed" || phase === "cancelled";
-  const played = isCompleted(m) || phase === "awaiting_result";
+  // (a clock nobody started past its window: nothing was recorded, so no result in its chips or badge)
+  const unplayed = !isCompleted(m) && kickoffState(m, now) === "awaiting_result";
+  const played = !unplayed && (isCompleted(m) || phase === "awaiting_result");
   const live = feat && isLivePhase(md.phase);
   const s = scoreOf(m);
   const r = resultLetter(s.gf, s.ga);
@@ -140,12 +145,13 @@ function SliceOverlay({ m, feat, md, now, j, weather, featRef, plinth }: { m: Cl
   const chips: { t: string; cls: string }[] = [{ t: placeLabel(m), cls: m.home === false ? "away" : "" }];
   if (off) chips.push({ t: "Campo cerrado", cls: "" });
   else if (live) chips.push({ t: "Ya con focos", cls: "" });
+  else if (unplayed) chips.push({ t: AWAITING_ACTA, cls: "" });
   else if (played) chips.push({ t: `Final, ${RESULT_WORD[r].toLowerCase()}`, cls: "" });
   else if (lit) chips.push({ t: feat && md.phase === "antes" && !lit.sunny ? "Focos al pitido" : lit.text, cls: lit.sunny ? "ok" : "" });
-  if (!played && !off && !live) chips.push({ t: weather ? `${weather.temp}°, ${weather.label.toLowerCase()}` : "Sin previsión aún", cls: "" });
+  if (!played && !off && !live && !unplayed) chips.push({ t: weather ? `${weather.temp}°, ${weather.label.toLowerCase()}` : "Sin previsión aún", cls: "" });
   const time = Number.isFinite(at) ? madridTime(at) : "—";
   const day = Number.isFinite(at) ? (feat && md.phase === "aplazado" ? `era ${dayLine(at, now)}` : dayLine(at, now, feat)) : "fecha por confirmar";
-  const aria = `Jornada ${j ?? ""}, ${rivalLine(m)}, ${day} a las ${time}${played ? `: ${RESULT_WORD[r].toLowerCase()} ${s.gf} a ${s.ga}` : live ? `: en juego, ${s.gf} a ${s.ga}` : off ? ": aplazado" : ""}`.replace(/\s+/g, " ");
+  const aria = `Jornada ${j ?? ""}, ${rivalLine(m)}, ${day} a las ${time}${played ? `: ${RESULT_WORD[r].toLowerCase()} ${s.gf} a ${s.ga}` : live ? `: en juego, ${s.gf} a ${s.ga}` : off ? ": aplazado" : unplayed ? `: ${AWAITING_ACTA.toLocaleLowerCase("es")}` : ""}`.replace(/\s+/g, " ");
   const board = feat ? boardOf(md, m, now) : null;
   return (
     <>

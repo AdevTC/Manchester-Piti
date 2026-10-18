@@ -7,7 +7,7 @@ test("la portada es la luz del partido: el titular, el marcador del campo, la jo
   await expect(page.getByRole("img", { name: /^Marcador del campo/ })).toBeVisible();
 
   // The phase block leads to the match (the previa before it, the match itself once it is on).
-  await expect(page.getByRole("region", { name: /Lo que hay que saber|A punto de empezar|Hasta el|Así va|Así fue|Ya está el acta|La crónica|Así quedó|Qué pasa ahora/ }).getByRole("link", { name: /Ver la previa|Seguir el partido|Ver el partido|Leer el acta|Leer la crónica/ })).toHaveAttribute("href", /^\/matches\//);
+  await expect(page.getByRole("region", { name: /Lo que hay que saber|A punto de empezar|Hasta el|Así va|Así fue|Sin marcador en directo|Ya está el acta|La crónica|Así quedó|Qué pasa ahora/ }).getByRole("link", { name: /Ver la previa|Seguir el partido|Ver el partido|Leer el acta|Leer la crónica/ })).toHaveAttribute("href", /^\/matches\//);
 
   // The season: form, table, pichichi; what comes next, each kick-off with its light.
   await expect(page.getByRole("heading", { name: "La temporada" })).toBeVisible();

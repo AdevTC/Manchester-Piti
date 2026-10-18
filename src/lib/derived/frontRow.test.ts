@@ -103,6 +103,8 @@ describe("frontRowMode", () => {
     expect(frontRowMode("pretemporada", null)).toBe("plantilla");
     expect(frontRowMode("semana", null)).toBe("plantilla");
     expect(["semana", "antes", "aplazado"].map((p) => frontRowMode(p as "semana", m))).toEqual(["convocatoria", "convocatoria", "convocatoria"]);
+    // (nobody started la mesa's clock: no plays to seat anyone by, the convocatoria stands until the acta)
+    expect(frontRowMode("pendiente", m)).toBe("convocatoria");
     expect(["pitido", "directo1", "descanso", "directo2"].map((p) => frontRowMode(p as "pitido", m))).toEqual(["banquillo", "banquillo", "banquillo", "banquillo"]);
     expect(["final", "acta", "despues"].map((p) => frontRowMode(p as "final", m))).toEqual(["jugaron", "jugaron", "jugaron"]);
   });

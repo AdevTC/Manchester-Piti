@@ -1,7 +1,8 @@
 // «La luz del partido»: where the club's match day stands at `now`, one phase for Inicio, Partidos, the front
 // row and the island to agree on (pretemporada → semana → antes → pitido → directo1 → descanso → directo2 →
-// final → acta → después, or aplazado), plus who the viewer is that day. Pure: built on the rules every other
-// surface already reads (seasonPulse, matchPhase, kickoffState, the live half and minute, the Madrid day),
+// final → acta → después, or aplazado; «pendiente» when the date went by and nobody started la mesa's clock),
+// plus who the viewer is that day. Pure: built on the rules every other surface already reads (seasonPulse,
+// matchPhase, kickoffState, the live half and minute, the Madrid day),
 // never a second copy of them; the tests drive it with a controlled `now` (the server-time estimate).
 import type { ClubMatch } from "../clubData";
 import { seasonPulse } from "../home";
@@ -28,6 +29,8 @@ export type MatchdayPhase =
   | "descanso"
   | "directo2"
   | "final"
+  /** The window went by and nobody started la mesa's clock: no score to show (no 0–0), the acta will say. */
+  | "pendiente"
   | "acta"
   | "despues"
   | "aplazado";
@@ -110,9 +113,11 @@ export function matchdayOf(matches: readonly ClubMatch[], seasonId: string, now:
   const nextAt = next ? dateMillis(next.date) : NaN;
   if (next && Number.isFinite(nextAt) && madridDate(nextAt) === today && now < nextAt) return model("antes", next);
 
-  // 4. ended, its acta still to come (and recent: an acta forgotten for days doesn't hold the page)
+  // 4. ended, its acta still to come (and recent: an acta forgotten for days doesn't hold the page); a clock
+  //    nobody started past its window has no final whistle and nothing played to count: «pendiente»
   const awaiting = pulse.awaiting;
-  if (awaiting && now - (whistleAt(awaiting) ?? dateMillis(awaiting.date)) <= AFTER_WINDOW_MS) return model("final", awaiting);
+  if (awaiting && now - (whistleAt(awaiting) ?? dateMillis(awaiting.date)) <= AFTER_WINDOW_MS)
+    return model(kickoffState(awaiting, now) === "awaiting_result" ? "pendiente" : "final", awaiting);
 
   // 5. the acta is out and the MVP vote is open
   if (last && mvpVoteOpen(last, now)) return model("acta", last);

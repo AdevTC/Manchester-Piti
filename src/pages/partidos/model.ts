@@ -9,7 +9,7 @@ import { settled } from "../../lib/eventMeta";
 import { lightOf, sunPosition, sunTimes, floodlightsOn } from "../../lib/derived/sun";
 import { madridDate, madridTime } from "../../lib/derived/madrid";
 import { endSentence } from "../../lib/derived/words";
-import { kickoffState } from "../../lib/derived/kickoff";
+import { AWAITING_ACTA, kickoffState } from "../../lib/derived/kickoff";
 import { resultLetter, RESULT_WORD, type ResultLetter } from "../../lib/derived/result";
 import type { MatchdayModel, MatchdayPhase } from "../../lib/derived/matchday";
 import type { StandingRow } from "../../lib/standings";
@@ -233,6 +233,14 @@ export function plinthOf(md: MatchdayModel, now: number, nameOf: (id: string) =>
         ctas: [{ label: "Ver el partido", kind: "pri", to: "match", matchId: id }],
       };
     }
+    case "pendiente":
+      // (nobody started la mesa's clock: no score, nothing «provisional» — the acta will say how it went)
+      return {
+        kicker: AWAITING_ACTA,
+        tone: "pending",
+        text: `${endSentence(`${rivalLine(m)}${Number.isFinite(at) ? ` el ${dateParts(at).long}` : ""}`)} La mesa no llegó a arrancar el reloj: el resultado, los goles y los minutos salen con el acta.`,
+        ctas: [{ label: "Ver el partido", kind: "ghost", to: "match", matchId: id }],
+      };
     case "acta": {
       const r = resultLetter(s.gf, s.ga);
       const closes = typeof m.voteClosesAt === "number" ? ` La votación del MVP cierra el ${dateParts(m.voteClosesAt).long} a las ${madridTime(m.voteClosesAt)}.` : "";
@@ -306,6 +314,8 @@ export function boardOf(md: MatchdayModel, m: ClubMatch, now: number): Board {
       return { gf, ga, k: "2ª parte", c: `${md.minute ?? 0}′`, plate: md.added ? `Añadido +${md.added}` : "", tone: "live" };
     case "final":
       return { gf, ga, k: "Final", c: "", plate: "Acta pendiente", tone: "pending" };
+    case "pendiente":
+      return { gf: "–", ga: "–", k: "Acta", c: "pendiente", plate: Number.isFinite(at) ? `${dateParts(at).long.replace(/^(\p{L}{3})\p{L}*,?/u, "$1")} ${ko}` : "", tone: "pending" };
     case "acta":
       return { gf, ga, k: "Final", c: "", plate: "Acta publicada", tone: "gold" };
     case "aplazado":
@@ -334,7 +344,8 @@ export function rowTag(m: ClubMatch, now: number, minute: number | null): RowTag
     if (kickoffState(m, now) === "halftime") return { text: `Descanso ${s.gf}–${s.ga}`, kind: "a" };
     return { text: `En juego ${s.gf}–${s.ga}${minute !== null ? `, ${minute}′` : ""}`, kind: "l" };
   }
-  if (phase === "awaiting_result") return { text: `Final ${s.gf}–${s.ga}, acta pendiente`, kind: "a" };
+  // (a clock nobody started has no score to show: no «Final 0–0»)
+  if (phase === "awaiting_result") return kickoffState(m, now) === "awaiting_result" ? { text: AWAITING_ACTA, kind: "a" } : { text: `Final ${s.gf}–${s.ga}, acta pendiente`, kind: "a" };
   if (phase === "postponed") return { text: "Aplazado, sin fecha", kind: "a" };
   if (phase === "cancelled") return { text: "Suspendido", kind: "a" };
   if (kickoffState(m, now) === "pending_whistle") return { text: "Pendiente del pitido", kind: "a" };

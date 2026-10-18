@@ -9,6 +9,7 @@ import type { ClubMatch } from "../../lib/clubData";
 import type { MatchdayModel, MatchdayPhase, ViewerRole } from "../../lib/derived/matchday";
 import { floodlightsOn, sunPosition, sunTimes } from "../../lib/derived/sun";
 import { madridDate, madridTime } from "../../lib/derived/madrid";
+import { AWAITING_ACTA } from "../../lib/derived/kickoff";
 import { eventMetaOf, eventSentence, rivalCode, settled } from "../../lib/eventMeta";
 import { withGuestNames } from "../../lib/derived/guests";
 import { endSentence } from "../../lib/derived/words";
@@ -287,6 +288,9 @@ export function heroCopy(ctx: CopyCtx): HeroCopy {
     case "acta":
     case "despues":
       return afterCopy(ctx, view.phase);
+    case "pendiente":
+      // (nobody started la mesa's clock: nothing says how it ended, so no score and no «la está cerrando la mesa»)
+      return { kick: `${jWord(day.jornada)}, ante ${rival}`, h1: AWAITING_ACTA, sub: "La mesa no llegó a arrancar el reloj: el resultado, los goles y los minutos salen con el acta.", live: false };
     case "aplazado": {
       const word = m?.status === "cancelled" ? "suspendido" : "aplazado";
       const today = ko !== null && madridDate(ko) === madridDate(now);
@@ -405,6 +409,8 @@ export function boardFace(day: MatchdayModel, view: MatchView, now: number): Boa
       return said({ ...base, h: String(view.gf), a: String(view.ga), k: "Final", c: `${m?.duration ?? 50}′` }, "Final, acta pendiente.");
     case "acta":
       return said({ ...base, h: String(view.gf), a: String(view.ga), k: "Final", c: "acta lista" }, "Final, el acta ya está.");
+    case "pendiente":
+      return { ...base, k: "Acta", c: "pendiente", label: `Marcador del campo: Piti contra ${m?.rival ?? "rival"}, ${AWAITING_ACTA.toLocaleLowerCase("es")}.` };
     case "despues": {
       const n = day.next;
       const at = n ? dateMillis(n.date) : NaN;
@@ -453,6 +459,8 @@ export function boardMessage(ctx: CopyCtx): BoardMessage | null {
       return { text: `Final: Piti ${view.gf}, ${rival} ${view.ga}`, kind: "navy" };
     case "acta":
       return { text: `Ya está el acta ${ctx.estreno ? "del estreno" : `ante ${rival}`}`, kind: "navy" };
+    case "pendiente":
+      return { text: AWAITING_ACTA, kind: "navy" };
     case "despues":
       return ctx.mvp ? { text: `${ctx.mvp.name}, MVP ${ctx.estreno ? "del estreno" : `ante ${rival}`}`, kind: "gold" } : null;
     case "semana":
@@ -506,7 +514,7 @@ export function figuresOf(ctx: FigureCtx): PalomerasFigure[] {
     ...extra,
   });
   const p = view.phase;
-  if (p === "pretemporada" || p === "semana" || p === "aplazado") return [];
+  if (p === "pretemporada" || p === "semana" || p === "aplazado" || p === "pendiente") return [];
   if (p === "despues") return ctx.mvpId ? [fig(ctx.mvpId, 50, 34, { tag: "mvp" })] : [];
   if (p === "acta") {
     const played = Object.entries(m.ledger ?? {})

@@ -3,7 +3,7 @@ import type { ClubMatch } from "../../lib/clubData";
 import type { StandingRow } from "../../lib/standings";
 import { readyClock, transitionClock } from "../../../functions/src/matchClock";
 import { matchdayOf } from "../../lib/derived/matchday";
-import { boardOf, dayLine, lightLabel, placeLabel, provisionalTable, rowTag, sliceLight, sliceMatches, venueName } from "./model";
+import { boardOf, dayLine, lightLabel, placeLabel, plinthOf, provisionalTable, rowTag, sliceLight, sliceMatches, venueName } from "./model";
 
 const madrid = (iso: string) => Date.parse(iso); // with an explicit offset
 const m = (id: string, over: Partial<ClubMatch> = {}): ClubMatch => ({ id, seasonId: "t1", rival: id.toUpperCase(), status: "scheduled", date: 0, ...over }) as ClubMatch;
@@ -87,5 +87,20 @@ describe("the club scoreboard over the featured jornada", () => {
     const at = (now: number) => boardOf(matchdayOf([j1], "t1", now), j1, now);
     expect(at(ko - 13 * 60_000)).toMatchObject({ k: "Faltan", c: "13 min", plate: "Hoy 19:00" });
     expect(at(ko - 125 * 60_000)).toMatchObject({ k: "Faltan", c: "2:05 h" });
+  });
+});
+
+describe("a jornada nobody started on la mesa (pendiente)", () => {
+  it("says «Pendiente del acta» in its row, its scoreboard and its plinth, and never a score", () => {
+    const ko = madrid("2026-10-18T19:00:00+02:00");
+    const j1 = m("j1", { date: ko, version: 2, clock: readyClock(), rival: "Orduña fc" });
+    const now = ko + 50 * 60_000 + 2 * 3_600_000 + 5 * 60_000;
+    const md = matchdayOf([j1], "t1", now);
+    expect(md.phase).toBe("pendiente");
+    expect(rowTag(j1, now, null)).toEqual({ text: "Pendiente del acta", kind: "a" });
+    expect(boardOf(md, j1, now)).toMatchObject({ gf: "–", ga: "–", k: "Acta", c: "pendiente" });
+    const p = plinthOf(md, now, (id) => id);
+    expect(p).toMatchObject({ kicker: "Pendiente del acta", tone: "pending" });
+    expect(p?.text).not.toMatch(/\d–\d|[Ee]mpat|provisional/);
   });
 });

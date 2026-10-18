@@ -98,8 +98,14 @@ describe("matchdayOf, phase by phase", () => {
     expect(m.next?.id).toBe("j2");
   });
 
-  it("final also for a clock nobody started, once its window is over", () => {
-    expect(matchdayOf([j1Base, j2], "t1", KO + 50 * MIN + 2 * HOUR + MIN).phase).toBe("final");
+  it("pendiente, not final, for a clock nobody started once its window is over: no score to show (no 0–0)", () => {
+    const m = matchdayOf([j1Base, j2], "t1", KO + 50 * MIN + 2 * HOUR + MIN);
+    expect(m).toMatchObject({ phase: "pendiente", score: null, minute: null });
+    expect(m.match?.id).toBe("j1");
+    // the acta published later puts it where every played match goes
+    expect(matchdayOf([{ ...j1Base, status: "finished", goalsFor: 1, goalsAgainst: 1, voteClosesAt: KO + 3 * DAY }, j2], "t1", KO + 4 * HOUR).phase).toBe("acta");
+    // and an acta never published stops holding the page after the same 4 days
+    expect(matchdayOf([j1Base, j2], "t1", KO + AFTER_WINDOW_MS + MIN).phase).toBe("semana");
   });
 
   it("an acta forgotten for more than 4 days stops holding the page", () => {

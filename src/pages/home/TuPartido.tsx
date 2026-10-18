@@ -16,6 +16,7 @@ import { formatNota, notaLine, ratingSummary, ratingWindow } from "../../lib/der
 import { scorePrediction } from "../../../functions/src/predictions";
 import { parseMatchLineup } from "../../lib/matchLineup";
 import { madridTime } from "../../lib/derived/madrid";
+import { AWAITING_ACTA } from "../../lib/derived/kickoff";
 import { endSentence } from "../../lib/derived/words";
 import { dayWord, niceName, weekday, type MatchView } from "./inicioModel";
 
@@ -91,9 +92,11 @@ export function TuPartido({ day, view, role, now, matches, players, playerId, ca
         s:
           p === "final" || after
             ? `${scorePrediction(pr, { goalsFor: view.gf, goalsAgainst: view.ga }, m?.events ?? []).total} puntos${p === "final" ? " provisionales" : ""}`
-            : isLivePhase(p)
-              ? `Ahora va ${view.gf}–${view.ga}`
-              : "Cierra al pitido",
+            : p === "pendiente"
+              ? "Puntúa con el acta"
+              : isLivePhase(p)
+                ? `Ahora va ${view.gf}–${view.ga}`
+                : "Cierra al pitido",
       }
     : p === "semana" || p === "antes"
       ? { b: "Porra sin poner", s: "Cierra al pitido" }
@@ -157,6 +160,9 @@ export function TuPartido({ day, view, role, now, matches, players, playerId, ca
       lead = "Revisa goles, tarjetas y minutos y publícala: así se abren las notas y el MVP.";
       acts = [{ label: "Revisar y publicar el acta", to: "mesa", pri: true }];
       urgent = true;
+    } else if (p === "pendiente") {
+      h = AWAITING_ACTA;
+      lead = "La mesa no llegó a arrancar el reloj: el acta se publicará con el resultado y los minutos.";
     } else if (p === "aplazado") {
       h = "Esta vez no hay mesa";
       lead = "Te volverá a tocar el día de la nueva fecha; te avisamos.";
@@ -208,6 +214,10 @@ export function TuPartido({ day, view, role, now, matches, players, playerId, ca
   } else if (p === "final") {
     h = view.gf > view.ga ? "Victoria" : view.gf < view.ga ? "Esta vez no" : "Empate";
     lead = "Cuando la mesa publique el acta se abren la nota del vestuario y el voto al MVP.";
+    minis = [porra];
+  } else if (p === "pendiente") {
+    h = AWAITING_ACTA;
+    lead = "Tus minutos, tus goles y el resultado llegan con el acta; con ella se abren la nota del vestuario y el voto al MVP.";
     minis = [porra];
   } else if (p === "acta") {
     h = "Pon nota al partido";

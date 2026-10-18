@@ -116,6 +116,16 @@ describe("Inicio", () => {
     expect(screen.getByRole("slider", { name: "Arrastra el sol" })).toBeInTheDocument();
   });
 
+  it("pendiente: nobody started la mesa's clock — the page says the acta will tell, never a 0–0", () => {
+    at("pendiente");
+    const html = renderToString(<HomePage />);
+    expect(html).toContain("Pendiente del acta");
+    expect(html).not.toMatch(/Empate a cero|0–0|0⁠–⁠0|Así fue|cerrando la mesa|Arrastra el sol/);
+    render(<HomePage />);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Pendiente del acta");
+    expect(screen.getByRole("region", { name: "Sin marcador en directo" })).toHaveTextContent(/se publique el acta/);
+  });
+
   it("live: the plays so far and «Si acaba así» move with the score", () => {
     at("directo1");
     render(<HomePage />);

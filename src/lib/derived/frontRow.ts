@@ -95,7 +95,8 @@ export interface FrontRowInput {
 /** The mode each phase of the day shows. */
 export function frontRowMode(phase: MatchdayPhase, match: ClubMatch | null): FrontRowMode {
   if (!match || phase === "pretemporada") return "plantilla";
-  if (phase === "semana" || phase === "antes" || phase === "aplazado") return "convocatoria";
+  // (a match nobody started on la mesa has no plays to sit anyone by: the convocatoria stands until the acta)
+  if (phase === "semana" || phase === "antes" || phase === "aplazado" || phase === "pendiente") return "convocatoria";
   if (phase === "pitido" || phase === "directo1" || phase === "descanso" || phase === "directo2") return "banquillo";
   return "jugaron";
 }

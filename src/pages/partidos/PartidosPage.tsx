@@ -86,6 +86,8 @@ function introOf(md: MatchdayModel, season: string, pj: number, wins: number, no
       return `${season}. ${record}; el MVP se vota estos días.`;
     case "aplazado":
       return `${season}. El partido contra ${rival} se ha aplazado.`;
+    case "pendiente":
+      return endSentence(`${season}. El partido contra ${rival}, pendiente del acta`);
     default: {
       const next = md.phase === "despues" ? md.next : m;
       const at = next ? dateMillis(next.date) : NaN;

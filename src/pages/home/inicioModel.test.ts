@@ -27,6 +27,7 @@ describe("the headline, phase by phase (data-driven)", () => {
     ["acta", "acta", "Los ocho del estreno"],
     ["despues", "despues", `Ganamos ${S(3, 1)} el estreno`],
     ["aplazado", "aplazado", "Hoy no se juega"],
+    ["pendiente", "pendiente", "Pendiente del acta"],
   ])("%s", (key, phase, h1) => {
     const { day, ctx } = scene(key);
     expect(day.phase).toBe(phase);
@@ -55,6 +56,16 @@ describe("the headline, phase by phase (data-driven)", () => {
     const c = heroCopy(scene("directo1").ctx);
     expect(c).toMatchObject({ kick: "En juego, 1ª parte, minuto 23", live: true });
     expect(c.sub).toBe("21′, gol de Adrián T.C., asistencia de Jordi.");
+  });
+
+  it("pendiente: a clock nobody started says no score anywhere (no «Empate a cero», no figures, no «la está cerrando la mesa»)", () => {
+    const { day, view, ctx } = scene("pendiente");
+    const c = heroCopy(ctx);
+    expect(c).toMatchObject({ kick: "Jornada 1, ante Orduña fc", h1: "Pendiente del acta", live: false });
+    expect(c.sub).not.toMatch(/\d|cerrando/);
+    expect(boardFace(day, view, SCENES.pendiente.now)).toMatchObject({ h: "–", a: "–", k: "Acta", c: "pendiente" });
+    expect(boardMessage(ctx)).toEqual({ text: "Pendiente del acta", kind: "navy" });
+    expect(figuresOf({ day, view, seven: SEVEN, nameOf, numOf: () => "", me: null, goalBy: null, mvpId: null })).toEqual([]);
   });
 
   it("a name that ends in its own full stop gets no second one («Adrián T.C.», never «T.C..»)", () => {

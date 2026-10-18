@@ -57,6 +57,8 @@ export const SCENES = {
   descanso: { matches: [j1(half, { events: EVENTS.slice(0, 3) }), j2], now: KO + 28 * MIN },
   directo2: { matches: [j1(second, { events: EVENTS.slice(0, 3) }), j2], now: KO + 50 * MIN },
   final: { matches: [j1(ended), j2], now: KO + 70 * MIN },
+  /** Nobody started la mesa's clock and its window is over (2 h of grace after the planned end). */
+  pendiente: { matches: [base, j2], now: KO + 50 * MIN + 2 * HOUR + 5 * MIN },
   acta: { matches: [published, j2], now: KO + 3 * HOUR },
   despues: { matches: [published, j2], now: KO + 52 * HOUR },
   aplazado: { matches: [{ ...base, status: "postponed" } as ClubMatch, j2], now: KO - 3 * HOUR },
