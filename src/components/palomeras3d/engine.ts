@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { cloudAmount, lightingOf, mix, smooth, type Lighting } from "./light";
 import { sunScreen, type RigDef } from "./rigs";
 import {
+  COMPACT_W,
   fillPlate,
   floodLevels,
   IGNITE_AT,
@@ -1329,7 +1330,7 @@ function build(o: EngineOptions): Engine {
         el.appendChild(node);
         v.plateEls.set(id, node);
       }
-      const look = plateLook(f.data, !!(anim.goal?.ours && anim.goal.id === id));
+      const look = plateLook(f.data, !!(anim.goal?.ours && anim.goal.id === id), w < COMPACT_W);
       const cls = look.cls + (vis ? "" : " off");
       if (node.className !== cls) node.className = cls;
       fillPlate(node, look);

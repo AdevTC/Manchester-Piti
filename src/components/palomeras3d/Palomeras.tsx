@@ -46,7 +46,7 @@ export function Palomeras({ ref, rig, state, reduced, className, onReady }: Prop
   const host = useRef<HTMLDivElement>(null);
   const [w, h] = useSize(host);
   const def = rigDef(rig);
-  const { canvases, plates, engine, mode, painted } = useGround({
+  const { canvasRef, platesRef, engine, mode } = useGround({
     host,
     views: [{ rig: def, rigId: rigKey(rig), state, w, h }],
     reduced,
@@ -82,15 +82,11 @@ export function Palomeras({ ref, rig, state, reduced, className, onReady }: Prop
     <div ref={host} className={className ? `pm ${className}` : "pm"} style={style} data-mode={mode} aria-hidden="true">
       <div className="pm-still" style={{ background: skyCss(state.at, state.weather) }} />
       <canvas
-        ref={(c) => {
-          canvases.current[0] = c;
-        }}
-        className={painted ? "pm-cv on" : "pm-cv"}
+        ref={canvasRef(0)}
+        className="pm-cv"
       />
       <div
-        ref={(p) => {
-          plates.current[0] = p;
-        }}
+        ref={platesRef(0)}
         className="pm-plates"
       />
     </div>

@@ -161,5 +161,6 @@ describe("figures", () => {
     expect(plateLook(roja, false).card).toBe("R");
     expect(plateLook(roja, true).cls).toContain("gol");
     expect(plateLook(mini, false)).toMatchObject({ name: null, tu: false });
+    expect(plateLook(tu, false, true)).toMatchObject({ name: null, tu: false });
   });
 });

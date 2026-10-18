@@ -97,9 +97,15 @@ export interface PlateLook {
   card: "A" | "R" | null;
 }
 
-/** The plate of a figure: classes and contents. `celebrating` lights it gold (a goal, an MVP). */
-export function plateLook(f: SceneFigure, celebrating: boolean): PlateLook {
-  const mini = f.plate === "mini";
+/** Views narrower than this (CSS px) get number-only plates, or the names would pile up. */
+export const COMPACT_W = 340;
+
+/**
+ * The plate of a figure: classes and contents. `celebrating` lights it gold (a goal, an MVP); `compact`
+ * (a small view) keeps only the number.
+ */
+export function plateLook(f: SceneFigure, celebrating: boolean, compact = false): PlateLook {
+  const mini = f.plate === "mini" || compact;
   const gold = celebrating || f.tag === "gol";
   const mvp = f.tag === "mvp";
   const cls =

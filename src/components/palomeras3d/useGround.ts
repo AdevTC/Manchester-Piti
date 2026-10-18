@@ -61,7 +61,7 @@ export function useGround({ host, views, reduced, onReady }: Options) {
   const plates = useRef<(HTMLElement | null)[]>([]);
   const engine = useRef<Engine | null>(null);
   const [mode, setMode] = useState<GroundMode>("still");
-  const [painted, setPainted] = useState(false);
+  const painted = useRef(false);
   const latest = useRef({ views, onReady });
   useEffect(() => {
     latest.current = { views, onReady };
@@ -78,13 +78,16 @@ export function useGround({ host, views, reduced, onReady }: Options) {
     if (mode !== "still" || !sized) return;
     latest.current.views.forEach((v, i) => {
       const c = canvases.current[i];
-      if (c) paintStill(c, v.w, v.h, v.rig, v.state, plates.current[i]);
+      if (!c) return;
+      paintStill(c, v.w, v.h, v.rig, v.state, plates.current[i]);
+      // the painted canvas fades in over the CSS sky (a class React never sets, so it stays)
+      c.classList.add("on");
     });
-    if (!painted) {
-      setPainted(true);
+    if (!painted.current) {
+      painted.current = true;
       latest.current.onReady?.("still");
     }
-  }, [mode, sized, stillKey, painted]);
+  }, [mode, sized, stillKey]);
 
   /* the WebGL ground: once per camera set */
   useEffect(() => {
@@ -190,5 +193,12 @@ export function useGround({ host, views, reduced, onReady }: Options) {
     };
   }, [mode, host]);
 
-  return { canvases, plates, engine, mode, painted };
+  /** Ref callbacks for view i's canvas and plates layer. */
+  const canvasRef = (i: number) => (c: HTMLCanvasElement | null) => {
+    canvases.current[i] = c;
+  };
+  const platesRef = (i: number) => (p: HTMLElement | null) => {
+    plates.current[i] = p;
+  };
+  return { canvasRef, platesRef, engine, mode };
 }

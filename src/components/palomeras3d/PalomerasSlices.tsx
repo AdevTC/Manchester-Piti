@@ -24,7 +24,7 @@ export function PalomerasSlices({ views, reduced, className, onReady }: Props) {
     const spot = v.spot ?? i + 1;
     return { rig: rigDef(v.rig, spot), rigId: rigKey(v.rig, spot), state: v.state, w: v.w, h: v.h, maxDpr: 1.25, walk: false };
   });
-  const { canvases, plates, mode, painted } = useGround({ host, views: ground, reduced, onReady });
+  const { canvasRef, platesRef, mode } = useGround({ host, views: ground, reduced, onReady });
 
   return (
     <div ref={host} className={className ? `pm-slices ${className}` : "pm-slices"} data-mode={mode}>
@@ -38,16 +38,12 @@ export function PalomerasSlices({ views, reduced, className, onReady }: Props) {
           <div key={i} className={v.className ? `pm pm-slice ${v.className}` : "pm pm-slice"} style={style}>
             <div className="pm-still" style={{ background: skyCss(v.state.at, v.state.weather) }} aria-hidden="true" />
             <canvas
-              ref={(c) => {
-                canvases.current[i] = c;
-              }}
-              className={painted ? "pm-cv on" : "pm-cv"}
+              ref={canvasRef(i)}
+              className="pm-cv"
               aria-hidden="true"
             />
             <div
-              ref={(p) => {
-                plates.current[i] = p;
-              }}
+              ref={platesRef(i)}
               className="pm-plates"
               aria-hidden="true"
             />

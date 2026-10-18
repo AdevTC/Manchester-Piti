@@ -2,7 +2,7 @@
 // a lost context). Same rigs, same sun and sky, same plates as the WebGL scene.
 import { lightingOf, mix, smooth } from "./light";
 import { horizonFraction, projector, sunScreen, type RigDef } from "./rigs";
-import { fillPlate, MASTS, MAST_H, PITCH, placeFigures, plateLook, plateX, floodLevels } from "./scene";
+import { COMPACT_W, fillPlate, MASTS, MAST_H, PITCH, placeFigures, plateLook, plateX, floodLevels } from "./scene";
 import type { PalomerasState } from "./types";
 
 export function rng(seed: number): () => number {
@@ -306,7 +306,7 @@ export function paintStill(
       const hp = P(f.x, 3.15, f.z);
       if (!hp) continue;
       const node = document.createElement("span");
-      const look = plateLook(f, false);
+      const look = plateLook(f, false, w < COMPACT_W);
       node.className = look.cls;
       fillPlate(node, look);
       node.style.transform = `translate(${plateX(hp.x, w).toFixed(1)}px,${hp.y.toFixed(1)}px)`;
