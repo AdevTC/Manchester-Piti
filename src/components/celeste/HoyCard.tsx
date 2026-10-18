@@ -1,6 +1,6 @@
-// «Hoy»: on match day, everything about today's match in one card, for members (spec §1). The home mounts
-// it above its hero (client-side only: pages/home/HomeHoy.tsx) and the vestuario in place of its cartel's
-// next-match lines. The model is pure (lib/derived/hoy.ts); every piece here is the shared one: the
+// «Hoy»: on match day, everything about today's match in one card, for members (spec §1). The vestuario
+// mounts it in place of its cartel's next-match lines (Inicio tells the member's match day with its front row
+// and «Tu partido» instead). The model is pure (lib/derived/hoy.ts); every piece here is the shared one: the
 // convocatoria switch, the MVP ballot, the countdown, the weather chip, the scoreboard's bits, the Campo's
 // «siete» and the venue's links. Members-only reads (availability, the quedada, the official board, the
 // porra) are opened only for a member, and only in the phase that shows them.
