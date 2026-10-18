@@ -4,7 +4,7 @@ import { EnJuego } from "./EnJuego";
 import type { MesaPlayer, MesaView } from "./types";
 
 const player = (id: string, name: string, number: string, more: Partial<MesaPlayer> = {}): MesaPlayer => ({
-  id, name, number, guest: false, keeper: false, minutes: 19, pending: 0, played: true, offAt: null, sentOff: false, vacancy: null, stints: [{ from: 0, to: null }], spot: { x: 50, y: 50 },
+  id, name, number, guest: false, keeper: false, minutes: 19, pending: 0, played: true, offAt: null, sentOff: false, vacancy: null, pos: null, stints: [{ from: 0, to: null }], spot: { x: 50, y: 50 },
   stickers: { goals: 0, assists: 0, yellow: false, red: false, injured: false },
   ...more,
 });

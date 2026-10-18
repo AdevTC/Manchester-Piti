@@ -1,10 +1,12 @@
 // La mesa · descanso (DescansoV2): the amber DESCANSO plate with the break's timer and a ticker of the half,
 // the first half in mirrored bars, «Quién ha jugado» (each player's stints and what he did) where a tap
-// picks the seven of the 2ª with its projected minutes, «Igualar minutos», and «Arrancar la 2ª».
+// picks the seven of the 2ª with its projected minutes, «Los cambios» (por quién entra cada uno, and so in
+// which position: he takes the slot of the one going off, or the one a red emptied), «Igualar minutos»,
+// and «Arrancar la 2ª».
 import { useState } from "react";
 import type { MesaEvent, MesaPlayer, MesaScreenProps } from "../types";
 import { buzz, useNow } from "./hooks";
-import { fairSeven, fixtureTitle, fmtShort, minuteOfPlay, subsTo } from "./model";
+import { fairSeven, fixtureTitle, fmtShort, minuteOfPlay, placesToFill, subsTo } from "./model";
 import { BackButton, Check, Screws, Whistle } from "./parts";
 import "./screens.css";
 
@@ -23,6 +25,8 @@ export function Descanso({ view }: MesaScreenProps) {
   const onPitch = field.map((p) => p.id);
   const [sel, setSel] = useState<string[]>(onPitch);
   const [busy, setBusy] = useState(false);
+  // «por quién» picked by hand: incoming id → the one going off (or sent off) whose place he takes
+  const [chosen, setChosen] = useState<Record<string, string>>({});
 
   const first = match.clock.period === 1 ? match.clock.elapsedSeconds : match.clock.elapsedSeconds - match.clock.periodSeconds;
   const halfMin = Math.round(match.clock.halfSeconds / 60);
@@ -52,8 +56,19 @@ export function Descanso({ view }: MesaScreenProps) {
   const fair = fairSeven(all, onPitch);
   const isFair = sameSet(sel, fair);
   const hasKeeper = sel.some((id) => all.find((p) => p.id === id)?.keeper);
-  const valid = sel.length === 7 && hasKeeper;
-  const nIn = sel.filter((id) => !onPitch.includes(id)).length;
+  const ins = sel.filter((id) => !onPitch.includes(id));
+  const places = placesToFill(all, onPitch, sel);
+  const pairs = subsTo(all, onPitch, sel, chosen);
+  const valid = sel.length === 7 && hasKeeper && pairs.length === ins.length;
+  const nIn = ins.length;
+  const byId = (id: string) => all.find((p) => p.id === id);
+  const choose = (inId: string, outId: string) => {
+    const now = Object.fromEntries(pairs.map((x) => [x.inId, x.outId]));
+    const other = pairs.find((x) => x.outId === outId && x.inId !== inId);
+    // the place was someone else's: the two swap
+    setChosen({ ...now, [inId]: outId, ...(other && now[inId] ? { [other.inId]: now[inId] } : {}) });
+    buzz([10]);
+  };
   const why = sel.length !== 7 ? `${sel.length} de 7` : !hasKeeper ? "falta portero" : "";
   const label = why ? "Elige el siete" : nIn ? `Arrancar con ${nIn} ${nIn === 1 ? "cambio" : "cambios"}` : "Arrancar la 2ª parte";
   // (the break's real length from the clock; until it is read, since this screen opened)
@@ -65,7 +80,7 @@ export function Descanso({ view }: MesaScreenProps) {
     setBusy(true);
     try {
       // (the whole wave in one operation: all the changes or none)
-      const subs = subsTo(all, onPitch, sel);
+      const subs = pairs;
       if (subs.length) actions.addMany(subs.map((s) => ({ playerId: s.outId, inPlayerId: s.inId })));
       await actions.clock("second");
     } catch {
@@ -168,6 +183,33 @@ export function Descanso({ view }: MesaScreenProps) {
           );
         })}
       </div>
+
+      {pairs.length > 0 && (
+        <section className="chg" aria-label="Los cambios de la 2ª">
+          <div className="chh"><b>Los cambios</b><span>{places.length > 1 ? "toca por quién entra cada uno" : "quién entra y dónde juega"}</span></div>
+          {pairs.map(({ inId, outId }) => {
+            const p = byId(inId);
+            const place = places.find((x) => x.outId === outId);
+            if (!p) return null;
+            return (
+              <div key={inId} className="cr">
+                <div className="cw">
+                  <span className="in"><em>{p.number}</em>{p.name}</span>
+                  <span className="to">entra de</span>
+                  <b className="pos">{place?.code ?? "su sitio"}</b>
+                </div>
+                <div className="opts" role="radiogroup" aria-label={`¿Por quién entra ${p.name}?`}>
+                  {places.map((pl) => (
+                    <button key={pl.outId} type="button" role="radio" aria-checked={pl.outId === outId} className={pl.outId === outId ? "op on" : "op"} onClick={() => choose(inId, pl.outId)}>
+                      {pl.code && <b>{pl.code}</b>} por {pl.name}{pl.gone ? " (expulsado)" : ""}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       <div className="dock">
         <div className="dbar">

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { MesaView } from "../types";
 import { Descanso } from "./Descanso";
@@ -72,6 +72,42 @@ describe("Descanso", () => {
     expect(v.actions.add).not.toHaveBeenCalled();
     await Promise.resolve();
     expect(v.actions.clock).toHaveBeenCalledWith("second");
+  });
+
+  it("«Los cambios» says who each one comes on for and where he plays; a tap swaps the places", async () => {
+    const v = halftime();
+    v.field = v.field.map((p) => ({ ...p, pos: ({ alex: "POR", mario: "DC", sergio: "MC", dani: "DFC", marcos: "DFC", david: "MD", hugo: "MI" } as Record<string, string>)[p.id] ?? null }));
+    mount(v);
+    expect(screen.queryByRole("region", { name: "Los cambios de la 2ª" })).toBeNull();
+    fireEvent.click(row("Marcos"));
+    fireEvent.click(row("Mario"));
+    fireEvent.click(row("Iván"));
+    fireEvent.click(row("Rubén"));
+    const card = screen.getByRole("region", { name: "Los cambios de la 2ª" });
+    const ivan = within(card).getByRole("radiogroup", { name: "¿Por quién entra Iván?" });
+    // by default the places in pitch order: Iván for Mario (DC), Rubén for Marcos (DFC)
+    expect(within(ivan).getByRole("radio", { name: "DC por Mario" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(ivan).getByRole("radio", { name: "DFC por Marcos" }));
+    expect(within(within(card).getByRole("radiogroup", { name: "¿Por quién entra Iván?" })).getByRole("radio", { name: "DFC por Marcos" })).toHaveAttribute("aria-checked", "true");
+    expect(within(within(card).getByRole("radiogroup", { name: "¿Por quién entra Rubén?" })).getByRole("radio", { name: "DC por Mario" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(cta());
+    expect(v.actions.addMany).toHaveBeenCalledWith(expect.arrayContaining([{ playerId: "marcos", inPlayerId: "ivan" }, { playerId: "mario", inPlayerId: "ruben" }]));
+    await Promise.resolve();
+    expect(v.actions.clock).toHaveBeenCalledWith("second");
+  });
+
+  it("a red in the 1ª: the seventh fills the hueco of the one sent off", async () => {
+    const v = halftime();
+    const dani = v.field.find((p) => p.id === "dani")!;
+    v.field = v.field.filter((p) => p.id !== "dani");
+    v.bench = [...v.bench, { ...dani, sentOff: true, stints: [{ from: 0, to: 600 }], vacancy: { spot: null, code: "DFC" } }];
+    mount(v);
+    expect(cta()).toHaveTextContent("Elige el siete: 6 de 7");
+    fireEvent.click(row("Iván"));
+    const card = screen.getByRole("region", { name: "Los cambios de la 2ª" });
+    expect(within(card).getByRole("radio", { name: "DFC por Dani (expulsado)" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(cta());
+    expect(v.actions.addMany).toHaveBeenCalledWith([{ playerId: "dani", inPlayerId: "ivan" }]);
   });
 
   it("no changes: just the 2ª, nothing written", async () => {

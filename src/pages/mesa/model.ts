@@ -395,6 +395,8 @@ export function mesaPlayers(
   const redAt = (id: string) => Math.min(...live.filter((e) => DISMISS.has(e.type) && e.playerId === id).map(secondsOf));
   const refilled = (id: string) => live.some((e) => e.type === "substitution" && e.playerId === id && e.inPlayerId && secondsOf(e) >= redAt(id));
   const emptied = lineup ? lineupWalk(lineup, live).vacant : [];
+  const slotCode = new Map(lineup ? lineupField(lineup, live).spots.map((s) => [s.id, s.code as string]) : []);
+  const posOf = (id: string): string | null => slotCode.get(id) ?? codes?.[id] ?? null;
   const vacancyOf = (id: string): MesaPlayer["vacancy"] => {
     if (!sentOff.has(id) || refilled(id) || onPitch.length >= 7) return null;
     const v = emptied.find((x) => x.outId === id);
@@ -429,6 +431,7 @@ export function mesaPlayers(
       offAt: !onField && last && last.to !== null ? minuteOfPlay(last.to, false) : null,
       sentOff: sentOff.has(id),
       vacancy: onField ? null : vacancyOf(id),
+      pos: onField ? posOf(id) : null,
       stints: st.map((s) => ({ ...s })),
       spot: onField ? spots.get(id) ?? null : null,
     };
