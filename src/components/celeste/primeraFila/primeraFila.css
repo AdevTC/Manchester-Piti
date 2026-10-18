@@ -1,0 +1,222 @@
+/* «La primera fila»: the front row of Palomeras' main stand, seen from the pitch, in the hour's light.
+   Every selector is .pf-. The root is a size container: under 700px the row folds into two rows of half the
+   squad; from 700px it is one row (two halves side by side); from 1200px the seats grow. The hour's light
+   comes from .pf-l-{dia,tarde,dorada,ocaso,focos,nublado}; the day theme (html[data-theme=light]) flattens it. */
+.pf-root{--navy:#0c1733;--gold:#FFC659;--ez:cubic-bezier(.16,1,.3,1);--spring:cubic-bezier(.3,1.5,.5,1);
+  --bg:linear-gradient(180deg,#0a1430,#081130);--ink:#eef4ff;--soft:#c9d8ef;--muted:#9fb3d3;--line:rgba(159,208,242,.14);--link:#9fd0f2;--err:#ffb4a9;
+  --tread1:#2b3654;--tread2:#1d2742;--riser:#141d37;--riser2:#0f1730;--nmc:#eef4ff;--hz:rgba(10,20,48,0);
+  --rim:rgba(255,250,235,.55);--wash:linear-gradient(180deg,rgba(220,235,255,.06),transparent);--shc:rgba(3,7,20,.45);--glow:rgba(159,208,242,.35);
+  container:pf/inline-size;position:relative;box-sizing:border-box;width:100%;overflow:hidden;color:var(--ink);background:var(--bg);font-family:'Geist',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.pf-root *{box-sizing:border-box}
+.pf-in{--pad:16px;--bx:80px;--cw:34px;--chh:42px;--sp:30px;--plf:14px;--plw:28px;--plh:21px;--nmf:12.5px;--h2:24px;--stag:22px;
+  position:relative;padding:22px var(--pad)}
+@container pf (min-width:700px){.pf-in{--pad:24px;--bx:82px;--cw:36px;--chh:44px;--sp:32px;--h2:26px}}
+@container pf (min-width:1200px){.pf-in{--pad:64px;--bx:116px;--cw:56px;--chh:66px;--sp:52px;--plf:17px;--plw:40px;--plh:27px;--nmf:14px;--h2:30px;--stag:0px}}
+.pf-mkon .pf-in{--mkz:42px}
+.pf-root :where(.pf-btn,.pf-seg-b,.pf-vote,.pf-tg){font-family:inherit;border:0;cursor:pointer;background:none;padding:0;color:inherit;-webkit-tap-highlight-color:transparent}
+.pf-root :where(.pf-btn,.pf-seg-b,.pf-vote,.pf-tg,.pf-a):focus-visible{outline:2px solid var(--link);outline-offset:3px}
+
+/* the hour's light: rim on the edges, wash on the concrete, shadows on the step */
+.pf-l-dorada{--rim:#ffc277;--wash:radial-gradient(70% 140% at 0% 0%,rgba(255,190,110,.34),rgba(255,170,90,.1) 45%,transparent 75%);--shc:rgba(3,7,20,.6);--hz:rgba(255,190,120,.22);
+  --shaft:repeating-linear-gradient(112deg,transparent 0 90px,rgba(255,206,140,.09) 90px 150px,transparent 150px 260px),radial-gradient(50% 90% at 0% 10%,rgba(255,196,120,.22),transparent 70%);--tl:linear-gradient(90deg,rgba(255,190,120,.26),rgba(255,190,120,.06) 55%,rgba(255,190,120,0))}
+.pf-l-ocaso{--rim:#ff9f6b;--wash:radial-gradient(70% 140% at 0% 0%,rgba(255,140,90,.26),rgba(120,110,190,.1) 50%,transparent 80%),radial-gradient(40% 100% at 100% 0%,rgba(230,240,255,.1),transparent 70%);--shc:rgba(3,7,20,.6);--hz:rgba(255,150,110,.16);
+  --shaft:repeating-linear-gradient(112deg,transparent 0 110px,rgba(255,160,120,.07) 110px 160px,transparent 160px 280px),radial-gradient(40% 80% at 100% 0%,rgba(225,236,255,.16),transparent 70%);--tl:linear-gradient(90deg,rgba(255,150,110,.18),rgba(200,210,255,.05) 60%,rgba(220,232,255,.12))}
+.pf-l-focos{--hz:rgba(220,235,255,.1);--rim:#e9f2ff;--wash:radial-gradient(60% 120% at 0% 0%,rgba(230,240,255,.14),transparent 70%),radial-gradient(60% 120% at 100% 0%,rgba(230,240,255,.14),transparent 70%);--shc:rgba(3,7,20,.42);
+  --shaft:radial-gradient(45% 90% at 0% 0%,rgba(232,242,255,.2),transparent 70%),radial-gradient(45% 90% at 100% 0%,rgba(232,242,255,.2),transparent 70%);--tl:linear-gradient(90deg,rgba(225,236,255,.12),transparent 30% 70%,rgba(225,236,255,.12))}
+.pf-l-dia{--rim:rgba(255,255,255,.7);--wash:linear-gradient(180deg,rgba(235,245,255,.12),transparent);--shc:rgba(3,7,20,.38)}
+.pf-l-nublado{--rim:rgba(220,230,245,.45);--wash:linear-gradient(180deg,rgba(150,165,190,.1),transparent)}
+/* the day theme: flat, soft light whatever the hour */
+:root[data-theme="light"] .pf-root{--bg:linear-gradient(180deg,#eef3f9,#e6edf5);--ink:#0c1733;--soft:#26334f;--muted:#44516c;--line:rgba(12,23,51,.12);--link:#1f5a8e;--err:#a3231a;
+  --tread1:#d3dce7;--tread2:#c3cedb;--riser:#b5c2d1;--riser2:#aab8c9;--nmc:#0c1733;--rim:rgba(255,255,255,.85);--wash:linear-gradient(180deg,rgba(255,255,255,.25),transparent);--shc:rgba(12,23,51,.2);--glow:rgba(31,90,142,.25);
+  --shaft:none;--tl:linear-gradient(180deg,rgba(255,255,255,.35),transparent);--hz:transparent}
+
+/* header */
+.pf-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px;margin-bottom:14px}
+.pf-ht{min-width:0;flex:1 1 300px}
+.pf-h2{margin:0;font-family:'Anybody',sans-serif;font-weight:900;font-variation-settings:'wdth' 104;font-size:var(--h2);letter-spacing:-.02em;line-height:1.05;color:var(--ink);text-wrap:balance}
+.pf-lead{margin:5px 0 0;font-size:14.5px;line-height:1.45;color:var(--soft);max-width:60ch}
+.pf-counts{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.pf-cnt{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 5px;border-radius:9px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px var(--line);font-size:13px;color:var(--soft);white-space:nowrap}
+:root[data-theme="light"] .pf-cnt{background:rgba(255,255,255,.7)}
+.pf-cnt i{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:4px;font-style:normal;font-family:'Anybody',sans-serif;font-weight:900;font-size:12px;background:#f4f8ff;color:#0c1733;box-shadow:inset 0 -1.5px 0 rgba(12,23,51,.2)}
+.pf-cnt.d i{background:#f0a43a}
+.pf-cnt.n i,.pf-cnt.a i{background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1.5px var(--muted)}
+.pf-cnt.s i{background:#2e5f8f;color:#cfe8ff;box-shadow:none}
+:root[data-theme="light"] .pf-cnt.s i{background:#3f77ab;color:#fff}
+
+/* the stand strip */
+.pf-stand{position:relative;margin:0 calc(var(--pad) * -1);isolation:isolate}
+.pf-stand:before{content:"";position:absolute;inset:0;z-index:-2;background:var(--wash)}
+.pf-stand:after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;background:var(--shaft,none);mix-blend-mode:screen}
+.pf-up{position:relative;height:48px;
+  background:linear-gradient(180deg,var(--hz,transparent),transparent 80%),
+  repeating-linear-gradient(90deg,transparent 0 calc(var(--sp) * .12),#5d8fbf calc(var(--sp) * .12) calc(var(--sp) * .78),transparent calc(var(--sp) * .78) var(--sp)) 0 6px/100% 9px no-repeat,
+  linear-gradient(180deg,transparent 15px,rgba(3,7,20,.35) 15px 17px,transparent 17px),
+  repeating-linear-gradient(90deg,transparent 0 calc(var(--sp) * .15),#6a9fd0 calc(var(--sp) * .15) calc(var(--sp) * 1.05),transparent calc(var(--sp) * 1.05) calc(var(--sp) * 1.2)) calc(var(--sp) * -.3) 24px/100% 13px no-repeat,
+  linear-gradient(180deg,transparent 37px,rgba(3,7,20,.4) 37px 40px,transparent 40px),
+  linear-gradient(180deg,var(--tread2),var(--tread1));
+  -webkit-mask:linear-gradient(180deg,transparent,rgba(0,0,0,.55) 30%,rgba(0,0,0,.8));mask:linear-gradient(180deg,transparent,rgba(0,0,0,.55) 30%,rgba(0,0,0,.8));filter:saturate(.7)}
+.pf-rows{display:grid;grid-template-columns:minmax(0,1fr)}
+.pf-rows,.pf-row{--th:calc(var(--mkz,0px) + var(--bx) + 6px)}
+.pf-row{position:relative;display:grid;grid-template-columns:repeat(var(--pf-half,8),minmax(0,1fr));gap:0 2px;margin:0;padding:6px var(--pad) 0;list-style:none;
+  background:var(--tl,none) 0 0/100% var(--th) no-repeat,linear-gradient(180deg,var(--tread1) 0,var(--tread2) var(--th),var(--riser) var(--th),var(--riser2) 100%)}
+.pf-row:before{content:"";position:absolute;left:0;right:0;top:calc(var(--th) - 1px);height:2px;background:var(--rim);opacity:.55}
+.pf-row + .pf-row{box-shadow:inset 0 3px 0 rgba(3,7,20,.35)}
+@container pf (min-width:700px){
+  /* one row: the two halves side by side on one step (the step is painted once, under both) */
+  .pf-rows{grid-template-columns:repeat(2,minmax(0,1fr));background:var(--tl,none) 0 0/100% var(--th) no-repeat,linear-gradient(180deg,var(--tread1) 0,var(--tread2) var(--th),var(--riser) var(--th),var(--riser2) 100%)}
+  .pf-row{padding:6px 1px 0 var(--pad);background:none}
+  .pf-row + .pf-row{padding:6px var(--pad) 0 1px;box-shadow:none}
+}
+.pf-rail{position:relative;height:16px;background:var(--riser2)}
+.pf-rail:before{content:"";position:absolute;left:0;right:0;top:4px;height:5px;border-radius:3px;background:linear-gradient(180deg,var(--rim),#6f84a8 45%,#2a3a5f);opacity:.9}
+.pf-rail:after{content:"";position:absolute;left:0;right:0;top:9px;bottom:0;background:repeating-linear-gradient(90deg,transparent 0 calc(12.5% - 3px),#4a5e82 calc(12.5% - 3px) 12.5%)}
+:root[data-theme="light"] .pf-rail:before{background:linear-gradient(180deg,#fff,#9aabbf 45%,#7a8ca3)}
+:root[data-theme="light"] .pf-rail:after{background:repeating-linear-gradient(90deg,transparent 0 calc(12.5% - 3px),#8597ad calc(12.5% - 3px) 12.5%)}
+
+/* one seat: shadow, backrest, tip-up pan, the paper card, markers; dorsal plate and name on the riser */
+.pf-seat{position:relative;display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;align-content:start;min-width:0;padding-bottom:8px}
+.pf-sbox{position:relative;display:block;width:100%;height:var(--bx);perspective:220px}
+.pf-sh{position:absolute;left:10%;right:10%;top:80%;height:14%;border-radius:50%;background:radial-gradient(closest-side,var(--shc),transparent);filter:blur(1px)}
+.pf-l-dorada .pf-sh,.pf-l-ocaso .pf-sh{left:40%;right:-95%;top:70%;height:26%;border-radius:4px;background:linear-gradient(90deg,rgba(2,5,14,.75),rgba(2,5,14,.25) 60%,transparent);transform:skewX(-60deg);transform-origin:0 100%;filter:blur(2.5px)}
+.pf-l-focos .pf-sh{left:-20%;right:-20%;background:radial-gradient(closest-side at 32% 50%,var(--shc),transparent),radial-gradient(closest-side at 68% 50%,var(--shc),transparent)}
+:root[data-theme="light"] .pf-root .pf-sh{left:10%;right:10%;top:80%;height:14%;border-radius:50%;transform:none;filter:blur(1px);background:radial-gradient(closest-side,var(--shc),transparent)}
+.pf-bk{position:absolute;left:9%;right:9%;top:30%;height:44%;border-radius:42% 42% 12% 12%/30% 30% 10% 10%;background:radial-gradient(120% 70% at 30% 10%,#d2ebfb,transparent 55%),linear-gradient(180deg,#a2cff0,#6CABDD 45%,#3f7cb3);box-shadow:inset 2px 0 0 color-mix(in srgb,var(--rim) 70%,transparent),inset 0 2px 0 color-mix(in srgb,var(--rim) 60%,transparent),inset 0 -4px 0 rgba(12,23,51,.28),0 3px 0 rgba(3,7,20,.35)}
+.pf-bk:after{content:"";position:absolute;left:24%;right:24%;top:22%;height:16%;border-radius:40%;background:linear-gradient(180deg,rgba(12,23,51,.22),rgba(255,255,255,.18))}
+.pf-pan{position:absolute;left:5%;right:5%;top:74%;height:20%;border-radius:4px 4px 10px 10px;transform-origin:50% 0;transform:rotateX(58deg);background:linear-gradient(180deg,#cfe8fa,#7fb6e2 60%,#5b95c8);box-shadow:inset 2px 1px 0 color-mix(in srgb,var(--rim) 70%,transparent),0 3px 0 rgba(3,7,20,.3);transition:transform .42s var(--spring),background .25s}
+.pf-seat.fold .pf-pan{transform:rotateX(172deg);background:linear-gradient(0deg,#3d6f9f,#2a537d);box-shadow:inset 0 0 0 1px rgba(12,23,51,.35)}
+.pf-seat.fold .pf-pan:after{content:"";position:absolute;left:18%;right:18%;top:28%;height:2px;border-radius:1px;background:rgba(12,23,51,.45);box-shadow:0 4px 0 rgba(12,23,51,.32)}
+/* «No voy»: the seat stays down and empty, with an ✕ chalked on it (never by colour alone) */
+.pf-seat.no .pf-bk:before{content:"✕";position:absolute;left:0;right:0;top:44%;text-align:center;font-family:'Anybody',sans-serif;font-weight:900;font-size:calc(var(--bx) * .17);line-height:1;color:rgba(12,23,51,.62)}
+.pf-card{position:absolute;left:50%;bottom:36%;width:var(--cw);height:var(--chh);margin-left:calc(var(--cw) / -2);display:grid;place-items:center;align-content:center;gap:0;border-radius:2px 3px 2px 2px;
+  background:linear-gradient(162deg,#ffffff 0%,#f2f6fa 45%,#dfe7f0 100%);color:#0c1733;
+  box-shadow:inset 0 1px 0 #fff,inset 1.5px 0 0 color-mix(in srgb,var(--rim) 85%,transparent),0 2px 0 #aebccb,0 3px 0 #8d9db0,2px 7px 8px var(--shc);
+  opacity:0;transform:translateY(55%) scale(.8);transition:transform .55s var(--spring) .12s,opacity .2s .12s}
+.pf-card:before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:linear-gradient(90deg,rgba(12,23,51,.1),rgba(255,255,255,.95),rgba(12,23,51,.1))}
+.pf-card:after{content:"";position:absolute;right:0;top:0;width:28%;height:22%;background:linear-gradient(225deg,rgba(12,23,51,.16),rgba(255,255,255,.6) 48%,transparent 52%);border-radius:0 3px 0 0}
+.pf-card b{position:relative;font-family:'Anybody',sans-serif;font-weight:900;font-variation-settings:'wdth' 86;font-size:calc(var(--chh) * .5);line-height:1}
+.pf-card small{position:relative;margin-top:1px;font-family:'Anybody',sans-serif;font-weight:800;font-variation-settings:'wdth' 80;font-size:11.5px;line-height:1;color:#26334f;white-space:nowrap}
+.pf-card img{position:relative;width:calc(var(--cw) * .7);height:calc(var(--cw) * .7)}
+.pf-seat.up .pf-card{opacity:1;transform:rotate(-2deg)}
+.pf-seat.up:nth-child(2n) .pf-card{transform:translateY(-2px) rotate(2deg)}
+.pf-seat.half .pf-card{opacity:1;transform:translateY(26%) translateX(8%) rotate(-11deg);background:linear-gradient(162deg,#ffe0ac,#f0a43a)}
+.pf-seat.low .pf-card{opacity:1;transform:translateY(40%) scale(.92)}
+.pf-seat.gold .pf-card{box-shadow:inset 0 0 0 2.5px #FFC659,inset 0 0 0 3.5px rgba(12,23,51,.4),0 2px 0 #b98a2c,0 3px 0 #8d6a22,2px 7px 8px var(--shc)}
+.pf-seat.mvp .pf-card{background:linear-gradient(162deg,#fff1cc,#FFC659 60%,#e7a83a);box-shadow:inset 0 1px 0 #fff,0 2px 0 #b98a2c,0 3px 0 #8d6a22,0 0 26px rgba(255,198,89,.55),2px 7px 8px var(--shc)}
+.pf-seat.cand .pf-card{box-shadow:inset 0 0 0 2.5px #FFC659,0 2px 0 #b98a2c,0 3px 0 #8d6a22,0 0 18px rgba(255,198,89,.35),2px 7px 8px var(--shc);animation:pf-cand 2.4s ease-in-out infinite}
+@keyframes pf-cand{50%{translate:0 -3px}}
+.pf-seat.dim .pf-bk,.pf-seat.dim .pf-pan{filter:saturate(.45) brightness(.8)}
+:root[data-theme="light"] .pf-seat.dim .pf-bk,:root[data-theme="light"] .pf-seat.dim .pf-pan{filter:saturate(.5) brightness(1.05)}
+/* the member's own seat: the one thing that glows at rest */
+.pf-seat.me .pf-sbox:before{content:"";position:absolute;left:-20%;right:-20%;top:-6%;bottom:-4%;z-index:-1;border-radius:50%;background:radial-gradient(closest-side,var(--glow),transparent)}
+.pf-seat.me .pf-bk{outline:2px solid var(--ink);outline-offset:3px}
+
+/* markers: goals, cards, subs, knocks, the pitch, logros, «de baja», «anota» */
+.pf-mks{display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-end;gap:3px;width:calc(100% + 2px);height:var(--mkz,42px);padding-bottom:3px}
+.pf-mk{display:inline-flex;align-items:center;gap:2px;height:19px;padding:0 3px;border-radius:5px;font-style:normal;font-family:'Anybody',sans-serif;font-weight:800;font-variation-settings:'wdth' 82;font-size:11.5px;line-height:1;white-space:nowrap;background:var(--mkbg,rgba(5,11,31,.82));color:#eef4ff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+:root[data-theme="light"] .pf-root{--mkbg:#0c1733}
+.pf-mk.g{background:#FFC659;color:#0c1733;box-shadow:none}
+.pf-mk.y{background:#f2d03b;color:#0c1733;box-shadow:none}
+.pf-mk.r{background:#e2493f;color:#fff;box-shadow:none}
+.pf-mk.inj{background:#eef4ff;color:#b3261e}
+.pf-mk.in{background:#9fd0f2;color:#0c1733;box-shadow:none}
+.pf-mk.out{color:#cfe8ff}
+.pf-mk.pitch{position:relative;width:24px;padding:0;background:repeating-linear-gradient(90deg,#2f6a40 0 6px,#2a5f39 6px 12px);box-shadow:inset 0 0 0 1.5px rgba(234,247,236,.8)}
+.pf-mk.pitch:after{content:"";position:absolute;left:50%;top:2px;bottom:2px;width:1.5px;margin-left:-.75px;background:rgba(234,247,236,.8)}
+.pf-mk.anota{background:#eef4ff;color:#0c1733;box-shadow:none}
+:root[data-theme="light"] .pf-mk.anota{background:#0c1733;color:#fff}
+.pf-mk.mvpc{background:#0c1733;color:#FFC659;box-shadow:inset 0 0 0 1.5px #FFC659}
+/* a logro: a medal with its count on the narrow stand, its name from 1200px */
+.pf-mk.logro{width:19px;justify-content:center;padding:0;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffffff,#9fd0f2 70%);color:#0c1733;box-shadow:0 0 0 1.5px #2e5f8f}
+.pf-mk.logro .pf-mk-l{display:none}
+@container pf (min-width:1200px){
+  .pf-mk.logro{width:auto;padding:0 4px;border-radius:5px;background:linear-gradient(180deg,#e9f4ff,#9fd0f2);box-shadow:none}
+  .pf-mk.logro .pf-mk-l{display:inline}
+  .pf-mk.logro .pf-mk-s{display:none}
+}
+/* dorsal plate (the broadcast plate) on the riser, and the name */
+.pf-pl{display:grid;place-items:center;min-width:var(--plw);height:var(--plh);margin-top:6px;padding:0 4px;border-radius:4px;background:linear-gradient(180deg,#bfe2fa,#6CABDD);color:#0c1733;font-family:'Anybody',sans-serif;font-weight:900;font-variation-settings:'wdth' 80;font-size:var(--plf);line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 2px 0 rgba(3,7,20,.35)}
+.pf-seat.gold .pf-pl{box-shadow:inset 0 0 0 1.5px #FFC659,inset 0 1px 0 rgba(255,255,255,.7),0 2px 0 rgba(3,7,20,.35)}
+.pf-nm{justify-self:unsafe center;display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-weight:600;font-size:var(--nmf);line-height:1.2;color:var(--nmc);white-space:nowrap}
+.pf-seat:nth-child(2n) .pf-nm{margin-top:calc(4px + var(--stag))}
+.pf-seat:first-child .pf-nm{justify-self:start}
+.pf-seat:last-child .pf-nm{justify-self:end}
+@container pf (min-width:700px){
+  .pf-row + .pf-row .pf-seat:first-child .pf-nm,.pf-row:first-child .pf-seat:last-child .pf-nm{justify-self:unsafe center}
+}
+.pf-nm em{display:inline-grid;place-items:center;height:18px;padding:0 5px;border-radius:5px;background:var(--ink);color:var(--navy);font-style:normal;font-weight:700;font-size:11.5px}
+:root[data-theme="light"] .pf-nm em{color:#fff}
+/* «tú» as a sticker on the dorsal plate until 1200px, so a long name never runs into the next one */
+@container pf (max-width:1199px){.pf-nm em{position:absolute;z-index:2;top:calc(var(--mkz,0px) + var(--bx) - 2px);left:calc(50% + var(--plw) / 2 - 8px);height:16px;padding:0 4px;font-size:10.5px;box-shadow:0 1px 0 rgba(3,7,20,.35)}}
+.pf-vote{position:absolute;inset:0;z-index:5;min-height:44px;border-radius:10px}
+.pf-vote:hover{background:rgba(255,198,89,.08)}
+.pf-vote[aria-pressed=true]{box-shadow:inset 0 0 0 2px #FFC659}
+:root[data-theme="light"] .pf-vote[aria-pressed=true]{box-shadow:inset 0 0 0 2px #9a6a10}
+
+/* «aplazado»: the row taped off */
+.pf-tape{position:absolute;z-index:6;left:-20px;right:-20px;top:calc(48px + var(--mkz,0px) + var(--bx) * .32);height:30px;display:flex;align-items:center;justify-content:space-around;transform:rotate(-2.5deg);background:repeating-linear-gradient(135deg,#eef4ff 0 16px,#0c1733 16px 32px);box-shadow:0 6px 14px rgba(3,7,20,.45);pointer-events:none}
+.pf-tape span{padding:2px 10px;border-radius:3px;background:#0c1733;color:#eef4ff;font-family:'Anybody',sans-serif;font-weight:900;font-variation-settings:'wdth' 120;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+
+/* motion: an answer arrives («clac»), a sub stands up and walks out, the replaced one sits down */
+.pf-seat.pop .pf-pan{animation:pf-clac .45s var(--spring)}
+.pf-seat.pop .pf-card{animation:pf-rise .75s var(--spring) .14s both}
+@keyframes pf-clac{0%{transform:rotateX(176deg)}100%{transform:rotateX(58deg)}}
+@keyframes pf-rise{0%{transform:translateY(55%) scale(.8);opacity:0}55%{transform:translateY(-22%) rotate(4deg);opacity:1}100%{transform:rotate(-2deg);opacity:1}}
+.pf-seat.walk .pf-card{animation:pf-walk 1.5s cubic-bezier(.4,0,.2,1) both}
+@keyframes pf-walk{0%{opacity:1;transform:translateY(40%) scale(.92)}30%{opacity:1;transform:translateY(-30%) scale(1)}100%{opacity:0;transform:translateY(140%) scale(1.5)}}
+.pf-seat.sit .pf-card{animation:pf-sit 1.1s var(--ez) .5s both}
+@keyframes pf-sit{0%{opacity:0;transform:translateY(160%) scale(1.4)}100%{opacity:1;transform:translateY(40%) scale(.92)}}
+.pf-seat.shine .pf-card:after{width:auto;left:0;height:100%;border-radius:2px;background:linear-gradient(100deg,transparent 30%,rgba(255,198,89,.85) 50%,transparent 70%) 100% 0/300% 100%;animation:pf-sweep 1.2s var(--ez) both}
+@keyframes pf-sweep{to{background-position:-50% 0}}
+.pf-seat:is(.flash,.pop) .pf-sbox:after{content:"";position:absolute;inset:-4px;border-radius:10px;box-shadow:0 0 0 2px #9fd0f2;animation:pf-ping 1.2s ease-out both;pointer-events:none}
+@keyframes pf-ping{from{opacity:1;transform:scale(.9)}to{opacity:0;transform:scale(1.15)}}
+
+/* under the stand: the member's controls, notes, the bench's story, the vote */
+.pf-foot{display:grid;gap:12px;margin-top:16px}
+@container pf (min-width:700px){.pf-foot.pf-me{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:center;column-gap:20px}}
+@container pf (min-width:1200px){.pf-foot{grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:32px}.pf-foot.pf-me{grid-template-columns:minmax(0,1fr) 470px}}
+.pf-me-t{display:grid;gap:3px;min-width:0}
+.pf-me-t > b{font-family:'Anybody',sans-serif;font-weight:900;font-variation-settings:'wdth' 104;font-size:19px;line-height:1.1;letter-spacing:-.01em}
+.pf-me-t > span{font-size:14px;line-height:1.4;color:var(--soft)}
+.pf-me-t > span b{font-family:'Anybody',sans-serif;font-weight:900;color:var(--ink)}
+.pf-ctl{display:grid;gap:8px;min-width:0}
+.pf-seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border-radius:16px;background:rgba(2,6,18,.5);box-shadow:inset 0 1px 3px rgba(0,0,0,.5)}
+:root[data-theme="light"] .pf-seg{background:rgba(12,23,51,.08);box-shadow:inset 0 1px 3px rgba(12,23,51,.15)}
+.pf-seg-b{min-height:48px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700;font-size:14.5px;color:var(--ink);transition:transform .1s}
+.pf-seg-b i{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:4px;font-style:normal;font-family:'Anybody',sans-serif;font-weight:900;font-size:13px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+:root[data-theme="light"] .pf-seg-b i{background:#fff;box-shadow:inset 0 0 0 1px rgba(12,23,51,.2)}
+.pf-seg-b:active{transform:translateY(2px)}
+.pf-seg-b[aria-pressed=true]{background:linear-gradient(180deg,#d9efff,#8fc4ec);color:#0c1733;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 6px 16px rgba(108,171,221,.25)}
+.pf-seg-b.d[aria-pressed=true]{background:linear-gradient(180deg,#ffe2b0,#f0a43a)}
+.pf-seg-b.n[aria-pressed=true]{background:linear-gradient(180deg,#eef4ff,#c9d8ef)}
+.pf-seg-b[aria-pressed=true] i{background:#0c1733;color:#eef4ff;box-shadow:none}
+:root[data-theme="light"] .pf-seg-b[aria-pressed=true] i{background:#0c1733;color:#fff;box-shadow:none}
+.pf-sub{display:flex;align-items:center;gap:8px 12px}
+.pf-tg{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:12px;font-size:13.5px;font-weight:600;color:var(--soft);box-shadow:inset 0 0 0 1.5px var(--line)}
+.pf-tg[aria-pressed=true]{color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--link)}
+.pf-btn{min-height:46px;padding:0 18px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:14.5px;white-space:nowrap;color:var(--ink);background:linear-gradient(180deg,#1c2b55,#121e40);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 2px 0 #060c1f;transition:transform .1s}
+:root[data-theme="light"] .pf-btn{background:#fff;color:#0c1733;box-shadow:inset 0 0 0 1px rgba(12,23,51,.18),0 2px 0 rgba(12,23,51,.15)}
+.pf-btn:active{transform:translateY(2px)}
+.pf-votebox{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;align-items:center;padding:12px 14px;border-radius:14px;background:rgba(255,198,89,.07);box-shadow:inset 0 0 0 1.5px rgba(255,198,89,.45)}
+:root[data-theme="light"] .pf-votebox{background:#fff8e6;box-shadow:inset 0 0 0 1.5px #c9952e}
+.pf-vb-ic{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#FFC659;color:#0c1733}
+.pf-vb-t{display:grid;gap:3px;min-width:0}
+.pf-vb-t b{font-family:'Anybody',sans-serif;font-weight:900;font-variation-settings:'wdth' 100;font-size:16px;color:var(--ink)}
+.pf-vb-t > span{font-size:13.5px;line-height:1.45;color:var(--soft)}
+.pf-note{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;margin:0;font-size:14px;line-height:1.45;color:var(--soft)}
+.pf-note b{color:var(--ink)}
+.pf-note svg{margin-top:2px;color:var(--link)}
+.pf-note.pf-err{color:var(--err)}
+.pf-note.pf-err svg{color:var(--err)}
+.pf-a{display:inline-flex;align-items:center;min-height:44px;justify-self:start;color:var(--link);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.pf-plays{display:grid;margin:0;padding:0;list-style:none}
+.pf-play{display:grid;grid-template-columns:40px minmax(0,1fr);align-items:center;min-height:36px;border-bottom:1px solid var(--line);font-size:14px}
+.pf-play:last-child{border-bottom:0}
+.pf-play .m{font-family:'Geist Mono',monospace;font-size:13px;color:var(--link)}
+.pf-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+/* skeleton where the member's controls will be (before the member is known) */
+.pf-skel{height:56px;border-radius:16px;background:linear-gradient(90deg,rgba(159,208,242,.08),rgba(159,208,242,.16),rgba(159,208,242,.08)) 0 0/200% 100%;animation:pf-skel 1.6s linear infinite}
+@keyframes pf-skel{to{background-position:-200% 0}}
+/* reduced motion: only opacity moves */
+@media (prefers-reduced-motion:reduce){.pf-root *,.pf-root *:before,.pf-root *:after{animation:none!important;transition:opacity .2s!important}}
+.pf-rm *,.pf-rm *:before,.pf-rm *:after{animation:none!important;transition:opacity .2s!important}
