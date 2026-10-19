@@ -15,7 +15,7 @@ vi.mock("./context/TeamContext", () => ({ useTeam: () => ({ member: who.member, 
 vi.mock("./components/Navbar", () => ({ Navbar: () => <nav aria-label="menú antiguo" /> }));
 vi.mock("./components/SeasonUrlSync", () => ({ SeasonUrlSync: () => null }));
 vi.mock("./components/ThemeToggle", () => ({ ThemeToggle: () => null }));
-vi.mock("./components/celeste/LiveIsland", () => ({ LiveIsland: () => null }));
+vi.mock("./components/vidrio/live/LiveScore", () => ({ LiveScore: () => null }));
 vi.mock("./pages/acceso/AccessGate", () => ({ AccessGate: () => <p>la puerta</p> }));
 // (the admin's frame with its view inside, like the real layout's <Outlet />)
 vi.mock("./pages/admin/shell/AdminLayout", async () => {

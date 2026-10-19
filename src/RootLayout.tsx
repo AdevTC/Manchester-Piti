@@ -15,8 +15,9 @@ import { publishViewer } from "./hooks/viewerSignal";
 import "./styles/club.css";
 // Only private pages (and invitation links) show the door: keep it out of the entry chunk.
 const AccessGate = lazy(() => import("./pages/acceso/AccessGate").then((m) => ({ default: m.AccessGate })));
-// The live island (a pill while a match is on) loads apart from the entry: it renders nothing otherwise.
-const LiveIsland = lazy(() => import("./components/celeste/LiveIsland").then((m) => ({ default: m.LiveIsland })));
+// The live score («Vidrio»: the floating score, its sheet and the goal) loads apart from the entry: it renders
+// nothing outside the match day.
+const LiveScore = lazy(() => import("./components/vidrio/live/LiveScore").then((m) => ({ default: m.LiveScore })));
 export function RootLayout() {
   const { profile, loading } = useAuth();
   const { member, ready } = useTeam();
@@ -30,9 +31,9 @@ export function RootLayout() {
   useRecordTrail();
   const privatePage = ["/admin", "/profile", "/pizarra", "/vestuario"].some((p) => under(pathname, p));
   const adminPath = under(pathname, "/admin");
-  // La mesa is the live match itself: the island would sit on its scoreboard.
+  // La mesa is the live match itself: the floating score would sit on its scoreboard.
   const mesaPath = /^\/matches\/[^/]+\/mesa\/?$/.test(pathname);
-  // (the pizarra has its own live plate and the mesa's pitch: the island covered its header)
+  // (the pizarra has its own live plate and the mesa's pitch: the score would cover its header)
   const pizarraPath = /^\/pizarra\/?$/.test(pathname);
   const invitation = pathname.startsWith("/invitacion/");
   // The door stays up through the walkout after being let in.
@@ -63,7 +64,7 @@ export function RootLayout() {
       <SeasonUrlSync />
       {!adminPath && !mesaPath && !pizarraPath && (
         <Suspense fallback={null}>
-          <LiveIsland />
+          <LiveScore />
         </Suspense>
       )}
       <main id="contenido" className={immersive ? "club-main vx-main-shell" : "club-main"}>

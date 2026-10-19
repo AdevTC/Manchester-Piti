@@ -2,7 +2,8 @@
 // whether the viewer asked for less motion. Read live (a resize or a settings change redraws); without
 // matchMedia (tests, the server) it is a phone with motion.
 import { useSyncExternalStore } from "react";
-import type { IslaDevice } from "./Isla";
+
+export type IslaDevice = "movil" | "tablet" | "escritorio";
 
 const query = (q: string): MediaQueryList | null => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia(q) : null);
 

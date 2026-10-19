@@ -93,7 +93,7 @@ export function LiveCard({ match, rival, initials, gf, ga, minute, last, lastAt,
   const tone = last?.tone === "gold" ? "g" : last?.tone === "coral" ? "r" : "";
   const ago = pending ? "" : agoText(match, lastAt, now);
   return (
-    <section className={`ml-card pt-rise isla-destino${ours ? " g" : ""}`} aria-label={pending ? `Marcador provisional contra ${rival}` : `Marcador en directo contra ${rival}`} style={{ animationDelay: ".15s" }}>
+    <section className={`ml-card pt-rise vd-live-destino${ours ? " g" : ""}`} aria-label={pending ? `Marcador provisional contra ${rival}` : `Marcador en directo contra ${rival}`} style={{ animationDelay: ".15s" }}>
       <div className="ml-ct">
         {pending ? (
           <span className="ml-pill cold">
