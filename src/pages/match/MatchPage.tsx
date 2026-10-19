@@ -42,6 +42,7 @@ import { shareClubPage } from "../../lib/share";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
 import { madridDate } from "../../lib/derived/madrid";
 import { niceName } from "../../lib/derived/words";
+import { mesaLine, mesaOf } from "../../lib/derived/mesa";
 import { parseMatchLineup } from "../../lib/matchLineup";
 import { CampoTab, CronicaTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
 import { currentHalf } from "./directoModel";
@@ -329,6 +330,8 @@ export function MatchPage() {
   const lineup = parseMatchLineup((match as ClubMatch & { lineup?: unknown }).lineup);
   const today = Number.isFinite(dateMillis(match.date)) && madridDate(dateMillis(match.date)) === madridDate(now);
   const preSeven = upcoming && today && !!lineup;
+  // who keeps la mesa (public, backend-written): «Lo anota Jorge desde la mesa»
+  const mesa = mesaOf(match);
   const scoredGoals = (done || pending) && (goalsOf(true).length > 0 || goalsOf(false).length > 0);
 
   const share = async () => {
@@ -419,6 +422,7 @@ export function MatchPage() {
             {d.longCap} · {d.time}
           </span>
           {where && <span>{where}</span>}
+          {mesa && (live || upcoming || whistle) && <span>{mesaLine(match)}</span>}
           <span>
             <Icon name="shirt" size={14} /> {kit}
           </span>
@@ -493,7 +497,7 @@ export function MatchPage() {
           ) : (
             <div className={preSeven ? "mp-main" : undefined}>
               <div className="mp-col">
-                {preSeven && <p className="mp-pre">Aún no ha empezado. El siete ya está publicado.</p>}
+                {preSeven && <p className="mp-pre">Aún no ha empezado. El siete ya está publicado{mesa ? ` y la mesa la lleva ${mesa.name}` : ""}.</p>}
                 <PreviaTab match={match} matches={matches} plan={rivalPlan} />
               </div>
               {preSeven && (
