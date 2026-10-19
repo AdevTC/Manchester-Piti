@@ -32,7 +32,8 @@ test("cabecera sin accesos duplicados ni etiquetas partidas en escritorio compac
       await expect(header.getByRole("link", { name: "Entrar al vestuario" })).toHaveCount(1);
       const nav = header.getByRole("navigation", { name: "Navegación principal" });
       await expect(nav).toBeVisible();
-      await expect(nav.getByRole("link", { name: "El club", exact: true })).toBeVisible();
+      await expect(nav.getByRole("link", { name: "Club", exact: true })).toBeVisible();
+      await expect(nav.getByRole("link", { name: "Números", exact: true })).toBeVisible();
       expect(await header.evaluate((element) => {
         const children = [...element.children].map((child) => child.getBoundingClientRect());
         const links = [...element.querySelectorAll(".vx-nav a")];
@@ -83,6 +84,9 @@ test("navegación móvil sin desbordamiento", async ({ page }) => {
     const nav = page.getByRole("navigation", { name: "Navegación móvil" });
     await expect(nav).toBeVisible();
     await expect(page.locator(".vx-top").getByRole("link", { name: "Entrar al vestuario" })).toBeVisible();
+    // the boards' tab bar: five pages, each with its label
+    await expect(nav.getByRole("link")).toHaveCount(5);
+    await expect(nav.getByRole("link", { name: "Números" })).toBeVisible();
     await nav.getByRole("link", { name: "Plantilla" }).click();
     await expect(page.getByLabel("Buscar jugador")).toBeVisible();
     expect(await page.locator(".vx-top").evaluate((element) => [...element.children].every((child) => child.getBoundingClientRect().right <= innerWidth))).toBe(true);

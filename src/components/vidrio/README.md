@@ -94,7 +94,11 @@ type FloatMatch = { state: "previa"|"rsvp"|"anotador"|"pitido"|"directo"|"descan
 useDraggable(ref, { storageKey?, home?(box), handle?, zone?: "viewport"|"parent", enabled?, anchors?: "nine"|"corners",
                     axis?: "both"|"x", margin?, top?, bottom?, onSettle? }) → { home() }
 anchors.ts: anchorPoints, nearestAnchor, stepAnchor, clampPos, dragTo, parsePos   // pure
-liveDock.setLive(bool) · liveDock.get() · useLiveDockState() → { live, mode: "float"|"lens"|"anchor", anchor }
+liveDock.setLive(bool) · liveDock.get() · useLiveDockState() → { live, mode: "float"|"lens"|"anchor", anchor, hidden }
+liveDock.setHidden({score, said} | null, onReveal) · liveDock.reveal()   // «Ocultar hasta el próximo gol»: the capsule's chip
+liveDock.setPipOpener(fn | null) · liveDock.openPip()                    // «Sacar el marcador» from the search's «Ahora»
+LIVE_MORPH = "vd-live-marcador"   // the score's view-transition-name across pages (float ↔ lens ↔ match scoreboard)
+<VIcon name size? className? />   // the boards' glyphs (home, fixtures, shirt, chart, shield, bell, search, pip, post, glove…)
 useLiveNow() → boolean        // the chrome's live dot reads this
 useLiveDock(ref, "lens" | "anchor")   // page: «my lens shows the match» / «dock the float here»
 openScorePip({width?, height?, title?}) → Promise<ScorePip>   // call from the click (user gesture)
@@ -114,10 +118,17 @@ Float storage keys: `vd-pos-<storageKey>` (desktop) and `vd-pos-<storageKey>-mov
 
 ## Chrome (all pages)
 
-`CelesteHeader` / `CelesteDock` keep their DOM, props, names and slots (`.vx-top`, `.vx-nav a`, «Navegación
-principal», «Navegación móvil», «Entrar al vestuario», «El club», SearchGate, NoticesGate, ThemeToggle). New
-optional prop `live?: boolean` on both (default: `useLiveNow()`): «Partidos» gets `.vd-livedot` and its
-accessible name becomes «Partidos, en directo» (e2e that look it up with `exact: true` must allow that while live).
+The boards' chrome (cierre): the capsule «Inicio · Partidos · Plantilla · Números · Club» with one bead that
+slides between pages; at the end of the top bar the round search («Buscar (Ctrl K)»), the bell (everyone: a fan
+gets «Avisos a medida» only) and the account — a member's avatar pill («J Jordi»: «Tú, Jordi» for a jugador,
+«Tu cuenta, Marta» for a socio) opening the account sheet (account/AccountSheet), a fan's «Entrar» link
+(«Entrar al vestuario», to /vestuario without JavaScript; with it, the door's sheet). The phone/tablet tab bar has
+the same five pages labelled and tightens while scrolling down. The theme switch left the top bar: a
+`<ThemeToggle/>` passed in `actions` renders nothing there (chromeSlot); it lives in the account sheet and the
+footer. Props unchanged (`sub` is kept but not shown: the bar names the club). `live?: boolean` on both (default:
+`useLiveNow()`): «Partidos» gets `.vd-livedot` and «, en directo». Moving between pages from the capsule or the tab
+bar runs the choreography (celeste/pageTransition: html[data-vd-dir] + [data-vd-page]); mark your page's regions
+with `region(n)` to get them in order, and put `morph(LIVE_MORPH)` on whatever shows tonight's score.
 
 ## Reading pieces and small controls
 

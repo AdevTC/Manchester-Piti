@@ -69,7 +69,8 @@ function ranked(lines: PlayerLine[], key: Key, extra: Map<string, number>): Lead
 export function seasonLeaders(matches: readonly ClubMatch[], seasonId: string, players: readonly SquadMember[], now: number): SeasonLeaders {
   const pulse = seasonPulse([...matches], seasonId, now);
   const lines = playerLines([...players], pulse.played);
-  const extra = tonight(pulse.live);
+  // (tonight: the match being played, or the one whose final whistle went and whose acta is still to come)
+  const extra = tonight(pulse.live ?? (pulse.awaiting?.clock?.phase === "ended" ? pulse.awaiting : undefined));
   const goals = ranked(lines, "goals", extra.goals);
   const assists = ranked(lines, "assists", extra.assists);
   const topScorers = goals.filter((r) => r.rank === 1);

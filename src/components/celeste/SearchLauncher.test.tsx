@@ -24,7 +24,7 @@ const inAct = (fire: () => void) =>
 
 it("the button opens the dialog and the focus comes back to it on close", async () => {
   render(<SearchLauncher />);
-  const button = screen.getByRole("button", { name: "Buscar" });
+  const button = screen.getByRole("button", { name: /^Buscar \(/ });
   expect(button).toHaveAttribute("aria-haspopup", "dialog");
   button.focus();
   await inAct(() => fireEvent.click(button));

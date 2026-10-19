@@ -4,11 +4,11 @@
 // morphs from one to the next (view-transition-name). In Tabla, on a desktop, the jornadas still to play
 // carry «¿Y si…?» (G · E · P). Tonight's live jornada is where the floating score docks (useLiveDock anchor).
 import { Fragment, useEffect, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
-import { useLiveDock } from "../../../components/vidrio";
+import { region, useLiveDock } from "../../../components/vidrio";
 import { matchSignature } from "../../../lib/derived/vidrio/signature";
 import type { SeasonStrip, StripSegment, StripWindow } from "../../../lib/derived/vidrio/strip";
 import type { PickLetter } from "../../../lib/derived/vidrio/table";
-import { minimapOf, nearestOnTrack, paintGradient, paintOf, ribbonGaps, segmentAria, shortDay, tinyDay, untilText } from "./model";
+import { lightLine, newDateOf, minimapOf, nearestOnTrack, paintGradient, paintOf, ribbonGaps, segmentAria, shortDay, tinyDay, untilText } from "./model";
 import { Glyph, SignatureSvg } from "./bits";
 
 export interface RibbonProps {
@@ -31,6 +31,10 @@ export interface RibbonProps {
   onSim: (id: string, letter: PickLetter) => void;
   onHoy: () => void;
   hoyDisabled: boolean;
+  /** The floating score docks on tonight's live segment (a desktop only: below, it keeps the phone's home). */
+  dock: boolean;
+  /** Tonight's forecast temperature (the cockpit's light line, «Atardecer y focos, 14°»). */
+  tonightTemp: number | null;
 }
 
 /** Where the floating score docks while tonight's jornada is live (mounted only on that segment). */
@@ -57,13 +61,17 @@ function Paint({ seg, selected }: { seg: StripSegment; selected: boolean }) {
 
 const LETTER_WORD: Record<PickLetter, string> = { G: "Ganamos", E: "Empatamos", P: "Perdemos" };
 
-function Segment({ seg, selected, now, minute, tabbable, simLetter, onPick, onKey }: { seg: StripSegment; selected: boolean; now: number; minute: number | null; tabbable: boolean; simLetter: PickLetter | null; onPick: () => void; onKey: (e: KeyboardEvent<HTMLButtonElement>) => void }) {
+function Segment({ seg, selected, now, minute, tabbable, simLetter, temp, onPick, onKey }: { seg: StripSegment; selected: boolean; now: number; minute: number | null; tabbable: boolean; simLetter: PickLetter | null; temp: number | null; onPick: () => void; onKey: (e: KeyboardEvent<HTMLButtonElement>) => void }) {
   const live = seg.state === "directo";
   const played = seg.state === "jugado";
   const sig = live || played ? matchSignature(seg.match, now, "s") : null;
   const off = seg.state === "aplazado" || seg.state === "suspendido";
-  const dayLine = off || seg.at === null ? "Sin fecha" : shortDay(seg.at);
-  const tinyLine = off || seg.at === null ? "Sin fecha" : tinyDay(seg.at);
+  // (a postponed one says its new date once it has one)
+  const nd = seg.state === "aplazado" ? newDateOf(seg.match) : null;
+  const dayLine = nd !== null ? shortDay(nd, now) : off || seg.at === null ? "Sin fecha" : shortDay(seg.at, now);
+  const tinyLine = nd !== null ? tinyDay(nd, now) : off || seg.at === null ? "Sin fecha" : tinyDay(seg.at, now);
+  // (the cockpit's wide segments say the light of the kick-off; not once it is live or played)
+  const light = seg.state === "hoy" || seg.state === "proximo" ? lightLine(seg, seg.state === "hoy" ? temp : null) : "";
   const cls = ["vp-seg", live && "vp-seg--live", off && "vp-seg--pp", played && "vp-seg--done"].filter(Boolean).join(" ");
   return (
     <button type="button" className={cls} aria-pressed={selected} tabIndex={tabbable ? 0 : -1} aria-label={segmentAria(seg, now, minute)} onClick={onPick} onKeyDown={onKey} data-seg={seg.id}>
@@ -77,6 +85,7 @@ function Segment({ seg, selected, now, minute, tabbable, simLetter, onPick, onKe
         <span className="vp-seg__d">{dayLine}</span>
         <span className="vp-seg__d vp-seg__d--s">{tinyLine}</span>
         <span className="vp-seg__rv">{seg.rival}</span>
+        {light && <span className="vp-seg__l">{light}</span>}
       </span>
       <span className="vp-seg__res" aria-hidden="true">
         {seg.state === "hoy" && seg.at !== null && <span className="vp-seg__cd">{untilText(seg.at, now)}</span>}
@@ -112,7 +121,7 @@ function Segment({ seg, selected, now, minute, tabbable, simLetter, onPick, onKe
   );
 }
 
-export function Ribbon({ strip, list, win, selId, now, liveMinute, simMode, picks, results, onPick, onPage, onWindowAround, onSim, onHoy, hoyDisabled }: RibbonProps) {
+export function Ribbon({ strip, list, win, selId, now, liveMinute, simMode, picks, results, onPick, onPage, onWindowAround, onSim, onHoy, hoyDisabled, dock, tonightTemp }: RibbonProps) {
   const track = useRef<HTMLDivElement | null>(null);
   const drag = useRef<{ id: number; x0: number; moved: boolean } | null>(null);
   const wrap = useRef<HTMLDivElement | null>(null);
@@ -236,7 +245,7 @@ export function Ribbon({ strip, list, win, selId, now, liveMinute, simMode, pick
         </button>
       </div>
       <div ref={wrap} className="vp-ribwrap">
-        <div className={`vp-rib${simMode ? " vp-simmode" : ""}`} role="group" aria-label={`Jornadas ${winTxt}. Las flechas te mueven entre jornadas.`}>
+        <div className={`vp-rib ${region(5)}${simMode ? " vp-simmode" : ""}`} role="group" aria-label={`Jornadas ${winTxt}. Las flechas te mueven entre jornadas.`}>
           <div className="vp-rib__band" aria-hidden="true" />
           {visible.map((seg, k) => {
             const gap = k > 0 ? gaps[k - 1] : null;
@@ -252,8 +261,8 @@ export function Ribbon({ strip, list, win, selId, now, liveMinute, simMode, pick
                 )}
                 <div className={`vp-slot${seg.id === selId ? " is-sel" : ""}`} style={{ "--rd": `${k * 60}ms` } as CSSProperties}>
                   <Paint seg={seg} selected={seg.id === selId} />
-                  <Segment seg={seg} selected={seg.id === selId} now={now} minute={seg.state === "directo" ? liveMinute : null} tabbable={seg.id === tabStop} simLetter={open ? shown : null} onPick={() => onPick(seg.id)} onKey={onSegKey} />
-                  {seg.state === "directo" && <DockAnchor />}
+                  <Segment seg={seg} selected={seg.id === selId} now={now} minute={seg.state === "directo" ? liveMinute : null} tabbable={seg.id === tabStop} simLetter={open ? shown : null} temp={tonightTemp} onPick={() => onPick(seg.id)} onKey={onSegKey} />
+                  {dock && seg.state === "directo" && <DockAnchor />}
                   {simMode && open && (
                     <div className="vd-glass vp-sim" role="group" aria-label={`¿Y si en la J${seg.jornada ?? ""} contra ${seg.rival}…?`}>
                       {(["G", "E", "P"] as const).map((l) => (

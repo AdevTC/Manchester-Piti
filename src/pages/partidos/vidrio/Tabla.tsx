@@ -3,10 +3,10 @@
 // tablet), presets for the rest, what it would mean (points, place, at most, at least) and «Volver a lo real».
 // While a match is live the table is «Si acaba así». A closed season shows how it ended, without «¿y si…?».
 import type { CSSProperties } from "react";
-import { SeeAll } from "../../../components/vidrio";
+import { region, SeeAll } from "../../../components/vidrio";
 import { tableFocus, SIM_PRESETS, type PickLetter, type SimFixture, type SimPreset, type Simulation, type SimRow } from "../../../lib/derived/vidrio/table";
 import { plural } from "../../../lib/derived/words";
-import { formLetters, shortDay, signed, type FormLetter } from "./model";
+import { formLetters, newDateOf, shortDay, signed, type FormLetter } from "./model";
 import type { StripSegment } from "../../../lib/derived/vidrio/strip";
 import { Count, Glyph } from "./bits";
 
@@ -24,6 +24,10 @@ export interface TablaProps {
   closed: boolean;
   segments: readonly StripSegment[];
   lastPlayed: number | null;
+  /** The jornada of the day, counted in the table (live, or played with the standings not yet updated). */
+  tonightJ: number | null;
+  /** Nothing played yet and the first one is today («la liga empieza esta noche»). */
+  startsToday: boolean;
   onGrow: () => void;
   tablaVt: boolean;
   /** The cockpit's «Probarlo en la cinta» (Tabla isn't the vista). */
@@ -53,7 +57,23 @@ function MoveMark({ row, anySim, live }: { row: SimRow; anySim: boolean; live: b
   return null;
 }
 
-export function TableRows({ rows, full, anySim, live }: { rows: readonly SimRow[]; full: boolean; anySim: boolean; live: boolean }) {
+const FORM_WORD = { G: "ganado", E: "empate", P: "perdido" } as const;
+
+/** «Últimos 5»: the league's last five results of a team (oldest → newest), as letters. */
+function LastFive({ form }: { form: readonly ("G" | "E" | "P")[] | undefined }) {
+  if (!form?.length) return <span className="vd-vh">Sin datos</span>;
+  return (
+    <span className="vp-last5" role="img" aria-label={form.map((l) => FORM_WORD[l]).join(", ")}>
+      {form.map((l, i) => (
+        <i key={i} className={`vp-last5__l vp-last5__l--${l.toLowerCase()}`} aria-hidden="true">
+          {l}
+        </i>
+      ))}
+    </span>
+  );
+}
+
+export function TableRows({ rows, full, anySim, live, form = false }: { rows: readonly SimRow[]; full: boolean; anySim: boolean; live: boolean; form?: boolean }) {
   const items = full ? rows.map((r) => ({ kind: "row" as const, pos: r.pos, row: r, us: r.isUs, tied: false })) : tableFocus(rows);
   return (
     <>
@@ -80,6 +100,11 @@ export function TableRows({ rows, full, anySim, live }: { rows: readonly SimRow[
             {full && <td>{it.row.gc}</td>}
             <td>{signed(it.row.gf - it.row.gc)}</td>
             <td className="pts">{it.row.pts}</td>
+            {full && form && (
+              <td className="frm">
+                <LastFive form={it.row.form} />
+              </td>
+            )}
           </tr>
         ),
       )}
@@ -87,7 +112,7 @@ export function TableRows({ rows, full, anySim, live }: { rows: readonly SimRow[
   );
 }
 
-export function TableHead({ full }: { full: boolean }) {
+export function TableHead({ full, form = false }: { full: boolean; form?: boolean }) {
   return (
     <thead>
       <tr>
@@ -122,6 +147,7 @@ export function TableHead({ full }: { full: boolean }) {
         <th>
           <abbr title="Puntos">Pts</abbr>
         </th>
+        {full && form && <th className="frm">Últimos 5</th>}
       </tr>
     </thead>
   );
@@ -143,14 +169,15 @@ function Form({ letters }: { letters: FormLetter[] }) {
   );
 }
 
-export function Tabla({ sim, hasTable, fixtures, picks, preset, onPick, onPreset, onReset, live, closed, segments, lastPlayed, onGrow, tablaVt, onTry, vistaOn, seasonName }: TablaProps) {
+export function Tabla({ sim, hasTable, fixtures, picks, preset, onPick, onPreset, onReset, live, closed, segments, lastPlayed, tonightJ, startsToday, onGrow, tablaVt, onTry, vistaOn, seasonName }: TablaProps) {
   const anySim = !!sim && (sim.picked > 0 || sim.filled > 0);
   const rows = sim?.rows ?? [];
   const focus = tableFocus(rows);
   const shownRows = focus.filter((x) => x.kind === "row").length;
   const hidden = rows.length - shownRows;
   const title = closed ? "Así acabó" : live ? "Si acaba así" : "La clasificación";
-  const sub = closed ? `${seasonName}, final` : anySim ? "Con tus resultados de mentira" : rows.length > 9 ? `${rows.length} equipos; tú, en tu zona` : lastPlayed ? `Después de la J${lastPlayed}` : "Todos a cero: la liga aún no ha empezado";
+  const after = tonightJ ?? lastPlayed;
+  const sub = closed ? `${seasonName}, final` : anySim ? "Con tus resultados de mentira" : rows.length > 9 ? `${rows.length} equipos; tú, en tu zona` : after ? `Después de la J${after}` : startsToday ? "Todos a cero: la liga empieza esta noche" : "Todos a cero: la liga aún no ha empezado";
   const open = fixtures.length;
   const unpicked = fixtures.filter((f) => !Object.hasOwn(picks, f.id)).length;
   const next5 = fixtures.slice(0, 5);
@@ -158,7 +185,7 @@ export function Tabla({ sim, hasTable, fixtures, picks, preset, onPick, onPreset
   const results = sim?.results ?? {};
   const line = sim && sim.points !== null && sim.position !== null ? `${anySim ? "Con lo que has tocado" : "Ahora mismo"}: ${plural(sim.points, "punto")}, ${ord(sim.position)}.${rows.length > 7 && anySim ? " Los demás equipos se quedan como están." : ""}${sim.champions ? " Campeones, si acaba así." : ""}` : "";
   return (
-    <section className="vp-tabla" aria-labelledby="vp-tt">
+    <section className={`vp-tabla ${region(3)}`} aria-labelledby="vp-tt">
       <div className="vp-tabla__t vd-grow-src" style={tablaVt ? ({ viewTransitionName: "vp-grow" } as CSSProperties) : undefined}>
         <div className="vp-tabla__head">
           <h2 className="vd-h3" id="vp-tt">
@@ -193,7 +220,7 @@ export function Tabla({ sim, hasTable, fixtures, picks, preset, onPick, onPreset
           <p className="vp-empty">La liga aún no ha publicado la clasificación de esta temporada.</p>
         )}
       </div>
-      <div className="vp-y">
+      <div className={`vp-y${vistaOn ? " vp-y--on" : ""}`}>
         {closed ? (
           <>
             <h3 className="vd-h4">La temporada acabó</h3>
@@ -207,7 +234,10 @@ export function Tabla({ sim, hasTable, fixtures, picks, preset, onPick, onPreset
         ) : (
           <>
             <h3 className="vd-h4">¿Y si…?</h3>
-            <p className="vd-body vp-help vp-help--desk">{vistaOn ? "Toca G, E o P en las jornadas que faltan, en la cinta de arriba; muévela para llegar a las demás. Solo lo ves tú." : "Pon resultados de mentira a lo que falta y mira la tabla moverse."}</p>
+            <p className="vd-body vp-help vp-help--desk">
+              <span className="vp-help--wide">{vistaOn ? "Toca G, E o P en las jornadas que faltan, en la cinta de arriba; muévela para llegar a las demás. Solo lo ves tú." : "Pon resultados de mentira a lo que falta y mira la tabla moverse."}</span>
+              <span className="vp-help--cock">{vistaOn ? "Toca G, E o P en la cinta. Solo lo ves tú." : "Pon resultados de mentira y mira la tabla moverse."}</span>
+            </p>
             <p className="vd-body vp-help vp-help--mob">Elige G, E o P en las próximas {Math.min(5, open)}. Solo lo ves tú: no cambia nada de verdad.</p>
             {!vistaOn && (
               <div className="vp-btns vp-try">
@@ -228,7 +258,7 @@ export function Tabla({ sim, hasTable, fixtures, picks, preset, onPick, onPreset
                         J{f.jornada ?? "·"}, {f.rival}
                       </b>
                       <span>
-                        {f.state === "aplazado" ? "Aplazado, sin fecha" : f.at !== null ? shortDay(f.at) : "Sin fecha"}, {seg?.home === false ? "fuera" : "en casa"}
+                        {f.state === "aplazado" ? (seg && newDateOf(seg.match) !== null ? `Aplazado, ${shortDay(newDateOf(seg.match) ?? 0).toLocaleLowerCase("es")}` : "Aplazado, sin fecha") : f.at !== null ? shortDay(f.at) : "Sin fecha"}, {seg?.home === false ? "fuera" : "en casa"}
                       </span>
                     </div>
                     <div className="vd-glass vd-seg" role="group" aria-label={`¿Y si en la J${f.jornada ?? ""} contra ${f.rival}…?`} style={{ "--i": at, "--n": 3 } as CSSProperties}>

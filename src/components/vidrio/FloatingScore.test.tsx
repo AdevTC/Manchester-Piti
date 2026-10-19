@@ -105,7 +105,7 @@ describe("«Sacar el marcador»", () => {
     );
     const win = screen.getByRole("dialog", { name: "Manchester Piti contra Orduña fc" });
     expect(win).toHaveTextContent("2–1");
-    fireEvent.click(screen.getByRole("button", { name: "Cerrar el marcador" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar la ventana" }));
     act(() => {
       fireEvent.keyDown(win, { key: "Escape" });
     });
@@ -127,7 +127,7 @@ describe("«Sacar el marcador»", () => {
       );
       // (another document's nodes: jest-dom's matchers only take this one's)
       expect(pipDoc.body.textContent).toBe("2–1");
-      expect(pipDoc.title).toBe("Marcador del Manchester Piti");
+      expect(pipDoc.title).toBe("Manchester Piti, marcador");
     } finally {
       delete host.documentPictureInPicture;
     }
