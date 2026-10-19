@@ -1,0 +1,67 @@
+/* «Vidrio» shared chrome, every page (components/celeste/Chrome.tsx keeps its DOM, names and slots):
+   the header's nav is the glass capsule with a bead on the current page, the header's round actions are small
+   glass buttons, «Vestuario» is the primary glass button (no gold: gold is only the goal and the MVP), and the
+   phone/tablet dock is the glass tab bar. Mona Sans for the chrome's words. Selectors carry the element
+   (header.vx-top, nav.vx-dock) so they win over the Celeste base (vestuario.css, search.css, notices.css) in
+   whatever order the lazy sheets load. */
+header.vx-top{font-family:var(--vd-sans)}
+header.vx-top .vx-brand img{width:36px;height:36px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.25),0 6px 18px -6px var(--vd-glow)}
+header.vx-top .vx-brand-name{font-family:var(--vd-sans);font-weight:720;font-size:18px;font-variation-settings:'wdth' 92;font-stretch:92%;letter-spacing:-.02em}
+header.vx-top .vx-brand-sub{font-family:var(--vd-sans);font-weight:620;font-size:16px;letter-spacing:-.01em}
+
+/* the capsule */
+header.vx-top .vx-nav .vx-nav-in{--vd-r:var(--vd-r-capsule);align-items:center;gap:2px;height:58px;padding:6px;border-radius:999px;
+  background:linear-gradient(165deg,var(--vd-g-sheen),rgba(255,255,255,.02) 38%,rgba(255,255,255,0) 60%,rgba(108,171,221,.07)),var(--vd-g-tint);
+  -webkit-backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat)) brightness(1.05);backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat)) brightness(1.05);
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.10),inset 0 14px 24px -18px rgba(255,255,255,.22),inset 0 -18px 30px -22px var(--vd-glow),0 30px 70px -34px var(--vd-glow)}
+header.vx-top .vx-nav .vx-nav-in a{position:relative;z-index:2;display:inline-flex;align-items:center;justify-content:center;height:46px;min-height:44px;padding:0 clamp(12px,1.25cqi,18px);border-radius:999px;
+  font-family:var(--vd-sans);font-weight:560;font-size:15px;letter-spacing:-.005em;color:var(--vd-g-ink2);background:none;text-decoration:none;white-space:nowrap;transition:color .3s,background .3s}
+header.vx-top .vx-nav .vx-nav-in a:hover{color:var(--vd-g-ink)}
+/* the bead: a small lens sitting on the current page */
+header.vx-top .vx-nav .vx-nav-in a.on{color:var(--vd-g-ink);font-weight:650;background:var(--vd-bead);box-shadow:var(--vd-bead-shadow)}
+header.vx-top .vx-nav .vx-nav-in a:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-2px}
+
+/* the round actions: theme, search, bell */
+header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell){height:44px;min-width:44px;border:0;border-radius:999px;color:var(--vd-g-ink);font-family:var(--vd-sans);font-weight:600;
+  background:linear-gradient(165deg,var(--vd-g-sheen),rgba(255,255,255,.02) 40%,rgba(255,255,255,0) 62%),var(--vd-g-tint);
+  -webkit-backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat));backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(2,8,26,.25),inset 0 0 0 .5px rgba(255,255,255,.16),0 14px 30px -18px var(--vd-glow);transition:transform .5s var(--vd-spring),background .3s}
+header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell):active{transform:scale(.965)}
+header.vx-top .vx-actions :is(.sr-btn,.nt-bell)[aria-expanded="true"]{box-shadow:inset 0 0 0 2px var(--vd-celeste),0 14px 30px -18px var(--vd-glow)}
+header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell):focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+header.vx-top .vx-actions .sr-btn-k{font-family:var(--vd-mono);color:var(--vd-g-ink2);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+/* the unread dot is celeste (gold is only the goal and the MVP) */
+header.vx-top .vx-actions .nt-dot{background:var(--vd-celeste);box-shadow:0 0 0 2px var(--vd-marino)}
+:root[data-theme="light"] header.vx-top .vx-actions .nt-dot{background:#2C6A9E;box-shadow:0 0 0 2px #fff}
+/* «Vestuario»: the primary glass button */
+header.vx-top .vx-actions .hm-cta-top{position:relative;height:44px;border-radius:999px;font-family:var(--vd-sans);font-weight:650;font-size:14.5px;letter-spacing:-.005em;color:#fff;
+  background:linear-gradient(165deg,rgba(255,255,255,.26),rgba(255,255,255,.02) 40%,rgba(255,255,255,0) 62%),var(--vd-pri);
+  -webkit-backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat));backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),inset 0 -1px 0 rgba(2,8,26,.3),inset 0 0 0 .5px rgba(255,255,255,.22),0 16px 34px -18px var(--vd-glow);transition:transform .5s var(--vd-spring)}
+header.vx-top .vx-actions .hm-cta-top:active{transform:scale(.965)}
+header.vx-top .vx-actions .hm-cta-top[aria-current=page]{outline:2px solid var(--vd-hielo);outline-offset:-5px}
+:root[data-theme="light"] header.vx-top .vx-actions .hm-cta-top[aria-current=page]{outline-color:#fff}
+header.vx-top .vx-actions .hm-cta-top:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+
+/* the phone/tablet tab bar: the same capsule at the bottom */
+/* (z 8: over the pages' own sticky bars, like the match page's tabs at 7; still under menus and sheets) */
+nav.vx-dock.vd-glass{--vd-r:999px;z-index:8;height:64px;padding:0 5px;border-radius:999px;font-family:var(--vd-sans);
+  background:linear-gradient(165deg,var(--vd-g-sheen),rgba(255,255,255,.02) 38%,rgba(255,255,255,0) 60%,rgba(108,171,221,.07)),var(--vd-g-tint);
+  -webkit-backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat)) brightness(1.05);backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat)) brightness(1.05);
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.10),inset 0 14px 24px -18px rgba(255,255,255,.22),inset 0 -18px 30px -22px var(--vd-glow),0 30px 70px -34px var(--vd-glow)}
+nav.vx-dock.vd-glass a{position:relative;z-index:2;height:52px;border-radius:999px;color:var(--vd-g-ink2);text-decoration:none}
+nav.vx-dock.vd-glass a:hover{color:var(--vd-g-ink)}
+nav.vx-dock.vd-glass a.on{color:var(--vd-g-ink);background:var(--vd-bead);box-shadow:var(--vd-bead-shadow);font-family:var(--vd-sans);font-weight:650;font-size:14px}
+nav.vx-dock.vd-glass a.on svg{color:var(--vd-celeste);flex:none}
+:root[data-theme="light"] nav.vx-dock.vd-glass a.on svg{color:#2C6A9E}
+nav.vx-dock.vd-glass a:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-2px}
+nav.vx-dock.vd-glass a:not(.on) .vd-livedot{position:absolute;top:9px;right:7px;margin:0}
+nav.vx-dock.vd-glass a.on .vd-livedot{margin-left:2px}
+
+@media (prefers-reduced-transparency:reduce){
+  header.vx-top .vx-nav .vx-nav-in,nav.vx-dock.vd-glass,header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell){-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--vd-solid)}
+}
+@media (prefers-reduced-motion:reduce){
+  .vd-livedot{animation:none}
+  header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell,.hm-cta-top){transition:none}
+}
