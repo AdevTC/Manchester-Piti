@@ -8,7 +8,7 @@ import { region, useLiveDock } from "../../../components/vidrio";
 import { matchSignature } from "../../../lib/derived/vidrio/signature";
 import type { SeasonStrip, StripSegment, StripWindow } from "../../../lib/derived/vidrio/strip";
 import type { PickLetter } from "../../../lib/derived/vidrio/table";
-import { lightLine, minimapOf, nearestOnTrack, paintGradient, paintOf, ribbonGaps, segmentAria, shortDay, tinyDay, untilText } from "./model";
+import { lightLine, newDateOf, minimapOf, nearestOnTrack, paintGradient, paintOf, ribbonGaps, segmentAria, shortDay, tinyDay, untilText } from "./model";
 import { Glyph, SignatureSvg } from "./bits";
 
 export interface RibbonProps {
@@ -66,8 +66,10 @@ function Segment({ seg, selected, now, minute, tabbable, simLetter, temp, onPick
   const played = seg.state === "jugado";
   const sig = live || played ? matchSignature(seg.match, now, "s") : null;
   const off = seg.state === "aplazado" || seg.state === "suspendido";
-  const dayLine = off || seg.at === null ? "Sin fecha" : shortDay(seg.at, now);
-  const tinyLine = off || seg.at === null ? "Sin fecha" : tinyDay(seg.at, now);
+  // (a postponed one says its new date once it has one)
+  const nd = seg.state === "aplazado" ? newDateOf(seg.match) : null;
+  const dayLine = nd !== null ? shortDay(nd, now) : off || seg.at === null ? "Sin fecha" : shortDay(seg.at, now);
+  const tinyLine = nd !== null ? tinyDay(nd, now) : off || seg.at === null ? "Sin fecha" : tinyDay(seg.at, now);
   // (the cockpit's wide segments say the light of the kick-off; not once it is live or played)
   const light = seg.state === "hoy" || seg.state === "proximo" ? lightLine(seg, seg.state === "hoy" ? temp : null) : "";
   const cls = ["vp-seg", live && "vp-seg--live", off && "vp-seg--pp", played && "vp-seg--done"].filter(Boolean).join(" ");

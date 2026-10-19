@@ -239,18 +239,27 @@ export function PartidosPage() {
       else picks[id] = l;
       return { ...sim, picks };
     });
+  // focus follows the window: into its title when it grows, back to «Ver todo» when it closes (on a phone the
+  // summary is hidden while the window is open, so the browser alone would drop focus to the page's start)
+  const opener = useRef<HTMLElement | null>(null);
   const openGrow = (k: GrowKind) => {
+    opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     const run = () =>
-      swap("up", () => {
+      void swap("up", () => {
         setGrow({ open: k, from: k });
         setPf("todo");
-      });
+      }).finished.then(() => document.querySelector<HTMLElement>(".vp-grow .vd-grow__head h2")?.focus());
     // (with View Transitions the summary first takes the shared name, a frame before the change is captured)
-    if (!supportsViewTransitions()) return void run();
+    if (!supportsViewTransitions()) return run();
     setGrow({ open: null, from: k });
-    requestAnimationFrame(() => void run());
+    requestAnimationFrame(run);
   };
-  const closeGrow = () => swap("up", () => setGrow((g) => ({ open: null, from: g.from })));
+  const closeGrow = () =>
+    void swap("up", () => setGrow((g) => ({ open: null, from: g.from }))).finished.then(() => {
+      const back = opener.current;
+      opener.current = null;
+      if (back?.isConnected) back.focus();
+    });
   const onPip = () => {
     if (pip) {
       pip.close();
@@ -323,6 +332,10 @@ export function PartidosPage() {
     me: member && viewer.playerId ? viewer.playerId : null,
     captainId: season?.captainPlayerId ?? null,
     mvp: selMvp,
+    mvpTurnout: (() => {
+      const r = sel ? mvpResults.get(sel.match.id) : undefined;
+      return r ? { total: r.total, eligible: typeof r.eligible === "number" && r.eligible > 0 ? r.eligible : null } : null;
+    })(),
     seasonClosed: closed,
     tonight: !!sel && !!todaySeg && sel.id === todaySeg.id,
     logros,
@@ -381,13 +394,15 @@ export function PartidosPage() {
     }
     if (grow.open === "tabla" && simulation) {
       const anySim = simulation.picked > 0 || simulation.filled > 0;
+      // («Últimos 5»: the league's form of each team, when the table brings it)
+      const form = simulation.rows.some((r) => (r.form?.length ?? 0) > 0);
       return (
-        <GrowWindow open name="vp-grow" className="vp-grow" title="La tabla entera" sub={`Los ${simulation.rows.length} equipos${anySim ? ", con tus resultados de mentira." : "."}`} onClose={closeGrow}>
+        <GrowWindow open name="vp-grow" className="vp-grow" title="La tabla entera" sub={`Los ${simulation.rows.length} equipos${anySim ? ", con tus resultados de mentira." : form ? ", con la forma de cada uno." : "."}`} onClose={closeGrow}>
           <table className="vd-table vp-tfull">
             <caption className="vd-vh">La tabla entera</caption>
-            <TableHead full />
+            <TableHead full form={form} />
             <tbody>
-              <TableRows rows={simulation.rows} full anySim={anySim} live={!!liveSeg} />
+              <TableRows rows={simulation.rows} full anySim={anySim} live={!!liveSeg} form={form} />
             </tbody>
           </table>
         </GrowWindow>

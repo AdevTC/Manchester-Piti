@@ -39,10 +39,10 @@ vi.mock("../../lib/useSetSeason", () => ({ useSetSeason: () => spies.setSeason }
 vi.mock("../../hooks/useClock", () => ({ useClock: () => clock.now }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => ({ member: who.member, admin: false, playerId: who.playerId }) }));
 vi.mock("../../hooks/useDocumentTheme", () => ({ useDocumentTheme: () => "dark" }));
-vi.mock("../../lib/weather", async (orig) => ({ ...(await orig<typeof import("../../lib/weather")>()), useMatchWeather: () => null }));
+vi.mock("../../lib/weather", async (orig) => ({ ...(await orig<typeof import("../../lib/weather")>()), useMatchWeather: () => null, useMatchWeatherHourly: () => null }));
 vi.mock("../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 vi.mock("../vestuario/live", () => ({
-  useMvpResults: () => new Map([["j5", { id: "j5", counts: { alcides: 9 }, total: 9 }]]),
+  useMvpResults: () => new Map([["j5", { id: "j5", counts: { alcides: 9 }, total: 9 }], ["j16", { id: "j16", counts: {}, total: 9, eligible: 14, open: true }]]),
   useLiveDoc: (path: string | null) => {
     spies.liveDoc(path);
     return { data: who.answer, loading: false, error: null };
@@ -264,6 +264,47 @@ it("«Ver todo el partido» grows the plays, with filters", () => {
   fireEvent.click(within(grown).getByRole("button", { name: "Goles" }));
   expect(grown.querySelectorAll(".vd-play").length).toBeLessThan(all);
   expect([...grown.querySelectorAll(".vd-play b")].every((b) => /^Gol|Autogol/.test(b.textContent ?? ""))).toBe(true);
+});
+
+it("«Ver todo»: focus goes into the window's title, and back to «Ver todo» when it closes", async () => {
+  render(<PartidosPage />);
+  const open = within(lens()).getByRole("button", { name: "Ver todo el partido" });
+  open.focus();
+  await act(async () => {
+    fireEvent.click(open);
+  });
+  const grown = screen.getByRole("region", { name: "Jugada a jugada, J17" });
+  expect(document.activeElement).toBe(within(grown).getByRole("heading", { level: 2 }));
+  await act(async () => {
+    fireEvent.click(within(grown).getByRole("button", { name: "Cerrar" }));
+  });
+  expect(document.activeElement).toBe(within(lens()).getByRole("button", { name: "Ver todo el partido" }));
+});
+
+it("the contracts: the mesa's scorer, a postponed match's reason and new date", () => {
+  data.matches = (data.matches as ClubMatch[]).map((m) =>
+    m.id === "j17" ? ({ ...m, mesa: { name: "Jorge", since: F.now - 60_000 } } as ClubMatch) : m.id === "j20" ? ({ ...m, postponedReason: "Por lluvia: el campo no estaba para jugar", postponedTo: F.now + 20 * DAY } as ClubMatch) : m,
+  );
+  render(<PartidosPage />);
+  expect(lens()).toHaveTextContent("Lo anota Jorge desde la mesa.");
+  const search = screen.getByRole("searchbox", { name: "Buscar rival" });
+  fireEvent.change(search, { target: { value: "sporting" } });
+  fireEvent.click(screen.getByRole("button", { name: /^J20, Sporting de Brugal/ }));
+  expect(lens()).toHaveTextContent("Aplazado por lluvia: el campo no estaba para jugar.");
+  expect(lens()).toHaveTextContent(/Se juega el \S+ \d+ de \S+ a las \d\d:\d\d/);
+  expect(within(lens()).getByRole("button", { name: /Al calendario/ })).toBeInTheDocument();
+});
+
+it("the MVP while the vote is open: the turnout only («9 de 14 votos»), never a leader; a member's gold «Vota al MVP»", async () => {
+  who.member = true;
+  who.playerId = "jordi";
+  data.matches = (data.matches as ClubMatch[]).map((m) => (m.id === "j16" ? ({ ...m, voteClosesAt: F.now + 2 * DAY } as ClubMatch) : m));
+  render(<PartidosPage />);
+  fireEvent.keyDown(seg(17)!, { key: "ArrowLeft" });
+  expect(lens()).toHaveTextContent(/Se está votando9 de 14 votos. La votación se cierra el \S+\./);
+  expect(lens()).not.toHaveTextContent("de momento");
+  expect(await within(lens()).findByRole("link", { name: /Vota al MVP/ }, LAZY)).toHaveAttribute("href", "/matches/j16");
+  expect(lens()).toHaveTextContent("Tú aún no has votado.");
 });
 
 it("el cartel: a poster of the jornada in a sheet, «Compartir» and «Guardar la imagen»", () => {

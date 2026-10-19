@@ -4,6 +4,11 @@ import { longSeasonFixture, madridMs } from "../../../lib/derived/vidrio/fixture
 import {
   boardPlay,
   breakName,
+  closesWord,
+  newDateLine,
+  newDateOf,
+  playedWeatherLine,
+  postponedLine,
   decollide,
   leaguePhrase,
   lightLine,
@@ -237,5 +242,19 @@ describe("the cierre: today, the light line, the season in words, the lens's wor
       8,
     );
     expect(out.map((o) => o.kind)).toEqual(["otro", "gol", "parada", "palo"]);
+  });
+  it("the new data in words: why it was postponed, its new date, when the vote closes, the weather it had", () => {
+    expect(postponedLine("Por lluvia: el campo no estaba para jugar")).toBe("Aplazado por lluvia: el campo no estaba para jugar.");
+    expect(postponedLine("El campo estaba cerrado por obras")).toBe("Aplazado: el campo estaba cerrado por obras.");
+    expect(postponedLine("Aplazado por la federación.")).toBe("Aplazado por la federación.");
+    expect(postponedLine("  ")).toBe("");
+    expect(newDateOf({ postponedTo: 5 })).toBe(5);
+    expect(newDateOf({ postponedTo: null })).toBeNull();
+    expect(newDateLine(madridMs(2027, 2, 3, 21))).toBe("Se juega el miércoles 3 de febrero a las 21:00");
+    const now = madridMs(2026, 10, 18, 20);
+    expect(closesWord(madridMs(2026, 10, 20, 21), now)).toBe("el martes");
+    expect(closesWord(madridMs(2026, 10, 19, 21), now)).toBe("mañana a las 21:00");
+    expect(closesWord(madridMs(2026, 11, 3, 21), now)).toBe("el martes 3 de noviembre");
+    expect(playedWeatherLine({ temp: 15.4, label: "Nubes y claros" })).toBe("Hizo 15°, nubes y claros, a la hora del pitido.");
   });
 });

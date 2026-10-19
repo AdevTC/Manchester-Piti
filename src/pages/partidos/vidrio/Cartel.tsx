@@ -5,6 +5,7 @@
 // when asked for.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Cartel } from "../../../lib/derived/vidrio/cartel";
+import { venueName } from "../model";
 import { PAINT_STOPS, paintGradient, type SegmentPaint } from "./model";
 import { Glyph, SignatureSvg } from "./bits";
 
@@ -38,7 +39,7 @@ export function Poster({ cartel, paint }: { cartel: Cartel; paint: SegmentPaint 
             {cartel.dateLine}
             {cartel.time ? `, ${cartel.time}` : ""}
             <br />
-            {cartel.venue}
+            {venueName(cartel.venue)}
           </div>
           <div style={{ textAlign: "right" }}>
             <b>{cartel.big}</b>
@@ -151,7 +152,7 @@ async function drawCartel(cartel: Cartel, paint: SegmentPaint): Promise<Blob> {
   g.fillStyle = "#fff";
   g.font = "560 36px 'Mona Sans', system-ui, sans-serif";
   g.fillText(`${cartel.dateLine}${cartel.time ? `, ${cartel.time}` : ""}`, pad, 1240, 560);
-  g.fillText(cartel.venue, pad, 1286, 560);
+  g.fillText(venueName(cartel.venue), pad, 1286, 560);
   g.textAlign = "right";
   g.font = "800 112px 'Mona Sans', system-ui, sans-serif";
   g.fillText(cartel.big, W - pad, 1270, 440);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ClubMatch } from "../../clubData";
+import type { ClubMatch, Participation } from "../../clubData";
 import { scoreOf } from "../../partidos";
 import { cleanSheetsByKeeper, keeperOf, seasonCards } from "./keepers";
 import { actaPlayers, matchLogros } from "./matchLogros";
@@ -7,7 +7,7 @@ import { actaPlayers, matchLogros } from "./matchLogros";
 const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 9, 4, 17);
 
-const row = (played: boolean, extra: Record<string, unknown> = {}) => ({ played, minutes: played ? 50 : 0, goals: 0, assists: 0, ...extra });
+const row = (played: boolean, extra: Record<string, unknown> = {}) => ({ played, minutes: played ? 50 : 0, goals: 0, assists: 0, ...extra }) as unknown as Participation;
 const match = (id: string, i: number, more: Partial<ClubMatch> & { lineup?: unknown }): ClubMatch =>
   ({ id, seasonId: "t1", version: 2, rival: `Rival ${i}`, status: "finished", date: T0 + i * 7 * DAY, home: true, duration: 50, starters: [], bench: [], events: [], goalsFor: 1, goalsAgainst: 0, ...more }) as ClubMatch;
 
@@ -22,7 +22,7 @@ describe("clean sheets by keeper", () => {
 
   it("one row per keeper, most first; the live match at nil «de momento»", () => {
     const played = [match("a", 0, { starters: ["evans"], goalsAgainst: 0 }), match("b", 1, { starters: ["evans"], goalsAgainst: 2 }), match("c", 2, { starters: ["kevin"], goalsAgainst: 0 }), match("d", 3, { starters: ["evans"], goalsAgainst: 0 })];
-    const live = match("e", 4, { status: "live", starters: ["evans"], goalsAgainst: undefined, goalsFor: undefined, events: [] });
+    const live = match("e", 4, { status: "scheduled", starters: ["evans"], goalsAgainst: undefined, goalsFor: undefined, events: [] });
     expect(cleanSheetsByKeeper(played, scoreOf)).toEqual([
       { id: "evans", clean: 2, provisional: false },
       { id: "kevin", clean: 1, provisional: false },
@@ -34,7 +34,7 @@ describe("clean sheets by keeper", () => {
     const y = (id: string, type = "yellow_card") => ({ id, type, playerId: "fer", minute: 10 });
     const played = [match("a", 0, { events: [y("1"), y("2", "double_yellow")] as ClubMatch["events"] })];
     expect(seasonCards(played)).toEqual({ cards: 3, provisional: false });
-    expect(seasonCards(played, match("b", 1, { status: "live", events: [y("3")] as ClubMatch["events"] }))).toEqual({ cards: 4, provisional: true });
+    expect(seasonCards(played, match("b", 1, { status: "scheduled", events: [y("3")] as ClubMatch["events"] }))).toEqual({ cards: 4, provisional: true });
   });
 });
 

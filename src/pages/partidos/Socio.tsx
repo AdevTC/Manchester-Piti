@@ -20,7 +20,7 @@ import { rsvpSummary } from "../../lib/rsvp";
 import { setAvailability, useMe, type Me } from "../vestuario/writes";
 import { useAvailability, useLiveDoc, useMyMvpVote, useMyPrediction } from "../vestuario/live";
 import { isCalled } from "./model";
-import { longDay, porraVerdict } from "./vidrio/model";
+import { porraVerdict } from "./vidrio/model";
 import { Glyph } from "./vidrio/bits";
 
 type Answer = "yes" | "maybe" | "no";
@@ -160,7 +160,7 @@ export function PorraCard({ match, score, live, played }: { match: ClubMatch; sc
     <div className="vp-porra vp-porra--open">
       <div>
         <b>{mine ? "Tu porra" : saved.loading ? "Tu porra…" : "Tu porra, sin poner"}</b>
-        <span className="vp-sub">Se cierra con el pitido. Solo tú la ves hasta entonces.</span>
+        <span className="vp-sub">Se cierra con el pitido</span>
       </div>
       {mine && (
         <span className="vd-score" aria-label={`Tu porra: ${mine}`}>
@@ -194,18 +194,17 @@ export function PorraNote({ match, gf, ga }: { match: ClubMatch; gf: number; ga:
 }
 
 /** His MVP vote while the vote is open: the gold «Vota al MVP» (to the match's vote) and where he stands. */
-export function MvpMine({ match, closesAt, nameOf }: { match: ClubMatch; closesAt: number; nameOf: (id: string) => string }) {
+export function MvpMine({ match, until, nameOf }: { match: ClubMatch; until: string; nameOf: (id: string) => string }) {
   const me = useMe();
   const vote = useMyMvpVote(match.id, me?.uid);
   if (!me) return null;
-  const until = longDay(closesAt).split(" ")[0];
   return (
     <div className="vp-btns vp-mvpme">
       <Link className="vd-glass vd-btn vd-btn--sm vd-btn--gold vd-press" to="/matches/$matchId" params={{ matchId: match.id }}>
         <Glyph name="star" />
         {vote.data ? "Cambiar tu voto" : "Vota al MVP"}
       </Link>
-      <p className="vp-note">{vote.data ? `Votaste a ${nameOf(vote.data)}. Puedes cambiarlo hasta el ${until}.` : "Tú aún no has votado."}</p>
+      <p className="vp-note">{vote.data ? `Votaste a ${nameOf(vote.data)}. Puedes cambiarlo hasta ${until}.` : "Tú aún no has votado."}</p>
     </div>
   );
 }

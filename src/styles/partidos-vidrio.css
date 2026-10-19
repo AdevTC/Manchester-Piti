@@ -665,7 +665,7 @@
 .vp-simmode .vp-seg__l{display:none!important}
 .vp-floataway{position:fixed;left:50%;bottom:0;width:1px;height:1px;pointer-events:none}
 .vp-lensmark{position:absolute;inset:0;pointer-events:none;z-index:-1}
-.vd-grow .vp-lensmark{position:sticky;inset:auto;top:0;display:block;height:1px}
+.vd-grow .vp-lensmark{position:absolute;inset:0}
 /* the lens's glint sweeps once after a pick */
 .vp-sweep .vd-glint::before{animation:vd-glint .9s .15s var(--vd-ease) both}
 /* tools: the season keeps its whole name; the closed season's bar wraps on a phone */
@@ -702,6 +702,21 @@
 .vp-map__lab,.vp-map__pin{z-index:2}
 .vp-map__osm{position:absolute;right:6px;bottom:4px;z-index:2;font-size:11.5px;line-height:1.2;color:#EAF3FC;text-shadow:0 1px 2px rgba(0,8,30,.8);text-decoration:none}
 .vp-map__osm:hover{text-decoration:underline}
+/* the weather by hour (kick-off −1 h … +2 h, the kick-off's hour bold), and what it was like once played */
+.vp-wx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;border-top:1px solid var(--vd-rule);padding:12px 0 0;margin:0;list-style:none}
+.vp-wx__h{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:13.5px;color:var(--vd-g-ink2);font-feature-settings:'tnum' 1}
+.vp-wx__h svg{width:22px;height:22px;color:var(--vd-g-ink)}
+.vp-wx__h b{font-size:17px;font-weight:700;color:var(--vd-g-ink)}
+.vp-wx__h.is-kick{color:var(--vd-g-ink)}
+.vp-wx__h.is-kick span{font-weight:700}
+.vp-wxnote{font-size:12.8px;color:var(--vd-g-ink2);margin-top:6px!important;text-align:center}
+/* «Últimos 5» in the whole table */
+.vp-tfull th.frm,.vp-tfull td.frm{text-align:right;white-space:nowrap}
+.vp-last5{display:inline-flex;gap:3px;vertical-align:middle}
+.vp-last5__l{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;font-style:normal;font-size:11.5px;font-weight:780;line-height:1;background:rgba(234,243,252,.12);color:var(--vd-g-ink)}
+.vp-last5__l--g{background:rgba(234,243,252,.92);color:#0C1733}
+.vp-last5__l--p{background:transparent;box-shadow:inset 0 0 0 1.5px var(--vd-rival);color:var(--vd-rival)}
+:root[data-theme="light"] .vp-last5__l--g{background:#0C1733;color:#fff}
 /* directo: the porra's line */
 .vp-porranote{margin:4px 0 0!important}
 /* acta: the MVP while it is voted, the logros, the cartel inline (the cockpit) */
@@ -748,8 +763,7 @@
 }
 @media (min-width:1800px){
   /* the cockpit: the cartel inline (Previa, Acta) instead of the header's button; the porra under the weather */
-  .vp-lens--inline .vp-cbtn{display:none}
-  .vp-lens:not(.vp-lens--inline) .vp-cbtn{display:inline-flex}
+  /* (as the board: no header button in the cockpit; Previa and Acta carry the cartel inline) */
   .vp-cartel-inline{display:block;grid-column:3;grid-row:1;min-width:0}
   .vp-cartel-inline .vp-sub{margin-top:8px}
   .vp-cartel-inline .vp-btns .vd-btn{width:100%}

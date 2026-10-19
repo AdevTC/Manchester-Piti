@@ -5,7 +5,7 @@ import { useId, useRef, useState, type CSSProperties, type KeyboardEvent } from 
 import { STRIP_FILTERS, type StripFilter, type StripSegment } from "../../../lib/derived/vidrio/strip";
 import { searchRival } from "../../../lib/derived/vidrio/strip";
 import { Glyph } from "./bits";
-import { shortDay } from "./model";
+import { newDateOf, shortDay } from "./model";
 
 export interface SeasonOption {
   id: string;
@@ -144,8 +144,9 @@ export function RivalSearch({ segments, onJump }: { segments: readonly StripSegm
     onJump(s.id);
   };
   const sub = (s: StripSegment) => {
-    // (a postponed one keeps the date it had: «Dom 29 nov, 18:00, aplazado»)
-    const day = s.at !== null ? shortDay(s.at) : "Sin fecha";
+    // (a postponed one says its new date once it has one, else the date it had: «Dom 29 nov, 18:00, aplazado»)
+    const nd = s.state === "aplazado" ? newDateOf(s.match) : null;
+    const day = nd !== null ? shortDay(nd) : s.at !== null ? shortDay(s.at) : "Sin fecha";
     const tail = s.state === "jugado" && s.score ? `, ${s.score.gf}–${s.score.ga}` : s.state === "directo" ? ", en directo" : s.state === "aplazado" ? ", aplazado" : "";
     return `${day}${tail}`;
   };

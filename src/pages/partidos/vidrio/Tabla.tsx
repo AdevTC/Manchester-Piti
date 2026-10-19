@@ -6,7 +6,7 @@ import type { CSSProperties } from "react";
 import { region, SeeAll } from "../../../components/vidrio";
 import { tableFocus, SIM_PRESETS, type PickLetter, type SimFixture, type SimPreset, type Simulation, type SimRow } from "../../../lib/derived/vidrio/table";
 import { plural } from "../../../lib/derived/words";
-import { formLetters, shortDay, signed, type FormLetter } from "./model";
+import { formLetters, newDateOf, shortDay, signed, type FormLetter } from "./model";
 import type { StripSegment } from "../../../lib/derived/vidrio/strip";
 import { Count, Glyph } from "./bits";
 
@@ -57,7 +57,23 @@ function MoveMark({ row, anySim, live }: { row: SimRow; anySim: boolean; live: b
   return null;
 }
 
-export function TableRows({ rows, full, anySim, live }: { rows: readonly SimRow[]; full: boolean; anySim: boolean; live: boolean }) {
+const FORM_WORD = { G: "ganado", E: "empate", P: "perdido" } as const;
+
+/** «Últimos 5»: the league's last five results of a team (oldest → newest), as letters. */
+function LastFive({ form }: { form: readonly ("G" | "E" | "P")[] | undefined }) {
+  if (!form?.length) return <span className="vd-vh">Sin datos</span>;
+  return (
+    <span className="vp-last5" role="img" aria-label={form.map((l) => FORM_WORD[l]).join(", ")}>
+      {form.map((l, i) => (
+        <i key={i} className={`vp-last5__l vp-last5__l--${l.toLowerCase()}`} aria-hidden="true">
+          {l}
+        </i>
+      ))}
+    </span>
+  );
+}
+
+export function TableRows({ rows, full, anySim, live, form = false }: { rows: readonly SimRow[]; full: boolean; anySim: boolean; live: boolean; form?: boolean }) {
   const items = full ? rows.map((r) => ({ kind: "row" as const, pos: r.pos, row: r, us: r.isUs, tied: false })) : tableFocus(rows);
   return (
     <>
@@ -84,6 +100,11 @@ export function TableRows({ rows, full, anySim, live }: { rows: readonly SimRow[
             {full && <td>{it.row.gc}</td>}
             <td>{signed(it.row.gf - it.row.gc)}</td>
             <td className="pts">{it.row.pts}</td>
+            {full && form && (
+              <td className="frm">
+                <LastFive form={it.row.form} />
+              </td>
+            )}
           </tr>
         ),
       )}
@@ -91,7 +112,7 @@ export function TableRows({ rows, full, anySim, live }: { rows: readonly SimRow[
   );
 }
 
-export function TableHead({ full }: { full: boolean }) {
+export function TableHead({ full, form = false }: { full: boolean; form?: boolean }) {
   return (
     <thead>
       <tr>
@@ -126,6 +147,7 @@ export function TableHead({ full }: { full: boolean }) {
         <th>
           <abbr title="Puntos">Pts</abbr>
         </th>
+        {full && form && <th className="frm">Últimos 5</th>}
       </tr>
     </thead>
   );
@@ -236,7 +258,7 @@ export function Tabla({ sim, hasTable, fixtures, picks, preset, onPick, onPreset
                         J{f.jornada ?? "·"}, {f.rival}
                       </b>
                       <span>
-                        {f.state === "aplazado" ? "Aplazado, sin fecha" : f.at !== null ? shortDay(f.at) : "Sin fecha"}, {seg?.home === false ? "fuera" : "en casa"}
+                        {f.state === "aplazado" ? (seg && newDateOf(seg.match) !== null ? `Aplazado, ${shortDay(newDateOf(seg.match) ?? 0).toLocaleLowerCase("es")}` : "Aplazado, sin fecha") : f.at !== null ? shortDay(f.at) : "Sin fecha"}, {seg?.home === false ? "fuera" : "en casa"}
                       </span>
                     </div>
                     <div className="vd-glass vd-seg" role="group" aria-label={`¿Y si en la J${f.jornada ?? ""} contra ${f.rival}…?`} style={{ "--i": at, "--n": 3 } as CSSProperties}>

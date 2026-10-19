@@ -531,6 +531,32 @@ export function porraVerdict(p: { gf: number; ga: number }, s: { gf: number; ga:
   return off === 0 ? "exacta" : off === 1 ? "cerca" : "no";
 }
 
+/** A postponed match's new date (ms), or null while it is «por decidir». */
+export const newDateOf = (m: { postponedTo?: unknown }): number | null => (typeof m.postponedTo === "number" && Number.isFinite(m.postponedTo) ? m.postponedTo : null);
+
+/** Why it was postponed, as a sentence: «Aplazado por lluvia: el campo no estaba para jugar.» from «Por lluvia:
+ *  el campo…», «Aplazado: el campo estaba cerrado.» from «El campo estaba cerrado»; "" without one. */
+export function postponedLine(reason: string | null | undefined): string {
+  const r = (reason ?? "").trim();
+  if (!r) return "";
+  const low = r.charAt(0).toLocaleLowerCase("es") + r.slice(1);
+  return endSentence(/^aplazad/i.test(r) ? capital(r) : /^por\b/i.test(r) ? `Aplazado ${low}` : `Aplazado: ${low}`);
+}
+
+/** «Se juega el miércoles 3 de febrero a las 21:00» */
+export const newDateLine = (at: number): string => `Se juega el ${longDay(at)} a las ${time(at)}`;
+
+/** When a vote closes, said short: «el martes» within the week, else «el martes 3 de noviembre». */
+export function closesWord(at: number, now: number): string {
+  const d = daysBetween(now, at);
+  if (d === 0) return `hoy a las ${time(at)}`;
+  if (d === 1) return `mañana a las ${time(at)}`;
+  return d > 1 && d < 7 ? `el ${fmt(at, { weekday: "long" })}` : `el ${longDay(at)}`;
+}
+
+/** «Hizo 15°, nubes y claros, a la hora del pitido.» (the weather stamped on a played match) */
+export const playedWeatherLine = (w: { temp: number; label?: string | null }): string => `Hizo ${Math.round(w.temp)}°${w.label ? `, ${w.label.toLocaleLowerCase("es")}` : ""}, a la hora del pitido.`;
+
 // ───────────────────────── the season in words ─────────────────────────
 
 /** The league as a phrase after the season's name: «Liga F7» → «liga de fútbol 7», «Liga de fútbol 7» →
