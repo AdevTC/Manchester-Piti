@@ -187,7 +187,13 @@ export function HomePage() {
   const items = m && hasScore(phase) ? ribbonItemsOf(m, niceOf, live ? (view.seconds ?? 0) + 1 : Infinity) : NOTHING;
   const sun = isAhead(phase) && Number.isFinite(kickoff) ? sunRibbonOf(kickoff, now, m?.duration ?? 50) : null;
   const lastGoal = live ? [...view.events].reverse().find((e) => eventMetaOf(e).goal) : undefined;
-  const goal = useGoalMoment(lastGoal ? { key: lastGoal.id, side: eventMetaOf(lastGoal).goal === "for" ? "us" : "them" } : null, { reduced });
+  // (the goal moment plays only for a goal that arrives while the page is open: the one already there when the
+  // matches load — or when a refresh lands mid-match — keeps just its gold rim)
+  const goalKey = lastGoal?.id ?? null;
+  const [arrivalGoal, setArrivalGoal] = useState<string | null | undefined>(undefined);
+  if (arrivalGoal === undefined && !loading) setArrivalGoal(goalKey);
+  const freshGoal = arrivalGoal !== undefined && goalKey !== null && goalKey !== arrivalGoal;
+  const goal = useGoalMoment(lastGoal ? { key: lastGoal.id, side: eventMetaOf(lastGoal).goal === "for" ? "us" : "them" } : null, { reduced: reduced || !freshGoal });
   const estreno = !!m && (pulse.played.length === 0 || pulse.played[0]?.id === m.id);
   const copy: HoyCopy = error
     ? NO_DATA
