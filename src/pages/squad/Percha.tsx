@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 import { ShirtBack } from "../../components/celeste/ShirtBack";
+import { TagRow } from "../../components/paginas/Tags";
 import type { SquadRow } from "../../lib/squad";
+import type { SquadLiveRow } from "../../lib/derived/vidrio/squadLive";
 
 export const VT_SHIRT = "sq-shirt";
 
@@ -23,10 +25,15 @@ interface Props {
   /** Carries the shared-element name for the open/close transition. */
   vtId: string | null;
   onOpen: (id: string) => void;
+  /** Match day (squadLive): each player's status and marks under his shirt; «No juega hoy» dims it. */
+  live?: ReadonlyMap<string, SquadLiveRow> | null;
+  /** Our scorer, while his goal's moment plays: his shirt lifts. */
+  lift?: string | null;
 }
 
-/** The rail of hanging shirts. Nothing is picked until the viewer taps one. */
-export function Percha({ rows, still, openId, vtId, onOpen }: Props) {
+/** The rail of hanging shirts. Nothing is picked until the viewer taps one. On match day each one says where
+ *  he is (V-Vivo «La percha sabe quién está en el campo»). */
+export function Percha({ rows, still, openId, vtId, onOpen, live = null, lift = null }: Props) {
   return (
     <div className="sq-rail" role="group" aria-label="Elige jugador">
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
@@ -40,14 +47,16 @@ export function Percha({ rows, still, openId, vtId, onOpen }: Props) {
         <div className="sq-line">
           {rows.map((r, i) => {
             const src = still(r);
+            const l = live?.get(r.id) ?? null;
+            const said = l ? `: ${l.status.toLocaleLowerCase("es")}${l.tags.length ? `, ${l.tags.map((t) => t.label.toLocaleLowerCase("es")).join(", ")}` : ""}.` : ":";
             return (
               <button
                 key={r.id}
                 type="button"
-                className={`sq-hang${r.id === openId ? " away" : ""}`}
+                className={`sq-hang${r.id === openId ? " away" : ""}${l ? ` is-${l.tone}` : ""}${lift === r.id ? " sq-lift" : ""}`}
                 style={{ "--i": i } as CSSProperties}
                 aria-haspopup="dialog"
-                aria-label={`${r.name}, dorsal ${r.num}: ver ficha`}
+                aria-label={`${r.name}, dorsal ${r.num}${said} Ver ficha`}
                 onClick={() => onOpen(r.id)}
               >
                 <span className="frame">
@@ -57,6 +66,17 @@ export function Percha({ rows, still, openId, vtId, onOpen }: Props) {
                       {src ? <img src={src} alt="" draggable={false} /> : <ShirtBack name={r.name} num={r.num} />}
                     </span>
                   </span>
+                </span>
+                <span className="sq-cap" aria-hidden="true">
+                  <b className="sq-cap__nm">{r.name}</b>
+                  {r.position && <span className="sq-cap__pos">{r.position}</span>}
+                  {l && (
+                    <span className="sq-cap__st">
+                      {l.tone === "on" && <i className="vd-ondot" />}
+                      {l.status}
+                    </span>
+                  )}
+                  {l && <TagRow tags={l.tags} className="vd-tags sq-cap__tags" />}
                 </span>
               </button>
             );

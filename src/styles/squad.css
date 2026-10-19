@@ -271,3 +271,70 @@
 .sq-picker .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (prefers-reduced-motion:reduce){.sq-hang .swing{animation:none}}
+
+/* ===================================================================== «Vidrio» (V-Integracion · V-Vivo)
+   The page on the light field of the moment: «Plantilla» in Mona Sans with the line of the match day, the kit
+   and the search as glass, and under each shirt his position, where he is tonight (a celeste dot on the
+   pitch) and the marks of the night; «No juega hoy» dims the shirt; the scorer's shirt lifts on the goal.
+   Phone: four to a rail (the board's .vv-prails). */
+.vx.vd-pg.sq .sq-hero{background:transparent;padding:0 0 12px;overflow:visible}
+.vx.vd-pg.sq .sq-copy{gap:0}
+.vx.vd-pg.sq .sq-copy h1{font-family:var(--vd-sans);font-weight:720;font-variation-settings:'wdth' 92;font-stretch:92%;font-size:clamp(33px,4.4vw,61px);line-height:.98;letter-spacing:-.025em;color:var(--vd-ink-strong)}
+.sq-lede-s{display:none}
+.vx.vd-pg.sq .sq-tools{margin-top:16px}
+.vx.vd-pg.sq .sq-kit{--vd-r:999px;height:48px;padding:4px;background:none}
+.vx.vd-pg.sq .sq-kit button{position:relative;z-index:2;height:40px;font-family:var(--vd-sans);font-weight:620;color:var(--vd-g-ink2)}
+.vx.vd-pg.sq .sq-kit button[aria-pressed=true]{color:var(--vd-g-ink);background:var(--vd-bead);box-shadow:var(--vd-bead-shadow)}
+.vx.vd-pg.sq .sq-search{--vd-r:var(--vd-r-ctl);height:48px;background:none;box-shadow:none;color:var(--vd-g-ink2);font-family:var(--vd-sans)}
+.vx.vd-pg.sq .sq-search svg,.vx.vd-pg.sq .sq-search input{position:relative;z-index:2}
+.vx.vd-pg.sq .sq-search input{color:var(--vd-g-ink);font-weight:560}
+.vx.vd-pg.sq .sq-search:focus-within{box-shadow:inset 0 0 0 2px var(--vd-celeste)}
+.vx.vd-pg.sq .sq-hint{font-family:var(--vd-sans);font-size:13.5px;color:var(--vd-ink2)}
+.vx.vd-pg.sq .sq-sum div{background:none;padding:10px 0 0;border-radius:0;border-top:1px solid var(--vd-rule);backdrop-filter:none;-webkit-backdrop-filter:none}
+.vx.vd-pg.sq .sq-sum b{font-family:var(--vd-sans);font-weight:780;font-variation-settings:'wdth' 104;letter-spacing:-.02em;color:var(--vd-ink-strong)}
+.vx.vd-pg.sq .sq-sum span{font-size:12.8px;color:var(--vd-ink2)}
+.vx.vd-pg.sq .sq-sum .g b{color:var(--vd-ink-strong)}
+.vx.vd-pg.sq .sq-empty{background:none;padding:12px 0;font-family:var(--vd-sans)}
+
+/* under the shirt: name, position, tonight, the marks */
+.sq-cap{display:flex;flex-direction:column;align-items:center;text-align:center;gap:1px;margin-top:6px;font-family:var(--vd-sans)}
+.sq-cap__nm{font-weight:700;font-variation-settings:'wdth' 90;font-size:15px;letter-spacing:.005em;line-height:1.15;color:var(--vd-ink-strong);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sq-cap__pos{font-size:13px;line-height:1.25;color:var(--vd-ink2)}
+.sq-cap__st{display:inline-flex;align-items:center;justify-content:center;margin-top:4px;font-size:12.8px;font-weight:600;line-height:1.3;color:var(--vd-ink)}
+.sq-cap__tags{margin-top:5px}
+.sq-hang.is-off{opacity:.5}
+.sq-hang.is-off .shirt{filter:grayscale(.6) brightness(.8) drop-shadow(0 6px 8px rgba(0,8,30,.4))}
+.sq-hang.is-on .shirt{filter:drop-shadow(0 0 16px rgba(108,171,221,.45)) drop-shadow(0 10px 10px rgba(0,8,30,.45))}
+.sq-hang .frame{transition:transform .7s var(--vd-spring)}
+.sq-hang.sq-lift .frame{transform:translateY(-14px)}
+.sq-hang.sq-lift .shirt{filter:drop-shadow(0 0 22px rgba(255,198,89,.85)) drop-shadow(0 16px 14px rgba(0,8,30,.5))}
+:root[data-theme="light"] .sq-hang.is-off .shirt{filter:grayscale(.7) brightness(.95) drop-shadow(0 6px 8px rgba(12,23,51,.2))}
+
+/* the head beside the tools on a desktop; the percha under it */
+@container (min-width:1100px){
+.vx.vd-pg.sq .sq-copy{grid-template-columns:minmax(0,1fr) auto;column-gap:40px;padding:112px 72px 0;max-width:none}
+.vx.vd-pg.sq .sq-copy > h1,.vx.vd-pg.sq .sq-copy > .sq-lede{grid-column:1}
+.vx.vd-pg.sq .sq-tools{grid-column:2;grid-row:1 / span 2;align-self:end;margin:0;flex-wrap:nowrap}
+.vx.vd-pg.sq .sq-search{width:300px;flex:none}
+.vx.vd-pg.sq .sq-line{padding:0 64px;row-gap:30px}
+.vx.vd-pg.sq .sq-rail{margin-top:30px}
+}
+/* phone: four to a rail, the shirts small, no position (board .vv-prails) */
+@container (max-width:699px){
+.vx.vd-pg.sq .sq-copy{padding:76px 16px 0}
+.sq-lede-l{display:none}
+.sq-lede-s{display:inline}
+.vx.vd-pg.sq .sq-tools{margin-top:12px;gap:8px}
+.vx.vd-pg.sq .sq-track{overflow:visible;padding-bottom:10px}
+.vx.vd-pg.sq .sq-line{width:auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));row-gap:12px;padding:0 10px}
+.vx.vd-pg.sq .sq-hang{flex:none;padding:0 2px}
+.vx.vd-pg.sq .sq-hang .frame{width:78%;margin:0 auto}
+.sq-cap{margin-top:3px}
+.sq-cap__nm{font-size:12.8px}
+.sq-cap__pos{display:none}
+.sq-cap__st{font-size:12px;margin-top:1px}
+.sq-cap__st .vd-ondot{width:6px;height:6px;margin-right:4px}
+.sq-cap__tags{margin-top:2px}
+.vx.vd-pg.sq .sq-hint .m{display:none}
+}
+@media (prefers-reduced-motion:reduce){.sq-hang .frame{transition:none}.sq-hang.sq-lift .frame{transform:none}}

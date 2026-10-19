@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { flushSync } from "react-dom";
 import { useSeason } from "../../context/SeasonContext";
 import { nextFixture, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
@@ -9,7 +9,7 @@ import { resolvePositions } from "../../lib/positions";
 import { leaders, playerLines, seasonPulse, upcomingBirthdays, type SquadMember } from "../../lib/home";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon } from "../../components/celeste/icons";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { Percha } from "./Percha";
@@ -18,8 +18,18 @@ import { useMvpResults } from "../vestuario/live";
 import { mvpOfFrom } from "../../lib/derived/mvpOf";
 import { CaraACara } from "./CaraACara";
 import { RaceAndBirthdays } from "../home/Sections";
+import { useClock } from "../../hooks/useClock";
+import { matchdayOf } from "../../lib/derived/matchday";
+import { squadLive, type SquadLive } from "../../lib/derived/vidrio/squadLive";
+import { mvpWinners } from "../../lib/vestuario";
+import { PageSky, useNightGoal } from "../../components/paginas/PageSky";
 import "../../styles/celeste/page.css";
 import "../../styles/home.css"; // RaceAndBirthdays (the pichichi podium) is home's section
+import "../../styles/vidrio/tokens.css";
+import "../../styles/vidrio/glass.css";
+import "../../styles/vidrio/components.css";
+import "../../styles/vidrio/reading.css";
+import "../../styles/vidrio-paginas.css";
 import "../../styles/squad.css";
 
 /** The duel angles each shirt towards the middle. */
@@ -46,7 +56,16 @@ function FichaWithMvps({ now, games, ...props }: Omit<ComponentProps<typeof Fich
   return <FichaModal {...props} games={games} mvpOf={mvpOf} />;
 }
 
-/** Public squad page: the shirts on the rail (each opens its ficha) and the head-to-head. */
+/** Who won the closed vote of `match` (mounted only then, so the page reads mvpResults only then). */
+function MvpProbe({ match, now, onWinners }: { match: ClubMatch; now: number; onWinners: (v: { id: string; ids: readonly string[] }) => void }) {
+  const results = useMvpResults();
+  const ids = mvpWinners(match, results.get(match.id), now).join("|");
+  useEffect(() => onWinners({ id: match.id, ids: ids ? ids.split("|") : [] }), [ids, match.id, onWinners]);
+  return null;
+}
+
+/** Public squad page («Vidrio»: the light field of the moment, Mona Sans): the shirts on the rail (each opens
+ *  its ficha, each says where he is on match day) and the head-to-head. */
 export function SquadPage() {
   const { matches, players, loading, error } = useClubData();
   const { selectedSeasonId, seasons } = useSeason();
@@ -55,6 +74,16 @@ export function SquadPage() {
   const seasonId =
     selectedSeasonId !== "all" && seasons.some((s) => s.id === selectedSeasonId) ? selectedSeasonId : currentSeasonId(nextFixture(matches, now), matches, seasons);
   const seasonName = seasons.find((s) => s.id === seasonId)?.name ?? "Temporada";
+  // match day: the clock of the moment (the percha follows the match as it is played)
+  const clock = useClock(15_000);
+  const day = useMemo(() => matchdayOf(matches, seasonId, clock), [matches, seasonId, clock]);
+  const live = day.phase === "directo1" || day.phase === "descanso" || day.phase === "directo2";
+  const night = useNightGoal(day.match, live);
+  // the MVP of tonight's match, only once its vote has closed (mvpResults is read only then: MvpProbe)
+  const voteClosed = !!day.match && typeof day.match.voteClosesAt === "number" && day.match.voteClosesAt <= clock && (day.phase === "acta" || day.phase === "despues");
+  const [mvpOf, setMvpOf] = useState<{ id: string; ids: readonly string[] } | null>(null);
+  const mvp = useMemo(() => (voteClosed && mvpOf && mvpOf.id === day.match?.id ? mvpOf.ids : []), [voteClosed, mvpOf, day.match]);
+  const lift = night.goal?.side === "us" && night.moment.active ? night.goal.playerId : null;
 
   const games = useMemo(() => chronological(matches.filter((m) => m.seasonId === seasonId)), [matches, seasonId]);
   const { rows, withStats } = useMemo(() => {
@@ -88,6 +117,7 @@ export function SquadPage() {
     return r ? { main: r.main, also: r.also } : undefined;
   }, [openRaw]);
   const summary = squadSummary(rows);
+  const sl: SquadLive = useMemo(() => squadLive({ day, squad: rows.map((r) => r.id), matches, mvp }), [day, rows, matches, mvp]);
 
   // Head-to-head: starts with the two first players that have a full ficha.
   const complete = rows.filter((r) => !r.missing.length);
@@ -118,8 +148,9 @@ export function SquadPage() {
   };
 
   return (
-    <div className="vx sq" data-kit={kit} aria-busy={loading}>
-      <CelesteBackdrop />
+    <div className={`vx vd-pg sq${live ? " vd-pg--live" : ""}`} data-kit={kit} aria-busy={loading}>
+      <PageSky now={clock} live={live} moment={night.moment} />
+      {voteClosed && day.match && <MvpProbe match={day.match} now={clock} onWinners={setMvpOf} />}
       <CelesteHeader
         active="plantilla"
         sub="Plantilla"
@@ -131,15 +162,23 @@ export function SquadPage() {
       />
 
       <section className="sq-hero" aria-labelledby="sq-title" aria-busy={loading}>
-        <div className="sq-copy">
-          <span className="hm-kick">Plantilla · {seasonName}</span>
-          <h1 id="sq-title">
-            {/* Same words while loading, so the heading keeps its lines and nothing below jumps. */}
-            {loading ? "—" : summary.size} {summary.size === 1 && !loading ? "camiseta" : "camisetas"}. <em>Una percha.</em>
-          </h1>
-          <p className="hm-lede">Toca una camiseta para descolgarla y abrir su ficha.</p>
+        <div className="sq-copy vd-pg-head">
+          <h1 id="sq-title">Plantilla</h1>
+          {/* (the same words while loading, so the head keeps its lines and nothing below jumps) */}
+          <p className="vd-lede sq-lede">
+            {loading ? (
+              "La plantilla de la temporada."
+            ) : sl.stage ? (
+              <>
+                <span className="sq-lede-l">{sl.lede}</span>
+                <span className="sq-lede-s">{sl.ledeShort}</span>
+              </>
+            ) : (
+              `${sl.lede} Toca una camiseta para abrir su ficha.`
+            )}
+          </p>
           <div className="sq-tools">
-            <div className="sq-kit" role="group" aria-label="Equipación">
+            <div className="sq-kit vd-glass" role="group" aria-label="Equipación">
               <button type="button" aria-pressed={kit === "home"} onClick={() => setKit("home")}>
                 <i className="sw" />
                 1ª
@@ -149,7 +188,7 @@ export function SquadPage() {
                 2ª
               </button>
             </div>
-            <label className="sq-search">
+            <label className="sq-search vd-glass">
               <Icon name="search" size={18} stroke={2} />
               <input type="search" aria-label="Buscar jugador" placeholder="Nombre o dorsal" value={query} onChange={(e) => setQuery(e.target.value)} />
             </label>
@@ -159,7 +198,7 @@ export function SquadPage() {
           <p className="sq-empty">No se ha podido cargar la plantilla. Prueba a recargar la página.</p>
         ) : (
           <>
-            <Percha rows={visible} still={stillOf} openId={openId} vtId={vtId} onOpen={openFicha} />
+            <Percha rows={visible} still={stillOf} openId={openId} vtId={vtId} onOpen={openFicha} live={sl.stage ? sl.rows : null} lift={lift} />
             {!loading && !visible.length && <p className="sq-empty">{rows.length ? "Nadie lleva ese nombre ni ese dorsal." : `Todavía no hay jugadores en ${seasonName}.`}</p>}
             {visible.length > 0 && (
               <p className="sq-hint">
@@ -195,11 +234,11 @@ export function SquadPage() {
 
       {a && b && a.id !== b.id && (
         <section className="hm-sec" id="sq-cara" aria-labelledby="sq-cara-t">
-          <span className="hm-kick">Cara a cara</span>
           <h2 className="hm-h2" id="sq-cara-t">
-            Elige dos y <em>compáralos</em>
+            Cara a cara
           </h2>
           <p className="hm-lede">
+            Elige dos y compáralos.{" "}
             {withStats ? "Toca una esquina para cambiar de jugador. Con sus fichas y lo que llevan de temporada." : "Toca una esquina para cambiar de jugador. Desde la jornada 1 se suman partidos, goles, asistencias y minutos."}
           </p>
           <CaraACara
