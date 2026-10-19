@@ -239,3 +239,11 @@
 .vd-prefs .vd-seg{width:100%;height:44px}
 .vd-prefs .vd-small{margin:8px 0 2px;color:var(--vd-g-ink2)}
 @media (prefers-reduced-motion:reduce){.vd-switch__knob,.vd-switch__track{transition:none}}
+/* docked compact: tighter padding and type; tight → no crest, tighter → no minute (the score never clips) */
+.vd-float.is-docked .vd-drop:not(.vd-drop--expanded){height:44px;gap:8px;padding:0 12px 0 5px}
+.vd-float.is-docked .vd-drop:not(.vd-drop--expanded) .vd-drop__crest{width:32px;height:32px}
+.vd-float.is-docked .vd-drop:not(.vd-drop--expanded) .vd-drop__score{font-size:21px}
+.vd-float.is-docked .vd-drop:not(.vd-drop--expanded) .vd-drop__min{font-size:13px}
+.vd-float.is-docked[data-vd-tight] .vd-drop{padding:0 12px}
+.vd-float.is-docked[data-vd-tight] .vd-drop__crest{display:none}
+.vd-float.is-docked[data-vd-tight="2"] .vd-drop:not(.vd-drop--expanded) .vd-drop__min{display:none}
