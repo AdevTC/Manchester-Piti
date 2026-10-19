@@ -30,11 +30,13 @@ export interface PlaysOrnProps {
   log: PlaysLog;
   grow: Grow;
   matchId: string;
+  /** «Lo anota Jorge desde la mesa» while live (who keeps la mesa). */
+  note?: string | null;
   className?: string;
 }
 
 /** The summary: the newest rows (CSS shows 3 to 5 by width), the count of the rest and «Ver todo el partido». */
-export function PlaysOrn({ title, sub, log, grow, matchId, className }: PlaysOrnProps) {
+export function PlaysOrn({ title, sub, log, grow, matchId, note, className }: PlaysOrnProps) {
   const shown = log.rows.slice(0, 5);
   return (
     <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-plays ${grow.summaryProps.className}${className ? ` ${className}` : ""}`} style={grow.summaryProps.style} aria-label={title}>
@@ -53,9 +55,10 @@ export function PlaysOrn({ title, sub, log, grow, matchId, className }: PlaysOrn
       )}
       <div className="vi-orn-foot" data-more={log.count > 5 ? 5 : log.count > 4 ? 4 : log.count > 3 ? 3 : 0}>
         {log.count > 3 && <SeeAll summary={plural(log.count)} count={log.count} label="Ver todo el partido" onOpen={grow.grow} />}
-        <Link className="vd-link vi-openmatch" to="/matches/$matchId" params={{ matchId }}>
+        <Link className="vd-link vi-openmatch" to="/matches/$matchId" params={{ matchId }} viewTransition>
           Abrir el partido
         </Link>
+        {note && <p className="vi-orn-p vi-mesanote">{note}.</p>}
       </div>
     </section>
   );
