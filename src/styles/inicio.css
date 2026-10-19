@@ -512,6 +512,17 @@
 .vi--cockpit .vi-centre--grown>:not(.vi-grow){display:none}
 .vi--cockpit .vi-panel>.vi-grow{grid-row:1/-1;grid-column:1;z-index:6;max-height:none;margin:14px 0 16px}
 .vi--cockpit .vi-grow-cols{column-count:1}
+/* a 1920 window shorter than 1080 (the stage stops at 1000): the centre tightens so the headline, its buttons
+   and the member's line stay above the shelf instead of being cut by the centre's edge */
+@media (max-height:1079px){
+  .vi--cockpit .vi-centre>.vi-slot--l,.vi--cockpit .vi-centre>.vi-slot--r{height:250px}
+  .vi--cockpit .vi-centre--compact>.vi-slot--r{height:auto}
+  .vi--cockpit .vi-centre>.vi-slot--head{padding-top:8px}
+  .vi--cockpit .vi-centre .vi-h1{font-size:42px}
+  .vi--cockpit .vi-centre .vi-head .vi-lede{margin-top:8px}
+  .vi--cockpit .vi-centre .vi-acts{margin-top:12px}
+  .vi--cockpit .vi-centre .vi-player{--ps:30px}
+}
 
 /* ───────────────────────── entrance: the lens surfaces from the light, the ornaments swing in */
 @media (prefers-reduced-motion:no-preference){
