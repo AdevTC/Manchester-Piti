@@ -27,6 +27,8 @@ const lifecycleOptions = { timeout: 540_000 };
 export const deleteMatch = httpsCallable<{ id: string }, { ok: boolean }>(functions, "deleteMatch", lifecycleOptions);
 /** Reversible exclusion from the calendar and statistics. Admin only. */
 export const setMatchArchived = httpsCallable<{ id: string; archived: boolean }, { ok: boolean }>(functions, "setMatchArchived", lifecycleOptions);
+/** Turnos «Hecho» (functions/src/rota.ts): the member's own turn of a match done (or taken back). */
+export const markTurnDone = httpsCallable<{ turnId: string; done: boolean }, { done: boolean }>(functions, "markTurnDone");
 export const savePrediction = httpsCallable<{ matchId: string; goalsFor: number; goalsAgainst: number; goals: import("../../functions/src/predictions").GoalPick[] }, { ok: boolean }>(functions, "savePrediction");
 /** The one convocatoria (functions/src/convocatoria.ts): el siete + banquillo of a match; `notify` sends its push
  *  («Ya está la convocatoria» / once «Cambios en la convocatoria»). `at` = the `convocatoriaAt` it stamped. */

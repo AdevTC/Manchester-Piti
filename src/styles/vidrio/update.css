@@ -1,0 +1,20 @@
+/* «Hay una versión nueva · Actualizar» (components/vidrio/UpdateNotice): a small glass capsule over every
+   page, above the phone's tab bar (22 px + 64 px, vestuario.css .vx-dock), at the bottom on desktop where
+   the bar is gone. Over the dock (z 8) and the floating score, under menus and sheets (z 50). */
+.vd-update-rail{position:fixed;z-index:30;left:50%;bottom:calc(98px + env(safe-area-inset-bottom,0px));translate:-50% 0;width:max-content;max-width:calc(100vw - 32px);pointer-events:none}
+@media (min-width:1100px){.vd-update-rail{bottom:24px}}
+.vd-update{--vd-r:999px;display:flex;align-items:center;gap:6px;padding:6px 6px 6px 20px;pointer-events:auto;font-family:var(--vd-sans);
+  animation:vd-update-in .5s var(--vd-spring) both}
+.vd-update__text{margin:0;font-size:15px;font-weight:600;letter-spacing:-.005em;line-height:1.2;white-space:nowrap;color:var(--vd-g-ink)}
+.vd-update__go{--vd-r:999px;--vd-g-tint:var(--vd-pri);--vd-g-sheen:rgba(255,255,255,.26);height:44px;min-height:44px;margin-left:8px;padding:0 18px;border:0;
+  font:inherit;font-weight:650;font-size:14.5px;color:#fff;cursor:pointer;white-space:nowrap}
+:root[data-theme="light"] .vd-update__go{--vd-g-sheen:rgba(255,255,255,.12)}
+.vd-update__close{display:inline-grid;place-items:center;width:44px;height:44px;flex:none;border:0;padding:0;border-radius:999px;background:transparent;color:var(--vd-g-ink2);cursor:pointer}
+.vd-update__close:hover{color:var(--vd-g-ink)}
+.vd-update__close svg{width:18px;height:18px}
+.vd-update__go:focus-visible,.vd-update__close:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+@keyframes vd-update-in{from{opacity:0;transform:translateY(14px) scale(.96)}}
+@media (max-width:420px){.vd-update{gap:2px;padding-left:16px}.vd-update__text{font-size:14.5px}.vd-update__go{margin-left:6px;padding:0 14px;font-size:14px}}
+@media (max-width:360px){.vd-update__text{white-space:normal;font-size:14px}}
+@media (prefers-reduced-motion:reduce){.vd-update{animation:vd-update-fade .12s linear both}}
+@keyframes vd-update-fade{from{opacity:0}}
