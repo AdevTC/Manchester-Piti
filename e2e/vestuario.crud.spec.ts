@@ -4,7 +4,8 @@ import { enterVestuario } from "./helpers";
 test("el cartel responde a la convocatoria y guarda porra, entreno y tablón en tiempo real", async ({ page }) => {
   await enterVestuario(page);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByText("Atlético Demo").first()).toBeVisible();
+  // Scoped to the page: the floating score (outside main) carries the rival too, sometimes hidden.
+  await expect(page.getByRole("main").getByText("Atlético Demo").first()).toBeVisible();
 
   const rsvp = page.getByRole("radiogroup", { name: "Tu respuesta a la convocatoria" });
   await rsvp.getByRole("radio", { name: "Duda" }).click();
