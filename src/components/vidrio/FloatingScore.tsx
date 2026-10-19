@@ -26,8 +26,8 @@ export interface FloatingScoreProps {
   /** Its remembered spot (per page: «inicio», «partidos», «plantilla»…). */
   storageKey: string;
   /** Desktop home until it is moved: «right» (top-right under the bar, the default), «centre» (top centre:
-   *  Inicio, where the lens takes it) or «bottom-right» (the corner clear of a page's title, controls and
-   *  boards: every other page, see live/liveModel's floatHome). */
+   *  Inicio, where the lens takes it) or «bottom-right» (pages whose top-right is their own: a match page's
+   *  scoreboard, Partidos' tools; see live/liveModel's floatHome). */
   placement?: FloatPlacement;
   /** The top bar's height on desktop (the float keeps 16 px under it; default 88). */
   barHeight?: number;

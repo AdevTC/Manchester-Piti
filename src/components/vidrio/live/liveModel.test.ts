@@ -111,8 +111,9 @@ describe("small rules", () => {
     expect(pageKey("/jugadores/erik")).toBe("jugador");
   });
 
-  it("the float's resting spot per page: Inicio under the bar, every other page the bottom-right corner", () => {
+  it("the float's resting spot per page: Inicio under the bar, low where the top-right is the page's own", () => {
     expect(floatHome("/")).toBe("centre");
-    for (const p of ["/partidos", "/matches/j3", "/profile", "/stats", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("bottom-right");
+    for (const p of ["/partidos", "/matches/j3", "/profile"]) expect(floatHome(p)).toBe("bottom-right");
+    for (const p of ["/stats", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("right");
   });
 });
