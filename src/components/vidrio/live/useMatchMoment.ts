@@ -6,6 +6,7 @@
 // the same render as the play.
 import { useEffect, useState } from "react";
 import { nameFor, useClubData, type ClubMatch } from "../../../lib/clubData";
+import { niceName } from "../../../lib/derived/words";
 import { isFreshMoment, momentsOf, type MatchMoment } from "../../../lib/derived/moments";
 
 /** How long a moment's rótulo stays unfolded. */
@@ -27,7 +28,7 @@ interface Seen {
 export function useMatchMoment(match: ClubMatch | undefined, now: number, opts: MatchMomentOptions = {}): MatchMoment | null {
   const { hold = MOMENT_HOLD_MS, celebrate = true } = opts;
   const { players } = useClubData();
-  const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId);
+  const nameOf = (id: string) => niceName(nameFor(players.find((p) => p.id === id), match?.seasonId));
   const all = match ? momentsOf(match, nameOf) : [];
   const [seen, setSeen] = useState<Seen>(() => ({ match: match?.id, ids: new Set(all.map((x) => x.moment.id)) }));
   const [shown, setShown] = useState<{ id: string | null; n: number }>({ id: null, n: 0 });

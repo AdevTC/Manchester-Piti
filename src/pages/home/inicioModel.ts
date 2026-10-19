@@ -10,20 +10,13 @@ import { madridDate, madridTime } from "../../lib/derived/madrid";
 import { AWAITING_ACTA } from "../../lib/derived/kickoff";
 import { eventMetaOf, eventSentence, settled } from "../../lib/eventMeta";
 import { withGuestNames } from "../../lib/derived/guests";
-import { endSentence } from "../../lib/derived/words";
+import { endSentence, niceName } from "../../lib/derived/words";
 import type { MatchWeather } from "../../lib/weather";
 
 const MIN = 60_000;
 const J = "⁠–⁠"; // an en dash that never breaks a score across lines
 
-/** «ADRIÁN T.C.» → «Adrián T.C.»: a shirt name in capitals read as a name (initials keep theirs). */
-export function niceName(s: string): string {
-  if (!s || s !== s.toLocaleUpperCase("es") || !/\p{L}/u.test(s)) return s;
-  return s
-    .split(/(\s+|-)/)
-    .map((w) => (w.includes(".") || /^\s+$|^-$/.test(w) ? w : w.charAt(0) + w.slice(1).toLocaleLowerCase("es")))
-    .join("");
-}
+export { niceName };
 
 /** «Domingo» / «martes»: the Madrid weekday. */
 const WEEKDAY = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "long" });
