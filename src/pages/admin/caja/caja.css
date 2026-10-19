@@ -62,3 +62,11 @@
 .adm .cj-who{max-height:220px;overflow:auto;gap:4px}
 .adm .cj-who li{display:flex;justify-content:space-between;gap:10px;padding:6px 10px;border-radius:10px;background:var(--panel2);font-size:14px}
 .adm .cj-who b{font-variant-numeric:tabular-nums}
+
+/* ── «Pagos avisados» (Ya la he pagado) ── */
+.adm .cj-claims{margin-bottom:16px}
+.adm .cj-claims .cj-movs{margin:8px 0}
+.adm .cj-claim-acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.adm .cj-claim-acts .btn{min-height:44px}
+.adm.m .cj-claims .cj-mov{grid-template-areas:"w amt" "d bt"}
+.adm.m .cj-claim-acts{grid-area:bt}
