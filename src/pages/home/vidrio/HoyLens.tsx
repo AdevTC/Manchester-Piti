@@ -60,7 +60,7 @@ export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinu
     <div ref={ref} className={`vi-lensbox${goal.root ? ` ${goal.root}` : ""}${className ? ` ${className}` : ""}`}>
       <Lens as="section" aria-label="El partido" className={`vi-lens${goal.rim ? " vd-rim-gold" : ""}`} goal={[goal.lens, goal.glint].filter(Boolean).join(" ")} refract={{ bezel: 36, strength: 1.35, blur: 8 }}>
         <span className="vi-lens__halo" aria-hidden="true" />
-        <div className="vd-lens__teams">
+        <div className="vd-teams">
           <div className="vd-team">
             <img className="vd-team__crest" src="/crest-128.webp" alt="" width={68} height={68} />
             <b>
@@ -108,7 +108,7 @@ export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinu
           </div>
         </div>
         {status.text && (
-          <p className="vd-lens__status">
+          <p className="vd-status">
             {status.live && <span className="vd-live">En directo</span>}
             {status.clock && <span className="vd-clock">{status.clock}</span>}
             <span>{status.text}</span>

@@ -39,6 +39,7 @@ import { useGrow } from "../useGrow";
 import { DROP_HOLD_MS, floatOf, hideMark, pageKey, playing, sheetOf } from "./liveModel";
 import { LiveSheet, type RsvpAnswer } from "./LiveSheet";
 import { LivePlays } from "./LivePlays";
+import "../../../styles/vidrio/reading.css";
 import "./live.css";
 
 /** The vote notice a member closed (one match id: the next vote shows again). */

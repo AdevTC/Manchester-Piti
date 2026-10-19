@@ -26,7 +26,7 @@
 /* ───────────────────────── the lens */
 .vi-lensbox{position:relative;min-width:0}
 .vi-lens{width:100%;color:var(--vd-g-ink)}
-.vi-lens .vd-lens__teams{grid-template-columns:72px minmax(0,1fr) 72px;gap:6px}
+.vi-lens .vd-teams{grid-template-columns:72px minmax(0,1fr) 72px;gap:6px}
 .vi-lens .vd-team{gap:5px}
 .vi-lens .vd-team__crest{width:48px;height:48px;font-size:15px}
 .vi-lens .vd-team b{font-size:13.5px}
@@ -34,7 +34,8 @@
 .vi-long{display:none}
 .vi-short{display:inline}
 .vi-score{font-size:92px;justify-content:center;margin:0}
-.vi-lens .vd-lens__status{font-size:13.5px;gap:4px 8px;margin-top:6px}
+.vi-lens .vd-status{font-size:13.5px;gap:4px 8px;margin-top:6px}
+.vi-lens .vd-status .vd-live{color:var(--vd-g-ink)}
 .vi-lens .vd-ribbon{height:58px;margin-top:10px;margin-bottom:18px}
 .vi-count{display:flex;flex-direction:column;align-items:center;gap:6px;margin:0}
 .vi-count__t{font-size:60px}
@@ -314,7 +315,7 @@
   .vi-stage__shelf{margin-top:18px}
   .vi-long{display:inline}
   .vi-short{display:none}
-  .vi-lens .vd-lens__teams{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px}
+  .vi-lens .vd-teams{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px}
   .vi-lens .vd-team__crest{width:68px;height:68px;font-size:21px}
   .vi-lens .vd-team b{font-size:18px}
   .vi-lens .vd-team span{font-size:13px}
@@ -323,7 +324,7 @@
   .vi-word__t{font-size:36px}
   .vi-word{max-width:340px;justify-self:center}
   .vi-lens .vd-ribbon{height:74px;margin-top:16px;margin-bottom:22px}
-  .vi-lens .vd-lens__status{font-size:14.5px;margin-top:10px}
+  .vi-lens .vd-status{font-size:14.5px;margin-top:10px}
   .vi-h1{font-size:49px}
   .vi-panel--hoy{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;padding-top:28px}
   .vi-slot--head,.vi-slot--err{grid-column:1/-1}

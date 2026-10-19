@@ -13,8 +13,8 @@ export function PlayItem({ r }: { r: PlayRow }) {
   return (
     <li className={`vd-play${r.ours ? "" : " vd-play--them"}`}>
       <span className="vd-clock">{r.minuteText || "·"}</span>
-      <span className="vd-ico" aria-hidden="true">
-        {r.card ? <i className={r.card === "r" ? "r" : undefined} /> : <Ico id={GLYPH[r.glyph] ?? "pass"} />}
+      <span className={`vd-ico${r.card ? ` vd-ico--card${r.card === "r" ? " vd-ico--red" : ""}` : ""}`} aria-hidden="true">
+        {r.card ? <i /> : <Ico id={GLYPH[r.glyph] ?? "pass"} />}
       </span>
       <div>
         <b>{r.title}</b>

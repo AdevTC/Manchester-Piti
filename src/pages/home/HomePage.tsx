@@ -74,7 +74,7 @@ import { Club, type ClubData } from "./vidrio/Club";
 import { Tu } from "./vidrio/Tu";
 import { useTu } from "./vidrio/useTu";
 import { Ico } from "./vidrio/icons";
-import "../../styles/vidrio/content.css";
+import "../../styles/vidrio/reading.css";
 import "../../styles/inicio.css";
 
 const subscribeNothing = () => () => {};

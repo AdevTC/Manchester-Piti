@@ -17,7 +17,7 @@ field. Gold only for our goal and the MVP. Mona Sans (`--vd-sans`) for headings 
 | `glass.css` | `.vd-glass` (+ `--deep`, `--clear`, `--lens`, `--frost`), `.vd-press`, `.vd-rim-gold`, `.vd-livedot`, `.vd-vh` (visually hidden) |
 | `sky.css` | the light field (`VidrioSky`) |
 | `components.css` | type helpers (`.vd-score`, `.vd-h1…h4`, `.vd-lede`, `.vd-body`, `.vd-small`, `.vd-clock`), lens, shelf/seg, ribbon, «Ver todo»/grow (`.vd-more`, `.vd-grow`, `.vd-stepback`, `.vd-fade`), floating score, PiP window, goal-moment classes |
-| `content.css` | shared reading and control pieces: `.vd-btn` (`--pri`, `--sm`), `.vd-link`, `.vd-ibtn`, the lens's match (`.vd-lens__teams`, `.vd-team`, `.vd-scoreline`, `.vd-digit`, `.vd-lens__status`, `.vd-live`), `.vd-orn` (+ `__head`), `.vd-window`, `.vd-plays`/`.vd-play`/`.vd-ico`, `.vd-form__l` letters, `.vd-count`, `.vd-move`, `.vd-label`/`.vd-input` (import it where you use them) |
+| `reading.css` | the ONE source of the shared reading and control pieces (see «Reading pieces and small controls» below); import it where you use them. Pages and the live sheet tune them under their own root class, never by redefining a kit class |
 | `transitions.css` | the swap choreography (`.vd-reg-1…6`, `.vd-morph`, `::view-transition-*`) |
 | `chrome.css` | the shared chrome restyle (glass capsule nav + glass tab bar), loaded by `celeste/Chrome.tsx` |
 
@@ -119,11 +119,11 @@ principal», «Navegación móvil», «Entrar al vestuario», «El club», Searc
 optional prop `live?: boolean` on both (default: `useLiveNow()`): «Partidos» gets `.vd-livedot` and its
 accessible name becomes «Partidos, en directo» (e2e that look it up with `exact: true` must allow that while live).
 
-## Reading pieces and small controls (added with Partidos, P4)
+## Reading pieces and small controls
 
-`src/styles/vidrio/reading.css` (import it where you use them): `.vd-btn` (+ `--pri`, `--sm`, `--gold`; put `vd-glass vd-press` on it),
+`src/styles/vidrio/reading.css` (import it where you use them; Inicio, Partidos and the live sheet all do): `.vd-btn` (+ `--pri`, `--sm`, `--gold`, `[aria-pressed]`; put `vd-glass vd-press` on it),
 `.vd-ibtn`, `.vd-link`, `.vd-live` (red dot + words), `.vd-teams` / `.vd-team` / `.vd-team__crest(--rival)`, `.vd-scoreline` /
 `.vd-scoreline__sep` / `.vd-digit`, `.vd-status`, `.vd-plays` / `.vd-play(--them)` / `.vd-ico(--card|--red)`, `.vd-table` (`td.p`, `td.t`,
 `td.pts`, `tr.us`, `tr.vd-gap`) and `.vd-move`, `.vd-form` / `.vd-form__l--g|p|prov|empty`, `.vd-count`, `.vd-window`, `.vd-sheet`,
-`.vd-sun`, `.vd-pitch` / `.vd-pitch__lines` / `.vd-player` / `.vd-player__name`, `.vd-shirt` (`--s` size; a drawn celeste shirt, or
+`.vd-sun`, `.vd-orn` / `.vd-orn__head` (a small glass card with a head), `.vd-label` / `.vd-input`, `.vd-pitch` / `.vd-pitch__lines` / `.vd-player` / `.vd-player__name`, `.vd-shirt` (`--s` size; a drawn celeste shirt, or
 `.vd-shirt--img` with `--vd-shirt-img: url(…)` for a real still from `useShirtStills`; `--away`; `<b>` the dorsal).
