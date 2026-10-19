@@ -29,7 +29,7 @@
 .vi-lens .vd-teams{grid-template-columns:72px minmax(0,1fr) 72px;gap:6px}
 .vi-lens .vd-team{gap:5px}
 .vi-lens .vd-team__crest{width:48px;height:48px;font-size:15px}
-.vi-lens .vd-team b{font-size:13.5px}
+.vi-lens .vd-team b{font-size:13.5px;max-width:100%;overflow-wrap:break-word}
 .vi-lens .vd-team span{font-size:12px}
 .vi-long{display:none}
 .vi-short{display:inline}
@@ -512,9 +512,14 @@
 .vi--cockpit .vi-centre--grown>:not(.vi-grow){display:none}
 .vi--cockpit .vi-panel>.vi-grow{grid-row:1/-1;grid-column:1;z-index:6;max-height:none;margin:14px 0 16px}
 .vi--cockpit .vi-grow-cols{column-count:1}
-/* a 1920 window shorter than 1080 (the stage stops at 1000): the centre tightens so the headline, its buttons
-   and the member's line stay above the shelf instead of being cut by the centre's edge */
-@media (max-height:1079px){
+/* the centre keeps to its stage like the zones: what doesn't fit (a long acta line, the member's lines) scrolls
+   inside it rather than running under the shelf; an ornament's long list (the MVP vote) scrolls in its card */
+.vi--cockpit .vi-centre:not(.vi-centre--grown){overflow-y:auto;overscroll-behavior:contain;padding-bottom:20px}
+.vi--cockpit .vi-centre .vi-mvp{overflow:hidden}
+.vi--cockpit .vi-centre .vi-mvp__grid{flex:1 1 auto;min-height:0;overflow-y:auto;align-content:start;padding:2px}
+/* a 1920 window up to 1200 tall (a 1080 screen with the browser's bars, or the stage's floor of 1000): the
+   centre tightens so the headline, its buttons and the member's lines stay above the shelf */
+@media (max-height:1199px){
   .vi--cockpit .vi-centre>.vi-slot--l,.vi--cockpit .vi-centre>.vi-slot--r{height:250px}
   .vi--cockpit .vi-centre--compact>.vi-slot--r{height:auto}
   .vi--cockpit .vi-centre>.vi-slot--head{padding-top:8px}
