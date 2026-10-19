@@ -37,12 +37,13 @@ describe("placeHints · Hoy, phase by phase", () => {
   });
 
   it("before, after and the acta", () => {
-    expect(hoy(day("antes"))).toBe("Hoy, 19:00");
+    expect(hoy(day("antes"))).toBe("19:00, Orduña fc");
     expect(hoy(day("final", { score: { gf: 3, ga: 1 } }))).toBe("Final, 3–1");
     expect(hoy(day("pendiente"))).toBe("Pendiente del acta");
-    expect(hoy(day("acta", { score: { gf: 3, ga: 1 } }))).toBe("Ganamos 3–1");
-    expect(hoy(day("despues", { score: { gf: 2, ga: 2 } }))).toBe("Empate 2–2");
-    expect(hoy(day("despues", { score: { gf: 0, ga: 1 } }))).toBe("Perdimos 0–1");
+    expect(hoy(day("acta", { score: { gf: 3, ga: 1 } }))).toBe("3–1, acta lista");
+    expect(hoy(day("despues", { score: { gf: 2, ga: 2 } }))).toBe("2–2, acta lista");
+    expect(placeHints({ day: day("despues", { score: { gf: 3, ga: 1 } }), now: NOW, mvp: ["Alcides"] }).hoy).toBe("3–1, MVP Alcides");
+    expect(placeHints({ day: day("despues", { score: { gf: 3, ga: 1 } }), now: NOW, mvp: ["Alcides", "Kevin"] }).hoy).toBe("3–1, MVP compartido");
   });
 
   it("called off, the week and the pre-season", () => {
@@ -71,6 +72,13 @@ describe("placeHints · Temporada, Club and Tú", () => {
     expect(placeHints({ ...base, table: null, season: { played: 3, total: 6 } }).temporada).toBe("3 de 6 jornadas");
     expect(placeHints({ ...base, season: { played: 0, total: 6 } }).temporada).toBe("Empieza la temporada");
     expect(placeHints(base).temporada).toBe("Sin calendario todavía");
+  });
+
+  it("before tonight's whistle: «6º, J17 de 26», or «Empieza esta noche» on the first night", () => {
+    const antes = { day: day("antes"), now: NOW };
+    expect(placeHints({ ...antes, table: { position: 6, points: 26, projected: false }, season: { played: 15, total: 26, jornada: 17 } }).temporada).toBe("6º, J17 de 26");
+    expect(placeHints({ ...antes, season: { played: 0, total: 6, jornada: 1 } }).temporada).toBe("Empieza esta noche");
+    expect(placeHints({ day: day("antes", { kickoff: madridMs(2026, 10, 18, 12) }), now: NOW, season: { played: 0, total: 6 } }).temporada).toBe("Empieza hoy");
   });
 
   it("a birthday today, tomorrow or within a month; else the squad", () => {
