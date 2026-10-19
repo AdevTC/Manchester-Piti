@@ -183,6 +183,20 @@ describe("toPayload (what saveMatchSheet receives)", () => {
     expect(score(back).gf).toBe(3);
   });
 
+  it("an aplazado carries its reason and new date (null = por decidir); any other status drops them", () => {
+    const to = KICKOFF + 7 * 86_400_000;
+    const postponed: MatchSheet = { ...fromMatch({ seasonId: "t1", rival: "Orduña fc", date: KICKOFF, status: "postponed", postponedReason: "Campo inundado", postponedTo: to }), events: [] };
+    expect(postponed.postponedReason).toBe("Campo inundado");
+    expect(postponed.postponedTo).toBe(to);
+    const p = toPayload({ ...postponed, postponedReason: `  ${"x".repeat(150)} ` }, true, nameOf);
+    expect(p.ok && p.sheet.postponedReason).toHaveLength(140);
+    expect(p.ok && p.sheet.postponedTo).toBe(to);
+    const undecided = toPayload({ ...postponed, postponedTo: null, postponedReason: "" }, true, nameOf);
+    expect(undecided.ok && [undecided.sheet.postponedTo, "postponedReason" in undecided.sheet]).toEqual([null, false]);
+    const back = toPayload({ ...postponed, status: "scheduled" }, true, nameOf);
+    expect(back.ok && ["postponedTo" in back.sheet, "postponedReason" in back.sheet]).toEqual([false, false]);
+  });
+
   it("refuses what the backend would refuse, in words", () => {
     expect(toPayload({ ...j7(), rival: " " }, true, nameOf)).toEqual({ ok: false, error: "Completa temporada, rival y fecha." });
     expect(toPayload({ ...j7(), photoUrl: "http://x.jpg" }, true, nameOf)).toMatchObject({ ok: false, error: "La foto del partido tiene que ser un enlace https://." });
