@@ -14,7 +14,7 @@ function Declares({ mode }: { mode: DockMode }) {
 describe("liveDock", () => {
   it("floats by default; the live flag lights", () => {
     const { result } = renderHook(() => useLiveDockState());
-    expect(result.current).toEqual({ live: false, mode: "float", anchor: null });
+    expect(result.current).toEqual({ live: false, mode: "float", anchor: null, hidden: null });
     act(() => liveDock.setLive(true));
     expect(result.current.live).toBe(true);
   });

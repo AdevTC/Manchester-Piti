@@ -58,3 +58,9 @@ export const region = (n: RegionIndex): string => `vd-reg-${n}`;
 /** A shared object that morphs between the two states: put the returned class and style on it, with the same
  *  `name` in both states (unique on the page at any time). */
 export const morph = (name: string): { className: string; style: { viewTransitionName: string } } => ({ className: "vd-morph", style: { viewTransitionName: name } });
+
+/** The one view-transition-name the live score travels under from page to page: the floating drop and its sheet
+ *  (live/LiveScore), Inicio's lens, Partidos' tonight lens and the match page's scoreboard. Put
+ *  `morph(LIVE_MORPH)` on yours while it shows tonight's match (only one is on screen at a time: the float hides
+ *  while a lens is declared with useLiveDock(ref, "lens")), and `viewTransition` on the «Abrir el partido» link. */
+export const LIVE_MORPH = "vd-live-marcador";
