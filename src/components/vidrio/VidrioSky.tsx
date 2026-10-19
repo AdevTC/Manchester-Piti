@@ -6,6 +6,7 @@ import { bokehDiscs, paintDiscs, skyLightOf, type SkyInput } from "./sky";
 import { isShot, useReducedMotion } from "./env";
 import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/sky.css";
+import "../../styles/vidrio/field.css";
 
 export interface VidrioSkyProps {
   /** The kick-off's light (sun.ts LightKey) or «noon». */

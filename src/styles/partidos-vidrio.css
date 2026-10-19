@@ -740,13 +740,13 @@
   .vp-grow .vd-grow__body{overflow:visible}
 }
 /* Tabla and Números on the light field: what is provisional reads (≥ 4.5:1 on any sky) */
-.vp-tabla .vd-move{color:#CFE7FA;text-shadow:0 1px 2px rgba(4,10,30,.55)}
+.vp-tabla .vd-move{color:#CFE7FA;text-shadow:var(--vd-field-shade,0 1px 2px rgba(4,10,30,.55))}
 :root[data-theme="light"] .vp-tabla .vd-move{color:#1F5A8A;text-shadow:none}
 .vp-tabla .vd-table tr.sim td.pts{color:#CFE7FA;font-weight:800}
 :root[data-theme="light"] .vp-tabla .vd-table tr.sim td.pts{color:#1F5A8A}
-.vp-totals li.prov b,.vp-rank li.prov em{color:#CFE7FA;text-shadow:0 1px 3px rgba(4,10,30,.5)}
+.vp-totals li.prov b,.vp-rank li.prov em{color:#CFE7FA;text-shadow:var(--vd-field-shade,0 1px 3px rgba(4,10,30,.5))}
 :root[data-theme="light"] .vp-totals li.prov b,:root[data-theme="light"] .vp-rank li.prov em{color:#1F5A8A;text-shadow:none}
-.vp-panel--numeros:not(.vd-window) .vd-small,.vp-panel--numeros:not(.vd-window) .vp-rank small,.vp-panel--numeros:not(.vd-window) .vp-totals li>span,.vp-panel--tabla:not(.vd-window) .vd-small,.vp-panel--tabla:not(.vd-window) .vd-body{color:#DCE8F5;text-shadow:0 1px 2px rgba(4,10,30,.45)}
+.vp-panel--numeros:not(.vd-window) .vd-small,.vp-panel--numeros:not(.vd-window) .vp-rank small,.vp-panel--numeros:not(.vd-window) .vp-totals li>span,.vp-panel--tabla:not(.vd-window) .vd-small,.vp-panel--tabla:not(.vd-window) .vd-body{color:#DCE8F5;text-shadow:var(--vd-field-shade,0 1px 2px rgba(4,10,30,.45))}
 :root[data-theme="light"] .vp-panel--numeros:not(.vd-window) .vd-small,:root[data-theme="light"] .vp-panel--numeros:not(.vd-window) .vp-rank small,:root[data-theme="light"] .vp-panel--numeros:not(.vd-window) .vp-totals li>span,:root[data-theme="light"] .vp-panel--tabla:not(.vd-window) .vd-small,:root[data-theme="light"] .vp-panel--tabla:not(.vd-window) .vd-body{color:var(--vd-ink2);text-shadow:none}
 .vp-extra .vd-ico svg{width:20px;height:20px}
 .vp-extra .vp-extra__left{display:none}

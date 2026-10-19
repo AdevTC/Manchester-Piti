@@ -2,7 +2,9 @@
    layered CSS gradients (server-safe); VidrioSky adds a canvas of ~40 bokeh discs once in the browser, no loop.
    Lights: vd-l-golden · vd-l-flood · vd-l-late · vd-l-noon · vd-l-day («día» theme always paints day).
    .vd-sky--gold floods it gold for the goal moment; .vd-sky--cold is the rival's goal (a coral cold flash).
-   --vd-sky-h: the first screen's height (the stops are laid out on it). */
+   --vd-sky-h: the first screen's height (the stops are laid out on it). --veil: the bright lights (golden, noon)
+   dim their band (~8–112 % of it, where the reading text of every page sits) by a third (the floodlit night by a quarter), so the field's text
+   keeps AA there (styles/vidrio/field.css does the rest). */
 .vd-sky{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;--h:var(--vd-sky-h,900px);background:var(--vd-noche)}
 .vd-sky>*{position:absolute;left:0;right:0;top:0}
 .vd-sky__base{bottom:0;background:linear-gradient(180deg,var(--sk1) 0,var(--sk2) calc(var(--h)*.42),var(--sk3) calc(var(--h)*.62),var(--sk4) calc(var(--h)*.86),var(--sk5) calc(var(--h)*1.25),var(--sk5) 100%)}
@@ -29,7 +31,8 @@
 .vd-sky__cold{bottom:0;opacity:0;mix-blend-mode:screen;background:radial-gradient(80% 55% at 50% 28%,rgba(240,138,126,.45),rgba(150,180,230,.18) 50%,transparent 78%)}
 .vd-sky__grain{bottom:0;opacity:var(--grain-a,.16);mix-blend-mode:overlay;background-size:220px 220px;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 1.4 -.2'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>")}
-.vd-sky__vig{bottom:0;background:linear-gradient(180deg,var(--scrim,rgba(4,8,22,.42)),transparent 140px),radial-gradient(130% 90% at 50% 30%,transparent 55%,var(--vig) 100%)}
+.vd-sky__vig{bottom:0;background:linear-gradient(180deg,var(--scrim,rgba(4,8,22,.42)),transparent 140px),radial-gradient(130% 90% at 50% 30%,transparent 55%,var(--vig) 100%),
+  linear-gradient(180deg,transparent calc(var(--h)*.08),var(--veil,transparent) calc(var(--h)*.3),var(--veil,transparent) calc(var(--h)*.88),transparent calc(var(--h)*1.12))}
 .vd-sky--drift .vd-sky__drift{animation:vd-drift 46s ease-in-out infinite alternate}
 @keyframes vd-drift{from{transform:translate3d(-1.2%,0,0) scale(1.02)}to{transform:translate3d(1.2%,-.8%,0) scale(1.04)}}
 .vd-sky--cloud{--haze-y:40%;--sun-a:.25;--grain-a:.2}
@@ -42,19 +45,19 @@
 /* the lights */
 .vd-l-golden{--sk1:#1C2B5E;--sk2:#5E6FA8;--sk3:#C99A86;--sk4:#2A2F4A;--sk5:#0C1430;--sun:rgba(243,178,107,.85);--sun-core:rgba(255,236,200,.95);--sun-a:1;--sunx:74%;--suny:58%;
   --bank:rgba(255,226,180,.22);--bank-halo:rgba(255,200,150,.10);--bank-a:.7;--pitch-glow:rgba(243,178,107,.22);--ray:rgba(255,206,150,.16);--ray-a:.55;
-  --haze:rgba(243,178,107,.30);--haze-y:60%;--turf1:#273828;--turf2:#2E4330;--turf-a:.75;--vig:rgba(6,10,28,.75)}
+  --haze:rgba(243,178,107,.30);--haze-y:60%;--turf1:#273828;--turf2:#2E4330;--turf-a:.75;--vig:rgba(6,10,28,.75);--veil:rgba(14,10,30,.42)}
 .vd-l-flood{--sk1:#060F24;--sk2:#14275A;--sk3:#22457F;--sk4:#10283F;--sk5:#071022;--sun-a:0;
   --bank:rgba(240,248,255,.55);--bank-halo:rgba(170,205,245,.24);--bank-a:1;--pitch-glow:rgba(140,200,255,.22);--ray:rgba(200,228,255,.17);--ray-a:.8;
-  --haze:rgba(120,170,230,.26);--haze-y:62%;--turf1:#164B47;--turf2:#1B5651;--turf-a:.7;--vig:rgba(3,7,20,.8)}
+  --haze:rgba(120,170,230,.26);--haze-y:62%;--turf1:#164B47;--turf2:#1B5651;--turf-a:.7;--vig:rgba(3,7,20,.8);--veil:rgba(3,8,22,.26)}
 .vd-l-late{--sk1:#040A1A;--sk2:#0B1838;--sk3:#13285A;--sk4:#0B1A33;--sk5:#050B1A;--sun-a:0;
   --bank:rgba(190,215,245,.30);--bank-halo:rgba(108,171,221,.12);--bank-a:.7;--pitch-glow:rgba(108,171,221,.10);--ray:rgba(160,200,240,.07);--ray-a:.5;
   --haze:rgba(80,120,190,.16);--haze-y:64%;--turf1:#0F3433;--turf2:#123C3A;--turf-a:.55;--vig:rgba(2,5,14,.85)}
 .vd-l-noon{--sk1:#123A70;--sk2:#245A98;--sk3:#4E83B8;--sk4:#1C3A3A;--sk5:#091A22;--sun:rgba(255,250,235,.5);--sun-core:#fff;--sun-a:.9;--sunx:24%;--suny:7%;
   --bank:rgba(255,255,255,0);--bank-halo:rgba(255,255,255,0);--bank-a:0;--pitch-glow:rgba(200,235,255,.16);--ray:rgba(255,255,255,.16);--ray-a:.6;
-  --haze:rgba(170,210,245,.26);--haze-y:60%;--turf1:#2A5236;--turf2:#305C3D;--turf-a:.65;--vig:rgba(6,14,34,.72)}
+  --haze:rgba(170,210,245,.26);--haze-y:60%;--turf1:#2A5236;--turf2:#305C3D;--turf-a:.65;--vig:rgba(6,14,34,.72);--veil:rgba(6,14,34,.3)}
 .vd-l-day,:root[data-theme="light"] .vd-sky{--sk1:#7FBCEB;--sk2:#A9D5F4;--sk3:#DCEEFB;--sk4:#EDF6FD;--sk5:#F4F9FE;--sun:rgba(255,255,255,.9);--sun-core:#fff;--sun-a:.8;--sunx:22%;--suny:6%;--scrim:rgba(255,255,255,0);
   --bank:rgba(255,255,255,.0);--bank-halo:rgba(255,255,255,.0);--bank-a:0;--pitch-glow:rgba(255,255,255,.35);--ray:rgba(255,255,255,.35);--ray-a:.5;
-  --haze:rgba(255,255,255,.6);--haze-y:58%;--turf1:#8DC59B;--turf2:#97CDA4;--turf-a:.35;--vig:rgba(160,195,230,.25);--grain-a:.08}
+  --haze:rgba(255,255,255,.6);--haze-y:58%;--turf1:#8DC59B;--turf2:#97CDA4;--turf-a:.35;--vig:rgba(160,195,230,.25);--grain-a:.08;--veil:transparent}
 :root[data-theme="light"] .vd-sky{background:#EEF6FD}
 :root[data-theme="light"] .vd-sky__bokeh{opacity:.55}
 @media (prefers-reduced-motion:reduce){.vd-sky__drift{animation:none!important}}

@@ -20,7 +20,7 @@
 .vd-pg-head{padding:88px 16px 0;max-width:720px}
 .vd-pg-head h1{margin:0;font-family:var(--vd-sans);font-weight:720;font-variation-settings:'wdth' 92;font-stretch:92%;font-size:clamp(33px,4.4vw,61px);letter-spacing:-.025em;line-height:.98;color:var(--vd-ink-strong);text-wrap:balance}
 .vd-pg-head .vd-lede{margin:8px 0 0;font-size:14.5px;line-height:1.45;color:var(--vd-ink)}
-:root:not([data-theme="light"]) .vd-pg-head :is(h1,.vd-lede){text-shadow:0 1px 14px rgba(4,10,28,.45)}
+:root:not([data-theme="light"]) .vd-pg-head :is(h1,.vd-lede){text-shadow:var(--vd-field-shade,0 1px 14px rgba(4,10,28,.45))}
 @media (min-width:700px){.vd-pg-head{padding:104px 40px 0}.vd-pg-head .vd-lede{font-size:16px}}
 @media (min-width:1100px){.vd-pg-head{padding:112px 72px 0}.vd-pg-head .vd-lede{font-size:17px;margin-top:10px}}
 
