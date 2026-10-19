@@ -1,0 +1,85 @@
+/* «Vidrio» reading and control pieces the pages share (the boards' v-kit.css, renamed vd-*): glass buttons and
+   links, the lens's teams / score / status line, the ornaments (a small glass card with a head), a list of
+   plays, the form letters, inputs, counts, the table's «sube al 4º» and the glass window. Every target ≥ 44 px.
+   Gold is only our goal and the MVP; the rival's coral always goes with a word. */
+
+/* ---------------------------------------------------------------- buttons and links */
+.vd-btn{--vd-r:var(--vd-r-ctl);display:inline-flex;align-items:center;justify-content:center;gap:9px;height:48px;min-height:44px;padding:0 20px;border:0;
+  font-family:var(--vd-sans);font-weight:640;font-size:15.5px;letter-spacing:-.005em;white-space:nowrap;text-decoration:none;cursor:pointer;color:var(--vd-g-ink)}
+.vd-btn svg{width:19px;height:19px;flex:none}
+.vd-btn--pri{--vd-g-tint:var(--vd-pri);--vd-g-sheen:rgba(255,255,255,.26);color:#fff}
+:root[data-theme="light"] .vd-btn--pri{color:#fff;--vd-g-sheen:rgba(255,255,255,.12)}
+.vd-btn--sm{height:44px;padding:0 15px;font-size:14.5px}
+.vd-btn[disabled],.vd-btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+.vd-btn[aria-pressed="true"]{--vd-g-tint:rgba(108,171,221,.3)}
+.vd-btn:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+.vd-link{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0;border:0;background:none;cursor:pointer;font:inherit;font-family:var(--vd-sans);font-weight:600;color:var(--vd-ink-strong);
+  text-decoration:underline;text-decoration-color:var(--vd-rule2);text-underline-offset:4px;text-decoration-thickness:1.5px}
+.vd-link:hover{text-decoration-color:var(--vd-celeste)}
+.vd-link:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px;border-radius:4px}
+.vd-ibtn{--vd-r:999px;width:46px;height:46px;display:inline-grid;place-items:center;flex:none;border:0;cursor:pointer}
+.vd-ibtn svg{width:20px;height:20px}
+
+/* ---------------------------------------------------------------- the lens's match: teams, score, status */
+.vd-lens__teams{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px}
+.vd-team{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;min-width:0}
+.vd-team__crest{width:68px;height:68px;border-radius:50%;display:grid;place-items:center;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.25),0 10px 30px -10px var(--vd-glow)}
+.vd-team__crest--rival{background:radial-gradient(circle at 35% 30%,#3a4f7c,#16244a);font-weight:800;font-variation-settings:'wdth' 110;font-size:21px;letter-spacing:.02em;color:#fff}
+:root[data-theme="light"] .vd-team__crest--rival{background:radial-gradient(circle at 35% 30%,#fff,#d8e6f5);color:var(--vd-marino)}
+.vd-team b{font-weight:680;font-variation-settings:'wdth' 94;font-size:18px;letter-spacing:-.015em;line-height:1.1;color:var(--vd-g-ink);max-width:100%;overflow-wrap:anywhere}
+.vd-team span{font-size:13px;color:var(--vd-g-ink2)}
+.vd-scoreline{display:flex;align-items:center;gap:.12em;font-size:150px;color:var(--vd-g-ink)}
+.vd-scoreline__sep{width:.22em;height:.07em;border-radius:99px;background:currentColor;opacity:.55;margin:0 .06em}
+.vd-digit{display:inline-block;position:relative;background:linear-gradient(180deg,#fff 10%,#cfe4f8 62%,#9cc6ea);-webkit-background-clip:text;background-clip:text;color:transparent}
+:root[data-theme="light"] .vd-digit{background:linear-gradient(180deg,#0c1733 30%,#2d4a7a);-webkit-background-clip:text;background-clip:text}
+.vd-lens__status{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 12px;margin:10px 0 0;font-size:14.5px;color:var(--vd-g-ink2)}
+.vd-lens__status .vd-clock{font-size:17px;color:var(--vd-g-ink)}
+.vd-live{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:var(--vd-g-ink)}
+.vd-live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--vd-live);animation:vd-live 1.8s ease-out infinite}
+
+/* ---------------------------------------------------------------- ornaments (small glass cards) */
+.vd-orn{--vd-r:var(--vd-r-orn);padding:18px 18px 16px;font-family:var(--vd-sans)}
+.vd-orn__head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+.vd-orn__head h2,.vd-orn__head h3{margin:0;font-weight:680;font-variation-settings:'wdth' 94;font-size:18px;letter-spacing:-.015em;color:var(--vd-g-ink)}
+.vd-orn__head>span{font-size:13px;color:var(--vd-g-ink2);white-space:nowrap}
+.vd-window{--vd-r:32px;--vd-g-tint:rgba(8,18,39,.62);--vd-blur:28px;padding:24px;font-family:var(--vd-sans)}
+:root[data-theme="light"] .vd-window{--vd-g-tint:rgba(255,255,255,.74)}
+
+/* ---------------------------------------------------------------- a list of plays */
+.vd-plays{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.vd-play{display:grid;grid-template-columns:40px 22px minmax(0,1fr);align-items:start;gap:8px;padding:9px 0;border-top:1px solid var(--vd-rule)}
+.vd-play:first-child{border-top:0}
+.vd-play .vd-clock{font-size:14px;color:var(--vd-g-ink2);padding-top:1px}
+.vd-play b{display:block;font-weight:640;font-size:14.5px;line-height:1.25;color:var(--vd-g-ink)}
+.vd-play span{display:block;font-size:13px;color:var(--vd-g-ink2);line-height:1.3}
+.vd-play--them b{color:var(--vd-rival)}
+.vd-ico{width:20px;height:20px;display:grid;place-items:center;color:var(--vd-g-ink2)}
+.vd-ico svg{width:18px;height:18px}
+.vd-ico i{width:11px;height:15px;border-radius:2px;background:var(--vd-amarilla);display:block}
+.vd-ico i.r{background:var(--vd-roja)}
+
+/* ---------------------------------------------------------------- form letters, counts, the table's move */
+.vd-form{display:flex;gap:8px;flex-wrap:wrap;margin:0;padding:0;list-style:none}
+.vd-form__l{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-weight:780;font-size:18px;font-variation-settings:'wdth' 100;color:var(--vd-ink-strong);background:rgba(234,243,252,.10);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.vd-form__l--g{background:rgba(108,171,221,.28);box-shadow:inset 0 0 0 1px rgba(108,171,221,.6)}
+.vd-form__l--p{background:rgba(240,138,126,.2);box-shadow:inset 0 0 0 1px rgba(240,138,126,.55)}
+.vd-form__l--prov{background:transparent;box-shadow:none;outline:1.5px dashed var(--vd-celeste);outline-offset:-1.5px}
+.vd-form__l--empty{background:transparent;box-shadow:none;outline:1px dashed var(--vd-rule2);outline-offset:-1px;color:var(--vd-ink2);font-weight:500;font-size:13px}
+.vd-count{display:flex;flex-direction:column;gap:2px}
+.vd-count b{font-weight:780;font-variation-settings:'wdth' 108;font-size:31px;line-height:1;letter-spacing:-.02em;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+.vd-count span{font-size:13px;color:var(--vd-ink2)}
+.vd-move{display:inline-flex;align-items:center;gap:3px;margin-left:8px;font-size:12px;font-weight:650;color:var(--vd-celeste);vertical-align:1px;white-space:nowrap}
+:root[data-theme="light"] .vd-move{color:#2C6A9E}
+.vd-move svg{width:12px;height:12px}
+
+/* ---------------------------------------------------------------- inputs */
+.vd-label{display:block;font-size:13.5px;font-weight:600;color:var(--vd-ink);margin-bottom:6px}
+.vd-input{display:block;width:100%;height:50px;padding:0 16px;border-radius:var(--vd-r-ctl);border:0;outline:none;font-family:var(--vd-sans);
+  background:rgba(4,10,28,.38);color:var(--vd-ink-strong);font-size:16px;font-weight:560;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.35),inset 0 0 0 1px rgba(234,243,252,.16),0 1px 0 rgba(255,255,255,.12)}
+.vd-input::placeholder{color:#93A9C8}
+.vd-input:focus{box-shadow:inset 0 2px 6px rgba(0,0,0,.35),inset 0 0 0 1.5px var(--vd-celeste),0 0 0 4px rgba(108,171,221,.22)}
+:root[data-theme="light"] .vd-input{background:rgba(255,255,255,.7);box-shadow:inset 0 1px 3px rgba(12,23,51,.15),inset 0 0 0 1px rgba(12,23,51,.16)}
+:root[data-theme="light"] .vd-input::placeholder{color:#5a6f92}
+
+@media (prefers-reduced-motion:reduce){.vd-live::before{animation:none}}

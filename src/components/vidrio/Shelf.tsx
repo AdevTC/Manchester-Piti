@@ -13,6 +13,8 @@ export interface ShelfPlace {
   label: string;
   /** A short live line under the label («2–1, minuto 23»). */
   hint?: string;
+  /** The hint on a phone, where the shelf is narrow («2–1, 23′»; default: `hint`). */
+  short?: string;
   /** A count or a word on the place (pending things in «Tú»). */
   badge?: number | string;
 }
@@ -61,7 +63,18 @@ export function Shelf({ places, value, onChange, label, idBase, variant = "shelf
             onClick={() => onChange(p.id)}
           >
             <b>{p.label}</b>
-            {p.hint && !seg && <small>{p.hint}</small>}
+            {p.hint && !seg && (
+              <small>
+                {p.short && p.short !== p.hint ? (
+                  <>
+                    <span className="vd-hint-l">{p.hint}</span>
+                    <span className="vd-hint-s">{p.short}</span>
+                  </>
+                ) : (
+                  p.hint
+                )}
+              </small>
+            )}
             {p.badge != null && p.badge !== 0 && p.badge !== "" && (
               <>
                 <span className="vd-badge" aria-hidden="true">

@@ -17,6 +17,7 @@ field. Gold only for our goal and the MVP. Mona Sans (`--vd-sans`) for headings 
 | `glass.css` | `.vd-glass` (+ `--deep`, `--clear`, `--lens`, `--frost`), `.vd-press`, `.vd-rim-gold`, `.vd-livedot`, `.vd-vh` (visually hidden) |
 | `sky.css` | the light field (`VidrioSky`) |
 | `components.css` | type helpers (`.vd-score`, `.vd-h1…h4`, `.vd-lede`, `.vd-body`, `.vd-small`, `.vd-clock`), lens, shelf/seg, ribbon, «Ver todo»/grow (`.vd-more`, `.vd-grow`, `.vd-stepback`, `.vd-fade`), floating score, PiP window, goal-moment classes |
+| `content.css` | shared reading and control pieces: `.vd-btn` (`--pri`, `--sm`), `.vd-link`, `.vd-ibtn`, the lens's match (`.vd-lens__teams`, `.vd-team`, `.vd-scoreline`, `.vd-digit`, `.vd-lens__status`, `.vd-live`), `.vd-orn` (+ `__head`), `.vd-window`, `.vd-plays`/`.vd-play`/`.vd-ico`, `.vd-form__l` letters, `.vd-count`, `.vd-move`, `.vd-label`/`.vd-input` (import it where you use them) |
 | `transitions.css` | the swap choreography (`.vd-reg-1…6`, `.vd-morph`, `::view-transition-*`) |
 | `chrome.css` | the shared chrome restyle (glass capsule nav + glass tab bar), loaded by `celeste/Chrome.tsx` |
 
@@ -45,7 +46,7 @@ Any element can be glass: `className="vd-glass"` (+ `style={{"--vd-r": "28px"}}`
 ## Shelf (places) and segmented control
 
 ```ts
-<Shelf places: {id,label,hint?,badge?}[] value onChange(id) label idBase variant?: "shelf"|"seg" className? />
+<Shelf places: {id,label,hint?,short?,badge?}[] value onChange(id) label idBase variant?: "shelf"|"seg" className? />   // short: the hint under 700 px
 shelfTabId(idBase, id) / shelfPanelId(idBase, id)   // put on your panel: role="tabpanel" id aria-labelledby
 nextIndex(key, at, n)  travel(fromIndex, toIndex) → "left"|"right"
 ```

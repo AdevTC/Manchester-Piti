@@ -46,6 +46,14 @@ describe("Shelf", () => {
     expect(screen.getByRole("tab", { name: /Tú, 2/ })).toBeInTheDocument();
   });
 
+  it("a short hint for the phone rides next to the long one (CSS shows one)", () => {
+    render(<Shelf places={[{ id: "hoy", label: "Hoy", hint: "2–1, minuto 23", short: "2–1, 23′" }, { id: "club", label: "Club", hint: "Club", short: "Club" }]} value="hoy" onChange={() => undefined} label="Lugares" idBase="x" />);
+    const hoy = screen.getByRole("tab", { name: /Hoy/ });
+    expect(hoy.querySelector(".vd-hint-l")).toHaveTextContent("2–1, minuto 23");
+    expect(hoy.querySelector(".vd-hint-s")).toHaveTextContent("2–1, 23′");
+    expect(screen.getByRole("tab", { name: /Club/ }).querySelector(".vd-hint-s")).toBeNull();
+  });
+
   it("arrow keys choose and move the focus; a click chooses", () => {
     render(<Harness />);
     const hoy = screen.getByRole("tab", { name: /Hoy/ });
