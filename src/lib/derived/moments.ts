@@ -1,8 +1,8 @@
-// The plays of a match as broadcast «moments»: what the live island unfolds for ~9 s (its rótulo), what the
-// hero and the front row react to, and the line a screen reader hears once. One moment per play la mesa
+// The plays of a match as broadcast «moments»: what the floating score unfolds for ~9 s (its rótulo) and the
+// line a screen reader hears once. One moment per play la mesa
 // writes that a fan cares about (a goal, a card, a change, the woodwork, a save, a penalty, a knock) and one
 // per turn of the clock (kick-off, half-time, the second half, the final whistle). Pure: the hook
-// (components/celeste/isla/useMatchMoment) decides which ones are fresh enough to show.
+// (components/vidrio/live/useMatchMoment) decides which ones are fresh enough to show.
 import { clockReading, type MatchClock } from "../../../functions/src/matchClock";
 import { eventMinute, type MatchEvent } from "../../../functions/src/matchEngine";
 import { eventSeconds } from "../../../functions/src/matchAnalysis";

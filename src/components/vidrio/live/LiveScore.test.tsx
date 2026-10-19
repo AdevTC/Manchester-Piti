@@ -174,7 +174,7 @@ describe("the sheet", () => {
     expect(sheet).toHaveTextContent("Primera parte");
     expect(sheet.querySelectorAll(".vd-play")).toHaveLength(3);
     expect(sheet).toHaveTextContent("1 jugada más");
-    expect(sheet).toHaveTextContent("En el campo: PEPITO y JORDI.");
+    expect(sheet).toHaveTextContent("En el campo: Pepito y Jordi.");
     const open = screen.getByRole("link", { name: "Abrir el partido" });
     expect(open).toHaveAttribute("href", "/matches/j8");
     expect(open).toHaveAttribute("data-vt", "1");
@@ -289,22 +289,22 @@ describe("a member's day", () => {
 describe("the plays", () => {
   const before = [goal("g1", 5)];
 
-  it("a fresh goal of ours: the drop unfolds «¡Gol de PEPITO!», the goal moment plays, said once; then the score again", () => {
+  it("a fresh goal of ours: the drop unfolds «¡Gol de Pepito!» (the name read as a name), the goal moment plays, said once; then the score again", () => {
     state.matches = [at(started, before)];
     state.now = KICK + 19 * MIN + 5_000;
     const { container, rerender } = render(<LiveScore />);
     expect(container.querySelector(".vd-goal")).toBeNull();
     state.matches = [at(started, [...before, goal("g2", 19)])];
     rerender(<LiveScore />);
-    expect(container.querySelector(".vd-drop__event")).toHaveTextContent("¡Gol de PEPITO!");
-    expect(said(container)).toBe("Gol del Piti, de PEPITO. Piti 2, MAD SKY 0");
+    expect(container.querySelector(".vd-drop__event")).toHaveTextContent("¡Gol de Pepito!");
+    expect(said(container)).toBe("Gol del Piti, de Pepito. Piti 2, MAD SKY 0");
     act(() => {
       vi.advanceTimersByTime(250);
     });
     expect(container.querySelector(".vd-goal")).not.toBeNull();
     state.now += 15_000;
     rerender(<LiveScore />);
-    expect(said(container)).toBe("Gol del Piti, de PEPITO. Piti 2, MAD SKY 0");
+    expect(said(container)).toBe("Gol del Piti, de Pepito. Piti 2, MAD SKY 0");
     act(() => {
       vi.advanceTimersByTime(DROP_HOLD_MS);
     });

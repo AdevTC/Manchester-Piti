@@ -54,6 +54,27 @@ describe("FloatingScore", () => {
     expect(localStorage.getItem("vd-pos-test-movil")).toBeNull();
   });
 
+  it("desktop: rests where the page asks (top-right, or the bottom-right corner) and its hint opens towards the room", () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("min-width: 1100px"), media: q, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    try {
+      const { unmount } = render(<FloatingScore match={LIVE} now={0} onOpen={() => undefined} storageKey="a" />);
+      let float = screen.getByRole("button", { name: /Orduña fc 1/ }).parentElement as HTMLElement;
+      const W = document.documentElement.clientWidth || window.innerWidth;
+      expect(float.style.getPropertyValue("--vd-fx")).toBe(`${W - 200 - 24}px`);
+      expect(float.style.getPropertyValue("--vd-fy")).toBe("104px");
+      expect(float.dataset.vdV).toBe("high");
+      unmount();
+      render(<FloatingScore match={LIVE} now={0} onOpen={() => undefined} storageKey="b" placement="bottom-right" />);
+      float = screen.getByRole("button", { name: /Orduña fc 1/ }).parentElement as HTMLElement;
+      expect(float.style.getPropertyValue("--vd-fx")).toBe(`${W - 200 - 24}px`);
+      expect(float.style.getPropertyValue("--vd-fy")).toBe(`${window.innerHeight - 50 - 24}px`);
+      expect(float.dataset.vdV).toBe("low");
+      expect(float.dataset.vdH).toBe("right");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("steps aside while a page's lens shows the match", () => {
     render(
       <>

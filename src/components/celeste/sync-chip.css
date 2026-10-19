@@ -9,8 +9,6 @@
 .mp-sync.stale{animation:mpSyncIn .45s cubic-bezier(.16,1,.3,1) both}
 @keyframes mpSyncIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 
-/* on the island: under the pill, always on the dark */
-.mp-sync.isle{background:#05070d;color:#c9d8ef;box-shadow:inset 0 0 0 1px rgba(201,216,239,.28),0 12px 26px -14px rgba(0,0,0,.9)}
 /* on a public board (.vx, both themes) */
 .mp-sync.board{background:var(--chip,rgba(255,255,255,.06));color:var(--soft,#c9d8ef);box-shadow:inset 0 0 0 1px var(--line,rgba(159,208,242,.25))}
 /* on the admin LED: an amber LED line */

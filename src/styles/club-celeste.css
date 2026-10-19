@@ -16,7 +16,7 @@
 .cl-share,.cl-go{height:48px;padding:0 20px;font-size:14px}
 
 /* ── hero ── */
-.cl-hero{position:relative;background:var(--hero-bg);padding:calc(88px + var(--isle,0px)) 16px 36px;overflow:hidden}
+.cl-hero{position:relative;background:var(--hero-bg);padding:88px 16px 36px;overflow:hidden}
 .cl-hero-in{position:relative;z-index:2;display:grid;gap:28px;max-width:1312px;margin:0 auto}
 .cl-intro{display:grid;gap:12px;align-content:start;container-type:inline-size}
 .cl-h1{margin:0;font-family:'Anybody';font-weight:900;font-size:min(120px,24cqi);line-height:.86;letter-spacing:-.03em;font-variation-settings:'wdth' 100;white-space:nowrap}
@@ -232,7 +232,7 @@
 
 /* ── tablet ── */
 @container st-page (min-width:700px){
-.cl-hero{padding:calc(104px + var(--isle,0px)) 40px 48px}
+.cl-hero{padding:104px 40px 48px}
 .cl-hero-in{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center}
 .cl-main{padding:16px 40px 48px;gap:72px}
 .cl-trophies{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -251,7 +251,7 @@
 }
 /* ── desktop ── */
 @container st-page (min-width:1100px){
-.cl-hero{padding:calc(132px + var(--isle,0px)) 64px 64px}
+.cl-hero{padding:132px 64px 64px}
 .cl-hero-in{grid-template-columns:minmax(0,1fr) 520px;gap:64px}
 .cl-vitrina{min-height:520px}
 .cl-case-wrap{transform:scale(1.25);margin:56px 0 40px}

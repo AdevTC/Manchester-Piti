@@ -1,5 +1,5 @@
 /* El centro de avisos (NoticesBell): the bell in the header (every width) and its panel, portalled to the page's
-   body so nothing in the header's stacking context (nor the «Vota al MVP» island) can cover it — a fixed popover
+   body so nothing in the header's stacking context (nor the floating score) can cover it — a fixed popover
    under the bell from 1100px, a bottom sheet with scrim below. Out of .vx the panel has no Celeste tokens, so
    .nt-portal carries the few it reads (same values as styles/vestuario.css, both themes). The kicker is the Celeste
    hm-kick. Its own nt- names (the door's .tl .nt-wrap/.nt-h/.nt-b/.nt-acts/.nt-empty and the profile's .nt-h are

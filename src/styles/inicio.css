@@ -26,15 +26,16 @@
 /* ───────────────────────── the lens */
 .vi-lensbox{position:relative;min-width:0}
 .vi-lens{width:100%;color:var(--vd-g-ink)}
-.vi-lens .vd-lens__teams{grid-template-columns:72px minmax(0,1fr) 72px;gap:6px}
+.vi-lens .vd-teams{grid-template-columns:72px minmax(0,1fr) 72px;gap:6px}
 .vi-lens .vd-team{gap:5px}
 .vi-lens .vd-team__crest{width:48px;height:48px;font-size:15px}
-.vi-lens .vd-team b{font-size:13.5px}
+.vi-lens .vd-team b{font-size:13.5px;max-width:100%;overflow-wrap:break-word}
 .vi-lens .vd-team span{font-size:12px}
 .vi-long{display:none}
 .vi-short{display:inline}
 .vi-score{font-size:92px;justify-content:center;margin:0}
-.vi-lens .vd-lens__status{font-size:13.5px;gap:4px 8px;margin-top:6px}
+.vi-lens .vd-status{font-size:13.5px;gap:4px 8px;margin-top:6px}
+.vi-lens .vd-status .vd-live{color:var(--vd-g-ink)}
 .vi-lens .vd-ribbon{height:58px;margin-top:10px;margin-bottom:18px}
 .vi-count{display:flex;flex-direction:column;align-items:center;gap:6px;margin:0}
 .vi-count__t{font-size:60px}
@@ -50,6 +51,8 @@
 .vi-sunribbon .vd-ribbon__lab{font-family:var(--vd-mono)}
 .vi-sun{position:absolute;top:44%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:radial-gradient(circle,#FFF1D6,#F3B26B);box-shadow:0 0 0 4px rgba(243,178,107,.25),0 0 18px #F3B26B}
 .vi-lens .vd-ribbon__lab{font-family:var(--vd-mono)}
+/* on a phone the masts' word would sit on «19:00 pitido»: the lit band says it (and the ribbon's label) */
+.vi-lab-focos{display:none}
 
 /* ───────────────────────── Hoy's words */
 .vi-head{position:relative;min-width:0}
@@ -112,6 +115,16 @@
 :root[data-theme="light"] .vi-player__name{color:var(--vd-marino);text-shadow:0 1px 0 rgba(255,255,255,.8)}
 .vi-player__tags{position:absolute;top:0;left:calc(50% + var(--ps)/2 + 3px);display:flex;flex-direction:column;align-items:flex-start;gap:3px}
 .vi-player--htl .vi-player__tags{left:auto;right:calc(50% + var(--ps)/2 + 3px);align-items:flex-end}
+/* the collision pass (vidrio/pitchLayout): plates and tags moved clear of the others, the side the tags stand
+   on, and a plate shrunk to the dorsal on the shirt (still read out: it is only transparent) */
+.vi-player__name{transform:translateY(var(--pdy,0px))}
+.vi-player__tags{transform:translateY(var(--tdy,0px))}
+.vi-player--num .vi-player__name{opacity:0}
+.vi .vi-pitch .vi-players .vi-player[data-tags="r"] .vi-player__tags{left:calc(50% + var(--ps)/2 + 3px);right:auto;align-items:flex-start}
+.vi .vi-pitch .vi-players .vi-player[data-tags="l"] .vi-player__tags{left:auto;right:calc(50% + var(--ps)/2 + 3px);align-items:flex-end}
+.vi-player--tags2 .vi-player__tags{display:grid;grid-template-columns:repeat(2,max-content);gap:3px}
+.vi-player--tags2[data-tags="l"] .vi-player__tags{justify-items:end}
+.vi-player--tagsicon .vi-tag{gap:0;padding:0 5px;font-size:0;min-width:10px}
 .vi-player--me .vi-player__name{text-decoration:underline;text-decoration-color:var(--vd-celeste);text-underline-offset:3px;text-decoration-thickness:2px}
 .vi-tag{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 6px;border-radius:6px;font-size:11.5px;font-weight:650;line-height:1;background:rgba(234,243,252,.9);color:var(--vd-marino);white-space:nowrap}
 .vi-tag svg{width:11px;height:11px}
@@ -310,11 +323,12 @@
 
 /* ───────────────────────── tablet (700+) */
 @container (min-width:700px){
+  .vi-lab-focos{display:block}
   .vi-stage{padding:88px 32px 128px}
   .vi-stage__shelf{margin-top:18px}
   .vi-long{display:inline}
   .vi-short{display:none}
-  .vi-lens .vd-lens__teams{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px}
+  .vi-lens .vd-teams{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px}
   .vi-lens .vd-team__crest{width:68px;height:68px;font-size:21px}
   .vi-lens .vd-team b{font-size:18px}
   .vi-lens .vd-team span{font-size:13px}
@@ -323,7 +337,7 @@
   .vi-word__t{font-size:36px}
   .vi-word{max-width:340px;justify-self:center}
   .vi-lens .vd-ribbon{height:74px;margin-top:16px;margin-bottom:22px}
-  .vi-lens .vd-lens__status{font-size:14.5px;margin-top:10px}
+  .vi-lens .vd-status{font-size:14.5px;margin-top:10px}
   .vi-h1{font-size:49px}
   .vi-panel--hoy{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;padding-top:28px}
   .vi-slot--head,.vi-slot--err{grid-column:1/-1}
@@ -508,6 +522,22 @@
 .vi--cockpit .vi-centre--grown>:not(.vi-grow){display:none}
 .vi--cockpit .vi-panel>.vi-grow{grid-row:1/-1;grid-column:1;z-index:6;max-height:none;margin:14px 0 16px}
 .vi--cockpit .vi-grow-cols{column-count:1}
+/* the centre keeps to its stage like the zones: what doesn't fit (a long acta line, the member's lines) scrolls
+   inside it rather than running under the shelf; an ornament's long list (the MVP vote) scrolls in its card */
+.vi--cockpit .vi-centre:not(.vi-centre--grown){overflow-y:auto;overscroll-behavior:contain;padding-bottom:20px}
+.vi--cockpit .vi-centre .vi-mvp{overflow:hidden}
+.vi--cockpit .vi-centre .vi-mvp__grid{flex:1 1 auto;min-height:0;overflow-y:auto;align-content:start;padding:2px}
+/* a 1920 window up to 1200 tall (a 1080 screen with the browser's bars, or the stage's floor of 1000): the
+   centre tightens so the headline, its buttons and the member's lines stay above the shelf */
+@media (max-height:1199px){
+  .vi--cockpit .vi-centre>.vi-slot--l,.vi--cockpit .vi-centre>.vi-slot--r{height:250px}
+  .vi--cockpit .vi-centre--compact>.vi-slot--r{height:auto}
+  .vi--cockpit .vi-centre>.vi-slot--head{padding-top:8px}
+  .vi--cockpit .vi-centre .vi-h1{font-size:42px}
+  .vi--cockpit .vi-centre .vi-head .vi-lede{margin-top:8px}
+  .vi--cockpit .vi-centre .vi-acts{margin-top:12px}
+  .vi--cockpit .vi-centre .vi-player{--ps:30px}
+}
 
 /* ───────────────────────── entrance: the lens surfaces from the light, the ornaments swing in */
 @media (prefers-reduced-motion:no-preference){

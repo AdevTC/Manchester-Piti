@@ -122,7 +122,8 @@ function Avisos({ door }: { door: Door }) {
     </>
   );
 }
-/** Emulator only: sign in as the seeded captain or as a new face, without Google. */
+/** Emulator only (DEV + emulator, never in a build for production): sign in as the seeded captain, as the
+ *  seeded anotador, or as a socio (a member with no player of his own), without Google. */
 function DevSignIn() {
   if (!import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATOR !== "1" || auth.currentUser) return null;
   const go = (sub: string, email: string, name: string) => {
@@ -137,6 +138,9 @@ function DevSignIn() {
       </button>
       <button type="button" className="tl-link" onClick={() => go("preview-fan", "fichaje@piti.test", "Erik de pruebas")}>
         Fichaje de prueba · Solo emulador
+      </button>
+      <button type="button" className="tl-link" onClick={() => go("preview-socio", "socio@piti.test", "Socio de pruebas")}>
+        Socio de prueba · Solo emulador
       </button>
     </div>
   );

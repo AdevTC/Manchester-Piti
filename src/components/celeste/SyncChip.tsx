@@ -6,7 +6,7 @@
 import { syncChipAnnouncement, type SyncChip as Chip } from "../../lib/derived/syncChip";
 import "./sync-chip.css";
 
-export function SyncChip({ chip, variant, announce = false }: { chip: Chip | null; variant: "isle" | "board" | "led"; announce?: boolean }) {
+export function SyncChip({ chip, variant, announce = false }: { chip: Chip | null; variant: "board" | "led"; announce?: boolean }) {
   return (
     <>
       {announce && (

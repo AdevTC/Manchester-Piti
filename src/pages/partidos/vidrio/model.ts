@@ -10,7 +10,7 @@ import { OURS, THEIRS } from "../../../lib/partidos";
 import { eventMinute } from "../../../../functions/src/matchEngine";
 import { madridDate, MONTHS_SHORT } from "../../../lib/derived/madrid";
 import { sunPosition, type LightKey } from "../../../lib/derived/sun";
-import { capital, endSentence, plural } from "../../../lib/derived/words";
+import { capital, endSentence, niceName, plural } from "../../../lib/derived/words";
 import type { StripFilter, StripSegment, StripState } from "../../../lib/derived/vidrio/strip";
 
 const MIN = 60_000;
@@ -25,14 +25,7 @@ export const VISTAS: readonly { id: Vista; label: string }[] = [
 ];
 export type LensTab = "previa" | "directo" | "acta";
 
-/** «ADRIÁN T.C.» → «Adrián T.C.»: a shirt name in capitals read as a name (initials keep theirs). */
-export function niceName(s: string): string {
-  if (!s || s !== s.toLocaleUpperCase("es") || !/\p{L}/u.test(s)) return s;
-  return s
-    .split(/(\s+|-)/)
-    .map((w) => (w.includes(".") || /^\s+$|^-$/.test(w) ? w : w.charAt(0) + w.slice(1).toLocaleLowerCase("es")))
-    .join("");
-}
+export { niceName };
 
 // ───────────────────────── the light a jornada is painted in ─────────────────────────
 

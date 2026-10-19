@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { nameFor, useClubData, type ClubMatch } from "../../../lib/clubData";
+import { niceName } from "../../../lib/derived/words";
 import { useClock } from "../../../hooks/useClock";
 import { useViewer } from "../../../hooks/useViewer";
 import { useAuth } from "../../../context/AuthContext";
@@ -27,7 +28,7 @@ import { serverOffset } from "../../../lib/serverTime";
 import { useAvailability, useMatchScorers, useMyMvpVote } from "../../../pages/vestuario/live";
 import { setAvailability, useMe } from "../../../pages/vestuario/writes";
 import { useServerTimeSync } from "../../../hooks/useServerTimeSync";
-import { useMatchMoment } from "../../celeste/isla/useMatchMoment";
+import { useMatchMoment } from "./useMatchMoment";
 import { FloatingScore } from "../FloatingScore";
 import { floatLines, type FloatMatch } from "../floatText";
 import { liveDock, useLiveDockState } from "../liveDock";
@@ -36,9 +37,10 @@ import { PipWindow } from "../PipWindow";
 import { useDesktop, useReducedMotion } from "../env";
 import { useGoalMoment } from "../useGoalMoment";
 import { useGrow } from "../useGrow";
-import { DROP_HOLD_MS, floatOf, hideMark, pageKey, playing, sheetOf } from "./liveModel";
+import { DROP_HOLD_MS, floatHome, floatOf, hideMark, pageKey, playing, sheetOf } from "./liveModel";
 import { LiveSheet, type RsvpAnswer } from "./LiveSheet";
 import { LivePlays } from "./LivePlays";
+import "../../../styles/vidrio/reading.css";
 import "./live.css";
 
 /** The vote notice a member closed (one match id: the next vote shows again). */
@@ -139,7 +141,8 @@ export function LiveScore() {
   const watched = state && (state.kind === "pending" || state.kind === "anotador" || state.kind === "live" || state.kind === "halftime" || state.kind === "final") ? state.match : undefined;
   // (a play only unfolds on a score the server confirmed: never on the cache's word)
   const fresh = useMatchMoment(watched, now, { celebrate: sync.fresh && sync.online, hold: DROP_HOLD_MS });
-  const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), state?.match.seasonId);
+  // names in sentences and plays read as names («Adrián T.C.», not the shirt's «ADRIÁN T.C.»)
+  const nameOf = (id: string) => niceName(nameFor(players.find((p) => p.id === id), state?.match.seasonId));
   const moments = state ? momentsOf(state.match, nameOf) : [];
   const rows = state && state.kind !== "previa" && state.kind !== "rsvp" && state.kind !== "anotador" && state.kind !== "unplayed" ? playsLog(state.match, nameOf).rows : [];
   const isLive = !!state && playing(state);
@@ -289,7 +292,7 @@ export function LiveScore() {
             onOpen={openSheet}
             onPip={onPip}
             storageKey={pageKey(pathname)}
-            placement={pathname === "/" ? "centre" : "right"}
+            placement={floatHome(pathname)}
             goal={g.lens || undefined}
             rim={g.rim}
             scoreClass={g.digit || undefined}

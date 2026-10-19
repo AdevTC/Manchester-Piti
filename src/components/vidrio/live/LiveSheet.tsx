@@ -118,7 +118,7 @@ export function LiveSheet(props: LiveSheetProps) {
   const shown = rows.slice(0, SHEET_PLAYS);
   const more = rows.length - shown.length;
   const pick = ANSWERS.findIndex((x) => x.a === mine);
-  const cls = `vd-glass vd-glass--deep vd-sheet${phone ? " vd-sheet--phone" : ""}${up && !phone ? " vd-sheet--up" : ""}${vtName ? " vd-morph" : ""}`;
+  const cls = `vd-glass vd-glass--deep vd-livesheet${phone ? " vd-livesheet--phone" : ""}${up && !phone ? " vd-livesheet--up" : ""}${vtName ? " vd-morph" : ""}`;
   return (
     <div
       ref={ref}
@@ -175,20 +175,20 @@ export function LiveSheet(props: LiveSheetProps) {
       )}
       <div className="vd-sheet__btns">
         {model.action?.kind === "mesa" && (
-          <Link className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId/mesa" params={{ matchId }}>
+          <Link className="vd-glass vd-btn vd-btn--sm vd-btn--pri vd-press" to="/matches/$matchId/mesa" params={{ matchId }}>
             {model.action.label}
           </Link>
         )}
         {model.action?.kind === "votar" && (
-          <Link className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId }} search={{ tab: "vestuario" }}>
+          <Link className="vd-glass vd-btn vd-btn--sm vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId }} search={{ tab: "vestuario" }}>
             {model.action.label}
           </Link>
         )}
-        <Link className={`vd-glass vd-btn vd-press${model.action ? "" : " vd-btn--pri"}`} to="/matches/$matchId" params={{ matchId }} viewTransition={transition && !!vtName}>
+        <Link className={`vd-glass vd-btn vd-btn--sm vd-press${model.action ? "" : " vd-btn--pri"}`} to="/matches/$matchId" params={{ matchId }} viewTransition={transition && !!vtName}>
           {model.open}
         </Link>
         {onPip && (
-          <button type="button" className="vd-glass vd-btn vd-press" aria-pressed={!!pipOn} onClick={onPip}>
+          <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" aria-pressed={!!pipOn} onClick={onPip}>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <rect x="3" y="4.5" width="18" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2" />
               <rect x="11.5" y="11.5" width="7" height="5.5" rx="1.5" fill="currentColor" />

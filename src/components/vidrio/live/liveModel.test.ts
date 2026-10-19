@@ -4,7 +4,7 @@ import type { MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../../lib/clubData";
 import type { MatchMoment } from "../../../lib/derived/moments";
 import { playsLog } from "../../../lib/derived/vidrio/plays";
-import { clockText, dropEvent, floatOf, hideMark, moreText, onFieldNames, pageKey, sheetOf } from "./liveModel";
+import { clockText, dropEvent, floatHome, floatOf, hideMark, moreText, onFieldNames, pageKey, sheetOf } from "./liveModel";
 
 const MIN = 60_000;
 // 8 Nov 2026, 12:00 in Madrid
@@ -109,5 +109,11 @@ describe("small rules", () => {
     expect(pageKey("/plantilla")).toBe("plantilla");
     expect(pageKey("/matches/j1")).toBe("partido");
     expect(pageKey("/jugadores/erik")).toBe("jugador");
+  });
+
+  it("the float's resting spot per page: Inicio under the bar, low where the top-right is the page's own", () => {
+    expect(floatHome("/")).toBe("centre");
+    for (const p of ["/partidos", "/matches/j3", "/profile"]) expect(floatHome(p)).toBe("bottom-right");
+    for (const p of ["/stats", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("right");
   });
 });

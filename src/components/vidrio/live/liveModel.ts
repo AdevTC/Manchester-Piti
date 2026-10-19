@@ -210,6 +210,20 @@ export function hideMark(state: IslandState, lastGoal: string): string {
 }
 
 /** A per-page key for the float's remembered spot. */
+/** Pages whose top-right corner (under the bar) holds something of their own: the float rests bottom-right. */
+const LOW_HOME = new Set(["partido", "partidos", "profile"]);
+
+/** Where the floating score rests on desktop until someone moves it, per page (checked at 1440 on each):
+ *  Inicio under the bar in the centre (its lens takes the score while it is on screen); a match page (its
+ *  scoreboard), Partidos (its tools and «Buscar rival») and the profile (its LED board) in the bottom-right
+ *  corner, the sheet opening up from it; the rest (plantilla, the shirts' rack below; estadísticas, el club,
+ *  a ficha, el vestuario) top-right under the bar, where the page leaves air. The phone keeps it above the tab
+ *  bar. La pizarra, la mesa and the admin don't mount it. */
+export function floatHome(pathname: string): "centre" | "right" | "bottom-right" {
+  const key = pageKey(pathname);
+  return key === "inicio" ? "centre" : LOW_HOME.has(key) ? "bottom-right" : "right";
+}
+
 export function pageKey(pathname: string): string {
   if (pathname === "/" || pathname === "") return "inicio";
   const first = pathname.split("/").filter(Boolean)[0] ?? "otra";
