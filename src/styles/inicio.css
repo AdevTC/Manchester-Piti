@@ -115,6 +115,16 @@
 :root[data-theme="light"] .vi-player__name{color:var(--vd-marino);text-shadow:0 1px 0 rgba(255,255,255,.8)}
 .vi-player__tags{position:absolute;top:0;left:calc(50% + var(--ps)/2 + 3px);display:flex;flex-direction:column;align-items:flex-start;gap:3px}
 .vi-player--htl .vi-player__tags{left:auto;right:calc(50% + var(--ps)/2 + 3px);align-items:flex-end}
+/* the collision pass (vidrio/pitchLayout): plates and tags moved clear of the others, the side the tags stand
+   on, and a plate shrunk to the dorsal on the shirt (still read out: it is only transparent) */
+.vi-player__name{transform:translateY(var(--pdy,0px))}
+.vi-player__tags{transform:translateY(var(--tdy,0px))}
+.vi-player--num .vi-player__name{opacity:0}
+.vi .vi-pitch .vi-players .vi-player[data-tags="r"] .vi-player__tags{left:calc(50% + var(--ps)/2 + 3px);right:auto;align-items:flex-start}
+.vi .vi-pitch .vi-players .vi-player[data-tags="l"] .vi-player__tags{left:auto;right:calc(50% + var(--ps)/2 + 3px);align-items:flex-end}
+.vi-player--tags2 .vi-player__tags{display:grid;grid-template-columns:repeat(2,max-content);gap:3px}
+.vi-player--tags2[data-tags="l"] .vi-player__tags{justify-items:end}
+.vi-player--tagsicon .vi-tag{gap:0;padding:0 5px;font-size:0;min-width:10px}
 .vi-player--me .vi-player__name{text-decoration:underline;text-decoration-color:var(--vd-celeste);text-underline-offset:3px;text-decoration-thickness:2px}
 .vi-tag{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 6px;border-radius:6px;font-size:11.5px;font-weight:650;line-height:1;background:rgba(234,243,252,.9);color:var(--vd-marino);white-space:nowrap}
 .vi-tag svg{width:11px;height:11px}

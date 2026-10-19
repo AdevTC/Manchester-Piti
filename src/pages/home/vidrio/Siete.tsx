@@ -2,10 +2,65 @@
 // rendered once on the device: useShirtStills), his name under it and the marks of the night beside it (goals,
 // passes, cards, the change he came in with). The spots exist for two pitches: our goal on the left (phone,
 // tablet, the 1920 centre) and at the bottom (the 1440 triptych's narrow ornament); CSS picks one.
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import type { SieteSpot, SieteTag } from "../hoyModel";
 import { Ico, type IconId } from "./icons";
+import { placePitch, type PitchPlayer } from "./pitchLayout";
+
+/** Measures the pitch as laid out (offsets: no transforms, so the 1440 ornament's tilt doesn't skew it) and
+ *  places every plate and tags column clear of the others (pitchLayout); again whenever the pitch resizes
+ *  (another breakpoint swaps the pitch's orientation) or the fonts arrive. */
+function usePitchLayout(key: string) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const pitch = ref.current;
+    if (!pitch) return;
+    let raf = 0;
+    const run = () => {
+      raf = 0;
+      const W = pitch.clientWidth;
+      const H = pitch.clientHeight;
+      const items = [...pitch.querySelectorAll<HTMLElement>(".vi-player")];
+      // (measured unfolded, so the pass gives the same answer every time it runs)
+      for (const li of items) li.classList.remove("vi-player--tags2", "vi-player--tagsicon");
+      const players: PitchPlayer[] = items.map((li) => {
+        const x0 = li.offsetLeft - li.offsetWidth / 2;
+        const y0 = li.offsetTop - li.offsetHeight / 2;
+        const shirt = li.querySelector<HTMLElement>(".vi-shirt");
+        const plate = li.querySelector<HTMLElement>(".vi-player__name");
+        const tags = li.querySelector<HTMLElement>(".vi-player__tags");
+        return {
+          shirt: { x: x0 + (shirt?.offsetLeft ?? 0), y: y0 + (shirt?.offsetTop ?? 0), w: shirt?.offsetWidth ?? 0, h: shirt?.offsetHeight ?? 0 },
+          plate: { x: x0 + (plate?.offsetLeft ?? 0), y: y0 + (plate?.offsetTop ?? 0), w: plate?.offsetWidth ?? 0, h: plate?.offsetHeight ?? 0 },
+          tags: tags ? { w: tags.offsetWidth, h: tags.offsetHeight, n: tags.childElementCount } : null,
+          first: li.classList.contains("vi-player--me"),
+        };
+      });
+      placePitch(players, W, H).forEach((p, i) => {
+        const li = items[i];
+        li.dataset.tags = p.tags;
+        li.classList.toggle("vi-player--num", p.plate === "num");
+        li.classList.toggle("vi-player--tags2", p.cols === 2);
+        li.classList.toggle("vi-player--tagsicon", p.chips === "icon");
+        li.style.setProperty("--pdy", `${p.plateDy}px`);
+        li.style.setProperty("--tdy", `${p.tagsDy}px`);
+      });
+    };
+    const queue = () => {
+      if (!raf) raf = requestAnimationFrame(run);
+    };
+    run();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(queue) : null;
+    ro?.observe(pitch);
+    void document.fonts?.ready.then(queue);
+    return () => {
+      ro?.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [key]);
+  return ref;
+}
 
 const TAG_ICON: Partial<Record<SieteTag["kind"], IconId>> = { gol: "ball", asis: "pass", cambio: "swap", parada: "glove" };
 
@@ -60,13 +115,14 @@ export interface SieteOrnProps {
 export function SieteOrn({ title, system, spots, bench, kit, theme, className }: SieteOrnProps) {
   const reqs = spots.map((s) => ({ kit, theme, name: "", num: s.num || " ", yaw: 0 }));
   const still = useShirtStills(reqs, { offMainThread: true });
+  const pitch = usePitchLayout(spots.map((s) => `${s.id}:${s.name}:${s.tags.map((t) => t.kind + t.text).join(",")}`).join("|"));
   return (
     <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-siete${className ? ` ${className}` : ""}`} aria-label={title}>
       <div className="vd-orn__head">
         <h2>{title}</h2>
         <span>{system}</span>
       </div>
-      <div className="vi-pitch">
+      <div ref={pitch} className="vi-pitch">
         {LINES_H}
         {LINES_V}
         <ul className="vi-players" aria-label="Los siete">
