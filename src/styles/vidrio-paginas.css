@@ -1,0 +1,63 @@
+/* «Vidrio» on the other pages (Plantilla, Números, El club, the match page, Perfil, Vestuario), V-Integracion
+   «Cada página, el mismo cristal» and the V-Vivo frames: the page sits on the light field of the moment
+   (components/paginas/PageSky), its title and lede are Mona Sans (no mono eyebrows), glass only on what you
+   touch. Each page tunes its own pieces under its own root (.sq, .st, .cl, .pt, .pcv, .vs-*); this file is the
+   ground they share. «día» = :root[data-theme="light"]. */
+
+.vx.vd-pg{position:relative;isolation:isolate;min-height:100vh;min-height:100dvh;font-family:var(--vd-sans);color:var(--vd-ink);background:var(--vd-noche);
+  /* (the Celeste words the pages' older pieces still read: the light field's ink) */
+  --ink:var(--vd-ink);--soft:var(--vd-ink2);--muted:var(--vd-ink2);--hero-bg:transparent}
+:root[data-theme="light"] .vx.vd-pg{background:#EEF6FD}
+.vx.vd-pg :where(h2,h3){font-family:var(--vd-sans)}
+.vd-pg>.vd-sky{position:absolute;inset:0;z-index:0}
+.vd-pg>:where(:not(.vd-sky,.vx-top,.vx-dock)){position:relative;z-index:1}
+.vd-pg>header.vx-top{z-index:7}
+.vd-pg>.vx-foot{z-index:2}
+/* (the Celeste grain and the old hero grounds give way to the light field) */
+.vd-pg .vx-grain{display:none}
+
+/* the head: the page's name and its line (board .vv-pl-head / .vv-nu-head / .vv-cl-head) */
+.vd-pg-head{padding:88px 16px 0;max-width:720px}
+.vd-pg-head h1{margin:0;font-family:var(--vd-sans);font-weight:720;font-variation-settings:'wdth' 92;font-stretch:92%;font-size:clamp(33px,4.4vw,61px);letter-spacing:-.025em;line-height:.98;color:var(--vd-ink-strong);text-wrap:balance}
+.vd-pg-head .vd-lede{margin:8px 0 0;font-size:14.5px;line-height:1.45}
+@media (min-width:700px){.vd-pg-head{padding:104px 40px 0}.vd-pg-head .vd-lede{font-size:16px}}
+@media (min-width:1100px){.vd-pg-head{padding:112px 72px 0}.vd-pg-head .vd-lede{font-size:17px;margin-top:10px}}
+
+/* the older pieces these pages keep (their sections, buttons and labels) take the Vidrio type: Mona Sans titles
+   (no Anybody), small Mona Sans labels instead of mono eyebrows, glass buttons */
+.vd-pg .vd-pg-head h1{margin:0}
+.vx.vd-pg .hm-kick,.vx.vd-pg .st-mono{font-family:var(--vd-sans);font-size:13.5px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--vd-ink2)}
+.vx.vd-pg .hm-h2{font-family:var(--vd-sans);font-weight:690;font-variation-settings:'wdth' 94;font-stretch:94%;font-size:clamp(25px,3vw,39px);letter-spacing:-.022em;line-height:1.04;color:var(--vd-ink-strong)}
+.vx.vd-pg .hm-h2 em{font-style:normal;color:inherit}
+.vx.vd-pg .hm-lede{font-family:var(--vd-sans);font-size:15.5px;color:var(--vd-ink2);margin-top:12px}
+.vx.vd-pg :is(.hm-btn,.hm-ghostbtn){font-family:var(--vd-sans);height:48px;border-radius:var(--vd-r-ctl);font-weight:640;font-size:15px;color:var(--vd-g-ink);
+  background:linear-gradient(165deg,var(--vd-g-sheen),rgba(255,255,255,.02) 40%,rgba(255,255,255,0) 62%),var(--vd-g-tint);
+  -webkit-backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat));backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(2,8,26,.25),inset 0 0 0 .5px rgba(255,255,255,.16),0 14px 30px -18px var(--vd-glow)}
+.vx.vd-pg .hm-btn{--vd-g-tint:var(--vd-pri);color:#fff}
+.vx.vd-pg :is(.hm-btn,.hm-ghostbtn):focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+
+/* the marks of the night (V-Vivo .v-tag) */
+.vd-tags{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+.vd-tag{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 6px;border-radius:6px;font-family:var(--vd-sans);font-size:11.5px;font-weight:650;line-height:1;font-feature-settings:'tnum' 1;background:rgba(234,243,252,.9);color:var(--vd-marino);white-space:nowrap}
+.vd-tag svg{width:11px;height:11px;flex:none}
+.vd-tag--amarilla{background:var(--vd-amarilla);color:#2b2200}
+.vd-tag--roja{background:var(--vd-roja);color:#fff}
+.vd-tag--gold{background:var(--vd-oro);color:#3a2600}
+:root[data-theme="light"] .vd-tag{background:#fff;box-shadow:inset 0 0 0 1px rgba(12,23,51,.14)}
+:root[data-theme="light"] .vd-tag--amarilla{background:var(--vd-amarilla);box-shadow:none}
+:root[data-theme="light"] .vd-tag--roja{background:var(--vd-roja);box-shadow:none}
+:root[data-theme="light"] .vd-tag--gold{background:var(--vd-oro);box-shadow:none}
+
+/* «si acaba así» / «en directo» (board .vv-provtag): a word with a red dot, never only a dashed line */
+.vd-provtag{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:7px;font-size:12px;font-weight:650;line-height:1;color:var(--vd-ink);background:rgba(234,243,252,.10);box-shadow:inset 0 0 0 1px var(--vd-rule2);white-space:nowrap}
+.vd-provtag::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--vd-live);flex:none}
+:root[data-theme="light"] .vd-provtag{background:rgba(255,255,255,.6)}
+
+/* the celeste dot of who is on the pitch (board .vv-ondot) */
+.vd-ondot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--vd-celeste);box-shadow:0 0 0 3px rgba(108,171,221,.25),0 0 10px rgba(108,171,221,.8);margin-right:6px;vertical-align:1px;flex:none}
+:root[data-theme="light"] .vd-ondot{background:#2C6A9E;box-shadow:0 0 0 3px rgba(44,106,158,.18)}
+
+/* a phone keeps room above the tab bar for the floating score while a match is on (it never covers the end of
+   the page) */
+@media (max-width:1099px){.vd-pg.vd-pg--live{padding-bottom:84px}}
