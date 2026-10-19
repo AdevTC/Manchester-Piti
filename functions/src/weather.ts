@@ -5,7 +5,7 @@
 // the match without the stamp (a later write of the acta tries again).
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { db } from "./common.js";
-import { madridHour, readKickoffWeather, weatherStampDue, type KickoffWeather } from "./weatherLogic.js";
+import { madridHour, readKickoffWeather, venueQueries, weatherStampDue, type KickoffWeather } from "./weatherLogic.js";
 
 const MADRID = { latitude: 40.4168, longitude: -3.7038 };
 /** The forecast API keeps about three months back; older kick-offs are read from the historical forecasts. */
@@ -19,13 +19,15 @@ async function getJson(url: string): Promise<unknown> {
 }
 
 async function locate(venue: unknown): Promise<{ latitude: number; longitude: number }> {
-  if (typeof venue !== "string" || !venue.trim()) return MADRID;
-  try {
-    const j = (await getJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(venue.trim())}&count=1&language=es&countryCode=ES`)) as { results?: { latitude: number; longitude: number }[] };
-    const hit = j.results?.[0];
-    if (hit && Number.isFinite(hit.latitude) && Number.isFinite(hit.longitude)) return { latitude: hit.latitude, longitude: hit.longitude };
-  } catch {
-    /* Madrid's */
+  // (the full name, then without its «CDM» / «Campo de»: venueQueries; Madrid's when neither is found)
+  for (const name of venueQueries(venue)) {
+    try {
+      const j = (await getJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=es&countryCode=ES`)) as { results?: { latitude: number; longitude: number }[] };
+      const hit = j.results?.[0];
+      if (hit && Number.isFinite(hit.latitude) && Number.isFinite(hit.longitude)) return { latitude: hit.latitude, longitude: hit.longitude };
+    } catch {
+      /* the next name, or Madrid's */
+    }
   }
   return MADRID;
 }

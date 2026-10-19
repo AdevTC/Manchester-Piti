@@ -30,6 +30,20 @@ export interface KickoffWeather {
   rain: number | null;
 }
 
+/** The words a venue's name may start with that the geocoder doesn't know («CDM Palomeras» → «Palomeras»). */
+const VENUE_PREFIX = /^(?:CDM|C\.D\.M\.|IDM|I\.D\.M\.|Polideportivo(?: municipal)?|Instalación deportiva(?: municipal)?|Ciudad deportiva|Complejo deportivo|Campo de fútbol|Campo municipal(?: de)?|Campo de|Campo|Estadio(?: municipal)?(?: de)?)\s+/i;
+/**
+ * The names to look a venue up by, in order: the full one, then without its prefix («CDM», «Campo de»,
+ * «Polideportivo»…). The weather (web and backend) and the map share it. Empty without a venue.
+ */
+export function venueQueries(venue: unknown): string[] {
+  if (typeof venue !== "string") return [];
+  const full = venue.replace(/\s+/g, " ").trim();
+  if (!full) return [];
+  const short = full.replace(VENUE_PREFIX, "").trim();
+  return short && short.toLowerCase() !== full.toLowerCase() ? [full, short] : [full];
+}
+
 const TZ = "Europe/Madrid";
 /** An hour in Madrid time, as Open-Meteo's start_hour wants it: "2026-11-08T12:00". */
 export function madridHour(ms: number): string {

@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { kickoffHour, readForecast, readHourly, wmo } from "./weather";
-import { parseKickoffWeather, readKickoffWeather } from "../../functions/src/weatherLogic";
+import { describe, expect, it, vi } from "vitest";
+import { kickoffHour, locate, readForecast, readHourly, wmo } from "./weather";
+import { parseKickoffWeather, readKickoffWeather, venueQueries } from "../../functions/src/weatherLogic";
 
 describe("weather", () => {
   it("WMO codes in Spanish", () => {
@@ -45,6 +45,33 @@ describe("weather by hour", () => {
   });
   it("is null without any usable hour", () => {
     expect(readHourly({}, 0, 3_600_000, "Madrid", true)).toBeNull();
+  });
+});
+
+describe("the venue's names to geocode", () => {
+  it("the full name, then without its prefix", () => {
+    expect(venueQueries("CDM Palomeras")).toEqual(["CDM Palomeras", "Palomeras"]);
+    expect(venueQueries(" Campo de fútbol  Vicente del Bosque ")).toEqual(["Campo de fútbol Vicente del Bosque", "Vicente del Bosque"]);
+    expect(venueQueries("Polideportivo municipal La Elipa")).toEqual(["Polideportivo municipal La Elipa", "La Elipa"]);
+    expect(venueQueries("Getafe")).toEqual(["Getafe"]);
+    expect(venueQueries("")).toEqual([]);
+    expect(venueQueries(undefined)).toEqual([]);
+  });
+  it("«CDM Palomeras» is found by its stripped name instead of falling back to Madrid", async () => {
+    const asked: string[] = [];
+    const fetchMock = vi.fn(async (url: string) => {
+      const name = new URL(url).searchParams.get("name") ?? "";
+      asked.push(name);
+      return { json: async () => (name === "Palomeras" ? { results: [{ latitude: 40.38, longitude: -3.63, name: "Palomeras" }] } : {}) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      expect(await locate("CDM Palomeras")).toEqual({ latitude: 40.38, longitude: -3.63, name: "Palomeras", approx: false });
+      expect(asked).toEqual(["CDM Palomeras", "Palomeras"]);
+      expect((await locate("Nada que encontrar")).approx).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

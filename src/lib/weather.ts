@@ -3,7 +3,7 @@
 // matches in the next 7 days (forecasts further out aren't worth showing).
 import { useQuery } from "@tanstack/react-query";
 import { dateMillis } from "../../functions/src/matchEngine";
-import { wmo, type Sky } from "../../functions/src/weatherLogic";
+import { venueQueries, wmo, type Sky } from "../../functions/src/weatherLogic";
 
 const TZ = "Europe/Madrid";
 const MADRID = { latitude: 40.4168, longitude: -3.7038, name: "Madrid" };
@@ -52,14 +52,18 @@ export function readForecast(json: unknown, place: string, approx: boolean): Mat
   };
 }
 
-async function locate(venue: string | undefined) {
-  if (!venue?.trim()) return { ...MADRID, approx: true };
-  try {
-    const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(venue.trim())}&count=1&language=es&countryCode=ES`);
-    const hit = ((await r.json()) as { results?: { latitude: number; longitude: number; name: string }[] }).results?.[0];
-    if (hit) return { latitude: hit.latitude, longitude: hit.longitude, name: hit.name, approx: false };
-  } catch {
-    /* fall back to Madrid */
+/** Geocodes the venue: its full name, then without its «CDM» / «Campo de» / «Polideportivo» (venueQueries,
+ *  shared with the backend's weather at kick-off); Madrid's, marked approximate, when neither is found.
+ *  Exported for the tests. */
+export async function locate(venue: string | undefined) {
+  for (const name of venueQueries(venue)) {
+    try {
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=es&countryCode=ES`);
+      const hit = ((await r.json()) as { results?: { latitude: number; longitude: number; name: string }[] }).results?.[0];
+      if (hit) return { latitude: hit.latitude, longitude: hit.longitude, name: hit.name, approx: false };
+    } catch {
+      /* the next name, or Madrid */
+    }
   }
   return { ...MADRID, approx: true };
 }
