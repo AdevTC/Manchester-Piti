@@ -163,7 +163,7 @@ export function SquadPage() {
       />
 
       <section className="sq-hero" aria-labelledby="sq-title" aria-busy={loading}>
-        <div className="sq-copy vd-pg-head">
+        <div className="sq-copy vd-pg-head vd-reg-1">
           <h1 id="sq-title">Plantilla</h1>
           {/* (the same words while loading, so the head keeps its lines and nothing below jumps) */}
           <p className="vd-lede sq-lede">

@@ -35,7 +35,7 @@ interface Props {
  *  he is (V-Vivo «La percha sabe quién está en el campo»). */
 export function Percha({ rows, still, openId, vtId, onOpen, live = null, lift = null }: Props) {
   return (
-    <div className="sq-rail" role="group" aria-label="Elige jugador">
+    <div className="sq-rail vd-reg-2" role="group" aria-label="Elige jugador">
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
         <linearGradient id="sq-wire" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#f4f8fd" />

@@ -11,3 +11,6 @@
 .pcv .fi-t b{font-weight:720;font-variation-settings:'wdth' 94}
 .pcv .tbb{font-family:var(--vd-sans);text-transform:none;letter-spacing:0;font-weight:600}
 .pcv :is(.ph small,.ph .ct,.pe-k,.lbl-k){font-family:var(--vd-sans);letter-spacing:0}
+/* the floating score's spot on a desktop: over the tunnel above the card (Hero.tsx FloatDock), never over
+ «Estampar» and the panel's lines */
+.pcv .pe-floatdock{position:absolute;left:50%;top:-26px;width:300px;height:56px;transform:translateX(-50%);pointer-events:none}

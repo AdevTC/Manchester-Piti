@@ -105,7 +105,7 @@ export function Ahora({ standings, live, leaders, form }: AhoraProps) {
   const big = focus.some((f) => f.kind === "gap");
   const us = sim?.us ?? null;
   return (
-    <section className="st-now" aria-label="La temporada, ahora">
+    <section className="st-now vd-reg-2" aria-label="La temporada, ahora">
       <div className={`st-now__tbl ${g.summaryProps.className}`} style={g.summaryProps.style}>
         <h2>Clasificación</h2>
         {sim ? (

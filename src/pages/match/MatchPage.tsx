@@ -28,7 +28,7 @@ import { useSyncChip } from "../../hooks/useSyncChip";
 import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { BackLink } from "../../components/celeste/BackLink";
-import { Lens, PipWindow, openScorePip, useDesktop, useGoalMoment, useLiveDock, type GoalClasses, type ScorePip } from "../../components/vidrio";
+import { LIVE_MORPH, Lens, PipWindow, openScorePip, useDesktop, useGoalMoment, useLiveDock, type GoalClasses, type ScorePip } from "../../components/vidrio";
 import { PageSky } from "../../components/paginas/PageSky";
 import { PgIcon } from "../../components/paginas/Tags";
 import { countdownParts, matchEvent } from "../../lib/home";
@@ -111,7 +111,7 @@ interface BoardProps {
 }
 
 /** The glass scoreboard (board .vv-board / .vv-pboard). While the match is played it is the page's live lens:
- *  the floating score steps aside while it is on screen, and «Abrir el partido» lands on it (.vd-live-destino). */
+ *  the floating score steps aside while it is on screen, and «Abrir el partido» lands on it (morph(LIVE_MORPH)). */
 function Marcador({ match, now, rival, initials, gf, ga, usSide, rivalSide, state, minute, goal, goalSide, children }: BoardProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   useLiveDock(ref, "lens");
@@ -121,7 +121,7 @@ function Marcador({ match, now, rival, initials, gf, ga, usSide, rivalSide, stat
   const label = state === "done" ? `Final: Manchester Piti ${gf}, ${rival} ${ga}` : state === "live" || state === "halftime" ? `En directo contra ${rival}` : state === "pending" ? `Marcador provisional contra ${rival}` : state === "whistle" ? `${PENDING_WHISTLE} contra ${rival}` : state === "unplayed" ? `${AWAITING_ACTA} contra ${rival}` : `Previa contra ${rival}`;
   return (
     <div ref={ref} className={`mp-boardwrap ${goal.root}`}>
-      <Lens as="article" className={`mp-board vd-live-destino${goal.rim ? " vd-rim-gold" : ""}`} goal={`${goal.lens} ${goal.glint}`} aria-label={label}>
+      <Lens as="article" className={`mp-board${goal.rim ? " vd-rim-gold" : ""}`} morphName={scored && state !== "done" ? LIVE_MORPH : undefined} goal={`${goal.lens} ${goal.glint}`} aria-label={label}>
         <div className="vd-team mp-team">
           <img className="vd-team__crest" src="/crest-128.webp" alt="" />
           <div>
@@ -358,7 +358,7 @@ export function MatchPage() {
   return chrome(
     <>
       <section className="mp-head" aria-labelledby="fc-t">
-        <div className="mp-top">
+        <div className="mp-top vd-reg-1">
           {/* (back to where you came from inside the site; a deep link names the section, «Partidos») */}
           <BackLink className="fc-back vd-btn vd-btn--sm vd-glass vd-press mp-back" to="/partidos" label="Partidos" />
 
@@ -470,7 +470,7 @@ export function MatchPage() {
         )}
       </section>
 
-      <div className="mp-tabs">
+      <div className="mp-tabs vd-reg-2">
         <div className="vd-glass vd-seg mp-seg" role="tablist" aria-label="Secciones del partido" onKeyDown={onTabKey} style={{ "--n": ORDER.length, "--i": ORDER.indexOf(active as (typeof ORDER)[number]) } as CSSProperties}>
           <span className="vd-shelf__bead" aria-hidden="true" />
           {ORDER.map((i) => (
@@ -480,7 +480,7 @@ export function MatchPage() {
           ))}
         </div>
       </div>
-      <div className={`fc-pane mp-pane${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
+      <div className={`fc-pane mp-pane vd-reg-3${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
         <ShirtDefs />
         {active === 0 &&
           (done ? (

@@ -135,7 +135,7 @@ export function StatsPage() {
           </>
         }
       />
-      <section className="st-hero vd-pg-head" aria-labelledby="st-t">
+      <section className="st-hero vd-pg-head vd-reg-1" aria-labelledby="st-t">
         <h1 className="st-h1" id="st-t">
           Números
         </h1>
@@ -143,7 +143,7 @@ export function StatsPage() {
       </section>
       {nowSeason && <Ahora standings={standings} live={liveScore} leaders={leadersNow} form={form} />}
 
-      <section className="st-period" aria-label="El período de las pestañas">
+      <section className="st-period vd-reg-3" aria-label="El período de las pestañas">
         <h2 className="st-period__t">{periodName}</h2>
         <p className="st-period__l">{empty ? "La temporada aún no ha echado a rodar: en cuanto se publique la primera acta, aquí se mueve todo." : "Datos de partidos finalizados, al minuto."}</p>
         <div className="st-ctx">

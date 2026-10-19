@@ -2,7 +2,7 @@
 // side) so the page can lift the scorer's shirt or roll a number, and `useNightGoal` plays the kit's goal
 // moment with it (its flood reaches the page's light field through PageSky). A goal already there on mount
 // doesn't play.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useGoalMoment, type GoalClasses } from "../vidrio";
 import type { ClubMatch } from "../../lib/clubData";
 import { eventMetaOf, settled } from "../../lib/eventMeta";
@@ -30,6 +30,10 @@ export function newestGoal(match: Pick<ClubMatch, "events"> | null | undefined):
 /** The goal moment of tonight's match while it is played. */
 export function useNightGoal(match: ClubMatch | null | undefined, live: boolean): { goal: NightGoal | null; moment: GoalClasses } {
   const goal = useMemo(() => (live ? newestGoal(match) : null), [live, match]);
-  const moment = useGoalMoment(goal ? { key: goal.key, side: goal.side } : null);
-  return { goal, moment };
+  // (the data arrives after the page mounts: the goals already there when it does are not news)
+  const [seen, setSeen] = useState<string | null | undefined>(undefined);
+  if (seen === undefined && match) setSeen(newestGoal(match)?.key ?? null);
+  const fresh = goal && seen !== undefined && goal.key !== seen ? goal : null;
+  const moment = useGoalMoment(fresh ? { key: fresh.key, side: fresh.side } : null);
+  return { goal: fresh, moment };
 }

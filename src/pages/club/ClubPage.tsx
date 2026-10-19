@@ -140,14 +140,14 @@ export function ClubPage() {
         actions={<ThemeToggle />}
       />
 
-      <section className="cl-hero vd-pg-head" aria-labelledby="cl-t">
+      <section className="cl-hero vd-pg-head vd-reg-1" aria-labelledby="cl-t">
         <h1 className="cl-h1" id="cl-t">
           El club
         </h1>
         <p className="vd-lede">{lede}</p>
       </section>
 
-      <div className="cl-now">
+      <div className="cl-now vd-reg-2">
         <VitrinaVidrio season={season?.name ?? "La temporada"} top={vit.top} bottom={vit.bottom} year={(c.founded ?? "").trim().slice(-2) || "MP"} />
         <aside className="cl-side" aria-label="Esta semana en el club">
           {bday && (
