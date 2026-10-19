@@ -1,7 +1,7 @@
 // The momentum ribbon inside the lens: minute ruler, who presses (Piti above, the rival below), marks on goals,
 // cards, posts and saves, the gold peak on our latest goal and the «now» line while it is live. One image for
 // a screen reader: a group named `label`, each mark an image with its own words.
-import { useId } from "react";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { RIBBON_H, RIBBON_W, ribbonModel, type MarkIcon, type RibbonItem } from "./momentum";
 import "../../styles/vidrio/components.css";
 
@@ -43,11 +43,29 @@ function MarkGlyph({ icon }: { icon: MarkIcon }) {
   );
 }
 
+/** The ribbon's width in px once laid out (null on the server and before the first measure). */
+function useWidth(ref: RefObject<HTMLElement | null>): number | null {
+  const [w, setW] = useState<number | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setW(el.clientWidth || null);
+    if (typeof ResizeObserver !== "function") return;
+    const ro = new ResizeObserver(() => setW(el.clientWidth || null));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return w;
+}
+
 export function MomentumRibbon({ items, duration, now, goldId, label = "El partido minuto a minuto: arriba aprieta el Piti, abajo el rival", peakClassName, className }: MomentumRibbonProps) {
   const id = useId().replace(/:/g, "");
-  const m = ribbonModel(items, duration, now, goldId);
+  const box = useRef<HTMLDivElement | null>(null);
+  const width = useWidth(box);
+  // (two marks never closer than 18 px: a mark is 22 px wide)
+  const m = ribbonModel(items, duration, now, goldId, width ? (18 / width) * 100 : undefined);
   return (
-    <div className={`vd-ribbon${className ? ` ${className}` : ""}`} role="group" aria-label={label}>
+    <div ref={box} className={`vd-ribbon${className ? ` ${className}` : ""}`} role="group" aria-label={label}>
       <svg viewBox={`0 0 ${RIBBON_W} ${RIBBON_H}`} preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id={`${id}-us`} x1="0" y1="0" x2="0" y2="1">

@@ -25,12 +25,17 @@ export interface TableRowV {
   isUs: boolean;
   /** Places up (+) or down (−) with the live score. */
   move: number;
+  /** The team's last five results, oldest first (the standings' «Últimos 5»), when the table has them. */
+  form?: readonly ("G" | "E" | "P")[];
 }
 
 const dg = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "0");
+const FORM_WORD = { G: "ganado", E: "empate", P: "perdido" } as const;
 
 export function TableView({ rows, around, full, caption }: { rows: readonly TableRowV[]; around: number | null; full?: boolean; caption: string }) {
   const items = around === null ? rows.map((row, i) => ({ kind: "row" as const, pos: i + 1, row, us: row.isUs, tied: false })) : tableFocus(rows, null, around);
+  // («Últimos 5»: the whole table only, and only when the standings carry each team's form)
+  const showForm = !!full && rows.some((r) => r.form?.length);
   return (
     <table className={`vi-table${full ? " vi-table--full" : ""}`}>
       <caption className="vd-vh">{caption}</caption>
@@ -60,13 +65,18 @@ export function TableView({ rows, around, full, caption }: { rows: readonly Tabl
           <th scope="col">
             <abbr title="Puntos">Pts</abbr>
           </th>
+          {showForm && (
+            <th scope="col" className="f">
+              Últimos 5
+            </th>
+          )}
         </tr>
       </thead>
       <tbody>
         {items.map((it) =>
           it.kind === "gap" ? (
             <tr key={`gap-${it.side}`} className="gap">
-              <td colSpan={8}>{it.text}</td>
+              <td colSpan={showForm ? 9 : 8}>{it.text}</td>
             </tr>
           ) : (
             <tr key={it.row.team} className={it.us ? "us" : undefined} aria-current={it.us ? "true" : undefined}>
@@ -86,6 +96,11 @@ export function TableView({ rows, around, full, caption }: { rows: readonly Tabl
               <td className="hm">{it.row.p}</td>
               <td>{dg(it.row.dg)}</td>
               <td className="pts">{it.row.pts}</td>
+              {showForm && (
+                <td className="f" aria-label={it.row.form?.length ? `Últimos ${it.row.form.length === 5 ? "cinco" : it.row.form.length}: ${it.row.form.map((l) => FORM_WORD[l]).join(", ")}` : "Sin partidos"}>
+                  <span aria-hidden="true">{it.row.form?.join(" ") ?? ""}</span>
+                </td>
+              )}
             </tr>
           ),
         )}
@@ -151,9 +166,13 @@ const SKY: Record<LightKey, string> = {
 };
 const INK: ReadonlySet<LightKey> = new Set(["dia", "tarde"]);
 
-function segLabel(s: StripSegment): string {
+type Postponed = Readonly<Record<string, number | null>>;
+const shortDate = (at: number) => `${Number(madridDate(at).slice(8))} ${MONTHS_SHORT[Number(madridDate(at).slice(5, 7)) - 1] ?? ""}, ${madridTime(at)}`;
+
+function segLabel(s: StripSegment, postponed?: Postponed): string {
   const j = s.jornada ? `J${s.jornada}` : "Jornada";
-  const at = s.at !== null ? `${Number(madridDate(s.at).slice(8))} ${MONTHS_SHORT[Number(madridDate(s.at).slice(5, 7)) - 1] ?? ""}, ${madridTime(s.at)}` : "fecha por confirmar";
+  const at = s.at !== null ? shortDate(s.at) : "fecha por confirmar";
+  const to = postponed?.[s.id];
   const what =
     s.state === "jugado" && s.score
       ? `${s.letter === "G" ? "ganado" : s.letter === "P" ? "perdido" : "empate"} ${s.score.gf}–${s.score.ga}${s.provisional ? ", acta pendiente" : ""}`
@@ -162,7 +181,9 @@ function segLabel(s: StripSegment): string {
         : s.state === "hoy"
           ? `hoy a las ${s.at !== null ? madridTime(s.at) : "hora por confirmar"}`
           : s.state === "aplazado"
-            ? "aplazado"
+            ? typeof to === "number"
+              ? `aplazado, se juega el ${shortDate(to)}`
+              : "aplazado, sin fecha todavía"
             : s.state === "suspendido"
               ? "suspendido"
               : s.state === "pendiente"
@@ -171,7 +192,14 @@ function segLabel(s: StripSegment): string {
   return `${j}, ${s.home ? "contra" : "en casa de"} ${s.rival}: ${what}`;
 }
 
-export function SeasonTiles({ segments, now }: { segments: readonly StripSegment[]; now: number }) {
+const TILE_WEEKDAY = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "short" });
+/** «Dom 25 oct» (the tiles' date, as the boards write it). */
+function tileDay(at: number): string {
+  const w = TILE_WEEKDAY.format(at).replace(".", "");
+  return `${w.charAt(0).toLocaleUpperCase("es")}${w.slice(1)} ${Number(madridDate(at).slice(8))} ${MONTHS_SHORT[Number(madridDate(at).slice(5, 7)) - 1] ?? ""}`;
+}
+
+export function SeasonTiles({ segments, now, postponed }: { segments: readonly StripSegment[]; now: number; postponed?: Postponed }) {
   return (
     <ul className="vi-tiles" aria-label="Las jornadas, pintadas con la luz de cada pitido" style={{ "--tiles": segments.length } as CSSProperties}>
       {segments.map((s) => {
@@ -182,16 +210,18 @@ export function SeasonTiles({ segments, now }: { segments: readonly StripSegment
             : s.state === "jugado" && s.score
               ? `${s.letter === "G" ? "Ganado" : s.letter === "P" ? "Perdido" : "Empate"} ${s.score.gf}–${s.score.ga}`
               : s.state === "hoy" && s.at !== null
-                ? `Hoy, ${madridTime(s.at)}`
+                ? `Hoy, ${madridTime(s.at)}, ${s.home ? "en casa" : "fuera"}`
                 : s.state === "aplazado"
-                  ? "Aplazado"
+                  ? typeof postponed?.[s.id] === "number"
+                    ? `Aplazado al ${tileDay(postponed[s.id] as number)}`
+                    : "Aplazado"
                   : s.at !== null
-                    ? `${madridDate(s.at) === madridDate(now) ? "Hoy" : new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "short", day: "numeric", month: "short" }).format(s.at)}, ${madridTime(s.at)}`
+                    ? `${madridDate(s.at) === madridDate(now) ? "Hoy" : tileDay(s.at)}, ${madridTime(s.at)}, ${s.home ? "en casa" : "fuera"}`
                     : "Por fecha";
         const now_ = s.state === "directo" || s.state === "hoy";
         return (
           <li key={s.id}>
-            <Link className={`vi-tile${INK.has(light) ? " vi-tile--ink" : ""}${now_ ? " vi-tile--now" : ""}`} to="/matches/$matchId" params={{ matchId: s.id }} style={{ "--sky": SKY[light] } as CSSProperties} aria-label={segLabel(s)}>
+            <Link className={`vi-tile${INK.has(light) ? " vi-tile--ink" : ""}${now_ ? " vi-tile--now" : ""}`} to="/matches/$matchId" params={{ matchId: s.id }} style={{ "--sky": SKY[light] } as CSSProperties} aria-label={segLabel(s, postponed)}>
               <b aria-hidden="true">{s.jornada ? `J${s.jornada}` : "·"}</b>
               <span className="vi-tile__txt" aria-hidden="true">
                 <span>{s.rival}</span>
@@ -205,7 +235,7 @@ export function SeasonTiles({ segments, now }: { segments: readonly StripSegment
   );
 }
 
-export function SeasonSlivers({ segments }: { segments: readonly StripSegment[] }) {
+export function SeasonSlivers({ segments, postponed }: { segments: readonly StripSegment[]; postponed?: Postponed }) {
   return (
     <ul className="vi-strip" aria-label={`Las ${segments.length} jornadas de la temporada`} style={{ "--n": segments.length } as CSSProperties}>
       {segments.map((s) => {
@@ -233,7 +263,7 @@ export function SeasonSlivers({ segments }: { segments: readonly StripSegment[] 
                     : "";
         return (
           <li key={s.id}>
-            <Link className={`vi-sl ${cls}`} to="/matches/$matchId" params={{ matchId: s.id }} aria-label={segLabel(s)} title={segLabel(s)}>
+            <Link className={`vi-sl ${cls}`} to="/matches/$matchId" params={{ matchId: s.id }} aria-label={segLabel(s, postponed)} title={segLabel(s, postponed)}>
               <b aria-hidden="true">{s.jornada ?? "·"}</b>
               <small aria-hidden="true">{bot}</small>
             </Link>
@@ -244,11 +274,11 @@ export function SeasonSlivers({ segments }: { segments: readonly StripSegment[] 
   );
 }
 
-export function SeasonStripView({ segments, legend, now }: { segments: readonly StripSegment[]; legend: string; now: number }) {
+export function SeasonStripView({ segments, legend, now, postponed }: { segments: readonly StripSegment[]; legend: string; now: number; postponed?: Postponed }) {
   if (!segments.length) return null;
   return (
     <nav className="vi-season" aria-label="La temporada, jornada a jornada">
-      {segments.length <= 8 ? <SeasonTiles segments={segments} now={now} /> : <SeasonSlivers segments={segments} />}
+      {segments.length <= 8 ? <SeasonTiles segments={segments} now={now} postponed={postponed} /> : <SeasonSlivers segments={segments} postponed={postponed} />}
       <p className="vi-season__legend">
         <span>{legend}</span>
         <Link className="vd-link" to="/partidos">
@@ -277,6 +307,8 @@ export interface TemporadaData {
   assists: readonly LeaderRow[];
   segments: readonly StripSegment[];
   legend: string;
+  /** The postponed jornadas' new dates (ms; null: por decidir). */
+  postponed?: Readonly<Record<string, number | null>>;
   hasTable: boolean;
 }
 
@@ -301,7 +333,31 @@ export function Temporada({ d, now, tabla, goles, compact, wide, region = () => 
   const note = live ? (asi ? "si acaba así" : "antes del pitido") : d.note;
   const around = wide ? null : compact ? 2 : 3;
   const hidden = around === null ? 0 : rows.length - tableFocus(rows, null, around).filter((x) => x.kind === "row").length;
-  const top = compact ? 3 : 3;
+  // (three in the summaries; five in the 1920 focused zone, «Ver los N» growing the rest)
+  const top = wide ? 5 : 3;
+  const scorers = (
+    <div>
+      <h3 className="vi-sub">Goleadores {compact && <span>{d.formaNote}</span>}</h3>
+      {d.goals.length ? <Rank rows={d.goals.slice(0, top)} kind="goles" /> : <p className="vi-empty">Por estrenar: el primero que marque abre la lista.</p>}
+    </div>
+  );
+  const assisters = (
+    <div>
+      <h3 className="vi-sub">Asistencias</h3>
+      {d.assists.length ? <Rank rows={d.assists.slice(0, top)} kind="asistencias" /> : <p className="vi-empty">Ni un pase de gol todavía.</p>}
+    </div>
+  );
+  const forma = (
+    <div className="vi-formabox">
+      <h3 className="vi-sub">
+        Forma <span>{d.formaNote}</span>
+      </h3>
+      <Forma letters={d.forma} />
+    </div>
+  );
+  const more = Math.max(d.goals.length, d.assists.length) - top;
+  // (the 1920 zone out of focus shows its three scorers only: the strip under them stays in sight)
+  const seeAll = compact ? null : <SeeAll summary={`${Math.max(0, d.goals.length - top) === 1 ? "1 goleador más" : `${Math.max(0, d.goals.length - top)} goleadores más`}`} count={more} label={`Ver los ${d.goals.length}`} onOpen={goles.grow} />;
   const tableHead: ReactNode = (
     <div className="vi-segrow">
       <h3 className="vi-sub">
@@ -317,41 +373,37 @@ export function Temporada({ d, now, tabla, goles, compact, wide, region = () => 
           {d.hasTable ? (
             <>
               {tableHead}
-              <TableView rows={rows} around={around} caption={`La clasificación, ${note}`} />
-              {hidden > 0 && <SeeAll summary={compact ? `Los ${rows.length} equipos` : `Los ${rows.length} equipos, con la jornada de cada uno`} count={hidden} label={`Ver la tabla entera (${rows.length})`} onOpen={tabla.grow} />}
+              <TableView rows={rows} around={around} full={!!wide} caption={`La clasificación, ${note}`} />
+              {hidden > 0 && <SeeAll summary={compact || !d.rows.some((r) => r.form?.length) ? `Los ${rows.length} equipos` : `Los ${rows.length} equipos, con la forma de cada uno`} count={hidden} label={`Ver la tabla entera (${rows.length})`} onOpen={tabla.grow} />}
             </>
           ) : (
             <p className="vi-empty">La clasificación sale aquí en cuanto el capitán la ponga.</p>
           )}
         </div>
         <div className={`vi-golesp ${region(3)} ${goles.summaryProps.className}`} style={goles.summaryProps.style}>
-          {!compact && (
-            <div className="vi-formabox">
-              <h3 className="vi-sub">
-                Forma <span>{d.formaNote}</span>
-              </h3>
-              <Forma letters={d.forma} />
-            </div>
-          )}
-          <div className="vi-ranks">
-            <div>
-              <h3 className="vi-sub">
-                Goleadores {compact && <span>{d.formaNote}</span>}
-              </h3>
-              {d.goals.length ? <Rank rows={wide ? d.goals : d.goals.slice(0, top)} kind="goles" /> : <p className="vi-empty">Por estrenar: el primero que marque abre la lista.</p>}
-            </div>
-            {!compact && (
+          {wide ? (
+            <div className="vi-wide3">
+              {forma}
               <div>
-                <h3 className="vi-sub">Asistencias</h3>
-                {d.assists.length ? <Rank rows={wide ? d.assists : d.assists.slice(0, top)} kind="asistencias" /> : <p className="vi-empty">Ni un pase de gol todavía.</p>}
+                {scorers}
+                {seeAll}
               </div>
-            )}
-          </div>
-          {!wide && <SeeAll summary={`${Math.max(0, d.goals.length - top) === 1 ? "1 goleador más" : `${Math.max(0, d.goals.length - top)} goleadores más`}`} count={Math.max(d.goals.length, d.assists.length) - top} label={`Ver los ${d.goals.length}`} onOpen={goles.grow} />}
+              {assisters}
+            </div>
+          ) : (
+            <>
+              {!compact && forma}
+              <div className="vi-ranks">
+                {scorers}
+                {!compact && assisters}
+              </div>
+              {seeAll}
+            </>
+          )}
         </div>
       </div>
       <div className={`vi-seasonbox ${region(4)}`}>
-        <SeasonStripView segments={d.segments} legend={d.legend} now={now} />
+        <SeasonStripView segments={d.segments} legend={d.legend} now={now} postponed={d.postponed} />
       </div>
     </>
   );

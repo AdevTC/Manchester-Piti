@@ -23,9 +23,17 @@ import {
   venueName,
   venueWords,
   weatherLineOf,
+  winnerLine,
+  hourlyWords,
+  postponedLine,
+  porraSub,
+  publishedWhen,
+  turnoutLine,
   type MeLineCtx,
 } from "./hoyModel";
 import { EVENTS, KO, MIN, SCENES, SEVEN, base, nameOf, published } from "./inicio.fixtures";
+import { longSeasonFixture } from "../../lib/derived/vidrio/fixtures";
+import { ribbonModel } from "../../components/vidrio/momentum";
 
 const nice = (id: string) => niceName(nameOf(id));
 const S = (a: number, b: number) => `${a}⁠–⁠${b}`;
@@ -50,6 +58,11 @@ describe("places", () => {
   it("the phone's short hints", () => {
     expect(shortHint("hoy", "2–1, minuto 23")).toBe("2–1, 23′");
     expect(shortHint("hoy", "Pendiente del acta")).toBe("Sin acta");
+    expect(shortHint("hoy", "19:00, Orduña fc")).toBe("19:00");
+    expect(shortHint("hoy", "3–1, acta lista")).toBe("3–1");
+    expect(shortHint("hoy", "3–1, MVP Alcides")).toBe("3–1");
+    expect(shortHint("temporada", "6º, J17 de 26")).toBe("6º");
+    expect(shortHint("temporada", "Empieza esta noche")).toBe("Empieza hoy");
     expect(shortHint("temporada", "4º si acaba así")).toBe("4º");
     expect(shortHint("club", "Huberoski cumple el 27")).toBe("Cumple el 27");
     expect(shortHint("club", "16 en la plantilla")).toBe("16 jugadores");
@@ -104,6 +117,20 @@ describe("the evening's light and the momentum", () => {
     expect(items[0].label).toBe("Minuto 6, gol de Alcides");
     expect(ribbonItemsOf(published, nice, 15 * 60)).toHaveLength(2);
   });
+  it("the long season's J17 (38 plays): marks only on goals, cards, the post and a saved penalty, spread apart", () => {
+    const f = longSeasonFixture();
+    const j17 = f.matches.find((m) => m.id === f.liveId)!;
+    const items = ribbonItemsOf(j17, f.nameOf);
+    expect(items.length).toBeGreaterThan(20);
+    const m = ribbonModel(items, j17.duration ?? 50, undefined, undefined, 3.2);
+    const marked = new Set(m.marks.map((k) => k.id));
+    for (const it of items) if (marked.has(it.id)) expect(["gol", "tarjeta", "roja", "palo", "parada"]).toContain(it.kind);
+    expect(items.filter((it) => it.kind === "ocasion" || it.kind === "otro" || it.kind === "cambio").every((it) => !marked.has(it.id))).toBe(true);
+    for (const side of ["us", "them"] as const) {
+      const lefts = m.marks.filter((k) => k.side === side).map((k) => k.left).sort((a, b) => a - b);
+      for (let i = 1; i < lefts.length; i++) expect(lefts[i] - lefts[i - 1]).toBeGreaterThanOrEqual(3.1);
+    }
+  });
 });
 
 describe("the headline", () => {
@@ -128,8 +155,16 @@ describe("the headline", () => {
     expect(c.h1).toBe(`Alcides abre, Kevin cierra: ${S(3, 1)}`);
     expect(c.lede).toBe("Primera victoria de la temporada. Todos los que jugaron desbloquean «Debut». Ya se puede votar al MVP.");
   });
-  it("pendiente keeps the site's words: no score", () => {
-    expect(hoyCopy(scene("pendiente").ctx).h1).toBe("Pendiente del acta");
+  it("pendiente: the lens says «Pendiente del acta»; the headline says what is missing, no score", () => {
+    const c = hoyCopy(scene("pendiente").ctx);
+    expect(c.h1).toBe("Falta el acta del partido");
+    expect(`${c.h1} ${c.lede}`).not.toMatch(/\d\s*[–-]\s*\d|Pendiente del acta/);
+  });
+  it("después: the acta's headline and the MVP once the vote has closed, no broken «next» sentence", () => {
+    const c = hoyCopy({ ...scene("despues").ctx, winner: { names: ["Alcides"], votes: 9 } });
+    expect(c.h1).toBe(`Alcides abre, Kevin cierra: ${S(3, 1)}`);
+    expect(c.lede).toBe("Alcides, MVP con 9 votos. La crónica y las notas, en el partido.");
+    expect(winnerLine({ names: ["Alcides", "Kevin"], votes: 4 })).toBe("MVP compartido: Alcides y Kevin.");
   });
 });
 
@@ -169,7 +204,9 @@ describe("ornaments and el siete", () => {
     expect(ornamentsOf("directo2", "aficion", true, false)).toEqual({ left: "siete", right: "plays" });
     expect(ornamentsOf("acta", "jugador", true, true)).toEqual({ left: "siete", right: "mvp" });
     expect(ornamentsOf("acta", "aficion", true, true)).toEqual({ left: "siete", right: "plays" });
-    expect(ornamentsOf("aplazado", "aficion", true, false)).toEqual({ left: "viene", right: null });
+    expect(ornamentsOf("aplazado", "aficion", true, false)).toEqual({ left: "viene", right: "fecha" });
+    expect(ornamentsOf("despues", "aficion", true, false, true)).toEqual({ left: "siete", right: "winner" });
+    expect(ornamentsOf("despues", "jugador", true, false, true)).toEqual({ left: "siete", right: "winner" });
   });
   it("the spots exist for both pitches; the keeper by our goal", () => {
     const keeper = spotOf(50, 92);
@@ -200,5 +237,34 @@ describe("Tú's pending count", () => {
   it("adds what waits on him", () => {
     expect(pendingCount({ rsvp: { open: true, answered: false }, turno: true, caja: false, polls: 1, mvp: false })).toBe(3);
     expect(pendingCount({ rsvp: { open: true, answered: true }, turno: false, caja: false, polls: 0, mvp: false })).toBe(0);
+  });
+});
+
+describe("the cierre's words", () => {
+  it("the forecast by the hour: at the whistle, at the end, the rain", () => {
+    const H = 3_600_000;
+    const hours = [
+      { at: KO - H, temp: 16, rain: 0, kickoff: false },
+      { at: KO, temp: 14.2, rain: 10, kickoff: true },
+      { at: KO + H, temp: 11, rain: 20, kickoff: false },
+    ];
+    expect(hourlyWords(hours, KO, 50)).toEqual({ previa: "14° al pitido, 11° al final; sin lluvia", line: "De 14° a 11°, sin lluvia" });
+    expect(hourlyWords([{ ...hours[1], rain: 60 }], KO, 50)?.line).toBe("14°, lluvia al 60 %");
+    expect(hourlyWords([], KO)).toBeNull();
+  });
+  it("a postponement: the reason and the new date, or that it comes", () => {
+    expect(postponedLine({ postponedReason: "campo cerrado por lluvia" })).toBe("Campo cerrado por lluvia. Sin fecha todavía.");
+    expect(postponedLine({})).toBe("La nueva fecha saldrá aquí y en los avisos.");
+    expect(postponedLine({ postponedTo: KO + 2 * 86_400_000 })).toMatch(/^Se juega el \S+ \d+ de \S+ a las 19:00\.$/);
+  });
+  it("the porra in Tú, the MVP turnout, when the seven was published", () => {
+    expect(porraSub({ gf: 3, ga: 1 }, 2, 1, "directo1")).toBe("Vas bien: te falta un gol nuestro.");
+    expect(porraSub({ gf: 2, ga: 1 }, 2, 1, "directo1")).toBe("La clavas de momento.");
+    expect(porraSub({ gf: 1, ga: 0 }, 2, 1, "directo1")).toBe("Se te escapa: ahora va 2–1.");
+    expect(porraSub({ gf: 3, ga: 1 }, 3, 1, "acta")).toBe("Acertaste el resultado.");
+    expect(turnoutLine({ total: 9, eligible: 16 })).toBe("9 de 16 ya han votado.");
+    expect(turnoutLine({ total: 0, eligible: 16 })).toBe("Nadie ha votado todavía.");
+    expect(publishedWhen(KO - 86_400_000, KO)).toBe("ayer");
+    expect(publishedWhen(KO - 3_600_000, KO)).toBe("hoy");
   });
 });

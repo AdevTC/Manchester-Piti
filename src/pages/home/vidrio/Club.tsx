@@ -9,12 +9,20 @@ import { siteOrigin } from "../../../lib/derived/venue";
 import { Ico } from "./icons";
 
 export interface ClubData {
-  birthday: { id: string; name: string; num: string; when: string } | null;
+  birthday: { id: string; name: string; num: string; when: string; /** «medio», «lateral derecho». */ pos?: string } | null;
   vitrina: { title: string; sub: string };
   dorsales: readonly { id: string; num: string; name: string }[];
   squadSize: number;
-  /** The members' newest open poll. */
-  poll: { title: string; sub: string } | null;
+  /** The members' newest open poll: its tally («Sí 6, No 2») and, for a one-answer poll, the vote in place. */
+  poll: {
+    title: string;
+    sub: string;
+    multi?: boolean;
+    options?: readonly { id: string; label: string; count: number }[];
+    mine?: readonly string[];
+    onVote?: ((id: string) => void) | null;
+    error?: string;
+  } | null;
   sponsors: readonly { name: string; url: string }[];
 }
 
@@ -144,7 +152,9 @@ function Rows({ d, full }: { d: ClubData; full: boolean }) {
             <b>
               {d.birthday.name} cumple años {d.birthday.when}
             </b>
-            <span>{d.birthday.num ? `Dorsal ${d.birthday.num}. ` : ""}Que no se te pase felicitarle.</span>
+            <span>
+              {d.birthday.num ? `Dorsal ${d.birthday.num}${d.birthday.pos ? `, ${d.birthday.pos}` : ""}. ` : d.birthday.pos ? `${d.birthday.pos.charAt(0).toLocaleUpperCase("es")}${d.birthday.pos.slice(1)}. ` : ""}Que no se te pase felicitarle.
+            </span>
           </div>
           <Link className="vd-link" to="/jugadores/$playerId" params={{ playerId: d.birthday.id }} aria-label={`La ficha de ${d.birthday.name}`}>
             Su ficha
@@ -187,7 +197,7 @@ function Rows({ d, full }: { d: ClubData; full: boolean }) {
         </li>
       )}
       {full && d.poll && (
-        <li>
+        <li className="vi-row--wrap">
           <span className="vi-ic" aria-hidden="true">
             <Ico id="chart" />
           </span>
@@ -195,9 +205,25 @@ function Rows({ d, full }: { d: ClubData; full: boolean }) {
             <b>{d.poll.title}</b>
             <span>{d.poll.sub}</span>
           </div>
-          <Link className="vd-link" to="/vestuario" aria-label={`Votar «${d.poll.title}», en el vestuario`}>
-            Votar
-          </Link>
+          {d.poll.onVote && d.poll.options?.length ? (
+            <div className="vi-pollvote" role="group" aria-label={`Votar: ${d.poll.title}`}>
+              {d.poll.options.map((o) => (
+                <button key={o.id} type="button" className="vd-glass vd-btn vd-btn--sm vd-press" aria-pressed={!!d.poll?.mine?.includes(o.id)} onClick={() => d.poll?.onVote?.(o.id)}>
+                  {d.poll?.mine?.includes(o.id) && <Ico id="check" />}
+                  {o.label}, {o.count}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <Link className="vd-link" to="/vestuario" aria-label={`Votar «${d.poll.title}», en el vestuario`}>
+              Votar
+            </Link>
+          )}
+          {d.poll.error && (
+            <p className="vi-err" role="alert">
+              {d.poll.error}
+            </p>
+          )}
         </li>
       )}
       {full && d.sponsors.length > 0 && (

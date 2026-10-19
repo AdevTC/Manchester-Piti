@@ -3,7 +3,7 @@
 // the evening's light before it. It declares itself to the live system (useLiveDock "lens"): while it is on
 // screen the floating score stays away, so the match is never shown twice.
 import { useRef } from "react";
-import { Lens, MomentumRibbon, useLiveDock, type GoalClasses, type RibbonItem } from "../../../components/vidrio";
+import { LIVE_MORPH, Lens, MomentumRibbon, morph, useLiveDock, type GoalClasses, type RibbonItem } from "../../../components/vidrio";
 import type { LensFace, SunRibbon } from "../hoyModel";
 
 export interface HoyLensProps {
@@ -20,12 +20,27 @@ export interface HoyLensProps {
   goal: GoalClasses;
   /** Whose goal the digit roll is for (the digit that changed). */
   rollSide?: "us" | "them";
+  /** The status line during a goal moment («¡Gol de Adrián T.C.!», then «Adrián T.C., minuto 21»). */
+  goalStatus?: string | null;
+  /** The forecast by the hour over the sun ribbon (before the match). */
+  sunHours?: readonly SunHour[] | null;
+  /** The score as a button that plays the last goal again (live; never with reduced motion). */
+  onReplay?: () => void;
   className?: string;
 }
 
-function SunStrip({ sun }: { sun: SunRibbon }) {
+export interface SunHour {
+  /** % of the strip (the hour's middle). */
+  left: number;
+  temp: number;
+  /** Rain probability when it is worth saying (≥ 40 %). */
+  rain: number | null;
+}
+
+function SunStrip({ sun, hours }: { sun: SunRibbon; hours?: readonly SunHour[] | null }) {
+  const said = hours?.length ? ` Por horas: ${hours.map((h) => `${h.temp}°${h.rain !== null ? `, lluvia ${h.rain} %` : ""}`).join("; ")}.` : "";
   return (
-    <div className="vd-ribbon vi-sunribbon" role="img" aria-label={sun.label}>
+    <div className="vd-ribbon vi-sunribbon" role="img" aria-label={`${sun.label}${said}`}>
       <svg viewBox="0 0 500 74" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id="vi-sunfill" x1="0" x2="1">
@@ -43,6 +58,11 @@ function SunStrip({ sun }: { sun: SunRibbon }) {
         <line x1={sun.pitido * 5} y1="4" x2={sun.pitido * 5} y2="74" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
       </svg>
       <span className="vi-sun" style={{ left: `${sun.sun}%` }} />
+      {hours?.map((h) => (
+        <span key={h.left} className="vi-sunhour" style={{ left: `${h.left}%` }} aria-hidden="true">
+          {h.temp}°{h.rain !== null && <i>lluvia {h.rain} %</i>}
+        </span>
+      ))}
       {sun.labels.map((l) => (
         <span key={l.text} className={`vd-ribbon__lab vd-ribbon__lab--${l.align}${l.text === "focos" ? " vi-lab-focos" : ""}`} style={{ left: `${l.left}%` }}>
           {l.text}
@@ -52,12 +72,25 @@ function SunStrip({ sun }: { sun: SunRibbon }) {
   );
 }
 
-export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinute, sun, goal, rollSide = "us", className }: HoyLensProps) {
+export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinute, sun, sunHours, goal, rollSide = "us", goalStatus, onReplay, className }: HoyLensProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   useLiveDock(ref, "lens");
-  const status = face.status;
+  const status = goalStatus ? { live: face.status.live, clock: null, text: goalStatus } : face.status;
+  const digits = (
+    <>
+      <span className={`vd-digit${rollSide === "us" && goal.digit ? ` ${goal.digit}` : ""}`} aria-hidden="true">
+        {face.gf}
+      </span>
+      <span className="vd-scoreline__sep" aria-hidden="true" />
+      <span className={`vd-digit${rollSide === "them" && goal.digit ? ` ${goal.digit}` : ""}`} aria-hidden="true">
+        {face.ga}
+      </span>
+    </>
+  );
+  // (tonight's score travels under one name: the floating drop, this lens and the match page's scoreboard)
+  const shared = rival ? morph(LIVE_MORPH) : null;
   return (
-    <div ref={ref} className={`vi-lensbox${goal.root ? ` ${goal.root}` : ""}${className ? ` ${className}` : ""}`}>
+    <div ref={ref} className={`vi-lensbox${shared ? ` ${shared.className}` : ""}${goal.root ? ` ${goal.root}` : ""}${className ? ` ${className}` : ""}`} style={shared?.style}>
       <Lens as="section" aria-label="El partido" className={`vi-lens${goal.rim ? " vd-rim-gold" : ""}`} goal={[goal.lens, goal.glint].filter(Boolean).join(" ")} refract={{ bezel: 36, strength: 1.35, blur: 8 }}>
         <span className="vi-lens__halo" aria-hidden="true" />
         <div className="vd-teams">
@@ -69,15 +102,13 @@ export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinu
             </b>
             {rival && <span>{home ? "En casa" : "Fuera"}</span>}
           </div>
-          {face.mode === "score" ? (
+          {face.mode === "score" && onReplay ? (
+            <button type="button" className="vd-scoreline vd-score vi-score vi-scorebtn" aria-label={`${face.label} Repetir el gol`} onClick={onReplay}>
+              {digits}
+            </button>
+          ) : face.mode === "score" ? (
             <p className="vd-scoreline vd-score vi-score" role="img" aria-label={face.label}>
-              <span className={`vd-digit${rollSide === "us" && goal.digit ? ` ${goal.digit}` : ""}`} aria-hidden="true">
-                {face.gf}
-              </span>
-              <span className="vd-scoreline__sep" aria-hidden="true" />
-              <span className={`vd-digit${rollSide === "them" && goal.digit ? ` ${goal.digit}` : ""}`} aria-hidden="true">
-                {face.ga}
-              </span>
+              {digits}
             </p>
           ) : face.mode === "time" ? (
             <p className="vi-count" role="img" aria-label={face.label}>
@@ -115,7 +146,7 @@ export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinu
           </p>
         )}
         {face.ribbon === "momentum" && <MomentumRibbon items={items} duration={duration} now={nowMinute} peakClassName={goal.peak || undefined} label={`El partido minuto a minuto: arriba aprieta el Piti, abajo ${rival ?? "el rival"}`} />}
-        {face.ribbon === "sun" && sun && <SunStrip sun={sun} />}
+        {face.ribbon === "sun" && sun && <SunStrip sun={sun} hours={sunHours} />}
       </Lens>
     </div>
   );
