@@ -33,6 +33,7 @@ vi.mock("../../../pages/vestuario/live", () => ({
   useMyMvpVote: (matchId: string | undefined) => ({ data: matchId ? state.myVote : "", loading: false, error: false }),
   useMatchScorers: (matchId: string | undefined) => ({ data: matchId ? state.scorers : [], loading: false, error: false }),
   useAvailability: (matchId: string | undefined) => ({ data: matchId ? state.answers : [], loading: false, error: false }),
+  useMvpResults: () => new Map(),
 }));
 vi.mock("../../../pages/vestuario/writes", () => ({
   useMe: () => (state.member ? { uid: "u1", name: "Jordi", playerId: state.playerId } : null),
@@ -88,10 +89,15 @@ describe("the match day, on every page", () => {
     expect(renderToString(<LiveScore />)).toBe("");
   });
 
-  it("nothing until two hours before; the kick-off then; «Pendiente del pitido»; «Pendiente del acta» past the window; then nothing", () => {
-    state.now = DATE - 3 * 60 * MIN;
+  it("nothing before the morning of the match day; the kick-off from 08:00 (or once the seven is out); «Pendiente del pitido»; «Pendiente del acta» past the window; then nothing", () => {
+    state.matches = [{ ...match, starters: [] }];
+    state.now = DATE - 5 * 60 * MIN;
     const { container, rerender } = render(<LiveScore />);
     expect(container).toBeEmptyDOMElement();
+    state.now = DATE - 3 * 60 * MIN;
+    rerender(<LiveScore />);
+    expect(drop("Contra MAD SKY a las 12:00, en 3 h")).toHaveTextContent("12:00");
+    state.matches = [match];
     state.now = DATE - 28 * MIN;
     rerender(<LiveScore />);
     expect(drop("Contra MAD SKY a las 12:00, en 28 min")).toHaveTextContent("12:00");
@@ -235,10 +241,13 @@ describe("the sheet", () => {
     await act(async () => {
       for (let i = 0; i < 3; i++) await Promise.resolve();
     });
-    const win = screen.getByRole("dialog", { name: "Manchester Piti contra MAD SKY" });
+    const win = screen.getByRole("dialog", { name: "Marcador en una ventana aparte" });
     expect(win).toHaveTextContent("1–0");
-    fireEvent.click(screen.getByRole("button", { name: "Cerrar el marcador" }));
-    expect(screen.queryByRole("dialog", { name: "Manchester Piti contra MAD SKY" })).toBeNull();
+    // the board's window: the bold line and the last play
+    expect(win).toHaveTextContent("En directo, 11′");
+    expect(within(win).getByRole("button", { name: "Volver a la pestaña" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar la ventana" }));
+    expect(screen.queryByRole("dialog", { name: "Marcador en una ventana aparte" })).toBeNull();
   });
 });
 
@@ -257,12 +266,13 @@ describe("a member's day", () => {
     state.answers = [{ uid: "u2", response: "yes" }];
     state.now = DATE - 4 * 60 * MIN;
     const { container, rerender } = render(<LiveScore />);
-    // a socio without a player file: nothing that early
-    expect(container).toBeEmptyDOMElement();
+    // a socio without a player file: the match day's previa, no «¿Vas hoy?»
+    expect(drop(/^Contra MAD SKY a las 12:00/)).toBeInTheDocument();
     state.playerId = "jordi";
     rerender(<LiveScore />);
     fireEvent.click(drop(/^¿Vas hoy\?/));
-    expect(screen.getByRole("dialog")).toHaveTextContent("Vienen 1.");
+    // the answers so far and the deadline (kick-off)
+    expect(screen.getByRole("dialog")).toHaveTextContent("Hasta las 12:00 · 1 viene · 0 en duda · 0 no pueden · 1 sin contestar.");
     fireEvent.click(screen.getByRole("button", { name: "Voy" }));
     expect(writes).toEqual([{ matchId: "j8", response: "yes" }]);
     expect(said(container)).toBe("Apuntado: vas.");
@@ -279,8 +289,13 @@ describe("a member's day", () => {
     fireEvent.click(drop(/vota al mejor del partido/));
     expect(screen.getByRole("link", { name: "Votar al mejor" })).toHaveAttribute("href", "/matches/j8?tab=vestuario");
     fireEvent.click(screen.getByRole("button", { name: "Ocultar el aviso de votar al MVP" }));
-    expect(container).toBeEmptyDOMElement();
     expect(localStorage.getItem("mp:isle:vote-off")).toBe("j8");
+    // the result stays for the rest of the match day: «Acta lista»
+    expect(drop(/final, acta lista/)).toHaveTextContent("Acta lista");
+    rerender(<LiveScore />);
+    expect(screen.queryByRole("button", { name: /vota al mejor del partido/ })).toBeNull();
+    // the next day, nothing
+    state.now += 24 * 60 * MIN;
     rerender(<LiveScore />);
     expect(container).toBeEmptyDOMElement();
   });
@@ -340,7 +355,7 @@ describe("the connection", () => {
       onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
       window.dispatchEvent(new Event("offline"));
     });
-    expect(drop(/sin conexión/)).toHaveTextContent("Sin actualizar");
+    expect(drop(/sin conexión/)).toHaveTextContent(/sin actualizar/i);
     expect(said(container)).toBe("Sin conexión: reconectando.");
   });
 

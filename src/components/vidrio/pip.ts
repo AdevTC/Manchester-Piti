@@ -47,7 +47,7 @@ export function copyStyles(from: Document, to: Document): void {
 }
 
 /** Opens the score's window: the real PiP when possible (falls back to the in-page window if it is refused). */
-export async function openScorePip({ width = 340, height = 150, title = "Marcador del Manchester Piti" }: { width?: number; height?: number; title?: string } = {}): Promise<ScorePip> {
+export async function openScorePip({ width = 420, height = 236, title = "Manchester Piti, marcador" }: { width?: number; height?: number; title?: string } = {}): Promise<ScorePip> {
   const api = typeof window !== "undefined" ? (window as PipHost).documentPictureInPicture : undefined;
   if (api && typeof api.requestWindow === "function") {
     try {

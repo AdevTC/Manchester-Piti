@@ -13,7 +13,7 @@ export interface Box {
   w: number;
   h: number;
 }
-export type AnchorSet = "nine" | "corners";
+export type AnchorSet = "nine" | "eight" | "corners";
 /** «both»: anywhere; «x»: along the bottom edge only (the phone's float above the tab bar). */
 export type DragAxis = "both" | "x";
 
@@ -48,6 +48,8 @@ export function anchorPoints(b: Box, o: AnchorOptions = {}): Pos[] {
   xs.forEach((x, i) =>
     ys.forEach((y, j) => {
       if (o.anchors === "corners" && o.axis !== "x" && (i === 1 || j === 1)) return;
+      // (eight: every anchor but the screen's centre — the floating score never rests over the page's middle)
+      if (o.anchors === "eight" && o.axis !== "x" && i === 1 && j === 1) return;
       out.push(clampPos({ x, y }, b, o));
     }),
   );
