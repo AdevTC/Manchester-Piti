@@ -55,10 +55,10 @@ export const vestuarioSearchSchema = z.object({
   n: z.string().regex(/^[A-Za-z0-9-]{8,64}$/).optional().catch(undefined),
 });
 
-// /partidos?view=tabla: the league table instead of the season and the calendar (linked from the
-// «Vamos 3.º de 12» strip on the home and on /partidos). Anything else = the calendar.
+// /partidos?view=tabla|numeros: the Tabla (the league table, «¿Y si…?») or Números vista instead of
+// Jornadas (linked from the home's Temporada). Anything else = Jornadas.
 export const partidosSearchSchema = z.object({
-  view: z.enum(["tabla"]).optional().catch(undefined),
+  view: z.enum(["tabla", "numeros"]).optional().catch(undefined),
 });
 
 // /admin is the admin app's shell (a layout route; the admin-only guard lives in RootLayout). Hoy's only

@@ -12,6 +12,9 @@ test("web pública, navegación y detalle sin iniciar sesión", async ({
   await expect(page.getByRole("heading", { level: 1, name: "Partidos" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Temporada" })).toBeVisible();
   await expect(page.getByRole("searchbox", { name: "Buscar rival" })).toBeVisible();
+  // the season as a ribbon of light, and the three ways of looking at it
+  await expect(page.getByRole("slider", { name: /^La temporada entera/ })).toBeVisible();
+  await expect(page.getByRole("tablist", { name: "Qué ver" })).toBeVisible();
   await page.goto("/matches/preview-finished");
   await expect(page.getByRole("status", { name: "Resultado: 2 a 1" })).toBeVisible();
   await expect(

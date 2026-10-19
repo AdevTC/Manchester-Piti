@@ -3,27 +3,26 @@ import { renderToString } from "react-dom/server";
 import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
-import type { MatchEvent } from "../../../functions/src/matchEngine";
-import { readyClock, transitionClock } from "../../../functions/src/matchClock";
+import { longSeasonFixture } from "../../lib/derived/vidrio/fixtures";
 
-// /partidos, «El calendario de luz»: filters, rival search, season selector, the table view, the J-now plinth
-// through the match day's phases, the member's RSVP (fans never see answers) and the server render (no WebGL).
-// Data, season, clock, viewer and router are stubbed: no Firebase.
+// /partidos «Vidrio»: the ribbon of the season, the lens through the states of a jornada, the three vistas
+// (?view=tabla, ?view=numeros), «¿Y si…?», the filters, the rival search, the season, «Ver todo», el cartel,
+// the member's «¿Vas?» (fans never read answers) and the server render. The long season of P2 (14 teams, 26
+// jornadas, J17 live at minute 23) drives it; data, season, clock, viewer and router are stubbed: no Firebase.
 
-const MIN = 60_000;
+const F = longSeasonFixture();
 const DAY = 86_400_000;
-const T0 = Date.UTC(2026, 9, 18, 12); // dom 18 oct, 14:00 in Madrid
-const KO = Date.UTC(2026, 9, 18, 17); // 19:00 in Madrid
 const clock = vi.hoisted(() => ({ now: 0 }));
 const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[], error: null as Error | null, loading: false }));
 const route = vi.hoisted(() => ({ search: {} as { view?: string; season?: string }, navigate: vi.fn() }));
 const league = vi.hoisted(() => ({ standings: null as unknown }));
 const who = vi.hoisted(() => ({ member: false, playerId: null as string | null, answer: "" }));
-const spies = vi.hoisted(() => ({ setSeason: vi.fn(), setAvailability: vi.fn(() => Promise.resolve()), liveDoc: vi.fn(), engine: vi.fn() }));
+const spies = vi.hoisted(() => ({ setSeason: vi.fn(), setAvailability: vi.fn(() => Promise.resolve()), liveDoc: vi.fn() }));
+const seasons = vi.hoisted(() => ({ list: [] as { id: string; name: string }[] }));
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, className, to, params, "aria-label": label }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; "aria-label"?: string }) => (
-    <a className={className} aria-label={label} href={to === "/matches/$matchId" ? `/matches/${params?.matchId}` : (to ?? "#")}>
+  Link: ({ children, className, to, params }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string> }) => (
+    <a className={className} href={to === "/matches/$matchId" ? `/matches/${params?.matchId}` : (to ?? "#")}>
       {children}
     </a>
   ),
@@ -32,231 +31,277 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("../../lib/useStandings", () => ({ useStandings: () => ({ standings: league.standings, loading: false }) }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: data.matches, players: data.players, loading: data.loading, error: data.error }) }));
-vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t0", name: "Temporada 0" }, { id: "t1", name: "Temporada 1" }], selectedSeasonId: route.search.season ?? "t1", loadingSeasons: false }) }));
+vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: seasons.list, selectedSeasonId: route.search.season ?? "all", loadingSeasons: false }) }));
 vi.mock("../../lib/useSetSeason", () => ({ useSetSeason: () => spies.setSeason }));
 vi.mock("../../hooks/useClock", () => ({ useClock: () => clock.now }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => ({ member: who.member, admin: false, playerId: who.playerId }) }));
+vi.mock("../../hooks/useDocumentTheme", () => ({ useDocumentTheme: () => "dark" }));
 vi.mock("../../lib/weather", async (orig) => ({ ...(await orig<typeof import("../../lib/weather")>()), useMatchWeather: () => null }));
-vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
-vi.mock("../../components/celeste/Chrome", () => ({ CelesteBackdrop: () => null, CelesteDock: () => null, CelesteFooter: () => null, CelesteHeader: () => null }));
-vi.mock("../../components/palomeras3d/engine", () => ({ createEngine: spies.engine }));
-vi.mock("../vestuario/writes", () => ({ useMe: () => (who.member ? { uid: "u-jordi", name: "Jordi", playerId: who.playerId } : null), setAvailability: spies.setAvailability }));
+vi.mock("../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 vi.mock("../vestuario/live", () => ({
+  useMvpResults: () => new Map([["j5", { id: "j5", counts: { alcides: 9 }, total: 9 }]]),
   useLiveDoc: (path: string | null) => {
     spies.liveDoc(path);
     return { data: who.answer, loading: false, error: null };
   },
 }));
+vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
+vi.mock("../../components/celeste/Chrome", () => ({ CelesteDock: () => null, CelesteFooter: () => null, CelesteHeader: () => null }));
+vi.mock("../vestuario/writes", () => ({ useMe: () => (who.member ? { uid: "u-jordi", name: "Jordi", playerId: who.playerId } : null), setAvailability: spies.setAvailability }));
 
 const { PartidosPage } = await import("./PartidosPage");
 
-const goal = (id: string, minute: number, playerId = "alcides", type: MatchEvent["type"] = "goal"): MatchEvent => ({ id, type, minute, elapsedSeconds: minute * 60, playerId }) as MatchEvent;
-const base = { seasonId: "t1", version: 2 as const, duration: 50, venue: "CDM PALOMERAS", home: true, starters: [] as string[], bench: [] as string[] };
-const j1 = (over: Partial<ClubMatch> = {}): ClubMatch => ({ ...base, id: "j1", rival: "Orduña fc", status: "scheduled", date: KO, starters: ["alcides", "jordi"], ...over }) as ClubMatch;
-const j2: ClubMatch = { ...base, id: "j2", rival: "Pitutis", home: false, venue: "Campo de Pitutis", status: "scheduled", date: KO + 7 * DAY - 5 * 3_600_000, starters: ["jordi"] } as ClubMatch;
-const j3: ClubMatch = { ...base, id: "j3", rival: "Red Demons", status: "scheduled", date: KO + 21 * DAY } as ClubMatch;
-const old: ClubMatch = { ...base, id: "a1", seasonId: "t0", rival: "Atlético Fontarrón", status: "finished", date: KO - 120 * DAY, goalsFor: 4, goalsAgainst: 2 } as ClubMatch;
-const live = (events: MatchEvent[]) => j1({ clock: transitionClock(readyClock(), "start", KO), events });
+const players = F.squad.map((p) => ({ id: p.id, shirtName: p.name.toUpperCase(), number: Number(p.num), seasons: [F.seasonId, "t0"] }));
+const old: ClubMatch = { id: "o1", seasonId: "t0", version: 2, rival: "Atlético Fontarrón", status: "finished", date: F.now - 300 * DAY, goalsFor: 4, goalsAgainst: 2, home: true, duration: 50, venue: "CDM PALOMERAS", starters: [], bench: [], events: [] } as ClubMatch;
 
-const plinth = () => document.querySelector<HTMLElement>(".pl-plinth")!;
+const lens = () => document.querySelector<HTMLElement>(".vp-lens")!;
+const seg = (n: number) => document.querySelector<HTMLButtonElement>(`.vp-seg[data-seg="j${n}"]`);
 
 beforeEach(() => {
-  // jsdom has no 2D canvas: the still painter just skips
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
-  clock.now = T0;
-  data.players = [
-    { id: "alcides", shirtName: "ALCIDES", number: 7, seasons: ["t1"] },
-    { id: "jordi", shirtName: "JORDI", number: 28, seasons: ["t1"] },
-  ];
-  data.matches = [j1(), j2, j3, old];
+  clock.now = F.now;
+  data.matches = [...longSeasonFixture().matches, old];
+  data.players = players;
   data.error = null;
   data.loading = false;
+  seasons.list = [{ id: "t0", name: "Temporada 0" }, { id: F.seasonId, name: "Temporada 1" }];
   route.search = {};
   route.navigate.mockReset();
-  league.standings = null;
+  league.standings = { id: F.seasonId, competition: "Liga F7", jornada: 16, updatedAt: 0, updatedBy: "", rows: F.standings };
   who.member = false;
   who.playerId = null;
   who.answer = "";
   spies.setSeason.mockReset();
   spies.setAvailability.mockClear();
   spies.liveDoc.mockReset();
-  spies.engine.mockReset();
 });
 
-it("the jornadas of the season as slices of light, the featured one first, and the calendar rows", () => {
+it("opens on tonight's live jornada: the ribbon, the lens on Directo, the score, the plays and «Ver todo»", () => {
   render(<PartidosPage />);
   expect(screen.getByRole("heading", { level: 1, name: "Partidos" })).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "El calendario de luz" })).toBeInTheDocument();
-  const slices = [...document.querySelectorAll(".pl-sl")];
-  expect(slices).toHaveLength(3);
-  expect(slices[0]).toHaveClass("pl-feat");
-  expect(within(slices[0] as HTMLElement).getByRole("link", { name: /^Jornada 1, Contra Orduña fc, hoy/ })).toHaveAttribute("href", "/matches/j1");
-  expect(slices[1]).toHaveTextContent("En casa de Pitutis");
-  expect(slices[1]).toHaveTextContent("Fuera, en Pitutis");
-  const rows = screen.getAllByRole("listitem").filter((li) => li.classList.contains("pl-row"));
-  expect(rows.map((r) => r.querySelector(".tx > a")?.textContent)).toEqual(["Contra Orduña fc", "En casa de Pitutis", "Contra Red Demons"]);
-  // the venue as people write it, the kit in words
-  expect(rows[0]).toHaveTextContent("CDM Palomeras");
-  expect(within(rows[1]).getByRole("img", { name: "2ª equipación" })).toBeInTheDocument();
+  expect(seg(17)).toHaveAttribute("aria-pressed", "true");
+  expect(seg(17)).toHaveAccessibleName("J17, domingo 17 de enero, contra Orduña fc. En directo: 2–1, minuto 23");
+  expect(within(lens()).getByRole("heading", { level: 2 })).toHaveTextContent("Contra Orduña fc");
+  expect(within(lens()).getByRole("tab", { name: /Directo/ })).toHaveAttribute("aria-selected", "true");
+  expect(within(lens()).getByRole("img", { name: "Manchester Piti 2, Orduña fc 1" })).toBeInTheDocument();
+  expect(lens()).toHaveTextContent("En directo23′de la primera parte");
+  const plays = lens().querySelectorAll(".vp-dir__plays .vd-play");
+  expect(plays).toHaveLength(4);
+  expect(lens()).toHaveTextContent("34 jugadas más desde el minuto 1");
+  expect(screen.getByRole("link", { name: "Abrir el partido" })).toHaveAttribute("href", "/matches/j17");
+  // the count line and the vistas' hints
+  expect(screen.getByText("26 jornadas; 15 jugadas, una en directo y 10 por jugar")).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: /Jornadas/ })).toHaveTextContent("J17 en directo");
+  expect(screen.getByRole("tab", { name: /Tabla/ })).toHaveTextContent(/^TablaSi acaba así: \dº con \d+ puntos$/);
 });
 
-it("filters: Próximos and Resultados, the pressed one says so", () => {
-  data.matches = [j1({ status: "finished", date: T0 - 7 * DAY, goalsFor: 3, goalsAgainst: 1 }), j2, j3];
+it("a played jornada opens on its acta: the result, the scorers, the signature, the MVP; its Directo and Previa too", () => {
   render(<PartidosPage />);
-  const results = screen.getByRole("button", { name: "Resultados" });
-  fireEvent.click(results);
-  expect(results).toHaveAttribute("aria-pressed", "true");
-  const rows = document.querySelectorAll(".pl-row");
-  expect(rows).toHaveLength(1);
-  // the result with its letter in words, never the colour alone
-  expect(rows[0]).toHaveTextContent("victoria");
-  expect(rows[0]).toHaveTextContent("3–1");
-  fireEvent.click(screen.getByRole("button", { name: "Próximos" }));
-  expect(document.querySelectorAll(".pl-row")).toHaveLength(2);
+  fireEvent.change(screen.getByRole("searchbox", { name: "Buscar rival" }), { target: { value: "red dem" } });
+  fireEvent.click(screen.getByRole("button", { name: /^J5, Red Demons/ }));
+  expect(within(lens()).getByRole("heading", { level: 2 })).toHaveTextContent("Contra Red Demons");
+  expect(within(lens()).getByRole("tab", { name: "Acta" })).toHaveAttribute("aria-selected", "true");
+  expect(lens()).toHaveTextContent(/Final, (ganamos|empatamos|perdimos) \d–\d\. Acta publicada\./);
+  expect(within(lens()).getByRole("list", { name: "Goles" })).toBeInTheDocument();
+  expect(within(lens()).getByRole("img", { name: /^La firma del partido/ })).toBeInTheDocument();
+  expect(lens()).toHaveTextContent("MVP del partidoAlcides");
+  fireEvent.click(within(lens()).getByRole("tab", { name: "Directo" }));
+  expect(lens()).toHaveTextContent(/^.*Final50′/);
+  fireEvent.click(within(lens()).getByRole("tab", { name: "Previa" }));
+  expect(lens()).toHaveTextContent("El siete que salió");
 });
 
-it("rival search, and suggestions when nobody is called that", () => {
+it("ribbon keys, «Hoy» and paging", () => {
+  render(<PartidosPage />);
+  fireEvent.keyDown(seg(17)!, { key: "ArrowRight" });
+  expect(seg(18)).toHaveAttribute("aria-pressed", "true");
+  // an upcoming jornada: the previa, no tabs, the countdown in weeks
+  expect(within(lens()).queryByRole("tablist")).toBeNull();
+  expect(lens()).toHaveTextContent("Dentro de 7 días.");
+  expect(lens()).toHaveTextContent("Aún sin el siete");
+  fireEvent.click(screen.getByRole("button", { name: "Volver a hoy" }));
+  expect(seg(17)).toHaveAttribute("aria-pressed", "true");
+  const before = [...document.querySelectorAll(".vp-seg")].map((b) => b.getAttribute("data-seg"));
+  fireEvent.click(screen.getByRole("button", { name: "Jornadas anteriores" }));
+  const after = [...document.querySelectorAll(".vp-seg")].map((b) => b.getAttribute("data-seg"));
+  expect(after[0]).not.toBe(before[0]);
+  expect(screen.getByRole("slider", { name: /La temporada entera/ })).toHaveAttribute("aria-valuemax", "26");
+});
+
+it("postponed and «pendiente del acta» jornadas: one view, no score", () => {
+  render(<PartidosPage />);
+  const search = screen.getByRole("searchbox", { name: "Buscar rival" });
+  fireEvent.change(search, { target: { value: "sporting" } });
+  fireEvent.click(screen.getByRole("button", { name: /^J20, Sporting de Brugal/ }));
+  expect(lens()).toHaveTextContent("Este partido se aplazó: aún no tiene fecha nueva.");
+  expect(within(lens()).queryByRole("tablist")).toBeNull();
+  // a jornada nobody started on la mesa, past its window
+  const ko = F.now - 3 * 3_600_000;
+  data.matches = [{ id: "p1", seasonId: "t1", version: 2, rival: "Orduña fc", status: "scheduled", date: ko, home: true, duration: 50, venue: "CDM PALOMERAS", starters: ["evans"], bench: [], events: [] } as ClubMatch];
+  seasons.list = [{ id: "t1", name: "Temporada 1" }];
+  league.standings = null;
+  const r = render(<PartidosPage />);
+  const l = r.container.querySelector<HTMLElement>(".vp-lens")!;
+  expect(l).toHaveTextContent("Pendiente del acta");
+  expect(within(l).queryByRole("img", { name: /Manchester Piti \d/ })).toBeNull();
+});
+
+it("filters: Próximos and Resultados re-flow the ribbon and say so", () => {
+  render(<PartidosPage />);
+  const group = screen.getByRole("group", { name: "Qué jornadas ver" });
+  fireEvent.click(within(group).getByRole("button", { name: "Próximos" }));
+  expect(within(group).getByRole("button", { name: "Próximos" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByText("11 jornadas por jugar")).toBeInTheDocument();
+  expect(seg(5)).toBeNull();
+  fireEvent.click(within(group).getByRole("button", { name: "Resultados" }));
+  expect(screen.getByText("16 jornadas con resultado")).toBeInTheDocument();
+  expect(seg(18)).toBeNull();
+});
+
+it("rival search: the jornadas with that rival, and nobody called that", () => {
   render(<PartidosPage />);
   const input = screen.getByRole("searchbox", { name: "Buscar rival" });
-  fireEvent.change(input, { target: { value: "piTU" } });
-  expect([...document.querySelectorAll(".pl-row .tx > a")].map((a) => a.textContent)).toEqual(["En casa de Pitutis"]);
+  fireEvent.change(input, { target: { value: "ORDUÑA" } });
+  const found = screen.getByRole("list", { name: "Jornadas encontradas" });
+  expect(within(found).getAllByRole("button").map((b) => b.textContent)).toEqual([expect.stringMatching(/^J4, Orduña fc/), expect.stringMatching(/^J17, Orduña fc.*en directo$/)]);
+  fireEvent.keyDown(input, { key: "Enter" });
+  expect(within(lens()).getByRole("heading", { level: 2 })).toHaveTextContent("En casa de Orduña fc");
   fireEvent.change(input, { target: { value: "zzz" } });
-  expect(screen.getByText("Ningún rival se llama «zzz»")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Red Demons" }));
-  expect(input).toHaveValue("Red Demons");
-  expect(document.querySelectorAll(".pl-row")).toHaveLength(1);
-  fireEvent.click(screen.getByRole("button", { name: "Borrar la búsqueda" }));
-  expect(input).toHaveValue("");
+  expect(screen.getAllByText("Ningún rival se llama así esta temporada").length).toBeGreaterThan(0);
 });
 
-it("season selector: the seasons and «Todas las temporadas»; all of them groups the rows and drops the light", () => {
+it("season: a combobox «Temporada» with the seasons; a past one is closed (no «¿y si…?»)", () => {
   const { unmount } = render(<PartidosPage />);
-  const select = screen.getByRole("combobox", { name: "Temporada" });
-  expect([...select.querySelectorAll("option")].map((o) => o.textContent)).toEqual(["Temporada 1", "Temporada 0", "Todas las temporadas"]);
-  fireEvent.change(select, { target: { value: "all" } });
-  expect(spies.setSeason).toHaveBeenCalledWith("all");
+  const box = screen.getByRole("combobox", { name: "Temporada" });
+  expect(box).toHaveTextContent("Temporada 1");
+  fireEvent.click(box);
+  const options = screen.getAllByRole("option");
+  expect(options.map((o) => o.textContent)).toEqual([expect.stringMatching(/^Temporada 1La de ahora/), expect.stringMatching(/^Temporada 0Cerrada: 1 partido/)]);
+  fireEvent.click(options[1]);
+  expect(spies.setSeason).toHaveBeenCalledWith("t0");
   unmount();
-  route.search = { season: "all" };
+  route.search = { season: "t0", view: "tabla" };
   render(<PartidosPage />);
-  expect(screen.queryByRole("heading", { name: "El calendario de luz" })).toBeNull();
-  expect(screen.getByText(/La clasificación y el calendario de luz van por temporada/)).toBeInTheDocument();
-  expect([...document.querySelectorAll(".pl-ghd b")].map((b) => b.textContent)).toEqual(["Temporada 1", "Temporada 0"]);
+  expect(screen.getAllByText(/Temporada cerrada/).length).toBeGreaterThan(0);
+  expect(screen.getByRole("heading", { name: "La temporada acabó" })).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: /Jornadas/ })).toHaveTextContent("Todo jugado");
 });
 
-it("the table view (?view=tabla) reuses the league table; while live it is provisional", () => {
+it("Tabla (?view=tabla): the table in focus, «Si acaba así», «¿Y si…?» with picks, presets and «Volver a lo real»", () => {
   route.search = { view: "tabla" };
-  clock.now = KO + 20 * MIN;
-  data.matches = [live([goal("g1", 6)]), j2, j3];
-  league.standings = { id: "t1", competition: "Liga F7", jornada: 0, updatedAt: 0, updatedBy: "", rows: [
-    { team: "Entrepibas F.C.", pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, isUs: false },
-    { team: "Manchester Piti", pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, isUs: true },
-    { team: "Orduña FC", pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, isUs: false },
-  ] };
   render(<PartidosPage />);
-  expect(screen.getByRole("button", { name: /Tabla/ })).toHaveAttribute("aria-pressed", "true");
-  expect(screen.getByText("Provisional: así quedaría si el partido acaba ahora")).toBeInTheDocument();
-  const table = screen.getByRole("region", { name: "Tabla de la clasificación" });
-  const teams = [...table.querySelectorAll(".cl-team")].map((t) => t.textContent);
-  expect(teams).toEqual(["Manchester Piti", "Entrepibas F.C.", "Orduña FC"]);
-  // no calendar filters in the table view; Calendario goes back
-  expect(screen.queryByRole("button", { name: "Resultados" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: /Calendario/ }));
-  expect(route.navigate).toHaveBeenCalled();
+  expect(screen.getByRole("tab", { name: /Tabla/ })).toHaveAttribute("aria-selected", "true");
+  const panel = document.querySelector<HTMLElement>(".vp-panel--tabla")!;
+  expect(panel).toHaveClass("is-on");
+  expect(within(panel).getByRole("heading", { name: "Si acaba así" })).toBeInTheDocument();
+  const table = within(panel).getByRole("table");
+  expect(table.querySelector("tr.us")).toHaveTextContent("Manchester Piti");
+  expect(table.querySelector("tr.us")).toHaveTextContent("si acaba así");
+  expect(within(panel).getByRole("button", { name: "Ver la tabla entera (14)" })).toBeInTheDocument();
+  const first = within(panel).getAllByRole("group", { name: /^¿Y si en la J18/ })[0];
+  fireEvent.click(within(first).getByRole("button", { name: "Ganamos" }));
+  expect(within(first).getByRole("button", { name: "Ganamos" })).toHaveAttribute("aria-pressed", "true");
+  expect(panel).toHaveTextContent("Con tus resultados de mentira");
+  expect(panel.querySelector(".vp-simline")).toHaveTextContent(/^Con lo que has tocado: \d+ puntos, \dº\. Los demás equipos se quedan como están\.$/);
+  fireEvent.click(within(panel).getByRole("button", { name: /Todo victorias/ }));
+  expect(within(panel).getByRole("button", { name: /Todo victorias/ })).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(within(panel).getByRole("button", { name: "Volver a lo real" }));
+  expect(panel.querySelector(".vp-simline")).toHaveTextContent(/^Ahora mismo:/);
+  // the whole table grows in place
+  fireEvent.click(within(panel).getByRole("button", { name: "Ver la tabla entera (14)" }));
+  const grown = screen.getByRole("region", { name: "La tabla entera" });
+  expect(within(grown).getAllByRole("row")).toHaveLength(15);
+  fireEvent.click(within(grown).getByRole("button", { name: "Cerrar" }));
+  expect(screen.queryByRole("region", { name: "La tabla entera" })).toBeNull();
 });
 
-it("J-now through the match day: semana, antes, directo, final and aplazado", () => {
-  // semana: the next one in N days
-  clock.now = KO - 4 * DAY;
-  const { unmount } = render(<PartidosPage />);
-  expect(plinth()).toHaveTextContent("La siguiente, en 4 días");
-  expect(within(plinth()).getByRole("link", { name: "Ver la previa" })).toHaveAttribute("href", "/matches/j1");
-  unmount();
-
-  // antes: today, the countdown and the seven
-  clock.now = T0;
-  const r2 = render(<PartidosPage />);
-  expect(plinth()).toHaveTextContent("Hoy, a las 19:00");
-  expect(plinth()).toHaveTextContent("Faltan 5 h 0 min. El siete ya está publicado");
-  expect(within(plinth()).getByRole("link", { name: "Cómo llegar" })).toHaveAttribute("href", expect.stringContaining("google.com/maps"));
-  r2.unmount();
-
-  // directo1: the scoreboard object, the last play, the goals as minute chips
-  clock.now = KO + 12 * MIN;
-  data.matches = [live([goal("g1", 6), { id: "g2", type: "opponent_goal", minute: 11, elapsedSeconds: 660 } as MatchEvent]), j2, j3];
-  const r3 = render(<PartidosPage />);
-  expect(plinth()).toHaveTextContent("En juego, primera parte");
-  const goals = within(plinth()).getByRole("list", { name: "Goles" });
-  expect(within(goals).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["6′ALCIDES", "11′Orduña fc (gol del rival)"]);
-  expect(document.querySelector(".pl-sb")).toHaveTextContent("1:1");
-  expect(within(plinth()).getByRole("link", { name: "Seguir el partido" })).toBeInTheDocument();
-  expect(document.querySelector(".pl-row.live")).toHaveTextContent("En juego 1–1");
-  r3.unmount();
-
-  // final: acta pending
-  clock.now = KO + 70 * MIN;
-  const c1 = transitionClock(readyClock(), "start", KO);
-  const ended = transitionClock(transitionClock(transitionClock(c1, "halftime", KO + 25 * MIN), "second", KO + 30 * MIN), "finish", KO + 55 * MIN);
-  data.matches = [j1({ clock: ended, events: [goal("g1", 6)] }), j2, j3];
-  const r4 = render(<PartidosPage />);
-  expect(plinth()).toHaveTextContent("Final");
-  expect(plinth()).toHaveTextContent("El acta llega en unos minutos");
-  r4.unmount();
-
-  // aplazado: the tape on the slice and the row struck through
-  clock.now = T0;
-  data.matches = [j1({ status: "postponed" }), j2, j3];
+it("Números (?view=numeros): the figures, the shared Pichichi in words with both names, the assisters", () => {
+  route.search = { view: "numeros" };
   render(<PartidosPage />);
-  expect(plinth()).toHaveTextContent("Aplazado");
-  expect(document.querySelector(".pl-feat .pl-tape")).toHaveTextContent("APLAZADO");
-  const off = document.querySelector(".pl-row.off");
-  expect(off).toHaveTextContent("Aplazado, sin fecha");
+  const panel = document.querySelector<HTMLElement>(".vp-panel--numeros")!;
+  expect(panel).toHaveClass("is-on");
+  expect(within(panel).getByRole("list", { name: "La temporada en cifras" })).toHaveTextContent("si acaba así");
+  const pichichi = within(panel).getByText(/^Pichichi compartido:/);
+  expect(pichichi).toHaveTextContent("Adrián T.C.");
+  expect(pichichi).toHaveTextContent("Alcides");
+  expect(within(panel).getByRole("img", { name: /^Goles nuestros por tramos/ })).toBeInTheDocument();
+  fireEvent.click(within(panel).getAllByRole("button", { name: /^Ver todos los goleadores/ })[0]);
+  expect(screen.getByRole("region", { name: "Todos los goleadores" })).toBeInTheDocument();
+});
+
+it("«Ver todo el partido» grows the plays, with filters", () => {
+  render(<PartidosPage />);
+  fireEvent.click(within(lens()).getByRole("button", { name: "Ver todo el partido" }));
+  const grown = screen.getByRole("region", { name: "Jugada a jugada, J17" });
+  expect(grown).toHaveTextContent("38 jugadas hasta el minuto 23; las nuevas entran arriba.");
+  const all = grown.querySelectorAll(".vd-play").length;
+  fireEvent.click(within(grown).getByRole("button", { name: "Goles" }));
+  expect(grown.querySelectorAll(".vd-play").length).toBeLessThan(all);
+  expect([...grown.querySelectorAll(".vd-play b")].every((b) => /^Gol|Autogol/.test(b.textContent ?? ""))).toBe(true);
+});
+
+it("el cartel: a poster of the jornada in a sheet, «Compartir» and «Guardar la imagen»", () => {
+  render(<PartidosPage />);
+  fireEvent.click(within(lens()).getByRole("button", { name: "El cartel de la jornada" }));
+  const sheet = screen.getByRole("dialog", { name: "Cartel de la J17" });
+  expect(within(sheet).getByRole("img", { name: /^Cartel de la J17: Manchester Piti contra Orduña fc/ })).toBeInTheDocument();
+  expect(within(sheet).getByRole("button", { name: "Compartir" })).toBeInTheDocument();
+  expect(within(sheet).getByRole("button", { name: "Guardar la imagen" })).toBeInTheDocument();
+  fireEvent.click(within(sheet).getByRole("button", { name: "Cerrar el cartel" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("vistas: the shelf navigates with ?view", () => {
+  render(<PartidosPage />);
+  fireEvent.click(screen.getByRole("tab", { name: /Números/ }));
+  expect(route.navigate).toHaveBeenCalled();
 });
 
 it("fans never see answers: no RSVP, no member reads", async () => {
   render(<PartidosPage />);
   await act(async () => {});
+  fireEvent.keyDown(seg(17)!, { key: "ArrowRight" });
+  await act(async () => {});
   expect(screen.queryByRole("group", { name: /¿Vas/ })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Voy" })).toBeNull();
   expect(spies.liveDoc).not.toHaveBeenCalled();
 });
 
-it("a member: his own answer on the rows where he is called, and he can change it", async () => {
+it("a member called for the next jornada answers «¿Vas?» in its previa, and only his own doc is read", async () => {
   who.member = true;
   who.playerId = "jordi";
   who.answer = "yes";
-  data.matches = [j1(), j2, { ...j3, starters: [] }];
+  data.matches = (data.matches as ClubMatch[]).map((m) => (m.id === "j18" ? { ...m, starters: ["jordi", "evans"], bench: [] } : m));
   render(<PartidosPage />);
-  const row = await screen.findByRole("group", { name: "¿Vas a la jornada 2 contra Pitutis?" });
+  fireEvent.keyDown(seg(17)!, { key: "ArrowRight" });
+  const row = await screen.findByRole("group", { name: "¿Vas a la jornada 18 contra Red Demons?" });
   expect(within(row).getByRole("button", { name: /Voy/ })).toHaveAttribute("aria-pressed", "true");
-  // not called for J3: no control there
-  expect(screen.queryByRole("group", { name: /jornada 3/ })).toBeNull();
-  // only his own doc is read
   expect(spies.liveDoc.mock.calls.every(([p]) => p === null || /\/availability\/u-jordi$/.test(p))).toBe(true);
   await act(async () => {
     fireEvent.click(within(row).getByRole("button", { name: "Duda" }));
   });
-  expect(spies.setAvailability).toHaveBeenCalledWith({ uid: "u-jordi", name: "Jordi", playerId: "jordi" }, "j2", "maybe");
-  // the plinth's line for today's match
-  expect(await within(plinth()).findByText("Vas, y juegas de inicio.")).toBeInTheDocument();
+  expect(spies.setAvailability).toHaveBeenCalledWith({ uid: "u-jordi", name: "Jordi", playerId: "jordi" }, "j18", "maybe");
 });
 
-it("server render: the page and the CSS sky without WebGL or member data", () => {
+it("server render: the ribbon, the lens on tonight, Tabla and Números in the markup, no member data", () => {
   who.member = true;
   who.playerId = "jordi";
   const html = renderToString(<PartidosPage />);
-  expect(html).toContain("El calendario de luz");
   expect(html).toContain("Contra Orduña fc");
-  expect(html).toContain("pm-still");
+  expect(html).toContain("vp-seg");
+  expect(html).toContain("vp-panel--jornadas is-on");
+  expect(html).toContain("Si acaba así");
+  expect(html).toContain("Pichichi compartido");
+  expect(html).toContain('role="combobox"');
   expect(html).not.toContain("¿Vas");
-  expect(spies.engine).not.toHaveBeenCalled();
   expect(spies.liveDoc).not.toHaveBeenCalled();
+  route.search = { view: "tabla" };
+  expect(renderToString(<PartidosPage />)).toContain("vp-panel--tabla is-on");
 });
 
 it("states: pretemporada, loading and the data error", () => {
   data.matches = [];
   const r1 = render(<PartidosPage />);
   expect(screen.getByRole("heading", { name: "El calendario aún no está" })).toBeInTheDocument();
-  expect(screen.getByText("Sin partidos todavía")).toBeInTheDocument();
   r1.unmount();
   data.loading = true;
   const r2 = render(<PartidosPage />);

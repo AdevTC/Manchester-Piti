@@ -57,7 +57,7 @@ await test("public HTML follows archive, deletion and restoration without servin
   }
 });
 
-await test("?view=tabla reaches the server render; an unknown view renders the calendar", async () => {
+await test("?view=tabla and ?view=numeros reach the server render; an unknown view renders Jornadas", async () => {
   const fetchBefore = globalThis.fetch;
   const active = { seasonId: "test", rival, date: Date.now() + 86400000, status: "scheduled", home: true };
   const rows = [
@@ -70,13 +70,14 @@ await test("?view=tabla reaches the server render; an unknown view renders the c
     const page = async (query) => (await GET(new Request(`https://piti.test/api/render?p=/partidos${query}`))).text();
     const tabla = await page("&view=tabla");
     assert.ok(tabla.includes("data-ssr"), "must render actual page, not fallback shell");
-    assert.ok(tabla.includes("Tabla de la clasificación"), "the table renders on the server");
+    assert.ok(tabla.includes("vp-panel--tabla is-on"), "the table is the vista the server paints");
     assert.ok(tabla.includes("Rayo Norte"));
+    assert.ok((await page("&view=numeros")).includes("vp-panel--numeros is-on"), "Números is the vista the server paints");
     for (const query of ["", "&view=otra"]) {
       const html = await page(query);
       assert.ok(html.includes("data-ssr"));
-      assert.ok(!html.includes("Tabla de la clasificación"), `no table for «${query}»`);
-      assert.ok(html.includes("El calendario"));
+      assert.ok(!html.includes("vp-panel--tabla is-on"), `not the table for «${query}»`);
+      assert.ok(html.includes("vp-panel--jornadas is-on"), `Jornadas for «${query}»`);
     }
   } finally {
     globalThis.fetch = fetchBefore;

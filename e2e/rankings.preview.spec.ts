@@ -12,9 +12,11 @@ test.beforeAll(async () => {
 
 test("los goleadores empatados conservan puesto y medalla entre partidos, plantilla y estadísticas", async ({ page }) => {
   await page.goto("/partidos?season=preview-season");
-  // the season summary: one figure for the shared lead, both names under it
-  const pichichi = page.locator(".pl-sum .pl-card").filter({ hasText: "Pichichi compartido" });
-  await expect(pichichi).toContainText("1");
+  // Números: the shared lead said in words, both names and the figure
+  await page.getByRole("tab", { name: /^Números/ }).click();
+  const pichichi = page.locator(".vp-panel--numeros.is-on").getByText(/^Pichichi compartido:/);
+  await expect(pichichi).toBeVisible();
+  await expect(pichichi).toContainText("1 gol");
   await expect(pichichi).toContainText("Hugo");
   await expect(pichichi).toContainText("Mario");
 

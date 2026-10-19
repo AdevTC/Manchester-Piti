@@ -9,7 +9,7 @@ const BUNDLE_URL = "https://europe-southwest1-futbolmanagement-dc6cb.cloudfuncti
 const PAGES = new Set(["/", "/partidos", "/stats", "/club", "/plantilla"]);
 // The search params a page renders differently with (the rewrite keeps the visitor's query next to
 // `p`): only the known values pass, so the server never renders a URL the browser would not.
-const VIEWS = { "/partidos": new Set(["tabla"]) };
+const VIEWS = { "/partidos": new Set(["tabla", "numeros"]) };
 /** The URL the server renders: the page's path, plus its `view` when it is one the page knows. */
 export function pageUrl(searchParams) {
   const path = searchParams.get("p") || "/";
