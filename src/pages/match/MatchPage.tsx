@@ -41,6 +41,7 @@ import { RESULT_WORD, resultLetter, resultTitle } from "../../lib/derived/result
 import { shareClubPage } from "../../lib/share";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
 import { madridDate } from "../../lib/derived/madrid";
+import { niceName } from "../../lib/derived/words";
 import { parseMatchLineup } from "../../lib/matchLineup";
 import { CampoTab, CronicaTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
 import { currentHalf } from "./directoModel";
@@ -225,6 +226,8 @@ export function MatchPage() {
   // (the match's own season: a per-season shirt name reads the same here as on the home)
   // (a guest of the acta: «Rafa (invitado)»)
   const nameOf = withGuestNames(match, (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId));
+  // (the feed and the pitch name them as a sentence does, «Adrián T.C.», as the boards)
+  const niceOf = (id: string) => niceName(nameOf(id));
   const playing = !!match && matchPhase(match, now) === "playing";
   const goalShow = useGoalCelebration(playing ? match : undefined, now);
   // the goal moment on the scoreboard and the light field (gold for ours, a cold flash for theirs)
@@ -481,10 +484,10 @@ export function MatchPage() {
           ) : cardMode ? (
             <div className="mp-main">
               <div className="mp-col">
-                <Feed match={match} nameOf={nameOf} live={live} freshId={goalShow.goal?.id ?? null} />
+                <Feed match={match} nameOf={niceOf} live={live} freshId={goalShow.goal?.id ?? null} />
               </div>
               <div className="mp-side">
-                <Campo match={match} players={players} nameOf={nameOf} live={live} started />
+                <Campo match={match} players={players} nameOf={niceOf} live={live} started />
               </div>
             </div>
           ) : (
@@ -495,7 +498,7 @@ export function MatchPage() {
               </div>
               {preSeven && (
                 <div className="mp-side">
-                  <Campo match={match} players={players} nameOf={nameOf} live={false} started={false} />
+                  <Campo match={match} players={players} nameOf={niceOf} live={false} started={false} />
                 </div>
               )}
             </div>

@@ -311,6 +311,7 @@
 :root[data-theme="light"] .sq-hang.is-off .shirt{filter:grayscale(.7) brightness(.95) drop-shadow(0 6px 8px rgba(12,23,51,.2))}
 
 /* the head beside the tools on a desktop; the percha under it */
+@container (min-width:700px){.vx.vd-pg.sq .sq-copy{padding:104px 40px 0}}
 @container (min-width:1100px){
 .vx.vd-pg.sq .sq-copy{grid-template-columns:minmax(0,1fr) auto;column-gap:40px;padding:112px 72px 0;max-width:none}
 .vx.vd-pg.sq .sq-copy > h1,.vx.vd-pg.sq .sq-copy > .sq-lede{grid-column:1}
