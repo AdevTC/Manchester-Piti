@@ -5,8 +5,10 @@ import { eventMinute, isPendingDup } from "./matchEngine.js";
 import { resultLetter, resultTitle } from "./result.js";
 import { absenceRangeText } from "./absencesLogic.js";
 import { guestLabel, isGuestId, type MatchGuest } from "./guests.js";
+import { PUBLIC_TOPICS } from "./pushPresets.js";
 
-export const TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"] as const;
+/** The club's public topics (pushPresets.ts: «cards» is the new one, covered by «Todo»). */
+export const TOPICS = PUBLIC_TOPICS;
 /** Personal notices of the vestuario door: "door" for admins (someone asks to come in), "access" for whoever asked. */
 export const DOOR_TOPICS = ["door", "access"] as const;
 /** Personal notices of the convocatoria: the reminders to whoever hasn't answered, and (captains) the

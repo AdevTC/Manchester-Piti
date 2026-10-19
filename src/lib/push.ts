@@ -5,16 +5,19 @@
 // the service worker subscribes again by itself (public/push-sw.js, `pushsubscriptionchange`) and the
 // app re-asserts it on boot (reassertPush) — also when the session changes, so a signed-out device stops
 // carrying the member's uid.
+import { useCallback, useSyncExternalStore } from "react";
 import { httpsCallable } from "firebase/functions";
 import { auth, functions, FUNCTIONS_REGION } from "../firebase";
+import { presetOf, presetTopics, type PushChoice, type PushPreset } from "../../functions/src/pushPresets";
 
 export const VAPID_PUBLIC = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
-export type Topic = "start" | "goals" | "final" | "mvp" | "dates" | "lineup" | DoorTopic | "convocatoria";
+export type Topic = "start" | "goals" | "cards" | "final" | "mvp" | "dates" | "lineup" | DoorTopic | "convocatoria";
 /** The vestuario door: "door" for captains (someone knocks), "access" for whoever waits to be let in. */
 export type DoorTopic = "door" | "access";
 export const TOPIC_LABELS: { id: Topic; label: string; hint?: string }[] = [
   { id: "start", label: "Cuando empiece el partido", hint: "Y el descanso y la 2ª parte" },
   { id: "goals", label: "Cada gol", hint: "Del Piti y del rival, en directo" },
+  { id: "cards", label: "Tarjetas", hint: "Amarillas y rojas, en directo" },
   { id: "final", label: "Resultado final" },
   { id: "mvp", label: "MVP de la jornada", hint: "Cuando se abre el voto y cuando hay ganador" },
   { id: "dates", label: "Fechas nuevas y cambios", hint: "Partidos nuevos o cambios de hora" },
@@ -51,7 +54,11 @@ interface SubscribeAnswer {
   /** Whether the server still had this device before this call. */
   known?: boolean;
 }
-const subscribeCall = httpsCallable<{ subscription: PushSubscriptionJSON; topics: Topic[] }, SubscribeAnswer>(functions, "pushSubscribe");
+const subscribeCall = httpsCallable<{ subscription: PushSubscriptionJSON; topics: Topic[]; vibrate?: boolean }, SubscribeAnswer>(functions, "pushSubscribe");
+/** «Vibrar con los goles» on this device ("1"; off by default). */
+const VIBRATE_KEY = "piti-push-vibrate";
+/** Left by the service worker when a notice's «Solo goles» button changed this device's topics. */
+const SW_PRESET = "/__piti-push-preset";
 
 /** A callable's plain HTTPS address (the service worker calls it with fetch, without the SDK). */
 export function callableUrl(name: string): string {
@@ -123,7 +130,7 @@ async function rememberForWorker(topics: readonly Topic[], endpoint: string | nu
       await cache.delete(SW_STATE);
       return;
     }
-    const state = { topics, endpoint, subscribe: callableUrl("pushSubscribe"), unsubscribe: callableUrl("pushUnsubscribe") };
+    const state = { topics, endpoint, vibrate: savedVibrate(), subscribe: callableUrl("pushSubscribe"), unsubscribe: callableUrl("pushUnsubscribe"), setPreset: callableUrl("pushSetPreset") };
     await cache.put(SW_STATE, new Response(JSON.stringify(state), { headers: { "content-type": "application/json" } }));
   } catch {
     /* no Cache API here: the boot check still re-asserts it */
@@ -154,11 +161,11 @@ async function register(sub: PushSubscription, topics: Topic[], fallback = false
   let send = who ? topics : topics.filter((t) => !PERSONAL.includes(t));
   let data: SubscribeAnswer | undefined;
   try {
-    data = (await subscribeCall({ subscription: sub.toJSON(), topics: send })).data;
+    data = (await subscribeCall({ subscription: sub.toJSON(), topics: send, ...vibrateField() })).data;
   } catch (e) {
     if (!fallback || !RESTRICTED.some((t) => send.includes(t)) || !["functions/permission-denied", "functions/unauthenticated"].includes(code(e))) throw e;
     send = send.filter((t) => !RESTRICTED.includes(t));
-    data = (await subscribeCall({ subscription: sub.toJSON(), topics: send })).data;
+    data = (await subscribeCall({ subscription: sub.toJSON(), topics: send, ...vibrateField() })).data;
   }
   write(ENDPOINT_KEY, sub.endpoint);
   write(SESSION_KEY, who);
@@ -185,6 +192,7 @@ export async function setTopics(topics: Topic[]): Promise<Topic[]> {
     await register(sub, topics);
   }
   write(KEY, JSON.stringify(topics));
+  notifyPreset();
   return topics;
 }
 
@@ -246,6 +254,8 @@ export function reassertPush(now: number = Date.now()): Promise<ReassertResult> 
   const run = (async (): Promise<ReassertResult> => {
     try {
       if (pushState() !== "ready") return "skip";
+      // (a «Solo goles» tapped on a notice changed the topics on the server: this device takes them first)
+      await syncFromWorker();
       const topics = savedTopics();
       if (!topics.length) return "skip";
       const reg = await navigator.serviceWorker.getRegistration();
@@ -292,4 +302,78 @@ export function reassertPush(now: number = Date.now()): Promise<ReassertResult> 
     if (inFlight === run) inFlight = null;
   });
   return run;
+}
+
+// ---------- «Avisos a medida»: Solo goles · Todo · Nada (functions/src/pushPresets.ts), and «Vibrar con los goles»
+
+export type { PushChoice, PushPreset } from "../../functions/src/pushPresets";
+export { PRESET_LABELS, PRESET_NOTES, PUSH_PRESETS, presetOf } from "../../functions/src/pushPresets";
+
+/** «Vibrar con los goles» on this device (off by default). */
+export const savedVibrate = (): boolean => read(VIBRATE_KEY) === "1";
+/** What a registration tells the server about the vibration: nothing until the device chose (the server keeps its value). */
+const vibrateField = (): { vibrate?: boolean } => (read(VIBRATE_KEY) === null ? {} : { vibrate: savedVibrate() });
+
+const presetListeners = new Set<() => void>();
+function notifyPreset() {
+  presetSnapshot = null;
+  for (const l of presetListeners) l();
+}
+
+/**
+ * A notice's «Solo goles» button (public/push-sw.js) moved this device to «Solo goles» on the server; the
+ * worker can't reach localStorage, so it leaves the server's answer in the Cache API: take it here.
+ */
+async function syncFromWorker(): Promise<void> {
+  try {
+    const cache = await swCache();
+    const hit = await cache?.match(SW_PRESET);
+    if (!cache || !hit) return;
+    const saved = (await hit.json().catch(() => null)) as { topics?: unknown } | null;
+    await cache.delete(SW_PRESET);
+    if (!saved || !Array.isArray(saved.topics)) return;
+    write(KEY, JSON.stringify(saved.topics.filter((t): t is Topic => typeof t === "string")));
+    notifyPreset();
+  } catch {
+    /* no Cache API: the next choice in the bell sets it again */
+  }
+}
+
+/**
+ * Chooses «Solo goles», «Todo» or «Nada» for this device (asks for permission the first time, like
+ * setTopics) and «Vibrar con los goles». «Todo» carries a member's personal notices (convocatoria, turnos);
+ * the door's topics a captain has stay as they are. «Nada» forgets the device. Resolves to its topics.
+ */
+export async function setPushPreset(preset: PushPreset, vibrate: boolean): Promise<Topic[]> {
+  write(VIBRATE_KEY, vibrate ? "1" : "0");
+  const topics = presetTopics(preset, savedTopics(), !!auth.currentUser) as Topic[];
+  return setTopics(topics);
+}
+
+export interface PushPresetState {
+  /** The device's choice: a preset, or «A medida» (custom) for topics picked one by one. */
+  choice: PushChoice;
+  vibrate: boolean;
+  /** Whether this device can get notices at all (ios-install / denied: say so instead of the control). */
+  state: PushState;
+}
+let presetSnapshot: PushPresetState | null = null;
+const presetState = (): PushPresetState => (presetSnapshot ??= { choice: presetOf(savedTopics()), vibrate: savedVibrate(), state: pushState() });
+const SERVER_PRESET: PushPresetState = { choice: "nada", vibrate: false, state: "unsupported" };
+
+/**
+ * The bell's «Avisos a medida»: this device's choice and vibration, live across the app (every
+ * setPushPreset / setTopics / toggleTopic, and a «Solo goles» tapped on a notice, updates it), plus the
+ * setter. The server render sees «Nada» on an unsupported device.
+ */
+export function usePushPreset(): PushPresetState & { set: (preset: PushPreset, vibrate: boolean) => Promise<Topic[]> } {
+  const subscribe = useCallback((cb: () => void) => {
+    presetListeners.add(cb);
+    void syncFromWorker();
+    return () => {
+      presetListeners.delete(cb);
+    };
+  }, []);
+  const s = useSyncExternalStore(subscribe, presetState, () => SERVER_PRESET);
+  return { ...s, set: setPushPreset };
 }

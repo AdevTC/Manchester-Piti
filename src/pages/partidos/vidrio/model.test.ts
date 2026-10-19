@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { seasonStrip, windowAt } from "../../../lib/derived/vidrio/strip";
 import { longSeasonFixture, madridMs } from "../../../lib/derived/vidrio/fixtures";
 import {
+  boardPlay,
+  breakName,
+  closesWord,
+  newDateLine,
+  newDateOf,
+  playedWeatherLine,
+  postponedLine,
+  decollide,
+  leaguePhrase,
+  lightLine,
+  placeLine,
+  porraVerdict,
+  seasonSpan,
   countLine,
   distanceText,
   formLetters,
@@ -103,9 +116,15 @@ describe("the ribbon's window, gaps and minimap", () => {
   });
   it("a week is one unit; the Christmas break is wider and says so", () => {
     const g = ribbonGaps(strip.segments);
-    expect(g.find((x) => x.label)).toMatchObject({ units: 3, label: "Sin partido" });
+    expect(g.find((x) => x.label)).toMatchObject({ units: 3, label: "Navidad" });
     expect(g.filter((x) => x.units === 1).length).toBeGreaterThan(20);
     expect(ribbonGaps([{ day: "2026-10-04" }, { day: "2026-10-18" }])[0]).toMatchObject({ units: 2, label: "11 oct, sin partido" });
+  });
+  it("a long stop is named by what it holds: Navidad, Semana Santa, Verano, else «Sin partido»", () => {
+    expect(breakName("2025-12-14", "2026-01-11")).toBe("Navidad");
+    expect(breakName("2026-03-22", "2026-04-19")).toBe("Semana Santa");
+    expect(breakName("2026-07-26", "2026-09-06")).toBe("Verano");
+    expect(breakName("2026-02-01", "2026-03-01")).toBe("Sin partido");
   });
   it("the minimap: every jornada, the window, the months, today", () => {
     const w = windowAt(13, 7, strip.segments.length);
@@ -178,5 +197,64 @@ describe("the light of that evening", () => {
     const c = sunCurve(madridMs(2026, 9, 13, 12));
     expect(c.sunY).not.toBeNull();
     expect(c.labels).toHaveLength(3);
+  });
+});
+
+describe("the cierre: today, the light line, the season in words, the lens's words", () => {
+  it("today's segment says «Hoy»", () => {
+    const at = madridMs(2026, 10, 18, 19);
+    expect(shortDay(at, at - 3 * 3_600_000)).toBe("Hoy, 19:00");
+    expect(tinyDay(at, at - 3 * 3_600_000)).toBe("Hoy, 19:00");
+    expect(shortDay(at, at - 86_400_000)).toMatch(/^Dom 18 oct, 19:00$/);
+  });
+  it("the light of a kick-off in words, the forecast's temperature instead of the sun's height", () => {
+    const noon = madridMs(2026, 10, 25, 14);
+    expect(lightLine({ light: { light: "dia", lightEnd: "dia", floodlights: false, sunset: 0 }, at: noon })).toMatch(/^Sol de mediodía, a \d+°$/);
+    expect(lightLine({ light: { light: "dorada", lightEnd: "noche", floodlights: true, sunset: 0 }, at: noon }, 14)).toBe("Atardecer y focos, 14°");
+    expect(lightLine({ light: { light: "ocaso", lightEnd: "noche", floodlights: true, sunset: 0 }, at: noon })).toBe("Anochece al empezar: con focos");
+    expect(lightLine({ light: null, at: null })).toBe("");
+  });
+  it("the league as a phrase, the season's span", () => {
+    expect(leaguePhrase("Liga F7")).toBe("liga de fútbol 7");
+    expect(leaguePhrase("Liga de fútbol 7")).toBe("liga de fútbol 7");
+    expect(leaguePhrase("")).toBe("");
+    expect(seasonSpan(["2026-03-08", "2026-05-24"])).toBe("primavera de 2026");
+    expect(seasonSpan(["2025-09-14", "2026-05-24"])).toBe("de septiembre de 2025 a mayo de 2026");
+    expect(seasonSpan([])).toBe("");
+  });
+  it("the place line, the plays as the boards tell them, the porra's verdict", () => {
+    expect(placeLine(true, "Puente de Vallecas", "CDM PALOMERAS")).toBe("En casa, en Puente de Vallecas");
+    expect(placeLine(false, null, "Campo de Moratalaz")).toBe("Fuera, en Moratalaz");
+    expect(boardPlay({ title: "Gol de Adrián T.C.", sub: "Asistencia de Jordi" })).toEqual({ title: "Gol de Adrián T.C.", sub: "Pase de Jordi" });
+    expect(boardPlay({ title: "Al palo, Adrián T.C.", sub: "" })).toEqual({ title: "Al palo", sub: "Disparo de Adrián T.C." });
+    expect(porraVerdict({ gf: 2, ga: 1 }, { gf: 2, ga: 1 })).toBe("exacta");
+    expect(porraVerdict({ gf: 2, ga: 1 }, { gf: 3, ga: 1 })).toBe("cerca");
+    expect(porraVerdict({ gf: 0, ga: 0 }, { gf: 3, ga: 1 })).toBe("no");
+  });
+  it("the momentum marks don't pile up: a goal keeps its glyph, a card next to it only shapes the wave", () => {
+    const out = decollide(
+      [
+        { x: 40, side: "us" as const, goal: false, kind: "tarjeta" as const },
+        { x: 42, side: "us" as const, goal: true, kind: "gol" as const },
+        { x: 43, side: "them" as const, goal: false, kind: "parada" as const },
+        { x: 70, side: "us" as const, goal: false, kind: "palo" as const },
+      ],
+      8,
+    );
+    expect(out.map((o) => o.kind)).toEqual(["otro", "gol", "parada", "palo"]);
+  });
+  it("the new data in words: why it was postponed, its new date, when the vote closes, the weather it had", () => {
+    expect(postponedLine("Por lluvia: el campo no estaba para jugar")).toBe("Aplazado por lluvia: el campo no estaba para jugar.");
+    expect(postponedLine("El campo estaba cerrado por obras")).toBe("Aplazado: el campo estaba cerrado por obras.");
+    expect(postponedLine("Aplazado por la federación.")).toBe("Aplazado por la federación.");
+    expect(postponedLine("  ")).toBe("");
+    expect(newDateOf({ postponedTo: 5 })).toBe(5);
+    expect(newDateOf({ postponedTo: null })).toBeNull();
+    expect(newDateLine(madridMs(2027, 2, 3, 21))).toBe("Se juega el miércoles 3 de febrero a las 21:00");
+    const now = madridMs(2026, 10, 18, 20);
+    expect(closesWord(madridMs(2026, 10, 20, 21), now)).toBe("el martes");
+    expect(closesWord(madridMs(2026, 10, 19, 21), now)).toBe("mañana a las 21:00");
+    expect(closesWord(madridMs(2026, 11, 3, 21), now)).toBe("el martes 3 de noviembre");
+    expect(playedWeatherLine({ temp: 15.4, label: "Nubes y claros" })).toBe("Hizo 15°, nubes y claros, a la hora del pitido.");
   });
 });

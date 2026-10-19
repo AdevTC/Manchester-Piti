@@ -22,7 +22,14 @@ export interface StandingRow {
   gc: number;
   pts: number;
   isUs: boolean;
+  /** «Últimos 5»: the team’s last results, oldest → newest (G ganado, E empate, P perdido), at most 5. */
+  form?: FormLetter[];
 }
+/** One result of a team’s «Últimos 5». */
+export type FormLetter = "G" | "E" | "P";
+export const FORM_LETTERS: readonly FormLetter[] = ["G", "E", "P"];
+/** How many results «Últimos 5» keeps. */
+export const FORM_MAX = 5;
 export const NUM_KEYS = ["pj", "g", "e", "p", "gf", "gc", "pts"] as const;
 export type NumKey = (typeof NUM_KEYS)[number];
 
@@ -41,7 +48,7 @@ export interface Standings {
 
 // ───────────────────────── reading the doc ─────────────────────────
 const int = z.number().int().min(0);
-const rowSchema = z.object({ team: z.string().min(1).max(STANDINGS_LIMITS.team), pj: int, g: int, e: int, p: int, gf: int, gc: int, pts: int, isUs: z.boolean() });
+const rowSchema = z.object({ team: z.string().min(1).max(STANDINGS_LIMITS.team), pj: int, g: int, e: int, p: int, gf: int, gc: int, pts: int, isUs: z.boolean(), form: z.array(z.enum(["G", "E", "P"])).max(FORM_MAX).optional().catch(undefined) });
 const docSchema = z.object({
   competition: z.string().catch(""),
   jornada: z.number().int().min(0).nullable().catch(null),
@@ -277,7 +284,14 @@ export interface StandingsInput {
   jornada: number | null;
   rows: readonly StandingRow[];
 }
-const cleanRow = (r: StandingRow): StandingRow => ({ team: r.team.trim().slice(0, STANDINGS_LIMITS.team), pj: r.pj, g: r.g, e: r.e, p: r.p, gf: r.gf, gc: r.gc, pts: r.pts, isUs: r.isUs });
+const cleanRow = (r: StandingRow): StandingRow => {
+  const form = cleanForm(r.form);
+  return { team: r.team.trim().slice(0, STANDINGS_LIMITS.team), pj: r.pj, g: r.g, e: r.e, p: r.p, gf: r.gf, gc: r.gc, pts: r.pts, isUs: r.isUs, ...(form.length ? { form } : {}) };
+};
+/** A row’s «Últimos 5» as saved: only G / E / P, the last FORM_MAX (oldest → newest). */
+export function cleanForm(form: readonly unknown[] | null | undefined): FormLetter[] {
+  return (form ?? []).filter((x): x is FormLetter => typeof x === "string" && (FORM_LETTERS as readonly string[]).includes(x)).slice(-FORM_MAX);
+}
 /**
  * The doc a save writes (without `updatedAt`, the server's time). `rowsPrev` keeps the table before this
  * save, for the arrows: a new jornada shifts the saved rows into it; a correction within the same jornada

@@ -114,6 +114,10 @@ export interface MatchSheet {
   voteClosesAt?: number;
   gallery?: string[];
   meetingNote?: string;
+  /** Aplazado: why (≤ 140, the admin's words; only with status "postponed"). */
+  postponedReason?: string;
+  /** Aplazado: the new date (ms in the sheet and on the client, a Timestamp in Firestore); null = «por decidir». */
+  postponedTo?: number | null;
   /** Kit the squad wears: 1ª (home) or 2ª (away) equipación. */
   kit?: "home" | "away";
 }
