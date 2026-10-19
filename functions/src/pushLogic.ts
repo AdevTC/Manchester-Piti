@@ -40,13 +40,19 @@ export interface Notice {
 /** A button of a notice (the Notification API's `actions`): its id, which the service worker reads on
  *  `notificationclick`, and its words. */
 export interface NoticeAction {
-  action: "yes" | "no";
+  action: "yes" | "no" | "open" | "solo-goles";
   title: string;
 }
 /** «Voy» and «No puedo» (two buttons: the common platform limit; «Duda» stays in the web). */
 export const RSVP_ACTIONS: readonly NoticeAction[] = [
   { action: "yes", title: "Voy" },
   { action: "no", title: "No puedo" },
+];
+/** A goal's buttons: «Abrir el partido» (its link) and «Solo goles» (the device keeps only the goals:
+ *  public/push-sw.js → pushSetPreset). sendTo drops «Solo goles» on a device already there. */
+export const GOAL_ACTIONS: readonly NoticeAction[] = [
+  { action: "open", title: "Abrir el partido" },
+  { action: "solo-goles", title: "Solo goles" },
 ];
 /** The fields a notice asking for an answer carries on top of its words. */
 export const rsvpFields = (matchId: string): Pick<Notice, "actions" | "matchId"> => ({ actions: RSVP_ACTIONS, matchId });
@@ -59,6 +65,16 @@ export function pushPayload(n: Pick<Notice, "title" | "body" | "tag" | "url" | "
     out.actions = n.actions.map((a) => ({ action: a.action, title: a.title }));
     out.matchId = n.matchId;
   }
+  return out;
+}
+/**
+ * One device's payload: the notice's, plus `vibrate: true` on a goal when the device chose «Vibrar con
+ * los goles», and without the «Solo goles» button on a device already there.
+ */
+export function devicePayload(n: Pick<Notice, "title" | "body" | "tag" | "url" | "actions" | "matchId" | "topic">, device: { preset?: unknown; vibrate?: unknown }): Record<string, unknown> {
+  const actions = device.preset === "goles" ? n.actions?.filter((a) => a.action !== "solo-goles") : n.actions;
+  const out = pushPayload({ ...n, actions });
+  if (n.topic === "goals" && device.vibrate === true) out.vibrate = true;
   return out;
 }
 const PUBLIC = new Set<string>(TOPICS);
@@ -84,6 +100,8 @@ interface Ev {
   /** A live-stamped event's clock seconds (its minute is then the clock's 0-based one): shown via eventMinute. */
   elapsedSeconds?: number;
   playerId?: string;
+  /** Who gave the pass («Pase de Jordi»). */
+  assistPlayerId?: string;
   /** La mesa's possible duplicate (matchEngine isPendingDup): not scored until someone says «Son dos». */
   dupOf?: string;
   dupOk?: boolean;
@@ -109,6 +127,9 @@ export interface MatchLike {
   clock?: { phase?: string };
   /** liveEvent «finish» on a legacy match without a clock: its final whistle (ms). */
   liveEndedAt?: number;
+  /** Aplazado: why, and the new date (ms; null/absent = por decidir). */
+  postponedReason?: string;
+  postponedTo?: number | null;
 }
 
 const notDone = (m: MatchLike | undefined) => !!m && m.status !== "finished" && m.status !== "cancelled";
@@ -179,19 +200,11 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
     const seen = new Set((before?.events ?? []).filter(scored).map((e) => e.id));
     const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && scored(e));
     // (a goal written after the final whistle is a correction of the acta: silent, like its undo)
-    if (fresh.length && !ended) {
-      const last = fresh[fresh.length - 1];
-      const ours = OURS.has(last.type);
-      // a goal written live without its scorer yet («Lo completo luego») is still the Piti's
-      const who = last.type === "opponent_own_goal" ? `Autogol de ${rival}` : ours ? (last.playerId ? nameOf(last.playerId) : "Manchester Piti") : rival;
-      out.push({
-        topic: "goals",
-        title: ours ? `¡GOL del Piti! ${gf}–${ga}` : `Gol de ${rival}. ${gf}–${ga}`,
-        body: `${who}${minuteTxt(last, (n) => `, minuto ${n}`)} · ${score}`,
-        tag: `goal-${id}`,
-        url,
-        log: `goal-${id}-${last.id}`,
-      });
+    if (fresh.length && !ended) out.push(goalNotice(id, fresh[fresh.length - 1], { gf, ga }, rival, nameOf));
+    // Tarjetas («Todo»): each new card while it is being played, ours or the rival's (once each).
+    if (notDone(before) && !ended) {
+      const seenCards = new Set((before?.events ?? []).filter((e) => CARDS.has(e.type)).map((e) => e.id));
+      for (const e of (after.events ?? []).filter((x) => CARDS.has(x.type) && !seenCards.has(x.id))) out.push(cardNotice(id, e, { gf, ga }, rival, nameOf));
     }
     // The clock's other whistles, once per match each (an undo and the same whistle again says nothing
     // new). The descanso and the 2ª parte share the kick-off's tag: the phone keeps the latest.
@@ -214,7 +227,73 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
   if (scheduled && (!before || before.date !== after.date)) {
     out.push({ topic: "dates", title: before ? `Cambio de hora: ${rival}` : `Nuevo partido: ${rival}`, body: `${when(after.date!).replace(/^./, (c) => c.toUpperCase())}. Añádelo a tu calendario desde la web.`, tag: `date-${id}`, url });
   }
+  out.push(...postponedNotices(id, before, after, now));
   return out;
+}
+
+/** A sentence that may end in a name: «Pase de Adrián T.C.» never gets a second full stop. */
+const sentence = (s: string) => (/[.!?…]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
+/** «Piti 2, Orduña fc 1.» */
+const scoreLine = (s: { gf: number; ga: number }, rival: string) => sentence(`Piti ${s.gf}, ${rival} ${s.ga}`);
+
+/**
+ * «¡Gol de Adrián T.C.!» · «Pase de Jordi. Piti 2, Orduña fc 1.» (no pass: the minute), «¡Gol del Piti!»
+ * without the scorer yet («Lo completo luego») or on the rival's own goal, «Gol de Orduña fc» for theirs.
+ * With the buttons «Abrir el partido» and «Solo goles». Once per goal (its pushLog).
+ */
+export function goalNotice(id: string, e: Ev, s: { gf: number; ga: number }, rival: string, nameOf: (playerId: string) => string): Notice {
+  const ours = OURS.has(e.type);
+  const own = e.type === "opponent_own_goal";
+  const scorer = ours && !own && e.playerId ? nameOf(e.playerId) : null;
+  const title = !ours ? `Gol de ${rival}` : scorer ? `¡Gol de ${scorer}!` : "¡Gol del Piti!";
+  const lead = own ? sentence(`En propia puerta de ${rival}`) : ours && e.assistPlayerId ? sentence(`Pase de ${nameOf(e.assistPlayerId)}`) : minuteTxt(e, (n) => `Minuto ${n}.`);
+  return {
+    topic: "goals",
+    title,
+    body: [lead, scoreLine(s, rival)].filter(Boolean).join(" "),
+    tag: `goal-${id}`,
+    url: `/matches/${id}`,
+    log: `goal-${id}-${e.id}`,
+    actions: GOAL_ACTIONS,
+    matchId: id,
+  };
+}
+
+const CARDS = new Set(["yellow_card", "double_yellow", "red_card", "opponent_yellow", "opponent_red"]);
+const CARD_WORD: Record<string, string> = { yellow_card: "Amarilla", double_yellow: "Segunda amarilla", red_card: "Roja", opponent_yellow: "Amarilla", opponent_red: "Roja" };
+/** «Amarilla a EGUZQUIZA» · «Minuto 15. Piti 1, Orduña fc 0.»; the rival's: «Roja para Orduña fc». Once per card. */
+export function cardNotice(id: string, e: Ev, s: { gf: number; ga: number }, rival: string, nameOf: (playerId: string) => string): Notice {
+  const theirs = e.type.startsWith("opponent_");
+  const word = CARD_WORD[e.type] ?? "Tarjeta";
+  const title = theirs ? `${word} para ${rival}` : e.playerId ? `${word} a ${nameOf(e.playerId)}` : `${word} para el Piti`;
+  return {
+    topic: "cards",
+    title,
+    body: [minuteTxt(e, (n) => `Minuto ${n}.`), scoreLine(s, rival)].filter(Boolean).join(" "),
+    tag: `card-${id}`,
+    url: `/matches/${id}`,
+    log: `card-${id}-${e.id}`,
+  };
+}
+
+/**
+ * Aplazado, and its new date (topic «dates», the calendar's): «Aplazado: Orduña fc» when the match becomes
+ * postponed (its reason, and the new date if it already has one), then «Nueva fecha: Orduña fc» when a
+ * postponed match gets its date (or it changes). Once per original date / new date (pushLog).
+ */
+export function postponedNotices(id: string, before: MatchLike | undefined, after: MatchLike, now: number): Notice[] {
+  if (after.status !== "postponed" || after.archived) return [];
+  const rival = after.rival ?? "el rival";
+  const url = `/matches/${id}`;
+  const reason = after.postponedReason?.trim() ? sentence(after.postponedReason) + " " : "";
+  const to = typeof after.postponedTo === "number" && Number.isFinite(after.postponedTo) ? after.postponedTo : null;
+  const day = (ms: number) => when(ms).replace(/^./, (c) => c.toUpperCase());
+  if (before?.status !== "postponed") {
+    return [{ topic: "dates", title: `Aplazado: ${rival}`, body: `${reason}${to && to > now ? `Nueva fecha: ${day(to)}.` : "La nueva fecha, por decidir."}`, tag: `date-${id}`, url, log: `postponed-${id}-${after.date ?? "x"}` }];
+  }
+  const was = typeof before.postponedTo === "number" ? before.postponedTo : null;
+  if (to === null || to === was || to <= now) return [];
+  return [{ topic: "dates", title: `Nueva fecha: ${rival}`, body: `${day(to)}. ${reason}Añádelo a tu calendario desde la web.`, tag: `date-${id}`, url, log: `rescheduled-${id}-${to}` }];
 }
 
 /** Whether the 5-minute job announces this match's kick-off by its date: only legacy matches without
@@ -398,6 +477,35 @@ export function absenceNotice(absence: { id: string; from: string; to: string; n
     tag: `absence-${absence.id}`,
     url: n ? `/matches/${encodeURIComponent(matches[0].id)}?tab=vestuario` : "/vestuario",
     log: `absence-${absence.id}`,
+  };
+}
+
+// ── La caja: «Ya la he pagado» (cajaClaims), to the captains ──
+
+const EUR = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
+/** «Pago avisado: ERIK» · «25,00 € · Cuota octubre. Confírmalo en La caja.», personal (each captain's
+ *  devices and centro de avisos), once per claim (pushLog `cajaclaim-<id>`). */
+export function cajaClaimNotice(id: string, claim: { amount: number; concept?: string; seasonId?: string }, who: string): Notice {
+  const concept = claim.concept?.trim() ? ` · ${claim.concept.trim()}` : "";
+  return {
+    topic: "personal",
+    title: `Pago avisado: ${who}`,
+    body: `${EUR.format(claim.amount / 100)}${concept}. Confírmalo en La caja.`,
+    tag: `cajaclaim-${id}`,
+    url: "/admin/caja",
+    log: `cajaclaim-${id}`,
+  };
+}
+
+/** «Turno hecho: ERIK» · «Lavar la equipación · contra Orduña fc», to the captains, once per match and member. */
+export function turnDoneNotice(matchId: string, uid: string, who: string, jobs: readonly string[], rival: string | undefined): Notice {
+  return {
+    topic: "personal",
+    title: `Turno hecho: ${who}`,
+    body: `${jobs.join(" y ") || "Su turno"}${rival ? ` · contra ${rival}` : ""}.`,
+    tag: `turno-${matchId}`,
+    url: "/admin/turnos",
+    log: `turno-done-${matchId}-${uid}`,
   };
 }
 

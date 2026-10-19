@@ -6,6 +6,7 @@ import { isCompleted } from './matchEngine.js';
 import { predictionPoints, sortPorra, type PorraRow } from './vestuarioLogic.js';
 import { scorePrediction } from './predictions.js';
 import { isGuestId } from './guests.js';
+import { mvpDoc, tallyVotes } from './mvpLogic.js';
 
 export const playerStatsId = (seasonId: string, playerId: string) => createHash('sha256').update(`${seasonId}/${playerId}`).digest('hex');
 
@@ -19,19 +20,15 @@ export async function prepareMvpTallies(tx: FirebaseFirestore.Transaction, match
     return ledger && typeof ledger === 'object' && !Array.isArray(ledger) && Object.keys(ledger).length > 0;
   });
   const votes = await Promise.all(verifiable.map(match => tx.get(match.ref.collection('votes'))));
+  // (the stored turnout's «de 14» is kept; while a vote is open only the turnout is public: mvpLogic.ts)
+  const stored = await Promise.all(verifiable.map(match => tx.get(db.doc(`mvpResults/${match.id}`))));
+  const now = Date.now();
   const tallies = verifiable.map((match, i) => {
-    const ledger = (match.get('ledger') ?? {}) as Record<string, { played?: boolean }>;
-    const counts: Record<string, number> = {};
-    let total = 0;
-    for (const vote of votes[i].docs) {
-      const id = vote.get('playerId') as string;
-      if (!ledger[id]?.played) continue;
-      counts[id] = (counts[id] ?? 0) + 1;
-      total++;
-    }
-    return { id: match.id, counts, total };
+    const tally = tallyVotes(match.get('ledger'), votes[i].docs.map(v => v.data()));
+    const eligible = stored[i].get('eligible');
+    return { id: match.id, doc: mvpDoc(tally, match.get('voteClosesAt'), now, typeof eligible === 'number' ? eligible : 0) };
   });
-  return { writes: tallies.length, write() { for (const { id, ...tally } of tallies) tx.set(db.doc(`mvpResults/${id}`), tally); } };
+  return { writes: tallies.length, write() { for (const { id, doc } of tallies) tx.set(db.doc(`mvpResults/${id}`), doc); } };
 }
 type MatchOverride = ReadonlyMap<string, FirebaseFirestore.DocumentData | null>;
 /** Read phase only. Call write() after ALL reads in the surrounding transaction. Overrides describe

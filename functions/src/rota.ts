@@ -23,7 +23,7 @@ const millis = (v: unknown): number | null => {
   const t = v as { toMillis?: () => number } | undefined;
   return typeof t?.toMillis === "function" ? t.toMillis() : null;
 };
-const asRotaMatch = (id: string, d: DocumentData | undefined): RotaMatch => ({
+export const asRotaMatch = (id: string, d: DocumentData | undefined): RotaMatch => ({
   id,
   date: millis(d?.date),
   home: d?.home === true,
@@ -32,7 +32,7 @@ const asRotaMatch = (id: string, d: DocumentData | undefined): RotaMatch => ({
 });
 
 /** A match's answers and the absences that may cover its Madrid day (never the whole collection). */
-async function outsOf(m: RotaMatch): Promise<{ answers: RotaAnswer[]; absences: RotaAbsence[] }> {
+export async function outsOf(m: RotaMatch): Promise<{ answers: RotaAnswer[]; absences: RotaAbsence[] }> {
   const answers = (await db.collection(`matchPrivate/${m.id}/availability`).get()).docs.map((a) => ({ playerId: (a.get("playerId") as string | null | undefined) ?? null, response: a.get("response") }));
   if (m.date === null) return { answers, absences: [] };
   const day = madridDate(m.date);

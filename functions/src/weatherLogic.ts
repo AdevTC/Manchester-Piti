@@ -60,6 +60,15 @@ export function readKickoffWeather(json: unknown): KickoffWeather | null {
   };
 }
 
+/** Whether a write of a match owes its stamp: a published acta (not archived), kicked off in the past,
+ *  without one. Returns the kick-off (ms) or null. */
+export function weatherStampDue(after: Readonly<Record<string, unknown>> | undefined, now: number): number | null {
+  if (!after || after.archived === true || after.individuallyArchived === true || after.status !== "finished" || after.weatherAtKickoff) return null;
+  const t = after.date as { toMillis?: () => number } | number | undefined;
+  const kickoff = typeof t === "number" ? t : typeof t?.toMillis === "function" ? t.toMillis() : NaN;
+  return Number.isFinite(kickoff) && kickoff < now ? kickoff : null;
+}
+
 /** A stored stamp read back (null when missing or malformed: never shown half). */
 export function parseKickoffWeather(v: unknown): KickoffWeather | null {
   if (!v || typeof v !== "object") return null;

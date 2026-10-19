@@ -5,7 +5,20 @@ import { admin, db, idSchema, memberAs, parse } from "./common.js";
 import { CLOCK_ACTIONS, clockReading, transitionClock, type MatchClock } from "./matchClock.js";
 import type { MatchEvent } from "./matchEngine.js";
 import { requireActiveMatch, runMatchTransaction } from './matchAccess.js';
+import { mesaName, nextMesa } from "./mesaLogic.js";
+import { nameFor } from "./names.js";
 
+/** «Lo anota Jorge desde la mesa»: the public name of a member (his nickname, else his ficha's), read in
+ *  the transaction (before any write). Null when he has neither. */
+async function mesaNameTx(tx: FirebaseFirestore.Transaction, uid: string, seasonId: unknown): Promise<string | null> {
+  const user = await tx.get(db.doc(`users/${uid}`));
+  const nick = user.get("nickname");
+  if (typeof nick === "string" && nick.trim()) return mesaName(nick, null);
+  const playerId = user.get("playerId");
+  if (typeof playerId !== "string" || !playerId) return null;
+  const player = await tx.get(db.doc(`players/${playerId}`));
+  return mesaName(null, player.exists ? nameFor(player.data(), typeof seasonId === "string" ? seasonId : undefined) : null);
+}
 export async function requireScorer(tx: FirebaseFirestore.Transaction, matchId: string, actor: Awaited<ReturnType<typeof memberAs>>) {
   if (actor.isAdmin) return;
   const access = await tx.get(db.doc(`matchPrivate/${matchId}`));
@@ -20,7 +33,10 @@ export const setMatchScorers = onCall(async req => {
     await requireActiveMatch(tx, data.matchId, match);
     const members = ids.length ? await tx.getAll(...ids.map(id => db.doc(`teamMembers/${id}`))) : [];
     if (members.some(m => !m.exists || (m.get("expiresAt")?.toMillis() ?? 0) <= Date.now())) throw new HttpsError("invalid-argument", "Todos los anotadores deben tener acceso vigente al vestuario.");
+    // «Lo anota Jorge desde la mesa»: the first scorer assigned (a match not played yet; the same name keeps its time).
+    const mesa = ids.length && !["finished", "cancelled"].includes(match.get("status")) ? nextMesa(match.get("mesa"), await mesaNameTx(tx, ids[0], match.get("seasonId")), Date.now()) : null;
     tx.set(db.doc(`matchPrivate/${data.matchId}`), { scorerUids: ids }, { merge: true });
+    if (mesa) tx.update(match.ref, { mesa });
     tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, updatedBy: uid, at: FieldValue.serverTimestamp(), scorerUids: ids });
   });
   return { ok: true };
@@ -44,7 +60,9 @@ export const controlMatchClock = onCall(async req => {
     catch (error) { throw new HttpsError("failed-precondition", (error as Error).message); }
     const elapsed = clockReading(clock, now).elapsedSeconds;
     if (elapsed > 9000 && data.action !== "finish") throw new HttpsError("failed-precondition", "El reloj supera 150 minutos. Revisa el encuentro desde el acta.");
-    tx.update(ref, { clock, liveEndedAt: clock.phase === "ended" ? now : FieldValue.delete(), ...(clock.phase === "ended" ? { durationSeconds: Math.max(1, elapsed), duration: Math.max(1, Math.ceil(elapsed / 60)) } : { durationSeconds: FieldValue.delete() }), revision: (snap.get("revision") ?? 0) + 1, updatedAt: FieldValue.serverTimestamp() });
+    // «Lo anota Jorge desde la mesa»: whoever starts the clock keeps la mesa (read before any write).
+    const mesa = data.action === "start" ? nextMesa(snap.get("mesa"), await mesaNameTx(tx, actor.uid, snap.get("seasonId")), now) : null;
+    tx.update(ref, { ...(mesa ? { mesa } : {}), clock, liveEndedAt: clock.phase === "ended" ? now : FieldValue.delete(), ...(clock.phase === "ended" ? { durationSeconds: Math.max(1, elapsed), duration: Math.max(1, Math.ceil(elapsed / 60)) } : { durationSeconds: FieldValue.delete() }), revision: (snap.get("revision") ?? 0) + 1, updatedAt: FieldValue.serverTimestamp() });
     tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, updatedBy: actor.uid, at: FieldValue.serverTimestamp(), clockAction: data.action, before: old ?? null, after: clock });
     return clock;
   });

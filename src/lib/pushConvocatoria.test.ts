@@ -42,6 +42,6 @@ describe("a live goal without its scorer yet", () => {
   it("is still the Piti's in the push", () => {
     const live = { ...base, date: NOW - 60_000 };
     const [n] = noticesFor("m8", { ...live, events: [] }, { ...live, events: [{ id: "live-1", type: "goal", minute: 12 }] }, () => "X", NOW);
-    expect(n).toMatchObject({ title: "¡GOL del Piti! 1–0", body: "Manchester Piti, minuto 12 · Manchester Piti 1–0 MAD SKY" });
+    expect(n).toMatchObject({ title: "¡Gol del Piti!", body: "Minuto 12. Piti 1, MAD SKY 0." });
   });
 });

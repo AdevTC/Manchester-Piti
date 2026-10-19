@@ -20,7 +20,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, recordSnapshotMeta, reopenDelay, useOnline, useSnapshotMeta } from "../../lib/syncStatus";
-import { mapMatch, mapMvp, mapNotice, MVP_RESULTS_KEY } from "../../lib/firestoreMappers";
+import { mapMatch, mapMvp, mapNotice, MVP_RESULTS_KEY, mvpPrivateWhileOpen } from "../../lib/firestoreMappers";
 import { mergeNotices, type Notice, type NoticeAudience } from "../../lib/derived/notices";
 import { MATCHES_KEY, matchQuery } from "../../lib/publicData";
 import { visibleMatchLinks } from "../../lib/matchVisibility";
@@ -310,7 +310,11 @@ const mvpQuery = collection(db, "mvpResults");
 export function useMvpResults() {
   const q = useFirestoreCollection(MVP_RESULTS_KEY, mvpQuery, mapMvp);
   const matches = useFirestoreCollection(MATCHES_KEY, matchQuery, mapMatch);
-  return useMemo(() => new Map(visibleMatchLinks(q.data ?? [], matches.data ?? [], r => r.id).map((r) => [r.id, r])), [q.data, matches.data]);
+  // (an open vote never shows counts, whatever an older doc holds: mvpPrivateWhileOpen)
+  return useMemo(() => {
+    const list = matches.data ?? [];
+    return new Map(mvpPrivateWhileOpen(visibleMatchLinks(q.data ?? [], list, (r) => r.id), list, Date.now()).map((r) => [r.id, r]));
+  }, [q.data, matches.data]);
 }
 const MVP_META_KEY = metaKeyOf(MVP_RESULTS_KEY);
 /**

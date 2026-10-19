@@ -13,16 +13,43 @@ describe("push notices", () => {
     const before = { ...base, events: [g("r6", 6, undefined, "opponent_goal")] };
     const after = { ...base, events: [...before.events, g("live-1", 19, "e")] };
     expect(noticesFor("j8", before, after, nameOf, NOW)).toEqual([
-      { topic: "goals", title: "¡GOL del Piti! 1–1", body: "ERIK, minuto 19 · Manchester Piti 1–1 MAD SKY", tag: "goal-j8", url: "/matches/j8", log: "goal-j8-live-1" },
+      {
+        topic: "goals",
+        title: "¡Gol de ERIK!",
+        body: "Minuto 19. Piti 1, MAD SKY 1.",
+        tag: "goal-j8",
+        url: "/matches/j8",
+        log: "goal-j8-live-1",
+        actions: [
+          { action: "open", title: "Abrir el partido" },
+          { action: "solo-goles", title: "Solo goles" },
+        ],
+        matchId: "j8",
+      },
     ]);
     const rival = noticesFor("j8", after, { ...after, events: [...after.events, g("live-2", 30, undefined, "opponent_goal")] }, nameOf, NOW);
-    expect(rival[0].title).toBe("Gol de MAD SKY. 1–2");
+    expect(rival[0]).toMatchObject({ title: "Gol de MAD SKY", body: "Minuto 30. Piti 1, MAD SKY 2." });
   });
-  it("cards or substitutions don't notify; nothing for goals in a finished acta's edit", () => {
+  it("the board's goal copy: the pass instead of the minute, a name that ends in a stop, the rival's own goal", () => {
+    const before = { ...base, rival: "Orduña fc", events: [g("r1", 6, undefined, "opponent_goal"), g("o1", 9, "e")] };
+    const pass = { ...g("x", 21, "a"), assistPlayerId: "e" };
+    expect(noticesFor("j8", before, { ...before, events: [...before.events, pass] }, nameOf, NOW)[0]).toMatchObject({ title: "¡Gol de ADRIÁN T.C.!", body: "Pase de ERIK. Piti 2, Orduña fc 1." });
+    const byAdrian = { ...g("y", 30, "e"), assistPlayerId: "a" };
+    expect(noticesFor("j8", before, { ...before, events: [...before.events, byAdrian] }, nameOf, NOW)[0].body).toBe("Pase de ADRIÁN T.C. Piti 2, Orduña fc 1.");
+    expect(noticesFor("j8", before, { ...before, events: [...before.events, g("z", 40, undefined, "opponent_own_goal")] }, nameOf, NOW)[0]).toMatchObject({ title: "¡Gol del Piti!", body: "En propia puerta de Orduña fc. Piti 2, Orduña fc 1." });
+  });
+  it("cards while it is played («Tarjetas», once each), never substitutions; nothing for goals in a finished acta's edit", () => {
     const before = { ...base, events: [] };
-    expect(noticesFor("j8", before, { ...base, events: [g("y", 22, "e", "yellow_card")] }, nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", before, { ...base, events: [g("y", 22, "e", "yellow_card")] }, nameOf, NOW)).toEqual([
+      { topic: "cards", title: "Amarilla a ERIK", body: "Minuto 22. Piti 0, MAD SKY 0.", tag: "card-j8", url: "/matches/j8", log: "card-j8-y" },
+    ]);
+    expect(noticesFor("j8", before, { ...base, events: [g("r", 50, undefined, "opponent_red")] }, nameOf, NOW)[0].title).toBe("Roja para MAD SKY");
+    expect(noticesFor("j8", before, { ...base, events: [g("s", 30, "e", "substitution")] }, nameOf, NOW)).toEqual([]);
+    // (a card already there says nothing again)
+    const carded = { ...base, events: [g("y", 22, "e", "yellow_card")] };
+    expect(noticesFor("j8", carded, { ...carded, events: [...carded.events, g("s", 30, "e", "substitution")] }, nameOf, NOW)).toEqual([]);
     const done = { ...base, status: "finished", goalsFor: 2, goalsAgainst: 1, events: [g("a", 1, "a")] };
-    expect(noticesFor("j8", done, { ...done, events: [...done.events, g("b", 2, "a")] }, nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", done, { ...done, events: [...done.events, g("b", 2, "a"), g("y2", 3, "a", "yellow_card")] }, nameOf, NOW)).toEqual([]);
   });
   it("the final whistle, and the MVP vote while it's open", () => {
     const after = { ...base, status: "finished", goalsFor: 3, goalsAgainst: 1, voteClosesAt: NOW + 48 * 3600_000, events: [] };

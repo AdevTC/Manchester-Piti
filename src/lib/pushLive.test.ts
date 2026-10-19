@@ -75,8 +75,8 @@ describe("«Gol anulado»", () => {
     const stamped = { id: "s1", type: "goal", minute: 18, elapsedSeconds: 18 * 60 + 30, playerId: "e" };
     const early = { id: "s0", type: "opponent_goal", minute: 0, elapsedSeconds: 20 };
     const before = { ...live, events: [] };
-    expect(noticesFor("j8", before, { ...live, events: [stamped] }, nameOf, NOW)[0].body).toBe("ERIK, minuto 19 · Manchester Piti 1–0 MAD SKY");
-    expect(noticesFor("j8", before, { ...live, events: [early] }, nameOf, NOW)[0].body).toBe("MAD SKY, minuto 1 · Manchester Piti 0–1 MAD SKY");
+    expect(noticesFor("j8", before, { ...live, events: [stamped] }, nameOf, NOW)[0]).toMatchObject({ title: "¡Gol de ERIK!", body: "Minuto 19. Piti 1, MAD SKY 0." });
+    expect(noticesFor("j8", before, { ...live, events: [early] }, nameOf, NOW)[0]).toMatchObject({ title: "Gol de MAD SKY", body: "Minuto 1. Piti 0, MAD SKY 1." });
     expect(noticesFor("j8", { ...live, events: [stamped] }, before, nameOf, NOW)[0].body).toBe("Se anula el gol de ERIK (minuto 19) · Manchester Piti 0–0 MAD SKY");
     expect(noticesFor("j8", { ...live, events: [early] }, before, nameOf, NOW)[0].body).toBe("Se anula el gol de MAD SKY (minuto 1) · Manchester Piti 0–0 MAD SKY");
   });
@@ -84,7 +84,7 @@ describe("«Gol anulado»", () => {
     const after = { ...live, events: [live.events[0], g("e2", 19, "a")] };
     expect(noticesFor("j8", live, after, nameOf, NOW).map((n) => [n.title, n.log])).toEqual([
       ["Gol anulado. 1–1", "goal-off-j8-e1"],
-      ["¡GOL del Piti! 1–1", "goal-j8-e2"],
+      ["¡Gol de ADRIÁN T.C.!", "goal-j8-e2"],
     ]);
   });
   it("never for the corrections of an old acta, after the final whistle, or for other events", () => {
