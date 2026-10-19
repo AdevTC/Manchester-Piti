@@ -1,19 +1,17 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
-import type { FrontRow } from "../../lib/derived/frontRow";
 import { PLAYERS, SCENES } from "./inicio.fixtures";
 
-// Inicio as a whole: the server render (no WebGL, no member data), the headline per phase, and the member layer
-// appearing only client side. The ground, the chrome, the shirt and «La primera fila» are stubbed (their own
-// tests cover them); the stub of the front row records what it is handed.
+// Inicio «Vidrio» as a whole: the server render (Hoy, no member data), the headline per phase, the places and
+// the shelf, «Tú» only for a jugador, the fan's invitation, the shirt and the calendar. The chrome, the data
+// hooks and the shirt stills are stubbed (their own tests cover them).
 const state = vi.hoisted(() => ({
   matches: [] as ClubMatch[],
   now: 0,
   viewer: { member: false, admin: false, playerId: null as string | null },
-  rows: [] as { counts: unknown; status?: string }[],
 }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, className, to, params, ...rest }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; "aria-label"?: string }) => (
@@ -31,36 +29,44 @@ vi.mock("../../hooks/useMatchClock", () => ({ useMatchClock: () => state.now }))
 vi.mock("../../hooks/useClock", () => ({ useClock: () => state.now }));
 vi.mock("../../hooks/useDocumentTheme", () => ({ useDocumentTheme: () => "dark" }));
 vi.mock("../../lib/clubContent", () => ({ useClubContent: () => ({ sponsors: [{ name: "Bar Casa Paco", url: "", logo: "" }] }) }));
-vi.mock("../../lib/useStandings", () => ({ useStandings: () => ({ standings: null, loading: false }) }));
+vi.mock("../../lib/useStandings", () => ({
+  useStandings: () => ({
+    standings: {
+      id: "t1",
+      competition: "Liga",
+      jornada: 0,
+      updatedAt: 0,
+      updatedBy: "",
+      rows: ["Entrepibas F.C.", "Orduña fc", "Manchester Piti", "Pitutis"].map((team) => ({ team, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, isUs: team === "Manchester Piti" })),
+    },
+    loading: false,
+  }),
+}));
 vi.mock("../../lib/weather", async (orig) => ({ ...(await orig<typeof import("../../lib/weather")>()), useMatchWeather: () => null }));
+vi.mock("../../lib/useRotaTurns", () => ({ useMatchTurns: () => ({ turns: [] }) }));
+vi.mock("../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 vi.mock("../vestuario/live", () => {
   const none = { data: [], loading: false, error: null };
   return {
     useAbsences: () => none,
     useAvailability: () => none,
-    useMatchRatings: () => none,
-    useMatchReactions: () => none,
     useMatchScorers: () => none,
     useMyMvpVote: () => ({ data: "", loading: false, error: null }),
+    useMyPrediction: () => ({ data: null, loading: false, error: null }),
     useMvpResults: () => new Map(),
+    useCaja: () => ({ settings: { cuota: 0, cuotaPeriod: "temporada", howToPay: "", updatedAt: 0 }, movs: [], loading: false, error: false }),
+    usePolls: () => none,
+    usePollVotes: () => none,
+    useNotices: () => none,
   };
 });
-vi.mock("../vestuario/writes", () => ({ useMe: () => null }));
+vi.mock("../vestuario/writes", () => ({ useMe: () => (state.viewer.member ? { uid: "u1", name: "jordi", playerId: state.viewer.playerId } : null), voteMvp: vi.fn(), setAvailability: vi.fn(() => Promise.resolve()) }));
 vi.mock("../../components/celeste/Chrome", () => ({
-  CelesteBackdrop: () => null,
   CelesteHeader: () => <header />,
   CelesteDock: () => <nav aria-label="Navegación móvil" />,
   CelesteFooter: () => <footer />,
 }));
 vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
-vi.mock("./PonteLaCamiseta", () => ({ PonteLaCamiseta: () => <section aria-label="Ponte la del Piti" /> }));
-vi.mock("../../components/celeste/primeraFila/PrimeraFila", () => ({
-  PrimeraFila: ({ row, status }: { row: FrontRow; status?: string }) => {
-    state.rows.push({ counts: row.counts, status });
-    return <section aria-label="La primera fila" data-mode={row.mode} />;
-  },
-}));
-vi.mock("../../components/palomeras3d/Palomeras", () => ({ Palomeras: () => <div data-testid="ground" /> }));
 
 const { HomePage } = await import("./HomePage");
 
@@ -71,26 +77,29 @@ const at = (phase: keyof typeof SCENES) => {
 
 beforeEach(() => {
   state.viewer = { member: false, admin: false, playerId: null };
-  state.rows = [];
+  window.history.replaceState(null, "", "/");
 });
+afterEach(() => window.history.replaceState(null, "", "/"));
 
 describe("Inicio", () => {
-  it("renders on the server without WebGL: the headline, the scoreboard and the fan's invitation, no member layer", () => {
-    at("antes");
+  it("renders Hoy on the server: the lens, the headline, the shelf of a fan, no member data", () => {
+    at("directo1");
     state.viewer = { member: true, admin: true, playerId: "jordi" };
     const html = renderToString(<HomePage />);
-    expect(html).toContain("Orduña fc viene a Palomeras");
-    expect(html).toContain("Marcador del campo: Piti contra Orduña fc, faltan 2 h y 0 min.");
-    expect(html).toContain("Pide entrar al vestuario");
-    expect(html).not.toContain("Modo capitán");
-    // (the front row gets the fans' row and «loading» until the browser knows who is looking)
-    expect(state.rows.at(-1)).toEqual({ counts: null, status: "loading" });
+    expect(html).toContain("Adrián T.C. pone el 2");
+    expect(html).toContain("Manchester Piti 2, Orduña fc 1. En directo, primera parte.");
+    expect(html).toContain('aria-label="Sitios de Inicio"');
+    // (who is looking is only known in the browser: no «Tú» and no member line in the server's HTML)
+    expect(html).not.toContain(">Tú<");
+    expect(html).not.toContain("lleva tu pase");
   });
 
   it.each([
     ["semana", "El domingo, Orduña fc"],
+    ["antes", "Hoy debuta el Piti"],
     ["directo1", /pone el 2.+1/],
     ["final", /Ganamos 3.+1 el estreno/],
+    ["acta", /Alcides abre, Kevin cierra: 3.+1/],
     ["aplazado", "Hoy no se juega"],
   ] as const)("%s: the headline", (phase, h1) => {
     at(phase);
@@ -98,39 +107,67 @@ describe("Inicio", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(h1);
   });
 
-  it("a fan never gets counts: the front row's are null and «Tu partido» is the vestuario's invitation", () => {
-    at("antes");
-    render(<HomePage />);
-    expect(state.rows.every((r) => r.counts === null)).toBe(true);
-    const invite = screen.getByRole("region", { name: "Pide entrar al vestuario" });
-    expect(within(invite).getByRole("link", { name: "Pedir entrar" })).toHaveAttribute("href", "/vestuario");
-    expect(document.body).not.toHaveTextContent(/sin responder|sin contestar/);
-  });
-
-  it("the phase block links to the match, «Lo que viene» subscribes to the calendar, «En el club» to the plantilla", () => {
-    at("antes");
-    render(<HomePage />);
-    expect(screen.getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/j1");
-    expect(screen.getByRole("button", { name: /Suscribirme al calendario/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Conoce a los \d+ en Plantilla/ })).toHaveAttribute("href", "/plantilla");
-    expect(screen.getByRole("slider", { name: "Arrastra el sol" })).toBeInTheDocument();
-  });
-
-  it("pendiente: nobody started la mesa's clock — the page says the acta will tell, never a 0–0", () => {
+  it("pendiente: nobody started la mesa's clock — no score anywhere, never a 0–0", () => {
     at("pendiente");
     const html = renderToString(<HomePage />);
     expect(html).toContain("Pendiente del acta");
-    expect(html).not.toMatch(/Empate a cero|0–0|0⁠–⁠0|Así fue|cerrando la mesa|Arrastra el sol/);
+    expect(html).not.toMatch(/Empate a cero|0–0|0⁠–⁠0|cerrando la mesa/);
     render(<HomePage />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Pendiente del acta");
-    expect(screen.getByRole("region", { name: "Sin marcador en directo" })).toHaveTextContent(/se publique el acta/);
+    expect(screen.getByRole("img", { name: /pendiente del acta/ })).toBeInTheDocument();
   });
 
-  it("live: the plays so far and «Si acaba así» move with the score", () => {
+  it("live: the lens's ribbon, the plays with «Abrir el partido», el siete on the pitch", () => {
     at("directo1");
     render(<HomePage />);
-    const block = screen.getByRole("region", { name: /Hasta el 23′/ });
-    expect(within(block).getByText(/Gol de Adrián T\.C\./)).toBeInTheDocument();
-    expect(within(block).getByRole("link", { name: /Seguir el partido/ })).toHaveAttribute("href", "/matches/j1");
+    const lens = screen.getByRole("region", { name: "El partido" });
+    expect(within(lens).getByRole("group", { name: /minuto a minuto/ })).toBeInTheDocument();
+    const plays = screen.getByRole("region", { name: "Jugada a jugada" });
+    expect(within(plays).getByText("Gol de Adrián T.C.")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Abrir el partido" })[0]).toHaveAttribute("href", "/matches/j1");
+    expect(within(screen.getByRole("region", { name: "En el campo" })).getAllByRole("listitem")).toHaveLength(7);
+  });
+
+  it("a fan has three places; the shelf moves to Club, with the invitation, the shirt and the calendar", () => {
+    at("antes");
+    render(<HomePage />);
+    const shelf = screen.getByRole("tablist", { name: "Sitios de Inicio" });
+    expect(within(shelf).getAllByRole("tab").map((t) => t.querySelector("b")?.textContent)).toEqual(["Hoy", "Temporada", "Club"]);
+    expect(screen.getByRole("region", { name: "La previa" })).toBeInTheDocument();
+    act(() => fireEvent.click(within(shelf).getByRole("tab", { name: /Club/ })));
+    expect(window.location.hash).toBe("#club");
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAttribute("aria-labelledby", "inicio-tab-club");
+    expect(within(panel).getByRole("heading", { name: "Pide entrar al vestuario" })).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: "Pedir entrar" })).toHaveAttribute("href", "/vestuario");
+    fireEvent.change(within(panel).getByLabelText("Tu nombre"), { target: { value: "afición" } });
+    expect(within(panel).getByLabelText("Tu nombre")).toHaveValue("AFICIÓN");
+    expect(within(panel).getByRole("img", { name: /Tu camiseta con AFICIÓN y el dorsal 10/ })).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: /Suscribirme al calendario/ })).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: /Conoce a los \d+ en Plantilla/ })).toHaveAttribute("href", "/plantilla");
+  });
+
+  it("#temporada opens the season: the table in focus with «Si acaba así» while live, the form, the jornadas", () => {
+    at("directo1");
+    window.history.replaceState(null, "", "/#temporada");
+    render(<HomePage />);
+    const panel = screen.getByRole("tabpanel");
+    expect(within(panel).getByRole("heading", { name: "La temporada" })).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Si acaba así" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(panel).getByRole("row", { name: /Manchester Piti/ })).toHaveTextContent(/sube al 1º/);
+    expect(within(panel).getByRole("list", { name: /La forma/ })).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: /^J1, contra Orduña fc: en directo, 2–1/ })).toHaveAttribute("href", "/matches/j1");
+  });
+
+  it("a jugador gets «Tú»: what waits on him, his convocatoria to answer", () => {
+    at("antes");
+    state.viewer = { member: true, admin: false, playerId: "jordi" };
+    render(<HomePage />);
+    const tu = screen.getByRole("tab", { name: /Tú/ });
+    act(() => fireEvent.click(tu));
+    const panel = screen.getByRole("tabpanel");
+    expect(within(panel).getByRole("heading", { name: "Lo que te toca" })).toBeInTheDocument();
+    expect(within(panel).getByRole("group", { name: /Convocatoria del J1/ })).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: "Avisar de una ausencia, en el vestuario" })).toHaveAttribute("href", "/vestuario");
   });
 });

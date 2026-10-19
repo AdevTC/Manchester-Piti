@@ -40,7 +40,7 @@
 /* ---------------------------------------------------------------- ornaments (small glass cards) */
 .vd-orn{--vd-r:var(--vd-r-orn);padding:18px 18px 16px;font-family:var(--vd-sans)}
 .vd-orn__head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
-.vd-orn__head h2,.vd-orn__head h3{margin:0;font-weight:680;font-variation-settings:'wdth' 94;font-size:18px;letter-spacing:-.015em;color:var(--vd-g-ink)}
+.vd-orn__head h2,.vd-orn__head h3{margin:0;font-family:var(--vd-sans);font-weight:680;font-variation-settings:'wdth' 94;font-size:18px;letter-spacing:-.015em;color:var(--vd-g-ink)}
 .vd-orn__head>span{font-size:13px;color:var(--vd-g-ink2);white-space:nowrap}
 .vd-window{--vd-r:32px;--vd-g-tint:rgba(8,18,39,.62);--vd-blur:28px;padding:24px;font-family:var(--vd-sans)}
 :root[data-theme="light"] .vd-window{--vd-g-tint:rgba(255,255,255,.74)}
