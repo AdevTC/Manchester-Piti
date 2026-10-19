@@ -664,6 +664,8 @@
 @media (min-width:1800px){@container (min-width:220px){.vp-seg__l{display:block}}}
 .vp-simmode .vp-seg__l{display:none!important}
 .vp-seg:has(.vp-seg__sim) .vp-seg__res{display:none}
+.vp-slot--docked .vp-seg__res,.vp-slot--docked .vp-seg__d,.vp-slot--docked .vp-seg__rv,.vp-slot--docked .vp-seg__l{display:none!important}
+.vp-simmode .vp-slot--docked .vp-seg__bot{visibility:visible}
 .vp-floataway{position:fixed;left:50%;bottom:0;width:1px;height:1px;pointer-events:none}
 .vp-lensmark{position:absolute;inset:0;pointer-events:none;z-index:-1}
 .vd-grow .vp-lensmark{position:absolute;inset:0}
