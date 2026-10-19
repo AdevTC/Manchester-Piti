@@ -22,6 +22,17 @@ describe("floating score words", () => {
     expect(floatLines({ ...base, state: "offline", staleAt: "26′" }, now).main).toBe("Marcador del 26′, sin actualizar");
   });
 
+  it("the member's own states of the match day", () => {
+    const now = KICK - 30 * 60_000;
+    expect(floatLines({ ...base, state: "rsvp", kickoff: KICK }, now)).toEqual({ big: "19:00", main: "¿Vas hoy?", small: "Orduña fc", clock: false });
+    expect(floatLines({ ...base, state: "anotador", kickoff: KICK }, now)).toMatchObject({ big: "19:00", main: "Hoy anotas tú" });
+    expect(floatLines({ ...base, state: "pitido" }, now)).toEqual({ big: null, main: "Orduña fc", small: "Pendiente del pitido", clock: false });
+    expect(floatLines({ ...base, state: "mvp" }, now)).toMatchObject({ big: "2–1", main: "Vota al MVP" });
+    expect(floatLabel({ ...base, state: "rsvp", kickoff: KICK }, now)).toBe("¿Vas hoy? Contra Orduña fc a las 19:00");
+    expect(floatLabel({ ...base, state: "pitido" }, now)).toBe("Contra Orduña fc, pendiente del pitido inicial");
+    expect(floatLabel({ ...base, state: "mvp" }, now)).toBe("Manchester Piti 2, Orduña fc 1, vota al mejor del partido");
+  });
+
   it("a name a screen reader can say (never the ticking prime)", () => {
     expect(floatLabel(base, 0)).toBe("Manchester Piti 2, Orduña fc 1, minuto 23");
     expect(floatLabel({ ...base, state: "pendiente" }, 0)).toBe("Contra Orduña fc, pendiente del acta");

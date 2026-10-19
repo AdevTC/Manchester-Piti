@@ -1,9 +1,13 @@
+// (Retired with the island: the «Vidrio» live score reads liveDock — components/vidrio/liveDock useLiveDock.
+// Until the old Inicio/Partidos heroes that call this are replaced, useIslaHero also declares the hero as the
+// page's live lens, so the floating score steps aside there as the island did.)
 // «The hero already is the match»: while a page's hero (Inicio's ground, Partidos' night block) is on screen the
 // live island steps aside, and it comes back on scroll. A page calls useIslaHero(ref) on its hero; while that
-// element intersects the viewport, html[data-isla-hero="1"] is set and styles/isla.css hides the island (it
+// element intersects the viewport, html[data-isla-hero="1"] is set and styles/isla.css hid the island (it
 // stays mounted: its live region still speaks, the score keeps ticking). Several heroes may report at once:
 // the flag stays while any of them is in view.
 import { useEffect, useSyncExternalStore, type RefObject } from "react";
+import { useLiveDock } from "../../vidrio/liveDock";
 
 const inView = new Set<object>();
 const listeners = new Set<() => void>();
@@ -38,6 +42,7 @@ export function setIslaHero(key: object, visible: boolean): void {
 /** While `ref`'s element is in view, the island hides (html[data-isla-hero="1"]). Without IntersectionObserver
  *  (old browsers, tests) the hero counts as on screen while mounted. */
 export function useIslaHero(ref: RefObject<Element | null>): void {
+  useLiveDock(ref, "lens");
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

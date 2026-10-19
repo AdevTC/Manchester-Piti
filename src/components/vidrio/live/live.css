@@ -1,0 +1,102 @@
+/* «Vidrio» · el directo (components/vidrio/live): the sheet the floating score opens, its plays, the window
+   «Ver todo» grows into and the score's own window. The drop itself is the kit's (.vd-float / .vd-drop). */
+
+/* the sheet: under the float on desktop (above it when the float sits low), above the tab bar on a phone */
+.vd-sheet{--vd-r:var(--vd-r-sheet);position:fixed;z-index:41;width:420px;max-width:calc(100vw - 20px);max-height:calc(100dvh - 120px);overflow:auto;overscroll-behavior:contain;
+  padding:20px 20px 12px;font-family:var(--vd-sans);color:var(--vd-g-ink);transform-origin:50% 0;animation:vd-sheet-in .55s var(--vd-spring) both}
+.vd-sheet--up{transform-origin:50% 100%}
+.vd-sheet--phone{left:10px;right:10px;width:auto;max-width:520px;margin:0 auto;bottom:calc(96px + env(safe-area-inset-bottom,0px));padding:18px 16px 10px;transform-origin:50% 100%;
+  max-height:calc(100dvh - 130px)}
+@keyframes vd-sheet-in{from{opacity:0;transform:scale(.6,.3)}}
+.vd-sheet__grab{width:40px;height:5px;border-radius:5px;background:rgba(234,243,252,.4);margin:-6px auto 12px}
+:root[data-theme="light"] .vd-sheet__grab{background:rgba(12,23,51,.25)}
+.vd-sheet__head{display:flex;align-items:center;gap:12px}
+.vd-sheet__head>img{width:40px;height:40px;border-radius:50%;flex:none}
+.vd-sheet__big{font-size:44px}
+.vd-sheet--phone .vd-sheet__big{font-size:38px}
+.vd-sheet__who{flex:1;min-width:0}
+.vd-sheet__who h3{margin:0 0 2px;font-weight:700;letter-spacing:-.01em;font-variation-settings:'wdth' 94;font-size:19px;line-height:1.2;color:var(--vd-g-ink);overflow-wrap:anywhere}
+.vd-sheet__status{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;font-size:13.5px;color:var(--vd-g-ink2);line-height:1.4}
+.vd-sheet__status .vd-clock{color:var(--vd-g-ink);font-size:14px}
+.vd-sheet__live{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--vd-g-ink)}
+.vd-sheet__live .vd-livedot{margin:0}
+.vd-sheet__x{--vd-r:999px;flex:none;width:44px;height:44px;display:grid;place-items:center;border:0;padding:0;cursor:pointer;color:var(--vd-g-ink);align-self:flex-start}
+.vd-sheet__x svg{width:18px;height:18px}
+.vd-sheet__x:focus-visible,.vd-btn:focus-visible,.vd-sheet__hide:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+.vd-sheet__note{margin:12px 0 0;font-size:13.5px;line-height:1.45;color:var(--vd-g-ink2)}
+.vd-sheet__note+.vd-sheet__note{margin-top:4px}
+.vd-sheet .vd-more{margin:2px 0 4px}
+.vd-sheet .vd-seg{margin-top:12px}
+.vd-sheet__btns{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:14px}
+.vd-sheet__hide{display:inline-flex;align-items:center;min-height:44px;margin-top:4px;padding:0;border:0;background:none;cursor:pointer;font:inherit;font-weight:600;font-size:14.5px;color:var(--vd-g-ink);
+  text-decoration:underline;text-decoration-color:var(--vd-rule2);text-underline-offset:4px;text-decoration-thickness:1.5px}
+.vd-sheet__hide:hover{text-decoration-color:var(--vd-celeste)}
+
+/* the pages' own heading styles never reach the live pieces (they carry their own type) */
+.vd-sheet :is(h2,h3),.vd-livelog :is(h2,h3){font-family:var(--vd-sans);text-transform:none;font-style:normal}
+.vd-livelog .vd-grow__sec{margin:0;font-weight:650;font-variation-settings:normal;letter-spacing:0;line-height:1.3}
+/* the float's drag hint gives way to its sheet */
+body:has(.vd-sheet) .vd-float__hint{opacity:0}
+
+/* a glass button (the boards' v-btn) */
+.vd-btn{--vd-r:var(--vd-r-ctl);display:inline-flex;align-items:center;justify-content:center;gap:9px;height:44px;padding:0 15px;border:0;cursor:pointer;font-family:var(--vd-sans);
+  font-weight:640;font-size:14.5px;letter-spacing:-.005em;white-space:nowrap;color:var(--vd-g-ink);text-decoration:none}
+.vd-btn svg{width:18px;height:18px;flex:none}
+.vd-btn--pri{--vd-g-tint:var(--vd-pri);--vd-g-sheen:rgba(255,255,255,.26);color:#fff}
+:root[data-theme="light"] .vd-btn--pri{--vd-g-sheen:rgba(255,255,255,.12)}
+.vd-btn[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--vd-celeste)}
+
+/* the last plays */
+.vd-plays{list-style:none;margin:12px 0 6px;padding:0;display:flex;flex-direction:column}
+.vd-play{display:grid;grid-template-columns:44px 22px minmax(0,1fr);align-items:start;gap:8px;padding:8px 0;border-top:1px solid var(--vd-rule)}
+.vd-play:first-child{border-top:0}
+.vd-play .vd-clock{font-size:14px;color:var(--vd-g-ink2);padding-top:1px}
+.vd-play b{display:block;font-weight:640;font-size:14.5px;line-height:1.25;color:var(--vd-g-ink)}
+.vd-play span{display:block;font-size:13px;line-height:1.3;color:var(--vd-g-ink2)}
+.vd-play--them b{color:var(--vd-rival)}
+.vd-glyph{width:20px;height:20px;display:grid;place-items:center;color:var(--vd-g-ink2)}
+.vd-glyph svg{width:17px;height:17px}
+.vd-glyph i{display:block;width:11px;height:15px;border-radius:2px;background:var(--vd-amarilla)}
+.vd-glyph--roja i{background:var(--vd-roja)}
+.vd-glyph--dot i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.vd-glyph--gol{color:var(--vd-g-ink)}
+.vd-play--them .vd-glyph--gol{color:var(--vd-rival)}
+
+/* «Todo el partido»: the window the sheet's plays grow into */
+.vd-livelog{position:fixed;z-index:42;top:104px;bottom:24px;left:max(24px,calc(50% - 460px));right:max(24px,calc(50% - 460px))}
+.vd-livelog--phone{top:12px;left:8px;right:8px;bottom:calc(92px + env(safe-area-inset-bottom,0px));--vd-r:28px}
+.vd-livelog .vd-seg{width:400px;max-width:100%}
+.vd-livelog--phone .vd-grow__head{padding:14px 12px 12px 16px}
+.vd-livelog--phone .vd-grow__head h2{font-size:21px}
+.vd-livelog--phone .vd-seg{width:100%;order:4}
+.vd-livelog--phone .vd-grow__body{padding:4px 10px 16px}
+.vd-feed{position:relative;display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.vd-feed::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--vd-rule2)}
+.vd-frow{display:grid;grid-template-columns:minmax(0,1fr) 56px minmax(0,1fr);align-items:center;min-height:54px}
+.vd-livelog--phone .vd-frow{grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr);min-height:48px}
+.vd-frow__us{text-align:right;padding-right:10px}
+.vd-frow__them{padding-left:10px}
+.vd-frow b{display:block;font-weight:650;font-size:15px;line-height:1.25;color:var(--vd-g-ink)}
+.vd-frow__us span,.vd-frow__them span{display:block;font-size:13.5px;color:var(--vd-g-ink2)}
+.vd-livelog--phone .vd-frow b{font-size:13.5px}
+.vd-livelog--phone :is(.vd-frow__us,.vd-frow__them) span{font-size:12px}
+.vd-frow__them b{color:var(--vd-rival)}
+.vd-frow__min{justify-self:center;position:relative;z-index:1;width:46px;height:30px;border-radius:10px;display:grid;place-items:center;background:#0d1a3a;box-shadow:inset 0 0 0 1px var(--vd-rule2);
+  font-family:var(--vd-mono);font-size:13.5px;color:var(--vd-g-ink)}
+:root[data-theme="light"] .vd-frow__min{background:#fff}
+.vd-livelog--phone .vd-frow__min{width:40px;height:26px;font-size:12.8px}
+.vd-frow__min.is-gold{box-shadow:inset 0 0 0 1.5px var(--vd-oro);color:var(--vd-oro)}
+:root[data-theme="light"] .vd-frow__min.is-gold{color:#8a5a00;box-shadow:inset 0 0 0 1.5px #c48a12}
+.vd-frow.is-minor b{font-weight:560}
+.vd-livelog__empty{font-size:14.5px;color:var(--vd-g-ink2);padding:12px 0}
+
+/* the score's own window (PiP, or the in-page glass window) */
+.vd-pipscore{display:flex;align-items:center;gap:14px;min-width:0;width:100%}
+.vd-pipscore img{width:44px;height:44px;border-radius:50%;flex:none}
+
+@media (prefers-reduced-motion:reduce){
+  .vd-sheet{animation:none}
+}
+@media (prefers-reduced-transparency:reduce){
+  .vd-sheet,.vd-livelog{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--vd-solid)}
+}

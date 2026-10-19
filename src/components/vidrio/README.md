@@ -87,8 +87,8 @@ morph(name) → { className: "vd-morph", style: { viewTransitionName: name } }  
 
 ```ts
 <FloatingScore match: FloatMatch now: number onOpen onPip? storageKey placement?: "right"|"centre"
-               barHeight?=88 dockHeight?=96 goal?: string rim?: boolean />     // client only
-type FloatMatch = { state: "previa"|"directo"|"descanso"|"final"|"acta"|"pendiente"|"offline"; us; them; rival;
+               barHeight?=88 dockHeight?=96 goal?: string rim?: boolean scoreClass?: string sheetOpen?: boolean />  // client only
+type FloatMatch = { state: "previa"|"rsvp"|"anotador"|"pitido"|"directo"|"descanso"|"final"|"acta"|"mvp"|"pendiente"|"offline"; us; them; rival;
                     clock?: "23′"; kickoff?: ms; event?: {title, sub?} | null /* unfolded ~4 s */; staleAt?: "26′"; crest? }
 useDraggable(ref, { storageKey?, home?(box), handle?, zone?: "viewport"|"parent", enabled?, anchors?: "nine"|"corners",
                     axis?: "both"|"x", margin?, top?, bottom?, onSettle? }) → { home() }
@@ -105,6 +105,9 @@ Goal wiring: `<div className={g.root}>` around the glass, `<Lens goal={`${g.lens
 `<VidrioSky gold={g.sky.gold} cold={g.sky.cold}>`, the changed digit `className={g.digit}` (switch the number at
 `stage === "roll"` or later), scorer `className={g.name}`, `<MomentumRibbon peakClassName={g.peak}>`. Pass `null`
 when the next play arrives (the rim goes). A goal present on mount does not replay.
+
+The live system that mounts all this on every page is `live/LiveScore` (RootLayout): the island's states
+(lib/derived/island), the sheet, «Todo el partido», the PiP window, the goal moment and the one polite live region.
 
 Float storage keys: `vd-pos-<storageKey>` (desktop) and `vd-pos-<storageKey>-movil` (phone); PiP: `vd-pos-pip`.
 

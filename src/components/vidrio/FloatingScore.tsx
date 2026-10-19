@@ -32,6 +32,10 @@ export interface FloatingScoreProps {
   /** The goal moment's lens classes and rim (useGoalMoment). */
   goal?: string;
   rim?: boolean;
+  /** The goal moment's digit roll (useGoalMoment().digit) on the score. */
+  scoreClass?: string;
+  /** The sheet it opens is open (aria-expanded). */
+  sheetOpen?: boolean;
 }
 
 function FloatIcon({ off }: { off: boolean }) {
@@ -43,7 +47,7 @@ function FloatIcon({ off }: { off: boolean }) {
   );
 }
 
-export function FloatingScore({ match, now, onOpen, onPip, storageKey, placement = "right", barHeight = 88, dockHeight = 96, goal, rim }: FloatingScoreProps) {
+export function FloatingScore({ match, now, onOpen, onPip, storageKey, placement = "right", barHeight = 88, dockHeight = 96, goal, rim, scoreClass, sheetOpen }: FloatingScoreProps) {
   const desktop = useDesktop();
   const dock = useLiveDockState();
   const float = useRef<HTMLDivElement | null>(null);
@@ -109,11 +113,13 @@ export function FloatingScore({ match, now, onOpen, onPip, storageKey, placement
           className={`vd-glass vd-drop vd-press${expanded ? " vd-drop--expanded" : ""}${off ? " vd-glass--frost" : ""}${goal ? ` ${goal}` : ""}${rim ? " vd-rim-gold" : ""}`}
           aria-label={floatLabel(match, now)}
           aria-describedby={docked ? undefined : hintId}
+          aria-haspopup="dialog"
+          aria-expanded={sheetOpen}
           onClick={onOpen}
         >
           <FloatIcon off={off} />
           {!off && <img className="vd-drop__crest" src={match.crest ?? "/crest-128.webp"} alt="" width={36} height={36} />}
-          {lines.big && <span className={`vd-drop__score${match.state === "previa" ? " vd-drop__score--time" : ""}`}>{lines.big}</span>}
+          {lines.big && <span className={`vd-drop__score${match.state === "previa" || match.state === "rsvp" || match.state === "anotador" ? " vd-drop__score--time" : ""}${scoreClass ? ` ${scoreClass}` : ""}`}>{lines.big}</span>}
           {expanded ? (
             <span className="vd-drop__event">
               <b>{lines.main}</b>

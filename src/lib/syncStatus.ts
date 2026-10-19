@@ -122,7 +122,7 @@ export interface SyncStatus {
 /**
  * Is the score on screen live? Combines `navigator.onLine` with the cache state of the shared ["matches"] listener.
  * It only reads that listener's metadata, it doesn't open it: `fresh` is meaningful while something reads
- * ["matches"] (useClubData — the LiveIsland, the match pages, the admin). With no reader the listener closes after
+ * ["matches"] (useClubData — the live score, the match pages, the admin). With no reader the listener closes after
  * KEEP_WARM_MS and `fresh` turns false.
  */
 export function useSyncStatus(): SyncStatus {

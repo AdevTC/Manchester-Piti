@@ -1,5 +1,7 @@
 // The floating score's words, pure: what the compact drop says in each state and its accessible name.
-export type FloatState = "previa" | "directo" | "descanso" | "final" | "acta" | "pendiente" | "offline";
+// (P5 added the member's own states of the match day: «¿Vas hoy?», «Hoy anotas tú», the whistle's wait and
+// «Vota al MVP».)
+export type FloatState = "previa" | "rsvp" | "anotador" | "pitido" | "directo" | "descanso" | "final" | "acta" | "mvp" | "pendiente" | "offline";
 
 export interface FloatMatch {
   state: FloatState;
@@ -48,6 +50,14 @@ export function floatLines(m: FloatMatch, now: number): FloatLines {
   switch (m.state) {
     case "previa":
       return { big: m.kickoff ? hhmm(m.kickoff) : null, main: m.kickoff ? `${m.rival}, ${untilText(m.kickoff, now)}` : m.rival, small: "", clock: false };
+    case "rsvp":
+      return { big: m.kickoff ? hhmm(m.kickoff) : null, main: "¿Vas hoy?", small: m.rival, clock: false };
+    case "anotador":
+      return { big: m.kickoff ? hhmm(m.kickoff) : null, main: "Hoy anotas tú", small: m.rival, clock: false };
+    case "pitido":
+      return { big: null, main: m.rival, small: "Pendiente del pitido", clock: false };
+    case "mvp":
+      return { big: score, main: "Vota al MVP", small: m.rival, clock: false };
     case "directo":
       return m.event ? { big: score, main: m.event.title, small: m.event.sub ?? "", clock: false } : { big: score, main: m.rival, small: m.clock ?? "", clock: !!m.clock };
     case "descanso":
@@ -69,6 +79,14 @@ export function floatLabel(m: FloatMatch, now: number): string {
   switch (m.state) {
     case "previa":
       return m.kickoff ? `Contra ${m.rival} a las ${hhmm(m.kickoff)}, ${untilText(m.kickoff, now)}` : `Contra ${m.rival}`;
+    case "rsvp":
+      return `¿Vas hoy? Contra ${m.rival}${m.kickoff ? ` a las ${hhmm(m.kickoff)}` : ""}`;
+    case "anotador":
+      return `Hoy anotas tú: contra ${m.rival}${m.kickoff ? ` a las ${hhmm(m.kickoff)}` : ""}`;
+    case "pitido":
+      return `Contra ${m.rival}, pendiente del pitido inicial`;
+    case "mvp":
+      return `${s}, vota al mejor del partido`;
     case "directo":
       return m.clock ? `${s}, minuto ${m.clock.replace(/[′']/g, "")}` : `${s}, en directo`;
     case "descanso":
