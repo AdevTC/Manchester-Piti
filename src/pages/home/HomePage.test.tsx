@@ -44,7 +44,7 @@ vi.mock("../../lib/useStandings", () => ({
     loading: false,
   }),
 }));
-vi.mock("../../lib/weather", async (orig) => ({ ...(await orig<typeof import("../../lib/weather")>()), useMatchWeather: () => null }));
+vi.mock("../../lib/weather", async (orig) => ({ ...(await orig<typeof import("../../lib/weather")>()), useMatchWeather: () => null, useMatchWeatherHourly: () => null }));
 vi.mock("../../lib/useRotaTurns", () => ({ useMatchTurns: () => ({ turns: [] }) }));
 vi.mock("../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 vi.mock("../vestuario/live", () => {
@@ -60,6 +60,7 @@ vi.mock("../vestuario/live", () => {
     usePolls: () => none,
     usePollVotes: () => none,
     useNotices: () => none,
+    useMyCajaClaims: () => none,
   };
 });
 vi.mock("../vestuario/writes", () => ({ useMe: () => (state.viewer.member ? { uid: "u1", name: "jordi", playerId: state.viewer.playerId } : null), voteMvp: vi.fn(), setAvailability: vi.fn(() => Promise.resolve()) }));

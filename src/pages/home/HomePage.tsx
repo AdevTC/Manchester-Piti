@@ -21,7 +21,7 @@ import { PipWindow, Shelf, VidrioSky, openScorePip, region, shelfPanelId, shelfT
 import { clubMedals, matchEvent, playerLines, seasonPulse, upcomingBirthdays, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
 import { useStandings } from "../../lib/useStandings";
-import { useMatchWeather } from "../../lib/weather";
+import { useMatchWeather, useMatchWeatherHourly } from "../../lib/weather";
 import { matchdayOf, viewerRoleOf } from "../../lib/derived/matchday";
 import { campoSeven } from "../../lib/derived/campoSeven";
 import { mvpVoteOpen } from "../../lib/derived/memberWindows";
@@ -41,6 +41,8 @@ import { seasonLeaders } from "../../lib/derived/vidrio/leaders";
 import { playsLog, type PlaysLog } from "../../lib/derived/vidrio/plays";
 import { usePolls, usePollVotes, useAbsences, useMatchScorers, useMvpResults } from "../vestuario/live";
 import { pollTally } from "../../lib/derived/polls";
+import { albumLine, albumOf } from "../../lib/derived/album";
+import { mesaLine, mesaOf } from "../../lib/derived/mesa";
 import { LINE_NAMES, POSITIONS, resolvePositions } from "../../lib/positions";
 import { mvpWinners } from "../../lib/vestuario";
 import { eventSeconds } from "../../../functions/src/matchAnalysis";
@@ -61,6 +63,8 @@ import {
   placeFromHash,
   placesFor,
   porraSub,
+  hourlyWords,
+  postponedOf,
   ribbonItemsOf,
   shortHint,
   sieteOf,
@@ -74,7 +78,7 @@ import { HoyLens } from "./vidrio/HoyLens";
 import { HoyHead } from "./vidrio/HoyHead";
 import { SieteOrn } from "./vidrio/Siete";
 import { PlaysGrow, PlaysOrn } from "./vidrio/Plays";
-import { ConvoOrn, MvpOrn, MvpWinnerOrn, PreviaOrn, VieneOrn } from "./vidrio/Ornaments";
+import { ConvoOrn, FechaOrn, MvpOrn, MvpWinnerOrn, PreviaOrn, VieneOrn } from "./vidrio/Ornaments";
 import { Temporada, TemporadaGrows, type TableRowV, type TemporadaData } from "./vidrio/Temporada";
 import { Club, type ClubData } from "./vidrio/Club";
 import { Tu } from "./vidrio/Tu";
@@ -112,6 +116,8 @@ function FloatAway() {
 
 /** «Compartir el cartel»: the Partidos cartel in its sheet, loaded when asked for. */
 const CartelShare = lazy(() => import("./vidrio/CartelShare"));
+/** «14 de enero». */
+const DAY_MONTH = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "long" });
 
 const WAITING: HoyCopy ={ h1: "Manchester Piti", lede: "" };
 const NO_DATA: HoyCopy = { h1: "No llega el partido", lede: "Puede ser tu conexión o la nuestra. Mientras, esta es la luz de ahora en Palomeras." };
@@ -162,6 +168,8 @@ export function HomePage() {
   const m = day.match;
   const phase = day.phase;
   const weather = useMatchWeather(m ?? undefined, now);
+  // the forecast by the hour (kick-off −1 h … +2 h, within the week): the sun ribbon, la previa and the line
+  const hourly = useMatchWeatherHourly(m && isAhead(phase) ? m : undefined, now);
   const lineup = m ? parseMatchLineup((m as ClubMatch & { lineup?: unknown }).lineup) : null;
   const seven = lineup ? lineupSeven(lineup) : m ? campoSeven(m, null).field : [];
   const uid = member ? me?.uid : undefined;
@@ -203,6 +211,8 @@ export function HomePage() {
   const live = isLive(phase);
   const items = m && hasScore(phase) ? ribbonItemsOf(m, niceOf, live ? (view.seconds ?? 0) + 1 : Infinity) : NOTHING;
   const sun = isAhead(phase) && Number.isFinite(kickoff) ? sunRibbonOf(kickoff, now, m?.duration ?? 50) : null;
+  const hourlyText = hourly && Number.isFinite(kickoff) ? hourlyWords(hourly.hours, kickoff, m?.duration ?? 50) : null;
+  const sunHours = sun && hourly ? hourly.hours.map((h) => ({ left: ((h.at + 1_800_000 - (kickoff - 7_200_000)) / 14_400_000) * 100, temp: Math.round(h.temp), rain: h.rain !== null && h.rain >= 40 ? h.rain : null })).filter((h) => h.left > 3 && h.left < 97) : null;
   const lastGoal = live ? [...view.events].reverse().find((e) => eventMetaOf(e).goal) : undefined;
   // (the goal moment plays only for a goal that arrives while the page is open: the one already there when the
   // matches load — or when a refresh lands mid-match — keeps just its gold rim)
@@ -229,7 +239,7 @@ export function HomePage() {
   const winnerIds = m && !voteOpen && isOver(phase) ? mvpWinners(m, mvpResult, now) : [];
   const winnerVotes = winnerIds.length && mvpResult?.counts ? (mvpResult.counts[winnerIds[0]] ?? null) : null;
   const winner = winnerIds.length ? { names: winnerIds.map((id) => niceOf(id)), votes: winnerVotes } : null;
-  const eligible = mvpResult && "eligible" in mvpResult && typeof mvpResult.eligible === "number" ? mvpResult.eligible : null;
+  const eligible = mvpResult?.eligible ?? null;
   const copy: HoyCopy = error
     ? NO_DATA
     : loading
@@ -296,7 +306,7 @@ export function HomePage() {
         voteClosesAt: voteOpen && typeof m?.voteClosesAt === "number" && !tu.mvpVote ? m.voteClosesAt : null,
       })
     : null;
-  const wx = weatherLineOf(day, weather);
+  const wx = weatherLineOf(day, weather, hourlyText);
   const answers = tu.answers;
   const called = m ? [...(m.starters ?? []), ...(m.bench ?? [])] : [];
   const counts = {
@@ -309,7 +319,11 @@ export function HomePage() {
   const porraLine = porraSub(tu.porra, view.gf, view.ga, phase);
   // (while live, «Debut» fills with the minutes he is playing tonight)
   const inSevenNow = !!viewer.playerId && seven.includes(viewer.playerId);
-  const tuView = live && inSevenNow && tu.logro?.label.includes("«Debut»") && m ? { ...tu, logro: { label: tu.logro.label, text: "Se desbloquea al pitido final si juegas.", pct: Math.min(99, Math.round((((view.seconds ?? 0) / 60) / (m.duration ?? 50)) * 100)) } } : tu;
+  const tuLogro = live && inSevenNow && tu.logro?.label.includes("«Debut»") && m ? { label: tu.logro.label, text: "Se desbloquea al pitido final si juegas.", pct: Math.min(99, Math.round((((view.seconds ?? 0) / 60) / (m.duration ?? 50)) * 100)) } : tu.logro;
+  // his album: a cromo per teammate he has played with this season (derived/album)
+  const album = kind === "jugador" && viewer.playerId ? albumOf(viewer.playerId, matches, squad.map((s) => s.id), seasonId) : null;
+  const albumView = album ? { owned: album.owned.length, total: album.total, line: albumLine(album, m && (isAhead(phase) || live) ? seven : []), latest: album.owned.slice(0, 3).map((c) => ({ id: c.id, num: numOf(c.id), name: niceOf(c.id) })), unknown: Math.min(2, album.total - album.owned.length) } : null;
+  const tuView = { ...tu, logro: tuLogro, album: albumView };
 
   // ── «Sacar el marcador» and «Avisarme…» (client only)
   const [pip, setPip] = useState<ScorePip | null>(null);
@@ -434,6 +448,15 @@ export function HomePage() {
   const total = strip.counts.total;
   const jNow = strip.todayIndex !== null ? strip.segments[strip.todayIndex]?.jornada : (day.jornada ?? null);
   const played = strip.counts.played;
+  // the postponed jornadas, with their new date when it is set («la J9 se juega el 14 de enero»)
+  const postponedTo: Record<string, number | null> = {};
+  const postponedWords: string[] = [];
+  for (const s of strip.segments) {
+    if (s.state !== "aplazado") continue;
+    const to = postponedOf(matches.find((x) => x.id === s.id)).to;
+    postponedTo[s.id] = to;
+    postponedWords.push(to !== null ? `la ${s.jornada ? `J${s.jornada}` : "aplazada"} se juega el ${DAY_MONTH.format(to)}` : `la ${s.jornada ? `J${s.jornada}` : "jornada"} está aplazada`);
+  }
   const temporadaData: TemporadaData = {
     sub: total
       ? live
@@ -451,7 +474,8 @@ export function HomePage() {
     goals: leaders.goals,
     assists: leaders.assists,
     segments: strip.segments,
-    legend: total ? `${jNow ? `Jornada ${jNow} de ${total}${live ? ", en juego" : phase === "antes" ? ": hoy" : ""}` : `${total} jornadas`}. ${strip.counts.upcoming ? `Quedan ${strip.counts.upcoming}` : "No queda ninguna"}${strip.counts.postponed ? `; ${strip.counts.postponed === 1 ? "una aplazada" : `${strip.counts.postponed} aplazadas`}` : ""}.` : "",
+    legend: total ? `${jNow ? `Jornada ${jNow} de ${total}${live ? ", en juego" : phase === "antes" ? ": hoy" : ""}` : `${total} jornadas`}. ${strip.counts.upcoming ? `Quedan ${strip.counts.upcoming}` : "No queda ninguna"}${postponedWords.length ? `; ${andList(postponedWords)}` : ""}.` : "",
+    postponed: postponedTo,
     hasTable: rowsNow.length > 0,
   };
   const [asi, setAsi] = useState(true);
@@ -541,31 +565,34 @@ export function HomePage() {
       duration={m?.duration ?? 50}
       nowMinute={live ? (view.seconds ?? 0) / 60 : undefined}
       sun={sun}
+      sunHours={sunHours}
       goal={goal}
       rollSide={lastGoal && eventMetaOf(lastGoal).goal === "against" ? "them" : "us"}
       goalStatus={goalStatus}
       onReplay={live && lastGoal && !reduced ? () => setReplay({ id: lastGoal.id, n: replays + 1 }) : undefined}
     />
   );
+  const convoWhen = phase === "semana" && Number.isFinite(kickoff) ? `el ${weekday(kickoff)}` : "hoy";
   const leftOrn =
     orns.left === "siete" && m && spots.length ? (
-      <SieteOrn title={sieteTitle} system={lineup?.system ?? "3-2-1"} spots={spots} bench={benchLineOf(m, phase, view.events, niceOf, !!lineup)} kit={kit} theme={theme} className="vi-orn--l" />
+      <SieteOrn title={sieteTitle} system={lineup?.system ?? "3-2-1"} spots={spots} bench={benchLineOf(m, phase, view.events, niceOf, lineup ? { at: lineup.setAt, now } : false)} kit={kit} theme={theme} className="vi-orn--l" />
     ) : orns.left === "viene" && upcoming.length ? (
       <VieneOrn upcoming={upcoming} jornadaOf={jornadaOf} now={now} className="vi-orn--l" />
     ) : null;
   const rightOrn =
     orns.right === "plays" && m ? (
-      <PlaysOrn title={isOver(phase) && !member ? "La noche, jugada a jugada" : "Jugada a jugada"} sub={playsSub} log={log} grow={plays} matchId={m.id} className="vi-orn--r" />
+      <PlaysOrn title={isOver(phase) && !member ? "La noche, jugada a jugada" : "Jugada a jugada"} sub={playsSub} log={log} grow={plays} matchId={m.id} note={live ? mesaLine(m) : null} className="vi-orn--r" />
     ) : orns.right === "convo" && m ? (
       <ConvoOrn
         counts={counts}
         who={comers}
-        when={phase === "semana" && Number.isFinite(kickoff) ? `el ${weekday(kickoff)}` : "hoy"}
+        when={convoWhen}
         mine={kind === "jugador" && tu.rsvp && tu.rsvp.match.id === m.id ? { value: tu.rsvp.value, onPick: tu.rsvp.pick, error: tu.rsvp.error, busy: tu.rsvp.busy } : null}
+        mesa={role === "anotador" ? `${convoWhen === "hoy" ? "Hoy" : capital(convoWhen)} anotas tú en la mesa.` : mesaOf(m) ? `${convoWhen === "hoy" ? "Hoy" : capital(convoWhen)} anota ${mesaOf(m)?.name} en la mesa.` : null}
         className="vi-orn--r"
       />
     ) : orns.right === "previa" && m ? (
-      <PreviaOrn match={m} jornada={day.jornada} weather={weather} className="vi-orn--r" />
+      <PreviaOrn match={m} jornada={day.jornada} weather={weather} hourly={hourlyText?.previa ?? null} className="vi-orn--r" />
     ) : orns.right === "mvp" && m ? (
       <MvpOrn
         candidates={Object.entries(m.ledger ?? {})
@@ -578,6 +605,8 @@ export function HomePage() {
         onVote={(pid) => (me ? voteMvp(me, m.id, pid) : Promise.reject(new Error("sin sesión")))}
         className="vi-orn--r"
       />
+    ) : orns.right === "fecha" && m ? (
+      <FechaOrn match={m} jornada={day.jornada} className="vi-orn--r" />
     ) : orns.right === "winner" && m ? (
       <MvpWinnerOrn
         winners={winnerIds.map((id) => ({ id, name: nameOf(id).toLocaleUpperCase("es"), num: numOf(id) }))}

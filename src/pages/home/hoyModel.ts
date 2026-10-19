@@ -90,6 +90,27 @@ export function floodlightsFrom(from: number, to: number): number | null {
   return null;
 }
 
+// ───────────────────────── a postponed match ─────────────────────────
+
+const LONG_DAY = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "long", day: "numeric", month: "long" });
+/** «el miércoles 14 de enero a las 19:00». */
+export function newDateWords(at: number): string {
+  return `el ${LONG_DAY.format(at).replace(",", "")} a las ${madridTime(at)}`;
+}
+
+/** The admin's reason for a postponement and its new date (null: por decidir). */
+export function postponedOf(m: { postponedReason?: string; postponedTo?: number | null } | null | undefined): { reason: string; to: number | null } {
+  const to = typeof m?.postponedTo === "number" && Number.isFinite(m.postponedTo) ? m.postponedTo : null;
+  return { reason: m?.postponedReason?.trim() ?? "", to };
+}
+
+/** «Campo cerrado por lluvia. Se juega el miércoles 14 de enero a las 19:00.» · «… Sin fecha todavía.» */
+export function postponedLine(m: { postponedReason?: string; postponedTo?: number | null } | null | undefined): string {
+  const { reason, to } = postponedOf(m);
+  const when = to !== null ? `Se juega ${newDateWords(to)}.` : reason ? "Sin fecha todavía." : "La nueva fecha saldrá aquí y en los avisos.";
+  return reason ? `${endSentence(capital(reason))} ${when}` : when;
+}
+
 // ───────────────────────── the lens ─────────────────────────
 
 export interface LensStatus {
@@ -178,7 +199,8 @@ export function lensFace(day: Pick<MatchdayModel, "phase" | "match" | "kickoff" 
       return { ...base, mode: "word", big: AWAITING_ACTA, status: { live: false, clock: null, text: "La mesa no llegó a arrancar el reloj." }, label: `Manchester Piti contra ${rival}: ${AWAITING_ACTA.toLocaleLowerCase("es")}.` };
     case "aplazado": {
       const word = m?.status === "cancelled" ? "Suspendido" : "Aplazado";
-      return { ...base, mode: "word", big: word, status: { live: false, clock: null, text: "La nueva fecha saldrá aquí y en los avisos." }, label: `Partido ante ${rival}, ${word.toLocaleLowerCase("es")}.` };
+      const line = postponedLine(m);
+      return { ...base, mode: "word", big: word, status: { live: false, clock: null, text: line }, label: `Partido ante ${rival}, ${word.toLocaleLowerCase("es")}. ${line}` };
     }
   }
 }
@@ -387,6 +409,12 @@ export function hoyCopy(ctx: HoyCopyCtx): HoyCopy {
       const h1 = resultHeadline(m, view.gf, view.ga, nameOf) ?? resultWord(view.gf, view.ga, ctx.estreno);
       return { h1, lede: `${winnerLine(ctx.winner)} La crónica y las notas, en el partido.`.trim() };
     }
+    case "aplazado": {
+      // (the lens says the reason; the line says when it is played now, or that the date comes)
+      const { to } = postponedOf(m);
+      const word = m?.status === "cancelled" ? "suspendido" : "aplazado";
+      return { h1: base.h1, lede: to !== null ? `El partido ante ${rival} se juega ${newDateWords(to)}.` : `El partido ante ${rival} queda ${word}. La nueva fecha saldrá aquí y en los avisos.` };
+    }
     case "pendiente":
       // (the lens already says «Pendiente del acta»: the headline says what is missing)
       return { h1: "Falta el acta del partido", lede: `Contra ${rival}: el resultado, los goles y los minutos salen con el acta.` };
@@ -534,11 +562,12 @@ export function meLineOf(c: MeLineCtx): string | null {
 // ───────────────────────── the weather line ─────────────────────────
 
 /** «14°, nublado. El sol se pone a las 19:20.» · «12°, sin lluvia. Con focos desde las 19:20.» · «Próximo: …». */
-export function weatherLineOf(day: Pick<MatchdayModel, "phase" | "match" | "kickoff" | "next">, weather: MatchWeather | null): string | null {
+export function weatherLineOf(day: Pick<MatchdayModel, "phase" | "match" | "kickoff" | "next">, weather: MatchWeather | null, hourly: HourlyWords | null = null): string | null {
   const p = day.phase;
   const ko = day.kickoff;
   if ((isAhead(p) || isLive(p)) && ko !== null) {
-    const w = weather ? `${weather.temp}°, ${isLive(p) ? (weather.rain && weather.rain >= 50 ? "con lluvia" : "sin lluvia") : weather.label.toLocaleLowerCase("es")}. ` : "";
+    // (before the match, by the hour when the forecast has it: «De 14° a 11°, sin lluvia.»)
+    const w = hourly && isAhead(p) ? `${hourly.line}. ` : weather ?`${weather.temp}°, ${isLive(p) ? (weather.rain && weather.rain >= 50 ? "con lluvia" : "sin lluvia") : weather.label.toLocaleLowerCase("es")}. ` : "";
     if (isLive(p)) {
       const lit = floodlightsFrom(ko, ko + (day.match?.duration ?? 50) * MIN);
       return `${w}${lit === null ? "Con luz de día." : lit <= ko ? "Con focos todo el partido." : `Con focos desde las ${madridTime(lit)}.`}`;
@@ -555,10 +584,38 @@ export function weatherLineOf(day: Pick<MatchdayModel, "phase" | "match" | "kick
   return null;
 }
 
+// ───────────────────────── the weather by the hour ─────────────────────────
+
+export interface HourlyWords {
+  /** «14° al pitido, 11° al final; sin lluvia». */
+  previa: string;
+  /** «De 14° a 11°, sin lluvia» (the weather line before the match). */
+  line: string;
+}
+
+/** The forecast's hours (kick-off −1 h … +2 h) read for the match: the temperature at the whistle and at the
+ *  end, and the rain over the match. Null without the kick-off hour. */
+export function hourlyWords(hours: readonly { at: number; temp: number; rain: number | null; kickoff: boolean }[], kickoff: number, minutes = 50): HourlyWords | null {
+  const ko = hours.find((h) => h.kickoff) ?? hours.find((h) => h.at <= kickoff && kickoff < h.at + 3_600_000);
+  if (!ko) return null;
+  const endAt = kickoff + minutes * MIN;
+  // (the hour that starts nearest the final whistle: a 19:00 kick-off ends «at 20:00»)
+  const end = hours.reduce((best, h) => (Math.abs(h.at - endAt) < Math.abs(best.at - endAt) ? h : best), ko);
+  const during = hours.filter((h) => h.at + 3_600_000 > kickoff && h.at <= endAt);
+  const probs = during.map((h) => h.rain).filter((r): r is number => typeof r === "number");
+  const rain = probs.length ? Math.max(...probs) : null;
+  const rainWords = rain === null || rain < 30 ? "sin lluvia" : rain >= 70 ? "con lluvia" : `lluvia al ${Math.round(rain / 10) * 10} %`;
+  const same = Math.round(ko.temp) === Math.round(end.temp);
+  return {
+    previa: same ? `${Math.round(ko.temp)}° todo el partido; ${rainWords}` : `${Math.round(ko.temp)}° al pitido, ${Math.round(end.temp)}° al final; ${rainWords}`,
+    line: same ? `${Math.round(ko.temp)}°, ${rainWords}` : `De ${Math.round(ko.temp)}° a ${Math.round(end.temp)}°, ${rainWords}`,
+  };
+}
+
 // ───────────────────────── the ornaments ─────────────────────────
 
 export type LeftOrn = "siete" | "viene" | null;
-export type RightOrn = "convo" | "previa" | "plays" | "mvp" | "winner" | "viene" | null;
+export type RightOrn = "convo" | "previa" | "plays" | "mvp" | "winner" | "fecha" | "viene" | null;
 
 /** Which ornaments flank the lens: el siete (or what comes next when there is none) and, on the right, the
  *  convocatoria (members) or la previa (fans) before, the plays while live and after, the MVP vote while it
@@ -581,6 +638,9 @@ export function ornamentsOf(phase: MatchdayPhase, kind: ViewerKind, hasSeven: bo
       return { left, right: member && voteOpen ? "mvp" : !voteOpen && hasWinner ? "winner" : "plays" };
     case "pendiente":
       return { left, right: left === "siete" ? "viene" : null };
+    case "aplazado":
+      // (what comes next, and the postponed match's new date or that it comes)
+      return { left: "viene", right: "fecha" };
     default:
       return { left: "viene", right: null };
   }
@@ -678,7 +738,7 @@ export function sieteOf(c: SieteCtx): SieteSpot[] {
 }
 
 /** The line under the pitch: the bench before and while live, the changes after. */
-export function benchLineOf(match: ClubMatch, phase: MatchdayPhase, events: readonly MatchEvent[], nameOf: (id: string) => string, published: boolean): string {
+export function benchLineOf(match: ClubMatch, phase: MatchdayPhase, events: readonly MatchEvent[], nameOf: (id: string) => string, published: boolean | { at: number; now: number }): string {
   const name = withGuestNames(match, nameOf);
   if (isOver(phase)) {
     const subs = settled([...events]).filter((e) => e.type === "substitution" && e.inPlayerId && e.playerId);
@@ -688,7 +748,20 @@ export function benchLineOf(match: ClubMatch, phase: MatchdayPhase, events: read
   const bench = (match.bench ?? []).filter((id) => !settled([...events]).some((e) => e.type === "substitution" && e.inPlayerId === id));
   const names = bench.map((id) => name(id));
   const benchLine = names.length ? endSentence(`En el banquillo: ${andList(names)}`) : "Sin banquillo.";
-  return phase === "antes" && published ? `Publicado desde la pizarra. ${benchLine}` : benchLine;
+  if (phase !== "antes" || !published) return benchLine;
+  // («Publicado ayer desde la pizarra.»: when the captain sent it, in words)
+  const when = typeof published === "object" && Number.isFinite(published.at) ? ` ${publishedWhen(published.at, published.now)}` : "";
+  return `Publicado${when} desde la pizarra. ${benchLine}`;
+}
+
+/** «hoy», «ayer», «el jueves», «el 12 de octubre»: when a thing happened, seen from `now` (Madrid days). */
+export function publishedWhen(at: number, now: number): string {
+  const day = (ms: number) => Date.UTC(Number(madridDate(ms).slice(0, 4)), Number(madridDate(ms).slice(5, 7)) - 1, Number(madridDate(ms).slice(8, 10))) / 86_400_000;
+  const d = day(now) - day(at);
+  if (d <= 0) return "hoy";
+  if (d === 1) return "ayer";
+  if (d < 7) return `el ${weekday(at)}`;
+  return `el ${Number(madridDate(at).slice(8))} de ${new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", month: "long" }).format(at)}`;
 }
 
 // ───────────────────────── the season's form and tiles ─────────────────────────
@@ -735,7 +808,8 @@ export function shortHint(id: PlaceId, long: string): string {
       .replace(/^(Ganamos|Perdimos|Empate) /, "")
       .replace(/, al descanso$/, ", descanso")
       .replace(/^(\d\d:\d\d), .+$/, "$1")
-      .replace(/^(\d+⁠?–⁠?\d+), (acta lista|MVP .+)$/, "$1");
+      .replace(/^(\d+⁠?–⁠?\d+), (acta lista|MVP .+)$/, "$1")
+      .replace(/^Aplazado al (.+)$/, "Al $1");
   }
   if (id === "temporada") return /^\d+º/.test(long) ? (long.match(/^\d+º/)?.[0] ?? long) : long.replace(/^Empieza la temporada$/, "Empieza").replace(/^Empieza esta noche$/, "Empieza hoy");
   if (id === "club") return long.replace(/^(\d+) en la plantilla$/, "$1 jugadores").replace(/^.+? (cumple .+)$/, (_, rest: string) => capital(rest));

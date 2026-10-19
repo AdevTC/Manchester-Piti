@@ -48,6 +48,7 @@ describe("placeHints · Hoy, phase by phase", () => {
 
   it("called off, the week and the pre-season", () => {
     expect(hoy(day("aplazado", { match: m({ status: "postponed" }) }))).toBe("Aplazado");
+    expect(hoy(day("aplazado", { match: m({ status: "postponed", postponedTo: madridMs(2027, 1, 14, 19) }) }))).toBe("Aplazado al 14 ene");
     expect(hoy(day("aplazado", { match: m({ status: "cancelled" }) }))).toBe("Suspendido");
     const j2 = m({ date: madridMs(2026, 10, 25, 14) });
     expect(hoy(day("semana", { match: j2 }))).toBe("Dom 25, 14:00");

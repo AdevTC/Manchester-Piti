@@ -166,9 +166,13 @@ const SKY: Record<LightKey, string> = {
 };
 const INK: ReadonlySet<LightKey> = new Set(["dia", "tarde"]);
 
-function segLabel(s: StripSegment): string {
+type Postponed = Readonly<Record<string, number | null>>;
+const shortDate = (at: number) => `${Number(madridDate(at).slice(8))} ${MONTHS_SHORT[Number(madridDate(at).slice(5, 7)) - 1] ?? ""}, ${madridTime(at)}`;
+
+function segLabel(s: StripSegment, postponed?: Postponed): string {
   const j = s.jornada ? `J${s.jornada}` : "Jornada";
-  const at = s.at !== null ? `${Number(madridDate(s.at).slice(8))} ${MONTHS_SHORT[Number(madridDate(s.at).slice(5, 7)) - 1] ?? ""}, ${madridTime(s.at)}` : "fecha por confirmar";
+  const at = s.at !== null ? shortDate(s.at) : "fecha por confirmar";
+  const to = postponed?.[s.id];
   const what =
     s.state === "jugado" && s.score
       ? `${s.letter === "G" ? "ganado" : s.letter === "P" ? "perdido" : "empate"} ${s.score.gf}–${s.score.ga}${s.provisional ? ", acta pendiente" : ""}`
@@ -177,7 +181,9 @@ function segLabel(s: StripSegment): string {
         : s.state === "hoy"
           ? `hoy a las ${s.at !== null ? madridTime(s.at) : "hora por confirmar"}`
           : s.state === "aplazado"
-            ? "aplazado"
+            ? typeof to === "number"
+              ? `aplazado, se juega el ${shortDate(to)}`
+              : "aplazado, sin fecha todavía"
             : s.state === "suspendido"
               ? "suspendido"
               : s.state === "pendiente"
@@ -193,7 +199,7 @@ function tileDay(at: number): string {
   return `${w.charAt(0).toLocaleUpperCase("es")}${w.slice(1)} ${Number(madridDate(at).slice(8))} ${MONTHS_SHORT[Number(madridDate(at).slice(5, 7)) - 1] ?? ""}`;
 }
 
-export function SeasonTiles({ segments, now }: { segments: readonly StripSegment[]; now: number }) {
+export function SeasonTiles({ segments, now, postponed }: { segments: readonly StripSegment[]; now: number; postponed?: Postponed }) {
   return (
     <ul className="vi-tiles" aria-label="Las jornadas, pintadas con la luz de cada pitido" style={{ "--tiles": segments.length } as CSSProperties}>
       {segments.map((s) => {
@@ -206,14 +212,16 @@ export function SeasonTiles({ segments, now }: { segments: readonly StripSegment
               : s.state === "hoy" && s.at !== null
                 ? `Hoy, ${madridTime(s.at)}, ${s.home ? "en casa" : "fuera"}`
                 : s.state === "aplazado"
-                  ? "Aplazado"
+                  ? typeof postponed?.[s.id] === "number"
+                    ? `Aplazado al ${tileDay(postponed[s.id] as number)}`
+                    : "Aplazado"
                   : s.at !== null
                     ? `${madridDate(s.at) === madridDate(now) ? "Hoy" : tileDay(s.at)}, ${madridTime(s.at)}, ${s.home ? "en casa" : "fuera"}`
                     : "Por fecha";
         const now_ = s.state === "directo" || s.state === "hoy";
         return (
           <li key={s.id}>
-            <Link className={`vi-tile${INK.has(light) ? " vi-tile--ink" : ""}${now_ ? " vi-tile--now" : ""}`} to="/matches/$matchId" params={{ matchId: s.id }} style={{ "--sky": SKY[light] } as CSSProperties} aria-label={segLabel(s)}>
+            <Link className={`vi-tile${INK.has(light) ? " vi-tile--ink" : ""}${now_ ? " vi-tile--now" : ""}`} to="/matches/$matchId" params={{ matchId: s.id }} style={{ "--sky": SKY[light] } as CSSProperties} aria-label={segLabel(s, postponed)}>
               <b aria-hidden="true">{s.jornada ? `J${s.jornada}` : "·"}</b>
               <span className="vi-tile__txt" aria-hidden="true">
                 <span>{s.rival}</span>
@@ -227,7 +235,7 @@ export function SeasonTiles({ segments, now }: { segments: readonly StripSegment
   );
 }
 
-export function SeasonSlivers({ segments }: { segments: readonly StripSegment[] }) {
+export function SeasonSlivers({ segments, postponed }: { segments: readonly StripSegment[]; postponed?: Postponed }) {
   return (
     <ul className="vi-strip" aria-label={`Las ${segments.length} jornadas de la temporada`} style={{ "--n": segments.length } as CSSProperties}>
       {segments.map((s) => {
@@ -255,7 +263,7 @@ export function SeasonSlivers({ segments }: { segments: readonly StripSegment[] 
                     : "";
         return (
           <li key={s.id}>
-            <Link className={`vi-sl ${cls}`} to="/matches/$matchId" params={{ matchId: s.id }} aria-label={segLabel(s)} title={segLabel(s)}>
+            <Link className={`vi-sl ${cls}`} to="/matches/$matchId" params={{ matchId: s.id }} aria-label={segLabel(s, postponed)} title={segLabel(s, postponed)}>
               <b aria-hidden="true">{s.jornada ?? "·"}</b>
               <small aria-hidden="true">{bot}</small>
             </Link>
@@ -266,11 +274,11 @@ export function SeasonSlivers({ segments }: { segments: readonly StripSegment[] 
   );
 }
 
-export function SeasonStripView({ segments, legend, now }: { segments: readonly StripSegment[]; legend: string; now: number }) {
+export function SeasonStripView({ segments, legend, now, postponed }: { segments: readonly StripSegment[]; legend: string; now: number; postponed?: Postponed }) {
   if (!segments.length) return null;
   return (
     <nav className="vi-season" aria-label="La temporada, jornada a jornada">
-      {segments.length <= 8 ? <SeasonTiles segments={segments} now={now} /> : <SeasonSlivers segments={segments} />}
+      {segments.length <= 8 ? <SeasonTiles segments={segments} now={now} postponed={postponed} /> : <SeasonSlivers segments={segments} postponed={postponed} />}
       <p className="vi-season__legend">
         <span>{legend}</span>
         <Link className="vd-link" to="/partidos">
@@ -299,6 +307,8 @@ export interface TemporadaData {
   assists: readonly LeaderRow[];
   segments: readonly StripSegment[];
   legend: string;
+  /** The postponed jornadas' new dates (ms; null: por decidir). */
+  postponed?: Readonly<Record<string, number | null>>;
   hasTable: boolean;
 }
 
@@ -393,7 +403,7 @@ export function Temporada({ d, now, tabla, goles, compact, wide, region = () => 
         </div>
       </div>
       <div className={`vi-seasonbox ${region(4)}`}>
-        <SeasonStripView segments={d.segments} legend={d.legend} now={now} />
+        <SeasonStripView segments={d.segments} legend={d.legend} now={now} postponed={d.postponed} />
       </div>
     </>
   );

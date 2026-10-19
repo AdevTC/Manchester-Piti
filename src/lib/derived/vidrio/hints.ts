@@ -5,7 +5,7 @@
 import { dateMillis, matchPhase } from "../../../../functions/src/matchEngine";
 import type { MatchdayModel } from "../matchday";
 import { AWAITING_ACTA } from "../kickoff";
-import { madridDate, madridTime } from "../madrid";
+import { madridDate, madridTime, MONTHS_SHORT } from "../madrid";
 import { capital, plural } from "../words";
 
 const DAY = 86_400_000;
@@ -75,8 +75,12 @@ function hoyHint(day: PlaceHintsInput["day"], now: number, mvp: readonly string[
     case "despues":
       if (!s) return "Jugado";
       return mvp?.length ? `${score(s)}, MVP ${mvp.length === 1 ? mvp[0] : "compartido"}` : `${score(s)}, acta lista`;
-    case "aplazado":
-      return day.match && matchPhase(day.match, now) === "cancelled" ? "Suspendido" : "Aplazado";
+    case "aplazado": {
+      if (day.match && matchPhase(day.match, now) === "cancelled") return "Suspendido";
+      // (with its new date: «Aplazado al 14 ene»)
+      const to = day.match?.postponedTo;
+      return typeof to === "number" && Number.isFinite(to) ? `Aplazado al ${Number(madridDate(to).slice(8))} ${MONTHS_SHORT[Number(madridDate(to).slice(5, 7)) - 1] ?? ""}`.trim() : "Aplazado";
+    }
     case "semana": {
       if (!day.match) return "Sin partidos a la vista";
       const at = dateMillis(day.match.date);
