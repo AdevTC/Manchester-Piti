@@ -5,6 +5,7 @@
 // when asked for.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Cartel } from "../../../lib/derived/vidrio/cartel";
+import { venueName } from "../model";
 import { PAINT_STOPS, paintGradient, type SegmentPaint } from "./model";
 import { Glyph, SignatureSvg } from "./bits";
 
@@ -38,7 +39,7 @@ export function Poster({ cartel, paint }: { cartel: Cartel; paint: SegmentPaint 
             {cartel.dateLine}
             {cartel.time ? `, ${cartel.time}` : ""}
             <br />
-            {cartel.venue}
+            {venueName(cartel.venue)}
           </div>
           <div style={{ textAlign: "right" }}>
             <b>{cartel.big}</b>
@@ -151,7 +152,7 @@ async function drawCartel(cartel: Cartel, paint: SegmentPaint): Promise<Blob> {
   g.fillStyle = "#fff";
   g.font = "560 36px 'Mona Sans', system-ui, sans-serif";
   g.fillText(`${cartel.dateLine}${cartel.time ? `, ${cartel.time}` : ""}`, pad, 1240, 560);
-  g.fillText(cartel.venue, pad, 1286, 560);
+  g.fillText(venueName(cartel.venue), pad, 1286, 560);
   g.textAlign = "right";
   g.font = "800 112px 'Mona Sans', system-ui, sans-serif";
   g.fillText(cartel.big, W - pad, 1270, 440);
@@ -176,17 +177,10 @@ function save(blob: Blob, name: string) {
 
 type ShareNavigator = Navigator & { canShare?: (data: ShareData) => boolean };
 
-export function CartelSheet({ cartel, paint, onClose }: { cartel: Cartel; paint: SegmentPaint; onClose: () => void }) {
-  const close = useRef<HTMLButtonElement | null>(null);
+/** Compartir (Web Share with the image where the browser can, else it is saved) and Guardar la imagen. */
+function useCartelShare(cartel: Cartel, paint: SegmentPaint) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
-  useEffect(() => {
-    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    close.current?.focus();
-    return () => {
-      if (back?.isConnected) back.focus();
-    };
-  }, []);
   const run = async (share: boolean) => {
     if (busy) return;
     setBusy(true);
@@ -208,6 +202,39 @@ export function CartelSheet({ cartel, paint, onClose }: { cartel: Cartel; paint:
       setBusy(false);
     }
   };
+  return { busy, note, run };
+}
+
+/** The cockpit's cartel, inline in the lens's third column (Previa and Acta). */
+export function CartelInline({ cartel, paint }: { cartel: Cartel; paint: SegmentPaint }) {
+  const { busy, note, run } = useCartelShare(cartel, paint);
+  return (
+    <div className="vp-cartel-inline">
+      <Poster cartel={cartel} paint={paint} />
+      <p className="vp-sub">El cartel de la jornada, listo para mandar al grupo.</p>
+      <div className="vp-btns">
+        <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" onClick={() => void run(true)} aria-busy={busy}>
+          <Glyph name="share" />
+          Compartir el cartel
+        </button>
+      </div>
+      <p className="vp-note" role="status">
+        {note}
+      </p>
+    </div>
+  );
+}
+
+export function CartelSheet({ cartel, paint, onClose }: { cartel: Cartel; paint: SegmentPaint; onClose: () => void }) {
+  const close = useRef<HTMLButtonElement | null>(null);
+  const { busy, note, run } = useCartelShare(cartel, paint);
+  useEffect(() => {
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    close.current?.focus();
+    return () => {
+      if (back?.isConnected) back.focus();
+    };
+  }, []);
   return (
     <div
       className="vp-sheetwrap"

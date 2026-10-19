@@ -225,7 +225,8 @@ export function simulateTable(
 
   const own: Record<string, PickLetter> = {};
   for (const f of fixtures) if (Object.hasOwn(picks, f.id)) own[f.id] = picks[f.id];
-  const filled = presetResults(fixtures, preset, us >= 0 ? rows[us] : null, own);
+  // («como hasta ahora» repeats our record with the live score in it, as if it ended so)
+  const filled = presetResults(fixtures, preset, usRow, own);
   const results: Record<string, PickLetter> = { ...filled, ...own };
   let ownPoints = 0;
   for (const f of fixtures) {
@@ -252,7 +253,8 @@ export function simulateTable(
     open: fixtures.length - Object.keys(results).length,
     results,
     unmatched,
-    champions: !!mine && mine.pos === 1 && fixtures.length > 0 && fixtures.every((f) => Object.hasOwn(results, f.id)),
+    // (only when the viewer picked every one by hand: a preset filling the rest never crowns us)
+    champions: !!mine && mine.pos === 1 && fixtures.length > 0 && picked === fixtures.length,
   };
 }
 
