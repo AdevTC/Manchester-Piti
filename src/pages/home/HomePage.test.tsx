@@ -46,6 +46,7 @@ vi.mock("../../lib/useStandings", () => ({
 }));
 vi.mock("../../lib/weather", async (orig) => ({ ...(await orig<typeof import("../../lib/weather")>()), useMatchWeather: () => null, useMatchWeatherHourly: () => null }));
 vi.mock("../../lib/useRotaTurns", () => ({ useMatchTurns: () => ({ turns: [] }) }));
+vi.mock("../partidos/vidrio/venuePlace", () => ({ useVenuePlace: () => null }));
 vi.mock("../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 vi.mock("../vestuario/live", () => {
   const none = { data: [], loading: false, error: null };

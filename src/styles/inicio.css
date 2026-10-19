@@ -653,3 +653,6 @@
 .vi-fecha__when b{font-weight:740;font-variation-settings:'wdth' 96;font-size:22px;line-height:1.15;color:var(--vd-g-ink)}
 .vi-fecha__when span{font-size:13.5px;color:var(--vd-g-ink2)}
 .vi-fecha .cal>button{min-height:44px}
+/* the 1920 centre: no room for who keeps la mesa under the plays (1440 and the phone say it); compact headline */
+.vi--cockpit .vi-mesanote{display:none}
+@media (max-height:1199px){.vi--cockpit .vi-centre--compact .vi-h1{font-size:31px}}

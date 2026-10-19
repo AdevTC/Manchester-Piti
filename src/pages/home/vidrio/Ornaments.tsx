@@ -12,6 +12,7 @@ import { andList } from "../inicioModel";
 import { endSentence } from "../../../lib/derived/words";
 import { fixtureLine, newDateWords, postponedOf, turnoutLine, venueName } from "../hoyModel";
 import { AddToCalendar } from "../../../components/celeste/AddToCalendar";
+import { useVenuePlace } from "../../partidos/vidrio/venuePlace";
 import { matchEvent } from "../../../lib/home";
 import { capital } from "../../../lib/derived/words";
 import { Ico } from "./icons";
@@ -96,8 +97,13 @@ export function ConvoOrn({ counts, who, mine, when, mesa, className }: ConvoOrnP
   );
 }
 
-export function PreviaOrn({ match, jornada, weather, hourly, className }: { match: ClubMatch; jornada: number | null; weather: MatchWeather | null; /** «14° al pitido, 11° al final; sin lluvia». */ hourly?: string | null; className?: string }) {
-  const venue = venueName(match.venue ?? "") || (match.home === false ? `Campo de ${match.rival ?? "el rival"}` : "CDM Palomeras");
+export function PreviaOrn({ match, jornada, weather, hourly, homeVenue, className }: { match: ClubMatch; jornada: number | null; weather: MatchWeather | null; /** «14° al pitido, 11° al final; sin lluvia». */ hourly?: string | null; /** El club's «campo» (clubContent.venue). */ homeVenue?: string; className?: string }) {
+  // (at home the club's own words for its ground win — «CDM Palomeras, campo 2», El club's «campo» —; where it
+  // is, from the geocoder, as Partidos' previa says it)
+  const home = match.home !== false;
+  const venue = (home && homeVenue?.trim()) || venueName(match.venue ?? "") || (home ? "CDM Palomeras" : `Campo de ${match.rival ?? "el rival"}`);
+  const place = useVenuePlace(venueName(match.venue ?? "") || (home ? "CDM Palomeras" : null));
+  const where = home ? `${place?.district ?? "Vallecas"}. Metro Portazgo, 8 min a pie.` : `En casa de ${match.rival ?? "el rival"}${place?.district ? `, en ${place.district}` : ""}.`;
   return (
     <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-previa${className ? ` ${className}` : ""}`} aria-label="La previa">
       <div className="vd-orn__head">
@@ -112,7 +118,7 @@ export function PreviaOrn({ match, jornada, weather, hourly, className }: { matc
               {venue}
               <span className="vd-vh"> (abre el mapa en otra pestaña)</span>
             </a>
-            <span>{match.home === false ? `En casa de ${match.rival ?? "el rival"}.` : "Vallecas. Metro Portazgo, 8 min a pie."}</span>
+            <span>{where}</span>
           </div>
         </li>
         <li>

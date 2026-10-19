@@ -451,12 +451,15 @@ export function HomePage() {
   // the postponed jornadas, with their new date when it is set («la J9 se juega el 14 de enero»)
   const postponedTo: Record<string, number | null> = {};
   const postponedWords: string[] = [];
+  const undatedJs: string[] = [];
   for (const s of strip.segments) {
     if (s.state !== "aplazado") continue;
     const to = postponedOf(matches.find((x) => x.id === s.id)).to;
     postponedTo[s.id] = to;
-    postponedWords.push(to !== null ? `la ${s.jornada ? `J${s.jornada}` : "aplazada"} se juega el ${DAY_MONTH.format(to)}` : `la ${s.jornada ? `J${s.jornada}` : "jornada"} está aplazada`);
+    if (to !== null) postponedWords.push(`la ${s.jornada ? `J${s.jornada}` : "aplazada"} se juega el ${DAY_MONTH.format(to)}`);
+    else undatedJs.push(s.jornada ? `J${s.jornada}` : "otra");
   }
+  if (undatedJs.length) postponedWords.unshift(undatedJs.length === 1 ? `la ${undatedJs[0]} está aplazada` : `las ${andList(undatedJs)} están aplazadas`);
   const temporadaData: TemporadaData = {
     sub: total
       ? live
@@ -592,7 +595,7 @@ export function HomePage() {
         className="vi-orn--r"
       />
     ) : orns.right === "previa" && m ? (
-      <PreviaOrn match={m} jornada={day.jornada} weather={weather} hourly={hourlyText?.previa ?? null} className="vi-orn--r" />
+      <PreviaOrn match={m} jornada={day.jornada} weather={weather} hourly={hourlyText?.previa ?? null} homeVenue={content.venue} className="vi-orn--r" />
     ) : orns.right === "mvp" && m ? (
       <MvpOrn
         candidates={Object.entries(m.ledger ?? {})
