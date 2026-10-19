@@ -46,10 +46,10 @@ export function mvpDoc(tally: MvpTally, voteClosesAt: unknown, now: number, elig
   return { counts: tally.counts, total: tally.total, eligible: m, open: false };
 }
 
-/** A stored doc still in its open shape (or an old one without the flag) whose vote has closed: the
- *  counts are owed (closeMvpVotes). */
+/** A stored doc still in its open shape (or none) whose vote has closed: the counts are owed
+ *  (closeMvpVotes). An older doc without the flag already holds its counts and is left as it is (a
+ *  historical import may have no votes to recount from). */
 export function mvpCloseDue(stored: Readonly<Record<string, unknown>> | null | undefined, voteClosesAt: unknown, now: number): boolean {
   if (typeof voteClosesAt !== "number" || !Number.isFinite(voteClosesAt) || now < voteClosesAt) return false;
-  if (!stored) return true;
-  return stored.open !== false || !stored.counts || typeof stored.counts !== "object";
+  return !stored || stored.open === true;
 }

@@ -7,6 +7,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { seasonView } from "../../../lib/partidos";
 import {
+  cleanForm,
+  FORM_LETTERS,
+  FORM_MAX,
   norm,
   NUM_KEYS,
   ordinal,
@@ -17,6 +20,7 @@ import {
   STANDINGS_LIMITS,
   stripText,
   updatedText,
+  type FormLetter,
   type NumKey,
   type ParsedTable,
   type StandingRow,
@@ -43,6 +47,35 @@ const toInt = (v: string) => {
   const n = Number.parseInt(v, 10);
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
+
+const FORM_WORD: Record<FormLetter, string> = { G: "ganado", E: "empate", P: "perdido" };
+/**
+ * «Últimos 5»: the team's last results, oldest → newest (the newest on the right, as the league shows them),
+ * one G / E / P pick each (· = none). Saved only G / E / P, the last 5 (lib/standings cleanForm).
+ */
+function FormPicker({ form, name, onChange }: { form?: readonly FormLetter[]; name: string; onChange: (form: FormLetter[]) => void }) {
+  const have = cleanForm(form);
+  const slots: (FormLetter | "")[] = [...Array<"">(FORM_MAX - have.length).fill(""), ...have];
+  const pick = (i: number, v: string) => {
+    const next = slots.map((s, j) => (j === i ? v : s));
+    onChange(cleanForm(next.filter(Boolean)));
+  };
+  return (
+    <fieldset className="form5">
+      <legend>Últimos 5</legend>
+      {slots.map((s, i) => (
+        <select key={i} className={`inp f-${s || "x"}`} value={s} onChange={(e) => pick(i, e.target.value)} aria-label={`Últimos 5 · ${name}, partido ${i + 1} de ${FORM_MAX} (el último a la derecha)`}>
+          <option value="">·</option>
+          {FORM_LETTERS.map((l) => (
+            <option key={l} value={l} aria-label={FORM_WORD[l]}>
+              {l}
+            </option>
+          ))}
+        </select>
+      ))}
+    </fieldset>
+  );
+}
 
 export function Clasificacion() {
   const data = useAdmin();
@@ -326,6 +359,7 @@ function Editor({ seasonId, seasonName, standings, seasonSelect }: { seasonId: s
                       </label>
                     ))}
                   </div>
+                  <FormPicker form={r.form} name={name} onChange={(form) => setRow(i, { form })} />
                   <label className="us-pick">
                     <input type="radio" name={`cl-us-${seasonId}`} checked={r.isUs} onChange={() => setUs(i)} />
                     <span>Somos nosotros</span>

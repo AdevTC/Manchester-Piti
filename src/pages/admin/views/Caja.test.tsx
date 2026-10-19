@@ -1,7 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CajaMov, CajaSettings, NewCajaMov } from "../../../lib/derived/caja";
+import type { CajaClaim } from "../../../lib/derived/cajaClaims";
 import { adminFixture, mountAdmin, setAdminData } from "../../../test/adminKit";
 import { Caja } from "./Caja";
 
@@ -16,11 +17,13 @@ const h = vi.hoisted(() => ({
     addMovs: vi.fn((seasonId: string, movs: readonly NewCajaMov[]) => Promise.resolve(void [seasonId, movs])),
     voidMov: vi.fn((id: string) => Promise.resolve(void id)),
     saveSettings: vi.fn((seasonId: string, s: unknown) => Promise.resolve(void [seasonId, s])),
+    resolveClaim: vi.fn((claim: unknown, status: string) => Promise.resolve(void [claim, status])),
   },
+  claims: { data: [] as CajaClaim[], loading: false, error: false },
 }));
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
 vi.mock("../../../context/AuthContext", async () => ({ useAuth: (await import("../../../test/adminMocks")).fakeAuth }));
-vi.mock("../data/useCaja", () => ({ useCaja: () => h.caja, useCajaWrites: () => h.writes }));
+vi.mock("../data/useCaja", () => ({ useCaja: () => h.caja, useCajaClaims: () => h.claims, useCajaWrites: () => h.writes }));
 
 const MOVS: CajaMov[] = [
   mov({ id: "c1", kind: "cargo", playerId: "erik", amount: 1250, concept: "Campo y árbitro · J1 vs Emirates", matchId: "m6", date: "2026-10-27", createdAt: 1 }),
@@ -36,6 +39,8 @@ describe("Caja (admin)", () => {
     h.writes.addMovs.mockClear();
     h.writes.voidMov.mockClear();
     h.writes.saveSettings.mockClear();
+    h.writes.resolveClaim.mockClear();
+    h.claims.data = [];
     h.caja.settings = { cuota: 3000, cuotaPeriod: "temporada", howToPay: "Bizum al 600 000 000", updatedAt: 0 };
     h.caja.movs = MOVS;
     setAdminData(adminFixture());
@@ -63,6 +68,27 @@ describe("Caja (admin)", () => {
     expect(items[1]).toHaveTextContent(`+20,00${NB}€`);
     expect(items[2]).toHaveTextContent(`Gasto · El bote`);
     expect(items[2]).toHaveTextContent(`−45,00${NB}€`);
+  });
+
+  it("«Pagos avisados»: a member’s «Ya la he pagado» is confirmed (as a pago) or rejected; none, no card", async () => {
+    const user = userEvent.setup();
+    const claim: CajaClaim = { id: "cl1", uid: "u-erik", playerId: "erik", seasonId: "t1", concept: "Cuota octubre", amount: 2500, at: Date.UTC(2026, 9, 28, 10), status: "pendiente" };
+    h.claims.data = [claim, { ...claim, id: "cl2", status: "confirmado" }];
+    mountAdmin("/admin/caja", { caja: Caja });
+    const list = await screen.findByRole("list", { name: /^Pagos avisados/ });
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent("ERIK");
+    expect(items[0]).toHaveTextContent(`Cuota octubre · dice que lo ha pagado25,00${NB}€`);
+    await user.click(within(items[0]).getByRole("button", { name: /^Confirmar el pago de ERIK · 25,00.€$/ }));
+    expect(h.writes.resolveClaim).toHaveBeenCalledWith(claim, "confirmado");
+    await user.click(within(items[0]).getByRole("button", { name: /^Rechazar el pago de ERIK · 25,00.€$/ }));
+    expect(h.writes.resolveClaim).toHaveBeenLastCalledWith(claim, "rechazado");
+    cleanup();
+    h.claims.data = [];
+    mountAdmin("/admin/caja", { caja: Caja });
+    await screen.findByRole("heading", { level: 1, name: "Caja" });
+    expect(screen.queryByRole("list", { name: /^Pagos avisados/ })).toBeNull();
   });
 
   it("filters the log by kind and by player", async () => {

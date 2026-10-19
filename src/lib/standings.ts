@@ -24,6 +24,9 @@ export interface StandingRow {
   isUs: boolean;
   /** «Últimos 5»: the team’s last results, oldest → newest (G ganado, E empate, P perdido), at most 5. */
   form?: FormLetter[];
+  /** The team's place (1-based) in the table before this one (the save stamps it by team name; absent:
+   *  new in the table, or a table saved before the field existed). «↑ Sube al 1º». */
+  prevPos?: number;
 }
 /** One result of a team’s «Últimos 5». */
 export type FormLetter = "G" | "E" | "P";
@@ -48,7 +51,7 @@ export interface Standings {
 
 // ───────────────────────── reading the doc ─────────────────────────
 const int = z.number().int().min(0);
-const rowSchema = z.object({ team: z.string().min(1).max(STANDINGS_LIMITS.team), pj: int, g: int, e: int, p: int, gf: int, gc: int, pts: int, isUs: z.boolean(), form: z.array(z.enum(["G", "E", "P"])).max(FORM_MAX).optional().catch(undefined) });
+const rowSchema = z.object({ team: z.string().min(1).max(STANDINGS_LIMITS.team), pj: int, g: int, e: int, p: int, gf: int, gc: int, pts: int, isUs: z.boolean(), form: z.array(z.enum(["G", "E", "P"])).max(FORM_MAX).optional().catch(undefined), prevPos: z.number().int().min(1).max(STANDINGS_LIMITS.maxRows).optional().catch(undefined) });
 const docSchema = z.object({
   competition: z.string().catch(""),
   jornada: z.number().int().min(0).nullable().catch(null),
@@ -286,8 +289,10 @@ export interface StandingsInput {
 }
 const cleanRow = (r: StandingRow): StandingRow => {
   const form = cleanForm(r.form);
-  return { team: r.team.trim().slice(0, STANDINGS_LIMITS.team), pj: r.pj, g: r.g, e: r.e, p: r.p, gf: r.gf, gc: r.gc, pts: r.pts, isUs: r.isUs, ...(form.length ? { form } : {}) };
+  const prevPos = validPrevPos(r.prevPos);
+  return { team: r.team.trim().slice(0, STANDINGS_LIMITS.team), pj: r.pj, g: r.g, e: r.e, p: r.p, gf: r.gf, gc: r.gc, pts: r.pts, isUs: r.isUs, ...(form.length ? { form } : {}), ...(prevPos ? { prevPos } : {}) };
 };
+const validPrevPos = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= STANDINGS_LIMITS.maxRows ? v : null);
 /** A row’s «Últimos 5» as saved: only G / E / P, the last FORM_MAX (oldest → newest). */
 export function cleanForm(form: readonly unknown[] | null | undefined): FormLetter[] {
   return (form ?? []).filter((x): x is FormLetter => typeof x === "string" && (FORM_LETTERS as readonly string[]).includes(x)).slice(-FORM_MAX);
@@ -300,11 +305,18 @@ export function cleanForm(form: readonly unknown[] | null | undefined): FormLett
 export function standingsFields(input: StandingsInput, uid: string, prev?: Pick<Standings, "rows" | "rowsPrev" | "jornada"> | null) {
   const sameJornada = !!prev && prev.jornada !== null && prev.jornada === input.jornada;
   const rowsPrev = !prev ? undefined : sameJornada ? prev.rowsPrev : prev.rows;
+  // `prevPos`: each team's place in the table before (the arrows' table; by name), stamped on every save.
+  const before = new Map((rowsPrev ?? []).map((r, i) => [norm(r.team), i + 1]));
   return {
     competition: input.competition.trim().slice(0, STANDINGS_LIMITS.competition),
     jornada: input.jornada,
     updatedBy: uid,
-    rows: input.rows.map(cleanRow),
+    rows: input.rows.map(cleanRow).map((r) => {
+      const out: StandingRow = { ...r };
+      delete out.prevPos;
+      const was = before.get(norm(r.team));
+      return was === undefined ? out : { ...out, prevPos: was };
+    }),
     ...(rowsPrev?.length ? { rowsPrev: rowsPrev.map(cleanRow) } : {}),
   };
 }

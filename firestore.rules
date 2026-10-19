@@ -284,10 +284,28 @@ service cloud.firestore {
     }
     match /mvpResults/{id} { allow read: if true; allow write: if false; }
     match /playerSeasonStats/{id} { allow read: if true; allow write: if false; }
+    // Los campos (clubContent.venues): ≤ 10 grounds (more passes the rules' expression budget), each { name 1–80, address?, transit?, mapsQuery? } and
+    // nothing else; the three optional ones are strings of at most 400 together (the app caps each one:
+    // 120 / 120 / 160, lib/derived/venue VENUE_LIMITS). No loops in the rules: one check per slot, kept small
+    // for the 1000-expression budget (a non-map or a non-string fails the check, so it is refused).
+    function venueOk(vs, i) {
+      return i >= vs.size() || venueShapeOk(vs[i]);
+    }
+    function venueShapeOk(v) {
+      return v.keys().hasOnly(['name','address','transit','mapsQuery'])
+        && v.name is string && v.name.size() >= 1 && v.name.size() <= 80
+        && (v.get('address', '') + v.get('transit', '') + v.get('mapsQuery', '')).size() <= 400;
+    }
+    function venuesOk(vs) {
+      return vs is list && vs.size() <= 10
+        && venueOk(vs, 0) && venueOk(vs, 1) && venueOk(vs, 2) && venueOk(vs, 3) && venueOk(vs, 4)
+        && venueOk(vs, 5) && venueOk(vs, 6) && venueOk(vs, 7) && venueOk(vs, 8) && venueOk(vs, 9);
+    }
     match /clubContent/{id} {
       allow read: if true;
       allow create, update: if admin() && id == 'main'
-        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','photoUrl','milestones','sponsors','gallery','faq','crestStory'])
+        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','photoUrl','milestones','sponsors','gallery','faq','crestStory','venues'])
+        && (!('venues' in request.resource.data) || venuesOk(request.resource.data.venues))
         && request.resource.data.intro is string && request.resource.data.intro.size() < 1000
         && request.resource.data.story is string && request.resource.data.story.size() < 20000
         && request.resource.data.gallery is list && request.resource.data.gallery.size() <= 100
@@ -590,6 +608,39 @@ service cloud.firestore {
         && request.resource.data.voidedAt == request.time;
       allow delete: if false;
     }
+    // ---- «Ya la he pagado» (cajaClaims): a member tells the captains he paid — his own claim (his uid, his
+    // linked ficha), «pendiente», `at` the server's time; he can take it back while pending. A captain answers
+    // it once: «rechazado», or «confirmado» together with the `pago` movement it puts in the caja (same batch:
+    // the movement must exist after the write, for that player and amount). A member reads his own claims,
+    // the captains all of them. The backend tells the captains when one comes in (functions/src/caja.ts).
+    function cajaClaimOk(d) {
+      return d.keys().hasOnly(['uid','playerId','seasonId','concept','amount','at','status'])
+        && d.keys().hasAll(['uid','playerId','seasonId','concept','amount','at','status'])
+        && d.uid == request.auth.uid
+        && d.playerId is string && d.playerId.size() >= 1 && d.playerId == me().get('playerId', null)
+        && d.seasonId is string && d.seasonId.size() >= 1 && d.seasonId.size() <= 128
+        && d.concept is string && d.concept.trim().size() >= 1 && d.concept.size() <= 80
+        && d.amount is int && d.amount > 0 && d.amount <= 10000000
+        && d.at == request.time
+        && d.status == 'pendiente';
+    }
+    function cajaClaimPago(d, claim) {
+      let mov = getAfter(/databases/$(database)/documents/cajaMovs/$(d.movId)).data;
+      return d.movId is string && d.movId.size() >= 1 && d.movId.size() <= 128
+        && mov.kind == 'pago' && mov.playerId == claim.playerId && mov.amount == claim.amount
+        && mov.seasonId == claim.seasonId && mov.by == request.auth.uid && mov.void == false;
+    }
+    match /cajaClaims/{id} {
+      allow read: if teamMember() && (resource.data.uid == request.auth.uid || admin());
+      allow create: if teamMember() && cajaClaimOk(request.resource.data);
+      allow update: if admin() && resource.data.status == 'pendiente'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','resolvedBy','resolvedAt','movId'])
+        && request.resource.data.resolvedBy == request.auth.uid
+        && request.resource.data.resolvedAt == request.time
+        && ((request.resource.data.status == 'rechazado' && !('movId' in request.resource.data))
+          || (request.resource.data.status == 'confirmado' && cajaClaimPago(request.resource.data, resource.data)));
+      allow delete: if teamMember() && resource.data.uid == request.auth.uid && resource.data.status == 'pendiente';
+    }
     // ---- La clasificación de la liga (docs/superpowers/specs/2026-10-16-clasificacion-design.md): the
     // captains keep the league table of each season (`standings/{seasonId}`); everyone reads it (public, in
     // the data bundle). A row: the team (≤ 40), seven whole numbers ≥ 0 and `isUs`; 2–24 rows, exactly one
@@ -642,7 +693,7 @@ service cloud.firestore {
       return j is map
         && j.keys().hasOnly(['id','name','icon','awayOnly','order'])
         && j.keys().hasAll(['id','name','icon','awayOnly','order'])
-        && j.id is string && j.id.matches('^[a-z0-9-]{1,40}$') && j.id != 'frozen'
+        && j.id is string && j.id.matches('^[a-z0-9-]{1,40}$') && j.id != 'frozen' && j.id != 'done'
         && j.name is string && j.name.size() >= 1 && j.name.size() <= 30
         && j.icon in ['shirt','ball','car','bottle','bag','key']
         && j.awayOnly is bool
@@ -676,18 +727,22 @@ service cloud.firestore {
         && (!('swappedFrom' in v) || (v.swappedFrom is string && v.swappedFrom.size() >= 1 && v.swappedFrom.size() <= 128))
         && v.at is timestamp;
     }
+    // `done` (doc-level): «Hecho», uid → when, written by the backend's markTurnDone (whose turn it is is
+    // computed from the rota, which the rules can't do); a captain may keep or clear entries («Desmarcar»).
     function rotaTurnKeyOk(d, ks, i) {
       return i >= ks.size()
         || (ks[i] == 'seasonId' && d.seasonId is string && d.seasonId.size() >= 1 && d.seasonId.size() <= 128)
         || (ks[i] == 'frozen' && d.frozen == true)
-        || (ks[i] != 'frozen' && ks[i].matches('^[a-z0-9-]{1,40}$') && rotaTurnOk(d[ks[i]]));
+        || (ks[i] == 'done' && d.done is map && d.done.size() <= 40)
+        || (ks[i] != 'frozen' && ks[i] != 'done' && ks[i].matches('^[a-z0-9-]{1,40}$') && rotaTurnOk(d[ks[i]]));
     }
     function rotaTurnsOk(d) {
       let ks = d.keys();
-      return ks.size() <= 8
-        && d.keys().removeAll(['seasonId','frozen']).size() <= 6
+      return ks.size() <= 9
+        && d.keys().removeAll(['seasonId','frozen','done']).size() <= 6
         && rotaTurnKeyOk(d, ks, 0) && rotaTurnKeyOk(d, ks, 1) && rotaTurnKeyOk(d, ks, 2) && rotaTurnKeyOk(d, ks, 3)
-        && rotaTurnKeyOk(d, ks, 4) && rotaTurnKeyOk(d, ks, 5) && rotaTurnKeyOk(d, ks, 6) && rotaTurnKeyOk(d, ks, 7);
+        && rotaTurnKeyOk(d, ks, 4) && rotaTurnKeyOk(d, ks, 5) && rotaTurnKeyOk(d, ks, 6) && rotaTurnKeyOk(d, ks, 7)
+        && rotaTurnKeyOk(d, ks, 8);
     }
     function rotaFrozen(d) {
       return d.get('frozen', false) == true;

@@ -31,7 +31,8 @@ import { dayOf } from "../partidos/listModel";
 import { AjustesModal, CosteModal, CuotaModal, MovModal, type CostOption, type FreeKind } from "../caja/CajaModals";
 import { LoadError } from "../club/ClubStates";
 import { nameIn, numberIn } from "../club/plantillaLogic";
-import { useCaja, useCajaWrites } from "../data/useCaja";
+import { useCaja, useCajaClaims, useCajaWrites } from "../data/useCaja";
+import type { CajaClaim } from "../../../lib/derived/cajaClaims";
 import { useAdmin } from "../shell/context";
 import { useFrame } from "../ui/frame";
 import { AdIcon, type AdIconName } from "../ui/icons";
@@ -66,6 +67,8 @@ export function Caja() {
   const season = data.seasons.find((s) => s.id === seasonId) ?? null;
   const seasonName = season?.name ?? "temporada";
   const caja = useCaja(seasonId || undefined);
+  const claims = useCajaClaims(seasonId || undefined, true);
+  const [resolving, setResolving] = useState<string | null>(null);
   const [kind, setKind] = useState<CajaKind | "">("");
   const [playerFilter, setPlayerFilter] = useState("");
   const [ask, setAsk] = useState<Ask>(null);
@@ -217,6 +220,51 @@ export function Caja() {
     </div>
   );
 
+  const pendingClaims = claims.data.filter((c) => c.status === "pendiente");
+  const resolveClaim = async (c: CajaClaim, status: "confirmado" | "rechazado") => {
+    if (resolving) return;
+    setResolving(c.id);
+    try {
+      await writes.resolveClaim(c, status);
+      toast.show({ tag: "CAJA", message: status === "confirmado" ? `Confirmado: ${nameOf(c.playerId)} · ${fmtEuros(c.amount)} (apuntado como pago)` : `Rechazado: ${nameOf(c.playerId)} · ${fmtEuros(c.amount)}` });
+    } catch (e) {
+      toast.show({ tag: "CAJA", message: `No se ha podido ${status === "confirmado" ? "confirmar" : "rechazar"}: ${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setResolving(null);
+    }
+  };
+  // «Pagos avisados»: what members say they paid («Ya la he pagado»), oldest first, until a captain answers.
+  const claimsCard = pendingClaims.length ? (
+    <section className="calm cj-claims" aria-labelledby="cj-claims-h">
+      <h3 id="cj-claims-h">
+        Pagos avisados <em>{plural(pendingClaims.length, "por confirmar", "por confirmar")}</em>
+      </h3>
+      <ul className="cj-movs" aria-labelledby="cj-claims-h">
+        {pendingClaims.map((c) => (
+          <li key={c.id} className="cj-mov pago">
+            <span className="d">{c.at ? dayLabel(madridDate(c.at)) : "Ahora"}</span>
+            <span className="w">
+              <b>{nameOf(c.playerId)}</b>
+              <small>{c.concept || "Pago avisado"} · dice que lo ha pagado</small>
+            </span>
+            <span className="amt">{fmtEuros(c.amount)}</span>
+            <span className="cj-claim-acts">
+              <button type="button" className="btn sm gold" disabled={!!resolving} onClick={() => void resolveClaim(c, "confirmado")} aria-label={`Confirmar el pago de ${nameOf(c.playerId)} · ${fmtEuros(c.amount)}`}>
+                <AdIcon name="check" size={14} />
+                Confirmar
+              </button>
+              <button type="button" className="btn sm line" disabled={!!resolving} onClick={() => void resolveClaim(c, "rechazado")} aria-label={`Rechazar el pago de ${nameOf(c.playerId)} · ${fmtEuros(c.amount)}`}>
+                <AdIcon name="x" size={14} />
+                Rechazar
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="hint">Confirmar lo apunta como pago en su saldo; rechazar se lo dice y no apunta nada.</p>
+    </section>
+  ) : null;
+
   const balancesCard = (
     <section className="calm cj-bal" aria-labelledby="cj-bal-h">
       <h3 id="cj-bal-h">
@@ -323,6 +371,7 @@ export function Caja() {
         {!desktop && seasonSelect}
         {summary}
         {actions}
+        {claimsCard}
         <div className="cj-cols">
           {balancesCard}
           {logCard}

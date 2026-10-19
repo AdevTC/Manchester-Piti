@@ -30,6 +30,25 @@ export interface KickoffWeather {
   rain: number | null;
 }
 
+/** The words a venue's name may start with that the geocoder doesn't know («CDM Palomeras» → «Palomeras»). */
+const VENUE_PREFIX = /^(?:CDM|C\.D\.M\.|IDM|I\.D\.M\.|Polideportivo(?: municipal)?|Instalación deportiva(?: municipal)?|Ciudad deportiva|Complejo deportivo|Campo de fútbol|Campo municipal(?: de)?|Campo de|Campo|Estadio(?: municipal)?(?: de)?)\s+/i;
+/**
+ * The names to look a venue up by, in order: the full one, then without its prefix («CDM», «Campo de»,
+ * «Polideportivo»…). The weather (web and backend) and the map share it. Empty without a venue.
+ */
+export function venueQueries(venue: unknown): string[] {
+  if (typeof venue !== "string") return [];
+  const full = venue.replace(/\s+/g, " ").trim();
+  if (!full) return [];
+  // (a match's venue may carry its address after « · »: the ground's name alone is tried too)
+  const name = full.split(" · ")[0].trim();
+  const out: string[] = [];
+  for (const q of [full, name, venueCore(name)]) if (q && !out.some((x) => x.toLowerCase() === q.toLowerCase())) out.push(q);
+  return out;
+}
+/** A ground's name without its «CDM» / «Campo de» / «Polideportivo»… («CDM Palomeras» → «Palomeras»). */
+export const venueCore = (name: string): string => name.replace(/\s+/g, " ").trim().replace(VENUE_PREFIX, "").trim();
+
 const TZ = "Europe/Madrid";
 /** An hour in Madrid time, as Open-Meteo's start_hour wants it: "2026-11-08T12:00". */
 export function madridHour(ms: number): string {
@@ -58,6 +77,15 @@ export function readKickoffWeather(json: unknown): KickoffWeather | null {
     cloud: cloud === null ? null : Math.min(100, Math.max(0, Math.round(cloud))),
     rain: rain === null ? null : Math.max(0, Math.round(rain * 10) / 10),
   };
+}
+
+/** Whether a write of a match owes its stamp: a published acta (not archived), kicked off in the past,
+ *  without one. Returns the kick-off (ms) or null. */
+export function weatherStampDue(after: Readonly<Record<string, unknown>> | undefined, now: number): number | null {
+  if (!after || after.archived === true || after.individuallyArchived === true || after.status !== "finished" || after.weatherAtKickoff) return null;
+  const t = after.date as { toMillis?: () => number } | number | undefined;
+  const kickoff = typeof t === "number" ? t : typeof t?.toMillis === "function" ? t.toMillis() : NaN;
+  return Number.isFinite(kickoff) && kickoff < now ? kickoff : null;
 }
 
 /** A stored stamp read back (null when missing or malformed: never shown half). */

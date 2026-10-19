@@ -125,6 +125,17 @@ export function mapMvp(id: string, data: unknown): MvpResult {
   };
 }
 
+/** The second lock of MVP privacy: a tally whose match's vote is still open at `now` never shows counts,
+ *  whatever its doc says (an older doc written before the open shape existed). The page and the server
+ *  render both read the tallies through it. */
+export function mvpPrivateWhileOpen<T extends MvpResult>(results: readonly T[], matches: readonly { id: string; voteClosesAt?: unknown }[], now: number): T[] {
+  const closes = new Map(matches.map((m) => [m.id, m.voteClosesAt]));
+  return results.map((r) => {
+    const at = closes.get(r.id);
+    return typeof at === "number" && now < at && (Object.keys(r.counts).length || r.open !== true) ? { ...r, counts: {}, open: true } : r;
+  });
+}
+
 /** A kept notice of the centro de avisos (`notices/{id}`), with `at` in ms; invalid docs dropped and reported. */
 export function mapNotice(id: string, data: unknown): Notice | null {
   const r = noticeSchema.safeParse({ id, ...dropNullFields((data ?? {}) as Record<string, unknown>) });

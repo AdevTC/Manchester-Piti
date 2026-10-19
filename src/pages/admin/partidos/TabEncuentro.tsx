@@ -9,7 +9,7 @@ import type { SeasonDoc } from "../../../lib/schemas";
 import { AdIcon } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
 import { joinDate, splitDate } from "../acta/dates";
-import { changeSeason, okHttps, score, type MatchSheet } from "../acta/sheetModel";
+import { changeSeason, okHttps, POSTPONED_REASON_MAX, score, type MatchSheet } from "../acta/sheetModel";
 import { joinVenue, splitVenue } from "./workspaceModel";
 import { plural } from "../../../lib/derived/words";
 
@@ -35,6 +35,50 @@ function Seg<V extends string>({ label, value, options, onChange }: { label: str
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Aplazado: «Motivo» (≤ 140, public: «Aplazado: Campo inundado») and «Nueva fecha» (date and time in Madrid,
+ * optional: «Por decidir» clears it). Publishing tells the «Fechas» subscribers («Aplazado» / «Nueva fecha»)
+ * and moves the match in the calendar feed.
+ */
+function Aplazado({ sheet, set }: { sheet: MatchSheet; set: <K extends keyof MatchSheet>(k: K, v: MatchSheet[K]) => void }) {
+  const id = useId();
+  const to = typeof sheet.postponedTo === "number" && Number.isFinite(sheet.postponedTo) ? sheet.postponedTo : null;
+  const when = to === null ? { date: "", time: "" } : splitDate(to);
+  const reason = sheet.postponedReason ?? "";
+  return (
+    <>
+      <div className="fld">
+        <label htmlFor={`${id}-mo`}>Motivo del aplazamiento</label>
+        <input id={`${id}-mo`} className="inp" value={reason} maxLength={POSTPONED_REASON_MAX} onChange={(e) => set("postponedReason", e.target.value)} placeholder="Campo inundado, falta de árbitro…" aria-describedby={`${id}-mo-h`} />
+        <p id={`${id}-mo-h`} className="hint">
+          Lo ve todo el mundo. {POSTPONED_REASON_MAX - reason.length} letras libres.
+        </p>
+      </div>
+      <div className="f2">
+        <div className="fld">
+          <label htmlFor={`${id}-nf`}>Nueva fecha</label>
+          <input id={`${id}-nf`} className="inp" type="date" value={when.date} onChange={(e) => set("postponedTo", e.target.value ? joinDate(e.target.value, when.time || "12:00") : null)} />
+        </div>
+        <div className="fld">
+          <label htmlFor={`${id}-nh`}>Hora (Madrid)</label>
+          <input id={`${id}-nh`} className="inp" type="time" value={when.time} disabled={!when.date} onChange={(e) => set("postponedTo", e.target.value && when.date ? joinDate(when.date, e.target.value) : to)} />
+        </div>
+      </div>
+      <p className="hint">
+        {to === null ? "Sin nueva fecha: sale «por decidir». Cuando la pongas y publiques, avisamos a quien sigue las fechas." : "Al publicar avisamos a quien sigue las fechas y el calendario lo mueve a la nueva."}
+        {to !== null ? (
+          <>
+            {" "}
+            <button type="button" className="lnk" onClick={() => set("postponedTo", null)}>
+              Por decidir
+            </button>
+          </>
+        ) : null}
+      </p>
+    </>
   );
 }
 
@@ -154,6 +198,7 @@ export function TabEncuentro({
           </h3>
           <Seg label="Equipación" value={sheet.kit ?? "home"} options={[{ value: "home", label: "1ª celeste" }, { value: "away", label: "2ª negra" }]} onChange={(v) => set("kit", v)} />
           <Seg label="Estado" value={sheet.status} options={STATUS} onChange={(v) => set("status", v)} />
+          {sheet.status === "postponed" ? <Aplazado sheet={sheet} set={set} /> : null}
           <div className="f2">
             <div className="fld">
               <label htmlFor={`${id}-du`}>Duración (min)</label>

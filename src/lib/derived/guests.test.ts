@@ -184,8 +184,8 @@ describe("invitados en los callables y los avisos", () => {
     const before = { status: "scheduled", events: [], guests: GUESTS, rival: "Rival FC" };
     const after = { ...before, events: [{ id: "a", type: "goal", minute: 3, playerId: RAFA }] };
     const [goal] = noticesFor("m1", before, after, () => "Socio", 0).filter((n) => n.topic === "goals");
-    expect(goal.title).toMatch(/¡GOL/);
-    expect(goal.body).toMatch(/^Rafa \(invitado\)/);
+    expect(goal.title).toBe("¡Gol de Rafa (invitado)!");
+    expect(goal.body).toBe("Minuto 3. Piti 1, Rival FC 0.");
   });
 });
 

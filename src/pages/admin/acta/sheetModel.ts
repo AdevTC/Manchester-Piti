@@ -42,6 +42,9 @@ export function newId(): string {
   return `ev-${Date.now().toString(36)}-${seq}`;
 }
 
+/** «Motivo» of an aplazado: the same cap as the backend's sheetSchema. */
+export const POSTPONED_REASON_MAX = 140;
+
 /** What a match document (published, draft or both merged) can bring. */
 export interface MatchLike extends Partial<Omit<MatchSheet, "date" | "events" | "id">> {
   id?: string;
@@ -127,6 +130,9 @@ export function fromMatch(m: MatchLike, note = ""): MatchSheet {
     photoUrl: m.photoUrl ?? "",
     gallery: [...(m.gallery ?? [])],
     meetingNote: m.meetingNote ?? note,
+    // Aplazado: its reason and new date (ms; null = por decidir), kept through every save while postponed.
+    ...(status === "postponed" && m.postponedReason ? { postponedReason: m.postponedReason } : {}),
+    ...(status === "postponed" ? { postponedTo: typeof m.postponedTo === "number" && Number.isFinite(m.postponedTo) ? m.postponedTo : null } : {}),
   });
 }
 
@@ -370,6 +376,13 @@ export function toPayload(sheet: MatchSheet, draft: boolean, nameOf: NameOf, riv
     photoUrl: (sheet.photoUrl ?? "").trim(),
     gallery,
     meetingNote: sheet.meetingNote ?? "",
+    // Aplazado: the reason (≤ 140) and the new date, only while postponed (the backend drops them otherwise).
+    ...(sheet.status === "postponed"
+      ? {
+          ...(sheet.postponedReason?.trim() ? { postponedReason: sheet.postponedReason.trim().slice(0, POSTPONED_REASON_MAX) } : {}),
+          postponedTo: typeof sheet.postponedTo === "number" && Number.isFinite(sheet.postponedTo) ? sheet.postponedTo : null,
+        }
+      : {}),
   };
   return { ok: true, sheet: out };
 }

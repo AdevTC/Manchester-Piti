@@ -8,7 +8,7 @@ import { createMemoryHistory } from "@tanstack/react-router";
 import { MotionConfig } from "motion/react";
 import App from "./App";
 import { createAppRouter } from "./router";
-import { mapMatch, mapMvp, mapPlayer, mapSeason } from "./lib/firestoreMappers";
+import { mapMatch, mapMvp, mapPlayer, mapSeason, mvpPrivateWhileOpen } from "./lib/firestoreMappers";
 import { CONTENT_KEY, MATCHES_KEY, MVP_RESULTS_KEY, PLAYERS_KEY, SEASONS_KEY, STANDINGS_KEY, withDefaults } from "./lib/publicData";
 import { mapStandings } from "./lib/standings";
 import type { ClubContent } from "./lib/clubContentDefaults";
@@ -45,7 +45,7 @@ export async function renderPage(url: string, bundle: Uint8Array): Promise<strin
   qc.setQueryData(MATCHES_KEY, matches);
   qc.setQueryData(PLAYERS_KEY, mapAll(data.players, mapPlayer));
   qc.setQueryData(SEASONS_KEY, mapAll(data.seasons, mapSeason));
-  qc.setQueryData(MVP_RESULTS_KEY, mapAll(data.mvpResults.filter(d => visibleIds.has(d.id)), mapMvp));
+  qc.setQueryData(MVP_RESULTS_KEY, mvpPrivateWhileOpen(mapAll(data.mvpResults.filter(d => visibleIds.has(d.id)), mapMvp), matches, Date.now()));
   qc.setQueryData(STANDINGS_KEY, mapAll(data.standings, mapStandings));
   qc.setQueryData(CONTENT_KEY, withDefaults(data.content?.data as Partial<ClubContent> | undefined));
 

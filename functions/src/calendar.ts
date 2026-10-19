@@ -2,7 +2,8 @@
 // Phones refresh it on their own, so a new fixture shows up in everyone's calendar.
 import { onRequest } from "firebase-functions/v2/https";
 import { db, siteUrl } from "./common.js";
-import { dateMillis, isVisibleMatch } from "./matchEngine.js";
+import { isVisibleMatch } from "./matchEngine.js";
+import { calendarSlot, type CalendarSlot } from "./calendarLogic.js";
 
 const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 const esc = (s: string) => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\r?\n/g, "\\n");
@@ -19,10 +20,11 @@ export const clubCalendar = onRequest(async (_req, res) => {
   const site = siteUrl.value().replace(/\/$/, "");
   const events = matches.docs
     .filter((m) => isVisibleMatch(m.data()) && !archived.has(m.get("seasonId")) && m.get("status") !== "cancelled")
-    .map((m) => ({ id: m.id, data: m.data(), start: dateMillis(m.get("date")) }))
-    .filter((m) => Number.isFinite(m.start))
-    .sort((a, b) => a.start - b.start)
-    .map(({ id, data, start }) => {
+    .map((m) => ({ id: m.id, data: m.data(), slot: calendarSlot(m.data()) }))
+    .filter((m): m is typeof m & { slot: CalendarSlot } => m.slot !== null)
+    .sort((a, b) => a.slot.start - b.slot.start)
+    .map(({ id, data, slot }) => {
+      const { start } = slot;
       const finished = data.status === "finished" && typeof data.goalsFor === "number";
       const end = start + ((data.duration as number | undefined) ?? 60) * 60_000 + 30 * 60_000;
       return [
@@ -31,9 +33,10 @@ export const clubCalendar = onRequest(async (_req, res) => {
         `DTSTAMP:${fmt(Date.now())}`,
         `DTSTART:${fmt(start)}`,
         `DTEND:${fmt(end)}`,
-        fold(`SUMMARY:${esc(finished ? `Piti ${data.goalsFor}–${data.goalsAgainst} ${data.rival ?? "rival"}` : `Manchester Piti vs ${data.rival ?? "rival"}`)}`),
+        fold(`SUMMARY:${esc(slot.prefix + (finished ? `Piti ${data.goalsFor}–${data.goalsAgainst} ${data.rival ?? "rival"}` : `Manchester Piti vs ${data.rival ?? "rival"}`))}`),
         data.venue ? fold(`LOCATION:${esc(String(data.venue))}`) : "",
-        data.status === "postponed" ? "STATUS:TENTATIVE" : "STATUS:CONFIRMED",
+        slot.note ? fold(`DESCRIPTION:${esc(slot.note)}`) : "",
+        `STATUS:${slot.status}`,
         fold(`URL:${site}/matches/${id}`),
         "END:VEVENT",
       ]

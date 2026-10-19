@@ -17,6 +17,8 @@ import { resolvePositions, type PosCode } from "./positions.js";
 import { keepStoredPositions, positionsPlayed, withPositions } from "./positionsPlayed.js";
 import { assertMatchNotDeleted, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 import { lineupCodeByPlayer, lineupSeven, parseMatchLineup, parsePresent, sameSeven } from "./matchLineup.js";
+import { activeMemberCount } from "./mvp.js";
+import { mvpDoc, tallyVotes } from "./mvpLogic.js";
 
 /** A stored match date in ms: a Timestamp to the exact ms, or a plain number (older and seeded matches). */
 const exactMillis = (v: unknown): number => {
@@ -68,6 +70,9 @@ export const sheetSchema = z.object({
   gallery: z.array(url).max(20).optional(),
   meetingNote: z.string().max(500).optional(),
   kit: z.enum(["home", "away"]).optional(),
+  /** Aplazado: why (≤ 140) and the new date (ms; null = por decidir). Kept only with status "postponed". */
+  postponedReason: z.string().trim().max(140, "El motivo cabe en 140 letras.").optional(),
+  postponedTo: z.number().finite().min(0).nullable().optional(),
 });
 export interface PublishRequest {
   id: string;
@@ -164,6 +169,8 @@ export async function publishSheet(input: PublishRequest) {
       }
   }
   const ref = db.doc(`matches/${input.id}`);
+  // Who can vote the MVP (the turnout's «de 14»), counted outside the transaction.
+  const eligible = !input.draft && sheet.status === "finished" ? await activeMemberCount(Date.now()) : 0;
   const affectedSeasons = await runMatchTransaction(input.id, async (tx, { match: old, draft: oldDraft }) => {
     const currentSeason = await tx.get(db.doc(`seasons/${sheet.seasonId}`));
     await assertMatchNotDeleted(tx, input.id);
@@ -186,8 +193,24 @@ export async function publishSheet(input: PublishRequest) {
       });
       return [] as string[];
     }
-    const { meetingNote, ...publicSheet } = sheet;
+    const { meetingNote, postponedReason, postponedTo, ...publicSheet } = sheet;
     const finished = sheet.status === "finished";
+    const voteClosesAt: number | null = finished ? ((old.get("voteClosesAt") as number | undefined) ?? Date.now() + 48 * 60 * 60_000) : null;
+    // Aplazado: its reason and new date (a Timestamp), only while postponed.
+    const postponed =
+      sheet.status === "postponed"
+        ? {
+            ...(postponedReason?.trim() ? { postponedReason: postponedReason.trim() } : {}),
+            postponedTo: typeof postponedTo === "number" ? Timestamp.fromMillis(postponedTo) : null,
+          }
+        : {};
+    // Backend stamps that live outside the sheet: who keeps la mesa, and the weather at kick-off (while
+    // the kick-off is the same).
+    const sameDate = exactMillis(old.get("date")) === sheet.date;
+    const stamped = {
+      ...(old.get("mesa") ? { mesa: old.get("mesa") } : {}),
+      ...(sameDate && old.get("weatherAtKickoff") ? { weatherAtKickoff: old.get("weatherAtKickoff") } : {}),
+    };
     // «Ha jugado de», over the full ledger (a member who comes on for a guest takes the guest's place); the
     // member rows in `ledger.players` are the same objects, so they get their positions too. With the board unreadable, a published acta keeps its stored positions and system
     // for each player whose stints and actions did not change, and estimates the rest; a first
@@ -251,17 +274,12 @@ export async function publishSheet(input: PublishRequest) {
     const keys = [...deltas.keys()];
     const stats = keys.length ? await tx.getAll(...keys.map((key) => db.doc(`playerSeasonStats/${key}`))) : [];
     stats.forEach((snap, i) => totalsBefore.set(keys[i], snap.get("totals") ?? {}));
-    // An amended lineup may remove a previously eligible MVP candidate.
-    const counts: Record<string, number> = {};
-    let total = 0;
-    for (const vote of votes.docs) {
-      const playerId = vote.get("playerId");
-      if (finished && ledger.players[playerId]?.played) {
-        counts[playerId] = (counts[playerId] ?? 0) + 1;
-        total++;
-      } else tx.delete(vote.ref);
-    }
-    tx.set(db.doc(`mvpResults/${input.id}`), { counts, total });
+    // An amended lineup may remove a previously eligible MVP candidate. While the vote is open only the
+    // turnout is public (mvpLogic.ts).
+    const valid = finished ? ledger.players : {};
+    for (const vote of votes.docs) if (!valid[vote.get("playerId")]?.played) tx.delete(vote.ref);
+    const tally = tallyVotes(valid, votes.docs.map((v) => v.data()));
+    tx.set(db.doc(`mvpResults/${input.id}`), mvpDoc(tally, voteClosesAt, Date.now(), eligible));
     for (const [key, entry] of deltas) {
       const totals = totalsBefore.get(key)!;
       for (const [stat, change] of Object.entries(entry.totals))
@@ -278,6 +296,8 @@ export async function publishSheet(input: PublishRequest) {
     tx.set(ref, {
       ...publicSheet,
       ...stamps,
+      ...stamped,
+      ...postponed,
       // (the lineup and the roll call live outside the sheet: a save keeps them)
       ...(lineup ? { lineup } : {}),
       ...(present ? { present } : {}),
@@ -289,9 +309,7 @@ export async function publishSheet(input: PublishRequest) {
       goalsAgainst: finished ? sheet.goalsAgainst : null,
       ledger: finished ? ledger.players : {},
       system,
-      voteClosesAt: finished
-        ? (old.get("voteClosesAt") ?? Date.now() + 48 * 60 * 60_000)
-        : null,
+      voteClosesAt,
       updatedAt: FieldValue.serverTimestamp(),
     });
     tx.set(db.doc(`matchPrivate/${input.id}`), {

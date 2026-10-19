@@ -1,7 +1,9 @@
 // Push notices for the club's service worker (imported by the Workbox-generated sw.js).
-// The server sends { title, body, tag, url } and, on the notices that ask for an answer, the buttons
-// «Voy» / «No puedo» (`actions`) with their `matchId` (functions/src/pushLogic.ts pushPayload).
-// Browsers without notice buttons (iOS) just leave them out.
+// The server sends { title, body, tag, url } and, on the notices that carry buttons, their `actions`
+// with the `matchId` (functions/src/pushLogic.ts pushPayload): «Voy» / «No puedo» on the RSVP reminders,
+// «Abrir el partido» / «Solo goles» on a goal. A goal on a device that chose «Vibrar con los goles» comes
+// with `vibrate: true`. Browsers without notice buttons or vibration (iOS) just leave them out.
+const GOAL_VIBRATE = [80, 40, 120];
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -19,6 +21,7 @@ self.addEventListener("push", (event) => {
     data: { url: data.url || "/", matchId: typeof data.matchId === "string" ? data.matchId : undefined },
   };
   if (actions.length && options.data.matchId) options.actions = actions;
+  if (data.vibrate === true) options.vibrate = GOAL_VIBRATE;
   event.waitUntil(self.registration.showNotification(data.title || "Manchester Piti", options));
 });
 
@@ -60,7 +63,7 @@ const sweepRsvpTickets = async () => {
 // app re-asserts the full set on its next open (reassertPush). The same endpoint the app registered:
 // nothing to do. Anything failing here is left to that boot check.
 const PUSH_KEY = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
-const PUBLIC_TOPICS = ["start", "goals", "final", "mvp", "dates", "lineup"];
+const PUBLIC_TOPICS = ["start", "goals", "cards", "final", "mvp", "dates", "lineup"];
 const pushKeyBytes = (base64) => {
   const pad = "=".repeat((4 - (base64.length % 4)) % 4);
   const raw = atob((base64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
@@ -85,10 +88,27 @@ self.addEventListener("pushsubscriptionchange", (event) => {
       await cache.put("/__piti-push-dirty", new Response(String(Date.now())));
       if (old && old.endpoint && old.endpoint !== sub.endpoint && saved.unsubscribe) await callFn(saved.unsubscribe, { endpoint: old.endpoint }).catch(() => undefined);
       const topics = saved.topics.filter((t) => PUBLIC_TOPICS.includes(t));
-      if (topics.length && saved.subscribe) await callFn(saved.subscribe, { subscription: sub.toJSON(), topics });
+      if (topics.length && saved.subscribe) await callFn(saved.subscribe, { subscription: sub.toJSON(), topics, vibrate: saved.vibrate === true });
     })().catch(() => undefined),
   );
 });
+
+// «Solo goles» on a goal notice: this device keeps only the goals (pushSetPreset, by its endpoint: the
+// worker has no session). The page can't be told directly: the server's answer is left in the cache for
+// the app to take on its next open (src/lib/push.ts syncFromWorker), and the worker's own state follows.
+const soloGoles = async () => {
+  const cache = await caches.open("piti-push");
+  const hit = await cache.match("/__piti-push-state");
+  const saved = hit ? await hit.json() : null;
+  const sub = await self.registration.pushManager.getSubscription();
+  if (!saved || !saved.setPreset || !sub) return;
+  const res = await callFn(saved.setPreset, { endpoint: sub.endpoint, preset: "goles" });
+  if (!res.ok) return;
+  const body = await res.json().catch(() => null);
+  const topics = body && body.result && Array.isArray(body.result.topics) ? body.result.topics : ["goals"];
+  await cache.put("/__piti-push-preset", new Response(JSON.stringify({ topics, at: Date.now() }), { headers: { "content-type": "application/json" } }));
+  await cache.put("/__piti-push-state", new Response(JSON.stringify({ ...saved, topics }), { headers: { "content-type": "application/json" } }));
+};
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
@@ -98,6 +118,11 @@ self.addEventListener("notificationclick", (event) => {
   const data = event.notification.data;
   const action = event.action;
   const matchId = data && typeof data.matchId === "string" ? data.matchId : "";
+  // «Solo goles»: nothing to open, the choice changes here («Abrir el partido» opens the notice's link).
+  if (action === "solo-goles") {
+    event.waitUntil(soloGoles().catch(() => undefined));
+    return;
+  }
   event.waitUntil(
     (async () => {
       let nonce = "";

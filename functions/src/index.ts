@@ -5,6 +5,12 @@ import { type MatchSheet } from "./matchEngine.js";
 import { db, idSchema, parse, admin } from "./common.js";
 import { publishSheet, sheetSchema } from "./publishSheet.js";
 import { matchActiveTx, runMatchTransaction } from './matchAccess.js';
+import { activeMemberCount } from "./mvp.js";
+import { mvpDoc, tallyVotes } from "./mvpLogic.js";
+export { closeMvpVotes } from "./mvp.js";
+export { weatherOnMatch } from "./weather.js";
+export { onCajaClaimCreated } from "./caja.js";
+export { markTurnDone } from "./turnos.js";
 export { clubShare } from "./social.js";
 export { setSeasonArchived } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
@@ -13,7 +19,7 @@ export { liveEvent } from "./live.js";
 export { publishLive } from "./publishLive.js";
 export { savePrediction } from "./savePrediction.js";
 export { controlMatchClock, setMatchScorers } from "./liveClock.js";
-export { pushSubscribe, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview, rotaTurnsOnWrite } from "./push.js";
+export { pushSubscribe, pushSetPreset, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview, rotaTurnsOnWrite } from "./push.js";
 export { pushReminders, pushOnAnswer } from "./reminders.js";
 export { onAbsenceWritten } from "./absences.js";
 export { onPollCreated, onPollDeleted } from "./polls.js";
@@ -47,22 +53,17 @@ export const saveMatchSheet = onCall(async (req) => {
 /**
  * MVP tally: members write their own vote (matches/{id}/votes/{uid}, validated by the
  * rules); this trigger recounts the match in a transaction so mvpResults is always
- * the exact count of valid votes, whatever the order or retries of the events.
+ * the exact count of valid votes, whatever the order or retries of the events. While the
+ * vote is open it holds only the turnout (mvpLogic.ts: nothing public says who is ahead);
+ * closeMvpVotes publishes the counts once it closes.
  */
 export const tallyMvp = onDocumentWritten("matches/{matchId}/votes/{uid}", async (event) => {
+  const eligible = await activeMemberCount(Date.now());
   await runMatchTransaction(event.params.matchId, async (tx, { match }) => {
     const votes = await tx.get(match.ref.collection('votes'));
     if (!match.exists) { tx.delete(db.doc(`mvpResults/${event.params.matchId}`)); return; }
     if (!(await matchActiveTx(tx, event.params.matchId, match))) return;
-    const ledger = (match.get("ledger") ?? {}) as Record<string, { played?: boolean }>;
-    const counts: Record<string, number> = {};
-    let total = 0;
-    for (const vote of votes.docs) {
-      const playerId = vote.get("playerId") as string;
-      if (!ledger[playerId]?.played) continue;
-      counts[playerId] = (counts[playerId] ?? 0) + 1;
-      total++;
-    }
-    tx.set(db.doc(`mvpResults/${event.params.matchId}`), { counts, total });
+    const tally = tallyVotes(match.get("ledger"), votes.docs.map((v) => v.data()));
+    tx.set(db.doc(`mvpResults/${event.params.matchId}`), mvpDoc(tally, match.get("voteClosesAt"), Date.now(), eligible));
   });
 });

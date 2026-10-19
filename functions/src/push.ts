@@ -13,7 +13,8 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { claimNotice, convocatoriaNotice, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, pushPayload,sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
+import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
+import { presetAllows, presetOf, presetTopics, PUSH_PRESETS } from "./pushPresets.js";
 import { nameFor } from "./names.js";
 import { isGuestId } from "./guests.js";
 import { noticeRecord } from "./noticesLogic.js";
@@ -35,7 +36,7 @@ const subscription = z.object({
 const subId = (endpoint: string) => createHash("sha256").update(endpoint).digest("hex").slice(0, 40);
 
 export const pushSubscribe = onCall(async (req) => {
-  const input = parse(z.object({ subscription, topics: z.array(z.enum([...TOPICS, ...DOOR_TOPICS, ...PERSONAL_TOPICS])).max(TOPICS.length + DOOR_TOPICS.length + PERSONAL_TOPICS.length) }), req.data);
+  const input = parse(z.object({ subscription, topics: z.array(z.enum([...TOPICS, ...DOOR_TOPICS, ...PERSONAL_TOPICS])).max(TOPICS.length + DOOR_TOPICS.length + PERSONAL_TOPICS.length), vibrate: z.boolean().optional() }), req.data);
   // Door notices are personal: "access" needs the Google account that asked, "door" an admin.
   let uid: string | undefined;
   if (input.topics.includes("access")) uid = googleUser(req);
@@ -66,8 +67,34 @@ export const pushSubscribe = onCall(async (req) => {
   }
   // The uid is the session's, or none: a member who signed out (or another person now on this device)
   // must stop getting that member's personal notices here (a merge would keep the old one).
-  await ref.set({ endpoint: input.subscription.endpoint, keys: input.subscription.keys, topics: [...new Set(input.topics)], uid: uid ?? FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  // «Avisos a medida»: the preset these topics make (sendTo honours it), and «Vibrar con los goles» when the
+  // device says (absent: the stored one stays).
+  const topics = [...new Set(input.topics)];
+  await ref.set({ endpoint: input.subscription.endpoint, keys: input.subscription.keys, topics, preset: presetOf(topics), ...(input.vibrate === undefined ? {} : { vibrate: input.vibrate }), uid: uid ?? FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   return { topics: input.topics, uid: uid ?? null, known };
+});
+
+/**
+ * A device's «Avisos a medida» by its endpoint (the service worker's «Solo goles» button, which has no
+ * session; the endpoint is the device's own secret, as for pushUnsubscribe): its topics become the
+ * preset's (pushPresets.ts; the door's stay; «Todo» carries the personal ones only when the device has its
+ * member's uid), and `vibrate` when given. A device the server doesn't have is not found (nothing is made).
+ */
+export const pushSetPreset = onCall(async (req) => {
+  const input = parse(z.object({ endpoint: z.url(), preset: z.enum(PUSH_PRESETS), vibrate: z.boolean().optional() }), req.data);
+  const ref = db.doc(`pushSubscriptions/${subId(input.endpoint)}`);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "Este dispositivo ya no recibe avisos.");
+    const current = Array.isArray(snap.get("topics")) ? (snap.get("topics") as unknown[]).filter((t): t is string => typeof t === "string") : [];
+    const topics = presetTopics(input.preset, current, typeof snap.get("uid") === "string");
+    if (!topics.length) {
+      tx.delete(ref);
+      return { topics: [], preset: "nada" as const };
+    }
+    tx.update(ref, { topics, preset: presetOf(topics), ...(input.vibrate === undefined ? {} : { vibrate: input.vibrate }), updatedAt: FieldValue.serverTimestamp() });
+    return { topics, preset: presetOf(topics) };
+  });
 });
 
 /**
@@ -81,7 +108,7 @@ export async function forgetMemberDevices(uid: string): Promise<void> {
   const batch = db.batch();
   for (const d of subs.docs) {
     const keep = publicTopics(d.get("topics"));
-    if (keep.length) batch.update(d.ref, { topics: keep, uid: FieldValue.delete() });
+    if (keep.length) batch.update(d.ref, { topics: keep, preset: presetOf(keep), uid: FieldValue.delete() });
     else batch.delete(d.ref);
   }
   await batch.commit();
@@ -108,10 +135,13 @@ export async function sendTo(notice: Notice, uid?: string) {
   const subs = await q.get();
   // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
   if (subs.empty) return;
+  // «Avisos a medida»: «Solo goles» gets only the goals (not even the personal notices), «Nada» nothing.
+  const devices = subs.docs.filter((d) => presetAllows(d.get("preset"), notice.topic));
+  if (!devices.length) return;
   webpush.setVapidDetails(SITE, VAPID_PUBLIC, vapidPrivate.value());
-  const payload = JSON.stringify(pushPayload(notice));
   await Promise.all(
-    subs.docs.map(async (d) => {
+    devices.map(async (d) => {
+      const payload = JSON.stringify(devicePayload(notice, { preset: d.get("preset"), vibrate: d.get("vibrate") }));
       try {
         await webpush.sendNotification({ endpoint: d.get("endpoint"), keys: d.get("keys") }, payload, { TTL: 6 * 3600, urgency: notice.topic === "goals" ? "high" : "normal" });
       } catch (e) {
@@ -140,7 +170,12 @@ async function keepNotice(notice: Notice, uid?: string): Promise<void> {
 }
 
 const asMatch = (d: DocumentData | undefined): MatchLike | undefined =>
-  d && { ...d, date: (d.date as Timestamp | undefined)?.toMillis?.(), voteClosesAt: typeof d.voteClosesAt === "number" ? d.voteClosesAt : (d.voteClosesAt as Timestamp | undefined)?.toMillis?.() };
+  d && {
+    ...d,
+    date: (d.date as Timestamp | undefined)?.toMillis?.(),
+    voteClosesAt: typeof d.voteClosesAt === "number" ? d.voteClosesAt : (d.voteClosesAt as Timestamp | undefined)?.toMillis?.(),
+    postponedTo: typeof d.postponedTo === "number" ? d.postponedTo : ((d.postponedTo as Timestamp | null | undefined)?.toMillis?.() ?? null),
+  };
 
 export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", secrets: [vapidPrivate] }, async (event) => {
   if (!(await matchActive(event.params.matchId))) return;
@@ -161,8 +196,15 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   // (names only when a notice needs them: most writes of a match say nothing)
   const now = Date.now();
   const draft = noticesFor(event.params.matchId, before, after, () => "", now);
-  const named = draft.some((n) => n.topic === "goals");
-  const ids = named ? new Set([...(before?.events ?? []), ...(after?.events ?? [])].filter((e) => typeof e.type === "string" && e.type.includes("goal")).map((e) => e.playerId).filter((pid): pid is string => !!pid && !isGuestId(pid))) : new Set<string>();
+  const named = draft.some((n) => n.topic === "goals" || n.topic === "cards");
+  const ids = named
+    ? new Set(
+        [...(before?.events ?? []), ...(after?.events ?? [])]
+          .filter((e) => typeof e.type === "string" && (e.type.includes("goal") || e.type.includes("card") || e.type.includes("yellow")))
+          .flatMap((e) => [e.playerId, e.assistPlayerId])
+          .filter((pid): pid is string => !!pid && !isGuestId(pid)),
+      )
+    : new Set<string>();
   const players = await Promise.all([...ids].map((id) => db.doc(`players/${id}`).get()));
   // the season's shirt names, like the match page (nameFor with the match's season)
   const names = new Map(players.map((p) => [p.id, nameFor(p.data(), after?.seasonId)]));

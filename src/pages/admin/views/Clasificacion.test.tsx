@@ -63,6 +63,22 @@ describe("Clasificación (admin)", () => {
     expect(screen.getByRole("textbox", { name: "Jornada" })).toHaveValue("8");
   });
 
+  it("«Últimos 5»: five G / E / P picks per team (the newest on the right), saved with the row", async () => {
+    const user = userEvent.setup();
+    h.standings = { ...table(), rows: table().rows.map((r, i) => (i === 0 ? { ...r, form: ["G", "E"] as ("G" | "E" | "P")[] } : r)) };
+    render(<Clasificacion />);
+    const rayo = (k: number) => screen.getByRole("combobox", { name: `Últimos 5 · Rayo Norte, partido ${k} de 5 (el último a la derecha)` });
+    expect([1, 2, 3, 4, 5].map((k) => (rayo(k) as HTMLSelectElement).value)).toEqual(["", "", "", "G", "E"]);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Últimos 5 · Manchester Piti, partido 5 de 5 (el último a la derecha)" }), "P");
+    await user.click(screen.getByRole("button", { name: "Guardar la clasificación" }));
+    const input = h.save.mock.calls[0][1] as { rows: { team: string; form?: string[] }[] };
+    expect(input.rows.map((r) => [r.team, r.form])).toEqual([
+      ["Rayo Norte", ["G", "E"]],
+      ["Manchester Piti", ["P"]],
+      ["Atlético Demo", undefined],
+    ]);
+  });
+
   it("a jornada the captain typed wins over the paste's", async () => {
     const user = userEvent.setup();
     render(<Clasificacion />);

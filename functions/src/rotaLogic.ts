@@ -368,7 +368,7 @@ function parseDone(raw: unknown): Record<string, number> {
 /** Whether `uid` marked his turn of the match done («Hecho»). */
 export const turnDone = (doc: RotaTurnsDoc | null | undefined, uid: string | null | undefined): boolean => !!uid && typeof doc?.done?.[uid] === "number";
 
-/** The jobs of `turns` that `playerId` does (empty: none of the match's turns is his). */
+/** The turns of `turns` that `playerId` does (empty: none of the match's turns is his). */
 export const myTurns = (turns: readonly Turn[], playerId: string | null | undefined): Turn[] => (playerId ? turns.filter((t) => t.playerId === playerId) : []);
 
 /** A fresh job id from its name («Lavar la equipación» → "lavar-la-equipacion"), unique among `taken`. */
