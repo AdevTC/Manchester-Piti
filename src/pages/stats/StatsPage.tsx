@@ -1,15 +1,16 @@
-import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
+import { AnalysisPanels } from "../../components/celeste/AnalysisPanels";
+import { ScopePicker } from "../../components/celeste/AnalysisScope";
+import { inScope, scopeSeasons, type AnalysisSearch, type StatsScopeSearch } from "../../lib/analysisSearch";
 // Estadísticas: its navigation precedes the Pichichi race (Resumen only), so focused views open on
 // their content. The selected season and tied leaders stay visible in the shared introduction.
 // From the Design canvas "Estadísticas · elegida"; pure logic in lib/clubAnalytics.ts + lib/statsView.ts.
 import { useMemo } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
-import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
-import { nextFixture, playerForSeason, nameFor, useClubData } from "../../lib/clubData";
+import { ALL_SEASONS_LABEL } from "../../lib/useSetSeason";
+import { nextFixture, playerForSeason, nameFor, useClubData, formatDate } from "../../lib/clubData";
 import { mvpOfFrom, votesClosedAt } from "../../lib/derived/mvpOf";
 import { analysePlayer, chronological, rankedLeaders, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { tickerLines } from "../../lib/statsView";
-import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import { jornadaNumbers } from "../../lib/derived/jornada";
 import { mvpWins } from "../../lib/vestuario";
 import { useMvpResults } from "../vestuario/live";
@@ -82,14 +83,20 @@ export function StatsPage() {
   const setSection = (next: ExploreSection) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "explore", section: next }), resetScroll: false });
   // Comparar's pair: replace, so trying player after player doesn't flood the history
   const setPair = (a: string, b: string | undefined) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "compare", a, b }), replace: true, resetScroll: false });
-  const setSeason = useSetSeason();
-
-  const games = useMemo(() => chronological(matches.filter((m) => selectedSeasonId === "all" || m.seasonId === selectedSeasonId)), [matches, selectedSeasonId]);
+  const updateScope = (patch: StatsScopeSearch) => void navigate({ to: ".", search: (prev) => ({ ...prev, ...patch, ...(patch.seasons !== undefined ? { season: "all", matches: undefined } : {}), ...(patch.players?.length ? { team: "us" as const } : {}) }), resetScroll: false });
+  const updateAnalysis = (patch: Partial<AnalysisSearch>) => void navigate({ to: ".", search: (prev) => ({ ...prev, ...patch }), replace: !!patch.q, resetScroll: false });
+  const clearScope = () => void navigate({ to: ".", search: (prev) => ({ ...prev, season: "all", seasons: undefined, matches: undefined, players: undefined, team: undefined, period: undefined }), resetScroll: false });
+  const pluralSeasons = search.seasons;
+  const seasonIds = useMemo(() => scopeSeasons({ seasons: pluralSeasons }, selectedSeasonId), [pluralSeasons, selectedSeasonId]);
+  const effectiveSeason = seasonIds.length === 1 ? seasonIds[0] : "all";
+  const seasonGames = useMemo(() => chronological(matches.filter(m => inScope(m.seasonId, seasonIds))), [matches, seasonIds]);
+  const games = useMemo(() => seasonGames.filter(m => inScope(m.id, search.matches)), [seasonGames, search.matches]);
   // (each match's jornada in its own season, «all seasons» included: the J of /partidos)
   const jornada = useMemo(() => jornadaNumbers(matches), [matches]);
+  const periodPlayers = useMemo(() => players.filter(p => !seasonIds.length || p.seasons?.some(id => seasonIds.includes(id))), [players, seasonIds]);
   const rows = useMemo(
-    () => players.filter((p) => selectedSeasonId === "all" || p.seasons?.includes(selectedSeasonId)).map((p) => analysePlayer(playerForSeason(p, selectedSeasonId, seasons), games)),
-    [players, games, selectedSeasonId, seasons],
+    () => periodPlayers.filter(p => inScope(p.id, search.players)).map(p => analysePlayer(playerForSeason(p, effectiveSeason, seasons), games)),
+    [periodPlayers, games, effectiveSeason, seasons, search.players],
   );
   const mvps = useMemo(() => new Map(rows.map((p) => [p.id, mvpWins(p.id, games, results, now)]).filter(([, n]) => (n as number) > 0) as [string, number][]), [rows, games, results, now]);
   // the MVPs for the ratings by position: the one shared reader (derived/mvpOf), keyed on the results and
@@ -103,7 +110,7 @@ export function StatsPage() {
     { label: "Más MVP", v: (p: PlayerAnalysis) => mvps.get(p.id) ?? 0 },
   ].map(l => ({ ...l, players: rankedLeaders([...rows].sort((a, b) => nameOf(a).localeCompare(nameOf(b), "es")), l.v, 1) })).filter(l => l.players.length > 0);
   const tracked = games.filter((m) => m.ledger && Object.keys(m.ledger).length).length;
-  const periodName = selectedSeasonId === "all" ? ALL_SEASONS_LABEL : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
+  const periodName = !seasonIds.length ? ALL_SEASONS_LABEL : seasonIds.map(id => seasons.find(season => season.id === id)?.name ?? "Temporada no disponible").join(" + ");
   const ready = !loading && !error;
   // the season now (V-Integracion «Números»): the one being played, whatever period the tabs below read
   const nowSeason = currentSeasonId(nextFixture(matches, now), matches, seasons);
@@ -146,24 +153,18 @@ export function StatsPage() {
       <section className="st-period vd-reg-3" aria-label="El período de las pestañas">
         <h2 className="st-period__t">{periodName}</h2>
         <p className="st-period__l">{empty ? "La temporada aún no ha echado a rodar: en cuanto se publique la primera acta, aquí se mueve todo." : "Datos de partidos finalizados, al minuto."}</p>
+        <div className="an-scopes" aria-label="Filtros del período">
+          <ScopePicker label="Temporadas" options={[...seasons].reverse().map(season => ({ id: season.id, label: season.name }))} selected={seasonIds} disabled={loadingSeasons} onChange={seasons => updateScope({ seasons })}/>
+          <ScopePicker label="Partidos" options={seasonGames.map(match => ({ id: match.id, label: `${formatDate(match.date)} · ${match.rival ?? "Rival"}` }))} selected={search.matches} onChange={matches => updateScope({ matches: matches.length ? matches : undefined })}/>
+          <ScopePicker label="Jugadores" options={periodPlayers.map(player => ({ id: player.id, label: nameFor(player, effectiveSeason) }))} selected={search.players} onChange={players => updateScope({ players: players.length ? players : undefined })}/>
+        </div>
         <div className="st-ctx">
-          {(seasons.length > 0 || loadingSeasons) && (
-            <label className="st-field">
-              <span className="st-mono">Temporada</span>
-              <select aria-label="Seleccionar temporada" value={loadingSeasons ? "all" : selectedSeasonId} disabled={loadingSeasons} onChange={(e) => setSeason(e.target.value)}>
-                <option value="all">{ALL_SEASONS_LABEL}</option>
-                {[...seasons].reverse().map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
           <p className="st-count">
             <b>{games.length}</b> {games.length === 1 ? "partido" : "partidos"} · <b>{rows.length}</b> {rows.length === 1 ? "jugador" : "jugadores"} · <b>{tracked}</b> {tracked === 1 ? "acta" : "actas"} con minutos
           </p>
+          {(seasonIds.length > 0 || !!search.matches?.length || !!search.players?.length || search.team === "opponent" || search.period != null) && <button type="button" className="hm-ghostbtn" onClick={clearScope}>Quitar filtros</button>}
         </div>
+        {!!search.players?.length && view !== "game" && <p className="st-period__l">Las tablas y los líderes muestran los jugadores seleccionados. Los resultados de equipo conservan todos los participantes del partido.</p>}
         {leaders.length > 0 && (
           <ul className="st-leaders" aria-label="Líderes del período">
             {leaders.map((l, i) => (
@@ -194,7 +195,7 @@ export function StatsPage() {
             <div className="st-sweep" aria-hidden="true" />
             {ready && games.length > 0 ? (
               <>
-                <RaceBoard rows={rows} nameOf={nameOf} jornada={jornada} seasonId={selectedSeasonId} />
+                <RaceBoard rows={rows} nameOf={nameOf} jornada={jornada} seasonId={effectiveSeason} />
                 <Ticker lines={lines} />
               </>
             ) : (
@@ -234,32 +235,19 @@ export function StatsPage() {
             </button>
           </div>
         )}
-        {empty && (
+        {empty && view !== "game" && (
           <div className="st-state">
             <p>Todavía no hay partidos finalizados en este período. Los datos aparecerán al publicar las actas.</p>
-            {selectedSeasonId !== "all" && (
-              <button type="button" className="hm-ghostbtn" onClick={() => setSeason("all")}>
+            {(seasonIds.length > 0 || !!search.matches?.length) && (
+              <button type="button" className="hm-ghostbtn" onClick={clearScope}>
                 Ver todo el historial
               </button>
             )}
           </div>
         )}
-        {ready && games.length > 0 && (
+        {ready && (games.length > 0 || view === "game") && (
           <div key={view} className="st-pane">
-            {view === "game" &&
-              (hasAnalysisActions(games) ? (
-                <TechnicalStatsPanel matches={games} people={rows.map((p) => ({ id: p.id, name: nameOf(p), number: p.number }))} seasonId={selectedSeasonId} />
-              ) : (
-                // (no acta of the period narrates its plays: say so, the panel would be all zeros)
-                <div className="st-state">
-                  <p>Ningún partido de este período tiene sus jugadas narradas: pases, remates, entradas… El análisis del juego aparecerá cuando un acta las apunte.</p>
-                  {selectedSeasonId !== "all" && (
-                    <button type="button" className="hm-ghostbtn" onClick={() => setSeason("all")}>
-                      Ver todo el historial
-                    </button>
-                  )}
-                </div>
-              ))}
+            {view === "game" && <AnalysisPanels matches={games} people={periodPlayers.map(p => ({ id: p.id, name: nameFor(p, effectiveSeason), number: p.number }))} seasonId={effectiveSeason} filters={{ seasonIds, matchIds: search.matches, playerIds: search.players }} search={search} onSearchChange={updateAnalysis}/>}
             {view === "summary" && <Resumen games={games} rows={rows} nameOf={nameOf} mvps={mvps} />}
             {view === "players" && <Jugadores rows={rows} nameOf={nameOf} />}
             {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} jornada={jornada} />}

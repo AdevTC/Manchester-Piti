@@ -1,3 +1,5 @@
+import { NarratedObservations } from './NarratedObservations';
+import type { Observation } from '../../../../functions/src/narrated/types';
 import { useState } from "react";
 import { eventMinute, EVENT_LABELS, type MatchEvent } from "../../../../functions/src/matchEngine";
 import { OUTCOME_LABELS } from "../../../../functions/src/matchAnalysis";
@@ -8,10 +10,12 @@ const FIELD_LABELS: Record<string, string> = { type: "Acción", minute: "Minuto"
 const WORDS: Record<string, string> = { us: "Manchester Piti", opponent: "Rival", short: "Corto", long: "Largo", cross: "Centro", through: "Al espacio", throw: "Con la mano", right: "Derecha", left: "Izquierda", center: "Centro", head: "Cabeza", hand: "Mano", other: "Otro", live: "En directo", manual: "Manual", narration: "Narración" };
 const PERSON_FIELDS = new Set(["playerId", "receiverId", "assistPlayerId", "inPlayerId"]);
 
-export function NarrationReview({ preview, info, onEdit, onResolve, onApply, editing = false }: {
+export function NarrationReview({ preview, info, onEdit, onResolve, onEditObservation, onApply, editing = false }: {
   preview: ReturnType<typeof previewNarration>; info: (id: string) => PlayerInfo;
+  onEditObservation?: (observation: Observation) => void;
   onEdit: (event: MatchEvent) => void; onResolve: (index: number, resolution: string) => void; onApply: () => void; editing?: boolean;
 }) {
+  const [observationEditing, setObservationEditing] = useState(false);
   const [filter, setFilter] = useState("changes");
   const [player, setPlayer] = useState("");
   const [limit, setLimit] = useState(30);
@@ -40,8 +44,10 @@ export function NarrationReview({ preview, info, onEdit, onResolve, onApply, edi
     </li>)}</ol>
     {!changes.length && <p>No hay acciones que coincidan con estos filtros.</p>}
     {changes.length > limit && <button className="btn line" type="button" onClick={() => setLimit(n => n + 30)}>Ver 30 acciones más ({changes.length - limit} pendientes)</button>}
+    {!!preview.observationChanges.length && onEditObservation && <NarratedObservations observations={preview.observationChanges.map(c => c.after)} changes={preview.observationChanges} sources={preview.sources} nameOf={id => info(id).name} onSave={onEditObservation} onEditingChange={setObservationEditing} />}
+    {preview.format === 'piti-actions/v2' && unresolved.length > 0 && <p>Las dudas de detalles quedan guardadas como pendientes; los hechos independientes pueden incorporarse.</p>}
     <p>{preview.errors.length ? "Resuelve las dudas y los errores antes de incorporar el análisis." : "La secuencia es válida. Reimportar los mismos ids no duplica jugadas."}</p>
-    {editing && <p role="status">Guarda o cancela la acción que estás editando antes de incorporar la importación.</p>}
-    <button type="button" className="btn gold" disabled={preview.errors.length > 0 || editing} onClick={onApply}>Incorporar al borrador</button>
+    {(editing || observationEditing) && <p role="status">Guarda o cancela la acción que estás editando antes de incorporar la importación.</p>}
+    <button type="button" className="btn gold" disabled={preview.errors.length > 0 || editing || observationEditing} onClick={onApply}>Incorporar al borrador</button>
   </section>;
 }

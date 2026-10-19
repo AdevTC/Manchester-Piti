@@ -201,6 +201,11 @@ service cloud.firestore {
     }
     match /matchPrivate/{id} {
       allow read: if teamMember(); allow write: if false;
+      // Narration evidence and immutable import snapshots belong to the admin review, not the public acta.
+      match /analysisHistory/{revision} {
+        allow read: if admin();
+        allow write: if false;
+      }
       match /availability/{uid} {
         allow read: if teamMember();
         allow create, update: if teamMember() && request.auth.uid == uid

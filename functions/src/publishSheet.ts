@@ -1,6 +1,9 @@
 // The acta's publication pipeline, shared by saveMatchSheet (the editor, admins) and publishLive (la
 // mesa, admins and the match's scorers): validation, ledger, «Ha jugado de», season totals, MVP votes
 // and the porra, in one transaction.
+import { analysisProblem, narratedAnalysisSchema, type NarrationSource } from './narrated/schema.js';
+import { prepareNarrationHistory } from './narrated/history.js';
+import { publicNarrationEvents } from './narrated/privateSources.js';
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 import { createHash } from "node:crypto";
@@ -53,6 +56,7 @@ export const sheetSchema = z.object({
   date: z.number().finite().min(0),
   duration: z.number().int().min(1).max(150),
   durationSeconds: z.number().int().min(1).max(9000).optional(),
+  analysis: narratedAnalysisSchema.optional(),
   analysisCoverage: z.enum(["partial", "complete"]).optional(),
   analysisNotes: z.string().max(2000).optional(),
   venue: z.string().max(200),
@@ -78,6 +82,7 @@ export interface PublishRequest {
   id: string;
   sheet: MatchSheet;
   draft: boolean;
+  sources?: NarrationSource[];
   /** Who publishes (the audit, matchPrivate.updatedBy). */
   uid: string;
   /** Extra checks inside the transaction, before any write (publishLive: the scorer, the whistle). */
@@ -88,7 +93,9 @@ export interface PublishRequest {
 /** Saves a draft or publishes the acta: exactly saveMatchSheet's pipeline. */
 export async function publishSheet(input: PublishRequest) {
   const uid = input.uid;
-  const sheet = input.sheet as MatchSheet;
+  const sheet = { ...input.sheet } as MatchSheet;
+  // Old clients and live publication keep the rich dataset; omission never erases an import.
+  if (!sheet.analysis) { const previous = await db.doc(`matches/${input.id}`).get(); if (previous.get('analysis')) sheet.analysis = narratedAnalysisSchema.parse(previous.get('analysis')); }
   if (Buffer.byteLength(JSON.stringify(sheet), "utf8") > 650_000) throw new HttpsError("invalid-argument", "El acta es demasiado grande. Reduce las notas de las jugadas.");
   // Members only: a guest («guest:g1») has no ficha, no season and no stats (guests.ts).
   const participants = memberIds([...sheet.starters, ...sheet.bench, ...sheet.notCalled]);
@@ -118,6 +125,8 @@ export async function publishSheet(input: PublishRequest) {
   // Every `guest:` reference names a guest on the list — a draft too (the acta and Convocar read it).
   const guestProblem = guestRefsProblem(sheet);
   if (guestProblem) throw new HttpsError("invalid-argument", guestProblem);
+  const analysisIssue = analysisProblem(sheet.analysis, sheet.events, [...sheet.starters, ...sheet.bench, ...sheet.notCalled], sheet.durationSeconds ?? sheet.duration * 60);
+  if (analysisIssue) throw new HttpsError('invalid-argument', analysisIssue);
   const fullLedger = calculateLedger(sheet, sheet.status === "finished");
   // The guests' goals count for the team (goalsFor); their rows never reach a member's numbers: the
   // stored ledger, the season stats, the MVP candidates and the porra read members only.
@@ -181,19 +190,23 @@ export async function publishSheet(input: PublishRequest) {
         "aborted",
         input.staleMessage ?? "Otro administrador ha actualizado este partido. Recarga antes de guardar.",
       );
+    if (sheet.analysis && sheet.analysis.revision !== (old.get('analysis.revision') ?? 0)) throw new HttpsError('aborted', 'El análisis ha cambiado. Recarga el acta antes de guardar.');
     if (input.guard) await input.guard(tx, old);
     const activeClock = old.get("clock");
     if (!input.draft && sheet.status === "finished" && sheet.date > Date.now() && activeClock?.phase !== "ended") throw new HttpsError("invalid-argument", "El partido todavía no ha comenzado.");
     if (!input.draft && activeClock && ["first", "halftime", "second"].includes(activeClock.phase)) throw new HttpsError("failed-precondition", "El partido sigue en marcha. Pita el final antes de publicar o modificar el acta.");
+    const writeNarrationHistory = await prepareNarrationHistory(tx, input.id, uid, sheet.revision ?? 0, input.draft, sheet, input.sources ?? [], old);
     if (input.draft) {
+      writeNarrationHistory();
       tx.set(db.doc(`matchDrafts/${input.id}`), {
         ...sheet,
+        ...(input.sources?.length ? { narrationSources: input.sources } : {}),
         updatedBy: uid,
         updatedAt: FieldValue.serverTimestamp(),
       });
       return [] as string[];
     }
-    const { meetingNote, postponedReason, postponedTo, ...publicSheet } = sheet;
+    const { meetingNote, postponedReason, postponedTo, narrationSources: _privateSources, ...publicSheet } = sheet;
     const finished = sheet.status === "finished";
     const voteClosesAt: number | null = finished ? ((old.get("voteClosesAt") as number | undefined) ?? Date.now() + 48 * 60 * 60_000) : null;
     // Aplazado: its reason and new date (a Timestamp), only while postponed.
@@ -277,6 +290,7 @@ export async function publishSheet(input: PublishRequest) {
     // An amended lineup may remove a previously eligible MVP candidate. While the vote is open only the
     // turnout is public (mvpLogic.ts).
     const valid = finished ? ledger.players : {};
+    writeNarrationHistory();
     for (const vote of votes.docs) if (!valid[vote.get("playerId")]?.played) tx.delete(vote.ref);
     const tally = tallyVotes(valid, votes.docs.map((v) => v.data()));
     tx.set(db.doc(`mvpResults/${input.id}`), mvpDoc(tally, voteClosesAt, Date.now(), eligible));
@@ -295,6 +309,8 @@ export async function publishSheet(input: PublishRequest) {
     const stamps = Object.fromEntries((["convocatoriaAt", "convocatoriaNotifiedAt"] as const).flatMap((k) => (typeof old.get(k) === "number" ? [[k, old.get(k) as number]] : [])));
     tx.set(ref, {
       ...publicSheet,
+      events: publicNarrationEvents(sheet.events),
+      ...(sheet.analysis ? { analysis: { ...sheet.analysis, revision: sheet.analysis.revision + 1 } } : {}),
       ...stamps,
       ...stamped,
       ...postponed,

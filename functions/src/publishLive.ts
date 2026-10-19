@@ -76,6 +76,7 @@ export const publishLive = onCall(async (req) => {
     date: typeof (m.date as { toMillis?: unknown } | undefined)?.toMillis === "function" ? (m.date as { toMillis: () => number }).toMillis() : dateMillis(m.date),
     duration: m.duration,
     durationSeconds: m.durationSeconds,
+    analysis: m.analysis,
     analysisCoverage: m.analysisCoverage,
     analysisNotes: m.analysisNotes,
     venue: m.venue ?? "",

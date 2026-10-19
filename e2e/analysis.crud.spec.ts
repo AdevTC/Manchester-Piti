@@ -7,7 +7,7 @@ test("la narración se revisa antes de publicar y la cifra abre sus jugadas", as
   const editor = page.getByRole("region", { name: "Análisis detallado del acta" });
   await expect(editor).toBeVisible();
   await editor.getByText("Importar análisis de una narración", { exact: true }).click();
-  await editor.getByRole("button", { name: "Copiar contexto para narración" }).click();
+  await editor.getByRole("button", { name: "Copiar prompt y contexto" }).click();
   const context = JSON.parse(await editor.getByLabel("Contexto del partido (solo lectura)").inputValue());
   const source = "Marcos se la pasa a Dani";
   const goal = context.existingEvents.find((e: { id: string }) => e.id === "goal1");
@@ -42,6 +42,7 @@ test("la narración se revisa antes de publicar y la cifra abre sus jugadas", as
   const evidence = stats.getByRole("region", { name: "Pases completados · Marcos" });
   await expect(evidence.getByRole("listitem")).toHaveCount(1);
   await expect(evidence).toContainText("Marcos → Pablo");
-  await expect(evidence).toContainText("Origen: Marcos se la pasa a Pablo");
+  // Literal narration is kept with private admin sources, never in the public acta or evidence.
+  await expect(evidence).not.toContainText("Marcos se la pasa a Pablo");
   await expect(evidence.getByRole("link", { name: /Ver acta/ })).toHaveAttribute("href", "/matches/preview-finished?tab=estadisticas");
 });

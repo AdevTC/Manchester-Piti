@@ -16,6 +16,7 @@ import {
   AdminRouteNotFound,
 } from "./components/route-states";
 import { matchSearchSchema } from "./lib/matchTabs";
+import { analysisSearchFields, statsScopeSearchFields } from "./lib/analysisSearch";
 
 // Root-level search schema: `season` is inherited by all child routes so any
 // page can be deep-linked with ?season=<id>. Uses .optional() (not .default)
@@ -32,6 +33,8 @@ export const rootSearchSchema = z.object({
 // period has), so «X vs Y» can be linked from the jugador page.
 const optionalString = z.union([z.string(), z.number()]).transform(String).optional().catch(undefined);
 export const statsSearchSchema = z.object({
+  ...analysisSearchFields,
+  ...statsScopeSearchFields,
   a: optionalString,
   b: optionalString,
   view: z

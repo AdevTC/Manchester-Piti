@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AnalysisEditor } from "./AnalysisEditor";
 import { defaultSheet } from "../acta/sheetModel";
 import type { MatchEvent } from "../../../../functions/src/matchEngine";
+import { DEFAULT_ANALYSIS_PROFILE } from "../../../../functions/src/narrated/types";
 const original: MatchEvent = { id: "p", type: "pass", minute: 2, playerId: "a", receiverId: "b", outcome: "complete", source: "manual" };
 const sheet = defaultSheet("s", { rival: "Rival", date: 1, starters: ["a", "b", "c", "d", "e", "f", "g"], bench: [], status: "finished", events: [original] });
 const info = (id: string) => ({ id, name: id.toUpperCase(), number: 7, position: "MC" });
@@ -15,6 +16,16 @@ function review(extra = {}) {
   return update;
 }
 describe("narration import review", () => {
+  it("keeps the import pending until a rich observation correction is saved", () => {
+    const update = review({ format: "piti-actions/v2", events: [], analysis: { version: 2, revision: 0, profile: DEFAULT_ANALYSIS_PROFILE, coverage: [], observations: [{ id: "rich-pass", kind: "pass", team: "us", actorId: "a", receiverId: "b", order: 1, facts: { outcome: "complete" } }] } });
+    fireEvent.click(screen.getByRole("button", { name: "Editar detalle" }));
+    expect(screen.getByRole("button", { name: "Incorporar al borrador" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Observación completa (JSON)"), { target: { value: JSON.stringify({ id: "rich-pass", kind: "pass", team: "us", actorId: "a", receiverId: "c", order: 1, facts: { outcome: "complete" } }) } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar detalle" }));
+    expect(screen.getByRole("button", { name: "Incorporar al borrador" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Incorporar al borrador" }));
+    expect(update.mock.calls[0][0](sheet).analysis.observations[0].receiverId).toBe("c");
+  });
   it("shows before/after and source, edits the proposal, then applies once", () => {
     const update = review();
     const preview = screen.getByRole("region", { name: "Revisión de la importación" });

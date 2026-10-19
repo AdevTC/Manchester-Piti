@@ -416,7 +416,7 @@ function Evolution({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games: Clu
   const chosen = (picked ?? candidates.slice(0, 4).map((p) => p.id)).filter((id) => candidates.some((p) => p.id === id)).slice(0, 6);
   const [at, setAt] = useState<number | null>(null);
   const n = games.length;
-  const cursor = at ?? n - 1;
+  const cursor = Math.max(0, Math.min(at ?? n - 1, n - 1));
   const lines = chosen.map((id, k) => {
     const p = rows.find((r) => r.id === id)!;
     let acc = 0;

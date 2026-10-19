@@ -1,3 +1,6 @@
+import { technicalEvents } from './narrated/compatibility.js';
+import type { NarratedAnalysis } from './narrated/types.js';
+import type { NarrationSource } from './narrated/schema.js';
 /** Shared, deterministic match ledger. Also executed by the backend before publishing. */
 import { ACTION_LABELS, actionProblem, analyseActions, eventSeconds, isAnalysisAction, type ActionDetails, type TechnicalStats } from "./matchAnalysis.js";
 import { type MatchClock } from "./matchClock.js";
@@ -99,6 +102,9 @@ export interface MatchSheet {
   liveEndedAt?: number;
   clock?: MatchClock;
   durationSeconds?: number;
+  analysis?: NarratedAnalysis;
+  /** Editor-only pending sources; sent separately and never published. */
+  narrationSources?: NarrationSource[];
   analysisCoverage?: "partial" | "complete";
   analysisNotes?: string;
   starters: string[];
@@ -198,7 +204,7 @@ export function calculateLedger(
   match: Pick<
     MatchSheet,
     "starters" | "bench" | "notCalled" | "events" | "duration" | "durationSeconds"
-  > & Pick<Partial<MatchSheet>, "guests">,
+  > & Pick<Partial<MatchSheet>, "guests" | "analysis">,
   strict = true,
   options: { until?: number; allowUnattributedGoals?: boolean } = {},
 ): Ledger {
@@ -390,7 +396,7 @@ export function calculateLedger(
     else if (e.type === "assist") p.assists++;
   }
   for (const id of [...onPitch.keys()]) close(id, until);
-  const technical = analyseActions(counted.filter(e => eventSeconds(e) <= until * 60));
+  const technical = analyseActions(technicalEvents({ ...match, id: "ledger" }).filter(e => eventSeconds(e) <= until * 60));
   for (const [id, row] of Object.entries(result.players)) {
     row.secondsPlayed = Math.round(row.minutes * 60);
     row.minutes = Math.round(row.secondsPlayed / 60 * 100) / 100;

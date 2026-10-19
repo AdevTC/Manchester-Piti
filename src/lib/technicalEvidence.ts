@@ -1,3 +1,4 @@
+import { technicalEvents } from '../../functions/src/narrated/compatibility';
 import { analyseActions, type TechnicalStats } from "../../functions/src/matchAnalysis";
 import type { ClubMatch, MatchEvent } from "./clubData";
 import { dateMillis, isVisibleMatch } from "../../functions/src/matchEngine";
@@ -10,14 +11,14 @@ export interface EvidenceSelection {
 }
 export interface ActionEvidence { match: ClubMatch; event: MatchEvent; contribution: number }
 
-/** Ask the counting engine itself which actions contribute. This keeps derived metrics (a failed
- * pass is also a turnover, a goal is also a shot, a receiver earns a reception) exactly in sync. */
+/** Ask the counting engine itself which actions contribute. This keeps derived metrics (a
+ * goal is also a shot and a receiver earns a reception) exactly in sync. */
 export function technicalEvidence(matches: readonly ClubMatch[], selection: EvidenceSelection): ActionEvidence[] {
   const evidence: ActionEvidence[] = [];
   for (const match of matches) {
     if (!isVisibleMatch(match)) continue;
     const seen = new Set<string>();
-    for (const event of match.events ?? []) {
+    for (const event of technicalEvents(match)) {
       if (seen.has(event.id)) continue;
       seen.add(event.id);
       if (selection.receiverId && event.receiverId !== selection.receiverId) continue;

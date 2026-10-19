@@ -1,3 +1,4 @@
+import { narrationSourcesSchema } from './narrated/schema.js';
 import { onCall } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { z } from "zod";
@@ -44,11 +45,12 @@ export const saveMatchSheet = onCall(async (req) => {
     z.object({
       id: idSchema,
       sheet: sheetSchema,
+      sources: narrationSourcesSchema.optional(),
       draft: z.boolean().default(false),
     }),
     req.data,
   );
-  return publishSheet({ id: input.id, sheet: input.sheet as MatchSheet, draft: input.draft, uid });
+  return publishSheet({ id: input.id, sheet: input.sheet as MatchSheet, draft: input.draft, sources: input.sources, uid });
 });
 /**
  * MVP tally: members write their own vote (matches/{id}/votes/{uid}, validated by the

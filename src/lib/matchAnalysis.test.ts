@@ -62,9 +62,9 @@ describe("narrated football actions", () => {
   ];
   it("counts subsets and derived outcomes once, including network direction", () => {
     const a = analyseActions(events);
-    expect(a.players.a).toMatchObject({passes:4,passesCompleted:2,passesFailed:1,passesUnknown:1,crosses:1,keyPasses:1,turnovers:1});
+    expect(a.players.a).toMatchObject({passes:4,passesCompleted:2,passesFailed:1,passesUnknown:1,crosses:1,keyPasses:1,turnovers:0});
     expect(a.players.b).toMatchObject({passesReceived:2,shots:3,shotsOnTarget:1,shotsOffTarget:1,shotsWoodwork:1,shotGoals:1});
-    expect(a.players.c).toMatchObject({interceptions:1,recoveries:1,turnovers:1});
+    expect(a.players.c).toMatchObject({interceptions:1,recoveries:0,turnovers:0});
     expect(a.teams.opponent.shotsOnTarget).toBe(1);
     expect(a.links).toEqual([{from:"a",to:"b",count:2,crosses:1}]);
     expect(ratio(0,0)).toBeNull();
@@ -72,6 +72,23 @@ describe("narrated football actions", () => {
   it("deduplicates ids inside a match, while counting same ids from different matches", () => {
     expect(analyseActions([...events,...events]).teams.us.passes).toBe(4);
     expect(technicalAnalysis([{id:"x",events},{id:"y",events}]).teams.us.passes).toBe(8);
+  });
+  it("requires a narrated loss or recovery instead of guessing the control after a failed action", () => {
+    const uncertain: MatchEvent[] = [
+      { id: "failed", type: "pass", playerId: "a", outcome: "incomplete" },
+      { id: "cut", type: "interception", playerId: "b" },
+      { id: "dribble", type: "dribble", playerId: "c", outcome: "lost" },
+      { id: "clear", type: "clearance", playerId: "c" },
+      { id: "block", type: "block", playerId: "b" },
+    ];
+    expect(analyseActions(uncertain).teams.us).toMatchObject({ passesFailed: 1, interceptions: 1, dribbles: 1, clearances: 1, blocks: 1, turnovers: 0, recoveries: 0 });
+    const explicit = analyseActions([...uncertain,
+      { id: "loss", type: "possession_lost", playerId: "a" },
+      { id: "control", type: "recovery", playerId: "b" },
+    ]);
+    expect(explicit.teams.us).toMatchObject({ turnovers: 1, recoveries: 1 });
+    expect(explicit.players.a.turnovers).toBe(1);
+    expect(explicit.players.b.recoveries).toBe(1);
   });
   it("validates recipients, success and pitch availability", () => {
     expect(actionProblem({id:"x",type:"pass",outcome:"incomplete",receiverId:"a"})).toMatch(/receptor/);

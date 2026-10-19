@@ -114,6 +114,8 @@ export function fromMatch(m: MatchLike, note = ""): MatchSheet {
     duration: m.duration ?? 60,
     ...(m.clock ? { clock: m.clock } : {}),
     ...(m.durationSeconds != null ? { durationSeconds: m.durationSeconds } : {}),
+    ...(m.analysis ? { analysis: m.analysis } : {}),
+    ...(m.narrationSources ? { narrationSources: m.narrationSources } : {}),
     ...(m.analysisCoverage ? { analysisCoverage: m.analysisCoverage } : {}),
     ...(m.analysisNotes ? { analysisNotes: m.analysisNotes } : {}),
     venue: m.venue ?? "",
@@ -285,7 +287,8 @@ export function upsertEvent(sheet: MatchSheet, event: MatchEvent): MatchSheet {
 }
 /** Changing the season empties the convocatoria and the events (other players, other acta). */
 export function changeSeason(sheet: MatchSheet, seasonId: string): MatchSheet {
-  return { ...sheet, seasonId, starters: [], bench: [], notCalled: [], events: [] };
+  const { analysis: _oldAnalysis, narrationSources: _oldSources, ...rest } = sheet;
+  return { ...rest, seasonId, starters: [], bench: [], notCalled: [], events: [] };
 }
 
 // ───────────────────────── review & save ─────────────────────────
@@ -359,6 +362,7 @@ export function toPayload(sheet: MatchSheet, draft: boolean, nameOf: NameOf, riv
     date: sheet.date,
     duration: sheet.duration,
     ...(sheet.durationSeconds != null ? { durationSeconds: sheet.durationSeconds } : {}),
+    ...(sheet.analysis ? { analysis: sheet.analysis } : {}),
     ...(sheet.analysisCoverage ? { analysisCoverage: sheet.analysisCoverage } : {}),
     ...(sheet.analysisNotes ? { analysisNotes: sheet.analysisNotes } : {}),
     venue: sheet.venue.trim(),

@@ -1,4 +1,4 @@
-import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
+import { AnalysisPanels } from "../../components/celeste/AnalysisPanels";
 import { downloadMatchPoster } from "./lazy";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
@@ -54,7 +54,6 @@ import { Campo } from "./vidrio/Campo";
 import { withGuestNames } from "../../lib/derived/guests";
 import { matchTabAt, matchTabIndex } from "../../lib/matchTabs";
 import { tabForKey } from "../../lib/tabKeys";
-import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import "../../styles/celeste/page.css";
 import "../../styles/partidos.css";
 import "../../styles/ficha.css";
@@ -181,7 +180,8 @@ export function MatchPage() {
   const { matchId } = route.useParams();
   // The tab lives in the URL (?tab=campo…): a push or a shared link opens it, and each tab change is
   // a history entry, so back and forward step through the tabs. No tab (or an unknown one) = the first.
-  const active = matchTabIndex(route.useSearch().tab);
+  const search = route.useSearch();
+  const active = matchTabIndex(search.tab);
   const navigate = useNavigate();
   const setTab = (i: number) => {
     if (i !== active) void navigate({ to: ".", search: (prev) => ({ ...prev, tab: matchTabAt(i) }), resetScroll: false });
@@ -325,7 +325,6 @@ export function MatchPage() {
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
   const LABELS: Record<number, string> = { 0: firstTab, 1: "Alineación", 2: "Pulso", 3: "Vestuario", 4: "Números" };
   // «Números» reads the narrated actions (passes, shots, tackles…): without any, a short line.
-  const analysed = hasAnalysisActions([match]);
   // before the whistle, on its day: the seven the pizarra published stands beside the previa
   const lineup = parseMatchLineup((match as ClubMatch & { lineup?: unknown }).lineup);
   const today = Number.isFinite(dateMillis(match.date)) && madridDate(dateMillis(match.date)) === madridDate(now);
@@ -480,7 +479,7 @@ export function MatchPage() {
           ))}
         </div>
       </div>
-      <div className={`fc-pane mp-pane vd-reg-3${(active === 0 && done) || (active === 4 && analysed) ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
+      <div className={`fc-pane mp-pane vd-reg-3${(active === 0 && done) || active === 4 ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
         <ShirtDefs />
         {active === 0 &&
           (done ? (
@@ -512,11 +511,7 @@ export function MatchPage() {
         {active === 4 && (
           <>
             {cardMode && <LiveSide match={match} players={players} nameOf={nameOf} now={now} />}
-            {analysed ? (
-              <TechnicalStatsPanel matches={[match]} people={players.map((p) => ({ id: p.id, name: nameOf(p.id), number: p.number }))} seasonId={match.seasonId} />
-            ) : (
-              !cardMode && <StatePanel kind="empty" compact title="Sin análisis de este partido" body="Nadie ha narrado sus jugadas: pases, remates, entradas… Cuando el acta las apunte, el juego en detalle saldrá aquí." />
-            )}
+            <AnalysisPanels matches={[match]} people={players.map(p => ({ id: p.id, name: nameOf(p.id), number: p.number }))} seasonId={match.seasonId} matchId={match.id} search={search} onSearchChange={patch => void navigate({ to: ".", search: previous => ({ ...previous, ...patch }), replace: !!patch.q, resetScroll: false })}/>
           </>
         )}
         {active === 3 && <VestuarioTab match={match} matches={matches} players={players} phase={phase} ratings={ratings.data} ratingsError={ratings.error} />}

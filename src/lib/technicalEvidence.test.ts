@@ -14,13 +14,13 @@ const events: MatchEvent[] = [
 ];
 const matches: ClubMatch[] = [{ id: "m", date: 100, events: [...events, events[0]] }, { id: "n", date: 200, events }];
 describe("the source of a technical figure", () => {
-  it("reconciles every metric with the counting engine, including goals as shots and passes as losses", () => {
+  it("reconciles every metric with the counting engine, including goals as shots, without inventing a loss from a failed pass", () => {
     const stats = technicalAnalysis(matches);
     for (const metric of TECH_KEYS) {
       for (const side of ["us", "opponent"] as const) expect(technicalEvidence(matches, { metric, side }).reduce((n, r) => n + r.contribution, 0), `${side}/${metric}`).toBe(stats.teams[side][metric]);
       for (const playerId of ["a", "b"]) expect(technicalEvidence(matches, { metric, playerId }).reduce((n, r) => n + r.contribution, 0), `${playerId}/${metric}`).toBe(stats.players[playerId][metric]);
     }
-    expect(technicalEvidence(matches, { metric: "turnovers", playerId: "a" }).map(r => r.event.id)).toEqual(["f", "f"]);
+    expect(technicalEvidence(matches, { metric: "turnovers", playerId: "a" }).map(r => r.event.id)).toEqual([]);
     expect(technicalEvidence(matches, { metric: "shotsOnTarget", playerId: "b" }).map(r => r.event.id)).toEqual(["g", "g"]);
   });
   it("keeps match identity, recipients and unknown times, without mixing opponents", () => {

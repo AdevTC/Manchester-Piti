@@ -22,3 +22,5 @@
 .ae-review-questions>h4,.ae-review-questions>p{margin:0}
 .ae-review-muted{color:var(--muted)}
 .ae-question textarea{min-height:72px}
+
+.ae-observations{margin-top:20px;min-width:0}.ae-observations pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 'Geist Mono',monospace;color:var(--soft);max-height:320px;overflow:auto}.ae-observations h4{margin:12px 0;font-size:16px}

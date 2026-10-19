@@ -135,9 +135,9 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
     }
     setBusy(draft ? "draft" : "publish");
     try {
-      await saveMatchSheet({ id: match.id, sheet: p.sheet, draft });
-      const saved = draft ? buf.value : { ...buf.value, revision: (buf.value.revision ?? 0) + 1 };
-      if (!draft) buf.set((v) => ({ ...v, revision: saved.revision }));
+      await saveMatchSheet({ id: match.id, sheet: p.sheet, draft, ...(sheet.narrationSources?.length ? { sources: sheet.narrationSources } : {}) });
+      const saved = draft ? buf.value : { ...buf.value, revision: (buf.value.revision ?? 0) + 1, ...(buf.value.analysis ? { analysis: { ...buf.value.analysis, revision: buf.value.analysis.revision + 1 } } : {}) };
+      if (!draft) buf.set(() => saved);
       buf.commit(saved);
       setSavedAt(instant());
       return true;

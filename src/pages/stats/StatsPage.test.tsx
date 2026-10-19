@@ -132,10 +132,11 @@ describe("StatsPage · Posiciones", () => {
 });
 
 describe("StatsPage · Análisis del juego", () => {
-  it("no acta of the period narrates its plays (goals only): a short line, not a panel of zeros", () => {
+  it("goals-only acts retain the catalogue and explain what the graphical summary needs", () => {
     search.value = { view: "game" };
     render(<StatsPage />);
-    expect(screen.getByText(/Ningún partido de este período tiene sus jugadas narradas/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "El análisis empieza con las jugadas" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Catálogo de estadísticas" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Estadísticas detalladas" })).toBeNull();
   });
 
@@ -147,6 +148,31 @@ describe("StatsPage · Análisis del juego", () => {
     const panel = screen.getByRole("region", { name: "Estadísticas detalladas" });
     expect(within(panel).getByRole("heading", { name: "El Piti y el rival" })).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: /^Conexiones dirigidas/ })).getAllByRole("link").map((a) => a.textContent)).toEqual(["PUNTA", "LATERAL"]);
+  });
+});
+
+describe("StatsPage · shareable scopes", () => {
+  it("keeps an explicit unknown match empty instead of displaying all matches", () => {
+    search.value = { view: "game", analysis: "catalog", matches: ["removed"] };
+    render(<StatsPage/>);
+    expect(screen.getByText("0 partidos en la selección")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Estadísticas del catálogo" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Carrera del Pichichi" })).not.toBeInTheDocument();
+  });
+  it("projects selected players while retaining the full match for passing recipients", () => {
+    search.value = { view: "game", players: ["dc"] };
+    render(<StatsPage/>);
+    const table = screen.getByRole("table", { name: "Estadísticas de los jugadores seleccionados" });
+    expect(within(table).getByRole("rowheader", { name: "PUNTA" })).toBeInTheDocument();
+    expect(within(table).queryByRole("rowheader", { name: "LATERAL" })).not.toBeInTheDocument();
+    expect(screen.getByText("1 partido en la selección")).toBeInTheDocument();
+  });
+  it("writes plural seasons with season=all and clears the previous match subset", () => {
+    search.value = { view: "game", matches: ["j1"] };
+    render(<StatsPage/>);
+    fireEvent.click(screen.getByLabelText("Temporada 1"));
+    const call = navigate.mock.lastCall?.[0] as { search: (previous: Record<string, unknown>) => Record<string, unknown> };
+    expect(call.search({ season: "saved", matches: ["j1"], view: "game" })).toMatchObject({ season: "all", seasons: ["t1"], matches: undefined, view: "game" });
   });
 });
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { analysisSearchFields } from "./analysisSearch";
 
 /**
  * The match page's tabs, in order, as they read in the URL (/matches/<id>?tab=vestuario).
@@ -11,6 +12,7 @@ export type MatchTab = (typeof MATCH_TABS)[number];
 
 /** The match route's `validateSearch`: an unknown or absent tab reads as the first one. */
 export const matchSearchSchema = z.object({
+  ...analysisSearchFields,
   tab: z.enum(MATCH_TABS).optional().catch(undefined),
 });
 

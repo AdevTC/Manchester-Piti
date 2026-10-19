@@ -31,7 +31,7 @@ export interface ActionDetails {
   source?: "live" | "narration" | "manual";
   sourceRef?: string;
 }
-export interface AnalysisEvent extends ActionDetails { id: string; type: string; minute?: number; playerId?: string; assistPlayerId?: string; note?: string; dupOf?: string; dupOk?: boolean }
+export interface AnalysisEvent extends ActionDetails { quantity?: number; countsAsPass?: boolean; onTarget?: boolean; woodwork?: boolean; id: string; type: string; minute?: number; playerId?: string; assistPlayerId?: string; note?: string; dupOf?: string; dupOk?: boolean }
 export const TECH_KEYS = ["passes", "passesCompleted", "passesFailed", "passesUnknown", "passesReceived", "keyPasses", "longPasses", "longPassesCompleted", "crosses", "crossesCompleted", "shots", "shotsOnTarget", "shotsOffTarget", "shotsBlocked", "shotsWoodwork", "shotGoals", "shotAssists", "chancesCreated", "turnovers", "recoveries", "interceptions", "tackles", "tacklesWon", "tacklesUnknown", "clearances", "blocks", "saves", "dribbles", "dribblesWon", "duels", "duelsWon", "aerialDuels", "aerialDuelsWon", "fouls", "foulsReceived", "throwIns", "goalKicks", "kickoffs", "offsides", "carries", "touches", "cornersTaken", "possessionsSeconds", "recordedActions"] as const;
 export type TechnicalStats = Record<typeof TECH_KEYS[number], number>;
 export const emptyTechnical = (): TechnicalStats => Object.fromEntries(TECH_KEYS.map(k => [k, 0])) as TechnicalStats;
@@ -66,40 +66,40 @@ export function analyseActions(events: readonly AnalysisEvent[]) {
     seen.add(e.id);
     // A pending duplicate (la mesa's «¿Es la misma jugada?», matchEngine isPendingDup) counts once: its earlier twin counts.
     if (typeof e.dupOf === "string" && e.dupOf !== "" && e.dupOk !== true) continue;
+    const quantity = Number.isFinite(e.quantity) && e.quantity! > 0 ? e.quantity! : 1;
     const side = eventSide(e);
     const team = teams[side];
     const row = side === "us" && e.playerId && !isGuestId(e.playerId) ? player(e.playerId) : undefined;
-    const add = (k: keyof TechnicalStats, n = 1) => { team[k] += n; if (row) row[k] += n; };
+    const add = (k: keyof TechnicalStats, n = 1) => { team[k] += n * quantity; if (row) row[k] += n * quantity; };
     const goal = ["goal", "goal_penalty", "goal_freekick", "opponent_goal"].includes(e.type);
-    const pass = e.type === "pass" || e.type === "cross";
+    const pass = e.countsAsPass ?? (e.type === "pass" || e.type === "cross");
     if (isAnalysisAction(e.type) || goal || ["chance", "opponent_chance", "corner", "opponent_corner", "woodwork", "penalty_saved", "penalty_missed", "opponent_foul", "opponent_woodwork", "opponent_offside", "opponent_penalty_missed"].includes(e.type)) add("recordedActions");
+    const cross = e.type === "cross" || e.delivery === "cross";
+    if (cross) { add("crosses"); if (e.outcome === "complete") add("crossesCompleted"); }
     if (pass) {
       add("passes"); add(e.outcome === "complete" ? "passesCompleted" : e.outcome === "incomplete" ? "passesFailed" : "passesUnknown");
-      if (e.outcome === "incomplete") add("turnovers");
       if (e.delivery === "long") { add("longPasses"); if (e.outcome === "complete") add("longPassesCompleted"); }
-      const cross = e.type === "cross" || e.delivery === "cross";
-      if (cross) { add("crosses"); if (e.outcome === "complete") add("crossesCompleted"); }
       if (e.keyPass) add("keyPasses");
       if (side === "us" && e.outcome === "complete" && e.receiverId) {
-        player(e.receiverId).passesReceived++; team.passesReceived++;
-        if (e.playerId && !isGuestId(e.playerId) && !isGuestId(e.receiverId)) { const key = `${e.playerId}>${e.receiverId}`; const edge = links.get(key) ?? { from: e.playerId, to: e.receiverId, count: 0, crosses: 0 }; edge.count++; if (cross) edge.crosses++; links.set(key, edge); }
+        player(e.receiverId).passesReceived += quantity; team.passesReceived += quantity;
+        if (e.playerId && !isGuestId(e.playerId) && !isGuestId(e.receiverId)) { const key = `${e.playerId}>${e.receiverId}`; const edge = links.get(key) ?? { from: e.playerId, to: e.receiverId, count: 0, crosses: 0 }; edge.count += quantity; if (cross) edge.crosses += quantity; links.set(key, edge); }
       }
     }
     if (e.type === "shot" || goal || ["woodwork", "penalty_missed", "opponent_woodwork", "opponent_penalty_missed"].includes(e.type)) {
       add("shots"); shots.push(e);
       if (goal) { add("shotGoals"); add("shotsOnTarget"); }
-      else if (e.type === "woodwork" || e.type === "opponent_woodwork" || e.outcome === "woodwork") add("shotsWoodwork");
-      else if (e.outcome === "on_target") add("shotsOnTarget");
-      else if (e.outcome === "off_target") add("shotsOffTarget");
-      else if (e.outcome === "blocked") add("shotsBlocked");
-      if (e.assistPlayerId && side === "us") { player(e.assistPlayerId).shotAssists++; team.shotAssists++; }
+      else {
+        if (e.type === "woodwork" || e.type === "opponent_woodwork" || e.outcome === "woodwork" || e.woodwork) add("shotsWoodwork");
+        if (e.outcome === "on_target" || e.onTarget) add("shotsOnTarget");
+        if (e.outcome === "off_target") add("shotsOffTarget");
+        if (e.outcome === "blocked") add("shotsBlocked");
+      }
+      if (e.assistPlayerId && side === "us") { player(e.assistPlayerId).shotAssists += quantity; team.shotAssists += quantity; }
     }
     const singles: Record<string, keyof TechnicalStats> = { chance: "chancesCreated", opponent_chance: "chancesCreated", possession_lost: "turnovers", recovery: "recoveries", interception: "interceptions", clearance: "clearances", block: "blocks", save: "saves", penalty_saved: "saves", foul: "fouls", opponent_foul: "fouls", foul_received: "foulsReceived", opponent_offside: "offsides", throw_in: "throwIns", goal_kick: "goalKicks", kickoff: "kickoffs", offside: "offsides", carry: "carries", touch: "touches", corner: "cornersTaken", opponent_corner: "cornersTaken" };
     if (singles[e.type]) add(singles[e.type]);
-    if (e.type === "interception") add("recoveries");
     if (e.type === "tackle" && e.outcome !== "won" && e.outcome !== "lost") add("tacklesUnknown");
     for (const [type, attempts, won] of [["tackle", "tackles", "tacklesWon"], ["dribble", "dribbles", "dribblesWon"], ["duel", "duels", "duelsWon"], ["aerial_duel", "aerialDuels", "aerialDuelsWon"]] as const) if (e.type === type) { add(attempts); if (e.outcome === "won") add(won); }
-    if (e.type === "dribble" && e.outcome === "lost") add("turnovers");
     if (e.type === "possession") add("possessionsSeconds", e.possessionSeconds ?? 0);
   }
   return { teams, players, links: [...links.values()], shots };

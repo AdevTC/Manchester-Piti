@@ -54,7 +54,7 @@ export interface SetConvocatoriaResult {
 }
 export const setConvocatoria = httpsCallable<SetConvocatoriaInput, SetConvocatoriaResult>(functions, "setConvocatoria");
 export const saveMatchSheet = httpsCallable<
-  { id: string; sheet: MatchSheet; draft: boolean },
+  { id: string; sheet: MatchSheet; draft: boolean; sources?: MatchSheet["narrationSources"] },
   { id: string }
 >(functions, "saveMatchSheet");
 export const requestPlayerClaim = httpsCallable<{ playerId: string }, { ok: boolean; linked: boolean }>(

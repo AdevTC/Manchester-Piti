@@ -8,12 +8,19 @@ const questionSchema = z.union([z.string().max(400), z.object({
   eventIds: z.array(z.string()).max(100).default([]), sourceRef: z.string().max(160).optional(),
   resolution: z.string().max(400).optional(),
 })]);
-const bundleSchema = z.object({
+import { analysisProblem, narratedAnalysisSchema, narrationSourcesSchema, observationSchema } from '../../functions/src/narrated/schema';
+import type { Observation } from '../../functions/src/narrated/types';
+import { narrationPrompt } from './narrationPrompt';
+
+const legacyBundleSchema = z.object({
   format: z.literal("piti-actions/v1"), matchId: z.string(), baseRevision: z.number().int().min(0),
   coverage: z.enum(["partial", "complete"]).default("partial"), notes: z.string().max(2000).default(""),
   unresolved: z.array(questionSchema).max(100).default([]), events: z.array(eventSchema).max(2500),
 });
+const richBundleSchema = legacyBundleSchema.extend({ format: z.literal("piti-actions/v2"), events: z.array(eventSchema).max(2500).default([]), analysis: narratedAnalysisSchema, sources: narrationSourcesSchema.default([]) });
+const bundleSchema = z.discriminatedUnion('format', [legacyBundleSchema, richBundleSchema]);
 function readBundle(text: string) {
+  if (new TextEncoder().encode(text).byteLength > 900000) throw new Error('El archivo supera 900 KB.');
   let json: unknown;
   try { json = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch { throw new Error("No se puede leer el archivo de acciones. Pega el JSON completo generado a partir de la narración."); }
   const parsed = bundleSchema.safeParse(json);
@@ -44,12 +51,38 @@ export function previewNarration(text: string, matchId: string, sheet: MatchShee
     merged.set(e.id, after);
   }
   if (merged.size > 2500) throw new Error("El acta admite 2500 acciones. Divide el análisis en menos acciones o revisa duplicados.");
-  const questions = b.unresolved.map((q, index) => ({ index, ...(typeof q === "string" ? { question: q, playerIds: [], eventIds: [], resolution: undefined, sourceRef: undefined } : q) }));
-  const next = { ...sheet, events: [...merged.values()], analysisCoverage: b.coverage, analysisNotes: b.notes };
+  const rich = b.format === 'piti-actions/v2';
+  const importedIssues = rich ? (b.analysis.issues ?? []).map(q => ({ question: q.message, playerIds: [] as string[], eventIds: q.eventIds, resolution: q.resolved, sourceRef: undefined })) : [];
+  const questions = [...b.unresolved, ...importedIssues].map((q, index) => ({ index, ...(typeof q === "string" ? { question: q, playerIds: [], eventIds: [], resolution: undefined, sourceRef: undefined } : q) }));
+  let analysis = sheet.analysis;
+  const observationChanges: { kind: 'added' | 'updated' | 'unchanged'; before?: Observation; after: Observation }[] = [];
+  if (rich) {
+    if (new Set(b.analysis.observations.map(o => o.id)).size !== b.analysis.observations.length) throw new Error('Hay identificadores de observación repetidos dentro del análisis.');
+    if (b.analysis.revision !== (sheet.analysis?.revision ?? 0)) throw new Error('El análisis detallado ha cambiado. Copia de nuevo el contexto antes de importar.');
+    const observations = new Map((sheet.analysis?.observations ?? []).map(o => [o.id, o]));
+    for (const o of b.analysis.observations) {
+      const before = observations.get(o.id);
+      observationChanges.push({ kind: before ? JSON.stringify(before) === JSON.stringify(o) ? 'unchanged' : 'updated' : 'added', before, after: o });
+      observations.set(o.id, o);
+    }
+    const issues = new Map((sheet.analysis?.issues ?? []).map(q => [q.id,q]));
+    for (const q of b.analysis.issues ?? []) issues.set(q.id,q);
+    const pending = new Set([...issues.values()].filter(q => !q.resolved?.trim()).flatMap(q => q.eventIds));
+    analysis = { ...b.analysis, observations: [...observations.values()].map(o => pending.has(o.id) || (o.canonicalEventId && pending.has(o.canonicalEventId)) ? { ...o, validity: 'pending' as const } : o), issues: [...issues.values()] };
+    const issue = analysisProblem(analysis, [...merged.values()], [...sheet.starters,...sheet.bench,...sheet.notCalled], sheet.durationSeconds ?? sheet.duration * 60);
+    if (issue) throw new Error(issue);
+  }
+  for (const change of observationChanges) change.after = analysis?.observations.find(o => o.id === change.after.id) ?? change.after;
+  const sources = new Map((sheet.narrationSources ?? []).map(s => [s.id,s]));
+  if (rich) for (const source of b.sources) sources.set(source.id,source);
+  for (const q of questions) if (q.resolution?.trim() || q.sourceRef) { const id = `question-${b.baseRevision}-${q.index}`; sources.set(id,{ id,quote: [q.question,q.sourceRef,q.resolution].filter(Boolean).join(' · ').slice(0,1000) }); }
+  narrationSourcesSchema.parse([...sources.values()]);
+  const next = { ...sheet, events: [...merged.values()], analysisCoverage: b.coverage, analysisNotes: b.notes, ...(analysis ? { analysis } : {}), ...(sources.size ? { narrationSources: [...sources.values()] } : {}) };
+  if (new TextEncoder().encode(JSON.stringify(next)).byteLength > 800000) throw new Error('El análisis y sus fuentes son demasiado grandes para un acta. Reduce los fragmentos.');
   const ledger = calculateLedger(next, false, { allowUnattributedGoals: true });
-  const errors = [...questions.filter(q => !q.resolution?.trim()).map(q => q.question), ...ledger.errors];
+  const errors = [...questions.filter((q, index) => !q.resolution?.trim() && (!rich || index < b.unresolved.length)).map(q => q.question), ...ledger.errors];
   return { sheet: { ...next, goalsFor: ledger.goalsFor, goalsAgainst: ledger.goalsAgainst }, errors, validationErrors: ledger.errors, baseFingerprint: JSON.stringify(sheet),
-    questions, changes, added: changes.filter(c => c.kind === "added").length,
+    format: b.format, observationChanges, sources: rich ? b.sources : [], questions, changes, added: changes.filter(c => c.kind === "added").length,
     updated: changes.filter(c => c.kind === "updated").length, unchanged: changes.filter(c => c.kind === "unchanged").length,
     unknownTime: b.events.filter(e => e.timingUnknown).length };
 }
@@ -63,12 +96,24 @@ export function correctNarrationEvent(text: string, event: MatchEvent): string {
 /** A human resolution is explicit and reviewable; it never guesses or silently rewrites an action. */
 export function resolveNarrationQuestion(text: string, index: number, resolution: string): string {
   const b = readBundle(text);
+  if (b.format === 'piti-actions/v2' && index >= b.unresolved.length) {
+    const q = b.analysis.issues?.[index - b.unresolved.length];
+    if (!q || !resolution.trim()) throw new Error('Explica cómo se ha resuelto la duda.');
+    q.resolved = resolution.trim();
+    return JSON.stringify(bundleSchema.parse(b), null, 2);
+  }
   const question = b.unresolved[index];
   if (question == null) throw new Error("La duda ya no está en la importación. Vuelve a revisarla.");
   if (!resolution.trim()) throw new Error("Explica cómo has resuelto la duda y corrige las acciones afectadas antes de confirmar.");
   b.unresolved[index] = typeof question === "string" ? { question, playerIds: [], eventIds: [], resolution: resolution.trim() } : { ...question, resolution: resolution.trim() };
   return JSON.stringify(bundleSchema.parse(b), null, 2);
 }
+export function correctNarrationObservation(text: string, observation: Observation): string {
+  const b = readBundle(text);
+  if (b.format !== 'piti-actions/v2' || !b.analysis.observations.some(o => o.id === observation.id)) throw new Error('Esta observación no está en la importación.');
+  b.analysis.observations = b.analysis.observations.map(o => o.id === observation.id ? observationSchema.parse(observation) : o);
+  return JSON.stringify(b, null, 2);
+}
 export function narrationContext(matchId: string, sheet: MatchSheet, roster: { id: string; name: string; number: number | null }[]) {
-  return JSON.stringify({ format: "piti-context/v1", matchId, baseRevision: sheet.revision ?? 0, rival: sheet.rival, date: sheet.date, duration: sheet.duration, durationSeconds: sheet.durationSeconds, clock: sheet.clock, starters: sheet.starters, bench: sheet.bench, roster, existingEvents: sheet.events, instructions: "Devuelve piti-actions/v1 con los mismos matchId y baseRevision. Conserva los ids de jugadas existentes al corregirlas y usa ids estables para las nuevas. Nunca dupliques un gol como remate, un pase fallado como pérdida ni una intercepción como recuperación. No inventes autor, receptor, minuto, coordenadas ni resultado. Usa timingUnknown:true solo en acciones técnicas sin tiempo; los goles y cambios necesitan minuto. Los segundos de juego excluyen el descanso. outcome: complete/incomplete en pases; on_target/off_target/blocked/woodwork en tiros; won/lost en duelos. Marca coverage:partial salvo narración íntegra. En sourceRef conserva el fragmento literal de la narración que sustenta cada acción (máximo 160 caracteres), si existe. Detalla dudas en unresolved como objetos {question, playerIds, eventIds, sourceRef}; vincula solo ids conocidos, sin inventarlos. No rellenes resolution: la resuelve la persona que revisa. No publiques hasta resolverlas." }, null, 2);
+  return narrationPrompt(matchId, sheet, roster);
 }

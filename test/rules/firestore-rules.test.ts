@@ -82,6 +82,17 @@ afterAll(async () => {
   await env?.cleanup();
 });
 describe("Publicación y cálculo del backend", () => {
+  it("las fuentes e historial de narración son privados del administrador e inmutables desde cliente", async () => {
+    const path = "matchPrivate/m/analysisHistory/revision-1";
+    await seed(path, { sources: [{ id: "source", quote: "Evidencia de prueba privada" }] });
+    await assertSucceeds(getDoc(doc(db("admin"), path)));
+    await assertSucceeds(getDocs(collection(db("admin"), "matchPrivate/m/analysisHistory")));
+    await assertFails(getDoc(doc(db("member"), path)));
+    await assertFails(getDoc(doc(db(), path)));
+    await assertFails(getDocs(collection(db("member"), "matchPrivate/m/analysisHistory")));
+    await assertFails(setDoc(doc(db("admin"), path), { sources: [] }));
+    await assertFails(deleteDoc(doc(db("admin"), path)));
+  });
   for (const coll of [
     "players",
     "seasons",

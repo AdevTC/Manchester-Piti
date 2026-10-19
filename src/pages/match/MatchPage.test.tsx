@@ -141,13 +141,23 @@ describe("MatchPage · the tab in the URL", () => {
     expect(router.history.length).toBe(before);
   });
 
-  it("«Números» of a match nobody narrated (goals only): the tab stays, a short line instead of the panel", async () => {
+  it("«Números» keeps the catalogue and a scoped global link even for goals-only acts", async () => {
     open("/matches/j2?tab=estadisticas");
-    const empty = await screen.findByRole("region", { name: "Sin análisis de este partido" });
-    expect(empty).toHaveTextContent(/Nadie ha narrado sus jugadas/);
+    expect(await screen.findByRole("heading", { name: "El análisis empieza con las jugadas" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Catálogo de estadísticas" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Abrir esta selección en Números ↗" })).toHaveAttribute("href", expect.stringContaining("matches="));
     expect(screen.queryByText("pane:estadisticas")).toBeNull();
     expect(selected()).toBe("Números");
-    expect(screen.getByRole("tabpanel")).not.toHaveClass("wide");
+    expect(screen.getByRole("tabpanel")).toHaveClass("wide");
+  });
+  it("catalogue, family and player scope survive the match URL and back navigation", async () => {
+    const router = open('/matches/j1?tab=estadisticas&analysis=catalog&metric=067&players=%5B%22p1%22%5D');
+    expect(await screen.findByRole("heading", { name: "Pases intentados" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Catálogo de estadísticas" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Resumen del juego" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ tab: "estadisticas", analysis: "summary", players: ["p1"], metric: "067" }));
+    act(() => router.history.back());
+    expect(await screen.findByRole("heading", { name: "Pases intentados" })).toBeInTheDocument();
   });
 });
 

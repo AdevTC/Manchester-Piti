@@ -88,10 +88,39 @@ sheet={...sheet,duration:m.duration,durationSeconds:m.durationSeconds,revision:m
 await denied("saveMatchSheet",admin,{id:matchId,sheet:{...sheet,events:[...sheet.events,{id:"wrong-team",type:"goal",minute:5,playerId:ids[1],team:"opponent"}]}},"INVALID_ARGUMENT");
 await denied("saveMatchSheet",admin,{id:matchId,sheet:{...sheet,events:[...sheet.events,{id:"wrong-assist",type:"shot",minute:5,playerId:ids[1],assistPlayerId:ids[2],outcome:"off_target"}]}},"INVALID_ARGUMENT");
 await ok("saveMatchSheet",admin,{id:matchId,sheet});m=await snap();
-assert.equal(m.ledger[ids[0]].passesCompleted,1);assert.equal(m.ledger[ids[0]].passesFailed,1);assert.equal(m.ledger[ids[2]].recoveries,1);checks+=3;
+assert.equal(m.ledger[ids[0]].passesCompleted,1);assert.equal(m.ledger[ids[0]].passesFailed,1);assert.equal(m.ledger[ids[2]].recoveries,0);checks+=3;
 assert.deepEqual((await db.doc(`matchPrivate/${matchId}`).get()).get("scorerUids"),[scorer.uid]);checks++;
 for(let i=0;i<2;i++){sheet={...sheet,revision:m.revision,events:sheet.events.filter(e=>e.id!=="pass-2")};await ok("saveMatchSheet",admin,{id:matchId,sheet});m=await snap();}
 const totals=await db.collection("playerSeasonStats").where("seasonId","==",seasonId).get();const total=totals.docs.find(d=>d.get("playerId")===ids[0]).get("totals");
 assert.equal(total.passesCompleted,1);assert.equal(total.passesFailed,0);assert.equal(total.turnovers,0);assert.equal(total.shots,2);assert.equal(total.secondsPlayed,m.ledger[ids[0]].secondsPlayed);checks+=5;
+// v2 rich facts are reviewed privately, then update the same ledger and season totals.
+const {DEFAULT_ANALYSIS_PROFILE}=await import('../lib/narrated/types.js');
+const analysis={version:2,revision:0,profile:DEFAULT_ANALYSIS_PROFILE,coverage:[{family:'pass',team:'us',state:'partial'}],observations:[
+ {id:'enriched-pass',kind:'pass',team:'us',actorId:ids[0],canonicalEventId:'pass-1',order:1,facts:{underPressure:true},provenance:{underPressure:{kind:'explicit',sourceId:'source-1'}}},
+ {id:'rich-pass',kind:'pass',team:'us',actorId:ids[0],receiverId:ids[1],order:2,time:{from:70,to:70,precision:'exact'},facts:{outcome:'complete'}},
+]};
+const sources=[{id:'source-1',quote:'Texto privado de prueba que no debe ser público.'}];
+sheet={...sheet,revision:m.revision,analysis,events:sheet.events.map(e=>e.id==='pass-1'?{...e,sourceRef:'Fragmento privado de una importación v1'}:e)};
+await denied('saveMatchSheet',scorer,{id:matchId,sheet,sources,draft:true},'PERMISSION_DENIED');
+await ok('saveMatchSheet',admin,{id:matchId,sheet,sources,draft:true});
+assert.equal((await snap()).analysis,undefined);checks++;
+assert.equal((await db.doc('matchDrafts/'+matchId).get()).get('narrationSources')[0].quote,sources[0].quote);checks++;
+await denied('saveMatchSheet',admin,{id:matchId,sheet:{...sheet,analysis:{...analysis,observations:[{...analysis.observations[0],actorId:'not-in-roster'}]}},sources},'INVALID_ARGUMENT');
+await denied('saveMatchSheet',admin,{id:matchId,sheet:{...sheet,analysis:{...analysis,observations:[{...analysis.observations[0],facts:{underPressure:'yes'}}]}},sources},'INVALID_ARGUMENT');
+await denied('saveMatchSheet',admin,{id:matchId,sheet:{...sheet,analysis:{...analysis,observations:[{...analysis.observations[0],facts:{transcript:'No publicar'}}]}},sources},'INVALID_ARGUMENT');
+await ok('saveMatchSheet',admin,{id:matchId,sheet,sources});m=await snap();
+assert.equal(m.analysis.revision,1);assert.equal(m.ledger[ids[0]].passesCompleted,2);assert.equal(m.events.find(e=>e.id==='pass-1').sourceRef,undefined);assert.equal(m.narrationSources,undefined);checks+=4;
+const historyRef=db.collection('matchPrivate/'+matchId+'/analysisHistory');
+const firstHistory=await historyRef.get();assert.ok(firstHistory.docs.some(d=>d.get('sources').some(s=>s.quote===sources[0].quote)));checks++;
+for(let i=0;i<2;i++){sheet={...sheet,revision:m.revision,analysis:{...analysis,revision:m.analysis.revision}};await ok('saveMatchSheet',admin,{id:matchId,sheet,sources});m=await snap();assert.equal(m.ledger[ids[0]].passesCompleted,2);checks++;}
+// An older client that omits the dataset cannot erase it.
+const {analysis:_unusedAnalysis,...oldClient}=sheet;
+await ok('saveMatchSheet',admin,{id:matchId,sheet:{...oldClient,revision:m.revision}});m=await snap();assert.equal(m.ledger[ids[0]].passesCompleted,2);assert.equal(m.analysis.observations.length,2);checks+=2;
+sheet={...sheet,revision:m.revision,analysis:{...analysis,revision:m.analysis.revision,observations:analysis.observations.map(o=>o.id==='rich-pass'?{...o,receiverId:undefined,facts:{outcome:'failed'}}:o)}};
+await ok('saveMatchSheet',admin,{id:matchId,sheet,sources});m=await snap();
+assert.equal(m.ledger[ids[0]].passesCompleted,1);assert.equal(m.ledger[ids[0]].passesFailed,1);assert.equal(m.ledger[ids[0]].turnovers,0);checks+=3;
+const richTotals=await db.collection('playerSeasonStats').where('seasonId','==',seasonId).get();
+assert.equal(richTotals.docs.find(d=>d.get('playerId')===ids[0]).get('totals.passesFailed'),1);checks++;
+const laterHistory=await historyRef.get();assert.ok(laterHistory.size>firstHistory.size);assert.ok(firstHistory.docs.every(d=>laterHistory.docs.some(n=>n.id===d.id)));checks+=2;
 console.log(`${checks} comprobaciones: reloj, concurrencia, permisos, reintentos, descanso, segundos, importación y acumulados correctos.`);
 await db.terminate();
