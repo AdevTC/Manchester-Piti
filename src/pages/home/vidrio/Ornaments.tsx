@@ -4,7 +4,8 @@
 import { useState, type CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
 import { dateMillis, type ClubMatch } from "../../../lib/clubData";
-import { mapsUrl, kitLabel } from "../../../lib/derived/venue";
+import { mapsUrl, kitLabel, venueInfo, venueMapsUrl } from "../../../lib/derived/venue";
+import { useClubContent } from "../../../lib/clubContent";
 import { madridTime } from "../../../lib/derived/madrid";
 import { sunTimes } from "../../../lib/derived/sun";
 import type { MatchWeather } from "../../../lib/weather";
@@ -103,7 +104,11 @@ export function PreviaOrn({ match, jornada, weather, hourly, homeVenue, classNam
   const home = match.home !== false;
   const venue = (home && homeVenue?.trim()) || venueName(match.venue ?? "") || (home ? "CDM Palomeras" : `Campo de ${match.rival ?? "el rival"}`);
   const place = useVenuePlace(venueName(match.venue ?? "") || (home ? "CDM Palomeras" : null));
-  const where = home ? `${place?.district ?? "Vallecas"}. Metro Portazgo, 8 min a pie.` : `En casa de ${match.rival ?? "el rival"}${place?.district ? `, en ${place.district}` : ""}.`;
+  // The ground's address and how to get there are the captains' (El club · Los campos, clubContent.venues):
+  // a ground without its entry says only where it is when the map knows it.
+  const info = venueInfo(match.venue || venue, useClubContent().venues);
+  const detail = info ? [info.address, info.transit].filter((x): x is string => !!x?.trim()).map((x) => endSentence(x)).join(" ") : "";
+  const where = home ? detail || (place?.district ? `En ${place.district}.` : "") : `En casa de ${match.rival ?? "el rival"}${place?.district ? `, en ${place.district}` : ""}.${detail ? ` ${detail}` : ""}`;
   return (
     <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-previa${className ? ` ${className}` : ""}`} aria-label="La previa">
       <div className="vd-orn__head">
@@ -114,11 +119,11 @@ export function PreviaOrn({ match, jornada, weather, hourly, homeVenue, classNam
         <li>
           <Ico id="pin" />
           <div>
-            <a href={mapsUrl(venue)} target="_blank" rel="noreferrer">
+            <a href={info ? venueMapsUrl(info) : mapsUrl(venue)} target="_blank" rel="noreferrer">
               {venue}
               <span className="vd-vh"> (abre el mapa en otra pestaña)</span>
             </a>
-            <span>{where}</span>
+            {where && <span>{where}</span>}
           </div>
         </li>
         <li>
