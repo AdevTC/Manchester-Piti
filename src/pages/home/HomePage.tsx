@@ -6,7 +6,7 @@
 // chosen place below. The server paints Hoy from the public data bundle; whatever is a member's appears once
 // the viewer is known (useHydrated + useViewer). The live overlay is the live system's: the lens only declares
 // itself (useLiveDock), «Sacar el marcador» opens the kit's score window.
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
 import { nameFor, nextFixture, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
@@ -85,8 +85,16 @@ const subscribeHash = (on: () => void) => {
   window.addEventListener("hashchange", on);
   return () => window.removeEventListener("hashchange", on);
 };
-/** The URL's hash (empty on the server: it never reaches it, so the server always paints Hoy). */
-const useHash = (): string => useSyncExternalStore(subscribeHash, () => window.location.hash, () => "");
+/** The place's hash: the URL's when it names a place, else the last one that did (a hash that is no place,
+ *  like the skip link's «#contenido», keeps the place you were in). Empty on the server: it never reaches it,
+ *  so the server always paints Hoy. */
+let placeHash = "";
+const readPlaceHash = () => {
+  const h = window.location.hash;
+  if (!h || /^#(hoy|temporada|club|t[uú]|t%C3%BA)$/i.test(h)) placeHash = h;
+  return placeHash;
+};
+const useHash = (): string => useSyncExternalStore(subscribeHash, readPlaceHash, () => "");
 
 const WAITING: HoyCopy = { h1: "Manchester Piti", lede: "" };
 const NO_DATA: HoyCopy = { h1: "No llega el partido", lede: "Puede ser tu conexión o la nuestra. Mientras, esta es la luz de ahora en Palomeras." };
@@ -159,7 +167,11 @@ export function HomePage() {
   const tabla = useGrow("vi-grow-tabla");
   const goles = useGrow("vi-grow-goles");
   const go = (to: PlaceId) => {
-    if (to === place && !plays.open && !tabla.open && !goles.open) return;
+    // (a grown window goes back to its place first: a new place never opens with one grown)
+    if (plays.open) plays.close();
+    if (tabla.open) tabla.close();
+    if (goles.open) goles.close();
+    if (to === place) return;
     const from = places.indexOf(place);
     swap(travel(from, places.indexOf(to)), () => {
       const url = to === "hoy" ? window.location.pathname + window.location.search : `#${to}`;
@@ -167,16 +179,6 @@ export function HomePage() {
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     });
   };
-  // a grown window closes when the place changes
-  const closeAll = useRef<() => void>(() => undefined);
-  closeAll.current = () => {
-    if (plays.open && place !== "hoy") plays.close();
-    if ((tabla.open || goles.open) && place !== "temporada") {
-      if (tabla.open) tabla.close();
-      if (goles.open) goles.close();
-    }
-  };
-  useEffect(() => closeAll.current(), [place]);
 
   // ── Hoy: the lens, the words, the ornaments
   const view = matchViewAt(day, now, null);
@@ -266,12 +268,10 @@ export function HomePage() {
     setPip(await openScorePip({ title: `Manchester Piti contra ${m?.rival ?? "el rival"}` }));
   };
   const pushTopic = isAhead(phase) ? "start" : "goals";
-  const [topics, setTopicsLocal] = useState<string[]>([]);
-  const [pushReady, setPushReady] = useState(false);
-  useEffect(() => {
-    setTopicsLocal(savedTopics());
-    setPushReady(pushState() === "ready");
-  }, []);
+  // (the device's push state and topics are the browser's: read once the page is the browser's)
+  const [topicsSet, setTopicsLocal] = useState<string[] | null>(null);
+  const topics = topicsSet ?? (hydrated ? savedTopics() : []);
+  const pushReady = hydrated && pushState() === "ready";
   const alerts = topics.includes(pushTopic);
   const [alertErr, setAlertErr] = useState("");
   const toggleAlerts = () => {
@@ -401,7 +401,8 @@ export function HomePage() {
   const hints = placeHints({
     day,
     now,
-    table: rowsNow.length ? { position: liveScore ? usProj : usNow >= 0 ? usNow + 1 : null, points: liveScore ? (proj?.points ?? null) : usNow >= 0 ? rowsNow[usNow].pts : null, projected: !!liveScore } : null,
+    // (before the first jornada the table is all zeros: the hint says the season starts instead)
+    table: rowsNow.length && (played > 0 || liveScore) ? { position: liveScore ? usProj : usNow >= 0 ? usNow + 1 : null, points: liveScore ? (proj?.points ?? null) : usNow >= 0 ? rowsNow[usNow].pts : null, projected: !!liveScore } : null,
     season: { played, total },
     birthdays: birthday ? [{ name: niceName(birthday.name), days: birthday.days, label: birthday.label }] : [],
     squadSize: squad.length,
@@ -509,7 +510,7 @@ export function HomePage() {
       </div>
       {focus === id ? (
         <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" onClick={() => go("hoy")}>
-          <Ico id="expand" />
+          <Ico id="collapse" />
           Cerrar
         </button>
       ) : (
@@ -527,7 +528,7 @@ export function HomePage() {
     <div className={`vx vi vi--${place}${cockpit ? " vi--cockpit" : ""}${plays.open ? " vi--grown" : ""}`} data-phase={phase} aria-busy={busy}>
       <VidrioSky light={skyLight} floodlit={light.floodlit} reduced={reduced} gold={goal.sky.gold} cold={goal.sky.cold} weather={weather ? (weather.rain && weather.rain >= 50 ? "lluvia" : (weather.cloud ?? 0) >= 60 ? "nubes" : "despejado") : undefined} />
       <CelesteHeader active="inicio" sub="Inicio" actions={<ThemeToggle />} />
-      <div className="vi-stage" ref={stageRef}>
+      <div className="vi-stage" ref={stageRef} id="contenido" tabIndex={-1}>
         {lens}
         <div className="vi-stage__shelf">
           <Shelf places={shelfPlaces} value={place} onChange={(id) => go(id as PlaceId)} label="Sitios de Inicio" idBase="inicio" />

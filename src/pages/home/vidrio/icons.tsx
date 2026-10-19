@@ -73,6 +73,7 @@ const PATHS = {
   trophy: <path d="M8 4h8v5a4 4 0 01-8 0zM8 6H4.5v1.5A3 3 0 008 10.5M16 6h3.5v1.5a3 3 0 01-3.5 3M12 13v4M8.5 20.5h7M10 17h4" {...S} strokeWidth="1.9" />,
   euro: <path d="M17.5 6.5a7 7 0 100 11M4 10h9M4 14h9" {...S} strokeWidth="2" />,
   expand: <path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" {...S} strokeWidth="2" />,
+  collapse: <path d="M20 4l-6 6M14 5v5h5M4 20l6-6M10 19v-5H5" {...S} strokeWidth="2" />,
   flag: <path d="M6 21V4M6 4.5c4-2 6 2 11 0v8c-5 2-7-2-11 0" {...S} strokeWidth="2" />,
   card: <rect x="7" y="4" width="10" height="16" rx="2" {...S} strokeWidth="2" />,
   chance: <path d="M4 17c4-8 10-11 16-11M14 4l6 2-2 6" {...S} strokeWidth="2" />,

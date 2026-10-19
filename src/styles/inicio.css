@@ -41,7 +41,7 @@
 .vi-count>span:last-child{font-size:14px;color:var(--vd-g-ink2);text-align:center}
 .vi-word{display:flex;justify-content:center;margin:0;text-align:center}
 .vi-word__t{font-size:30px;line-height:1.05;white-space:normal;letter-spacing:-.02em;text-wrap:balance}
-.vi-crest-empty{background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.14),rgba(255,255,255,.03))!important}
+.vi-crest-empty{visibility:hidden}
 .vi-lens__halo{position:absolute;left:30%;right:30%;top:8%;height:58%;border-radius:50%;background:radial-gradient(closest-side,rgba(234,243,252,.16),transparent);pointer-events:none;z-index:0}
 :root[data-theme="light"] .vi-lens__halo{background:radial-gradient(closest-side,rgba(255,255,255,.6),transparent)}
 .vi-lens .vi-score,.vi-lens .vi-count__t{filter:drop-shadow(0 10px 28px rgba(140,190,240,.32))}
@@ -245,6 +245,8 @@
 /* club */
 .vi-club{display:flex;flex-direction:column;gap:24px}
 .vi-club__maker{order:-1}
+:root[data-theme="light"] .vi-case{background:linear-gradient(180deg,rgba(12,23,51,.10),rgba(12,23,51,.03));box-shadow:inset 0 0 0 1px rgba(12,23,51,.2)}
+:root[data-theme="light"] .vi-case::after{background:rgba(12,23,51,.3)}
 .vi-case{width:40px;height:40px;flex:none;border-radius:10px;position:relative;background:linear-gradient(180deg,rgba(234,243,252,.18),rgba(234,243,252,.04));box-shadow:inset 0 0 0 1px rgba(234,243,252,.3)}
 .vi-case::after{content:"";position:absolute;left:10px;right:10px;bottom:6px;height:5px;border-radius:2px;background:rgba(234,243,252,.4)}
 .vi-case::before{content:"";position:absolute;left:50%;top:5px;width:22px;height:22px;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(255,255,255,.4),transparent)}
@@ -318,7 +320,8 @@
   .vi-lens .vd-team span{font-size:13px}
   .vi-score{font-size:132px}
   .vi-count__t{font-size:118px}
-  .vi-word__t{font-size:44px}
+  .vi-word__t{font-size:36px}
+  .vi-word{max-width:340px;justify-self:center}
   .vi-lens .vd-ribbon{height:74px;margin-top:16px;margin-bottom:22px}
   .vi-lens .vd-lens__status{font-size:14.5px;margin-top:10px}
   .vi-h1{font-size:49px}
@@ -334,10 +337,7 @@
   .vi-ph h2{font-size:39px}
   .vi-temp{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px}
   .vi-table .hm{display:table-cell}
-  .vi-segrow{flex-direction:row;justify-content:space-between;align-items:center}
-  .vi-siseg{width:300px}
-  .vi-ranks{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .vi-tiles{grid-template-columns:repeat(var(--tiles,6),minmax(0,1fr))}
+  .vi-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
   .vi-tile{flex-direction:column;align-items:flex-start;justify-content:space-between;height:112px}
   .vi-tiles li:first-child .vi-tile{border-radius:20px 6px 6px 20px}
   .vi-tiles li:last-child .vi-tile{border-radius:6px 20px 20px 6px}
@@ -389,7 +389,9 @@
   .vi-h1{font-size:61px}
   .vi-head .vi-lede{margin:12px auto 0;max-width:64ch}
   .vi-acts{justify-content:center;margin-top:22px}
-  .vi-lines{flex-direction:row;justify-content:center;align-items:center;gap:28px;margin-top:18px}
+  .vi-lines{flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px 28px;margin-top:18px}
+  .vi-head .vi-me{text-align:left;max-width:min(62ch,100%)}
+  .vi-head .vi-wx{text-align:left}
   .vi-pipbtn{display:inline-flex}
   .vi--grown .vi-panel--hoy>.vi-slot--r{display:flex}
   .vi--grown .vi-panel--hoy>:not(.vi-grow){opacity:.5;filter:saturate(.75)}
@@ -401,6 +403,10 @@
     -webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(180deg,#000 calc(100% - 32px),transparent)}
   .vi-ph{margin-bottom:22px}
   .vi-temp{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:56px;align-items:start}
+  .vi-segrow{flex-direction:row;justify-content:space-between;align-items:center}
+  .vi-siseg{width:300px}
+  .vi-ranks{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vi-tiles{grid-template-columns:repeat(var(--tiles,6),minmax(0,1fr))}
   .vi-temp .vi-ranks{margin-top:22px}
   .vi-place .vi-grow{position:absolute;inset:0 72px 0 72px;max-height:none;z-index:6}
   .vi-club{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:56px;align-items:start}
@@ -512,6 +518,12 @@
 @keyframes vi-in-lens{from{opacity:0;transform:translateY(22px) scale(.95);filter:blur(12px)}}
 @keyframes vi-in-h{from{opacity:0;font-variation-settings:'wdth' 75;letter-spacing:.01em}}
 @keyframes vi-in-up{from{opacity:0;transform:translateY(24px) scale(.96)}}
+/* the grown plays read in two columns from 1440 (the list is a flex column elsewhere) */
+.vi-grow .vi-grow-cols{display:block}
+.vi-grow .vi-grow-cols>.vd-play{display:grid}
+/* in the cockpit the grown plays fill the centre, from under the top bar to the shelf */
+.vi--cockpit .vi-centre--grown{display:flex;flex-direction:column;padding:14px 0 16px}
+.vi--cockpit .vi-centre--grown>.vi-grow{flex:1 1 auto;min-height:0;margin:0}
 @media (prefers-reduced-motion:reduce){
   .vi-tile{transition:none}
   .vi-tile:hover{transform:none}

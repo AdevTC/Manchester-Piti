@@ -217,7 +217,8 @@ export function sunRibbonOf(kickoff: number, now: number, duration = 50): SunRib
     { left: 50, text: `${madridTime(kickoff)} pitido`, align: "middle" },
     { left: 100, text: madridTime(to), align: "end" },
   ];
-  if (focos !== null && focos > 62 && focos < 88) labels.splice(2, 0, { left: focos, text: "focos", align: "middle" });
+  // (the masts' word never sits on the kick-off's: it moves right of it)
+  if (focos !== null && focos < 88) labels.splice(2, 0, { left: Math.max(focos, 66), text: "focos", align: "middle" });
   const when = madridDate(kickoff) === madridDate(now) ? "esta tarde" : `el ${weekday(kickoff)}`;
   const lights = lit === null ? "se juega con luz de día" : lit <= kickoff ? "todo el partido con focos" : `con focos desde las ${madridTime(lit)}`;
   return { path: `M${pts.join(" L")}`, pitido: 50, focos, sun: pct(sunAt), labels, label: `La luz de ${when}: el sol se pone a las ${sunset}; ${lights}.` };
@@ -351,6 +352,12 @@ export function hoyCopy(ctx: HoyCopyCtx): HoyCopy {
       const tail = ctx.estreno ? `Primer partido de la temporada: ${light}` : capital(light);
       const seven = ctx.sevenPublished ? "" : " El siete sale aquí en cuanto lo publique el capitán.";
       return { h1, lede: `${intro} ${tail}${seven}` };
+    }
+    case "semana": {
+      // (the weather has its own line under the actions: the lede says when and where)
+      if (!m || day.kickoff === null) return { h1: base.h1, lede: base.sub };
+      const first = ctx.estreno ? "Primer partido de la temporada: " : "";
+      return { h1: base.h1, lede: `${first}${first ? "a" : "A"} las ${madridTime(day.kickoff)} contra ${rival} ${venueWords(m)}. ${capital(lightWords(day.kickoff, m.duration ?? 50))}` };
     }
     case "directo1":
     case "directo2": {
@@ -567,7 +574,7 @@ export function spotOf(x: number, y: number): Pick<SieteSpot, "h" | "v"> {
   const vTop = Math.max(8, Math.min(90, 6 + (y - 14) * 1.06));
   const vLeft = Math.max(18, Math.min(82, 50 + (x - 50) * 1.25));
   const hLeft = 100 - vTop;
-  const hTop = Math.max(14, Math.min(84, 50 + (x - 50) * 1.2));
+  const hTop = Math.max(20, Math.min(80, 50 + (x - 50) * 1.1));
   // (tags go where there is room: outwards in the middle of the pitch, inwards at its edges)
   const vTags = vLeft > 75 ? true : vLeft < 25 ? false : vLeft < 50;
   const hTags = hLeft > 75 || (hLeft > 55 && hTop < 50);

@@ -186,7 +186,8 @@ function Notices({ t }: { t: TuData }) {
 
 export function Tu({ t, jornadaOf, now, porraLine, variant, onOpen, region = () => "" }: TuProps) {
   if (variant === "min") {
-    const first = t.rsvp ? `${t.rsvp.match.rival ?? "Convocatoria"}: ${t.rsvp.value ? "respondida" : "sin responder"}.` : "";
+    const j = t.rsvp ? jornadaOf(t.rsvp.match.id) : null;
+    const first = t.rsvp ? `${j ? `J${j}` : (t.rsvp.match.rival ?? "Convocatoria")}: ${t.rsvp.value ? "respondida" : "sin responder"}.` : "";
     return (
       <p className="vi-zmin">
         <span>

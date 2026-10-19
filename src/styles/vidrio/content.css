@@ -26,7 +26,7 @@
 .vd-team__crest{width:68px;height:68px;border-radius:50%;display:grid;place-items:center;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.25),0 10px 30px -10px var(--vd-glow)}
 .vd-team__crest--rival{background:radial-gradient(circle at 35% 30%,#3a4f7c,#16244a);font-weight:800;font-variation-settings:'wdth' 110;font-size:21px;letter-spacing:.02em;color:#fff}
 :root[data-theme="light"] .vd-team__crest--rival{background:radial-gradient(circle at 35% 30%,#fff,#d8e6f5);color:var(--vd-marino)}
-.vd-team b{font-weight:680;font-variation-settings:'wdth' 94;font-size:18px;letter-spacing:-.015em;line-height:1.1;color:var(--vd-g-ink);max-width:100%;overflow-wrap:anywhere}
+.vd-team b{font-weight:680;font-variation-settings:'wdth' 94;font-size:18px;letter-spacing:-.015em;line-height:1.1;color:var(--vd-g-ink);max-width:100%;overflow-wrap:break-word}
 .vd-team span{font-size:13px;color:var(--vd-g-ink2)}
 .vd-scoreline{display:flex;align-items:center;gap:.12em;font-size:150px;color:var(--vd-g-ink)}
 .vd-scoreline__sep{width:.22em;height:.07em;border-radius:99px;background:currentColor;opacity:.55;margin:0 .06em}

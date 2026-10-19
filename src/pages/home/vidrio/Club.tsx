@@ -18,8 +18,8 @@ export interface ClubData {
   sponsors: readonly { name: string; url: string }[];
 }
 
-export const cleanName = (v: string) => v.toLocaleUpperCase("es").replace(/[^A-ZÁÉÍÓÚÜÑÇ .'-]/g, "").slice(0, 12);
-export const cleanNum = (v: string) => v.replace(/\D/g, "").slice(0, 2);
+const cleanName = (v: string) => v.toLocaleUpperCase("es").replace(/[^A-ZÁÉÍÓÚÜÑÇ .'-]/g, "").slice(0, 12);
+const cleanNum = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 
 /** The shirt with a name and a number on its back: the kit's still with the print drawn over it. */
 export function Tee({ name, num, light, kit, label, className }: { name: string; num: string; light: boolean; kit: "home" | "away"; label?: string; className?: string }) {

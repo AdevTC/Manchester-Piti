@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -134,7 +134,7 @@ describe("Inicio", () => {
     const shelf = screen.getByRole("tablist", { name: "Sitios de Inicio" });
     expect(within(shelf).getAllByRole("tab").map((t) => t.querySelector("b")?.textContent)).toEqual(["Hoy", "Temporada", "Club"]);
     expect(screen.getByRole("region", { name: "La previa" })).toBeInTheDocument();
-    act(() => fireEvent.click(within(shelf).getByRole("tab", { name: /Club/ })));
+    fireEvent.click(within(shelf).getByRole("tab", { name: /Club/ }));
     expect(window.location.hash).toBe("#club");
     const panel = screen.getByRole("tabpanel");
     expect(panel).toHaveAttribute("aria-labelledby", "inicio-tab-club");
@@ -164,7 +164,7 @@ describe("Inicio", () => {
     state.viewer = { member: true, admin: false, playerId: "jordi" };
     render(<HomePage />);
     const tu = screen.getByRole("tab", { name: /Tú/ });
-    act(() => fireEvent.click(tu));
+    fireEvent.click(tu);
     const panel = screen.getByRole("tabpanel");
     expect(within(panel).getByRole("heading", { name: "Lo que te toca" })).toBeInTheDocument();
     expect(within(panel).getByRole("group", { name: /Convocatoria del J1/ })).toBeInTheDocument();
