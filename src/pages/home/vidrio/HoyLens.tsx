@@ -44,7 +44,7 @@ function SunStrip({ sun }: { sun: SunRibbon }) {
       </svg>
       <span className="vi-sun" style={{ left: `${sun.sun}%` }} />
       {sun.labels.map((l) => (
-        <span key={l.text} className={`vd-ribbon__lab vd-ribbon__lab--${l.align}`} style={{ left: `${l.left}%` }}>
+        <span key={l.text} className={`vd-ribbon__lab vd-ribbon__lab--${l.align}${l.text === "focos" ? " vi-lab-focos" : ""}`} style={{ left: `${l.left}%` }}>
           {l.text}
         </span>
       ))}

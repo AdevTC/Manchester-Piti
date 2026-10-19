@@ -51,6 +51,8 @@
 .vi-sunribbon .vd-ribbon__lab{font-family:var(--vd-mono)}
 .vi-sun{position:absolute;top:44%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:radial-gradient(circle,#FFF1D6,#F3B26B);box-shadow:0 0 0 4px rgba(243,178,107,.25),0 0 18px #F3B26B}
 .vi-lens .vd-ribbon__lab{font-family:var(--vd-mono)}
+/* on a phone the masts' word would sit on «19:00 pitido»: the lit band says it (and the ribbon's label) */
+.vi-lab-focos{display:none}
 
 /* ───────────────────────── Hoy's words */
 .vi-head{position:relative;min-width:0}
@@ -311,6 +313,7 @@
 
 /* ───────────────────────── tablet (700+) */
 @container (min-width:700px){
+  .vi-lab-focos{display:block}
   .vi-stage{padding:88px 32px 128px}
   .vi-stage__shelf{margin-top:18px}
   .vi-long{display:inline}
