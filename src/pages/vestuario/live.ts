@@ -25,6 +25,7 @@ import { mergeNotices, type Notice, type NoticeAudience } from "../../lib/derive
 import { MATCHES_KEY, matchQuery } from "../../lib/publicData";
 import { visibleMatchLinks } from "../../lib/matchVisibility";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
+import { serverNow } from "../../lib/serverTime";
 import type { TrainingSlot } from "../../lib/vestuario";
 import { EMPTY_CAJA_SETTINGS, parseCajaMov, parseCajaSettings, type CajaMov, type CajaSettings } from "../../lib/derived/caja";
 import { parseCajaClaim, sortClaims, type CajaClaim } from "../../lib/derived/cajaClaims";
@@ -310,10 +311,10 @@ const mvpQuery = collection(db, "mvpResults");
 export function useMvpResults() {
   const q = useFirestoreCollection(MVP_RESULTS_KEY, mvpQuery, mapMvp);
   const matches = useFirestoreCollection(MATCHES_KEY, matchQuery, mapMatch);
-  // (an open vote never shows counts, whatever an older doc holds: mvpPrivateWhileOpen)
+  // (an open vote never shows counts, whatever an older doc holds: mvpPrivateWhileOpen, on the server's clock)
   return useMemo(() => {
     const list = matches.data ?? [];
-    return new Map(mvpPrivateWhileOpen(visibleMatchLinks(q.data ?? [], list, (r) => r.id), list, Date.now()).map((r) => [r.id, r]));
+    return new Map(mvpPrivateWhileOpen(visibleMatchLinks(q.data ?? [], list, (r) => r.id), list, serverNow()).map((r) => [r.id, r]));
   }, [q.data, matches.data]);
 }
 const MVP_META_KEY = metaKeyOf(MVP_RESULTS_KEY);
