@@ -22,7 +22,8 @@ import { useClock } from "../../hooks/useClock";
 import { matchdayOf } from "../../lib/derived/matchday";
 import { squadLive, type SquadLive } from "../../lib/derived/vidrio/squadLive";
 import { mvpWinners } from "../../lib/vestuario";
-import { PageSky, useNightGoal } from "../../components/paginas/PageSky";
+import { PageSky } from "../../components/paginas/PageSky";
+import { useNightGoal } from "../../components/paginas/nightGoal";
 import "../../styles/celeste/page.css";
 import "../../styles/home.css"; // RaceAndBirthdays (the pichichi podium) is home's section
 import "../../styles/vidrio/tokens.css";
