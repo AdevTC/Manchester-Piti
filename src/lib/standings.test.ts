@@ -169,3 +169,17 @@ describe("mapStandings", () => {
     expect(mapStandings("t1", { rows: [row("A", { isUs: true })] })).toBeNull();
   });
 });
+
+describe("«Últimos 5» (form)", () => {
+  it("keeps a row's form through the mapper, drops a malformed one (never the table)", () => {
+    const rows = [row("A", { isUs: true, form: ["G", "E", "P"] }), row("B", { form: ["X"] as unknown as StandingRow["form"] })];
+    const t = mapStandings("t1", { competition: "Liga", jornada: 8, updatedAt: null, updatedBy: "u", rows });
+    expect(t?.rows[0].form).toEqual(["G", "E", "P"]);
+    expect(t?.rows[1].form).toBeUndefined();
+  });
+  it("the save keeps G/E/P only, the last 5, and leaves an empty form out", () => {
+    const f = standingsFields({ competition: "Liga", jornada: 8, rows: [row("A", { isUs: true, form: ["G", "G", "E", "P", "G", "E"] }), row("B", { form: [] })] }, "u");
+    expect(f.rows[0].form).toEqual(["G", "E", "P", "G", "E"]);
+    expect("form" in f.rows[1]).toBe(false);
+  });
+});

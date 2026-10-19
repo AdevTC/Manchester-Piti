@@ -108,10 +108,21 @@ export function mapReaction(id: string, data: unknown): ReactionDoc | null {
  *  by the boot — lib/publicData). Here so the vestuario's live module can share it without importing the boot. */
 export const MVP_RESULTS_KEY = ["mvpResults"] as const;
 /** Canonical `["mvpResults"]` mapper: a match's MVP tally (`mvpResults/{matchId}`, kept by the backend):
- *  counts per player and the total, never who voted whom. */
+ *  the turnout (`total` of `eligible`) and, once the vote has closed, the counts per player — never who
+ *  voted whom. An open doc never yields counts here, whatever it holds (functions/src/mvpLogic.ts). */
 export function mapMvp(id: string, data: unknown): MvpResult {
-  const d = (data ?? {}) as { counts?: Record<string, number>; total?: number };
-  return { id, counts: d.counts ?? {}, total: d.total ?? 0 };
+  const d = (data ?? {}) as { counts?: unknown; total?: unknown; eligible?: unknown; open?: unknown };
+  const open = d.open === true;
+  const counts: Record<string, number> = {};
+  if (!open && d.counts && typeof d.counts === "object")
+    for (const [k, v] of Object.entries(d.counts as Record<string, unknown>)) if (typeof v === "number" && Number.isFinite(v)) counts[k] = v;
+  return {
+    id,
+    counts,
+    total: typeof d.total === "number" && Number.isFinite(d.total) ? d.total : 0,
+    ...(typeof d.eligible === "number" && Number.isFinite(d.eligible) ? { eligible: d.eligible } : {}),
+    ...(typeof d.open === "boolean" ? { open: d.open } : {}),
+  };
 }
 
 /** A kept notice of the centro de avisos (`notices/{id}`), with `at` in ms; invalid docs dropped and reported. */

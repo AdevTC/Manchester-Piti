@@ -23,7 +23,7 @@ export const ROTA_ICON_LABEL: Record<RotaIconId, string> = { shirt: "Camiseta", 
 /** The caps (the same as firestore.rules). */
 export const ROTA_LIMITS = { jobs: 6, name: 30, order: 40, id: 40 } as const;
 /** A job id can't be "frozen": rotaTurns keeps its freeze flag at that key (the same as firestore.rules). */
-const RESERVED_IDS: readonly string[] = ["frozen"];
+const RESERVED_IDS: readonly string[] = ["frozen", "done"];
 
 export interface RotaJob {
   id: string;
@@ -79,6 +79,9 @@ export interface RotaTurnsDoc {
   frozen: boolean;
   /** jobId → its entry. */
   turns: Readonly<Record<string, PinnedTurn | undefined>>;
+  /** «Hecho»: the members (uid → ms) who marked their turn of this match done (markTurnDone; the doc-level
+   *  `done` map, written by the backend only). Absent: nobody. */
+  done?: Readonly<Record<string, number>>;
 }
 export const NO_ROTA_TURNS: RotaTurnsDoc = { frozen: false, turns: {} };
 /** A played match's turns as the history reads them: jobId → who did it. */
@@ -347,8 +350,26 @@ export function parseRotaTurns(d: unknown): RotaTurnsDoc {
     if (typeof t.playerId !== "string" || !t.playerId) continue;
     turns[k] = { playerId: t.playerId, ...(typeof t.swappedFrom === "string" && t.swappedFrom ? { swappedFrom: t.swappedFrom } : {}) };
   }
-  return { frozen: (d as { frozen?: unknown }).frozen === true, turns };
+  const done = parseDone((d as { done?: unknown }).done);
+  return { frozen: (d as { frozen?: unknown }).frozen === true, turns, ...(Object.keys(done).length ? { done } : {}) };
 }
+/** The doc-level `done` map read back: uid → ms (a Timestamp or a number; anything else left out). */
+function parseDone(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [uid, at] of Object.entries(raw as Record<string, unknown>)) {
+    const t = at as { toMillis?: () => number } | null;
+    const ms = typeof at === "number" ? at : typeof t?.toMillis === "function" ? t.toMillis() : NaN;
+    if (uid && Number.isFinite(ms)) out[uid] = ms;
+  }
+  return out;
+}
+
+/** Whether `uid` marked his turn of the match done («Hecho»). */
+export const turnDone = (doc: RotaTurnsDoc | null | undefined, uid: string | null | undefined): boolean => !!uid && typeof doc?.done?.[uid] === "number";
+
+/** The jobs of `turns` that `playerId` does (empty: none of the match's turns is his). */
+export const myTurns = (turns: readonly Turn[], playerId: string | null | undefined): Turn[] => (playerId ? turns.filter((t) => t.playerId === playerId) : []);
 
 /** A fresh job id from its name («Lavar la equipación» → "lavar-la-equipacion"), unique among `taken`. */
 export function jobIdFor(name: string, taken: readonly string[]): string {
