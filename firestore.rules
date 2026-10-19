@@ -284,10 +284,28 @@ service cloud.firestore {
     }
     match /mvpResults/{id} { allow read: if true; allow write: if false; }
     match /playerSeasonStats/{id} { allow read: if true; allow write: if false; }
+    // Los campos (clubContent.venues): ≤ 10 grounds (more passes the rules' expression budget), each { name 1–80, address?, transit?, mapsQuery? } and
+    // nothing else; the three optional ones are strings of at most 400 together (the app caps each one:
+    // 120 / 120 / 160, lib/derived/venue VENUE_LIMITS). No loops in the rules: one check per slot, kept small
+    // for the 1000-expression budget (a non-map or a non-string fails the check, so it is refused).
+    function venueOk(vs, i) {
+      return i >= vs.size() || venueShapeOk(vs[i]);
+    }
+    function venueShapeOk(v) {
+      return v.keys().hasOnly(['name','address','transit','mapsQuery'])
+        && v.name is string && v.name.size() >= 1 && v.name.size() <= 80
+        && (v.get('address', '') + v.get('transit', '') + v.get('mapsQuery', '')).size() <= 400;
+    }
+    function venuesOk(vs) {
+      return vs is list && vs.size() <= 10
+        && venueOk(vs, 0) && venueOk(vs, 1) && venueOk(vs, 2) && venueOk(vs, 3) && venueOk(vs, 4)
+        && venueOk(vs, 5) && venueOk(vs, 6) && venueOk(vs, 7) && venueOk(vs, 8) && venueOk(vs, 9);
+    }
     match /clubContent/{id} {
       allow read: if true;
       allow create, update: if admin() && id == 'main'
-        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','photoUrl','milestones','sponsors','gallery','faq','crestStory'])
+        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','photoUrl','milestones','sponsors','gallery','faq','crestStory','venues'])
+        && (!('venues' in request.resource.data) || venuesOk(request.resource.data.venues))
         && request.resource.data.intro is string && request.resource.data.intro.size() < 1000
         && request.resource.data.story is string && request.resource.data.story.size() < 20000
         && request.resource.data.gallery is list && request.resource.data.gallery.size() <= 100

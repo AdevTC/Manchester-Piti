@@ -1,4 +1,5 @@
 // What the club page shows before (or without) its Firestore document.
+import type { VenueDetail } from "./derived/venue";
 export interface ClubContent {
   intro: string;
   story: string;
@@ -15,6 +16,8 @@ export interface ClubContent {
   faq: { q: string; a: string }[];
   /** La historia del escudo (El club, bajo la vitrina). */
   crestStory: string;
+  /** Los campos: dirección y cómo llegar a cada uno (≤ 20; derived/venue venueInfo los casa con un partido). */
+  venues: VenueDetail[];
 }
 export const DEFAULT_CONTENT: ClubContent = {
   intro: "Resultados, calendario y estadísticas del Manchester Piti.",
@@ -35,4 +38,5 @@ export const DEFAULT_CONTENT: ClubContent = {
     { q: "¿Puedo venir a vernos?", a: "Claro. La grada es libre y el ánimo se agradece: el próximo partido está en esta misma página." },
   ],
   crestStory: "",
+  venues: [],
 };

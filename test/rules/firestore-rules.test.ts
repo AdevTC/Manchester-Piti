@@ -933,6 +933,24 @@ describe("Contenido de El club", () => {
     await assertFails(setDoc(doc(db("admin"), "clubContent", "main"), { ...content, faq: "no es una lista" }));
     await assertFails(setDoc(doc(db("admin"), "clubContent", "main"), { ...content, crestStory: "x".repeat(5000) }));
   });
+  it("los campos: hasta 10, con nombre y textos cortos (400 entre los tres opcionales), sin nada más", async () => {
+    const ground = (o: object = {}) => ({ name: "CDM Ejemplo", address: "Calle de ejemplo, 1", transit: "Metro de ejemplo", mapsQuery: "CDM Ejemplo Madrid", ...o });
+    await assertSucceeds(setDoc(doc(db("admin"), "clubContent", "main"), { ...content, venues: [ground(), { name: "Solo nombre" }] }));
+    await assertSucceeds(setDoc(doc(db("admin"), "clubContent", "main"), { ...content, venues: Array.from({ length: 10 }, (_, i) => ground({ name: `Campo ${i}` })) }));
+    await assertSucceeds(setDoc(doc(db("admin"), "clubContent", "main"), { ...content, venues: [] }));
+    const bad: object[] = [
+      Array.from({ length: 11 }, (_, i) => ground({ name: `Campo ${i}` })),
+      [ground({ name: "" })],
+      [{ address: "sin nombre" }],
+      [ground({ name: "x".repeat(81) })],
+      [ground({ address: "x".repeat(401) })],
+      [ground({ transit: 5 })],
+      [ground({ lat: 40 })],
+      ["CDM Ejemplo"],
+      "CDM Ejemplo",
+    ];
+    for (const venues of bad) await assertFails(setDoc(doc(db("admin"), "clubContent", "main"), { ...content, venues }));
+  });
   it("los documentos antiguos sin preguntas siguen siendo válidos", async () => {
     const { faq: _faq, crestStory: _crest, ...legacy } = content;
     await assertSucceeds(setDoc(doc(db("admin"), "clubContent", "main"), legacy));

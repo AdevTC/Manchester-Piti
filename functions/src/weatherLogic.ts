@@ -40,9 +40,14 @@ export function venueQueries(venue: unknown): string[] {
   if (typeof venue !== "string") return [];
   const full = venue.replace(/\s+/g, " ").trim();
   if (!full) return [];
-  const short = full.replace(VENUE_PREFIX, "").trim();
-  return short && short.toLowerCase() !== full.toLowerCase() ? [full, short] : [full];
+  // (a match's venue may carry its address after « · »: the ground's name alone is tried too)
+  const name = full.split(" · ")[0].trim();
+  const out: string[] = [];
+  for (const q of [full, name, venueCore(name)]) if (q && !out.some((x) => x.toLowerCase() === q.toLowerCase())) out.push(q);
+  return out;
 }
+/** A ground's name without its «CDM» / «Campo de» / «Polideportivo»… («CDM Palomeras» → «Palomeras»). */
+export const venueCore = (name: string): string => name.replace(/\s+/g, " ").trim().replace(VENUE_PREFIX, "").trim();
 
 const TZ = "Europe/Madrid";
 /** An hour in Madrid time, as Open-Meteo's start_hour wants it: "2026-11-08T12:00". */

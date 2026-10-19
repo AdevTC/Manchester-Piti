@@ -9,14 +9,16 @@
 import type { ClubContent } from "../../../lib/clubContent";
 import { linkState } from "./plantillaLogic";
 import { capital } from "../../../lib/derived/words";
+import { VENUE_LIMITS, venueKey } from "../../../lib/derived/venue";
 
-export type ContentKey = "frase" | "historia" | "contacto" | "momentos" | "historias" | "preguntas" | "colaboradores" | "galeria";
+export type ContentKey = "frase" | "historia" | "campos" | "contacto" | "momentos" | "historias" | "preguntas" | "colaboradores" | "galeria";
 export type ClubKey = Exclude<ContentKey, "historias">;
 
 /** The clubContent fields each section edits. */
 export const CLUB_FIELDS = {
   frase: ["intro", "location", "founded", "venue"],
   historia: ["story", "crestStory"],
+  campos: ["venues"],
   contacto: ["email", "instagram", "photoUrl"],
   momentos: ["milestones"],
   preguntas: ["faq"],
@@ -27,6 +29,7 @@ export const CLUB_FIELDS = {
 export const SECTIONS: readonly { key: ContentKey; title: string }[] = [
   { key: "frase", title: "Frase, localidad y campo" },
   { key: "historia", title: "Nuestra historia y el escudo" },
+  { key: "campos", title: "Los campos: dirección y cómo llegar" },
   { key: "contacto", title: "Contacto, redes y foto de equipo" },
   { key: "momentos", title: "Momentos del club" },
   { key: "historias", title: "Historias de jugadores" },
@@ -56,7 +59,7 @@ export interface ContentGroup {
   where: string;
 }
 export const GROUPS: readonly ContentGroup[] = [
-  { key: "frase", title: "Frase, historia y campo", keys: ["frase", "historia"], where: "El club · portada e historia" },
+  { key: "frase", title: "Frase, historia y campo", keys: ["frase", "historia", "campos"], where: "El club · portada e historia" },
   { key: "contacto", title: "Contacto, redes y foto de equipo", keys: ["contacto"], where: "El club · contacto y foto" },
   { key: "momentos", title: "Momentos del club", keys: ["momentos"], where: "El club · Momentos" },
   { key: "historias", title: "Historias de jugadores", keys: ["historias"], where: "Cada perfil de jugador" },
@@ -78,7 +81,7 @@ export function monthLabel(ms: number): string {
 }
 
 /** Rules' limits (firestore.rules · clubContent). */
-export const LIMITS = { intro: 999, story: 19_999, crestStory: 4_999, gallery: 100, sponsors: 50, milestones: 100, faq: 30 } as const;
+export const LIMITS = { intro: 999, story: 19_999, crestStory: 4_999, gallery: 100, sponsors: 50, milestones: 100, faq: 30, venues: VENUE_LIMITS.max } as const;
 
 export type Slice = Partial<ClubContent>;
 export function sliceOf(c: ClubContent, k: ClubKey): Slice {
@@ -210,6 +213,10 @@ export function contentIssues(c: ClubContent): Issue[] {
   if (c.milestones.length > LIMITS.milestones) out.push({ key: "momentos", text: `Momentos: máximo ${LIMITS.milestones}` });
   if ((c.faq ?? []).some((f) => !f.q.trim() || !f.a.trim())) out.push({ key: "preguntas", text: "Preguntas: hay una sin pregunta o sin respuesta" });
   if ((c.faq ?? []).length > LIMITS.faq) out.push({ key: "preguntas", text: `Preguntas: máximo ${LIMITS.faq}` });
+  const grounds = c.venues ?? [];
+  if (grounds.some((v) => !v.name.trim())) out.push({ key: "campos", text: "Campos: hay uno sin nombre" });
+  if (new Set(grounds.map((v) => venueKey(v.name)).filter(Boolean)).size < grounds.filter((v) => v.name.trim()).length) out.push({ key: "campos", text: "Campos: hay dos con el mismo nombre" });
+  if (grounds.length > LIMITS.venues) out.push({ key: "campos", text: `Campos: máximo ${LIMITS.venues}` });
   if (c.sponsors.some((s) => !s.name.trim())) out.push({ key: "colaboradores", text: "Colaboradores: hay uno sin nombre" });
   const ns = nBad(c.sponsors.flatMap((s) => [s.url, s.logo]));
   if (ns) out.push({ key: "colaboradores", text: `Colaboradores: ${links(ns)}` });

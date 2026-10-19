@@ -8,6 +8,7 @@ import { db } from "../firebase";
 import { mapMatch, mapMvp, mapPlayer, mapSeason, MVP_RESULTS_KEY } from "./firestoreMappers";
 import { subscribeShared } from "./useFirestoreCollection";
 import { DEFAULT_CONTENT, type ClubContent } from "./clubContentDefaults";
+import { parseVenues } from "./derived/venue";
 import { mapStandings, STANDINGS_KEY } from "./standings";
 
 export const MATCHES_KEY = ["matches"] as const;
@@ -26,7 +27,8 @@ export const seasonQuery = query(collection(db, "seasons"), orderBy("name", "asc
 export const mvpQuery = collection(db, "mvpResults");
 export const standingsQuery = collection(db, "standings");
 
-export const withDefaults = (data: Partial<ClubContent> | undefined): ClubContent => ({ ...DEFAULT_CONTENT, ...data });
+/** The stored content over the defaults (its grounds read defensively: derived/venue parseVenues). */
+export const withDefaults = (data: Partial<ClubContent> | undefined): ClubContent => ({ ...DEFAULT_CONTENT, ...data, venues: parseVenues(data?.venues) });
 
 /** Live club content into the cache (DEFAULT_CONTENT when the document doesn't exist or can't be read). */
 export function subscribeClubContent(qc: Pick<QueryClient, "setQueryData">): () => void {

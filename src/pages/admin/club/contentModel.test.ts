@@ -119,6 +119,12 @@ describe("checks", () => {
     ]);
     expect(storyIssues([{ name: "KEVIN", story: { bio: "", quote: "", photoUrl: "http://x.es/k.jpg" } }])).toEqual([{ key: "historias", text: "Historias: la foto de KEVIN no es HTTPS" }]);
   });
+  it("los campos: each with its name, never two the same ground", () => {
+    const grounds = (venues: ClubContent["venues"]) => contentIssues({ ...live, venues }).map((i) => i.text);
+    expect(grounds([{ name: "CDM Palomeras" }, { name: "Getafe" }])).toEqual([]);
+    expect(grounds([{ name: " ", address: "Calle 1" }])).toEqual(["Campos: hay uno sin nombre"]);
+    expect(grounds([{ name: "CDM Palomeras" }, { name: "palomeras" }])).toEqual(["Campos: hay dos con el mismo nombre"]);
+  });
 });
 
 describe("publishPlan", () => {
@@ -139,7 +145,7 @@ describe("publishPlan", () => {
 describe("the programa del club", () => {
   it("covers every section once, in six numbered entries", () => {
     expect(GROUPS.map((g) => g.key)).toEqual(["frase", "contacto", "momentos", "historias", "preguntas", "galeria"]);
-    expect(GROUPS.flatMap((g) => g.keys).sort()).toEqual(["colaboradores", "contacto", "frase", "galeria", "historia", "historias", "momentos", "preguntas"]);
+    expect(GROUPS.flatMap((g) => g.keys).sort()).toEqual(["campos", "colaboradores", "contacto", "frase", "galeria", "historia", "historias", "momentos", "preguntas"]);
   });
   it("resolves ?seccion= to its entry (section keys and Hoy's gaps too)", () => {
     expect(resolveGroup("historia")).toBe("frase");

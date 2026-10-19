@@ -15,6 +15,7 @@ import { useLayer, useLayerHost, zLayer, zScrim } from "../ui/layerCore";
 import { CloseButton } from "../ui/layers";
 import { LIMITS, emailOk, monthLabel, same, sliceOf, type ClubKey, type ContentGroup, type PlayerStory, type Slice } from "./contentModel";
 import { linkState } from "./plantillaLogic";
+import { VENUE_LIMITS, type VenueDetail } from "../../../lib/derived/venue";
 
 type Milestone = ClubContent["milestones"][number];
 type Faq = ClubContent["faq"][number];
@@ -152,6 +153,7 @@ function EditorBody({ group, live, effective, players, liveStory, draftStory, st
             <Field label="La historia del escudo">
               {(id) => <textarea id={id} className="inp" rows={4} maxLength={LIMITS.crestStory} placeholder="Quién lo dibujó, qué significa cada pieza…" value={value.crestStory ?? ""} onChange={(e) => set("historia", "crestStory", e.target.value)} />}
             </Field>
+            <Grounds list={value.venues ?? []} onChange={(l) => set("campos", "venues", l)} />
           </>
         )}
         {group.key === "contacto" && (
@@ -305,6 +307,45 @@ function Moments({ live, list, now, onChange }: { live: readonly Milestone[]; li
         </button>
       )}
       {full && <p className="hint">Máximo {LIMITS.milestones} momentos.</p>}
+    </>
+  );
+}
+
+// ───────────────────────── los campos ─────────────────────────
+// Each ground the matches are played on: its name as the matches write it («CDM Palomeras»; venueInfo
+// matches it without accents, «CDM» or «Campo de»), the address, how to get there and, optionally, what to
+// search on the map. Inicio and Partidos show them under the match; a ground without an entry shows nothing.
+function Grounds({ list, onChange }: { list: readonly VenueDetail[]; onChange: (l: VenueDetail[]) => void }) {
+  const edit = (i: number, p: Partial<VenueDetail>) => onChange(list.map((x, j) => (j === i ? { ...x, ...p } : x)));
+  const full = list.length >= VENUE_LIMITS.max;
+  return (
+    <>
+      <h4 className="lb" style={{ marginTop: 8 }}>
+        Los campos
+      </h4>
+      {list.length ? (
+        <ul className="hl" aria-label="Campos">
+          {list.map((v, i) => (
+            <li key={i} style={{ gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "start" }}>
+              <span style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+                <Field label={`Campo ${i + 1} · nombre, como en los partidos`}>{(id) => <input id={id} className={`inp ${v.name.trim() ? "" : "bad"}`.trim()} value={v.name} maxLength={VENUE_LIMITS.name} onChange={(e) => edit(i, { name: e.target.value })} placeholder="CDM …" autoComplete="off" />}</Field>
+                <Field label="Dirección">{(id) => <input id={id} className="inp" value={v.address ?? ""} maxLength={VENUE_LIMITS.address} onChange={(e) => edit(i, { address: e.target.value })} placeholder="Calle, número, barrio" autoComplete="off" />}</Field>
+                <Field label="Cómo llegar">{(id) => <input id={id} className="inp" value={v.transit ?? ""} maxLength={VENUE_LIMITS.transit} onChange={(e) => edit(i, { transit: e.target.value })} placeholder="Metro, autobús, aparcamiento…" autoComplete="off" />}</Field>
+                <Field label="Búsqueda en el mapa (opcional)">{(id) => <input id={id} className="inp" value={v.mapsQuery ?? ""} maxLength={VENUE_LIMITS.mapsQuery} onChange={(e) => edit(i, { mapsQuery: e.target.value })} placeholder="Si la dirección no lo encuentra" autoComplete="off" />}</Field>
+              </span>
+              <button type="button" className="ib2" aria-label={`Quitar el campo ${v.name.trim() || i + 1}`} onClick={() => onChange(list.filter((_, j) => j !== i))}>
+                <AdIcon name="x" size={16} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="hint">Sin campos: los partidos solo dicen el nombre del campo, sin dirección ni cómo llegar.</p>
+      )}
+      <button type="button" className="btn sm line" style={{ alignSelf: "flex-start" }} aria-disabled={full} onClick={() => !full && onChange([...list, { name: "" }])}>
+        <AdIcon name="plus" size={16} />
+        Añadir campo
+      </button>
     </>
   );
 }
