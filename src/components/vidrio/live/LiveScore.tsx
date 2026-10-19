@@ -27,7 +27,7 @@ import { serverOffset } from "../../../lib/serverTime";
 import { useAvailability, useMatchScorers, useMyMvpVote } from "../../../pages/vestuario/live";
 import { setAvailability, useMe } from "../../../pages/vestuario/writes";
 import { useServerTimeSync } from "../../../hooks/useServerTimeSync";
-import { useMatchMoment } from "../../celeste/isla/useMatchMoment";
+import { useMatchMoment } from "./useMatchMoment";
 import { FloatingScore } from "../FloatingScore";
 import { floatLines, type FloatMatch } from "../floatText";
 import { liveDock, useLiveDockState } from "../liveDock";

@@ -2,7 +2,7 @@
    vestuario page, the printable A4 poster with the invitation QR, and reduced motion. */
 
 /* «La puerta» inside the vestuario: no page header to clear, same gutters as the blocks around it. */
-.tl.tl-cap{position:relative;margin-top:36px;scroll-margin-top:calc(80px + var(--isle,0px))}
+.tl.tl-cap{position:relative;margin-top:36px;scroll-margin-top:80px}
 .tl.tl-cap .cc{padding:0}
 .tl.tl-cap .tl-h1{font-size:clamp(48px,14cqi,104px)}
 .tl.tl-cap .push{margin-top:4px;max-width:420px}
@@ -35,8 +35,8 @@ body *{visibility:hidden!important}
 }
 
 /* Notices follow the viewport, not the top of the page. */
-.tl > .tl-toast{position:fixed;top:calc(84px + var(--isle,0px))}
-.tl.tl-cap .tabs{top:calc(8px + var(--isle,0px))}
+.tl > .tl-toast{position:fixed;top:84px}
+.tl.tl-cap .tabs{top:8px}
 
 /* Steps already done are a way back (Puerta: sign out here; Tu ficha: pick another shirt). */
 .tl .tl-track li.go{padding:0}

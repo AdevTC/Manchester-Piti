@@ -1,4 +1,4 @@
-// Where the live score lives on the current page (replaces the island's useIslaHero). The floating score reads
+// Where the live score lives on the current page. The floating score reads
 // this store; pages declare themselves:
 //   useLiveDock(lensRef, "lens")     «my lens shows the match»: while it is on screen the float stays away
 //                                     (never the match twice) — Inicio's Hoy lens.

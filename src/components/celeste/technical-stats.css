@@ -379,7 +379,7 @@
 .technical-stats .ts-value{min-width:44px;min-height:44px;padding:6px 8px;border:0;border-radius:10px;background:transparent;color:var(--ink);font:inherit;font-weight:700;font-variant-numeric:tabular-nums;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:4px;cursor:pointer}
 .technical-stats .ts-value:hover{background:var(--chip)}
 .ts-compare-nums{align-items:center}
-.ts-evidence{scroll-margin-top:calc(110px + var(--isle,0px));box-shadow:inset 0 0 0 2px var(--accent)}
+.ts-evidence{scroll-margin-top:110px;box-shadow:inset 0 0 0 2px var(--accent)}
 .ts-evidence-list{list-style:none;padding:0;margin:0;display:grid;gap:0}
 .ts-evidence-list li{display:grid;grid-template-columns:80px minmax(0,1fr);gap:12px;border-top:1px solid var(--line);padding:16px 0;font-size:14px}
 .ts-evidence-list p{margin:5px 0;color:var(--soft);line-height:1.5;overflow-wrap:anywhere}

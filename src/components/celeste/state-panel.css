@@ -5,7 +5,7 @@
 [data-theme="light"] .vx{--sp-err:#b3261e;--sp-err-bg:rgba(179,38,30,.1)}
 
 /* The stage: the hero sky under the (absolute) header, the panel centred in it. */
-.vx .sp-stage{position:relative;z-index:2;display:grid;align-content:center;min-height:min(78svh,720px);padding:calc(96px + var(--isle,0px)) 20px 56px;background:var(--hero-bg);overflow:hidden}
+.vx .sp-stage{position:relative;z-index:2;display:grid;align-content:center;min-height:min(78svh,720px);padding:96px 20px 56px;background:var(--hero-bg);overflow:hidden}
 .vx .sp-ghost{position:absolute;left:-4%;right:-4%;bottom:10px;z-index:0;text-align:center;font-family:'Anybody';font-weight:900;font-size:44cqi;line-height:.8;letter-spacing:-.05em;font-variation-settings:'wdth' 60;color:transparent;-webkit-text-stroke:1.5px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;white-space:nowrap;pointer-events:none;user-select:none}
 
 /* A route error inside the admin app (its own frame): the panel alone (not the 100vh of a .vx page). */
@@ -41,7 +41,7 @@
 .vx .sp.loading .sp-mark svg{animation:spRoll 1.4s linear infinite}
 
 @container (min-width:700px){
-.vx .sp-stage{padding:calc(132px + var(--isle,0px)) 40px 72px}
+.vx .sp-stage{padding:132px 40px 72px}
 .vx .sp-ghost{font-size:34cqi}
 .vx .sp{padding:36px 36px 34px;gap:14px}
 .vx .sp.compact{padding:24px 28px}
