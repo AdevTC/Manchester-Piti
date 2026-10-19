@@ -18,6 +18,7 @@ const { publishAccount } = await import("./accountSignal");
 const { liveDock } = await import("../vidrio/liveDock");
 const { pageDirection } = await import("./pageTransition");
 const { shrinkNext } = await import("./useScrollShrink");
+const { ThemeToggle } = await import("../ThemeToggle");
 
 afterEach(() => {
   act(() => {
@@ -43,8 +44,7 @@ it("a fan: one way into the vestuario («Entrar»), separate from the five publi
   expect(header.getByRole("button", { name: "Extra" })).toBeInTheDocument();
 });
 
-it("the theme switch a page passes is not in the top bar (it lives in the account sheet and the footer)", async () => {
-  const { ThemeToggle } = await import("../ThemeToggle");
+it("the theme switch a page passes is not in the top bar (it lives in the account sheet and the footer)", () => {
   render(
     <>
       <CelesteHeader active="club" actions={<ThemeToggle />} />

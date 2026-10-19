@@ -35,6 +35,7 @@ import { matchPhase } from "../../../../functions/src/matchEngine";
 import { mvpWinners } from "../../../lib/vestuario";
 import { pushState, savedTopics, toggleTopic } from "../../../lib/push";
 import { scoreOf } from "../../../lib/partidos";
+import { mesaLine } from "../../../lib/derived/mesa";
 import { useAvailability, useMatchScorers, useMvpResults, useMyMvpVote } from "../../../pages/vestuario/live";
 import { setAvailability, useMe } from "../../../pages/vestuario/writes";
 import { useServerTimeSync } from "../../../hooks/useServerTimeSync";
@@ -324,7 +325,8 @@ export function LiveScore() {
   const turnEv = turn?.ev ?? null;
   const float: FloatMatch = floatOf({ state, now, moment, rows, staleMinutes: chip?.kind === "stale" ? chip.minutes : null, offline, syncedAt: sync.staleAt ?? sync.since, turn: turnEv });
   const counts = state.kind === "rsvp" ? { vienen: availability.data.filter((a) => a.response === "yes").length, duda: availability.data.filter((a) => a.response === "maybe").length, no: availability.data.filter((a) => a.response === "no").length, squad: players.filter((p) => !(p as { archived?: boolean }).archived).length } : null;
-  const sheetBase = sheetOf({ state, now, nameOf, counts, rows, anotador: anotador && (ballRolling || state.kind === "pending"), fan: !viewer.member });
+  const tally = mvp.get(state.match.id);
+  const sheetBase = sheetOf({ state, now, nameOf, counts, rows, anotador: anotador && (ballRolling || state.kind === "pending"), fan: !viewer.member, mesaLine: mesaLine(state.match) ?? "", turnout: tally ? { total: tally.total, eligible: tally.eligible } : null });
   // (a score the server can't confirm isn't «en directo»: the sheet says why instead)
   // (offline, the frosted sheet says how old its score is: «Marcador del 24′, sin actualizar»)
   const model = float.state === "offline" ? { ...sheetBase, live: false, clock: null, status: floatLines(float, now).main } : sheetBase;

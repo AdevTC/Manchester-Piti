@@ -230,7 +230,7 @@ export interface SheetInput {
   now: number;
   nameOf: (id: string) => string;
   /** «¿Vas hoy?»: the answers so far (members only). */
-  counts?: { vienen: number; duda: number } | null;
+  counts?: { vienen: number; duda: number; no?: number; squad?: number } | null;
   /** The plays so far (playsLog rows). */
   rows?: readonly PlayRow[];
   /** He keeps la mesa of this match: «Volver a la mesa» while it is on. */
@@ -239,10 +239,12 @@ export interface SheetInput {
   fan?: boolean;
   /** Who keeps la mesa («Lo anota Jorge desde la mesa»), when known. */
   mesaLine?: string;
+  /** The open vote's turnout (never who leads: the counts stay private until it closes). */
+  turnout?: { total: number; eligible?: number } | null;
 }
 
 /** The sheet's words for the island's state. */
-export function sheetOf({ state, now, nameOf, counts = null, rows = [], anotador = false, fan = false, mesaLine = "" }: SheetInput): SheetModel {
+export function sheetOf({ state, now, nameOf, counts = null, rows = [], anotador = false, fan = false, mesaLine = "", turnout = null }: SheetInput): SheetModel {
   const m = state.match;
   const { gf, ga } = scoreOf(m);
   const at = dateMillis(m.date);
@@ -290,7 +292,8 @@ export function sheetOf({ state, now, nameOf, counts = null, rows = [], anotador
       return { ...out, status: "Final · MVP del partido", note: `${state.winner}, MVP del partido: lo han elegido los socios.`, open: "Abrir el acta" };
     case "vote": {
       const closes = typeof m.voteClosesAt === "number" ? m.voteClosesAt : now;
-      return { ...out, status: `Votación hasta el ${WEEKDAY.format(closes)} a las ${madridTime(closes)}`, note: "Votan los socios: elige al mejor del partido.", open: "Abrir el acta", action: { kind: "votar", label: "Votar al mejor" }, hide: "Ocultar el aviso de votar al MVP" };
+      const votes = turnout && turnout.total > 0 ? ` ${turnout.eligible ? `${turnout.total} de ${turnout.eligible}` : turnout.total} ${turnout.total === 1 && !turnout.eligible ? "voto" : "votos"} hasta ahora.` : "";
+      return { ...out, status: `Votación hasta el ${WEEKDAY.format(closes)} a las ${madridTime(closes)}`, note: `Votan los socios: elige al mejor del partido.${votes}`, open: "Abrir el acta", action: { kind: "votar", label: "Votar al mejor" }, hide: "Ocultar el aviso de votar al MVP" };
     }
     case "unplayed":
       return { ...out, big: null, status: "Pendiente del acta", note: "Nadie puso el reloj en la mesa: el resultado llegará con el acta.", plays: false };

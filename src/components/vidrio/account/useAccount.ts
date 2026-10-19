@@ -7,7 +7,8 @@ import { useClock } from "../../../hooks/useClock";
 import { useAuth } from "../../../context/AuthContext";
 import { useSeason } from "../../../context/SeasonContext";
 import { kickoffWindow } from "../../../lib/derived/memberWindows";
-import { turnsLine } from "../../../lib/derived/rota";
+import { turnDone, turnsLine } from "../../../lib/derived/rota";
+import { claimStatusText, sortClaims } from "../../../lib/derived/cajaClaims";
 import { balanceOf } from "../../../lib/derived/caja";
 import { cajaOpen, myBalanceText } from "../../../lib/derived/cajaMember";
 import { isPollOpen } from "../../../lib/derived/polls";
@@ -16,8 +17,8 @@ import { useMatchTurns } from "../../../lib/useRotaTurns";
 import { dateMillis, isVisibleMatch } from "../../../../functions/src/matchEngine";
 import { parseMatchLineup } from "../../../lib/matchLineup";
 import { firstName } from "../../celeste/accountSignal";
-import { useAvailability, useCaja, useMvpResults, useMyPrediction, usePollVotes, usePolls } from "../../../pages/vestuario/live";
-import { setAvailability, useMe, votePoll } from "../../../pages/vestuario/writes";
+import { useAvailability, useCaja, useMvpResults, useMyCajaClaims, useMyPrediction, usePollVotes, usePolls } from "../../../pages/vestuario/live";
+import { claimPayment, markTurnDone, setAvailability, useMe, votePoll } from "../../../pages/vestuario/writes";
 import { headLine, jornadaOf, porraLine, rsvpQuestion, rsvpSub, tonightLine, tonightMatch } from "./accountModel";
 
 export type Answer = "yes" | "maybe" | "no";
@@ -31,10 +32,12 @@ export interface AccountData {
   tonight: { text: string; live: boolean } | null;
   rsvp: { question: string; sub: string; value: Answer | null; pick: (a: Answer) => void; busy: boolean; error: string } | null;
   porra: string | null;
-  turno: { title: string; text: string } | null;
+  /** His turno (mine: he can mark it «Hecho»). */
+  turno: { title: string; text: string; mine: boolean; done: boolean; busy: boolean; error: string; mark: () => void } | null;
   poll: { title: string; options: { id: string; label: string; n: number; pct: number; mine: boolean }[]; pick: (id: string) => void; error: string } | null;
   logro: string | null;
-  caja: { owes: boolean; text: string } | null;
+  /** The caja: what he owes, «Ya la he pagado» (a claim the captains confirm) and the claim's state. */
+  caja: { owes: boolean; text: string; claim: string | null; busy: boolean; error: string; paid: (() => void) | null } | null;
 }
 
 export function useAccount(jugador: boolean): AccountData {
@@ -79,6 +82,14 @@ export function useAccount(jugador: boolean): AccountData {
   const turns = useMatchTurns(turnMatch, matches, jugador && !!turnMatch);
   const nameOf = (id: string) => nameFor(players.find((p) => p.id === id), seasonId);
   const turn = jugador ? turnsLine(turns.turns, nameOf, playerId) : null;
+  const [turnBusy, setTurnBusy] = useState(false);
+  const [turnError, setTurnError] = useState("");
+  const [doneHere, setDoneHere] = useState<string | null>(null);
+  const turnIsDone = !!turnMatch && (doneHere === turnMatch.id || turnDone(turns.pins, uid));
+  const claims = useMyCajaClaims(jugador ? uid : undefined);
+  const lastClaim = sortClaims(claims.data.filter((c) => c.seasonId === seasonId))[0] ?? null;
+  const [cajaBusy, setCajaBusy] = useState(false);
+  const [cajaError, setCajaError] = useState("");
   const caja = useCaja(seasonId, jugador);
   const polls = usePolls(jugador);
   const open = jugador ? polls.data.find((p) => isPollOpen(p, now)) : undefined;
@@ -130,7 +141,33 @@ export function useAccount(jugador: boolean): AccountData {
           }
         : null,
     porra: porraMatch ? porraLine(prediction.data ? { gf: prediction.data.goalsFor, ga: prediction.data.goalsAgainst } : null, tonight, now) : null,
-    turno: turn ? { title: turn.mine ? "Tu turno" : "Turnos de la jornada", text: turn.mine ? `${turn.text.replace(/^Te toca: /, "Te toca ")}.` : turn.text } : null,
+    turno: turn
+      ? {
+          title: turn.mine ? "Tu turno" : "Turnos de la jornada",
+          text: turn.mine ? (turnIsDone ? `${turn.text.replace(/^Te toca: /, "Hecho: ")}.` : `${turn.text.replace(/^Te toca: /, "Te toca ")}.`) : turn.text,
+          mine: turn.mine,
+          done: turnIsDone,
+          busy: turnBusy,
+          error: turnError,
+          mark: () => {
+            if (!me || !turnMatch) return;
+            const id = turnMatch.id;
+            const next = !turnIsDone;
+            setTurnBusy(true);
+            setTurnError("");
+            markTurnDone(me, id, next).then(
+              (done) => {
+                setDoneHere(done ? id : null);
+                setTurnBusy(false);
+              },
+              () => {
+                setTurnBusy(false);
+                setTurnError("No se ha podido marcar tu turno. Inténtalo otra vez.");
+              },
+            );
+          },
+        }
+      : null,
     poll: open
       ? {
           title: open.question,
@@ -148,6 +185,33 @@ export function useAccount(jugador: boolean): AccountData {
         }
       : null,
     logro: waitingActa ? "Hay un logro esperando al acta de esta noche." : logro,
-    caja: jugador && playerId && cajaOpen(caja.settings, caja.movs) ? { owes: balanceOf(caja.movs, playerId) < 0, text: myBalanceText(balanceOf(caja.movs, playerId)) } : null,
+    caja:
+      jugador && playerId && cajaOpen(caja.settings, caja.movs)
+        ? (() => {
+            const balance = balanceOf(caja.movs, playerId);
+            const waiting = lastClaim?.status === "pendiente";
+            return {
+              owes: balance < 0,
+              text: myBalanceText(balance),
+              claim: lastClaim ? claimStatusText(lastClaim) : null,
+              busy: cajaBusy,
+              error: cajaError,
+              paid:
+                balance < 0 && !waiting && me
+                  ? () => {
+                      setCajaBusy(true);
+                      setCajaError("");
+                      claimPayment(me, { seasonId, concept: "Lo que faltaba de la caja", amount: -balance }).then(
+                        () => setCajaBusy(false),
+                        (e: unknown) => {
+                          setCajaBusy(false);
+                          setCajaError(e instanceof Error && e.message ? e.message : "No se ha podido avisar del pago. Inténtalo otra vez.");
+                        },
+                      );
+                    }
+                  : null,
+            };
+          })()
+        : null,
   };
 }

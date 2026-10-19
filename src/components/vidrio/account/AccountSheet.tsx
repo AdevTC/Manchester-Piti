@@ -128,6 +128,17 @@ function JugadorBody({ phone, onClose }: { phone: boolean; onClose: () => void }
         {!phone && t.turno && (
           <Row icon="wash" title={t.turno.title}>
             <p>{t.turno.text}</p>
+            {t.turno.mine && (
+              <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" aria-pressed={t.turno.done} disabled={t.turno.busy} onClick={t.turno.mark}>
+                <VIcon name="check" size={16} />
+                {t.turno.done ? "Hecho" : "Marcar como hecho"}
+              </button>
+            )}
+            {t.turno.error && (
+              <p className="vd-acct-err" role="alert">
+                {t.turno.error}
+              </p>
+            )}
           </Row>
         )}
         {!phone && t.poll && (
@@ -156,6 +167,17 @@ function JugadorBody({ phone, onClose }: { phone: boolean; onClose: () => void }
         {!phone && t.caja && (
           <Row icon="euro" title="La caja">
             <p>{t.caja.text}</p>
+            {t.caja.claim && <p>{t.caja.claim}</p>}
+            {t.caja.paid && (
+              <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" disabled={t.caja.busy} onClick={t.caja.paid}>
+                Ya la he pagado
+              </button>
+            )}
+            {t.caja.error && (
+              <p className="vd-acct-err" role="alert">
+                {t.caja.error}
+              </p>
+            )}
           </Row>
         )}
       </ul>
