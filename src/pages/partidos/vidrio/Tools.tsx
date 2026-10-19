@@ -186,7 +186,7 @@ export function RivalSearch({ segments, onJump }: { segments: readonly StripSegm
         <input
           ref={input}
           type="search"
-          placeholder="Buscar rival"
+          placeholder=" "
           value={q}
           autoComplete="off"
           aria-describedby={`${id}-n`}
@@ -199,6 +199,10 @@ export function RivalSearch({ segments, onJump }: { segments: readonly StripSegm
           }}
           onKeyDown={onKey}
         />
+        <span className="vp-find__ph" aria-hidden="true">
+          <span className="vp-find__ph-d">Buscar rival</span>
+          <span className="vp-find__ph-m">Rival</span>
+        </span>
       </label>
       <span id={`${id}-n`} className="vd-vh" role="status">
         {typed ? (found.length ? `${found.length} ${found.length === 1 ? "jornada" : "jornadas"} con ese rival` : "Ningún rival se llama así esta temporada") : ""}

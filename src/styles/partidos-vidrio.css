@@ -34,8 +34,11 @@
 .vp-season svg{width:18px;height:18px;opacity:.85}
 .vp-find{--vd-r:var(--vd-r-ctl);position:relative;display:flex;align-items:center;height:48px;width:100%}
 .vp-find svg{position:absolute;left:13px;top:14px;width:20px;height:20px;color:var(--vd-g-ink2);z-index:2;pointer-events:none}
-.vp-find input{position:relative;z-index:1;width:100%;height:100%;border:0;outline:0;background:transparent;padding:0 12px 0 40px;font:inherit;font-size:15px;font-weight:560;color:var(--vd-g-ink);border-radius:inherit}
-.vp-find input::placeholder{color:var(--vd-g-ink2);opacity:1}
+.vp-find input{position:relative;z-index:2;width:100%;height:100%;border:0;outline:0;background:transparent;padding:0 12px 0 40px;font:inherit;font-size:15px;font-weight:560;color:var(--vd-g-ink);border-radius:inherit}
+.vp-find input::placeholder{color:transparent}
+.vp-find__ph{position:absolute;left:40px;top:50%;transform:translateY(-50%);z-index:1;pointer-events:none;font-size:15px;font-weight:560;color:var(--vd-g-ink2);white-space:nowrap}
+.vp-find input:not(:placeholder-shown)~.vp-find__ph{display:none}
+.vp-find__ph-d{display:none}
 .vp-find input::-webkit-search-cancel-button{filter:invert(.7)}
 .vp-find:focus-within{box-shadow:0 0 0 2px var(--vd-celeste)}
 .vp-filt{display:none;width:340px}
@@ -431,6 +434,8 @@
   .vp-tools{padding:12px 32px 0;gap:12px}
   .vp-tools__r{flex:0 1 auto}
   .vp-pop--find{flex:0 1 200px;width:200px}
+  .vp-find__ph-d{display:inline}
+  .vp-find__ph-m{display:none}
   .vp-filt{display:grid;width:300px}
   .vp-filtbtn{display:none}
   .vp-ribzone{margin:16px 32px 0}
