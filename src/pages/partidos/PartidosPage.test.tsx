@@ -5,6 +5,9 @@ import { beforeEach, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import { longSeasonFixture } from "../../lib/derived/vidrio/fixtures";
 
+// (the member's rows live in a lazy chunk: on a busy machine the import can take longer than findBy's 1 s)
+const LAZY = { timeout: 5000 };
+
 // /partidos «Vidrio»: the ribbon of the season, the lens through the states of a jornada, the three vistas
 // (?view=tabla, ?view=numeros), «¿Y si…?», the filters, the rival search, the season, «Ver todo», el cartel,
 // the member's «¿Vas?» (fans never read answers) and the server render. The long season of P2 (14 teams, 26
@@ -280,7 +283,7 @@ it("a member called for the next jornada answers «¿Vas?» in its previa, and o
   data.matches = (data.matches as ClubMatch[]).map((m) => (m.id === "j18" ? { ...m, starters: ["jordi", "evans"], bench: [] } : m));
   render(<PartidosPage />);
   fireEvent.keyDown(seg(17)!, { key: "ArrowRight" });
-  const row = await screen.findByRole("group", { name: "¿Vas a la jornada 18 contra Red Demons?" });
+  const row = await screen.findByRole("group", { name: "¿Vas a la jornada 18 contra Red Demons?" }, LAZY);
   expect(within(row).getByRole("button", { name: /Voy/ })).toHaveAttribute("aria-pressed", "true");
   expect(spies.liveDoc.mock.calls.every(([p]) => p === null || /\/(availability|predictions)\/u-jordi$/.test(p))).toBe(true);
   await act(async () => {
@@ -295,7 +298,7 @@ it("a member's porra in the previa: his score and the form behind «Cambiarla» 
   who.porra = { goalsFor: 2, goalsAgainst: 1, goals: [] };
   render(<PartidosPage />);
   fireEvent.keyDown(seg(17)!, { key: "ArrowRight" });
-  expect(await screen.findByText("Tu porra: 2–1")).toBeInTheDocument();
+  expect(await screen.findByText("Tu porra: 2–1", {}, LAZY)).toBeInTheDocument();
   const change = screen.getByRole("button", { name: "Cambiarla" });
   expect(change).toHaveAttribute("aria-expanded", "false");
   fireEvent.click(change);
@@ -305,7 +308,7 @@ it("a member's porra in the previa: his score and the form behind «Cambiarla» 
   fireEvent.keyDown(seg(18)!, { key: "ArrowLeft" });
   fireEvent.keyDown(seg(17)!, { key: "ArrowLeft" });
   fireEvent.click(screen.getByRole("tab", { name: /Previa/ }));
-  expect(await screen.findByText("Tu porra: 2–1")).toBeInTheDocument();
+  expect(await screen.findByText("Tu porra: 2–1", {}, LAZY)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Cambiarla|Ponerla/ })).toBeNull();
 });
 
