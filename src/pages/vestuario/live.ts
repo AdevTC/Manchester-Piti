@@ -27,6 +27,7 @@ import { visibleMatchLinks } from "../../lib/matchVisibility";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
 import type { TrainingSlot } from "../../lib/vestuario";
 import { EMPTY_CAJA_SETTINGS, parseCajaMov, parseCajaSettings, type CajaMov, type CajaSettings } from "../../lib/derived/caja";
+import { parseCajaClaim, sortClaims, type CajaClaim } from "../../lib/derived/cajaClaims";
 import { byAbsence, currentAbsences, parseAbsence, type Absence } from "../../lib/derived/absences";
 import { parseRotaTurns, type RotaTurnsDoc } from "../../lib/derived/rota";
 import { parsePoll, parsePollVote, type Poll, type PollVote } from "../../lib/derived/polls";
@@ -612,6 +613,27 @@ export function useCaja(seasonId: string | undefined, enabled = true): Caja {
     () => ({ settings: settings.data, movs: list, loading: settings.loading || movs.loading, error: settings.error || movs.error }),
     [settings.data, settings.loading, settings.error, list, movs.loading, movs.error],
   );
+}
+
+// ---------- «Ya la he pagado» (cajaClaims: a member reads his own, the captains all; derived/cajaClaims)
+const NO_CLAIMS: CajaClaim[] = [];
+const okClaims = (list: (CajaClaim | null)[]): CajaClaim[] => {
+  const ok = sortClaims(list.filter((c): c is CajaClaim => c !== null));
+  return ok.length ? ok : NO_CLAIMS;
+};
+/** The member's own payment notices (every season, pending first). `uid` undefined (a fan) opens nothing. */
+export function useMyCajaClaims(uid: string | undefined): Live<CajaClaim[]> {
+  const q = useLiveQuery<CajaClaim | null>(uid ? `cajaClaims/uid/${uid}` : null, () => query(collection(db, "cajaClaims"), where("uid", "==", uid)), parseCajaClaim);
+  const list = useMemo(() => okClaims(q.data), [q.data]);
+  return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
+}
+/** A season's payment notices, for the captains' La caja («Pagos avisados»; pending first). `enabled` false
+ *  (not a captain) opens nothing: the rules let only captains read everyone's. */
+export function useCajaClaims(seasonId: string | undefined, enabled: boolean): Live<CajaClaim[]> {
+  const sid = enabled && seasonId ? seasonId : null;
+  const q = useLiveQuery<CajaClaim | null>(sid && `cajaClaims/season/${sid}`, () => query(collection(db, "cajaClaims"), where("seasonId", "==", sid)), parseCajaClaim);
+  const list = useMemo(() => okClaims(q.data), [q.data]);
+  return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
 }
 
 // ---------- ausencias («no puedo del 12 al 19»: members read everyone's; derived/absences for the rest)

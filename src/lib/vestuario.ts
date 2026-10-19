@@ -64,8 +64,14 @@ export { plural } from "./derived/words";
 // ---------- MVP
 export interface MvpResult {
   id: string;
+  /** Per-candidate counts: empty while the vote is open (`open: true`), never public before the close. */
   counts: Record<string, number>;
+  /** Valid votes so far (the turnout, «9 de 14 votos»). */
   total: number;
+  /** Who can vote: the vestuario's active members when the tally was written («de 14»). */
+  eligible?: number;
+  /** true while the vote is open (only the turnout is public); false once closed (absent: older docs). */
+  open?: boolean;
 }
 /** Winners of a match's MVP vote once it has closed (ties share it): the same rule as the «MVP de la J5»
  *  push (functions/src/pushLogic.ts mvpWinnerIds). */

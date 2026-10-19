@@ -8,6 +8,8 @@ import type {
 import { useSeasonsLoading } from "../context/SeasonContext";
 import { MATCHES_KEY, PLAYERS_KEY, matchQuery, playerQuery } from "./publicData";
 import { nameFor, seasonShirtName, type NameSource } from "./derived/names";
+import type { MatchMesa } from "../../functions/src/mesaLogic";
+import type { KickoffWeather } from "../../functions/src/weatherLogic";
 export {
   EVENT_LABELS,
   dateMillis,
@@ -31,7 +33,13 @@ export interface ClubMatch extends Omit<
   /** setConvocatoria's stamps (ms): when the convocatoria last changed, when its notice last went. */
   convocatoriaAt?: number;
   convocatoriaNotifiedAt?: number;
+  /** Who keeps la mesa (public name, backend-written): «Lo anota Jorge desde la mesa» (derived/mesa mesaLine). */
+  mesa?: MatchMesa;
+  /** The weather at the kick-off hour, stamped by the backend once the acta is published («Hizo 15°»). */
+  weatherAtKickoff?: KickoffWeather;
 }
+export type { MatchMesa } from "../../functions/src/mesaLogic";
+export type { KickoffWeather } from "../../functions/src/weatherLogic";
 export function useClubData() {
   const matches = useFirestoreCollection(MATCHES_KEY, matchQuery, mapMatch);
   const players = useFirestoreCollection(PLAYERS_KEY, playerQuery, mapPlayer);
