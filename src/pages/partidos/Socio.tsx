@@ -1,13 +1,12 @@
-// The member's own bits of Partidos, in their own chunk: a fan never loads it and the server never renders it
+// The member's own «¿Vas?» on Partidos, in its own chunk: a fan never loads it and the server never renders it
 // (the page mounts it only once hydrated and only for a member, useViewer). Each member reads and writes only
-// his own answer (matchPrivate/{id}/availability/{uid}): no one else's answers, no counts, here or anywhere
-// a fan could see. Voy / Duda / No voy write through the vestuario's setAvailability.
+// his own answer (matchPrivate/{id}/availability/{uid}): no one else's answers, no counts, here or anywhere a
+// fan could see. Voy / Duda / No voy write through the vestuario's setAvailability.
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
 import type { ClubMatch } from "../../lib/clubData";
 import { setAvailability, useMe, type Me } from "../vestuario/writes";
 import { useLiveDoc } from "../vestuario/live";
-import { debutIn, isCalled } from "./model";
+import { isCalled } from "./model";
 
 type Answer = "yes" | "maybe" | "no";
 const readAnswer = (d: { response?: unknown } | undefined): Answer | "" =>
@@ -58,7 +57,7 @@ function Seg({ me, matchId, answer, label }: { me: Me; matchId: string; answer: 
   );
 }
 
-/** A calendar row's one-line Voy / Duda / No voy, only on upcoming matches where the member is called. */
+/** The previa's Voy / Duda / No voy, only on upcoming matches where the member is called. */
 export function RowRsvp({ match, j }: { match: ClubMatch; j?: number }) {
   const me = useMe();
   const answer = useMyAnswer(match.id, me?.uid);
@@ -69,43 +68,6 @@ export function RowRsvp({ match, j }: { match: ClubMatch; j?: number }) {
         ¿Vas?
       </span>
       <Seg me={me} matchId={match.id} answer={answer} label={`¿Vas a la jornada ${j ?? ""} contra ${match.rival ?? "el rival"}?`.replace("  ", " ")} />
-    </div>
-  );
-}
-
-const ANSWER_LINE: Record<Answer | "", string> = { yes: "Vas", maybe: "Dudas", no: "No vas", "": "Aún no has dicho si vas" };
-
-/** The plinth's member line: his answer (before the match), «Debut» or the MVP vote (after the acta). */
-export function SocioLine({ match, phase, all }: { match: ClubMatch; phase: string; all: readonly ClubMatch[] }) {
-  const me = useMe();
-  const answer = useMyAnswer(match.id, me?.uid);
-  if (!me) return null;
-  if (phase === "acta") {
-    const debut = debutIn(match, all, me.playerId);
-    return (
-      <div className="pl-me">
-        <span className="ic" aria-hidden="true">
-          ★
-        </span>
-        <span className="t">{debut ? `Has desbloqueado «Debut»: jugaste ${debut.minutes} minutos.` : "La votación del MVP está abierta."}</span>
-        <Link className="a" to="/matches/$matchId" params={{ matchId: match.id }}>
-          {debut ? "Ver el acta" : "Votar al MVP"}
-        </Link>
-      </div>
-    );
-  }
-  if (!["semana", "antes", "pitido", "despues"].includes(phase) || !isCalled(match, me.playerId)) return null;
-  const seven = match.starters?.includes(me.playerId ?? "") ?? false;
-  return (
-    <div className="pl-me">
-      <span className="ic" aria-hidden="true">
-        {answer === "yes" ? "✓" : answer === "no" ? "✕" : "?"}
-      </span>
-      <span className="t">
-        {ANSWER_LINE[answer]}
-        {answer === "yes" && seven ? ", y juegas de inicio." : "."}
-      </span>
-      <Seg me={me} matchId={match.id} answer={answer} label={`¿Vas contra ${match.rival ?? "el rival"}?`} />
     </div>
   );
 }

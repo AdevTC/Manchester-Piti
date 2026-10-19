@@ -117,3 +117,12 @@ Float storage keys: `vd-pos-<storageKey>` (desktop) and `vd-pos-<storageKey>-mov
 principal», «Navegación móvil», «Entrar al vestuario», «El club», SearchGate, NoticesGate, ThemeToggle). New
 optional prop `live?: boolean` on both (default: `useLiveNow()`): «Partidos» gets `.vd-livedot` and its
 accessible name becomes «Partidos, en directo» (e2e that look it up with `exact: true` must allow that while live).
+
+## Reading pieces and small controls (added with Partidos, P4)
+
+`src/styles/vidrio/reading.css` (import it where you use them): `.vd-btn` (+ `--pri`, `--sm`, `--gold`; put `vd-glass vd-press` on it),
+`.vd-ibtn`, `.vd-link`, `.vd-live` (red dot + words), `.vd-teams` / `.vd-team` / `.vd-team__crest(--rival)`, `.vd-scoreline` /
+`.vd-scoreline__sep` / `.vd-digit`, `.vd-status`, `.vd-plays` / `.vd-play(--them)` / `.vd-ico(--card|--red)`, `.vd-table` (`td.p`, `td.t`,
+`td.pts`, `tr.us`, `tr.vd-gap`) and `.vd-move`, `.vd-form` / `.vd-form__l--g|p|prov|empty`, `.vd-count`, `.vd-window`, `.vd-sheet`,
+`.vd-sun`, `.vd-pitch` / `.vd-pitch__lines` / `.vd-player` / `.vd-player__name`, `.vd-shirt` (`--s` size; a drawn celeste shirt, or
+`.vd-shirt--img` with `--vd-shirt-img: url(…)` for a real still from `useShirtStills`; `--away`; `<b>` the dorsal).
