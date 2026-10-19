@@ -12,6 +12,12 @@ import { madridDate, MONTHS_SHORT } from "../../../lib/derived/madrid";
 import { sunPosition, type LightKey } from "../../../lib/derived/sun";
 import { capital, endSentence, niceName, plural } from "../../../lib/derived/words";
 import type { StripFilter, StripSegment, StripState } from "../../../lib/derived/vidrio/strip";
+import type { PlayRow } from "../../../lib/derived/vidrio/plays";
+import type { RibbonItem } from "../../../components/vidrio/momentum";
+import { parseMatchLineup } from "../../../lib/matchLineup";
+import { lineupField } from "../../../lib/derived/lineupField";
+import { lineOf, LINES } from "../../../lib/positions";
+import { venueName } from "../model";
 
 const MIN = 60_000;
 const DAY = 86_400_000;
@@ -80,12 +86,34 @@ const time = (ms: number) => fmt(ms, { hour: "2-digit", minute: "2-digit" });
 const monthShort = (ms: number) => MONTHS_SHORT[Number(madridDate(ms).slice(5, 7)) - 1] ?? "";
 const dayNum = (ms: number) => Number(madridDate(ms).slice(8, 10));
 
-/** «Dom 13 dic, 19:00» (a segment's date line). */
-export function shortDay(at: number): string {
+/** «Dom 13 dic, 19:00» (a segment's date line); «Hoy, 19:00» on the day when `now` is given. */
+export function shortDay(at: number, now?: number): string {
+  if (now !== undefined && daysBetween(now, at) === 0) return `Hoy, ${time(at)}`;
   return `${capital(fmt(at, { weekday: "short" }).replace(".", ""))} ${dayNum(at)} ${monthShort(at)}, ${time(at)}`;
 }
-/** «13 dic, 19:00» (a narrow segment). */
-export const tinyDay = (at: number): string => `${dayNum(at)} ${monthShort(at)}, ${time(at)}`;
+/** «13 dic, 19:00» (a narrow segment); «Hoy, 19:00» on the day when `now` is given. */
+export const tinyDay = (at: number, now?: number): string => (now !== undefined && daysBetween(now, at) === 0 ? `Hoy, ${time(at)}` : `${dayNum(at)} ${monthShort(at)}, ${time(at)}`);
+
+/** The light of a kick-off in a few words (the wide segments of the cockpit): «Sol de mediodía, a 36°»,
+ *  «Sol de tarde, a 18°», «Atardecer, el sol a 8°», «Atardecer y focos», «Anochece al empezar: con focos»,
+ *  «De noche: con focos»; with the forecast's temperature instead of the sun's height («…, 14°»). */
+export function lightLine(seg: Pick<StripSegment, "light" | "at">, temp?: number | null): string {
+  if (!seg.light || seg.at === null) return "";
+  const e = Math.round(sunPosition(seg.at).elevation);
+  const t = typeof temp === "number" ? `, ${Math.round(temp)}°` : "";
+  switch (seg.light.light) {
+    case "dia":
+      return `Sol de mediodía${t || `, a ${e}°`}`;
+    case "tarde":
+      return `Sol de tarde${t || `, a ${e}°`}`;
+    case "dorada":
+      return seg.light.floodlights ? `Atardecer y focos${t}` : `Atardecer${t || `, el sol a ${e}°`}`;
+    case "ocaso":
+      return `Anochece al empezar: con focos${t}`;
+    default:
+      return `De noche: con focos${t}`;
+  }
+}
 /** «domingo 17 de enero» */
 export const longDay = (at: number): string => fmt(at, { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
 /** «19:00» */
@@ -179,6 +207,30 @@ export interface RibbonGap {
   label: string;
 }
 
+/** Easter Sunday of `year` (Gregorian, YYYY-MM-DD). */
+function easter(year: number): string {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = (19 * a + b - Math.floor(b / 4) - Math.floor((b - Math.floor((b + 8) / 25) + 1) / 3) + 15) % 30;
+  const e = (32 + 2 * (b % 4) + 2 * Math.floor(c / 4) - d - (c % 4)) % 7;
+  const f = Math.floor((a + 11 * d + 22 * e) / 451);
+  const month = Math.floor((d + e - 7 * f + 114) / 31);
+  const day = ((d + e - 7 * f + 114) % 31) + 1;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** What a long stop between two match days (YYYY-MM-DD) is called: «Navidad» when it holds Christmas,
+ *  «Semana Santa» when it holds Easter, «Verano» mid-August, else «Sin partido». */
+export function breakName(a: string, b: string): string {
+  const inside = (d: string) => a < d && d < b;
+  const years = [Number(a.slice(0, 4)), Number(b.slice(0, 4))];
+  if (years.some((y) => inside(`${y}-12-25`) || inside(`${y}-01-01`))) return "Navidad";
+  if (years.some((y) => inside(easter(y)))) return "Semana Santa";
+  if (years.some((y) => inside(`${y}-08-15`))) return "Verano";
+  return "Sin partido";
+}
+
 /** The spacing between the visible jornadas: a week is one unit, a longer wait is wider and says so. */
 export function ribbonGaps(visible: readonly Pick<StripSegment, "day">[]): RibbonGap[] {
   const out: RibbonGap[] = [];
@@ -192,7 +244,7 @@ export function ribbonGaps(visible: readonly Pick<StripSegment, "day">[]): Ribbo
     const days = (Date.parse(b) - Date.parse(a)) / DAY;
     const units = Math.max(1, Math.min(3.2, days / 7));
     let label = "";
-    if (days >= 21) label = "Sin partido";
+    if (days >= 21) label = breakName(a, b);
     else if (days >= 14) {
       const free = new Date(Date.parse(a) + 7 * DAY);
       label = `${free.getUTCDate()} ${MONTHS_SHORT[free.getUTCMonth()]}, sin partido`;
@@ -412,6 +464,99 @@ export function seasonTotals(row: Pick<StandingRow, "gf" | "gc"> | null, goals: 
       closed ? { value: String(total), label: "jornadas jugadas", provisional: false } : { value: String(remaining), label: remaining === 1 ? "jornada por jugar" : "jornadas por jugar", provisional: false },
     ],
   };
+}
+
+// ───────────────────────── the lens's words ─────────────────────────
+
+const list = (names: string[]) => new Intl.ListFormat("es", { type: "conjunction" }).format(names);
+
+/** Who is on the pitch now, line by line: «Evans; Fer, Illescas y Jordi; Adrián T.C. y Eguzquiza; Alcides».
+ *  Without a published lineup, one list. */
+export function onPitchLines(m: ClubMatch, field: readonly string[], nameOf: (id: string) => string): string {
+  const lineup = parseMatchLineup((m as ClubMatch & { lineup?: unknown }).lineup);
+  if (!lineup) return list(field.map(nameOf));
+  const spots = lineupField(lineup, settled(m.events)).spots.filter((s) => field.includes(s.id));
+  const groups = LINES.map((l) =>
+    spots
+      .filter((s) => lineOf(s.code) === l)
+      .sort((a, b) => a.x - b.x)
+      .map((s) => nameOf(s.id)),
+  ).filter((g) => g.length);
+  const placed = new Set(spots.map((s) => s.id));
+  const rest = field.filter((id) => !placed.has(id)).map(nameOf);
+  if (rest.length) groups.push(rest);
+  return groups.map(list).join("; ");
+}
+
+/** «En casa, en Puente de Vallecas» · «Fuera, en Moratalaz» (the district when the map knows it, else the
+ *  venue without its «CDM» / «Campo de»). */
+export function placeLine(home: boolean, district: string | null, venue: string): string {
+  const v = venueName(venue.replace(/^(CDM|C\.D\.M\.|Polideportivo|Instalación deportiva|Campo de fútbol|Campo de|Campo|Estadio)\s+/i, "").trim());
+  const where = district || v;
+  return `${home ? "En casa" : "Fuera"}${where ? `, en ${where}` : ""}`;
+}
+
+/** A play as the boards tell it: what happened above, who / how below («Gol de Adrián T.C.» · «Pase de
+ *  Jordi»; «Al palo» · «Disparo de Adrián T.C.»). */
+export function boardPlay(r: Pick<PlayRow, "title" | "sub">): { title: string; sub: string } {
+  const sub = r.sub.replace(/^Asistencia de /, "Pase de ");
+  const palo = /^Al palo, (.+)$/.exec(r.title);
+  if (palo) return { title: "Al palo", sub: sub || (palo[1] === "el Piti" ? "Disparo del Piti" : `Disparo de ${palo[1]}`) };
+  return { title: r.title, sub };
+}
+
+const MARK_RANK: Record<string, number> = { gol: 0, roja: 1, tarjeta: 2, palo: 3, parada: 4 };
+
+/** The momentum ribbon's marks without piling up: on each side, a mark closer than `gap` (% of the match)
+ *  to a stronger one (a goal beats a card beats the post beats a save; then the later) loses its glyph and
+ *  only shapes the wave. */
+export function decollide<T extends Pick<RibbonItem, "x" | "side" | "goal" | "kind">>(items: readonly T[], gap: number): T[] {
+  const rank = (it: T) => (it.goal ? 0 : (MARK_RANK[it.kind ?? ""] ?? 9));
+  const order = items.map((it, i) => ({ it, i })).sort((a, b) => rank(a.it) - rank(b.it) || b.it.x - a.it.x);
+  const kept: T[] = [];
+  const out = [...items];
+  for (const { it, i } of order) {
+    if (kept.some((k) => k.side === it.side && Math.abs(k.x - it.x) < gap) && !it.goal) {
+      out[i] = { ...it, kind: "otro" };
+      continue;
+    }
+    kept.push(it);
+  }
+  return out;
+}
+
+/** How the member's porra stands against a score: «la clavas», «a un gol», or neither. */
+export function porraVerdict(p: { gf: number; ga: number }, s: { gf: number; ga: number }): "exacta" | "cerca" | "no" {
+  const off = Math.abs(p.gf - s.gf) + Math.abs(p.ga - s.ga);
+  return off === 0 ? "exacta" : off === 1 ? "cerca" : "no";
+}
+
+// ───────────────────────── the season in words ─────────────────────────
+
+/** The league as a phrase after the season's name: «Liga F7» → «liga de fútbol 7», «Liga de fútbol 7» →
+ *  «liga de fútbol 7»; "" when there is none. */
+export function leaguePhrase(competition: string | null | undefined): string {
+  const c = (competition ?? "").trim();
+  if (!c) return "";
+  const said = c.replace(/\bF-?7\b/i, "de fútbol 7").replace(/\bF-?11\b/i, "de fútbol 11").replace(/\bde de\b/i, "de");
+  return said.charAt(0).toLocaleLowerCase("es") + said.slice(1);
+}
+
+const SEASON_OF_MONTH = ["invierno", "invierno", "primavera", "primavera", "primavera", "verano", "verano", "verano", "otoño", "otoño", "otoño", "invierno"] as const;
+const MONTH_LONG = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"] as const;
+
+/** When a season was played, from its first and last match day (YYYY-MM-DD): «primavera de 2026» when both
+ *  fall in one season of the year, else «de septiembre de 2025 a mayo de 2026»; "" without dates. */
+export function seasonSpan(days: readonly string[]): string {
+  const sorted = days.filter(Boolean).sort();
+  if (!sorted.length) return "";
+  const [y0, m0] = sorted[0].split("-").map(Number);
+  const [y1, m1] = sorted[sorted.length - 1].split("-").map(Number);
+  const s0 = SEASON_OF_MONTH[m0 - 1];
+  const s1 = SEASON_OF_MONTH[m1 - 1];
+  const months = (y1 - y0) * 12 + (m1 - m0);
+  if (s0 === s1 && months <= 3) return `${s0} de ${s0 === "invierno" && m1 <= 2 ? y1 : y0}`;
+  return `de ${MONTH_LONG[m0 - 1]}${y0 !== y1 ? ` de ${y0}` : ""} a ${MONTH_LONG[m1 - 1]} de ${y1}`;
 }
 
 /** A goal difference as the table prints it: «+18», «−3», «0». */

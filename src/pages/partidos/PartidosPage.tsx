@@ -5,9 +5,9 @@
 // filters, the rival search and the season. A desktop keeps everything inside the screen (zones scroll in
 // place); ≥ 1800 px is a cockpit (Tabla, the lens and Números side by side). Server-rendered for fans: the
 // member's «¿Vas?» loads in its own chunk once hydrated; live data only through the existing hooks.
-import { useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { GrowWindow, PipWindow, Shelf, VidrioSky, openScorePip, shelfPanelId, shelfTabId, skyAt, supportsViewTransitions, swap, travel, useDesktop, useMedia, type ScorePip } from "../../components/vidrio";
+import { GrowWindow, PipWindow, Shelf, VidrioSky, openScorePip, shelfPanelId, shelfTabId, skyAt, supportsViewTransitions, swap, travel, useDesktop, useLiveDock, useMedia, useReducedMotion, type ScorePip } from "../../components/vidrio";
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -18,12 +18,16 @@ import { useViewer } from "../../hooks/useViewer";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { nameFor, nextFixture, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
 import { useStandings } from "../../lib/useStandings";
-import { useSetSeason } from "../../lib/useSetSeason";
 import { currentSeasonId, mvpWinners } from "../../lib/vestuario";
 import { useMvpResults } from "../vestuario/live";
 import { scoreOf, shownMinute } from "../../lib/partidos";
+import { useMatchWeather } from "../../lib/weather";
+import { cleanSheetsByKeeper, seasonCards } from "../../lib/derived/vidrio/keepers";
+import { matchLogros } from "../../lib/derived/vidrio/matchLogros";
 import { siteOrigin } from "../../lib/derived/venue";
-import { endSentence } from "../../lib/derived/words";
+import { madridDate } from "../../lib/derived/madrid";
+import { dateMillis } from "../../../functions/src/matchEngine";
+import { endSentence, plural } from "../../lib/derived/words";
 import { kickoffHint } from "../../lib/derived/vidrio/hints";
 import { seasonLeaders } from "../../lib/derived/vidrio/leaders";
 import { cartelOf } from "../../lib/derived/vidrio/cartel";
@@ -31,7 +35,7 @@ import { filterPlays, playsLog, PLAY_FILTERS, type PlayFilter } from "../../lib/
 import { filterStrip, pageWindow, seasonStrip, windowAround, windowAt, type StripFilter } from "../../lib/derived/vidrio/strip";
 import { projectTable, remainingFixtures, simulateTable, type PickLetter, type SimPreset } from "../../lib/derived/vidrio/table";
 import type { SquadMember } from "../../lib/home";
-import { MatchLens, PlayItem, type LensCtx } from "./vidrio/MatchLens";
+import { LiveLensMark, MatchLens, PlayItem, type LensCtx } from "./vidrio/MatchLens";
 import { Ribbon } from "./vidrio/Ribbon";
 import { Tabla, TableHead, TableRows } from "./vidrio/Tabla";
 import { LeaderItem, Numeros } from "./vidrio/Numeros";
@@ -39,14 +43,13 @@ import { CartelSheet } from "./vidrio/Cartel";
 import { Filters, RivalSearch, SeasonPicker, type SeasonOption } from "./vidrio/Tools";
 import { Glyph } from "./vidrio/bits";
 import { StillContext } from "./vidrio/stills";
-import { cardsAndCleanSheets, countLine, daysBetween, goalsByStretch, niceName, paintOf, seasonTotals, VISTAS, windowSizeFor, type LensTab, type Vista } from "./vidrio/model";
+import { clockTime, countLine, daysBetween, goalsByStretch, leaguePhrase, niceName, paintOf, seasonSpan, seasonTotals, VISTAS, windowSizeFor, type LensTab, type Vista } from "./vidrio/model";
 import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/glass.css";
 import "../../styles/vidrio/components.css";
 import "../../styles/vidrio/reading.css";
 import "../../styles/partidos-vidrio.css";
 
-const ALL = "all";
 const subscribeNothing = () => () => {};
 /** False on the server and while hydrating, true once the browser has taken over (member bits wait for it). */
 const useHydrated = (): boolean => useSyncExternalStore(subscribeNothing, () => true, () => false);
@@ -70,15 +73,19 @@ interface Sim {
   preset: SimPreset;
 }
 
-const competitionOf = (list: readonly ClubMatch[]): string => {
-  const c = list.find((m) => m.competition)?.competition ?? "";
-  return c ? c.charAt(0).toLocaleLowerCase("es") + c.slice(1) : "";
-};
+const competitionOf = (list: readonly ClubMatch[]): string => leaguePhrase(list.find((m) => m.competition)?.competition);
+
+/** While a closed season is on screen the live score stays off this page (its matches are not tonight's):
+ *  a mark that always counts as «the lens shows it». */
+function FloatAway() {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useLiveDock(ref, "lens");
+  return <span ref={ref} className="vp-floataway" aria-hidden="true" />;
+}
 
 export function PartidosPage() {
   const { matches, players, loading, error } = useClubData();
-  const { seasons, selectedSeasonId } = useSeason();
-  const setSeason = useSetSeason();
+  const { seasons } = useSeason();
   const navigate = useNavigate();
   const now = useClock(30_000);
   const viewer = useViewer();
@@ -89,13 +96,17 @@ export function PartidosPage() {
   const size = useWindowSize();
   const theme = useDocumentTheme();
   const mvpResults = useMvpResults();
+  const reduced = useReducedMotion();
 
-  const url: { view?: unknown } = useSearch({ strict: false });
+  const url: { view?: unknown; temporada?: unknown } = useSearch({ strict: false });
   const vista: Vista = url.view === "tabla" ? "tabla" : url.view === "numeros" ? "numeros" : "jornadas";
 
-  // the season: the one asked for, else the one being played
+  // the season: the one this page's address asks for (?temporada=…, never a choice remembered from another
+  // visit), else the one being played
   const current = currentSeasonId(nextFixture(matches, now), matches, seasons);
-  const seasonId = selectedSeasonId !== ALL && seasons.some((s) => s.id === selectedSeasonId) ? selectedSeasonId : current;
+  const asked = typeof url.temporada === "string" ? url.temporada : null;
+  const seasonId = asked && seasons.some((s) => s.id === asked) ? asked : current;
+  const setSeason = (id: string) => void navigate({ to: "/partidos", search: (prev) => ({ ...prev, view: vista === "jornadas" ? undefined : vista, temporada: id === current ? undefined : id }) });
   const season = seasons.find((s) => s.id === seasonId);
   const seasonName = season?.name ?? "La temporada";
   const closed = !!seasonId && seasonId !== current;
@@ -116,6 +127,9 @@ export function PartidosPage() {
   const segs = strip.segments;
   const liveSeg = segs.find((s) => s.state === "directo") ?? null;
   const liveMinute = liveSeg ? shownMinute(liveSeg.match, now) : null;
+  // the jornada of the day: live or still to play, else played, waiting for its acta or postponed today
+  const todaySeg = closed ? null : strip.todayIndex !== null ? (segs[strip.todayIndex] ?? null) : (segs.find((s) => s.at !== null && daysBetween(now, s.at) === 0 && (s.state === "jugado" || s.state === "pendiente" || s.state === "aplazado")) ?? null);
+  const tonightWeather = useMatchWeather(todaySeg?.state === "hoy" ? todaySeg.match : undefined, now);
 
   // ── what the viewer chose
   const [selRaw, setSel] = useState<{ season: string; id: string } | null>(null);
@@ -127,6 +141,13 @@ export function PartidosPage() {
   const [pf, setPf] = useState<PlayFilter>("todo");
   const [cartel, setCartel] = useState(false);
   const [pip, setPip] = useState<ScorePip | null>(null);
+  const [sweep, setSweep] = useState(0);
+  // (the glint sweeps once across the lens after a pick; never under reduced motion)
+  useEffect(() => {
+    if (!sweep) return;
+    const t = setTimeout(() => setSweep(0), 1100);
+    return () => clearTimeout(t);
+  }, [sweep]);
 
   // what the page opens on: the jornada of today (live or still to play), else the one just played (its acta,
   // within a day) or postponed today, else the next one to play (seasonStrip focus)
@@ -148,7 +169,9 @@ export function PartidosPage() {
   // ── the table, «si acaba así» and «¿y si…?»
   const rows = standings?.rows ?? null;
   const fixtures = closed ? [] : remainingFixtures(matches, seasonId, now);
-  const live = liveSeg?.score ? { rival: liveSeg.rival, gf: liveSeg.score.gf, ga: liveSeg.score.ga } : null;
+  // tonight counts in the table as it ends: live («si acaba así»), or played with the standings not updated yet
+  const tonightIn = liveSeg ?? (todaySeg?.state === "jugado" && todaySeg.score && (todaySeg.provisional || (standings?.jornada != null && todaySeg.jornada !== null && standings.jornada < todaySeg.jornada)) ? todaySeg : null);
+  const live = tonightIn?.score ? { rival: tonightIn.rival, gf: tonightIn.score.gf, ga: tonightIn.score.ga } : null;
   const simulation = rows ? (closed ? projectTable(rows, null) : simulateTable(rows, fixtures, sim.picks, sim.preset, { live })) : null;
   const real = rows ? projectTable(rows, live) : null;
 
@@ -159,7 +182,10 @@ export function PartidosPage() {
   const remaining = segs.filter((s) => s.state === "hoy" || s.state === "proximo" || s.state === "aplazado").length;
   const totals = seasonTotals(real?.us ?? null, goals, real?.position ?? null, remaining, !!liveSeg, closed, segs.length);
   const stretch = goalsByStretch(segs.filter((s) => s.state === "jugado" || s.state === "directo").map((s) => s.match));
-  const { cards, clean } = cardsAndCleanSheets(playedMatches, scoreOf);
+  const keeperRow = cleanSheetsByKeeper(playedMatches, scoreOf, liveSeg?.match ?? null)[0] ?? null;
+  const keeper = keeperRow ? { name: nameFor(players.find((p) => p.id === keeperRow.id), seasonId || undefined), num: numOf(keeperRow.id), clean: keeperRow.clean, provisional: keeperRow.provisional } : null;
+  const cards = seasonCards(playedMatches, liveSeg?.match ?? null);
+  const left = closed || !remaining ? null : { value: remaining, text: `${plural(remaining, "jornada")}${todaySeg?.state === "hoy" ? ", la primera hoy" : ""}` };
 
   // ── the real kit stills (a blank shirt per kit; the drawn one stands in before)
   const still = useShirtStills(hydrated ? [{ kit: "home", theme, name: "", num: "" }, { kit: "away", theme, name: "", num: "" }] : [], { offMainThread: true });
@@ -170,6 +196,7 @@ export function PartidosPage() {
     const from = segs.findIndex((s) => s.id === selId);
     const to = segs.findIndex((s) => s.id === id);
     const inList = list.some((s) => s.id === id);
+    if (!reduced && id !== selId) setSweep((n) => n + 1);
     void swap(to >= from ? "right" : "left", () => {
       setSel({ season: seasonId, id });
       if (!inList) setFilter("todos");
@@ -248,11 +275,16 @@ export function PartidosPage() {
 
   // ── the words around
   const usRow = real?.us ?? null;
+  const evening = (at: number | null) => at !== null && Number(clockTime(at).slice(0, 2)) >= 17;
   const tonightHint = liveSeg?.jornada
     ? `J${liveSeg.jornada} en directo`
-    : strip.todayIndex !== null && segs[strip.todayIndex]
-      ? `J${segs[strip.todayIndex].jornada ?? ""} hoy`
-      : closed || !remaining
+    : todaySeg?.state === "hoy"
+      ? `J${todaySeg.jornada ?? ""} ${evening(todaySeg.at) ? "esta noche" : "hoy"}`
+      : todaySeg?.state === "jugado" && todaySeg.score
+        ? `J${todaySeg.jornada ?? ""}: ${todaySeg.score.gf}–${todaySeg.score.ga}`
+        : todaySeg?.state === "pendiente"
+          ? `J${todaySeg.jornada ?? ""}: pendiente del acta`
+          : closed || !remaining
         ? "Todo jugado"
         : (() => {
             const next = segs.find((s) => s.state === "proximo");
@@ -267,27 +299,39 @@ export function PartidosPage() {
   const count = countLine(strip.counts, remaining, filter, list.length);
   const options: SeasonOption[] = [...seasons].reverse().map((s) => {
     const own = matches.filter((m) => m.seasonId === s.id);
-    const comp = competitionOf(own);
+    const comp = (s.id === seasonId ? leaguePhrase(standings?.competition) : "") || competitionOf(own);
+    const span = seasonSpan(own.map((m) => dateMillis(m.date)).filter(Number.isFinite).map(madridDate));
     return {
       id: s.id,
       name: s.name,
-      tail: comp,
-      sub: s.id === current ? `La de ahora${comp ? `, ${comp}` : ""}` : `Cerrada: ${own.length} ${own.length === 1 ? "partido" : "partidos"}${comp ? `, ${comp}` : ""}`,
+      tail: s.id === current ? comp : span || comp,
+      sub: s.id === current ? `La de ahora${comp ? `, ${comp}` : ""}` : `Archivada${span ? `: ${span}` : ""}, ${own.length} ${own.length === 1 ? "partido" : "partidos"}`,
     };
   });
+  // the logros this acta unlocked (debut, first goal, hat-trick…), over every match of the club
+  const selActa = sel && sel.state === "jugado" && !sel.provisional ? sel.match : null;
+  // (the React Compiler memoizes this on its inputs)
+  const logros = selActa ? matchLogros(selActa, matches, nameOf, { mvpResults, now }).map((l) => ({ icon: l.icon, text: l.text })) : [];
+  const selMvp = sel && sel.state === "jugado" ? mvpWinners(sel.match, mvpResults.get(sel.match.id), now).map((id) => ({ name: nameOf(id), num: numOf(id) })) : [];
+  const cartelData = sel ? { cartel: cartelOf(sel.match, { jornada: sel.jornada, seasonName, nameOf, now, mvp: selMvp[0]?.name ?? null }), paint: paintOf(sel) } : null;
   const ctx: LensCtx = {
     now,
     nameOf,
     numOf,
     liveMinute,
     member,
-    mvp: sel && sel.state === "jugado" ? mvpWinners(sel.match, mvpResults.get(sel.match.id), now).map((id) => ({ name: nameOf(id), num: numOf(id) })) : [],
+    me: member && viewer.playerId ? viewer.playerId : null,
+    captainId: season?.captainPlayerId ?? null,
+    mvp: selMvp,
     seasonClosed: closed,
+    tonight: !!sel && !!todaySeg && sel.id === todaySeg.id,
+    logros,
+    // (the cockpit shows the cartel inline in the lens)
+    cartel: cockpit ? cartelData : null,
   };
   const simMode = vista === "tabla" && desktop && !closed;
   const results = simulation?.results ?? {};
   const busy = loading && !matches.length;
-  const empty = !busy && !error && !segs.length;
   const idBase = "vp-vista";
   const lastPlayed = [...segs].reverse().find((s) => s.state === "jugado")?.jornada ?? null;
 
@@ -317,6 +361,7 @@ export function PartidosPage() {
           }
           onClose={closeGrow}
         >
+          {ctx.tonight && <LiveLensMark />}
           {halves.length ? (
             halves.map((h) => (
               <div key={String(h.h)}>
@@ -363,36 +408,39 @@ export function PartidosPage() {
     return null;
   })();
 
-  const lensCtx = ctx;
   const panelCls = (v: Vista) => `vp-panel vp-panel--${v}${vista === v ? " is-on" : ""}`;
   const announce = sel ? endSentence(`J${sel.jornada ?? ""}, ${sel.home ? "contra" : "en casa de"} ${sel.rival}`) : "";
+  const backToNow = () => swap("up", () => setSeason(current));
 
   return (
     <StillContext.Provider value={stillOf}>
-      <div className={`vx vp${grow.open ? " vp-growing" : ""}${closed ? " vp-arch" : ""}${cockpit ? " vp-cockpit" : ""}`} aria-busy={loading}>
+      <div className={`vx vp${grow.open ? " vp-growing" : ""}${closed ? " vp-arch" : ""}${cockpit ? " vp-cockpit" : ""}${!segs.length ? " vp-nojor" : ""}`} aria-busy={loading}>
         <VidrioSky light={light.light} floodlit={light.floodlit} />
         <CelesteHeader active="partidos" sub="Partidos" actions={<ThemeToggle />} live={liveSeg ? true : undefined} />
+        {closed && hydrated && <FloatAway />}
         <main className="vp-stage">
           <h1 className="vd-vh">Partidos</h1>
           <div className="vp-tools">
             <div className="vp-tools__l">
-              {options.length > 0 && <SeasonPicker options={options} value={seasonId} onPick={(id) => setSeason(id)} />}
-              <Filters
-                value={filter}
-                onChange={(f) => {
-                  const from = ["todos", "proximos", "resultados"].indexOf(filter);
-                  const to = ["todos", "proximos", "resultados"].indexOf(f);
-                  swap(to > from ? "right" : "left", () => {
-                    setFilter(f);
-                    setWs(null);
-                  });
-                }}
-              />
+              {options.length > 0 && <SeasonPicker options={options} value={seasonId} onPick={(id) => swap("up", () => setSeason(id))} />}
+              {segs.length > 0 && (
+                <Filters
+                  value={filter}
+                  onChange={(f) => {
+                    const from = ["todos", "proximos", "resultados"].indexOf(filter);
+                    const to = ["todos", "proximos", "resultados"].indexOf(f);
+                    swap(to > from ? "right" : "left", () => {
+                      setFilter(f);
+                      setWs(null);
+                    });
+                  }}
+                />
+              )}
               {closed ? (
                 <p className="vp-archbar">
                   <Glyph name="lock" />
-                  Temporada cerrada.{" "}
-                  <button type="button" className="vd-link" onClick={() => swap("up", () => setSeason(current))}>
+                  Archivada.{" "}
+                  <button type="button" className="vd-link" onClick={backToNow}>
                     Volver a la de ahora
                   </button>
                 </p>
@@ -402,15 +450,17 @@ export function PartidosPage() {
                 </p>
               )}
             </div>
-            <div className="vp-tools__r">
-              <RivalSearch segments={segs} onJump={(id) => pick(id)} />
-            </div>
+            {segs.length > 0 && (
+              <div className="vp-tools__r">
+                <RivalSearch segments={segs} onJump={(id) => pick(id)} />
+              </div>
+            )}
           </div>
           {closed && (
             <p className="vp-archbar vp-archbar--m">
               <Glyph name="lock" />
-              Temporada cerrada: todo jugado.{" "}
-              <button type="button" className="vd-link" onClick={() => swap("up", () => setSeason(current))}>
+              <span>Temporada archivada: todo jugado.</span>{" "}
+              <button type="button" className="vd-link" onClick={backToNow}>
                 Volver a la de ahora
               </button>
             </p>
@@ -433,35 +483,29 @@ export function PartidosPage() {
               <div className="vp-skel__rib" />
               <div className="vp-skel__lens" />
             </section>
-          ) : empty ? (
-            <section className="vd-glass vd-lens vp-lens vp-state" aria-labelledby="vp-pre">
-              <h2 id="vp-pre" className="vd-h3">
-                El calendario aún no está
-              </h2>
-              <p className="vd-body">En cuanto la liga lo publique aparecerán aquí las jornadas, cada una con su hora, su campo y la luz del pitido.</p>
-              <div className="vp-btns">
-                <AddToCalendar className="vd-glass vd-btn vd-btn--pri vd-press" iconName="cal" label="Avísame en mi calendario" feed={`${siteOrigin()}/calendario.ics`} />
-              </div>
-            </section>
           ) : (
             <>
-              <Ribbon
-                strip={strip}
-                list={list}
-                win={win}
-                selId={selId}
-                now={now}
-                liveMinute={liveMinute}
-                simMode={simMode}
-                picks={sim.picks}
-                results={results}
-                onPick={pick}
-                onPage={page}
-                onWindowAround={windowAroundIndex}
-                onSim={onSim}
-                onHoy={goHoy}
-                hoyDisabled={!focusId || (selId === focusId && win.start <= Math.max(0, list.findIndex((s) => s.id === focusId)) && list.findIndex((s) => s.id === focusId) < win.end)}
-              />
+              {segs.length > 0 && (
+                <Ribbon
+                  strip={strip}
+                  list={list}
+                  win={win}
+                  selId={selId}
+                  now={now}
+                  liveMinute={liveMinute}
+                  simMode={simMode}
+                  picks={sim.picks}
+                  results={results}
+                  onPick={pick}
+                  onPage={page}
+                  onWindowAround={windowAroundIndex}
+                  onSim={onSim}
+                  onHoy={goHoy}
+                  hoyDisabled={!focusId || (selId === focusId && win.start <= Math.max(0, list.findIndex((s) => s.id === focusId)) && list.findIndex((s) => s.id === focusId) < win.end)}
+                  dock={desktop && !closed}
+                  tonightTemp={tonightWeather?.temp ?? null}
+                />
+              )}
               <div className="vp-shelfbar">
                 <Shelf places={places} value={vista} onChange={(id) => setVista(id as Vista)} label="Qué ver" idBase={idBase} className="vp-vistas" />
               </div>
@@ -480,6 +524,8 @@ export function PartidosPage() {
                     closed={closed}
                     segments={segs}
                     lastPlayed={lastPlayed}
+                    tonightJ={tonightIn?.jornada ?? null}
+                    startsToday={!lastPlayed && todaySeg?.state === "hoy"}
                     onGrow={() => openGrow("tabla")}
                     tablaVt={!grow.open && grow.from === "tabla"}
                     onTry={() => setVista("tabla")}
@@ -488,10 +534,10 @@ export function PartidosPage() {
                   />
                 </div>
                 <div id={shelfPanelId(idBase, "jornadas")} role="tabpanel" aria-labelledby={shelfTabId(idBase, "jornadas")} className={panelCls("jornadas")}>
-                  {sel && (
+                  {sel ? (
                     <MatchLens
                       seg={sel}
-                      ctx={lensCtx}
+                      ctx={ctx}
                       tab={tab}
                       onTab={(t, a, b) => swap(b >= a ? "right" : "left", () => setTab({ id: sel.id, tab: t }))}
                       onCartel={() => setCartel(true)}
@@ -499,12 +545,37 @@ export function PartidosPage() {
                       playsVt={!grow.open && grow.from === "plays"}
                       onPip={onPip}
                       pipOpen={!!pip}
+                      sweep={!!sweep}
                       className={grow.open ? "vd-stepback" : undefined}
                     />
+                  ) : (
+                    !error && (
+                      <section className="vd-glass vd-lens vp-lens vp-state" aria-labelledby="vp-pre">
+                        <h2 id="vp-pre" className="vd-h3">
+                          El calendario aún no está
+                        </h2>
+                        <p className="vd-body">En cuanto la liga lo publique aparecerán aquí las jornadas, cada una con su hora, su campo y la luz del pitido.</p>
+                        <div className="vp-btns">
+                          <AddToCalendar className="vd-glass vd-btn vd-btn--pri vd-press" iconName="cal" label="Avísame en mi calendario" feed={`${siteOrigin()}/calendario.ics`} />
+                        </div>
+                      </section>
+                    )
                   )}
                 </div>
                 <div id={shelfPanelId(idBase, "numeros")} role="tabpanel" aria-labelledby={shelfTabId(idBase, "numeros")} className={`${panelCls("numeros")}${cockpit ? " vd-glass vd-window" : ""}${grow.open && grow.open !== "gol" && grow.open !== "asi" ? " vd-stepback" : ""}`}>
-                  <Numeros totals={totals} leaders={leaders} stretch={stretch} cards={cards} clean={clean} onGrow={openGrow} growVt={!grow.open && (grow.from === "gol" || grow.from === "asi") ? grow.from : null} nice={niceName} duration={segs.find((s) => s.match.duration)?.match.duration ?? 50} />
+                  <Numeros
+                    totals={totals}
+                    leaders={leaders}
+                    stretch={stretch}
+                    keeper={keeper}
+                    cards={cards}
+                    left={left}
+                    today={todaySeg?.state === "hoy" || todaySeg?.state === "directo"}
+                    onGrow={openGrow}
+                    growVt={!grow.open && (grow.from === "gol" || grow.from === "asi") ? grow.from : null}
+                    nice={niceName}
+                    duration={segs.find((s) => s.match.duration)?.match.duration ?? 50}
+                  />
                 </div>
                 {growWindow}
               </div>
@@ -516,7 +587,7 @@ export function PartidosPage() {
         </main>
         <CelesteFooter />
         <CelesteDock active="partidos" live={liveSeg ? true : undefined} />
-        {cartel && sel && <CartelSheet cartel={cartelOf(sel.match, { jornada: sel.jornada, seasonName, nameOf, now, mvp: ctx.mvp[0]?.name ?? null })} paint={paintOf(sel)} onClose={() => setCartel(false)} />}
+        {cartel && cartelData && <CartelSheet cartel={cartelData.cartel} paint={cartelData.paint} onClose={() => setCartel(false)} />}
         {liveSeg && (
           <PipWindow pip={pip} title={`Manchester Piti contra ${liveSeg.rival}`} onClose={closePip}>
             <span className="vd-score">

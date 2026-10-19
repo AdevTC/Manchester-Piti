@@ -144,7 +144,8 @@ export function RivalSearch({ segments, onJump }: { segments: readonly StripSegm
     onJump(s.id);
   };
   const sub = (s: StripSegment) => {
-    const day = s.at !== null && s.state !== "aplazado" ? shortDay(s.at) : "Sin fecha";
+    // (a postponed one keeps the date it had: «Dom 29 nov, 18:00, aplazado»)
+    const day = s.at !== null ? shortDay(s.at) : "Sin fecha";
     const tail = s.state === "jugado" && s.score ? `, ${s.score.gf}–${s.score.ga}` : s.state === "directo" ? ", en directo" : s.state === "aplazado" ? ", aplazado" : "";
     return `${day}${tail}`;
   };
