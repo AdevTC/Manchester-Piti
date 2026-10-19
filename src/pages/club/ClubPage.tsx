@@ -14,13 +14,18 @@ import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { Icon, type IconName } from "../../components/celeste/icons";
 import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { ClubDataError } from "../../components/celeste/StatePanel";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
 import { Vitrina } from "./Vitrina";
+import { VitrinaVidrio } from "./VitrinaVidrio";
+import { PageSky, useNightGoal } from "../../components/paginas/PageSky";
+import { matchdayOf } from "../../lib/derived/matchday";
+import { jornadas } from "../../lib/derived/jornada";
+import { birthdayLine, vitrinaPieces } from "../../lib/derived/vidrio/vitrinaLive";
 import { PlantillaPosiciones } from "./PlantillaPosiciones";
 import { NewBadge } from "../../components/NewBadge";
 import type { NewFeature } from "../../lib/derived/isNew";
@@ -29,6 +34,12 @@ import "../../styles/celeste/data.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
 import "../../styles/club-celeste.css";
+import "../../styles/vidrio/tokens.css";
+import "../../styles/vidrio/glass.css";
+import "../../styles/vidrio/components.css";
+import "../../styles/vidrio/reading.css";
+import "../../styles/vidrio-paginas.css";
+import "../../styles/club-vidrio.css";
 
 const KITS = {
   home: { label: KIT_LABEL.home, note: "Celeste de la casa, con el oro en el cuello y el bajo.", swatches: [["Celeste", "#8AC8F5"], ["Tinta", "#051330"], ["Oro", "#CFA862"]] },
@@ -62,7 +73,7 @@ export function ClubPage() {
   const c = useClubContent();
   const { matches, players, loading, error } = useClubData();
   const { seasons } = useSeason();
-  const now = useClock(60_000);
+  const now = useClock(15_000);
   const theme = useDocumentTheme();
   const [kit, setKit] = useState<"home" | "away">("home");
   const shirt = useRef<Jersey3DRef>(null);
@@ -88,6 +99,14 @@ export function ClubPage() {
   const gallery = (c.gallery ?? []).filter((g) => g && /^https:\/\//.test(g.url ?? ""));
   const faq = (c.faq ?? []).filter((f) => f && f.q?.trim() && f.a?.trim());
   const nextWhen = next ? formatDate(next.date) : "";
+  // the vitrina of the season (tonight's match in its live slot) and the week around the club
+  const day = matchdayOf(matches, seasonId, now);
+  const live = day.phase === "directo1" || day.phase === "descanso" || day.phase === "directo2";
+  const night = useNightGoal(day.match, live);
+  const vit = vitrinaPieces({ day, matches, seasonId, now, founded: c.founded ?? "", location: c.location ?? "", milestones: c.milestones ?? [] });
+  const jn = jornadas(matches, seasonId);
+  const bday = birthdayLine(inSeason.map((p) => ({ name: nameOf(p.id), birthDate: p.birthDate })), matches, (id) => jn.get(id) ?? null, now);
+  const lede = [c.location && c.founded ? `Desde ${c.location} desde ${c.founded}.` : "", "Lo que se gana se queda aquí; lo que se está jugando, también."].filter(Boolean).join(" ");
 
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -112,24 +131,62 @@ export function ClubPage() {
   const slide = (dir: 1 | -1) => train.current?.scrollBy({ left: dir * Math.max(240, (train.current.clientWidth || 300) * 0.8), behavior: "smooth" });
 
   return (
-    <div className="vx hm st cl" aria-busy={loading}>
-      <CelesteBackdrop />
+    <div className={`vx vd-pg hm st cl${live ? " vd-pg--live" : ""}`} aria-busy={loading}>
+      <PageSky now={now} live={live} moment={night.moment} />
       <CelesteHeader
         active="club"
         sub="El club"
         actions={<ThemeToggle />}
       />
 
-      <section className="cl-hero" aria-labelledby="cl-t">
-        <div className="st-stars" aria-hidden="true" />
+      <section className="cl-hero vd-pg-head" aria-labelledby="cl-t">
+        <h1 className="cl-h1" id="cl-t">
+          El club
+        </h1>
+        <p className="vd-lede">{lede}</p>
+      </section>
+
+      <div className="cl-now">
+        <VitrinaVidrio season={season?.name ?? "La temporada"} top={vit.top} bottom={vit.bottom} year={(c.founded ?? "").trim().slice(-2) || "MP"} />
+        <aside className="cl-side" aria-label="Esta semana en el club">
+          {bday && (
+            <div>
+              <h3>Cumpleaños</h3>
+              <p>{bday}</p>
+            </div>
+          )}
+          <div>
+            <h3>Ponte la del Piti</h3>
+            <div className="cl-ponte">
+              <span className="vd-shirt" aria-hidden="true">
+                <b>10</b>
+              </span>
+              <p>Tu nombre y tu dorsal en la primera equipación, para descargar o compartir.</p>
+            </div>
+            <Link className="vd-btn vd-btn--sm vd-glass vd-press" to="/" hash="club">
+              Hacerme la mía
+            </Link>
+          </div>
+          <div>
+            <h3>Patrocinadores</h3>
+            {sponsors.length ? (
+              <p className="cl-spons">
+                {sponsors.map((s) => (
+                  <span key={s.name}>{s.name}</span>
+                ))}
+              </p>
+            ) : (
+              <p>
+                Este hueco se alquila. <a className="vd-link" href="#cl-sponsors">Cómo aparecer</a>
+              </p>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      <section className="cl-more" aria-label="El club en breve">
         <div className="cl-hero-in">
           <div className="cl-intro pt-rise">
-            <span className="hm-kick" style={{ margin: 0 }}>
-              ESTO ES MANCHESTER PITI
-            </span>
-            <h1 className="cl-h1" id="cl-t">
-              El club
-            </h1>
             <p className="cl-lead">{c.intro}</p>
             <dl className="cl-placard">
               <div>
