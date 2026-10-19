@@ -5,7 +5,7 @@ import { TechnicalStatsPanel } from "../../components/celeste/TechnicalStats";
 import { useMemo } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { ALL_SEASONS_LABEL, useSetSeason } from "../../lib/useSetSeason";
-import { playerForSeason, nameFor, useClubData } from "../../lib/clubData";
+import { nextFixture, playerForSeason, nameFor, useClubData } from "../../lib/clubData";
 import { mvpOfFrom, votesClosedAt } from "../../lib/derived/mvpOf";
 import { analysePlayer, chronological, rankedLeaders, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { tickerLines } from "../../lib/statsView";
@@ -16,16 +16,31 @@ import { useMvpResults } from "../vestuario/live";
 import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { RaceBoard, Ticker } from "./Race";
 import { Comparar, Jugadores, Minutos, Resumen, Rivales } from "./Panes";
 import { Explorar, type ExploreSection } from "./Explorar";
 import { Posiciones } from "./Posiciones";
 import { NewBadge } from "../../components/NewBadge";
+import { PageSky } from "../../components/paginas/PageSky";
+import { useNightGoal } from "../../components/paginas/nightGoal";
+import { Ahora } from "./Ahora";
+import { currentSeasonId } from "../../lib/vestuario";
+import { useStandings } from "../../lib/useStandings";
+import { seasonStrip } from "../../lib/derived/vidrio/strip";
+import { seasonLeaders } from "../../lib/derived/vidrio/leaders";
+import { formLetters, numerosLede } from "../../lib/derived/vidrio/numerosLive";
+import { niceName } from "../../lib/derived/words";
 import "../../styles/celeste/page.css";
 import "../../styles/celeste/data.css";
 import "../../styles/partidos.css";
 import "../../styles/stats.css";
+import "../../styles/vidrio/tokens.css";
+import "../../styles/vidrio/glass.css";
+import "../../styles/vidrio/components.css";
+import "../../styles/vidrio/reading.css";
+import "../../styles/vidrio-paginas.css";
+import "../../styles/stats-vidrio.css";
 
 const route = getRouteApi("/stats");
 const VIEWS = {
@@ -46,7 +61,7 @@ export function StatsPage() {
   const { seasons, selectedSeasonId, loadingSeasons } = useSeason();
   const search = route.useSearch();
   const navigate = useNavigate();
-  const now = useClock(60_000);
+  const now = useClock(15_000);
   const results = useMvpResults();
   const view: View = search.view ?? "summary";
   const section: ExploreSection = search.section ?? "individual";
@@ -90,11 +105,27 @@ export function StatsPage() {
   const tracked = games.filter((m) => m.ledger && Object.keys(m.ledger).length).length;
   const periodName = selectedSeasonId === "all" ? ALL_SEASONS_LABEL : (seasons.find((s) => s.id === selectedSeasonId)?.name ?? "Temporada");
   const ready = !loading && !error;
+  // the season now (V-Integracion «Números»): the one being played, whatever period the tabs below read
+  const nowSeason = currentSeasonId(nextFixture(matches, now), matches, seasons);
+  const nowSeasonName = seasons.find((s) => s.id === nowSeason)?.name ?? "La temporada";
+  const { standings } = useStandings(nowSeason || undefined);
+  const strip = useMemo(() => seasonStrip(matches, nowSeason, now), [matches, nowSeason, now]);
+  const liveSeg = strip.segments.find((s) => s.state === "directo") ?? null;
+  const provSeg = liveSeg ?? strip.segments.find((s) => s.state === "pendiente" && s.provisional && s.score) ?? null;
+  const liveScore = provSeg?.score ? { rival: provSeg.rival, gf: provSeg.score.gf, ga: provSeg.score.ga } : null;
+  const squadNow = useMemo(
+    () => players.filter((p) => p.seasons?.includes(nowSeason)).map((raw) => { const p = playerForSeason(raw, nowSeason, seasons); return { id: p.id, name: niceName(nameFor(p, nowSeason)), num: p.number != null ? String(p.number) : "" }; }),
+    [players, nowSeason, seasons],
+  );
+  const leadersNow = useMemo(() => seasonLeaders(matches, nowSeason, squadNow, now), [matches, nowSeason, squadNow, now]);
+  const form = formLetters(strip.segments);
+  const playedNow = strip.segments.filter((s) => s.state === "jugado").length;
+  const night = useNightGoal(liveSeg?.match, !!liveSeg);
   const empty = ready && !games.length;
 
   return (
-    <div className="vx hm st" aria-busy={loading}>
-      <CelesteBackdrop />
+    <div className={`vx vd-pg hm st${liveSeg ? " vd-pg--live" : ""}`} aria-busy={loading}>
+      <PageSky now={now} live={!!liveSeg} moment={night.moment} />
       <CelesteHeader
         active="stats"
         sub="Estadísticas"
@@ -104,54 +135,47 @@ export function StatsPage() {
           </>
         }
       />
-      <section className="st-hero" aria-labelledby="st-t">
-        <div className="pt-beams" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </div>
-        <div className="st-stars" aria-hidden="true" />
-        <div className="st-hero-in">
-          <div className="st-intro pt-rise">
-            <span className="hm-kick" style={{ margin: 0 }}>
-              MANCHESTER PITI · {periodName}
-            </span>
-            <h1 className="st-h1" id="st-t">
-              Estadísticas
-            </h1>
-            <p className="st-lead">{empty ? "La temporada aún no ha echado a rodar: en cuanto se publique la primera acta, aquí se mueve todo." : `${periodName}. Datos de partidos finalizados, al minuto.`}</p>
-            <div className="st-ctx">
-              {(seasons.length > 0 || loadingSeasons) && (
-                <label className="st-field">
-                  <span className="st-mono">Temporada</span>
-                  <select aria-label="Seleccionar temporada" value={loadingSeasons ? "all" : selectedSeasonId} disabled={loadingSeasons} onChange={(e) => setSeason(e.target.value)}>
-                    <option value="all">{ALL_SEASONS_LABEL}</option>
-                    {[...seasons].reverse().map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <p className="st-count">
-                <b>{games.length}</b> {games.length === 1 ? "partido" : "partidos"} · <b>{rows.length}</b> {rows.length === 1 ? "jugador" : "jugadores"} · <b>{tracked}</b> {tracked === 1 ? "acta" : "actas"} con minutos
-              </p>
-            </div>
-            {leaders.length > 0 && (
-              <ul className="st-leaders" aria-label="Líderes del período">
-                {leaders.map((l, i) => (
-                  <li key={l.label} style={{ animationDelay: `${0.3 + i * 0.08}s` }}>
-                    <small>{l.label}</small>
-                    <b>{l.v(l.players[0].item)}</b>
-                    {l.players.length > 1 && <small>Liderato compartido</small>}
-                    {l.players.map(({ item }) => <Link key={item.id} to="/jugadores/$playerId" params={{ playerId: item.id }}>{nameOf(item)}</Link>)}
-                  </li>
+      <section className="st-hero vd-pg-head vd-reg-1" aria-labelledby="st-t">
+        <h1 className="st-h1" id="st-t">
+          Números
+        </h1>
+        <p className="vd-lede">{numerosLede(nowSeasonName, playedNow, !!liveScore)}</p>
+      </section>
+      {nowSeason && <Ahora standings={standings} live={liveScore} leaders={leadersNow} form={form} />}
+
+      <section className="st-period vd-reg-3" aria-label="El período de las pestañas">
+        <h2 className="st-period__t">{periodName}</h2>
+        <p className="st-period__l">{empty ? "La temporada aún no ha echado a rodar: en cuanto se publique la primera acta, aquí se mueve todo." : "Datos de partidos finalizados, al minuto."}</p>
+        <div className="st-ctx">
+          {(seasons.length > 0 || loadingSeasons) && (
+            <label className="st-field">
+              <span className="st-mono">Temporada</span>
+              <select aria-label="Seleccionar temporada" value={loadingSeasons ? "all" : selectedSeasonId} disabled={loadingSeasons} onChange={(e) => setSeason(e.target.value)}>
+                <option value="all">{ALL_SEASONS_LABEL}</option>
+                {[...seasons].reverse().map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
                 ))}
-              </ul>
-            )}
-          </div>
+              </select>
+            </label>
+          )}
+          <p className="st-count">
+            <b>{games.length}</b> {games.length === 1 ? "partido" : "partidos"} · <b>{rows.length}</b> {rows.length === 1 ? "jugador" : "jugadores"} · <b>{tracked}</b> {tracked === 1 ? "acta" : "actas"} con minutos
+          </p>
         </div>
+        {leaders.length > 0 && (
+          <ul className="st-leaders" aria-label="Líderes del período">
+            {leaders.map((l, i) => (
+              <li key={l.label} style={{ animationDelay: `${0.3 + i * 0.08}s` }}>
+                <small>{l.label}</small>
+                <b>{l.v(l.players[0].item)}</b>
+                {l.players.length > 1 && <small>Liderato compartido</small>}
+                {l.players.map(({ item }) => <Link key={item.id} to="/jugadores/$playerId" params={{ playerId: item.id }}>{nameOf(item)}</Link>)}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <nav className="st-tabs" aria-label="Secciones de estadísticas">

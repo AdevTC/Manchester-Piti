@@ -2,7 +2,8 @@
 // ambience, lamps, floor reflection, pitch glow, haze, rays, vignette), the dot-matrix LED videoboard,
 // and the stage: the card on its pedestal with the light beam, the walkout sequence, «Saltar», the tier
 // chip, who you are, the state note, the CTAs, the undo strip and the hint. As designed (pf-g.mjs).
-import type { MouseEvent } from "react";
+import { useRef, type MouseEvent } from "react";
+import { useLiveDock } from "../../components/vidrio";
 import { Faces } from "./CardFaces";
 import { BOLTS, EMBERS, SPARKS, STEAM, TICKS, vars } from "./fx";
 import type { HeroView } from "./heroView";
@@ -141,6 +142,14 @@ export interface StageProps {
   srStatus: string;
 }
 
+/** On a desktop the floating score rests here, over the tunnel above the card (V-Vivo: never over a control):
+ *  the panel beside it keeps «Estampar» and its lines clear. */
+function FloatDock() {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useLiveDock(ref, "anchor");
+  return <span ref={ref} className="pe-floatdock" aria-hidden="true" />;
+}
+
 export function Stage({ pz, cardRef, ...p }: StageProps) {
   const { hv } = p;
   const flipped = hv.cardCls.split(" ").includes("flipped");
@@ -152,6 +161,7 @@ export function Stage({ pz, cardRef, ...p }: StageProps) {
       <p className="sr" role="status">
         {p.srStatus}
       </p>
+      <FloatDock />
       <div className="wk-card">
         <div className="wk-fx" aria-hidden="true">
           <span className="wk-big">{hv.bigTxt}</span>

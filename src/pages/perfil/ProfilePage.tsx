@@ -14,6 +14,8 @@ import { ProfileView, type ProfileActions } from "./ProfileView";
 import { useProfileData } from "./useProfileData";
 import "../../styles/perfil.css";
 import "../../styles/perfil-app.css";
+import "../../styles/vidrio/tokens.css";
+import "../../styles/perfil-vidrio.css";
 
 export function ProfilePage() {
   // The cromos story and the share studio: their chunks once the page is up, before anyone taps.

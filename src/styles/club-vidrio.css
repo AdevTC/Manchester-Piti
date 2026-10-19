@@ -1,0 +1,67 @@
+/* El club «Vidrio» (V-Integracion «El club y la cuenta», V-Vivo phone «Club»): «El club» in Mona Sans on the light
+   field, then the vitrina — a glass case with two shelves, tonight's match in its live slot, dashed slots for
+   what is still to win — and beside it the week (the next birthday, «Ponte la del Piti», who backs us). The
+   rest of the page (the crest's 3D case, the trophy room, the kits, the history…) keeps its pieces with the
+   Vidrio type. */
+
+.vx.vd-pg.cl .cl-hero{background:none;overflow:visible}
+.vx.vd-pg.cl .cl-h1{font-family:var(--vd-sans);font-weight:720;font-variation-settings:'wdth' 92;font-stretch:92%;font-size:clamp(33px,4.4vw,61px);line-height:.98;letter-spacing:-.025em;color:var(--vd-ink-strong)}
+.vx.vd-pg.cl .vd-pg-head{padding-bottom:0}
+
+.cl-now{display:grid;gap:22px;padding:16px 16px 0;font-family:var(--vd-sans)}
+
+/* the case */
+.cl-vit{--vd-r:28px;--vd-g-tint:rgba(8,18,39,.38);position:relative;padding:16px 16px 0;display:flex;flex-direction:column;overflow:hidden}
+:root[data-theme="light"] .cl-vit{--vd-g-tint:rgba(255,255,255,.5)}
+.cl-vit::after{background:radial-gradient(60% 50% at 50% -10%,rgba(255,255,255,.28),transparent 70%)!important}
+.cl-vit__head{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.cl-vit__head h2{margin:0;font-family:var(--vd-sans);font-weight:690;font-variation-settings:'wdth' 94;font-size:20px;color:var(--vd-g-ink)}
+.cl-vit__head span{font-size:13.5px;color:var(--vd-g-ink2)}
+.cl-vit__shelf{position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end;gap:8px;margin:12px 0 0;padding:0 2px 12px;list-style:none;border-bottom:6px solid rgba(220,232,248,.32);box-shadow:0 10px 20px -12px rgba(0,8,30,.8)}
+:root[data-theme="light"] .cl-vit__shelf{border-bottom-color:rgba(255,255,255,.85);box-shadow:0 10px 20px -12px rgba(30,60,110,.35)}
+.cl-vit__shelf+.cl-vit__shelf{margin-top:14px}
+.cl-vit__shelf:last-child{margin-bottom:16px}
+.cl-piece{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;text-align:center;min-width:0}
+.cl-piece svg{width:52px;height:60px;filter:drop-shadow(0 10px 12px rgba(0,8,30,.5))}
+.cl-piece b{font-size:12.8px;font-weight:650;color:var(--vd-g-ink);line-height:1.2}
+.cl-piece span{font-size:12px;color:var(--vd-g-ink2);line-height:1.3}
+.cl-piece--live{border-radius:20px;padding:12px 6px;background:rgba(108,171,221,.12);box-shadow:inset 0 0 0 1.5px rgba(108,171,221,.6)}
+.cl-piece__score.vd-score{font-size:30px;color:var(--vd-g-ink);line-height:1.05;letter-spacing:-.03em;margin-bottom:2px}
+.cl-piece--empty{border-radius:20px;padding:12px 6px;outline:1.5px dashed var(--vd-rule2);outline-offset:-1.5px;min-height:118px;justify-content:center}
+
+/* the week beside it */
+.cl-side{display:grid;align-content:start}
+.cl-side>div{padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid var(--vd-rule)}
+.cl-side>div:last-child{border-bottom:0}
+.cl-side h3{margin:0;font-family:var(--vd-sans);font-weight:680;font-variation-settings:'wdth' 94;font-size:20px;color:var(--vd-ink-strong)}
+.cl-side p{margin:4px 0 0;font-size:14.5px;color:var(--vd-ink2);line-height:1.45}
+.cl-ponte{display:flex;gap:16px;align-items:center;margin:10px 0 12px}
+.cl-ponte .vd-shirt{--s:64px}
+.cl-ponte p{margin:0}
+.cl-side .vd-btn{text-decoration:none}
+.cl-spons{display:flex;gap:6px 18px;flex-wrap:wrap;font-weight:700;font-variation-settings:'wdth' 92;color:var(--vd-ink)!important;font-size:15px}
+
+/* the old hero, now «El club en breve»: the line, the colours, share and the chapters, the crest's case */
+.vx.vd-pg.cl .cl-more{padding:40px 16px 0}
+.vx.vd-pg.cl .cl-more .cl-placard{background:none;box-shadow:none;border-top:1px solid var(--vd-rule);border-bottom:1px solid var(--vd-rule);border-radius:0}
+.vx.vd-pg.cl :is(.cl-placard dt,.cl-plinth,.cl-chapters small){font-family:var(--vd-sans);letter-spacing:0;text-transform:none}
+.vx.vd-pg.cl .cl-chapters a{font-family:var(--vd-sans)}
+.vx.vd-pg.cl .cl-h2{font-family:var(--vd-sans);font-weight:690;font-variation-settings:'wdth' 94;letter-spacing:-.022em;color:var(--vd-ink-strong)}
+.vx.vd-pg.cl .cl-lead{font-family:var(--vd-sans);color:var(--vd-ink)}
+
+@media (min-width:700px){
+.cl-now{grid-template-columns:minmax(0,1fr) 300px;gap:40px;padding:24px 40px 0}
+.cl-vit{--vd-r:34px;padding:22px 26px 0}
+.cl-vit__shelf{gap:18px;padding:0 6px 18px}
+.cl-piece svg{width:74px;height:84px}
+.cl-piece b{font-size:14px}
+.cl-piece span{font-size:12.8px}
+.cl-piece__score.vd-score{font-size:46px}
+.cl-piece--empty{min-height:150px}
+.vx.vd-pg.cl .cl-more{padding:56px 40px 0}
+}
+@media (min-width:1100px){
+.cl-now{grid-template-columns:minmax(0,1fr) 420px;gap:64px;padding:28px 72px 0}
+.cl-vit__head h2{font-size:22px}
+.vx.vd-pg.cl .cl-more{padding:72px 64px 0}
+}
