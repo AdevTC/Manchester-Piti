@@ -97,7 +97,16 @@ export function FloatingScore({ match, now, onOpen, onPip, storageKey, placement
     const place = () => {
       raf = 0;
       const r = anchor.getBoundingClientRect();
-      el.style.setProperty("--vd-dockw", `${Math.max(120, Math.round(r.width - 16))}px`);
+      // (a point anchor — Partidos' 1 px mark in the middle of tonight's segment — takes the width of what holds it)
+      // (layout widths: a segment still rising in — scaled by its entrance — must not read as narrow)
+      const widthOf = (x: Element) => (x instanceof HTMLElement ? x.offsetWidth : x.getBoundingClientRect().width);
+      let room: Element | null = anchor;
+      while (room && widthOf(room) < 40) room = room.parentElement;
+      const w = Math.max(64, Math.round(widthOf(room ?? anchor) - 16));
+      el.style.setProperty("--vd-dockw", `${w}px`);
+      // (tight: the crest goes before anything clips; tighter: the minute goes too, the score stays)
+      if (w < 140) el.dataset.vdTight = w < 100 ? "2" : "1";
+      else delete el.dataset.vdTight;
       el.style.setProperty("--vd-fx", `${Math.round(r.left + r.width / 2 - el.offsetWidth / 2)}px`);
       el.style.setProperty("--vd-fy", `${Math.round(r.top + r.height / 2 - el.offsetHeight / 2)}px`);
       el.dataset.vdPlaced = "1";
@@ -106,15 +115,19 @@ export function FloatingScore({ match, now, onOpen, onPip, storageKey, placement
       if (!raf) raf = requestAnimationFrame(place);
     };
     place();
-    // (once more after the width settles: the drop is centred on its final size)
+    // (once more after the width settles: the drop is centred on its final size; and after the page's own
+    // entrance has moved the anchor into place)
     queue();
+    const later = [450, 1000].map((ms) => window.setTimeout(queue, ms));
     window.addEventListener("scroll", queue, { passive: true, capture: true });
     window.addEventListener("resize", queue);
     return () => {
       if (raf) cancelAnimationFrame(raf);
+      later.forEach((t) => window.clearTimeout(t));
       window.removeEventListener("scroll", queue, { capture: true });
       window.removeEventListener("resize", queue);
       el.style.removeProperty("--vd-dockw");
+      delete el.dataset.vdTight;
     };
   }, [docked, dock.anchor]);
 
