@@ -13,6 +13,8 @@ import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/glass.css";
 import "../../styles/vidrio/components.css";
 
+export type FloatPlacement = "right" | "centre" | "bottom-right";
+
 export interface FloatingScoreProps {
   match: FloatMatch;
   /** Now (ms), for the countdown before kick-off. */
@@ -23,8 +25,10 @@ export interface FloatingScoreProps {
   onPip?: () => void;
   /** Its remembered spot (per page: «inicio», «partidos», «plantilla»…). */
   storageKey: string;
-  /** Desktop home: «right» (top-right under the bar, the default) or «centre» (Inicio). */
-  placement?: "right" | "centre";
+  /** Desktop home until it is moved: «right» (top-right under the bar, the default), «centre» (top centre:
+   *  Inicio, where the lens takes it) or «bottom-right» (the corner clear of a page's title, controls and
+   *  boards: every other page, see live/liveModel's floatHome). */
+  placement?: FloatPlacement;
   /** The top bar's height on desktop (the float keeps 16 px under it; default 88). */
   barHeight?: number;
   /** The tab bar's height plus its gap on a phone (default 96). */
@@ -58,9 +62,11 @@ export function FloatingScore({ match, now, onOpen, onPip, storageKey, placement
   const home = (b: Box): Pos => {
     if (!desktop) return { x: (b.W - b.w) / 2, y: b.H - b.h - dockHeight };
     if (placement === "centre") return { x: (b.W - b.w) / 2, y: top };
+    const points = anchorPoints(b, { top, margin: 24, bottom: 24 });
+    // bottom-right: the right column of anchors, bottom row
+    if (placement === "bottom-right") return points.reduce((best, p) => (p.x > best.x || (p.x === best.x && p.y > best.y) ? p : best));
     // top-right under the bar (the right column of anchors, top row)
-    const right = anchorPoints(b, { top, margin: 24 }).reduce((best, p) => (p.x > best.x || (p.x === best.x && p.y < best.y) ? p : best));
-    return right;
+    return points.reduce((best, p) => (p.x > best.x || (p.x === best.x && p.y < best.y) ? p : best));
   };
   useDraggable(float, {
     storageKey: `${storageKey}${desktop ? "" : "-movil"}`,

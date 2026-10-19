@@ -37,7 +37,7 @@ import { PipWindow } from "../PipWindow";
 import { useDesktop, useReducedMotion } from "../env";
 import { useGoalMoment } from "../useGoalMoment";
 import { useGrow } from "../useGrow";
-import { DROP_HOLD_MS, floatOf, hideMark, pageKey, playing, sheetOf } from "./liveModel";
+import { DROP_HOLD_MS, floatHome, floatOf, hideMark, pageKey, playing, sheetOf } from "./liveModel";
 import { LiveSheet, type RsvpAnswer } from "./LiveSheet";
 import { LivePlays } from "./LivePlays";
 import "../../../styles/vidrio/reading.css";
@@ -292,7 +292,7 @@ export function LiveScore() {
             onOpen={openSheet}
             onPip={onPip}
             storageKey={pageKey(pathname)}
-            placement={pathname === "/" ? "centre" : "right"}
+            placement={floatHome(pathname)}
             goal={g.lens || undefined}
             rim={g.rim}
             scoreClass={g.digit || undefined}

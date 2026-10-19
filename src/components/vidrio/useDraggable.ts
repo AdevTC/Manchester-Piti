@@ -75,6 +75,11 @@ export function useDraggable(ref: RefObject<HTMLElement | null>, options: Dragga
       cur = p;
       el.style.setProperty("--vd-fx", `${Math.round(p.x)}px`);
       el.style.setProperty("--vd-fy", `${Math.round(p.y)}px`);
+      // which side of the zone it rests on (its hint opens towards the room: above when low, inwards at a side)
+      const b = box();
+      el.dataset.vdV = p.y + b.h / 2 > b.H / 2 ? "low" : "high";
+      const mid = p.x + b.w / 2;
+      el.dataset.vdH = mid > (b.W * 2) / 3 ? "right" : mid < b.W / 3 ? "left" : "centre";
     };
     const saved = read(storageKey);
     set(saved ? clampPos(saved, box(), o()) : homePos());
