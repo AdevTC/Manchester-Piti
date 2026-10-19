@@ -7,7 +7,7 @@
 // sits inline in the lens's third column.
 import { lazy, Suspense, useId, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Lens, MomentumRibbon, SeeAll, useLiveDock, type RibbonItem, type RibbonKind } from "../../../components/vidrio";
+import { LIVE_MORPH, Lens, MomentumRibbon, SeeAll, useLiveDock, useLiveDockState, useReducedMotion, type RibbonItem, type RibbonKind } from "../../../components/vidrio";
 import { AddToCalendar } from "../../../components/celeste/AddToCalendar";
 import type { ClubMatch } from "../../../lib/clubData";
 import { matchEvent } from "../../../lib/home";
@@ -380,6 +380,7 @@ function Previa({ seg, ctx, idBase }: { seg: StripSegment; ctx: LensCtx; idBase:
 
 function Directo({ seg, ctx, onGrowPlays, playsVt, onPip, pipOpen }: { seg: StripSegment; ctx: LensCtx; onGrowPlays: () => void; playsVt: boolean; onPip: () => void; pipOpen: boolean }) {
   const m = seg.match;
+  const reduced = useReducedMotion();
   const live = seg.state === "directo";
   const log = playsLog(m, ctx.nameOf, seg.rival);
   const cap = live ? 4 : 8;
@@ -451,7 +452,8 @@ function Directo({ seg, ctx, onGrowPlays, playsVt, onPip, pipOpen }: { seg: Stri
             </Suspense>
           )}
           <div className="vp-acts">
-            <Link className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
+            {/* (tonight's score lands on the match page's scoreboard: one view transition across the pages) */}
+            <Link className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId: m.id }} viewTransition={ctx.tonight && !reduced}>
               Abrir el partido
             </Link>
             <button type="button" className="vd-glass vd-btn vd-press" onClick={onPip} aria-pressed={pipOpen}>
@@ -654,8 +656,12 @@ export function MatchLens({ seg, ctx, tab, onTab, onCartel, onGrowPlays, playsVt
   // (the cockpit shows the cartel inline in Previa and Acta; elsewhere the header's button opens the sheet)
   const inline = !!ctx.cartel && (current === "previa" || current === "acta");
   const cls = ["vp-lens", inline && "vp-lens--inline", sweep && "vp-sweep", className].filter(Boolean).join(" ");
+  // tonight's lens carries the live score's name across pages (float ↔ lens ↔ the match page's scoreboard) while
+  // it is the one showing it (the float is hidden then: never two elements with the name)
+  const dock = useLiveDockState();
+  const morphName = ctx.tonight && dock.live && dock.mode === "lens" ? LIVE_MORPH : "vp-lens";
   return (
-    <Lens as="section" className={cls} morphName="vp-lens" aria-labelledby={`${idBase}-h`}>
+    <Lens as="section" className={cls} morphName={morphName} aria-labelledby={`${idBase}-h`}>
       {ctx.tonight && <LiveLensMark />}
       <header className="vp-lh vd-reg-1">
         <span className="vp-lh__j" aria-hidden="true">

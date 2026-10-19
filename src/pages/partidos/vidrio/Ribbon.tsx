@@ -4,7 +4,7 @@
 // morphs from one to the next (view-transition-name). In Tabla, on a desktop, the jornadas still to play
 // carry «¿Y si…?» (G · E · P). Tonight's live jornada is where the floating score docks (useLiveDock anchor).
 import { Fragment, useEffect, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
-import { region, useLiveDock } from "../../../components/vidrio";
+import { region, useLiveDock, useLiveDockState } from "../../../components/vidrio";
 import { matchSignature } from "../../../lib/derived/vidrio/signature";
 import type { SeasonStrip, StripSegment, StripWindow } from "../../../lib/derived/vidrio/strip";
 import type { PickLetter } from "../../../lib/derived/vidrio/table";
@@ -123,6 +123,8 @@ function Segment({ seg, selected, now, minute, tabbable, simLetter, temp, onPick
 
 export function Ribbon({ strip, list, win, selId, now, liveMinute, simMode, picks, results, onPick, onPage, onWindowAround, onSim, onHoy, hoyDisabled, dock, tonightTemp }: RibbonProps) {
   const track = useRef<HTMLDivElement | null>(null);
+  // (while the floating score sits on tonight's segment it carries the score: the segment keeps J and the rival)
+  const floatDocked = useLiveDockState().mode === "anchor";
   const drag = useRef<{ id: number; x0: number; moved: boolean } | null>(null);
   const wrap = useRef<HTMLDivElement | null>(null);
   // (a phone scrolls the whole season: the chosen jornada comes to the left edge)
@@ -259,7 +261,7 @@ export function Ribbon({ strip, list, win, selId, now, liveMinute, simMode, pick
                     {gap.label && <small>{gap.label}</small>}
                   </span>
                 )}
-                <div className={`vp-slot${seg.id === selId ? " is-sel" : ""}`} style={{ "--rd": `${k * 60}ms` } as CSSProperties}>
+                <div className={`vp-slot${seg.id === selId ? " is-sel" : ""}${dock && floatDocked && seg.state === "directo" ? " vp-slot--docked" : ""}`} style={{ "--rd": `${k * 60}ms` } as CSSProperties}>
                   <Paint seg={seg} selected={seg.id === selId} />
                   <Segment seg={seg} selected={seg.id === selId} now={now} minute={seg.state === "directo" ? liveMinute : null} tabbable={seg.id === tabStop} simLetter={open ? shown : null} temp={tonightTemp} onPick={() => onPick(seg.id)} onKey={onSegKey} />
                   {dock && seg.state === "directo" && <DockAnchor />}
