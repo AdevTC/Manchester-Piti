@@ -36,7 +36,8 @@ export interface Cartel {
   /** «19:00», or "" undated. */
   time: string;
   state: StripState;
-  /** The poster's big line: «3–1» · «2–1» (live) · «19:00» · «Aplazado» · «Suspendido» · «Pendiente del acta». */
+  /** The poster's big line: «3–1» once played · «19:00» before and while live (a shared image of a running
+   *  score ages in minutes) · «Aplazado» · «Suspendido» · «Pendiente del acta». */
   big: string;
   played: boolean;
   score: { gf: number; ga: number } | null;
@@ -48,7 +49,7 @@ export interface Cartel {
   mvp: string | null;
   seasonName: string;
   light: MatchLight | null;
-  /** The poster's lines-only signature (size «p»), for a played or live match. */
+  /** The poster's lines-only signature (size «p»), once played. */
   signature: MatchSignature | null;
   /** The whole poster in one sentence, for its alt text. */
   aria: string;
@@ -72,7 +73,7 @@ export function cartelOf(match: ClubMatch, ctx: CartelContext): Cartel {
   const scoreText = sc ? `${sc.gf}–${sc.ga}` : "";
   const time = dated ? parts.time : "";
   const big =
-    played || state === "directo"
+    played
       ? scoreText
       : state === "aplazado"
         ? "Aplazado"
@@ -83,7 +84,7 @@ export function cartelOf(match: ClubMatch, ctx: CartelContext): Cartel {
             : time || "Por confirmar";
   const jLabel = ctx.jornada ? `J${ctx.jornada}` : "";
   const when = dated ? `${parts.long} a las ${time}` : "fecha por confirmar";
-  const tail = played ? `. Resultado ${scoreText}` : state === "directo" ? `. En directo, ${scoreText}` : state === "aplazado" ? ". Aplazado" : state === "suspendido" ? ". Suspendido" : state === "pendiente" ? `. ${AWAITING_ACTA}` : "";
+  const tail = played ? `. Resultado ${scoreText}` : state === "directo" ? ". En directo" : state === "aplazado" ? ". Aplazado" : state === "suspendido" ? ". Suspendido" : state === "pendiente" ? `. ${AWAITING_ACTA}` : "";
   const slug = norm(rival).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "rival";
   return {
     id: match.id,
@@ -105,7 +106,7 @@ export function cartelOf(match: ClubMatch, ctx: CartelContext): Cartel {
     mvp: played ? (ctx.mvp ?? null) : null,
     seasonName: ctx.seasonName,
     light: dated ? lightAt(at, match.duration ?? 50) : null,
-    signature: matchSignature(match, ctx.now, "p"),
+    signature: played ? matchSignature(match, ctx.now, "p") : null,
     aria: `Cartel de la ${jLabel || "jornada"}: Manchester Piti contra ${rival}, ${when}${tail}.`,
     fileName: `piti-${jLabel ? `${jLabel.toLowerCase()}-` : ""}${slug}.png`,
   };
