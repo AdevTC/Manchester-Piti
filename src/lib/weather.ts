@@ -3,25 +3,14 @@
 // matches in the next 7 days (forecasts further out aren't worth showing).
 import { useQuery } from "@tanstack/react-query";
 import { dateMillis } from "../../functions/src/matchEngine";
+import { wmo, type Sky } from "../../functions/src/weatherLogic";
 
 const TZ = "Europe/Madrid";
 const MADRID = { latitude: 40.4168, longitude: -3.7038, name: "Madrid" };
 export const WEATHER_WINDOW_MS = 7 * 86_400_000;
 
-export type Sky = "sun" | "cloud" | "fog" | "rain" | "snow" | "storm";
-/** WMO weather interpretation code → a short Spanish label and the kind of sky. */
-export function wmo(code: number): { label: string; sky: Sky } {
-  if (code === 0) return { label: "Despejado", sky: "sun" };
-  if (code === 1) return { label: "Casi despejado", sky: "sun" };
-  if (code === 2) return { label: "Nubes y claros", sky: "cloud" };
-  if (code === 3) return { label: "Nublado", sky: "cloud" };
-  if (code === 45 || code === 48) return { label: "Niebla", sky: "fog" };
-  if (code >= 51 && code <= 57) return { label: "Llovizna", sky: "rain" };
-  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: code >= 80 ? "Chubascos" : "Lluvia", sky: "rain" };
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: "Nieve", sky: "snow" };
-  if (code >= 95) return { label: "Tormenta", sky: "storm" };
-  return { label: "Variable", sky: "cloud" };
-}
+export type { Sky } from "../../functions/src/weatherLogic";
+export { wmo };
 
 /** The kick-off hour in Madrid time, as Open-Meteo's start_hour wants it: "2026-11-08T12:00". */
 export function kickoffHour(ms: number) {
@@ -95,4 +84,74 @@ export function useMatchWeather(m: { venue?: string | null; date?: unknown } | u
     staleTime: 60 * 60_000,
     retry: false,
   }).data ?? null;
+}
+
+// ---------- by hour (the previa: kick-off −1 h … +2 h)
+
+/** One hour of the forecast around the kick-off. */
+export interface WeatherHour {
+  /** The hour's start (ms). */
+  at: number;
+  temp: number;
+  /** WMO weather code. */
+  code: number;
+  /** Precipitation probability, 0–100 % (null when the forecast lacks it). */
+  rain: number | null;
+  label: string;
+  sky: Sky;
+  /** The kick-off hour (bold on the board). */
+  kickoff: boolean;
+}
+export interface MatchWeatherHourly {
+  /** Kick-off −1 h … +2 h: four hours when the forecast has them all. */
+  hours: WeatherHour[];
+  place: string;
+  /** True when the venue wasn't found and the forecast is Madrid's («(el de Madrid)»). */
+  approx: boolean;
+}
+const HOUR_MS = 3_600_000;
+
+/** Reads the forecast response for the hours from `first` (ms, the hour before kick-off) on. Exported for the tests. */
+export function readHourly(json: unknown, first: number, kickoff: number, place: string, approx: boolean): MatchWeatherHourly | null {
+  const h = (json as { hourly?: { temperature_2m?: unknown[]; precipitation_probability?: unknown[]; weather_code?: unknown[] } })?.hourly;
+  const temps = h?.temperature_2m ?? [];
+  const kickHour = kickoffHour(kickoff);
+  const hours: WeatherHour[] = [];
+  for (let i = 0; i < temps.length; i++) {
+    const temp = temps[i];
+    const code = h?.weather_code?.[i];
+    if (typeof temp !== "number" || !Number.isFinite(temp) || typeof code !== "number") continue;
+    const rain = h?.precipitation_probability?.[i];
+    const at = first + i * HOUR_MS;
+    hours.push({ at, temp: Math.round(temp), code, rain: typeof rain === "number" && Number.isFinite(rain) ? rain : null, ...wmo(code), kickoff: kickoffHour(at) === kickHour });
+  }
+  return hours.length ? { hours, place, approx } : null;
+}
+
+export async function fetchMatchWeatherHourly(venue: string | undefined, kickoff: number): Promise<MatchWeatherHourly | null> {
+  const at = await locate(venue);
+  const first = kickoff - HOUR_MS;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${at.latitude}&longitude=${at.longitude}&hourly=temperature_2m,precipitation_probability,weather_code&timezone=${encodeURIComponent(TZ)}&start_hour=${kickoffHour(first)}&end_hour=${kickoffHour(kickoff + 2 * HOUR_MS)}`;
+  const r = await fetch(url);
+  if (!r.ok) return null;
+  return readHourly(await r.json(), first, kickoff, at.name, at.approx);
+}
+
+/**
+ * The forecast by hour (kick-off −1 h … +2 h) for a match kicking off within the next 7 days (null otherwise,
+ * while loading or on failure: the board then says «La previsión por horas llega una semana antes.»). Cached
+ * like useMatchWeather (an hour, per venue and kick-off hour).
+ */
+export function useMatchWeatherHourly(m: { venue?: string | null; date?: unknown } | undefined, now: number): MatchWeatherHourly | null {
+  const kickoff = m ? dateMillis(m.date) : NaN;
+  const enabled = Number.isFinite(kickoff) && kickoff > now && kickoff - now < WEATHER_WINDOW_MS;
+  return (
+    useQuery({
+      queryKey: ["weather-hourly", m?.venue ?? "", Number.isFinite(kickoff) ? kickoffHour(kickoff) : ""],
+      queryFn: () => fetchMatchWeatherHourly(m?.venue ?? undefined, kickoff),
+      enabled,
+      staleTime: 60 * 60_000,
+      retry: false,
+    }).data ?? null
+  );
 }

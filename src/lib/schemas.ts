@@ -3,6 +3,8 @@ import { reportDroppedDoc } from "./docTelemetry";
 import { SYSTEM_IDS } from "./formations";
 import { POS_CODES } from "./positions";
 import { GUEST_ID_RE, GUEST_NAME_MAX, MAX_GUESTS } from "./derived/guests";
+import { MESA_NAME_MAX } from "../../functions/src/mesaLogic";
+import { parseKickoffWeather } from "../../functions/src/weatherLogic";
 
 /**
  * Firestore Timestamp-ish (tiene toMillis) o Date o número epoch.
@@ -78,7 +80,33 @@ export const seasonMatchSchema = z.looseObject({
     .max(MAX_GUESTS)
     .optional()
     .catch(undefined),
+  // Who keeps la mesa (backend-written, public name): malformed → absent, never the match.
+  mesa: z
+    .object({ name: z.string().trim().min(1).max(MESA_NAME_MAX), since: z.number().refine(Number.isFinite) })
+    .optional()
+    .catch(undefined),
+  // Aplazado: the admin's reason (≤ 140) and the new date (a Timestamp in Firestore → ms here; absent = por decidir).
+  postponedReason: z.string().max(140).optional().catch(undefined),
+  postponedTo: firestoreDate
+    .transform((v) => dateMs(v))
+    .pipe(z.number().refine(Number.isFinite))
+    .optional()
+    .catch(undefined),
+  // The weather at kick-off of a played match (backend stamp): malformed → absent.
+  weatherAtKickoff: z
+    .unknown()
+    .transform((v) => parseKickoffWeather(v) ?? undefined)
+    .optional()
+    .catch(undefined),
 });
+/** A firestoreDate value in ms (NaN when it isn't one). */
+function dateMs(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (v instanceof Date) return v.getTime();
+  const t = v as { toMillis?: () => number; seconds?: number };
+  if (typeof t?.toMillis === "function") return t.toMillis();
+  return typeof t?.seconds === "number" ? t.seconds * 1000 : NaN;
+}
 export type SeasonMatchDoc = z.infer<typeof seasonMatchSchema>;
 
 // ── Colección: players ───────────────────────────────────────────────────────

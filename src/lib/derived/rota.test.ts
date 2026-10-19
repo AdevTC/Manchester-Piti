@@ -7,6 +7,7 @@ import {
   matchDayText,
   parseRota,
   parseRotaTurns,
+  turnDone,
   rotaErrors,
   rotaHistory,
   rotaMatch,
@@ -307,5 +308,20 @@ describe("handoverTurns: the one whose turn it was can't", () => {
     // the car is the captain's (Leo's): only the wash moves
     expect(handover("hugo", { doc: pinned({ coche: { playerId: "leo" } }) })).toEqual([["lavar", "dani"]]);
     expect(handover("hugo", { doc: frozen({ lavar: "hugo", coche: "dani" }) })).toEqual([]);
+  });
+});
+
+describe("turnos «Hecho»", () => {
+  it("reads the doc-level done map (ms or a Timestamp), never as a job", () => {
+    const doc = parseRotaTurns({ seasonId: "s", frozen: true, lavar: { playerId: "hugo" }, done: { u1: 5, u2: { toMillis: () => 7 }, u3: "x" } });
+    expect(doc.done).toEqual({ u1: 5, u2: 7 });
+    expect(Object.keys(doc.turns)).toEqual(["lavar"]);
+    expect(turnDone(doc, "u1")).toBe(true);
+    expect(turnDone(doc, "u3")).toBe(false);
+    expect(turnDone(parseRotaTurns({}), "u1")).toBe(false);
+    expect(parseRotaTurns({}).done).toBeUndefined();
+  });
+  it("«done» is a reserved job id", () => {
+    expect(jobIdFor("done", [])).toBe("done-2");
   });
 });
