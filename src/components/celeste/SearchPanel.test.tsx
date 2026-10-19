@@ -1,21 +1,27 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SearchEntry } from "../../lib/derived/search";
 import { RECENT_KEY } from "../../lib/recentSearches";
 import { SearchPanel } from "./SearchPanel";
+import { actionEntries, groupResults, teamEntries, type PanelEntry } from "./searchModel";
 
-const ENTRIES: SearchEntry[] = [
-  { id: "p:hugo", kind: "jugador", title: "HUGO", detail: "Dorsal 9", exact: ["9"], target: { to: "jugador", playerId: "hugo" } },
-  { id: "m:m3", kind: "partido", title: "J3 · Rayo Vallecano", detail: "12 oct · 4-0", exact: ["J3"], target: { to: "partido", matchId: "m3" } },
-  { id: "r:rayo", kind: "rival", title: "Rayo Vallecano", detail: "2 partidos", target: { to: "partido", matchId: "m4" } },
-  { id: "s:plantilla", kind: "seccion", title: "Plantilla", target: { to: "plantilla" } },
+const NOW: PanelEntry[] = [
+  { id: "now:j1", kind: "ahora", title: "Piti 2–1 Orduña fc", detail: "En directo. Abrir el partido", live: true, icon: "ball", target: { to: "partido", matchId: "j1" } },
+  { id: "now:pip", kind: "ahora", title: "Sacar el marcador", detail: "A una ventana que flota encima de todo", icon: "pip", target: { to: "pip" } },
 ];
-const SUGGESTIONS = [ENTRIES[1], { ...ENTRIES[0], detail: "Pichichi · 7 goles" }];
+const PLAYERS: PanelEntry[] = ["Alcides", "Almachi", "Alberto", "Alfonso", "Alonso"].map((t, i) => ({ id: `p:${i}`, kind: "jugador", title: t, detail: `Dorsal ${i + 7}`, shirt: String(i + 7), exact: [String(i + 7)], target: { to: "jugador", playerId: `p${i}` } }));
+const ENTRIES: PanelEntry[] = [
+  ...NOW,
+  ...PLAYERS,
+  { id: "m:m3", kind: "partido", title: "J3 · Rayo Vallecano", detail: "12 oct · 4-0", exact: ["J3"], icon: "fixtures", target: { to: "partido", matchId: "m3" } },
+  { id: "r:rayo", kind: "rival", title: "Rayo Vallecano", detail: "2 partidos", icon: "chart", target: { to: "partido", matchId: "m4" } },
+  { id: "s:plantilla", kind: "seccion", title: "Plantilla", icon: "arrow", target: { to: "plantilla" } },
+  ...actionEntries({ jugador: true, member: true, rsvp: null, vote: null, feed: "webcal://x/calendario.ics" }),
+];
 
 const setup = () => {
   const onGo = vi.fn();
   const onClose = vi.fn();
-  render(<SearchPanel entries={ENTRIES} suggestions={SUGGESTIONS} onGo={onGo} onClose={onClose} />);
+  render(<SearchPanel entries={ENTRIES} onGo={onGo} onClose={onClose} />);
   const box = screen.getByRole("combobox", { name: /busca jugadores/i });
   return { onGo, onClose, box };
 };
@@ -32,52 +38,74 @@ describe("SearchPanel", () => {
     expect(box).toHaveAttribute("aria-autocomplete", "list");
   });
 
-  it("empty: suggests the next match and the pichichi, each with its kind as a word", () => {
+  it("empty: «Ahora» first (the match of the moment and «Sacar el marcador»), then «Acciones»", () => {
     setup();
-    const group = screen.getByRole("group", { name: "Sugerencias" });
-    const opts = within(group).getAllByRole("option");
-    expect(opts.map((o) => o.textContent)).toEqual(["PartidoJ3 · Rayo Vallecano12 oct · 4-0", "JugadorHUGOPichichi · 7 goles"]);
+    const groups = screen.getAllByRole("group").map((g) => g.getAttribute("aria-labelledby") && document.getElementById(g.getAttribute("aria-labelledby") ?? "")?.textContent);
+    expect(groups).toEqual(["Ahora", "Acciones"]);
+    const now = within(screen.getByRole("group", { name: "Ahora" })).getAllByRole("option");
+    expect(now[0]).toHaveTextContent("Piti 2–1 Orduña fc");
+    expect(now[1]).toHaveTextContent("Sacar el marcador");
   });
 
-  it("↑ ↓ move the active option (aria-activedescendant, aria-selected), wrapping; Enter opens it", () => {
+  it("«Ahora» stays first whatever is typed; three per group with «N más»; the footer counts them all and grows", () => {
+    const { box } = setup();
+    fireEvent.change(box, { target: { value: "al" } });
+    expect(screen.getByRole("group", { name: "Ahora" })).toBeInTheDocument();
+    const players = screen.getByRole("group", { name: "Jugadores" });
+    expect(within(players).getAllByRole("option")).toHaveLength(3);
+    expect(within(players).getAllByRole("option")[0]).toHaveTextContent("Alcides");
+    const total = screen.getByRole("status").textContent ?? "";
+    expect(total).toMatch(/^\d+ resultados$/);
+    fireEvent.click(screen.getByRole("button", { name: `Ver los ${total.split(" ")[0]} resultados` }));
+    expect(screen.getByRole("dialog")).toHaveClass("is-all");
+    expect(within(screen.getByRole("group", { name: "Jugadores" })).getAllByRole("option")).toHaveLength(5);
+    fireEvent.click(screen.getByRole("button", { name: "Ver menos" }));
+    expect(screen.getByRole("dialog")).not.toHaveClass("is-all");
+    fireEvent.click(screen.getByRole("button", { name: "Ver 2 más en Jugadores" }));
+    expect(within(screen.getByRole("group", { name: "Jugadores" })).getAllByRole("option")).toHaveLength(5);
+  });
+
+  it("↑ ↓ move the active option (aria-activedescendant, aria-selected), wrapping; Intro opens it", () => {
     const { box, onGo } = setup();
     fireEvent.change(box, { target: { value: "rayo" } });
     const opts = screen.getAllByRole("option");
-    expect(opts).toHaveLength(2);
+    // Ahora (2), Jornadas, Equipos
+    expect(opts).toHaveLength(4);
     expect(box).toHaveAttribute("aria-activedescendant", opts[0].id);
-    expect(opts[0]).toHaveAttribute("aria-selected", "true");
     fireEvent.keyDown(box, { key: "ArrowDown" });
-    expect(box).toHaveAttribute("aria-activedescendant", opts[1].id);
-    expect(opts[1]).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(box, { key: "ArrowDown" });
+    expect(opts[2]).toHaveAttribute("aria-selected", "true");
     expect(opts[0]).toHaveAttribute("aria-selected", "false");
-    fireEvent.keyDown(box, { key: "ArrowDown" });
-    expect(box).toHaveAttribute("aria-activedescendant", opts[0].id);
     fireEvent.keyDown(box, { key: "ArrowUp" });
-    expect(box).toHaveAttribute("aria-activedescendant", opts[1].id);
+    fireEvent.keyDown(box, { key: "ArrowUp" });
+    fireEvent.keyDown(box, { key: "ArrowUp" });
+    expect(box).toHaveAttribute("aria-activedescendant", opts[3].id);
     fireEvent.keyDown(box, { key: "Enter" });
-    expect(onGo).toHaveBeenCalledWith(ENTRIES[1]);
+    expect(onGo).toHaveBeenCalledWith(expect.objectContaining({ id: "r:rayo" }));
   });
 
-  it("groups results under their kind and says how many there are", () => {
+  it("the boards' groups: «Jornadas», «Equipos»; the players with their shirt", () => {
     const { box } = setup();
     fireEvent.change(box, { target: { value: "rayo" } });
-    expect(screen.getByRole("group", { name: "Rivales" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Partidos" })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("2 resultados");
+    expect(screen.getByRole("group", { name: "Jornadas" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Equipos" })).toBeInTheDocument();
+    fireEvent.change(box, { target: { value: "7" } });
+    expect(document.querySelector(".vd-sr__shirt")).toHaveTextContent("7");
   });
 
-  it("with nothing found: no options, a line in words, «Sin resultados»", () => {
+  it("with nothing found but «Ahora»: a line in words", () => {
     const { box } = setup();
     fireEvent.change(box, { target: { value: "zzzz" } });
-    expect(screen.queryAllByRole("option")).toHaveLength(0);
-    expect(box).not.toHaveAttribute("aria-activedescendant");
-    expect(box).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByText(/Ni rastro de «zzzz»/)).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Sin resultados");
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(screen.getByText(/Nada con «zzzz»/)).toBeInTheDocument();
   });
 
-  it("Esc closes (asking for the focus back); so does the close button", () => {
+  it("Esc empties the field first, then closes (asking for the focus back); so does the Esc button", () => {
     const { box, onClose } = setup();
+    fireEvent.change(box, { target: { value: "al" } });
+    fireEvent.keyDown(box, { key: "Escape" });
+    expect(box).toHaveValue("");
+    expect(onClose).not.toHaveBeenCalled();
     fireEvent.keyDown(box, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onClose.mock.calls[0]).toEqual([]);
@@ -88,26 +116,29 @@ describe("SearchPanel", () => {
   it("Tab stays inside the dialog", () => {
     const { box } = setup();
     const close = screen.getByRole("button", { name: "Cerrar la búsqueda" });
-    close.focus();
-    fireEvent.keyDown(close, { key: "Tab" });
+    const items = [...screen.getByRole("dialog").querySelectorAll<HTMLElement>("input,button:not([disabled])")];
+    const last = items[items.length - 1];
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
     expect(box).toHaveFocus();
     fireEvent.keyDown(box, { key: "Tab", shiftKey: true });
-    expect(close).toHaveFocus();
+    expect(last).toHaveFocus();
+    expect(close).toBeInTheDocument();
   });
 
   it("a chosen result remembers the search; a recent search refills the field", () => {
     const { box, onGo } = setup();
-    fireEvent.change(box, { target: { value: "hug" } });
-    fireEvent.click(screen.getByRole("option", { name: /HUGO/ }));
-    expect(onGo).toHaveBeenCalledWith(ENTRIES[0]);
-    expect(JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? "[]")).toEqual(["hug"]);
+    fireEvent.change(box, { target: { value: "alc" } });
+    fireEvent.click(screen.getByRole("option", { name: /Alcides/ }));
+    expect(onGo).toHaveBeenCalledWith(PLAYERS[0]);
+    expect(JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? "[]")).toEqual(["alc"]);
   });
 
   it("lists the recent searches when empty and works when storage throws", () => {
     window.localStorage.setItem(RECENT_KEY, JSON.stringify(["rayo"]));
     const { box } = setup();
     const recent = within(screen.getByRole("group", { name: "Búsquedas recientes" })).getByRole("option");
-    expect(recent).toHaveTextContent("Recienterayo");
+    expect(recent).toHaveTextContent("rayo");
     fireEvent.click(recent);
     expect(box).toHaveValue("rayo");
   });
@@ -120,10 +151,26 @@ describe("SearchPanel", () => {
       throw new Error("QuotaExceededError");
     });
     const { box, onGo } = setup();
-    fireEvent.change(box, { target: { value: "9" } });
+    fireEvent.change(box, { target: { value: "7" } });
+    fireEvent.keyDown(box, { key: "ArrowDown" });
+    fireEvent.keyDown(box, { key: "ArrowDown" });
     fireEvent.keyDown(box, { key: "Enter" });
-    expect(onGo).toHaveBeenCalledWith(ENTRIES[0]);
+    expect(onGo).toHaveBeenCalledWith(PLAYERS[0]);
     get.mockRestore();
     set.mockRestore();
+  });
+});
+
+describe("searchModel", () => {
+  it("every league team is findable once (our rivals already are)", () => {
+    const rows = [{ team: "Manchester Piti", isUs: true }, { team: "Rayo Vallecano" }, { team: "Pitutis" }];
+    expect(teamEntries(rows, ENTRIES).map((e) => e.title)).toEqual(["Pitutis"]);
+  });
+  it("actions by who is looking: a fan only the calendar and the shirt", () => {
+    expect(actionEntries({ jugador: false, member: false, rsvp: null, vote: null, feed: "webcal://x" }).map((e) => e.title)).toEqual(["Al calendario", "Ponte la del Piti"]);
+    expect(actionEntries({ jugador: false, member: true, rsvp: null, vote: null, feed: null }).map((e) => e.title)).toEqual(["Votar al MVP", "Hacer la porra", "Ponte la del Piti"]);
+  });
+  it("groups in the boards' order, «Ahora» always", () => {
+    expect(groupResults(ENTRIES, "plantilla").map((g) => g.title)).toEqual(["Ahora", "Páginas"]);
   });
 });

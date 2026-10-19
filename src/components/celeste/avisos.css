@@ -1,0 +1,41 @@
+/* The bell's sheet (NoticesBell; V-Integracion .vn-bell / .vn-avall): glass, Mona Sans, five rows then «Ver todos»
+   growing into «Todos los avisos» (the list and «Avisos a medida» side by side on desktop). */
+.vd-bell{--vd-r:var(--vd-r-sheet);position:fixed;z-index:62;display:flex;flex-direction:column;font-family:var(--vd-sans);color:var(--vd-g-ink);outline:0;overflow:hidden;
+  animation:vd-bell-in .55s var(--vd-spring) both;transform-origin:90% 0}
+@keyframes vd-bell-in{from{opacity:0;transform:scale(.7,.4)}}
+.vd-bell--pop{width:430px;max-width:calc(100vw - 32px);max-height:calc(100dvh - var(--vd-bell-top,96px) - 24px);padding:20px 20px 16px}
+.vd-bell--pop.is-all{width:780px;bottom:24px;max-height:none}
+.vd-bell--sheet{left:10px;right:10px;bottom:calc(82px + env(safe-area-inset-bottom,0px));max-width:520px;margin:0 auto;max-height:calc(100dvh - 150px);padding:18px 16px 12px;transform-origin:50% 100%}
+.vd-bell--sheet.is-all{top:16px;max-height:none}
+.vd-bell__head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px;padding-right:52px;position:relative;margin-bottom:6px}
+.vd-bell__head h2{margin:0;font-weight:700;font-variation-settings:'wdth' 94;font-size:21px;letter-spacing:-.01em;color:var(--vd-g-ink)}
+.vd-bell.is-all .vd-bell__head h2{font-size:25px}
+.vd-bell__head>span{font-size:13.5px;color:var(--vd-g-ink2)}
+.vd-bell__seg{height:44px;min-width:min(400px,100%);flex:1 1 300px;align-self:center}
+.vd-bell__x{--vd-r:999px;position:absolute;top:-6px;right:-6px;min-width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 12px;border:0;border-radius:999px;color:var(--vd-g-ink);cursor:pointer;font-family:var(--vd-sans);font-weight:650;font-size:14px}
+.vd-bell.is-all .vd-bell__x{position:static;order:3}
+.vd-bell.is-all .vd-bell__head{padding-right:0}
+.vd-bell__x:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.vd-bell__sub{margin:0 0 8px;font-size:13.5px;color:var(--vd-g-ink2);line-height:1.45}
+.vd-bell__body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
+.vd-bell.is-all .vd-bell__body{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:28px;align-items:start}
+.vd-bell.is-all .vd-bell__prefs{position:sticky;top:0;margin-top:0;border-top:0;padding-top:4px}
+.vd-bell--sheet.is-all .vd-bell__body{grid-template-columns:minmax(0,1fr)}
+.vd-bell--sheet.is-all .vd-bell__prefs{position:static;border-top:1px solid var(--vd-rule2);padding-top:14px}
+.vd-avs{list-style:none;margin:0;padding:0}
+.vd-av{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;align-items:start;padding:11px 4px;border-top:1px solid var(--vd-rule);border-radius:12px;color:inherit;text-decoration:none}
+.vd-avs li:first-child .vd-av{border-top:0}
+.vd-av:hover{background:rgba(234,243,252,.05)}
+.vd-av:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-2px}
+.vd-av__i{position:relative;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:var(--vd-g-ink);background:rgba(234,243,252,.08);box-shadow:inset 0 0 0 1px rgba(234,243,252,.14)}
+:root[data-theme="light"] .vd-av__i{background:rgba(12,23,51,.05);box-shadow:inset 0 0 0 1px rgba(12,23,51,.12)}
+.vd-av.is-new .vd-av__i::after{content:"";position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:var(--vd-celeste);box-shadow:0 0 0 2px var(--vd-marino)}
+:root[data-theme="light"] .vd-av.is-new .vd-av__i::after{background:#2C6A9E;box-shadow:0 0 0 2px #fff}
+.vd-av__card{display:block;width:12px;height:17px;border-radius:2.5px;background:var(--vd-amarilla)}
+.vd-av__t b{display:block;font-weight:650;font-size:15px;color:var(--vd-g-ink);line-height:1.25}
+.vd-av__t span{display:block;font-size:13.5px;color:var(--vd-g-ink2);line-height:1.35}
+.vd-av time{font-size:12.8px;color:var(--vd-g-ink2);white-space:nowrap;padding-top:2px}
+.vd-av-none{margin:10px 0;font-size:14px;color:var(--vd-g-ink2);line-height:1.45}
+.vd-bell__more{margin:4px 0 6px}
+@media (prefers-reduced-motion:reduce){.vd-bell{animation:none}}
+@media (prefers-reduced-transparency:reduce){.vd-bell{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--vd-solid)}}

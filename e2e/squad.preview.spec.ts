@@ -3,7 +3,8 @@ import { test, expect } from "@playwright/test";
 test("la plantilla: percha, ficha en ventana, búsqueda y cara a cara con selector", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/plantilla");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("10 camisetas");
+  await expect(page.getByRole("heading", { level: 1, name: "Plantilla" })).toBeVisible();
+  await expect(page.locator(".sq-lede")).toContainText("Los 10 de la temporada.");
   // Nothing is picked until the viewer taps a shirt.
   await expect(page.getByRole("dialog")).toHaveCount(0);
 

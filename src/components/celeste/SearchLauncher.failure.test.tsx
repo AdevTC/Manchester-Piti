@@ -11,7 +11,7 @@ const { SearchLauncher } = await import("./SearchLauncher");
 it("a failed opening says so in a polite status, and the next opening clears it", async () => {
   const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
   render(<SearchLauncher />);
-  const button = screen.getByRole("button", { name: "Buscar" });
+  const button = screen.getByRole("button", { name: /^Buscar \(/ });
   const status = screen.getByRole("status");
   expect(status).toBeEmptyDOMElement();
 

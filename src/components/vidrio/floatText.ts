@@ -1,7 +1,7 @@
 // The floating score's words, pure: what the compact drop says in each state and its accessible name.
 // (P5 added the member's own states of the match day: «¿Vas hoy?», «Hoy anotas tú», the whistle's wait and
 // «Vota al MVP».)
-export type FloatState = "previa" | "rsvp" | "anotador" | "pitido" | "directo" | "descanso" | "final" | "acta" | "mvp" | "pendiente" | "offline";
+export type FloatState = "previa" | "rsvp" | "anotador" | "pitido" | "directo" | "descanso" | "final" | "acta" | "mvp" | "mvpres" | "pendiente" | "offline";
 
 export interface FloatMatch {
   state: FloatState;
@@ -13,8 +13,10 @@ export interface FloatMatch {
   clock?: string;
   /** Kick-off (ms), for «previa». */
   kickoff?: number;
-  /** The play it unfolds for (~4 s per play). */
+  /** The play or the turn of the match it unfolds for (~4 s each), in any state. */
   event?: { title: string; sub?: string } | null;
+  /** «MVP: Alcides» (state mvpres): the winner's name. */
+  winner?: string;
   /** Offline: the minute of the last good score («26′»). */
   staleAt?: string;
   /** Our crest (default /crest-128.webp). */
@@ -47,6 +49,8 @@ export interface FloatLines {
 
 export function floatLines(m: FloatMatch, now: number): FloatLines {
   const score = `${m.us}–${m.them}`;
+  // (a play or a turn of the match unfolds the drop, whatever the state: «Descanso · 2–1 en la primera parte»)
+  if (m.event && m.state !== "offline") return { big: m.state === "previa" || m.state === "rsvp" || m.state === "anotador" || m.state === "pitido" ? null : score, main: m.event.title, small: m.event.sub ?? "", clock: false };
   switch (m.state) {
     case "previa":
       return { big: m.kickoff ? hhmm(m.kickoff) : null, main: m.kickoff ? `${m.rival}, ${untilText(m.kickoff, now)}` : m.rival, small: "", clock: false };
@@ -58,8 +62,10 @@ export function floatLines(m: FloatMatch, now: number): FloatLines {
       return { big: null, main: m.rival, small: "Pendiente del pitido", clock: false };
     case "mvp":
       return { big: score, main: "Vota al MVP", small: m.rival, clock: false };
+    case "mvpres":
+      return { big: score, main: m.winner ? `MVP: ${m.winner}` : "MVP elegido", small: m.rival, clock: false };
     case "directo":
-      return m.event ? { big: score, main: m.event.title, small: m.event.sub ?? "", clock: false } : { big: score, main: m.rival, small: m.clock ?? "", clock: !!m.clock };
+      return { big: score, main: m.rival, small: m.clock ?? "", clock: !!m.clock };
     case "descanso":
       return { big: score, main: m.rival, small: "Descanso", clock: false };
     case "final":
@@ -87,6 +93,8 @@ export function floatLabel(m: FloatMatch, now: number): string {
       return `Contra ${m.rival}, pendiente del pitido inicial`;
     case "mvp":
       return `${s}, vota al mejor del partido`;
+    case "mvpres":
+      return `${s}, final${m.winner ? `. MVP: ${m.winner}` : ""}`;
     case "directo":
       return m.clock ? `${s}, minuto ${m.clock.replace(/[′']/g, "")}` : `${s}, en directo`;
     case "descanso":

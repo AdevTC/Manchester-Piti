@@ -24,6 +24,8 @@ vi.mock("@tanstack/react-router", async (orig) => ({
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ ...data, loading: false, error: null }) }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }], selectedSeasonId: "all", loadingSeasons: false }) }));
 vi.mock("../vestuario/live", () => ({ useMvpResults: () => new Map() }));
+// (the season now reads the captains' table; these tests are about the tabs below it)
+vi.mock("../../lib/useStandings", () => ({ useStandings: () => ({ standings: null, loading: false }) }));
 vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
 vi.mock("./Race", () => ({ RaceBoard: () => <section aria-label="Carrera del Pichichi" />, Ticker: () => null }));
 

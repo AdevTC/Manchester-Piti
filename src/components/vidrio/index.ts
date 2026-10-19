@@ -13,7 +13,7 @@ export { ribbonModel, pressureAt, type RibbonItem, type RibbonKind, type RibbonM
 export { SeeAll, type SeeAllProps } from "./SeeAll";
 export { GrowWindow, type GrowWindowProps } from "./GrowWindow";
 export { useGrow, type Grow } from "./useGrow";
-export { swap, region, morph, type SwapDirection, type SwapRun, type RegionIndex } from "./transitions";
+export { swap, region, morph, LIVE_MORPH, type SwapDirection, type SwapRun, type RegionIndex } from "./transitions";
 export { FloatingScore, type FloatingScoreProps } from "./FloatingScore";
 export { floatLines, floatLabel, untilText, type FloatMatch, type FloatState } from "./floatText";
 export { useDraggable, type DraggableOptions, type Draggable } from "./useDraggable";
@@ -21,6 +21,7 @@ export { anchorPoints, nearestAnchor, clampPos, stepAnchor, dragTo, parsePos, ty
 export { PipWindow, type PipWindowProps } from "./PipWindow";
 export { openScorePip, hasDocumentPip, type ScorePip } from "./pip";
 export { liveDock, useLiveDock, useLiveDockState, useLiveNow, type LiveDockState, type DockMode } from "./liveDock";
+export { VIcon, type VIconName } from "./VIcon";
 export { useGoalMoment } from "./useGoalMoment";
 export { goalClasses, goalStageAt, GOAL_TIMELINE, type GoalMoment, type GoalStage, type GoalClasses } from "./goalMoment";
 export { useReducedMotion, useDesktop, useMedia, canRefract, supportsViewTransitions } from "./env";

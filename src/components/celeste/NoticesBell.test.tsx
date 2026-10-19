@@ -58,12 +58,16 @@ describe("NoticesGate", () => {
     act(() => publishViewer(state.viewer));
     expect(await screen.findByRole("button", { name: "Avisos" })).toBeInTheDocument();
   });
-  it("renders nothing for a fan and opens no read", async () => {
+  it("a fan gets the bell too, with «Avisos a medida» only, and opens no read", async () => {
     state.viewer = { member: false, admin: false, playerId: null };
     publishViewer(state.viewer);
-    const { container } = render(<NoticesGate />);
-    await act(async () => {});
-    expect(container).toBeEmptyDOMElement();
+    render(<NoticesGate />);
+    const bell = await screen.findByRole("button", { name: "Avisos" });
+    fireEvent.click(bell);
+    const dialog = screen.getByRole("dialog", { name: "Avisos" });
+    expect(dialog).toHaveTextContent("Avisos a medida");
+    expect(dialog).toHaveTextContent("Los avisos del vestuario son de los socios");
+    expect(within(dialog).queryByRole("link")).toBeNull();
     expect(state.reads).toEqual([]);
   });
 });
@@ -120,7 +124,7 @@ describe("NoticesBell", () => {
     expect(container.contains(dialog)).toBe(false);
     expect(dialog.closest(".nt-portal")?.parentElement).toBe(document.body);
     // narrow page: the bottom sheet, with its scrim
-    expect(dialog).toHaveClass("nt-panel-sheet");
+    expect(dialog).toHaveClass("vd-bell--sheet");
     expect(document.querySelector(".nt-scrim")).not.toBeNull();
   });
 
@@ -135,9 +139,8 @@ describe("NoticesBell", () => {
     vi.spyOn(bell, "getBoundingClientRect").mockReturnValue({ top: 20, bottom: 64, left: 1100, right: 1144, width: 44, height: 44, x: 1100, y: 20, toJSON: () => ({}) });
     fireEvent.click(bell);
     const dialog = screen.getByRole("dialog");
-    expect(dialog).toHaveClass("nt-panel-pop");
+    expect(dialog).toHaveClass("vd-bell--pop");
     expect(dialog.style.top).toBe("74px");
-    expect(dialog.style.maxHeight).toMatch(/^calc\(.*100vh.*74px.*24px|^calc\(.*100vh.*24px.*74px/);
     expect(document.querySelector(".nt-scrim")).toBeNull();
     page.remove();
   });
@@ -165,6 +168,26 @@ describe("NoticesBell", () => {
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("link"));
     expect(state.navigate).toHaveBeenCalledWith({ href: "/matches/a" });
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("five, then «Ver todos» grows the sheet into «Todos los avisos» with its filter and «Cerrar»", () => {
+    state.notices = [
+      ...Array.from({ length: 6 }, (_, i) => notice(`g${i}`, now - (i + 1) * HOUR, { topic: "goals", title: `Gol ${i}` })),
+      notice("t1", now - 9 * HOUR, { topic: "rota", title: "Te toca lavar" }),
+    ];
+    render(<NoticesBell />);
+    fireEvent.click(screen.getByRole("button", { name: /^Avisos/ }));
+    const dialog = screen.getByRole("dialog", { name: "Avisos" });
+    expect(within(dialog).getAllByRole("link")).toHaveLength(5);
+    expect(dialog).toHaveTextContent("2 avisos más de hoy y de esta semana");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Ver todos/ }));
+    const grown = screen.getByRole("dialog", { name: "Todos los avisos" });
+    expect(within(grown).getAllByRole("link")).toHaveLength(7);
+    expect(grown).toHaveTextContent("7 avisos en total.");
+    fireEvent.click(within(grown).getByRole("button", { name: "Del vestuario" }));
+    expect(within(grown).getAllByRole("link").map((a) => a.textContent)).toEqual([expect.stringContaining("Te toca lavar")]);
+    fireEvent.click(within(grown).getByRole("button", { name: "Cerrar todos los avisos" }));
+    expect(screen.getByRole("dialog", { name: "Avisos" })).toBeInTheDocument();
   });
 
   it("Tab stays inside the panel", () => {
