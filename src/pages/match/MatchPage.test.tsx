@@ -68,6 +68,8 @@ vi.mock("./Tabs", () => ({
 
 // (the live side column: its own tests in LivePanes.test)
 vi.mock("./LivePanes", () => ({ LiveSide: () => <p>side:numeros</p>, ShirtDefs: () => null }));
+// (the pitch beside the feed: its own tests in vidrio/Campo.test)
+vi.mock("./vidrio/Campo", () => ({ Campo: () => <p>side:campo</p> }));
 
 const { MatchPage } = await import("./MatchPage");
 
@@ -107,7 +109,7 @@ describe("MatchPage · the tab in the URL", () => {
     const router = open("/matches/j1?season=t1&tab=campo");
     expect(await screen.findByText("pane:campo")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Estadísticas" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Números" }));
     expect(await screen.findByText("pane:estadisticas")).toBeInTheDocument();
     expect(router.state.location.search).toEqual({ season: "t1", tab: "estadisticas" });
 
@@ -120,9 +122,9 @@ describe("MatchPage · the tab in the URL", () => {
     expect(await screen.findByText("pane:estadisticas")).toBeInTheDocument();
     act(() => router.history.back());
     expect(await screen.findByText("pane:campo")).toBeInTheDocument();
-    expect(selected()).toBe("Campo");
+    expect(selected()).toBe("Alineación");
     act(() => router.history.forward());
-    await waitFor(() => expect(selected()).toBe("Estadísticas"));
+    await waitFor(() => expect(selected()).toBe("Números"));
   });
 
   it("clicking the tab already open adds no history entry", async () => {
@@ -133,12 +135,12 @@ describe("MatchPage · the tab in the URL", () => {
     expect(router.history.length).toBe(before);
   });
 
-  it("«Estadísticas» of a match nobody narrated (goals only): the tab stays, a short line instead of the panel", async () => {
+  it("«Números» of a match nobody narrated (goals only): the tab stays, a short line instead of the panel", async () => {
     open("/matches/j2?tab=estadisticas");
     const empty = await screen.findByRole("region", { name: "Sin análisis de este partido" });
     expect(empty).toHaveTextContent(/Nadie ha narrado sus jugadas/);
     expect(screen.queryByText("pane:estadisticas")).toBeNull();
-    expect(selected()).toBe("Estadísticas");
+    expect(selected()).toBe("Números");
     expect(screen.getByRole("tabpanel")).not.toHaveClass("wide");
   });
 });
@@ -150,19 +152,20 @@ describe("MatchPage · the tabs with the keyboard (ARIA tabs pattern)", () => {
   it("roving tabindex: only the selected tab is in the Tab order; the panel is focusable and named by its tab", async () => {
     open("/matches/j1?tab=pulso");
     expect(await screen.findByText("pane:pulso")).toBeInTheDocument();
-    expect(tabIndexes()).toEqual(["-1", "-1", "0", "-1", "-1"]);
+    // (the boards' order: Crónica · Alineación · Números · Pulso · Vestuario)
+    expect(tabIndexes()).toEqual(["-1", "-1", "-1", "0", "-1"]);
     const panel = screen.getByRole("tabpanel", { name: "Pulso" });
     expect(panel).toHaveAttribute("tabindex", "0");
   });
 
   it("→ and ← select the next / previous tab, wrap around, write ?tab= and take the focus along", async () => {
-    const router = open("/matches/j1?season=t1&tab=vestuario");
-    expect(await screen.findByText("pane:vestuario")).toBeInTheDocument();
+    const router = open("/matches/j1?season=t1&tab=pulso");
+    expect(await screen.findByText("pane:pulso")).toBeInTheDocument();
 
     press("ArrowRight");
-    expect(await screen.findByText("pane:estadisticas")).toBeInTheDocument();
-    expect(router.state.location.search).toEqual({ season: "t1", tab: "estadisticas" });
-    expect(screen.getByRole("tab", { name: "Estadísticas" })).toHaveFocus();
+    expect(await screen.findByText("pane:vestuario")).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({ season: "t1", tab: "vestuario" });
+    expect(screen.getByRole("tab", { name: "Vestuario" })).toHaveFocus();
     expect(tabIndexes()).toEqual(["-1", "-1", "-1", "-1", "0"]);
 
     // the last one wraps to the first (its clean URL)
@@ -173,13 +176,13 @@ describe("MatchPage · the tabs with the keyboard (ARIA tabs pattern)", () => {
 
     // and back again from the first to the last
     press("ArrowLeft");
-    expect(await screen.findByText("pane:estadisticas")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Estadísticas" })).toHaveFocus();
+    expect(await screen.findByText("pane:vestuario")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Vestuario" })).toHaveFocus();
 
     press("ArrowLeft");
-    expect(await screen.findByText("pane:vestuario")).toBeInTheDocument();
-    expect(router.state.location.search).toEqual({ season: "t1", tab: "vestuario" });
-    expect(screen.getByRole("tab", { name: "Vestuario" })).toHaveFocus();
+    expect(await screen.findByText("pane:pulso")).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({ season: "t1", tab: "pulso" });
+    expect(screen.getByRole("tab", { name: "Pulso" })).toHaveFocus();
   });
 
   it("Inicio and Fin go to the ends; other keys do nothing", async () => {
@@ -187,9 +190,9 @@ describe("MatchPage · the tabs with the keyboard (ARIA tabs pattern)", () => {
     expect(await screen.findByText("pane:campo")).toBeInTheDocument();
 
     press("End");
-    expect(await screen.findByText("pane:estadisticas")).toBeInTheDocument();
-    expect(router.state.location.search).toEqual({ tab: "estadisticas" });
-    expect(screen.getByRole("tab", { name: "Estadísticas" })).toHaveFocus();
+    expect(await screen.findByText("pane:vestuario")).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({ tab: "vestuario" });
+    expect(screen.getByRole("tab", { name: "Vestuario" })).toHaveFocus();
 
     press("Home");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
@@ -365,8 +368,8 @@ describe("MatchPage · the board says when the score may not be live", () => {
   const NOW = Date.UTC(2026, 8, 10);
   const MATCHES = metaKeyOf(["matches"]);
   let onLine: { mockRestore: () => void } | null = null;
-  // (live: the lit card, LiveBoard; played: the stadium board)
-  const board = () => document.querySelector("section.ml-card, article.pt-board") as HTMLElement;
+  // (the glass scoreboard, live or played)
+  const board = () => document.querySelector("article.mp-board") as HTMLElement;
   afterEach(() => {
     onLine?.mockRestore();
     onLine = null;
@@ -376,7 +379,7 @@ describe("MatchPage · the board says when the score may not be live", () => {
   it("live and in sync: no chip; offline: «Reconectando…», said once", async () => {
     recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 5_000);
     open("/matches/j4");
-    expect(await screen.findByText("pane:directo")).toBeInTheDocument();
+    expect(await screen.findByText("side:campo")).toBeInTheDocument();
     expect(board().querySelector(".mp-sync")).toBeNull();
     act(() => {
       onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
@@ -390,7 +393,7 @@ describe("MatchPage · the board says when the score may not be live", () => {
     recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 20 * 60_000);
     recordSnapshotMeta(MATCHES, { fromCache: true, hasPendingWrites: false }, NOW - 2 * 60_000 - 5_000);
     open("/matches/j4");
-    expect(await within(await screen.findByRole("region", { name: /Marcador en directo/ })).findByText("Sin conexión · marcador de hace 2 min")).toBeInTheDocument();
+    expect(await within(await screen.findByRole("article", { name: /En directo contra/ })).findByText("Sin conexión · marcador de hace 2 min")).toBeInTheDocument();
   });
 
   it("a played match never shows it", async () => {
