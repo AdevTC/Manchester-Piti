@@ -663,6 +663,7 @@
 .vp-seg__l{display:none;font-size:12.8px;font-weight:500;line-height:1.25;color:rgba(255,255,255,.9);margin-top:2px}
 @media (min-width:1800px){@container (min-width:220px){.vp-seg__l{display:block}}}
 .vp-simmode .vp-seg__l{display:none!important}
+.vp-seg:has(.vp-seg__sim) .vp-seg__res{display:none}
 .vp-floataway{position:fixed;left:50%;bottom:0;width:1px;height:1px;pointer-events:none}
 .vp-lensmark{position:absolute;inset:0;pointer-events:none;z-index:-1}
 .vd-grow .vp-lensmark{position:absolute;inset:0}
@@ -774,6 +775,9 @@
   .vp-porra-alt:empty{display:none}
   .vp-porra-main{display:none}
   .vp-acta{grid-template-columns:300px minmax(0,1fr) 180px}
+  .vp-acta .vp-teams{gap:6px;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+  .vp-acta .vd-scoreline{font-size:72px}
+  .vp-acta .vp-teams .vd-team b{font-size:14px;overflow-wrap:anywhere}
   .vp-acta__res{grid-column:1;grid-row:1}
   .vp-acta__sigcol{grid-column:2;grid-row:1}
   .vp-acta .vp-sigcap{max-width:300px;margin-left:auto;margin-right:auto}

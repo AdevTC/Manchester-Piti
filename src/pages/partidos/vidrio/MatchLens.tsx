@@ -213,7 +213,7 @@ function halfWords(m: ClubMatch, now: number): { minute: boolean; text: string }
 }
 
 /** «hace 2 min» → «hace 2 minutos», «hace 1 min» → «hace 1 minuto», «hace 40 s» → «hace 40 segundos». */
-const agoWords = (ago: string) => ago.replace(/(d+) (min|s)$/, (_, n: string, u: string) => `${n} ${u === "min" ? (n === "1" ? "minuto" : "minutos") : n === "1" ? "segundo" : "segundos"}`);
+const agoWords = (ago: string) => ago.replace(/(\d+) (min|s)$/, (_, n: string, u: string) => `${n} ${u === "min" ? (n === "1" ? "minuto" : "minutos") : n === "1" ? "segundo" : "segundos"}`);
 
 const list = (names: string[]) => new Intl.ListFormat("es", { type: "conjunction" }).format(names);
 
