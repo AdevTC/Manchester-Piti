@@ -55,7 +55,7 @@ export function PlaysOrn({ title, sub, log, grow, matchId, note, className }: Pl
       )}
       <div className="vi-orn-foot" data-more={log.count > 5 ? 5 : log.count > 4 ? 4 : log.count > 3 ? 3 : 0}>
         {log.count > 3 && <SeeAll summary={plural(log.count)} count={log.count} label="Ver todo el partido" onOpen={grow.grow} />}
-        <Link className="vd-link vi-openmatch" to="/matches/$matchId" params={{ matchId }}>
+        <Link className="vd-link vi-openmatch" to="/matches/$matchId" params={{ matchId }} viewTransition>
           Abrir el partido
         </Link>
         {note && <p className="vi-orn-p vi-mesanote">{note}.</p>}

@@ -3,7 +3,7 @@
 // the evening's light before it. It declares itself to the live system (useLiveDock "lens"): while it is on
 // screen the floating score stays away, so the match is never shown twice.
 import { useRef } from "react";
-import { Lens, MomentumRibbon, useLiveDock, type GoalClasses, type RibbonItem } from "../../../components/vidrio";
+import { LIVE_MORPH, Lens, MomentumRibbon, morph, useLiveDock, type GoalClasses, type RibbonItem } from "../../../components/vidrio";
 import type { LensFace, SunRibbon } from "../hoyModel";
 
 export interface HoyLensProps {
@@ -87,8 +87,10 @@ export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinu
       </span>
     </>
   );
+  // (tonight's score travels under one name: the floating drop, this lens and the match page's scoreboard)
+  const shared = rival ? morph(LIVE_MORPH) : null;
   return (
-    <div ref={ref} className={`vi-lensbox${goal.root ? ` ${goal.root}` : ""}${className ? ` ${className}` : ""}`}>
+    <div ref={ref} className={`vi-lensbox${shared ? ` ${shared.className}` : ""}${goal.root ? ` ${goal.root}` : ""}${className ? ` ${className}` : ""}`} style={shared?.style}>
       <Lens as="section" aria-label="El partido" className={`vi-lens${goal.rim ? " vd-rim-gold" : ""}`} goal={[goal.lens, goal.glint].filter(Boolean).join(" ")} refract={{ bezel: 36, strength: 1.35, blur: 8 }}>
         <span className="vi-lens__halo" aria-hidden="true" />
         <div className="vd-teams">

@@ -616,8 +616,6 @@
   .vi-place .vi-table th,.vi-place .vi-table td{padding-top:6px;padding-bottom:6px}
   .vi-place .vi-seasonbox{margin-top:12px}
   .vi-place .vi-ph{margin-bottom:16px}
-  /* the lens and the floating score are one object: the lens shrinks into the drop and back (swap()) */
-  .vi:not(.vi--cockpit) .vi-lensbox{view-transition-name:vd-live;view-transition-class:vd-morph}
   /* the shelf's bead slides under the choreography instead of snapping */
   .vi-stage__shelf .vd-shelf__bead{view-transition-name:vi-shelf-bead;view-transition-class:vd-morph}
 }

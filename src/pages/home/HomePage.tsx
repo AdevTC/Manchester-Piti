@@ -224,7 +224,7 @@ export function HomePage() {
   const replays = replay && replay.id === goalKey ? replay.n : 0;
   const freshGoal = arrivalGoal !== undefined && goalKey !== null && (goalKey !== arrivalGoal || replays > 0);
   const goalSide = lastGoal && eventMetaOf(lastGoal).goal === "for" ? "us" : "them";
-  const goal = useGoalMoment(lastGoal ? { key: replays ? `${lastGoal.id}#${replays}` : lastGoal.id, side: goalSide } : null, { reduced: reduced || !freshGoal });
+  const goal = useGoalMoment(lastGoal ? { key: replays ? `${lastGoal.id}#${replays}` : lastGoal.id, side: goalSide } : null, { reduced: reduced || !freshGoal, ready: !loading });
   // the lens's status line during the moment: «¡Gol de Adrián T.C.!», then «Adrián T.C., minuto 21» for a while
   // (when this page saw it arrive, on the match's clock: the name stays a few seconds after the moment)
   const freshKey = freshGoal ? `${goalKey}#${replays}` : null;
@@ -385,7 +385,7 @@ export function HomePage() {
       );
     } else if (live || phase === "final" || phase === "pendiente") {
       actions.push(
-        <Link key="open" className={`vd-glass vd-btn${pri} vd-press`} to="/matches/$matchId" params={{ matchId: m.id }}>
+        <Link key="open" className={`vd-glass vd-btn${pri} vd-press`} to="/matches/$matchId" params={{ matchId: m.id }} viewTransition={!reduced}>
           Abrir el partido
         </Link>,
       );
