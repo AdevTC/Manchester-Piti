@@ -20,7 +20,7 @@ import { AWAITING_ACTA, PENDING_WHISTLE, toBePlayed } from "../../lib/derived/ki
 import { jornadaOf } from "../../lib/derived/jornada";
 import { mvpCandidates } from "../../lib/derived/memberWindows";
 import { eventLine, livePlay, scoreboardOf } from "../../lib/derived/scoreboard";
-import { KIT_LABEL, kitLabel, mapsUrl } from "../../lib/derived/venue";
+import { KIT_LABEL, kitLabel, mapsUrl, venueName } from "../../lib/derived/venue";
 import { dateParts } from "../../lib/partidos";
 import { predictionsRevealed, scorePrediction } from "../../../functions/src/predictions";
 import { useAbsences, useAvailability, useMatchScorers, useMeetingNote, useMvpResults, useMyMvpVote, useMyPrediction } from "../../pages/vestuario/live";
@@ -194,7 +194,7 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
               <div>
                 <dt>Saque</dt>
                 <dd>
-                  {d.time} · {match.venue || "Campo por confirmar"}
+                  {d.time} · {venueName(match.venue ?? "") || "Campo por confirmar"}
                 </dd>
               </div>
               {note.data && (

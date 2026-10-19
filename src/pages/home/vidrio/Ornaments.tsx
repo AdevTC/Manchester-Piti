@@ -102,7 +102,7 @@ export function PreviaOrn({ match, jornada, weather, hourly, homeVenue, classNam
   // (at home the club's own words for its ground win — «CDM Palomeras, campo 2», El club's «campo» —; where it
   // is, from the geocoder, as Partidos' previa says it)
   const home = match.home !== false;
-  const venue = (home && homeVenue?.trim()) || venueName(match.venue ?? "") || (home ? "CDM Palomeras" : `Campo de ${match.rival ?? "el rival"}`);
+  const venue = (home && venueName(homeVenue ?? "")) || venueName(match.venue ?? "") || (home ? "CDM Palomeras" : `Campo de ${match.rival ?? "el rival"}`);
   const place = useVenuePlace(venueName(match.venue ?? "") || (home ? "CDM Palomeras" : null));
   // The ground's address and how to get there are the captains' (El club · Los campos, clubContent.venues):
   // a ground without its entry says only where it is when the map knows it.

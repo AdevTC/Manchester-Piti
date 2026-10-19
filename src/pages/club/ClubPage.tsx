@@ -9,7 +9,7 @@ import { formatDate, nextFixture, playerForSeason, playerName, useClubData } fro
 import { clubMedals, playerLines, seasonPulse, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
 import { classifieds, extraTrophies, historyTrain, mailto, sponsorWall, squadNumbers } from "../../lib/club";
-import { KIT_LABEL, mapsUrl, siteOrigin } from "../../lib/derived/venue";
+import { KIT_LABEL, mapsUrl, siteOrigin, venueName } from "../../lib/derived/venue";
 import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
@@ -434,7 +434,7 @@ export function ClubPage() {
           </div>
           <div className="cl-ground-copy">
             <Head kick="El barrio" title="Nuestro campo" id="cl-ground" />
-            <p className={`cl-venue${c.venue ? "" : " gap"}`}>{c.venue || "Campo y dirección por publicar"}</p>
+            <p className={`cl-venue${c.venue ? "" : " gap"}`}>{venueName(c.venue) || "Campo y dirección por publicar"}</p>
             {c.location && <p className="st-mono">{c.location}</p>}
             <div className="cl-acts">
               {c.venue && (

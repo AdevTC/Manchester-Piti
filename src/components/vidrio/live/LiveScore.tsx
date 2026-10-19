@@ -19,6 +19,7 @@ import { flushSync } from "react-dom";
 import { useRouterState } from "@tanstack/react-router";
 import { nameFor, useClubData, type ClubMatch } from "../../../lib/clubData";
 import { niceName } from "../../../lib/derived/words";
+import { venueName } from "../../../lib/derived/venue";
 import { useClock } from "../../../hooks/useClock";
 import { useViewer } from "../../../hooks/useViewer";
 import { useAuth } from "../../../context/AuthContext";
@@ -402,7 +403,7 @@ export function LiveScore() {
   const lastRow = rows[0];
   const lastPlay = lastRow ? `${lastRow.minuteText} ${lastRow.title}${lastRow.sub ? `, ${lastRow.sub.charAt(0).toLocaleLowerCase("es")}${lastRow.sub.slice(1)}` : ""}` : "";
   const pipHead = float.event ? float.event.title : float.state === "offline" ? "Sin actualizar" : state.kind === "live" ? `En directo, ${float.clock ?? ""}` : state.kind === "halftime" ? "Descanso" : model.status;
-  const pipSub = float.event ? (float.event.sub ?? "") : float.state === "offline" ? lines.main : ballRolling || state.kind === "final" ? lastPlay : `Contra ${rival}${state.match.venue ? `, en ${state.match.venue}` : ""}`;
+  const pipSub = float.event ? (float.event.sub ?? "") : float.state === "offline" ? lines.main : ballRolling || state.kind === "final" ? lastPlay : `Contra ${rival}${state.match.venue ? `, en ${venueName(state.match.venue)}` : ""}`;
   const said = [caughtUp, heard.text].filter(Boolean).join(" ");
 
   return (

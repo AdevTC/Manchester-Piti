@@ -33,7 +33,7 @@ import { PageSky } from "../../components/paginas/PageSky";
 import { PgIcon } from "../../components/paginas/Tags";
 import { countdownParts, matchEvent } from "../../lib/home";
 import { dateParts, eventMinute, resultOf, scoreOf, shownMinute } from "../../lib/partidos";
-import { KIT_LABEL, kitLabel, mapsUrl, siteOrigin } from "../../lib/derived/venue";
+import { KIT_LABEL, kitLabel, mapsUrl, siteOrigin, venueName } from "../../lib/derived/venue";
 import { scoreboardOf } from "../../lib/derived/scoreboard";
 import { jornadaOf } from "../../lib/derived/jornada";
 import { kickoffHint } from "../../lib/derived/vidrio/hints";
@@ -321,7 +321,7 @@ export function MatchPage() {
   const mesaOpen = !!canScore && !done && !["cancelled", "postponed"].includes(phase);
   const state: BoardProps["state"] = live ? (kick === "halftime" ? "halftime" : "live") : done ? "done" : unplayed ? "unplayed" : pending ? "pending" : whistle ? "whistle" : upcoming ? "upcoming" : "off";
   // «En directo, jornada 7 de liga en el Campo de pruebas»
-  const where = [jornada ? `Jornada ${jornada}${match.competition ? ` de ${match.competition.toLocaleLowerCase("es")}` : ""}` : match.competition, match.venue].filter(Boolean).join(" · ");
+  const where = [jornada ? `Jornada ${jornada}${match.competition ? ` de ${match.competition.toLocaleLowerCase("es")}` : ""}` : match.competition, venueName(match.venue ?? "")].filter(Boolean).join(" · ");
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
   const LABELS: Record<number, string> = { 0: firstTab, 1: "Alineación", 2: "Pulso", 3: "Vestuario", 4: "Números" };
   // «Números» reads the narrated actions (passes, shots, tackles…): without any, a short line.
