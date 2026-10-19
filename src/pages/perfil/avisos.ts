@@ -103,6 +103,7 @@ export function boldParts(s: string): [string, boolean][] {
 export const TOPIC_COPY: Record<Topic, { label: string; sub: string; capOnly?: boolean }> = {
   start: { label: "Empieza el partido", sub: "El pitido inicial, el descanso y la 2ª parte" },
   goals: { label: "Goles", sub: "Cada gol, nuestro y suyo, al momento" },
+  cards: { label: "Tarjetas", sub: "Las amarillas y las rojas, en directo" },
   final: { label: "Final", sub: "El resultado en cuanto pita el árbitro" },
   mvp: { label: "MVP de la jornada", sub: "Cuando se abre y se cierra la votación" },
   dates: { label: "Cambios de fecha u hora", sub: "Si un partido se mueve" },

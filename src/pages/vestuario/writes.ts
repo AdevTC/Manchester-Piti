@@ -9,7 +9,8 @@ import { absenceFields } from "../../lib/derived/absences";
 import { pollFields, voteFields, type Poll, type PollForm } from "../../lib/derived/polls";
 import { ratingFields, reactionFields, type ReactionId } from "../../lib/derived/trasElPartido";
 import { useAuth } from "../../context/AuthContext";
-import { savePrediction } from "../../lib/clubApi";
+import { markTurnDone as markTurnDoneCall, savePrediction } from "../../lib/clubApi";
+import { cajaClaimFields, claimProblem, type NewCajaClaim } from "../../lib/derived/cajaClaims";
 import type { GoalPick } from "../../../functions/src/predictions";
 
 /** How a member is shown to the team; the rules check it against users/{uid}. */
@@ -96,3 +97,22 @@ export const votePoll = (me: Me, poll: Pick<Poll, "id" | "options" | "multi">, o
 export const closePoll = (id: string) => updateDoc(doc(db, "polls", id), { closedAt: serverTimestamp() });
 /** «Borrar» (the author or a captain). */
 export const deletePoll = (id: string) => deleteDoc(doc(db, "polls", id));
+
+/**
+ * Turnos «Hecho»: the member marks his turn of a match done (`done: false` takes it back). `turnId` is the
+ * match's id (`rotaTurns/{matchId}`). A callable (functions/src/rota.ts markTurnDone): the turn of a match
+ * is computed from the rota, which the rules can't do, so the server checks the turn is his and writes
+ * `rotaTurns/{matchId}.done.{uid}`. Resolves to whether it is marked now.
+ */
+export const markTurnDone = async (me: Me, turnId: string, done = true): Promise<boolean> => {
+  if (!me.playerId) throw new Error("Necesitas tu ficha de jugador para marcar un turno.");
+  return (await markTurnDoneCall({ turnId, done })).data.done;
+};
+
+/** «Ya la he pagado»: cajaClaims/{auto-id}, «pendiente», as firestore.rules cajaClaimOk() checks it (his own
+ *  uid and ficha, `at` the server's time). The captains are told and confirm or reject it in La caja. */
+export const claimPayment = (me: Me, claim: NewCajaClaim) => {
+  const problem = claimProblem(me, claim);
+  if (problem) return Promise.reject(new Error(problem));
+  return addDoc(collection(db, "cajaClaims"), { ...cajaClaimFields(me, claim), at: serverTimestamp() });
+};
