@@ -4,7 +4,7 @@
 // anywhere a fan could see; Voy / Duda / No voy write through the vestuario's setAvailability. «Tu porra»: his
 // own prediction (matchPrivate/{id}/predictions/{uid}), the vestuario's PredictionForm while it is open, and only
 // «Tu porra: 2–1» once the match has kicked off.
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { predictionOpen } from "../../../functions/src/predictions";
 import { PredictionForm } from "../../components/celeste/PredictionForm";
 import { useClubData, type ClubMatch } from "../../lib/clubData";
@@ -69,6 +69,11 @@ export function PorraRow({ match }: { match: ClubMatch }) {
   const saved = useMyPrediction(match.id, me?.uid);
   const [editing, setEditing] = useState(false);
   const formId = useId();
+  const form = useRef<HTMLDivElement | null>(null);
+  // the form opens below the fold of the lens (it scrolls inside on desktop): bring it into sight
+  useEffect(() => {
+    if (editing) form.current?.scrollIntoView?.({ block: "nearest" });
+  }, [editing]);
   if (!me) return null;
   const open = predictionOpen(match);
   const score = saved.data ? `${saved.data.goalsFor}–${saved.data.goalsAgainst}` : "";
@@ -91,7 +96,7 @@ export function PorraRow({ match }: { match: ClubMatch }) {
         {editing ? "Cerrar la porra" : score ? "Cambiarla" : "Ponerla"}
       </button>
       {editing && (
-        <div id={formId} className="vp-porra__form">
+        <div ref={form} id={formId} className="vp-porra__form">
           <PredictionForm match={match} players={players} uid={me.uid} />
         </div>
       )}
