@@ -26,6 +26,7 @@ import { distanceText, lensTabs, longDay, rivalInitials, rivalTitle, untilText, 
 import { Glyph, PitchLines, RivalCrest, Shirt, SignatureSvg, SunRibbon, type GlyphName } from "./bits";
 
 const RowRsvp = lazy(() => import("../Socio").then((m) => ({ default: m.RowRsvp })));
+const PorraRow = lazy(() => import("../Socio").then((m) => ({ default: m.PorraRow })));
 
 export interface LensCtx {
   now: number;
@@ -33,7 +34,7 @@ export interface LensCtx {
   nameOf: (id: string) => string;
   numOf: (id: string) => string;
   liveMinute: number | null;
-  /** Hydrated and a member of the vestuario (the «¿Vas?» row). */
+  /** Hydrated and a member of the vestuario (the «¿Vas?» row and «Tu porra»). */
   member: boolean;
   /** The MVP once the vote closed (more than one when it is shared). */
   mvp: { name: string; num: string }[];
@@ -247,6 +248,11 @@ function Previa({ seg, ctx, idBase }: { seg: StripSegment; ctx: LensCtx; idBase:
           {ctx.member && (seg.state === "hoy" || seg.state === "proximo") && (
             <Suspense fallback={null}>
               <RowRsvp match={m} j={seg.jornada ?? undefined} />
+            </Suspense>
+          )}
+          {ctx.member && (seg.state === "hoy" || seg.state === "proximo" || seg.state === "directo" || seg.state === "jugado") && (
+            <Suspense fallback={null}>
+              <PorraRow match={m} />
             </Suspense>
           )}
         </div>

@@ -16,7 +16,7 @@ const clock = vi.hoisted(() => ({ now: 0 }));
 const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[], error: null as Error | null, loading: false }));
 const route = vi.hoisted(() => ({ search: {} as { view?: string; season?: string }, navigate: vi.fn() }));
 const league = vi.hoisted(() => ({ standings: null as unknown }));
-const who = vi.hoisted(() => ({ member: false, playerId: null as string | null, answer: "" }));
+const who = vi.hoisted(() => ({ member: false, playerId: null as string | null, answer: "", porra: null as { goalsFor: number; goalsAgainst: number; goals: [] } | null }));
 const spies = vi.hoisted(() => ({ setSeason: vi.fn(), setAvailability: vi.fn(() => Promise.resolve()), liveDoc: vi.fn() }));
 const seasons = vi.hoisted(() => ({ list: [] as { id: string; name: string }[] }));
 
@@ -44,7 +44,12 @@ vi.mock("../vestuario/live", () => ({
     spies.liveDoc(path);
     return { data: who.answer, loading: false, error: null };
   },
+  useMyPrediction: (matchId: string | undefined, uid: string | undefined) => {
+    spies.liveDoc(matchId && uid ? `matchPrivate/${matchId}/predictions/${uid}` : null);
+    return { data: who.porra, loading: false, error: null };
+  },
 }));
+vi.mock("../../components/celeste/PredictionForm", () => ({ PredictionForm: ({ match }: { match: { id: string } }) => <p>El formulario de la porra de {match.id}</p> }));
 vi.mock("../../components/ThemeToggle", () => ({ ThemeToggle: () => null }));
 vi.mock("../../components/celeste/Chrome", () => ({ CelesteDock: () => null, CelesteFooter: () => null, CelesteHeader: () => null }));
 vi.mock("../vestuario/writes", () => ({ useMe: () => (who.member ? { uid: "u-jordi", name: "Jordi", playerId: who.playerId } : null), setAvailability: spies.setAvailability }));
@@ -69,6 +74,7 @@ beforeEach(() => {
   route.navigate.mockReset();
   league.standings = { id: F.seasonId, competition: "Liga F7", jornada: 16, updatedAt: 0, updatedBy: "", rows: F.standings };
   who.member = false;
+  who.porra = null;
   who.playerId = null;
   who.answer = "";
   spies.setSeason.mockReset();
@@ -263,6 +269,7 @@ it("fans never see answers: no RSVP, no member reads", async () => {
   fireEvent.keyDown(seg(17)!, { key: "ArrowRight" });
   await act(async () => {});
   expect(screen.queryByRole("group", { name: /¿Vas/ })).toBeNull();
+  expect(screen.queryByText(/Tu porra/)).toBeNull();
   expect(spies.liveDoc).not.toHaveBeenCalled();
 });
 
@@ -275,11 +282,31 @@ it("a member called for the next jornada answers «¿Vas?» in its previa, and o
   fireEvent.keyDown(seg(17)!, { key: "ArrowRight" });
   const row = await screen.findByRole("group", { name: "¿Vas a la jornada 18 contra Red Demons?" });
   expect(within(row).getByRole("button", { name: /Voy/ })).toHaveAttribute("aria-pressed", "true");
-  expect(spies.liveDoc.mock.calls.every(([p]) => p === null || /\/availability\/u-jordi$/.test(p))).toBe(true);
+  expect(spies.liveDoc.mock.calls.every(([p]) => p === null || /\/(availability|predictions)\/u-jordi$/.test(p))).toBe(true);
   await act(async () => {
     fireEvent.click(within(row).getByRole("button", { name: "Duda" }));
   });
   expect(spies.setAvailability).toHaveBeenCalledWith({ uid: "u-jordi", name: "Jordi", playerId: "jordi" }, "j18", "maybe");
+});
+
+it("a member's porra in the previa: his score and the form behind «Cambiarla» before kick-off, read-only after", async () => {
+  who.member = true;
+  who.playerId = "jordi";
+  who.porra = { goalsFor: 2, goalsAgainst: 1, goals: [] };
+  render(<PartidosPage />);
+  fireEvent.keyDown(seg(17)!, { key: "ArrowRight" });
+  expect(await screen.findByText("Tu porra: 2–1")).toBeInTheDocument();
+  const change = screen.getByRole("button", { name: "Cambiarla" });
+  expect(change).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(change);
+  expect(screen.getByText("El formulario de la porra de j18")).toBeInTheDocument();
+  expect(spies.liveDoc).toHaveBeenCalledWith("matchPrivate/j18/predictions/u-jordi");
+  // a played jornada: only the line, no form
+  fireEvent.keyDown(seg(18)!, { key: "ArrowLeft" });
+  fireEvent.keyDown(seg(17)!, { key: "ArrowLeft" });
+  fireEvent.click(screen.getByRole("tab", { name: /Previa/ }));
+  expect(await screen.findByText("Tu porra: 2–1")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Cambiarla|Ponerla/ })).toBeNull();
 });
 
 it("server render: the ribbon, the lens on tonight, Tabla and Números in the markup, no member data", () => {
@@ -293,6 +320,7 @@ it("server render: the ribbon, the lens on tonight, Tabla and Números in the ma
   expect(html).toContain("Pichichi compartido");
   expect(html).toContain('role="combobox"');
   expect(html).not.toContain("¿Vas");
+  expect(html).not.toContain("Tu porra");
   expect(spies.liveDoc).not.toHaveBeenCalled();
   route.search = { view: "tabla" };
   expect(renderToString(<PartidosPage />)).toContain("vp-panel--tabla is-on");
