@@ -26,7 +26,7 @@ import type { StripSegment } from "../../../lib/derived/vidrio/strip";
 import type { Cartel } from "../../../lib/derived/vidrio/cartel";
 import { venueName } from "../model";
 import { capital, endSentence, plural } from "../../../lib/derived/words";
-import { boardPlay, clockTime, closesWord, decollide, newDateLine, newDateOf, onPitchLines, placeLine, playedWeatherLine, postponedLine, distanceText, lensTabs, longDay, rivalInitials, rivalTitle, untilText, whenLine, type LensTab, type SegmentPaint } from "./model";
+import { clockTime, closesWord, decollide, newDateLine, newDateOf, onPitchLines, placeLine, playedWeatherLine, postponedLine, distanceText, lensTabs, longDay, rivalInitials, rivalTitle, untilText, whenLine, type LensTab, type SegmentPaint } from "./model";
 import { Glyph, PitchLines, RivalCrest, Shirt, SignatureSvg, SunRibbon, type GlyphName } from "./bits";
 import { CartelInline } from "./Cartel";
 import { VenueMap } from "./VenueMap";
@@ -87,7 +87,6 @@ interface Props {
 const GLYPH: Partial<Record<EventGlyph, GlyphName>> = { ball: "ball", palo: "post", parada: "glove", cambio: "swap", faltaH: "pass", faltaR: "pass", penalti: "whistle", tocado: "whistle" };
 
 export function PlayItem({ r }: { r: PlayRow }) {
-  const w = boardPlay(r);
   return (
     <li className={`vd-play${r.ours ? "" : " vd-play--them"}`}>
       <span className="vd-clock">{r.minuteText || "·"}</span>
@@ -95,8 +94,8 @@ export function PlayItem({ r }: { r: PlayRow }) {
         {r.card ? <i /> : <Glyph name={GLYPH[r.glyph] ?? "pass"} />}
       </span>
       <div>
-        <b>{w.title}</b>
-        {w.sub && <span>{w.sub}</span>}
+        <b>{r.title}</b>
+        {r.sub && <span>{r.sub}</span>}
       </div>
     </li>
   );
@@ -503,7 +502,7 @@ function Acta({ seg, ctx, onCartel }: { seg: StripSegment; ctx: LensCtx; onCarte
                 <span className="vd-clock">{g.minuteText || "·"}</span>
                 <b>{g.title.replace(/^Gol (de |del )?/, "")}</b>
                 {!g.ours && <span className="vd-vh"> (gol del rival)</span>}
-                {g.ours && g.sub ? <span>{g.sub.replace(/^Asistencia de /, "pase de ")}</span> : <span />}
+                {g.ours && g.sub ? <span>{g.sub.charAt(0).toLocaleLowerCase("es") + g.sub.slice(1)}</span> : <span />}
               </li>
             ))}
           </ol>

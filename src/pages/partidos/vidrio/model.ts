@@ -12,7 +12,6 @@ import { madridDate, MONTHS_SHORT } from "../../../lib/derived/madrid";
 import { sunPosition, type LightKey } from "../../../lib/derived/sun";
 import { capital, endSentence, niceName, plural } from "../../../lib/derived/words";
 import type { StripFilter, StripSegment, StripState } from "../../../lib/derived/vidrio/strip";
-import type { PlayRow } from "../../../lib/derived/vidrio/plays";
 import type { RibbonItem } from "../../../components/vidrio/momentum";
 import { parseMatchLineup } from "../../../lib/matchLineup";
 import { lineupField } from "../../../lib/derived/lineupField";
@@ -494,15 +493,6 @@ export function placeLine(home: boolean, district: string | null, venue: string)
   const v = venueName(venue.replace(/^(CDM|C\.D\.M\.|Polideportivo|Instalación deportiva|Campo de fútbol|Campo de|Campo|Estadio)\s+/i, "").trim());
   const where = district || v;
   return `${home ? "En casa" : "Fuera"}${where ? `, en ${where}` : ""}`;
-}
-
-/** A play as the boards tell it: what happened above, who / how below («Gol de Adrián T.C.» · «Pase de
- *  Jordi»; «Al palo» · «Disparo de Adrián T.C.»). */
-export function boardPlay(r: Pick<PlayRow, "title" | "sub">): { title: string; sub: string } {
-  const sub = r.sub.replace(/^Asistencia de /, "Pase de ");
-  const palo = /^Al palo, (.+)$/.exec(r.title);
-  if (palo) return { title: "Al palo", sub: sub || (palo[1] === "el Piti" ? "Disparo del Piti" : `Disparo de ${palo[1]}`) };
-  return { title: r.title, sub };
 }
 
 const MARK_RANK: Record<string, number> = { gol: 0, roja: 1, tarjeta: 2, palo: 3, parada: 4 };

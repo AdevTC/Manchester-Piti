@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { seasonStrip, windowAt } from "../../../lib/derived/vidrio/strip";
 import { longSeasonFixture, madridMs } from "../../../lib/derived/vidrio/fixtures";
 import {
-  boardPlay,
   breakName,
   closesWord,
   newDateLine,
@@ -222,11 +221,9 @@ describe("the cierre: today, the light line, the season in words, the lens's wor
     expect(seasonSpan(["2025-09-14", "2026-05-24"])).toBe("de septiembre de 2025 a mayo de 2026");
     expect(seasonSpan([])).toBe("");
   });
-  it("the place line, the plays as the boards tell them, the porra's verdict", () => {
+  it("the place line, the porra's verdict", () => {
     expect(placeLine(true, "Puente de Vallecas", "CDM PALOMERAS")).toBe("En casa, en Puente de Vallecas");
     expect(placeLine(false, null, "Campo de Moratalaz")).toBe("Fuera, en Moratalaz");
-    expect(boardPlay({ title: "Gol de Adrián T.C.", sub: "Asistencia de Jordi" })).toEqual({ title: "Gol de Adrián T.C.", sub: "Pase de Jordi" });
-    expect(boardPlay({ title: "Al palo, Adrián T.C.", sub: "" })).toEqual({ title: "Al palo", sub: "Disparo de Adrián T.C." });
     expect(porraVerdict({ gf: 2, ga: 1 }, { gf: 2, ga: 1 })).toBe("exacta");
     expect(porraVerdict({ gf: 2, ga: 1 }, { gf: 3, ga: 1 })).toBe("cerca");
     expect(porraVerdict({ gf: 0, ga: 0 }, { gf: 3, ga: 1 })).toBe("no");
