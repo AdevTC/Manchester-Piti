@@ -1,6 +1,14 @@
 import { PersonalMatchSummary } from "../../components/celeste/PersonalMatchSummary";
 import { PorraHistory } from "../../components/celeste/PorraHistory";
-import { useMemo, useState, lazy, Suspense } from "react";
+import { useMemo, useRef, useState, lazy, Suspense, type ReactNode } from "react";
+import { useLiveDock } from "../../components/vidrio";
+import { PageSky } from "../../components/paginas/PageSky";
+import { kickoffState } from "../../lib/derived/kickoff";
+import "../../styles/vidrio/tokens.css";
+import "../../styles/vidrio/glass.css";
+import "../../styles/vidrio/components.css";
+import "../../styles/vidrio-paginas.css";
+import "../../styles/vestuario-vidrio.css";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
@@ -30,7 +38,19 @@ import { BestPartner, FirstSteps, SeasonFeats, SeasonPlaceholder, Vitrina } from
 import { Access, Board, MvpBlock, Porra, TrainingPoll } from "./TeamBlocks";
 // La caja, Ausencias, Encuestas, «Hoy», turnos and the cromos banner: member-only chunks, all in before the first paint.
 import { Ausencias, Caja, Encuestas, HoyCard, MatchTurnsLine, RecapBanner, recapBanner as recapBannerSeason, useMemberBlocks } from "./memberBlocks";
-import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+
+/** Today's card in the hero is the page's live lens: while it is on screen the floating score steps aside, so
+ *  the vestuario never shows the match twice (V-Vivo «nunca el partido dos veces»). */
+function TodayLens({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useLiveDock(ref, "lens");
+  return (
+    <div ref={ref} className="vs-todaylens">
+      {children}
+    </div>
+  );
+}
 import { ClubDataError } from "../../components/celeste/StatePanel";
 import { useViewer } from "../../hooks/useViewer";
 import { hoyModel } from "../../lib/derived/hoy";
@@ -86,6 +106,8 @@ export function VestuarioPage() {
   // Match day: «Hoy» takes the place of the cartel's next-match lines (spec §1).
   const viewer = useViewer();
   const today = hoyModel(matches, viewer, now);
+  // a match of ours being played: the floodlit field and room above the phone's tab bar for the float
+  const livePage = matches.some((m) => { const k = kickoffState(m, now); return k === "live" || k === "halftime"; });
 
   const availability = useAvailability(next?.id);
   const meetingNote = useMeetingNote(next?.id);
@@ -172,8 +194,8 @@ export function VestuarioPage() {
   // Only this device: the membership stays until a captain removes it.
   const signOut = () => logout();
   return (
-    <div className="vx">
-      <CelesteBackdrop />
+    <div className={`vx vd-pg vs-pg${livePage ? " vd-pg--live" : ""}`}>
+      <PageSky now={now} live={livePage} />
       <CelesteHeader
         active="vestuario"
         sub="Vestuario"
@@ -203,7 +225,13 @@ export function VestuarioPage() {
         training={confirmedTraining}
         todayKeepsNext={!!today && today.stage === "after" && !!next && next.id !== today.match.id}
         turns={<MatchTurnsLine match={next} matches={matches} nameOf={(id) => nameFor(players.find((p) => p.id === id), next?.seasonId)} me={me.playerId} enabled={viewer.member} className="vx-turns" />}
-        today={today ? <HoyCard matches={matches} players={players} now={now} rsvpId="vx-rsvp" className="vx-hoy" mvpBlock={{ id: "vx-mvp", matchId: lastMatch?.id }} /> : undefined}
+        today={
+          today ? (
+            <TodayLens>
+              <HoyCard matches={matches} players={players} now={now} rsvpId="vx-rsvp" className="vx-hoy" mvpBlock={{ id: "vx-mvp", matchId: lastMatch?.id }} />
+            </TodayLens>
+          ) : undefined
+        }
         captain={
           admin ? (
             <CaptainStrip hasNext={!!next} claims={pendingClaims.data} linked={fichas.linked} squad={fichas.squad} fichaName={fichaName} />

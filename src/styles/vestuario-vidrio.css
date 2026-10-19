@@ -1,0 +1,14 @@
+/* El vestuario on the «Vidrio» light field (V-Integracion «Cada página, el mismo cristal»): the hero's cartel and
+   every block keep their pieces, the ground is the light of the moment and the words are Mona Sans (the big
+   dorsal stays the cartel's drawing). Today's card is the page's live lens (VestuarioPage TodayLens): the
+   floating score steps aside while it is on screen. */
+.vx.vd-pg.vs-pg .vx-hero{background:transparent}
+.vx.vd-pg.vs-pg :is(.vx-name,.vx-epic,.vx-h2,.vx-feat .t,.vx-meta-l b,.vx-stamp){font-family:var(--vd-sans)}
+.vx.vd-pg.vs-pg .vx-name{font-weight:800;font-variation-settings:'wdth' 100;font-stretch:100%;letter-spacing:-.035em}
+.vx.vd-pg.vs-pg .vx-epic{font-weight:680;font-variation-settings:'wdth' 96;letter-spacing:-.015em}
+.vx.vd-pg.vs-pg .vx-h2{font-weight:700;font-variation-settings:'wdth' 94;letter-spacing:-.022em}
+.vx.vd-pg.vs-pg .vx-feat .t{font-weight:660;font-variation-settings:'wdth' 96}
+.vs-todaylens{display:block;min-width:0}
+/* (a desktop's floating score rests top right under the bar: the captain's strip starts below it, so its
+   «Administración» is never under the float) */
+@media (min-width:1100px){.vx.vd-pg.vs-pg .vx-cap{margin-top:44px}}

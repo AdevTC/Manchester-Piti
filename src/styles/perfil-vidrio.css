@@ -1,0 +1,13 @@
+/* Perfil, «La carta», in the «Vidrio» words (V-Integracion «Cada página, el mismo cristal»): the walkout, the
+   LED board and the card itself keep their drawing (the card is a printed object: its type is the card's); the
+   panel beside it — its tabs, the panel titles and the block heads — reads in Mona Sans, sentence case, no
+   mono eyebrows, and its glass takes the kit's deep tint. */
+.vx.pcv{--gp:var(--vd-g-tint-deep);--gp-line:rgba(255,255,255,.14)}
+:root[data-theme="light"] .vx.pcv{--gp:rgba(255,255,255,.72);--gp-line:rgba(12,23,51,.1)}
+.pcv :is(.ph h2,.bk-h,.sh-h h2,.fi-t b){font-family:var(--vd-sans);text-transform:none;letter-spacing:-.015em}
+.pcv .ph h2{font-weight:720;font-variation-settings:'wdth' 92;font-size:31px;line-height:1}
+.pcv .bk-h{font-weight:680;font-variation-settings:'wdth' 94;font-size:17px}
+.pcv .sh-h h2{font-weight:720;font-variation-settings:'wdth' 92}
+.pcv .fi-t b{font-weight:720;font-variation-settings:'wdth' 94}
+.pcv .tbb{font-family:var(--vd-sans);text-transform:none;letter-spacing:0;font-weight:600}
+.pcv :is(.ph small,.ph .ct,.pe-k,.lbl-k){font-family:var(--vd-sans);letter-spacing:0}
