@@ -33,6 +33,7 @@ const listeners = new Set<() => void>();
 let live = false;
 let hidden: LiveDockState["hidden"] = null;
 let reveal: (() => void) | null = null;
+let pipOpener: (() => void) | null = null;
 let state: LiveDockState = CALM;
 
 function compute(): LiveDockState {
@@ -72,6 +73,16 @@ export const liveDock = {
   reveal(): void {
     reveal?.();
   },
+  /** The live system says how «Sacar el marcador» opens (null: there is no match to take out). */
+  setPipOpener(open: (() => void) | null): void {
+    pipOpener = open;
+  },
+  /** «Sacar el marcador» from elsewhere (the search's «Ahora»): call it from the click itself. False: nothing to open. */
+  openPip(): boolean {
+    if (!pipOpener) return false;
+    pipOpener();
+    return true;
+  },
   /** A page's lens or anchor (key: any object owned by the caller), shown or not. */
   declare(key: object, mode: DockMode, el: Element, shown = true): void {
     entries.set(key, { mode, el, shown });
@@ -87,6 +98,7 @@ export const liveDock = {
     live = false;
     hidden = null;
     reveal = null;
+    pipOpener = null;
     state = CALM;
     listeners.forEach((l) => l());
   },

@@ -320,6 +320,20 @@ export function LiveScore() {
     return () => window.removeEventListener("resize", onResize);
   }, [sheetOpen, desktop]);
 
+  // «Sacar el marcador» (here, in the sheet, and from the search's «Ahora» through liveDock)
+  const togglePip = useCallback(() => {
+    if (pip) {
+      closePip();
+      return;
+    }
+    // (from the click itself: the browser asks for a user gesture)
+    void openScorePip({ title: "Manchester Piti, marcador" }).then(setPip);
+  }, [pip, closePip]);
+  useEffect(() => {
+    liveDock.setPipOpener(ballRolling ? togglePip : null);
+    return () => liveDock.setPipOpener(null);
+  }, [ballRolling, togglePip]);
+
   if (!hydrated || !state) return null;
   const matchId = state.match.id;
   const turnEv = turn?.ev ?? null;
@@ -359,14 +373,7 @@ export function LiveScore() {
     setHeard((h) => ({ ...h, text: a === "yes" ? "Apuntado: vas." : a === "maybe" ? "Apuntado: en duda." : "Apuntado: no vas." }));
     void setAvailability(me, matchId, a).catch(() => setHeard((h) => ({ ...h, text: "No se ha podido guardar tu respuesta. Prueba desde el vestuario." })));
   };
-  const onPip = () => {
-    if (activePip) {
-      closePip();
-      return;
-    }
-    // (from the click itself: the browser asks for a user gesture)
-    void openScorePip({ title: "Manchester Piti, marcador" }).then(setPip);
-  };
+  const onPip = togglePip;
   const goals =
     pushState() === "ready"
       ? {

@@ -71,3 +71,56 @@
 @keyframes srFade{from{opacity:0}to{opacity:1}}
 @keyframes srDrop{from{transform:translateY(-100%)}to{transform:none}}
 @keyframes srPop{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translateX(-50%)}}
+
+/* «Vidrio» (V-Integracion «Buscar, con ⌘K»): the glass window over the dimmed page, Mona Sans, groups in sentence
+   case with «N más», icon chips or the player's shirt, «Intro» on the active row; «Ver los N resultados» grows it. */
+.vd-sr .vd-sr__scrim{position:fixed;inset:0;z-index:70;background:radial-gradient(80% 70% at 50% 30%,rgba(4,8,22,.38),rgba(4,8,22,.62));animation:none}
+:root[data-theme="light"] .vd-sr .vd-sr__scrim{background:radial-gradient(80% 70% at 50% 30%,rgba(12,23,51,.16),rgba(12,23,51,.32))}
+.vd-sr__win{--vd-r:32px;position:fixed;z-index:71;left:50%;top:104px;width:720px;max-width:calc(100vw - 20px);max-height:calc(100dvh - 128px);transform:translateX(-50%);
+  display:flex;flex-direction:column;padding:10px 10px 8px;font-family:var(--vd-sans);color:var(--vd-g-ink);animation:vd-sr-in .55s var(--vd-spring) both;transform-origin:50% 0}
+@keyframes vd-sr-in{from{opacity:0;transform:translateX(-50%) scale(.9,.6)}}
+.vd-sr__win.is-all{top:24px;bottom:24px;max-height:none}
+.vd-sr__field{display:flex;align-items:center;gap:12px;height:62px;flex:none;padding:0 8px 0 18px;border-radius:24px;background:rgba(4,10,28,.35);box-shadow:inset 0 2px 6px rgba(0,0,0,.3),inset 0 0 0 1px rgba(234,243,252,.14)}
+:root[data-theme="light"] .vd-sr__field{background:rgba(255,255,255,.6);box-shadow:inset 0 2px 6px rgba(12,23,51,.08),inset 0 0 0 1px rgba(12,23,51,.14)}
+.vd-sr__field>svg{flex:none;color:var(--vd-g-ink2)}
+.vd-sr__field input{flex:1;min-width:0;height:60px;border:0;outline:0;background:none;color:var(--vd-g-ink);font-family:var(--vd-sans);font-size:21px;font-weight:600;letter-spacing:-.01em}
+.vd-sr__field input::placeholder{color:var(--vd-g-ink2);font-weight:500;opacity:.85}
+.vd-sr__field input:focus-visible{outline:0}
+.vd-sr__win:has(.vd-sr__field input:focus-visible) .vd-sr__field{box-shadow:inset 0 2px 6px rgba(0,0,0,.3),inset 0 0 0 2px var(--vd-celeste)}
+.vd-sr kbd{display:inline-grid;place-items:center;min-width:28px;height:26px;padding:0 7px;border-radius:8px;font-family:var(--vd-sans);font-size:12.8px;font-weight:650;color:var(--vd-g-ink);background:rgba(234,243,252,.10);box-shadow:inset 0 -1.5px 0 rgba(0,0,0,.3),inset 0 0 0 1px rgba(234,243,252,.2)}
+:root[data-theme="light"] .vd-sr kbd{background:rgba(12,23,51,.06);box-shadow:inset 0 -1.5px 0 rgba(12,23,51,.12),inset 0 0 0 1px rgba(12,23,51,.16)}
+.vd-sr__esc{min-width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:12px;background:none;cursor:pointer;padding:0}
+.vd-sr__esc:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.vd-sr__hits{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:6px 4px 4px;scrollbar-width:thin}
+.vd-sr__group+.vd-sr__group{margin-top:2px}
+.vd-sr__gh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:12px 14px 6px;font-size:13px;font-weight:650;color:var(--vd-g-ink2)}
+.vd-sr__win.is-all .vd-sr__gh{position:sticky;top:-6px;z-index:2;background:linear-gradient(180deg,rgba(14,26,56,.96) 70%,rgba(14,26,56,0))}
+:root[data-theme="light"] .vd-sr__win.is-all .vd-sr__gh{background:linear-gradient(180deg,rgba(255,255,255,.96) 70%,rgba(255,255,255,0))}
+.vd-sr__more{min-height:32px;padding:0 8px;border:0;border-radius:10px;background:none;cursor:pointer;font-family:var(--vd-sans);font-weight:560;font-size:13px;color:var(--vd-g-ink2)}
+.vd-sr__more:hover{color:var(--vd-g-ink);background:rgba(234,243,252,.08)}
+.vd-sr__more:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:1px}
+.vd-sr__hit{position:relative;display:flex;align-items:center;gap:14px;min-height:58px;padding:6px 14px;border-radius:18px;cursor:pointer;transition:background .25s}
+.vd-sr__hit.is-sel{background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.06));box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 0 0 .5px rgba(255,255,255,.28),0 10px 24px -14px var(--vd-glow)}
+:root[data-theme="light"] .vd-sr__hit.is-sel{background:linear-gradient(180deg,#fff,rgba(255,255,255,.75));box-shadow:inset 0 0 0 1px rgba(12,23,51,.1),0 10px 24px -14px rgba(30,60,110,.35)}
+.vd-sr__i{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;color:var(--vd-g-ink);background:rgba(234,243,252,.08);box-shadow:inset 0 0 0 1px rgba(234,243,252,.14)}
+:root[data-theme="light"] .vd-sr__i{background:rgba(12,23,51,.05);box-shadow:inset 0 0 0 1px rgba(12,23,51,.12)}
+.vd-sr__hit.is-live .vd-sr__i{background:rgba(255,93,93,.14);box-shadow:inset 0 0 0 1px rgba(255,93,93,.4)}
+.vd-sr__shirt{--s:36px;margin:0 2px;flex:none}
+.vd-sr__t{flex:1;min-width:0;display:flex;flex-direction:column}
+.vd-sr__t b{font-weight:650;font-size:16px;color:var(--vd-g-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vd-sr__t span{font-size:13.5px;color:var(--vd-g-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vd-sr__go{opacity:0;transition:opacity .2s}
+.vd-sr__hit.is-sel .vd-sr__go{opacity:1}
+.vd-sr__empty{padding:18px 14px;margin:0;font-size:15px;color:var(--vd-g-ink2)}
+.vd-sr__foot{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;flex:none;padding:10px 14px 4px;border-top:1px solid var(--vd-rule);margin-top:4px;font-size:13px;color:var(--vd-g-ink2)}
+.vd-sr__foot>span{display:inline-flex;gap:6px;align-items:center}
+.vd-sr__all{margin-left:auto}
+.vd-sr__count{color:var(--vd-g-ink2)}
+@media (max-width:699px){
+  .vd-sr__win{top:10px;width:auto;left:10px;right:10px;transform:none;max-height:calc(100dvh - 20px)}
+  @keyframes vd-sr-in{from{opacity:0;transform:scale(.95,.7)}}
+  .vd-sr__foot>span{display:none}
+  .vd-sr__field input{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){.vd-sr__win{animation:none}.vd-sr__hit,.vd-sr__go{transition:none}}
+@media (prefers-reduced-transparency:reduce){.vd-sr__win{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--vd-solid)}}
