@@ -170,6 +170,23 @@ describe("mapStandings", () => {
   });
 });
 
+describe("prevPos (the place in the table before)", () => {
+  it("each save stamps every team's place in the previous table, by name; a new team has none", () => {
+    const prev = { jornada: 7, rows: [row("Rayo"), row("Manchester Piti", { isUs: true }), row("Los Rojos")] };
+    const f = standingsFields({ competition: "Liga", jornada: 8, rows: [row("Manchester Piti", { isUs: true }), row("rayo"), row("Nuevos"), row("Los Rojos", { prevPos: 9 })] }, "u", prev);
+    expect(f.rows.map((r) => r.prevPos)).toEqual([2, 1, undefined, 3]);
+    // a correction within the same jornada compares with the arrows' table it keeps
+    const again = standingsFields({ competition: "Liga", jornada: 8, rows: f.rows }, "u", { jornada: 8, rows: f.rows, rowsPrev: f.rowsPrev });
+    expect(again.rows.map((r) => r.prevPos)).toEqual([2, 1, undefined, 3]);
+    // a first save has no table before
+    expect(standingsFields({ competition: "Liga", jornada: 8, rows: prev.rows }, "u").rows.some((r) => "prevPos" in r)).toBe(false);
+  });
+  it("the mapper keeps a valid prevPos and drops a malformed one", () => {
+    const t = mapStandings("t1", { competition: "Liga", jornada: 8, updatedAt: null, updatedBy: "u", rows: [row("A", { isUs: true, prevPos: 3 }), row("B", { prevPos: 0 })] });
+    expect(t?.rows.map((r) => r.prevPos)).toEqual([3, undefined]);
+  });
+});
+
 describe("«Últimos 5» (form)", () => {
   it("keeps a row's form through the mapper, drops a malformed one (never the table)", () => {
     const rows = [row("A", { isUs: true, form: ["G", "E", "P"] }), row("B", { form: ["X"] as unknown as StandingRow["form"] })];
