@@ -20,7 +20,7 @@ const SCORED: ClubMatch = { ...MATCH, id: "j2", goalsFor: 2, goalsAgainst: 1, ev
 ] };
 const PLAYERS = [{ id: "p1", shirtName: "PEPE", seasons: ["t1"], seasonDetails: { t1: { shirtName: "PEPITO" } } }];
 // still to be played (the clock is stubbed at 10 Sep 2026)
-const UPCOMING: ClubMatch = { id: "j3", seasonId: "t1", rival: "Otro", date: Date.UTC(2026, 8, 20, 10), duration: 50, status: "scheduled", events: [] };
+const UPCOMING: ClubMatch = { id: "j3", seasonId: "t1", rival: "Otro", date: Date.UTC(2026, 8, 20, 10), duration: 50, status: "scheduled", venue: "CDM PALOMERAS", events: [] };
 // being played (kicked off ten minutes before the stubbed clock; a legacy match without a clock)
 const LIVE: ClubMatch = { id: "j4", seasonId: "t1", rival: "Vivo", date: Date.UTC(2026, 8, 9, 23, 50), duration: 50, status: "scheduled", events: [] };
 // who is looking (useViewer), the official scope docs (lineupOfficials/{season}__{match|temporada} → the
@@ -87,6 +87,12 @@ function open(url: string) {
 const selected = () => screen.getAllByRole("tab").find((t) => t.getAttribute("aria-selected") === "true")?.textContent;
 
 describe("MatchPage · the tab in the URL", () => {
+  it("the meta line prints the venue as a name, never in capitals", async () => {
+    open("/matches/j3");
+    expect(await screen.findByText(/CDM Palomeras/)).toBeInTheDocument();
+    expect(screen.queryByText(/CDM PALOMERAS/)).toBeNull();
+  });
+
   it("no tab: the first one (the crónica of a finished match)", async () => {
     open("/matches/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();

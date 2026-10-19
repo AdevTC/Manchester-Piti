@@ -1,0 +1,30 @@
+/* «Vidrio» reading on the light field: the ink of the text set straight on the sky follows the light under it, so
+   it keeps WCAG AA (4.5:1, 3:1 for large text) in every light. The field's root is the element whose direct
+   child is the sky (.vx.vi on Inicio, .vx.vp on Partidos, .vx.vd-pg on the other pages); the light class the
+   sky carries (vd-l-golden · flood · late · noon) retunes the field tokens on that root, so every page that
+   reads --vd-ink / --vd-ink2 / --vd-ink-strong / --vd-rival adapts without a rule of its own. The sky does its
+   part too (sky.css --veil: the bright lights dim the band where the reading text sits).
+   · late: the night is dark enough for the brand's ink (hielo, bruma) as it is.
+   · flood: the floodlit haze lifts the middle of the sky: the secondary ink and the rival's coral rise a step.
+   · golden, noon: the sky is bright (the golden band sits ~400–800 px down every page, the bokeh and the sun on
+     it), so the secondary ink rises towards white and the field lays a soft local ground shade under its
+     reading text: a wide, low dark glow that travels with each line, sized to its type (em), never a box.
+     --vd-field-shade carries it; glass, controls and anything on a ground of its own set it to none, and a
+     page's own text-shadow on a piece wins (pieces on the field use the token).
+   · the goal moment's gold flood brightens any light for a second: the bright-light ink and shade hold it.
+   · «día» (light theme): the sky's top is a mid blue, so the secondary ink is a deeper marino. */
+:root:not([data-theme="light"]) :is(.vx,.vd-field):has(> .vd-sky.vd-l-flood){
+  --vd-ink:#F2F7FC;--vd-ink2:#D9E4F1;--vd-rival:#FFB4AA;
+  --vd-field-shade:0 0 max(.12em,1.5px) rgba(3,8,22,.5),0 .04em max(.7em,10px) rgba(3,8,22,.6)}
+:root:not([data-theme="light"]) :is(.vx,.vd-field):has(> .vd-sky:is(.vd-l-golden,.vd-l-noon,.vd-sky--gold)){
+  --vd-ink:#F7FAFD;--vd-ink2:#F0F4F9;--vd-ink-strong:#fff;--vd-rival:#FFB4AA;
+  --vd-field-shade:0 0 max(.12em,1.5px) rgba(14,10,30,.6),0 .04em max(.7em,10px) rgba(14,10,30,.75),0 0 max(1.9em,30px) rgba(14,10,30,.55)}
+:where(:root:not([data-theme="light"]) :is(.vx,.vd-field):has(> .vd-sky:is(.vd-l-golden,.vd-l-noon,.vd-l-flood,.vd-sky--gold))) *{text-shadow:var(--vd-field-shade,none)}
+/* «si acaba así» / «en directo» marks a light wash on the sky: under a bright or floodlit sky it takes a dark one */
+:root:not([data-theme="light"]) :is(.vx,.vd-field):has(> .vd-sky:is(.vd-l-golden,.vd-l-noon,.vd-l-flood,.vd-sky--gold)) .vd-provtag{background:rgba(8,14,34,.42)}
+/* glass, controls and grounds of their own read on their own tint */
+:is(.vx,.vd-field) :is(.vd-glass,.vd-orn,.vd-window,.vd-sheet,.vd-btn,.vd-ibtn,.vd-input,.vd-tag,.vd-provtag,.hm-btn,.hm-ghostbtn,.vx-top,.vx-dock,.vx-foot,button,input,select,textarea){--vd-field-shade:none}
+
+/* «día»: the top of the day sky is a mid blue (#7FBCEB): the kit's #3D5378 reads 3.8:1 there, this one 5.4:1+;
+   the rival's brick (#B4402F) reads 4.3:1 on the pale turf, this one 5.5:1 */
+:root[data-theme="light"] :is(.vx,.vd-field):has(> .vd-sky){--vd-ink2:#2A3E60;--vd-ink:#0A1530;--vd-rival:#9E3526}

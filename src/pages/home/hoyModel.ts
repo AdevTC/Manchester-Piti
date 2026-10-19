@@ -11,6 +11,7 @@ import type { ClubMatch, MatchEvent } from "../../lib/clubData";
 import type { MatchdayModel, MatchdayPhase, ViewerRole } from "../../lib/derived/matchday";
 import { eventMetaOf, eventSentence, settled } from "../../lib/eventMeta";
 import { withGuestNames } from "../../lib/derived/guests";
+import { venueName } from "../../lib/derived/venue";
 import { floodlightsOn, sunPosition, sunTimes } from "../../lib/derived/sun";
 import { madridDate, madridTime } from "../../lib/derived/madrid";
 import { AWAITING_ACTA } from "../../lib/derived/kickoff";
@@ -52,16 +53,8 @@ export const isOver = (p: MatchdayPhase) => p === "final" || p === "acta" || p =
 
 // ───────────────────────── words for places and times ─────────────────────────
 
-const KEEP_CAPS = /^(cdm|cdf|cf|fc|cd|ud|sd|ad|ce|ef|f\.c\.|c\.f\.)$/i;
-/** «CDM PALOMERAS» → «CDM Palomeras»: a venue in capitals read as a name (acronyms keep theirs). */
-export function venueName(v: string): string {
-  const s = v.trim();
-  if (!s || s !== s.toLocaleUpperCase("es")) return s;
-  return s
-    .split(/(\s+)/)
-    .map((w) => (/^\s+$/.test(w) || KEEP_CAPS.test(w) || !/[AEIOUÁÉÍÓÚ]/i.test(w) ? w : w.charAt(0) + w.slice(1).toLocaleLowerCase("es")))
-    .join("");
-}
+/** «CDM PALOMERAS» → «CDM Palomeras» (the one formatter, lib/derived/venue). */
+export { venueName };
 
 /** «en el CDM Palomeras», «en el Campo de Pitutis», «en casa de Pitutis». */
 export function venueWords(m: Pick<ClubMatch, "venue" | "home" | "rival">): string {

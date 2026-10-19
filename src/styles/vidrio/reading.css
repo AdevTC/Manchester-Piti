@@ -83,7 +83,7 @@ img.vd-team__crest{object-fit:cover}
 .vd-form__l--g{background:rgba(108,171,221,.28);box-shadow:inset 0 0 0 1px rgba(108,171,221,.6)}
 .vd-form__l--p{background:rgba(240,138,126,.2);box-shadow:inset 0 0 0 1px rgba(240,138,126,.55)}
 .vd-form__l--prov{background:transparent;box-shadow:none;outline:1.5px dashed var(--vd-celeste);outline-offset:-1.5px}
-.vd-form__l--empty{background:transparent;box-shadow:none;outline:1px dashed var(--vd-rule2);outline-offset:-1px;color:var(--vd-ink2);font-weight:500;font-size:13px}
+.vd-form__l--empty{background:transparent;box-shadow:none;outline:1px dashed var(--vd-rule2);outline-offset:-1px;color:var(--vd-ink);font-weight:500;font-size:13px}
 .vd-count{display:flex;flex-direction:column;gap:2px}
 .vd-count b{font-weight:780;font-variation-settings:'wdth' 108;font-size:31px;line-height:1;letter-spacing:-.02em;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
 .vd-count span{font-size:13px;color:var(--vd-ink2)}

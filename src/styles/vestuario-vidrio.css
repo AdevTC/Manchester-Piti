@@ -8,6 +8,9 @@
 .vx.vd-pg.vs-pg .vx-epic{font-weight:680;font-variation-settings:'wdth' 96;letter-spacing:-.015em}
 .vx.vd-pg.vs-pg .vx-h2{font-weight:700;font-variation-settings:'wdth' 94;letter-spacing:-.022em}
 .vx.vd-pg.vs-pg .vx-feat .t{font-weight:660;font-variation-settings:'wdth' 96}
+/* the cartel's caption sits on the stroked dorsal: the field's ink, with the field's ground shade (a navy one at night) */
+.vx.vd-pg.vs-pg .vx-meta-l{color:var(--vd-ink);text-shadow:var(--vd-field-shade,0 0 3px var(--vd-noche),0 0 10px rgba(8,18,39,.85))}
+:root[data-theme="light"] .vx.vd-pg.vs-pg .vx-meta-l{text-shadow:0 0 3px #fff,0 0 10px rgba(255,255,255,.85)}
 .vs-todaylens{display:block;min-width:0}
 /* (a desktop's floating score rests top right under the bar: the captain's strip starts below it, so its
    «Administración» is never under the float) */

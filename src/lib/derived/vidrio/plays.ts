@@ -1,6 +1,9 @@
 // «Vidrio» · jugada a jugada: every play of a match that stands (la mesa's types, no pending duplicate), told
-// as the rest of the site tells it (eventMeta: eventSentence, eventMetaOf, goalOrdinal), newest first, with
-// its half, its kind for the filters (Todo · Goles · Tarjetas · Cambios) and whose it is. Pure.
+// as the rest of the site tells it (eventMeta: eventSentence, eventMetaOf, goalOrdinal) in the boards' two lines
+// (boardPlay: «Gol de Adrián T.C.» · «Pase de Jordi»; «Al palo» · «Disparo de Adrián T.C.»), newest first, with
+// its half, its kind for the filters (Todo · Goles · Tarjetas · Cambios) and whose it is. Every list of plays
+// (Inicio, the grow window, the live sheet, the match page, Partidos) reads these rows, so a play never reads
+// two ways. Pure.
 import type { ClubMatch, MatchEvent } from "../../clubData";
 import { eventMetaOf, eventSentence, goalOrdinal, isMesaType, minuteText, settled, type EventGlyph, type EventSide } from "../../eventMeta";
 import { eventMinute } from "../../../../functions/src/matchEngine";
@@ -29,7 +32,8 @@ export interface PlayRow {
   tag: string;
   /** «Gol de Alcides», «Córner para Orduña». */
   title: string;
-  /** «Asistencia de Adrián T.C.», the note, or which of his goals it is today; "" when nothing. */
+  /** «Pase de Adrián T.C.», «Disparo de Jordi» (the post), the note, or which of his goals it is today; ""
+   *  when nothing. */
   sub: string;
   /** The ids it names (a guest as `guest:g1`). */
   people: string[];
@@ -101,6 +105,15 @@ export function filterPlays(rows: readonly PlayRow[], filter: PlayFilter): PlayR
   return filter === "todo" ? [...rows] : rows.filter((r) => r.kind === filter);
 }
 
+/** A play as the boards tell it: what happened above, who / how below («Gol de Adrián T.C.» · «Pase de
+ *  Jordi»; «Al palo» · «Disparo de Adrián T.C.»). */
+export function boardPlay(r: { title: string; sub: string }): { title: string; sub: string } {
+  const sub = r.sub.replace(/^Asistencia de /, "Pase de ");
+  const palo = /^Al palo, (.+)$/.exec(r.title);
+  if (palo) return { title: "Al palo", sub: sub || (palo[1] === "el Piti" ? "Disparo del Piti" : `Disparo de ${palo[1]}`) };
+  return { title: r.title, sub };
+}
+
 const hasTime = (e: MatchEvent) => typeof e.elapsedSeconds === "number" || typeof e.minute === "number";
 
 /** Every play of `match` that stands, newest first. `nameOf` names our players (the match's guests are
@@ -122,6 +135,7 @@ export function playsLog(match: Pick<ClubMatch, "events" | "guests" | "duration"
   const rows = list.map(({ e }): PlayRow => {
     const meta = eventMetaOf(e);
     const said = eventSentence(e, { nameOf: named, rival: them });
+    const board = boardPlay(said);
     const kind = playKind(e);
     counts[kind]++;
     return {
@@ -136,8 +150,8 @@ export function playsLog(match: Pick<ClubMatch, "events" | "guests" | "duration"
       card: meta.card,
       glyph: meta.glyph,
       tag: meta.tag,
-      title: said.title,
-      sub: said.sub || goalOrdinal(events, e),
+      title: board.title,
+      sub: board.sub || goalOrdinal(events, e),
       people: said.people,
       event: e,
     };

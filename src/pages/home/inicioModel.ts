@@ -8,6 +8,7 @@ import type { MatchdayModel, MatchdayPhase, ViewerRole } from "../../lib/derived
 import { floodlightsOn, sunPosition, sunTimes } from "../../lib/derived/sun";
 import { madridDate, madridTime } from "../../lib/derived/madrid";
 import { AWAITING_ACTA } from "../../lib/derived/kickoff";
+import { venueName } from "../../lib/derived/venue";
 import { eventMetaOf, eventSentence, settled } from "../../lib/eventMeta";
 import { withGuestNames } from "../../lib/derived/guests";
 import { endSentence, niceName } from "../../lib/derived/words";
@@ -200,7 +201,7 @@ export function heroCopy(ctx: CopyCtx): HeroCopy {
   const ko = day.kickoff;
   const hhmm = ko ? madridTime(ko) : "";
   const home = isHome(m);
-  const ground = home ? "Palomeras" : (m?.venue?.trim() || `casa de ${rival}`);
+  const ground = home ? "Palomeras" : (venueName(m?.venue ?? "") || `casa de ${rival}`);
   switch (view.phase) {
     case "pretemporada":
       return { kick: `${ctx.seasonName}, en pretemporada`, h1: "Palomeras ya espera", sub: `El calendario sale en unos días. Mientras, hazte la camiseta y conoce a los ${ctx.squadSize || "jugadores"}.`, live: false };
@@ -292,7 +293,7 @@ function afterCopy(ctx: CopyCtx, phase: "final" | "acta" | "despues"): HeroCopy 
     ? (() => {
         const at = dateMillis(next.date);
         const when = Number.isFinite(at) ? `${cap(dayWord(at, now))}, ` : "";
-        const where = next.home === false ? `a ${next.venue?.trim() || `casa de ${next.rival ?? "el rival"}`}` : "en Palomeras";
+        const where = next.home === false ? `a ${venueName(next.venue ?? "") || `casa de ${next.rival ?? "el rival"}`}` : "en Palomeras";
         return ` ${endSentence(`${when}${where}: ${next.rival ?? "rival por confirmar"}${Number.isFinite(at) ? ` a las ${madridTime(at)}` : ""}`)}`;
       })()
     : "";

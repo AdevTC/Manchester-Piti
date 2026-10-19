@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseVenues, venueInfo, venueKey, venueMapsUrl } from "./venue";
+import { parseVenues, venueInfo, venueKey, venueMapsUrl, venueName } from "./venue";
 import { withDefaults } from "../publicData";
 
 const grounds = [
@@ -40,5 +40,14 @@ describe("clubContent.venues as read", () => {
   it("the content's mapper gives every page a list, empty without one", () => {
     expect(withDefaults(undefined).venues).toEqual([]);
     expect(withDefaults({ venues: [{ name: "Getafe" }] }).venues).toEqual([{ name: "Getafe" }]);
+  });
+});
+describe("venueName · the one way a ground is printed", () => {
+  it("a name in capitals reads as a name; acronyms and small words as people write them", () => {
+    expect(venueName("CDM PALOMERAS")).toBe("CDM Palomeras");
+    expect(venueName(" CAMPO DE LA ELIPA ")).toBe("Campo de la Elipa");
+    expect(venueName("POLIDEPORTIVO DE MORATALAZ")).toBe("Polideportivo de Moratalaz");
+    expect(venueName("Campo de Pitutis")).toBe("Campo de Pitutis");
+    expect(venueName("")).toBe("");
   });
 });

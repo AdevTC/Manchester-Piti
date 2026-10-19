@@ -68,6 +68,8 @@ describe("the sheet", () => {
     expect(s).toMatchObject({ big: "12:00", status: "Hoy a las 12:00", plays: false, live: false, open: "Abrir el partido" });
     expect(s.note).toBe("El siete ya está publicado: Evans, Fer, Alcides, Adrián T.C., Jordi, Erik y Kevin.");
     expect(sheetOf({ state: { kind: "previa", match: { ...base, starters: [] } }, now: DATE - 30 * MIN, nameOf }).note).toBe("En CDM Palomeras.");
+    // a venue written in capitals is printed as a name (the one formatter, lib/derived/venue)
+    expect(sheetOf({ state: { kind: "previa", match: { ...base, venue: "CDM PALOMERAS", starters: [] } }, now: DATE - 30 * MIN, nameOf }).note).toBe("En CDM Palomeras.");
   });
 
   it("«¿Vas hoy?», «Hoy anotas tú», the vote: each its own action", () => {

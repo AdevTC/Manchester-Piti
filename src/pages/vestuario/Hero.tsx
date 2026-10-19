@@ -12,6 +12,7 @@ import { matchEvent } from "../../lib/home";
 import type { Availability, Claim } from "./live";
 import { Icon } from "../../components/celeste/icons";
 import { kickoffText } from "../../lib/derived/kickoff";
+import { venueName } from "../../lib/derived/venue";
 import { RsvpSwitch } from "./shared/RsvpSwitch";
 
 export interface Me {
@@ -151,7 +152,7 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
                     // the date has come: playing only once someone starts the clock
                     <b>{kickoffText(next, now) ?? "En juego"}</b>
                   )}{" "}
-                  · {next.venue || "Campo por confirmar"}
+                  · {venueName(next.venue ?? "") || "Campo por confirmar"}
                   {meetingNote ? ` · ${meetingNote}` : ""}
                 </p>
                 {turns}

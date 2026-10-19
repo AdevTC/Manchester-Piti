@@ -12,6 +12,7 @@ import type { PlayRow } from "../../../lib/derived/vidrio/plays";
 import { withGuestNames } from "../../../lib/derived/guests";
 import { madridDate, madridTime } from "../../../lib/derived/madrid";
 import { capital, plural } from "../../../lib/derived/words";
+import { venueName } from "../../../lib/derived/venue";
 import type { FloatMatch } from "../floatText";
 
 /** How long a fresh play keeps the drop unfolded (the board: ~4 s). */
@@ -252,7 +253,7 @@ export function sheetOf({ state, now, nameOf, counts = null, rows = [], anotador
   const score = `${gf}–${ga}`;
   const field = playing(state) ? onFieldNames(m as ClubMatch & { lineup?: unknown }, nameOf) : [];
   const seven = beforeKickoff(state) ? onFieldNames({ starters: m.starters, guests: m.guests, events: [], lineup: (m as { lineup?: unknown }).lineup }, nameOf) : [];
-  const sevenNote = [seven.length ? `El siete ya está publicado: ${andList(seven)}.` : m.venue ? `En ${m.venue}.` : "", mesaLine].filter(Boolean).join(" ");
+  const sevenNote = [seven.length ? `El siete ya está publicado: ${andList(seven)}.` : m.venue ? `En ${venueName(m.venue)}.` : "", mesaLine].filter(Boolean).join(" ");
   const back: SheetAction = anotador ? { kind: "mesa", label: "Volver a la mesa" } : null;
   const out: SheetModel = {
     big: score,

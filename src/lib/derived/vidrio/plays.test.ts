@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch, MatchEvent } from "../../clubData";
 import { longSeasonFixture } from "./fixtures";
-import { filterPlays, playHalf, playKind, playsLog } from "./plays";
+import { boardPlay, filterPlays, playHalf, playKind, playsLog } from "./plays";
 
 const f = longSeasonFixture();
 const byId = (id: string) => f.matches.find((m) => m.id === id)!;
@@ -21,9 +21,9 @@ describe("playsLog · tonight (J17, 38 plays by minute 23)", () => {
   it("tells the goals the way the site does, with whose they are", () => {
     const goals = filterPlays(log.rows, "gol");
     expect(goals.map((r) => [r.minute, r.title, r.sub, r.ours])).toEqual([
-      [21, "Gol de Adrián T.C.", "Asistencia de Jordi", true],
+      [21, "Gol de Adrián T.C.", "Pase de Jordi", true],
       [11, "Gol de Orduña fc", "", false],
-      [6, "Gol de Alcides", "Asistencia de Adrián T.C.", true],
+      [6, "Gol de Alcides", "Pase de Adrián T.C.", true],
     ]);
     expect(goals[0]).toMatchObject({ kind: "gol", goal: "for", tag: "GOL", glyph: "ball", half: 1, people: ["adrian", "jordi"] });
   });
@@ -106,5 +106,27 @@ describe("playKind and playHalf", () => {
     expect(playHalf({ minute: 28 }, 60)).toBe(1);
     expect(playHalf({ minute: 31 }, 60)).toBe(2);
     expect(playHalf({})).toBeNull();
+  });
+});
+describe("boardPlay · one wording for a play everywhere", () => {
+  it("the pass under the goal, the shooter under the post", () => {
+    expect(boardPlay({ title: "Gol de Adrián T.C.", sub: "Asistencia de Jordi" })).toEqual({ title: "Gol de Adrián T.C.", sub: "Pase de Jordi" });
+    expect(boardPlay({ title: "Al palo, Adrián T.C.", sub: "" })).toEqual({ title: "Al palo", sub: "Disparo de Adrián T.C." });
+    expect(boardPlay({ title: "Al palo, el Piti", sub: "" })).toEqual({ title: "Al palo", sub: "Disparo del Piti" });
+    expect(boardPlay({ title: "Al palo, Orduña", sub: "Rozó el larguero" })).toEqual({ title: "Al palo", sub: "Rozó el larguero" });
+    expect(boardPlay({ title: "Córner para el Piti", sub: "Lo saca Eguzquiza" })).toEqual({ title: "Córner para el Piti", sub: "Lo saca Eguzquiza" });
+  });
+
+  it("the log's rows read that way", () => {
+    const m = { id: "w", rival: "Orduña fc", events: [
+      { id: "p1", type: "woodwork", minute: 4, playerId: "adrian" },
+      { id: "p2", type: "goal", minute: 9, playerId: "adrian", assistPlayerId: "jordi" },
+    ] } as unknown as ClubMatch;
+    const rows = playsLog(m, f.nameOf).rows;
+    expect(rows.map((r) => [r.title, r.sub])).toEqual([
+      ["Gol de Adrián T.C.", "Pase de Jordi"],
+      ["Al palo", "Disparo de Adrián T.C."],
+    ]);
+    expect(rows[1].people).toEqual(["adrian"]);
   });
 });

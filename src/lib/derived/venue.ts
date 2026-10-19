@@ -4,6 +4,28 @@
 import type { ClubMatch } from "../clubData";
 import { venueCore } from "../../../functions/src/weatherLogic";
 
+const KEEP_CAPS = /^(cdm|cdf|cf|fc|cd|ud|sd|ad|ce|ef|f\.c\.|c\.f\.|c\.d\.m\.)$/i;
+const SMALL = /^(de|del|la|las|los|el|y|e)$/i;
+/** A ground's name as people write it, the one formatter for every place a venue is printed: «CDM
+ *  PALOMERAS» → «CDM Palomeras», «CAMPO DE LA ELIPA» → «Campo de la Elipa» (acronyms and words without a
+ *  vowel keep their capitals; a name not written all in capitals is left as it is). */
+export function venueName(v: string): string {
+  const s = v.trim();
+  if (!s || s !== s.toLocaleUpperCase("es")) return s;
+  let first = true;
+  return s
+    .split(/(\s+)/)
+    .map((w) => {
+      if (/^\s+$/.test(w)) return w;
+      const lead = first;
+      first = false;
+      if (KEEP_CAPS.test(w) || !/[AEIOUÁÉÍÓÚ]/i.test(w)) return w;
+      if (!lead && SMALL.test(w)) return w.toLocaleLowerCase("es");
+      return w.charAt(0) + w.slice(1).toLocaleLowerCase("es");
+    })
+    .join("");
+}
+
 /** The kits by name, as every page says them. */
 export const KIT_LABEL = { home: "1ª equipación", away: "2ª equipación" } as const;
 
