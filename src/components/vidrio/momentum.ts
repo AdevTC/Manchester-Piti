@@ -79,10 +79,12 @@ function pushScale(items: readonly RibbonItem[], upto: number): number {
   return Math.max(0.85, p95);
 }
 
-/** The eased height (0–1) of a side at `x`: a quiet floor, the push over the scale, softly capped. */
-function eased(side: "us" | "them", bumps: number, scale: number): number {
+/** The eased height (0–1) of a side at `x`: a quiet floor, the push over the scale, softly capped, and
+ *  weighed by who dominates that minute (a busy match where both press reads lower than one side's spell). */
+function eased(side: "us" | "them", bumps: number, other: number, scale: number): number {
   const floor = side === "us" ? 0.12 : 0.08;
-  return floor + (0.94 - floor) * (1 - Math.exp((-1.6 * bumps) / scale));
+  const share = bumps + other > 0 ? bumps / (bumps + other) : 0;
+  return floor + (0.94 - floor) * (1 - Math.exp((-1.6 * bumps) / scale)) * (0.3 + 0.7 * share);
 }
 
 function area(items: readonly RibbonItem[], side: "us" | "them", upto: number, scale: number): string {
@@ -90,7 +92,8 @@ function area(items: readonly RibbonItem[], side: "us" | "them", upto: number, s
   const depth = side === "us" ? 33 : 29;
   const pts: string[] = [];
   const end = Math.max(0, Math.min(100, upto));
-  for (let x = 0; x <= end + 1e-9; x += 1) pts.push(`L${((x / 100) * RIBBON_W).toFixed(1)} ${(AXIS + sign * eased(side, bumpsAt(items, side, x, upto), scale) * depth).toFixed(1)}`);
+  const rival = side === "us" ? "them" : "us";
+  for (let x = 0; x <= end + 1e-9; x += 1) pts.push(`L${((x / 100) * RIBBON_W).toFixed(1)} ${(AXIS + sign * eased(side, bumpsAt(items, side, x, upto), bumpsAt(items, rival, x, upto), scale) * depth).toFixed(1)}`);
   return `M0 ${AXIS} ${pts.join(" ")} L${((end / 100) * RIBBON_W).toFixed(1)} ${AXIS} Z`;
 }
 
