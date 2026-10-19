@@ -309,9 +309,12 @@ await denied(
 await wrote(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[7], voterName: memberName, at: null }]);
 await wrote(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[1], voterName: memberName, at: null }]);
 await wrote(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[1], voterName: memberName, at: null }]);
-const votes = await tally(id, (r) => r.total === 1 && r.counts[ids[1]] === 1 && !r.counts[ids[7]]);
+// While the vote is open only the turnout is public: who is ahead never is (mvpLogic.ts).
+const votes = await tally(id, (r) => r.total === 1 && r.open === true);
 assert.equal(votes.total, 1);
-checked++;
+assert.equal("counts" in votes, false, JSON.stringify(votes));
+assert.equal(typeof votes.eligible, "number");
+checked += 3;
 await refused(member, [`matches/${id}/votes/${member.uid}`, { playerId: ids[9], voterName: memberName, at: null }]);
 await refused(member, [`matchPrivate/${id}/availability/${member.uid}`, { response: "yes", name: memberName, playerId: null, at: null }]);
 const corrected = {

@@ -131,6 +131,35 @@ await Promise.all([announceMvpWinners(now + 300_000), announceMvpWinners(now + 3
 assert.equal((await db.doc(`pushLog/mvp-win-${won}`).get()).get("at").toMillis(), first);
 checked++;
 
+// ---------- the MVP's counts: hidden while open, published once closed (closeMvpVotes' steps)
+{
+  const t0 = Date.now();
+  const voter = (mid, uid, pid) => db.doc(`matches/${mid}/votes/${uid}`).set({ playerId: pid, voterName: uid, at: Timestamp.fromMillis(t0) });
+  const played = { [scorer]: { played: true }, other: { played: true } };
+  const closing = "push-mvp-close-" + suffix, leaking = "push-mvp-leak-" + suffix;
+  await db.doc("matches/" + closing).set({ version: 2, seasonId, rival: "Rival Cierre", status: "finished", goalsFor: 1, goalsAgainst: 0, date: Timestamp.fromMillis(t0 - 3 * 86400_000), voteClosesAt: t0 - 60_000, ledger: played, clock: clock("ended", 3), events: [] });
+  await db.doc("matches/" + leaking).set({ version: 2, seasonId, rival: "Rival Abierto", status: "finished", goalsFor: 1, goalsAgainst: 0, date: Timestamp.fromMillis(t0 - 86400_000), voteClosesAt: t0 + 3600_000, ledger: played, clock: clock("ended", 3), events: [] });
+  // (the votes' trigger writes the open shape; the docs below stand for older ones, written before it)
+  await voter(closing, "v1", scorer);
+  await voter(closing, "v2", scorer);
+  await voter(closing, "v3", "other");
+  await voter(leaking, "v1", "other");
+  await sleep(3000);
+  await db.doc("mvpResults/" + closing).set({ total: 3, eligible: 14, open: true });
+  await db.doc("mvpResults/" + leaking).set({ counts: { other: 1 }, total: 1 });
+  const { closeDueVotes, hideOpenCounts } = await import("../lib/mvp.js");
+  assert.ok((await hideOpenCounts(t0)) >= 1);
+  const hidden = (await db.doc("mvpResults/" + leaking).get()).data();
+  assert.equal(hidden.open, true);
+  assert.equal("counts" in hidden, false);
+  assert.ok((await closeDueVotes(t0)) >= 1);
+  const out = (await db.doc("mvpResults/" + closing).get()).data();
+  assert.deepEqual(out, { counts: { [scorer]: 2, other: 1 }, total: 3, eligible: 14, open: false });
+  // idempotent: a second run leaves it as it is
+  assert.equal(await closeDueVotes(t0), 0);
+  checked += 5;
+}
+
 // ---------- personal notices (to the member's own devices)
 const member = "push-member-" + suffix;
 const ficha = "push-ficha-" + suffix;

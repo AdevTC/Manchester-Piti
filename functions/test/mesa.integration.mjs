@@ -47,9 +47,14 @@ const byId = async (id) => (await snap()).events.find((e) => e.id === id);
 await ok("saveMatchSheet", admin, { id: matchId, sheet });
 assert.equal((await snap()).rivalShort, "ATL"); checks++;
 await ok("setMatchScorers", admin, { matchId, uids: [david.uid, pablo.uid] });
+// «Lo anota david desde la mesa»: the first scorer assigned, public on the match (a name, never a uid)
+const assigned = (await snap()).mesa;
+assert.equal(assigned?.name, "david"); checks++;
 
 // ---- kick-off, ten minutes in
 await ok("controlMatchClock", david, { matchId, action: "start", revision: 0 });
+// (the same person starting the clock keeps his time at la mesa)
+assert.deepEqual((await snap()).mesa, assigned); checks++;
 await ref.update({ "clock.firstStartedAt": Date.now() - 600_000 });
 let m = await snap();
 const add = (requestId, type, extra = {}, envelope = {}) => ({ action: "add", matchId, clockRevision: m.clock.revision, requestId, event: { type, minute: 0, ...extra }, ...envelope });
@@ -88,7 +93,7 @@ assert.deepEqual(liveScore(m.events), { gf: 1, ga: 0 }); checks++;
   assert.equal(noticesFor(matchId, before, after, () => "X", Date.now()).filter((n) => n.topic === "goals").length, 0);
   const counted = { ...after, events: m.events.map((e) => (e.id === "live-g-b" ? { ...e, dupOk: true } : e)) };
   const [goal] = noticesFor(matchId, after, counted, () => "X", Date.now()).filter((n) => n.topic === "goals");
-  assert.match(goal.title, /2–0/);
+  assert.match(goal.body, /Piti 2, Atlético Demo 0\./);
   checks += 2;
 }
 // the same scorer twice is two goals; a rival play from both phones is a duplicate too

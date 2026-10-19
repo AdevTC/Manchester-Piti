@@ -23,7 +23,8 @@ describe("mvpLogic", () => {
   });
   it("a closed vote still in its open shape is owed its counts", () => {
     expect(mvpCloseDue({ total: 3, eligible: 14, open: true }, 2_000, 2_500)).toBe(true);
-    expect(mvpCloseDue({ total: 3, counts: {} }, 2_000, 2_500)).toBe(true);
+    // an older doc without the flag already holds its counts (maybe a historical import): left as it is
+    expect(mvpCloseDue({ total: 3, counts: { a: 3 } }, 2_000, 2_500)).toBe(false);
     expect(mvpCloseDue({ counts: { a: 1 }, total: 1, open: false }, 2_000, 2_500)).toBe(false);
     expect(mvpCloseDue({ total: 3, open: true }, 2_000, 1_500)).toBe(false);
     expect(mvpCloseDue(undefined, 2_000, 2_500)).toBe(true);
