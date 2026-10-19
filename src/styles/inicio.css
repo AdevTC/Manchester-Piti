@@ -110,18 +110,16 @@
 :root[data-theme="light"] .vi-pitch__lines *{stroke:rgba(255,255,255,.85)}
 .vi-pitch__lines--v{display:none}
 .vi-players{position:absolute;inset:0}
-.vi-player{--ps:34px;position:absolute;left:var(--hx);top:var(--hy);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;width:96px}
+.vi-player{--ps:34px;position:absolute;left:var(--hx);top:var(--hy);transform:translate(calc(-50% + var(--nx,0px)),calc(-50% + var(--ny,0px)));display:flex;flex-direction:column;align-items:center;gap:2px;width:96px}
 .vi-player__name{font-weight:680;font-variation-settings:'wdth' 88;font-size:11.5px;letter-spacing:.005em;color:#fff;text-shadow:0 1px 2px rgba(0,10,30,.8);white-space:nowrap;line-height:1.1}
 :root[data-theme="light"] .vi-player__name{color:var(--vd-marino);text-shadow:0 1px 0 rgba(255,255,255,.8)}
 .vi-player__tags{position:absolute;top:0;left:calc(50% + var(--ps)/2 + 3px);display:flex;flex-direction:column;align-items:flex-start;gap:3px}
 .vi-player--htl .vi-player__tags{left:auto;right:calc(50% + var(--ps)/2 + 3px);align-items:flex-end}
-/* the collision pass (vidrio/pitchLayout): plates and tags moved clear of the others, the side the tags stand
-   on, and a plate shrunk to the dorsal on the shirt (still read out: it is only transparent) */
-.vi-player__name{transform:translateY(var(--pdy,0px))}
-.vi-player__tags{transform:translateY(var(--tdy,0px))}
-.vi-player--num .vi-player__name{opacity:0}
-.vi .vi-pitch .vi-players .vi-player[data-tags="r"] .vi-player__tags{left:calc(50% + var(--ps)/2 + 3px);right:auto;align-items:flex-start}
-.vi .vi-pitch .vi-players .vi-player[data-tags="l"] .vi-player__tags{left:auto;right:calc(50% + var(--ps)/2 + 3px);align-items:flex-end}
+/* the collision pass (vidrio/pitchLayout): every name stays; a player moved a little from the pizarra's spot
+   (--nx/--ny), his name a little lower, aside or on two lines (its box keeps one line's height: the shirt
+   never moves with it), his marks in a column on either side or in a row under the name (--tx/--ty) */
+.vi-player__name{transform:translate(var(--pdx,0px),var(--pdy,0px))}
+.vi-player--two .vi-player__name{white-space:normal;width:min-content;text-align:center;height:1.1em}
 .vi-player--tags2 .vi-player__tags{display:grid;grid-template-columns:repeat(2,max-content);gap:3px}
 .vi-player--tags2[data-tags="l"] .vi-player__tags{justify-items:end}
 .vi-player--tagsicon .vi-tag{gap:0;padding:0 5px;font-size:0;min-width:10px}
@@ -558,3 +556,7 @@
   .vi-tile{transition:none}
   .vi-tile:hover{transform:none}
 }
+/* el siete: where the collision pass put each player's marks (after every breakpoint's default side) */
+.vi .vi-pitch .vi-players .vi-player[data-tags] .vi-player__tags{left:var(--tx);top:var(--ty);right:auto;align-items:flex-start}
+.vi .vi-pitch .vi-players .vi-player[data-tags="l"] .vi-player__tags{align-items:flex-end}
+.vi .vi-pitch .vi-players .vi-player[data-tags="b"] .vi-player__tags{flex-direction:row}

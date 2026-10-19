@@ -228,14 +228,15 @@ export function sunRibbonOf(kickoff: number, now: number, duration = 50): SunRib
 
 const TICK: Partial<Record<string, number>> = { goal: 26, goal_penalty: 26, goal_freekick: 26, opponent_goal: 26, own_goal: 26, opponent_own_goal: 26, woodwork: 20, opponent_woodwork: 20, penalty_saved: 20, save: 16, chance: 16, opponent_chance: 16, shot: 14, yellow_card: 14, red_card: 18, double_yellow: 18, corner: 10, opponent_corner: 10 };
 
-/** The ribbon's kind for a play. */
+/** The ribbon's kind for a play: only goals, cards, the post and a saved penalty get a mark (V-Inicio); the
+ *  rest (chances, saves, corners, fouls) only shape the wave. */
 export function ribbonKind(e: Pick<MatchEvent, "type" | "team">): RibbonKind {
   const meta = eventMetaOf(e);
   if (meta.goal) return "gol";
   if (meta.card === "r") return "roja";
   if (meta.card === "a") return "tarjeta";
   if (meta.glyph === "palo") return "palo";
-  if (meta.glyph === "parada") return "parada";
+  if (meta.glyph === "parada") return e.type === "penalty_saved" ? "parada" : "ocasion";
   if (meta.group === "ocasiones") return "ocasion";
   if (meta.group === "cambios") return "cambio";
   return "otro";

@@ -26,6 +26,8 @@ import {
   type MeLineCtx,
 } from "./hoyModel";
 import { EVENTS, KO, MIN, SCENES, SEVEN, base, nameOf, published } from "./inicio.fixtures";
+import { longSeasonFixture } from "../../lib/derived/vidrio/fixtures";
+import { ribbonModel } from "../../components/vidrio/momentum";
 
 const nice = (id: string) => niceName(nameOf(id));
 const S = (a: number, b: number) => `${a}⁠–⁠${b}`;
@@ -103,6 +105,20 @@ describe("the evening's light and the momentum", () => {
     expect(items.map((i) => [i.side, i.kind])).toEqual([["us", "gol"], ["them", "gol"], ["us", "gol"], ["us", "gol"]]);
     expect(items[0].label).toBe("Minuto 6, gol de Alcides");
     expect(ribbonItemsOf(published, nice, 15 * 60)).toHaveLength(2);
+  });
+  it("the long season's J17 (38 plays): marks only on goals, cards, the post and a saved penalty, spread apart", () => {
+    const f = longSeasonFixture();
+    const j17 = f.matches.find((m) => m.id === f.liveId)!;
+    const items = ribbonItemsOf(j17, f.nameOf);
+    expect(items.length).toBeGreaterThan(20);
+    const m = ribbonModel(items, j17.duration ?? 50, undefined, undefined, 3.2);
+    const marked = new Set(m.marks.map((k) => k.id));
+    for (const it of items) if (marked.has(it.id)) expect(["gol", "tarjeta", "roja", "palo", "parada"]).toContain(it.kind);
+    expect(items.filter((it) => it.kind === "ocasion" || it.kind === "otro" || it.kind === "cambio").every((it) => !marked.has(it.id))).toBe(true);
+    for (const side of ["us", "them"] as const) {
+      const lefts = m.marks.filter((k) => k.side === side).map((k) => k.left).sort((a, b) => a - b);
+      for (let i = 1; i < lefts.length; i++) expect(lefts[i] - lefts[i - 1]).toBeGreaterThanOrEqual(3.1);
+    }
   });
 });
 

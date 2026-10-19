@@ -22,29 +22,53 @@ function usePitchLayout(key: string) {
       const W = pitch.clientWidth;
       const H = pitch.clientHeight;
       const items = [...pitch.querySelectorAll<HTMLElement>(".vi-player")];
-      // (measured unfolded, so the pass gives the same answer every time it runs)
-      for (const li of items) li.classList.remove("vi-player--tags2", "vi-player--tagsicon");
-      const players: PitchPlayer[] = items.map((li) => {
+      // (measured as first laid out — one line, tags in one column on the right — so the pass gives the same
+      // answer every time it runs)
+      for (const li of items) {
+        li.classList.remove("vi-player--tags2", "vi-player--tagsicon", "vi-player--two");
+        delete li.dataset.tags;
+      }
+      const boxes = items.map((li) => {
         const x0 = li.offsetLeft - li.offsetWidth / 2;
         const y0 = li.offsetTop - li.offsetHeight / 2;
+        return { x0, y0 };
+      });
+      const players: PitchPlayer[] = items.map((li, i) => {
+        const { x0, y0 } = boxes[i];
         const shirt = li.querySelector<HTMLElement>(".vi-shirt");
         const plate = li.querySelector<HTMLElement>(".vi-player__name");
         const tags = li.querySelector<HTMLElement>(".vi-player__tags");
+        // (a name with a space can go on two lines: measured with the class on, then off again)
+        let plate2: { w: number; h: number } | null = null;
+        if (plate && /\s/.test(plate.firstChild?.textContent?.trim() ?? "")) {
+          li.classList.add("vi-player--two");
+          // (its box keeps one line's height, so the shirt doesn't move: the second line hangs below)
+          plate2 = { w: plate.offsetWidth, h: plate.scrollHeight };
+          li.classList.remove("vi-player--two");
+        }
         return {
           shirt: { x: x0 + (shirt?.offsetLeft ?? 0), y: y0 + (shirt?.offsetTop ?? 0), w: shirt?.offsetWidth ?? 0, h: shirt?.offsetHeight ?? 0 },
           plate: { x: x0 + (plate?.offsetLeft ?? 0), y: y0 + (plate?.offsetTop ?? 0), w: plate?.offsetWidth ?? 0, h: plate?.offsetHeight ?? 0 },
+          plate2,
           tags: tags ? { w: tags.offsetWidth, h: tags.offsetHeight, n: tags.childElementCount } : null,
           first: li.classList.contains("vi-player--me"),
         };
       });
       placePitch(players, W, H).forEach((p, i) => {
         const li = items[i];
-        li.dataset.tags = p.tags;
-        li.classList.toggle("vi-player--num", p.plate === "num");
+        const { x0, y0 } = boxes[i];
+        li.classList.toggle("vi-player--two", p.plate === "two");
         li.classList.toggle("vi-player--tags2", p.cols === 2);
         li.classList.toggle("vi-player--tagsicon", p.chips === "icon");
+        li.style.setProperty("--nx", `${p.nx}px`);
+        li.style.setProperty("--ny", `${p.ny}px`);
+        li.style.setProperty("--pdx", `${p.plateDx}px`);
         li.style.setProperty("--pdy", `${p.plateDy}px`);
-        li.style.setProperty("--tdy", `${p.tagsDy}px`);
+        if (p.tagsAt) {
+          li.dataset.tags = p.tags;
+          li.style.setProperty("--tx", `${Math.round(p.tagsAt.x - (x0 + p.nx))}px`);
+          li.style.setProperty("--ty", `${Math.round(p.tagsAt.y - (y0 + p.ny))}px`);
+        }
       });
     };
     const queue = () => {
@@ -115,7 +139,8 @@ export interface SieteOrnProps {
 export function SieteOrn({ title, system, spots, bench, kit, theme, className }: SieteOrnProps) {
   const reqs = spots.map((s) => ({ kit, theme, name: "", num: s.num || " ", yaw: 0 }));
   const still = useShirtStills(reqs, { offMainThread: true });
-  const pitch = usePitchLayout(spots.map((s) => `${s.id}:${s.name}:${s.tags.map((t) => t.kind + t.text).join(",")}`).join("|"));
+  // (laid out again when a shirt's still arrives: the still stands taller than the drawn shirt)
+  const pitch = usePitchLayout(spots.map((s, i) => `${s.id}:${s.name}:${s.tags.map((t) => t.kind + t.text).join(",")}:${still(reqs[i]) ? 1 : 0}`).join("|"));
   return (
     <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-siete${className ? ` ${className}` : ""}`} aria-label={title}>
       <div className="vd-orn__head">
