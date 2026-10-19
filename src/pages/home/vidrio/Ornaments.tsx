@@ -10,7 +10,7 @@ import { sunTimes } from "../../../lib/derived/sun";
 import type { MatchWeather } from "../../../lib/weather";
 import { andList } from "../inicioModel";
 import { endSentence } from "../../../lib/derived/words";
-import { fixtureLine, venueName } from "../hoyModel";
+import { fixtureLine, turnoutLine, venueName } from "../hoyModel";
 import { Ico } from "./icons";
 import { Shirt } from "./Siete";
 
@@ -144,12 +144,16 @@ function sunsetLine(m: ClubMatch): string {
 export interface MvpOrnProps {
   candidates: { id: string; name: string; num: string }[];
   mine: string | null;
+  /** «el martes» (the head) and «el martes a las 21:00» (the line under the vote). */
   closes: string;
+  closesAt: string;
+  /** How many have voted, and of how many who can (turnout only: never who leads while it is open). */
+  turnout: { total: number; eligible: number | null } | null;
   onVote: (id: string) => Promise<void>;
   className?: string;
 }
 
-export function MvpOrn({ candidates, mine, closes, onVote, className }: MvpOrnProps) {
+export function MvpOrn({ candidates, mine, closes, closesAt, turnout, onVote, className }: MvpOrnProps) {
   const [sent, setSent] = useState<string | null>(null);
   const [error, setError] = useState("");
   const chosen = sent ?? mine;
@@ -179,13 +183,59 @@ export function MvpOrn({ candidates, mine, closes, onVote, className }: MvpOrnPr
         ))}
       </div>
       <p className="vi-orn-p vi-orn-foot" aria-live="polite">
-        {name ? `${endSentence(`Votas a ${name}`)} Puedes cambiarlo hasta que cierre.` : "Elige a uno. Los resultados, cuando cierre la votación."}
+        {name ? `${endSentence(`Votas a ${name}`)} Puedes cambiarlo hasta ${closesAt}.` : `Elige a uno. Los resultados, ${closesAt}.`} {turnoutLine(turnout)}
       </p>
       {error && (
         <p className="vi-err" role="alert">
           {error}
         </p>
       )}
+    </section>
+  );
+}
+
+export interface MvpWinnerOrnProps {
+  /** The winners (a tie shares it), in capitals as on the shirt. */
+  winners: { id: string; name: string; num: string }[];
+  /** The winner's votes and everyone's (null while unknown). */
+  votes: number | null;
+  total: number | null;
+  /** «de la J1», «del estreno». */
+  of: string;
+  matchId: string;
+  className?: string;
+}
+
+/** The MVP once the vote has closed: the shirt and the name in gold (gold is only for our goal and the MVP). */
+export function MvpWinnerOrn({ winners, votes, total, of, matchId, className }: MvpWinnerOrnProps) {
+  const shared = winners.length > 1;
+  return (
+    <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-winner${className ? ` ${className}` : ""}`} aria-label={`MVP ${of}`}>
+      <div className="vd-orn__head">
+        <h2>MVP {of}</h2>
+        <span>{shared ? "Compartido" : "Votación cerrada"}</span>
+      </div>
+      <ul className={`vi-winner__list${shared ? " vi-winner__list--shared" : ""}`}>
+        {winners.map((w) => (
+          <li key={w.id}>
+            <Shirt num={w.num} size={shared ? 44 : 64} />
+            <Link className="vi-winner__name" to="/jugadores/$playerId" params={{ playerId: w.id }}>
+              {w.name}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {votes !== null && (
+        <p className="vi-orn-p vi-winner__votes">
+          {total ? `${votes} de ${total} votos` : `${votes} ${votes === 1 ? "voto" : "votos"}`}
+          {shared ? " cada uno" : ""}
+        </p>
+      )}
+      <div className="vi-orn-foot">
+        <Link className="vd-link" to="/matches/$matchId" params={{ matchId }}>
+          Leer el acta
+        </Link>
+      </div>
     </section>
   );
 }

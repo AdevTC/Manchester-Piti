@@ -139,7 +139,7 @@
 .vi-arm{position:absolute;left:-4%;top:22%;width:30%;height:14%;border-radius:3px;background:var(--vd-marino);box-shadow:0 0 0 1px rgba(255,255,255,.6);transform:rotate(-24deg);z-index:1}
 .vi-arm::after{content:"C";position:absolute;inset:0;display:grid;place-items:center;font-size:calc(var(--s)*.13);font-weight:800;color:#fff;font-style:normal}
 /* la convocatoria */
-.vi-counts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:2px 0 12px}
+.vi-counts{display:grid;grid-template-columns:repeat(4,auto);justify-content:space-between;gap:8px;margin:2px 0 12px}
 .vi-counts .vd-count{margin:0}
 .vi-counts .vd-count b{font-size:31px;color:var(--vd-g-ink)}
 .vi-counts .vd-count span{color:var(--vd-g-ink2)}
@@ -405,10 +405,11 @@
   .vi-head .vi-me{text-align:left;max-width:min(62ch,100%)}
   .vi-head .vi-wx{text-align:left}
   .vi-pipbtn{display:inline-flex}
-  .vi--grown .vi-panel--hoy>.vi-slot--r{display:flex}
-  .vi--grown .vi-panel--hoy>:not(.vi-grow){opacity:.5;filter:saturate(.75)}
-  .vi--grown .vi-stage__lens{opacity:.5}
-  .vi-panel--hoy>.vi-grow{grid-row:1/3;grid-column:1/-1;margin:0 72px;max-height:none;z-index:6}
+  .vi:not(.vi--cockpit).vi--grown .vi-panel--hoy>.vi-slot--r{display:flex}
+  /* (a grown window replaces what was under it: never both readable at once) */
+  .vi:not(.vi--cockpit).vi--grown .vi-panel--hoy>:not(.vi-grow),.vi:not(.vi--cockpit).vi--grown .vi-place>:not(.vi-grow){visibility:hidden}
+  .vi:not(.vi--cockpit).vi--grown-plays .vi-stage__lens{visibility:hidden}
+  .vi:not(.vi--cockpit) .vi-panel--hoy>.vi-grow{position:absolute;inset:0 72px 14px;grid-row:auto;grid-column:auto;max-height:none;min-height:0;z-index:6}
   .vi-grow-cols{column-count:2}
   /* the other places: their own stage, scrolling inside itself with a bottom fade */
   .vi-place{height:100%;overflow:auto;padding:76px 72px 28px;scrollbar-width:thin;scrollbar-color:rgba(234,243,252,.25) transparent;
@@ -515,8 +516,8 @@
 .vi--cockpit:not(.vi--hoy) .vi-lens .vd-team b{font-size:15px}
 .vi--cockpit .vi-score{font-size:150px}
 .vi--cockpit .vi-centre>.vi-grow{grid-row:1/-1;grid-column:1/-1;max-height:none;margin:0 -22px}
-.vi--cockpit .vi-centre--grown{grid-row:1/-1;padding-top:14px}
-.vi--cockpit.vi--grown .vi-stage__lens{visibility:hidden}
+.vi--cockpit .vi-centre--grown{grid-row:1/-1;padding-top:14px;align-self:start;height:calc(max(1000px,100svh) - 232px);margin-top:14px}
+.vi--cockpit.vi--grown-plays .vi-stage__lens{visibility:hidden}
 .vi--cockpit .vi-centre--grown>:not(.vi-grow){display:none}
 .vi--cockpit .vi-panel>.vi-grow{grid-row:1/-1;grid-column:1;z-index:6;max-height:none;margin:14px 0 16px}
 .vi--cockpit .vi-grow-cols{column-count:1}
@@ -550,7 +551,7 @@
 .vi-grow .vi-grow-cols{display:block}
 .vi-grow .vi-grow-cols>.vd-play{display:grid}
 /* in the cockpit the grown plays fill the centre, from under the top bar to the shelf */
-.vi--cockpit .vi-centre--grown{display:flex;flex-direction:column;padding:14px 0 16px}
+.vi--cockpit .vi-centre--grown{display:flex;flex-direction:column;padding:0}
 .vi--cockpit .vi-centre--grown>.vi-grow{flex:1 1 auto;min-height:0;margin:0}
 @media (prefers-reduced-motion:reduce){
   .vi-tile{transition:none}
@@ -560,3 +561,80 @@
 .vi .vi-pitch .vi-players .vi-player[data-tags] .vi-player__tags{left:var(--tx);top:var(--ty);right:auto;align-items:flex-start}
 .vi .vi-pitch .vi-players .vi-player[data-tags="l"] .vi-player__tags{align-items:flex-end}
 .vi .vi-pitch .vi-players .vi-player[data-tags="b"] .vi-player__tags{flex-direction:row}
+
+/* ───────────────────────── «Vidrio» cierre: what the boards still asked for */
+/* the lens: both team names in the same size and ink (the long/short spans inherit the name's) */
+.vi-lens .vd-team b>span{font-size:inherit;color:inherit;font-weight:inherit}
+/* the score replays the last goal (a button only while live) */
+.vi-scorebtn{appearance:none;border:0;background:none;padding:0;color:inherit;cursor:pointer;border-radius:18px}
+.vi-scorebtn:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:6px}
+/* the push button's «why not here» */
+.vi .vi-pushwhy{flex-basis:100%;margin:2px 0 0;font-size:13.5px;line-height:1.45;color:var(--vd-ink2)}
+/* la convocatoria's counts: the label never wraps under its number */
+.vi-counts .vd-count span{white-space:nowrap;font-size:12.8px}
+/* the MVP once the vote has closed: gold (only our goal and the MVP are) */
+.vi-winner__list{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin:4px 0 6px}
+.vi-winner__list li{display:flex;flex-direction:column;align-items:center;gap:6px}
+.vi-winner__list--shared{flex-direction:row;justify-content:center;gap:22px}
+.vi-winner .vi-shirt{filter:drop-shadow(0 0 14px rgba(255,198,89,.55))}
+.vi .vi-winner__name{font-weight:760;font-variation-settings:'wdth' 92;font-size:22px;letter-spacing:-.01em;color:var(--vd-oro);text-decoration:none;min-height:24px}
+:root[data-theme="light"] .vi .vi-winner__name{color:#9a6400}
+.vi .vi-winner__votes{text-align:center;color:var(--vd-g-ink)}
+/* while a grown window is open the floating score keeps away */
+.vi-floataway{position:fixed;left:0;top:50%;width:1px;height:1px;pointer-events:none}
+/* the tiles: a small jornada label, the rival and when (with home or away) */
+.vi-tile b{font-size:13px;font-weight:720;letter-spacing:0}
+.vi-tile__txt small{font-size:13px;font-weight:600;opacity:1}
+/* the table's numbers spread as the boards' (PJ 34, G·E·P 30, DG 44, Pts 40) */
+.vi-table thead th:nth-child(3){width:34px}
+.vi-table thead th:nth-child(4),.vi-table thead th:nth-child(5),.vi-table thead th:nth-child(6){width:30px}
+.vi-table thead th:nth-child(7){width:44px}
+.vi-table thead th:nth-child(8){width:40px}
+.vi-table th.f,.vi-table td.f{width:112px;text-align:right;letter-spacing:.12em;font-size:12.8px;color:var(--vd-ink2)}
+/* phone and tablet: a grown table or list takes the place of what it grew from */
+.vi--grown .vi-place>:not(.vi-grow):not(.vi-ph){display:none}
+/* the 1920 focused Temporada: the table, then Forma · Goleadores · Asistencias in one row, then the strip */
+.vi-wide3{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1fr) minmax(0,1fr);gap:28px;margin-top:22px;align-items:start}
+.vi-wide3 .vi-formabox .vi-sub{flex-direction:column;align-items:flex-start;gap:2px}
+.vi-wide3 .vd-form{flex-wrap:nowrap;gap:5px}
+.vi-wide3 .vd-form__l{width:32px;height:32px;border-radius:9px;font-size:15px}
+.vi-zone--wide .vi-golesp{display:block;margin-top:0}
+.vi-zone--wide .vi-table th,.vi-zone--wide .vi-table td{padding-top:5px;padding-bottom:5px}
+@container (max-width:599px){
+  /* the actions, full width and stacked on a phone (the boards) */
+  .vi-acts>*:not(.vi-pushwhy),.vi-acts .cal>button{flex:1 1 100%;justify-content:center}
+  .vi-acts .cal{display:flex}
+}
+@container (min-width:1100px){
+  /* «1 jugada más · Ver todo el partido» on one row */
+  .vi-slot--r .vd-more{flex-wrap:nowrap}
+  .vi-slot--r .vd-more__btn{flex:none}
+  /* after the match the member's line keeps to one row above the shelf; a long one makes the headline smaller */
+  .vi-head .vi-me{max-width:min(75ch,100%)}
+  .vi-head--long .vi-h1{font-size:55px}
+  /* Temporada fits its stage: rows of 37 px, the strip close under the table, its legend above the shelf */
+  .vi-place .vi-table th,.vi-place .vi-table td{padding-top:6px;padding-bottom:6px}
+  .vi-place .vi-seasonbox{margin-top:12px}
+  .vi-place .vi-ph{margin-bottom:16px}
+  /* the lens and the floating score are one object: the lens shrinks into the drop and back (swap()) */
+  .vi:not(.vi--cockpit) .vi-lensbox{view-transition-name:vd-live;view-transition-class:vd-morph}
+  /* the shelf's bead slides under the choreography instead of snapping */
+  .vi-stage__shelf .vd-shelf__bead{view-transition-name:vi-shelf-bead;view-transition-class:vd-morph}
+}
+/* the 1920 cockpit's three zones morph as they widen and narrow */
+.vi--cockpit .vi-zone--l{view-transition-name:vi-z-l;view-transition-class:vd-morph}
+.vi--cockpit .vi-centre{view-transition-name:vi-z-c;view-transition-class:vd-morph}
+.vi--cockpit .vi-zone--r{view-transition-name:vi-z-r;view-transition-class:vd-morph}
+/* the poll's answers, voted in place (members; a one-answer poll) */
+.vi-pollvote{display:flex;flex-wrap:wrap;gap:8px;flex-basis:100%;margin-left:54px}
+.vi-pollvote .vd-btn svg{width:14px;height:14px}
+.vi-pollvote .vd-btn[aria-pressed="true"]{--vd-g-tint:rgba(108,171,221,.3)}
+.vi-row--wrap>.vi-err{flex-basis:100%;margin-left:54px}
+@container (min-width:1100px){
+  /* the fan's invitation in one band: its three steps read in a row, its buttons above the shelf */
+  .vi-place .vi-invite{margin-top:14px;padding-top:12px}
+  .vi-place .vi-steps{flex-direction:row;flex-wrap:wrap;gap:4px 16px;margin:8px 0 12px!important}
+  .vi-place .vi-steps li{border-top:0;padding:0;font-size:14px}
+  .vi-place .vi-steps li::before{width:22px;height:22px;font-size:12px}
+}
+@container (min-width:1100px){.vi-slot--r .vd-more>span{white-space:nowrap}}

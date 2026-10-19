@@ -265,6 +265,15 @@ export function ribbonItemsOf(match: Pick<ClubMatch, "events" | "duration" | "ri
 export interface HoyCopyCtx extends CopyCtx {
   /** Our place in the table now (for the después line). */
   position?: number | null;
+  /** The MVP once the vote has closed (ties: every name) and his votes. */
+  winner?: { names: string[]; votes: number | null } | null;
+}
+
+/** «Alcides, MVP con 9 votos.» · «MVP compartido: Alcides y Kevin.» */
+export function winnerLine(w: { names: readonly string[]; votes: number | null } | null | undefined): string {
+  if (!w?.names.length) return "";
+  if (w.names.length > 1) return `MVP compartido: ${andList(w.names)}.`;
+  return `${w.names[0]}, MVP${w.votes ? ` con ${plural(w.votes, "voto", "votos")}` : ""}.`;
 }
 
 export interface HoyCopy {
@@ -372,6 +381,15 @@ export function hoyCopy(ctx: HoyCopyCtx): HoyCopy {
       const debut = ctx.estreno ? " Todos los que jugaron desbloquean «Debut»." : "";
       return { h1, lede: `${first}${debut} ${ctx.member ? "Ya se puede votar al MVP." : "Los socios votan al MVP; el ganador sale aquí."}`.trim() };
     }
+    case "despues": {
+      // (the same headline as with the acta; the MVP once the vote has closed; the next match has its own line)
+      if (!m) return { h1: base.h1, lede: base.sub };
+      const h1 = resultHeadline(m, view.gf, view.ga, nameOf) ?? resultWord(view.gf, view.ga, ctx.estreno);
+      return { h1, lede: `${winnerLine(ctx.winner)} La crónica y las notas, en el partido.`.trim() };
+    }
+    case "pendiente":
+      // (the lens already says «Pendiente del acta»: the headline says what is missing)
+      return { h1: "Falta el acta del partido", lede: `Contra ${rival}: el resultado, los goles y los minutos salen con el acta.` };
     default:
       return { h1: base.h1, lede: base.sub };
   }
@@ -434,6 +452,30 @@ function porraNow(p: { gf: number; ga: number }, gf: number, ga: number): string
   return `Tu porra, ${s}, se te escapa.`;
 }
 
+/** The MVP vote's turnout while it is open (never who leads): «9 de 16 ya han votado.» · «9 ya han votado.» */
+export function turnoutLine(t: { total: number; eligible: number | null } | null): string {
+  if (!t) return "";
+  if (!t.total) return "Nadie ha votado todavía.";
+  const verb = t.total === 1 ? "ya ha votado" : "ya han votado";
+  return t.eligible ? `${t.total} de ${t.eligible} ${verb}.` : `${t.total} ${verb}.`;
+}
+
+/** The porra's line in Tú: «Vas bien: te falta un gol nuestro.» while live, «Acertaste el resultado.» after. */
+export function porraSub(p: { gf: number; ga: number } | null, gf: number, ga: number, phase: MatchdayPhase): string {
+  if (!p) return isAhead(phase) ? "Se cierra con el pitido." : "Esta vez sin porra.";
+  if (isAhead(phase)) return "Se cierra con el pitido.";
+  if (isOver(phase)) return p.gf === gf && p.ga === ga ? "Acertaste el resultado." : `Acabó ${gf}–${ga}.`;
+  if (!isLive(phase)) return "Se cierra con el pitido.";
+  if (p.gf === gf && p.ga === ga) return "La clavas de momento.";
+  if (p.gf >= gf && p.ga >= ga) {
+    const ours = p.gf - gf;
+    const theirs = p.ga - ga;
+    if (ours + theirs === 1) return ours ? "Vas bien: te falta un gol nuestro." : "Vas bien: te falta un gol de ellos.";
+    return `Vas bien: te faltan ${ours + theirs} goles.`;
+  }
+  return `Se te escapa: ahora va ${gf}–${ga}.`;
+}
+
 /** The member's own line under the headline (null for a fan, or when there is nothing of his to say). */
 export function meLineOf(c: MeLineCtx): string | null {
   if (c.kind === "aficion") return null;
@@ -480,7 +522,7 @@ export function meLineOf(c: MeLineCtx): string | null {
       const goals = c.goals.length ? ` y marcaste ${c.goals.length === 1 ? "un gol" : `${c.goals.length} goles`}` : "";
       parts.push(`${c.name}, jugaste ${c.minutes === 1 ? "un minuto" : `los ${Math.round(c.minutes)} minutos`}${goals}${did}.`);
     }
-    if (c.porra) parts.push(exact ? "Acertaste la porra." : `Tu porra, ${c.porra.gf}–${c.porra.ga}, no entró.`);
+    if (c.porra) parts.push(exact ? "Acertaste la porra." : "Tu porra no entró.");
     if (c.voteClosesAt !== null) parts.push(parts.length ? `Vota al MVP hasta el ${weekday(c.voteClosesAt)}.` : `${c.name}, ya puedes votar al MVP hasta el ${weekday(c.voteClosesAt)}.`);
     if (!parts.length) return null;
     if (!parts[0].startsWith(c.name)) parts[0] = `${c.name}, ${parts[0].charAt(0).toLocaleLowerCase("es")}${parts[0].slice(1)}`;
@@ -516,11 +558,12 @@ export function weatherLineOf(day: Pick<MatchdayModel, "phase" | "match" | "kick
 // ───────────────────────── the ornaments ─────────────────────────
 
 export type LeftOrn = "siete" | "viene" | null;
-export type RightOrn = "convo" | "previa" | "plays" | "mvp" | "viene" | null;
+export type RightOrn = "convo" | "previa" | "plays" | "mvp" | "winner" | "viene" | null;
 
 /** Which ornaments flank the lens: el siete (or what comes next when there is none) and, on the right, the
- *  convocatoria (members) or la previa (fans) before, the plays while live and after, the MVP vote. */
-export function ornamentsOf(phase: MatchdayPhase, kind: ViewerKind, hasSeven: boolean, voteOpen: boolean): { left: LeftOrn; right: RightOrn } {
+ *  convocatoria (members) or la previa (fans) before, the plays while live and after, the MVP vote while it
+ *  is open (members), the MVP once it has closed (everyone). */
+export function ornamentsOf(phase: MatchdayPhase, kind: ViewerKind, hasSeven: boolean, voteOpen: boolean, hasWinner = false): { left: LeftOrn; right: RightOrn } {
   const member = kind !== "aficion";
   const left: LeftOrn = hasSeven && phase !== "aplazado" && phase !== "pretemporada" ? "siete" : "viene";
   switch (phase) {
@@ -535,7 +578,7 @@ export function ornamentsOf(phase: MatchdayPhase, kind: ViewerKind, hasSeven: bo
       return { left, right: "plays" };
     case "acta":
     case "despues":
-      return { left, right: member && voteOpen ? "mvp" : "plays" };
+      return { left, right: member && voteOpen ? "mvp" : !voteOpen && hasWinner ? "winner" : "plays" };
     case "pendiente":
       return { left, right: left === "siete" ? "viene" : null };
     default:
@@ -687,9 +730,14 @@ export function shortHint(id: PlaceId, long: string): string {
   if (id === "hoy") {
     const words: Record<string, string> = { "Pendiente del pitido": "Al pitido", "Pendiente del acta": "Sin acta", "Sin partidos a la vista": "Sin partido", Pretemporada: "Pronto" };
     if (words[long]) return words[long];
-    return long.replace(/, minuto (\d+)/, ", $1′").replace(/^(Ganamos|Perdimos|Empate) /, "").replace(/, al descanso$/, ", descanso");
+    return long
+      .replace(/, minuto (\d+)/, ", $1′")
+      .replace(/^(Ganamos|Perdimos|Empate) /, "")
+      .replace(/, al descanso$/, ", descanso")
+      .replace(/^(\d\d:\d\d), .+$/, "$1")
+      .replace(/^(\d+⁠?–⁠?\d+), (acta lista|MVP .+)$/, "$1");
   }
-  if (id === "temporada") return /^\d+º/.test(long) ? (long.match(/^\d+º/)?.[0] ?? long) : long.replace(/^Empieza la temporada$/, "Empieza");
+  if (id === "temporada") return /^\d+º/.test(long) ? (long.match(/^\d+º/)?.[0] ?? long) : long.replace(/^Empieza la temporada$/, "Empieza").replace(/^Empieza esta noche$/, "Empieza hoy");
   if (id === "club") return long.replace(/^(\d+) en la plantilla$/, "$1 jugadores").replace(/^.+? (cumple .+)$/, (_, rest: string) => capital(rest));
   return long.replace(/ cosas? pendientes?$/, (s) => (s.includes("cosas") ? " pendientes" : " pendiente"));
 }

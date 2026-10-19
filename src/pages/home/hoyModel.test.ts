@@ -23,6 +23,7 @@ import {
   venueName,
   venueWords,
   weatherLineOf,
+  winnerLine,
   type MeLineCtx,
 } from "./hoyModel";
 import { EVENTS, KO, MIN, SCENES, SEVEN, base, nameOf, published } from "./inicio.fixtures";
@@ -52,6 +53,11 @@ describe("places", () => {
   it("the phone's short hints", () => {
     expect(shortHint("hoy", "2–1, minuto 23")).toBe("2–1, 23′");
     expect(shortHint("hoy", "Pendiente del acta")).toBe("Sin acta");
+    expect(shortHint("hoy", "19:00, Orduña fc")).toBe("19:00");
+    expect(shortHint("hoy", "3–1, acta lista")).toBe("3–1");
+    expect(shortHint("hoy", "3–1, MVP Alcides")).toBe("3–1");
+    expect(shortHint("temporada", "6º, J17 de 26")).toBe("6º");
+    expect(shortHint("temporada", "Empieza esta noche")).toBe("Empieza hoy");
     expect(shortHint("temporada", "4º si acaba así")).toBe("4º");
     expect(shortHint("club", "Huberoski cumple el 27")).toBe("Cumple el 27");
     expect(shortHint("club", "16 en la plantilla")).toBe("16 jugadores");
@@ -144,8 +150,16 @@ describe("the headline", () => {
     expect(c.h1).toBe(`Alcides abre, Kevin cierra: ${S(3, 1)}`);
     expect(c.lede).toBe("Primera victoria de la temporada. Todos los que jugaron desbloquean «Debut». Ya se puede votar al MVP.");
   });
-  it("pendiente keeps the site's words: no score", () => {
-    expect(hoyCopy(scene("pendiente").ctx).h1).toBe("Pendiente del acta");
+  it("pendiente: the lens says «Pendiente del acta»; the headline says what is missing, no score", () => {
+    const c = hoyCopy(scene("pendiente").ctx);
+    expect(c.h1).toBe("Falta el acta del partido");
+    expect(`${c.h1} ${c.lede}`).not.toMatch(/\d\s*[–-]\s*\d|Pendiente del acta/);
+  });
+  it("después: the acta's headline and the MVP once the vote has closed, no broken «next» sentence", () => {
+    const c = hoyCopy({ ...scene("despues").ctx, winner: { names: ["Alcides"], votes: 9 } });
+    expect(c.h1).toBe(`Alcides abre, Kevin cierra: ${S(3, 1)}`);
+    expect(c.lede).toBe("Alcides, MVP con 9 votos. La crónica y las notas, en el partido.");
+    expect(winnerLine({ names: ["Alcides", "Kevin"], votes: 4 })).toBe("MVP compartido: Alcides y Kevin.");
   });
 });
 
@@ -186,6 +200,8 @@ describe("ornaments and el siete", () => {
     expect(ornamentsOf("acta", "jugador", true, true)).toEqual({ left: "siete", right: "mvp" });
     expect(ornamentsOf("acta", "aficion", true, true)).toEqual({ left: "siete", right: "plays" });
     expect(ornamentsOf("aplazado", "aficion", true, false)).toEqual({ left: "viene", right: null });
+    expect(ornamentsOf("despues", "aficion", true, false, true)).toEqual({ left: "siete", right: "winner" });
+    expect(ornamentsOf("despues", "jugador", true, false, true)).toEqual({ left: "siete", right: "winner" });
   });
   it("the spots exist for both pitches; the keeper by our goal", () => {
     const keeper = spotOf(50, 92);

@@ -206,7 +206,7 @@ export function Tu({ t, jornadaOf, now, porraLine, variant, onOpen, region = () 
         </div>
         <div className="vd-more">
           <span>
-            {more ? <b>Y {more === 1 ? "1 cosa más" : `${more} cosas más`}</b> : <b>Lo tuyo</b>}, tu porra y {t.notices.length === 0 ? "tus avisos" : t.notices.length === 1 ? "1 aviso" : `${t.notices.length} avisos`}
+            {more ? <b>Y {more === 1 ? "1 cosa más" : `${more} cosas más`}</b> : <b>Lo tuyo</b>}, tu porra y {t.unread ? (t.unread === 1 ? "1 aviso" : `${t.unread} avisos`) : t.notices.length === 0 ? "tus avisos" : t.notices.length === 1 ? "1 aviso" : `${t.notices.length} avisos`}
           </span>
           <button type="button" className="vd-more__btn" onClick={onOpen}>
             Todo lo tuyo
@@ -228,7 +228,7 @@ export function Tu({ t, jornadaOf, now, porraLine, variant, onOpen, region = () 
       </div>
       <div className={region(4)}>
         <h3 className="vi-sub">
-          Avisos <span>{t.notices.length ? `${t.notices.length === 1 ? "el último" : `los ${t.notices.length} últimos`}` : ""}</span>
+          Avisos <span>{t.unread ? (t.unread === 1 ? "1 nuevo" : `${t.unread} nuevos`) : t.notices.length ? `${t.notices.length === 1 ? "el último" : `los ${t.notices.length} últimos`}` : ""}</span>
         </h3>
         <Notices t={t} />
       </div>

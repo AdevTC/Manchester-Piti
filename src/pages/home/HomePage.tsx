@@ -6,7 +6,7 @@
 // chosen place below. The server paints Hoy from the public data bundle; whatever is a member's appears once
 // the viewer is known (useHydrated + useViewer). The live overlay is the live system's: the lens only declares
 // itself (useLiveDock), «Sacar el marcador» opens the kit's score window.
-import { useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { lazy, Suspense, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
 import { nameFor, nextFixture, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
@@ -17,7 +17,7 @@ import { useViewer } from "../../hooks/useViewer";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
-import { PipWindow, Shelf, VidrioSky, openScorePip, region, shelfPanelId, shelfTabId, skyAt, swap, travel, useGoalMoment, useGrow, useLightPointer, useMedia, useReducedMotion, type ScorePip } from "../../components/vidrio";
+import { PipWindow, Shelf, VidrioSky, openScorePip, region, shelfPanelId, shelfTabId, skyAt, swap, travel, useGoalMoment, useGrow, useLightPointer, useLiveDock, useMedia, useReducedMotion, type ScorePip } from "../../components/vidrio";
 import { clubMedals, matchEvent, playerLines, seasonPulse, upcomingBirthdays, type SquadMember } from "../../lib/home";
 import { currentSeasonId } from "../../lib/vestuario";
 import { useStandings } from "../../lib/useStandings";
@@ -39,8 +39,13 @@ import { seasonStrip } from "../../lib/derived/vidrio/strip";
 import { projectTable } from "../../lib/derived/vidrio/table";
 import { seasonLeaders } from "../../lib/derived/vidrio/leaders";
 import { playsLog, type PlaysLog } from "../../lib/derived/vidrio/plays";
-import { usePolls, useAbsences, useMatchScorers } from "../vestuario/live";
-import { useMe, voteMvp } from "../vestuario/writes";
+import { usePolls, usePollVotes, useAbsences, useMatchScorers, useMvpResults } from "../vestuario/live";
+import { pollTally } from "../../lib/derived/polls";
+import { LINE_NAMES, POSITIONS, resolvePositions } from "../../lib/positions";
+import { mvpWinners } from "../../lib/vestuario";
+import { eventSeconds } from "../../../functions/src/matchAnalysis";
+import { madridTime } from "../../lib/derived/madrid";
+import { useMe, voteMvp, votePoll } from "../vestuario/writes";
 import { andList, isLive, matchViewAt, niceName, weekday } from "./inicioModel";
 import {
   PLACE_LABEL,
@@ -55,6 +60,7 @@ import {
   ornamentsOf,
   placeFromHash,
   placesFor,
+  porraSub,
   ribbonItemsOf,
   shortHint,
   sieteOf,
@@ -68,7 +74,7 @@ import { HoyLens } from "./vidrio/HoyLens";
 import { HoyHead } from "./vidrio/HoyHead";
 import { SieteOrn } from "./vidrio/Siete";
 import { PlaysGrow, PlaysOrn } from "./vidrio/Plays";
-import { ConvoOrn, MvpOrn, PreviaOrn, VieneOrn } from "./vidrio/Ornaments";
+import { ConvoOrn, MvpOrn, MvpWinnerOrn, PreviaOrn, VieneOrn } from "./vidrio/Ornaments";
 import { Temporada, TemporadaGrows, type TableRowV, type TemporadaData } from "./vidrio/Temporada";
 import { Club, type ClubData } from "./vidrio/Club";
 import { Tu } from "./vidrio/Tu";
@@ -96,7 +102,18 @@ const readPlaceHash = () => {
 };
 const useHash = (): string => useSyncExternalStore(subscribeHash, readPlaceHash, () => "");
 
-const WAITING: HoyCopy = { h1: "Manchester Piti", lede: "" };
+/** While a grown window is open the floating score keeps away (it would sit on the window's header): the
+ *  page says «the match is shown here» for as long as it is open. */
+function FloatAway() {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useLiveDock(ref, "lens");
+  return <span ref={ref} className="vi-floataway" aria-hidden="true" />;
+}
+
+/** «Compartir el cartel»: the Partidos cartel in its sheet, loaded when asked for. */
+const CartelShare = lazy(() => import("./vidrio/CartelShare"));
+
+const WAITING: HoyCopy ={ h1: "Manchester Piti", lede: "" };
 const NO_DATA: HoyCopy = { h1: "No llega el partido", lede: "Puede ser tu conexión o la nuestra. Mientras, esta es la luz de ahora en Palomeras." };
 const NOTHING: never[] = [];
 const EMPTY_LOG: PlaysLog = { rows: [], count: 0, counts: { gol: 0, tarjeta: 0, cambio: 0, ocasion: 0, parada: 0, otro: 0 }, halves: [] };
@@ -192,20 +209,58 @@ export function HomePage() {
   const goalKey = lastGoal?.id ?? null;
   const [arrivalGoal, setArrivalGoal] = useState<string | null | undefined>(undefined);
   if (arrivalGoal === undefined && !loading) setArrivalGoal(goalKey);
-  const freshGoal = arrivalGoal !== undefined && goalKey !== null && goalKey !== arrivalGoal;
-  const goal = useGoalMoment(lastGoal ? { key: lastGoal.id, side: eventMetaOf(lastGoal).goal === "for" ? "us" : "them" } : null, { reduced: reduced || !freshGoal });
+  // «Repetir el gol» (the lens's score): the same moment again, for the same goal
+  const [replay, setReplay] = useState<{ id: string; n: number } | null>(null);
+  const replays = replay && replay.id === goalKey ? replay.n : 0;
+  const freshGoal = arrivalGoal !== undefined && goalKey !== null && (goalKey !== arrivalGoal || replays > 0);
+  const goalSide = lastGoal && eventMetaOf(lastGoal).goal === "for" ? "us" : "them";
+  const goal = useGoalMoment(lastGoal ? { key: replays ? `${lastGoal.id}#${replays}` : lastGoal.id, side: goalSide } : null, { reduced: reduced || !freshGoal });
+  // the lens's status line during the moment: «¡Gol de Adrián T.C.!», then «Adrián T.C., minuto 21» for a while
+  // (when this page saw it arrive, on the match's clock: the name stays a few seconds after the moment)
+  const freshKey = freshGoal ? `${goalKey}#${replays}` : null;
+  const [freshSeen, setFreshSeen] = useState<{ key: string; at: number } | null>(null);
+  if (freshKey && freshSeen?.key !== freshKey) setFreshSeen({ key: freshKey, at: now });
+  const afterGoal = !!freshKey && freshSeen?.key === freshKey && now - freshSeen.at < 16_000;
   const estreno = !!m && (pulse.played.length === 0 || pulse.played[0]?.id === m.id);
+  // the MVP: the vote while it is open (turnout only, never who leads), its winner once it has closed
+  const voteOpen = !!m && mvpVoteOpen(m, now);
+  const mvpResults = useMvpResults();
+  const mvpResult = m ? mvpResults.get(m.id) : undefined;
+  const winnerIds = m && !voteOpen && isOver(phase) ? mvpWinners(m, mvpResult, now) : [];
+  const winnerVotes = winnerIds.length && mvpResult?.counts ? (mvpResult.counts[winnerIds[0]] ?? null) : null;
+  const winner = winnerIds.length ? { names: winnerIds.map((id) => niceOf(id)), votes: winnerVotes } : null;
+  const eligible = mvpResult && "eligible" in mvpResult && typeof mvpResult.eligible === "number" ? mvpResult.eligible : null;
   const copy: HoyCopy = error
     ? NO_DATA
     : loading
       ? WAITING
-      : hoyCopy({ day, view, now, member, role, nameOf: niceOf, sevenPublished: seven.length > 0, weather, seasonName, squadSize: squad.length, mvp: null, estreno });
-  const voteOpen = !!m && mvpVoteOpen(m, now);
-  const orns = ornamentsOf(phase, kind, seven.length > 0, voteOpen);
+      : hoyCopy({ day, view, now, member, role, nameOf: niceOf, sevenPublished: seven.length > 0, weather, seasonName, squadSize: squad.length, mvp: null, estreno, winner });
+  const orns = ornamentsOf(phase, kind, seven.length > 0, voteOpen, winner !== null);
   const spots = m && orns.left === "siete" ? sieteOf({ match: m, phase, events: view.events, seven, nameOf, numOf, captainId: (m as ClubMatch & { captainId?: string }).captainId ?? season?.captainPlayerId ?? null, me: member ? viewer.playerId : null }) : [];
   const sieteTitle = isOver(phase) ? "Acabaron en el campo" : live ? "En el campo" : phase === "antes" || phase === "pitido" ? (m && Number.isFinite(kickoff) && new Date(kickoff).getUTCHours() >= 16 ? "El siete de esta noche" : "El siete de hoy") : "El siete";
   const log = m ? playsLog(m, niceOf) : EMPTY_LOG;
-  const playsSub = live ? (log.rows[0] ? `Minuto ${log.rows[0].minuteText.replace("′", "")}` : "En directo") : `${log.count === 1 ? "1 jugada" : `${log.count} jugadas`}`;
+  // (while live: how long ago the last play was, on the match's own clock; «Minuto N» when the clock can't say)
+  const lastPlay = live ? settled(view.events).filter((e) => typeof e.elapsedSeconds === "number" || typeof e.minute === "number").sort((a, b) => eventSeconds(b) - eventSeconds(a))[0] : undefined;
+  const agoMin = lastPlay && phase !== "descanso" && view.seconds !== null && view.seconds !== undefined ? Math.floor((view.seconds - eventSeconds(lastPlay)) / 60) : null;
+  const playsSub = live
+    ? agoMin !== null && agoMin >= 0 && agoMin < 60
+      ? agoMin < 1
+        ? "Hace nada"
+        : `Hace ${agoMin} min`
+      : log.rows[0]
+        ? `Minuto ${log.rows[0].minuteText.replace("′", "")}`
+        : "En directo"
+    : `${log.count === 1 ? "1 jugada" : `${log.count} jugadas`}`;
+  const goalWho = !lastGoal ? "" : goalSide === "them" ? (m?.rival?.trim() ?? "el rival") : lastGoal.type === "opponent_own_goal" ? `En propia de ${m?.rival?.trim() ?? "el rival"}` : lastGoal.playerId ? niceOf(lastGoal.playerId) : "El Piti";
+  const goalStatus = !lastGoal
+    ? null
+    : goal.active && goalSide === "us"
+      ? `¡Gol de ${goalWho}!`
+      : goal.active
+        ? `Gol de ${goalWho}`
+        : afterGoal
+          ? `${goalWho}, minuto ${Math.max(1, Math.ceil(eventSeconds(lastGoal) / 60))}`
+          : null;
   const playsAllSub = live ? `${log.count} jugadas hasta el minuto ${day.minute ?? 1}. Se añaden solas.` : `${log.count} jugadas. ${phase === "final" ? "El acta llega en unos minutos." : "El acta ya está publicada."}`;
   const upcoming = pulse.upcoming.filter((x) => x.id !== m?.id).slice(0, 3);
 
@@ -251,17 +306,10 @@ export function HomePage() {
     none: Math.max(0, (called.length || squad.length) - answers.length),
   };
   const comers = answers.filter((a) => a.response === "yes").map((a) => (a.playerId ? niceOf(a.playerId) : a.name));
-  const porraLine = !tu.porra
-    ? isAhead(phase)
-      ? "Se cierra con el pitido."
-      : "Esta vez sin porra."
-    : live
-      ? (meLine?.match(/Tu porra[^.]*\.[^.]*\./)?.[0] ?? `Ahora va ${view.gf}–${view.ga}.`).replace(/^Tu porra, [^,]+, /, "").replace(/^./, (c) => c.toLocaleUpperCase("es"))
-      : isOver(phase)
-        ? tu.porra.gf === view.gf && tu.porra.ga === view.ga
-          ? "Acertaste el resultado."
-          : `Acabó ${view.gf}–${view.ga}.`
-        : "Se cierra con el pitido.";
+  const porraLine = porraSub(tu.porra, view.gf, view.ga, phase);
+  // (while live, «Debut» fills with the minutes he is playing tonight)
+  const inSevenNow = !!viewer.playerId && seven.includes(viewer.playerId);
+  const tuView = live && inSevenNow && tu.logro?.label.includes("«Debut»") && m ? { ...tu, logro: { label: tu.logro.label, text: "Se desbloquea al pitido final si juegas.", pct: Math.min(99, Math.round((((view.seconds ?? 0) / 60) / (m.duration ?? 50)) * 100)) } } : tu;
 
   // ── «Sacar el marcador» and «Avisarme…» (client only)
   const [pip, setPip] = useState<ScorePip | null>(null);
@@ -277,22 +325,44 @@ export function HomePage() {
   // (the device's push state and topics are the browser's: read once the page is the browser's)
   const [topicsSet, setTopicsLocal] = useState<string[] | null>(null);
   const topics = topicsSet ?? (hydrated ? savedTopics() : []);
-  const pushReady = hydrated && pushState() === "ready";
-  const alerts = topics.includes(pushTopic);
+  const push = hydrated ? pushState() : "unsupported";
+  const alerts = push === "ready" && topics.includes(pushTopic);
   const [alertErr, setAlertErr] = useState("");
+  // (where this device can't take notices the button stays and says why: the same words as the bell's sheet)
+  const [pushHelp, setPushHelp] = useState(false);
   const toggleAlerts = () => {
     setAlertErr("");
+    if (push !== "ready") {
+      setPushHelp((v) => !v);
+      return;
+    }
     toggleTopic(pushTopic, !alerts).then(
       (t) => setTopicsLocal(t),
       () => setAlertErr("No se han podido activar los avisos en este navegador."),
     );
   };
+  const pushWhy =
+    push === "ios-install"
+      ? "En iPhone y iPad, añade primero la web a tu pantalla de inicio (Compartir › Añadir a pantalla de inicio) y ábrela desde ahí."
+      : push === "denied"
+        ? "Los avisos están bloqueados en este navegador. Puedes permitirlos en los ajustes del sitio."
+        : "Este navegador no admite avisos.";
+  const [cartelOpen, setCartelOpen] = useState(false);
 
   const actions: ReactNode[] = [];
   if (m) {
+    // the anotador opens la mesa from here, before anything else
+    if (role === "anotador" && (isAhead(phase) || live))
+      actions.push(
+        <Link key="mesa" className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId/mesa" params={{ matchId: m.id }}>
+          <Ico id="whistle" />
+          Abrir la mesa
+        </Link>,
+      );
+    const pri = role === "anotador" && (isAhead(phase) || live) ? "" : " vd-btn--pri";
     if (isAhead(phase)) {
       actions.push(
-        <a key="map" className="vd-glass vd-btn vd-btn--pri vd-press" href={mapsUrl(m.venue?.trim() || (m.home === false ? `${m.rival ?? ""}` : "CDM Palomeras"))} target="_blank" rel="noreferrer">
+        <a key="map" className={`vd-glass vd-btn${pri} vd-press`} href={mapsUrl(m.venue?.trim() || (m.home === false ? `${m.rival ?? ""}` : "CDM Palomeras"))} target="_blank" rel="noreferrer">
           <Ico id="pin" />
           Cómo llegar
           <span className="vd-vh"> (abre el mapa en otra pestaña)</span>
@@ -301,7 +371,7 @@ export function HomePage() {
       );
     } else if (live || phase === "final" || phase === "pendiente") {
       actions.push(
-        <Link key="open" className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
+        <Link key="open" className={`vd-glass vd-btn${pri} vd-press`} to="/matches/$matchId" params={{ matchId: m.id }}>
           Abrir el partido
         </Link>,
       );
@@ -317,10 +387,10 @@ export function HomePage() {
         <Link key="acta" className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
           Leer el acta
         </Link>,
-        <Link key="cartel" className="vd-glass vd-btn vd-press" to="/matches/$matchId" params={{ matchId: m.id }} aria-label="Compartir el cartel, en la página del partido">
+        <button key="cartel" type="button" className="vd-glass vd-btn vd-press" aria-haspopup="dialog" aria-expanded={cartelOpen} onClick={() => setCartelOpen(true)}>
           <Ico id="share" />
           Compartir el cartel
-        </Link>,
+        </button>,
       );
     } else if (phase === "aplazado") {
       actions.push(
@@ -329,12 +399,18 @@ export function HomePage() {
         </Link>,
       );
     }
-    if ((isAhead(phase) || live) && pushReady)
+    if ((isAhead(phase) || live) && hydrated)
       actions.push(
-        <button key="alerts" type="button" className="vd-glass vd-btn vd-press vi-togg" aria-pressed={alerts} onClick={toggleAlerts}>
+        <button key="alerts" type="button" className="vd-glass vd-btn vd-press vi-togg" aria-pressed={push === "ready" ? alerts : undefined} aria-expanded={push === "ready" ? undefined : pushHelp} onClick={toggleAlerts}>
           <Ico id={alerts ? "check" : "bell"} />
           {isAhead(phase) ? (alerts ? "Te avisamos del pitido" : "Avisarme del pitido") : alerts ? "Te avisamos de los goles" : "Avisarme de los goles"}
         </button>,
+      );
+    if (pushHelp && push !== "ready")
+      actions.push(
+        <p key="why" className="vi-pushwhy" role="status">
+          {pushWhy}
+        </p>,
       );
   } else {
     actions.push(
@@ -353,7 +429,7 @@ export function HomePage() {
   const rowsNow = standings?.rows ?? [];
   const liveScore = live && m ? { rival: m.rival ?? "", gf: view.gf, ga: view.ga } : null;
   const proj = liveScore && rowsNow.length ? projectTable(rowsNow, liveScore) : null;
-  const toV = (r: { team: string; pj: number; g: number; e: number; p: number; gf: number; gc: number; pts: number; isUs: boolean }, move = 0): TableRowV => ({ team: r.team, pj: r.pj, g: r.g, e: r.e, p: r.p, dg: r.gf - r.gc, pts: r.pts, isUs: r.isUs, move });
+  const toV = (r: { team: string; pj: number; g: number; e: number; p: number; gf: number; gc: number; pts: number; isUs: boolean; form?: readonly ("G" | "E" | "P")[] }, move = 0): TableRowV => ({ team: r.team, pj: r.pj, g: r.g, e: r.e, p: r.p, dg: r.gf - r.gc, pts: r.pts, isUs: r.isUs, move, form: r.form });
   const usNow = rowsNow.findIndex((r) => r.isUs);
   const total = strip.counts.total;
   const jNow = strip.todayIndex !== null ? strip.segments[strip.todayIndex]?.jornada : (day.jornada ?? null);
@@ -383,6 +459,23 @@ export function HomePage() {
   // ── Club
   const polls = usePolls(member);
   const openPoll = member ? polls.data.find((p) => p.closedAt === null && now < p.closesAt) : undefined;
+  // its tally (members read the votes) and a vote in place for a one-answer poll
+  const pollVotesLive = usePollVotes(openPoll?.id);
+  const pollTallied = openPoll ? pollTally(openPoll, pollVotesLive.data) : null;
+  const pollRows = pollTallied?.rows ?? [];
+  const pollVoters = pollTallied?.voters ?? 0;
+  const [pollSent, setPollSent] = useState<{ poll: string; id: string } | null>(null);
+  const [pollErr, setPollErr] = useState("");
+  const pollMine = openPoll ? (pollSent && pollSent.poll === openPoll.id ? [pollSent.id] : (pollVotesLive.data.find((v) => v.uid === uid)?.optionIds ?? [])) : [];
+  const votePollNow = (id: string) => {
+    if (!me || !openPoll) return;
+    setPollSent({ poll: openPoll.id, id });
+    setPollErr("");
+    votePoll(me, openPoll, [id]).catch(() => {
+      setPollSent(null);
+      setPollErr("No se ha guardado tu voto. Inténtalo otra vez.");
+    });
+  };
   const birthday = upcomingBirthdays(squad, now, 1).find((b) => b.days <= 30);
   const medals = clubMedals(pulse, lines, nameOf, (d) => formatDate(d));
   const latestMedal = medals.filter((x) => x.earned).at(-1);
@@ -390,13 +483,25 @@ export function HomePage() {
     birthday: birthday
       ? (() => {
           const at = now + birthday.days * 86_400_000;
-          return { id: birthday.id, name: niceName(birthday.name), num: birthday.num, when: birthday.days === 0 ? "hoy" : birthday.days === 1 ? "mañana" : `el ${weekday(at)} ${Number(madridDate(at).slice(8))}` };
+          const pos = resolvePositions(players.find((p) => p.id === birthday.id) ?? {});
+          const posWord = pos.main ? POSITIONS[pos.main].name : pos.line ? LINE_NAMES[pos.line].short : "";
+          return { id: birthday.id, name: niceName(birthday.name), num: birthday.num, pos: posWord.toLocaleLowerCase("es"), when: birthday.days === 0 ? "hoy" : birthday.days === 1 ? "mañana" : `el ${weekday(at)} ${Number(madridDate(at).slice(8))}` };
         })()
       : null,
     vitrina: latestMedal ? { title: `La vitrina: ${latestMedal.kicker.toLocaleLowerCase("es")}`, sub: `${latestMedal.title}, ${latestMedal.detail}.` } : { title: "La vitrina, por estrenar", sub: "El primer trofeo se gana esta temporada." },
     dorsales: squad.filter((s) => s.num).map((s) => ({ id: s.id, num: s.num, name: niceName(s.name) })),
     squadSize: squad.length,
-    poll: openPoll ? { title: openPoll.question, sub: "Encuesta del vestuario." } : null,
+    poll: openPoll
+      ? {
+          title: openPoll.question,
+          sub: pollVoters ? `Encuesta de socios: ${pollRows.map((r) => `${r.label} ${r.count}`).join(", ")}.` : "Encuesta de socios, sin votos todavía.",
+          multi: openPoll.multi,
+          options: pollRows.map((r) => ({ id: r.id, label: r.label, count: r.count })),
+          mine: pollMine,
+          onVote: me && !openPoll.multi ? (id: string) => votePollNow(id) : null,
+          error: pollErr,
+        }
+      : null,
     sponsors: content.sponsors,
   };
   const shirt = kind === "jugador" && mine ? { name: mine.name.toLocaleUpperCase("es").slice(0, 12), num: mine.num } : { name: "", num: "" };
@@ -409,7 +514,8 @@ export function HomePage() {
     now,
     // (before the first jornada the table is all zeros: the hint says the season starts instead)
     table: rowsNow.length && (played > 0 || liveScore) ? { position: liveScore ? usProj : usNow >= 0 ? usNow + 1 : null, points: liveScore ? (proj?.points ?? null) : usNow >= 0 ? rowsNow[usNow].pts : null, projected: !!liveScore } : null,
-    season: { played, total },
+    season: { played, total, jornada: jNow },
+    mvp: winner?.names ?? null,
     birthdays: birthday ? [{ name: niceName(birthday.name), days: birthday.days, label: birthday.label }] : [],
     squadSize: squad.length,
     pending: kind === "jugador" ? tu.pending : null,
@@ -437,12 +543,14 @@ export function HomePage() {
       sun={sun}
       goal={goal}
       rollSide={lastGoal && eventMetaOf(lastGoal).goal === "against" ? "them" : "us"}
+      goalStatus={goalStatus}
+      onReplay={live && lastGoal && !reduced ? () => setReplay({ id: lastGoal.id, n: replays + 1 }) : undefined}
     />
   );
   const leftOrn =
     orns.left === "siete" && m && spots.length ? (
       <SieteOrn title={sieteTitle} system={lineup?.system ?? "3-2-1"} spots={spots} bench={benchLineOf(m, phase, view.events, niceOf, !!lineup)} kit={kit} theme={theme} className="vi-orn--l" />
-    ) : orns.left === "viene" ? (
+    ) : orns.left === "viene" && upcoming.length ? (
       <VieneOrn upcoming={upcoming} jornadaOf={jornadaOf} now={now} className="vi-orn--l" />
     ) : null;
   const rightOrn =
@@ -465,10 +573,21 @@ export function HomePage() {
           .map(([id]) => ({ id, name: nameOf(id).toLocaleUpperCase("es"), num: numOf(id) }))}
         mine={tu.mvpVote}
         closes={typeof m.voteClosesAt === "number" ? `el ${weekday(m.voteClosesAt)}` : "pronto"}
+        closesAt={typeof m.voteClosesAt === "number" ? `el ${weekday(m.voteClosesAt)} a las ${madridTime(m.voteClosesAt)}` : "que cierre la votación"}
+        turnout={mvpResult ? { total: mvpResult.total, eligible } : null}
         onVote={(pid) => (me ? voteMvp(me, m.id, pid) : Promise.reject(new Error("sin sesión")))}
         className="vi-orn--r"
       />
-    ) : orns.right === "viene" ? (
+    ) : orns.right === "winner" && m ? (
+      <MvpWinnerOrn
+        winners={winnerIds.map((id) => ({ id, name: nameOf(id).toLocaleUpperCase("es"), num: numOf(id) }))}
+        votes={winnerVotes}
+        total={mvpResult?.total ?? null}
+        of={estreno ? "del estreno" : day.jornada ? `de la J${day.jornada}` : "del partido"}
+        matchId={m.id}
+        className="vi-orn--r"
+      />
+    ) : orns.right === "viene" && upcoming.length ? (
       <VieneOrn upcoming={upcoming} jornadaOf={jornadaOf} now={now} className="vi-orn--r" />
     ) : null;
   const head = (
@@ -480,6 +599,7 @@ export function HomePage() {
       weather={wx}
       onPitch={seven.length ? endSentence(andList(seven.map((id) => niceOf(id)))) : null}
       nameClass={goal.name || undefined}
+      className={meLine && meLine.length > 90 ? "vi-head--long" : undefined}
     />
   );
   const hoyPanel = (
@@ -496,8 +616,8 @@ export function HomePage() {
     </>
   );
   // (in the cockpit a zone's «Ver todo» focuses the zone instead: the zone itself grows)
-  const zoneTabla = cockpit ? { ...tabla, grow: () => go("temporada") } : tabla;
-  const zoneGoles = cockpit ? { ...goles, grow: () => go("temporada") } : goles;
+  const zoneTabla = cockpit && focus !== "temporada" ? { ...tabla, grow: () => go("temporada") } : tabla;
+  const zoneGoles = cockpit && focus !== "temporada" ? { ...goles, grow: () => go("temporada") } : goles;
   const temporadaPanel = (opts: { compact?: boolean; wide?: boolean; regions: boolean }) => <Temporada d={temporadaData} now={now} tabla={zoneTabla} goles={zoneGoles} compact={opts.compact} wide={opts.wide} region={opts.regions ? reg : noReg} asi={asi} onAsi={setAsi} />;
   const tuTitle = tuTitleOf(myName || "Tú", phase, meLine);
   const placeHead = (title: string, sub: string) => (
@@ -519,7 +639,8 @@ export function HomePage() {
           <Ico id="collapse" />
           Cerrar
         </button>
-      ) : (
+      ) : id === "temporada" ? null : (
+        // (the boards: Temporada opens from its own «Ver la tabla entera» and the shelf, no «Abrir» of its own)
         <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" onClick={() => go(id)} aria-label={`Abrir ${title.toLocaleLowerCase("es")}`}>
           <Ico id="expand" />
           Abrir
@@ -531,9 +652,10 @@ export function HomePage() {
   const busy = loading;
   const panelId = shelfPanelId("inicio", place);
   return (
-    <div className={`vx vi vi--${place}${cockpit ? " vi--cockpit" : ""}${plays.open ? " vi--grown" : ""}`} data-phase={phase} aria-busy={busy}>
+    <div className={`vx vi vi--${place}${cockpit ? " vi--cockpit" : ""}${plays.open || tabla.open || goles.open ? " vi--grown" : ""}${plays.open ? " vi--grown-plays" : ""}`} data-phase={phase} aria-busy={busy}>
       <VidrioSky light={skyLight} floodlit={light.floodlit} reduced={reduced} gold={goal.sky.gold} cold={goal.sky.cold} weather={weather ? (weather.rain && weather.rain >= 50 ? "lluvia" : (weather.cloud ?? 0) >= 60 ? "nubes" : "despejado") : undefined} />
-      <CelesteHeader active="inicio" sub="Inicio" actions={<ThemeToggle />} />
+      <CelesteHeader active="inicio" sub="Manchester Piti" actions={<ThemeToggle />} />
+      {(plays.open || tabla.open || goles.open) && <FloatAway />}
       <div className="vi-stage" ref={stageRef} id="contenido" tabIndex={-1}>
         {lens}
         <div className="vi-stage__shelf">
@@ -560,7 +682,7 @@ export function HomePage() {
                   <section className={`vd-glass vd-window vi-window${focus === "tu" ? " is-max" : focus === "club" ? " is-min" : ""}`} aria-label="Tú">
                     {zoneHead("Tú", hints.tu ?? "", "tu")}
                     <div className="vi-zbody">
-                      <Tu t={tu} jornadaOf={jornadaOf} now={now} porraLine={porraLine} variant={focus === "tu" ? "full" : focus === "club" ? "min" : "sum"} onOpen={() => go("tu")} />
+                      <Tu t={tuView} jornadaOf={jornadaOf} now={now} porraLine={porraLine} variant={focus === "tu" ? "full" : focus === "club" ? "min" : "sum"} onOpen={() => go("tu")} />
                     </div>
                   </section>
                 )}
@@ -583,11 +705,21 @@ export function HomePage() {
           ) : (
             <div className="vi-place">
               {placeHead(tuTitle, "Lo tuyo en el Piti, sin buscarlo.")}
-              <Tu t={tu} jornadaOf={jornadaOf} now={now} porraLine={porraLine} variant="full" region={reg} />
+              <Tu t={tuView} jornadaOf={jornadaOf} now={now} porraLine={porraLine} variant="full" region={reg} />
             </div>
           )}
         </main>
       </div>
+      {cartelOpen && m && (
+        <Suspense fallback={null}>
+          <CartelShare
+            match={m}
+            segment={strip.segments.find((s) => s.id === m.id) ?? null}
+            ctx={{ jornada: day.jornada, seasonName, nameOf: niceOf, now, mvp: winner?.names.length === 1 ? winner.names[0] : null }}
+            onClose={() => setCartelOpen(false)}
+          />
+        </Suspense>
+      )}
       <CelesteFooter />
       <CelesteDock active="inicio" />
       <PipWindow pip={pip} title={`Manchester Piti contra ${m?.rival ?? "el rival"}`} onClose={() => setPip(null)}>

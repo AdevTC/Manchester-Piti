@@ -12,7 +12,8 @@ import { balanceOf } from "../../../lib/derived/caja";
 import { cajaOpen, howToPayText, myBalanceText } from "../../../lib/derived/cajaMember";
 import { isPollOpen } from "../../../lib/derived/polls";
 import { achievements, nextToChase } from "../../../lib/derived/achievements";
-import { relativeTime, type Notice } from "../../../lib/derived/notices";
+import { relativeTime, toMillis, unreadCount, type Notice } from "../../../lib/derived/notices";
+import { useAuth } from "../../../context/AuthContext";
 import { nameFor } from "../../../lib/clubData";
 import { useMatchTurns } from "../../../lib/useRotaTurns";
 import { useAvailability, useCaja, useMvpResults, useMyMvpVote, useMyPrediction, useNotices, usePollVotes, usePolls } from "../../vestuario/live";
@@ -30,6 +31,8 @@ export interface TuData {
   porra: { gf: number; ga: number } | null;
   logro: { label: string; text: string; pct: number } | null;
   notices: { id: string; title: string; when: string; url: string }[];
+  /** Notices newer than his last look at the bell (users/{uid}.noticesSeenAt). */
+  unread: number;
   /** His MVP vote while it is open (null: none yet). */
   mvpVote: string | null;
   pending: number;
@@ -91,6 +94,7 @@ export function useTu(i: TuInput): TuData & { answers: ReturnType<typeof useAvai
   const votes = usePollVotes(open?.id);
   const notices = useNotices(enabled ? uid : undefined, i.admin);
   const mvpResults = useMvpResults();
+  const { profile } = useAuth();
 
   const owes = !!i.playerId && cajaOpen(caja.settings, caja.movs) && balanceOf(caja.movs, i.playerId) < 0;
   const logro = useMemo(() => {
@@ -112,6 +116,7 @@ export function useTu(i: TuInput): TuData & { answers: ReturnType<typeof useAvai
     porra: prediction.data ? { gf: prediction.data.goalsFor, ga: prediction.data.goalsAgainst } : null,
     logro,
     notices: enabled ? notices.data.slice(0, 2).map((n: Notice) => ({ id: n.id, title: n.title, when: relativeTime(n.at, now), url: n.url })) : [],
+    unread: enabled ? unreadCount(notices.data, toMillis(profile?.noticesSeenAt)) : 0,
     mvpVote: myVote || null,
     pending: 0,
   };

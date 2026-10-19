@@ -20,6 +20,10 @@ export interface HoyLensProps {
   goal: GoalClasses;
   /** Whose goal the digit roll is for (the digit that changed). */
   rollSide?: "us" | "them";
+  /** The status line during a goal moment («¡Gol de Adrián T.C.!», then «Adrián T.C., minuto 21»). */
+  goalStatus?: string | null;
+  /** The score as a button that plays the last goal again (live; never with reduced motion). */
+  onReplay?: () => void;
   className?: string;
 }
 
@@ -52,10 +56,21 @@ function SunStrip({ sun }: { sun: SunRibbon }) {
   );
 }
 
-export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinute, sun, goal, rollSide = "us", className }: HoyLensProps) {
+export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinute, sun, goal, rollSide = "us", goalStatus, onReplay, className }: HoyLensProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   useLiveDock(ref, "lens");
-  const status = face.status;
+  const status = goalStatus ? { live: face.status.live, clock: null, text: goalStatus } : face.status;
+  const digits = (
+    <>
+      <span className={`vd-digit${rollSide === "us" && goal.digit ? ` ${goal.digit}` : ""}`} aria-hidden="true">
+        {face.gf}
+      </span>
+      <span className="vd-scoreline__sep" aria-hidden="true" />
+      <span className={`vd-digit${rollSide === "them" && goal.digit ? ` ${goal.digit}` : ""}`} aria-hidden="true">
+        {face.ga}
+      </span>
+    </>
+  );
   return (
     <div ref={ref} className={`vi-lensbox${goal.root ? ` ${goal.root}` : ""}${className ? ` ${className}` : ""}`}>
       <Lens as="section" aria-label="El partido" className={`vi-lens${goal.rim ? " vd-rim-gold" : ""}`} goal={[goal.lens, goal.glint].filter(Boolean).join(" ")} refract={{ bezel: 36, strength: 1.35, blur: 8 }}>
@@ -69,15 +84,13 @@ export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinu
             </b>
             {rival && <span>{home ? "En casa" : "Fuera"}</span>}
           </div>
-          {face.mode === "score" ? (
+          {face.mode === "score" && onReplay ? (
+            <button type="button" className="vd-scoreline vd-score vi-score vi-scorebtn" aria-label={`${face.label} Repetir el gol`} onClick={onReplay}>
+              {digits}
+            </button>
+          ) : face.mode === "score" ? (
             <p className="vd-scoreline vd-score vi-score" role="img" aria-label={face.label}>
-              <span className={`vd-digit${rollSide === "us" && goal.digit ? ` ${goal.digit}` : ""}`} aria-hidden="true">
-                {face.gf}
-              </span>
-              <span className="vd-scoreline__sep" aria-hidden="true" />
-              <span className={`vd-digit${rollSide === "them" && goal.digit ? ` ${goal.digit}` : ""}`} aria-hidden="true">
-                {face.ga}
-              </span>
+              {digits}
             </p>
           ) : face.mode === "time" ? (
             <p className="vi-count" role="img" aria-label={face.label}>

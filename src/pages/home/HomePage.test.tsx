@@ -12,6 +12,8 @@ const state = vi.hoisted(() => ({
   matches: [] as ClubMatch[],
   now: 0,
   viewer: { member: false, admin: false, playerId: null as string | null },
+  loading: false,
+  scorers: [] as string[],
 }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, className, to, params, ...rest }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; "aria-label"?: string }) => (
@@ -20,7 +22,7 @@ vi.mock("@tanstack/react-router", () => ({
     </a>
   ),
 }));
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: state.matches, players: PLAYERS, loading: false, error: null }) }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: state.loading ? [] : state.matches, players: PLAYERS, loading: state.loading, error: null }) }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }] }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null, loading: false }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false, ready: true }) }));
@@ -50,7 +52,7 @@ vi.mock("../vestuario/live", () => {
   return {
     useAbsences: () => none,
     useAvailability: () => none,
-    useMatchScorers: () => none,
+    useMatchScorers: () => ({ data: state.scorers, loading: false, error: null }),
     useMyMvpVote: () => ({ data: "", loading: false, error: null }),
     useMyPrediction: () => ({ data: null, loading: false, error: null }),
     useMvpResults: () => new Map(),
@@ -77,6 +79,8 @@ const at = (phase: keyof typeof SCENES) => {
 
 beforeEach(() => {
   state.viewer = { member: false, admin: false, playerId: null };
+  state.loading = false;
+  state.scorers = [];
   window.history.replaceState(null, "", "/");
 });
 afterEach(() => window.history.replaceState(null, "", "/"));
@@ -113,8 +117,37 @@ describe("Inicio", () => {
     expect(html).toContain("Pendiente del acta");
     expect(html).not.toMatch(/Empate a cero|0–0|0⁠–⁠0|cerrando la mesa/);
     render(<HomePage />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Pendiente del acta");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Falta el acta del partido");
     expect(screen.getByRole("img", { name: /pendiente del acta/ })).toBeInTheDocument();
+  });
+
+  it("a goal already there when the matches load keeps its rim only: the goal moment never replays on load", () => {
+    at("directo1");
+    state.loading = true;
+    const { container, rerender } = render(<HomePage />);
+    state.loading = false;
+    rerender(<HomePage />);
+    expect(container.querySelector(".vd-goal")).toBeNull();
+    expect(screen.queryByText(/¡Gol de/)).toBeNull();
+    // the score replays it on demand
+    fireEvent.click(screen.getByRole("button", { name: /Repetir el gol/ }));
+    expect(screen.getByText("¡Gol de Adrián T.C.!")).toBeInTheDocument();
+  });
+
+  it("the anotador opens la mesa from Hoy, first of the actions", () => {
+    at("antes");
+    state.viewer = { member: true, admin: false, playerId: "huberoski" };
+    state.scorers = ["u1"];
+    render(<HomePage />);
+    const first = screen.getByRole("link", { name: "Abrir la mesa" });
+    expect(first).toHaveAttribute("href", "/matches/j1/mesa");
+  });
+
+  it("«Avisarme del pitido» stays where this browser can't take notices, and says why", () => {
+    at("antes");
+    render(<HomePage />);
+    fireEvent.click(screen.getByRole("button", { name: /Avisarme del pitido/ }));
+    expect(screen.getByRole("status")).toHaveTextContent(/no admite avisos/);
   });
 
   it("live: the lens's ribbon, the plays with «Abrir el partido», el siete on the pitch", () => {
