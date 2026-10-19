@@ -89,3 +89,20 @@ body:has(.vd-livesheet) .vd-float__hint{opacity:0}
 @media (prefers-reduced-transparency:reduce){
   .vd-livesheet,.vd-livelog{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--vd-solid)}
 }
+
+/* the score's own window (PipScore): the light field behind, crest · score · rival, the line and the last play */
+.vd-pip__fav{width:18px;height:18px;border-radius:50%;flex:none}
+.vd-pipscr{position:relative;isolation:isolate;flex:1;align-self:stretch;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:10px 18px;overflow:hidden}
+.vd-pipscr>.vd-pipscr__sky{z-index:-1}
+.vd-pipscore{position:relative;display:flex;align-items:center;gap:12px;flex:none}
+.vd-pipscore__crest{width:clamp(28px,26cqh,54px);height:clamp(28px,26cqh,54px);border-radius:50%;flex:none}
+.vd-pipscore__or{width:clamp(28px,26cqh,54px)!important;height:clamp(28px,26cqh,54px)!important;font-size:clamp(11px,8cqh,16px)!important}
+.vd-pipscore__num{font-size:clamp(34px,32cqh,96px);color:var(--vd-g-ink)}
+.vd-pipscore .vd-wave{width:140%}
+.vd-pipscr.is-fx--us .vd-wave{animation:vd-wave 1.5s .2s cubic-bezier(.15,.7,.3,1) both}
+.vd-pipscr.is-fx--us .vd-wave--2{animation-delay:.46s}
+.vd-pipscr p{margin:6px 0 0;font-size:13.5px;color:var(--vd-g-ink2);line-height:1.35;min-width:0}
+.vd-pipscr p b{display:block;color:var(--vd-g-ink);font-weight:680;font-size:15.5px;font-variation-settings:'wdth' 94}
+.vd-pipscr p span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vd-pip__body--doc .vd-pipscr{position:fixed;inset:0}
+@media (prefers-reduced-motion:reduce){.vd-pipscr .vd-wave{display:none}}

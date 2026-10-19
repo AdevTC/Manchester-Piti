@@ -2,7 +2,7 @@
 // (SearchDialog: the data and the results) loads only when it is first wanted; focus goes back to wherever it
 // was when the search opened.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Icon } from "./icons";
+import { VIcon } from "../vidrio/VIcon";
 import { isSearchShortcut } from "./searchShortcut";
 import "./search.css";
 
@@ -81,7 +81,8 @@ export function SearchLauncher() {
         ref={button}
         type="button"
         className="sr-btn"
-        aria-label="Buscar"
+        aria-label={`Buscar (${mac ? "⌘K" : "Ctrl K"})`}
+        title={`Buscar (${mac ? "⌘K" : "Ctrl K"})`}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-keyshortcuts={mac ? "Meta+K /" : "Control+K /"}
@@ -89,13 +90,7 @@ export function SearchLauncher() {
         onPointerEnter={() => void loadDialog().catch(() => undefined)}
         onFocus={() => void loadDialog().catch(() => undefined)}
       >
-        <Icon name="search" size={18} stroke={2.2} />
-        <span className="sr-btn-t" aria-hidden="true">
-          Buscar
-        </span>
-        <kbd className="sr-btn-k" aria-hidden="true">
-          {mac ? "⌘K" : "Ctrl K"}
-        </kbd>
+        <VIcon name="search" size={20} />
       </button>
       {/* (one polite region, there from the start: a failed opening is announced once, and shown under the button) */}
       <span className={failed ? "sr-fail" : "sr-hide"} role="status">

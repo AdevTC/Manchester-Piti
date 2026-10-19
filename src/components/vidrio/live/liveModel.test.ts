@@ -4,7 +4,7 @@ import type { MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../../lib/clubData";
 import type { MatchMoment } from "../../../lib/derived/moments";
 import { playsLog } from "../../../lib/derived/vidrio/plays";
-import { clockText, dropEvent, floatHome, floatOf, hideMark, moreText, onFieldNames, pageKey, sheetOf } from "./liveModel";
+import { clockText, dayStateOf, dropEvent, floatHome, floatOf, hideMark, moreText, onFieldNames, pageKey, rivalInitials, sheetOf, turnEvent } from "./liveModel";
 
 const MIN = 60_000;
 // 8 Nov 2026, 12:00 in Madrid
@@ -52,7 +52,11 @@ describe("the floating score's match", () => {
     expect(dropEvent(m, rows)).toEqual({ title: "¡Gol de Adrián T.C.!", sub: expect.stringContaining("minuto 21") });
     const rival: MatchMoment = { id: "r0", kind: "golrival", ours: false, minute: 11, title: "GOL · ORDUÑA FC", sub: "", said: "" };
     expect(dropEvent(rival, rows)?.title).toBe("Gol de Orduña fc");
-    expect(dropEvent({ ...m, id: "j1:arranque", kind: "arranque", minute: 0 }, rows)).toEqual({ title: "Empieza el partido", sub: "" });
+    expect(dropEvent({ ...m, id: "j1:arranque", kind: "arranque", minute: 0 }, rows)).toEqual({ title: "Empieza el partido", sub: "El siete, en el campo" });
+    // the turns of the clock unfold too (the board: «Descanso · 2–1 en la primera parte», «Final · Ganamos 3–1»)
+    expect(dropEvent({ ...m, id: "j1:descanso", kind: "descanso" }, rows, live)).toEqual({ title: "Descanso", sub: "2–1 en la primera parte" });
+    expect(dropEvent({ ...m, id: "j1:final", kind: "final" }, rows, live)).toEqual({ title: "Final", sub: "Ganamos 2–1" });
+    expect(dropEvent({ ...m, id: "j1:reanudacion", kind: "reanudacion" }, rows, live)?.sub).toBe("Quedan 25 minutos");
     expect(dropEvent({ ...m, id: "j1:descanso", kind: "descanso" }, rows)).toBeNull();
     expect(dropEvent(null, rows)).toBeNull();
   });
@@ -67,7 +71,7 @@ describe("the sheet", () => {
   });
 
   it("«¿Vas hoy?», «Hoy anotas tú», the vote: each its own action", () => {
-    expect(sheetOf({ state: { kind: "rsvp", match: base }, now: DATE - 30 * MIN, nameOf, counts: { vienen: 6, duda: 1 } })).toMatchObject({ rsvp: true, note: "Vienen 6 · 1 en duda." });
+    expect(sheetOf({ state: { kind: "rsvp", match: base }, now: DATE - 30 * MIN, nameOf, counts: { vienen: 6, duda: 1, no: 0, squad: 16 } })).toMatchObject({ rsvp: true, note: "Hasta las 12:00 · 6 vienen · 1 en duda · 0 no pueden · 9 sin contestar." });
     expect(sheetOf({ state: { kind: "anotador", match: base }, now: DATE - 30 * MIN, nameOf }).action).toEqual({ kind: "mesa", label: "Abrir la mesa" });
     const vote = sheetOf({ state: { kind: "vote", match: { ...live, voteClosesAt: DATE + 2 * 24 * 60 * MIN } }, now: DATE + 2 * 60 * MIN, nameOf });
     expect(vote).toMatchObject({ action: { kind: "votar", label: "Votar al mejor" }, open: "Abrir el acta", hide: "Ocultar el aviso de votar al MVP" });
@@ -115,5 +119,41 @@ describe("small rules", () => {
     expect(floatHome("/")).toBe("centre");
     for (const p of ["/partidos", "/matches/j3", "/profile"]) expect(floatHome(p)).toBe("bottom-right");
     for (const p of ["/stats", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("right");
+  });
+});
+
+describe("the rest of the match day (V-Vivo: the score stays until tomorrow)", () => {
+  const fin: ClubMatch = { ...live, clock: ended, status: "finished", goalsFor: 2, goalsAgainst: 1, voteClosesAt: KICK + 48 * 60 * MIN };
+  it("after the whistle the result stays for the rest of the match day, for everyone: «Final» → «Acta lista»", () => {
+    const at = KICK + 60 * MIN;
+    expect(dayStateOf({ matches: [{ ...fin, status: "scheduled" }], now: at + 2 * 60 * MIN, voteOpen: false })).toMatchObject({ kind: "final", published: false });
+    expect(dayStateOf({ matches: [fin], now: at + 5 * 60 * MIN, voteOpen: false })).toMatchObject({ kind: "final", published: true });
+    // a member who hasn't voted gets the vote first
+    expect(dayStateOf({ matches: [fin], now: at + 5 * 60 * MIN, voteOpen: true })?.kind).toBe("vote");
+    // the next day: nothing (the vote is still open, but this viewer can't vote)
+    expect(dayStateOf({ matches: [fin], now: at + 14 * 60 * MIN, voteOpen: false })).toBeNull();
+    // a fan reads that the socios vote
+    expect(sheetOf({ state: { kind: "final", match: fin, published: true }, now: at + 60 * MIN, nameOf, fan: true }).note).toBe("El resumen y las notas, en la ficha. Votan los socios hasta el martes.");
+  });
+  it("«MVP: Alcides» for a day after the vote closes, with the winner", () => {
+    const closed = fin.voteClosesAt ?? 0;
+    const s = dayStateOf({ matches: [fin], now: closed + 60 * MIN, voteOpen: false, winnerOf: () => "Alcides" });
+    expect(s).toMatchObject({ kind: "mvpres", winner: "Alcides" });
+    expect(s && floatOf({ state: s, now: closed + 60 * MIN })).toMatchObject({ state: "mvpres", winner: "Alcides" });
+    expect(s && turnEvent(s, closed + 60 * MIN)).toEqual({ title: "Alcides, MVP", sub: "Lo han elegido los socios" });
+    expect(dayStateOf({ matches: [fin], now: closed + 25 * 60 * MIN, voteOpen: false, winnerOf: () => "Alcides" })).toBeNull();
+    expect(dayStateOf({ matches: [fin], now: closed + 60 * MIN, voteOpen: false, winnerOf: () => null })).toBeNull();
+  });
+  it("the previa from 08:00 on the match day, or as soon as the seven is out", () => {
+    const evening: ClubMatch = { ...base, date: Date.UTC(2026, 10, 8, 18), starters: [] };
+    expect(dayStateOf({ matches: [evening], now: Date.UTC(2026, 10, 8, 6), voteOpen: false })).toBeNull();
+    expect(dayStateOf({ matches: [evening], now: Date.UTC(2026, 10, 8, 7, 30), voteOpen: false })?.kind).toBe("previa");
+    expect(dayStateOf({ matches: [{ ...evening, starters: ["a"] }], now: Date.UTC(2026, 10, 8, 5), voteOpen: false })?.kind).toBe("previa");
+  });
+  it("the anotador goes back to la mesa while it is on; the acta and the vote unfold the drop", () => {
+    expect(sheetOf({ state: { kind: "live", match: live }, now: KICK + 22 * MIN, nameOf, anotador: true }).action).toEqual({ kind: "mesa", label: "Volver a la mesa" });
+    expect(turnEvent({ kind: "final", match: fin, published: true }, KICK)).toEqual({ title: "Ya está el acta", sub: "Goles, notas y logros" });
+    expect(turnEvent({ kind: "vote", match: fin }, KICK)?.title).toBe("Vota al MVP");
+    expect(rivalInitials("Orduña fc")).toBe("OR");
   });
 });

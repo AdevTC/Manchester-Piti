@@ -6,6 +6,7 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { PlayRow } from "../../../lib/derived/vidrio/plays";
 import { SeeAll } from "../SeeAll";
+import { VIcon, type VIconName } from "../VIcon";
 import { moreText, SHEET_PLAYS, type SheetModel } from "./liveModel";
 
 export type RsvpAnswer = "yes" | "maybe" | "no";
@@ -15,23 +16,16 @@ const ANSWERS: { a: RsvpAnswer; label: string }[] = [
   { a: "no", label: "No voy" },
 ];
 
-export function PlayGlyph({ row }: { row: Pick<PlayRow, "kind" | "card"> }) {
+/** The board's glyph per kind of play: the ball, the post, the glove, the card, the swap, the whistle. */
+const GLYPH_OF: Partial<Record<string, VIconName>> = { ball: "ball", palo: "post", parada: "glove", cambio: "swap", ocasion: "flag", penalti: "ball", corner: "flag", offside: "flag", faltaH: "whistle", faltaR: "whistle", tocado: "away" };
+
+export function PlayGlyph({ row }: { row: Pick<PlayRow, "kind" | "card"> & { glyph?: string } }) {
   if (row.card) return <span className={`vd-glyph${row.card === "r" ? " vd-glyph--roja" : ""}`} aria-hidden="true"><i /></span>;
-  if (row.kind === "gol")
+  const icon: VIconName | undefined = row.kind === "gol" ? "ball" : row.kind === "cambio" ? "swap" : GLYPH_OF[row.glyph ?? ""];
+  if (icon)
     return (
-      <span className="vd-glyph vd-glyph--gol" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
-          <path d="M12 7.5l4 2.9-1.5 4.7h-5L8 10.4z" fill="currentColor" />
-        </svg>
-      </span>
-    );
-  if (row.kind === "cambio")
-    return (
-      <span className="vd-glyph" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <path d="M7 4v14M7 18l-3-3M7 18l3-3M17 20V6M17 6l-3 3M17 6l3 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+      <span className={`vd-glyph${row.kind === "gol" ? " vd-glyph--gol" : ""}`} aria-hidden="true">
+        <VIcon name={icon} size={18} />
       </span>
     );
   return <span className="vd-glyph vd-glyph--dot" aria-hidden="true"><i /></span>;
@@ -77,6 +71,10 @@ export interface LiveSheetProps {
   onAnswer?: (a: RsvpAnswer) => void;
   /** A connection note («Reconectando…»). */
   sync?: string;
+  /** Offline: the sheet frosts like the drop and says how old it is. */
+  frost?: boolean;
+  /** Phone: «Avisarme de goles» (null: push isn't available here). */
+  goals?: { on: boolean; busy: boolean; toggle: () => void } | null;
   /** Navigating with the View Transition (not under reduced motion). */
   transition?: boolean;
   children?: ReactNode;
@@ -89,7 +87,7 @@ const crossIcon = (
 );
 
 export function LiveSheet(props: LiveSheetProps) {
-  const { model, rival, matchId, rows, phone, style, up, vtName, growProps, onMore, onClose, onHide, onPip, pipOn, mine, onAnswer, sync, transition = true } = props;
+  const { model, rival, matchId, rows, phone, style, up, vtName, growProps, onMore, onClose, onHide, onPip, pipOn, mine, onAnswer, sync, frost, goals, transition = true } = props;
   const ref = useRef<HTMLDivElement | null>(null);
   const close = useRef<HTMLButtonElement | null>(null);
   // (the latest onClose, for the listener set up once per opening)
@@ -118,7 +116,7 @@ export function LiveSheet(props: LiveSheetProps) {
   const shown = rows.slice(0, SHEET_PLAYS);
   const more = rows.length - shown.length;
   const pick = ANSWERS.findIndex((x) => x.a === mine);
-  const cls = `vd-glass vd-glass--deep vd-livesheet${phone ? " vd-livesheet--phone" : ""}${up && !phone ? " vd-livesheet--up" : ""}${vtName ? " vd-morph" : ""}`;
+  const cls = `vd-glass vd-glass--deep vd-livesheet${phone ? " vd-livesheet--phone" : ""}${up && !phone ? " vd-livesheet--up" : ""}${vtName ? " vd-morph" : ""}${frost ? " vd-glass--frost" : ""}`;
   return (
     <div
       ref={ref}
@@ -189,11 +187,14 @@ export function LiveSheet(props: LiveSheetProps) {
         </Link>
         {onPip && (
           <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" aria-pressed={!!pipOn} onClick={onPip}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="3" y="4.5" width="18" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2" />
-              <rect x="11.5" y="11.5" width="7" height="5.5" rx="1.5" fill="currentColor" />
-            </svg>
-            Sacar el marcador
+            <VIcon name="pip" size={16} />
+            {pipOn ? "Traer el marcador" : "Sacar el marcador"}
+          </button>
+        )}
+        {!onPip && goals && (
+          <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" aria-pressed={goals.on} disabled={goals.busy} onClick={goals.toggle}>
+            <VIcon name={goals.on ? "check" : "bell"} size={16} />
+            {goals.on ? "Te avisamos de los goles" : "Avisarme de goles"}
           </button>
         )}
       </div>
