@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { matchdayOf, type MatchdayPhase } from "../../lib/derived/matchday";
-import { boardFace, boardMessage, figuresOf, heroCopy, matchViewAt, niceName, projectStandings, snapsOf, type CopyCtx } from "./inicioModel";
-import { HOUR, KO, MIN, SCENES, SEVEN, nameOf } from "./inicio.fixtures";
+import { heroCopy, matchViewAt, niceName, type CopyCtx } from "./inicioModel";
+import { HOUR, KO, MIN, SCENES, nameOf } from "./inicio.fixtures";
 
 const nice = (id: string) => niceName(nameOf(id));
 function scene(phase: keyof typeof SCENES, opts: Partial<CopyCtx> = {}, scrub: number | null = null) {
@@ -58,14 +58,10 @@ describe("the headline, phase by phase (data-driven)", () => {
     expect(c.sub).toBe("21′, gol de Adrián T.C., asistencia de Jordi.");
   });
 
-  it("pendiente: a clock nobody started says no score anywhere (no «Empate a cero», no figures, no «la está cerrando la mesa»)", () => {
-    const { day, view, ctx } = scene("pendiente");
-    const c = heroCopy(ctx);
+  it("pendiente: a clock nobody started says no score anywhere (no «Empate a cero», no «la está cerrando la mesa»)", () => {
+    const c = heroCopy(scene("pendiente").ctx);
     expect(c).toMatchObject({ kick: "Jornada 1, ante Orduña fc", h1: "Pendiente del acta", live: false });
     expect(c.sub).not.toMatch(/\d|cerrando/);
-    expect(boardFace(day, view, SCENES.pendiente.now)).toMatchObject({ h: "–", a: "–", k: "Acta", c: "pendiente" });
-    expect(boardMessage(ctx)).toEqual({ text: "Pendiente del acta", kind: "navy" });
-    expect(figuresOf({ day, view, seven: SEVEN, nameOf, numOf: () => "", me: null, goalBy: null, mvpId: null })).toEqual([]);
   });
 
   it("a name that ends in its own full stop gets no second one («Adrián T.C.», never «T.C..»)", () => {
@@ -76,24 +72,7 @@ describe("the headline, phase by phase (data-driven)", () => {
   });
 });
 
-describe("the club scoreboard", () => {
-  it("counts down before, shows the minute live, «Final» and «acta lista» after, the next one in después", () => {
-    expect(boardFace(scene("antes").day, scene("antes").view, SCENES.antes.now)).toMatchObject({ home: "PITI", away: "ORD", h: "–", a: "–", k: "Faltan", c: "2:00:00" });
-    expect(boardFace(scene("antes").day, scene("antes").view, SCENES.antes.now).label).toMatch(/faltan 2 h y 0 min/);
-    expect(boardFace(scene("pitido").day, scene("pitido").view, SCENES.pitido.now)).toMatchObject({ h: "0", a: "0", k: "Pendiente" });
-    expect(boardFace(scene("directo1").day, scene("directo1").view, SCENES.directo1.now)).toMatchObject({ h: "2", a: "1", k: "1ª parte", c: "23′" });
-    expect(boardFace(scene("final").day, scene("final").view, SCENES.final.now)).toMatchObject({ h: "3", a: "1", k: "Final" });
-    expect(boardFace(scene("acta").day, scene("acta").view, SCENES.acta.now)).toMatchObject({ h: "3", a: "1", c: "acta lista" });
-    expect(boardFace(scene("despues").day, scene("despues").view, SCENES.despues.now)).toMatchObject({ away: "PIT", k: "J2, domingo", c: "14:00" });
-  });
-
-  it("the boards' message: gold for our goal, the rival's colours for theirs", () => {
-    expect(boardMessage(scene("directo1").ctx)).toEqual({ text: `Gol de Adrián T.C.: ${S(2, 1)}`, kind: "gold" });
-    expect(boardMessage(scene("antes").ctx)).toEqual({ text: "El siete ya está en el césped", kind: "navy" });
-  });
-});
-
-describe("«Arrastra el sol»: the match at any minute", () => {
+describe("the match at a minute", () => {
   const { day } = scene("final");
   it("scrubbed to the 11th minute: 1–1 and the first half", () => {
     const v = matchViewAt(day, SCENES.final.now, KO + 11 * MIN);
@@ -108,38 +87,9 @@ describe("«Arrastra el sol»: the match at any minute", () => {
     const live = scene("directo1");
     expect(matchViewAt(live.day, live.now, live.now + HOUR)).toMatchObject({ phase: "directo1", gf: 2, ga: 1 });
   });
-  it("snaps at the whistle, half-time and the final, from the clock's stamps", () => {
-    const s = snapsOf(day.match!);
-    expect(s.pitido).toBeGreaterThan(KO);
-    expect(s.descanso).toBe(KO + 26 * MIN);
-    expect(s.final).toBe(KO + 61 * MIN);
-  });
 });
 
-describe("the pitch", () => {
-  it("the seven before the match, «tú» on the viewer; the huddle at half-time; the MVP alone after the vote", () => {
-    const a = scene("antes");
-    const seven = figuresOf({ day: a.day, view: a.view, seven: SEVEN, nameOf, numOf: () => "", me: "jordi", goalBy: null, mvpId: null });
-    expect(seven).toHaveLength(7);
-    expect(seven.find((f) => f.id === "jordi")?.tag).toBe("tu");
-    const d = scene("descanso");
-    expect(figuresOf({ day: d.day, view: d.view, seven: SEVEN, nameOf, numOf: () => "", me: null, goalBy: null, mvpId: null }).every((f) => f.huddle)).toBe(true);
-    const z = scene("despues");
-    expect(figuresOf({ day: z.day, view: z.view, seven: SEVEN, nameOf, numOf: () => "", me: null, goalBy: null, mvpId: "alcides" })).toEqual([expect.objectContaining({ id: "alcides", tag: "mvp" })]);
-  });
-});
-
-describe("the season", () => {
-  it("«Si acaba así»: the live score moves us and the rival", () => {
-    const rows = [
-      { team: "Entrepibas F.C.", pj: 0, gf: 0, gc: 0, pts: 0, isUs: false },
-      { team: "Manchester Piti", pj: 0, gf: 0, gc: 0, pts: 0, isUs: true },
-      { team: "Orduña FC", pj: 0, gf: 0, gc: 0, pts: 0, isUs: false },
-    ];
-    const t = projectStandings(rows, { rival: "Orduña fc", gf: 2, ga: 1 });
-    expect(t[0]).toMatchObject({ team: "Manchester Piti", pts: 3, projected: true, us: true });
-    expect(t.at(-1)).toMatchObject({ team: "Orduña FC", pts: 0, projected: true });
-  });
+describe("names", () => {
   it("names in capitals read as names", () => {
     expect(niceName("ADRIÁN T.C.")).toBe("Adrián T.C.");
     expect(niceName("Jordi")).toBe("Jordi");

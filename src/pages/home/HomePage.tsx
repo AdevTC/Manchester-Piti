@@ -1,76 +1,105 @@
-// Inicio, «La luz del partido»: CDM Palomeras under the real light, with the match day told phase by phase
-// (lib/derived/matchday) for each kind of visitor. The server renders it from the public data bundle (the CSS
-// sky, the headline, the scoreboard, the season); the member layer («Tu partido», the «tú» on the pitch, the
-// role-specific words) appears client side once the viewer is known (useHydrated + useViewer), as a lazy chunk.
-import { lazy, Suspense, useState, useSyncExternalStore, type CSSProperties } from "react";
+// Inicio, «Vidrio»: four places on the light field of Palomeras — Hoy (the lens with the match, el siete on a
+// glass pitch, the plays, the headline), Temporada (the table in focus, the form, the scorers, every jornada
+// with its light), Club (what happens off the pitch, «Ponte la del Piti», the calendar) and Tú (only for a
+// jugador: what waits on him). A glass shelf moves between them (#temporada in the URL); 1440 shows one stage
+// per place, 1920 a cockpit with the three zones always in sight, phone and tablet the lens on top and the
+// chosen place below. The server paints Hoy from the public data bundle; whatever is a member's appears once
+// the viewer is known (useHydrated + useViewer). The live overlay is the live system's: the lens only declares
+// itself (useLiveDock), «Sacar el marcador» opens the kit's score window.
+import { useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 import { useSeason } from "../../context/SeasonContext";
-import { useAuth } from "../../context/AuthContext";
-import { useTeam } from "../../context/TeamContext";
-import { dateMillis, nameFor, nextFixture, playerForSeason, playerName, useClubData, type ClubMatch } from "../../lib/clubData";
+import { nameFor, nextFixture, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
 import { useClubContent } from "../../lib/clubContent";
 import { useMatchClock } from "../../hooks/useMatchClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { useViewer } from "../../hooks/useViewer";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
-import { useMatchMoment } from "../../components/celeste/isla/useMatchMoment";
-import { useReducedMotion } from "../../components/celeste/isla/media";
-import { lightingOf, mix, SPONSORS, type PalomerasState } from "../../components/palomeras3d";
-import { clubMedals, leaders, playerLines, seasonPulse, upcomingBirthdays, type SquadMember } from "../../lib/home";
-import { currentSeasonId, mvpWinners } from "../../lib/vestuario";
+import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+import { AddToCalendar } from "../../components/celeste/AddToCalendar";
+import { PipWindow, Shelf, VidrioSky, openScorePip, region, shelfPanelId, shelfTabId, skyAt, swap, travel, useGoalMoment, useGrow, useLightPointer, useMedia, useReducedMotion, type ScorePip } from "../../components/vidrio";
+import { clubMedals, matchEvent, playerLines, seasonPulse, upcomingBirthdays, type SquadMember } from "../../lib/home";
+import { currentSeasonId } from "../../lib/vestuario";
 import { useStandings } from "../../lib/useStandings";
 import { useMatchWeather } from "../../lib/weather";
-import { useSyncStatus } from "../../lib/syncStatus";
-import { syncChip } from "../../lib/derived/syncChip";
-import { serverOffset } from "../../lib/serverTime";
 import { matchdayOf, viewerRoleOf } from "../../lib/derived/matchday";
-import { lightOf, sunPosition } from "../../lib/derived/sun";
-import { frontRowOf } from "../../lib/derived/frontRow";
 import { campoSeven } from "../../lib/derived/campoSeven";
 import { mvpVoteOpen } from "../../lib/derived/memberWindows";
 import { absenceOn, madridDate, matchDay } from "../../lib/derived/absences";
-import { jornadaOf } from "../../lib/derived/jornada";
+import { jornadaOf as jornadaOfMatch } from "../../lib/derived/jornada";
 import { formatDate } from "../../lib/clubData";
 import { lineupSeven, parseMatchLineup } from "../../lib/matchLineup";
-import { useAbsences, useAvailability, useMatchRatings, useMatchReactions, useMatchScorers, useMvpResults, useMyMvpVote } from "../vestuario/live";
-import { useMe } from "../vestuario/writes";
-import { InicioHero, type HeroPlay } from "./InicioHero";
-import { BoardsStrip, EnElClub, FanInvite, LoQueViene, PhaseBlock, Temporada, YoSkeleton } from "./InicioSections";
-import { PrimeraFila } from "../../components/celeste/primeraFila/PrimeraFila";
-import { PonteLaCamiseta } from "./PonteLaCamiseta";
+import { eventMetaOf, rivalCode, settled } from "../../lib/eventMeta";
+import { mapsUrl } from "../../lib/derived/venue";
+import { pushState, savedTopics, toggleTopic } from "../../lib/push";
+import { capital, endSentence } from "../../lib/derived/words";
+import { viewerKind } from "../../lib/derived/vidrio/viewer";
+import { placeHints } from "../../lib/derived/vidrio/hints";
+import { seasonStrip } from "../../lib/derived/vidrio/strip";
+import { projectTable } from "../../lib/derived/vidrio/table";
+import { seasonLeaders } from "../../lib/derived/vidrio/leaders";
+import { playsLog, type PlaysLog } from "../../lib/derived/vidrio/plays";
+import { usePolls, useAbsences, useMatchScorers } from "../vestuario/live";
+import { useMe, voteMvp } from "../vestuario/writes";
+import { andList, isLive, matchViewAt, niceName, weekday } from "./inicioModel";
 import {
-  boardFace,
-  boardMessage,
-  compactTable,
-  figuresOf,
-  floodlightsOf,
-  heroCopy,
-  isLive,
-  niceName,
-  playRow,
-  matchViewAt,
-  projectStandings,
-  scrubbable,
-  scrubToMs,
-  snapsOf,
-  trackFraction,
-  type CopyCtx,
-  type HeroCopy,
-} from "./inicioModel";
-import type { ScrubMark } from "./SunScrub";
-import { madridTime } from "../../lib/derived/madrid";
-import "../../styles/celeste/page.css";
+  PLACE_LABEL,
+  benchLineOf,
+  formaOf,
+  hasScore,
+  hoyCopy,
+  isAhead,
+  isOver,
+  lensFace,
+  meLineOf,
+  ornamentsOf,
+  placeFromHash,
+  placesFor,
+  ribbonItemsOf,
+  shortHint,
+  sieteOf,
+  sunRibbonOf,
+  tuTitleOf,
+  weatherLineOf,
+  type HoyCopy,
+  type PlaceId,
+} from "./hoyModel";
+import { HoyLens } from "./vidrio/HoyLens";
+import { HoyHead } from "./vidrio/HoyHead";
+import { SieteOrn } from "./vidrio/Siete";
+import { PlaysGrow, PlaysOrn } from "./vidrio/Plays";
+import { ConvoOrn, MvpOrn, PreviaOrn, VieneOrn } from "./vidrio/Ornaments";
+import { Temporada, TemporadaGrows, type TableRowV, type TemporadaData } from "./vidrio/Temporada";
+import { Club, type ClubData } from "./vidrio/Club";
+import { Tu } from "./vidrio/Tu";
+import { useTu } from "./vidrio/useTu";
+import { Ico } from "./vidrio/icons";
+import "../../styles/vidrio/content.css";
 import "../../styles/inicio.css";
-
-const TuPartido = lazy(() => import("./TuPartido").then((m) => ({ default: m.TuPartido })));
 
 const subscribeNothing = () => () => {};
 /** False on the server and while the browser takes over, true after (member data never renders on the server). */
 const useHydrated = (): boolean => useSyncExternalStore(subscribeNothing, () => true, () => false);
 
-const WAITING: HeroCopy = { kick: "", h1: "Manchester Piti", sub: "", live: false };
-const NO_DATA: HeroCopy = { kick: "Sin datos del partido", h1: "No llega el partido", sub: "Puede ser tu conexión o la nuestra. Mientras, esta es la luz de ahora en Palomeras.", live: false };
-const MATCH_PHASES = new Set(["pitido", "directo1", "descanso", "directo2", "final"]);
+const subscribeHash = (on: () => void) => {
+  window.addEventListener("hashchange", on);
+  return () => window.removeEventListener("hashchange", on);
+};
+/** The place's hash: the URL's when it names a place, else the last one that did (a hash that is no place,
+ *  like the skip link's «#contenido», keeps the place you were in). Empty on the server: it never reaches it,
+ *  so the server always paints Hoy. */
+let placeHash = "";
+const readPlaceHash = () => {
+  const h = window.location.hash;
+  if (!h || /^#(hoy|temporada|club|t[uú]|t%C3%BA)$/i.test(h)) placeHash = h;
+  return placeHash;
+};
+const useHash = (): string => useSyncExternalStore(subscribeHash, readPlaceHash, () => "");
+
+const WAITING: HoyCopy = { h1: "Manchester Piti", lede: "" };
+const NO_DATA: HoyCopy = { h1: "No llega el partido", lede: "Puede ser tu conexión o la nuestra. Mientras, esta es la luz de ahora en Palomeras." };
+const NOTHING: never[] = [];
+const EMPTY_LOG: PlaysLog = { rows: [], count: 0, counts: { gol: 0, tarjeta: 0, cambio: 0, ocasion: 0, parada: 0, otro: 0 }, halves: [] };
 
 export function HomePage() {
   const { matches, players, loading, error } = useClubData();
@@ -81,34 +110,40 @@ export function HomePage() {
   const viewer = useViewer();
   const hydrated = useHydrated();
   const member = hydrated && viewer.member;
-  const { user } = useAuth();
-  const { ready } = useTeam();
   const me = useMe();
-  const sync = useSyncStatus();
   const reduced = useReducedMotion();
-  const [scrub, setScrub] = useState<number | null>(null);
+  const cockpit = useMedia("(min-width: 1760px)");
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  useLightPointer(stageRef);
 
+  // ── the season, the squad, the names
   const seasonId = currentSeasonId(nextFixture(matches, now), matches, seasons);
-  const seasonName = seasons.find((s) => s.id === seasonId)?.name ?? "La temporada";
+  const season = seasons.find((s) => s.id === seasonId);
+  const seasonName = season?.name ?? "La temporada";
   const { standings } = useStandings(seasonId);
-
-  const squad: SquadMember[] = players
-    .filter((p) => p.seasons?.includes(seasonId))
-    .map((raw) => {
-      const p = playerForSeason(raw, seasonId, seasons);
-      return { id: p.id, name: playerName(p), num: p.number != null ? String(p.number) : "", birthDate: p.birthDate };
-    })
-    .sort((a, b) => Number(a.num || 999) - Number(b.num || 999) || a.name.localeCompare(b.name, "es"));
+  const squad: SquadMember[] = useMemo(
+    () =>
+      players
+        .filter((p) => p.seasons?.includes(seasonId))
+        .map((raw) => {
+          const p = playerForSeason(raw, seasonId, seasons);
+          return { id: p.id, name: nameFor(p, seasonId), num: p.number != null ? String(p.number) : "", birthDate: p.birthDate };
+        })
+        .sort((a, b) => Number(a.num || 999) - Number(b.num || 999) || a.name.localeCompare(b.name, "es")),
+    [players, seasonId, seasons],
+  );
   const pulse = seasonPulse(matches, seasonId, now);
   const lines = playerLines(squad, pulse.played);
   const nameOf = (id: string) => lines.find((l) => l.id === id)?.name ?? nameFor(players.find((p) => p.id === id), seasonId);
   /** The same name as a sentence reads it («Adrián T.C.», not the shirt's capitals). */
   const niceOf = (id: string) => niceName(nameOf(id));
   const numOf = (id: string) => lines.find((l) => l.id === id)?.num ?? "";
+  const jornadaOf = (id: string) => jornadaOfMatch(matches, id);
 
   // ── the day, the match and who is looking
   const day = matchdayOf(matches, seasonId, now);
   const m = day.match;
+  const phase = day.phase;
   const weather = useMatchWeather(m ?? undefined, now);
   const lineup = m ? parseMatchLineup((m as ClubMatch & { lineup?: unknown }).lineup) : null;
   const seven = lineup ? lineupSeven(lineup) : m ? campoSeven(m, null).field : [];
@@ -118,187 +153,447 @@ export function HomePage() {
   const kickoff = day.kickoff ?? NaN;
   const absence = member ? absenceOn(absences.data, { uid, playerId: viewer.playerId }, Number.isFinite(kickoff) ? matchDay(kickoff) : madridDate(now)) : null;
   const role = viewerRoleOf(m, { member, playerId: member ? viewer.playerId : null }, { scorer: !!uid && scorers.data.includes(uid), absentToday: !!absence, seven });
+  const mine = member && viewer.playerId ? squad.find((s) => s.id === viewer.playerId) : undefined;
+  const playerDoc = mine ? players.find((p) => p.id === mine.id) : undefined;
+  const kind = viewerKind(member ? viewer : null, playerDoc ? { id: playerDoc.id, archived: (playerDoc as { archived?: boolean }).archived } : null);
+  const fan = kind === "aficion";
 
-  // ── «Arrastra el sol»
-  const canScrub = !!m && scrubbable(day, now);
-  const view = matchViewAt(day, now, canScrub ? scrub : null);
-  const marks: ScrubMark[] = [];
-  if (m && canScrub) {
-    const s = snapsOf(m);
-    marks.push({ key: "pitido", label: `Pitido ${madridTime(dateMillis(m.date))}`, at: s.pitido }, { key: "descanso", label: "Descanso", at: s.descanso }, { key: "final", label: "Final", at: s.final });
-  }
-  const shownMarks = marks.filter((x) => trackFraction(x.at) > 0 && trackFraction(x.at) < 1);
+  // ── the place (#temporada in the URL; the server always paints Hoy)
+  const places = placesFor(kind);
+  const hash = useHash();
+  const place: PlaceId = placeFromHash(hash, places);
+  const focus: PlaceId = place;
+  const plays = useGrow("vi-grow-plays");
+  const tabla = useGrow("vi-grow-tabla");
+  const goles = useGrow("vi-grow-goles");
+  const go = (to: PlaceId) => {
+    // (a grown window goes back to its place first: a new place never opens with one grown)
+    if (plays.open) plays.close();
+    if (tabla.open) tabla.close();
+    if (goles.open) goles.close();
+    if (to === place) return;
+    const from = places.indexOf(place);
+    swap(travel(from, places.indexOf(to)), () => {
+      const url = to === "hoy" ? window.location.pathname + window.location.search : `#${to}`;
+      window.history.replaceState(window.history.state, "", url);
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+  };
 
-  // ── the MVP, the moments
-  const mvpResults = useMvpResults();
-  const mvpId = m && day.phase === "despues" ? (mvpWinners(m, mvpResults.get(m.id), now)[0] ?? null) : null;
-  const watched = m && MATCH_PHASES.has(day.phase) ? m : undefined;
-  const moment = useMatchMoment(watched, now, { celebrate: sync.fresh && sync.online });
-  const goalScorer = moment?.kind === "gol" ? (m?.events?.find((e) => e.id === moment.id)?.playerId ?? null) : null;
-  // (the phone's own clock, as the island reads it: the sync stamps are local)
-  const stale = !!syncChip(sync, now - serverOffset(), isLive(day.phase)) && isLive(day.phase);
-
-  // ── the words
+  // ── Hoy: the lens, the words, the ornaments
+  const view = matchViewAt(day, now, null);
+  const face = lensFace(day, now);
+  const live = isLive(phase);
+  const items = m && hasScore(phase) ? ribbonItemsOf(m, niceOf, live ? (view.seconds ?? 0) + 1 : Infinity) : NOTHING;
+  const sun = isAhead(phase) && Number.isFinite(kickoff) ? sunRibbonOf(kickoff, now, m?.duration ?? 50) : null;
+  const lastGoal = live ? [...view.events].reverse().find((e) => eventMetaOf(e).goal) : undefined;
+  const goal = useGoalMoment(lastGoal ? { key: lastGoal.id, side: eventMetaOf(lastGoal).goal === "for" ? "us" : "them" } : null, { reduced });
   const estreno = !!m && (pulse.played.length === 0 || pulse.played[0]?.id === m.id);
-  const mvpGoals = mvpId && m ? (m.ledger?.[mvpId]?.goals ?? 0) : 0;
-  const ctx: CopyCtx = {
-    day,
-    view,
-    now,
-    member,
-    role,
-    nameOf: niceOf,
-    sevenPublished: seven.length > 0,
-    weather,
-    seasonName,
+  const copy: HoyCopy = error
+    ? NO_DATA
+    : loading
+      ? WAITING
+      : hoyCopy({ day, view, now, member, role, nameOf: niceOf, sevenPublished: seven.length > 0, weather, seasonName, squadSize: squad.length, mvp: null, estreno });
+  const voteOpen = !!m && mvpVoteOpen(m, now);
+  const orns = ornamentsOf(phase, kind, seven.length > 0, voteOpen);
+  const spots = m && orns.left === "siete" ? sieteOf({ match: m, phase, events: view.events, seven, nameOf, numOf, captainId: (m as ClubMatch & { captainId?: string }).captainId ?? season?.captainPlayerId ?? null, me: member ? viewer.playerId : null }) : [];
+  const sieteTitle = isOver(phase) ? "Acabaron en el campo" : live ? "En el campo" : phase === "antes" || phase === "pitido" ? (m && Number.isFinite(kickoff) && new Date(kickoff).getUTCHours() >= 16 ? "El siete de esta noche" : "El siete de hoy") : "El siete";
+  const log = m ? playsLog(m, niceOf) : EMPTY_LOG;
+  const playsSub = live ? (log.rows[0] ? `Minuto ${log.rows[0].minuteText.replace("′", "")}` : "En directo") : `${log.count === 1 ? "1 jugada" : `${log.count} jugadas`}`;
+  const playsAllSub = live ? `${log.count} jugadas hasta el minuto ${day.minute ?? 1}. Se añaden solas.` : `${log.count} jugadas. ${phase === "final" ? "El acta llega en unos minutos." : "El acta ya está publicada."}`;
+  const upcoming = pulse.upcoming.filter((x) => x.id !== m?.id).slice(0, 3);
+
+  // ── Tú, the porra and the convocatoria's answers (members only, client side)
+  const tu = useTu({ enabled: kind === "jugador", member, me, admin: viewer.admin, playerId: member ? viewer.playerId : null, day, matches, players, seasonId, seasons, now });
+  const myGoals: { gf: number; ga: number }[] = [];
+  const myAssists: { gf: number; ga: number }[] = [];
+  if (m && viewer.playerId && kind === "jugador") {
+    let gf = 0;
+    let ga = 0;
+    for (const e of settled(view.events)) {
+      const g = eventMetaOf(e).goal;
+      if (g === "for") gf++;
+      else if (g === "against") ga++;
+      if (g === "for" && e.playerId === viewer.playerId && e.type !== "opponent_own_goal") myGoals.push({ gf, ga });
+      if (g === "for" && e.assistPlayerId === viewer.playerId) myAssists.push({ gf, ga });
+    }
+  }
+  const myName = mine ? niceName(mine.name) : (me?.name ? capital(me.name) : "");
+  const meLine = member
+    ? meLineOf({
+        phase,
+        kind,
+        name: myName || "Tú",
+        role,
+        code: lineup && viewer.playerId ? (lineup.slots.find((s) => s.playerId === viewer.playerId)?.code ?? null) : null,
+        porra: tu.porra,
+        gf: view.gf,
+        ga: view.ga,
+        goals: myGoals,
+        assists: myAssists,
+        minutes: m && viewer.playerId ? (m.ledger?.[viewer.playerId]?.played ? (m.ledger[viewer.playerId].minutes ?? null) : null) : null,
+        voteClosesAt: voteOpen && typeof m?.voteClosesAt === "number" && !tu.mvpVote ? m.voteClosesAt : null,
+      })
+    : null;
+  const wx = weatherLineOf(day, weather);
+  const answers = tu.answers;
+  const called = m ? [...(m.starters ?? []), ...(m.bench ?? [])] : [];
+  const counts = {
+    yes: answers.filter((a) => a.response === "yes").length,
+    maybe: answers.filter((a) => a.response === "maybe").length,
+    no: answers.filter((a) => a.response === "no").length,
+    none: Math.max(0, (called.length || squad.length) - answers.length),
+  };
+  const comers = answers.filter((a) => a.response === "yes").map((a) => (a.playerId ? niceOf(a.playerId) : a.name));
+  const porraLine = !tu.porra
+    ? isAhead(phase)
+      ? "Se cierra con el pitido."
+      : "Esta vez sin porra."
+    : live
+      ? (meLine?.match(/Tu porra[^.]*\.[^.]*\./)?.[0] ?? `Ahora va ${view.gf}–${view.ga}.`).replace(/^Tu porra, [^,]+, /, "").replace(/^./, (c) => c.toLocaleUpperCase("es"))
+      : isOver(phase)
+        ? tu.porra.gf === view.gf && tu.porra.ga === view.ga
+          ? "Acertaste el resultado."
+          : `Acabó ${view.gf}–${view.ga}.`
+        : "Se cierra con el pitido.";
+
+  // ── «Sacar el marcador» and «Avisarme…» (client only)
+  const [pip, setPip] = useState<ScorePip | null>(null);
+  const takeOut = async () => {
+    if (pip) {
+      pip.close();
+      setPip(null);
+      return;
+    }
+    setPip(await openScorePip({ title: `Manchester Piti contra ${m?.rival ?? "el rival"}` }));
+  };
+  const pushTopic = isAhead(phase) ? "start" : "goals";
+  // (the device's push state and topics are the browser's: read once the page is the browser's)
+  const [topicsSet, setTopicsLocal] = useState<string[] | null>(null);
+  const topics = topicsSet ?? (hydrated ? savedTopics() : []);
+  const pushReady = hydrated && pushState() === "ready";
+  const alerts = topics.includes(pushTopic);
+  const [alertErr, setAlertErr] = useState("");
+  const toggleAlerts = () => {
+    setAlertErr("");
+    toggleTopic(pushTopic, !alerts).then(
+      (t) => setTopicsLocal(t),
+      () => setAlertErr("No se han podido activar los avisos en este navegador."),
+    );
+  };
+
+  const actions: ReactNode[] = [];
+  if (m) {
+    if (isAhead(phase)) {
+      actions.push(
+        <a key="map" className="vd-glass vd-btn vd-btn--pri vd-press" href={mapsUrl(m.venue?.trim() || (m.home === false ? `${m.rival ?? ""}` : "CDM Palomeras"))} target="_blank" rel="noreferrer">
+          <Ico id="pin" />
+          Cómo llegar
+          <span className="vd-vh"> (abre el mapa en otra pestaña)</span>
+        </a>,
+        <AddToCalendar key="cal" className="vd-glass vd-btn vd-press" iconName="cal" label="Al calendario" event={matchEvent(m, typeof location === "undefined" ? "" : location.origin)} />,
+      );
+    } else if (live || phase === "final" || phase === "pendiente") {
+      actions.push(
+        <Link key="open" className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
+          Abrir el partido
+        </Link>,
+      );
+      if (live && hydrated)
+        actions.push(
+          <button key="pip" type="button" className="vd-glass vd-btn vd-press vi-pipbtn" aria-pressed={!!pip} onClick={() => void takeOut()}>
+            <Ico id="pip" />
+            {pip ? "Marcador fuera" : "Sacar el marcador"}
+          </button>,
+        );
+    } else if (phase === "acta" || phase === "despues") {
+      actions.push(
+        <Link key="acta" className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
+          Leer el acta
+        </Link>,
+        <Link key="cartel" className="vd-glass vd-btn vd-press" to="/matches/$matchId" params={{ matchId: m.id }} aria-label="Compartir el cartel, en la página del partido">
+          <Ico id="share" />
+          Compartir el cartel
+        </Link>,
+      );
+    } else if (phase === "aplazado") {
+      actions.push(
+        <Link key="cal" className="vd-glass vd-btn vd-btn--pri vd-press" to="/partidos">
+          Ver el calendario
+        </Link>,
+      );
+    }
+    if ((isAhead(phase) || live) && pushReady)
+      actions.push(
+        <button key="alerts" type="button" className="vd-glass vd-btn vd-press vi-togg" aria-pressed={alerts} onClick={toggleAlerts}>
+          <Ico id={alerts ? "check" : "bell"} />
+          {isAhead(phase) ? (alerts ? "Te avisamos del pitido" : "Avisarme del pitido") : alerts ? "Te avisamos de los goles" : "Avisarme de los goles"}
+        </button>,
+      );
+  } else {
+    actions.push(
+      <Link key="plantilla" className="vd-glass vd-btn vd-btn--pri vd-press" to="/plantilla">
+        Conoce la plantilla
+      </Link>,
+      <Link key="partidos" className="vd-glass vd-btn vd-press" to="/partidos">
+        Partidos
+      </Link>,
+    );
+  }
+
+  // ── Temporada
+  const strip = useMemo(() => seasonStrip(matches, seasonId, now), [matches, seasonId, now]);
+  const leaders = useMemo(() => seasonLeaders(matches, seasonId, squad, now), [matches, seasonId, squad, now]);
+  const rowsNow = standings?.rows ?? [];
+  const liveScore = live && m ? { rival: m.rival ?? "", gf: view.gf, ga: view.ga } : null;
+  const proj = liveScore && rowsNow.length ? projectTable(rowsNow, liveScore) : null;
+  const toV = (r: { team: string; pj: number; g: number; e: number; p: number; gf: number; gc: number; pts: number; isUs: boolean }, move = 0): TableRowV => ({ team: r.team, pj: r.pj, g: r.g, e: r.e, p: r.p, dg: r.gf - r.gc, pts: r.pts, isUs: r.isUs, move });
+  const usNow = rowsNow.findIndex((r) => r.isUs);
+  const total = strip.counts.total;
+  const jNow = strip.todayIndex !== null ? strip.segments[strip.todayIndex]?.jornada : (day.jornada ?? null);
+  const played = strip.counts.played;
+  const temporadaData: TemporadaData = {
+    sub: total
+      ? live
+        ? `Jornada ${jNow ?? played + 1} de ${total}. Todo se mueve con cada gol hasta el acta.`
+        : isAhead(phase) && jNow
+          ? `Jornada ${jNow} de ${total}. ${played ? `${usNow >= 0 ? `${usNow + 1}º` : ""} antes del pitido.`.trim() : "Empieza: todo a cero hasta el pitido."}`
+          : `${seasonName}, ${played === 1 ? "tras la primera jornada" : played ? `tras ${played} jornadas` : "por empezar"}.`
+      : `${seasonName}. El calendario sale pronto.`,
+    subShort: total ? `Jornada ${jNow ?? Math.max(1, played)} de ${total}` : seasonName,
+    rows: rowsNow.map((r) => toV(r)),
+    projected: proj ? proj.rows.map((r) => toV(r, r.move)) : null,
+    note: isOver(phase) ? "con el acta" : played ? `tras la jornada ${standings?.jornada ?? played}` : "todos a cero",
+    forma: formaOf(strip.segments),
+    formaNote: strip.segments.some((s) => s.state === "directo") ? "la G es provisional" : played ? "últimos seis" : "por estrenar",
+    goals: leaders.goals,
+    assists: leaders.assists,
+    segments: strip.segments,
+    legend: total ? `${jNow ? `Jornada ${jNow} de ${total}${live ? ", en juego" : phase === "antes" ? ": hoy" : ""}` : `${total} jornadas`}. ${strip.counts.upcoming ? `Quedan ${strip.counts.upcoming}` : "No queda ninguna"}${strip.counts.postponed ? `; ${strip.counts.postponed === 1 ? "una aplazada" : `${strip.counts.postponed} aplazadas`}` : ""}.` : "",
+    hasTable: rowsNow.length > 0,
+  };
+  const [asi, setAsi] = useState(true);
+
+  // ── Club
+  const polls = usePolls(member);
+  const openPoll = member ? polls.data.find((p) => p.closedAt === null && now < p.closesAt) : undefined;
+  const birthday = upcomingBirthdays(squad, now, 1).find((b) => b.days <= 30);
+  const medals = clubMedals(pulse, lines, nameOf, (d) => formatDate(d));
+  const latestMedal = medals.filter((x) => x.earned).at(-1);
+  const clubData: ClubData = {
+    birthday: birthday
+      ? (() => {
+          const at = now + birthday.days * 86_400_000;
+          return { id: birthday.id, name: niceName(birthday.name), num: birthday.num, when: birthday.days === 0 ? "hoy" : birthday.days === 1 ? "mañana" : `el ${weekday(at)} ${Number(madridDate(at).slice(8))}` };
+        })()
+      : null,
+    vitrina: latestMedal ? { title: `La vitrina: ${latestMedal.kicker.toLocaleLowerCase("es")}`, sub: `${latestMedal.title}, ${latestMedal.detail}.` } : { title: "La vitrina, por estrenar", sub: "El primer trofeo se gana esta temporada." },
+    dorsales: squad.filter((s) => s.num).map((s) => ({ id: s.id, num: s.num, name: niceName(s.name) })),
     squadSize: squad.length,
-    mvp: mvpId ? { id: mvpId, name: niceOf(mvpId), goals: mvpGoals } : null,
-    estreno,
+    poll: openPoll ? { title: openPoll.question, sub: "Encuesta del vestuario." } : null,
+    sponsors: content.sponsors,
   };
-  const copy = error ? NO_DATA : loading ? WAITING : heroCopy(ctx);
-  const face = boardFace(day, view, now);
-  const message = error ? { text: "Sin datos del partido: reintentando", kind: "navy" as const } : loading ? null : boardMessage(ctx);
-  const sponsorNames = content.sponsors.length ? content.sponsors.map((s) => s.name) : [...SPONSORS];
-  const state: PalomerasState = {
-    at: view.at,
-    weather: weather ? { sky: weather.sky, cloud: weather.cloud, rain: weather.rain } : null,
-    floodlights: floodlightsOf(day, view),
-    ...(message ? { board: message.text, boardKind: message.kind } : {}),
-    sponsors: sponsorNames,
-    figures: loading || error ? [] : figuresOf({ day, view, seven, nameOf, numOf, me: member ? viewer.playerId : null, goalBy: goalScorer, mvpId }),
-    away: !!m && m.home === false && day.phase !== "semana" && day.phase !== "pretemporada",
-  };
-  const heroPlays: HeroPlay[] =
-    m && (isLive(view.phase) || view.phase === "final") ? view.events.slice(-3).reverse().map((e) => playRow(m, e, niceOf)) : [];
-  const playsTitle = view.phase === "final" ? "Así acabó" : view.phase === "descanso" ? `Al descanso, ${view.gf}–${view.ga}` : `Hasta el ${view.minute ?? 0}′, ${view.gf}–${view.ga}`;
-  const what =
-    view.phase === "antes"
-      ? `faltan ${Math.max(0, Math.round((kickoff - view.at) / 60_000))} min`
-      : view.phase === "pitido"
-        ? "pendiente del pitido"
-        : view.phase === "descanso"
-          ? `descanso, ${view.gf}–${view.ga}`
-          : isLive(view.phase)
-            ? `minuto ${view.minute ?? 0}, ${view.gf}–${view.ga}`
-            : `final, ${view.gf}–${view.ga}`;
+  const shirt = kind === "jugador" && mine ? { name: mine.name.toLocaleUpperCase("es").slice(0, 12), num: mine.num } : { name: "", num: "" };
+  const kit = m?.kit === "away" ? "away" : "home";
 
-  // ── below the hero
-  // «La primera fila»: the fans' row on the server and until the viewer is known; a member's answers after
-  const avail = useAvailability(member ? m?.id : undefined);
-  const myAnswer = (uid && avail.data.find((a) => a.uid === uid)?.response) || null;
-  const myVote = useMyMvpVote(member && day.phase === "acta" ? m?.id : undefined, uid).data;
-  const matchDayStr = Number.isFinite(kickoff) ? matchDay(kickoff) : madridDate(now);
-  const absentIds = member ? squad.filter((s) => absenceOn(absences.data, { playerId: s.id }, matchDayStr)).map((s) => s.id) : [];
-  const row = frontRowOf({
-    match: m,
-    phase: day.phase,
-    squad: squad.map((s) => ({ id: s.id, name: s.name, dorsal: s.num, position: null })),
-    seven,
-    answers: member ? avail.data.map((a) => ({ playerId: a.playerId, response: a.response })) : null,
-    absentIds,
-    viewerPlayerId: member ? viewer.playerId : null,
-    scorerIds: role === "anotador" && viewer.playerId ? [viewer.playerId] : [],
-    mvpVoteOpen: !!m && mvpVoteOpen(m, now),
+  // ── the shelf
+  const usProj = proj?.position ?? null;
+  const hints = placeHints({
+    day,
     now,
-    history: matches,
-    mvpResults,
+    // (before the first jornada the table is all zeros: the hint says the season starts instead)
+    table: rowsNow.length && (played > 0 || liveScore) ? { position: liveScore ? usProj : usNow >= 0 ? usNow + 1 : null, points: liveScore ? (proj?.points ?? null) : usNow >= 0 ? rowsNow[usNow].pts : null, projected: !!liveScore } : null,
+    season: { played, total },
+    birthdays: birthday ? [{ name: niceName(birthday.name), days: birthday.days, label: birthday.label }] : [],
+    squadSize: squad.length,
+    pending: kind === "jugador" ? tu.pending : null,
   });
-  const after = day.phase === "acta" || day.phase === "despues";
-  const reactions = useMatchReactions(m && after ? m.id : undefined);
-  const ratings = useMatchRatings(m && day.phase === "despues" ? m.id : undefined);
-  const liveScore = isLive(view.phase) && m ? { rival: m.rival ?? "", gf: view.gf, ga: view.ga } : null;
-  const table = standings ? compactTable(projectStandings(standings.rows, liveScore), 4) : [];
-  const usRow = table.find((r) => r.us);
-  const tableTitle = liveScore ? "Si acaba así" : standings?.jornada ? `Tras la jornada ${standings.jornada}` : "Clasificación";
-  const tableNote = usRow ? `Piti ${usRow.pos}º con ${usRow.pts} pts` : (standings?.competition ?? "");
-  const seasonNote = liveScore ? "Si acaba así: la tabla con el marcador de ahora; goles y asistencias suben con el acta." : pulse.played.length ? "Se mueve sola con cada acta publicada." : "Arranca con la primera jornada.";
-  const upcoming = pulse.upcoming.filter((x) => x.id !== m?.id || day.phase === "semana").filter((x) => !isLive(day.phase) || x.id !== m?.id).slice(0, 3);
-  const jornada = (id: string) => jornadaOf(matches, id);
+  const hintOf = (id: PlaceId) => (id === "tu" ? (hints.tu ?? "") : hints[id]);
+  const shelfPlaces = places.map((id) => ({ id, label: PLACE_LABEL[id], hint: hintOf(id), short: shortHint(id, hintOf(id)), badge: id === "tu" && tu.pending ? tu.pending : undefined }));
 
-  const { sky } = lightingOf(view.at, state.weather);
-  const rootVars = { "--s-rim": mix("#33416a", sky.sun, Math.max(sky.golden, sky.sunI * 0.5)), "--s-spill": mix(sky.hor, "#6CABDD", sky.night * 0.6) } as CSSProperties;
+  // ── the light
+  const light = skyAt(view.at, live || phase === "final");
+  const skyLight = theme === "light" ? "dia" : light.light;
 
-  const yo = member ? (
-    <Suspense fallback={<YoSkeleton />}>
-      <TuPartido day={day} view={view} role={role} now={now} matches={matches} players={players} playerId={viewer.playerId} captain={viewer.admin} seven={seven} absentUntil={absence?.to ?? null} />
-    </Suspense>
-  ) : hydrated && user && !ready ? (
-    <YoSkeleton />
-  ) : (
-    <FanInvite />
+  // ── pieces
+  const reg = (n: 1 | 2 | 3 | 4) => region(n);
+  const noReg = () => "";
+  const lens = (
+    <HoyLens
+      className="vi-stage__lens"
+      face={face}
+      rival={m ? (m.rival?.trim() ?? "Rival") : null}
+      rivalCode={m ? rivalCode(m.rival ?? "", m.rivalShort ?? m.rivalInitials) : ""}
+      home={m?.home !== false}
+      items={items}
+      duration={m?.duration ?? 50}
+      nowMinute={live ? (view.seconds ?? 0) / 60 : undefined}
+      sun={sun}
+      goal={goal}
+      rollSide={lastGoal && eventMetaOf(lastGoal).goal === "against" ? "them" : "us"}
+    />
+  );
+  const leftOrn =
+    orns.left === "siete" && m && spots.length ? (
+      <SieteOrn title={sieteTitle} system={lineup?.system ?? "3-2-1"} spots={spots} bench={benchLineOf(m, phase, view.events, niceOf, !!lineup)} kit={kit} theme={theme} className="vi-orn--l" />
+    ) : orns.left === "viene" ? (
+      <VieneOrn upcoming={upcoming} jornadaOf={jornadaOf} now={now} className="vi-orn--l" />
+    ) : null;
+  const rightOrn =
+    orns.right === "plays" && m ? (
+      <PlaysOrn title={isOver(phase) && !member ? "La noche, jugada a jugada" : "Jugada a jugada"} sub={playsSub} log={log} grow={plays} matchId={m.id} className="vi-orn--r" />
+    ) : orns.right === "convo" && m ? (
+      <ConvoOrn
+        counts={counts}
+        who={comers}
+        when={phase === "semana" && Number.isFinite(kickoff) ? `el ${weekday(kickoff)}` : "hoy"}
+        mine={kind === "jugador" && tu.rsvp && tu.rsvp.match.id === m.id ? { value: tu.rsvp.value, onPick: tu.rsvp.pick, error: tu.rsvp.error, busy: tu.rsvp.busy } : null}
+        className="vi-orn--r"
+      />
+    ) : orns.right === "previa" && m ? (
+      <PreviaOrn match={m} jornada={day.jornada} weather={weather} className="vi-orn--r" />
+    ) : orns.right === "mvp" && m ? (
+      <MvpOrn
+        candidates={Object.entries(m.ledger ?? {})
+          .filter(([id, v]) => v.played && !id.startsWith("guest:"))
+          .map(([id]) => ({ id, name: nameOf(id).toLocaleUpperCase("es"), num: numOf(id) }))}
+        mine={tu.mvpVote}
+        closes={typeof m.voteClosesAt === "number" ? `el ${weekday(m.voteClosesAt)}` : "pronto"}
+        onVote={(pid) => (me ? voteMvp(me, m.id, pid) : Promise.reject(new Error("sin sesión")))}
+        className="vi-orn--r"
+      />
+    ) : orns.right === "viene" ? (
+      <VieneOrn upcoming={upcoming} jornadaOf={jornadaOf} now={now} className="vi-orn--r" />
+    ) : null;
+  const head = (
+    <HoyHead
+      h1={copy.h1}
+      lede={copy.lede}
+      actions={actions}
+      me={meLine ? { initial: (myName || me?.name || "T").charAt(0).toLocaleUpperCase("es"), line: meLine } : null}
+      weather={wx}
+      onPitch={seven.length ? endSentence(andList(seven.map((id) => niceOf(id)))) : null}
+      nameClass={goal.name || undefined}
+    />
+  );
+  const hoyPanel = (
+    <>
+      {leftOrn && <div className={`vi-slot vi-slot--l ${cockpit ? "" : reg(2)}`}>{leftOrn}</div>}
+      {rightOrn && <div className={`vi-slot vi-slot--r ${cockpit ? "" : reg(3)}`}>{rightOrn}</div>}
+      <div className={`vi-slot vi-slot--head ${cockpit ? "" : reg(1)}`}>{head}</div>
+      {alertErr && (
+        <p className="vi-err vi-slot--err" role="alert">
+          {alertErr}
+        </p>
+      )}
+      {m && <PlaysGrow log={log} grow={plays} sub={playsAllSub} />}
+    </>
+  );
+  // (in the cockpit a zone's «Ver todo» focuses the zone instead: the zone itself grows)
+  const zoneTabla = cockpit ? { ...tabla, grow: () => go("temporada") } : tabla;
+  const zoneGoles = cockpit ? { ...goles, grow: () => go("temporada") } : goles;
+  const temporadaPanel = (opts: { compact?: boolean; wide?: boolean; regions: boolean }) => <Temporada d={temporadaData} now={now} tabla={zoneTabla} goles={zoneGoles} compact={opts.compact} wide={opts.wide} region={opts.regions ? reg : noReg} asi={asi} onAsi={setAsi} />;
+  const tuTitle = tuTitleOf(myName || "Tú", phase, meLine);
+  const placeHead = (title: string, sub: string) => (
+    <header className={`vi-ph ${reg(1)}`}>
+      <h2 className="vd-h2">{title}</h2>
+      <p>{sub}</p>
+    </header>
   );
 
-  return (
-    <div className={`vx ei${loading ? " wait" : ""}`} aria-busy={loading} style={rootVars}>
-      <CelesteBackdrop />
-      <CelesteHeader active="inicio" sub="Inicio" actions={<ThemeToggle />} />
-      <InicioHero
-        copy={copy}
-        face={face}
-        countdownTo={!view.scrubbed && view.phase === "antes" && !loading ? (day.kickoff ?? null) : null}
-        state={state}
-        plate={sponsorNames[0]}
-        plays={heroPlays}
-        playsTitle={playsTitle}
-        scrub={
-          canScrub && m && !loading && !error
-            ? {
-                at: view.at,
-                scrubbing: scrub !== null,
-                marks: shownMarks,
-                what,
-                toMs: (minutes) => scrubToMs(dateMillis(m.date), minutes),
-                onScrub: (ms) => setScrub(ms),
-                onNow: () => setScrub(null),
-              }
-            : null
-        }
-        moment={scrub === null ? moment : null}
-        goalScorer={goalScorer}
-        mvpId={mvpId}
-        reduced={reduced}
-        stale={stale}
-      />
-      <BoardsStrip sponsors={sponsorNames} message={message} />
-      {copy.sub && <p className="ei-subm">{copy.sub}</p>}
-      {!error && (
-        <PrimeraFila
-          row={row}
-          day={day}
-          viewer={role}
-          light={lightOf(sunPosition(view.at).elevation)}
-          me={member ? me : null}
-          myAnswer={myAnswer}
-          myVote={myVote}
-          now={now}
-          status={!hydrated || loading ? "loading" : !sync.online ? "offline" : avail.error ? "error" : "ok"}
-          staleSince={stale ? sync.staleAt : null}
-          reduced={reduced}
-        />
+  // the 1920 cockpit: the zones, always on screen; the shelf focuses one
+  const zoneHead = (title: string, sub: string, id: PlaceId) => (
+    <div className="vi-zhead">
+      <div>
+        <h2>{title}</h2>
+        <p>{sub}</p>
+      </div>
+      {focus === id ? (
+        <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" onClick={() => go("hoy")}>
+          <Ico id="collapse" />
+          Cerrar
+        </button>
+      ) : (
+        <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" onClick={() => go(id)} aria-label={`Abrir ${title.toLocaleLowerCase("es")}`}>
+          <Ico id="expand" />
+          Abrir
+        </button>
       )}
-      <main className="ei-main" id="contenido">
-        {yo}
-        {!error && (
-          <PhaseBlock
-            day={day}
-            view={view}
-            now={now}
-            member={member}
-            weather={weather}
-            nameOf={niceOf}
-            squadSize={squad.length}
-            reactions={reactions.data}
-            ratings={ratings.data}
-            mvp={mvpId ? { name: niceOf(mvpId) } : null}
-          />
-        )}
-        <Temporada form={pulse.form} table={table} tableTitle={tableTitle} tableNote={tableNote} scorers={leaders(lines, "goals", 3)} assisters={leaders(lines, "assists", 3)} note={seasonNote} />
-        <LoQueViene upcoming={upcoming} now={now} jornadaOf={jornada} />
-        <EnElClub birthdays={upcomingBirthdays(squad, now, 2)} medals={clubMedals(pulse, lines, nameOf, (d) => formatDate(d))} sponsors={content.sponsors} squadSize={squad.length} />
-      </main>
-      <PonteLaCamiseta theme={theme} />
+    </div>
+  );
+
+  const busy = loading;
+  const panelId = shelfPanelId("inicio", place);
+  return (
+    <div className={`vx vi vi--${place}${cockpit ? " vi--cockpit" : ""}${plays.open ? " vi--grown" : ""}`} data-phase={phase} aria-busy={busy}>
+      <VidrioSky light={skyLight} floodlit={light.floodlit} reduced={reduced} gold={goal.sky.gold} cold={goal.sky.cold} weather={weather ? (weather.rain && weather.rain >= 50 ? "lluvia" : (weather.cloud ?? 0) >= 60 ? "nubes" : "despejado") : undefined} />
+      <CelesteHeader active="inicio" sub="Inicio" actions={<ThemeToggle />} />
+      <div className="vi-stage" ref={stageRef} id="contenido" tabIndex={-1}>
+        {lens}
+        <div className="vi-stage__shelf">
+          <Shelf places={shelfPlaces} value={place} onChange={(id) => go(id as PlaceId)} label="Sitios de Inicio" idBase="inicio" />
+        </div>
+        <main id={panelId} role="tabpanel" aria-labelledby={shelfTabId("inicio", place)} className={`vi-panel vi-panel--${place}`}>
+          {cockpit ? (
+            <>
+              <div className={`vi-zone vi-zone--l${focus === "temporada" ? " vi-zone--wide" : focus === "hoy" ? "" : " vd-stepback"}`}>
+                <section className="vd-glass vd-window vi-window" aria-label="La temporada">
+                  {zoneHead("La temporada", temporadaData.subShort, "temporada")}
+                  <div className="vi-zbody">{temporadaPanel({ compact: focus !== "temporada", wide: focus === "temporada", regions: false })}</div>
+                </section>
+              </div>
+              <div className={`vi-centre${focus === "hoy" ? "" : " vi-centre--compact"}${plays.open ? " vi-centre--grown" : ""}`}>{hoyPanel}</div>
+              <div className={`vi-zone vi-zone--r${focus === "club" || focus === "tu" ? " vi-zone--wide" : focus === "hoy" ? "" : " vd-stepback"}`}>
+                <section className={`vd-glass vd-window vi-window${focus === "club" ? " is-max" : focus === "tu" ? " is-min" : ""}`} aria-label="El club">
+                  {zoneHead("El club", "Esta semana", "club")}
+                  <div className="vi-zbody">
+                    <Club d={clubData} fan={fan} shirt={shirt} kit={kit} variant={focus === "club" ? "full" : focus === "tu" ? "min" : "sum"} onOpen={() => go("club")} />
+                  </div>
+                </section>
+                {kind === "jugador" && (
+                  <section className={`vd-glass vd-window vi-window${focus === "tu" ? " is-max" : focus === "club" ? " is-min" : ""}`} aria-label="Tú">
+                    {zoneHead("Tú", hints.tu ?? "", "tu")}
+                    <div className="vi-zbody">
+                      <Tu t={tu} jornadaOf={jornadaOf} now={now} porraLine={porraLine} variant={focus === "tu" ? "full" : focus === "club" ? "min" : "sum"} onOpen={() => go("tu")} />
+                    </div>
+                  </section>
+                )}
+              </div>
+              <TemporadaGrows d={temporadaData} tabla={tabla} goles={goles} asi={asi} onAsi={setAsi} />
+            </>
+          ) : place === "hoy" ? (
+            hoyPanel
+          ) : place === "temporada" ? (
+            <div className="vi-place">
+              {placeHead("La temporada", temporadaData.sub)}
+              {temporadaPanel({ regions: true })}
+              <TemporadaGrows d={temporadaData} tabla={tabla} goles={goles} asi={asi} onAsi={setAsi} />
+            </div>
+          ) : place === "club" ? (
+            <div className="vi-place">
+              {placeHead("El club", "Lo que pasa fuera del campo esta semana.")}
+              <Club d={clubData} fan={fan} shirt={shirt} kit={kit} variant="full" region={reg} />
+            </div>
+          ) : (
+            <div className="vi-place">
+              {placeHead(tuTitle, "Lo tuyo en el Piti, sin buscarlo.")}
+              <Tu t={tu} jornadaOf={jornadaOf} now={now} porraLine={porraLine} variant="full" region={reg} />
+            </div>
+          )}
+        </main>
+      </div>
       <CelesteFooter />
       <CelesteDock active="inicio" />
+      <PipWindow pip={pip} title={`Manchester Piti contra ${m?.rival ?? "el rival"}`} onClose={() => setPip(null)}>
+        <img className="vd-drop__crest" src="/crest-128.webp" alt="" />
+        <span className="vd-score" role="img" aria-label={face.label}>
+          {face.mode === "score" ? `${face.gf}–${face.ga}` : face.big}
+        </span>
+        <p>
+          <b>{m?.rival ?? ""}</b>
+          {face.status.clock ? `Minuto ${face.status.clock}, ${face.status.text.replace(/^de la /, "")}` : face.status.text}
+        </p>
+      </PipWindow>
     </div>
   );
 }

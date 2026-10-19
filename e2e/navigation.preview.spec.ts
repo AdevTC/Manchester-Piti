@@ -3,9 +3,9 @@ test("web pública, navegación y detalle sin iniciar sesión", async ({
   page,
 }) => {
   await page.goto("/");
-  // the headline follows the match day (the seed's date decides the phase): it is there, with the club scoreboard
+  // the headline follows the match day (the seed's date decides the phase): it is there, with the lens of the match
   await expect(page.getByRole("heading", { level: 1 })).not.toBeEmpty();
-  await expect(page.getByRole("img", { name: /^Marcador del campo/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "El partido" })).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Navegación principal" });
   await nav.getByRole("link", { name: "Partidos", exact: true }).click();
   await expect(page).toHaveURL(/\/partidos/);

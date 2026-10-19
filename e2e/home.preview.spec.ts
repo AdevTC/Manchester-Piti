@@ -1,28 +1,41 @@
 import { test, expect } from "@playwright/test";
 
-test("la portada es la luz del partido: el titular, el marcador del campo, la jornada, la temporada y tu camiseta", async ({ page }) => {
+test("la portada «Vidrio»: el titular y la lente, los sitios de la repisa, la temporada, el club con tu camiseta y el calendario", async ({ page }) => {
   await page.goto("/");
-  // The scheduled fixture owns the hero: its headline, the club scoreboard and «Arrastra el sol» or the light now.
+  // Hoy: the match day's headline and the lens with the match (the countdown, the score or the state in words).
   await expect(page.getByRole("heading", { level: 1 })).not.toBeEmpty();
-  await expect(page.getByRole("img", { name: /^Marcador del campo/ })).toBeVisible();
+  const lens = page.getByRole("region", { name: "El partido" });
+  await expect(lens).toBeVisible();
+  await expect(lens.getByRole("img").first()).toHaveAccessibleName(/./);
 
-  // The phase block leads to the match (the previa before it, the match itself once it is on).
-  await expect(page.getByRole("region", { name: /Lo que hay que saber|A punto de empezar|Hasta el|Así va|Así fue|Sin marcador en directo|Ya está el acta|La crónica|Así quedó|Qué pasa ahora/ }).getByRole("link", { name: /Ver la previa|Seguir el partido|Ver el partido|Leer el acta|Leer la crónica/ })).toHaveAttribute("href", /^\/matches\//);
+  // Hoy leads to the match (its plays, its previa, its acta) or to the calendar when there is none.
+  const panel = page.getByRole("tabpanel");
+  await expect(panel.locator('a[href^="/matches/"], a[href="/partidos"]').first()).toBeVisible();
 
-  // The season: form, table, pichichi; what comes next, each kick-off with its light.
-  await expect(page.getByRole("heading", { name: "La temporada" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Lo que viene" })).toBeVisible();
+  // The shelf: a fan has Hoy, Temporada and Club (Tú is a jugador's).
+  const shelf = page.getByRole("tablist", { name: "Sitios de Inicio" });
+  await expect(shelf.getByRole("tab")).toHaveCount(3);
 
-  // A fan's «Tu partido» is the vestuario's invitation, never an empty member slot.
-  await expect(page.getByRole("heading", { name: "Pide entrar al vestuario" })).toBeVisible();
+  // Temporada: the table, the form, every jornada with its light.
+  await shelf.getByRole("tab", { name: /Temporada/ }).click();
+  await expect(page).toHaveURL(/#temporada$/);
+  await expect(page.getByRole("tabpanel").getByRole("heading", { name: "La temporada" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "La temporada, jornada a jornada" })).toBeVisible();
+
+  // Club: a fan's place for the vestuario's invitation, never an empty member slot.
+  await shelf.getByRole("tab", { name: /Club/ }).click();
+  await expect(page).toHaveURL(/#club$/);
+  const club = page.getByRole("tabpanel");
+  await expect(club.getByRole("heading", { name: "Pide entrar al vestuario" })).toBeVisible();
+  await expect(club.getByRole("link", { name: "Pedir entrar" })).toHaveAttribute("href", "/vestuario");
 
   // «Ponte la del Piti»: the fan's name goes on the shirt.
-  await page.getByLabel("Tu nombre", { exact: true }).fill("afición");
-  await page.getByLabel("Dorsal", { exact: true }).fill("12");
-  await expect(page.getByLabel("Tu nombre", { exact: true })).toHaveValue("AFICIÓN");
-  await expect(page.getByRole("img", { name: /Tu camiseta con AFICIÓN y el dorsal 12/ }).or(page.locator(".hm-fan3d .vx-shirt-flat"))).toBeVisible();
+  await club.getByLabel("Tu nombre", { exact: true }).fill("afición");
+  await club.getByLabel("Dorsal", { exact: true }).fill("12");
+  await expect(club.getByLabel("Tu nombre", { exact: true })).toHaveValue("AFICIÓN");
+  await expect(club.getByRole("img", { name: /Tu camiseta con AFICIÓN y el dorsal 12/ })).toBeVisible();
 
-  await page.getByRole("button", { name: /Suscribirme al calendario/ }).click();
+  await club.getByRole("button", { name: /Suscribirme al calendario/ }).click();
   await expect(page.getByRole("link", { name: /iPhone o Mac/ })).toHaveAttribute("href", /^webcal:.*calendario\.ics$/);
   await expect(page.getByRole("link", { name: /Google Calendar/ })).toHaveAttribute("href", /calendar\.google\.com\/calendar\/r\?cid=webcal/);
   await page.keyboard.press("Escape");
@@ -30,6 +43,9 @@ test("la portada es la luz del partido: el titular, el marcador del campo, la jo
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
+  // A reload keeps the place (the hash), and the plantilla's door still leads there.
+  await page.reload();
+  await expect(page.getByRole("tab", { name: /Club/ })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("link", { name: /Conoce a los .* en Plantilla/ }).click();
   await expect(page).toHaveURL(/\/plantilla(\?|$)/);
   await expect(page.getByRole("heading", { name: /Pichichi|el primer Pichichi|manda/ }).first()).toBeVisible();
