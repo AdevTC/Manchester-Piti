@@ -129,7 +129,7 @@
 .vd-drop__vs{font-size:13.5px;color:var(--vd-g-ink2);font-weight:560}
 .vd-drop--expanded{height:66px;padding-right:22px;gap:14px}
 .vd-drop--expanded .vd-drop__score{font-size:32px}
-.vd-drop__event{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15}
+.vd-drop__event{display:flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1.15}
 .vd-drop__event b{font-weight:720;font-variation-settings:'wdth' 94;font-size:18px;letter-spacing:-.015em}
 .vd-drop__event span{font-size:13px;color:var(--vd-g-ink2)}
 .vd-drop__off{width:22px;height:22px;margin-left:8px;flex:none;color:var(--vd-g-ink2)}

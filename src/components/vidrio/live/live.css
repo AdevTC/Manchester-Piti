@@ -101,7 +101,7 @@ body:has(.vd-livesheet) .vd-float__hint{opacity:0}
 .vd-pipscore .vd-wave{width:140%}
 .vd-pipscr.is-fx--us .vd-wave{animation:vd-wave 1.5s .2s cubic-bezier(.15,.7,.3,1) both}
 .vd-pipscr.is-fx--us .vd-wave--2{animation-delay:.46s}
-.vd-pipscr p{margin:0;font-size:13.5px;color:var(--vd-g-ink2);line-height:1.35;min-width:0}
+.vd-pipscr p{margin:6px 0 0;font-size:13.5px;color:var(--vd-g-ink2);line-height:1.35;min-width:0}
 .vd-pipscr p b{display:block;color:var(--vd-g-ink);font-weight:680;font-size:15.5px;font-variation-settings:'wdth' 94}
 .vd-pipscr p span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vd-pip__body--doc .vd-pipscr{position:fixed;inset:0}
