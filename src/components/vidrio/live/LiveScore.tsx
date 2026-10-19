@@ -48,6 +48,7 @@ import { PipWindow } from "../PipWindow";
 import { isShot, prefersReducedMotion, supportsViewTransitions, useDesktop, useReducedMotion } from "../env";
 import { useGoalMoment } from "../useGoalMoment";
 import { useGrow } from "../useGrow";
+import { LIVE_MORPH } from "../transitions";
 import { DROP_HOLD_MS, dayStateOf, dropEvent, floatHome, floatOf, hideMark, pageKey, playing, sheetOf, turnEvent, type FloatDay } from "./liveModel";
 import { LiveSheet, type RsvpAnswer } from "./LiveSheet";
 import { LivePlays } from "./LivePlays";
@@ -62,7 +63,7 @@ const VOTE_OFF_KEY = "mp:isle:vote-off";
 const CLOCK_KINDS = new Set(["arranque", "descanso", "reanudacion", "final"]);
 /** The View Transition name the score carries from page to page: the drop, its sheet, Inicio's lens and the match
  *  page's scoreboard (.vd-live-destino) — one of them on screen at a time. */
-export const LIVE_VT = "vd-live-marcador";
+export const LIVE_VT = LIVE_MORPH;
 /** How long a turn of the match keeps the drop unfolded (the board: 3.8 s). */
 const TURN_HOLD_MS = 3800;
 
