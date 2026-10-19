@@ -28,6 +28,7 @@ import { editPositionsPayload, positionsPayload, proposalPayload, reviewPayload 
 import { cajaMovFields, cajaSettingsFields, cajaVoidFields, type NewCajaMov } from "../../src/lib/derived/caja";
 import { absenceFields } from "../../src/lib/derived/absences";
 import { standingsFields, type StandingRow } from "../../src/lib/standings";
+import { cajaClaimFields } from "../../src/lib/derived/cajaClaims";
 let env: RulesTestEnvironment;
 const db = (uid?: string) =>
   uid
@@ -47,8 +48,9 @@ beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: "demo-manchester-piti-rules",
     firestore: {
+      // (emulators:exec sets FIRESTORE_EMULATOR_HOST: a run on other ports, beside a running emulator, uses it)
       host: "127.0.0.1",
-      port: 8080,
+      port: Number(process.env.FIRESTORE_EMULATOR_HOST?.split(":").pop()) || 8080,
       rules: readFileSync("firestore.rules", "utf8"),
     },
   });
@@ -1747,5 +1749,111 @@ describe("Tras el partido: reacciones y nota (matches/{id}/reactions, matches/{i
     await assertFails(setDoc(ratingRef(undefined, "pub", "anon"), rating("anon", 5)));
     await seed("matches/pub/ratings/outsider", { score: 3, name: "outsider", playerId: null, at: Timestamp.now() });
     await assertFails(deleteDoc(ratingRef("outsider", "pub")));
+  });
+});
+
+describe("«Ya la he pagado» (cajaClaims)", () => {
+  const claim = (uid: string, over: object = {}) => ({ ...cajaClaimFields({ uid, playerId: "ana" }, { seasonId: "t1", concept: "Cuota octubre", amount: 2500 }), at: serverTimestamp(), ...over });
+  const pending = { uid: "member", playerId: "ana", seasonId: "t1", concept: "Cuota octubre", amount: 2500, at: Timestamp.fromMillis(0), status: "pendiente" };
+  beforeEach(async () => {
+    await seed("users/member", { email: "member@test.dev", nickname: "member", role: "user", playerId: "ana" });
+  });
+  it("a member creates his own pending claim, with his ficha and the server's time", async () => {
+    await assertSucceeds(setDoc(doc(db("member"), "cajaClaims", "c1"), claim("member")));
+    const bad: object[] = [
+      claim("other"),
+      claim("member", { playerId: "bea" }),
+      claim("member", { status: "confirmado" }),
+      claim("member", { amount: 0 }),
+      claim("member", { amount: 12.5 }),
+      claim("member", { amount: 10_000_001 }),
+      claim("member", { concept: " " }),
+      claim("member", { concept: "x".repeat(81) }),
+      claim("member", { at: Timestamp.fromMillis(0) }),
+      claim("member", { extra: true }),
+      claim("member", { seasonId: "" }),
+    ];
+    for (const [i, d] of bad.entries()) await assertFails(setDoc(doc(db("member"), "cajaClaims", `bad${i}`), d));
+    // without a linked ficha (other has none) or outside the vestuario
+    await assertFails(setDoc(doc(db("other"), "cajaClaims", "c2"), { ...claim("other"), playerId: "ana" }));
+    await assertFails(setDoc(doc(db("outsider"), "cajaClaims", "c3"), claim("outsider")));
+    await assertFails(setDoc(doc(db(), "cajaClaims", "c4"), claim("x")));
+  });
+  it("he reads his own claims (and only his); the captains read all", async () => {
+    await seed("cajaClaims/c1", pending);
+    await seed("cajaClaims/c2", { ...pending, uid: "other" });
+    await assertSucceeds(getDoc(doc(db("member"), "cajaClaims", "c1")));
+    await assertSucceeds(getDocs(query(collection(db("member"), "cajaClaims"), where("uid", "==", "member"))));
+    await assertFails(getDoc(doc(db("member"), "cajaClaims", "c2")));
+    await assertFails(getDocs(collection(db("member"), "cajaClaims")));
+    await assertSucceeds(getDocs(query(collection(db("admin"), "cajaClaims"), where("seasonId", "==", "t1"))));
+    await assertFails(getDoc(doc(db(), "cajaClaims", "c1")));
+  });
+  it("a captain confirms it together with the matching pago, or rejects it — once", async () => {
+    await seed("cajaClaims/c1", pending);
+    await seed("cajaClaims/c2", pending);
+    await seed("cajaClaims/c3", pending);
+    const cap = db("admin");
+    const pago = (over: Partial<NewCajaMov> = {}) => ({ ...cajaMovFields("t1", { kind: "pago", playerId: "ana", amount: 2500, concept: "Cuota octubre", date: "2026-10-19", matchId: null, ...over }, "admin"), createdAt: serverTimestamp() });
+    const ok = writeBatch(cap);
+    ok.set(doc(cap, "cajaMovs", "mv1"), pago());
+    ok.update(doc(cap, "cajaClaims", "c1"), { status: "confirmado", resolvedBy: "admin", resolvedAt: serverTimestamp(), movId: "mv1" });
+    await assertSucceeds(ok.commit());
+    // a confirmation without its pago, or with another amount, is refused
+    await assertFails(updateDoc(doc(cap, "cajaClaims", "c2"), { status: "confirmado", resolvedBy: "admin", resolvedAt: serverTimestamp(), movId: "nope" }));
+    const wrong = writeBatch(cap);
+    wrong.set(doc(cap, "cajaMovs", "mv2"), pago({ amount: 100 }));
+    wrong.update(doc(cap, "cajaClaims", "c2"), { status: "confirmado", resolvedBy: "admin", resolvedAt: serverTimestamp(), movId: "mv2" });
+    await assertFails(wrong.commit());
+    await assertSucceeds(updateDoc(doc(cap, "cajaClaims", "c3"), { status: "rechazado", resolvedBy: "admin", resolvedAt: serverTimestamp() }));
+    // once: an answered claim never changes; members never answer
+    await assertFails(updateDoc(doc(cap, "cajaClaims", "c3"), { status: "pendiente" }));
+    await assertFails(updateDoc(doc(db("member"), "cajaClaims", "c2"), { status: "rechazado", resolvedBy: "member", resolvedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(cap, "cajaClaims", "c2"), { status: "rechazado", resolvedBy: "super", resolvedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(cap, "cajaClaims", "c2"), { amount: 1 }));
+  });
+  it("he takes back his own pending claim; nothing else is deleted", async () => {
+    await seed("cajaClaims/c1", pending);
+    await seed("cajaClaims/c2", { ...pending, status: "confirmado" });
+    await assertFails(deleteDoc(doc(db("other"), "cajaClaims", "c1")));
+    await assertSucceeds(deleteDoc(doc(db("member"), "cajaClaims", "c1")));
+    await assertFails(deleteDoc(doc(db("member"), "cajaClaims", "c2")));
+    await assertFails(deleteDoc(doc(db("admin"), "cajaClaims", "c2")));
+  });
+});
+
+describe("Turnos «Hecho» (rotaTurns.done)", () => {
+  it("members never write it; a captain's pin keeps it and he may clear an entry", async () => {
+    await seed("rotaTurns/m1", { seasonId: "s1", frozen: true, lavar: { playerId: "p1", at: Timestamp.fromMillis(0) }, done: { member: 5 } });
+    await assertFails(updateDoc(doc(db("member"), "rotaTurns", "m1"), { "done.member": 6 }));
+    await assertFails(setDoc(doc(db("member"), "rotaTurns", "m2"), { seasonId: "s1", done: { member: 6 } }));
+    await assertSucceeds(setDoc(doc(db("admin"), "rotaTurns", "m1"), { seasonId: "s1", lavar: { playerId: "p2", swappedFrom: "p1", at: serverTimestamp() } }, { merge: true }));
+    await assertSucceeds(updateDoc(doc(db("admin"), "rotaTurns", "m1"), { "done.member": deleteField() }));
+    await assertFails(updateDoc(doc(db("admin"), "rotaTurns", "m1"), { done: "todo" }));
+    // a job can't be called «done»
+    await assertFails(setDoc(doc(db("admin"), "rotas", "s1"), { jobs: [{ id: "done", name: "Hecho", icon: "shirt", awayOnly: false, order: [] }], updatedAt: serverTimestamp(), updatedBy: "admin" }));
+  });
+});
+
+describe("«Últimos 5» en la clasificación", () => {
+  it("a captain saves the rows with their form", async () => {
+    const r = (team: string, over: Partial<StandingRow> = {}): StandingRow => ({ team, pj: 8, g: 5, e: 2, p: 1, gf: 20, gc: 9, pts: 17, isUs: false, form: ["G", "E", "P", "G", "G"], ...over });
+    const rows = [r("Rayo Norte"), r("Manchester Piti", { isUs: true }), r("Los Rojos", { form: [] })];
+    await assertSucceeds(setDoc(doc(db("admin"), "standings", "t1"), { ...standingsFields({ competition: "Liga F7", jornada: 8, rows }, "admin"), updatedAt: serverTimestamp() }));
+  });
+});
+
+describe("MVP: el recuento sigue siendo del backend", () => {
+  it("nobody writes mvpResults from a client; everyone reads it (it holds only the turnout while open)", async () => {
+    await seed("mvpResults/m1", { total: 3, eligible: 14, open: true });
+    await assertSucceeds(getDoc(doc(db(), "mvpResults", "m1")));
+    await assertFails(setDoc(doc(db("admin"), "mvpResults", "m1"), { counts: { a: 3 }, total: 3, eligible: 14, open: false }));
+    await assertFails(setDoc(doc(db("member"), "mvpResults", "m2"), { total: 0, eligible: 0, open: true }));
+  });
+  it("votes stay private while open: a member reads only his own", async () => {
+    await seed("matches/m1/votes/other", { playerId: "a", voterName: "other", at: Timestamp.fromMillis(0) });
+    await assertFails(getDoc(doc(db("member"), "matches", "m1", "votes", "other")));
+    await assertFails(getDocs(collection(db("member"), "matches", "m1", "votes")));
+    await assertFails(getDocs(collection(db(), "matches", "m1", "votes")));
   });
 });
