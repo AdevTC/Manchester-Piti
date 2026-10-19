@@ -4,6 +4,7 @@ import { TeamProvider } from "./context/TeamContext";
 import { SeasonProvider } from "./context/SeasonContext";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
+import { UpdateNotice } from "./components/vidrio/UpdateNotice";
 import { usePushKeepAlive } from "./hooks/usePushKeepAlive";
 import type { createAppRouter } from "./router";
 
@@ -22,6 +23,7 @@ export default function App({ router }: { router: ReturnType<typeof createAppRou
           <TooltipProvider delayDuration={300}>
             <RouterProvider router={router} />
             <Toaster />
+            <UpdateNotice />
           </TooltipProvider>
         </SeasonProvider>
       </TeamProvider>

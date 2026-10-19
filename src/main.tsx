@@ -12,11 +12,15 @@ import { queryClient } from './lib/queryClient'
 import { primeFromBundle } from './lib/bundle'
 import { primePublicData } from './lib/publicData'
 import { createAppRouter } from './router'
+import { startAppUpdates } from './lib/appUpdate'
 
 // Before React renders: the data bundle (already downloading since the HTML) goes into the cache.
 primeFromBundle()
 
 const router = createAppRouter()
+
+// The service worker (built only for production) and the move to a new deploy at a safe moment.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) startAppUpdates({ router, busy: () => queryClient.isMutating() > 0 })
 const html = document.documentElement
 
 const mount = () =>

@@ -59,6 +59,8 @@ export const vestuarioSearchSchema = z.object({
 // Jornadas (linked from the home's Temporada). Anything else = Jornadas.
 export const partidosSearchSchema = z.object({
   view: z.enum(["tabla", "numeros"]).optional().catch(undefined),
+  // a past season looked at on Partidos (?temporada=t0): page state only, never the remembered choice
+  temporada: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional().catch(undefined),
 });
 
 // /admin is the admin app's shell (a layout route; the admin-only guard lives in RootLayout). Hoy's only

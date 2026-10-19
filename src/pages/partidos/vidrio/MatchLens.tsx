@@ -1,8 +1,10 @@
 // The big lens: the chosen jornada, with its tabs by state — Previa (the time and the light of that evening,
-// the weather, el siete, the place, the kit), Directo (the score, the momentum ribbon, jugada a jugada, who is
-// on the pitch), Acta (the result, the scorers, the match's signature, the MVP, the crónica) — or the one
-// view of a postponed, cancelled or «pendiente del acta» jornada. Fans and members read the same; the member's
-// own «¿Vas?» loads in its own chunk once hydrated (Socio.tsx), never on the server.
+// the weather, el siete, the place, the kit, the porra), Directo (the score, the momentum ribbon, jugada a
+// jugada, who is on the pitch), Acta (the result, the scorers, the match's signature, the MVP, the crónica,
+// the logros) — or the one view of a postponed, cancelled or «pendiente del acta» jornada. Fans and members
+// read the same; the member's own bits (the convocatoria's numbers and «¿Vas?», «Tu porra», his MVP vote)
+// load in their own chunk once hydrated (Socio.tsx), never on the server. In the cockpit (≥ 1800) the cartel
+// sits inline in the lens's third column.
 import { lazy, Suspense, useId, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Lens, MomentumRibbon, SeeAll, useLiveDock, type RibbonItem, type RibbonKind } from "../../../components/vidrio";
@@ -16,17 +18,30 @@ import { lineupField } from "../../../lib/derived/lineupField";
 import { settled, type EventGlyph } from "../../../lib/eventMeta";
 import { clockReading } from "../../../../functions/src/matchClock";
 import { feedOf, pulseTrack, agoText } from "../../match/directoModel";
-import { useMatchWeather, type MatchWeather } from "../../../lib/weather";
+import { useMatchWeatherHourly, type MatchWeatherHourly } from "../../../lib/weather";
+import { mesaLine } from "../../../lib/derived/mesa";
 import { playsLog, type PlayRow } from "../../../lib/derived/vidrio/plays";
 import { matchSignature, signaturePoint } from "../../../lib/derived/vidrio/signature";
 import type { StripSegment } from "../../../lib/derived/vidrio/strip";
-import { venueName, placeLabel } from "../model";
+import type { Cartel } from "../../../lib/derived/vidrio/cartel";
+import { venueName } from "../model";
 import { capital, endSentence, plural } from "../../../lib/derived/words";
-import { distanceText, lensTabs, longDay, rivalInitials, rivalTitle, untilText, whenLine, type LensTab } from "./model";
+import { boardPlay, clockTime, closesWord, decollide, newDateLine, newDateOf, onPitchLines, placeLine, playedWeatherLine, postponedLine, distanceText, lensTabs, longDay, rivalInitials, rivalTitle, untilText, whenLine, type LensTab, type SegmentPaint } from "./model";
 import { Glyph, PitchLines, RivalCrest, Shirt, SignatureSvg, SunRibbon, type GlyphName } from "./bits";
+import { CartelInline } from "./Cartel";
+import { VenueMap } from "./VenueMap";
+import { useVenuePlace } from "./venuePlace";
 
-const RowRsvp = lazy(() => import("../Socio").then((m) => ({ default: m.RowRsvp })));
-const PorraRow = lazy(() => import("../Socio").then((m) => ({ default: m.PorraRow })));
+const MemberConvo = lazy(() => import("../Socio").then((m) => ({ default: m.MemberConvo })));
+const PorraCard = lazy(() => import("../Socio").then((m) => ({ default: m.PorraCard })));
+const PorraNote = lazy(() => import("../Socio").then((m) => ({ default: m.PorraNote })));
+const NotifyDates = lazy(() => import("./NotifyDates").then((m) => ({ default: m.NotifyDates })));
+const MvpMine = lazy(() => import("../Socio").then((m) => ({ default: m.MvpMine })));
+
+export interface LensLogro {
+  icon: "trophy" | "ball" | "glove" | "star";
+  text: string;
+}
 
 export interface LensCtx {
   now: number;
@@ -34,11 +49,23 @@ export interface LensCtx {
   nameOf: (id: string) => string;
   numOf: (id: string) => string;
   liveMinute: number | null;
-  /** Hydrated and a member of the vestuario (the «¿Vas?» row and «Tu porra»). */
+  /** Hydrated and a member of the vestuario (the convocatoria's numbers, «¿Vas?», «Tu porra», the vote). */
   member: boolean;
+  /** The member's own player (a jugador; null for a socio or a fan): «Tú» on el siete, his dorsal on the kit. */
+  me: string | null;
+  /** The season's captain (the match's own captain wins). */
+  captainId: string | null;
   /** The MVP once the vote closed (more than one when it is shared). */
   mvp: { name: string; num: string }[];
+  /** While the vote is open, only the turnout is public: «9 de 14 votos». */
+  mvpTurnout: { total: number; eligible: number | null } | null;
   seasonClosed: boolean;
+  /** The chosen jornada is the one of the day (the floating score stays away while the lens shows it). */
+  tonight: boolean;
+  /** The logros this match unlocked (played, acta out). */
+  logros: LensLogro[];
+  /** The cartel of the chosen jornada (the cockpit shows it inline). */
+  cartel: { cartel: Cartel; paint: SegmentPaint } | null;
 }
 
 interface Props {
@@ -52,12 +79,15 @@ interface Props {
   playsVt: boolean;
   onPip: () => void;
   pipOpen: boolean;
+  /** The glint sweeps across the lens once after a pick. */
+  sweep: boolean;
   className?: string;
 }
 
-const GLYPH: Partial<Record<EventGlyph, GlyphName>> = { ball: "ball", palo: "post", parada: "glove", cambio: "swap", faltaH: "whistle", faltaR: "whistle", penalti: "whistle", tocado: "whistle" };
+const GLYPH: Partial<Record<EventGlyph, GlyphName>> = { ball: "ball", palo: "post", parada: "glove", cambio: "swap", faltaH: "pass", faltaR: "pass", penalti: "whistle", tocado: "whistle" };
 
 export function PlayItem({ r }: { r: PlayRow }) {
+  const w = boardPlay(r);
   return (
     <li className={`vd-play${r.ours ? "" : " vd-play--them"}`}>
       <span className="vd-clock">{r.minuteText || "·"}</span>
@@ -65,15 +95,16 @@ export function PlayItem({ r }: { r: PlayRow }) {
         {r.card ? <i /> : <Glyph name={GLYPH[r.glyph] ?? "pass"} />}
       </span>
       <div>
-        <b>{r.title}</b>
-        {r.sub && <span>{r.sub}</span>}
+        <b>{w.title}</b>
+        {w.sub && <span>{w.sub}</span>}
       </div>
     </li>
   );
 }
 
-/** The lens declares itself the live score's home while it shows tonight's Directo (the float stays away). */
-function LiveLensMark() {
+/** The lens declares itself the live score's home while it shows the match of the day and is on screen
+ *  (the float stays away: never the match twice). Also mounted in a grown window over it. */
+export function LiveLensMark() {
   const ref = useRef<HTMLSpanElement | null>(null);
   useLiveDock(ref, "lens");
   return <span ref={ref} className="vp-lensmark" aria-hidden="true" />;
@@ -109,7 +140,19 @@ function Tabs({ seg, value, onTab }: { seg: StripSegment; value: LensTab | strin
         <button key={x.id} type="button" role="tab" className="vd-seg__b" aria-selected={i === at} aria-disabled={x.disabled || undefined} tabIndex={i === at ? 0 : -1} onClick={() => go(i)}>
           {x.label}
           {x.live && <span className="vd-livedot" role="img" aria-label="en juego" />}
-          {x.small && <small>{x.small}</small>}
+          {x.small && (
+            <small>
+              {/* (a phone keeps the hour only: «Directo 19:00» on one line) */}
+              {x.small.startsWith("a las ") ? (
+                <>
+                  <span className="vp-tabs__al">a las </span>
+                  {x.small.slice(6)}
+                </>
+              ) : (
+                x.small
+              )}
+            </small>
+          )}
         </button>
       ))}
     </div>
@@ -150,10 +193,14 @@ function ribbonItems(m: ClubMatch, nameOf: (id: string) => string): RibbonItem[]
   const byId = new Map(feed.map((f) => [f.id, f]));
   // (only the plays that tilt a match: goals, woodwork, saves and cards; every corner and foul would flood it)
   const SHOWN = new Set<RibbonKind>(["gol", "palo", "parada", "tarjeta", "roja"]);
-  return pulseTrack(feed, m.duration ?? 50).ticks.map((t) => {
-    const f = byId.get(t.id);
-    return { id: t.id, x: t.x, side: t.side, goal: t.goal, h: t.h, kind: f ? (KIND[f.meta.type] ?? "otro") : ("otro" as RibbonKind), label: f ? `Minuto ${f.minute.replace("′", "")}, ${f.title.charAt(0).toLowerCase()}${f.title.slice(1)}` : "" };
-  }).filter((it) => SHOWN.has(it.kind ?? "otro"));
+  const items = pulseTrack(feed, m.duration ?? 50)
+    .ticks.map((t) => {
+      const f = byId.get(t.id);
+      return { id: t.id, x: t.x, side: t.side, goal: t.goal, h: t.h, kind: f ? (KIND[f.meta.type] ?? "otro") : ("otro" as RibbonKind), label: f ? `Minuto ${f.minute.replace("′", "")}, ${f.title.charAt(0).toLowerCase()}${f.title.slice(1)}` : "" };
+    })
+    .filter((it) => SHOWN.has(it.kind ?? "otro"));
+  // (marks closer than two minutes don't pile up: the goal stays, the other one only shapes the wave)
+  return decollide(items, (4 / (m.duration ?? 50)) * 100 * 1.1);
 }
 
 /** «de la primera parte» · «Descanso» · «de la segunda parte» */
@@ -165,9 +212,55 @@ function halfWords(m: ClubMatch, now: number): { minute: boolean; text: string }
   return { minute: true, text: period === 2 ? "de la segunda parte" : "de la primera parte" };
 }
 
+/** «hace 2 min» → «hace 2 minutos», «hace 1 min» → «hace 1 minuto», «hace 40 s» → «hace 40 segundos». */
+const agoWords = (ago: string) => ago.replace(/(\d+) (min|s)$/, (_, n: string, u: string) => `${n} ${u === "min" ? (n === "1" ? "minuto" : "minutos") : n === "1" ? "segundo" : "segundos"}`);
+
+const list = (names: string[]) => new Intl.ListFormat("es", { type: "conjunction" }).format(names);
+
+function Conv({ seg, ctx }: { seg: StripSegment; ctx: LensCtx }) {
+  const m = seg.match;
+  const called = [...(m.starters ?? []), ...(m.bench ?? [])];
+  const bench = (m.bench ?? []).map(ctx.nameOf);
+  const fan =
+    seg.state === "jugado"
+      ? called.length
+        ? `Fueron ${called.length} jugadores.`
+        : "El acta no dice quién fue."
+      : called.length
+        ? endSentence(`Convocados ${called.length}: el siete${bench.length ? ` y, en el banquillo, ${list(bench)}` : ""}`)
+        : seg.state === "aplazado"
+          ? "La convocatoria se abre cuando haya fecha."
+          : "La convocatoria se abre al acabar la jornada anterior.";
+  const open = (seg.state === "hoy" || seg.state === "proximo") && called.length > 0;
+  return (
+    <div className="vp-conv">
+      {ctx.member && open ? (
+        <Suspense fallback={<p className="vp-sub">{fan}</p>}>
+          <MemberConvo match={m} j={seg.jornada ?? undefined} captainId={ctx.captainId} fallback={fan} />
+        </Suspense>
+      ) : (
+        <p className="vp-sub">{fan}</p>
+      )}
+    </div>
+  );
+}
+
+function Porra({ seg, ctx }: { seg: StripSegment; ctx: LensCtx }) {
+  if (!ctx.member || ctx.seasonClosed) return null;
+  if (seg.state !== "hoy" && seg.state !== "proximo" && seg.state !== "directo" && seg.state !== "jugado") return null;
+  return (
+    <Suspense fallback={null}>
+      <PorraCard match={seg.match} score={seg.score} live={seg.state === "directo"} played={seg.state === "jugado"} />
+    </Suspense>
+  );
+}
+
+const skyGlyph = (sky: string): GlyphName => (sky === "rain" || sky === "storm" ? "rain" : sky === "sun" ? "sun" : "cloud");
+
 function Previa({ seg, ctx, idBase }: { seg: StripSegment; ctx: LensCtx; idBase: string }) {
   const m = seg.match;
-  const weather: MatchWeather | null = useMatchWeather(seg.state === "hoy" || seg.state === "proximo" ? m : undefined, ctx.now);
+  const weather: MatchWeatherHourly | null = useMatchWeatherHourly(seg.state === "hoy" || seg.state === "proximo" ? m : undefined, ctx.now);
+  const place = useVenuePlace(m.venue ?? null);
   const at = seg.at;
   const lineup = parseMatchLineup((m as ClubMatch & { lineup?: unknown }).lineup);
   const starters = m.starters ?? [];
@@ -176,22 +269,11 @@ function Previa({ seg, ctx, idBase }: { seg: StripSegment; ctx: LensCtx; idBase:
   const spots = lineup
     ? lineupField(lineup, []).spots.map((s) => ({ id: s.id, left: 100 - s.y, top: s.x }))
     : starters.slice(0, 7).map((id, i) => ({ id, left: [8, 30, 26, 30, 54, 54, 80][i] ?? 50, top: [50, 18, 50, 82, 34, 66, 50][i] ?? 50 }));
-  const called = [...starters, ...(m.bench ?? [])];
-  const bench = (m.bench ?? []).map(ctx.nameOf);
+  const captain = (m as ClubMatch & { captainId?: string | null }).captainId ?? ctx.captainId;
   const day = at === null ? "Fecha por confirmar" : seg.state === "hoy" ? `Hoy, ${untilText(at, ctx.now).toLowerCase()}` : seg.state === "directo" ? "Hoy, en juego" : capital(longDay(at));
   const resultTxt = seg.score && seg.letter && seg.letter !== "A" ? `${seg.letter === "G" ? "ganamos" : seg.letter === "E" ? "empatamos" : "perdimos"} ${seg.score.gf}–${seg.score.ga}` : "";
   const sub =
     seg.state === "hoy" ? "Llegad media hora antes para calentar." : seg.state === "directo" ? "Empezó a su hora." : seg.state === "jugado" ? (resultTxt ? `Se jugó: ${resultTxt}.` : "Se jugó.") : seg.state === "pendiente" ? "Se tenía que jugar a esta hora." : at !== null ? distanceText(at, ctx.now) : "";
-  const conv =
-    seg.state === "jugado"
-      ? called.length
-        ? `Fueron ${called.length} jugadores.`
-        : "El acta no dice quién fue."
-      : called.length
-        ? endSentence(`Convocados ${called.length}: el siete${bench.length ? ` y, en el banquillo, ${new Intl.ListFormat("es", { type: "conjunction" }).format(bench)}` : ""}`)
-        : seg.state === "aplazado"
-          ? "La convocatoria se abre cuando haya fecha."
-          : "La convocatoria se abre al acabar la jornada anterior.";
   const kit = kitLabel(m, m.home === false ? "2ª equipación" : "1ª equipación");
   const venue = m.venue ? venueName(m.venue) : "Campo por confirmar";
   return (
@@ -205,32 +287,47 @@ function Previa({ seg, ctx, idBase }: { seg: StripSegment; ctx: LensCtx; idBase:
           </span>
         </div>
         {at !== null && <SunRibbon kickoff={at} duration={m.duration ?? 50} id={`${idBase}-${seg.id}`} />}
-        {seg.state !== "jugado" &&
-          (weather ? (
-            <p className="vp-wxnow">
-              <Glyph name={weather.sky === "rain" || weather.sky === "storm" ? "rain" : weather.sky === "sun" ? "sun" : "cloud"} />
-              <span>
-                <b>{weather.temp}°</b> {weather.label.toLowerCase()} a la hora del pitido{weather.rain !== null ? `, ${weather.rain} % de lluvia` : ""}
-                {weather.approx ? " (el de Madrid)" : ""}.
-              </span>
+        {seg.state === "jugado" ? (
+          m.weatherAtKickoff ? (
+            <p className="vp-wxnone vp-wxplayed">
+              <Glyph name={skyGlyph(m.weatherAtKickoff.sky)} />
+              {playedWeatherLine(m.weatherAtKickoff)}
             </p>
-          ) : (
-            <p className="vp-wxnone">
-              <Glyph name="cloud" />
-              {seg.state === "directo" ? "Sin previsión: ya se está jugando." : at !== null && at - ctx.now < 7 * 86_400_000 ? "La previsión aún no ha llegado." : "La previsión llega una semana antes."}
-            </p>
-          ))}
+          ) : null
+        ) : weather ? (
+          <>
+            <ul className="vp-wx" aria-label={`El tiempo por horas${weather.approx ? ", el de Madrid" : ""}`}>
+              {weather.hours.slice(0, 4).map((h) => (
+                <li key={h.at} className={`vp-wx__h${h.kickoff ? " is-kick" : ""}`} aria-label={`${clockTime(h.at)}${h.kickoff ? ", la hora del pitido" : ""}: ${h.temp} grados, ${h.label.toLocaleLowerCase("es")}${h.rain !== null ? `, ${h.rain} % de lluvia` : ""}`}>
+                  <span aria-hidden="true">{clockTime(h.at)}</span>
+                  <Glyph name={skyGlyph(h.sky)} />
+                  <b aria-hidden="true">{h.temp}°</b>
+                </li>
+              ))}
+            </ul>
+            {weather.approx && <p className="vp-wxnote">(el de Madrid)</p>}
+          </>
+        ) : (
+          <p className="vp-wxnone">
+            <Glyph name="cloud" />
+            {seg.state === "directo" ? "Sin previsión: ya se está jugando." : seg.state === "aplazado" || seg.state === "pendiente" || seg.state === "suspendido" ? "Sin previsión para este partido." : at !== null && at - ctx.now < 7 * 86_400_000 ? "La previsión aún no ha llegado." : "La previsión por horas llega una semana antes."}
+          </p>
+        )}
+        <div className="vp-porra-alt">
+          <Porra seg={seg} ctx={ctx} />
+        </div>
       </div>
       <span className="vp-rule" aria-hidden="true" />
       <div className="vp-col vp-c2">
         <h3 className="vp-k">{showSeven ? (seg.state === "jugado" ? "El siete que salió" : `El siete${system ? `, en ${system}` : ""}`) : "El siete"}</h3>
         {showSeven ? (
-          <div className="vd-pitch vp-pitch" role="img" aria-label={`El siete: ${new Intl.ListFormat("es", { type: "conjunction" }).format(spots.map((s) => ctx.nameOf(s.id)))}`}>
+          <div className="vd-pitch vp-pitch" role="img" aria-label={`El siete${system ? ` en ${system}` : ""}: ${list(spots.map((s) => ctx.nameOf(s.id)))}${captain && spots.some((s) => s.id === captain) ? `. Capitán, ${ctx.nameOf(captain)}` : ""}`}>
             <PitchLines />
             {spots.map((s) => (
               <div key={s.id} className="vd-player" style={{ left: `${s.left}%`, top: `${s.top}%` }}>
-                <Shirt num={ctx.numOf(s.id)} size={30} kit={m.kit === "away" ? "away" : "home"} />
+                <Shirt num={ctx.numOf(s.id)} size={30} kit={m.kit === "away" ? "away" : "home"} captain={s.id === captain} />
                 <span className="vd-player__name">{ctx.nameOf(s.id)}</span>
+                {ctx.me === s.id && <span className="vp-me">Tú</span>}
               </div>
             ))}
           </div>
@@ -243,39 +340,15 @@ function Previa({ seg, ctx, idBase }: { seg: StripSegment; ctx: LensCtx; idBase:
             <p className="vp-ghostnote">Aún sin el siete: el capitán lo saca de la pizarra la víspera.</p>
           </div>
         )}
-        <div className="vp-conv">
-          <p className="vp-sub">{conv}</p>
-          {ctx.member && (seg.state === "hoy" || seg.state === "proximo") && (
-            <Suspense fallback={null}>
-              <RowRsvp match={m} j={seg.jornada ?? undefined} />
-            </Suspense>
-          )}
-          {ctx.member && (seg.state === "hoy" || seg.state === "proximo" || seg.state === "directo" || seg.state === "jugado") && (
-            <Suspense fallback={null}>
-              <PorraRow match={m} />
-            </Suspense>
-          )}
-        </div>
+        <Conv seg={seg} ctx={ctx} />
       </div>
       <span className="vp-rule" aria-hidden="true" />
       <div className="vp-col vp-c3">
         <div className="vp-mapcol">
-          <div className="vp-map" aria-hidden="true">
-            <svg className="vp-map__svg" viewBox="0 0 400 86" preserveAspectRatio="xMidYMid slice">
-              <rect className="vp-map__bg" width="400" height="86" />
-              <circle className="vp-map__park" cx="330" cy="10" r="58" />
-              <path className="vp-map__road vp-map__road--big" d="M-10 70 C80 60 140 66 200 72 S330 86 410 64" />
-              <path className="vp-map__road" d="M60 -5 L80 90 M250 -5 L240 90 M120 30 L400 22" />
-              <rect className="vp-map__pitch" x="170" y="10" width="46" height="28" rx="2" transform="rotate(-8 193 24)" />
-            </svg>
-            <span className="vp-map__pin">
-              <Glyph name="pin" />
-            </span>
-            <span className="vp-map__lab">{venue}</span>
-          </div>
+          <VenueMap venue={venue} geo={place} />
           <div className="vp-venue">
             <b>{venue}</b>
-            <span className="vp-sub">{placeLabel(m)}</span>
+            <span className="vp-sub">{placeLine(m.home !== false, place?.district ?? null, m.venue ?? "")}</span>
           </div>
           <div className="vp-btns">
             {m.venue && (
@@ -289,14 +362,18 @@ function Previa({ seg, ctx, idBase }: { seg: StripSegment; ctx: LensCtx; idBase:
         </div>
         <div className="vp-kitrow">
           <div className="vp-kit">
-            <Shirt kit={m.kit === "away" ? "away" : "home"} size={40} />
+            <Shirt kit={m.kit === "away" ? "away" : "home"} size={40} num={ctx.me ? ctx.numOf(ctx.me) : undefined} />
             <div>
               <b>{kit === "2ª equipación" ? "Segunda equipación" : "Primera equipación"}</b>
               <span className="vp-sub">{kit === "2ª equipación" ? "La de fuera" : "Celeste y pantalón marino"}</span>
             </div>
           </div>
+          <div className="vp-porra-main">
+            <Porra seg={seg} ctx={ctx} />
+          </div>
         </div>
       </div>
+      {ctx.cartel && <CartelInline cartel={ctx.cartel.cartel} paint={ctx.cartel.paint} />}
     </div>
   );
 }
@@ -313,11 +390,9 @@ function Directo({ seg, ctx, onGrowPlays, playsVt, onPip, pipOpen }: { seg: Stri
   const ago = live ? agoText(m, latest, ctx.now) : "";
   const field = live ? onPitch(m.starters, m.events) : [];
   const benchNow = live ? [...(m.starters ?? []), ...(m.bench ?? [])].filter((id, i, all) => !field.includes(id) && all.indexOf(id) === i) : [];
-  const list = (ids: string[]) => new Intl.ListFormat("es", { type: "conjunction" }).format(ids.map(ctx.nameOf));
   const letterWord = seg.letter === "G" ? "el Piti gana" : seg.letter === "E" ? "reparto de puntos" : seg.letter === "P" ? "esta vez no" : "";
   return (
     <div className={`vp-dir${live ? "" : " vp-dir--full"}`}>
-      {live && <LiveLensMark />}
       <div className="vp-dir__score">
         <Teams seg={seg} size="dir" />
         <p className="vd-status">
@@ -336,10 +411,15 @@ function Directo({ seg, ctx, onGrowPlays, playsVt, onPip, pipOpen }: { seg: Stri
           )}
         </p>
         <MomentumRibbon items={ribbonItems(m, ctx.nameOf)} duration={m.duration ?? 50} now={live ? (ctx.liveMinute ?? undefined) : undefined} label={`El partido minuto a minuto: arriba aprieta el Piti, abajo ${seg.rival}`} />
-        {live && <p className="vp-mesa">{ago ? `Última jugada ${ago}.` : "La mesa lo va contando jugada a jugada."}</p>}
+        {live && (
+          <p className="vp-mesa">
+            {mesaLine(m) ? `${mesaLine(m)}. ` : ""}
+            {ago ? `Última jugada ${agoWords(ago)}.` : "La mesa lo va contando jugada a jugada."}
+          </p>
+        )}
       </div>
       <span className="vp-rule" aria-hidden="true" />
-      <div className={`vp-dir__plays vd-grow-src`} style={playsVt ? { viewTransitionName: "vp-grow" } : undefined}>
+      <div className="vp-dir__plays vd-grow-src" style={playsVt ? { viewTransitionName: "vp-grow" } : undefined}>
         <h3 className="vp-k">Jugada a jugada</h3>
         {shown.length ? (
           <ol className={`vd-plays${live ? "" : " vp-plays2"}`}>
@@ -364,9 +444,12 @@ function Directo({ seg, ctx, onGrowPlays, playsVt, onPip, pipOpen }: { seg: Stri
       {live && (
         <div className="vp-dir__side">
           <h3 className="vp-k">En el campo ahora</h3>
-          <p className="vp-oncampo">
-            {field.length ? endSentence(`${list(field)}${benchNow.length ? `. En el banquillo, ${list(benchNow)}` : ""}`) : "La mesa aún no ha dicho quién está en el campo."}
-          </p>
+          <p className="vp-oncampo">{field.length ? endSentence(`${onPitchLines(m, field, ctx.nameOf)}${benchNow.length ? `. En el banquillo, ${list(benchNow.map(ctx.nameOf))}` : ""}`) : "La mesa aún no ha dicho quién está en el campo."}</p>
+          {ctx.member && seg.score && (
+            <Suspense fallback={null}>
+              <PorraNote match={m} gf={seg.score.gf} ga={seg.score.ga} />
+            </Suspense>
+          )}
           <div className="vp-acts">
             <Link className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
               Abrir el partido
@@ -382,7 +465,9 @@ function Directo({ seg, ctx, onGrowPlays, playsVt, onPip, pipOpen }: { seg: Stri
   );
 }
 
-function Acta({ seg, ctx }: { seg: StripSegment; ctx: LensCtx }) {
+const LOGRO_GLYPH: Record<LensLogro["icon"], GlyphName> = { trophy: "trophy", ball: "ball", glove: "glove", star: "star" };
+
+function Acta({ seg, ctx, onCartel }: { seg: StripSegment; ctx: LensCtx; onCartel: () => void }) {
   const m = seg.match;
   const log = playsLog(m, ctx.nameOf, seg.rival);
   const goals = log.rows.filter((r) => r.kind === "gol").sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
@@ -442,37 +527,60 @@ function Acta({ seg, ctx }: { seg: StripSegment; ctx: LensCtx }) {
         ) : null}
       </div>
       <div className="vp-col vp-acta__side">
-        {ctx.mvp.length > 0 ? (
-          <div className="vp-mvp">
-            <Shirt size={48} num={ctx.mvp[0]?.num} kit={m.kit === "away" ? "away" : "home"} />
-            <div>
-              <small>
-                <Glyph name="star" />
-                {ctx.mvp.length > 1 ? "MVP compartido" : "MVP del partido"}
-              </small>
-              <b>{new Intl.ListFormat("es", { type: "conjunction" }).format(ctx.mvp.map((x) => x.name))}</b>
-              <span>Lo eligió el vestuario.</span>
+        <div className="vp-mvpw">
+          {ctx.mvp.length > 0 ? (
+            <div className="vp-mvp">
+              <Shirt size={48} num={ctx.mvp[0]?.num} kit={m.kit === "away" ? "away" : "home"} />
+              <div>
+                <small>
+                  <Glyph name="star" />
+                  {ctx.mvp.length > 1 ? "MVP compartido" : "MVP del partido"}
+                </small>
+                <b>{list(ctx.mvp.map((x) => x.name))}</b>
+                <span>Lo eligió el vestuario.</span>
+              </div>
             </div>
-          </div>
-        ) : voteOpen ? (
-          <div className="vp-mvp vp-mvp--open">
-            <div>
-              <small>
-                <Glyph name="star" />
-                MVP del partido
-              </small>
-              <b>Se está votando</b>
-              <span>
-                El vestuario vota hasta el {longDay(m.voteClosesAt ?? ctx.now)}.{" "}
-                {ctx.member && (
-                  <Link className="vd-link" to="/matches/$matchId" params={{ matchId: m.id }}>
-                    Votar al MVP
-                  </Link>
-                )}
-              </span>
-            </div>
-          </div>
-        ) : null}
+          ) : voteOpen ? (
+            <>
+              <div className="vp-mvp vp-mvp--open">
+                <div>
+                  <small>
+                    <Glyph name="star" />
+                    MVP del partido
+                  </small>
+                  <b>Se está votando</b>
+                  <span>
+                    {ctx.mvpTurnout ? `${ctx.mvpTurnout.total}${ctx.mvpTurnout.eligible ? ` de ${ctx.mvpTurnout.eligible}` : ""} ${ctx.mvpTurnout.total === 1 && !ctx.mvpTurnout.eligible ? "voto" : "votos"}. ` : ""}La votación se cierra {closesWord(m.voteClosesAt ?? ctx.now, ctx.now)}.
+                  </span>
+                </div>
+              </div>
+              {ctx.member && (
+                <Suspense fallback={null}>
+                  <MvpMine match={m} until={closesWord(m.voteClosesAt ?? ctx.now, ctx.now)} nameOf={ctx.nameOf} />
+                </Suspense>
+              )}
+            </>
+          ) : seg.provisional ? (
+            <>
+              <div className="vp-mvp vp-mvp--open">
+                <div>
+                  <small>
+                    <Glyph name="star" />
+                    MVP del partido
+                  </small>
+                  <b>Aún sin votar</b>
+                  <span>Se vota cuando salga el acta.</span>
+                </div>
+              </div>
+              <div className="vp-btns vp-cartelbtn">
+                <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" onClick={onCartel}>
+                  <Glyph name="share" />
+                  Compartir el cartel
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
         <div className="vp-cron">
           <h3 className="vp-k">La crónica</h3>
           <p>{report || (seg.provisional ? "La crónica llega con el acta." : "Este partido no tiene crónica.")}</p>
@@ -480,7 +588,18 @@ function Acta({ seg, ctx }: { seg: StripSegment; ctx: LensCtx }) {
             {report ? "Leer la crónica entera" : "Ver el partido"}
           </Link>
         </div>
+        {ctx.logros.length > 0 && (
+          <ul className="vp-logros" aria-label="Logros del partido">
+            {ctx.logros.map((l) => (
+              <li key={l.text} className="vp-chip">
+                <Glyph name={LOGRO_GLYPH[l.icon]} />
+                {l.text}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
+      {ctx.cartel && <CartelInline cartel={ctx.cartel.cartel} paint={ctx.cartel.paint} />}
     </div>
   );
 }
@@ -488,9 +607,10 @@ function Acta({ seg, ctx }: { seg: StripSegment; ctx: LensCtx }) {
 function Still({ seg, kind }: { seg: StripSegment; kind: "aplazado" | "suspendido" | "pendiente" }) {
   const m = seg.match;
   const big = kind === "aplazado" ? "Aplazado" : kind === "suspendido" ? "Suspendido" : "Pendiente del acta";
+  const nd = kind === "aplazado" ? newDateOf(m) : null;
   const lede =
     kind === "aplazado"
-      ? "Este partido se aplazó: aún no tiene fecha nueva."
+      ? postponedLine(m.postponedReason) || (nd !== null ? "Este partido se aplazó." : "Este partido se aplazó: aún no tiene fecha nueva.")
       : kind === "suspendido"
         ? "Este partido no se jugará."
         : "Nadie arrancó el partido en la mesa: el resultado llegará con el acta.";
@@ -504,14 +624,19 @@ function Still({ seg, kind }: { seg: StripSegment; kind: "aplazado" | "suspendid
         {kind === "aplazado" && (
           <p className="vp-pp__nd">
             <Glyph name="cal" />
-            <b>Nueva fecha por confirmar</b>
+            <b>{nd !== null ? newDateLine(nd) : "Nueva fecha por decidir"}</b>
           </p>
         )}
         <p className="vp-sub">
           {kind === "pendiente" ? "Sin acta no hay marcador: la tabla y los números no lo cuentan todavía." : "La tabla no cuenta este partido hasta que se juegue; en el «¿y si…?» sigue entre los que faltan."}
         </p>
         <div className="vp-btns">
-          {kind === "aplazado" && <AddToCalendar className="vd-glass vd-btn vd-btn--sm vd-press" iconName="cal" label="Avísame en mi calendario" feed={`${siteOrigin()}/calendario.ics`} />}
+          {kind === "aplazado" && nd !== null && <AddToCalendar className="vd-glass vd-btn vd-btn--sm vd-press" iconName="cal" label="Al calendario" event={matchEvent({ ...m, date: nd }, siteOrigin())} />}
+          {kind === "aplazado" && nd === null && (
+            <Suspense fallback={null}>
+              <NotifyDates />
+            </Suspense>
+          )}
           <Link className="vd-glass vd-btn vd-btn--sm vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
             Ver el partido
           </Link>
@@ -521,13 +646,17 @@ function Still({ seg, kind }: { seg: StripSegment; kind: "aplazado" | "suspendid
   );
 }
 
-export function MatchLens({ seg, ctx, tab, onTab, onCartel, onGrowPlays, playsVt, onPip, pipOpen, className }: Props): ReactNode {
+export function MatchLens({ seg, ctx, tab, onTab, onCartel, onGrowPlays, playsVt, onPip, pipOpen, sweep, className }: Props): ReactNode {
   const idBase = useId().replace(/:/g, "");
   const t = lensTabs(seg);
   const current = tab && t.tabs.some((x) => x.id === tab && !x.disabled) ? tab : t.initial;
   const venue = seg.match.venue ? venueName(seg.match.venue) : "Campo por confirmar";
+  // (the cockpit shows the cartel inline in Previa and Acta; elsewhere the header's button opens the sheet)
+  const inline = !!ctx.cartel && (current === "previa" || current === "acta");
+  const cls = ["vp-lens", inline && "vp-lens--inline", sweep && "vp-sweep", className].filter(Boolean).join(" ");
   return (
-    <Lens as="section" className={`vp-lens${className ? ` ${className}` : ""}`} aria-labelledby={`${idBase}-h`}>
+    <Lens as="section" className={cls} morphName="vp-lens" aria-labelledby={`${idBase}-h`}>
+      {ctx.tonight && <LiveLensMark />}
       <header className="vp-lh vd-reg-1">
         <span className="vp-lh__j" aria-hidden="true">
           J{seg.jornada ?? "·"}
@@ -552,7 +681,7 @@ export function MatchLens({ seg, ctx, tab, onTab, onCartel, onGrowPlays, playsVt
       <div className="vp-lb vd-reg-2" role={t.tabs.length > 1 ? "tabpanel" : undefined} aria-label={t.tabs.length > 1 ? (t.tabs.find((x) => x.id === current)?.label ?? undefined) : undefined}>
         {current === "previa" && <Previa seg={seg} ctx={ctx} idBase={idBase} />}
         {current === "directo" && <Directo seg={seg} ctx={ctx} onGrowPlays={onGrowPlays} playsVt={playsVt} onPip={onPip} pipOpen={pipOpen} />}
-        {current === "acta" && <Acta seg={seg} ctx={ctx} />}
+        {current === "acta" && <Acta seg={seg} ctx={ctx} onCartel={onCartel} />}
         {(current === "aplazado" || current === "suspendido" || current === "pendiente") && <Still seg={seg} kind={current} />}
       </div>
     </Lens>

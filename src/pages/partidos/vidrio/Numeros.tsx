@@ -2,7 +2,7 @@
 // and the assisters (a few, then «Ver todos» grows the full list), when the goals fall (by five-minute
 // stretch: ours up, theirs down) and the clean sheets and cards. Tonight's provisional goals count, marked.
 import type { CSSProperties } from "react";
-import { SeeAll } from "../../../components/vidrio";
+import { region, SeeAll } from "../../../components/vidrio";
 import type { LeaderRow, SeasonLeaders } from "../../../lib/derived/vidrio/leaders";
 import type { Totals } from "./model";
 import { Glyph, Shirt } from "./bits";
@@ -11,8 +11,14 @@ export interface NumerosProps {
   totals: Totals;
   leaders: SeasonLeaders;
   stretch: { us: number[]; them: number[] };
-  cards: number;
-  clean: number;
+  /** The keeper with the most clean sheets (the live match at nil counts «de momento»). */
+  keeper: { name: string; num: string; clean: number; provisional: boolean } | null;
+  /** Our yellow cards, tonight's live ones included. */
+  cards: { cards: number; provisional: boolean };
+  /** «Por jugar · 6 · Seis jornadas, la primera hoy» (the cockpit, where the totals keep three). */
+  left: { value: number; text: string } | null;
+  /** A jornada is played today (the empty lists say «esta noche»). */
+  today: boolean;
   onGrow: (k: "gol" | "asi") => void;
   growVt: "gol" | "asi" | null;
   nice: (name: string) => string;
@@ -41,7 +47,8 @@ function Ranked({ title, line, rows, empty, label, short, onOpen, vt, nice }: { 
   return (
     <div className="vp-rankcol vd-grow-src" style={vt ? ({ viewTransitionName: "vp-grow" } as CSSProperties) : undefined}>
       <h3>{title}</h3>
-      <p className="vd-small">{line}</p>
+      {/* (an empty list says it once, below) */}
+      {rows.length > 0 && <p className="vd-small">{line}</p>}
       {rows.length ? (
         <ol className="vp-rank">
           {rows.slice(0, CAP).map((r) => (
@@ -68,12 +75,12 @@ function Ranked({ title, line, rows, empty, label, short, onOpen, vt, nice }: { 
   );
 }
 
-export function Numeros({ totals, leaders, stretch, cards, clean, onGrow, growVt, nice, duration }: NumerosProps) {
+export function Numeros({ totals, leaders, stretch, keeper, cards, left, today, onGrow, growVt, nice, duration }: NumerosProps) {
   const mx = Math.max(1, ...stretch.us, ...stretch.them);
   const any = stretch.us.some(Boolean) || stretch.them.some(Boolean);
   const aria = `Goles nuestros por tramos de cinco minutos: ${stretch.us.join(", ")}. Suyos: ${stretch.them.join(", ")}.`;
   return (
-    <section className="vp-num" aria-label="Números de la temporada">
+    <section className={`vp-num ${region(4)}`} aria-label="Números de la temporada">
       <ul className="vp-totals" aria-label="La temporada en cifras">
         {totals.items.map((t) => (
           <li key={t.label} className={t.provisional ? "prov" : undefined}>
@@ -87,7 +94,7 @@ export function Numeros({ totals, leaders, stretch, cards, clean, onGrow, growVt
           title="Goleadores"
           line={leaders.goalsLine}
           rows={leaders.goals}
-          empty="Aún sin goles. El primero puede caer en la próxima."
+          empty={`Aún sin goles. El primero puede caer ${today ? "esta noche" : "en la próxima"}.`}
           label={`Ver todos los goleadores (${leaders.goals.length})`}
           short={`Ver todos (${leaders.goals.length})`}
           onOpen={() => onGrow("gol")}
@@ -131,26 +138,38 @@ export function Numeros({ totals, leaders, stretch, cards, clean, onGrow, growVt
           </span>
         </div>
         <ul className="vp-rank vp-extra">
-          <li>
+          <li className={keeper?.provisional ? "prov" : undefined}>
             <span className="vd-ico">
               <Glyph name="glove" />
             </span>
             <div>
-              <b>Porterías a cero</b>
-              <small>Partidos sin encajar</small>
+              <b>{keeper ? nice(keeper.name) : "Porterías a cero"}</b>
+              <small>{keeper ? `Porterías a cero${keeper.provisional ? ", de momento" : ""}` : "Ninguna todavía"}</small>
             </div>
-            <em>{clean}</em>
+            <em>{keeper?.clean ?? 0}</em>
           </li>
-          <li>
-            <span className="vd-ico vd-ico--card">
-              <i />
+          <li className={cards.provisional ? "prov" : undefined}>
+            <span className="vd-ico">
+              <Glyph name="whistle" />
             </span>
             <div>
               <b>Amarillas</b>
-              <small>En toda la temporada</small>
+              <small>{cards.provisional ? "En toda la temporada, con las de esta noche" : "En toda la temporada"}</small>
             </div>
-            <em>{cards}</em>
+            <em>{cards.cards}</em>
           </li>
+          {left && (
+            <li className="vp-extra__left">
+              <span className="vd-ico">
+                <Glyph name="cal" />
+              </span>
+              <div>
+                <b>Por jugar</b>
+                <small>{left.text}</small>
+              </div>
+              <em>{left.value}</em>
+            </li>
+          )}
         </ul>
       </div>
     </section>

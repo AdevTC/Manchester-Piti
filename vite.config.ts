@@ -167,11 +167,12 @@ export default defineConfig(({ isSsrBuild }) => ({
     ...(isSsrBuild ? [serverFirebase()] : [preloadCriticalFonts(), preloadRouteChunk(), shellHtml(), previewLikeVercel()]),
     // Service worker (Workbox, generateSW): the app shell, every hashed chunk and the
     // self-hosted fonts are precached, so repeat visits start without the network and
-    // route changes never wait for a download. A new deploy activates on the next load.
+    // route changes never wait for a download. A new deploy takes over open tabs (see skipWaiting).
     // Firestore/Auth traffic is cross-origin and never touched.
     !isSsrBuild && VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'script-defer',
+      // Registered by the app (src/lib/appUpdate.ts), which also moves an open tab to a new deploy.
+      injectRegister: false,
       manifest: false, // public/manifest.webmanifest stays the source of truth
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2,svg,webp}'],
@@ -181,9 +182,9 @@ export default defineConfig(({ isSsrBuild }) => ({
         // The three.js chunk is ~590 KB minified: above Workbox's 2 MiB default it would be skipped silently.
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         cleanupOutdatedCaches: true,
-        // A new deploy takes over at once (activate + control open tabs). vite-plugin-pwa only turns these
-        // on by itself with injectRegister 'auto'; with 'script-defer' the new worker waited for every
-        // tab to close, so people kept seeing the previous version.
+        // A new deploy takes over at once (activate + control open tabs); vite-plugin-pwa only turns these
+        // on by itself with injectRegister 'auto'. The page it takes over is still the previous version:
+        // src/lib/appUpdate.ts switches it at a safe moment.
         skipWaiting: true,
         clientsClaim: true,
         // Navigations get the app shell; the server-rendered pages are for first visits (no SW yet).

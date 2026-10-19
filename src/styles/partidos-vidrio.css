@@ -657,6 +657,141 @@
   .vp-grow{inset:0}
 }
 
+/* ================================================================ «Vidrio» cierre (the audit's gaps, V-Partidos 4.1) */
+/* the ribbon: the cockpit's light line (wide segments only), the float's marks */
+.vp-slot{container-type:inline-size}
+.vp-seg__l{display:none;font-size:12.8px;font-weight:500;line-height:1.25;color:rgba(255,255,255,.9);margin-top:2px}
+@media (min-width:1800px){@container (min-width:220px){.vp-seg__l{display:block}}}
+.vp-simmode .vp-seg__l{display:none!important}
+.vp-seg:has(.vp-seg__sim) .vp-seg__res{display:none}
+.vp-floataway{position:fixed;left:50%;bottom:0;width:1px;height:1px;pointer-events:none}
+.vp-lensmark{position:absolute;inset:0;pointer-events:none;z-index:-1}
+.vd-grow .vp-lensmark{position:absolute;inset:0}
+/* the lens's glint sweeps once after a pick */
+.vp-sweep .vd-glint::before{animation:vd-glint .9s .15s var(--vd-ease) both}
+/* tools: the season keeps its whole name; the closed season's bar wraps on a phone */
+.vp-tools__l>.vp-pop{flex:none}
+.vp-count{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.vp-season small{white-space:nowrap}
+.vp-archbar.vp-archbar--m{flex-wrap:wrap;white-space:normal;row-gap:0}
+.vp-archbar .vd-link{min-height:44px}
+/* the lens tabs: «Directo 19:00» on one line on a phone */
+@media (max-width:399px){.vp-tabs__al{display:none}}
+/* previa: el siete with the armband and «Tú», the convocatoria's numbers, «¿Vas?», the porra, the map */
+.vp-pitch .vd-player__name{text-transform:uppercase;letter-spacing:.02em}
+.vp-me{position:absolute;left:calc(50% + 17px);top:-2px;height:18px;padding:0 6px;border-radius:6px;font-size:11.5px;font-weight:700;background:var(--vd-celeste);color:#0C1733;line-height:18px;white-space:nowrap}
+.vp-counts{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13.5px;color:var(--vd-g-ink2);margin:0}
+.vp-counts b{font-weight:780;font-size:17px;color:var(--vd-g-ink);font-feature-settings:'tnum' 1}
+.vp-rsvp{--n:3;width:100%;height:52px}
+.vp-rsvp .vd-seg__b svg{width:16px;height:16px}
+.vp-rsvp--none .vd-shelf__bead{opacity:0}
+.vp-rsvp-err{color:var(--vd-rival);font-size:13px}
+.vp-porra{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin:0}
+.vp-porra>div:first-child{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 140px}
+.vp-porra b{font-weight:660;font-size:15px;color:var(--vd-g-ink)}
+.vp-porra .vd-score{font-size:31px;color:var(--vd-g-ink);white-space:nowrap}
+.vp-porra .vd-btn{flex:none}
+.vp-porra__form{flex-basis:100%;min-width:0}
+.vp-porra-alt{display:none}
+.vp-porra-main:empty{display:none}
+.vp-map--real{background:#cfd8e3}
+.vp-map__tiles{position:absolute;width:768px;height:768px;filter:saturate(.55) brightness(.92)}
+.vp-map__tiles img{position:absolute;width:256px;height:256px;max-width:none}
+:root:not([data-theme="light"]) .vp-map__tiles{filter:invert(1) hue-rotate(185deg) saturate(.5) brightness(.78) contrast(.92)}
+.vp-map--real::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,18,39,.08),rgba(8,18,39,.35));pointer-events:none}
+.vp-map__pin--c{left:50%;top:50%}
+.vp-map__lab,.vp-map__pin{z-index:2}
+.vp-map__osm{position:absolute;right:6px;bottom:4px;z-index:2;font-size:11.5px;line-height:1.2;color:#EAF3FC;text-shadow:0 1px 2px rgba(0,8,30,.8);text-decoration:none}
+.vp-map__osm:hover{text-decoration:underline}
+/* the weather by hour (kick-off −1 h … +2 h, the kick-off's hour bold), and what it was like once played */
+.vp-wx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;border-top:1px solid var(--vd-rule);padding:12px 0 0;margin:0;list-style:none}
+.vp-wx__h{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:13.5px;color:var(--vd-g-ink2);font-feature-settings:'tnum' 1}
+.vp-wx__h svg{width:22px;height:22px;color:var(--vd-g-ink)}
+.vp-wx__h b{font-size:17px;font-weight:700;color:var(--vd-g-ink)}
+.vp-wx__h.is-kick{color:var(--vd-g-ink)}
+.vp-wx__h.is-kick span{font-weight:700}
+.vp-wxnote{font-size:12.8px;color:var(--vd-g-ink2);margin-top:6px!important;text-align:center}
+/* «Últimos 5» in the whole table */
+.vp-tfull th.frm,.vp-tfull td.frm{text-align:right;white-space:nowrap}
+.vp-last5{display:inline-flex;gap:3px;vertical-align:middle}
+.vp-last5__l{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;font-style:normal;font-size:11.5px;font-weight:780;line-height:1;background:rgba(234,243,252,.12);color:var(--vd-g-ink)}
+.vp-last5__l--g{background:rgba(234,243,252,.92);color:#0C1733}
+.vp-last5__l--p{background:transparent;box-shadow:inset 0 0 0 1.5px var(--vd-rival);color:var(--vd-rival)}
+:root[data-theme="light"] .vp-last5__l--g{background:#0C1733;color:#fff}
+/* directo: the porra's line */
+.vp-porranote{margin:4px 0 0!important}
+/* acta: the MVP while it is voted, the logros, the cartel inline (the cockpit) */
+.vp-mvpw{display:flex;flex-direction:column}
+.vp-mvpme{align-items:center;margin-top:10px}
+.vp-mvpme .vp-note{margin:0;align-self:center}
+.vp-cartelbtn{margin-top:10px}
+.vp-logros{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px!important}
+.vp-chip{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:4px 10px;border-radius:9px;font-size:13px;font-weight:620;color:var(--vd-g-ink);background:rgba(234,243,252,.08);box-shadow:inset 0 0 0 1px var(--vd-rule2);line-height:1.25}
+:root[data-theme="light"] .vp-chip{background:rgba(255,255,255,.5)}
+.vp-chip svg{width:15px;height:15px;flex:none}
+.vp-cartel-inline{display:none}
+/* «Ver todo» on a phone / tablet: the window takes the lens's place and is as tall as what it holds */
+@media (max-width:1099px){
+  .vp-main.is-grow{min-height:0}
+  .vp-main.is-grow>.vp-panel{display:none}
+  .vp-grow{position:relative;inset:auto}
+  .vp-grow .vd-grow__body{overflow:visible}
+}
+/* Tabla and Números on the light field: what is provisional reads (≥ 4.5:1 on any sky) */
+.vp-tabla .vd-move{color:#CFE7FA;text-shadow:0 1px 2px rgba(4,10,30,.55)}
+:root[data-theme="light"] .vp-tabla .vd-move{color:#1F5A8A;text-shadow:none}
+.vp-tabla .vd-table tr.sim td.pts{color:#CFE7FA;font-weight:800}
+:root[data-theme="light"] .vp-tabla .vd-table tr.sim td.pts{color:#1F5A8A}
+.vp-totals li.prov b,.vp-rank li.prov em{color:#CFE7FA;text-shadow:0 1px 3px rgba(4,10,30,.5)}
+:root[data-theme="light"] .vp-totals li.prov b,:root[data-theme="light"] .vp-rank li.prov em{color:#1F5A8A;text-shadow:none}
+.vp-panel--numeros:not(.vd-window) .vd-small,.vp-panel--numeros:not(.vd-window) .vp-rank small,.vp-panel--numeros:not(.vd-window) .vp-totals li>span,.vp-panel--tabla:not(.vd-window) .vd-small,.vp-panel--tabla:not(.vd-window) .vd-body{color:#DCE8F5;text-shadow:0 1px 2px rgba(4,10,30,.45)}
+:root[data-theme="light"] .vp-panel--numeros:not(.vd-window) .vd-small,:root[data-theme="light"] .vp-panel--numeros:not(.vd-window) .vp-rank small,:root[data-theme="light"] .vp-panel--numeros:not(.vd-window) .vp-totals li>span,:root[data-theme="light"] .vp-panel--tabla:not(.vd-window) .vd-small,:root[data-theme="light"] .vp-panel--tabla:not(.vd-window) .vd-body{color:var(--vd-ink2);text-shadow:none}
+.vp-extra .vd-ico svg{width:20px;height:20px}
+.vp-extra .vp-extra__left{display:none}
+.vp-help--cock{display:none}
+/* the vistas' bead morphs between Jornadas, Tabla and Números */
+.vp-vistas .vd-shelf__bead{view-transition-name:vp-bead}
+/* pretemporada: no ribbon, the shelf still leads to Tabla and Números */
+.vp-nojor .vp-shelfbar{margin-top:16px}
+
+@media (min-width:700px){
+  .vp-pre .vp-kitrow{grid-template-columns:minmax(0,1fr)}
+}
+@media (min-width:1100px){
+  .vp-seg__bot b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-line-clamp:unset}
+  .vp-pre .vp-kitrow{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center}
+  .vp-pre .vp-kitrow:has(.vp-porra-main:empty){grid-template-columns:minmax(0,1fr)}
+}
+@media (min-width:1800px){
+  /* the cockpit: the cartel inline (Previa, Acta) instead of the header's button; the porra under the weather */
+  /* (as the board: no header button in the cockpit; Previa and Acta carry the cartel inline) */
+  .vp-cartel-inline{display:block;grid-column:3;grid-row:1;min-width:0}
+  .vp-cartel-inline .vp-sub{margin-top:8px}
+  .vp-cartel-inline .vp-btns .vd-btn{width:100%}
+  .vp-pre .vp-c1{grid-column:1;grid-row:1}
+  .vp-pre .vp-c2{grid-column:2;grid-row:1}
+  .vp-pre .vp-kitrow{grid-template-columns:minmax(0,1fr);gap:12px}
+  .vp-porra-alt{display:block;margin-top:16px;padding-top:12px;border-top:1px solid var(--vd-rule)}
+  .vp-porra-alt:empty{display:none}
+  .vp-porra-main{display:none}
+  .vp-acta{grid-template-columns:300px minmax(0,1fr) 180px}
+  .vp-acta .vp-teams{gap:6px;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+  .vp-acta .vd-scoreline{font-size:72px}
+  .vp-acta .vp-teams .vd-team b{font-size:14px;overflow-wrap:anywhere}
+  .vp-acta__res{grid-column:1;grid-row:1}
+  .vp-acta__sigcol{grid-column:2;grid-row:1}
+  .vp-acta .vp-sigcap{max-width:300px;margin-left:auto;margin-right:auto}
+  .vp-acta__side{grid-column:1 / 4;grid-row:2;grid-template-columns:300px minmax(0,1fr) 230px}
+  .vp-acta__side .vp-logros{margin-top:0!important;flex-direction:column;align-items:flex-start}
+  /* Tabla's window: the projection under «Probarlo en la cinta», the presets only once the ribbon is on */
+  .vp-y:not(.vp-y--on) .vp-fill{display:none}
+  .vp-help--wide{display:none}
+  .vp-help--cock{display:inline}
+  /* Números's window: one line per empty list, the keeper and what is left */
+  .vp-extra{display:block;margin-top:18px!important}
+  .vp-extra .vp-extra__left{display:grid}
+}
+
 /* ---------------------------------------------------------------- reduced motion: the cursor jumps, nothing breathes */
 @media (prefers-reduced-motion:reduce){
   .vp-paint,.vp-seg,.vp-cur,.vp-mm__win,.vp-mm__s,.vp-sig__halo{animation:none!important;transition:none!important}

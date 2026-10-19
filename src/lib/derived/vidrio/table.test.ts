@@ -96,10 +96,20 @@ describe("«Si acaba así» and «¿Y si…?»", () => {
     expect(s).toMatchObject({ points: 32, position: 3, comoPoco: 32, comoMucho: 56, picked: 2, filled: 0, open: 8, champions: false });
   });
 
-  it("«Todo victorias»: every open jornada won, first, champions if it ends so; Pitutis loses twice", () => {
+  it("«Todo victorias»: every open jornada won, first, but no «campeones» while a preset fills them; Pitutis loses twice", () => {
     const s = simulateTable(f.standings, fixtures, {}, "victorias", { live });
-    expect(s).toMatchObject({ points: 59, position: 1, filled: 10, picked: 0, open: 0, champions: true, comoPoco: 29, comoMucho: 59 });
+    expect(s).toMatchObject({ points: 59, position: 1, filled: 10, picked: 0, open: 0, champions: false, comoPoco: 29, comoMucho: 59 });
     expect(s.rows.find((r) => r.team === "Pitutis")).toMatchObject({ pj: 18, p: 9 });
+    // every one picked by hand: champions, if it ends so
+    const all = Object.fromEntries(fixtures.map((x) => [x.id, "G" as const]));
+    expect(simulateTable(f.standings, fixtures, all, "nada", { live })).toMatchObject({ position: 1, picked: 10, champions: true });
+  });
+
+  it("«Como hasta ahora» counts the live score in our record", () => {
+    // as it stands 8 G, 2 E in 15; with tonight's 2–1 it is 9 of 16 won
+    const without = simulateTable(f.standings, fixtures, {}, "ritmo", {});
+    const withLive = simulateTable(f.standings, fixtures, {}, "ritmo", { live });
+    expect(Object.values(withLive.results).filter((r) => r === "G").length).toBeGreaterThanOrEqual(Object.values(without.results).filter((r) => r === "G").length);
   });
 
   it("a pick wins over the preset; «Todo empates»", () => {

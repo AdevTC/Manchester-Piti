@@ -9,7 +9,7 @@ const byId = (id: string) => f.matches.find((m) => m.id === id)!;
 const ctx = (jornada: number | null, extra: { mvp?: string; now?: number } = {}) => ({ jornada, seasonName: "Temporada 1", nameOf: f.nameOf, now: extra.now ?? f.now, mvp: extra.mvp });
 
 describe("cartelOf", () => {
-  it("tonight, live: the score so far, the signature at its minute", () => {
+  it("tonight, live: the time (a shared image never shows a running score), no signature yet", () => {
     const c = cartelOf(byId("j17"), ctx(17));
     expect(c).toMatchObject({
       jornadaLabel: "J17",
@@ -19,7 +19,7 @@ describe("cartelOf", () => {
       dateLine: "Domingo, 17 ene",
       time: "19:00",
       state: "directo",
-      big: "2–1",
+      big: "19:00",
       played: false,
       letter: null,
       resultLine: "",
@@ -27,9 +27,9 @@ describe("cartelOf", () => {
       mvp: null,
       fileName: "piti-j17-orduna-fc.png",
     });
-    expect(c.signature).toMatchObject({ live: true, upto: 23, marks: [] });
+    expect(c.signature).toBeNull();
     expect(c.light).toMatchObject({ light: "noche", floodlights: true });
-    expect(c.aria).toBe("Cartel de la J17: Manchester Piti contra Orduña fc, domingo, 17 ene a las 19:00. En directo, 2–1.");
+    expect(c.aria).toBe("Cartel de la J17: Manchester Piti contra Orduña fc, domingo, 17 ene a las 19:00. En directo.");
   });
 
   it("a played one: result, scorers, MVP", () => {
