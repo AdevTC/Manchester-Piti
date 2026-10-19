@@ -1,6 +1,9 @@
 // Shared "Celeste" chrome: the header, mobile dock and footer of the redesigned pages
 // (home and vestuario), so both read as the same web. It also loads the Celeste base
 // (styles/celeste/base.css: the titles, buttons, chips, cards, segments and empty lines the pages share) once for all.
+// «Vidrio» (styles/vidrio/chrome.css): the header's nav is the glass capsule and the dock the glass tab bar, with
+// the same DOM, names and slots as before; while a match of ours is live (prop `live`, or the live system's
+// liveDock) «Partidos» carries a small live dot and says «, en directo».
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Icon, type IconName } from "./icons";
@@ -10,6 +13,10 @@ import "../../styles/vestuario.css";
 import "./celeste-links.css";
 import "./state-panel.css";
 import "../../styles/celeste/base.css";
+import "../../styles/vidrio/tokens.css";
+import "../../styles/vidrio/glass.css";
+import "../../styles/vidrio/chrome.css";
+import { useLiveNow } from "../vidrio/liveDock";
 
 export type CelestePage = "inicio" | "partidos" | "plantilla" | "stats" | "club" | "vestuario";
 const NAV: { key: CelestePage; to: string; label: string }[] = [
@@ -35,8 +42,22 @@ export function CelesteBackdrop() {
   );
 }
 
-/** `active`: the nav item lit (none on a page outside the nav: a 404, the admin's door). */
-export function CelesteHeader({ active, sub, actions }: { active?: CelestePage; sub: string; actions: ReactNode }) {
+/** The live dot and its words on «Partidos» (nothing when no match is live). */
+function LiveMark({ on }: { on: boolean }) {
+  if (!on) return null;
+  return (
+    <>
+      <span className="vd-livedot" aria-hidden="true" />
+      <span className="vd-vh">, en directo</span>
+    </>
+  );
+}
+
+/** `active`: the nav item lit (none on a page outside the nav: a 404, the admin's door). `live`: a match of ours
+ *  is on (default: what the live system says through liveDock). */
+export function CelesteHeader({ active, sub, actions, live }: { active?: CelestePage; sub: string; actions: ReactNode; live?: boolean }) {
+  const liveNow = useLiveNow();
+  const isLive = live ?? liveNow;
   return (
     <header className="vx-top">
       <Link className="vx-brand" to="/">
@@ -45,10 +66,11 @@ export function CelesteHeader({ active, sub, actions }: { active?: CelestePage; 
         <span className="vx-brand-sub">{sub}</span>
       </Link>
       <nav className="vx-nav" aria-label="Navegación principal">
-        <div className="vx-nav-in">
+        <div className="vx-nav-in vd-glass">
           {NAV.map((n) => (
             <Link key={n.key} to={n.to} className={n.key === active ? "on" : undefined} aria-current={n.key === active ? "page" : undefined}>
               {n.label}
+              <LiveMark on={isLive && n.key === "partidos"} />
             </Link>
           ))}
         </div>
@@ -74,21 +96,26 @@ export function CelesteHeader({ active, sub, actions }: { active?: CelestePage; 
   );
 }
 
-export function CelesteDock({ active }: { active?: CelestePage }) {
+export function CelesteDock({ active, live }: { active?: CelestePage; live?: boolean }) {
+  const liveNow = useLiveNow();
+  const isLive = live ?? liveNow;
   return (
-    <nav className="vx-dock" aria-label="Navegación móvil">
-      {DOCK.map((d) =>
-        d.key === active ? (
+    <nav className="vx-dock vd-glass" aria-label="Navegación móvil">
+      {DOCK.map((d) => {
+        const dot = isLive && d.key === "partidos";
+        return d.key === active ? (
           <Link key={d.key} to={d.to} className="on" aria-current="page">
-            <img src="/crest-128.webp" alt="" />
+            <Icon name={d.icon} size={21} />
             <span className="lbl">{d.label}</span>
+            <LiveMark on={dot} />
           </Link>
         ) : (
-          <Link key={d.key} to={d.to} aria-label={d.label}>
+          <Link key={d.key} to={d.to} aria-label={dot ? `${d.label}, en directo` : d.label}>
             <Icon name={d.icon} size={21} />
+            {dot && <span className="vd-livedot" aria-hidden="true" />}
           </Link>
-        ),
-      )}
+        );
+      })}
     </nav>
   );
 }

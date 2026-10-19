@@ -47,3 +47,25 @@ it("on another page El club is an icon link with its name", () => {
   expect(nav.getByRole("link", { name: "El club" })).toHaveAttribute("href", "/club");
   expect(nav.getByRole("link", { name: "El club" })).not.toHaveAttribute("aria-current");
 });
+
+it("while a match is live «Partidos» carries the dot and says it, in the capsule and in the tab bar", () => {
+  render(
+    <>
+      <CelesteHeader active="inicio" sub="Inicio" actions={null} live />
+      <CelesteDock active="inicio" live />
+    </>,
+  );
+  const nav = within(screen.getByRole("navigation", { name: "Navegación principal" }));
+  expect(nav.getByRole("link", { name: "Partidos, en directo" })).toHaveAttribute("href", "/partidos");
+  const dock = within(screen.getByRole("navigation", { name: "Navegación móvil" }));
+  expect(dock.getByRole("link", { name: "Partidos, en directo" })).toHaveAttribute("href", "/partidos");
+  expect(document.querySelectorAll(".vd-livedot")).toHaveLength(2);
+});
+
+it("no live match: no dot, and the glass capsule keeps the nav's names", () => {
+  render(<CelesteHeader active="partidos" sub="Partidos" actions={null} />);
+  const nav = within(screen.getByRole("navigation", { name: "Navegación principal" }));
+  expect(nav.getByRole("link", { name: "Partidos" })).toHaveAttribute("aria-current", "page");
+  expect(document.querySelector(".vd-livedot")).toBeNull();
+  expect(document.querySelector(".vx-nav-in")).toHaveClass("vd-glass");
+});

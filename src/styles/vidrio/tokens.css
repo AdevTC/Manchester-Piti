@@ -1,0 +1,48 @@
+/* «Vidrio» tokens (the boards' v-kit.css, renamed --vd-*). Dark is the home theme; html[data-theme="light"] is
+   «día». Colours: gold is ONLY our goal and the MVP; the rival's colour always goes with a word or an icon.
+   Type: Mona Sans (variable wdth 75–125, wght 200–900) for headings and UI, Geist Mono only for the clock.
+   Durations follow PLAN-V: exit 160 ms by region, enter 220 ms with a 30 ms stagger, reduced motion 120 ms. */
+:root{
+  /* brand */
+  --vd-noche:#081227;--vd-marino:#0C1733;--vd-celeste:#6CABDD;--vd-hielo:#EAF3FC;--vd-bruma:#A9C0DD;
+  --vd-oro:#FFC659;--vd-rival:#F08A7E;--vd-amarilla:#F2D04B;--vd-roja:#E5484D;--vd-live:#FF5D5D;
+  --vd-celeste-ink:#9FD0F2;
+  /* ink on the light field */
+  --vd-ink:var(--vd-hielo);--vd-ink2:var(--vd-bruma);--vd-ink-strong:#fff;
+  --vd-rule:rgba(234,243,252,.14);--vd-rule2:rgba(234,243,252,.28);
+  /* glass */
+  --vd-g-tint:rgba(12,23,51,.34);--vd-g-tint-deep:rgba(8,18,39,.52);--vd-g-sheen:rgba(255,255,255,.13);
+  --vd-g-rim:rgba(255,255,255,.78);--vd-g-rim2:rgba(255,255,255,.34);--vd-g-edge-dark:rgba(2,8,26,.42);
+  --vd-glow:rgba(108,171,221,.46);--vd-blur:20px;--vd-sat:1.7;
+  --vd-g-ink:var(--vd-hielo);--vd-g-ink2:#C3D5EC;
+  --vd-pri:rgba(108,171,221,.46);--vd-pri2:rgba(108,171,221,.22);
+  --vd-solid:rgba(12,23,51,.92);
+  --vd-bead:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.06));
+  --vd-bead-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(0,0,0,.18),inset 0 0 0 .5px rgba(255,255,255,.25),0 6px 18px -8px var(--vd-glow);
+  /* the one light source of the specular highlights (0..1, set by useLightPointer) */
+  --vd-lx:.28;--vd-ly:0;
+  /* type */
+  --vd-sans:'Mona Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  --vd-mono:'Geist Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  --vd-t-xs:12.8px;--vd-t-s:16px;--vd-t-m:20px;--vd-t-l:25px;--vd-t-xl:31px;--vd-t-2xl:39px;--vd-t-3xl:49px;
+  --vd-t-4xl:61px;--vd-t-5xl:76px;--vd-t-6xl:95px;--vd-t-7xl:119px;
+  /* radii by hierarchy (continuous corners) */
+  --vd-r-capsule:999px;--vd-r-lens:44px;--vd-r-lens-phone:36px;--vd-r-orn:28px;--vd-r-sheet:32px;--vd-r-ctl:14px;
+  /* motion */
+  --vd-spring:linear(0,.006,.025 2.8%,.101 6.1%,.539 18.9%,.721 25.3%,.849 31.5%,.937 38.1%,.968 41.8%,.991 45.7%,1.006 50.1%,1.015 55%,1.017 63.9%,1.001 85.3%,1);
+  --vd-spring-pop:linear(0,.009,.035 2.1%,.141 4.4%,.723 12.9%,.938 16.7%,1.077 20.4%,1.121 22.5%,1.149 24.3%,1.163 27%,1.154 29.9%,1.129 32.8%,1.051 39.6%,1.017 43.1%,.991 46.9%,.977 51%,.975 57.1%,.997 69.8%,1.003 76.9%,1);
+  --vd-ease:cubic-bezier(.2,.8,.2,1);
+  --vd-d-exit:.16s;--vd-d-enter:.22s;--vd-d-stagger:.03s;--vd-d-calm:.12s;--vd-d-morph:.52s;--vd-d-grow:.56s;
+  --vd-d-flood:.9s;--vd-d-goal:4s;
+}
+:root[data-theme="light"]{
+  --vd-ink:var(--vd-marino);--vd-ink2:#3D5378;--vd-ink-strong:#050d24;
+  --vd-rule:rgba(12,23,51,.13);--vd-rule2:rgba(12,23,51,.26);
+  --vd-g-tint:rgba(255,255,255,.55);--vd-g-tint-deep:rgba(255,255,255,.72);--vd-g-sheen:rgba(255,255,255,.5);
+  --vd-g-rim:rgba(255,255,255,1);--vd-g-rim2:rgba(255,255,255,.7);--vd-g-edge-dark:rgba(30,60,110,.22);
+  --vd-glow:rgba(70,120,190,.30);--vd-g-ink:var(--vd-marino);--vd-g-ink2:#3D5378;
+  --vd-pri:rgba(12,23,51,.88);--vd-pri2:rgba(12,23,51,.08);
+  --vd-rival:#B4402F;--vd-celeste-ink:#2C6A9E;--vd-solid:rgba(255,255,255,.94);
+  --vd-bead:linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,.7));
+  --vd-bead-shadow:inset 0 1px 0 #fff,0 6px 16px -8px rgba(30,60,110,.35),inset 0 0 0 .5px rgba(12,23,51,.08);
+}
