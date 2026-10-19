@@ -12,6 +12,7 @@ import { useRecordTrail } from "./lib/backTrail";
 import { under } from "./lib/paths";
 import { viewerOf } from "./hooks/useViewer";
 import { publishViewer } from "./hooks/viewerSignal";
+import { publishAccount } from "./components/celeste/accountSignal";
 import "./styles/club.css";
 // Only private pages (and invitation links) show the door: keep it out of the entry chunk.
 const AccessGate = lazy(() => import("./pages/acceso/AccessGate").then((m) => ({ default: m.AccessGate })));
@@ -24,6 +25,9 @@ export function RootLayout() {
   // The chrome's bell (NoticesGate) learns who is looking from here, after the first paint.
   const { member: inside, admin: captain, playerId } = viewerOf(member, profile);
   useEffect(() => publishViewer({ member: inside, admin: captain, playerId }), [inside, captain, playerId]);
+  // (and his name, for the top bar's avatar «J Jordi»)
+  const nickname = inside ? (profile?.nickname ?? "") : "";
+  useEffect(() => publishAccount(nickname ? { name: nickname } : null), [nickname]);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // The 404 (the catch-all route, or a notFound() thrown by a route) brings the Celeste chrome.
   const lost = useRouterState({ select: (s) => s.matches.some((m) => m.routeId === "/$" || m.status === "notFound") });

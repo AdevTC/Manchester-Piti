@@ -1,11 +1,15 @@
 import React from "react";
 import { useTheme } from "../hooks/useTheme";
 import { Hint } from "./ui/hint";
+import { useInChromeHeader } from "./celeste/chromeSlot";
 
 /** Light/dark switch. Shows the icon for the mode you'd switch to. */
 export const ThemeToggle: React.FC<{ className?: string }> = ({ className = "" }) => {
   const { theme, toggle } = useTheme();
+  const inHeader = useInChromeHeader();
   const next = theme === "dark" ? "claro" : "oscuro";
+  // (the «Vidrio» top bar has no theme switch: it lives in the account sheet and the footer — chromeSlot)
+  if (inHeader) return null;
 
   return (
     <Hint label={`Cambiar a tema ${next}`}>

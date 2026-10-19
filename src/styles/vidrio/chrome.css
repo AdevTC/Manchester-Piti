@@ -1,67 +1,120 @@
-/* «Vidrio» shared chrome, every page (components/celeste/Chrome.tsx keeps its DOM, names and slots):
-   the header's nav is the glass capsule with a bead on the current page, the header's round actions are small
-   glass buttons, «Vestuario» is the primary glass button (no gold: gold is only the goal and the MVP), and the
-   phone/tablet dock is the glass tab bar. Mona Sans for the chrome's words. Selectors carry the element
-   (header.vx-top, nav.vx-dock) so they win over the Celeste base (vestuario.css, search.css, notices.css) in
-   whatever order the lazy sheets load. */
-header.vx-top{font-family:var(--vd-sans)}
+/* «Vidrio» shared chrome, every page (components/celeste/Chrome.tsx; boards V-Vivo, V-Integracion, V-Sistema):
+   the header's nav is the glass capsule with ONE bead that slides to the current page; the header's end holds
+   round glass buttons (search, bell) and the account (the member's avatar pill «J Jordi», the fan's «Entrar»);
+   the phone/tablet tab bar is the same capsule at the bottom with five labelled pages, tightening to icons while
+   you scroll down. Mona Sans for the chrome's words. Selectors carry the element (header.vx-top, nav.vx-dock) so
+   they win over the Celeste base (vestuario.css, search.css, notices.css) in whatever order the sheets load. */
+header.vx-top{font-family:var(--vd-sans);view-transition-name:vd-top}
+header.vx-top .vx-brand{gap:10px;min-height:44px;color:var(--vd-ink-strong)}
 header.vx-top .vx-brand img{width:36px;height:36px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.25),0 6px 18px -6px var(--vd-glow)}
-header.vx-top .vx-brand-name{font-family:var(--vd-sans);font-weight:720;font-size:18px;font-variation-settings:'wdth' 92;font-stretch:92%;letter-spacing:-.02em}
-header.vx-top .vx-brand-sub{font-family:var(--vd-sans);font-weight:620;font-size:16px;letter-spacing:-.01em}
+header.vx-top .vx-brand-name{display:inline;font-family:var(--vd-sans);font-weight:720;font-size:17px;font-variation-settings:'wdth' 92;font-stretch:92%;letter-spacing:-.02em;white-space:nowrap;color:var(--vd-ink-strong)}
+header.vx-top .vx-brand-sub{display:none}
+@container (min-width:1100px){header.vx-top .vx-brand-name{font-size:18px;display:none}}
+@container (min-width:1280px){header.vx-top .vx-brand-name{display:inline}}
 
-/* the capsule */
-header.vx-top .vx-nav .vx-nav-in{--vd-r:var(--vd-r-capsule);align-items:center;gap:2px;height:58px;padding:6px;border-radius:999px;
+/* the capsule and its one bead */
+header.vx-top .vx-nav .vx-nav-in{--vd-r:var(--vd-r-capsule);position:relative;align-items:center;gap:2px;height:58px;padding:6px;border-radius:999px;
   background:linear-gradient(165deg,var(--vd-g-sheen),rgba(255,255,255,.02) 38%,rgba(255,255,255,0) 60%,rgba(108,171,221,.07)),var(--vd-g-tint);
   -webkit-backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat)) brightness(1.05);backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat)) brightness(1.05);
   box-shadow:inset 0 0 0 .5px rgba(255,255,255,.10),inset 0 14px 24px -18px rgba(255,255,255,.22),inset 0 -18px 30px -22px var(--vd-glow),0 30px 70px -34px var(--vd-glow)}
+header.vx-top .vx-nav-item{display:inline-flex;align-items:center}
 header.vx-top .vx-nav .vx-nav-in a{position:relative;z-index:2;display:inline-flex;align-items:center;justify-content:center;height:46px;min-height:44px;padding:0 clamp(12px,1.25cqi,18px);border-radius:999px;
-  font-family:var(--vd-sans);font-weight:560;font-size:15px;letter-spacing:-.005em;color:var(--vd-g-ink2);background:none;text-decoration:none;white-space:nowrap;transition:color .3s,background .3s}
+  font-family:var(--vd-sans);font-weight:560;font-size:15px;letter-spacing:-.005em;color:var(--vd-g-ink2);background:none;text-decoration:none;white-space:nowrap;transition:color .3s}
 header.vx-top .vx-nav .vx-nav-in a:hover{color:var(--vd-g-ink)}
-/* the bead: a small lens sitting on the current page */
-header.vx-top .vx-nav .vx-nav-in a.on{color:var(--vd-g-ink);font-weight:650;background:var(--vd-bead);box-shadow:var(--vd-bead-shadow)}
+header.vx-top .vx-nav .vx-nav-in a.on{color:var(--vd-g-ink);font-weight:650;background:none;box-shadow:none}
 header.vx-top .vx-nav .vx-nav-in a:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-2px}
+:is(header.vx-top .vx-nav-in,nav.vx-dock .vx-dock-in) .vd-bead{position:absolute;z-index:1;top:6px;bottom:6px;left:var(--vd-bx,6px);width:var(--vd-bw,0);border-radius:999px;pointer-events:none;
+  background:var(--vd-bead);box-shadow:var(--vd-bead-shadow);transition:left .62s var(--vd-spring),width .62s var(--vd-spring)}
+nav.vx-dock .vx-dock-in .vd-bead{top:5px;bottom:5px}
+:is(.vx-nav-in,.vx-dock-in)[data-vd-bead-still] .vd-bead{transition:none}
+/* the score kept beside «Partidos» while the floating score is hidden until the next goal */
+.vd-capchip{position:relative;z-index:2;display:inline-flex;align-items:center;height:30px;min-width:44px;margin:0 4px 0 -4px;padding:0 10px;border:0;border-radius:999px;cursor:pointer;
+  font-family:var(--vd-sans);font-weight:760;font-size:13.5px;font-variation-settings:'wdth' 108;font-feature-settings:'tnum' 1;color:var(--vd-g-ink);
+  background:rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 0 0 .5px rgba(255,255,255,.25)}
+.vd-capchip:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+:root[data-theme="light"] .vd-capchip{background:rgba(12,23,51,.06);box-shadow:inset 0 0 0 1px rgba(12,23,51,.14)}
 
-/* the round actions: theme, search, bell */
-header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell){height:44px;min-width:44px;border:0;border-radius:999px;color:var(--vd-g-ink);font-family:var(--vd-sans);font-weight:600;
+/* the round actions: search and bell (and the pizarra's own switches) */
+header.vx-top .vx-actions{gap:10px}
+header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell){width:46px;height:46px;min-width:46px;flex:0 0 46px;padding:0;border:0;border-radius:999px;color:var(--vd-g-ink);font-family:var(--vd-sans);font-weight:600;
   background:linear-gradient(165deg,var(--vd-g-sheen),rgba(255,255,255,.02) 40%,rgba(255,255,255,0) 62%),var(--vd-g-tint);
   -webkit-backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat));backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(2,8,26,.25),inset 0 0 0 .5px rgba(255,255,255,.16),0 14px 30px -18px var(--vd-glow);transition:transform .5s var(--vd-spring),background .3s}
-header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell):active{transform:scale(.965)}
-header.vx-top .vx-actions :is(.sr-btn,.nt-bell)[aria-expanded="true"]{box-shadow:inset 0 0 0 2px var(--vd-celeste),0 14px 30px -18px var(--vd-glow)}
-header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell):focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
-header.vx-top .vx-actions .sr-btn-k{font-family:var(--vd-mono);color:var(--vd-g-ink2);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+header.vx-top .vx-actions .sr-btn :is(.sr-btn-t,.sr-btn-k){display:none}
+header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell,.vd-acct):active{transform:scale(.965)}
+header.vx-top .vx-actions :is(.sr-btn,.nt-bell,.vd-acct)[aria-expanded="true"]{box-shadow:inset 0 0 0 2px var(--vd-celeste),0 14px 30px -18px var(--vd-glow)}
+header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell,.vd-acct):focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
 /* the unread dot is celeste (gold is only the goal and the MVP) */
-header.vx-top .vx-actions .nt-dot{background:var(--vd-celeste);box-shadow:0 0 0 2px var(--vd-marino)}
+header.vx-top .vx-actions .nt-dot{top:10px;right:10px;width:9px;height:9px;background:var(--vd-celeste);box-shadow:0 0 0 2px var(--vd-marino)}
 :root[data-theme="light"] header.vx-top .vx-actions .nt-dot{background:#2C6A9E;box-shadow:0 0 0 2px #fff}
-/* «Vestuario»: the primary glass button */
-header.vx-top .vx-actions .hm-cta-top{position:relative;height:44px;border-radius:999px;font-family:var(--vd-sans);font-weight:650;font-size:14.5px;letter-spacing:-.005em;color:#fff;
-  background:linear-gradient(165deg,rgba(255,255,255,.26),rgba(255,255,255,.02) 40%,rgba(255,255,255,0) 62%),var(--vd-pri);
-  -webkit-backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat));backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),inset 0 -1px 0 rgba(2,8,26,.3),inset 0 0 0 .5px rgba(255,255,255,.22),0 16px 34px -18px var(--vd-glow);transition:transform .5s var(--vd-spring)}
-header.vx-top .vx-actions .hm-cta-top:active{transform:scale(.965)}
-header.vx-top .vx-actions .hm-cta-top[aria-current=page]{outline:2px solid var(--vd-hielo);outline-offset:-5px}
-:root[data-theme="light"] header.vx-top .vx-actions .hm-cta-top[aria-current=page]{outline-color:#fff}
-header.vx-top .vx-actions .hm-cta-top:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+/* the vestuario's own old avatar link: the account pill replaces it */
+header.vx-top .vx-actions > .vx-avatar{display:none}
 
-/* the phone/tablet tab bar: the same capsule at the bottom */
-/* (z 8: over the pages' own sticky bars, like the match page's tabs at 7; still under menus and sheets) */
-nav.vx-dock.vd-glass{--vd-r:999px;z-index:8;height:64px;padding:0 5px;border-radius:999px;font-family:var(--vd-sans);
+/* the account: the avatar pill (a member) and «Entrar» (a fan) */
+.vd-acct{--vd-r:999px;position:relative;display:inline-flex;align-items:center;gap:8px;height:46px;min-width:46px;padding:0 14px 0 5px;border:0;border-radius:999px;cursor:pointer;flex:0 0 auto;
+  font-family:var(--vd-sans);font-weight:600;font-size:14.5px;letter-spacing:-.005em;color:var(--vd-g-ink);text-decoration:none;white-space:nowrap;transition:transform .5s var(--vd-spring)}
+.vd-acct>i{font-style:normal;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:none;background:linear-gradient(160deg,#8ec2ea,#3f79ad);color:#fff;font-weight:760;font-size:15px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.vd-acct--in{padding:0 18px;font-weight:650}
+.vd-acct.on{box-shadow:inset 0 0 0 2px var(--vd-hielo),0 14px 30px -18px var(--vd-glow)}
+:root[data-theme="light"] .vd-acct.on{box-shadow:inset 0 0 0 2px #2C6A9E}
+.vd-acct:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+
+/* phone/tablet: brand, then bell · account · search; the avatar is just its initial */
+@container (max-width:1099px){
+  header.vx-top .vx-actions .sr-wrap{order:3}
+  header.vx-top .vx-actions .vd-acct:not(.vd-acct--in){padding:0 5px}
+  header.vx-top .vx-actions .vd-acct:not(.vd-acct--in) .vd-acct__name{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  header.vx-top .vx-actions .vd-acct--in{height:44px;padding:0 16px;font-size:14px}
+}
+@container (max-width:380px){header.vx-top .vx-brand-name{font-size:15.5px}header.vx-top .vx-actions{gap:8px}}
+
+/* the phone/tablet tab bar: five labelled pages on the glass capsule, one bead */
+nav.vx-dock.vd-glass{--vd-r:999px;z-index:8;height:64px;padding:0;border-radius:999px;font-family:var(--vd-sans);view-transition-name:vd-dock;
   background:linear-gradient(165deg,var(--vd-g-sheen),rgba(255,255,255,.02) 38%,rgba(255,255,255,0) 60%,rgba(108,171,221,.07)),var(--vd-g-tint);
   -webkit-backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat)) brightness(1.05);backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat)) brightness(1.05);
-  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.10),inset 0 14px 24px -18px rgba(255,255,255,.22),inset 0 -18px 30px -22px var(--vd-glow),0 30px 70px -34px var(--vd-glow)}
-nav.vx-dock.vd-glass a{position:relative;z-index:2;height:52px;border-radius:999px;color:var(--vd-g-ink2);text-decoration:none}
-nav.vx-dock.vd-glass a:hover{color:var(--vd-g-ink)}
-nav.vx-dock.vd-glass a.on{color:var(--vd-g-ink);background:var(--vd-bead);box-shadow:var(--vd-bead-shadow);font-family:var(--vd-sans);font-weight:650;font-size:14px}
-nav.vx-dock.vd-glass a.on svg{color:var(--vd-celeste);flex:none}
-:root[data-theme="light"] nav.vx-dock.vd-glass a.on svg{color:#2C6A9E}
-nav.vx-dock.vd-glass a:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-2px}
-nav.vx-dock.vd-glass a:not(.on) .vd-livedot{position:absolute;top:9px;right:7px;margin:0}
-nav.vx-dock.vd-glass a.on .vd-livedot{margin-left:2px}
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.10),inset 0 14px 24px -18px rgba(255,255,255,.22),inset 0 -18px 30px -22px var(--vd-glow),0 30px 70px -34px var(--vd-glow);
+  transition:height .45s var(--vd-spring),max-width .45s var(--vd-spring)}
+nav.vx-dock .vx-dock-in{position:relative;flex:1;min-width:0;display:flex;align-items:stretch;height:100%;padding:5px;border-radius:inherit}
+nav.vx-dock.vd-glass .vx-dock-in a{position:relative;z-index:2;flex:1 1 0;min-width:0;width:auto;height:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 2px;border-radius:999px;
+  color:var(--vd-g-ink2);background:none;text-decoration:none;font-family:var(--vd-sans);font-weight:600;font-size:12px;letter-spacing:0;line-height:1.1;box-shadow:none}
+nav.vx-dock.vd-glass .vx-dock-in a:hover{color:var(--vd-g-ink)}
+nav.vx-dock.vd-glass .vx-dock-in a.on{color:var(--vd-g-ink);background:none;padding:0 2px;gap:2px;font-size:12px;font-weight:650}
+nav.vx-dock.vd-glass .vx-dock-in a .ico{position:relative;display:grid;place-items:center;width:24px;height:24px}
+nav.vx-dock.vd-glass .vx-dock-in a svg{width:22px;height:22px;flex:none}
+nav.vx-dock.vd-glass .vx-dock-in a.on svg{color:var(--vd-celeste)}
+:root[data-theme="light"] nav.vx-dock.vd-glass .vx-dock-in a.on svg{color:#2C6A9E}
+nav.vx-dock.vd-glass .vx-dock-in a .lbl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:opacity .25s,max-height .35s var(--vd-spring);max-height:16px}
+nav.vx-dock.vd-glass .vx-dock-in a .vd-livedot{position:absolute;top:-2px;right:-5px;margin:0}
+nav.vx-dock.vd-glass .vx-dock-in a:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-2px}
+/* scrolling down: icons only, a little lower */
+nav.vx-dock.vd-glass.is-min{height:52px;max-width:340px}
+nav.vx-dock.vd-glass.is-min .vx-dock-in a .lbl{opacity:0;max-height:0}
+@container (max-width:439px){nav.vx-dock.vd-glass{left:10px;right:10px;padding:0}}
+
+/* the footer: Mona Sans, the small print readable; the theme switch for everyone */
+.vx-foot{font-family:var(--vd-sans)}
+.vx .vx-foot .b{font-family:var(--vd-sans);font-weight:720;font-variation-settings:'wdth' 92;font-size:17px;letter-spacing:-.015em}
+.vx .vx-foot small{font-family:var(--vd-sans);font-size:12.8px;line-height:1.55}
+.vx-foot-theme{display:flex;align-items:center}
+.vx .vx-foot-theme .mp-theme-toggle{width:44px;height:44px;border-radius:50%;border:0;color:var(--vd-g-ink);cursor:pointer;
+  background:linear-gradient(165deg,var(--vd-g-sheen),rgba(255,255,255,.02) 40%,rgba(255,255,255,0) 62%),var(--vd-g-tint);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 0 0 .5px rgba(255,255,255,.16)}
+.vx .vx-foot-theme .mp-theme-toggle:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+
+/* moving between pages (components/celeste/pageTransition): the page leaves (160 ms), the shared objects
+   (the bead, the floating score, the top bar, the tab bar) stay or morph, the next page comes in from the
+   direction of travel (220 ms). The regions a page marks (vd-reg-n) keep their own order (transitions.css). */
+html[data-vd-page][data-vd-dir]::view-transition-old(root){animation:vd-x-out-l var(--vd-d-exit) var(--vd-ease) both}
+html[data-vd-page][data-vd-dir]::view-transition-new(root){animation:vd-x-in-r var(--vd-d-enter) var(--vd-d-exit) var(--vd-ease) both}
+html[data-vd-page][data-vd-dir="left"]::view-transition-old(root){animation-name:vd-x-out-r}
+html[data-vd-page][data-vd-dir="left"]::view-transition-new(root){animation-name:vd-x-in-l}
+html[data-vd-page]::view-transition-group(vd-top),html[data-vd-page]::view-transition-group(vd-dock){animation-duration:.3s}
+html[data-vd-page]::view-transition-old(vd-top),html[data-vd-page]::view-transition-old(vd-dock){animation:vd-x-fade-out .3s linear both}
+html[data-vd-page]::view-transition-new(vd-top),html[data-vd-page]::view-transition-new(vd-dock){animation:vd-x-fade-in .3s linear both}
 
 @media (prefers-reduced-transparency:reduce){
-  header.vx-top .vx-nav .vx-nav-in,nav.vx-dock.vd-glass,header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell){-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--vd-solid)}
+  header.vx-top .vx-nav .vx-nav-in,nav.vx-dock.vd-glass,header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell),.vd-acct{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--vd-solid)}
 }
 @media (prefers-reduced-motion:reduce){
   .vd-livedot{animation:none}
-  header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell,.hm-cta-top){transition:none}
+  header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell,.vd-acct),.vd-bead,nav.vx-dock.vd-glass,nav.vx-dock.vd-glass .lbl{transition:none}
 }

@@ -3,7 +3,8 @@
 //   useLiveDock(lensRef, "lens")     «my lens shows the match»: while it is on screen the float stays away
 //                                     (never the match twice) — Inicio's Hoy lens.
 //   useLiveDock(segmentRef, "anchor") «dock the float on this element» — Partidos' tonight segment.
-// Otherwise the float floats. `live` (set by the live system) lights the chrome's dot on «Partidos».
+// Otherwise the float floats. `live` (set by the live system) lights the chrome's dot on «Partidos»; `hidden`
+// («Ocultar hasta el próximo gol») leaves the score as a small chip beside «Partidos» that brings it back.
 // Server render: hooks do nothing and the snapshot is the calm one (not live, floating).
 import { useEffect, useSyncExternalStore, type RefObject } from "react";
 
@@ -15,6 +16,9 @@ export interface LiveDockState {
   mode: "float" | "lens" | "anchor";
   /** The element to dock on (mode «anchor»). */
   anchor: Element | null;
+  /** The float is hidden until the next goal: the score the capsule keeps beside «Partidos» («2–1») and what a
+   *  screen reader hears («Piti 2, Orduña fc 1»); null when it shows. */
+  hidden: { score: string; said: string } | null;
 }
 
 interface Entry {
@@ -23,22 +27,24 @@ interface Entry {
   shown: boolean;
 }
 
-const CALM: LiveDockState = { live: false, mode: "float", anchor: null };
+const CALM: LiveDockState = { live: false, mode: "float", anchor: null, hidden: null };
 const entries = new Map<object, Entry>();
 const listeners = new Set<() => void>();
 let live = false;
+let hidden: LiveDockState["hidden"] = null;
+let reveal: (() => void) | null = null;
 let state: LiveDockState = CALM;
 
 function compute(): LiveDockState {
   const list = [...entries.values()];
   const lens = list.some((e) => e.mode === "lens" && e.shown);
   const anchor = list.find((e) => e.mode === "anchor" && e.shown)?.el ?? null;
-  return { live, mode: lens ? "lens" : anchor ? "anchor" : "float", anchor: lens ? null : anchor };
+  return { live, mode: lens ? "lens" : anchor ? "anchor" : "float", anchor: lens ? null : anchor, hidden };
 }
 
 function publish(): void {
   const next = compute();
-  if (next.live === state.live && next.mode === state.mode && next.anchor === state.anchor) return;
+  if (next.live === state.live && next.mode === state.mode && next.anchor === state.anchor && next.hidden?.score === state.hidden?.score && next.hidden?.said === state.hidden?.said) return;
   state = next;
   listeners.forEach((l) => l());
 }
@@ -56,6 +62,16 @@ export const liveDock = {
     live = on;
     publish();
   },
+  /** The live system hid the float (the chip's score and words, and how to bring it back), or shows it again. */
+  setHidden(h: { score: string; said: string } | null, onReveal?: () => void): void {
+    hidden = h;
+    reveal = h ? (onReveal ?? null) : null;
+    publish();
+  },
+  /** The capsule's chip was tapped: the float comes back. */
+  reveal(): void {
+    reveal?.();
+  },
   /** A page's lens or anchor (key: any object owned by the caller), shown or not. */
   declare(key: object, mode: DockMode, el: Element, shown = true): void {
     entries.set(key, { mode, el, shown });
@@ -69,6 +85,8 @@ export const liveDock = {
   reset(): void {
     entries.clear();
     live = false;
+    hidden = null;
+    reveal = null;
     state = CALM;
     listeners.forEach((l) => l());
   },
