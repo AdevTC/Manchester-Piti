@@ -1,0 +1,107 @@
+// Where the live score lives on the current page (replaces the island's useIslaHero). The floating score reads
+// this store; pages declare themselves:
+//   useLiveDock(lensRef, "lens")     «my lens shows the match»: while it is on screen the float stays away
+//                                     (never the match twice) — Inicio's Hoy lens.
+//   useLiveDock(segmentRef, "anchor") «dock the float on this element» — Partidos' tonight segment.
+// Otherwise the float floats. `live` (set by the live system) lights the chrome's dot on «Partidos».
+// Server render: hooks do nothing and the snapshot is the calm one (not live, floating).
+import { useEffect, useSyncExternalStore, type RefObject } from "react";
+
+export type DockMode = "lens" | "anchor";
+export interface LiveDockState {
+  /** A match of ours is live now (the chrome's dot, the float's presence). */
+  live: boolean;
+  /** Where the score shows: floating, inside a page's lens, or docked on a page's element. */
+  mode: "float" | "lens" | "anchor";
+  /** The element to dock on (mode «anchor»). */
+  anchor: Element | null;
+}
+
+interface Entry {
+  mode: DockMode;
+  el: Element;
+  shown: boolean;
+}
+
+const CALM: LiveDockState = { live: false, mode: "float", anchor: null };
+const entries = new Map<object, Entry>();
+const listeners = new Set<() => void>();
+let live = false;
+let state: LiveDockState = CALM;
+
+function compute(): LiveDockState {
+  const list = [...entries.values()];
+  const lens = list.some((e) => e.mode === "lens" && e.shown);
+  const anchor = list.find((e) => e.mode === "anchor" && e.shown)?.el ?? null;
+  return { live, mode: lens ? "lens" : anchor ? "anchor" : "float", anchor: lens ? null : anchor };
+}
+
+function publish(): void {
+  const next = compute();
+  if (next.live === state.live && next.mode === state.mode && next.anchor === state.anchor) return;
+  state = next;
+  listeners.forEach((l) => l());
+}
+
+export const liveDock = {
+  subscribe(listener: () => void): () => void {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  },
+  get(): LiveDockState {
+    return state;
+  },
+  /** The live system says whether a match of ours is on. */
+  setLive(on: boolean): void {
+    live = on;
+    publish();
+  },
+  /** A page's lens or anchor (key: any object owned by the caller), shown or not. */
+  declare(key: object, mode: DockMode, el: Element, shown = true): void {
+    entries.set(key, { mode, el, shown });
+    publish();
+  },
+  release(key: object): void {
+    entries.delete(key);
+    publish();
+  },
+  /** Tests: forget everything. */
+  reset(): void {
+    entries.clear();
+    live = false;
+    state = CALM;
+    listeners.forEach((l) => l());
+  },
+};
+
+/** The dock state (the calm one on the server and while hydrating). */
+export function useLiveDockState(): LiveDockState {
+  return useSyncExternalStore(liveDock.subscribe, liveDock.get, () => CALM);
+}
+
+/** Whether a match of ours is live (the chrome's dot). */
+export function useLiveNow(): boolean {
+  return useLiveDockState().live;
+}
+
+/** Declares `ref`'s element as the page's live lens (counts while it is on screen) or as the float's anchor
+ *  (while mounted). Without IntersectionObserver the lens counts while mounted. */
+export function useLiveDock(ref: RefObject<Element | null>, mode: DockMode): void {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const key = {};
+    if (mode === "anchor" || typeof IntersectionObserver !== "function") {
+      liveDock.declare(key, mode, el, true);
+      return () => liveDock.release(key);
+    }
+    liveDock.declare(key, mode, el, false);
+    // (a sliver of the lens under the top bar doesn't count: the float comes back as the score leaves)
+    const io = new IntersectionObserver(([entry]) => liveDock.declare(key, mode, el, !!entry?.isIntersecting), { rootMargin: "-72px 0px 0px 0px" });
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      liveDock.release(key);
+    };
+  }, [ref, mode]);
+}

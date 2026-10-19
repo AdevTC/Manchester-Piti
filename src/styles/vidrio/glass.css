@@ -1,0 +1,43 @@
+/* «Vidrio» Liquid Glass. Only for things you touch or that move (capsule, floating score, lens, ornaments,
+   sheets, controls); reading content sits on the light field. Depth from rim light, refraction and a coloured
+   contact glow, never a grey drop shadow.
+   .vd-glass            blur + saturate, rim (bright top-left, dark bottom-right), specular following --vd-lx/--vd-ly
+   .vd-glass--deep      a denser tint (sheets, grown windows)
+   .vd-glass--clear     almost clear (ornaments over busy light)
+   .vd-glass--frost     offline: frosted, desaturated, dashed rim
+   .vd-glass--lens      a lens: the refraction (useRefraction sets backdrop-filter:url(#…) where Chromium supports it)
+   Reduced transparency: solid navy 92 % (white 94 % in «día»). */
+:where(.vd-glass){position:relative}
+.vd-glass{border-radius:var(--vd-r,var(--vd-r-orn));color:var(--vd-g-ink);
+  background:linear-gradient(165deg,var(--vd-g-sheen),rgba(255,255,255,.02) 38%,rgba(255,255,255,0) 60%,rgba(108,171,221,.07)),var(--vd-g-tint);
+  -webkit-backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat)) brightness(1.05);backdrop-filter:blur(var(--vd-blur)) saturate(var(--vd-sat)) brightness(1.05);
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.10),inset 0 14px 24px -18px rgba(255,255,255,.22),inset 0 -18px 30px -22px var(--vd-glow),0 30px 70px -34px var(--vd-glow),0 1px 0 0 rgba(255,255,255,.03)}
+.vd-glass::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.2px;pointer-events:none;z-index:3;
+  background:linear-gradient(calc(118deg + var(--vd-lx)*40deg),var(--vd-g-rim) 0,var(--vd-g-rim2) 14%,rgba(255,255,255,0) 34%,rgba(255,255,255,0) 62%,var(--vd-g-edge-dark) 80%,rgba(255,255,255,.42) 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.vd-glass::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;
+  background:radial-gradient(120% 70% at calc(var(--vd-lx)*100%) calc(var(--vd-ly)*100% - 8%),rgba(255,255,255,.20),rgba(255,255,255,.05) 34%,transparent 58%);
+  box-shadow:inset 1.5px 0 0 -.5px rgba(255,120,160,.20),inset -1.5px 0 0 -.5px rgba(110,210,255,.24),inset 0 1.5px 0 -.5px rgba(255,255,255,.18)}
+:where(.vd-glass)>*{position:relative;z-index:1}
+.vd-glass--deep{--vd-g-tint:var(--vd-g-tint-deep)}
+.vd-glass--clear{--vd-g-tint:rgba(12,23,51,.12)}
+:root[data-theme="light"] .vd-glass--clear{--vd-g-tint:rgba(255,255,255,.28)}
+.vd-glass--lens{--vd-blur:14px;--vd-g-tint:rgba(10,20,46,.30)}
+:root[data-theme="light"] .vd-glass--lens{--vd-g-tint:rgba(255,255,255,.5)}
+.vd-glass--frost{--vd-sat:.35;--vd-blur:30px;filter:saturate(.5)}
+.vd-glass--frost::before{background:none;border:1.5px dashed rgba(234,243,252,.45);padding:0;-webkit-mask:none;mask:none}
+/* press feedback: glass squishes like liquid */
+.vd-press{transition:transform .5s var(--vd-spring),box-shadow .3s var(--vd-ease)}
+.vd-press:active{transform:scale(.965)}
+.vd-press:hover{--vd-g-sheen:rgba(255,255,255,.2)}
+/* the goal's thin gold rim stays until the next play */
+.vd-rim-gold{box-shadow:inset 0 0 0 1.2px rgba(255,198,89,.75),inset 0 0 26px -8px rgba(255,198,89,.35),0 30px 70px -34px rgba(255,198,89,.45)!important}
+/* the live dot on «Partidos» (chrome) and anywhere else a thing is live */
+.vd-livedot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--vd-live);margin-left:7px;vertical-align:2px;flex:none;animation:vd-live 1.8s ease-out infinite}
+@keyframes vd-live{0%{box-shadow:0 0 0 0 rgba(255,93,93,.55)}80%,100%{box-shadow:0 0 0 9px rgba(255,93,93,0)}}
+
+.vd-vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-transparency:reduce){
+  .vd-glass{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:var(--vd-solid)}
+}
+.vd-solid .vd-glass{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:var(--vd-solid)}

@@ -18,9 +18,9 @@ const vendor = (...packages: [string, ...string[]]): RegExp => {
   return new RegExp(`${sep}node_modules${sep}(?:${escaped.join('|')})${sep}`)
 }
 
-// Preload the two faces that paint the first screen of the Celeste pages (headline + body), so they
-// arrive with the CSS instead of after it: no late swap re-flowing the text (CLS) and earlier LCP.
-const CRITICAL_FONTS = [/anybody-latin-standard-normal-.*\.woff2$/, /geist-latin-wght-normal-.*\.woff2$/]
+// Preload the faces that paint the first screen of the Celeste pages (headline + body, and Mona Sans for the
+// «Vidrio» chrome and kit), so they arrive with the CSS instead of after it: no late swap re-flowing the text (CLS) and earlier LCP.
+const CRITICAL_FONTS = [/anybody-latin-standard-normal-.*\.woff2$/, /geist-latin-wght-normal-.*\.woff2$/, /mona-sans-latin-standard-normal-.*\.woff2$/]
 const preloadCriticalFonts = (): Plugin => ({
   name: 'preload-critical-fonts',
   apply: 'build',

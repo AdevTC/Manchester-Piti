@@ -1,0 +1,26 @@
+// «Vidrio» kit: the shared material, light, controls and live pieces of the redesign (README.md beside this file).
+export { VidrioSky, type VidrioSkyProps } from "./VidrioSky";
+export { VidrioDefs } from "./VidrioDefs";
+export { skyLightOf, skyAt, bokehDiscs, type SkyLight, type SkyInput } from "./sky";
+export { Lens, type LensProps } from "./Lens";
+export { useRefraction } from "./useRefraction";
+export { displacementMap, lensFilter, lensBackdrop, type LensOptions } from "./refraction";
+export { useLightPointer } from "./useLightPointer";
+export { Shelf, type ShelfPlace, type ShelfProps } from "./Shelf";
+export { shelfTabId, shelfPanelId, nextIndex, travel } from "./shelfIds";
+export { MomentumRibbon, type MomentumRibbonProps } from "./MomentumRibbon";
+export { ribbonModel, pressureAt, type RibbonItem, type RibbonKind, type RibbonModel } from "./momentum";
+export { SeeAll, type SeeAllProps } from "./SeeAll";
+export { GrowWindow, type GrowWindowProps } from "./GrowWindow";
+export { useGrow, type Grow } from "./useGrow";
+export { swap, region, morph, type SwapDirection, type SwapRun, type RegionIndex } from "./transitions";
+export { FloatingScore, type FloatingScoreProps } from "./FloatingScore";
+export { floatLines, floatLabel, untilText, type FloatMatch, type FloatState } from "./floatText";
+export { useDraggable, type DraggableOptions, type Draggable } from "./useDraggable";
+export { anchorPoints, nearestAnchor, clampPos, stepAnchor, dragTo, parsePos, type Pos, type Box, type AnchorOptions, type AnchorSet, type DragAxis } from "./anchors";
+export { PipWindow, type PipWindowProps } from "./PipWindow";
+export { openScorePip, hasDocumentPip, type ScorePip } from "./pip";
+export { liveDock, useLiveDock, useLiveDockState, useLiveNow, type LiveDockState, type DockMode } from "./liveDock";
+export { useGoalMoment } from "./useGoalMoment";
+export { goalClasses, goalStageAt, GOAL_TIMELINE, type GoalMoment, type GoalStage, type GoalClasses } from "./goalMoment";
+export { useReducedMotion, useDesktop, useMedia, canRefract, supportsViewTransitions } from "./env";

@@ -1,0 +1,51 @@
+/* «Vidrio» choreography for every place / screen change (components/vidrio/transitions.ts → swap()).
+   1. outgoing regions exit first: fade + 8 px slide + 4 px blur, 160 ms, +30 ms per region;
+   2. shared objects (.vd-morph, own view-transition-name) morph continuously, never fade-swap at full opacity;
+   3. incoming regions enter after the exit, 220 ms, +30 ms per region, from the direction of travel
+      (html[data-vd-dir] = right | left | up).
+   Reduced motion (or html[data-vd-calm]): a 120 ms crossfade only. Growing panels: .vd-grow (components.css). */
+.vd-reg-1{view-transition-name:vd-reg-1;view-transition-class:vd-reg vd-r1}
+.vd-reg-2{view-transition-name:vd-reg-2;view-transition-class:vd-reg vd-r2}
+.vd-reg-3{view-transition-name:vd-reg-3;view-transition-class:vd-reg vd-r3}
+.vd-reg-4{view-transition-name:vd-reg-4;view-transition-class:vd-reg vd-r4}
+.vd-reg-5{view-transition-name:vd-reg-5;view-transition-class:vd-reg vd-r5}
+.vd-reg-6{view-transition-name:vd-reg-6;view-transition-class:vd-reg vd-r6}
+.vd-morph{view-transition-class:vd-morph}
+::view-transition-group(*.vd-reg){animation:none}
+::view-transition-image-pair(*.vd-reg){isolation:auto}
+::view-transition-old(*.vd-reg){animation:vd-x-out-l var(--vd-d-exit) var(--vd-ease) both;mix-blend-mode:normal}
+::view-transition-new(*.vd-reg){animation:vd-x-in-r var(--vd-d-enter) var(--vd-d-exit) var(--vd-ease) both;mix-blend-mode:normal}
+html[data-vd-dir="left"]::view-transition-old(*.vd-reg){animation-name:vd-x-out-r}
+html[data-vd-dir="left"]::view-transition-new(*.vd-reg){animation-name:vd-x-in-l}
+html[data-vd-dir="up"]::view-transition-old(*.vd-reg){animation-name:vd-x-out-d}
+html[data-vd-dir="up"]::view-transition-new(*.vd-reg){animation-name:vd-x-in-u}
+::view-transition-old(*.vd-r2){animation-delay:.03s}::view-transition-new(*.vd-r2){animation-delay:.19s}
+::view-transition-old(*.vd-r3){animation-delay:.06s}::view-transition-new(*.vd-r3){animation-delay:.22s}
+::view-transition-old(*.vd-r4){animation-delay:.09s}::view-transition-new(*.vd-r4){animation-delay:.25s}
+::view-transition-old(*.vd-r5){animation-delay:.12s}::view-transition-new(*.vd-r5){animation-delay:.28s}
+::view-transition-old(*.vd-r6){animation-delay:.15s}::view-transition-new(*.vd-r6){animation-delay:.31s}
+::view-transition-group(*.vd-morph){animation-duration:var(--vd-d-morph);animation-timing-function:var(--vd-spring)}
+::view-transition-old(*.vd-morph){animation:vd-x-fade-out var(--vd-d-exit) var(--vd-ease) both;mix-blend-mode:normal}
+::view-transition-new(*.vd-morph){animation:vd-x-fade-in .2s .1s var(--vd-ease) both;mix-blend-mode:normal}
+::view-transition-group(*.vd-grow){animation-duration:var(--vd-d-grow);animation-timing-function:var(--vd-spring)}
+::view-transition-old(*.vd-grow){animation:vd-x-fade-out .18s var(--vd-ease) both;mix-blend-mode:normal}
+::view-transition-new(*.vd-grow){animation:vd-x-fade-in .26s .12s var(--vd-ease) both;mix-blend-mode:normal}
+::view-transition-old(*.vd-grow),::view-transition-new(*.vd-grow){height:100%;width:100%;object-fit:none;object-position:0 0}
+/* the page itself never cross-fades: only the named regions move */
+html[data-vd-dir]::view-transition-old(root),html[data-vd-dir]::view-transition-new(root){animation:none}
+@keyframes vd-x-out-l{to{opacity:0;transform:translateX(-8px);filter:blur(4px)}}
+@keyframes vd-x-out-r{to{opacity:0;transform:translateX(8px);filter:blur(4px)}}
+@keyframes vd-x-out-d{to{opacity:0;transform:translateY(8px);filter:blur(4px)}}
+@keyframes vd-x-in-r{from{opacity:0;transform:translateX(16px);filter:blur(4px)}}
+@keyframes vd-x-in-l{from{opacity:0;transform:translateX(-16px);filter:blur(4px)}}
+@keyframes vd-x-in-u{from{opacity:0;transform:translateY(16px);filter:blur(4px)}}
+@keyframes vd-x-fade-out{to{opacity:0}}
+@keyframes vd-x-fade-in{from{opacity:0}}
+html[data-vd-calm]::view-transition-group(*){animation-duration:var(--vd-d-calm)!important}
+html[data-vd-calm]::view-transition-old(*){animation:vd-x-fade-out var(--vd-d-calm) linear both!important}
+html[data-vd-calm]::view-transition-new(*){animation:vd-x-fade-in var(--vd-d-calm) linear both!important}
+@media (prefers-reduced-motion:reduce){
+  html[data-vd-dir]::view-transition-group(*){animation-duration:var(--vd-d-calm)!important}
+  html[data-vd-dir]::view-transition-old(*){animation:vd-x-fade-out var(--vd-d-calm) linear both!important}
+  html[data-vd-dir]::view-transition-new(*){animation:vd-x-fade-in var(--vd-d-calm) linear both!important}
+}
