@@ -656,3 +656,6 @@
 /* the 1920 centre: no room for who keeps la mesa under the plays (1440 and the phone say it); compact headline */
 .vi--cockpit .vi-mesanote{display:none}
 @media (max-height:1199px){.vi--cockpit .vi-centre--compact .vi-h1{font-size:31px}}
+/* the 1920 Temporada zone out of focus keeps both rows of the season strip in sight */
+.vi-zone:not(.vi-zone--wide) .vi-rank li{min-height:36px;padding:2px 0}
+.vi-zone:not(.vi-zone--wide) .vi-seasonbox{margin-top:12px}
