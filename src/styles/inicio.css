@@ -133,8 +133,10 @@
 .vi-tag--gold{background:var(--vd-oro);color:#3a2600}
 /* a shirt: the real kit's still when it is ready, a drawn one with the number until then */
 .vi-shirt{--s:var(--ps,34px);position:relative;display:grid;place-items:center;width:var(--s);height:calc(var(--s)*1.18);flex:none}
-.vi-shirt::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#bfe0f8,#8fc4ec);-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M8 1 2 4.2l2.3 6 2.4-1.1V27h10.6V9.1l2.4 1.1 2.3-6L16 1a4 4 0 0 1-8 0Z'/></svg>") center/contain no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M8 1 2 4.2l2.3 6 2.4-1.1V27h10.6V9.1l2.4 1.1 2.3-6L16 1a4 4 0 0 1-8 0Z'/></svg>") center/contain no-repeat;filter:drop-shadow(0 4px 4px rgba(0,8,30,.45))}
-.vi-shirt b{position:relative;margin-top:18%;font-weight:800;font-size:calc(var(--s)*.42);line-height:1;color:var(--vd-marino);letter-spacing:-.04em;font-feature-settings:'tnum' 1}
+/* (the drawn one has the still's build: a torso 62 % of the width, short sleeves, so the board's number sits on the chest) */
+.vi-shirt::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#bfe0f8,#8fc4ec);-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M9 1 3.2 3.4.6 9.4l4 1.6V27h14.8V11l4-1.6-2.6-6L15 1a3 3 0 0 1-6 0Z'/></svg>") center/contain no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M9 1 3.2 3.4.6 9.4l4 1.6V27h14.8V11l4-1.6-2.6-6L15 1a3 3 0 0 1-6 0Z'/></svg>") center/contain no-repeat;filter:drop-shadow(0 4px 4px rgba(0,8,30,.45))}
+/* the number as the boards' .v-shirt b: 20 % down, .46 of the shirt's width, at every size */
+.vi-shirt b{position:absolute;left:0;right:0;top:20%;text-align:center;font-weight:800;font-size:calc(var(--s)*.46);line-height:1;color:var(--vd-marino);letter-spacing:-.04em;font-feature-settings:'tnum' 1}
 .vi-shirt--still::before{display:none}
 /* The still is 360×400 with the shirt at x 42–317, y 31–396 (measured): the shirt, sleeves and collar
    included, spans the box's width exactly (275 px → --s) and nothing of it is cut. */
@@ -164,7 +166,6 @@
 .vi-mvp__grid button[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--vd-oro);background:rgba(255,198,89,.14)}
 :root[data-theme="light"] .vi-mvp__grid button{box-shadow:inset 0 0 0 1px rgba(12,23,51,.16)}
 .vi-mvp__grid .vi-shirt{--ps:22px}
-.vi-mvp__grid .vi-shirt b{font-size:10px}
 /* rows (lo que viene, el club, tú) */
 .vi-rows>li{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--vd-rule);min-height:64px}
 .vi-rows>li:first-child{border-top:0}
@@ -216,7 +217,6 @@
 .vi-rank li:first-child{border-top:0}
 .vi-rank .n{font-size:13px;color:var(--vd-ink2);font-feature-settings:'tnum' 1}
 .vi-rank .vi-shirt{--ps:28px}
-.vi-rank .vi-shirt b{font-size:11px}
 .vi-rank .nm{font-weight:600;font-size:14.5px;color:var(--vd-ink-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none;min-height:24px;display:flex;align-items:center}
 .vi-rank .c{font-weight:780;font-variation-settings:'wdth' 108;font-size:20px;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
 .vi-ranks{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;margin-top:22px}
@@ -650,9 +650,8 @@
 .vi--grown .vi-place>:not(.vi-grow):not(.vi-ph){display:none}
 /* the 1920 focused Temporada: the table, then Forma · Goleadores · Asistencias in one row, then the strip */
 .vi-wide3{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1fr) minmax(0,1fr);gap:28px;margin-top:22px;align-items:start}
-.vi-wide3 .vi-formabox .vi-sub{flex-direction:column;align-items:flex-start;gap:2px}
-.vi-wide3 .vd-form{flex-wrap:nowrap;gap:5px}
-.vi-wide3 .vd-form__l{width:32px;height:32px;border-radius:9px;font-size:15px}
+/* la forma as the board: its title and note on one line, the kit's 42 px letters wrapping onto a second row */
+.vi-zone--wide .vi-wide3 .vi-formabox .vi-sub{flex-direction:row;align-items:baseline;gap:10px}
 .vi-zone--wide .vi-golesp{display:block;margin-top:0}
 /* (the focused 1920 table spreads its numbers as the board: PJ 40, G·E·P 34, DG 48, Pts 44, rows of 36 px) */
 .vi-zone--wide .vi-table th,.vi-zone--wide .vi-table td{padding-top:6px;padding-bottom:6px}
@@ -705,7 +704,6 @@
 .vi-done svg{width:16px;height:16px}
 .vi-cromos{display:flex;gap:8px;flex-basis:100%;margin-left:54px}
 .vi-cromo{width:42px;height:50px;border-radius:10px;display:grid;place-items:center;background:rgba(234,243,252,.06);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
-.vi-cromo .vi-shirt b{font-size:11px}
 .vi .vi-cromo--off{background:none;box-shadow:none;outline:1px dashed var(--vd-rule2);outline-offset:-1px;color:var(--vd-ink2);font-weight:700;font-size:15px}
 .vi-pushseg{flex-basis:100%;height:48px}
 .vi-zone .vi-cromos,.vi-zone .vi-pollvote{margin-left:0}
