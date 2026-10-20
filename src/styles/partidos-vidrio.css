@@ -93,20 +93,21 @@
   -webkit-mask:linear-gradient(90deg,#000 88%,transparent);mask:linear-gradient(90deg,#000 88%,transparent)}
 .vp-ribwrap::-webkit-scrollbar{display:none}
 .vp-rib{--gap:8px;position:relative;display:flex;align-items:stretch;height:128px;width:max-content}
-.vp-rib__band{position:absolute;inset:0;border-radius:26px;overflow:hidden;
+.vp-rib__band{position:absolute;inset:0;border-radius:20px;overflow:hidden;
   background:linear-gradient(180deg,#09132E 0,#0C1A3C 50%,#0F2240 59%,#0B1E22 61%,#09171A 100%);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),inset 0 1px 0 rgba(255,255,255,.18),0 30px 60px -30px rgba(0,0,0,.6)}
 .vp-gap{position:relative;flex:0 0 calc(var(--gap)*var(--u,1));display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px;overflow:hidden}
 .vp-gap small{font-size:12px;line-height:1.25;color:rgba(234,243,252,.62);text-align:center;display:none}
 .vp-slot{position:relative;flex:0 0 146px;min-width:0;scroll-snap-align:start;scroll-margin-left:16px}
-.vp-slot:first-of-type .vp-paint,.vp-rib>.vp-slot:nth-child(2) .vp-paint{border-top-left-radius:26px;border-bottom-left-radius:26px}
-.vp-slot:last-child .vp-paint{border-top-right-radius:26px;border-bottom-right-radius:26px}
+/* every jornada is its own rounded tile, a little apart from the next and inside the band (no square corner
+   showing past the band's round end); the chosen one only lifts */
+.vp-slot .vp-paint{inset:0 3px;border-radius:18px}
 .vp-slot.is-sel{z-index:2}
 .vp-paint{position:absolute;inset:0;overflow:hidden;transition:transform .72s var(--vd-spring),filter .45s var(--vd-ease),opacity .45s var(--vd-ease);animation:vp-rise .8s var(--vd-spring) var(--rd,0ms) both}
 .vp-paint::before,.vp-paint::after{content:"";position:absolute;inset:0}
 .vp-paint::before{background:var(--a)}
 .vp-paint::after{background:var(--b);-webkit-mask:linear-gradient(90deg,transparent var(--m0),#000 var(--m1));mask:linear-gradient(90deg,transparent var(--m0),#000 var(--m1))}
-.vp-paint.is-sel{transform:scale(1.07,1.1);border-radius:20px!important;animation:none}
+.vp-paint.is-sel{transform:scale(1.07,1.1);animation:none}
 .vp-paint.is-pp{filter:grayscale(.85) brightness(.62)}
 .vp-paint>i{position:absolute;z-index:2;display:block;font-style:normal}
 .vp-phz{left:-30%;right:-30%;top:46%;height:26%;background:radial-gradient(50% 50% at 50% 60%,rgba(255,236,210,.28),transparent 70%)}
@@ -145,7 +146,7 @@
 .vp-seg__sim~.vp-seg__res{display:none}
 .vp-dock{position:absolute;left:50%;top:50%;width:1px;height:1px;pointer-events:none}
 /* the glass cursor over the chosen jornada (morphs from one to the next) */
-.vp-cur{position:absolute;top:-10px;bottom:-10px;left:-8px;right:-8px;z-index:0;--vd-r:30px;pointer-events:none;--vd-g-tint:rgba(255,255,255,.015);--vd-g-sheen:rgba(255,255,255,.10);view-transition-name:vp-cur;
+.vp-cur{position:absolute;top:-10px;bottom:-10px;left:-8px;right:-8px;z-index:0;--vd-r:28px;pointer-events:none;--vd-g-tint:rgba(255,255,255,.015);--vd-g-sheen:rgba(255,255,255,.10);view-transition-name:vp-cur;
   -webkit-backdrop-filter:none;backdrop-filter:none}
 .vp-cur::after{background:radial-gradient(120% 60% at calc(var(--vd-lx)*100%) -10%,rgba(255,255,255,.26),rgba(255,255,255,.04) 40%,transparent 62%)}
 .vp-seg--live .vp-cur{box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1),0 0 0 1px rgba(108,171,221,.35),0 18px 50px -14px rgba(108,171,221,.75);animation:vp-breathe 2.8s ease-in-out infinite}
@@ -459,7 +460,6 @@
   .vp-seg__ring{width:34px;height:34px}
   .vp-seg__score{flex-direction:column;align-items:flex-start;gap:2px}
   .vp-seg__cd{display:none}
-  .vp-slot:first-of-type .vp-paint{border-radius:26px 0 0 26px}
   .vp-shelfbar{margin:18px 32px 0}
   .vp-main{margin:18px 32px 0}
   .vp-state,.vp-skel{margin:18px 32px 0}
