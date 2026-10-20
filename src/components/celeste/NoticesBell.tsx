@@ -102,7 +102,7 @@ function Bell({ member, uid, list, loading, failed, serverSeen }: BellProps) {
     const width = el?.closest(".vx")?.clientWidth ?? window.innerWidth;
     if (!el || width < POPOVER_FROM) return { mode: "sheet" };
     const r = el.getBoundingClientRect();
-    return { mode: "pop", top: Math.round(r.bottom + 10), right: Math.max(16, Math.round(document.documentElement.clientWidth - r.right - 60)) };
+    return { mode: "pop", top: Math.round(r.bottom + 6), right: Math.max(16, Math.round(document.documentElement.clientWidth - r.right - 60)) };
   }, []);
 
   const toggle = () => {
@@ -174,7 +174,8 @@ function Bell({ member, uid, list, loading, failed, serverSeen }: BellProps) {
       titleId={titleId}
       member={member}
       list={list}
-      unread={unread}
+      // (what was unread when it opened: the header says the same as the rows it marks, not «Al día» once the look is written)
+      unread={member ? unreadCount(list, seenBefore) : 0}
       loading={member && loading}
       failed={member && failed}
       seenBefore={seenBefore}

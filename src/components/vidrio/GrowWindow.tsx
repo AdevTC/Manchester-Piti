@@ -2,6 +2,7 @@
 // with className/style), a sticky header with the title, optional filters and «Cerrar», and a body with its own
 // scroll. Focus moves to the title on open and back to where it was on close; Escape closes.
 import { useEffect, useId, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { VIcon } from "./VIcon";
 import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/glass.css";
@@ -20,10 +21,13 @@ export interface GrowWindowProps {
   id?: string;
   className?: string;
   style?: CSSProperties;
+  /** Render on the body: a window fixed to the viewport (the match page's, the table's) never takes a moving
+   *  or filtered ancestor (a region's rise, a glass) as its frame. */
+  portal?: boolean;
   children: ReactNode;
 }
 
-export function GrowWindow({ open, title, sub, filters, onClose, name, id, className, style, children }: GrowWindowProps) {
+export function GrowWindow({ open, title, sub, filters, onClose, name, id, className, style, portal = false, children }: GrowWindowProps) {
   const titleId = useId();
   const heading = useRef<HTMLHeadingElement | null>(null);
   useEffect(() => {
@@ -46,7 +50,7 @@ export function GrowWindow({ open, title, sub, filters, onClose, name, id, class
       onClose();
     }
   };
-  return (
+  const win = (
     <section id={id} className={`vd-glass vd-glass--deep vd-grow${className ? ` ${className}` : ""}`} style={name ? { ...style, viewTransitionName: name } : style} aria-labelledby={titleId} onKeyDown={onKey}>
       <header className="vd-grow__head">
         <h2 id={titleId} ref={heading} tabIndex={-1}>
@@ -54,7 +58,7 @@ export function GrowWindow({ open, title, sub, filters, onClose, name, id, class
         </h2>
         {filters}
         <button type="button" className="vd-glass vd-grow__close vd-press" onClick={onClose}>
-          <VIcon name="collapse" size={16} />
+          <VIcon name="close" size={16} />
           Cerrar
         </button>
         {sub && <p>{sub}</p>}
@@ -64,4 +68,5 @@ export function GrowWindow({ open, title, sub, filters, onClose, name, id, class
       </div>
     </section>
   );
+  return portal && typeof document !== "undefined" ? createPortal(win, document.body) : win;
 }

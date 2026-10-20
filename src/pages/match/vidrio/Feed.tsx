@@ -80,6 +80,7 @@ export function Feed({ match, nameOf, live, freshId = null }: { match: ClubMatch
         }
         onClose={g.close}
         className="mp-grow"
+        portal
         {...g.windowProps}
       >
         {all.length ? (

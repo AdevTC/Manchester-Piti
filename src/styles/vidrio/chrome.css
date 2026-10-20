@@ -5,6 +5,13 @@
    you scroll down. Mona Sans for the chrome's words. Selectors carry the element (header.vx-top, nav.vx-dock) so
    they win over the Celeste base (vestuario.css, search.css, notices.css) in whatever order the sheets load. */
 header.vx-top{font-family:var(--vd-sans);view-transition-name:vd-top}
+/* desktop: the board's bar (V-Sistema .vs-top, V-Integracion .vv-top): 22px 40px, the capsule centred between
+   two equal sides */
+@container (min-width:1100px){
+  header.vx-top{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);padding:22px 40px 0;align-items:center}
+  header.vx-top .vx-brand{justify-self:start}
+  header.vx-top .vx-actions{justify-self:end}
+}
 header.vx-top .vx-brand{gap:10px;min-height:44px;color:var(--vd-ink-strong)}
 header.vx-top .vx-brand img{width:36px;height:36px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.25),0 6px 18px -6px var(--vd-glow)}
 header.vx-top .vx-brand-name{display:inline;font-family:var(--vd-sans);font-weight:720;font-size:17px;font-variation-settings:'wdth' 92;font-stretch:92%;letter-spacing:-.02em;white-space:nowrap;color:var(--vd-ink-strong)}
@@ -89,7 +96,9 @@ nav.vx-dock.vd-glass .vx-dock-in a:focus-visible{outline:2px solid var(--vd-cele
 /* scrolling down: icons only, a little lower */
 nav.vx-dock.vd-glass.is-min{height:52px;max-width:340px}
 nav.vx-dock.vd-glass.is-min .vx-dock-in a .lbl{opacity:0;max-height:0}
-@container (max-width:439px){nav.vx-dock.vd-glass{left:10px;right:10px;padding:0}}
+/* the board's tab bar (v-kit .v-tabbar): 14px from the sides, 10px over the bottom edge */
+nav.vx-dock.vd-glass{left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+@container (max-width:439px){nav.vx-dock.vd-glass{padding:0}}
 
 /* the footer: Mona Sans, the small print readable; the theme switch for everyone */
 .vx-foot{font-family:var(--vd-sans)}
