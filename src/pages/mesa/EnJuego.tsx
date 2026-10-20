@@ -6,7 +6,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { allowedAtBreak } from "../../../functions/src/liveRules";
 import { Shirt, ShirtDefs } from "./Shirt";
-import { pitchLeft, pitchTop } from "./model";
+import { pitchLeft, pitchTop, spreadTops } from "./model";
 import { hhmm, matchLine } from "./screens/model";
 
 /** How long after kick-off (seconds of play) the «INICIO» lower third offers to take the whistle back. */
@@ -374,6 +374,8 @@ export function EnJuego({ view }: MesaScreenProps) {
   const outName = mode.k === "outFrom" ? view.nameOf(mode.outId) : "";
   const outGone = mode.k === "outFrom" && bench.some((p) => p.id === mode.outId && p.vacancy);
   const vacant = bench.filter((p) => p.vacancy);
+  // every token's top, spread so two in one column never sit on each other (the keeper behind his centre-back)
+  const tops = spreadTops([...field.map((p) => p.spot ?? { x: 50, y: 50 }), ...vacant.map((v) => v.vacancy?.spot ?? null)].map((s) => (s ? { left: pitchLeft(s.x), top: pitchTop(s.y) } : { left: -999, top: 0 })));
 
   // the lower third
   let strap: { tag: string; msg: string; sub: string; tone: "" | "g" | "r"; undo: boolean; cancel: boolean; reset?: boolean } | null = null;
@@ -515,7 +517,7 @@ export function EnJuego({ view }: MesaScreenProps) {
         <div className="cl" style={{ left: "50%", bottom: -2, width: 178, height: 62, marginLeft: -89, borderBottom: 0 }} />
         <span className="spot" style={{ left: "50%", bottom: 44, marginLeft: -2.5 }} />
         <div className="net" />
-        {field.map((p) => {
+        {field.map((p, i) => {
           let cls = "tok";
           let aria = playerAria(p);
           if (mode.k === "assist") {
@@ -530,7 +532,7 @@ export function EnJuego({ view }: MesaScreenProps) {
           if (pop === p.id) cls += " pop";
           const spot = p.spot ?? { x: 50, y: 50 };
           return (
-            <button key={p.id} type="button" className={cls} style={{ left: `${pitchLeft(spot.x)}%`, top: `${pitchTop(spot.y)}%` }} aria-label={aria} onClick={(e) => tapField(p, e)}>
+            <button key={p.id} type="button" className={cls} style={{ left: `${pitchLeft(spot.x)}%`, top: `${tops[i]}%` }} aria-label={aria} onClick={(e) => tapField(p, e)}>
               <span className="halo" />
               <span className="shirtw">
                 <Shirt kind={p.keeper ? "keeper" : "field"} number={p.number} shadow />
@@ -549,13 +551,13 @@ export function EnJuego({ view }: MesaScreenProps) {
             </button>
           );
         })}
-        {vacant.map((v) => {
+        {vacant.map((v, k) => {
           if (!v.vacancy?.spot) return null;
           const spot = v.vacancy.spot;
           const cls = "tok hueco" + (mode.k === "out" ? " ask" : mode.k === "outFrom" ? (mode.outId === v.id ? " in" : " dim") : "");
           const aria = mode.k === "out" ? `Entra ${inName} por ${v.name}, expulsado` : `Hueco de ${v.name}, expulsado${v.vacancy.code ? `, ${v.vacancy.code}` : ""}. Toca para que entre alguien`;
           return (
-            <button key={"hueco-" + v.id} type="button" className={cls} style={{ left: `${pitchLeft(spot.x)}%`, top: `${pitchTop(spot.y)}%` }} aria-label={aria} disabled={!can("substitution")} onClick={() => tapVacancy(v)}>
+            <button key={"hueco-" + v.id} type="button" className={cls} style={{ left: `${pitchLeft(spot.x)}%`, top: `${tops[field.length + k]}%` }} aria-label={aria} disabled={!can("substitution")} onClick={() => tapVacancy(v)}>
               <span className="halo" />
               <span className="shirtw"><span className="hole" aria-hidden="true">+</span></span>
               <span className="tag">

@@ -224,6 +224,30 @@ export const pitchTop = (y: number): number => Math.max(2, Math.min(72, 5 + ((y 
 /** Kept inside the card so a name tag never clips. */
 export const pitchLeft = (x: number): number => Math.max(13, Math.min(87, x));
 
+/** The tokens' tops (pitch %) spread so two that share a column (closer than `col` % across) stand at least one
+ *  token apart (`tok` px on a pitch `h` px tall): the lower one goes down (to `max`), then the upper one up (to
+ *  `min`). The pizarra's shape stays; a centre-back's name never sits on the keeper's shirt. */
+export function spreadTops(spots: readonly { left: number; top: number }[], h = 280, tok = 64, col = 20, min = 2, max = 76): number[] {
+  const tops = spots.map((s) => s.top);
+  const need = (tok / h) * 100;
+  for (let round = 0; round < 6; round++) {
+    let moved = false;
+    for (let i = 0; i < spots.length; i++)
+      for (let j = 0; j < spots.length; j++) {
+        if (i === j || Math.abs(spots[i].left - spots[j].left) >= col || tops[i] > tops[j]) continue;
+        const gap = tops[j] - tops[i];
+        if (gap >= need - 0.01) continue;
+        const down = Math.min(need - gap, max - tops[j]);
+        tops[j] += down;
+        const up = Math.min(need - gap - down, tops[i] - min);
+        tops[i] -= up;
+        if (down + up > 0.01) moved = true;
+      }
+    if (!moved) break;
+  }
+  return tops.map((t) => Math.round(t * 10) / 10);
+}
+
 // ---------- how a play is said
 const TAGS: Partial<Record<string, string>> = {
   goal: "GOL", goal_penalty: "GOL", goal_freekick: "GOL", opponent_own_goal: "GOL", own_goal: "EN PROPIA",

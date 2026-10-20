@@ -9,6 +9,7 @@ import type { MesaPlayer, MesaScreenProps } from "../types";
 import { beep, buzz, canVibrate, useFlash, useNow } from "./hooks";
 import { avatars, fixtureTitle, fmtClock, hhmm, initial, listNames, matchLine } from "./model";
 import { BackButton, Check, Screws, Shirt, ShirtDefs, Whistle } from "./parts";
+import { spreadTops } from "../model";
 import "./screens.css";
 
 // (the roll call loads the pizarra's cromos: only when it is opened)
@@ -20,7 +21,8 @@ const FALLBACK = systemDef("2-3-1").spots;
 /** Where a shirt stands on the 236 px card: x in %, top in px (the punta at 10, the keeper on the line; we attack up). */
 function place(p: MesaPlayer, i: number) {
   const s = p.spot ?? (p.keeper ? { x: FALLBACK[0][1], y: FALLBACK[0][2] } : { x: FALLBACK[1 + (i % 6)][1], y: FALLBACK[1 + (i % 6)][2] });
-  return { left: `${Math.min(89, Math.max(11, s.x))}%`, top: Math.round(Math.min(170, Math.max(4, 10 + ((s.y - 22) / 73) * 160))) };
+  const x = Math.min(89, Math.max(11, s.x));
+  return { x, left: `${x}%`, top: Math.round(Math.min(170, Math.max(4, 10 + ((s.y - 22) / 73) * 160))) };
 }
 
 function Lamp({ ok, gold = false }: { ok: boolean; gold?: boolean }) {
@@ -44,6 +46,9 @@ export function Antes({ view }: MesaScreenProps) {
   const cd = Math.max(0, Math.ceil((match.date - now) / 1000));
   const showL3 = live && kickedAt !== null && now - kickedAt < 9000;
   const keeper = field.find((p) => p.keeper);
+  // the shirts' tops on the 236 px card, spread so a centre-back's name never sits on the keeper's shirt (px units: a
+  // token is some 58 px tall, and stays on the card)
+  const tops = spreadTops(field.map((p, i) => place(p, i)).map((a) => ({ left: a.x, top: a.top })), 100, 58, 20, 4, 172);
   const outfield = field.filter((p) => p !== keeper);
   const sevenLabel = `El siete en el campo: ${listNames([...outfield.map((p) => p.name), ...(keeper ? [`${keeper.name} de portero`] : [])])}`;
 
@@ -156,7 +161,7 @@ export function Antes({ view }: MesaScreenProps) {
         {field.map((p, i) => {
           const at = place(p, i);
           return (
-            <div key={p.id} className="tok" style={{ left: at.left, top: at.top }}>
+            <div key={p.id} className="tok" style={{ left: at.left, top: tops[i] }}>
               <Shirt n={p.number} keeper={p.keeper} w={40} h={37} />
               <span className="tag"><span className="nm">{p.name}</span></span>
             </div>
