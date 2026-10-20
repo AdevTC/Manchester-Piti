@@ -29,6 +29,7 @@ import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { BackLink } from "../../components/celeste/BackLink";
 import { LIVE_MORPH, Lens, PipWindow, openScorePip, useDesktop, useGoalMoment, useLiveDock, type GoalClasses, type ScorePip } from "../../components/vidrio";
+import { pipBottom } from "../../components/vidrio/live/liveModel";
 import { PageSky } from "../../components/paginas/PageSky";
 import { PgIcon } from "../../components/paginas/Tags";
 import { countdownParts, matchEvent } from "../../lib/home";
@@ -517,7 +518,7 @@ export function MatchPage() {
         {active === 3 && <VestuarioTab match={match} matches={matches} players={players} phase={phase} ratings={ratings.data} ratingsError={ratings.error} />}
       </div>
       {pip && live && (
-        <PipWindow pip={pip} title={`Manchester Piti contra ${rival}`} onClose={closePip}>
+        <PipWindow pip={pip} title={`Manchester Piti contra ${rival}`} onClose={closePip} bottom={pipBottom("/matches/")}>
           <span className="vd-score">
             {gf}–{ga}
           </span>

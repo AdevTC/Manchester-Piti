@@ -4,7 +4,7 @@ import type { MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../../lib/clubData";
 import type { MatchMoment } from "../../../lib/derived/moments";
 import { playsLog } from "../../../lib/derived/vidrio/plays";
-import { clockText, dayStateOf, dropEvent, floatHome, floatOf, hideMark, moreText, onFieldNames, pageKey, rivalInitials, sheetOf, turnEvent } from "./liveModel";
+import { clockText, dayStateOf, dropEvent, floatHome, floatOf, hideMark, moreText, onFieldNames, pageKey, pipBottom, rivalInitials, sheetOf, turnEvent } from "./liveModel";
 
 const MIN = 60_000;
 // 8 Nov 2026, 12:00 in Madrid
@@ -121,6 +121,12 @@ describe("small rules", () => {
     expect(floatHome("/")).toBe("centre");
     for (const p of ["/partidos", "/matches/j3", "/profile"]) expect(floatHome(p)).toBe("bottom-right");
     for (const p of ["/stats", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("right");
+  });
+
+  it("«Sacar el marcador» rests bottom-right, above the float where the float rests there too", () => {
+    expect(pipBottom("/")).toBe(24);
+    expect(pipBottom("/plantilla")).toBe(24);
+    for (const p of ["/partidos", "/matches/j3", "/profile"]) expect(pipBottom(p)).toBe(110);
   });
 });
 
