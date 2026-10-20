@@ -70,8 +70,9 @@ function Segment({ seg, selected, now, minute, tabbable, simLetter, temp, onPick
   const nd = seg.state === "aplazado" ? newDateOf(seg.match) : null;
   const dayLine = nd !== null ? shortDay(nd, now) : off || seg.at === null ? "Sin fecha" : shortDay(seg.at, now);
   const tinyLine = nd !== null ? tinyDay(nd, now) : off || seg.at === null ? "Sin fecha" : tinyDay(seg.at, now);
-  // (the cockpit's wide segments say the light of the kick-off; not once it is live or played)
-  const light = seg.state === "hoy" || seg.state === "proximo" ? lightLine(seg, seg.state === "hoy" ? temp : null) : "";
+  // (the cockpit's wide segments say the light of the kick-off — tonight's too while it is played, as the board —
+  // not once it is over)
+  const light = seg.state === "hoy" || seg.state === "proximo" || seg.state === "directo" ? lightLine(seg, seg.state === "proximo" ? null : temp) : "";
   const cls = ["vp-seg", live && "vp-seg--live", off && "vp-seg--pp", played && "vp-seg--done"].filter(Boolean).join(" ");
   return (
     <button type="button" className={cls} aria-pressed={selected} tabIndex={tabbable ? 0 : -1} aria-label={segmentAria(seg, now, minute)} onClick={onPick} onKeyDown={onKey} data-seg={seg.id}>

@@ -155,6 +155,8 @@ it("postponed and «pendiente del acta» jornadas: one view, no score", () => {
   fireEvent.click(screen.getByRole("button", { name: /^J20, Sporting de Brugal/ }));
   expect(lens()).toHaveTextContent("Este partido se aplazó: aún no tiene fecha nueva.");
   expect(within(lens()).queryByRole("tablist")).toBeNull();
+  // (as the board: a postponed jornada offers its notices, not the match page)
+  expect(within(lens()).queryByRole("link", { name: "Ver el partido" })).toBeNull();
   // a jornada nobody started on la mesa, past its window
   const ko = F.now - 3 * 3_600_000;
   data.matches = [{ id: "p1", seasonId: "t1", version: 2, rival: "Orduña fc", status: "scheduled", date: ko, home: true, duration: 50, venue: "CDM PALOMERAS", starters: ["evans"], bench: [], events: [] } as ClubMatch];
@@ -163,6 +165,7 @@ it("postponed and «pendiente del acta» jornadas: one view, no score", () => {
   const r = render(<PartidosPage />);
   const l = r.container.querySelector<HTMLElement>(".vp-lens")!;
   expect(l).toHaveTextContent("Pendiente del acta");
+  expect(within(l).getByRole("link", { name: "Ver el partido" })).toBeInTheDocument();
   expect(within(l).queryByRole("img", { name: /Manchester Piti \d/ })).toBeNull();
 });
 
@@ -293,6 +296,7 @@ it("the contracts: the mesa's scorer, a postponed match's reason and new date", 
   expect(lens()).toHaveTextContent("Aplazado por lluvia: el campo no estaba para jugar.");
   expect(lens()).toHaveTextContent(/Se juega el \S+ \d+ de \S+ a las \d\d:\d\d/);
   expect(within(lens()).getByRole("button", { name: /Al calendario/ })).toBeInTheDocument();
+  expect(within(lens()).queryByRole("link", { name: "Ver el partido" })).toBeNull();
 });
 
 it("the MVP while the vote is open: the turnout only («9 de 14 votos»), never a leader; a member's gold «Vota al MVP»", async () => {
