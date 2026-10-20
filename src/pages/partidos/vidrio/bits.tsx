@@ -1,7 +1,7 @@
 // Partidos «Vidrio»: the small drawn pieces — the line icons the page needs beyond the Celeste set, a shirt
 // (the real still when the page has one), the rival's crest, the pitch lines, the match's signature as SVG and
 // the light of the evening (the sun's height around the kick-off, from sun.ts).
-import { useContext, type CSSProperties, type ReactNode } from "react";
+import { useContext, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import type { MatchSignature } from "../../../lib/derived/vidrio/signature";
 import { sunPosition } from "../../../lib/derived/sun";
 import { StillContext } from "./stills";
@@ -199,8 +199,33 @@ export function SunRibbon({ kickoff, duration, id }: { kickoff: number; duration
   const c = sunCurve(kickoff, duration);
   const stop = c.sunset ?? (sunPosition(kickoff).elevation > 0 ? 1 : 0);
   const gid = `vp-sun-${id}`;
+  // «focos» gives way when it would touch the kick-off or an edge label (a narrow column: the 1920 lens's previa);
+  // the sunset still reads in the ribbon's own label
+  const ribbon = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = ribbon.current;
+    if (!el) return;
+    const fit = () => {
+      const labs = [...el.querySelectorAll<HTMLElement>(".vd-ribbon__lab")];
+      const focos = labs.find((l) => l.dataset.focos === "1");
+      if (!focos) return;
+      focos.style.removeProperty("visibility");
+      const f = focos.getBoundingClientRect();
+      const near = labs.some((l) => {
+        if (l === focos) return false;
+        const r = l.getBoundingClientRect();
+        return r.left < f.right + 6 && f.left < r.right + 6;
+      });
+      if (near) focos.style.visibility = "hidden";
+    };
+    fit();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(fit) : null;
+    ro?.observe(el);
+    void document.fonts?.ready.then(fit);
+    return () => ro?.disconnect();
+  }, [kickoff, duration]);
   return (
-    <div className="vd-ribbon vp-sunr" role="img" aria-label={c.aria}>
+    <div ref={ribbon} className="vd-ribbon vp-sunr" role="img" aria-label={c.aria}>
       <svg viewBox="0 0 500 74" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id={gid} x1="0" x2="1">
@@ -219,7 +244,7 @@ export function SunRibbon({ kickoff, duration, id }: { kickoff: number; duration
       </svg>
       {c.sunY !== null && <span className="vd-sun" style={{ left: "50%", top: `${c.sunY}%` }} />}
       {c.labels.map((l) => (
-        <span key={l.text} className={`vd-ribbon__lab vd-ribbon__lab--${l.align}`} style={{ left: `${l.left}%` }}>
+        <span key={l.text} className={`vd-ribbon__lab vd-ribbon__lab--${l.align}`} style={{ left: `${l.left}%` }} data-focos={l.text === "focos" ? "1" : undefined}>
           {l.text}
         </span>
       ))}
