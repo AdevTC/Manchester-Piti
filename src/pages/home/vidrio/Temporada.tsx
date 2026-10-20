@@ -374,7 +374,7 @@ export function Temporada({ d, now, tabla, goles, compact, wide, region = () => 
             <>
               {tableHead}
               <TableView rows={rows} around={around} full={!!wide} caption={`La clasificación, ${note}`} />
-              {hidden > 0 && <SeeAll summary={compact || !d.rows.some((r) => r.form?.length) ? `Los ${rows.length} equipos` : `Los ${rows.length} equipos, con la forma de cada uno`} count={hidden} label={`Ver la tabla entera (${rows.length})`} onOpen={tabla.grow} />}
+              {hidden > 0 && <SeeAll summary={!d.rows.some((r) => r.form?.length) ? `Los ${rows.length} equipos` : `Los ${rows.length} equipos, con la forma de cada uno`} count={hidden} label={`Ver la tabla entera (${rows.length})`} onOpen={tabla.grow} />}
             </>
           ) : (
             <p className="vi-empty">La clasificación sale aquí en cuanto el capitán la ponga.</p>

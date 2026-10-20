@@ -18,6 +18,7 @@ import { matchEvent } from "../../../lib/home";
 import { capital } from "../../../lib/derived/words";
 import { Ico } from "./icons";
 import { Shirt } from "./Siete";
+import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 
 type Answer = "yes" | "maybe" | "no";
 const ANSWERS: { id: Answer; label: string }[] = [
@@ -222,12 +223,17 @@ export interface MvpWinnerOrnProps {
   /** What a single winner did that night («Un gol y un pase de gol.», hoyModel.winnerDeeds). */
   deeds?: string | null;
   matchId: string;
+  /** The night's kit and the page's theme: the winner wears the same real shirt as on the pitch. */
+  kit?: "home" | "away";
+  theme?: "dark" | "light";
   className?: string;
 }
 
 /** The MVP once the vote has closed: the shirt and the name in gold (gold is only for our goal and the MVP), what
  *  he did that night and his share of the votes. Never the others' counts (no tally, user decision). */
-export function MvpWinnerOrn({ winners, votes, total, of, deeds, matchId, className }: MvpWinnerOrnProps) {
+export function MvpWinnerOrn({ winners, votes, total, of, deeds, matchId, kit = "home", theme = "dark", className }: MvpWinnerOrnProps) {
+  const reqs = winners.map((w) => ({ kit, theme, name: "", num: w.num || " ", yaw: 0 }));
+  const still = useShirtStills(reqs, { offMainThread: true });
   const shared = winners.length > 1;
   const voteWords = votes === null ? null : total ? `${votes} de ${total} votos` : `${votes} ${votes === 1 ? "voto" : "votos"}`;
   return (
@@ -241,7 +247,7 @@ export function MvpWinnerOrn({ winners, votes, total, of, deeds, matchId, classN
           <ul className="vi-winner__list vi-winner__list--shared">
             {winners.map((w) => (
               <li key={w.id}>
-                <Shirt num={w.num} size={44} />
+                <Shirt num={w.num} still={still(reqs[winners.indexOf(w)])} size={44} />
                 <Link className="vi-winner__name" to="/jugadores/$playerId" params={{ playerId: w.id }}>
                   {w.name}
                 </Link>
@@ -253,7 +259,7 @@ export function MvpWinnerOrn({ winners, votes, total, of, deeds, matchId, classN
       ) : (
         winners[0] && (
           <div className="vi-winner__hero">
-            <Shirt num={winners[0].num} size={72} />
+            <Shirt num={winners[0].num} still={still(reqs[0])} size={72} />
             <div className="vi-winner__who">
               <Link className="vi-winner__name" to="/jugadores/$playerId" params={{ playerId: winners[0].id }}>
                 {winners[0].name}

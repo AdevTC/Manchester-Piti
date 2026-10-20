@@ -619,6 +619,8 @@ export function HomePage() {
         of={estreno ? "del estreno" : day.jornada ? `de la J${day.jornada}` : "del partido"}
         deeds={winnerIds.length === 1 ? winnerDeeds(spots.find((s) => s.id === winnerIds[0])?.tags ?? []) : null}
         matchId={m.id}
+        kit={kit}
+        theme={theme}
         className="vi-orn--r"
       />
     ) : orns.right === "viene" && upcoming.length ? (
