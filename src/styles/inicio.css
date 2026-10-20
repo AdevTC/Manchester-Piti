@@ -137,11 +137,11 @@
 .vi-shirt::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#bfe0f8,#8fc4ec);-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M9 1 3.2 3.4.6 9.4l4 1.6V27h14.8V11l4-1.6-2.6-6L15 1a3 3 0 0 1-6 0Z'/></svg>") center/contain no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M9 1 3.2 3.4.6 9.4l4 1.6V27h14.8V11l4-1.6-2.6-6L15 1a3 3 0 0 1-6 0Z'/></svg>") center/contain no-repeat;filter:drop-shadow(0 4px 4px rgba(0,8,30,.45))}
 /* the number as the boards' .v-shirt b: 20 % down, .46 of the shirt's width, at every size */
 .vi-shirt b{position:absolute;left:0;right:0;top:20%;text-align:center;font-weight:800;font-size:calc(var(--s)*.46);line-height:1;color:var(--vd-marino);letter-spacing:-.04em;font-feature-settings:'tnum' 1}
-.vi-shirt--still::before{display:none}
-/* The still is 360×400 with the shirt at x 42–317, y 31–396 (measured): the shirt, sleeves and collar
-   included, spans the box's width exactly (275 px → --s) and nothing of it is cut. */
-.vi-shirt--still{height:calc(var(--s)*1.328);filter:drop-shadow(0 calc(var(--s)*.12) calc(var(--s)*.12) rgba(0,8,30,.45))}
-.vi-shirt img{position:absolute;left:calc(var(--s)*-.1527);top:calc(var(--s)*-.1127);width:calc(var(--s)*1.3091);height:auto;max-width:none;pointer-events:none}
+/* the real kit (KitStillContext): its blank still under the set number, as the boards' .v-shirt. The still is
+   360×400 with the shirt at x 42–317, y 31–396 (measured): the whole shirt, sleeves and collar included, spans
+   the box's width (275 px → --s) and nothing of it is cut */
+.vi-shirt--kit{height:calc(var(--s)*1.328);background:var(--vi-kit) no-repeat;background-size:calc(var(--s)*1.3091) auto;background-position:calc(var(--s)*-.1527) calc(var(--s)*-.1127);filter:drop-shadow(0 calc(var(--s)*.12) calc(var(--s)*.12) rgba(0,8,30,.45))}
+.vi-shirt--kit::before{display:none}
 .vi-arm{position:absolute;left:-4%;top:22%;width:30%;height:14%;border-radius:3px;background:var(--vd-marino);box-shadow:0 0 0 1px rgba(255,255,255,.6);transform:rotate(-24deg);z-index:1}
 .vi-arm::after{content:"C";position:absolute;inset:0;display:grid;place-items:center;font-size:calc(var(--s)*.13);font-weight:800;color:#fff;font-style:normal}
 /* la convocatoria */
@@ -242,6 +242,8 @@
 .vi-tile__txt{display:flex;flex-direction:column;align-items:flex-end;text-align:right;min-width:0}
 .vi-tile__txt>span{font-size:13px;line-height:1.25;font-weight:560;display:block}
 .vi-tile__txt small{font-size:12px;font-weight:500;opacity:.92;display:block}
+/* the narrow row's words (the 1920 side zone), hidden elsewhere */
+.vi-tile__txt>.vi-tile__code,.vi-tile__txt>.vi-tile__brief{display:none}
 .vi-strip{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:6px 3px;align-items:end}
 .vi-sl{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;height:46px;padding:6px 0 5px;border-radius:6px;font-feature-settings:'tnum' 1;color:#fff;overflow:hidden;text-decoration:none}
 .vi-sl b{font-weight:780;font-size:14px;line-height:1}
@@ -482,6 +484,11 @@
 .vi-zone .vi-tile__txt>span,.vi-zone .vi-tile__txt small{overflow-wrap:normal;white-space:normal}
 .vi-zone .vi-tile__txt small{font-size:12px;font-weight:500;opacity:.92}
 .vi-zone:not(.vi-zone--wide) .vi-tiles+.vi-season__legend{display:none}
+/* six tiles in the 440 px zone: the rival's code and one word (the score, the hour, the day), whole */
+.vi-zone:not(.vi-zone--wide) .vi-tile{padding:12px 10px}
+.vi-zone:not(.vi-zone--wide) .vi-tile__txt>.vi-tile__rv,.vi-zone:not(.vi-zone--wide) .vi-tile__txt>.vi-tile__when{display:none}
+.vi-zone:not(.vi-zone--wide) .vi-tile__txt>.vi-tile__code{display:block;font-size:14px;font-weight:720;letter-spacing:.02em;line-height:1.2}
+.vi-zone:not(.vi-zone--wide) .vi-tile__txt>.vi-tile__brief{display:block;max-width:100%;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vi-zone .vi-strip{grid-template-columns:repeat(13,minmax(0,1fr));row-gap:5px}
 .vi-zone .vi-sl{height:44px}
 .vi-zone .vi-sl--hoy{height:52px}

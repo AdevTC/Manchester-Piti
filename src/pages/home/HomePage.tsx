@@ -13,6 +13,8 @@ import { nameFor, nextFixture, playerForSeason, useClubData, type ClubMatch } fr
 import { useClubContent } from "../../lib/clubContent";
 import { useMatchClock } from "../../hooks/useMatchClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
+import { KitStillContext } from "../../components/jersey3d/kitStill";
+import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { useViewer } from "../../hooks/useViewer";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
@@ -534,6 +536,10 @@ export function HomePage() {
   };
   const shirt = kind === "jugador" && mine ? { name: mine.name.toLocaleUpperCase("es").slice(0, 12), num: mine.num } : { name: "", num: "" };
   const kit = m?.kit === "away" ? "away" : "home";
+  // the real kit: one blank still per kit worn on the page (home always, away when tonight is in it), set under
+  // every shirt's number by KitStillContext, as the boards' .v-shirt; the drawn shirt stands in before
+  const kitStill = useShirtStills(hydrated ? [{ kit: "home", theme, name: "", num: "" }, ...(kit === "away" ? [{ kit: "away" as const, theme, name: "", num: "" }] : [])] : [], { offMainThread: true });
+  const kitStillOf = (k: "home" | "away") => kitStill({ kit: k, theme, name: "", num: "" });
 
   // ── the shelf
   const usProj = proj?.position ?? null;
@@ -579,7 +585,7 @@ export function HomePage() {
   const convoWhen = phase === "semana" && Number.isFinite(kickoff) ? `el ${weekday(kickoff)}` : "hoy";
   const leftOrn =
     orns.left === "siete" && m && spots.length ? (
-      <SieteOrn title={sieteTitle} system={lineup?.system ?? "3-2-1"} spots={spots} bench={benchLineOf(m, phase, view.events, niceOf, lineup ? { at: lineup.setAt, now } : false)} kit={kit} theme={theme} className="vi-orn--l" />
+      <SieteOrn title={sieteTitle} system={lineup?.system ?? "3-2-1"} spots={spots} bench={benchLineOf(m, phase, view.events, niceOf, lineup ? { at: lineup.setAt, now } : false)} kit={kit} className="vi-orn--l" />
     ) : orns.left === "viene" && upcoming.length ? (
       <VieneOrn upcoming={upcoming} jornadaOf={jornadaOf} now={now} className="vi-orn--l" />
     ) : null;
@@ -620,7 +626,6 @@ export function HomePage() {
         deeds={winnerIds.length === 1 ? winnerDeeds(spots.find((s) => s.id === winnerIds[0])?.tags ?? []) : null}
         matchId={m.id}
         kit={kit}
-        theme={theme}
         className="vi-orn--r"
       />
     ) : orns.right === "viene" && upcoming.length ? (
@@ -688,86 +693,88 @@ export function HomePage() {
   const busy = loading;
   const panelId = shelfPanelId("inicio", place);
   return (
-    <div className={`vx vi vi--${place}${cockpit ? " vi--cockpit" : ""}${plays.open || tabla.open || goles.open ? " vi--grown" : ""}${plays.open ? " vi--grown-plays" : ""}`} data-phase={phase} aria-busy={busy}>
-      <VidrioSky light={skyLight} floodlit={light.floodlit} reduced={reduced} gold={goal.sky.gold} cold={goal.sky.cold} weather={weather ? (weather.rain && weather.rain >= 50 ? "lluvia" : (weather.cloud ?? 0) >= 60 ? "nubes" : "despejado") : undefined} />
-      <CelesteHeader active="inicio" sub="Manchester Piti" actions={<ThemeToggle />} />
-      {(plays.open || tabla.open || goles.open) && <FloatAway />}
-      <div className="vi-stage" ref={stageRef} id="contenido" tabIndex={-1}>
-        {lens}
-        <div className="vi-stage__shelf">
-          <Shelf places={shelfPlaces} value={place} onChange={(id) => go(id as PlaceId)} label="Sitios de Inicio" idBase="inicio" />
-        </div>
-        <main id={panelId} role="tabpanel" aria-labelledby={shelfTabId("inicio", place)} className={`vi-panel vi-panel--${place}`}>
-          {cockpit ? (
-            <>
-              <div className={`vi-zone vi-zone--l${focus === "temporada" ? " vi-zone--wide" : focus === "hoy" ? "" : " vd-stepback"}`}>
-                <section className="vd-glass vd-window vi-window" aria-label="La temporada">
-                  {zoneHead("La temporada", temporadaData.subShort, "temporada")}
-                  <div className="vi-zbody">{temporadaPanel({ compact: focus !== "temporada", wide: focus === "temporada", regions: false })}</div>
-                </section>
-              </div>
-              <div className={`vi-centre${focus === "hoy" ? "" : " vi-centre--compact"}${plays.open ? " vi-centre--grown" : ""}`}>{hoyPanel}</div>
-              <div className={`vi-zone vi-zone--r${focus === "club" || focus === "tu" ? " vi-zone--wide" : focus === "hoy" ? "" : " vd-stepback"}`}>
-                <section className={`vd-glass vd-window vi-window${focus === "club" ? " is-max" : focus === "tu" ? " is-min" : ""}`} aria-label="El club">
-                  {zoneHead("El club", "Esta semana", "club")}
-                  <div className="vi-zbody">
-                    <Club d={clubData} fan={fan} shirt={shirt} kit={kit} variant={focus === "club" ? "full" : focus === "tu" ? "min" : "sum"} onOpen={() => go("club")} />
-                  </div>
-                </section>
-                {kind === "jugador" && (
-                  <section className={`vd-glass vd-window vi-window${focus === "tu" ? " is-max" : focus === "club" ? " is-min" : ""}`} aria-label="Tú">
-                    {zoneHead("Tú", hints.tu ?? "", "tu")}
+    <KitStillContext.Provider value={kitStillOf}>
+      <div className={`vx vi vi--${place}${cockpit ? " vi--cockpit" : ""}${plays.open || tabla.open || goles.open ? " vi--grown" : ""}${plays.open ? " vi--grown-plays" : ""}`} data-phase={phase} aria-busy={busy}>
+        <VidrioSky light={skyLight} floodlit={light.floodlit} reduced={reduced} gold={goal.sky.gold} cold={goal.sky.cold} weather={weather ? (weather.rain && weather.rain >= 50 ? "lluvia" : (weather.cloud ?? 0) >= 60 ? "nubes" : "despejado") : undefined} />
+        <CelesteHeader active="inicio" sub="Manchester Piti" actions={<ThemeToggle />} />
+        {(plays.open || tabla.open || goles.open) && <FloatAway />}
+        <div className="vi-stage" ref={stageRef} id="contenido" tabIndex={-1}>
+          {lens}
+          <div className="vi-stage__shelf">
+            <Shelf places={shelfPlaces} value={place} onChange={(id) => go(id as PlaceId)} label="Sitios de Inicio" idBase="inicio" />
+          </div>
+          <main id={panelId} role="tabpanel" aria-labelledby={shelfTabId("inicio", place)} className={`vi-panel vi-panel--${place}`}>
+            {cockpit ? (
+              <>
+                <div className={`vi-zone vi-zone--l${focus === "temporada" ? " vi-zone--wide" : focus === "hoy" ? "" : " vd-stepback"}`}>
+                  <section className="vd-glass vd-window vi-window" aria-label="La temporada">
+                    {zoneHead("La temporada", temporadaData.subShort, "temporada")}
+                    <div className="vi-zbody">{temporadaPanel({ compact: focus !== "temporada", wide: focus === "temporada", regions: false })}</div>
+                  </section>
+                </div>
+                <div className={`vi-centre${focus === "hoy" ? "" : " vi-centre--compact"}${plays.open ? " vi-centre--grown" : ""}`}>{hoyPanel}</div>
+                <div className={`vi-zone vi-zone--r${focus === "club" || focus === "tu" ? " vi-zone--wide" : focus === "hoy" ? "" : " vd-stepback"}`}>
+                  <section className={`vd-glass vd-window vi-window${focus === "club" ? " is-max" : focus === "tu" ? " is-min" : ""}`} aria-label="El club">
+                    {zoneHead("El club", "Esta semana", "club")}
                     <div className="vi-zbody">
-                      <Tu t={tuView} jornadaOf={jornadaOf} now={now} porraLine={porraLine} variant={focus === "tu" ? "full" : focus === "club" ? "min" : "sum"} onOpen={() => go("tu")} />
+                      <Club d={clubData} fan={fan} shirt={shirt} kit={kit} variant={focus === "club" ? "full" : focus === "tu" ? "min" : "sum"} onOpen={() => go("club")} />
                     </div>
                   </section>
-                )}
+                  {kind === "jugador" && (
+                    <section className={`vd-glass vd-window vi-window${focus === "tu" ? " is-max" : focus === "club" ? " is-min" : ""}`} aria-label="Tú">
+                      {zoneHead("Tú", hints.tu ?? "", "tu")}
+                      <div className="vi-zbody">
+                        <Tu t={tuView} jornadaOf={jornadaOf} now={now} porraLine={porraLine} variant={focus === "tu" ? "full" : focus === "club" ? "min" : "sum"} onOpen={() => go("tu")} />
+                      </div>
+                    </section>
+                  )}
+                </div>
+                <TemporadaGrows d={temporadaData} tabla={tabla} goles={goles} asi={asi} onAsi={setAsi} />
+              </>
+            ) : place === "hoy" ? (
+              hoyPanel
+            ) : place === "temporada" ? (
+              <div className="vi-place">
+                {placeHead("La temporada", temporadaData.sub)}
+                {temporadaPanel({ regions: true })}
+                <TemporadaGrows d={temporadaData} tabla={tabla} goles={goles} asi={asi} onAsi={setAsi} />
               </div>
-              <TemporadaGrows d={temporadaData} tabla={tabla} goles={goles} asi={asi} onAsi={setAsi} />
-            </>
-          ) : place === "hoy" ? (
-            hoyPanel
-          ) : place === "temporada" ? (
-            <div className="vi-place">
-              {placeHead("La temporada", temporadaData.sub)}
-              {temporadaPanel({ regions: true })}
-              <TemporadaGrows d={temporadaData} tabla={tabla} goles={goles} asi={asi} onAsi={setAsi} />
-            </div>
-          ) : place === "club" ? (
-            <div className="vi-place">
-              {placeHead("El club", "Lo que pasa fuera del campo esta semana.")}
-              <Club d={clubData} fan={fan} shirt={shirt} kit={kit} variant="full" region={reg} />
-            </div>
-          ) : (
-            <div className="vi-place">
-              {placeHead(tuTitle, "Lo tuyo en el Piti, sin buscarlo.")}
-              <Tu t={tuView} jornadaOf={jornadaOf} now={now} porraLine={porraLine} variant="full" region={reg} />
-            </div>
-          )}
-        </main>
+            ) : place === "club" ? (
+              <div className="vi-place">
+                {placeHead("El club", "Lo que pasa fuera del campo esta semana.")}
+                <Club d={clubData} fan={fan} shirt={shirt} kit={kit} variant="full" region={reg} />
+              </div>
+            ) : (
+              <div className="vi-place">
+                {placeHead(tuTitle, "Lo tuyo en el Piti, sin buscarlo.")}
+                <Tu t={tuView} jornadaOf={jornadaOf} now={now} porraLine={porraLine} variant="full" region={reg} />
+              </div>
+            )}
+          </main>
+        </div>
+        {cartelOpen && m && (
+          <Suspense fallback={null}>
+            <CartelShare
+              match={m}
+              segment={strip.segments.find((s) => s.id === m.id) ?? null}
+              ctx={{ jornada: day.jornada, seasonName, nameOf: niceOf, now, mvp: winner?.names.length === 1 ? winner.names[0] : null }}
+              onClose={() => setCartelOpen(false)}
+            />
+          </Suspense>
+        )}
+        <CelesteFooter />
+        <CelesteDock active="inicio" />
+        <PipWindow pip={pip} title={`Manchester Piti contra ${m?.rival ?? "el rival"}`} onClose={() => setPip(null)}>
+          <img className="vd-drop__crest" src="/crest-128.webp" alt="" />
+          <span className="vd-score" role="img" aria-label={face.label}>
+            {face.mode === "score" ? `${face.gf}–${face.ga}` : face.big}
+          </span>
+          <p>
+            <b>{m?.rival ?? ""}</b>
+            {face.status.clock ? `Minuto ${face.status.clock}, ${face.status.text.replace(/^de la /, "")}` : face.status.text}
+          </p>
+        </PipWindow>
       </div>
-      {cartelOpen && m && (
-        <Suspense fallback={null}>
-          <CartelShare
-            match={m}
-            segment={strip.segments.find((s) => s.id === m.id) ?? null}
-            ctx={{ jornada: day.jornada, seasonName, nameOf: niceOf, now, mvp: winner?.names.length === 1 ? winner.names[0] : null }}
-            onClose={() => setCartelOpen(false)}
-          />
-        </Suspense>
-      )}
-      <CelesteFooter />
-      <CelesteDock active="inicio" />
-      <PipWindow pip={pip} title={`Manchester Piti contra ${m?.rival ?? "el rival"}`} onClose={() => setPip(null)}>
-        <img className="vd-drop__crest" src="/crest-128.webp" alt="" />
-        <span className="vd-score" role="img" aria-label={face.label}>
-          {face.mode === "score" ? `${face.gf}–${face.ga}` : face.big}
-        </span>
-        <p>
-          <b>{m?.rival ?? ""}</b>
-          {face.status.clock ? `Minuto ${face.status.clock}, ${face.status.text.replace(/^de la /, "")}` : face.status.text}
-        </p>
-      </PipWindow>
-    </div>
+    </KitStillContext.Provider>
   );
 }

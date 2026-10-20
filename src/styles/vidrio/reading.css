@@ -128,7 +128,7 @@ img.vd-team__crest{object-fit:cover}
   filter:drop-shadow(0 calc(var(--s)*.12) calc(var(--s)*.12) rgba(0,8,30,.45))}
 .vd-shirt--away{background:linear-gradient(180deg,#24345e,#141f3f 60%,#0d1630)}
 /* the still is 360×400 with the shirt at x 42–317, y 31–396 (measured): the whole shirt, collar and sleeves,
-   spans the box's width (275 px → --s), as .vi-shirt img on Inicio */
+   spans the box's width (275 px → --s), as .vi-shirt--kit on Inicio */
 .vd-shirt--img{clip-path:none;background:var(--vd-shirt-img) no-repeat;background-size:calc(var(--s)*1.3091) auto;background-position:calc(var(--s)*-.1527) calc(var(--s)*-.1127)}
 .vd-shirt b{position:absolute;left:0;right:0;top:20%;text-align:center;font-family:var(--vd-sans);font-weight:800;font-variation-settings:'wdth' 100;font-size:calc(var(--s)*.46);line-height:1;color:var(--vd-marino);letter-spacing:-.04em;font-feature-settings:'tnum' 1}
 .vd-shirt--away b{color:#fff}

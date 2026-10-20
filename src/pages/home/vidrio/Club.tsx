@@ -37,7 +37,7 @@ export function Tee({ name, num, light, kit, label, className }: { name: string;
     <div className={`vi-tee${light ? " vi-tee--day" : ""}${still ? " vi-tee--still" : ""}${className ? ` ${className}` : ""}`} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
       <span className="vi-tee__spot" />
       <span className="vi-tee__img" style={still ? ({ backgroundImage: `url(${still})` } as CSSProperties) : undefined} />
-      <span className="vi-tee__name">
+      <span className="vi-tee__name" style={{ "--nlen": Math.max(1, [...name].length) } as CSSProperties}>
         <b>{name}</b>
       </span>
       <span className="vi-tee__num">{num}</span>

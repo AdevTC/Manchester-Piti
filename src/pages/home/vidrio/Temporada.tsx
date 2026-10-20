@@ -10,6 +10,7 @@ import type { LeaderRow } from "../../../lib/derived/vidrio/leaders";
 import type { StripSegment } from "../../../lib/derived/vidrio/strip";
 import type { LightKey } from "../../../lib/derived/sun";
 import { madridTime, MONTHS_SHORT, madridDate } from "../../../lib/derived/madrid";
+import { rivalCode } from "../../../lib/eventMeta";
 import { niceName, type FormLetter } from "../hoyModel";
 import { Ico } from "./icons";
 import { Shirt } from "./Siete";
@@ -199,6 +200,11 @@ function tileDay(at: number): string {
   return `${w.charAt(0).toLocaleUpperCase("es")}${w.slice(1)} ${Number(madridDate(at).slice(8))} ${MONTHS_SHORT[Number(madridDate(at).slice(5, 7)) - 1] ?? ""}`;
 }
 
+/** «8 nov» (the narrow tiles' day: six in a row in the 1920 cockpit's side zone). */
+function tileShort(at: number): string {
+  return `${Number(madridDate(at).slice(8))} ${MONTHS_SHORT[Number(madridDate(at).slice(5, 7)) - 1] ?? ""}`;
+}
+
 export function SeasonTiles({ segments, now, postponed }: { segments: readonly StripSegment[]; now: number; postponed?: Postponed }) {
   return (
     <ul className="vi-tiles" aria-label="Las jornadas, pintadas con la luz de cada pitido" style={{ "--tiles": segments.length } as CSSProperties}>
@@ -218,14 +224,18 @@ export function SeasonTiles({ segments, now, postponed }: { segments: readonly S
                   : s.at !== null
                     ? `${madridDate(s.at) === madridDate(now) ? "Hoy" : tileDay(s.at)}, ${madridTime(s.at)}, ${s.home ? "en casa" : "fuera"}`
                     : "Por fecha";
+        // (six tiles in a 440 px zone leave some 40 px of text: the rival's code and a word, never a cut name)
+        const brief = (s.state === "directo" || s.state === "jugado") && s.score ? `${s.score.gf}–${s.score.ga}` : s.state === "hoy" && s.at !== null ? madridTime(s.at) : s.state === "aplazado" ? "Aplazado" : s.at !== null ? tileShort(s.at) : "—";
         const now_ = s.state === "directo" || s.state === "hoy";
         return (
           <li key={s.id}>
             <Link className={`vi-tile${INK.has(light) ? " vi-tile--ink" : ""}${now_ ? " vi-tile--now" : ""}`} to="/matches/$matchId" params={{ matchId: s.id }} style={{ "--sky": SKY[light] } as CSSProperties} aria-label={segLabel(s, postponed)}>
               <b aria-hidden="true">{s.jornada ? `J${s.jornada}` : "·"}</b>
               <span className="vi-tile__txt" aria-hidden="true">
-                <span>{s.rival}</span>
-                <small>{when}</small>
+                <span className="vi-tile__rv">{s.rival}</span>
+                <small className="vi-tile__when">{when}</small>
+                <span className="vi-tile__code">{rivalCode(s.rival)}</span>
+                <small className="vi-tile__brief">{brief}</small>
               </span>
             </Link>
           </li>
