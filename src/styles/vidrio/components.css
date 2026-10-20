@@ -237,6 +237,8 @@
 .vd-switch[aria-checked="true"] .vd-switch__knob{left:15px}
 .vd-switch:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px;border-radius:999px}
 :root[data-theme="light"] .vd-switch__track{background:rgba(12,23,51,.14)}
+/* (on in «Día»: the day's celeste ink under the white knob; the rule above would otherwise keep it grey) */
+:root[data-theme="light"] .vd-switch[aria-checked="true"] .vd-switch__track{background:var(--vd-celeste-ink)}
 /* «Avisos a medida» (components/vidrio/account/AvisosPrefs) */
 .vd-prefs{margin-top:8px;padding-top:14px;border-top:1px solid var(--vd-rule2);font-family:var(--vd-sans)}
 .vd-prefs .vd-label{color:var(--vd-g-ink)}
