@@ -145,7 +145,8 @@ export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinu
             <span>{status.text}</span>
           </p>
         )}
-        {face.ribbon === "momentum" && <MomentumRibbon items={items} duration={duration} now={nowMinute} peakClassName={goal.peak || undefined} label={`El partido minuto a minuto: arriba aprieta el Piti, abajo ${rival ?? "el rival"}`} />}
+        {/* (gold is the goal of the moment: while live, our latest; after the whistle, none — the boards) */}
+        {face.ribbon === "momentum" && <MomentumRibbon items={items} duration={duration} now={nowMinute} goldId={nowMinute === undefined ? null : undefined} peakClassName={goal.peak || undefined} label={`El partido minuto a minuto: arriba aprieta el Piti, abajo ${rival ?? "el rival"}`} />}
         {face.ribbon === "sun" && sun && <SunStrip sun={sun} hours={sunHours} />}
       </Lens>
     </div>

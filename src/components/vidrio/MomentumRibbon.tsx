@@ -39,6 +39,7 @@ function MarkGlyph({ icon }: { icon: MarkIcon }) {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
       <path d="M12 7.5l3.6 2.6-1.4 4.2H9.8L8.4 10.1z" fill="currentColor" />
+      <path d="M12 3v4.5M15.6 10.1l4.6-1.6M14.2 14.3l2.7 3.9M9.8 14.3l-2.7 3.9M8.4 10.1L3.8 8.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
 }

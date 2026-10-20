@@ -733,7 +733,8 @@ export function sieteOf(c: SieteCtx): SieteSpot[] {
       if (e.playerId === id && meta.card === "r" && meta.side === "us") out.push({ kind: "roja", text: `${m}′`, gold: false, label: `Roja en el ${m}` });
       if (e.playerId === id && e.type === "penalty_saved") out.push({ kind: "parada", text: `${m}′`, gold: false, label: `Paró un penalti en el ${m}` });
     }
-    return out.slice(0, 3);
+    // (the newest first, as the boards: the goal of the night above the pass that came before it)
+    return out.slice(-3).reverse();
   };
   return now.map((s) => ({
     id: s.playerId,

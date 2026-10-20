@@ -219,7 +219,7 @@ describe("ornaments and el siete", () => {
     const spots = sieteOf({ match: day.match!, phase: day.phase, events: view.events, seven: SEVEN, nameOf, numOf: () => "10", captainId: "jordi", me: "jordi" });
     expect(spots).toHaveLength(7);
     const adrian = spots.find((s) => s.id === "adrian")!;
-    expect(adrian.tags.map((t) => [t.kind, t.text, t.gold])).toEqual([["asis", "6′", false], ["gol", "21′", true]]);
+    expect(adrian.tags.map((t) => [t.kind, t.text, t.gold])).toEqual([["gol", "21′", true], ["asis", "6′", false]]);
     expect(spots.find((s) => s.id === "jordi")).toMatchObject({ captain: true, me: true, name: "JORDI" });
     expect(benchLineOf(day.match!, day.phase, view.events, nice, false)).toBe("En el banquillo: Erik y Kevin.");
   });
