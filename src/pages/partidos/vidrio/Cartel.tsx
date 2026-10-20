@@ -35,13 +35,14 @@ export function Poster({ cartel, paint }: { cartel: Cartel; paint: SegmentPaint 
           {cartel.rival}
         </div>
         <div className="vp-poster__foot">
-          <div>
-            {cartel.dateLine}
-            {cartel.time ? `, ${cartel.time}` : ""}
-            <br />
-            {venueName(cartel.venue)}
+          <div className="vp-poster__when">
+            <span>
+              {cartel.dateLine}
+              {cartel.time ? `, ${cartel.time}` : ""}
+            </span>
+            <span className="vp-poster__where">{venueName(cartel.venue)}</span>
           </div>
-          <div style={{ textAlign: "right" }}>
+          <div className="vp-poster__big">
             <b>{cartel.big}</b>
             {cartel.mvp && <span className="vp-poster__mvp">MVP {cartel.mvp}</span>}
           </div>
