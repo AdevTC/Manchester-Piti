@@ -135,3 +135,8 @@ export function useLiveDock(ref: RefObject<Element | null>, mode: DockMode): voi
     };
   }, [ref, mode]);
 }
+
+/** How wide the drop may be docked on a slot `room` px wide: the whole drop, spilling up to 24 px past each side
+ *  as on the Partidos board (its 220 px drop over a 196 px segment, whose slot is 182); a longer rival's name
+ *  ellipsizes past that. Never under 64. */
+export const dockWidth = (room: number): number => Math.max(64, Math.round(room + 48));

@@ -1,9 +1,9 @@
-// El siete on a glass pitch: each player in his spot with his real shirt (a still of the kit with his number,
-// rendered once on the device: useShirtStills), his name under it and the marks of the night beside it (goals,
-// passes, cards, the change he came in with). The spots exist for two pitches: our goal on the left (phone,
-// tablet, the 1920 centre) and at the bottom (the 1440 triptych's narrow ornament); CSS picks one.
-import { useEffect, useRef, type CSSProperties } from "react";
-import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
+// El siete on a glass pitch: each player in his spot with his real shirt (the night's kit: the page's blank still
+// from KitStillContext with his number set on it, as the boards' .v-shirt), his name under it and the marks of the
+// night beside it (goals, passes, cards, the change he came in with). The spots exist for two pitches: our goal
+// on the left (phone, tablet, the 1920 centre) and at the bottom (the 1440 triptych's narrow ornament); CSS picks one.
+import { useContext, useEffect, useRef, type CSSProperties } from "react";
+import { KitStillContext, type Kit } from "../../../components/jersey3d/kitStill";
 import type { SieteSpot, SieteTag } from "../hoyModel";
 import { Ico, type IconId } from "./icons";
 import { placePitch, type PitchPlayer } from "./pitchLayout";
@@ -88,10 +88,14 @@ function usePitchLayout(key: string) {
 
 const TAG_ICON: Partial<Record<SieteTag["kind"], IconId>> = { gol: "ball", asis: "pass", cambio: "swap", parada: "glove" };
 
-export function Shirt({ num, still, size, captain }: { num: string; still?: string; size?: number; captain?: boolean }) {
+/** A shirt with its number: the page's real kit still (KitStillContext) under a set number, as the boards' .v-shirt;
+ *  the drawn shape stands in before the still is ready and on the server. */
+export function Shirt({ num, size, captain, kit = "home" }: { num: string; size?: number; captain?: boolean; kit?: Kit }) {
+  const still = useContext(KitStillContext)(kit);
+  const style = { ...(size ? { "--s": `${size}px` } : {}), ...(still ? { "--vi-kit": `url("${still}")` } : {}) } as CSSProperties;
   return (
-    <span className={`vi-shirt${still ? " vi-shirt--still" : ""}`} style={size ? ({ "--s": `${size}px` } as CSSProperties) : undefined} aria-hidden="true">
-      {still ? <img src={still} alt="" /> : <b>{num}</b>}
+    <span className={`vi-shirt${still ? " vi-shirt--kit" : ""}`} style={style} aria-hidden="true">
+      <b>{num}</b>
       {captain && <i className="vi-arm" />}
     </span>
   );
@@ -132,15 +136,13 @@ export interface SieteOrnProps {
   spots: readonly SieteSpot[];
   bench: string;
   kit: "home" | "away";
-  theme: "dark" | "light";
   className?: string;
 }
 
-export function SieteOrn({ title, system, spots, bench, kit, theme, className }: SieteOrnProps) {
-  const reqs = spots.map((s) => ({ kit, theme, name: "", num: s.num || " ", yaw: 0 }));
-  const still = useShirtStills(reqs, { offMainThread: true });
-  // (laid out again when a shirt's still arrives: the still stands taller than the drawn shirt)
-  const pitch = usePitchLayout(spots.map((s, i) => `${s.id}:${s.name}:${s.tags.map((t) => t.kind + t.text).join(",")}:${still(reqs[i]) ? 1 : 0}`).join("|"));
+export function SieteOrn({ title, system, spots, bench, kit, className }: SieteOrnProps) {
+  const still = useContext(KitStillContext)(kit);
+  // (laid out again when the kit's still arrives: the still stands taller than the drawn shirt)
+  const pitch = usePitchLayout(spots.map((s) => `${s.id}:${s.name}:${s.tags.map((t) => t.kind + t.text).join(",")}`).join("|") + (still ? "|kit" : ""));
   return (
     <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-siete${className ? ` ${className}` : ""}`} aria-label={title}>
       <div className="vd-orn__head">
@@ -151,13 +153,13 @@ export function SieteOrn({ title, system, spots, bench, kit, theme, className }:
         {LINES_H}
         {LINES_V}
         <ul className="vi-players" aria-label="Los siete">
-          {spots.map((s, i) => (
+          {spots.map((s) => (
             <li
               key={s.id}
               className={`vi-player${s.h.tagsLeft ? " vi-player--htl" : ""}${s.v.tagsLeft ? " vi-player--vtl" : ""}${s.me ? " vi-player--me" : ""}`}
               style={{ "--hx": `${s.h.left}%`, "--hy": `${s.h.top}%`, "--vx": `${s.v.left}%`, "--vy": `${s.v.top}%` } as CSSProperties}
             >
-              <Shirt num={s.num} still={still(reqs[i])} captain={s.captain} />
+              <Shirt num={s.num} kit={kit} captain={s.captain} />
               <span className="vi-player__name">
                 {s.name}
                 {s.captain && <span className="vd-vh">, capitán</span>}

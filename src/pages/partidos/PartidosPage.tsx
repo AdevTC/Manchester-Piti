@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { GrowWindow, PipWindow, Shelf, VidrioSky, openScorePip, shelfPanelId, shelfTabId, skyAt, supportsViewTransitions, swap, travel, useDesktop, useLiveDock, useMedia, useReducedMotion, type ScorePip } from "../../components/vidrio";
+import { pipBottom } from "../../components/vidrio/live/liveModel";
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -604,7 +605,7 @@ export function PartidosPage() {
         <CelesteDock active="partidos" live={liveSeg ? true : undefined} />
         {cartel && cartelData && <CartelSheet cartel={cartelData.cartel} paint={cartelData.paint} onClose={() => setCartel(false)} />}
         {liveSeg && (
-          <PipWindow pip={pip} title={`Manchester Piti contra ${liveSeg.rival}`} onClose={closePip}>
+          <PipWindow pip={pip} title={`Manchester Piti contra ${liveSeg.rival}`} onClose={closePip} bottom={pipBottom("/partidos")}>
             <span className="vd-score">
               {liveSeg.score?.gf ?? 0}–{liveSeg.score?.ga ?? 0}
             </span>

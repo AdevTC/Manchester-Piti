@@ -48,6 +48,8 @@
 .mp-seg.vd-seg{height:48px;margin:0 auto;width:100%;max-width:640px}
 .mp-seg .vd-seg__b{font-size:13.5px;padding:0 4px}
 @media (max-width:420px){.mp-seg .vd-seg__b{font-size:12.6px;letter-spacing:-.01em;padding:0 2px}}
+.mp-tab-s{display:none}
+@media (max-width:420px){.mp-tab-l{display:none}.mp-tab-s{display:inline}}
 
 /* the panes */
 .vx.vd-pg.mp .fc-pane{padding-top:18px}
@@ -92,7 +94,10 @@
 .mp-campo{display:flex;flex-direction:column}
 .mp-pitch{position:relative;height:360px}
 .mp-players{position:absolute;inset:0;margin:0;padding:0;list-style:none}
-.mp-player .vd-tags{margin-top:2px}
+/* the marks beside the shirt in a column, as the board's .v-player__tags (towards the roomier side), never under
+   the name: that tall block ran off the pitch at the keeper and onto the next row */
+.mp-player .vd-tags{position:absolute;top:0;left:calc(50% + 20px);flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:3px;margin:0}
+.mp-player--tl .vd-tags{left:auto;right:calc(50% + 20px);align-items:flex-end}
 
 @media (min-width:700px){
 .mp-head{padding:96px 40px 0}

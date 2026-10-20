@@ -29,6 +29,7 @@ import { WeatherChip } from "../../components/celeste/WeatherChip";
 import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
 import { BackLink } from "../../components/celeste/BackLink";
 import { LIVE_MORPH, Lens, PipWindow, openScorePip, useDesktop, useGoalMoment, useLiveDock, type GoalClasses, type ScorePip } from "../../components/vidrio";
+import { pipBottom } from "../../components/vidrio/live/liveModel";
 import { PageSky } from "../../components/paginas/PageSky";
 import { PgIcon } from "../../components/paginas/Tags";
 import { countdownParts, matchEvent } from "../../lib/home";
@@ -324,6 +325,8 @@ export function MatchPage() {
   const where = [jornada ? `Jornada ${jornada}${match.competition ? ` de ${match.competition.toLocaleLowerCase("es")}` : ""}` : match.competition, venueName(match.venue ?? "")].filter(Boolean).join(" · ");
   const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
   const LABELS: Record<number, string> = { 0: firstTab, 1: "Alineación", 2: "Pulso", 3: "Vestuario", 4: "Números" };
+  // (on a phone five tabs leave some 70 px each: «Acta pendiente» shows as «Pendiente», its name stays whole)
+  const SHORT: Record<number, string | undefined> = { 0: firstTab === "Acta pendiente" ? "Pendiente" : undefined };
   // «Números» reads the narrated actions (passes, shots, tackles…): without any, a short line.
   // before the whistle, on its day: the seven the pizarra published stands beside the previa
   const lineup = parseMatchLineup((match as ClubMatch & { lineup?: unknown }).lineup);
@@ -473,8 +476,15 @@ export function MatchPage() {
         <div className="vd-glass vd-seg mp-seg" role="tablist" aria-label="Secciones del partido" onKeyDown={onTabKey} style={{ "--n": ORDER.length, "--i": ORDER.indexOf(active as (typeof ORDER)[number]) } as CSSProperties}>
           <span className="vd-shelf__bead" aria-hidden="true" />
           {ORDER.map((i) => (
-            <button key={i} type="button" role="tab" className="vd-seg__b" id={`fc-tab-${i}`} aria-selected={active === i} aria-controls={`fc-pane-${i}`} tabIndex={active === i ? 0 : -1} onClick={() => setTab(i)}>
-              {LABELS[i]}
+            <button key={i} type="button" role="tab" className="vd-seg__b" id={`fc-tab-${i}`} aria-selected={active === i} aria-controls={`fc-pane-${i}`} tabIndex={active === i ? 0 : -1} onClick={() => setTab(i)} aria-label={SHORT[i] ? LABELS[i] : undefined}>
+              {SHORT[i] ? (
+                <>
+                  <span className="mp-tab-l">{LABELS[i]}</span>
+                  <span className="mp-tab-s">{SHORT[i]}</span>
+                </>
+              ) : (
+                LABELS[i]
+              )}
             </button>
           ))}
         </div>
@@ -517,7 +527,7 @@ export function MatchPage() {
         {active === 3 && <VestuarioTab match={match} matches={matches} players={players} phase={phase} ratings={ratings.data} ratingsError={ratings.error} />}
       </div>
       {pip && live && (
-        <PipWindow pip={pip} title={`Manchester Piti contra ${rival}`} onClose={closePip}>
+        <PipWindow pip={pip} title={`Manchester Piti contra ${rival}`} onClose={closePip} bottom={pipBottom("/matches/")}>
           <span className="vd-score">
             {gf}–{ga}
           </span>

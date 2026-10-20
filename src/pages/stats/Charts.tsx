@@ -1,6 +1,6 @@
 // Charts of the Celeste Estadísticas page: results columns, the pass constellation, the goal clock,
 // the radar, ranking bars and the per-player jornada strip. Plain SVG/HTML, theme tokens only.
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { ClubMatch } from "../../lib/clubData";
 import { formatDate } from "../../lib/clubData";
@@ -50,6 +50,34 @@ export function Constellation({ rows, links, nameOf, focus, games }: { rows: Pla
   const map = useMemo(() => constellation(rows, links, games), [rows, links, games]);
   const [picked, setPicked] = useState<string | null>(focus ?? null);
   const [run, setRun] = useState(0);
+  // two stars side by side (two forwards on one spot): the lower one's name goes above it, so no name sits on
+  // another (layout boxes, not the stars' entrance scale; the star itself never moves, so the lines still meet it)
+  const sky = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = sky.current;
+    if (!el) return;
+    const place = () => {
+      const stars = [...el.querySelectorAll<HTMLElement>(".st-star")];
+      const label = (b: HTMLElement) => {
+        const t = b.querySelector<HTMLElement>("span");
+        const x = b.offsetLeft - b.offsetWidth / 2 + (t?.offsetLeft ?? 0);
+        const y = b.offsetTop - b.offsetHeight / 2 + (t?.offsetTop ?? 0);
+        return { l: x, t: y, r: x + (t?.offsetWidth ?? 0), b: y + (t?.offsetHeight ?? 0) };
+      };
+      for (const b of stars) b.classList.remove("up");
+      const boxes = stars.map(label);
+      for (let i = 0; i < stars.length; i++)
+        for (let j = 0; j < i; j++) {
+          const a = boxes[i];
+          const o = boxes[j];
+          if (a.l < o.r && o.l < a.r && a.t < o.b && o.t < a.b) (a.t >= o.t ? stars[i] : stars[j]).classList.add("up");
+        }
+    };
+    place();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(place) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [map, run]);
   if (!map.nodes.length) return <p className="st-empty">Aún no hay goles con asistencia en este período.</p>;
   const pos = new Map(map.nodes.map((n) => [n.id, n]));
   const maxN = Math.max(1, ...map.links.map((l) => l.n));
@@ -60,7 +88,7 @@ export function Constellation({ rows, links, nameOf, focus, games }: { rows: Pla
   const gets = picked ? map.links.filter((l) => l.to === picked) : [];
   return (
     <div className="st-sky">
-      <div className="st-sky-map" key={run}>
+      <div className="st-sky-map" key={run} ref={sky}>
         <svg viewBox="0 0 100 110" preserveAspectRatio="none" aria-hidden="true">
           <rect x="3" y="3" width="94" height="104" rx="3" className="pitch" />
           <path d="M3 55h94M35 3v12h30V3M35 107V95h30v12" className="pitch" />

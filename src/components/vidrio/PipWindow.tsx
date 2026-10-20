@@ -1,8 +1,9 @@
 // The score's own window: portals `children` into the Document Picture-in-Picture window, or draws the in-page
-// fallback — a 420 × 236 glass window (V-Vivo «Sacar el marcador») you drag by its title bar (crest, «Manchester
-// Piti, marcador», «Volver a la pestaña», «×»), snapping to the corners and remembering its spot; it starts in
-// the top-right corner, resizes by its grip and remembers its size; Escape or «×» close it. Either way `onClose`
-// runs when it goes.
+// fallback — the kit's .v-pip, a 330 × 150 glass window (the Inicio and Partidos boards) you drag by its title
+// bar (crest, «Manchester Piti, marcador», «Volver a la pestaña», «×»), snapping to the corners and remembering
+// its spot; it starts in the bottom-right corner (24 px in; higher where the floating score rests bottom-right),
+// resizes by its grip (260 × 128 to 560 × 300) and remembers its size; Escape or «×» close it. Either way
+// `onClose` runs when it goes. (The real Document PiP window keeps V-Vivo's 420 × 236: pip.ts.)
 import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { ScorePip } from "./pip";
@@ -17,6 +18,9 @@ export interface PipWindowProps {
   /** The window's name for assistive tech («Marcador en una ventana aparte»). */
   title: string;
   onClose: () => void;
+  /** Space under the in-page window at home (default 24; 110 where the floating score rests bottom-right, as the
+   *  Partidos board: pipBottom). */
+  bottom?: number;
   children: ReactNode;
 }
 
@@ -32,16 +36,16 @@ function readSize(): { w: number; h: number } | null {
   return null;
 }
 
-function InPage({ title, onClose, children }: Omit<PipWindowProps, "pip">) {
+function InPage({ title, onClose, bottom = 24, children }: Omit<PipWindowProps, "pip">) {
   const win = useRef<HTMLDivElement | null>(null);
   const bar = useRef<HTMLDivElement | null>(null);
   useDraggable(win, {
     storageKey: "pip",
     handle: bar,
     anchors: "corners",
-    margin: 16,
-    top: 104,
-    home: (b) => ({ x: b.W - b.w - 24, y: 104 }),
+    margin: 24,
+    top: 96,
+    home: (b) => ({ x: b.W - b.w - 24, y: b.H - b.h - bottom }),
   });
   // its size, as the viewer left it
   useEffect(() => {
@@ -103,7 +107,7 @@ function InPage({ title, onClose, children }: Omit<PipWindowProps, "pip">) {
   );
 }
 
-export function PipWindow({ pip, title, onClose, children }: PipWindowProps) {
+export function PipWindow({ pip, title, onClose, bottom, children }: PipWindowProps) {
   useEffect(() => {
     if (pip?.kind !== "document") return;
     const gone = () => onClose();
@@ -113,7 +117,7 @@ export function PipWindow({ pip, title, onClose, children }: PipWindowProps) {
   if (!pip) return null;
   if (pip.kind === "document") return createPortal(<div className="vd-pip__body vd-pip__body--doc">{children}</div>, pip.container);
   return (
-    <InPage title={title} onClose={onClose}>
+    <InPage title={title} onClose={onClose} bottom={bottom}>
       {children}
     </InPage>
   );

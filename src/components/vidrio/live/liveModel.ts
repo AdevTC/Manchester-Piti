@@ -335,6 +335,10 @@ export function floatHome(pathname: string): "centre" | "right" | "bottom-right"
   return key === "inicio" ? "centre" : LOW_HOME.has(key) ? "bottom-right" : "right";
 }
 
+/** Space under «Sacar el marcador»'s in-page window at home: 24 px, or 110 where the floating score rests
+ *  bottom-right (the Partidos board: the window sits above the drop, never over it). */
+export const pipBottom = (pathname: string): number => (floatHome(pathname) === "bottom-right" ? 110 : 24);
+
 export function pageKey(pathname: string): string {
   if (pathname === "/" || pathname === "") return "inicio";
   const first = pathname.split("/").filter(Boolean)[0] ?? "otra";
