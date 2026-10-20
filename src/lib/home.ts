@@ -5,14 +5,14 @@ import type { ClubMatch } from "./clubData";
 import { computeStats, EMPTY_STATS, type PlayerStats } from "./playerStats";
 import { kickoffLabel, plural } from "./vestuario";
 import type { CalendarEvent } from "./calendarLinks";
-import { scoreOf } from "./partidos";
+import { OURS, scoreOf } from "./partidos";
 import { resultLetter, type ResultLetter } from "./derived/result";
 import { jornadas } from "./derived/jornada";
 import { rankedLeaders } from "./clubAnalytics";
 import { withGuestNames } from "./derived/guests";
 
 const DAY = 86_400_000;
-const GOAL = /^goal/;
+const playerGoal = (type: string) => OURS.has(type) && type !== "opponent_own_goal";
 export type Result = ResultLetter;
 
 export interface SquadMember {
@@ -74,7 +74,7 @@ export const listNames = (lines: Pick<PlayerLine, "name">[]) => new Intl.ListFor
 
 function scorersOf(m: ClubMatch, nameOf: (id: string) => string) {
   const count = new Map<string, number>();
-  for (const e of m.events ?? []) if (GOAL.test(e.type) && e.playerId) count.set(e.playerId, (count.get(e.playerId) ?? 0) + 1);
+  for (const e of m.events ?? []) if (playerGoal(e.type) && e.playerId) count.set(e.playerId, (count.get(e.playerId) ?? 0) + 1);
   const named = withGuestNames(m, nameOf);
   return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ id, name: named(id), n }));
 }
@@ -126,7 +126,7 @@ export function narrative(p: Pulse, ctx: { seasonName: string; squadSize: number
 export function playerMoment(line: PlayerLine, ctx: { pichichiId?: string; lastMatch?: ClubMatch }) {
   const { goals, assists, matchesPlayed } = line.stats;
   const inGames = matchesPlayed ? ` en ${plural(matchesPlayed, "partido", "partidos")}` : "";
-  const scoredLast = !!ctx.lastMatch?.events?.some((e) => GOAL.test(e.type) && e.playerId === line.id);
+  const scoredLast = !!ctx.lastMatch?.events?.some((e) => playerGoal(e.type) && e.playerId === line.id);
   if (!goals && !assists && !matchesPlayed) return "Aún sin estrenar: su primer gol se contará aquí.";
   if (ctx.pichichiId === line.id) return `Pichichi del equipo: ${plural(goals, "gol", "goles")}${inGames}.`;
   if (scoredLast) return `Marcó en el último partido. Ya suma ${plural(goals, "gol", "goles")}.`;
@@ -177,7 +177,7 @@ export interface ClubMedal {
 /** The club's season trophy cabinet: fills itself as the firsts happen. */
 export function clubMedals(p: Pulse, lines: PlayerLine[], nameOf: (id: string) => string, dateLabel: (d: unknown) => string): ClubMedal[] {
   const first = p.played[0];
-  const firstGoal = p.played.find((m) => (m.events ?? []).some((e) => GOAL.test(e.type) && e.playerId));
+  const firstGoal = p.played.find((m) => (m.events ?? []).some((e) => playerGoal(e.type) && e.playerId));
   const firstGoalBy = firstGoal ? scorersOf(firstGoal, nameOf).map((s) => s.name) : [];
   const firstWin = p.played.find((m) => resultOf(m) === "G");
   const topScorers = leaders(lines, "goals", 1), topAssisters = leaders(lines, "assists", 1);

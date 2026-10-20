@@ -1,8 +1,8 @@
 import { mergedObservations, rawObservations, unsafeAggregateIds } from './observations.js';
 export { legacyObservations } from './observations.js';
-import { NARRATED_METRICS } from './catalog.js';
+import { NARRATED_METRICS, NARRATED_METRIC_BY_ID } from './catalog.js';
 import { DEFAULT_ANALYSIS_PROFILE, type AnalysisFilters, type MetricResult, type NarratedMatch } from './types.js';
-import { type MetricContext, type PreparedMatch, type MetricCalculation, type MetricRecipe, type ScopedObservation, kindOf, periodInterval, missing } from './operators.js';
+import { type MetricContext, type PreparedMatch, type MetricCalculation, type MetricRecipe, type ScopedObservation, kindOf, periodInterval, intervalUnion, missing } from './operators.js';
 import { RECIPES_001_200 } from './recipes001_200.js';
 import { RECIPES_201_400 } from './recipes201_400.js';
 
@@ -24,7 +24,7 @@ function profileSignature(ctx: MetricContext, parameterIds: string[], index: num
 
 export function prepareNarrated(matches: readonly NarratedMatch[], filters: AnalysisFilters = {}): MetricContext {
   const team = filters.team ?? 'us';
-  const prepared: PreparedMatch[] = matches.filter(m => !m.archived && m.status !== 'cancelled' && (!filters.seasonIds?.length || m.seasonId && filters.seasonIds.includes(m.seasonId)) && (!filters.matchIds?.length || filters.matchIds.includes(m.id))).map(match => ({
+  const prepared: PreparedMatch[] = matches.filter(m => !m.archived && !m.individuallyArchived && !m.deleting && m.status !== 'cancelled' && (!filters.seasonIds?.length || m.seasonId && filters.seasonIds.includes(m.seasonId)) && (!filters.matchIds?.length || filters.matchIds.includes(m.id))).map(match => ({
     match, duration: match.durationSeconds ?? (match.duration != null ? match.duration * 60 : 0),
     profile: match.analysis?.profile ?? DEFAULT_ANALYSIS_PROFILE,
     events: mergedObservations(match).map(e => ({ ...e, matchId: match.id, evidenceId: `${match.id}:${e.id}` })),
@@ -87,10 +87,18 @@ function metricFamilies(id: string): string[] {
 }
 function completeCoverage(ctx: MetricContext, category: string, id: string, requirements: MetricCalculation['requiredCoverage']): boolean {
   const needed = requirements?.length ? requirements : metricFamilies(id).map(family => ({ family, team: ctx.team }));
-  return ctx.matches.length > 0 && ctx.matches.every(({ match, duration }) => {
+  return ctx.matches.length > 0 && ctx.matches.every(m => {
+    const { match, duration } = m;
     const coverage = match.analysis?.coverage;
     if (!coverage) return match.analysisCoverage === 'complete' && (LEGACY_FAMILIES.has(category) || needed.every(n => LEGACY_FAMILIES.has(n.family)));
-    return needed.every(n => coverage.some(c => c.team === n.team && (c.family === '*' || c.family === category || c.family === n.family) && c.state === 'complete' && (c.from ?? 0) <= (ctx.filters.fromSecond ?? 0) && (c.to ?? duration) >= (ctx.filters.toSecond ?? duration)));
+    if (duration <= 0 && ctx.filters.fromSecond == null && ctx.filters.toSecond == null) return needed.every(n => coverage.some(c => c.team === n.team && (c.family === '*' || c.family === category || c.family === n.family) && c.state === 'complete' && c.from == null && c.to == null));
+    // A complete second half is sufficient for that half, even if the first was
+    // not narrated. Without real period bounds only whole-match coverage can certify it.
+    const period = periodInterval(ctx, m);
+    const from = Math.max(0, ctx.filters.fromSecond ?? 0, period?.from ?? 0);
+    const to = Math.min(duration, ctx.filters.toSecond ?? duration, period?.to ?? duration);
+    if (to <= from) return false;
+    return needed.every(n => intervalUnion(coverage.filter(c => c.team === n.team && (c.family === '*' || c.family === category || c.family === n.family) && c.state === 'complete').map(c => ({ from: c.from ?? 0, to: c.to ?? duration }))).some(interval => interval.from <= from && interval.to >= to));
   });
 }
 function finalize(id: string, category: string, ctx: MetricContext, raw: MetricCalculation): MetricResult {
@@ -113,16 +121,19 @@ function finalize(id: string, category: string, ctx: MetricContext, raw: MetricC
   return { id, value, unit: raw.unit ?? 'acciones', status, observed: raw.observed, pending, evidenceEventIds: [...new Set(raw.evidenceEventIds)], ruleId: `piti.${id}`, ruleVersion: 1, parameters: { profile: ctx.profile.id, profileVersion: ctx.profile.version, ...(raw.parameters ?? {}) }, reason: raw.reason ?? (status === 'complete' ? 'Cobertura declarada completa para esta muestra.' : status === 'partial' ? 'Recuento de la muestra observada; hay cobertura incompleta o atributos pendientes.' : status === 'unknown' ? 'Faltan hechos o cobertura suficiente para calcularlo.' : status === 'no_sample' ? 'No hay oportunidades elegibles en la muestra.' : ''), ...(raw.numerator != null ? { numerator: raw.numerator } : {}), ...(raw.denominator != null ? { denominator: raw.denominator } : {}), ...(raw.groups ? { groups: raw.groups } : {}), ...(raw.exposureSeconds != null ? { exposureSeconds: raw.exposureSeconds } : {}) };
 }
 
-export function evaluateNarrated(matches: readonly NarratedMatch[], filters: AnalysisFilters = {}): MetricResult[] {
+/** A requested subset still evaluates dependencies (for example a configured rating),
+ * but returns only the requested IDs. Omission preserves the full catalogue API. */
+export function evaluateNarrated(matches: readonly NarratedMatch[], filters: AnalysisFilters = {}, metricIds?: readonly string[]): MetricResult[] {
   const ctx = prepareNarrated(matches, filters);
   const cache = new Map<string, MetricResult>(), calculating = new Set<string>();
   const calculate = (id: string): MetricResult | undefined => {
     const cached = cache.get(id); if (cached) return cached;
-    const metric = NARRATED_METRICS.find(m => m.id === id); if (!metric || calculating.has(id)) return undefined;
+    const metric = NARRATED_METRIC_BY_ID.get(id); if (!metric || calculating.has(id)) return undefined;
     calculating.add(id);
     const recipe = NARRATED_RECIPES[metric.id];
     let raw: MetricCalculation;
     if (metric.audio.viability === 'excluded') raw = missing(metric.audio.condition || 'Requiere medición, seguimiento o un modelo externo; no se calcula desde la narración.', 'not_applicable');
+    else if (filters.team === 'opponent' && filters.playerIds?.length) raw = missing('Las fichas seleccionadas pertenecen al Piti. Quita ese filtro para consultar al rival.', 'not_applicable');
     else if (filters.playerIds?.length && metric.scope.trim().toLowerCase() === 'equipo') raw = missing('Esta métrica describe al equipo completo; quita el filtro de jugadores para consultarla.', 'not_applicable');
     else if (ctx.matches.some((_, i) => profileSignature(ctx, metric.parameterIds, i) !== profileSignature(ctx, metric.parameterIds, 0))) raw = missing('Los partidos usan definiciones o parámetros distintos para esta métrica. Selecciona partidos con el mismo perfil de cálculo.', 'not_configured');
     else if (filters.period != null && ['001','002','003','004','009','010','011','012','013','014','219','220','221','223','224','225','228','276','319','320','321','322','382','383','384','388','392','393','394','395','396','400'].includes(id) && ctx.matches.some(m => !periodInterval(ctx, m))) raw = missing('Falta el límite real de esta parte; no se sustituye por la duración programada.');
@@ -130,5 +141,6 @@ export function evaluateNarrated(matches: readonly NarratedMatch[], filters: Ana
     const result = finalize(metric.id, metric.category, ctx, raw); cache.set(id, result); calculating.delete(id); return result;
   };
   ctx.evaluateMetric = calculate;
-  return NARRATED_METRICS.map(metric => calculate(metric.id)!);
+  const ids = metricIds == null ? NARRATED_METRICS.map(metric => metric.id) : [...new Set(metricIds)].filter(id => NARRATED_METRIC_BY_ID.has(id));
+  return ids.map(id => calculate(id)!);
 }

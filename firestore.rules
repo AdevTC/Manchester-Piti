@@ -226,6 +226,7 @@ service cloud.firestore {
       match /presence/{uid} {
         allow read: if teamMember();
         allow create, update: if teamMember() && request.auth.uid == uid
+          && activeMatch(id)
           && (admin() || (exists(/databases/$(database)/documents/matchPrivate/$(id))
             && request.auth.uid in get(/databases/$(database)/documents/matchPrivate/$(id)).data.get('scorerUids', [])))
           && request.resource.data.keys().hasOnly(['name','at'])

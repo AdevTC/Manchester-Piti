@@ -6,7 +6,7 @@ import type { MetricResult } from "../../../functions/src/narrated/types";
 import type { AnalysisSearch } from "../../lib/analysisSearch";
 import { AnalysisCatalog } from "./AnalysisCatalog";
 
-vi.mock("@tanstack/react-router", () => ({ Link: ({ children, params }: { children: ReactNode; params: { matchId: string } }) => <a href={`/matches/${params.matchId}`}>{children}</a> }));
+vi.mock("@tanstack/react-router", () => ({ Link: ({ children, params, search }: { children: ReactNode; params: { matchId: string }; search?: Record<string, unknown> }) => <a href={`/matches/${params.matchId}`} data-search={JSON.stringify(search)}>{children}</a> }));
 const baseline: MetricResult[] = NARRATED_METRICS.map(metric => ({ id: metric.id, unit: "count", value: null, status: metric.audio.viability === "excluded" ? "not_applicable" : "unknown", observed: 0, pending: 0, evidenceEventIds: [], ruleId: `metric:${metric.id}`, ruleVersion: 1, parameters: {}, reason: "Falta información de esta familia." }));
 function Harness({ initial = {}, overrides = [] }: { initial?: AnalysisSearch; overrides?: Partial<MetricResult>[] }) {
   const [search, setSearch] = useState(initial);
@@ -15,6 +15,12 @@ function Harness({ initial = {}, overrides = [] }: { initial?: AnalysisSearch; o
 }
 
 describe("the narrated catalogue", () => {
+  it("keeps the player, team and period context when following evidence into a match", () => {
+    render(<Harness initial={{ metric: "067", players: ["p1"], team: "us", period: 2 }} overrides={[{ id: "067", value: 1, status: "partial", observed: 1, evidenceEventIds: ["j1:pase1"] }]}/>);
+    const evidence = screen.getByRole("region", { name: "Jugadas que sustentan la estadística" });
+    const link = within(evidence).getByRole("link");
+    expect(JSON.parse(link.getAttribute("data-search")!)).toEqual({ tab: "estadisticas", analysis: "catalog", metric: "067", players: ["p1"], team: "us", period: 2 });
+  });
   it("shows all 321 audio candidates by default and explicitly includes the 91 exclusions on request", () => {
     render(<Harness/>);
     expect(screen.getByRole("status")).toHaveTextContent("321 estadísticas");

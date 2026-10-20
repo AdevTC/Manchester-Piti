@@ -63,4 +63,14 @@ describe("public statistics JSON export", () => {
     expect(result.matches[0].events).toHaveLength(1);
     expect(result.people.map(person => person.id)).toEqual(["pepe", "luis", "ana"]);
   });
+  it("shares the player sample with the cards and table, excluding absent matches and duplicates", () => {
+    const absent = { ...fixture, id: "absent", starters: ["ana"], bench: [], analysis: undefined, events: [] };
+    const result = createAnalysisExport({ exportedAt, matches: [fixture, fixture, absent], filters: { playerIds: ["pepe"] } });
+    expect(result.metadata.matchIds).toEqual(["m1"]);
+    expect(result.results.find(m => m.id === "067")).toMatchObject({ value: 1, status: "complete" });
+    expect(result.matches[0].analysis?.observations).toHaveLength(3);
+    const empty = createAnalysisExport({ exportedAt, matches: [fixture], filters: { playerIds: ["absent-player"] } });
+    expect(empty.matches).toEqual([]);
+    expect(empty.results.find(m => m.id === "067")).toMatchObject({ value: null, status: "unknown" });
+  });
 });

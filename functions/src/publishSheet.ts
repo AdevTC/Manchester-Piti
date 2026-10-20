@@ -3,6 +3,7 @@
 // and the porra, in one transaction.
 import { analysisProblem, narratedAnalysisSchema, type NarrationSource } from './narrated/schema.js';
 import { prepareNarrationHistory } from './narrated/history.js';
+import { synchronizeCanonicalAnalysis } from './narrated/editing.js';
 import { publicNarrationEvents } from './narrated/privateSources.js';
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
@@ -95,7 +96,7 @@ export async function publishSheet(input: PublishRequest) {
   const uid = input.uid;
   const sheet = { ...input.sheet } as MatchSheet;
   // Old clients and live publication keep the rich dataset; omission never erases an import.
-  if (!sheet.analysis) { const previous = await db.doc(`matches/${input.id}`).get(); if (previous.get('analysis')) sheet.analysis = narratedAnalysisSchema.parse(previous.get('analysis')); }
+  if (!sheet.analysis) { const previous = await db.doc(`matches/${input.id}`).get(); if (previous.get('analysis')) sheet.analysis = synchronizeCanonicalAnalysis(narratedAnalysisSchema.parse(previous.get('analysis')), previous.get('events') ?? [], sheet.events, sheet.durationSeconds ?? sheet.duration * 60); }
   if (Buffer.byteLength(JSON.stringify(sheet), "utf8") > 650_000) throw new HttpsError("invalid-argument", "El acta es demasiado grande. Reduce las notas de las jugadas.");
   // Members only: a guest («guest:g1») has no ficha, no season and no stats (guests.ts).
   const participants = memberIds([...sheet.starters, ...sheet.bench, ...sheet.notCalled]);

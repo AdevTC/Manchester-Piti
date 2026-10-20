@@ -3,11 +3,14 @@ import { ACTION_LABELS, OUTCOME_LABELS, actionProblem, isAnalysisAction, type Ou
 import { EVENT_LABELS, type MatchEvent, type MatchSheet } from "../../../../functions/src/matchEngine";
 import { eventSchema } from "../../../../functions/src/eventSchema";
 import { correctNarrationEvent, correctNarrationObservation, narrationContext, previewNarration, resolveNarrationQuestion } from "../../../lib/narration";
-import { newId, removeEvent, upsertEvent } from "../acta/sheetModel";
+import { newId, removeEvent, sig, upsertEvent } from "../acta/sheetModel";
 import type { PlayerInfo } from "./TabActa";
 import { NarratedObservations } from './NarratedObservations';
 import type { Observation } from '../../../../functions/src/narrated/types';
 import { analysisProblem } from '../../../../functions/src/narrated/schema';
+import { addNarratedObservation, editNarratedObservation, emptyNarratedAnalysis, removeNarratedObservation } from '../../../../functions/src/narrated/editing';
+import { AnalysisSettings } from './AnalysisSettings';
+import { NarrationHistory } from './NarrationHistory';
 import { NarrationReview } from "./NarrationReview";
 import "./analysis-editor.css";
 
@@ -18,7 +21,9 @@ export function AnalysisEditor({ matchId, sheet, update, info }: { matchId: stri
   const [preview, setPreview] = useState<ReturnType<typeof previewNarration> | null>(null);
   const [event, setEvent] = useState<MatchEvent | null>(null);
   const [importEditing, setImportEditing] = useState(false);
+  const [undoDetail, setUndoDetail] = useState<{ before: MatchSheet; after: MatchSheet } | null>(null);
   const eventForm = useRef<HTMLDivElement>(null);
+  const eventBaseline = useRef<string | undefined>(undefined);
   const editEventId = event?.id;
   useEffect(() => { if (editEventId) { eventForm.current?.focus(); eventForm.current?.scrollIntoView?.({ block: "nearest" }); } }, [editEventId]);
   const [filter, setFilter] = useState("");
@@ -44,6 +49,7 @@ export function AnalysisEditor({ matchId, sheet, update, info }: { matchId: stri
       catch (e) { setMessage((e as Error).message); }
       return;
     }
+    if (eventBaseline.current !== JSON.stringify(sheet.events.find(e => e.id === event.id))) { setMessage('Esta acción ha cambiado mientras la editabas. Conservamos tus campos: cancela y abre la versión actual antes de guardar.'); return; }
     update(s => upsertEvent(s, parsed.data)); setEvent(null); setMessage("Acción incorporada al borrador. Publica el acta para actualizar las estadísticas.");
   };
   const importPreview = () => { try { setPreview(previewNarration(text, matchId, sheet)); setMessage(""); } catch (e) { setPreview(null); setMessage((e as Error).message); } };
@@ -53,12 +59,15 @@ export function AnalysisEditor({ matchId, sheet, update, info }: { matchId: stri
     catch (e) { setMessage((e as Error).message); }
   };
   const resolve = (index: number, resolution: string) => { try { const corrected = resolveNarrationQuestion(text, index, resolution); setPreview(previewNarration(corrected, matchId, sheet)); setText(corrected); setMessage("Resolución guardada en la revisión. Comprueba las acciones antes de incorporarlas."); } catch (e) { setMessage((e as Error).message); } };
-  const editObservation = (observation: Observation) => { const corrected = correctNarrationObservation(text, observation); const next = previewNarration(corrected, matchId, sheet); setText(corrected); setPreview(next); setMessage('Detalle corregido en la importación. El acta aún no ha cambiado.'); };
-  const saveObservation = (observation: Observation) => { if (!sheet.analysis) return; const analysis = { ...sheet.analysis, observations: sheet.analysis.observations.map(o => o.id === observation.id ? observation : o) }; const problem = analysisProblem(analysis, sheet.events, [...sheet.starters,...sheet.bench,...sheet.notCalled], sheet.durationSeconds ?? sheet.duration * 60); if (problem) throw new Error(problem); update(s => ({ ...s, analysis })); setMessage('Detalle corregido en el borrador. Publica el acta para actualizar Números.'); };
+  const editObservation = (observation: Observation) => { const corrected = correctNarrationObservation(text, observation, sheet.events); const next = previewNarration(corrected, matchId, sheet); setText(corrected); setPreview(next); setMessage('Detalle corregido en la importación. El acta aún no ha cambiado.'); };
+  const saveObservation = (observation: Observation) => { if (!sheet.analysis) return; const next = editNarratedObservation(sheet, observation); const problem = analysisProblem(next.analysis!, next.events, [...sheet.starters,...sheet.bench,...sheet.notCalled], sheet.durationSeconds ?? sheet.duration * 60); if (problem) throw new Error(problem); update(() => next); setMessage('Detalle y acción vinculada corregidos en el borrador. Publica el acta para actualizar Números.'); };
+  const validateDetails = (next: MatchSheet) => { const problem = analysisProblem(next.analysis, next.events, [...sheet.starters, ...sheet.bench, ...sheet.notCalled], sheet.durationSeconds ?? sheet.duration * 60); if (problem) throw new Error(problem); update(() => next); };
+  const addObservation = (observation: Observation) => { validateDetails(addNarratedObservation(sheet, observation)); setMessage('Detalle añadido al borrador. Los goles, cambios y tarjetas también tienen su acción en el acta.'); };
+  const removeObservation = (id: string) => { const next = removeNarratedObservation(sheet, id); validateDetails(next); setUndoDetail({ before: sheet, after: next }); setMessage('Detalle borrado del borrador junto a su acción vinculada, si la tenía. El historial publicado se conserva.'); };
   const copy = async () => { const value = narrationContext(matchId, sheet, roster); setContext(value); try { await navigator.clipboard.writeText(value); setMessage("Prompt y contexto copiados. Entrega tu narración en el chat del asistente y trae aquí el JSON para revisarlo."); } catch { setMessage("Puedes seleccionar y copiar el contexto que aparece debajo."); } };
   const players = (value: string | undefined, setter: (id: string | undefined) => void, label: string) => <label>{label}<select value={value ?? ""} onChange={e => setter(e.target.value || undefined)}><option value="">Sin identificar</option>{roster.map(p => <option value={p.id} key={p.id}>{p.number ?? "—"} · {p.name}</option>)}</select></label>;
   return <section className="analysis-editor" aria-label="Análisis detallado del acta">
-    <div className="ae-heading"><div><span>Después del partido</span><h3>El partido, acción a acción</h3></div><button type="button" className="btn sky" onClick={() => { setImportEditing(false); setEvent({ id: newId(), type: "pass", team: "us", outcome: "complete", source: "manual" }); }}>Añadir acción</button></div>
+    <div className="ae-heading"><div><span>Después del partido</span><h3>El partido, acción a acción</h3></div><button type="button" className="btn sky" onClick={() => { setImportEditing(false); eventBaseline.current = undefined; setEvent({ id: newId(), type: "pass", team: "us", outcome: "complete", source: "manual" }); }}>Añadir acción</button></div>
     <p>Pases, remates, defensa y balón parado. Cada acción alimenta las tablas y gráficas del partido, la temporada y los jugadores.</p>
     <label>Cobertura del análisis<select value={sheet.analysisCoverage ?? "partial"} onChange={e => update(s => ({ ...s, analysisCoverage: e.target.value as "partial" | "complete" }))}><option value="partial">Parcial · solo acciones registradas</option><option value="complete">Completa · se ha revisado todo el partido</option></select></label>
     <label>Duración real de juego (segundos, sin descanso)<input type="number" min="1" max="9000" value={sheet.durationSeconds ?? sheet.duration * 60} onChange={e => { const n = Number(e.target.value); if (n > 0 && n <= 9000) update(s => ({ ...s, durationSeconds: n, duration: Math.ceil(n / 60) })); }} /></label>
@@ -66,7 +75,10 @@ export function AnalysisEditor({ matchId, sheet, update, info }: { matchId: stri
     <details><summary>Importar análisis de una narración</summary><p>Entrega el audio o dicta el partido en tu chat con el asistente. Este prompt incluye plantilla, acta, perfil y catálogo de estadísticas. Aquí revisas e importas el resultado; las acciones anteriores se conservan.</p><button type="button" className="btn line" onClick={() => void copy()}>Copiar prompt y contexto</button>{context && <label>Contexto del partido (solo lectura)<textarea readOnly value={context} rows={6} onFocus={e => e.target.select()} /></label>}<label>Archivo de acciones<input type="file" accept=".json,application/json" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 900_000) { setMessage("Archivo demasiado grande."); return; } void f.text().then(v => { setText(v); setPreview(null); }); }} /></label><label>Análisis estructurado<textarea value={text} onChange={e => { setText(e.target.value); setPreview(null); }} placeholder="Pega aquí el análisis JSON generado en el chat" /></label><button type="button" className="btn sky" onClick={importPreview} disabled={!text.trim()}>Revisar importación</button>
       {preview && <NarrationReview preview={preview} info={info} onEdit={e => { setImportEditing(true); setEvent({ ...e }); }} onResolve={resolve} onEditObservation={editObservation} onApply={apply} editing={!!event} />}
     </details>
-    {!!sheet.analysis?.observations.length && <NarratedObservations observations={sheet.analysis.observations} nameOf={id => info(id).name} onSave={saveObservation} sources={sheet.narrationSources} issues={sheet.analysis.issues} onResolveIssue={(id,resolution) => update(s => ({ ...s, analysis: s.analysis ? { ...s.analysis, issues: s.analysis.issues?.map(q => q.id === id ? { ...q, resolved: resolution } : q) } : undefined }))} />}
+    <NarratedObservations observations={sheet.analysis?.observations ?? []} nameOf={id => info(id).name} roster={roster} onSave={saveObservation} onAdd={addObservation} onRemove={removeObservation} onReorder={observations => validateDetails({ ...sheet, analysis: { ...(sheet.analysis ?? emptyNarratedAnalysis()), observations } })} sources={sheet.narrationSources} issues={sheet.analysis?.issues} onResolveIssue={(id,resolution) => update(s => ({ ...s, analysis: s.analysis ? { ...s.analysis, issues: s.analysis.issues?.map(q => q.id === id ? { ...q, resolved: resolution } : q) } : undefined }))} />
+    {undoDetail && <button type="button" className="btn line" disabled={sig(sheet) !== sig(undoDetail.after)} onClick={() => { update(() => undoDetail.before); setUndoDetail(null); setMessage('Detalle y acción restaurados en el borrador.'); }}>Deshacer último borrado de detalle</button>}
+    <AnalysisSettings analysis={sheet.analysis ?? emptyNarratedAnalysis()} onSave={analysis => { validateDetails({ ...sheet, analysis }); setMessage('Cobertura y reglas guardadas en el borrador.'); }} sources={sheet.narrationSources ?? []} onSources={sources => update(s => ({ ...s, narrationSources: sources }))} />
+    <NarrationHistory key={matchId} matchId={matchId} onUseSources={sources => { update(s => ({ ...s, narrationSources: sources })); setMessage('Fuentes históricas cargadas como versión de trabajo. El original permanece en el historial.'); }} />
     {event && <div ref={eventForm} tabIndex={-1} className="ae-form" role="group" aria-label="Editar acción detallada">
       {importEditing && <p><b>Corrigiendo la importación.</b> Guardar aquí conserva el cambio para su revisión; todavía no modifica el acta.</p>}
       <label>Acción<select value={event.type} onChange={e => changeType(e.target.value as MatchEvent["type"])}>{Object.entries(importEditing ? EVENT_LABELS : ACTION_LABELS).map(([k,l]) => <option key={k} value={k}>{l}</option>)}</select></label>
@@ -89,7 +101,7 @@ export function AnalysisEditor({ matchId, sheet, update, info }: { matchId: stri
       <div className="ae-buttons"><button type="button" className="btn sky" onClick={trySave}>Guardar acción</button><button type="button" className="btn line" onClick={() => setEvent(null)}>Cancelar</button></div>
     </div>}
     <label>Filtrar acciones<select value={filter} onChange={e => { setFilter(e.target.value); setPage(0); }}><option value="">Todas ({sheet.events.filter(e => isAnalysisAction(e.type)).length})</option>{Object.entries(ACTION_LABELS).map(([k,l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-    <ol className="ae-events">{list.slice(page * 30, page * 30 + 30).map(e => <li key={e.id}><button type="button" onClick={() => { setImportEditing(false); setEvent({ ...e }); }}><b>{e.minute == null ? "—" : `${e.minute}′${e.elapsedSeconds != null ? String(e.elapsedSeconds % 60).padStart(2,"0") : ""}`}</b><span>{EVENT_LABELS[e.type]} · {e.team === "opponent" ? "Rival" : e.playerId ? info(e.playerId).name : "Equipo"}{e.receiverId ? ` → ${info(e.receiverId).name}` : ""}<small>{e.outcome ? OUTCOME_LABELS[e.outcome] : ""}{e.keyPass ? " · pase clave" : ""}{e.timingUnknown ? " · sin minuto" : ""}</small></span></button><button type="button" aria-label={`Quitar ${EVENT_LABELS[e.type]} ${e.minute ?? "sin minuto"}`} onClick={() => update(s => removeEvent(s, e.id))}>Quitar</button></li>)}</ol>
+    <ol className="ae-events">{list.slice(page * 30, page * 30 + 30).map(e => <li key={e.id}><button type="button" onClick={() => { setImportEditing(false); eventBaseline.current = JSON.stringify(e); setEvent({ ...e }); }}><b>{e.minute == null ? "—" : `${e.minute}′${e.elapsedSeconds != null ? String(e.elapsedSeconds % 60).padStart(2,"0") : ""}`}</b><span>{EVENT_LABELS[e.type]} · {e.team === "opponent" ? "Rival" : e.playerId ? info(e.playerId).name : "Equipo"}{e.receiverId ? ` → ${info(e.receiverId).name}` : ""}<small>{e.outcome ? OUTCOME_LABELS[e.outcome] : ""}{e.keyPass ? " · pase clave" : ""}{e.timingUnknown ? " · sin minuto" : ""}</small></span></button><button type="button" aria-label={`Quitar ${EVENT_LABELS[e.type]} ${e.minute ?? "sin minuto"}`} onClick={() => update(s => removeEvent(s, e.id))}>Quitar</button></li>)}</ol>
     {list.length > 30 && <div className="ae-buttons"><button type="button" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Anterior</button><span>{page + 1} / {Math.ceil(list.length / 30)}</span><button type="button" disabled={(page + 1) * 30 >= list.length} onClick={() => setPage(p => p + 1)}>Siguiente</button></div>}
     {message && <p role="status" className="ae-message">{message}</p>}
   </section>;

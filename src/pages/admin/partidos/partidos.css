@@ -8,6 +8,7 @@
 .adm .archive-list-note{padding:0 8px;margin:0 0 10px}
 .adm .archive-list .mr .j b{font-family:Geist,system-ui,sans-serif;font-size:10px;line-height:1.4}
 .adm.m .match-list-stack{flex:1}
+.adm.m .match-detail-host{display:contents}
 .adm .match-management{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;flex:0 0 auto;gap:8px;padding:8px 16px;border-bottom:1px solid var(--pline)}
 .adm .match-management-label{margin-right:auto;color:var(--muted);font-size:12px;font-weight:600}
 .adm .pubv{overflow-y:auto;--red:#ff9a8a}

@@ -72,6 +72,16 @@ const choose = (group: string, option: string) => fireEvent.click(within(screen.
 // their words on purpose — «1 acción», «1 gol en 4 remates», «El Piti y el rival» — every number is the
 // one the old panel printed.)
 describe("TechnicalStatsPanel · the numbers (characterisation)", () => {
+  it("keeps the pass network, shot map and evidence without duplicating the shared workspace table", async () => {
+    await view({ mode: "visuals" });
+    expect(screen.getByRole("heading", { name: "Conexiones y remates" })).toBeInTheDocument();
+    expect(connections()).toEqual([["PEPE", "JUAN", "2"], ["JUAN", "LUIS", "1"], ["LUIS", "JUAN", "1"]]);
+    expect(screen.getByRole("img", { name: "Mapa de remates con posición registrada" })).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: /^Ordenados por/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Quién destaca" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver 2 pases de PEPE a JUAN" }));
+    expect(screen.getByRole("heading", { name: /Pases completados/ })).toBeInTheDocument();
+  });
   it("the whole team: KPIs, coverage, network, shots and the passing family", async () => {
     await view();
     expect(screen.getByText(/0 de 1 actas con narración completa · 1 acción sin minuto/)).toBeInTheDocument();

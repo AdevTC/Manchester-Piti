@@ -4,12 +4,12 @@ import { clockReading } from "../../functions/src/matchClock";
 // events and the ledger the acta already stores.
 import { calculateLedger, dateMillis, type MatchEvent, type Participation } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
-import { eventMinute } from "./partidos";
+import { eventMinute, OURS } from "./partidos";
 import { withGuestNames, type MatchGuest } from "./derived/guests";
 import { settled } from "./eventMeta";
 
-const OURS = new Set(["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"]);
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
+const playerGoal = (event: MatchEvent) => OURS.has(event.type) && event.type !== "opponent_own_goal";
 const byMinute = (a: MatchEvent, b: MatchEvent) => (a.minute ?? 0) - (b.minute ?? 0);
 
 export interface Chapter {
@@ -120,7 +120,7 @@ export function stintRows(ledger: Record<string, Participation> | undefined, eve
       id,
       spans: p.stints.map((s) => ({ left: pct(s.from), width: pct(s.to - s.from) })),
       minutes: p.minutes,
-      goals: (events ?? []).filter((e) => e.playerId === id && /^goal/.test(e.type) && typeof e.minute === "number").map((e) => pct(e.minute!)),
+      goals: (events ?? []).filter((e) => e.playerId === id && playerGoal(e) && typeof e.minute === "number").map((e) => pct(e.minute!)),
     }))
     .sort((a, b) => b.minutes - a.minutes || (a.spans[0]?.left ?? 0) - (b.spans[0]?.left ?? 0));
 }
@@ -149,8 +149,8 @@ export function playerLine(id: string, ledger: Record<string, Participation> | u
   const redCards = ev.filter((e) => e.playerId === id && ["red_card", "double_yellow"].includes(e.type)).length;
   return {
     minutes: 0,
-    goals: ev.filter((e) => e.playerId === id && /^goal/.test(e.type)).length,
-    assists: ev.filter((e) => /^goal/.test(e.type) && e.assistPlayerId === id || e.type === "assist" && e.playerId === id).length,
+    goals: ev.filter((e) => e.playerId === id && playerGoal(e)).length,
+    assists: ev.filter((e) => playerGoal(e) && e.assistPlayerId === id || e.type === "assist" && e.playerId === id).length,
     cards: yellowCards + redCards,
     yellowCards,
     redCards,
@@ -221,7 +221,7 @@ export function liveCounts(id: string, events: MatchEvent[] | undefined): LiveCo
   const n = (types: readonly string[]) => ev.filter((e) => e.playerId === id && types.includes(e.type)).length;
   return {
     goals: n(["goal", "goal_penalty", "goal_freekick"]),
-    assists: ev.filter((e) => /^goal/.test(e.type) && e.assistPlayerId === id).length,
+    assists: ev.filter((e) => playerGoal(e) && e.assistPlayerId === id).length,
     chances: n(["chance"]),
     woodwork: n(["woodwork"]),
     saves: n(["save", "penalty_saved"]),

@@ -69,6 +69,8 @@ export interface NarratedMatch {
   id: string;
   seasonId?: string;
   archived?: boolean;
+  individuallyArchived?: boolean;
+  deleting?: boolean;
   status?: string;
   duration?: number;
   durationSeconds?: number;

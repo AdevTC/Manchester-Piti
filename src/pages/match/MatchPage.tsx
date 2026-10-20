@@ -32,7 +32,8 @@ import { LIVE_MORPH, Lens, PipWindow, openScorePip, useDesktop, useGoalMoment, u
 import { PageSky } from "../../components/paginas/PageSky";
 import { PgIcon } from "../../components/paginas/Tags";
 import { countdownParts, matchEvent } from "../../lib/home";
-import { dateParts, eventMinute, resultOf, scoreOf, shownMinute } from "../../lib/partidos";
+import { dateParts, eventMinute, OURS, resultOf, scoreOf, shownMinute } from "../../lib/partidos";
+import { settled } from "../../lib/eventMeta";
 import { KIT_LABEL, kitLabel, mapsUrl, siteOrigin, venueName } from "../../lib/derived/venue";
 import { scoreboardOf } from "../../lib/derived/scoreboard";
 import { jornadaOf } from "../../lib/derived/jornada";
@@ -65,7 +66,6 @@ import "../../styles/vidrio/reading.css";
 import "../../styles/vidrio-paginas.css";
 import "../../styles/match-vidrio.css";
 
-const GOAL = /^goal/;
 const route = getRouteApi("/matches/$matchId");
 
 /** The headline of the page, by moment. */
@@ -78,7 +78,7 @@ function headline(m: ClubMatch, phase: string, kick: KickoffState, nameOf: (id: 
   if (!isCompleted(m)) return m.home === false ? `Toca ${rival}, a domicilio` : `Toca ${rival}, en casa`;
   const { gf, ga } = scoreOf(m);
   const count = new Map<string, number>();
-  for (const e of m.events ?? []) if (GOAL.test(e.type) && e.playerId) count.set(e.playerId, (count.get(e.playerId) ?? 0) + 1);
+  for (const e of settled(m.events)) if (OURS.has(e.type) && e.type !== "opponent_own_goal" && e.playerId) count.set(e.playerId, (count.get(e.playerId) ?? 0) + 1);
   const [top] = [...count.entries()].sort((a, b) => b[1] - a[1]);
   const r = resultLetter(gf, ga);
   if (top && top[1] >= 2) return `${top[1] >= 3 ? "Hat-trick" : "Doblete"} de ${nameOf(top[0])} y ${RESULT_WORD[r]} ${gf}–${ga}`;

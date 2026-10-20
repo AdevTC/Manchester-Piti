@@ -466,6 +466,7 @@ describe("La mesa: presencia de los anotadores", () => {
   const presence = (who: string, uid = who) => doc(db(who), "matchPrivate", "m", "presence", uid);
   const beat = (name = "David") => ({ name, at: serverTimestamp() });
   beforeEach(async () => {
+    await seed("matches/m", { status: "scheduled" });
     await seed("matchPrivate/m", { scorerUids: ["member"] });
   });
   it("el anotador del partido y el admin marcan su propia presencia; el equipo la lee", async () => {
@@ -483,7 +484,7 @@ describe("La mesa: presencia de los anotadores", () => {
     await assertFails(setDoc(presence("admin", "member"), beat()));
     await assertFails(setDoc(presence("outsider"), beat()));
     await assertFails(setDoc(doc(db("member"), "matchPrivate", "sin-acta", "presence", "member"), beat()));
-    await assertSucceeds(setDoc(doc(db("admin"), "matchPrivate", "sin-acta", "presence", "admin"), beat()));
+    await assertFails(setDoc(doc(db("admin"), "matchPrivate", "sin-acta", "presence", "admin"), beat()));
   });
   it("solo {name, at}: el nombre de 1 a 40 caracteres y la hora del servidor", async () => {
     await assertFails(setDoc(presence("member"), { name: "David" }));
@@ -1033,6 +1034,15 @@ describe("Partidos archivados y eliminados", () => {
     it(`bloquea escrituras tardías del partido ${state}`, async () => {
       if (state !== "missing") await seed("matches/sleep", { ...upcomingMatch(), ...(state === "archived" ? { archived: true } : {}) });
       if (state === "tombstone") await seed("matchTombstones/sleep", { deletedAt: Timestamp.now() });
+      await seed("matchPrivate/sleep", { scorerUids: ["member"] });
+      for (const uid of ["admin", "member"]) {
+        const ref = doc(db(uid), "matchPrivate", "sleep", "presence", uid);
+        await seed(`matchPrivate/sleep/presence/${uid}`, { name: uid, at: Timestamp.now() });
+        await assertFails(updateDoc(ref, { at: serverTimestamp() }));
+        // Closing the match blocks new heartbeats, while each owner can still remove their old one.
+        await assertSucceeds(deleteDoc(ref));
+        await assertFails(setDoc(ref, { name: uid, at: serverTimestamp() }));
+      }
       await seed("lineups/sleep", linkedBoard);
       await seed("lineupOfficials/season__sleep", { lineupId: "sleep", seasonId: "season", matchId: "sleep" });
       await assertFails(setDoc(doc(db("member"), "matchPrivate/sleep/availability/member"), { response: "yes", name: "member", playerId: null, at: serverTimestamp() }));

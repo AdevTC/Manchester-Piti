@@ -70,6 +70,7 @@ export async function cleanupDeletedMatch(id: string): Promise<void> {
     db.collection('matchAudit').where('matchId', '==', id).get(),
     db.collection('pushLog').get(), db.collection('matches').select().get(), db.collection('matchTombstones').select().get(),
   ]);
+  if (allMatches.docs.some(match => match.id === id)) throw new Error('The public match must be removed before cleaning its tombstone.');
   const otherIds = [...allMatches.docs, ...deletedMatches.docs].map(m => m.id).filter(mid => mid !== id);
   // Early official-board locks sometimes stored the match only in their scope ID.
   const locks = allLocks.docs.filter(lock => lock.get('matchId') === id || (lock.get('matchId') == null && lock.id.endsWith(`__${id}`) && !otherIds.some(other => other.endsWith(`__${id}`) && lock.id.endsWith(`__${other}`))));
@@ -98,7 +99,10 @@ export async function cleanupDeletedMatch(id: string): Promise<void> {
   // Keep locks until their orphan board trees are gone, so an interrupted cleanup can find them.
   for (const board of relatedBoards) await db.recursiveDelete(board.ref);
   for (const row of [...audit.docs, ...locks]) await db.recursiveDelete(row.ref);
-  for (const collection of ['matches', 'matchPrivate', 'matchDrafts', 'mvpResults', 'convocatoriaReminders']) await db.recursiveDelete(db.doc(`${collection}/${id}`));
+  // The tombstone transaction already removed the public document and blocks its recreation.
+  // Its descendants can outlive it; clean those trees without deleting the absent root again.
+  for (const collection of await db.doc(`matches/${id}`).listCollections()) await db.recursiveDelete(collection);
+  for (const collection of ['matchPrivate', 'matchDrafts', 'mvpResults', 'convocatoriaReminders']) await db.recursiveDelete(db.doc(`${collection}/${id}`));
 }
 
 export { archivedMatch };

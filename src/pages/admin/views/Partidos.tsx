@@ -229,27 +229,9 @@ export function Partidos() {
     <button type="button" aria-pressed={showingArchives} onClick={() => { setArchiveMode(true); setQuery(""); back(); }}>Archivados{archivedMatches.length ? ` · ${archivedMatches.length}` : ""}</button>
   </div>{showingArchives ? <ArchivedMatchList matches={archivedMatches} query={query} selectedId={desktop ? selectedId : null} loading={data.archivesLoading} error={data.archivesError} onQuery={setQuery} onOpen={(id) => open(id)} /> : <MatchList model={model} filter={filter} query={query} selectedId={desktop ? selectedId : null} loading={data.loading} error={data.error && !data.matches.length} onFilter={setFilter} onQuery={setQuery} onOpen={(id) => open(id)} />}</div>;
 
-  if (!desktop)
-    return (
-      <>
-        {matchId ? (
-          detail
-        ) : (
-          <div className="msc">
-            <button type="button" className="btn line" onClick={openNuevo} aria-haspopup="dialog">
-              <AdIcon name="plus" />
-              Nuevo partido
-            </button>
-            {list}
-          </div>
-        )}
-        {nuevoModal}
-        {lifecycleModal}
-      </>
-    );
   return (
     <>
-      <div className="vh">
+      {desktop && <div className="vh">
         <div>
           <h1 className="ttl">Partidos</h1>
           <p className="ld">
@@ -263,10 +245,14 @@ export function Partidos() {
             Nuevo partido
           </button>
         </div>
-      </div>
-      <div className="pt">
-        {list}
-        {detail}
+      </div>}
+      <div className={desktop ? "pt" : matchId ? "match-detail-host" : "msc"}>
+        {!desktop && !matchId && <button type="button" className="btn line" onClick={openNuevo} aria-haspopup="dialog">
+          <AdIcon name="plus" />
+          Nuevo partido
+        </button>}
+        {(desktop || !matchId) && list}
+        {(desktop || matchId) && detail}
       </div>
       {nuevoModal}
       {lifecycleModal}

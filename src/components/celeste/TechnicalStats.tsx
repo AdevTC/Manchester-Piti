@@ -83,10 +83,11 @@ export interface TechnicalStatsPanelProps {
   initialPlayer?: string;
   /** The season the names belong to (their links keep it); none or «all» = no season. */
   seasonId?: string | null;
+  mode?: "full" | "visuals";
 }
 
 /** The same view consumes a single match, a season, all seasons or one player. */
-export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seasonId }: TechnicalStatsPanelProps) {
+export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seasonId, mode = "full" }: TechnicalStatsPanelProps) {
   const uid = useId();
   const [completeOnly, setCompleteOnly] = useState(false);
   const coverage = useMemo(() => analysisCoverage(matches), [matches]);
@@ -183,10 +184,10 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
           <span className="hm-kick" style={{ margin: 0 }}>
             Jugada a jugada · {plural(data.games, "partido", "partidos")}
           </span>
-          <h2 className="st-h2">El juego en detalle</h2>
+          <h2 className="st-h2">{mode === "visuals" ? "Conexiones y remates" : "El juego en detalle"}</h2>
         </div>
         <label className="st-field ts-player">
-          <span className="st-mono">Jugador</span>
+          <span className="st-mono">{mode === "visuals" ? "Resaltar jugador en estas gráficas" : "Jugador"}</span>
           <select value={selected} onChange={(e) => setSelected(e.target.value)}>
             <option value="">Todo el equipo</option>
             {roster.map((p) => (
@@ -198,7 +199,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
         </label>
       </header>
 
-      <div className="ts-coverage">
+      {mode === "full" && <div className="ts-coverage">
         <p><b>Cobertura de los datos</b> · {coverage.complete} completas · {coverage.partial} parciales · {coverage.none} sin narración</p>
         <progress value={coverage.complete} max={Math.max(1, matches.length)} aria-label="Actas con narración completa" />
         <label className="ts-complete-filter"><input type="checkbox" checked={completeOnly} onChange={e=>setCompleteOnly(e.target.checked)}/>Comparar solo actas completas</label>
@@ -213,10 +214,10 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
           {data.complete} de {data.games} actas con narración completa · {plural(data.unknownTime, "acción", "acciones")} sin minuto.
         </p>
         {matches.length === 1 && matches[0].analysisNotes && <p className="st-mono">{matches[0].analysisNotes}</p>}
-      </div>
+      </div>}
       {!data.events.length && <p className="st-empty">El análisis aparecerá al incorporar las acciones al acta.</p>}
 
-      <dl className="st-kpis ts-kpis">
+      {mode === "full" && <dl className="st-kpis ts-kpis">
         {kpis.map(([label, value, sub]) => (
           <div key={label}>
             <dt>{label}</dt>
@@ -226,7 +227,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
             </dd>
           </div>
         ))}
-      </dl>
+      </dl>}
 
       <div className="ts-grid">
         <section className="st-card" aria-labelledby={`${uid}-net`}>
@@ -375,7 +376,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
         </section>
       </div>
 
-      <div className="st-seg ts-families" role="group" aria-label="Familias de estadísticas">
+      {mode === "full" && <><div className="st-seg ts-families" role="group" aria-label="Familias de estadísticas">
         {CATEGORY_NAMES.map((c) => (
           <button
             key={c}
@@ -504,7 +505,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
             </tbody>
           </table>
         </div>
-      </section>
+      </section></>}
 
       {evidence && <TechnicalEvidence key={`${evidence.metric}/${evidence.playerId}/${evidence.receiverId}/${evidence.side}/${completeOnly}`} matches={included} people={people} selection={evidence} onClose={closeEvidence} />}
 

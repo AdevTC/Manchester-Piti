@@ -27,6 +27,23 @@ describe('narrated catalogue engine', () => {
     expect(metric('067', [m]).status).toBe('complete');
     expect(metric('206', [m])).toMatchObject({ value: null, status: 'unknown' });
   });
+  it('certifies only the requested real half and time range, joining contiguous coverage', () => {
+    const m = match([
+      obs('half1', 'context', 0, { intervalStart: 0, intervalEnd: 1537 }, { period: 1 }),
+      obs('half2', 'context', 1537, { intervalStart: 1537, intervalEnd: 3000 }, { period: 2 }),
+    ]);
+    m.analysis!.coverage = [{ family: 'duel', team: 'us', state: 'complete', from: 1537, to: 2000 }, { family: 'duel', team: 'us', state: 'complete', from: 2000, to: 3000 }];
+    expect(metric('151', [m], { period: 2 })).toMatchObject({ value: 0, status: 'complete' });
+    expect(metric('151', [m], { period: 2, fromSecond: 1800, toSecond: 2200 })).toMatchObject({ value: 0, status: 'complete' });
+    expect(metric('151', [m], { period: 1 })).toMatchObject({ value: null, status: 'unknown' });
+    expect(metric('151', [m])).toMatchObject({ value: null, status: 'unknown' });
+    m.analysis!.coverage[1].from = 2001;
+    expect(metric('151', [m], { period: 2 })).toMatchObject({ value: null, status: 'unknown' });
+    m.analysis!.observations = [];
+    expect(metric('151', [m], { period: 2 })).toMatchObject({ value: null, status: 'unknown' });
+    m.analysis!.coverage = [{ family: 'duel', team: 'us', state: 'complete' }];
+    expect(metric('151', [m], { period: 2 })).toMatchObject({ value: 0, status: 'complete' });
+  });
   it('keeps completed, failed and unresolved passes separate and pools numerators', () => {
     const a = match([obs('a', 'pass', 1, { outcome: 'complete' }), obs('b', 'pass', 2, { outcome: 'pending' })]);
     const b = match([obs('c', 'pass', 1, { outcome: 'complete' }), obs('d', 'pass', 2, { outcome: 'failed' }), obs('e', 'pass', 3, { outcome: 'failed' })], { id: 'm2' });
@@ -41,6 +58,19 @@ describe('narrated catalogue engine', () => {
     const archived = match([obs('x', 'pass', 1)], { id: 'arch', archived: true });
     expect(metric('067', [a, b, archived], { matchIds: ['m1', 'm2'], seasonIds: ['s1'], playerIds: ['p1'] }).value).toBe(1);
     expect(prepareNarrated([a, b, archived]).matches).toHaveLength(2);
+    const individual = { ...a, id: 'individual', individuallyArchived: true };
+    const deleting = { ...a, id: 'deleting', deleting: true };
+    expect(prepareNarrated([individual, deleting]).matches).toEqual([]);
+    expect(metric('067', [individual, deleting])).toMatchObject({ value: null, status: 'unknown' });
+  });
+  it('does not identify an opponent with a home-roster player filter', () => {
+    const m = match([obs('r', 'pass', 100, { outcome: 'complete', opponentReceiverId: 'r2' }, { team: 'opponent', opponentId: 'r1' })]);
+    expect(metric('067', [m], { team: 'opponent' })).toMatchObject({ value: 1, status: 'complete' });
+    expect(metric('067', [m], { team: 'opponent', playerIds: ['r1'] })).toMatchObject({ value: null, status: 'not_applicable' });
+    expect(metric('070', [m], { team: 'opponent', playerIds: ['p1'] })).toMatchObject({ value: null, status: 'not_applicable' });
+  });
+  it('preserves declared complete counts even when a historical acta omitted duration', () => {
+    expect(metric('067', [match([], { durationSeconds: undefined })])).toMatchObject({ value: 0, status: 'complete' });
   });
   it('enriches the canonical action without losing known facts or counting it twice', () => {
     const m = match([obs('r1', 'pass', 10, { underPressure: true }, { canonicalEventId: 'a' })], { events: [{ id: 'a', type: 'pass', elapsedSeconds: 10, minute: 0, playerId: 'p1', receiverId: 'p2', outcome: 'complete' }] });

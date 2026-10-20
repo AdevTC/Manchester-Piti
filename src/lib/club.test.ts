@@ -56,6 +56,12 @@ describe("Clasificados, mecenas y campo", () => {
 });
 
 describe("Sala de trofeos: piezas extra", () => {
+  it("a keeper's many goal kicks do not earn a hat-trick or hide the first real one", () => {
+    const restarts: ClubMatch = { ...match("restarts", 1), events: Array.from({ length: 150 }, (_, index) => ({ id: `kick-${index}`, type: "goal_kick", playerId: "keeper", minute: index % 50 + 1 })) };
+    expect(extraTrophies([restarts], id => id)[0]).toMatchObject({ title: "Por firmar", earned: false });
+    const goals: ClubMatch = { ...match("real", 2), rival: "Rival real", events: (["goal", "goal_penalty", "goal_freekick"] as const).map((type, index) => ({ id: `goal-${index}`, type, playerId: "scorer", minute: index + 1 })) };
+    expect(extraTrophies([restarts, goals], id => id)[0]).toMatchObject({ title: "scorer", detail: "ante Rival real", earned: true });
+  });
   it("first hat-trick and first clean sheet, in date order", () => {
     const g = (id: string, ga: number, scorers: string[]): ClubMatch => ({ id, rival: "R" + id, goalsFor: scorers.length, goalsAgainst: ga, status: "finished", events: scorers.map((p, i) => ({ id: id + i, type: "goal", minute: i + 1, playerId: p })) });
     const t = extraTrophies([g("1", 2, ["a", "b"]), g("2", 0, ["a", "a", "a"]), g("3", 0, ["b", "b", "b"])], (id) => id.toUpperCase());

@@ -49,6 +49,23 @@ describe("a match waiting for its acta", () => {
 });
 
 describe("home narrative", () => {
+  it("goal kicks never award the first goal, a last-match scorer or a goal achievement", () => {
+    const kicks: NonNullable<ClubMatch["events"]> = Array.from({ length: 150 }, (_, index) => ({ id: `kick-${index}`, type: "goal_kick", playerId: "a", minute: index % 50 + 1 }));
+    const p = seasonPulse([played("kicks", 1, 0, 0, kicks)], "s1", NOW);
+    const lines = playerLines(squad, p.played);
+    expect(narrative(p, ctx(p)).em).not.toMatch(/hat-trick|doblete|firmó/);
+    expect(playerOfTheMoment(lines, p, NOW)?.kick).not.toBe("Goleador del último partido");
+    expect(clubMedals(p, lines, nameOf, () => "").find(m => m.id === "goal")).toMatchObject({ earned: false, title: "Por marcar" });
+    expect(playerMoment({ ...lines[0], stats: { ...lines[0].stats, matchesPlayed: 1 } }, { lastMatch: p.last })).toBe("1 partido jugado esta temporada.");
+  });
+  it("real penalty and free-kick goals remain in the narrative after an earlier match of goal kicks", () => {
+    const kicks: NonNullable<ClubMatch["events"]> = Array.from({ length: 30 }, (_, index) => ({ id: `kick-${index}`, type: "goal_kick", playerId: "a" }));
+    const p = seasonPulse([played("kicks", 3, 0, 0, kicks), played("real", 1, 2, 0, [...kicks, { id: "penalty", type: "goal_penalty", playerId: "e" }, { id: "free-kick", type: "goal_freekick", playerId: "e" }])], "s1", NOW);
+    const lines = playerLines(squad, p.played);
+    expect(narrative(p, ctx(p)).em).toBe("ERIK firmó un doblete: ya suma 2 y lidera el Pichichi.");
+    expect(playerOfTheMoment(lines, p, NOW)?.line.id).toBe("e");
+    expect(clubMedals(p, lines, nameOf, () => "").find(m => m.id === "goal")).toMatchObject({ earned: true, title: "ERIK", detail: "ante Rival real" });
+  });
   it("nombra a todos los pichichis empatados en el titular, el jugador destacado y la vitrina", () => {
     const p = seasonPulse([played("m1", 1, 2, 0, [goal("a"), goal("e")])], "s1", NOW);
     const lines = playerLines(squad, p.played);

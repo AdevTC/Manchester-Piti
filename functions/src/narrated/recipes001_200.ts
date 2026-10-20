@@ -38,36 +38,63 @@ const eventInterval = (e: ScopedObservation): Interval | undefined => {
 };
 const eligibleIds = (ctx: MetricContext, m: PreparedMatch): string[] => ctx.filters.playerIds?.length ? ctx.filters.playerIds : [...new Set([...Object.keys(m.match.ledger ?? {}), ...(m.match.starters ?? []), ...(m.match.bench ?? []), ...m.events.filter(e => e.team === ctx.team && isKind(e, 'lineup')).map(e => e.actorId).filter((id): id is string => !!id)])];
 function participation(ctx: MetricContext, mode: 'minutes' | 'bench' | 'starts' | 'stints' | 'exits' | 'reentries' | 'mean' | 'max' | 'rest'): MetricCalculation {
-  const durations: number[] = [], rests: number[] = []; let seconds = 0, benchmark = 0, starts = 0, exits = 0, reentries = 0, stintCount = 0, pending = 0, players = 0;
+  const durations: number[] = [], rests: number[] = []; let seconds = 0, benchmark = 0, starts = 0, exits = 0, reentries = 0, stintCount = 0, pending = 0, players = 0, historicalTotals = 0;
   const ids: string[] = [];
   for (const m of ctx.matches) for (const id of eligibleIds(ctx, m)) {
     const ledger = m.match.ledger?.[id];
+    const temporal = ctx.filters.period != null || ctx.filters.fromSecond != null || ctx.filters.toSecond != null;
     const stints = clipIntervals(ctx, playerIntervals(m, id), m.duration, m.match.id);
     const knownLineup = m.match.starters?.includes(id) || m.match.bench?.includes(id) || ledger || m.events.some(e => e.actorId === id && isKind(e, 'lineup'));
     if (!knownLineup) { pending++; continue; }
     if (ledger?.notCalled || m.match.notCalled?.includes(id)) continue;
-    if ((!hasKnownParticipation(m, id) || !periodInterval(ctx, m)) && !['starts', 'stints', 'exits', 'reentries'].includes(mode)) { pending++; continue; }
+    // Old official actas can certify total minutes without retaining their stints.
+    // Preserve that total; never place those minutes in an invented half or interval.
+    if (ledger && !ledger.stints.length && Number.isFinite(ledger.minutes) && ledger.minutes > 0) {
+      const wholeMatch = ctx.filters.period == null && ctx.filters.fromSecond == null && ctx.filters.toSecond == null;
+      if (mode === 'minutes' && wholeMatch) { seconds += ledger.minutes * 60; players++; historicalTotals++; continue; }
+      if (['minutes', 'bench', 'mean', 'max', 'rest'].includes(mode) || temporal && mode === 'stints') { pending++; continue; }
+    }
+    if ((!hasKnownParticipation(m, id) || !periodInterval(ctx, m)) && (temporal || !['starts', 'stints', 'exits', 'reentries'].includes(mode))) { pending++; continue; }
+    const exposure = clipIntervals(ctx, [{ from: 0, to: m.duration }], m.duration, m.match.id);
+    const initially = ledger?.started ?? (m.match.starters ? m.match.starters.includes(id) : m.events.some(e => e.actorId === id && isKind(e, 'lineup') && e.facts.started === true));
+    const incoming = m.events.filter(e => isKind(e, 'substitution') && (e.facts.inPlayerId === id || e.actorId === id && e.facts.direction === 'in'));
+    const outgoing = m.events.filter(e => isKind(e, 'substitution') && e.actorId === id && e.facts.direction !== 'in');
+    const entries = ledger?.subIn ?? incoming.length;
+    const exitCount = ledger?.subOut ?? outgoing.length;
+    const inScope = (second: number) => exposure.some(interval => second >= interval.from && second < interval.to);
+    const movements = (direction: 'in' | 'out') => {
+      const recorded = ledger?.exchanges?.filter(e => e.direction === direction) ?? [];
+      return recorded.length ? recorded.map(e => e.minute * 60) : (direction === 'in' ? incoming : outgoing).map(exactTime);
+    };
+    let selectedExits = exitCount, selectedReentries = Math.max(0, entries - (initially ? 0 : 1));
+    if (temporal && (mode === 'exits' || mode === 'reentries')) {
+      const times = movements(mode === 'exits' ? 'out' : 'in');
+      const expected = mode === 'exits' ? exitCount : entries;
+      // Whole-match counters cannot locate a change in one half. Keep it unknown
+      // when its individual timestamps were not retained by a historical acta.
+      if (times.length !== expected || times.some(t => t == null || !Number.isFinite(t))) { pending++; continue; }
+      const ordered = (times as number[]).sort((a, b) => a - b);
+      if (mode === 'exits') selectedExits = ordered.filter(inScope).length;
+      else selectedReentries = ordered.filter((t, index) => (initially || index > 0) && inScope(t)).length;
+    }
     players++;
     seconds += intervalSeconds(stints);
-    const exposure = clipIntervals(ctx, [{ from: 0, to: m.duration }], m.duration, m.match.id);
     const dismissed = m.events.find(e => e.actorId === id && isKind(e, 'discipline') && ['red', 'red_card', 'second_yellow', 'double_yellow'].includes(String(e.facts.subtype)));
     const dismissalTime = dismissed && exactTime(dismissed);
     if (dismissed && dismissalTime == null) pending++;
     else benchmark += intervalSeconds(intervalIntersection(exposure, [{ from: 0, to: dismissalTime ?? m.duration }])) - intervalSeconds(stints);
-    const initially = ledger?.started ?? (m.match.starters ? m.match.starters.includes(id) : m.events.some(e => e.actorId === id && isKind(e, 'lineup') && e.facts.started === true));
-    const entries = ledger?.subIn ?? m.events.filter(e => isKind(e, 'substitution') && (e.facts.inPlayerId === id || e.actorId === id && e.facts.direction === 'in')).length;
-    starts += initially ? 1 : 0;
-    stintCount += ledger?.stints.length ?? entries + (initially ? 1 : 0);
+    starts += initially && (!temporal || inScope(0)) ? 1 : 0;
+    stintCount += temporal ? stints.length : ledger?.stints.length ?? entries + (initially ? 1 : 0);
     durations.push(...stints.map(s => s.to - s.from));
     for (let i = 1; i < stints.length; i++) rests.push(stints[i].from - stints[i - 1].to);
-    exits += ledger?.subOut ?? m.events.filter(e => isKind(e, 'substitution') && e.actorId === id && e.facts.direction !== 'in').length;
-    reentries += Math.max(0, entries - (initially ? 0 : 1));
-    ids.push(...m.events.filter(e => e.actorId === id && isKind(e, 'lineup', 'substitution', 'discipline')).map(e => e.evidenceId));
+    exits += selectedExits;
+    reentries += selectedReentries;
+    ids.push(...m.events.filter(e => (e.actorId === id || e.facts.inPlayerId === id) && isKind(e, 'lineup', 'substitution', 'discipline') && (!temporal || exactTime(e) != null && inScope(exactTime(e)!))).map(e => e.evidenceId));
     if (m.duration <= 0) pending++;
   }
-  if (!players) return missing('Faltan alineación y tandas conocidas para los jugadores seleccionados.');
+  if (!players) return { ...missing('Faltan alineación y tandas conocidas para los jugadores seleccionados.'), pending };
   const result = mode === 'minutes' ? seconds / 60 : mode === 'bench' ? Math.max(0, benchmark) / 60 : mode === 'starts' ? starts : mode === 'stints' ? stintCount : mode === 'exits' ? exits : mode === 'reentries' ? reentries : mode === 'mean' ? durations.length ? seconds / durations.length / 60 : null : mode === 'max' ? durations.length ? Math.max(...durations) / 60 : null : rests.length ? rests.reduce((a, b) => a + b, 0) / rests.length / 60 : null;
-  return { ...value(result, mode === 'rest' ? rests.length : players, pending, ids, ['starts', 'stints', 'exits', 'reentries'].includes(mode) ? 'veces' : 'min'), exposureSeconds: seconds, ...(result == null ? { status: 'no_sample' as const } : {}), reason: ctx.filters.playerIds?.length ? 'Tandas conocidas de los jugadores seleccionados.' : 'Suma de participación de jugadores; los minutos son persona-minutos.' };
+  return { ...value(result, mode === 'rest' ? rests.length : players, pending, ids, ['starts', 'stints', 'exits', 'reentries'].includes(mode) ? 'veces' : 'min'), exposureSeconds: seconds, ...(result == null ? { status: 'no_sample' as const } : {}), ...(historicalTotals === players && !pending ? { status: 'complete' as const } : {}), reason: historicalTotals ? 'Minutos certificados por el acta histórica, sin inventar la ubicación temporal de las tandas ausentes.' : ctx.filters.playerIds?.length ? 'Tandas conocidas de los jugadores seleccionados.' : 'Suma de participación de jugadores; los minutos son persona-minutos.' };
 }
 function intervalParticipation(ctx: MetricContext, qualify: Predicate, roleGroups = false): MetricCalculation {
   let total = 0, pending = 0, observed = 0; const ids: string[] = [], groups = new Map<string, number>();

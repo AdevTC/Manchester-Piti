@@ -138,6 +138,8 @@ describe("StatsPage · Análisis del juego", () => {
     expect(screen.getByRole("heading", { name: "El análisis empieza con las jugadas" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Catálogo de estadísticas" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Estadísticas detalladas" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "La temporada, ahora" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Líderes del período" })).not.toBeInTheDocument();
   });
 
   it("with a narrated action: the panel, its names linked", () => {
@@ -146,7 +148,8 @@ describe("StatsPage · Análisis del juego", () => {
     first.events = [...(first.events ?? []), { id: "a1", type: "pass", outcome: "complete", playerId: "dc", receiverId: "lat", minute: 4 }];
     render(<StatsPage />);
     const panel = screen.getByRole("region", { name: "Estadísticas detalladas" });
-    expect(within(panel).getByRole("heading", { name: "El Piti y el rival" })).toBeInTheDocument();
+    expect(within(panel).getByRole("heading", { name: "La red de pases" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: /^Estadísticas por jugador/ })).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: /^Conexiones dirigidas/ })).getAllByRole("link").map((a) => a.textContent)).toEqual(["PUNTA", "LATERAL"]);
   });
 });
@@ -162,7 +165,7 @@ describe("StatsPage · shareable scopes", () => {
   it("projects selected players while retaining the full match for passing recipients", () => {
     search.value = { view: "game", players: ["dc"] };
     render(<StatsPage/>);
-    const table = screen.getByRole("table", { name: "Estadísticas de los jugadores seleccionados" });
+    const table = screen.getByRole("table", { name: /^Estadísticas por jugador/ });
     expect(within(table).getByRole("rowheader", { name: "PUNTA" })).toBeInTheDocument();
     expect(within(table).queryByRole("rowheader", { name: "LATERAL" })).not.toBeInTheDocument();
     expect(screen.getByText("1 partido en la selección")).toBeInTheDocument();

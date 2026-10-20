@@ -559,6 +559,47 @@ describe("Partidos · a match to play, a published one", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos"));
     expect(screen.getByRole("navigation", { name: "Sala de control" })).toBeInTheDocument();
   });
+
+  it("keeps the open detail form and its unapplied fields when the admin frame crosses both breakpoints", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1440 });
+    let resizeFrame: ((width: number) => void) | undefined;
+    vi.stubGlobal("ResizeObserver", class implements ResizeObserver {
+      private callback: ResizeObserverCallback;
+      constructor(callback: ResizeObserverCallback) { this.callback = callback; }
+      observe(target: Element) {
+        if (target.matches(".vx.adm")) resizeFrame = width => this.callback([{
+          target, contentRect: { width } as DOMRectReadOnly,
+          borderBoxSize: [], contentBoxSize: [], devicePixelContentBoxSize: [],
+        }], this);
+      }
+      unobserve() {}
+      disconnect() {}
+    });
+    try {
+      setAdminData(adminFixture({ published: fullJ1() }));
+      const user = userEvent.setup();
+      mountAdmin("/admin/partidos/m6?tab=acta", { partidos: Partidos });
+      await user.click(await screen.findByRole("button", { name: "Añadir detalle" }));
+      const form = screen.getByRole("group", { name: "Editar observación" });
+      const author = within(form).getByRole("combobox", { name: "Autor del detalle" });
+      const seconds = within(form).getByLabelText("Desde (segundos)", { exact: true });
+      await user.selectOptions(author, "erik");
+      await user.type(seconds, "240");
+      const main = document.getElementById("ws");
+      expect(resizeFrame).toBeDefined();
+      for (const width of [390, 1440]) {
+        act(() => resizeFrame!(width));
+        expect(document.querySelector(".vx.adm")).toHaveClass(width < 1000 ? "m" : "d");
+        expect(document.getElementById("ws")).toBe(main);
+        expect(screen.getByRole("group", { name: "Editar observación" })).toBe(form);
+        expect(author).toHaveValue("erik");
+        expect(seconds).toHaveValue(240);
+        expect(save).not.toHaveBeenCalled();
+      }
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe("Partidos · archiving and irreversible deletion", () => {

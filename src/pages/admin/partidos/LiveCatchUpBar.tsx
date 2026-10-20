@@ -9,15 +9,15 @@ export function LiveCatchUpBar({ count, conflict, onIncorporate }: { count: numb
     <div className="rec2" role="status">
       <AdIcon name="whistle" size={18} />
       <span>
-        <b>{one ? "Ha llegado 1 jugada nueva" : `Han llegado ${count} jugadas nuevas`} desde que empezaste a editar</b>
+        <b>{one ? "Hay 1 cambio en la mesa" : `Hay ${count} cambios en la mesa`} desde que empezaste a editar</b>
         <small>
           {conflict
-            ? "Se añaden a tu acta, pero alguno de tus cambios choca con otro del servidor: al guardar te pedirá recargar."
-            : "Se añaden a tu acta sin tocar tus cambios."}
+            ? "Alguno de tus cambios choca con otro del servidor: al guardar te pedirá recargar."
+            : "Se incorporan las jugadas añadidas, corregidas o borradas y se conservan tus cambios."}
         </small>
       </span>
       <button type="button" className="btn sm sky" onClick={onIncorporate}>
-        {one ? "Incorporarla" : "Incorporarlas"}
+        {one ? "Incorporar cambio" : "Incorporar cambios"}
       </button>
     </div>
   );

@@ -208,10 +208,9 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
 
   return (
     <ShellContext.Provider value={shell}>
-      {desktop ? (
-        <div ref={appRef} className={iconRail ? "dk ic" : "dk"} data-rail={wide ? rail.phase : "closed"}>
-          <AdminHeader title={title} dark={theme === "dark"} onSearch={openPalette} onTheme={toggle} />
-          <Rail
+      <div ref={appRef} className={desktop ? (iconRail ? "dk ic" : "dk") : "mb"} data-rail={desktop ? (wide ? rail.phase : "closed") : undefined}>
+          {desktop ? <AdminHeader title={title} dark={theme === "dark"} onSearch={openPalette} onTheme={toggle} /> : !bare && <MobileHeader title={title} onSearch={openPalette} />}
+          {desktop && <Rail
             current={section}
             counters={counters}
             captain={captain}
@@ -222,20 +221,12 @@ function AdminShell({ appRef, data, desktop, wide, pathname }: { appRef: RefObje
             dark={theme === "dark"}
             onTheme={toggle}
             onLogout={() => setBye(true)}
-          />
-          <main key={section} className="ws anim" id="ws">
+          />}
+          <main key={section} className={desktop ? "ws anim" : "mws"} id="ws">
             {view}
           </main>
-        </div>
-      ) : (
-        <div ref={appRef} className="mb">
-          {!bare && <MobileHeader title={title} onSearch={openPalette} />}
-          <main className="mws" id="ws">
-            {view}
-          </main>
-          {!bare && <BottomBar current={section} counters={counters} masOpen={mas} onMas={() => setMas(true)} />}
-        </div>
-      )}
+          {!desktop && !bare && <BottomBar current={section} counters={counters} masOpen={mas} onMas={() => setMas(true)} />}
+      </div>
       <MasSheet
         open={mas && !desktop}
         onClose={() => setMas(false)}

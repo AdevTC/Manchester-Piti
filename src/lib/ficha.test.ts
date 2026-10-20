@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEvent, Participation } from "../../functions/src/matchEngine";
-import { chapters, keyNumbers, onPitch, playerLine, pulse, stintRows } from "./ficha";
+import { chapters, keyNumbers, liveCounts, onPitch, playerLine, pulse, stintRows } from "./ficha";
 
 const e = (type: string, minute: number, playerId?: string, assistPlayerId?: string) => ({ id: `${type}${minute}`, type, minute, playerId, assistPlayerId }) as MatchEvent;
 const names: Record<string, string> = { a: "ADRIÁN T.C.", h: "HUBEROSKI", i: "ILLESCAS", ev: "EVANS", er: "ERIK" };
@@ -57,6 +57,19 @@ describe("stintRows and playerLine", () => {
   });
   it("key numbers", () => {
     expect(keyNumbers(J7)).toEqual({ saves: 1, woodwork: 0, cards: 1, chances: 0, opponentChances: 0, corners: 0, opponentCorners: 0 });
+  });
+  it("goal kicks and other narrated actions never add goal marks, scorer badges or assists", () => {
+    const actions = Array.from({ length: 300 }, (_, index) => e(index % 3 === 0 ? "goal_kick" : index % 3 === 1 ? "pass" : "save", index % 50 + 1, "a", "h"));
+    expect(stintRows(ledger, actions, 50)[0].goals).toEqual([]);
+    expect(playerLine("a", undefined, actions).goals).toBe(0);
+    expect(playerLine("h", undefined, actions).assists).toBe(0);
+    expect(liveCounts("h", actions).assists).toBe(0);
+    const goals = [e("goal", 5, "a", "h"), e("goal_penalty", 15, "a", "h"), e("goal_freekick", 30, "a", "h")];
+    const combined = [...actions, ...goals, e("opponent_own_goal", 40, "a", "h")];
+    expect(stintRows(ledger, combined, 50)[0].goals).toEqual([10, 30, 60]);
+    expect(playerLine("a", undefined, combined).goals).toBe(3);
+    expect(playerLine("h", undefined, combined).assists).toBe(3);
+    expect(liveCounts("h", combined).assists).toBe(3);
   });
 });
 

@@ -18,6 +18,8 @@ import { clockReading, type MatchClock } from "./matchClock.js";
 import { LIVE_TYPES, isRivalType, liveProblem, liveSequenceProblem } from "./liveLogic.js";
 import { allowedAtBreak } from "./liveRules.js";
 import { requireActiveMatch, runMatchTransaction } from './matchAccess.js';
+import { synchronizeCanonicalAnalysis } from './narrated/editing.js';
+import type { NarratedAnalysis } from './narrated/types.js';
 
 /** An event's id: a live one is `live-<requestId>`, longer than a plain id. */
 const eventIdSchema = z.string().min(1).max(200).regex(/^[a-zA-Z0-9_-]+$/);
@@ -135,7 +137,7 @@ export const liveEvent = onCall(async (req) => {
     await requireScorer(tx, data.matchId, actor);
     if (!snap.exists) throw new HttpsError("not-found", "Ese partido no existe.");
     await requireActiveMatch(tx, data.matchId, snap);
-    const m = snap.data() as { version?: number; clock?: MatchClock; status?: string; date?: unknown; duration?: number; starters?: string[]; bench?: string[]; guests?: MatchGuest[]; events?: MatchEvent[]; revision?: number; liveEndedAt?: number };
+    const m = snap.data() as { version?: number; clock?: MatchClock; status?: string; date?: unknown; duration?: number; durationSeconds?: number; analysis?: NarratedAnalysis; starters?: string[]; bench?: string[]; guests?: MatchGuest[]; events?: MatchEvent[]; revision?: number; liveEndedAt?: number };
     const match = { ...m, date: millis(m.date) };
     const events = m.events ?? [];
     const reading = m.clock ? clockReading(m.clock, now) : null;
@@ -272,7 +274,8 @@ export const liveEvent = onCall(async (req) => {
     // The whole sequence must still hold (who is on the pitch, cards, changes), whatever changed.
     const invalid = liveSequenceProblem(match, next);
     if (invalid) throw new HttpsError("failed-precondition", invalid);
-    tx.update(ref, { events: next, revision: (m.revision ?? 0) + 1, updatedAt: FieldValue.serverTimestamp() });
+    const analysis = synchronizeCanonicalAnalysis(m.analysis, events, next, m.durationSeconds ?? (m.duration ?? 150) * 60);
+    tx.update(ref, { events: next, ...(analysis && analysis !== m.analysis ? { analysis: { ...analysis, revision: analysis.revision + 1 } } : {}), revision: (m.revision ?? 0) + 1, updatedAt: FieldValue.serverTimestamp() });
     tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, revision: (m.revision ?? 0) + 1, updatedBy: uid, at: FieldValue.serverTimestamp(), live: data.action, ...audit });
     return { events: next.length, ...answer };
   });

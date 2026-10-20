@@ -228,6 +228,39 @@ describe('catálogo narrado y recetas 001–200', () => {
     expect(recipes['007'](ctx).value).toBe(1);
   });
 
+  it('limita tandas y movimientos a la parte real y no repite las salidas de la primera', () => {
+    const ctx = context([event('half1', 'context', { intervalStart: 0, intervalEnd: 1500 }, { period: 1 }), event('half2', 'context', { intervalStart: 1500, intervalEnd: 3000 }, { period: 2 })]);
+    ctx.filters = { playerIds: ['p1'], period: 2 };
+    ctx.matches[0].match.ledger = { p1: { ...emptyParticipation(), minutes: 30, started: true, played: true, subIn: 1, subOut: 1, stints: [{ from: 0, to: 12 }, { from: 32, to: 50 }], exchanges: [{ minute: 12, with: 'p2', direction: 'out' }, { minute: 32, with: 'p3', direction: 'in' }] } };
+    expect(recipes['001'](ctx).value).toBe(18);
+    expect(recipes['005'](ctx).value).toBe(0);
+    expect(recipes['006'](ctx).value).toBe(1);
+    expect(recipes['007'](ctx).value).toBe(0);
+    expect(recipes['008'](ctx).value).toBe(1);
+    ctx.filters.period = 1;
+    expect(recipes['005'](ctx).value).toBe(1);
+    expect(recipes['006'](ctx).value).toBe(1);
+    expect(recipes['007'](ctx).value).toBe(1);
+    expect(recipes['008'](ctx).value).toBe(0);
+    ctx.filters = { playerIds: ['p1'], fromSecond: 0, toSecond: 720 };
+    expect(recipes['007'](ctx).value).toBe(0);
+    ctx.filters = { playerIds: ['p1'], fromSecond: 720, toSecond: 1920 };
+    expect(recipes['007'](ctx).value).toBe(1);
+    expect(recipes['008'](ctx).value).toBe(0);
+  });
+
+  it('clasifica la reentrada respecto al partido completo y no sólo al tramo filtrado', () => {
+    const ctx = context([]); ctx.filters = { playerIds: ['p1'], fromSecond: 1000 };
+    ctx.matches[0].match.ledger = { p1: { ...emptyParticipation(), minutes: 30, played: true, benched: true, subIn: 2, subOut: 1, stints: [{ from: 5, to: 15 }, { from: 30, to: 50 }], exchanges: [{ minute: 5, with: 'p2', direction: 'in' }, { minute: 15, with: 'p3', direction: 'out' }, { minute: 30, with: 'p2', direction: 'in' }] } };
+    expect(recipes['008'](ctx).value).toBe(1);
+    Reflect.deleteProperty(ctx.matches[0].match.ledger.p1, 'exchanges');
+    expect(recipes['007'](ctx)).toMatchObject({ value: null, status: 'unknown' });
+    expect(recipes['008'](ctx)).toMatchObject({ value: null, status: 'unknown' });
+    ctx.filters = { playerIds: ['p1'] };
+    expect(recipes['007'](ctx).value).toBe(1);
+    expect(recipes['008'](ctx).value).toBe(1);
+  });
+
   it('la duración prevista de una parte no sustituye al límite real del reloj', () => {
     const ctx = context([]); ctx.filters = { playerIds: ['p1'], period: 1 }; ctx.matches[0].match.starters = ['p1'];
     expect(recipes['001'](ctx)).toMatchObject({ value: null, status: 'unknown' });

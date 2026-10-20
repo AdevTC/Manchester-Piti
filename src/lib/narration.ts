@@ -11,6 +11,7 @@ const questionSchema = z.union([z.string().max(400), z.object({
 import { analysisProblem, narratedAnalysisSchema, narrationSourcesSchema, observationSchema } from '../../functions/src/narrated/schema';
 import type { Observation } from '../../functions/src/narrated/types';
 import { narrationPrompt } from './narrationPrompt';
+import { editNarratedObservation, synchronizeCanonicalAnalysis } from '../../functions/src/narrated/editing';
 
 const legacyBundleSchema = z.object({
   format: z.literal("piti-actions/v1"), matchId: z.string(), baseRevision: z.number().int().min(0),
@@ -54,12 +55,13 @@ export function previewNarration(text: string, matchId: string, sheet: MatchShee
   const rich = b.format === 'piti-actions/v2';
   const importedIssues = rich ? (b.analysis.issues ?? []).map(q => ({ question: q.message, playerIds: [] as string[], eventIds: q.eventIds, resolution: q.resolved, sourceRef: undefined })) : [];
   const questions = [...b.unresolved, ...importedIssues].map((q, index) => ({ index, ...(typeof q === "string" ? { question: q, playerIds: [], eventIds: [], resolution: undefined, sourceRef: undefined } : q) }));
-  let analysis = sheet.analysis;
+  let analysis = synchronizeCanonicalAnalysis(sheet.analysis, sheet.events, [...merged.values()], sheet.durationSeconds ?? sheet.duration * 60);
   const observationChanges: { kind: 'added' | 'updated' | 'unchanged'; before?: Observation; after: Observation }[] = [];
   if (rich) {
     if (new Set(b.analysis.observations.map(o => o.id)).size !== b.analysis.observations.length) throw new Error('Hay identificadores de observación repetidos dentro del análisis.');
     if (b.analysis.revision !== (sheet.analysis?.revision ?? 0)) throw new Error('El análisis detallado ha cambiado. Copia de nuevo el contexto antes de importar.');
-    const observations = new Map((sheet.analysis?.observations ?? []).map(o => [o.id, o]));
+    for (const o of b.analysis.observations) if (o.validity === 'void' && o.canonicalEventId) merged.delete(o.canonicalEventId);
+    const observations = new Map((analysis?.observations ?? []).map(o => [o.id, o]));
     for (const o of b.analysis.observations) {
       const before = observations.get(o.id);
       observationChanges.push({ kind: before ? JSON.stringify(before) === JSON.stringify(o) ? 'unchanged' : 'updated' : 'added', before, after: o });
@@ -90,7 +92,9 @@ export function previewNarration(text: string, matchId: string, sheet: MatchShee
 export function correctNarrationEvent(text: string, event: MatchEvent): string {
   const b = readBundle(text);
   if (!b.events.some(e => e.id === event.id)) throw new Error("Esta acción ya no está en la importación. Vuelve a revisarla.");
-  b.events = b.events.map(e => e.id === event.id ? eventSchema.parse(event) : e);
+  const events = b.events.map(e => e.id === event.id ? eventSchema.parse(event) : e);
+  if (b.format === 'piti-actions/v2') b.analysis = narratedAnalysisSchema.parse(synchronizeCanonicalAnalysis(b.analysis, b.events, events));
+  b.events = events;
   return JSON.stringify(b, null, 2);
 }
 /** A human resolution is explicit and reviewable; it never guesses or silently rewrites an action. */
@@ -108,10 +112,16 @@ export function resolveNarrationQuestion(text: string, index: number, resolution
   b.unresolved[index] = typeof question === "string" ? { question, playerIds: [], eventIds: [], resolution: resolution.trim() } : { ...question, resolution: resolution.trim() };
   return JSON.stringify(bundleSchema.parse(b), null, 2);
 }
-export function correctNarrationObservation(text: string, observation: Observation): string {
+export function correctNarrationObservation(text: string, observation: Observation, existingEvents: MatchEvent[] = []): string {
   const b = readBundle(text);
   if (b.format !== 'piti-actions/v2' || !b.analysis.observations.some(o => o.id === observation.id)) throw new Error('Esta observación no está en la importación.');
-  b.analysis.observations = b.analysis.observations.map(o => o.id === observation.id ? observationSchema.parse(observation) : o);
+  const merged = new Map(existingEvents.map(e => [e.id, e]));
+  for (const e of b.events) merged.set(e.id, e);
+  const edited = editNarratedObservation({ events: [...merged.values()], analysis: b.analysis }, observationSchema.parse(observation));
+  b.analysis = edited.analysis;
+  const importedIds = new Set(b.events.map(e => e.id));
+  if (observation.canonicalEventId) importedIds.add(observation.canonicalEventId);
+  b.events = edited.events.filter(e => importedIds.has(e.id));
   return JSON.stringify(b, null, 2);
 }
 export function narrationContext(matchId: string, sheet: MatchSheet, roster: { id: string; name: string; number: number | null }[]) {

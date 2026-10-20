@@ -10,6 +10,7 @@ import { isAnalysisAction } from "../../../../functions/src/matchAnalysis";
 //     backend would reject is reported as an error before calling it.
 import { dateMillis, EVENT_LABELS, type EventType, type MatchEvent, type MatchSheet } from "../../../../functions/src/matchEngine";
 import { opponentInitials } from "../../../lib/clubAnalytics";
+import { reconcileEventPeriods, synchronizeCanonicalAnalysis } from "../../../../functions/src/narrated/editing";
 
 export type { MatchEvent, MatchSheet };
 
@@ -227,7 +228,10 @@ export function otherEvents(sheet: Pick<MatchSheet, "events">): MatchEvent[] {
 }
 
 // ───────────────────────── edits (all pure: a new sheet each time) ─────────────────────────
-const withEvents = (sheet: MatchSheet, events: MatchEvent[]): MatchSheet => ({ ...sheet, events });
+const withEvents = (sheet: MatchSheet, changed: MatchEvent[]): MatchSheet => {
+  const events = reconcileEventPeriods(sheet.events, changed, sheet.analysis, sheet.clock);
+  return { ...sheet, events, ...(sheet.analysis ? { analysis: synchronizeCanonicalAnalysis(sheet.analysis, sheet.events, events, sheet.durationSeconds ?? sheet.duration * 60) } : {}) };
+};
 function patch(sheet: MatchSheet, id: string, f: (e: MatchEvent) => MatchEvent): MatchSheet {
   return withEvents(
     sheet,

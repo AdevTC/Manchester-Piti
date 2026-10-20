@@ -1,9 +1,10 @@
-import { dateMillis, isVisibleMatch } from "../../functions/src/matchEngine";
+import { dateMillis } from "../../functions/src/matchEngine";
 import { NARRATED_CATALOG_SOURCE_SHA256, NARRATED_METRIC_BY_ID } from "../../functions/src/narrated/catalog";
 import { evaluateNarrated } from "../../functions/src/narrated/engine";
 import type { AnalysisFilters, NarratedMatch } from "../../functions/src/narrated/types";
 import type { ClubMatch } from "./clubData";
 import type { AnalysisSearch } from "./analysisSearch";
+import { selectAnalysisMatches } from "./analysisWorkspace";
 
 /** A second privacy boundary: old cached actas can still contain legacy narration sources. */
 const PRIVATE_KEY = /^(?:sources|narrationSources|sourceRef|quote|quotes|transcript|transcription|byUid|editedByUid|uid)$/i;
@@ -34,9 +35,7 @@ export function createAnalysisExport({ matches, filters = {}, people = [], view 
   view?: Pick<AnalysisSearch, "analysis" | "family" | "metric" | "q" | "excluded">;
   exportedAt: string;
 }) {
-  const selected = matches.filter(match => isVisibleMatch(match) && match.status !== "cancelled"
-    && (!filters.seasonIds?.length || !!match.seasonId && filters.seasonIds.includes(match.seasonId))
-    && (!filters.matchIds?.length || filters.matchIds.includes(match.id)));
+  const selected = selectAnalysisMatches(matches, filters) as ClubMatch[];
   const records = selected.map(publicMatch);
   const results = evaluateNarrated(records as readonly NarratedMatch[], filters);
   return {

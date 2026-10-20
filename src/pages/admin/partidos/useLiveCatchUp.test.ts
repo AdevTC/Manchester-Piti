@@ -25,6 +25,31 @@ function editor(first: MatchSheet) {
 
 afterEach(() => localStorage.clear());
 
+it('announces corrections and removals while dirty, then follows the mesa without losing local text', () => {
+  const narrated = { ...A, id: 'narrated-sub', type: 'substitution' as const, inPlayerId: 'h' };
+  const { result, rerender } = editor(version(1, [narrated, B]));
+  act(() => result.current.buf.set(s => ({ ...s, report: 'Texto sin guardar' })));
+  rerender({ server: version(2, [{ ...narrated, minute: 4 }]) });
+  expect(result.current.catchUp.count).toBe(2);
+  expect(result.current.catchUp.conflict).toBe(false);
+  act(() => result.current.catchUp.incorporate());
+  expect(result.current.buf.value.events).toEqual([{ ...narrated, minute: 4 }]);
+  expect(result.current.buf.value.report).toBe('Texto sin guardar');
+  expect(result.current.buf.value.revision).toBe(2);
+  expect(result.current.catchUp.count).toBe(0);
+});
+
+it('warns of incompatible edits to an existing action, without pretending the old revision can be saved', () => {
+  const { result, rerender } = editor(version(1, [A]));
+  act(() => result.current.buf.set(s => ({ ...s, events: [{ ...A, minute: 4 }] })));
+  rerender({ server: version(2, [{ ...A, minute: 5 }]) });
+  expect(result.current.catchUp.count).toBe(1);
+  expect(result.current.catchUp.conflict).toBe(true);
+  act(() => result.current.catchUp.incorporate());
+  expect(result.current.buf.value.events[0].minute).toBe(4);
+  expect(result.current.buf.value.revision).toBe(1);
+});
+
 it("counts the jugadas that arrive while dirty and takes them in by id, keeping the edits and removals", () => {
   const { result, rerender } = editor(version(3, [A]));
   // clean: the buffer follows the server by itself, no bar

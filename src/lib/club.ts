@@ -7,6 +7,7 @@ import { LINES, LINE_NAMES, POS_CODES, resolvePositions, type Line, type PosCode
 import type { ClubContent } from "./clubContentDefaults";
 import type { ClubMedal } from "./home";
 import { isGuestId } from "./derived/guests";
+import { OURS } from "./partidos";
 
 export const mailto = (email: string, subject: string) => `mailto:${email}?subject=${encodeURIComponent(subject)}`;
 
@@ -132,7 +133,7 @@ export function extraTrophies(played: ClubMatch[], nameOf: (id: string) => strin
   let hat: { match: ClubMatch; playerId: string } | undefined;
   for (const m of played) {
     const goals = new Map<string, number>();
-    for (const e of m.events ?? []) if (/^goal/.test(e.type) && e.playerId && !isGuestId(e.playerId)) goals.set(e.playerId, (goals.get(e.playerId) ?? 0) + 1);
+    for (const e of m.events ?? []) if (OURS.has(e.type) && e.type !== "opponent_own_goal" && e.playerId && !isGuestId(e.playerId)) goals.set(e.playerId, (goals.get(e.playerId) ?? 0) + 1);
     const who = [...goals.entries()].find(([, n]) => n >= 3);
     if (who) {
       hat = { match: m, playerId: who[0] };

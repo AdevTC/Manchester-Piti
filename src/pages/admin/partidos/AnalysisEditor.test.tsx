@@ -16,6 +16,46 @@ function review(extra = {}) {
   return update;
 }
 describe("narration import review", () => {
+  it('keeps an emptied numeric fact invalid until completed or removed instead of saving an invented zero', () => {
+    const update = vi.fn();
+    const current = { ...sheet, analysis: { version: 2 as const, revision: 0, profile: DEFAULT_ANALYSIS_PROFILE, coverage: [], observations: [{ id: 'detail', kind: 'carry' as const, team: 'us' as const, actorId: 'a', order: 1, facts: { durationSeconds: 5 } }] } };
+    render(<AnalysisEditor matchId="m" sheet={current} update={update} info={info} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Editar detalle' }));
+    fireEvent.change(screen.getByLabelText('Duración en segundos'), { target: { value: '' } });
+    expect(screen.getByLabelText('Duración en segundos')).toHaveValue(null);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar detalle' }));
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Duración en segundos'), { target: { value: '8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar detalle' }));
+    expect(update.mock.calls[0][0](current).analysis.observations[0].facts.durationSeconds).toBe(8);
+  });
+  it('blocks a stale canonical action form after a remote correction', () => {
+    const update = vi.fn();
+    const { rerender } = render(<AnalysisEditor matchId="m" sheet={sheet} update={update} info={info} />);
+    fireEvent.click(screen.getByRole('button', { name: /Pase · A → B/ }));
+    const form = screen.getByRole('group', { name: 'Editar acción detallada' });
+    fireEvent.change(within(form).getByLabelText('Minuto'), { target: { value: '4' } });
+    rerender(<AnalysisEditor matchId="m" sheet={{ ...sheet, events: [{ ...original, receiverId: 'c' }] }} update={update} info={info} />);
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar acción' }));
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getByText(/Esta acción ha cambiado mientras/)).toBeInTheDocument();
+    expect(within(form).getByLabelText('Minuto')).toHaveValue(4);
+  });
+  it("filters an incoming substitute and saves the linked action together with the detailed correction", () => {
+    const update = vi.fn();
+    const observation = { id: 'detail-sub', canonicalEventId: 'sub', kind: 'substitution' as const, team: 'us' as const, actorId: 'a', order: 1, time: { from: 120, to: 120, precision: 'exact' as const }, facts: { inPlayerId: 'h' } };
+    const current = { ...sheet, bench: ['h'], events: [{ id: 'sub', type: 'substitution' as const, minute: 2, elapsedSeconds: 120, playerId: 'a', inPlayerId: 'h' }], analysis: { version: 2 as const, revision: 0, profile: DEFAULT_ANALYSIS_PROFILE, observations: [observation], coverage: [] } };
+    render(<AnalysisEditor matchId="m" sheet={current} update={update} info={info} />);
+    fireEvent.change(screen.getByLabelText('Jugador en las observaciones'), { target: { value: 'h' } });
+    expect(screen.getByRole('button', { name: 'Editar detalle' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Editar detalle' }));
+    fireEvent.change(screen.getByLabelText('Observación completa (JSON)'), { target: { value: JSON.stringify({ ...observation, actorId: 'b', time: { from: 180, to: 180, precision: 'exact' } }) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar detalle' }));
+    const saved = update.mock.calls[0][0](current);
+    expect(saved.events[0]).toMatchObject({ playerId: 'b', minute: 3, elapsedSeconds: 180, inPlayerId: 'h' });
+    expect(saved.analysis.observations[0]).toMatchObject({ actorId: 'b', time: { from: 180, to: 180 } });
+  });
   it("keeps the import pending until a rich observation correction is saved", () => {
     const update = review({ format: "piti-actions/v2", events: [], analysis: { version: 2, revision: 0, profile: DEFAULT_ANALYSIS_PROFILE, coverage: [], observations: [{ id: "rich-pass", kind: "pass", team: "us", actorId: "a", receiverId: "b", order: 1, facts: { outcome: "complete" } }] } });
     fireEvent.click(screen.getByRole("button", { name: "Editar detalle" }));

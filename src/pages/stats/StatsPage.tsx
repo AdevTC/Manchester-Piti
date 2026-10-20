@@ -148,7 +148,7 @@ export function StatsPage() {
         </h1>
         <p className="vd-lede">{numerosLede(nowSeasonName, playedNow, !!liveScore)}</p>
       </section>
-      {nowSeason && <Ahora standings={standings} live={liveScore} leaders={leadersNow} form={form} />}
+      {nowSeason && view !== "game" && <Ahora standings={standings} live={liveScore} leaders={leadersNow} form={form} />}
 
       <section className="st-period vd-reg-3" aria-label="El período de las pestañas">
         <h2 className="st-period__t">{periodName}</h2>
@@ -165,7 +165,7 @@ export function StatsPage() {
           {(seasonIds.length > 0 || !!search.matches?.length || !!search.players?.length || search.team === "opponent" || search.period != null) && <button type="button" className="hm-ghostbtn" onClick={clearScope}>Quitar filtros</button>}
         </div>
         {!!search.players?.length && view !== "game" && <p className="st-period__l">Las tablas y los líderes muestran los jugadores seleccionados. Los resultados de equipo conservan todos los participantes del partido.</p>}
-        {leaders.length > 0 && (
+        {leaders.length > 0 && view !== "game" && (
           <ul className="st-leaders" aria-label="Líderes del período">
             {leaders.map((l, i) => (
               <li key={l.label} style={{ animationDelay: `${0.3 + i * 0.08}s` }}>

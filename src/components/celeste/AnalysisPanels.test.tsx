@@ -12,9 +12,9 @@ const match: ClubMatch = { id: "j1", seasonId: "t1", status: "finished", duratio
   { id: "p2", type: "pass", playerId: "pepe", receiverId: "luis", minute: 30, period: 2, outcome: "incomplete" },
   { id: "p3", type: "pass", team: "opponent", minute: 31, period: 2, outcome: "complete" },
 ] };
-function Harness({ initial = {} }: { initial?: AnalysisSearch }) {
+function Harness({ initial = {}, games = [match] }: { initial?: AnalysisSearch; games?: ClubMatch[] }) {
   const [search, setSearch] = useState(initial);
-  return <><output aria-label="Estado del análisis">{JSON.stringify(search)}</output><AnalysisPanels matches={[match]} people={[{ id: "pepe", name: "Pepe" }, { id: "luis", name: "Luis" }]} matchId="j1" search={search} onSearchChange={patch => setSearch(previous => ({ ...previous, ...patch }))}/></>;
+  return <><output aria-label="Estado del análisis">{JSON.stringify(search)}</output><AnalysisPanels matches={games} people={[{ id: "pepe", name: "Pepe" }, { id: "luis", name: "Luis" }]} matchId="j1" search={search} onSearchChange={patch => setSearch(previous => ({ ...previous, ...patch }))}/></>;
 }
 describe("shared analysis contexts", () => {
   it("selects team and period together and retains them when opening evidence", () => {
@@ -37,7 +37,22 @@ describe("shared analysis contexts", () => {
     fireEvent.click(screen.getByLabelText("Luis"));
     expect(screen.getByLabelText("Estado del análisis")).toHaveTextContent('"team":"us"');
     expect(screen.getByLabelText("Estado del análisis")).toHaveTextContent('"players":["luis"]');
-    expect(screen.getByRole("region", { name: "Jugadores seleccionados" })).toHaveTextContent("Luis");
+    const table = screen.getByRole("table", { name: /^Estadísticas por jugador/ });
+    expect(table).toHaveTextContent("Luis");
+    expect(table).not.toHaveTextContent("Pepe");
+  });
+  it("shows the expanded overview and opens a player's evidence without losing the comparison scope on return", () => {
+    render(<Harness/>);
+    expect(within(screen.getByLabelText("Indicadores de la selección")).getAllByRole("button")).toHaveLength(12);
+    const table = screen.getByRole("table", { name: /^Estadísticas por jugador/ });
+    fireEvent.click(within(table).getByRole("button", { name: /^Pepe: Pases intentados,/ }));
+    expect(screen.getByRole("heading", { name: "Pases intentados" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Estado del análisis")).toHaveTextContent('"players":["pepe"]');
+    fireEvent.click(screen.getByRole("button", { name: "Resumen del juego" }));
+    expect(screen.getByLabelText("Estado del análisis")).not.toHaveTextContent('"players"');
+    const restored = screen.getByRole("table", { name: /^Estadísticas por jugador/ });
+    expect(restored).toHaveTextContent("Pepe");
+    expect(restored).toHaveTextContent("Luis");
   });
   it("downloads the current selection from either view without navigating away", () => {
     vi.useFakeTimers();
@@ -59,5 +74,21 @@ describe("shared analysis contexts", () => {
       vi.runAllTimers();
       expect(revoke).toHaveBeenCalledWith("blob:selection");
     } finally { vi.useRealTimers(); vi.unstubAllGlobals(); click.mockRestore(); }
+  });
+  it("keeps a deliberate context change made after drilling into a player", () => {
+    render(<Harness/>);
+    fireEvent.click(screen.getByRole("button", { name: /^Pepe: Pases intentados,/ }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Equipo" }), { target: { value: "opponent" } });
+    fireEvent.click(screen.getByRole("button", { name: "Resumen del juego" }));
+    expect(screen.getByLabelText("Estado del análisis")).toHaveTextContent('"team":"opponent"');
+    expect(screen.getByRole("table", { name: /^Estadísticas por jugador/ })).toHaveTextContent("Total del rival");
+  });
+  it("uses the participation sample consistently in cards, table and catalogue", () => {
+    render(<Harness initial={{ players: ["pepe"] }} games={[{ ...match, analysisCoverage: "complete" }, { id: "absent", seasonId: "t1", status: "finished", duration: 50, notCalled: ["pepe"], events: [] }]}/>);
+    const passCard = within(screen.getByLabelText("Indicadores de la selección")).getByRole("button", { name: /Pases intentados/ });
+    expect(passCard).toHaveTextContent("Completo");
+    expect(screen.getByRole("button", { name: /^Pepe: Pases intentados,/ })).toHaveAccessibleName(/Completo/);
+    fireEvent.click(passCard);
+    expect(screen.getByRole("region", { name: "Pases intentados" }).querySelector(".an-detail__value")).toHaveTextContent("Completo");
   });
 });

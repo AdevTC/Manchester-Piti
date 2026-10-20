@@ -4,6 +4,7 @@
 // liveMerge.test.ts): how many jugadas are new for this editor, and the edits with the server's
 // version taken in, by event id.
 import { sig, type MatchEvent, type MatchSheet } from "./sheetModel";
+import { synchronizeCanonicalAnalysis } from "../../../../functions/src/narrated/editing";
 
 const ids = (events: readonly MatchEvent[]) => new Set(events.map((e) => e.id));
 
@@ -24,6 +25,21 @@ export function newLiveEvents(local: MatchSheet, base: MatchSheet, server: Match
   const mine = ids(local.events);
   const known = ids(base.events);
   return server.events.filter((e) => e.id.startsWith("live-") && !mine.has(e.id) && !known.has(e.id) && !removed.has(e.id));
+}
+
+/** Additions, corrections and removals not yet incorporated by this dirty editor. */
+export function pendingLiveChanges(local: MatchSheet, base: MatchSheet, server: MatchSheet, removed: ReadonlySet<string>): number {
+  const mine = new Map(local.events.map(e => [e.id, e]));
+  const known = new Map(base.events.map(e => [e.id, e]));
+  const theirs = new Map(server.events.map(e => [e.id, e]));
+  let count = 0;
+  for (const id of new Set([...known.keys(), ...theirs.keys()])) {
+    const before = known.get(id), after = theirs.get(id), edited = mine.get(id);
+    if (sig(before) === sig(after) || sig(edited) === sig(after)) continue;
+    if (!before && removed.has(id)) continue;
+    count++;
+  }
+  return count;
 }
 
 const fields = (v: MatchSheet) => v as unknown as Record<string, unknown>;
@@ -49,7 +65,7 @@ export function liveConflicts(local: MatchSheet, base: MatchSheet, server: Match
     const mine = localById.get(was.id);
     const theirs = serverById.get(was.id);
     const theyChanged = !theirs || sig(theirs) !== sig(was);
-    if (mine && sig(mine) !== sig(was) && theyChanged) return true; // changed here, changed or undone there
+    if (mine && sig(mine) !== sig(was) && theyChanged && sig(mine) !== sig(theirs)) return true; // incompatible edits, or undone there
     if (!mine && theirs && sig(theirs) !== sig(was)) return true; // removed here, changed there
   }
   return false;
@@ -88,5 +104,7 @@ export function mergeLive(local: MatchSheet, base: MatchSheet, server: MatchShee
   const mine = ids(local.events);
   for (const e of server.events) if (!mine.has(e.id) && !baseById.has(e.id) && !removed.has(e.id)) events.push(e);
   const revision = liveConflicts(local, base, server) ? (local.revision ?? 0) : (server.revision ?? 0);
-  return { ...(out as unknown as MatchSheet), events, revision };
+  const merged = { ...(out as unknown as MatchSheet), events, revision };
+  if (merged.analysis) merged.analysis = synchronizeCanonicalAnalysis(merged.analysis, merged.analysis === local.analysis ? local.events : server.events, events, merged.durationSeconds ?? merged.duration * 60);
+  return merged;
 }

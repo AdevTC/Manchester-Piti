@@ -29,8 +29,8 @@ const LIVE: ClubMatch = { id: "j4", seasonId: "t1", rival: "Vivo", date: Date.UT
 const who = vi.hoisted(() => ({ viewer: { member: false, admin: false, playerId: null as string | null }, docs: new Map<string, string>(), boards: new Map<string, Record<string, unknown>>(), reads: [] as string[] }));
 
 // the club data: these three, unless a test makes the listener fail (error, and the cache emptied)
-const club = vi.hoisted(() => ({ error: null as Error | null }));
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => (club.error ? { matches: [], players: [], loading: false, error: club.error } : { matches: [MATCH, SCORED, UPCOMING, LIVE], players: PLAYERS, loading: false, error: null }) }));
+const club = vi.hoisted(() => ({ error: null as Error | null, extraMatches: [] as ClubMatch[] }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => (club.error ? { matches: [], players: [], loading: false, error: club.error } : { matches: [MATCH, SCORED, UPCOMING, LIVE, ...club.extraMatches], players: PLAYERS, loading: false, error: null }) }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => who.viewer }));
 // (an admin viewer is an admin profile in the team: who may open la mesa)
 // (a scorer: a plain member whose uid is in the match's scorers)
@@ -85,6 +85,30 @@ function open(url: string) {
   return router;
 }
 const selected = () => screen.getAllByRole("tab").find((t) => t.getAttribute("aria-selected") === "true")?.textContent;
+
+describe("MatchPage · the headline counts goals, not goal kicks", () => {
+  const actions: NonNullable<ClubMatch["events"]> = Array.from({ length: 774 }, (_, index) => ({ id: `action-${index}`, type: index % 3 === 0 ? "goal_kick" : index % 3 === 1 ? "pass" : "save", playerId: "p1", minute: index % 50 + 1 }));
+  afterEach(() => { club.extraMatches = []; });
+
+  it("hundreds of actions and goal kicks never create a scorer in a goalless match", async () => {
+    club.extraMatches = [{ ...MATCH, id: "no-goals", goalsFor: 0, goalsAgainst: 0, events: actions }];
+    open("/matches/no-goals?tab=campo");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Empate 0–0 ante Rival");
+  });
+
+  it("four different scorers produce the result headline instead of the keeper's false hat-trick", async () => {
+    club.extraMatches = [{ ...MATCH, id: "many-actions", goalsFor: 4, goalsAgainst: 2, events: [...actions, ...["mario", "hugo", "sergio", "david"].map((playerId, index) => ({ id: `goal-${index}`, type: "goal" as const, playerId, minute: index * 10 + 1 }))] }];
+    open("/matches/many-actions?tab=campo");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Victoria 4–2 ante Rival");
+  });
+
+  it.each([[2, "Doblete"], [3, "Hat-trick"]] as const)("retains a real %i-goal achievement, including set pieces and excluding unresolved duplicates", async (goals, label) => {
+    const scored = (["goal", "goal_penalty", "goal_freekick"] as const).slice(0, goals).map((type, index) => ({ id: `scored-${index}`, type, playerId: "p1", minute: index * 10 + 1 }));
+    club.extraMatches = [{ ...MATCH, id: "real-goals", goalsFor: goals, goalsAgainst: 0, events: [...actions, ...scored, { ...scored[0], id: "pending-duplicate", dupOf: scored[0].id }, { id: "opponent-own", type: "opponent_own_goal", playerId: "p1", minute: 49 }] }];
+    open("/matches/real-goals?tab=campo");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(`${label} de PEPITO y victoria ${goals}–0`);
+  });
+});
 
 describe("MatchPage · the tab in the URL", () => {
   it("the meta line prints the venue as a name, never in capitals", async () => {

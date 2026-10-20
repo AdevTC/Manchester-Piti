@@ -82,6 +82,7 @@ export function analysisProblem(analysis: NarratedAnalysis | undefined, events: 
   const ids = new Set<string>(); const canonical = new Set<string>(); const scopes = new Set<string>(); const players = new Set(roster);
   for (const o of analysis.observations) {
     if (ids.has(o.id)) return `Observación repetida: ${o.id}.`; ids.add(o.id);
+    if (o.validity !== 'void' && o.facts.goal === true && o.kind !== 'goal') return `${o.id}: registra el gol como tipo goal y vincúlalo a su gol del acta.`;
     if ([o.actorId,o.receiverId,o.intendedReceiverId].some(p => p && !players.has(p))) return `${o.id}: jugador ajeno a la convocatoria.`;
     if (Number(o.facts.intervalStart ?? 0) > duration || Number(o.facts.intervalEnd ?? 0) > duration || Number(o.facts.durationSeconds ?? 0) > duration) return `${o.id}: el intervalo de hechos supera la duración del partido.`;
     if (o.time && o.time.to > duration) return `${o.id}: el tiempo supera la duración del partido.`;
