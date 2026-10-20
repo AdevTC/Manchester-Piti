@@ -1,7 +1,7 @@
 /* «Tú» and the account sheets (components/vidrio/account; V-Integracion .vn-tu / .vn-ptu): a glass window under
    the avatar on desktop, a sheet over the tab bar on a phone. Rows: an icon chip, a bold title and a line; the
    convocatoria answers in place, the poll votes with bars. */
-.vd-acctsheet{--vd-r:var(--vd-r-sheet);position:fixed;z-index:60;top:96px;right:48px;width:500px;max-width:calc(100vw - 20px);max-height:calc(100dvh - 120px);overflow:auto;overscroll-behavior:contain;
+.vd-acctsheet{--vd-r:var(--vd-r-sheet);position:fixed;z-index:60;top:80px;right:40px;width:500px;max-width:calc(100vw - 20px);max-height:calc(100dvh - 120px);overflow:auto;overscroll-behavior:contain;
   padding:22px 24px 14px;font-family:var(--vd-sans);color:var(--vd-g-ink);outline:0;transform-origin:95% 0;animation:vd-acct-in .55s var(--vd-spring) both}
 .vd-acctsheet--phone{top:auto;left:10px;right:10px;width:auto;max-width:520px;margin:0 auto;bottom:calc(82px + env(safe-area-inset-bottom,0px));padding:18px 18px 10px;transform-origin:50% 100%;max-height:calc(100dvh - 150px)}
 @keyframes vd-acct-in{from{opacity:0;transform:scale(.7,.4)}}

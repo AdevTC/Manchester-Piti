@@ -228,7 +228,7 @@
 .sq-sum{margin:0 64px 20px;max-width:760px}
 .sq-copy h1{font-size:88px}
 .sq-track{overflow:visible}
-.sq-line{width:auto;padding:0 56px;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));row-gap:22px}
+.sq-line{width:auto;padding:0 56px;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));row-gap:22px;align-items:start}
 .sq-hang{flex:none}
 .vx .sq-hint{margin:0 64px 16px}
 .sq-hint .m{display:none}
@@ -302,11 +302,13 @@
 .sq-cap__pos{font-size:13px;line-height:1.25;color:var(--vd-ink2)}
 .sq-cap__st{display:inline-flex;align-items:center;justify-content:center;margin-top:4px;font-size:12.8px;font-weight:600;line-height:1.3;color:var(--vd-ink)}
 .sq-cap__tags{margin-top:5px}
-.sq-hang.is-off{opacity:.5}
+/* (the shirt and its words dim, never the rail they hang from) */
+.sq-hang.is-off :is(.swing,.sq-cap){opacity:.5}
 .sq-hang.is-off .shirt{filter:grayscale(.6) brightness(.8) drop-shadow(0 6px 8px rgba(0,8,30,.4))}
 .sq-hang.is-on .shirt{filter:drop-shadow(0 0 16px rgba(108,171,221,.45)) drop-shadow(0 10px 10px rgba(0,8,30,.45))}
-.sq-hang .frame{transition:transform .7s var(--vd-spring)}
-.sq-hang.sq-lift .frame{transform:translateY(-14px)}
+/* (the scorer's shirt lifts off the rail: the rail stays, only the hanger and shirt rise) */
+.sq-hang .swing{transition:translate .7s var(--vd-spring)}
+.sq-hang.sq-lift .swing{translate:0 -14px}
 .sq-hang.sq-lift .shirt{filter:drop-shadow(0 0 22px rgba(255,198,89,.85)) drop-shadow(0 16px 14px rgba(0,8,30,.5))}
 :root[data-theme="light"] .sq-hang.is-off .shirt{filter:grayscale(.7) brightness(.95) drop-shadow(0 6px 8px rgba(12,23,51,.2))}
 
@@ -317,7 +319,10 @@
 .vx.vd-pg.sq .sq-copy > h1,.vx.vd-pg.sq .sq-copy > .sq-lede{grid-column:1}
 .vx.vd-pg.sq .sq-tools{grid-column:2;grid-row:1 / span 2;align-self:end;margin:0;flex-wrap:nowrap}
 .vx.vd-pg.sq .sq-search{width:300px;flex:none}
-.vx.vd-pg.sq .sq-line{padding:0 64px;row-gap:30px}
+.vx.vd-pg.sq .sq-line{padding:0 64px;row-gap:38px}
+/* the board's percha (.vv-rails): shirts of 92px under one rail per row, the rail running on between them */
+.vx.vd-pg.sq .sq-hang .frame{width:78%;margin:0 auto}
+.vx.vd-pg.sq .sq-hang .frame::before{left:calc(-14.1% - 4px);right:calc(-14.1% - 4px)}
 .vx.vd-pg.sq .sq-rail{margin-top:30px}
 }
 /* phone: four to a rail, the shirts small, no position (board .vv-prails) */
@@ -327,9 +332,10 @@
 .sq-lede-s{display:inline}
 .vx.vd-pg.sq .sq-tools{margin-top:12px;gap:8px}
 .vx.vd-pg.sq .sq-track{overflow:visible;padding-bottom:10px}
-.vx.vd-pg.sq .sq-line{width:auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));row-gap:12px;padding:0 10px}
+.vx.vd-pg.sq .sq-line{width:auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));row-gap:2px;padding:0 10px;align-items:start}
 .vx.vd-pg.sq .sq-hang{flex:none;padding:0 2px}
-.vx.vd-pg.sq .sq-hang .frame{width:78%;margin:0 auto}
+.vx.vd-pg.sq .sq-hang .frame{width:62%;margin:0 auto}
+.vx.vd-pg.sq .sq-hang .frame::before{left:calc(-30.6% - 2px);right:calc(-30.6% - 2px)}
 .sq-cap{margin-top:3px}
 .sq-cap__nm{font-size:12.8px}
 .sq-cap__pos{display:none}
@@ -338,4 +344,4 @@
 .sq-cap__tags{margin-top:2px}
 .vx.vd-pg.sq .sq-hint .m{display:none}
 }
-@media (prefers-reduced-motion:reduce){.sq-hang .frame{transition:none}.sq-hang.sq-lift .frame{transform:none}}
+@media (prefers-reduced-motion:reduce){.sq-hang .swing{transition:none}.sq-hang.sq-lift .swing{translate:none}}

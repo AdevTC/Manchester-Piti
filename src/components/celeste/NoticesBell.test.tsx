@@ -108,6 +108,8 @@ describe("NoticesBell", () => {
     expect(rows[0]).toHaveTextContent("Nuevo");
     expect(rows[0]).toHaveClass("is-new");
     expect(rows[1]).not.toHaveTextContent("Nuevo");
+    // (the header keeps what was unread on opening, like the rows: not «Al día» once the look is written)
+    expect(within(dialog).getByText("El primero, sin leer")).toBeInTheDocument();
     expect(rows[0]).toHaveAttribute("href", "/matches/a");
     expect(screen.getByRole("button", { name: "Avisos" })).toHaveAttribute("aria-expanded", "true");
 
@@ -140,7 +142,8 @@ describe("NoticesBell", () => {
     fireEvent.click(bell);
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveClass("vd-bell--pop");
-    expect(dialog.style.top).toBe("74px");
+    // (6px under the bell, as the board's sheet under its round button)
+    expect(dialog.style.top).toBe("70px");
     expect(document.querySelector(".nt-scrim")).toBeNull();
     page.remove();
   });
