@@ -55,8 +55,10 @@ export function Campo({ match, players, nameOf, live, started }: { match: ClubMa
           {walk.now.map((s) => {
             const left = Math.max(12, Math.min(88, s.x));
             const top = Math.max(9, Math.min(91, s.y));
+            // (the marks go beside the shirt, towards the roomier side: outwards in the middle, inwards at the edges)
+            const tl = left > 75 ? true : left < 25 ? false : left < 50;
             return (
-              <li key={s.playerId} className="vd-player mp-player" style={{ left: `${left}%`, top: `${top}%` } as CSSProperties}>
+              <li key={s.playerId} className={`vd-player mp-player${tl ? " mp-player--tl" : ""}`} style={{ left: `${left}%`, top: `${top}%` } as CSSProperties}>
                 <span className="vd-shirt" style={{ "--s": "34px" } as CSSProperties} aria-hidden="true">
                   <b>{numOf(s.playerId)}</b>
                   {captain === s.playerId && <i className="vd-arm" />}
