@@ -100,6 +100,14 @@ describe("placePitch", () => {
     expect(namesCovered(ps, out)).toEqual([]);
   });
 
+  it("a defender whose shirt touches the keeper's below (1440's upright pitch) keeps his name beside his shirt, never above it", () => {
+    const ps = seven(ELEGIDA, 286, 272, true, [0, 0, 0, 0, 0, 0, 0], 36);
+    const out = placePitch(ps, 286, 272);
+    expect(namesCovered(ps, out)).toEqual([]);
+    // ILLESCAS: his plate is not lifted over his shirt (where it read as ADRIÁN's second line)
+    expect(out[2].plateDy).toBeGreaterThan(-ps[2].shirt.h);
+  });
+
   it("the viewer's name (placed first) stays clear in a tight column", () => {
     const ps = [player(100, 30, "OTRO"), { ...player(100, 86, "YO"), first: true }, player(100, 138, "MAS")];
     const out = placePitch(ps, 300, 185);

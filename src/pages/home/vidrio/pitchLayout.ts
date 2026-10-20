@@ -113,6 +113,10 @@ function plateOptions(p: PitchPlayer): PlateOpt[] {
         out.push({ kind: s.kind, dx, dy, r: move(s.r, dx, dy), pen: s.pen + pen + penX });
       }
     }
+    // beside the shirt, level with its middle (two shirts touching one above the other: still his name,
+    // where «above» would read as a second line for the player higher up)
+    const level = p.shirt.y + p.shirt.h / 2 - s.r.h / 2 - s.r.y;
+    for (const dx of [p.shirt.x + p.shirt.w + 3 - s.r.x, p.shirt.x - 3 - s.r.w - s.r.x]) out.push({ kind: s.kind, dx, dy: level, r: move(s.r, dx, level), pen: s.pen + 1.2 });
     // above the shirt
     const above = p.shirt.y - 2 - s.r.h - s.r.y;
     out.push({ kind: s.kind, dx: 0, dy: above, r: move(s.r, 0, above), pen: s.pen + 1.5 });
