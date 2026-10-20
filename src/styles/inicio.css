@@ -284,17 +284,19 @@
 .vi-tiny{font-size:12.8px}
 .vi-tee{position:relative;width:300px;max-width:100%;aspect-ratio:330/380;margin:0 auto}
 .vi-tee__spot{position:absolute;left:-10%;right:-10%;bottom:-6%;height:40%;background:radial-gradient(50% 50% at 50% 60%,rgba(108,171,221,.35),transparent 70%);filter:blur(6px)}
-.vi-tee__img{position:absolute;inset:0;background:no-repeat 50% 50%/112% auto;filter:drop-shadow(0 18px 24px rgba(0,8,30,.5))}
+/* the still is 360×400 with the shirt at x 42–317, y 31–396 (measured): the whole shirt, hem included, fills 95 % of
+   the tee's height, centred (the old 112 % width cut the hem); the print below is placed for this framing */
+.vi-tee__img{position:absolute;inset:0;background:no-repeat 50% 135.5%/auto 104.11%;filter:drop-shadow(0 18px 24px rgba(0,8,30,.5))}
 .vi-tee:not(.vi-tee--still) .vi-tee__img{background:linear-gradient(180deg,#c3e3fa,#8fc4ec);-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M8 1 2 4.2l2.3 6 2.4-1.1V27h10.6V9.1l2.4 1.1 2.3-6L16 1a4 4 0 0 1-8 0Z'/></svg>") 50% 40%/88% auto no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M8 1 2 4.2l2.3 6 2.4-1.1V27h10.6V9.1l2.4 1.1 2.3-6L16 1a4 4 0 0 1-8 0Z'/></svg>") 50% 40%/88% auto no-repeat}
-.vi-tee__name{position:absolute;left:28%;right:28%;top:24%;height:9.6%;display:grid;place-items:center;overflow:hidden}
-.vi-tee__name b{font-weight:800;font-variation-settings:'wdth' 80;font-size:clamp(14px,8cqi,28px);letter-spacing:.01em;color:#1d2b52;white-space:nowrap;line-height:1}
-.vi-tee__num{position:absolute;left:0;right:0;top:35%;text-align:center;font-weight:800;font-variation-settings:'wdth' 92;font-size:clamp(40px,26cqi,96px);line-height:1;color:#1d2b52;letter-spacing:-.04em}
+.vi-tee__name{position:absolute;left:28.8%;right:28.8%;top:21.4%;height:9.25%;display:grid;place-items:center;overflow:hidden}
+.vi-tee__name b{font-weight:800;font-variation-settings:'wdth' 80;font-size:clamp(13.5px,7.7cqi,27px);letter-spacing:.01em;color:#1d2b52;white-space:nowrap;line-height:1}
+.vi-tee__num{position:absolute;left:0;right:0;top:32%;text-align:center;font-weight:800;font-variation-settings:'wdth' 92;font-size:clamp(38.5px,25cqi,92.5px);line-height:1;color:#1d2b52;letter-spacing:-.04em}
 .vi-tee{container-type:inline-size}
 .vi-minitee{display:flex;gap:14px;align-items:center}
 /* (a thumbnail beside the text, as on the board: the print scales with the shirt, without the big tee's floors) */
 /* (the board's thumbnail: a 60 px shirt in an 88 px box, the text from 102 px; the print scales with it) */
 .vi-minitee .vi-tee{width:88px;flex:none;margin:0}
-.vi-minitee .vi-tee__img{background-size:88% auto}
+.vi-minitee .vi-tee__img{background-size:88% auto;background-position:50% 50%}
 .vi-minitee .vi-tee__name{left:32.7%;right:32.7%;top:29.6%;height:7.5%}
 .vi-minitee .vi-tee__name b{font-size:8.5px}
 .vi-minitee .vi-tee__num{top:37%;font-size:28px}
