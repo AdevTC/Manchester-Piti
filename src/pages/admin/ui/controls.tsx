@@ -168,7 +168,7 @@ export function Counter({ n, tone = "", className = "ct" }: { n: number; tone?: 
 /** `.empty`: the dashed empty state (icon, title, line). */
 export function EmptyState({ icon = "check", title, children, className = "" }: { icon?: AdIconName; title: ReactNode; children?: ReactNode; className?: string }) {
   return (
-    <div className={`empty ${className}`.trim()}>
+    <div className={`ad-empty empty ${className}`.trim()}>
       <AdIcon name={icon} size={22} />
       <b>{title}</b>
       {children && <small>{children}</small>}
