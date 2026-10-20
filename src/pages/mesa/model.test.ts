@@ -98,6 +98,10 @@ describe("dónde va cada camiseta", () => {
     expect(tops[0]).toBeLessThanOrEqual(76);
     // the full-back in his own column keeps his spot
     expect(tops[2]).toBeCloseTo(pitchTop(70), 1);
+    // with the real token (71 px on the 280 px card) the keeper's token still ends inside the card
+    const real = spreadTops(spots);
+    expect((real[0] / 100) * 280 + 71).toBeLessThanOrEqual(280);
+    expect(real[0] - real[1]).toBeGreaterThanOrEqual((71 / 280) * 100 - 0.11);
   });
   it("fichas en columnas distintas o ya separadas: nadie se mueve", () => {
     const spots = [

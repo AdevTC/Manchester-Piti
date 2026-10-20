@@ -227,7 +227,7 @@ export const pitchLeft = (x: number): number => Math.max(13, Math.min(87, x));
 /** The tokens' tops (pitch %) spread so two that share a column (closer than `col` % across) stand at least one
  *  token apart (`tok` px on a pitch `h` px tall): the lower one goes down (to `max`), then the upper one up (to
  *  `min`). The pizarra's shape stays; a centre-back's name never sits on the keeper's shirt. */
-export function spreadTops(spots: readonly { left: number; top: number }[], h = 280, tok = 64, col = 20, min = 2, max = 76): number[] {
+export function spreadTops(spots: readonly { left: number; top: number }[], h = 280, tok = 71, col = 14, min = 2, max = 73.5): number[] {
   const tops = spots.map((s) => s.top);
   const need = (tok / h) * 100;
   for (let round = 0; round < 6; round++) {

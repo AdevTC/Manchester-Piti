@@ -48,7 +48,7 @@ export function Antes({ view }: MesaScreenProps) {
   const keeper = field.find((p) => p.keeper);
   // the shirts' tops on the 236 px card, spread so a centre-back's name never sits on the keeper's shirt (px units: a
   // token is some 58 px tall, and stays on the card)
-  const tops = spreadTops(field.map((p, i) => place(p, i)).map((a) => ({ left: a.x, top: a.top })), 100, 58, 20, 4, 172);
+  const tops = spreadTops(field.map((p, i) => place(p, i)).map((a) => ({ left: a.x, top: a.top })), 100, 58, 14, 4, 172);
   const outfield = field.filter((p) => p !== keeper);
   const sevenLabel = `El siete en el campo: ${listNames([...outfield.map((p) => p.name), ...(keeper ? [`${keeper.name} de portero`] : [])])}`;
 
