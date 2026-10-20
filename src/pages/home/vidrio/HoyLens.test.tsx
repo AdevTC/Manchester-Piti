@@ -27,3 +27,41 @@ describe("HoyLens ribbon", () => {
     expect(container.querySelector(".vd-peak")).toBeNull();
   });
 });
+
+describe("HoyLens word", () => {
+  /** jsdom lays nothing out: the word and its column get these widths. */
+  function widths(word: number, column: number) {
+    const offset = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetWidth");
+    const client = Object.getOwnPropertyDescriptor(Element.prototype, "clientWidth");
+    Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: function (this: HTMLElement) { return this.classList.contains("vi-word__t") ? word : 0; } });
+    Object.defineProperty(Element.prototype, "clientWidth", { configurable: true, get: function (this: Element) { return this.classList.contains("vi-word") ? column : 0; } });
+    return () => {
+      if (offset) Object.defineProperty(HTMLElement.prototype, "offsetWidth", offset);
+      if (client) Object.defineProperty(Element.prototype, "clientWidth", client);
+    };
+  }
+  const said = (big: string): LensFace => ({ mode: "word", gf: 0, ga: 0, big, under: "", status: { live: false, clock: null, text: "" }, ribbon: null, label: `${big}.` });
+  const word = (big: string) => render(<HoyLens face={said(big)} rival="Orduña fc" rivalCode="OR" home items={[]} duration={50} sun={null} goal={goalClasses("idle", null)} />);
+
+  it("a word wider than its column (a phone's «Pretemporada») is set smaller to fit it, its words whole for the reader", () => {
+    const restore = widths(213, 170);
+    try {
+      const { container, getByRole } = word("Pretemporada");
+      const t = container.querySelector<HTMLElement>(".vi-word__t");
+      expect(Number(t?.style.getPropertyValue("--fit"))).toBeCloseTo(170 / 213, 3);
+      expect(getByRole("img", { name: "Pretemporada." })).toBeInTheDocument();
+    } finally {
+      restore();
+    }
+  });
+
+  it("a word that fits keeps its size", () => {
+    const restore = widths(140, 170);
+    try {
+      const { container } = word("Aplazado");
+      expect(container.querySelector<HTMLElement>(".vi-word__t")?.style.getPropertyValue("--fit")).toBe("1");
+    } finally {
+      restore();
+    }
+  });
+});
