@@ -7,7 +7,7 @@ test.afterAll(()=>{
   execFileSync(process.execPath,['functions/test/seed-preview.mjs'],{stdio:'inherit'});
 });
 
-test('resumen personal, historial mensual y cobertura sin confundir ceros con ausencias',async({page})=>{
+test('resumen personal, historial mensual y cobertura sin confundir ceros con ausencias',async({page},testInfo)=>{
   await enterVestuario(page);
   await page.goto('/matches/preview-balance?tab=vestuario');
   const summary=page.getByRole('region',{name:'Tu resumen del partido'});
@@ -21,15 +21,31 @@ test('resumen personal, historial mensual y cobertura sin confundir ceros con au
   await expect(page.getByRole('cell',{name:'Sin apuesta',exact:true})).toBeVisible();
   await page.setViewportSize({width:390,height:844});
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
-  await summary.scrollIntoViewIfNeeded();await page.screenshot({path:'.emulator-data/postmatch-mobile.png'});
+  await summary.scrollIntoViewIfNeeded();await page.screenshot({path:testInfo.outputPath('postmatch-mobile.png')});
   await page.getByLabel('Periodo de la porra').selectOption('');
-  await page.locator('.ph-history').scrollIntoViewIfNeeded();await page.screenshot({path:'.emulator-data/history-mobile.png'});
+  await page.locator('.ph-history').scrollIntoViewIfNeeded();await page.screenshot({path:testInfo.outputPath('history-mobile.png')});
   await page.goto('/matches/preview-balance?tab=estadisticas');
-  await expect(page.locator('.ts-coverage').getByText('Cobertura parcial',{exact:true})).toBeVisible();
-  await expect(page.getByRole('table',{name:/Ordenados por/}).getByRole('cell',{name:'—',exact:true}).first()).toBeVisible();
-  await page.getByRole('checkbox',{name:'Comparar solo actas completas'}).check();
-  await expect(page.getByText('0 de 0 actas con narración completa · 0 acciones sin minuto.')).toBeVisible();
-  await page.screenshot({path:'.emulator-data/coverage-mobile.png'});
+  const workspace=page.getByRole('region',{name:'Todos los números, a tu medida'});
+  await workspace.getByRole('group',{name:'Columnas habituales'}).getByRole('button',{name:'Pases y creación',exact:true}).click();
+  const attempts=workspace.getByRole('button',{name:/^Total del Piti: Pases intentados,/});
+  const failed=workspace.getByRole('button',{name:/^Total del Piti: Pases fallados,/});
+  // Coverage belongs to each metric: one recorded pass is partial; no recorded miss is unknown.
+  await expect(attempts.locator('strong')).toHaveText('1');
+  await expect(attempts.getByText('Parcial',{exact:true})).toBeVisible();
+  await expect(failed.locator('strong')).toHaveText('-');
+  await expect(failed.getByText('Sin información',{exact:true})).toBeVisible();
+  await attempts.click();
+  const detail=page.getByRole('region',{name:'Pases intentados',exact:true});
+  await expect(detail.locator('.an-detail__value')).toContainText('1 acciones');
+  await expect(detail.locator('.an-detail__value')).toContainText('Parcial');
+  await expect(detail.getByRole('region',{name:'Jugadas que sustentan la estadística'}).getByRole('listitem')).toHaveCount(1);
+  await page.screenshot({path:testInfo.outputPath('coverage-mobile.png')});
+  // The previous acta explicitly covers the whole game: here no passes really is zero.
+  await page.goto('/matches/preview-balance-previous?tab=estadisticas');
+  await workspace.getByRole('group',{name:'Columnas habituales'}).getByRole('button',{name:'Pases y creación',exact:true}).click();
+  await expect(attempts.locator('strong')).toHaveText('0');
+  await expect(attempts).toHaveAccessibleName(/Completo/);
+  await expect(failed.locator('strong')).toHaveText('0');
 });
 
 test('la mesa: «Gol del Piti» con su goleador llega una sola vez al partido (live-<requestId>)',async({page})=>{
