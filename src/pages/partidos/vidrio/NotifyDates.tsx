@@ -8,11 +8,13 @@ import { siteOrigin } from "../../../lib/derived/venue";
 import { pushState, savedTopics, toggleTopic } from "../../../lib/push";
 import { Glyph } from "./bits";
 
-export function NotifyDates() {
+/** `fallback`: offer the calendar feed where notices can't be had (off when the jornada already has a date: its own
+ *  «Al calendario» is there). */
+export function NotifyDates({ fallback = true }: { fallback?: boolean }) {
   const [on, setOn] = useState(() => savedTopics().includes("dates"));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
-  if (pushState() !== "ready") return <AddToCalendar className="vd-glass vd-btn vd-btn--sm vd-press" iconName="cal" label="Avísame en mi calendario" feed={`${siteOrigin()}/calendario.ics`} />;
+  if (pushState() !== "ready") return !fallback ? null : <AddToCalendar className="vd-glass vd-btn vd-btn--sm vd-press" iconName="cal" label="Avísame en mi calendario" feed={`${siteOrigin()}/calendario.ics`} />;
   const ask = () => {
     if (busy || on) return;
     setBusy(true);

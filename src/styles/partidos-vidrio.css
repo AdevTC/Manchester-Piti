@@ -8,24 +8,28 @@
 .vp a.vd-btn,.vp a.vd-btn:visited{color:var(--vd-g-ink)}
 .vp a.vd-btn--pri{color:#fff}
 .vp .vd-link{color:var(--vd-ink-strong)}
-.vp-stage{position:relative;z-index:2;padding:76px 0 0}
+.vp-stage{position:relative;z-index:2;padding:64px 0 0}
 .vp .vx-top{z-index:7}
 .vp .vx-foot{position:relative;z-index:2}
 .vp .vp-k{font-weight:660;font-variation-settings:'wdth' 96;font-size:15px;letter-spacing:-.005em;color:var(--vd-g-ink);margin:0 0 8px;line-height:1.25}
 .vp .vp-sub{font-size:13.5px;color:var(--vd-g-ink2);line-height:1.4;margin:0}
-.vp p,.vp h2,.vp h3,.vp ol,.vp ul,.vp figure{margin:0}
+/* (the board's reset weighs nothing: any class's own margin or padding — the kit's grow header, a list's padding,
+   the season menu — wins over it, as on the board) */
+:where(.vp) :where(p,h2,h3,ol,ul,figure){margin:0}
 .vp h2,.vp h3{font-family:var(--vd-sans)}
 .vp-lensmark{position:absolute;left:50%;top:0;width:1px;height:1px;pointer-events:none}
-.vp ol,.vp ul{padding:0;list-style:none}
+:where(.vp) :where(ol,ul){padding:0;list-style:none}
 .vp .vp-lens{--vd-g-tint:rgba(10,20,46,.44);display:flex;flex-direction:column}
 :root[data-theme="light"] .vp .vp-lens{--vd-g-tint:rgba(255,255,255,.62)}
 .vp-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+/* the kit's segmented controls are 48 px tall on the boards (the grow header's, 44) */
+:where(.vp) .vd-seg{height:48px}
 .vp-note{font-size:12.8px;color:var(--vd-g-ink2);margin-top:8px;line-height:1.35;min-height:1em}
 .vp-empty{font-size:15px;color:var(--vd-ink2);padding:12px 0;border-top:1px solid var(--vd-rule);max-width:40ch}
 
 /* ---------------------------------------------------------------- tools: season, filters, count, rival search */
 .vp-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px 0;position:relative;z-index:8}
-.vp-tools__l,.vp-tools__r{display:flex;align-items:center;gap:8px;min-width:0}
+.vp-tools__l,.vp-tools__r{display:flex;align-items:center;gap:10px;min-width:0}
 .vp-tools__r{flex:1;justify-content:flex-end}
 .vp-pop{position:relative}
 .vp-pop--find{display:flex;flex:1;min-width:0}
@@ -47,7 +51,7 @@
 .vp-count{display:none;font-size:13.5px;color:var(--vd-ink2);white-space:nowrap}
 .vp-archbar{display:none;align-items:center;gap:8px;font-size:14px;color:var(--vd-ink2);white-space:nowrap}
 .vp-archbar svg{width:16px;height:16px;flex:none}
-.vp-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:60;min-width:300px;--vd-r:20px;--vd-g-tint:rgba(8,18,39,.86);--vd-blur:26px;padding:6px;display:flex;flex-direction:column;list-style:none;margin:0}
+.vp-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:60;min-width:320px;--vd-r:20px;--vd-g-tint:rgba(8,18,39,.86);--vd-blur:26px;padding:6px;display:flex;flex-direction:column;list-style:none;margin:0}
 .vp-menu[hidden]{display:none}
 :root[data-theme="light"] .vp-menu{--vd-g-tint:rgba(255,255,255,.92)}
 .vp-menu--r{left:auto;right:0;width:min(360px,calc(100vw - 32px))}
@@ -181,7 +185,7 @@
 
 /* ---------------------------------------------------------------- the vistas shelf */
 .vp-shelfbar{margin:14px 16px 0;position:relative;z-index:4}
-.vp-vistas{--n:3;height:52px;padding:4px;--vd-r:var(--vd-r-ctl)}
+.vp-vistas{--n:3;height:48px;padding:4px;--vd-r:var(--vd-r-ctl)}
 .vp-vistas .vd-shelf__bead{top:4px;bottom:4px;left:calc(4px + var(--i)*((100% - 8px)/var(--n)));width:calc((100% - 8px)/var(--n));border-radius:10px}
 .vp-vistas .vd-shelf__b{border-radius:10px}
 .vp-vistas .vd-shelf__b b{font-size:15px;font-weight:600}
@@ -398,7 +402,8 @@
 .vp-grow .vp-rank b,.vp-grow .vp-rank em{color:var(--vd-g-ink)}
 .vp-grow .vp-rank small{color:var(--vd-g-ink2)}
 .vp-grow .vd-table td,.vp-grow .vd-table td.t,.vp-grow .vd-table td.pts{color:var(--vd-g-ink)}
-.vp-pfilt{--n:4;width:100%;order:4;height:48px}
+.vp-pfilt{--n:4;width:100%;order:4}
+.vp-grow .vp-pfilt{height:44px}
 .vp-tfull td,.vp-tfull th{padding-left:8px;padding-right:8px}
 .vp-tfull .h-sm{display:table-cell}
 
@@ -435,7 +440,7 @@
 
 /* ================================================================ ≥ 700: tablet */
 @media (min-width:700px){
-  .vp-stage{padding-top:88px}
+  .vp-stage{padding-top:76px}
   .vp-tools{padding:12px 32px 0;gap:12px}
   .vp-tools__r{flex:0 1 auto}
   .vp-pop--find{flex:0 1 200px;width:200px}
@@ -529,21 +534,21 @@
   .vp-vistas .vd-shelf__b{border-radius:999px}
   .vp-vistas .vd-shelf__b b{font-size:16px}
   .vp-vistas .vd-shelf__b small{display:block}
-  .vp-main{margin:14px 0 96px;min-height:0}
+  .vp-main{margin:6px 0 96px;min-height:0}
   .vp-main.is-grow{min-height:0}
-  .vp-state,.vp-skel{margin:14px 0 96px}
+  .vp-state,.vp-skel{margin:6px 0 96px}
   .vp-panel{height:100%}
   .vp-panel--tabla,.vp-panel--numeros{padding:6px 10px 0}
   .vp-panel>.vp-lens{height:100%}
   .vp .vp-lens.vd-lens{padding:24px 34px 22px}
   .vp-lh{grid-template-columns:auto minmax(0,1fr) auto;gap:20px}
   .vp-lh__end{grid-column:auto}
-  .vp-tabs{width:360px}
+
   .vp-tabs--wide{width:300px}
   .vp-lb{flex:1;margin-right:-10px;padding-right:10px;overflow-y:auto;overflow-x:hidden;padding-bottom:30px;scrollbar-width:thin;scrollbar-color:rgba(234,243,252,.25) transparent;overscroll-behavior:contain;
     -webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(180deg,#000 calc(100% - 36px),transparent)}
   .vp-rule{display:block}
-  .vp-pre{grid-template-columns:330px 1px minmax(0,400px) 1px minmax(0,1fr);gap:30px}
+  .vp-pre{grid-template-columns:min(350px,25vw) 1px minmax(0,min(400px,28vw)) 1px minmax(0,1fr);gap:30px}
   .vp-pre .vp-c3{grid-column:auto;display:flex}
   .vp-pre .vp-kitrow{margin-top:14px;padding-top:12px;border-top:1px solid var(--vd-rule)}
   .vp-time__n{font-size:76px}
@@ -594,13 +599,13 @@
   .vp-seg__j{font-size:25px}
   .vp-seg[aria-pressed="true"] .vp-seg__j{font-size:30px}
   .vp-seg__ring{width:54px;height:54px}
-  .vp-shelfbar{left:auto;right:380px;bottom:auto;top:94px;transform:none;width:390px}
+  .vp-shelfbar{left:auto;right:350px;bottom:auto;top:94px;transform:none;width:390px}
   .vp-vistas{height:48px;padding:4px;--vd-r:var(--vd-r-ctl)}
   .vp-vistas .vd-shelf__bead{top:4px;bottom:4px;left:calc(4px + var(--i)*((100% - 8px)/var(--n)));width:calc((100% - 8px)/var(--n));border-radius:10px}
   .vp-vistas .vd-shelf__b{border-radius:10px}
   .vp-vistas .vd-shelf__b b{font-size:14.5px;font-weight:600}
   .vp-vistas .vd-shelf__b small{display:none}
-  .vp-main{margin:14px 0 40px;display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr) minmax(0,420px);grid-template-rows:minmax(0,1fr);gap:30px}
+  .vp-main{margin:8px 0 40px;display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr) minmax(0,420px);grid-template-rows:minmax(0,1fr);gap:30px}
   .vp-panel:not(.is-on){display:block}
   .vp-panel--tabla{order:1}
   .vp-panel--jornadas{order:2}
@@ -684,7 +689,7 @@
 .vp-me{position:absolute;left:calc(50% + 17px);top:-2px;height:18px;padding:0 6px;border-radius:6px;font-size:11.5px;font-weight:700;background:var(--vd-celeste);color:#0C1733;line-height:18px;white-space:nowrap}
 .vp-counts{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13.5px;color:var(--vd-g-ink2);margin:0}
 .vp-counts b{font-weight:780;font-size:17px;color:var(--vd-g-ink);font-feature-settings:'tnum' 1}
-.vp-rsvp{--n:3;width:100%;height:52px}
+.vp-rsvp{--n:3;width:100%}
 .vp-rsvp .vd-seg__b svg{width:16px;height:16px}
 .vp-rsvp--none .vd-shelf__bead{opacity:0}
 .vp-rsvp-err{color:var(--vd-rival);font-size:13px}
@@ -792,6 +797,29 @@
   /* Números's window: one line per empty list, the keeper and what is left */
   .vp-extra{display:block;margin-top:18px!important}
   .vp-extra .vp-extra__left{display:grid}
+}
+
+/* ================================================================ board ↔ web, zone by zone (2026-10-20) */
+/* (the shared `.vx p{margin:0}` outweighs a class's own margin: the board's spacings, put back) */
+.vp .vd-status{margin-top:10px}
+.vp .vd-grow__head p{margin-top:-6px}
+.vp .vp-lh__m{margin-top:4px}
+.vp .vp-sigcap{margin-top:10px}
+/* the rival's initials, small and soft in their crest (as every board draws them) */
+.vp .vp-teams .vd-team__crest--rival{font-size:13px;color:var(--vd-g-ink2)}
+/* the momentum ribbon's minutes in the mono figures of the boards */
+.vp-dir .vd-ribbon__lab{font-family:var(--vd-mono)}
+/* a long rival stays on one line over «¿Y si…?» */
+.vp-simmode .vp-seg__rv{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* the table's heads: plain letters (the words stay in the abbr's title), every number column right-aligned */
+.vp .vd-table abbr[title]{text-decoration:none}
+.vp .vd-table th.t + th{text-align:right}
+@media (min-width:700px){
+  .vp-season{padding:0 14px 0 18px}
+}
+/* a closed season's button is just its name on a laptop (the archive bar says the rest) */
+@media (min-width:1100px) and (max-width:1799px){
+  .vp-arch .vp-season small{display:none}
 }
 
 /* ---------------------------------------------------------------- reduced motion: the cursor jumps, nothing breathes */

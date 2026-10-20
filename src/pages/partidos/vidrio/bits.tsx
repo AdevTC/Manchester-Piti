@@ -215,7 +215,7 @@ export function SunRibbon({ kickoff, duration, id }: { kickoff: number; duration
         <path d={`${c.d} L500 56 L0 56 Z`} fill={`url(#${gid})`} />
         <path d={c.d} fill="none" stroke="#F3B26B" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
         <rect x={c.kick.x} y="8" width={c.kick.w} height="66" fill="rgba(234,243,252,.10)" />
-        <line x1={c.kick.x} y1="4" x2={c.kick.x} y2="74" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+        <line x1={c.kick.x} y1="4" x2={c.kick.x} y2="74" stroke="#EAF3FC" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
       </svg>
       {c.sunY !== null && <span className="vd-sun" style={{ left: "50%", top: `${c.sunY}%` }} />}
       {c.labels.map((l) => (

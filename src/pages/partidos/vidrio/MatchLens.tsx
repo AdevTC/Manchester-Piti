@@ -199,7 +199,7 @@ function ribbonItems(m: ClubMatch, nameOf: (id: string) => string): RibbonItem[]
     })
     .filter((it) => SHOWN.has(it.kind ?? "otro"));
   // (marks closer than two minutes don't pile up: the goal stays, the other one only shapes the wave)
-  return decollide(items, (4 / (m.duration ?? 50)) * 100 * 1.1);
+  return decollide(items, (2 / (m.duration ?? 50)) * 100 * 1.1);
 }
 
 /** «de la primera parte» · «Descanso» · «de la segunda parte» */
@@ -633,14 +633,18 @@ function Still({ seg, kind }: { seg: StripSegment; kind: "aplazado" | "suspendid
         </p>
         <div className="vp-btns">
           {kind === "aplazado" && nd !== null && <AddToCalendar className="vd-glass vd-btn vd-btn--sm vd-press" iconName="cal" label="Al calendario" event={matchEvent({ ...m, date: nd }, siteOrigin())} />}
-          {kind === "aplazado" && nd === null && (
+          {/* (as the board: «Avísame cuando haya fecha» with or without a new date — it may move again; the calendar
+              feed stands in for it only while there is no date to add) */}
+          {kind === "aplazado" && (
             <Suspense fallback={null}>
-              <NotifyDates />
+              <NotifyDates fallback={nd === null} />
             </Suspense>
           )}
-          <Link className="vd-glass vd-btn vd-btn--sm vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
-            Ver el partido
-          </Link>
+          {kind !== "aplazado" && (
+            <Link className="vd-glass vd-btn vd-btn--sm vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
+              Ver el partido
+            </Link>
+          )}
         </div>
       </div>
     </div>
