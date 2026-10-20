@@ -6,6 +6,7 @@ import type { ClubMatch } from "../../lib/clubData";
 import { formatDate } from "../../lib/clubData";
 import { competitionRanks, medalFor, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { constellation, goalClock, RADAR_AXES, radarPoints, type HeatCell, type StarLink } from "../../lib/statsView";
+import { placeSkyLabels } from "./skyLabels";
 import { RESULT_LEGEND, RESULT_WORD, resultLetter } from "../../lib/derived/result";
 
 const letter = (m: ClubMatch) => resultLetter(m.goalsFor ?? 0, m.goalsAgainst ?? 0);
@@ -50,32 +51,32 @@ export function Constellation({ rows, links, nameOf, focus, games }: { rows: Pla
   const map = useMemo(() => constellation(rows, links, games), [rows, links, games]);
   const [picked, setPicked] = useState<string | null>(focus ?? null);
   const [run, setRun] = useState(0);
-  // two stars side by side (two forwards on one spot): the lower one's name goes above it, so no name sits on
-  // another (layout boxes, not the stars' entrance scale; the star itself never moves, so the lines still meet it)
+  // the names never sit on one another (skyLabels: under the star, else above, right or left; a crowded one gives
+  // way and shows on tap), measured on the layout boxes, not the stars' entrance scale; the stars never move
   const sky = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     const el = sky.current;
     if (!el) return;
     const place = () => {
       const stars = [...el.querySelectorAll<HTMLElement>(".st-star")];
-      const label = (b: HTMLElement) => {
-        const t = b.querySelector<HTMLElement>("span");
-        const x = b.offsetLeft - b.offsetWidth / 2 + (t?.offsetLeft ?? 0);
-        const y = b.offsetTop - b.offsetHeight / 2 + (t?.offsetTop ?? 0);
-        return { l: x, t: y, r: x + (t?.offsetWidth ?? 0), b: y + (t?.offsetHeight ?? 0) };
-      };
-      for (const b of stars) b.classList.remove("up");
-      const boxes = stars.map(label);
-      for (let i = 0; i < stars.length; i++)
-        for (let j = 0; j < i; j++) {
-          const a = boxes[i];
-          const o = boxes[j];
-          if (a.l < o.r && o.l < a.r && a.t < o.b && o.t < a.b) (a.t >= o.t ? stars[i] : stars[j]).classList.add("up");
-        }
+      const items = stars.map((b) => {
+        const x0 = b.offsetLeft - b.offsetWidth / 2;
+        const y0 = b.offsetTop - b.offsetHeight / 2;
+        const box = (e: HTMLElement | null) => ({ l: x0 + (e?.offsetLeft ?? 0), t: y0 + (e?.offsetTop ?? 0), w: e?.offsetWidth ?? 0, h: e?.offsetHeight ?? 0 });
+        const dot = b.querySelector<HTMLElement>("i");
+        return { label: box(b.querySelector<HTMLElement>("span")), dot: box(dot), weight: dot?.offsetWidth ?? 0 };
+      });
+      placeSkyLabels(items, el.clientWidth, el.clientHeight).forEach((p, i) => {
+        const name = stars[i].querySelector<HTMLElement>("span");
+        name?.style.setProperty("--lx", `${p.dx}px`);
+        name?.style.setProperty("--ly", `${p.dy}px`);
+        stars[i].classList.toggle("crowded", p.crowded);
+      });
     };
     place();
     const ro = typeof ResizeObserver === "function" ? new ResizeObserver(place) : null;
     ro?.observe(el);
+    void document.fonts?.ready.then(place);
     return () => ro?.disconnect();
   }, [map, run]);
   if (!map.nodes.length) return <p className="st-empty">Aún no hay goles con asistencia en este período.</p>;
