@@ -98,6 +98,19 @@
    the name: that tall block ran off the pitch at the keeper and onto the next row */
 .mp-player .vd-tags{position:absolute;top:0;left:calc(50% + 20px);flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:3px;margin:0}
 .mp-player--tl .vd-tags{left:auto;right:calc(50% + 20px);align-items:flex-end}
+/* the collision pass (vidrio/campoLayout, on Inicio's pitchLayout): every name stays clear of the other shirts
+   and names — the player moved a little from the pizarra's spot (--nx/--ny), his name a little lower, aside or on
+   two lines (its box keeps one line's height: the shirt never moves with it) — and his marks clear of everything,
+   in a column on either side or in a row under the name (--tx/--ty) */
+.mp-players .mp-player{transform:translate(calc(-50% + var(--nx,0px)),calc(-50% + var(--ny,0px)))}
+.mp-player .vd-player__name{transform:translate(var(--pdx,0px),var(--pdy,0px))}
+.mp-player--two .vd-player__name{white-space:normal;width:min-content;text-align:center;height:1.1em}
+.mp-player[data-tags] .vd-tags{left:var(--tx);top:var(--ty);right:auto;align-items:flex-start}
+.mp-player[data-tags="l"] .vd-tags{align-items:flex-end}
+.mp-player[data-tags="b"] .vd-tags{flex-direction:row}
+.mp-player--tags2 .vd-tags{display:grid;grid-template-columns:repeat(2,max-content);gap:3px}
+.mp-player--tags2[data-tags="l"] .vd-tags{justify-items:end}
+.mp-player--tagsicon .vd-tag{gap:0;padding:0 5px;font-size:0;min-width:10px}
 
 @media (min-width:700px){
 .mp-head{padding:96px 40px 0}
