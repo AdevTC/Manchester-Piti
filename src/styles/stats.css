@@ -146,6 +146,8 @@
 .st-star.dim{opacity:.35}
 .st-star span{font-family:'Geist Mono';font-size:10px;font-weight:600;line-height:1.1;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 5px;border-radius:6px;background:rgba(3,8,23,.55)}
 [data-theme="light"] .vx .st-star span{background:rgba(255,255,255,.85)}
+/* (its name over the star when the next star's name would sit on it: Constellation) */
+.st-star.up span{transform:translateY(calc(-100% - var(--s) - 6px))}
 @keyframes stStarIn{from{opacity:0;transform:translate(-50%,-50%) scale(.2)}to{opacity:1;transform:translate(-50%,-50%)}}
 @keyframes stTw{from{filter:brightness(.85)}to{filter:brightness(1.25)}}
 .st-sky-ft{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
