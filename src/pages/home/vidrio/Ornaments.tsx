@@ -219,34 +219,55 @@ export interface MvpWinnerOrnProps {
   total: number | null;
   /** «de la J1», «del estreno». */
   of: string;
+  /** What a single winner did that night («Un gol y un pase de gol.», hoyModel.winnerDeeds). */
+  deeds?: string | null;
   matchId: string;
   className?: string;
 }
 
-/** The MVP once the vote has closed: the shirt and the name in gold (gold is only for our goal and the MVP). */
-export function MvpWinnerOrn({ winners, votes, total, of, matchId, className }: MvpWinnerOrnProps) {
+/** The MVP once the vote has closed: the shirt and the name in gold (gold is only for our goal and the MVP), what
+ *  he did that night and his share of the votes. Never the others' counts (no tally, user decision). */
+export function MvpWinnerOrn({ winners, votes, total, of, deeds, matchId, className }: MvpWinnerOrnProps) {
   const shared = winners.length > 1;
+  const voteWords = votes === null ? null : total ? `${votes} de ${total} votos` : `${votes} ${votes === 1 ? "voto" : "votos"}`;
   return (
     <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-winner${className ? ` ${className}` : ""}`} aria-label={`MVP ${of}`}>
       <div className="vd-orn__head">
         <h2>MVP {of}</h2>
         <span>{shared ? "Compartido" : "Votación cerrada"}</span>
       </div>
-      <ul className={`vi-winner__list${shared ? " vi-winner__list--shared" : ""}`}>
-        {winners.map((w) => (
-          <li key={w.id}>
-            <Shirt num={w.num} size={shared ? 44 : 64} />
-            <Link className="vi-winner__name" to="/jugadores/$playerId" params={{ playerId: w.id }}>
-              {w.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {votes !== null && (
-        <p className="vi-orn-p vi-winner__votes">
-          {total ? `${votes} de ${total} votos` : `${votes} ${votes === 1 ? "voto" : "votos"}`}
-          {shared ? " cada uno" : ""}
-        </p>
+      {shared ? (
+        <>
+          <ul className="vi-winner__list vi-winner__list--shared">
+            {winners.map((w) => (
+              <li key={w.id}>
+                <Shirt num={w.num} size={44} />
+                <Link className="vi-winner__name" to="/jugadores/$playerId" params={{ playerId: w.id }}>
+                  {w.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {voteWords && <p className="vi-orn-p vi-winner__votes">{voteWords} cada uno</p>}
+        </>
+      ) : (
+        winners[0] && (
+          <div className="vi-winner__hero">
+            <Shirt num={winners[0].num} size={72} />
+            <div className="vi-winner__who">
+              <Link className="vi-winner__name" to="/jugadores/$playerId" params={{ playerId: winners[0].id }}>
+                {winners[0].name}
+              </Link>
+              {deeds && <p className="vi-winner__deeds">{deeds}</p>}
+              {voteWords && (
+                <p className="vi-winner__share">
+                  {total ? <span className="vi-winner__bar" style={{ "--p": `${Math.round((100 * (votes ?? 0)) / total)}%` } as CSSProperties} aria-hidden="true" /> : null}
+                  <span className="vi-winner__count">{voteWords}</span>
+                </p>
+              )}
+            </div>
+          </div>
+        )
       )}
       <div className="vi-orn-foot">
         <Link className="vd-link" to="/matches/$matchId" params={{ matchId }}>

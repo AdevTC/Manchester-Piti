@@ -641,6 +641,22 @@ export function ornamentsOf(phase: MatchdayPhase, kind: ViewerKind, hasSeven: bo
 
 // ───────────────────────── el siete on the glass pitch ─────────────────────────
 
+const COUNT_WORDS = ["", "un", "dos", "tres", "cuatro", "cinco"];
+const counted = (n: number, one: string, many: string) => `${COUNT_WORDS[n] ?? String(n)} ${n === 1 ? one : many}`;
+
+/** What the MVP did that night, from his marks on the pitch: «Un gol y un pase de gol.» (null: nothing to count). */
+export function winnerDeeds(tags: readonly Pick<SieteTag, "kind">[]): string | null {
+  const n = (k: SieteTag["kind"]) => tags.filter((t) => t.kind === k).length;
+  const parts = [
+    n("gol") && counted(n("gol"), "gol", "goles"),
+    n("asis") && counted(n("asis"), "pase de gol", "pases de gol"),
+    n("parada") && counted(n("parada"), "penalti parado", "penaltis parados"),
+  ].filter((p): p is string => !!p);
+  if (!parts.length) return null;
+  const line = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}` : parts[0];
+  return `${line.charAt(0).toLocaleUpperCase("es")}${line.slice(1)}.`;
+}
+
 export interface SieteTag {
   kind: "gol" | "asis" | "amarilla" | "roja" | "cambio" | "parada";
   text: string;

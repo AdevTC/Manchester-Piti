@@ -110,7 +110,7 @@
 :root[data-theme="light"] .vi-pitch__lines *{stroke:rgba(255,255,255,.85)}
 .vi-pitch__lines--v{display:none}
 .vi-players{position:absolute;inset:0}
-.vi-player{--ps:34px;position:absolute;left:var(--hx);top:var(--hy);transform:translate(calc(-50% + var(--nx,0px)),calc(-50% + var(--ny,0px)));display:flex;flex-direction:column;align-items:center;gap:2px;width:96px}
+.vi-player{--ps:40px;position:absolute;left:var(--hx);top:var(--hy);transform:translate(calc(-50% + var(--nx,0px)),calc(-50% + var(--ny,0px)));display:flex;flex-direction:column;align-items:center;gap:2px;width:96px}
 .vi-player__name{font-weight:680;font-variation-settings:'wdth' 88;font-size:11.5px;letter-spacing:.005em;color:#fff;text-shadow:0 1px 2px rgba(0,10,30,.8);white-space:nowrap;line-height:1.1}
 :root[data-theme="light"] .vi-player__name{color:var(--vd-marino);text-shadow:0 1px 0 rgba(255,255,255,.8)}
 .vi-player__tags{position:absolute;top:0;left:calc(50% + var(--ps)/2 + 3px);display:flex;flex-direction:column;align-items:flex-start;gap:3px}
@@ -134,8 +134,10 @@
 .vi-shirt::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#bfe0f8,#8fc4ec);-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M8 1 2 4.2l2.3 6 2.4-1.1V27h10.6V9.1l2.4 1.1 2.3-6L16 1a4 4 0 0 1-8 0Z'/></svg>") center/contain no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M8 1 2 4.2l2.3 6 2.4-1.1V27h10.6V9.1l2.4 1.1 2.3-6L16 1a4 4 0 0 1-8 0Z'/></svg>") center/contain no-repeat;filter:drop-shadow(0 4px 4px rgba(0,8,30,.45))}
 .vi-shirt b{position:relative;margin-top:18%;font-weight:800;font-size:calc(var(--s)*.42);line-height:1;color:var(--vd-marino);letter-spacing:-.04em;font-feature-settings:'tnum' 1}
 .vi-shirt--still::before{display:none}
-.vi-shirt--still{height:calc(var(--s)*1.32);overflow:hidden;filter:drop-shadow(0 calc(var(--s)*.12) calc(var(--s)*.12) rgba(0,8,30,.45))}
-.vi-shirt img{position:absolute;left:calc(var(--s)*-.266);top:calc(var(--s)*-.415);width:calc(var(--s)*1.532);height:auto;max-width:none;pointer-events:none}
+/* The still is 360×400 with the shirt at x 42–317, y 31–396 (measured): the shirt, sleeves and collar
+   included, spans the box's width exactly (275 px → --s) and nothing of it is cut. */
+.vi-shirt--still{height:calc(var(--s)*1.328);filter:drop-shadow(0 calc(var(--s)*.12) calc(var(--s)*.12) rgba(0,8,30,.45))}
+.vi-shirt img{position:absolute;left:calc(var(--s)*-.1527);top:calc(var(--s)*-.1127);width:calc(var(--s)*1.3091);height:auto;max-width:none;pointer-events:none}
 .vi-arm{position:absolute;left:-4%;top:22%;width:30%;height:14%;border-radius:3px;background:var(--vd-marino);box-shadow:0 0 0 1px rgba(255,255,255,.6);transform:rotate(-24deg);z-index:1}
 .vi-arm::after{content:"C";position:absolute;inset:0;display:grid;place-items:center;font-size:calc(var(--s)*.13);font-weight:800;color:#fff;font-style:normal}
 /* la convocatoria */
@@ -287,7 +289,10 @@
 .vi-tee__num{position:absolute;left:0;right:0;top:35%;text-align:center;font-weight:800;font-variation-settings:'wdth' 92;font-size:clamp(40px,26cqi,96px);line-height:1;color:#1d2b52;letter-spacing:-.04em}
 .vi-tee{container-type:inline-size}
 .vi-minitee{display:flex;gap:14px;align-items:center}
-.vi-minitee .vi-tee{width:120px;flex:none;margin:0}
+/* (a thumbnail beside the text, as on the board: the print scales with the shirt, without the big tee's floors) */
+.vi-minitee .vi-tee{width:72px;flex:none;margin:0}
+.vi-minitee .vi-tee__name b{font-size:8px}
+.vi-minitee .vi-tee__num{font-size:23px}
 .vi-minitee .vd-small{margin:0 0 2px}
 .vi-minitee .vi-sub{margin-bottom:4px}
 .vi-invite{margin-top:22px;padding-top:18px;border-top:1px solid var(--vd-rule)}
@@ -343,7 +348,7 @@
   .vi-slot--l{grid-column:1}
   .vi-panel--hoy>.vi-grow{grid-row:3;grid-column:1/-1}
   .vi-pitch{height:252px}
-  .vi-player{--ps:38px}
+  .vi-player{--ps:44px}
   .vi-place{padding-top:32px}
   .vi-ph{flex-direction:row;align-items:baseline;gap:18px}
   .vi-ph h2{font-size:39px}
@@ -439,8 +444,11 @@
 .vi--cockpit .vi-zone--r{grid-column:3}
 .vi--cockpit .vi-zone.vd-stepback{opacity:.82;filter:saturate(.85);transform:none}
 .vi-window{flex:1 1 0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+/* Two windows in a zone: the first ends where its content does (no empty half), the last takes the rest;
+   a long first one scrolls inside its 60 % so the second always shows. */
+.vi-window:not(:last-child){flex:0 1 auto;max-height:60%}
 .vi-window.is-min{flex:0 0 auto}
-.vi-window.is-max{flex:1 1 auto}
+.vi-window.is-max{flex:1 1 auto;max-height:none}
 .vi-zhead{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .vi-zhead h2{margin:0;font-weight:700;font-variation-settings:'wdth' 96;font-size:22px;letter-spacing:-.016em;color:var(--vd-g-ink)}
 .vi .vi-zhead p{margin:2px 0 0;font-size:13px;color:var(--vd-g-ink2)}
@@ -535,7 +543,12 @@
   .vi--cockpit .vi-centre .vi-h1{font-size:42px}
   .vi--cockpit .vi-centre .vi-head .vi-lede{margin-top:8px}
   .vi--cockpit .vi-centre .vi-acts{margin-top:12px}
-  .vi--cockpit .vi-centre .vi-player{--ps:30px}
+  .vi--cockpit .vi-centre .vi-player{--ps:35px}
+}
+/* a full 1080 window (no browser bars) has some 100 px to spare under the member's lines: the cards take part */
+@media (min-height:1060px) and (max-height:1199px){
+  .vi--cockpit .vi-centre>.vi-slot--l,.vi--cockpit .vi-centre>.vi-slot--r{height:290px}
+  .vi--cockpit .vi-centre>.vi-slot--head{padding-top:14px}
 }
 
 /* ───────────────────────── entrance: the lens surfaces from the light, the ornaments swing in */
@@ -580,6 +593,17 @@
 .vi .vi-winner__name{font-weight:760;font-variation-settings:'wdth' 92;font-size:22px;letter-spacing:-.01em;color:var(--vd-oro);text-decoration:none;min-height:24px}
 :root[data-theme="light"] .vi .vi-winner__name{color:#9a6400}
 .vi .vi-winner__votes{text-align:center;color:var(--vd-g-ink)}
+/* one winner: the shirt beside who he is, what he did and his share of the votes, across the card */
+.vi-winner__hero{flex:1;display:flex;align-items:center;gap:22px;min-height:0;margin:8px 0 12px;padding-left:4px}
+.vi-winner__hero .vi-shirt{flex:none}
+.vi-winner__who{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+.vi .vi-winner__hero .vi-winner__name{font-size:30px;line-height:1.02;min-height:0;overflow-wrap:anywhere}
+.vi .vi-winner__deeds{margin:0;font-size:15px;line-height:1.35;color:var(--vd-g-ink)}
+.vi .vi-winner__share{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:2px 0 0;font-size:13px;color:var(--vd-g-ink2);font-feature-settings:'tnum' 1}
+.vi-winner__bar{position:relative;flex:none;width:88px;height:6px;border-radius:3px;background:rgba(234,243,252,.16);overflow:hidden}
+.vi-winner__bar::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--p);border-radius:inherit;background:linear-gradient(90deg,#e9b44c,var(--vd-oro))}
+:root[data-theme="light"] .vi-winner__bar{background:rgba(12,23,51,.12)}
+.vi-winner__count{white-space:nowrap}
 /* while a grown window is open the floating score keeps away */
 .vi-floataway{position:fixed;left:0;top:50%;width:1px;height:1px;pointer-events:none}
 /* the tiles: a small jornada label, the rival and when (with home or away) */

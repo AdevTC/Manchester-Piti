@@ -24,6 +24,7 @@ import {
   venueWords,
   weatherLineOf,
   winnerLine,
+  winnerDeeds,
   hourlyWords,
   postponedLine,
   porraSub,
@@ -266,5 +267,17 @@ describe("the cierre's words", () => {
     expect(turnoutLine({ total: 0, eligible: 16 })).toBe("Nadie ha votado todavía.");
     expect(publishedWhen(KO - 86_400_000, KO)).toBe("ayer");
     expect(publishedWhen(KO - 3_600_000, KO)).toBe("hoy");
+  });
+});
+
+describe("what the MVP did", () => {
+  it("counts his goals, passes and saved penalties in words", () => {
+    expect(winnerDeeds([{ kind: "gol" }, { kind: "asis" }])).toBe("Un gol y un pase de gol.");
+    expect(winnerDeeds([{ kind: "gol" }, { kind: "gol" }, { kind: "amarilla" }])).toBe("Dos goles.");
+    expect(winnerDeeds([{ kind: "gol" }, { kind: "asis" }, { kind: "asis" }, { kind: "parada" }])).toBe("Un gol, dos pases de gol y un penalti parado.");
+  });
+  it("nothing to count: no line", () => {
+    expect(winnerDeeds([{ kind: "cambio" }])).toBeNull();
+    expect(winnerDeeds([])).toBeNull();
   });
 });
