@@ -2,9 +2,33 @@
 // kick-off, or the state in words), the status line and the ribbon: the momentum while it is played and after,
 // the evening's light before it. It declares itself to the live system (useLiveDock "lens"): while it is on
 // screen the floating score stays away, so the match is never shown twice.
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { LIVE_MORPH, Lens, MomentumRibbon, morph, useLiveDock, type GoalClasses, type RibbonItem } from "../../../components/vidrio";
 import type { LensFace, SunRibbon } from "../hoyModel";
+
+/** The state in words always fits its column between the crests: it wraps (balanced) at its size, and when its
+ *  longest word would still run past the column («Pretemporada» on a phone, «Pendiente» at 360) it is measured and
+ *  set smaller (--fit), again when the lens resizes or the fonts arrive. */
+function useWordFit(word: string) {
+  const ref = useRef<HTMLParagraphElement | null>(null);
+  useLayoutEffect(() => {
+    const room = ref.current;
+    const text = room?.firstElementChild instanceof HTMLElement ? room.firstElementChild : null;
+    if (!room || !text) return;
+    const fit = () => {
+      text.style.removeProperty("--fit");
+      const w = text.offsetWidth;
+      const free = room.clientWidth;
+      text.style.setProperty("--fit", w > free && free > 0 ? String(free / w) : "1");
+    };
+    fit();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(fit) : null;
+    ro?.observe(room);
+    void document.fonts?.ready.then(fit);
+    return () => ro?.disconnect();
+  }, [word]);
+  return ref;
+}
 
 export interface HoyLensProps {
   face: LensFace;
@@ -75,6 +99,7 @@ function SunStrip({ sun, hours }: { sun: SunRibbon; hours?: readonly SunHour[] |
 export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinute, sun, sunHours, goal, rollSide = "us", goalStatus, onReplay, className }: HoyLensProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   useLiveDock(ref, "lens");
+  const word = useWordFit(face.mode === "word" ? face.big : "");
   const status = goalStatus ? { live: face.status.live, clock: null, text: goalStatus } : face.status;
   const digits = (
     <>
@@ -118,7 +143,7 @@ export function HoyLens({ face, rival, rivalCode, home, items, duration, nowMinu
               <span aria-hidden="true">{face.under}</span>
             </p>
           ) : (
-            <p className="vi-word" role="img" aria-label={face.label}>
+            <p ref={word} className="vi-word" role="img" aria-label={face.label}>
               <span className="vd-score vd-digit vi-word__t" aria-hidden="true">
                 {face.big}
               </span>
