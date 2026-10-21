@@ -130,8 +130,11 @@ img.vd-team__crest{object-fit:cover}
 /* the still is 360×400 with the shirt at x 42–317, y 31–396 (measured): the whole shirt, collar and sleeves,
    spans the box's width (275 px → --s), as .vi-shirt--kit on Inicio */
 .vd-shirt--img{clip-path:none;background:var(--vd-shirt-img) no-repeat;background-size:calc(var(--s)*1.3091) auto;background-position:calc(var(--s)*-.1527) calc(var(--s)*-.1127)}
-.vd-shirt b{position:absolute;left:0;right:0;top:20%;text-align:center;font-family:var(--vd-sans);font-weight:800;font-variation-settings:'wdth' 100;font-size:calc(var(--s)*.46);line-height:1;color:var(--vd-marino);letter-spacing:-.04em;font-feature-settings:'tnum' 1}
-.vd-shirt--away b{color:#fff}
+/* the set number (before the player's own still, which prints it) as the kit prints it, as .vi-shirt b on Inicio:
+   Barlow Condensed 600 squeezed to .915, the caps .35–.81 of --s down, where the still's print sits */
+.vd-shirt b{position:absolute;left:0;right:0;top:calc(var(--s)*.2194);text-align:center;font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:calc(var(--s)*.6545);line-height:1;white-space:nowrap;color:var(--vd-marino);letter-spacing:0;transform:scaleX(.915)}
+.vd-shirt--img b{color:#051330}
+.vd-shirt--away b{color:#f5f5f5}
 .vd-shirt .vd-arm{position:absolute;left:4%;top:24%;width:24%;height:12%;border-radius:3px;background:var(--vd-marino);box-shadow:0 0 0 1px rgba(255,255,255,.6);transform:rotate(-24deg);font-size:0}
 
 @media (prefers-reduced-motion:reduce){.vd-live::before{animation:none}}

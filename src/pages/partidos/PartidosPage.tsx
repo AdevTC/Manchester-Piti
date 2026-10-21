@@ -12,7 +12,7 @@ import { pipBottom } from "../../components/vidrio/live/liveModel";
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { useShirtStills } from "../../components/jersey3d/useShirtStills";
+import { usePageKitStills } from "../../components/jersey3d/usePageKitStills";
 import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
 import { useViewer } from "../../hooks/useViewer";
@@ -188,9 +188,13 @@ export function PartidosPage() {
   const cards = seasonCards(playedMatches, liveSeg?.match ?? null);
   const left = closed || !remaining ? null : { value: remaining, text: `${plural(remaining, "jornada")}${todaySeg?.state === "hoy" ? ", la primera hoy" : ""}` };
 
-  // ── the real kit stills (a blank shirt per kit; the drawn one stands in before)
-  const still = useShirtStills(hydrated ? [{ kit: "home", theme, name: "", num: "" }, { kit: "away", theme, name: "", num: "" }] : [], { offMainThread: true });
-  const stillOf = (kit: "home" | "away") => still({ kit, theme, name: "", num: "" });
+  // ── the real kit stills: each player's own (name and number printed as on the real shirt), both kits; the
+  // kit's blank still under a set number, and before it the drawn shirt, stand in until it is ready
+  const printed = players.filter((p) => p.seasons?.includes(seasonId)).map((raw) => {
+    const p = playerForSeason(raw, seasonId, seasons);
+    return { name: nameFor(p, seasonId), num: p.number != null ? String(p.number) : "" };
+  });
+  const stillOf = usePageKitStills({ on: hydrated, theme, kits: ["home", "away"], players: printed });
 
   // ── actions (each runs through the kit's choreography: exit → morph → enter)
   const pick = (id: string, focus?: boolean) => {

@@ -123,11 +123,12 @@ export function Glyph({ name, className, style }: { name: GlyphName; className?:
 // ───────────────────────── shirts ─────────────────────────
 
 export function Shirt({ num, size = 44, kit = "home", captain = false }: { num?: string; size?: number; kit?: "home" | "away"; captain?: boolean }) {
-  const still = useContext(StillContext)(kit);
-  const style = { "--s": `${size}px`, ...(still ? { "--vd-shirt-img": `url("${still}")` } : {}) } as CSSProperties;
+  // (the player's own still prints his name and number as the real shirt; the blank one wears the set number)
+  const still = useContext(StillContext)(kit, num);
+  const style = { "--s": `${size}px`, ...(still ? { "--vd-shirt-img": `url("${still.src}")` } : {}) } as CSSProperties;
   return (
     <span className={`vd-shirt${kit === "away" ? " vd-shirt--away" : ""}${still ? " vd-shirt--img" : ""}`} style={style} aria-hidden="true">
-      {num ? <b>{num}</b> : null}
+      {num && !still?.printed ? <b>{num}</b> : null}
       {captain && <i className="vd-arm" />}
     </span>
   );

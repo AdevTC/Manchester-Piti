@@ -1,9 +1,10 @@
 // El club: what happens off the pitch this week (the next birthday, the vitrina, the plantilla's door with
 // every dorsal, the members' open poll, who backs us), «Ponte la del Piti» (your name and number on the real
 // kit, made on your device), the calendar to subscribe to, and for a fan the vestuario's invitation.
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
 import { AddToCalendar } from "../../../components/celeste/AddToCalendar";
+import { nameSqueeze, PRINT_SETTLE_MS } from "../../../components/jersey3d/backPrint";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import { siteOrigin } from "../../../lib/derived/venue";
 import { Ico } from "./icons";
@@ -29,31 +30,43 @@ export interface ClubData {
 const cleanName = (v: string) => v.toLocaleUpperCase("es").replace(/[^A-ZÁÉÍÓÚÜÑÇ .'-]/g, "").slice(0, 12);
 const cleanNum = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 
-/** The shirt with a name and a number on its back: the kit's still with the print drawn over it. */
+/** The shirt with a name and a number on its back: the scene's still with them printed, as the real kit and the
+ *  downloaded image; while it renders (once the typing rests, PRINT_SETTLE_MS) the kit's blank still with the same
+ *  print set over it in the kit's faces and geometry (BACK_PRINT), and before that the drawn shirt. */
 export function Tee({ name, num, light, kit, label, className }: { name: string; num: string; light: boolean; kit: "home" | "away"; label?: string; className?: string }) {
-  const req = { kit, theme: light ? ("light" as const) : ("dark" as const), name: "", num: "", yaw: 0 };
-  const still = useShirtStills([req], { offMainThread: true })(req);
-  // the name always fits its plate: measured at the plate's size and set smaller when it would run past it (a
-  // twelve-letter name, «TU NOMBRE» on the thumbnail), again when the tee resizes or the fonts arrive
+  const theme = light ? ("light" as const) : ("dark" as const);
+  const [settled, setSettled] = useState({ name, num });
+  useEffect(() => {
+    if (settled.name === name && settled.num === num) return;
+    const t = setTimeout(() => setSettled({ name, num }), PRINT_SETTLE_MS);
+    return () => clearTimeout(t);
+  }, [name, num, settled]);
+  const blank = { kit, theme, name: "", num: "", yaw: 0 };
+  const own = { kit, theme, name: settled.name, num: settled.num, yaw: 0 };
+  const stills = useShirtStills([blank, own], { offMainThread: true });
+  const ownSrc = settled.name === name && settled.num === num ? stills(own) : undefined;
+  const still = ownSrc ?? stills(blank);
+  // the set name's squeeze, measured at its size: the kit's .93, less for a long name (never shorter), again when
+  // the tee resizes or the fonts arrive
   const plate = useRef<HTMLSpanElement | null>(null);
   useLayoutEffect(() => {
     const room = plate.current;
     const text = room?.firstElementChild instanceof HTMLElement ? room.firstElementChild : null;
     if (!room || !text) return;
-    const fit = () => {
-      text.style.removeProperty("--fit");
-      const w = text.scrollWidth;
-      const free = room.clientWidth - 4;
-      text.style.setProperty("--fit", name && w > free && w > 0 ? String(free / w) : "1");
-    };
+    const fit = () => text.style.setProperty("--sx", String(nameSqueeze(text.offsetWidth, parseFloat(getComputedStyle(text).fontSize))));
     fit();
     const ro = typeof ResizeObserver === "function" ? new ResizeObserver(fit) : null;
-    ro?.observe(room);
+    if (room.parentElement) ro?.observe(room.parentElement);
     void document.fonts?.ready.then(fit);
     return () => ro?.disconnect();
   }, [name]);
   return (
-    <div className={`vi-tee${light ? " vi-tee--day" : ""}${still ? " vi-tee--still" : ""}${className ? ` ${className}` : ""}`} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+    <div
+      className={`vi-tee${light ? " vi-tee--day" : ""}${still ? " vi-tee--still" : ""}${ownSrc ? " vi-tee--own" : ""}${kit === "away" ? " vi-tee--away" : ""}${className ? ` ${className}` : ""}`}
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    >
       <span className="vi-tee__spot" />
       <span className="vi-tee__img" style={still ? ({ backgroundImage: `url(${still})` } as CSSProperties) : undefined} />
       <span className="vi-tee__name" ref={plate}>

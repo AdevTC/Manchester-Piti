@@ -14,7 +14,7 @@ import { useClubContent } from "../../lib/clubContent";
 import { useMatchClock } from "../../hooks/useMatchClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { KitStillContext } from "../../components/jersey3d/kitStill";
-import { useShirtStills } from "../../components/jersey3d/useShirtStills";
+import { usePageKitStills } from "../../components/jersey3d/usePageKitStills";
 import { useViewer } from "../../hooks/useViewer";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
@@ -536,10 +536,10 @@ export function HomePage() {
   };
   const shirt = kind === "jugador" && mine ? { name: mine.name.toLocaleUpperCase("es").slice(0, 12), num: mine.num } : { name: "", num: "" };
   const kit = m?.kit === "away" ? "away" : "home";
-  // the real kit: one blank still per kit worn on the page (home always, away when tonight is in it), set under
-  // every shirt's number by KitStillContext, as the boards' .v-shirt; the drawn shirt stands in before
-  const kitStill = useShirtStills(hydrated ? [{ kit: "home", theme, name: "", num: "" }, ...(kit === "away" ? [{ kit: "away" as const, theme, name: "", num: "" }] : [])] : [], { offMainThread: true });
-  const kitStillOf = (k: "home" | "away") => kitStill({ kit: k, theme, name: "", num: "" });
+  // the real kit (KitStillContext): every shirt that stands for a player wears his own still, name and number
+  // printed by the scene as on the real shirt (the night's kit first; home always, away when tonight is in it); the
+  // kit's blank still under a set number, and before it the drawn shirt, stand in until it is ready
+  const kitStillOf = usePageKitStills({ on: hydrated, theme, kits: kit === "away" ? ["away", "home"] : ["home"], players: squad });
 
   // ── the shelf
   const usProj = proj?.position ?? null;

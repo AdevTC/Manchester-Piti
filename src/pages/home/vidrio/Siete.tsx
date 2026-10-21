@@ -1,5 +1,5 @@
 // El siete on a glass pitch: each player in his spot with his real shirt (the night's kit: the page's blank still
-// from KitStillContext with his number set on it, as the boards' .v-shirt), his name under it and the marks of the
+// from KitStillContext, his name and number printed on it as on the real shirt), his name under it and the marks of the
 // night beside it (goals, passes, cards, the change he came in with). The spots exist for two pitches: our goal
 // on the left (phone, tablet, the 1920 centre) and at the bottom (the 1440 triptych's narrow ornament); CSS picks one.
 import { useContext, useEffect, useRef, type CSSProperties } from "react";
@@ -88,14 +88,14 @@ function usePitchLayout(key: string) {
 
 const TAG_ICON: Partial<Record<SieteTag["kind"], IconId>> = { gol: "ball", asis: "pass", cambio: "swap", parada: "glove" };
 
-/** A shirt with its number: the page's real kit still (KitStillContext) under a set number, as the boards' .v-shirt;
- *  the drawn shape stands in before the still is ready and on the server. */
+/** A shirt with its number: the player's own kit still from KitStillContext (name and number printed by the scene),
+ *  else the kit's blank still under a set number, else (before both, and on the server) the drawn shape. */
 export function Shirt({ num, size, captain, kit = "home" }: { num: string; size?: number; captain?: boolean; kit?: Kit }) {
-  const still = useContext(KitStillContext)(kit);
-  const style = { ...(size ? { "--s": `${size}px` } : {}), ...(still ? { "--vi-kit": `url("${still}")` } : {}) } as CSSProperties;
+  const still = useContext(KitStillContext)(kit, num);
+  const style = { ...(size ? { "--s": `${size}px` } : {}), ...(still ? { "--vi-kit": `url("${still.src}")` } : {}) } as CSSProperties;
   return (
-    <span className={`vi-shirt${still ? " vi-shirt--kit" : ""}`} style={style} aria-hidden="true">
-      <b>{num}</b>
+    <span className={`vi-shirt${still ? ` vi-shirt--kit${kit === "away" ? " vi-shirt--away" : ""}` : ""}`} style={style} aria-hidden="true">
+      {!still?.printed && <b>{num}</b>}
       {captain && <i className="vi-arm" />}
     </span>
   );

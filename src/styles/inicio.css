@@ -135,8 +135,13 @@
 .vi-shirt{--s:var(--ps,34px);position:relative;display:grid;place-items:center;width:var(--s);height:calc(var(--s)*1.18);flex:none}
 /* (the drawn one has the still's build: a torso 62 % of the width, short sleeves, so the board's number sits on the chest) */
 .vi-shirt::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#bfe0f8,#8fc4ec);-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M9 1 3.2 3.4.6 9.4l4 1.6V27h14.8V11l4-1.6-2.6-6L15 1a3 3 0 0 1-6 0Z'/></svg>") center/contain no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M9 1 3.2 3.4.6 9.4l4 1.6V27h14.8V11l4-1.6-2.6-6L15 1a3 3 0 0 1-6 0Z'/></svg>") center/contain no-repeat;filter:drop-shadow(0 4px 4px rgba(0,8,30,.45))}
-/* the number as the boards' .v-shirt b: 20 % down, .46 of the shirt's width, at every size */
-.vi-shirt b{position:absolute;left:0;right:0;top:20%;text-align:center;font-weight:800;font-size:calc(var(--s)*.46);line-height:1;color:var(--vd-marino);letter-spacing:-.04em;font-feature-settings:'tnum' 1}
+/* the set number (before the player's own still, which prints it) as the kit prints it: Barlow Condensed 600,
+   squeezed to .915, placed by the 540×600 still's print (number caps on rows 191–380, centred on x 270) through
+   .vi-shirt--kit's framing (the still 1.3091 --s wide, from -.1127 --s): caps .35–.81 of --s down (the face's cap
+   height is .7 em, its line box puts the caps .2 em down), the same on the drawn shirt so nothing moves when the still arrives */
+.vi-shirt b{position:absolute;left:0;right:0;top:calc(var(--s)*.2194);text-align:center;font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:calc(var(--s)*.6545);line-height:1;white-space:nowrap;color:var(--vd-marino);letter-spacing:0;transform:scaleX(.915)}
+.vi-shirt--kit b{color:#051330}
+.vi-shirt--away b{color:#f5f5f5}
 /* the real kit (KitStillContext): its blank still under the set number, as the boards' .v-shirt. The still is
    360×400 with the shirt at x 42–317, y 31–396 (measured): the whole shirt, sleeves and collar included, spans
    the box's width (275 px → --s) and nothing of it is cut */
@@ -290,19 +295,25 @@
    the tee's height, centred (the old 112 % width cut the hem); the print below is placed for this framing */
 .vi-tee__img{position:absolute;inset:0;background:no-repeat 50% 135.5%/auto 104.11%;filter:drop-shadow(0 18px 24px rgba(0,8,30,.5))}
 .vi-tee:not(.vi-tee--still) .vi-tee__img{background:linear-gradient(180deg,#c3e3fa,#8fc4ec);-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M8 1 2 4.2l2.3 6 2.4-1.1V27h10.6V9.1l2.4 1.1 2.3-6L16 1a4 4 0 0 1-8 0Z'/></svg>") 50% 40%/88% auto no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 28'><path d='M8 1 2 4.2l2.3 6 2.4-1.1V27h10.6V9.1l2.4 1.1 2.3-6L16 1a4 4 0 0 1-8 0Z'/></svg>") 50% 40%/88% auto no-repeat}
-.vi-tee__name{position:absolute;left:28.8%;right:28.8%;top:21.4%;height:9.25%;display:grid;place-items:center;overflow:hidden}
-.vi-tee__name b{font-weight:800;font-variation-settings:'wdth' 80;font-size:calc(clamp(13.5px,7.7cqi,27px) * var(--fit, 1));letter-spacing:.01em;color:#1d2b52;white-space:nowrap;line-height:1}
-.vi-tee__num{position:absolute;left:0;right:0;top:32%;text-align:center;font-weight:800;font-variation-settings:'wdth' 92;font-size:clamp(38.5px,25cqi,92.5px);line-height:1;color:#1d2b52;letter-spacing:-.04em}
+/* the print set over the blank still while the scene prints the real one (Tee; backPrint.ts BACK_PRINT), in the
+   still's own pixels: --k is one still px (its 540 px span 104.11 % of the tee's height, 1.1515 of its width) and
+   --y where its row 0 lands (135.5 % down). The name: caps 44 px from row 113 in Barlow Condensed 700, squeezed by
+   --sx (Tee measures it: .93, less for a long name, never shorter); the number: caps 189 px from row 191 in
+   Barlow Condensed 600 squeezed to .915; both centred (3 px right and down, where the scene's print lands), so the name never reaches the number (34 px between) */
+.vi-tee{--k:.1998cqi;--y:-6.41cqi}
+.vi-tee__name{position:absolute;left:calc(50% + var(--k)*3);top:calc(var(--y) + var(--k)*103.4);transform:translateX(-50%);white-space:nowrap;pointer-events:none}
+.vi-tee__name b{display:block;font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:700;font-size:calc(var(--k)*62.857);line-height:1;letter-spacing:0;color:#051330;transform:scaleX(var(--sx,.93))}
+.vi-tee__num{position:absolute;left:calc(var(--k)*6);right:0;top:calc(var(--y) + var(--k)*140);text-align:center;font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:calc(var(--k)*270);line-height:1;letter-spacing:0;white-space:nowrap;color:#051330;transform:scaleX(.915)}
+.vi-tee--still.vi-tee--away .vi-tee__name b,.vi-tee--still.vi-tee--away .vi-tee__num{color:#f5f5f5}
+/* (the player's own still prints them: the set ones step aside, still measured) */
+.vi-tee--own .vi-tee__name,.vi-tee--own .vi-tee__num{visibility:hidden}
 .vi-tee{container-type:inline-size}
 .vi-minitee{display:flex;gap:14px;align-items:center}
 /* (a thumbnail beside the text, as on the board: the print scales with the shirt, without the big tee's floors) */
 /* (the board's thumbnail: a 60 px shirt in an 88 px box, the text from 102 px; the print scales with it) */
-.vi-minitee .vi-tee{width:88px;flex:none;margin:0}
+/* (the still 88 % of the width, centred: one still px is .88/540 of the width, its row 0 8.69 cqi down) */
+.vi-minitee .vi-tee{width:88px;flex:none;margin:0;--k:.16296cqi;--y:8.69cqi}
 .vi-minitee .vi-tee__img{background-size:88% auto;background-position:50% 50%}
-.vi-minitee .vi-tee__name{left:32.7%;right:32.7%;top:29.6%;height:7.5%}
-/* (a longer name sets smaller, never cut: Tee measures it, --fit) */
-.vi-minitee .vi-tee__name b{font-size:calc(8.5px * var(--fit, 1))}
-.vi-minitee .vi-tee__num{top:37%;font-size:28px}
 .vi-minitee .vd-small{margin:0 0 2px}
 .vi-minitee .vi-sub{margin-bottom:4px}
 .vi-invite{margin-top:22px;padding-top:18px;border-top:1px solid var(--vd-rule)}
