@@ -4,12 +4,12 @@ import {
   createRouter,
   lazyRouteComponent,
   Navigate,
-  useLocation,
   redirect,
   type RouterHistory,
 } from "@tanstack/react-router";
 import { z } from "zod";
 import { RootLayout } from "./RootLayout";
+import { PlantillaToday } from "./components/PlantillaToday";
 import {
   RoutePending,
   RouteError,
@@ -269,13 +269,7 @@ export const plantillaSearchSchema = z.object({
   orden: z.enum(["posicion"]).optional().catch(undefined),
   q: z.string().max(80).optional().catch(undefined),
 });
-const squadPage = lazyRouteComponent(() => import("./pages/squad/SquadPage"), "SquadPage");
 // (until Plantilla lands, the duel is today's Números «Comparar»)
-function PlantillaToday() {
-  const duel = useLocation({ select: (l) => l.pathname.replace(/\/+$/, "") === "/plantilla/cara-a-cara" });
-  const Page = duel ? statsPage : squadPage;
-  return <Page />;
-}
 const plantillaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/plantilla",

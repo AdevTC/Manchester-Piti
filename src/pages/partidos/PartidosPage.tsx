@@ -109,7 +109,7 @@ export function PartidosPage() {
   const current = currentSeasonId(nextFixture(matches, now), matches, seasons);
   const asked = typeof url.temporada === "string" ? url.temporada : null;
   const seasonId = asked && seasons.some((s) => s.id === asked) ? asked : current;
-  const setSeason = (id: string) => void navigate({ to: partidosVistaPath(vista), search: (prev) => ({ ...prev, temporada: id === current ? undefined : id }) });
+  const setSeason = (id: string) => void navigate({ to: ".", search: (prev) => ({ ...prev, temporada: id === current ? undefined : id }) });
   const season = seasons.find((s) => s.id === seasonId);
   const seasonName = season?.name ?? "La temporada";
   const closed = !!seasonId && seasonId !== current;
