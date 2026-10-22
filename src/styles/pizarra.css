@@ -84,7 +84,9 @@
 @keyframes pz-camMv{from{opacity:.4;transform:scale(1.04)}}
 /* the system, mowed into the grass (huge outlined watermark laid on the plane) */
 .pzv .wm{position:absolute;left:0;right:0;top:calc(var(--wy) * 1%);z-index:1;display:flex;justify-content:center;pointer-events:none;perspective:60cqw}
-.pzv .wm b{display:block;font-family:'Anybody';font-weight:900;font-size:30cqw;line-height:.8;letter-spacing:-.02em;font-variation-settings:'wdth' 70;color:transparent;-webkit-text-stroke:2px rgba(238,246,255,.3);background:repeating-linear-gradient(180deg,rgba(255,255,255,.1) 0 10%,rgba(255,255,255,.02) 10% 20%);-webkit-background-clip:text;background-clip:text;transform:rotateX(46deg) scaleY(1.25);transform-origin:50% 100%;white-space:nowrap}
+.pzv .wm b{display:block;font-family:'Anybody';font-weight:900;font-size:30cqw;line-height:.8;letter-spacing:-.02em;font-variation-settings:'wdth' 70;color:transparent;-webkit-text-stroke:2px rgba(238,246,255,.3);background:repeating-linear-gradient(180deg,rgba(255,255,255,.1) 0 10%,rgba(255,255,255,.02) 10% 20%);-webkit-background-clip:text;background-clip:text;transform:rotateX(46deg) scaleY(1.25);transform-origin:50% 100%;white-space:nowrap;padding:.16em .08em .12em;margin:-.16em -.08em -.12em}
+/* (that padding: background-clip:text paints only inside the box, and at .8 line-height the glyphs stand taller
+   than it — room for the ink, the negative margin keeps the layout) */
 .pzv .wm b.wa{animation:pz-wmA .9s var(--ez) both}.pzv .wm b.wb{animation:pz-wmB .9s var(--ez) both}
 @keyframes pz-wmA{from{opacity:0;filter:blur(8px);letter-spacing:.2em}}
 @keyframes pz-wmB{from{opacity:0;filter:blur(8px);letter-spacing:.2em}}

@@ -6,7 +6,9 @@
 
 /* The stage: the hero sky under the (absolute) header, the panel centred in it. */
 .vx .sp-stage{position:relative;z-index:2;display:grid;align-content:center;min-height:min(78svh,720px);padding:96px 20px 56px;background:var(--hero-bg);overflow:hidden}
-.vx .sp-ghost{position:absolute;left:-4%;right:-4%;bottom:10px;z-index:0;text-align:center;font-family:'Anybody';font-weight:900;font-size:44cqi;line-height:.8;letter-spacing:-.05em;font-variation-settings:'wdth' 60;color:transparent;-webkit-text-stroke:1.5px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;white-space:nowrap;pointer-events:none;user-select:none}
+.vx .sp-ghost{position:absolute;left:-4%;right:-4%;bottom:10px;z-index:0;text-align:center;font-family:'Anybody';font-weight:900;font-size:44cqi;line-height:.8;letter-spacing:-.05em;font-variation-settings:'wdth' 60;color:transparent;-webkit-text-stroke:1.5px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;white-space:nowrap;pointer-events:none;user-select:none;padding:.16em .08em .12em;margin:-.16em -.08em -.12em}
+/* (that padding: background-clip:text paints only inside the box, and at .8 line-height the glyphs stand taller
+   than it — room for the ink, the negative margin keeps the layout) */
 
 /* A route error inside the admin app (its own frame): the panel alone (not the 100vh of a .vx page). */
 .vx.sp-inframe{min-height:0;padding:24px 20px;background:transparent}

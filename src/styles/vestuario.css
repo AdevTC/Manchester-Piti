@@ -62,7 +62,9 @@ position:relative;overflow:hidden;container-type:inline-size;background:var(--bg
 .vx-hero{position:relative;background:var(--hero-bg);padding:80px 20px 0;overflow:hidden}
 .vx-poster::after{content:"";position:absolute;left:-20%;right:-20%;bottom:-1px;height:22%;background:linear-gradient(180deg,transparent,var(--bg));z-index:2;pointer-events:none}
 .vx-poster{position:relative;width:100%;aspect-ratio:390/520;max-width:640px;margin:0 auto}
-.vx-num{position:absolute;left:-6%;right:-6%;top:-2%;text-align:center;font-family:'Anybody';font-weight:900;font-size:min(92cqi,560px);line-height:.8;letter-spacing:-.06em;font-variation-settings:'wdth' 58;color:transparent;-webkit-text-stroke:2px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;animation:vxNumIn 1.6s cubic-bezier(.16,1,.3,1) both}
+.vx-num{position:absolute;left:-6%;right:-6%;top:-2%;text-align:center;font-family:'Anybody';font-weight:900;font-size:min(92cqi,560px);line-height:.8;letter-spacing:-.06em;font-variation-settings:'wdth' 58;color:transparent;-webkit-text-stroke:2px var(--num-stroke);background:var(--num-fill);-webkit-background-clip:text;background-clip:text;animation:vxNumIn 1.6s cubic-bezier(.16,1,.3,1) both;padding:.16em .08em .12em;margin:-.16em -.08em -.12em}
+/* (that padding: background-clip:text paints only inside the box, and at .8 line-height the glyphs stand taller
+   than it — room for the ink, the negative margin keeps the layout) */
 .vx-shirt{position:absolute;left:-8%;right:-8%;top:4%;bottom:-4%;z-index:2}
 .vx-shirt canvas{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none}
 .vx-photo{position:absolute;z-index:5;right:0;bottom:30%;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;background:var(--chip);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:12px;font-weight:600;color:var(--ink);border:0}

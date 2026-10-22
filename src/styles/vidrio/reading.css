@@ -42,7 +42,10 @@ img.vd-team__crest{object-fit:cover}
 .vd-team span{font-size:13px;color:var(--vd-g-ink2)}
 .vd-scoreline{display:flex;align-items:center;gap:.12em;font-size:150px;color:var(--vd-g-ink)}
 .vd-scoreline__sep{width:.22em;height:.07em;border-radius:99px;background:currentColor;opacity:.55;margin:0 .06em}
-.vd-digit{display:inline-block;position:relative;background:linear-gradient(180deg,#fff 10%,#cfe4f8 62%,#9cc6ea);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* (background-clip:text paints only inside the box, and at .82 line-height the glyphs stand taller than it: the
+   padding gives the ink room — top, bottom and the tight letter-spacing's sides — and the negative margin keeps
+   the layout as it was) */
+.vd-digit{display:inline-block;position:relative;padding:.16em .08em .12em;margin:-.16em -.08em -.12em;background:linear-gradient(180deg,#fff 10%,#cfe4f8 62%,#9cc6ea);-webkit-background-clip:text;background-clip:text;color:transparent}
 :root[data-theme="light"] .vd-digit{background:linear-gradient(180deg,#0c1733 30%,#2d4a7a);-webkit-background-clip:text;background-clip:text}
 .vd-status{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px 12px;margin:10px 0 0;font-size:14.5px;color:var(--vd-g-ink2)}
 .vd-status .vd-clock{font-size:17px;color:var(--vd-g-ink)}
