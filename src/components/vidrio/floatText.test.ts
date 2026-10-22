@@ -15,9 +15,9 @@ describe("floating score words", () => {
   it("each state says its own thing (the board's drops)", () => {
     const now = KICK - (2 * 60 + 14) * 60_000;
     expect(floatLines({ ...base, state: "previa", kickoff: KICK }, now)).toEqual({ big: "19:00", main: "Orduña fc, en 2 h 14 min", small: "", clock: false });
-    expect(floatLines(base, now)).toEqual({ big: "2–1", main: "Orduña fc", small: "23′", clock: true });
-    expect(floatLines({ ...base, event: { title: "¡Gol de Adrián T.C.!", sub: "Pase de Jordi, minuto 21" } }, now)).toMatchObject({ big: "2–1", main: "¡Gol de Adrián T.C.!", small: "Pase de Jordi, minuto 21" });
-    expect(floatLines({ ...base, state: "acta", us: 3 }, now)).toMatchObject({ big: "3–1", main: "Final", small: "Acta lista" });
+    expect(floatLines(base, now)).toEqual({ big: "2\u2060–\u20601", main: "Orduña fc", small: "23′", clock: true });
+    expect(floatLines({ ...base, event: { title: "¡Gol de Adrián T.C.!", sub: "Pase de Jordi, minuto 21" } }, now)).toMatchObject({ big: "2\u2060–\u20601", main: "¡Gol de Adrián T.C.!", small: "Pase de Jordi, minuto 21" });
+    expect(floatLines({ ...base, state: "acta", us: 3 }, now)).toMatchObject({ big: "3\u2060–\u20601", main: "Final", small: "Acta lista" });
     expect(floatLines({ ...base, state: "pendiente" }, now)).toEqual({ big: null, main: "Orduña fc", small: "Pendiente del acta", clock: false });
     expect(floatLines({ ...base, state: "offline", staleAt: "26′" }, now).main).toBe("Marcador del 26′, sin actualizar");
   });
@@ -27,7 +27,7 @@ describe("floating score words", () => {
     expect(floatLines({ ...base, state: "rsvp", kickoff: KICK }, now)).toEqual({ big: "19:00", main: "¿Vas hoy?", small: "Orduña fc", clock: false });
     expect(floatLines({ ...base, state: "anotador", kickoff: KICK }, now)).toMatchObject({ big: "19:00", main: "Hoy anotas tú" });
     expect(floatLines({ ...base, state: "pitido" }, now)).toEqual({ big: null, main: "Orduña fc", small: "Pendiente del pitido", clock: false });
-    expect(floatLines({ ...base, state: "mvp" }, now)).toMatchObject({ big: "2–1", main: "Vota al MVP" });
+    expect(floatLines({ ...base, state: "mvp" }, now)).toMatchObject({ big: "2\u2060–\u20601", main: "Vota al MVP" });
     expect(floatLabel({ ...base, state: "rsvp", kickoff: KICK }, now)).toBe("¿Vas hoy? Contra Orduña fc a las 19:00");
     expect(floatLabel({ ...base, state: "pitido" }, now)).toBe("Contra Orduña fc, pendiente del pitido inicial");
     expect(floatLabel({ ...base, state: "mvp" }, now)).toBe("Manchester Piti 2, Orduña fc 1, vota al mejor del partido");

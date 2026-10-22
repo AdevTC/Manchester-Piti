@@ -100,8 +100,8 @@ describe("dates and words", () => {
     expect(signed(0)).toBe("0");
   });
   it("a segment says what it is, never by its colour alone", () => {
-    expect(segmentAria(seg(17), F.now, 23)).toBe("J17, domingo 17 de enero, contra Orduña fc. En directo: 2–1, minuto 23");
-    expect(segmentAria(seg(1), F.now, null)).toMatch(/^J1, .*Jugado: 3–1, ganamos$/);
+    expect(segmentAria(seg(17), F.now, 23)).toBe("J17, domingo 17 de enero, contra Orduña fc. En directo: 2\u2060–\u20601, minuto 23");
+    expect(segmentAria(seg(1), F.now, null)).toMatch(/^J1, .*Jugado: 3\u2060–\u20601, ganamos$/);
     expect(segmentAria(seg(9), F.now, null)).toMatch(/Aplazado$/);
   });
 });

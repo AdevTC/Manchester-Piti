@@ -10,7 +10,7 @@ import type { ClubMatch } from "../clubData";
 import { eventMetaOf, eventSentence, isMesaType, settled } from "../eventMeta";
 import { liveMinute } from "../partidos";
 import { withGuestNames } from "./guests";
-import { endSentence } from "./words";
+import { endSentence, scoreText } from "./words";
 
 export type MomentKind =
   | "gol"
@@ -98,7 +98,7 @@ export function momentOf(e: MatchEvent, match: MomentMatch, nameOf: (id: string)
       const lead = [how, assist].filter(Boolean).join(", ");
       const title = own ? `GOL · AUTOGOL DE ${up(rival)}` : who ? `GOL · ${up(who)}` : "GOL DEL PITI";
       const said = endSentence(own ? `Gol del Piti, autogol de ${rival}` : who ? `Gol del Piti, de ${who}` : "Gol del Piti");
-      return { ...base, kind: "gol", ours: true, title, sub: lead ? `${lead}. ${gf}–${ga}` : `${gf}–${ga}`, said: `${said} ${boardSaid(rival, gf, ga)}` };
+      return { ...base, kind: "gol", ours: true, title, sub: lead ? `${lead}. ${scoreText(gf, ga)}` : scoreText(gf, ga), said: `${said} ${boardSaid(rival, gf, ga)}` };
     }
     case "opponent_goal":
     case "own_goal": {
@@ -106,7 +106,7 @@ export function momentOf(e: MatchEvent, match: MomentMatch, nameOf: (id: string)
       const own = e.type === "own_goal";
       const title = own ? (who ? `EN PROPIA · ${up(who)}` : "GOL EN PROPIA") : `GOL · ${up(rival)}`;
       const said = endSentence(own ? (who ? `Gol en propia de ${who}` : "Gol en propia") : `Gol de ${rival}`);
-      return { ...base, kind: "golrival", ours: false, title, sub: `${gf}–${ga}`, said: `${said} ${boardSaid(rival, gf, ga)}` };
+      return { ...base, kind: "golrival", ours: false, title, sub: scoreText(gf, ga), said: `${said} ${boardSaid(rival, gf, ga)}` };
     }
     case "yellow_card":
     case "opponent_yellow": {
@@ -184,10 +184,10 @@ export function clockMomentsOf(match: MomentMatch): TimedMoment[] {
     out.push({ moment: { id: `${match.id}:${kind}`, kind, ours: true, ...make(gf, ga, secs) }, t, at });
   };
   turn("arranque", c.firstStartedAt, () => ({ minute: 0, title: "EMPIEZA EL PARTIDO", sub: "La mesa ya ha puesto el reloj", said: "Empieza el partido" }));
-  turn("descanso", c.firstEndedAt, (gf, ga, secs) => ({ minute: Math.max(1, Math.ceil(secs / 60)), title: `DESCANSO · ${gf}–${ga}`, sub: "", said: `Descanso. ${boardSaid(rival, gf, ga)}` }));
-  turn("reanudacion", c.secondStartedAt, (gf, ga, secs) => ({ minute: Math.floor(secs / 60) + 1, title: "EMPIEZA LA SEGUNDA PARTE", sub: `${gf}–${ga}`, said: `Arranca la segunda parte. ${boardSaid(rival, gf, ga)}` }));
+  turn("descanso", c.firstEndedAt, (gf, ga, secs) => ({ minute: Math.max(1, Math.ceil(secs / 60)), title: `DESCANSO · ${scoreText(gf, ga)}`, sub: "", said: `Descanso. ${boardSaid(rival, gf, ga)}` }));
+  turn("reanudacion", c.secondStartedAt, (gf, ga, secs) => ({ minute: Math.floor(secs / 60) + 1, title: "EMPIEZA LA SEGUNDA PARTE", sub: scoreText(gf, ga), said: `Arranca la segunda parte. ${boardSaid(rival, gf, ga)}` }));
   if (c.phase === "ended")
-    turn("final", c.endedAt, (gf, ga, secs) => ({ minute: Math.max(1, Math.ceil(secs / 60)), title: `FINAL · ${gf}–${ga}`, sub: match.status === "finished" ? "Ya está el acta" : "Acta pendiente: la mesa la está repasando", said: `Final. ${boardSaid(rival, gf, ga)}` }));
+    turn("final", c.endedAt, (gf, ga, secs) => ({ minute: Math.max(1, Math.ceil(secs / 60)), title: `FINAL · ${scoreText(gf, ga)}`, sub: match.status === "finished" ? "Ya está el acta" : "Acta pendiente: la mesa la está repasando", said: `Final. ${boardSaid(rival, gf, ga)}` }));
   return out;
 }
 

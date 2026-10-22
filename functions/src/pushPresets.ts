@@ -8,8 +8,11 @@
 // Any other choice of topics (the old switches) is «A medida» (custom). The vestuario door's topics (door,
 // access) are apart: no preset adds or removes them.
 
-/** The club's public topics (anyone can follow them). */
-export const PUBLIC_TOPICS = ["start", "goals", "cards", "final", "mvp", "dates", "lineup"] as const;
+/** The topics «Todo» is read from: a device with all of them is on «Todo» (the ones added later count too when
+ *  present, but a device from before them stays on «Todo»). */
+const CORE_TOPICS = ["start", "goals", "cards", "final", "mvp", "dates", "lineup"] as const;
+/** The club's public topics (anyone can follow them): «tabla», the league table published on Partidos. */
+export const PUBLIC_TOPICS = [...CORE_TOPICS, "tabla"] as const;
 /** The door's personal topics (captains: someone knocks; whoever waits to be let in). */
 export const DOOR_TOPIC_IDS = ["door", "access"] as const;
 
@@ -34,7 +37,25 @@ export function presetOf(topics: readonly string[]): PushChoice {
   const t = new Set(topics.filter((x) => !DOOR.has(x)));
   if (!t.size) return "nada";
   if (t.size === 1 && t.has("goals")) return "goles";
-  return PUBLIC_TOPICS.every((x) => t.has(x)) ? "todo" : "custom";
+  return CORE_TOPICS.every((x) => t.has(x)) ? "todo" : "custom";
+}
+
+/** The version of the topic list the app knows (pushSubscribe stores it as `topicsV`): 2 added «tabla». */
+export const TOPICS_VERSION = 2;
+/** The version that added each public topic «Todo» came to cover later. */
+const TOPIC_SINCE: Readonly<Record<string, number>> = { tabla: 2 };
+/** The public topics added after the first «Todo» (sendTo also asks for the «Todo» devices that predate them). */
+export const LATE_TOPICS: readonly string[] = Object.keys(TOPIC_SINCE);
+
+/**
+ * Whether a «Todo» device saved before `topic` existed gets it anyway: its app never offered the topic, so its
+ * missing topic is no choice. A device saved by an app that knows the topic (`topicsV`) chose without it.
+ */
+export function legacyTodoGets(device: { preset?: unknown; topics?: unknown; topicsV?: unknown }, topic: string): boolean {
+  const since = TOPIC_SINCE[topic];
+  if (since === undefined || device.preset !== "todo") return false;
+  if (Array.isArray(device.topics) && device.topics.includes(topic)) return false;
+  return !(typeof device.topicsV === "number" && device.topicsV >= since);
 }
 
 /** Whether a device on `choice` gets a notice of `topic` ("personal": news about its member). The door's

@@ -199,7 +199,7 @@ export function Fichas() {
           <ShirtBack num="?" size={110} big state="empty" />
           <h3>Cuentas al día</h3>
           <p>Cuando alguien entre por La puerta y pida su camiseta, aparece aquí para aprobarla.</p>
-          <Link className="btn line" to="/vestuario" hash="puerta">
+          <Link className="btn line" to="/vestuario/puerta">
             Invitar desde La puerta
             <AdIcon name="ext" size={14} />
           </Link>

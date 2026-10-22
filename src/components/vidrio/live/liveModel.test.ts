@@ -4,7 +4,7 @@ import type { MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../../lib/clubData";
 import type { MatchMoment } from "../../../lib/derived/moments";
 import { playsLog } from "../../../lib/derived/vidrio/plays";
-import { clockText, dayStateOf, dropEvent, floatHome, floatOf, hideMark, moreText, onFieldNames, pageKey, rivalInitials, sheetOf, turnEvent } from "./liveModel";
+import { clockText, dayStateOf, dropEvent, floatHome, floatOf, hideMark, moreText, onFieldNames, pageKey, pipBottom, rivalInitials, sheetOf, turnEvent } from "./liveModel";
 
 const MIN = 60_000;
 // 8 Nov 2026, 12:00 in Madrid
@@ -53,9 +53,9 @@ describe("the floating score's match", () => {
     const rival: MatchMoment = { id: "r0", kind: "golrival", ours: false, minute: 11, title: "GOL · ORDUÑA FC", sub: "", said: "" };
     expect(dropEvent(rival, rows)?.title).toBe("Gol de Orduña fc");
     expect(dropEvent({ ...m, id: "j1:arranque", kind: "arranque", minute: 0 }, rows)).toEqual({ title: "Empieza el partido", sub: "El siete, en el campo" });
-    // the turns of the clock unfold too (the board: «Descanso · 2–1 en la primera parte», «Final · Ganamos 3–1»)
-    expect(dropEvent({ ...m, id: "j1:descanso", kind: "descanso" }, rows, live)).toEqual({ title: "Descanso", sub: "2–1 en la primera parte" });
-    expect(dropEvent({ ...m, id: "j1:final", kind: "final" }, rows, live)).toEqual({ title: "Final", sub: "Ganamos 2–1" });
+    // the turns of the clock unfold too (the board: «Descanso · 2\u2060–\u20601 en la primera parte», «Final · Ganamos 3\u2060–\u20601»)
+    expect(dropEvent({ ...m, id: "j1:descanso", kind: "descanso" }, rows, live)).toEqual({ title: "Descanso", sub: "2\u2060–\u20601 en la primera parte" });
+    expect(dropEvent({ ...m, id: "j1:final", kind: "final" }, rows, live)).toEqual({ title: "Final", sub: "Ganamos 2\u2060–\u20601" });
     expect(dropEvent({ ...m, id: "j1:reanudacion", kind: "reanudacion" }, rows, live)?.sub).toBe("Quedan 25 minutos");
     expect(dropEvent({ ...m, id: "j1:descanso", kind: "descanso" }, rows)).toBeNull();
     expect(dropEvent(null, rows)).toBeNull();
@@ -84,7 +84,7 @@ describe("the sheet", () => {
     const withSub: ClubMatch = { ...live, clock: second, events: [...(live.events ?? []), ev("s1", "substitution", 32, { playerId: "d", inPlayerId: "h" })] };
     const rows = playsLog(withSub, nameOf).rows;
     const s = sheetOf({ state: { kind: "live", match: withSub }, now: KICK + 33 * MIN, nameOf, rows });
-    expect(s).toMatchObject({ big: "2–1", live: true, status: "Segunda parte", plays: true, hide: "Ocultar hasta el próximo gol" });
+    expect(s).toMatchObject({ big: "2\u2060–\u20601", live: true, status: "Segunda parte", plays: true, hide: "Ocultar hasta el próximo gol" });
     expect(s.onField).toBe("En el campo: Evans, Fer, Alcides, Adrián T.C., Jordi, Huberoski y Kevin.");
     expect(sheetOf({ state: { kind: "live", match: live }, now: KICK + 22 * MIN, nameOf }).status).toBe("Primera parte");
   });
@@ -113,14 +113,22 @@ describe("small rules", () => {
     expect(moreText(14)).toBe("14 jugadas más");
     expect(pageKey("/")).toBe("inicio");
     expect(pageKey("/plantilla")).toBe("plantilla");
-    expect(pageKey("/matches/j1")).toBe("partido");
+    expect(pageKey("/partidos/j1")).toBe("partido");
+    expect(pageKey("/partidos/j1/siete")).toBe("partido");
+    expect(pageKey("/partidos/tabla")).toBe("partidos");
     expect(pageKey("/jugadores/erik")).toBe("jugador");
   });
 
   it("the float's resting spot per page: Inicio under the bar, low where the top-right is the page's own", () => {
     expect(floatHome("/")).toBe("centre");
-    for (const p of ["/partidos", "/matches/j3", "/profile"]) expect(floatHome(p)).toBe("bottom-right");
-    for (const p of ["/stats", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("right");
+    for (const p of ["/partidos", "/partidos/balance", "/partidos/j3", "/partidos/j3/vestuario", "/perfil", "/perfil/ajustes"]) expect(floatHome(p)).toBe("bottom-right");
+    for (const p of ["/numeros", "/numeros/jugadores", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("right");
+  });
+
+  it("«Sacar el marcador» rests bottom-right, above the float where the float rests there too", () => {
+    expect(pipBottom("/")).toBe(24);
+    expect(pipBottom("/plantilla")).toBe(24);
+    for (const p of ["/partidos", "/partidos/j3", "/perfil"]) expect(pipBottom(p)).toBe(110);
   });
 });
 

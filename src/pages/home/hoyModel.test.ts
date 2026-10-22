@@ -24,6 +24,7 @@ import {
   venueWords,
   weatherLineOf,
   winnerLine,
+  winnerDeeds,
   hourlyWords,
   postponedLine,
   porraSub,
@@ -218,9 +219,36 @@ describe("ornaments and el siete", () => {
     const spots = sieteOf({ match: day.match!, phase: day.phase, events: view.events, seven: SEVEN, nameOf, numOf: () => "10", captainId: "jordi", me: "jordi" });
     expect(spots).toHaveLength(7);
     const adrian = spots.find((s) => s.id === "adrian")!;
-    expect(adrian.tags.map((t) => [t.kind, t.text, t.gold])).toEqual([["asis", "6′", false], ["gol", "21′", true]]);
+    expect(adrian.tags.map((t) => [t.kind, t.text, t.gold])).toEqual([["gol", "21′", true], ["asis", "6′", false]]);
     expect(spots.find((s) => s.id === "jordi")).toMatchObject({ captain: true, me: true, name: "JORDI" });
     expect(benchLineOf(day.match!, day.phase, view.events, nice, false)).toBe("En el banquillo: Erik y Kevin.");
+  });
+  it("with changes (F7 rolls them): each one's minutes first instead of a chip per change, then his latest marks", () => {
+    const { day, view } = scene("directo1");
+    const minutes = new Map([["adrian", 23], ["jordi", 1]]);
+    const spots = sieteOf({ match: day.match!, phase: day.phase, events: view.events, seven: SEVEN, nameOf, numOf: () => "10", captainId: "jordi", me: "jordi", minutes });
+    const adrian = spots.find((s) => s.id === "adrian")!;
+    expect(adrian.tags.map((t) => [t.kind, t.text])).toEqual([["minutos", "23 min"], ["gol", "21′"], ["asis", "6′"]]);
+    expect(adrian.tags[0].label).toBe("23 minutos jugados hasta ahora");
+    expect(spots.find((s) => s.id === "jordi")!.tags[0].label).toBe("1 minuto jugado hasta ahora");
+    expect(spots.some((s) => s.tags.some((t) => t.kind === "cambio"))).toBe(false);
+  });
+  it("a pitch too small for the minutes (the 1920 cockpit): no chip per change and no minutes, the goal marks stay", () => {
+    const { day } = scene("directo1");
+    const m = day.match!;
+    const events = [...(m.events ?? []), { id: "s9", type: "substitution" as const, minute: 4, playerId: "fer", inPlayerId: "erik" }, { id: "s10", type: "substitution" as const, minute: 8, playerId: "erik", inPlayerId: "fer" }];
+    const spots = sieteOf({ match: m, phase: day.phase, events, seven: SEVEN, nameOf, numOf: () => "10", captainId: null, me: null, minutes: null, rolling: true });
+    expect(spots.some((s) => s.tags.some((t) => t.kind === "cambio" || t.kind === "minutos"))).toBe(false);
+    expect(spots.find((s) => s.id === "adrian")!.tags.map((t) => t.kind)).toEqual(["gol", "asis"]);
+  });
+  it("the changes after the match, in the order they happened (an acta may store them in any order)", () => {
+    const { day } = scene("directo1");
+    const m = day.match!;
+    const subs = [
+      { id: "s2", type: "substitution" as const, minute: 30, playerId: "jordi", inPlayerId: "erik" },
+      { id: "s1", type: "substitution" as const, minute: 12, playerId: "fer", inPlayerId: "kevin" },
+    ];
+    expect(benchLineOf(m, "despues", subs, nice, false)).toBe("Entraron Kevin por Fer (12′) y Erik por Jordi (30′).");
   });
 });
 
@@ -266,5 +294,17 @@ describe("the cierre's words", () => {
     expect(turnoutLine({ total: 0, eligible: 16 })).toBe("Nadie ha votado todavía.");
     expect(publishedWhen(KO - 86_400_000, KO)).toBe("ayer");
     expect(publishedWhen(KO - 3_600_000, KO)).toBe("hoy");
+  });
+});
+
+describe("what the MVP did", () => {
+  it("counts his goals, passes and saved penalties in words", () => {
+    expect(winnerDeeds([{ kind: "gol" }, { kind: "asis" }])).toBe("Un gol y un pase de gol.");
+    expect(winnerDeeds([{ kind: "gol" }, { kind: "gol" }, { kind: "amarilla" }])).toBe("Dos goles.");
+    expect(winnerDeeds([{ kind: "gol" }, { kind: "asis" }, { kind: "asis" }, { kind: "parada" }])).toBe("Un gol, dos pases de gol y un penalti parado.");
+  });
+  it("nothing to count: no line", () => {
+    expect(winnerDeeds([{ kind: "cambio" }])).toBeNull();
+    expect(winnerDeeds([])).toBeNull();
   });
 });

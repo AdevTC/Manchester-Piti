@@ -2,7 +2,7 @@
 // the trophy room, the kits' dressing room, the history train, the squad in numbers, the ground on a
 // night map with the next match, the gallery, the classified ads to get in touch and the sponsors.
 // From the Design canvas "El club · elegida"; pure logic in lib/club.ts (+ clubMedals in lib/home.ts).
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
 import { useClubContent } from "../../lib/clubContent";
 import { formatDate, nextFixture, playerForSeason, playerName, useClubData } from "../../lib/clubData";
@@ -20,6 +20,7 @@ import { PlayerLink } from "../../components/celeste/PlayerLink";
 import { ClubDataError } from "../../components/celeste/StatePanel";
 import { AddToCalendar } from "../../components/celeste/AddToCalendar";
 import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
+import { useShirtStills } from "../../components/jersey3d/useShirtStills";
 import { Vitrina } from "./Vitrina";
 import { VitrinaVidrio } from "./VitrinaVidrio";
 import { PageSky } from "../../components/paginas/PageSky";
@@ -70,6 +71,10 @@ function Head({ kick, title, id, nuevo, children }: { kick: string; title: strin
   );
 }
 
+const subscribeNothing = () => () => {};
+/** «Ponte la del Piti»'s shirt: the name and number the maker starts from, printed by the scene as the real kit. */
+const PONTE = { kit: "home" as const, name: "TU NOMBRE", num: "10", yaw: 0 };
+
 export function ClubPage() {
   const c = useClubContent();
   const { matches, players, loading, error } = useClubData();
@@ -81,6 +86,11 @@ export function ClubPage() {
   const [photo, setPhoto] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const train = useRef<HTMLOListElement>(null);
+  // (after hydration only: the server and the first render draw the shirt with its number set)
+  const hydrated = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  const ponteReq = { ...PONTE, theme };
+  const ponteStills = useShirtStills(hydrated ? [ponteReq] : [], { offMainThread: true });
+  const ponte = hydrated ? ponteStills(ponteReq) : undefined;
 
   const next = nextFixture(matches, now);
   const seasonId = currentSeasonId(next, matches, seasons);
@@ -159,12 +169,12 @@ export function ClubPage() {
           <div>
             <h3>Ponte la del Piti</h3>
             <div className="cl-ponte">
-              <span className="vd-shirt" aria-hidden="true">
-                <b>10</b>
+              <span className={`vd-shirt${ponte ? " vd-shirt--img" : ""}`} style={ponte ? ({ "--vd-shirt-img": `url("${ponte}")` } as CSSProperties) : undefined} aria-hidden="true">
+                {!ponte && <b>{PONTE.num}</b>}
               </span>
               <p>Tu nombre y tu dorsal en la primera equipación, para descargar o compartir.</p>
             </div>
-            <Link className="vd-btn vd-btn--sm vd-glass vd-press" to="/" hash="club">
+            <Link className="vd-btn vd-btn--sm vd-glass vd-press" to="/camiseta">
               Hacerme la mía
             </Link>
           </div>
@@ -345,7 +355,7 @@ export function ClubPage() {
                         <span className="tk">
                           {formatDate(s.match.date)} · Manchester Piti {s.match.goalsFor}–{s.match.goalsAgainst} {s.match.rival ?? "Rival"}
                         </span>
-                        <Link to="/matches/$matchId" params={{ matchId: s.match.id }}>
+                        <Link to="/partidos/$matchId" params={{ matchId: s.match.id }}>
                           Ver partido →
                         </Link>
                       </>
@@ -447,7 +457,7 @@ export function ClubPage() {
             <div className="cl-next">
               <span className="st-mono">Próximo partido</span>
               {next ? (
-                <Link to="/matches/$matchId" params={{ matchId: next.id }}>
+                <Link to="/partidos/$matchId" params={{ matchId: next.id }}>
                   <b>{next.rival ?? "Rival"}</b>
                   <span>
                     {nextWhen} · {next.home === false ? "fuera" : "en casa"}

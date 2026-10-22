@@ -160,7 +160,7 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
             <b>Hoy anotas tú</b>
             {model.stage === "before" ? "Pasa lista, manda el siete y pita desde la mesa" : model.stage === "live" ? "Cada jugada, desde la mesa" : "Falta publicar el acta"}
           </span>
-          <Link className="hm-btn" to="/matches/$matchId/mesa" params={{ matchId: match.id }}>
+          <Link className="hm-btn" to="/partidos/$matchId/mesa" params={{ matchId: match.id }}>
             Abrir la mesa <Icon name="arrow" size={16} stroke={2.2} />
           </Link>
         </p>
@@ -238,7 +238,7 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
               <WeatherChip match={match} now={now} />
             </div>
             <div className="hoy-acts">
-              <Link className="hm-btn" to="/matches/$matchId" params={{ matchId: match.id }}>
+              <Link className="hm-btn" to="/partidos/$matchId" params={{ matchId: match.id }}>
                 Ver la previa <Icon name="arrow" size={16} stroke={2.2} />
               </Link>
               {match.venue && (
@@ -285,11 +285,11 @@ export function HoyCard({ matches, players, now, rsvpId, className, variant, mvp
                 </a>
               ) : model.voteOpen && !ballot ? (
                 // (no ballot here — nobody to vote yet in the ledger: the match page's Vestuario tab has the vote)
-                <Link className="hm-btn" to="/matches/$matchId" params={{ matchId: match.id }} search={{ tab: "vestuario" }}>
+                <Link className="hm-btn" to="/partidos/$matchId/vestuario" params={{ matchId: match.id }}>
                   Vota al MVP <Icon name="arrow" size={16} stroke={2.2} />
                 </Link>
               ) : (
-                <Link className="hm-ghostbtn" to="/matches/$matchId" params={{ matchId: match.id }} search={model.voteOpen ? { tab: "vestuario" } : {}}>
+                <Link className="hm-ghostbtn" to={model.voteOpen ? "/partidos/$matchId/vestuario" : "/partidos/$matchId"} params={{ matchId: match.id }}>
                   {model.voteOpen ? "La carrera del MVP" : "Ver el partido"} <Icon name="arrow" size={16} stroke={2.2} />
                 </Link>
               )}
@@ -363,7 +363,7 @@ function Live({ match, now, halftime, nameOf }: { match: ClubMatch; now: number;
         )}
       </p>
       <div className="hoy-acts">
-        <Link className="hm-btn" to="/matches/$matchId" params={{ matchId: match.id }}>
+        <Link className="hm-btn" to="/partidos/$matchId" params={{ matchId: match.id }}>
           Seguir el partido <Icon name="arrow" size={16} stroke={2.2} />
         </Link>
       </div>

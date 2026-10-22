@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FloatingScore } from "./FloatingScore";
-import { liveDock, useLiveDock } from "./liveDock";
+import { dockWidth, liveDock, useLiveDock } from "./liveDock";
 import { PipWindow } from "./PipWindow";
 import { openScorePip, type ScorePip } from "./pip";
 import type { FloatMatch } from "./floatText";
@@ -25,6 +25,12 @@ afterEach(() => {
   liveDock.reset();
 });
 
+function AnchorPage() {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useLiveDock(ref, "anchor");
+  return <span ref={ref} />;
+}
+
 function LensPage() {
   const ref = useRef<HTMLDivElement | null>(null);
   useLiveDock(ref, "lens");
@@ -36,7 +42,7 @@ describe("FloatingScore", () => {
     const onOpen = vi.fn();
     render(<FloatingScore match={LIVE} now={0} onOpen={onOpen} storageKey="test" />);
     const drop = screen.getByRole("button", { name: "Manchester Piti 2, Orduña fc 1, minuto 23" });
-    expect(drop).toHaveTextContent("2–1");
+    expect(drop).toHaveTextContent("2\u2060–\u20601");
     fireEvent.click(drop);
     expect(onOpen).toHaveBeenCalledOnce();
   });
@@ -61,18 +67,46 @@ describe("FloatingScore", () => {
       let float = screen.getByRole("button", { name: /Orduña fc 1/ }).parentElement as HTMLElement;
       const W = document.documentElement.clientWidth || window.innerWidth;
       expect(float.style.getPropertyValue("--vd-fx")).toBe(`${W - 200 - 24}px`);
-      expect(float.style.getPropertyValue("--vd-fy")).toBe("104px");
+      expect(float.style.getPropertyValue("--vd-fy")).toBe("96px");
       expect(float.dataset.vdV).toBe("high");
       unmount();
       render(<FloatingScore match={LIVE} now={0} onOpen={() => undefined} storageKey="b" placement="bottom-right" />);
       float = screen.getByRole("button", { name: /Orduña fc 1/ }).parentElement as HTMLElement;
-      expect(float.style.getPropertyValue("--vd-fx")).toBe(`${W - 200 - 24}px`);
-      expect(float.style.getPropertyValue("--vd-fy")).toBe(`${window.innerHeight - 50 - 24}px`);
+      // (the Partidos board's resting spot: 28 px from the right, 30 from the bottom)
+      expect(float.style.getPropertyValue("--vd-fx")).toBe(`${W - 200 - 28}px`);
+      expect(float.style.getPropertyValue("--vd-fy")).toBe(`${window.innerHeight - 50 - 30}px`);
       expect(float.dataset.vdV).toBe("low");
       expect(float.dataset.vdH).toBe("right");
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("docked on tonight's segment: the whole drop with the rival's name, as wide as the segment and a little more", () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("min-width: 1100px"), media: q, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    try {
+      render(
+        <>
+          <AnchorPage />
+          <FloatingScore match={LIVE} now={0} onOpen={() => undefined} storageKey="test" />
+        </>,
+      );
+      const drop = screen.getByRole("button", { name: /Orduña fc 1/ });
+      const float = drop.parentElement as HTMLElement;
+      expect(float).toHaveClass("is-docked");
+      expect(drop).toHaveTextContent("Orduña fc");
+      // (jsdom: every element 200 px wide → the slot's 200 plus 24 a side)
+      expect(float.style.getPropertyValue("--vd-dockw")).toBe("248px");
+      expect(float.dataset.vdTight).toBeUndefined();
+      expect(screen.queryByRole("button", { name: "Sacar el marcador" })).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("dockWidth: the board's drop spills up to 24 px past each side of its slot, never under 64", () => {
+    expect(dockWidth(182)).toBe(230);
+    expect(dockWidth(10)).toBe(64);
   });
 
   it("steps aside while a page's lens shows the match", () => {
@@ -88,7 +122,7 @@ describe("FloatingScore", () => {
   it("pendiente del acta: no score", () => {
     render(<FloatingScore match={{ ...LIVE, state: "pendiente" }} now={0} onOpen={() => undefined} storageKey="test" />);
     const drop = screen.getByRole("button", { name: "Contra Orduña fc, pendiente del acta" });
-    expect(drop).not.toHaveTextContent("2–1");
+    expect(drop).not.toHaveTextContent("2\u2060–\u20601");
     expect(drop).toHaveTextContent("Pendiente del acta");
   });
 });
@@ -110,6 +144,27 @@ describe("«Sacar el marcador»", () => {
       fireEvent.keyDown(win, { key: "Escape" });
     });
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("the in-page window rests in the bottom-right corner, 24 px in (higher with `bottom`), as the boards' .v-pip", async () => {
+    const pip: ScorePip = await openScorePip();
+    const W = document.documentElement.clientWidth || window.innerWidth;
+    const { unmount } = render(
+      <PipWindow pip={pip} title="Marcador" onClose={() => undefined}>
+        <span>2–1</span>
+      </PipWindow>,
+    );
+    let win = screen.getByRole("dialog", { name: "Marcador" });
+    expect(win.style.getPropertyValue("--vd-fx")).toBe(`${W - 200 - 24}px`);
+    expect(win.style.getPropertyValue("--vd-fy")).toBe(`${window.innerHeight - 50 - 24}px`);
+    unmount();
+    render(
+      <PipWindow pip={pip} title="Marcador" onClose={() => undefined} bottom={110}>
+        <span>2–1</span>
+      </PipWindow>,
+    );
+    win = screen.getByRole("dialog", { name: "Marcador" });
+    expect(win.style.getPropertyValue("--vd-fy")).toBe(`${window.innerHeight - 50 - 110}px`);
   });
 
   it("with it: the score goes into the PiP window's document", async () => {

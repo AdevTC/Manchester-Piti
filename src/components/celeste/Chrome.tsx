@@ -34,7 +34,7 @@ const NAV: { key: CelestePage; to: string; label: string; icon: VIconName }[] = 
   { key: "inicio", to: "/", label: "Inicio", icon: "home" },
   { key: "partidos", to: "/partidos", label: "Partidos", icon: "fixtures" },
   { key: "plantilla", to: "/plantilla", label: "Plantilla", icon: "shirt" },
-  { key: "stats", to: "/stats", label: "Números", icon: "chart" },
+  { key: "stats", to: "/numeros", label: "Números", icon: "chart" },
   { key: "club", to: "/club", label: "Club", icon: "shield" },
 ];
 
@@ -246,7 +246,7 @@ export function CelesteFooter() {
       <nav aria-label="Pie de página">
         <Link to="/partidos">Partidos</Link>
         <Link to="/plantilla">Plantilla</Link>
-        <Link to="/stats">Números</Link>
+        <Link to="/numeros">Números</Link>
         <Link to="/club">Club</Link>
         <Link to="/vestuario">Vestuario</Link>
       </nav>

@@ -10,6 +10,7 @@ import { nameFor } from "./derived/names";
 import { totalMinutes } from "./derived/minutesOf";
 import { rivalDossier, rivalKey } from "./derived/rival";
 import { competitionRanks, rankedLeaders, milestoneSteps, milestones, teamAnalysis, type PlayerAnalysis, type StarLink } from "./clubAnalytics";
+import { scoreText } from "./derived/words";
 // goalLinks lives with the analytics (the pizarra's ratings read it too, without importing this page's module)
 export { goalLinks, type StarLink } from "./clubAnalytics";
 
@@ -304,7 +305,7 @@ export function tickerLines(rows: PlayerAnalysis[], games: ClubMatch[]) {
   }
   for (const p of rows) if (p.goalStreak.current.count >= 2) lines.push(`${nameOf(p)} marca en ${p.goalStreak.current.count} seguidos`);
   const big = [...games].sort((a, b) => b.goalsFor! - b.goalsAgainst! - (a.goalsFor! - a.goalsAgainst!))[0];
-  if (big && big.goalsFor! > big.goalsAgainst!) lines.push(`Mayor victoria: ${big.goalsFor}–${big.goalsAgainst} a ${big.rival ?? "rival"}`);
+  if (big && big.goalsFor! > big.goalsAgainst!) lines.push(`Mayor victoria: ${scoreText(big.goalsFor ?? 0, big.goalsAgainst ?? 0)} a ${big.rival ?? "rival"}`);
   if (t.played) lines.push(`${t.gf} goles en ${t.played} ${t.played === 1 ? "partido" : "partidos"}`);
   return lines;
 }

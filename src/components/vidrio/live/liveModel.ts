@@ -11,7 +11,7 @@ import type { MatchMoment } from "../../../lib/derived/moments";
 import type { PlayRow } from "../../../lib/derived/vidrio/plays";
 import { withGuestNames } from "../../../lib/derived/guests";
 import { madridDate, madridTime } from "../../../lib/derived/madrid";
-import { capital, plural } from "../../../lib/derived/words";
+import { capital, plural, scoreText } from "../../../lib/derived/words";
 import { venueName } from "../../../lib/derived/venue";
 import type { FloatMatch } from "../floatText";
 
@@ -83,7 +83,7 @@ export function dayStateOf({ matches, now, voteOpen, today = {}, winnerOf = () =
 
 /** «Ganamos 3–1», «Empatamos 2–2», «Perdemos 1–2». */
 export function resultWords(gf: number, ga: number): string {
-  return `${gf > ga ? "Ganamos" : gf === ga ? "Empatamos" : "Perdemos"} ${gf}–${ga}`;
+  return `${gf > ga ? "Ganamos" : gf === ga ? "Empatamos" : "Perdemos"} ${scoreText(gf, ga)}`;
 }
 
 /** The drop's words when the state itself turns (what no play says): «Ya está el acta» and «Vota al MVP» right
@@ -126,7 +126,7 @@ export function dropEvent(moment: MatchMoment | null, rows: readonly PlayRow[], 
     case "reanudacion":
       return { title: "Segunda parte", sub: match ? `Quedan ${Math.round((match.duration ?? 50) / 2)} minutos` : moment.sub };
     case "descanso":
-      return match ? { title: "Descanso", sub: `${gf}–${ga} en la primera parte` } : null;
+      return match ? { title: "Descanso", sub: `${scoreText(gf, ga)} en la primera parte` } : null;
     case "final":
       return match ? { title: "Final", sub: resultWords(gf, ga) } : null;
   }
@@ -250,7 +250,7 @@ export function sheetOf({ state, now, nameOf, counts = null, rows = [], anotador
   const { gf, ga } = scoreOf(m);
   const at = dateMillis(m.date);
   const time = Number.isFinite(at) ? madridTime(at) : "";
-  const score = `${gf}–${ga}`;
+  const score = scoreText(gf, ga);
   const field = playing(state) ? onFieldNames(m as ClubMatch & { lineup?: unknown }, nameOf) : [];
   const seven = beforeKickoff(state) ? onFieldNames({ starters: m.starters, guests: m.guests, events: [], lineup: (m as { lineup?: unknown }).lineup }, nameOf) : [];
   const sevenNote = [seven.length ? `El siete ya está publicado: ${andList(seven)}.` : m.venue ? `En ${venueName(m.venue)}.` : "", mesaLine].filter(Boolean).join(" ");
@@ -322,7 +322,7 @@ export function hideMark(state: FloatDay, lastGoal: string): string {
 
 /** A per-page key for the float's remembered spot. */
 /** Pages whose top-right corner (under the bar) holds something of their own: the float rests bottom-right. */
-const LOW_HOME = new Set(["partido", "partidos", "profile"]);
+const LOW_HOME = new Set(["partido", "partidos", "perfil"]);
 
 /** Where the floating score rests on desktop until someone moves it, per page (checked at 1440 on each):
  *  Inicio under the bar in the centre (its lens takes the score while it is on screen); a match page (its
@@ -335,10 +335,16 @@ export function floatHome(pathname: string): "centre" | "right" | "bottom-right"
   return key === "inicio" ? "centre" : LOW_HOME.has(key) ? "bottom-right" : "right";
 }
 
+/** Space under «Sacar el marcador»'s in-page window at home: 24 px, or 110 where the floating score rests
+ *  bottom-right (the Partidos board: the window sits above the drop, never over it). */
+export const pipBottom = (pathname: string): number => (floatHome(pathname) === "bottom-right" ? 110 : 24);
+
 export function pageKey(pathname: string): string {
   if (pathname === "/" || pathname === "") return "inicio";
-  const first = pathname.split("/").filter(Boolean)[0] ?? "otra";
-  return first === "matches" ? "partido" : first === "jugadores" ? "jugador" : first;
+  const [first = "otra", second] = pathname.split("/").filter(Boolean);
+  // (a match is /partidos/<id>; «tabla» and «balance» are Partidos' own screens)
+  if (first === "partidos" && second && second !== "tabla" && second !== "balance") return "partido";
+  return first === "jugadores" ? "jugador" : first;
 }
 
 /** «Orduña fc» → «OR»: the rival's crest when there is no picture (the score's own window). */

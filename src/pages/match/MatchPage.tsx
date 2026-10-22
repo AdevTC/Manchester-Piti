@@ -1,260 +1,466 @@
-import { AnalysisPanels } from "../../components/celeste/AnalysisPanels";
-import { downloadMatchPoster } from "./lazy";
+// «El partido» (P- boards, ronda 3): the match page as a broadcast. On top, always, the header — the lens with
+// the score, the scorers and «La moviola» (before the whistle «La tarde») — and under it the section tabs,
+// sticky, which carry a slim score strip once the header has scrolled away. Each tab is a screen with its own
+// address (/partidos/<id>, /siete, /numeros, /vestuario) that replaces the one before through a View
+// Transition (exit → the tab indicator slides → enter); back and forward walk them, and on a phone a sideways
+// swipe moves to the next one. The moviola's minute (?min=) drives the score, the sky and the open screen; the
+// sheets (el cartel, compartir el momento, los avisos) open on top (?hoja=) and «atrás» closes them.
+// The logic is pure in partido/model.ts, moviola.ts and words.ts; each screen lives in partido/Screen*.tsx.
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent as RPointerEvent } from "react";
+import { Link, useLocation, useRouter } from "@tanstack/react-router";
 import { useAuth } from "../../context/AuthContext";
-import { useTeam } from "../../context/TeamContext";
+import { useSeason } from "../../context/SeasonContext";
 import { useViewer } from "../../hooks/useViewer";
 import { useNoIndex } from "../../hooks/useNoIndex";
-import { useBoardView, useMatchBoard } from "../pizarra/useMatchBoard";
-import { useMatchRatings, useMatchReactions, useMatchScorers } from "../vestuario/live";
-import { useMe } from "../vestuario/writes";
-import { reactionsOpen } from "../../lib/derived/trasElPartido";
-// Ficha de partido («Vidrio», V-Vivo «La página del partido» and V-Integracion): where «Abrir el partido» lands.
-// On the light field of the moment: «Volver», the glass scoreboard (the countdown before, the score and the
-// minute while it is played, the result after) that the floating score morphs into and that keeps the float
-// away while it is on screen, «Sacar el marcador» and «Compartir»; then the glass tabs Directo · Alineación ·
-// Números · Pulso · Vestuario (the URL keeps ?tab=), the play-by-play as a two-sided feed with «Ver todo el
-// partido» and «Ahora en el campo» beside it. Pure logic in lib/ficha.ts, lib/partidos.ts and lib/derived.
-import { useCallback, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
-import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
-import { isCompleted, matchPhase, nameFor, useClubData, dateMillis, type ClubMatch } from "../../lib/clubData";
 import { useMatchClock } from "../../hooks/useMatchClock";
-import { ThemeToggle } from "../../components/ThemeToggle";
-import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
-import { Icon } from "../../components/celeste/icons";
-import { AddToCalendar } from "../../components/celeste/AddToCalendar";
-import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
-import { SyncChip } from "../../components/celeste/SyncChip";
 import { useSyncChip } from "../../hooks/useSyncChip";
-import { WeatherChip } from "../../components/celeste/WeatherChip";
-import { ClubDataError, StatePanel, StateStage } from "../../components/celeste/StatePanel";
-import { BackLink } from "../../components/celeste/BackLink";
-import { LIVE_MORPH, Lens, PipWindow, openScorePip, useDesktop, useGoalMoment, useLiveDock, type GoalClasses, type ScorePip } from "../../components/vidrio";
-import { PageSky } from "../../components/paginas/PageSky";
-import { PgIcon } from "../../components/paginas/Tags";
-import { countdownParts, matchEvent } from "../../lib/home";
-import { dateParts, eventMinute, OURS, resultOf, scoreOf, shownMinute } from "../../lib/partidos";
-import { settled } from "../../lib/eventMeta";
-import { KIT_LABEL, kitLabel, mapsUrl, siteOrigin, venueName } from "../../lib/derived/venue";
-import { scoreboardOf } from "../../lib/derived/scoreboard";
-import { jornadaOf } from "../../lib/derived/jornada";
-import { kickoffHint } from "../../lib/derived/vidrio/hints";
-import { RESULT_WORD, resultLetter, resultTitle } from "../../lib/derived/result";
-import { shareClubPage } from "../../lib/share";
-import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
-import { madridDate } from "../../lib/derived/madrid";
+import { useTheme } from "../../hooks/useTheme";
+import { dateMillis, nameFor, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
 import { niceName } from "../../lib/derived/words";
-import { mesaLine, mesaOf } from "../../lib/derived/mesa";
-import { parseMatchLineup } from "../../lib/matchLineup";
-import { CampoTab, CronicaTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
-import { currentHalf } from "./directoModel";
-import { Who } from "./Who";
-import { MesaKey } from "./LiveBoard";
-import { LiveSide, ShirtDefs } from "./LivePanes";
-import { Feed } from "./vidrio/Feed";
-import { Campo } from "./vidrio/Campo";
-import { withGuestNames } from "../../lib/derived/guests";
-import { matchTabAt, matchTabIndex } from "../../lib/matchTabs";
-import { tabForKey } from "../../lib/tabKeys";
-import "../../styles/celeste/page.css";
-import "../../styles/partidos.css";
-import "../../styles/ficha.css";
-import "./live.css";
+import { jornadaOf } from "../../lib/derived/jornada";
+import { madridTime } from "../../lib/derived/madrid";
+import { scoreboardOf } from "../../lib/derived/scoreboard";
+import { shownMinute } from "../../lib/partidos";
+import { isVisibleMatch } from "../../../functions/src/matchEngine";
+import { useStandings } from "../../lib/useStandings";
+import { projectTable } from "../../lib/derived/vidrio/table";
+import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+import { ClubDataError, StateStage } from "../../components/celeste/StatePanel";
+import { ThemeToggle } from "../../components/ThemeToggle";
+import { PipWindow, openScorePip, swap, useDesktop, useGoalMoment, useReducedMotion, VidrioSky, type ScorePip } from "../../components/vidrio";
+import { useGoalCelebration } from "../../components/celeste/useGoalCelebration";
+import { pipBottom } from "../../components/vidrio/live/liveModel";
+import { KitStillContext } from "../../components/jersey3d/kitStill";
+import { usePageKitStills } from "../../components/jersey3d/usePageKitStills";
+import { useLiveDoc, useMatchScorers, useMeetingNote, useMvpResults } from "../vestuario/live";
+import { meetTimeOf } from "./partido/partidoModel";
+import { useMatchBoard } from "../pizarra/useMatchBoard";
+import { toBePlayed } from "../../lib/derived/kickoff";
+import { lineupOf, edgeOf, faseOf, floodAtMs, isDone, isLive, isPlayed, isPre, numHitsOf, parseMin, playsOf, pulseOf, resultWords, scoreAt, SCREENS, timelineOf, type Play, type Screen } from "./partido/model";
+import type { PageCtx, Person, Sheet, Viewer } from "./partido/ctx";
+import { Head } from "./partido/Head";
+import { Go, Icon, RivalCrest } from "./partido/bits";
+import { scoreLabelOf, statusOf, tabHints, titleOf } from "./partido/words";
+import { Sheets } from "./partido/Sheets";
+import { useAvisos } from "./partido/avisos";
+import { ScreenPartido } from "./partido/ScreenPartido";
+import { ScreenSiete } from "./partido/ScreenSiete";
+import { ScreenNumeros } from "./partido/ScreenNumeros";
+import { ScreenVestuario } from "./partido/ScreenVestuario";
+import { useVestuario } from "./partido/vestuarioState";
+import { rememberScreen } from "./partido/paths";
+import { isFase, isQuien, maquetaOf, type Quien } from "./partido/maqueta";
 import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/glass.css";
 import "../../styles/vidrio/components.css";
 import "../../styles/vidrio/reading.css";
-import "../../styles/vidrio-paginas.css";
 import "../../styles/match-vidrio.css";
 
-const route = getRouteApi("/matches/$matchId");
+const LABELS: Record<Screen, string> = {
+  partido: "El partido",
+  siete: "El siete",
+  numeros: "Números",
+  vestuario: "Vestuario",
+};
+const PATH: Record<Screen, string> = {
+  partido: "",
+  siete: "/siete",
+  numeros: "/numeros",
+  vestuario: "/vestuario",
+};
+const OLD_TAB: Record<string, Screen> = {
+  cronica: "partido",
+  pulso: "partido",
+  campo: "siete",
+  estadisticas: "numeros",
+  vestuario: "vestuario",
+};
+const SHEETS: readonly Sheet[] = ["cartel", "momento", "avisos"];
 
-/** The headline of the page, by moment. */
-function headline(m: ClubMatch, phase: string, kick: KickoffState, nameOf: (id: string) => string) {
-  const rival = m.rival ?? "el rival";
-  if (phase === "playing") return `Se juega contra ${rival}`;
-  // Nobody started the clock and its window is over: nothing says it was played.
-  if (kick === "awaiting_result") return `${AWAITING_ACTA} ante ${rival}`;
-  if (phase === "awaiting_result") return `Terminado ante ${rival} · acta pendiente`;
-  if (!isCompleted(m)) return m.home === false ? `Toca ${rival}, a domicilio` : `Toca ${rival}, en casa`;
-  const { gf, ga } = scoreOf(m);
-  const count = new Map<string, number>();
-  for (const e of settled(m.events)) if (OURS.has(e.type) && e.type !== "opponent_own_goal" && e.playerId) count.set(e.playerId, (count.get(e.playerId) ?? 0) + 1);
-  const [top] = [...count.entries()].sort((a, b) => b[1] - a[1]);
-  const r = resultLetter(gf, ga);
-  if (top && top[1] >= 2) return `${top[1] >= 3 ? "Hat-trick" : "Doblete"} de ${nameOf(top[0])} y ${RESULT_WORD[r]} ${gf}–${ga}`;
-  return `${resultTitle(r)} ${gf}–${ga} ante ${rival}`;
+/** The match id and the screen from the address (/partidos/<id>[/siete…]; the old /matches/<id>?tab= too). */
+function placeOf(pathname: string, search: Record<string, unknown>): { id: string; screen: Screen } {
+  const m = /^\/(?:partidos|matches)\/([^/]+)(?:\/([a-z]+))?\/?$/.exec(pathname);
+  const id = m ? decodeURIComponent(m[1]) : "";
+  const seg = m?.[2];
+  const screen = (SCREENS as readonly string[]).includes(seg ?? "") ? (seg as Screen) : typeof search.tab === "string" && OLD_TAB[search.tab] ? OLD_TAB[search.tab] : "partido";
+  return { id, screen };
 }
 
-/** «Faltan 2 h 14 min», «Faltan 3 días». */
-function leftWords(at: number, now: number): string {
-  const { d, h, m } = countdownParts(at, now);
-  if (d > 0) return `Faltan ${d} ${d === 1 ? "día" : "días"}`;
-  if (h > 0) return `Faltan ${h} h ${m} min`;
-  return m > 0 ? `Faltan ${m} min` : "Ya casi";
-}
-
-interface BoardProps {
-  match: ClubMatch;
-  now: number;
-  rival: string;
-  initials: string;
-  gf: number;
-  ga: number;
-  usSide: string;
-  rivalSide: string;
-  state: "live" | "halftime" | "pending" | "done" | "whistle" | "unplayed" | "upcoming" | "off";
-  minute: number | null;
-  goal: GoalClasses;
-  goalSide: "us" | "them" | null;
-  children?: ReactNode;
-}
-
-/** The glass scoreboard (board .vv-board / .vv-pboard). While the match is played it is the page's live lens:
- *  the floating score steps aside while it is on screen, and «Abrir el partido» lands on it (morph(LIVE_MORPH)). */
-function Marcador({ match, now, rival, initials, gf, ga, usSide, rivalSide, state, minute, goal, goalSide, children }: BoardProps) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useLiveDock(ref, "lens");
-  const scored = state === "live" || state === "halftime" || state === "pending" || state === "done";
-  const at = dateMillis(match.date);
-  const half = currentHalf(match, now);
-  const label = state === "done" ? `Final: Manchester Piti ${gf}, ${rival} ${ga}` : state === "live" || state === "halftime" ? `En directo contra ${rival}` : state === "pending" ? `Marcador provisional contra ${rival}` : state === "whistle" ? `${PENDING_WHISTLE} contra ${rival}` : state === "unplayed" ? `${AWAITING_ACTA} contra ${rival}` : `Previa contra ${rival}`;
-  return (
-    <div ref={ref} className={`mp-boardwrap ${goal.root}`}>
-      <Lens as="article" className={`mp-board${goal.rim ? " vd-rim-gold" : ""}`} morphName={scored && state !== "done" ? LIVE_MORPH : undefined} goal={`${goal.lens} ${goal.glint}`} aria-label={label}>
-        <div className="vd-team mp-team">
-          <img className="vd-team__crest" src="/crest-128.webp" alt="" />
-          <div>
-            <b>
-              <span className="mp-long">Manchester </span>Piti
-            </b>
-            <span>{usSide}</span>
-          </div>
-        </div>
-        <div className="mp-board__mid">
-          {scored ? (
-            <div className="vd-scoreline vd-score mp-scoreline" role="status" aria-label={`Resultado: ${gf} a ${ga}`}>
-              <span className={`vd-digit${goalSide === "us" ? ` ${goal.digit}` : ""}`}>{gf}</span>
-              <span className="vd-scoreline__sep" aria-hidden="true" />
-              <span className={`vd-digit${goalSide === "them" ? ` ${goal.digit}` : ""}`}>{ga}</span>
-            </div>
-          ) : (
-            <span className="vd-score mp-time">{Number.isFinite(at) ? dateParts(match.date).time : "—"}</span>
-          )}
-        </div>
-        <div className="mp-board__under">
-          <p className="vd-status mp-status">
-            {state === "live" && (
-              <>
-                <span className="vd-live">En directo</span>
-                <b className="vd-clock">{minute ?? 0}′</b>
-                <span>{half === 2 ? "de la segunda parte" : "de la primera parte"}</span>
-              </>
-            )}
-            {state === "halftime" && <span>Descanso, {gf}–{ga} en la primera parte</span>}
-            {state === "pending" && <span>Final. El acta, en unos minutos</span>}
-            {state === "done" && <span>Final</span>}
-            {state === "whistle" && <span>{PENDING_WHISTLE}</span>}
-            {state === "unplayed" && <span>{AWAITING_ACTA}</span>}
-            {state === "upcoming" && Number.isFinite(at) && <span>{`${kickoffHint(at, now)}. ${leftWords(at, now)}`}</span>}
-            {state === "off" && <span>{matchPhase(match, now) === "cancelled" ? "Cancelado" : "Aplazado"}</span>}
-          </p>
-          {children}
-        </div>
-        <div className="vd-team mp-team mp-team--r">
-          {match.rivalLogoUrl ? <img className="vd-team__crest" src={match.rivalLogoUrl} alt="" /> : <span className="vd-team__crest vd-team__crest--rival" aria-hidden="true">{initials}</span>}
-          <div>
-            <b>{rival}</b>
-            <span>{rivalSide}</span>
-          </div>
-        </div>
-      </Lens>
-    </div>
+const subscribeNothing = () => () => {};
+const useHydrated = (): boolean =>
+  useSyncExternalStore(
+    subscribeNothing,
+    () => true,
+    () => false,
   );
-}
-
-/** The tabs in the boards' order (Directo · Alineación · Números · Pulso, and the vestuario's) over the URL's
- *  ids (MATCH_TABS: cronica, campo, pulso, vestuario, estadisticas). */
-const ORDER = [0, 1, 4, 2, 3] as const;
 
 export function MatchPage() {
-  const { matchId } = route.useParams();
-  // The tab lives in the URL (?tab=campo…): a push or a shared link opens it, and each tab change is
-  // a history entry, so back and forward step through the tabs. No tab (or an unknown one) = the first.
-  const search = route.useSearch();
-  const active = matchTabIndex(search.tab);
-  const navigate = useNavigate();
-  const setTab = (i: number) => {
-    if (i !== active) void navigate({ to: ".", search: (prev) => ({ ...prev, tab: matchTabAt(i) }), resetScroll: false });
-  };
-  // The ARIA tabs pattern: ←/→ wrap, Inicio/Fin to the ends; the key selects the tab (it is the URL's
-  // tab) and the focus goes with it (roving tabindex: only the selected tab is in the Tab order).
-  const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    const n = tabForKey<number>(e.key, active, ORDER);
-    if (n === null) return;
-    e.preventDefault();
-    setTab(n);
-    document.getElementById(`fc-tab-${n}`)?.focus();
-  };
+  const router = useRouter();
+  const location = useLocation();
+  const search = location.search as Record<string, unknown>;
+  const { id: matchId, screen: urlScreen } = placeOf(location.pathname, search);
+  const base = `/partidos/${encodeURIComponent(matchId)}`;
   const { matches, players, loading, error } = useClubData();
-  const now = useMatchClock(matches);
+  const { seasons } = useSeason();
+  const clockNow = useMatchClock(matches);
   const { user, profile } = useAuth();
-  const { member } = useTeam();
-  const scorers = useMatchScorers(member ? matchId : undefined);
-  const me = useMe();
-  const canScore = member && ((!!user && scorers.data.includes(user.uid)) || profile?.role === "admin" || profile?.role === "superadmin");
-  const [notice, setNotice] = useState("");
-  const [pip, setPip] = useState<ScorePip | null>(null);
+  const v0 = useViewer();
+  const { theme } = useTheme();
+  const hydrated = useHydrated();
   const desktop = useDesktop();
-  const match = matches.find((m) => m.id === matchId);
-  // Tras el partido: the reactions and the notas, public, one listener each while the page is open and the
-  // acta is published (fans read them too; only a member writes).
-  const published = !!match && reactionsOpen(match);
-  const reactions = useMatchReactions(published ? matchId : undefined);
-  const ratings = useMatchRatings(published ? matchId : undefined);
-  // The shortcuts only some can follow: admins to the Sala de control, members to the pizarra's official
-  // board for this match — its own, or the season's while it is still to be played (team-only reads: a
-  // fan reads nothing).
-  const viewer = useViewer();
-  const toPlay = !!match && toBePlayed(match, now);
-  const board = useMatchBoard(match?.seasonId, match?.id, toPlay, viewer.member);
-  // One «siete» (M6): before the acta the Campo shows that official's seven to members, at its slots'
-  // positions and with its system (its doc, read only while the Campo or the previa is open and the match
-  // is still to be played — its own official first, the season's only while it has none: useMatchBoard).
-  const officialBoard = useBoardView(toPlay && active <= 1 ? board : null);
-  // The previa's «El rival»: the RivalPanel's notes of the board drawn for this very match (a season's
-  // board isn't about this rival), members only (a fan has no board: nothing is read).
-  const rivalPlan = viewer.member && match && officialBoard?.matchId === match.id ? officialBoard.rival : null;
-  // (the match's own season: a per-season shirt name reads the same here as on the home)
-  // (a guest of the acta: «Rafa (invitado)»)
-  const nameOf = withGuestNames(match, (id: string) => nameFor(players.find((p) => p.id === id), match?.seasonId));
-  // (the feed and the pitch name them as a sentence does, «Adrián T.C.», as the boards)
-  const niceOf = (id: string) => niceName(nameOf(id));
-  const playing = !!match && matchPhase(match, now) === "playing";
-  const goalShow = useGoalCelebration(playing ? match : undefined, now);
-  // the goal moment on the scoreboard and the light field (gold for ours, a cold flash for theirs)
-  const moment = useGoalMoment(goalShow.goal ? { key: goalShow.goal.id, side: goalShow.goal.ours ? "us" : "them" } : null);
-  // «Reconectando…» / «Sin conexión · marcador de hace N min» on the board while it is live or waiting
-  const syncChip = useSyncChip(playing, now);
-  // «Partido no encontrado» comes with a 200 from the SPA shell: not for the index
+  const reduced = useReducedMotion();
+  const mvpResults = useMvpResults();
+  const scorerUids = useMatchScorers(v0.member ? matchId : undefined);
+  const found = matches.find((x) => x.id === matchId && isVisibleMatch(x));
+  // (DEV: the boards' «Maqueta» — ?maqueta=<momento>&quien=<viewer>&red=off&estado=noexiste)
+  const dev = import.meta.env.DEV;
+  const maq = dev && found && isFase(search.maqueta) ? maquetaOf(found, search.maqueta) : null;
+  const quien = dev && isQuien(search.quien) ? search.quien : null;
+  const match = dev && search.estado === "noexiste" ? undefined : (maq?.match ?? found);
+  const now = maq?.now ?? clockNow;
   useNoIndex(!loading && !error && !match);
-  const closePip = useCallback(() => {
+
+  // ---- the people of the match's season
+  const seasonId = match?.seasonId ?? "";
+  const people = (() => {
+    const out = new Map<string, Person>();
+    for (const raw of players) {
+      const p = seasonId ? playerForSeason(raw, seasonId, seasons) : raw;
+      const short = nameFor(p, seasonId || undefined);
+      out.set(p.id, {
+        id: p.id,
+        name: niceName(short),
+        short: short.toLocaleUpperCase("es"),
+        num: p.number != null ? String(p.number) : "",
+        first: p.firstName ?? "",
+        last: p.lastName ?? "",
+        pos: p.naturalPosition ?? "MED",
+      });
+    }
+    for (const g of match?.guests ?? [])
+      out.set(`guest:${g.id}`, {
+        id: `guest:${g.id}`,
+        name: `${g.name} (invitado)`,
+        short: g.name.toLocaleUpperCase("es"),
+        num: "",
+        first: g.name,
+        last: "",
+        pos: "MED",
+      });
+    return out;
+  })();
+  const nameOf = (id: string) => people.get(id)?.name ?? "Jugador";
+  const numOf = (id: string) => people.get(id)?.num ?? "";
+  const kit = match?.kit === "away" ? "away" : "home";
+  const printed = [...people.values()].filter((p) => p.num && !p.id.startsWith("guest:")).map((p) => ({ name: p.short, num: p.num }));
+  const stillOf = usePageKitStills({
+    on: hydrated,
+    theme,
+    kits: kit === "away" ? ["away", "home"] : ["home", "away"],
+    players: printed,
+  });
+
+  // ---- the moment
+  const mvp = match ? mvpResults.get(match.id) : undefined;
+  const voteOpen = maq ? maq.voteOpen : !!match && (mvp?.open ?? (typeof match.voteClosesAt === "number" && match.voteClosesAt > now));
+  const fase = match ? faseOf(match, now, voteOpen) : "antes";
+  const duration = Math.max(10, match?.duration ?? 50);
+  const live = isLive(fase);
+  const played = isPlayed(fase);
+  const done = isDone(fase);
+  const pre = isPre(fase);
+  const off = fase === "aplazado" || fase === "pendiente" ? fase : null;
+  const liveMin = match && live ? shownMinute(match, now) : null;
+  const edge = edgeOf(fase, liveMin, duration);
+
+  // ---- the moviola's minute: held back (?min=), else the edge
+  const urlMin = parseMin(search.min);
+  const [held, setHeld] = useState<number | null>(urlMin);
+  const minute = played ? Math.max(0, Math.min(edge, held ?? edge)) : 0;
+  const dragged = played && minute < edge;
+  const [playing, setPlaying] = useState(false);
+  const timer = useRef<number>(0);
+
+  // ---- the sheet (?hoja=) and the say line
+  const sheet = (SHEETS as readonly string[]).includes(String(search.hoja)) ? (search.hoja as Sheet) : null;
+  const pushedSheet = useRef(false);
+  const [say, setSay] = useState({ text: "", on: false });
+  const sayT = useRef<number>(0);
+  const sayLine = (text: string) => {
+    window.clearTimeout(sayT.current);
+    setSay({ text, on: true });
+    sayT.current = window.setTimeout(() => setSay((s) => ({ ...s, on: false })), 2600);
+  };
+
+  // ---- addresses: the screen, the minute and the sheet live in the URL
+  const hrefFor = (screen: Screen | "mesa", opts: { min?: number | null; hoja?: Sheet | null } = {}) => {
+    const q = new URLSearchParams();
+    const mm = opts.min === undefined ? (dragged ? minute : null) : opts.min;
+    if (mm != null && screen !== "mesa") q.set("min", String(mm));
+    if (opts.hoja) q.set("hoja", opts.hoja);
+    if (dev) for (const k of ["maqueta", "quien", "red"]) if (typeof search[k] === "string") q.set(k, search[k] as string);
+    const s = q.toString();
+    return `${base}${screen === "mesa" ? "/mesa" : PATH[screen]}${s ? `?${s}` : ""}`;
+  };
+  // the moviola writes ?min= in place (no history), a moment after it settles
+  const wantMin = dragged ? minute : null;
+  const minHref = !match || playing || wantMin === urlMin ? null : hrefFor(urlScreen, { min: wantMin, hoja: sheet });
+  useEffect(() => {
+    if (!minHref) return;
+    const t = window.setTimeout(() => void router.navigate({ href: minHref, replace: true, resetScroll: false }), 250);
+    return () => window.clearTimeout(t);
+  }, [minHref, router]);
+  // a ?min= from outside (a shared moment, back/forward) moves the moviola
+  const [seenUrlMin, setSeenUrlMin] = useState(urlMin);
+  if (urlMin !== seenUrlMin) {
+    setSeenUrlMin(urlMin);
+    if (urlMin !== (dragged ? minute : null)) setHeld(urlMin);
+  }
+
+  // ---- the screen shown: follows the address through a View Transition
+  const [shown, setShown] = useState<Screen>(urlScreen);
+  useLayoutEffect(() => {
+    if (urlScreen === shown) return;
+    const dir = SCREENS.indexOf(urlScreen) > SCREENS.indexOf(shown) ? "right" : "left";
+    swap(dir, () => setShown(urlScreen));
+  }, [urlScreen, shown]);
+  const sent = useRef<HTMLSpanElement | null>(null);
+  const pinTabs = () => {
+    const el = sent.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    if (window.scrollY > top) window.scrollTo(0, top);
+  };
+  useEffect(() => {
+    pinTabs();
+  }, [shown]);
+  const go = (s: Screen | "mesa") => {
+    if (s === "mesa") {
+      rememberScreen(matchId, urlScreen);
+      void router.navigate({ href: hrefFor("mesa", { min: null }) });
+      return;
+    }
+    if (s === urlScreen) return;
+    void router.navigate({ href: hrefFor(s), resetScroll: false });
+  };
+
+  // ---- the compact strip: once the lens has scrolled away
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    const on = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const el = sent.current;
+        if (el) setCompact(el.getBoundingClientRect().top < 6);
+      });
+    };
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", on);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [match?.id]);
+
+  // ---- model
+  const rival = match?.rival ?? "el rival";
+  const plays: Play[] = match ? playsOf(match, nameOf, rival) : [];
+  const lineup = match ? lineupOf(match) : null;
+  const tl = match && lineup ? timelineOf(match, lineup, plays, duration, edge, nameOf) : null;
+  const pulse = match ? pulseOf(match, duration) : [];
+  const nums = match ? numHitsOf(match) : { kinds: [], hits: [], narrated: false };
+  const result = resultWords(scoreAt(plays, duration), scoreAt(plays, duration / 2));
+  const resultNow = live || fase === "final" ? resultWords(scoreAt(plays, edge), scoreAt(plays, Math.min(edge, duration / 2))) : result;
+  const score = scoreAt(plays, minute);
+  const kickMs = match ? dateMillis(match.date) : NaN;
+
+  // ---- the moviola's verbs
+  const [fx, setFx] = useState<"gold" | "cold" | null>(null);
+  const fxT = useRef<number>(0);
+  const flashFor = (p: Play) => {
+    window.clearTimeout(fxT.current);
+    const gold = p.k === "gol";
+    setFx(gold ? "gold" : "cold");
+    sayLine(gold ? `¡${p.title}!` : p.title);
+    fxT.current = window.setTimeout(() => setFx(null), reduced ? 600 : gold ? 2600 : 1600);
+  };
+  const goalAt = (m: number) => [...plays].reverse().find((p) => p.m === m && (p.k === "gol" || p.k === "rival")) ?? null;
+  const stop = () => {
+    window.clearInterval(timer.current);
+    timer.current = 0;
+    setPlaying(false);
+  };
+  const seek = (m: number) => {
+    const t = Math.max(0, Math.min(edge, Math.round(m)));
+    setHeld(t >= edge ? null : t);
+  };
+  const jump = (dir: 1 | -1) => {
+    stop();
+    const list = [0, ...plays.filter((p) => p.m <= edge).map((p) => p.m), edge];
+    const t = dir > 0 ? list.find((x) => x > minute) : [...list].reverse().find((x) => x < minute);
+    if (t == null) return;
+    seek(t);
+    const g = goalAt(t);
+    if (g) flashFor(g);
+  };
+  const play = () => {
+    if (playing) return stop();
+    if (reduced) return jump(1);
+    let m = minute >= edge ? 0 : minute;
+    setHeld(m);
+    setPlaying(true);
+    window.clearInterval(timer.current);
+    timer.current = window.setInterval(() => {
+      m += 1;
+      if (m > edge) {
+        stop();
+        return;
+      }
+      setHeld(m >= edge ? null : m);
+      const g = goalAt(m);
+      if (g) flashFor(g);
+    }, 340);
+  };
+  useEffect(() => () => window.clearInterval(timer.current), []);
+  const onSeek = (m: number, drag: boolean) => {
+    stop();
+    seek(m);
+    const g = goalAt(Math.round(m));
+    if (g && (!drag || !fx)) flashFor(g);
+  };
+
+  // ---- a goal while it is played: the moment on the lens and the sky
+  const goalShow = useGoalCelebration(live ? match : undefined, now);
+  const moment = useGoalMoment(goalShow.goal ? { key: goalShow.goal.id, side: goalShow.goal.ours ? "us" : "them" } : null);
+
+  // ---- sheets
+  const open = (s: Sheet) => {
+    stop();
+    pushedSheet.current = true;
+    void router.navigate({
+      href: hrefFor(urlScreen, { hoja: s }),
+      resetScroll: false,
+    });
+  };
+  const closeSheet = () => {
+    if (pushedSheet.current) {
+      pushedSheet.current = false;
+      router.history.back();
+      return;
+    }
+    void router.navigate({
+      href: hrefFor(urlScreen, { hoja: null }),
+      replace: true,
+      resetScroll: false,
+    });
+  };
+
+  // ---- the viewer
+  const playerInSquad = !!v0.playerId && !!match?.seasonId && !!players.find((p) => p.id === v0.playerId && p.seasons?.includes(match.seasonId ?? "") && !p.archived);
+  const anotador = v0.member && !!user && scorerUids.data.includes(user.uid);
+  const real: Viewer = {
+    member: v0.member,
+    admin: v0.admin,
+    mesa: v0.member && (anotador || v0.admin),
+    anotador,
+    playerId: playerInSquad ? v0.playerId : null,
+    uid: user?.uid ?? null,
+    name: v0.playerId ? nameOf(v0.playerId) : (profile?.nickname ?? ""),
+  };
+  const viewer: Viewer = quien ? maquetaViewer(quien, real, people) : real;
+
+  // ---- the season around it
+  const seasonMatches = matches.filter((x) => isVisibleMatch(x) && x.seasonId === match?.seasonId && x.status !== "cancelled").sort((a, b) => dateMillis(a.date) - dateMillis(b.date));
+  const idx = match ? seasonMatches.findIndex((x) => x.id === match.id) : -1;
+  const prevMatch = idx > 0 ? seasonMatches[idx - 1] : null;
+  const nextMatches = idx >= 0 ? seasonMatches.slice(idx + 1).filter((x) => !isPlayedMatch(x)) : [];
+  const nextMatch = idx >= 0 ? (seasonMatches[idx + 1] ?? null) : null;
+  const jornada = match ? jornadaOf(matches, match.id) : null;
+  const { standings } = useStandings(match?.seasonId);
+  const hasTable = !!standings && standings.rows.length > 0 && standings.rows.some((r) => r.pj > 0);
+  const proj = hasTable && standings ? projectTable(standings.rows, live || fase === "final" ? { rival, gf: score.us, ga: score.them } : null) : null;
+  const posText = proj?.position ? `${proj.position}º` : null;
+
+  // ---- the captain: the official board's roles (team-only reads; a fan sees no armband)
+  const boardId = useMatchBoard(match?.seasonId, match?.id, !!match && toBePlayed(match, now), v0.member);
+  const captainId = useLiveDoc<string | null>(boardId ? `lineups/${boardId}` : null, "captain", (d) => (typeof d?.roles?.captainId === "string" ? (d.roles.captainId as string) : null), null).data;
+
+  // ---- the quedada: the time the meeting note gives, else half an hour before (team-only read)
+  const meetingNote = useMeetingNote(v0.member ? matchId : undefined);
+
+  // ---- the vestuario's state (the tab's badge and line)
+  const ves = useVestuario(match ?? null, {
+    fase,
+    viewer,
+    minute,
+    edge,
+    score,
+    plays,
+    people,
+  });
+
+  // ---- the avisos of this match
+  const avisos = useAvisos(match?.id ?? null, fase, viewer.member, rival, sayLine);
+
+  const [pip, setPip] = useState<ScorePip | null>(null);
+  const closePip = () => {
     setPip((p) => {
       p?.close();
       return null;
     });
-  }, []);
+  };
+  // (the match stops being played: the window closes, and the page forgets it)
+  useEffect(() => {
+    if (!live) pip?.close();
+  }, [live, pip]);
+  if (!live && pip) setPip(null);
 
-  const chrome = (children: ReactNode) => (
-    <div className={`vx vd-pg hm pt mp${playing ? " vd-pg--live" : ""}`} aria-busy={loading}>
-      <PageSky now={now} live={playing} moment={moment} />
-      <CelesteHeader active="partidos" sub="Partido" actions={<ThemeToggle />} />
-      {children}
-      <CelesteFooter />
-      <CelesteDock active="partidos" />
-    </div>
+  // ---- swipe between screens (phone and tablet)
+  const sw = useRef<{ x: number; y: number; t: number } | null>(null);
+  const onDown = (e: RPointerEvent<HTMLDivElement>) => {
+    const t = e.target as HTMLElement;
+    if (!t.closest(".pp-screen") || t.closest("[data-scroll-x],input,select,textarea,.vd-pitch")) {
+      sw.current = null;
+      return;
+    }
+    sw.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+  };
+  const onUp = (e: RPointerEvent<HTMLDivElement>) => {
+    const s = sw.current;
+    sw.current = null;
+    if (!s || e.pointerType === "mouse") return;
+    const dx = e.clientX - s.x;
+    const dy = e.clientY - s.y;
+    if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 2 || Date.now() - s.t > 700) return;
+    const i = SCREENS.indexOf(shown);
+    const n = dx < 0 ? i + 1 : i - 1;
+    if (n >= 0 && n < SCREENS.length) go(SCREENS[n]);
+  };
+
+  const dia = theme === "light";
+  const flood = played ? floodAtMs(kickMs + minute * 60_000) : fase === "pendiente" ? 1 : floodAtMs(now);
+  const skyGold = fx === "gold" || moment.sky.gold;
+  const skyCold = fx === "cold" || moment.sky.cold;
+  const chip = useSyncChip(live || fase === "pitido", now);
+  const syncChip = dev && search.red === "off" && (live || fase === "pitido") ? { text: "Sin conexión · marcador de hace 3 min" } : chip;
+
+  const chrome = (inner: React.ReactNode, cls = "") => (
+    <KitStillContext.Provider value={stillOf}>
+      <div className={`vx vd-pg pp ${cls}`.trim()} style={{ "--vd-sky-h": "1000px" } as CSSProperties} onPointerDown={onDown} onPointerUp={onUp}>
+        <VidrioSky light="dorada" gold={skyGold} cold={skyCold} />
+        <div className="pp-sky-b" style={{ opacity: dia ? 0 : flood }} aria-hidden="true">
+          <VidrioSky light="noche" floodlit gold={skyGold} cold={skyCold} />
+        </div>
+        <CelesteHeader active="partidos" sub="Partido" actions={<ThemeToggle />} live={live} />
+        {inner}
+        <CelesteFooter />
+        <CelesteDock active="partidos" live={live} />
+      </div>
+    </KitStillContext.Provider>
   );
 
-  // The data did not arrive: an error, never «no encontrado» (the match may well exist).
   if (error && !match)
     return chrome(
       <StateStage>
@@ -263,272 +469,371 @@ export function MatchPage() {
     );
   if (loading)
     return chrome(
-      <section className="mp-head" aria-label="Cargando el partido" style={{ minHeight: "100svh" }}>
-        <p className="sr-only" role="status">
+      <main className="pp-stage" aria-busy="true">
+        <p className="vd-vh" role="status">
           Cargando el partido…
         </p>
-      </section>,
+      </main>,
     );
-  if (!match)
+  if (!match || !lineup || !tl)
     return chrome(
-      <StateStage ghost="404">
-        <StatePanel
-          kind="notfound"
-          heading="h1"
-          title="Partido no encontrado"
-          body="Este partido no está en el calendario: o se borró, o el enlace tiene el marcador mal apuntado."
-          action={
-            <>
-              <Link className="sp-btn" to="/partidos">
-                Ver los partidos
-              </Link>
-              <Link className="sp-btn ghost" to="/">
-                Ir al inicio
-              </Link>
-            </>
-          }
-        />
-      </StateStage>,
+      <main className="pp-mesa pp-404" aria-labelledby="pp-404-h">
+        <p className="pp-404__ghost" aria-hidden="true">
+          404
+        </p>
+        <h1 className="pp-mesa__h" id="pp-404-h">
+          Partido no encontrado
+        </h1>
+        <p className="pp-mesa__p">Este partido no está en el calendario: o se borró, o el enlace tiene el marcador mal apuntado.</p>
+        <div className="pp-404__btns">
+          <Link className="vd-glass vd-press vd-btn vd-btn--pri" to="/partidos">
+            Ver los partidos
+          </Link>
+          <Link className="vd-glass vd-press vd-btn" to="/">
+            Ir al inicio
+          </Link>
+        </div>
+      </main>,
     );
 
-  const phase = matchPhase(match, now);
-  const kick = kickoffState(match, now);
-  const live = phase === "playing";
-  const done = isCompleted(match);
-  const pending = phase === "awaiting_result";
-  // The date has come (or gone) and the clock never started: no countdown, no provisional score.
-  const whistle = kick === "pending_whistle";
-  const unplayed = kick === "awaiting_result";
-  const upcoming = phase === "scheduled" || phase === "unscheduled";
-  const { rival, initials: ini, gf, ga, usSide, rivalSide } = scoreboardOf(match);
-  const d = dateParts(match.date);
-  const minute = live ? shownMinute(match, now) : null;
-  const jornada = jornadaOf(matches, match.id);
-  const kit = kitLabel(match, KIT_LABEL.home);
-  const r = done ? resultOf(match) : undefined;
-  const goalsOf = (ours: boolean) =>
-    (match.events ?? [])
-      .filter((e) => (ours ? ["goal", "goal_penalty", "goal_freekick", "opponent_own_goal"] : ["opponent_goal", "own_goal"]).includes(e.type))
-      .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
-      .map((e) => {
-        const shown = eventMinute(e);
-        // (ours — the scorer, or ours who put it in his own net — is a link to his page)
-        const pid = e.type === "opponent_goal" || e.type === "opponent_own_goal" ? undefined : e.playerId;
-        return { id: e.id, min: shown != null ? `${shown}′` : "", pid, who: e.type === "opponent_goal" ? rival : e.type === "opponent_own_goal" ? "autogol" : e.playerId ? nameOf(e.playerId) : "" };
-      });
-  // Live, or played with its acta still to come: the feed and the pitch beside it
-  const cardMode = live || (pending && !unplayed);
-  const mesaOpen = !!canScore && !done && !["cancelled", "postponed"].includes(phase);
-  const state: BoardProps["state"] = live ? (kick === "halftime" ? "halftime" : "live") : done ? "done" : unplayed ? "unplayed" : pending ? "pending" : whistle ? "whistle" : upcoming ? "upcoming" : "off";
-  // «En directo, jornada 7 de liga en el Campo de pruebas»
-  const where = [jornada ? `Jornada ${jornada}${match.competition ? ` de ${match.competition.toLocaleLowerCase("es")}` : ""}` : match.competition, venueName(match.venue ?? "")].filter(Boolean).join(" · ");
-  const firstTab = done ? "Crónica" : live ? "Directo" : pending ? "Acta pendiente" : "Previa";
-  const LABELS: Record<number, string> = { 0: firstTab, 1: "Alineación", 2: "Pulso", 3: "Vestuario", 4: "Números" };
-  // «Números» reads the narrated actions (passes, shots, tackles…): without any, a short line.
-  // before the whistle, on its day: the seven the pizarra published stands beside the previa
-  const lineup = parseMatchLineup((match as ClubMatch & { lineup?: unknown }).lineup);
-  const today = Number.isFinite(dateMillis(match.date)) && madridDate(dateMillis(match.date)) === madridDate(now);
-  const preSeven = upcoming && today && !!lineup;
-  // who keeps la mesa (public, backend-written): «Lo anota Jorge desde la mesa»
-  const mesa = mesaOf(match);
-  const scoredGoals = (done || pending) && (goalsOf(true).length > 0 || goalsOf(false).length > 0);
+  const cancelled = match.status === "cancelled";
+  const postponedTo = (match as ClubMatch & { postponedTo?: unknown }).postponedTo ? dateMillis((match as ClubMatch & { postponedTo?: unknown }).postponedTo) : null;
+  const kickTime = Number.isFinite(kickMs) ? madridTime(kickMs) : "—";
+  const word = fase === "aplazado" ? (cancelled ? "Suspendido" : "Aplazado") : "Sin acta";
+  const j = jornada ? `J${jornada} · ` : "";
+  const title = titleOf(fase, j, rival, match.home !== false, resultNow, cancelled);
+  const status = statusOf({
+    fase,
+    m: minute,
+    edge,
+    dragged,
+    result: resultNow,
+    kick: kickMs,
+    now,
+    postponedTo: postponedTo && Number.isFinite(postponedTo) ? postponedTo : null,
+    cancelled,
+  });
+  const scoreLabel = scoreLabelOf(rival, score, {
+    played,
+    pre,
+    dragged,
+    live,
+    m: minute,
+    kickTime,
+    word,
+  });
+  // (the match's armband from the official board, else the season's captain)
+  const captain = captainId ?? seasons.find((x) => x.id === match.seasonId)?.captainPlayerId ?? null;
+  const venue = match.venue ?? "";
+  const c: PageCtx = {
+    match,
+    base,
+    kickMs,
+    venueShort: /^CDM\b/i.test(venue) ? "el CDM" : venue ? "el campo" : "el campo",
+    matches,
+    now,
+    fase,
+    minute,
+    edge,
+    duration,
+    pre,
+    live,
+    played,
+    done,
+    off,
+    dragged,
+    plays,
+    score,
+    result: resultNow,
+    lineup,
+    tl,
+    pulse,
+    nums,
+    floodAt: (m: number) => floodAtMs(kickMs + m * 60_000),
+    rival,
+    rivalCode: scoreboardOf(match).initials,
+    jornada,
+    kit,
+    captain,
+    people,
+    nameOf,
+    numOf,
+    viewer,
+    mvp,
+    next: nextMatches,
+    dia,
+    screen: shown,
+    go,
+    open,
+    seek: (m: number) => {
+      stop();
+      seek(m);
+    },
+    say: sayLine,
+  };
 
-  const share = async () => {
-    try {
-      await shareClubPage("partido", match.id, `Manchester Piti vs ${rival}`);
-      setNotice(typeof navigator !== "undefined" && typeof navigator.share === "function" ? "" : "Enlace copiado.");
-    } catch {
-      setNotice("No se ha compartido el enlace.");
-    }
+  // the header's actions
+  const finalish = done || fase === "final" || fase === "pendiente";
+  const admin =
+    viewer.admin && !live
+      ? {
+          href: finalish ? `/admin/partidos/${encodeURIComponent(match.id)}?tab=acta` : `/admin/partidos/${encodeURIComponent(match.id)}`,
+          label: finalish ? "Editar el acta" : "Abrir en la Sala de control",
+        }
+      : null;
+  const mesa =
+    viewer.mesa && !done && fase !== "aplazado"
+      ? {
+          label: fase === "pendiente" ? "Publicar el acta en la mesa" : live ? "Volver a la mesa" : "Abrir la mesa",
+        }
+      : null;
+  const nChanges = plays.filter((p) => p.k === "cambio" && p.m <= minute).length;
+  const hints = tabHints(fase, resultNow, kickTime, lineup.system, nChanges, hasTable, posText);
+  const vesHint = ves.hint;
+  const tabs = SCREENS.map((id) => {
+    const h = id === "vestuario" ? vesHint : hints[id];
+    return {
+      id,
+      label: LABELS[id],
+      hint: h[0],
+      short: h[1],
+      on: shown === id,
+      badge: id === "vestuario" ? ves.badge : 0,
+      badgeText: id === "vestuario" ? ves.badgeText : "",
+    };
+  });
+  const si = SCREENS.indexOf(shown);
+  const prevS = si > 0 ? SCREENS[si - 1] : null;
+  const nextS = si < SCREENS.length - 1 ? SCREENS[si + 1] : null;
+  const jumpOf = (x: ClubMatch | null, prev: boolean) => {
+    if (!x) return null;
+    const jj = jornadaOf(matches, x.id);
+    const xr = x.rival ?? "el rival";
+    const when = Number.isFinite(dateMillis(x.date)) ? madridTime(dateMillis(x.date)) : "";
+    return {
+      href: `/partidos/${encodeURIComponent(x.id)}`,
+      label: `${jj ? `J${jj} · ` : ""}${shortRival(xr)}`,
+      aria: `${prev ? "Anterior" : "Siguiente"}: ${jj ? `J${jj}, ` : ""}${x.home === false ? `en casa de ${xr}` : `en casa contra ${xr}`}${when ? `, a las ${when}` : ""}`,
+    };
   };
-  const poster = async (format: "square" | "story") => {
-    try {
-      await downloadMatchPoster(match, format);
-      setNotice("Cartel descargado.");
-    } catch {
-      setNotice("No se pudo generar el cartel.");
-    }
+  const mini = {
+    score: played ? `${score.us}–${score.them}` : pre ? kickTime : fase === "aplazado" ? word : "Sin acta",
+    when: live
+      ? dragged
+        ? `Viendo el ${minute}′`
+        : fase === "descanso"
+          ? "Descanso"
+          : `${edge}′`
+      : fase === "final"
+        ? "Final, falta el acta"
+        : done
+          ? dragged
+            ? `Viendo el ${minute}′`
+            : "Final"
+          : pre
+            ? fase === "pitido"
+              ? "A punto"
+              : "Hoy"
+            : "",
+    live: live && fase !== "descanso" && !dragged,
+    prog: played ? ((minute / duration) * 100).toFixed(2) : "0",
   };
-  const onPip = () => {
-    if (pip) return closePip();
-    void openScorePip({ width: 420, height: 236, title: "Manchester Piti, marcador" }).then(setPip);
-  };
+  const stillT = fase === "aplazado" ? (cancelled ? "Suspendido: no se jugará" : postponedTo ? "Aplazado, ya con fecha nueva" : "Aplazado, sin fecha nueva todavía") : "Nadie arrancó el reloj en la mesa";
+  const reason = (match as ClubMatch & { postponedReason?: string }).postponedReason;
+  const stillD =
+    fase === "aplazado"
+      ? `${reason ? `${reason.replace(/\.?$/, ".")} ` : ""}${postponedTo ? "La porra y la convocatoria se abren otra vez para la nueva fecha." : "La liga pondrá la fecha; te avisamos en cuanto la haya."}`
+      : "No hubo marcador en directo: el resultado llegará con el acta.";
 
+  const ppCls = [`f-${fase}`, `s-${shown}`, dia ? "is-dia" : "", compact ? "is-compact" : "", sheet ? "has-sheet" : ""].filter(Boolean).join(" ");
   return chrome(
     <>
-      <section className="mp-head" aria-labelledby="fc-t">
-        <div className="mp-top vd-reg-1">
-          {/* (back to where you came from inside the site; a deep link names the section, «Partidos») */}
-          <BackLink className="fc-back vd-btn vd-btn--sm vd-glass vd-press mp-back" to="/partidos" label="Partidos" />
+      <main className="pp-stage" id="pp-main">
+        <Head
+          c={c}
+          title={title.l}
+          titleS={title.s}
+          status={status}
+          scoreLabel={scoreLabel}
+          word={word}
+          kickTime={kickTime}
+          sync={(live || fase === "pitido") && syncChip ? syncChip.text : null}
+          prev={jumpOf(prevMatch, true)}
+          next={jumpOf(nextMatch, false)}
+          admin={admin}
+          mesa={mesa}
+          avisos={avisos.show ? { label: avisos.label, aria: avisos.aria } : null}
+          pip={
+            live && desktop
+              ? {
+                  open: !!pip,
+                  toggle: () =>
+                    pip
+                      ? closePip()
+                      : void openScorePip({
+                          width: 420,
+                          height: 236,
+                          title: "Manchester Piti, marcador",
+                        }).then(setPip),
+                }
+              : null
+          }
+          playing={playing}
+          fx={fx}
+          goalClasses={[fx === "gold" ? "is-goal vd-rim-gold" : "", moment.lens, moment.glint].filter(Boolean).join(" ")}
+          stillT={stillT}
+          stillD={stillD}
+          meet={Number.isFinite(kickMs) ? meetTimeOf(meetingNote.data, kickMs) : null}
+          onPlay={play}
+          onJump={jump}
+          onSeek={onSeek}
+          onCartel={() => open("cartel")}
+        />
+        <span className="pp-sent" ref={sent} aria-hidden="true" />
+        <nav className="pp-tabs" aria-label="Secciones del partido">
+          <div className="vd-glass pp-tabs__in">
+            <a
+              className="pp-mini"
+              href="#pp-main"
+              onClick={(e) => {
+                e.preventDefault();
+                window.scrollTo({
+                  top: 0,
+                  behavior: reduced ? "auto" : "smooth",
+                });
+              }}
+              aria-label={`Volver arriba: ${scoreLabel}`}
+              tabIndex={compact ? 0 : -1}
+            >
+              <img src="/crest-128.webp" alt="" width={24} height={24} />
+              <b className="pp-mini__s">{mini.score}</b>
+              <RivalCrest logo={null} code={c.rivalCode} className="pp-mini__r" />
+              <span className="pp-mini__w">
+                {mini.live && <span className="vd-livedot" aria-hidden="true" />}
+                <span className="vd-clock">{mini.when}</span>
+              </span>
+            </a>
+            <div className="pp-tabs__list">
+              {tabs.map((t) => (
+                <Go
+                  key={t.id}
+                  className="pp-tab"
+                  id={`pp-tab-${t.id}`}
+                  href={hrefFor(t.id)}
+                  aria-current={t.on ? "page" : undefined}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    go(t.id);
+                  }}
+                >
+                  <b>{t.label}</b>
+                  <small>
+                    <span className="pp-tab__l">{t.hint}</span>
+                    <span className="pp-tab__s">{t.short}</span>
+                  </small>
+                  {t.badge > 0 && (
+                    <>
+                      <span className="vd-badge pp-tab__badge" aria-hidden="true">
+                        {t.badge}
+                      </span>
+                      <span className="vd-vh">, {t.badgeText}</span>
+                    </>
+                  )}
+                  {t.on && <span className="pp-tab__ind" aria-hidden="true" />}
+                </Go>
+              ))}
+            </div>
+            {played && <span className="pp-tabs__prog" style={{ width: `${mini.prog}%` }} aria-hidden="true" />}
+          </div>
+        </nav>
 
-          <div className="mp-top__acts">
-            {live && desktop && (
-              <button type="button" className="vd-btn vd-btn--sm vd-glass vd-press" aria-pressed={!!pip} onClick={onPip}>
-                <PgIcon id="pip" />
-                {pip ? "Volver a la página" : "Sacar el marcador"}
+        <div className="pp-screen" id="pp-screen">
+          {shown === "partido" && <ScreenPartido c={c} avisos={avisos} />}
+          {shown === "siete" && <ScreenSiete c={c} />}
+          {shown === "numeros" && <ScreenNumeros c={c} />}
+          {shown === "vestuario" && <ScreenVestuario c={c} v={ves} />}
+          <nav className="pp-nextscr" aria-label="Pasar de sección">
+            {prevS && (
+              <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm pp-nextscr__b pp-nextscr__b--prev" onClick={() => go(prevS)}>
+                <Icon name="chev-l" />
+                {LABELS[prevS]}
               </button>
             )}
-            <button type="button" className="vd-btn vd-btn--sm vd-glass vd-press" onClick={() => void share()}>
-              <PgIcon id="share" />
-              Compartir
-            </button>
-          </div>
+            {nextS && (
+              <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm pp-nextscr__b pp-nextscr__b--next" onClick={() => go(nextS)}>
+                {LABELS[nextS]}
+                <Icon name="chev-r" />
+              </button>
+            )}
+          </nav>
         </div>
-        <h1 className={live || pending ? "vd-vh" : "mp-h1"} id="fc-t">
-          {headline(match, phase, kick, nameOf)}
-        </h1>
-        <Marcador match={match} now={now} rival={rival} initials={ini} gf={gf} ga={ga} usSide={usSide} rivalSide={rivalSide} state={state} minute={minute} goal={moment} goalSide={goalShow.goal ? (goalShow.goal.ours ? "us" : "them") : null}>
-          {(live || whistle) && (
-            <div className="pt-sync">
-              <SyncChip chip={syncChip} variant="board" announce />
-            </div>
-          )}
-          {scoredGoals && (
-            <div className="fc-goals">
-              <ul>
-                {goalsOf(true).map((g) => (
-                  <li key={g.id}>
-                    <b>{g.min}</b>{" "}
-                    {g.pid ? (
-                      <Who id={g.pid} seasonId={match.seasonId}>
-                        {g.who}
-                      </Who>
-                    ) : (
-                      g.who
-                    )}
-                  </li>
-                ))}
-              </ul>
-              <ul className="r">
-                {goalsOf(false).map((g) => (
-                  <li key={g.id}>
-                    <b>{g.min}</b>{" "}
-                    {g.pid ? (
-                      <Who id={g.pid} seasonId={match.seasonId}>
-                        {g.who}
-                      </Who>
-                    ) : (
-                      g.who
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </Marcador>
-        <p className="mp-chips">
-          <span>
-            {d.longCap} · {d.time}
-          </span>
-          {where && <span>{where}</span>}
-          {mesa && (live || upcoming || whistle) && <span>{mesaLine(match)}</span>}
-          <span>
-            <Icon name="shirt" size={14} /> {kit}
-          </span>
-          {upcoming && <WeatherChip match={match} now={now} />}
-          {r && <span className={`mp-res mp-res--${r}`}>{r === "G" ? "Victoria" : r === "P" ? "Derrota" : "Empate"}</span>}
-        </p>
-        <div className="mp-acts">
-          {/* (before kick-off too: the scorer calls the roll, sends the seven and blows the whistle from la mesa) */}
-          {mesaOpen && <MesaKey matchId={match.id} wide className={cardMode ? "" : "pre"} />}
-          {upcoming && phase === "scheduled" && <AddToCalendar className="hm-btn" label="Añadir al calendario" event={matchEvent(match, siteOrigin())} />}
-          {viewer.member && board && match.seasonId && (
-            <Link className="hm-ghostbtn" to="/pizarra" search={{ tablero: board, season: match.seasonId }}>
-              La pizarra de este partido <Icon name="arrow" size={16} stroke={2.2} />
-            </Link>
-          )}
-          {/* (an admin's way in, by moment: being played → la mesa, «Abrir la mesa» above; played → its
-               acta; before → its workspace) */}
-          {viewer.admin &&
-            !live &&
-            (done || pending || unplayed ? (
-              <Link className="hm-ghostbtn" to="/admin/partidos/$matchId" params={{ matchId: match.id }} search={{ tab: "acta" }}>
-                Editar acta <Icon name="arrow" size={16} stroke={2.2} />
-              </Link>
-            ) : (
-              <Link className="hm-ghostbtn" to="/admin/partidos/$matchId" params={{ matchId: match.id }}>
-                Abrir en la Sala de control <Icon name="arrow" size={16} stroke={2.2} />
-              </Link>
-            ))}
-          {upcoming && match.venue && (
-            <a className="hm-ghostbtn" href={mapsUrl(match.venue)} target="_blank" rel="noreferrer">
-              Cómo llegar <Icon name="arrow" size={16} stroke={2.2} />
-            </a>
-          )}
-          <button type="button" className="hm-ghostbtn" onClick={() => void poster("square")}>
-            Cartel cuadrado
-          </button>
-          <button type="button" className="hm-ghostbtn" onClick={() => void poster("story")}>
-            Historia vertical
-          </button>
-        </div>
-        {notice && (
-          <p className="fc-status" role="status">
-            {notice}
-          </p>
-        )}
-      </section>
+      </main>
 
-      <div className="mp-tabs vd-reg-2">
-        <div className="vd-glass vd-seg mp-seg" role="tablist" aria-label="Secciones del partido" onKeyDown={onTabKey} style={{ "--n": ORDER.length, "--i": ORDER.indexOf(active as (typeof ORDER)[number]) } as CSSProperties}>
-          <span className="vd-shelf__bead" aria-hidden="true" />
-          {ORDER.map((i) => (
-            <button key={i} type="button" role="tab" className="vd-seg__b" id={`fc-tab-${i}`} aria-selected={active === i} aria-controls={`fc-pane-${i}`} tabIndex={active === i ? 0 : -1} onClick={() => setTab(i)}>
-              {LABELS[i]}
-            </button>
-          ))}
-        </div>
+      <p className="vd-vh" role="status" aria-live="polite">
+        {say.text}
+      </p>
+      <div className={`pp-toast${say.on ? " is-on" : ""}`} aria-hidden="true">
+        <Icon name="check" />
+        <span>{say.text}</span>
       </div>
-      <div className={`fc-pane mp-pane vd-reg-3${(active === 0 && done) || active === 4 ? " wide" : ""}`} role="tabpanel" id={`fc-pane-${active}`} aria-labelledby={`fc-tab-${active}`} tabIndex={0} key={active}>
-        <ShirtDefs />
-        {active === 0 &&
-          (done ? (
-            <CronicaTab match={match} matches={matches} players={players} nameOf={nameOf} after={published ? { reactions: reactions.data, ratings: ratings.data, me: member ? me : null, error: reactions.error || ratings.error } : undefined} />
-          ) : cardMode ? (
-            <div className="mp-main">
-              <div className="mp-col">
-                <Feed match={match} nameOf={niceOf} live={live} freshId={goalShow.goal?.id ?? null} />
-              </div>
-              <div className="mp-side">
-                <Campo match={match} players={players} nameOf={niceOf} live={live} started />
-              </div>
-            </div>
-          ) : (
-            <div className={preSeven ? "mp-main" : undefined}>
-              <div className="mp-col">
-                {preSeven && <p className="mp-pre">Aún no ha empezado. El siete ya está publicado{mesa ? ` y la mesa la lleva ${mesa.name}` : ""}.</p>}
-                <PreviaTab match={match} matches={matches} plan={rivalPlan} />
-              </div>
-              {preSeven && (
-                <div className="mp-side">
-                  <Campo match={match} players={players} nameOf={niceOf} live={false} started={false} />
-                </div>
-              )}
-            </div>
-          ))}
-        {active === 1 && <CampoTab match={match} players={players} nameOf={nameOf} live={live} official={cardMode ? null : (officialBoard?.seven ?? null)} board={cardMode ? null : officialBoard} freshScorer={goalShow.goal?.ours ? (match.events?.find((e) => e.id === goalShow.goal?.id)?.playerId ?? null) : null} />}
-        {active === 2 && <PulsoTab match={match} players={players} nameOf={nameOf} live={live} pending={pending} />}
-        {active === 4 && (
-          <>
-            {cardMode && <LiveSide match={match} players={players} nameOf={nameOf} now={now} />}
-            <AnalysisPanels matches={[match]} people={players.map(p => ({ id: p.id, name: nameOf(p.id), number: p.number }))} seasonId={match.seasonId} matchId={match.id} search={search} onSearchChange={patch => void navigate({ to: ".", search: previous => ({ ...previous, ...patch }), replace: !!patch.q, resetScroll: false })}/>
-          </>
-        )}
-        {active === 3 && <VestuarioTab match={match} matches={matches} players={players} phase={phase} ratings={ratings.data} ratingsError={ratings.error} />}
-      </div>
+
       {pip && live && (
-        <PipWindow pip={pip} title={`Manchester Piti contra ${rival}`} onClose={closePip}>
+        <PipWindow pip={pip} title={`Manchester Piti contra ${rival}`} onClose={closePip} bottom={pipBottom("/partidos/")}>
           <span className="vd-score">
-            {gf}–{ga}
+            {score.us}–{score.them}
           </span>
           <p>
-            <b>{rival}</b>
-            {minute !== null && <span className="vd-clock">{minute}′</span>} {kick === "halftime" ? "descanso" : ""}
+            <b>{rival}</b> <span className="vd-clock">{fase === "descanso" ? "Descanso" : `${edge}′`}</span>
           </p>
         </PipWindow>
       )}
+
+      <Sheets c={c} sheet={sheet} onClose={closeSheet} avisos={avisos} kickTime={kickTime} />
     </>,
+    ppCls,
   );
+}
+
+/** DEV: the board's «Quién mira» on the real page (presentation only: the reads stay the signed-in member's). */
+function maquetaViewer(q: Quien, real: Viewer, people: Map<string, Person>): Viewer {
+  const by = (short: string) => [...people.values()].find((p) => p.short === short)?.id ?? null;
+  const none: Viewer = {
+    member: false,
+    admin: false,
+    mesa: false,
+    anotador: false,
+    playerId: null,
+    uid: real.uid,
+    name: "",
+  };
+  if (q === "fan") return none;
+  if (q === "socio") return { ...none, member: true, name: "Marta" };
+  if (q === "jugador")
+    return {
+      ...none,
+      member: true,
+      playerId: by("JORDI") ?? real.playerId,
+      name: "Jordi",
+    };
+  if (q === "anotador")
+    return {
+      ...none,
+      member: true,
+      mesa: true,
+      anotador: true,
+      playerId: by("ILLESCAS"),
+      name: "Illescas",
+    };
+  return { ...none, member: true, admin: true, mesa: true, name: "Adrián" };
+}
+
+/** «Orduña fc» → «Orduña» for the small jump button. */
+function shortRival(r: string): string {
+  return r.replace(/\s+(f\.?c\.?|c\.?f\.?|cf|fc)$/i, "").trim() || r;
+}
+
+function isPlayedMatch(m: ClubMatch): boolean {
+  return m.status === "finished";
 }
 
 export default MatchPage;

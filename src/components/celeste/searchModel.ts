@@ -12,9 +12,49 @@ import { scoreOf } from "../../lib/partidos";
 import { dateMillis } from "../../../functions/src/matchEngine";
 import { madridTime } from "../../lib/derived/madrid";
 import { rivalKey } from "../../lib/derived/rival";
+import { scoreText } from "../../lib/derived/words";
+import { clubHashPath, vestuarioHashPath } from "../../lib/legacyUrls";
+import { statsViewPath } from "../../lib/interimScreens";
 
 export type PanelKind = SearchKind | "ahora" | "accion";
 export type PanelTarget = SearchTarget | { to: "href"; href: string } | { to: "pip" } | { to: "match"; matchId: string; tab?: "vestuario" } | { to: "clubAt"; hash: string };
+/** Where a result leads, as an address of the app (null: «Sacar el marcador», which opens no page). */
+export function targetHref(t: PanelTarget): string | null {
+  const q = (params: Record<string, string | undefined>) => {
+    const s = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1])).toString();
+    return s ? `?${s}` : "";
+  };
+  switch (t.to) {
+    case "jugador":
+      return `/jugadores/${encodeURIComponent(t.playerId)}${q({ season: t.season })}`;
+    case "partido":
+      return `/partidos/${encodeURIComponent(t.matchId)}`;
+    case "match":
+      return `/partidos/${encodeURIComponent(t.matchId)}${t.tab ? `/${t.tab}` : ""}`;
+    case "partidos":
+      return `${t.view === "tabla" ? "/partidos/tabla" : "/partidos"}${q({ temporada: t.season })}`;
+    case "stats":
+      return statsViewPath(t.view ?? "summary") + (t.view === "minutes" ? q({ ranking: "minutos", ver: "todo" }) : "");
+    case "plantilla":
+      return "/plantilla";
+    case "club":
+      return "/club";
+    case "clubAt":
+      return clubHashPath(t.hash) ?? "/club";
+    case "vestuario":
+      // (#vx-mvp: the last vote, found once the matches are in — components/InterimLanding)
+      return t.hash ? (vestuarioHashPath(t.hash) ?? `/vestuario#${t.hash}`) : "/vestuario";
+    case "profile":
+      return "/perfil";
+    case "pizarra":
+      return "/pizarra";
+    case "href":
+      return t.href;
+    case "pip":
+      return null;
+  }
+}
+
 export interface PanelEntry extends Omit<SearchEntry, "kind" | "target"> {
   kind: PanelKind;
   target: PanelTarget;
@@ -63,7 +103,7 @@ export function nowEntries(state: FloatDay | null, now: number): PanelEntry[] {
     case "halftime": {
       const minute = state.kind === "halftime" ? "Descanso" : `En directo, minuto ${clockText(m, now).replace(/′.*/, "")}`;
       return [
-        { ...base, title: `Piti ${gf}–${ga} ${rival}`, detail: `${minute}. Abrir el partido`, icon: "ball", target: { to: "partido", matchId: m.id } },
+        { ...base, title: `Piti ${scoreText(gf, ga)} ${rival}`, detail: `${minute}. Abrir el partido`, icon: "ball", target: { to: "partido", matchId: m.id } },
         { id: "now:pip", kind: "ahora", title: "Sacar el marcador", detail: "A una ventana que flota encima de todo", keywords: "marcador ventana pip", icon: "pip", target: { to: "pip" } },
       ];
     }
@@ -78,7 +118,7 @@ export function nowEntries(state: FloatDay | null, now: number): PanelEntry[] {
     case "final":
     case "vote":
     case "mvpres":
-      return [{ ...base, live: false, title: `Piti ${gf}–${ga} ${rival}`, detail: state.kind === "final" && !state.published ? "Final. El acta llega enseguida" : "Final. Leer el acta", icon: "ball", target: { to: "partido", matchId: m.id } }];
+      return [{ ...base, live: false, title: `Piti ${scoreText(gf, ga)} ${rival}`, detail: state.kind === "final" && !state.published ? "Final. El acta llega enseguida" : "Final. Leer el acta", icon: "ball", target: { to: "partido", matchId: m.id } }];
     case "unplayed":
       return [{ ...base, live: false, title: `Contra ${rival}`, detail: "Pendiente del acta. Abrir el partido", icon: "fixtures", target: { to: "partido", matchId: m.id } }];
   }

@@ -59,7 +59,7 @@ function Foot({ member, onClose }: { member: boolean; onClose: () => void }) {
             <VIcon name="lock" size={16} />
             El vestuario
           </Link>
-          <Link className="vd-glass vd-btn vd-btn--sm vd-press" to="/profile" onClick={onClose}>
+          <Link className="vd-glass vd-btn vd-btn--sm vd-press" to="/perfil" onClick={onClose}>
             Tu perfil
           </Link>
         </>

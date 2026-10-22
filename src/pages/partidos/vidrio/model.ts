@@ -10,7 +10,7 @@ import { OURS, THEIRS } from "../../../lib/partidos";
 import { eventMinute } from "../../../../functions/src/matchEngine";
 import { madridDate, MONTHS_SHORT } from "../../../lib/derived/madrid";
 import { sunPosition, type LightKey } from "../../../lib/derived/sun";
-import { capital, endSentence, niceName, plural } from "../../../lib/derived/words";
+import { capital, endSentence, niceName, plural, scoreText } from "../../../lib/derived/words";
 import type { StripFilter, StripSegment, StripState } from "../../../lib/derived/vidrio/strip";
 import type { RibbonItem } from "../../../components/vidrio/momentum";
 import { parseMatchLineup } from "../../../lib/matchLineup";
@@ -156,14 +156,14 @@ export function rivalInitials(rival: string, given?: string | null): string {
   return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase();
 }
 
-const score = (s: { gf: number; ga: number }) => `${s.gf}–${s.ga}`;
+const score = (s: { gf: number; ga: number }) => scoreText(s.gf, s.ga);
 const VERB = { G: "ganamos", E: "empate", P: "perdimos" } as const;
 
 /** A segment's state in a few words (its accessible name's end, the minimap's title). */
 export function stateWords(seg: Pick<StripSegment, "state" | "score" | "letter" | "at" | "provisional">, now: number, minute: number | null): string {
   switch (seg.state) {
     case "directo":
-      return `En directo: ${seg.score ? score(seg.score) : "0–0"}${minute !== null ? `, minuto ${minute}` : ""}`;
+      return `En directo: ${seg.score ? score(seg.score) : scoreText(0, 0)}${minute !== null ? `, minuto ${minute}` : ""}`;
     case "hoy":
       return seg.at !== null ? `Hoy a las ${time(seg.at)}, ${untilText(seg.at, now).toLowerCase()}` : "Hoy";
     case "jugado":

@@ -1,12 +1,15 @@
-// El siete on a glass pitch: each player in his spot with his real shirt (a still of the kit with his number,
-// rendered once on the device: useShirtStills), his name under it and the marks of the night beside it (goals,
-// passes, cards, the change he came in with). The spots exist for two pitches: our goal on the left (phone,
-// tablet, the 1920 centre) and at the bottom (the 1440 triptych's narrow ornament); CSS picks one.
-import { useEffect, useRef, type CSSProperties } from "react";
-import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
+// El siete on a glass pitch: each player in his spot with his real shirt (the night's kit: the page's blank still
+// from KitStillContext, his name and number printed on it as on the real shirt), his name under it and the marks of the
+// night beside it (goals, passes, cards, the change he came in with). The spots exist for two pitches: our goal
+// on the left (phone, tablet, the 1920 centre) and at the bottom (the 1440 triptych's narrow ornament); CSS picks one.
+import { useContext, useEffect, useRef, type CSSProperties } from "react";
+import { KitStillContext, type Kit } from "../../../components/jersey3d/kitStill";
 import type { SieteSpot, SieteTag } from "../hoyModel";
 import { Ico, type IconId } from "./icons";
-import { placePitch, type PitchPlayer } from "./pitchLayout";
+import { ICON_MINUTES_CHIP, placePitch, type PitchPlayer } from "./pitchLayout";
+import type { Grow } from "../../../components/vidrio";
+import { CambiosMore } from "../../../components/paginas/Cambios";
+import type { Rotation } from "../../../lib/derived/vidrio/rotation";
 
 /** Measures the pitch as laid out (offsets: no transforms, so the 1440 ornament's tilt doesn't skew it) and
  *  places every plate and tags column clear of the others (pitchLayout); again whenever the pitch resizes
@@ -50,7 +53,7 @@ function usePitchLayout(key: string) {
           shirt: { x: x0 + (shirt?.offsetLeft ?? 0), y: y0 + (shirt?.offsetTop ?? 0), w: shirt?.offsetWidth ?? 0, h: shirt?.offsetHeight ?? 0 },
           plate: { x: x0 + (plate?.offsetLeft ?? 0), y: y0 + (plate?.offsetTop ?? 0), w: plate?.offsetWidth ?? 0, h: plate?.offsetHeight ?? 0 },
           plate2,
-          tags: tags ? { w: tags.offsetWidth, h: tags.offsetHeight, n: tags.childElementCount } : null,
+          tags: tags ? { w: tags.offsetWidth, h: tags.offsetHeight, n: tags.childElementCount, iconW: tags.querySelector(".vi-tag--minutos") ? ICON_MINUTES_CHIP : undefined } : null,
           first: li.classList.contains("vi-player--me"),
         };
       });
@@ -86,12 +89,16 @@ function usePitchLayout(key: string) {
   return ref;
 }
 
-const TAG_ICON: Partial<Record<SieteTag["kind"], IconId>> = { gol: "ball", asis: "pass", cambio: "swap", parada: "glove" };
+const TAG_ICON: Partial<Record<SieteTag["kind"], IconId>> = { gol: "ball", asis: "pass", cambio: "swap", parada: "glove", minutos: "clock" };
 
-export function Shirt({ num, still, size, captain }: { num: string; still?: string; size?: number; captain?: boolean }) {
+/** A shirt with its number: the player's own kit still from KitStillContext (name and number printed by the scene),
+ *  else the kit's blank still under a set number, else (before both, and on the server) the drawn shape. */
+export function Shirt({ num, size, captain, kit = "home" }: { num: string; size?: number; captain?: boolean; kit?: Kit }) {
+  const still = useContext(KitStillContext)(kit, num);
+  const style = { ...(size ? { "--s": `${size}px` } : {}), ...(still ? { "--vi-kit": `url("${still.src}")` } : {}) } as CSSProperties;
   return (
-    <span className={`vi-shirt${still ? " vi-shirt--still" : ""}`} style={size ? ({ "--s": `${size}px` } as CSSProperties) : undefined} aria-hidden="true">
-      {still ? <img src={still} alt="" /> : <b>{num}</b>}
+    <span className={`vi-shirt${still ? ` vi-shirt--kit${kit === "away" ? " vi-shirt--away" : ""}` : ""}`} style={style} aria-hidden="true">
+      {!still?.printed && <b>{num}</b>}
       {captain && <i className="vi-arm" />}
     </span>
   );
@@ -102,7 +109,14 @@ function Tag({ t }: { t: SieteTag }) {
   return (
     <span className={`vi-tag vi-tag--${t.kind}${t.gold ? " vi-tag--gold" : ""}`} aria-label={t.label} role="img">
       {icon && <Ico id={icon} />}
-      {t.text}
+      {t.kind === "minutos" ? (
+        <>
+          {t.text.replace(/ min$/, "")}
+          <span className="vi-tag__unit">{"\u00a0min"}</span>
+        </>
+      ) : (
+        t.text
+      )}
     </span>
   );
 }
@@ -132,17 +146,17 @@ export interface SieteOrnProps {
   spots: readonly SieteSpot[];
   bench: string;
   kit: "home" | "away";
-  theme: "dark" | "light";
+  /** The match had changes: «21 cambios · Ver los cambios» under the pitch, growing into the list by player. */
+  cambios?: { rotation: Rotation; grow: Grow } | null;
   className?: string;
 }
 
-export function SieteOrn({ title, system, spots, bench, kit, theme, className }: SieteOrnProps) {
-  const reqs = spots.map((s) => ({ kit, theme, name: "", num: s.num || " ", yaw: 0 }));
-  const still = useShirtStills(reqs, { offMainThread: true });
-  // (laid out again when a shirt's still arrives: the still stands taller than the drawn shirt)
-  const pitch = usePitchLayout(spots.map((s, i) => `${s.id}:${s.name}:${s.tags.map((t) => t.kind + t.text).join(",")}:${still(reqs[i]) ? 1 : 0}`).join("|"));
+export function SieteOrn({ title, system, spots, bench, kit, cambios, className }: SieteOrnProps) {
+  const still = useContext(KitStillContext)(kit);
+  // (laid out again when the kit's still arrives: the still stands taller than the drawn shirt)
+  const pitch = usePitchLayout(spots.map((s) => `${s.id}:${s.name}:${s.tags.map((t) => t.kind + t.text).join(",")}`).join("|") + (still ? "|kit" : ""));
   return (
-    <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-siete${className ? ` ${className}` : ""}`} aria-label={title}>
+    <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-siete${cambios ? ` ${cambios.grow.summaryProps.className}` : ""}${className ? ` ${className}` : ""}`} style={cambios?.grow.summaryProps.style} data-vd-grow={cambios?.grow.summaryProps["data-vd-grow"]} aria-label={title}>
       <div className="vd-orn__head">
         <h2>{title}</h2>
         <span>{system}</span>
@@ -151,13 +165,13 @@ export function SieteOrn({ title, system, spots, bench, kit, theme, className }:
         {LINES_H}
         {LINES_V}
         <ul className="vi-players" aria-label="Los siete">
-          {spots.map((s, i) => (
+          {spots.map((s) => (
             <li
               key={s.id}
               className={`vi-player${s.h.tagsLeft ? " vi-player--htl" : ""}${s.v.tagsLeft ? " vi-player--vtl" : ""}${s.me ? " vi-player--me" : ""}`}
               style={{ "--hx": `${s.h.left}%`, "--hy": `${s.h.top}%`, "--vx": `${s.v.left}%`, "--vy": `${s.v.top}%` } as CSSProperties}
             >
-              <Shirt num={s.num} still={still(reqs[i])} captain={s.captain} />
+              <Shirt num={s.num} kit={kit} captain={s.captain} />
               <span className="vi-player__name">
                 {s.name}
                 {s.captain && <span className="vd-vh">, capitán</span>}
@@ -174,7 +188,12 @@ export function SieteOrn({ title, system, spots, bench, kit, theme, className }:
           ))}
         </ul>
       </div>
-      <p className="vi-bench">{bench}</p>
+      {bench && <p className="vi-bench">{bench}</p>}
+      {cambios && cambios.rotation.changes > 0 && (
+        <div className="vi-cambios">
+          <CambiosMore rotation={cambios.rotation} grow={cambios.grow} />
+        </div>
+      )}
     </section>
   );
 }

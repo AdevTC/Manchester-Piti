@@ -12,14 +12,15 @@ import { eventSeconds } from "../../../../functions/src/matchAnalysis";
 import { dateMillis, isVisibleMatch } from "../../../../functions/src/matchEngine";
 import { lineupWalk, parseMatchLineup, type LineupSlot } from "../../matchLineup";
 import { playerGame } from "../../clubAnalytics";
+import { rotationOf } from "./rotation";
 
 export type SquadStage = "pre" | "live" | "after";
 /** on: in the seven / on the pitch / MVP (celeste dot) · bench: called up, left, played · off: not today (dimmed). */
 export type SquadTone = "on" | "bench" | "off";
 
 export interface LiveTag {
-  kind: "gol" | "asis" | "amarilla" | "roja" | "cambio" | "parada";
-  /** «21′». */
+  kind: "gol" | "asis" | "amarilla" | "roja" | "cambio" | "parada" | "minutos";
+  /** «21′» (a play's minute), «35 min» (his minutes on the pitch). */
   text: string;
   /** Our latest goal while the match is on (gold is only our goal). */
   gold: boolean;
@@ -60,8 +61,18 @@ export function sevenSlots(match: ClubMatch): LineupSlot[] {
   return (match.starters ?? []).slice(0, 7).map((id, i) => ({ playerId: id, code: i === 0 ? "POR" : "MC", x: 50, y: 50 }));
 }
 
-/** The marks of the night for each player (at most three each), from the plays that stand. */
-export function nightTags(events: readonly MatchEvent[], live: boolean): Map<string, LiveTag[]> {
+/** «Jugó 35 minutos» / «35 minutos jugados hasta ahora», as a chip «35 min». */
+export function minutesTag(n: number, live: boolean): LiveTag {
+  const words = `${n} ${n === 1 ? "minuto" : "minutos"}`;
+  return { kind: "minutos", text: `${n} min`, gold: false, label: live ? `${words} ${n === 1 ? "jugado" : "jugados"} hasta ahora` : `Jugó ${words}` };
+}
+
+/** The marks of the night for each player (at most three each), from the plays that stand. With `minutes` (the
+ *  match had changes: derived/vidrio/rotation) each player's minutes come first instead of a chip per change —
+ *  F7's rolling changes would fill every column with arrows and push his goals out — then his first two marks. */
+export function nightTags(events: readonly MatchEvent[], live: boolean, minutes?: ReadonlyMap<string, number> | null): Map<string, LiveTag[]> {
+  const mins = minutes && minutes.size ? minutes : null;
+  const cap = mins ? 2 : 3;
   const list = settled([...events]).sort((a, b) => eventSeconds(a) - eventSeconds(b));
   const goals = list.filter((e) => eventMetaOf(e).goal === "for");
   const lastGoal = live ? goals.at(-1)?.id : undefined;
@@ -69,14 +80,14 @@ export function nightTags(events: readonly MatchEvent[], live: boolean): Map<str
   const add = (id: string | undefined, t: LiveTag) => {
     if (!id) return;
     const l = out.get(id) ?? [];
-    if (l.length < 3) l.push(t);
+    if (l.length < cap) l.push(t);
     out.set(id, l);
   };
   for (const e of list) {
     const meta = eventMetaOf(e);
     const m = minuteOf(e);
     const text = `${m}′`;
-    if (e.type === "substitution" && e.inPlayerId) add(e.inPlayerId, { kind: "cambio", text, gold: false, label: `Entró en el ${m}` });
+    if (!mins && e.type === "substitution" && e.inPlayerId) add(e.inPlayerId, { kind: "cambio", text, gold: false, label: `Entró en el ${m}` });
     if (meta.goal === "for" && e.type !== "opponent_own_goal") {
       add(e.playerId, { kind: "gol", text, gold: e.id === lastGoal, label: `Gol en el ${m}` });
       add(e.assistPlayerId, { kind: "asis", text, gold: false, label: `Asistencia en el ${m}` });
@@ -85,6 +96,7 @@ export function nightTags(events: readonly MatchEvent[], live: boolean): Map<str
     if (meta.side === "us" && meta.card === "r") add(e.playerId, { kind: "roja", text, gold: false, label: `Roja en el ${m}` });
     if (e.type === "penalty_saved") add(e.playerId, { kind: "parada", text, gold: false, label: `Paró un penalti en el ${m}` });
   }
+  if (mins) for (const [id, n] of mins) out.set(id, [minutesTag(n, live), ...(out.get(id) ?? [])]);
   return out;
 }
 
@@ -96,7 +108,7 @@ const stageOf = (phase: MatchdayModel["phase"]): SquadStage | null => {
 };
 
 export interface SquadLiveInput {
-  day: Pick<MatchdayModel, "phase" | "match" | "kickoff">;
+  day: Pick<MatchdayModel, "phase" | "match" | "kickoff"> & Partial<Pick<MatchdayModel, "minute">>;
   /** The season's squad, page order. */
   squad: readonly string[];
   /** Every match (the debut: no earlier match played). */
@@ -119,7 +131,9 @@ export function squadLive({ day, squad, matches, mvp = [] }: SquadLiveInput): Sq
   const bench = (match.bench ?? []).filter((id) => !seven.includes(id));
   if (!seven.length) return none;
   const events = stage === "pre" ? [] : settled(match.events);
-  const tags = nightTags(events, stage === "live");
+  // (with changes, each player's minutes instead of a chip per change: live, up to the minute being played)
+  const rot = stage === "pre" ? null : rotationOf(match, events, (id) => id, stage === "live" ? (day.minute ?? Math.max(0, ...events.map((e) => minuteOf(e)))) : undefined);
+  const tags = nightTags(events, stage === "live", rot?.changes ? rot.minutes : null);
   const walk = lineupWalk({ slots }, events);
   const entered = new Map<string, number>();
   const left = new Map<string, { m: number; red: boolean }>();

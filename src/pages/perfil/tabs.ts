@@ -2,6 +2,8 @@
 // tablist's keys. Pure, plus the first load's hash (the season sync may rewrite the URL before the page
 // reads it, like the pizarra's deeplink).
 
+import { profileHashAt } from "../../lib/interimScreens";
+
 export type TabId = "carta" | "temp" | "avisos" | "ajustes" | "cuenta" | "cap";
 export interface TabDef {
   id: TabId;
@@ -35,6 +37,18 @@ export function wantsCromos(hash: string): boolean {
 export function hashOf(id: TabId): string {
   return "#" + (TABS.find((t) => t.id === id)?.hash ?? "carta");
 }
+/** Each tab's address (the TU board's screens): the page writes it as you change tab. */
+const TAB_PATH: Record<TabId, string> = {
+  carta: "/perfil",
+  temp: "/perfil/temporada",
+  avisos: "/avisos/a-medida",
+  ajustes: "/perfil/ajustes",
+  cuenta: "/perfil/cuenta",
+  cap: "/perfil/capitania",
+};
+export const pathOf = (id: TabId): string => TAB_PATH[id];
+/** «Tu temporada en cromos»'s own address. */
+export const CROMOS_PATH = "/perfil/temporada/cromos";
 
 /** ArrowLeft/Right wrap around, Home/End go to the ends (the shared tablist keys). */
 export { tabForKey } from "../../lib/tabKeys";
@@ -50,7 +64,8 @@ export function slideDir(from: TabId, to: TabId, ids: readonly TabId[]): "l" | "
   return ids.indexOf(to) >= ids.indexOf(from) ? "r" : "l";
 }
 
-const readHash = () => (typeof window === "undefined" ? "" : window.location.hash);
+// (each tab is an address now, /perfil/ajustes…: until Tú lands the address stands for the tab's old #hash)
+const readHash = () => (typeof window === "undefined" ? "" : window.location.hash || profileHashAt(window.location.pathname));
 let firstHash = readHash();
 /** The hash the URL asks for now, else the one the first load brought (until the page has used it). */
 export function deepHash(): string {

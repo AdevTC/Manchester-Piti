@@ -3,7 +3,6 @@
 // rival's with a dashed edge and «Si acaba así» until the acta —, «Ver la tabla entera (N)» growing into «La
 // clasificación entera», the scorers and assisters with «En directo» on tonight's ones, and our form with
 // tonight's letter dashed. Reads only public data (the captains' standings, the matches).
-import type { CSSProperties } from "react";
 import { GrowWindow, SeeAll, useGrow } from "../../components/vidrio";
 import type { Standings } from "../../lib/standings";
 import { projectTable, tableFocus, type SimRow } from "../../lib/derived/vidrio/table";
@@ -37,7 +36,10 @@ function Head() {
     <thead>
       <tr>
         <th className="p">
-          <abbr title="Posición">Pos.</abbr>
+          <abbr title="Posición">
+            <span className="st-pos-l">Pos.</span>
+            <span className="st-pos-s">#</span>
+          </abbr>
         </th>
         <th className="t">Equipo</th>
         <th>
@@ -71,7 +73,7 @@ function Leaders({ title, rows, empty, prov }: { title: string; rows: readonly L
         <ol>
           {rows.slice(0, SHOWN).map((r) => (
             <li key={r.id} className="st-now__srow">
-              <span className="vd-shirt" style={{ "--s": "30px" } as CSSProperties} aria-hidden="true">
+              <span className="vd-shirt" aria-hidden="true">
                 <b>{r.num}</b>
               </span>
               <b>{r.name}</b>
@@ -161,7 +163,7 @@ export function Ahora({ standings, live, leaders, form }: AhoraProps) {
         </div>
       </div>
       {sim && (
-        <GrowWindow open={g.open} title="La clasificación entera" sub={`${rows.length} equipos.${prov ? " La fila del Piti va con borde discontinuo mientras sea «si acaba así»." : ""}`} onClose={g.close} className="st-grow" {...g.windowProps}>
+        <GrowWindow open={g.open} title="La clasificación entera" sub={`${rows.length} equipos.${prov ? " La fila del Piti va con borde discontinuo mientras sea «si acaba así»." : ""}`} onClose={g.close} className="st-grow" portal {...g.windowProps}>
           <table className="vd-table st-now__table">
             <caption className="vd-vh">La clasificación entera</caption>
             <Head />

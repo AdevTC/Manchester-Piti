@@ -102,7 +102,7 @@ LIVE_MORPH = "vd-live-marcador"   // the score's view-transition-name across pag
 useLiveNow() → boolean        // the chrome's live dot reads this
 useLiveDock(ref, "lens" | "anchor")   // page: «my lens shows the match» / «dock the float here»
 openScorePip({width?, height?, title?}) → Promise<ScorePip>   // call from the click (user gesture)
-<PipWindow pip: ScorePip|null title onClose>{score}</PipWindow>   // Document PiP or in-page glass window
+<PipWindow pip: ScorePip|null title onClose bottom?>{score}</PipWindow>   // Document PiP or in-page glass window (330 × 150, bottom-right)
 useGoalMoment(moment: {key, side: "us"|"them"} | null, {reduced?}) → GoalClasses
   { stage, active, root, lens, sky: {gold, cold}, glint, digit, name, peak, rim }
 ```

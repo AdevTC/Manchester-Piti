@@ -98,7 +98,7 @@ describe("HoyCard", () => {
     state.scorers = ["u1"];
     const { unmount } = render(card(base, DATE - 2 * HOUR));
     expect(screen.getByText("Hoy anotas tú")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Abrir la mesa/ })).toHaveAttribute("href", "/matches/j8/mesa");
+    expect(screen.getByRole("link", { name: /Abrir la mesa/ })).toHaveAttribute("href", "/partidos/j8/mesa");
     unmount();
     const live = render(card({ ...base, clock: started }, DATE + 10 * MIN));
     expect(screen.getByText("Cada jugada, desde la mesa")).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe("HoyCard", () => {
     expect(within(hoy).getByText("2ª equipación")).toBeInTheDocument();
     expect(within(hoy).getByText("Siete oficial de la pizarra")).toBeInTheDocument();
     expect(within(hoy).getByText("· tú")).toBeInTheDocument();
-    expect(within(hoy).getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/j8");
+    expect(within(hoy).getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/partidos/j8");
     expect(within(hoy).getByRole("link", { name: /Cómo llegar/ })).toHaveAttribute("href", expect.stringContaining("Campo%20X"));
     // (it opens a new tab: said in words, not left to surprise)
     expect(within(hoy).getByRole("link", { name: "Cómo llegar (se abre en otra pestaña)" })).toHaveAttribute("target", "_blank");
@@ -181,7 +181,7 @@ describe("HoyCard", () => {
     expect(last).toHaveAttribute("aria-live", "polite");
     expect(last?.querySelector("[aria-hidden='true']")).toHaveTextContent("10′");
     expect(last?.querySelector(".hm-sr")).toHaveTextContent("minuto 10");
-    expect(screen.getByRole("link", { name: /Seguir el partido/ })).toHaveAttribute("href", "/matches/j8");
+    expect(screen.getByRole("link", { name: /Seguir el partido/ })).toHaveAttribute("href", "/partidos/j8");
     expect(state.reads.filter((r) => r.startsWith("matchPrivate") || r.startsWith("board") || r.startsWith("availability"))).toEqual([]);
   });
 
@@ -203,13 +203,13 @@ describe("HoyCard", () => {
     fireEvent.click(screen.getByRole("radio", { name: "BRUNO" }));
     fireEvent.click(screen.getByRole("button", { name: "Votar al MVP" }));
     expect(state.writes.voteMvp).toHaveBeenCalledWith({ uid: "u1", name: "ADRI", playerId: "adri" }, "j8", "b");
-    expect(screen.getByRole("link", { name: /La carrera del MVP/ })).toHaveAttribute("href", "/matches/j8?tab=vestuario");
+    expect(screen.getByRole("link", { name: /La carrera del MVP/ })).toHaveAttribute("href", "/partidos/j8/vestuario");
   });
 
   it("the vote open with nobody to vote in the ledger: «Vota al MVP» leads to the match's Vestuario tab", () => {
     render(card({ ...base, clock: ended, status: "finished", goalsFor: 1, goalsAgainst: 0, voteClosesAt: DATE + 48 * HOUR }, DATE + 3 * HOUR));
     expect(screen.queryByRole("group", { name: "Tu voto" })).toBeNull();
-    expect(screen.getByRole("link", { name: /Vota al MVP/ })).toHaveAttribute("href", "/matches/j8?tab=vestuario");
+    expect(screen.getByRole("link", { name: /Vota al MVP/ })).toHaveAttribute("href", "/partidos/j8/vestuario");
     expect(screen.getAllByRole("link")).toHaveLength(1);
   });
 

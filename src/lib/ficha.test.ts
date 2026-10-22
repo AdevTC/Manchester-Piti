@@ -16,16 +16,16 @@ describe("chapters", () => {
       [31, "Por delante"],
       [41, "EVANS para un penalti"],
       [46, "Más distancia"],
-      [null, "Final: 3–1"],
+      [null, "Final: 3\u2060–\u20601"],
     ]);
-    expect(c[0]).toMatchObject({ text: "ADRIÁN T.C. marca, con asistencia de HUBEROSKI. 1–0.", side: "us", playerId: "a" });
+    expect(c[0]).toMatchObject({ text: "ADRIÁN T.C. marca, con asistencia de HUBEROSKI. 1\u2060–\u20600.", side: "us", playerId: "a" });
     expect(c.at(-1)?.text).toBe("Victoria ante FUSION 7.");
   });
   it("comebacks and rival leads read right", () => {
     const c = chapters([e("opponent_goal", 5), e("opponent_goal", 10), e("goal_penalty", 20, "a"), e("own_goal", 30, "i")], nameOf, "MAD SKY");
     expect(c.map((x) => x.title)).toEqual(["Golpe de MAD SKY", "MAD SKY amplía", "Recortamos", "MAD SKY amplía"]);
-    expect(c[2].text).toBe("ADRIÁN T.C. marca de penalti. 1–2.");
-    expect(c[3].text).toBe("Gol en propia puerta de ILLESCAS. 1–3.");
+    expect(c[2].text).toBe("ADRIÁN T.C. marca de penalti. 1\u2060–\u20602.");
+    expect(c[3].text).toBe("Gol en propia puerta de ILLESCAS. 1\u2060–\u20603.");
   });
 });
 

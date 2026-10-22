@@ -26,6 +26,7 @@ import { achievements } from "./achievements";
 import { jornadaLabel } from "./jornada";
 import { buildCard, seasonSquad } from "./card";
 import { porraLine, positionsPlayed, seasonPlayers } from "./seasonPlayers";
+import { scoreText } from "./words";
 
 export type RecapCard =
   | { kind: "portada"; name: string; number: string; season: string }
@@ -163,7 +164,7 @@ export function seasonRecap(input: RecapInput, playerId: string, seasonId: strin
       if (!big || s.gf - s.ga > big.gf - big.ga || (s.gf - s.ga === big.gf - big.ga && s.gf > big.gf)) big = { m, gf: s.gf, ga: s.ga };
     }
   }
-  cards.push({ kind: "equipo", g, e, p: l, gf, ga, biggest: big ? { label: label(big.m), score: `${big.gf}–${big.ga}` } : null });
+  cards.push({ kind: "equipo", g, e, p: l, gf, ga, biggest: big ? { label: label(big.m), score: scoreText(big.gf, big.ga) } : null });
 
   cards.push({ kind: "cierre", season: season.name });
   return { seasonId, seasonName: season.name, partial: recapAvailable(input, playerId, seasonId, now) !== "closed", cards };

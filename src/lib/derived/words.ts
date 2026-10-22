@@ -22,3 +22,10 @@ export function niceName(s: string): string {
 
 /** A sentence's end: a full stop, unless the text already ends in one («Adrián T.C.», «Entrepibas F.C.»). */
 export const endSentence = (s: string): string => (/[.!?…]$/.test(s) ? s : `${s}.`);
+
+/** The en dash of a score glued to its numbers by word joiners (U+2060): a score never breaks across lines
+ *  («Perdemos 1–» / «8 el estreno»). Invisible, and screen readers skip it. */
+export const SCORE_DASH = "\u2060–\u2060";
+
+/** «1–8», «2–1» as one unbreakable word, for running text and titles. */
+export const scoreText = (gf: number | string, ga: number | string): string => `${gf}${SCORE_DASH}${ga}`;

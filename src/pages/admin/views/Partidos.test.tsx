@@ -365,7 +365,7 @@ describe("Partidos · the workspace", () => {
     expect(within(shelf).getByRole("img", { name: "J2 victoria" })).toHaveClass("nw");
     expect(within(peak).getByRole("button", { name: "Compartir el cartel" })).toHaveClass("gold");
     expect(within(peak).getByText("MVP abierto · 48 h")).toBeInTheDocument();
-    expect(within(peak).getByRole("link", { name: "Ver el partido en la web" })).toHaveAttribute("href", "/matches/m7");
+    expect(within(peak).getByRole("link", { name: "Ver el partido en la web" })).toHaveAttribute("href", "/partidos/m7");
   });
 
   it("«Guardar borrador» saves a draft and says so", async () => {

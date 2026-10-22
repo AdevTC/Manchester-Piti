@@ -446,14 +446,14 @@ describe("Capitanía", () => {
     expect(led).toHaveTextContent("2LLAMANDO");
     expect(screen.getByText("Dos peticiones esperan tu sí o tu no.")).toBeInTheDocument();
     const door = led.closest("a")!;
-    expect(door).toHaveAttribute("href", "/vestuario#puerta");
+    expect(door).toHaveAttribute("href", "/vestuario/puerta");
     const rows = within(screen.getByRole("list", { name: "Peticiones para entrar" })).getAllByRole("link");
     // oldest first
     expect(rows[0]).toHaveTextContent("Pepe Google");
     expect(rows[0]).toHaveTextContent("Sin dorsal todavía · hace 1 día");
     expect(rows[1]).toHaveTextContent("Socio 1");
     expect(rows[1]).toHaveTextContent("Pide la carta del 10 · hace 2 h");
-    rows.forEach((r) => expect(r).toHaveAttribute("href", "/vestuario#puerta"));
+    rows.forEach((r) => expect(r).toHaveAttribute("href", "/vestuario/puerta"));
     expect(screen.getByRole("link", { name: /Administrar el club/ })).toHaveAttribute("href", "/admin");
   });
 

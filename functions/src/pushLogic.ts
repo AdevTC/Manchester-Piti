@@ -6,6 +6,7 @@ import { resultLetter, resultTitle } from "./result.js";
 import { absenceRangeText } from "./absencesLogic.js";
 import { guestLabel, isGuestId, type MatchGuest } from "./guests.js";
 import { PUBLIC_TOPICS } from "./pushPresets.js";
+import { matchUrl } from "./noticeUrl.js";
 
 /** The club's public topics (pushPresets.ts: «cards» is the new one, covered by «Todo»). */
 export const TOPICS = PUBLIC_TOPICS;
@@ -35,6 +36,9 @@ export interface Notice {
   actions?: readonly NoticeAction[];
   /** The match those actions answer (the service worker opens /vestuario?rsvp=<action>&m=<matchId>). */
   matchId?: string;
+  /** The topic it answers to in a match's own avisos (pushMatchTopics.ts) when not its `topic`: the descanso
+   *  and the 2ª parte go on «start» but are «Descanso y final» in the match's sheet. */
+  matchTopic?: Topic;
 }
 
 /** A button of a notice (the Notification API's `actions`): its id, which the service worker reads on
@@ -69,10 +73,11 @@ export function pushPayload(n: Pick<Notice, "title" | "body" | "tag" | "url" | "
 }
 /**
  * One device's payload: the notice's, plus `vibrate: true` on a goal when the device chose «Vibrar con
- * los goles», and without the «Solo goles» button on a device already there.
+ * los goles». Without the «Solo goles» button on a device already there, or on one that gets this match's
+ * notices only by its own choice for it («Nada» otherwise: its app left the service worker nothing to call).
  */
 export function devicePayload(n: Pick<Notice, "title" | "body" | "tag" | "url" | "actions" | "matchId" | "topic">, device: { preset?: unknown; vibrate?: unknown }): Record<string, unknown> {
-  const actions = device.preset === "goles" ? n.actions?.filter((a) => a.action !== "solo-goles") : n.actions;
+  const actions = device.preset === "goles" || device.preset === "nada" ? n.actions?.filter((a) => a.action !== "solo-goles") : n.actions;
   const out = pushPayload({ ...n, actions });
   if (n.topic === "goals" && device.vibrate === true) out.vibrate = true;
   return out;
@@ -168,16 +173,15 @@ const scored = (e: Ev) => isGoal(e) && !isPendingDup(e);
  * What changed between two versions of a match, as notices: the clock's whistles (the kick-off, the
  * descanso, the 2ª parte and the provisional final), each goal written while it isn't finished (and
  * «Gol anulado» when one that was pushed is undone), the acta's final (and the MVP vote opening), and a
- * new match or a new kick-off time. The MVP vote opens the match page on its Vestuario tab
- * (`?tab=vestuario`, the tab ids of src/lib/matchTabs.ts); the rest land on the first tab (crónica /
- * directo / previa). Each notice that could repeat (a trigger retry, a clock undone and done again)
+ * new match or a new kick-off time. The MVP vote opens the match page on its Vestuario screen
+ * (/partidos/<id>/vestuario, noticeUrl.ts); the rest land on the page itself (crónica / directo / previa). Each notice that could repeat (a trigger retry, a clock undone and done again)
  * carries its pushLog id (`log`): push.ts claims it first, so it goes once.
  */
 export function noticesFor(id: string, before: MatchLike | undefined, after: MatchLike | undefined, memberName: (playerId: string) => string, now: number): Notice[] {
   if (!after || after.archived) return [];
   // A guest's goal names the guest («Rafa (invitado)»), from the match that has him (an undone goal: before).
   const nameOf = (playerId: string) => (isGuestId(playerId) ? guestLabel({ guests: after.guests ?? before?.guests }, playerId) : memberName(playerId));
-  const url = `/matches/${id}`;
+  const url = matchUrl(id);
   const rival = after.rival ?? "el rival";
   const out: Notice[] = [];
   const finishedNow = after.status === "finished" && before?.status !== "finished";
@@ -210,8 +214,8 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
     // new). The descanso and the 2ª parte share the kick-off's tag: the phone keeps the latest.
     const was = before?.clock?.phase ?? "ready";
     const phase = after.clock?.phase;
-    if (before && was === "first" && phase === "halftime") out.push({ topic: "start", title: `Descanso · ${gf}–${ga}`, body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `half-${id}` });
-    if (before && was === "halftime" && phase === "second") out.push({ topic: "start", title: "Arranca la 2ª parte", body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `second-${id}` });
+    if (before && was === "first" && phase === "halftime") out.push({ topic: "start", title: `Descanso · ${gf}–${ga}`, body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `half-${id}`, matchTopic: "final" });
+    if (before && was === "halftime" && phase === "second") out.push({ topic: "start", title: "Arranca la 2ª parte", body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `second-${id}`, matchTopic: "final" });
     // The final whistle (clock ended), before the acta: provisional, with the acta's «Final» tag so the
     // official one replaces it on the phone when the captain publishes — and never after the official
     // one went (`skipIf`: an acta published, then reopened and ended again, or triggers out of order).
@@ -221,7 +225,7 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
     const gf = after.goalsFor ?? 0, ga = after.goalsAgainst ?? 0;
     const verdict = resultTitle(resultLetter(gf, ga));
     out.push({ topic: "final", title: `Final: Manchester Piti ${gf}–${ga} ${rival}`, body: `${verdict}. La crónica, los minutos y el pulso del partido ya están en la web.`, tag: `final-${id}`, url, log: `final-${id}` });
-    if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url: `${url}?tab=vestuario`, log: `mvp-open-${id}` });
+    if ((after.voteClosesAt ?? 0) > now) out.push({ topic: "mvp", title: "Vota al MVP", body: `¿Quién se salió ante ${rival}? La votación está abierta 48 horas.`, tag: `mvp-${id}`, url: matchUrl(id, "vestuario"), log: `mvp-open-${id}` });
   }
   const scheduled = after.status === "scheduled" && typeof after.date === "number" && after.date > now;
   if (scheduled && (!before || before.date !== after.date)) {
@@ -252,7 +256,7 @@ export function goalNotice(id: string, e: Ev, s: { gf: number; ga: number }, riv
     title,
     body: [lead, scoreLine(s, rival)].filter(Boolean).join(" "),
     tag: `goal-${id}`,
-    url: `/matches/${id}`,
+    url: matchUrl(id),
     log: `goal-${id}-${e.id}`,
     actions: GOAL_ACTIONS,
     matchId: id,
@@ -271,7 +275,7 @@ export function cardNotice(id: string, e: Ev, s: { gf: number; ga: number }, riv
     title,
     body: [minuteTxt(e, (n) => `Minuto ${n}.`), scoreLine(s, rival)].filter(Boolean).join(" "),
     tag: `card-${id}`,
-    url: `/matches/${id}`,
+    url: matchUrl(id),
     log: `card-${id}-${e.id}`,
   };
 }
@@ -284,7 +288,7 @@ export function cardNotice(id: string, e: Ev, s: { gf: number; ga: number }, riv
 export function postponedNotices(id: string, before: MatchLike | undefined, after: MatchLike, now: number): Notice[] {
   if (after.status !== "postponed" || after.archived) return [];
   const rival = after.rival ?? "el rival";
-  const url = `/matches/${id}`;
+  const url = matchUrl(id);
   const reason = after.postponedReason?.trim() ? sentence(after.postponedReason) + " " : "";
   const to = typeof after.postponedTo === "number" && Number.isFinite(after.postponedTo) ? after.postponedTo : null;
   const day = (ms: number) => when(ms).replace(/^./, (c) => c.toUpperCase());
@@ -307,7 +311,7 @@ export const kickoffNotice = (id: string, rival: string): Notice => ({
   title: `¡Empieza el partido! Piti vs ${rival}`,
   body: "Sigue el marcador en directo en la web.",
   tag: `start-${id}`,
-  url: `/matches/${id}`,
+  url: matchUrl(id),
   log: `start-${id}`,
 });
 
@@ -335,7 +339,7 @@ export function mvpWinnerNotice(id: string, match: Pick<MatchLike, "rival">, win
     title: `${shared ? "MVP compartido" : "MVP"}${of}: ${names}`,
     body: shared ? `Empate en la votación ante ${rival}. Mira el recuento en la web.` : `Elegido por el vestuario ante ${rival}. Mira la votación en la web.`,
     tag: `mvp-${id}`,
-    url: `/matches/${id}?tab=vestuario`,
+    url: matchUrl(id, "vestuario"),
     log: `mvp-win-${id}`,
   };
 }
@@ -367,7 +371,7 @@ export function claimNotice(uid: string, before: ClaimLike | undefined, after: C
     title: "Tu ficha ya es tuya",
     body: "El capitán ha aprobado tu ficha: tus partidos, tus goles y tu carta ya cuentan contigo.",
     tag: `claim-${uid}`,
-    url: "/profile",
+    url: "/perfil",
     log: `claim-${uid}-${after.playerId}`,
   };
 }
@@ -390,7 +394,7 @@ export function positionsNotice(playerId: string, before: { positionsReview?: un
   if (at == null || r.by === memberUid) return null;
   const was = before?.positionsReview as { at?: unknown } | null | undefined;
   if (was && typeof was === "object" && millisOf(was.at) === at) return null;
-  return { topic: "personal", title: "El capitán revisó tus posiciones", body: REVIEW_BODY[r.status], tag: `positions-${playerId}`, url: "/profile", log: `positions-${playerId}-${at}` };
+  return { topic: "personal", title: "El capitán revisó tus posiciones", body: REVIEW_BODY[r.status], tag: `positions-${playerId}`, url: "/perfil/posiciones", log: `positions-${playerId}-${at}` };
 }
 
 /** The fields of a `lineups` board the «Ya está el siete» notice looks at. */
@@ -424,7 +428,7 @@ export function lineupNotice(id: string, before: LineupLike | undefined, after: 
       ? "El capitán ya ha publicado el siete del partido. Míralo en el partido."
       : "El capitán ya ha publicado el siete de la temporada. Ábrelo y mira la charla.";
   const season = typeof after.seasonId === "string" && after.seasonId ? `&season=${encodeURIComponent(after.seasonId)}` : "";
-  const url = mid ? `/matches/${encodeURIComponent(mid)}?tab=campo` : `/pizarra?tablero=${encodeURIComponent(id)}${season}#charla`;
+  const url = mid ? matchUrl(mid, "siete") : `/pizarra?tablero=${encodeURIComponent(id)}${season}#charla`;
   return { topic: "lineup", title: "Ya está el siete", body, tag: `lineup-${id}-${mid ?? "temporada"}`, url };
 }
 
@@ -454,8 +458,8 @@ export function convocatoriaMessage(id: string, kind: "first" | "changes", match
   const day = typeof match.date === "number" ? ` · ${when(match.date).replace(/^./, (c) => c.toUpperCase())}` : "";
   const of = jornada ? ` de la J${jornada}` : "";
   return kind === "first"
-    ? { topic: "lineup", title: `Ya está la convocatoria${of}`, body: `${rival}${day}. Mira si te toca en la web.`, tag: `conv-${id}`, url: `/matches/${id}` }
-    : { topic: "lineup", title: `Cambios en la convocatoria${of}`, body: `${rival}${day}. Mira cómo queda en la web.`, tag: `conv-${id}`, url: `/matches/${id}` };
+    ? { topic: "lineup", title: `Ya está la convocatoria${of}`, body: `${rival}${day}. Mira si te toca en la web.`, tag: `conv-${id}`, url: matchUrl(id) }
+    : { topic: "lineup", title: `Cambios en la convocatoria${of}`, body: `${rival}${day}. Mira cómo queda en la web.`, tag: `conv-${id}`, url: matchUrl(id) };
 }
 
 // ── Ausencias: one notice to the captains per absence (never one «Baja» per match) ──
@@ -475,7 +479,7 @@ export function absenceNotice(absence: { id: string; from: string; to: string; n
     title: `${who} no puede ${absenceRangeText(absence.from, absence.to)}${count}`,
     body: (note ? `«${note}». ` : "") + (n ? "Ya sale como «No puedo» en la convocatoria." : "Saldrá como «No puedo» en los partidos de esas fechas."),
     tag: `absence-${absence.id}`,
-    url: n ? `/matches/${encodeURIComponent(matches[0].id)}?tab=vestuario` : "/vestuario",
+    url: n ? matchUrl(matches[0].id, "vestuario") : "/vestuario",
     log: `absence-${absence.id}`,
   };
 }
@@ -570,7 +574,7 @@ export function sevenChangeNotice(id: string, baseline: readonly string[], now7:
     title: "Cambio en el siete",
     body: txt.replace(/^./, (c) => c.toUpperCase()) + (rival ? ` · contra ${rival}` : "") + (mid ? ". Míralo en el partido." : ". Mira el oficial en la pizarra."),
     tag: `seven-${id}`,
-    url: mid ? `/matches/${encodeURIComponent(mid)}?tab=campo` : `/pizarra?tablero=${encodeURIComponent(id)}${season}`,
+    url: mid ? matchUrl(mid, "siete") : `/pizarra?tablero=${encodeURIComponent(id)}${season}`,
   };
 }
 
@@ -704,4 +708,27 @@ export function sieteMayCover(kind: "first" | "changes", now: { starters: readon
   if (kind === "first") return true;
   if (!announced || !Array.isArray(announced.starters) || !Array.isArray(announced.bench)) return false;
   return sameCalled([...now.starters, ...now.bench], [...announced.starters, ...announced.bench]);
+}
+
+/** The fields of a `standings/{seasonId}` doc the «Ya está la clasificación» notice looks at. */
+export interface StandingsLike {
+  jornada?: unknown;
+  updatedAt?: unknown;
+  rows?: unknown;
+}
+/**
+ * «Ya está la clasificación» (topic «tabla»): when a captain publishes the league table, or a new one replaces it.
+ * Our place in it, our points and the jornada it counts to; once per save (pushLog `tabla-<season>-<at>`), never
+ * for a save that left the rows and the jornada as they were.
+ */
+export function standingsNotice(seasonId: string, before: StandingsLike | undefined, after: StandingsLike | undefined): Notice | null {
+  const at = millisOf(after?.updatedAt);
+  if (!after || at == null || !Array.isArray(after.rows)) return null;
+  if (before && Array.isArray(before.rows) && JSON.stringify(before.rows) === JSON.stringify(after.rows) && before.jornada === after.jornada) return null;
+  const rows = after.rows as { isUs?: unknown; pts?: unknown }[];
+  const i = rows.findIndex((r) => !!r && r.isUs === true);
+  const j = typeof after.jornada === "number" && after.jornada > 0 ? ` tras la J${after.jornada}` : "";
+  const pts = i >= 0 && typeof rows[i].pts === "number" ? (rows[i].pts as number) : null;
+  const body = i >= 0 ? `Vamos ${i + 1}.º de ${rows.length}${pts !== null ? ` con ${pts} ${pts === 1 ? "punto" : "puntos"}` : ""}${j}.` : `La tabla de la liga${j}, en la web.`;
+  return { topic: "tabla", title: before?.rows ? "Nueva clasificación" : "Ya está la clasificación", body, tag: `tabla-${seasonId}`, url: "/partidos/tabla", log: `tabla-${seasonId}-${at}` };
 }

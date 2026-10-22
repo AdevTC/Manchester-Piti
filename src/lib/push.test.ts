@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({ call: vi.fn(), auth: { currentUser: null as { uid:
 vi.mock("firebase/functions", () => ({ httpsCallable: () => h.call }));
 vi.mock("../firebase", () => ({ functions: {}, auth: h.auth, FUNCTIONS_REGION: "europe-southwest1" }));
 
-import { REASSERT_EVERY_MS, reassertDue, reassertPush, REVERIFY_EVERY_MS, setTopics, type ReassertInput } from "./push";
+import { REASSERT_EVERY_MS, reassertDue, reassertPush, REVERIFY_EVERY_MS, pushChoiceKey, pushChoiceOf, savedMatchTopics, setMatchTopics, setPushPreset, setTopics, upgradeLegacyTopics, type ReassertInput } from "./push";
 
 const DAY = REASSERT_EVERY_MS;
 const WEEK = REVERIFY_EVERY_MS;
@@ -37,7 +37,16 @@ const store = new Map<string, Response>();
 const cachePut = vi.fn(async (key: string, res: Response) => void store.set(key, res));
 const cacheDelete = vi.fn(async (key: string) => store.delete(key));
 const cacheMatch = vi.fn(async (key: string) => store.get(key));
-const sent = () => h.call.mock.calls.map((c) => c[0] as { subscription: { endpoint: string }; topics: string[] });
+type Sent = { subscription: { endpoint: string }; topics: string[]; v?: number; resetMatches?: boolean };
+/** What each call sent, without `v` (every registration carries the app's topic list version: the
+ *  «tabla» tests check it). */
+const sent = () =>
+  h.call.mock.calls.map((c) => {
+    const out = { ...(c[0] as Sent) };
+    delete out.v;
+    return out;
+  });
+const sentV = () => h.call.mock.calls.map((c) => (c[0] as Sent).v);
 
 beforeEach(() => {
   localStorage.clear();
@@ -112,6 +121,35 @@ describe("reassertDue: when the boot check re-tells the server", () => {
   });
   it("a clock set back counts as due", () => {
     expect(due({ now: T0 - 60_000 })).toBe(true);
+  });
+});
+
+describe("«tabla» on a «Todo» from before it", () => {
+  const core = ["start", "goals", "cards", "final", "mvp", "dates", "lineup"] as const;
+  it("upgradeLegacyTopics: only a «Todo» saved by an app that never offered it", () => {
+    expect(upgradeLegacyTopics([...core], null)).toEqual([...core, "tabla"]);
+    expect(upgradeLegacyTopics([...core, "convocatoria"], null)).toEqual([...core, "convocatoria", "tabla"]);
+    expect(upgradeLegacyTopics([...core], "2")).toBeNull();
+    expect(upgradeLegacyTopics(["goals"], null)).toBeNull();
+    expect(upgradeLegacyTopics([...core, "tabla"], null)).toBeNull();
+  });
+  it("the boot check adds it and tells the server at once, with the app's version", async () => {
+    registered("https://push.test/a", [...core]);
+    // (not due: re-told an hour ago)
+    expect(await reassertPush(T0 + 3600_000)).toBe("ok");
+    expect(sent()).toEqual([{ subscription: current!.toJSON(), topics: [...core, "tabla"] }]);
+    expect(sentV()).toEqual([2]);
+    expect(JSON.parse(localStorage.getItem("piti-push-topics") ?? "[]")).toEqual([...core, "tabla"]);
+    expect(localStorage.getItem("piti-push-topics-v")).toBe("2");
+    // once told, it rests again; and a «Todo» chosen without it later stays without it
+    expect(await reassertPush(T0 + 7200_000)).toBe("skip");
+  });
+  it("choosing a preset drops the device's choices for single matches, on the server and here", async () => {
+    registered("https://push.test/a", ["goals"]);
+    localStorage.setItem("piti-push-matches", JSON.stringify({ j8: ["cards"] }));
+    await setPushPreset("goles", false);
+    expect(sent().at(-1)).toMatchObject({ topics: ["goals"], resetMatches: true });
+    expect(savedMatchTopics()).toEqual({});
   });
 });
 
@@ -252,5 +290,35 @@ describe("setTopics remembers what the server accepted", () => {
     expect(localStorage.getItem("piti-push-endpoint")).toBeNull();
     expect(localStorage.getItem("piti-push-session")).toBeNull();
     expect(store.has("/__piti-push-state")).toBe(false);
+  });
+});
+
+describe("setMatchTopics: this device's avisos for one match", () => {
+  it("the first one on a device without notices asks, subscribes and sends its keys; the server's answer is kept", async () => {
+    permission = "default";
+    requestPermission.mockImplementationOnce(async () => (permission = "granted"));
+    h.call.mockResolvedValue({ data: { matchTopics: { j8: ["goals"] }, kept: true } });
+    await expect(setMatchTopics("j8", ["goals"])).resolves.toEqual(["goals"]);
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    expect(h.call).toHaveBeenLastCalledWith({ endpoint: "https://push.test/new-1", keys: { p256dh: "k", auth: "a" }, matchId: "j8", topics: ["goals"] });
+    expect(savedMatchTopics()).toEqual({ j8: ["goals"] });
+  });
+  it("refused permission: nothing is sent", async () => {
+    permission = "default";
+    requestPermission.mockImplementationOnce(async () => (permission = "denied"));
+    await expect(setMatchTopics("j8", ["goals"])).rejects.toThrow("permiso");
+    expect(h.call).not.toHaveBeenCalled();
+  });
+  it("«Nada» forgets the device's choices for single matches too", async () => {
+    registered();
+    h.call.mockResolvedValue({ data: { matchTopics: { j8: [] }, kept: true } });
+    await setMatchTopics("j8", []);
+    expect(savedMatchTopics()).toEqual({ j8: [] });
+    expect(pushChoiceOf(pushChoiceKey())).toEqual({ topics: ["goals"], matches: { j8: [] } });
+    expect(pushChoiceOf("")).toEqual({ topics: [], matches: {} });
+    h.call.mockResolvedValue({ data: { topics: [] } });
+    await setTopics([]);
+    expect(savedMatchTopics()).toEqual({});
   });
 });

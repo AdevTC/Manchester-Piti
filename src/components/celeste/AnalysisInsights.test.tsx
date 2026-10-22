@@ -4,7 +4,7 @@ import { DEFAULT_ANALYSIS_PROFILE } from "../../../functions/src/narrated/types"
 import type { ClubMatch } from "../../lib/clubData";
 import { AnalysisInsights } from "./AnalysisInsights";
 
-vi.mock("@tanstack/react-router", () => ({ Link: ({ children, search, params }: { children: React.ReactNode; search: Record<string, unknown>; params: { matchId: string } }) => <a href={`/matches/${params.matchId}`} data-search={JSON.stringify(search)}>{children}</a> }));
+vi.mock("@tanstack/react-router", () => ({ Link: ({ children, search, params }: { children: React.ReactNode; search: Record<string, unknown>; params: { matchId: string } }) => <a href={`/partidos/${params.matchId}`} data-search={JSON.stringify(search)}>{children}</a> }));
 const people = [{ id: "a", name: "Álex", number: 1 }, { id: "b", name: "Bruno", number: 8 }];
 const match: ClubMatch = { id: "m", seasonId: "s", rival: "Rival local", status: "finished", duration: 10, starters: ["a", "b"], analysis: { version: 2, revision: 0, profile: DEFAULT_ANALYSIS_PROFILE, observations: [
   { id: "half1", kind: "context", team: "us", period: 1, order: 0, facts: { intervalStart: 0, intervalEnd: 320 } },

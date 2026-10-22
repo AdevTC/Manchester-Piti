@@ -121,7 +121,9 @@
 .pcv .wk-em{left:calc(var(--cw) * -1);width:calc(var(--cw) * 2);top:0;height:100%}
 .pcv .wk-em i{position:absolute;left:var(--x);top:var(--y);width:3px;height:3px;border-radius:50%;background:#ffe3a3;box-shadow:0 0 6px #FFC659;opacity:0;animation:pc-peEmber var(--d) linear var(--w) infinite}
 @keyframes pc-peEmber{0%{opacity:0;transform:translateY(20px)}25%{opacity:.9}100%{opacity:0;transform:translate(10px,-140px)}}
-.pcv .wk-big{left:-400px;width:800px;top:calc(var(--cw) * -.12);text-align:center;font-family:'Anybody';font-weight:900;font-size:calc(var(--cw) * 1.75);line-height:.8;letter-spacing:-.04em;font-variation-settings:'wdth' 70;color:transparent;background:radial-gradient(circle,rgba(255,198,89,.95) 1.6px,transparent 2.3px) 0 0/6px 6px;-webkit-background-clip:text;background-clip:text;opacity:.32;-webkit-mask-image:linear-gradient(180deg,#000 40%,transparent 95%);mask-image:linear-gradient(180deg,#000 40%,transparent 95%)}
+.pcv .wk-big{left:-400px;width:800px;top:calc(var(--cw) * -.12);text-align:center;font-family:'Anybody';font-weight:900;font-size:calc(var(--cw) * 1.75);line-height:.8;letter-spacing:-.04em;font-variation-settings:'wdth' 70;color:transparent;background:radial-gradient(circle,rgba(255,198,89,.95) 1.6px,transparent 2.3px) 0 0/6px 6px;-webkit-background-clip:text;background-clip:text;opacity:.32;-webkit-mask-image:linear-gradient(180deg,#000 40%,transparent 95%);mask-image:linear-gradient(180deg,#000 40%,transparent 95%);padding:.16em 0 .12em;margin:-.16em 0 -.12em}
+/* (that padding: background-clip:text paints only inside the box, and at .8 line-height the glyphs stand taller
+   than it — room for the ink, the negative margin keeps the layout) */
 [data-theme="light"] .pcv .wk-big{background:radial-gradient(circle,rgba(12,23,51,.9) 1.6px,transparent 2.3px) 0 0/6px 6px;-webkit-background-clip:text;background-clip:text;opacity:.14}
 .pcv.intro .wk-big{animation:pc-peFade 1s ease 2.8s both}
 .pcv .wk-flash{left:calc(var(--cw) * -1.4);width:calc(var(--cw) * 2.8);top:-60px;height:calc(var(--cw) * 1.9);background:radial-gradient(closest-side,rgba(255,255,255,.95),rgba(255,226,160,.4) 45%,transparent);opacity:0}

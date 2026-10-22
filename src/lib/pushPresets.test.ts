@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("firebase/functions", () => ({ httpsCallable: () => vi.fn() }));
 vi.mock("../firebase", () => ({ functions: {}, auth: { currentUser: null }, FUNCTIONS_REGION: "europe-southwest1" }));
-import { presetAllows, presetOf, presetTopics, PUBLIC_TOPICS } from "../../functions/src/pushPresets";
-import { TOPICS } from "../../functions/src/pushLogic";
+import { LATE_TOPICS, legacyTodoGets, presetAllows, presetOf, presetTopics, PUBLIC_TOPICS, TOPICS_VERSION } from "../../functions/src/pushPresets";
+import { standingsNotice, TOPICS } from "../../functions/src/pushLogic";
 import { TOPIC_LABELS } from "./push";
 
 describe("Avisos a medida (presets)", () => {
@@ -20,8 +20,23 @@ describe("Avisos a medida (presets)", () => {
     expect(presetOf([...PUBLIC_TOPICS])).toBe("todo");
     expect(presetOf([...PUBLIC_TOPICS, "convocatoria"])).toBe("todo");
     expect(presetOf(["goals", "final"])).toBe("custom");
+    // a device on «Todo» from before «tabla» stays on «Todo»
+    expect(presetOf(["start", "goals", "cards", "final", "mvp", "dates", "lineup"])).toBe("todo");
     // the old «everything» without the new cards topic is a custom choice now
     expect(presetOf(["start", "goals", "final", "mvp", "dates", "lineup"])).toBe("custom");
+  });
+  it("a «Todo» saved before «tabla» gets it; one saved by an app that knew it chose without it", () => {
+    const core = ["start", "goals", "cards", "final", "mvp", "dates", "lineup"];
+    expect(LATE_TOPICS).toEqual(["tabla"]);
+    expect(TOPICS_VERSION).toBe(2);
+    expect(legacyTodoGets({ preset: "todo", topics: core }, "tabla")).toBe(true);
+    expect(legacyTodoGets({ preset: "todo", topics: core, topicsV: 1 }, "tabla")).toBe(true);
+    expect(legacyTodoGets({ preset: "todo", topics: core, topicsV: 2 }, "tabla")).toBe(false);
+    // (already on it: the topic's own query finds it)
+    expect(legacyTodoGets({ preset: "todo", topics: [...core, "tabla"] }, "tabla")).toBe(false);
+    expect(legacyTodoGets({ preset: "custom", topics: ["goals", "final"] }, "tabla")).toBe(false);
+    expect(legacyTodoGets({ preset: "goles", topics: ["goals"] }, "tabla")).toBe(false);
+    expect(legacyTodoGets({ preset: "todo", topics: core }, "goals")).toBe(false);
   });
   it("what each choice lets through", () => {
     expect(presetAllows("goles", "goals")).toBe(true);
@@ -36,5 +51,19 @@ describe("Avisos a medida (presets)", () => {
   it("the server's public topics, the presets' and the app's labels agree", () => {
     expect([...TOPICS].sort()).toEqual([...PUBLIC_TOPICS].sort());
     expect(TOPIC_LABELS.map((t) => t.id).sort()).toEqual([...PUBLIC_TOPICS].sort());
+  });
+});
+
+describe("«Ya está la clasificación» (topic tabla)", () => {
+  const rows = [{ team: "A", isUs: false, pts: 9 }, { team: "Manchester Piti", isUs: true, pts: 7 }, { team: "C", isUs: false, pts: 1 }];
+  it("tells our place, points and jornada once per save", () => {
+    const n = standingsNotice("t1", undefined, { jornada: 3, updatedAt: 1_000, rows });
+    expect(n).toMatchObject({ topic: "tabla", title: "Ya está la clasificación", body: "Vamos 2.º de 3 con 7 puntos tras la J3.", url: "/partidos/tabla", log: "tabla-t1-1000" });
+    expect(standingsNotice("t1", { jornada: 3, updatedAt: 1_000, rows }, { jornada: 4, updatedAt: 2_000, rows })?.title).toBe("Nueva clasificación");
+  });
+  it("stays quiet for a save that changed nothing, a deleted table or one without a time", () => {
+    expect(standingsNotice("t1", { jornada: 3, updatedAt: 1_000, rows }, { jornada: 3, updatedAt: 2_000, rows })).toBeNull();
+    expect(standingsNotice("t1", { jornada: 3, updatedAt: 1_000, rows }, undefined)).toBeNull();
+    expect(standingsNotice("t1", undefined, { jornada: 3, rows })).toBeNull();
   });
 });

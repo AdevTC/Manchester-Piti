@@ -7,16 +7,20 @@ import { calendarSlot } from "../../functions/src/calendarLogic";
 import { weatherStampDue } from "../../functions/src/weatherLogic";
 
 const NOW = Date.UTC(2026, 10, 8, 11, 20);
-const goal: Notice = { topic: "goals", title: "¡Gol de ERIK!", body: "Minuto 3. Piti 1, MAD SKY 0.", tag: "goal-m1", url: "/matches/m1", log: "goal-m1-e1", actions: GOAL_ACTIONS, matchId: "m1" };
+const goal: Notice = { topic: "goals", title: "¡Gol de ERIK!", body: "Minuto 3. Piti 1, MAD SKY 0.", tag: "goal-m1", url: "/partidos/m1", log: "goal-m1-e1", actions: GOAL_ACTIONS, matchId: "m1" };
 
 describe("a device's payload", () => {
   it("a goal carries its buttons, and vibrates on a device that asked", () => {
-    expect(devicePayload(goal, {})).toEqual({ title: goal.title, body: goal.body, tag: "goal-m1", url: "/matches/m1", actions: GOAL_ACTIONS, matchId: "m1" });
+    expect(devicePayload(goal, {})).toEqual({ title: goal.title, body: goal.body, tag: "goal-m1", url: "/partidos/m1", actions: GOAL_ACTIONS, matchId: "m1" });
     expect(devicePayload(goal, { vibrate: true })).toMatchObject({ vibrate: true });
     expect(devicePayload({ ...goal, topic: "final", actions: undefined, matchId: undefined }, { vibrate: true })).not.toHaveProperty("vibrate");
   });
   it("«Solo goles» is left out on a device already there", () => {
     expect(devicePayload(goal, { preset: "goles" }).actions).toEqual([{ action: "open", title: "Abrir el partido" }]);
+  });
+  it("and on one that only chose this match's avisos (its worker has nothing to call)", () => {
+    expect(devicePayload(goal, { preset: "nada" }).actions).toEqual([{ action: "open", title: "Abrir el partido" }]);
+    expect(devicePayload(goal, { preset: "custom" }).actions).toEqual(GOAL_ACTIONS);
   });
 });
 
@@ -25,7 +29,7 @@ describe("aplazado and its new date (topic dates)", () => {
   it("«Aplazado: …» with its reason, the new date when it already has one", () => {
     const after = { ...base, status: "postponed", postponedReason: "Campo inundado" };
     expect(postponedNotices("m1", base, after, NOW)).toEqual([
-      { topic: "dates", title: "Aplazado: Orduña fc", body: "Campo inundado. La nueva fecha, por decidir.", tag: "date-m1", url: "/matches/m1", log: `postponed-m1-${base.date}` },
+      { topic: "dates", title: "Aplazado: Orduña fc", body: "Campo inundado. La nueva fecha, por decidir.", tag: "date-m1", url: "/partidos/m1", log: `postponed-m1-${base.date}` },
     ]);
     const dated = postponedNotices("m1", base, { ...after, postponedTo: Date.UTC(2026, 10, 15, 11) }, NOW)[0];
     expect(dated.body).toBe("Campo inundado. Nueva fecha: Domingo, 15 nov, 12:00.");
@@ -34,7 +38,7 @@ describe("aplazado and its new date (topic dates)", () => {
     const was = { ...base, status: "postponed", postponedReason: "Campo inundado", postponedTo: null };
     const to = Date.UTC(2026, 10, 15, 11);
     expect(postponedNotices("m1", was, { ...was, postponedTo: to }, NOW)).toEqual([
-      { topic: "dates", title: "Nueva fecha: Orduña fc", body: "Domingo, 15 nov, 12:00. Campo inundado. Añádelo a tu calendario desde la web.", tag: "date-m1", url: "/matches/m1", log: `rescheduled-m1-${to}` },
+      { topic: "dates", title: "Nueva fecha: Orduña fc", body: "Domingo, 15 nov, 12:00. Campo inundado. Añádelo a tu calendario desde la web.", tag: "date-m1", url: "/partidos/m1", log: `rescheduled-m1-${to}` },
     ]);
     expect(postponedNotices("m1", { ...was, postponedTo: to }, { ...was, postponedTo: to }, NOW)).toEqual([]);
     expect(postponedNotices("m1", was, { ...was, postponedTo: NOW - 1 }, NOW)).toEqual([]);

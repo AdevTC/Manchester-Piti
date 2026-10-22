@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
-import { buzzOf, eventText, fieldSpots, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub, pickScreen, pitchTop, rivalShortOf, stintsOf } from "./model";
+import { buzzOf, eventText, fieldSpots, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub, pickScreen, pitchTop, rivalShortOf, spreadTops, stintsOf } from "./model";
 
 const ev = (id: string, type: MatchEvent["type"], at: number, more: Partial<MatchEvent> = {}): MatchEvent => ({ id, type, elapsedSeconds: at, period: 1, ...more });
 
@@ -84,6 +84,33 @@ describe("dónde va cada camiseta", () => {
     const { spots, keeper } = fieldSpots(["k", "z", "b"], ["k", "a", "b"], events, codes);
     expect(keeper).toBe("k");
     expect(spots.get("z")).toEqual({ x: 50, y: 14 });
+  });
+  it("el central y el portero en la misma columna: el portero baja (y el central sube si hace falta) hasta que no se pisan", () => {
+    // the Elegida 3-2-1: Illescas (50, 74) right in front of Evans (50, 92)
+    const spots = [
+      { left: 50, top: pitchTop(92) },
+      { left: 50, top: pitchTop(74) },
+      { left: 18, top: pitchTop(70) },
+    ];
+    const tops = spreadTops(spots, 280, 64);
+    const need = (64 / 280) * 100;
+    expect(tops[0] - tops[1]).toBeGreaterThanOrEqual(need - 0.11);
+    expect(tops[0]).toBeLessThanOrEqual(76);
+    // the full-back in his own column keeps his spot
+    expect(tops[2]).toBeCloseTo(pitchTop(70), 1);
+    // with the real token (71 px on the 280 px card) the keeper's token still ends inside the card
+    const real = spreadTops(spots);
+    expect((real[0] / 100) * 280 + 71).toBeLessThanOrEqual(280);
+    expect(real[0] - real[1]).toBeGreaterThanOrEqual((71 / 280) * 100 - 0.11);
+  });
+  it("fichas en columnas distintas o ya separadas: nadie se mueve", () => {
+    const spots = [
+      { left: 20, top: 30 },
+      { left: 80, top: 32 },
+      { left: 50, top: 5 },
+      { left: 50, top: 60 },
+    ];
+    expect(spreadTops(spots, 280, 64)).toEqual([30, 32, 5, 60]);
   });
 });
 

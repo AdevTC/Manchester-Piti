@@ -70,7 +70,7 @@ describe("seasonRecap: a closed season", () => {
     expect(find(r.cards, "posiciones")).toEqual({ kind: "posiciones", codes: [{ code: "DC", minutes: 110.25 }, { code: "MCO", minutes: 10 }], main: "DC" });
     expect(find(r.cards, "porra")).toEqual({ kind: "porra", rank: 2, of: 2, points: 7 });
     expect(find(r.cards, "medallas")!.medals.map((m) => m.id)).toEqual(["debut", "goal", "mvp"]);
-    expect(find(r.cards, "equipo")).toEqual({ kind: "equipo", g: 2, e: 1, p: 1, gf: 6, ga: 3, biggest: { label: "J4 contra Rival a4", score: "3–0" } });
+    expect(find(r.cards, "equipo")).toEqual({ kind: "equipo", g: 2, e: 1, p: 1, gf: 6, ga: 3, biggest: { label: "J4 contra Rival a4", score: "3\u2060–\u20600" } });
     expect(find(r.cards, "cierre")).toEqual({ kind: "cierre", season: "Temporada 1" });
   });
 

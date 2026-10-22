@@ -30,7 +30,7 @@ export function TabCapitania({ requests, squad, now, onGoAvisos }: CapitaniaProp
       <div className="bk">
         <h3 className="bk-h">La puerta</h3>
         <p className="bk-d">Quién pide entrar al vestuario. Solo lo ven los capitanes.</p>
-        <Link className="door" to="/vestuario" hash="puerta">
+        <Link className="door" to="/vestuario/puerta">
           <span className="door-led" role="img" aria-label={n === 1 ? "1 persona llamando" : `${n} personas llamando`}>
             <b>{n}</b>
             <small>LLAMANDO</small>
@@ -49,7 +49,7 @@ export function TabCapitania({ requests, squad, now, onGoAvisos }: CapitaniaProp
               const asks = r.playerId ? (num ? `Pide la carta del ${num}` : `Pide la carta de ${p?.name ?? r.playerName ?? "su ficha"}`) : "Sin dorsal todavía";
               return (
                 <li key={r.uid} className="go">
-                  <Link to="/vestuario" hash="puerta">
+                  <Link to="/vestuario/puerta">
                     <span className="n" aria-hidden="true">
                       {num || "?"}
                     </span>

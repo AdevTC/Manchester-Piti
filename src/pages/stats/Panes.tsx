@@ -390,7 +390,7 @@ export function Minutos({ rows, games, nameOf, jornada }: { rows: PlayerAnalysis
                   </th>
                   {last.map((m) => (
                     <th scope="col" key={m.id}>
-                      <Link to="/matches/$matchId" params={{ matchId: m.id }} aria-label={`${m.rival ?? "Rival"}, ${formatDate(m.date)}`}>
+                      <Link to="/partidos/$matchId" params={{ matchId: m.id }} aria-label={`${m.rival ?? "Rival"}, ${formatDate(m.date)}`}>
                         {jornadaLabel(jornada.get(m.id)) || "—"}
                       </Link>
                     </th>
@@ -496,7 +496,7 @@ export function Rivales({ games, rows }: { games: ClubMatch[]; rows: PlayerAnaly
                       const d = m.duration || 50;
                       return (
                         <li key={m.id}>
-                          <Link to="/matches/$matchId" params={{ matchId: m.id }}>
+                          <Link to="/partidos/$matchId" params={{ matchId: m.id }}>
                             <b>
                               {m.goalsFor}–{m.goalsAgainst}
                             </b>

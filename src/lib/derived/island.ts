@@ -12,7 +12,7 @@ import { kickoffState, whistleDeadline } from "./kickoff";
 import { dateMillis, isVisibleMatch, matchPhase } from "../../../functions/src/matchEngine";
 import { withGuestNames } from "./guests";
 import { madridDate, madridTime } from "./madrid";
-import { endSentence } from "./words";
+import { endSentence, scoreText } from "./words";
 import { boardSaid } from "./moments";
 
 /** How long «FINAL» stays in the island after the whistle. */
@@ -138,7 +138,7 @@ export function goalMoment(match: Pick<ClubMatch, "events" | "rival" | "status" 
   if (!ours && e.type !== "opponent_goal" && e.type !== "own_goal") return null;
   const rival = match.rival ?? "Rival";
   const { gf, ga } = scoreOf(match);
-  const score = `${gf}–${ga}`;
+  const score = scoreText(gf, ga);
   const board = `Manchester Piti ${gf}, ${rival} ${ga}.`;
   if (!ours) {
     const rest = `Gol de ${rival} · ${score}`;

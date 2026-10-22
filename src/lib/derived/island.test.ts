@@ -87,24 +87,24 @@ describe("goalMoment", () => {
   const nameOf = (id: string) => (id === "erik" ? "Erik" : "?");
   const live = (events: MatchEvent[]): ClubMatch => ({ ...base, clock: started, events });
 
-  it("ours: «¡GOL! ERIK 19′ · 2–1» and its spoken line", () => {
+  it("ours: «¡GOL! ERIK 19′ · 2\u2060–\u20601» and its spoken line", () => {
     const m = live([ev("g1", "goal", 3, "erik"), ev("r1", "opponent_goal", 10), ev("g2", "goal", 19, "erik")]);
-    expect(goalMoment(m, "g2", nameOf)).toEqual({ ours: true, head: "¡GOL!", rest: "ERIK 19′ · 2–1", text: "¡GOL! ERIK 19′ · 2–1", said: "¡Gol del Piti! Erik, minuto 19. Manchester Piti 2, MAD SKY 1." });
+    expect(goalMoment(m, "g2", nameOf)).toEqual({ ours: true, head: "¡GOL!", rest: "ERIK 19′ · 2\u2060–\u20601", text: "¡GOL! ERIK 19′ · 2\u2060–\u20601", said: "¡Gol del Piti! Erik, minuto 19. Manchester Piti 2, MAD SKY 1." });
   });
 
-  it("theirs: «Gol de MAD SKY · 2–2» (an own goal of ours too); a rival's own goal is ours", () => {
+  it("theirs: «Gol de MAD SKY · 2\u2060–\u20602» (an own goal of ours too); a rival's own goal is ours", () => {
     const m = live([ev("g1", "goal", 3, "erik"), ev("g2", "goal", 5, "erik"), ev("r1", "opponent_goal", 10), ev("r2", "own_goal", 12, "erik")]);
-    expect(goalMoment(m, "r2", nameOf)).toMatchObject({ ours: false, head: null, text: "Gol de MAD SKY · 2–2" });
-    expect(goalMoment(live([ev("o1", "opponent_own_goal", 7)]), "o1", nameOf)?.text).toBe("¡GOL! AUTOGOL DE MAD SKY 7′ · 1–0");
-    expect(goalMoment(live([ev("g1", "goal", 7)]), "g1", nameOf)?.text).toBe("¡GOL! EL PITI 7′ · 1–0");
+    expect(goalMoment(m, "r2", nameOf)).toMatchObject({ ours: false, head: null, text: "Gol de MAD SKY · 2\u2060–\u20602" });
+    expect(goalMoment(live([ev("o1", "opponent_own_goal", 7)]), "o1", nameOf)?.text).toBe("¡GOL! AUTOGOL DE MAD SKY 7′ · 1\u2060–\u20600");
+    expect(goalMoment(live([ev("g1", "goal", 7)]), "g1", nameOf)?.text).toBe("¡GOL! EL PITI 7′ · 1\u2060–\u20600");
   });
 
   it("football's minute: a goal 7 s after kick-off is the 1′ (stored minute 0); a minute typed in the acta stays as typed", () => {
     const mario = (id: string) => (id === "mario" ? "Mario" : "?");
     const early = { id: "g1", type: "goal", minute: 0, elapsedSeconds: 7, playerId: "mario" } as MatchEvent;
-    expect(goalMoment(live([early]), "g1", mario)?.text).toBe("¡GOL! MARIO 1′ · 1–0");
+    expect(goalMoment(live([early]), "g1", mario)?.text).toBe("¡GOL! MARIO 1′ · 1\u2060–\u20600");
     const typed = { id: "g1", type: "goal", minute: 19, playerId: "mario" } as MatchEvent;
-    expect(goalMoment(live([typed]), "g1", mario)?.text).toBe("¡GOL! MARIO 19′ · 1–0");
+    expect(goalMoment(live([typed]), "g1", mario)?.text).toBe("¡GOL! MARIO 19′ · 1\u2060–\u20600");
   });
 
   it("a goal that is gone (undone) or an event that isn't a goal: nothing", () => {

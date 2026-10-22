@@ -56,14 +56,14 @@ describe("the rest carry none", () => {
 describe("the payload the phone gets (push.ts sendTo)", () => {
   it("the buttons and their match travel with the reminders", () => {
     const n = reminderNotice("m8", "24", { rival: "MAD SKY", date: match.date });
-    expect(pushPayload(n)).toEqual({ title: n.title, body: n.body, tag: "remind-m8", url: "/matches/m8?tab=vestuario", actions: BUTTONS, matchId: "m8" });
+    expect(pushPayload(n)).toEqual({ title: n.title, body: n.body, tag: "remind-m8", url: "/partidos/m8/vestuario", actions: BUTTONS, matchId: "m8" });
     expect(JSON.parse(JSON.stringify(pushPayload(reminderNotice("m8", "48", { date: match.date }))))).toMatchObject({ actions: BUTTONS, matchId: "m8" });
   });
 
   it("the rest send only their words, tag and link (no log or topic either)", () => {
     for (const kind of ["first", "changes"] as const) {
       const n = convocatoriaMessage("m8", kind, match, 8);
-      expect(pushPayload(n)).toEqual({ title: n.title, body: n.body, tag: "conv-m8", url: "/matches/m8" });
+      expect(pushPayload(n)).toEqual({ title: n.title, body: n.body, tag: "conv-m8", url: "/partidos/m8" });
     }
     expect(Object.keys(pushPayload(kickoffNotice("m8", "MAD SKY")))).toEqual(["title", "body", "tag", "url"]);
   });

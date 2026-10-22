@@ -32,9 +32,10 @@ describe("squadLive", () => {
     expect(s.rows.get("illescas")).toMatchObject({ status: "Salió en el 30′", tone: "bench" });
     expect(s.rows.get("kevin")).toMatchObject({ status: "En el banquillo", tone: "bench" });
     expect(s.rows.get("josito")?.tone).toBe("off");
-    // the latest goal of ours is gold; the pass and the card carry their minutes
-    expect(s.rows.get("adrian")?.tags.map((t) => [t.kind, t.text, t.gold])).toEqual([["asis", "6′", false], ["gol", "21′", true]]);
-    expect(s.rows.get("eguzquiza")?.tags[0]).toMatchObject({ kind: "amarilla", text: "15′", label: "Amarilla en el 15" });
+    // the latest goal of ours is gold; the pass and the card carry their minutes; with a change, his minutes so far first
+    expect(s.rows.get("adrian")?.tags.map((t) => [t.kind, t.text, t.gold])).toEqual([["minutos", "30 min", false], ["asis", "6′", false], ["gol", "21′", true]]);
+    expect(s.rows.get("adrian")?.tags[0].label).toBe("30 minutos jugados hasta ahora");
+    expect(s.rows.get("eguzquiza")?.tags[1]).toMatchObject({ kind: "amarilla", text: "15′", label: "Amarilla en el 15" });
     expect(s.onPitch).toHaveLength(7);
     expect(s.ledeShort).toBe("Ahora, siete en el campo.");
   });
@@ -58,5 +59,24 @@ describe("squadLive", () => {
   it("a pending duplicate doesn't mark anyone", () => {
     const tags = nightTags([...EVENTS, ev("g4", "goal", 23, { playerId: "jordi", dupOf: "g3" })], true);
     expect(tags.get("jordi")?.some((t) => t.kind === "gol")).toBeFalsy();
+  });
+});
+
+describe("nightTags with F7's rolling changes", () => {
+  it("each player's minutes instead of a chip per change, and his goal never pushed out", () => {
+    const rolling: MatchEvent[] = [
+      ev("i1", "substitution", 5, { playerId: "fer", inPlayerId: "erik" }),
+      ev("i2", "substitution", 10, { playerId: "erik", inPlayerId: "fer" }),
+      ev("i3", "substitution", 15, { playerId: "fer", inPlayerId: "erik" }),
+      ev("i4", "substitution", 20, { playerId: "erik", inPlayerId: "fer" }),
+      ev("i5", "substitution", 25, { playerId: "fer", inPlayerId: "erik" }),
+      ev("gE", "goal", 28, { playerId: "erik" }),
+    ];
+    // (before: three «Entró» chips and no room for his goal)
+    expect(nightTags(rolling, false).get("erik")?.map((t) => t.kind)).toEqual(["cambio", "cambio", "cambio"]);
+    const tags = nightTags(rolling, false, new Map([["erik", 18], ["fer", 32]]));
+    expect(tags.get("erik")?.map((t) => [t.kind, t.text])).toEqual([["minutos", "18 min"], ["gol", "28′"]]);
+    expect(tags.get("erik")?.[0].label).toBe("Jugó 18 minutos");
+    expect(tags.get("fer")?.map((t) => t.kind)).toEqual(["minutos"]);
   });
 });

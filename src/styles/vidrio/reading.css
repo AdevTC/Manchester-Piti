@@ -42,10 +42,24 @@ img.vd-team__crest{object-fit:cover}
 .vd-team span{font-size:13px;color:var(--vd-g-ink2)}
 .vd-scoreline{display:flex;align-items:center;gap:.12em;font-size:150px;color:var(--vd-g-ink)}
 .vd-scoreline__sep{width:.22em;height:.07em;border-radius:99px;background:currentColor;opacity:.55;margin:0 .06em}
-.vd-digit{display:inline-block;position:relative;background:linear-gradient(180deg,#fff 10%,#cfe4f8 62%,#9cc6ea);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* (background-clip:text paints only inside the box, and at .82 line-height the glyphs stand taller than it: the
+   padding gives the ink room — top, bottom and the tight letter-spacing's sides — and the negative margin keeps
+   the layout as it was) */
+.vd-digit{display:inline-block;position:relative;padding:.16em .08em .12em;margin:-.16em -.08em -.12em;background:linear-gradient(180deg,#fff 10%,#cfe4f8 62%,#9cc6ea);-webkit-background-clip:text;background-clip:text;color:transparent}
 :root[data-theme="light"] .vd-digit{background:linear-gradient(180deg,#0c1733 30%,#2d4a7a);-webkit-background-clip:text;background-clip:text}
 .vd-status{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px 12px;margin:10px 0 0;font-size:14.5px;color:var(--vd-g-ink2)}
 .vd-status .vd-clock{font-size:17px;color:var(--vd-g-ink)}
+
+/* ---------------------------------------------------------------- the changes by player (paginas/Cambios) */
+.vd-cambios{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));column-gap:32px}
+.vd-cambio{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px 12px;padding:10px 0;border-top:1px solid var(--vd-rule)}
+.vd-cambio b{font-weight:650;font-size:15px;line-height:1.25;color:var(--vd-g-ink);overflow-wrap:anywhere}
+.vd-cambio .vd-cambio__min{font-size:13.5px;font-weight:620;color:var(--vd-g-ink);white-space:nowrap}
+/* (the stints in Mona Sans with its default figures, wherever the list grows: Geist Mono is only for clocks, and
+   Mona Sans's own tabular set draws the same slashed zero and footed one) */
+.vd-cambio .vd-cambio__stints{grid-column:1/-1;font-family:var(--vd-sans);font-size:14px;font-feature-settings:normal;font-variant-numeric:normal;color:var(--vd-g-ink2);line-height:1.4;white-space:normal}
+.vd-cambios__whole{margin:14px 0 0;padding-top:10px;border-top:1px solid var(--vd-rule);font-size:13.5px;color:var(--vd-g-ink2);line-height:1.45}
+.vd-cambios__whole b{color:var(--vd-g-ink);font-weight:620}
 
 /* ---------------------------------------------------------------- plays */
 .vd-plays{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
@@ -127,9 +141,14 @@ img.vd-team__crest{object-fit:cover}
   clip-path:polygon(22% 0,38% 0,50% 8%,62% 0,78% 0,100% 16%,90% 34%,82% 30%,82% 100%,18% 100%,18% 30%,10% 34%,0 16%);
   filter:drop-shadow(0 calc(var(--s)*.12) calc(var(--s)*.12) rgba(0,8,30,.45))}
 .vd-shirt--away{background:linear-gradient(180deg,#24345e,#141f3f 60%,#0d1630)}
-.vd-shirt--img{clip-path:none;background:var(--vd-shirt-img) no-repeat;background-size:calc(var(--s)*1.532) auto;background-position:calc(var(--s)*-.266) calc(var(--s)*-.415)}
-.vd-shirt b{position:absolute;left:0;right:0;top:24%;text-align:center;font-family:var(--vd-sans);font-weight:800;font-variation-settings:'wdth' 100;font-size:calc(var(--s)*.42);line-height:1;color:var(--vd-marino);letter-spacing:-.04em;font-feature-settings:'tnum' 1}
-.vd-shirt--away b{color:#fff}
+/* the still is 360×400 with the shirt at x 42–317, y 31–396 (measured): the whole shirt, collar and sleeves,
+   spans the box's width (275 px → --s), as .vi-shirt--kit on Inicio */
+.vd-shirt--img{clip-path:none;background:var(--vd-shirt-img) no-repeat;background-size:calc(var(--s)*1.3091) auto;background-position:calc(var(--s)*-.1527) calc(var(--s)*-.1127)}
+/* the set number (before the player's own still, which prints it) as the kit prints it, as .vi-shirt b on Inicio:
+   Barlow Condensed 600 squeezed to .915, the caps .35–.81 of --s down, where the still's print sits */
+.vd-shirt b{position:absolute;left:0;right:0;top:calc(var(--s)*.2194);text-align:center;font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:calc(var(--s)*.6545);line-height:1;white-space:nowrap;color:var(--vd-marino);letter-spacing:0;transform:scaleX(.915)}
+.vd-shirt--img b{color:#051330}
+.vd-shirt--away b{color:#f5f5f5}
 .vd-shirt .vd-arm{position:absolute;left:4%;top:24%;width:24%;height:12%;border-radius:3px;background:var(--vd-marino);box-shadow:0 0 0 1px rgba(255,255,255,.6);transform:rotate(-24deg);font-size:0}
 
 @media (prefers-reduced-motion:reduce){.vd-live::before{animation:none}}

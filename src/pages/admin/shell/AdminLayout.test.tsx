@@ -41,7 +41,7 @@ describe("AdminLayout · the v2 shell", () => {
     expect(within(nav).getByRole("link", { name: "Temporadas" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Capitanes" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Contenido · 2 por hacer" })).toBeInTheDocument();
-    expect(within(nav).getByRole("link", { name: DOOR_LABEL })).toHaveAttribute("href", "/vestuario#puerta");
+    expect(within(nav).getByRole("link", { name: DOOR_LABEL })).toHaveAttribute("href", "/vestuario/puerta");
     expect(within(nav).getByText("Club")).toBeInTheDocument();
     expect(within(nav).getByText("adrian_tc")).toBeInTheDocument();
     expect(within(nav).getByText("Capitán general")).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe("AdminLayout · phones", () => {
     expect(mas).toHaveAttribute("aria-expanded", "true");
     expect(within(sheet).getByText("Capitán general")).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: "Cuentas · 2 por hacer" })).toBeInTheDocument();
-    expect(within(sheet).getByRole("link", { name: DOOR_LABEL })).toHaveAttribute("href", "/vestuario#puerta");
+    expect(within(sheet).getByRole("link", { name: DOOR_LABEL })).toHaveAttribute("href", "/vestuario/puerta");
     expect(within(sheet).getByRole("button", { name: /Cambiar a tema de/ })).toBeInTheDocument();
     await user.click(within(sheet).getByRole("button", { name: "Temporadas" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/temporadas"));
@@ -302,7 +302,7 @@ describe("the rail · fold, keyboard, captain", () => {
     const menu = screen.getByRole("menu", { name: "Menú del capitán" });
     expect(me).toHaveAttribute("aria-expanded", "true");
     const perfil = within(menu).getByRole("menuitem", { name: "Mi perfil" });
-    expect(perfil).toHaveAttribute("href", "/profile");
+    expect(perfil).toHaveAttribute("href", "/perfil");
     expect(perfil).toHaveFocus();
     expect(within(menu).getByRole("menuitem", { name: /Ver la web/ })).toHaveAttribute("href", "/");
     expect(within(menu).getByRole("menuitem", { name: /Tema de/ })).toBeInTheDocument();
@@ -356,7 +356,7 @@ describe("the phone bar and «Más» · captain, focus rings", () => {
     expect(within(sheet).queryByRole("link", { name: "Mi perfil" })).toBeNull();
     await user.click(cap);
     expect(cap).toHaveAttribute("aria-expanded", "true");
-    expect(within(sheet).getByRole("link", { name: "Mi perfil" })).toHaveAttribute("href", "/profile");
+    expect(within(sheet).getByRole("link", { name: "Mi perfil" })).toHaveAttribute("href", "/perfil");
     await user.click(within(sheet).getByRole("button", { name: "Salir en este dispositivo" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Más" })).toBeNull());
     await user.click(within(screen.getByRole("dialog", { name: "¿Salir en este dispositivo?" })).getByRole("button", { name: "Salir" }));

@@ -6,7 +6,7 @@ import { dateMillis, matchPhase } from "../../../../functions/src/matchEngine";
 import type { MatchdayModel } from "../matchday";
 import { AWAITING_ACTA } from "../kickoff";
 import { madridDate, madridTime, MONTHS_SHORT } from "../madrid";
-import { capital, plural } from "../words";
+import { capital, plural, scoreText } from "../words";
 
 const DAY = 86_400_000;
 const WEEKDAY = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "short" });
@@ -53,7 +53,7 @@ export function kickoffHint(at: number, now: number): string {
   return `${capital(WEEKDAY.format(at).replace(".", ""))} ${d}, ${time}`;
 }
 
-const score = (s: { gf: number; ga: number }) => `${s.gf}–${s.ga}`;
+const score = (s: { gf: number; ga: number }) => scoreText(s.gf, s.ga);
 
 function hoyHint(day: PlaceHintsInput["day"], now: number, mvp: readonly string[] | null | undefined): string {
   const s = day.score;

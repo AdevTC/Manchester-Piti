@@ -13,7 +13,7 @@ const day = (phase: MatchdayModel["phase"], extra: Partial<PlaceHintsInput["day"
 const hoy = (d: PlaceHintsInput["day"], now = NOW) => placeHints({ day: d, now }).hoy;
 
 describe("placeHints · tonight in the long season", () => {
-  it("Hoy «2–1, minuto 23», Temporada «4º si acaba así», Club «Huberoski cumple el 27», Tú", () => {
+  it("Hoy «2\u2060–\u20601, minuto 23», Temporada «4º si acaba así», Club «Huberoski cumple el 27», Tú", () => {
     const f = longSeasonFixture();
     const md = matchdayOf(f.matches, f.seasonId, f.now);
     const sim = projectTable(f.standings, md.score ? { rival: md.match?.rival ?? "", gf: md.score.gf, ga: md.score.ga } : null);
@@ -25,25 +25,25 @@ describe("placeHints · tonight in the long season", () => {
       squadSize: f.squad.length,
       pending: 2,
     });
-    expect(hints).toEqual({ hoy: "2–1, minuto 23", temporada: "4º si acaba así", club: "Huberoski cumple el 27", tu: "2 cosas pendientes" });
+    expect(hints).toEqual({ hoy: "2\u2060–\u20601, minuto 23", temporada: "4º si acaba así", club: "Huberoski cumple el 27", tu: "2 cosas pendientes" });
   });
 });
 
 describe("placeHints · Hoy, phase by phase", () => {
   it("live, the break and the whistle", () => {
-    expect(hoy(day("directo2", { minute: 41, score: { gf: 3, ga: 1 } }))).toBe("3–1, minuto 41");
-    expect(hoy(day("descanso", { score: { gf: 2, ga: 1 } }))).toBe("2–1, al descanso");
+    expect(hoy(day("directo2", { minute: 41, score: { gf: 3, ga: 1 } }))).toBe("3\u2060–\u20601, minuto 41");
+    expect(hoy(day("descanso", { score: { gf: 2, ga: 1 } }))).toBe("2\u2060–\u20601, al descanso");
     expect(hoy(day("pitido"))).toBe("Pendiente del pitido");
   });
 
   it("before, after and the acta", () => {
     expect(hoy(day("antes"))).toBe("19:00, Orduña fc");
-    expect(hoy(day("final", { score: { gf: 3, ga: 1 } }))).toBe("Final, 3–1");
+    expect(hoy(day("final", { score: { gf: 3, ga: 1 } }))).toBe("Final, 3\u2060–\u20601");
     expect(hoy(day("pendiente"))).toBe("Pendiente del acta");
-    expect(hoy(day("acta", { score: { gf: 3, ga: 1 } }))).toBe("3–1, acta lista");
-    expect(hoy(day("despues", { score: { gf: 2, ga: 2 } }))).toBe("2–2, acta lista");
-    expect(placeHints({ day: day("despues", { score: { gf: 3, ga: 1 } }), now: NOW, mvp: ["Alcides"] }).hoy).toBe("3–1, MVP Alcides");
-    expect(placeHints({ day: day("despues", { score: { gf: 3, ga: 1 } }), now: NOW, mvp: ["Alcides", "Kevin"] }).hoy).toBe("3–1, MVP compartido");
+    expect(hoy(day("acta", { score: { gf: 3, ga: 1 } }))).toBe("3\u2060–\u20601, acta lista");
+    expect(hoy(day("despues", { score: { gf: 2, ga: 2 } }))).toBe("2\u2060–\u20602, acta lista");
+    expect(placeHints({ day: day("despues", { score: { gf: 3, ga: 1 } }), now: NOW, mvp: ["Alcides"] }).hoy).toBe("3\u2060–\u20601, MVP Alcides");
+    expect(placeHints({ day: day("despues", { score: { gf: 3, ga: 1 } }), now: NOW, mvp: ["Alcides", "Kevin"] }).hoy).toBe("3\u2060–\u20601, MVP compartido");
   });
 
   it("called off, the week and the pre-season", () => {

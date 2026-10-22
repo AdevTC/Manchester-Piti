@@ -22,12 +22,12 @@ describe("momentOf", () => {
   it("a goal of ours: the scorer in caps, the assist and the score at that moment; said with the board", () => {
     const g = ev("g2", "goal", 21, { playerId: "adri", assistPlayerId: "jordi" });
     const m = match([...before, g, ev("g3", "goal", 30, { playerId: "erik" })]);
-    expect(momentOf(g, m, nameOf)).toEqual({ id: "g2", kind: "gol", ours: true, minute: 21, title: "GOL · ADRIÁN T.C.", sub: "Pase de Jordi. 2–1", said: "Gol del Piti, de Adrián T.C. Piti 2, Orduña FC 1" });
+    expect(momentOf(g, m, nameOf)).toEqual({ id: "g2", kind: "gol", ours: true, minute: 21, title: "GOL · ADRIÁN T.C.", sub: "Pase de Jordi. 2\u2060–\u20601", said: "Gol del Piti, de Adrián T.C. Piti 2, Orduña FC 1" });
   });
 
   it("a penalty, an unknown scorer and the rival's own goal are ours too", () => {
     const p = ev("p", "goal_penalty", 9, { playerId: "erik" });
-    expect(momentOf(p, match([p]), nameOf)).toMatchObject({ kind: "gol", sub: "De penalti. 1–0" });
+    expect(momentOf(p, match([p]), nameOf)).toMatchObject({ kind: "gol", sub: "De penalti. 1\u2060–\u20600" });
     const anon = ev("a", "goal", 9);
     expect(momentOf(anon, match([anon]), nameOf)).toMatchObject({ title: "GOL DEL PITI", said: "Gol del Piti. Piti 1, Orduña FC 0" });
     const own = ev("o", "opponent_own_goal", 9);
@@ -36,7 +36,7 @@ describe("momentOf", () => {
 
   it("theirs: the rival's goal and ours in our own net, coral and calm", () => {
     const m = match(before);
-    expect(momentOf(before[1], m, nameOf)).toEqual({ id: "r1", kind: "golrival", ours: false, minute: 11, title: "GOL · ORDUÑA FC", sub: "1–1", said: "Gol de Orduña FC. Piti 1, Orduña FC 1" });
+    expect(momentOf(before[1], m, nameOf)).toEqual({ id: "r1", kind: "golrival", ours: false, minute: 11, title: "GOL · ORDUÑA FC", sub: "1\u2060–\u20601", said: "Gol de Orduña FC. Piti 1, Orduña FC 1" });
     const og = ev("og", "own_goal", 12, { playerId: "eguz" });
     expect(momentOf(og, match([og]), nameOf)).toMatchObject({ kind: "golrival", title: "EN PROPIA · EGUZQUIZA", said: "Gol en propia de Eguzquiza. Piti 0, Orduña FC 1" });
   });
@@ -70,9 +70,9 @@ describe("the clock's turns", () => {
     const turns = clockMomentsOf(m).map((x) => x.moment);
     expect(turns.map((t) => t.kind)).toEqual(["arranque", "descanso", "reanudacion", "final"]);
     expect(turns[0]).toMatchObject({ id: "j1:arranque", minute: 0, title: "EMPIEZA EL PARTIDO", said: "Empieza el partido" });
-    expect(turns[1]).toMatchObject({ minute: 25, title: "DESCANSO · 1–0", said: "Descanso. Piti 1, Orduña FC 0" });
+    expect(turns[1]).toMatchObject({ minute: 25, title: "DESCANSO · 1\u2060–\u20600", said: "Descanso. Piti 1, Orduña FC 0" });
     expect(turns[2]).toMatchObject({ minute: 26, said: "Arranca la segunda parte. Piti 1, Orduña FC 0" });
-    expect(turns[3]).toMatchObject({ minute: 51, title: "FINAL · 2–0", sub: "Acta pendiente: la mesa la está repasando", said: "Final. Piti 2, Orduña FC 0" });
+    expect(turns[3]).toMatchObject({ minute: 51, title: "FINAL · 2\u2060–\u20600", sub: "Acta pendiente: la mesa la está repasando", said: "Final. Piti 2, Orduña FC 0" });
     expect(clockMomentsOf({ ...m, clock: undefined })).toEqual([]);
   });
 

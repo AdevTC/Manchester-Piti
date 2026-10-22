@@ -2,7 +2,8 @@
 // draggable anywhere, springs to the nearest of eight anchors (never the screen's centre), remembers its spot per
 // page, double-click or Home returns it. Phone/tablet: rides above the tab bar and drags along the bottom edge
 // only. It follows liveDock: hidden while a page's lens shows the match; on desktop it sits on the page's anchor
-// when one is declared (Partidos' tonight segment), compact so it fits the segment; on a phone it never docks.
+// when one is declared (Partidos' tonight segment), the whole drop centred on it, as the board (dockWidth); on a
+// phone it never docks.
 // It carries the shared view-transition-name the lens and the match page's scoreboard use (one mounted at a
 // time), so the score morphs from page to page and into its sheet (the drop steps aside while the sheet is open).
 // The goal plays on it: inhale, two rings of light and gold dust leave the drop, a glint sweeps it, the scorer's
@@ -11,7 +12,7 @@ import { useEffect, useId, useRef, type CSSProperties } from "react";
 import { anchorPoints, type Box, type Pos } from "./anchors";
 import { useDesktop } from "./env";
 import { floatLabel, floatLines, type FloatMatch } from "./floatText";
-import { useLiveDockState } from "./liveDock";
+import { dockWidth, useLiveDockState } from "./liveDock";
 import { useDraggable } from "./useDraggable";
 import { VIcon } from "./VIcon";
 import "../../styles/vidrio/tokens.css";
@@ -34,7 +35,7 @@ export interface FloatingScoreProps {
    *  Inicio, where the lens takes it) or «bottom-right» (pages whose top-right is their own: a match page's
    *  scoreboard, Partidos' tools; see live/liveModel's floatHome). */
   placement?: FloatPlacement;
-  /** The top bar's height on desktop (the float keeps 16 px under it; default 88). */
+  /** The top bar's height on desktop (the float keeps 16 px under it: y 96, the boards' VK.drag top; default 80). */
   barHeight?: number;
   /** The tab bar's height plus its gap on a phone (default 96). */
   dockHeight?: number;
@@ -58,7 +59,7 @@ export interface FloatingScoreProps {
   coldRim?: boolean;
 }
 
-export function FloatingScore({ match, now, onOpen, onPip, storageKey, placement = "right", barHeight = 88, dockHeight = 96, goal, rim, scoreClass, sheetOpen, vtName, fx = null, glint, nameClass, flash, coldRim }: FloatingScoreProps) {
+export function FloatingScore({ match, now, onOpen, onPip, storageKey, placement = "right", barHeight = 80, dockHeight = 96, goal, rim, scoreClass, sheetOpen, vtName, fx = null, glint, nameClass, flash, coldRim }: FloatingScoreProps) {
   const desktop = useDesktop();
   const dock = useLiveDockState();
   const float = useRef<HTMLDivElement | null>(null);
@@ -71,8 +72,9 @@ export function FloatingScore({ match, now, onOpen, onPip, storageKey, placement
     if (!desktop) return { x: (b.W - b.w) / 2, y: b.H - b.h - dockHeight };
     if (placement === "centre") return { x: (b.W - b.w) / 2, y: top };
     const points = anchorPoints(b, { top, margin: 24, bottom: 24, anchors: "eight" });
-    // bottom-right: the right column of anchors, bottom row
-    if (placement === "bottom-right") return points.reduce((best, p) => (p.x > best.x || (p.x === best.x && p.y > best.y) ? p : best));
+    // bottom-right: where the Partidos board rests it (28 px from the right edge, 30 from the bottom; a drag
+    // then snaps to the anchors' corner)
+    if (placement === "bottom-right") return { x: b.W - b.w - 28, y: b.H - b.h - 30 };
     // top-right under the bar (the right column of anchors, top row)
     return points.reduce((best, p) => (p.x > best.x || (p.x === best.x && p.y < best.y) ? p : best));
   };
@@ -102,7 +104,7 @@ export function FloatingScore({ match, now, onOpen, onPip, storageKey, placement
       const widthOf = (x: Element) => (x instanceof HTMLElement ? x.offsetWidth : x.getBoundingClientRect().width);
       let room: Element | null = anchor;
       while (room && widthOf(room) < 40) room = room.parentElement;
-      const w = Math.max(64, Math.round(widthOf(room ?? anchor) - 16));
+      const w = dockWidth(widthOf(room ?? anchor));
       el.style.setProperty("--vd-dockw", `${w}px`);
       // (tight: the crest goes before anything clips; tighter: the minute goes too, the score stays)
       if (w < 140) el.dataset.vdTight = w < 100 ? "2" : "1";

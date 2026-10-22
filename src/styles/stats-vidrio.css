@@ -14,15 +14,21 @@
 .st-now__tbl{min-width:0}
 .st-now__table{font-size:14px}
 .vx.vd-pg .st-now__table :is(th,td){font-family:var(--vd-sans)}
-.vx.vd-pg .st-now__table th{color:var(--vd-ink2)}
-.vx.vd-pg .st-now__table abbr{text-decoration:none}
+.st-now__table th{color:var(--vd-ink2)}
+.st-now__table abbr{text-decoration:none}
 .st-now__table td,.st-now__table th{padding-left:5px;padding-right:5px}
 .st-now__table td.t .vd-provtag{margin-left:8px;vertical-align:1px}
 .st-now__table .h-sm{display:none}
+/* phone: the board's table has no heading over it (the caption names it) and «#» for the position */
+.st-pos-l{display:none}
+@media (max-width:699px){.st-now__tbl>h2{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.st-now__table th.pts{font-size:17px;font-weight:780;color:var(--vd-ink-strong)}.st-now__table tbody tr{height:44px}}
+@media (min-width:700px){.st-pos-l{display:inline}.st-pos-s{display:none}}
 .st-now__table tr.prov td{background:transparent;border-top:1.5px dashed rgba(108,171,221,.85);border-bottom:1.5px dashed rgba(108,171,221,.85);box-shadow:none}
 .st-now__table tr.prov td:first-child{border-left:1.5px dashed rgba(108,171,221,.85);border-radius:12px 0 0 12px}
 .st-now__table tr.prov td:last-child{border-right:1.5px dashed rgba(108,171,221,.85);border-radius:0 12px 12px 0}
-.st-now__table tr.us.prov td{background:rgba(108,171,221,.10)}
+/* (the board's provisional row, ours too: only the dashed edge, no tint and no bar) */
+.st-now__table tr.prov td,.st-now__table tr.us.prov td{background:transparent}
+.st-now__table tr.prov td:first-child{box-shadow:none}
 :root[data-theme="light"] .st-now__table tr.prov td{border-color:#2C6A9E}
 .st-now__table tr.vd-gap td{letter-spacing:.01em;font-size:12.8px}
 .st-now .vd-more{color:var(--vd-ink2)}
@@ -30,8 +36,7 @@
 .st-now__side{display:grid;gap:22px;align-content:start}
 .st-now__lead ol{margin:0;padding:0;list-style:none}
 .st-now__srow{display:grid;grid-template-columns:36px minmax(0,1fr) auto 34px;align-items:center;gap:10px;min-height:50px;border-bottom:1px solid var(--vd-rule)}
-.st-now__srow .vd-shirt{justify-self:center}
-.st-now__srow .vd-shirt b{font-size:12px}
+.st-now__srow .vd-shirt{--s:28px;justify-self:center}
 .st-now__srow>b{font-weight:650;font-size:15.5px;color:var(--vd-ink-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .st-now__srow strong{font-weight:800;font-variation-settings:'wdth' 110;font-size:22px;text-align:right;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
 .st-now__empty{margin:0;padding:10px 0;font-size:14.5px;color:var(--vd-ink2)}
@@ -75,10 +80,19 @@
 .st-grow{left:40px;right:40px;top:96px;bottom:96px}
 }
 @media (min-width:1100px){
-.st-now{grid-template-columns:minmax(0,1fr) 400px;gap:72px;padding:28px 72px 0}
+.st-now{grid-template-columns:minmax(0,1fr) 440px;gap:72px;padding:28px 72px 0}
+/* the board's table (.vv-tr): 36px position, five 48px columns, 60px points with a 17px «Pts» */
+.st-now__table th.p{width:36px}
+.st-now__table :is(th,td):not(.p,.t,.pts){width:48px}
+.st-now__table th.t + th{text-align:right}
+.st-now__table :is(th,td).pts{width:60px}
+.st-now__table th.pts{font-size:17px;font-weight:780;color:var(--vd-ink-strong)}
+.st-now__srow{grid-template-columns:44px minmax(0,1fr) auto 40px;min-height:54px}
+.st-now__srow strong{font-size:25px}
+.st-now__srow .vd-shirt{--s:34px}
 .st-now__table td,.st-now__table th{padding-left:8px;padding-right:8px}
 .st-now__table tbody tr{height:50px}
 .vx.vd-pg.st .st-period{padding:64px 72px 18px}
 .st-grow{left:72px;right:72px;top:96px;bottom:24px}
 }
-@media (min-width:1800px){.st-now{grid-template-columns:minmax(0,1fr) 440px;max-width:1776px}}
+@media (min-width:1800px){.st-now{max-width:1776px}}

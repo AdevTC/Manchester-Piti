@@ -1,11 +1,12 @@
 // Charts of the Celeste Estadísticas page: results columns, the pass constellation, the goal clock,
 // the radar, ranking bars and the per-player jornada strip. Plain SVG/HTML, theme tokens only.
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { ClubMatch } from "../../lib/clubData";
 import { formatDate } from "../../lib/clubData";
 import { competitionRanks, medalFor, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { constellation, goalClock, RADAR_AXES, radarPoints, type HeatCell, type StarLink } from "../../lib/statsView";
+import { placeSkyLabels } from "./skyLabels";
 import { RESULT_LEGEND, RESULT_WORD, resultLetter } from "../../lib/derived/result";
 
 const letter = (m: ClubMatch) => resultLetter(m.goalsFor ?? 0, m.goalsAgainst ?? 0);
@@ -21,7 +22,7 @@ export function ResultsChart({ games }: { games: ClubMatch[] }) {
         {last.map((m, i) => {
           const l = letter(m);
           return (
-            <Link key={m.id} to="/matches/$matchId" params={{ matchId: m.id }} className="col" style={{ animationDelay: `${i * 0.06}s` }} aria-label={`${m.goalsFor} a ${m.goalsAgainst} contra ${m.rival ?? "rival"}, ${RESULT_WORD[l]}, ${formatDate(m.date)}`}>
+            <Link key={m.id} to="/partidos/$matchId" params={{ matchId: m.id }} className="col" style={{ animationDelay: `${i * 0.06}s` }} aria-label={`${m.goalsFor} a ${m.goalsAgainst} contra ${m.rival ?? "rival"}, ${RESULT_WORD[l]}, ${formatDate(m.date)}`}>
               <span className="up">
                 <b>{m.goalsFor}</b>
                 <i style={{ height: `${(m.goalsFor! / max) * 100}%` }} />
@@ -50,6 +51,34 @@ export function Constellation({ rows, links, nameOf, focus, games }: { rows: Pla
   const map = useMemo(() => constellation(rows, links, games), [rows, links, games]);
   const [picked, setPicked] = useState<string | null>(focus ?? null);
   const [run, setRun] = useState(0);
+  // the names never sit on one another (skyLabels: under the star, else above, right or left; a crowded one gives
+  // way and shows on tap), measured on the layout boxes, not the stars' entrance scale; the stars never move
+  const sky = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = sky.current;
+    if (!el) return;
+    const place = () => {
+      const stars = [...el.querySelectorAll<HTMLElement>(".st-star")];
+      const items = stars.map((b) => {
+        const x0 = b.offsetLeft - b.offsetWidth / 2;
+        const y0 = b.offsetTop - b.offsetHeight / 2;
+        const box = (e: HTMLElement | null) => ({ l: x0 + (e?.offsetLeft ?? 0), t: y0 + (e?.offsetTop ?? 0), w: e?.offsetWidth ?? 0, h: e?.offsetHeight ?? 0 });
+        const dot = b.querySelector<HTMLElement>("i");
+        return { label: box(b.querySelector<HTMLElement>("span")), dot: box(dot), weight: dot?.offsetWidth ?? 0 };
+      });
+      placeSkyLabels(items, el.clientWidth, el.clientHeight).forEach((p, i) => {
+        const name = stars[i].querySelector<HTMLElement>("span");
+        name?.style.setProperty("--lx", `${p.dx}px`);
+        name?.style.setProperty("--ly", `${p.dy}px`);
+        stars[i].classList.toggle("crowded", p.crowded);
+      });
+    };
+    place();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(place) : null;
+    ro?.observe(el);
+    void document.fonts?.ready.then(place);
+    return () => ro?.disconnect();
+  }, [map, run]);
   if (!map.nodes.length) return <p className="st-empty">Aún no hay goles con asistencia en este período.</p>;
   const pos = new Map(map.nodes.map((n) => [n.id, n]));
   const maxN = Math.max(1, ...map.links.map((l) => l.n));
@@ -60,7 +89,7 @@ export function Constellation({ rows, links, nameOf, focus, games }: { rows: Pla
   const gets = picked ? map.links.filter((l) => l.to === picked) : [];
   return (
     <div className="st-sky">
-      <div className="st-sky-map" key={run}>
+      <div className="st-sky-map" key={run} ref={sky}>
         <svg viewBox="0 0 100 110" preserveAspectRatio="none" aria-hidden="true">
           <rect x="3" y="3" width="94" height="104" rx="3" className="pitch" />
           <path d="M3 55h94M35 3v12h30V3M35 107V95h30v12" className="pitch" />

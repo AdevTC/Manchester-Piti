@@ -32,7 +32,7 @@ describe("«Cambio en el siete»", () => {
       title: "Cambio en el siete",
       body: "Entra E por B · contra MAD SKY. Míralo en el partido.",
       tag: "seven-b1",
-      url: "/matches/m8?tab=campo",
+      url: "/partidos/m8/siete",
     });
     // the season's official: the board on the pizarra, in its season
     expect(sevenChangeNotice("b1", ["a", "b"], ["a", "e"], { isOfficial: true, matchId: null, seasonId: "t 1" }, null, nameOf)).toEqual({
@@ -90,7 +90,7 @@ describe("la convocatoria que persigue sola", () => {
       title: "¿Vas el domingo?",
       body: "Estás convocado contra MAD SKY (domingo, 12:00). Contesta en la web: Voy, Duda o No puedo.",
       tag: "remind-m8",
-      url: "/matches/m8?tab=vestuario",
+      url: "/partidos/m8/vestuario",
       actions: [
         { action: "yes", title: "Voy" },
         { action: "no", title: "No puedo" },
@@ -107,7 +107,7 @@ describe("la convocatoria que persigue sola", () => {
       title: "Baja de última hora: ERIK",
       body: "ERIK ahora dice «No puedo» (antes «Voy») para el partido contra MAD SKY.",
       tag: "late-m8",
-      url: "/matches/m8?tab=vestuario",
+      url: "/partidos/m8/vestuario",
     });
     expect(lateChangeNotice("m8", "ERIK", "no", "maybe", m, NOW)?.title).toBe("Cambio de última hora: ERIK");
     expect(lateChangeNotice("m8", "ERIK", undefined, "no", m, NOW)).toBeNull();

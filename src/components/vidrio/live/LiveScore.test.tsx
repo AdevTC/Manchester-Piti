@@ -150,7 +150,7 @@ describe("the match day, on every page", () => {
   it("not on its own match page (it has landed there), and nothing said there", () => {
     state.matches = [at(started)];
     state.now = KICK + 3 * MIN;
-    state.path = "/matches/j8";
+    state.path = "/partidos/j8";
     const { container } = render(<LiveScore />);
     expect(container).toBeEmptyDOMElement();
     expect(liveDock.get().live).toBe(true);
@@ -182,7 +182,7 @@ describe("the sheet", () => {
     expect(sheet).toHaveTextContent("1 jugada más");
     expect(sheet).toHaveTextContent("En el campo: Pepito y Jordi.");
     const open = screen.getByRole("link", { name: "Abrir el partido" });
-    expect(open).toHaveAttribute("href", "/matches/j8");
+    expect(open).toHaveAttribute("href", "/partidos/j8");
     expect(open).toHaveAttribute("data-vt", "1");
     expect(sheet.style.viewTransitionName).toBe("vd-live-marcador");
     // «Ver todo el partido» grows it into the whole match
@@ -242,7 +242,7 @@ describe("the sheet", () => {
       for (let i = 0; i < 3; i++) await Promise.resolve();
     });
     const win = screen.getByRole("dialog", { name: "Marcador en una ventana aparte" });
-    expect(win).toHaveTextContent("1–0");
+    expect(win).toHaveTextContent("1\u2060–\u20600");
     // the board's window: the bold line and the last play
     expect(win).toHaveTextContent("En directo, 11′");
     expect(within(win).getByRole("button", { name: "Volver a la pestaña" })).toBeInTheDocument();
@@ -258,7 +258,7 @@ describe("a member's day", () => {
     state.now = DATE - 4 * 60 * MIN;
     render(<LiveScore />);
     fireEvent.click(drop(/^Hoy anotas tú/));
-    expect(screen.getByRole("link", { name: "Abrir la mesa" })).toHaveAttribute("href", "/matches/j8/mesa");
+    expect(screen.getByRole("link", { name: "Abrir la mesa" })).toHaveAttribute("href", "/partidos/j8/mesa");
   });
 
   it("«¿Vas hoy?» only for a jugador who hasn't answered: Voy / Duda / No voy write it, said once, and it stays to show it", () => {
@@ -287,7 +287,7 @@ describe("a member's day", () => {
     state.now = KICK + 60 * MIN + 31 * MIN;
     const { container, rerender } = render(<LiveScore />);
     fireEvent.click(drop(/vota al mejor del partido/));
-    expect(screen.getByRole("link", { name: "Votar al mejor" })).toHaveAttribute("href", "/matches/j8?tab=vestuario");
+    expect(screen.getByRole("link", { name: "Votar al mejor" })).toHaveAttribute("href", "/partidos/j8/vestuario");
     fireEvent.click(screen.getByRole("button", { name: "Ocultar el aviso de votar al MVP" }));
     expect(localStorage.getItem("mp:isle:vote-off")).toBe("j8");
     // the result stays for the rest of the match day: «Acta lista»

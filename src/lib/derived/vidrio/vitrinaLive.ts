@@ -9,6 +9,7 @@ import { dateMillis, isVisibleMatch, matchPhase } from "../../../../functions/sr
 import { madridDate, madridTime } from "../madrid";
 import { playerGame } from "../../clubAnalytics";
 import { resultOf } from "../../partidos";
+import { scoreText } from "../words";
 
 export type PieceArt = "medal" | "ball" | "trophy" | "score" | null;
 export interface VitrinaPiece {
@@ -35,7 +36,7 @@ export interface VitrinaInput {
 }
 
 const LIVE = new Set(["directo1", "descanso", "directo2"]);
-const dash = (gf: number, ga: number) => `${gf}–${ga}`;
+const dash = (gf: number, ga: number) => scoreText(gf, ga);
 const SHORT_MONTH = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 /** The slot of tonight's match (or the next one, on any other day). */

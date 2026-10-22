@@ -2,7 +2,7 @@
 // anotadores. The phase picks the screen (Antes · En juego · Descanso · Final), `?vista=cronica` opens
 // «Lo que va pasando». Everyone else gets a short «Solo para quien anota» with the way back.
 import { useMemo } from "react";
-import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useNoIndex } from "../../hooks/useNoIndex";
@@ -16,8 +16,9 @@ import { Final } from "./screens/Final";
 import type { MesaNav, MesaView } from "./types";
 import "./tokens.css";
 import "./enjuego.css";
+import { backFromMesa } from "../match/partido/paths";
 
-const route = getRouteApi("/matches/$matchId/mesa");
+const route = getRouteApi("/partidos/$matchId/mesa");
 
 /** The screen for the view (exported for the tests). */
 export function MesaScreenFor({ view, vista }: { view: MesaView; vista?: string }) {
@@ -36,15 +37,25 @@ export function MesaScreenFor({ view, vista }: { view: MesaView; vista?: string 
 }
 
 function Gate({ matchId, title, body }: { matchId: string; title: string; body: string }) {
+  const navigate = useNavigate();
   return (
     <main className="mesa">
       <div className="col gate">
         <div className="gate-card" role="status">
           <h1>{title}</h1>
           <p>{body}</p>
-          <Link className="gate-back" to="/matches/$matchId" params={{ matchId }}>
+          {/* (back to the screen of the match page la mesa was opened from) */}
+          <a
+            className="gate-back"
+            href={backFromMesa(matchId)}
+            onClick={(e) => {
+              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+              e.preventDefault();
+              void navigate({ href: backFromMesa(matchId) });
+            }}
+          >
             Volver al partido
-          </Link>
+          </a>
         </div>
       </div>
     </main>
@@ -64,10 +75,11 @@ export function Mesa() {
   const me = useMemo(() => (uid && member ? { uid, name: nickname || "Anotador", admin } : null), [uid, member, nickname, admin]);
   const nav = useMemo<MesaNav>(
     () => ({
-      cronica: () => void navigate({ to: "/matches/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: "cronica" as const }) }),
-      mesa: () => void navigate({ to: "/matches/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: undefined }) }),
-      exit: () => void navigate({ to: "/matches/$matchId", params: { matchId } }),
-      acta: () => void navigate({ to: "/matches/$matchId", params: { matchId } }),
+      cronica: () => void navigate({ to: "/partidos/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: "cronica" as const }) }),
+      mesa: () => void navigate({ to: "/partidos/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: undefined }) }),
+      // «Volver al partido»: the screen la mesa was opened from
+      exit: () => void navigate({ href: backFromMesa(matchId) }),
+      acta: () => void navigate({ to: "/partidos/$matchId", params: { matchId } }),
       // (by href: the pizarra reads «desde=mesa&partido» itself; its route declares only «tablero»)
       pizarra: (boardId?: string | null) => void navigate({ href: pizarraHref(matchId, boardId) }),
     }),

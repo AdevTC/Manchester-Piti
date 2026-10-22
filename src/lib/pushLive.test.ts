@@ -15,18 +15,18 @@ describe("the clock's whistles: descanso, 2ª parte and the provisional final", 
   const at = (phase: string) => ({ ...live, clock: { phase } });
   it("first → halftime: «Descanso · 2–1», once per match, with the kick-off's tag", () => {
     expect(noticesFor("j8", at("first"), at("halftime"), nameOf, NOW)).toEqual([
-      { topic: "start", title: "Descanso · 2–1", body: "Manchester Piti 2–1 MAD SKY. Sigue el directo en la web.", tag: "start-j8", url: "/matches/j8", log: "half-j8" },
+      { topic: "start", title: "Descanso · 2–1", body: "Manchester Piti 2–1 MAD SKY. Sigue el directo en la web.", tag: "start-j8", url: "/partidos/j8", log: "half-j8", matchTopic: "final" },
     ]);
   });
   it("halftime → second: «Arranca la 2ª parte»", () => {
     expect(noticesFor("j8", at("halftime"), at("second"), nameOf, NOW)).toEqual([
-      { topic: "start", title: "Arranca la 2ª parte", body: "Manchester Piti 2–1 MAD SKY. Sigue el directo en la web.", tag: "start-j8", url: "/matches/j8", log: "second-j8" },
+      { topic: "start", title: "Arranca la 2ª parte", body: "Manchester Piti 2–1 MAD SKY. Sigue el directo en la web.", tag: "start-j8", url: "/partidos/j8", log: "second-j8", matchTopic: "final" },
     ]);
   });
   it("→ ended: «Final (provisional) · 2–1», with the acta's «Final» tag so the official one replaces it", () => {
     const provisional = noticesFor("j8", at("second"), at("ended"), nameOf, NOW);
     expect(provisional).toEqual([
-      { topic: "final", title: "Final (provisional) · 2–1", body: "Manchester Piti 2–1 MAD SKY. El resultado oficial llega con el acta del capitán.", tag: "final-j8", url: "/matches/j8", log: "final-live-j8", skipIf: "final-j8" },
+      { topic: "final", title: "Final (provisional) · 2–1", body: "Manchester Piti 2–1 MAD SKY. El resultado oficial llega con el acta del capitán.", tag: "final-j8", url: "/partidos/j8", log: "final-live-j8", skipIf: "final-j8" },
     ]);
     // ended straight from the 1ª parte too (a match cut short)
     expect(noticesFor("j8", at("first"), at("ended"), nameOf, NOW).map((n) => n.log)).toEqual(["final-live-j8"]);
@@ -58,7 +58,7 @@ describe("«Gol anulado»", () => {
   it("a pushed goal undone live: same goal tag (it replaces the «¡GOL!»), only if its own pushLog exists", () => {
     const undone = { ...live, events: live.events.slice(0, 1) };
     expect(noticesFor("j8", live, undone, nameOf, NOW)).toEqual([
-      { topic: "goals", title: "Gol anulado. 0–1", body: "Se anula el gol de ERIK (minuto 19) · Manchester Piti 0–1 MAD SKY", tag: "goal-j8", url: "/matches/j8", requires: "goal-j8-e1", log: "goal-off-j8-e1" },
+      { topic: "goals", title: "Gol anulado. 0–1", body: "Se anula el gol de ERIK (minuto 19) · Manchester Piti 0–1 MAD SKY", tag: "goal-j8", url: "/partidos/j8", requires: "goal-j8-e1", log: "goal-off-j8-e1" },
     ]);
     // the «¡GOL!» it answers claims exactly the id «Gol anulado» requires
     expect(noticesFor("j8", undone, live, nameOf, NOW)[0].log).toBe("goal-j8-e1");
@@ -172,7 +172,7 @@ describe("«MVP de la J5»: the winner when the vote closes", () => {
       title: "MVP de la J5: ERIK",
       body: "Elegido por el vestuario ante MAD SKY. Mira la votación en la web.",
       tag: "mvp-j5",
-      url: "/matches/j5?tab=vestuario",
+      url: "/partidos/j5/vestuario",
       log: "mvp-win-j5",
     });
     const vote = noticesFor("j5", { ...base, events: [] }, { ...base, status: "finished", goalsFor: 1, goalsAgainst: 0, voteClosesAt: NOW + 1, events: [] }, nameOf, NOW).find((n) => n.topic === "mvp");
@@ -196,7 +196,7 @@ describe("personal notices (to the member's own devices)", () => {
       title: "Tu ficha ya es tuya",
       body: "El capitán ha aprobado tu ficha: tus partidos, tus goles y tu carta ya cuentan contigo.",
       tag: "claim-u1",
-      url: "/profile",
+      url: "/perfil",
       log: "claim-u1-erik",
     });
   });
@@ -214,7 +214,7 @@ describe("personal notices (to the member's own devices)", () => {
       title: "El capitán revisó tus posiciones",
       body: "Ha aprobado tus posiciones: tu ficha ya sale así.",
       tag: "positions-erik",
-      url: "/profile",
+      url: "/perfil/posiciones",
       log: "positions-erik-1700000000000",
     });
     expect(positionsNotice("erik", undefined, review("ajustada"), "u1")?.body).toBe("Ha ajustado un poco tus posiciones. Mira cómo quedan en tu perfil.");

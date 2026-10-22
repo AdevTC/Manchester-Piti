@@ -304,7 +304,7 @@ await flushSevens(Date.now(), async (n) => {
 });
 const change12 = flushed.find((n) => n.tag === "seven-" + b12);
 assert.ok(change12, "the job sent «Cambio en el siete»");
-assert.equal(change12.url, "/matches/" + m12 + "?tab=campo");
+assert.equal(change12.url, "/partidos/" + m12 + "/siete");
 await sieteIs(m12, otherSeven, b12);
 const quiet12 = await setConvocatoria(admin, { matchId: m12, starters: otherSeven, bench: [ids[6]], notify: true });
 assert.equal(quiet12.notice, null);

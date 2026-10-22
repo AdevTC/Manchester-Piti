@@ -50,7 +50,7 @@ import { isShot, prefersReducedMotion, supportsViewTransitions, useDesktop, useR
 import { useGoalMoment } from "../useGoalMoment";
 import { useGrow } from "../useGrow";
 import { LIVE_MORPH } from "../transitions";
-import { DROP_HOLD_MS, dayStateOf, dropEvent, floatHome, floatOf, hideMark, pageKey, playing, sheetOf, turnEvent, type FloatDay } from "./liveModel";
+import { DROP_HOLD_MS, dayStateOf, dropEvent, floatHome, floatOf, hideMark, pageKey, pipBottom, playing, sheetOf, turnEvent, type FloatDay } from "./liveModel";
 import { LiveSheet, type RsvpAnswer } from "./LiveSheet";
 import { LivePlays } from "./LivePlays";
 import { PipScore } from "./PipScore";
@@ -284,7 +284,8 @@ export function LiveScore() {
   const mark = state ? hideMark(state, lastGoal?.id ?? "") : "";
   const hidden = !!state && hiddenAt === mark;
   // (on the shown match's own page it has landed: the page is the scoreboard, and says its own plays)
-  const landed = !!state && pathname === `/matches/${state.match.id}`;
+  // (the match page, on any of its screens; la mesa has no floating score)
+  const landed = !!state && pageKey(pathname) === "partido" && pathname.split("/")[2] === state.match.id;
   const shown = !!state && !landed && !hidden;
   const lensHere = dock.mode === "lens";
   const rival = state ? state.match.rival?.trim() || "Rival" : "Rival";
@@ -428,7 +429,7 @@ export function LiveScore() {
             coldRim={!!lastGoal && lastGoal.kind === "golrival" && last?.id === lastGoal.id}
             scoreClass={g.digit || undefined}
             sheetOpen={sheetOpen}
-            vtName={pathname.startsWith("/matches/") || reduced ? undefined : LIVE_VT}
+            vtName={pageKey(pathname) === "partido" || reduced ? undefined : LIVE_VT}
             fx={fx}
             glint={g.glint || undefined}
             nameClass={g.name || undefined}
@@ -443,7 +444,7 @@ export function LiveScore() {
               phone={!desktop}
               style={desktop ? place.style : undefined}
               up={place.up}
-              vtName={pathname.startsWith("/matches/") || reduced ? undefined : LIVE_VT}
+              vtName={pageKey(pathname) === "partido" || reduced ? undefined : LIVE_VT}
               transition={!reduced}
               growProps={grow.summaryProps}
               onMore={() => {
@@ -464,7 +465,7 @@ export function LiveScore() {
           <LivePlays open={growOpen} rows={rows} rival={rival} phone={!desktop} name={grow.windowProps.name} onClose={grow.close} />
         </div>
       )}
-      <PipWindow pip={activePip} title="Marcador en una ventana aparte" onClose={closePip}>
+      <PipWindow pip={activePip} title="Marcador en una ventana aparte" onClose={closePip} bottom={pipBottom(pathname)}>
         <PipScore big={lines.big} rival={rival} head={pipHead} sub={pipSub} now={now} live={ballRolling} digit={g.digit || undefined} fx={fx} gold={g.sky.gold} cold={g.sky.cold} />
       </PipWindow>
     </>

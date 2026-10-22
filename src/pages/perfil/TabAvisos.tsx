@@ -14,7 +14,7 @@ import { topicIds } from "./panels";
 import { usePushDevice } from "./usePushDevice";
 import { NewBadge } from "../../components/NewBadge";
 
-const TP_ICON: Record<Topic, PIcon> = { start: "flag", goals: "ball", cards: "alert", final: "trophy", mvp: "star", dates: "cal", lineup: "shirt", door: "door", access: "door", convocatoria: "cal" };
+const TP_ICON: Record<Topic, PIcon> = { start: "flag", goals: "ball", cards: "alert", final: "trophy", mvp: "star", dates: "cal", lineup: "shirt", tabla: "trophy", door: "door", access: "door", convocatoria: "cal" };
 const TP_W: Partial<Record<Topic, number>> = { start: 18 };
 
 const Bold = ({ s }: { s: string }) => (

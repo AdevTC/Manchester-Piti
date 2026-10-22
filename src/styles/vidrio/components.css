@@ -118,7 +118,11 @@
 .vd-float[data-vd-h="left"] .vd-float__hint{left:0;transform:none}
 .vd-float:hover .vd-float__hint,.vd-float:focus-within .vd-float__hint{opacity:1}
 .vd-float.is-drag .vd-float__hint{opacity:0}
-.vd-float__pip{--vd-r:999px;width:44px;height:44px;display:grid;place-items:center;border:0;cursor:pointer;opacity:0;transition:opacity .25s}
+/* «Sacar el marcador» beside the drop, out of the float's box: the drop alone sits on its spot, as on the boards
+   (inwards: to its left when it rests on the right); ::before bridges the 8 px gap so hover holds */
+.vd-float__pip{--vd-r:999px;position:absolute;top:50%;left:calc(100% + 8px);margin-top:-22px;width:44px;height:44px;display:grid;place-items:center;border:0;cursor:pointer;opacity:0;transition:opacity .25s}
+.vd-float[data-vd-h="right"] .vd-float__pip{left:auto;right:calc(100% + 8px)}
+.vd-float__pip::before{content:"";position:absolute;top:0;bottom:0;left:-9px;right:-9px}
 .vd-float:hover .vd-float__pip,.vd-float:focus-within .vd-float__pip{opacity:1}
 .vd-float__pip svg{width:18px;height:18px}
 .vd-drop{--vd-r:999px;display:inline-flex;align-items:center;gap:10px;height:50px;padding:0 16px 0 7px;white-space:nowrap;border:0;font-family:var(--vd-sans);color:var(--vd-g-ink);cursor:inherit;transition:height .5s var(--vd-spring),padding .5s var(--vd-spring)}
@@ -135,7 +139,7 @@
 .vd-drop__off{width:22px;height:22px;margin-left:8px;flex:none;color:var(--vd-g-ink2)}
 
 /* ---------------------------------------------------------------- «Sacar el marcador» window (in-page) */
-.vd-pip{position:fixed;left:0;top:0;z-index:45;width:420px;height:236px;min-width:300px;min-height:180px;max-width:720px;max-height:420px;--vd-r:18px;
+.vd-pip{position:fixed;left:0;top:0;z-index:45;width:330px;height:150px;min-width:260px;min-height:128px;max-width:560px;max-height:300px;--vd-r:18px;
   display:flex;flex-direction:column;overflow:hidden;resize:both;font-family:var(--vd-sans);transform:translate3d(var(--vd-fx,0px),var(--vd-fy,0px),0);transition:transform .62s var(--vd-spring)}
 .vd-pip:not([data-vd-placed]){visibility:hidden}
 .vd-pip.is-drag{transition:none}
@@ -182,7 +186,7 @@
 .vd-drop>.vd-glint{border-radius:inherit}
 .vd-float.is-open>.vd-drop{visibility:hidden}
 .vd-float.is-docked .vd-drop{max-width:var(--vd-dockw,320px);overflow:hidden}
-.vd-float.is-docked .vd-drop:not(.vd-drop--expanded) .vd-drop__score+.vd-drop__vs{display:none}
+.vd-float.is-docked .vd-drop__vs{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .vd-float.is-docked .vd-drop__event{min-width:0}
 .vd-float.is-docked .vd-drop__event :is(b,span){max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .vd-rim-coral{box-shadow:inset 0 0 0 1.2px rgba(240,138,126,.7),0 30px 70px -34px rgba(240,138,126,.45)!important}
@@ -233,17 +237,16 @@
 .vd-switch[aria-checked="true"] .vd-switch__knob{left:15px}
 .vd-switch:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px;border-radius:999px}
 :root[data-theme="light"] .vd-switch__track{background:rgba(12,23,51,.14)}
+/* (on in «Día»: the day's celeste ink under the white knob; the rule above would otherwise keep it grey) */
+:root[data-theme="light"] .vd-switch[aria-checked="true"] .vd-switch__track{background:var(--vd-celeste-ink)}
 /* «Avisos a medida» (components/vidrio/account/AvisosPrefs) */
 .vd-prefs{margin-top:8px;padding-top:14px;border-top:1px solid var(--vd-rule2);font-family:var(--vd-sans)}
 .vd-prefs .vd-label{color:var(--vd-g-ink)}
 .vd-prefs .vd-seg{width:100%;height:44px}
 .vd-prefs .vd-small{margin:8px 0 2px;color:var(--vd-g-ink2)}
 @media (prefers-reduced-motion:reduce){.vd-switch__knob,.vd-switch__track{transition:none}}
-/* docked compact: tighter padding and type; tight → no crest, tighter → no minute (the score never clips) */
-.vd-float.is-docked .vd-drop:not(.vd-drop--expanded){height:44px;gap:8px;padding:0 12px 0 5px}
-.vd-float.is-docked .vd-drop:not(.vd-drop--expanded) .vd-drop__crest{width:32px;height:32px}
-.vd-float.is-docked .vd-drop:not(.vd-drop--expanded) .vd-drop__score{font-size:21px}
-.vd-float.is-docked .vd-drop:not(.vd-drop--expanded) .vd-drop__min{font-size:13px}
+/* docked: the whole drop, as the board (the rival ellipsizes first); on a narrow segment tight → no crest,
+   tighter → no minute (the score never clips) */
 .vd-float.is-docked[data-vd-tight] .vd-drop{padding:0 12px}
 .vd-float.is-docked[data-vd-tight] .vd-drop__crest{display:none}
 .vd-float.is-docked[data-vd-tight="2"] .vd-drop:not(.vd-drop--expanded) .vd-drop__min{display:none}
