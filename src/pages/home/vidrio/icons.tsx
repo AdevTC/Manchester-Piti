@@ -76,6 +76,7 @@ const PATHS = {
   collapse: <path d="M20 4l-6 6M14 5v5h5M4 20l6-6M10 19v-5H5" {...S} strokeWidth="2" />,
   flag: <path d="M6 21V4M6 4.5c4-2 6 2 11 0v8c-5 2-7-2-11 0" {...S} strokeWidth="2" />,
   card: <rect x="7" y="4" width="10" height="16" rx="2" {...S} strokeWidth="2" />,
+  clock: <path d="M12 3.5a8.5 8.5 0 100 17 8.5 8.5 0 000-17zM12 7.5V12l3 2" {...S} strokeWidth="2" />,
   chance: <path d="M4 17c4-8 10-11 16-11M14 4l6 2-2 6" {...S} strokeWidth="2" />,
   offside: <path d="M6 21V4M6 4.5c4-2 6 2 11 0v8c-5 2-7-2-11 0" {...S} strokeWidth="2" />,
 } satisfies Record<string, ReactNode>;

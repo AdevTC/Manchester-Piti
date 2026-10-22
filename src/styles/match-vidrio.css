@@ -111,6 +111,9 @@
 .mp-player--tags2 .vd-tags{display:grid;grid-template-columns:repeat(2,max-content);gap:3px}
 .mp-player--tags2[data-tags="l"] .vd-tags{justify-items:end}
 .mp-player--tagsicon .vd-tag{gap:0;padding:0 5px;font-size:0;min-width:10px}
+/* (the minutes chip keeps its number when the others go icon-only: a clock alone says nothing) */
+.mp-player--tagsicon .vd-tag.vd-tag--minutos{gap:2px;font-size:11.5px}
+.mp-player--tagsicon .vd-tag__unit{display:none}
 
 @media (min-width:700px){
 .mp-head{padding:96px 40px 0}

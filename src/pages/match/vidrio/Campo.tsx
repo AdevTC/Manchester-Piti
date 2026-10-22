@@ -7,12 +7,18 @@ import type { PlayerDoc } from "../../../lib/schemas";
 import { useSeason } from "../../../context/SeasonContext";
 import { lineupWalk, parseMatchLineup } from "../../../lib/matchLineup";
 import { settled } from "../../../lib/eventMeta";
+import { eventSeconds } from "../../../../functions/src/matchAnalysis";
 import { madridTime } from "../../../lib/derived/madrid";
 import { nightTags } from "../../../lib/derived/vidrio/squadLive";
 import { TagRow } from "../../../components/paginas/Tags";
 import type { PitchPlayer } from "../../home/vidrio/pitchLayout";
 import { useNumOf } from "../useNumOf";
 import { placeCampo } from "./campoLayout";
+import { ICON_MINUTES_CHIP } from "../../home/vidrio/pitchLayout";
+import { useGrow } from "../../../components/vidrio";
+import { CambiosGrow, CambiosMore } from "../../../components/paginas/Cambios";
+import { rotationOf } from "../../../lib/derived/vidrio/rotation";
+import { snapshotUntil } from "../../../lib/ficha";
 
 /** The collision pass on this pitch (campoLayout): measured as laid out (offsets, so no transform skews it), every
  *  name kept clear of the other shirts and names — the player moved a little from the pizarra's spot when he must —
@@ -50,7 +56,7 @@ function useCampoLayout(key: string) {
           shirt: { x: x0 + (shirt?.offsetLeft ?? 0), y: y0 + (shirt?.offsetTop ?? 0), w: shirt?.offsetWidth ?? 0, h: shirt?.offsetHeight ?? 0 },
           plate: { x: x0 + (plate?.offsetLeft ?? 0), y: y0 + (plate?.offsetTop ?? 0), w: plate?.offsetWidth ?? 0, h: plate?.offsetHeight ?? 0 },
           plate2,
-          tags: tags ? { w: tags.offsetWidth, h: tags.offsetHeight, n: tags.childElementCount } : null,
+          tags: tags ? { w: tags.offsetWidth, h: tags.offsetHeight, n: tags.childElementCount, iconW: tags.querySelector(".vd-tag--minutos") ? ICON_MINUTES_CHIP : undefined } : null,
         };
       });
       placeCampo(players, pitch.clientWidth, pitch.clientHeight).forEach((p, i) => {
@@ -98,7 +104,7 @@ const LINES = (
   </svg>
 );
 
-export function Campo({ match, players, nameOf, live, started }: { match: ClubMatch; players: PlayerDoc[]; nameOf: (id: string) => string; live: boolean; started: boolean }) {
+export function Campo({ match, players, nameOf, live, started, now }: { match: ClubMatch; players: PlayerDoc[]; nameOf: (id: string) => string; live: boolean; started: boolean; now?: number }) {
   const numOf = useNumOf(players, match.seasonId);
   const { seasons } = useSeason();
   const captain = seasons.find((s) => s.id === match.seasonId)?.captainPlayerId ?? null;
@@ -106,19 +112,21 @@ export function Campo({ match, players, nameOf, live, started }: { match: ClubMa
   const slots = lineup ? lineup.slots : (match.starters ?? []).slice(0, 7).map((id, i) => ({ playerId: id, code: i === 0 ? ("POR" as const) : ("MC" as const), x: DEFAULT_SPOTS[i][0], y: DEFAULT_SPOTS[i][1] }));
   const events = started ? settled(match.events) : [];
   const walk = lineupWalk({ slots }, events);
-  const tags = nightTags(events, live);
+  // (with changes — F7 rolls them — each one's minutes on the pitch instead of a chip per change, and «21 cambios»
+  // growing into the list by player; live, up to the minute being played)
+  const rot = started ? rotationOf(match, events, nameOf, live ? Math.floor(now !== undefined ? snapshotUntil(match, now).until : Math.max(0, ...events.map((e) => eventSeconds(e) / 60))) : undefined) : null;
+  const rotation = rot && rot.changes > 0 ? rot : null;
+  const tags = nightTags(events, live, rotation?.minutes ?? null);
+  const grow = useGrow("mp-grow-cambios");
   const pitch = useCampoLayout(walk.now.map((s) => `${s.playerId}@${s.x},${s.y}:${nameOf(s.playerId)}:${(tags.get(s.playerId) ?? []).map((t) => t.kind + t.text).join(",")}`).join("|"));
   if (!slots.length) return null;
-  const subs = walk.steps.filter((s) => s.k === "sub" && s.inId).map((s) => nameOf(s.inId!));
   const sub = !started
     ? lineup?.setAt
       ? `Publicado a las ${madridTime(lineup.setAt)}`
       : "El siete de la convocatoria"
-    : subs.length
-      ? `Con ${subs.length === 1 ? subs[0] : `${subs.slice(0, -1).join(", ")} y ${subs.at(-1)}`}`
-      : (lineup?.system ?? "");
+    : (lineup?.system ?? "");
   return (
-    <section className="vd-glass vd-glass--clear vd-orn mp-campo" aria-labelledby="mp-campo-t">
+    <section className={`vd-glass vd-glass--clear vd-orn mp-campo${rotation ? ` ${grow.summaryProps.className}` : ""}`} style={rotation ? grow.summaryProps.style : undefined} data-vd-grow={rotation ? grow.summaryProps["data-vd-grow"] : undefined} aria-labelledby="mp-campo-t">
       <div className="vd-orn__head">
         <h2 id="mp-campo-t">{started ? "Ahora en el campo" : "El siete"}</h2>
         {sub && <span>{sub}</span>}
@@ -148,6 +156,12 @@ export function Campo({ match, players, nameOf, live, started }: { match: ClubMa
           })}
         </ul>
       </div>
+      {rotation && (
+        <>
+          <CambiosMore rotation={rotation} grow={grow} />
+          <CambiosGrow rotation={rotation} grow={grow} className="mp-grow mp-grow--cambios" portal />
+        </>
+      )}
     </section>
   );
 }

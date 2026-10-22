@@ -4,13 +4,14 @@
 // minute and its label.
 import type { LiveTag } from "../../lib/derived/vidrio/squadLive";
 
-export type PgIconId = "ball" | "pass" | "glove" | "swap" | "back" | "pip" | "share" | "expand" | "close" | "shirt" | "cal" | "map" | "board" | "arrow" | "medal" | "trophy";
+export type PgIconId = "ball" | "pass" | "glove" | "swap" | "clock" | "back" | "pip" | "share" | "expand" | "close" | "shirt" | "cal" | "map" | "board" | "arrow" | "medal" | "trophy";
 
 const PATHS: Record<PgIconId, string> = {
   ball: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4.2 3.6 2.6-1.4 4.2H9.8L8.4 9.8Zm0-4.2v4.2m3.6 2.6 4.1-1.2M14.2 14l2.5 3.4M9.8 14l-2.5 3.4M8.4 9.8 4.3 8.6",
   pass: "M6 18 18 6m0 0H9m9 0v9",
   glove: "M8 21h8l1.5-7V7.5a1.5 1.5 0 0 0-3 0V11V5a1.5 1.5 0 0 0-3 0v6V4.5a1.5 1.5 0 0 0-3 0V12l-1.6-1.8a1.5 1.5 0 0 0-2.3 1.9L8 17Z",
   swap: "M4 8h13l-3-3m6 11H7l3 3",
+  clock: "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17ZM12 7.5V12l3 2",
   back: "M15 5 8 12l7 7",
   pip: "M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5ZM12 12h6v5h-6Z",
   share: "M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 12v6.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V12",
@@ -33,14 +34,21 @@ export function PgIcon({ id, className }: { id: PgIconId; className?: string }) 
   );
 }
 
-const TAG_ICON: Partial<Record<LiveTag["kind"], PgIconId>> = { gol: "ball", asis: "pass", cambio: "swap", parada: "glove" };
+const TAG_ICON: Partial<Record<LiveTag["kind"], PgIconId>> = { gol: "ball", asis: "pass", cambio: "swap", parada: "glove", minutos: "clock" };
 
 export function TagChip({ t }: { t: LiveTag }) {
   const icon = TAG_ICON[t.kind];
   return (
     <span className={`vd-tag vd-tag--${t.kind}${t.gold ? " vd-tag--gold" : ""}`} role="img" aria-label={t.label}>
       {icon && <PgIcon id={icon} />}
-      {t.text}
+      {t.kind === "minutos" ? (
+        <>
+          {t.text.replace(/ min$/, "")}
+          <span className="vd-tag__unit">{" min"}</span>
+        </>
+      ) : (
+        t.text
+      )}
     </span>
   );
 }

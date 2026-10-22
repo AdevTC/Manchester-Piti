@@ -6,7 +6,10 @@ import { useContext, useEffect, useRef, type CSSProperties } from "react";
 import { KitStillContext, type Kit } from "../../../components/jersey3d/kitStill";
 import type { SieteSpot, SieteTag } from "../hoyModel";
 import { Ico, type IconId } from "./icons";
-import { placePitch, type PitchPlayer } from "./pitchLayout";
+import { ICON_MINUTES_CHIP, placePitch, type PitchPlayer } from "./pitchLayout";
+import type { Grow } from "../../../components/vidrio";
+import { CambiosMore } from "../../../components/paginas/Cambios";
+import type { Rotation } from "../../../lib/derived/vidrio/rotation";
 
 /** Measures the pitch as laid out (offsets: no transforms, so the 1440 ornament's tilt doesn't skew it) and
  *  places every plate and tags column clear of the others (pitchLayout); again whenever the pitch resizes
@@ -50,7 +53,7 @@ function usePitchLayout(key: string) {
           shirt: { x: x0 + (shirt?.offsetLeft ?? 0), y: y0 + (shirt?.offsetTop ?? 0), w: shirt?.offsetWidth ?? 0, h: shirt?.offsetHeight ?? 0 },
           plate: { x: x0 + (plate?.offsetLeft ?? 0), y: y0 + (plate?.offsetTop ?? 0), w: plate?.offsetWidth ?? 0, h: plate?.offsetHeight ?? 0 },
           plate2,
-          tags: tags ? { w: tags.offsetWidth, h: tags.offsetHeight, n: tags.childElementCount } : null,
+          tags: tags ? { w: tags.offsetWidth, h: tags.offsetHeight, n: tags.childElementCount, iconW: tags.querySelector(".vi-tag--minutos") ? ICON_MINUTES_CHIP : undefined } : null,
           first: li.classList.contains("vi-player--me"),
         };
       });
@@ -86,7 +89,7 @@ function usePitchLayout(key: string) {
   return ref;
 }
 
-const TAG_ICON: Partial<Record<SieteTag["kind"], IconId>> = { gol: "ball", asis: "pass", cambio: "swap", parada: "glove" };
+const TAG_ICON: Partial<Record<SieteTag["kind"], IconId>> = { gol: "ball", asis: "pass", cambio: "swap", parada: "glove", minutos: "clock" };
 
 /** A shirt with its number: the player's own kit still from KitStillContext (name and number printed by the scene),
  *  else the kit's blank still under a set number, else (before both, and on the server) the drawn shape. */
@@ -106,7 +109,14 @@ function Tag({ t }: { t: SieteTag }) {
   return (
     <span className={`vi-tag vi-tag--${t.kind}${t.gold ? " vi-tag--gold" : ""}`} aria-label={t.label} role="img">
       {icon && <Ico id={icon} />}
-      {t.text}
+      {t.kind === "minutos" ? (
+        <>
+          {t.text.replace(/ min$/, "")}
+          <span className="vi-tag__unit">{"\u00a0min"}</span>
+        </>
+      ) : (
+        t.text
+      )}
     </span>
   );
 }
@@ -136,15 +146,17 @@ export interface SieteOrnProps {
   spots: readonly SieteSpot[];
   bench: string;
   kit: "home" | "away";
+  /** The match had changes: «21 cambios · Ver los cambios» under the pitch, growing into the list by player. */
+  cambios?: { rotation: Rotation; grow: Grow } | null;
   className?: string;
 }
 
-export function SieteOrn({ title, system, spots, bench, kit, className }: SieteOrnProps) {
+export function SieteOrn({ title, system, spots, bench, kit, cambios, className }: SieteOrnProps) {
   const still = useContext(KitStillContext)(kit);
   // (laid out again when the kit's still arrives: the still stands taller than the drawn shirt)
   const pitch = usePitchLayout(spots.map((s) => `${s.id}:${s.name}:${s.tags.map((t) => t.kind + t.text).join(",")}`).join("|") + (still ? "|kit" : ""));
   return (
-    <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-siete${className ? ` ${className}` : ""}`} aria-label={title}>
+    <section className={`vd-glass vd-glass--clear vd-orn vi-orn vi-siete${cambios ? ` ${cambios.grow.summaryProps.className}` : ""}${className ? ` ${className}` : ""}`} style={cambios?.grow.summaryProps.style} data-vd-grow={cambios?.grow.summaryProps["data-vd-grow"]} aria-label={title}>
       <div className="vd-orn__head">
         <h2>{title}</h2>
         <span>{system}</span>
@@ -176,7 +188,12 @@ export function SieteOrn({ title, system, spots, bench, kit, className }: SieteO
           ))}
         </ul>
       </div>
-      <p className="vi-bench">{bench}</p>
+      {bench && <p className="vi-bench">{bench}</p>}
+      {cambios && cambios.rotation.changes > 0 && (
+        <div className="vi-cambios">
+          <CambiosMore rotation={cambios.rotation} grow={cambios.grow} />
+        </div>
+      )}
     </section>
   );
 }

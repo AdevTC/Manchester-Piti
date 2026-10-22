@@ -172,11 +172,17 @@ export function onPitch(starters: string[] | undefined, events: MatchEvent[] | u
 
 /** Live minutes use the same stints and dismissals as the server's final ledger. */
 export function matchSnapshot(match: Pick<ClubMatch, "starters" | "bench" | "notCalled" | "events" | "duration" | "date" | "liveEndedAt" | "clock" | "durationSeconds">, now: number) {
+  const { until, duration } = snapshotUntil(match, now);
+  return calculateLedger({ starters: match.starters ?? [], bench: match.bench ?? [], notCalled: match.notCalled ?? [], events: match.events ?? [], duration }, false, { until, allowUnattributedGoals: true });
+}
+
+/** How far into the match `now` is (minutes, la mesa's clock when it runs) and the duration that holds it. */
+export function snapshotUntil(match: Pick<ClubMatch, "events" | "duration" | "date" | "liveEndedAt" | "clock">, now: number): { until: number; duration: number } {
   const lastMinute = Math.max(0, ...(match.events ?? []).map((e) => e.minute ?? 0));
   const duration = Math.max(match.duration ?? 50, lastMinute);
   const start = dateMillis(match.date);
   const elapsed = match.clock ? clockReading(match.clock, now).elapsedSeconds / 60 : Number.isFinite(start) ? Math.max(0, Math.floor(((match.liveEndedAt ?? now) - start) / 60_000)) : 0;
-  return calculateLedger({ starters: match.starters ?? [], bench: match.bench ?? [], notCalled: match.notCalled ?? [], events: match.events ?? [], duration: Math.max(duration, Math.ceil(elapsed)) }, false, { until: match.clock ? elapsed : Math.min(duration, Math.max(elapsed, lastMinute)), allowUnattributedGoals: true });
+  return { until: match.clock ? elapsed : Math.min(duration, Math.max(elapsed, lastMinute)), duration: Math.max(duration, Math.ceil(elapsed)) };
 }
 
 export interface NumberRow {

@@ -21,7 +21,8 @@ export interface PitchPlayer {
   /** The plate set on two lines (a name with a space), measured; null or absent for a one-word name. */
   plate2?: { w: number; h: number } | null;
   /** The tags column's size and how many tags it holds, or null without tags. */
-  tags: { w: number; h: number; n: number } | null;
+  /** iconW: an icon-only column's width when it isn't ICON_CHIP (the minutes chip keeps its number beside the clock). */
+  tags: { w: number; h: number; n: number; iconW?: number } | null;
   /** Placed first (the viewer's own player). */
   first?: boolean;
 }
@@ -49,6 +50,8 @@ export interface PitchPlace {
 export const TAG_GAP = 3;
 /** An icon-only chip's width (11 px icon, 5 px each side). */
 export const ICON_CHIP = 21;
+/** The minutes chip when the others go icon-only: the clock and the number stay (11 + 2 + two digits + 5 px each side). */
+export const ICON_MINUTES_CHIP = 38;
 /** Air kept on each side of a name plate. */
 export const PLATE_AIR = 4;
 /** How far a player may move from the pizarra's spot, as a share of the pitch. */
@@ -60,8 +63,8 @@ const move = (r: Rect, dx: number, dy: number): Rect => ({ x: r.x + dx, y: r.y +
 const roomy = (r: Rect): Rect => ({ x: r.x - PLATE_AIR, y: r.y, w: r.w + 2 * PLATE_AIR, h: r.h });
 
 /** The size of a player's tags folded into `cols` columns. */
-export function tagsSize(t: { w: number; h: number; n: number }, cols: 1 | 2, chips: "full" | "icon" = "full"): { w: number; h: number } {
-  const w = chips === "icon" ? Math.min(t.w, ICON_CHIP) : t.w;
+export function tagsSize(t: { w: number; h: number; n: number; iconW?: number }, cols: 1 | 2, chips: "full" | "icon" = "full"): { w: number; h: number } {
+  const w = chips === "icon" ? Math.min(t.w, t.iconW ?? ICON_CHIP) : t.w;
   if (cols === 1 || t.n < 2) return { w, h: t.h };
   const row = (t.h + TAG_GAP) / t.n - TAG_GAP;
   const rows = Math.ceil(t.n / 2);
@@ -74,8 +77,8 @@ export function tagsBox(shirt: Rect, size: { w: number; h: number }, side: "l" |
 }
 
 /** The tags as one row centred under the name. */
-function rowBox(shirt: Rect, plate: Rect, t: { w: number; h: number; n: number }, chips: "full" | "icon", dy: number): Rect {
-  const w = chips === "icon" ? Math.min(t.w, ICON_CHIP) : t.w;
+function rowBox(shirt: Rect, plate: Rect, t: { w: number; h: number; n: number; iconW?: number }, chips: "full" | "icon", dy: number): Rect {
+  const w = chips === "icon" ? Math.min(t.w, t.iconW ?? ICON_CHIP) : t.w;
   const h = (t.h + TAG_GAP) / t.n - TAG_GAP;
   const rowW = t.n * w + (t.n - 1) * TAG_GAP;
   const cx = shirt.x + shirt.w / 2;

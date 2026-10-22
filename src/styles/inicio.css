@@ -105,6 +105,8 @@
 .vi-orn-foot:not([data-more="5"]) .vd-more{display:none}
 .vi-orn-foot:not([data-more="5"]) .vi-openmatch{display:inline-flex}
 .vi .vi-bench{font-size:13px;color:var(--vd-g-ink2);margin:10px 0 0;line-height:1.4}
+/* «21 cambios · Ver los cambios» under the pitch (it grows into the list by player) */
+.vi-siete .vi-cambios .vd-more{margin-top:10px}
 /* el siete */
 .vi-pitch{position:relative;border-radius:18px;overflow:hidden;height:232px;
   background:repeating-linear-gradient(90deg,rgba(120,200,170,.07) 0 12.5%,rgba(120,200,170,0) 12.5% 25%),linear-gradient(180deg,rgba(40,120,100,.22),rgba(30,90,90,.16));
@@ -128,6 +130,9 @@
 .vi-player--tags2 .vi-player__tags{display:grid;grid-template-columns:repeat(2,max-content);gap:3px}
 .vi-player--tags2[data-tags="l"] .vi-player__tags{justify-items:end}
 .vi-player--tagsicon .vi-tag{gap:0;padding:0 5px;font-size:0;min-width:10px}
+/* (the minutes chip keeps its number when the others go icon-only: a clock alone says nothing) */
+.vi-player--tagsicon .vi-tag.vi-tag--minutos{gap:2px;font-size:11.5px}
+.vi-player--tagsicon .vi-tag__unit{display:none}
 .vi-player--me .vi-player__name{text-decoration:underline;text-decoration-color:var(--vd-celeste);text-underline-offset:3px;text-decoration-thickness:2px}
 .vi-tag{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 6px;border-radius:6px;font-size:11.5px;font-weight:650;line-height:1;background:rgba(234,243,252,.9);color:var(--vd-marino);white-space:nowrap}
 .vi-tag svg{width:11px;height:11px}

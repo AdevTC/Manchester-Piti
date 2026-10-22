@@ -20,6 +20,7 @@ import type { MatchWeather } from "../../lib/weather";
 import type { RibbonItem, RibbonKind } from "../../components/vidrio/momentum";
 import type { ViewerKind } from "../../lib/derived/vidrio/viewer";
 import type { StripSegment } from "../../lib/derived/vidrio/strip";
+import { minutesTag } from "../../lib/derived/vidrio/squadLive";
 import { andList, dayWord, heroCopy, isLive, niceName, weekday, type CopyCtx } from "./inicioModel";
 
 const MIN = 60_000;
@@ -658,7 +659,8 @@ export function winnerDeeds(tags: readonly Pick<SieteTag, "kind">[]): string | n
 }
 
 export interface SieteTag {
-  kind: "gol" | "asis" | "amarilla" | "roja" | "cambio" | "parada";
+  kind: "gol" | "asis" | "amarilla" | "roja" | "cambio" | "parada" | "minutos";
+  /** «21′» (a play's minute), «35 min» (his minutes on the pitch). */
   text: string;
   /** Our latest goal while the match is on (gold: only our goal). */
   gold: boolean;
@@ -705,6 +707,10 @@ export interface SieteCtx {
   numOf: (id: string) => string;
   captainId: string | null;
   me: string | null;
+  /** Each player's minutes on the pitch when the match had changes (derived/vidrio/rotation): a chip «35 min»
+   *  first instead of one per change (F7's rolling changes would fill the pitch with arrows), then his two
+   *  latest marks. */
+  minutes?: ReadonlyMap<string, number> | null;
 }
 
 /** El siete as it stands at this point of the day (the subs walked in while live and after), with marks. */
@@ -715,17 +721,19 @@ export function sieteOf(c: SieteCtx): SieteSpot[] {
     : c.seven.slice(0, 7).map((id, i) => ({ playerId: id, code: i === 0 ? "POR" : "MC", x: DEFAULT_SLOTS[i][0], y: DEFAULT_SLOTS[i][1] }));
   if (!slots.length) return [];
   const played = hasScore(c.phase);
-  const events = played ? settled([...c.events]) : [];
+  // (in the order they happened: an acta may store them in any order, and «the newest» below means by the clock)
+  const events = played ? settled([...c.events]).map((e, i) => ({ e, i })).sort((a, b) => eventSeconds(a.e) - eventSeconds(b.e) || a.i - b.i).map((x) => x.e) : [];
   const now = played ? lineupWalk({ slots }, events).now : slots;
   const goals = events.filter((e) => eventMetaOf(e).goal === "for");
   const lastGoal = isLive(c.phase) ? goals.at(-1)?.id : undefined;
   const min = (e: MatchEvent) => Math.max(1, Math.ceil(eventSeconds(e) / 60));
+  const mins = played && c.minutes?.size ? c.minutes : null;
   const tagsOf = (id: string): SieteTag[] => {
     const out: SieteTag[] = [];
     for (const e of events) {
       const meta = eventMetaOf(e);
       const m = min(e);
-      if (e.type === "substitution" && e.inPlayerId === id) out.push({ kind: "cambio", text: `${m}′`, gold: false, label: `Entró en el ${m}` });
+      if (!mins && e.type === "substitution" && e.inPlayerId === id) out.push({ kind: "cambio", text: `${m}′`, gold: false, label: `Entró en el ${m}` });
       if (e.playerId !== id && e.assistPlayerId !== id) continue;
       if (meta.goal === "for" && e.type !== "opponent_own_goal" && e.playerId === id) out.push({ kind: "gol", text: `${m}′`, gold: e.id === lastGoal, label: `Gol en el ${m}` });
       if (meta.goal === "for" && e.assistPlayerId === id) out.push({ kind: "asis", text: `${m}′`, gold: false, label: `Asistencia en el ${m}` });
@@ -734,6 +742,10 @@ export function sieteOf(c: SieteCtx): SieteSpot[] {
       if (e.playerId === id && e.type === "penalty_saved") out.push({ kind: "parada", text: `${m}′`, gold: false, label: `Paró un penalti en el ${m}` });
     }
     // (the newest first, as the boards: the goal of the night above the pass that came before it)
+    const n = mins?.get(id);
+    if (n !== undefined) {
+      return [minutesTag(n, isLive(c.phase)), ...out.slice(-2).reverse()];
+    }
     return out.slice(-3).reverse();
   };
   return now.map((s) => ({
@@ -751,7 +763,7 @@ export function sieteOf(c: SieteCtx): SieteSpot[] {
 export function benchLineOf(match: ClubMatch, phase: MatchdayPhase, events: readonly MatchEvent[], nameOf: (id: string) => string, published: boolean | { at: number; now: number }): string {
   const name = withGuestNames(match, nameOf);
   if (isOver(phase)) {
-    const subs = settled([...events]).filter((e) => e.type === "substitution" && e.inPlayerId && e.playerId);
+    const subs = settled([...events]).filter((e) => e.type === "substitution" && e.inPlayerId && e.playerId).sort((a, b) => eventSeconds(a) - eventSeconds(b));
     if (!subs.length) return "Los siete jugaron el partido entero.";
     return endSentence(`${subs.length === 1 ? "Entró" : "Entraron"} ${andList(subs.map((e) => `${name(e.inPlayerId!)} por ${name(e.playerId!)} (${Math.max(1, Math.ceil(eventSeconds(e) / 60))}′)`))}`);
   }

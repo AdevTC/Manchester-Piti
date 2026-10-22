@@ -41,6 +41,8 @@ import { seasonStrip } from "../../lib/derived/vidrio/strip";
 import { projectTable } from "../../lib/derived/vidrio/table";
 import { seasonLeaders } from "../../lib/derived/vidrio/leaders";
 import { playsLog, type PlaysLog } from "../../lib/derived/vidrio/plays";
+import { rotationOf } from "../../lib/derived/vidrio/rotation";
+import { CambiosGrow } from "../../components/paginas/Cambios";
 import { usePolls, usePollVotes, useAbsences, useMatchScorers, useMvpResults } from "../vestuario/live";
 import { pollTally } from "../../lib/derived/polls";
 import { albumLine, albumOf } from "../../lib/derived/album";
@@ -194,9 +196,11 @@ export function HomePage() {
   const plays = useGrow("vi-grow-plays");
   const tabla = useGrow("vi-grow-tabla");
   const goles = useGrow("vi-grow-goles");
+  const cambios = useGrow("vi-grow-cambios");
   const go = (to: PlaceId) => {
     // (a grown window goes back to its place first: a new place never opens with one grown)
     if (plays.open) plays.close();
+    if (cambios.open) cambios.close();
     if (tabla.open) tabla.close();
     if (goles.open) goles.close();
     if (to === place) return;
@@ -249,7 +253,11 @@ export function HomePage() {
       ? WAITING
       : hoyCopy({ day, view, now, member, role, nameOf: niceOf, sevenPublished: seven.length > 0, weather, seasonName, squadSize: squad.length, mvp: null, estreno, winner });
   const orns = ornamentsOf(phase, kind, seven.length > 0, voteOpen, winner !== null);
-  const spots = m && orns.left === "siete" ? sieteOf({ match: m, phase, events: view.events, seven, nameOf, numOf, captainId: (m as ClubMatch & { captainId?: string }).captainId ?? season?.captainPlayerId ?? null, me: member ? viewer.playerId : null }) : [];
+  // the changes by player (F7 rolls them: a player goes in and out several times): his minutes on the pitch and
+  // «21 cambios», growing into the list; live, up to the minute being played
+  const rot = m && hasScore(phase) ? rotationOf(m, view.events, niceOf, live ? Math.floor((view.seconds ?? 0) / 60) : undefined) : null;
+  const rotation = rot && rot.changes > 0 ? rot : null;
+  const spots = m && orns.left === "siete" ? sieteOf({ match: m, phase, events: view.events, seven, nameOf, numOf, captainId: (m as ClubMatch & { captainId?: string }).captainId ?? season?.captainPlayerId ?? null, me: member ? viewer.playerId : null, minutes: rotation?.minutes ?? null }) : [];
   const sieteTitle = isOver(phase) ? "Acabaron en el campo" : live ? "En el campo" : phase === "antes" || phase === "pitido" ? (m && Number.isFinite(kickoff) && new Date(kickoff).getUTCHours() >= 16 ? "El siete de esta noche" : "El siete de hoy") : "El siete";
   const log = m ? playsLog(m, niceOf) : EMPTY_LOG;
   // (while live: how long ago the last play was, on the match's own clock; «Minuto N» when the clock can't say)
@@ -585,7 +593,7 @@ export function HomePage() {
   const convoWhen = phase === "semana" && Number.isFinite(kickoff) ? `el ${weekday(kickoff)}` : "hoy";
   const leftOrn =
     orns.left === "siete" && m && spots.length ? (
-      <SieteOrn title={sieteTitle} system={lineup?.system ?? "3-2-1"} spots={spots} bench={benchLineOf(m, phase, view.events, niceOf, lineup ? { at: lineup.setAt, now } : false)} kit={kit} className="vi-orn--l" />
+      <SieteOrn title={sieteTitle} system={lineup?.system ?? "3-2-1"} spots={spots} bench={rotation && isOver(phase) ? "" : benchLineOf(m, phase, view.events, niceOf, lineup ? { at: lineup.setAt, now } : false)} kit={kit} cambios={rotation ? { rotation, grow: cambios } : null} className="vi-orn--l" />
     ) : orns.left === "viene" && upcoming.length ? (
       <VieneOrn upcoming={upcoming} jornadaOf={jornadaOf} now={now} className="vi-orn--l" />
     ) : null;
@@ -654,6 +662,7 @@ export function HomePage() {
         </p>
       )}
       {m && <PlaysGrow log={log} grow={plays} sub={playsAllSub} />}
+      {m && rotation && <CambiosGrow rotation={rotation} grow={cambios} className="vi-grow vi-grow--cambios" />}
     </>
   );
   // (in the cockpit a zone's «Ver todo» focuses the zone instead: the zone itself grows)
@@ -694,10 +703,10 @@ export function HomePage() {
   const panelId = shelfPanelId("inicio", place);
   return (
     <KitStillContext.Provider value={kitStillOf}>
-      <div className={`vx vi vi--${place}${cockpit ? " vi--cockpit" : ""}${plays.open || tabla.open || goles.open ? " vi--grown" : ""}${plays.open ? " vi--grown-plays" : ""}`} data-phase={phase} aria-busy={busy}>
+      <div className={`vx vi vi--${place}${cockpit ? " vi--cockpit" : ""}${plays.open || cambios.open || tabla.open || goles.open ? " vi--grown" : ""}${plays.open || cambios.open ? " vi--grown-plays" : ""}`} data-phase={phase} aria-busy={busy}>
         <VidrioSky light={skyLight} floodlit={light.floodlit} reduced={reduced} gold={goal.sky.gold} cold={goal.sky.cold} weather={weather ? (weather.rain && weather.rain >= 50 ? "lluvia" : (weather.cloud ?? 0) >= 60 ? "nubes" : "despejado") : undefined} />
         <CelesteHeader active="inicio" sub="Manchester Piti" actions={<ThemeToggle />} />
-        {(plays.open || tabla.open || goles.open) && <FloatAway />}
+        {(plays.open || cambios.open || tabla.open || goles.open) && <FloatAway />}
         <div className="vi-stage" ref={stageRef} id="contenido" tabIndex={-1}>
           {lens}
           <div className="vi-stage__shelf">
@@ -712,7 +721,7 @@ export function HomePage() {
                     <div className="vi-zbody">{temporadaPanel({ compact: focus !== "temporada", wide: focus === "temporada", regions: false })}</div>
                   </section>
                 </div>
-                <div className={`vi-centre${focus === "hoy" ? "" : " vi-centre--compact"}${plays.open ? " vi-centre--grown" : ""}`}>{hoyPanel}</div>
+                <div className={`vi-centre${focus === "hoy" ? "" : " vi-centre--compact"}${plays.open || cambios.open ? " vi-centre--grown" : ""}`}>{hoyPanel}</div>
                 <div className={`vi-zone vi-zone--r${focus === "club" || focus === "tu" ? " vi-zone--wide" : focus === "hoy" ? "" : " vd-stepback"}`}>
                   <section className={`vd-glass vd-window vi-window${focus === "club" ? " is-max" : focus === "tu" ? " is-min" : ""}`} aria-label="El club">
                     {zoneHead("El club", "Esta semana", "club")}

@@ -500,7 +500,7 @@ export function MatchPage() {
                 <Feed match={match} nameOf={niceOf} live={live} freshId={goalShow.goal?.id ?? null} />
               </div>
               <div className="mp-side">
-                <Campo match={match} players={players} nameOf={niceOf} live={live} started />
+                <Campo match={match} players={players} nameOf={niceOf} live={live} started now={now} />
               </div>
             </div>
           ) : (

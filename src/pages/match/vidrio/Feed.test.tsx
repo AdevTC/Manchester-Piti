@@ -40,14 +40,29 @@ describe("Feed: the play-by-play on two sides", () => {
 });
 
 describe("Campo: the seven on the pitch now", () => {
-  it("the change walks in with its mark; the captain wears the armband", () => {
+  it("the change walks in; with changes every one carries his minutes and «1 cambio» grows into the list", () => {
     const live = { ...match, events: [...match.events!, ev("s1", "substitution", 20, { playerId: "illescas", inPlayerId: "erik" })] };
-    render(<Campo match={live} players={[]} nameOf={nameOf} live started />);
+    render(<Campo match={live} players={[]} nameOf={nameOf} live started now={25 * 60_000} />);
     const seven = screen.getByRole("list", { name: "Los siete" });
     expect(within(seven).getByText("ERIK")).toBeInTheDocument();
     expect(within(seven).queryByText("ILLESCAS")).toBeNull();
-    expect(screen.getByRole("img", { name: "Entró en el 20" })).toBeInTheDocument();
+    // (his minutes so far instead of a chip per change; his goal still beside them)
+    expect(screen.getByRole("img", { name: "5 minutos jugados hasta ahora" })).toBeInTheDocument();
+    expect(screen.getAllByRole("img", { name: "25 minutos jugados hasta ahora" })).toHaveLength(6);
+    expect(screen.queryByRole("img", { name: "Entró en el 20" })).toBeNull();
+    expect(screen.getByRole("img", { name: "Gol en el 12" })).toBeInTheDocument();
     expect(screen.getByText(", capitán")).toBeInTheDocument();
-    expect(screen.getByText("Con Erik")).toBeInTheDocument();
+    expect(screen.getByText("1 cambio")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver los cambios" }));
+    const list = screen.getByRole("region", { name: "Los cambios" });
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows.map((r) => r.textContent)).toEqual(["Illescas20 min0′–20′Del minuto 0 al 20", "Erik5 min20′–25′Del minuto 20 al 25"]);
+    expect(within(list).getByText(/Todo el partido:/).parentElement).toHaveTextContent("Todo el partido: Adrian, Alcides, Eguzquiza, Evans, Fer, Jordi.");
+  });
+
+  it("without changes: no minutes and no list", () => {
+    render(<Campo match={match} players={[]} nameOf={nameOf} live started now={25 * 60_000} />);
+    expect(screen.queryByText(/min$/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Ver los cambios" })).toBeNull();
   });
 });

@@ -223,6 +223,25 @@ describe("ornaments and el siete", () => {
     expect(spots.find((s) => s.id === "jordi")).toMatchObject({ captain: true, me: true, name: "JORDI" });
     expect(benchLineOf(day.match!, day.phase, view.events, nice, false)).toBe("En el banquillo: Erik y Kevin.");
   });
+  it("with changes (F7 rolls them): each one's minutes first instead of a chip per change, then his latest marks", () => {
+    const { day, view } = scene("directo1");
+    const minutes = new Map([["adrian", 23], ["jordi", 1]]);
+    const spots = sieteOf({ match: day.match!, phase: day.phase, events: view.events, seven: SEVEN, nameOf, numOf: () => "10", captainId: "jordi", me: "jordi", minutes });
+    const adrian = spots.find((s) => s.id === "adrian")!;
+    expect(adrian.tags.map((t) => [t.kind, t.text])).toEqual([["minutos", "23 min"], ["gol", "21′"], ["asis", "6′"]]);
+    expect(adrian.tags[0].label).toBe("23 minutos jugados hasta ahora");
+    expect(spots.find((s) => s.id === "jordi")!.tags[0].label).toBe("1 minuto jugado hasta ahora");
+    expect(spots.some((s) => s.tags.some((t) => t.kind === "cambio"))).toBe(false);
+  });
+  it("the changes after the match, in the order they happened (an acta may store them in any order)", () => {
+    const { day } = scene("directo1");
+    const m = day.match!;
+    const subs = [
+      { id: "s2", type: "substitution" as const, minute: 30, playerId: "jordi", inPlayerId: "erik" },
+      { id: "s1", type: "substitution" as const, minute: 12, playerId: "fer", inPlayerId: "kevin" },
+    ];
+    expect(benchLineOf(m, "despues", subs, nice, false)).toBe("Entraron Kevin por Fer (12′) y Erik por Jordi (30′).");
+  });
 });
 
 describe("the form", () => {
