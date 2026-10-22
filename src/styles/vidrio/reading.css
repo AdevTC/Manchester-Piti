@@ -55,7 +55,9 @@ img.vd-team__crest{object-fit:cover}
 .vd-cambio{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px 12px;padding:10px 0;border-top:1px solid var(--vd-rule)}
 .vd-cambio b{font-weight:650;font-size:15px;line-height:1.25;color:var(--vd-g-ink);overflow-wrap:anywhere}
 .vd-cambio .vd-cambio__min{font-size:13.5px;font-weight:620;color:var(--vd-g-ink);white-space:nowrap}
-.vd-cambio .vd-cambio__stints{grid-column:1/-1;font-size:14px;font-feature-settings:'tnum' 1;color:var(--vd-g-ink2);line-height:1.4;white-space:normal}
+/* (the stints in Mona Sans with its default figures, wherever the list grows: Geist Mono is only for clocks, and
+   Mona Sans's own tabular set draws the same slashed zero and footed one) */
+.vd-cambio .vd-cambio__stints{grid-column:1/-1;font-family:var(--vd-sans);font-size:14px;font-feature-settings:normal;font-variant-numeric:normal;color:var(--vd-g-ink2);line-height:1.4;white-space:normal}
 .vd-cambios__whole{margin:14px 0 0;padding-top:10px;border-top:1px solid var(--vd-rule);font-size:13.5px;color:var(--vd-g-ink2);line-height:1.45}
 .vd-cambios__whole b{color:var(--vd-g-ink);font-weight:620}
 

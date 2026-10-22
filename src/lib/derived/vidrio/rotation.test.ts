@@ -22,6 +22,9 @@ describe("rotation", () => {
     expect(stintsText([{ from: 0, to: 10 }, { from: 18, to: 35 }])).toBe("0′–10′, 18′–35′");
     expect(stintsLabel([{ from: 0, to: 10 }, { from: 18, to: 35 }, { from: 44, to: 50 }])).toBe("Del minuto 0 al 10, del 18 al 35 y del 44 al 50");
     expect(stintsLabel([{ from: 0, to: 50 }])).toBe("Del minuto 0 al 50");
+    // (in at 49:40 with the whistle at 50: one minute, not «50′–50′»)
+    expect(stintsText([{ from: 0, to: 18 }, { from: 49.6, to: 50 }])).toBe("0′–18′, 50′");
+    expect(stintsLabel([{ from: 0, to: 18 }, { from: 49.6, to: 50 }])).toBe("Del minuto 0 al 18 y en el 50");
     expect(changesWord(21)).toBe("21 cambios");
     expect(changesWord(1)).toBe("1 cambio");
     expect(minutesText(35)).toBe("35 min");

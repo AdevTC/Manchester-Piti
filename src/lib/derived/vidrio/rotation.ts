@@ -39,14 +39,14 @@ export interface Rotation {
 /** A stint's edge as the plays say a minute: 0 at the kick-off, else the minute it happened in (18.2 → 19). */
 export const edgeMinute = (m: number): number => (m <= 0 ? 0 : Math.max(1, Math.ceil(m - 1e-6)));
 
-/** «0′–10′, 18′–35′». */
+/** «0′–10′, 18′–35′»; a stint inside one minute (in at 49:40, the whistle at 50) is that minute alone, «50′». */
 export function stintsText(stints: readonly Stint[]): string {
-  return stints.map((s) => `${edgeMinute(s.from)}′–${edgeMinute(s.to)}′`).join(", ");
+  return stints.map((s) => (edgeMinute(s.from) === edgeMinute(s.to) ? `${edgeMinute(s.to)}′` : `${edgeMinute(s.from)}′–${edgeMinute(s.to)}′`)).join(", ");
 }
 
-/** «Del minuto 0 al 10 y del 18 al 35». */
+/** «Del minuto 0 al 10 y del 18 al 35» («y en el 50» for a stint inside one minute). */
 export function stintsLabel(stints: readonly Stint[]): string {
-  const parts = stints.map((s, i) => `${i === 0 ? "del minuto" : "del"} ${edgeMinute(s.from)} al ${edgeMinute(s.to)}`);
+  const parts = stints.map((s, i) => (edgeMinute(s.from) === edgeMinute(s.to) ? `${i === 0 ? "en el minuto" : "en el"} ${edgeMinute(s.to)}` : `${i === 0 ? "del minuto" : "del"} ${edgeMinute(s.from)} al ${edgeMinute(s.to)}`));
   if (!parts.length) return "";
   const line = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} y ${parts.at(-1)}` : parts[0];
   return line.charAt(0).toLocaleUpperCase("es") + line.slice(1);
