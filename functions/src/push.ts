@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, memberAs, parse } from "./common.js";
-import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
+import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, standingsNotice, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { presetAllows, presetOf, presetTopics, PUSH_PRESETS } from "./pushPresets.js";
 import { nameFor } from "./names.js";
 import { isGuestId } from "./guests.js";
@@ -362,3 +362,8 @@ export const pushOnPositionsReview = onDocumentWritten({ document: "players/{pla
   if (notice) await deliver(notice, uid as string);
 });
 
+/** «Ya está la clasificación»: a captain published (or replaced) the league table of a season. */
+export const pushOnStandings = onDocumentWritten({ document: "standings/{seasonId}", secrets: [vapidPrivate] }, async (event) => {
+  const notice = standingsNotice(event.params.seasonId, event.data?.before.data(), event.data?.after.data());
+  if (notice) await deliver(notice);
+});

@@ -105,15 +105,6 @@ export function matchTabHref(matchId: string, tab: MatchTab | undefined): { to: 
   return { to: `/partidos/${matchId}${screen ? `/${screen}` : ""}`, pulso: tab === "pulso" };
 }
 
-export type PartidosVista = "jornadas" | "tabla" | "numeros";
-/** Today's Partidos vista at /partidos, /partidos/tabla or /partidos/balance. */
-export function partidosVistaAt(pathname: string): PartidosVista {
-  const p = trim(pathname);
-  return p === "/partidos/tabla" ? "tabla" : p === "/partidos/balance" ? "numeros" : "jornadas";
-}
-export const partidosVistaPath = (vista: PartidosVista): "/partidos" | "/partidos/tabla" | "/partidos/balance" =>
-  vista === "tabla" ? "/partidos/tabla" : vista === "numeros" ? "/partidos/balance" : "/partidos";
-
 const PROFILE_TAB_HASH: Record<string, string> = {
   "/perfil/temporada": "#temporada",
   "/perfil/temporada/cromos": "#cromos",

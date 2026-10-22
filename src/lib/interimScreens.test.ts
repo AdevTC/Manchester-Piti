@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anchorAt, interimStatsSearch, statsSearchToWrite, matchTabAt, matchTabHref, partidosVistaAt, partidosVistaPath, profileHashAt, statsViewAt, statsViewPath, type StatsView } from "./interimScreens";
+import { anchorAt, interimStatsSearch, statsSearchToWrite, matchTabAt, matchTabHref, profileHashAt, statsViewAt, statsViewPath, type StatsView } from "./interimScreens";
 
 // Until each redesign lands, a new address opens today's page on what its old ?view=, ?tab= or #hash opened.
 describe("Números: the view of each screen", () => {
@@ -68,11 +68,7 @@ describe("the match page's tab of each screen", () => {
   });
 });
 
-describe("Partidos' vista, the profile's tab and the blocks", () => {
-  it("Partidos", () => {
-    for (const v of ["jornadas", "tabla", "numeros"] as const) expect(partidosVistaAt(partidosVistaPath(v))).toBe(v);
-    expect(partidosVistaPath("numeros")).toBe("/partidos/balance");
-  });
+describe("the profile's tab and the blocks", () => {
   it("the profile's tabs", () => {
     expect(profileHashAt("/perfil")).toBe("");
     expect(profileHashAt("/perfil/temporada")).toBe("#temporada");

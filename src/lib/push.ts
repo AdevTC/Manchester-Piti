@@ -11,7 +11,7 @@ import { auth, functions, FUNCTIONS_REGION } from "../firebase";
 import { presetOf, presetTopics, type PushChoice, type PushPreset } from "../../functions/src/pushPresets";
 
 export const VAPID_PUBLIC = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
-export type Topic = "start" | "goals" | "cards" | "final" | "mvp" | "dates" | "lineup" | DoorTopic | "convocatoria";
+export type Topic = "start" | "goals" | "cards" | "final" | "mvp" | "dates" | "lineup" | "tabla" | DoorTopic | "convocatoria";
 /** The vestuario door: "door" for captains (someone knocks), "access" for whoever waits to be let in. */
 export type DoorTopic = "door" | "access";
 export const TOPIC_LABELS: { id: Topic; label: string; hint?: string }[] = [
@@ -22,6 +22,7 @@ export const TOPIC_LABELS: { id: Topic; label: string; hint?: string }[] = [
   { id: "mvp", label: "MVP de la jornada", hint: "Cuando se abre el voto y cuando hay ganador" },
   { id: "dates", label: "Fechas nuevas y cambios", hint: "Partidos nuevos o cambios de hora" },
   { id: "lineup", label: "Cuando salga el siete oficial", hint: "Y sus cambios y la convocatoria, con el enlace al partido" },
+  { id: "tabla", label: "Cuando se publique la clasificación", hint: "La tabla de la liga, en Partidos" },
 ];
 /** The topics that need the member's session (the server refuses or drops them without it). */
 const PERSONAL: readonly Topic[] = ["door", "access", "convocatoria"];
