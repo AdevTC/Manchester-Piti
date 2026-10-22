@@ -93,7 +93,7 @@ test("Números: doce indicadores, tabla configurable, muestras y móvil sin desb
   if (readOnlyDemo) expect(new URL(baseURL!).port).toBe("3102");
   const f = await fixture();
   try {
-    await page.goto(`/matches/${f.id}?tab=estadisticas`);
+    await page.goto(`/partidos/${f.id}/numeros`);
     const panel = page.getByRole("region", { name: "Análisis de las jugadas" });
     const workspace = page.getByRole("region", { name: "Todos los números, a tu medida" });
     const cards = page.getByLabel("Indicadores de la selección");
@@ -152,8 +152,8 @@ test("Números: doce indicadores, tabla configurable, muestras y móvil sin desb
     await workspace.getByRole("searchbox", { name: "Buscar jugador o dorsal" }).fill("");
 
     await panel.getByRole("link", { name: "Abrir esta selección en Números ↗" }).click();
-    await expect(page).toHaveURL(/\/stats\?/);
-    expect(JSON.parse(new URL(page.url()).searchParams.get("matches") ?? "[]")).toEqual([f.id]);
+    await expect(page).toHaveURL(/\/numeros\/juego(\/catalogo)?\?/);
+    expect(new URL(page.url()).searchParams.get("partidos")).toBe(f.id);
     await workspace.getByRole("group", { name: "Columnas habituales" }).getByRole("button", { name: "Pases y creación", exact: true }).click();
     await checkTotal(workspace, f.observations);
     if (f.other) {
@@ -181,7 +181,7 @@ test("Números: doce indicadores, tabla configurable, muestras y móvil sin desb
     await matrix.getByRole("button", { name: /\. [1-9]\d* completados,/ }).first().click();
     await expect(connection.locator(".ai-evidence li").first()).toContainText("2.ª");
     await connection.getByRole("link", { name: /^Abrir partido/ }).first().click();
-    await expect(page).toHaveURL(new RegExp(`/matches/${f.id}\\?`));
+    await expect(page).toHaveURL(new RegExp(`/partidos/${f.id}/numeros\\?`));
     expect(new URL(page.url()).searchParams.get("period")).toBe("2");
     expect(JSON.parse(new URL(page.url()).searchParams.get("players") ?? "[]")).toEqual([f.player.id]);
     await expect(insights.getByRole("region", { name: "Barras de 2.ª parte" })).toBeVisible();
