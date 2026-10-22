@@ -241,6 +241,13 @@ it("a substitute at the slot he took stays on the bench list only", () => {
   expect(container.querySelector(".fc-note")?.textContent).not.toMatch(/anillo/);
 });
 
+it("F7's rolling changes: a substitute who went in more than once reads every stint, not only his first entry", () => {
+  const h = { ...ledgerRow({ DC: 22 }, { started: false, minutes: 22, inFor: "b", at: 14 }), stints: [{ from: 14, to: 21 }, { from: 31, to: 35.5 }, { from: 39, to: 49 }], subIn: 3, subOut: 3 };
+  const match = played({ system: "2-3-1" }, { a: ledgerRow({ POR: 50 }), b: ledgerRow({ DC: 28 }, { minutes: 28 }), h });
+  const { container } = render(<CampoTab match={match} players={squad} nameOf={(id) => id.toUpperCase()} live={false} />);
+  expect(within(container.querySelector(".fc-bench") as HTMLElement).getByText(/14′–21′, 31′–36′, 39′–49′/)).toBeInTheDocument();
+});
+
 it("before the acta, a member sees the official board's system and its slots; a fan sees neither", () => {
   const match: ClubMatch = { id: "m", seasonId: "t1", date: Date.now() + 86_400_000, status: "scheduled", version: 2, starters: ["a", "b"], bench: [], events: [] };
   const nameOf = (id: string) => id.toUpperCase();

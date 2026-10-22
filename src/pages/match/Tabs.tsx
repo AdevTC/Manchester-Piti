@@ -50,6 +50,7 @@ import { MvpBallot } from "../vestuario/shared/MvpBallot";
 import { NotaCard, NotaLine, ReactionBar } from "./TrasElPartido";
 import { MOMENT_ID_RE, ratingWindow, type RatingDoc, type ReactionDoc } from "../../lib/derived/trasElPartido";
 import type { Me } from "../vestuario/writes";
+import { stintsText } from "../../lib/derived/vidrio/rotation";
 
 type NameOf = (id: string) => string;
 const NO_RATINGS: readonly RatingDoc[] = [];
@@ -361,7 +362,7 @@ export function CampoTab({ match, players, nameOf, live, official = null, board 
                 return <li key={id} className={[p?.played ? "in" : "", isGuestId(id) ? "guest" : ""].filter(Boolean).join(" ") || undefined}>
                   <button type="button" onClick={() => setSel(id)} aria-pressed={pick === id}>
                     <b>{isGuestId(id) ? "Inv." : numOf(id)}</b>
-                    <span className="fc-bench-name">{nameOf(id)}<small>{p?.dismissed ? "Expulsado · " : ""}{p ? `${fmtMinutes(p.minutes)}${entry ? ` · entró ${exchangeMinute(match.events, id, entry)}′` : p.played ? "" : done ? " · no jugó" : " · sin entrar"}` : "Minutos sin registrar"}</small></span>
+                    <span className="fc-bench-name">{nameOf(id)}<small>{p?.dismissed ? "Expulsado · " : ""}{p ? `${fmtMinutes(p.minutes)}${(p.stints?.length ?? 0) > 1 ? ` · ${stintsText(p.stints)}` : entry ? ` · entró ${exchangeMinute(match.events, id, entry)}′` : p.played ? "" : done ? " · no jugó" : " · sin entrar"}` : "Minutos sin registrar"}</small></span>
                     <MatchBadges {...stats} />
                   </button>
                 </li>;
