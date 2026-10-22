@@ -37,6 +37,18 @@ export function wantsCromos(hash: string): boolean {
 export function hashOf(id: TabId): string {
   return "#" + (TABS.find((t) => t.id === id)?.hash ?? "carta");
 }
+/** Each tab's address (the TU board's screens): the page writes it as you change tab. */
+const TAB_PATH: Record<TabId, string> = {
+  carta: "/perfil",
+  temp: "/perfil/temporada",
+  avisos: "/avisos/a-medida",
+  ajustes: "/perfil/ajustes",
+  cuenta: "/perfil/cuenta",
+  cap: "/perfil/capitania",
+};
+export const pathOf = (id: TabId): string => TAB_PATH[id];
+/** «Tu temporada en cromos»'s own address. */
+export const CROMOS_PATH = "/perfil/temporada/cromos";
 
 /** ArrowLeft/Right wrap around, Home/End go to the ends (the shared tablist keys). */
 export { tabForKey } from "../../lib/tabKeys";

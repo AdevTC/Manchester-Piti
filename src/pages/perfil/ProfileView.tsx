@@ -23,7 +23,7 @@ import { TabCapitania } from "./TabCapitania";
 import { TabCuenta } from "./TabCuenta";
 import { TabTemporada } from "./TabTemporada";
 import { recapShirt } from "./recapView";
-import { CROMOS_HASH, deepHash, forgetDeepHash, hashOf, slideDir, tabFromHash, tabsFor, wantsCromos, type TabId } from "./tabs";
+import { CROMOS_PATH, deepHash, forgetDeepHash, pathOf, slideDir, tabFromHash, tabsFor, wantsCromos, type TabId } from "./tabs";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { prefersReducedMotion, usePauseHidden, usePauseOffscreen, useReducedMotion, useTilt } from "./useMotion";
 import type { SetShirtNameResult } from "./api";
@@ -195,9 +195,10 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
     const t = window.setTimeout(() => document.getElementById("pe-menu")?.scrollIntoView?.({ behavior: "auto", block: "start" }), 120);
     return () => window.clearTimeout(t);
   }, [ready]);
-  const setHash = (h: string) => {
+  // (each tab and the story is an address: the router hears it and keeps the page, and the scroll, where it is)
+  const setPath = (path: string) => {
     try {
-      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + h);
+      window.history.replaceState(window.history.state, "", path + window.location.search);
     } catch {
       /* sandboxed: the story still opens */
     }
@@ -205,11 +206,11 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
   const openStory = () => {
     buzz(12);
     setStory(true);
-    setHash("#" + CROMOS_HASH);
+    setPath(CROMOS_PATH);
   };
   const closeStory = useCallback(() => {
     setStory(false);
-    setHash(hashOf("temp"));
+    setPath(pathOf("temp"));
   }, []);
   const theme = useDocumentTheme();
   const goTab = (id: TabId, then?: string, focus?: string) => {
@@ -217,7 +218,7 @@ export function ProfileView({ data, actions, now, origin, header, footer }: Prof
     setTab(id);
     setStory(false);
     try {
-      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + hashOf(id));
+      window.history.replaceState(window.history.state, "", pathOf(id) + window.location.search);
     } catch {
       /* sandboxed: the tab still changes */
     }

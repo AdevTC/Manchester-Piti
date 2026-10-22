@@ -327,7 +327,7 @@ function ProposeTraining({ first, onDone, canCancel, now }: { first: number | nu
   );
 }
 
-/** To the match page's Vestuario tab (?tab=vestuario), where the match's porra and MVP vote live too. */
+/** To the match page's Vestuario screen (/partidos/<id>/vestuario), where the match's porra and MVP vote live too. */
 function ToMatch({ id, children }: { id: string; children: ReactNode }) {
   return (
     <p className="vx-tomatch">

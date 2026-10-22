@@ -50,8 +50,8 @@ const VESTUARIO_HASH: Record<string, string> = {
   "vx-board": "/vestuario/tablon",
   puerta: "/vestuario/puerta",
   "vx-ficha": "/vestuario/ficha",
-  "vx-rsvp": "/vestuario",
 };
+// (#vx-rsvp, «¿Vas?», stays: it is the vestuario's own first block, and the anchor scrolls to its switch)
 const PROFILE_HASH: Record<string, string> = {
   carta: "/perfil",
   temporada: "/perfil/temporada",
@@ -163,12 +163,14 @@ export function legacyTarget(rawPathname: string, search: Search, rawHash = ""):
   // reading its own parameters, so only the screen moves
   if ((seg[0] === "numeros" || pathname === "/plantilla/cara-a-cara") && "view" in search) {
     const to = statsPath(search);
-    return keep(to, to === "/plantilla/cara-a-cara" ? without("view", "section", "tab", "analysis") : without("view", "section", "tab", "analysis", "a", "b"));
+    if (to === "/plantilla/cara-a-cara") return keep(to, without("view", "section", "tab", "analysis"));
+    const rest = without("view", "section", "tab", "analysis", "a", "b");
+    return keep(to, search.view === "minutes" ? { ranking: "minutos", ver: "todo", ...rest } : rest);
   }
   if (pathname === "/club" && CLUB_HASH[hash]) return keep(CLUB_HASH[hash], search, "");
   if (pathname === "/vestuario" && VESTUARIO_HASH[hash]) return keep(VESTUARIO_HASH[hash], search, "");
   if (pathname === "/profile") return keep(PROFILE_HASH[hash] ?? "/perfil", search, PROFILE_HASH[hash] ? "" : hash);
-  if ((seg[0] === "perfil" || pathname === "/avisos") && PROFILE_HASH[hash]) return keep(PROFILE_HASH[hash], search, "");
+  if ((seg[0] === "perfil" || seg[0] === "avisos") && PROFILE_HASH[hash]) return keep(PROFILE_HASH[hash], search, "");
   if (pathname === "/plantilla" && hash === "sq-cara") return keep("/plantilla/cara-a-cara", search, "");
   if (pathname === "/plantilla/pichichi" || pathname === "/jugadores") return keep("/plantilla");
   if (seg[0] === "jugadores" && seg[1] && seg[2] === "posiciones" && seg.length === 3) return keep(`/jugadores/${seg[1]}/juego`);

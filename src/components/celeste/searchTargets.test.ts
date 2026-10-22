@@ -23,7 +23,7 @@ describe("where a search result leads", () => {
     [{ to: "vestuario" }, "/vestuario"],
     [{ to: "vestuario", hash: "vx-caja" }, "/vestuario/caja"],
     [{ to: "vestuario", hash: "vx-ausencias" }, "/vestuario/ausencias"],
-    [{ to: "vestuario", hash: "vx-rsvp" }, "/vestuario"],
+    [{ to: "vestuario", hash: "vx-rsvp" }, "/vestuario#vx-rsvp"],
     [{ to: "profile" }, "/perfil"],
     [{ to: "pizarra" }, "/pizarra"],
   ] as const)("%o → %s", (target, href) => {

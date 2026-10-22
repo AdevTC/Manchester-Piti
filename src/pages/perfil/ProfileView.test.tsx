@@ -46,12 +46,12 @@ describe("el menú: pestañas", () => {
     fireEvent.keyDown(list, { key: "ArrowRight" });
     expect(screen.getByRole("tab", { name: /Temporada/ })).toHaveAttribute("aria-selected", "true");
     expect(document.activeElement).toBe(screen.getByRole("tab", { name: /Temporada/ }));
-    expect(window.location.hash).toBe("#temporada");
+    expect(window.location.pathname).toBe("/perfil/temporada");
     expect(screen.getByRole("tabpanel")).toHaveAccessibleName(/Temporada/);
     expect(screen.getByText("02 / 05")).toBeInTheDocument();
     fireEvent.keyDown(list, { key: "End" });
     expect(screen.getByRole("tab", { name: /Cuenta/ })).toHaveAttribute("aria-selected", "true");
-    expect(window.location.hash).toBe("#cuenta");
+    expect(window.location.pathname).toBe("/perfil/cuenta");
     fireEvent.keyDown(list, { key: "ArrowRight" });
     expect(screen.getByRole("tab", { name: /Tu carta/ })).toHaveAttribute("aria-selected", "true");
     fireEvent.keyDown(list, { key: "ArrowLeft" });

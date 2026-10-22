@@ -174,7 +174,7 @@ export function ClubPage() {
               </span>
               <p>Tu nombre y tu dorsal en la primera equipación, para descargar o compartir.</p>
             </div>
-            <Link className="vd-btn vd-btn--sm vd-glass vd-press" to="/club/equipo/camiseta">
+            <Link className="vd-btn vd-btn--sm vd-glass vd-press" to="/camiseta">
               Hacerme la mía
             </Link>
           </div>
