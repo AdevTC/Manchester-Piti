@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("firebase/functions", () => ({ httpsCallable: () => vi.fn() }));
 vi.mock("../firebase", () => ({ functions: {}, auth: { currentUser: null }, FUNCTIONS_REGION: "europe-southwest1" }));
-import { presetAllows, presetOf, presetTopics, PUBLIC_TOPICS } from "../../functions/src/pushPresets";
+import { LATE_TOPICS, legacyTodoGets, presetAllows, presetOf, presetTopics, PUBLIC_TOPICS, TOPICS_VERSION } from "../../functions/src/pushPresets";
 import { standingsNotice, TOPICS } from "../../functions/src/pushLogic";
 import { TOPIC_LABELS } from "./push";
 
@@ -24,6 +24,19 @@ describe("Avisos a medida (presets)", () => {
     expect(presetOf(["start", "goals", "cards", "final", "mvp", "dates", "lineup"])).toBe("todo");
     // the old «everything» without the new cards topic is a custom choice now
     expect(presetOf(["start", "goals", "final", "mvp", "dates", "lineup"])).toBe("custom");
+  });
+  it("a «Todo» saved before «tabla» gets it; one saved by an app that knew it chose without it", () => {
+    const core = ["start", "goals", "cards", "final", "mvp", "dates", "lineup"];
+    expect(LATE_TOPICS).toEqual(["tabla"]);
+    expect(TOPICS_VERSION).toBe(2);
+    expect(legacyTodoGets({ preset: "todo", topics: core }, "tabla")).toBe(true);
+    expect(legacyTodoGets({ preset: "todo", topics: core, topicsV: 1 }, "tabla")).toBe(true);
+    expect(legacyTodoGets({ preset: "todo", topics: core, topicsV: 2 }, "tabla")).toBe(false);
+    // (already on it: the topic's own query finds it)
+    expect(legacyTodoGets({ preset: "todo", topics: [...core, "tabla"] }, "tabla")).toBe(false);
+    expect(legacyTodoGets({ preset: "custom", topics: ["goals", "final"] }, "tabla")).toBe(false);
+    expect(legacyTodoGets({ preset: "goles", topics: ["goals"] }, "tabla")).toBe(false);
+    expect(legacyTodoGets({ preset: "todo", topics: core }, "goals")).toBe(false);
   });
   it("what each choice lets through", () => {
     expect(presetAllows("goles", "goals")).toBe(true);

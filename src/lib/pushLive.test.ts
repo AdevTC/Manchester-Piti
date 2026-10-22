@@ -20,7 +20,7 @@ describe("the clock's whistles: descanso, 2ª parte and the provisional final", 
   });
   it("halftime → second: «Arranca la 2ª parte»", () => {
     expect(noticesFor("j8", at("halftime"), at("second"), nameOf, NOW)).toEqual([
-      { topic: "start", title: "Arranca la 2ª parte", body: "Manchester Piti 2–1 MAD SKY. Sigue el directo en la web.", tag: "start-j8", url: "/partidos/j8", log: "second-j8" },
+      { topic: "start", title: "Arranca la 2ª parte", body: "Manchester Piti 2–1 MAD SKY. Sigue el directo en la web.", tag: "start-j8", url: "/partidos/j8", log: "second-j8", matchTopic: "final" },
     ]);
   });
   it("→ ended: «Final (provisional) · 2–1», with the acta's «Final» tag so the official one replaces it", () => {
