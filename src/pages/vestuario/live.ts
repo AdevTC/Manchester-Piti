@@ -288,10 +288,12 @@ export function useMatchRatings(matchId: string | undefined): Live<RatingDoc[]> 
 export interface MatchPrivate {
   meetingNote: string;
   scorerUids: string[];
+  /** How many porras the match has (the server's count: the porras themselves stay private before the whistle). */
+  porraCount: number | null;
 }
-const EMPTY_MATCH_PRIVATE: MatchPrivate = { meetingNote: "", scorerUids: [] };
+const EMPTY_MATCH_PRIVATE: MatchPrivate = { meetingNote: "", scorerUids: [], porraCount: null };
 const mapMatchPrivate = (d: DocumentData | undefined): MatchPrivate =>
-  d ? { meetingNote: (d.meetingNote as string | undefined) ?? "", scorerUids: (d.scorerUids as string[] | undefined) ?? [] } : EMPTY_MATCH_PRIVATE;
+  d ? { meetingNote: (d.meetingNote as string | undefined) ?? "", scorerUids: (d.scorerUids as string[] | undefined) ?? [], porraCount: typeof d.porraCount === "number" ? d.porraCount : null } : EMPTY_MATCH_PRIVATE;
 /** The whole private match doc. Read it through useMeetingNote / useMatchScorers; never map matchPrivate/{id} elsewhere. */
 export function useMatchPrivate(matchId: string | undefined) {
   return useLiveDoc<MatchPrivate>(matchId ? `matchPrivate/${matchId}` : null, "matchPrivate", mapMatchPrivate, EMPTY_MATCH_PRIVATE);
@@ -299,6 +301,10 @@ export function useMatchPrivate(matchId: string | undefined) {
 export function useMeetingNote(matchId: string | undefined): Live<string> {
   const q = useMatchPrivate(matchId);
   return useMemo(() => ({ data: q.data.meetingNote, loading: q.loading, error: q.error }), [q]);
+}
+/** How many porras the match has, before anyone may read them (null until the server has counted). */
+export function usePorraCount(matchId: string | undefined): number | null {
+  return useMatchPrivate(matchId).data.porraCount;
 }
 export function useMatchScorers(matchId: string | undefined): Live<string[]> {
   const q = useMatchPrivate(matchId);

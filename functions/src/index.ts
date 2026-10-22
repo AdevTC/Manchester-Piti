@@ -22,6 +22,7 @@ export { savePrediction } from "./savePrediction.js";
 export { controlMatchClock, setMatchScorers } from "./liveClock.js";
 export { pushSubscribe, pushSetPreset, pushSetMatchTopics, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview, rotaTurnsOnWrite } from "./push.js";
 export { pushReminders, pushOnAnswer } from "./reminders.js";
+export { porraCountOnWrite } from "./porraCount.js";
 export { onAbsenceWritten } from "./absences.js";
 export { onPollCreated, onPollDeleted } from "./polls.js";
 export { cleanupMatchTombstone, deleteMatch, setMatchArchived } from "./matches.js";

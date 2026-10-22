@@ -3,7 +3,8 @@
 // glass (the one thing to touch), the rest quieter and, on a phone, folded into «N más · Ver todo». Every control
 // writes the team's real data through vestuarioState's `act` (¿Vas?, the porra, the MVP vote, the nota, la caja,
 // «Avisar de que no puedo», the turno). The words and the order are the board's; vestuarioModel holds the logic.
-import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
+import { useContext, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { KitStillContext } from "../../../components/jersey3d/kitStill";
 import { apiError } from "../../../lib/clubApi";
 import { madridTime } from "../../../lib/derived/madrid";
 import { POSITIONS, type PosCode } from "../../../lib/positions";
@@ -17,6 +18,7 @@ import { Go, Icon, Tee } from "./bits";
 import type { PageCtx } from "./ctx";
 import { scoreAt } from "./model";
 import { whenWords } from "./words";
+import { drawCard } from "./cardImage";
 import { andList, blockOrder, cap, comma, dash, euros, foldOf, porraDistribution, bestLine, subOf, teamRank, TEAM_BLOCKS, verdict, verdictWord, type Block } from "./vestuarioModel";
 import type { Answer, VestuarioState } from "./vestuarioState";
 import "./vestuario.css";
@@ -124,6 +126,9 @@ export function ScreenVestuario({ c, v }: { c: PageCtx; v: VestuarioState }) {
   const { gf, ga, scorer, assist, changed, valid, busy } = draft;
   const porraSaved = !!savedP && !porraEditing && (pre || !!off);
   const scorerLine = savedP ? (savedP.scorers.length > 1 ? `Goleadores: ${andList(savedP.scorers.map(name))}` : savedP.scorer ? `Goleador: ${name(savedP.scorer)}` : savedP.gf ? "Sin goleador" : "Sin goles del Piti") : "";
+  // «La porra del equipo: 8 ya han apostado; falta la tuya.» (the server's count: the porras stay private)
+  const teamN = d.porraCount;
+  const porraTeam = off || teamN == null ? "" : `La porra del equipo: ${teamN} ${teamN === 1 ? "ya ha apostado" : "ya han apostado"}${pre && !savedP ? "; falta la tuya" : ""}.`;
   const porraMsg = off === "aplazado" ? "La porra no cuenta mientras esté aplazado. Se guarda para la nueva fecha." : off === "pendiente" ? "La porra espera al acta: se puntúa cuando diga el resultado." : "";
   const stepTo = (key: "gf" | "ga", val: number, delta: number) => () => {
     const n = Math.max(0, Math.min(30, val + delta));
@@ -245,6 +250,23 @@ export function ScreenVestuario({ c, v }: { c: PageCtx; v: VestuarioState }) {
   const cromoHint = firstMark ? `Sale de tu partido: ${cromoLine.toLocaleLowerCase("es")}, en el ${firstMark.m}′. Ya está con los de tu temporada.` : `Sale de tu partido: ${min} minutos${keyPasses ? ` y ${keyPasses === 1 ? "un pase de remate" : `${keyPasses} pases de remate`}` : ""}. Ya está con los de tu temporada.`;
   const me = pid ? c.people.get(pid) : undefined;
   const cromoName = me?.short ?? "";
+  // «Guardar»: the cromo as an image (it is already with the season's, in the album), as the cartel saves its own
+  const [cromoSaved, setCromoSaved] = useState(false);
+  const stillOf = useContext(KitStillContext);
+  const saveCromo = async () => {
+    try {
+      const blob = await drawCard({ kind: "cromo", flood: false, j: `${jPre ? `${jPre} · ` : ""}${c.rival}`, vs: "", big: cromoName, hero: cromoLine, when: cromoFoot, where: "" }, stillOf(c.kit, c.numOf(pid ?? "") || undefined)?.src);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `cromo-${(jPre || "partido").toLowerCase()}-${cromoName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      setCromoSaved(true);
+      c.say("Cromo guardado.");
+    } catch {
+      c.say("No se ha podido preparar el cromo.");
+    }
+  };
   const cromoAlt = `Tu cromo de la jornada: ${cromoName}${me?.num ? `, dorsal ${me.num}` : ""}, ${jPre ? `${jPre} ` : ""}contra ${c.rival}. ${cromoLine}, ${cromoFoot}.`;
   const mesaLine = `Llevaste la mesa: ${plural(c.plays.length, "jugada anotada", "jugadas anotadas")} y el acta publicada. Sin mesa no hay directo.`;
 
@@ -579,6 +601,7 @@ export function ScreenVestuario({ c, v }: { c: PageCtx; v: VestuarioState }) {
               )}
               {!porraEditing && !savedP && !off && <p className="ves-p">{d.porraLoading ? "Cargando tu porra…" : pre ? "La porra se cierra con el pitido inicial." : "No pusiste porra para este partido."}</p>}
               {porraMsg && <p className="ves-p">{porraMsg}</p>}
+              {porraTeam && <p className="ves-hint ves-team-n">{porraTeam}</p>}
             </>,
           )}
           {blk(
@@ -778,7 +801,7 @@ export function ScreenVestuario({ c, v }: { c: PageCtx; v: VestuarioState }) {
                   </div>
                   <p className="ves-p">{partidoLine}</p>
                   <div className="ves-cromo-row">
-                    <figure className="ves-cromo is-saved" role="img" aria-label={cromoAlt}>
+                    <figure className={`ves-cromo${cromoSaved ? " is-saved" : ""}`} role="img" aria-label={cromoAlt}>
                       <span className="ves-cromo__top" aria-hidden="true">
                         <img src="/crest-128.webp" alt="" width={18} height={18} />
                         {jPre ? `${jPre} · ` : ""}
@@ -800,13 +823,15 @@ export function ScreenVestuario({ c, v }: { c: PageCtx; v: VestuarioState }) {
                       <h4 className="ves-h4">Tu cromo de la jornada</h4>
                       <p className="ves-hint">{cromoHint}</p>
                       <div className="ves-acts">
-                        <span className="vd-glass vd-btn vd-btn--sm ves-cromo__got">
-                          <Icon name="check" />
-                          Guardado en tus cromos
-                        </span>
-                        <Go className="vd-link" href="/perfil/temporada/cromos">
-                          Ver tus cromos
-                        </Go>
+                        <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm" aria-pressed={cromoSaved} onClick={() => void saveCromo()}>
+                          {cromoSaved && <Icon name="check" />}
+                          {cromoSaved ? "Guardado en tus cromos" : "Guardar"}
+                        </button>
+                        {cromoSaved && (
+                          <Go className="vd-link" href="/perfil/temporada/cromos">
+                            Ver tus cromos
+                          </Go>
+                        )}
                       </div>
                     </div>
                   </div>

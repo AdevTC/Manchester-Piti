@@ -17,7 +17,7 @@ import { kickoffWindow } from "../../../lib/derived/memberWindows";
 import { predictionOpen, predictionsRevealed, scorePrediction, type Prediction } from "../../../../functions/src/predictions";
 import type { MvpResult } from "../../../lib/vestuario";
 import type { CajaClaim } from "../../../lib/derived/cajaClaims";
-import { useAbsences, useAvailability, useCaja, useMatchPredictions, useMatchRatings, useMeetingNote, useMvpResults, useMyCajaClaims, useMyMvpVote, useMyPrediction, type Availability } from "../../vestuario/live";
+import { usePorraCount, useAbsences, useAvailability, useCaja, useMatchPredictions, useMatchRatings, useMeetingNote, useMvpResults, useMyCajaClaims, useMyMvpVote, useMyPrediction, type Availability } from "../../vestuario/live";
 import { addAbsence, claimPayment, deleteAbsence, markTurnDone, predictScore, rateMatch, setAvailability, unrateMatch, useMe, voteMvp, type Me } from "../../vestuario/writes";
 import { unclaimPayment } from "./vestuarioWrites";
 import type { Person, Viewer } from "./ctx";
@@ -87,6 +87,8 @@ export interface VesData {
   porraLoading: boolean;
   /** The team's porras (only once the match kicked off: the rules), with their points once it is done. */
   picks: TeamPick[];
+  /** How many porras the team has (the server's count; null until counted). */
+  porraCount: number | null;
   /** The players a goleador can be (the season's active squad, the convocados first). */
   candidates: string[];
   mvp: MvpResult | undefined;
@@ -190,6 +192,9 @@ export function useVestuario(match: ClubMatch | null, input: VestuarioInput): Ve
     // eslint-disable-next-line react-hooks/exhaustive-deps -- result is two numbers from the match
     [revealed, team.data, done, result.goalsFor, result.goalsAgainst, events],
   );
+  // (the count, never the porras: they stay private until the whistle)
+  const counted = usePorraCount(on ? id : undefined);
+  const porraCount = revealed ? picks.length : counted;
   const porraPoints = done && savedPred ? scorePrediction(savedPred, result, events).total : null;
   const candidates = useMemo(() => {
     if (!match?.seasonId) return [];
@@ -321,6 +326,7 @@ export function useVestuario(match: ClubMatch | null, input: VestuarioInput): Ve
     porra,
     porraLoading: pred.loading,
     picks,
+    porraCount,
     candidates,
     mvp,
     voteOpen,

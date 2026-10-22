@@ -1,9 +1,9 @@
-// «El partido»: the cartel and the momento card as images to share or save — the same picture the sheet shows
+// «El partido»: the cartel, the momento card and the cromo of the jornada as images to share or save — the same picture the sheet shows
 // (the sky of that night, the crest, the hero's printed shirt, the big line and the words), drawn on a canvas
 // only when asked for.
 
 export interface CardSpec {
-  kind: "cartel" | "momento";
+  kind: "cartel" | "momento" | "cromo";
   /** The cartel's story format (9:14); the square otherwise. */
   story?: boolean;
   /** The floodlit night (else the golden evening). */
@@ -34,6 +34,7 @@ function img(src: string): Promise<HTMLImageElement | null> {
 
 /** Draws `spec` (with the shirt still `still`, a 540 × 600 image) and returns it as a PNG. */
 export async function drawCard(spec: CardSpec, still: string | undefined): Promise<Blob> {
+  if (spec.kind === "cromo") return drawCromo(spec, still);
   const W = 1080;
   const H = spec.kind === "cartel" ? (spec.story ? 1680 : 1080) : 1080;
   const cv = document.createElement("canvas");
@@ -114,5 +115,56 @@ export async function drawCard(spec: CardSpec, still: string | undefined): Promi
     g.font = `600 32px ${FONT}`;
     if (spec.link) g.fillText(spec.link, pad, H - pad);
   }
+  return new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error("no image"))), "image/png"));
+}
+
+/** The cromo of the jornada (spec: `j` the top line, `big` his shirt name, `hero` the line, `when` the foot), 3:4.2. */
+async function drawCromo(spec: CardSpec, still: string | undefined): Promise<Blob> {
+  const W = 900;
+  const H = 1260;
+  const cv = document.createElement("canvas");
+  cv.width = W;
+  cv.height = H;
+  const g = cv.getContext("2d");
+  if (!g) throw new Error("no canvas");
+  try {
+    await document.fonts?.load(`700 40px ${FONT}`);
+  } catch {
+    /* the system face draws it */
+  }
+  const bg = g.createLinearGradient(0, 0, W * 0.3, H);
+  bg.addColorStop(0, "#3d6f9e");
+  bg.addColorStop(0.78, "#0c1733");
+  g.fillStyle = bg;
+  g.fillRect(0, 0, W, H);
+  const glow = g.createRadialGradient(W / 2, H * 0.18, 0, W / 2, H * 0.18, W * 0.7);
+  glow.addColorStop(0, "rgba(108,171,221,.7)");
+  glow.addColorStop(1, "rgba(108,171,221,0)");
+  g.fillStyle = glow;
+  g.fillRect(0, 0, W, H);
+  g.strokeStyle = "rgba(234,243,252,.4)";
+  g.lineWidth = 6;
+  g.strokeRect(3, 3, W - 6, H - 6);
+  const [crest, shirt] = await Promise.all([img("/crest-128.webp"), still ? img(still) : Promise.resolve(null)]);
+  g.fillStyle = "#eaf3fc";
+  g.textAlign = "center";
+  g.font = `650 40px ${FONT}`;
+  const top = spec.j;
+  const tw = g.measureText(top).width;
+  if (crest) g.drawImage(crest, W / 2 - tw / 2 - 64, 46, 50, 50);
+  g.fillText(top, W / 2 + 32, 86);
+  if (shirt) {
+    const w = W * 0.62;
+    g.drawImage(shirt, 63, 46, 413, 548, (W - w) / 2, 150, w, (w * 548) / 413);
+  }
+  g.shadowColor = "rgba(3,8,22,.5)";
+  g.shadowBlur = 18;
+  g.font = `800 96px ${FONT}`;
+  g.fillText(spec.big, W / 2, H - 250, W - 80);
+  g.font = `600 46px ${FONT}`;
+  g.fillText(spec.hero, W / 2, H - 170, W - 80);
+  g.font = `500 40px ${FONT}`;
+  g.fillStyle = "rgba(234,243,252,.85)";
+  g.fillText(spec.when, W / 2, H - 100, W - 80);
   return new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error("no image"))), "image/png"));
 }
