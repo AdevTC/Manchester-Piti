@@ -1,0 +1,19 @@
+/* «El partido» · the Partido screen's additions to the board CSS (styles/match-vidrio.css): the real map under the
+   board's pin once the venue is located (OpenStreetMap tiles, credited, as on Partidos), and the photos when the
+   captain has uploaded some (the board only draws the empty state). The headings are the page sans (club.css gives
+   every h3 the display face at zero specificity; the board has no such rule). */
+.pp-place--partido h3{font-family:var(--vd-sans)}
+.pp-place--partido .pa-map--real{background:#cfd8e3}
+.pp-place--partido .pa-map__tiles{position:absolute;width:768px;height:768px;filter:saturate(.55) brightness(.92)}
+.pp-place--partido .pa-map__tiles img{position:absolute;width:256px;height:256px;max-width:none}
+:root:not([data-theme="light"]) .pp-place--partido .pa-map__tiles{filter:invert(1) hue-rotate(185deg) saturate(.5) brightness(.78) contrast(.92)}
+.pp-place--partido .pa-map--real::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,18,39,.08),rgba(8,18,39,.35));pointer-events:none}
+.pp-place--partido .pa-map--real .pa-map__pin{left:calc(50% - 14px);top:calc(50% - 30px);z-index:1}
+.pp-place--partido .pa-map__osm{position:absolute;right:8px;bottom:6px;z-index:2;font-size:11.5px;line-height:1.2;color:#eaf3fc;text-shadow:0 1px 2px rgba(0,8,30,.8);text-decoration:none}
+.pp-place--partido .pa-map__osm:hover,.pp-place--partido .pa-map__osm:focus-visible{text-decoration:underline}
+
+.pp-place--partido .pa-photo--on{display:block}
+.pp-place--partido .pa-photo__l{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.pp-place--partido .pa-photo__l a{display:block;aspect-ratio:1;border-radius:10px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--vd-rule)}
+.pp-place--partido .pa-photo__l a:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.pp-place--partido .pa-photo__l img{width:100%;height:100%;object-fit:cover;display:block}

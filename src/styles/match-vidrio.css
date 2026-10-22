@@ -1,154 +1,1301 @@
-/* The match page «Vidrio» (V-Vivo «La página del partido» mpD / mpP, V-Integracion): where «Abrir el partido»
-   lands. «Volver», the wide glass scoreboard (crest and name each side, the big score and «● En directo 23′ de
-   la primera parte» in the middle), «Sacar el marcador» and «Compartir» top right, the glass tabs, the
-   two-sided feed (ours left, theirs right, the minute pills down the centre, gold for our goals) and «Ahora en
-   el campo» on a glass pitch beside it. Phone: the board as the lens (teams over the score), the tabs under
-   it, the feed full width and the pitch after it. */
+/* «El partido» (P- boards, ronda 3): the match page as a broadcast. Ported from the boards' sources
+   (piti-diseno/src/partido/src: shell.css and the four screens' css), scoped under .pp. Layout follows the page
+   root (.vx is the size container): phone < 700 · tablet 700–1099 · desktop ≥ 1100 · big ≥ 1700. */
+/* «El partido», ronda 2 · a broadcast. The match header (the lens: crests, score or kick-off, status, scorers, «La
+   moviola» or «La tarde») is the page's identity; under it the section tabs, sticky; once the header scrolls away the
+   tabs carry a slim score strip. Each tab is a screen that owns the whole content area under them; switching is a View
+   Transition (the old screen leaves, the tab indicator slides, the new one enters). Layout follows the page root (.vx is
+   the size container): phone < 700 · tablet 700–1099 · desktop ≥ 1100 · big ≥ 1700 (designed at 1920). Tokens only. */
 
-.mp-head{padding:72px 12px 0;font-family:var(--vd-sans)}
-.mp-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.mp-top__acts{display:flex;gap:8px}
-.mp-back{padding:0 14px 0 10px}
-.mp .vd-btn{text-decoration:none}
-.mp-h1{margin:18px 0 0;font-family:var(--vd-sans);font-weight:700;font-variation-settings:'wdth' 94;font-size:25px;letter-spacing:-.018em;line-height:1.08;color:var(--vd-ink-strong);text-wrap:balance}
+/* ---------- the page and its two skies (the golden evening under, the floodlit night over it) */
+.vx.vd-pg.pp{min-height:100vh;overflow:clip;isolation:isolate;--vd-sp-orn:18px;--vd-sp-head:10px}
+.pp>.vd-sky{position:absolute;inset:0;z-index:0}
+.pp>.pp-sky-b{transition:opacity .9s var(--vd-ease)}
+.pp>.pp-bokeh{position:absolute;left:0;top:0;width:100%;height:min(100%,1400px);z-index:0;pointer-events:none;filter:blur(1.4px)}
+:root[data-theme="light"] .pp>.pp-bokeh{opacity:.55}
+.pp .pp-sprite{position:absolute;width:0;height:0;overflow:hidden}
+.pp .pp-i{width:20px;height:20px;flex:none;display:block}
+/* (club.css gives every h3 the display face at zero specificity: the broadcast's headings are Mona Sans) */
+.pp h2,.pp h3,.pp h4{font-family:var(--vd-sans)}
+.pp /* (vestuario.css's `.vx a{color:var(--accent)}.pp ` stays loaded once /vestuario has been visited: the page's glass
+   buttons and links keep their own ink) */
+.pp a.vd-btn{color:var(--vd-g-ink)}
+.pp a.vd-btn--pri{color:#fff}
+/* (the boards' segmented controls are radios, aria-checked; the design system marks aria-selected) */
+.pp .vd-seg__b[aria-checked="true"]{color:var(--vd-g-ink);font-weight:700}
+.pp a.vd-link{color:var(--vd-ink-strong)}
+.pp .vx-top{z-index:7}
+:root:not([data-theme="light"]) .pp .vx-brand-name{text-shadow:0 1px 2px rgba(4,10,26,.55),0 0 14px rgba(4,10,26,.6)}
 
-/* the scoreboard */
-.mp-boardwrap{margin-top:14px}
-.mp-board{--vd-r:var(--vd-r-lens-phone);position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-areas:"us mid them" "under under under";align-items:start;gap:6px;padding:16px 12px 16px}
-.mp-board>.mp-team{grid-area:us}
-.mp-board>.mp-team--r{grid-area:them}
-.mp-board>.mp-board__mid{grid-area:mid}
-.mp-board>.mp-board__under{grid-area:under;display:flex;flex-direction:column;align-items:center;min-width:0}
-.mp-long{display:none}
-.mp-board .vd-team b .mp-long{font-size:inherit;color:inherit;line-height:inherit}
-.mp-board>:not(.vd-glint){position:relative;z-index:2}
-.mp-team{gap:6px}
-.mp-team>div{display:flex;flex-direction:column;gap:1px;min-width:0}
-.mp-board .vd-team__crest{width:48px;height:48px;font-size:15px}
-.mp-board .vd-team b{font-size:14.5px;overflow-wrap:anywhere}
-.mp-board .vd-team span{font-size:12.8px}
-.mp-board__mid{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
-.mp-scoreline.vd-scoreline{font-size:78px}
-.mp-time.vd-score{font-size:56px;color:var(--vd-g-ink)}
-.mp-status.vd-status{margin:4px 0 0;font-size:13.5px;text-align:center}
-.mp-board .pt-sync{margin-top:6px}
-.mp-board .fc-goals{width:100%;min-width:220px;margin-top:10px;font-size:13px;color:var(--vd-g-ink2)}
-.mp-board .fc-goals b{font-family:var(--vd-sans);font-weight:650;color:var(--vd-g-ink);font-feature-settings:'tnum' 1}
-.mp-chips{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:12px 4px 0;font-size:13.5px;color:var(--vd-ink2)}
-.mp-chips>span{display:inline-flex;align-items:center;gap:5px}
-.mp-res{font-weight:650;color:var(--vd-ink-strong)}
-.mp-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-.vx.vd-pg.mp .mp-acts :is(.hm-btn,.hm-ghostbtn){height:44px;padding:0 15px;font-size:14.5px}
-/* la mesa's key keeps its own look, in glass */
-.vx.vd-pg.mp .ml-pb{font-family:var(--vd-sans);border-radius:var(--vd-r-ctl)}
-.vx.vd-pg.mp .fc-status{font-family:var(--vd-sans);color:var(--vd-ink2);margin:10px 4px 0}
+/* ---------- the printed shirt still (540 × 600, the shirt spans x 63–476, y 46–594): cropped to the shirt, never cut */
+.pp .pp-tee{position:relative;display:block;flex:none;width:var(--w,40px);aspect-ratio:413/548;overflow:hidden}
+.pp .pp-tee>img{position:absolute;left:-15.254%;top:-8.394%;width:130.751%;height:auto;max-width:none;display:block;filter:drop-shadow(0 6px 10px rgba(2,8,26,.35))}
+:root[data-theme="light"] .pp .pp-tee>img{filter:drop-shadow(0 6px 10px rgba(30,60,110,.22))}
 
-/* the tabs: a glass segmented control that stays at hand while the feed scrolls */
-.mp-tabs{position:sticky;top:8px;z-index:6;padding:16px 12px 0}
-.mp-seg.vd-seg{height:48px;margin:0 auto;width:100%;max-width:640px}
-.mp-seg .vd-seg__b{font-size:13.5px;padding:0 4px}
-@media (max-width:420px){.mp-seg .vd-seg__b{font-size:12.6px;letter-spacing:-.01em;padding:0 2px}}
-.mp-tab-s{display:none}
-@media (max-width:420px){.mp-tab-l{display:none}.mp-tab-s{display:inline}}
+/* ---------- the stage */
+.pp .pp-stage{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:80px 16px 120px;max-width:1880px;margin:0 auto;box-sizing:border-box}
+.pp .pp-headrow{display:flex;align-items:center;gap:10px;min-width:0}
+.pp .pp-back{flex:none}
+.pp .pp-back .pp-i{width:18px;height:18px;margin-left:-4px}
+.pp .pp-title{flex:1;min-width:0;margin:0;font-family:var(--vd-sans);font-weight:690;font-variation-settings:'wdth' 94;font-size:15px;line-height:1.25;letter-spacing:-.01em;color:var(--vd-ink-strong);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:var(--vd-field-shade,none)}
+.pp .pp-title__l{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.pp .pp-jump{display:none;align-items:center;gap:6px}
+.pp .pp-jump__off{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;color:var(--vd-ink2);opacity:.45}
+.pp .pp-jump__next{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 10px 0 16px;border-radius:999px;text-decoration:none;color:var(--vd-g-ink);font-weight:620;font-size:14px}
+.pp .pp-share{flex:none}
+.pp .pp-admin{flex:none}
+.pp .pp-admin span{display:none}
+.pp .pp-admin .pp-i{width:17px;height:17px}
+.pp .pp-sync{display:flex;justify-content:center;align-items:center;gap:6px;margin:6px 0 0;font-size:13px;font-weight:600;color:var(--vd-g-ink2)}
+.pp .pp-sync .pp-i{width:16px;height:16px}
+.pp .pp-lens:has(.pp-sync){--vd-g-tint:var(--vd-g-tint-deep)}
+.pp .pp-404{text-align:left;padding-top:120px}
+.pp .pp-404__ghost{margin:0;font-weight:800;font-variation-settings:'wdth' 112;font-size:120px;line-height:.9;letter-spacing:-.05em;color:var(--vd-ink2);opacity:.35}
+.pp .pp-404__btns{display:flex;flex-wrap:wrap;gap:10px}
+.pp .pp-share span{display:none}
+.pp .pp-share .pp-i{width:18px;height:18px}
 
-/* the panes */
-.vx.vd-pg.mp .fc-pane{padding-top:18px}
-.mp-main{display:grid;gap:22px}
-.mp-col{min-width:0}
-.mp-pre{margin:0 0 14px;font-size:16px;line-height:1.5;color:var(--vd-ink)}
-.mp-feed__none{margin:0;padding:12px 0;font-size:15px;color:var(--vd-ink2)}
+/* ---------- the header: the lens */
+.pp .pp-lens{width:100%;box-sizing:border-box;color:var(--vd-g-ink);padding:18px 14px 12px}
+.pp .pp-lens__board,.pp .pp-lens__mov{position:relative;z-index:1;min-width:0}
+.pp .pp-lens__halo{position:absolute;left:30%;right:30%;top:6%;height:44%;border-radius:50%;background:radial-gradient(closest-side,rgba(234,243,252,.16),transparent);pointer-events:none;z-index:0}
+:root[data-theme="light"] .pp .pp-lens__halo{background:radial-gradient(closest-side,rgba(255,255,255,.6),transparent)}
+.pp .pp-teams{grid-template-columns:72px minmax(0,1fr) 72px;gap:6px;align-items:start}
+.pp .pp-teams .vd-team{gap:5px}
+.pp .pp-teams .vd-team__crest{width:48px;height:48px;font-size:15px}
+.pp .pp-teams .vd-team b{font-size:13.5px;max-width:100%;overflow-wrap:break-word}
+.pp .pp-teams .vd-team span{font-size:12px}
+.pp .pp-long{display:none}.pp .pp-short{display:inline}
+.pp .pp-mid{display:grid;justify-items:center;min-width:0}
+.pp .pp-score{font-size:84px;justify-content:center;margin:0;filter:drop-shadow(0 10px 28px rgba(140,190,240,.32))}
+.pp .pp-dg{display:inline-block;height:.84em;overflow:hidden;line-height:.84}
+.pp .pp-dg__w{display:flex;flex-direction:column;transform:translateY(calc(var(--d,0) * -.84em));transition:transform .62s var(--vd-spring)}
+.pp .pp-dg__w>span{display:block;height:.84em;line-height:.84;text-align:center}
+/* (the app's .vd-digit pads itself so its gradient never clips: a rolling column must keep .84em steps) */
+.pp .pp-dg__w>.vd-digit{padding:0;margin:0}
+.pp .pp-kick{font-size:64px;margin:6px 0 0;font-variant-numeric:tabular-nums;filter:drop-shadow(0 10px 28px rgba(140,190,240,.28))}
+.pp .pp-word{margin:16px 0 4px;font-family:var(--vd-sans);font-weight:720;font-variation-settings:'wdth' 92;font-size:24px;line-height:1;letter-spacing:-.02em;color:var(--vd-g-ink);text-align:center}
+.pp .pp-status{justify-content:center;font-size:13.5px;gap:4px 8px;margin-top:6px;text-align:center}
+.pp .pp-status .vd-live{color:var(--vd-g-ink)}
+.pp .pp-scorers{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin:10px 0 0;font-size:13px;color:var(--vd-g-ink2)}
+.pp .pp-scorers ul{list-style:none;margin:0;padding:0;display:grid;gap:3px;align-content:start}
+.pp .pp-scorers__us{justify-items:end;text-align:right}
+.pp .pp-scorers__them{justify-items:start}
+.pp .pp-scorers li{transition:opacity .3s var(--vd-ease)}
+.pp .pp-scorers li.is-later{opacity:.28}
+.pp .pp-scorers__rival{margin:0;display:grid;gap:4px;justify-items:start}
+.pp .pp-scorers__rn{font-size:13px;font-weight:650;color:var(--vd-rival)}
+.pp .pp-scorers__mins{display:flex;flex-wrap:wrap;gap:2px 9px;max-width:230px}
+.pp .pp-scorers__mins .vd-clock{font-size:12.5px;color:var(--vd-g-ink);transition:opacity .3s var(--vd-ease)}
+.pp .pp-scorers__mins .is-later{opacity:.28}
+.pp .pp-rib .vd-ribbon__mark.is-minor{width:16px;height:16px;opacity:.85}
+.pp .pp-rib .vd-ribbon__mark.is-minor svg{width:11px;height:11px}
+.pp .pp-rib__n{position:absolute;right:-9px;top:-9px;min-width:17px;height:17px;padding:0 3px;box-sizing:border-box;border-radius:9px;background:var(--vd-solid);color:var(--vd-g-ink);font:700 11.5px/17px var(--vd-sans);text-align:center;box-shadow:0 0 0 1px var(--vd-rule2)}
+.pp .pp-scorers .vd-clock{font-size:12.5px;color:var(--vd-g-ink)}
+.pp .pp-scorers__them li{color:var(--vd-rival)}
+.pp .pp-lens.is-goal .pp-score{animation:pp-goal 1.1s var(--vd-ease) both}
+@keyframes pp-goal{0%{filter:drop-shadow(0 0 0 rgba(255,198,89,0))}30%{filter:drop-shadow(0 0 26px rgba(255,198,89,.9))}100%{filter:drop-shadow(0 10px 28px rgba(140,190,240,.32))}}
 
-/* the two-sided feed */
-.mp-feed{position:relative;display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
-.mp-feed::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--vd-rule2)}
-.mp-frow{display:grid;grid-template-columns:minmax(0,1fr) 46px minmax(0,1fr);align-items:center;min-height:50px;border-radius:12px;transition:background .6s}
-.mp-frow__us{text-align:right;padding-right:8px;min-width:0}
-.mp-frow__them{padding-left:8px;min-width:0}
-.mp-frow b{display:block;font-weight:650;font-size:13.5px;line-height:1.25;color:var(--vd-ink-strong)}
-.mp-frow span:not(.mp-frow__min):not(.vd-vh){display:block;font-size:12px;line-height:1.3;color:var(--vd-ink2)}
-.mp-frow--them b{color:var(--vd-rival)}
-.mp-frow--mid .mp-frow__them{display:none}
-.mp-frow--mid{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
-.mp-frow--mid .mp-frow__us{grid-column:1}
-.mp-frow.is-minor b{font-weight:560;color:var(--vd-ink)}
-.mp-frow--them.is-minor b{color:#f3b3aa}
-:root[data-theme="light"] .mp-frow--them.is-minor b{color:#9c3b2d}
-.mp-frow.is-fresh{background:linear-gradient(90deg,transparent,rgba(255,198,89,.16),transparent)}
-.mp-frow__min{justify-self:center;position:relative;z-index:1;width:40px;height:26px;border-radius:10px;display:grid;place-items:center;background:var(--vd-noche);box-shadow:inset 0 0 0 1px var(--vd-rule2);font-family:var(--vd-mono);font-size:12.8px;color:var(--vd-ink)}
-:root[data-theme="light"] .mp-frow__min{background:#EEF6FD}
-.mp-frow__min.is-gold{box-shadow:inset 0 0 0 1.5px var(--vd-oro);color:var(--vd-oro)}
-:root[data-theme="light"] .mp-frow__min.is-gold{color:#8a5a00;box-shadow:inset 0 0 0 1.5px #c99000}
-.mp-feed__sum .vd-more{margin-top:8px;color:var(--vd-ink2)}
-.mp-feed__sum .vd-more b,.mp-feed__sum .vd-more__btn{color:var(--vd-ink-strong)}
+/* ---------- «La moviola»: the 50 minutes, the playhead drives the header and whichever screen is open */
+.pp .pp-mov{position:relative;margin-top:12px}
+.pp .pp-mov__k{display:none;margin:0 0 2px;gap:8px;align-items:baseline;font-size:13px;color:var(--vd-g-ink2)}
+.pp .pp-mov__k b{font-weight:680;font-size:14px;color:var(--vd-g-ink)}
+.pp .pp-mov__track{position:relative;padding:30px 4px 0}
+.pp .pp-rib{margin:0 0 22px}
+.pp .pp-rib__ghost{opacity:.32}
+.pp .pp-rib .vd-ribbon__mark{border:0;padding:0;cursor:pointer;transition:transform .25s var(--vd-spring),opacity .3s var(--vd-ease)}
+.pp .pp-rib .vd-ribbon__mark.is-later{opacity:.42}
+.pp .pp-rib .vd-ribbon__mark.is-at{transform:translate(-50%,-50%) scale(1.22)}
+.pp .pp-rib .vd-ribbon__mark svg{width:15px;height:15px}
+.pp .pp-rib__live{z-index:2}
+.pp .pp-head{position:absolute;top:0;bottom:22px;width:0;z-index:3;pointer-events:none;transition:left .18s linear}
+.pp .pp-head__line{position:absolute;left:-1px;top:26px;bottom:0;width:2px;border-radius:2px;background:var(--vd-g-ink);box-shadow:0 0 12px rgba(234,243,252,.7)}
+:root[data-theme="light"] .pp .pp-head__line{box-shadow:none}
+.pp .pp-head__tip{position:absolute;top:0;left:0;transform:translateX(-50%);display:flex;align-items:center;gap:6px;white-space:nowrap;padding:4px 10px;border-radius:999px;
+  background:var(--vd-solid);color:var(--vd-g-ink);font-size:12.5px;font-weight:600;box-shadow:0 6px 18px -8px rgba(2,8,26,.6)}
+.pp .pp-head__tip b{font-size:12.5px}
+.pp .pp-head__tip.is-start{transform:translateX(-8px)}
+.pp .pp-head__tip.is-end{transform:translateX(calc(-100% + 8px))}
+.pp .pp-head__tip.is-gold{background:var(--vd-oro);color:#2b1d00}
+.pp .pp-head__tip.is-them{background:var(--vd-rival);color:#2a0b07}
+:root[data-theme="light"] .pp .pp-head__tip.is-them{color:#fff}
+.pp .pp-mov__range{position:absolute;left:4px;right:4px;top:26px;height:78px;width:calc(100% - 8px);margin:0;opacity:0;cursor:ew-resize;z-index:4}
+.pp .pp-mov__range:focus-visible{opacity:1;background:transparent;outline:2px solid var(--vd-celeste);outline-offset:2px;border-radius:12px;-webkit-appearance:none;appearance:none}
+.pp .pp-mov__range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:78px;background:transparent;border:0}
+.pp .pp-mov__bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pp .pp-mov__b .pp-i{width:18px;height:18px}
+.pp .pp-mov__play .pp-i{width:16px;height:16px}
+.pp .pp-mov__share{margin-left:auto}
+.pp .pp-mov__share .pp-i{width:16px;height:16px}
+.pp .pp-mov__hint{margin:8px 0 0;font-size:12.5px;line-height:1.35;color:var(--vd-g-ink2)}
+.pp .pp-mov__back{min-height:44px}
+.pp .pp-mov.is-live .pp-mov__play{display:none}
 
-/* «Todo el partido», grown */
-.mp-grow{position:fixed;z-index:40;left:8px;right:8px;top:64px;bottom:82px}
-.mp-grow .mp-feed::before{top:0;bottom:0}
-.mp-grow .mp-frow__min{background:#0d1a3a}
-:root[data-theme="light"] .mp-grow .mp-frow__min{background:#fff}
-.mp-grow .mp-frow b{color:var(--vd-g-ink)}
-.mp-grow .mp-frow--them b{color:var(--vd-rival)}
-.mp-pfilt.vd-seg{width:100%;order:4;height:44px}
+/* «La tarde»: before the whistle the ribbon is that evening over the CDM, hour by hour */
+.pp .pp-tarde{position:relative;padding:0 4px}
+.pp .pp-tarde__sky{position:relative;height:64px;border-radius:14px;overflow:hidden;
+  background:linear-gradient(90deg,#3f78b3 0%,#5a86bd 22%,#8e8fb4 38%,#c99a86 52%,#e7a878 62%,#c97f6e 72%,#5e4e80 80%,#252d63 90%,#0e1736 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),inset 0 -18px 26px -18px rgba(3,8,22,.55)}
+.pp .pp-tarde__sky svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.pp .pp-tarde__curve{fill:none;stroke:rgba(255,236,200,.85);stroke-width:1.6;stroke-dasharray:3 4;vector-effect:non-scaling-stroke}
+.pp .pp-tarde__hz{stroke:rgba(255,255,255,.35);stroke-width:1;vector-effect:non-scaling-stroke}
+.pp .pp-tarde__win{position:absolute;top:5px;bottom:5px;border-radius:10px;background:rgba(8,18,39,.28);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.75),0 0 18px rgba(255,214,160,.35);
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;box-sizing:border-box}
+.pp .pp-tarde__win span{font-size:11.5px;font-weight:650;color:#fff;letter-spacing:.01em;white-space:nowrap;text-shadow:0 1px 4px rgba(3,8,22,.6)}
+.pp .pp-tarde__sun{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:radial-gradient(circle,#fffaf0 0,#ffe3a6 40%,#ffc659 62%,rgba(255,198,89,0) 74%);box-shadow:0 0 26px 6px rgba(255,214,140,.65)}
+.pp .pp-tarde__tick{position:absolute;bottom:0;width:1px;height:8px;background:rgba(255,255,255,.45)}
+.pp .pp-tarde__marks{position:relative;height:40px;margin:6px 0 0;padding:0;list-style:none}
+.pp .pp-tarde__marks--top{height:36px;margin:0 0 6px}
+.pp .pp-tarde__marks li{position:absolute;top:0;transform:translateX(-50%);display:grid;justify-items:center;gap:2px;font-size:11.5px;line-height:1.2;color:var(--vd-g-ink2);white-space:nowrap}
+.pp .pp-tarde__marks--top li{top:auto;bottom:0}
+.pp .pp-tarde__marks li b{font-size:12.5px;color:var(--vd-g-ink)}
+.pp .pp-tarde__marks li.is-key b,.pp .pp-tarde__marks li.is-key span{color:var(--vd-g-ink);font-weight:650}
+.pp .pp-tarde__marks li.is-now span{font-weight:650;color:var(--vd-g-ink)}
+.pp .pp-tarde__marks li.is-start{transform:none;justify-items:start}
+.pp .pp-tarde__marks li.is-end{transform:translateX(-100%);justify-items:end}
+.pp .pp-tarde__marks li.is-hide,.pp .pp-tarde__marks li.is-minor{display:none}
+@container (min-width:700px){.pp .pp-tarde__marks li.is-minor:not(.is-hide){display:grid}.pp .pp-tarde__sky{height:74px}}
+.pp .pp-still{display:flex;gap:12px;align-items:flex-start;margin:8px 2px 4px;padding:12px 14px;border-radius:var(--vd-r-ctl);background:rgba(255,255,255,.06);color:var(--vd-g-ink)}
+:root[data-theme="light"] .pp .pp-still{background:rgba(12,23,51,.05)}
+.pp .pp-still .pp-i{width:22px;height:22px;margin-top:1px;color:var(--vd-g-ink2)}
+.pp .pp-still p{margin:0;display:grid;gap:3px;font-size:13.5px;line-height:1.4}
+.pp .pp-still p span{color:var(--vd-g-ink2)}
+.pp .pp-lensacts{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+.pp .pp-lensacts:empty{display:none}
+.pp .pp-lensacts .pp-i{width:17px;height:17px}
+.pp .pp-desk{display:none}
+@container (min-width:1100px){.pp .pp-desk{display:inline-flex}}
 
-/* «Ahora en el campo» */
-.mp-campo{display:flex;flex-direction:column}
-.mp-pitch{position:relative;height:360px}
-.mp-players{position:absolute;inset:0;margin:0;padding:0;list-style:none}
-/* the marks beside the shirt in a column, as the board's .v-player__tags (towards the roomier side), never under
-   the name: that tall block ran off the pitch at the keeper and onto the next row */
-.mp-player .vd-tags{position:absolute;top:0;left:calc(50% + 20px);flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:3px;margin:0}
-.mp-player--tl .vd-tags{left:auto;right:calc(50% + 20px);align-items:flex-end}
-/* the collision pass (vidrio/campoLayout, on Inicio's pitchLayout): every name stays clear of the other shirts
-   and names — the player moved a little from the pizarra's spot (--nx/--ny), his name a little lower, aside or on
-   two lines (its box keeps one line's height: the shirt never moves with it) — and his marks clear of everything,
-   in a column on either side or in a row under the name (--tx/--ty) */
-.mp-players .mp-player{transform:translate(calc(-50% + var(--nx,0px)),calc(-50% + var(--ny,0px)))}
-.mp-player .vd-player__name{transform:translate(var(--pdx,0px),var(--pdy,0px))}
-.mp-player--two .vd-player__name{white-space:normal;width:min-content;text-align:center;height:1.1em}
-.mp-player[data-tags] .vd-tags{left:var(--tx);top:var(--ty);right:auto;align-items:flex-start}
-.mp-player[data-tags="l"] .vd-tags{align-items:flex-end}
-.mp-player[data-tags="b"] .vd-tags{flex-direction:row}
-.mp-player--tags2 .vd-tags{display:grid;grid-template-columns:repeat(2,max-content);gap:3px}
-.mp-player--tags2[data-tags="l"] .vd-tags{justify-items:end}
-.mp-player--tagsicon .vd-tag{gap:0;padding:0 5px;font-size:0;min-width:10px}
-/* (the minutes chip keeps its number when the others go icon-only: a clock alone says nothing) */
-.mp-player--tagsicon .vd-tag.vd-tag--minutos{gap:2px;font-size:11.5px}
-.mp-player--tagsicon .vd-tag__unit{display:none}
+/* ---------- the section tabs, broadcast-style, sticky; once the header has gone they carry the score strip */
+.pp .pp-sent{display:block;height:0}
+.pp .pp-tabs{position:sticky;top:0;z-index:20;margin:0 -16px}
+.pp .pp-tabs__in{position:relative;display:grid;grid-template-columns:minmax(0,1fr);border-radius:0 0 20px 20px;--vd-r:0 0 20px 20px;overflow:hidden;color:var(--vd-g-ink)}
+.pp .pp-tabs__list{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:0 6px}
+.pp .pp-tab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;min-height:58px;padding:6px 4px 9px;text-decoration:none;color:var(--vd-g-ink2);
+  font-family:var(--vd-sans);-webkit-tap-highlight-color:transparent;transition:color .25s var(--vd-ease)}
+.pp .pp-tab b{font-weight:640;font-size:15px;line-height:1.15;letter-spacing:-.01em;white-space:nowrap}
+.pp .pp-tab small{font-size:12px;line-height:1.2;font-weight:500;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp .pp-tab__l{display:none}
+.pp .pp-tab[aria-current="page"]{color:var(--vd-g-ink)}
+.pp .pp-tab[aria-current="page"] b{font-weight:740}
+.pp .pp-tab:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-3px;border-radius:12px}
+.pp .pp-tab__badge{position:absolute;top:7px;right:max(2px,calc(50% - 50px));min-width:9px;width:9px;height:9px;padding:0;font-size:0}
+/* the indicator is one shared element: on a switch it slides from the old tab to the new one (View Transition morph) */
+.pp .pp-tab__ind{position:absolute;left:18%;right:18%;bottom:3px;height:3px;border-radius:3px;background:var(--vd-celeste);box-shadow:0 0 12px rgba(108,171,221,.7);view-transition-name:pp-tabind;view-transition-class:vd-morph}
+:root[data-theme="light"] .pp .pp-tab__ind{background:var(--vd-marino);box-shadow:none}
+.pp .pp-tabs__prog{position:absolute;left:0;top:0;height:2px;background:linear-gradient(90deg,rgba(108,171,221,.15),var(--vd-celeste));transition:width .18s linear;z-index:2}
+:root[data-theme="light"] .pp .pp-tabs__prog{background:linear-gradient(90deg,rgba(12,23,51,.1),var(--vd-marino))}
+/* the slim score strip: hidden while the header is in view */
+.pp .pp-mini{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:8px;height:0;overflow:hidden;opacity:0;text-decoration:none;color:var(--vd-g-ink);
+  font-family:var(--vd-sans);visibility:hidden;transition:height .28s var(--vd-ease),opacity .2s var(--vd-ease),visibility 0s .28s}
+.pp .pp-mini img{width:24px;height:24px;flex:none}
+.pp .pp-mini__s{font-weight:800;font-variation-settings:'wdth' 112;font-size:20px;letter-spacing:-.03em;font-feature-settings:'tnum' 1;line-height:1}
+.pp .pp-mini__r{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;box-sizing:border-box;border:1.5px solid var(--vd-rival);font-size:9.5px;font-weight:760;color:var(--vd-g-ink);flex:none}
+.pp .pp-mini__w{display:inline-flex;align-items:center;gap:6px;margin-left:4px;font-size:13px;color:var(--vd-g-ink2)}
+.pp .pp-mini__w .vd-clock{font-size:13.5px;color:var(--vd-g-ink)}
+.pp .pp-mini__w .vd-livedot{margin:0}
+.pp.is-compact .pp-mini{height:40px;opacity:1;visibility:visible;transition:height .28s var(--vd-ease),opacity .2s var(--vd-ease),visibility 0s}
+.pp.is-compact .pp-mini:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-3px}
 
-@media (min-width:700px){
-.mp-head{padding:96px 40px 0}
-.mp-h1{font-size:31px}
-.mp-board{--vd-r:var(--vd-r-lens);grid-template-areas:"us mid them" "us under them";align-items:center;gap:4px 20px;padding:20px 28px}
-.mp-board>.mp-board__mid{align-self:end}
-.mp-board>.mp-board__under{align-self:start}
-.mp-long{display:inline}
-.mp-team{flex-direction:row;gap:14px;text-align:left}
-.mp-team--r{flex-direction:row-reverse;text-align:right}
-.mp-board .vd-team__crest{width:68px;height:68px;font-size:19px}
-.mp-board .vd-team b{font-size:20px}
-.mp-board .vd-team span{font-size:14px}
-.mp-scoreline.vd-scoreline{font-size:104px}
-.mp-time.vd-score{font-size:80px}
-.mp-status.vd-status{font-size:14.5px}
-.mp-tabs{padding:20px 40px 0}
-.mp-seg .vd-seg__b{font-size:14.5px}
-.mp-frow{grid-template-columns:minmax(0,1fr) 56px minmax(0,1fr);min-height:54px}
-.mp-frow b{font-size:15px}
-.mp-frow span:not(.mp-frow__min):not(.vd-vh){font-size:13.5px}
-.mp-frow__min{width:46px;height:30px;font-size:13.5px}
-.mp-grow{left:40px;right:40px;top:96px;bottom:96px}
-.mp-pfilt.vd-seg{width:400px;order:0}
+/* ---------- the screen: one at a time, it owns the whole content area */
+.pp .pp-screen{position:relative;min-width:0;min-height:420px;padding-top:8px;view-transition-name:pp-screen;view-transition-class:vd-reg;touch-action:pan-y}
+.pp .pp-place{container-type:inline-size;min-width:0;position:relative}
+.pp .pp-place__min{display:none}
+.pp .pp-place__head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 14px}
+.pp .pp-place__head h2{margin:0;font-family:var(--vd-sans);font-weight:700;font-variation-settings:'wdth' 96;font-size:22px;line-height:1.12;letter-spacing:-.016em;color:var(--vd-ink-strong);text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place__head p{margin:4px 0 0;font-size:13.5px;line-height:1.4;color:var(--vd-ink2)}
+.pp .pp-nextscr{display:flex;justify-content:space-between;gap:10px;margin-top:28px;padding-top:16px;border-top:1px solid var(--vd-rule)}
+.pp .pp-nextscr__b .pp-i{width:16px;height:16px}
+.pp .pp-nextscr__b--next{margin-left:auto}
+
+/* ---------- la mesa (its own page, immersive: the board only shows the way in and back) */
+.pp .pp-mesa{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:28px 20px 60px;box-sizing:border-box;display:grid;gap:16px;color:var(--vd-ink)}
+.pp .pp-mesa__top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.pp .pp-mesa__top .pp-i{width:18px;height:18px;margin-left:-4px}
+.pp .pp-mesa__k{margin:0;font-size:13px;color:var(--vd-ink2)}
+.pp .pp-mesa__h{margin:18px 0 0;font-weight:720;font-variation-settings:'wdth' 92;font-size:40px;line-height:1;letter-spacing:-.025em;color:var(--vd-ink-strong)}
+.pp .pp-mesa__clock{display:flex;align-items:baseline;gap:14px;margin:0}
+.pp .pp-mesa__clock b{font-size:64px;line-height:1;color:var(--vd-ink-strong)}
+.pp .pp-mesa__clock span{font-size:17px;font-weight:620;color:var(--vd-ink)}
+.pp .pp-mesa__p{margin:0;font-size:16px;line-height:1.5}
+.pp .pp-mesa__note{margin:0;padding:14px 16px;border-radius:var(--vd-r-ctl);box-shadow:inset 0 0 0 1px var(--vd-rule2);font-size:14px;line-height:1.5;color:var(--vd-ink2)}
+
+/* ---------- toast, PiP, the sheets */
+.pp .pp-toast{position:fixed;left:50%;bottom:104px;z-index:80;width:max-content;max-width:calc(100% - 32px);box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:10px 16px 10px 12px;border-radius:999px;background:var(--vd-solid);color:var(--vd-g-ink);
+  font-size:14px;font-weight:600;box-shadow:0 18px 40px -16px rgba(2,8,26,.6);transform:translate(-50%,12px);opacity:0;pointer-events:none;transition:opacity .2s var(--vd-ease),transform .3s var(--vd-spring)}
+.pp .pp-toast.is-on{opacity:1;transform:translate(-50%,0)}
+.pp.has-sheet .pp-toast{bottom:auto;top:16px}
+.pp .pp-toast .pp-i{width:18px;height:18px;color:var(--vd-celeste)}
+.pp .pp-pip{position:fixed;right:20px;bottom:20px;z-index:50;width:330px;height:150px;box-sizing:border-box;display:flex;flex-direction:column;--vd-r:22px}
+.pp .pp-pip__bar{display:flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 12px;font-size:13px;font-weight:600}
+.pp .pp-pip__bar span{flex:1}
+.pp .pp-pip__bar button{width:44px;height:36px;display:grid;place-items:center;border:0;background:none;color:inherit;cursor:pointer;border-radius:10px}
+.pp .pp-pip__body{flex:1;display:flex;align-items:center;justify-content:center;gap:12px;font-size:14px}
+.pp .pp-pip__score{font-size:52px;line-height:1}
+.pp .pp-scrim{position:fixed;inset:0;z-index:70;background:rgba(3,8,22,.5);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.pp .pp-sheet{position:fixed;left:50%;bottom:12px;z-index:71;width:min(460px,calc(100% - 20px));max-height:calc(100% - 24px);overflow:auto;box-sizing:border-box;transform:translateX(-50%);display:flex;flex-direction:column;gap:14px;
+  color:var(--vd-g-ink);animation:pp-up .34s var(--vd-spring) both}
+@keyframes pp-up{from{opacity:0;transform:translate(-50%,24px)}}
+@keyframes pp-rise{from{opacity:0;transform:translate(-50%,-46%) scale(.98)}}
+.pp .pp-sheet__head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.pp .pp-sheet__head h2{margin:0;font-weight:700;font-variation-settings:'wdth' 94;font-size:22px;letter-spacing:-.015em;color:var(--vd-g-ink)}
+.pp .pp-sheet__sub{margin:4px 0 0;font-size:13.5px;line-height:1.4;color:var(--vd-g-ink2)}
+.pp .pp-sheet__note{margin:0;color:var(--vd-g-ink2)}
+.pp .pp-sheet__btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pp .pp-sheet__btns .vd-btn{flex:1}
+.pp .pp-sheet__btns .pp-i{width:18px;height:18px}
+.pp .pp-cartel__seg{height:46px}
+.pp .pp-poster{position:relative;margin:0;border-radius:18px;overflow:hidden;aspect-ratio:1/1;color:#fff;display:grid;align-content:end;padding:18px;box-sizing:border-box;box-shadow:0 20px 50px -24px rgba(2,8,26,.8)}
+.pp .pp-poster.is-story{aspect-ratio:9/14}
+.pp .pp-poster__sky{position:absolute;inset:0;z-index:0;background:linear-gradient(180deg,#1C2B5E 0,#5E6FA8 34%,#C99A86 58%,#2A2F4A 74%,#0C1430 100%)}
+.pp .pp-poster__sky.is-flood{background:linear-gradient(180deg,#060F24 0,#14275A 36%,#22457F 58%,#10283F 76%,#071022 100%)}
+.pp .pp-poster>*:not(.pp-poster__sky){position:relative;z-index:1;margin:0}
+.pp .pp-poster__tee{position:absolute!important;right:6%;top:15%;--w:42%}
+.pp .pp-poster.is-story .pp-poster__tee{right:50%;transform:translateX(50%);top:13%;--w:56%}
+.pp .pp-poster__crest{position:absolute!important;top:16px;left:16px;width:40px;height:40px}
+.pp .pp-poster__j{position:absolute!important;top:14px;right:18px;font-weight:800;font-size:15px;letter-spacing:.02em}
+.pp .pp-poster__txt{position:relative;z-index:2;display:grid;gap:0;text-shadow:0 2px 12px rgba(3,8,22,.55)}
+.pp .pp-poster__txt p{margin:0}
+.pp .pp-poster__us{font-weight:720;font-variation-settings:'wdth' 92;font-size:22px;line-height:1}
+.pp .pp-poster__vs{font-size:14px;opacity:.9;margin-top:4px!important}
+.pp .pp-poster__big{font-weight:800;font-variation-settings:'wdth' 112;font-size:72px;line-height:.86;letter-spacing:-.04em;margin:12px 0 6px!important;font-variant-numeric:tabular-nums}
+.pp .pp-poster__hero{font-size:14px;font-weight:650;margin-bottom:2px!important}
+.pp .pp-poster__when{font-size:14px;font-weight:600}
+.pp .pp-poster__where{font-size:13px;opacity:.85}
+/* «Compartir el momento» */
+.pp .pp-mocard{position:relative;margin:0;border-radius:18px;overflow:hidden;padding:16px 18px 14px;display:grid;gap:12px;color:#fff;box-shadow:0 20px 50px -24px rgba(2,8,26,.8)}
+.pp .pp-mocard.is-golden{background:linear-gradient(180deg,#1C2B5E 0,#5E6FA8 40%,#C99A86 78%,#7a5a5e 100%)}
+.pp .pp-mocard.is-flood{background:linear-gradient(180deg,#060F24 0,#14275A 40%,#22457F 76%,#10283F 100%)}
+.pp .pp-mocard__top{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:650}
+.pp .pp-mocard__top img{width:28px;height:28px}
+.pp .pp-mocard__body{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}
+.pp .pp-mocard__txt{display:grid;gap:2px;text-shadow:0 2px 10px rgba(3,8,22,.5)}
+.pp .pp-mocard__txt p{margin:0}
+.pp .pp-mocard__m{font-size:44px;line-height:1;font-weight:500}
+.pp .pp-mocard__t{font-weight:720;font-variation-settings:'wdth' 94;font-size:22px;line-height:1.1;letter-spacing:-.015em;margin-top:6px!important}
+.pp .pp-mocard__s{font-size:14px;opacity:.9}
+.pp .pp-mocard__sc{margin-top:10px!important;font-weight:780;font-variation-settings:'wdth' 108;font-size:18px;font-feature-settings:'tnum' 1}
+.pp .pp-mocard__tee{--w:120px}
+.pp .pp-mocard__or{display:grid;place-items:center;width:72px;height:72px;border-radius:50%;box-sizing:border-box;border:2px solid #F08A7E;font-weight:800;font-size:20px;color:#fff;background:rgba(240,138,126,.18)}
+.pp .pp-mocard__link{margin:0;font:600 12.5px/1.2 var(--vd-sans);opacity:.85}
+/* the avisos of this match */
+.pp .pp-avl{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.pp .pp-avl__r{border-bottom:1px solid var(--vd-rule)}
+.pp .pp-avl__sw{width:100%;justify-content:flex-start;text-align:left;padding:8px 2px;min-height:56px}
+.pp .pp-avl__t{display:grid;gap:2px}
+.pp .pp-avl__t b{font-weight:640;font-size:15px;color:var(--vd-g-ink)}
+.pp .pp-avl__t span{font-weight:450;font-size:13px;color:var(--vd-g-ink2);line-height:1.35}
+
+/* ---------- tablet */
+@container (min-width:700px){
+  .pp .pp-stage{padding:96px 32px 128px;gap:16px}
+  .pp .pp-title{font-size:17px}
+  .pp .pp-title__l{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto}.pp .pp-title__s{display:none}
+  .pp .pp-share span{display:inline}
+  .pp .pp-admin span{display:inline}
+  .pp .pp-jump{display:flex}
+  .pp .pp-lens{padding:22px 26px 14px}
+  .pp .pp-long{display:inline}.pp .pp-short{display:none}
+  .pp .pp-teams{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px}
+  .pp .pp-teams .vd-team__crest{width:68px;height:68px;font-size:21px}
+  .pp .pp-teams .vd-team b{font-size:18px}
+  .pp .pp-teams .vd-team span{font-size:13px}
+  .pp .pp-score{font-size:120px}
+  .pp .pp-kick{font-size:92px}
+  .pp .pp-word{font-size:34px;margin-top:24px}
+  .pp .pp-status{font-size:14.5px;margin-top:10px}
+  .pp .pp-scorers{font-size:14px;margin-top:12px}
+  .pp .pp-tabs{margin:0}
+  .pp .pp-tabs__in{border-radius:22px;--vd-r:22px}
+  .pp .pp-tab__l{display:inline}.pp .pp-tab__s{display:none}
+  .pp .pp-tab{min-height:62px}
+  .pp .pp-tab b{font-size:16px}
+  .pp .pp-tab__badge{top:6px;right:max(4px,calc(50% - 70px));min-width:18px;width:auto;height:18px;padding:0 5px;font-size:11.5px}
+  .pp .pp-place__head h2{font-size:26px}
+  .pp .pp-sheet{top:50%;bottom:auto;transform:translate(-50%,-50%);animation-name:pp-rise}
+  .pp .pp-screen{padding-top:12px}
 }
-@media (min-width:1100px){
-.mp-head{padding:96px 72px 0}
-.mp-board{min-height:208px;gap:24px;padding:20px 40px}
-.mp-board .vd-team__crest{width:84px;height:84px;font-size:22px}
-.mp-board .vd-team b{font-size:25px}
-.mp-board .vd-team span{font-size:14.5px}
-.mp-scoreline.vd-scoreline{font-size:124px}
-.mp-time.vd-score{font-size:96px}
-.mp-main{grid-template-columns:minmax(0,1fr) 420px;gap:56px}
-.vx.vd-pg.mp .fc-pane{padding-left:72px;padding-right:72px;max-width:none}
-.mp-grow{left:72px;right:72px;top:96px;bottom:24px}
-.mp-pitch{height:330px}
+
+/* ---------- desktop: the header is a broadcast scoreboard across the page, the moviola beside the score */
+@container (min-width:1100px){
+  .pp .pp-stage{padding:104px 40px 56px;row-gap:18px;max-width:1440px}
+  .pp .pp-lens{display:grid;grid-template-columns:minmax(440px,.82fr) minmax(0,1.18fr);column-gap:34px;align-items:center;padding:22px 30px 18px}
+  .pp .pp-lens__mov{padding-left:30px;border-left:1px solid var(--vd-rule)}
+  .pp .pp-lens.is-pre .pp-lens__mov,.pp .pp-lens.is-off .pp-lens__mov{align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+  .pp .pp-mov{margin-top:0}
+  .pp .pp-mov__k{display:flex}
+  .pp .pp-lensacts{justify-content:flex-start}
+  .pp .pp-score{font-size:116px}
+  .pp .pp-kick{font-size:96px}
+  .pp .pp-word{margin-top:30px;font-size:40px}
+  .pp .pp-teams{gap:14px}
+  .pp .pp-teams .vd-team b{font-size:17px}
+  .pp .pp-tabs__in{grid-template-columns:minmax(0,1fr);border-radius:22px}
+  .pp .pp-tabs__list{grid-template-columns:repeat(4,minmax(150px,200px));justify-content:center}
+  .pp .pp-mini{position:absolute;left:16px;top:0;bottom:0;height:auto!important;width:0;justify-content:flex-start;transition:opacity .25s var(--vd-ease)}
+  .pp.is-compact .pp-mini{width:auto}
+  .pp .pp-tab{min-height:64px}
+  .pp .pp-toast{bottom:28px}
+  .pp .pp-place__head h2{font-size:28px}
+  .pp .pp-screen{padding-top:18px}
+  .pp .pp-nextscr{margin-top:36px}
+}
+/* tablet and desktop narrower than the strip needs: the score strip sits above the tabs as on the phone */
+@container (min-width:700px) and (max-width:1219px){
+  .pp .pp-mini{position:relative;left:auto;width:auto;height:0}
+  .pp.is-compact .pp-mini{height:40px}
+}
+
+/* ---------- big screens (1920): more room for the same header, never more windows */
+@container (min-width:1700px){
+  .pp .pp-stage{padding:108px 56px 60px;max-width:1920px}
+  .pp .pp-lens{grid-template-columns:minmax(560px,.8fr) minmax(0,1.2fr);padding:26px 38px 20px;column-gap:44px}
+  .pp .pp-lens__mov{padding-left:44px}
+  .pp .pp-score{font-size:136px}
+  .pp .pp-kick{font-size:108px}
+  .pp .pp-teams .vd-team__crest{width:80px;height:80px;font-size:24px}
+  .pp .pp-teams .vd-team b{font-size:20px}
+  .pp .pp-status{font-size:15.5px}
+  .pp .pp-scorers{font-size:15px}
+  .pp .pp-tabs__list{grid-template-columns:repeat(4,minmax(170px,230px))}
+  .pp .pp-tab b{font-size:17px}
+  .pp .pp-tab small{font-size:13px}
+  .pp .pp-place__head h2{font-size:32px}
+  .pp .pp-place__head p{font-size:15px}
+}
+
+@container (min-width:2200px){
+  .pp .pp-stage{max-width:2240px;padding-left:72px;padding-right:72px}
+  .pp .pp-score{font-size:150px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .pp .pp-dg__w,.pp>.pp-sky-b,.pp .pp-head,.pp .pp-rib .vd-ribbon__mark,.pp .pp-toast,.pp .pp-sheet,.pp .pp-mini,.pp .pp-tabs__prog,.pp .pp-tab{transition:none!important;animation:none!important}
+  .pp .pp-lens.is-goal .pp-score{animation:none}
+}
+
+/* ===== screen: partido ===== */
+/* «El partido» screen: the now. Before: the day hour by hour, the place, the weather, the kit. Live: jugada a jugada
+   with its filters and, beside it, what surrounds it («si acaba así», la mesa, your avisos). After: the acta — the
+   crónica and the moments, beside them the MVP, the signature, logros, photos and what's next. Phone single column;
+   from 960 px of screen a composition of this screen only. */
+.pp .pp-place--partido :where(h3,p,ul,ol){margin:0}
+.pp .pp-place--partido .pa-k{margin:0 0 8px;font-size:14px;font-weight:660;font-variation-settings:'wdth' 96;color:var(--vd-ink-strong);letter-spacing:-.003em;display:flex;gap:4px 8px;align-items:baseline;flex-wrap:wrap}
+.pp .pp-place--partido .pa-k span{font-weight:450;color:var(--vd-ink2);font-size:12.5px}
+.pp .pp-place--partido .pa-note{margin:6px 0 0;font-size:12.5px;line-height:1.4;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-headact .pp-i{width:17px;height:17px}
+.pp .pp-place--partido .pa-headact .pa-l{display:none}
+.pp .pp-place--partido .pa-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.pp .pp-place--partido .pa-btns .pp-i{width:17px;height:17px}
+.pp .pp-place--partido .pa-banner{display:flex;gap:10px;align-items:center;margin:0 0 14px;padding:10px 14px;border-radius:var(--vd-r-ctl);background:rgba(255,93,93,.12);color:var(--vd-ink);font-size:13.5px;line-height:1.4}
+.pp .pp-place--partido .pa-banner .vd-livedot{margin:0}
+.pp .pp-place--partido .pa-banner--calm{background:rgba(108,171,221,.12)}
+
+/* ---- before: the plan of the day */
+.pp .pp-place--partido .pa-plan{display:grid;gap:24px}
+.pp .pp-place--partido .pa-steps{list-style:none;padding:0;display:grid;position:relative}
+.pp .pp-place--partido .pa-step{display:grid;grid-template-columns:62px minmax(0,1fr);gap:12px;padding:11px 0;border-top:1px solid var(--vd-rule)}
+.pp .pp-place--partido .pa-step:first-child{border-top:0}
+.pp .pp-place--partido .pa-step__h{font-size:16px;color:var(--vd-ink-strong);padding-top:1px}
+.pp .pp-place--partido .pa-step__t{font-weight:640;font-size:15.5px;color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-step__d{margin-top:3px;font-size:13.5px;line-height:1.45;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-step.is-key .pa-step__t{color:var(--vd-celeste-ink)}
+.pp .pp-place--partido .pa-step.is-now .pa-step__h{color:var(--vd-live)}
+.pp .pp-place--partido .pa-seven{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:10px;padding-top:12px;border-top:1px solid var(--vd-rule);font-size:13.5px;line-height:1.4;color:var(--vd-ink)}
+.pp .pp-place--partido .pa-seven .pp-i{width:18px;height:18px;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-seven span{flex:1 1 200px}
+.pp .pp-place--partido .pa-hours{list-style:none;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.pp .pp-place--partido .pa-hours li{display:grid;justify-items:center;gap:4px;padding:8px 4px;border-radius:var(--vd-r-ctl);font-size:12.5px;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-hours li .pp-i{width:20px;height:20px;color:var(--vd-ink)}
+.pp .pp-place--partido .pa-hours li b{font-size:17px;color:var(--vd-ink-strong);font-variant-numeric:tabular-nums}
+.pp .pp-place--partido .pa-hours li i{font-style:normal;font-size:11.5px;font-weight:600;color:var(--vd-celeste-ink)}
+.pp .pp-place--partido .pa-hours li.is-on{background:rgba(108,171,221,.16);box-shadow:inset 0 0 0 1px rgba(108,171,221,.45)}
+.pp .pp-place--partido .pa-map{position:relative;height:120px;margin:0 0 12px;border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(108,171,221,.12),rgba(108,171,221,.03));box-shadow:inset 0 0 0 1px var(--vd-rule)}
+.pp .pp-place--partido .pa-map svg{position:absolute;inset:0;width:100%;height:100%}
+.pp .pp-place--partido .pa-map__road{fill:none;stroke:rgba(234,243,252,.34);stroke-width:7;stroke-linecap:round}
+.pp .pp-place--partido .pa-map__road--s{stroke-width:3;stroke:rgba(234,243,252,.18)}
+:root[data-theme="light"] .pp .pp-place--partido .pa-map__road{stroke:rgba(12,23,51,.16)}
+:root[data-theme="light"] .pp .pp-place--partido .pa-map__road--s{stroke:rgba(12,23,51,.10)}
+.pp .pp-place--partido .pa-map__pitch{fill:rgba(125,190,140,.38);stroke:rgba(234,243,252,.5);stroke-width:1.2}
+.pp .pp-place--partido .pa-map__line{stroke:rgba(234,243,252,.55);stroke-width:1}
+.pp .pp-place--partido .pa-map__pin{position:absolute;left:calc(64.5% - 14px);top:10%;width:28px;height:28px;display:grid;place-items:center;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--vd-celeste);color:var(--vd-marino);box-shadow:0 8px 18px -6px rgba(2,8,26,.6)}
+.pp .pp-place--partido .pa-map__pin .pp-i{transform:rotate(45deg);width:16px;height:16px}
+.pp .pp-place--partido .pa-where__t{font-weight:680;font-size:17px;color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-where__d{margin-top:2px;font-size:13.5px;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-kit{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:16px}
+.pp .pp-place--partido .pa-kit__tee{--w:92px}
+.pp .pp-place--partido .pa-kit .pa-k{margin:0 0 2px}
+.pp .pp-place--partido .pa-kit__t{font-size:14.5px;color:var(--vd-ink)}
+
+/* ---- live: jugada a jugada and, beside it, what surrounds it */
+.pp .pp-place--partido .pa-live{display:grid;gap:22px}
+.pp .pp-place--partido .pa-feedhead{display:grid;gap:10px;margin:0 0 12px}
+.pp .pp-place--partido .pa-feedhead .pa-k{margin:0}
+.pp .pp-place--partido .pa-filter{height:46px;width:100%}
+.pp .pp-place--partido .pa-filter .vd-seg__b{font-size:13.5px;padding:0 6px}
+.pp .pp-place--partido .pa-feed{list-style:none;padding:0;display:grid;gap:2px;position:relative}
+.pp .pp-place--partido .pa-feed::before{content:"";position:absolute;left:50%;top:6px;bottom:6px;width:1px;background:var(--vd-rule2)}
+.pp .pp-place--partido .pa-row{display:grid;grid-template-columns:minmax(0,1fr) 54px minmax(0,1fr);align-items:center;gap:8px;min-height:48px;transition:opacity .3s var(--vd-ease)}
+.pp .pp-place--partido .pa-row.is-extra{display:none}
+.pp .pp-place--partido .pa-row__us{text-align:right;display:grid;gap:1px}
+.pp .pp-place--partido .pa-row__them{display:grid;gap:1px}
+.pp .pp-place--partido .pa-row b{font-size:14.5px;font-weight:640;color:var(--vd-ink-strong);line-height:1.25}
+.pp .pp-place--partido .pa-row span{font-size:12.5px;color:var(--vd-ink2);line-height:1.3}
+.pp .pp-place--partido .pa-row__them b{color:var(--vd-rival)}
+.pp .pp-place--partido .pa-row__min{position:relative;z-index:1;justify-self:center;min-width:46px;min-height:34px;padding:0 8px;border:0;border-radius:999px;background:var(--vd-solid);color:var(--vd-g-ink);cursor:pointer;box-shadow:0 0 0 1px var(--vd-rule2)}
+.pp .pp-place--partido .pa-row__min .vd-clock{font-size:13px}
+.pp .pp-place--partido .pa-row__min.is-gold{background:var(--vd-oro);color:#2b1d00;box-shadow:0 0 0 3px rgba(255,198,89,.25)}
+.pp .pp-place--partido .pa-row__min.is-gold .vd-clock{color:#2b1d00;font-weight:700}
+.pp .pp-place--partido .pa-row__min:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.pp .pp-place--partido .pa-row.is-at .pa-row__min{box-shadow:0 0 0 2px var(--vd-celeste),0 0 18px rgba(108,171,221,.6)}
+.pp .pp-place--partido .pa-row.is-at b{text-decoration:underline;text-decoration-color:var(--vd-celeste);text-underline-offset:4px}
+.pp .pp-place--partido .pa-row.is-new{animation:pa-in .5s var(--vd-spring) both}
+@keyframes pa-in{from{opacity:0;transform:translateY(-8px)}}
+.pp .pp-place--partido .pa-empty{margin:10px 0 0;font-size:14px;text-align:center}
+.pp .pp-place--partido .pa-more{margin-top:10px}
+.pp .pp-place--partido .pa-more p{font-size:13.5px;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-more .pp-i{width:16px;height:16px}
+.pp .pp-place--partido .pa-live__side{display:grid;gap:18px;align-content:start}
+.pp .pp-place--partido .pa-asi{padding:16px 0 4px;border-top:1px solid var(--vd-rule)}
+.pp .pp-place--partido .pa-asi__k{display:inline-block;padding:3px 10px;border-radius:999px;border:1px dashed var(--vd-rule2);font-size:12.5px;font-weight:620;color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-asi__t{margin-top:8px;font-weight:720;font-variation-settings:'wdth' 92;font-size:28px;line-height:1.05;letter-spacing:-.02em;color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-asi__go{margin-top:4px;font-size:14px}
+.pp .pp-place--partido .pa-mesa,.pp .pp-place--partido .pa-av{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:13.5px;line-height:1.4;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-mesa .pp-i,.pp .pp-place--partido .pa-av .pp-i{width:17px;height:17px;color:var(--vd-ink)}
+.pp .pp-place--partido .pa-av span{flex:1 1 180px;color:var(--vd-ink)}
+.pp .pp-place--partido .pa-best ul{list-style:none;padding:0;display:grid;gap:6px}
+.pp .pp-place--partido .pa-best li{display:flex;gap:8px;align-items:baseline;font-size:14.5px;color:var(--vd-ink)}
+.pp .pp-place--partido .pa-best li.is-them span:last-child{color:var(--vd-rival)}
+
+/* ---- after: the acta */
+.pp .pp-place--partido .pa-acta{display:grid;grid-template-columns:minmax(0,1fr);gap:26px}
+.pp .pp-place--partido .pa-acta__main,.pp .pp-place--partido .pa-acta__side{min-width:0}
+.pp .pp-place--partido .pa-result{display:flex;align-items:baseline;gap:12px}
+.pp .pp-place--partido .pa-result__w{font-weight:720;font-variation-settings:'wdth' 92;font-size:32px;letter-spacing:-.02em;color:var(--vd-ink-strong);line-height:1}
+.pp .pp-place--partido .pa-result__s{font-weight:800;font-variation-settings:'wdth' 112;font-size:32px;letter-spacing:-.03em;color:var(--vd-ink-strong);font-variant-numeric:tabular-nums}
+.pp .pp-place--partido .pa-acta__meta{margin-top:6px;font-size:13px;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-cronica{margin-top:16px}
+.pp .pp-place--partido .pa-acta__meta{margin-top:0}
+.pp .pp-place--partido .pa-cronica__t{font-size:16px;line-height:1.62;color:var(--vd-ink);max-width:64ch;text-wrap:pretty}
+.pp .pp-place--partido .pa-cronica__t.is-clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.pp .pp-place--partido .pa-cronica__more{margin-top:2px}
+.pp .pp-place--partido .pa-moments{margin-top:22px}
+.pp .pp-place--partido .pa-mo{list-style:none;padding:0 0 6px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin}
+.pp .pp-place--partido .pa-mo__i{scroll-snap-align:start;display:grid;gap:8px;align-content:start;padding:12px;border-radius:var(--vd-r-ctl);background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px var(--vd-rule);transition:box-shadow .3s var(--vd-ease)}
+:root[data-theme="light"] .pp .pp-place--partido .pa-mo__i{background:rgba(255,255,255,.5)}
+.pp .pp-place--partido .pa-mo__i.is-at{box-shadow:inset 0 0 0 1.5px var(--vd-celeste)}
+.pp .pp-place--partido .pa-mo__i.is-them .pa-mo__go b{color:var(--vd-rival)}
+.pp .pp-place--partido .pa-mo__go{display:grid;gap:3px;justify-items:start;text-align:left;padding:0;border:0;background:none;color:inherit;font:inherit;cursor:pointer;min-height:44px}
+.pp .pp-place--partido .pa-mo__m{font-size:13px;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-mo__i.is-gold .pa-mo__m{background:var(--vd-oro);color:#2b1d00;padding:1px 8px;border-radius:999px}
+.pp .pp-place--partido .pa-mo__go b{font-size:15px;color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-mo__go>span:last-child{font-size:12.5px;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-mo__go:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px;border-radius:8px}
+.pp .pp-place--partido .pa-react{display:flex;flex-wrap:wrap;gap:6px}
+.pp .pp-place--partido .pa-react__b{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 11px;border-radius:999px;border:1px solid var(--vd-rule2);background:none;color:var(--vd-ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.pp .pp-place--partido .pa-react__b b{font-variant-numeric:tabular-nums}
+.pp .pp-place--partido .pa-react__b[aria-pressed="true"]{background:var(--vd-celeste);border-color:var(--vd-celeste);color:var(--vd-marino)}
+.pp .pp-place--partido .pa-react__b:disabled{cursor:default;opacity:1}
+.pp .pp-place--partido .pa-react__b:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.pp .pp-place--partido .pa-acta__side{display:grid;gap:22px;align-content:start}
+.pp .pp-place--partido .pa-mvp{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:center}
+.pp .pp-place--partido .pa-mvp.is-gold{grid-template-columns:auto minmax(0,1fr)}
+.pp .pp-place--partido .pa-mvp__tee{--w:86px;border-radius:12px;box-shadow:0 0 0 2px var(--vd-oro),0 0 26px -2px rgba(255,198,89,.55);background:rgba(255,198,89,.08)}
+.pp .pp-place--partido .pa-mvp.is-gold .pa-k{color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-mvp__l{font-weight:650;font-size:16px;line-height:1.35;color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-mvp__go{margin-top:10px}
+.pp .pp-place--partido .pa-firma{display:grid;grid-template-columns:132px minmax(0,1fr);gap:16px;align-items:center}
+.pp .pp-place--partido .pa-firma__svg{width:132px;height:132px;overflow:visible}
+.pp .pp-place--partido .pa-firma__base{fill:none;stroke:var(--vd-rule2);stroke-dasharray:2 4}
+.pp .pp-place--partido .pa-firma__half{stroke:var(--vd-rule2)}
+.pp .pp-place--partido .pa-firma__path{fill:rgba(108,171,221,.22);stroke:var(--vd-celeste);stroke-width:1.6;stroke-linejoin:round}
+.pp .pp-place--partido .pa-firma__dot{fill:var(--vd-oro);stroke:var(--vd-noche);stroke-width:1.5}
+.pp .pp-place--partido .pa-firma__dot.is-them{fill:var(--vd-rival)}
+:root[data-theme="light"] .pp .pp-place--partido .pa-firma__dot{stroke:#fff}
+.pp .pp-place--partido .pa-firma__c{font-weight:800;font-size:22px;fill:var(--vd-ink-strong);font-variation-settings:'wdth' 112;letter-spacing:-.02em}
+.pp .pp-place--partido .pa-firma__c2{font-size:12px;fill:var(--vd-ink2)}
+.pp .pp-place--partido .pa-logros__l{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.pp .pp-place--partido .pa-logro{display:inline-flex;gap:6px;align-items:baseline;padding:6px 12px;border-radius:999px;background:rgba(108,171,221,.14);font-size:13px;color:var(--vd-ink)}
+.pp .pp-place--partido .pa-logro b{font-weight:660;color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-photo{display:flex;gap:12px;align-items:flex-start}
+.pp .pp-place--partido .pa-photo .pp-i{width:22px;height:22px;color:var(--vd-ink2);margin-top:2px}
+.pp .pp-place--partido .pa-photo p{display:grid;gap:3px;font-size:13.5px;line-height:1.4;color:var(--vd-ink)}
+.pp .pp-place--partido .pa-photo p span{color:var(--vd-ink2);font-size:12.5px}
+.pp .pp-place--partido .pa-next{position:relative;display:grid;gap:2px;padding:14px 48px 14px 16px;border-radius:var(--vd-r-orn);text-decoration:none;color:var(--vd-g-ink)}
+.pp .pp-place--partido .pa-next .pa-k{margin:0;color:var(--vd-g-ink2);font-weight:560}
+.pp .pp-place--partido .pa-next b{font-size:15px}
+.pp .pp-place--partido .pa-next>span:last-of-type{font-size:13px;color:var(--vd-g-ink2)}
+.pp .pp-place--partido .pa-next .pp-i{position:absolute;right:16px;top:50%;margin-top:-10px}
+
+/* ---- the goals in blocks of ten minutes (ours up, theirs down) and by halves */
+.pp .pp-place--partido .pa-blocks{padding-top:16px;border-top:1px solid var(--vd-rule)}
+.pp .pp-place--partido .pa-acta__main .pa-blocks{margin-top:24px}
+.pp .pp-place--partido .pa-bl{list-style:none;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.pp .pp-place--partido .pa-bl__c{display:grid;grid-template-rows:76px 76px auto;gap:0;transition:opacity .3s var(--vd-ease)}
+.pp .pp-place--partido .pa-bl__c.is-later{opacity:.4}
+.pp .pp-place--partido .pa-bl__us,.pp .pp-place--partido .pa-bl__them{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px}
+.pp .pp-place--partido .pa-bl__us{justify-content:flex-end;border-bottom:1px solid var(--vd-rule2)}
+.pp .pp-place--partido .pa-bl__them{justify-content:flex-start}
+.pp .pp-place--partido .pa-bl__us i,.pp .pp-place--partido .pa-bl__them i{display:block;width:62%;max-width:44px;min-height:0;max-height:calc(100% - 20px)}
+.pp .pp-place--partido .pa-bl__us i{background:var(--vd-oro);border-radius:6px 6px 0 0}
+.pp .pp-place--partido .pa-bl__them i{background:var(--vd-rival);border-radius:0 0 6px 6px}
+.pp .pp-place--partido .pa-bl__us b,.pp .pp-place--partido .pa-bl__them b{text-align:center;font-weight:780;font-size:14px;line-height:16px;font-feature-settings:'tnum' 1;color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-bl__us b{order:-1}
+.pp .pp-place--partido .pa-bl__l{margin-top:6px;text-align:center;font-size:12px;color:var(--vd-ink2);font-feature-settings:'tnum' 1}
+.pp .pp-place--partido .pa-bl__key{display:flex;gap:16px;margin-top:8px;font-size:12.5px;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-bl__key span{display:inline-flex;align-items:center;gap:6px}
+.pp .pp-place--partido .pa-bl__key span::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--vd-oro)}
+.pp .pp-place--partido .pa-bl__kt::before{background:var(--vd-rival)!important}
+.pp .pp-place--partido .pa-parts{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px 24px;margin-top:10px}
+.pp .pp-place--partido .pa-parts li{display:flex;align-items:baseline;gap:8px;font-size:13.5px;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-parts b{font-weight:780;font-variation-settings:'wdth' 108;font-size:20px;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+/* the rest of the season */
+.pp .pp-place--partido .pa-fix__l{list-style:none;padding:0;display:grid}
+.pp .pp-place--partido .pa-fix__l li{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--vd-rule);font-size:14px;color:var(--vd-ink)}
+.pp .pp-place--partido .pa-fix__l li:first-child{border-top:0}
+.pp .pp-place--partido .pa-fix__l b{font-weight:700;color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-fix__w{font-size:13px;color:var(--vd-ink2);white-space:nowrap}
+.pp .pp-place--partido .pa-react__who{min-height:36px;font-size:13px}
+.pp .pp-place--partido .pa-react__list{margin:0}
+
+.pp .pp-place--partido .pa-calm{list-style:none;margin:10px 0 0;padding:6px;border-radius:var(--vd-r-ctl);background:var(--vd-solid);display:grid;gap:2px;box-shadow:0 18px 40px -20px rgba(2,8,26,.6)}
+.pp .pp-place--partido .pa-calm__b{display:grid;gap:2px;width:100%;min-height:48px;padding:8px 12px;border:0;border-radius:10px;background:none;text-align:left;font:inherit;color:var(--vd-g-ink);cursor:pointer}
+.pp .pp-place--partido .pa-calm__b:hover,.pp .pp-place--partido .pa-calm__b:focus-visible{background:rgba(108,171,221,.16);outline:none}
+.pp .pp-place--partido .pa-calm__b b{font-weight:640;font-size:14.5px}
+.pp .pp-place--partido .pa-calm__b span{font-size:12.5px;color:var(--vd-g-ink2)}
+
+/* ---- aplazado / pendiente */
+.pp .pp-place--partido .pa-off{display:grid;gap:22px}
+.pp .pp-place--partido .pa-off__big{font-weight:720;font-variation-settings:'wdth' 92;font-size:28px;line-height:1.08;letter-spacing:-.02em;color:var(--vd-ink-strong)}
+.pp .pp-place--partido .pa-off__d{margin-top:8px;font-size:15.5px;line-height:1.5;color:var(--vd-ink);max-width:56ch}
+.pp .pp-place--partido .pa-off__k{margin-top:18px}
+.pp .pp-place--partido .pa-off__facts{list-style:none;padding:0;display:grid;gap:10px}
+.pp .pp-place--partido .pa-off__facts li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;color:var(--vd-ink)}
+.pp .pp-place--partido .pa-off__facts .pp-i{width:18px;height:18px;margin-top:1px;color:var(--vd-ink2)}
+.pp .pp-place--partido .pa-off__side{display:grid;gap:10px;align-content:start}
+
+@container (min-width:560px){
+  .pp .pp-place--partido .pa-headact .pa-l{display:inline}.pp .pp-place--partido .pa-headact .pa-s{display:none}
+  .pp .pp-place--partido .pa-plan{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start;column-gap:28px}
+  .pp .pp-place--partido .pa-plan>.pa-banner{grid-column:1 / -1}
+  .pp .pp-place--partido .pa-day{grid-row:span 3}
+  .pp .pp-place--partido .pa-feedhead{grid-template-columns:minmax(0,1fr) auto;align-items:center}
+  .pp .pp-place--partido .pa-filter{width:360px}
+  .pp .pp-place--partido .pa-off{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);column-gap:32px;align-items:start}
+}
+@container (min-width:700px){
+  .pp .pp-place--partido .pa-result__w,.pp .pp-place--partido .pa-result__s{font-size:40px}
+  .pp .pp-place--partido .pa-feed{max-width:none}
+}
+/* desktop: a composition of this screen only */
+@container (min-width:960px){
+  .pp .pp-place--partido .pa-plan{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,.85fr);column-gap:44px}
+  .pp .pp-place--partido .pa-day{grid-row:span 2}
+  .pp .pp-place--partido .pa-where{grid-row:span 2}
+  .pp .pp-place--partido .pa-map{height:230px}
+  .pp .pp-place--partido .pa-step{padding:16px 0;grid-template-columns:78px minmax(0,1fr)}
+  .pp .pp-place--partido .pa-step__h{font-size:20px}
+  .pp .pp-place--partido .pa-step__t{font-size:17px}
+  .pp .pp-place--partido .pa-step__d{font-size:14.5px}
+  .pp .pp-place--partido .pa-kit{grid-template-columns:minmax(0,1fr);justify-items:start}
+  .pp .pp-place--partido .pa-kit__tee{--w:150px}
+  .pp .pp-place--partido .pa-live{grid-template-columns:minmax(0,1fr) 360px;column-gap:56px;align-items:start}
+  .pp .pp-place--partido .pa-live__side{position:sticky;top:96px;padding-top:4px}
+  .pp .pp-place--partido .pa-asi{border-top:0;padding-top:0}
+  .pp .pp-place--partido .pa-asi__t{font-size:34px}
+  .pp .pp-place--partido .pa-row.is-extra{display:grid}
+  .pp .pp-place--partido .pa-more{display:none}
+  .pp .pp-place--partido .pa-row{min-height:54px}
+  .pp .pp-place--partido .pa-row b{font-size:15.5px}
+  .pp .pp-place--partido .pa-acta{grid-template-columns:minmax(0,1fr) 380px;column-gap:56px;align-items:start}
+  .pp .pp-place--partido .pa-mo{grid-auto-flow:row;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));overflow:visible}
+  .pp .pp-place--partido .pa-cronica__t{font-size:17px}
+  .pp .pp-place--partido .pa-firma{grid-template-columns:150px minmax(0,1fr)}
+  .pp .pp-place--partido .pa-firma__svg{width:150px;height:150px}
+  .pp .pp-place--partido .pa-mvp__tee{--w:104px}
+  .pp .pp-place--partido .pa-off{grid-template-columns:minmax(0,1fr) 380px;column-gap:56px}
+  .pp .pp-place--partido .pa-off__big{font-size:38px}
+}
+@container (min-width:1500px){
+  .pp .pp-place--partido .pa-plan{column-gap:64px}
+  .pp .pp-place--partido .pa-map{height:270px}
+  .pp .pp-place--partido .pa-kit__tee{--w:180px}
+  .pp .pp-place--partido .pa-live{grid-template-columns:minmax(0,1fr) 440px;column-gap:80px}
+  .pp .pp-place--partido .pa-feed{max-width:1100px}
+  .pp .pp-place--partido .pa-acta{grid-template-columns:minmax(0,1fr) 440px;column-gap:80px}
+  .pp .pp-place--partido .pa-cronica__t{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){
+  .pp .pp-place--partido .pa-row.is-new{animation:none}
+}
+
+/* ===== screen: siete ===== */
+/* «El siete» screen: one glass pitch for the whole match day (vertical, our goal at the bottom), driven by the
+   moviola; every shirt is the player's real printed still. Phone: the pitch, the player you touch, the bench. From
+   560 px the pitch with its company beside it; desktop the pitch large with the player panel and the bench beside it;
+   1920: the bench, the pitch and the panel in three columns of one screen. */
+.pp .pp-place--siete :where(h3,p,ul,ol){margin:0}
+.pp .pp-place--siete .ps-k{margin:0 0 8px;font-family:var(--vd-sans);font-weight:660;font-variation-settings:'wdth' 96;font-size:15px;line-height:1.25;letter-spacing:-.005em;color:var(--vd-ink-strong);text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place--siete .ps-note{font-size:12.5px;line-height:1.4;color:var(--vd-ink2);text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place--siete .pp-place__head{flex-wrap:wrap}
+.pp .pp-place--siete .ps-seg{width:100%;height:48px}
+
+/* ---------- layout: pitch, panel, bench */
+.pp .pp-place--siete .ps-grid{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"pitch" "panel" "bench";gap:20px}
+.pp .pp-place--siete .ps-pitchcol{grid-area:pitch;min-width:0}
+.pp .pp-place--siete .ps-panel{grid-area:panel;display:grid;gap:16px;align-content:start;min-width:0}
+.pp .pp-place--siete .ps-panel:empty{display:none}
+.pp .pp-place--siete .ps-panel-extra{display:none}
+.pp .pp-place--siete .ps-benchcol{grid-area:bench;display:grid;gap:20px;align-content:start;min-width:0}
+
+/* ---------- the pitch (vd-pitch; the lines of Campo.tsx, vertical) */
+.pp .pp-place--siete .ps-pitch{width:100%;max-width:470px;margin:0 auto;aspect-ratio:100/120;container-type:inline-size}
+.pp .pp-place--siete .ps-players{position:absolute;inset:0;margin:0;padding:0;list-style:none}
+.pp .pp-place--siete .ps-player{z-index:1;--w:clamp(36px,11cqw,64px);width:auto}
+.pp .pp-place--siete .ps-pl{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;min-height:44px;padding:4px 6px;border:0;border-radius:14px;background:none;
+  color:inherit;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background-color .2s var(--vd-ease)}
+.pp .pp-place--siete .ps-tee{--w:inherit;width:var(--w)}
+.pp .pp-place--siete .ps-pl:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:1px}
+.pp .pp-place--siete .ps-player.is-sel .ps-pl{background:rgba(108,171,221,.24);box-shadow:inset 0 0 0 1.5px rgba(159,208,242,.85)}
+:root[data-theme="light"] .pp .pp-place--siete .ps-player.is-sel .ps-pl{background:rgba(255,255,255,.6);box-shadow:inset 0 0 0 1.5px rgba(12,23,51,.4)}
+.pp .pp-place--siete .ps-player .vd-player__name{font-size:12px}
+.pp .pp-place--siete .ps-player.is-me .vd-player__name{text-decoration:underline;text-decoration-color:var(--vd-celeste);text-underline-offset:3px;text-decoration-thickness:2px}
+/* «Tú» beside the shirt (partidos-vidrio.css .vp-me) and the captain's «C» at the other shoulder */
+.pp .pp-place--siete .ps-me{position:absolute;left:calc(50% + var(--w) / 2 + 1px);top:2px;height:18px;padding:0 6px;border-radius:6px;font-size:11.5px;font-weight:700;background:var(--vd-celeste);color:var(--vd-marino);line-height:18px;white-space:nowrap;pointer-events:none}
+.pp .pp-place--siete .ps-cap{position:absolute;right:calc(50% + var(--w) / 2 - 6px);top:6px;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:800;background:var(--vd-marino);color:#fff;box-shadow:0 0 0 1.5px rgba(255,255,255,.7);pointer-events:none}
+.pp .pp-place--siete .ps-me2{display:inline-block;height:18px;padding:0 6px;border-radius:6px;font-size:11.5px;font-weight:700;background:var(--vd-celeste);color:var(--vd-marino);line-height:18px;white-space:nowrap;vertical-align:3px;margin-left:8px}
+/* the marks beside each shirt (match-vidrio.css .mp-player .vd-tags; nudged by the layout pass) */
+.pp .pp-place--siete .ps-tags{position:absolute;top:calc(4px + var(--tdy,0px));left:calc(50% + var(--w) / 2 + 2px);flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:3px;margin:0;pointer-events:none}
+.pp .pp-place--siete .ps-player.is-tl .ps-tags{left:auto;right:calc(50% + var(--w) / 2 + 2px);align-items:flex-end}
+.pp .pp-place--siete .vd-tag svg[fill="currentColor"],.pp .pp-place--siete .vd-tag svg path[fill="currentColor"]{stroke:none}
+/* the MVP's gold ring round his shirt */
+.pp .pp-place--siete .ps-player.is-mvp .ps-tee{border-radius:10px;box-shadow:0 0 0 2px var(--vd-oro),0 0 18px 2px rgba(255,198,89,.5);background:rgba(255,198,89,.10)}
+/* aplazado: the convocatoria as it stood, dimmed (the names keep their contrast) */
+.pp .pp-place--siete .ps-pitch.is-dim .ps-tee,.pp .pp-place--siete.is-aplazado .ps-row__tee{opacity:.5;filter:grayscale(.7)}
+.pp .pp-place--siete .ps-pitch.is-dim .vd-pitch__lines{opacity:.5}
+/* no seven yet */
+.pp .pp-place--siete .ps-ghost{position:absolute;width:38px;height:50px;margin:-25px 0 0 -19px;border-radius:10px;border:1.5px dashed rgba(234,243,252,.38)}
+:root[data-theme="light"] .pp .pp-place--siete .ps-ghost{border-color:rgba(12,23,51,.32)}
+.pp .pp-place--siete .ps-ghostnote{position:absolute;left:16px;right:16px;top:24%;padding:9px 12px;border-radius:12px;background:rgba(8,18,39,.5);font-size:13.5px;color:var(--vd-hielo);text-align:center;line-height:1.35}
+:root[data-theme="light"] .pp .pp-place--siete .ps-ghostnote{background:rgba(255,255,255,.72);color:var(--vd-marino)}
+.pp .pp-place--siete .ps-hint{margin-top:8px;font-size:12.5px;line-height:1.35;color:var(--vd-ink2);text-align:center;text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place--siete .ps-hint:empty{display:none}
+
+/* a change walks in from the touchline as the playhead crosses it; the man he replaces walks off */
+.pp .pp-place--siete .ps-player.is-walk{animation:ps-walk .9s var(--vd-ease) both}
+.pp .pp-place--siete .ps-leave{z-index:0;pointer-events:none;animation:ps-leave .9s var(--vd-ease) both}
+.pp .pp-place--siete .vd-tag.is-new{animation:ps-pop .55s var(--vd-spring) both}
+@keyframes ps-walk{0%{translate:var(--wx,40cqw) 0;opacity:0}30%{opacity:1}100%{translate:0 0;opacity:1}}
+@keyframes ps-leave{0%{translate:0 0;opacity:.85}100%{translate:var(--wx,40cqw) 0;opacity:0}}
+@keyframes ps-pop{0%{transform:scale(.4);opacity:0}100%{transform:none;opacity:1}}
+
+/* ---------- the player panel (on the field: reading, not a window) */
+.pp .pp-place--siete .ps-card{position:relative;padding:16px 0 4px;border-top:1px solid var(--vd-rule);animation:ps-rise .32s var(--vd-spring) both}
+.pp .pp-place--siete .ps-card.is-default{display:none}
+@keyframes ps-rise{from{opacity:0;transform:translateY(8px)}}
+.pp .pp-place--siete .ps-card__top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center}
+.pp .pp-place--siete .ps-card__tee{--w:76px}
+.pp .pp-place--siete .ps-card__k{font-size:12.5px;font-weight:600;color:var(--vd-ink2)}
+.pp .pp-place--siete .ps-card__who h3{margin-top:2px;font-weight:720;font-variation-settings:'wdth' 94;font-size:22px;line-height:1.1;letter-spacing:-.015em;color:var(--vd-ink-strong);display:flex;flex-wrap:wrap;align-items:center}
+.pp .pp-place--siete .ps-card__meta{margin-top:4px;font-size:13.5px;line-height:1.35;color:var(--vd-ink2)}
+.pp .pp-place--siete .ps-mvptag{margin-left:8px;height:18px;vertical-align:3px}
+.pp .pp-place--siete .ps-card__now{margin:14px 0 10px;font-size:15px;line-height:1.45;color:var(--vd-ink)}
+.pp .pp-place--siete .ps-card__k2{font-size:12.5px;line-height:1.35;color:var(--vd-ink2)}
+.pp .pp-place--siete .ps-card__counts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:6px 0 2px}
+.pp .pp-place--siete .ps-cnt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pp .pp-place--siete .ps-cnt__v{display:block;font-weight:780;font-variation-settings:'wdth' 108;font-size:26px;line-height:1;letter-spacing:-.02em;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+.pp .pp-place--siete .ps-cnt__l{display:block;font-size:12.5px;color:var(--vd-ink2)}
+.pp .pp-place--siete .ps-card__go{margin-top:16px}
+.pp .pp-place--siete .ps-card__go .pp-i{width:16px;height:16px;margin-right:-4px}
+.pp .pp-place--siete .ps-card__x .pp-i{width:18px;height:18px}
+.pp .pp-place--siete .ps-mvp{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:14px;line-height:1.4;color:var(--vd-ink);text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place--siete .ps-mvp>.pp-i{width:18px;height:18px;color:var(--vd-oro)}
+.pp .pp-place--siete .ps-mvp>span{flex:1;min-width:180px}
+
+/* ---------- the bench (and who left the pitch), the convocatoria */
+.pp .pp-place--siete .ps-convo{margin:-2px 0 8px;font-size:13.5px;line-height:1.4;color:var(--vd-ink)}
+.pp .pp-place--siete .ps-rows{list-style:none;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+.pp .pp-place--siete .ps-row{display:flex;flex-direction:column;min-width:0;border-bottom:1px solid var(--vd-rule)}
+.pp .pp-place--siete .ps-row__b{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;width:100%;min-height:58px;padding:5px 4px;border:0;border-radius:10px;background:none;
+  color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pp .pp-place--siete .ps-row__tee{--w:34px}
+.pp .pp-place--siete .ps-row__b:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-2px}
+.pp .pp-place--siete .ps-row.is-sel .ps-row__b{background:rgba(108,171,221,.18)}
+:root[data-theme="light"] .pp .pp-place--siete .ps-row.is-sel .ps-row__b{background:rgba(12,23,51,.07)}
+.pp .pp-place--siete .ps-row__t{min-width:0}
+.pp .pp-place--siete .ps-row__t b{display:block;font-weight:650;font-size:15px;line-height:1.2;color:var(--vd-ink-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pp .pp-place--siete .ps-row__t span{display:block;margin-top:2px;font-size:12.5px;line-height:1.3;color:var(--vd-ink2)}
+.pp .pp-place--siete .ps-row.is-out .ps-row__t b{color:var(--vd-ink)}
+.pp .pp-place--siete .ps-rowtags{justify-content:flex-start;margin:0 0 7px 48px}
+.pp .pp-place--siete .ps-outl{list-style:none;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+.pp .pp-place--siete .ps-outl li{display:grid;gap:1px;min-width:0}
+.pp .pp-place--siete .ps-outl b{font-weight:650;font-size:14.5px;line-height:1.25;color:var(--vd-ink-strong);text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place--siete .ps-outl span{font-size:12.5px;line-height:1.3;color:var(--vd-ink2);text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place--siete .ps-door{display:grid;grid-template-columns:20px minmax(0,1fr);gap:4px 10px;align-items:start;font-size:13.5px;line-height:1.4;color:var(--vd-ink2);text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place--siete .ps-door>.pp-i{width:18px;height:18px;margin-top:1px;color:var(--vd-ink)}
+.pp .pp-place--siete .ps-door .vd-link{grid-column:2;justify-self:start;font-size:14.5px}
+.pp .pp-place--siete .ps-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 16px}
+.pp .pp-place--siete .ps-foot .ps-note{flex:1 1 220px}
+.pp .pp-place--siete .ps-foot .vd-link{font-size:14.5px}
+
+/* ---------- «Los minutos»: a stint bar per player, 0′–50′ */
+.pp .pp-place--siete .ps-mins{max-width:1100px}
+.pp .pp-place--siete .ps-axis{display:flex;justify-content:space-between;margin:0 0 8px 46px;font-size:11.5px;line-height:1;color:var(--vd-ink2);font-feature-settings:'tnum' 1}
+.pp .pp-place--siete .ps-st{list-style:none;padding:0;display:grid;gap:12px;margin-bottom:12px}
+.pp .pp-place--siete .ps-st__r{display:grid;grid-template-columns:36px minmax(0,1fr) auto;column-gap:10px;row-gap:7px;align-items:center}
+.pp .pp-place--siete .ps-st__tee{--w:36px;grid-row:1 / span 2;align-self:start}
+.pp .pp-place--siete .ps-st__r.is-mvp .ps-st__tee{border-radius:8px;box-shadow:0 0 0 2px var(--vd-oro)}
+.pp .pp-place--siete .ps-st__t{min-width:0;font-size:15px;line-height:1.2}
+.pp .pp-place--siete .ps-st__t b{font-weight:650;color:var(--vd-ink-strong)}
+.pp .pp-place--siete .ps-st__t>span:last-child{display:block;margin-top:2px;font-size:12.5px;color:var(--vd-ink2)}
+.pp .pp-place--siete .ps-st__m{display:block;font-weight:780;font-variation-settings:'wdth' 108;font-size:18px;line-height:1;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+.pp .pp-place--siete .ps-st__tr{grid-column:2 / -1;position:relative;height:12px;border-radius:999px;background:rgba(234,243,252,.1)}
+:root[data-theme="light"] .pp .pp-place--siete .ps-st__tr{background:rgba(12,23,51,.08)}
+.pp .pp-place--siete .ps-st__tr>i{position:absolute;display:block}
+.pp .pp-place--siete .ps-st__half{left:50%;top:-3px;bottom:-3px;width:1px;background:var(--vd-rule2)}
+.pp .pp-place--siete .ps-st__ghost{top:0;bottom:0;border-radius:999px;background:rgba(108,171,221,.26)}
+:root[data-theme="light"] .pp .pp-place--siete .ps-st__ghost{background:rgba(44,106,158,.22)}
+.pp .pp-place--siete .ps-st__fill{top:0;bottom:0;border-radius:999px;background:var(--vd-celeste);transition:width .18s linear}
+:root[data-theme="light"] .pp .pp-place--siete .ps-st__fill{background:var(--vd-celeste-ink)}
+.pp .pp-place--siete .ps-st__dot{top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:var(--vd-oro);box-shadow:0 0 0 2px var(--vd-marino)}
+.pp .pp-place--siete .ps-st__dot.is-card{width:8px;height:11px;margin:-5.5px 0 0 -4px;border-radius:2px;background:var(--vd-amarilla)}
+.pp .pp-place--siete .ps-st__dot.is-later{opacity:.4}
+.pp .pp-place--siete .ps-st__head{top:-5px;bottom:-5px;width:2px;margin-left:-1px;border-radius:2px;background:var(--vd-ink-strong)}
+.pp .pp-place--siete .ps-mins .ps-note+.ps-note{margin-top:4px}
+.pp .pp-place--siete .ps-st__dot.is-pen{width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:2px;transform:rotate(45deg);background:var(--vd-ink-strong);box-shadow:0 0 0 2px var(--vd-marino)}
+/* the changes, player by player: one compact row each, every stint drawn on the 50 minutes */
+.pp .pp-place--siete .ps-changes{padding-top:14px;border-top:1px solid var(--vd-rule)}
+.pp .pp-place--siete .ps-changes__sub{margin:-2px 0 10px}
+.pp .pp-place--siete .ps-axis--sm{margin-left:36px}
+.pp .pp-place--siete .ps-st--sm{gap:9px}
+.pp .pp-place--siete .ps-st__r--sm{grid-template-columns:26px minmax(0,1fr) auto;row-gap:4px}
+.pp .pp-place--siete .ps-st__r--sm .ps-st__tee{--w:26px}
+.pp .pp-place--siete .ps-st__r--sm .ps-st__t{font-size:14px}
+.pp .pp-place--siete .ps-st__r--sm .ps-st__t>span:last-child{font-size:12px}
+.pp .pp-place--siete .ps-st__r--sm .ps-st__m{font-size:15px}
+.pp .pp-place--siete .ps-st__r--sm .ps-st__tr{height:9px}
+.pp .pp-place--siete .ps-st__r.is-on .ps-st__t b::after{content:"";display:inline-block;width:7px;height:7px;margin-left:7px;border-radius:50%;background:var(--vd-celeste);vertical-align:2px}
+
+/* ---------- tablet: the pitch and its company side by side */
+@container (min-width:560px){
+  .pp .pp-place--siete .ps-grid{grid-template-columns:minmax(280px,1.05fr) minmax(0,1fr);grid-template-areas:"pitch panel" "pitch bench";grid-template-rows:auto 1fr;column-gap:26px;row-gap:18px;align-items:start}
+  .pp .pp-place--siete .ps-seg{width:340px}
+  .pp .pp-place--siete .ps-rows,.pp .pp-place--siete .ps-outl{grid-template-columns:minmax(0,1fr)}
+  .pp .pp-place--siete .ps-card{padding-top:0;border-top:0}
+}
+@container (min-width:700px){
+  .pp .pp-place--siete .ps-card.is-default{display:block}
+}
+/* desktop: the pitch large, the player panel and the bench beside it */
+@container (min-width:960px){
+  .pp .pp-place--siete .ps-grid{grid-template-columns:minmax(0,600px) minmax(0,1fr);column-gap:64px}
+  .pp .pp-place--siete .ps-pitch{max-width:600px}
+  .pp .pp-place--siete .ps-panel{padding-top:6px}
+  .pp .pp-place--siete .ps-card__tee{--w:120px}
+  .pp .pp-place--siete .ps-card__who h3{font-size:30px}
+  .pp .pp-place--siete .ps-card__now{font-size:16px}
+  .pp .pp-place--siete .ps-cnt__v{font-size:32px}
+  .pp .pp-place--siete .ps-rows{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pp .pp-place--siete .ps-mins .ps-st__r{grid-template-columns:44px minmax(160px,260px) 56px minmax(0,1fr);row-gap:0}
+  .pp .pp-place--siete .ps-mins .ps-st__tee{--w:44px;grid-row:auto}
+  .pp .pp-place--siete .ps-mins .ps-st__tr{grid-column:auto;height:14px}
+  .pp .pp-place--siete .ps-mins .ps-axis{margin-left:390px}
+  .pp .pp-place--siete .ps-mins{display:block}
+}
+/* 1920: the bench, the pitch and the panel: three columns of one screen */
+@container (min-width:1500px){
+  .pp .pp-place--siete .ps-grid{grid-template-columns:minmax(260px,330px) minmax(0,640px) minmax(0,1fr);grid-template-areas:"bench pitch panel" "bench pitch extra";grid-template-rows:auto 1fr;column-gap:64px;row-gap:24px}
+  .pp .pp-place--siete .ps-panel-extra{display:block;grid-area:extra;min-width:0}
+  .pp .pp-place--siete .ps-benchcol .ps-changes{display:none}
+  .pp .pp-place--siete .ps-pitch{max-width:640px}
+  .pp .pp-place--siete .ps-rows{grid-template-columns:minmax(0,1fr)}
+  .pp .pp-place--siete .ps-card__tee{--w:150px}
+  .pp .pp-place--siete .ps-card__top{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"tee x" "who who"}
+  .pp .pp-place--siete .ps-card__tee{grid-area:tee}
+  .pp .pp-place--siete .ps-card__who{grid-area:who}
+  .pp .pp-place--siete .ps-card__x{grid-area:x;align-self:start}
+  .pp .pp-place--siete .ps-card__who h3{font-size:36px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .pp .pp-place--siete .ps-player.is-walk,.pp .pp-place--siete .vd-tag.is-new,.pp .pp-place--siete .ps-card{animation:none}
+  .pp .pp-place--siete .ps-leave{display:none}
+  .pp .pp-place--siete .ps-st__fill,.pp .pp-place--siete .ps-pl{transition:none}
+}
+
+/* ===== screen: numeros ===== */
+/* «Números» screen · the rival, the table, the match in numbers. Compact first, two columns from 560 px, the desktop
+   composition (the bars and «si acaba así» side by side) from 960 px.
+   Reading content sits on the field (or the window's glass from 1100 px): only the outcome chips and the button are
+   glass. Tokens only; tints are color-mix of the field inks so both themes and every light hold. */
+
+.pp .pp-place--numeros{font-family:var(--vd-sans)}
+.pp .pp-place--numeros :where(p,h3,h4,ul,ol,dl,dd){margin:0}
+.pp .pp-place--numeros :where(ul,ol){padding:0;list-style:none}
+.pp .pp-place--numeros .pp-i{width:18px;height:18px}
+.pp .pp-place--numeros .ppn{display:grid;grid-template-columns:minmax(0,1fr);gap:28px}
+.pp .pp-place--numeros .ppn-col{display:grid;gap:28px;align-content:start;min-width:0}
+.pp .pp-place--numeros .ppn-sec{min-width:0}
+
+/* headings: src/styles/stats-vidrio.css (.st-now h2,.st-now h3 / .st-now h3), verbatim under this place */
+.pp .pp-place--numeros .ppn-sec h3{margin:0 0 8px;font-family:var(--vd-sans);font-weight:680;font-variation-settings:'wdth' 94;letter-spacing:-.012em;color:var(--vd-ink-strong)}
+.pp .pp-place--numeros .ppn-sec h3{font-size:18px}
+.pp .pp-place--numeros .ppn-sec__head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin-bottom:10px}
+.pp .pp-place--numeros .ppn-sec__head h3{margin:0}
+.pp .pp-place--numeros .ppn-sec__sub{font-size:13px;line-height:1.35;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-note{font-size:13.5px;line-height:1.4;color:var(--vd-ink2);margin:0 0 10px}
+.pp .pp-place--numeros .ppn-kick{display:block;font-size:12.8px;font-weight:600;color:var(--vd-ink2);margin-bottom:1px}
+.pp .pp-place--numeros .ppn-lede{font-size:14.5px;line-height:1.5;color:var(--vd-ink)}
+.pp .pp-place--numeros .ppn-lede b{font-weight:650;color:var(--vd-ink-strong)}
+
+/* ---------- the min summary (the cockpit's compact slot) */
+.pp .pp-place--numeros .ppn-min{display:grid;gap:2px}
+.pp .pp-place--numeros .ppn-min b{font-weight:650;font-size:15px;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+.pp .pp-place--numeros .ppn-min span{font-size:13.5px;color:var(--vd-ink2)}
+
+/* ---------- the rival: the coral ring always carries its initials and its name beside it */
+.pp .pp-place--numeros .ppn-crest{display:inline-grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;box-sizing:border-box;
+  border:1.5px solid var(--vd-rival);color:var(--vd-ink-strong);font-weight:720;font-size:12px;letter-spacing:.02em;
+  background:color-mix(in srgb,var(--vd-rival) 14%,transparent)}
+.pp .pp-place--numeros .ppn-crest--big{width:52px;height:52px;font-size:16px;border-width:2px}
+.pp .pp-place--numeros .ppn-rival__id{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.pp .pp-place--numeros .ppn-rival__id h3{margin:0;font-size:22px;font-weight:700;font-variation-settings:'wdth' 94;letter-spacing:-.016em}
+.pp .pp-place--numeros .ppn-record .ppn-rival__id h3{font-size:18px}
+.pp .pp-place--numeros .ppn-facts{display:grid;gap:8px;margin-top:12px}
+.pp .pp-place--numeros .ppn-facts li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4;color:var(--vd-ink)}
+.pp .pp-place--numeros .ppn-facts .pp-i{margin-top:1px;color:var(--vd-celeste-ink)}
+
+/* «Su siete»: members only (the pizarra's notes), the lock says so */
+.pp .pp-place--numeros .ppn-plan{margin-top:16px;padding:14px 16px 14px;border-radius:var(--vd-r-ctl);background:color-mix(in srgb,var(--vd-ink) 7%,transparent);box-shadow:inset 0 0 0 1px var(--vd-rule)}
+.pp .pp-place--numeros .ppn-plan__k{display:flex;align-items:center;gap:6px;font-size:12.8px;font-weight:600;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-plan__k .pp-i{width:14px;height:14px}
+.pp .pp-place--numeros .ppn-plan h4{margin:6px 0 8px;font-weight:670;font-variation-settings:'wdth' 96;font-size:16px;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+.pp .pp-place--numeros .ppn-plan__list{display:grid;gap:8px}
+.pp .pp-place--numeros .ppn-plan__list li{display:grid;gap:1px;font-size:14px;line-height:1.4;color:var(--vd-ink)}
+.pp .pp-place--numeros .ppn-plan__list b{font-weight:650;color:var(--vd-ink-strong)}
+.pp .pp-place--numeros .ppn-locked{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px;align-items:start;margin-top:16px;padding:12px 14px 4px;border-radius:var(--vd-r-ctl);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.pp .pp-place--numeros .ppn-locked .pp-i{margin-top:1px;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-locked p{font-size:14px;line-height:1.4;color:var(--vd-ink)}
+.pp .pp-place--numeros .ppn-locked .vd-link{grid-column:2;justify-self:start;font-size:14px}
+
+/* ---------- «El partido en números»: mirrored bars, Piti left (celeste; our goals gold), Orduña fc right (coral, named) */
+.pp .pp-place--numeros .ppn-legend{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;margin-bottom:12px;font-weight:700;font-size:14px}
+.pp .pp-place--numeros .ppn-legend span{display:inline-flex;align-items:center;gap:6px}
+.pp .pp-place--numeros .ppn-legend__us{color:var(--vd-ink-strong)}
+.pp .pp-place--numeros .ppn-legend__us::before,.pp .pp-place--numeros .ppn-legend__them::after{content:"";width:10px;height:10px;border-radius:3px;background:var(--vd-celeste)}
+.pp .pp-place--numeros .ppn-legend__them{color:var(--vd-rival);justify-self:end}
+.pp .pp-place--numeros .ppn-legend__them::after{background:var(--vd-rival)}
+.pp .pp-place--numeros .ppn-legend__mid{justify-content:center;font-weight:500;font-size:12.8px;color:var(--vd-ink2);font-feature-settings:'tnum' 1;white-space:nowrap}
+/* the row's anatomy (number · label over the mirrored pair · number) is the app's .ml-dr (src/pages/match/live.css), retinted */
+.pp .pp-place--numeros .ppn-bars{display:grid;gap:11px}
+.pp .pp-place--numeros .ppn-bar{display:grid;grid-template-columns:34px minmax(0,1fr) 34px;align-items:end;gap:10px}
+.pp .pp-place--numeros .ppn-bar__n{font-weight:780;font-variation-settings:'wdth' 108;font-size:23px;line-height:1;text-align:center;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1,'lnum' 1;letter-spacing:-.02em}
+.pp .pp-place--numeros .ppn-bar__n--them{color:var(--vd-rival)}
+.pp .pp-place--numeros .ppn-bar__c{min-width:0}
+.pp .pp-place--numeros .ppn-bar__l{display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:5px;font-size:12.8px;font-weight:550;color:var(--vd-ink2);white-space:nowrap}
+.pp .pp-place--numeros .ppn-bar__l .pp-i{width:14px;height:14px}
+.pp .pp-place--numeros .ppn-bar__m{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.pp .pp-place--numeros .ppn-bar__g{display:flex;height:10px;border-radius:5px;background:color-mix(in srgb,var(--vd-ink) 11%,transparent)}
+.pp .pp-place--numeros .ppn-bar__g--us{justify-content:flex-end}
+.pp .pp-place--numeros .ppn-bar__g i{display:block;height:10px;border-radius:5px;min-width:0;transition:width .45s var(--vd-ease)}
+.pp .pp-place--numeros .ppn-bar__g--us i{background:var(--vd-celeste)}
+.pp .pp-place--numeros .ppn-bar__g--them i{background:var(--vd-rival)}
+.pp .pp-place--numeros .ppn-bar.is-gol .ppn-bar__g--us i{background:var(--vd-oro)}
+.pp .pp-place--numeros .ppn-bar.is-us .ppn-bar__l{color:var(--vd-ink)}
+.pp .pp-place--numeros .ppn-nums__foot{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;margin-top:12px}
+.pp .pp-place--numeros .ppn-save{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:var(--vd-ink)}
+.pp .pp-place--numeros .ppn-save .pp-i{width:16px;height:16px}
+
+/* ---------- «De un vistazo» (the acta's narrated plays): counts that count up once */
+.pp .pp-place--numeros .ppn-tagacta{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:7px;font-size:12px;font-weight:650;color:var(--vd-ink);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.pp .pp-place--numeros .ppn-tagacta .pp-i{width:13px;height:13px}
+.pp .pp-place--numeros .ppn-vis{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:16px 14px;padding:14px 0 16px;border-top:1px solid var(--vd-rule);border-bottom:1px solid var(--vd-rule)}
+.pp .pp-place--numeros .ppn-vis__i .ppn-num{font-size:30px}
+.pp .pp-place--numeros .ppn-vis__i .ppn-numw{color:var(--vd-ink);font-weight:550;line-height:1.25}
+.pp .pp-place--numeros .ppn-vis__i small{font-size:12px;line-height:1.3;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-open{margin-top:14px}
+.pp .pp-place--numeros .ppn-open .pp-i{width:17px;height:17px}
+.pp .pp-place--numeros .ppn-wait{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.45;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-wait b{color:var(--vd-ink);font-weight:620}
+.pp .pp-place--numeros .ppn-wait .pp-i{margin-top:1px}
+@property --ppn-n{syntax:'<integer>';inherits:false;initial-value:0}
+.pp .pp-place--numeros .ppn-up{--ppn-n:var(--to);counter-reset:ppn var(--ppn-n);animation:ppn-count 1.2s var(--vd-ease) .15s both}
+.pp .pp-place--numeros .ppn-up::before{content:counter(ppn)}
+@keyframes ppn-count{from{--ppn-n:0}}
+
+/* ---------- «Lo que se juega»: three glass chips that put the table as it would be */
+.pp .pp-place--numeros .ppn-chips{display:grid;gap:8px}
+.pp .pp-place--numeros .ppn-chip{--vd-r:var(--vd-r-ctl);display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;min-height:60px;padding:8px 16px 8px 10px;box-sizing:border-box;
+  border:0;text-align:left;font:inherit;color:var(--vd-g-ink);cursor:pointer}
+.pp .pp-place--numeros .ppn-chip[aria-pressed="true"]{--vd-g-tint:color-mix(in srgb,var(--vd-celeste) 30%,transparent)}
+.pp .pp-place--numeros .ppn-chip:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+.pp .pp-place--numeros .ppn-chip__l{width:40px;height:40px;font-size:17px;color:var(--vd-g-ink)}
+.pp .pp-place--numeros .ppn-chip__w{display:grid;gap:1px;min-width:0}
+.pp .pp-place--numeros .ppn-chip__w b{font-weight:650;font-size:15px;color:var(--vd-g-ink)}
+.pp .pp-place--numeros .ppn-chip__w span{font-size:13px;line-height:1.3;color:var(--vd-g-ink2)}
+.pp .pp-place--numeros .ppn-chip__p{font-weight:800;font-variation-settings:'wdth' 110;font-size:28px;line-height:1;letter-spacing:-.03em;color:var(--vd-g-ink);font-feature-settings:'tnum' 1}
+
+/* ---------- the table */
+.pp .pp-place--numeros .ppn-counts{display:flex;gap:26px;flex-wrap:wrap;padding:2px 0 14px}
+.pp .pp-place--numeros .ppn-counts .vd-count{gap:6px}
+/* the count: .vd-count b / span (src/styles/vidrio/reading.css), by class */
+.pp .pp-place--numeros .ppn-num{font-weight:780;font-variation-settings:'wdth' 108;font-size:31px;line-height:1;letter-spacing:-.02em;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+.pp .pp-place--numeros .ppn-numw{font-size:13px;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-table{font-size:14.5px}
+.pp .pp-place--numeros .ppn-table td,.pp .pp-place--numeros .ppn-table th{padding-left:6px;padding-right:6px}
+.pp .pp-place--numeros .ppn-table td{padding-top:8px;padding-bottom:8px}
+.pp .pp-place--numeros .ppn-table abbr[title]{text-decoration:none}
+.pp .pp-place--numeros .ppn-table td.t{min-width:0;line-height:1.25}
+.pp .pp-place--numeros .ppn-marks{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:5px}
+.pp .pp-place--numeros .ppn-marks:empty{display:none}
+.pp .pp-place--numeros .ppn-table td.t .vd-move,.pp .pp-place--numeros .ppn-table td.t .vd-provtag{margin:0}
+.pp .pp-place--numeros .ppn-team{display:block}
+.pp .pp-place--numeros .ppn-table :is(th,td){font-family:var(--vd-sans)}
+.pp .pp-place--numeros .ppn-table .vd-move{margin-left:0;color:var(--vd-celeste-ink);text-shadow:none}
+.pp .pp-place--numeros .ppn-table .vd-move .pp-i{width:13px;height:13px}
+.pp .pp-place--numeros .ppn-up-i{transform:rotate(-90deg)}
+.pp .pp-place--numeros .ppn-down-i{transform:rotate(90deg)}
+/* the provisional rows' dashed edge: src/styles/stats-vidrio.css (.st-now__table tr.prov …), the colour as a token */
+.pp .pp-place--numeros .ppn-table tr.prov td{background:transparent;border-top:1.5px dashed var(--vd-celeste);border-bottom:1.5px dashed var(--vd-celeste);box-shadow:none}
+.pp .pp-place--numeros .ppn-table tr.prov td:first-child{border-left:1.5px dashed var(--vd-celeste);border-radius:12px 0 0 12px}
+.pp .pp-place--numeros .ppn-table tr.prov td:last-child{border-right:1.5px dashed var(--vd-celeste);border-radius:0 12px 12px 0}
+.pp .pp-place--numeros .ppn-table tr.us.prov td{background:color-mix(in srgb,var(--vd-celeste) 12%,transparent)}
+.pp .pp-place--numeros .ppn-more{color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-more b{color:var(--vd-ink)}
+.pp .pp-place--numeros .ppn-more .vd-more__btn{color:var(--vd-ink-strong)}
+.pp .pp-place--numeros .ppn-more .pp-i{width:16px;height:16px}
+.pp .pp-place--numeros .ppn-reset{margin-top:6px;font-size:14px}
+.pp .pp-place--numeros .ppn-form{margin-top:18px}
+.pp .pp-place--numeros .ppn-form .ppn-note{margin-bottom:8px}
+.pp .pp-place--numeros .ppn-form .vd-form{gap:7px}
+.pp .pp-place--numeros .ppn-form .vd-form__l{width:40px;height:40px;font-size:17px}
+.pp .pp-place--numeros .ppn-form .vd-form__l--empty{font-size:12.8px}
+@container (max-width:559px){
+  .pp .pp-place--numeros .ppn-table .h-sm{display:none}
+  /* on a phone the head's line already says the place: the counts would repeat our row */
+  .pp .pp-place--numeros .ppn-counts{display:none}
+  .pp .pp-place--numeros .ppn-bars{gap:9px}
+}
+
+/* ---------- the record against them (after the acta) */
+.pp .pp-place--numeros .ppn-goalbar{margin:14px 0 12px}
+.pp .pp-place--numeros .ppn-goalbar p{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;color:var(--vd-ink2);margin-bottom:6px}
+.pp .pp-place--numeros .ppn-goalbar b{font-weight:780;font-size:17px;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+.pp .pp-place--numeros .ppn-goalbar__bar{display:flex;gap:3px;height:8px}
+.pp .pp-place--numeros .ppn-goalbar__bar i{display:block;border-radius:4px}
+.pp .pp-place--numeros .ppn-goalbar__us{flex:3;background:var(--vd-celeste)}
+.pp .pp-place--numeros .ppn-goalbar__them{flex:1;background:var(--vd-rival)}
+.pp .pp-place--numeros .ppn-dl{display:grid;gap:10px}
+.pp .pp-place--numeros .ppn-dl dt{font-size:12.8px;font-weight:600;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-dl dd{font-size:14.5px;line-height:1.4;color:var(--vd-ink)}
+
+/* ---------- «Quién sumó»: the leaders of the night, on their shirts */
+.pp .pp-place--numeros .ppn-lead__l{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px 16px}
+.pp .pp-place--numeros .ppn-lead__l li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;min-width:0}
+.pp .pp-place--numeros .ppn-lead__tee{--w:42px}
+.pp .pp-place--numeros .ppn-lead__w{display:grid;gap:1px;min-width:0}
+.pp .pp-place--numeros .ppn-lead__w small{font-size:12px;font-weight:600;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-lead__w b{font-weight:680;font-size:15px;color:var(--vd-ink-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp .pp-place--numeros .ppn-lead__w span{font-size:13px;color:var(--vd-ink);font-feature-settings:'tnum' 1}
+/* ---------- no table yet: the space tells the story */
+.pp .pp-place--numeros .ppn-notable{padding:4px 0 6px}
+.pp .pp-place--numeros .ppn-notable__big{font-weight:720;font-variation-settings:'wdth' 92;font-size:26px;line-height:1.08;letter-spacing:-.02em;color:var(--vd-ink-strong);margin-bottom:8px}
+.pp .pp-place--numeros .ppn-points{display:flex;flex-wrap:wrap;gap:12px 32px;margin-top:14px}
+.pp .pp-place--numeros .ppn-points .vd-count{gap:6px;margin:0}
+/* ---------- the season left */
+.pp .pp-place--numeros .ppn-fix__l{display:grid}
+.pp .pp-place--numeros .ppn-fix__l li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--vd-rule)}
+.pp .pp-place--numeros .ppn-fix__l li:first-child{border-top:0}
+.pp .pp-place--numeros .ppn-fix__j{width:40px;height:40px;font-size:13px}
+.pp .pp-place--numeros .ppn-fix__t{display:grid;gap:1px;min-width:0}
+.pp .pp-place--numeros .ppn-fix__t b{font-weight:650;font-size:15px;color:var(--vd-ink-strong)}
+.pp .pp-place--numeros .ppn-fix__t span{font-size:12.8px;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-fix__w{font-size:13.5px;color:var(--vd-ink);white-space:nowrap}
+
+/* ---------- the off states: a still, not an empty place */
+.pp .pp-place--numeros .ppn-still{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:var(--vd-r-ctl);background:color-mix(in srgb,var(--vd-ink) 7%,transparent);box-shadow:inset 0 0 0 1px var(--vd-rule)}
+.pp .pp-place--numeros .ppn-still .pp-i{width:22px;height:22px;margin-top:1px;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-still p{display:grid;gap:4px;font-size:14px;line-height:1.45;color:var(--vd-ink2)}
+.pp .pp-place--numeros .ppn-still b{font-weight:650;font-size:15.5px;line-height:1.3;color:var(--vd-ink-strong)}
+.pp .pp-place--numeros .ppn-offriv{display:flex;align-items:center;gap:12px;font-size:14px;line-height:1.4;color:var(--vd-ink)}
+
+/* ---------- two columns from 560 px (the main window on a desktop, the tablet) */
+@container (min-width:560px){
+  .pp .pp-place--numeros .ppn{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:32px}
+  .pp .pp-place--numeros .ppn-vis{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@container (min-width:760px){
+  .pp .pp-place--numeros .ppn{column-gap:44px}
+  .pp .pp-place--numeros .ppn-bar{grid-template-columns:40px minmax(0,1fr) 40px}
+  .pp .pp-place--numeros .ppn-bar__n{font-size:26px}
+}
+
+/* desktop: the match in numbers and the table side by side, one screen */
+@container (min-width:960px){
+  .pp .pp-place--numeros .ppn{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);column-gap:72px}
+  .pp .pp-place--numeros .ppn-col{gap:36px}
+  .pp .pp-place--numeros .ppn-sec h3{font-size:20px}
+  .pp .pp-place--numeros .ppn-rival__id h3{font-size:28px}
+  .pp .pp-place--numeros .ppn-bars{gap:16px}
+  .pp .pp-place--numeros .ppn-bar{grid-template-columns:52px minmax(0,1fr) 52px;gap:14px}
+  .pp .pp-place--numeros .ppn-bar__n{font-size:32px}
+  .pp .pp-place--numeros .ppn-bar__l{font-size:13.5px;margin-bottom:7px}
+  .pp .pp-place--numeros .ppn-bar__g,.pp .pp-place--numeros .ppn-bar__g i{height:14px;border-radius:7px}
+  .pp .pp-place--numeros .ppn-legend{font-size:15px}
+  .pp .pp-place--numeros .ppn-table{font-size:16px}
+  .pp .pp-place--numeros .ppn-table td{padding-top:11px;padding-bottom:11px}
+  .pp .pp-place--numeros .ppn-num{font-size:38px}
+  .pp .pp-place--numeros .ppn-vis__i .ppn-num{font-size:36px}
+  .pp .pp-place--numeros .ppn-lede{font-size:16px}
+}
+@container (min-width:1500px){
+  .pp .pp-place--numeros .ppn{column-gap:110px}
+  .pp .pp-place--numeros .ppn-bar__n{font-size:38px}
+  .pp .pp-place--numeros .ppn-bar__g,.pp .pp-place--numeros .ppn-bar__g i{height:16px;border-radius:8px}
+  .pp .pp-place--numeros .ppn-table{font-size:17px}
+}
+
+/* the runtime wraps every interpolated value in span.sc-interp: it must never take a span rule meant for a label
+   (.vd-count span, the chip's line), only the ink and size of the element it sits in */
+.pp .pp-place--numeros .sc-interp.sc-interp,.pp .pp-place--numeros .ppn-up.ppn-up{font:inherit;color:inherit;letter-spacing:inherit}
+
+@media (prefers-reduced-motion:reduce){
+  .pp .pp-place--numeros .ppn-up{animation:none}
+  .pp .pp-place--numeros .ppn-bar__g i{transition:none}
+}
+
+/* ===== screen: vestuario ===== */
+/* «Vestuario» screen: the team's own. On a phone one column of blocks ordered by urgency (CSS order): the first is
+   what the viewer should do now — clear glass when it holds a control (an ornament), a bigger heading when it only
+   tells — and the rest sit quieter on the field, folded into «N más · Ver todo». From 700 px «Lo tuyo» and «Del equipo».
+   Gold only for the MVP (the vote button, the winner). Tokens only. */
+
+
+/* ---- the body and its blocks */
+.pp .pp-place--vestuario .ves-body{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}
+.pp .pp-place--vestuario .ves-blk{min-width:0;margin:0;padding:14px 0 16px;border-top:1px solid var(--vd-rule)}
+.pp .pp-place--vestuario .ves-blk.is-now,.pp .pp-place--vestuario .ves-blk.is-lead{border-top:0}
+.pp .pp-place--vestuario .ves-blk.is-now{margin:0 0 8px;padding:var(--vd-sp-orn) var(--vd-sp-orn) 16px}
+.pp .pp-place--vestuario .ves-blk.is-lead{padding-top:2px}
+.pp .pp-place--vestuario .ves-blk.is-extra{display:none}
+.pp .pp-place--vestuario .ves-blk.is-extra-open{animation:ves-in .32s var(--vd-ease) both}
+@keyframes ves-in{from{opacity:0;transform:translateY(8px)}}
+.pp .pp-place--vestuario .ves-more{margin-top:0;padding-top:6px;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-more b{color:var(--vd-ink-strong)}
+.pp .pp-place--vestuario .ves-more .vd-more__btn{color:var(--vd-ink-strong)}
+
+/* ---- headings and lines */
+.pp .pp-place--vestuario .ves-hd{display:flex;align-items:baseline;justify-content:space-between;gap:6px 12px;flex-wrap:wrap;margin:0 0 6px}
+.pp .pp-place--vestuario .ves-hd h3{margin:0;display:flex;align-items:center;gap:8px;font-family:var(--vd-sans);font-weight:680;font-variation-settings:'wdth' 94;font-size:17px;line-height:1.2;letter-spacing:-.012em;color:var(--vd-ink-strong);text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place--vestuario .ves-hd h3 .pp-i{width:18px;height:18px;flex:none;color:var(--vd-celeste-ink)}
+.pp .pp-place--vestuario .ves-hd>span{font-size:13px;color:var(--vd-ink2);white-space:nowrap}
+.pp .pp-place--vestuario .ves-hd>.vd-provtag{color:var(--vd-ink)}
+.pp .pp-place--vestuario :is(.is-now,.is-lead) .ves-hd h3{font-weight:700;font-variation-settings:'wdth' 96;font-size:23px;letter-spacing:-.018em}
+.pp .pp-place--vestuario .is-now .ves-hd{margin-bottom:var(--vd-sp-head)}
+.pp .pp-place--vestuario .ves-p{margin:0;font-size:14.5px;line-height:1.45;color:var(--vd-ink);text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place--vestuario .ves-hint{margin:6px 0 0;font-size:13px;line-height:1.4;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-h4{margin:0;font-family:var(--vd-sans);font-weight:680;font-variation-settings:'wdth' 96;font-size:16px;line-height:1.2;color:var(--vd-ink-strong)}
+.pp .pp-place--vestuario .ves-acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:12px}
+.pp .pp-place--vestuario .ves-acts:empty{display:none}
+.pp .pp-place--vestuario .ves-acts svg{width:18px;height:18px;flex:none}
+.pp .pp-place--vestuario .ves-acts--links{margin-top:4px;gap:0 18px}
+.pp .pp-place--vestuario .ves-acts .vd-link,.pp .pp-place--vestuario .ves-change{font-size:14px}
+.pp .pp-place--vestuario .ves-ok{width:22px!important;height:22px!important}
+.pp .pp-place--vestuario .ves-min{margin:0;font-size:14px;line-height:1.4;color:var(--vd-ink)}
+.pp .pp-place--vestuario .ves-min__a{font-size:14px}
+
+/* ---- ¿Vas? (src/styles/inicio.css, verbatim under this place: la convocatoria's «¿Vas hoy?») */
+.pp .pp-place--vestuario .vi-rsvp{width:100%;height:48px}
+.pp .pp-place--vestuario .vi-rsvp .vd-seg__b svg{width:16px;height:16px}
+.pp .pp-place--vestuario .ves-nobead .vd-shelf__bead{opacity:0}
+.pp .pp-place--vestuario .ves-seg{margin-top:12px}
+.pp .pp-place--vestuario .vd-seg__b[aria-checked="true"]{color:var(--vd-g-ink);font-weight:700}
+.pp .pp-place--vestuario .ves-bar{display:flex;gap:2px;height:8px;margin:14px 0 8px;border-radius:6px;overflow:hidden;background:var(--vd-rule)}
+.pp .pp-place--vestuario .ves-bar i{display:block;height:100%;transition:width .5s var(--vd-spring)}
+.pp .pp-place--vestuario .ves-bar .is-yes{background:var(--vd-celeste)}
+.pp .pp-place--vestuario .ves-bar .is-maybe{background:color-mix(in srgb,var(--vd-celeste) 45%,transparent)}
+.pp .pp-place--vestuario .ves-bar .is-no{background:color-mix(in srgb,var(--vd-ink2) 60%,transparent)}
+.pp .pp-place--vestuario .ves-bar .is-pend{background:transparent}
+.pp .pp-place--vestuario .ves-counts{display:flex;flex-wrap:wrap;gap:2px 14px;margin:0;font-size:13px;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-counts b{font-weight:760;font-size:15px;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+
+/* ---- the porra: steppers, scorer, the saved pick */
+.pp .pp-place--vestuario .ves-steps{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:end;gap:6px;margin:4px 0 2px}
+.pp .pp-place--vestuario .ves-step{display:grid;justify-items:center;gap:4px;min-width:0}
+.pp .pp-place--vestuario .ves-step__t{font-size:13.5px;font-weight:620;color:var(--vd-ink)}
+.pp .pp-place--vestuario .ves-step__ctl{display:flex;align-items:center;gap:4px}
+.pp .pp-place--vestuario .ves-step__n{min-width:1.2ch;text-align:center;font-family:var(--vd-sans);font-weight:800;font-variation-settings:'wdth' 112;font-size:46px;line-height:1;letter-spacing:-.045em;color:var(--vd-ink-strong);font-feature-settings:'lnum' 1}
+.pp .pp-place--vestuario .ves-step__b{width:44px;height:44px}
+.pp .pp-place--vestuario .ves-step__b svg{width:18px;height:18px}
+.pp .pp-place--vestuario .ves-step__dash{padding-bottom:8px;font-weight:700;font-size:28px;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-field{display:block;margin-top:12px}
+.pp .pp-place--vestuario .ves-sel{cursor:pointer}
+.pp .pp-place--vestuario .ves-sel:disabled{opacity:.55;cursor:default}
+.pp .pp-place--vestuario .ves-pick{display:flex;align-items:center;gap:16px;margin-top:2px}
+.pp .pp-place--vestuario .ves-pick__n{font-size:50px;line-height:.9;color:var(--vd-ink-strong)}
+.pp .pp-place--vestuario .ves-pick__t{margin:0;font-size:14.5px;font-weight:600;color:var(--vd-ink)}
+.pp .pp-place--vestuario .ves-team-n{margin-top:10px}
+
+/* ---- live: tu porra against the score at the moviola's minute */
+.pp .pp-place--vestuario .ves-vs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 16px;align-items:end;margin:6px 0 10px}
+.pp .pp-place--vestuario .ves-vs__c{display:grid;gap:8px;min-width:0}
+.pp .pp-place--vestuario .ves-k{font-size:13px;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-vs .vd-score{font-size:48px;line-height:1;color:var(--vd-ink-strong)}
+.pp .pp-place--vestuario .ves-verdict{grid-column:1 / -1;justify-self:start;display:inline-flex;align-items:center;gap:6px;min-height:32px;margin:6px 0 0;padding:0 12px;border-radius:var(--vd-r-ctl);font-size:14px;font-weight:680;color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.pp .pp-place--vestuario .ves-verdict .pp-i{width:16px;height:16px;display:none}
+.pp .pp-place--vestuario .is-exacta .ves-verdict{background:color-mix(in srgb,var(--vd-celeste) 24%,transparent);box-shadow:inset 0 0 0 1.5px var(--vd-celeste)}
+.pp .pp-place--vestuario .is-exacta .ves-verdict .pp-i{display:block}
+.pp .pp-place--vestuario .is-none .ves-verdict{display:none}
+
+/* ---- the team's porra, provisional */
+.pp .pp-place--vestuario .ves-rank{list-style:none;margin:4px 0 0;padding:0}
+.pp .pp-place--vestuario .ves-rank li{display:grid;grid-template-columns:minmax(0,1fr) 3em 5.6em;align-items:center;gap:8px;min-height:40px;padding:0 8px;margin:0 -8px;border-top:1px solid var(--vd-rule);font-size:14.5px}
+.pp .pp-place--vestuario .ves-rank li:first-child{border-top:0}
+.pp .pp-place--vestuario .ves-rank__n{font-weight:640;color:var(--vd-ink-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp .pp-place--vestuario .ves-rank small{font-weight:520;font-size:13px;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-rank__p{text-align:center;font-weight:760;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+.pp .pp-place--vestuario .ves-rank__v{text-align:right;font-size:13px;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-rank .is-exacta .ves-rank__v{color:var(--vd-celeste-ink);font-weight:680}
+.pp .pp-place--vestuario .ves-rank .is-me{border-radius:10px;background:color-mix(in srgb,var(--vd-celeste) 14%,transparent);border-top-color:transparent}
+.pp .pp-place--vestuario .ves-rank .is-me+li{border-top-color:transparent}
+
+/* ---- bars: the MVP race and the porra of the jornada */
+.pp .pp-place--vestuario .ves-bars{list-style:none;margin:8px 0 10px;padding:0;display:grid;gap:6px}
+.pp .pp-place--vestuario .ves-bars li{display:grid;grid-template-columns:minmax(0,8.6em) minmax(0,1fr) 2em;align-items:center;gap:10px;min-height:30px;font-size:14px}
+.pp .pp-place--vestuario .ves-bars__t{font-weight:620;color:var(--vd-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-feature-settings:'tnum' 1}
+.pp .pp-place--vestuario .ves-bars__t small{font-weight:500;font-size:12.8px;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-bars__bar{height:10px;border-radius:6px;background:var(--vd-rule);overflow:hidden}
+.pp .pp-place--vestuario .ves-bars__bar i{display:block;height:100%;border-radius:6px;background:color-mix(in srgb,var(--vd-celeste) 50%,transparent);transition:width .7s var(--vd-spring)}
+.pp .pp-place--vestuario .ves-bars .is-lead .ves-bars__bar i,.pp .pp-place--vestuario .ves-bars .is-real .ves-bars__bar i{background:var(--vd-celeste)}
+.pp .pp-place--vestuario .ves-bars .is-mine .ves-bars__t{color:var(--vd-ink-strong)}
+.pp .pp-place--vestuario .ves-bars__n{text-align:right;font-weight:760;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+.pp .pp-place--vestuario .is-gold .ves-race .is-lead .ves-bars__bar i{background:var(--vd-oro)}
+
+/* ---- the MVP: the ballot (celeste pick, gold button) and the winner (gold) */
+.pp .pp-place--vestuario .ves-ballot{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0 0}
+.pp .pp-place--vestuario .ves-cand{display:grid;justify-items:center;align-content:center;gap:5px;min-width:0;min-height:78px;padding:8px 4px 6px;border:0;border-radius:var(--vd-r-ctl);background:rgba(234,243,252,.05);box-shadow:inset 0 0 0 1px var(--vd-rule);color:var(--vd-ink);font:inherit;font-family:var(--vd-sans);cursor:pointer;transition:background .2s,box-shadow .2s}
+:root[data-theme="light"] .pp .pp-place--vestuario .ves-cand{background:rgba(255,255,255,.4)}
+.pp .pp-place--vestuario .ves-cand[aria-checked="true"]{background:color-mix(in srgb,var(--vd-celeste) 22%,transparent);box-shadow:inset 0 0 0 2px var(--vd-celeste)}
+.pp .pp-place--vestuario .ves-cand:focus-visible,.pp .pp-place--vestuario .ves-star:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.pp .pp-place--vestuario .ves-cand__n{max-width:100%;font-size:13px;font-weight:640;line-height:1.2;color:var(--vd-ink-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp .pp-place--vestuario .ves-cand__n small{font-weight:520;font-size:12px;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-win{display:flex;align-items:center;gap:16px;margin:0 0 10px}
+.pp .pp-place--vestuario .ves-win__shirt{filter:drop-shadow(0 0 12px color-mix(in srgb,var(--vd-oro) 60%,transparent))}
+.pp .pp-place--vestuario .ves-win__t{min-width:0}
+.pp .pp-place--vestuario .ves-win__k{display:flex;align-items:center;gap:6px;margin:0;font-size:13px;font-weight:620;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-win__k svg,.pp .pp-place--vestuario .vd-btn--gold svg path{fill:var(--vd-oro)}
+.pp .pp-place--vestuario .ves-win__k svg{width:16px;height:16px;flex:none}
+.pp .pp-place--vestuario .ves-win__n{margin:3px 0 0;font-family:var(--vd-sans);font-weight:760;font-variation-settings:'wdth' 96;font-size:28px;line-height:1.05;letter-spacing:-.022em;color:var(--vd-oro);text-shadow:var(--vd-field-shade,none)}
+:root[data-theme="light"] .pp .pp-place--vestuario .ves-win__n{color:var(--vd-ink-strong);text-decoration:underline;text-decoration-color:var(--vd-oro);text-decoration-thickness:4px;text-underline-offset:6px}
+:root[data-theme="light"] .pp .pp-place--vestuario .vd-btn--gold svg path{fill:currentColor}
+
+/* ---- the nota: five stars, celeste (never gold) */
+.pp .pp-place--vestuario .ves-stars{display:flex;gap:4px;margin:6px 0 8px}
+.pp .pp-place--vestuario .ves-star{display:grid;justify-items:center;gap:2px;width:52px;min-height:58px;padding:6px 0 4px;border:0;border-radius:var(--vd-r-ctl);background:none;color:var(--vd-celeste-ink);font:inherit;font-family:var(--vd-sans);cursor:pointer}
+.pp .pp-place--vestuario .ves-star svg{width:32px;height:32px;fill:transparent;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;transition:fill .2s,transform .3s var(--vd-spring)}
+.pp .pp-place--vestuario .ves-star.is-on svg{fill:currentColor}
+.pp .pp-place--vestuario button.ves-star:hover svg{transform:scale(1.08)}
+.pp .pp-place--vestuario .ves-star b{font-size:12.5px;font-weight:600;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-stars--still{gap:6px;margin:2px 0 8px}
+.pp .pp-place--vestuario .ves-stars--still .ves-star{width:auto;min-height:0;padding:0}
+.pp .pp-place--vestuario .ves-stars--still .ves-star svg{width:24px;height:24px}
+
+/* ---- tu partido and «Tu cromo de la jornada» */
+.pp .pp-place--vestuario .ves-nums{display:grid;grid-template-columns:repeat(4,auto);justify-content:space-between;gap:8px;margin:6px 0 10px}
+.pp .pp-place--vestuario .ves-nums .vd-count{margin:0}
+.pp .pp-place--vestuario .ves-nums .vd-count b{font-size:28px}
+.pp .pp-place--vestuario .ves-nums .vd-count span{font-size:12.8px;white-space:nowrap}
+.pp .pp-place--vestuario .ves-cromo-row{display:grid;grid-template-columns:112px minmax(0,1fr);gap:16px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--vd-rule)}
+.pp .pp-place--vestuario .ves-cromo{position:relative;box-sizing:border-box;width:112px;aspect-ratio:3 / 4.2;margin:0;padding:8px 6px 9px;border-radius:14px;overflow:hidden;display:grid;justify-items:center;align-content:space-between;
+  background:radial-gradient(120% 70% at 50% 18%,color-mix(in srgb,var(--vd-celeste) 70%,transparent),transparent 70%),linear-gradient(170deg,color-mix(in srgb,var(--vd-celeste) 40%,var(--vd-marino)),var(--vd-marino) 78%);
+  color:var(--vd-hielo);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--vd-hielo) 40%,transparent),0 18px 34px -20px var(--vd-glow);transform:rotate(-2.5deg);transition:transform .5s var(--vd-spring)}
+.pp .pp-place--vestuario .ves-cromo:hover{transform:rotate(0) translateY(-2px)}
+.pp .pp-place--vestuario .ves-cromo__top{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:650;white-space:nowrap}
+.pp .pp-place--vestuario .ves-cromo__top img{width:16px;height:16px}
+.pp .pp-place--vestuario .ves-cromo__shirt{margin-top:2px}
+.pp .pp-place--vestuario .ves-cromo__name{font-family:var(--vd-sans);font-weight:800;font-variation-settings:'wdth' 88;font-size:15px;letter-spacing:.01em;line-height:1}
+.pp .pp-place--vestuario .ves-cromo__line{font-size:11.5px;font-weight:620;line-height:1.15;text-align:center}
+.pp .pp-place--vestuario .ves-cromo__foot{font-size:11.5px;font-weight:520;padding-top:4px;border-top:1px solid color-mix(in srgb,var(--vd-hielo) 35%,transparent);width:86%;text-align:center;font-feature-settings:'tnum' 1}
+.pp .pp-place--vestuario .ves-cromo__sheen{position:absolute;inset:-20% -60%;background:linear-gradient(110deg,transparent 38%,color-mix(in srgb,var(--vd-hielo) 34%,transparent) 50%,transparent 62%);transform:translateX(-70%);pointer-events:none}
+.pp .pp-place--vestuario .ves-cromo.is-saved .ves-cromo__sheen{animation:ves-sheen 1.1s var(--vd-ease) both}
+.pp .pp-place--vestuario .ves-cromo.is-saved{box-shadow:inset 0 0 0 1.5px var(--vd-celeste),0 18px 34px -18px var(--vd-glow)}
+@keyframes ves-sheen{to{transform:translateX(70%)}}
+.pp .pp-place--vestuario .ves-cromo__side{min-width:0}
+.pp .pp-place--vestuario .ves-cromo__side .ves-acts{margin-top:10px}
+
+/* ---- turnos, ausentes, quedada, the calm lists */
+.pp .pp-place--vestuario .ves-turns{list-style:none;margin:2px 0 0;padding:0}
+.pp .pp-place--vestuario .ves-turns li{display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:42px;padding:0 8px;margin:0 -8px;border-top:1px solid var(--vd-rule);font-size:14.5px;color:var(--vd-ink)}
+.pp .pp-place--vestuario .ves-turns li:first-child{border-top:0}
+.pp .pp-place--vestuario .ves-turns .pp-i{width:18px;height:18px;color:var(--vd-celeste-ink)}
+.pp .pp-place--vestuario .ves-turns__j{min-width:0}
+.pp .pp-place--vestuario .ves-turns__w{font-weight:650;color:var(--vd-ink-strong);text-align:right;white-space:nowrap}
+.pp .pp-place--vestuario .ves-turns .is-me .ves-turns__w{color:var(--vd-celeste-ink)}
+.pp .pp-place--vestuario .ves-turns__w small{font-weight:620;font-size:13px;color:var(--vd-celeste-ink)}
+.pp .pp-place--vestuario .ves-turns .is-me{border-radius:10px;background:color-mix(in srgb,var(--vd-celeste) 14%,transparent);border-top-color:transparent}
+.pp .pp-place--vestuario .ves-turns .is-me+li{border-top-color:transparent}
+.pp .pp-place--vestuario .ves-turns .is-done .ves-turns__j{text-decoration:line-through;text-decoration-color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-aus__why{font-weight:500;font-size:13.5px;color:var(--vd-ink2)}
+.pp .pp-place--vestuario .ves-qd{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;align-items:baseline}
+.pp .pp-place--vestuario .ves-qd__h{font-size:22px;color:var(--vd-ink-strong)}
+.pp .pp-place--vestuario .ves-qd__t{margin:0 0 2px;font-family:var(--vd-sans);font-weight:680;font-variation-settings:'wdth' 94;font-size:17px;color:var(--vd-ink-strong)}
+.pp .pp-place--vestuario .ves-lines{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:8px}
+.pp .pp-place--vestuario .ves-lines li{position:relative;padding-left:15px;font-size:14.5px;line-height:1.45;color:var(--vd-ink);text-shadow:var(--vd-field-shade,none)}
+.pp .pp-place--vestuario .ves-lines li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:var(--vd-celeste)}
+
+/* ---- the fan: the door and the public bits */
+.pp .pp-place--vestuario .ves-door__list{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:10px}
+.pp .pp-place--vestuario .ves-door__list li{display:flex;align-items:center;gap:10px;font-size:14.5px;line-height:1.35;color:var(--vd-ink)}
+.pp .pp-place--vestuario .ves-door__list .pp-i{width:18px;height:18px;flex:none;color:var(--vd-celeste-ink)}
+.pp .pp-place--vestuario .ves-pub__nota{display:flex;align-items:center;gap:8px;margin-top:6px}
+.pp .pp-place--vestuario .ves-pub__nota svg{width:18px;height:18px;flex:none;fill:var(--vd-celeste-ink)}
+.pp .pp-place--vestuario .ves-pub__race{margin-bottom:4px}
+
+/* ---- the printed shirts (the ballot, the winner, the cromo) */
+.pp .pp-place--vestuario .ves-cand__tee{--w:40px}
+.pp .pp-place--vestuario .ves-win__tee{--w:72px;border-radius:12px;box-shadow:0 0 0 2px var(--vd-oro),0 0 24px -2px rgba(255,198,89,.55);background:rgba(255,198,89,.08)}
+.pp .pp-place--vestuario .ves-cromo__tee{--w:58px;margin-top:2px}
+
+/* ---- the two columns: «Lo tuyo» (what you do) and «Del equipo» (what the team shares). On a phone they are one
+   column ordered by urgency (the columns dissolve, CSS order sets the sequence) and the quiet ones fold */
+.pp .pp-place--vestuario .ves-body{display:flex;flex-direction:column}
+.pp .pp-place--vestuario .ves-col{display:contents}
+.pp .pp-place--vestuario .ves-colk{display:none;margin:0 0 4px;font-size:13.5px;font-weight:650;color:var(--vd-ink2);letter-spacing:.005em}
+@container (min-width:700px){
+  .pp .pp-place--vestuario .ves-body{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:44px;align-items:start}
+  .pp .pp-place--vestuario .ves-col{display:flex;flex-direction:column;min-width:0}
+  .pp .pp-place--vestuario .ves-col--me:only-child{grid-column:1 / -1;width:100%;max-width:720px;justify-self:center}
+  .pp .pp-place--vestuario .ves-colk{display:block;order:-1;padding-bottom:10px;border-bottom:1px solid var(--vd-rule2)}
+  .pp .pp-place--vestuario .ves-colk+.ves-blk,.pp .pp-place--vestuario .ves-blk.is-now{border-top:0}
+  .pp .pp-place--vestuario .ves-blk.is-now{margin-top:12px}
+  .pp .pp-place--vestuario .ves-blk.is-extra{display:block}
+  .pp .pp-place--vestuario .ves-blk.is-extra-open{animation:none}
+  .pp .pp-place--vestuario .ves-more{display:none}
+  .pp .pp-place--vestuario .ves-ballot{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .pp .pp-place--vestuario :is(.ves-steps,.ves-field){max-width:440px}
+  .pp .pp-place--vestuario .ves-partido .ves-cromo-row{grid-template-columns:128px minmax(0,1fr)}
+  .pp .pp-place--vestuario .ves-partido .ves-cromo{width:128px}
+  .pp .pp-place--vestuario .ves-cromo__tee{--w:66px}
+}
+/* desktop: a calm two-column page of this viewer's to-dos */
+@container (min-width:960px){
+  .pp .pp-place--vestuario .ves-body{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);column-gap:80px}
+  .pp .pp-place--vestuario .ves-ballot{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .pp .pp-place--vestuario .ves-cand{min-height:104px}
+  .pp .pp-place--vestuario .ves-cand__tee{--w:52px}
+  .pp .pp-place--vestuario .ves-nums{justify-content:start;gap:8px 44px}
+  .pp .pp-place--vestuario .ves-nums .vd-count b{font-size:36px}
+  .pp .pp-place--vestuario :is(.is-now,.is-lead) .ves-hd h3{font-size:26px}
+  .pp .pp-place--vestuario .ves-win__tee{--w:96px}
+  .pp .pp-place--vestuario .ves-win__n{font-size:34px}
+}
+@container (min-width:1500px){
+  .pp .pp-place--vestuario .ves-body{grid-template-columns:minmax(0,860px) minmax(0,640px);column-gap:120px;justify-content:center}
+  .pp .pp-place--vestuario .ves-ballot{grid-template-columns:repeat(9,minmax(0,1fr))}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .pp .pp-place--vestuario .ves-blk,.pp .pp-place--vestuario .ves-cromo,.pp .pp-place--vestuario .ves-cromo__sheen,.pp .pp-place--vestuario .ves-bars__bar i,.pp .pp-place--vestuario .ves-bar i,.pp .pp-place--vestuario .ves-star svg{animation:none!important;transition:none!important}
+  .pp .pp-place--vestuario .ves-cromo{transform:none}
 }

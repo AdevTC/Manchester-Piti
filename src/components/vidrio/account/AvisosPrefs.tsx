@@ -3,13 +3,7 @@
 // (off by default). A device that can't get notices says why instead (iPhone without the web on the home
 // screen, notices blocked, a browser without them). The choice lives in lib/push (usePushPreset / setPushPreset).
 import { useState, type CSSProperties } from "react";
-import { PRESET_NOTES, PUSH_PRESETS, PRESET_LABELS, usePushPreset, type PushPreset } from "../../../lib/push";
-
-const WHY: Record<string, string> = {
-  "ios-install": "En el iPhone, añade la web a la pantalla de inicio (Compartir › Añadir a inicio) y elige aquí tus avisos.",
-  denied: "Tienes los avisos bloqueados para esta web: actívalos en los ajustes del navegador y vuelve aquí.",
-  unsupported: "Este navegador no recibe avisos. El marcador sigue en la web.",
-};
+import { PRESET_NOTES, PUSH_PRESETS, PRESET_LABELS, PUSH_WHY, pushSaveError, usePushPreset, type PushPreset } from "../../../lib/push";
 
 export function AvisosPrefs({ className = "" }: { className?: string }) {
   const p = usePushPreset();
@@ -23,7 +17,7 @@ export function AvisosPrefs({ className = "" }: { className?: string }) {
       () => setBusy(false),
       (e: unknown) => {
         setBusy(false);
-        setError(e instanceof Error && /permiso/i.test(e.message) ? "Sin permiso para avisos en este navegador." : "No se han podido guardar tus avisos. Inténtalo otra vez.");
+        setError(pushSaveError(e));
       },
     );
   };
@@ -33,7 +27,7 @@ export function AvisosPrefs({ className = "" }: { className?: string }) {
         Avisos a medida
       </p>
       {p.state !== "ready" ? (
-        <p className="vd-small">{WHY[p.state] ?? WHY.unsupported}</p>
+        <p className="vd-small">{PUSH_WHY[p.state]}</p>
       ) : (
         <>
           <div className="vd-glass vd-seg" style={{ "--n": PUSH_PRESETS.length, "--i": Math.max(0, index) } as CSSProperties} role="group" aria-labelledby="vd-prefs-t">

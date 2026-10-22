@@ -1,0 +1,15 @@
+/* «El siete»: what the screen needs beyond match-vidrio.css (the board's place-siete.css, ported there).
+   The marks (.vd-tag) live in vidrio-paginas.css, which the match page does not load: the design system's
+   rules, here for this screen. */
+.pp-place--siete .vd-tags{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+.pp-place--siete .vd-tag{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 6px;border-radius:6px;font-family:var(--vd-sans);font-size:11.5px;font-weight:650;line-height:1;font-feature-settings:'tnum' 1;background:rgba(234,243,252,.9);color:var(--vd-marino);white-space:nowrap}
+.pp-place--siete .vd-tag svg{width:11px;height:11px;flex:none}
+.pp-place--siete .vd-tag--amarilla{background:var(--vd-amarilla);color:#2b2200}
+.pp-place--siete .vd-tag--roja{background:var(--vd-roja);color:#fff}
+.pp-place--siete .vd-tag--gold{background:var(--vd-oro);color:#3a2600}
+:root[data-theme="light"] .pp-place--siete .vd-tag{background:#fff;box-shadow:inset 0 0 0 1px rgba(12,23,51,.14)}
+:root[data-theme="light"] .pp-place--siete .vd-tag--amarilla{background:var(--vd-amarilla);box-shadow:none}
+:root[data-theme="light"] .pp-place--siete .vd-tag--roja{background:var(--vd-roja);box-shadow:none}
+:root[data-theme="light"] .pp-place--siete .vd-tag--gold{background:var(--vd-oro);box-shadow:none}
+/* (the page sets no heading face: the card's name keeps the design system's sans, as on the board) */
+.pp-place--siete .ps-card__who h3{font-family:var(--vd-sans)}

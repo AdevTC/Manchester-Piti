@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { kickoffNotice, legacyKickoff, lineupNotice, noticesFor, TOPICS } from "../../functions/src/pushLogic";
-import { matchTabAt } from "./interimScreens";
 import { resultLetter, resultTitle } from "./derived/result";
 
 const NOW = Date.UTC(2026, 10, 8, 11, 20);
@@ -60,7 +59,6 @@ describe("push notices", () => {
     ]);
     // the final opens the match page itself (the crónica); the vote opens its Vestuario screen
     expect(n.map((x) => x.url)).toEqual(["/partidos/j7", "/partidos/j7/vestuario"]);
-    expect(matchTabAt(new URL(n[1].url, "https://piti.test").pathname, {})).toBe("vestuario");
   });
   it("the «Final» push opens with the verdict, the result's own word (resultTitle)", () => {
     const fin = (gf: number, ga: number) => noticesFor("j7", { ...base, events: [] }, { ...base, status: "finished", goalsFor: gf, goalsAgainst: ga, events: [] }, nameOf, NOW).find((x) => x.topic === "final")!;

@@ -3,7 +3,6 @@
 // old ?view=, ?tab= or #hash. These say which one each new address means, so an old link redirected here
 // (a push notice, a bookmark) still opens what it used to. Each page session drops its part when its page
 // reads the address itself.
-import type { MatchTab } from "./matchTabs";
 
 type Search = Record<string, unknown>;
 const trim = (pathname: string) => (pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname);
@@ -89,20 +88,6 @@ export function statsViewPath(view: StatsView, section?: ExploreSectionId): Stat
     default:
       return "/numeros";
   }
-}
-
-const SCREEN_TAB: Record<string, MatchTab> = { siete: "campo", numeros: "estadisticas", vestuario: "vestuario" };
-const TAB_SCREEN: Partial<Record<MatchTab, string>> = { campo: "siete", estadisticas: "numeros", vestuario: "vestuario" };
-/** Today's match tab at /partidos/<id>[/screen] (?tab=pulso still opens Pulso there until the page lands). */
-export function matchTabAt(pathname: string, search: Search): MatchTab | undefined {
-  const screen = trim(pathname).split("/")[3];
-  if (screen) return SCREEN_TAB[screen];
-  return search.tab === "pulso" ? "pulso" : undefined;
-}
-/** The address of a match tab: its screen, or the page itself (Pulso as ?tab=pulso, for now). */
-export function matchTabHref(matchId: string, tab: MatchTab | undefined): { to: string; pulso: boolean } {
-  const screen = tab ? TAB_SCREEN[tab] : undefined;
-  return { to: `/partidos/${matchId}${screen ? `/${screen}` : ""}`, pulso: tab === "pulso" };
 }
 
 const PROFILE_TAB_HASH: Record<string, string> = {

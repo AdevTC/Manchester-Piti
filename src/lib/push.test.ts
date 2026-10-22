@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({ call: vi.fn(), auth: { currentUser: null as { uid:
 vi.mock("firebase/functions", () => ({ httpsCallable: () => h.call }));
 vi.mock("../firebase", () => ({ functions: {}, auth: h.auth, FUNCTIONS_REGION: "europe-southwest1" }));
 
-import { REASSERT_EVERY_MS, reassertDue, reassertPush, REVERIFY_EVERY_MS, setTopics, type ReassertInput } from "./push";
+import { REASSERT_EVERY_MS, reassertDue, reassertPush, REVERIFY_EVERY_MS, pushChoiceKey, pushChoiceOf, savedMatchTopics, setMatchTopics, setTopics, type ReassertInput } from "./push";
 
 const DAY = REASSERT_EVERY_MS;
 const WEEK = REVERIFY_EVERY_MS;
@@ -252,5 +252,35 @@ describe("setTopics remembers what the server accepted", () => {
     expect(localStorage.getItem("piti-push-endpoint")).toBeNull();
     expect(localStorage.getItem("piti-push-session")).toBeNull();
     expect(store.has("/__piti-push-state")).toBe(false);
+  });
+});
+
+describe("setMatchTopics: this device's avisos for one match", () => {
+  it("the first one on a device without notices asks, subscribes and sends its keys; the server's answer is kept", async () => {
+    permission = "default";
+    requestPermission.mockImplementationOnce(async () => (permission = "granted"));
+    h.call.mockResolvedValue({ data: { matchTopics: { j8: ["goals"] }, kept: true } });
+    await expect(setMatchTopics("j8", ["goals"])).resolves.toEqual(["goals"]);
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    expect(h.call).toHaveBeenLastCalledWith({ endpoint: "https://push.test/new-1", keys: { p256dh: "k", auth: "a" }, matchId: "j8", topics: ["goals"] });
+    expect(savedMatchTopics()).toEqual({ j8: ["goals"] });
+  });
+  it("refused permission: nothing is sent", async () => {
+    permission = "default";
+    requestPermission.mockImplementationOnce(async () => (permission = "denied"));
+    await expect(setMatchTopics("j8", ["goals"])).rejects.toThrow("permiso");
+    expect(h.call).not.toHaveBeenCalled();
+  });
+  it("«Nada» forgets the device's choices for single matches too", async () => {
+    registered();
+    h.call.mockResolvedValue({ data: { matchTopics: { j8: [] }, kept: true } });
+    await setMatchTopics("j8", []);
+    expect(savedMatchTopics()).toEqual({ j8: [] });
+    expect(pushChoiceOf(pushChoiceKey())).toEqual({ topics: ["goals"], matches: { j8: [] } });
+    expect(pushChoiceOf("")).toEqual({ topics: [], matches: {} });
+    h.call.mockResolvedValue({ data: { topics: [] } });
+    await setTopics([]);
+    expect(savedMatchTopics()).toEqual({});
   });
 });

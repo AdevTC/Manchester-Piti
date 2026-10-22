@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anchorAt, interimStatsSearch, statsSearchToWrite, matchTabAt, matchTabHref, profileHashAt, statsViewAt, statsViewPath, type StatsView } from "./interimScreens";
+import { anchorAt, interimStatsSearch, statsSearchToWrite, profileHashAt, statsViewAt, statsViewPath, type StatsView } from "./interimScreens";
 
 // Until each redesign lands, a new address opens today's page on what its old ?view=, ?tab= or #hash opened.
 describe("Números: the view of each screen", () => {
@@ -48,23 +48,6 @@ describe("Números: the view of each screen", () => {
     expect(interimStatsSearch(cleared, "/numeros/juego")).toMatchObject({ seasons: undefined, matches: undefined, players: undefined, team: undefined, period: undefined });
     // (the catalogue screen says so itself: never written)
     expect(statsSearchToWrite({}, "/numeros/juego/catalogo")).toEqual({});
-  });
-});
-
-describe("the match page's tab of each screen", () => {
-  it("reads it from the address", () => {
-    expect(matchTabAt("/partidos/j1", {})).toBeUndefined();
-    expect(matchTabAt("/partidos/j1/siete", {})).toBe("campo");
-    expect(matchTabAt("/partidos/j1/numeros", {})).toBe("estadisticas");
-    expect(matchTabAt("/partidos/j1/vestuario/", {})).toBe("vestuario");
-    expect(matchTabAt("/partidos/j1", { tab: "pulso" })).toBe("pulso");
-  });
-  it("and each tab's address", () => {
-    expect(matchTabHref("j1", undefined)).toEqual({ to: "/partidos/j1", pulso: false });
-    expect(matchTabHref("j1", "campo")).toEqual({ to: "/partidos/j1/siete", pulso: false });
-    expect(matchTabHref("j1", "estadisticas")).toEqual({ to: "/partidos/j1/numeros", pulso: false });
-    expect(matchTabHref("j1", "vestuario")).toEqual({ to: "/partidos/j1/vestuario", pulso: false });
-    expect(matchTabHref("j1", "pulso")).toEqual({ to: "/partidos/j1", pulso: true });
   });
 });
 
