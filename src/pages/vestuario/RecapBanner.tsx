@@ -4,7 +4,6 @@
 // story already up (/profile#cromos).
 import { Link } from "@tanstack/react-router";
 import { CREST } from "../perfil/icons";
-import { CROMOS_HASH } from "../perfil/tabs";
 import "../perfil/recap.css";
 
 export function RecapBanner({ seasonName }: { seasonName: string }) {
@@ -17,7 +16,7 @@ export function RecapBanner({ seasonName }: { seasonName: string }) {
         <span className="vx-kick">{seasonName} · cerrada</span>
         <h2 id="rc-ban-t">Ya está tu temporada en cromos</h2>
         <p>Tus partidos, tus goles, tu socio y el equipo, cromo a cromo. Compártelos.</p>
-        <Link className="rc-ban-go" to="/profile" hash={CROMOS_HASH}>
+        <Link className="rc-ban-go" to="/perfil/temporada/cromos">
           Ver mis cromos
         </Link>
       </div>

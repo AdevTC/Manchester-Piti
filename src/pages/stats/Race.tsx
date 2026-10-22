@@ -115,7 +115,7 @@ export function RaceBoard({ rows, nameOf, jornada, seasonId }: { rows: PlayerAna
         </div>
         <div className="cap">
           <small>{formatDate(m.date)}</small>
-          <Link to="/matches/$matchId" params={{ matchId: m.id }}>
+          <Link to="/partidos/$matchId" params={{ matchId: m.id }}>
             {m.goalsFor}–{m.goalsAgainst} {m.home === false ? "en casa de" : "contra"} {m.rival ?? "Rival"}
           </Link>
           <span>

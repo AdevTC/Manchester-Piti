@@ -322,7 +322,7 @@ export function hideMark(state: FloatDay, lastGoal: string): string {
 
 /** A per-page key for the float's remembered spot. */
 /** Pages whose top-right corner (under the bar) holds something of their own: the float rests bottom-right. */
-const LOW_HOME = new Set(["partido", "partidos", "profile"]);
+const LOW_HOME = new Set(["partido", "partidos", "perfil"]);
 
 /** Where the floating score rests on desktop until someone moves it, per page (checked at 1440 on each):
  *  Inicio under the bar in the centre (its lens takes the score while it is on screen); a match page (its
@@ -341,8 +341,10 @@ export const pipBottom = (pathname: string): number => (floatHome(pathname) === 
 
 export function pageKey(pathname: string): string {
   if (pathname === "/" || pathname === "") return "inicio";
-  const first = pathname.split("/").filter(Boolean)[0] ?? "otra";
-  return first === "matches" ? "partido" : first === "jugadores" ? "jugador" : first;
+  const [first = "otra", second] = pathname.split("/").filter(Boolean);
+  // (a match is /partidos/<id>; «tabla» and «balance» are Partidos' own screens)
+  if (first === "partidos" && second && second !== "tabla" && second !== "balance") return "partido";
+  return first === "jugadores" ? "jugador" : first;
 }
 
 /** «Orduña fc» → «OR»: the rival's crest when there is no picture (the score's own window). */

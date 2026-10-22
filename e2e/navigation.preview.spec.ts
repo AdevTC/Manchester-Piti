@@ -15,7 +15,7 @@ test("web pública, navegación y detalle sin iniciar sesión", async ({
   // the season as a ribbon of light, and the three ways of looking at it
   await expect(page.getByRole("slider", { name: /^La temporada entera/ })).toBeVisible();
   await expect(page.getByRole("tablist", { name: "Qué ver" })).toBeVisible();
-  await page.goto("/matches/preview-finished");
+  await page.goto("/partidos/preview-finished");
   await expect(page.getByRole("status", { name: "Resultado: 2 a 1" })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Cartel cuadrado" }),
@@ -50,7 +50,7 @@ test("jugador, datos de temporada y reparto real de minutos", async ({
     page.getByRole("heading", { name: "Hugo", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("40′", { exact: true }).first()).toBeVisible();
-  await page.goto("/stats?season=preview-season");
+  await page.goto("/numeros?temporada=preview-season");
   await page.getByRole("button", { name: "Minutos", exact: true }).click();
   const row = page
     .getByRole("table", { name: "Minutos y convocatorias" })

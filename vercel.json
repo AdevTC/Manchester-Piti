@@ -40,6 +40,15 @@
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800, stale-while-revalidate=2592000" }]
     }
   ],
+  "redirects": [
+    { "source": "/profile", "destination": "/perfil", "statusCode": 301 },
+    { "source": "/matches", "destination": "/partidos", "permanent": true },
+    { "source": "/matches/:id/mesa", "destination": "/partidos/:id/mesa", "permanent": true },
+    { "source": "/admin/en-juego/:id", "destination": "/partidos/:id/mesa", "permanent": true },
+    { "source": "/jugadores", "destination": "/plantilla", "permanent": true },
+    { "source": "/jugadores/:id/posiciones", "destination": "/jugadores/:id/juego", "permanent": true },
+    { "source": "/plantilla/pichichi", "destination": "/plantilla", "permanent": true }
+  ],
   "rewrites": [
     {
       "source": "/datos/club.bundle",
@@ -62,20 +71,52 @@
       "destination": "/api/render?p=/"
     },
     {
+      "source": "/hoy/:screen(campo|jugadas)",
+      "destination": "/api/render?p=/hoy/:screen"
+    },
+    {
+      "source": "/camiseta",
+      "destination": "/api/render?p=/camiseta"
+    },
+    {
       "source": "/partidos",
       "destination": "/api/render?p=/partidos"
     },
     {
-      "source": "/stats",
-      "destination": "/api/render?p=/stats"
+      "source": "/partidos/:screen(tabla|balance)",
+      "destination": "/api/render?p=/partidos/:screen"
+    },
+    {
+      "source": "/numeros",
+      "destination": "/api/render?p=/numeros"
+    },
+    {
+      "source": "/numeros/:path*",
+      "destination": "/api/render?p=/numeros/:path*"
+    },
+    {
+      "source": "/plantilla",
+      "destination": "/api/render?p=/plantilla"
+    },
+    {
+      "source": "/plantilla/:screen(album|cara-a-cara)",
+      "destination": "/api/render?p=/plantilla/:screen"
     },
     {
       "source": "/club",
       "destination": "/api/render?p=/club"
     },
     {
-      "source": "/plantilla",
-      "destination": "/api/render?p=/plantilla"
+      "source": "/club/:path*",
+      "destination": "/api/render?p=/club/:path*"
+    },
+    {
+      "source": "/stats",
+      "destination": "/api/render?p=/stats"
+    },
+    {
+      "source": "/matches/:id",
+      "destination": "/api/render?p=/matches/:id"
     },
     {
       "source": "/(.*)",

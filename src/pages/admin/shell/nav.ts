@@ -128,6 +128,6 @@ export interface AdminTarget {
 export const MAS_SECTIONS: readonly SectionKey[] = ["fichas", "temporadas", "capitanes", "contenido", "caja", "clasificacion", "turnos"];
 
 /** «La puerta» lives in the vestuario (CaptainDoor): the rail links there. */
-export const DOOR_HREF = "/vestuario#puerta";
+export const DOOR_HREF = "/vestuario/puerta";
 /** Its accessible name: it leaves the Sala de control. */
 export const DOOR_LABEL = "La puerta · en el vestuario, sales de la sala de control";

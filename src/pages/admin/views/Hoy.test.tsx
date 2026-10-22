@@ -186,7 +186,7 @@ describe("Hoy · En juego: the LED, the log and «Abrir la mesa»", () => {
     expect(within(hero).queryByRole("button", { name: "GOL" })).toBeNull();
     expect(within(hero).queryByRole("button", { name: "Pitar el final y repasar el acta" })).toBeNull();
     await user.click(within(hero).getByRole("button", { name: "Abrir la mesa" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/matches/m8/mesa"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/partidos/m8/mesa"));
     expect(live).not.toHaveBeenCalled();
   });
 
@@ -196,7 +196,7 @@ describe("Hoy · En juego: the LED, the log and «Abrir la mesa»", () => {
     const user = userEvent.setup();
     const router = mountAdmin("/admin", { hoy: Hoy });
     await user.click(await screen.findByRole("button", { name: "Abrir la mesa" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/matches/m8/mesa"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/partidos/m8/mesa"));
   });
 });
 

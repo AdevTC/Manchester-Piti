@@ -56,8 +56,9 @@ export async function assertMatchNotDeleted(tx: FirebaseFirestore.Transaction, i
   if ((await tx.get(tombstoneRef(id))).exists) throw new HttpsError('failed-precondition', 'Este partido se ha eliminado. No se puede recuperar desde una pestaña antigua.');
 }
 
-/** Match notices always link here, even the ones about the official pizarra. */
-export const noticeMatchId = (url: string): string | null => /^\/matches\/([A-Za-z0-9_-]+)(?:[?#]|$)/.exec(url)?.[1] ?? null;
+// Match notices always link to their match (/partidos/<id>, or /matches/<id> in the ones stored before),
+// even the ones about the official pizarra.
+export { noticeMatchId } from './noticeUrl.js';
 // A consistent read snapshot without write locks; actual log/data mutations still call matchActiveTx
 // inside their own write transaction so an archive/delete invalidates their commit.
 export const matchActive = (id: string) => db.runTransaction(tx => matchActiveTx(tx, id), { readOnly: true });

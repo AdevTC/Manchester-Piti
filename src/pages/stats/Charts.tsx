@@ -22,7 +22,7 @@ export function ResultsChart({ games }: { games: ClubMatch[] }) {
         {last.map((m, i) => {
           const l = letter(m);
           return (
-            <Link key={m.id} to="/matches/$matchId" params={{ matchId: m.id }} className="col" style={{ animationDelay: `${i * 0.06}s` }} aria-label={`${m.goalsFor} a ${m.goalsAgainst} contra ${m.rival ?? "rival"}, ${RESULT_WORD[l]}, ${formatDate(m.date)}`}>
+            <Link key={m.id} to="/partidos/$matchId" params={{ matchId: m.id }} className="col" style={{ animationDelay: `${i * 0.06}s` }} aria-label={`${m.goalsFor} a ${m.goalsAgainst} contra ${m.rival ?? "rival"}, ${RESULT_WORD[l]}, ${formatDate(m.date)}`}>
               <span className="up">
                 <b>{m.goalsFor}</b>
                 <i style={{ height: `${(m.goalsFor! / max) * 100}%` }} />

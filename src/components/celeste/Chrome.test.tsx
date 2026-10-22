@@ -37,7 +37,7 @@ it("a fan: one way into the vestuario («Entrar»), separate from the five publi
   expect(door).toHaveTextContent("Entrar");
   const nav = within(header.getByRole("navigation", { name: "Navegación principal" }));
   expect(nav.getAllByRole("link").map((a) => a.textContent)).toEqual(["Inicio", "Partidos", "Plantilla", "Números", "Club"]);
-  expect(nav.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/", "/partidos", "/plantilla", "/stats", "/club"]);
+  expect(nav.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/", "/partidos", "/plantilla", "/numeros", "/club"]);
   expect(nav.getByRole("link", { name: "Inicio" })).toHaveAttribute("aria-current", "page");
   expect(header.getByRole("link", { name: "Manchester Piti, inicio" })).toHaveAttribute("href", "/");
   // page extras stay; the theme switch pages pass there moves out of the bar
@@ -56,9 +56,9 @@ it("the theme switch a page passes is not in the top bar (it lives in the accoun
 });
 
 it("on the vestuario's own pages «Entrar» is lit as the current place", () => {
-  render(<CelesteHeader active="vestuario" sub="Tu perfil" actions={<a href="/profile">Tu cuenta</a>} />);
+  render(<CelesteHeader active="vestuario" sub="Tu perfil" actions={<a href="/perfil">Tu cuenta</a>} />);
   expect(screen.getByRole("link", { name: "Entrar al vestuario" })).toHaveAttribute("aria-current", "page");
-  expect(screen.getByRole("link", { name: "Tu cuenta" })).toHaveAttribute("href", "/profile");
+  expect(screen.getByRole("link", { name: "Tu cuenta" })).toHaveAttribute("href", "/perfil");
 });
 
 it("a member gets his avatar («J Jordi») instead of «Entrar»: «Tú» for a jugador, «Tu cuenta» for a socio", () => {
@@ -79,7 +79,7 @@ it("a member gets his avatar («J Jordi») instead of «Entrar»: «Tú» for a 
 it("the tab bar: the five pages, each with its label, and /club lit", () => {
   render(<CelesteDock active="club" />);
   const links = within(screen.getByRole("navigation", { name: "Navegación móvil" })).getAllByRole("link");
-  expect(links.map((a) => a.getAttribute("href"))).toEqual(["/", "/partidos", "/plantilla", "/stats", "/club"]);
+  expect(links.map((a) => a.getAttribute("href"))).toEqual(["/", "/partidos", "/plantilla", "/numeros", "/club"]);
   expect(links.map((a) => a.textContent)).toEqual(["Inicio", "Partidos", "Plantilla", "Números", "Club"]);
   const club = links[4];
   expect(club).toHaveAttribute("aria-current", "page");

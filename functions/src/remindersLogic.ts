@@ -3,6 +3,7 @@
 // notice when someone changes their answer in the last 24 h. Apart so the app's tests can run them.
 import { rsvpFields, type Notice } from "./pushLogic.js";
 import { memberIds } from "./guests.js";
+import { matchUrl } from "./noticeUrl.js";
 
 export const HOUR = 3_600_000;
 /** No reminder this close to kick-off (the convocatoria is closed by then, in practice). */
@@ -46,7 +47,7 @@ export function reminderNotice(matchId: string, kind: ReminderKind, match: { riv
     title: kind === "24" ? `Mañana se juega: ¿vas?` : `¿Vas el ${day}?`,
     body: `Estás convocado contra ${rival} (${day}, ${hour(match.date)}). Contesta en la web: Voy, Duda o No puedo.`,
     tag: `remind-${matchId}`,
-    url: `/matches/${matchId}?tab=vestuario`,
+    url: matchUrl(matchId, "vestuario"),
     ...rsvpFields(matchId),
   };
 }
@@ -69,6 +70,6 @@ export function lateChangeNotice(matchId: string, who: string, before: unknown, 
     title: after === "no" ? `Baja de última hora: ${who}` : `Cambio de última hora: ${who}`,
     body: `${who} ahora dice «${ANSWER_TXT[after]}» (antes «${ANSWER_TXT[before]}») para el partido contra ${rival}.`,
     tag: `late-${matchId}`,
-    url: `/matches/${matchId}?tab=vestuario`,
+    url: matchUrl(matchId, "vestuario"),
   };
 }

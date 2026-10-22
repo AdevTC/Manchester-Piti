@@ -284,7 +284,8 @@ export function LiveScore() {
   const mark = state ? hideMark(state, lastGoal?.id ?? "") : "";
   const hidden = !!state && hiddenAt === mark;
   // (on the shown match's own page it has landed: the page is the scoreboard, and says its own plays)
-  const landed = !!state && pathname === `/matches/${state.match.id}`;
+  // (the match page, on any of its screens; la mesa has no floating score)
+  const landed = !!state && pageKey(pathname) === "partido" && pathname.split("/")[2] === state.match.id;
   const shown = !!state && !landed && !hidden;
   const lensHere = dock.mode === "lens";
   const rival = state ? state.match.rival?.trim() || "Rival" : "Rival";
@@ -428,7 +429,7 @@ export function LiveScore() {
             coldRim={!!lastGoal && lastGoal.kind === "golrival" && last?.id === lastGoal.id}
             scoreClass={g.digit || undefined}
             sheetOpen={sheetOpen}
-            vtName={pathname.startsWith("/matches/") || reduced ? undefined : LIVE_VT}
+            vtName={pageKey(pathname) === "partido" || reduced ? undefined : LIVE_VT}
             fx={fx}
             glint={g.glint || undefined}
             nameClass={g.name || undefined}
@@ -443,7 +444,7 @@ export function LiveScore() {
               phone={!desktop}
               style={desktop ? place.style : undefined}
               up={place.up}
-              vtName={pathname.startsWith("/matches/") || reduced ? undefined : LIVE_VT}
+              vtName={pageKey(pathname) === "partido" || reduced ? undefined : LIVE_VT}
               transition={!reduced}
               growProps={grow.summaryProps}
               onMore={() => {

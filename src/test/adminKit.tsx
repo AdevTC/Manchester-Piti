@@ -214,8 +214,8 @@ export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> =
     createRoute({ getParentRoute: () => root, path: "/vestuario", component: Marker("el vestuario") }),
     // the ways out of the sala (Ver en la web, Abrir la pizarra, Abrir la mesa)
     createRoute({ getParentRoute: () => root, path: "/pizarra", component: Marker("la pizarra") }),
-    createRoute({ getParentRoute: () => root, path: "/matches/$matchId", component: Marker("la ficha del partido") }),
-    createRoute({ getParentRoute: () => root, path: "/matches/$matchId/mesa", component: Marker("la mesa") }),
+    createRoute({ getParentRoute: () => root, path: "/partidos/$matchId", component: Marker("la ficha del partido") }),
+    createRoute({ getParentRoute: () => root, path: "/partidos/$matchId/mesa", component: Marker("la mesa") }),
     createRoute({ getParentRoute: () => root, path: "/jugadores/$playerId", component: Marker("la página del jugador") }),
   ]);
   const router = createRouter({ routeTree: tree, history: createMemoryHistory({ initialEntries: [path] }) });

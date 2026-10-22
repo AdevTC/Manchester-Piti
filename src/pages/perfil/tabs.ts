@@ -2,6 +2,8 @@
 // tablist's keys. Pure, plus the first load's hash (the season sync may rewrite the URL before the page
 // reads it, like the pizarra's deeplink).
 
+import { profileHashAt } from "../../lib/interimScreens";
+
 export type TabId = "carta" | "temp" | "avisos" | "ajustes" | "cuenta" | "cap";
 export interface TabDef {
   id: TabId;
@@ -50,7 +52,8 @@ export function slideDir(from: TabId, to: TabId, ids: readonly TabId[]): "l" | "
   return ids.indexOf(to) >= ids.indexOf(from) ? "r" : "l";
 }
 
-const readHash = () => (typeof window === "undefined" ? "" : window.location.hash);
+// (each tab is an address now, /perfil/ajustes…: until Tú lands the address stands for the tab's old #hash)
+const readHash = () => (typeof window === "undefined" ? "" : window.location.hash || profileHashAt(window.location.pathname));
 let firstHash = readHash();
 /** The hash the URL asks for now, else the one the first load brought (until the page has used it). */
 export function deepHash(): string {

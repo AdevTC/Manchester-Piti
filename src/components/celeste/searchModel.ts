@@ -13,9 +13,48 @@ import { dateMillis } from "../../../functions/src/matchEngine";
 import { madridTime } from "../../lib/derived/madrid";
 import { rivalKey } from "../../lib/derived/rival";
 import { scoreText } from "../../lib/derived/words";
+import { clubHashPath, vestuarioHashPath } from "../../lib/legacyUrls";
+import { statsViewPath } from "../../lib/interimScreens";
 
 export type PanelKind = SearchKind | "ahora" | "accion";
 export type PanelTarget = SearchTarget | { to: "href"; href: string } | { to: "pip" } | { to: "match"; matchId: string; tab?: "vestuario" } | { to: "clubAt"; hash: string };
+/** Where a result leads, as an address of the app (null: «Sacar el marcador», which opens no page). */
+export function targetHref(t: PanelTarget): string | null {
+  const q = (params: Record<string, string | undefined>) => {
+    const s = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1])).toString();
+    return s ? `?${s}` : "";
+  };
+  switch (t.to) {
+    case "jugador":
+      return `/jugadores/${encodeURIComponent(t.playerId)}${q({ season: t.season })}`;
+    case "partido":
+      return `/partidos/${encodeURIComponent(t.matchId)}`;
+    case "match":
+      return `/partidos/${encodeURIComponent(t.matchId)}${t.tab ? `/${t.tab}` : ""}`;
+    case "partidos":
+      return `${t.view === "tabla" ? "/partidos/tabla" : "/partidos"}${q({ temporada: t.season })}`;
+    case "stats":
+      return statsViewPath(t.view ?? "summary") + (t.view === "minutes" ? q({ ranking: "minutos", ver: "todo" }) : "");
+    case "plantilla":
+      return "/plantilla";
+    case "club":
+      return "/club";
+    case "clubAt":
+      return clubHashPath(t.hash) ?? "/club";
+    case "vestuario":
+      // (#vx-mvp: the last vote, found once the matches are in — components/InterimLanding)
+      return t.hash ? (vestuarioHashPath(t.hash) ?? `/vestuario#${t.hash}`) : "/vestuario";
+    case "profile":
+      return "/perfil";
+    case "pizarra":
+      return "/pizarra";
+    case "href":
+      return t.href;
+    case "pip":
+      return null;
+  }
+}
+
 export interface PanelEntry extends Omit<SearchEntry, "kind" | "target"> {
   kind: PanelKind;
   target: PanelTarget;

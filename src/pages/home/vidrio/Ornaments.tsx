@@ -142,7 +142,7 @@ export function PreviaOrn({ match, jornada, weather, hourly, homeVenue, classNam
         </li>
       </ul>
       <div className="vi-orn-foot">
-        <Link className="vd-link" to="/matches/$matchId" params={{ matchId: match.id }}>
+        <Link className="vd-link" to="/partidos/$matchId" params={{ matchId: match.id }}>
           Toda la previa del partido
         </Link>
       </div>
@@ -272,7 +272,7 @@ export function MvpWinnerOrn({ winners, votes, total, of, deeds, matchId, kit = 
         )
       )}
       <div className="vi-orn-foot">
-        <Link className="vd-link" to="/matches/$matchId" params={{ matchId }}>
+        <Link className="vd-link" to="/partidos/$matchId" params={{ matchId }}>
           Leer el acta
         </Link>
       </div>
@@ -332,7 +332,7 @@ export function VieneOrn({ upcoming, jornadaOf, now, className }: { upcoming: re
                   {j ? `J${j}` : "·"}
                 </span>
                 <div className="vi-t">
-                  <Link to="/matches/$matchId" params={{ matchId: m.id }}>
+                  <Link to="/partidos/$matchId" params={{ matchId: m.id }}>
                     {m.home === false ? `En casa de ${m.rival ?? "rival"}` : `Contra ${m.rival ?? "rival por anunciar"}`}
                   </Link>
                   <span>{fixtureLine(m, now)}</span>

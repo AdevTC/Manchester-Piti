@@ -10,7 +10,7 @@ test("la portada «Vidrio»: el titular y la lente, los sitios de la repisa, la 
 
   // Hoy leads to the match (its plays, its previa, its acta) or to the calendar when there is none.
   const panel = page.getByRole("tabpanel");
-  await expect(panel.locator('a[href^="/matches/"], a[href="/partidos"]').first()).toBeVisible();
+  await expect(panel.locator('a[href^="/partidos/"], a[href="/partidos"]').first()).toBeVisible();
 
   // The shelf: a fan has Hoy, Temporada and Club (Tú is a jugador's).
   const shelf = page.getByRole("tablist", { name: "Sitios de Inicio" });

@@ -113,20 +113,22 @@ describe("small rules", () => {
     expect(moreText(14)).toBe("14 jugadas más");
     expect(pageKey("/")).toBe("inicio");
     expect(pageKey("/plantilla")).toBe("plantilla");
-    expect(pageKey("/matches/j1")).toBe("partido");
+    expect(pageKey("/partidos/j1")).toBe("partido");
+    expect(pageKey("/partidos/j1/siete")).toBe("partido");
+    expect(pageKey("/partidos/tabla")).toBe("partidos");
     expect(pageKey("/jugadores/erik")).toBe("jugador");
   });
 
   it("the float's resting spot per page: Inicio under the bar, low where the top-right is the page's own", () => {
     expect(floatHome("/")).toBe("centre");
-    for (const p of ["/partidos", "/matches/j3", "/profile"]) expect(floatHome(p)).toBe("bottom-right");
-    for (const p of ["/stats", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("right");
+    for (const p of ["/partidos", "/partidos/balance", "/partidos/j3", "/partidos/j3/vestuario", "/perfil", "/perfil/ajustes"]) expect(floatHome(p)).toBe("bottom-right");
+    for (const p of ["/numeros", "/numeros/jugadores", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("right");
   });
 
   it("«Sacar el marcador» rests bottom-right, above the float where the float rests there too", () => {
     expect(pipBottom("/")).toBe(24);
     expect(pipBottom("/plantilla")).toBe(24);
-    for (const p of ["/partidos", "/matches/j3", "/profile"]) expect(pipBottom(p)).toBe(110);
+    for (const p of ["/partidos", "/partidos/j3", "/perfil"]) expect(pipBottom(p)).toBe(110);
   });
 });
 

@@ -129,7 +129,7 @@ describe("Fichas", () => {
     mountAdmin("/admin/fichas", { fichas: Fichas });
     expect(await screen.findByRole("heading", { level: 3, name: "Cuentas al día" })).toBeInTheDocument();
     expect(document.querySelector(".void .sh")).toHaveClass("empty");
-    expect(screen.getByRole("link", { name: "Invitar desde La puerta" })).toHaveAttribute("href", "/vestuario#puerta");
+    expect(screen.getByRole("link", { name: "Invitar desde La puerta" })).toHaveAttribute("href", "/vestuario/puerta");
     expect(cards()).toHaveLength(0);
   });
 

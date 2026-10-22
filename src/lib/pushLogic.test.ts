@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { kickoffNotice, legacyKickoff, lineupNotice, noticesFor, TOPICS } from "../../functions/src/pushLogic";
-import { matchSearchSchema } from "./matchTabs";
 import { resultLetter, resultTitle } from "./derived/result";
 
 const NOW = Date.UTC(2026, 10, 8, 11, 20);
@@ -18,7 +17,7 @@ describe("push notices", () => {
         title: "¡Gol de ERIK!",
         body: "Minuto 19. Piti 1, MAD SKY 1.",
         tag: "goal-j8",
-        url: "/matches/j8",
+        url: "/partidos/j8",
         log: "goal-j8-live-1",
         actions: [
           { action: "open", title: "Abrir el partido" },
@@ -41,7 +40,7 @@ describe("push notices", () => {
   it("cards while it is played («Tarjetas», once each), never substitutions; nothing for goals in a finished acta's edit", () => {
     const before = { ...base, events: [] };
     expect(noticesFor("j8", before, { ...base, events: [g("y", 22, "e", "yellow_card")] }, nameOf, NOW)).toEqual([
-      { topic: "cards", title: "Amarilla a ERIK", body: "Minuto 22. Piti 0, MAD SKY 0.", tag: "card-j8", url: "/matches/j8", log: "card-j8-y" },
+      { topic: "cards", title: "Amarilla a ERIK", body: "Minuto 22. Piti 0, MAD SKY 0.", tag: "card-j8", url: "/partidos/j8", log: "card-j8-y" },
     ]);
     expect(noticesFor("j8", before, { ...base, events: [g("r", 50, undefined, "opponent_red")] }, nameOf, NOW)[0].title).toBe("Roja para MAD SKY");
     expect(noticesFor("j8", before, { ...base, events: [g("s", 30, "e", "substitution")] }, nameOf, NOW)).toEqual([]);
@@ -58,10 +57,8 @@ describe("push notices", () => {
       ["final", "Final: Manchester Piti 3–1 MAD SKY"],
       ["mvp", "Vota al MVP"],
     ]);
-    // the final opens the first tab (the crónica); the vote opens the match's Vestuario tab
-    expect(n.map((x) => x.url)).toEqual(["/matches/j7", "/matches/j7?tab=vestuario"]);
-    const tab = new URL(n[1].url, "https://piti.test").searchParams.get("tab");
-    expect(matchSearchSchema.parse({ tab }).tab).toBe("vestuario");
+    // the final opens the match page itself (the crónica); the vote opens its Vestuario screen
+    expect(n.map((x) => x.url)).toEqual(["/partidos/j7", "/partidos/j7/vestuario"]);
   });
   it("the «Final» push opens with the verdict, the result's own word (resultTitle)", () => {
     const fin = (gf: number, ga: number) => noticesFor("j7", { ...base, events: [] }, { ...base, status: "finished", goalsFor: gf, goalsAgainst: ga, events: [] }, nameOf, NOW).find((x) => x.topic === "final")!;
@@ -79,7 +76,7 @@ describe("push notices", () => {
   });
   it("archived matches never notify; kick-off notice", () => {
     expect(noticesFor("x", undefined, { ...base, date: NOW + 1e9, archived: true }, nameOf, NOW)).toEqual([]);
-    expect(kickoffNotice("j8", "MAD SKY")).toMatchObject({ topic: "start", title: "¡Empieza el partido! Piti vs MAD SKY", url: "/matches/j8" });
+    expect(kickoffNotice("j8", "MAD SKY")).toMatchObject({ topic: "start", title: "¡Empieza el partido! Piti vs MAD SKY", url: "/partidos/j8" });
   });
 });
 
@@ -121,7 +118,7 @@ describe("«Ya está el siete» (the official seven on the pizarra)", () => {
       title: "Ya está el siete",
       body: "Contra MAD SKY (domingo, 8 nov, 12:00): el capitán ya ha publicado el siete. Míralo en el partido.",
       tag: "lineup-b1-j8",
-      url: "/matches/j8?tab=campo",
+      url: "/partidos/j8/siete",
     });
     expect(TOPICS).toContain("lineup");
   });
@@ -135,7 +132,7 @@ describe("«Ya está el siete» (the official seven on the pizarra)", () => {
   });
   it("the season's official opens the board in its own season; a match's, the match's Campo", () => {
     expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: null, seasonId: "t2" }, null)?.url).toBe("/pizarra?tablero=b1&season=t2#charla");
-    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8", seasonId: "t2" }, j8)?.url).toBe("/matches/j8?tab=campo");
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8", seasonId: "t2" }, j8)?.url).toBe("/partidos/j8/siete");
   });
   it("its alcance changes: a new notice (with its own tag); edits of an official that stays put: none", () => {
     const off = { isOfficial: true, matchId: "j8" };

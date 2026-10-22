@@ -6,7 +6,7 @@ import { lateChangeNotice, reminderNotice } from "../../functions/src/remindersL
 const NOW = Date.UTC(2026, 9, 16, 10, 0);
 const HOUR = 3_600_000;
 const conv = convocatoriaMessage("m1", "first", { rival: "Rival FC", date: NOW + 48 * HOUR }, 5);
-const goal: Notice = { topic: "goals", title: "¡Gol! 1–0", body: "Marca NICO", tag: "goal-m1", url: "/matches/m1", log: "goal-m1-e1" };
+const goal: Notice = { topic: "goals", title: "¡Gol! 1–0", body: "Marca NICO", tag: "goal-m1", url: "/partidos/m1", log: "goal-m1-e1" };
 
 describe("Centro de avisos: qué se guarda y para quién", () => {
   it("los goles y el saque inicial (descanso, 2ª parte) no se guardan: ya los cuenta la isla", () => {
@@ -40,7 +40,7 @@ describe("Centro de avisos: qué se guarda y para quién", () => {
 describe("Centro de avisos: el documento", () => {
   it("lleva sus campos, caduca a los 60 días y solo lo personal lleva uid", () => {
     const team = noticeRecord(conv, undefined, NOW)!;
-    expect(team.doc).toEqual({ topic: "lineup", title: conv.title, body: conv.body, url: "/matches/m1", at: NOW, audience: "team", expireAt: NOW + NOTICE_TTL_MS });
+    expect(team.doc).toEqual({ topic: "lineup", title: conv.title, body: conv.body, url: "/partidos/m1", at: NOW, audience: "team", expireAt: NOW + NOTICE_TTL_MS });
     expect(NOTICE_TTL_MS).toBe(60 * 24 * HOUR);
     expect("uid" in team.doc).toBe(false);
     const mine = noticeRecord({ topic: "personal", title: "Tu ficha ya es tuya", body: "…", tag: "claim-u1", url: "/profile", log: "claim-u1-p1" }, "u1", NOW)!;

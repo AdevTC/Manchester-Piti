@@ -173,16 +173,16 @@ export function LiveSheet(props: LiveSheetProps) {
       )}
       <div className="vd-sheet__btns">
         {model.action?.kind === "mesa" && (
-          <Link className="vd-glass vd-btn vd-btn--sm vd-btn--pri vd-press" to="/matches/$matchId/mesa" params={{ matchId }}>
+          <Link className="vd-glass vd-btn vd-btn--sm vd-btn--pri vd-press" to="/partidos/$matchId/mesa" params={{ matchId }}>
             {model.action.label}
           </Link>
         )}
         {model.action?.kind === "votar" && (
-          <Link className="vd-glass vd-btn vd-btn--sm vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId }} search={{ tab: "vestuario" }}>
+          <Link className="vd-glass vd-btn vd-btn--sm vd-btn--pri vd-press" to="/partidos/$matchId/vestuario" params={{ matchId }}>
             {model.action.label}
           </Link>
         )}
-        <Link className={`vd-glass vd-btn vd-btn--sm vd-press${model.action ? "" : " vd-btn--pri"}`} to="/matches/$matchId" params={{ matchId }} viewTransition={transition && !!vtName}>
+        <Link className={`vd-glass vd-btn vd-btn--sm vd-press${model.action ? "" : " vd-btn--pri"}`} to="/partidos/$matchId" params={{ matchId }} viewTransition={transition && !!vtName}>
           {model.open}
         </Link>
         {onPip && (

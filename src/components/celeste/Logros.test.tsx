@@ -72,10 +72,10 @@ describe("Logros", () => {
     expect(items).toHaveLength(3);
     expect(items[0]).toHaveTextContent("Hat-trick");
     const hat = within(items[0]).getByRole("link", { name: "12 oct · vs Rayo" });
-    expect(hat).toHaveAttribute("href", "/matches/m9");
+    expect(hat).toHaveAttribute("href", "/partidos/m9");
     expect(items[1]).toHaveTextContent("10 partidosBronce");
-    expect(within(items[1]).getByRole("link")).toHaveAttribute("href", "/matches/m5");
-    expect(within(items[2]).getByRole("link", { name: "3 may 2025 · vs Atlético Bajo" })).toHaveAttribute("href", "/matches/m1");
+    expect(within(items[1]).getByRole("link")).toHaveAttribute("href", "/partidos/m5");
+    expect(within(items[2]).getByRole("link", { name: "3 may 2025 · vs Atlético Bajo" })).toHaveAttribute("href", "/partidos/m1");
     expect(screen.getByText("de 8 logros", { exact: false })).toHaveTextContent("3 de 8 logros");
   });
 

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { Outlet, Link, useRouterState } from "@tanstack/react-router";
 import { Navbar } from "./components/Navbar";
 import { SeasonUrlSync } from "./components/SeasonUrlSync";
+import { InterimLanding } from "./components/InterimLanding";
 import { useAuth } from "./context/AuthContext";
 import { useTeam } from "./context/TeamContext";
 import { Crest } from "./components/Crest";
@@ -33,10 +34,10 @@ export function RootLayout() {
   const lost = useRouterState({ select: (s) => s.matches.some((m) => m.routeId === "/$" || m.status === "notFound") });
   // Every page the app shows, by history entry: «Volver» knows whether the one behind is ours.
   useRecordTrail();
-  const privatePage = ["/admin", "/profile", "/pizarra", "/vestuario"].some((p) => under(pathname, p));
+  const privatePage = ["/admin", "/perfil", "/avisos", "/pizarra", "/vestuario"].some((p) => under(pathname, p));
   const adminPath = under(pathname, "/admin");
   // La mesa is the live match itself: the floating score would sit on its scoreboard.
-  const mesaPath = /^\/matches\/[^/]+\/mesa\/?$/.test(pathname);
+  const mesaPath = /^\/partidos\/[^/]+\/mesa\/?$/.test(pathname);
   // (the pizarra has its own live plate and the mesa's pitch: the score would cover its header)
   const pizarraPath = /^\/pizarra\/?$/.test(pathname);
   const invitation = pathname.startsWith("/invitacion/");
@@ -53,7 +54,7 @@ export function RootLayout() {
   const adminApp = adminPath && (checking || (!door && admin));
   // A member who is not a captain, on /admin: a Celeste page that sends him back to the vestuario.
   const adminDoor = adminPath && !checking && !door && !admin;
-  const immersive = adminApp || adminDoor || lost || pathname === "/" || pathname === "/plantilla" || pathname === "/partidos" || pathname === "/stats" || pathname === "/club" || pathname.startsWith("/matches/") || pathname.startsWith("/jugadores/") || ((pathname === "/vestuario" || pathname === "/pizarra" || pathname === "/profile") && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
+  const immersive = adminApp || adminDoor || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/numeros", "/club", "/jugadores", "/buscar"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra", "/perfil", "/avisos"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
@@ -66,6 +67,7 @@ export function RootLayout() {
       </a>
       {!immersive && <Navbar />}
       <SeasonUrlSync />
+      <InterimLanding />
       {!adminPath && !mesaPath && !pizarraPath && (
         <Suspense fallback={null}>
           <LiveScore />

@@ -156,7 +156,7 @@ export function PizarraPage() {
                 {prefs.snd ? <Icon n="sndOn" w={19} /> : <Icon n="sndOff" w={19} />}
               </button>
               <ThemeButton dark={theme === "dark"} onToggle={toggleTheme} />
-              <Link className={"vx-avatar" + (isAdmin ? " cap" : "")} to="/profile" aria-label={"Tu perfil: " + nick}>
+              <Link className={"vx-avatar" + (isAdmin ? " cap" : "")} to="/perfil" aria-label={"Tu perfil: " + nick}>
                 {initials(nick)}
               </Link>
             </>

@@ -78,6 +78,6 @@ export async function showTestNotice(title: string, body: string): Promise<void>
     icon: "/crest-icon.png",
     badge: "/crest-icon.png",
     tag: "piti-prueba",
-    data: { url: "/profile#avisos" },
+    data: { url: "/avisos/a-medida" },
   });
 }

@@ -226,6 +226,6 @@ export function matchEvent(m: { id: string; date?: unknown; rival?: string | nul
     start,
     end: start + (m.duration ?? 60) * 60_000 + 30 * 60_000,
     location: m.venue ?? undefined,
-    url: `${origin}/matches/${m.id}`,
+    url: `${origin}/partidos/${m.id}`,
   };
 }

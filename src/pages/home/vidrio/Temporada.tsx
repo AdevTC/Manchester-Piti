@@ -229,7 +229,7 @@ export function SeasonTiles({ segments, now, postponed }: { segments: readonly S
         const now_ = s.state === "directo" || s.state === "hoy";
         return (
           <li key={s.id}>
-            <Link className={`vi-tile${INK.has(light) ? " vi-tile--ink" : ""}${now_ ? " vi-tile--now" : ""}`} to="/matches/$matchId" params={{ matchId: s.id }} style={{ "--sky": SKY[light] } as CSSProperties} aria-label={segLabel(s, postponed)}>
+            <Link className={`vi-tile${INK.has(light) ? " vi-tile--ink" : ""}${now_ ? " vi-tile--now" : ""}`} to="/partidos/$matchId" params={{ matchId: s.id }} style={{ "--sky": SKY[light] } as CSSProperties} aria-label={segLabel(s, postponed)}>
               <b aria-hidden="true">{s.jornada ? `J${s.jornada}` : "·"}</b>
               <span className="vi-tile__txt" aria-hidden="true">
                 <span className="vi-tile__rv">{s.rival}</span>
@@ -273,7 +273,7 @@ export function SeasonSlivers({ segments, postponed }: { segments: readonly Stri
                     : "";
         return (
           <li key={s.id}>
-            <Link className={`vi-sl ${cls}`} to="/matches/$matchId" params={{ matchId: s.id }} aria-label={segLabel(s, postponed)} title={segLabel(s, postponed)}>
+            <Link className={`vi-sl ${cls}`} to="/partidos/$matchId" params={{ matchId: s.id }} aria-label={segLabel(s, postponed)} title={segLabel(s, postponed)}>
               <b aria-hidden="true">{s.jornada ?? "·"}</b>
               <small aria-hidden="true">{bot}</small>
             </Link>

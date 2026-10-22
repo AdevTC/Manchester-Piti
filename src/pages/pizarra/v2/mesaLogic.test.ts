@@ -36,7 +36,7 @@ describe("desdeMesaOf", () => {
     expect(desdeMesaOf({ partido: "m1" }).on).toBe(false);
   });
   it("la vuelta y el nombre de la copia", () => {
-    expect(mesaHref("m 1")).toBe("/matches/m%201/mesa");
+    expect(mesaHref("m 1")).toBe("/partidos/m%201/mesa");
     expect(fieldCopyName(7)).toBe("Siete del campo · J7");
     expect(fieldCopyName(null)).toBe("Siete del campo");
   });
