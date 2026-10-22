@@ -48,6 +48,18 @@ export function interimStatsSearch(search: Search, pathname: string): Search {
   return out;
 }
 
+/** Números' Spanish params that today's page reads as its English ones. */
+const STATS_SPANISH = ["partidos", "jugadores", "temporada", "equipo", "parte", "familia", "metrica", "fuera-del-audio"];
+/** What today's Números page writes back over: its English fields, with the Spanish ones read into them and
+ *  dropped, so a filter that arrived in Spanish («Abrir esta selección en Números») can be changed or removed. */
+export function statsSearchToWrite(search: Search, pathname: string): Search {
+  const out = interimStatsSearch(search, pathname);
+  for (const key of STATS_SPANISH) delete out[key];
+  // (the catalogue screen says it already: not written into the address)
+  if (search.analysis === undefined) delete out.analysis;
+  return out;
+}
+
 /** The address of today's Números view (the page's own tabs move between screens). */
 export type StatsScreenPath =
   | "/numeros"

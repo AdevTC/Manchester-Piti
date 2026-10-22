@@ -6,7 +6,7 @@ import { inScope, scopeSeasons, type AnalysisSearch, type StatsScopeSearch } fro
 // From the Design canvas "Estadísticas · elegida"; pure logic in lib/clubAnalytics.ts + lib/statsView.ts.
 import { useMemo } from "react";
 import { Link, useLocation, useNavigate, useSearch } from "@tanstack/react-router";
-import { interimStatsSearch, statsViewAt, statsViewPath } from "../../lib/interimScreens";
+import { interimStatsSearch, statsSearchToWrite, statsViewAt, statsViewPath } from "../../lib/interimScreens";
 import type { StatsSearch } from "../../router";
 import { ALL_SEASONS_LABEL } from "../../lib/useSetSeason";
 import { nextFixture, playerForSeason, nameFor, useClubData, formatDate } from "../../lib/clubData";
@@ -70,12 +70,14 @@ export function StatsPage() {
   const at = statsViewAt(pathname, search);
   const view: View = at.view;
   const section: ExploreSection = at.section ?? "individual";
+  // Every write starts from the page's own fields (Números' Spanish ones read into them and dropped).
+  const own = (prev: Record<string, unknown>) => statsSearchToWrite(prev, pathname);
   // (Comparar's pair goes with Comparar: any other view's URL is clean to share)
   const setView = (next: View) =>
     void navigate({
       to: statsViewPath(next),
       search: (prev: Record<string, unknown>) => {
-        const rest = { ...prev };
+        const rest = own(prev);
         delete rest.view;
         delete rest.section;
         delete rest.ranking;
@@ -88,12 +90,12 @@ export function StatsPage() {
       },
       resetScroll: false,
     });
-  const setSection = (next: ExploreSection) => void navigate({ to: statsViewPath("explore", next), search: (prev: Record<string, unknown>) => prev, resetScroll: false });
+  const setSection = (next: ExploreSection) => void navigate({ to: statsViewPath("explore", next), search: (prev: Record<string, unknown>) => own(prev), resetScroll: false });
   // Comparar's pair: replace, so trying player after player doesn't flood the history
-  const setPair = (a: string, b: string | undefined) => void navigate({ to: ".", search: (prev) => ({ ...prev, a, b }), replace: true, resetScroll: false });
-  const updateScope = (patch: StatsScopeSearch) => void navigate({ to: ".", search: (prev) => ({ ...prev, ...patch, ...(patch.seasons !== undefined ? { season: "all", matches: undefined } : {}), ...(patch.players?.length ? { team: "us" as const } : {}) }), resetScroll: false });
-  const updateAnalysis = (patch: Partial<AnalysisSearch>) => void navigate({ to: ".", search: (prev) => ({ ...prev, ...patch }), replace: !!patch.q, resetScroll: false });
-  const clearScope = () => void navigate({ to: ".", search: (prev) => ({ ...prev, season: "all", seasons: undefined, matches: undefined, players: undefined, team: undefined, period: undefined }), resetScroll: false });
+  const setPair = (a: string, b: string | undefined) => void navigate({ to: ".", search: (prev) => ({ ...(own(prev) as typeof prev), a, b }), replace: true, resetScroll: false });
+  const updateScope = (patch: StatsScopeSearch) => void navigate({ to: ".", search: (prev) => ({ ...(own(prev) as typeof prev), ...patch, ...(patch.seasons !== undefined ? { season: "all", matches: undefined } : {}), ...(patch.players?.length ? { team: "us" as const } : {}) }), resetScroll: false });
+  const updateAnalysis = (patch: Partial<AnalysisSearch>) => void navigate({ to: ".", search: (prev) => ({ ...(own(prev) as typeof prev), ...patch }), replace: !!patch.q, resetScroll: false });
+  const clearScope = () => void navigate({ to: ".", search: (prev) => ({ ...(own(prev) as typeof prev), season: "all", seasons: undefined, matches: undefined, players: undefined, team: undefined, period: undefined }), resetScroll: false });
   const pluralSeasons = search.seasons;
   const seasonIds = useMemo(() => scopeSeasons({ seasons: pluralSeasons }, selectedSeasonId), [pluralSeasons, selectedSeasonId]);
   const effectiveSeason = seasonIds.length === 1 ? seasonIds[0] : "all";
