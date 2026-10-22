@@ -20,7 +20,7 @@ export { liveEvent } from "./live.js";
 export { publishLive } from "./publishLive.js";
 export { savePrediction } from "./savePrediction.js";
 export { controlMatchClock, setMatchScorers } from "./liveClock.js";
-export { pushSubscribe, pushSetPreset, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview, rotaTurnsOnWrite } from "./push.js";
+export { pushSubscribe, pushSetPreset, pushSetMatchTopics, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview, rotaTurnsOnWrite } from "./push.js";
 export { pushReminders, pushOnAnswer } from "./reminders.js";
 export { onAbsenceWritten } from "./absences.js";
 export { onPollCreated, onPollDeleted } from "./polls.js";

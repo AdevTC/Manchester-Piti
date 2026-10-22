@@ -35,6 +35,9 @@ export interface Notice {
   actions?: readonly NoticeAction[];
   /** The match those actions answer (the service worker opens /vestuario?rsvp=<action>&m=<matchId>). */
   matchId?: string;
+  /** The topic it answers to in a match's own avisos (pushMatchTopics.ts) when not its `topic`: the descanso
+   *  goes on «start» but is «Descanso y final» in the match's sheet. */
+  matchTopic?: Topic;
 }
 
 /** A button of a notice (the Notification API's `actions`): its id, which the service worker reads on
@@ -210,7 +213,7 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
     // new). The descanso and the 2ª parte share the kick-off's tag: the phone keeps the latest.
     const was = before?.clock?.phase ?? "ready";
     const phase = after.clock?.phase;
-    if (before && was === "first" && phase === "halftime") out.push({ topic: "start", title: `Descanso · ${gf}–${ga}`, body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `half-${id}` });
+    if (before && was === "first" && phase === "halftime") out.push({ topic: "start", title: `Descanso · ${gf}–${ga}`, body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `half-${id}`, matchTopic: "final" });
     if (before && was === "halftime" && phase === "second") out.push({ topic: "start", title: "Arranca la 2ª parte", body: `${score}. Sigue el directo en la web.`, tag: `start-${id}`, url, log: `second-${id}` });
     // The final whistle (clock ended), before the acta: provisional, with the acta's «Final» tag so the
     // official one replaces it on the phone when the captain publishes — and never after the official

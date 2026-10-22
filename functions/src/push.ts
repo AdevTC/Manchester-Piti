@@ -8,20 +8,21 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
-import { FieldValue, Timestamp, type DocumentData } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, type DocumentData } from "firebase-admin/firestore";
 import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
-import { db, googleUser, memberAs, parse } from "./common.js";
+import { db, googleUser, idSchema, memberAs, parse } from "./common.js";
 import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
-import { presetAllows, presetOf, presetTopics, PUSH_PRESETS } from "./pushPresets.js";
+import { presetOf, presetTopics, PUSH_PRESETS } from "./pushPresets.js";
+import { deviceGets, isMatchTopic, MATCH_TOPICS, nextMatchTopics, noticeMatchTopic, type MatchInfo } from "./pushMatchTopics.js";
 import { nameFor } from "./names.js";
 import { isGuestId } from "./guests.js";
 import { noticeRecord } from "./noticesLogic.js";
 import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
 import { absencesOnMatch } from "./absenceAnswers.js";
-import { matchActive, matchActiveTx, noticeMatchId, runOptionalMatchTransaction } from './matchAccess.js';
+import { archivedMatch, matchActive, matchActiveTx, noticeMatchId, runOptionalMatchTransaction } from './matchAccess.js';
 import { freezeOnMatch, notifyRota, notifyRotaChange } from "./rota.js";
 
 export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
@@ -114,6 +115,52 @@ export async function forgetMemberDevices(uid: string): Promise<void> {
   await batch.commit();
 }
 
+/**
+ * «Avisos de este partido»: a device's own choice for one match, by its endpoint (the device's own secret, as
+ * for pushSetPreset): `topics` (the match topics only; [] = nothing of this match) becomes its override for
+ * `matchId`, `null` drops it (its global topics decide again). sendTo honours it (pushMatchTopics.ts). The
+ * overrides are tidied on every write: gone, archived or long-finished matches go, and the oldest beyond a
+ * dozen. A device the server doesn't have is made only when the app sends its `keys` (its first notice ever,
+ * from the match's sheet): it then has no global topics, just this match. A device left with neither global
+ * topics nor any override is forgotten.
+ */
+export const pushSetMatchTopics = onCall(async (req) => {
+  const input = parse(
+    z.object({
+      endpoint: z.url().refine((u) => u.startsWith("https://"), "Suscripción no válida."),
+      keys: subscription.shape.keys.optional(),
+      matchId: idSchema,
+      topics: z.array(z.enum(MATCH_TOPICS)).max(MATCH_TOPICS.length).nullable(),
+    }),
+    req.data,
+  );
+  const match = await db.doc(`matches/${input.matchId}`).get();
+  if (!match.exists || archivedMatch(match.data())) throw new HttpsError("not-found", "Este partido ya no está.");
+  const ref = db.doc(`pushSubscriptions/${subId(input.endpoint)}`);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists && !(input.topics?.length && input.keys)) {
+      if (!input.topics?.length) return { matchTopics: {} as Record<string, string[]>, kept: false };
+      throw new HttpsError("not-found", "Este dispositivo ya no recibe avisos.");
+    }
+    // (what the other overrides' matches are now, read outside the transaction: a live match's writes never wait on this)
+    const others = Object.keys((snap.get("matchTopics") as Record<string, unknown> | undefined) ?? {}).filter((id) => id !== input.matchId && idSchema.safeParse(id).success);
+    const infos = new Map<string, MatchInfo>();
+    const docs = others.length ? await db.getAll(...others.map((id) => db.doc(`matches/${id}`))) : [];
+    for (const d of docs) infos.set(d.id, { exists: d.exists, archived: archivedMatch(d.data()), status: d.get("status") as string | undefined, date: (d.get("date") as Timestamp | undefined)?.toMillis?.() ?? null });
+    const next = nextMatchTopics({ matchTopics: snap.get("matchTopics"), matchTopicsAt: snap.get("matchTopicsAt") }, input.matchId, input.topics, infos, Date.now());
+    const global = Array.isArray(snap.get("topics")) ? (snap.get("topics") as unknown[]) : [];
+    if (!global.length && !Object.values(next.matchTopics).some((t) => t.length)) {
+      if (snap.exists) tx.delete(ref);
+      return { matchTopics: {}, kept: false };
+    }
+    if (snap.exists) tx.update(ref, { matchTopics: next.matchTopics, matchTopicsAt: next.matchTopicsAt, updatedAt: FieldValue.serverTimestamp() });
+    // (a device the server didn't have: this match only; its global choice is still «Nada»)
+    else tx.set(ref, { endpoint: input.endpoint, keys: input.keys, topics: [], preset: presetOf([]), matchTopics: next.matchTopics, matchTopicsAt: next.matchTopicsAt, updatedAt: FieldValue.serverTimestamp() });
+    return { matchTopics: next.matchTopics, kept: true };
+  });
+});
+
 export const pushUnsubscribe = onCall(async (req) => {
   const input = parse(z.object({ endpoint: z.url() }), req.data);
   await db.doc(`pushSubscriptions/${subId(input.endpoint)}`).delete();
@@ -132,11 +179,18 @@ export async function sendTo(notice: Notice, uid?: string) {
   let q: FirebaseFirestore.Query = db.collection("pushSubscriptions");
   if (who.topic) q = q.where("topics", "array-contains", who.topic);
   if (who.uid) q = q.where("uid", "==", who.uid);
-  const subs = await q.get();
+  // «Avisos de este partido»: the devices that chose this match's notices of this kind, whatever their
+  // global topics (merged with the ones on the topic, once each).
+  const about = notice.matchId ?? matchId;
+  const own = about && who.topic && !who.uid && isMatchTopic(noticeMatchTopic(notice)) ? db.collection("pushSubscriptions").where(new FieldPath("matchTopics", about), "array-contains", noticeMatchTopic(notice)).get() : null;
+  const [subs, chose] = await Promise.all([q.get(), own]);
+  const found = new Map(subs.docs.map((d) => [d.id, d]));
+  for (const d of chose?.docs ?? []) found.set(d.id, d);
   // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
-  if (subs.empty) return;
-  // «Avisos a medida»: «Solo goles» gets only the goals (not even the personal notices), «Nada» nothing.
-  const devices = subs.docs.filter((d) => presetAllows(d.get("preset"), notice.topic));
+  if (!found.size) return;
+  // A device's choice for this match decides alone; otherwise «Avisos a medida»: «Solo goles» gets only
+  // the goals (not even the personal notices), «Nada» nothing (pushMatchTopics.ts deviceGets).
+  const devices = [...found.values()].filter((d) => deviceGets({ preset: d.get("preset"), matchTopics: d.get("matchTopics") }, notice, about));
   if (!devices.length) return;
   webpush.setVapidDetails(SITE, VAPID_PUBLIC, vapidPrivate.value());
   await Promise.all(
