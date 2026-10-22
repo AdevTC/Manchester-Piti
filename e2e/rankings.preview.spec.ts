@@ -27,7 +27,7 @@ test("los goleadores empatados conservan puesto y medalla entre partidos, planti
   await expect(page.locator(".hm-race").getByLabel("Puesto 1, compartido")).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-  await page.goto("/stats?season=preview-season");
+  await page.goto("/numeros?temporada=preview-season");
   const leaders = page.getByRole("list", { name: "Líderes del período" });
   await expect(leaders.getByRole("link", {name:"Hugo",exact:true})).toBeVisible();
   await expect(leaders.getByRole("link", {name:"Mario",exact:true})).toBeVisible();

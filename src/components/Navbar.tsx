@@ -13,7 +13,7 @@ const links = [
   { to: "/", name: "Inicio", icon: Home },
   { to: "/partidos", name: "Partidos", icon: CalendarDays },
   { to: "/plantilla", name: "Plantilla", icon: Users },
-  { to: "/stats", name: "Estadísticas", icon: ChartNoAxesColumnIncreasing },
+  { to: "/numeros", name: "Estadísticas", icon: ChartNoAxesColumnIncreasing },
 ] as const;
 export function Navbar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -47,7 +47,7 @@ export function Navbar() {
               search={{}}
               className={
                 path === l.to ||
-                (l.to === "/partidos" && path.startsWith("/matches/"))
+                (l.to !== "/" && path.startsWith(l.to + "/"))
                   ? "active"
                   : ""
               }

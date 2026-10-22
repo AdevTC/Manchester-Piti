@@ -142,7 +142,7 @@ describe("Inicio", () => {
     state.scorers = ["u1"];
     render(<HomePage />);
     const first = screen.getByRole("link", { name: "Abrir la mesa" });
-    expect(first).toHaveAttribute("href", "/matches/j1/mesa");
+    expect(first).toHaveAttribute("href", "/partidos/j1/mesa");
   });
 
   it("«Avisarme del pitido» stays where this browser can't take notices, and says why", () => {
@@ -159,7 +159,7 @@ describe("Inicio", () => {
     expect(within(lens).getByRole("group", { name: /minuto a minuto/ })).toBeInTheDocument();
     const plays = screen.getByRole("region", { name: "Jugada a jugada" });
     expect(within(plays).getByText("Gol de Adrián T.C.")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Abrir el partido" })[0]).toHaveAttribute("href", "/matches/j1");
+    expect(screen.getAllByRole("link", { name: "Abrir el partido" })[0]).toHaveAttribute("href", "/partidos/j1");
     expect(within(screen.getByRole("region", { name: "En el campo" })).getAllByRole("listitem")).toHaveLength(7);
   });
 
@@ -191,7 +191,7 @@ describe("Inicio", () => {
     expect(within(panel).getByRole("button", { name: "Si acaba así" })).toHaveAttribute("aria-pressed", "true");
     expect(within(panel).getByRole("row", { name: /Manchester Piti/ })).toHaveTextContent(/sube al 1º/);
     expect(within(panel).getByRole("list", { name: /La forma/ })).toBeInTheDocument();
-    expect(within(panel).getByRole("link", { name: /^J1, contra Orduña fc: en directo, 2–1/ })).toHaveAttribute("href", "/matches/j1");
+    expect(within(panel).getByRole("link", { name: /^J1, contra Orduña fc: en directo, 2–1/ })).toHaveAttribute("href", "/partidos/j1");
   });
 
   it("a jugador gets «Tú»: what waits on him, his convocatoria to answer", () => {

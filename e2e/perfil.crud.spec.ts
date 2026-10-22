@@ -28,7 +28,7 @@ test("el perfil: la carta, tu nombre, el apodo, las pestañas, el tema, comparti
   });
 
   await enterVestuario(page);
-  await page.goto("/profile");
+  await page.goto("/perfil");
   await expect(page.getByRole("heading", { level: 1, name: /^Tu perfil · / })).toBeAttached();
   await expect(page.locator("#pe-top button.cd")).toBeVisible();
   await expect(page.getByText(/^Videomarcador: /)).toBeAttached();

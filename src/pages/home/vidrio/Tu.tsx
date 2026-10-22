@@ -196,7 +196,7 @@ function Mine({ t, porraLine }: { t: TuData; porraLine: string }) {
             <b>Tu carta</b>
             <span>Tu dorsal, tu media y lo que llevas esta temporada.</span>
           </div>
-          <Link className="vd-link" to="/profile" aria-label="Tu carta, en tu perfil">
+          <Link className="vd-link" to="/perfil" aria-label="Tu carta, en tu perfil">
             Verla
           </Link>
         </li>

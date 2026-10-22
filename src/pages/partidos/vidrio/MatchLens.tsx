@@ -452,7 +452,7 @@ function Directo({ seg, ctx, onGrowPlays, playsVt, onPip, pipOpen }: { seg: Stri
           )}
           <div className="vp-acts">
             {/* (tonight's score lands on the match page's scoreboard: one view transition across the pages) */}
-            <Link className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId: m.id }} viewTransition={ctx.tonight && !reduced}>
+            <Link className="vd-glass vd-btn vd-btn--pri vd-press" to="/partidos/$matchId" params={{ matchId: m.id }} viewTransition={ctx.tonight && !reduced}>
               Abrir el partido
             </Link>
             <button type="button" className="vd-glass vd-btn vd-press" onClick={onPip} aria-pressed={pipOpen}>
@@ -585,7 +585,7 @@ function Acta({ seg, ctx, onCartel }: { seg: StripSegment; ctx: LensCtx; onCarte
         <div className="vp-cron">
           <h3 className="vp-k">La crónica</h3>
           <p>{report || (seg.provisional ? "La crónica llega con el acta." : "Este partido no tiene crónica.")}</p>
-          <Link className="vd-link" to="/matches/$matchId" params={{ matchId: m.id }}>
+          <Link className="vd-link" to="/partidos/$matchId" params={{ matchId: m.id }}>
             {report ? "Leer la crónica entera" : "Ver el partido"}
           </Link>
         </div>
@@ -641,7 +641,7 @@ function Still({ seg, kind }: { seg: StripSegment; kind: "aplazado" | "suspendid
             </Suspense>
           )}
           {kind !== "aplazado" && (
-            <Link className="vd-glass vd-btn vd-btn--sm vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
+            <Link className="vd-glass vd-btn vd-btn--sm vd-press" to="/partidos/$matchId" params={{ matchId: m.id }}>
               Ver el partido
             </Link>
           )}

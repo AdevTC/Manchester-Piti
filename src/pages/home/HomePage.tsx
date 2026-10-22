@@ -381,7 +381,7 @@ export function HomePage() {
     // the anotador opens la mesa from here, before anything else
     if (role === "anotador" && (isAhead(phase) || live))
       actions.push(
-        <Link key="mesa" className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId/mesa" params={{ matchId: m.id }}>
+        <Link key="mesa" className="vd-glass vd-btn vd-btn--pri vd-press" to="/partidos/$matchId/mesa" params={{ matchId: m.id }}>
           <Ico id="whistle" />
           Abrir la mesa
         </Link>,
@@ -398,7 +398,7 @@ export function HomePage() {
       );
     } else if (live || phase === "final" || phase === "pendiente") {
       actions.push(
-        <Link key="open" className={`vd-glass vd-btn${pri} vd-press`} to="/matches/$matchId" params={{ matchId: m.id }} viewTransition={!reduced}>
+        <Link key="open" className={`vd-glass vd-btn${pri} vd-press`} to="/partidos/$matchId" params={{ matchId: m.id }} viewTransition={!reduced}>
           Abrir el partido
         </Link>,
       );
@@ -411,7 +411,7 @@ export function HomePage() {
         );
     } else if (phase === "acta" || phase === "despues") {
       actions.push(
-        <Link key="acta" className="vd-glass vd-btn vd-btn--pri vd-press" to="/matches/$matchId" params={{ matchId: m.id }}>
+        <Link key="acta" className="vd-glass vd-btn vd-btn--pri vd-press" to="/partidos/$matchId" params={{ matchId: m.id }}>
           Leer el acta
         </Link>,
         <button key="cartel" type="button" className="vd-glass vd-btn vd-press" aria-haspopup="dialog" aria-expanded={cartelOpen} onClick={() => setCartelOpen(true)}>

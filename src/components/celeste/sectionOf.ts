@@ -4,11 +4,11 @@ import { under } from "../../lib/paths";
 
 /** Which section a path belongs to: the header's subtitle and the nav item lit (none for a 404). */
 export function sectionOf(pathname: string): { active?: CelestePage; sub: string } {
-  if (pathname === "/") return { active: "inicio", sub: "Manchester Piti" };
-  if (pathname === "/partidos" || pathname.startsWith("/matches/")) return { active: "partidos", sub: "Partidos" };
-  if (pathname === "/plantilla" || pathname.startsWith("/jugadores/")) return { active: "plantilla", sub: "Plantilla" };
-  if (pathname === "/stats") return { active: "stats", sub: "Estadísticas" };
-  if (pathname === "/club") return { active: "club", sub: "El club" };
-  if (["/vestuario", "/profile", "/pizarra"].some((p) => under(pathname, p))) return { active: "vestuario", sub: "Vestuario" };
+  if (pathname === "/" || pathname === "/camiseta" || under(pathname, "/hoy")) return { active: "inicio", sub: "Manchester Piti" };
+  if (under(pathname, "/partidos")) return { active: "partidos", sub: "Partidos" };
+  if (under(pathname, "/plantilla") || pathname.startsWith("/jugadores/")) return { active: "plantilla", sub: "Plantilla" };
+  if (under(pathname, "/numeros")) return { active: "stats", sub: "Números" };
+  if (under(pathname, "/club")) return { active: "club", sub: "El club" };
+  if (["/vestuario", "/perfil", "/avisos", "/pizarra"].some((p) => under(pathname, p))) return { active: "vestuario", sub: "Vestuario" };
   return { sub: "Manchester Piti" };
 }

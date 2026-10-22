@@ -67,7 +67,7 @@ const dani = await noticesOf("dani");
 assert.equal(hugo.length, 1, "Hugo gets one notice");
 assert.match(hugo[0].title, /^Te toca lavar la equipación tras el partido del /);
 assert.match(hugo[0].body, /Si no puedes, marca «No puedo» y pasa al siguiente\./);
-assert.equal(hugo[0].url, `/matches/${p("next")}?tab=vestuario`);
+assert.equal(hugo[0].url, `/partidos/${p("next")}/vestuario`);
 assert.equal(dani.length, 1, "Dani gets the car's");
 assert.match(dani[0].title, /^Te toca poner el coche en el partido del /);
 assert.equal((await noticesOf("leo")).length, 0, "Leo said «No puedo»: nothing");
@@ -106,7 +106,7 @@ for (const k of ["hugo", "dani", "leo"]) assert.equal(await logged("m2", "lavar"
 // one is told, once. History before «later»: m1 (Lava Hugo), m2 (Lava Dani, Coche Leo) → Lava Leo, Coche Dani.
 const conv = (k) => db.doc(`pushLog/conv-${p(k)}`).set({ at: Timestamp.now(), matchId: p(k) });
 const sayNo = (m, k) => db.doc(`matchPrivate/${p(m)}/availability/uid-${p(k)}`).set({ response: "no", name: k, playerId: p(k), at: Timestamp.now() });
-const noticesFor = async (m, k) => (await noticesOf(k)).filter((n) => n.url === `/matches/${p(m)}?tab=vestuario`);
+const noticesFor = async (m, k) => (await noticesOf(k)).filter((n) => n.url === `/partidos/${p(m)}/vestuario`);
 await match("later", now + 20 * DAY, "scheduled", false);
 await conv("later");
 await notifyRota(p("later"));

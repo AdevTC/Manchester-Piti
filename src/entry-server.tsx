@@ -14,6 +14,9 @@ import { mapStandings } from "./lib/standings";
 import type { ClubContent } from "./lib/clubContentDefaults";
 import { inQueryOrder, parseBundle, type BundleDoc } from "./ssr/bundleData";
 
+// The old addresses the server answers with a permanent redirect (api/render.js), from the router's own table.
+export { legacyHref } from "./lib/legacyUrls";
+
 const mapAll = <T,>(docs: BundleDoc[], map: (id: string, data: unknown) => T | null) =>
   docs.flatMap((d) => {
     const v = map(d.id, d.data);

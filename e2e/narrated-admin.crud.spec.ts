@@ -86,7 +86,7 @@ test('el administrador corrige, añade y borra detalles de un acta publicada y c
     await page.getByRole('button', { name: 'Consultar historial privado' }).click();
     await page.locator('.ae-history details').filter({ hasText: '1 fuentes' }).first().locator('summary').click();
     await expect(page.getByText(quote, { exact: true })).toBeVisible();
-    await page.goto(`/matches/${matchId}?tab=estadisticas`);
+    await page.goto(`/partidos/${matchId}/numeros`);
     await expect(page.getByRole('button', { name: /^Total .*: Pases intentados,/ }).locator('strong')).toHaveText('1');
     await page.goto(`/admin/partidos/${matchId}?tab=acta`);
     const pass = page.locator('.ae-review-events > li').filter({ has: page.getByText('Pase', { exact: true }) });
@@ -95,7 +95,7 @@ test('el administrador corrige, añade y borra detalles de un acta publicada y c
     await expect.poll(savedNumbers).toEqual({ minutes: 3, passes: 0 });
     await page.reload();
     await expect(page.getByRole('heading', { name: '1 observaciones del análisis' })).toBeVisible();
-    await page.goto(`/matches/${matchId}?tab=estadisticas`);
+    await page.goto(`/partidos/${matchId}/numeros`);
     await expect(page.getByRole('button', { name: /^Total .*: Pases intentados,/ }).locator('strong')).toHaveText('0');
   } catch (error) {
     console.error('Fallo previo a la limpieza de la fixture:', error);

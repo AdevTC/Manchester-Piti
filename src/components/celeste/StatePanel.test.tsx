@@ -84,7 +84,7 @@ describe("StateScreen", () => {
   });
 
   it("lights the section it belongs to", () => {
-    const { container } = render(<StateScreen kind="error" {...sectionOf("/matches/j1")} title="Algo se ha torcido" />);
+    const { container } = render(<StateScreen kind="error" {...sectionOf("/partidos/j1")} title="Algo se ha torcido" />);
     expect(container.querySelector('.vx-nav [aria-current="page"]')?.textContent).toBe("Partidos");
   });
 });
@@ -93,7 +93,14 @@ describe("sectionOf", () => {
   it("maps paths to their section", () => {
     expect(sectionOf("/")).toEqual({ active: "inicio", sub: "Manchester Piti" });
     expect(sectionOf("/jugadores/erik").active).toBe("plantilla");
-    expect(sectionOf("/stats").active).toBe("stats");
+    expect(sectionOf("/numeros").active).toBe("stats");
+    expect(sectionOf("/numeros/records/marcas").active).toBe("stats");
+    expect(sectionOf("/partidos/j1/siete").active).toBe("partidos");
+    expect(sectionOf("/plantilla/cara-a-cara").active).toBe("plantilla");
+    expect(sectionOf("/club/historia").active).toBe("club");
+    expect(sectionOf("/hoy/campo").active).toBe("inicio");
+    expect(sectionOf("/perfil/ajustes").active).toBe("vestuario");
+    expect(sectionOf("/stats").active).toBeUndefined();
     expect(sectionOf("/club").active).toBe("club");
     expect(sectionOf("/pizarra").active).toBe("vestuario");
     expect(sectionOf("/nada").active).toBeUndefined();

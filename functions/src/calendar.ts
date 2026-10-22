@@ -4,6 +4,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { db, siteUrl } from "./common.js";
 import { isVisibleMatch } from "./matchEngine.js";
 import { calendarSlot, type CalendarSlot } from "./calendarLogic.js";
+import { matchUrl } from "./noticeUrl.js";
 
 const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 const esc = (s: string) => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\r?\n/g, "\\n");
@@ -37,7 +38,7 @@ export const clubCalendar = onRequest(async (_req, res) => {
         data.venue ? fold(`LOCATION:${esc(String(data.venue))}`) : "",
         slot.note ? fold(`DESCRIPTION:${esc(slot.note)}`) : "",
         `STATUS:${slot.status}`,
-        fold(`URL:${site}/matches/${id}`),
+        fold(`URL:${site}${matchUrl(id)}`),
         "END:VEVENT",
       ]
         .filter(Boolean)

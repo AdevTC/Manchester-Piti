@@ -15,6 +15,7 @@
 // a member already given a job of the match (pinned, or an earlier job) is skipped for the later ones, if
 // anyone else is eligible. A played match the backend hasn't frozen yet counts as computed (pins kept).
 import { madridDate } from "./madrid.js";
+import { matchUrl } from "./noticeUrl.js";
 
 /** The icons a job can wear (the same list as firestore.rules). */
 export const ROTA_ICONS = ["shirt", "ball", "car", "bottle", "bag", "key"] as const;
@@ -418,7 +419,7 @@ export function rotaNotice(matchId: string, job: Pick<RotaJob, "id" | "name">, p
     title: `Te toca ${jobTask(job)} ${when}`,
     body: `${rival ? `Contra ${rival}. ` : ""}Si no puedes, marca «No puedo» y pasa al siguiente.`,
     tag: `rota-${matchId}-${job.id}`,
-    url: `/matches/${encodeURIComponent(matchId)}?tab=vestuario`,
+    url: matchUrl(matchId, "vestuario"),
     log: `rota-${matchId}-${job.id}-${playerId}`,
   };
 }

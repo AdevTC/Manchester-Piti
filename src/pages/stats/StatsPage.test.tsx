@@ -3,24 +3,34 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import { statsSearchSchema } from "../../router";
+import type { ExploreSectionId, StatsView } from "../../lib/interimScreens";
 
-// /stats: the «Posiciones» tab (after «Minutos», deep-linkable as ?view=positions) and the Resumen
-// constellation placed by exact position. Data, season and router are stubbed: no Firebase.
+// Números (today's /stats page on the /numeros screens): the «Posiciones» tab (after «Minutos», its own
+// address, /numeros/campo/puestos) and the Resumen constellation placed by exact position. Data, season and
+// router are stubbed: no Firebase. The stubbed address is the screen of the stubbed search's old view.
 
 const search = vi.hoisted(() => ({ value: {} as Record<string, unknown> }));
 const navigate = vi.hoisted(() => vi.fn());
 const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[] }));
 
-vi.mock("@tanstack/react-router", async (orig) => ({
-  ...(await orig<typeof import("@tanstack/react-router")>()),
-  Link: ({ children, className, "aria-label": label }: { children?: ReactNode; className?: string; "aria-label"?: string }) => (
-    <a className={className} aria-label={label} href="#">
-      {children}
-    </a>
-  ),
-  getRouteApi: () => ({ useSearch: () => search.value }),
-  useNavigate: () => navigate,
-}));
+vi.mock("@tanstack/react-router", async (orig) => {
+  const { statsViewPath } = await import("../../lib/interimScreens");
+  type Location = { pathname: string };
+  const location = (): Location => ({
+    pathname: statsViewPath((search.value.view ?? "summary") as StatsView, search.value.section as ExploreSectionId | undefined),
+  });
+  return {
+    ...(await orig<typeof import("@tanstack/react-router")>()),
+    Link: ({ children, className, "aria-label": label }: { children?: ReactNode; className?: string; "aria-label"?: string }) => (
+      <a className={className} aria-label={label} href="#">
+        {children}
+      </a>
+    ),
+    useSearch: () => search.value,
+    useLocation: (options?: { select?: (l: Location) => unknown }) => (options?.select ? options.select(location()) : location()),
+    useNavigate: () => navigate,
+  };
+});
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ ...data, loading: false, error: null }) }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }], selectedSeasonId: "all", loadingSeasons: false }) }));
 vi.mock("../vestuario/live", () => ({ useMvpResults: () => new Map() }));
@@ -74,12 +84,13 @@ describe("StatsPage · Posiciones", () => {
     expect(screen.getByRole("region", { name: "El récord de cada sistema" })).toHaveTextContent("2-3-1 · Clásico");
   });
 
-  it("clicking «Posiciones» navigates to view=positions", () => {
+  it("clicking «Posiciones» navigates to its screen, /numeros/campo/puestos", () => {
     search.value = { view: "summary" };
     render(<StatsPage />);
     fireEvent.click(within(screen.getByRole("navigation", { name: "Secciones de estadísticas" })).getByRole("button", { name: "Posiciones" }));
-    const call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.search({ season: "t1" })).toStrictEqual({ season: "t1", view: "positions" });
+    const call = navigate.mock.lastCall?.[0] as { to: string; search: (prev: Record<string, unknown>) => Record<string, unknown> };
+    expect(call.to).toBe("/numeros/campo/puestos");
+    expect(call.search({ season: "t1", view: "summary" })).toStrictEqual({ season: "t1" });
   });
 
   it("an old ?tab=compare link still opens Comparar (read as view=compare, never written back)", () => {
@@ -116,11 +127,13 @@ describe("StatsPage · Posiciones", () => {
     render(<StatsPage />);
     const nav = within(screen.getByRole("navigation", { name: "Secciones de estadísticas" }));
     fireEvent.click(nav.getByRole("button", { name: "Minutos" }));
-    let call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "minutes" });
+    let call = navigate.mock.lastCall?.[0] as { to: string; search: (prev: Record<string, unknown>) => Record<string, unknown> };
+    expect(call.to).toBe("/numeros/jugadores");
+    expect(call.search({ season: "t1", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", ranking: "minutos", ver: "todo" });
     fireEvent.click(nav.getByRole("button", { name: "Comparar" }));
-    call = navigate.mock.lastCall?.[0] as { search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "compare", a: "dc", b: "lat" });
+    call = navigate.mock.lastCall?.[0] as { to: string; search: (prev: Record<string, unknown>) => Record<string, unknown> };
+    expect(call.to).toBe("/plantilla/cara-a-cara");
+    expect(call.search({ season: "t1", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", a: "dc", b: "lat" });
   });
 
   it("the Resumen constellation places each star by the position he played", () => {

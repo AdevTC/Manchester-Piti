@@ -69,7 +69,7 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     await page.locator(".det .df").getByRole("button", { name: "Publicar acta", exact: true }).click();
     await expect(page.getByRole("region", { name: "Acta publicada", exact: true })).toBeVisible();
 
-    await page.goto(`/matches/${id}?tab=estadisticas`);
+    await page.goto(`/partidos/${id}/numeros`);
     // The canonical goal survives an observations-only import, while the new passes reach the graphs.
     await expect(page.getByRole("status", { name: "Resultado: 1 a 0" })).toBeVisible();
     const technical = page.getByRole("region", { name: "Estadísticas detalladas" });
@@ -86,9 +86,9 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     await expect(detail).not.toContainText(privateQuote);
 
     await page.getByRole("link", { name: "Abrir esta selección en Números ↗" }).click();
-    await expect(page).toHaveURL(/\/stats\?/);
+    await expect(page).toHaveURL(/\/numeros\/juego(\/catalogo)?\?/);
     await expect(page.getByRole("region", { name: "Pases intentados", exact: true }).locator(".an-detail__value")).toContainText("2 acciones");
-    expect(JSON.parse(new URL(page.url()).searchParams.get("matches") ?? "[]")).toEqual([id]);
+    expect(new URL(page.url()).searchParams.get("partidos")).toBe(id);
     await page.locator("summary[aria-label='Filtrar partidos']").click();
     await page.getByRole("checkbox", { name: new RegExp(otherRival) }).check();
     await expect(page.getByRole("region", { name: "Pases intentados", exact: true }).locator(".an-detail__value")).toContainText("3 acciones");

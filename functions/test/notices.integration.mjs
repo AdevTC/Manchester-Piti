@@ -23,7 +23,7 @@ const DAY = 24 * HOUR;
 const now = Date.now();
 const matchId = "avisos-match-" + suffix;
 const uid = "avisos-member-" + suffix;
-const url = `/matches/${matchId}`;
+const url = `/partidos/${matchId}`;
 
 await db.doc(`matches/${matchId}`).set({ version: 2, rival: "Rival Avisos", status: "scheduled", date: Timestamp.fromMillis(now + 3 * DAY), events: [] });
 

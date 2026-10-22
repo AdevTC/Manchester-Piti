@@ -47,13 +47,13 @@ it("the previa: the record, the last three meetings with links, our scorers and 
   expect(sec.querySelector(".fc-goalbar")).toHaveTextContent("7 a favor7:44 en contra");
   // newest first, each one a link to its page, its result in words for a screen reader
   const last = within(sec.querySelector(".fc-riv-last") as HTMLElement).getAllByRole("link");
-  expect(last.map((a) => a.getAttribute("href"))).toEqual(["/matches/h4", "/matches/h3", "/matches/h2"]);
+  expect(last.map((a) => a.getAttribute("href"))).toEqual(["/partidos/h4", "/partidos/h3", "/partidos/h2"]);
   expect(last[1]).toHaveAccessibleName(/^Derrota 0–2, /);
   // ana 4 · bea 3, each a link to his page
   const sc = sec.querySelector(".fc-riv-sc") as HTMLElement;
   expect(within(sc).getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")])).toEqual([["ANA", "/jugadores/ana?season=t1"], ["BEA", "/jugadores/bea?season=t1"]]);
   expect(sc).toHaveTextContent("ANA4 golesBEA3 goles");
-  expect(within(sec).getByRole("link", { name: /^La mayor victoria: 4–0/ })).toHaveAttribute("href", "/matches/h2");
+  expect(within(sec).getByRole("link", { name: /^La mayor victoria: 4–0/ })).toHaveAttribute("href", "/partidos/h2");
   expect(sec).toHaveTextContent(/Primer cara a cara: .* · empate 1–1/);
   // the old «Ya nos hemos visto» chips are gone: one section
   expect(container.querySelectorAll(".fc-h2h")).toHaveLength(0);

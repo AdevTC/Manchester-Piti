@@ -5,7 +5,9 @@ import { inScope, scopeSeasons, type AnalysisSearch, type StatsScopeSearch } fro
 // their content. The selected season and tied leaders stay visible in the shared introduction.
 // From the Design canvas "Estadísticas · elegida"; pure logic in lib/clubAnalytics.ts + lib/statsView.ts.
 import { useMemo } from "react";
-import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate, useSearch } from "@tanstack/react-router";
+import { interimStatsSearch, statsViewAt, statsViewPath } from "../../lib/interimScreens";
+import type { StatsSearch } from "../../router";
 import { ALL_SEASONS_LABEL } from "../../lib/useSetSeason";
 import { nextFixture, playerForSeason, nameFor, useClubData, formatDate } from "../../lib/clubData";
 import { mvpOfFrom, votesClosedAt } from "../../lib/derived/mvpOf";
@@ -43,7 +45,6 @@ import "../../styles/vidrio/reading.css";
 import "../../styles/vidrio-paginas.css";
 import "../../styles/stats-vidrio.css";
 
-const route = getRouteApi("/stats");
 const VIEWS = {
   summary: "Resumen",
   players: "Jugadores",
@@ -60,29 +61,36 @@ const nameOf = (p: PlayerAnalysis) => nameFor(p);
 export function StatsPage() {
   const { matches, players, loading, error } = useClubData();
   const { seasons, selectedSeasonId, loadingSeasons } = useSeason();
-  const search = route.useSearch();
+  // (each view is a /numeros screen now, and Comparar is /plantilla/cara-a-cara: lib/interimScreens says which)
+  const pathname = useLocation({ select: (l) => l.pathname });
+  const search = interimStatsSearch(useSearch({ strict: false }), pathname) as StatsSearch;
   const navigate = useNavigate();
   const now = useClock(15_000);
   const results = useMvpResults();
-  const view: View = search.view ?? "summary";
-  const section: ExploreSection = search.section ?? "individual";
+  const at = statsViewAt(pathname, search);
+  const view: View = at.view;
+  const section: ExploreSection = at.section ?? "individual";
   // (Comparar's pair goes with Comparar: any other view's URL is clean to share)
   const setView = (next: View) =>
     void navigate({
-      to: ".",
-      search: (prev) => {
+      to: statsViewPath(next),
+      search: (prev: Record<string, unknown>) => {
         const rest = { ...prev };
+        delete rest.view;
+        delete rest.section;
+        delete rest.ranking;
+        delete rest.ver;
         if (next !== "compare") {
           delete rest.a;
           delete rest.b;
         }
-        return { ...rest, view: next };
+        return next === "minutes" ? { ...rest, ranking: "minutos", ver: "todo" } : rest;
       },
       resetScroll: false,
     });
-  const setSection = (next: ExploreSection) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "explore", section: next }), resetScroll: false });
+  const setSection = (next: ExploreSection) => void navigate({ to: statsViewPath("explore", next), search: (prev: Record<string, unknown>) => prev, resetScroll: false });
   // Comparar's pair: replace, so trying player after player doesn't flood the history
-  const setPair = (a: string, b: string | undefined) => void navigate({ to: ".", search: (prev) => ({ ...prev, view: "compare", a, b }), replace: true, resetScroll: false });
+  const setPair = (a: string, b: string | undefined) => void navigate({ to: ".", search: (prev) => ({ ...prev, a, b }), replace: true, resetScroll: false });
   const updateScope = (patch: StatsScopeSearch) => void navigate({ to: ".", search: (prev) => ({ ...prev, ...patch, ...(patch.seasons !== undefined ? { season: "all", matches: undefined } : {}), ...(patch.players?.length ? { team: "us" as const } : {}) }), resetScroll: false });
   const updateAnalysis = (patch: Partial<AnalysisSearch>) => void navigate({ to: ".", search: (prev) => ({ ...prev, ...patch }), replace: !!patch.q, resetScroll: false });
   const clearScope = () => void navigate({ to: ".", search: (prev) => ({ ...prev, season: "all", seasons: undefined, matches: undefined, players: undefined, team: undefined, period: undefined }), resetScroll: false });

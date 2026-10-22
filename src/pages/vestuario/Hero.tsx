@@ -170,7 +170,7 @@ export function Hero({ me, seasonName, next, meetingNote, availability, now, the
                   <AddToCalendar className="vx-ghost" label="Al calendario" event={matchEvent(next, location.origin)} />
                   {/* (live, the island over every page already leads to it; no tab: the page opens on its previa) */}
                   {matchPhase(next, now) !== "playing" && (
-                    <Link className="vx-ghost" to="/matches/$matchId" params={{ matchId: next.id }}>
+                    <Link className="vx-ghost" to="/partidos/$matchId" params={{ matchId: next.id }}>
                       Ver la previa
                       <Icon name="arrow" size={17} stroke={2.2} />
                     </Link>
