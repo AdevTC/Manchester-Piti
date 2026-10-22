@@ -226,7 +226,8 @@
 /* previa */
 .vp-pre{display:grid;grid-template-columns:minmax(0,1fr);gap:26px}
 .vp-time{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-.vp-time__n{font-size:61px;color:var(--vd-g-ink)}
+/* (line-height 1: at the kit's .82 the big hour's glyph box reaches into the date under it when they wrap) */
+.vp-time .vp-time__n{font-size:61px;line-height:1;color:var(--vd-g-ink)}
 .vp-time__s{font-size:15px;color:var(--vd-g-ink2);font-weight:560}
 .vp-time__s b{color:var(--vd-g-ink);font-weight:680;display:block;font-size:17px}
 .vp .vp-sunr{margin-top:8px;margin-bottom:24px;height:66px;color:var(--vd-g-ink)}
@@ -366,8 +367,8 @@
 .vp-num .vd-small{margin-bottom:12px}
 .vp-numc{display:contents}
 .vp-totals{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:18px 26px;padding-bottom:18px;border-bottom:1px solid var(--vd-rule)}
-.vp-totals li{display:flex;flex-direction:column;gap:4px}
-.vp-totals b{font-weight:800;font-variation-settings:'wdth' 112;font-size:39px;letter-spacing:-.04em;line-height:.9;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+.vp-totals li{display:flex;flex-direction:column;gap:0}
+.vp-totals b{font-weight:800;font-variation-settings:'wdth' 112;font-size:39px;letter-spacing:-.04em;line-height:1.25;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
 .vp-totals li.prov b{color:var(--vd-celeste)}
 :root[data-theme="light"] .vp-totals li.prov b{color:#2C6A9E}
 .vp-totals li>span{font-size:13.5px;color:var(--vd-ink2)}
@@ -557,7 +558,7 @@
   .vp-pre{grid-template-columns:min(350px,25vw) 1px minmax(0,min(400px,28vw)) 1px minmax(0,1fr);gap:30px}
   .vp-pre .vp-c3{grid-column:auto;display:flex}
   .vp-pre .vp-kitrow{margin-top:14px;padding-top:12px;border-top:1px solid var(--vd-rule)}
-  .vp-time__n{font-size:76px}
+  .vp-time .vp-time__n{font-size:76px}
   .vp-pitch{height:176px}
   .vp-pitch .vd-player{width:96px}
   .vp-dir{grid-template-columns:minmax(0,600px) 1px minmax(0,1fr) 270px;gap:30px}
