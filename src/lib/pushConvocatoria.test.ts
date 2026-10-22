@@ -11,7 +11,7 @@ describe("«Ya está la convocatoria»", () => {
       title: "Ya está la convocatoria de la J8",
       body: "MAD SKY · Domingo, 8 nov, 12:00. Mira si te toca en la web.",
       tag: "conv-m8",
-      url: "/matches/m8",
+      url: "/partidos/m8",
     });
     // a brand-new match published already with its convocatoria
     expect(convocatoriaNotice("m8", undefined, { ...base, starters: ["a"] }, null, NOW)?.title).toBe("Ya está la convocatoria");
@@ -31,7 +31,7 @@ describe("the convocatoria managed by setConvocatoria", () => {
     expect(convocatoriaNotice("m8", { ...base, starters: [] }, { ...base, starters: ["a"], convocatoriaAt: NOW }, 8, NOW)).toBeNull();
   });
   it("«Ya está la convocatoria» and «Cambios en la convocatoria» share the tag", () => {
-    expect(convocatoriaMessage("m8", "first", base, 8)).toMatchObject({ title: "Ya está la convocatoria de la J8", tag: "conv-m8", url: "/matches/m8" });
+    expect(convocatoriaMessage("m8", "first", base, 8)).toMatchObject({ title: "Ya está la convocatoria de la J8", tag: "conv-m8", url: "/partidos/m8" });
     const changes = convocatoriaMessage("m8", "changes", base, null);
     expect(changes).toMatchObject({ topic: "lineup", title: "Cambios en la convocatoria", tag: "conv-m8" });
     expect(changes.body).toBe("MAD SKY · Domingo, 8 nov, 12:00. Mira cómo queda en la web.");
