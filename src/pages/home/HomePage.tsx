@@ -254,10 +254,12 @@ export function HomePage() {
       : hoyCopy({ day, view, now, member, role, nameOf: niceOf, sevenPublished: seven.length > 0, weather, seasonName, squadSize: squad.length, mvp: null, estreno, winner });
   const orns = ornamentsOf(phase, kind, seven.length > 0, voteOpen, winner !== null);
   // the changes by player (F7 rolls them: a player goes in and out several times): his minutes on the pitch and
-  // «21 cambios», growing into the list; live, up to the minute being played
+  // «23 cambios», growing into the list; live, up to the minute being played. (The 1920 cockpit's card is too small
+  // for a minutes chip beside every shirt: there the pitch keeps its goal and card marks only, and the minutes live
+  // in «Ver los cambios».)
   const rot = m && hasScore(phase) ? rotationOf(m, view.events, niceOf, live ? Math.floor((view.seconds ?? 0) / 60) : undefined) : null;
   const rotation = rot && rot.changes > 0 ? rot : null;
-  const spots = m && orns.left === "siete" ? sieteOf({ match: m, phase, events: view.events, seven, nameOf, numOf, captainId: (m as ClubMatch & { captainId?: string }).captainId ?? season?.captainPlayerId ?? null, me: member ? viewer.playerId : null, minutes: rotation?.minutes ?? null }) : [];
+  const spots = m && orns.left === "siete" ? sieteOf({ match: m, phase, events: view.events, seven, nameOf, numOf, captainId: (m as ClubMatch & { captainId?: string }).captainId ?? season?.captainPlayerId ?? null, me: member ? viewer.playerId : null, minutes: cockpit ? null : (rotation?.minutes ?? null), rolling: !!rotation }) : [];
   const sieteTitle = isOver(phase) ? "Acabaron en el campo" : live ? "En el campo" : phase === "antes" || phase === "pitido" ? (m && Number.isFinite(kickoff) && new Date(kickoff).getUTCHours() >= 16 ? "El siete de esta noche" : "El siete de hoy") : "El siete";
   const log = m ? playsLog(m, niceOf) : EMPTY_LOG;
   // (while live: how long ago the last play was, on the match's own clock; «Minuto N» when the clock can't say)

@@ -711,6 +711,9 @@ export interface SieteCtx {
    *  first instead of one per change (F7's rolling changes would fill the pitch with arrows), then his two
    *  latest marks. */
   minutes?: ReadonlyMap<string, number> | null;
+  /** The match had changes but the pitch is too small for the minutes (the 1920 cockpit's card): no chip per
+   *  change and no minutes, only the goal and card marks; the minutes live in the grown list. */
+  rolling?: boolean;
 }
 
 /** El siete as it stands at this point of the day (the subs walked in while live and after), with marks. */
@@ -728,12 +731,13 @@ export function sieteOf(c: SieteCtx): SieteSpot[] {
   const lastGoal = isLive(c.phase) ? goals.at(-1)?.id : undefined;
   const min = (e: MatchEvent) => Math.max(1, Math.ceil(eventSeconds(e) / 60));
   const mins = played && c.minutes?.size ? c.minutes : null;
+  const rolling = !!mins || !!c.rolling;
   const tagsOf = (id: string): SieteTag[] => {
     const out: SieteTag[] = [];
     for (const e of events) {
       const meta = eventMetaOf(e);
       const m = min(e);
-      if (!mins && e.type === "substitution" && e.inPlayerId === id) out.push({ kind: "cambio", text: `${m}′`, gold: false, label: `Entró en el ${m}` });
+      if (!rolling && e.type === "substitution" && e.inPlayerId === id) out.push({ kind: "cambio", text: `${m}′`, gold: false, label: `Entró en el ${m}` });
       if (e.playerId !== id && e.assistPlayerId !== id) continue;
       if (meta.goal === "for" && e.type !== "opponent_own_goal" && e.playerId === id) out.push({ kind: "gol", text: `${m}′`, gold: e.id === lastGoal, label: `Gol en el ${m}` });
       if (meta.goal === "for" && e.assistPlayerId === id) out.push({ kind: "asis", text: `${m}′`, gold: false, label: `Asistencia en el ${m}` });

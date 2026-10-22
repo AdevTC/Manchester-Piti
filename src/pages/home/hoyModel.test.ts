@@ -233,6 +233,14 @@ describe("ornaments and el siete", () => {
     expect(spots.find((s) => s.id === "jordi")!.tags[0].label).toBe("1 minuto jugado hasta ahora");
     expect(spots.some((s) => s.tags.some((t) => t.kind === "cambio"))).toBe(false);
   });
+  it("a pitch too small for the minutes (the 1920 cockpit): no chip per change and no minutes, the goal marks stay", () => {
+    const { day } = scene("directo1");
+    const m = day.match!;
+    const events = [...(m.events ?? []), { id: "s9", type: "substitution" as const, minute: 4, playerId: "fer", inPlayerId: "erik" }, { id: "s10", type: "substitution" as const, minute: 8, playerId: "erik", inPlayerId: "fer" }];
+    const spots = sieteOf({ match: m, phase: day.phase, events, seven: SEVEN, nameOf, numOf: () => "10", captainId: null, me: null, minutes: null, rolling: true });
+    expect(spots.some((s) => s.tags.some((t) => t.kind === "cambio" || t.kind === "minutos"))).toBe(false);
+    expect(spots.find((s) => s.id === "adrian")!.tags.map((t) => t.kind)).toEqual(["gol", "asis"]);
+  });
   it("the changes after the match, in the order they happened (an acta may store them in any order)", () => {
     const { day } = scene("directo1");
     const m = day.match!;
