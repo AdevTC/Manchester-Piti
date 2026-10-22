@@ -107,6 +107,8 @@
 .vi .vi-bench{font-size:13px;color:var(--vd-g-ink2);margin:10px 0 0;line-height:1.4}
 /* «21 cambios · Ver los cambios» under the pitch (it grows into the list by player) */
 .vi-siete .vi-cambios .vd-more{margin-top:10px}
+/* (in the cockpit's 250–300 px card every pixel goes to the pitch) */
+.vi-centre .vi-siete .vi-cambios .vd-more{margin-top:6px;padding-top:4px}
 /* el siete */
 .vi-pitch{position:relative;border-radius:18px;overflow:hidden;height:232px;
   background:repeating-linear-gradient(90deg,rgba(120,200,170,.07) 0 12.5%,rgba(120,200,170,0) 12.5% 25%),linear-gradient(180deg,rgba(40,120,100,.22),rgba(30,90,90,.16));
@@ -400,9 +402,11 @@
 }
 
 /* ───────────────────────── desktop (1100+): one stage per place, inside the viewport */
+/* (the triptych needs 1320 px at the boards' sizes: from 1100 to there its three tracks give way together — at 1280
+   the plays card ran past the window — and the lens's score shrinks with its track) */
 @container (min-width:1100px){
   .vi-stage{display:grid;height:max(780px,100svh);padding:100px 0 0;
-    grid-template-columns:minmax(24px,1fr) 316px 640px 316px minmax(24px,1fr);grid-template-rows:378px auto minmax(0,1fr) auto}
+    grid-template-columns:minmax(24px,1fr) minmax(240px,316px) minmax(520px,640px) minmax(240px,316px) minmax(24px,1fr);grid-template-rows:378px auto minmax(0,1fr) auto}
   /* (the boards' triptych starts 16 px under the bar's 100: lens and ornaments centre on its 362 px row) */
   .vi-stage__lens{grid-row:1;grid-column:3;align-self:center;z-index:3;margin-top:16px}
   .vi-stage__shelf{grid-row:4;grid-column:1/-1;justify-self:center;width:700px;margin:0 0 30px;z-index:4}
@@ -760,4 +764,8 @@
 @container (min-width:700px) and (max-width:1099px){
   /* (the tablet board's lede runs to ~41em before it wraps; 62ch of this face is narrower) */
   .vi-slot--head .vi-lede{max-width:41em}
+}
+@container (min-width:1100px) and (max-width:1319px){
+  /* (the narrower lens track: the score keeps clear of both crests) */
+  .vi-lens .vi-score{font-size:128px}
 }
