@@ -17,7 +17,7 @@ export const matchSearchSchema = z.object({
   ...analysisSearchFields,
   tab: z.enum(MATCH_TABS).optional().catch(undefined),
   min: z.coerce.number().int().min(0).max(200).optional().catch(undefined),
-  hoja: z.string().regex(/^[a-z-]{1,32}$/).optional().catch(undefined),
+  hoja: z.enum(["cartel", "momento", "avisos"]).optional().catch(undefined),
 });
 
 /** The tab's position (0 = crónica for anything absent). */

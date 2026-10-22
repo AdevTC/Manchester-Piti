@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { describe, expect, it, vi } from "vitest";
 
@@ -13,9 +13,20 @@ vi.mock("./components/InterimLanding", () => ({ InterimLanding: () => null }));
 vi.mock("./components/vidrio/live/LiveScore", () => ({ LiveScore: () => null }));
 vi.mock("./lib/doorWelcome", () => ({ useWelcome: () => null }));
 vi.mock("./pages/acceso/AccessGate", () => ({ AccessGate: () => <h1>la puerta</h1> }));
-vi.mock("./pages/Home", () => ({ HomePage: () => <h1>inicio</h1> }));
-vi.mock("./pages/partidos/PartidosPage", () => ({ PartidosPage: () => <h1>partidos</h1> }));
-vi.mock("./pages/match/MatchPage", () => ({ MatchPage: () => <h1>el partido</h1> }));
+// (the stubs of the pages with several screens count their mounts: one page stays up across its screens)
+const mounts = vi.hoisted(() => ({}) as Record<string, number>);
+vi.mock("./pages/Home", async () => {
+  const { useEffect } = await import("react");
+  return { HomePage: () => (useEffect(() => void (mounts.inicio = (mounts.inicio ?? 0) + 1), []), <h1>inicio</h1>) };
+});
+vi.mock("./pages/partidos/PartidosPage", async () => {
+  const { useEffect } = await import("react");
+  return { PartidosPage: () => (useEffect(() => void (mounts.partidos = (mounts.partidos ?? 0) + 1), []), <h1>partidos</h1>) };
+});
+vi.mock("./pages/match/MatchPage", async () => {
+  const { useEffect } = await import("react");
+  return { MatchPage: () => (useEffect(() => void (mounts.partido = (mounts.partido ?? 0) + 1), []), <h1>el partido</h1>) };
+});
 vi.mock("./pages/mesa/Mesa", () => ({ Mesa: () => <h1>la mesa</h1> }));
 vi.mock("./pages/stats/StatsPage", () => ({ StatsPage: () => <h1>números</h1> }));
 vi.mock("./pages/squad/SquadPage", () => ({ SquadPage: () => <h1>la percha</h1> }));
@@ -53,6 +64,32 @@ describe("every new address resolves", () => {
     render(<RouterProvider router={router} />);
     expect(await screen.findByRole("heading", { level: 1, name: page })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe(path);
+  });
+});
+
+describe("a page with several screens stays mounted across them", () => {
+  it.each([
+    ["inicio", "inicio", ["/", "/hoy/campo", "/hoy/jugadas", "/camiseta", "/"]],
+    ["partidos", "partidos", ["/partidos", "/partidos/tabla", "/partidos/balance", "/partidos"]],
+    ["partido", "el partido", ["/partidos/j1", "/partidos/j1/siete", "/partidos/j1/numeros", "/partidos/j1/vestuario"]],
+  ] as const)("%s", async (key, page, paths) => {
+    mounts[key] = 0;
+    const router = createAppRouter(createMemoryHistory({ initialEntries: [paths[0]] }));
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole("heading", { level: 1, name: page })).toBeInTheDocument();
+    for (const href of paths.slice(1)) {
+      await act(() => router.navigate({ href }));
+      expect(router.state.location.pathname).toBe(href);
+      expect(screen.getByRole("heading", { level: 1, name: page })).toBeInTheDocument();
+    }
+    expect(mounts[key]).toBe(1);
+  });
+  it("la mesa is its own page, never the match page's", async () => {
+    mounts.partido = 0;
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/partidos/j1/mesa"] }));
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "la mesa" })).toBeInTheDocument();
+    expect(mounts.partido).toBe(0);
   });
 });
 

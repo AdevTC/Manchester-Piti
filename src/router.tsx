@@ -4,6 +4,7 @@ import {
   createRouter,
   lazyRouteComponent,
   Navigate,
+  useLocation,
   redirect,
   type RouterHistory,
 } from "@tanstack/react-router";
@@ -114,7 +115,7 @@ export const partidosTablaSearchSchema = z.object({
 });
 export const partidosBalanceSearchSchema = z.object({
   jornada,
-  faceta: slug,
+  faceta: z.enum(["goles", "minutos", "rachas", "porteria", "tarjetas", "cuando", "rivales"]).optional().catch(undefined),
   ver: z.enum(["todo"]).optional().catch(undefined),
 });
 
@@ -189,19 +190,19 @@ const rootRoute = createRootRoute({
 // its own component, the layout renders today's page for all of them (it reads which screen from the
 // address: lib/interimScreens) and the screens render nothing of their own.
 
-// ── Inicio: la portada and its screens (today's home on each until Inicio lands)
-const homePage = lazyRouteComponent(() => import("./pages/Home"), "HomePage");
-const matchesRoute = createRoute({
+// ── Inicio: la portada and its screens, one HomePage mounted across them (a pathless layout)
+const inicioRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/",
+  id: "inicio",
   validateSearch: homeSearchSchema,
-  component: homePage,
+  component: lazyRouteComponent(() => import("./pages/Home"), "HomePage"),
 });
-const hoyCampoRoute = createRoute({ getParentRoute: () => rootRoute, path: "/hoy/campo", validateSearch: hoyCampoSearchSchema, component: homePage });
-const hoyJugadasRoute = createRoute({ getParentRoute: () => rootRoute, path: "/hoy/jugadas", validateSearch: homeSearchSchema, component: homePage });
+const matchesRoute = createRoute({ getParentRoute: () => inicioRoute, path: "/" });
+const hoyCampoRoute = createRoute({ getParentRoute: () => inicioRoute, path: "hoy/campo", validateSearch: hoyCampoSearchSchema });
+const hoyJugadasRoute = createRoute({ getParentRoute: () => inicioRoute, path: "hoy/jugadas" });
 // (players only: Inicio sends anyone else to /)
-const hoyLoTuyoRoute = createRoute({ getParentRoute: () => rootRoute, path: "/hoy/lo-tuyo", validateSearch: homeSearchSchema, component: homePage });
-const camisetaRoute = createRoute({ getParentRoute: () => rootRoute, path: "/camiseta", validateSearch: homeSearchSchema, component: homePage });
+const hoyLoTuyoRoute = createRoute({ getParentRoute: () => inicioRoute, path: "hoy/lo-tuyo" });
+const camisetaRoute = createRoute({ getParentRoute: () => inicioRoute, path: "camiseta" });
 
 // ── Partidos: Jornadas, Tabla, Balance («tabla» and «balance» are reserved: no match is called that)
 const fixturesRoute = createRoute({
@@ -268,11 +269,18 @@ export const plantillaSearchSchema = z.object({
   orden: z.enum(["posicion"]).optional().catch(undefined),
   q: z.string().max(80).optional().catch(undefined),
 });
+const squadPage = lazyRouteComponent(() => import("./pages/squad/SquadPage"), "SquadPage");
+// (until Plantilla lands, the duel is today's Números «Comparar»)
+function PlantillaToday() {
+  const duel = useLocation({ select: (l) => l.pathname.replace(/\/+$/, "") === "/plantilla/cara-a-cara" });
+  const Page = duel ? statsPage : squadPage;
+  return <Page />;
+}
 const plantillaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/plantilla",
   validateSearch: plantillaSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/squad/SquadPage"), "SquadPage"),
+  component: PlantillaToday,
 });
 const plantillaIndexRoute = createRoute({ getParentRoute: () => plantillaRoute, path: "/" });
 const plantillaAlbumRoute = createRoute({
@@ -280,8 +288,7 @@ const plantillaAlbumRoute = createRoute({
   path: "album",
   validateSearch: z.object({ ver: z.enum(["tengo", "faltan"]).optional().catch(undefined) }),
 });
-// (the duel is today's Números «Comparar» until Plantilla lands)
-const caraACaraRoute = createRoute({ getParentRoute: () => rootRoute, path: "/plantilla/cara-a-cara", validateSearch: statsSearchSchema, component: statsPage });
+const caraACaraRoute = createRoute({ getParentRoute: () => plantillaRoute, path: "cara-a-cara", validateSearch: statsSearchSchema });
 
 const playerProfileRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -472,11 +479,7 @@ const notFoundRoute = createRoute({
 });
 const routeTree = rootRoute.addChildren([
   invitationRoute,
-  matchesRoute,
-  hoyCampoRoute,
-  hoyJugadasRoute,
-  hoyLoTuyoRoute,
-  camisetaRoute,
+  inicioRoute.addChildren([matchesRoute, hoyCampoRoute, hoyJugadasRoute, hoyLoTuyoRoute, camisetaRoute]),
   fixturesRoute.addChildren([jornadasRoute, partidosTablaRoute, partidosBalanceRoute]),
   matchDetailRoute.addChildren([matchIndexRoute, matchSieteRoute, matchNumerosRoute, matchVestuarioRoute]),
   mesaRoute,
@@ -496,8 +499,7 @@ const routeTree = rootRoute.addChildren([
     numerosCromosRoute,
     numerosEvolucionRoute,
   ]),
-  plantillaRoute.addChildren([plantillaIndexRoute, plantillaAlbumRoute]),
-  caraACaraRoute,
+  plantillaRoute.addChildren([plantillaIndexRoute, plantillaAlbumRoute, caraACaraRoute]),
   playerProfileRoute.addChildren([playerIndexRoute, playerTemporadaRoute, playerJornadasRoute, playerJuegoRoute, playerAnalisisRoute, playerCromoRoute]),
   clubRoute.addChildren([clubIndexRoute, clubVitrinaRoute, clubPiezaRoute, clubHistoriaRoute, clubEquipoRoute, clubCamisetaRoute, clubGenteRoute]),
   vestuarioRoute.addChildren([
